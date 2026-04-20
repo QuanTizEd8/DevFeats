@@ -4,6 +4,126 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys as _sys
+from typing import TYPE_CHECKING
+
+import yaml as _yaml  # noqa: E402 (pyyaml; available in sysset-website env via myst-parser)
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
+
+
+_REPO = Path(__file__).resolve().parent.parent
+_sys.path.insert(0, str(_REPO / "scripts"))
+
+from parse_feature_json import render_options_table as _render_options_table  # noqa: E402
+
+
+def setup(app):
+    """Register lexer aliases and connect build-time feature preamble injection."""
+    from pygments.lexers.data import JsonLexer
+    from pygments.lexers.configs import IniLexer
+
+    app.add_lexer("jsonc", JsonLexer)
+    app.add_lexer("gitconfig", IniLexer)
+    app.connect("source-read", _inject_feature_preamble)
+    app.connect("source-read", _source_jinja_template)
+    return
+
+
+def _load_feature_metadata() -> dict[str, dict]:
+    """Load feature metadata from all features' metadata.yaml files into a dict."""
+    metadata = {}
+    for meta_path in (_REPO / "features").glob("*/metadata.yaml"):
+        with meta_path.open(encoding="utf-8") as fh:
+            data = _yaml.safe_load(fh)
+        feat_id = data["id"]
+        metadata[feat_id] = data
+    return metadata
+
+
+def _inject_feature_preamble(app, docname: str, source):  # noqa: ANN001
+    """Prepend H1 + description + options table to feature reference pages."""
+    # ── Feature reference preamble injection ───────────────────────────────────────
+    # At build time, prepend each feature's H1 title, description, and ## Options
+    # table to the stripped reference pages.
+    #
+    # metadata.yaml is the single source of truth.  The raw markdown description
+    # (including links) is used verbatim so MyST renders it correctly.  The
+    # ## Options table is generated from the options dict in metadata.yaml.
+    # devcontainer-feature.json is a generated artifact and not read here.
+
+    if not docname.startswith("features/"):
+        return
+    if docname.endswith("/index"):
+        return
+
+    feature_id = docname.split("/")[-1]
+    feature = _feature_metadata.get(feature_id)
+    if not feature:
+        raise ValueError(f"Feature metadata not found for feature ID '{feature_id}'")
+
+    feature_name = feature["name"]
+    # Use the raw description from YAML verbatim so markdown links render.
+    desc_raw = (feature["description"]).strip()
+    options_block = _render_options_table(feature)
+
+    parts = [f"# {feature_name}"]
+    if desc_raw:
+        parts.append(desc_raw)
+    if options_block:
+        parts.append(options_block)
+    parts.append("---\n")
+    preamble = "\n\n".join(parts) + "\n"
+    source[0] = preamble + source[0]
+
+
+def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> None:
+    """Render pages as jinja template for templating inside source files.
+
+    References
+    ----------
+    - https://www.ericholscher.com/blog/2016/jul/25/integrating-jinja-rst-sphinx/
+    - https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html#event-source-read
+    """
+    error_msg = (
+        f"Could not render page '{docname}' as Jinja template. "
+        "Please ensure that the page content is valid."
+    )
+    # Change Jinja environment markers to avoid clashes with the MyST Attributes extension
+    # as well as templating syntax in control center configurations.
+    # Refs:
+    # - Jinja: https://jinja.palletsprojects.com/en/stable/api/#jinja2.Environment
+    # - MyST: https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#attributes
+    attrs_default = {}
+    for attr, attr_new_val in (
+        ("block_start_string", "|{%"),
+        ("block_end_string", "%}|"),
+        ("variable_start_string", "|{{"),
+        ("variable_end_string", "}}|"),
+        ("comment_start_string", "|{#"),
+        ("comment_end_string", "#}|"),
+    ):
+        attr_val = getattr(app.builder.templates.environment, attr)
+        attrs_default[attr] = attr_val
+        setattr(app.builder.templates.environment, attr, attr_new_val)
+    # Run page through Jinja
+    try:
+        content[0] = app.builder.templates.render_string(
+            content[0],
+            app.config.html_context | {"docname": app.env.docname},
+        )
+    except Exception as e:
+        raise RuntimeError(error_msg) from e
+    # Revert Jinja environment markers to their defaults
+    # so that other templates and tools have the default markers.
+    for attr, attr_val in attrs_default.items():
+        setattr(app.builder.templates.environment, attr, attr_val)
+    return
+
+
+_feature_metadata = _load_feature_metadata()
+
 
 # ── Project information ────────────────────────────────────────────────────────
 
@@ -91,6 +211,7 @@ html_context = {
     "github_repo": "sysset",
     "github_version": "main",
     "doc_path": "docs",
+    "feats": _feature_metadata,  # for Jinja templating in source files
 }
 
 html_static_path = ["_static"]
@@ -103,82 +224,6 @@ copybutton_prompt_is_regexp = True
 # sphinxcontrib-bibtex
 bibtex_bibfiles = []
 
-
-# ── Feature reference preamble injection ───────────────────────────────────────
-# At build time, prepend each feature's H1 title, description, and ## Options
-# table to the stripped reference pages.
-#
-# metadata.yaml is the single source of truth.  The raw markdown description
-# (including links) is used verbatim so MyST renders it correctly.  The
-# ## Options table is generated from the options dict in metadata.yaml.
-# devcontainer-feature.json is a generated artifact and not read here.
-
-import sys as _sys
-
-import yaml as _yaml  # noqa: E402 (pyyaml; available in sysset-website env via myst-parser)
-
-_REPO = Path(__file__).resolve().parent.parent
-_sys.path.insert(0, str(_REPO / "scripts"))
-
-from parse_feature_json import render_options_table as _render_options_table  # noqa: E402
-
-# Map Sphinx docname → feature directory name (under src/)
-_FEATURE_DOC_MAP = {
-    # Flat single-file references
-    "ref/install-shell": "install-shell",
-    "ref/install-fonts": "install-fonts",
-    "ref/install-os-pkg": "install-os-pkg",
-    "ref/install-podman": "install-podman",
-    "ref/install-homebrew": "install-homebrew",
-    "ref/setup-user": "setup-user",
-    "ref/setup-shim": "setup-shim",
-    # Subdirectory api.md references
-    "ref/install-node/api": "install-node",
-    "ref/install-gh/api": "install-gh",
-    "ref/install-git/api": "install-git",
-    "ref/install-pixi/api": "install-pixi",
-}
-
-
-def _inject_feature_preamble(app, docname, source):  # noqa: ANN001
-    """Prepend H1 + description + options table to feature reference pages."""
-    feature_id = _FEATURE_DOC_MAP.get(docname)
-    if feature_id is None:
-        return
-
-    meta_path = _REPO / "src" / feature_id / "metadata.yaml"
-    if not meta_path.exists():
-        return
-
-    with meta_path.open(encoding="utf-8") as fh:
-        data = _yaml.safe_load(fh)
-
-    feature_name = data.get("name", feature_id)
-    # Use the raw description from YAML verbatim so markdown links render.
-    desc_raw = (data.get("description") or "").strip()
-    options_block = _render_options_table(data)
-
-    parts = [f"# {feature_name}"]
-    if desc_raw:
-        parts.append(desc_raw)
-    if options_block:
-        parts.append(options_block)
-    parts.append("---\n")
-    preamble = "\n\n".join(parts) + "\n"
-    source[0] = preamble + source[0]
-
-
-# ── Pygments lexer aliases ─────────────────────────────────────────────────────
-
-
-def setup(app):
-    """Register lexer aliases and connect build-time feature preamble injection."""
-    from pygments.lexers.data import JsonLexer
-    from pygments.lexers.configs import IniLexer
-
-    app.add_lexer("jsonc", JsonLexer)
-    app.add_lexer("gitconfig", IniLexer)
-    app.connect("source-read", _inject_feature_preamble)
 
 # ── OpenGraph ──────────────────────────────────────────────────────────────────
 
