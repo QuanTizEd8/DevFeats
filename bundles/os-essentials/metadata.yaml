@@ -1,0 +1,88 @@
+ca-certificates:
+  summary: Common CA certificates for HTTPS and TLS validation.
+  description: |
+    Installs a set of trusted Certificate Authority (CA) certificates used by
+    SSL/TLS applications to verify the authenticity of remote servers. Essential
+    for secure HTTPS communication with tools like curl and wget. Linux-only —
+    macOS uses its own Keychain-backed certificate store.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/man8/update-ca-certificates.8.html
+
+sudo:
+  summary: Execute commands with elevated privileges.
+  description: |
+    Provides the `sudo` command, allowing authorized users to execute commands
+    with superuser privileges. Essential for performing administrative tasks
+    without logging in as root. Linux-only — macOS ships its own sudo.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/sudo.8.html
+    source: https://launchpad.net/ubuntu/+source/sudo
+
+tar:
+  summary: GNU tar — archiving utility for combining multiple files into a single archive.
+  description: |
+    GNU tar creates, maintains, modifies, and extracts files from archives.
+    Supports various compression methods including gzip, bzip2, and xz.
+    Widely used for backups and software packaging. Linux-only — macOS ships
+    BSD tar as part of the OS.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/tar.1.html
+    source: https://launchpad.net/ubuntu/+source/tar
+
+tzdata:
+  summary: Time zone and daylight-saving time data.
+  description: |
+    Provides the time zone and daylight-saving time data used by the system
+    to correctly handle time conversions across regions. Essential for
+    applications that rely on accurate timekeeping. Linux-only — macOS ships
+    its own tz database.
+
+locales:
+  summary: GNU C Library locale data and generation tools.
+  description: |
+    Provides the infrastructure for managing language and regional settings.
+    Includes `locale` and `locale-gen` utilities. Essential for configuring
+    character encoding and locale-sensitive formatting. The post-install step
+    ensures `en_US.UTF-8` is generated (required by many tools). Apt-only.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man7/locale.7.html
+    source: https://salsa.debian.org/glibc-team/glibc
+
+netbase:
+  summary: Basic TCP/IP networking configuration files.
+  description: |
+    Provides essential networking configuration files including /etc/services,
+    /etc/protocols, and /etc/rpc. Required by various networking tools and
+    daemons to correctly identify protocols and services by name. Apt-only.
+
+init-system-helpers:
+  summary: Tools for managing compatibility across init systems.
+  description: |
+    Provides key scripts (`service`, `invoke-rc.d`, etc.) used by Debian-based
+    systems to manage services and maintain compatibility across different init
+    systems (systemd, SysV, etc.). Essential for correct package installation
+    and service handling. Apt-only.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man8/service.8.html
+    source: https://salsa.debian.org/debian/init-system-helpers
+
+lsb-release:
+  summary: Linux Standard Base version reporting utility.
+  description: |
+    Provides the `lsb_release` command, which outputs distribution-specific
+    information. Useful for scripts and tools that need to identify the
+    distribution. Apt/zypper only — most other distros ship it as part of
+    the base system or don't require it.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/lsb_release.1.html
+    source: https://launchpad.net/ubuntu/+source/lsb-release-minimal
+
+apt-utils:
+  summary: APT utilities for package management.
+  description: |
+    Provides internal APT tools used by frontends like apt-get and aptitude.
+    Enables progress reporting and other features. Recommended for interactive
+    or scripted environments that use apt. Apt-only.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man8/apt-get.8.html
+    source: https://salsa.debian.org/apt-team/apt

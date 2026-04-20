@@ -31,20 +31,27 @@ packages:
   - libtool
   - gettext
 
+  - meson
+  - ccache
+
+  # Static analysis
+  - cppcheck
+
+  # Wrapper/binding generators
+  - swig
+
   # Debuggers
   - gdb
   - name: lldb
     brew: llvm
 
-  # Static analysis
-  - cppcheck
-
-  # Compiler (LLVM/Clang)
+  # Compiler + LLVM toolchain (llc, opt, llvm-config, etc.)
+  # On brew, 'llvm' installs everything (clang, lldb, IR tools) in one formula.
+  # On Linux, 'clang' is the frontend and 'llvm' is a separate package for the IR tools.
   - name: clang
     brew: llvm
-
-  # Wrapper/binding generators
-  - swig
+  - name: llvm
+    when: {kernel: linux}
 
   # Patching
   - name: patch
@@ -62,12 +69,16 @@ packages:
     zypper: ninja
     pacman: ninja
 
-  - meson
-
-  - ccache
-
   - name: pkg-config
     apk: pkgconf
     dnf: pkgconf-pkg-config
     zypper: pkgconf
     pacman: pkgconf
+
+  # manpages-dev: developer man pages for C library functions and system calls
+  - name: manpages-dev
+    when: {kernel: linux}
+    apt: manpages-dev
+    dnf: man-pages
+    zypper: man-pages
+    pacman: man-pages

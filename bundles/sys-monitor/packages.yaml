@@ -21,3 +21,15 @@ packages:
   # inotify-tools: inotifywait / inotifywatch (filesystem events)
   - name: inotify-tools
     when: {kernel: linux}
+
+  # xtail: tail multiple files simultaneously, survives log rotation
+  - name: xtail
+    when: {kernel: linux}
+
+  # iproute2: ip, tc — network interface and routing tools
+  - name: iproute2
+    when: {kernel: linux}
+    apk: iproute2
+    dnf: iproute
+    zypper: iproute2
+    pacman: iproute2

@@ -1,0 +1,76 @@
+packages:
+  # ── Runtime interpreters ───────────────────────────────────────────────────
+  # TeX Live's own scripts (fmtutil, texmf-install, etc.) and many contrib
+  # packages require Perl. Pre-installed on most distros but absent from
+  # slim container images.
+  - perl
+
+  # python-is-python3 is Debian/Ubuntu-specific (creates /usr/bin/python →
+  # python3). Other distros already provide 'python' pointing to Python 3.
+  - name: python-is-python3
+    apt: python-is-python3
+
+  # Python 3 interpreter — required by a number of TeX Live tools.
+  - name: python3
+    brew: python3
+    apk: python3
+    dnf: python3
+    zypper: python3
+    pacman: python
+
+  # Java runtime — required by the arara build tool and luafindfont.
+  - name: default-jre
+    brew: openjdk
+    apk: openjdk21-jre
+    dnf: java-21-openjdk-headless
+    zypper: java-21-openjdk-headless
+    pacman: jre-openjdk-headless
+
+  # ── latexindent Perl dependencies ─────────────────────────────────────────
+  # latexindent is a Perl script bundled with TeX Live. The modules below are
+  # its direct runtime requirements; they are only available as apt packages
+  # (Debian/Ubuntu) — other distributions either ship them bundled with perl
+  # or expect them to be installed via cpan.
+
+  - name: libfile-homedir-perl
+    apt: libfile-homedir-perl
+
+  - name: libunicode-linebreak-perl
+    apt: libunicode-linebreak-perl
+
+  - name: libyaml-tiny-perl
+    apt: libyaml-tiny-perl
+
+  - name: libgetopt-long-descriptive-perl
+    apt: libgetopt-long-descriptive-perl
+
+  - name: libdigest-perl-md5-perl
+    apt: libdigest-perl-md5-perl
+
+  # ── asymptote (OpenGL) ─────────────────────────────────────────────────────
+  # asymptote links against libglut. Ubuntu Noble ships libglut3.12 but
+  # omits the expected libglut.so.3 symlink; see post_install below.
+  - name: libglut3.12
+    apt: libglut3.12
+
+  # ── Font coverage ──────────────────────────────────────────────────────────
+  # GNU FreeFont provides broad Unicode coverage needed by TeX documents that
+  # reference characters outside the Latin range.
+  - name: fonts-freefont-otf
+    apt: fonts-freefont-otf
+
+  # ── TeX Live install helper ────────────────────────────────────────────────
+  # equivs lets the installer create a dummy 'texlive-local' package that
+  # satisfies apt dependency checks without installing the distro TeX Live.
+  - name: equivs
+    apt: equivs
+
+post_install:
+  # Ubuntu Noble's libglut3.12 does not ship the libglut.so.3 compatibility
+  # symlink that asymptote (and other OpenGL consumers) expect.
+  # Reference: https://askubuntu.com/questions/1526992
+  - |
+    LIBDIR="$(find /usr/lib -maxdepth 1 -type d -name '*-linux-*' | grep -v '/config-' | head -n1)"
+    if [[ -d "${LIBDIR}" && -f "${LIBDIR}/libglut.so.3.12" && ! -e "${LIBDIR}/libglut.so.3" ]]; then
+      ln -sf "${LIBDIR}/libglut.so.3.12" "${LIBDIR}/libglut.so.3"
+    fi

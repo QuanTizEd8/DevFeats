@@ -96,6 +96,22 @@ clang:
     docs: https://clang.llvm.org/docs/
     source: https://github.com/llvm/llvm-project
 
+llvm:
+  summary: LLVM IR tools and toolchain libraries (llc, opt, llvm-config, …).
+  description: |
+    The LLVM package provides the mid-level IR tools: llc (static compiler),
+    opt (optimizer/pass runner), llvm-config (build flag helper), llvm-dis,
+    llvm-as, lli (JIT interpreter), and the core LLVM shared libraries.
+    On Linux these are separate from the clang compiler frontend. On macOS,
+    the Homebrew llvm formula already bundles clang, lldb, and all IR tools
+    together, so no separate install is needed there.
+  url:
+    docs: https://llvm.org/docs/
+    source: https://github.com/llvm/llvm-project
+  notes: |
+    Linux-only install — on macOS the brew llvm formula (installed via the
+    clang entry) already provides all LLVM IR tools.
+
 swig:
   summary: Tool for generating scripting language bindings for C/C++ code.
   description: |
@@ -169,3 +185,13 @@ pkg-config:
   notes: |
     On dnf (Fedora) the package is 'pkgconf-pkg-config'; on apk and pacman it is
     'pkgconf'. The command-line tool is 'pkg-config' on all platforms.
+manpages-dev:
+  summary: Developer-oriented man pages for C programming and system APIs.
+  description: |
+    Contains man pages for C library functions, system calls, headers, and
+    development tools. Recommended for programmers working on C/C++ or
+    system-level code who want to look up function definitions and usage.
+    Linux-only — macOS ships Xcode man pages separately.
+  url:
+    docs: https://man7.org/linux/man-pages/
+    source: https://salsa.debian.org/manpages-team/manpages-dev

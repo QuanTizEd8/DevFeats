@@ -61,3 +61,24 @@ inotify-tools:
   url:
     docs: https://github.com/inotify-tools/inotify-tools
     source: https://github.com/inotify-tools/inotify-tools
+
+extail:
+  summary: Monitor multiple files like `tail -f`, even if they are rotated.
+  description: |
+    xtail allows users to watch the growth of multiple files at once,
+    much like `tail -f`, but with support for files that get rotated
+    (like logs). Useful for monitoring log files in debugging and
+    operations environments. Linux-only.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/xtail.1.html
+    source: https://github.com/pbrady/xtail
+
+iproute2:
+  summary: Networking and traffic control utilities.
+  description: |
+    Provides tools like `ip` and `tc` for configuring network interfaces
+    and managing routing. Essential for network setup and diagnostics on
+    Linux. Linux-only — macOS ships equivalent tools via the OS.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/ip.8.html
+    source: https://git.kernel.org/pub/scm/network/iproute2/iproute2.git

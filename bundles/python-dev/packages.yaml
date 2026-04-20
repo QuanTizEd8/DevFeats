@@ -1,0 +1,15 @@
+packages:
+  # python3-pip: pip package manager
+  # On macOS, pip is bundled with python@3 via brew; no separate package needed.
+  - name: python3-pip
+    when: {kernel: linux}
+    apk: py3-pip
+    dnf: python3-pip
+    zypper: python3-pip
+    pacman: python-pip
+
+  # python3-venv: venv module for creating virtual environments
+  # On Ubuntu Noble, venv is NOT bundled with python3 — must be installed separately.
+  # On other Linux distros and macOS, venv is included with the python3 package.
+  - name: python3-venv
+    when: {pm: apt}

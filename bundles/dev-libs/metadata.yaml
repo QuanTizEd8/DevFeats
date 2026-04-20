@@ -269,3 +269,15 @@ libmagickwand-dev:
   url:
     docs: https://imagemagick.org/script/magick-wand.php
     source: https://github.com/ImageMagick/ImageMagick
+
+python3-dev:
+  summary: Header files and static libraries for Python 3 development.
+  description: |
+    Provides the header files and static libraries necessary for building
+    Python 3 modules and C extensions. Required whenever pip installs a
+    package that compiles native code (e.g. cryptography, lxml, numpy from
+    source). On brew, this is bundled with `python@3`; on other Linux PMs
+    the equivalent is python3-devel or python3-dev.
+  url:
+    docs: https://docs.python.org/3/extending/
+    source: https://github.com/python/cpython

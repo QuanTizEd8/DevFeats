@@ -194,3 +194,12 @@ packages:
     when: {pm: apt}
   - name: libmagickwand-dev
     when: {pm: apt}
+
+  # ── Python development headers ──────────────────────────────────────────────
+  # Required for building Python C extensions (e.g. pip-compiled packages)
+  - name: python3-dev
+    brew: python@3
+    apk: python3-dev
+    dnf: python3-devel
+    zypper: python3-devel
+    pacman: python

@@ -46,3 +46,18 @@ packages:
   # Linux-only utilities
   - name: file
     when: {kernel: linux}
+
+  # man-db: man command and manual page database
+  - name: man-db
+    when: {kernel: linux}
+    apk: man-db
+    dnf: man-db
+    zypper: man
+    pacman: man-db
+
+  # manpages: Linux manual pages for user commands
+  - name: manpages
+    when: {kernel: linux}
+    dnf: man-pages
+    zypper: man-pages
+    pacman: man-pages
