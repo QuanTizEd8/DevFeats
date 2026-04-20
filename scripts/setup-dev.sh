@@ -10,7 +10,7 @@
 set -euo pipefail
 
 # ── Pinned versions ────────────────────────────────────────────────────────────
-SHFMT_VERSION="v3.10.0"
+SHFMT_VERSION="v3.13.1"
 
 # ── Parse --tools flag ─────────────────────────────────────────────────────────
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
