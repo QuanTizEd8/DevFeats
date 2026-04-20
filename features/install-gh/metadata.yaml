@@ -1,6 +1,6 @@
 id: install-gh
 version: 0.1.0
-name: GitHub CLI Installer
+name: GitHub CLI Installation
 description: >-
   Install `gh` – the [GitHub CLI](https://cli.github.com/) from the official package repositories or by downloading the pre-built binary from the GitHub repository.
 options:

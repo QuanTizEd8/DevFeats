@@ -1,6 +1,6 @@
 id: install-os-pkg
 version: 0.3.0
-name: OS Package Installer
+name: OS Package Installation
 description: |-
   Install packages from the operating system's native package manager using a
   single, cross-platform YAML or JSON manifest file.

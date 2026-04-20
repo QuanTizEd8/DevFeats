@@ -1,6 +1,6 @@
 id: install-git
 version: 0.2.0
-name: Git Installer
+name: Git Installation
 description: 'Install Git in the development container. Two strategies controlled by ''method'': ''package'' uses the OS package manager (with Ubuntu git-core PPA on Ubuntu when version=latest); ''source'' builds from a kernel.org tarball for full version control on any platform. Version is controlled independently by the ''version'' option: ''latest'', ''stable'', or a specific version string.'
 options:
   method:

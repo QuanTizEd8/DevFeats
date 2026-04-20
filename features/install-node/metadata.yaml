@@ -1,6 +1,6 @@
 id: install-node
 version: 2.0.0
-name: Node.js
+name: Node.js Installation
 description: |-
   Install Node.js and npm in the development container.
 

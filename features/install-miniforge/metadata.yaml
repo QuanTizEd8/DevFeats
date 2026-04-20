@@ -1,6 +1,6 @@
 id: install-miniforge
 version: 0.2.0
-name: Miniforge Installer
+name: Miniforge Installation
 description: Install Miniforge in the development container.
 options:
   version:

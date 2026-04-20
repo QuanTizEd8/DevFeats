@@ -1,5 +1,5 @@
 id: install-conda-env
-name: Conda Environment
+name: Conda Environment Installation
 version: 0.1.0
 description: Create or update conda environments in the development container.
 options:

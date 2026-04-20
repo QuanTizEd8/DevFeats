@@ -1,6 +1,6 @@
 id: install-podman
 version: 0.1.0
-name: Rootless Podman
+name: Podman Installation
 description: >-
   Installs [Podman](https://podman.io/) for rootless container execution inside
   a dev container. Uses native kernel overlay storage on a named volume for

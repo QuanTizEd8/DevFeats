@@ -1,6 +1,6 @@
 id: install-homebrew
 version: 0.2.0
-name: Install Homebrew
+name: Homebrew Installation
 description: |-
   Installs [Homebrew](https://brew.sh/) on macOS and Linux.
 
