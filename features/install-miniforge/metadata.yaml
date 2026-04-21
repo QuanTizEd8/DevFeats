@@ -158,7 +158,7 @@ installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/install-shell
 #   - ghcr.io/quantized8/sysset/setup-user
-dependencies:
+_dependencies:
   run:
     base:
       packages:

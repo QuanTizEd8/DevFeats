@@ -113,7 +113,7 @@ options:
       the native package manager (apt, dnf, etc.).
       Has no effect on macOS (brew is always used there).
     type: boolean
-dependencies: {}
+_dependencies: {}
 installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/install-homebrew

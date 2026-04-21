@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """deps.py — Generates dependencies/*.yaml files from metadata.yaml.
 
-Each key under ``dependencies:`` in metadata.yaml becomes a
+Each key under ``_dependencies:`` in metadata.yaml becomes a
 ``dependencies/<key>.yaml`` file in the feature directory.  The value is
 dumped as YAML using a consistent, deterministic format so that the
 ``--check`` mode can detect staleness with a byte-for-byte comparison.
@@ -48,7 +48,7 @@ def main() -> int:
         with meta_path.open(encoding="utf-8") as fh:
             meta = yaml.safe_load(fh)
 
-        deps = meta.get("dependencies") or {}
+        deps = meta.get("_dependencies") or {}
         if not deps:
             continue
 

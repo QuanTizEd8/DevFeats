@@ -53,7 +53,7 @@ options:
     default: /etc/sudoers.d
     description: Directory for the sudoers drop-in file.
     type: string
-dependencies:
+_dependencies:
   run:
     base:
       # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt/dnf distros,

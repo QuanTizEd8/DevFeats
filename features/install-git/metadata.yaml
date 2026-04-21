@@ -167,7 +167,7 @@ options:
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
 installsAfter: []
-dependencies:
+_dependencies:
   run:
     base:
       packages:

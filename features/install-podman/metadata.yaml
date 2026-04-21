@@ -51,7 +51,7 @@ options:
     default: ''
     description: |-
       Additional usernames to register subuid/subgid ranges and write Podman storage config for.
-dependencies:
+_dependencies:
   run:
     base:
       packages:

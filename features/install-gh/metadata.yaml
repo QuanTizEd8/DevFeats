@@ -158,7 +158,7 @@ options:
       Ignored when method=repos.
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
-dependencies:
+_dependencies:
   run:
     base:
       packages:

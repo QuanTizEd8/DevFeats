@@ -116,9 +116,9 @@ def generate_json(data: dict) -> str:
 
     Returns the JSON string (with trailing newline).
     """
-    # Determine whether this feature uses ospkg (dependencies key is present,
+    # Determine whether this feature uses ospkg (_dependencies key is present,
     # even if empty) to decide whether to inject the keep_cache option.
-    # has_build_deps is true when the feature has a `dependencies.build` sub-map.
+    # has_build_deps is true when the feature has a `_dependencies.build` sub-map.
     has_ospkg: bool = data.get(DEPS_KEY) is not None
     deps = data.get(DEPS_KEY) or {}
     has_build_deps: bool = bool(deps.get("build"))

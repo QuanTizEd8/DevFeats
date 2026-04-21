@@ -224,7 +224,7 @@ options:
     - none
     - latest
     - 1.22.22
-dependencies:
+_dependencies:
   run:
     base:
       packages:

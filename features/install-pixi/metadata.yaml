@@ -138,7 +138,7 @@ mounts:
 containerEnv:
   PATH: ${HOME}/.pixi/bin:${PATH}
 installsAfter: []
-dependencies:
+_dependencies:
   run:
     base:
       packages:

@@ -2,7 +2,7 @@
 # auto-inject into every feature's generated code and devcontainer-feature.json.
 # These keys must NOT be declared manually in any metadata.yaml file.
 #
-# inject: ospkg  — injected only when the feature has a `dependencies` key
+# inject: ospkg  — injected only when the feature has a `_dependencies` key
 #                  (the feature uses ospkg; cache management is relevant).
 # inject: always — injected unconditionally for every feature.
 

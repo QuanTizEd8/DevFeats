@@ -200,7 +200,7 @@ options:
     description: Installation prefix for fzf. The binary is placed at `$fzf_prefix/bin/fzf`.
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/setup-user
-dependencies:
+_dependencies:
   run:
     base:
       packages:
