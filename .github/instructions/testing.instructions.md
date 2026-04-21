@@ -69,7 +69,7 @@ test/
 
 ```bash
 # Always sync generated files first
-bash sync-lib.sh
+bash scripts/sync-lib.sh
 
 # Lib unit tests
 make test-unit                                        # all modules

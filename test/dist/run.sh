@@ -57,7 +57,7 @@ done
 export SYSSET_BUILD_VERSION=""
 if [[ "$BUILD" == true ]]; then
   echo "ℹ️  Building dist/ artifacts for tag '${VERSION}' ..." >&2
-  bash "${REPO_ROOT}/build-artifacts.sh" "${VERSION}"
+  bash "${REPO_ROOT}/scripts/build-artifacts.sh" "${VERSION}"
   export SYSSET_BUILD_VERSION="${VERSION}"
 fi
 

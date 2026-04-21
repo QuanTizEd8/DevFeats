@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup-dev.sh — Install development tools for sysset.
-# Usage: bash scripts/setup-dev.sh [--tools tool1,tool2,...]
+# Usage: bash .devcontainer/setup-dev.sh [--tools tool1,tool2,...]
 #
 # Available tools: pyyaml shfmt shellcheck devcontainers-cli lefthook
 # Default (no --tools flag): install all tools.
@@ -42,7 +42,7 @@ _has() { command -v "$1" > /dev/null 2>&1; }
 
 _install_pyyaml() {
   echo "▶ Installing PyYAML..." >&2
-  pip3 install -r "${_REPO_ROOT}/requirements.txt"
+  pip3 install -r "${_SCRIPT_DIR}/requirements.txt"
   echo "✅ PyYAML installed." >&2
 }
 

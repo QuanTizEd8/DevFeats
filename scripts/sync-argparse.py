@@ -661,7 +661,7 @@ def main() -> int:
     if check_mode and any_stale:
         print("", file=sys.stderr)
         print(
-            "⛔ Stale generated headers detected. Run: bash sync-lib.sh",
+            "⛔ Stale generated headers detected. Run: bash scripts/sync-lib.sh",
             file=sys.stderr,
         )
         return 1

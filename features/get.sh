@@ -14,7 +14,7 @@
 #   get.sh install-pixi --tag v1.2.0 --version 0.66.0
 #
 # This script is version-stamped at release build time (@@RELEASE_TAG@@ is
-# replaced with the actual release tag by build-artifacts.sh). Running it
+# replaced with the actual release tag by scripts/build-artifacts.sh). Running it
 # without --tag always installs from the same release it was bundled with.
 set -eu
 

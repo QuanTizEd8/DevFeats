@@ -443,7 +443,7 @@ When `cicd.yaml` calls `ci.yaml`, the callee's jobs appear as individual job ent
 | `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
 | `src/<f>/` or `test/<f>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
 | `install-os-pkg` in changed list | `test-os-pkg` (6-distro matrix) |
-| `get.sh`, `sysset.sh`, `build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
+| `features/get.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
 
 On `workflow_dispatch` or `v*` tag push, all flags are forced true regardless of diff. CD (`publish`) runs only when the trigger is a `v*` tag push or a `workflow_dispatch` with a `tag` input, AND CI passed.
 

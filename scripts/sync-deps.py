@@ -109,7 +109,7 @@ def main() -> int:
     if check_mode and any_stale:
         print("", file=sys.stderr)
         print(
-            "⛔ Stale dependency files detected. Run: bash sync-lib.sh",
+            "⛔ Stale dependency files detected. Run: bash scripts/sync-lib.sh",
             file=sys.stderr,
         )
         return 1

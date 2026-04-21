@@ -1,11 +1,11 @@
 *.pyc
 __pycache__/
 
-# Generated copies — assembled by sync-lib.sh and the scripts/ sync suite.
+# Generated copies — assembled by scripts/sync-lib.sh and the scripts/ sync suite.
 # Never commit these; CI regenerates them after checkout.
 src/
 
-# Distribution artifacts — built by build-artifacts.sh.
+# Distribution artifacts — built by scripts/build-artifacts.sh.
 /dist/
 /.local/
 

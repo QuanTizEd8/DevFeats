@@ -99,7 +99,7 @@ def main() -> None:
         if any_stale:
             print(
                 "\n⛔ Stale devcontainer-feature.json files detected."
-                "  Run: bash sync-lib.sh",
+                "  Run: bash scripts/sync-lib.sh",
                 file=sys.stderr,
             )
             sys.exit(1)

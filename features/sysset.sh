@@ -8,7 +8,7 @@
 #   sysset.sh <manifest.json|.yaml> [--tag <tag>] [--logfile <path>] [--debug]
 #
 # This script is version-stamped at release build time (@@RELEASE_TAG@@ is
-# replaced with the actual release tag by build-artifacts.sh). Running it
+# replaced with the actual release tag by scripts/build-artifacts.sh). Running it
 # without --tag always installs from the same release it was bundled with.
 #
 # Manifest format (JSON):

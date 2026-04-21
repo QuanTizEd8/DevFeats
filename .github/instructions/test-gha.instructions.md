@@ -13,7 +13,7 @@ applyTo: "test/install-os-pkg/dry-run/**, test/**/linux/**, .github/workflows/*.
 | Continuous Integration | `ci.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | All lint/validate/unit/feature/dist tests |
 | Continuous Deployment | `cd.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | Publish to GHCR + GitHub Release |
 
-All jobs run `bash sync-lib.sh` as an early step.
+All jobs run `bash scripts/sync-lib.sh` as an early step.
 
 ## macOS GHA Runner
 
@@ -287,7 +287,7 @@ The `test-features` job in `ci.yaml` runs `bash test/run.sh feature <feature>`, 
 | `src/<f>/` or `test/<f>/` | `run_features`, `features[]` → `test-features` matrix |
 | macOS-capable feature in `features[]` | `run_macos`, `macos_features[]` → `test-macos` matrix |
 | `install-os-pkg` in `features[]` | `run_features` → `test-os-pkg` (6-distro matrix) |
-| `get.sh`, `sysset.sh`, `build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
+| `features/get.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
 
 On `workflow_dispatch` or a `v*` tag push, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch (zero-SHA `before`) also sets `is_force=true` as a safe fallback.
 

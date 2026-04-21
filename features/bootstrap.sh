@@ -7,9 +7,9 @@
 # Notes
 # -----
 # This file is the single source of truth for all `install.sh` scripts;
-# it is distributed to each feature root by `sync-lib.sh`.
+# it is distributed to each feature root by `scripts/sync-lib.sh`.
 # Therefore, do not edit copies of this file directly —
-# edit this one, and then run `sync-lib.sh` to propagate changes to all features.
+# edit this one, and then run `scripts/sync-lib.sh` to propagate changes to all features.
 
 set -e
 
