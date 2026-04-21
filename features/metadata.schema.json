@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/metadata.schema.json",
   "title": "Feature Metadata",
   "description": "JSON Schema for features' `metadata.yaml` files.\nThis is a superset of the devcontainer-feature.json schema at `https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json`. ",
   "type": "object",
