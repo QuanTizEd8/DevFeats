@@ -83,11 +83,17 @@
       "properties": {
         "run": {
           "description": "Runtime dependencies.",
-          "$ref": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/install-os-pkg/manifest.schema.json"
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/install-os-pkg/manifest.schema.json"
+          }
         },
         "build": {
           "description": "Build dependencies. These are only required when installing the Feature, and can be removed afterwards to save space.",
-          "$ref": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/install-os-pkg/manifest.schema.json"
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/install-os-pkg/manifest.schema.json"
+          }
         }
       }
     },
@@ -270,8 +276,7 @@
     "description",
     "keywords",
     "options",
-    "_long_description",
-    "_details"
+    "_long_description"
   ],
   "definitions": {
     "FeatureOption": {
