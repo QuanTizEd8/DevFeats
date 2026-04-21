@@ -23,19 +23,11 @@
       "type": "string"
     },
     "keywords": {
-      "description": "List of strings relevant to a user that would search for this definition/Feature.",
+      "description": "List of strings relevant to a user that would search for this Feature.",
       "items": {
         "type": "string"
       },
       "type": "array"
-    },
-    "documentationURL": {
-      "description": "URL to documentation for the Feature.",
-      "type": "string"
-    },
-    "licenseURL": {
-      "description": "URL to the license for the Feature.",
-      "type": "string"
     },
     "options": {
       "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container.",
