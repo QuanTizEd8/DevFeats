@@ -252,6 +252,8 @@ def _process_value(key: str, value: object) -> object:
                     if k == "description" and isinstance(v, str)
                     else "string"
                     if k == "type" and v == "array"
+                    else [item["value"] if isinstance(item, dict) else item for item in v]
+                    if k in ("enum", "proposals") and isinstance(v, list)
                     else v
                 )
                 for k, v in opt.items()

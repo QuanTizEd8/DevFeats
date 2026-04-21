@@ -106,13 +106,16 @@ def shell_val(default, typ: str) -> str:
 def usage_type_hint(opt: dict) -> str:
     """Return a concise type hint for the --help usage line."""
     typ = opt.get("type", "string")
-    enum = opt.get("enum", [])
+    enum_raw = opt.get("enum", [])
+    enum_values = [item["value"] if isinstance(item, dict) else str(item) for item in enum_raw]
     if typ == "boolean":
         return "{true,false}"
     if typ == "array":
+        if enum_values:
+            return "{" + "|".join(enum_values) + "}  (repeatable)"
         return "<value>  (repeatable)"
-    if enum:
-        return "{" + "|".join(str(v) for v in enum) + "}"
+    if enum_values:
+        return "{" + "|".join(enum_values) + "}"
     return "<value>"
 
 
@@ -418,7 +421,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
         for key, opt in enum_opts:
             vname = opt_to_var(key)
             typ = opt.get("type", "string")
-            values = [str(v) for v in opt["enum"]]
+            values = [item["value"] if isinstance(item, dict) else str(item) for item in opt["enum"]]
             expected = ", ".join(repr(v) if v == "" else v for v in values)
 
             def _case_pat(v: str) -> str:
