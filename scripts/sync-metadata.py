@@ -39,11 +39,132 @@ _REPO = Path(__file__).resolve().parent.parent
 _FEATURES = _REPO / "features"
 _SRC = _REPO / "src"
 
+# Derived (synthetic) options — loaded from shared YAML
+_DERIVED_OPTIONS_PATH = Path(__file__).parent / "derived-options.yaml"
+with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
+    _DERIVED_OPTIONS: dict = yaml.safe_load(_fh)
+# All keys that the generators manage (strip from raw metadata before re-injecting).
+_DERIVED_OPTION_KEYS: frozenset[str] = frozenset(_DERIVED_OPTIONS)
+
+# Constants
+REPO_OWNER = "quantized8"
+REPO_NAME = "sysset"
+LICENSE_URL = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/blob/main/LICENSE"
+DOC_URL_BASE = f"https://{REPO_OWNER}.github.io/{REPO_NAME}"
+DOC_URL_TEMPLATE = DOC_URL_BASE + "/features/{feature_id}/"
+
+DEPS_KEY = "_dependencies"  # internal key for build/runtime deps (not written to JSON)
+
+
+def main() -> None:
+    check_mode = "--check" in sys.argv
+    any_stale = False
+
+    features = find_features()
+    if not features:
+        print(
+            f"ERROR: No features/*/metadata.yaml files found under {_FEATURES}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    for meta_path in features:
+        feature_id = meta_path.parent.name
+        json_path = _SRC / feature_id / "devcontainer-feature.json"
+
+        with meta_path.open(encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+
+        expected = generate_json(data)
+
+        if check_mode:
+            if not json_path.exists():
+                print(f"⛔ {feature_id}: devcontainer-feature.json is missing", file=sys.stderr)
+                any_stale = True
+            elif json_path.read_text(encoding="utf-8") != expected:
+                print(f"⛔ {feature_id}: devcontainer-feature.json is stale", file=sys.stderr)
+                any_stale = True
+            else:
+                print(f"✅ {feature_id}: in sync", file=sys.stderr)
+        else:
+            json_path.parent.mkdir(parents=True, exist_ok=True)
+            current = json_path.read_text(encoding="utf-8") if json_path.exists() else None
+            if current == expected:
+                print(f"✅ {feature_id}: devcontainer-feature.json unchanged", file=sys.stderr)
+            else:
+                json_path.write_text(expected, encoding="utf-8")
+                print(f"✅ {feature_id}: generated devcontainer-feature.json", file=sys.stderr)
+
+    if check_mode:
+        if any_stale:
+            print(
+                "\n⛔ Stale devcontainer-feature.json files detected."
+                "  Run: bash sync-lib.sh",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        else:
+            print("✅ All devcontainer-feature.json files are up to date.", file=sys.stderr)
+
+
+def generate_json(data: dict) -> str:
+    """Generate devcontainer-feature.json content from parsed YAML data.
+
+    Returns the JSON string (with trailing newline).
+    """
+    # Determine whether this feature uses ospkg (dependencies key is present,
+    # even if empty) to decide whether to inject the keep_cache option.
+    # has_build_deps is true when the feature has a `dependencies.build` sub-map.
+    has_ospkg: bool = data.get(DEPS_KEY) is not None
+    deps = data.get(DEPS_KEY) or {}
+    has_build_deps: bool = bool(deps.get("build"))
+
+    # Build a patched data dict with derived options stripped from the raw
+    # options dict and replaced with canonical synthetic definitions.
+    # keep_cache is only stripped when has_ospkg (it will be re-injected);
+    # keep_build_deps is only stripped when has_build_deps (it will be re-injected);
+    # for features without those characteristics, they may be legitimate declared options.
+    raw_options: dict = data.get("options") or {}
+    always_strip = _DERIVED_OPTION_KEYS - {"keep_cache", "keep_build_deps"}
+    keys_to_strip = always_strip | ({"keep_cache"} if has_ospkg else set()) | ({"keep_build_deps"} if has_build_deps else set())
+    core_options: dict = {
+        k: v for k, v in raw_options.items() if k not in keys_to_strip
+    }
+    synthetic_options: dict = {}
+    if has_ospkg:
+        synthetic_options["keep_cache"] = _synthetic("keep_cache")
+    if has_build_deps:
+        synthetic_options["keep_build_deps"] = _synthetic("keep_build_deps")
+    synthetic_options["debug"] = _synthetic("debug")
+    synthetic_options["logfile"] = _synthetic("logfile")
+
+    patched: dict = {**data, "options": {**core_options, **synthetic_options}}
+    processed = {k: _process_value(k, v) for k, v in patched.items()}
+    augmented = _add_synthetic_keys(processed)
+    clean = _drop_internal_keys(augmented)
+    return json.dumps(clean, sort_keys=True, indent=3, ensure_ascii=False) + "\n"
+
+
+def find_features() -> list[Path]:
+    """Return sorted list of features/*/metadata.yaml paths."""
+    return sorted(_FEATURES.glob("*/metadata.yaml"))
+
+
+def _add_synthetic_keys(data: dict) -> dict:
+    """Add synthetic keys to the top-level devcontainer-feature.json file data."""
+    data["documentationURL"] = DOC_URL_TEMPLATE.format(feature_id=data["id"])
+    data["licenseURL"] = LICENSE_URL
+    return data
+
+
+def _drop_internal_keys(data: dict) -> dict:
+    """Drop internal-only keys."""
+    return {k: v for k, v in data.items() if not k.startswith("_")}
+
 
 # ---------------------------------------------------------------------------
 # Markdown stripping
 # ---------------------------------------------------------------------------
-
 
 def strip_markdown(text: str) -> str:
     """Strip markdown formatting from a description string.
@@ -115,7 +236,6 @@ def _normalize_description(text: str) -> str:
 # JSON generation
 # ---------------------------------------------------------------------------
 
-
 def _process_value(key: str, value: object) -> object:
     """Recursively process a value, stripping markdown from description fields."""
     if key == "description" and isinstance(value, str):
@@ -131,139 +251,15 @@ def _process_value(key: str, value: object) -> object:
                     else v
                 )
                 for k, v in opt.items()
-                if not k.startswith("x_")  # drop option-level extension fields
             }
             for opt_name, opt in value.items()
         }
     return value
 
 
-# ---------------------------------------------------------------------------
-# Derived (synthetic) options — loaded from shared YAML
-# ---------------------------------------------------------------------------
-
-_DERIVED_OPTIONS_PATH = Path(__file__).parent / "derived-options.yaml"
-with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
-    _DERIVED_OPTIONS: dict = yaml.safe_load(_fh)
-
-# All keys that the generators manage (strip from raw metadata before re-injecting).
-_DERIVED_OPTION_KEYS: frozenset[str] = frozenset(_DERIVED_OPTIONS)
-
-
 def _synthetic(key: str) -> dict:
     """Return the option schema for a derived key, stripping the 'inject' meta-field."""
     return {k: v for k, v in _DERIVED_OPTIONS[key].items() if k != "inject"}
-
-# Keys in metadata.yaml that are internal to this project and must not be
-# written to devcontainer-feature.json (which follows the devcontainer spec).
-_INTERNAL_KEYS: frozenset[str] = frozenset({"dependencies"})
-
-
-def _drop_extensions(data: dict) -> dict:
-    """Drop x_* custom extension fields and internal-only keys."""
-    return {
-        k: v
-        for k, v in data.items()
-        if not k.startswith("x_") and k not in _INTERNAL_KEYS
-    }
-
-
-def generate_json(data: dict) -> str:
-    """Generate devcontainer-feature.json content from parsed YAML data.
-
-    Returns the JSON string (with trailing newline).
-    """
-    # Determine whether this feature uses ospkg (dependencies key is present,
-    # even if empty) to decide whether to inject the keep_cache option.
-    # has_build_deps is true when the feature has a `dependencies.build` sub-map.
-    has_ospkg: bool = data.get("dependencies") is not None
-    deps = data.get("dependencies") or {}
-    has_build_deps: bool = bool(deps.get("build"))
-
-    # Build a patched data dict with derived options stripped from the raw
-    # options dict and replaced with canonical synthetic definitions.
-    # keep_cache is only stripped when has_ospkg (it will be re-injected);
-    # keep_build_deps is only stripped when has_build_deps (it will be re-injected);
-    # for features without those characteristics, they may be legitimate declared options.
-    raw_options: dict = data.get("options") or {}
-    always_strip = _DERIVED_OPTION_KEYS - {"keep_cache", "keep_build_deps"}
-    keys_to_strip = always_strip | ({"keep_cache"} if has_ospkg else set()) | ({"keep_build_deps"} if has_build_deps else set())
-    core_options: dict = {
-        k: v for k, v in raw_options.items() if k not in keys_to_strip
-    }
-    synthetic_options: dict = {}
-    if has_ospkg:
-        synthetic_options["keep_cache"] = _synthetic("keep_cache")
-    if has_build_deps:
-        synthetic_options["keep_build_deps"] = _synthetic("keep_build_deps")
-    synthetic_options["debug"] = _synthetic("debug")
-    synthetic_options["logfile"] = _synthetic("logfile")
-
-    patched: dict = {**data, "options": {**core_options, **synthetic_options}}
-    processed = {k: _process_value(k, v) for k, v in patched.items()}
-    clean = _drop_extensions(processed)
-    return json.dumps(clean, indent=3, ensure_ascii=False) + "\n"
-
-
-# ---------------------------------------------------------------------------
-# Discovery and main
-# ---------------------------------------------------------------------------
-
-
-def find_features() -> list[Path]:
-    """Return sorted list of features/*/metadata.yaml paths."""
-    return sorted(_FEATURES.glob("*/metadata.yaml"))
-
-
-def main() -> None:
-    check_mode = "--check" in sys.argv
-    any_stale = False
-
-    features = find_features()
-    if not features:
-        print(
-            f"ERROR: No features/*/metadata.yaml files found under {_FEATURES}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    for meta_path in features:
-        feature_id = meta_path.parent.name
-        json_path = _SRC / feature_id / "devcontainer-feature.json"
-
-        with meta_path.open(encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
-
-        expected = generate_json(data)
-
-        if check_mode:
-            if not json_path.exists():
-                print(f"⛔ {feature_id}: devcontainer-feature.json is missing", file=sys.stderr)
-                any_stale = True
-            elif json_path.read_text(encoding="utf-8") != expected:
-                print(f"⛔ {feature_id}: devcontainer-feature.json is stale", file=sys.stderr)
-                any_stale = True
-            else:
-                print(f"✅ {feature_id}: in sync", file=sys.stderr)
-        else:
-            json_path.parent.mkdir(parents=True, exist_ok=True)
-            current = json_path.read_text(encoding="utf-8") if json_path.exists() else None
-            if current == expected:
-                print(f"✅ {feature_id}: devcontainer-feature.json unchanged", file=sys.stderr)
-            else:
-                json_path.write_text(expected, encoding="utf-8")
-                print(f"✅ {feature_id}: generated devcontainer-feature.json", file=sys.stderr)
-
-    if check_mode:
-        if any_stale:
-            print(
-                "\n⛔ Stale devcontainer-feature.json files detected."
-                "  Run: bash sync-lib.sh",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        else:
-            print("✅ All devcontainer-feature.json files are up to date.", file=sys.stderr)
 
 
 if __name__ == "__main__":
