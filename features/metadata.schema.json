@@ -53,23 +53,23 @@
         "minProperties": 2,
         "properties": {
           "arch": {
-            "$ref": "#/$defs/conditionValue",
+            "type": "string",
             "description": "CPU architecture from uname -m: x86_64, aarch64, armv7l, i686, etc."
           },
           "kernel": {
-            "$ref": "#/$defs/conditionValue",
+            "type": "string",
             "description": "OS kernel: linux, darwin."
           },
           "id": {
-            "$ref": "#/$defs/conditionValue",
+            "type": "string",
             "description": "OS ID from /etc/os-release (or 'macos' on macOS): ubuntu, debian, alpine, fedora, arch, rhel, opensuse-leap, macos, etc."
           },
           "id_like": {
-            "$ref": "#/$defs/conditionValue",
+            "type": "string",
             "description": "OS ID_LIKE from /etc/os-release (or 'macos' on macOS): debian, rhel, arch, suse, etc."
           },
           "version_id": {
-            "$ref": "#/$defs/conditionValue",
+            "type": "string",
             "description": "OS VERSION_ID from /etc/os-release: 22.04, 39, 3.19, 15.6, etc."
           },
           "reason": {
