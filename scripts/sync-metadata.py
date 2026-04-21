@@ -38,9 +38,9 @@ except ImportError:
 _REPO = Path(__file__).resolve().parent.parent
 _FEATURES = _REPO / "features"
 _SRC = _REPO / "src"
+_DERIVED_OPTIONS_PATH = _FEATURES / "derived-options.yaml"
 
 # Derived (synthetic) options — loaded from shared YAML
-_DERIVED_OPTIONS_PATH = Path(__file__).parent / "derived-options.yaml"
 with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
     _DERIVED_OPTIONS: dict = yaml.safe_load(_fh)
 # All keys that the generators manage (strip from raw metadata before re-injecting).

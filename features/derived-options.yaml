@@ -1,6 +1,6 @@
 # Canonical definitions for options that sync-argparse.py and sync-metadata.py
 # auto-inject into every feature's generated code and devcontainer-feature.json.
-# These keys must NOT be declared manually in any src/*/metadata.yaml.
+# These keys must NOT be declared manually in any metadata.yaml file.
 #
 # inject: ospkg  — injected only when the feature has a `dependencies` key
 #                  (the feature uses ospkg; cache management is relevant).
