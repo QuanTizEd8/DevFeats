@@ -4,49 +4,6 @@ This guide covers how to create a new devcontainer feature in this repository:
 the required files, the conventions used by existing features, and the shared
 library available to every script.
 
----
-
-## Contents
-
-- [Writing Features](#writing-features)
-  - [Contents](#contents)
-  - [Quick-start checklist](#quick-start-checklist)
-  - [Feature anatomy](#feature-anatomy)
-  - [`devcontainer-feature.json`](#devcontainer-featurejson)
-    - [Options](#options)
-    - [Dependencies on other features](#dependencies-on-other-features)
-  - [The bootstrap pattern](#the-bootstrap-pattern)
-  - [`install.bash` structure](#installbash-structure)
-    - [Shebang and error settings](#shebang-and-error-settings)
-    - [Paths](#paths)
-    - [Library sourcing](#library-sourcing)
-    - [Logging setup and the EXIT trap](#logging-setup-and-the-exit-trap)
-    - [Dual-mode argument parsing](#dual-mode-argument-parsing)
-    - [Applying defaults](#applying-defaults)
-    - [Validation](#validation)
-    - [Main logic](#main-logic)
-    - [Cleanup](#cleanup)
-  - [OS package dependencies](#os-package-dependencies)
-    - [`dependencies/base.yaml`](#dependenciesbaseyaml)
-    - [`ospkg__run` versus `ospkg__install`](#ospkgrun-versus-ospkginstall)
-  - [Shared library reference](#shared-library-reference)
-    - [`os.sh`](#ossh)
-    - [`logging.sh`](#loggingsh)
-    - [`net.sh`](#netsh)
-    - [`json.sh`](#jsonsh)
-    - [`ospkg.sh`](#ospkgsh)
-      - [Manifest format overview](#manifest-format-overview)
-    - [`shell.sh`](#shellsh)
-    - [`str.sh`](#strsh)
-    - [`git.sh`](#gitsh)
-    - [`github.sh`](#githubsh)
-    - [`checksum.sh`](#checksumsh)
-    - [`users.sh`](#userssh)
-  - [Static files](#static-files)
-  - [Sync and pre-commit](#sync-and-pre-commit)
-  - [References](#references)
-
----
 
 ## Quick-start checklist
 

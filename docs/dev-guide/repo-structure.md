@@ -3,30 +3,6 @@
 This document explains the layout of the repository, why each directory
 exists where it does, and how the moving parts fit together.
 
----
-
-## Contents
-
-- [Repository Structure](#repository-structure)
-  - [Contents](#contents)
-  - [Top-level layout](#top-level-layout)
-  - [Feature source — `src/`](#feature-source--src)
-    - [Feature directory anatomy](#feature-directory-anatomy)
-  - [Tests — `test/`](#tests--test)
-  - [Shared library — `lib/`](#shared-library--lib)
-  - [Build tooling — `sync-lib.sh` and `bootstrap.sh`](#build-tooling--sync-libsh-and-bootstrapsh)
-    - [The bootstrap pattern](#the-bootstrap-pattern)
-    - [The sync mechanism](#the-sync-mechanism)
-    - [Pre-commit hook](#pre-commit-hook)
-  - [Code style — `shfmt` and `shellcheck`](#code-style--shfmt-and-shellcheck)
-  - [Generated / git-ignored copies](#generated--git-ignored-copies)
-  - [Development environment — `.devcontainer/`](#development-environment--devcontainer)
-    - [Per-feature dev containers](#per-feature-dev-containers)
-    - [The `_src` symlink](#the-_src-symlink)
-  - [CI workflows — `.github/workflows/`](#ci-workflows--githubworkflows)
-  - [Documentation — `docs/`](#documentation--docs)
-
----
 
 ## Top-level layout
 

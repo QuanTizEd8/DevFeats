@@ -3,22 +3,6 @@
 This guide covers how to version, publish, and make features discoverable
 once they are ready for release.
 
----
-
-## Contents
-
-- [Publishing Features](#publishing-features)
-  - [Contents](#contents)
-  - [Versioning](#versioning)
-  - [Publishing via GitHub Actions](#publishing-via-github-actions)
-    - [Required repository settings](#required-repository-settings)
-    - [Trigger the release workflow](#trigger-the-release-workflow)
-  - [Making GHCR packages public](#making-ghcr-packages-public)
-  - [Adding features to the containers.dev index](#adding-features-to-the-containersdev-index)
-  - [Using private features in Codespaces](#using-private-features-in-codespaces)
-  - [References](#references)
-
----
 
 ## Versioning
 
@@ -88,16 +72,6 @@ can also be triggered manually in two ways:
 Or open the **Actions** tab in GitHub, select the desired workflow, and click
 **Run workflow**.
 
-### Required repository settings
-
-In **Settings → Actions → General → Workflow permissions**:
-
-- Enable **"Allow GitHub Actions to create and approve pull requests"** — this
-  allows the action to open the documentation PR automatically.
-- Grant the workflow **read and write permissions** so it can push OCI
-  artefacts to GHCR.
-
----
 
 ## Making GHCR packages public
 
