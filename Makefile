@@ -80,12 +80,12 @@ gen-docs-check:
 # Requires the sysset-website conda environment (docs/environment.yaml).
 docs:
 	conda run -n sysset-website --no-capture-output \
-		python -m sphinx -b dirhtml docs docs/website/.build \
+		python -m sphinx -b dirhtml docs docs/.build \
 		--keep-going --color --jobs auto
 
 # Live-preview the docs with auto-rebuild on file changes.
 # Requires the sysset-website conda environment (docs/environment.yaml).
 docs-serve:
 	conda run -n sysset-website --no-capture-output \
-		python -m sphinx_autobuild docs docs/website/.build \
+		python -m sphinx_autobuild docs docs/.build \
 		-b dirhtml --open-browser --watch docs

@@ -10,4 +10,6 @@ src/
 /.local/
 
 # Sphinx documentation build output.
-docs/website/.build/
+docs/features/
+docs/dev-guide/features/
+docs/.build/

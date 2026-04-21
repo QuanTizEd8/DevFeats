@@ -10,7 +10,7 @@ entries:
           - file: intro/background/shell-config
 
   - title: Features
-    file: features/index
+    file: features
     entries:
       - glob: features/*
 
@@ -21,7 +21,7 @@ entries:
       - file: dev-guide/testing
       - file: dev-guide/publishing
       - file: dev-guide/repo-structure
-      - file: dev-guide/features/index
+      - file: dev-guide/features
         entries:
           - glob: dev-guide/features/*
 
