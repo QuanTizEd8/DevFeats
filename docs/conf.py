@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from typing import TYPE_CHECKING
 
 import yaml as _yaml  # noqa: E402 (pyyaml; available in sysset-website env via myst-parser)
-
-import _build_scripts
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -17,6 +16,10 @@ _WEBSITE_ROOT = Path(__file__).resolve().parent
 _REPO_ROOT = _WEBSITE_ROOT.parent
 _FEATURES_DIR = _REPO_ROOT / "features"
 _FEATURES_DOC_DIR = _WEBSITE_ROOT / "features"
+
+sys.path.insert(0, str(Path(__file__).parent / "_build_scripts"))
+
+import feat_doc_gen
 
 
 def setup(app):
@@ -86,7 +89,7 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
 
 
 _feature_metadata = _load_feature_metadata()
-_build_scripts.feat_doc_gen.generate(
+feat_doc_gen.generate(
     metadata=_feature_metadata,
     features_dir=_FEATURES_DIR,
     features_doc_dir=_FEATURES_DOC_DIR
