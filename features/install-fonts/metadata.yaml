@@ -2,6 +2,12 @@ id: install-fonts
 version: 0.1.0
 name: Font Installation
 description: Install fonts from various sources.
+keywords:
+- fonts
+- font archive
+- nerd-fonts
+- typography
+- document
 _long_description: >-
   Install fonts from [Nerd Fonts](https://www.nerdfonts.com/) by name,
   from [GitHub release](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) assets by repository slug,
@@ -13,6 +19,17 @@ options:
     description: >-
       [Nerd Fonts](https://www.nerdfonts.com/) archive names to install
       (e.g. `Meslo`, `FiraCode`, `Hack`). Leave empty to skip Nerd Font downloads.
+    proposals:
+    - value: Meslo
+      description: MesloLGS Nerd Font.
+    - value: JetBrainsMono
+      description: JetBrains Mono Nerd Font.
+    - value: FiraCode
+      description: Fira Code Nerd Font with programming ligatures.
+    - value: Hack
+      description: Hack Nerd Font — a clean monospace font for source code.
+    - value: SourceCodePro
+      description: Source Code Pro Nerd Font.
     type: array
   font_urls:
     default: ''

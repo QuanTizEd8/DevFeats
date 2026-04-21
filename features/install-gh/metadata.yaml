@@ -3,28 +3,58 @@ version: 0.1.0
 name: GitHub CLI Installation
 description: >-
   Install `gh` – the [GitHub CLI](https://cli.github.com/) from the official package repositories or by downloading the pre-built binary from the GitHub repository.
+keywords:
+- github
+- gh
+- cli
+- git
+- devtool
+_long_description: |-
+  Install the [GitHub CLI](https://cli.github.com/) (`gh`) using one of two methods:
+  `repos` (default) adds the official GitHub CLI package repository for the detected OS
+  and installs via the native package manager; `binary` downloads the pre-built statically
+  linked binary from GitHub Releases and verifies the SHA-256 checksum.
+  After installation the feature optionally configures shell completions, per-user
+  git credential helper (`gh auth setup-git`), git protocol, and commit signing
+  for all resolved users (current user, devcontainer remoteUser/containerUser, and any
+  additional users listed in `add_users`).
+  GitHub CLI extensions can be pre-installed via the `extensions` option.
 options:
-  version:
-    type: string
-    default: latest
-    description: |-
-      Version of gh to install.
-      'latest' (default) — with method=repos: install the latest version from the configured repository. With method=binary: query the GitHub Releases API for the newest release.
-      A version string (e.g. '2.89.0') — with method=repos: on apt, passes 'gh=<version>' to apt-get. On macOS (Homebrew), Alpine, Arch, and RHEL-based systems (dnf/yum/zypper), version pinning is not supported: a warning is logged and the latest available package is installed instead. With method=binary: downloads exactly that release from github.com/cli/cli/releases.
-    proposals:
-    - latest
-    - 2.89.0
-    - 2.88.1
   method:
     type: string
     default: repos
-    description: |-
-      Installation strategy.
-      'repos' (default) — configure and use the official GitHub CLI package repository. On Debian/Ubuntu: adds the official apt repo (cli.github.com/packages) with GPG keyring and installs via apt. On RHEL/Fedora/CentOS/Amazon Linux: adds the official rpm repo and installs via dnf/yum. On SUSE/openSUSE: adds the official rpm repo and installs via zypper. On Alpine: installs via 'apk add github-cli' (community package, no version pinning). On Arch: installs via 'pacman -S github-cli' (community package, no version pinning). On macOS: installs via Homebrew ('brew install gh').
-      'binary' — download the pre-built binary archive from github.com/cli/cli/releases; verify SHA-256 against the release checksums file; install the 'gh' binary to $prefix/bin. The Linux release binaries are statically linked (CGO_ENABLED=0), so this method works on all Linux distributions including Alpine/musl without any compatibility shim. shell_completions controls which shells receive completion scripts.
+    description: Installation method to use.
     enum:
-    - repos
-    - binary
+    - value: repos
+      description: |-
+        Configure and use the official GitHub CLI package repository.
+        - On Debian/Ubuntu adds the apt repo at cli.github.com/packages with GPG keyring.
+        - On RHEL/Fedora/CentOS/Amazon Linux adds the official rpm repo via dnf/yum.
+        - On SUSE/openSUSE adds the rpm repo via zypper.
+        - On Alpine installs via `apk add github-cli` (community package, no version pinning).
+        - On Arch installs via `pacman -S github-cli` (community package, no version pinning).
+        - On macOS installs via Homebrew (`brew install gh`).
+    - value: binary
+      description: |-
+        Download the pre-built binary archive from https://github.com/cli/cli/releases,
+        verify SHA-256 against the release checksums file, and install `gh` to `$prefix/bin`.
+        The Linux binaries are statically linked (CGO_ENABLED=0) and work on all
+        Linux distributions including Alpine/musl without a compatibility shim.
+  version:
+    type: string
+    default: latest
+    description: Version of `gh` to install. Either "latest" or a specific version string.
+    proposals:
+    - value: latest
+      description: |-
+        Install the latest available version.
+        - When `method=repos`, installs the latest version from the configured repository.
+        - When `method=binary`, queries the GitHub Releases API for the newest release.
+    - value: 2.89.0
+      description: |-
+        Install a specific version.
+        - When `method=repos`, passes the version to the package manager, if supported, otherwise installs the latest available package.
+        - When `method=binary`, downloads exactly that release from https://github.com/cli/cli/releases.
   prefix:
     type: string
     default: auto
@@ -46,26 +76,32 @@ options:
   shell_completions:
     type: array
     default: "bash\nzsh"
-    description: |
-      Shell names to install completions for.
-      Supported shells: 'bash', 'zsh'.
-      With method=binary: completion files are taken from the release archive.
-      With method=repos: completions are generated by running 'gh completion -s <shell>' after installation.
-      As root: writes bash completion to '/etc/bash_completion.d/gh' and zsh completion to '<zshdir>/completions/_gh' (where <zshdir> is detected by shell__detect_zshdir).
-      As non-root: writes to '$HOME/.local/share/bash-completion/completions/gh' (bash) and '$HOME/.zfunc/_gh' (zsh).
-      Set to '' to skip all completion writes.
-      Examples: 'bash zsh', 'bash', 'zsh', ''.
+    description: |-
+      Shell names to install completions for. Set to '' to skip all shell completions.
+      - With method=binary: completion files are taken from the release archive.
+      - With method=repos: completions are generated by running 'gh completion -s <shell>' after installation.
+    enum:
+      - value: bash
+        description: |-
+          Install bash completions for `gh`.
+          - As root: writes to '/etc/bash_completion.d/gh'
+          - As non-root: writes to '$HOME/.local/share/bash-completion/completions/gh'
+      - value: zsh
+        description: |-
+          Install zsh completions for `gh`.
+          - As root: writes to '<zshdir>/completions/_gh'
+          - As non-root: writes to '$HOME/.zfunc/_gh'
   if_exists:
     type: string
     default: skip
     description: |-
       What to do when 'gh' is already present in PATH before installation begins.
       If the installed version matches the resolved target version, installation is always skipped silently regardless of this setting.
-      'skip' (default) — log a notice and exit successfully without making any changes.
-      'fail' — print an error and exit non-zero.
     enum:
-    - skip
-    - fail
+    - value: skip
+      description: Log a notice and exit successfully without making any changes (idempotent).
+    - value: fail
+      description: Print an error and exit non-zero.
   extensions:
     type: array
     default: ''
@@ -104,37 +140,46 @@ options:
   git_protocol:
     type: string
     default: ''
-    description: |-
-      Set the default git protocol in gh's per-user config (~/.config/gh/config.yml) by running 'gh config set git_protocol <value>' for each resolved user.
-      'https' — use HTTPS for git clone and push operations (gh's built-in default).
-      'ssh' — use SSH for git clone and push.
-      '' (empty, default) — leave the config key unset; gh uses its own default (https).
-      Applied for all users resolved by the add_*_user_config / add_users options.
+    description: >-
+      Set the default git protocol in `gh`'s per-user config (`~/.config/gh/config.yml`)
+      by running `gh config set git_protocol <value>` for each resolved user.
+      Leave empty to use `gh`'s own default (https).
     proposals:
-    - ''
-    - https
-    - ssh
+    - value: ''
+      description: Leave the config key unset; `gh` uses its own default (https).
+    - value: https
+      description: Use HTTPS for git clone and push operations (`gh`'s built-in default).
+    - value: ssh
+      description: Use SSH for git clone and push.
   setup_git:
     type: boolean
     default: false
     description: |-
-      Register gh as the git credential helper by running 'gh auth setup-git --force --hostname <git_hostname>' for each resolved user.
-      This writes a credential helper entry to ~/.gitconfig, allowing git operations to authenticate via gh without a separate credential store.
-      '--force' is used so the command succeeds at container build time even when there is no active gh login yet.
-      Defaulting to false to avoid unexpected changes to user gitconfig; set to true in devcontainer environments where gh will be the primary authentication mechanism.
+      Register `gh` as the git credential helper by running `gh auth setup-git --force --hostname <git_hostname>` for each resolved user.
+      This writes a credential helper entry to ~/.gitconfig, allowing git operations to authenticate via `gh` without a separate credential store.
+      '--force' is used so the command succeeds at container build time even when there is no active `gh` login yet.
+      Defaulting to false to avoid unexpected changes to user gitconfig;
+      set to true in environments where `gh` will be the primary authentication mechanism.
   sign_commits:
     type: string
     default: ''
-    description: |-
-      Pre-configure commit signing in each resolved user's ~/.gitconfig.
-      '' (default) — skip; make no changes to commit signing config.
-      'ssh' — set gpg.format=ssh and commit.gpgsign=true. Requires git 2.34+. Well-suited for devcontainers with SSH agent forwarding (via runArgs/remoteEnv in devcontainer.json): signing is silent and needs no TTY or pinentry. Users must still set user.signingkey themselves (e.g. via dotfiles: 'git config --global user.signingkey ~/.ssh/id_ed25519.pub'). For commits to show as Verified on GitHub, the corresponding public key must be registered under GitHub Settings > SSH and GPG keys > New SSH signing key.
-      'gpg' — set commit.gpgsign=true and explicitly unset gpg.format so git uses its default GPG format. Suited for users with an existing GPG key and gpg-agent already configured. Users must set user.signingkey to their GPG key ID (e.g. 'git config --global user.signingkey 3AA5C34371567BD2'). Note: gpg-agent socket forwarding into containers requires additional host setup beyond standard devcontainer spec; SSH signing is simpler in container environments.
-      In both cases, 'user.signingkey' is intentionally not set by this feature because the key identifier is user-specific and unknown at build time.
+    description: Pre-configure commit signing in each resolved user's `~/.gitconfig`.
     enum:
-    - ''
-    - ssh
-    - gpg
+    - value: ''
+      description: Skip; make no changes to commit signing config.
+    - value: ssh
+      description: >-
+        Set `gpg.format=ssh` and `commit.gpgsign=true`. Requires git 2.34+.
+        Well-suited for devcontainers with SSH agent forwarding: signing is silent
+        and needs no TTY or pinentry. Users must still set `user.signingkey`
+        (e.g. `~/.ssh/id_ed25519.pub`). The public key must be registered under
+        GitHub Settings > SSH and GPG keys > New SSH signing key for commits to
+        show as Verified on GitHub.
+    - value: gpg
+      description: >-
+        Set `commit.gpgsign=true` and use the default GPG format.
+        Suited for users with an existing GPG key and gpg-agent configured.
+        Users must set `user.signingkey` to their GPG key ID.
   git_hostname:
     type: string
     default: github.com

@@ -2,12 +2,21 @@ id: install-conda-env
 name: Conda Environment Installation
 version: 0.1.0
 description: Create or update conda environments from environment files or inline specifications.
+keywords:
+- conda
+- mamba
+- python
+- environment
+- package management
 _long_description: |-
-  This feature creates or updates conda environments by processing environment YAML files
-  and/or inline package specifications. It supports installing packages via conda and pip,
-  configuring channels and channel priority, and running post-install scripts. The feature
-  can be used to set up one or more environments after Conda is installed
-  by the install-miniforge feature or an existing Conda installation is detected on PATH.
+  This feature creates or updates conda environments
+  by processing environment YAML files and/or inline package specifications.
+  It supports installing packages via conda and pip,
+  configuring channels and channel priority,
+  and running post-install scripts.
+  The feature can be used to set up one or more environments
+  after Conda is installed by the install-miniforge feature
+  or an existing Conda installation is detected on PATH.
 options:
   conda_dir:
     default: ''
@@ -47,6 +56,15 @@ options:
     default: ''
     description: |
       Conda channels to add to the configuration.
+    proposals:
+    - value: defaults
+      description: Anaconda default channel.
+    - value: conda-forge
+      description: Community-driven conda-forge channel with broad package coverage.
+    - value: bioconda
+      description: Bioinformatics packages.
+    - value: nodefaults
+      description: Remove the defaults channel (combine with conda-forge for a lean setup).
     type: array
   strict_channel_priority:
     default: false
@@ -73,9 +91,14 @@ options:
     type: string
   solver:
     default: auto
-    description: |
-      Conda solver to use. 'auto' prefers mamba if available, falls back to conda.
-      Use 'mamba' or 'conda' to force a specific solver.
+    description: Conda solver to use.
+    enum:
+    - value: auto
+      description: Prefer mamba if available, fall back to conda.
+    - value: mamba
+      description: Force the mamba solver (requires mamba to be installed).
+    - value: conda
+      description: Force the conda solver.
     type: string
   keep_cache:
     default: false

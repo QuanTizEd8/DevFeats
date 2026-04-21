@@ -2,6 +2,12 @@ id: install-miniforge
 version: 0.2.0
 name: Miniforge Installation
 description: Install [Conda](https://conda.io/) and [Mamba](https://github.com/mamba-org/mamba) from [Miniforge](https://github.com/conda-forge/miniforge).
+keywords:
+- conda
+- mamba
+- miniforge
+- package manager
+- python
 _long_description: |-
   This feature installs Conda and Mamba via the Miniforge installer script,
   with full control over version, installation path, user permissions, and shell activation.
@@ -23,17 +29,16 @@ options:
     type: string
   if_exists:
     default: skip
-    description: |
-      What to do when conda is already installed at prefix.
-      'skip' — warn and continue to post-install steps (idempotent).
-      'fail' — print an error and exit non-zero.
-      'reinstall' — uninstall the existing installation then install fresh.
-      'update' — update the base conda environment to the resolved version.
+    description: What to do when conda is already installed at `prefix`.
     enum:
-    - skip
-    - fail
-    - reinstall
-    - update
+    - value: skip
+      description: Warn and continue to post-install steps (idempotent).
+    - value: fail
+      description: Print an error and exit non-zero.
+    - value: reinstall
+      description: Uninstall the existing installation then install fresh.
+    - value: update
+      description: Update the base conda environment to the resolved version.
     type: string
   preserve_envs:
     default: true
@@ -88,12 +93,12 @@ options:
     type: boolean
   shell_activations:
     default: "bash\nzsh"
-    description: |
-      Shell names to write conda initialization blocks for.
-      For each listed shell, writes an idempotent conda init block to the appropriate
-      system-wide (root) or user-scoped (non-root) rc file.
-      Supported: 'bash', 'zsh'. Set to '' to skip all activation writes.
-      Examples: 'bash', 'zsh', 'bash zsh'.
+    description: Shell names to write conda initialization blocks for. Set to '' to disable.
+    enum:
+    - value: bash
+      description: Write an idempotent conda init block to the system-wide (root) or user-scoped (non-root) Bash RC file.
+    - value: zsh
+      description: Write an idempotent conda init block to the system-wide (root) or user-scoped (non-root) Zsh RC file.
     type: array
   activate_env:
     default: base
