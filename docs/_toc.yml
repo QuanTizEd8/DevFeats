@@ -23,5 +23,5 @@ entries:
       - file: dev-guide/repo-structure
       - file: dev-guide/features/index
         entries:
-          - glob: dev-guide/features/*/*
+          - glob: dev-guide/features/*
 
