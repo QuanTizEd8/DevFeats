@@ -76,10 +76,6 @@
       "description": "Long description of the Feature.",
       "type": "string"
     },
-    "_details": {
-      "description": "Details related to the Feature.",
-      "type": "string"
-    },
     "_dependencies": {
       "description": "Build and runtime dependency manifests for the Feature.",
       "$ref": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/install-os-pkg/manifest.schema.json"
