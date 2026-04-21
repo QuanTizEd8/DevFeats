@@ -47,7 +47,36 @@
       "description": "List of platforms where this Feature cannot be installed.",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 2,
+        "properties": {
+          "arch": {
+            "$ref": "#/$defs/conditionValue",
+            "description": "CPU architecture from uname -m: x86_64, aarch64, armv7l, i686, etc."
+          },
+          "kernel": {
+            "$ref": "#/$defs/conditionValue",
+            "description": "OS kernel: linux, darwin."
+          },
+          "id": {
+            "$ref": "#/$defs/conditionValue",
+            "description": "OS ID from /etc/os-release (or 'macos' on macOS): ubuntu, debian, alpine, fedora, arch, rhel, opensuse-leap, macos, etc."
+          },
+          "id_like": {
+            "$ref": "#/$defs/conditionValue",
+            "description": "OS ID_LIKE from /etc/os-release (or 'macos' on macOS): debian, rhel, arch, suse, etc."
+          },
+          "version_id": {
+            "$ref": "#/$defs/conditionValue",
+            "description": "OS VERSION_ID from /etc/os-release: 22.04, 39, 3.19, 15.6, etc."
+          },
+          "reason": {
+            "description": "Reason why the platform is unsupported, for display in supporting tools.",
+            "type": "string"
+          }
+        },
+        "required": ["reason"]
       }
     },
     "_long_description": {
@@ -57,6 +86,10 @@
     "_details": {
       "description": "Detailed markdown-supported description of the Feature.",
       "type": "string"
+    },
+    "_dependencies": {
+      "description": "Build and runtime dependency manifests for the Feature.",
+      "$ref": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/install-os-pkg/manifest.schema.json"
     },
     "dependsOn": {
       "description": "An object of Feature dependencies that must be satisified before this Feature is installed. Elements follow the same semantics of the features object in devcontainer.json",
@@ -237,7 +270,8 @@
     "description",
     "keywords",
     "options",
-    "details"
+    "_long_description",
+    "_details"
   ],
   "definitions": {
     "FeatureOption": {
