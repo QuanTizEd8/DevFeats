@@ -28,7 +28,7 @@ Execute these phases in order. DO NOT SKIP PHASES.
 
 **Constraints**:
 
-- NEVER edit generated files: all of `src/` is generated. Run `bash scripts/sync-lib.sh` to regenerate `src/` from `features/` + `lib/` + `features/bootstrap.sh`.
+- NEVER edit generated files: all of `src/` is generated. Run `bash scripts/sync-src.sh` to regenerate `src/` from `features/` + `lib/` + `features/bootstrap.sh`.
 - NEVER skip the research phase. Always read `docs/ref/<feature-name>/` before implementing.
 - NEVER reimplement logic that already exists in `lib/`. Check the shared library first.
 - NEVER assume a single platform. Every code path must account for Linux (Debian, RHEL, Alpine, Arch) and macOS.
@@ -89,7 +89,7 @@ DO NOT PROCEED TO PHASE 6 (IMPLEMENTATION) OR ASK THE USER WHETHER YOU SHOULD PR
 2. Generate dependency manifests for base (`features/<feature-name>/metadata.yaml` under `dependencies.base`) and option-specific dependencies (`dependencies.<option-or-case>`) based on the installation requirements outlined in the Installation Reference document, following the instructions in `.github/instructions/ospkg-manifests.instructions.md`. Ensure that all dependencies are accurately represented with correct package names, versions, and platform-specific details as needed.
 3. For each building block that is to be implemented or updated, use a test-driven development (TDD) approach and write comprehensive unit tests for it in the `test/unit/` directory before implementing the actual logic. The tests should cover all expected behavior, edge cases, and error conditions for the building block.
 RUN THE TESTS AND VERIFY THEY FAIL BEFORE IMPLEMENTING THE BUILDING BLOCK, to ensure that the tests are correctly written and that they will effectively validate the implementation. After writing the tests, implement the building block in `lib/`, ensuring that it fulfills the specification outlined in the implementation reference document, is robust against all current and anticipated use cases, follows best practices, and is well-documented.
-4. After modifying `lib/`, run `bash scripts/sync-lib.sh` to propagate changes, then run the unit tests for the modified library modules to verify that the new implementation is correct and doesn't introduce regressions.
+4. After modifying `lib/`, run `bash scripts/sync-src.sh` to propagate changes, then run the unit tests for the modified library modules to verify that the new implementation is correct and doesn't introduce regressions.
 5. After all building blocks are implemented and their unit tests pass, adopt the same TDD approach and implement comprehensive scenario tests for the feature under `test/<feature-name>/`, covering all relevant use cases, options, and edge cases, and fully verifying the correctness of the implementation according to the reference documents. Make sure to include failing and passing scenarios for all supported platforms, including macOS tests (run on CI runners). Scenario tests are too heavy to run locally, so NEVER TRY TO RUN THEM LOCALLY.
 6. Write the installer script under `features/<feature-name>/install.bash` following all conventions:
    - File header with `_SELF_DIR` and `_BASE_DIR`.
@@ -181,10 +181,10 @@ If the verdict is **NOT APPROVED**:
 
 ## Key Project Facts
 
-- **Generated files** (entire `src/`): never edit; run `bash scripts/sync-lib.sh` to regenerate from `features/`.
-- **features/bootstrap.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files via `scripts/sync-lib.sh`.
+- **Generated files** (entire `src/`): never edit; run `bash scripts/sync-src.sh` to regenerate from `features/`.
+- **features/bootstrap.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files via `scripts/sync-src.sh`.
 - **Dual distribution**: devcontainer features (GHCR) + standalone tarballs (GitHub Releases via `scripts/build-artifacts.sh`).
-- **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `scripts/sync-lib.sh`.
+- **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `scripts/sync-src.sh`.
 - **Test layers**: bats unit tests (`test/unit/`), devcontainer scenario tests (`test/<feature-name>/`), fail scenarios, dry-run manifest tests.
 - **CI workflows**: `cicd.yaml` (orchestrator — triggers on push/PR/tag), `ci.yaml` (reusable CI — lint, validate, unit, feature, dist tests), `cd.yaml` (reusable CD — GHCR publish + GitHub Release).
 - **Pre-commit hook** (lefthook): runs `make sync` and `make format` (auto-formats staged shell files).
@@ -193,8 +193,8 @@ If the verdict is **NOT APPROVED**:
 
 | Task | Command |
 |------|---------|
-| Sync generated files | `bash scripts/sync-lib.sh` |
-| Verify sync is up to date | `bash scripts/sync-lib.sh --check` |
+| Sync generated files | `bash scripts/sync-src.sh` |
+| Verify sync is up to date | `bash scripts/sync-src.sh --check` |
 | Format shell files | `make format` |
 | Check formatting (no writes) | `make format-check` |
 | Lint shell files | `make lint` |

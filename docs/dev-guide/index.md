@@ -24,7 +24,7 @@ testing them, and publishing releases.
   ```bash
   brew install shellcheck
   ```
-- **Lefthook** — runs `scripts/sync-lib.sh`, shfmt, and shellcheck automatically
+- **Lefthook** — runs `scripts/sync-src.sh`, shfmt, and shellcheck automatically
   on commit:
   ```bash
   brew install lefthook
@@ -70,7 +70,7 @@ for the full API.
 
 ```sh
 # Regenerate lib/ copies in each feature (run after editing lib/ or features/bootstrap.sh)
-bash scripts/sync-lib.sh
+bash scripts/sync-src.sh
 
 # Format all shell scripts
 make format

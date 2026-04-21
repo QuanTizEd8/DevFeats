@@ -39,7 +39,7 @@ Features are published to [GitHub Container Registry (GHCR)](https://ghcr.io)
 and a GitHub Release is created by the `cd.yaml` reusable workflow, which is
 called from the `cicd.yaml` orchestrator. The publish job:
 
-1. Runs `bash scripts/sync-lib.sh` to ensure every feature has up-to-date `_lib/`
+1. Runs `bash scripts/sync-src.sh` to ensure every feature has up-to-date `_lib/`
    copies and `install.sh` before packaging.
 2. Runs `bash scripts/build-artifacts.sh <tag>` to produce per-feature tarballs and
    the `sysset-all.tar.gz` bundle under `dist/`.

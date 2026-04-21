@@ -66,7 +66,9 @@ jobs:
           fi
 
           # ── Feature discovery helpers ──────────────────────────────────────
-          all_features=$(ls -1 features | jq -R . | jq -sc .)
+          feature_ids=$(find features -mindepth 2 -maxdepth 2 -name "metadata.yaml" \
+            | sed 's|^features/||; s|/metadata.yaml$||' | sort -u)
+          all_features=$(printf '%s\n' "$feature_ids" | grep -v '^$' | jq -R . | jq -sc .)
           macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
             | sed 's|test/||; s|/macos/.*||' | sort -u)
           macos_all=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
@@ -101,7 +103,7 @@ jobs:
             if echo "$changed" | grep -qE '^(features/bootstrap\.sh|lib/|test/lib/)'; then
               features="$all_features"
             else
-              features=$(ls -1 features | while IFS= read -r f; do
+              features=$(printf '%s\n' "$feature_ids" | while IFS= read -r f; do
                 if echo "$changed" | grep -qE "^(features|test)/$f/"; then echo "$f"; fi
               done | jq -R . | jq -sc .)
             fi

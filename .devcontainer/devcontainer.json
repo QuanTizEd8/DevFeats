@@ -25,7 +25,7 @@
         "ghcr.io/devcontainers/features/docker-in-docker:2": {}
     },
     "remoteUser": "node",
-    "initializeCommand": "bash scripts/sync-lib.sh",
+    "initializeCommand": "bash scripts/sync-src.sh",
     "updateContentCommand": "npm install -g @devcontainers/cli lefthook",
     "postCreateCommand": "bash .devcontainer/setup-dev.sh && lefthook install"
 }

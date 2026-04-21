@@ -1,7 +1,7 @@
 *.pyc
 __pycache__/
 
-# Generated copies — assembled by scripts/sync-lib.sh and the scripts/ sync suite.
+# Generated copies — assembled by scripts/sync-src.sh and the scripts/ sync suite.
 # Never commit these; CI regenerates them after checkout.
 src/
 

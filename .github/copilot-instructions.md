@@ -13,7 +13,7 @@
 ## Key Commands
 
 
-Always run `bash scripts/sync-lib.sh` before running feature tests locally.
+Always run `bash scripts/sync-src.sh` before running feature tests locally.
 
 ## Features
 
@@ -55,7 +55,7 @@ All shell scripts are formatted with **shfmt** and linted with **shellcheck**.
 - Run `make format` to auto-format; `make lint` to lint.
 - `*.bats` files use `shell_variant = bats` in `.editorconfig` and are formatted by shfmt.
 - `--apply-ignore` excludes generated `_lib/` copies and `install.sh` stubs automatically.
-- `features/*/install.bash` are body-only (no header) and are **not linted in isolation** — lint targets the assembled `src/*/install.bash` files. Run `bash scripts/sync-lib.sh` before `make lint`.
+- `features/*/install.bash` are body-only (no header) and are **not linted in isolation** — lint targets the assembled `src/*/install.bash` files. Run `bash scripts/sync-src.sh` before `make lint`.
 
 
 ## Key References

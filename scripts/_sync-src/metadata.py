@@ -2,8 +2,8 @@
 """Generate devcontainer-feature.json from metadata.yaml for each feature.
 
 Usage:
-    python3 scripts/sync-metadata.py          # write/update all JSON files
-    python3 scripts/sync-metadata.py --check  # verify JSON files are up to date (CI)
+    python3 scripts/_sync-src/metadata.py          # write/update all JSON files
+    python3 scripts/_sync-src/metadata.py --check  # verify JSON files are up to date (CI)
 
 Each features/*/metadata.yaml is the single source of truth for feature metadata.
 devcontainer-feature.json is a generated artifact (git-ignored) produced by:
@@ -35,7 +35,12 @@ except ImportError:
     )
     sys.exit(1)
 
-_REPO = Path(__file__).resolve().parent.parent
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR.parent))
+from git_utils import git_owner_repo, git_repo_root
+
+
+_REPO = git_repo_root()
 _FEATURES = _REPO / "features"
 _SRC = _REPO / "src"
 _DERIVED_OPTIONS_PATH = _FEATURES / "derived-options.yaml"
@@ -47,8 +52,7 @@ with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
 _DERIVED_OPTION_KEYS: frozenset[str] = frozenset(_DERIVED_OPTIONS)
 
 # Constants
-REPO_OWNER = "quantized8"
-REPO_NAME = "sysset"
+REPO_OWNER, REPO_NAME = git_owner_repo()
 LICENSE_URL = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/blob/main/LICENSE"
 DOC_URL_BASE = f"https://{REPO_OWNER}.github.io/{REPO_NAME}"
 DOC_URL_TEMPLATE = DOC_URL_BASE + "/features/{feature_id}/"
@@ -99,7 +103,7 @@ def main() -> None:
         if any_stale:
             print(
                 "\n⛔ Stale devcontainer-feature.json files detected."
-                "  Run: bash scripts/sync-lib.sh",
+                "  Run: bash scripts/sync-src.sh",
                 file=sys.stderr,
             )
             sys.exit(1)

@@ -1,4 +1,4 @@
-# Canonical definitions for options that sync-argparse.py and sync-metadata.py
+# Canonical definitions for options that argparse.py and metadata.py
 # auto-inject into every feature's generated code and devcontainer-feature.json.
 # These keys must NOT be declared manually in any metadata.yaml file.
 #

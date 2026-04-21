@@ -39,7 +39,7 @@ jobs:
         if: "!inputs.release_tag"
         run: |
           pip3 install -r .devcontainer/requirements.txt
-          bash scripts/sync-lib.sh
+          bash scripts/sync-src.sh
 
       - name: Publish Features to GHCR
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
@@ -93,7 +93,7 @@ jobs:
         if: "!inputs.release_tag"
         run: |
           pip3 install -r .devcontainer/requirements.txt
-          bash scripts/sync-lib.sh
+          bash scripts/sync-src.sh
           bash scripts/build-artifacts.sh "${RELEASE_TAG}"
 
       - name: Create or Update GitHub Release

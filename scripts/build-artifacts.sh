@@ -21,7 +21,11 @@
 set -euo pipefail
 
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_REPO_ROOT="$(cd "${_SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=scripts/git_helpers.sh
+. "${_SCRIPT_DIR}/git_helpers.sh"
+
+_REPO_ROOT="$(git__require_repo_root)"
 _TAG="${1:-dev}"
 
 _DIST_DIR="${_REPO_ROOT}/dist"
@@ -35,13 +39,13 @@ _SYSSET_SRC="${_FEATURES_DIR}/sysset.sh"
 
 echo "ℹ️  Building artifacts for tag: '${_TAG}'" >&2
 
-# ── Pre-flight: require src/ to be already populated by scripts/sync-lib.sh ──
+# ── Pre-flight: require src/ to be already populated by scripts/sync-src.sh ──
 # build-artifacts.sh is a consumer of sync output — it does not call sync
 # itself to stay usable in environments without Python+PyYAML (e.g. containers).
-# Run 'bash scripts/sync-lib.sh' (or 'make sync') before invoking this script.
+# Run 'bash scripts/sync-src.sh' (or 'make sync') before invoking this script.
 _check_feature=$(find "${_SRC_DIR}" -maxdepth 2 -name 'install.bash' 2> /dev/null | head -1)
 if [[ -z "$_check_feature" ]]; then
-  echo "⛔ src/ is not populated. Run 'bash scripts/sync-lib.sh' first." >&2
+  echo "⛔ src/ is not populated. Run 'bash scripts/sync-src.sh' first." >&2
   exit 1
 fi
 

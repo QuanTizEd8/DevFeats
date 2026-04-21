@@ -27,10 +27,17 @@ export GH_PAGER=cat
 
 COMMIT_SHA="${1:?Usage: $0 <commit-sha>}"
 
-# Detect GitHub repo slug from git remote
-REPO="$(git remote get-url origin |
-  sed 's|.*github\.com[:/]\(.*\)|\1|' |
-  sed 's|\.git$||')"
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=scripts/git_helpers.sh
+. "${_SCRIPT_DIR}/git_helpers.sh"
+
+REPO_ROOT="$(git__require_repo_root)"
+
+# Detect GitHub slug + owner/name from git remote
+REPO_SLUG="$(git__require_origin_slug)"
+REPO_OWNER="$(git__require_origin_owner)"
+REPO_NAME="$(git__require_origin_name)"
 
 # Expand short SHA to full 40-char SHA; skip rev-parse if already full
 if [[ ! "${COMMIT_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]; then
@@ -38,7 +45,6 @@ if [[ ! "${COMMIT_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]; then
   COMMIT_SHA="$(git rev-parse "${COMMIT_SHA}" 2> /dev/null || echo "${COMMIT_SHA}")"
 fi
 
-REPO_ROOT="$(git rev-parse --show-toplevel)"
 LOGDIR="${REPO_ROOT}/.local/logs/gha/${COMMIT_SHA}"
 mkdir -p "${LOGDIR}"
 
@@ -56,7 +62,7 @@ _poll_interval=10
 # ---------------------------------------------------------------------------
 _ts() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 
-_ts "repo=${REPO}  commit=${COMMIT_SHA}"
+_ts "repo=${REPO_SLUG}  commit=${COMMIT_SHA}"
 _ts "logs → ${LOGDIR}/"
 
 # ---------------------------------------------------------------------------
@@ -67,7 +73,7 @@ _ts "logs → ${LOGDIR}/"
 _download_log() {
   local job_id="$1"
   local dest="${LOGDIR}/${job_id}.log"
-  gh api "/repos/${REPO}/actions/jobs/${job_id}/logs" |
+  gh api "/repos/${REPO_OWNER}/${REPO_NAME}/actions/jobs/${job_id}/logs" |
     awk '{ sub(/^[0-9T:.Z-]+[[:space:]]*/,""); print }' \
       > "${dest}" 2> /dev/null || true
   basename "${dest}"
@@ -124,7 +130,7 @@ _handle_job() {
 # ---------------------------------------------------------------------------
 while true; do
   runs_resp=$(gh api \
-    "/repos/${REPO}/actions/runs?head_sha=${COMMIT_SHA}&per_page=100" 2> /dev/null) || {
+    "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs?head_sha=${COMMIT_SHA}&per_page=100" 2> /dev/null) || {
     _ts 'API error — retrying...'
     sleep "${_poll_interval}"
     continue
@@ -147,7 +153,7 @@ while true; do
     [[ "${run_status}" != "completed" ]] && all_done=false
 
     jobs_resp=$(gh api \
-      "/repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" 2> /dev/null) || continue
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100" 2> /dev/null) || continue
 
     while IFS= read -r job; do
       job_status=$(jq -r '.status' <<< "${job}")

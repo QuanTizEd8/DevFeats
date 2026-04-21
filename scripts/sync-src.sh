@@ -1,26 +1,31 @@
 #!/usr/bin/env bash
-# sync-lib.sh — Assembles each feature's src/ directory from features/ + lib/ + features/bootstrap.sh:
-#   - features/*/metadata.yaml → src/*/devcontainer-feature.json (via scripts/sync-metadata.py)
-#   - features/*/metadata.yaml → src/*/dependencies/*.yaml (via scripts/sync-deps.py)
-#   - features/*/install.bash  → src/*/install.bash (header prepended via scripts/sync-argparse.py)
+# sync-src.sh — Assembles each feature's src/ directory from features/ + lib/ + features/bootstrap.sh:
+#   - features/*/metadata.yaml → src/*/devcontainer-feature.json (via scripts/_sync-src/metadata.py)
+#   - features/*/metadata.yaml → src/*/dependencies/*.yaml (via scripts/_sync-src/deps.py)
+#   - features/*/install.bash  → src/*/install.bash (header prepended via scripts/_sync-src/argparse.py)
 #   - lib/                     → src/*/_lib/
 #   - features/bootstrap.sh    → src/*/install.sh
 #   - features/*/files/        → src/*/files/ (copied, not symlinked)
 #
 # Usage:
-#   bash scripts/sync-lib.sh           # sync all features
-#   bash scripts/sync-lib.sh --check   # verify copies are up to date
+#   bash scripts/sync-src.sh           # sync all features
+#   bash scripts/sync-src.sh --check   # verify copies are up to date
 #                              # exits non-zero and reports stale features
 #
 # Features are auto-discovered from features/*/metadata.yaml — never hard-coded.
 set -euo pipefail
 
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_REPO_ROOT="$(cd "${_SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=scripts/git_helpers.sh
+. "${_SCRIPT_DIR}/git_helpers.sh"
+
+_REPO_ROOT="$(git__require_repo_root)"
 _LIB_DIR="${_REPO_ROOT}/lib"
 _FEATURES_DIR="${_REPO_ROOT}/features"
 _SRC_DIR="${_REPO_ROOT}/src"
 _BOOTSTRAP="${_FEATURES_DIR}/bootstrap.sh"
+_SYNC_SRC_DIR="${_REPO_ROOT}/scripts/_sync-src"
 
 _check_mode=false
 [[ "${1-}" == "--check" ]] && _check_mode=true
@@ -46,27 +51,27 @@ fi
 # Step 1: Generate (or check) dependencies/*.yaml from metadata.yaml.
 # ---------------------------------------------------------------------------
 if [[ "$_check_mode" == true ]]; then
-  "$_python" "${_SCRIPT_DIR}/sync-deps.py" --check
+  "$_python" "${_SYNC_SRC_DIR}/deps.py" --check
 else
-  "$_python" "${_SCRIPT_DIR}/sync-deps.py"
+  "$_python" "${_SYNC_SRC_DIR}/deps.py"
 fi
 
 # ---------------------------------------------------------------------------
 # Step 3: Generate (or check) devcontainer-feature.json from metadata.yaml.
 # ---------------------------------------------------------------------------
 if [[ "$_check_mode" == true ]]; then
-  "$_python" "${_SCRIPT_DIR}/sync-metadata.py" --check
+  "$_python" "${_SYNC_SRC_DIR}/metadata.py" --check
 else
-  "$_python" "${_SCRIPT_DIR}/sync-metadata.py"
+  "$_python" "${_SYNC_SRC_DIR}/metadata.py"
 fi
 
 # ---------------------------------------------------------------------------
 # Step 4: Generate (or check) argparse blocks in each feature's install.bash.
 # ---------------------------------------------------------------------------
 if [[ "$_check_mode" == true ]]; then
-  "$_python" "${_SCRIPT_DIR}/sync-argparse.py" --check
+  "$_python" "${_SYNC_SRC_DIR}/argparse.py" --check
 else
-  "$_python" "${_SCRIPT_DIR}/sync-argparse.py"
+  "$_python" "${_SYNC_SRC_DIR}/argparse.py"
 fi
 
 # ---------------------------------------------------------------------------
@@ -144,7 +149,7 @@ done
 if [[ "$_check_mode" == true ]]; then
   if [[ "$_any_stale" == true ]]; then
     echo "" >&2
-    echo "⛔ Stale _lib/ copies detected. Run: bash scripts/sync-lib.sh" >&2
+    echo "⛔ Stale _lib/ copies detected. Run: bash scripts/sync-src.sh" >&2
     echo "   (The pre-commit hook runs this automatically when lib/ files are staged.)" >&2
     exit 1
   fi

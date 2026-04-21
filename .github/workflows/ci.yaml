@@ -110,7 +110,9 @@ jobs:
           if [[ "${INPUT_FEATURES:-}" == \[* ]]; then
             features="$INPUT_FEATURES"
           elif [[ -z "${INPUT_FEATURES:-}" ]]; then
-            features=$(ls -1 features | jq -R . | jq -sc .)
+            features=$(find features -mindepth 2 -maxdepth 2 -name "metadata.yaml" \
+              | sed 's|^features/||; s|/metadata.yaml$||' | sort -u \
+              | jq -R . | jq -sc .)
           else
             features=$(printf '%s\n' "$INPUT_FEATURES" | tr ',' '\n' | tr -d ' ' \
               | grep -v '^$' | jq -R . | jq -sc .)
@@ -166,7 +168,7 @@ jobs:
         run: pip3 install -r .devcontainer/requirements.txt
 
       - name: Sync Library Files
-        run: bash scripts/sync-lib.sh
+        run: bash scripts/sync-src.sh
 
       - name: Build Distribution Artifacts
         run: bash scripts/build-artifacts.sh "${{ needs.setup.outputs.version }}"

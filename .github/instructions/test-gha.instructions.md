@@ -13,7 +13,7 @@ applyTo: "test/install-os-pkg/dry-run/**, test/**/linux/**, .github/workflows/*.
 | Continuous Integration | `ci.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | All lint/validate/unit/feature/dist tests |
 | Continuous Deployment | `cd.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | Publish to GHCR + GitHub Release |
 
-All jobs run `bash scripts/sync-lib.sh` as an early step.
+All jobs run `bash scripts/sync-src.sh` as an early step.
 
 ## macOS GHA Runner
 

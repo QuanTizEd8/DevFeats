@@ -54,7 +54,7 @@ ifdef FILES
 	fi
 else
 	@if command -v shellcheck >/dev/null 2>&1; then \
-		[ -d src ] || bash scripts/sync-lib.sh; \
+		[ -d src ] || bash scripts/sync-src.sh; \
 		{ git ls-files -- '*.sh' '*.bash' | grep -v '^features/[^/]*/install\.bash$$'; find src -maxdepth 2 -name 'install.bash' 2>/dev/null; } | sort -u | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck; \
 	else \
 		echo "ℹ️  shellcheck not found — skipping lint."; \
@@ -62,18 +62,18 @@ else
 endif
 
 # Sync generated artifacts from canonical sources (features/ + lib/ + features/bootstrap.sh → src/):
-#   features/*/metadata.yaml  → src/*/devcontainer-feature.json  (via scripts/sync-metadata.py)
-#   features/*/metadata.yaml  → src/*/dependencies/*.yaml         (via scripts/sync-deps.py)
-#   features/*/install.bash   → src/*/install.bash (header prepended by scripts/sync-argparse.py)
+#   features/*/metadata.yaml  → src/*/devcontainer-feature.json  (via scripts/_sync-src/metadata.py)
+#   features/*/metadata.yaml  → src/*/dependencies/*.yaml         (via scripts/_sync-src/deps.py)
+#   features/*/install.bash   → src/*/install.bash (header prepended by scripts/_sync-src/argparse.py)
 #   lib/                      → src/*/_lib/
 #   features/bootstrap.sh     → src/*/install.sh
 sync:
-	bash scripts/sync-lib.sh
+	bash scripts/sync-src.sh
 
 # Verify all generated artifacts are up to date (CI-style, no writes).
 # Exits non-zero if any file is missing or stale.
 sync-check:
-	bash scripts/sync-lib.sh --check
+	bash scripts/sync-src.sh --check
 
 # Run lib/ unit tests via bats-core (requires git submodules to be initialised).
 test-unit:

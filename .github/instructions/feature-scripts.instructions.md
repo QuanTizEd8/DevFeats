@@ -12,7 +12,7 @@ applyTo: "features/**/*.bash, lib/*.sh"
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"   # Feature root: src/<feature>/ (assembled by scripts/sync-lib.sh)
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"   # Feature root: src/<feature>/ (assembled by scripts/sync-src.sh)
 ```
 
 ## Library-First Principle
@@ -26,7 +26,7 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"   # Feature root: src/<feature>/ (assem
 - Resolving devcontainer user lists with a local associative array → use `users__resolve_list`.
 - Calling `chsh` manually for a list of users → use `users__set_login_shell`.
 
-**When adding new logic**, ask: could this be useful in more than one feature, or does it encapsulate a detail that is easy to get wrong? If yes, add it to `lib/` rather than keeping it inline. After adding to `lib/`, run `bash scripts/sync-lib.sh` to propagate it to all features.
+**When adding new logic**, ask: could this be useful in more than one feature, or does it encapsulate a detail that is easy to get wrong? If yes, add it to `lib/` rather than keeping it inline. After adding to `lib/`, run `bash scripts/sync-src.sh` to propagate it to all features.
 
 ## Library Sourcing
 

@@ -35,10 +35,12 @@ import sys
 from pathlib import Path
 
 from parse_lib import LibFunction, parse_lib_file
+from git_utils import git_repo_root
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
-REPO = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO = git_repo_root()
 LIB_DIR = REPO / "lib"
 SRC_DIR = REPO / "src"
 DOCS_REF_DIR = REPO / "docs" / "ref"

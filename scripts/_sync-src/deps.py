@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""sync-deps.py — Generates dependencies/*.yaml files from metadata.yaml.
+"""deps.py — Generates dependencies/*.yaml files from metadata.yaml.
 
 Each key under ``dependencies:`` in metadata.yaml becomes a
 ``dependencies/<key>.yaml`` file in the feature directory.  The value is
@@ -7,8 +7,8 @@ dumped as YAML using a consistent, deterministic format so that the
 ``--check`` mode can detect staleness with a byte-for-byte comparison.
 
 Usage:
-  python3 scripts/sync-deps.py           # generate all dependency files
-  python3 scripts/sync-deps.py --check   # exit non-zero if any file is stale
+  python3 scripts/_sync-src/deps.py           # generate all dependency files
+  python3 scripts/_sync-src/deps.py --check   # exit non-zero if any file is stale
 """
 
 import sys
@@ -16,9 +16,13 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from git_utils import git_repo_root
+
 SCRIPT_DIR = Path(__file__).parent
-FEATURES_DIR = SCRIPT_DIR.parent / "features"
-SRC_DIR = SCRIPT_DIR.parent / "src"
+REPO_ROOT = git_repo_root()
+FEATURES_DIR = REPO_ROOT / "features"
+SRC_DIR = REPO_ROOT / "src"
 
 
 def _dump(data: object) -> str:
@@ -109,7 +113,7 @@ def main() -> int:
     if check_mode and any_stale:
         print("", file=sys.stderr)
         print(
-            "⛔ Stale dependency files detected. Run: bash scripts/sync-lib.sh",
+            "⛔ Stale dependency files detected. Run: bash scripts/sync-src.sh",
             file=sys.stderr,
         )
         return 1
