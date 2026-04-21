@@ -12,6 +12,17 @@
     "files.associations": {
         "*.bats": "shellscript"
     },
+    // ── JSON Schema ─────────────────────────────────────────────────────────
+    "json.schemas": [
+        {
+            "fileMatch": [
+                "features/*/metadata.yaml"
+            ],
+            "url": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/metadata.schema.json"
+        }
+    ],
+    "json.trace.server": "verbose",
+
     // ── Copilot ───────────────────────────────────────────────────────────────
     "chat.checkpoints.showFileChanges": true,
     "chat.agent.thinking.collapsedTools": "withThinking",
