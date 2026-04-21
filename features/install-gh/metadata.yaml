@@ -179,7 +179,10 @@ options:
       description: >-
         Set `commit.gpgsign=true` and use the default GPG format.
         Suited for users with an existing GPG key and gpg-agent configured.
-        Users must set `user.signingkey` to their GPG key ID.
+        Users must set `user.signingkey` to their GPG key ID
+        (e.g. `git config --global user.signingkey 3AA5C34371567BD2`).
+        Note: gpg-agent socket forwarding into containers requires additional host setup
+        beyond standard devcontainer spec; SSH signing is simpler in container environments.
   git_hostname:
     type: string
     default: github.com
