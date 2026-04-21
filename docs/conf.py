@@ -4,19 +4,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-import sys as _sys
 from typing import TYPE_CHECKING
 
 import yaml as _yaml  # noqa: E402 (pyyaml; available in sysset-website env via myst-parser)
+
+import _build_scripts
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
 
 
-_REPO = Path(__file__).resolve().parent.parent
-_sys.path.insert(0, str(_REPO / "scripts"))
-
-from parse_feature_json import render_options_table as _render_options_table  # noqa: E402
+_REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def setup(app):
@@ -34,7 +32,7 @@ def setup(app):
 def _load_feature_metadata() -> dict[str, dict]:
     """Load feature metadata from all features' metadata.yaml files into a dict."""
     metadata = {}
-    for meta_path in (_REPO / "features").glob("*/metadata.yaml"):
+    for meta_path in (_REPO_ROOT / "features").glob("*/metadata.yaml"):
         with meta_path.open(encoding="utf-8") as fh:
             data = _yaml.safe_load(fh)
         feat_id = data["id"]
@@ -66,7 +64,7 @@ def _inject_feature_preamble(app, docname: str, source):  # noqa: ANN001
     feature_name = feature["name"]
     # Use the raw description from YAML verbatim so markdown links render.
     desc_raw = (feature["description"]).strip()
-    options_block = _render_options_table(feature)
+    options_block = _build_scripts.feat_doc_gen.render_options_table(feature)
 
     parts = [f"# {feature_name}"]
     if desc_raw:
