@@ -13,8 +13,10 @@ import _build_scripts
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
 
-
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_WEBSITE_ROOT = Path(__file__).resolve().parent
+_REPO_ROOT = _WEBSITE_ROOT.parent
+_FEATURES_DIR = _REPO_ROOT / "features"
+_FEATURES_DOC_DIR = _WEBSITE_ROOT / "features"
 
 
 def setup(app):
@@ -24,7 +26,6 @@ def setup(app):
 
     app.add_lexer("jsonc", JsonLexer)
     app.add_lexer("gitconfig", IniLexer)
-    app.connect("source-read", _inject_feature_preamble)
     app.connect("source-read", _source_jinja_template)
     return
 
@@ -32,48 +33,12 @@ def setup(app):
 def _load_feature_metadata() -> dict[str, dict]:
     """Load feature metadata from all features' metadata.yaml files into a dict."""
     metadata = {}
-    for meta_path in (_REPO_ROOT / "features").glob("*/metadata.yaml"):
+    for meta_path in _FEATURES_DIR.glob("*/metadata.yaml"):
         with meta_path.open(encoding="utf-8") as fh:
             data = _yaml.safe_load(fh)
         feat_id = data["id"]
         metadata[feat_id] = data
     return metadata
-
-
-def _inject_feature_preamble(app, docname: str, source):  # noqa: ANN001
-    """Prepend H1 + description + options table to feature reference pages."""
-    # ── Feature reference preamble injection ───────────────────────────────────────
-    # At build time, prepend each feature's H1 title, description, and ## Options
-    # table to the stripped reference pages.
-    #
-    # metadata.yaml is the single source of truth.  The raw markdown description
-    # (including links) is used verbatim so MyST renders it correctly.  The
-    # ## Options table is generated from the options dict in metadata.yaml.
-    # devcontainer-feature.json is a generated artifact and not read here.
-
-    if not docname.startswith("features/"):
-        return
-    if docname.endswith("/index"):
-        return
-
-    feature_id = docname.split("/")[-1]
-    feature = _feature_metadata.get(feature_id)
-    if not feature:
-        raise ValueError(f"Feature metadata not found for feature ID '{feature_id}'")
-
-    feature_name = feature["name"]
-    # Use the raw description from YAML verbatim so markdown links render.
-    desc_raw = (feature["description"]).strip()
-    options_block = _build_scripts.feat_doc_gen.render_options_table(feature)
-
-    parts = [f"# {feature_name}"]
-    if desc_raw:
-        parts.append(desc_raw)
-    if options_block:
-        parts.append(options_block)
-    parts.append("---\n")
-    preamble = "\n\n".join(parts) + "\n"
-    source[0] = preamble + source[0]
 
 
 def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> None:
@@ -121,6 +86,11 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
 
 
 _feature_metadata = _load_feature_metadata()
+_build_scripts.feat_doc_gen.generate(
+    metadata=_feature_metadata,
+    features_dir=_FEATURES_DIR,
+    features_doc_dir=_FEATURES_DOC_DIR
+)
 
 
 # ── Project information ────────────────────────────────────────────────────────
