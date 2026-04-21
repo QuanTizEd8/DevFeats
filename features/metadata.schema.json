@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/metadata.schema.json",
   "title": "Feature Metadata",
-  "description": "JSON Schema for features' `metadata.yaml` files.\nThis is a superset of the devcontainer-feature.json schema at `https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json`. ",
+  "description": "JSON Schema for features' `metadata.yaml` files. This is a superset of the devcontainer-feature.json schema at `https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json`, extended with internal-use-only properties (prefixed with an underscore) for richer metadata and documentation generation.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -268,6 +268,7 @@
   ],
   "definitions": {
     "FeatureOption": {
+      "description": "Feature option. Two internal-use-only array types are added in addition to the standard boolean and string types for script generation purposes. Externally, these array types are represented as string options where array values are newline-delimited.",
       "anyOf": [
         {
           "type": "object",
