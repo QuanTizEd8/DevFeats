@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/metadata.schema.json",
   "title": "Feature Metadata",
-  "description": "JSON Schema for features' `metadata.yaml` files. This is a superset of the devcontainer-feature.json schema at `https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json`, extended with internal-use-only properties (prefixed with an underscore) for richer metadata and documentation generation.",
+  "description": "JSON Schema for features' `metadata.yaml` files. This is a superset of the devcontainer-feature.json schema at `https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json`, extended with internal-use-only properties (prefixed with an underscore) for richer metadata and documentation generation. All 'description' fields support simple (links, formatting) Markdown and HTML.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -19,7 +19,7 @@
       "type": "string"
     },
     "description": {
-      "description": "One-line, plain-text description of the Feature.",
+      "description": "One-line description of the Feature.",
       "type": "string"
     },
     "keywords": {
@@ -73,11 +73,11 @@
       }
     },
     "_long_description": {
-      "description": "Longer plain-text description of the Feature.",
+      "description": "Long description of the Feature.",
       "type": "string"
     },
     "_details": {
-      "description": "Detailed markdown-supported description of the Feature.",
+      "description": "Details related to the Feature.",
       "type": "string"
     },
     "_dependencies": {
@@ -291,7 +291,8 @@
           },
           "required": [
             "type",
-            "default"
+            "default",
+            "description"
           ]
         },
         {
@@ -334,7 +335,8 @@
           "required": [
             "type",
             "enum",
-            "default"
+            "default",
+            "description"
           ]
         },
         {
@@ -376,7 +378,9 @@
           },
           "required": [
             "type",
-            "default"
+            "proposals",
+            "default",
+            "description"
           ]
         },
         {
@@ -421,7 +425,8 @@
           "required": [
             "type",
             "enum",
-            "default"
+            "default",
+            "description"
           ]
         },
         {
@@ -465,7 +470,9 @@
           },
           "required": [
             "type",
-            "default"
+            "proposals",
+            "default",
+            "description"
           ]
         }
       ]
