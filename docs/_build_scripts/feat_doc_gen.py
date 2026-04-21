@@ -1,15 +1,54 @@
-#!/usr/bin/env python3
-"""Parse devcontainer-feature.json files and render Markdown option blocks.
-
-Exported function:
-    render_json_block(data) → str    — Markdown string for injection between
-                                       devcontainer-feature.json markers.
-"""
+"""Generate feature documentation from metadata.yaml and NOTES.md files."""
 
 from __future__ import annotations
 
+from pathlib import Path
 
-def render_options_table(data: dict) -> str:
+
+def generate(
+    metadata: dict[str, dict],
+    features_dir: Path,
+    features_doc_dir: Path,
+    notes_filename: str = "NOTES.md",
+) -> None:
+    """Generate feature documentation."""
+    # ── Feature reference preamble injection ───────────────────────────────────────
+    # At build time, prepend each feature's H1 title, description, and ## Options
+    # table to the stripped reference pages.
+    #
+    # metadata.yaml is the single source of truth.  The raw markdown description
+    # (including links) is used verbatim so MyST renders it correctly.  The
+    # ## Options table is generated from the options dict in metadata.yaml.
+    # devcontainer-feature.json is a generated artifact and not read here.
+
+    for feat_id, feat_metadata in metadata.items():
+        preamble = _gen_feature_preamble(feat_metadata)
+        notes_path = features_dir / feat_id / notes_filename
+        if notes_path.exists():
+            notes = notes_path.read_text()
+            content = f"{preamble}\n\n{notes}"
+        else:
+            content = preamble
+        doc_path = features_doc_dir / f"{feat_id}.md"
+        doc_path.write_text(content)
+    return
+
+
+def _gen_feature_preamble(feat_metadata: dict) -> str:
+    name = feat_metadata["name"]
+    description = feat_metadata["description"].strip()
+    long_description = feat_metadata.get("_long_description", "").strip()
+    options = _render_options_table(feat_metadata)
+    parts = [
+        f"# {name}",
+        description,
+        long_description,
+        options,
+    ]
+    return "\n\n".join(parts) + "\n"
+
+
+def _render_options_table(data: dict) -> str:
     """Render the ## Options table from a feature metadata dict.
 
     Args:
@@ -27,7 +66,7 @@ def render_options_table(data: dict) -> str:
         "## Options",
         "",
         "| Option | Type | Default | Description |",
-        "|---|---|---|---|",
+        "|--------|------|---------|-------------|",
     ]
     for opt_name, opt in options.items():
         type_str = _option_type_str(opt)
@@ -37,62 +76,7 @@ def render_options_table(data: dict) -> str:
     return "\n".join(rows) + "\n"
 
 
-def render_json_block(data: dict) -> str:
-    """Render feature description + options table from a feature metadata dict.
-
-    Args:
-        data  Feature metadata dict (from devcontainer-feature.json or
-              metadata.yaml — same structure).
-
-    Returns a Markdown string with description paragraph(s) followed by
-    the ``## Options`` table.
-
-    .. deprecated::
-        Prefer :func:`render_options_table` in combination with a raw
-        description read directly from ``metadata.yaml``, so that markdown
-        links in the YAML description are preserved for Sphinx rendering.
-    """
-    parts: list[str] = []
-
-    desc_raw = data.get("description", "")
-    if desc_raw:
-        parts.append(_format_feature_description(desc_raw))
-
-    options = data.get("options", {})
-    if options:
-        rows = [
-            "## Options",
-            "",
-            "| Option | Type | Default | Description |",
-            "|---|---|---|---|",
-        ]
-        for opt_name, opt in options.items():
-            type_str = _option_type_str(opt)
-            default_str = _option_default_str(opt)
-            desc_str = _option_desc_full(opt)
-            rows.append(
-                f"| `{opt_name}` | {type_str} | {default_str} | {desc_str} |"
-            )
-        parts.append("\n".join(rows))
-
-    return "\n\n".join(parts) + "\n"
-
 # ── Internal helpers ──────────────────────────────────────────────────────────
-
-def _format_feature_description(raw: str) -> str:
-    """Format a JSON description string as Markdown.
-
-    The JSON value may contain literal newlines.  Double-newlines become
-    paragraph breaks; single newlines are joined within a paragraph.
-    """
-    paragraphs: list[str] = []
-    for block in raw.strip().split("\n\n"):
-        paragraph = " ".join(
-            line.strip() for line in block.splitlines() if line.strip()
-        )
-        if paragraph:
-            paragraphs.append(paragraph)
-    return "\n\n".join(paragraphs)
 
 
 def _option_type_str(opt: dict) -> str:
