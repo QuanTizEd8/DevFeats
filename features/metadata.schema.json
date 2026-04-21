@@ -378,7 +378,6 @@
           },
           "required": [
             "type",
-            "proposals",
             "default",
             "description"
           ]
@@ -470,7 +469,6 @@
           },
           "required": [
             "type",
-            "proposals",
             "default",
             "description"
           ]

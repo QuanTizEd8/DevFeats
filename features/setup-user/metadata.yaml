@@ -1,12 +1,14 @@
 id: setup-user
 version: 0.1.0
 name: User Setup
-description: |-
-  Create and configure a user account for the development container. Creates a
-  primary group, places the user at the requested UID/GID, creates a home
-  directory (populated from `/etc/skel`), sets the login shell, and optionally
-  grants passwordless `sudo` access and membership in supplementary groups.
-
+description: Create and configure a system user account with optional sudo access.
+_long_description: |-
+  This feature creates a primary group,
+  places the user at the requested UID/GID,
+  creates a home directory (populated from `/etc/skel`),
+  sets the login shell,
+  and optionally grants passwordless `sudo` access
+  and membership in supplementary groups.
   Works on **Debian/Ubuntu** (APT), **Alpine** (APK), **Fedora/RHEL** (DNF),
   and any image where `useradd` / `groupadd` are available.
 options:

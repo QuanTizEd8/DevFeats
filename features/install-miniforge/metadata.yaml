@@ -1,7 +1,14 @@
 id: install-miniforge
 version: 0.2.0
 name: Miniforge Installation
-description: Install Miniforge in the development container.
+description: Install [Conda](https://conda.io/) and [Mamba](https://github.com/mamba-org/mamba) from [Miniforge](https://github.com/conda-forge/miniforge).
+_long_description: |-
+  This feature installs Conda and Mamba via the Miniforge installer script,
+  with full control over version, installation path, user permissions, and shell activation.
+  The Miniforge installer from the [conda-forge](https://conda-forge.org/) community
+  retrieves all packages in the base environment from
+  the [conda-forge channel](https://anaconda.org/conda-forge),
+  and sets it as the default and only channel.
 options:
   version:
     default: latest

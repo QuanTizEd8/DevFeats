@@ -1,13 +1,18 @@
 id: install-os-pkg
 version: 0.3.0
 name: OS Package Installation
-description: |-
-  Install packages from the operating system's native package manager using a
-  single, cross-platform YAML or JSON manifest file.
-
-  Supports **APT** (Debian/Ubuntu), **APK** (Alpine), **DNF/YUM**
-  (Fedora/RHEL/CentOS), **microdnf**, **Zypper** (openSUSE), **Pacman** (Arch
-  Linux), and **Homebrew** (macOS, Linuxbrew).
+description: Install packages from the operating system's native package manager.
+_long_description: |-
+  This feature provides a cross-platform package installer with support for
+  `apt` (Debian/Ubuntu),
+  `dnf`/`microdnf`/`yum` (Fedora/RHEL/CentOS),
+  `zypper` (openSUSE),
+  `pacman` (Arch Linux),
+  `apk` (Alpine), and
+  `brew` (macOS, Linuxbrew).
+  Packages can be specified in a single JSON/YAML manifest
+  with environment-based selectors/filters,
+  repo configuration, key import, and pre/post scripts.
 options:
   install_self:
     default: false

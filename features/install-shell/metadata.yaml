@@ -1,7 +1,8 @@
 id: install-shell
 version: 0.1.0
 name: Shell Installation
-description: >-
+description: Install and configure various shells and shell frameworks.
+_long_description: >-
   Install and configure Bash and [Zsh](https://www.zsh.org/) with shell frameworks
   ([Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/))
   and the [Starship](https://starship.rs/) prompt. Deploys a layered set of
@@ -59,11 +60,17 @@ options:
   ohmyzsh_theme:
     default: ''
     description: |
-      Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug (e.g., 'romkatv/powerlevel10k' for the [Powerlevel10k](https://github.com/romkatv/powerlevel10k) theme).
+      Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug.
       The repository is cloned into `<ohmyzsh_custom_dir>/themes/<repo>`.
        Set to an empty string to install no custom theme.
       Ignored if Oh My Zsh is not available or being installed.
     type: string
+    proposals:
+      - value: romkatv/powerlevel10k
+        description: >-
+          [Powerlevel10k](https://github.com/romkatv/powerlevel10k) theme
+          (see the [install-fonts](#features/install-fonts) feature
+          for installation of the recommended Powerlevel10k-compatible Nerd Font).
   ohmybash_theme:
     default: ''
     description: |

@@ -1,18 +1,15 @@
 id: install-homebrew
 version: 0.2.0
 name: Homebrew Installation
-description: |-
-  Installs [Homebrew](https://brew.sh/) on macOS and Linux.
-
+description: Install the [Homebrew](https://brew.sh/) package manager.
+_long_description: |-
   On **macOS** the feature ensures Xcode Command Line Tools are present before
   running the official installer. On **Linux** it installs the required
   build dependencies (git, curl, gcc, make, etc.) via the OS package manager
   first, then invokes the official installer.
-
   After installation the feature writes an `eval "$(brew shellenv)"` block to
   the appropriate shell startup files so that `brew` and any tools it installs
   are on `PATH` in subsequent shell sessions.
-documentationURL: https://github.com/quantized8/sysset/tree/main/src/install-homebrew
 options:
   install_user:
     type: string

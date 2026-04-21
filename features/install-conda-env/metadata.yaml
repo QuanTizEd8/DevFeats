@@ -1,7 +1,13 @@
 id: install-conda-env
 name: Conda Environment Installation
 version: 0.1.0
-description: Create or update conda environments in the development container.
+description: Create or update conda environments from environment files or inline specifications.
+_long_description: |-
+  This feature creates or updates conda environments by processing environment YAML files
+  and/or inline package specifications. It supports installing packages via conda and pip,
+  configuring channels and channel priority, and running post-install scripts. The feature
+  can be used to set up one or more environments after Conda is installed
+  by the install-miniforge feature or an existing Conda installation is detected on PATH.
 options:
   conda_dir:
     default: ''

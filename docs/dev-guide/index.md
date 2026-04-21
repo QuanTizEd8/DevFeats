@@ -9,7 +9,8 @@ testing them, and publishing releases.
 
 ## Prerequisites
 
-- **Docker** — must be running and accessible.
+- Bash ≥ 4.0
+- **Docker** — must be running and accessible for feature integration tests.
 - **Node.js / npm** — required for the devcontainer CLI.
 - **devcontainer CLI** — install once:
   ```bash
@@ -19,7 +20,7 @@ testing them, and publishing releases.
   ```bash
   brew install shfmt
   ```
-- **shellcheck** — bash linter:
+- [`shellcheck`](https://shellcheck.net/) — bash linter:
   ```bash
   brew install shellcheck
   ```
@@ -29,6 +30,8 @@ testing them, and publishing releases.
   brew install lefthook
   lefthook install
   ```
+- [devcontainer CLI](https://github.com/devcontainers/cli) (`npm install -g @devcontainers/cli`)
+- [bats](https://github.com/bats-core/bats-core) (included as git submodule under `test/unit/bats/`)
 
 ---
 
@@ -62,6 +65,34 @@ for the full API.
 
 ---
 
+
+## Common commands
+
+```sh
+# Regenerate lib/ copies in each feature (run after editing lib/ or bootstrap.sh)
+bash sync-lib.sh
+
+# Format all shell scripts
+make format
+
+# Lint all shell scripts
+make lint
+
+# Build standalone distribution artifacts
+make build-dist                      # tag = "dev"
+make build-dist VERSION=v1.0.0       # tag = "v1.0.0"
+
+# Run a feature's integration tests (scenarios + fail cases)
+bash test/run.sh feature install-pixi
+
+# Run all bats unit tests
+make test-unit
+
+# Run unit tests for a single lib module
+bash test/run-unit.sh --module ospkg
+```
+
+
 ## Feature reference documentation
 
 Detailed per-feature documentation lives under `docs/ref/`:
@@ -76,6 +107,17 @@ Detailed per-feature documentation lives under `docs/ref/`:
 - [setup-user](../ref/setup-user.md) — dev container user creation
 
 ---
+
+
+## Pre-commit hooks
+
+[lefthook](https://github.com/evilmartians/lefthook) runs automatically on commit:
+
+- **shellcheck** — lint all staged shell files
+- **shfmt** — format check all staged shell files
+- **sync-lib** — regenerate `_lib/` copies when `lib/` or `bootstrap.sh` change
+
+
 
 ## References
 

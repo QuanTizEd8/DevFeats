@@ -1,7 +1,8 @@
 id: install-fonts
 version: 0.1.0
 name: Font Installation
-description: >-
+description: Install fonts from various sources.
+_long_description: >-
   Install fonts from [Nerd Fonts](https://www.nerdfonts.com/) by name,
   from [GitHub release](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) assets by repository slug,
   from the [Powerlevel10k MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts,

@@ -4,6 +4,10 @@ This document explains the layout of the repository, why each directory
 exists where it does, and how the moving parts fit together.
 
 
+> Files under `src/*/install.sh` and `src/**/_lib/` are **auto-generated**.
+> Edit `lib/` and run `bash sync-lib.sh` to propagate changes.
+
+
 ## Top-level layout
 
 ```
@@ -60,6 +64,26 @@ sysset/
 │       └── release.yaml
 └── docs/
 ```
+
+```
+src/<feature>/
+  devcontainer-feature.json   Feature metadata and options
+  install.bash                Main installer (bash ≥4.0)
+  _lib/                       ← auto-generated; never edit directly
+  dependencies/base.yaml      OS package manifest
+  files/                      Static files copied into the container
+  install.sh                  ← auto-generated bootstrap; never edit
+
+lib/                          Shared bash library (canonical source)
+  logging.sh  os.sh  ospkg.sh  net.sh  json.sh  git.sh  shell.sh  str.sh
+  github.sh   checksum.sh  users.sh
+
+build-artifacts.sh            Assembles all dist/ artifacts
+get.sh                        Standalone single-feature installer (version-stamped)
+sysset.sh                     Standalone manifest orchestrator (version-stamped)
+sync-lib.sh                   Distributes lib/ into every feature
+```
+
 
 The key design principle is **separation of concerns**:
 
