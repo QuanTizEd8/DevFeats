@@ -203,6 +203,23 @@ _poll_interval=10
 _ts() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 
 # ---------------------------------------------------------------------------
+# _gh_api_json <path>  — GET a JSON value from the GitHub API via gh. Prints
+# the body on success. On failure, logs a one-line message and returns 1.
+# ---------------------------------------------------------------------------
+_gh_api_json() {
+  local _path="$1" _out _one
+  if ! _out=$(gh api "${_path}" 2>&1); then
+    _one="${_out//$'\n'/ }"
+    if [[ ${#_one} -gt 200 ]]; then
+      _one="${_one:0:200}…"
+    fi
+    _ts "gh api failed: ${_one}"
+    return 1
+  fi
+  printf '%s' "${_out}"
+}
+
+# ---------------------------------------------------------------------------
 # _activate_run_logdir <path_sha> <run_id>
 # Sets LOGDIR, PASSING_LOG, FAILING_LOG. Creates
 #   <GHA_LOG_BASE>/<path_sha>/<run_id>/ once and records it for final stdout.
@@ -299,8 +316,8 @@ _process_run_jobs() {
 
   _activate_run_logdir "${path_sha}" "${run_id}"
 
-  jobs_resp=$(gh api \
-    "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100" 2> /dev/null) || return 1
+  jobs_resp=$(_gh_api_json \
+    "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100") || return 1
 
   while IFS= read -r job; do
     job_status=$(jq -r '.status' <<< "${job}")
@@ -321,9 +338,8 @@ if [[ "${_GHA_MODE}" == "commit" ]]; then
   _ts "log-base=${GHA_LOG_BASE}/<sha>/<run-id>/  (per workflow run)"
 
   while true; do
-    runs_resp=$(gh api \
-      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs?head_sha=${COMMIT_SHA}&per_page=100" 2> /dev/null) || {
-      _ts 'API error — retrying...'
+    runs_resp=$(_gh_api_json \
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs?head_sha=${COMMIT_SHA}&per_page=100") || {
       sleep "${_poll_interval}"
       continue
     }
@@ -364,9 +380,8 @@ else
   _ts "log-base=${GHA_LOG_BASE}/<sha>/${RUN_ID}/  (commit from run metadata)"
 
   while true; do
-    run_json=$(gh api \
-      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${RUN_ID}" 2> /dev/null) || {
-      _ts 'API error — retrying (check run id and gh auth)...'
+    run_json=$(_gh_api_json \
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${RUN_ID}") || {
       sleep "${_poll_interval}"
       continue
     }
@@ -385,7 +400,6 @@ else
     in_progress_jobs=()
 
     _process_run_jobs "${RUN_ID}" in_progress_jobs "${LOG_COMMIT_SHA}" || {
-      _ts 'API error reading jobs — retrying...'
       sleep "${_poll_interval}"
       continue
     }
