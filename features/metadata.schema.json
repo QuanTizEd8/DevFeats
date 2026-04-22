@@ -169,104 +169,24 @@
       "type": "array"
     },
     "onCreateCommand": {
-      "type": [
-        "string",
-        "array",
-        "object"
-      ],
-      "description": "A command to run when creating the container. This command is run after \"initializeCommand\" and before \"updateContentCommand\". If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell. If this is an object, each provided command will be run in parallel.",
-      "items": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": [
-          "string",
-          "array"
-        ],
-        "items": {
-          "type": "string"
-        }
-      }
+      "description": "A command to run when creating the container. This command is run after \"initializeCommand\" and before \"updateContentCommand\". Each provided command will be run in parallel.",
+      "$ref": "#/definitions/LifecycleCommand"
     },
     "updateContentCommand": {
-      "type": [
-        "string",
-        "array",
-        "object"
-      ],
-      "description": "A command to run when creating the container and rerun when the workspace content was updated while creating the container. This command is run after \"onCreateCommand\" and before \"postCreateCommand\". If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell. If this is an object, each provided command will be run in parallel.",
-      "items": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": [
-          "string",
-          "array"
-        ],
-        "items": {
-          "type": "string"
-        }
-      }
+      "description": "A command to run when creating the container and rerun when the workspace content was updated while creating the container. This command is run after \"onCreateCommand\" and before \"postCreateCommand\". Each provided command will be run in parallel.",
+      "$ref": "#/definitions/LifecycleCommand"
     },
     "postCreateCommand": {
-      "type": [
-        "string",
-        "array",
-        "object"
-      ],
-      "description": "A command to run after creating the container. This command is run after \"updateContentCommand\" and before \"postStartCommand\". If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell. If this is an object, each provided command will be run in parallel.",
-      "items": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": [
-          "string",
-          "array"
-        ],
-        "items": {
-          "type": "string"
-        }
-      }
+      "description": "A command to run after creating the container. This command is run after \"updateContentCommand\" and before \"postStartCommand\". Each provided command will be run in parallel.",
+      "$ref": "#/definitions/LifecycleCommand"
     },
     "postStartCommand": {
-      "type": [
-        "string",
-        "array",
-        "object"
-      ],
-      "description": "A command to run after starting the container. This command is run after \"postCreateCommand\" and before \"postAttachCommand\". If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell. If this is an object, each provided command will be run in parallel.",
-      "items": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": [
-          "string",
-          "array"
-        ],
-        "items": {
-          "type": "string"
-        }
-      }
+      "description": "A command to run after starting the container. This command is run after \"postCreateCommand\" and before \"postAttachCommand\". Each provided command will be run in parallel.",
+      "$ref": "#/definitions/LifecycleCommand"
     },
     "postAttachCommand": {
-      "type": [
-        "string",
-        "array",
-        "object"
-      ],
-      "description": "A command to run when attaching to the container. This command is run after \"postStartCommand\". If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell. If this is an object, each provided command will be run in parallel.",
-      "items": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": [
-          "string",
-          "array"
-        ],
-        "items": {
-          "type": "string"
-        }
-      }
+      "description": "A command to run when attaching to the container. This command is run after \"postStartCommand\". Each provided command will be run in parallel.",
+      "$ref": "#/definitions/LifecycleCommand"
     }
   },
   "required": [
@@ -513,6 +433,20 @@
         "target"
       ],
       "type": "object"
+    },
+    "LifecycleCommand": {
+      "type": "object",
+      "description": "A set of commands to run at a specific lifecycle event. Each property is a unique ID for the command with format 'sysset_<feature-id>_<task>', e.g. 'sysset_install-os-pkg_install', and the value is the command to run. Each provided command will be run in parallel.",
+      "additionalProperties": {
+        "description": "If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell.",
+        "type": [
+          "string",
+          "array"
+        ],
+        "items": {
+          "type": "string"
+        }
+      }
     }
   }
 }
