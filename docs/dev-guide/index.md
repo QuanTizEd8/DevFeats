@@ -93,21 +93,6 @@ bash test/run-unit.sh --module ospkg
 ```
 
 
-## Feature reference documentation
-
-Detailed per-feature documentation lives under `docs/ref/`:
-
-- [install-os-pkg](../ref/install-os-pkg.md) — cross-distro OS package installer with manifest support
-- [install-shell](../ref/install-shell.md) — Bash/Zsh, Oh My Zsh/Bash, Starship, Nerd Fonts
-- [install-miniforge](../ref/install-miniforge.md) — Miniforge / conda
-- [install-fonts](../ref/install-fonts.md) — Nerd Fonts
-- [install-pixi](../ref/install-pixi.md) — Pixi package manager
-- [install-podman](../ref/install-podman.md) — Podman container runtime
-- [setup-shim](../ref/setup-shim.md) — command shims
-- [setup-user](../ref/setup-user.md) — dev container user creation
-
----
-
 
 ## Pre-commit hooks
 
