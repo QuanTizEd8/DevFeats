@@ -17,11 +17,6 @@ jobs:
   publish-ghcr:
     name: GHCR Publication
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/quantized8/sysset-devcontainer:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       contents: write
       pull-requests: write
@@ -40,9 +35,20 @@ jobs:
           name: sysset-src
           path: src/
 
+      - name: Log in to GHCR (workflow_dispatch fallback)
+        if: "!inputs.release_tag"
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build src/ (workflow_dispatch fallback)
         if: "!inputs.release_tag"
-        run: just sync
+        uses: docker://ghcr.io/quantized8/sysset-devcontainer:latest
+        with:
+          entrypoint: /bin/bash
+          args: -c "just sync"
 
       - name: Publish Features to GHCR
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
@@ -56,11 +62,6 @@ jobs:
   publish-gh-release:
     name: GitHub Release
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/quantized8/sysset-devcontainer:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       contents: write
       pull-requests: write
@@ -79,9 +80,20 @@ jobs:
           name: sysset-dist
           path: dist/
 
+      - name: Log in to GHCR (workflow_dispatch fallback)
+        if: "!inputs.release_tag"
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build dist/ (workflow_dispatch fallback)
         if: "!inputs.release_tag"
-        run: just artifacts "${RELEASE_TAG}"
+        uses: docker://ghcr.io/quantized8/sysset-devcontainer:latest
+        with:
+          entrypoint: /bin/bash
+          args: -c "just artifacts $RELEASE_TAG"
 
       - name: Create or Update GitHub Release
         env:
