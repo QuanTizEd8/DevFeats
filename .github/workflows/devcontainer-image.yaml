@@ -65,7 +65,9 @@ jobs:
           cacheTo: type=registry,ref=ghcr.io/quantized8/sysset-devcontainer:cache-${{ matrix.platform_tag }},mode=max
           push: filter
           refFilterForPush: refs/heads/main
-          eventFilterForPush: push,workflow_dispatch
+          eventFilterForPush: |
+            push
+            workflow_dispatch
 
   merge:
     name: "Merge multi-arch manifest"
