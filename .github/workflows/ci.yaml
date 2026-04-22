@@ -321,6 +321,12 @@ jobs:
     needs: [setup, prepare]
     if: needs.setup.outputs.run_features == 'true' && needs.setup.outputs.features != '[]'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/quantized8/sysset-devcontainer:latest
+      options: --privileged
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -334,8 +340,13 @@ jobs:
           name: sysset-src
           path: src/
 
-      - name: Install devcontainer CLI
-        run: npm install -g @devcontainers/cli
+      - name: Start Docker daemon (DinD)
+        run: |
+          mkdir -p /etc/docker
+          echo '{"hosts":["unix:///run/dind.sock"]}' > /etc/docker/daemon.json
+          /usr/local/share/docker-init.sh &
+          timeout 30 sh -c 'until docker -H unix:///run/dind.sock info > /dev/null 2>&1; do sleep 0.5; done'
+          echo "DOCKER_HOST=unix:///run/dind.sock" >> "$GITHUB_ENV"
 
       - name: Test Feature Scenarios
         env:
