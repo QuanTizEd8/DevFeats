@@ -13,3 +13,6 @@ src/
 docs/features/
 docs/dev-guide/features/
 docs/.build/
+
+# CI only: inner dockerd graph dir when using DinD in GHA job containers.
+.dind-docker/

@@ -372,8 +372,15 @@ jobs:
           elif [[ -e /var/run/docker.sock ]]; then
             rm -f /var/run/docker.sock
           fi
-          # vfs avoids overlay-on-overlay: the job container fs is already overlay2.
-          dockerd --storage-driver vfs > /tmp/dockerd.log 2>&1 &
+          # Default /var/lib/docker is on the container image rootfs (often
+          # overlay), so nested overlay2 is unreliable. tmpfs works but is capped
+          # and shares RAM — it often triggers "no space left on device" on
+          # image-heavy tests. $GITHUB_WORKSPACE is bind-mounted from the runner
+          # VM (typically ext4 with much more free space), so overlay2 is valid
+          # and layers are far smaller than vfs duplicate copies.
+          DIND_ROOT="${GITHUB_WORKSPACE}/.dind-docker"
+          mkdir -p "$DIND_ROOT"
+          dockerd --data-root "$DIND_ROOT" --storage-driver overlay2 > /tmp/dockerd.log 2>&1 &
           timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 0.5; done'
 
       - name: Test Feature Scenarios
