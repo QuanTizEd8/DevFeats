@@ -34,17 +34,23 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ── Detect OS ─────────────────────────────────────────────────────────────────
+# ── Detect OS ────────────────────────────────────────────────────────────────────────────────
 _os="$(uname -s)"
 
-# ── Helper: check if a command exists ─────────────────────────────────────────
+# ── Helper: check if a command exists ──────────────────────────────────────────────────────────
 _has() { command -v "$1" > /dev/null 2>&1; }
+
+# ── pip flags (PEP 668: pass --break-system-packages when pip supports it) ──────────
+_pip_flags=()
+if python3 -m pip install --help 2>/dev/null | grep -q -- '--break-system-packages'; then
+  _pip_flags+=(--break-system-packages)
+fi
 
 # ── Install functions ──────────────────────────────────────────────────────────
 
 _install_pyyaml() {
   echo "▶ Installing PyYAML..." >&2
-  python3 -m pip install -r "${_SCRIPT_DIR}/requirements.txt"
+  python3 -m pip install "${_pip_flags[@]}" -r "${_SCRIPT_DIR}/requirements.txt"
   echo "✅ PyYAML installed." >&2
 }
 
@@ -54,7 +60,7 @@ _install_jsonschema() {
     return
   fi
   echo "▶ Installing jsonschema..." >&2
-  python3 -m pip install -r "${_SCRIPT_DIR}/requirements.txt"
+  python3 -m pip install "${_pip_flags[@]}" -r "${_SCRIPT_DIR}/requirements.txt"
   echo "✅ jsonschema installed." >&2
 }
 
