@@ -52,7 +52,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: /tmp/devcontainer-userdata
-          key: devcontainer-userdata-${{ matrix.platform_tag }}-${{ hashFiles('.devcontainer/**') }}
+          key: devcontainer-userdata-${{ matrix.platform_tag }}-${{ hashFiles('.devcontainer/Dockerfile', '.devcontainer/devcontainer.json', '.devcontainer/setup-dev.sh', '.devcontainer/requirements.txt') }}
           restore-keys: devcontainer-userdata-${{ matrix.platform_tag }}-
 
       - name: Devcontainer Build & Push
