@@ -47,9 +47,13 @@ git__origin_slug() {
     return 1
   fi
 
-  if [[ "${_url}" =~ github\.com[:/]([^/]+)/([^/]+?)(\.git)?$ ]]; then
+  # bash =~ ERE: `+?` (non-greedy) is invalid on some systems (e.g. macOS).
+  if [[ "${_url}" =~ github\.com[:/]([^/]+)/([^/]+)(\.git)?$ ]]; then
     _owner="${BASH_REMATCH[1]}"
     _repo="${BASH_REMATCH[2]}"
+    # e.g. https://.../owner/Repo.git — [^/]+ is greedy, so the repo often includes ".git"
+    # here; the API and gh need the bare repo name.
+    _repo="${_repo%.git}"
     printf '%s/%s\n' "${_owner}" "${_repo}"
     return 0
   fi
