@@ -342,11 +342,13 @@ jobs:
 
       - name: Start Docker daemon (DinD)
         run: |
-          mkdir -p /etc/docker
-          echo '{"hosts":["unix:///run/dind.sock"]}' > /etc/docker/daemon.json
-          /usr/local/share/docker-init.sh &
-          timeout 30 sh -c 'until docker -H unix:///run/dind.sock info > /dev/null 2>&1; do sleep 0.5; done'
-          echo "DOCKER_HOST=unix:///run/dind.sock" >> "$GITHUB_ENV"
+          # GHA's job container does not run the image ENTRYPOINT, so we start
+          # DinD here. The devcontainers docker-in-docker feature's docker-init.sh
+          # waits on `docker info` (default socket /var/run/docker.sock). A
+          # daemon.json that only sets unix:///run/dind.sock makes that check
+          # fail and breaks startup — use the default socket.
+          /usr/local/share/docker-init.sh sh -c 'exec sleep infinity' &
+          timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 0.5; done'
 
       - name: Test Feature Scenarios
         env:
