@@ -1,4 +1,4 @@
-.PHONY: format format-check lint validate-metadata sync sync-check test-unit install-dev gen-docs gen-docs-check docs docs-serve
+.PHONY: format format-check lint validate-metadata sync sync-check test-unit install-dev gen-docs gen-docs-check docs docs-serve watch-gha
 
 # Apply shfmt formatting to all tracked shell files.
 # test/unit/bats/** is excluded via .editorconfig ignore = true.
@@ -90,6 +90,37 @@ sync-check:
 # Run lib/ unit tests via bats-core (requires git submodules to be initialised).
 test-unit:
 	bash test/run-unit.sh
+
+# Poll GitHub Actions (gh + jq) and write logs to .local/logs/gha/<sha>/<run-id>/.
+# Set exactly one of RUN (workflow run id) or COMMIT (sha or ref). You may add
+# GHA_LOG_BASE on the same line (overrides the default log root, like --log-base;
+# relative paths are under the repo). Example mixes:
+#   make watch-gha RUN=12345678901
+#   make watch-gha RUN=12345678901 GHA_LOG_BASE=/tmp/my-gha-logs
+#   make watch-gha COMMIT=main
+#   make watch-gha COMMIT=abc1234 GHA_LOG_BASE=/tmp/my-gha-logs
+# For --help or options not passed through this target, use scripts/watch-gha-run.sh.
+watch-gha:
+	@if [ -n "$(RUN)" ] && [ -n "$(COMMIT)" ]; then \
+		echo "Error: set only one of RUN or COMMIT." >&2; \
+		exit 1; \
+	fi
+	@if [ -n "$(RUN)" ]; then \
+		if [ -n "$(GHA_LOG_BASE)" ]; then \
+			bash scripts/watch-gha-run.sh --log-base "$(GHA_LOG_BASE)" --run "$(RUN)"; \
+		else \
+			bash scripts/watch-gha-run.sh --run "$(RUN)"; \
+		fi; \
+	elif [ -n "$(COMMIT)" ]; then \
+		if [ -n "$(GHA_LOG_BASE)" ]; then \
+			bash scripts/watch-gha-run.sh --log-base "$(GHA_LOG_BASE)" --commit "$(COMMIT)"; \
+		else \
+			bash scripts/watch-gha-run.sh --commit "$(COMMIT)"; \
+		fi; \
+	else \
+		echo "Usage: make watch-gha RUN=<id>  OR  make watch-gha COMMIT=<sha>  (optional: GHA_LOG_BASE=<dir>)" >&2; \
+		exit 1; \
+	fi
 
 # Build standalone distribution artifacts into dist/.
 # Runs sync first to ensure src/ is up to date.
