@@ -17,3 +17,9 @@ RUN bash /tmp/devcontainer/setup-dev.sh --tools shfmt,shellcheck,just \
 
 # Install npm-global tools.
 RUN npm install -g @devcontainers/cli lefthook
+
+# When used as a GHA job container, the workspace is owned by a different UID
+# (the runner). Git refuses to operate on it unless safe.directory is set.
+# Setting it system-wide here avoids having to add a workaround step to every
+# container job in every workflow.
+RUN git config --system --add safe.directory '*'
