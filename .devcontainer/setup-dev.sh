@@ -47,7 +47,7 @@ _install_pyyaml() {
 }
 
 _install_jsonschema() {
-  if python3 -c "import jsonschema" >/dev/null 2>&1; then
+  if python3 -c "import jsonschema" > /dev/null 2>&1; then
     echo "✅ jsonschema already installed — skipping." >&2
     return
   fi

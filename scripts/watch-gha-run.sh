@@ -40,7 +40,7 @@ _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_SCRIPT_DIR}/git_helpers.sh"
 
 _usage() {
-  cat <<'EOF'
+  cat << 'EOF'
 watch-gha-run.sh — Monitor GHA workflow runs and collect job logs.
 
 Usage:
