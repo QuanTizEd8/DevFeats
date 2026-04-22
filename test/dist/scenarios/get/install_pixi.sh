@@ -14,17 +14,18 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 . "${REPO_ROOT}/test/lib/assert.sh"
 
 # ── Start local file server on an ephemeral port ──────────────────────────────
-# python3 -m http.server does not support port 0 on all platforms, so pick a
-# fixed high port that is unlikely to be in use.
+# Serve the repo root so both get.bash/lib/ (SYSSET_RAW_BASE) and the feature
+# tarballs under dist/ (SYSSET_BASE_URL) are reachable from a single server.
 _PORT=18531
 trap 'stop_file_server' EXIT
-start_file_server "${REPO_ROOT}/dist" "$_PORT"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
+start_file_server "${REPO_ROOT}" "$_PORT"
+export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
 
 # ── Run get.sh ────────────────────────────────────────────────────────────────
 # install-pixi requires root (ospkg__require_root); installs pixi to /usr/local/bin.
 check "get.sh installs install-pixi successfully" \
-  sudo -E bash "${REPO_ROOT}/dist/get.sh" install-pixi
+  sudo -E bash "${REPO_ROOT}/get.sh" install-pixi
 
 check "pixi binary present in PATH after install" \
   command -v pixi

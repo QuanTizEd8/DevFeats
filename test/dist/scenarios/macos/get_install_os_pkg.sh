@@ -13,11 +13,12 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 _PORT=18541
 trap 'stop_file_server' EXIT
-start_file_server "${REPO_ROOT}/dist" "$_PORT"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
+start_file_server "${REPO_ROOT}" "$_PORT"
+export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
 
 check "get.sh installs setup-shim on macOS" \
-  sudo env PATH="$PATH" SYSSET_BASE_URL="$SYSSET_BASE_URL" bash "${REPO_ROOT}/dist/get.sh" setup-shim
+  sudo env PATH="$PATH" SYSSET_RAW_BASE="$SYSSET_RAW_BASE" SYSSET_BASE_URL="$SYSSET_BASE_URL" bash "${REPO_ROOT}/get.sh" setup-shim
 
 check "code shim installed by setup-shim" \
   test -f /usr/local/share/setup-shim/bin/code

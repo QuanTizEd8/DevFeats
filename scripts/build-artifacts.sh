@@ -4,13 +4,11 @@
 # Usage:
 #   bash scripts/build-artifacts.sh [<tag>]
 #
-#   <tag>   Release tag to stamp into get.sh and sysset.sh
-#           (default: "dev" — for local test runs)
+#   <tag>   Release tag (used only for informational output; default: "dev")
 #
 # Outputs (all under dist/):
-#   get.sh                        Version-stamped single-feature downloader
 #   sysset-<feature>.tar.gz       One tarball per feature
-#   sysset-all.tar.gz             All tarballs + get.sh + scripts/sysset.sh + scripts/_lib/
+#   sysset-all.tar.gz             All feature tarballs bundled for offline use
 #
 # Tarball layout (per feature):
 #   install.sh        POSIX sh bootstrap (handles bash>=4 on any platform)
@@ -31,11 +29,6 @@ _TAG="${1:-dev}"
 _DIST_DIR="${_REPO_ROOT}/dist"
 _SRC_DIR="${_REPO_ROOT}/src"
 _FEATURES_DIR="${_REPO_ROOT}/features"
-_LIB_DIR="${_REPO_ROOT}/lib"
-
-# Source templates for stamped distribution scripts.
-_GET_SRC="${_FEATURES_DIR}/get.sh"
-_SYSSET_SRC="${_FEATURES_DIR}/sysset.sh"
 
 echo "ℹ️  Building artifacts for tag: '${_TAG}'" >&2
 
@@ -99,20 +92,8 @@ done
 
 rm -rf "${_DIST_DIR}/tmp"
 
-# ── Step 4: Stamp get.sh ────────────────────────────────────────────────────
-sed "s|@@RELEASE_TAG@@|${_TAG}|g" "${_GET_SRC}" > "${_DIST_DIR}/get.sh"
-chmod +x "${_DIST_DIR}/get.sh"
-echo "✅ Stamped dist/get.sh with tag '${_TAG}'" >&2
-
-# ── Step 5: Stamp sysset.sh and copy _lib/ for the all-bundle ──────────────
-mkdir -p "${_DIST_DIR}/scripts"
-sed "s|@@RELEASE_TAG@@|${_TAG}|g" "${_SYSSET_SRC}" > "${_DIST_DIR}/scripts/sysset.sh"
-chmod +x "${_DIST_DIR}/scripts/sysset.sh"
-cp -r "${_LIB_DIR}/." "${_DIST_DIR}/scripts/_lib/"
-echo "✅ Stamped dist/scripts/sysset.sh with tag '${_TAG}'" >&2
-
-# ── Step 6: Build all-bundle ────────────────────────────────────────────────
-# Collect individual feature tarballs (must exist before sysset-all.tar.gz is created)
+# ── Step 4: Build all-bundle ────────────────────────────────────────────────
+# Contains only feature tarballs — for offline use with SYSSET_BASE_URL=file://...
 _feature_tarballs=()
 while IFS= read -r _t; do
   _feature_tarballs+=("$(basename "$_t")")
@@ -120,15 +101,9 @@ done < <(find "${_DIST_DIR}" -maxdepth 1 -name "sysset-*.tar.gz" | sort)
 
 (
   cd "${_DIST_DIR}"
-  tar -czf sysset-all.tar.gz \
-    get.sh \
-    scripts/ \
-    "${_feature_tarballs[@]}"
+  tar -czf sysset-all.tar.gz "${_feature_tarballs[@]}"
 )
 echo "✅ Built dist/sysset-all.tar.gz" >&2
-
-# ── Step 7: Clean up intermediate scripts/ dir from dist/ root ─────────────
-rm -rf "${_DIST_DIR}/scripts"
 
 echo "" >&2
 echo "✅ Build complete. Artifacts in dist/:" >&2

@@ -11,14 +11,11 @@ DIST="${REPO_ROOT}/dist"
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
 
-check "dist/get.sh exists" test -f "${DIST}/get.sh"
 check "dist/sysset-all.tar.gz exists" test -f "${DIST}/sysset-all.tar.gz"
-check "dist/scripts/ cleaned up after build" test ! -d "${DIST}/scripts"
-
-check "dist/get.sh no placeholder" \
-  bash -c "! grep -q '@@RELEASE_TAG@@' '${DIST}/get.sh'"
-[[ -n "${SYSSET_BUILD_VERSION:-}" ]] && check "dist/get.sh tag stamped" \
-  bash -c "grep -q '${SYSSET_BUILD_VERSION}' '${DIST}/get.sh'"
+check "dist/ does not contain get.sh" test ! -f "${DIST}/get.sh"
+check "dist/scripts/ absent after build" test ! -d "${DIST}/scripts"
+check "repo root get.sh exists" test -f "${REPO_ROOT}/get.sh"
+check "repo root get.bash exists" test -f "${REPO_ROOT}/get.bash"
 
 # spot-check a few features
 for _feat in install-pixi install-os-pkg setup-user; do
@@ -29,7 +26,7 @@ for _feat in install-pixi install-os-pkg setup-user; do
     bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q '_lib/'"
 done
 
-check "sysset-all: contains scripts/sysset.sh" \
-  bash -c "tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'scripts/sysset\.sh'"
+check "sysset-all: does NOT contain scripts/sysset.sh" \
+  bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'sysset\.sh'"
 
 reportResults

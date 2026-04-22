@@ -4,10 +4,9 @@
 # Checks:
 #   1. Per-feature tarballs exist for every feature with an install.bash.
 #   2. Each tarball contains: install.sh, install.bash, _lib/.
-#   3. sysset-all.tar.gz exists and contains get.sh, scripts/sysset.sh,
-#      scripts/_lib/, and all per-feature tarballs.
-#   4. dist/get.sh has the tag stamped (no @@RELEASE_TAG@@ placeholder).
-#   5. dist/scripts does NOT remain after the build (cleaned up).
+#   3. sysset-all.tar.gz exists and contains all per-feature tarballs.
+#   4. dist/ does NOT contain get.sh (it lives in the repo root).
+#   5. dist/ does NOT contain scripts/ (old arch artefact).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -26,14 +25,11 @@ done < <(find "${REPO_ROOT}/src" -maxdepth 2 -name "devcontainer-feature.json" |
 
 # ── Checks ────────────────────────────────────────────────────────────────────
 
-check "dist/get.sh exists" test -f "${DIST}/get.sh"
 check "dist/sysset-all.tar.gz exists" test -f "${DIST}/sysset-all.tar.gz"
-check "dist/scripts/ cleaned up after build" test ! -d "${DIST}/scripts"
-
-check "dist/get.sh tag stamped (no placeholder)" \
-  bash -c "! grep -q '@@RELEASE_TAG@@' '${DIST}/get.sh'"
-[[ -n "${SYSSET_BUILD_VERSION:-}" ]] && check "dist/get.sh stamped with expected tag" \
-  bash -c "grep -q '${SYSSET_BUILD_VERSION}' '${DIST}/get.sh'"
+check "dist/ does not contain get.sh (it lives in repo root)" test ! -f "${DIST}/get.sh"
+check "dist/scripts/ absent after build" test ! -d "${DIST}/scripts"
+check "repo root get.sh exists" test -f "${REPO_ROOT}/get.sh"
+check "repo root get.bash exists" test -f "${REPO_ROOT}/get.bash"
 
 for _feat in "${_features[@]}"; do
   _tarball="${DIST}/sysset-${_feat}.tar.gz"
@@ -46,19 +42,14 @@ for _feat in "${_features[@]}"; do
     bash -c "tar -tzf '${_tarball}' | grep -q '_lib/'"
 done
 
-# sysset-all.tar.gz contains per-feature tarballs + get.sh + sysset.sh + _lib/
-check "sysset-all: contains get.sh" \
-  bash -c "tar -tzf '${DIST}/sysset-all.tar.gz' | grep -qx '\./get\.sh\|get\.sh'"
-check "sysset-all: contains scripts/sysset.sh" \
-  bash -c "tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'scripts/sysset\.sh'"
-check "sysset-all: contains scripts/_lib/" \
-  bash -c "tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'scripts/_lib/'"
+# sysset-all.tar.gz contains only per-feature tarballs (no runtime scripts).
 for _feat in "${_features[@]}"; do
   check "sysset-all: contains sysset-${_feat}.tar.gz" \
     bash -c "tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'sysset-${_feat}\.tar\.gz'"
 done
-
-check "sysset-all: sysset.sh tag stamped (no placeholder)" \
-  bash -c "! tar -xOzf '${DIST}/sysset-all.tar.gz' scripts/sysset.sh | grep -q '@@RELEASE_TAG@@'"
+check "sysset-all: does NOT contain scripts/sysset.sh" \
+  bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'sysset\.sh'"
+check "sysset-all: does NOT contain get.sh" \
+  bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -qx '\./get\.sh\|get\.sh'"
 
 reportResults

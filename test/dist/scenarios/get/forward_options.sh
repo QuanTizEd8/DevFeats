@@ -15,11 +15,12 @@ _PIXI_VERSION="0.41.4"
 
 _PORT=18532
 trap 'stop_file_server' EXIT
-start_file_server "${REPO_ROOT}/dist" "$_PORT"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
+start_file_server "${REPO_ROOT}" "$_PORT"
+export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
 
 check "get.sh installs pixi with explicit --version" \
-  sudo -E bash "${REPO_ROOT}/dist/get.sh" install-pixi \
+  sudo -E bash "${REPO_ROOT}/get.sh" install-pixi \
   --version "$_PIXI_VERSION"
 
 check "installed pixi reports expected version" \
