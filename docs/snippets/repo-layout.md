@@ -1,6 +1,8 @@
 The workspace is a git repository with following key directories and files:
 
 - `features/`: **Canonical source tree** — contains all feature source files.
+  - `features/bootstrap.sh`: A thin POSIX-compliant shim that ensures bash is available, then exec's `install.bash`. This is the canonical source for the install script's entry point, and is copied into each feature's `src/*/install.sh` by `scripts/sync-src.sh`.
+  - `features/derived-options.yaml`: Defines shared options that are injected into each feature at sync time. This is useful for options that are common across many features, so they are not repeated in every metadata file.
   - `features/metadata.schema.json`: JSON Schema for `metadata.yaml` files (source-only, not copied to `src/`).
   - `features/install-os-pkg/manifest.schema.json`: JSON Schema for `install-os-pkg` manifest files (source-only, not copied to `src/`).
   - `features/*/`: Per-feature directory, where `*` is the feature ID (e.g. `install-shell`).
@@ -45,9 +47,13 @@ The workspace is a git repository with following key directories and files:
 - `.local/`: gitignored directory for temporary files like logs, test artifacts, scratch files, etc.
   - `.local/scratch/`: Git-ignored scratch space for temporary files that is wiped periodically; use it for short-term storage during development or debugging.
 
-- `features/bootstrap.sh`: A thin POSIX-compliant shim that ensures bash is available, then exec's `install.bash`. This is the canonical source for the install script's entry point, and is copied into each feature's `src/*/install.sh` by `scripts/sync-src.sh`.
-- `scripts/sync-src.sh`: Assembles `src/` from `features/` + `lib/` + `features/bootstrap.sh`. Runs all helpers under `scripts/_sync-src/` (`argparse.py`, `deps.py`, `metadata.py`), then copies `lib/` → `src/*/_lib/`, `features/bootstrap.sh` → `src/*/install.sh`, and `features/*/files/` → `src/*/files/`.
-- `Makefile`: Developer targets: format, format-check, lint, sync.
-- `.editorconfig`: shfmt style config (2-space, case-indent, etc.).
-- `.shellcheckrc`: shellcheck defaults (shell=bash, external-sources=true).
-- `lefthook.yml`: A lefthook pre-commit hook that runs `scripts/sync-src.sh` and `make format` automatically.
+- `scripts/`: Developer scripts.
+  - `scripts/sync-src.sh`: Assembles `src/` from `features/` + `lib/` + `features/bootstrap.sh`. Runs all helpers under `scripts/_sync-src/` (`argparse.py`, `deps.py`, `metadata.py`), then copies `lib/` → `src/*/_lib/`, `features/bootstrap.sh` → `src/*/install.sh`, and `features/*/files/` → `src/*/files/`.
+
+- `./`: Root-level files.
+  - `get.sh`:
+  - `get.bash`:
+  - `Makefile`: Developer targets: format, format-check, lint, sync.
+  - `.editorconfig`: shfmt style config (2-space, case-indent, etc.).
+  - `.shellcheckrc`: shellcheck defaults (shell=bash, external-sources=true).
+  - `lefthook.yml`: A lefthook pre-commit hook that runs `scripts/sync-src.sh` and `make format` automatically.
