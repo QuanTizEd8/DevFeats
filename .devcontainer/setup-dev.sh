@@ -11,6 +11,7 @@ set -euo pipefail
 
 # ── Pinned versions ────────────────────────────────────────────────────────────
 SHFMT_VERSION="v3.13.1"
+SHELLCHECK_VERSION="v0.10.0"
 JUST_VERSION="1.50.0"
 
 # ── Parse --tools flag ─────────────────────────────────────────────────────────
@@ -69,7 +70,9 @@ _install_shfmt() {
     [[ "$_arch" == "arm64" ]] && _arch="arm64" || _arch="amd64"
     _shfmt_bin="shfmt_${SHFMT_VERSION}_darwin_${_arch}"
   else
-    _shfmt_bin="shfmt_${SHFMT_VERSION}_linux_amd64"
+    _arch="$(uname -m)"
+    [[ "$_arch" == "aarch64" ]] && _arch="arm64" || _arch="amd64"
+    _shfmt_bin="shfmt_${SHFMT_VERSION}_linux_${_arch}"
   fi
   curl -fsSL \
     "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/${_shfmt_bin}" \
@@ -83,13 +86,23 @@ _install_shellcheck() {
     echo "✅ shellcheck already installed — skipping." >&2
     return
   fi
-  echo "▶ Installing shellcheck..." >&2
+  echo "▶ Installing shellcheck ${SHELLCHECK_VERSION}..." >&2
+  _arch="$(uname -m)"
   if [[ "$_os" == "Darwin" ]]; then
-    brew install shellcheck
+    [[ "$_arch" == "arm64" ]] && _sc_arch="aarch64" || _sc_arch="x86_64"
+    _sc_tar="shellcheck-${SHELLCHECK_VERSION}.darwin.${_sc_arch}.tar.xz"
   else
-    apt-get install -y --no-install-recommends shellcheck
+    [[ "$_arch" == "aarch64" ]] && _sc_arch="aarch64" || _sc_arch="x86_64"
+    _sc_tar="shellcheck-${SHELLCHECK_VERSION}.linux.${_sc_arch}.tar.xz"
   fi
-  echo "✅ shellcheck installed." >&2
+  _tmpdir="$(mktemp -d)"
+  curl -fsSL \
+    "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/${_sc_tar}" \
+    -o "${_tmpdir}/${_sc_tar}"
+  tar -xJf "${_tmpdir}/${_sc_tar}" -C "${_tmpdir}"
+  install -m 0755 "${_tmpdir}/shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+  rm -rf "${_tmpdir}"
+  echo "✅ shellcheck ${SHELLCHECK_VERSION} installed." >&2
 }
 
 _install_just() {
