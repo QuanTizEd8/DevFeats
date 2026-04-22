@@ -230,6 +230,58 @@ github__release_tags() {
   return 0
 }
 
+# @brief github__resolve_version <owner/repo> [<version-spec>] — Resolve a partial or full version spec to an exact release tag.
+#
+# Version-spec forms:
+#   ""  / "latest"   → fetch the latest release tag (API call)
+#   "1" / "1.2"      → partial spec — fetch release list, return the newest tag
+#                      matching "^v<spec>." (single API call, per_page=100)
+#   "1.2.3"          → exact spec — return "v1.2.3" immediately (no API call)
+#   "v1.2.3"         → exact spec — return as-is (no API call)
+#
+# Args:
+#   <owner/repo>    GitHub repository in "owner/repo" format.
+#   [<version-spec>] Version spec string (optional; defaults to latest).
+#
+# Stdout: resolved tag name (e.g. `v1.2.3`). Returns 1 if no match found.
+github__resolve_version() {
+  local _repo="$1"
+  local _spec="${2:-}"
+
+  case "$_spec" in
+    "" | latest)
+      github__latest_tag "$_repo"
+      return $?
+      ;;
+  esac
+
+  # Strip leading v for analysis.
+  local _stripped="${_spec#v}"
+
+  # Count dots to determine if this is an exact or partial spec.
+  local _dots
+  _dots="$(printf '%s' "$_stripped" | tr -cd '.' | wc -c | tr -d ' ')"
+
+  if [ "$_dots" -ge 2 ]; then
+    # Exact three-part version — normalise to v<stripped> and return without an API call.
+    printf 'v%s\n' "$_stripped"
+    return 0
+  fi
+
+  # Partial spec (MAJOR or MAJOR.MINOR) — fetch release list and find the newest match.
+  local _escaped _matched
+  _escaped="$(printf '%s' "$_stripped" | sed 's/\./\\./g')"
+  _matched="$(github__release_tags "$_repo" | grep "^v${_escaped}\." | head -1)" || _matched=""
+
+  if [ -n "$_matched" ]; then
+    printf '%s\n' "$_matched"
+    return 0
+  fi
+
+  echo "⛔ github__resolve_version: no release found matching '${_spec}' for '${_repo}'." >&2
+  return 1
+}
+
 # @brief github__tags <owner/repo> [--per_page N] — Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release.
 #
 # Unlike github__release_tags (which uses /releases), this endpoint includes

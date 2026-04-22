@@ -653,3 +653,87 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
   assert_success
   assert_output "TAG=v1.2.3"
 }
+
+# ---------------------------------------------------------------------------
+# github__resolve_version
+# ---------------------------------------------------------------------------
+
+@test "github__resolve_version empty spec delegates to github__latest_tag" {
+  github__latest_tag() {
+    printf 'v3.0.1\n'
+    return 0
+  }
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo" ""
+  assert_success
+  assert_output "v3.0.1"
+}
+
+@test "github__resolve_version 'latest' delegates to github__latest_tag" {
+  github__latest_tag() {
+    printf 'v3.0.1\n'
+    return 0
+  }
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo" "latest"
+  assert_success
+  assert_output "v3.0.1"
+}
+
+@test "github__resolve_version exact three-part spec returns immediately without API call" {
+  github__latest_tag() { return 1; }
+  github__release_tags() { return 1; }
+  export -f github__latest_tag github__release_tags
+  run github__resolve_version "owner/repo" "1.2.3"
+  assert_success
+  assert_output "v1.2.3"
+}
+
+@test "github__resolve_version exact spec with leading v normalises correctly" {
+  github__latest_tag() { return 1; }
+  github__release_tags() { return 1; }
+  export -f github__latest_tag github__release_tags
+  run github__resolve_version "owner/repo" "v1.2.3"
+  assert_success
+  assert_output "v1.2.3"
+}
+
+@test "github__resolve_version MAJOR partial resolves to newest matching tag" {
+  github__release_tags() {
+    printf 'v3.1.0\nv2.9.1\nv2.9.0\nv1.0.0\n'
+    return 0
+  }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "2"
+  assert_success
+  assert_output "v2.9.1"
+}
+
+@test "github__resolve_version MAJOR.MINOR partial resolves to newest matching tag" {
+  github__release_tags() {
+    printf 'v2.10.0\nv2.9.1\nv2.9.0\n'
+    return 0
+  }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "2.9"
+  assert_success
+  assert_output "v2.9.1"
+}
+
+@test "github__resolve_version partial spec with no match fails with error message" {
+  github__release_tags() {
+    printf 'v3.0.0\nv2.9.0\n'
+    return 0
+  }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "9"
+  assert_failure
+  assert_output --partial "no release found matching '9'"
+}
+
+@test "github__resolve_version fails when latest_tag fails" {
+  github__latest_tag() { return 1; }
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo" ""
+  assert_failure
+}
