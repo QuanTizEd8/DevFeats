@@ -81,20 +81,55 @@ _ospkg_ensure_gpg() {
   return 0
 }
 
-# _ospkg_install_key_entry <url> <dest>
-_ospkg_install_key_entry() {
-  local _url="$1"
-  local _dest="$2"
-  mkdir -p "$(dirname "$_dest")"
-  if [[ "$_dest" == *.gpg ]]; then
-    _ospkg_ensure_gpg
-    echo "🔑 Fetching and dearmoring key → $_dest" >&2
-    net__fetch_url_stdout "$_url" | gpg --dearmor -o "$_dest"
+# _ospkg_key_effective_path <dest> <dearmor>
+# Prints the filesystem path the key is written to (same rules as
+# _ospkg_install_key_entry). dearmor: true | false | auto
+_ospkg_key_effective_path() {
+  local _dest="$1" _dearmor="${2:-auto}"
+  [[ -z "${_dearmor}" || "${_dearmor}" == "null" ]] && _dearmor=auto
+  if [[ "${_dearmor}" == "false" && "${_dest}" == *.gpg ]]; then
+    printf '%s' "${_dest%.gpg}.key"
   else
-    echo "🔑 Fetching key → $_dest" >&2
-    net__fetch_url_file "$_url" "$_dest"
+    printf '%s' "${_dest}"
   fi
-  chmod 0644 "$_dest"
+}
+
+# _ospkg_install_key_entry <url> <dest> [dearmor]
+# dearmor: true = always pipe through gpg --dearmor; false = raw file (or .key if dest
+#   would end in .gpg); any other value = auto: dearmor when dest ends in .gpg.
+_ospkg_install_key_entry() {
+  local _url="$1" _dest="$2" _dearmor="${3:-auto}"
+  [[ -z "${_dearmor}" || "${_dearmor}" == "null" ]] && _dearmor=auto
+  local _target
+  _target="$(_ospkg_key_effective_path "$_dest" "$_dearmor")"
+  mkdir -p "$(dirname "$_dest")"
+
+  case "${_dearmor}" in
+    true)
+      _ospkg_ensure_gpg
+      echo "🔑 Fetching and dearmoring key (dearmor: true) → ${_target}" >&2
+      net__fetch_url_stdout "$_url" | gpg --dearmor -o "${_target}"
+      ;;
+    false)
+      echo "🔑 Fetching key (dearmor: false) → ${_target}" >&2
+      net__fetch_url_file "$_url" "${_target}"
+      ;;
+    auto)
+      if [[ "${_dest}" == *.gpg ]]; then
+        _ospkg_ensure_gpg
+        echo "🔑 Fetching and dearmoring key (dest ends in .gpg) → ${_target}" >&2
+        net__fetch_url_stdout "$_url" | gpg --dearmor -o "${_target}"
+      else
+        echo "🔑 Fetching key → ${_target}" >&2
+        net__fetch_url_file "$_url" "${_target}"
+      fi
+      ;;
+    *)
+      echo "⛔ _ospkg_install_key_entry: invalid dearmor (use true, false, or auto): '${_dearmor}'" >&2
+      return 1
+      ;;
+  esac
+  chmod 0644 "${_target}"
   return 0
 }
 
@@ -656,7 +691,10 @@ def visit(k; gf):
         if $e | has("repos") then $e.repos[] | {kind: "repo", content: .} else empty end
       elif k == "package" then
         {kind: "package",
-         name: (($e[$pm] // $e.name) // null),
+         name: (
+           ($e[$pm] // $e.name) as $n
+           | if ($n | type) == "string" and ($n | length) > 0 then $n else null end
+         ),
          flags: merge_flags(gf; ($e.flags // null)),
          version: ($e.version // null)}
       elif k == "script" then
@@ -726,24 +764,38 @@ else empty end),
 else empty end),
 (if $doc | has("groups") then
   $doc.groups[] |
-  if type == "string" then {kind: "group", group: .}
-  elif when_matches then {kind: "group", group: .name}
+  if type == "string" and (length) > 0 then {kind: "group", group: .}
+  elif (type == "object") and when_matches
+       and ((.name | type) == "string")
+       and ((.name | length) > 0) then
+    {kind: "group", group: .name}
   else empty
   end
 else empty end),
 (if ($doc | has($pm)) and ($doc[$pm] | has("groups")) then
   $doc[$pm].groups[] |
-  if type == "string" then {kind: "group", group: .}
-  elif when_matches then {kind: "group", group: .name}
+  if type == "string" and (length) > 0 then {kind: "group", group: .}
+  elif (type == "object") and when_matches
+       and ((.name | type) == "string")
+       and ((.name | length) > 0) then
+    {kind: "group", group: .name}
   else empty
   end
 else empty end),
 
 # Phase: PACKAGES — inline packages array, then PM-specific packages block
 (if $doc | has("packages") then
-  $doc.packages[] | visit("package"; null) | select(.name != null) else empty end),
+  $doc.packages[] | visit("package"; null)
+  | select(
+      (.name | type) == "string"
+      and ((.name | length) > 0)
+    ) else empty end),
 (if ($doc | has($pm)) and ($doc[$pm] | has("packages")) then
-  $doc[$pm].packages[] | visit("package"; null) | select(.name != null)
+  $doc[$pm].packages[] | visit("package"; null)
+  | select(
+      (.name | type) == "string"
+      and ((.name | length) > 0)
+    )
 else empty end),
 
 # Phase: CASKS (brew/macOS only) — top-level then PM block
@@ -1169,22 +1221,20 @@ ospkg__run() {
       if [[ "$_dry_run" == false ]]; then
         export GNUPGHOME="$_key_gnupghome"
       fi
-      local _kitem _kurl _kdest _kdearmor
+      local _kitem _kurl _kdest _kdearmor _keff
       for _kitem in "${_Y_KEYS[@]}"; do
         _kurl="$(printf '%s' "$_kitem" | jq -r '.url')"
         _kdest="$(printf '%s' "$_kitem" | jq -r '.dest')"
-        _kdearmor="$(printf '%s' "$_kitem" | jq -r '.dearmor // "auto"')"
+        _kdearmor="$(printf '%s' "$_kitem" | jq -r 'if .dearmor == true then "true" elif .dearmor == false then "false" else "auto" end')"
+        _keff="$(_ospkg_key_effective_path "$_kdest" "$_kdearmor")"
         if [[ "$_dry_run" == true ]]; then
-          echo "🔍 [dry-run] key: ${_kurl} → ${_kdest}" >&2
-        else
-          # Override dearmor auto-detection: if dearmor=false, rename dest to avoid .gpg extension
-          if [[ "$_kdearmor" == "false" ]]; then
-            local _ndest="${_kdest%.gpg}.key"
-            [[ "$_kdest" != *.gpg ]] && _ndest="$_kdest"
-            _ospkg_install_key_entry "$_kurl" "$_ndest"
+          if [[ "${_keff}" != "${_kdest}" ]]; then
+            echo "🔍 [dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor}; manifest dest=${_kdest})" >&2
           else
-            _ospkg_install_key_entry "$_kurl" "$_kdest"
+            echo "🔍 [dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor})" >&2
           fi
+        else
+          _ospkg_install_key_entry "$_kurl" "$_kdest" "$_kdearmor"
         fi
       done
       if [[ "$_dry_run" == false ]]; then

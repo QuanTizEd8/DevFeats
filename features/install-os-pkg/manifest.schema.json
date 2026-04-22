@@ -43,34 +43,12 @@
       "type": "array",
       "description": "Homebrew taps to add before installing packages. Effective only when the active PM is brew.",
       "items": {
-        "oneOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "object",
-            "required": [
-              "name"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "name": {
-                "type": "string",
-                "minLength": 1
-              },
-              "url": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
-          }
-        ]
+        "$ref": "#/$defs/tapEntry"
       }
     },
     "copr": {
       "type": "array",
-      "description": "DNF COPR repository names (e.g. 'user/repo'). Effective only when the active PM is dnf.",
+      "description": "DNF COPR repository names (e.g. 'user/repo'). The implementation applies these only when the detected package manager is `dnf` (including microdnf, which is treated as the dnf family). On systems where only `yum` is detected, entries here are ignored.",
       "items": {
         "type": "string",
         "minLength": 1
@@ -78,7 +56,7 @@
     },
     "modules": {
       "type": "array",
-      "description": "DNF module streams to enable (e.g. 'nodejs:18'). Effective only when the active PM is dnf.",
+      "description": "DNF module streams to enable (e.g. 'nodejs:18'). The implementation applies these only when the detected package manager is `dnf` (including microdnf). On systems where only `yum` is detected, entries here are ignored.",
       "items": {
         "type": "string",
         "minLength": 1
@@ -168,7 +146,7 @@
     },
     "conditionObject": {
       "type": "object",
-      "description": "A set of conditions AND'd together. Each key is a condition name; its value is a string or array of strings (OR'd). All keys must match for the condition object to match.",
+      "description": "A set of conditions AND'd together. Each key is a condition name; its value is a string or array of strings (OR'd). All keys must match for the condition object to match. Keys listed under `properties` are well-known; any other string key (matching a field from /etc/os-release) must still use a conditionValue shape.",
       "minProperties": 1,
       "properties": {
         "pm": {
@@ -199,6 +177,9 @@
           "$ref": "#/$defs/conditionValue",
           "description": "OS VERSION_CODENAME from /etc/os-release: bookworm, noble, jammy, focal, etc."
         }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/conditionValue"
       }
     },
     "whenClause": {
@@ -268,7 +249,7 @@
         },
         "dearmor": {
           "type": "boolean",
-          "description": "Explicitly control dearmoring. When omitted, dearmoring is auto-detected from the dest file extension (.gpg \u2192 true)."
+          "description": "GPG dearmor when saving the key: `true` always pipes through `gpg --dearmor`; `false` always stores the raw download (if `dest` ends in .gpg, the file is written with a .key extension instead). When omitted, dearmoring is used when `dest` ends in .gpg (same as auto)."
         }
       }
     },
@@ -351,7 +332,7 @@
     },
     "groupObject": {
       "type": "object",
-      "description": "A group of packages that share conditions, flags, and/or inline setup. The group's 'when', 'flags', 'keys', 'repos', 'prescript', and 'script' apply to every package in the group.\n\nGroups can nest: a group's 'packages' array can contain strings, package objects, or further groups.",
+      "description": "A group of packages that share conditions, flags, and/or inline setup. The group's 'when', 'flags', 'keys', 'repos', 'prescript', and 'script' apply to every package in the group. This is a logical tree for co-authoring, not a distro package group name (for dnf `group install` / zypper patterns, use the top-level `groups` key).\n\nGroups can nest: a group's 'packages' array can contain strings, package objects, or further groups. Optional 'label' is for human log messages only.",
       "required": [
         "packages"
       ],
