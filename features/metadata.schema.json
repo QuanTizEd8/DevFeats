@@ -204,7 +204,7 @@
       "anyOf": [
         {
           "type": "object",
-          "description": "Option value is represented with a boolean value.",
+          "description": "Boolean value.",
           "additionalProperties": false,
           "properties": {
             "default": {
@@ -229,6 +229,7 @@
         },
         {
           "type": "object",
+          "description": "Enum value.",
           "additionalProperties": false,
           "properties": {
             "default": {
@@ -273,6 +274,7 @@
         },
         {
           "type": "object",
+          "description": "Arbitrary value.",
           "additionalProperties": false,
           "properties": {
             "default": {
