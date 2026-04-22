@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# sysset/fail_partial.sh — Verify that sysset.sh reports failure when one
+# sysset/fail_partial.sh — Verify that get.bash reports failure when one
 # feature fails, but continues to attempt the remaining features.
 #
 # Strategy: include a non-existent feature alongside a valid one.
-# The valid feature (install-pixi) should still be installed, but sysset.sh
+# The valid feature (install-pixi) should still be installed, but get.bash
 # must exit non-zero because the bogus feature download failed.
 #
-# Requires: root (sysset.sh calls os__require_root).
+# Requires: root (get.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -16,29 +16,34 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-_bundle_dir="$(mktemp -d)"
-# Use a tmpdir so we can control the .json extension (BusyBox mktemp lacks --suffix).
+_PORT=18534
+_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
 _manifest_dir="$(mktemp -d)"
-_manifest="${_manifest_dir}/manifest.json"
-trap 'rm -rf "$_bundle_dir" "$_manifest_dir"' EXIT
+mkdir -p "${DIST}/${_TEST_VERSION}"
+cp "${DIST}"/sysset-*.tar.gz "${DIST}/${_TEST_VERSION}/"
+trap 'stop_file_server; rm -rf "${DIST}/${_TEST_VERSION}" "$_manifest_dir"' EXIT
 
-tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
+start_file_server "${REPO_ROOT}" "$_PORT"
+export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
+export SYSSET_VERSION="$_TEST_VERSION"
 
 # "does-not-exist" has no tarball; install-pixi is valid.
+_manifest="${_manifest_dir}/manifest.json"
 cat > "$_manifest" << EOF
 {
   "features": [
     { "id": "install-pixi", "options": { "version": "0.66.0" } },
-    { "id": "does-not-exist",  "options": {} }
+    { "id": "does-not-exist", "options": {} }
   ]
 }
 EOF
 
-# sysset.sh should exit non-zero overall.
-fail_check "sysset.sh exits non-zero when a feature fails" \
-  bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest"
+# get.bash should exit non-zero overall.
+fail_check "get.bash exits non-zero when a feature fails" \
+  bash "${REPO_ROOT}/get.bash" "$_manifest"
 
-# But install-pixi (the valid feature) should still have run.
+# But install-pixi (canonical order: before does-not-exist) should have run.
 check "install-pixi still installed despite partial failure" \
   command -v pixi
 

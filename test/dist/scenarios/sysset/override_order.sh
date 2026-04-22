@@ -5,7 +5,7 @@
 # Strategy: manifest lists install-pixi before install-os-pkg with
 # override_install_order: true. The log should show install-pixi first.
 #
-# Requires: root (sysset.sh calls os__require_root).
+# Requires: root (get.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -15,15 +15,20 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-_bundle_dir="$(mktemp -d)"
+_PORT=18536
+_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
 _logfile="$(mktemp)"
-# Use a tmpdir so we can control the .json extension (BusyBox mktemp lacks --suffix).
 _manifest_dir="$(mktemp -d)"
+mkdir -p "${DIST}/${_TEST_VERSION}"
+cp "${DIST}"/sysset-*.tar.gz "${DIST}/${_TEST_VERSION}/"
+trap 'stop_file_server; rm -rf "${DIST}/${_TEST_VERSION}" "$_logfile" "$_manifest_dir"' EXIT
+
+start_file_server "${REPO_ROOT}" "$_PORT"
+export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
+export SYSSET_VERSION="$_TEST_VERSION"
+
 _manifest="${_manifest_dir}/manifest.json"
-trap 'rm -rf "$_bundle_dir" "$_logfile" "$_manifest_dir"' EXIT
-
-tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
-
 cat > "$_manifest" << EOF
 {
   "override_install_order": true,
@@ -34,8 +39,8 @@ cat > "$_manifest" << EOF
 }
 EOF
 
-check "sysset.sh completes with override_install_order: true" \
-  bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest" --logfile "$_logfile"
+check "get.bash completes with override_install_order: true" \
+  bash "${REPO_ROOT}/get.bash" --logfile "$_logfile" "$_manifest"
 
 # install-pixi should appear BEFORE install-os-pkg in the log.
 check "install-pixi ran before install-os-pkg (override order respected)" \

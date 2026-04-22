@@ -17,10 +17,18 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 # Serve the repo root so both get.bash/lib/ (SYSSET_RAW_BASE) and the feature
 # tarballs under dist/ (SYSSET_BASE_URL) are reachable from a single server.
 _PORT=18531
-trap 'stop_file_server' EXIT
+
+# Create a versioned subdirectory so get.bash can resolve the URL as
+# ${SYSSET_BASE_URL}/${SYSSET_VERSION}/sysset-<feature>.tar.gz.
+_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
+mkdir -p "${REPO_ROOT}/dist/${_TEST_VERSION}"
+cp "${REPO_ROOT}/dist"/sysset-*.tar.gz "${REPO_ROOT}/dist/${_TEST_VERSION}/"
+trap 'stop_file_server; rm -rf "${REPO_ROOT}/dist/${_TEST_VERSION}"' EXIT
+
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
+export SYSSET_VERSION="$_TEST_VERSION"
 
 # ── Run get.sh ────────────────────────────────────────────────────────────────
 # install-pixi requires root (ospkg__require_root); installs pixi to /usr/local/bin.

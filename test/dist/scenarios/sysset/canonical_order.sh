@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# sysset/canonical_order.sh — Verify that sysset.sh enforces canonical install
+# sysset/canonical_order.sh — Verify that get.bash enforces canonical install
 # order regardless of the order features appear in the manifest.
 #
 # Strategy: list features in reverse canonical order in the manifest
 # (install-pixi first, install-os-pkg second), then confirm execution log
 # shows install-os-pkg was processed before install-pixi.
 #
-# Requires: root (sysset.sh calls os__require_root).
+# Requires: root (get.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -16,15 +16,20 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-_bundle_dir="$(mktemp -d)"
+_PORT=18533
+_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
 _logfile="$(mktemp)"
-trap 'rm -rf "$_bundle_dir" "$_logfile"' EXIT
+_manifest_dir="$(mktemp -d)"
+mkdir -p "${DIST}/${_TEST_VERSION}"
+cp "${DIST}"/sysset-*.tar.gz "${DIST}/${_TEST_VERSION}/"
+trap 'stop_file_server; rm -rf "${DIST}/${_TEST_VERSION}" "$_logfile" "$_manifest_dir"' EXIT
 
-tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
+start_file_server "${REPO_ROOT}" "$_PORT"
+export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
+export SYSSET_VERSION="$_TEST_VERSION"
 
 # Manifest lists install-pixi BEFORE install-os-pkg (reverse canonical order).
-# Use a tmpdir so we can control the .json extension (BusyBox mktemp lacks --suffix).
-_manifest_dir="$(mktemp -d)"
 _manifest="${_manifest_dir}/manifest.json"
 cat > "$_manifest" << EOF
 {
@@ -34,10 +39,9 @@ cat > "$_manifest" << EOF
   ]
 }
 EOF
-trap 'rm -rf "$_bundle_dir" "$_logfile" "$_manifest_dir"' EXIT
 
-check "sysset.sh completes with canonical-order manifest" \
-  bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest" --logfile "$_logfile"
+check "get.bash completes with canonical-order manifest" \
+  bash "${REPO_ROOT}/get.bash" --logfile "$_logfile" "$_manifest"
 
 # In the log, install-os-pkg should appear before install-pixi.
 check "install-os-pkg ran before install-pixi (canonical order enforced)" \

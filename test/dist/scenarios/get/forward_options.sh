@@ -14,10 +14,16 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 _PIXI_VERSION="0.41.4"
 
 _PORT=18532
-trap 'stop_file_server' EXIT
+
+_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
+mkdir -p "${REPO_ROOT}/dist/${_TEST_VERSION}"
+cp "${REPO_ROOT}/dist"/sysset-*.tar.gz "${REPO_ROOT}/dist/${_TEST_VERSION}/"
+trap 'stop_file_server; rm -rf "${REPO_ROOT}/dist/${_TEST_VERSION}"' EXIT
+
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
+export SYSSET_VERSION="$_TEST_VERSION"
 
 check "get.sh installs pixi with explicit --version" \
   sudo -E bash "${REPO_ROOT}/get.sh" install-pixi \

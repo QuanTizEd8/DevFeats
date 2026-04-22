@@ -20,6 +20,8 @@
 #   SYSSET_BASE_URL   GitHub Releases base URL  (default: github.com releases)
 #   SYSSET_RAW_BASE   Raw GitHub base URL       (default: main branch)
 #   SYSSET_FETCH_TOOL curl|wget                 (set by get.sh; auto-detected here if unset)
+#   SYSSET_VERSION    Pin exact release tag; bypasses github__resolve_version entirely.
+#                     Use for offline/test scenarios where the GitHub API is unavailable.
 set -euo pipefail
 
 SYSSET_REPO="quantized8/sysset"
@@ -237,9 +239,14 @@ if [[ "$_mode" == "feature" ]]; then
   esac
 
   _effective_spec="${_feat_version_spec:-}"
-  echo "ℹ️  Resolving sysset version for feature '${_feature}' (spec: '${_effective_spec:-latest}')..." >&2
-  _RESOLVED="$(github__resolve_version "${SYSSET_REPO}" "$_effective_spec")"
-  echo "ℹ️  Resolved sysset version: '${_RESOLVED}'" >&2
+  if [[ -n "${SYSSET_VERSION:-}" ]]; then
+    _RESOLVED="${SYSSET_VERSION}"
+    echo "ℹ️  Using SYSSET_VERSION for feature '${_feature}': '${_RESOLVED}'" >&2
+  else
+    echo "ℹ️  Resolving sysset version for feature '${_feature}' (spec: '${_effective_spec:-latest}')..." >&2
+    _RESOLVED="$(github__resolve_version "${SYSSET_REPO}" "$_effective_spec")"
+    echo "ℹ️  Resolved sysset version: '${_RESOLVED}'" >&2
+  fi
 
   _tmpdir="$(mktemp -d)"
   trap 'rm -rf "$_lib_tmpdir" "$_tmpdir"; logging__cleanup' EXIT
@@ -309,9 +316,14 @@ _override_order="$("$_PARSER" -r '.override_install_order // false' "$_MANIFEST"
 _manifest_version="$("$_PARSER" -r '.version // ""' "$_MANIFEST")"
 
 # Resolve the global sysset version once (used for features without a per-feature version).
-echo "ℹ️  Resolving global sysset version (spec: '${_manifest_version:-latest}')..." >&2
-_GLOBAL_VERSION="$(github__resolve_version "${SYSSET_REPO}" "$_manifest_version")"
-echo "ℹ️  Global sysset version: '${_GLOBAL_VERSION}'" >&2
+if [[ -n "${SYSSET_VERSION:-}" ]]; then
+  _GLOBAL_VERSION="${SYSSET_VERSION}"
+  echo "ℹ️  Using SYSSET_VERSION as global version: '${_GLOBAL_VERSION}'" >&2
+else
+  echo "ℹ️  Resolving global sysset version (spec: '${_manifest_version:-latest}')..." >&2
+  _GLOBAL_VERSION="$(github__resolve_version "${SYSSET_REPO}" "$_manifest_version")"
+  echo "ℹ️  Global sysset version: '${_GLOBAL_VERSION}'" >&2
+fi
 echo "ℹ️  override_install_order: '${_override_order}'" >&2
 
 # Read feature IDs in manifest order.
@@ -429,7 +441,7 @@ for _feature in "${_sorted_features[@]}"; do
     '.features[] | select(.id == $feat) | .version // ""' \
     "$_MANIFEST")"
 
-  if [[ -n "$_feat_version_spec" ]]; then
+  if [[ -n "$_feat_version_spec" ]] && [[ -z "${SYSSET_VERSION:-}" ]]; then
     echo "ℹ️  [${_feature}] Resolving per-feature version (spec: '${_feat_version_spec}')..." >&2
     _feat_resolved="$(github__resolve_version "${SYSSET_REPO}" "$_feat_version_spec")"
   else

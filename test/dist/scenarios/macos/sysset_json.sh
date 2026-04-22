@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# macos/sysset_json.sh — Verify that sysset.sh processes a JSON manifest and
-# installs features on macOS from co-located tarballs in the all-bundle.
+# macos/sysset_json.sh — Verify that get.bash processes a JSON manifest and
+# installs features on macOS using a local HTTP file server.
 #
 # setup-shim is used because it requires no package manager (no ospkg__run
 # call), works on macOS as root, and produces verifiable shim artifacts.
-# Requires: root for sysset.sh (os__require_root).
+# Requires: root for get.bash manifest mode (os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -14,15 +14,18 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-_bundle_dir="$(mktemp -d)"
-# Use a tmpdir for the manifest so we can control the .json extension
-# (BSD mktemp on macOS does not support --suffix).
+_PORT=18542
+_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
 _manifest_dir="$(mktemp -d)"
+mkdir -p "${DIST}/${_TEST_VERSION}"
+cp "${DIST}"/sysset-*.tar.gz "${DIST}/${_TEST_VERSION}/"
+trap 'stop_file_server; rm -rf "${DIST}/${_TEST_VERSION}" "$_manifest_dir"' EXIT
+
+start_file_server "${REPO_ROOT}" "$_PORT"
+export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
+
 _manifest="${_manifest_dir}/manifest.json"
-trap 'rm -rf "$_bundle_dir" "$_manifest_dir"' EXIT
-
-tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
-
 cat > "$_manifest" << 'EOF'
 {
   "features": [
@@ -31,8 +34,12 @@ cat > "$_manifest" << 'EOF'
 }
 EOF
 
-check "sysset.sh processes JSON manifest on macOS" \
-  sudo env PATH="$PATH" bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest"
+check "get.bash processes JSON manifest on macOS" \
+  sudo env PATH="$PATH" \
+  SYSSET_RAW_BASE="$SYSSET_RAW_BASE" \
+  SYSSET_BASE_URL="$SYSSET_BASE_URL" \
+  SYSSET_VERSION="$_TEST_VERSION" \
+  bash "${REPO_ROOT}/get.bash" "$_manifest"
 
 check "code shim installed by setup-shim (macOS)" \
   test -f /usr/local/share/setup-shim/bin/code
