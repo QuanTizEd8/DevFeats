@@ -44,7 +44,7 @@ _has() { command -v "$1" > /dev/null 2>&1; }
 
 _install_pyyaml() {
   echo "▶ Installing PyYAML..." >&2
-  pip3 install -r "${_SCRIPT_DIR}/requirements.txt"
+  python3 -m pip install -r "${_SCRIPT_DIR}/requirements.txt"
   echo "✅ PyYAML installed." >&2
 }
 
@@ -54,7 +54,7 @@ _install_jsonschema() {
     return
   fi
   echo "▶ Installing jsonschema..." >&2
-  pip3 install -r "${_SCRIPT_DIR}/requirements.txt"
+  python3 -m pip install -r "${_SCRIPT_DIR}/requirements.txt"
   echo "✅ jsonschema installed." >&2
 }
 
