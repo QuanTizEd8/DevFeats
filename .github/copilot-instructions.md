@@ -12,6 +12,9 @@
 
 ## Key Commands
 
+When asked to investigate failures in a CI run, use `make watch-gha` to stream logs from the run in question. See the target for details and examples.
+
+
 
 Always run `bash scripts/sync-src.sh` before running feature tests locally.
 
