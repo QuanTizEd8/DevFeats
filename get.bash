@@ -224,6 +224,36 @@ _install_yq() {
   return 0
 }
 
+# ── Shared tarball fetch + verify ────────────────────────────────────────────
+# Downloads sysset-<feature>.tar.gz for the given resolved version tag, then
+# verifies its SHA-256 against the digest field from the GitHub Releases API.
+# Best-effort: warns when the API omits the digest; fails on a mismatch.
+_fetch_and_verify_tarball() {
+  local _feature="$1" _resolved="$2" _dest="$3"
+  local _asset_name="sysset-${_feature}.tar.gz"
+  local _url="${SYSSET_RELEASE_BASE}/${_resolved}/${_asset_name}"
+
+  # Fetch release JSON to obtain the asset digest.
+  local _rel_json _digest
+  _rel_json="$(mktemp)"
+  if github__fetch_release_json "${SYSSET_REPO}" --tag "${_resolved}" --dest "${_rel_json}" 2> /dev/null; then
+    _digest="$(github__release_json_digest_for_asset "${_rel_json}" "${_asset_name}")" || _digest=""
+  else
+    _digest=""
+  fi
+  rm -f "${_rel_json}"
+
+  net__fetch_url_file "${_url}" "${_dest}" || return 1
+
+  if [[ -n "${_digest}" ]]; then
+    echo "ℹ️  Verifying checksum for '${_asset_name}'..." >&2
+    checksum__verify_sha256 "${_dest}" "${_digest}" || return 1
+  else
+    echo "⚠️  No digest in release metadata for '${_asset_name}' — skipping verification." >&2
+  fi
+  return 0
+}
+
 # ── Feature mode ──────────────────────────────────────────────────────────────
 if [[ "$_mode" == "feature" ]]; then
   # Parse optional @sysset-version from the feature name.
@@ -374,36 +404,6 @@ else
 fi
 
 echo "ℹ️  Execution order: ${_sorted_features[*]}" >&2
-
-# ── Shared tarball fetch + verify ────────────────────────────────────────────
-# Downloads sysset-<feature>.tar.gz for the given resolved version tag, then
-# verifies its SHA-256 against the digest field from the GitHub Releases API.
-# Best-effort: warns when the API omits the digest; fails on a mismatch.
-_fetch_and_verify_tarball() {
-  local _feature="$1" _resolved="$2" _dest="$3"
-  local _asset_name="sysset-${_feature}.tar.gz"
-  local _url="${SYSSET_RELEASE_BASE}/${_resolved}/${_asset_name}"
-
-  # Fetch release JSON to obtain the asset digest.
-  local _rel_json _digest
-  _rel_json="$(mktemp)"
-  if github__fetch_release_json "${SYSSET_REPO}" --tag "${_resolved}" --dest "${_rel_json}" 2> /dev/null; then
-    _digest="$(github__release_json_digest_for_asset "${_rel_json}" "${_asset_name}")" || _digest=""
-  else
-    _digest=""
-  fi
-  rm -f "${_rel_json}"
-
-  net__fetch_url_file "${_url}" "${_dest}" || return 1
-
-  if [[ -n "${_digest}" ]]; then
-    echo "ℹ️  Verifying checksum for '${_asset_name}'..." >&2
-    checksum__verify_sha256 "${_dest}" "${_digest}" || return 1
-  else
-    echo "⚠️  No digest in release metadata for '${_asset_name}' — skipping verification." >&2
-  fi
-  return 0
-}
 
 # ── Feature runner ────────────────────────────────────────────────────────────
 _run_feature() {

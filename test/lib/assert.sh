@@ -160,11 +160,13 @@ stop_file_server() {
 wait_for_port() {
   local _port="$1"
   local _timeout="${2:-10}"
-  local _elapsed=0
+  # Use integer counter in tenths-of-a-second (avoids bc dependency).
+  local _limit=$((_timeout * 5))
+  local _i=0
   while ! bash -c "echo > /dev/tcp/127.0.0.1/${_port}" 2> /dev/null; do
     sleep 0.2
-    _elapsed=$(echo "$_elapsed + 0.2" | bc)
-    if (($(echo "$_elapsed >= $_timeout" | bc -l))); then
+    ((_i++)) || true
+    if ((_i >= _limit)); then
       echo "⛔ Timed out waiting for port ${_port}" >&2
       return 1
     fi
