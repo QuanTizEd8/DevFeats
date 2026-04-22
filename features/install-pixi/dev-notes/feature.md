@@ -1,4 +1,4 @@
-# Installation Reference — install-pixi
+# Feature Reference
 
 Pixi is an open-source, cross-platform package and project manager for conda
 and PyPI packages, written in Rust by prefix.dev. It ships as a single

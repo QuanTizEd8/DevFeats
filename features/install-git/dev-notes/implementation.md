@@ -1,4 +1,4 @@
-# Implementation Reference — install-git
+# Implementation Reference
 
 The installer has two top-level code paths (`package`, `source`) dispatched directly from `$METHOD`. The `package` path installs git via the OS package manager; on Ubuntu with `VERSION=latest` it first configures the git-core PPA before installing. The `source` path downloads a `kernel.org` tarball, verifies its SHA-256 checksum, and runs `make && make install` with platform-appropriate flags.
 

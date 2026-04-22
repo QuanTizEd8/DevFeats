@@ -1,4 +1,4 @@
-# Implementation Reference — install-node
+# Implementation Reference
 
 The `install-node` installer script is a pure orchestrator: it parses arguments, installs OS dependencies, dispatches to one of two code paths (`nvm` or `binary`), configures PATH, and creates symlinks. All non-trivial logic is delegated to building blocks defined below.
 

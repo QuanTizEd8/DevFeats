@@ -1,4 +1,4 @@
-# Installation Reference — install-gh
+# Feature Reference
 
 GitHub CLI (`gh`) is the official command-line interface to GitHub. It is a pre-compiled Go binary that brings
 pull requests, issues, workflows, and other GitHub concepts directly into the terminal. Releases are published

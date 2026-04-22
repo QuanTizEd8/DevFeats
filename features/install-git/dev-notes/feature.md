@@ -1,4 +1,4 @@
-# Installation Reference — install-git
+# Feature Reference
 
 Git is available on every major Linux distribution and macOS through OS package managers, and also via a dedicated Ubuntu PPA (`ppa:git-core/ppa`) that tracks the upstream stable release much more closely than distro base repos. When a precise version is required—or the running distro's package is too old—Git can be compiled from source using tarballs published on `kernel.org`. On macOS, Homebrew maintains the `git` formula at the latest stable release and is the recommended non-source method. The source build is architecture-agnostic and is the only approach that guarantees any specific version across every target platform. This document describes all available methods and derives the recommended installation strategy for the `install-git` devcontainer feature; the strategy is richer than the upstream `devcontainers/features` git feature and is an intentional design decision, not a mirror of that implementation.
 
@@ -44,7 +44,7 @@ Git is available on every major Linux distribution and macOS through OS package 
 
 **Supported platforms:** Ubuntu only (not Debian or other apt-based distros; the PPA ships Ubuntu-specific packages keyed to Ubuntu codenames).
 
-**PPA name:** `ppa:git-core/ppa` — maintained by the Ubuntu Git Maintainers team.  
+**PPA name:** `ppa:git-core/ppa` — maintained by the Ubuntu Git Maintainers team.
 **Signing key fingerprint:** `F911AB184317630C59970973E363C90F8F1B6217`
 
 **Available versions:** As of April 2026 the PPA publishes git 2.53.0 for Ubuntu 22.04 (jammy), 24.04 (noble), and 26.04 (plucky), plus older EOL series. Coverage is per-codename; a codename must be present in the PPA's package list before use (check the live [PPA packages page](https://launchpad.net/~git-core/+archive/ubuntu/ppa/+packages)).
@@ -135,10 +135,10 @@ make -s \
   install
 ```
 
-**About `USE_LIBPCRE2` vs `USE_LIBPCRE`:**  
+**About `USE_LIBPCRE2` vs `USE_LIBPCRE`:**
 The git Makefile defines `USE_LIBPCRE2 ?= $(USE_LIBPCRE)` — so setting `USE_LIBPCRE=YesPlease` implicitly enables pcre2 when pcre2 libraries are present. `USE_LIBPCRE2=YesPlease` is the explicit flag that pins to pcre2 (libpcre2-8 ABI), preferred since git 2.14. The reference `devcontainers/features` implementation uses `USE_LIBPCRE=YesPlease` (which also works since pcre2 is installed). The Alpine APKBUILD uses `USE_LIBPCRE2=YesPlease`. Our feature uses `USE_LIBPCRE2=YesPlease` for explicitness, which is correct and consistent with Alpine practice.
 
-**Alpine-specific Makefile flags (from Alpine APKBUILD `prepare()` section):**  
+**Alpine-specific Makefile flags (from Alpine APKBUILD `prepare()` section):**
 The Alpine APKBUILD writes these flags into `config.mak` before the build:
 ```
 NO_GETTEXT=YesPlease
@@ -158,7 +158,7 @@ Without `NO_REGEX=YesPlease`, the build uses a POSIX regex library that behaves 
 
 The dependency manifest must conditionally install the correct posix package by codename.
 
-**macOS source build:**  
+**macOS source build:**
 macOS source builds are **not the primary installation path** on macOS. The official git documentation recommends Xcode CLT or Homebrew for macOS users (see [git-scm.com/book Installing Git on macOS](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)). In the typical devcontainer workflow, the container is a Linux environment even when running on Apple Silicon; macOS-native use is covered by Method 1 (Homebrew). If a source build is explicitly requested on macOS, the script should warn, install Xcode CLT dependencies, and may need `brew install pcre2 gettext openssl` for full feature support.
 
 **Verification:** `${PREFIX}/bin/git --version`

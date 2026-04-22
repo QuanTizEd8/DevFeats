@@ -1,4 +1,4 @@
-# Implementation Reference — `install-pixi`
+# Implementation Reference
 
 ## Summary
 
@@ -260,30 +260,6 @@ checksums, shell config writes, OS packages, and logging.
 19. install_completion
 20. echo "✅ Pixi ${VERSION} installed."
 ```
-
-### Argument Parsing (Dual-Mode)
-
-The script uses the same `if [ "$#" -gt 0 ]; then ... else ... fi` pattern as
-`install-miniforge`. When invoked with CLI arguments (standalone mode), all
-options are read from `--flag value` pairs. When invoked with no arguments
-(devcontainer feature mode), options are read from identically-named environment
-variables set by the devcontainer CLI from `devcontainer-feature.json`.
-
-Boolean CLI flags (`--debug`, `--keep_installer`) require
-an explicit value of `true` or `false` (e.g. `--debug true`). Omitting the flag
-is equivalent to the default value (`false` for both).
-
-String flags such as `--shell_completions` accept a space-separated list of shell names
-(e.g. `--shell_completions "bash zsh"`) or an empty string to skip all completions.
-
-### Default Value Logic
-
-Defaults are applied *after* the argument-parsing block, using the same
-`[ -z "${VAR-}" ] && { echo "ℹ️ ..."; VAR=default; }` idiom.
-
-Special case for `EXPORT_PATH`: because empty string is a valid user-supplied value
-("skip all PATH writes"), the default test must use `[ -z "${EXPORT_PATH+x}" ]`
-(i.e. test for *unset*, not empty).
 
 ### NETRC Download Handling
 

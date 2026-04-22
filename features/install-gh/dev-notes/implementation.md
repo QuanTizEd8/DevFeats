@@ -1,4 +1,4 @@
-# Implementation Reference — install-gh
+# Implementation Reference
 
 The installer follows the established pattern of a thin orchestrator script (`install.bash`) that
 dispatches to feature-local helper functions. All low-level primitives (platform detection, package management,
