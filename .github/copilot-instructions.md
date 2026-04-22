@@ -12,7 +12,7 @@
 
 ## Key Commands
 
-When asked to investigate failures in a CI run, use `make watch-gha` to stream logs from the run in question. See the target for details and examples.
+When asked to investigate failures in a CI run, use `just watch-gha` to stream logs from the run in question. See the recipe for details and examples.
 
 
 
@@ -55,10 +55,10 @@ All shell scripts are formatted with **shfmt** and linted with **shellcheck**.
 - `.shellcheckrc` sets `shell=bash` and `external-sources=true` globally.
 - Pre-commit hook checks formatting and lints staged files (no-op when tools absent from PATH).
 - CI (`lint.yaml`) enforces both strictly on every push and PR.
-- Run `make format` to auto-format; `make lint` to lint.
+- Run `just format` to auto-format; `just lint` to lint.
 - `*.bats` files use `shell_variant = bats` in `.editorconfig` and are formatted by shfmt.
 - `--apply-ignore` excludes generated `_lib/` copies and `install.sh` stubs automatically.
-- `features/*/install.bash` are body-only (no header) and are **not linted in isolation** — lint targets the assembled `src/*/install.bash` files. Run `bash scripts/sync-src.sh` before `make lint`.
+- `features/*/install.bash` are body-only (no header) and are **not linted in isolation** — lint targets the assembled `src/*/install.bash` files. Run `bash scripts/sync-src.sh` before `just lint`.
 
 
 ## Key References

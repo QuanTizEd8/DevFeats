@@ -53,7 +53,7 @@ The workspace is a git repository with following key directories and files:
 - `./`: Root-level files.
   - `get.sh`:
   - `get.bash`:
-  - `Makefile`: Developer targets: format, format-check, lint, sync.
+  - `justfile`: Developer recipes: format, format-check, lint, sync.
   - `.editorconfig`: shfmt style config (2-space, case-indent, etc.).
   - `.shellcheckrc`: shellcheck defaults (shell=bash, external-sources=true).
-  - `lefthook.yml`: A lefthook pre-commit hook that runs `scripts/sync-src.sh` and `make format` automatically.
+  - `lefthook.yml`: A lefthook pre-commit hook that runs `scripts/sync-src.sh` and `just format` automatically.

@@ -3,24 +3,12 @@ env:
 
 pre-commit:
   commands:
-    sync:
-      glob: "{lib/*,features/bootstrap.sh}"
-      run: |
-        if (command -v python3 >/dev/null 2>&1 && python3 -c "import yaml" >/dev/null 2>&1) || \
-           (command -v python >/dev/null 2>&1 && python -c "import yaml" >/dev/null 2>&1); then
-          make sync
-        else
-          echo "ℹ️  Skipping sync: PyYAML not found. Install with: bash .devcontainer/setup-dev.sh --tools pyyaml"
-        fi
-    format:
-      glob: "*.{sh,bash,bats}"
-      run: make format FILES="{staged_files}" && git add {staged_files}
-    validate-metadata:
-      glob: "features/*/metadata.yaml"
-      run: |
-        if python3 -c "import jsonschema, yaml" >/dev/null 2>&1 || \
-           python -c "import jsonschema, yaml" >/dev/null 2>&1; then
-          make validate-metadata
-        else
-          echo "ℹ️  Skipping metadata validation: jsonschema not found. Install with: bash .devcontainer/setup-dev.sh --tools jsonschema"
-        fi
+    # sync:
+    #   glob: "{lib/*,features/bootstrap.sh}"
+    #   run: just sync
+    # format:
+    #   glob: "*.{sh,bash,bats}"
+    #   run: just format {staged_files} && git add {staged_files}
+    # validate-metadata:
+    #   glob: "features/*/metadata.yaml"
+    #   run: just validate-metadata

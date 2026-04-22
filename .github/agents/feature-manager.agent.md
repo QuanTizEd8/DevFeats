@@ -87,7 +87,7 @@ RUN THE TESTS AND VERIFY THEY FAIL BEFORE IMPLEMENTING THE BUILDING BLOCK, to en
    - It must only act as an orchestrator that calls building blocks in `lib/` to do the actual work, with minimal feature-specific logic of its own.
 7. Run formatting and linting, and fix any issues until they pass cleanly:
    ```bash
-   make format && make lint
+   just format && just lint
    ```
 8. After implementation is complete, all test cases have been implemented, and formatting/linting pass cleanly, commit the changes with a clear commit title and a comprehensive commit message describing what was implemented or changed, which tests were added or modified, and any important considerations or follow-up items to keep in mind for the next phases.
 
@@ -173,7 +173,7 @@ If the verdict is **NOT APPROVED**:
 - **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `scripts/sync-src.sh`.
 - **Test layers**: bats unit tests (`test/unit/`), devcontainer scenario tests (`test/<feature-name>/`), fail scenarios, dry-run manifest tests.
 - **CI workflows**: `cicd.yaml` (orchestrator — triggers on push/PR/tag), `ci.yaml` (reusable CI — lint, validate, unit, feature, dist tests), `cd.yaml` (reusable CD — GHCR publish + GitHub Release).
-- **Pre-commit hook** (lefthook): runs `make sync` and `make format` (auto-formats staged shell files).
+- **Pre-commit hook** (lefthook): runs `just sync` and `just format` (auto-formats staged shell files).
 
 ## Tools & Commands Quick Reference
 
@@ -181,10 +181,10 @@ If the verdict is **NOT APPROVED**:
 |------|---------|
 | Sync generated files | `bash scripts/sync-src.sh` |
 | Verify sync is up to date | `bash scripts/sync-src.sh --check` |
-| Format shell files | `make format` |
-| Check formatting (no writes) | `make format-check` |
-| Lint shell files | `make lint` |
-| Run all unit tests | `make test-unit` |
+| Format shell files | `just format` |
+| Check formatting (no writes) | `just format-check` |
+| Lint shell files | `just lint` |
+| Run all unit tests | `just test-unit` |
 | Run unit tests for one module | `bash test/run-unit.sh --module <name>` |
 | Test one feature (scenarios + fail cases) | `bash test/run.sh feature <feature-name>` |
 | Build distribution artifacts | `bash scripts/build-artifacts.sh [tag]` |

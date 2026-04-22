@@ -569,7 +569,7 @@ Module coverage:
 
 ```bash
 # Run all modules
-make test-unit
+just test-unit
 
 # Run a single module
 bash test/run-unit.sh --module os
@@ -650,7 +650,7 @@ When adding or changing a function in `lib/`:
    from bats-assert. Use `assert_file_exists` etc. from bats-file.
 4. Keep each test focused on one behaviour. One test per distinct outcome
    (success path, failure path, edge case) is the right granularity.
-5. Run `make test-unit` (or `bash test/run-unit.sh --module <name>`) to verify
+5. Run `just test-unit` (or `bash test/run-unit.sh --module <name>`) to verify
    before committing.
 
 ### Unit test CI

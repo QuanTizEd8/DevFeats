@@ -72,7 +72,7 @@ test/
 bash scripts/sync-src.sh
 
 # Lib unit tests
-make test-unit                                        # all modules
+just test-unit                                        # all modules
 bash test/run-unit.sh --module os                     # single module
 bash test/run-unit.sh --filter "platform"             # filter by test-name regex
 bash test/run-unit.sh --jobs 1                        # serial (debug output)

@@ -25,7 +25,7 @@ Execute ALL of the following checks. Do not skip any.
 ### Check 3 — Linting
 
 ```bash
-make lint
+just lint
 ```
 
 Report any shellcheck warnings or errors.
@@ -66,7 +66,7 @@ Read the test files and verify:
 ### Check 7 — Run Tests
 
 ```bash
-make test-unit
+just test-unit
 ```
 
 If Docker is available:

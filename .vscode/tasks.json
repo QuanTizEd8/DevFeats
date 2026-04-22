@@ -1,0 +1,102 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "format",
+            "detail": "Apply shfmt formatting to all tracked shell files",
+            "type": "shell",
+            "command": "just format",
+            "group": "build",
+            "presentation": {"reveal": "always", "panel": "shared"}
+        },
+        {
+            "label": "format-check",
+            "detail": "Check formatting without writing (exits non-zero if any file differs)",
+            "type": "shell",
+            "command": "just format-check",
+            "group": "build",
+            "presentation": {"reveal": "always", "panel": "shared"}
+        },
+        {
+            "label": "lint",
+            "detail": "Run shellcheck on all tracked shell files",
+            "type": "shell",
+            "command": "just lint",
+            "group": {"kind": "build", "isDefault": true},
+            "presentation": {"reveal": "always", "panel": "shared"},
+            "problemMatcher": "$shellcheck"
+        },
+        {
+            "label": "validate-metadata",
+            "detail": "Validate features/*/metadata.yaml against the JSON schema",
+            "type": "shell",
+            "command": "just validate-metadata",
+            "group": "build",
+            "presentation": {"reveal": "always", "panel": "shared"}
+        },
+        {
+            "label": "sync",
+            "detail": "Sync generated artifacts from features/ + lib/ into src/",
+            "type": "shell",
+            "command": "just sync",
+            "group": "build",
+            "presentation": {"reveal": "always", "panel": "shared"}
+        },
+        {
+            "label": "sync-check",
+            "detail": "Verify all generated artifacts are up to date (no writes)",
+            "type": "shell",
+            "command": "just sync-check",
+            "group": "build",
+            "presentation": {"reveal": "always", "panel": "shared"}
+        },
+        {
+            "label": "test-unit",
+            "detail": "Run lib/ unit tests via bats-core",
+            "type": "shell",
+            "command": "just test-unit",
+            "group": {"kind": "test", "isDefault": true},
+            "presentation": {"reveal": "always", "panel": "shared"}
+        },
+        {
+            "label": "gen-docs",
+            "detail": "Inject auto-generated content into docs",
+            "type": "shell",
+            "command": "just gen-docs",
+            "group": "build",
+            "presentation": {"reveal": "always", "panel": "shared"}
+        },
+        {
+            "label": "docs-serve",
+            "detail": "Live-preview the docs with auto-rebuild",
+            "type": "shell",
+            "command": "just docs-serve",
+            "isBackground": true,
+            "presentation": {"reveal": "always", "panel": "dedicated"}
+        },
+        {
+            "label": "install-dev",
+            "detail": "Install all development tools (idempotent)",
+            "type": "shell",
+            "command": "just install-dev",
+            "group": "build",
+            "presentation": {"reveal": "always", "panel": "shared"}
+        },
+        {
+            "label": "watch-gha",
+            "detail": "Stream GHA logs — set run or commit input when prompted",
+            "type": "shell",
+            "command": "just watch-gha run=${input:gha_run_id}",
+            "group": "build",
+            "presentation": {"reveal": "always", "panel": "dedicated"}
+        }
+    ],
+    "inputs": [
+        {
+            "id": "gha_run_id",
+            "type": "promptString",
+            "description": "GitHub Actions workflow run ID",
+            "default": ""
+        }
+    ]
+}

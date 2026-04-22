@@ -48,7 +48,7 @@ sysset/
 ├── features/bootstrap.sh        ← Shared bootstrap template (canonical source)
 ├── scripts/sync-src.sh          ← Build tool: distributes lib/ and features/bootstrap.sh
 ├── lefthook.yml                ← Pre-commit hook configuration
-├── Makefile                    ← Developer convenience targets (format, lint, sync)
+├── justfile                    ← Developer convenience recipes (format, lint, sync)
 ├── .editorconfig               ← Editor / shfmt style config
 ├── .shellcheckrc               ← shellcheck defaults
 ├── .devcontainer/              ← Dev environment configuration ONLY
@@ -180,7 +180,7 @@ double-sourcing when multiple scripts source the same library.
 changes (or simply stage the file; the pre-commit hook does it automatically).
 
 Every public function in `lib/` is covered by the bats unit suite under
-`test/unit/`. Run `make test-unit` to verify changes locally before pushing.
+`test/unit/`. Run `just test-unit` to verify changes locally before pushing.
 See [Testing — Unit tests for lib/](testing.md#unit-tests-for-lib) for the
 full guide.
 
@@ -292,13 +292,13 @@ Per-file or per-line overrides use inline directives:
 
 ### Developer workflow
 
-The [Makefile](../../Makefile) provides convenience targets:
+The [justfile](../../justfile) provides convenience recipes:
 
 ```bash
-make format          # auto-format all shell files in place (shfmt -w)
-make format-check    # check formatting without writing (used in CI)
-make lint         # run shellcheck on all tracked .sh/.bash files
-make sync         # regenerate _lib/ copies and install.sh stubs
+just format          # auto-format all shell files in place (shfmt -w)
+just format-check    # check formatting without writing (used in CI)
+just lint            # run shellcheck on all tracked .sh/.bash files
+just sync            # regenerate _lib/ copies and install.sh stubs
 ```
 
 VS Code users get formatting automatically via the

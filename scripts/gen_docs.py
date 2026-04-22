@@ -11,8 +11,8 @@ Injection markers (HTML comments preserved in Markdown):
 
 Usage:
     python3 scripts/gen_docs.py [--lib] [--check]
-    make gen-docs          # run all modes
-    make gen-docs-check    # --check (CI mode, exits 1 if anything would change)
+    just gen-docs          # run all modes
+    just gen-docs-check    # --check (CI mode, exits 1 if anything would change)
 
 Modes (default: all):
     --lib    Inject lib API tables into lib.instructions.md and
@@ -170,7 +170,7 @@ def process_file(
     if changed:
         rel = path.relative_to(REPO)
         if check:
-            print(f"  ✗  {rel}: would be updated (run 'make gen-docs' to regenerate)")
+            print(f"  ✗  {rel}: would be updated (run 'just gen-docs' to regenerate)")
         else:
             path.write_text(content, encoding="utf-8")
             print(f"  ✓  {rel}: updated")
@@ -241,7 +241,7 @@ def main() -> int:
     if any_changed:
         if args.check:
             print(
-                "\n✗ Some docs are out of date. Run 'make gen-docs' to regenerate."
+                "\n✗ Some docs are out of date. Run 'just gen-docs' to regenerate."
             )
             return 1
         return 0

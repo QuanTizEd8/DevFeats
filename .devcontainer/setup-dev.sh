@@ -2,7 +2,7 @@
 # setup-dev.sh — Install development tools for sysset.
 # Usage: bash .devcontainer/setup-dev.sh [--tools tool1,tool2,...]
 #
-# Available tools: pyyaml jsonschema shfmt shellcheck devcontainers-cli lefthook
+# Available tools: pyyaml jsonschema shfmt shellcheck just devcontainers-cli lefthook
 # Default (no --tools flag): install all tools.
 #
 # Designed to be idempotent — skips tools already installed at the required version.
@@ -11,12 +11,13 @@ set -euo pipefail
 
 # ── Pinned versions ────────────────────────────────────────────────────────────
 SHFMT_VERSION="v3.13.1"
+JUST_VERSION="1.50.0"
 
 # ── Parse --tools flag ─────────────────────────────────────────────────────────
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _REPO_ROOT="$(cd "${_SCRIPT_DIR}/.." && pwd)"
 
-_ALL_TOOLS="pyyaml jsonschema shfmt shellcheck devcontainers-cli lefthook"
+_ALL_TOOLS="pyyaml jsonschema shfmt shellcheck just devcontainers-cli lefthook"
 _tools="${_ALL_TOOLS}"
 
 while [[ $# -gt 0 ]]; do
@@ -91,6 +92,29 @@ _install_shellcheck() {
   echo "✅ shellcheck installed." >&2
 }
 
+_install_just() {
+  if _has just && [[ "$(just --version 2>/dev/null)" == "just ${JUST_VERSION}" ]]; then
+    echo "✅ just ${JUST_VERSION} already installed — skipping." >&2
+    return
+  fi
+  echo "▶ Installing just ${JUST_VERSION}..." >&2
+  _arch="$(uname -m)"
+  if [[ "$_os" == "Darwin" ]]; then
+    [[ "$_arch" == "arm64" ]] && _triple="aarch64-apple-darwin" || _triple="x86_64-apple-darwin"
+  else
+    [[ "$_arch" == "aarch64" ]] && _triple="aarch64-unknown-linux-musl" || _triple="x86_64-unknown-linux-musl"
+  fi
+  _just_tar="just-${JUST_VERSION}-${_triple}.tar.gz"
+  _tmpdir="$(mktemp -d)"
+  curl -fsSL \
+    "https://github.com/casey/just/releases/download/${JUST_VERSION}/${_just_tar}" \
+    -o "${_tmpdir}/${_just_tar}"
+  tar -xzf "${_tmpdir}/${_just_tar}" -C "${_tmpdir}" just
+  install -m 0755 "${_tmpdir}/just" /usr/local/bin/just
+  rm -rf "${_tmpdir}"
+  echo "✅ just ${JUST_VERSION} installed." >&2
+}
+
 _install_devcontainers_cli() {
   if _has devcontainer; then
     echo "✅ devcontainers-cli already installed — skipping." >&2
@@ -118,6 +142,7 @@ for _tool in $_tools; do
     jsonschema) _install_jsonschema ;;
     shfmt) _install_shfmt ;;
     shellcheck) _install_shellcheck ;;
+    just) _install_just ;;
     devcontainers-cli) _install_devcontainers_cli ;;
     lefthook) _install_lefthook ;;
     *)

@@ -73,20 +73,20 @@ for the full API.
 bash scripts/sync-src.sh
 
 # Format all shell scripts
-make format
+just format
 
 # Lint all shell scripts
-make lint
+just lint
 
 # Build standalone distribution artifacts
-make build-dist                      # tag = "dev"
-make build-dist VERSION=v1.0.0       # tag = "v1.0.0"
+just artifacts              # version = ""
+just artifacts v1.0.0       # version = "v1.0.0"
 
 # Run a feature's integration tests (scenarios + fail cases)
 bash test/run.sh feature install-pixi
 
 # Run all bats unit tests
-make test-unit
+just test-unit
 
 # Run unit tests for a single lib module
 bash test/run-unit.sh --module ospkg

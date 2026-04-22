@@ -184,7 +184,7 @@ This isolation is specific to `logging.sh`. Other modules do not need it.
 
 ```bash
 # All modules (also runs scripts/sync-src.sh first)
-make test-unit
+just test-unit
 
 # Single module
 bash test/run-unit.sh --module os

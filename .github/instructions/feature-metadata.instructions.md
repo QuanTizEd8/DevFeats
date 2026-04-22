@@ -12,8 +12,8 @@ Each feature must include a `metadata.yaml` file, containing all metadata about 
 
 The JSON Schema is defined in `features/metadata.schema.json`. It is a superset of the [JSON Schema for devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainerFeature.schema.json), with underscored internal-only fields (e.g. `_long_description`, `_dependecies`) added to hold additional metadata.
 
-- Run `make validate-metadata` to validate all metadata files against the schema using the `scripts/validate-metadata.py` script.
-- Run `make sync` to regenerate all feature files in `src/` from metadata and install scripts in `features/` using the `scripts/sync-src.sh` script.
+- Run `just validate-metadata` to validate all metadata files against the schema using the `scripts/validate-metadata.py` script.
+- Run `just sync` to regenerate all feature files in `src/` from metadata and install scripts in `features/` using the `scripts/sync-src.sh` script.
 
 The `features/derived-options.yaml` file defines shared options that are injected into each feature at sync time. This is useful for options that are common across many features, such as `debug` and `logfile`, so they are not repeated in every metadata file.
 

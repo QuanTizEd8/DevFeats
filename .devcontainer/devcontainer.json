@@ -1,5 +1,7 @@
 {
-    "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
     "customizations": {
         "vscode": {
             "settings": {
@@ -17,7 +19,9 @@
                 "timonwong.shellcheck",
                 "foxundermoon.shell-format",
                 "EditorConfig.EditorConfig",
-                "redhat.vscode-yaml"
+                "redhat.vscode-yaml",
+                // Syntax support for 'just': https://marketplace.visualstudio.com/items?itemName=nefrob.vscode-just-syntax
+                "nefrob.vscode-just-syntax"
             ]
         }
     },
@@ -27,5 +31,5 @@
     "remoteUser": "node",
     "initializeCommand": "bash scripts/sync-src.sh",
     "updateContentCommand": "npm install -g @devcontainers/cli lefthook",
-    "postCreateCommand": "bash .devcontainer/setup-dev.sh && lefthook install"
+    "postCreateCommand": "lefthook install"
 }

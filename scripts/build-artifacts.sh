@@ -35,7 +35,7 @@ echo "ℹ️  Building artifacts for tag: '${_TAG}'" >&2
 # ── Pre-flight: require src/ to be already populated by scripts/sync-src.sh ──
 # build-artifacts.sh is a consumer of sync output — it does not call sync
 # itself to stay usable in environments without Python+PyYAML (e.g. containers).
-# Run 'bash scripts/sync-src.sh' (or 'make sync') before invoking this script.
+# Run 'bash scripts/sync-src.sh' (or 'just sync') before invoking this script.
 _check_feature=$(find "${_SRC_DIR}" -maxdepth 2 -name 'install.bash' 2> /dev/null | head -1)
 if [[ -z "$_check_feature" ]]; then
   echo "⛔ src/ is not populated. Run 'bash scripts/sync-src.sh' first." >&2

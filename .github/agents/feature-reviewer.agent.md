@@ -104,7 +104,7 @@ Read `.github/instructions/test-scenarios.instructions.md` for detailed instruct
 
 4. **Standalone installer tests** — for testing the installer scripts outside of the devcontainer test framework, when directly invoking the script on a machine (especially for macOS, since devcontainer tests all run on Linux).
 
-After writing tests, run formatting and linting on your test files using the command `make format && make lint`, fix any issues, and make sure all tests are syntactically correct and runnable.
+After writing tests, run formatting and linting on your test files using the command `just format && just lint`, fix any issues, and make sure all tests are syntactically correct and runnable.
 
 
 ### Step 4 — Compile Report
