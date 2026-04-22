@@ -1,14 +1,20 @@
 id: install-shell
 version: 0.1.0
 name: Shell Installation
-description: Install and configure various shells and shell frameworks.
+description: Install and configure [Zsh](https://www.zsh.org/) and Bash with [Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/), and the [Starship](https://starship.rs/) prompt.
+keywords:
+- shell
+- zsh
+- bash
+- oh-my-zsh
+- starship
 _long_description: >-
-  Install and configure Bash and [Zsh](https://www.zsh.org/) with shell frameworks
-  ([Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/))
-  and the [Starship](https://starship.rs/) prompt. Deploys a layered set of
-  system-wide and per-user configuration files that work correctly across all
-  shell invocation modes — login, interactive, non-interactive, scripts, cron,
-  `devcontainer exec`, CI runners, and VS Code tasks.
+  A layered set of system-wide and per-user configuration files is deployed to ensure
+  correct shell behavior across all invocation modes — login, interactive,
+  non-interactive, scripts, cron, devcontainer exec, CI runners, and VS Code tasks.
+  Both Zsh and Bash can be extended with their respective framework ecosystems (themes,
+  plugins, completions), and [Starship](https://starship.rs/) provides a fast,
+  context-aware prompt that works across all configured shells.
 options:
   install_zsh:
     type: boolean
@@ -34,35 +40,41 @@ options:
   starship_shells:
     type: array
     default: zsh
-    description: |
-      Shells to activate the Starship prompt in (`zsh`, `bash`, or both).
-      Leave empty to install the binary without activating it in any shell.
-      Ignored if `install_starship` is `false` and `starship` is not already on PATH.
-      When a shell's framework theme (`ohmyzsh_theme` / `ohmybash_theme`) is also set, the framework still loads but Starship owns the prompt (`ZSH_THEME` / `OSH_THEME` is forced to empty with a warning).
+    description: |-
+      Shells to activate the Starship prompt in. Leave empty to install the binary without activating it.
+      Ignored if `install_starship=false` and `starship` is not already on PATH.
+      When a shell's framework theme (`ohmyzsh_theme` / `ohmybash_theme`) is also set, the
+      framework still loads but Starship owns the prompt (`ZSH_THEME` / `OSH_THEME` is forced
+      to empty with a warning).
+    enum:
+    - value: bash
+      description: Activate Starship in Bash by appending `eval "$(starship init bash)"` to the Bash RC.
+    - value: zsh
+      description: Activate Starship in Zsh by appending `eval "$(starship init zsh)"` to the Zsh RC.
   ohmyzsh_plugins:
     type: array
     default: "git\nzsh-users/zsh-syntax-highlighting"
-    description: |
+    description: |-
       Oh My Zsh plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
       Custom plugins are cloned into `<ohmyzsh_custom_dir>/plugins/<repo>`.
       Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Zsh plugins and are not cloned.
-      Set to an empty string to install no custom plugins.
+      Set to `''` to install no custom plugins.
       Ignored if Oh My Zsh is not available or being installed.
   ohmybash_plugins:
     default: git
-    description: |
+    description: |-
       Oh My Bash plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
       Custom plugins are cloned into `<ohmybash_install_dir>/custom/plugins/<repo>`.
       Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Bash plugins and are not cloned.
-      Set to an empty string to install no custom plugins.
+      Set to `''` to install no custom plugins.
       Ignored if Oh My Bash is not available or being installed.
     type: array
   ohmyzsh_theme:
     default: ''
-    description: |
-      Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug.
+    description: |-
+      Oh My Zsh custom theme to install, as an `owner/repo` GitHub slug.
       The repository is cloned into `<ohmyzsh_custom_dir>/themes/<repo>`.
-       Set to an empty string to install no custom theme.
+      Set to `''` to install no custom theme.
       Ignored if Oh My Zsh is not available or being installed.
     type: string
     proposals:
@@ -73,28 +85,24 @@ options:
           for installation of the recommended Powerlevel10k-compatible Nerd Font).
   ohmybash_theme:
     default: ''
-    description: |
-      Oh My Bash custom theme to install, as a `owner/repo` GitHub slug.
+    description: |-
+      Oh My Bash custom theme to install, as an `owner/repo` GitHub slug.
       The repository is cloned into `<ohmybash_install_dir>/custom/themes/<repo>`.
       Ignored if Oh My Bash is not available or being installed.
     type: string
   ohmyzsh_install_dir:
     default: /usr/local/share/oh-my-zsh
-    description: |
+    description: |-
       Path to the Oh My Zsh installation directory.
-      This is the directory where Oh My Zsh will be installed.
-      It corresponds to the [`ZSH`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh)
-      configuration variable in Oh My Zsh.
+      Corresponds to the [`ZSH`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh) config variable.
     type: string
   ohmybash_install_dir:
     default: /usr/local/share/oh-my-bash
-    description: |-
-      Path to the Oh My Bash installation directory.
-      This is the directory where Oh My Bash will be installed.
+    description: Path to the Oh My Bash installation directory.
     type: string
   ohmyzsh_branch:
     default: master
-    description: |
+    description: |-
       Git branch/tag of [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to clone.
       Also recorded as `oh-my-zsh.branch` in the git config so `omz update` works correctly.
     type: string
@@ -117,51 +125,55 @@ options:
   add_users:
     default: ''
     description: |-
-      Usernames to add shell configuration for, in addition to the users specified by the other `add_*_user_config` options.
+      Additional usernames to add shell configuration for, in addition to the users resolved by
+      `add_current_user`, `add_remote_user`, and `add_container_user`.
     type: array
   set_user_shells:
     type: string
     default: zsh
-    enum:
-    - zsh
-    - bash
-    - none
     description: |-
-      Whether to set users' default login shell to zsh or bash via `chsh`.
-       Applies to all users for whom configuration is being added, as determined by the `add_*_user_config` options. Raises an error if zsh is selected but zsh is not available or being installed.
+      Whether to set users' default login shell via `chsh`.
+      Applies to all users resolved by `add_current_user`, `add_remote_user`, `add_container_user`, and `add_users`.
+      Raises an error if `zsh` is selected but Zsh is not available or being installed.
+    enum:
+    - value: zsh
+      description: Set all resolved users' default login shell to Zsh.
+    - value: bash
+      description: Set all resolved users' default login shell to Bash.
+    - value: none
+      description: Do not change any user's default login shell.
   zdotdir:
     default: ''
     description: |-
       Directory where Zsh looks for its per-user config files (`.zshrc`, `.zprofile`, `.zlogin`).
       Corresponds to the `ZDOTDIR` environment variable set in `~/.zshenv`.
       Leave empty to use the default: `${XDG_CONFIG_HOME}/zsh` (i.e. `~/.config/zsh`).
-      Accepts `~`- or `$HOME`-prefixed paths.
+      Accepts paths prefixed with `~` or `$HOME`.
     type: string
   ohmyzsh_custom_dir:
     default: ''
     description: |-
       ZSH_CUSTOM directory for Oh My Zsh.
       Leave empty to use `${ZDOTDIR}/custom` (i.e. `~/.config/zsh/custom`) — per-user, themes and plugins are symlinked there from the system install.
-      Set to an explicit path to override; `~`- and `$HOME`-prefixed values are expanded per user.
+      Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
     type: string
   ohmybash_custom_dir:
     default: ''
     description: |-
       OSH_CUSTOM directory for Oh My Bash.
       Leave empty to use `${XDG_CONFIG_HOME}/bash/custom` (i.e. `~/.config/bash/custom`) — per-user, themes and plugins are symlinked there from the system install.
-      Set to an explicit path to override; `~`- and `$HOME`-prefixed values are expanded per user.
+      Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
     type: string
   user_config_mode:
     default: overwrite
+    description: How to handle existing user dotfiles when configuring users.
     enum:
-    - overwrite
-    - augment
-    - skip
-    description: |-
-      How to handle existing user dotfiles when configuring users.
-      - `overwrite`: Replace all dotfiles from skel and re-inject framework blocks.
-      - `augment`: Copy skel files only if they do not already exist; always refresh framework blocks.
-      - `skip`: Do nothing if dotfiles already exist.
+    - value: overwrite
+      description: Replace all dotfiles from skel and re-inject framework blocks.
+    - value: augment
+      description: Copy skel files only if they do not already exist; always refresh framework blocks.
+    - value: skip
+      description: Do nothing if dotfiles already exist.
     type: string
   install_bash_completion:
     type: boolean

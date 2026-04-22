@@ -505,10 +505,9 @@ _git__write_system_gitconfig() {
     "${_git}" config --file "${_cfg}" init.defaultBranch "${DEFAULT_BRANCH}"
   fi
 
-  if [ -n "${SAFE_DIRECTORY}" ]; then
+  if [ "${#SAFE_DIRECTORY[@]}" -gt 0 ]; then
     local _entry
-    printf '%s\n' "${SAFE_DIRECTORY}" | while IFS= read -r _entry; do
-      [ -z "${_entry}" ] && continue
+    for _entry in "${SAFE_DIRECTORY[@]}"; do
       "${_git}" config --file "${_cfg}" --add safe.directory "${_entry}"
     done
   fi
@@ -632,15 +631,17 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
 fi
 
 # 6. PATH/MANPATH export (source build only).
-if [ "${METHOD}" = "source" ] && [ -n "${EXPORT_PATH}" ]; then
-  _path_files="${EXPORT_PATH}"
-  if [ "${EXPORT_PATH}" = "auto" ]; then
+if [ "${METHOD}" = "source" ] && [ "${#EXPORT_PATH[@]}" -gt 0 ]; then
+  _path_files=""
+  if [ "${EXPORT_PATH[*]}" = "auto" ]; then
     if [ "$(id -u)" = "0" ]; then
       _path_files="$(shell__system_path_files --profile_d install-git.sh)"
     else
       # shellcheck disable=SC2119
       _path_files="$(shell__user_path_files)"
     fi
+  else
+    _path_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
   fi
   shell__sync_block \
     --files "${_path_files}" \
@@ -656,7 +657,7 @@ if [ "${METHOD}" = "source" ] && [ -n "${EXPORT_PATH}" ]; then
 fi
 
 # 7. Git configuration.
-if [ -n "${DEFAULT_BRANCH}${SAFE_DIRECTORY}${SYSTEM_GITCONFIG}" ]; then
+if [ -n "${DEFAULT_BRANCH}${SYSTEM_GITCONFIG}" ] || [ "${#SAFE_DIRECTORY[@]}" -gt 0 ]; then
   _git__write_system_gitconfig
 fi
 if { [ "${ADD_CURRENT_USER}" = "true" ] || [ "${ADD_REMOTE_USER}" = "true" ] || [ "${ADD_CONTAINER_USER}" = "true" ] || [ -n "${ADD_USERS}" ]; } && [ -n "${USER_NAME}${USER_EMAIL}${USER_GITCONFIG}" ]; then

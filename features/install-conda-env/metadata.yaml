@@ -1,61 +1,55 @@
 id: install-conda-env
 name: Conda Environment Installation
 version: 0.1.0
-description: Create or update conda environments from environment files or inline specifications.
+description: Create or update [Conda](https://conda.io/) environments from environment files or inline package specifications.
 keywords:
 - conda
 - mamba
 - python
 - environment
 - package management
-_long_description: |-
-  This feature creates or updates conda environments
-  by processing environment YAML files and/or inline package specifications.
-  It supports installing packages via conda and pip,
-  configuring channels and channel priority,
-  and running post-install scripts.
-  The feature can be used to set up one or more environments
-  after Conda is installed by the install-miniforge feature
-  or an existing Conda installation is detected on PATH.
+_long_description: >-
+  Environments can be built from YAML environment files, inline package lists with optional
+  pip requirements, or a combination of both. Custom channel precedence can be configured,
+  and a post-install script can run after environment creation for additional setup.
+  Conda must already be available on the system; pair with the install-miniforge feature
+  to provide it.
 options:
   conda_dir:
     default: ''
-    description: |
+    description: |-
       Path to the conda installation directory.
-      Leave empty to auto-detect via conda in PATH.
+      Leave empty to auto-detect via `conda` in PATH.
     type: string
   env_files:
     default: ''
-    description: |
-      Paths to conda environment YAML files to create or update.
+    description: Paths to conda environment YAML files to create or update.
     type: array
   env_dirs:
     default: ''
-    description: |
-      Paths to directories to scan for conda environment YAML files.
+    description: Paths to directories to scan for conda environment YAML files.
     type: array
   env_name:
     default: ''
-    description: |
+    description: |-
       Name of a conda environment to create or update from inline package options.
-      Requires the 'packages' option to be set.
+      Requires the `packages` option to be set.
     type: string
   packages:
     default: ''
-    description: |
+    description: |-
       Space-separated list of conda packages to install into the environment
-      specified by 'env_name'.
+      specified by `env_name`.
     type: string
   python_version:
     default: ''
-    description: |
-      Python version to use when creating the inline environment specified by 'env_name'.
-      Example: '3.11'. Has no effect if 'env_name' is not set.
+    description: |-
+      Python version to use when creating the inline environment specified by `env_name`.
+      Example: `3.11`. Has no effect if `env_name` is not set.
     type: string
   channels:
     default: ''
-    description: |
-      Conda channels to add to the configuration.
+    description: Conda channels to add to the configuration (e.g. `conda-forge`, `bioconda`).
     proposals:
     - value: defaults
       description: Anaconda default channel.
@@ -72,20 +66,20 @@ options:
     type: boolean
   pip_requirements_files:
     default: ''
-    description: |
+    description: |-
       Paths to pip requirements files to install.
       By default, packages are installed into the same environment as each env file.
-      Use 'pip_env' to override the target environment.
+      Use `pip_env` to override the target environment.
     type: array
   pip_env:
     default: ''
-    description: |
+    description: |-
       Name of the conda environment to pip-install requirements into.
       Defaults to installing into each environment as it is created or updated.
     type: string
   post_env_script:
     default: ''
-    description: |
+    description: |-
       Path to a script to run after each environment is created or updated.
       The environment name is passed as the first argument.
     type: string
@@ -102,7 +96,7 @@ options:
     type: string
   keep_cache:
     default: false
-    description: Skip running 'conda clean' after all environments are set up.
+    description: Skip running `conda clean` after all environments are set up.
     type: boolean
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/install-miniforge

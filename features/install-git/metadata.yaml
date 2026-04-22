@@ -1,21 +1,19 @@
 id: install-git
 version: 0.2.0
 name: Git Installation
-description: Install Git via the OS package manager or from a kernel.org source tarball.
+description: Install [Git](https://git-scm.com/) via the OS package manager or build from a kernel.org source tarball.
 keywords:
 - git
 - vcs
 - version-control
 - source-control
 - devtool
-_long_description: |-
-  Install [Git](https://git-scm.com/) using one of two strategies controlled by the `method` option.
-  `package` uses the OS native package manager (with the git-core PPA on Ubuntu when `version=latest`
-  for the newest upstream stable release). `source` builds from a kernel.org tarball and
-  supports every Linux distribution and macOS, with full version control via the `version` option.
-  After installation the feature writes system-level gitconfig settings (`default_branch`, `safe_directory`)
-  and per-user settings (`user.name`, `user.email`) for all resolved users.
-  Shell completions are installed after source builds.
+_long_description: >-
+  Git can be installed from the OS native package manager — with the git-core PPA available
+  on Ubuntu for the latest upstream stable release — or compiled from a kernel.org tarball,
+  supporting every Linux distribution and macOS. After installation, system-level Git
+  configuration and per-user identity settings are written for all resolved users. Shell
+  completions are installed following source builds.
 options:
   method:
     type: string
@@ -48,7 +46,7 @@ options:
       description: |-
         Install the latest stable version.
         - When `method=package`, uses the default package manager's version.
-        - When `method=source``, builds the newest stable release (no release candidates).
+        - When `method=source`, builds the newest stable release (no release candidates).
     - value: 2.54.0
       description: |-
         Install a specific version.
@@ -58,30 +56,30 @@ options:
     type: string
     default: auto
     description: |-
-      Installation prefix for source builds (passed as prefix= to make install).
-      'auto' (default) — resolves to /usr/local when running as root, or $HOME/.local when running as a non-root user.
+      Installation prefix for source builds (passed as `prefix=` to `make install`).
+      `auto` (default) — resolves to `/usr/local` when running as root, or `$HOME/.local` when running as non-root.
       An explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.
   sysconfdir:
     type: string
     default: auto
     description: |-
-      System configuration directory for source builds (passed as sysconfdir= to make). Git reads <sysconfdir>/gitconfig as its system-level config file.
-      'auto' (default) — resolves to /etc when running as root, or $HOME/.config when running as a non-root user.
+      System configuration directory for source builds (passed as `sysconfdir=` to `make`). Git reads `<sysconfdir>/gitconfig` as its system-level config file.
+      `auto` (default) — resolves to `/etc` when running as root, or `$HOME/.config` when running as non-root.
       An explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.
   installer_dir:
     type: string
     default: /tmp/git-build
     description: |-
       Working directory for the source build: tarball download, extraction, and compilation happen here.
-      Removed after a successful build unless keep_installer=true.
-      Ignored when method=package.
+      Removed after a successful build unless `keep_installer=true`.
+      Ignored when `method=package`.
   keep_installer:
     type: boolean
     default: false
     description: |-
-      Keep the source build directory (installer_dir) after a successful install.
+      Keep the source build directory (`installer_dir`) after a successful install.
       Useful for debugging build failures or inspecting the compiled binaries.
-      Ignored when method=package.
+      Ignored when `method=package`.
   no_flags:
     type: array
     default: ''
@@ -105,16 +103,19 @@ options:
   make_flags:
     type: string
     default: ''
-    description: Additional flags appended verbatim last to the make invocation for source builds (space-separated KEY=VALUE pairs, e.g. 'NO_CURL=YesPlease OPENSSL_SHA256=YesPlease'). Appended after all computed flags including no_flags, so last-position values take effect. No validation — unknown flags are silently ignored by make. Silently ignored when method=package.
+    description: |-
+      Additional flags to append verbatim to the `make` invocation for source builds (space-separated `KEY=VALUE` pairs, e.g. `NO_CURL=YesPlease OPENSSL_SHA256=YesPlease`).
+      Appended after all computed flags including `no_flags`, so last-position values take effect.
+      No validation — unknown flags are silently ignored by `make`. Silently ignored when `method=package`.
   export_path:
-    type: string
+    type: array
     default: auto
     description: |-
       Controls PATH and MANPATH export for source builds.
-      'auto' (default) — writes idempotent export blocks to all system-wide shell startup files: the BASH_ENV file (non-login non-interactive bash, registered in /etc/environment), /etc/profile.d/install-git.sh (login shells), the system-wide bashrc (non-login interactive bash), and <zshdir>/zshenv (all zsh). This covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.
-      '' (empty string) — skips all PATH/MANPATH writes.
-      A newline-separated list of absolute file paths — writes only to those files.
-      Ignored when method=package (git lands in /usr/bin which is universally on PATH).
+      - `auto` (default) — writes idempotent export blocks to all system-wide shell startup files: the `BASH_ENV` file (non-login non-interactive bash, registered in `/etc/environment`), `/etc/profile.d/install-git.sh` (login shells), the system-wide bashrc (non-login interactive bash), and `<zshdir>/zshenv` (all zsh). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.
+      - `''` (empty) — skips all PATH/MANPATH writes.
+      - A list of absolute file paths — writes only to those files.
+      Ignored when `method=package` (git lands in `/usr/bin` which is universally on PATH).
   shell_completions:
     type: array
     default: "bash\nzsh"
@@ -122,7 +123,7 @@ options:
       Shell names to install completion scripts for after a source build.
       Ignored when `method=package` (completions are installed by the package manager).
       The source files are taken from `$PREFIX/share/git-core/contrib/completion/` which is populated by make install.
-      Set to '' to skip all completions.
+      Set to `''` to skip all completions.
     enum:
     - value: bash
       description: Install Bash completion to `/etc/bash_completion.d/git` (root) or `~/.local/share/bash-completion/completions/git` (non-root).
@@ -148,27 +149,37 @@ options:
     - value: update
       description: |-
         Upgrade to the resolved target version.
-        Same-method updates proceed in place (
-          package manager re-runs natively;
-          source rebuild overwrites binaries if the prefix matches,
-          or removes the old prefix first if it differs
-        ). Method-switch updates behave identically to `reinstall`.
+        Same-method updates proceed in place: the package manager re-runs natively for `method=package`; for `method=source`, binaries are overwritten if the prefix matches, or the old prefix is removed first if it differs.
+        Method-switch updates behave identically to `reinstall`.
   default_branch:
     type: string
     default: main
-    description: Sets init.defaultBranch in the system-level gitconfig (/etc/gitconfig as root, $HOME/.config/git/config as non-root). Applies to all newly initialised repositories. Set to '' to skip writing this setting.
+    description: |-
+      Sets `init.defaultBranch` in the system-level gitconfig (`/etc/gitconfig` as root; `$HOME/.config/git/config` as non-root).
+      Applies to all newly initialised repositories.
+      Set to `''` to skip writing this setting.
   safe_directory:
-    type: string
+    type: array
     default: '*'
-    description: Sets safe.directory in the system-level gitconfig. Use '*' (default) to trust all directories (useful in containers where the working directory may be owned by a different UID), a specific absolute path, or a newline-separated list of paths. Set to '' to skip writing this setting.
+    description: |-
+      Sets `safe.directory` in the system-level gitconfig.
+      Use `*` (default) to trust all directories (useful in containers where the working directory may be owned by a different UID), or a list of specific absolute paths.
+      Set to `''` to skip writing this setting.
   system_gitconfig:
     type: string
     default: ''
     description: |-
-      Freeform content to append to the system-level gitconfig (as root: /etc/gitconfig; as non-root: $HOME/.config/git/config). Accepts standard gitconfig format, e.g. '[core]
+      Freeform content to append to the system-level gitconfig (`/etc/gitconfig` as root; `$HOME/.config/git/config` as non-root).
+      Accepts standard gitconfig format. Example:
+
+      ```ini
+      [core]
         autocrlf = input
       [push]
-        default = simple'. Written after any settings from default_branch and safe_directory. Set to '' to skip.
+        default = simple
+      ```
+
+      Written after `default_branch` and `safe_directory` settings. Set to `''` to skip.
   add_current_user:
     type: boolean
     default: true
@@ -196,23 +207,25 @@ options:
   user_name:
     type: string
     default: ''
-    description: Sets user.name in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting.
+    description: Sets `user.name` in the per-user gitconfig (`~/.gitconfig`) for all resolved users. Set to `''` to skip writing this setting.
   user_email:
     type: string
     default: ''
-    description: Sets user.email in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting.
+    description: Sets `user.email` in the per-user gitconfig (`~/.gitconfig`) for all resolved users. Set to `''` to skip writing this setting.
   user_gitconfig:
     type: string
     default: ''
-    description: Freeform content to append to the per-user gitconfig (~/.gitconfig) for all resolved users. Accepts standard gitconfig format. Written after user_name and user_email settings. Set to '' to skip.
+    description: Freeform content to append to the per-user gitconfig (`~/.gitconfig`) for all resolved users. Accepts standard gitconfig format. Written after `user_name` and `user_email` settings. Set to `''` to skip.
   symlink:
     type: boolean
     default: true
     description: |-
-      Create a symlink from the canonical bin directory to $prefix/bin/git when prefix resolves to a non-default path (source builds only).
-      Root: creates /usr/local/bin/git -> $prefix/bin/git. Non-root: creates $HOME/.local/bin/git -> $prefix/bin/git.
+      Create a symlink from the canonical bin directory to `$prefix/bin/git` when prefix resolves to a non-default path (source builds only).
+      The symlink location is determined by whether `$prefix` falls under any user's home directory (as listed in `/etc/passwd`):
+      - System-wide (prefix is not under any user home): creates `/usr/local/bin/git` → `$prefix/bin/git`.
+      - User-scoped (prefix is under a user home): creates `$HOME/.local/bin/git` → `$prefix/bin/git`.
       Ensures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.
-      No-op when method=package (git is already in /usr/bin), or when prefix already resolves to the canonical path (/usr/local for root, $HOME/.local for non-root).
+      No-op when `method=package` (git is already in `/usr/bin`), or when prefix already resolves to the canonical path (`/usr/local` for root, `$HOME/.local` for non-root).
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
 installsAfter: []

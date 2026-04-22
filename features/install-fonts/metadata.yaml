@@ -1,7 +1,7 @@
 id: install-fonts
 version: 0.1.0
 name: Font Installation
-description: Install fonts from various sources.
+description: Install fonts from [Nerd Fonts](https://www.nerdfonts.com/), GitHub releases, or arbitrary URLs.
 keywords:
 - fonts
 - font archive
@@ -9,10 +9,12 @@ keywords:
 - typography
 - document
 _long_description: >-
-  Install fonts from [Nerd Fonts](https://www.nerdfonts.com/) by name,
-  from [GitHub release](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) assets by repository slug,
-  from the [Powerlevel10k MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts,
-  or from arbitrary URLs to individual font files or archives.
+  Fonts can be sourced from [Nerd Fonts](https://www.nerdfonts.com/) by name, from GitHub
+  release assets by repository slug, from the
+  [Powerlevel10k MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) bundle, or
+  from individual font files and archives at arbitrary URLs — all in a single feature
+  invocation. Archives are extracted automatically, and font caches are refreshed after
+  installation.
 options:
   nerd_fonts:
     default: "Meslo\nJetBrainsMono"
@@ -54,11 +56,15 @@ options:
     type: boolean
   overwrite:
     default: false
-    description: When a font with the same PostScript name is already installed, overwrite it instead of skipping. Default is to skip and log.
+    description: When a font with the same PostScript name is already installed, overwrite it instead of skipping.
     type: boolean
   font_dir:
     default: ''
-    description: 'Font installation directory. Leave empty to auto-detect: root/container -> /usr/share/fonts; Linux user -> $XDG_DATA_HOME/fonts; macOS user -> ~/Library/Fonts.'
+    description: |-
+      Font installation directory. Leave empty to auto-detect:
+      - Root / container: `/usr/share/fonts`
+      - Linux user: `$XDG_DATA_HOME/fonts` (default: `~/.local/share/fonts`)
+      - macOS user: `~/Library/Fonts`
     type: string
 _dependencies:
   run:

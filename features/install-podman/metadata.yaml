@@ -3,15 +3,19 @@ version: 0.1.0
 name: Podman Installation
 description: Install the [Podman](https://podman.io/) container engine for rootless container execution.
 _long_description: >-
-  Installs [Podman](https://podman.io/) for rootless container execution inside
-  a dev container. Uses native kernel overlay storage on a named volume for
-  fast, space-efficient copy-on-write image management.
+  [Podman](https://podman.io/) is a daemonless, rootless container engine implementing
+  the OCI runtime specification. Running Podman inside a dev container requires
+  privileged mode to support user namespaces and mount propagation. Image and container
+  storage is placed on a named volume backed by the host filesystem rather than the
+  container's overlayfs root, enabling the native kernel overlay driver for fast,
+  space-efficient image management.
 documentationURL: https://github.com/containers/podman
 keywords:
 - podman
 - containers
 - rootless
 - oci
+- devcontainer
 # Privileged mode is required for rootless Podman inside a container.
 # Podman needs to: create user namespaces (blocked by default seccomp),
 # run setuid newuidmap/newgidmap (blocked by nosuid root mount), mount
@@ -37,15 +41,15 @@ options:
   add_current_user:
     type: boolean
     default: true
-    description: Whether to configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root.
+    description: Configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root.
   add_remote_user:
     type: boolean
     default: true
-    description: Whether to configure Podman for the `_REMOTE_USER` set by the devcontainer tooling. No effect when running standalone.
+    description: Configure Podman for the `_REMOTE_USER` set by the devcontainer tooling. No effect when running standalone.
   add_container_user:
     type: boolean
     default: true
-    description: Whether to configure Podman for the `_CONTAINER_USER` set by the devcontainer tooling. No effect when running standalone.
+    description: Configure Podman for the `_CONTAINER_USER` set by the devcontainer tooling. No effect when running standalone.
   add_users:
     type: array
     default: ''

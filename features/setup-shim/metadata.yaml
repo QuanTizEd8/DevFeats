@@ -1,11 +1,21 @@
 id: setup-shim
 version: 0.1.0
 name: Shim Setup
-description: >-
-  Installs lightweight wrapper scripts ("shims") into a dedicated directory
-  that is prepended to `PATH`, ensuring they always take priority over any
-  real binary of the same name. Each shim can be individually enabled or
-  disabled.
+description: Install lightweight command shims that delegate to real tools or provide container-friendly fallbacks.
+keywords:
+- shim
+- wrapper
+- path
+- devcontainer
+- tools
+_long_description: >-
+  Shims are installed into a dedicated directory prepended to PATH so they take priority
+  over any real binary of the same name. The code shim forwards to VS Code or
+  code-insiders when available. The systemctl shim runs the real systemctl when systemd
+  is active, and prints a helpful message suggesting the service command otherwise. The
+  devcontainer-info shim reads dev container metadata from the standard environment
+  files and displays or returns specific fields on request. Each shim can be individually
+  enabled or disabled.
 containerEnv:
   PATH: /usr/local/share/setup-shim/bin:$PATH
 options:

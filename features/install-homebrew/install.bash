@@ -66,7 +66,7 @@ export_shellenv_for_user() {
 
 export_shellenv_main() {
   echo "↪️ Function entry: export_shellenv_main" >&2
-  if [ "$EXPORT_PATH" = "" ]; then
+  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
     echo "ℹ️ export_path is empty; skipping shellenv export." >&2
     echo "↩️ Function exit: export_shellenv_main" >&2
     return 0
@@ -74,9 +74,8 @@ export_shellenv_main() {
   # shellcheck disable=SC2016
   local _brew_content='eval "$('"${RESOLVED_PREFIX}/bin/brew"' shellenv)"'
   local _marker="brew shellenv (install-homebrew)"
-  if [ "$EXPORT_PATH" != "auto" ]; then
-    # Explicit newline-separated path list
-    shell__sync_block --files "$EXPORT_PATH" --marker "$_marker" --content "$_brew_content"
+  if [ "${EXPORT_PATH[*]}" != "auto" ]; then
+    shell__sync_block --files "$(printf '%s\n' "${EXPORT_PATH[@]}")" --marker "$_marker" --content "$_brew_content"
     echo "↩️ Function exit: export_shellenv_main" >&2
     return 0
   fi

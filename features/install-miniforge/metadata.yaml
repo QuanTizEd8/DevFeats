@@ -8,24 +8,25 @@ keywords:
 - miniforge
 - package manager
 - python
-_long_description: |-
-  This feature installs Conda and Mamba via the Miniforge installer script,
-  with full control over version, installation path, user permissions, and shell activation.
-  The Miniforge installer from the [conda-forge](https://conda-forge.org/) community
-  retrieves all packages in the base environment from
-  the [conda-forge channel](https://anaconda.org/conda-forge),
-  and sets it as the default and only channel.
+_long_description: >-
+  Miniforge is the community-maintained [Conda](https://conda.io/) and
+  [Mamba](https://github.com/mamba-org/mamba) distribution from
+  [conda-forge](https://conda-forge.org/), preconfigured to source all base-environment
+  packages exclusively from the conda-forge channel. The official Miniforge installer is
+  downloaded, optionally verified against a SHA-256 checksum, and run non-interactively.
+  Shell activation is written to the appropriate startup files and can be scoped to
+  specific users.
 options:
   version:
     default: latest
-    description: |
-      Conda version to install (e.g. '26.3.1').
+    description: |-
+      Conda version to install (e.g. `26.3.1`).
       Accepts a conda version string, not a Miniforge release tag.
-      Defaults to 'latest', which resolves to the current latest release via the GitHub API.
+      `latest` resolves to the current latest release via the GitHub API.
       For a specific version, the script finds the highest Miniforge build number for that conda version
-      (e.g. '24.7.1' resolves to tag '24.7.1-2').
+      (e.g. `24.7.1` resolves to tag `24.7.1-2`).
       If the already-installed conda version matches the resolved version, the install is
-      skipped silently regardless of the 'if_exists' setting.
+      skipped silently regardless of the `if_exists` setting.
     type: string
   if_exists:
     default: skip
@@ -42,58 +43,54 @@ options:
     type: string
   preserve_envs:
     default: true
-    description: |
-      When if_exists is 'reinstall', export all non-base conda environments before
+    description: |-
+      When `if_exists=reinstall`, export all non-base conda environments before
       uninstalling and recreate them after reinstalling.
-      Each environment is exported with --from-history; on recreation failure the YAML
-      is kept at /tmp/conda-env-preserve for manual recovery.
-      Defaults to true.
+      Each environment is exported with `--from-history`; on recreation failure the YAML
+      is kept at `/tmp/conda-env-preserve` for manual recovery.
     type: boolean
   preserve_config:
     default: true
-    description: |
-      When if_exists is 'reinstall', skip conda init --reverse and preserve .condarc
-      and .conda directories during uninstall.
-      Set to false to perform a full clean uninstall.
-      Defaults to true.
+    description: |-
+      When `if_exists=reinstall`, skip `conda init --reverse` and preserve `.condarc`
+      and `.conda` directories during uninstall.
+      Set to `false` to perform a full clean uninstall.
     type: boolean
   update_base:
     default: false
-    description: |
-      Update the base conda environment.
-      This is done by running `conda update --all`.
-      This is not recommended for production environments.
+    description: |-
+      Run `conda update --all` to update the base conda environment after installation.
+      Not recommended for images where environment reproducibility matters.
     type: boolean
   prefix:
     default: auto
-    description: |
+    description: |-
       Path to the conda installation directory (installation root/prefix).
-      'auto' (default) — resolves to /opt/conda when running as root (the de-facto standard used by continuumio Docker images and the devcontainer ecosystem), or ~/miniforge3 when running as non-root (the Miniforge installer's own default prefix).
+      `auto` (default) — resolves to `/opt/conda` when running as root (the de-facto standard used by continuumio Docker images and the devcontainer ecosystem), or `~/miniforge3` when running as non-root (the Miniforge installer's own default prefix).
       An explicit path — used as-is; the directory is created if it does not exist.
-      With symlink=true, a symlink is created from the canonical prefix to $PREFIX when they differ: /opt/conda -> $PREFIX for root, $HOME/miniforge3 -> $PREFIX for non-root.
+      With `symlink=true`, a symlink is created from the canonical prefix to `$prefix` when they differ: `/opt/conda` → `$prefix` for root, `$HOME/miniforge3` → `$prefix` for non-root.
     type: string
   export_path:
     default: auto
-    description: |
-      Controls which shell startup files receive the PATH export for $PREFIX/bin.
-      'auto' writes to all relevant system-wide files (Case A: public install + root)
-      or user-scoped files (Case B: user install or non-root).
-      '' (empty) skips all PATH writes.
-      Newline-separated list of absolute paths: writes only to those files.
-    type: string
+    description: |-
+      Controls which shell startup files receive the PATH export for `$prefix/bin`.
+      - `auto` — writes to all relevant system-wide files (root) or user-scoped files (non-root).
+      - `''` (empty) — skips all PATH writes.
+      - A list of absolute paths — writes only to those files.
+    type: array
   symlink:
     default: true
     description: |-
-      Create a directory symlink from the canonical conda prefix to $prefix when prefix resolves to a non-default path.
-      The symlink location is determined by whether $prefix falls under any user's home directory (as listed in /etc/passwd):
-        System-wide (prefix is not under any user home): creates /opt/conda -> $prefix.
-        User-scoped  (prefix is under a user home):        creates $HOME/miniforge3 -> $prefix.
+      Create a directory symlink from the canonical conda prefix to `$prefix` when prefix resolves to a non-default path.
+      The symlink location is determined by whether `$prefix` falls under any user's home directory (as listed in `/etc/passwd`):
+      - System-wide (prefix is not under any user home): creates `/opt/conda` → `$prefix`.
+      - User-scoped (prefix is under a user home): creates `$HOME/miniforge3` → `$prefix`.
       Ensures the containerEnv PATH entries always resolve to the conda binaries regardless of the chosen prefix.
-      No-op when $prefix is already the chosen target path.
+      No-op when `$prefix` is already the chosen target path.
     type: boolean
   shell_activations:
     default: "bash\nzsh"
-    description: Shell names to write conda initialization blocks for. Set to '' to disable.
+    description: Shell names to write conda init blocks for. Set to `''` to skip all activation writes.
     enum:
     - value: bash
       description: Write an idempotent conda init block to the system-wide (root) or user-scoped (non-root) Bash RC file.
@@ -102,19 +99,19 @@ options:
     type: array
   activate_env:
     default: base
-    description: |
+    description: |-
       Conda environment to activate at shell startup.
-      'base' sets auto_activate_base=true in ~/.condarc (the conda-native mechanism).
-      Any other name appends a 'conda activate <env>' line to the rc files.
-      '' (empty) skips activation setup entirely.
-      Only takes effect when shell_activations is non-empty.
+      `base` sets `auto_activate_base=true` in `~/.condarc` (the conda-native mechanism).
+      Any other name appends a `conda activate <env>` line to the rc files.
+      `''` (empty) skips activation setup entirely.
+      Only takes effect when `shell_activations` is non-empty.
     type: string
   write_group:
     default: conda
-    description: |
+    description: |-
       OS group for shared write access to the conda prefix.
       Non-empty — create this group (if absent), add all resolved users to it, and apply group-write bits on the prefix so group members can install packages.
-      '' (empty) — skip group setup; only the install owner has write access.
+      `''` (empty) — skip group setup; only the install owner has write access.
     type: string
   add_current_user:
     default: true
@@ -142,16 +139,11 @@ options:
     type: array
   interactive:
     default: false
-    description: |
-      Run the installer in interactive mode.
-      This allows the installer to prompt the user.
-      The default is to run the installer in non-interactive mode.
+    description: Run the Miniforge installer in interactive mode, allowing it to prompt the user.
     type: boolean
   installer_dir:
     default: /tmp/miniforge-installer
-    description: |
-      Path to a directory to download the installer to.
-      This is the directory where the Miniforge installer will be downloaded.
+    description: Working directory for downloading the Miniforge installer script and checksum sidecar.
     type: string
   keep_installer:
     default: false

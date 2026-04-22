@@ -2,55 +2,55 @@ id: install-os-pkg
 version: 0.3.0
 name: OS Package Installation
 description: Install packages from the operating system's native package manager.
-_long_description: |-
-  This feature provides a cross-platform package installer with support for
-  `apt` (Debian/Ubuntu),
-  `dnf`/`microdnf`/`yum` (Fedora/RHEL/CentOS),
-  `zypper` (openSUSE),
-  `pacman` (Arch Linux),
-  `apk` (Alpine), and
-  `brew` (macOS, Linuxbrew).
-  Packages can be specified in a single JSON/YAML manifest
-  with environment-based selectors/filters,
-  repo configuration, key import, and pre/post scripts.
+keywords:
+- apt
+- dnf
+- microdnf
+- yum
+- zypper
+- pacman
+- apk
+- brew
+- package management
+_long_description: >-
+  A cross-platform package installer with support for apt (Debian/Ubuntu),
+  dnf/microdnf/yum (Fedora/RHEL/CentOS), zypper (openSUSE), pacman (Arch Linux),
+  apk (Alpine), and brew (macOS/Linuxbrew). Packages are declared in a single JSON or
+  YAML manifest with per-environment selectors, repository configuration, key import,
+  and pre/post install hooks.
 options:
   install_self:
     default: false
-    description: |
-      Install the 'install-os-pkg' system command.
-      When true, a wrapper script is written to /usr/local/bin/install-os-pkg
+    description: |-
+      Install the `install-os-pkg` system command.
+      When true, a wrapper script is written to `/usr/local/bin/install-os-pkg`
       so other features or scripts can invoke the installer directly.
       Defaults to false; set to true only when you need the system command.
     type: boolean
   interactive:
     default: false
-    description: |
-      Run in interactive mode.
-      By default, the installation runs non-interactively.
-      Set this flag to allow interactive prompts.
+    description: Run in interactive mode, allowing the package manager to prompt the user.
     type: boolean
   keep_repos:
     default: false
-    description: |
-      Keep added repositories after installation.
-      By default, any repository drop-in files written during installation
-      are removed after the script finishes.
-      Set this flag to keep them permanently.
+    description: |-
+      Keep added repository drop-in files after installation.
+      By default, any repository files written during installation are removed after the script finishes.
     type: boolean
   lifecycle_hook:
     default: ''
-    description: |
-      Defer package installation to a devcontainer lifecycle hook.
-      When set, the feature registers a hook script instead of installing
-      packages at build time. The script is called by the devcontainer CLI
-      at the specified lifecycle event.
-      Supported values: onCreate, updateContent, postCreate.
-      Leave empty (the default) to install packages immediately at build time.
+    description: |-
+      When set, the feature registers a hook script that the devcontainer CLI calls at
+      the specified lifecycle event, instead of installing packages at build time.
     enum:
-    - ''
-    - onCreate
-    - updateContent
-    - postCreate
+    - value: ''
+      description: Install packages immediately at build time.
+    - value: onCreate
+      description: Register an `onCreate` lifecycle hook script.
+    - value: updateContent
+      description: Register an `updateContent` lifecycle hook script.
+    - value: postCreate
+      description: Register a `postCreate` lifecycle hook script.
     type: string
   manifest:
     default: ''
@@ -77,41 +77,40 @@ options:
     type: string
   update:
     default: true
-    description: |
-      Update package lists before installation.
-      By default, package lists are refreshed before installing packages.
-      Set to false to skip the update step.
+    description: |-
+      Refresh package lists before installing packages.
+      Set to `false` to skip the update step.
     type: boolean
   lists_max_age:
     default: '300'
-    description: |
+    description: |-
       Maximum age of package lists (in seconds) before an update is considered necessary.
       When the package lists were refreshed more recently than this threshold the update
       step is skipped automatically (unless a new repository was added by the manifest).
-      Set to 0 to always update. Has no effect when update is false.
+      Set to `0` to always update. Has no effect when `update=false`.
     type: string
   dry_run:
     default: false
-    description: |
+    description: |-
       Print what would be installed/fetched without making any changes.
       No packages are installed, no files are written, and no scripts are executed.
       Root privilege is not required when this is set.
     type: boolean
   skip_installed:
     default: false
-    description: |
+    description: |-
       Skip packages that are already available in PATH.
-      When true, each package name is checked with 'command -v' before installation.
+      When true, each package name is checked with `command -v` before installation.
       Packages whose binary is already present in PATH are skipped regardless of
       whether they were installed via the system package manager.
     type: boolean
   prefer_linuxbrew:
     default: false
-    description: |
+    description: |-
       Prefer Homebrew over the native Linux package manager.
-      When true and Homebrew is installed on Linux, 'brew' is used instead of
-      the native package manager (apt, dnf, etc.).
-      Has no effect on macOS (brew is always used there).
+      When true and Homebrew is installed on Linux, `brew` is used instead of
+      the native package manager (`apt`, `dnf`, etc.).
+      Has no effect on macOS (`brew` is always used there).
     type: boolean
 _dependencies: {}
 installsAfter: []

@@ -2,15 +2,17 @@ id: setup-user
 version: 0.1.0
 name: User Setup
 description: Create and configure a system user account with optional sudo access.
-_long_description: |-
-  This feature creates a primary group,
-  places the user at the requested UID/GID,
-  creates a home directory (populated from `/etc/skel`),
-  sets the login shell,
-  and optionally grants passwordless `sudo` access
-  and membership in supplementary groups.
-  Works on **Debian/Ubuntu** (APT), **Alpine** (APK), **Fedora/RHEL** (DNF),
-  and any image where `useradd` / `groupadd` are available.
+keywords:
+- user
+- account
+- sudo
+- uid
+- gid
+_long_description: >-
+  The user is created with the specified UID and GID, a home directory seeded from
+  /etc/skel, and a configurable login shell. Passwordless sudo access and supplementary
+  group membership can be granted. Compatible with Debian/Ubuntu, Alpine, Fedora/RHEL,
+  and any image providing the standard POSIX user management utilities.
 options:
   username:
     default: vscode
@@ -26,7 +28,7 @@ options:
     type: string
   group_name:
     default: ''
-    description: Name for the user's primary group. Defaults to the `username` when left empty.
+    description: Name for the user's primary group. Defaults to `username` when left empty.
     type: string
   home_dir:
     default: ''
@@ -42,12 +44,13 @@ options:
     type: boolean
   extra_groups:
     default: ''
-    description: |-
-      Supplementary groups to add the user to. Groups must already exist.
+    description: Supplementary groups to add the user to. Groups must already exist.
     type: array
   replace_existing:
     default: true
-    description: When true, any user or group occupying the requested UID/GID is removed first (home directories are preserved). When false, a conflict causes the script to fail unless the user is already correctly configured.
+    description: |-
+      When `true`, any user or group occupying the requested UID/GID is removed first (home directories are preserved).
+      When `false`, a conflict causes the script to fail unless the user is already correctly configured.
     type: boolean
   sudoers_dir:
     default: /etc/sudoers.d

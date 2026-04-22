@@ -1,99 +1,134 @@
 id: install-node
 version: 2.0.0
 name: Node.js Installation
-description: |-
-  Install Node.js and npm in the development container.
+description: Install [Node.js](https://nodejs.org/) via [nvm](https://github.com/nvm-sh/nvm) or from a prebuilt binary tarball.
+keywords:
+- node
+- nodejs
+- npm
+- nvm
+- javascript
+_long_description: |-
+  Node.js can be installed via nvm (Node Version Manager) or from an official prebuilt
+  tarball. The nvm method supports Linux (glibc and musl/Alpine), macOS, and any POSIX
+  platform; on Alpine Linux, Node.js is compiled from source when needed, with build
+  dependencies resolved automatically.
 
-  Two methods are supported, selected by the `method` option:
+  The binary method downloads the official prebuilt tarball from nodejs.org and verifies
+  its integrity against the official SHASUMS256.txt file. It supports Linux glibc (x64,
+  arm64, armv7l) and macOS (x64, arm64), but is not compatible with Alpine Linux (musl).
 
-  **`nvm`** (default) — installs the Node Version Manager (nvm) to `nvm_dir`
-  and uses it to install the requested Node.js version. Supports Linux (glibc
-  and musl/Alpine), macOS, and any POSIX platform. On Alpine Linux, Node.js is
-  compiled from source automatically when the `-s` flag is used (build
-  dependencies are installed from the apk manifest). Node.js binaries are
-  symlinked to `/usr/local/bin` (when running as root and `symlink=true`) for
-  universal PATH availability.
-
-  **`binary`** — downloads the official prebuilt Node.js tarball from
-  `nodejs.org/dist` and extracts it to `prefix`. Fast and dependency-free.
-  Supports Linux glibc (x64, arm64, armv7l) and macOS (x64, arm64); NOT
-  compatible with Alpine Linux (musl). Integrity is verified against
-  `SHASUMS256.txt` via SHA-256.
-
-  Version selection supports nvm-style aliases (`lts/*`, `--lts`, major
-  number) for both methods, and exact semver strings. The default `lts/*`
-  installs the latest Active LTS release.
+  Version aliases such as lts/*, --lts, or a major version number are supported alongside
+  exact semver strings; the default installs the latest Active LTS release.
 options:
   method:
     type: string
     default: nvm
-    description: |-
-      Installation method.
-      'nvm' (default) — install via nvm (Node Version Manager). Installs nvm itself to 'nvm_dir', then uses it to install the requested Node.js version. Supports all platforms including Alpine (via source compilation with 'nvm install -s'). The nvm shell function is available after sourcing '$nvm_dir/nvm.sh'; node/npm/npx binaries are symlinked to /usr/local/bin.
-      'binary' — download and extract the official prebuilt Node.js tarball from nodejs.org/dist to 'prefix'. No nvm overhead. Does NOT support Alpine Linux (glibc-only binaries). Exits with a clear error on Alpine; use method=nvm instead.
+    description: Installation method to use.
     enum:
-    - nvm
-    - binary
+    - value: nvm
+      description: |-
+        Install via nvm (Node Version Manager). Installs nvm itself to `nvm_dir`,
+        then uses it to install the requested Node.js version. Supports all platforms
+        including Alpine (via source compilation with `nvm install -s`).
+        The nvm shell function is available after sourcing `$nvm_dir/nvm.sh`;
+        node/npm/npx binaries are symlinked to `/usr/local/bin` when running as root and `symlink=true`.
+    - value: binary
+      description: |-
+        Download and extract the official prebuilt Node.js tarball from nodejs.org/dist
+        to `prefix`. Fast and dependency-free. Does NOT support Alpine Linux
+        (glibc-only binaries). Exits with a clear error on Alpine; use `method=nvm` instead.
   version:
     type: string
     default: lts/*
     description: |-
       Version of Node.js to install.
-      'lts/*' (default) — latest Active LTS release. With method=nvm, the shell form 'lts/*' is passed to nvm install (always quoted internally to prevent glob expansion). With method=binary, the latest LTS entry is resolved from nodejs.org/dist/index.json.
-      'lts' — alias for 'lts/*'; normalized internally.
-      'latest' / 'node' — very latest release (may be a non-LTS Current release).
-      A major number (e.g. '22') — latest stable release in that major line.
-      An exact semver string (e.g. '24.11.1' or 'v24.11.1') — installs that specific version.
-      'none' — install nvm itself but do not install any Node.js version (method=nvm only). Useful when a .nvmrc or lifecycle script manages node version selection.
+      Accepts nvm-style aliases (`lts/*`, major number) and exact semver strings
+      (e.g. `24.11.1` or `v24.11.1`) for both `method=nvm` and `method=binary`.
     proposals:
-    - lts/*
-    - lts
-    - latest
-    - none
-    - '24'
-    - '22'
-    - '20'
-    - '18'
+    - value: lts/*
+      description: |-
+        Latest Active LTS release (nvm alias; resolved from nodejs.org/dist/index.json for method=binary).
+        With `method=nvm`, the shell form `lts/*` is passed to `nvm install` (always quoted internally to prevent glob expansion).
+    - value: lts
+      description: Alias for `lts/*`; normalized internally.
+    - value: latest
+      description: Very latest release (may be a non-LTS Current release). `node` is a nvm alias for the same thing.
+    - value: none
+      description: |-
+        Install nvm itself but do not install any Node.js version (method=nvm only).
+        Useful when a `.nvmrc` or lifecycle script manages node version selection.
+    - value: '24'
+      description: Latest stable release in the Node.js 24.x line.
+    - value: '22'
+      description: Latest stable release in the Node.js 22.x line.
+    - value: '20'
+      description: Latest stable release in the Node.js 20.x line.
+    - value: '18'
+      description: Latest stable release in the Node.js 18.x line.
+    - value: 24.11.1
+      description: |-
+        An exact semver string — installs that specific version.
+        Also accepts the `v`-prefixed form (e.g. `v24.11.1`).
+        With `method=nvm`, passes the version directly to `nvm install`.
+        With `method=binary`, fetches exactly that release from nodejs.org/dist.
   additional_versions:
     type: array
     default: ''
     description: |-
-      Additional Node.js versions to install via nvm alongside the primary 'version', without setting them as the nvm default.
-      Only applies when method=nvm. Uses the same version syntax as 'version' (major number, exact semver, or LTS alias).
-      Useful for testing across multiple Node.js versions in a single container or satisfying .nvmrc lookups for sub-projects.
+      Additional Node.js versions to install via nvm alongside the primary `version`,
+      without setting them as the nvm default. Only applies when method=nvm.
+      Uses the same version syntax as `version` (major number, exact semver, or LTS alias).
+      Useful for testing across multiple Node.js versions in a single container or satisfying `.nvmrc` lookups for sub-projects.
     proposals:
-    - ''
-    - '20'
-    - '18'
-    - 22,20
-    - 22,20,18
+    - value: ''
+      description: Install no additional versions.
+    - value: '20'
+      description: Also install Node.js 20.x.
+    - value: '18'
+      description: Also install Node.js 18.x.
+    - value: "22\n20"
+      description: Also install Node.js 22 and 20.
+    - value: "22\n20\n18"
+      description: Also install Node.js 22, 20, and 18.
   nvm_version:
     type: string
     default: latest
     description: |-
       Version of nvm to install. Only used when method=nvm.
-      'latest' (default) — resolves the newest nvm release tag via the GitHub Releases API at install time.
-      An explicit tag (e.g. '0.40.4' or 'v0.40.4') — pins nvm to that exact release.
-      The installer downloads the nvm install.sh from the tagged commit URL; 'latest' uses the same mechanism after resolving the tag.
+      An explicit tag (e.g. `0.40.4` or `v0.40.4`) pins nvm to that exact release;
+      the installer downloads `nvm install.sh` from the tagged commit URL.
+      `latest` resolves the newest tag via the GitHub Releases API.
     proposals:
-    - latest
-    - 0.40.4
-    - 0.40.3
+    - value: latest
+      description: Resolve the newest nvm release tag via the GitHub Releases API at install time.
+    - value: 0.40.4
+      description: nvm v0.40.4.
+    - value: 0.40.3
+      description: nvm v0.40.3.
   nvm_dir:
     type: string
     default: auto
     description: |-
-      Directory where nvm is installed ($NVM_DIR). Only used when method=nvm.
-      'auto' (default) — resolves to '/usr/local/share/nvm' when running as root, or '${HOME}/.nvm' when running as non-root (nvm's own upstream default).
-      An explicit path — used as-is; e.g. '/opt/nvm' or '/home/user/.nvm'.
-      The resolved value is written as 'export NVM_DIR=...' into shell startup files by export_path / add_*_user_config, so interactive shells always see the correct NVM_DIR regardless of identity.
-      Note: containerEnv.NVM_DIR is statically set to '/usr/local/share/nvm'; for non-root installs, shell RC files override this. For non-interactive processes, set 'remoteEnv.NVM_DIR' in devcontainer.json if needed.
-      When running as root and symlink=true, a bridge symlink is created from '/usr/local/share/nvm' to the actual nvm_dir when they differ, keeping the containerEnv NVM_DIR value valid.
+      Directory where nvm is installed (`$NVM_DIR`). Only used when `method=nvm`.
+      `auto` resolves to `/usr/local/share/nvm` (root) or `${HOME}/.nvm` (non-root).
+      An explicit path (e.g. `/opt/nvm`) is used as-is; the resolved value is written as
+      `export NVM_DIR=...` into shell startup files so all sessions see the correct path.
+      Note: `containerEnv.NVM_DIR` is statically set to `/usr/local/share/nvm`; for non-root
+      installs, shell RC files override this. For non-interactive processes (CI, Docker RUN),
+      set `remoteEnv.NVM_DIR` in `devcontainer.json` if needed.
+      When running as root and `symlink=true`, a bridge
+      symlink `/usr/local/share/nvm` → `nvm_dir` is created if the two paths differ, keeping
+      the `containerEnv` value valid.
     proposals:
-    - auto
-    - /usr/local/share/nvm
-    - ${localEnv:HOME}/.nvm
-    - /opt/nvm
+    - value: auto
+      description: Resolve to `/usr/local/share/nvm` when root, `${HOME}/.nvm` when non-root.
+    - value: /usr/local/share/nvm
+      description: System-wide nvm installation (root default).
+    - value: ${localEnv:HOME}/.nvm
+      description: Per-user nvm installation.
+    - value: /opt/nvm
+      description: Custom system-wide path.
   prefix:
     type: string
     default: auto
@@ -119,23 +154,26 @@ options:
     type: string
     default: skip
     description: |-
-      What to do when a 'node' binary is already found in PATH before installation begins.
+      What to do when a `node` binary is already found in PATH before installation begins.
       If the installed version already matches the resolved target version, installation is always skipped silently regardless of this setting.
-      'skip' (default) — log a notice and exit successfully without making any changes (idempotent).
-      'fail' — print an error and exit non-zero.
-      'reinstall' — remove the existing Node.js installation and install fresh using the selected method. With method=nvm, runs 'nvm uninstall <version>' then reinstalls. With method=binary, overwrites the extracted files.
     enum:
-    - skip
-    - fail
-    - reinstall
+    - value: skip
+      description: Log a notice and exit successfully without making any changes (idempotent).
+    - value: fail
+      description: Print an error and exit non-zero.
+    - value: reinstall
+      description: |-
+        Remove the existing Node.js installation and install fresh using the selected method.
+        With `method=nvm`, runs `nvm uninstall <version>` then reinstalls.
+        With `method=binary`, overwrites the extracted files.
   export_path:
-    type: string
+    type: array
     default: auto
     description: |-
       Controls which shell startup files receive PATH export blocks for the Node.js binary directory.
-      'auto' (default) — as root, writes to all system-wide shell startup files: /etc/environment (BASH_ENV and PATH), /etc/profile.d/install-node.sh (login shells), the system-wide bashrc (non-login interactive bash), and the zsh env file (zshenv). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.
-      '' (empty string) — skips all PATH writes (e.g. when prefix=/usr/local which is already on PATH, or when using symlinks only).
-      A newline-separated list of absolute file paths — writes only to those specific files.
+      - `auto` (default) — as root, writes to all system-wide shell startup files: `/etc/environment` (`BASH_ENV` and `PATH`), `/etc/profile.d/install-node.sh` (login shells), the system-wide bashrc (non-login interactive bash), and the zsh env file (`zshenv`). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.
+      - `''` (empty) — skips all PATH writes (e.g. when `prefix=/usr/local` which is already on PATH, or when using symlinks only).
+      - A list of absolute file paths — writes only to those specific files.
   add_current_user:
     type: boolean
     default: true
@@ -184,14 +222,14 @@ options:
     description: |-
       Create symlinks that ensure the containerEnv-declared paths always resolve to the actual installation.
 
-      For method=nvm (root only):
-        - The feature sets NVM_SYMLINK_CURRENT=true (both in containerEnv and during install), which causes nvm to maintain a '$NVM_DIR/current' symlink always pointing to the active Node.js version. The containerEnv PATH includes '$NVM_DIR/current/bin', so 'nvm use' version switching works automatically for all container processes.
-        - When nvm_dir resolves to a value other than '/usr/local/share/nvm' (the containerEnv NVM_DIR value), creates a directory symlink /usr/local/share/nvm -> nvm_dir so that the containerEnv NVM_DIR and PATH entry remain valid.
-        - No-op when running as non-root (cannot write to /usr/local/share).
+      For `method=nvm` (root only):
+      - The feature sets `NVM_SYMLINK_CURRENT=true` (both in `containerEnv` and during install), which causes nvm to maintain a `$NVM_DIR/current` symlink always pointing to the active Node.js version. The `containerEnv` PATH includes `$NVM_DIR/current/bin`, so `nvm use` version switching works automatically for all container processes.
+      - When `nvm_dir` resolves to a value other than `/usr/local/share/nvm` (the `containerEnv` `NVM_DIR` value), creates a directory symlink `/usr/local/share/nvm` → `nvm_dir` so that the `containerEnv` `NVM_DIR` and PATH entry remain valid.
+      - No-op when running as non-root (cannot write to `/usr/local/share`).
 
-      For method=binary:
-        - Root: symlinks node, npm, npx, and corepack from $prefix/bin/ into /usr/local/bin when prefix is not /usr/local.
-        - Non-root: symlinks node, npm, npx, and corepack from $prefix/bin/ into $HOME/.local/bin when prefix is not $HOME/.local.
+      For `method=binary`:
+      - Root: symlinks `node`, `npm`, `npx`, and `corepack` from `$prefix/bin/` into `/usr/local/bin` when `prefix` is not `/usr/local`.
+      - Non-root: symlinks `node`, `npm`, `npx`, and `corepack` from `$prefix/bin/` into `$HOME/.local/bin` when `prefix` is not `$HOME/.local`.
   node_gyp_deps:
     type: boolean
     default: true
@@ -203,27 +241,33 @@ options:
     type: string
     default: none
     description: |-
-      Version of pnpm to install globally via 'npm install -g pnpm@VERSION' after Node.js is installed.
-      'none' (default) — skip pnpm installation.
-      'latest' — install the latest pnpm release.
-      An explicit version string (e.g. '9.15.0') — install that exact pnpm release.
+      Version of pnpm to install globally after Node.js is installed.
+      Explicit versions (e.g. `9.15.0`) are installed via `npm install -g pnpm@VERSION`.
     proposals:
-    - none
-    - latest
-    - 9.15.0
-    - 8.15.9
+    - value: none
+      description: Skip pnpm installation.
+    - value: latest
+      description: Install the latest pnpm release via `npm install -g pnpm@latest`.
+    - value: 9.15.0
+      description: pnpm v9.15.0.
+    - value: 8.15.9
+      description: pnpm v8.15.9.
   yarn_version:
     type: string
     default: none
     description: |-
       Version of Yarn to install globally after Node.js is installed.
-      'none' (default) — skip Yarn installation.
-      'latest' — enable Yarn via corepack (ships with Node.js 16+) using 'corepack enable'; falls back to 'npm install -g yarn' if corepack is unavailable.
-      An explicit version string (e.g. '1.22.22') — install that exact Yarn release via 'npm install -g yarn@VERSION'.
+      Explicit version strings (e.g. `1.22.22`) are installed via `npm install -g yarn@VERSION`.
     proposals:
-    - none
-    - latest
-    - 1.22.22
+    - value: none
+      description: Skip Yarn installation.
+    - value: latest
+      description: |-
+        Enable Yarn via `corepack enable` (ships with Node.js 16+);
+        falls back to `npm install -g yarn` if corepack is unavailable.
+    - value: 1.22.22
+      description: |-
+        Yarn v1.22.22 (Classic), installed via `npm install -g yarn@1.22.22`.
 _dependencies:
   run:
     base:

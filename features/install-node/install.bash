@@ -513,7 +513,7 @@ NVMRC
 # Writes PATH and shell-init exports to startup files.
 _node_configure_path() {
   echo "↪️ Function entry: _node_configure_path" >&2
-  if [ -z "${EXPORT_PATH}" ] && [ "${EXPORT_PATH+defined}" ]; then
+  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
     echo "ℹ️ export_path='' — skipping all PATH writes." >&2
     echo "↩️ Function exit: _node_configure_path (skipped)" >&2
     return 0
@@ -542,8 +542,8 @@ _node_configure_path() {
 
       # System-wide
       local _sys_files
-      if [ "$EXPORT_PATH" != "auto" ]; then
-        _sys_files="$EXPORT_PATH"
+      if [ "${EXPORT_PATH[*]}" != "auto" ]; then
+        _sys_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
       else
         _sys_files="$(shell__system_path_files --profile_d 'node_path.sh')"
       fi

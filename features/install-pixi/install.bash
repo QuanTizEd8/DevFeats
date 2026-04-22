@@ -262,12 +262,12 @@ verify_installed_binary() {
 
 export_path_main() {
   echo "↪️ Function entry: export_path_main" >&2
-  if [ "${EXPORT_PATH}" = "" ]; then
+  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
     echo "ℹ️ export_path is empty; skipping PATH export." >&2
     echo "↩️ Function exit: export_path_main" >&2
     return 0
   fi
-  if [ "${EXPORT_PATH}" = "auto" ] && [ "${PREFIX}" = "/usr/local" ]; then
+  if [ "${EXPORT_PATH[*]}" = "auto" ] && [ "${PREFIX}" = "/usr/local" ]; then
     echo "ℹ️ PREFIX is /usr/local which is already on PATH in all container images; skipping PATH write." >&2
     echo "↩️ Function exit: export_path_main" >&2
     return 0
@@ -275,8 +275,8 @@ export_path_main() {
   local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
   local _marker="pixi PATH (install-pixi)"
   local _target_files
-  if [ "${EXPORT_PATH}" != "auto" ]; then
-    _target_files="${EXPORT_PATH}"
+  if [ "${EXPORT_PATH[*]}" != "auto" ]; then
+    _target_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
   else
     if [ "$(id -u)" = "0" ]; then
       echo "ℹ️ System-wide PATH export (root)." >&2
@@ -299,7 +299,7 @@ export_pixi_home_main() {
     echo "↩️ Function exit: export_pixi_home_main" >&2
     return 0
   fi
-  if [ "${EXPORT_PIXI_HOME}" = "" ]; then
+  if [ "${#EXPORT_PIXI_HOME[@]}" -eq 0 ]; then
     echo "ℹ️ export_pixi_home is empty; skipping PIXI_HOME export." >&2
     echo "↩️ Function exit: export_pixi_home_main" >&2
     return 0
@@ -307,8 +307,8 @@ export_pixi_home_main() {
   local _content="export PIXI_HOME=\"${HOME_DIR}\""
   local _marker="pixi PIXI_HOME (install-pixi)"
   local _target_files
-  if [ "${EXPORT_PIXI_HOME}" != "auto" ]; then
-    _target_files="${EXPORT_PIXI_HOME}"
+  if [ "${EXPORT_PIXI_HOME[*]}" != "auto" ]; then
+    _target_files="$(printf '%s\n' "${EXPORT_PIXI_HOME[@]}")"
   else
     if [ "$(id -u)" = "0" ]; then
       echo "ℹ️ System-wide PIXI_HOME export (root)." >&2

@@ -344,7 +344,7 @@ verify_miniforge() {
 
 export_path_main() {
   echo "↪️ Function entry: export_path_main" >&2
-  if [ "$EXPORT_PATH" = "" ]; then
+  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
     echo "ℹ️ export_path is empty; skipping PATH export." >&2
     echo "↩️ Function exit: export_path_main" >&2
     return
@@ -352,8 +352,8 @@ export_path_main() {
   local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
   local _marker="conda PATH (install-miniforge)"
   local _target_files
-  if [ "$EXPORT_PATH" != "auto" ]; then
-    _target_files="$EXPORT_PATH"
+  if [ "${EXPORT_PATH[*]}" != "auto" ]; then
+    _target_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
   else
     local _is_public=true _is_root=false
     case "$PREFIX" in "${HOME}"/*) _is_public=false ;; esac
