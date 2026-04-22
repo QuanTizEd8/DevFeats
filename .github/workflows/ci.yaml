@@ -321,17 +321,26 @@ jobs:
     needs: [setup, prepare]
     if: needs.setup.outputs.run_features == 'true' && needs.setup.outputs.features != '[]'
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/quantized8/sysset-devcontainer:latest
-      options: --privileged
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
         feature: ${{ fromJSON(needs.setup.outputs.features) }}
     steps:
+      # Host-only: removing preinstalled SDKs and caches only affects the runner
+      # disk when this step runs on the host (not inside jobs.container). See
+      # actions/runner-images#709, community#25678, jlumbroso/free-disk-space, and
+      # Apache Flink's free_disk_space.sh.
+      - name: Free disk space (GitHub-hosted runner)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          swap-storage: true
+          docker-images: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Download src/ artifact
@@ -340,53 +349,23 @@ jobs:
           name: sysset-src
           path: src/
 
-      - name: Start Docker daemon (DinD)
-        shell: bash
-        run: |
-          # GHA bind-mounts the *runner's* Docker socket at /var/run/docker.sock
-          # (Docker-outside-of-Docker). Any `docker` client using that socket runs
-          # bind mounts on the VM — paths like /tmp/devcontainercli/... exist only
-          # inside this job container, so devcontainer features test fails with
-          # "bind source path does not exist". Remove that socket so the CLI must
-          # use our inner dockerd; then use the default socket (no DOCKER_HOST).
-          #
-          # DinD setup follows https://github.com/moby/moby/blob/master/hack/dind
-          export container=docker
-          if [[ -d /sys/kernel/security ]] && ! mountpoint -q /sys/kernel/security; then
-            mount -t securityfs none /sys/kernel/security 2> /dev/null || true
-          fi
-          if ! mountpoint -q /tmp; then
-            mount -t tmpfs none /tmp 2> /dev/null || true
-          fi
-          if [[ -f /sys/fs/cgroup/cgroup.controllers ]]; then
-            mkdir -p /sys/fs/cgroup/init
-            xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs 2> /dev/null || true
-            sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers \
-              > /sys/fs/cgroup/cgroup.subtree_control 2> /dev/null || true
-          fi
-          mount --make-rshared / 2> /dev/null || true
-          find /run /var/run -iname 'docker*.pid' -delete 2> /dev/null || true
-          find /run /var/run -iname 'container*.pid' -delete 2> /dev/null || true
-          if mountpoint -q /var/run/docker.sock 2> /dev/null; then
-            umount /var/run/docker.sock
-          elif [[ -e /var/run/docker.sock ]]; then
-            rm -f /var/run/docker.sock
-          fi
-          # Default /var/lib/docker is on the container image rootfs (often
-          # overlay), so nested overlay2 is unreliable. tmpfs works but is capped
-          # and shares RAM — it often triggers "no space left on device" on
-          # image-heavy tests. $GITHUB_WORKSPACE is bind-mounted from the runner
-          # VM (typically ext4 with much more free space), so overlay2 is valid
-          # and layers are far smaller than vfs duplicate copies.
-          DIND_ROOT="${GITHUB_WORKSPACE}/.dind-docker"
-          mkdir -p "$DIND_ROOT"
-          dockerd --data-root "$DIND_ROOT" --storage-driver overlay2 > /tmp/dockerd.log 2>&1 &
-          timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 0.5; done'
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Test Feature Scenarios
+      - name: Test Feature Scenarios (DinD in devcontainer image)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash test/run.sh feature "${{ matrix.feature }}"
+        run: |
+          docker run --rm --privileged \
+            -v "${GITHUB_WORKSPACE}:/repo" \
+            -w /repo \
+            -e GITHUB_TOKEN \
+            ghcr.io/quantized8/sysset-devcontainer:latest \
+            bash .github/workflows/run-feature-tests-dind.sh "${{ matrix.feature }}"
 
   # ── install-os-pkg manifest resolution (6 distros) ────────────────────────
   test-os-pkg:
