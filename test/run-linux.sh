@@ -113,6 +113,7 @@ for scenario in "${SCENARIOS_DIR}"/*.sh; do
   if docker run --rm \
     "${net_args[@]+"${net_args[@]}"}" \
     -v "${REPO_ROOT}:/repo" \
+    -e GITHUB_TOKEN \
     "$IMAGE" \
     bash -c "$full_cmd"; then
     echo "✅ PASS: ${name}"
