@@ -15,7 +15,7 @@ head -10 /tmp/git.log 2> /dev/null || echo "(missing)"
 
 check "logfile exists" test -f /tmp/git.log
 check "logfile is non-empty" test -s /tmp/git.log
-check "logfile contains script entry" grep -q 'Script entry: Git Installer' /tmp/git.log
-check "logfile contains script exit" grep -q 'Git Installer script finished successfully' /tmp/git.log
+check "logfile contains script entry" grep -q 'Script entry: Git Installation' /tmp/git.log
+check "logfile contains script exit" grep -q 'Git Installation script finished successfully' /tmp/git.log
 
 reportResults

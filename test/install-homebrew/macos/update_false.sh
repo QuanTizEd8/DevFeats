@@ -53,6 +53,6 @@ check "logfile is non-empty" test -s "$_LOGFILE"
 check "brew update NOT run" \
   bash -c '! grep -q "brew update completed" "'"$_LOGFILE"'"'
 check "install completed successfully" \
-  grep -q "Install Homebrew script finished successfully" "$_LOGFILE"
+  grep -q "Homebrew Installation script finished successfully" "$_LOGFILE"
 
 reportResults

@@ -273,7 +273,12 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
         vname = opt_to_var(key)
         typ = opt.get("type", "string")
         if typ == "array":
-            lines.append(f"  {vname}=()")
+            # Do NOT pre-initialise array variables here.  If we set them to ()
+            # the "Apply defaults" section below would see them as declared (via
+            # `declare -p`) and skip the default.  Leaving them unset lets the
+            # defaults section apply the correct value when the flag is absent.
+            # bash +=() on an unset variable is safe: it creates a new array.
+            pass
         elif "default" not in opt:
             lines.append(f'  {vname}=""')
         else:
