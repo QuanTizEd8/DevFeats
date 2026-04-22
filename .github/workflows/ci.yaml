@@ -341,14 +341,44 @@ jobs:
           path: src/
 
       - name: Start Docker daemon (DinD)
+        shell: bash
         run: |
-          # GHA's job container does not run the image ENTRYPOINT, so we start
-          # DinD here. The devcontainers docker-in-docker feature's docker-init.sh
-          # waits on `docker info` (default socket /var/run/docker.sock). A
-          # daemon.json that only sets unix:///run/dind.sock makes that check
-          # fail and breaks startup — use the default socket.
-          /usr/local/share/docker-init.sh sh -c 'exec sleep infinity' &
-          timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 0.5; done'
+          # GHA bind-mounts the host Docker socket at /var/run/docker.sock, so
+          # the inner dockerd MUST listen on a different socket — otherwise bind()
+          # fails with EADDRINUSE.  docker-init.sh's readiness poll uses `docker
+          # info` (no -H), which hits the host DooD socket immediately and gives a
+          # false-positive "ready" signal before our daemon has started.  We
+          # therefore bypass docker-init.sh and do the DinD setup ourselves, based
+          # on https://github.com/moby/moby/blob/master/hack/dind
+          export container=docker
+          # AppArmor / securityfs
+          if [[ -d /sys/kernel/security ]] && ! mountpoint -q /sys/kernel/security; then
+            mount -t securityfs none /sys/kernel/security 2> /dev/null || true
+          fi
+          # /tmp must be exec+rw for dockerd scratch work
+          if ! mountpoint -q /tmp; then
+            mount -t tmpfs none /tmp 2> /dev/null || true
+          fi
+          # cgroup v2 nesting: move procs to /init sub-cgroup, enable controllers
+          if [[ -f /sys/fs/cgroup/cgroup.controllers ]]; then
+            mkdir -p /sys/fs/cgroup/init
+            xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs 2> /dev/null || true
+            sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers \
+              > /sys/fs/cgroup/cgroup.subtree_control 2> /dev/null || true
+          fi
+          mount --make-rshared / 2> /dev/null || true
+          # Clean up stale PID files from any previous run
+          find /run /var/run -iname 'docker*.pid' -delete 2> /dev/null || true
+          find /run /var/run -iname 'container*.pid' -delete 2> /dev/null || true
+          # Start dockerd on a separate socket (avoids conflict with the GHA
+          # DooD socket at /var/run/docker.sock).  vfs storage driver avoids
+          # the overlay-on-overlay failure: GHA's container fs is already overlay2
+          # and an inner overlay2 daemon would fail to initialize.
+          dockerd --host unix:///run/dind.sock --storage-driver vfs \
+            > /tmp/dockerd.log 2>&1 &
+          # Poll our socket explicitly — NOT the host daemon at /var/run/docker.sock
+          timeout 60 sh -c 'until docker -H unix:///run/dind.sock info > /dev/null 2>&1; do sleep 0.5; done'
+          echo "DOCKER_HOST=unix:///run/dind.sock" >> "$GITHUB_ENV"
 
       - name: Test Feature Scenarios
         env:
