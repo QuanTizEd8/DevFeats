@@ -2,7 +2,7 @@
 # setup-dev.sh — Install development tools for sysset.
 # Usage: bash .devcontainer/setup-dev.sh [--tools tool1,tool2,...]
 #
-# Available tools: pyyaml shfmt shellcheck devcontainers-cli lefthook
+# Available tools: pyyaml jsonschema shfmt shellcheck devcontainers-cli lefthook
 # Default (no --tools flag): install all tools.
 #
 # Designed to be idempotent — skips tools already installed at the required version.
@@ -16,7 +16,7 @@ SHFMT_VERSION="v3.13.1"
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _REPO_ROOT="$(cd "${_SCRIPT_DIR}/.." && pwd)"
 
-_ALL_TOOLS="pyyaml shfmt shellcheck devcontainers-cli lefthook"
+_ALL_TOOLS="pyyaml jsonschema shfmt shellcheck devcontainers-cli lefthook"
 _tools="${_ALL_TOOLS}"
 
 while [[ $# -gt 0 ]]; do
@@ -44,6 +44,16 @@ _install_pyyaml() {
   echo "▶ Installing PyYAML..." >&2
   pip3 install -r "${_SCRIPT_DIR}/requirements.txt"
   echo "✅ PyYAML installed." >&2
+}
+
+_install_jsonschema() {
+  if python3 -c "import jsonschema" >/dev/null 2>&1; then
+    echo "✅ jsonschema already installed — skipping." >&2
+    return
+  fi
+  echo "▶ Installing jsonschema..." >&2
+  pip3 install -r "${_SCRIPT_DIR}/requirements.txt"
+  echo "✅ jsonschema installed." >&2
 }
 
 _install_shfmt() {
@@ -105,6 +115,7 @@ _install_lefthook() {
 for _tool in $_tools; do
   case "$_tool" in
     pyyaml) _install_pyyaml ;;
+    jsonschema) _install_jsonschema ;;
     shfmt) _install_shfmt ;;
     shellcheck) _install_shellcheck ;;
     devcontainers-cli) _install_devcontainers_cli ;;

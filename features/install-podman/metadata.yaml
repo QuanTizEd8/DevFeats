@@ -9,7 +9,6 @@ _long_description: >-
   storage is placed on a named volume backed by the host filesystem rather than the
   container's overlayfs root, enabling the native kernel overlay driver for fast,
   space-efficient image management.
-documentationURL: https://github.com/containers/podman
 keywords:
 - podman
 - containers

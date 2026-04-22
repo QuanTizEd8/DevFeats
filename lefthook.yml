@@ -15,3 +15,12 @@ pre-commit:
     format:
       glob: "*.{sh,bash,bats}"
       run: make format FILES="{staged_files}" && git add {staged_files}
+    validate-metadata:
+      glob: "features/*/metadata.yaml"
+      run: |
+        if python3 -c "import jsonschema, yaml" >/dev/null 2>&1 || \
+           python -c "import jsonschema, yaml" >/dev/null 2>&1; then
+          make validate-metadata
+        else
+          echo "ℹ️  Skipping metadata validation: jsonschema not found. Install with: bash .devcontainer/setup-dev.sh --tools jsonschema"
+        fi

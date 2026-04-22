@@ -93,8 +93,8 @@ jobs:
             # run_lint: any shell file changed
             if echo "$changed" | grep -qE '\.(sh|bash|bats)$'; then run_lint=true; else run_lint=false; fi
 
-            # run_validate: metadata.yaml changed (source for devcontainer-feature.json)
-            if echo "$changed" | grep -q 'metadata\.yaml'; then run_validate=true; else run_validate=false; fi
+            # run_validate: metadata.yaml or metadata.schema.json changed (source for devcontainer-feature.json)
+            if echo "$changed" | grep -qE 'metadata\.yaml|metadata\.schema\.json'; then run_validate=true; else run_validate=false; fi
 
             # run_unit: lib/ or test/unit/ changed
             if echo "$changed" | grep -qE '^(lib/|test/unit/)'; then run_unit=true; else run_unit=false; fi

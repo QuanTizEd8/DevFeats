@@ -169,7 +169,6 @@
     "conditionObject": {
       "type": "object",
       "description": "A set of conditions AND'd together. Each key is a condition name; its value is a string or array of strings (OR'd). All keys must match for the condition object to match.",
-      "additionalProperties": false,
       "minProperties": 1,
       "properties": {
         "pm": {
@@ -195,6 +194,10 @@
         "version_id": {
           "$ref": "#/$defs/conditionValue",
           "description": "OS VERSION_ID from /etc/os-release: 22.04, 39, 3.19, 15.6, etc."
+        },
+        "version_codename": {
+          "$ref": "#/$defs/conditionValue",
+          "description": "OS VERSION_CODENAME from /etc/os-release: bookworm, noble, jammy, focal, etc."
         }
       }
     },

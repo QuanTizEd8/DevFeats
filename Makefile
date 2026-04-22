@@ -1,4 +1,4 @@
-.PHONY: format format-check lint sync sync-check test-unit install-dev gen-docs gen-docs-check docs docs-serve
+.PHONY: format format-check lint validate-metadata sync sync-check test-unit install-dev gen-docs gen-docs-check docs docs-serve
 
 # Apply shfmt formatting to all tracked shell files.
 # test/unit/bats/** is excluded via .editorconfig ignore = true.
@@ -60,6 +60,18 @@ else
 		echo "ℹ️  shellcheck not found — skipping lint."; \
 	fi
 endif
+
+# Validate all features/*/metadata.yaml against features/metadata.schema.json.
+# No-op if jsonschema is not importable.
+# Install with: bash .devcontainer/setup-dev.sh --tools jsonschema
+validate-metadata:
+	@if python3 -c "import jsonschema, yaml" >/dev/null 2>&1; then \
+		python3 scripts/validate-metadata.py; \
+	elif python -c "import jsonschema, yaml" >/dev/null 2>&1; then \
+		python scripts/validate-metadata.py; \
+	else \
+		echo "ℹ️  jsonschema not found — skipping metadata validation. Install with: bash .devcontainer/setup-dev.sh --tools jsonschema"; \
+	fi
 
 # Sync generated artifacts from canonical sources (features/ + lib/ + features/bootstrap.sh → src/):
 #   features/*/metadata.yaml  → src/*/devcontainer-feature.json  (via scripts/_sync-src/metadata.py)
