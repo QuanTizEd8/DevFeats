@@ -42,7 +42,7 @@ _has() { command -v "$1" > /dev/null 2>&1; }
 
 # ── pip flags (PEP 668: pass --break-system-packages when pip supports it) ──────────
 _pip_flags=()
-if python3 -m pip install --help 2>/dev/null | grep -q -- '--break-system-packages'; then
+if python3 -m pip install --help 2> /dev/null | grep -q -- '--break-system-packages'; then
   _pip_flags+=(--break-system-packages)
 fi
 
@@ -112,7 +112,7 @@ _install_shellcheck() {
 }
 
 _install_just() {
-  if _has just && [[ "$(just --version 2>/dev/null)" == "just ${JUST_VERSION}" ]]; then
+  if _has just && [[ "$(just --version 2> /dev/null)" == "just ${JUST_VERSION}" ]]; then
     echo "✅ just ${JUST_VERSION} already installed — skipping." >&2
     return
   fi
