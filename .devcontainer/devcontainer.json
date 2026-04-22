@@ -1,6 +1,10 @@
 {
     "build": {
-        "dockerfile": "Dockerfile"
+        "dockerfile": "Dockerfile",
+        "cacheFrom": [
+            "ghcr.io/quantized8/sysset-devcontainer:cache-linux-amd64",
+            "ghcr.io/quantized8/sysset-devcontainer:cache-linux-arm64"
+        ]
     },
     "customizations": {
         "vscode": {
@@ -29,7 +33,7 @@
         "ghcr.io/devcontainers/features/docker-in-docker:2": {}
     },
     "remoteUser": "node",
-    "initializeCommand": "bash scripts/sync-src.sh",
+    "initializeCommand": "bash -c '[ -d src ] || bash scripts/sync-src.sh'",
     "updateContentCommand": "npm install -g @devcontainers/cli lefthook",
     "postCreateCommand": "lefthook install"
 }

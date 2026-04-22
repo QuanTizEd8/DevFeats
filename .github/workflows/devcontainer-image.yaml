@@ -1,0 +1,104 @@
+name: "Build & push devcontainer image"
+
+# Rebuild and push the pre-built devcontainer image to GHCR whenever the
+# devcontainer definition changes, or on demand.
+# CI jobs that run inside the devcontainer pull ghcr.io/quantized8/sysset-devcontainer:latest.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".devcontainer/Dockerfile"
+      - ".devcontainer/devcontainer.json"
+      - ".devcontainer/setup-dev.sh"
+      - ".devcontainer/requirements.txt"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: "Build (${{ matrix.platform }})"
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            platform_tag: linux-amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            platform_tag: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Repository Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: GHCR Login
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker Buildx Setup
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        with:
+          use: true
+
+      - name: Cache devcontainer user-data
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: /tmp/devcontainer-userdata
+          key: devcontainer-userdata-${{ matrix.platform_tag }}-${{ hashFiles('.devcontainer/**') }}
+          restore-keys: devcontainer-userdata-${{ matrix.platform_tag }}-
+
+      - name: Devcontainer Build & Push
+        uses: devcontainers/ci@b63b30de439b47a52267f241112c5b453b673db5 # v0.3.1900000449
+        with:
+          imageName: ghcr.io/quantized8/sysset-devcontainer
+          imageTag: "latest-${{ matrix.platform_tag }},sha-${{ github.sha }}-${{ matrix.platform_tag }}"
+          userDataFolder: /tmp/devcontainer-userdata
+          cacheFrom: ghcr.io/quantized8/sysset-devcontainer:cache-${{ matrix.platform_tag }}
+          cacheTo: type=registry,ref=ghcr.io/quantized8/sysset-devcontainer:cache-${{ matrix.platform_tag }},mode=max
+          push: filter
+          refFilterForPush: refs/heads/main
+          eventFilterForPush: push,workflow_dispatch
+
+  merge:
+    name: "Merge multi-arch manifest"
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: GHCR Login
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker Buildx Setup
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        with:
+          use: true
+
+      - name: Create multi-arch manifests
+        env:
+          IMAGE: ghcr.io/quantized8/sysset-devcontainer
+          SHA: ${{ github.sha }}
+        run: |
+          docker buildx imagetools create \
+            -t "${IMAGE}:latest" \
+            "${IMAGE}:latest-linux-amd64" \
+            "${IMAGE}:latest-linux-arm64"
+          docker buildx imagetools create \
+            -t "${IMAGE}:sha-${SHA}" \
+            "${IMAGE}:sha-${SHA}-linux-amd64" \
+            "${IMAGE}:sha-${SHA}-linux-arm64"
