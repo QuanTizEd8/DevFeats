@@ -17,10 +17,11 @@ entries:
   - title: Developer Guide
     file: dev-guide/index
     entries:
+      - file: dev-guide/repo-structure
+      - file: dev-guide/ci
       - file: dev-guide/writing-features
       - file: dev-guide/testing
       - file: dev-guide/publishing
-      - file: dev-guide/repo-structure
       - file: dev-guide/features
         entries:
           - glob: dev-guide/features/*
