@@ -1,5 +1,5 @@
 id: install-homebrew
-version: 0.2.0
+version: 0.0.0
 name: Homebrew Installation
 description: Install the [Homebrew](https://brew.sh/) package manager.
 keywords:

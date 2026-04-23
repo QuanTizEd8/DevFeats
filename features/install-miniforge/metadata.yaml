@@ -1,5 +1,5 @@
 id: install-miniforge
-version: 0.2.0
+version: 0.0.0
 name: Miniforge Installation
 description: Install [Conda](https://conda.io/) and [Mamba](https://github.com/mamba-org/mamba) from [Miniforge](https://github.com/conda-forge/miniforge).
 keywords:

@@ -1,5 +1,5 @@
 id: install-gh
-version: 0.1.0
+version: 0.0.0
 name: GitHub CLI Installation
 description: Install the [GitHub CLI](https://cli.github.com/).
 keywords:

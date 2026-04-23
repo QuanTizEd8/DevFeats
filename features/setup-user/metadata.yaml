@@ -1,5 +1,5 @@
 id: setup-user
-version: 0.1.0
+version: 0.0.0
 name: User Setup
 description: Create and configure a system user account with optional sudo access.
 keywords:

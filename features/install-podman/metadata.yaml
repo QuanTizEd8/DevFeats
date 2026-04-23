@@ -1,5 +1,5 @@
 id: install-podman
-version: 0.1.0
+version: 0.0.0
 name: Podman Installation
 description: Install the [Podman](https://podman.io/) container engine for rootless container execution.
 _long_description: >-

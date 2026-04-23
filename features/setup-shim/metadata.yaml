@@ -1,5 +1,5 @@
 id: setup-shim
-version: 0.1.0
+version: 0.0.0
 name: Shim Setup
 description: Install lightweight command shims that delegate to real tools or provide container-friendly fallbacks.
 keywords:
