@@ -5,7 +5,7 @@
 # repo, then operates in one of two modes:
 #
 #   Feature mode:   install a single feature (optionally version-pinned via @)
-#   Manifest mode:  install multiple features from a JSON/YAML manifest
+#   Manifest mode:  install multiple features from a devcontainer.json[.jsonc] manifest
 #
 # Version resolution modes (per-feature releases are independent; the bundle
 # tag `v<X.Y.Z>` is an accumulator over per-feature versions):
@@ -20,12 +20,20 @@
 #
 # Usage:
 #   get.bash <feature>[@<feature-version>] [feature-opts...]
-#   get.bash <manifest.json|.yaml|.yml>
+#   get.bash <devcontainer.json|.jsonc>
 #
-# Options (consumed by get.bash; not forwarded to feature installers):
+# Options (consumed by get.bash; not forwarded to feature installers in manifest mode):
 #   --logfile <path>  Append captured output to this file on exit.
 #   --debug           Enable bash -x trace.
 #   --help, -h        Show this help.
+#   --workspace-folder <path>  Default cwd for init/lifecycle (manifest); feature mode default CWD.
+#   --no-initialize-command    Skip devcontainer "initializeCommand" (manifest only).
+#   --initialize-command-dir <path>  CWD for initializeCommand.
+#   --lifecycle-command-dir <path>  CWD for all lifecycle commands.
+#   --no-feature-lifecycle-command <path>  Repeat. Disable feature lifecycle (grammar: all, feature, phase, ...).
+#   --no-container-lifecycle-command <path>  Repeat. Disable devcontainer.json lifecycle entries.
+#   --compatible-prefix <oci-prefix>  Repeat. Default: ghcr.io/quantized8/sysset/
+#   --no-lifecycle   Feature mode: skip the installed feature's lifecycle hooks.
 #
 # Environment overrides:
 #   SYSSET_BASE_URL   GitHub Releases base URL  (default: github.com releases)
@@ -71,7 +79,7 @@ _bootstrap_fetch() {
 }
 
 echo "ℹ️  Downloading sysset lib files..." >&2
-for _f in net.sh os.sh json.sh github.sh ospkg.sh logging.sh checksum.sh; do
+for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh checksum.sh graph.sh proc.sh devcontainer.sh jsonc.py; do
   _bootstrap_fetch "${SYSSET_RAW_BASE}/lib/${_f}" "${_lib_dir}/${_f}"
 done
 unset -f _bootstrap_fetch
@@ -87,6 +95,14 @@ _SYSSET_LIB_DIR="$_lib_dir"
 . "${_lib_dir}/github.sh"
 # shellcheck source=lib/checksum.sh
 . "${_lib_dir}/checksum.sh"
+# shellcheck source=lib/str.sh
+. "${_lib_dir}/str.sh"
+# shellcheck source=lib/graph.sh
+. "${_lib_dir}/graph.sh"
+# shellcheck source=lib/proc.sh
+. "${_lib_dir}/proc.sh"
+# shellcheck source=lib/devcontainer.sh
+. "${_lib_dir}/devcontainer.sh"
 
 logging__setup
 trap 'rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
@@ -115,44 +131,16 @@ __usage__() {
   cat >&2 << 'EOF'
 Usage:
   Feature mode:   get.sh <feature>[@<feature-version>] [feature-opts...]
-  Manifest mode:  get.sh <manifest.json|.yaml|.yml>
+  Devcontainer:    get.sh <devcontainer.json[.jsonc]>
 
-Arguments:
-  <feature>              Feature to install (e.g. install-pixi, install-shell)
-  @<feature-version>     Pin this feature's version (e.g. @1.2, @1.2.3).
-                         Resolves against <feature>/<X.Y.Z> release tags.
-  <manifest>             Path to a JSON or YAML installation manifest
+Options (see also header comment in get.bash):
+  --logfile, --debug, --help
+  --workspace-folder, --no-initialize-command, --initialize-command-dir, --lifecycle-command-dir
+  --no-feature-lifecycle-command, --no-container-lifecycle-command, --compatible-prefix
+  --no-lifecycle (feature mode: skip that feature's post-install hooks)
 
-Options:
-  --logfile <path>       Append log output to this file on exit.
-  --debug                Enable bash -x trace output.
-  --help, -h             Show this help.
-
-Examples:
-  get.sh install-pixi                           # rolling: latest pixi feature release
-  get.sh install-pixi --version 0.66.0          # pixi v0.66.0 (forwarded to installer)
-  get.sh install-pixi@1.2                       # feature install-pixi @ 1.2.x
-  get.sh manifest.json                          # manifest-driven install
-
-Manifest format (JSON):
-  {
-    "version": "1",                             # bundle version (optional)
-    "override_install_order": false,
-    "features": [
-      { "id": "install-pixi", "version": "1.2", "options": { "version": "0.66.0" } },
-      { "id": "install-shell",                   "options": { "shell": "zsh" } }
-    ]
-  }
-
-Version priority (highest to lowest):
-  per-feature "version" in manifest or @spec  >  SYSSET_VERSION / manifest ".version" (bundle)  >  latest per-feature
-
-Canonical install order:
+Version priority: per OCI :tag  >  SYSSET_VERSION  >  name vX.Y.Z suffix  >  latest
 EOF
-  for _f in "${_CANONICAL_ORDER[@]}"; do
-    echo "  $_f" >&2
-  done
-  echo "  <unknown features in manifest order>" >&2
   exit "${1:-0}"
 }
 
@@ -160,34 +148,85 @@ EOF
 LOGFILE=""
 _debug=false
 _mode_arg=""
+_WORKSPACE_CUSTOM=""
+_NO_INIT_CMD=false
+_INIT_CMD_DIR=""
+_LIFE_CMD_DIR=""
+_NO_FE_LIFE=()
+_NO_CO_LIFE=()
+_COMPAT_PREFIX=("ghcr.io/quantized8/sysset/")
+_FEATURE_SKIP_LIFECYCLE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --logfile)
-      shift
-      if [[ $# -eq 0 ]]; then
-        echo "⛔ --logfile requires a value." >&2
-        exit 1
-      fi
-      LOGFILE="$1"
-      echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-      shift
-      ;;
-    --debug)
-      _debug=true
-      echo "📩 Read argument 'debug': 'true'" >&2
-      shift
-      ;;
-    --help | -h) __usage__ ;;
-    --*)
-      echo "⛔ Unknown option: '${1}'" >&2
+  --logfile)
+    shift
+    [[ $# -eq 0 ]] && {
+      echo "⛔ --logfile requires a value." >&2
       exit 1
-      ;;
-    *)
-      _mode_arg="$1"
-      shift
-      break # Everything remaining belongs to the feature installer.
-      ;;
+    }
+    LOGFILE="$1"
+    shift
+    ;;
+  --debug) _debug=true; shift ;;
+  --help | -h) __usage__ ;;
+  --workspace-folder)
+    shift
+    [[ $# -eq 0 ]] && {
+      echo "⛔ --workspace-folder needs a value." >&2
+      exit 1
+    }
+    _WORKSPACE_CUSTOM="$1"
+    shift
+    ;;
+  --no-initialize-command) _NO_INIT_CMD=true; shift ;;
+  --initialize-command-dir)
+    shift
+    _INIT_CMD_DIR="${1-}"
+    shift
+    ;;
+  --lifecycle-command-dir)
+    shift
+    _LIFE_CMD_DIR="${1-}"
+    shift
+    ;;
+  --no-feature-lifecycle-command)
+    shift
+    [[ $# -eq 0 ]] && {
+      echo "⛔ --no-feature-lifecycle-command needs a value." >&2
+      exit 1
+    }
+    _NO_FE_LIFE+=("$1")
+    shift
+    ;;
+  --no-container-lifecycle-command)
+    shift
+    [[ $# -eq 0 ]] && {
+      echo "⛔ --no-container-lifecycle-command needs a value." >&2
+      exit 1
+    }
+    _NO_CO_LIFE+=("$1")
+    shift
+    ;;
+  --compatible-prefix)
+    shift
+    [[ $# -eq 0 ]] && {
+      echo "⛔ --compatible-prefix needs a value." >&2
+      exit 1
+    }
+    _COMPAT_PREFIX+=("$1")
+    shift
+    ;;
+  --no-lifecycle) _FEATURE_SKIP_LIFECYCLE=true; shift ;;
+  --*)
+    echo "⛔ Unknown option: '${1}'" >&2
+    exit 1
+    ;;
+  *)
+    _mode_arg="$1"
+    shift
+    break
+    ;;
   esac
 done
 
@@ -201,7 +240,7 @@ fi
 # ── Mode detection ────────────────────────────────────────────────────────────
 _mode=""
 case "$_mode_arg" in
-  *.json | *.yaml | *.yml) _mode="manifest" ;;
+  *.json | *.jsonc) _mode="manifest" ;;
   *) _mode="feature" ;;
 esac
 
@@ -325,26 +364,7 @@ _fetch_and_verify_tarball() {
   # $1 = feature id, $2 = resolved tag (<feature>/<X.Y.Z>), $3 = destination file
   local _feature="$1" _resolved="$2" _dest="$3"
   local _asset_name="sysset-${_feature}.tar.gz"
-  local _url="${SYSSET_RELEASE_BASE}/${_resolved}/${_asset_name}"
-
-  # Fetch release JSON to obtain the asset digest.
-  local _rel_json _digest
-  _rel_json="$(mktemp)"
-  if github__fetch_release_json "${SYSSET_REPO}" --tag "${_resolved}" --dest "${_rel_json}" 2> /dev/null; then
-    _digest="$(github__release_json_digest_for_asset "${_rel_json}" "${_asset_name}")" || _digest=""
-  else
-    _digest=""
-  fi
-  rm -f "${_rel_json}"
-
-  net__fetch_url_file "${_url}" "${_dest}" || return 1
-
-  if [[ -n "${_digest}" ]]; then
-    echo "ℹ️  Verifying checksum for '${_asset_name}'..." >&2
-    checksum__verify_sha256 "${_dest}" "${_digest}" || return 1
-  else
-    echo "⚠️  No digest in release metadata for '${_asset_name}' — skipping verification." >&2
-  fi
+  github__fetch_release_asset_tarball "${SYSSET_REPO}" "${_resolved}" "${_asset_name}" "${_dest}" || return 1
   return 0
 }
 
@@ -378,268 +398,322 @@ _resolve_install_tag() {
   _resolve_feature_tag "$_feature" ""
 }
 
-# ── Feature mode ──────────────────────────────────────────────────────────────
-if [[ "$_mode" == "feature" ]]; then
-  # Parse optional @feature-version from the feature name.
-  case "$_mode_arg" in
-    *@*)
-      _feature="${_mode_arg%%@*}"
-      _feat_version_spec="${_mode_arg#*@}"
-      ;;
-    *)
-      _feature="$_mode_arg"
-      _feat_version_spec=""
-      ;;
-  esac
+# _sysset_options_to_env — apply options JSON (stdin) as exported env vars in current shell.
+# Newlines inside string values are preserved via bash %q quoting (in devcontainer__feature_env_exports).
+_sysset_options_to_env() {
+  local _exports
+  _exports="$(devcontainer__feature_env_exports)" || return 1
+  [[ -n "$_exports" ]] && eval "$_exports"
+  return 0
+}
 
-  # Bundle-pinned mode (when no per-feature @spec was provided):
-  # SYSSET_VERSION → resolve bundle tag, fetch manifest.yaml.
-  if [[ -z "$_feat_version_spec" && -n "${SYSSET_VERSION:-}" ]]; then
-    echo "ℹ️  Resolving bundle version (SYSSET_VERSION='${SYSSET_VERSION}')..." >&2
-    if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${SYSSET_VERSION}")" || [[ -z "$_BUNDLE_TAG" ]]; then
-      echo "⛔ Failed to resolve bundle version (SYSSET_VERSION='${SYSSET_VERSION}'). Is the v<X.Y.Z> release published?" >&2
-      exit 1
-    fi
-    echo "ℹ️  Resolved bundle tag: '${_BUNDLE_TAG}'" >&2
-    _BUNDLE_MANIFEST_FILE="$(mktemp)"
-    trap 'rm -f "$_BUNDLE_MANIFEST_FILE"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
-    echo "ℹ️  Fetching bundle manifest ${_BUNDLE_TAG}/manifest.yaml..." >&2
-    if ! _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE"; then
-      echo "⛔ Failed to fetch bundle manifest for '${_BUNDLE_TAG}'. Check network connectivity and that the release asset exists." >&2
-      exit 1
-    fi
-  fi
-
-  if ! _RESOLVED="$(_resolve_install_tag "$_feature" "$_feat_version_spec")" || [[ -z "$_RESOLVED" ]]; then
-    echo "⛔ [${_feature}] Failed to resolve install tag (spec: '${_feat_version_spec:-<bundle/latest>}')." >&2
-    exit 1
-  fi
-  echo "ℹ️  [${_feature}] Resolved tag: '${_RESOLVED}'" >&2
-
-  _tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$_lib_tmpdir" "$_tmpdir" ${_BUNDLE_MANIFEST_FILE:+"$_BUNDLE_MANIFEST_FILE"}; logging__cleanup' EXIT
-
-  echo "↪️  Downloading sysset-${_feature} @ ${_RESOLVED} ..." >&2
-  if ! _fetch_and_verify_tarball "${_feature}" "${_RESOLVED}" "${_tmpdir}/feature.tar.gz"; then
-    echo "⛔ [${_feature}] Failed to download or verify tarball for '${_RESOLVED}'." >&2
-    exit 1
-  fi
-
-  tar -xzf "$_tmpdir/feature.tar.gz" -C "$_tmpdir"
-
-  # The tarball contains a POSIX sh bootstrap (install.sh) → install.bash.
-  sh "$_tmpdir/install.sh" "$@"
-  echo "↩️  Script exit: sysset installer" >&2
-  exit 0
-fi
-
-# ── Manifest mode ─────────────────────────────────────────────────────────────
-
-_MANIFEST="$_mode_arg"
-
-if [[ ! -f "$_MANIFEST" ]]; then
-  echo "⛔ Manifest not found: '${_MANIFEST}'" >&2
-  exit 1
-fi
-
-# Preconditions
-os__require_root
-
-# Detect manifest format.
-_ext="${_MANIFEST##*.}"
-_is_yaml=false
-case "$_ext" in
-  yaml | yml) _is_yaml=true ;;
-  json) _is_yaml=false ;;
-  *)
-    echo "⛔ Unrecognised manifest extension '.${_ext}'. Use .json, .yaml, or .yml." >&2
-    exit 1
-    ;;
-esac
-
-# Auto-install parser dependencies.
-if ! command -v jq > /dev/null 2>&1; then
-  _install_jq
-fi
-
-if [[ "$_is_yaml" == true ]] && ! command -v yq > /dev/null 2>&1; then
-  echo "ℹ️  yq not found — fetching from GitHub Releases." >&2
-  _install_yq
-fi
-
-# Normalise manifest to JSON (yq for YAML, jq handles JSON directly).
-_PARSER="jq"
-echo "ℹ️  Using parser: ${_PARSER}" >&2
-
-if [[ "$_is_yaml" == true ]]; then
-  _json_manifest="$(mktemp)"
-  # shellcheck disable=SC2064
-  trap 'rm -f "$_json_manifest"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
-  echo "ℹ️  Converting YAML manifest to JSON via yq..." >&2
-  yq -o=json '.' "$_MANIFEST" > "$_json_manifest"
-  _MANIFEST="$_json_manifest"
-fi
-
-# Parse top-level fields.
-_override_order="$("$_PARSER" -r '.override_install_order // false' "$_MANIFEST")"
-
-# Version priority: per-feature (resolved later) > manifest top-level / SYSSET_VERSION > rolling latest
-_manifest_version="$("$_PARSER" -r '.version // ""' "$_MANIFEST")"
-
-# Resolve bundle version once (env wins over manifest top-level).
-_bundle_spec=""
-if [[ -n "${SYSSET_VERSION:-}" ]]; then
-  _bundle_spec="${SYSSET_VERSION}"
-  echo "ℹ️  Bundle version spec from SYSSET_VERSION: '${_bundle_spec}'" >&2
-elif [[ -n "${_manifest_version}" ]]; then
-  _bundle_spec="${_manifest_version}"
-  echo "ℹ️  Bundle version spec from manifest .version: '${_bundle_spec}'" >&2
-fi
-
-if [[ -n "${_bundle_spec}" ]]; then
-  echo "ℹ️  Resolving bundle tag (spec: '${_bundle_spec}')..." >&2
-  if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${_bundle_spec}")" || [[ -z "$_BUNDLE_TAG" ]]; then
-    echo "⛔ Failed to resolve bundle version (spec: '${_bundle_spec}'). Is the v<X.Y.Z> release published?" >&2
-    exit 1
-  fi
-  echo "ℹ️  Resolved bundle tag: '${_BUNDLE_TAG}'" >&2
-  _BUNDLE_MANIFEST_FILE="$(mktemp)"
-  # shellcheck disable=SC2064
-  trap 'rm -f "$_BUNDLE_MANIFEST_FILE" ${_json_manifest:+"$_json_manifest"}; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
-  echo "ℹ️  Fetching bundle manifest ${_BUNDLE_TAG}/manifest.yaml..." >&2
-  if ! _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE"; then
-    echo "⛔ Failed to fetch bundle manifest for '${_BUNDLE_TAG}'. Check network connectivity and that the release asset exists." >&2
-    exit 1
-  fi
-else
-  echo "ℹ️  No bundle pin — rolling per-feature resolution." >&2
-fi
-
-echo "ℹ️  override_install_order: '${_override_order}'" >&2
-
-# Read feature IDs in manifest order.
-# SC2016: $feat is a jq variable bound by --arg, not a bash variable.
-mapfile -t _manifest_features < <("$_PARSER" -r '.features[].id' "$_MANIFEST")
-
-if [[ ${#_manifest_features[@]} -eq 0 ]]; then
-  echo "⛔ No features found in manifest." >&2
-  exit 1
-fi
-
-echo "ℹ️  Manifest features (${#_manifest_features[@]}): ${_manifest_features[*]}" >&2
-
-# ── Determine execution order ─────────────────────────────────────────────────
-_sorted_features=()
-
-_sort_features() {
-  local _feat _known _found
-
-  for _known in "${_CANONICAL_ORDER[@]}"; do
-    for _feat in "${_manifest_features[@]}"; do
-      if [[ "$_feat" == "$_known" ]]; then
-        _sorted_features+=("$_feat")
-        break
-      fi
-    done
+# _sysset_disabled_fe <entry...>,<fid>,<phase>,<cmdname> — scan _NO_FE_LIFE for feature-scope skip.
+_sysset_disabled_fe() {
+  local _fid="$1" _ph="$2" _cn="${3-}" _e
+  for _e in "${_NO_FE_LIFE[@]+"${_NO_FE_LIFE[@]}"}"; do
+    devcontainer__lifecycle_disabled "$_e" feature "$_fid" "$_ph" "$_cn" && return 0
   done
+  return 1
+}
 
-  for _feat in "${_manifest_features[@]}"; do
-    _found=false
-    for _known in "${_CANONICAL_ORDER[@]}"; do
-      [[ "$_feat" == "$_known" ]] && {
-        _found=true
-        break
-      }
+# _sysset_disabled_co <phase> <cmdname> — scan _NO_CO_LIFE for container-scope skip.
+_sysset_disabled_co() {
+  local _ph="$1" _cn="${2-}" _e
+  for _e in "${_NO_CO_LIFE[@]+"${_NO_CO_LIFE[@]}"}"; do
+    devcontainer__lifecycle_disabled "$_e" container "_container_" "$_ph" "$_cn" && return 0
+  done
+  return 1
+}
+
+# _sysset_warn_unknown_fe_scope <fid> — warn about feature-scope disable entries whose
+# feature id does not match the single installed feature (feature-mode only).
+_sysset_warn_unknown_fe_scope() {
+  local _fid="$1" _e _head
+  for _e in "${_NO_FE_LIFE[@]+"${_NO_FE_LIFE[@]}"}"; do
+    [[ -z "$_e" || "$_e" == "all" ]] && continue
+    _head="${_e%%:*}"
+    local _isphase=0 _p
+    for _p in "${_DEVCONTAINER_LIFECYCLE_PHASES[@]}"; do
+      [[ "$_head" == "$_p" ]] && _isphase=1
     done
-    [[ "$_found" == false ]] && _sorted_features+=("$_feat")
+    ((_isphase)) && continue
+    [[ "$_head" == "$_fid" ]] && continue
+    echo "⚠️  --no-feature-lifecycle-command '$_e' references a different feature (installed: '$_fid'); ignoring." >&2
+  done
+}
+
+# _sysset_run_feature_lifecycle <staged-root> <fid> <cwd>
+_sysset_run_feature_lifecycle() {
+  local _root="${1-}" _fid="${2-}" _w="${3:-$PWD}" _ph _line _scope _sid _cmd
+  local _df="${_root}/devcontainer-feature.json"
+  [[ -f "$_df" ]] || {
+    echo "ℹ️  No devcontainer-feature.json; skipping feature lifecycle" >&2
+    return 0
+  }
+  _sysset_warn_unknown_fe_scope "$_fid"
+  local _stage_root
+  _stage_root="$(dirname "$_root")"
+  local _stage_name
+  _stage_name="$(basename "$_root")"
+  if [[ ! -d "${_stage_root}/${_fid}" ]]; then
+    _stage_root="$_root"
+    _stage_name=""
+  fi
+  for _ph in "${_DEVCONTAINER_LIFECYCLE_PHASES[@]}"; do
+    while IFS=$'\t' read -r _scope _sid _cmd; do
+      [[ "$_scope" == feature ]] || continue
+      if _sysset_disabled_fe "$_sid" "$_ph" ""; then
+        echo "ℹ️  [${_sid}] skip feature ${_ph} (disabled)" >&2
+        continue
+      fi
+      printf '%s' "$_cmd" | proc__run_command_form --cwd "$_w" || return 1
+    done < <(
+      if [[ -n "$_stage_name" ]]; then
+        devcontainer__lifecycle_iter --staged-root "$_stage_root" --phase "$_ph" -- "$_stage_name" 2> /dev/null
+      else
+        local _tmpd
+        _tmpd="$(mktemp -d)"
+        mkdir -p "${_tmpd}/${_fid}"
+        cp "$_df" "${_tmpd}/${_fid}/devcontainer-feature.json"
+        devcontainer__lifecycle_iter --staged-root "$_tmpd" --phase "$_ph" -- "$_fid" 2> /dev/null
+        rm -rf "$_tmpd"
+      fi
+    )
   done
   return 0
 }
 
-if [[ "$_override_order" == "true" ]]; then
-  _sorted_features=("${_manifest_features[@]}")
-  echo "ℹ️  Using manifest order (override_install_order: true)" >&2
-else
-  _sort_features
-  echo "ℹ️  Using canonical install order" >&2
+# ── Feature mode ─────────────────────────────────────────────────────────────
+if [[ "$_mode" == "feature" ]]; then
+  case "$_mode_arg" in
+  *@*)
+    _feature="${_mode_arg%%@*}"
+    _feat_version_spec="${_mode_arg#*@}"
+    ;;
+  *)
+    _feature="$_mode_arg"
+    _feat_version_spec=""
+    ;;
+  esac
+
+  if [[ -z "$_feat_version_spec" && -n "${SYSSET_VERSION:-}" ]]; then
+    if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${SYSSET_VERSION}")" || [[ -z "$_BUNDLE_TAG" ]]; then
+      echo "⛔ Bad SYSSET_VERSION" >&2
+      exit 1
+    fi
+    _BUNDLE_MANIFEST_FILE="$(mktemp)"
+    trap 'rm -f "$_BUNDLE_MANIFEST_FILE"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+    _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE" || exit 1
+  fi
+
+  if ! _RESOLVED="$(_resolve_install_tag "$_feature" "$_feat_version_spec")" || [[ -z "$_RESOLVED" ]]; then
+    exit 1
+  fi
+  _tmpdir="$(mktemp -d)"
+  trap 'rm -rf "$_lib_tmpdir" "$_tmpdir" ${_BUNDLE_MANIFEST_FILE:+"$_BUNDLE_MANIFEST_FILE"}; logging__cleanup' EXIT
+  if ! _fetch_and_verify_tarball "$_feature" "$_RESOLVED" "${_tmpdir}/feature.tar.gz"; then
+    exit 1
+  fi
+  tar -xzf "${_tmpdir}/feature.tar.gz" -C "$_tmpdir"
+  sh "${_tmpdir}/install.sh" "$@"
+  _wf="${_WORKSPACE_CUSTOM:-$PWD}"
+  if [[ "$_FEATURE_SKIP_LIFECYCLE" != true ]]; then
+    _lf="${_LIFE_CMD_DIR:-$_wf}"
+    _sysset_run_feature_lifecycle "$_tmpdir" "$_feature" "$_lf" || exit 1
+  fi
+  echo "↩️  Script exit: sysset installer" >&2
+  exit 0
 fi
 
-echo "ℹ️  Execution order: ${_sorted_features[*]}" >&2
-
-# ── Feature runner ────────────────────────────────────────────────────────────
-_run_feature() {
-  local _feature="$1"
-  local _resolved_tag="$2"
-  shift 2
-  local _opts=("$@")
-
-  local _tmpdir
-  _tmpdir="$(mktemp -d)"
-
-  echo "ℹ️  [${_feature}] Downloading @ ${_resolved_tag} ..." >&2
-  if ! _fetch_and_verify_tarball "${_feature}" "${_resolved_tag}" "${_tmpdir}/feature.tar.gz"; then
-    rm -rf "$_tmpdir"
-    echo "⛔ [${_feature}] Failed to download or verify tarball." >&2
-    return 1
-  fi
-
-  tar -xzf "$_tmpdir/feature.tar.gz" -C "$_tmpdir"
-  local _exit=0
-  sh "$_tmpdir/install.sh" "${_opts[@]+"${_opts[@]}"}" || _exit=$?
-  rm -rf "$_tmpdir"
-  return "$_exit"
-}
-
-# ── Main install loop ─────────────────────────────────────────────────────────
-_passed=()
-_failed=()
-
-for _feature in "${_sorted_features[@]}"; do
-  # Per-feature version spec (if any) overrides the bundle pin.
-  # shellcheck disable=SC2016
-  _feat_version_spec="$("$_PARSER" -r \
-    --arg feat "$_feature" \
-    '.features[] | select(.id == $feat) | .version // ""' \
-    "$_MANIFEST")"
-
-  _feat_resolved=""
-  if ! _feat_resolved="$(_resolve_install_tag "$_feature" "$_feat_version_spec")"; then
-    echo "⛔ [${_feature}] Failed to resolve tag (spec: '${_feat_version_spec:-<bundle/latest>}')." >&2
-    _failed+=("$_feature")
-    continue
-  fi
-
-  # Extract feature options as CLI arguments.
-  # shellcheck disable=SC2016
-  mapfile -t _opts < <(
-    "$_PARSER" -r \
-      --arg feat "$_feature" \
-      '.features[] | select(.id == $feat) | .options // {} | to_entries[] | "--\(.key)", "\(.value | tostring)"' \
-      "$_MANIFEST"
-  )
-
-  echo "" >&2
-  echo "▶️  [${_feature}] Installing @ ${_feat_resolved}..." >&2
-  if _run_feature "$_feature" "$_feat_resolved" "${_opts[@]+"${_opts[@]}"}"; then
-    _passed+=("$_feature")
-    echo "✅ [${_feature}] Done" >&2
-  else
-    _failed+=("$_feature")
-    echo "⛔ [${_feature}] FAILED" >&2
-  fi
-done
-
-# ── Summary ───────────────────────────────────────────────────────────────────
-_total=$(("${#_passed[@]}" + "${#_failed[@]}"))
-echo "" >&2
-echo "── Summary (${_total} features) ─────────────────────────────────────────" >&2
-for _f in "${_passed[@]+"${_passed[@]}"}"; do echo "  ✅ ${_f}" >&2; done
-for _f in "${_failed[@]+"${_failed[@]}"}"; do echo "  ⛔ ${_f}" >&2; done
-echo "" >&2
-
-if [[ "${#_failed[@]}" -gt 0 ]]; then
-  echo "⛔ ${#_failed[@]} feature(s) failed." >&2
+# ══ Devcontainer manifest mode ══════════════════════════════════════════
+if [[ ! -f "$_mode_arg" ]]; then
+  echo "⛔ Not found: $_mode_arg" >&2
   exit 1
 fi
+os__require_root
+if ! command -v jq &> /dev/null; then
+  _install_jq
+fi
 
+_DCJ="$(mktemp)"
+# shellcheck disable=SC2064
+trap 'rm -f "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+devcontainer__parse_config "$_mode_arg" >"$_DCJ" || exit 1
+
+_STAGED="$(mktemp -d)"
+# shellcheck disable=SC2064
+trap 'rm -rf "$_STAGED" "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+
+_WORK_ROOT="$(devcontainer__workspace_folder "$_mode_arg")"
+[[ -n "$_WORKSPACE_CUSTOM" ]] && _WORK_ROOT="$_WORKSPACE_CUSTOM"
+
+_BUNDLE_NAME_VER="$(devcontainer__name_version_suffix "$(jq -r '.name // ""' <"$_DCJ")")"
+_bspec=""
+if [[ -n "${SYSSET_VERSION:-}" ]]; then
+  _bspec="${SYSSET_VERSION}"
+elif [[ -n "$_BUNDLE_NAME_VER" ]]; then
+  _bspec="${_BUNDLE_NAME_VER}"
+fi
+if [[ -n "$_bspec" ]]; then
+  if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${_bspec}")" || [[ -z "$_BUNDLE_TAG" ]]; then
+    echo "⛔ Bundle tag not found for '$_bspec'" >&2
+    exit 1
+  fi
+  _BUNDLE_MANIFEST_FILE="$(mktemp)"
+  _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE" || exit 1
+fi
+
+declare -A _KEY_OF=() _OPT_OF=() _TAG_OF=()
+_IDS=()
+while IFS=$'\t' read -r _id _k _tt; do
+  [[ -z "$_id" ]] && continue
+  _opt="$(jq -c --arg k "$_k" '(.features // {})[$k] // {}' <"$_DCJ")"
+  _IDS+=("$_id")
+  _KEY_OF["$_id"]="$_k"
+  _OPT_OF["$_id"]="$_opt"
+  _TAG_OF["$_id"]="$_tt"
+done < <(devcontainer__iter_features "$_DCJ" "$_WORK_ROOT" "${_COMPAT_PREFIX[@]}")
+((${#_IDS[@]})) || {
+  echo "⛔ no features" >&2
+  exit 1
+}
+
+# Stage tarballs (skip and record failures; continue with remaining features)
+_failed=()
+_OK_IDS=()
+for _id in "${_IDS[@]}"; do
+  mkdir -p "${_STAGED}/${_id}"
+  if ! _rt="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}")" || [[ -z "$_rt" ]]; then
+    _failed+=("$_id")
+    continue
+  fi
+  if ! _fetch_and_verify_tarball "$_id" "$_rt" "${_STAGED}/${_id}/a.tgz"; then
+    _failed+=("$_id")
+    continue
+  fi
+  if ! tar -xzf "${_STAGED}/${_id}/a.tgz" -C "${_STAGED}/${_id}"; then
+    _failed+=("$_id")
+    continue
+  fi
+  if [[ ! -f "${_STAGED}/${_id}/devcontainer-feature.json" ]]; then
+    echo "⛔ missing devcontainer-feature.json in $_id" >&2
+    _failed+=("$_id")
+    continue
+  fi
+  _OK_IDS+=("$_id")
+done
+((${#_OK_IDS[@]})) || {
+  echo "⛔ no features could be staged" >&2
+  exit 1
+}
+_IDS=("${_OK_IDS[@]}")
+unset _OK_IDS
+
+# Graph files
+ht="${_STAGED}/h"
+st="${_STAGED}/s"
+pt="${_STAGED}/p"
+devcontainer__build_ordering_inputs \
+  --hard-edges-file "$ht" \
+  --soft-edges-file "$st" \
+  --priority-file "$pt" \
+  --staged-root "$_STAGED" \
+  --config-file "$_DCJ" \
+  -- "${_IDS[@]}" || {
+  echo "⛔ failed to build ordering inputs" >&2
+  exit 1
+}
+
+mapfile -t _ORDER < <(graph__round_order --hard-edges-file "$ht" --soft-edges-file "$st" --priority-file "$pt" -- "${_IDS[@]}" 2> /dev/null || true)
+((${#_ORDER[@]})) || {
+  _ORDER=()
+  for _c in "${_CANONICAL_ORDER[@]}"; do
+    for _i in "${_IDS[@]}"; do
+      [[ "$_c" == "$_i" ]] && _ORDER+=("$_i")
+    done
+  done
+  for _i in "${_IDS[@]}"; do
+    _in=0
+    for _o in "${_ORDER[@]}"; do
+      [[ "$_o" == "$_i" ]] && _in=1
+    done
+    ((_in)) || _ORDER+=("$_i")
+  done
+}
+echo "ℹ️  order: ${_ORDER[*]}" >&2
+
+if [[ "$_NO_INIT_CMD" != true ]]; then
+  _iv="$(jq -c 'if (has("initializeCommand")|not) then null else .initializeCommand end' <"$_DCJ" 2> /dev/null || echo "null")"
+  if [[ -n "$_iv" && "$_iv" != "null" ]]; then
+    echo "⚠️  initializeCommand (host): trust this config" >&2
+    (cd "${_INIT_CMD_DIR:-$_WORK_ROOT}" && printf '%s' "$_iv" | proc__run_command_form --cwd "${_INIT_CMD_DIR:-$_WORK_ROOT}") || exit 1
+  fi
+fi
+
+_RU="$(jq -r '.remoteUser // ""' <"$_DCJ" 2> /dev/null | head -1)"
+_CU="$(jq -r '.containerUser // ""' <"$_DCJ" 2> /dev/null | head -1)"
+_EFF_USER="${_RU:-${_CU:-$USER}}"
+_EFF_CUSER="${_CU:-$USER}"
+_RU_HOME="$(devcontainer__user_home "$_EFF_USER" 2> /dev/null || true)"
+_CU_HOME="$(devcontainer__user_home "$_EFF_CUSER" 2> /dev/null || true)"
+[[ -z "$_RU_HOME" ]] && _RU_HOME="${HOME:-}"
+[[ -z "$_CU_HOME" ]] && _CU_HOME="${HOME:-}"
+
+_passed=()
+for _id in "${_ORDER[@]}"; do
+  _r2="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}")" || {
+    _failed+=("$_id")
+    continue
+  }
+  _wdir="$(mktemp -d)"
+  if ! _fetch_and_verify_tarball "$_id" "$_r2" "${_wdir}/a.tgz"; then
+    _failed+=("$_id")
+    rm -rf "$_wdir"
+    continue
+  fi
+  tar -xzf "${_wdir}/a.tgz" -C "$_wdir"
+  (
+    if ! _sysset_options_to_env <<< "${_OPT_OF[$_id]-}"; then
+      exit 1
+    fi
+    export _REMOTE_USER="${_EFF_USER}"
+    export _CONTAINER_USER="${_EFF_CUSER}"
+    export _REMOTE_USER_HOME="${_RU_HOME}"
+    export _CONTAINER_USER_HOME="${_CU_HOME}"
+    cd "$_wdir" || exit 1
+    echo "ℹ️  [${_id}] running install.sh" >&2
+    sh install.sh
+  ) && _passed+=("$_id") || _failed+=("$_id")
+  rm -rf "$_wdir"
+done
+
+_LCW="${_LIFE_CMD_DIR:-$_WORK_ROOT}"
+_LIFE_USER="${_RU:-}"
+for _ph in onCreateCommand updateContentCommand postCreateCommand postStartCommand postAttachCommand; do
+  while IFS=$'\t' read -r _scope _sid _cmd; do
+    [[ -z "$_scope" ]] && continue
+    if [[ "$_scope" == feature ]]; then
+      if _sysset_disabled_fe "$_sid" "$_ph" ""; then
+        echo "ℹ️  [${_sid}] skip feature ${_ph} (disabled)" >&2
+        continue
+      fi
+    else
+      if _sysset_disabled_co "$_ph" ""; then
+        echo "ℹ️  skip container ${_ph} (disabled)" >&2
+        continue
+      fi
+    fi
+    if [[ -n "$_LIFE_USER" ]]; then
+      printf '%s' "$_cmd" | proc__run_command_form --cwd "$_LCW" --user "$_LIFE_USER" || exit 1
+    else
+      printf '%s' "$_cmd" | proc__run_command_form --cwd "$_LCW" || exit 1
+    fi
+  done < <(devcontainer__lifecycle_iter --config-file "$_DCJ" --staged-root "$_STAGED" --phase "$_ph" -- "${_ORDER[@]}")
+done
+
+((${#_failed[@]} > 0)) && {
+  echo "⛔ failed: ${_failed[*]}" >&2
+  exit 1
+}
 echo "↩️  Script exit: sysset installer" >&2
+exit 0

@@ -10,12 +10,28 @@
 [ -n "${_JSON__LIB_LOADED-}" ] && return 0
 _JSON__LIB_LOADED=1
 
+# Directory containing json.sh and jsonc.py (sourced with bash; used by JSONC helpers).
+_JSON__LIB_DIR=""
+
 # _json__ensure_parse_tool (internal)
 #
 # Sets _JSON__PARSE_TOOL once to jq, yq, or python (mikefarah yq only — probed
 # with yq -o=json). If none exist and ospkg__install_tracked is available with
 # ospkg loaded, runs ospkg__update / ospkg__install_tracked lib-json jq, then
 # retries jq. Idempotent. Returns 0 if a structured parser is available, else 1.
+# _json__ensure_json_lib_dir (internal) — set _JSON__LIB_DIR to the directory of this file (bash only).
+_json__ensure_json_lib_dir() {
+  [ -n "${_JSON__LIB_DIR:-}" ] && return 0
+  if [ -n "${BASH_VERSION:-}" ] && [ -n "${BASH_SOURCE[0]:-}" ]; then
+    # shellcheck disable=SC3043,SC2034,SC3003
+    _d="$(cd "${BASH_SOURCE[0]%/*}" 2> /dev/null && pwd)" || return 1
+    _JSON__LIB_DIR="$_d"
+  else
+    _JSON__LIB_DIR="."
+  fi
+  return 0
+}
+
 _json__ensure_parse_tool() {
   if [ -n "${_JSON__ENSURE_PARSE_DONE:-}" ]; then
     [ -n "${_JSON__PARSE_TOOL:-}" ]
@@ -427,4 +443,84 @@ sys.exit(1)
   case "$_out" in '' | 'null') return 1 ;; esac
   printf '%s\n' "$_out"
   return 0
+}
+
+# @brief json__strip_jsonc_stdin — Read JSON/JSONC from stdin; print strict JSON. Requires python3 and lib/jsonc.py next to this file.
+json__strip_jsonc_stdin() {
+  _json__ensure_json_lib_dir || return 1
+  if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
+    echo "⛔ lib/jsonc.py not found (expected: ${_JSON__LIB_DIR}/jsonc.py)" >&2
+    return 1
+  fi
+  python3 "${_JSON__LIB_DIR}/jsonc.py" strip
+}
+
+# @brief json__object_keys_stdin [<objectKey>] — Keys of the root object or of .[objectKey]; one per line. Requires jq.
+json__object_keys_stdin() {
+  local _sub="${1-}" _json _out
+  _json="$(cat)" || return 1
+  [ -z "$_json" ] && return 1
+  _json__ensure_parse_tool || return 1
+  [ "${_JSON__PARSE_TOOL}" = "jq" ] || {
+    echo "⛔ json__object_keys_stdin requires jq" >&2
+    return 1
+  }
+  if [ -z "$_sub" ]; then
+    _out="$(printf '%s\n' "$_json" | jq -r 'keys[]' 2> /dev/null)" || return 1
+  else
+    _out="$(printf '%s\n' "$_json" | jq -r --arg sk "$_sub" '.[$sk] | if type == "object" then keys[] else empty end' 2> /dev/null)" || return 1
+  fi
+  [ -n "$_out" ] && printf '%s\n' "$_out"
+  return 0
+}
+
+# @brief json__value_stdin <jq-expr> — Read JSON from stdin; print compact value at <jq-expr> (e.g. .name, .features).
+json__value_stdin() {
+  local _expr="${1-}" _json
+  [ -z "$_expr" ] && return 1
+  _json="$(cat)" || return 1
+  [ -z "$_json" ] && return 1
+  _json__ensure_parse_tool || return 1
+  [ "${_JSON__PARSE_TOOL}" = "jq" ] || {
+    echo "⛔ json__value_stdin requires jq" >&2
+    return 1
+  }
+  printf '%s\n' "$_json" | jq -c "$_expr" 2> /dev/null
+}
+
+# @brief json__coerce_scalar_stdin — Read one JSON value from stdin; print string form for use in env (bool/number: jq tostring, string: raw, null: empty). Object/array: exit 1. Requires jq.
+json__coerce_scalar_stdin() {
+  local _json _t
+  _json="$(cat)" || return 1
+  [ -z "$_json" ] && return 1
+  _json__ensure_parse_tool || return 1
+  [ "${_JSON__PARSE_TOOL}" = "jq" ] || {
+    echo "⛔ json__coerce_scalar_stdin requires jq" >&2
+    return 1
+  }
+  _t="$(printf '%s\n' "$_json" | jq -r 'type' 2> /dev/null)" || return 1
+  case "$_t" in
+    string) printf '%s\n' "$_json" | jq -r '.'
+      return 0
+      ;;
+    number | boolean) printf '%s\n' "$_json" | jq -r 'tostring'
+      return 0
+      ;;
+    "null")
+      printf '\n'
+      return 0
+      ;;
+    object | array) return 1 ;;
+    *) return 1 ;;
+  esac
+}
+
+# @brief json__detect_duplicate_keys_stdin [<objectKey>] — Reject JSON with duplicate object keys (uses lib/jsonc.py). Ignores <objectKey> (full document checked).
+json__detect_duplicate_keys_stdin() {
+  _json__ensure_json_lib_dir || return 1
+  if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
+    echo "⛔ lib/jsonc.py not found" >&2
+    return 1
+  fi
+  python3 "${_JSON__LIB_DIR}/jsonc.py" dup "$@"
 }

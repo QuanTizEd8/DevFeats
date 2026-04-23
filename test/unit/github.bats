@@ -853,9 +853,11 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
 
 @test "github__release_tags --all walks pages until a short page" {
   # Fake _github__api_get returns 100-item page 1, 3-item page 2, empty page 3.
+  # Patterns MUST anchor on '&page=' (with leading '&') so they don't false-match
+  # the 'per_page=100' substring (which also contains 'page=1').
   _github__api_get() {
     case "$1" in
-      *page=1*)
+      *\&page=1)
         local i
         printf '['
         for i in $(seq 1 100); do
@@ -865,7 +867,7 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
         printf ']\n'
         return 0
         ;;
-      *page=2*)
+      *\&page=2)
         printf '[{"tag_name":"p2-1"},{"tag_name":"p2-2"},{"tag_name":"p2-3"}]\n'
         return 0
         ;;
@@ -887,9 +889,12 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
 }
 
 @test "github__release_tags without --all fetches only first page" {
+  # Non-paginated call contains 'per_page=100' and has NO '&page=' segment.
+  # Match the paginated-call case on '&page=' so it doesn't false-match the
+  # 'per_page=…' substring.
   _github__api_get() {
     case "$1" in
-      *page=*)
+      *\&page=*)
         echo "⛔ unexpected paginated call: $1" >&2
         return 1
         ;;
@@ -908,10 +913,11 @@ only-2"
 
 @test "github__release_tags --all short single page terminates after one request" {
   # 50 items on page=1 with per_page=100 → short page → terminate without
-  # fetching page=2.
+  # fetching page=2. Pattern must anchor on '&page=' to avoid false-matching
+  # 'per_page=100'.
   _github__api_get() {
     case "$1" in
-      *page=1*)
+      *\&page=1)
         local i
         printf '['
         for i in $(seq 1 50); do
@@ -938,7 +944,7 @@ only-2"
 @test "github__tags --all walks pages until a short page" {
   _github__api_get() {
     case "$1" in
-      *page=1*)
+      *\&page=1)
         local i
         printf '['
         for i in $(seq 1 100); do
@@ -948,7 +954,7 @@ only-2"
         printf ']\n'
         return 0
         ;;
-      *page=2*)
+      *\&page=2)
         printf '[{"name":"t2-1"},{"name":"t2-2"}]\n'
         return 0
         ;;
@@ -963,4 +969,31 @@ only-2"
   assert_success
   [ "${#lines[@]}" -eq 102 ]
   [ "${lines[101]}" = "t2-2" ]
+}
+
+# ---------------------------------------------------------------------------
+# github__fetch_release_asset_tarball
+# ---------------------------------------------------------------------------
+
+@test "github__fetch_release_asset_tarball downloads asset when API omits digest" {
+  _dest="$(mktemp "${BATS_TEST_TMPDIR}/gh-asset.XXXXXX")"
+  github__fetch_release_json() {
+    while [ $# -gt 0 ]; do
+      case "$1" in
+      --dest) printf '%s' '{"assets":[]}' > "$2"; return 0 ;;
+      *) shift ;;
+      esac
+    done
+    return 1
+  }
+  net__fetch_url_file() {
+    printf 'tar-bytes' > "$2"
+    return 0
+  }
+  export -f github__fetch_release_json net__fetch_url_file
+  SYSSET_RELEASE_BASE="https://dl.invalid/r" run github__fetch_release_asset_tarball "o/r" "t1" "a.tgz" "$_dest"
+  assert_success
+  run cat "$_dest"
+  assert_output "tar-bytes"
+  rm -f "$_dest"
 }

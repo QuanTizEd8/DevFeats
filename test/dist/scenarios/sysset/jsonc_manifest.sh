@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# sysset/json_manifest.sh — Verify that get.bash installs features from a
-# JSON manifest using a local HTTP file server as the release download origin.
+# sysset/jsonc_manifest.sh — Verify that get.bash accepts JSONC (comments +
+# trailing commas) as devcontainer input and installs features via the
+# local HTTP mirror.
 #
 # What this tests:
 #   • sysset-all.tar.gz contains the expected per-feature tarballs.
-#   • get.bash processes a JSON manifest with a top-level bundle version.
+#   • get.bash processes a .jsonc manifest with SYSSET_VERSION bundle pin.
+#   • Line and block comments, and a trailing comma, are tolerated.
 #   • Bundle-pinned resolution reads per-feature versions from manifest.yaml.
-#   • Features are run in canonical order (install-os-pkg before install-pixi)
-#     even though the manifest lists install-pixi first.
+#   • install-os-pkg is processed before install-pixi (graph + jq key order;
+#     log markers [install-*] are emitted per feature).
 #   • Both features install successfully (verified via installed artifacts).
 #
 # Requires: root (get.bash manifest mode calls os__require_root).
@@ -19,6 +21,7 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 . "${REPO_ROOT}/test/lib/assert.sh"
 
 DIST="${REPO_ROOT}/dist"
+_OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
 
 # ── Verify sysset-all.tar.gz contains expected feature tarballs ──────────────
 check "sysset-all.tar.gz contains sysset-install-pixi.tar.gz" \
@@ -29,7 +32,7 @@ check "sysset-all.tar.gz contains sysset-install-os-pkg.tar.gz" \
 # ── Mirror setup (bundle-pinned layout) ──────────────────────────────────────
 _BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
-_MIRROR="${REPO_ROOT}/test-mirror-sysset-json"
+_MIRROR="${REPO_ROOT}/test-mirror-sysset-jsonc"
 mkdir -p "${_MIRROR}/${_BUNDLE}"
 for _f in install-pixi install-os-pkg; do
   mkdir -p "${_MIRROR}/${_f}/${_VER}"
@@ -50,22 +53,27 @@ trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+export SYSSET_BASE_URL
 export SYSSET_VERSION="${_BUNDLE}"
 
-# ── Build manifest ────────────────────────────────────────────────────────────
-_manifest="${_manifest_dir}/manifest.json"
+# ── Devcontainer manifest (.jsonc with comments + trailing comma) ────────────
+_manifest="${_manifest_dir}/devcontainer.jsonc"
 cat > "$_manifest" << EOF
+// Top-level line comment — must be stripped by json__strip_jsonc_stdin.
 {
-  "features": [
-    { "id": "install-pixi", "options": { "version": "0.66.0" } },
-    { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml" } }
-  ]
+  /* Block comment on the display name. */
+  "name": "dist test ${_BUNDLE}",
+  "features": {
+    // Pin install-pixi explicitly via its own option.
+    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" },
+    "ghcr.io/quantized8/sysset/install-os-pkg": { "manifest": "${_OSP}" }, // trailing comma after this entry
+  },
 }
 EOF
 
 # ── Run get.bash in manifest mode ─────────────────────────────────────────────
-check "get.bash runs JSON manifest to completion" \
+check "get.bash runs .jsonc devcontainer manifest to completion" \
   bash "${REPO_ROOT}/get.bash" "$_manifest"
 
 check "pixi installed by sysset" \

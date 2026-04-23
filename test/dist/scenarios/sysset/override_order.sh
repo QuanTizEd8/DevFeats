@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# sysset/override_order.sh — Verify that override_install_order: true causes
-# features to run in manifest order, not canonical order.
+# sysset/override_order.sh — Verify that overrideFeatureInstallOrder raises
+# priority for earlier entries so a listed feature can run before another in
+# the same round when the graph has no hard edges between them.
 #
-# Strategy: manifest lists install-pixi before install-os-pkg with
-# override_install_order: true. The log should show install-pixi first.
+# Strategy: override lists install-pixi before install-os-pkg. With empty
+# dependsOn, both are in the first round; higher priority (pixi) should run
+# first. Log order should show [install-pixi] before [install-os-pkg].
 #
 # Requires: root (get.bash manifest mode calls os__require_root).
 set -euo pipefail
@@ -14,6 +16,7 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 . "${REPO_ROOT}/test/lib/assert.sh"
 
 DIST="${REPO_ROOT}/dist"
+_OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
 
 _BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
@@ -39,25 +42,30 @@ trap 'stop_file_server; rm -rf "${_MIRROR}" "$_logfile" "$_manifest_dir"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+export SYSSET_BASE_URL
 export SYSSET_VERSION="${_BUNDLE}"
 
-_manifest="${_manifest_dir}/manifest.json"
+_manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
 {
-  "override_install_order": true,
-  "features": [
-    { "id": "install-pixi", "options": { "version": "0.66.0" } },
-    { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml" } }
-  ]
+  "name": "override ${_BUNDLE}",
+  "overrideFeatureInstallOrder": [
+    "ghcr.io/quantized8/sysset/install-pixi",
+    "ghcr.io/quantized8/sysset/install-os-pkg"
+  ],
+  "features": {
+    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" },
+    "ghcr.io/quantized8/sysset/install-os-pkg": { "manifest": "${_OSP}" }
+  }
 }
 EOF
 
-check "get.bash completes with override_install_order: true" \
+check "get.bash completes with overrideFeatureInstallOrder" \
   bash "${REPO_ROOT}/get.bash" --logfile "$_logfile" "$_manifest"
 
-# install-pixi should appear BEFORE install-os-pkg in the log.
-check "install-pixi ran before install-os-pkg (override order respected)" \
+# install-pixi should appear before install-os-pkg in the log.
+check "install-pixi ran before install-os-pkg (override order)" \
   bash -c '
     log="'"$_logfile"'"
     line_pixi=$(grep -n "\[install-pixi\]" "$log" | head -1 | cut -d: -f1)

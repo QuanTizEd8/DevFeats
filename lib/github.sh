@@ -149,6 +149,51 @@ sys.exit(1)
   return 0
 }
 
+# @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset; verify SHA-256 if digest is in the API (requires net.sh, checksum__verify_sha256).
+#
+# URL: ${SYSSET_RELEASE_BASE:-https://github.com/<repo>/releases/download}/<tag>/<asset-name>
+# Respects the same GITHUB API auth as github__fetch_release_json.
+github__fetch_release_asset_tarball() {
+  local _repo="$1" _tag="$2" _asset="$3" _dest="$4"
+  local _rel _digest _url
+
+  if [ -z "$_repo" ] || [ -z "$_tag" ] || [ -z "$_asset" ] || [ -z "$_dest" ]; then
+    echo "⛔ github__fetch_release_asset_tarball: need owner/repo, tag, asset, dest" >&2
+    return 1
+  fi
+
+  _rel="$(mktemp)"
+  if github__fetch_release_json "$_repo" --tag "$_tag" --dest "$_rel" 2> /dev/null; then
+    _digest="$(github__release_json_digest_for_asset "$_rel" "$_asset")" || _digest=""
+  else
+    _digest=""
+  fi
+  rm -f "$_rel"
+
+  if [ -n "${SYSSET_RELEASE_BASE-}" ]; then
+    _url="${SYSSET_RELEASE_BASE}/${_tag}/${_asset}"
+  else
+    _url="https://github.com/${_repo}/releases/download/${_tag}/${_asset}"
+  fi
+
+  if ! command -v net__fetch_url_file > /dev/null 2>&1; then
+    echo "⛔ github__fetch_release_asset_tarball: net.sh must be sourced" >&2
+    return 1
+  fi
+  if ! net__fetch_url_file "$_url" "$_dest"; then
+    return 1
+  fi
+
+  if [ -n "$_digest" ] && [ "$_digest" != "null" ] && command -v checksum__verify_sha256 > /dev/null 2>&1; then
+    if ! checksum__verify_sha256 "$_dest" "$_digest"; then
+      return 1
+    fi
+  else
+    echo "⚠️  No digest in release metadata for '${_asset}' — skipping verification." >&2
+  fi
+  return 0
+}
+
 # @brief github__latest_tag <owner/repo> — Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed.
 #
 # Args:

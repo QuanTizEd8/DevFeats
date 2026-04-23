@@ -24,6 +24,8 @@ for _feat in install-pixi install-os-pkg setup-user; do
     bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q 'install\.bash'"
   check "sysset-${_feat}: contains _lib/" \
     bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q '_lib/'"
+  check "sysset-${_feat}: contains devcontainer-feature.json" \
+    bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q 'devcontainer-feature\.json'"
 done
 
 check "sysset-all: does NOT contain scripts/sysset.sh" \

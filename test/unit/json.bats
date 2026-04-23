@@ -76,3 +76,47 @@ https://b.zip"
   assert_output "v22.0.0"
   assert_success
 }
+
+# ---------------------------------------------------------------------------
+# JSONC / jq helpers (bash-sourced; jsonc.py + jq)
+# ---------------------------------------------------------------------------
+
+@test "json__strip_jsonc_stdin accepts comments and trailing commas" {
+  run bash -c '. "$1" && printf %s "{\"a\":1,} /*c*/" | json__strip_jsonc_stdin | jq -c .' _ "${LIB_ROOT}/json.sh"
+  assert_output '{"a":1}'
+  assert_success
+}
+
+@test "json__object_keys_stdin lists top-level keys" {
+  run bash -c '. "$1" && printf %s "{\"z\":1,\"a\":2}" | json__object_keys_stdin' _ "${LIB_ROOT}/json.sh"
+  assert_output "a
+z"
+  assert_success
+}
+
+@test "json__value_stdin prints compact sub-value" {
+  run bash -c '. "$1" && printf %s "{\"x\":[\"p\"]}" | json__value_stdin .x' _ "${LIB_ROOT}/json.sh"
+  assert_output '["p"]'
+  assert_success
+}
+
+@test "json__coerce_scalar_stdin maps boolean to string" {
+  run bash -c '. "$1" && printf %s "true" | json__coerce_scalar_stdin' _ "${LIB_ROOT}/json.sh"
+  assert_output "true"
+  assert_success
+}
+
+@test "json__coerce_scalar_stdin fails on object" {
+  run bash -c '. "$1" && printf %s "{}" | json__coerce_scalar_stdin' _ "${LIB_ROOT}/json.sh"
+  assert_failure
+}
+
+@test "json__detect_duplicate_keys_stdin fails on duplicate keys" {
+  run bash -c '. "$1" && printf %s "{\"a\":1,\"a\":2}" | json__detect_duplicate_keys_stdin' _ "${LIB_ROOT}/json.sh"
+  assert_failure
+}
+
+@test "json__detect_duplicate_keys_stdin passes for unique keys" {
+  run bash -c '. "$1" && printf %s "{\"a\":1}" | json__detect_duplicate_keys_stdin' _ "${LIB_ROOT}/json.sh"
+  assert_success
+}

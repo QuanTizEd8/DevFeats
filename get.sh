@@ -6,7 +6,7 @@
 #
 # Usage:
 #   sh get.sh <feature>[@<version>] [feature-opts...]
-#   sh get.sh <manifest.json|.yaml>
+#   sh get.sh <devcontainer.json[.jsonc]>
 #
 # Environment overrides:
 #   SYSSET_RAW_BASE   Raw GitHub base URL  (default: main branch of SYSSET_REPO)

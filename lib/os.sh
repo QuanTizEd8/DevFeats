@@ -142,3 +142,50 @@ os__codename() {
   echo "${_OS__CODENAME:-}"
   return 0
 }
+
+# @brief os__run_as <user> [--cwd <dir>] -- <command> [args] — If already <user>, run in-process; else su -l with bash %q-quoted argv. Requires bash on PATH for the non-self path.
+os__run_as() {
+  if [ -z "$1" ]; then
+    return 1
+  fi
+  _or_u=$1
+  shift
+  _or_cd=""
+  case $1 in
+  --cwd)
+    _or_cd=$2
+    if [ -z "$_or_cd" ]; then
+      return 1
+    fi
+    shift 2
+    ;;
+  esac
+  case $1 in
+  --) shift ;;
+  esac
+  if [ $# -eq 0 ]; then
+    return 1
+  fi
+  if [ "$(id -un)" = "$_or_u" ]; then
+    if [ -n "$_or_cd" ]; then
+      (cd "$_or_cd" && "$@")
+    else
+      "$@"
+    fi
+    return $?
+  fi
+  if ! command -v bash > /dev/null 2>&1; then
+    echo "⛔ os__run_as: bash is required to run a command as another user" >&2
+    return 1
+  fi
+  # shellcheck disable=SC2016
+  _or_c="$(bash -c 'for a; do printf " %q" "$a"; done; echo' sh "$@")"
+  # shellcheck disable=SC2001
+  _or_c="$(printf "%s" "$_or_c" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  if [ -n "$_or_cd" ]; then
+    su -l "$_or_u" -c "$(printf 'cd %q && %s' "$_or_cd" "$_or_c")"
+  else
+    su -l "$_or_u" -c "$_or_c"
+  fi
+  return $?
+}

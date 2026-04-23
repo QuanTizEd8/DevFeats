@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# sysset/canonical_order.sh — Verify that get.bash enforces canonical install
-# order regardless of the order features appear in the manifest.
+# sysset/canonical_order.sh — Verify that get.bash orders features using the
+# graph (and jq key order / priorities), with install-os-pkg before install-pixi
+# when there is no override privileging pixi.
 #
-# Strategy: list features in reverse canonical order in the manifest
-# (install-pixi first, install-os-pkg second), then confirm execution log
-# shows install-os-pkg was processed before install-pixi. Uses bundle-pinned
-# mode to exercise the new URL scheme.
+# Strategy: use a devcontainer with both features. Log lines
+# "ℹ️  [install-os-pkg]…" and "ℹ️  [install-pixi]…" record install order.
 #
 # Requires: root (get.bash manifest mode calls os__require_root).
 set -euo pipefail
@@ -16,6 +15,7 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 . "${REPO_ROOT}/test/lib/assert.sh"
 
 DIST="${REPO_ROOT}/dist"
+_OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
 
 _BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
@@ -41,17 +41,18 @@ trap 'stop_file_server; rm -rf "${_MIRROR}" "$_logfile" "$_manifest_dir"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+export SYSSET_BASE_URL
 export SYSSET_VERSION="${_BUNDLE}"
 
-# Manifest lists install-pixi BEFORE install-os-pkg (reverse canonical order).
-_manifest="${_manifest_dir}/manifest.json"
+_manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
 {
-  "features": [
-    { "id": "install-pixi", "options": { "version": "0.66.0" } },
-    { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml" } }
-  ]
+  "name": "canonical ${_BUNDLE}",
+  "features": {
+    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" },
+    "ghcr.io/quantized8/sysset/install-os-pkg": { "manifest": "${_OSP}" }
+  }
 }
 EOF
 
@@ -59,7 +60,7 @@ check "get.bash completes with canonical-order manifest" \
   bash "${REPO_ROOT}/get.bash" --logfile "$_logfile" "$_manifest"
 
 # In the log, install-os-pkg should appear before install-pixi.
-check "install-os-pkg ran before install-pixi (canonical order enforced)" \
+check "install-os-pkg ran before install-pixi" \
   bash -c '
     log="'"$_logfile"'"
     line_ospkg=$(grep -n "\[install-os-pkg\]" "$log" | head -1 | cut -d: -f1)

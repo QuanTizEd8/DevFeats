@@ -363,3 +363,15 @@ setup() {
   "
   assert_failure
 }
+
+# ---------------------------------------------------------------------------
+# os__run_as
+# ---------------------------------------------------------------------------
+
+@test "os__run_as runs in-process when user matches" {
+  reload_lib os.sh
+  _me="$(id -un)"
+  run os__run_as "$_me" -- echo "ran"
+  assert_output "ran"
+  assert_success
+}

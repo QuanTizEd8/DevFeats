@@ -14,6 +14,7 @@
 #   install.sh        POSIX sh bootstrap (handles bash>=4 on any platform)
 #   install.bash      Real bash>=4 installer
 #   _lib/             Full lib/ copy
+#   devcontainer-feature.json  Feature metadata (ordering, lifecycle hooks) — from sync-src
 #   dependencies/     Optional — only when src/<feature>/dependencies/ exists
 #   files/            Optional — only when src/<feature>/files/ exists
 set -euo pipefail
@@ -74,6 +75,10 @@ for _feature_dir in "${_feature_dirs[@]}"; do
   cp "${_feature_dir}/install.sh" "${_staging}/install.sh"
   cp "${_feature_dir}/install.bash" "${_staging}/install.bash"
   cp -r "${_feature_dir}/_lib/" "${_staging}/_lib/"
+
+  if [[ -f "${_feature_dir}/devcontainer-feature.json" ]]; then
+    cp "${_feature_dir}/devcontainer-feature.json" "${_staging}/devcontainer-feature.json"
+  fi
 
   # Optional: dependencies/
   if [[ -d "${_feature_dir}/dependencies" ]]; then

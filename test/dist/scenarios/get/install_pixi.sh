@@ -30,7 +30,8 @@ _PORT=18531
 trap 'stop_file_server; rm -rf "${_MIRROR}"' EXIT
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+export SYSSET_BASE_URL
 unset SYSSET_VERSION
 
 # ── Run get.sh ───────────────────────────────────────────────────────────────

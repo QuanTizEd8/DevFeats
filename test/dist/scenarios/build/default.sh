@@ -40,6 +40,8 @@ for _feat in "${_features[@]}"; do
     bash -c "tar -tzf '${_tarball}' | grep -qx '\./install\.bash\|install\.bash'"
   check "sysset-${_feat}: contains _lib/" \
     bash -c "tar -tzf '${_tarball}' | grep -q '_lib/'"
+  check "sysset-${_feat}: contains devcontainer-feature.json" \
+    bash -c "tar -tzf '${_tarball}' | grep -q 'devcontainer-feature\.json'"
 done
 
 # sysset-all.tar.gz contains only per-feature tarballs (no runtime scripts).

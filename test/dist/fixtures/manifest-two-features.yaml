@@ -1,7 +1,0 @@
-features:
-  - id: install-pixi
-    options:
-      version: "0.66.0"
-  - id: install-os-pkg
-    options:
-      manifest: "test/dist/fixtures/ospkg-tree.yaml"

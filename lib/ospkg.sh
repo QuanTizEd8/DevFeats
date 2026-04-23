@@ -190,8 +190,7 @@ _ospkg_brew_run() {
     return
   fi
   echo "ℹ️  Running brew as user '${_owner}' (brew prefix owner)." >&2
-  # shellcheck disable=SC2046
-  su -l "$_owner" -c "$(printf 'brew %s' "$(printf '%q ' "$@")")"
+  os__run_as "$_owner" -- brew "$@"
   return 0
 }
 
