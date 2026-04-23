@@ -1,33 +1,35 @@
 {
-    "name": "combined",
+    "name": "SysSet Full Featured Dev Container",
     "image": "ubuntu:latest",
     "initializeCommand": "bash scripts/sync-src.sh",
-    "containerUser": "vscode",
+    "containerUser": "sysuser",
     "features": {
-      "../_src/install-os-pkg": {},
-      "../_src/setup-user": {},
-      "../_src/setup-shim": {},
-      "../_src/install-git": {},
-      "../_src/install-shell": {},
-      "../src/install-homebrew": {},
-      "../_src/install-gh": {},
-      "../_src/install-podman": {},
-      "../_src/install-node": {},
-      "../_src/install-miniforge": {},
-      "../_src/install-pixi": {},
-      "../_src/install-fonts": {}
+      "../.src/install-os-pkg": {},
+      "../.src/setup-user": {
+        "username": "sysuser"
+      },
+      "../.src/setup-shim": {},
+      "../.src/install-git": {},
+      "../.src/install-shell": {},
+      "../.src/install-homebrew": {},
+      "../.src/install-gh": {},
+      "../.src/install-podman": {},
+      "../.src/install-node": {},
+      "../.src/install-miniforge": {},
+      "../.src/install-pixi": {},
+      "../.src/install-fonts": {}
     },
     "overrideFeatureInstallOrder": [
-      "../_src/setup-user",
-      "../_src/setup-shim",
-      "../_src/install-git",
-      "../_src/install-shell",
-      "../src/install-homebrew",
-      "../_src/install-gh",
-      "../_src/install-podman",
-      "../_src/install-node",
-      "../_src/install-miniforge",
-      "../_src/install-pixi",
-      "../_src/install-fonts"
+      "../.src/setup-user",
+      "../.src/setup-shim",
+      "../.src/install-git",
+      "../.src/install-shell",
+      "../.src/install-homebrew",
+      "../.src/install-gh",
+      "../.src/install-podman",
+      "../.src/install-node",
+      "../.src/install-miniforge",
+      "../.src/install-pixi",
+      "../.src/install-fonts"
     ]
 }
