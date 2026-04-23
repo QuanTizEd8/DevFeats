@@ -1,154 +1,165 @@
-# Global shell settings: all recipes run under bash with strict error handling.
+# SysSet Developer Tasks.
+#
+# List recipes: `just --list`.
+# Global: bash, strict mode.
+
 set shell := ["bash", "-euo", "pipefail", "-c"]
+
 
 # ── Code quality ──────────────────────────────────────────────────────────────
 
-# Apply shfmt formatting to all tracked shell files. Pass files as arguments to
-# format specific files only (used by lefthook). No-op if shfmt is not on PATH.
-# test/unit/bats/** is excluded via .editorconfig ignore = true.
-[group('code-quality')]
+[
+  group('code-quality'),
+  doc('Format shell files with shfmt (whole tree or pass paths; respects .editorconfig ignores).')
+]
 format *files:
     #!/usr/bin/env bash
     set -euo pipefail
-    if ! command -v shfmt > /dev/null 2>&1; then
-      echo "ℹ️  shfmt not found — skipping format."
-      exit 0
-    fi
     if [[ $# -gt 0 ]]; then
       shfmt -w "$@"
     else
       shfmt -w --apply-ignore .
     fi
 
-# Check formatting without writing — exits non-zero if any file differs.
-# Used in CI. Pass files as arguments to check specific files only (used by lefthook).
-# No-op if shfmt is not on PATH.
-[group('code-quality')]
+
+[
+  group('code-quality'),
+  doc('Check shell files formatting without writing (CI-style); pass paths to limit scope.')
+]
 format-check *files:
     #!/usr/bin/env bash
     set -euo pipefail
-    if ! command -v shfmt > /dev/null 2>&1; then
-      echo "ℹ️  shfmt not found — skipping format-check."
-      exit 0
-    fi
     if [[ $# -gt 0 ]]; then
       shfmt -d "$@"
     else
       shfmt -d --apply-ignore .
     fi
 
-# Run shellcheck on all tracked shell files. Pass files as arguments to check
-# specific files only (used by lefthook). No-op if shellcheck is not on PATH.
-# features/*/install.bash are body-only; lint the assembled src/ copies.
-# The full (no args) target auto-syncs src/ if absent, matching CI behaviour.
-[group('code-quality')]
+
+[
+  group('code-quality'),
+  doc('Shellcheck tracked shell and assembled src/*/install.bash; no args runs sync if src/ missing; pass paths to limit.')
+]
 lint *files:
     #!/usr/bin/env bash
     set -euo pipefail
-    if ! command -v shellcheck > /dev/null 2>&1; then
-      echo "ℹ️  shellcheck not found — skipping lint."
-      exit 0
-    fi
     ncpu=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
     if [[ $# -gt 0 ]]; then
       echo "$@" | xargs -P"${ncpu}" -n8 shellcheck
     else
-      [[ -d src ]] || bash scripts/sync-src.sh
+      [[ -d src ]] || just sync
       { git ls-files -- '*.sh' '*.bash' | grep -v '^features/[^/]*/install\.bash$'
         find src -maxdepth 2 -name 'install.bash' 2>/dev/null
       } | sort -u | xargs -P"${ncpu}" -n8 shellcheck
     fi
 
-# Validate all features/*/metadata.yaml against features/metadata.schema.json.
-# No-op if jsonschema is not importable.
-[group('code-quality')]
+
+[
+  group('code-quality'),
+  doc('Validate features/*/metadata.yaml against metadata.schema.json.')
+]
 validate-metadata:
     #!/usr/bin/env bash
     set -euo pipefail
-    if python3 -c "import jsonschema, yaml" > /dev/null 2>&1; then
-      python3 scripts/validate-metadata.py
-    elif python -c "import jsonschema, yaml" > /dev/null 2>&1; then
-      python scripts/validate-metadata.py
-    else
-      echo "ℹ️  jsonschema not found — skipping metadata validation. Install with: bash .devcontainer/setup-dev.sh --tools jsonschema"
-    fi
+    python scripts/validate-metadata.py
+
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
-# Sync generated artifacts from canonical sources (features/ + lib/ → src/).
-#   features/*/metadata.yaml  → src/*/devcontainer-feature.json
-#   features/*/metadata.yaml  → src/*/dependencies/*.yaml
-#   features/*/install.bash   → src/*/install.bash (header prepended)
-#   lib/                      → src/*/_lib/
-#   features/bootstrap.sh     → src/*/install.sh
-[group('build')]
+[
+  group('build'),
+  doc('Regenerate git-ignored src/ from features/, lib/, bootstrap (JSON, deps, install.bash, _lib/, files/).')
+]
 sync:
     bash scripts/sync-src.sh
 
-# Verify all generated artifacts are up to date (CI-style, no writes).
-# Exits non-zero if any file is missing or stale.
-[group('build')]
+
+[
+  group('build'),
+  doc('Fail if src/ is stale or missing (no writes); same as scripts/sync-src.sh --check.')
+]
 sync-check:
     bash scripts/sync-src.sh --check
 
-# Build standalone distribution artifacts into dist/.
-# Runs sync first to ensure src/ is up to date.
-[group('build')]
-artifacts version="": sync
+
+[
+  group('build'),
+  doc('Build dist/ release artifacts; optional version e.g. just build-dist v1.2.3; runs sync first.')
+]
+build-dist version="": sync
     bash scripts/build-artifacts.sh {{version}}
+
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 
-# Run lib/ unit tests via bats-core (requires git submodules to be initialised).
-[group('testing')]
+[
+  group('testing'),
+  doc('Run all bats unit tests for lib/ (git submodule init for test/unit/bats required).')
+]
 test-unit:
     bash test/run-unit.sh
 
+
+[
+  group('testing'),
+  doc('Run unit tests for one lib module e.g. just test-module ospkg.')
+]
+test-module module:
+    bash test/run-unit.sh --module {{module}}
+
+
+[
+  group('testing'),
+  doc('Run scenario and fail tests for one feature e.g. just test-feature install-pixi.')
+]
+test-feature feat:
+    bash test/run.sh feature {{feat}}
+
+
 # ── Docs ─────────────────────────────────────────────────────────────────────
 
-# Inject auto-generated content (lib API tables, JSON options blocks) into docs.
-[group('docs')]
+[
+  group('docs'),
+  doc('Regenerate injected doc markers (lib API tables in writing-features and lib.instructions).')
+]
 gen-docs:
     python3 scripts/gen_docs.py
 
-# Dry-run: exits non-zero if any doc file would be changed by gen-docs. Used in CI.
-[group('docs')]
+
+[
+  group('docs'),
+  doc('CI: exit non-zero if gen-docs would modify tracked files.')
+]
 gen-docs-check:
     python3 scripts/gen_docs.py --check
 
-# Build the Sphinx documentation into docs/.build/.
-# Requires the sysset-website conda environment (docs/environment.yaml).
-[group('docs')]
-docs:
+
+[
+  group('docs'),
+  doc('Build Sphinx site to docs/.build/ (conda env sysset-website from docs/environment.yaml).')
+]
+build-website:
     conda run -n sysset-website --no-capture-output \
       python -m sphinx -b dirhtml docs docs/.build \
       --keep-going --color --jobs auto
 
-# Live-preview the docs with auto-rebuild on file changes.
-# Requires the sysset-website conda environment (docs/environment.yaml).
-[group('docs')]
-docs-serve:
+
+[
+  group('docs'),
+  doc('Live-rebuild Sphinx with browser preview (same conda env as docs).')
+]
+build-website-live:
     conda run -n sysset-website --no-capture-output \
       python -m sphinx_autobuild docs docs/.build \
       -b dirhtml --open-browser --watch docs
 
+
 # ── Dev tooling ───────────────────────────────────────────────────────────────
 
-# Install all development tools required to work on this repo (idempotent).
-[group('dev')]
-install-dev:
-    bash .devcontainer/setup-dev.sh
-
-# Poll GitHub Actions and stream logs to .local/logs/gha/<sha>/<run-id>/.
-# Provide exactly one of: run (workflow run ID) or commit (SHA or ref).
-# Optional: log_base overrides the default log root directory.
-# Examples:
-#   just watch-gha run=12345678901
-#   just watch-gha run=12345678901 log_base=/tmp/my-gha-logs
-#   just watch-gha commit=main
-#   just watch-gha commit=abc1234 log_base=/tmp/my-gha-logs
-# For options not covered here, call scripts/watch-gha-run.sh directly.
-[group('dev')]
+[
+  group('dev'),
+  doc('Watch GHA: set run=<id> OR commit=<sha/ref>; optional log_base=<dir>; logs in .local/logs/gha/; else use scripts/watch-gha-run.sh.')
+]
 watch-gha run="" commit="" log_base="":
     #!/usr/bin/env bash
     set -euo pipefail
