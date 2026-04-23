@@ -14,10 +14,13 @@ on:
         required: false
 
 jobs:
-  # ── Detect what changed and compute per-job run flags ────────────────────
+  # Detect what changed and compute per-job run flags
   detect:
     name: "Detect changes"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     outputs:
       run_lint: ${{ steps.detect.outputs.run_lint }}
       run_validate: ${{ steps.detect.outputs.run_validate }}
@@ -29,6 +32,8 @@ jobs:
       run_dist: ${{ steps.detect.outputs.run_dist }}
       is_release: ${{ steps.detect.outputs.is_release }}
       release_tag: ${{ steps.detect.outputs.release_tag }}
+      build_image: ${{ steps.detect.outputs.build_image }}
+      image_tag: ${{ steps.detect.outputs.image_tag }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -41,110 +46,35 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          HEAD_REF: ${{ github.head_ref }}
           BASE_REF: ${{ github.base_ref }}
           BEFORE: ${{ github.event.before }}
           INPUT_TAG: ${{ inputs.tag }}
-        run: |
-          # ── Determine if this is a "force" run (skip diff; test everything) ──
-          is_force=false
-          if [[ "$REF_TYPE" == "tag" || "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            is_force=true
-          elif [[ "$EVENT_NAME" == "push" && "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
-            # First push to a new branch — no diff baseline; run everything safely
-            is_force=true
-          fi
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPOSITORY: ${{ github.repository }}
+        run: bash .github/workflows/scripts/cicd_detect.sh
 
-          # ── Determine is_release and resolve release_tag ──────────────────
-          is_release=false
-          release_tag=""
-          if [[ "$EVENT_NAME" == "push" && "$REF_TYPE" == "tag" ]]; then
-            is_release=true
-            release_tag="$REF_NAME"
-          elif [[ "$EVENT_NAME" == "workflow_dispatch" && -n "${INPUT_TAG:-}" ]]; then
-            is_release=true
-            release_tag="$INPUT_TAG"
-          fi
+  # Build devcontainer image (when needed)
+  build-devcontainer:
+    name: Devcontainer Image Build
+    needs: detect
+    if: needs.detect.outputs.build_image == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/devcontainer.yaml
+    with:
+      image_tag: ${{ needs.detect.outputs.image_tag }}
+    secrets: inherit
 
-          # ── Feature discovery helpers ──────────────────────────────────────
-          feature_ids=$(find features -mindepth 2 -maxdepth 2 -name "metadata.yaml" \
-            | sed 's|^features/||; s|/metadata.yaml$||' | sort -u)
-          all_features=$(printf '%s\n' "$feature_ids" | grep -v '^$' | jq -R . | jq -sc .)
-          macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
-            | sed 's|test/||; s|/macos/.*||' | sort -u)
-          macos_all=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
-
-          # ── Compute changed files (when not a force run) ───────────────────
-          if [[ "$is_force" == "true" ]]; then
-            run_lint=true
-            run_validate=true
-            run_unit=true
-            run_features=true
-            features="$all_features"
-            run_dist=true
-            if [[ "$macos_all" != "[]" ]]; then run_macos=true; else run_macos=false; fi
-            macos_features="$macos_all"
-          else
-            if [[ "$EVENT_NAME" == "pull_request" ]]; then
-              changed=$(git diff --name-only "origin/${BASE_REF}"...HEAD)
-            else
-              changed=$(git diff --name-only "${BEFORE}...HEAD")
-            fi
-
-            # run_lint: any shell file changed
-            if echo "$changed" | grep -qE '\.(sh|bash|bats)$'; then run_lint=true; else run_lint=false; fi
-
-            # run_validate: metadata.yaml or metadata.schema.json changed (source for devcontainer-feature.json)
-            if echo "$changed" | grep -qE 'metadata\.yaml|metadata\.schema\.json'; then run_validate=true; else run_validate=false; fi
-
-            # run_unit: lib/ or test/unit/ changed
-            if echo "$changed" | grep -qE '^(lib/|test/unit/)'; then run_unit=true; else run_unit=false; fi
-
-            # features: if features/bootstrap.sh, lib/, or test/lib/ changed, all features are affected
-            if echo "$changed" | grep -qE '^(features/bootstrap\.sh|lib/|test/lib/)'; then
-              features="$all_features"
-            else
-              features=$(printf '%s\n' "$feature_ids" | while IFS= read -r f; do
-                if echo "$changed" | grep -qE "^(features|test)/$f/"; then echo "$f"; fi
-              done | jq -R . | jq -sc .)
-            fi
-            if [[ "$features" != "[]" ]]; then run_features=true; else run_features=false; fi
-
-            # macos_features: if features/bootstrap.sh, lib/, or test/lib/ changed, all macos-capable features are affected
-            if echo "$changed" | grep -qE '^(features/bootstrap\.sh|lib/|test/lib/)'; then
-              macos_features="$macos_all"
-            else
-              macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | while IFS= read -r f; do
-                if echo "$changed" | grep -qE "^(features|test)/$f/"; then echo "$f"; fi
-              done | jq -R . | jq -sc .)
-            fi
-            if [[ "$macos_features" != "[]" ]]; then run_macos=true; else run_macos=false; fi
-
-            # run_dist: dist-related files changed
-            if echo "$changed" | grep -qE '^(features/bootstrap\.sh|features/get\.sh|features/sysset\.sh|scripts/build-artifacts\.sh|features/|lib/|test/dist/|test/lib/)'; then
-              run_dist=true
-            else
-              run_dist=false
-            fi
-          fi
-
-          # ── Write all outputs ──────────────────────────────────────────────
-          {
-            echo "run_lint=$run_lint"
-            echo "run_validate=$run_validate"
-            echo "run_unit=$run_unit"
-            echo "run_features=$run_features"
-            echo "features=$features"
-            echo "run_macos=$run_macos"
-            echo "macos_features=$macos_features"
-            echo "run_dist=$run_dist"
-            echo "is_release=$is_release"
-            echo "release_tag=$release_tag"
-          } >> "$GITHUB_OUTPUT"
-
-  # ── Run all CI tests (lint, validate, unit, feature, dist) ───────────────
+  # Run all CI tests (lint, validate, unit, feature, dist)
   ci:
     name: "CI"
-    needs: detect
+    needs: [detect, build-devcontainer]
+    if: |
+      always() &&
+      needs.detect.result == 'success' &&
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped')
     uses: ./.github/workflows/ci.yaml
     with:
       run_lint: ${{ needs.detect.outputs.run_lint }}
@@ -156,9 +86,10 @@ jobs:
       macos_features: ${{ needs.detect.outputs.macos_features }}
       run_dist: ${{ needs.detect.outputs.run_dist }}
       version: ${{ needs.detect.outputs.release_tag || github.sha }}
+      image_tag: ${{ needs.detect.outputs.image_tag }}
     secrets: inherit
 
-  # ── Publish to GHCR + GitHub Release (only on release triggers) ───────────
+  # Publish to GHCR + GitHub Release (only on release triggers)
   cd:
     name: "CD"
     needs: [detect, ci]
