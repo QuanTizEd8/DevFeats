@@ -1,18 +1,22 @@
-*.pyc
-__pycache__/
+# Generated feature outputs
+/src/
 
-# Generated copies — assembled by scripts/sync-src.sh and the scripts/ sync suite.
-# Never commit these; CI regenerates them after checkout.
-src/
-
-# Distribution artifacts — built by scripts/build-artifacts.sh.
-/dist/
-/.local/
-
-# Sphinx documentation build output.
+# Generated documentation
 docs/features/
 docs/dev-guide/features/
+
+# Local development files
+/.local/
+
+# Distribution artifacts
+/dist/
+
+# Website build output
 docs/.build/
 
 # CI only: inner dockerd graph dir when using DinD in GHA job containers.
 .dind-docker/
+
+# Python cache files
+*.pyc
+__pycache__/
