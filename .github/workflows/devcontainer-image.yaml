@@ -1,23 +1,37 @@
-name: "Build & push devcontainer image"
+# Build and push a multi-arch devcontainer image to GHCR.
 
-# Rebuild and push the pre-built devcontainer image to GHCR whenever the
-# devcontainer definition changes, or on demand.
-# CI jobs that run inside the devcontainer pull ghcr.io/quantized8/sysset-devcontainer:latest.
+name: Devcontainer Image Deployment
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ".devcontainer/Dockerfile"
-      - ".devcontainer/devcontainer.json"
-      - ".devcontainer/setup-dev.sh"
-      - ".devcontainer/requirements.txt"
+  workflow_call:
+    inputs:
+      image_tag:
+        description: Image tag to push (e.g. 'latest' or 'branch-my-feature')
+        type: string
+        default: latest
+      config_dir:
+        description: Directory containing devcontainer.json
+        type: string
+        default: .devcontainer/.dev
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to push (e.g. 'latest' or 'branch-my-feature')
+        type: string
+        default: latest
+      config_dir:
+        description: Directory containing devcontainer.json
+        type: string
+        default: .devcontainer/.dev
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}-devcontainer
+  TAG: ${{ inputs.image_tag || 'latest' }}
 
 jobs:
   build:
-    name: "Build (${{ matrix.platform }})"
+    # Build and push separate images for each platform.
+    name: Build (${{ matrix.platform }})
     strategy:
       matrix:
         include:
@@ -31,6 +45,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      USERDATA_DIR: /tmp/devcontainer-userdata
 
     steps:
       - name: Repository Checkout
@@ -48,32 +64,34 @@ jobs:
         with:
           use: true
 
-      - name: Cache devcontainer user-data
+      - name: Caching
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        env:
+          CACHE_KEY: devcontainer-userdata-${{ matrix.platform_tag }}
         with:
-          path: /tmp/devcontainer-userdata
-          key: devcontainer-userdata-${{ matrix.platform_tag }}-${{ hashFiles('.devcontainer/Dockerfile', '.devcontainer/devcontainer.json', '.devcontainer/setup-dev.sh', '.devcontainer/requirements.txt') }}
-          restore-keys: devcontainer-userdata-${{ matrix.platform_tag }}-
+          path: ${{ env.USERDATA_DIR }}
+          key: ${{ env.CACHE_KEY }}-${{ hashFiles(format('{0}/**', inputs.config_dir)) }}
+          restore-keys: ${{ env.CACHE_KEY }}-
 
-      - name: Devcontainer Build & Push
+      - name: Build & Push
         uses: devcontainers/ci@b63b30de439b47a52267f241112c5b453b673db5 # v0.3.1900000449
+        env:
+          CACHE_REF: ${{ env.IMAGE }}:cache-${{ matrix.platform_tag }}
         with:
-          imageName: ghcr.io/quantized8/sysset-devcontainer
-          imageTag: "latest-${{ matrix.platform_tag }},sha-${{ github.sha }}-${{ matrix.platform_tag }}"
-          userDataFolder: /tmp/devcontainer-userdata
-          cacheFrom: ghcr.io/quantized8/sysset-devcontainer:cache-${{ matrix.platform_tag }}
-          cacheTo: type=registry,ref=ghcr.io/quantized8/sysset-devcontainer:cache-${{ matrix.platform_tag }},mode=max
-          push: filter
-          refFilterForPush: refs/heads/main
-          eventFilterForPush: |
-            push
-            workflow_dispatch
+          imageName: ${{ env.IMAGE }}
+          imageTag: "${{ env.TAG }}-${{ matrix.platform_tag }}"
+          configFile: ${{ inputs.config_dir }}/devcontainer.json
+          userDataFolder: ${{ env.USERDATA_DIR }}
+          cacheFrom: ${{ env.CACHE_REF }}
+          cacheTo: type=registry,ref=${{ env.CACHE_REF }},mode=max
+          push: always
 
   merge:
-    name: "Merge multi-arch manifest"
+    # Create and push a single multi-arch manifest
+    # that references both platform-specific images built in the previous job.
+    name: Multi-Arch Merge
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
@@ -91,16 +109,13 @@ jobs:
         with:
           use: true
 
-      - name: Create multi-arch manifests
+      - name: Manifest Creation & Push
         env:
-          IMAGE: ghcr.io/quantized8/sysset-devcontainer
           SHA: ${{ github.sha }}
         run: |
-          docker buildx imagetools create \
-            -t "${IMAGE}:latest" \
-            "${IMAGE}:latest-linux-amd64" \
-            "${IMAGE}:latest-linux-arm64"
-          docker buildx imagetools create \
-            -t "${IMAGE}:sha-${SHA}" \
-            "${IMAGE}:sha-${SHA}-linux-amd64" \
-            "${IMAGE}:sha-${SHA}-linux-arm64"
+          ARCH_IMAGES=("${IMAGE}:${TAG}-linux-amd64" "${IMAGE}:${TAG}-linux-arm64")
+          docker buildx imagetools create -t "${IMAGE}:${TAG}" "${ARCH_IMAGES[@]}"
+          # Push immutable sha tag only for latest (main-branch builds)
+          if [[ "${TAG}" == "latest" ]]; then
+            docker buildx imagetools create -t "${IMAGE}:sha-${SHA}" "${ARCH_IMAGES[@]}"
+          fi
