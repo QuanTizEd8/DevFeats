@@ -16,7 +16,6 @@ JUST_VERSION="1.50.0"
 
 # ── Parse --tools flag ─────────────────────────────────────────────────────────
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_REPO_ROOT="$(cd "${_SCRIPT_DIR}/.." && pwd)"
 
 _ALL_TOOLS="pyyaml jsonschema shfmt shellcheck just devcontainers-cli lefthook"
 _tools="${_ALL_TOOLS}"
