@@ -67,20 +67,12 @@
             "presentation": {"reveal": "always", "panel": "shared"}
         },
         {
-            "label": "docs-serve",
+            "label": "build-website-live",
             "detail": "Live-preview the docs with auto-rebuild",
             "type": "shell",
-            "command": "just docs-serve",
+            "command": "just build-website-live",
             "isBackground": true,
             "presentation": {"reveal": "always", "panel": "dedicated"}
-        },
-        {
-            "label": "install-dev",
-            "detail": "Install all development tools (idempotent)",
-            "type": "shell",
-            "command": "just install-dev",
-            "group": "build",
-            "presentation": {"reveal": "always", "panel": "shared"}
         },
         {
             "label": "watch-gha",
