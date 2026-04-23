@@ -1,5 +1,5 @@
 id: install-os-pkg
-version: 0.0.0
+version: 0.1.0
 name: OS Package Installation
 description: Install packages from the operating system's native package manager.
 keywords:

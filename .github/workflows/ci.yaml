@@ -231,6 +231,19 @@ jobs:
       - name: "Run unit tests"
         run: bash test/run-unit.sh
 
+      - name: "Run scripts/ unit tests (Python)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          # PyYAML is required by compute-bundle-tag.py; some runners already
+          # ship it, others don't. Try import first, then pip (with a
+          # PEP 668-safe fallback for externally-managed Python, e.g. 3.12+).
+          if ! python3 -c 'import yaml' >/dev/null 2>&1; then
+            python3 -m pip install --disable-pip-version-check --user pyyaml \
+              || python3 -m pip install --disable-pip-version-check --user --break-system-packages pyyaml
+          fi
+          python3 -m unittest discover -s test/scripts -t test/scripts -v
+
   # ── Unit tests (Linux distribution containers) ────────────────────────────
   unit-linux:
     name: "Unit tests (container / ${{ matrix.distro }})"

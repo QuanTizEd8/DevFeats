@@ -194,24 +194,33 @@ github__latest_tag() {
   return 1
 }
 
-# @brief github__release_tags <owner/repo> [--per_page N] — Print one release tag per line (newest first) from `/releases?per_page=N` (default 100).
+# @brief github__release_tags <owner/repo> [--per_page N] [--all] — Print one release tag per line (newest first) from `/releases?per_page=N` (default 100).
 #
 # Useful for version-matching against a list (grep/sort/tail in the caller).
+# Without --all: fetches only the first page (up to --per_page tags). With
+# --all: walks `page=1,2,...` until a page returns fewer than --per_page
+# items (short-page termination — simpler than Link-header parsing and
+# correct for idempotent helpers).
 #
 # Args:
 #   <owner/repo>   GitHub repository in "owner/repo" format.
 #   --per_page N   Releases per page to request (default: 100).
+#   --all          Paginate through every release (default: first page only).
 #
 # Stdout: one tag name per line, newest first.
 github__release_tags() {
   local _repo="$1"
   shift
-  local _per_page=100
+  local _per_page=100 _all=false
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --per_page)
         shift
         _per_page="$1"
+        shift
+        ;;
+      --all)
+        _all=true
         shift
         ;;
       *)
@@ -221,86 +230,178 @@ github__release_tags() {
     esac
   done
 
-  local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}"
+  if [ "$_all" = "false" ]; then
+    local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}"
+    _github__api_list_field "$_url" "tag_name" || {
+      echo "⛔ github__release_tags: failed to reach GitHub API for '${_repo}'." >&2
+      return 1
+    }
+    return 0
+  fi
 
-  _github__api_list_field "$_url" "tag_name" || {
+  _github__paginate_list_field \
+    "https://api.github.com/repos/${_repo}/releases" \
+    "tag_name" "$_per_page" || {
     echo "⛔ github__release_tags: failed to reach GitHub API for '${_repo}'." >&2
     return 1
   }
   return 0
 }
 
-# @brief github__resolve_version <owner/repo> [<version-spec>] — Resolve a partial or full version spec to an exact release tag.
+# @brief github__resolve_version <owner/repo> [<version-spec>] [--prefix <str>] [--all] — Resolve a partial or full version spec to an exact release tag.
 #
-# Version-spec forms:
-#   ""  / "latest"   → fetch the latest release tag (API call)
-#   "1" / "1.2"      → partial spec — fetch release list, return the newest tag
-#                      matching "^v<spec>." (single API call, per_page=100)
-#   "1.2.3"          → exact spec — return "v1.2.3" immediately (no API call)
-#   "v1.2.3"         → exact spec — return as-is (no API call)
+# Tag model: `<prefix><X.Y.Z>` (e.g. `v1.2.3`, `install-pixi/1.2.3`, `fzf-0.71.0`,
+# or bare `1.2.3` when prefix is empty). The caller decides the prefix; this
+# function knows nothing about "features" per se — composes cleanly with any
+# prefix scheme.
+#
+# Version-spec forms (<prefix> is the --prefix value):
+#   ""  / "latest"
+#       prefix="v"   → fetch /releases/latest (GitHub's marked-as-latest; fast
+#                      single API call). Preserves today's behaviour.
+#       prefix!="v"  → fetch the release list (paginated if --all) and take
+#                      the first tag whose name starts with <prefix>. This is
+#                      the only correct behaviour once prefixes partition the
+#                      tag space: /releases/latest is prefix-unaware.
+#   "X.Y.Z"          → exact spec — return "<prefix>X.Y.Z" immediately (no
+#                      API call).
+#   "X" or "X.Y"     → partial spec — fetch release list (paginated if --all)
+#                      and return the newest tag matching
+#                      "^<prefix><spec>.".
+#
+# Input normalisation (prefix="v" only): a leading "v" on <spec> is stripped
+# before analysis so "v1.2.3" and "1.2.3" are equivalent (legacy contract).
+# For non-"v" prefixes the spec is treated verbatim.
 #
 # Args:
-#   <owner/repo>    GitHub repository in "owner/repo" format.
-#   [<version-spec>] Version spec string (optional; defaults to latest).
+#   <owner/repo>       GitHub repository in "owner/repo" format.
+#   [<version-spec>]   Version spec string (optional; defaults to latest).
+#   --prefix <str>     Literal tag prefix (default: "v"). Treated verbatim:
+#                      "<prefix><X.Y.Z>" is the full tag.
+#   --all              Paginate through every release when listing is needed
+#                      (default: first page only).
 #
-# Stdout: resolved tag name (e.g. `v1.2.3`). Returns 1 if no match found.
+# Stdout: resolved tag name (e.g. `v1.2.3`, `install-pixi/1.2.3`). Returns 1
+# if no match found.
 github__resolve_version() {
   local _repo="$1"
-  local _spec="${2:-}"
+  shift
+  local _spec="" _prefix="v" _all=false _spec_set=false
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --prefix)
+        shift
+        _prefix="$1"
+        shift
+        ;;
+      --all)
+        _all=true
+        shift
+        ;;
+      --*)
+        echo "⛔ github__resolve_version: unknown option: '$1'" >&2
+        return 1
+        ;;
+      *)
+        if [ "$_spec_set" = "false" ]; then
+          _spec="$1"
+          _spec_set=true
+          shift
+        else
+          echo "⛔ github__resolve_version: unexpected positional argument: '$1'" >&2
+          return 1
+        fi
+        ;;
+    esac
+  done
 
+  # ── "latest" / empty spec ─────────────────────────────────────────────
   case "$_spec" in
     "" | latest)
-      github__latest_tag "$_repo"
-      return $?
+      if [ "$_prefix" = "v" ]; then
+        # Backward-compatible fast path via /releases/latest.
+        github__latest_tag "$_repo"
+        return $?
+      fi
+      # Non-"v" prefix: /releases/latest is prefix-unaware, so list+filter.
+      local _tags _matched=""
+      if [ "$_all" = "true" ]; then
+        _tags="$(github__release_tags "$_repo" --all)" || return 1
+      else
+        _tags="$(github__release_tags "$_repo")" || return 1
+      fi
+      _matched="$(printf '%s\n' "$_tags" | grep -m1 "^$(_github__escape_ere "$_prefix")")" || _matched=""
+      if [ -n "$_matched" ]; then
+        printf '%s\n' "$_matched"
+        return 0
+      fi
+      echo "⛔ github__resolve_version: no release found with prefix '${_prefix}' for '${_repo}'." >&2
+      return 1
       ;;
   esac
 
-  # Strip leading v for analysis.
-  local _stripped="${_spec#v}"
+  # ── Input normalisation ───────────────────────────────────────────────
+  # For prefix="v", preserve today's input-equivalence ("v1.2.3" == "1.2.3").
+  # For non-"v" prefixes, treat the spec verbatim.
+  local _stripped="$_spec"
+  if [ "$_prefix" = "v" ]; then
+    _stripped="${_spec#v}"
+  fi
 
-  # Count dots to determine if this is an exact or partial spec.
+  # ── Exact (3-part) spec ───────────────────────────────────────────────
   local _dots
   _dots="$(printf '%s' "$_stripped" | tr -cd '.' | wc -c | tr -d ' ')"
-
   if [ "$_dots" -ge 2 ]; then
-    # Exact three-part version — normalise to v<stripped> and return without an API call.
-    printf 'v%s\n' "$_stripped"
+    printf '%s%s\n' "$_prefix" "$_stripped"
     return 0
   fi
 
-  # Partial spec (MAJOR or MAJOR.MINOR) — fetch release list and find the newest match.
-  local _escaped _matched
-  _escaped="$(printf '%s' "$_stripped" | sed 's/\./\\./g')"
-  _matched="$(github__release_tags "$_repo" | grep "^v${_escaped}\." | head -1)" || _matched=""
+  # ── Partial spec — fetch release list and filter ──────────────────────
+  local _escaped_prefix _escaped_stripped _tags _matched=""
+  _escaped_prefix="$(_github__escape_ere "$_prefix")"
+  _escaped_stripped="$(printf '%s' "$_stripped" | sed 's/\./\\./g')"
+  if [ "$_all" = "true" ]; then
+    _tags="$(github__release_tags "$_repo" --all)" || return 1
+  else
+    _tags="$(github__release_tags "$_repo")" || return 1
+  fi
+  _matched="$(printf '%s\n' "$_tags" \
+    | grep -m1 "^${_escaped_prefix}${_escaped_stripped}\.")" || _matched=""
 
   if [ -n "$_matched" ]; then
     printf '%s\n' "$_matched"
     return 0
   fi
 
-  echo "⛔ github__resolve_version: no release found matching '${_spec}' for '${_repo}'." >&2
+  echo "⛔ github__resolve_version: no release found matching '${_spec}' (prefix: '${_prefix}') for '${_repo}'." >&2
   return 1
 }
 
-# @brief github__tags <owner/repo> [--per_page N] — Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release.
+# @brief github__tags <owner/repo> [--per_page N] [--all] — Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release.
 #
 # Unlike github__release_tags (which uses /releases), this endpoint includes
 # all git tags, including lightweight ones not associated with a release.
+# See github__release_tags for the --all semantics (page-until-short).
 #
 # Args:
 #   <owner/repo>   GitHub repository in "owner/repo" format.
 #   --per_page N   Tags per page to request (default: 100).
+#   --all          Paginate through every tag (default: first page only).
 #
 # Stdout: one tag name per line.
 github__tags() {
   local _repo="$1"
   shift
-  local _per_page=100
+  local _per_page=100 _all=false
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --per_page)
         shift
         _per_page="$1"
+        shift
+        ;;
+      --all)
+        _all=true
         shift
         ;;
       *)
@@ -310,9 +411,18 @@ github__tags() {
     esac
   done
 
-  local _url="https://api.github.com/repos/${_repo}/tags?per_page=${_per_page}"
+  if [ "$_all" = "false" ]; then
+    local _url="https://api.github.com/repos/${_repo}/tags?per_page=${_per_page}"
+    _github__api_list_field "$_url" "name" || {
+      echo "⛔ github__tags: failed to reach GitHub API for '${_repo}'." >&2
+      return 1
+    }
+    return 0
+  fi
 
-  _github__api_list_field "$_url" "name" || {
+  _github__paginate_list_field \
+    "https://api.github.com/repos/${_repo}/tags" \
+    "name" "$_per_page" || {
     echo "⛔ github__tags: failed to reach GitHub API for '${_repo}'." >&2
     return 1
   }
@@ -554,6 +664,101 @@ _github__api_list_field() {
   _json="$(_github__api_get "$_url")" || return 1
   [ -z "$_json" ] && return 1
   printf '%s\n' "$_json" | json__array_field_lines_stdin "$_field"
+}
+
+# _github__paginate_list_field <base_url> <field> <per_page>  (internal)
+#
+# Walks pages 1..N of a GitHub list endpoint (one that accepts `page=` and
+# `per_page=`), extracting <field> from every array element, until a page
+# returns fewer than <per_page> items (short-page termination). Prints every
+# extracted value on stdout. Returns 0 when at least one value was printed,
+# 1 when the first page fails to fetch (same contract as
+# _github__api_list_field for the single-page case).
+#
+# Args:
+#   <base_url>  API URL without the page/per_page query string.
+#   <field>     JSON field to extract from each array element.
+#   <per_page>  Page size; also the short-page threshold.
+_github__paginate_list_field() {
+  local _base="$1"
+  local _field="$2"
+  local _per_page="$3"
+  local _page=1 _json _count _got_any=false
+
+  while :; do
+    local _sep='?'
+    case "$_base" in *\?*) _sep='&' ;; esac
+    local _url="${_base}${_sep}per_page=${_per_page}&page=${_page}"
+    _json="$(_github__api_get "$_url")" || {
+      [ "$_got_any" = "true" ] && return 0
+      return 1
+    }
+    if [ -z "$_json" ]; then
+      [ "$_got_any" = "true" ] && return 0
+      return 1
+    fi
+    local _values
+    _values="$(printf '%s\n' "$_json" | json__array_field_lines_stdin "$_field")" || _values=""
+    if [ -n "$_values" ]; then
+      printf '%s\n' "$_values"
+      _got_any=true
+    fi
+    # Count items on this page to decide whether to continue. We count the
+    # top-level array length (not the extracted field count) so that objects
+    # missing the requested field don't trigger false-positive short-page
+    # termination.
+    _count="$(printf '%s\n' "$_json" | _github__count_top_level_array)" || _count=0
+    [ -z "$_count" ] && _count=0
+    if [ "$_count" -lt "$_per_page" ]; then
+      [ "$_got_any" = "true" ] && return 0
+      return 1
+    fi
+    _page=$((_page + 1))
+  done
+}
+
+# _github__count_top_level_array  (internal)
+#
+# Reads a JSON array on stdin and prints its top-level element count.
+# Tries jq, then python3, then a best-effort `grep -c '^{'`-style fallback
+# for line-separated object streams (as produced by our other helpers when
+# jq/python3 are absent).
+_github__count_top_level_array() {
+  local _json
+  _json="$(cat)"
+  if command -v jq > /dev/null 2>&1; then
+    printf '%s' "$_json" | jq 'length' 2> /dev/null && return 0
+  fi
+  if command -v python3 > /dev/null 2>&1; then
+    printf '%s' "$_json" | python3 -c '
+import json, sys
+try:
+    data = json.loads(sys.stdin.read())
+except Exception:
+    sys.exit(1)
+if isinstance(data, list):
+    print(len(data))
+else:
+    sys.exit(1)
+' 2> /dev/null && return 0
+  fi
+  # Fallback: count occurrences of top-level object open-brace. This is a
+  # best-effort heuristic that matches the output format of our grep/sed
+  # fallback in json.sh (one object per line). Over-counts are harmless —
+  # the loop just runs an extra empty page before terminating.
+  printf '%s\n' "$_json" | grep -c '^[[:space:]]*{' || true
+}
+
+# _github__escape_ere <str>  (internal)
+#
+# Prints <str> with regex meta-characters escaped so it can be safely used
+# as a literal prefix/substring inside `grep` / `grep -E` patterns. Covers
+# both BRE and ERE metacharacters.
+_github__escape_ere() {
+  # Chars escaped: \ . ^ $ * + ? ( ) { } | [ ]
+  # ']' must come first inside the bracket expression; '\\' is escaped as
+  # '\\\\' in the sed replacement to produce a single backslash.
+  printf '%s' "$1" | sed 's/[][\\.^$*+?(){}|]/\\&/g'
 }
 
 # _github__api_get <url> [<dest_file>]  (internal)

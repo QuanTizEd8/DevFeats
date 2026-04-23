@@ -737,3 +737,230 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
   run github__resolve_version "owner/repo" ""
   assert_failure
 }
+
+# ---------------------------------------------------------------------------
+# github__resolve_version — --prefix option (generalized tag-prefix support)
+# ---------------------------------------------------------------------------
+
+@test "github__resolve_version --prefix 'install-pixi/' exact 3-part spec returns immediately" {
+  github__release_tags() { return 1; }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "1.2.3" --prefix "install-pixi/"
+  assert_success
+  assert_output "install-pixi/1.2.3"
+}
+
+@test "github__resolve_version --prefix 'install-pixi/' MAJOR partial resolves to newest matching tag" {
+  github__release_tags() {
+    printf 'install-pixi/1.3.0\ninstall-pixi/1.2.3\ninstall-shell/0.1.0\nv5.0.0\n'
+    return 0
+  }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "1" --prefix "install-pixi/"
+  assert_success
+  assert_output "install-pixi/1.3.0"
+}
+
+@test "github__resolve_version --prefix 'install-pixi/' MAJOR.MINOR partial resolves correctly" {
+  github__release_tags() {
+    printf 'install-pixi/1.3.0\ninstall-pixi/1.2.3\ninstall-pixi/1.2.2\n'
+    return 0
+  }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "1.2" --prefix "install-pixi/"
+  assert_success
+  assert_output "install-pixi/1.2.3"
+}
+
+@test "github__resolve_version --prefix 'install-pixi/' empty spec uses list+filter (skips /releases/latest)" {
+  # github__latest_tag must NOT be called for non-"v" prefixes — list+filter only.
+  github__latest_tag() {
+    echo "⛔ unexpected /releases/latest call" >&2
+    return 1
+  }
+  github__release_tags() {
+    printf 'install-pixi/1.3.0\ninstall-pixi/1.2.3\nv5.0.0\n'
+    return 0
+  }
+  export -f github__latest_tag github__release_tags
+  run github__resolve_version "owner/repo" "" --prefix "install-pixi/"
+  assert_success
+  assert_output "install-pixi/1.3.0"
+}
+
+@test "github__resolve_version --prefix 'install-pixi/' ignores foreign feature tags" {
+  github__release_tags() {
+    printf 'install-shell/0.1.0\nv5.0.0\ninstall-pixi/1.0.0\n'
+    return 0
+  }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "" --prefix "install-pixi/"
+  assert_success
+  assert_output "install-pixi/1.0.0"
+}
+
+@test "github__resolve_version --prefix 'install-pixi/' returns error when no tag matches" {
+  github__release_tags() {
+    printf 'install-shell/0.1.0\nv5.0.0\n'
+    return 0
+  }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "9" --prefix "install-pixi/"
+  assert_failure
+  assert_output --partial "no release found matching '9'"
+}
+
+@test "github__resolve_version default prefix still hits /releases/latest on empty spec" {
+  github__latest_tag() {
+    printf 'v3.0.1\n'
+    return 0
+  }
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo" ""
+  assert_success
+  assert_output "v3.0.1"
+}
+
+@test "github__resolve_version default prefix MAJOR partial resolves unchanged" {
+  github__release_tags() {
+    printf 'v5.0.0\nv2.9.1\n'
+    return 0
+  }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "5"
+  assert_success
+  assert_output "v5.0.0"
+}
+
+@test "github__resolve_version --prefix treats non-v prefix verbatim (no 'v' strip)" {
+  # With prefix="fzf-" and spec="1.2.3", output must be "fzf-1.2.3" not "fzf-v1.2.3".
+  github__release_tags() { return 1; }
+  export -f github__release_tags
+  run github__resolve_version "owner/repo" "1.2.3" --prefix "fzf-"
+  assert_success
+  assert_output "fzf-1.2.3"
+}
+
+@test "github__resolve_version rejects unknown option" {
+  run github__resolve_version "owner/repo" "" --bogus
+  assert_failure
+  assert_output --partial "unknown option"
+}
+
+# ---------------------------------------------------------------------------
+# github__release_tags --all pagination
+# ---------------------------------------------------------------------------
+
+@test "github__release_tags --all walks pages until a short page" {
+  # Fake _github__api_get returns 100-item page 1, 3-item page 2, empty page 3.
+  _github__api_get() {
+    case "$1" in
+      *page=1*)
+        local i
+        printf '['
+        for i in $(seq 1 100); do
+          [ "$i" -gt 1 ] && printf ','
+          printf '{"tag_name":"p1-%d"}' "$i"
+        done
+        printf ']\n'
+        return 0
+        ;;
+      *page=2*)
+        printf '[{"tag_name":"p2-1"},{"tag_name":"p2-2"},{"tag_name":"p2-3"}]\n'
+        return 0
+        ;;
+      *)
+        printf '[]\n'
+        return 0
+        ;;
+    esac
+  }
+  export -f _github__api_get
+  run github__release_tags "owner/repo" --all
+  assert_success
+  # Expect 103 lines total.
+  [ "${#lines[@]}" -eq 103 ]
+  [ "${lines[0]}" = "p1-1" ]
+  [ "${lines[99]}" = "p1-100" ]
+  [ "${lines[100]}" = "p2-1" ]
+  [ "${lines[102]}" = "p2-3" ]
+}
+
+@test "github__release_tags without --all fetches only first page" {
+  _github__api_get() {
+    case "$1" in
+      *page=*)
+        echo "⛔ unexpected paginated call: $1" >&2
+        return 1
+        ;;
+      *per_page=100*)
+        printf '[{"tag_name":"only-1"},{"tag_name":"only-2"}]\n'
+        return 0
+        ;;
+    esac
+  }
+  export -f _github__api_get
+  run github__release_tags "owner/repo"
+  assert_success
+  assert_output "only-1
+only-2"
+}
+
+@test "github__release_tags --all short single page terminates after one request" {
+  # 50 items on page=1 with per_page=100 → short page → terminate without
+  # fetching page=2.
+  _github__api_get() {
+    case "$1" in
+      *page=1*)
+        local i
+        printf '['
+        for i in $(seq 1 50); do
+          [ "$i" -gt 1 ] && printf ','
+          printf '{"tag_name":"t%d"}' "$i"
+        done
+        printf ']\n'
+        return 0
+        ;;
+      *)
+        echo "⛔ unexpected subsequent page request: $1" >&2
+        return 1
+        ;;
+    esac
+  }
+  export -f _github__api_get
+  run github__release_tags "owner/repo" --all
+  assert_success
+  [ "${#lines[@]}" -eq 50 ]
+  [ "${lines[0]}" = "t1" ]
+  [ "${lines[49]}" = "t50" ]
+}
+
+@test "github__tags --all walks pages until a short page" {
+  _github__api_get() {
+    case "$1" in
+      *page=1*)
+        local i
+        printf '['
+        for i in $(seq 1 100); do
+          [ "$i" -gt 1 ] && printf ','
+          printf '{"name":"t1-%d"}' "$i"
+        done
+        printf ']\n'
+        return 0
+        ;;
+      *page=2*)
+        printf '[{"name":"t2-1"},{"name":"t2-2"}]\n'
+        return 0
+        ;;
+      *)
+        printf '[]\n'
+        return 0
+        ;;
+    esac
+  }
+  export -f _github__api_get
+  run github__tags "owner/repo" --all
+  assert_success
+  [ "${#lines[@]}" -eq 102 ]
+  [ "${lines[101]}" = "t2-2" ]
+}

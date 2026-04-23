@@ -1,6 +1,6 @@
 id: install-conda-env
 name: Conda Environment Installation
-version: 0.0.0
+version: 0.1.0
 description: Create or update [Conda](https://conda.io/) environments from environment files or inline package specifications.
 keywords:
 - conda

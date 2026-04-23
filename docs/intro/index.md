@@ -78,34 +78,86 @@ sh get.sh install-shell --set_user_shells zsh
 sh get.sh setup-user --username dev
 ```
 
-### Pinning the sysset release version
+### Pinning a feature version
 
-By default, `get.sh` downloads the latest sysset release. To pin to a specific release, append `@<version>` to the feature name. Partial semver is supported: `@1` resolves to the latest `v1.x.x`, `@1.2` resolves to the latest `v1.2.x`.
+Every feature is versioned and released independently. By default, `get.sh` installs each feature's latest published release. To pin a specific feature to a specific version, append `@<version>` to the feature name. Partial semver is supported: `@1` resolves to the latest `1.x.x`, `@1.2` resolves to the latest `1.2.x`.
 
 ```sh
-# Pin to the latest v1.x release
+# Pin install-pixi to the latest 1.x release
 sh get.sh install-pixi@1
 
-# Pin to the latest v1.2.x release
+# Pin install-pixi to the latest 1.2.x release
 sh get.sh install-pixi@1.2
 
-# Pin to an exact release
+# Pin install-pixi to an exact release
 sh get.sh install-pixi@1.2.3
 
-# Pin the sysset release AND pass --version to the pixi installer
+# Pin install-pixi AND pass --version to its installer
 sh get.sh install-pixi@1.2 --version 0.66.0
 ```
 
-The `@version` pin applies only to which sysset release tarball is downloaded. Feature options (like `--version 0.66.0` above) are passed through to the installer unchanged.
+The `@version` pin only affects which sysset tarball is downloaded for that feature. Feature options (like `--version 0.66.0` above) are passed through to the installer unchanged. Other features installed in the same run are resolved independently.
+
+Under the hood, per-feature releases are published with the Git tag scheme `<feature-id>/<X.Y.Z>` (e.g. `install-pixi/1.2.3`). Each release ships exactly one asset, `sysset-<feature-id>.tar.gz`.
+
+### Pinning the bundle version
+
+Every CD run also publishes an accumulator-tagged **bundle release** — a single `v<X.Y.Z>` tag whose version is derived from the highest per-feature bump in that run. Each bundle release contains:
+
+- `sysset-all.tar.gz` — every feature's tarball, flat layout.
+- `manifest.yaml` — a machine-readable map of the feature versions contained in this bundle (used by `get.bash` for pin resolution).
+
+Set `SYSSET_VERSION` to pin every feature installed in a run to the versions listed in that bundle's `manifest.yaml`:
+
+```sh
+# Pin every feature to the versions shipped in bundle v1.2.0
+SYSSET_VERSION=v1.2.0 sh get.sh install-pixi install-shell
+
+# Partial specs and 'latest' also work — resolved against v* bundle tags
+SYSSET_VERSION=v1.2  sh get.sh install-pixi
+SYSSET_VERSION=v1    sh get.sh install-pixi
+SYSSET_VERSION=latest sh get.sh install-pixi
+```
+
+Or inside a manifest via a top-level `version:` key (see [Manifest-driven installation](#manifest-driven-installation)):
+
+```yaml
+version: v1.2.0       # pin all features to the bundle's manifest
+features:
+  - id: install-pixi
+  - id: install-shell
+```
+
+A per-feature `@<version>` override always wins over a bundle pin — useful to take a point-fix on a single feature without giving up the pinned set for the others:
+
+```sh
+# Pin everything to v1.2.0, except install-pixi which rolls to its latest 1.4.x
+SYSSET_VERSION=v1.2.0 sh get.sh install-pixi@1.4 install-shell
+```
+
+**When to use which:**
+
+| Mode | Use when |
+|---|---|
+| Rolling (no pin) | Dev loops; always want the latest of each feature. |
+| Per-feature `@spec` | Reproduce a specific feature version (hotfix, bisect). |
+| Bundle `SYSSET_VERSION` | Reproducible multi-feature snapshot; offline/air-gapped setups. |
 
 ### Running a single feature tarball directly
 
-Every release publishes a self-contained tarball per feature. Download and extract it to run entirely offline, or to inspect its contents before running:
+Every per-feature release ships a self-contained tarball. Download and extract it to run entirely offline, or to inspect its contents before running:
 
 ```sh
-curl -fsSL https://github.com/quantized8/sysset/releases/latest/download/sysset-install-pixi.tar.gz \
+# Exact per-feature release (tag scheme: <feature>/<X.Y.Z>)
+curl -fsSL https://github.com/quantized8/sysset/releases/download/install-pixi/1.2.3/sysset-install-pixi.tar.gz \
   | tar xz -C /tmp/pixi
 sh /tmp/pixi/install.sh --version 0.66.0
+```
+
+To fetch the latest of a single feature without knowing the version up-front, use the bundle's `manifest.yaml` as an index (see [Offline / air-gapped use](#offline--air-gapped-use)) or let `get.sh` do the resolution:
+
+```sh
+sh get.sh install-pixi
 ```
 
 The tarball contains:
@@ -127,7 +179,7 @@ To install multiple features in one invocation, pass a manifest file to `get.sh`
 
 ```jsonc
 {
-  "version": "1",                    // optional — pin all features to sysset v1.x
+  "version": "v1.2.0",               // optional — pin all features to bundle v1.2.0's manifest
   "override_install_order": false,   // true to keep manifest order instead of canonical order
   "features": [
     { "id": "setup-user",        "options": { "username": "dev" } },
@@ -143,7 +195,7 @@ To install multiple features in one invocation, pass a manifest file to `get.sh`
 **YAML** (requires `yq`; auto-installed if absent):
 
 ```yaml
-version: "1"
+version: v1.2.0           # optional — bundle pin (applies to every feature by default)
 override_install_order: false
 features:
   - id: setup-user
@@ -154,12 +206,12 @@ features:
       set_user_shells: zsh
       ohmyzsh_theme: romkatv/powerlevel10k
   - id: install-pixi
-    version: "1.2"       # per-feature sysset version pin
+    version: "1.4"         # per-feature override (takes precedence over the bundle pin)
     options:
-      version: "0.66.0"  # pixi version (passed to the installer)
+      version: "0.66.0"    # pixi version (passed to the installer)
 ```
 
-**Version priority (highest to lowest):** per-feature `"version"` key → manifest top-level `"version"` key → latest release.
+**Version priority (highest to lowest):** per-feature `"version"` (a `<feature>/<X.Y.Z>` spec — rolling mode) → manifest top-level `"version"` (a bundle `v<X.Y.Z>` spec) → `SYSSET_VERSION` env var (also a bundle spec) → each feature's latest per-feature release.
 
 ### Running a manifest
 
@@ -222,38 +274,57 @@ Features not in this list are appended at the end in the order they appear in th
 | Variable | Description |
 |---|---|
 | `SYSSET_RAW_BASE` | Raw GitHub base URL. Default: `https://raw.githubusercontent.com/quantized8/sysset/main`. Override to use a fork or local mirror. |
-| `SYSSET_BASE_URL` | GitHub Releases base URL for feature tarballs. Default: `https://github.com/quantized8/sysset/releases/download`. Override for offline use (see below). |
+| `SYSSET_BASE_URL` | GitHub Releases base URL for feature tarballs. Default: `https://github.com/quantized8/sysset/releases/download`. URLs are constructed as `<base>/<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` for per-feature releases and `<base>/v<X.Y.Z>/manifest.yaml` for bundle manifests. Override for offline use (see below). |
+| `SYSSET_VERSION` | Pin every feature installed in this run to the versions listed in the given bundle release (e.g. `v1.2.0`, `v1.2`, `v1`, or `latest`). Equivalent to a top-level `version:` key in a manifest. Per-feature `@<spec>` overrides still win. |
 | `SYSSET_FETCH_TOOL` | Force `curl` or `wget`. Auto-detected when unset. |
 
 ---
 
 ## Offline / air-gapped use
 
-Download the all-in-one bundle from the release you want to use. It contains all per-feature tarballs in a flat layout.
+Each CD run publishes an accumulator-tagged **bundle release** (`v<X.Y.Z>`) whose assets are `sysset-all.tar.gz` (every feature's tarball, flat layout) and `manifest.yaml` (the canonical per-feature version map for that bundle). Pick the bundle you want to freeze against — or use the latest:
 
 ```sh
-# Download and extract the bundle
-VERSION=v1.2.3
+# Pick a bundle and fetch its two assets
+VERSION=v1.2.0
 curl -fsSL "https://github.com/quantized8/sysset/releases/download/${VERSION}/sysset-all.tar.gz" \
   | tar xz -C /opt/sysset
+curl -fsSL "https://github.com/quantized8/sysset/releases/download/${VERSION}/manifest.yaml" \
+  -o /opt/sysset/manifest.yaml
 
-# Run individual tarballs directly (fully offline)
-sh /opt/sysset/sysset-install-pixi.tar.gz      # won't work — extract first
+# Run an individual feature tarball directly
 tar xz -C /tmp/pixi < /opt/sysset/sysset-install-pixi.tar.gz
 sh /tmp/pixi/install.sh --version 0.66.0
 ```
 
-For manifest-driven offline installs, point `SYSSET_BASE_URL` at a directory tree structured as `<base>/<tag>/sysset-<feature>.tar.gz`. Create that layout from the extracted bundle:
+For manifest-driven offline installs, build a local mirror that mirrors the GitHub Releases URL layout (`<base>/<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` for per-feature assets and `<base>/v<X.Y.Z>/manifest.yaml` for the bundle manifest), then point `SYSSET_BASE_URL` at it:
 
 ```sh
-VERSION=v1.2.3
-mkdir -p /opt/sysset-mirror/${VERSION}
-cp /opt/sysset/sysset-*.tar.gz /opt/sysset-mirror/${VERSION}/
+VERSION=v1.2.0
 
-# Now use get.sh with the local mirror
+# Build the mirror layout from the extracted bundle + manifest.yaml.
+mkdir -p /opt/sysset-mirror/${VERSION}
+cp /opt/sysset/manifest.yaml /opt/sysset-mirror/${VERSION}/
+
+# Stage each per-feature tarball under <feature>/<X.Y.Z>/.
+python3 - <<'PY'
+import pathlib, shutil, yaml
+m = yaml.safe_load(pathlib.Path("/opt/sysset/manifest.yaml").read_text())
+root = pathlib.Path("/opt/sysset-mirror")
+src  = pathlib.Path("/opt/sysset")
+for feat, ver in m["features"].items():
+    dst = root / feat / ver
+    dst.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src / f"sysset-{feat}.tar.gz", dst / f"sysset-{feat}.tar.gz")
+PY
+
+# Use get.sh with the local mirror, pinned to the bundle.
 SYSSET_BASE_URL="file:///opt/sysset-mirror" \
+SYSSET_VERSION="${VERSION}" \
   sh get.sh my-setup.json
 ```
+
+With `SYSSET_VERSION` set, `get.sh` first fetches `manifest.yaml` from the mirror, then resolves each feature's version from it before downloading `<feature>/<X.Y.Z>/sysset-<feature>.tar.gz`. This keeps the install fully reproducible.
 
 `get.sh` itself still downloads `get.bash` and `lib/*.sh` from `SYSSET_RAW_BASE` (raw GitHub). For a fully air-gapped environment, also override that:
 
@@ -261,6 +332,7 @@ SYSSET_BASE_URL="file:///opt/sysset-mirror" \
 # Serve the repo locally, then:
 SYSSET_RAW_BASE="http://my-mirror.internal/sysset" \
 SYSSET_BASE_URL="file:///opt/sysset-mirror" \
+SYSSET_VERSION="v1.2.0" \
   sh get.sh my-setup.json
 ```
 

@@ -15,18 +15,32 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-_PORT=18536
-_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
+_BUNDLE="v99.99.0-test"
+_VER="99.99.0-test"
+_MIRROR="${REPO_ROOT}/test-mirror-sysset-override-order"
+mkdir -p "${_MIRROR}/${_BUNDLE}"
+for _f in install-pixi install-os-pkg; do
+  mkdir -p "${_MIRROR}/${_f}/${_VER}"
+  cp "${DIST}/sysset-${_f}.tar.gz" "${_MIRROR}/${_f}/${_VER}/"
+done
+cat > "${_MIRROR}/${_BUNDLE}/manifest.yaml" << EOF
+bundle: ${_BUNDLE}
+prior_bundle: v0.0.0
+generated_at: "1970-01-01T00:00:00Z"
+features:
+  install-pixi: ${_VER}
+  install-os-pkg: ${_VER}
+EOF
+
+_PORT=18543
 _logfile="$(mktemp)"
 _manifest_dir="$(mktemp -d)"
-mkdir -p "${DIST}/${_TEST_VERSION}"
-cp "${DIST}"/sysset-*.tar.gz "${DIST}/${_TEST_VERSION}/"
-trap 'stop_file_server; rm -rf "${DIST}/${_TEST_VERSION}" "$_logfile" "$_manifest_dir"' EXIT
+trap 'stop_file_server; rm -rf "${_MIRROR}" "$_logfile" "$_manifest_dir"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
-export SYSSET_VERSION="$_TEST_VERSION"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
+export SYSSET_VERSION="${_BUNDLE}"
 
 _manifest="${_manifest_dir}/manifest.json"
 cat > "$_manifest" << EOF

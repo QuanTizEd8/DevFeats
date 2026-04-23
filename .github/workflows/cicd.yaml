@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   pull_request:
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Release tag to publish (leave empty for test-only run)"
+      feature:
+        description: "Feature id to publish (e.g. install-pixi). Leave empty to run CI only."
+        required: false
+      version:
+        description: "Feature version to publish (e.g. 1.2.3). Required together with 'feature'."
         required: false
 
 jobs:
@@ -31,7 +32,7 @@ jobs:
       macos_features: ${{ steps.detect.outputs.macos_features }}
       run_dist: ${{ steps.detect.outputs.run_dist }}
       is_release: ${{ steps.detect.outputs.is_release }}
-      release_tag: ${{ steps.detect.outputs.release_tag }}
+      features_to_release: ${{ steps.detect.outputs.features_to_release }}
       build_image: ${{ steps.detect.outputs.build_image }}
       image_tag: ${{ steps.detect.outputs.image_tag }}
     steps:
@@ -49,9 +50,11 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           BASE_REF: ${{ github.base_ref }}
           BEFORE: ${{ github.event.before }}
-          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_FEATURE: ${{ inputs.feature }}
+          INPUT_VERSION: ${{ inputs.version }}
           REPO_OWNER: ${{ github.repository_owner }}
           REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .github/workflows/scripts/cicd_detect.sh
 
   # Build devcontainer image (when needed)
@@ -85,11 +88,11 @@ jobs:
       run_macos: ${{ needs.detect.outputs.run_macos }}
       macos_features: ${{ needs.detect.outputs.macos_features }}
       run_dist: ${{ needs.detect.outputs.run_dist }}
-      version: ${{ needs.detect.outputs.release_tag || github.sha }}
+      version: ${{ github.sha }}
       image_tag: ${{ needs.detect.outputs.image_tag }}
     secrets: inherit
 
-  # Publish to GHCR + GitHub Release (only on release triggers)
+  # Publish to GHCR + GitHub Releases (only when features_to_release is non-empty)
   cd:
     name: "CD"
     needs: [detect, ci]
@@ -100,5 +103,5 @@ jobs:
       packages: write
     uses: ./.github/workflows/cd.yaml
     with:
-      release_tag: ${{ needs.detect.outputs.release_tag }}
+      features_to_release: ${{ needs.detect.outputs.features_to_release }}
     secrets: inherit

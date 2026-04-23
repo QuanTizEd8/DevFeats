@@ -90,6 +90,29 @@ build-dist version="": sync
     bash scripts/build-artifacts.sh {{version}}
 
 
+[
+  group('build'),
+  doc('Preview which features need a new GitHub Release (queries the GitHub API).')
+]
+detect-releasable repo="quantized8/sysset":
+    python3 scripts/detect-releasable.py --repo {{repo}}
+
+
+[
+  group('build'),
+  doc('Preview the next bundle tag, release notes, or manifest (modes: default|notes|manifest).')
+]
+compute-bundle-tag mode="default" repo="quantized8/sysset":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{mode}}" in
+      default) python3 scripts/compute-bundle-tag.py --repo {{repo}} ;;
+      notes)   python3 scripts/compute-bundle-tag.py --repo {{repo}} --notes-body ;;
+      manifest) python3 scripts/compute-bundle-tag.py --repo {{repo}} --manifest ;;
+      *) echo "mode must be one of: default|notes|manifest" >&2; exit 1 ;;
+    esac
+
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 
 [
@@ -98,6 +121,16 @@ build-dist version="": sync
 ]
 test-unit:
     bash test/run-unit.sh
+
+
+[
+  group('testing'),
+  doc('Run Python unit tests for scripts/ (stdlib unittest; no extra deps beyond PyYAML).')
+]
+test-scripts:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    python3 -m unittest discover -s test/scripts -t test/scripts -v
 
 
 [

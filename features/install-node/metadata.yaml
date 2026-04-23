@@ -1,5 +1,5 @@
 id: install-node
-version: 0.0.0
+version: 0.1.0
 name: Node.js Installation
 description: Install [Node.js](https://nodejs.org/) via [nvm](https://github.com/nvm-sh/nvm) or from a prebuilt binary tarball.
 keywords:

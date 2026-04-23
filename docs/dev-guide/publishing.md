@@ -6,15 +6,15 @@ once they are ready for release.
 
 ## Versioning
 
-Each feature is versioned independently via the `"version"` field in its
-`devcontainer-feature.json`. Versions follow [semver](https://semver.org):
+Each feature is versioned **independently** via the `version` field in its
+`metadata.yaml` (which is also copied to its generated
+`devcontainer-feature.json`). Versions follow [semver](https://semver.org):
 
-```jsonc
-{
-  "id": "install-shell",
-  "version": "0.1.0",
-  ...
-}
+```yaml
+id: install-shell
+version: 0.1.0
+name: "Install shell"
+...
 ```
 
 When making a change:
@@ -31,46 +31,157 @@ A published feature is usually pinned by major version in consumers' `devcontain
 
 The `:0` tag always resolves to the latest `0.x.y` release.
 
----
+
+### Version-bump discipline (CI guard)
+
+Because `lib/` is embedded into every feature tarball as `_lib/`, a change
+in `lib/` semantically affects every feature's payload. A CI lint enforces
+the following rule on pull requests:
+
+> Any PR that touches `lib/`, `features/bootstrap.sh`, or a `features/<id>/`
+> directory must bump the `version` in the corresponding `metadata.yaml`
+> file(s). For `lib/` and `features/bootstrap.sh` changes, **every** feature
+> that embeds the changed file must be bumped (in practice: all of them).
+
+The guard is implemented in
+[`.github/workflows/scripts/cicd_detect.sh`](../../.github/workflows/scripts/cicd_detect.sh)
+and runs as part of the `detect` job in `cicd.yaml`. A failed check names
+the features that need a bump.
+
+
+## Release identity
+
+Each feature has its own release identity:
+
+- **Tag scheme:** `<feature-id>/<X.Y.Z>` (e.g. `install-pixi/1.2.3`).
+- **GitHub Release** per tag, shipping exactly one asset:
+  `sysset-<feature-id>.tar.gz`.
+- **GHCR tag** per version:
+  `ghcr.io/quantized8/sysset/<feature-id>:<major>`, `:<major.minor>`, and
+  `:<major.minor.patch>`.
+
+Each CD run also produces an **accumulator-tagged bundle release**
+(`v<X.Y.Z>`) whose assets are:
+
+- `sysset-all.tar.gz` — every feature's tarball, flat layout.
+- `manifest.yaml` — a machine-readable map of the feature versions
+  contained in this bundle (consumed by `get.bash` for bundle pinning).
+
+The bundle's global semver is derived from the highest per-feature bump in
+the run; see [Bundle accumulator](#bundle-accumulator) below.
+
 
 ## Publishing via GitHub Actions
 
-Features are published to [GitHub Container Registry (GHCR)](https://ghcr.io)
-and a GitHub Release is created by the `cd.yaml` reusable workflow, which is
-called from the `cicd.yaml` orchestrator. The publish job:
+Publication is driven by pushes to `main`. The
+[`cicd.yaml`](../../.github/workflows/cicd.yaml) orchestrator runs the
+[`detect`](../../.github/workflows/scripts/cicd_detect.sh) step which calls
+[`scripts/detect-releasable.py`](../../scripts/detect-releasable.py):
 
-1. Runs `bash scripts/sync-src.sh` to ensure every feature has up-to-date `_lib/`
-   copies and `install.sh` before packaging.
-2. Runs `bash scripts/build-artifacts.sh <tag>` to produce per-feature tarballs and
-   the `sysset-all.tar.gz` bundle under `dist/`.
-3. Calls [`devcontainers/action`](https://github.com/devcontainers/action)
-   with `publish-features: "true"` and `base-path-to-features: "./src"`.
-4. For each feature whose `version` in `devcontainer-feature.json` has not
-   yet been published as a GHCR tag, the action pushes the OCI artefact to
-   `ghcr.io/quantized8/sysset/<feature-id>:<major>`, `:<major.minor>`, and
-   `:<major.minor.patch>`.
-5. Creates (or updates) a GitHub Release with all `dist/*` assets attached.
-6. Generates per-feature `README.md` documentation and opens a pull request
-   to commit it.
+1. For every `features/<id>/metadata.yaml`, read `.version`.
+2. Query GitHub for an existing release with `tag_name == "<id>/<version>"`.
+3. If absent, the feature joins the `features_to_release` output.
 
-CD runs automatically only on `v*` tag push **after all CI tests pass**. It
-can also be triggered manually in two ways:
+If the list is non-empty, [`cd.yaml`](../../.github/workflows/cd.yaml)
+runs with three jobs:
 
-- **Via `cicd.yaml`** (runs tests first, then publishes if they pass):
+1. **`publish-ghcr`** — calls
+   [`devcontainers/action`](https://github.com/devcontainers/action) with
+   `publish-features: "true"` and `disable-repo-tagging: "true"`. The
+   action pushes the OCI artefact to GHCR for every feature whose
+   `metadata.yaml` version has not yet been published, idempotently
+   skipping already-published versions. It no longer creates Git tags —
+   our `publish-gh-release` job owns tagging.
+2. **`publish-gh-release`** — matrix over `features_to_release`. For each
+   entry:
+   - Creates an annotated Git tag `<feature>/<X.Y.Z>` on `github.sha`.
+   - Runs `gh release create "<feature>/<X.Y.Z>" sysset-<feature>.tar.gz
+     --title "<feature> <X.Y.Z>" --generate-notes`.
+3. **`publish-bundle`** (`needs: [publish-ghcr, publish-gh-release]`) —
+   runs [`scripts/compute-bundle-tag.py`](../../scripts/compute-bundle-tag.py)
+   to compute the next `v<X.Y.Z>`, produce `notes.md`, and emit
+   `manifest.yaml`. Creates the tag, then
+   `gh release create "v<X.Y.Z>" sysset-all.tar.gz manifest.yaml
+   --latest --notes-file notes.md`. Skips cleanly when the aggregate bump
+   is `none` (idempotent re-runs).
 
-  ```bash
-  gh workflow run "CI/CD" --field tag=v1.2.3
-  ```
+The per-feature and bundle artefacts all come from the same `sysset-dist`
+CI artefact built once in `ci.yaml`'s `prepare` step — no `gh release
+download` round-trip. The
+[version-bump guard](#version-bump-discipline-ci-guard) guarantees that a
+feature whose `metadata.yaml` version is unchanged on this commit has
+identical payload to its already-published release, so the bundle's
+`sysset-all.tar.gz` is always a faithful snapshot of what is published.
 
-- **Via `cd.yaml` directly** (publish only, no tests — use for hotfixes or
-  re-deploys after manual verification):
 
-  ```bash
-  gh workflow run "CD" --field tag=v1.2.3
-  ```
+### Manual single-feature publish (`workflow_dispatch`)
 
-Or open the **Actions** tab in GitHub, select the desired workflow, and click
-**Run workflow**.
+For hotfixes or a re-deploy after manual verification, trigger `cicd.yaml`
+with the `feature` + `version` inputs:
+
+```bash
+gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
+```
+
+This bypasses `detect-releasable.py` and queues exactly one feature for
+release. CI still runs first; CD publishes only if the tests pass. The
+bundle job then runs as usual (recomputing the next bundle tag from the
+single bump).
+
+Or open the **Actions** tab in GitHub, select **CI/CD**, and click **Run
+workflow**.
+
+
+### Local preview
+
+Before pushing, preview what the next CD run will do:
+
+```bash
+just detect-releasable            # prints the features_to_release JSON
+just compute-bundle-tag           # prints the JSON decision record
+just compute-bundle-tag notes     # prints the release-notes markdown
+just compute-bundle-tag manifest  # prints the bundle manifest YAML
+```
+
+
+## Bundle accumulator
+
+The global `v<X.Y.Z>` tag is computed by
+[`scripts/compute-bundle-tag.py`](../../scripts/compute-bundle-tag.py):
+
+1. **Prior tag** — highest tag matching `^v\d+\.\d+\.\d+$`, semver-sorted.
+   On the first CD run this is absent → baseline `v0.0.0`.
+2. **Per-feature bump classification** (vs. the latest already-published
+   `<feature>/<X.Y.Z>` tag):
+   - new feature (no prior release) → `minor`.
+   - removed feature (has a published tag but no `features/<id>/` dir) →
+     `major`.
+   - existing feature: compare component-by-component (`major` > `minor`
+     > `patch` > `none`). A downgrade aborts the run.
+3. **Aggregate** = `max(classifications)`. If `none`, the bundle release is
+   **skipped**.
+4. **Next tag** = `apply_bump(prior_tag, aggregate)` using standard semver
+   reset rules (`major`: `X+1.0.0`; `minor`: `X.Y+1.0`; `patch`: `X.Y.Z+1`).
+
+Because the accumulator owns the `v*` namespace exclusively, no marker or
+body-gating is needed to distinguish "real" bundle tags from historical
+ones.
+
+The resulting `manifest.yaml` is the canonical per-feature version map for
+the bundle:
+
+```yaml
+bundle: v1.2.0
+commit: 3f7a…
+features:
+  install-fonts: 0.1.0
+  install-pixi: 1.3.0
+  install-shell: 0.2.0
+```
+
+This is what `get.bash` downloads in bundle-pinned mode
+(`SYSSET_VERSION=v1.2.0`) to resolve each requested feature to its version
+inside that bundle.
 
 
 ## Making GHCR packages public

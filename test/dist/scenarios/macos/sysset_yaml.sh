@@ -17,16 +17,27 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-_PORT=18543
-_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
+_BUNDLE="v99.99.0-test"
+_VER="99.99.0-test"
+_MIRROR="${REPO_ROOT}/test-mirror-macos-yaml"
+mkdir -p "${_MIRROR}/${_BUNDLE}"
+mkdir -p "${_MIRROR}/setup-shim/${_VER}"
+cp "${DIST}/sysset-setup-shim.tar.gz" "${_MIRROR}/setup-shim/${_VER}/"
+cat > "${_MIRROR}/${_BUNDLE}/manifest.yaml" << EOF
+bundle: ${_BUNDLE}
+prior_bundle: v0.0.0
+generated_at: "1970-01-01T00:00:00Z"
+features:
+  setup-shim: ${_VER}
+EOF
+
+_PORT=18553
 _manifest_dir="$(mktemp -d)"
-mkdir -p "${DIST}/${_TEST_VERSION}"
-cp "${DIST}"/sysset-*.tar.gz "${DIST}/${_TEST_VERSION}/"
-trap 'stop_file_server; rm -rf "${DIST}/${_TEST_VERSION}" "$_manifest_dir"' EXIT
+trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 
 # Ensure yq is not present so the auto-install path is exercised.
 # (If brew already installed yq, skip this test.)
@@ -35,16 +46,16 @@ if command -v yq > /dev/null 2>&1; then
 fi
 
 _manifest="${_manifest_dir}/manifest.yaml"
-cat > "$_manifest" << 'EOF'
+cat > "$_manifest" << EOF
+version: ${_BUNDLE}
 features:
   - id: setup-shim
 EOF
 
-check "get.bash processes YAML manifest on macOS" \
+check "get.bash processes YAML manifest on macOS (bundle-pinned via .version)" \
   sudo env PATH="$PATH" \
   SYSSET_RAW_BASE="$SYSSET_RAW_BASE" \
   SYSSET_BASE_URL="$SYSSET_BASE_URL" \
-  SYSSET_VERSION="$_TEST_VERSION" \
   bash "${REPO_ROOT}/get.bash" "$_manifest"
 
 check "code shim installed by YAML-driven sysset (macOS)" \

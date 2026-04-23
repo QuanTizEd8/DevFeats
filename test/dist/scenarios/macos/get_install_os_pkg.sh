@@ -11,23 +11,24 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
 
-_PORT=18541
+_FEAT="setup-shim"
+_VER="99.99.0-test"
+_MIRROR="${REPO_ROOT}/test-mirror-macos-get"
 
-_TEST_VERSION="${SYSSET_BUILD_VERSION:-v0.1.0-test}"
-mkdir -p "${REPO_ROOT}/dist/${_TEST_VERSION}"
-cp "${REPO_ROOT}/dist"/sysset-*.tar.gz "${REPO_ROOT}/dist/${_TEST_VERSION}/"
-trap 'stop_file_server; rm -rf "${REPO_ROOT}/dist/${_TEST_VERSION}"' EXIT
+mkdir -p "${_MIRROR}/${_FEAT}/${_VER}"
+cp "${REPO_ROOT}/dist/sysset-${_FEAT}.tar.gz" "${_MIRROR}/${_FEAT}/${_VER}/"
 
+_PORT=18551
+trap 'stop_file_server; rm -rf "${_MIRROR}"' EXIT
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/dist"
+export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 
-check "get.sh installs setup-shim on macOS" \
+check "get.sh installs setup-shim on macOS (rolling mode, @spec)" \
   sudo env PATH="$PATH" \
   SYSSET_RAW_BASE="$SYSSET_RAW_BASE" \
   SYSSET_BASE_URL="$SYSSET_BASE_URL" \
-  SYSSET_VERSION="$_TEST_VERSION" \
-  bash "${REPO_ROOT}/get.sh" setup-shim
+  bash "${REPO_ROOT}/get.sh" "${_FEAT}@${_VER}"
 
 check "code shim installed by setup-shim" \
   test -f /usr/local/share/setup-shim/bin/code

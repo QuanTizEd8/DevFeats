@@ -3,19 +3,52 @@ name: "CD"
 on:
   workflow_call:
     inputs:
-      release_tag:
-        description: Release tag to publish.
+      features_to_release:
+        description: |
+          JSON array of features to release, as produced by cicd_detect.sh.
+          Each element: {"feature":"<id>","version":"<X.Y.Z>","tag":"<id>/<X.Y.Z>"}.
         type: string
         required: true
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: Release tag to publish.
+      feature:
+        description: "Feature id (e.g. install-pixi)."
+        required: true
+      version:
+        description: "Feature version to publish (e.g. 1.2.3)."
         required: true
 
 jobs:
+  # ── Resolve inputs (workflow_call vs workflow_dispatch) ────────────────────
+  setup:
+    name: "Resolve release inputs"
+    runs-on: ubuntu-latest
+    outputs:
+      features_to_release: ${{ steps.resolve.outputs.features_to_release }}
+    steps:
+      - name: Resolve features_to_release
+        id: resolve
+        env:
+          INPUT_LIST: ${{ inputs.features_to_release }}
+          INPUT_FEATURE: ${{ inputs.feature }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_LIST:-}" ]]; then
+            features_to_release="${INPUT_LIST}"
+          else
+            features_to_release=$(jq -cn \
+              --arg feat "${INPUT_FEATURE}" \
+              --arg ver "${INPUT_VERSION}" \
+              '[{feature:$feat, version:$ver, tag:"\($feat)/\($ver)"}]')
+          fi
+          echo "features_to_release=${features_to_release}" >> "$GITHUB_OUTPUT"
+          echo "ℹ️  features_to_release: ${features_to_release}" >&2
+
+  # ── 1/3: publish to GHCR ────────────────────────────────────────────────────
   publish-ghcr:
     name: GHCR Publication
+    needs: setup
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -54,17 +87,21 @@ jobs:
         with:
           publish-features: "true"
           base-path-to-features: "./src"
+          disable-repo-tagging: "true"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # ── 2/3: publish one GitHub Release per feature (matrix) ────────────────────
   publish-gh-release:
-    name: GitHub Release
+    name: "GitHub Release: ${{ matrix.entry.feature }} ${{ matrix.entry.version }}"
+    needs: setup
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
-      packages: write
-
+    strategy:
+      fail-fast: false
+      matrix:
+        entry: ${{ fromJSON(needs.setup.outputs.features_to_release) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -90,17 +127,162 @@ jobs:
         uses: docker://ghcr.io/quantized8/sysset-devcontainer:latest
         with:
           entrypoint: /bin/bash
-          args: -c "just build-dist ${{ inputs.release_tag }}"
+          args: -c "just build-dist"
 
-      - name: Create or Update GitHub Release
+      - name: Create annotated tag and push
         env:
+          TAG: ${{ matrix.entry.tag }}
+          FEATURE: ${{ matrix.entry.feature }}
+          VERSION: ${{ matrix.entry.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "${{ inputs.release_tag }}" > /dev/null 2>&1; then
-            echo "ℹ️  Release ${{ inputs.release_tag }} already exists — uploading/replacing assets." >&2
-            gh release upload "${{ inputs.release_tag }}" dist/* --clobber
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "ℹ️  Tag '${TAG}' already exists locally; skipping create." >&2
           else
-            gh release create "${{ inputs.release_tag }}" dist/* \
-              --title "${{ inputs.release_tag }}" \
+            git tag -a "${TAG}" -m "${FEATURE} ${VERSION}" "${GITHUB_SHA}"
+            git push origin "refs/tags/${TAG}"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          TAG: ${{ matrix.entry.tag }}
+          FEATURE: ${{ matrix.entry.feature }}
+          VERSION: ${{ matrix.entry.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          _asset="dist/sysset-${FEATURE}.tar.gz"
+          if [[ ! -f "$_asset" ]]; then
+            echo "⛔ Expected asset not found: $_asset" >&2
+            ls -la dist/ >&2 || true
+            exit 1
+          fi
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            echo "ℹ️  Release ${TAG} already exists — uploading/replacing asset." >&2
+            gh release upload "${TAG}" "$_asset" --clobber
+          else
+            gh release create "${TAG}" "$_asset" \
+              --title "${FEATURE} ${VERSION}" \
               --generate-notes
+          fi
+
+  # ── 3/3: publish the accumulator-tagged bundle release (v<X.Y.Z>) ──────────
+  publish-bundle:
+    name: "Publish bundle"
+    needs: [setup, publish-ghcr, publish-gh-release]
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download dist/ artifact (workflow_call)
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-dist
+          path: dist/
+
+      - name: Log in to GHCR (workflow_dispatch fallback)
+        if: github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build dist/ (workflow_dispatch fallback)
+        if: github.event_name == 'workflow_dispatch'
+        uses: docker://ghcr.io/quantized8/sysset-devcontainer:latest
+        with:
+          entrypoint: /bin/bash
+          args: -c "just build-dist"
+
+      - name: Install PyYAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          if python3 -c 'import yaml' >/dev/null 2>&1; then
+            echo "ℹ️  PyYAML already available." >&2
+            exit 0
+          fi
+          # Some runners (ubuntu-24.04 / Python 3.12+) ship an externally-
+          # managed Python that refuses plain --user installs per PEP 668.
+          # Try without first, then retry with --break-system-packages.
+          python3 -m pip install --disable-pip-version-check --user pyyaml \
+            || python3 -m pip install --disable-pip-version-check --user --break-system-packages pyyaml
+
+      - name: Compute bundle tag, release notes, and manifest
+        id: compute
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Default JSON decision record.
+          python3 scripts/compute-bundle-tag.py --repo "$REPOSITORY" > bundle.json
+          cat bundle.json
+          NEXT_TAG=$(jq -r '.next_tag' bundle.json)
+          SKIP=$(jq -r '.skip' bundle.json)
+          BUMP=$(jq -r '.bump' bundle.json)
+          echo "next_tag=${NEXT_TAG}" >> "$GITHUB_OUTPUT"
+          echo "skip=${SKIP}" >> "$GITHUB_OUTPUT"
+          echo "bump=${BUMP}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${SKIP}" == "true" ]]; then
+            echo "ℹ️  Aggregate bump is 'none' — skipping bundle cut." >&2
+            exit 0
+          fi
+
+          python3 scripts/compute-bundle-tag.py --repo "$REPOSITORY" --notes-body > notes.md
+          python3 scripts/compute-bundle-tag.py --repo "$REPOSITORY" --manifest  > dist/manifest.yaml
+
+      - name: Create annotated tag and push
+        if: steps.compute.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.compute.outputs.next_tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "ℹ️  Tag '${TAG}' already exists locally; skipping create." >&2
+          else
+            git tag -a "${TAG}" -m "SysSet bundle ${TAG}" "${GITHUB_SHA}"
+            git push origin "refs/tags/${TAG}"
+          fi
+
+      - name: Create bundle GitHub Release
+        if: steps.compute.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.compute.outputs.next_tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          _bundle="dist/sysset-all.tar.gz"
+          _manifest="dist/manifest.yaml"
+          for f in "$_bundle" "$_manifest"; do
+            if [[ ! -f "$f" ]]; then
+              echo "⛔ Expected asset not found: $f" >&2
+              ls -la dist/ >&2 || true
+              exit 1
+            fi
+          done
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            echo "ℹ️  Release ${TAG} already exists — uploading/replacing assets." >&2
+            gh release upload "${TAG}" "$_bundle" "$_manifest" --clobber
+          else
+            gh release create "${TAG}" "$_bundle" "$_manifest" \
+              --title "SysSet bundle ${TAG}" \
+              --latest \
+              --notes-file notes.md
           fi

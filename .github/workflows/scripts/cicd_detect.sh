@@ -2,23 +2,14 @@
 set -euo pipefail
 
 # ── Determine if this is a "force" run (skip diff; test everything) ──
+# Forced runs: workflow_dispatch (manual), or a brand-new branch push with no
+# diff baseline. Tag-triggered runs are no longer supported (per-feature
+# releases are driven by `features_to_release` on push-to-main).
 is_force=false
-if [[ "$REF_TYPE" == "tag" || "$EVENT_NAME" == "workflow_dispatch" ]]; then
+if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
   is_force=true
 elif [[ "$EVENT_NAME" == "push" && "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
-  # First push to a new branch — no diff baseline; run everything safely
   is_force=true
-fi
-
-# ── Determine is_release and resolve release_tag ──────────────────
-is_release=false
-release_tag=""
-if [[ "$EVENT_NAME" == "push" && "$REF_TYPE" == "tag" ]]; then
-  is_release=true
-  release_tag="$REF_NAME"
-elif [[ "$EVENT_NAME" == "workflow_dispatch" && -n "${INPUT_TAG:-}" ]]; then
-  is_release=true
-  release_tag="$INPUT_TAG"
 fi
 
 # ── Feature discovery helpers ──────────────────────────────────────
@@ -28,6 +19,33 @@ all_features=$(printf '%s\n' "$feature_ids" | grep -v '^$' | jq -R . | jq -sc .)
 macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
   | sed 's|test/||; s|/macos/.*||' | sort -u)
 macos_all=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
+
+# ── Determine is_release and resolve features_to_release ──────────
+# Two supported release triggers:
+#
+#   1. push to main: detect-releasable.py scans features/*/metadata.yaml,
+#      returns a JSON array of every feature whose <id>/<version> tag does
+#      not yet exist as a GitHub Release.
+#
+#   2. workflow_dispatch with feature + version inputs: publishes a single
+#      feature/version (useful for hotfixes or retrying a failed release).
+is_release=false
+features_to_release="[]"
+if [[ "$EVENT_NAME" == "workflow_dispatch" \
+    && -n "${INPUT_FEATURE:-}" && -n "${INPUT_VERSION:-}" ]]; then
+  features_to_release=$(jq -cn \
+    --arg feat "$INPUT_FEATURE" \
+    --arg ver "$INPUT_VERSION" \
+    '[{feature:$feat, version:$ver, tag:"\($feat)/\($ver)"}]')
+  is_release=true
+elif [[ "$EVENT_NAME" == "push" \
+    && "$REF_TYPE" == "branch" && "$REF_NAME" == "main" ]]; then
+  features_to_release=$(python3 scripts/detect-releasable.py \
+    --repo "$REPOSITORY" --features-dir features)
+  if [[ -n "$features_to_release" && "$features_to_release" != "[]" ]]; then
+    is_release=true
+  fi
+fi
 
 # ── Compute changed files (when not a force run) ───────────────────
 if [[ "$is_force" == "true" ]]; then
@@ -83,6 +101,62 @@ else
   fi
 fi
 
+# ── Version-bump enforcement (PR-only) ─────────────────────────────
+# Fail PRs that modify payload-bearing paths without bumping the affected
+# feature's metadata.yaml version. Scopes:
+#
+#   - lib/                  → every feature (lib is embedded in every tarball).
+#   - features/bootstrap.sh → every feature (shared bootstrap).
+#   - features/<id>/        → just that feature.
+#
+# Compares each feature's `^version:` line at HEAD vs. origin/$BASE_REF. New
+# features (no metadata.yaml in the base branch) are exempt.
+_head_feature_version() {
+  # $1 = feature id
+  local _f="features/$1/metadata.yaml"
+  [[ -r "$_f" ]] || { echo ""; return; }
+  grep -m1 '^version:' "$_f" | awk '{print $2}' | tr -d '"' || echo ""
+}
+_base_feature_version() {
+  # $1 = feature id
+  local _ref="origin/${BASE_REF}"
+  git show "${_ref}:features/$1/metadata.yaml" 2> /dev/null \
+    | grep -m1 '^version:' | awk '{print $2}' | tr -d '"' || true
+}
+
+if [[ "$EVENT_NAME" == "pull_request" ]]; then
+  _libs_changed=false
+  _bootstrap_changed=false
+  if echo "$changed" | grep -qE '^lib/'; then _libs_changed=true; fi
+  if echo "$changed" | grep -qE '^features/bootstrap\.sh$'; then _bootstrap_changed=true; fi
+
+  _needs_bump=()
+  while IFS= read -r _fid; do
+    [[ -z "$_fid" ]] && continue
+    _fid_changed=false
+    if echo "$changed" | grep -qE "^features/${_fid}/"; then _fid_changed=true; fi
+    if [[ "$_libs_changed" == "true" \
+        || "$_bootstrap_changed" == "true" \
+        || "$_fid_changed" == "true" ]]; then
+      _base_v=$(_base_feature_version "$_fid")
+      _head_v=$(_head_feature_version "$_fid")
+      # New feature (no base version): exempt.
+      [[ -z "$_base_v" ]] && continue
+      if [[ "$_base_v" == "$_head_v" ]]; then
+        _needs_bump+=("$_fid (version still $_head_v)")
+      fi
+    fi
+  done <<< "$feature_ids"
+
+  if [[ ${#_needs_bump[@]} -gt 0 ]]; then
+    echo "⛔ version-bump lint: the following features were modified (directly or via lib/ or features/bootstrap.sh) but their metadata.yaml version has not been bumped vs. origin/${BASE_REF}:" >&2
+    for _f in "${_needs_bump[@]}"; do echo "   - ${_f}" >&2; done
+    echo "" >&2
+    echo "   Bump the version field in each listed feature's metadata.yaml before merging." >&2
+    exit 1
+  fi
+fi
+
 # ── Write all outputs ──────────────────────────────────────────────
 {
   echo "run_lint=$run_lint"
@@ -94,13 +168,11 @@ fi
   echo "macos_features=$macos_features"
   echo "run_dist=$run_dist"
   echo "is_release=$is_release"
-  echo "release_tag=$release_tag"
+  echo "features_to_release=$features_to_release"
 } >> "$GITHUB_OUTPUT"
 
 # ── Resolve branch name for devcontainer image tag ─────────────────
-if [[ "$REF_TYPE" == "tag" ]]; then
-  branch_name="main"
-elif [[ -n "${HEAD_REF:-}" ]]; then
+if [[ -n "${HEAD_REF:-}" ]]; then
   branch_name="$HEAD_REF"
 else
   branch_name="$REF_NAME"
@@ -109,9 +181,7 @@ branch_tag="branch-$(echo "$branch_name" | sed 's/[^a-zA-Z0-9._-]/-/g')"
 
 # ── Detect devcontainer changes ────────────────────────────────────
 devcontainer_changed=false
-if [[ "$REF_TYPE" == "tag" ]]; then
-  devcontainer_changed=false
-elif [[ "$is_force" == "true" ]]; then
+if [[ "$is_force" == "true" ]]; then
   devcontainer_changed=true
 elif echo "${changed:-}" | grep -qE '^\.devcontainer/\.dev/'; then
   devcontainer_changed=true
@@ -133,11 +203,7 @@ if echo "$existing_tags" | grep -qx "$branch_tag"; then has_branch=true; fi
 build_image=false
 image_tag="latest"
 
-if [[ "$REF_TYPE" == "tag" ]]; then
-  # Release: always skip build, always use latest
-  build_image=false
-  image_tag="latest"
-elif [[ "$branch_name" == "main" ]]; then
+if [[ "$branch_name" == "main" ]]; then
   image_tag="latest"
   if [[ "$devcontainer_changed" == "true" || "$has_latest" == "false" ]]; then
     build_image=true

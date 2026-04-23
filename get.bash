@@ -7,8 +7,19 @@
 #   Feature mode:   install a single feature (optionally version-pinned via @)
 #   Manifest mode:  install multiple features from a JSON/YAML manifest
 #
+# Version resolution modes (per-feature releases are independent; the bundle
+# tag `v<X.Y.Z>` is an accumulator over per-feature versions):
+#
+#   Rolling (default):       each feature resolves to the latest
+#                            `<feature>/<X.Y.Z>` release tag independently.
+#   Bundle-pinned:           `SYSSET_VERSION` (env) or `.version` (manifest)
+#                            resolves to a bundle tag (`v<X.Y.Z>`); each
+#                            feature's version is read from that bundle's
+#                            `manifest.yaml`. Per-feature overrides (`@spec`
+#                            or features[].version) still take precedence.
+#
 # Usage:
-#   get.bash <feature>[@<sysset-version>] [feature-opts...]
+#   get.bash <feature>[@<feature-version>] [feature-opts...]
 #   get.bash <manifest.json|.yaml|.yml>
 #
 # Options (consumed by get.bash; not forwarded to feature installers):
@@ -20,8 +31,10 @@
 #   SYSSET_BASE_URL   GitHub Releases base URL  (default: github.com releases)
 #   SYSSET_RAW_BASE   Raw GitHub base URL       (default: main branch)
 #   SYSSET_FETCH_TOOL curl|wget                 (set by get.sh; auto-detected here if unset)
-#   SYSSET_VERSION    Pin exact release tag; bypasses github__resolve_version entirely.
-#                     Use for offline/test scenarios where the GitHub API is unavailable.
+#   SYSSET_VERSION    Pin the bundle version; feature versions are read from
+#                     that bundle's manifest.yaml. Accepts any spec understood
+#                     by github__resolve_version ("", "latest", "1", "1.2",
+#                     "v1.2.3", "1.2.3"). Per-feature overrides still win.
 set -euo pipefail
 
 SYSSET_REPO="quantized8/sysset"
@@ -101,29 +114,29 @@ _CANONICAL_ORDER=(
 __usage__() {
   cat >&2 << 'EOF'
 Usage:
-  Feature mode:   get.sh <feature>[@<sysset-version>] [feature-opts...]
+  Feature mode:   get.sh <feature>[@<feature-version>] [feature-opts...]
   Manifest mode:  get.sh <manifest.json|.yaml|.yml>
 
 Arguments:
-  <feature>           Feature to install (e.g. install-pixi, install-shell)
-  @<sysset-version>   Pin the sysset release version for this feature
-                      (e.g. @1.2, @v1.2.3; supports partial semver)
-  <manifest>          Path to a JSON or YAML installation manifest
+  <feature>              Feature to install (e.g. install-pixi, install-shell)
+  @<feature-version>     Pin this feature's version (e.g. @1.2, @1.2.3).
+                         Resolves against <feature>/<X.Y.Z> release tags.
+  <manifest>             Path to a JSON or YAML installation manifest
 
 Options:
-  --logfile <path>    Append log output to this file on exit.
-  --debug             Enable bash -x trace output.
-  --help, -h          Show this help.
+  --logfile <path>       Append log output to this file on exit.
+  --debug                Enable bash -x trace output.
+  --help, -h             Show this help.
 
 Examples:
-  get.sh install-pixi                           # latest sysset, latest pixi
+  get.sh install-pixi                           # rolling: latest pixi feature release
   get.sh install-pixi --version 0.66.0          # pixi v0.66.0 (forwarded to installer)
-  get.sh install-pixi@1.2 --version 0.66.0      # sysset v1.2.x, pixi v0.66.0
-  get.sh manifest.json                          # manifest (version from manifest or latest)
+  get.sh install-pixi@1.2                       # feature install-pixi @ 1.2.x
+  get.sh manifest.json                          # manifest-driven install
 
 Manifest format (JSON):
   {
-    "version": "1",
+    "version": "1",                             # bundle version (optional)
     "override_install_order": false,
     "features": [
       { "id": "install-pixi", "version": "1.2", "options": { "version": "0.66.0" } },
@@ -132,7 +145,7 @@ Manifest format (JSON):
   }
 
 Version priority (highest to lowest):
-  per-feature "version" in manifest > top-level "version" in manifest > latest
+  per-feature "version" in manifest or @spec  >  SYSSET_VERSION / manifest ".version" (bundle)  >  latest per-feature
 
 Canonical install order:
 EOF
@@ -224,11 +237,92 @@ _install_yq() {
   return 0
 }
 
+# ── Per-feature version resolution ──────────────────────────────────────────
+# Resolves a feature-scoped version to its exact `<feature>/<X.Y.Z>` release
+# tag. Supports partial/empty specs via github__resolve_version with
+# --prefix '<feature>/' and --all (release tags fan out across all features,
+# so per_page=100 is not enough).
+_resolve_feature_tag() {
+  # $1 = feature id, $2 = version spec (may be empty → latest)
+  local _feature="$1" _spec="${2:-}"
+  github__resolve_version "${SYSSET_REPO}" "$_spec" \
+    --prefix "${_feature}/" --all
+}
+
+# ── Bundle manifest: fetch + parse ──────────────────────────────────────────
+# Bundle-pinned mode fetches <bundle>/manifest.yaml once and caches it on disk.
+# The manifest records {<feature>: <X.Y.Z>} per feature at bundle-cut time.
+_BUNDLE_TAG=""          # Resolved bundle tag (e.g. v1.2.3); "" in rolling mode.
+_BUNDLE_MANIFEST_FILE="" # Path to downloaded bundle manifest.yaml; "" if N/A.
+
+# _resolve_bundle_tag <spec> — Resolve a bundle-version spec to its v<X.Y.Z> tag.
+_resolve_bundle_tag() {
+  local _spec="${1:-}"
+  github__resolve_version "${SYSSET_REPO}" "$_spec" --prefix "v" --all
+}
+
+# _fetch_bundle_manifest <bundle-tag> <dest-file> — Download manifest.yaml from
+# the bundle release.
+_fetch_bundle_manifest() {
+  local _tag="$1" _dest="$2"
+  local _url="${SYSSET_RELEASE_BASE}/${_tag}/manifest.yaml"
+  net__fetch_url_file "${_url}" "${_dest}" || return 1
+  return 0
+}
+
+# _lookup_bundle_feature_version <manifest.yaml> <feature> — Print the feature's
+# X.Y.Z version from the bundle manifest. Exits 1 if the feature is absent.
+_lookup_bundle_feature_version() {
+  local _manifest="$1" _feature="$2" _version=""
+  if command -v yq > /dev/null 2>&1; then
+    _version="$(yq -r --arg f "$_feature" '.features[$f] // ""' "$_manifest" 2> /dev/null)" || _version=""
+  fi
+  if [[ -z "${_version}" || "${_version}" == "null" ]] && command -v python3 > /dev/null 2>&1; then
+    _version="$(python3 -c '
+import sys
+path, feat = sys.argv[1], sys.argv[2]
+try:
+    import yaml  # type: ignore
+    with open(path, encoding="utf-8") as fp:
+        data = yaml.safe_load(fp) or {}
+except ImportError:
+    data = {}
+    current = None
+    in_features = False
+    with open(path, encoding="utf-8") as fp:
+        for raw in fp:
+            line = raw.rstrip("\n")
+            if not line or line.lstrip().startswith("#"):
+                continue
+            if line.startswith("features:"):
+                in_features = True
+                continue
+            if in_features:
+                if line and not line[0].isspace():
+                    in_features = False
+                    continue
+                stripped = line.strip()
+                if ":" in stripped:
+                    k, v = stripped.split(":", 1)
+                    data.setdefault("features", {})[k.strip()] = v.strip().strip("\"\x27")
+feats = (data or {}).get("features") or {}
+v = feats.get(feat, "")
+if isinstance(v, str):
+    print(v)
+' "$_manifest" "$_feature" 2> /dev/null)" || _version=""
+  fi
+  if [[ -z "${_version}" || "${_version}" == "null" ]]; then
+    return 1
+  fi
+  printf '%s\n' "$_version"
+}
+
 # ── Shared tarball fetch + verify ────────────────────────────────────────────
-# Downloads sysset-<feature>.tar.gz for the given resolved version tag, then
+# Downloads sysset-<feature>.tar.gz for a feature's <feature>/<X.Y.Z> tag and
 # verifies its SHA-256 against the digest field from the GitHub Releases API.
 # Best-effort: warns when the API omits the digest; fails on a mismatch.
 _fetch_and_verify_tarball() {
+  # $1 = feature id, $2 = resolved tag (<feature>/<X.Y.Z>), $3 = destination file
   local _feature="$1" _resolved="$2" _dest="$3"
   local _asset_name="sysset-${_feature}.tar.gz"
   local _url="${SYSSET_RELEASE_BASE}/${_resolved}/${_asset_name}"
@@ -254,9 +348,39 @@ _fetch_and_verify_tarball() {
   return 0
 }
 
+# ── Resolve (feature, spec) → tag ──────────────────────────────────────────
+# Applies the priority rules:
+#
+#   1. If <spec> is non-empty, resolve <feature>/<spec> directly
+#      (per-feature override; wins in every mode).
+#   2. Else if bundle mode is active, look up the feature's version in the
+#      bundle manifest; return <feature>/<version>.
+#   3. Else (rolling mode), resolve the latest <feature>/<X.Y.Z> release.
+#
+# Stdout: the resolved <feature>/<X.Y.Z> tag.
+_resolve_install_tag() {
+  local _feature="$1" _spec="${2:-}" _version=""
+  if [[ -n "$_spec" ]]; then
+    echo "ℹ️  [${_feature}] Resolving per-feature version (spec: '${_spec}')..." >&2
+    _resolve_feature_tag "$_feature" "$_spec"
+    return $?
+  fi
+  if [[ -n "$_BUNDLE_TAG" ]]; then
+    _version="$(_lookup_bundle_feature_version "$_BUNDLE_MANIFEST_FILE" "$_feature")" || {
+      echo "⛔ [${_feature}] Feature not listed in bundle '${_BUNDLE_TAG}' manifest." >&2
+      return 1
+    }
+    echo "ℹ️  [${_feature}] Using bundle ${_BUNDLE_TAG} → version '${_version}'." >&2
+    printf '%s/%s\n' "$_feature" "$_version"
+    return 0
+  fi
+  echo "ℹ️  [${_feature}] Resolving latest per-feature release..." >&2
+  _resolve_feature_tag "$_feature" ""
+}
+
 # ── Feature mode ──────────────────────────────────────────────────────────────
 if [[ "$_mode" == "feature" ]]; then
-  # Parse optional @sysset-version from the feature name.
+  # Parse optional @feature-version from the feature name.
   case "$_mode_arg" in
     *@*)
       _feature="${_mode_arg%%@*}"
@@ -268,21 +392,38 @@ if [[ "$_mode" == "feature" ]]; then
       ;;
   esac
 
-  _effective_spec="${_feat_version_spec:-}"
-  if [[ -n "${SYSSET_VERSION:-}" ]]; then
-    _RESOLVED="${SYSSET_VERSION}"
-    echo "ℹ️  Using SYSSET_VERSION for feature '${_feature}': '${_RESOLVED}'" >&2
-  else
-    echo "ℹ️  Resolving sysset version for feature '${_feature}' (spec: '${_effective_spec:-latest}')..." >&2
-    _RESOLVED="$(github__resolve_version "${SYSSET_REPO}" "$_effective_spec")"
-    echo "ℹ️  Resolved sysset version: '${_RESOLVED}'" >&2
+  # Bundle-pinned mode (when no per-feature @spec was provided):
+  # SYSSET_VERSION → resolve bundle tag, fetch manifest.yaml.
+  if [[ -z "$_feat_version_spec" && -n "${SYSSET_VERSION:-}" ]]; then
+    echo "ℹ️  Resolving bundle version (SYSSET_VERSION='${SYSSET_VERSION}')..." >&2
+    if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${SYSSET_VERSION}")" || [[ -z "$_BUNDLE_TAG" ]]; then
+      echo "⛔ Failed to resolve bundle version (SYSSET_VERSION='${SYSSET_VERSION}'). Is the v<X.Y.Z> release published?" >&2
+      exit 1
+    fi
+    echo "ℹ️  Resolved bundle tag: '${_BUNDLE_TAG}'" >&2
+    _BUNDLE_MANIFEST_FILE="$(mktemp)"
+    trap 'rm -f "$_BUNDLE_MANIFEST_FILE"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+    echo "ℹ️  Fetching bundle manifest ${_BUNDLE_TAG}/manifest.yaml..." >&2
+    if ! _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE"; then
+      echo "⛔ Failed to fetch bundle manifest for '${_BUNDLE_TAG}'. Check network connectivity and that the release asset exists." >&2
+      exit 1
+    fi
   fi
 
+  if ! _RESOLVED="$(_resolve_install_tag "$_feature" "$_feat_version_spec")" || [[ -z "$_RESOLVED" ]]; then
+    echo "⛔ [${_feature}] Failed to resolve install tag (spec: '${_feat_version_spec:-<bundle/latest>}')." >&2
+    exit 1
+  fi
+  echo "ℹ️  [${_feature}] Resolved tag: '${_RESOLVED}'" >&2
+
   _tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$_lib_tmpdir" "$_tmpdir"; logging__cleanup' EXIT
+  trap 'rm -rf "$_lib_tmpdir" "$_tmpdir" ${_BUNDLE_MANIFEST_FILE:+"$_BUNDLE_MANIFEST_FILE"}; logging__cleanup' EXIT
 
   echo "↪️  Downloading sysset-${_feature} @ ${_RESOLVED} ..." >&2
-  _fetch_and_verify_tarball "${_feature}" "${_RESOLVED}" "${_tmpdir}/feature.tar.gz"
+  if ! _fetch_and_verify_tarball "${_feature}" "${_RESOLVED}" "${_tmpdir}/feature.tar.gz"; then
+    echo "⛔ [${_feature}] Failed to download or verify tarball for '${_RESOLVED}'." >&2
+    exit 1
+  fi
 
   tar -xzf "$_tmpdir/feature.tar.gz" -C "$_tmpdir"
 
@@ -342,18 +483,38 @@ fi
 # Parse top-level fields.
 _override_order="$("$_PARSER" -r '.override_install_order // false' "$_MANIFEST")"
 
-# Version priority: per-feature (resolved later) > manifest top-level > latest
+# Version priority: per-feature (resolved later) > manifest top-level / SYSSET_VERSION > rolling latest
 _manifest_version="$("$_PARSER" -r '.version // ""' "$_MANIFEST")"
 
-# Resolve the global sysset version once (used for features without a per-feature version).
+# Resolve bundle version once (env wins over manifest top-level).
+_bundle_spec=""
 if [[ -n "${SYSSET_VERSION:-}" ]]; then
-  _GLOBAL_VERSION="${SYSSET_VERSION}"
-  echo "ℹ️  Using SYSSET_VERSION as global version: '${_GLOBAL_VERSION}'" >&2
-else
-  echo "ℹ️  Resolving global sysset version (spec: '${_manifest_version:-latest}')..." >&2
-  _GLOBAL_VERSION="$(github__resolve_version "${SYSSET_REPO}" "$_manifest_version")"
-  echo "ℹ️  Global sysset version: '${_GLOBAL_VERSION}'" >&2
+  _bundle_spec="${SYSSET_VERSION}"
+  echo "ℹ️  Bundle version spec from SYSSET_VERSION: '${_bundle_spec}'" >&2
+elif [[ -n "${_manifest_version}" ]]; then
+  _bundle_spec="${_manifest_version}"
+  echo "ℹ️  Bundle version spec from manifest .version: '${_bundle_spec}'" >&2
 fi
+
+if [[ -n "${_bundle_spec}" ]]; then
+  echo "ℹ️  Resolving bundle tag (spec: '${_bundle_spec}')..." >&2
+  if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${_bundle_spec}")" || [[ -z "$_BUNDLE_TAG" ]]; then
+    echo "⛔ Failed to resolve bundle version (spec: '${_bundle_spec}'). Is the v<X.Y.Z> release published?" >&2
+    exit 1
+  fi
+  echo "ℹ️  Resolved bundle tag: '${_BUNDLE_TAG}'" >&2
+  _BUNDLE_MANIFEST_FILE="$(mktemp)"
+  # shellcheck disable=SC2064
+  trap 'rm -f "$_BUNDLE_MANIFEST_FILE" ${_json_manifest:+"$_json_manifest"}; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+  echo "ℹ️  Fetching bundle manifest ${_BUNDLE_TAG}/manifest.yaml..." >&2
+  if ! _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE"; then
+    echo "⛔ Failed to fetch bundle manifest for '${_BUNDLE_TAG}'. Check network connectivity and that the release asset exists." >&2
+    exit 1
+  fi
+else
+  echo "ℹ️  No bundle pin — rolling per-feature resolution." >&2
+fi
+
 echo "ℹ️  override_install_order: '${_override_order}'" >&2
 
 # Read feature IDs in manifest order.
@@ -408,15 +569,15 @@ echo "ℹ️  Execution order: ${_sorted_features[*]}" >&2
 # ── Feature runner ────────────────────────────────────────────────────────────
 _run_feature() {
   local _feature="$1"
-  local _resolved_version="$2"
+  local _resolved_tag="$2"
   shift 2
   local _opts=("$@")
 
   local _tmpdir
   _tmpdir="$(mktemp -d)"
 
-  echo "ℹ️  [${_feature}] Downloading @ ${_resolved_version} ..." >&2
-  if ! _fetch_and_verify_tarball "${_feature}" "${_resolved_version}" "${_tmpdir}/feature.tar.gz"; then
+  echo "ℹ️  [${_feature}] Downloading @ ${_resolved_tag} ..." >&2
+  if ! _fetch_and_verify_tarball "${_feature}" "${_resolved_tag}" "${_tmpdir}/feature.tar.gz"; then
     rm -rf "$_tmpdir"
     echo "⛔ [${_feature}] Failed to download or verify tarball." >&2
     return 1
@@ -434,18 +595,18 @@ _passed=()
 _failed=()
 
 for _feature in "${_sorted_features[@]}"; do
-  # Per-feature version: manifest "version" key > global resolved version.
+  # Per-feature version spec (if any) overrides the bundle pin.
   # shellcheck disable=SC2016
   _feat_version_spec="$("$_PARSER" -r \
     --arg feat "$_feature" \
     '.features[] | select(.id == $feat) | .version // ""' \
     "$_MANIFEST")"
 
-  if [[ -n "$_feat_version_spec" ]] && [[ -z "${SYSSET_VERSION:-}" ]]; then
-    echo "ℹ️  [${_feature}] Resolving per-feature version (spec: '${_feat_version_spec}')..." >&2
-    _feat_resolved="$(github__resolve_version "${SYSSET_REPO}" "$_feat_version_spec")"
-  else
-    _feat_resolved="$_GLOBAL_VERSION"
+  _feat_resolved=""
+  if ! _feat_resolved="$(_resolve_install_tag "$_feature" "$_feat_version_spec")"; then
+    echo "⛔ [${_feature}] Failed to resolve tag (spec: '${_feat_version_spec:-<bundle/latest>}')." >&2
+    _failed+=("$_feature")
+    continue
   fi
 
   # Extract feature options as CLI arguments.
