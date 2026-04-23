@@ -65,7 +65,8 @@ Each CD run also produces an **accumulator-tagged bundle release**
 
 - `sysset-all.tar.gz` — every feature's tarball, flat layout.
 - `manifest.yaml` — a machine-readable map of the feature versions
-  contained in this bundle (consumed by `get.bash` for bundle pinning).
+  contained in this bundle (consumed by `get.bash` for bundle pinning when
+  `SYSSET_VERSION` or a `v*.*.*` suffix in a devcontainer `name` is used).
 
 The bundle's global semver is derived from the highest per-feature bump in
 the run; see [Bundle accumulator](#bundle-accumulator) below.
