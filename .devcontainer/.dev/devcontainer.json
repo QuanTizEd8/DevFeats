@@ -1,4 +1,5 @@
 {
+    "remoteUser": "sysset-dev",
     "build": {
         "dockerfile": "Dockerfile",
         "cacheFrom": [
@@ -6,6 +7,12 @@
             "ghcr.io/quantized8/sysset-devcontainer:cache-linux-arm64"
         ]
     },
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+    "initializeCommand": "bash -c '[ -d src ] || bash scripts/sync-src.sh'",
+    "updateContentCommand": "npm install -g @devcontainers/cli lefthook",
+    "postCreateCommand": "lefthook install",
     "customizations": {
         "vscode": {
             "settings": {
@@ -28,12 +35,5 @@
                 "nefrob.vscode-just-syntax"
             ]
         }
-    },
-    "features": {
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
-    },
-    "remoteUser": "node",
-    "initializeCommand": "bash -c '[ -d src ] || bash scripts/sync-src.sh'",
-    "updateContentCommand": "npm install -g @devcontainers/cli lefthook",
-    "postCreateCommand": "lefthook install"
+    }
 }
