@@ -2,6 +2,7 @@
     "remoteUser": "sysset-dev",
     "build": {
         "dockerfile": "Dockerfile",
+        "options": ["--progress=plain"],
         "cacheFrom": [
             "ghcr.io/quantized8/sysset-devcontainer:cache-linux-amd64",
             "ghcr.io/quantized8/sysset-devcontainer:cache-linux-arm64"
