@@ -93,7 +93,7 @@ jobs:
         uses: docker://ghcr.io/quantized8/sysset-devcontainer:latest
         with:
           entrypoint: /bin/bash
-          args: -c "just artifacts $RELEASE_TAG"
+          args: -c "just build-dist $RELEASE_TAG"
 
       - name: Create or Update GitHub Release
         env:
