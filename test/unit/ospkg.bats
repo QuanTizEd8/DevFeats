@@ -789,7 +789,7 @@ _seed_session_context() {
   local _sess_sidecar="${_SESSION_DIR}/feature::::install-test::::lib-net"
   # filename uses // substitution so :: → ::::... let's detect the real name
   local _found
-  _found="$(ls "$_SESSION_DIR"/ 2>/dev/null | head -1)"
+  _found="$(ls "$_SESSION_DIR"/ 2> /dev/null | head -1)"
   [[ -n "$_found" ]]
   grep -q "^newpkg$" "${_SESSION_DIR}/${_found}"
 }
@@ -804,7 +804,7 @@ _seed_session_context() {
 
   # Session sidecar should either not exist or not contain 'curl'
   local _found
-  _found="$(ls "$_SESSION_DIR"/ 2>/dev/null | head -1)"
+  _found="$(ls "$_SESSION_DIR"/ 2> /dev/null | head -1)"
   if [[ -n "$_found" ]]; then
     run grep "^curl$" "${_SESSION_DIR}/${_found}"
     assert_failure
@@ -813,7 +813,7 @@ _seed_session_context() {
 
 @test "ospkg__install_tracked: session sidecar deduplicates repeated calls" {
   _seed_session_context
-  printf '' > "$_INITIAL_SNAP"  # empty initial snapshot
+  printf '' > "$_INITIAL_SNAP" # empty initial snapshot
   _mock_snapshots "" "pkgA"
   ospkg__install_tracked "feature::install-test::lib-net" pkgA
   _mock_snapshots "pkgA" "pkgA"
@@ -821,7 +821,7 @@ _seed_session_context() {
 
   # Find the session sidecar
   local _found
-  _found="$(ls "$_SESSION_DIR"/ 2>/dev/null | head -1)"
+  _found="$(ls "$_SESSION_DIR"/ 2> /dev/null | head -1)"
   [[ -n "$_found" ]]
   [[ "$(grep -c "^pkgA$" "${_SESSION_DIR}/${_found}")" -eq 1 ]]
 }

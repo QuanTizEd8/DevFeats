@@ -177,7 +177,7 @@ z"
   # Create empty bin dir BEFORE restricting PATH.
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"  # empty bin dir — no tools
+  export PATH="${BATS_TEST_TMPDIR}/bin" # empty bin dir — no tools
 
   run _json__ensure_parse_tool
 
