@@ -169,6 +169,7 @@ jobs:
         run: just format-check
 
       - name: "Lint (shellcheck)"
+        if: always()
         run: just lint
 
   # ── Validate metadata.yaml + devcontainer-feature.json files ─────────────
