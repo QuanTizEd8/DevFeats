@@ -255,13 +255,6 @@ case "$_mode_arg" in
   *) _mode="feature" ;;
 esac
 
-# ── jq/yq helpers (required for manifest mode; installed on demand) ───────────
-
-_install_jq() {
-  echo "ℹ️  jq not found — installing via package manager." >&2
-  ospkg__install jq
-}
-
 # ── Per-feature version resolution ──────────────────────────────────────────
 # Resolves a feature-scoped version to its exact `<feature>/<X.Y.Z>` release
 # tag. Supports partial/empty specs via github__resolve_version with
@@ -518,9 +511,13 @@ if [[ ! -f "$_mode_arg" ]]; then
   exit 1
 fi
 os__require_root
-if ! command -v jq &> /dev/null; then
-  _install_jq
-fi
+_SYSSET_BUILD_CONTEXT="get-bash"
+export _SYSSET_BUILD_CONTEXT
+_SYSSET_SESSION_TRACK_DIR="$(mktemp -d)"
+export _SYSSET_SESSION_TRACK_DIR
+_SYSSET_INITIAL_SNAPSHOT="$(mktemp)"
+export _SYSSET_INITIAL_SNAPSHOT
+ospkg__take_initial_snapshot "$_SYSSET_INITIAL_SNAPSHOT"
 
 _DCJ="$(mktemp)"
 # shellcheck disable=SC2064
@@ -529,7 +526,7 @@ devcontainer__parse_config "$_mode_arg" > "$_DCJ" || exit 1
 
 _STAGED="$(mktemp -d)"
 # shellcheck disable=SC2064
-trap 'rm -rf "$_STAGED" "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+trap 'ospkg__cleanup_session_build_groups "false"; rm -rf "${_SYSSET_SESSION_TRACK_DIR:-}" "${_SYSSET_INITIAL_SNAPSHOT:-}" "$_STAGED" "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 
 _WORK_ROOT="$(devcontainer__workspace_folder "$_mode_arg")"
 [[ -n "$_WORKSPACE_CUSTOM" ]] && _WORK_ROOT="$_WORKSPACE_CUSTOM"
@@ -668,6 +665,7 @@ for _id in "${_ORDER[@]}"; do
     export _CONTAINER_USER="${_EFF_CUSER}"
     export _REMOTE_USER_HOME="${_RU_HOME}"
     export _CONTAINER_USER_HOME="${_CU_HOME}"
+    export _SYSSET_BUILD_CONTEXT="feature::${_id}"
     cd "$_wdir" || exit 1
     echo "ℹ️  [${_id}] running install.sh" >&2
     sh install.sh

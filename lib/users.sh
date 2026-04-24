@@ -149,15 +149,28 @@ users__set_write_permissions() {
   local _group="$3"
   shift 3
   if ! command -v groupadd > /dev/null 2>&1; then
-    echo "⚠️  groupadd not found — skipping write-permission setup." >&2
-    return 0
+    if [ -n "${_OSPKG__LIB_LOADED-}" ]; then
+      echo "ℹ️  groupadd not found — installing shadow-utils." >&2
+      ospkg__update
+      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" shadow-utils 2> /dev/null ||
+        ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" shadow 2> /dev/null || true
+    fi
+    if ! command -v groupadd > /dev/null 2>&1; then
+      echo "⚠️  groupadd not found — skipping write-permission setup." >&2
+      return 0
+    fi
   fi
   echo "🔐 Setting write permissions on '${_prefix}' (owner: '${_owner}', group: '${_group}')." >&2
   getent group "$_group" > /dev/null 2>&1 || groupadd -r "$_group"
   local _u
   for _u in "$@"; do
     [ -z "$_u" ] && continue
-    id -nG "$_u" 2> /dev/null | grep -qw "$_group" || usermod -a -G "$_group" "$_u"
+    id -nG "$_u" 2> /dev/null | grep -qw "$_group" && continue
+    if ! command -v usermod > /dev/null 2>&1; then
+      echo "⚠️  usermod not found — cannot add '${_u}' to group '${_group}'." >&2
+      continue
+    fi
+    usermod -a -G "$_group" "$_u"
   done
   chown -R "${_owner}:${_group}" "$_prefix"
   chmod -R g+rwX "$_prefix"
@@ -182,8 +195,15 @@ users__set_login_shell() {
   shift
 
   if ! command -v chsh > /dev/null 2>&1; then
-    echo "⚠️  chsh not found — skipping shell change. Install the 'passwd' package." >&2
-    return 0
+    if [ -n "${_OSPKG__LIB_LOADED-}" ]; then
+      echo "ℹ️  chsh not found — installing passwd package." >&2
+      ospkg__update
+      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" passwd 2> /dev/null || true
+    fi
+    if ! command -v chsh > /dev/null 2>&1; then
+      echo "⚠️  chsh not found — skipping shell change. Install the 'passwd' package." >&2
+      return 0
+    fi
   fi
 
   # Register the shell in /etc/shells.

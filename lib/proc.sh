@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# proc.sh — parallel / devcontainer-style command values. Bash >=4. Requires jq; requires os.sh when using --user.
+# proc.sh — parallel / devcontainer-style command values. Bash >=4. Requires json.sh (jq/yq/python3 resolved); requires os.sh when using --user.
 [[ -n "${_PROC__LIB_LOADED-}" ]] && return 0
 _PROC__LIB_LOADED=1
+
+_PROC__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/json.sh
+. "$_PROC__LIB_DIR/json.sh"
 
 # @brief proc__run_parallel — --outdir <dir> -- <label> <argv...> [-- <label> <argv> ...]
 proc__run_parallel() {
@@ -79,8 +83,12 @@ proc__run_command_form() {
   done
   _json="$(cat)"
   [[ -n "$_json" ]] || return 1
-  command -v jq > /dev/null 2>&1 || {
-    echo "⛔ proc__run_command_form: jq required" >&2
+  _json__ensure_parse_tool || {
+    echo "⛔ proc__run_command_form: no JSON parser (jq, yq, python3) available" >&2
+    return 1
+  }
+  [ "${_JSON__PARSE_TOOL}" = "jq" ] || {
+    echo "⛔ proc__run_command_form: jq required (resolved tool: ${_JSON__PARSE_TOOL:-none})" >&2
     return 1
   }
   local _t _s _k _v _ty _od

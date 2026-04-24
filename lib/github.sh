@@ -115,14 +115,18 @@ github__release_json_digest_for_asset() {
   [ -n "$_name" ] || return 1
 
   _out=""
-  if command -v jq > /dev/null 2>&1; then
+  _json__ensure_parse_tool || {
+    echo "⛔ github__release_json_digest_for_asset: no JSON parser available (jq, yq, python3)" >&2
+    return 1
+  }
+  if [ "${_JSON__PARSE_TOOL}" = "jq" ]; then
     _out="$(jq -r --arg n "$_name" '
       (.assets // [])[]
       | select(.name == $n)
       | .digest // empty
       | if length > 0 then (sub("^sha256:"; "") | ascii_downcase) else empty end
     ' "$_f" 2> /dev/null)" || _out=""
-  elif command -v python3 > /dev/null 2>&1; then
+  else
     _out="$(python3 -c '
 import json, sys
 path, name = sys.argv[1], sys.argv[2]
@@ -140,8 +144,6 @@ for a in data.get("assets") or []:
     sys.exit(0)
 sys.exit(1)
 ' "$_f" "$_name" 2> /dev/null)" || _out=""
-  else
-    return 1
   fi
 
   [ -n "$_out" ] && [ "$_out" != "null" ] || return 1
@@ -771,7 +773,8 @@ _github__paginate_list_field() {
 _github__count_top_level_array() {
   local _json
   _json="$(cat)"
-  if command -v jq > /dev/null 2>&1; then
+  _json__ensure_parse_tool || true
+  if [ "${_JSON__PARSE_TOOL:-}" = "jq" ]; then
     printf '%s' "$_json" | jq 'length' 2> /dev/null && return 0
   fi
   if command -v python3 > /dev/null 2>&1; then

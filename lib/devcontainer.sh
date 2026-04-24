@@ -133,10 +133,6 @@ devcontainer__iter_features() {
   shift 2 || return 1
   local -a _prefixes=("$@")
   [[ -f "$_cfg" ]] || return 1
-  command -v jq > /dev/null 2>&1 || {
-    echo "⛔ devcontainer__iter_features: jq required" >&2
-    return 1
-  }
   local _k _p _hit _id _tag _rest _full
   while IFS= read -r _k; do
     [[ -z "$_k" ]] && continue
@@ -180,10 +176,6 @@ devcontainer__iter_features() {
 # Values are coerced via json__coerce_scalar_stdin; arrays/objects fail.
 # Bash %q quoting preserves newlines, tabs, and non-ASCII characters verbatim.
 devcontainer__feature_env_exports() {
-  command -v jq > /dev/null 2>&1 || {
-    echo "⛔ devcontainer__feature_env_exports: jq required" >&2
-    return 1
-  }
   local _j _k _t _v _n
   _j="$(cat)"
   [[ -z "$_j" || "$_j" == "{}" || "$_j" == "null" ]] && return 0

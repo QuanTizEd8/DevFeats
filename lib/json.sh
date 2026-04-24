@@ -55,7 +55,7 @@ _json__ensure_parse_tool() {
   if command -v ospkg__install_tracked > /dev/null 2>&1 && [ -n "${_OSPKG__LIB_LOADED-}" ]; then
     echo "ℹ️  No JSON parser (jq, yq, python3) — installing jq." >&2
     ospkg__update >&2 || true
-    ospkg__install_tracked "lib-json" jq >&2 || true
+    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-json" jq >&2 || true
     if command -v jq > /dev/null 2>&1; then
       _JSON__PARSE_TOOL=jq
       _JSON__ENSURE_PARSE_DONE=1
@@ -452,6 +452,13 @@ json__strip_jsonc_stdin() {
     echo "⛔ lib/jsonc.py not found (expected: ${_JSON__LIB_DIR}/jsonc.py)" >&2
     return 1
   fi
+  # Ensure python3 is available; install jq via ospkg as side-effect if needed
+  # (which guarantees ospkg is warmed up), then confirm python3 specifically.
+  _json__ensure_parse_tool || true
+  if ! command -v python3 > /dev/null 2>&1; then
+    echo "⛔ json__strip_jsonc_stdin: python3 is required for JSONC stripping but was not found." >&2
+    return 1
+  fi
   python3 "${_JSON__LIB_DIR}/jsonc.py" strip
 }
 
@@ -522,6 +529,11 @@ json__detect_duplicate_keys_stdin() {
   _json__ensure_json_lib_dir || return 1
   if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
     echo "⛔ lib/jsonc.py not found" >&2
+    return 1
+  fi
+  _json__ensure_parse_tool || true
+  if ! command -v python3 > /dev/null 2>&1; then
+    echo "⛔ json__detect_duplicate_keys_stdin: python3 is required but was not found." >&2
     return 1
   fi
   python3 "${_JSON__LIB_DIR}/jsonc.py" dup "$@"
