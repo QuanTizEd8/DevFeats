@@ -121,7 +121,7 @@ def _augment_options(data: dict) -> dict:
 
     Add derived options from features/derived-options.yaml,
     conditionally applying options with _apply_when
-    based on the feature's declared options.
+    based on the feature's full metadata dict.
     """
     with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
         derived_options: dict = yaml.safe_load(_fh)
@@ -134,7 +134,7 @@ def _augment_options(data: dict) -> dict:
                 f"Remove the declaration to use the standard derived option schema from features/derived-options.yaml."
             )
         should_apply = (
-            _evaluate_condition(option_def["_apply_when"], options)
+            _evaluate_condition(option_def["_apply_when"], data)
             if "_apply_when" in option_def else True
         )
         if should_apply:
@@ -142,10 +142,10 @@ def _augment_options(data: dict) -> dict:
     return options
 
 
-def _evaluate_condition(apply_when: dict, options: dict) -> bool:
-    """Evaluate an _apply_when condition against the feature's options."""
+def _evaluate_condition(apply_when: dict, data: dict) -> bool:
+    """Evaluate an _apply_when condition against the feature's full metadata dict."""
     jsonpath = apply_when["jsonpath"]
-    exists, value = _resolve_jsonpath(jsonpath, options)
+    exists, value = _resolve_jsonpath(jsonpath, data)
     condition = apply_when["condition"]
     if condition == "exists":
         return exists
@@ -160,8 +160,8 @@ def _evaluate_condition(apply_when: dict, options: dict) -> bool:
     raise ValueError(f"Unsupported condition: {condition}")
 
 
-def _resolve_jsonpath(jsonpath: str, options: dict) -> tuple[bool, object]:
-    """Resolve a simple JSONPath expression against the options dict.
+def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
+    """Resolve a simple JSONPath expression against the feature metadata dict.
 
     Supported JSONPath syntax:
     - Root object: $
@@ -170,14 +170,14 @@ def _resolve_jsonpath(jsonpath: str, options: dict) -> tuple[bool, object]:
     Returns
     -------
     exists
-        Whether the path exists in the options dict.
+        Whether the path exists in the metadata dict.
     value
         The value at the path if it exists, or None if it does not exist.
     """
     if not jsonpath.startswith("$."):
         raise ValueError(f"Unsupported JSONPath expression: {jsonpath}")
     path_parts = jsonpath[2:].split(".")
-    current = options
+    current = data
     for part in path_parts:
         if not isinstance(current, dict) or part not in current:
             return False, None
