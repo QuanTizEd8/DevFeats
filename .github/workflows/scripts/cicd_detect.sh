@@ -189,8 +189,11 @@ fi
 
 # ── Probe GHCR for existing devcontainer image tags ────────────────
 existing_tags=""
+owner_name="${REPO_OWNER,,}"
+package_name="${REPOSITORY#*/}"
+package_name="${package_name,,}"
 if existing_tags_raw=$(gh api \
-    "orgs/${REPO_OWNER}/packages/container/${REPOSITORY#*/}-devcontainer/versions" \
+    "orgs/${owner_name}/packages/container/${package_name}-devcontainer/versions" \
     --jq '.[].metadata.container.tags[]' 2>/dev/null); then
   existing_tags="$existing_tags_raw"
 fi

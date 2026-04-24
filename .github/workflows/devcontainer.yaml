@@ -25,13 +25,23 @@ on:
         default: .devcontainer/.dev
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}-devcontainer
   TAG: ${{ inputs.image_tag || 'latest' }}
 
 jobs:
+  prepare:
+    name: Prepare Variables
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - name: Resolve Image Name
+        id: image
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-devcontainer" >>"$GITHUB_OUTPUT"
+
   build:
     # Build and push separate images for each platform.
     name: Build (${{ matrix.platform }})
+    needs: prepare
     strategy:
       matrix:
         include:
@@ -76,9 +86,9 @@ jobs:
       - name: Build & Push
         uses: devcontainers/ci@b63b30de439b47a52267f241112c5b453b673db5 # v0.3.1900000449
         env:
-          CACHE_REF: ${{ env.IMAGE }}:cache-${{ matrix.platform_tag }}
+          CACHE_REF: ${{ needs.prepare.outputs.image }}:cache-${{ matrix.platform_tag }}
         with:
-          imageName: ${{ env.IMAGE }}
+          imageName: ${{ needs.prepare.outputs.image }}
           imageTag: "${{ env.TAG }}-${{ matrix.platform_tag }}"
           configFile: ${{ inputs.config_dir }}/devcontainer.json
           userDataFolder: ${{ env.USERDATA_DIR }}
@@ -90,7 +100,9 @@ jobs:
     # Create and push a single multi-arch manifest
     # that references both platform-specific images built in the previous job.
     name: Multi-Arch Merge
-    needs: build
+    needs:
+      - prepare
+      - build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -111,6 +123,7 @@ jobs:
 
       - name: Manifest Creation & Push
         env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
           SHA: ${{ github.sha }}
         run: |
           ARCH_IMAGES=("${IMAGE}:${TAG}-linux-amd64" "${IMAGE}:${TAG}-linux-arm64")

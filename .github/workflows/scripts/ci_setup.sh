@@ -42,7 +42,8 @@ done
 version="${INPUT_VERSION:-${GITHUB_SHA}}"
 
 # ── Resolve ci_image ──────────────────────────────────────────────
-ci_image="ghcr.io/${GITHUB_REPOSITORY}-devcontainer:${INPUT_IMAGE_TAG:-latest}"
+repo_lower="${GITHUB_REPOSITORY,,}"
+ci_image="ghcr.io/${repo_lower}-devcontainer:${INPUT_IMAGE_TAG:-latest}"
 
 {
   echo "run_lint=$INPUT_RUN_LINT"
