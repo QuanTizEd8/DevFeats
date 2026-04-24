@@ -1,15 +1,20 @@
-# Canonical definitions for options that argparse.py and metadata.py
-# auto-inject into every feature's generated code and devcontainer-feature.json.
+# Derived Feature Options
+#
+# Canonical definitions for options that are auto-injected
+# into every feature's generated code and devcontainer-feature.json.
 # These keys must NOT be declared manually in any metadata.yaml file.
 #
-# inject: ospkg  — injected only when the feature has a `_dependencies` key
-#                  (the feature uses ospkg; cache management is relevant).
-# inject: always — injected unconditionally for every feature.
+# _apply_when: optional condition evaluated against the feature's raw metadata to
+#              decide whether to inject this option. If absent, always injected.
+#
+#   jsonpath:   JSONPath expression resolved against the full feature metadata dict.
+#               Supported syntax: root ($) and dot-notation ($.key.subkey).
+#   condition:  exists | not_exists | equals | not_equals
+#   value:      required for equals / not_equals — the value to compare against
 
 keep_cache:
   type: boolean
   default: false
-  inject: ospkg
   description: >-
     Keep the package manager cache after installation.
     By default, the package manager cache is removed after installation to reduce image layer size.
@@ -18,7 +23,6 @@ keep_cache:
 keep_build_deps:
   type: boolean
   default: false
-  inject: build-deps
   description: >-
     Keep install-time-only packages (build tools, download utilities) after installation.
     By default these are removed to reduce image layer size.
@@ -27,7 +31,6 @@ keep_build_deps:
 debug:
   type: boolean
   default: false
-  inject: always
   description: >-
     Enable debug output.
     This adds `set -x` to the installer script, which prints each command before executing it.
@@ -35,5 +38,4 @@ debug:
 logfile:
   type: string
   default: ""
-  inject: always
   description: Log all output (stdout + stderr) to this file in addition to console.
