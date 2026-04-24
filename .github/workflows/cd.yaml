@@ -228,7 +228,7 @@ jobs:
         run: |
           set -euo pipefail
           # Default JSON decision record.
-          python3 scripts/compute-bundle-tag.py --repo "$REPOSITORY" > bundle.json
+          bash scripts/python.sh scripts/compute-bundle-tag.py --repo "$REPOSITORY" > bundle.json
           cat bundle.json
           NEXT_TAG=$(jq -r '.next_tag' bundle.json)
           SKIP=$(jq -r '.skip' bundle.json)
@@ -242,8 +242,8 @@ jobs:
             exit 0
           fi
 
-          python3 scripts/compute-bundle-tag.py --repo "$REPOSITORY" --notes-body > notes.md
-          python3 scripts/compute-bundle-tag.py --repo "$REPOSITORY" --manifest  > dist/manifest.yaml
+          bash scripts/python.sh scripts/compute-bundle-tag.py --repo "$REPOSITORY" --notes-body > notes.md
+          bash scripts/python.sh scripts/compute-bundle-tag.py --repo "$REPOSITORY" --manifest  > dist/manifest.yaml
 
       - name: Create annotated tag and push
         if: steps.compute.outputs.skip != 'true'

@@ -4,6 +4,7 @@
 # Global: bash, strict mode.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
+py := "bash scripts/python.sh"
 
 
 # ── Code quality ──────────────────────────────────────────────────────────────
@@ -59,9 +60,7 @@ lint *files:
   doc('Validate features/*/metadata.yaml against metadata.schema.json.')
 ]
 validate-metadata:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    python scripts/validate-metadata.py
+    {{py}} scripts/validate-metadata.py
 
 
 # ── Build ─────────────────────────────────────────────────────────────────────
@@ -95,7 +94,7 @@ build-dist version="": sync
   doc('Preview which features need a new GitHub Release (queries the GitHub API).')
 ]
 detect-releasable repo="quantized8/sysset":
-    python3 scripts/detect-releasable.py --repo {{repo}}
+    {{py}} scripts/detect-releasable.py --repo {{repo}}
 
 
 [
@@ -106,9 +105,9 @@ compute-bundle-tag mode="default" repo="quantized8/sysset":
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{mode}}" in
-      default) python3 scripts/compute-bundle-tag.py --repo {{repo}} ;;
-      notes)   python3 scripts/compute-bundle-tag.py --repo {{repo}} --notes-body ;;
-      manifest) python3 scripts/compute-bundle-tag.py --repo {{repo}} --manifest ;;
+      default) {{py}} scripts/compute-bundle-tag.py --repo {{repo}} ;;
+      notes)   {{py}} scripts/compute-bundle-tag.py --repo {{repo}} --notes-body ;;
+      manifest) {{py}} scripts/compute-bundle-tag.py --repo {{repo}} --manifest ;;
       *) echo "mode must be one of: default|notes|manifest" >&2; exit 1 ;;
     esac
 
@@ -128,9 +127,7 @@ test-unit:
   doc('Run Python unit tests for scripts/ (stdlib unittest; no extra deps beyond PyYAML).')
 ]
 test-scripts:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    python3 -m unittest discover -s test/scripts -t test/scripts -v
+    {{py}} -m unittest discover -s test/scripts -t test/scripts -v
 
 
 [
@@ -156,7 +153,7 @@ test-feature feat:
   doc('Regenerate injected doc markers (lib API tables in writing-features and lib.instructions).')
 ]
 gen-docs:
-    python3 scripts/gen_docs.py
+    {{py}} scripts/gen_docs.py
 
 
 [
@@ -164,7 +161,7 @@ gen-docs:
   doc('CI: exit non-zero if gen-docs would modify tracked files.')
 ]
 gen-docs-check:
-    python3 scripts/gen_docs.py --check
+    {{py}} scripts/gen_docs.py --check
 
 
 [

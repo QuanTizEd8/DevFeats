@@ -40,7 +40,7 @@ if [[ "$EVENT_NAME" == "workflow_dispatch" &&
   is_release=true
 elif [[ "$EVENT_NAME" == "push" &&
   "$REF_TYPE" == "branch" && "$REF_NAME" == "main" ]]; then
-  features_to_release=$(python3 scripts/detect-releasable.py \
+  features_to_release=$(bash scripts/python.sh scripts/detect-releasable.py \
     --repo "$REPOSITORY" --features-dir features)
   if [[ -n "$features_to_release" && "$features_to_release" != "[]" ]]; then
     is_release=true
