@@ -11,7 +11,7 @@ set -euo pipefail
 
 # ── Pinned versions ────────────────────────────────────────────────────────────
 SHFMT_VERSION="v3.13.1"
-SHELLCHECK_VERSION="v0.10.0"
+SHELLCHECK_VERSION="v0.11.0"
 JUST_VERSION="1.50.0"
 
 # ── Parse --tools flag ─────────────────────────────────────────────────────────
