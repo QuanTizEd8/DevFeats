@@ -260,31 +260,6 @@ _install_jq() {
   ospkg__install jq
 }
 
-_install_yq() {
-  local _os _arch _url
-  _os="$(os__kernel | tr '[:upper:]' '[:lower:]')"
-  _arch="$(os__arch)"
-  case "$_arch" in
-    x86_64) _arch="amd64" ;;
-    aarch64 | arm64) _arch="arm64" ;;
-    *)
-      echo "⛔ Unsupported architecture for yq: ${_arch}" >&2
-      return 1
-      ;;
-  esac
-  _url="$(github__release_asset_urls mikefarah/yq \
-    --filter "yq_${_os}_${_arch}$" | head -1)"
-  if [[ -z "$_url" ]]; then
-    echo "⛔ Could not find yq release asset for ${_os}/${_arch}." >&2
-    return 1
-  fi
-  echo "ℹ️  Downloading yq from: ${_url}" >&2
-  net__fetch_url_file "$_url" /usr/local/bin/yq
-  chmod +rx /usr/local/bin/yq
-  echo "✅ yq installed to /usr/local/bin/yq" >&2
-  return 0
-}
-
 # ── Per-feature version resolution ──────────────────────────────────────────
 # Resolves a feature-scoped version to its exact `<feature>/<X.Y.Z>` release
 # tag. Supports partial/empty specs via github__resolve_version with
@@ -323,6 +298,7 @@ _fetch_bundle_manifest() {
 _lookup_bundle_feature_version() {
   local _manifest="$1" _feature="$2" _version=""
   if command -v yq > /dev/null 2>&1; then
+    # shellcheck disable=SC2016  # $f is a yq variable (--arg), not a shell variable
     _version="$(yq -r --arg f "$_feature" '.features[$f] // ""' "$_manifest" 2> /dev/null)" || _version=""
   fi
   if [[ -z "${_version}" || "${_version}" == "null" ]] && command -v python3 > /dev/null 2>&1; then
