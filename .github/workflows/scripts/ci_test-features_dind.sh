@@ -6,7 +6,22 @@ set -euo pipefail
 
 FEATURE="${1:?usage: run-feature-tests-dind.sh <feature-name>}"
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${GITHUB_WORKSPACE:-}" ]] \
+  && [[ -f "${GITHUB_WORKSPACE}/justfile" ]]; then
+  REPO_ROOT="$GITHUB_WORKSPACE"
+elif REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2> /dev/null)" \
+  && [[ -f "${REPO_ROOT}/justfile" ]]; then
+  :
+else
+  REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+fi
+
+if [[ ! -f "${REPO_ROOT}/justfile" ]]; then
+  printf '⛔ Could not resolve repo root from %s\n' "$SCRIPT_DIR" >&2
+  exit 1
+fi
+
 cd "$REPO_ROOT"
 
 # GHA job containers bind-mount the runner's Docker socket at
@@ -39,4 +54,4 @@ mkdir -p "$DIND_ROOT"
 dockerd --data-root "$DIND_ROOT" --storage-driver overlay2 > /tmp/dockerd.log 2>&1 &
 timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 0.5; done'
 
-exec bash test/run.sh feature "$FEATURE"
+exec just test-feature "$FEATURE"
