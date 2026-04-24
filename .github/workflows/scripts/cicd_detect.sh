@@ -184,7 +184,11 @@ branch_tag="branch-${branch_name//[^a-zA-Z0-9._-]/-}"
 
 # ── Detect devcontainer changes ────────────────────────────────────
 devcontainer_changed=false
-if [[ "$is_force" == "true" ]]; then
+if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+  if [[ "${INPUT_REBUILD_DEVCONTAINER:-false}" == "true" ]]; then
+    devcontainer_changed=true
+  fi
+elif [[ "$is_force" == "true" ]]; then
   devcontainer_changed=true
 elif echo "${changed:-}" | grep -qE '^\.devcontainer/\.dev/'; then
   devcontainer_changed=true

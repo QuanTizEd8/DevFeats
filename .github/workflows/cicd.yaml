@@ -7,6 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      rebuild_devcontainer:
+        description: "Force devcontainer image rebuild for this manual run."
+        type: boolean
+        default: false
       feature:
         description: "Feature id to publish (e.g. install-pixi). Leave empty to run CI only."
         required: false
@@ -50,6 +54,7 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           BASE_REF: ${{ github.base_ref }}
           BEFORE: ${{ github.event.before }}
+          INPUT_REBUILD_DEVCONTAINER: ${{ inputs.rebuild_devcontainer }}
           INPUT_FEATURE: ${{ inputs.feature }}
           INPUT_VERSION: ${{ inputs.version }}
           REPO_OWNER: ${{ github.repository_owner }}
