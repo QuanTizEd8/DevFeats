@@ -252,18 +252,9 @@ _gh__install_binary() {
   checksum__verify_sha256 "${INSTALLER_DIR}/${_archive_name}" "${_expected}"
   echo "✅ Checksum verified." >&2
 
-  # Ensure extraction tools are available (skip install when already present).
-  case "${_ext}" in
-    tar.gz) command -v tar > /dev/null 2>&1 || ospkg__install tar ;;
-    zip) command -v unzip > /dev/null 2>&1 || ospkg__install unzip ;;
-  esac
-
   # Extract archive.
   echo "📦 Extracting archive..." >&2
-  case "${_ext}" in
-    tar.gz) tar -xzf "${INSTALLER_DIR}/${_archive_name}" -C "${INSTALLER_DIR}" ;;
-    zip) unzip -q "${INSTALLER_DIR}/${_archive_name}" -d "${INSTALLER_DIR}" ;;
-  esac
+  file__extract_archive "${INSTALLER_DIR}/${_archive_name}" "${INSTALLER_DIR}" "${_archive_name}"
 
   # Install binary.
   mkdir -p "${PREFIX}/bin"
