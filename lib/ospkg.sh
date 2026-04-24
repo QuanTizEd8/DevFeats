@@ -77,7 +77,7 @@ _ospkg_ensure_gpg() {
     dnf) _gpg_pkg=gnupg2 ;;
     *) _gpg_pkg=gnupg ;;
   esac
-  ospkg__install_tracked "sysset-ospkg-internals" "$_gpg_pkg"
+  ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::sysset-ospkg-internals" "$_gpg_pkg"
   return 0
 }
 
@@ -216,7 +216,7 @@ _ospkg_ensure_yq() {
   if ! command -v yq > /dev/null 2>&1; then
     echo "ℹ️  yq not found — attempting package manager install." >&2
     ospkg__update >&2 || true
-    ospkg__install_tracked "sysset-ospkg-internals" yq >&2 || true
+    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::sysset-ospkg-internals" yq >&2 || true
     # Re-test after potential install.
     if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
       _OSPKG_YQ_BIN="yq"
@@ -824,6 +824,19 @@ _ospkg_build_deps_dir() {
   return
 }
 
+# ── Public: ospkg__take_initial_snapshot ─────────────────────────────────────
+# @brief ospkg__take_initial_snapshot <file> — Snapshot the current installed-
+# package list to <file> for use as a session baseline. Called once by
+# get.bash before any installs in manifest mode. Used by ospkg__install_tracked
+# to exclude pre-existing packages from session co-ownership tracking.
+ospkg__take_initial_snapshot() {
+  local _dest="$1"
+  ospkg__detect
+  _ospkg_snapshot_packages "$_dest"
+  echo "ℹ️  Initial package snapshot written to ${_dest}." >&2
+  return 0
+}
+
 # _ospkg_snapshot_packages <dest-file> — writes a sorted list of installed
 # package names (one per line) to <dest-file>.
 _ospkg_snapshot_packages() {
@@ -949,6 +962,11 @@ _ospkg_remove_build_group() {
 # them as build-only under <group-id> for cleanup when keep_build_deps=false.
 # Idempotent: if all packages are already installed the sidecar is unchanged.
 # Requires ospkg__detect to have been called first.
+#
+# Session co-ownership: when _SYSSET_SESSION_TRACK_DIR is set (manifest mode),
+# also appends each requested package absent from _SYSSET_INITIAL_SNAPSHOT to
+# the session sidecar for _group_id. This registers co-ownership for packages
+# already installed by a prior feature in the same session.
 ospkg__install_tracked() {
   local _group_id="$1"
   shift
@@ -959,6 +977,21 @@ ospkg__install_tracked() {
   ospkg__install "$@"
   _ospkg_mark_build_group "$_group_id" "$_before_snapshot"
   rm -f "$_before_snapshot"
+  # Session co-ownership tracking (manifest mode only).
+  # Register all requested packages not present in the initial snapshot so that
+  # the get.bash coordinator can apply keep-wins policy across all co-owners.
+  if [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" && -d "${_SYSSET_SESSION_TRACK_DIR}" ]]; then
+    local _session_sidecar _pkg
+    _session_sidecar="${_SYSSET_SESSION_TRACK_DIR}/${_group_id//\//_}"
+    for _pkg in "$@"; do
+      # Skip packages that existed before the session (pre-existing is never cleaned).
+      if [[ -n "${_SYSSET_INITIAL_SNAPSHOT:-}" && -f "${_SYSSET_INITIAL_SNAPSHOT}" ]]; then
+        grep -qxF "$_pkg" "$_SYSSET_INITIAL_SNAPSHOT" && continue
+      fi
+      printf '%s\n' "$_pkg" >> "$_session_sidecar"
+    done
+    [[ -f "$_session_sidecar" ]] && sort -u "$_session_sidecar" -o "$_session_sidecar"
+  fi
   return 0
 }
 
@@ -977,6 +1010,122 @@ ospkg__cleanup_all_build_groups() {
     # Skip temporary snapshot files used during the tracking process.
     [[ "$_group_id" == *.before || "$_group_id" == *.after ]] && continue
     _ospkg_remove_build_group "$_group_id"
+  done
+  return 0
+}
+
+# @brief ospkg__cleanup_session_build_groups <get-bash-keep> — Manifest-mode
+# coordinator. Reads co-ownership entries from _SYSSET_SESSION_TRACK_DIR,
+# applies Rule 1 (keep wins over clean), then removes packages not kept by any
+# co-owner. Deletes _SYSSET_SESSION_TRACK_DIR on completion.
+#
+# <get-bash-keep>: "true"|"false" — keep_build_deps for the get-bash context.
+# Feature keep_build_deps is read from the _OPT_OF associative array (must be
+# in scope when called from get.bash). Defaults to false when not found.
+#
+# No-ops when _SYSSET_SESSION_TRACK_DIR is unset or does not exist.
+ospkg__cleanup_session_build_groups() {
+  local _getbash_keep="${1:-false}"
+  [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" ]] || return 0
+  [[ -d "$_SYSSET_SESSION_TRACK_DIR" ]] || return 0
+
+  # Build pkg -> should_keep map (keep wins: any true overrides all false).
+  declare -A _session_pkg_keep=()
+  local _sidecar _basename _context _feature_id _keep _pkg
+  for _sidecar in "$_SYSSET_SESSION_TRACK_DIR"/*; do
+    [[ -f "$_sidecar" ]] || continue
+    _basename="$(basename "$_sidecar")"
+    # Derive keep policy from context prefix in the filename.
+    # Filename is the context-qualified group ID, e.g.:
+    #   "get-bash::bootstrap", "feature::install-gh::lib-net"
+    if [[ "$_basename" == get-bash::* ]]; then
+      _keep="$_getbash_keep"
+    else
+      # Extract feature ID from "feature::<id>::<module>" pattern.
+      _feature_id="${_basename#feature::}"
+      _feature_id="${_feature_id%%::*}"
+      _keep=false
+      # Read from _OPT_OF if declared in the caller's scope (get.bash).
+      if declare -p _OPT_OF > /dev/null 2>&1 && [[ -n "${_OPT_OF[$_feature_id]+x}" ]]; then
+        if [[ "${_OPT_OF[$_feature_id]}" =~ \"keep_build_deps\":[[:space:]]*true ]]; then
+          _keep=true
+        fi
+      fi
+    fi
+    while IFS= read -r _pkg; do
+      [[ -z "$_pkg" ]] && continue
+      # Keep wins: once set true, never overridden by false.
+      if [[ "${_session_pkg_keep[$_pkg]:-false}" != "true" ]]; then
+        _session_pkg_keep["$_pkg"]="$_keep"
+      fi
+    done < "$_sidecar"
+  done
+
+  # Collect packages where all co-owners said keep=false.
+  local -a _to_remove=()
+  for _pkg in "${!_session_pkg_keep[@]}"; do
+    [[ "${_session_pkg_keep[$_pkg]}" != "true" ]] && _to_remove+=("$_pkg")
+  done
+
+  if [[ ${#_to_remove[@]} -gt 0 ]]; then
+    echo "🗑️  Session cleanup: removing ${#_to_remove[@]} build-dep package(s): ${_to_remove[*]}" >&2
+    local _synth_dir _synth_sidecar
+    _synth_dir="$(_ospkg_build_deps_dir)"
+    _synth_sidecar="${_synth_dir}/__session_cleanup__"
+    printf '%s\n' "${_to_remove[@]}" | sort > "$_synth_sidecar"
+    _ospkg_remove_build_group "__session_cleanup__" || true
+  else
+    echo "ℹ️  Session cleanup: no packages to remove (all kept or nothing installed)." >&2
+  fi
+
+  rm -rf "$_SYSSET_SESSION_TRACK_DIR"
+  return 0
+}
+
+# ── Public: resource tracking ─────────────────────────────────────────────────
+# @brief ospkg__track_resource <group-id> <path>... — Register filesystem paths
+# for cleanup alongside package cleanup. Paths are written to a resource sidecar
+# in _SYSSET_TMPDIR/ospkg/resources/ (one path per line). When
+# _SYSSET_SESSION_TRACK_DIR is set, also mirrors to the session dir so the
+# get.bash coordinator can clean cross-feature resources.
+ospkg__track_resource() {
+  local _group_id="$1"
+  shift
+  local _res_dir _sidecar _path
+  _res_dir="$(logging__tmpdir "ospkg/resources")"
+  _sidecar="${_res_dir}/${_group_id//\//_}"
+  for _path in "$@"; do
+    printf '%s\n' "$_path" >> "$_sidecar"
+  done
+  if [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" && -d "${_SYSSET_SESSION_TRACK_DIR}" ]]; then
+    local _sess_res_dir="${_SYSSET_SESSION_TRACK_DIR}/resources"
+    mkdir -p "$_sess_res_dir"
+    local _sess_sidecar="${_sess_res_dir}/${_group_id//\//_}"
+    for _path in "$@"; do
+      printf '%s\n' "$_path" >> "$_sess_sidecar"
+    done
+  fi
+  return 0
+}
+
+# @brief ospkg__cleanup_resources — Remove all files registered via
+# ospkg__track_resource. Reads resource sidecars from
+# _SYSSET_TMPDIR/ospkg/resources/ and rm -f's each listed path.
+# Non-fatal: removal failures emit a warning and continue.
+ospkg__cleanup_resources() {
+  local _res_dir
+  _res_dir="$(logging__tmpdir "ospkg/resources")"
+  [[ -d "$_res_dir" ]] || return 0
+  local _sidecar _path
+  for _sidecar in "$_res_dir"/*; do
+    [[ -f "$_sidecar" ]] || continue
+    while IFS= read -r _path; do
+      [[ -z "$_path" ]] && continue
+      if [[ -e "$_path" ]]; then
+        rm -f "$_path" 2> /dev/null || echo "⚠️  ospkg__cleanup_resources: could not remove '${_path}'" >&2
+      fi
+    done < "$_sidecar"
+    rm -f "$_sidecar"
   done
   return 0
 }
@@ -1133,7 +1282,7 @@ ospkg__run() {
     if ! command -v jq > /dev/null 2>&1; then
       echo "ℹ️  jq not found — installing." >&2
       ospkg__update --force
-      ospkg__install_tracked "sysset-ospkg-internals" jq
+      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::sysset-ospkg-internals" jq
     fi
 
     # yq is required to convert YAML to JSON.
