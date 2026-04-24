@@ -45,19 +45,11 @@ _FEATURES = _REPO / "features"
 _SRC = _REPO / "src"
 _DERIVED_OPTIONS_PATH = _FEATURES / "derived-options.yaml"
 
-# Derived (synthetic) options — loaded from shared YAML
-with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
-    _DERIVED_OPTIONS: dict = yaml.safe_load(_fh)
-# All keys that the generators manage (strip from raw metadata before re-injecting).
-_DERIVED_OPTION_KEYS: frozenset[str] = frozenset(_DERIVED_OPTIONS)
-
 # Constants
 REPO_OWNER, REPO_NAME = git_owner_repo()
 LICENSE_URL = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/blob/main/LICENSE"
 DOC_URL_BASE = f"https://{REPO_OWNER}.github.io/{REPO_NAME}"
 DOC_URL_TEMPLATE = DOC_URL_BASE + "/features/{feature_id}/"
-
-DEPS_KEY = "_dependencies"  # internal key for build/runtime deps (not written to JSON)
 
 
 def main() -> None:
@@ -116,37 +108,82 @@ def generate_json(data: dict) -> str:
 
     Returns the JSON string (with trailing newline).
     """
-    # Determine whether this feature uses ospkg (_dependencies key is present,
-    # even if empty) to decide whether to inject the keep_cache option.
-    # has_build_deps is true when the feature has a `_dependencies.build` sub-map.
-    has_ospkg: bool = data.get(DEPS_KEY) is not None
-    deps = data.get(DEPS_KEY) or {}
-    has_build_deps: bool = bool(deps.get("build"))
-
-    # Build a patched data dict with derived options stripped from the raw
-    # options dict and replaced with canonical synthetic definitions.
-    # keep_cache is only stripped when has_ospkg (it will be re-injected);
-    # keep_build_deps is only stripped when has_build_deps (it will be re-injected);
-    # for features without those characteristics, they may be legitimate declared options.
-    raw_options: dict = data.get("options") or {}
-    always_strip = _DERIVED_OPTION_KEYS - {"keep_cache", "keep_build_deps"}
-    keys_to_strip = always_strip | ({"keep_cache"} if has_ospkg else set()) | ({"keep_build_deps"} if has_build_deps else set())
-    core_options: dict = {
-        k: v for k, v in raw_options.items() if k not in keys_to_strip
-    }
-    synthetic_options: dict = {}
-    if has_ospkg:
-        synthetic_options["keep_cache"] = _synthetic("keep_cache")
-    if has_build_deps:
-        synthetic_options["keep_build_deps"] = _synthetic("keep_build_deps")
-    synthetic_options["debug"] = _synthetic("debug")
-    synthetic_options["logfile"] = _synthetic("logfile")
-
-    patched: dict = {**data, "options": {**core_options, **synthetic_options}}
+    full_options = _augment_options(data)
+    patched: dict = {**data, "options": full_options}
     processed = {k: _process_value(k, v) for k, v in patched.items()}
     augmented = _add_synthetic_keys(processed)
     clean = _drop_internal_keys(augmented)
     return json.dumps(clean, sort_keys=True, indent=3, ensure_ascii=False) + "\n"
+
+
+def _augment_options(data: dict) -> dict:
+    """Generate the full options dict for a feature.
+
+    Add derived options from features/derived-options.yaml,
+    conditionally applying options with _apply_when
+    based on the feature's declared options.
+    """
+    with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
+        derived_options: dict = yaml.safe_load(_fh)
+
+    options: dict = dict(data.get("options", {}))
+    for option_id, option_def in derived_options.items():
+        if option_id in options:
+            raise ValueError(
+                f"Feature {data.get('id', '<unknown>')} declares option '{option_id}' that conflicts with a reserved derived option.  "
+                f"Remove the declaration to use the standard derived option schema from features/derived-options.yaml."
+            )
+        if "_apply_when" not in option_def:
+            options[option_id] = option_def
+            continue
+
+        should_apply = _evaluate_condition(option_def["_apply_when"], options)
+        if should_apply:
+            options[option_id] = option_def
+    return options
+
+
+def _evaluate_condition(apply_when: dict, options: dict) -> bool:
+    """Evaluate an _apply_when condition against the feature's options."""
+    jsonpath = apply_when["jsonpath"]
+    exists, value = _resolve_jsonpath(jsonpath, options)
+    condition = apply_when["condition"]
+    if condition == "exists":
+        return exists
+    if condition == "not_exists":
+        return not exists
+    if condition == "equals":
+        expected = apply_when["value"]
+        return exists and value == expected
+    if condition == "not_equals":
+        expected = apply_when["value"]
+        return not exists or value != expected
+    raise ValueError(f"Unsupported condition: {condition}")
+
+
+def _resolve_jsonpath(jsonpath: str, options: dict) -> tuple[bool, object]:
+    """Resolve a simple JSONPath expression against the options dict.
+
+    Supported JSONPath syntax:
+    - Root object: $
+    - Dot notation for object properties: $.property
+
+    Returns
+    -------
+    exists
+        Whether the path exists in the options dict.
+    value
+        The value at the path if it exists, or None if it does not exist.
+    """
+    if not jsonpath.startswith("$."):
+        raise ValueError(f"Unsupported JSONPath expression: {jsonpath}")
+    path_parts = jsonpath[2:].split(".")
+    current = options
+    for part in path_parts:
+        if not isinstance(current, dict) or part not in current:
+            return False, None
+        current = current[part]
+    return True, current
 
 
 def find_features() -> list[Path]:
@@ -261,11 +298,6 @@ def _process_value(key: str, value: object) -> object:
             for opt_name, opt in value.items()
         }
     return value
-
-
-def _synthetic(key: str) -> dict:
-    """Return the option schema for a derived key, stripping the 'inject' meta-field."""
-    return {k: v for k, v in _DERIVED_OPTIONS[key].items() if k != "inject"}
 
 
 if __name__ == "__main__":
