@@ -120,3 +120,102 @@ z"
   run bash -c '. "$1" && printf %s "{\"a\":1}" | json__detect_duplicate_keys_stdin' _ "${LIB_ROOT}/json.sh"
   assert_success
 }
+
+# ---------------------------------------------------------------------------
+# _json__ensure_parse_tool — tool detection and caching
+# ---------------------------------------------------------------------------
+
+@test "_json__ensure_parse_tool: selects jq when available" {
+  create_fake_bin "jq" ""
+  prepend_fake_bin_path
+  # Force a clean state before calling the private function.
+  unset _JSON__ENSURE_PARSE_DONE _JSON__PARSE_TOOL
+  # Source the library after clearing state.
+  reload_lib json.sh
+
+  _json__ensure_parse_tool
+  [[ "${_JSON__PARSE_TOOL}" == "jq" ]]
+}
+
+@test "_json__ensure_parse_tool: result is cached on second call" {
+  create_fake_bin "jq" ""
+  prepend_fake_bin_path
+  unset _JSON__ENSURE_PARSE_DONE _JSON__PARSE_TOOL
+  reload_lib json.sh
+
+  _json__ensure_parse_tool
+  local _first="${_JSON__PARSE_TOOL}"
+  # Remove jq from PATH — second call must use cached value.
+  local _saved="$PATH"
+  export PATH="${BATS_TEST_TMPDIR}/no_bin"
+  _json__ensure_parse_tool
+  local _second="${_JSON__PARSE_TOOL}"
+  export PATH="$_saved"
+
+  [[ "$_first" == "$_second" ]]
+}
+
+@test "_json__ensure_parse_tool: falls back to python when jq and yq absent" {
+  unset _JSON__ENSURE_PARSE_DONE _JSON__PARSE_TOOL
+  reload_lib json.sh
+  # Restrict PATH to only python3.
+  create_fake_bin "python3" ""
+  local _saved="$PATH"
+  export PATH="${BATS_TEST_TMPDIR}/bin"
+
+  _json__ensure_parse_tool
+  local _result="${_JSON__PARSE_TOOL}"
+  export PATH="$_saved"
+
+  [[ "$_result" == "python" ]]
+}
+
+@test "_json__ensure_parse_tool: returns failure when no parser and ospkg unavailable" {
+  unset _JSON__ENSURE_PARSE_DONE _JSON__PARSE_TOOL
+  unset _OSPKG__LIB_LOADED
+  reload_lib json.sh
+  # Create empty bin dir BEFORE restricting PATH.
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  local _saved="$PATH"
+  export PATH="${BATS_TEST_TMPDIR}/bin"  # empty bin dir — no tools
+
+  run _json__ensure_parse_tool
+
+  export PATH="$_saved"
+  assert_failure
+}
+
+@test "_json__ensure_parse_tool: calls ospkg__install_tracked when ospkg is loaded and no parser found" {
+  unset _JSON__ENSURE_PARSE_DONE _JSON__PARSE_TOOL
+  reload_lib json.sh
+  # Mark ospkg as loaded.
+  export _OSPKG__LIB_LOADED=1
+
+  local _install_log="${BATS_TEST_TMPDIR}/install.log"
+  local _fake_jq="${BATS_TEST_TMPDIR}/bin/jq"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+
+  ospkg__update() { return 0; }
+  export -f ospkg__update
+
+  # ospkg__install_tracked creates a fake jq so the second command -v jq check passes.
+  ospkg__install_tracked() {
+    echo "install_tracked $*" >> "$_install_log"
+    printf '#!/bin/bash\nexit 0\n' > "$_fake_jq"
+    chmod +x "$_fake_jq"
+    return 0
+  }
+  export -f ospkg__install_tracked
+
+  local _saved="$PATH"
+  export PATH="${BATS_TEST_TMPDIR}/bin"
+
+  _json__ensure_parse_tool
+  local _rc=$?
+  export PATH="$_saved"
+
+  [[ $_rc -eq 0 ]]
+  assert_file_exists "$_install_log"
+  grep -q "jq" "$_install_log"
+  [[ "${_JSON__PARSE_TOOL}" == "jq" ]]
+}

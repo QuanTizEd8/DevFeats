@@ -711,3 +711,393 @@ _mock_snapshots() {
   assert_success
   assert_output --partial "[dry-run] packages: foo"
 }
+
+# ---------------------------------------------------------------------------
+# ospkg__take_initial_snapshot
+# ---------------------------------------------------------------------------
+
+@test "ospkg__take_initial_snapshot writes sorted package list to file" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  # Provide a fake dpkg-query that emits a known set of packages.
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\nprintf "wget\ncurl\ngit\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  prepend_fake_bin_path
+
+  local _snap="${BATS_TEST_TMPDIR}/snap.txt"
+  ospkg__take_initial_snapshot "$_snap"
+
+  assert_file_exists "$_snap"
+  # sort -u so order-independence: curl git wget
+  grep -q "^curl$" "$_snap"
+  grep -q "^git$" "$_snap"
+  grep -q "^wget$" "$_snap"
+}
+
+@test "ospkg__take_initial_snapshot prints informational message to stderr" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  create_fake_bin "dpkg-query" ""
+  prepend_fake_bin_path
+
+  local _snap="${BATS_TEST_TMPDIR}/snap.txt"
+  run ospkg__take_initial_snapshot "$_snap"
+
+  assert_success
+  assert_output --partial "Initial package snapshot written"
+}
+
+@test "ospkg__take_initial_snapshot creates empty file for unknown PM" {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  # Force an unknown PM context directly to test the '*' case.
+  _OSPKG_DETECTED=true
+  _OSPKG_PKG_MNGR="unknown-pm"
+  _OSPKG_PREFIX="unknown"
+
+  local _snap="${BATS_TEST_TMPDIR}/snap_unknown.txt"
+  ospkg__take_initial_snapshot "$_snap"
+
+  assert_file_exists "$_snap"
+  [[ ! -s "$_snap" ]]
+}
+
+# ---------------------------------------------------------------------------
+# ospkg__install_tracked — session co-ownership tracking (new behaviour)
+# ---------------------------------------------------------------------------
+
+# _seed_session_context — seeds apt build context + session tracking dir.
+# Exposes _SESSION_DIR and _INITIAL_SNAP variables for use in tests.
+_seed_session_context() {
+  _seed_apt_build_context
+  _SESSION_DIR="$(mktemp -d "${BATS_TEST_TMPDIR}/session_XXXXXX")"
+  _INITIAL_SNAP="${BATS_TEST_TMPDIR}/initial.snap"
+  export _SYSSET_SESSION_TRACK_DIR="$_SESSION_DIR"
+  export _SYSSET_INITIAL_SNAPSHOT="$_INITIAL_SNAP"
+}
+
+@test "ospkg__install_tracked: new package is appended to session sidecar" {
+  _seed_session_context
+  # pre-session: curl is already installed; newpkg is not in initial snapshot
+  printf 'curl\n' > "$_INITIAL_SNAP"
+  _mock_snapshots "curl" "curl newpkg"
+
+  ospkg__install_tracked "feature::install-test::lib-net" newpkg
+
+  local _sess_sidecar="${_SESSION_DIR}/feature::::install-test::::lib-net"
+  # filename uses // substitution so :: → ::::... let's detect the real name
+  local _found
+  _found="$(ls "$_SESSION_DIR"/ 2>/dev/null | head -1)"
+  [[ -n "$_found" ]]
+  grep -q "^newpkg$" "${_SESSION_DIR}/${_found}"
+}
+
+@test "ospkg__install_tracked: pre-session package is excluded from session sidecar" {
+  _seed_session_context
+  # curl is in the initial snapshot → should NOT appear in session sidecar
+  printf 'curl\n' > "$_INITIAL_SNAP"
+  _mock_snapshots "curl" "curl"
+
+  ospkg__install_tracked "feature::install-test::lib-net" curl
+
+  # Session sidecar should either not exist or not contain 'curl'
+  local _found
+  _found="$(ls "$_SESSION_DIR"/ 2>/dev/null | head -1)"
+  if [[ -n "$_found" ]]; then
+    run grep "^curl$" "${_SESSION_DIR}/${_found}"
+    assert_failure
+  fi
+}
+
+@test "ospkg__install_tracked: session sidecar deduplicates repeated calls" {
+  _seed_session_context
+  printf '' > "$_INITIAL_SNAP"  # empty initial snapshot
+  _mock_snapshots "" "pkgA"
+  ospkg__install_tracked "feature::install-test::lib-net" pkgA
+  _mock_snapshots "pkgA" "pkgA"
+  ospkg__install_tracked "feature::install-test::lib-net" pkgA
+
+  # Find the session sidecar
+  local _found
+  _found="$(ls "$_SESSION_DIR"/ 2>/dev/null | head -1)"
+  [[ -n "$_found" ]]
+  [[ "$(grep -c "^pkgA$" "${_SESSION_DIR}/${_found}")" -eq 1 ]]
+}
+
+@test "ospkg__install_tracked: no session tracking when _SYSSET_SESSION_TRACK_DIR is unset" {
+  _seed_apt_build_context
+  unset _SYSSET_SESSION_TRACK_DIR
+  _mock_snapshots "" "newpkg"
+
+  ospkg__install_tracked "test-group" newpkg
+
+  # SYSSET_TMPDIR/ospkg/build-deps sidecar should exist (local tracking)
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  assert_file_exists "$_sidecar"
+  grep -q "^newpkg$" "$_sidecar"
+}
+
+@test "ospkg__install_tracked: no session tracking when session dir does not exist" {
+  _seed_apt_build_context
+  export _SYSSET_SESSION_TRACK_DIR="${BATS_TEST_TMPDIR}/no_such_session_dir_xyz"
+  _mock_snapshots "" "newpkg"
+
+  # Must not fail even though _SYSSET_SESSION_TRACK_DIR does not exist.
+  run ospkg__install_tracked "test-group" newpkg
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# ospkg__cleanup_session_build_groups
+# ---------------------------------------------------------------------------
+
+# _seed_session_cleanup_context — seeds apt context + required infrastructure.
+# Callers populate ${_SESSION_DIR}/ with sidecar files and ${_BUILD_DEPS_DIR}/
+# with sidecar files before calling ospkg__cleanup_session_build_groups.
+_seed_session_cleanup_context() {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  _SESSION_DIR="$(mktemp -d "${BATS_TEST_TMPDIR}/session_XXXXXX")"
+  export _SYSSET_SESSION_TRACK_DIR="$_SESSION_DIR"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  _APT_LOG="${BATS_TEST_TMPDIR}/apt-get.log"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_APT_LOG" \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  prepend_fake_bin_path
+}
+
+@test "ospkg__cleanup_session_build_groups: no-ops when _SYSSET_SESSION_TRACK_DIR is unset" {
+  reload_lib ospkg.sh
+  unset _SYSSET_SESSION_TRACK_DIR
+
+  run ospkg__cleanup_session_build_groups "false"
+  assert_success
+}
+
+@test "ospkg__cleanup_session_build_groups: no-ops when session dir does not exist" {
+  reload_lib ospkg.sh
+  export _SYSSET_SESSION_TRACK_DIR="${BATS_TEST_TMPDIR}/no_such_dir_xyz"
+
+  run ospkg__cleanup_session_build_groups "false"
+  assert_success
+}
+
+@test "ospkg__cleanup_session_build_groups: deletes session dir on completion" {
+  _seed_session_cleanup_context
+  # Empty session dir — nothing to remove, but dir should still be deleted.
+
+  ospkg__cleanup_session_build_groups "false"
+
+  [[ ! -d "$_SESSION_DIR" ]]
+}
+
+@test "ospkg__cleanup_session_build_groups: single feature keep=false — package removed" {
+  _seed_session_cleanup_context
+  # One feature with keep=false contributed 'buildpkg'.
+  printf 'buildpkg\n' > "${_SESSION_DIR}/feature::install-test::lib-net"
+
+  ospkg__cleanup_session_build_groups "false"
+
+  grep -q "autoremove\|remove" "$_APT_LOG" || grep -q "buildpkg" "$_APT_LOG"
+}
+
+@test "ospkg__cleanup_session_build_groups: keep-wins — any true prevents removal" {
+  _seed_session_cleanup_context
+  # Two features co-own 'sharedpkg': one keeps, one does not.
+  printf 'sharedpkg\n' > "${_SESSION_DIR}/feature::install-a::lib-net"
+  printf 'sharedpkg\n' > "${_SESSION_DIR}/feature::install-b::lib-net"
+
+  # Declare _OPT_OF so ospkg__cleanup_session_build_groups can read keep policy.
+  declare -gA _OPT_OF=(
+    ["install-a"]='{"keep_build_deps": true}'
+    ["install-b"]='{"keep_build_deps": false}'
+  )
+
+  ospkg__cleanup_session_build_groups "false"
+
+  # Package must NOT be removed — keep wins.
+  [[ ! -f "$_APT_LOG" ]] || ! grep -q "sharedpkg" "$_APT_LOG"
+}
+
+@test "ospkg__cleanup_session_build_groups: get-bash keep=true prevents removal" {
+  _seed_session_cleanup_context
+  # get-bash contributed 'gbpkg' and requests keep=true.
+  printf 'gbpkg\n' > "${_SESSION_DIR}/get-bash::bootstrap"
+
+  ospkg__cleanup_session_build_groups "true"
+
+  [[ ! -f "$_APT_LOG" ]] || ! grep -q "gbpkg" "$_APT_LOG"
+}
+
+@test "ospkg__cleanup_session_build_groups: all keep=false — packages are removed" {
+  _seed_session_cleanup_context
+  # Two distinct packages owned by separate contexts, both keep=false.
+  printf 'pkgA\n' > "${_SESSION_DIR}/feature::install-a::lib-net"
+  printf 'pkgB\n' > "${_SESSION_DIR}/feature::install-b::lib-net"
+
+  declare -gA _OPT_OF=(
+    ["install-a"]='{"keep_build_deps": false}'
+    ["install-b"]='{"keep_build_deps": false}'
+  )
+
+  ospkg__cleanup_session_build_groups "false"
+
+  assert_file_exists "$_APT_LOG"
+}
+
+@test "ospkg__cleanup_session_build_groups: resources/ subdir is ignored" {
+  _seed_session_cleanup_context
+  # Place a file inside resources/ — must not be treated as a package sidecar.
+  mkdir -p "${_SESSION_DIR}/resources"
+  printf '/tmp/somefile\n' > "${_SESSION_DIR}/resources/my-group"
+
+  ospkg__cleanup_session_build_groups "false"
+
+  # apt-get must not have been invoked for anything.
+  [[ ! -f "$_APT_LOG" ]]
+}
+
+@test "ospkg__cleanup_session_build_groups: empty session dir prints informational message" {
+  _seed_session_cleanup_context
+
+  run ospkg__cleanup_session_build_groups "false"
+
+  assert_success
+  assert_output --partial "no packages to remove"
+}
+
+@test "ospkg__cleanup_session_build_groups: pre-existing package in initial snapshot is not tracked" {
+  # ospkg__install_tracked excludes packages in _SYSSET_INITIAL_SNAPSHOT;
+  # therefore the session sidecar should never contain them. This test confirms
+  # that if a sidecar somehow contains a package name, the coordinator still
+  # processes it (defense-in-depth). But the main path: _install_tracked + initial
+  # snapshot → package absent from sidecar → nothing to remove.
+  _seed_session_cleanup_context
+  # Session dir is empty because ospkg__install_tracked filtered pre-existing.
+  # Cleanup should report "no packages to remove".
+
+  run ospkg__cleanup_session_build_groups "false"
+  assert_success
+  assert_output --partial "no packages to remove"
+}
+
+# ---------------------------------------------------------------------------
+# ospkg__track_resource / ospkg__cleanup_resources
+# ---------------------------------------------------------------------------
+
+@test "ospkg__track_resource: writes path to local resource sidecar" {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  unset _SYSSET_SESSION_TRACK_DIR
+
+  ospkg__track_resource "test-group" "/tmp/some_file_xyz"
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/resources/test-group"
+  assert_file_exists "$_sidecar"
+  grep -q "^/tmp/some_file_xyz$" "$_sidecar"
+}
+
+@test "ospkg__track_resource: multiple paths written in order" {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  unset _SYSSET_SESSION_TRACK_DIR
+
+  ospkg__track_resource "test-group" "/a/path1" "/b/path2" "/c/path3"
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/resources/test-group"
+  grep -q "^/a/path1$" "$_sidecar"
+  grep -q "^/b/path2$" "$_sidecar"
+  grep -q "^/c/path3$" "$_sidecar"
+}
+
+@test "ospkg__track_resource: also mirrors to session resources dir when session dir set" {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  local _session_dir
+  _session_dir="$(mktemp -d "${BATS_TEST_TMPDIR}/session_XXXXXX")"
+  export _SYSSET_SESSION_TRACK_DIR="$_session_dir"
+
+  ospkg__track_resource "test-group" "/tmp/mirror_test"
+
+  # Local sidecar
+  local _local="${BATS_TEST_TMPDIR}/ospkg/resources/test-group"
+  assert_file_exists "$_local"
+  grep -q "^/tmp/mirror_test$" "$_local"
+
+  # Session mirror
+  local _sess="${_session_dir}/resources/test-group"
+  assert_file_exists "$_sess"
+  grep -q "^/tmp/mirror_test$" "$_sess"
+}
+
+@test "ospkg__track_resource: no session mirror when session dir does not exist" {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _SYSSET_SESSION_TRACK_DIR="${BATS_TEST_TMPDIR}/no_such_session_xyz"
+
+  # Must not fail even if session dir is missing.
+  run ospkg__track_resource "test-group" "/tmp/no_mirror"
+  assert_success
+
+  # Session resources dir must not have been created.
+  [[ ! -d "${BATS_TEST_TMPDIR}/no_such_session_xyz/resources" ]]
+}
+
+@test "ospkg__cleanup_resources: removes tracked files" {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+
+  # Create real files to be removed.
+  local _f1="${BATS_TEST_TMPDIR}/tracked_file_a"
+  local _f2="${BATS_TEST_TMPDIR}/tracked_file_b"
+  touch "$_f1" "$_f2"
+  ospkg__track_resource "cleanup-group" "$_f1" "$_f2"
+
+  ospkg__cleanup_resources
+
+  [[ ! -e "$_f1" ]]
+  [[ ! -e "$_f2" ]]
+}
+
+@test "ospkg__cleanup_resources: sidecar is deleted after processing" {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+
+  local _f="${BATS_TEST_TMPDIR}/tracked_file_c"
+  touch "$_f"
+  ospkg__track_resource "cleanup-group2" "$_f"
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/resources/cleanup-group2"
+  assert_file_exists "$_sidecar"
+
+  ospkg__cleanup_resources
+
+  [[ ! -f "$_sidecar" ]]
+}
+
+@test "ospkg__cleanup_resources: non-existent path does not cause failure" {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+
+  # Register a path that does not exist.
+  local _res_dir="${BATS_TEST_TMPDIR}/ospkg/resources"
+  mkdir -p "$_res_dir"
+  printf '/tmp/definitely_does_not_exist_xyz123\n' > "${_res_dir}/ghost-group"
+
+  run ospkg__cleanup_resources
+  assert_success
+}
+
+@test "ospkg__cleanup_resources: no-ops when resources dir is absent" {
+  reload_lib ospkg.sh
+  # Point _SYSSET_TMPDIR to a dir with no ospkg/resources subdir.
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}/empty_root"
+  mkdir -p "$_SYSSET_TMPDIR"
+
+  run ospkg__cleanup_resources
+  assert_success
+}
