@@ -6,6 +6,34 @@
 [ -n "${_FILE__LIB_LOADED-}" ] && return 0
 _FILE__LIB_LOADED=1
 
+# _file__ensure_extract_tool <ext> (internal)
+# Ensures the extraction tool for <ext> is available; installs it via ospkg when possible.
+# <ext>: "zip" (installs unzip), "tar" (hard-fail — system primitive).
+_file__ensure_extract_tool() {
+  local _ext="$1"
+  case "$_ext" in
+    zip)
+      command -v unzip > /dev/null 2>&1 && return 0
+      if [ -n "${_OSPKG__LIB_LOADED-}" ]; then
+        echo "ℹ️  unzip not found — installing." >&2
+        ospkg__update
+        ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-file" unzip
+        command -v unzip > /dev/null 2>&1 && return 0
+      fi
+      echo "⛔ file.sh: unzip is required to extract .zip archives but could not be installed." >&2
+      return 1
+      ;;
+    tar)
+      command -v tar > /dev/null 2>&1 && return 0
+      echo "⛔ file.sh: tar is required but not found. Install it via your system package manager." >&2
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
 # @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, or `.zip` archive to `<dest_dir>`. Returns 1 on unrecognized format or missing tool.
 #
 # <original_name> is used for format detection when <archive_file> is a temp
@@ -21,13 +49,16 @@ file__extract_archive() {
   local _name="${3:-$(basename "$_arc")}"
   mkdir -p "$_dest"
   case "$_name" in
-    *.tar.xz) tar -xJf "$_arc" -C "$_dest" ;;
-    *.tar.gz | *.tgz) tar -xzf "$_arc" -C "$_dest" ;;
+    *.tar.xz)
+      _file__ensure_extract_tool tar || return 1
+      tar -xJf "$_arc" -C "$_dest"
+      ;;
+    *.tar.gz | *.tgz)
+      _file__ensure_extract_tool tar || return 1
+      tar -xzf "$_arc" -C "$_dest"
+      ;;
     *.zip)
-      if ! command -v unzip > /dev/null 2>&1; then
-        echo "⚠️  'unzip' not found — cannot extract '$(basename "$_arc")'. Skipping." >&2
-        return 1
-      fi
+      _file__ensure_extract_tool zip || return 1
       unzip -q -o "$_arc" -d "$_dest"
       ;;
     *)
