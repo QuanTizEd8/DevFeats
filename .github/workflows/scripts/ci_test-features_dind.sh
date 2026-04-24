@@ -7,11 +7,11 @@ set -euo pipefail
 FEATURE="${1:?usage: run-feature-tests-dind.sh <feature-name>}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -n "${GITHUB_WORKSPACE:-}" ]] \
-  && [[ -f "${GITHUB_WORKSPACE}/justfile" ]]; then
+if [[ -n "${GITHUB_WORKSPACE:-}" ]] &&
+  [[ -f "${GITHUB_WORKSPACE}/justfile" ]]; then
   REPO_ROOT="$GITHUB_WORKSPACE"
-elif REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2> /dev/null)" \
-  && [[ -f "${REPO_ROOT}/justfile" ]]; then
+elif REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2> /dev/null)" &&
+  [[ -f "${REPO_ROOT}/justfile" ]]; then
   :
 else
   REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"

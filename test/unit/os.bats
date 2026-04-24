@@ -467,7 +467,7 @@ setup() {
   reload_lib os.sh
   create_fake_bin "id" "notme"
   local _saved="$PATH"
-  export PATH="$BATS_TEST_TMPDIR/bin"  # only fake bin dir; bash not present
+  export PATH="$BATS_TEST_TMPDIR/bin" # only fake bin dir; bash not present
   run os__run_as "otheruser" -- echo "nope"
   export PATH="$_saved"
   assert_failure
