@@ -1,0 +1,9 @@
+for _item in "${@@VAR@@[@]}"; do
+  case "$_item" in
+    @@PATTERN@@) ;;
+    *)
+      echo "⛔ Invalid value for '@@KEY@@': '$_item' (expected: @@EXPECTED@@)" >&2
+      exit 1
+      ;;
+  esac
+done

@@ -1,0 +1,10 @@
+  if [ "${@@VAR@@+defined}" ]; then
+    if [ -n "${@@VAR@@-}" ]; then
+      mapfile -t @@VAR@@ < <(printf '%s\n' "${@@VAR@@}" | grep -v '^$')
+      for _item in "${@@VAR@@[@]}"; do
+        echo "📩 Read argument '@@KEY@@': '$_item'" >&2
+      done
+    else
+      @@VAR@@=()
+    fi
+  fi

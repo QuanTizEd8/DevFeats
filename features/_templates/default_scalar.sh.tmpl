@@ -1,0 +1,4 @@
+[ "${@@VAR@@+defined}" ] || {
+  @@VAR@@=@@RHS@@
+  echo "ℹ️ Argument '@@KEY@@' set to default value '@@DISP@@'." >&2
+}
