@@ -180,7 +180,7 @@ if [[ -n "${HEAD_REF:-}" ]]; then
 else
   branch_name="$REF_NAME"
 fi
-branch_tag="branch-$(echo "$branch_name" | sed 's/[^a-zA-Z0-9._-]/-/g')"
+branch_tag="branch-${branch_name//[^a-zA-Z0-9._-]/-}"
 
 # ── Detect devcontainer changes ────────────────────────────────────
 devcontainer_changed=false
@@ -195,8 +195,16 @@ existing_tags=""
 owner_name="${REPO_OWNER,,}"
 package_name="${REPOSITORY#*/}"
 package_name="${package_name,,}"
-if existing_tags_raw=$(gh api \
-  "orgs/${owner_name}/packages/container/${package_name}-devcontainer/versions" \
+package_scope=""
+owner_type=""
+if owner_type=$(gh api "repos/${REPOSITORY}" --jq '.owner.type' 2> /dev/null); then
+  case "$owner_type" in
+    Organization) package_scope="orgs/${owner_name}" ;;
+    User) package_scope="users/${owner_name}" ;;
+  esac
+fi
+if [[ -n "$package_scope" ]] && existing_tags_raw=$(gh api \
+  "${package_scope}/packages/container/${package_name}-devcontainer/versions" \
   --jq '.[].metadata.container.tags[]' 2> /dev/null); then
   existing_tags="$existing_tags_raw"
 fi
