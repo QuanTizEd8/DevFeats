@@ -49,7 +49,7 @@ proc__run_parallel() {
   for _i in "${!_labs[@]}"; do
     _lab="${_labs[$_i]}"
     read -r _r < "${_od}/${_lab}.ec" 2> /dev/null || _r=0
-    ((${_r} != 0 && _ec == 0)) && _ec=$_r
+    ((_r != 0 && _ec == 0)) && _ec=$_r
   done
   for _lab in "${_labs[@]}"; do
     [[ -f "${_od}/${_lab}.out" ]] && cat "${_od}/${_lab}.out"

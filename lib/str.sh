@@ -80,7 +80,9 @@ str__rsplit_once() {
   fi
   # Avoid nested "${s%"$sep"*"}" (breaks shell quote parsing in some versions).
   _sfx="${sep}*"
+  # shellcheck disable=SC2295  # unquoted intentionally — see comment above
   _head="${s%$_sfx}"
+  # shellcheck disable=SC2295
   _rest="${s#$_head}"
   _rest="${_rest#"$sep"}"
   printf '%s\n' "$_head"

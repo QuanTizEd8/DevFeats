@@ -16,6 +16,7 @@ _DEVCONTAINER_LIFECYCLE_PHASES=(onCreateCommand updateContentCommand postCreateC
 devcontainer__parse_config() {
   local _f="${1-}"
   [[ -f "$_f" ]] || return 1
+  # shellcheck disable=SC2119  # called with stdin redirect, not positional args
   json__detect_duplicate_keys_stdin < "$_f" || return 1
   json__strip_jsonc_stdin < "$_f" || return 1
   return 0
