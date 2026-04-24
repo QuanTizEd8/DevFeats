@@ -62,7 +62,7 @@ git__clone() {
     if [[ -n "${_OSPKG__LIB_LOADED-}" ]]; then
       echo "ℹ️  git not found — installing." >&2
       ospkg__detect
-      ospkg__install_tracked "lib-git" git
+      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-git" git
     else
       echo "⛔ git__clone: git is not installed and ospkg.sh is not loaded." >&2
       return 1
