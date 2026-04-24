@@ -178,12 +178,12 @@ os__run_as() {
     echo "⛔ os__run_as: bash is required to run a command as another user" >&2
     return 1
   fi
-  # shellcheck disable=SC2016
+  # shellcheck disable=SC2016  # $a is intentionally single-quoted — it is bash's variable, not the current shell's
   _or_c="$(bash -c 'for a; do printf " %q" "$a"; done; echo' sh "$@")"
-  # shellcheck disable=SC2001
-  _or_c="$(printf "%s" "$_or_c" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  _or_c="${_or_c# }"  # strip the single leading space; $(...) already strips the trailing newline
   if [ -n "$_or_cd" ]; then
-    su -l "$_or_u" -c "$(printf 'cd %q && %s' "$_or_cd" "$_or_c")"
+    _or_cd_q="$(bash -c 'printf "%q" "$1"' bash "$_or_cd")"
+    su -l "$_or_u" -c "cd ${_or_cd_q} && ${_or_c}"
   else
     su -l "$_or_u" -c "$_or_c"
   fi
