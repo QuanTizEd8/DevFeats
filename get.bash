@@ -103,6 +103,8 @@ _SYSSET_LIB_DIR="$_lib_dir"
 . "${_lib_dir}/proc.sh"
 # shellcheck source=lib/devcontainer.sh
 . "${_lib_dir}/devcontainer.sh"
+# shellcheck source=lib/users.sh
+. "${_lib_dir}/users.sh"
 
 logging__setup
 trap 'rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
@@ -637,8 +639,9 @@ fi
 
 _RU="$(jq -r '.remoteUser // ""' < "$_DCJ" 2> /dev/null | head -1)"
 _CU="$(jq -r '.containerUser // ""' < "$_DCJ" 2> /dev/null | head -1)"
-_EFF_USER="${_RU:-${_CU:-$USER}}"
-_EFF_CUSER="${_CU:-$USER}"
+_SELF_USER="$(users__get_current)"
+_EFF_USER="${_RU:-${_CU:-$_SELF_USER}}"
+_EFF_CUSER="${_CU:-$_SELF_USER}"
 _RU_HOME="$(devcontainer__user_home "$_EFF_USER" 2> /dev/null || true)"
 _CU_HOME="$(devcontainer__user_home "$_EFF_CUSER" 2> /dev/null || true)"
 [[ -z "$_RU_HOME" ]] && _RU_HOME="${HOME:-}"

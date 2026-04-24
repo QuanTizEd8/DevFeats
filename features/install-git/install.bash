@@ -523,7 +523,7 @@ _git__write_system_gitconfig() {
 # for each resolved user.
 _git__write_user_gitconfig() {
   local _current_user
-  _current_user="$(id -un)"
+  _current_user="$(users__get_current --no-sudo)"
   local _user _home _cfg
 
   while IFS= read -r _user; do

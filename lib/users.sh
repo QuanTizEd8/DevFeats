@@ -78,7 +78,8 @@ users__resolve_list() {
   # target and should be included.
   local _root_queued=false
   if [ "${ADD_CURRENT_USER:-true}" = "true" ]; then
-    local _cur="${SUDO_USER:-$(whoami)}"
+    local _cur
+    _cur="$(users__get_current)"
     if [ "$_cur" != "root" ]; then
       _users_add "$_cur"
     else
@@ -221,4 +222,54 @@ users__set_login_shell() {
     fi
   done
   return 0
+}
+
+# @brief users__get_current [--no-sudo] — Print the current username using a robust fallback chain.
+#
+# Options:
+#   --no-sudo   Skip SUDO_USER and always return the effective user (the process owner).
+#
+# Resolution order (default):
+#   1) SUDO_USER (when running via sudo)
+#   2) whoami
+#   3) id -un; if that yields nothing, id -u + /etc/passwd scan (NSS bypass)
+#   4) USER
+#   5) LOGNAME
+#
+# Exits 1 when no username can be determined.
+users__get_current() {
+  if [ "${1:-}" != "--no-sudo" ] && [ -n "${SUDO_USER:-}" ]; then
+    printf '%s\n' "${SUDO_USER}"
+    return 0
+  fi
+
+  if command -v whoami > /dev/null 2>&1; then
+    printf '%s\n' "$(whoami 2> /dev/null || true)"
+    return 0
+  fi
+
+  if command -v id > /dev/null 2>&1; then
+    _uc_cur="$(id -un 2> /dev/null || true)"
+    if [ -z "${_uc_cur}" ] && [ -r /etc/passwd ]; then
+      _uc_uid="$(id -u 2> /dev/null || true)"
+      [ -n "${_uc_uid}" ] && _uc_cur="$(awk -F: -v uid="${_uc_uid}" '$3==uid {print $1; exit}' /etc/passwd 2> /dev/null || true)"
+    fi
+    if [ -n "${_uc_cur}" ]; then
+      printf '%s\n' "${_uc_cur}"
+      return 0
+    fi
+  fi
+
+  if [ -n "${USER:-}" ]; then
+    printf '%s\n' "${USER}"
+    return 0
+  fi
+
+  if [ -n "${LOGNAME:-}" ]; then
+    printf '%s\n' "${LOGNAME}"
+    return 0
+  fi
+
+  echo "⛔ users__get_current: unable to determine current user" >&2
+  return 1
 }

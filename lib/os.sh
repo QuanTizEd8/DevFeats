@@ -1,6 +1,6 @@
 #!/bin/sh
+
 # POSIX sh compatible — safe to source from sh and bash scripts alike.
-# Do not edit _lib/ copies directly — edit lib/ instead.
 
 [ -n "${_OS__LIB_LOADED-}" ] && return 0
 _OS__LIB_LOADED=1
@@ -166,7 +166,9 @@ os__run_as() {
   if [ $# -eq 0 ]; then
     return 1
   fi
-  if [ "$(id -un)" = "$_or_u" ]; then
+  # shellcheck source=lib/users.sh
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/users.sh"
+  if [ "$(users__get_current --no-sudo)" = "$_or_u" ]; then
     if [ -n "$_or_cd" ]; then
       (cd "$_or_cd" && "$@")
     else
