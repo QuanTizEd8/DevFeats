@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+_BASE_DIR="$_SELF_DIR"
+
+_SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::@@FEATURE_NAME@@}"
+export _SYSSET_BUILD_CONTEXT
+
+# shellcheck source=lib/ospkg.sh
+. "$_SELF_DIR/_lib/ospkg.sh"
+# shellcheck source=lib/logging.sh
+. "$_SELF_DIR/_lib/logging.sh"
+logging__setup
+echo "↪️ Script entry: @@FEATURE_NAME@@" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329,SC2317
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329,SC2317
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ "${KEEP_CACHE:-true}" != true ]]; then
+    if [[ "$(id -u)" -eq 0 ]]; then
+      ospkg__clean
+    else
+      echo "ℹ️ Skipping package-manager cache cleanup (not root)." >&2
+    fi
+  fi
+  [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && ospkg__cleanup_all_build_groups
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ @@FEATURE_NAME@@ script finished successfully." >&2
+  else
+    echo "❌ @@FEATURE_NAME@@ script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
