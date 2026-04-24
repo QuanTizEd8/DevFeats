@@ -15,7 +15,7 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 . "${REPO_ROOT}/test/lib/assert.sh"
 
 _BUNDLE="v99.99.0-test"
-_BOGUS_VER="0.0.99"   # listed in bundle manifest, but no tarball at this path
+_BOGUS_VER="0.0.99" # listed in bundle manifest, but no tarball at this path
 _GOOD_VER="99.99.0-test"
 _MIRROR="${REPO_ROOT}/test-mirror-get-per-feature-override"
 

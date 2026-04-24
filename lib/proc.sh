@@ -8,9 +8,18 @@ proc__run_parallel() {
   local _od=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-    --outdir) _od="${2-}"; shift 2 ;;
-    --) shift; break ;;
-    *) echo "⛔ proc__run_parallel: use --outdir and --" >&2; return 1 ;;
+      --outdir)
+        _od="${2-}"
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        echo "⛔ proc__run_parallel: use --outdir and --" >&2
+        return 1
+        ;;
     esac
   done
   [[ -n "$_od" ]] || _od="$(mktemp -d)"
@@ -29,8 +38,8 @@ proc__run_parallel() {
     ((${#_argv[@]} == 0)) && continue
     _labs+=("$_lab")
     (
-      "${_argv[@]}" >"${_od}/${_lab}.out" 2>&1
-      echo $? >"${_od}/${_lab}.ec"
+      "${_argv[@]}" > "${_od}/${_lab}.out" 2>&1
+      echo $? > "${_od}/${_lab}.ec"
     ) &
     _pids+=($!)
   done
@@ -39,7 +48,7 @@ proc__run_parallel() {
   done
   for _i in "${!_labs[@]}"; do
     _lab="${_labs[$_i]}"
-    read -r _r <"${_od}/${_lab}.ec" 2>/dev/null || _r=0
+    read -r _r < "${_od}/${_lab}.ec" 2> /dev/null || _r=0
     ((${_r} != 0 && _ec == 0)) && _ec=$_r
   done
   for _lab in "${_labs[@]}"; do
@@ -53,10 +62,19 @@ proc__run_command_form() {
   local _cwd="" _user="" _json
   while [[ $# -gt 0 ]]; do
     case "$1" in
-    --cwd) _cwd="${2-}"; shift 2 ;;
-    --user) _user="${2-}"; shift 2 ;;
-    --) shift; break ;;
-    *) break ;;
+      --cwd)
+        _cwd="${2-}"
+        shift 2
+        ;;
+      --user)
+        _user="${2-}"
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *) break ;;
     esac
   done
   _json="$(cat)"
@@ -66,7 +84,7 @@ proc__run_command_form() {
     return 1
   }
   local _t _s _k _v _ty _od
-  _t="$(printf '%s' "$_json" | jq -r 'type' 2>/dev/null)" || return 1
+  _t="$(printf '%s' "$_json" | jq -r 'type' 2> /dev/null)" || return 1
 
   _rc() {
     if [[ -n "$_user" ]]; then
@@ -87,45 +105,48 @@ proc__run_command_form() {
   }
 
   case "$_t" in
-  string)
-    _s="$(printf '%s' "$_json" | jq -r '.')"
-    _rc /bin/sh -c "$_s"
-    ;;
-  array)
-    mapfile -t _av < <(printf '%s' "$_json" | jq -r '.[]' 2>/dev/null) || return 1
-    ((${#_av[@]} > 0)) || return 1
-    _rc "${_av[@]}"
-    ;;
-  object)
-    _od="$(mktemp -d)"
-    local -a _pl=() _e=0 _first=1
-    while IFS= read -r _k; do
-      [[ -z "$_k" ]] && continue
-      _v="$(printf '%s' "$_json" | jq -c --arg k "$_k" '.[$k]')" || continue
-      _ty="$(printf '%s' "$_v" | jq -r 'type' 2>/dev/null)" || continue
-      [[ "$_first" -eq 0 ]] && _pl+=(--)
-      _first=0
-      if [[ "$_ty" == string ]]; then
-        _s="$(printf '%s' "$_v" | jq -r '.')"
-        _pl+=("$_k" /bin/sh -c "$_s")
-      elif [[ "$_ty" == array ]]; then
-        mapfile -t _av2 < <(printf '%s' "$_v" | jq -r '.[]' 2>/dev/null) || continue
-        _pl+=("$_k" "${_av2[@]}")
-      else
-        echo "⛔ proc__run_command_form: object values must be string or array" >&2
+    string)
+      _s="$(printf '%s' "$_json" | jq -r '.')"
+      _rc /bin/sh -c "$_s"
+      ;;
+    array)
+      mapfile -t _av < <(printf '%s' "$_json" | jq -r '.[]' 2> /dev/null) || return 1
+      ((${#_av[@]} > 0)) || return 1
+      _rc "${_av[@]}"
+      ;;
+    object)
+      _od="$(mktemp -d)"
+      local -a _pl=() _e=0 _first=1
+      while IFS= read -r _k; do
+        [[ -z "$_k" ]] && continue
+        _v="$(printf '%s' "$_json" | jq -c --arg k "$_k" '.[$k]')" || continue
+        _ty="$(printf '%s' "$_v" | jq -r 'type' 2> /dev/null)" || continue
+        [[ "$_first" -eq 0 ]] && _pl+=(--)
+        _first=0
+        if [[ "$_ty" == string ]]; then
+          _s="$(printf '%s' "$_v" | jq -r '.')"
+          _pl+=("$_k" /bin/sh -c "$_s")
+        elif [[ "$_ty" == array ]]; then
+          mapfile -t _av2 < <(printf '%s' "$_v" | jq -r '.[]' 2> /dev/null) || continue
+          _pl+=("$_k" "${_av2[@]}")
+        else
+          echo "⛔ proc__run_command_form: object values must be string or array" >&2
+          rm -rf "$_od"
+          return 1
+        fi
+      done < <(printf '%s' "$_json" | jq -r 'keys[]' 2> /dev/null)
+      ((${#_pl[@]} == 0)) && {
         rm -rf "$_od"
-        return 1
-      fi
-    done < <(printf '%s' "$_json" | jq -r 'keys[]' 2>/dev/null)
-    ((${#_pl[@]} == 0)) && {
+        return 0
+      }
+      proc__run_parallel --outdir "$_od" -- "${_pl[@]}"
+      _e=$?
       rm -rf "$_od"
-      return 0
-    }
-    proc__run_parallel --outdir "$_od" -- "${_pl[@]}"
-    _e=$?
-    rm -rf "$_od"
-    return "$_e"
-    ;;
-  *) echo "⛔ proc__run_command_form: not string/array/object" >&2; return 1 ;;
+      return "$_e"
+      ;;
+    *)
+      echo "⛔ proc__run_command_form: not string/array/object" >&2
+      return 1
+      ;;
   esac
 }

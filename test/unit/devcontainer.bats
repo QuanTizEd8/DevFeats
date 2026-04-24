@@ -11,7 +11,7 @@ setup() {
 
 @test "devcontainer__parse_config prints normalized JSON" {
   _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.XXXXXX.json")"
-  printf '%s' '{"a":1}' >"$_f"
+  printf '%s' '{"a":1}' > "$_f"
   run devcontainer__parse_config "$_f"
   assert_success
   run bash -c 'jq -c .' <<< "$output"
@@ -23,7 +23,7 @@ setup() {
   _root="$(mktemp -d "${BATS_TEST_TMPDIR}/ws.XXXXXX")"
   mkdir -p "$_root/proj/.devcontainer"
   _cfg="$_root/proj/.devcontainer/devcontainer.json"
-  printf '%s' '{}' >"$_cfg"
+  printf '%s' '{}' > "$_cfg"
   _want="$(cd "$_root/proj" && pwd -P)"
   run devcontainer__workspace_folder "$_cfg"
   assert_success
@@ -35,7 +35,7 @@ setup() {
   _root="$(mktemp -d "${BATS_TEST_TMPDIR}/ws2.XXXXXX")"
   mkdir -p "$_root/proj/.devcontainer/full"
   _cfg="$_root/proj/.devcontainer/full/devcontainer.json"
-  printf '%s' '{}' >"$_cfg"
+  printf '%s' '{}' > "$_cfg"
   _want="$(cd "$_root/proj" && pwd -P)"
   run devcontainer__workspace_folder "$_cfg"
   assert_success
@@ -136,7 +136,7 @@ EOF
 }
 EOF
   # Capture stdout only (the warning for non-compatible keys goes to stderr).
-  _out="$(devcontainer__iter_features "$_f" "" "ghcr.io/quantized8/sysset/" 2>/dev/null)"
+  _out="$(devcontainer__iter_features "$_f" "" "ghcr.io/quantized8/sysset/" 2> /dev/null)"
   [[ "$_out" == *"install-pixi"* ]] || false
   [[ "$_out" == *"install-os-pkg"* ]] || false
   [[ "$_out" != *"docker-in-docker"* ]] || false

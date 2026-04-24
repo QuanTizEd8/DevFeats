@@ -9,24 +9,24 @@ set -euo pipefail
 if [[ "${INPUT_FEATURES:-}" == \[* ]]; then
   features="$INPUT_FEATURES"
 elif [[ -z "${INPUT_FEATURES:-}" ]]; then
-  features=$(find features -mindepth 2 -maxdepth 2 -name "metadata.yaml" \
-    | sed 's|^features/||; s|/metadata.yaml$||' | sort -u \
-    | jq -R . | jq -sc .)
+  features=$(find features -mindepth 2 -maxdepth 2 -name "metadata.yaml" |
+    sed 's|^features/||; s|/metadata.yaml$||' | sort -u |
+    jq -R . | jq -sc .)
 else
-  features=$(printf '%s\n' "$INPUT_FEATURES" | tr ',' '\n' | tr -d ' ' \
-    | grep -v '^$' | jq -R . | jq -sc .)
+  features=$(printf '%s\n' "$INPUT_FEATURES" | tr ',' '\n' | tr -d ' ' |
+    grep -v '^$' | jq -R . | jq -sc .)
 fi
 
 # ── Resolve macos_features ────────────────────────────────────────
 if [[ "${INPUT_MACOS_FEATURES:-}" == \[* ]]; then
   macos_features="$INPUT_MACOS_FEATURES"
 elif [[ -z "${INPUT_MACOS_FEATURES:-}" ]]; then
-  macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
-    | sed 's|test/||; s|/macos/.*||' | sort -u)
+  macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" |
+    sed 's|test/||; s|/macos/.*||' | sort -u)
   macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
 else
-  macos_features=$(printf '%s\n' "$INPUT_MACOS_FEATURES" | tr ',' '\n' | tr -d ' ' \
-    | grep -v '^$' | jq -R . | jq -sc .)
+  macos_features=$(printf '%s\n' "$INPUT_MACOS_FEATURES" | tr ',' '\n' | tr -d ' ' |
+    grep -v '^$' | jq -R . | jq -sc .)
 fi
 
 # ── run_prepare: true if any job that consumes artifacts is requested ─

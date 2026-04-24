@@ -15,12 +15,31 @@ graph__round_order() {
   local _hf="" _sf="" _pf="" _cmp=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-    --hard-edges-file) _hf="${2-}"; shift 2 ;;
-    --soft-edges-file) _sf="${2-}"; shift 2 ;;
-    --priority-file) _pf="${2-}"; shift 2 ;;
-    --compare) _cmp="${2-}"; shift 2 ;;
-    --) shift; _nodes=("$@"); break ;;
-    *) _nodes=("$@"); break ;;
+      --hard-edges-file)
+        _hf="${2-}"
+        shift 2
+        ;;
+      --soft-edges-file)
+        _sf="${2-}"
+        shift 2
+        ;;
+      --priority-file)
+        _pf="${2-}"
+        shift 2
+        ;;
+      --compare)
+        _cmp="${2-}"
+        shift 2
+        ;;
+      --)
+        shift
+        _nodes=("$@")
+        break
+        ;;
+      *)
+        _nodes=("$@")
+        break
+        ;;
     esac
   done
 
@@ -39,15 +58,15 @@ graph__round_order() {
   if [[ -n "$_pf" && -f "$_pf" ]]; then
     while IFS= read -r _l || [[ -n "$_l" ]]; do
       [[ -z "$_l" ]] && continue
-      IFS=$'\t' read -r p q <<<"$_l" || true
+      IFS=$'\t' read -r p q <<< "$_l" || true
       [[ -n "$p" ]] && _pr["$p"]="${q:-0}"
-    done <"$_pf" || return 1
+    done < "$_pf" || return 1
   fi
 
   if [[ -n "$_hf" && -f "$_hf" ]]; then
     while IFS= read -r _l || [[ -n "$_l" ]]; do
       [[ -z "$_l" ]] && continue
-      IFS=$'\t' read -r p q <<<"$_l" || true
+      IFS=$'\t' read -r p q <<< "$_l" || true
       if [[ -z "$p" || -z "$q" ]]; then
         continue
       fi
@@ -56,17 +75,17 @@ graph__round_order() {
         return 1
       fi
       _hdep["$q"]+="${p} "
-    done <"$_hf" || return 1
+    done < "$_hf" || return 1
   fi
 
   if [[ -n "$_sf" && -f "$_sf" ]]; then
     while IFS= read -r _l || [[ -n "$_l" ]]; do
       [[ -z "$_l" ]] && continue
-      IFS=$'\t' read -r p q <<<"$_l" || true
+      IFS=$'\t' read -r p q <<< "$_l" || true
       [[ -z "$p" || -z "$q" || -z "${_have[$q]+x}" ]] && continue
       [[ -z "${_have[$p]+x}" ]] && continue
       _sdep["$q"]+="${p} "
-    done <"$_sf" || return 1
+    done < "$_sf" || return 1
   fi
 
   _all_pred_done() {

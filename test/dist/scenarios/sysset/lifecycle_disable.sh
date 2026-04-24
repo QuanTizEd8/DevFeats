@@ -78,7 +78,7 @@ check "container sentinel present (default run)" \
 _mf2="$(_manifest "skip-container")"
 check "get.bash accepts --no-container-lifecycle-command postCreateCommand" \
   bash "${REPO_ROOT}/get.bash" \
-    --no-container-lifecycle-command postCreateCommand "$_mf2"
+  --no-container-lifecycle-command postCreateCommand "$_mf2"
 check "container sentinel NOT created when its phase is suppressed" \
   bash -c "[ ! -f '${_state}/container-skip-container' ]"
 
@@ -87,7 +87,7 @@ check "container sentinel NOT created when its phase is suppressed" \
 _mf3="$(_manifest "skip-feature")"
 check "get.bash accepts feature:phase disable form" \
   bash "${REPO_ROOT}/get.bash" \
-    --no-feature-lifecycle-command "install-os-pkg:postCreateCommand" "$_mf3"
+  --no-feature-lifecycle-command "install-os-pkg:postCreateCommand" "$_mf3"
 check "container sentinel still present with only feature phase skipped" \
   test -f "${_state}/container-skip-feature"
 
@@ -95,7 +95,7 @@ check "container sentinel still present with only feature phase skipped" \
 _mf4="$(_manifest "skip-all-features")"
 check "get.bash accepts --no-feature-lifecycle-command all" \
   bash "${REPO_ROOT}/get.bash" \
-    --no-feature-lifecycle-command all "$_mf4"
+  --no-feature-lifecycle-command all "$_mf4"
 check "container sentinel still present when only feature hooks are disabled" \
   test -f "${_state}/container-skip-all-features"
 

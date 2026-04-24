@@ -13,11 +13,11 @@ elif [[ "$EVENT_NAME" == "push" && "$BEFORE" == "0000000000000000000000000000000
 fi
 
 # ── Feature discovery helpers ──────────────────────────────────────
-feature_ids=$(find features -mindepth 2 -maxdepth 2 -name "metadata.yaml" \
-  | sed 's|^features/||; s|/metadata.yaml$||' | sort -u)
+feature_ids=$(find features -mindepth 2 -maxdepth 2 -name "metadata.yaml" |
+  sed 's|^features/||; s|/metadata.yaml$||' | sort -u)
 all_features=$(printf '%s\n' "$feature_ids" | grep -v '^$' | jq -R . | jq -sc .)
-macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
-  | sed 's|test/||; s|/macos/.*||' | sort -u)
+macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" |
+  sed 's|test/||; s|/macos/.*||' | sort -u)
 macos_all=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
 
 # ── Determine is_release and resolve features_to_release ──────────
@@ -31,15 +31,15 @@ macos_all=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
 #      feature/version (useful for hotfixes or retrying a failed release).
 is_release=false
 features_to_release="[]"
-if [[ "$EVENT_NAME" == "workflow_dispatch" \
-    && -n "${INPUT_FEATURE:-}" && -n "${INPUT_VERSION:-}" ]]; then
+if [[ "$EVENT_NAME" == "workflow_dispatch" &&
+  -n "${INPUT_FEATURE:-}" && -n "${INPUT_VERSION:-}" ]]; then
   features_to_release=$(jq -cn \
     --arg feat "$INPUT_FEATURE" \
     --arg ver "$INPUT_VERSION" \
     '[{feature:$feat, version:$ver, tag:"\($feat)/\($ver)"}]')
   is_release=true
-elif [[ "$EVENT_NAME" == "push" \
-    && "$REF_TYPE" == "branch" && "$REF_NAME" == "main" ]]; then
+elif [[ "$EVENT_NAME" == "push" &&
+  "$REF_TYPE" == "branch" && "$REF_NAME" == "main" ]]; then
   features_to_release=$(python3 scripts/detect-releasable.py \
     --repo "$REPOSITORY" --features-dir features)
   if [[ -n "$features_to_release" && "$features_to_release" != "[]" ]]; then
@@ -114,14 +114,17 @@ fi
 _head_feature_version() {
   # $1 = feature id
   local _f="features/$1/metadata.yaml"
-  [[ -r "$_f" ]] || { echo ""; return; }
+  [[ -r "$_f" ]] || {
+    echo ""
+    return
+  }
   grep -m1 '^version:' "$_f" | awk '{print $2}' | tr -d '"' || echo ""
 }
 _base_feature_version() {
   # $1 = feature id
   local _ref="origin/${BASE_REF}"
-  git show "${_ref}:features/$1/metadata.yaml" 2> /dev/null \
-    | grep -m1 '^version:' | awk '{print $2}' | tr -d '"' || true
+  git show "${_ref}:features/$1/metadata.yaml" 2> /dev/null |
+    grep -m1 '^version:' | awk '{print $2}' | tr -d '"' || true
 }
 
 if [[ "$EVENT_NAME" == "pull_request" ]]; then
@@ -135,9 +138,9 @@ if [[ "$EVENT_NAME" == "pull_request" ]]; then
     [[ -z "$_fid" ]] && continue
     _fid_changed=false
     if echo "$changed" | grep -qE "^features/${_fid}/"; then _fid_changed=true; fi
-    if [[ "$_libs_changed" == "true" \
-        || "$_bootstrap_changed" == "true" \
-        || "$_fid_changed" == "true" ]]; then
+    if [[ "$_libs_changed" == "true" ||
+      "$_bootstrap_changed" == "true" ||
+      "$_fid_changed" == "true" ]]; then
       _base_v=$(_base_feature_version "$_fid")
       _head_v=$(_head_feature_version "$_fid")
       # New feature (no base version): exempt.
@@ -193,8 +196,8 @@ owner_name="${REPO_OWNER,,}"
 package_name="${REPOSITORY#*/}"
 package_name="${package_name,,}"
 if existing_tags_raw=$(gh api \
-    "orgs/${owner_name}/packages/container/${package_name}-devcontainer/versions" \
-    --jq '.[].metadata.container.tags[]' 2>/dev/null); then
+  "orgs/${owner_name}/packages/container/${package_name}-devcontainer/versions" \
+  --jq '.[].metadata.container.tags[]' 2> /dev/null); then
   existing_tags="$existing_tags_raw"
 fi
 has_latest=false

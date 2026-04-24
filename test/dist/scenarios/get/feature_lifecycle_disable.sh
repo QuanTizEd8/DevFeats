@@ -40,7 +40,7 @@ check "no hook markers present in log when --no-lifecycle is set" \
 # ── 2. --no-feature-lifecycle-command postCreateCommand skips that phase ────
 check "get.sh install-os-pkg@${_VER} --no-feature-lifecycle-command postCreateCommand" \
   sudo -E bash "${REPO_ROOT}/get.sh" --logfile "$_log2" \
-    --no-feature-lifecycle-command postCreateCommand "${_FEAT}@${_VER}"
+  --no-feature-lifecycle-command postCreateCommand "${_FEAT}@${_VER}"
 check "post-create.sh was NOT invoked when that phase is disabled" \
   bash -c "! grep -q 'post-create.sh' '$_log2'"
 

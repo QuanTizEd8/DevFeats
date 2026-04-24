@@ -159,74 +159,83 @@ _FEATURE_SKIP_LIFECYCLE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  --logfile)
-    shift
-    [[ $# -eq 0 ]] && {
-      echo "⛔ --logfile requires a value." >&2
+    --logfile)
+      shift
+      [[ $# -eq 0 ]] && {
+        echo "⛔ --logfile requires a value." >&2
+        exit 1
+      }
+      LOGFILE="$1"
+      shift
+      ;;
+    --debug)
+      _debug=true
+      shift
+      ;;
+    --help | -h) __usage__ ;;
+    --workspace-folder)
+      shift
+      [[ $# -eq 0 ]] && {
+        echo "⛔ --workspace-folder needs a value." >&2
+        exit 1
+      }
+      _WORKSPACE_CUSTOM="$1"
+      shift
+      ;;
+    --no-initialize-command)
+      _NO_INIT_CMD=true
+      shift
+      ;;
+    --initialize-command-dir)
+      shift
+      _INIT_CMD_DIR="${1-}"
+      shift
+      ;;
+    --lifecycle-command-dir)
+      shift
+      _LIFE_CMD_DIR="${1-}"
+      shift
+      ;;
+    --no-feature-lifecycle-command)
+      shift
+      [[ $# -eq 0 ]] && {
+        echo "⛔ --no-feature-lifecycle-command needs a value." >&2
+        exit 1
+      }
+      _NO_FE_LIFE+=("$1")
+      shift
+      ;;
+    --no-container-lifecycle-command)
+      shift
+      [[ $# -eq 0 ]] && {
+        echo "⛔ --no-container-lifecycle-command needs a value." >&2
+        exit 1
+      }
+      _NO_CO_LIFE+=("$1")
+      shift
+      ;;
+    --compatible-prefix)
+      shift
+      [[ $# -eq 0 ]] && {
+        echo "⛔ --compatible-prefix needs a value." >&2
+        exit 1
+      }
+      _COMPAT_PREFIX+=("$1")
+      shift
+      ;;
+    --no-lifecycle)
+      _FEATURE_SKIP_LIFECYCLE=true
+      shift
+      ;;
+    --*)
+      echo "⛔ Unknown option: '${1}'" >&2
       exit 1
-    }
-    LOGFILE="$1"
-    shift
-    ;;
-  --debug) _debug=true; shift ;;
-  --help | -h) __usage__ ;;
-  --workspace-folder)
-    shift
-    [[ $# -eq 0 ]] && {
-      echo "⛔ --workspace-folder needs a value." >&2
-      exit 1
-    }
-    _WORKSPACE_CUSTOM="$1"
-    shift
-    ;;
-  --no-initialize-command) _NO_INIT_CMD=true; shift ;;
-  --initialize-command-dir)
-    shift
-    _INIT_CMD_DIR="${1-}"
-    shift
-    ;;
-  --lifecycle-command-dir)
-    shift
-    _LIFE_CMD_DIR="${1-}"
-    shift
-    ;;
-  --no-feature-lifecycle-command)
-    shift
-    [[ $# -eq 0 ]] && {
-      echo "⛔ --no-feature-lifecycle-command needs a value." >&2
-      exit 1
-    }
-    _NO_FE_LIFE+=("$1")
-    shift
-    ;;
-  --no-container-lifecycle-command)
-    shift
-    [[ $# -eq 0 ]] && {
-      echo "⛔ --no-container-lifecycle-command needs a value." >&2
-      exit 1
-    }
-    _NO_CO_LIFE+=("$1")
-    shift
-    ;;
-  --compatible-prefix)
-    shift
-    [[ $# -eq 0 ]] && {
-      echo "⛔ --compatible-prefix needs a value." >&2
-      exit 1
-    }
-    _COMPAT_PREFIX+=("$1")
-    shift
-    ;;
-  --no-lifecycle) _FEATURE_SKIP_LIFECYCLE=true; shift ;;
-  --*)
-    echo "⛔ Unknown option: '${1}'" >&2
-    exit 1
-    ;;
-  *)
-    _mode_arg="$1"
-    shift
-    break
-    ;;
+      ;;
+    *)
+      _mode_arg="$1"
+      shift
+      break
+      ;;
   esac
 done
 
@@ -291,7 +300,7 @@ _resolve_feature_tag() {
 # ── Bundle manifest: fetch + parse ──────────────────────────────────────────
 # Bundle-pinned mode fetches <bundle>/manifest.yaml once and caches it on disk.
 # The manifest records {<feature>: <X.Y.Z>} per feature at bundle-cut time.
-_BUNDLE_TAG=""          # Resolved bundle tag (e.g. v1.2.3); "" in rolling mode.
+_BUNDLE_TAG=""           # Resolved bundle tag (e.g. v1.2.3); "" in rolling mode.
 _BUNDLE_MANIFEST_FILE="" # Path to downloaded bundle manifest.yaml; "" if N/A.
 
 # _resolve_bundle_tag <spec> — Resolve a bundle-version spec to its v<X.Y.Z> tag.
@@ -486,14 +495,14 @@ _sysset_run_feature_lifecycle() {
 # ── Feature mode ─────────────────────────────────────────────────────────────
 if [[ "$_mode" == "feature" ]]; then
   case "$_mode_arg" in
-  *@*)
-    _feature="${_mode_arg%%@*}"
-    _feat_version_spec="${_mode_arg#*@}"
-    ;;
-  *)
-    _feature="$_mode_arg"
-    _feat_version_spec=""
-    ;;
+    *@*)
+      _feature="${_mode_arg%%@*}"
+      _feat_version_spec="${_mode_arg#*@}"
+      ;;
+    *)
+      _feature="$_mode_arg"
+      _feat_version_spec=""
+      ;;
   esac
 
   if [[ -z "$_feat_version_spec" && -n "${SYSSET_VERSION:-}" ]]; then
@@ -538,7 +547,7 @@ fi
 _DCJ="$(mktemp)"
 # shellcheck disable=SC2064
 trap 'rm -f "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
-devcontainer__parse_config "$_mode_arg" >"$_DCJ" || exit 1
+devcontainer__parse_config "$_mode_arg" > "$_DCJ" || exit 1
 
 _STAGED="$(mktemp -d)"
 # shellcheck disable=SC2064
@@ -547,7 +556,7 @@ trap 'rm -rf "$_STAGED" "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 _WORK_ROOT="$(devcontainer__workspace_folder "$_mode_arg")"
 [[ -n "$_WORKSPACE_CUSTOM" ]] && _WORK_ROOT="$_WORKSPACE_CUSTOM"
 
-_BUNDLE_NAME_VER="$(devcontainer__name_version_suffix "$(jq -r '.name // ""' <"$_DCJ")")"
+_BUNDLE_NAME_VER="$(devcontainer__name_version_suffix "$(jq -r '.name // ""' < "$_DCJ")")"
 _bspec=""
 if [[ -n "${SYSSET_VERSION:-}" ]]; then
   _bspec="${SYSSET_VERSION}"
@@ -567,7 +576,7 @@ declare -A _KEY_OF=() _OPT_OF=() _TAG_OF=()
 _IDS=()
 while IFS=$'\t' read -r _id _k _tt; do
   [[ -z "$_id" ]] && continue
-  _opt="$(jq -c --arg k "$_k" '(.features // {})[$k] // {}' <"$_DCJ")"
+  _opt="$(jq -c --arg k "$_k" '(.features // {})[$k] // {}' < "$_DCJ")"
   _IDS+=("$_id")
   _KEY_OF["$_id"]="$_k"
   _OPT_OF["$_id"]="$_opt"
@@ -643,15 +652,15 @@ mapfile -t _ORDER < <(graph__round_order --hard-edges-file "$ht" --soft-edges-fi
 echo "ℹ️  order: ${_ORDER[*]}" >&2
 
 if [[ "$_NO_INIT_CMD" != true ]]; then
-  _iv="$(jq -c 'if (has("initializeCommand")|not) then null else .initializeCommand end' <"$_DCJ" 2> /dev/null || echo "null")"
+  _iv="$(jq -c 'if (has("initializeCommand")|not) then null else .initializeCommand end' < "$_DCJ" 2> /dev/null || echo "null")"
   if [[ -n "$_iv" && "$_iv" != "null" ]]; then
     echo "⚠️  initializeCommand (host): trust this config" >&2
     (cd "${_INIT_CMD_DIR:-$_WORK_ROOT}" && printf '%s' "$_iv" | proc__run_command_form --cwd "${_INIT_CMD_DIR:-$_WORK_ROOT}") || exit 1
   fi
 fi
 
-_RU="$(jq -r '.remoteUser // ""' <"$_DCJ" 2> /dev/null | head -1)"
-_CU="$(jq -r '.containerUser // ""' <"$_DCJ" 2> /dev/null | head -1)"
+_RU="$(jq -r '.remoteUser // ""' < "$_DCJ" 2> /dev/null | head -1)"
+_CU="$(jq -r '.containerUser // ""' < "$_DCJ" 2> /dev/null | head -1)"
 _EFF_USER="${_RU:-${_CU:-$USER}}"
 _EFF_CUSER="${_CU:-$USER}"
 _RU_HOME="$(devcontainer__user_home "$_EFF_USER" 2> /dev/null || true)"

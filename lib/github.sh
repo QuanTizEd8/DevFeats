@@ -410,8 +410,8 @@ github__resolve_version() {
   else
     _tags="$(github__release_tags "$_repo")" || return 1
   fi
-  _matched="$(printf '%s\n' "$_tags" \
-    | grep -m1 "^${_escaped_prefix}${_escaped_stripped}\.")" || _matched=""
+  _matched="$(printf '%s\n' "$_tags" |
+    grep -m1 "^${_escaped_prefix}${_escaped_stripped}\.")" || _matched=""
 
   if [ -n "$_matched" ]; then
     printf '%s\n' "$_matched"

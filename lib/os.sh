@@ -152,16 +152,16 @@ os__run_as() {
   shift
   _or_cd=""
   case $1 in
-  --cwd)
-    _or_cd=$2
-    if [ -z "$_or_cd" ]; then
-      return 1
-    fi
-    shift 2
-    ;;
+    --cwd)
+      _or_cd=$2
+      if [ -z "$_or_cd" ]; then
+        return 1
+      fi
+      shift 2
+      ;;
   esac
   case $1 in
-  --) shift ;;
+    --) shift ;;
   esac
   if [ $# -eq 0 ]; then
     return 1

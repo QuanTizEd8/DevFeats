@@ -500,10 +500,12 @@ json__coerce_scalar_stdin() {
   }
   _t="$(printf '%s\n' "$_json" | jq -r 'type' 2> /dev/null)" || return 1
   case "$_t" in
-    string) printf '%s\n' "$_json" | jq -r '.'
+    string)
+      printf '%s\n' "$_json" | jq -r '.'
       return 0
       ;;
-    number | boolean) printf '%s\n' "$_json" | jq -r 'tostring'
+    number | boolean)
+      printf '%s\n' "$_json" | jq -r 'tostring'
       return 0
       ;;
     "null")

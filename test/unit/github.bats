@@ -980,8 +980,11 @@ only-2"
   github__fetch_release_json() {
     while [ $# -gt 0 ]; do
       case "$1" in
-      --dest) printf '%s' '{"assets":[]}' > "$2"; return 0 ;;
-      *) shift ;;
+        --dest)
+          printf '%s' '{"assets":[]}' > "$2"
+          return 0
+          ;;
+        *) shift ;;
       esac
     done
     return 1

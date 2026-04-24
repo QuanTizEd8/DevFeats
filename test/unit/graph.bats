@@ -13,9 +13,9 @@ setup() {
   h="$(mktemp "${BATS_TEST_TMPDIR}/g-h.XXXXXX")"
   s="$(mktemp "${BATS_TEST_TMPDIR}/g-s.XXXXXX")"
   p="$(mktemp "${BATS_TEST_TMPDIR}/g-p.XXXXXX")"
-  : >"$h"
-  : >"$s"
-  printf '%s\n' "b	10" "a	0" >"$p"
+  : > "$h"
+  : > "$s"
+  printf '%s\n' "b	10" "a	0" > "$p"
   run graph__round_order --hard-edges-file "$h" --soft-edges-file "$s" --priority-file "$p" -- a b
   assert_output "b
 a"
@@ -27,9 +27,9 @@ a"
   h="$(mktemp "${BATS_TEST_TMPDIR}/g-h.XXXXXX")"
   s="$(mktemp "${BATS_TEST_TMPDIR}/g-s.XXXXXX")"
   p="$(mktemp "${BATS_TEST_TMPDIR}/g-p.XXXXXX")"
-  printf '%s\n' "a	b" >"$h"
-  : >"$s"
-  : >"$p"
+  printf '%s\n' "a	b" > "$h"
+  : > "$s"
+  : > "$p"
   run graph__round_order --hard-edges-file "$h" --soft-edges-file "$s" --priority-file "$p" -- a b
   assert_output "a
 b"
@@ -41,9 +41,9 @@ b"
   h="$(mktemp "${BATS_TEST_TMPDIR}/g-h.XXXXXX")"
   s="$(mktemp "${BATS_TEST_TMPDIR}/g-s.XXXXXX")"
   p="$(mktemp "${BATS_TEST_TMPDIR}/g-p.XXXXXX")"
-  printf '%s\n' "x	b" >"$h"
-  : >"$s"
-  : >"$p"
+  printf '%s\n' "x	b" > "$h"
+  : > "$s"
+  : > "$p"
   run graph__round_order --hard-edges-file "$h" --soft-edges-file "$s" --priority-file "$p" -- a b
   assert_failure
   rm -f "$h" "$s" "$p"
@@ -53,9 +53,9 @@ b"
   h="$(mktemp "${BATS_TEST_TMPDIR}/g-h.XXXXXX")"
   s="$(mktemp "${BATS_TEST_TMPDIR}/g-s.XXXXXX")"
   p="$(mktemp "${BATS_TEST_TMPDIR}/g-p.XXXXXX")"
-  printf '%s\n' "a	b" "b	a" >"$h"
-  : >"$s"
-  : >"$p"
+  printf '%s\n' "a	b" "b	a" > "$h"
+  : > "$s"
+  : > "$p"
   run graph__round_order --hard-edges-file "$h" --soft-edges-file "$s" --priority-file "$p" -- a b
   assert_failure
   rm -f "$h" "$s" "$p"
@@ -65,9 +65,9 @@ b"
   h="$(mktemp "${BATS_TEST_TMPDIR}/g-h.XXXXXX")"
   s="$(mktemp "${BATS_TEST_TMPDIR}/g-s.XXXXXX")"
   p="$(mktemp "${BATS_TEST_TMPDIR}/g-p.XXXXXX")"
-  printf '%s\n' "a	b" "a	c" "b	d" "c	d" >"$h"
-  : >"$s"
-  : >"$p"
+  printf '%s\n' "a	b" "a	c" "b	d" "c	d" > "$h"
+  : > "$s"
+  : > "$p"
   run graph__round_order --hard-edges-file "$h" --soft-edges-file "$s" --priority-file "$p" -- a b c d
   assert_success
   # a must come first, d must come last; b and c can appear in any order.
@@ -80,10 +80,10 @@ b"
   h="$(mktemp "${BATS_TEST_TMPDIR}/g-h.XXXXXX")"
   s="$(mktemp "${BATS_TEST_TMPDIR}/g-s.XXXXXX")"
   p="$(mktemp "${BATS_TEST_TMPDIR}/g-p.XXXXXX")"
-  : >"$h"
+  : > "$h"
   # x is not in the node list — the soft edge must be silently pruned.
-  printf '%s\n' "x	b" >"$s"
-  : >"$p"
+  printf '%s\n' "x	b" > "$s"
+  : > "$p"
   run graph__round_order --hard-edges-file "$h" --soft-edges-file "$s" --priority-file "$p" -- a b
   assert_success
   # Without the pruned edge, tie-break is lexicographic (alphabetical desc for
@@ -97,10 +97,10 @@ b"
   h="$(mktemp "${BATS_TEST_TMPDIR}/g-h.XXXXXX")"
   s="$(mktemp "${BATS_TEST_TMPDIR}/g-s.XXXXXX")"
   p="$(mktemp "${BATS_TEST_TMPDIR}/g-p.XXXXXX")"
-  : >"$h"
-  : >"$s"
+  : > "$h"
+  : > "$s"
   # Same round for a, b, c: priority decides order. Higher priority first.
-  printf '%s\n' "a	5" "b	10" "c	1" >"$p"
+  printf '%s\n' "a	5" "b	10" "c	1" > "$p"
   run graph__round_order --hard-edges-file "$h" --soft-edges-file "$s" --priority-file "$p" -- a b c
   assert_success
   [ "${lines[0]}" = "b" ]

@@ -16,8 +16,8 @@ _DEVCONTAINER_LIFECYCLE_PHASES=(onCreateCommand updateContentCommand postCreateC
 devcontainer__parse_config() {
   local _f="${1-}"
   [[ -f "$_f" ]] || return 1
-  json__detect_duplicate_keys_stdin <"$_f" || return 1
-  json__strip_jsonc_stdin <"$_f" || return 1
+  json__detect_duplicate_keys_stdin < "$_f" || return 1
+  json__strip_jsonc_stdin < "$_f" || return 1
   return 0
 }
 
@@ -114,7 +114,7 @@ devcontainer__lifecycle_disabled() {
   ((_is_phase)) && return 1
   if [[ "$_e" == "$_fid" ||
     "$_e" == "${_fid}:${_ph}" ||
-    ( "$_e" == "${_fid}:${_ph}:${_cn}" && -n "$_cn" ) ]]; then
+    ("$_e" == "${_fid}:${_ph}:${_cn}" && -n "$_cn") ]]; then
     [[ "$_sc" == container ]] && return 1
     return 0
   fi
@@ -170,7 +170,7 @@ devcontainer__iter_features() {
       _tag=""
     fi
     printf '%s\t%s\t%s\n' "$_id" "$_k" "$_tag"
-  done < <(jq -r '(.features // {}) | keys[]' <"$_cfg")
+  done < <(jq -r '(.features // {}) | keys[]' < "$_cfg")
   return 0
 }
 
@@ -211,12 +211,30 @@ devcontainer__build_ordering_inputs() {
   local _hf="" _sf="" _pf="" _root="" _cfg=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --hard-edges-file) _hf="${2-}"; shift 2 ;;
-      --soft-edges-file) _sf="${2-}"; shift 2 ;;
-      --priority-file) _pf="${2-}"; shift 2 ;;
-      --staged-root) _root="${2-}"; shift 2 ;;
-      --config-file) _cfg="${2-}"; shift 2 ;;
-      --) shift; break ;;
+      --hard-edges-file)
+        _hf="${2-}"
+        shift 2
+        ;;
+      --soft-edges-file)
+        _sf="${2-}"
+        shift 2
+        ;;
+      --priority-file)
+        _pf="${2-}"
+        shift 2
+        ;;
+      --staged-root)
+        _root="${2-}"
+        shift 2
+        ;;
+      --config-file)
+        _cfg="${2-}"
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
       *) break ;;
     esac
   done
@@ -225,9 +243,9 @@ devcontainer__build_ordering_inputs() {
     echo "⛔ devcontainer__build_ordering_inputs: missing flag" >&2
     return 1
   }
-  : >"$_hf"
-  : >"$_sf"
-  : >"$_pf"
+  : > "$_hf"
+  : > "$_sf"
+  : > "$_pf"
   local _id _dep _short _hit
   for _id in "${_ids[@]+"${_ids[@]}"}"; do
     local _df="${_root}/${_id}/devcontainer-feature.json"
@@ -243,13 +261,13 @@ devcontainer__build_ordering_inputs() {
           break
         }
       done
-      ((_hit)) && printf '%s\t%s\n' "$_short" "$_id" >>"$_hf"
+      ((_hit)) && printf '%s\t%s\n' "$_short" "$_id" >> "$_hf"
     done < <(jq -r '(.dependsOn // {}) | keys[]' "$_df" 2> /dev/null || true)
     while IFS= read -r _dep; do
       [[ -z "$_dep" ]] && continue
       _short="${_dep##*/}"
       _short="${_short%%:*}"
-      printf '%s\t%s\n' "$_short" "$_id" >>"$_sf"
+      printf '%s\t%s\n' "$_short" "$_id" >> "$_sf"
     done < <(jq -r '(.installsAfter // [])[]' "$_df" 2> /dev/null || true)
   done
   local _oi=0 _entry _eshort
@@ -258,7 +276,7 @@ devcontainer__build_ordering_inputs() {
     _eshort="${_entry##*/}"
     _eshort="${_eshort%%:*}"
     for _id in "${_ids[@]}"; do
-      [[ "$_id" == "$_eshort" ]] && printf '%s\t%d\n' "$_id" "$((1000000 - _oi))" >>"$_pf"
+      [[ "$_id" == "$_eshort" ]] && printf '%s\t%d\n' "$_id" "$((1000000 - _oi))" >> "$_pf"
     done
     _oi=$((_oi + 1))
   done < <(jq -r '(.overrideFeatureInstallOrder // [])[]' "$_cfg" 2> /dev/null || true)
@@ -275,10 +293,22 @@ devcontainer__lifecycle_iter() {
   local _cfg="" _root="" _ph=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --config-file) _cfg="${2-}"; shift 2 ;;
-      --staged-root) _root="${2-}"; shift 2 ;;
-      --phase) _ph="${2-}"; shift 2 ;;
-      --) shift; break ;;
+      --config-file)
+        _cfg="${2-}"
+        shift 2
+        ;;
+      --staged-root)
+        _root="${2-}"
+        shift 2
+        ;;
+      --phase)
+        _ph="${2-}"
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
       *) break ;;
     esac
   done
