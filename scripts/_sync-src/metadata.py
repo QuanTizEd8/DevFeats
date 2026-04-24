@@ -133,13 +133,12 @@ def _augment_options(data: dict) -> dict:
                 f"Feature {data.get('id', '<unknown>')} declares option '{option_id}' that conflicts with a reserved derived option.  "
                 f"Remove the declaration to use the standard derived option schema from features/derived-options.yaml."
             )
-        if "_apply_when" not in option_def:
-            options[option_id] = option_def
-            continue
-
-        should_apply = _evaluate_condition(option_def["_apply_when"], options)
+        should_apply = (
+            _evaluate_condition(option_def["_apply_when"], options)
+            if "_apply_when" in option_def else True
+        )
         if should_apply:
-            options[option_id] = option_def
+            options[option_id] = {k: v for k, v in option_def.items() if not k.startswith("_")}
     return options
 
 
