@@ -94,10 +94,6 @@ options:
     - value: conda
       description: Force the conda solver.
     type: string
-  keep_cache:
-    default: false
-    description: Skip running `conda clean` after all environments are set up.
-    type: boolean
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/install-miniforge
 #   - ghcr.io/quantized8/sysset/install-shell
