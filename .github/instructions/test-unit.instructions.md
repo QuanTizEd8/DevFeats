@@ -183,7 +183,7 @@ This isolation is specific to `logging.sh`. Other modules do not need it.
 ## Running Tests Locally
 
 ```bash
-# All modules (also runs scripts/sync-src.sh first)
+# All modules (also runs scripts/sync-src.py first)
 just test-unit
 
 # Single module
@@ -195,7 +195,7 @@ bash test/run-unit.sh --filter "platform"
 # Serial output — useful for debugging
 bash test/run-unit.sh --jobs 1
 
-# Direct bats invocation — skips scripts/sync-src.sh, useful for iteration
+# Direct bats invocation — skips scripts/sync-src.py, useful for iteration
 test/unit/bats/bats-core/bin/bats test/unit/os.bats
 ```
 
