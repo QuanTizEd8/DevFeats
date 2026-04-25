@@ -222,7 +222,7 @@ CI runs Linux scenarios automatically as part of `bash test/run.sh feature <feat
 
 ```bash
 # Sync generated files first
-bash scripts/sync-src.sh
+python3 scripts/sync-src.py
 
 # All scenarios + fail scenarios for a feature
 bash test/run.sh feature <feature>
