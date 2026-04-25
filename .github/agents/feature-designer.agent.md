@@ -42,7 +42,7 @@ The user will provide the slug name of a feature, referenced as `<feature-name>`
 4. Create or update `features/<feature-name>/metadata.yaml` with the designed API,
 following the instructions in `.github/instructions/feature-json.instructions.md`. Make sure to include comprehensive descriptions both for the feature itself and for each individual option, covering all relevant details.
 5. Compile a comprehensive API reference document based on the designed API, strictly following the format and content guidelines in the API Reference template at `.github/doc-templates/api.md`. This document should provide all necessary information for users to understand and effectively use the API, including detailed explanations of each option, usage examples, and any important considerations or limitations.
-6. Create or update the API reference document at `docs/ref/<feature-name>/api.md` with the above content. Ensure that the API Reference is comprehensive, accurate, and clearly written, as it will serve as the definitive guide for users of the feature's API, as well as the primary source of truth for implementation and testing.
+6. Create or update `features/<feature-name>/dev-notes/feature.md` with the API documentation from step 5 (per `.github/doc-templates/api.md`), integrated with any existing research sections. This file is the developer reference for the options API and installation context.
 
 
 
