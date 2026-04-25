@@ -73,7 +73,7 @@ github__fetch_release_json() {
 
 # @brief github__release_json_tag_name <file> — Print tag_name from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk).
 #
-# Prefers jq then python3 for correct parsing on minified or pretty JSON. Falls back to
+# Prefers jq (via json__query) for correct parsing on minified or pretty JSON. Falls back to
 # grep -o for tag_name only (first root tag_name key).
 github__release_json_tag_name() {
   local _f="$1"
@@ -89,7 +89,7 @@ github__release_json_tag_name() {
 
 # @brief github__release_json_id <file> — Print the root release numeric id from a single-release JSON file.
 #
-# Prefers jq then python3. A plain-text grep for the first "id" is unsafe on minified
+# Uses jq (via json__query). A plain-text grep for the first "id" is unsafe on minified
 # responses (asset objects include "id" before the root release id).
 github__release_json_id() {
   local _f="$1"
@@ -113,36 +113,13 @@ github__release_json_digest_for_asset() {
   [ -n "$_name" ] || return 1
 
   _out=""
-  _json__ensure_parse_tool || {
-    echo "⛔ github__release_json_digest_for_asset: no JSON parser available (jq, yq, python3)" >&2
-    return 1
-  }
-  if [ "${_JSON__PARSE_TOOL}" = "jq" ]; then
-    _out="$(jq -r --arg n "$_name" '
+  _json__ensure_jq || return 1
+  _out="$(json__query -r --arg n "$_name" '
       (.assets // [])[]
       | select(.name == $n)
       | .digest // empty
       | if length > 0 then (sub("^sha256:"; "") | ascii_downcase) else empty end
     ' "$_f" 2> /dev/null)" || _out=""
-  else
-    _out="$(python3 -c '
-import json, sys
-path, name = sys.argv[1], sys.argv[2]
-with open(path, encoding="utf-8") as fp:
-    data = json.load(fp)
-for a in data.get("assets") or []:
-    if a.get("name") != name:
-        continue
-    dg = (a.get("digest") or "").strip()
-    if not dg:
-        sys.exit(1)
-    if dg.startswith("sha256:"):
-        dg = dg[7:]
-    print(dg.lower())
-    sys.exit(0)
-sys.exit(1)
-' "$_f" "$_name" 2> /dev/null)" || _out=""
-  fi
 
   [ -n "$_out" ] && [ "$_out" != "null" ] || return 1
   printf '%s\n' "$_out"
@@ -765,33 +742,17 @@ _github__paginate_list_field() {
 # _github__count_top_level_array  (internal)
 #
 # Reads a JSON array on stdin and prints its top-level element count.
-# Tries jq, then python3, then a best-effort `grep -c '^{'`-style fallback
-# for line-separated object streams (as produced by our other helpers when
-# jq/python3 are absent).
+# Uses jq (via json__query); falls back to a best-effort `grep -c '^{'`-style
+# heuristic if jq cannot be installed.
 _github__count_top_level_array() {
   local _json
   _json="$(cat)"
-  _json__ensure_parse_tool || true
-  if [ "${_JSON__PARSE_TOOL:-}" = "jq" ]; then
-    printf '%s' "$_json" | jq 'length' 2> /dev/null && return 0
-  fi
-  if command -v python3 > /dev/null 2>&1; then
-    printf '%s' "$_json" | python3 -c '
-import json, sys
-try:
-    data = json.loads(sys.stdin.read())
-except Exception:
-    sys.exit(1)
-if isinstance(data, list):
-    print(len(data))
-else:
-    sys.exit(1)
-' 2> /dev/null && return 0
+  if printf '%s' "$_json" | json__query 'length' 2> /dev/null; then
+    return 0
   fi
   # Fallback: count occurrences of top-level object open-brace. This is a
-  # best-effort heuristic that matches the output format of our grep/sed
-  # fallback in json.sh (one object per line). Over-counts are harmless —
-  # the loop just runs an extra empty page before terminating.
+  # best-effort heuristic. Over-counts are harmless — the loop just runs an
+  # extra empty page before terminating.
   printf '%s\n' "$_json" | grep -c '^[[:space:]]*{' || true
 }
 

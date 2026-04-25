@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Do not edit _lib/ copies directly — edit lib/ instead.
-#
+# net.sh — HTTP fetch helpers (curl / wget). Bash >=4.
 # _net__ensure_fetch_tool and _net__ensure_ca_certs are internal helpers.
-# They require ospkg.sh to be sourced first (they call ospkg__install if
-# curl/wget/ca-certs are missing).
+# They auto-install curl or ca-certificates via ospkg when absent.
 
 [ -n "${_NET__LIB_LOADED-}" ] && return 0
 _NET__LIB_LOADED=1
+
+_NET__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ospkg.sh
+. "$_NET__LIB_DIR/ospkg.sh"
 
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
@@ -190,7 +192,7 @@ _NET_HDR_EOF_
 
 # _net__ensure_fetch_tool (internal)
 # Sets _NET_FETCH_TOOL to "curl" or "wget"; installs curl via ospkg__install
-# if neither is found.  Requires ospkg.sh to have been sourced first.
+# if neither is found.
 _net__ensure_fetch_tool() {
   if [ -z "${_NET_FETCH_TOOL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
@@ -198,10 +200,6 @@ _net__ensure_fetch_tool() {
     elif command -v wget > /dev/null 2>&1; then
       _NET_FETCH_TOOL=wget
     else
-      [ -n "${_OSPKG__LIB_LOADED-}" ] || {
-        echo "⛔ net.sh: ospkg.sh must be sourced before _net__ensure_fetch_tool" >&2
-        return 1
-      }
       echo "ℹ️  Neither curl nor wget found — installing curl." >&2
       ospkg__update
       ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-net" curl
@@ -214,7 +212,7 @@ _net__ensure_fetch_tool() {
 
 # _net__ensure_ca_certs (internal)
 # Ensures /etc/ssl/certs/ca-certificates.crt exists; installs ca-certificates
-# via ospkg__install if not.  Requires ospkg.sh to have been sourced first.
+# via ospkg__install if not.
 _net__ensure_ca_certs() {
   [ -n "${_NET_CA_CERTS_OK:-}" ] && return 0
   # macOS uses its own keychain; curl/wget use it natively without a .crt file.
@@ -223,10 +221,6 @@ _net__ensure_ca_certs() {
     return 0
   }
   if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
-    [ -n "${_OSPKG__LIB_LOADED-}" ] || {
-      echo "⛔ net.sh: ospkg.sh must be sourced before _net__ensure_ca_certs" >&2
-      return 1
-    }
     echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
     ospkg__update
     ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-net" ca-certificates

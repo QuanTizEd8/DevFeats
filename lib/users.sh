@@ -7,6 +7,10 @@
 [ -n "${_USERS__LIB_LOADED-}" ] && return 0
 _USERS__LIB_LOADED=1
 
+_USERS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ospkg.sh
+. "$_USERS__LIB_DIR/ospkg.sh"
+
 # @brief users__resolve_list — Print one deduplicated username per line from devcontainer user-config env vars.
 #
 # Root is excluded from auto-detected paths (SUDO_USER, _REMOTE_USER,
@@ -147,12 +151,10 @@ users__set_write_permissions() {
   local _group="$3"
   shift 3
   if ! command -v groupadd > /dev/null 2>&1; then
-    if [ -n "${_OSPKG__LIB_LOADED-}" ]; then
-      echo "ℹ️  groupadd not found — installing shadow-utils." >&2
-      ospkg__update
-      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" shadow-utils 2> /dev/null ||
-        ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" shadow 2> /dev/null || true
-    fi
+    echo "ℹ️  groupadd not found — installing shadow-utils." >&2
+    ospkg__update
+    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" shadow-utils 2> /dev/null ||
+      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" shadow 2> /dev/null || true
     if ! command -v groupadd > /dev/null 2>&1; then
       echo "⚠️  groupadd not found — skipping write-permission setup." >&2
       return 0
@@ -193,11 +195,9 @@ users__set_login_shell() {
   shift
 
   if ! command -v chsh > /dev/null 2>&1; then
-    if [ -n "${_OSPKG__LIB_LOADED-}" ]; then
-      echo "ℹ️  chsh not found — installing passwd package." >&2
-      ospkg__update
-      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" passwd 2> /dev/null || true
-    fi
+    echo "ℹ️  chsh not found — installing passwd package." >&2
+    ospkg__update
+    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" passwd 2> /dev/null || true
     if ! command -v chsh > /dev/null 2>&1; then
       echo "⚠️  chsh not found — skipping shell change. Install the 'passwd' package." >&2
       return 0

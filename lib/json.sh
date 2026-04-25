@@ -1,106 +1,55 @@
 #!/usr/bin/env bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
-# JSON helpers: lazy-detected backend (jq, mikefarah yq, or python3). When none
-# are on PATH and ospkg.sh is already sourced, installs jq via ospkg (same idea
-# as net.sh installing curl). Does not source ospkg from this file.
+# JSON helpers: jq backend (auto-installed via ospkg when absent).
+# JSONC helpers require python3 (auto-installed via ospkg when absent).
 
 [ -n "${_JSON__LIB_LOADED-}" ] && return 0
 _JSON__LIB_LOADED=1
 
-# Directory containing json.sh and jsonc.py (sourced with bash; used by JSONC helpers).
-_JSON__LIB_DIR=""
+_JSON__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ospkg.sh
+. "${_JSON__LIB_DIR}/ospkg.sh"
 
-# _json__ensure_parse_tool (internal)
-#
-# Sets _JSON__PARSE_TOOL once to jq, yq, or python (mikefarah yq only — probed
-# with yq -o=json). If none exist and ospkg__install_tracked is available with
-# ospkg loaded, runs ospkg__update / ospkg__install_tracked lib-json jq, then
-# retries jq. Idempotent. Returns 0 if a structured parser is available, else 1.
-# _json__ensure_json_lib_dir (internal) — set _JSON__LIB_DIR to the directory of this file (bash only).
+# _json__ensure_json_lib_dir (internal) — kept for backward compat; _JSON__LIB_DIR is always set at load time.
 _json__ensure_json_lib_dir() {
-  [ -n "${_JSON__LIB_DIR:-}" ] && return 0
-  if [ -n "${BASH_VERSION:-}" ] && [ -n "${BASH_SOURCE[0]:-}" ]; then
-    # shellcheck disable=SC3043,SC2034,SC3003
-    _d="$(cd "${BASH_SOURCE[0]%/*}" 2> /dev/null && pwd)" || return 1
-    _JSON__LIB_DIR="$_d"
-  else
-    _JSON__LIB_DIR="."
-  fi
   return 0
 }
 
-_json__ensure_parse_tool() {
-  if [ -n "${_JSON__ENSURE_PARSE_DONE:-}" ]; then
-    [ -n "${_JSON__PARSE_TOOL:-}" ]
-    return $?
-  fi
-  if command -v jq > /dev/null 2>&1; then
-    _JSON__PARSE_TOOL=jq
-    _JSON__ENSURE_PARSE_DONE=1
-    return 0
-  fi
-  if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
-    _JSON__PARSE_TOOL=yq
-    _JSON__ENSURE_PARSE_DONE=1
-    return 0
-  fi
-  if command -v python3 > /dev/null 2>&1; then
-    _JSON__PARSE_TOOL=python
-    _JSON__ENSURE_PARSE_DONE=1
-    return 0
-  fi
-  if command -v ospkg__install_tracked > /dev/null 2>&1 && [ -n "${_OSPKG__LIB_LOADED-}" ]; then
-    echo "ℹ️  No JSON parser (jq, yq, python3) — installing jq." >&2
-    ospkg__update >&2 || true
-    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-json" jq >&2 || true
-    if command -v jq > /dev/null 2>&1; then
-      _JSON__PARSE_TOOL=jq
-      _JSON__ENSURE_PARSE_DONE=1
-      return 0
-    fi
-  fi
-  _JSON__ENSURE_PARSE_DONE=1
-  _JSON__PARSE_TOOL=""
-  return 1
+# _json__ensure_jq (internal) — ensure jq is on PATH; install via ospkg if absent.
+_json__ensure_jq() {
+  command -v jq > /dev/null 2>&1 && return 0
+  echo "ℹ️  jq not found — installing." >&2
+  ospkg__update >&2 || true
+  ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-json" jq >&2 || true
+  command -v jq > /dev/null 2>&1 || { echo "⛔ json.sh: jq could not be installed." >&2; return 1; }
+}
+
+# _json__ensure_python3 (internal) — ensure python3 is on PATH; install via ospkg if absent.
+_json__ensure_python3() {
+  command -v python3 > /dev/null 2>&1 && return 0
+  echo "ℹ️  python3 not found — installing." >&2
+  ospkg__update >&2 || true
+  ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-json" python3 >&2 || true
+  command -v python3 > /dev/null 2>&1 || { echo "⛔ json.sh: python3 could not be installed." >&2; return 1; }
+}
+
+# @brief json__query — jq passthrough; ensures jq is available (installs via ospkg if needed).
+json__query() {
+  _json__ensure_jq || return 1
+  jq "$@"
 }
 
 # @brief json__root_scalar_stdin <key> — Read one JSON object from stdin; print .[key] when string or number.
 #
-# After _json__ensure_parse_tool, uses jq, mikefarah yq (probed), or python3. Returns 1 if no parser
-# is available, stdin is empty, or the value is missing or non-scalar. Does not use grep.
+# Returns 1 if jq unavailable, stdin is empty, or the value is missing or non-scalar.
 json__root_scalar_stdin() {
   local _key="$1" _json _out
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
-  _json__ensure_parse_tool || return 1
-  case "${_JSON__PARSE_TOOL}" in
-    jq)
-      _out="$(printf '%s\n' "$_json" | jq -r --arg k "$_key" \
-        '.[$k] | if type == "number" or type == "string" then tostring elif . == null then empty else empty end' 2> /dev/null)" || _out=""
-      ;;
-    yq)
-      _out="$(
-        printf '%s\n' "$_json" |
-          env _JYQ_K="$_key" yq eval -p=json -r \
-            '.[strenv(_JYQ_K)] | select(tag != "!!null") | select(tag == "!!str" or tag == "!!int" or tag == "!!float")' - 2> /dev/null
-      )" || _out=""
-      ;;
-    python)
-      _out="$(printf '%s\n' "$_json" | python3 -c '
-import json, sys
-k = sys.argv[1]
-d = json.load(sys.stdin)
-if not isinstance(d, dict):
-    sys.exit(1)
-v = d[k]
-print(v if isinstance(v, str) else str(v))
-' "$_key" 2> /dev/null)" || _out=""
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  _json__ensure_jq || return 1
+  _out="$(printf '%s\n' "$_json" | jq -r --arg k "$_key" \
+    '.[$k] | if type == "number" or type == "string" then tostring elif . == null then empty else empty end' 2> /dev/null)" || _out=""
   if [ -n "$_out" ] && [ "$_out" != "null" ]; then
     printf '%s\n' "$_out"
     return 0
@@ -109,97 +58,30 @@ print(v if isinstance(v, str) else str(v))
 }
 
 # @brief json__array_field_lines_stdin <field> — Read JSON from stdin (expected: top-level array); print one line per element's .[field] when string or number.
-#
-# After _json__ensure_parse_tool, uses jq, mikefarah yq, or python3; if none, falls back to grep -o
-# for double-quoted string values only (can false-positive on nested keys).
 json__array_field_lines_stdin() {
   local _field="$1" _json _out
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
-  _out=""
-  if _json__ensure_parse_tool; then
-    case "${_JSON__PARSE_TOOL}" in
-      jq)
-        _out="$(printf '%s\n' "$_json" | jq -r --arg f "$_field" \
-          'if type == "array" then .[] | .[$f] // empty | if type == "string" or type == "number" then tostring else empty end else empty end' 2> /dev/null)" || _out=""
-        ;;
-      yq)
-        _out="$(
-          printf '%s\n' "$_json" |
-            env _JYQ_F="$_field" yq eval -p=json -r \
-              '.[] | .[strenv(_JYQ_F)] | select(tag != "!!null") | select(tag == "!!str" or tag == "!!int" or tag == "!!float")' - 2> /dev/null
-        )" || _out=""
-        ;;
-      python)
-        _out="$(printf '%s\n' "$_json" | python3 -c '
-import json, sys
-field = sys.argv[1]
-data = json.load(sys.stdin)
-if not isinstance(data, list):
-    sys.exit(1)
-for item in data:
-    if isinstance(item, dict) and field in item and item[field] is not None:
-        v = item[field]
-        print(v if isinstance(v, str) else str(v))
-' "$_field" 2> /dev/null)" || _out=""
-        ;;
-    esac
-    if [ -n "$_out" ]; then
-      printf '%s\n' "$_out"
-      return 0
-    fi
+  _json__ensure_jq || return 1
+  _out="$(printf '%s\n' "$_json" | jq -r --arg f "$_field" \
+    'if type == "array" then .[] | .[$f] // empty | if type == "string" or type == "number" then tostring else empty end else empty end' 2> /dev/null)" || _out=""
+  if [ -n "$_out" ]; then
+    printf '%s\n' "$_out"
+    return 0
   fi
-  _out="$(printf '%s\n' "$_json" |
-    grep -o "\"${_field}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" |
-    sed "s/^\"${_field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\"$/\1/")" || _out=""
-  [ -z "$_out" ] && return 1
-  printf '%s\n' "$_out"
-  return 0
+  return 1
 }
 
 # @brief json__object_array_field_lines_stdin <arrayKey> <field> — Read one JSON object from stdin; print one line per element of .[arrayKey][].[field] when string or number.
 #
-# Requires root to be an object and .[arrayKey] to be an array of objects. Uses jq, mikefarah yq, or python3
-# after _json__ensure_parse_tool. No grep fallback (fail closed on invalid shape).
+# Requires root to be an object and .[arrayKey] to be an array of objects.
 json__object_array_field_lines_stdin() {
   local _ak="$1" _field="$2" _json _out
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
-  _json__ensure_parse_tool || return 1
-  case "${_JSON__PARSE_TOOL}" in
-    jq)
-      _out="$(printf '%s\n' "$_json" | jq -r --arg ak "$_ak" --arg f "$_field" \
-        '(.[$ak] | if type == "array" then .[] else empty end) | .[$f] // empty | if type == "string" or type == "number" then tostring else empty end' 2> /dev/null)" || _out=""
-      ;;
-    yq)
-      _out="$(
-        printf '%s\n' "$_json" |
-          env _JYQ_AK="$_ak" _JYQ_F="$_field" yq eval -p=json -r \
-            '.[strenv(_JYQ_AK)] | .[] | .[strenv(_JYQ_F)] | select(tag != "!!null") | select(tag == "!!str" or tag == "!!int" or tag == "!!float")' - 2> /dev/null
-      )" || _out=""
-      ;;
-    python)
-      _out="$(printf '%s\n' "$_json" | python3 -c '
-import json, sys
-ak, f = sys.argv[1], sys.argv[2]
-d = json.load(sys.stdin)
-if not isinstance(d, dict) or ak not in d:
-    sys.exit(1)
-arr = d[ak]
-if not isinstance(arr, list):
-    sys.exit(1)
-for item in arr:
-    if isinstance(item, dict) and f in item and item[f] is not None:
-        v = item[f]
-        if isinstance(v, bool):
-            continue
-        print(v if isinstance(v, str) else str(v))
-' "$_ak" "$_field" 2> /dev/null)" || _out=""
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  _json__ensure_jq || return 1
+  _out="$(printf '%s\n' "$_json" | jq -r --arg ak "$_ak" --arg f "$_field" \
+    '(.[$ak] | if type == "array" then .[] else empty end) | .[$f] // empty | if type == "string" or type == "number" then tostring else empty end' 2> /dev/null)" || _out=""
   if [ -n "$_out" ]; then
     printf '%s\n' "$_out"
     return 0
@@ -209,54 +91,18 @@ for item in arr:
 
 # @brief json__object_map_string_values_stdin [<objectKey>] — Read one JSON object; print all string values from the root object or from .[objectKey] when it is an object map (string values only). When `.[key]` may be an array of strings instead, use `json__object_key_string_lines_stdin`.
 #
-# If <objectKey> is omitted or empty, uses the root object. One line per string value. Uses jq, yq, or python3; no grep fallback.
+# If <objectKey> is omitted or empty, uses the root object. One line per string value.
 json__object_map_string_values_stdin() {
   local _sub="${1-}" _json _out
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
-  _json__ensure_parse_tool || return 1
-  case "${_JSON__PARSE_TOOL}" in
-    jq)
-      _out="$(printf '%s\n' "$_json" | jq -r --arg sk "$_sub" \
-        'if ($sk | length) == 0 then
-          (if type == "object" then to_entries[].value | select(type == "string") else empty end)
-        else
-          (.[$sk] | if type == "object" then to_entries[].value | select(type == "string") else empty end)
-        end' 2> /dev/null)" || _out=""
-      ;;
-    yq)
-      if [ -z "$_sub" ]; then
-        _out="$(
-          printf '%s\n' "$_json" | yq eval -p=json -r \
-            'to_entries | .[].value | select(tag == "!!str")' - 2> /dev/null
-        )" || _out=""
-      else
-        _out="$(
-          printf '%s\n' "$_json" |
-            env _JYQ_SK="$_sub" yq eval -p=json -r \
-              '.[strenv(_JYQ_SK)] | to_entries | .[].value | select(tag == "!!str")' - 2> /dev/null
-        )" || _out=""
-      fi
-      ;;
-    python)
-      _out="$(printf '%s\n' "$_json" | python3 -c '
-import json, sys
-sk = sys.argv[1] if len(sys.argv) > 1 else ""
-d = json.load(sys.stdin)
-if not isinstance(d, dict):
-    sys.exit(1)
-obj = d[sk] if sk else d
-if not isinstance(obj, dict):
-    sys.exit(1)
-for v in obj.values():
-    if isinstance(v, str):
-        print(v)
-' "$_sub" 2> /dev/null)" || _out=""
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  _json__ensure_jq || return 1
+  _out="$(printf '%s\n' "$_json" | jq -r --arg sk "$_sub" \
+    'if ($sk | length) == 0 then
+      (if type == "object" then to_entries[].value | select(type == "string") else empty end)
+    else
+      (.[$sk] | if type == "object" then to_entries[].value | select(type == "string") else empty end)
+    end' 2> /dev/null)" || _out=""
   if [ -n "$_out" ]; then
     printf '%s\n' "$_out"
     return 0
@@ -269,59 +115,18 @@ for v in obj.values():
 # Args:
 #   <key>  Object key to read (e.g. `envs` for `conda env list --json`).
 #
-# Stdout: one string per line. Uses jq, yq, or python3.
+# Stdout: one string per line.
 json__object_key_string_lines_stdin() {
   local _key="${1-}" _json _out
   [ -z "$_key" ] && return 1
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
-  _json__ensure_parse_tool || return 1
-  case "${_JSON__PARSE_TOOL}" in
-    jq)
-      _out="$(printf '%s\n' "$_json" | jq -r --arg k "$_key" '
-        .[$k]
-        | if type == "array" then .[] | strings
-          elif type == "object" then .[] | strings
-          else empty end' 2> /dev/null)" || _out=""
-      ;;
-    yq)
-      _out="$(
-        printf '%s\n' "$_json" |
-          env _JYQ_K="$_key" yq eval -p=json -r '.[strenv(_JYQ_K)][]' - 2> /dev/null
-      )" || _out=""
-      if [ -z "$_out" ]; then
-        _out="$(
-          printf '%s\n' "$_json" |
-            env _JYQ_K="$_key" yq eval -p=json -r '.[strenv(_JYQ_K)] | to_entries | .[].value' - 2> /dev/null
-        )" || _out=""
-      fi
-      ;;
-    python)
-      _out="$(printf '%s\n' "$_json" | python3 -c '
-import json, sys
-k = sys.argv[1]
-d = json.load(sys.stdin)
-if not isinstance(d, dict):
-    sys.exit(1)
-e = d.get(k)
-if e is None:
-    sys.exit(0)
-if isinstance(e, list):
-    for x in e:
-        if isinstance(x, str):
-            print(x)
-elif isinstance(e, dict):
-    for x in e.values():
-        if isinstance(x, str):
-            print(x)
-else:
-    sys.exit(1)
-' "$_key" 2> /dev/null)" || _out=""
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  _json__ensure_jq || return 1
+  _out="$(printf '%s\n' "$_json" | jq -r --arg k "$_key" '
+    .[$k]
+    | if type == "array" then .[] | strings
+      elif type == "object" then .[] | strings
+      else empty end' 2> /dev/null)" || _out=""
   if [ -n "$_out" ]; then
     printf '%s\n' "$_out"
     return 0
@@ -332,107 +137,29 @@ else:
 # @brief json__nodejs_index_version_stdin <op> [arg] — Read nodejs.org-style dist index.json (array of objects); print one version string.
 #
 # <op>: lts-first (first entry with lts not JSON false), head (first entry), major (arg = major e.g. 22), exact (arg = full version as in JSON e.g. v22.0.0).
-# Field is always "version". Uses jq, yq, or python3; no grep fallback.
+# Field is always "version".
 json__nodejs_index_version_stdin() {
   local _op="$1" _arg="${2-}" _json _out
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
   [ -z "$_op" ] && return 1
-  _json__ensure_parse_tool || return 1
-  case "${_JSON__PARSE_TOOL}" in
-    jq)
-      case "$_op" in
-        lts-first)
-          _out="$(printf '%s\n' "$_json" | jq -r '[.[] | select(.lts != false)][0].version // empty | strings' 2> /dev/null)" || _out=""
-          ;;
-        head)
-          _out="$(printf '%s\n' "$_json" | jq -r '.[0].version // empty | strings' 2> /dev/null)" || _out=""
-          ;;
-        major)
-          [ -z "$_arg" ] && return 1
-          _out="$(printf '%s\n' "$_json" | jq -r --arg p "v${_arg}." \
-            '.[] | select(.version | type == "string" and startswith($p)) | .version' 2> /dev/null | head -n 1)" || _out=""
-          ;;
-        exact)
-          [ -z "$_arg" ] && return 1
-          _out="$(printf '%s\n' "$_json" | jq -r --arg v "$_arg" \
-            '.[] | select(.version == $v) | .version // empty' 2> /dev/null | head -n 1)" || _out=""
-          ;;
-        *)
-          return 1
-          ;;
-      esac
+  _json__ensure_jq || return 1
+  case "$_op" in
+    lts-first)
+      _out="$(printf '%s\n' "$_json" | jq -r '[.[] | select(.lts != false)][0].version // empty | strings' 2> /dev/null)" || _out=""
       ;;
-    yq)
-      case "$_op" in
-        lts-first)
-          _out="$(
-            printf '%s\n' "$_json" | yq eval -p=json -r \
-              '[.[] | select(.lts != false)][0].version' - 2> /dev/null
-          )" || _out=""
-          ;;
-        head)
-          _out="$(printf '%s\n' "$_json" | yq eval -p=json -r '.[0].version' - 2> /dev/null)" || _out=""
-          ;;
-        major)
-          [ -z "$_arg" ] && return 1
-          _out="$(
-            printf '%s\n' "$_json" | env M="$_arg" yq eval -p=json -r \
-              '.[] | select(.version | test("^v" + strenv(M) + "\\.")) | .version' - 2> /dev/null | head -n 1
-          )" || _out=""
-          ;;
-        exact)
-          [ -z "$_arg" ] && return 1
-          _out="$(
-            printf '%s\n' "$_json" | env _JYQ_V="$_arg" yq eval -p=json -r \
-              '.[] | select(.version == strenv(_JYQ_V)) | .version' - 2> /dev/null | head -n 1
-          )" || _out=""
-          ;;
-        *)
-          return 1
-          ;;
-      esac
+    head)
+      _out="$(printf '%s\n' "$_json" | jq -r '.[0].version // empty | strings' 2> /dev/null)" || _out=""
       ;;
-    python)
-      _out="$(printf '%s\n' "$_json" | python3 -c '
-import json, sys
-op, arg = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "")
-data = json.load(sys.stdin)
-if not isinstance(data, list):
-    sys.exit(1)
-if op == "lts-first":
-    for item in data:
-        if isinstance(item, dict) and item.get("lts") is not False:
-            v = item.get("version")
-            if isinstance(v, str) and v:
-                print(v)
-                sys.exit(0)
-elif op == "head":
-    if data and isinstance(data[0], dict):
-        v = data[0].get("version")
-        if isinstance(v, str) and v:
-            print(v)
-            sys.exit(0)
-elif op == "major":
-    if not arg or not str(arg).isdigit():
-        sys.exit(1)
-    pfx = "v" + str(arg) + "."
-    for item in data:
-        if isinstance(item, dict):
-            v = item.get("version")
-            if isinstance(v, str) and v.startswith(pfx):
-                print(v)
-                sys.exit(0)
-elif op == "exact":
-    if not arg:
-        sys.exit(1)
-    want = str(arg)
-    for item in data:
-        if isinstance(item, dict) and item.get("version") == want:
-            print(want)
-            sys.exit(0)
-sys.exit(1)
-' "$_op" "$_arg" 2> /dev/null)" || _out=""
+    major)
+      [ -z "$_arg" ] && return 1
+      _out="$(printf '%s\n' "$_json" | jq -r --arg p "v${_arg}." \
+        '.[] | select(.version | type == "string" and startswith($p)) | .version' 2> /dev/null | head -n 1)" || _out=""
+      ;;
+    exact)
+      [ -z "$_arg" ] && return 1
+      _out="$(printf '%s\n' "$_json" | jq -r --arg v "$_arg" \
+        '.[] | select(.version == $v) | .version // empty' 2> /dev/null | head -n 1)" || _out=""
       ;;
     *)
       return 1
@@ -445,18 +172,11 @@ sys.exit(1)
 
 # @brief json__strip_jsonc_stdin — Read JSON/JSONC from stdin; print strict JSON. Requires python3 and lib/jsonc.py next to this file.
 json__strip_jsonc_stdin() {
-  _json__ensure_json_lib_dir || return 1
   if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
     echo "⛔ lib/jsonc.py not found (expected: ${_JSON__LIB_DIR}/jsonc.py)" >&2
     return 1
   fi
-  # Ensure python3 is available; install jq via ospkg as side-effect if needed
-  # (which guarantees ospkg is warmed up), then confirm python3 specifically.
-  _json__ensure_parse_tool || true
-  if ! command -v python3 > /dev/null 2>&1; then
-    echo "⛔ json__strip_jsonc_stdin: python3 is required for JSONC stripping but was not found." >&2
-    return 1
-  fi
+  _json__ensure_python3 || return 1
   python3 "${_JSON__LIB_DIR}/jsonc.py" strip
 }
 
@@ -465,11 +185,7 @@ json__object_keys_stdin() {
   local _sub="${1-}" _json _out
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
-  _json__ensure_parse_tool || return 1
-  [ "${_JSON__PARSE_TOOL}" = "jq" ] || {
-    echo "⛔ json__object_keys_stdin requires jq" >&2
-    return 1
-  }
+  _json__ensure_jq || return 1
   if [ -z "$_sub" ]; then
     _out="$(printf '%s\n' "$_json" | jq -r 'keys[]' 2> /dev/null)" || return 1
   else
@@ -485,11 +201,7 @@ json__value_stdin() {
   [ -z "$_expr" ] && return 1
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
-  _json__ensure_parse_tool || return 1
-  [ "${_JSON__PARSE_TOOL}" = "jq" ] || {
-    echo "⛔ json__value_stdin requires jq" >&2
-    return 1
-  }
+  _json__ensure_jq || return 1
   printf '%s\n' "$_json" | jq -c "$_expr" 2> /dev/null
 }
 
@@ -498,11 +210,7 @@ json__coerce_scalar_stdin() {
   local _json _t
   _json="$(cat)" || return 1
   [ -z "$_json" ] && return 1
-  _json__ensure_parse_tool || return 1
-  [ "${_JSON__PARSE_TOOL}" = "jq" ] || {
-    echo "⛔ json__coerce_scalar_stdin requires jq" >&2
-    return 1
-  }
+  _json__ensure_jq || return 1
   _t="$(printf '%s\n' "$_json" | jq -r 'type' 2> /dev/null)" || return 1
   case "$_t" in
     string)
@@ -524,15 +232,10 @@ json__coerce_scalar_stdin() {
 
 # @brief json__detect_duplicate_keys_stdin [<objectKey>] — Reject JSON with duplicate object keys (uses lib/jsonc.py). Ignores <objectKey> (full document checked).
 json__detect_duplicate_keys_stdin() {
-  _json__ensure_json_lib_dir || return 1
   if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
     echo "⛔ lib/jsonc.py not found" >&2
     return 1
   fi
-  _json__ensure_parse_tool || true
-  if ! command -v python3 > /dev/null 2>&1; then
-    echo "⛔ json__detect_duplicate_keys_stdin: python3 is required but was not found." >&2
-    return 1
-  fi
+  _json__ensure_python3 || return 1
   python3 "${_JSON__LIB_DIR}/jsonc.py" dup "$@"
 }

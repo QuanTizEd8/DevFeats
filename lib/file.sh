@@ -4,6 +4,10 @@
 [ -n "${_FILE__LIB_LOADED-}" ] && return 0
 _FILE__LIB_LOADED=1
 
+_FILE__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ospkg.sh
+. "$_FILE__LIB_DIR/ospkg.sh"
+
 # _file__ensure_extract_tool <ext> (internal)
 # Ensures the extraction tool for <ext> is available; installs it via ospkg when possible.
 # <ext>: "zip" (installs unzip), "tar" (hard-fail — system primitive).
@@ -12,12 +16,10 @@ _file__ensure_extract_tool() {
   case "$_ext" in
     zip)
       command -v unzip > /dev/null 2>&1 && return 0
-      if [ -n "${_OSPKG__LIB_LOADED-}" ]; then
-        echo "ℹ️  unzip not found — installing." >&2
-        ospkg__update
-        ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-file" unzip
-        command -v unzip > /dev/null 2>&1 && return 0
-      fi
+      echo "ℹ️  unzip not found — installing." >&2
+      ospkg__update
+      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-file" unzip
+      command -v unzip > /dev/null 2>&1 && return 0
       echo "⛔ file.sh: unzip is required to extract .zip archives but could not be installed." >&2
       return 1
       ;;

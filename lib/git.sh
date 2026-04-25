@@ -5,6 +5,10 @@
 [[ -n "${_GIT__LIB_LOADED-}" ]] && return 0
 _GIT__LIB_LOADED=1
 
+_GIT__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ospkg.sh
+. "$_GIT__LIB_DIR/ospkg.sh"
+
 # @brief git__clone --url <url> --dir <dir> [--branch <branch>] — Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent; skips if `<dir>/.git` already exists.
 #
 # On failure, the partially-created <dir> is removed so that a re-run does
@@ -59,14 +63,9 @@ git__clone() {
 
   # Auto-provision git if not yet available (idempotent if already installed).
   if ! command -v git > /dev/null 2>&1; then
-    if [[ -n "${_OSPKG__LIB_LOADED-}" ]]; then
-      echo "ℹ️  git not found — installing." >&2
-      ospkg__detect
-      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-git" git
-    else
-      echo "⛔ git__clone: git is not installed and ospkg.sh is not loaded." >&2
-      return 1
-    fi
+    echo "ℹ️  git not found — installing." >&2
+    ospkg__detect
+    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-git" git
   fi
 
   mkdir -p "$dir"

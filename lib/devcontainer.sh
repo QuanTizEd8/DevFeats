@@ -167,7 +167,7 @@ devcontainer__iter_features() {
       _tag=""
     fi
     printf '%s\t%s\t%s\n' "$_id" "$_k" "$_tag"
-  done < <(jq -r '(.features // {}) | keys[]' < "$_cfg")
+  done < <(json__query -r '(.features // {}) | keys[]' < "$_cfg")
   return 0
 }
 
@@ -181,16 +181,16 @@ devcontainer__feature_env_exports() {
   [[ -z "$_j" || "$_j" == "{}" || "$_j" == "null" ]] && return 0
   while IFS= read -r _k; do
     [[ -z "$_k" ]] && continue
-    _t="$(printf '%s' "$_j" | jq -r --arg k "$_k" '.[$k] | type' 2> /dev/null)" || return 1
+    _t="$(printf '%s' "$_j" | json__query -r --arg k "$_k" '.[$k] | type' 2> /dev/null)" || return 1
     if [[ "$_t" == "array" || "$_t" == "object" ]]; then
       echo "⛔ Option '${_k}': only boolean/string allowed by devcontainer spec (got ${_t})" >&2
       return 1
     fi
-    _v="$(printf '%s' "$_j" | jq -c --arg k "$_k" '.[$k]')"
+    _v="$(printf '%s' "$_j" | json__query -c --arg k "$_k" '.[$k]')"
     _v="$(printf '%s' "$_v" | json__coerce_scalar_stdin 2> /dev/null)" || return 1
     _n="$(str__safe_id "$_k")"
     printf 'export %s=%q\n' "$_n" "$_v"
-  done < <(printf '%s' "$_j" | jq -r 'keys[]' 2> /dev/null)
+  done < <(printf '%s' "$_j" | json__query -r 'keys[]' 2> /dev/null)
   return 0
 }
 
@@ -255,13 +255,13 @@ devcontainer__build_ordering_inputs() {
         }
       done
       ((_hit)) && printf '%s\t%s\n' "$_short" "$_id" >> "$_hf"
-    done < <(jq -r '(.dependsOn // {}) | keys[]' "$_df" 2> /dev/null || true)
+    done < <(json__query -r '(.dependsOn // {}) | keys[]' "$_df" 2> /dev/null || true)
     while IFS= read -r _dep; do
       [[ -z "$_dep" ]] && continue
       _short="${_dep##*/}"
       _short="${_short%%:*}"
       printf '%s\t%s\n' "$_short" "$_id" >> "$_sf"
-    done < <(jq -r '(.installsAfter // [])[]' "$_df" 2> /dev/null || true)
+    done < <(json__query -r '(.installsAfter // [])[]' "$_df" 2> /dev/null || true)
   done
   local _oi=0 _entry _eshort
   while IFS= read -r _entry; do
@@ -272,7 +272,7 @@ devcontainer__build_ordering_inputs() {
       [[ "$_id" == "$_eshort" ]] && printf '%s\t%d\n' "$_id" "$((1000000 - _oi))" >> "$_pf"
     done
     _oi=$((_oi + 1))
-  done < <(jq -r '(.overrideFeatureInstallOrder // [])[]' "$_cfg" 2> /dev/null || true)
+  done < <(json__query -r '(.overrideFeatureInstallOrder // [])[]' "$_cfg" 2> /dev/null || true)
   return 0
 }
 
@@ -307,17 +307,17 @@ devcontainer__lifecycle_iter() {
   done
   local -a _ids=("$@")
   [[ -n "$_ph" ]] || return 1
-  command -v jq > /dev/null 2>&1 || return 1
+  _json__ensure_jq || return 1
   local _id _df _j
   for _id in "${_ids[@]+"${_ids[@]}"}"; do
     _df="${_root}/${_id}/devcontainer-feature.json"
     [[ -f "$_df" ]] || continue
-    _j="$(jq -c --arg p "$_ph" 'if (has($p) | not) then empty else .[$p] end' "$_df" 2> /dev/null)" || continue
+    _j="$(json__query -c --arg p "$_ph" 'if (has($p) | not) then empty else .[$p] end' "$_df" 2> /dev/null)" || continue
     [[ -z "$_j" || "$_j" == "null" ]] && continue
     printf 'feature\t%s\t%s\n' "$_id" "$_j"
   done
   if [[ -n "$_cfg" && -f "$_cfg" ]]; then
-    _j="$(jq -c --arg p "$_ph" 'if (has($p) | not) then empty else .[$p] end' "$_cfg" 2> /dev/null)" || _j=""
+    _j="$(json__query -c --arg p "$_ph" 'if (has($p) | not) then empty else .[$p] end' "$_cfg" 2> /dev/null)" || _j=""
     if [[ -n "$_j" && "$_j" != "null" ]]; then
       printf 'container\t_container_\t%s\n' "$_j"
     fi

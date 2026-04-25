@@ -64,9 +64,7 @@ setup() {
 @test "github__release_tags parses multiple tags from JSON array" {
   # net__fetch_url_stdout is used inside; override it to return canned JSON.
   net__fetch_url_stdout() {
-    printf '{"tag_name":"v3.0.0"}\n'
-    printf '{"tag_name":"v2.1.0"}\n'
-    printf '{"tag_name":"v2.0.0"}\n'
+    printf '%s\n' '[{"tag_name":"v3.0.0"},{"tag_name":"v2.1.0"},{"tag_name":"v2.0.0"}]'
     return 0
   }
   export -f net__fetch_url_stdout
@@ -276,8 +274,7 @@ v2.0.0"
 
 @test "_github__api_list_field extracts name field from JSON array" {
   net__fetch_url_stdout() {
-    printf '{"name":"v2.0.0"}\n'
-    printf '{"name":"v1.9.0"}\n'
+    printf '%s\n' '[{"name":"v2.0.0"},{"name":"v1.9.0"}]'
     return 0
   }
   export -f net__fetch_url_stdout
@@ -333,9 +330,7 @@ v1.9.0"
 
 @test "github__tags prints tag names from /tags endpoint" {
   net__fetch_url_stdout() {
-    printf '{"name":"v2.48.0"}\n'
-    printf '{"name":"v2.47.2"}\n'
-    printf '{"name":"v2.47.1"}\n'
+    printf '%s\n' '[{"name":"v2.48.0"},{"name":"v2.47.2"},{"name":"v2.47.1"}]'
     return 0
   }
   export -f net__fetch_url_stdout
@@ -348,9 +343,9 @@ v2.47.1"
 
 @test "github__tags accepts --per_page option" {
   # Stub _github__api_get to echo the URL as a "name" field so it passes
-  # through the grep/sed extraction and appears in the final output.
+  # through json extraction and appears in the final output.
   _github__api_get() {
-    printf '{"name":"%s"}\n' "$1"
+    printf '[{"name":"%s"}]\n' "$1"
     return 0
   }
   export -f _github__api_get
@@ -390,8 +385,7 @@ v2.47.1"
 
 @test "github__release_tags still parses tag_name via shared helper" {
   net__fetch_url_stdout() {
-    printf '{"tag_name":"v3.0.0"}\n'
-    printf '{"tag_name":"v2.9.0"}\n'
+    printf '%s\n' '[{"tag_name":"v3.0.0"},{"tag_name":"v2.9.0"}]'
     return 0
   }
   export -f net__fetch_url_stdout

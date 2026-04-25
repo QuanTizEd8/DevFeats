@@ -12,6 +12,8 @@ _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OSPKG_LIB_DIR/net.sh"
 # shellcheck source=lib/logging.sh
 . "$_OSPKG_LIB_DIR/logging.sh"
+# shellcheck source=lib/json.sh
+. "$_OSPKG_LIB_DIR/json.sh"
 
 # ── Internal state ────────────────────────────────────────────────────────────
 _OSPKG_DETECTED=false
@@ -600,12 +602,12 @@ ospkg__parse_manifest_yaml() {
   _ctx_json="$(
     for _k in "${!_OSPKG_OS_RELEASE[@]}"; do
       printf '%s\n' "$_k" "${_OSPKG_OS_RELEASE[$_k]}"
-    done | jq -Rn '[inputs] | [range(0; length; 2) as $i | {key: .[$i], value: .[$i + 1]}] | from_entries'
+    done | json__query -Rn '[inputs] | [range(0; length; 2) as $i | {key: .[$i], value: .[$i + 1]}] | from_entries'
   )"
 
   local _pm="${_OSPKG_OS_RELEASE[pm]:-${_OSPKG_PREFIX}}"
 
-  jq -c \
+  json__query -c \
     --argjson ctx "$_ctx_json" \
     --arg pm "$_pm" \
     '
@@ -1277,14 +1279,6 @@ ospkg__run() {
   # ── YAML / JSON manifest path ──────────────────────────────────────────────
   if [[ -n "$_manifest_content" ]]; then
 
-    # jq is required for YAML parsing — install unconditionally (parser tool,
-    # not a user-requested package, so this runs even in dry-run mode).
-    if ! command -v jq > /dev/null 2>&1; then
-      echo "ℹ️  jq not found — installing." >&2
-      ospkg__update --force
-      ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::sysset-ospkg-internals" jq
-    fi
-
     # yq is required to convert YAML to JSON.
     if ! _ospkg_ensure_yq; then
       echo "⛔ yq is required for YAML manifests but could not be obtained." >&2
@@ -1311,7 +1305,7 @@ ospkg__run() {
 
     local _item _kind
     while IFS= read -r _item; do
-      _kind="$(printf '%s' "$_item" | jq -r '.kind' 2> /dev/null)" || continue
+      _kind="$(printf '%s' "$_item" | json__query -r '.kind' 2> /dev/null)" || continue
       case "$_kind" in
         prescript) _Y_PRESCRIPTS+=("$_item") ;;
         key) _Y_KEYS+=("$_item") ;;
@@ -1352,7 +1346,7 @@ ospkg__run() {
       local _combined_prescript=""
       local _pitem
       for _pitem in "${_Y_PRESCRIPTS[@]}"; do
-        _combined_prescript+="$(printf '%s' "$_pitem" | jq -r '.content')"$'\n'
+        _combined_prescript+="$(printf '%s' "$_pitem" | json__query -r '.content')"$'\n'
       done
       _run_script "prescript" "$_combined_prescript"
       echo "✅ Prescript(s) completed." >&2
@@ -1371,9 +1365,9 @@ ospkg__run() {
       fi
       local _kitem _kurl _kdest _kdearmor _keff
       for _kitem in "${_Y_KEYS[@]}"; do
-        _kurl="$(printf '%s' "$_kitem" | jq -r '.url')"
-        _kdest="$(printf '%s' "$_kitem" | jq -r '.dest')"
-        _kdearmor="$(printf '%s' "$_kitem" | jq -r 'if .dearmor == true then "true" elif .dearmor == false then "false" else "auto" end')"
+        _kurl="$(printf '%s' "$_kitem" | json__query -r '.url')"
+        _kdest="$(printf '%s' "$_kitem" | json__query -r '.dest')"
+        _kdearmor="$(printf '%s' "$_kitem" | json__query -r 'if .dearmor == true then "true" elif .dearmor == false then "false" else "auto" end')"
         _keff="$(_ospkg_key_effective_path "$_kdest" "$_kdearmor")"
         if [[ "$_dry_run" == true ]]; then
           if [[ "${_keff}" != "${_kdest}" ]]; then
@@ -1401,7 +1395,7 @@ ospkg__run() {
       echo "🗃  Adding ${#_Y_REPOS[@]} repository entry/entries." >&2
       local _ritem _rcontent
       for _ritem in "${_Y_REPOS[@]}"; do
-        _rcontent="$(printf '%s' "$_ritem" | jq -r '.content')"
+        _rcontent="$(printf '%s' "$_ritem" | json__query -r '.content')"
         if [[ "$_dry_run" == true ]]; then
           echo "🔍 [dry-run] repo: would add: ${_rcontent}" >&2
         else
@@ -1423,7 +1417,7 @@ ospkg__run() {
         fi
         local _ppitem _ppa
         for _ppitem in "${_Y_PPAS[@]}"; do
-          _ppa="$(printf '%s' "$_ppitem" | jq -r '.ppa')"
+          _ppa="$(printf '%s' "$_ppitem" | json__query -r '.ppa')"
           if [[ "$_dry_run" == true ]]; then
             echo "🔍 [dry-run] ppa: would run: add-apt-repository -y '${_ppa}'" >&2
           else
@@ -1444,14 +1438,14 @@ ospkg__run() {
         echo "🍺 Adding ${#_Y_TAPS[@]} Homebrew tap(s)." >&2
         local _titem _tap_val _tap_name _tap_url
         for _titem in "${_Y_TAPS[@]}"; do
-          _tap_val="$(printf '%s' "$_titem" | jq -r '.tap')"
-          if printf '%s' "$_tap_val" | jq -e 'type == "object"' > /dev/null 2>&1; then
-            _tap_name="$(printf '%s' "$_tap_val" | jq -r '.name')"
-            _tap_url="$(printf '%s' "$_tap_val" | jq -r '.url // empty')"
+          _tap_val="$(printf '%s' "$_titem" | json__query -r '.tap')"
+          if printf '%s' "$_tap_val" | json__query -e 'type == "object"' > /dev/null 2>&1; then
+            _tap_name="$(printf '%s' "$_tap_val" | json__query -r '.name')"
+            _tap_url="$(printf '%s' "$_tap_val" | json__query -r '.url // empty')"
           else
-            # tap is a plain string in the jq -c output
-            _tap_name="$(printf '%s' "$_titem" | jq -r '.tap | if type == "object" then .name else . end')"
-            _tap_url="$(printf '%s' "$_titem" | jq -r '.tap | if type == "object" then (.url // "") else "" end')"
+            # tap is a plain string in the json__query -c output
+            _tap_name="$(printf '%s' "$_titem" | json__query -r '.tap | if type == "object" then .name else . end')"
+            _tap_url="$(printf '%s' "$_titem" | json__query -r '.tap | if type == "object" then (.url // "") else "" end')"
           fi
           if [[ "$_dry_run" == true ]]; then
             echo "🔍 [dry-run] tap: would run: brew tap ${_tap_name}${_tap_url:+ ${_tap_url}}" >&2
@@ -1476,7 +1470,7 @@ ospkg__run() {
         echo "🧩 Enabling ${#_Y_COPR[@]} COPR repo(s)." >&2
         local _copritem _copr
         for _copritem in "${_Y_COPR[@]}"; do
-          _copr="$(printf '%s' "$_copritem" | jq -r '.copr')"
+          _copr="$(printf '%s' "$_copritem" | json__query -r '.copr')"
           if [[ "$_dry_run" == true ]]; then
             echo "🔍 [dry-run] copr: would run: ${_OSPKG_PKG_MNGR} copr enable -y '${_copr}'" >&2
           else
@@ -1496,7 +1490,7 @@ ospkg__run() {
         echo "🔩 Enabling ${#_Y_MODULES[@]} DNF module stream(s)." >&2
         local _moditem _mod
         for _moditem in "${_Y_MODULES[@]}"; do
-          _mod="$(printf '%s' "$_moditem" | jq -r '.module')"
+          _mod="$(printf '%s' "$_moditem" | json__query -r '.module')"
           if [[ "$_dry_run" == true ]]; then
             echo "🔍 [dry-run] module: would run: ${_OSPKG_PKG_MNGR} module enable -y '${_mod}'" >&2
           else
@@ -1514,7 +1508,7 @@ ospkg__run() {
     if [[ ${#_Y_GROUPS[@]} -gt 0 ]]; then
       local _grpitem _grp
       for _grpitem in "${_Y_GROUPS[@]}"; do
-        _grp="$(printf '%s' "$_grpitem" | jq -r '.group')"
+        _grp="$(printf '%s' "$_grpitem" | json__query -r '.group')"
         case "$_OSPKG_PREFIX" in
           dnf)
             if [[ "$_dry_run" == true ]]; then
@@ -1574,9 +1568,9 @@ ospkg__run() {
     local -a _pkgs_to_install=()
     local _pkgitem _pkgname _pkgflags _pkgversion _pkginstall
     for _pkgitem in "${_Y_PACKAGES[@]}"; do
-      _pkgname="$(printf '%s' "$_pkgitem" | jq -r '.name')"
-      _pkgflags="$(printf '%s' "$_pkgitem" | jq -r '.flags // empty')"
-      _pkgversion="$(printf '%s' "$_pkgitem" | jq -r '.version // empty')"
+      _pkgname="$(printf '%s' "$_pkgitem" | json__query -r '.name')"
+      _pkgflags="$(printf '%s' "$_pkgitem" | json__query -r '.flags // empty')"
+      _pkgversion="$(printf '%s' "$_pkgitem" | json__query -r '.version // empty')"
       [[ -z "${_pkgname:-}" ]] && continue
 
       # Apply version constraint (PM-native syntax).
@@ -1627,7 +1621,7 @@ ospkg__run() {
         echo "🍺 Installing ${#_Y_CASKS[@]} Homebrew cask(s)." >&2
         local _caskitem _cask
         for _caskitem in "${_Y_CASKS[@]}"; do
-          _cask="$(printf '%s' "$_caskitem" | jq -r '.cask')"
+          _cask="$(printf '%s' "$_caskitem" | json__query -r '.cask')"
           if [[ "$_dry_run" == true ]]; then
             echo "🔍 [dry-run] cask: would run: brew install --cask '${_cask}'" >&2
           else
@@ -1646,7 +1640,7 @@ ospkg__run() {
       local _combined_script=""
       local _sitem
       for _sitem in "${_Y_SCRIPTS[@]}"; do
-        _combined_script+="$(printf '%s' "$_sitem" | jq -r '.content')"$'\n'
+        _combined_script+="$(printf '%s' "$_sitem" | json__query -r '.content')"$'\n'
       done
       _run_script "script" "$_combined_script"
       echo "✅ Script(s) completed." >&2

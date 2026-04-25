@@ -43,12 +43,16 @@ setup() {
   assert_success
 }
 
-@test "_file__ensure_extract_tool zip: fails with diagnostic when unzip absent and ospkg not loaded" {
-  # ospkg not loaded → _OSPKG__LIB_LOADED is unset → install branch skipped.
+@test "_file__ensure_extract_tool zip: fails with diagnostic when unzip absent and ospkg install fails" {
+  # ospkg is now always loaded; simulate install failure so unzip stays absent.
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   local _saved="$PATH"
   export PATH="${BATS_TEST_TMPDIR}/bin"
-  unset _OSPKG__LIB_LOADED
+
+  ospkg__update() { return 0; }
+  export -f ospkg__update
+  ospkg__install_tracked() { return 1; }
+  export -f ospkg__install_tracked
 
   run _file__ensure_extract_tool zip
 

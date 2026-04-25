@@ -34,8 +34,7 @@ reload_lib() {
   # Reset net.sh cached state.
   unset _NET_FETCH_TOOL _NET_CA_CERTS_OK
 
-  # Reset json.sh cached parser selection.
-  unset _JSON__ENSURE_PARSE_DONE _JSON__PARSE_TOOL
+  # Reset json.sh (parse tool selection removed; nothing to reset).
 
   # Reset ospkg.sh detection flag (sourcing ospkg.sh re-declares it as false).
   _OSPKG_DETECTED=false

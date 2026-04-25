@@ -4,6 +4,10 @@
 [ -n "${_CHECKSUM__LIB_LOADED-}" ] && return 0
 _CHECKSUM__LIB_LOADED=1
 
+_CHECKSUM__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ospkg.sh
+. "$_CHECKSUM__LIB_DIR/ospkg.sh"
+
 # @brief checksum__verify_sha256 <file> <expected_hash> — Verify the SHA-256 digest of `<file>`. Uses `sha256sum` (Linux) or `shasum -a 256` (macOS). Returns 1 on mismatch.
 #
 # Uses sha256sum (Linux) or shasum --algorithm 256 (macOS) transparently.
@@ -22,8 +26,15 @@ checksum__verify_sha256() {
   elif command -v shasum > /dev/null 2>&1; then
     _actual="$(shasum --algorithm 256 "$_file" | awk '{print $1}')"
   else
-    echo "⛔ checksum__verify_sha256: neither sha256sum nor shasum is available." >&2
-    return 1
+    echo "ℹ️  sha256sum/shasum not found — installing coreutils." >&2
+    ospkg__update
+    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-checksum" coreutils
+    if command -v sha256sum > /dev/null 2>&1; then
+      _actual="$(sha256sum "$_file" | awk '{print $1}')"
+    else
+      echo "⛔ checksum__verify_sha256: neither sha256sum nor shasum is available." >&2
+      return 1
+    fi
   fi
 
   if [ "$_expected" = "$_actual" ]; then

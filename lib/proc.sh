@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# proc.sh — parallel / devcontainer-style command values. Bash >=4. Requires json.sh (jq/yq/python3 resolved); requires os.sh when using --user.
+# proc.sh — parallel / devcontainer-style command values. Bash >=4. Requires json.sh (jq via json__query); requires os.sh when using --user.
 [[ -n "${_PROC__LIB_LOADED-}" ]] && return 0
 _PROC__LIB_LOADED=1
 
@@ -83,16 +83,9 @@ proc__run_command_form() {
   done
   _json="$(cat)"
   [[ -n "$_json" ]] || return 1
-  _json__ensure_parse_tool || {
-    echo "⛔ proc__run_command_form: no JSON parser (jq, yq, python3) available" >&2
-    return 1
-  }
-  [ "${_JSON__PARSE_TOOL}" = "jq" ] || {
-    echo "⛔ proc__run_command_form: jq required (resolved tool: ${_JSON__PARSE_TOOL:-none})" >&2
-    return 1
-  }
+  _json__ensure_jq || return 1
   local _t _s _k _v _ty _od
-  _t="$(printf '%s' "$_json" | jq -r 'type' 2> /dev/null)" || return 1
+  _t="$(printf '%s' "$_json" | json__query -r 'type' 2> /dev/null)" || return 1
 
   _rc() {
     if [[ -n "$_user" ]]; then
@@ -114,11 +107,11 @@ proc__run_command_form() {
 
   case "$_t" in
     string)
-      _s="$(printf '%s' "$_json" | jq -r '.')"
+      _s="$(printf '%s' "$_json" | json__query -r '.')"
       _rc /bin/sh -c "$_s"
       ;;
     array)
-      mapfile -t _av < <(printf '%s' "$_json" | jq -r '.[]' 2> /dev/null) || return 1
+      mapfile -t _av < <(printf '%s' "$_json" | json__query -r '.[]' 2> /dev/null) || return 1
       ((${#_av[@]} > 0)) || return 1
       _rc "${_av[@]}"
       ;;
@@ -127,22 +120,22 @@ proc__run_command_form() {
       local -a _pl=() _e=0 _first=1
       while IFS= read -r _k; do
         [[ -z "$_k" ]] && continue
-        _v="$(printf '%s' "$_json" | jq -c --arg k "$_k" '.[$k]')" || continue
-        _ty="$(printf '%s' "$_v" | jq -r 'type' 2> /dev/null)" || continue
+        _v="$(printf '%s' "$_json" | json__query -c --arg k "$_k" '.[$k]')" || continue
+        _ty="$(printf '%s' "$_v" | json__query -r 'type' 2> /dev/null)" || continue
         [[ "$_first" -eq 0 ]] && _pl+=(--)
         _first=0
         if [[ "$_ty" == string ]]; then
-          _s="$(printf '%s' "$_v" | jq -r '.')"
+          _s="$(printf '%s' "$_v" | json__query -r '.')"
           _pl+=("$_k" /bin/sh -c "$_s")
         elif [[ "$_ty" == array ]]; then
-          mapfile -t _av2 < <(printf '%s' "$_v" | jq -r '.[]' 2> /dev/null) || continue
+          mapfile -t _av2 < <(printf '%s' "$_v" | json__query -r '.[]' 2> /dev/null) || continue
           _pl+=("$_k" "${_av2[@]}")
         else
           echo "⛔ proc__run_command_form: object values must be string or array" >&2
           rm -rf "$_od"
           return 1
         fi
-      done < <(printf '%s' "$_json" | jq -r 'keys[]' 2> /dev/null)
+      done < <(printf '%s' "$_json" | json__query -r 'keys[]' 2> /dev/null)
       ((${#_pl[@]} == 0)) && {
         rm -rf "$_od"
         return 0
