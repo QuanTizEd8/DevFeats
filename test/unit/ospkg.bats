@@ -116,7 +116,7 @@ _seed_apt_context() {
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
   run ospkg__update
   assert_success
-  assert_output --partial "not supported"
+  assert_output --partial "skipping explicit update"
 }
 
 @test "ospkg__update runs update command with --force" {
