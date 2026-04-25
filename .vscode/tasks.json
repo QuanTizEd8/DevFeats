@@ -70,7 +70,7 @@
             "label": "watch-gha",
             "detail": "Stream GHA logs — set run or commit input when prompted",
             "type": "shell",
-            "command": "just watch-gha run=${input:gha_run_id}",
+            "command": "just watch-gha --run ${input:gha_run_id}",
             "group": "build",
             "presentation": {"reveal": "always", "panel": "dedicated"}
         }

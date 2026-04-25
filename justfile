@@ -76,33 +76,26 @@ sync-check:
 
 [
   group('build'),
-  doc('Build dist/ release artifacts; optional version e.g. just build-dist v1.2.3; runs sync first.')
+  doc('Build dist/ release artifacts; pass args directly to scripts/build-artifacts.sh (e.g. just build-dist v1.2.3); runs sync first.')
 ]
-build-dist version="": sync
-    bash scripts/build-artifacts.sh {{version}}
+build-dist *args: sync
+    bash scripts/build-artifacts.sh {{args}}
 
 
 [
   group('build'),
-  doc('Preview which features need a new GitHub Release (queries the GitHub API).')
+  doc('Preview which features need a new GitHub Release (queries GitHub API). Extra args pass through to scripts/detect-releasable.py.')
 ]
-detect-releasable repo="quantized8/sysset":
-    {{py}} scripts/detect-releasable.py --repo {{repo}}
+detect-releasable *args:
+    {{py}} scripts/detect-releasable.py --repo quantized8/sysset {{args}}
 
 
 [
   group('build'),
-  doc('Preview the next bundle tag, release notes, or manifest (modes: default|notes|manifest).')
+  doc('Preview next bundle tag/notes/manifest. Pass args directly to scripts/compute-bundle-tag.py (e.g. --notes-body, --manifest, --repo owner/name).')
 ]
-compute-bundle-tag mode="default" repo="quantized8/sysset":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    case "{{mode}}" in
-      default) {{py}} scripts/compute-bundle-tag.py --repo {{repo}} ;;
-      notes)   {{py}} scripts/compute-bundle-tag.py --repo {{repo}} --notes-body ;;
-      manifest) {{py}} scripts/compute-bundle-tag.py --repo {{repo}} --manifest ;;
-      *) echo "mode must be one of: default|notes|manifest" >&2; exit 1 ;;
-    esac
+compute-bundle-tag *args:
+    {{py}} scripts/compute-bundle-tag.py --repo quantized8/sysset {{args}}
 
 
 # ── Testing ───────────────────────────────────────────────────────────────────
@@ -181,23 +174,7 @@ build-website-live:
 
 [
   group('dev'),
-  doc('Watch GHA: set run=<id> OR commit=<sha/ref>; optional log_base=<dir>; logs in .local/logs/gha/; else use scripts/watch-gha-run.sh.')
+  doc('Watch GHA via scripts/watch-gha-run.sh; pass args through directly (e.g. just watch-gha --run <id> or just watch-gha --commit <sha>). Logs in .local/logs/gha/.')
 ]
-watch-gha run="" commit="" log_base="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [[ -n "{{run}}" && -n "{{commit}}" ]]; then
-      echo "Error: set only one of run or commit." >&2
-      exit 1
-    fi
-    args=()
-    [[ -n "{{log_base}}" ]] && args+=(--log-base "{{log_base}}")
-    if [[ -n "{{run}}" ]]; then
-      bash scripts/watch-gha-run.sh "${args[@]}" --run "{{run}}"
-    elif [[ -n "{{commit}}" ]]; then
-      bash scripts/watch-gha-run.sh "${args[@]}" --commit "{{commit}}"
-    else
-      echo "Usage: just watch-gha run=<id>  OR  just watch-gha commit=<sha>" >&2
-      echo "       Optional: log_base=<dir>" >&2
-      exit 1
-    fi
+watch-gha *args:
+    bash scripts/watch-gha-run.sh {{args}}
