@@ -28,7 +28,7 @@ unset SYSSET_VERSION
 
 check "get.sh installs pixi with explicit --version (forwarded)" \
   sudo -E bash "${REPO_ROOT}/get.sh" "${_FEAT}@${_VER}" \
-  --version "$_PIXI_VERSION" --if_exists replace
+  --version "$_PIXI_VERSION" --if_exists reinstall
 
 check "installed pixi reports expected version" \
   bash -c "pixi --version | grep -q '${_PIXI_VERSION}'"

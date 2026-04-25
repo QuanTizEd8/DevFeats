@@ -7,7 +7,7 @@ set -e
 source dev-container-features-test-lib
 
 check "tree is installed" command -v tree
-check "curl was auto-installed" command -v curl
+check "fetch tool was auto-installed" bash -c "command -v curl || command -v wget"
 check "ca-certificates was auto-installed" test -s /etc/ssl/certs/ca-certificates.crt
 check "gpg was auto-installed" command -v gpg
 check "dearmored key file exists" test -f /usr/share/keyrings/nginx-archive-keyring.gpg
