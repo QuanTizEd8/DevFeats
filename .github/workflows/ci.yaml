@@ -199,8 +199,8 @@ jobs:
           base-path-to-features: "./src"
 
   # ── Unit tests (native: ubuntu + macOS) ───────────────────────────────────
-  unit-native:
-    name: "Unit Tests / ${{ matrix.os }} VM"
+  test-unit-native:
+    name: "Unit Tests - ${{ matrix.os }} VM"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
     runs-on: ${{ matrix.os }}
@@ -250,8 +250,8 @@ jobs:
           python3 -m unittest discover -s test/scripts -t test/scripts -v
 
   # ── Unit tests (Linux distribution containers) ────────────────────────────
-  unit-linux:
-    name: "Unit Tests / ${{ matrix.image }}"
+  test-unit-linux:
+    name: "Unit Tests - ${{ matrix.image }}"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
     runs-on: ubuntu-latest
@@ -259,17 +259,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: debian
-            image: debian:bookworm
+          - image: debian:bookworm
             install: apt-get update -qq && apt-get install -y --no-install-recommends bash
-          - distro: fedora
-            image: fedora:latest
+          - image: fedora:latest
             install: dnf install -y bash
-          - distro: rockylinux
-            image: rockylinux:9
+          - image: rockylinux:9
             install: dnf install -y bash
-          - distro: alpine
-            image: alpine:3.20
+          - image: alpine:3.20
             install: apk add --no-cache bash
     steps:
       - name: "Checkout (with submodules)"
