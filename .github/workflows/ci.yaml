@@ -208,8 +208,15 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - macos-latest
+          - macos-14
+          - macos-15
+          - macos-15-intel
+          - macos-26
+          - macos-26-intel
+          - ubuntu-22.04
+          - ubuntu-22.04-arm
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
     steps:
       - name: "Checkout (with submodules)"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -254,16 +261,16 @@ jobs:
         include:
           - distro: debian
             image: debian:bookworm
-            install: apt-get update -qq && apt-get install -y --no-install-recommends bash ca-certificates git jq
+            install: apt-get update -qq && apt-get install -y --no-install-recommends bash
           - distro: fedora
             image: fedora:latest
-            install: dnf install -y bash git jq
+            install: dnf install -y bash
           - distro: rockylinux
             image: rockylinux:9
-            install: dnf install -y bash git jq
+            install: dnf install -y bash
           - distro: alpine
             image: alpine:3.20
-            install: apk add --no-cache bash git jq
+            install: apk add --no-cache bash
     steps:
       - name: "Checkout (with submodules)"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
