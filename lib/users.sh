@@ -152,7 +152,6 @@ users__set_write_permissions() {
   shift 3
   if ! command -v groupadd > /dev/null 2>&1; then
     echo "ℹ️  groupadd not found — installing shadow-utils." >&2
-    ospkg__update
     ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" shadow-utils 2> /dev/null ||
       ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" shadow 2> /dev/null || true
     if ! command -v groupadd > /dev/null 2>&1; then
@@ -196,7 +195,6 @@ users__set_login_shell() {
 
   if ! command -v chsh > /dev/null 2>&1; then
     echo "ℹ️  chsh not found — installing passwd package." >&2
-    ospkg__update
     ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-users" passwd 2> /dev/null || true
     if ! command -v chsh > /dev/null 2>&1; then
       echo "⚠️  chsh not found — skipping shell change. Install the 'passwd' package." >&2

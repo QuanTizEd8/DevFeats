@@ -17,6 +17,7 @@ _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Internal state ────────────────────────────────────────────────────────────
 _OSPKG_DETECTED=false
+_OSPKG_UPDATED=false
 _OSPKG_PKG_MNGR=
 _OSPKG_PREFIX=
 _OSPKG_INSTALL=()
@@ -96,15 +97,29 @@ _ospkg_key_effective_path() {
   fi
 }
 
-# _ospkg_install_key_entry <url> <dest> [dearmor]
+# _ospkg_install_key_entry <url> <dest> [dearmor] [fingerprint]
 # dearmor: true = always pipe through gpg --dearmor; false = raw file (or .key if dest
 #   would end in .gpg); any other value = auto: dearmor when dest ends in .gpg.
+# fingerprint: 40-char hex GPG fingerprint. When url is empty, the key is fetched
+#   from keyservers by fingerprint instead.
 _ospkg_install_key_entry() {
-  local _url="$1" _dest="$2" _dearmor="${3:-auto}"
+  local _url="$1" _dest="$2" _dearmor="${3:-auto}" _fingerprint="${4:-}"
   [[ -z "${_dearmor}" || "${_dearmor}" == "null" ]] && _dearmor=auto
+  [[ -z "${_fingerprint}" || "${_fingerprint}" == "null" ]] && _fingerprint=""
   local _target
   _target="$(_ospkg_key_effective_path "$_dest" "$_dearmor")"
   mkdir -p "$(dirname "$_dest")"
+
+  # Fingerprint-only: no URL, fetch from keyserver.
+  if [[ -z "${_url}" || "${_url}" == "null" ]]; then
+    if [[ -n "${_fingerprint}" ]]; then
+      echo "🔑 Installing key by fingerprint ${_fingerprint} → ${_target}" >&2
+      _ospkg_install_key_by_fingerprint "${_fingerprint}" "${_target}"
+      return $?
+    fi
+    echo "⛔ _ospkg_install_key_entry: neither url nor fingerprint provided." >&2
+    return 1
+  fi
 
   case "${_dearmor}" in
     true)
@@ -135,9 +150,60 @@ _ospkg_install_key_entry() {
   return 0
 }
 
+# _ospkg_install_key_by_fingerprint <fingerprint> <dest>
+# Fetches and installs a GPG signing key by its 40-hex-char fingerprint.
+# Tries Ubuntu HTTPS keyserver first, then two HKP keyserver fallbacks.
+# Always writes a dearmored binary keyring to <dest>.
+_ospkg_install_key_by_fingerprint() {
+  local _fingerprint="$1" _dest="$2"
+  _ospkg_ensure_gpg
+  mkdir -p "$(dirname "$_dest")"
+
+  # Primary: HTTPS download from Ubuntu keyserver.
+  local _key_data
+  _key_data="$(net__fetch_url_stdout \
+    "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${_fingerprint}" 2> /dev/null)" || true
+  if printf '%s' "${_key_data}" | grep -q 'BEGIN PGP'; then
+    if printf '%s' "${_key_data}" | gpg --dearmor -o "${_dest}"; then
+      chmod 0644 "${_dest}"
+      echo "✅ GPG key installed via HTTPS keyserver → ${_dest}" >&2
+      return 0
+    fi
+  fi
+
+  # Fallback: gpg --recv-keys via HKP keyservers.
+  local _ks
+  for _ks in "hkp://keyserver.ubuntu.com" "hkp://keyserver.pgp.com"; do
+    echo "ℹ️  Trying keyserver ${_ks}..." >&2
+    if gpg --recv-keys --keyserver "${_ks}" "${_fingerprint}" 2> /dev/null; then
+      if gpg --export "${_fingerprint}" | gpg --dearmor -o "${_dest}"; then
+        chmod 0644 "${_dest}"
+        echo "✅ GPG key installed via ${_ks} → ${_dest}" >&2
+        return 0
+      fi
+    fi
+  done
+
+  echo "⛔ Failed to install GPG key for fingerprint ${_fingerprint} from all keyservers." >&2
+  return 1
+}
+
+# _ospkg_expand_content_vars <content>
+# Substitutes ${key} tokens in <content> using values from _OSPKG_OS_RELEASE.
+# Unknown tokens are left unchanged. Prints the expanded string (no trailing newline).
+_ospkg_expand_content_vars() {
+  local _content="$1" _k
+  for _k in "${!_OSPKG_OS_RELEASE[@]}"; do
+    _content="${_content//\$\{${_k}\}/${_OSPKG_OS_RELEASE[$_k]}}"
+  done
+  printf '%s' "$_content"
+  return 0
+}
+
 # _ospkg_install_repo_content <content>
 _ospkg_install_repo_content() {
-  local _content="$1"
+  local _content
+  _content="$(_ospkg_expand_content_vars "$1")"
   if [[ "$_OSPKG_PREFIX" = "apt" ]]; then
     printf '%s' "$_content" >> /etc/apt/sources.list.d/syspkg-installer.list
     echo "📄 Appended to /etc/apt/sources.list.d/syspkg-installer.list" >&2
@@ -217,7 +283,6 @@ _ospkg_ensure_yq() {
   # Older distros package kislyuk/yq (incompatible) or nothing at all.
   if ! command -v yq > /dev/null 2>&1; then
     echo "ℹ️  yq not found — attempting package manager install." >&2
-    ospkg__update >&2 || true
     ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::sysset-ospkg-internals" yq >&2 || true
     # Re-test after potential install.
     if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
@@ -284,6 +349,7 @@ _ospkg_set_apt() {
   _OSPKG_LISTS_PATH="/var/lib/apt/lists"
   _OSPKG_LISTS_PATTERN="*_Packages*"
   _OSPKG_OS_RELEASE[pm]="apt"
+  _OSPKG_OS_RELEASE[deb_arch]="$(dpkg --print-architecture 2> /dev/null || uname -m)"
   return 0
 }
 
@@ -474,7 +540,7 @@ ospkg__detect() {
 #   --repo_added        A new repo was just added; forces an unconditional refresh.
 ospkg__update() {
   ospkg__detect
-  local _force=false _max_age=300 _repo_added=false
+  local _force=false _max_age=3600 _repo_added=false
   while [[ $# -gt 0 ]]; do
     case $1 in
       --force)
@@ -505,6 +571,10 @@ ospkg__update() {
   local _skip=false
   if [[ "$_force" == true || "$_repo_added" == true ]]; then
     _skip=false
+  elif [[ "$_OSPKG_UPDATED" == true ]]; then
+    # Already ran an update in this process — skip unless force/repo_added.
+    echo "ℹ️  Package lists already updated in this process — skipping." >&2
+    _skip=true
   elif [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
     # brew: no simple lists age check — always update unless forced off.
     _skip=false
@@ -524,6 +594,7 @@ ospkg__update() {
   if [[ "$_skip" == false ]]; then
     echo "🔄 Updating package lists." >&2
     net__fetch_with_retry _ospkg_update_cmd
+    _OSPKG_UPDATED=true
     echo "✅ Package lists updated." >&2
   fi
   return 0
@@ -536,6 +607,7 @@ ospkg__update() {
 #   <pkg>...  One or more package names to install.
 ospkg__install() {
   ospkg__detect
+  ospkg__update || true
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
     echo "📲 Installing packages:" >&2
     printf '  - %s\n' "$@" >&2
@@ -659,7 +731,7 @@ def visit(k; gf):
         ($g.packages[] | visit(k; $mf))
       elif k == "key" then
         (if $g | has("keys") then
-          $g.keys[] | {kind: "key", url: .url, dest: .dest, dearmor: (.dearmor // null)}
+          $g.keys[] | {kind: "key", url: (.url // null), dest: .dest, dearmor: (.dearmor // null), fingerprint: (.fingerprint // null)}
         else empty end),
         ($g.packages[] | visit(k; $mf))
       elif k == "repo" then
@@ -686,7 +758,7 @@ def visit(k; gf):
         else empty end
       elif k == "key" then
         if $e | has("keys") then
-          $e.keys[] | {kind: "key", url: .url, dest: .dest, dearmor: (.dearmor // null)}
+          $e.keys[] | {kind: "key", url: (.url // null), dest: .dest, dearmor: (.dearmor // null), fingerprint: (.fingerprint // null)}
         else empty end
       elif k == "repo" then
         if $e | has("repos") then $e.repos[] | {kind: "repo", content: .} else empty end
@@ -724,10 +796,10 @@ else
 
 # Phase: KEYS — top-level, PM block, then inline
 (if $doc | has("keys") then
-  $doc.keys[] | {kind: "key", url: .url, dest: .dest, dearmor: (.dearmor // null)}
+  $doc.keys[] | {kind: "key", url: (.url // null), dest: .dest, dearmor: (.dearmor // null), fingerprint: (.fingerprint // null)}
 else empty end),
 (if ($doc | has($pm)) and ($doc[$pm] | has("keys")) then
-  $doc[$pm].keys[] | {kind: "key", url: .url, dest: .dest, dearmor: (.dearmor // null)}
+  $doc[$pm].keys[] | {kind: "key", url: (.url // null), dest: .dest, dearmor: (.dearmor // null), fingerprint: (.fingerprint // null)}
 else empty end),
 (if $doc | has("packages") then
   $doc.packages[] | visit("key"; null) else empty end),
@@ -1363,20 +1435,26 @@ ospkg__run() {
       if [[ "$_dry_run" == false ]]; then
         export GNUPGHOME="$_key_gnupghome"
       fi
-      local _kitem _kurl _kdest _kdearmor _keff
+      local _kitem _kurl _kdest _kdearmor _kfp _keff
       for _kitem in "${_Y_KEYS[@]}"; do
-        _kurl="$(printf '%s' "$_kitem" | json__query -r '.url')"
+        _kurl="$(printf '%s' "$_kitem" | json__query -r '.url // empty')"
         _kdest="$(printf '%s' "$_kitem" | json__query -r '.dest')"
         _kdearmor="$(printf '%s' "$_kitem" | json__query -r 'if .dearmor == true then "true" elif .dearmor == false then "false" else "auto" end')"
+        _kfp="$(printf '%s' "$_kitem" | json__query -r '.fingerprint // empty')"
+        # Expand ${token} substitutions in url and dest.
+        _kurl="$(_ospkg_expand_content_vars "${_kurl}")"
+        _kdest="$(_ospkg_expand_content_vars "${_kdest}")"
         _keff="$(_ospkg_key_effective_path "$_kdest" "$_kdearmor")"
         if [[ "$_dry_run" == true ]]; then
-          if [[ "${_keff}" != "${_kdest}" ]]; then
+          if [[ -n "${_kfp:-}" && -z "${_kurl:-}" ]]; then
+            echo "🔍 [dry-run] key: fingerprint=${_kfp} → ${_keff}" >&2
+          elif [[ "${_keff}" != "${_kdest}" ]]; then
             echo "🔍 [dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor}; manifest dest=${_kdest})" >&2
           else
             echo "🔍 [dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor})" >&2
           fi
         else
-          _ospkg_install_key_entry "$_kurl" "$_kdest" "$_kdearmor"
+          _ospkg_install_key_entry "$_kurl" "$_kdest" "$_kdearmor" "$_kfp"
         fi
       done
       if [[ "$_dry_run" == false ]]; then
@@ -1543,7 +1621,7 @@ ospkg__run() {
     fi
 
     # Phase: PACKAGE LIST UPDATE.
-    if [[ ${#_Y_PACKAGES[@]} -gt 0 && "$_update" == true ]]; then
+    if [[ (${#_Y_PACKAGES[@]} -gt 0 || "$_yaml_repo_added" == true) && "$_update" == true ]]; then
       local _update_args=(--lists_max_age "$_lists_max_age")
       [[ "$_yaml_repo_added" == true ]] && _update_args+=(--repo_added)
       if [[ "$_dry_run" == true ]]; then
@@ -1555,10 +1633,11 @@ ospkg__run() {
       else
         ospkg__update "${_update_args[@]}"
       fi
-    elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then
-      echo "ℹ️  Package list update skipped (no packages in manifest)." >&2
+    elif [[ ${#_Y_PACKAGES[@]} -eq 0 && "$_yaml_repo_added" == false ]]; then
+      echo "ℹ️  Package list update skipped (no packages and no repos in manifest)." >&2
     else
       echo "ℹ️  Package list update skipped (update=false)." >&2
+      _OSPKG_UPDATED=true
       if [[ "$_yaml_repo_added" == true ]]; then
         echo "⚠️  A repository was added but update=false — packages may not be found." >&2
       fi

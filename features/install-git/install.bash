@@ -139,92 +139,15 @@ _git__reinstall() {
   return 0
 }
 
-# _git__ppa_check_codename
-# Returns 0 if the PPA should be attempted; 1 if the codename is EOL/unsupported.
-_git__ppa_check_codename() {
-  local _codename
-  _codename="$(os__codename)"
-  case "${_codename}" in
-    bionic | eoan | groovy | hirsute | impish | kinetic | lunar | mantic)
-      echo "⚠️ Ubuntu ${_codename} is EOL and not supported by ppa:git-core/ppa — falling back to standard apt." >&2
-      return 1
-      ;;
-    *)
-      return 0
-      ;;
-  esac
-}
-
-# _git__ppa_import_key
-# Imports the git-core PPA GPG key to /usr/share/keyrings/git-core-ppa.gpg.
-_git__ppa_setup() {
-  # Sets up the git-core PPA: imports the signing key to
-  # /usr/share/keyrings/git-core-ppa.gpg and writes a signed-by sources.list
-  # entry at /etc/apt/sources.list.d/git-core-ppa.list.
-  #
-  # NOTE: add-apt-repository is NOT used here because on Ubuntu 22.04+ it
-  # creates a DEB822 .sources file with a distro-generated name instead of the
-  # canonical git-core-ppa.list expected by downstream consumers.
-  echo "🔑 Setting up git-core PPA..." >&2
-
-  # Refresh package lists before installing gpg to avoid stale-list failures.
-  ospkg__update
-  ospkg__install gpg || ospkg__install gnupg || {
-    echo "⛔ Cannot install gpg/gnupg — aborting PPA setup." >&2
-    return 1
-  }
-  _git__ppa_import_key
-  local _codename
-  _codename="$(os__codename)"
-  printf 'deb [signed-by=/usr/share/keyrings/git-core-ppa.gpg] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu %s main\n' \
-    "${_codename}" > /etc/apt/sources.list.d/git-core-ppa.list
-  apt-get update -y
-  return 0
-}
-
-_git__ppa_import_key() {
-  local _fingerprint="F911AB184317630C59970973E363C90F8F1B6217"
-  local _keyring="/usr/share/keyrings/git-core-ppa.gpg"
-  mkdir -p "$(dirname "${_keyring}")"
-
-  echo "🔑 Importing git-core PPA GPG key..." >&2
-
-  # Primary: HTTPS download from Ubuntu keyserver, validated before dearmor.
-  local _key_data
-  _key_data="$(net__fetch_url_stdout \
-    "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${_fingerprint}" 2> /dev/null)" || true
-  if printf '%s' "${_key_data}" | grep -q 'BEGIN PGP'; then
-    if printf '%s' "${_key_data}" | gpg --dearmor -o "${_keyring}"; then
-      echo "✅ GPG key imported via HTTPS keyserver." >&2
-      return 0
-    fi
-  fi
-
-  # Fallback: gpg --recv-keys with HKP keyservers (Ubuntu and PGP).
-  local _ks
-  for _ks in "hkp://keyserver.ubuntu.com" "hkp://keyserver.pgp.com"; do
-    echo "ℹ️ Trying keyserver ${_ks}..." >&2
-    if gpg --recv-keys --keyserver "${_ks}" "${_fingerprint}" 2> /dev/null; then
-      if gpg --export --armor "${_fingerprint}" | gpg --dearmor -o "${_keyring}"; then
-        return 0
-      fi
-    fi
-  done
-
-  echo "⛔ Failed to import git-core PPA GPG key from all keyservers." >&2
-  return 1
-}
-
 # _git__install_package
 # Installs git via the OS package manager.
 _git__install_package() {
   if [ "${VERSION}" = "latest" ] && [ "$(os__id)" = "ubuntu" ]; then
-    if _git__ppa_check_codename; then
-      _git__ppa_setup
-      ospkg__install git
-      return 0
-    fi
-    # PPA codename unsupported — fall through to standard repo.
+    # On Ubuntu + apt, install git from ppa:git-core/ppa (latest upstream git).
+    # The ppa manifest group has when: {id: ubuntu, pm: apt}, so it is a no-op
+    # on any other platform that might reach this branch.
+    _ppa_deps__install
+    return 0
   fi
 
   if [ "${VERSION}" != "latest" ] && [ "${VERSION}" != "stable" ]; then

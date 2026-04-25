@@ -230,10 +230,13 @@
     },
     "keyEntry": {
       "type": "object",
-      "description": "A signing key to download and install. Used for apt (gpg), rpm (rpm --import), pacman (pacman-key), etc.",
+      "description": "A signing key to download and install. Used for apt (gpg), rpm (rpm --import), pacman (pacman-key), etc. Requires at least one of `url` or `fingerprint`.",
       "required": [
-        "url",
         "dest"
+      ],
+      "anyOf": [
+        { "required": ["url"] },
+        { "required": ["fingerprint"] }
       ],
       "additionalProperties": false,
       "properties": {
@@ -241,6 +244,11 @@
           "type": "string",
           "format": "uri",
           "description": "URL to download the signing key from."
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9A-Fa-f]{40}$",
+          "description": "40-character GPG fingerprint. When provided without `url`, the key is fetched from a keyserver (Ubuntu HTTPS, then HKP fallbacks). When provided alongside `url`, future implementations may verify the downloaded key against this fingerprint."
         },
         "dest": {
           "type": "string",

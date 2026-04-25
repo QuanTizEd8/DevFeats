@@ -20,18 +20,22 @@ _json__ensure_json_lib_dir() {
 _json__ensure_jq() {
   command -v jq > /dev/null 2>&1 && return 0
   echo "ℹ️  jq not found — installing." >&2
-  ospkg__update >&2 || true
   ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-json" jq >&2 || true
-  command -v jq > /dev/null 2>&1 || { echo "⛔ json.sh: jq could not be installed." >&2; return 1; }
+  command -v jq > /dev/null 2>&1 || {
+    echo "⛔ json.sh: jq could not be installed." >&2
+    return 1
+  }
 }
 
 # _json__ensure_python3 (internal) — ensure python3 is on PATH; install via ospkg if absent.
 _json__ensure_python3() {
   command -v python3 > /dev/null 2>&1 && return 0
   echo "ℹ️  python3 not found — installing." >&2
-  ospkg__update >&2 || true
   ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-json" python3 >&2 || true
-  command -v python3 > /dev/null 2>&1 || { echo "⛔ json.sh: python3 could not be installed." >&2; return 1; }
+  command -v python3 > /dev/null 2>&1 || {
+    echo "⛔ json.sh: python3 could not be installed." >&2
+    return 1
+  }
 }
 
 # @brief json__query — jq passthrough; ensures jq is available (installs via ospkg if needed).

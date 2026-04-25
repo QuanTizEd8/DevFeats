@@ -17,7 +17,6 @@ _file__ensure_extract_tool() {
     zip)
       command -v unzip > /dev/null 2>&1 && return 0
       echo "ℹ️  unzip not found — installing." >&2
-      ospkg__update
       ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-file" unzip
       command -v unzip > /dev/null 2>&1 && return 0
       echo "⛔ file.sh: unzip is required to extract .zip archives but could not be installed." >&2

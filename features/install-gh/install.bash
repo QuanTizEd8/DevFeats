@@ -60,14 +60,21 @@ _gh__install_repos() {
   # Arch Linux has ID=arch (and Manjaro has ID_LIKE containing arch).
   case "${_id}" in
     arch | manjaro)
-      _gh__repos_arch
+      # github-cli is available from the official Arch repos; no extra repo setup needed.
+      if [ "${VERSION}" != "latest" ]; then
+        echo "⚠️ Version pinning is not supported for method=repos on Arch. Installing latest available github-cli." >&2
+      fi
+      ospkg__install github-cli
       echo "↩️ Function exit: _gh__install_repos" >&2
       return 0
       ;;
   esac
   case "${_id_like}" in
     *arch*)
-      _gh__repos_arch
+      if [ "${VERSION}" != "latest" ]; then
+        echo "⚠️ Version pinning is not supported for method=repos on Arch. Installing latest available github-cli." >&2
+      fi
+      ospkg__install github-cli
       echo "↩️ Function exit: _gh__install_repos" >&2
       return 0
       ;;
@@ -78,7 +85,14 @@ _gh__install_repos() {
       _gh__repos_alpine
       ;;
     debian)
-      _gh__repos_debian
+      # Set up GitHub CLI APT signing key and repo via the repos-debian manifest group,
+      # which also triggers apt-get update. Then install gh (with optional version pin).
+      _repos_debian_deps__install
+      if [ "${VERSION}" = "latest" ]; then
+        ospkg__install gh
+      else
+        ospkg__install "gh=${VERSION}"
+      fi
       ;;
     rhel)
       _gh__repos_rhel
@@ -92,30 +106,6 @@ _gh__install_repos() {
       ;;
   esac
   echo "↩️ Function exit: _gh__install_repos" >&2
-  return 0
-}
-
-# _gh__repos_debian — add GitHub CLI apt repo and install gh.
-_gh__repos_debian() {
-  echo "↪️ Function entry: _gh__repos_debian" >&2
-  ospkg__update
-  mkdir -p /etc/apt/keyrings
-  net__fetch_url_file \
-    "https://cli.github.com/packages/githubcli-archive-keyring.gpg" \
-    "/etc/apt/keyrings/githubcli-archive-keyring.gpg"
-  chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-  local _arch
-  _arch="$(dpkg --print-architecture)"
-  cat > /etc/apt/sources.list.d/github-cli.list << EOF
-deb [arch=${_arch} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main
-EOF
-  ospkg__update --force
-  if [ "${VERSION}" = "latest" ]; then
-    ospkg__install gh
-  else
-    ospkg__install "gh=${VERSION}"
-  fi
-  echo "↩️ Function exit: _gh__repos_debian" >&2
   return 0
 }
 
@@ -170,18 +160,6 @@ _gh__repos_alpine() {
   fi
   ospkg__install github-cli
   echo "↩️ Function exit: _gh__repos_alpine" >&2
-  return 0
-}
-
-# _gh__repos_arch — install github-cli via pacman.
-_gh__repos_arch() {
-  echo "↪️ Function entry: _gh__repos_arch" >&2
-  if [ "${VERSION}" != "latest" ]; then
-    echo "⚠️ Version pinning is not supported for method=repos on Arch. Installing latest available github-cli." >&2
-  fi
-  ospkg__update
-  ospkg__install github-cli
-  echo "↩️ Function exit: _gh__repos_arch" >&2
   return 0
 }
 
