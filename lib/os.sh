@@ -1,6 +1,4 @@
-#!/bin/sh
-
-# POSIX sh compatible — safe to source from sh and bash scripts alike.
+#!/usr/bin/env bash
 
 [ -n "${_OS__LIB_LOADED-}" ] && return 0
 _OS__LIB_LOADED=1

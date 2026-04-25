@@ -69,13 +69,12 @@ _ensure_xcode_clt() {
 _install_homebrew_bare() {
   echo "🔍 Homebrew not found — installing Homebrew." >&2
   _ensure_xcode_clt
-  _self_dir="$(dirname "$0")"
-  # shellcheck source=/dev/null
-  . "$_self_dir/_lib/net.sh"
   _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
-  net__fetch_url_file \
-    "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" \
-    "$_tmpfile"
+  curl -fsSL --compressed \
+    --retry 60 --retry-delay 5 --retry-connrefused \
+    -H "User-Agent: sysset" \
+    -o "$_tmpfile" \
+    "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
   NONINTERACTIVE=1 /bin/bash "$_tmpfile"
   rm -f "$_tmpfile"
   echo "✅ Homebrew installed." >&2

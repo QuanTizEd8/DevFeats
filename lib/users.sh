@@ -1,6 +1,4 @@
-#!/bin/sh
-# shellcheck disable=SC3043  # 'local' is not POSIX but is supported by all targeted shells (dash, ash, macOS sh)
-# POSIX sh compatible — safe to source from sh and bash scripts alike.
+#!/usr/bin/env bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
 # users__set_login_shell uses awk and shell utilities available on all

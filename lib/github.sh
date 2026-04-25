@@ -1,6 +1,4 @@
-#!/bin/sh
-# shellcheck disable=SC3043  # 'local' is not POSIX but is supported by all targeted shells (dash, ash, macOS sh)
-# POSIX sh compatible — safe to source from sh and bash scripts alike.
+#!/usr/bin/env bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
 # Requires net.sh (and ospkg.sh) to have been sourced first. Loads json.sh from
