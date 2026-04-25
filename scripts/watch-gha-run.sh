@@ -123,6 +123,11 @@ while [[ $# -gt 0 ]]; do
         echo "Error: unexpected argument: $1" >&2
         exit 2
       fi
+      if [[ "$1" =~ ^[0-9]+$ ]]; then
+        echo "Error: ambiguous bare numeric argument: $1" >&2
+        echo "Hint: use --run <workflow-run-id> (or --commit <sha>)." >&2
+        exit 2
+      fi
       _GHA_MODE=commit
       COMMIT_SHA="$1"
       shift
@@ -171,13 +176,23 @@ _normalize_commit_sha() {
   local c="$1"
   if [[ ! "${c}" =~ ^[0-9a-fA-F]{40}$ ]]; then
     git fetch --quiet origin 2> /dev/null || true
-    c="$(git rev-parse "${c}" 2> /dev/null || echo "${c}")"
+    # Use --verify so invalid refs do not emit partial stdout that could
+    # pollute fallback values with embedded newlines.
+    c="$(git rev-parse --verify "${c}^{commit}" 2> /dev/null || true)"
+    if [[ -z "${c}" ]]; then
+      c="$1"
+    fi
   fi
   printf '%s' "${c}"
 }
 
 if [[ "${_GHA_MODE}" == "commit" ]]; then
   LOG_COMMIT_SHA="$(_normalize_commit_sha "${COMMIT_SHA}")"
+  if [[ ! "${LOG_COMMIT_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+    echo "Error: --commit must resolve to a commit SHA, got: ${COMMIT_SHA}" >&2
+    echo "Hint: use --run <workflow-run-id> for numeric run IDs." >&2
+    exit 2
+  fi
   COMMIT_SHA="${LOG_COMMIT_SHA}"
 else
   # Resolved from GET /actions/runs/{id} on first successful poll
