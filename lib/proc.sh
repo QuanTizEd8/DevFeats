@@ -9,11 +9,15 @@ _PROC__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # @brief proc__run_parallel — --outdir <dir> -- <label> <argv...> [-- <label> <argv> ...]
 proc__run_parallel() {
-  local _od=""
+  local _od="" _cwd=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --outdir)
         _od="${2-}"
+        shift 2
+        ;;
+      --cwd)
+        _cwd="${2-}"
         shift 2
         ;;
       --)
@@ -42,7 +46,11 @@ proc__run_parallel() {
     ((${#_argv[@]} == 0)) && continue
     _labs+=("$_lab")
     (
-      "${_argv[@]}" > "${_od}/${_lab}.out" 2>&1
+      if [[ -n "$_cwd" ]]; then
+        cd "$_cwd" && "${_argv[@]}" > "${_od}/${_lab}.out" 2>&1
+      else
+        "${_argv[@]}" > "${_od}/${_lab}.out" 2>&1
+      fi
       echo $? > "${_od}/${_lab}.ec"
     ) &
     _pids+=($!)
@@ -141,7 +149,9 @@ proc__run_command_form() {
         rm -rf "$_od"
         return 0
       }
-      proc__run_parallel --outdir "$_od" -- "${_pl[@]}"
+      local -a _pargs=()
+      [[ -n "$_cwd" ]] && _pargs+=(--cwd "$_cwd")
+      proc__run_parallel --outdir "$_od" "${_pargs[@]}" -- "${_pl[@]}"
       _e=$?
       rm -rf "$_od"
       return "$_e"

@@ -72,6 +72,17 @@ setup() {
   rm -rf "$_tmp"
 }
 
+@test "proc__run_command_form --cwd changes working directory for object form" {
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/pcwo.XXXXXX")"
+  run bash -c 'source "$1" && printf %s "{\"probe\":\"pwd\"}" | proc__run_command_form --cwd "$2"' _ "${LIB_ROOT}/proc.sh" "$_tmp"
+  assert_success
+  # macOS symlinks /tmp → /private/tmp; compare realpaths.
+  _got="$(cd "$output" && pwd -P)"
+  _want="$(cd "$_tmp" && pwd -P)"
+  [ "$_got" = "$_want" ]
+  rm -rf "$_tmp"
+}
+
 @test "proc__run_command_form fails on unsupported JSON types" {
   run bash -c 'source "$1" && printf %s "42" | proc__run_command_form' _ "${LIB_ROOT}/proc.sh"
   assert_failure
