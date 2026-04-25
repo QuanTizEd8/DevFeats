@@ -1,3 +1,7 @@
+<!--
+Detailed notes on the feature's implementation, including design decisions, architecture, edge cases, and any other relevant information that would be helpful for maintainers working on the feature in the future. This document should provide a comprehensive overview of how the feature is implemented, the rationale behind key decisions, and any complexities or nuances that developers should be aware of when modifying or extending the feature.
+-->
+
 # Implementation Reference
 
 Summarize the overall implementation approach and key considerations for the installer script, based on the API design and installation reference.
