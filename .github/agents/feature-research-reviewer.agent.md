@@ -33,7 +33,7 @@ Your job is to make sure that the Feature Reference document covers every aspect
 
 ## Workflow
 
-You are given the slug name of a feature, referenced as `<feature-name>` in this document. Your job is to read the Feature Reference document for that feature at `docs/ref/<feature-name>/feature.md` and perform a thorough review with the following steps:
+You are given the slug name of a feature, referenced as `<feature-name>` in this document. Your job is to read the Feature Reference document for that feature at `features/<feature-name>/dev-notes/feature.md` and perform a thorough review with the following steps:
 
 1. Verify the document exists at the specified path and can be read.
 2. Verify every reference and every factual claim in the document against authoritative sources.
