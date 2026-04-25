@@ -60,11 +60,13 @@ check "get.bash completes with canonical-order manifest" \
   bash "${REPO_ROOT}/get.bash" --logfile "$_logfile" "$_manifest"
 
 # In the log, install-os-pkg should appear before install-pixi.
+# NOTE: Use the "running install.sh" marker to match only the installation
+# phase, not the staging phase (which logs [feature-id] in alphabetical order).
 check "install-os-pkg ran before install-pixi" \
   bash -c '
     log="'"$_logfile"'"
-    line_ospkg=$(grep -n "\[install-os-pkg\]" "$log" | head -1 | cut -d: -f1)
-    line_pixi=$(grep -n "\[install-pixi\]" "$log" | head -1 | cut -d: -f1)
+    line_ospkg=$(grep -n "\[install-os-pkg\] running install\.sh" "$log" | head -1 | cut -d: -f1)
+    line_pixi=$(grep -n "\[install-pixi\] running install\.sh" "$log" | head -1 | cut -d: -f1)
     [[ -n "$line_ospkg" && -n "$line_pixi" && "$line_ospkg" -lt "$line_pixi" ]]
   '
 

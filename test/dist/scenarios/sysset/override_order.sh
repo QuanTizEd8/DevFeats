@@ -65,11 +65,13 @@ check "get.bash completes with overrideFeatureInstallOrder" \
   bash "${REPO_ROOT}/get.bash" --logfile "$_logfile" "$_manifest"
 
 # install-pixi should appear before install-os-pkg in the log.
+# NOTE: Use the "running install.sh" marker to match only the installation
+# phase, not the staging phase (which logs [feature-id] in alphabetical order).
 check "install-pixi ran before install-os-pkg (override order)" \
   bash -c '
     log="'"$_logfile"'"
-    line_pixi=$(grep -n "\[install-pixi\]" "$log" | head -1 | cut -d: -f1)
-    line_ospkg=$(grep -n "\[install-os-pkg\]" "$log" | head -1 | cut -d: -f1)
+    line_pixi=$(grep -n "\[install-pixi\] running install\.sh" "$log" | head -1 | cut -d: -f1)
+    line_ospkg=$(grep -n "\[install-os-pkg\] running install\.sh" "$log" | head -1 | cut -d: -f1)
     [[ -n "$line_pixi" && -n "$line_ospkg" && "$line_pixi" -lt "$line_ospkg" ]]
   '
 
