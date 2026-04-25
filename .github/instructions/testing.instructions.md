@@ -69,7 +69,7 @@ test/
 
 ```bash
 # Always sync generated files first
-bash scripts/sync-src.sh
+python3 scripts/sync-src.py
 
 # Lib unit tests
 just test-unit                                        # all modules
