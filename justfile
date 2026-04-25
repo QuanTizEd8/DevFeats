@@ -63,15 +63,15 @@ lint *files:
   doc('Regenerate git-ignored src/ from features/, lib/, bootstrap (JSON, deps, install.bash, _lib/, files/).')
 ]
 sync:
-    bash scripts/sync-src.sh
+    {{py}} scripts/sync-src.py
 
 
 [
   group('build'),
-  doc('Fail if src/ is stale or missing (no writes); same as scripts/sync-src.sh --check.')
+  doc('Fail if src/ is stale or missing (no writes); same as scripts/sync-src.py --check.')
 ]
 sync-check:
-    bash scripts/sync-src.sh --check
+    {{py}} scripts/sync-src.py --check
 
 
 [
