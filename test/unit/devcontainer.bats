@@ -10,7 +10,7 @@ setup() {
 }
 
 @test "devcontainer__parse_config prints normalized JSON" {
-  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.XXXXXX.json")"
+  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.XXXXXX")"
   printf '%s' '{"a":1}' > "$_f"
   run devcontainer__parse_config "$_f"
   assert_success
@@ -91,7 +91,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "devcontainer__parse_config strips JSONC comments and trailing commas" {
-  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.XXXXXX.jsonc")"
+  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.XXXXXX")"
   cat > "$_f" << 'EOF'
 // line comment
 {
@@ -111,7 +111,7 @@ EOF
 }
 
 @test "devcontainer__parse_config rejects duplicate feature keys" {
-  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.XXXXXX.json")"
+  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.XXXXXX")"
   cat > "$_f" << 'EOF'
 {"features":{"a":{},"a":{}}}
 EOF
@@ -125,7 +125,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "devcontainer__iter_features filters by compatible prefix" {
-  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter.XXXXXX.json")"
+  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter.XXXXXX")"
   cat > "$_f" << 'EOF'
 {
   "features": {
@@ -144,7 +144,7 @@ EOF
 }
 
 @test "devcontainer__iter_features parses trailing :tag from the OCI key" {
-  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter2.XXXXXX.json")"
+  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter2.XXXXXX")"
   cat > "$_f" << 'EOF'
 {"features":{"ghcr.io/quantized8/sysset/install-pixi:1.2.3":{}}}
 EOF
@@ -230,7 +230,7 @@ EOF
   cat > "${_root}/c/devcontainer-feature.json" << 'EOF'
 {"id":"c"}
 EOF
-  _cfg="$(mktemp "${BATS_TEST_TMPDIR}/bo-cfg.XXXXXX.json")"
+  _cfg="$(mktemp "${BATS_TEST_TMPDIR}/bo-cfg.XXXXXX")"
   cat > "$_cfg" << 'EOF'
 {"overrideFeatureInstallOrder":["ghcr.io/x/a","ghcr.io/x/b"]}
 EOF
@@ -271,7 +271,7 @@ EOF
   cat > "${_root}/b/devcontainer-feature.json" << 'EOF'
 {"id":"b","postCreateCommand":"echo b"}
 EOF
-  _cfg="$(mktemp "${BATS_TEST_TMPDIR}/lci-cfg.XXXXXX.json")"
+  _cfg="$(mktemp "${BATS_TEST_TMPDIR}/lci-cfg.XXXXXX")"
   cat > "$_cfg" << 'EOF'
 {"postCreateCommand":"echo container"}
 EOF

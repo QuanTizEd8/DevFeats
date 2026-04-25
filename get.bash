@@ -79,7 +79,7 @@ _bootstrap_fetch() {
 }
 
 echo "ℹ️  Downloading sysset lib files..." >&2
-for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh checksum.sh graph.sh proc.sh devcontainer.sh jsonc.py; do
+for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh checksum.sh graph.sh proc.sh devcontainer.sh jsonc.py users.sh; do
   _bootstrap_fetch "${SYSSET_RAW_BASE}/lib/${_f}" "${_lib_dir}/${_f}"
 done
 unset -f _bootstrap_fetch
