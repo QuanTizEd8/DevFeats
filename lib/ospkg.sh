@@ -62,13 +62,40 @@ _ospkg_clean_brew() {
 }
 
 # _ospkg_update_cmd: wraps _OSPKG_UPDATE for use with net__fetch_with_retry.
-# Normalises dnf/yum exit code 100 ("updates available") to 0.
+# Normalises non-fatal PM exit codes to 0:
+#   dnf/yum exit 100 — "updates available" (informational, not a failure).
+#   zypper exit 6    — ZYPPER_EXIT_INF_REPOS_SKIPPED: one or more repos were
+#                      unreachable, but all reachable repos were refreshed OK.
+#                      Common in containers that inherit subscription-only or
+#                      stale mirror repos from the base image.
 _ospkg_update_cmd() {
+  [[ ${#_OSPKG_UPDATE[@]} -eq 0 ]] && return 0
   "${_OSPKG_UPDATE[@]}" >&2
   local _rc=$?
   [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] &&
     [[ $_rc -eq 100 ]] && return 0
+  [[ "$_OSPKG_PKG_MNGR" == "zypper" ]] && [[ $_rc -eq 6 ]] && return 0
   return $_rc
+}
+
+# _ospkg_dnf_bin — Prints the name of the full-featured dnf binary, or returns 1.
+#
+# microdnf does not implement the `copr` or `module` subcommands.  This helper
+# resolves a usable binary for those operations:
+#   1. Full `dnf` in PATH — always preferred (even when microdnf is the detected PM).
+#   2. `yum` as the detected PM — yum supports copr/module via plugins on older RHEL.
+#   3. Otherwise — emit a clear error and return 1.
+_ospkg_dnf_bin() {
+  if command -v dnf > /dev/null 2>&1; then
+    echo "dnf"
+    return 0
+  fi
+  if [[ "$_OSPKG_PKG_MNGR" == "yum" ]]; then
+    echo "yum"
+    return 0
+  fi
+  echo "⛔ '${_OSPKG_PKG_MNGR}' does not support copr/module subcommands; install full dnf first." >&2
+  return 1
 }
 
 # ── Private: key / repo helpers ──────────────────────────────────────────────
@@ -564,7 +591,8 @@ ospkg__update() {
   done
 
   if [[ ${#_OSPKG_UPDATE[@]} -eq 0 ]]; then
-    echo "ℹ️  Package list update not supported by '${_OSPKG_PKG_MNGR}' — skipping." >&2
+    # microdnf bakes --refresh into every install call; no separate update step is needed.
+    echo "ℹ️  Package list update handled per-install by '${_OSPKG_PKG_MNGR}' (--refresh) — skipping explicit update." >&2
     return 0
   fi
 
@@ -1551,18 +1579,23 @@ ospkg__run() {
     # Phase: COPR (DNF only).
     if [[ ${#_Y_COPR[@]} -gt 0 ]]; then
       if [[ "$_OSPKG_PREFIX" == "dnf" ]]; then
-        echo "🧩 Enabling ${#_Y_COPR[@]} COPR repo(s)." >&2
-        local _copritem _copr
-        for _copritem in "${_Y_COPR[@]}"; do
-          _copr="$(printf '%s' "$_copritem" | json__query -r '.copr')"
-          if [[ "$_dry_run" == true ]]; then
-            echo "🔍 [dry-run] copr: would run: ${_OSPKG_PKG_MNGR} copr enable -y '${_copr}'" >&2
-          else
-            echo "🧩 Enabling COPR: ${_copr}" >&2
-            "$_OSPKG_PKG_MNGR" copr enable -y "$_copr"
-            _yaml_repo_added=true
-          fi
-        done
+        local _copr_dnf_bin
+        if ! _copr_dnf_bin="$(_ospkg_dnf_bin)"; then
+          echo "⚠️  COPR repos require full dnf — '${_OSPKG_PKG_MNGR}' does not support 'copr enable'; skipping." >&2
+        else
+          echo "🧩 Enabling ${#_Y_COPR[@]} COPR repo(s)." >&2
+          local _copritem _copr
+          for _copritem in "${_Y_COPR[@]}"; do
+            _copr="$(printf '%s' "$_copritem" | json__query -r '.copr')"
+            if [[ "$_dry_run" == true ]]; then
+              echo "🔍 [dry-run] copr: would run: ${_copr_dnf_bin} copr enable -y '${_copr}'" >&2
+            else
+              echo "🧩 Enabling COPR: ${_copr}" >&2
+              "$_copr_dnf_bin" copr enable -y "$_copr"
+              _yaml_repo_added=true
+            fi
+          done
+        fi
       else
         echo "⚠️  COPR repos are only supported on DNF — ignoring (current PM: ${_OSPKG_PKG_MNGR})." >&2
       fi
@@ -1571,18 +1604,23 @@ ospkg__run() {
     # Phase: MODULES (DNF only).
     if [[ ${#_Y_MODULES[@]} -gt 0 ]]; then
       if [[ "$_OSPKG_PREFIX" == "dnf" ]]; then
-        echo "🔩 Enabling ${#_Y_MODULES[@]} DNF module stream(s)." >&2
-        local _moditem _mod
-        for _moditem in "${_Y_MODULES[@]}"; do
-          _mod="$(printf '%s' "$_moditem" | json__query -r '.module')"
-          if [[ "$_dry_run" == true ]]; then
-            echo "🔍 [dry-run] module: would run: ${_OSPKG_PKG_MNGR} module enable -y '${_mod}'" >&2
-          else
-            echo "🔩 Enabling module: ${_mod}" >&2
-            "$_OSPKG_PKG_MNGR" module enable -y "$_mod"
-            echo "✅ Module enabled: ${_mod}" >&2
-          fi
-        done
+        local _mod_dnf_bin
+        if ! _mod_dnf_bin="$(_ospkg_dnf_bin)"; then
+          echo "⚠️  DNF module streams require full dnf — '${_OSPKG_PKG_MNGR}' does not support 'module enable'; skipping." >&2
+        else
+          echo "🔩 Enabling ${#_Y_MODULES[@]} DNF module stream(s)." >&2
+          local _moditem _mod
+          for _moditem in "${_Y_MODULES[@]}"; do
+            _mod="$(printf '%s' "$_moditem" | json__query -r '.module')"
+            if [[ "$_dry_run" == true ]]; then
+              echo "🔍 [dry-run] module: would run: ${_mod_dnf_bin} module enable -y '${_mod}'" >&2
+            else
+              echo "🔩 Enabling module: ${_mod}" >&2
+              "$_mod_dnf_bin" module enable -y "$_mod"
+              echo "✅ Module enabled: ${_mod}" >&2
+            fi
+          done
+        fi
       else
         echo "⚠️  DNF modules are only supported on DNF — ignoring (current PM: ${_OSPKG_PKG_MNGR})." >&2
       fi
