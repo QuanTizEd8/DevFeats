@@ -80,7 +80,7 @@ _ospkg_ensure_gpg() {
     dnf) _gpg_pkg=gnupg2 ;;
     *) _gpg_pkg=gnupg ;;
   esac
-  ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::sysset-ospkg-internals" "$_gpg_pkg"
+  ospkg__install_tracked "sysset-ospkg-internals" "$_gpg_pkg"
   return 0
 }
 
@@ -283,7 +283,7 @@ _ospkg_ensure_yq() {
   # Older distros package kislyuk/yq (incompatible) or nothing at all.
   if ! command -v yq > /dev/null 2>&1; then
     echo "ℹ️  yq not found — attempting package manager install." >&2
-    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::sysset-ospkg-internals" yq >&2 || true
+    ospkg__install_tracked "sysset-ospkg-internals" yq >&2 || true
     # Re-test after potential install.
     if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
       _OSPKG_YQ_BIN="yq"
@@ -671,6 +671,7 @@ ospkg__parse_manifest_yaml() {
   # /etc/os-release key (including version_codename, pretty_name, etc.) plus
   # the synthetic keys (pm, arch, kernel) is available in `when` clauses.
   local _ctx_json _k
+  # shellcheck disable=SC2016
   _ctx_json="$(
     for _k in "${!_OSPKG_OS_RELEASE[@]}"; do
       printf '%s\n' "$_k" "${_OSPKG_OS_RELEASE[$_k]}"
@@ -679,6 +680,7 @@ ospkg__parse_manifest_yaml() {
 
   local _pm="${_OSPKG_OS_RELEASE[pm]:-${_OSPKG_PREFIX}}"
 
+  # shellcheck disable=SC2016
   json__query -c \
     --argjson ctx "$_ctx_json" \
     --arg pm "$_pm" \
@@ -1032,17 +1034,21 @@ _ospkg_remove_build_group() {
 }
 
 # ── Public: ospkg__install_tracked ────────────────────────────────────────────
-# @brief ospkg__install_tracked <group-id> <pkg>... — Install packages and register
-# them as build-only under <group-id> for cleanup when keep_build_deps=false.
+# @brief ospkg__install_tracked <sub-id> <pkg>... — Install packages and register
+# them as build-only under <sub-id> for cleanup when keep_build_deps=false.
 # Idempotent: if all packages are already installed the sidecar is unchanged.
 # Requires ospkg__detect to have been called first.
+#
+# The full group-id is composed as "${_SYSSET_BUILD_CONTEXT:-uncontexted}::<sub-id>".
+# Callers pass only the bare sub-id (e.g. "lib-net", "sysset-ospkg-internals");
+# the build-context prefix is added automatically.
 #
 # Session co-ownership: when _SYSSET_SESSION_TRACK_DIR is set (manifest mode),
 # also appends each requested package absent from _SYSSET_INITIAL_SNAPSHOT to
 # the session sidecar for _group_id. This registers co-ownership for packages
 # already installed by a prior feature in the same session.
 ospkg__install_tracked() {
-  local _group_id="$1"
+  local _group_id="${_SYSSET_BUILD_CONTEXT:-uncontexted}::$1"
   shift
   local _bd_dir _before_snapshot
   _bd_dir="$(_ospkg_build_deps_dir)"

@@ -114,6 +114,7 @@ github__release_json_digest_for_asset() {
 
   _out=""
   _json__ensure_jq || return 1
+  # shellcheck disable=SC2016
   _out="$(json__query -r --arg n "$_name" '
       (.assets // [])[]
       | select(.name == $n)

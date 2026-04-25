@@ -120,6 +120,7 @@ proc__run_command_form() {
       local -a _pl=() _e=0 _first=1
       while IFS= read -r _k; do
         [[ -z "$_k" ]] && continue
+        # shellcheck disable=SC2016
         _v="$(printf '%s' "$_json" | json__query -c --arg k "$_k" '.[$k]')" || continue
         _ty="$(printf '%s' "$_v" | json__query -r 'type' 2> /dev/null)" || continue
         [[ "$_first" -eq 0 ]] && _pl+=(--)

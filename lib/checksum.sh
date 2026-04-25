@@ -27,7 +27,7 @@ checksum__verify_sha256() {
     _actual="$(shasum --algorithm 256 "$_file" | awk '{print $1}')"
   else
     echo "ℹ️  sha256sum/shasum not found — installing coreutils." >&2
-    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-checksum" coreutils
+    ospkg__install_tracked "lib-checksum" coreutils
     if command -v sha256sum > /dev/null 2>&1; then
       _actual="$(sha256sum "$_file" | awk '{print $1}')"
     else

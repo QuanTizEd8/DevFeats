@@ -65,7 +65,7 @@ git__clone() {
   if ! command -v git > /dev/null 2>&1; then
     echo "ℹ️  git not found — installing." >&2
     ospkg__detect
-    ospkg__install_tracked "${_SYSSET_BUILD_CONTEXT:-uncontexted}::lib-git" git
+    ospkg__install_tracked "lib-git" git
   fi
 
   mkdir -p "$dir"

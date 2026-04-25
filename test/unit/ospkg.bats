@@ -417,6 +417,7 @@ _seed_apt_context_with_yq() {
 # After this, call _mock_snapshots to control the before/after package lists.
 _seed_apt_build_context() {
   _seed_apt_context
+  export _SYSSET_BUILD_CONTEXT="ctx"
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   printf '#!/bin/bash\nexit 0\n' \
@@ -462,7 +463,7 @@ _mock_snapshots() {
 
   ospkg__install_tracked "test-group" newpkg
 
-  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::test-group"
   assert_file_exists "$_sidecar"
   grep -q "^newpkg$" "$_sidecar"
 }
@@ -485,7 +486,7 @@ _mock_snapshots() {
 
   ospkg__install_tracked "test-group" newpkg
 
-  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::test-group"
   assert_file_exists "$_sidecar"
   [[ ! -s "$_sidecar" ]]
 }
@@ -527,7 +528,7 @@ _mock_snapshots() {
   _mock_snapshots "curl pkg1" "curl pkg1 pkg2"
   ospkg__install_tracked "test-group" pkg2
 
-  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::test-group"
   grep -q "^pkg1$" "$_sidecar"
   grep -q "^pkg2$" "$_sidecar"
 }
@@ -542,7 +543,7 @@ _mock_snapshots() {
   _mock_snapshots "pkg1" "pkg1"
   ospkg__install_tracked "test-group" pkg1
 
-  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::test-group"
   [[ $(grep -c "^pkg1$" "$_sidecar") -eq 1 ]]
 }
 
@@ -556,12 +557,12 @@ _mock_snapshots() {
   ospkg__install_tracked "group-b" pkg2
 
   local _bd="${BATS_TEST_TMPDIR}/ospkg/build-deps"
-  assert_file_exists "${_bd}/group-a"
-  assert_file_exists "${_bd}/group-b"
-  grep -q "^pkg1$" "${_bd}/group-a"
-  grep -q "^pkg2$" "${_bd}/group-b"
+  assert_file_exists "${_bd}/ctx::group-a"
+  assert_file_exists "${_bd}/ctx::group-b"
+  grep -q "^pkg1$" "${_bd}/ctx::group-a"
+  grep -q "^pkg2$" "${_bd}/ctx::group-b"
   # pkg2 must not bleed into group-a's sidecar.
-  run grep "pkg2" "${_bd}/group-a"
+  run grep "pkg2" "${_bd}/ctx::group-a"
   assert_failure
 }
 
@@ -784,7 +785,7 @@ _seed_session_context() {
   printf 'curl\n' > "$_INITIAL_SNAP"
   _mock_snapshots "curl" "curl newpkg"
 
-  ospkg__install_tracked "feature::install-test::lib-net" newpkg
+  ospkg__install_tracked "lib-net" newpkg
 
   local _sess_sidecar="${_SESSION_DIR}/feature::::install-test::::lib-net"
   # filename uses // substitution so :: → ::::... let's detect the real name
@@ -800,7 +801,7 @@ _seed_session_context() {
   printf 'curl\n' > "$_INITIAL_SNAP"
   _mock_snapshots "curl" "curl"
 
-  ospkg__install_tracked "feature::install-test::lib-net" curl
+  ospkg__install_tracked "lib-net" curl
 
   # Session sidecar should either not exist or not contain 'curl'
   local _found
@@ -815,9 +816,9 @@ _seed_session_context() {
   _seed_session_context
   printf '' > "$_INITIAL_SNAP" # empty initial snapshot
   _mock_snapshots "" "pkgA"
-  ospkg__install_tracked "feature::install-test::lib-net" pkgA
+  ospkg__install_tracked "lib-net" pkgA
   _mock_snapshots "pkgA" "pkgA"
-  ospkg__install_tracked "feature::install-test::lib-net" pkgA
+  ospkg__install_tracked "lib-net" pkgA
 
   # Find the session sidecar
   local _found
@@ -834,7 +835,7 @@ _seed_session_context() {
   ospkg__install_tracked "test-group" newpkg
 
   # SYSSET_TMPDIR/ospkg/build-deps sidecar should exist (local tracking)
-  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::test-group"
   assert_file_exists "$_sidecar"
   grep -q "^newpkg$" "$_sidecar"
 }

@@ -181,11 +181,13 @@ devcontainer__feature_env_exports() {
   [[ -z "$_j" || "$_j" == "{}" || "$_j" == "null" ]] && return 0
   while IFS= read -r _k; do
     [[ -z "$_k" ]] && continue
+    # shellcheck disable=SC2016
     _t="$(printf '%s' "$_j" | json__query -r --arg k "$_k" '.[$k] | type' 2> /dev/null)" || return 1
     if [[ "$_t" == "array" || "$_t" == "object" ]]; then
       echo "⛔ Option '${_k}': only boolean/string allowed by devcontainer spec (got ${_t})" >&2
       return 1
     fi
+    # shellcheck disable=SC2016
     _v="$(printf '%s' "$_j" | json__query -c --arg k "$_k" '.[$k]')"
     _v="$(printf '%s' "$_v" | json__coerce_scalar_stdin 2> /dev/null)" || return 1
     _n="$(str__safe_id "$_k")"
@@ -312,11 +314,13 @@ devcontainer__lifecycle_iter() {
   for _id in "${_ids[@]+"${_ids[@]}"}"; do
     _df="${_root}/${_id}/devcontainer-feature.json"
     [[ -f "$_df" ]] || continue
+    # shellcheck disable=SC2016
     _j="$(json__query -c --arg p "$_ph" 'if (has($p) | not) then empty else .[$p] end' "$_df" 2> /dev/null)" || continue
     [[ -z "$_j" || "$_j" == "null" ]] && continue
     printf 'feature\t%s\t%s\n' "$_id" "$_j"
   done
   if [[ -n "$_cfg" && -f "$_cfg" ]]; then
+    # shellcheck disable=SC2016
     _j="$(json__query -c --arg p "$_ph" 'if (has($p) | not) then empty else .[$p] end' "$_cfg" 2> /dev/null)" || _j=""
     if [[ -n "$_j" && "$_j" != "null" ]]; then
       printf 'container\t_container_\t%s\n' "$_j"
