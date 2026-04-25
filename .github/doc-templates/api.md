@@ -1,3 +1,6 @@
+containing comprehensive usage instructions, details on options and behavior, and any other relevant information that doesn't fit in the concise `metadata.yaml` description. Each file must only contain a collection of level-3 headings and their content (no H1 or H2) to ensure they integrate cleanly into the generated feature documentation. Each H3 should represent a distinct topic or aspect of the feature, and can be further organized with subheadings as needed.
+
+
 ## Details
 
 ### Supported Installation Methods
