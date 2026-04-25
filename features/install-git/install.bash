@@ -95,6 +95,9 @@ _git__detect_install_method() {
     rhel)
       rpm -qf "${_git_bin}" > /dev/null 2>&1 && echo "package" && return 0
       ;;
+    suse)
+      rpm -qf "${_git_bin}" > /dev/null 2>&1 && echo "package" && return 0
+      ;;
     macos)
       brew list git > /dev/null 2>&1 && echo "package" && return 0
       ;;
@@ -117,6 +120,7 @@ _git__reinstall() {
       debian) apt-get remove -y git ;;
       alpine) apk del git ;;
       rhel) dnf remove -y git 2> /dev/null || yum remove -y git ;;
+      suse) zypper remove -y git ;;
       macos) brew remove git ;;
     esac
   else

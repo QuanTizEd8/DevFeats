@@ -32,7 +32,7 @@ shell__detect_bashrc() {
       echo "/etc/bash/bashrc"
       return 0
       ;;
-    rhel | macos)
+    rhel | suse | macos)
       echo "/etc/bashrc"
       return 0
       ;;
@@ -60,7 +60,7 @@ shell__detect_zshdir() {
   fi
   # os__platform fallback.
   case "$(os__platform)" in
-    rhel | macos)
+    rhel | suse | macos)
       echo "/etc"
       return 0
       ;;

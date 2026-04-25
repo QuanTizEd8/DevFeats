@@ -250,13 +250,49 @@ setup() {
   assert_output "rhel"
 }
 
-@test "os__platform treats openSUSE family as rhel-compatible for zypper callers" {
+@test "os__platform returns suse for openSUSE Tumbleweed" {
   reload_lib os.sh
   _OS__ID="opensuse-tumbleweed"
   _OS__ID_LIKE="opensuse suse"
   _OS__RELEASE_LOADED=1
   run os__platform
-  assert_output "rhel"
+  assert_output "suse"
+}
+
+@test "os__platform returns suse for opensuse-leap" {
+  reload_lib os.sh
+  _OS__ID="opensuse-leap"
+  _OS__ID_LIKE="suse opensuse"
+  _OS__RELEASE_LOADED=1
+  run os__platform
+  assert_output "suse"
+}
+
+@test "os__platform returns suse for sles" {
+  reload_lib os.sh
+  _OS__ID="sles"
+  _OS__ID_LIKE="suse"
+  _OS__RELEASE_LOADED=1
+  run os__platform
+  assert_output "suse"
+}
+
+@test "os__platform returns suse for sle-micro" {
+  reload_lib os.sh
+  _OS__ID="sle-micro"
+  _OS__ID_LIKE="suse"
+  _OS__RELEASE_LOADED=1
+  run os__platform
+  assert_output "suse"
+}
+
+@test "os__platform returns suse when ID_LIKE contains suse" {
+  reload_lib os.sh
+  _OS__ID="custom-suse-distro"
+  _OS__ID_LIKE="suse"
+  _OS__RELEASE_LOADED=1
+  run os__platform
+  assert_output "suse"
 }
 
 # ---------------------------------------------------------------------------

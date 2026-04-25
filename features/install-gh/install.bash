@@ -97,6 +97,9 @@ _gh__install_repos() {
     rhel)
       _gh__repos_rhel
       ;;
+    suse)
+      _gh__repos_rhel
+      ;;
     macos)
       _gh__repos_macos
       ;;

@@ -33,6 +33,17 @@ setup() {
   assert_output "/etc/bashrc"
 }
 
+@test "shell__detect_bashrc returns /etc/bashrc for suse via platform fallback" {
+  reload_lib shell.sh
+  strings() { :; }
+  export -f strings
+  _OS__ID="opensuse-leap"
+  _OS__ID_LIKE="suse opensuse"
+  _OS__RELEASE_LOADED=1
+  run shell__detect_bashrc
+  assert_output "/etc/bashrc"
+}
+
 @test "shell__detect_bashrc returns /etc/bash/bashrc for alpine via platform fallback" {
   reload_lib shell.sh
   strings() { :; }
@@ -81,6 +92,17 @@ setup() {
   export -f strings
   _OS__ID="fedora"
   _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
+  run shell__detect_zshdir
+  assert_output "/etc"
+}
+
+@test "shell__detect_zshdir returns /etc for suse via platform fallback" {
+  reload_lib shell.sh
+  strings() { :; }
+  export -f strings
+  _OS__ID="opensuse-leap"
+  _OS__ID_LIKE="suse opensuse"
   _OS__RELEASE_LOADED=1
   run shell__detect_zshdir
   assert_output "/etc"
