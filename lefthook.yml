@@ -9,6 +9,4 @@ pre-commit:
     # format:
     #   glob: "*.{sh,bash,bats}"
     #   run: just format {staged_files} && git add {staged_files}
-    # validate-metadata:
-    #   glob: "features/*/metadata.yaml"
-    #   run: just validate-metadata
+
