@@ -200,7 +200,7 @@ jobs:
 
   # ── Unit tests (native: ubuntu + macOS) ───────────────────────────────────
   unit-native:
-    name: "Unit tests (${{ matrix.os }})"
+    name: "Unit Tests / ${{ matrix.os }} VM"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
     runs-on: ${{ matrix.os }}
@@ -251,7 +251,7 @@ jobs:
 
   # ── Unit tests (Linux distribution containers) ────────────────────────────
   unit-linux:
-    name: "Unit tests (container / ${{ matrix.distro }})"
+    name: "Unit Tests / ${{ matrix.image }}"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
     runs-on: ubuntu-latest
