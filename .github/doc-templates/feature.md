@@ -1,18 +1,35 @@
+<!--
+This is the template for the Feature Reference Document.
+It provides a structured format for documenting the underlying tool that a feature installs or sets up, including its installation methods, supported platforms and platform-specific notes, dependencies, configuration options, limitations, and other important information for implementers, auditors, and maintainers. This document serves as a comprehensive reference for developers, ensuring that they have all the necessary information to understand the tool's installation process and to implement the feature correctly.
+When writing the feature reference, be sure to provide clear and detailed information, including exact commands where applicable, and accurately cite all relevant references for the information provided.
+-->
 # Feature Reference
 
-<!-- Write a summary about the underlying tool that this feature installs or sets up, including what it does, its main use cases, and any important context or background information. -->
+<!--
+Write a summary about the underlying tool that this feature installs or sets up, including what it does, its main use cases, and any important context or background information.
+-->
+
+- **Homepage**: <!-- Link to the official homepage for the tool, if available. -->
+- **Source Code**: <!-- Link to the official source code repository for the tool, if available. -->
+- **Documentation**: <!-- Link to the official documentation for the tool, if available. -->
+- **Latest Release**: <!-- The latest stable release version of the tool, and the date this information was last verified, in the format "X.Y.Z (as of YYYY-MM-DD)". -->
 
 ## Available Installation Methods
 
-<!-- Write a summary of the feature's availability, installation/setup methods, and other key information for implementers, auditors, and maintainers. -->
+<!--
+Write a summary of the feature's availability, installation/setup methods, and other key information for implementers, auditors, and maintainers.
+-->
 
-<!-- Add one subsection for each available installation/setup method, using the template below -->
+<!--
+Add one subsection for each available installation/setup method, using the template below
+-->
 
 ### <!-- Method Name (e.g. "OS Package Manager", "Binary Download", "Installer Script", "<Name of Tool> Installation") -->
 
 #### Supported Platforms
 
-<!-- List all supported platforms for this installation method, and any platform-specific notes or limitations, e.g.:
+<!--
+List all supported platforms for this installation method, and any platform-specific notes or limitations, e.g.:
 - macOS and all Linux distros
 - Only Debian-based Linux distros (Ubuntu, Debian, etc.)
 - Only Red Hat-based Linux distros (Fedora, CentOS, RHEL, etc.)
@@ -28,11 +45,15 @@
 
 #### Installation Steps
 
-<!-- Write a detailed step-by-step description of the installation process for this method, including exact commands where possible. Mention any important considerations, such as required permissions (e.g. root/sudo), recommended installation paths, and any platform-specific steps or variations. -->
+<!--
+Write a detailed step-by-step description of the installation process for this method, including exact commands where possible. Mention any important considerations, such as required permissions (e.g. root/sudo), recommended installation paths, and any platform-specific steps or variations.
+-->
 
 #### Installation Verification
 
-<!-- Describe how to verify that the download/installation was successful, e.g. available checksums or signatures to download and verify, expected output of version or help commands, expected files or directories created, etc. -->
+<!--
+Describe how to verify that the download/installation was successful, e.g. available checksums or signatures to download and verify, expected output of version or help commands, expected files or directories created, etc.
+-->
 
 #### Configuration Options
 
@@ -59,11 +80,14 @@
 
 #### Notes and Best Practices
 
-<!-- Add any additional notes, tips, best practices, or important information related to this installation method that implementers, auditors, and maintainers should be aware of. This can include things like common pitfalls to avoid, security considerations, performance implications, compatibility issues, etc. -->
+<!--
+Add any additional notes, such as limitations, tips, best practices, or important information related to this installation method that implementers, auditors, and maintainers should be aware of. This can include things like common pitfalls to avoid, security considerations, performance implications, compatibility issues, etc.
+-->
 
 ## References
 
-<!-- Cite all references for the above information, including official documentation and source code, and other well-established resources. For each reference, provide a brief description of what it is and why it's relevant. For example: -->
+<!--
+Cite all references for the above information, including official documentation and source code, and other well-established resources. For each reference, provide a brief description of what it is and why it's relevant. For example:
 
 - [Official Docs – Installation Methods](link)
 - [Official Docs – Dependencies](link)
@@ -71,3 +95,5 @@
 - [Installer Source Code – Post-Installation Steps](link)
 - [Maintainer Blog Post – Installation Guide](link)
 - [Similar Feature in Popular Project – <Issue> Handling](link)
+
+-->
