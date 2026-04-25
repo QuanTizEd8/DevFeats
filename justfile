@@ -55,13 +55,6 @@ lint *files:
     fi
 
 
-[
-  group('code-quality'),
-  doc('Validate features/*/metadata.yaml against metadata.schema.json.')
-]
-validate-metadata:
-    {{py}} scripts/validate-metadata.py
-
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
