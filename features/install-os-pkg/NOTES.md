@@ -262,13 +262,20 @@ when:
 #### Condition keys
 
 The full set of keys from `/etc/os-release` is available, including any
-distro-specific fields. Three additional synthetic keys are added:
+distro-specific fields. Four additional synthetic keys are added:
 
 | Key | Source | Example values |
 |---|---|---|
 | `pm` | Detected package manager (synthetic) | `apt`, `apk`, `brew`, `dnf`, `yum`, `pacman`, `zypper` |
 | `arch` | `uname -m` (synthetic) | `x86_64`, `aarch64`, `armv7l`, `i686`, `arm64` |
 | `kernel` | `uname -s` lowercased (synthetic) | `linux`, `darwin` |
+| `deb_arch` | `dpkg --print-architecture` (APT only) | `amd64`, `arm64`, `armhf` |
+
+> **Note:** `deb_arch` uses Debian's architecture naming convention (`amd64`
+> instead of `x86_64`, `arm64` instead of `aarch64`). It is only populated
+> when the active PM is `apt`. Use it in `[arch=…]` APT repository options
+> and wherever a Debian-native arch string is expected. See
+> [Variable substitution in repos and keys](#variable-substitution-in-repos-and-keys).
 
 Common `/etc/os-release` keys available on every Linux distro:
 
@@ -405,12 +412,17 @@ dnf:
 
 Repository definitions in the active PM's native format. Each entry is a
 string written to the PM's drop-in configuration path (see
-[Repository drop-in paths](#repository-drop-in-paths)):
+[Repository drop-in paths](#repository-drop-in-paths)).
+
+Repo strings (and key `url` / `dest` values) support **variable
+substitution** — see [Variable substitution in repos and
+keys](#variable-substitution-in-repos-and-keys):
 
 ```yaml
 apt:
   repos:
-    - "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main"
+    - "deb [arch=${deb_arch} signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main"
+    - "deb [signed-by=/usr/share/keyrings/myppa.gpg] https://ppa.launchpadcontent.net/foo/ppa/ubuntu ${version_codename} main"
 
 dnf:
   repos:
@@ -426,7 +438,7 @@ dnf:
 #### `keys` (PM block)
 
 Signing keys fetched before repositories are added. Same format as inline
-keys — see [Signing keys](#signing-keys).
+keys (URL-based or fingerprint-based) — see [Signing keys](#signing-keys).
 
 #### `scripts` (PM block)
 
@@ -468,22 +480,28 @@ details.
 
 ### Signing keys
 
-Keys are signing key entries fetched before any repository is added. Each
-entry requires a `url` and `dest`:
+Keys are signing key entries fetched before any repository is added. `dest`
+is always required. Exactly one of `url` or `fingerprint` must be provided:
 
 ```yaml
 apt:
   keys:
+    # URL-based: download the key from a URL.
     - url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
       dest: /usr/share/keyrings/nodesource.gpg
+
+    # Fingerprint-based: fetch from the Ubuntu keyserver (no URL needed).
+    - fingerprint: "F911AB184317630C59970973E363C90F8F1B6217"
+      dest: /usr/share/keyrings/git-core-ppa.gpg
 ```
 
 Key entry properties:
 
 | Property | Type | Description |
 |---|---|---|
-| `url` | string (URI) | **Required.** URL to download the signing key from. |
-| `dest` | string | **Required.** Destination file path for the key. |
+| `url` | string (URI) | URL to download the signing key from. Required unless `fingerprint` is provided. Supports [variable substitution](#variable-substitution-in-repos-and-keys). |
+| `fingerprint` | string | 40-character hex GPG fingerprint. Fetched from the Ubuntu keyserver (HTTPS first, then HKP fallback). Required unless `url` is provided. |
+| `dest` | string | **Required.** Destination file path for the key. Supports [variable substitution](#variable-substitution-in-repos-and-keys). |
 | `dearmor` | boolean | Explicitly control dearmoring. When omitted, auto-detected from `dest` extension. |
 
 Behaviour:
@@ -491,11 +509,14 @@ Behaviour:
 - If `dest` ends in `.gpg`, the key is automatically dearmored via
   `gpg --dearmor` (ASCII-armored PGP → binary keyring format required by
   modern APT `signed-by=` references). Set `dearmor: false` to override.
-- `curl` (preferred) or `wget` is used for downloading. `gnupg` is used for
-  dearmoring. Missing tools are **auto-installed** via the detected PM before
-  proceeding.
-- The fetch is retried up to three times with a 3-second pause to handle
-  transient network failures.
+- `curl` (preferred) or `wget` is used for URL downloads. `gnupg` is used for
+  dearmoring and keyserver lookups. Missing tools are **auto-installed** via
+  the detected PM before proceeding.
+- **Fingerprint fetch** tries HTTPS download from
+  `keyserver.ubuntu.com` first; if that fails, falls back to HKP
+  (`hkp://keyserver.ubuntu.com`, then `hkp://keyserver.pgp.com`).
+- URL-based fetches are retried up to three times with a 3-second pause to
+  handle transient network failures.
 - GPG operations run in an isolated temporary `GNUPGHOME` directory that is
   removed after all keys are installed, so no trust-database artefacts
   pollute the container image layer.
@@ -665,6 +686,45 @@ each phase, collected items are processed in manifest declaration order. See
 
 ---
 
+## Variable substitution in repos and keys
+
+Repo strings (`repos[]` entries) and key `url` and `dest` values support
+`${key}` substitution at runtime. The available substitution keys are the
+same as the [condition keys](#condition-keys) — i.e. all `/etc/os-release`
+fields plus the synthetic keys (`pm`, `arch`, `kernel`, `deb_arch`):
+
+```yaml
+apt:
+  keys:
+    - url: "https://cli.github.com/packages/githubcli-archive-keyring.gpg"
+      dest: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+      dearmor: false
+  repos:
+    - "deb [arch=${deb_arch} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+
+packages:
+  - name: git
+    when: { id: ubuntu, pm: apt }
+    keys:
+      - fingerprint: "F911AB184317630C59970973E363C90F8F1B6217"
+        dest: /usr/share/keyrings/git-core-ppa.gpg
+    repos:
+      - "deb [signed-by=/usr/share/keyrings/git-core-ppa.gpg] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu ${version_codename} main"
+```
+
+Substitution behaviour:
+
+- `${key}` tokens are replaced with the runtime value of the corresponding
+  OS-release / synthetic context key.
+- Unknown tokens (no matching key in the context) are **left unchanged**.
+- Substitution happens at the point of key fetch / repo write, _after_ the
+  manifest is parsed — it is a runtime expansion, not a YAML preprocessor.
+- `${deb_arch}` is particularly useful for APT `[arch=…]` options to avoid
+  hardcoding `amd64` or `arm64` in manifests that must run on multiple
+  architectures.
+
+---
+
 ## Dry run
 
 Set `dry_run: true` in `devcontainer.json`, pass `--dry_run` on the CLI, or
@@ -829,7 +889,8 @@ packages:
 ### Docker CE with inline setup
 
 All signing key, repository, and post-install configuration co-located with
-the package entry:
+the package entry. `${deb_arch}` and `${version_codename}` are substituted
+at runtime — no hardcoded `amd64` or `jammy`:
 
 ```yaml
 packages:
@@ -840,7 +901,7 @@ packages:
       - url: https://download.docker.com/linux/ubuntu/gpg
         dest: /etc/apt/keyrings/docker.gpg
     repos:
-      - "deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable"
+      - "deb [arch=${deb_arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${version_codename} stable"
     script: systemctl enable docker
 ```
 
