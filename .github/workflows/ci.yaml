@@ -289,7 +289,7 @@ jobs:
 
   # ── Feature scenario tests (Linux / devcontainer) ─────────────────────────
   test-features:
-    name: "Test ${{ matrix.feature }}"
+    name: "Scenario Tests - ${{ matrix.feature }}"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_features == 'true' && needs.setup.outputs.features != '[]'
     runs-on: ubuntu-latest
@@ -377,7 +377,7 @@ jobs:
 
   # ── Feature scenario tests (macOS native) ─────────────────────────────────
   test-macos:
-    name: "Test ${{ matrix.feature }} (macOS)"
+    name: "Scenario Tests - ${{ matrix.feature }} (macOS)"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_macos == 'true' && needs.setup.outputs.macos_features != '[]'
     runs-on: macos-latest
@@ -399,7 +399,7 @@ jobs:
 
   # ── Dist: build artifacts ─────────────────────────────────────────────────
   test-dist-build:
-    name: "Dist: build artifacts"
+    name: "Dist Tests - Build Artifacts"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: ubuntu-latest
@@ -424,7 +424,7 @@ jobs:
 
   # ── Dist: get/ scenarios ──────────────────────────────────────────────────
   test-dist-get:
-    name: "Dist: get/ scenarios"
+    name: "Dist Tests - get/ scenarios"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: ubuntu-latest
@@ -449,7 +449,7 @@ jobs:
 
   # ── Dist: sysset/ scenarios (Linux containers) ────────────────────────────
   test-dist-sysset:
-    name: "Dist: sysset/ scenarios (${{ matrix.distro }})"
+    name: "Dist Tests - sysset/ scenarios (${{ matrix.distro }})"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: ubuntu-latest
@@ -489,7 +489,7 @@ jobs:
 
   # ── Dist: macOS scenarios ─────────────────────────────────────────────────
   test-dist-macos:
-    name: "Dist: macOS scenarios"
+    name: "Dist Tests - macOS scenarios"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: macos-latest
