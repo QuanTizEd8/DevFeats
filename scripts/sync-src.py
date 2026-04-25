@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import copy
+import fnmatch
 import json
 import re
 import sys
@@ -763,23 +764,76 @@ def gather_lib_files() -> dict[Path, str]:
     return files
 
 
+def _gitignore_basename_patterns() -> list[str]:
+    """Return the basename-only patterns from the repo .gitignore.
+
+    Basename-only patterns are those without a '/' in their body — they match
+    any file regardless of directory depth, exactly as git does.  Path-anchored
+    patterns (e.g. ``/src/``, ``docs/features/``) are intentionally excluded so
+    that this function returns only file-name patterns (e.g. ``.DS_Store``,
+    ``._*``, ``Thumbs.db``).
+    """
+    gitignore = REPO_DIRPATH / ".gitignore"
+    if not gitignore.is_file():
+        return []
+    patterns: list[str] = []
+    for raw in gitignore.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or line.startswith("!"):
+            continue
+        # Directory-only patterns (trailing '/') are not file patterns.
+        if line.endswith("/"):
+            continue
+        # Strip leading '/' anchors before the slash check.
+        body = line.lstrip("/")
+        # Skip patterns that contain a '/' — they are path-specific, not
+        # basename patterns.
+        if "/" in body:
+            continue
+        patterns.append(body)
+    return patterns
+
+
+_GITIGNORE_BASENAME_PATTERNS: list[str] = _gitignore_basename_patterns()
+
+
+def _is_junk_file(name: str) -> bool:
+    """Return True if the filename matches any basename-only .gitignore pattern.
+
+    Developers control which files are considered junk by editing .gitignore;
+    no patterns are hardcoded here.
+    """
+    return any(fnmatch.fnmatch(name, p) for p in _GITIGNORE_BASENAME_PATTERNS)
+
+
 def gather_bootstrap() -> dict[Path, str]:
     """Read features/bootstrap.sh and return it keyed as install.sh."""
     return {Path("install.sh"): BOOTSTRAP_FILEPATH.read_text(encoding="utf-8")}
 
 
 def gather_feature_files(feature_id: str) -> dict[Path, str]:
-    """Read features/<id>/files/** and return them keyed by their files/-relative output paths."""
+    """Read features/<id>/files/** and return them keyed by their files/-relative output paths.
+
+    Only git-tracked files are included.  This ensures that OS-generated
+    artefacts (e.g. ``.DS_Store``) that happen to exist on disk but were never
+    committed are silently ignored without any hardcoded filename list.
+    """
     files_dir = FEATURES_DIRPATH / feature_id / "files"
     if not files_dir.is_dir():
         return {}
-    result: dict[Path, str] = {}
-    for src_path in sorted(files_dir.rglob("*")):
-        if not src_path.is_file():
-            continue
-        rel = src_path.relative_to(files_dir)
-        result[Path("files") / rel] = src_path.read_text(encoding="utf-8")
-    return result
+    ls = subprocess.run(
+        ["git", "ls-files", "-z", "--", "."],
+        capture_output=True, text=True, check=True,
+        cwd=files_dir,
+    )
+    tracked = frozenset(
+        files_dir / rel for rel in ls.stdout.split("\0") if rel
+    )
+    return {
+        Path("files") / src_path.relative_to(files_dir): src_path.read_text(encoding="utf-8")
+        for src_path in sorted(files_dir.rglob("*"))
+        if src_path.is_file() and src_path in tracked
+    }
 
 
 # File Sync
@@ -791,7 +845,7 @@ def sync_source_files(feature_id: str, new_files: dict[Path, str], check_only: b
     old_files = {
         path.relative_to(feature_src_dir): path.read_text(encoding="utf-8")
         for path in sorted(feature_src_dir.rglob("*"))
-        if path.is_file() and not path.name.startswith(".")
+        if path.is_file() and not _is_junk_file(path.name)
     } if feature_src_dir.exists() else {}
 
     is_in_sync = True
