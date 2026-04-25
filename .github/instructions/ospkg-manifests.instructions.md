@@ -25,10 +25,14 @@ keys:
   - url: https://example.com/key.asc
     dest: /etc/apt/trusted.gpg.d/example.gpg
     dearmor: true                           # explicit
+  - fingerprint: "AABBCCDDEEFF00112233445566778899AABBCCDD"  # fetch from Ubuntu keyserver
+    dest: /usr/share/keyrings/example.gpg
 
 # Repository lines to add (PM-native format).
+# ${key} tokens are substituted at runtime from the OS-release / synthetic context
+# (e.g. ${deb_arch} → amd64/arm64, ${version_codename} → jammy/bookworm).
 repos:
-  - content: "deb [signed-by=...] https://repo.example.com stable main"
+  - content: "deb [arch=${deb_arch} signed-by=...] https://repo.example.com stable main"
 
 # APT PPAs (apt-add-repository).
 ppas:
@@ -123,13 +127,14 @@ when: { pm: apt, id: debian }       # pm == apt AND id == debian
 
 `when` values are matched case-insensitively. A key absent from the context evaluates as empty string.
 
-Available condition keys — all `/etc/os-release` fields plus three synthetics:
+Available condition keys — all `/etc/os-release` fields plus four synthetics:
 
 | Field | Source |
 |-------|--------|
 | `pm` | Detected package manager: `apt`, `brew`, `dnf`, `apk`, `yum`, `zypper`, `pacman` |
 | `kernel` | `linux` or `darwin` (synthetic) |
 | `arch` | CPU architecture: `x86_64`, `aarch64`, `arm64`, etc. (synthetic) |
+| `deb_arch` | Debian arch string: `amd64`, `arm64`, `armhf` — APT only (synthetic) |
 | `id` | `/etc/os-release` `ID` (or `macos` on macOS) |
 | `id_like` | `/etc/os-release` `ID_LIKE` |
 | `version_id` | `/etc/os-release` `VERSION_ID` |
@@ -173,8 +178,8 @@ JSON is also accepted (and produced by `yq -o=json`). The same schema applies.
 | `--skip_installed` | `skip_installed` | `false` | Skip packages already in PATH |
 | `--prefer_linuxbrew` | `prefer_linuxbrew` | `false` | Use brew on Linux when available |
 | `--dry_run` | `dry_run` | `false` | Simulate without making changes |
-| `--lists_max_age <n>` | `lists_max_age` | `300` | Age threshold (s) for update skip |
+| `--lists_max_age <n>` | `lists_max_age` | `3600` | Age threshold (s) for update skip |
 
 ## Further Reading
 
-- `docs/ref/install-os-pkg.md` — full `install-os-pkg` feature reference
+- [`features/install-os-pkg/NOTES.md`](../../features/install-os-pkg/NOTES.md) — user-facing `install-os-pkg` documentation; [`features/install-os-pkg/manifest.schema.json`](../../features/install-os-pkg/manifest.schema.json) — manifest schema
