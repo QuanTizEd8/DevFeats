@@ -35,7 +35,8 @@ Read fresh from disk. Do not trust any summary you were given. Read:
 - `src/<feature>/install.bash` — the assembled installer (header + body; for lint/review purposes)
 - `features/<feature>/metadata.yaml` — the API definition (source for devcontainer-feature.json)
 - `src/<feature>/dependencies/*.yaml` — generated dependency manifests (if they exist)
-- `docs/ref/<feature-name>/` — the reference documents (api.md, implementation.md)
+- `features/<feature-name>/dev-notes/feature.md` — feature / installation / API reference
+- `features/<feature-name>/dev-notes/implementation.md` — implementation plan (if present)
 - Any `lib/` modules that the script sources
 
 ### Step 2 — Systematic Fault Analysis
