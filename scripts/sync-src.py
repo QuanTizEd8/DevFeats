@@ -50,14 +50,15 @@ def run(check_only: bool = False):
         "schema validation": 0,
         "sync": 0,
     }
-    output_files: dict[Path, str] = {}
 
     for feature_dirpath in sorted(FEATURES_DIRPATH.iterdir()):
+
         if not feature_dirpath.is_dir() or feature_dirpath.name[0] in (".", "_"):
             continue
 
         n_features += 1
         feature_id = feature_dirpath.name
+        output_files: dict[Path, str] = {}
 
         metadata = read_metadata(feature_id)
         if metadata is None:
@@ -413,8 +414,8 @@ def generate_install_script(feature_id: str, metadata: dict) -> dict[Path, str]:
     dependencies: dict | None = metadata.get("_dependencies")
 
     header = _generate_block(feature_name, options, dependencies)
-    new_text = f"{header}\n{body}\n"
-    return {target_file: new_text}
+    full_script = _shfmt_format(f"{header}\n\n{body}\n")
+    return {target_file: full_script}
 
 
 def _generate_block(feature_name: str, options: dict, dependencies: dict | None = None) -> str:
@@ -439,8 +440,7 @@ def _generate_block(feature_name: str, options: dict, dependencies: dict | None 
         _section_base_deps_call(run_deps),
         INSTALL_SCRIPT_HEADER_END_MARKER,
     ]
-    header = "\n\n".join(p for p in parts if p) + "\n"
-    return _shfmt_format(header)
+    return "\n\n".join(p for p in parts if p)
 
 
 def _section_usage(options: dict) -> str:
@@ -499,11 +499,11 @@ def _section_arg_parse(options: dict) -> str:
             else:
                 cli_inits.append(f"  {vname}={_shell_val(opt['default'], typ)}")
         if typ == "array":
-            case_arms.append(_render_template("case_arm_array.sh.tmpl", FLAG=flag, VAR=vname, KEY=key))
-            env_reads.append(_render_template("env_read_array.sh.tmpl", VAR=vname, KEY=key))
+            case_arms.append(_render_template("case_arm_array", FLAG=flag, VAR=vname, KEY=key))
+            env_reads.append(_render_template("env_read_array", VAR=vname, KEY=key))
         else:
-            case_arms.append(_render_template("case_arm_scalar.sh.tmpl", FLAG=flag, VAR=vname, KEY=key))
-            env_reads.append(_render_template("env_read_scalar.sh.tmpl", VAR=vname, KEY=key))
+            case_arms.append(_render_template("case_arm_scalar", FLAG=flag, VAR=vname, KEY=key))
+            env_reads.append(_render_template("env_read_scalar", VAR=vname, KEY=key))
 
     lines = [
         'if [ "$#" -gt 0 ]; then',
@@ -550,7 +550,7 @@ def _section_defaults(options: dict) -> str:
         if typ == "array":
             raw_default = opt["default"]
             if raw_default == "" or raw_default is None:
-                blocks.append(_render_template("default_array_empty.sh.tmpl", VAR=vname, KEY=key))
+                blocks.append(_render_template("default_array_empty", VAR=vname, KEY=key))
             else:
                 # Embed the default as an ANSI-C quoted string so newlines are preserved.
                 escaped = (
@@ -561,7 +561,7 @@ def _section_defaults(options: dict) -> str:
                     .replace("\r", "\\r")
                 )
                 disp = ", ".join(str(raw_default).splitlines())
-                blocks.append(_render_template("default_array_value.sh.tmpl", VAR=vname, ESCAPED=escaped, KEY=key, DISP=disp))
+                blocks.append(_render_template("default_array_value", VAR=vname, ESCAPED=escaped, KEY=key, DISP=disp))
         else:
             rhs = _shell_val(opt["default"], typ)
             if typ == "boolean":
@@ -570,7 +570,7 @@ def _section_defaults(options: dict) -> str:
                 disp = ""
             else:
                 disp = str(opt["default"])
-            blocks.append(_render_template("default_scalar.sh.tmpl", VAR=vname, RHS=rhs, KEY=key, DISP=disp))
+            blocks.append(_render_template("default_scalar", VAR=vname, RHS=rhs, KEY=key, DISP=disp))
     return "\n".join(blocks)
 
 
@@ -586,7 +586,7 @@ def _section_validation(options: dict) -> str:
         checks: list[str] = []
         for key, opt in required_opts:
             vname = _opt_to_var(key)
-            tpl = "validation_required_array.sh.tmpl" if opt.get("type", "string") == "array" else "validation_required_scalar.sh.tmpl"
+            tpl = "validation_required_array" if opt.get("type", "string") == "array" else "validation_required_scalar"
             checks.append(_render_template(tpl, VAR=vname, KEY=key))
         parts.append("# Check required arguments.\n" + "\n".join(checks))
 
@@ -598,7 +598,7 @@ def _section_validation(options: dict) -> str:
             values = [item["value"] if isinstance(item, dict) else str(item) for item in opt["enum"]]
             expected = ", ".join(repr(v) if v == "" else v for v in values)
             pattern = " | ".join("''" if v == "" else v for v in values)
-            tpl = "validation_enum_array.sh.tmpl" if typ == "array" else "validation_enum_scalar.sh.tmpl"
+            tpl = "validation_enum_array" if typ == "array" else "validation_enum_scalar"
             validations.append(_render_template(tpl, VAR=vname, KEY=key, PATTERN=pattern, EXPECTED=expected))
         parts.append("# Validate enum options.\n" + "\n".join(validations))
 
@@ -625,9 +625,9 @@ def _section_dep_helpers(run_deps: dict, build_deps: dict) -> str:
         return ""
     blocks = ["# ── dep-group helpers (generated) ──────────────────────────────────────────────"]
     for group_name in run_deps:
-        blocks.append(_render_template("dep_helper_run.sh.tmpl", SAFE=group_name.replace("-", "_"), GROUP=group_name))
+        blocks.append(_render_template("dep_helper_run", SAFE=group_name.replace("-", "_"), GROUP=group_name))
     for group_name in build_deps:
-        blocks.append(_render_template("dep_helper_build.sh.tmpl", SAFE=group_name.replace("-", "_"), GROUP=group_name))
+        blocks.append(_render_template("dep_helper_build", SAFE=group_name.replace("-", "_"), GROUP=group_name))
     return "\n".join(blocks)
 
 
@@ -635,7 +635,7 @@ def _section_base_deps_call(run_deps: dict) -> str:
     """Emit the root-guarded _base_deps__install() call, or '' if no base group."""
     if "base" not in run_deps:
         return ""
-    return _render_template("base_deps_call.sh.tmpl")
+    return _render_template("base_deps_call")
 
 
 def _shfmt_format(text: str) -> str:
@@ -735,12 +735,13 @@ _install_script_templates = _read_templates()
 # File Sync
 # ---------
 
-def sync_src(feature_id: str, new_files: dict[Path, str], check_only: bool = False) -> bool:
+def sync_source_files(feature_id: str, new_files: dict[Path, str], check_only: bool = False) -> bool:
 
     feature_src_dir = SRC_DIRPATH / feature_id
     old_files = {
         path.relative_to(feature_src_dir): path.read_text()
         for path in sorted(feature_src_dir.rglob("*"))
+        if path.is_file()
     } if feature_src_dir.exists() else {}
 
     is_in_sync = True
