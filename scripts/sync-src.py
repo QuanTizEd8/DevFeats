@@ -696,7 +696,13 @@ def _first_sentence(text: str) -> str:
 
 
 def _opt_to_var(key: str) -> str:
-    """Convert an option key (snake_case or kebab-case) to UPPER_SNAKE_CASE var name."""
+    """Convert a schema-validated option key to its installer env-var name.
+
+    Option keys are constrained by features/metadata.schema.json to start with an
+    ASCII letter and then contain only ASCII letters, digits, underscores, or
+    hyphens. Given that contract, env-var generation is just uppercase plus
+    '-' -> '_'.
+    """
     return key.upper().replace("-", "_")
 
 

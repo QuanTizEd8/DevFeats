@@ -36,35 +36,21 @@ zsh-syntax-highlighting"
 # str__safe_id
 # ---------------------------------------------------------------------------
 
-@test "str__safe_id sanitizes dots and dashes to underscores and uppercases" {
-  run str__safe_id "my-opt.name"
+@test "str__safe_id uppercases and maps dashes to underscores" {
+  run str__safe_id "my-opt_name"
   assert_output "MY_OPT_NAME"
   assert_success
 }
 
-@test "str__safe_id prepends underscore when the id starts with a digit" {
-  run str__safe_id "2to3"
-  assert_output "_2TO3"
+@test "str__safe_id preserves underscores" {
+  run str__safe_id "already_safe"
+  assert_output "ALREADY_SAFE"
   assert_success
 }
 
-@test "str__safe_id prepends underscore to a leading underscore (devcontainer getSafeId semantics)" {
-  # getSafeId JS: /^([0-9_])/ → '_$1'.  `_leading` starts with `_`, so gets `__LEADING`.
-  run str__safe_id "_leading"
-  assert_output "__LEADING"
-  assert_success
-}
-
-@test "str__safe_id replaces non-ASCII characters with underscores" {
-  run str__safe_id $'caf\xc3\xa9-opt'
-  # é (single locale-aware character) → '_'; '-' → '_'; two underscores total.
-  assert_output "CAF__OPT"
-  assert_success
-}
-
-@test "str__safe_id collapses repeated separators each to one underscore" {
-  run str__safe_id "a..b--c"
-  assert_output "A__B__C"
+@test "str__safe_id preserves ASCII alphanumerics" {
+  run str__safe_id "abc123"
+  assert_output "ABC123"
   assert_success
 }
 

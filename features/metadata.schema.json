@@ -31,6 +31,10 @@
     },
     "options": {
       "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container.",
+      "propertyNames": {
+        "description": "Option keys must start with an ASCII letter and then contain only ASCII letters, digits, underscores, or hyphens.",
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+      },
       "additionalProperties": {
         "$ref": "#/definitions/FeatureOption"
       },

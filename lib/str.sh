@@ -26,13 +26,10 @@ str__basename_each() {
   return 0
 }
 
-# @brief str__safe_id <s> — devcontainer getSafeId: non [A-Za-z0-9_] → `_`, leading digit or leading `_` → extra `_` prefix, uppercase.
+# @brief str__safe_id <s> — Validated feature option key → env var name: uppercase, preserving `_` and mapping `-` → `_`.
 str__safe_id() {
   local s="${1-}"
-  s="${s//[^A-Za-z0-9_]/_}"
-  if [[ -n "$s" && "$s" =~ ^[0-9_] ]]; then
-    s="_$s"
-  fi
+  s="${s//-/_}"
   echo "${s^^}"
   return 0
 }
