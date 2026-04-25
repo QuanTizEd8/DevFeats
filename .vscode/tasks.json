@@ -27,14 +27,6 @@
             "problemMatcher": "$shellcheck"
         },
         {
-            "label": "validate-metadata",
-            "detail": "Validate features/*/metadata.yaml against the JSON schema",
-            "type": "shell",
-            "command": "just validate-metadata",
-            "group": "build",
-            "presentation": {"reveal": "always", "panel": "shared"}
-        },
-        {
             "label": "sync",
             "detail": "Sync generated artifacts from features/ + lib/ into src/",
             "type": "shell",
