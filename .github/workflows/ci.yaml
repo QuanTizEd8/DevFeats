@@ -250,7 +250,7 @@ jobs:
           python3 -m unittest discover -s test/scripts -t test/scripts -v
 
   # ── Unit tests (Linux distribution containers) ────────────────────────────
-  test-unit-linux:
+  test-unit-container:
     name: "Unit Tests - ${{ matrix.image }}"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
