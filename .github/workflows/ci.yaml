@@ -236,6 +236,12 @@ jobs:
       - name: "Run unit tests"
         run: bash test/run-unit.sh
 
+      - name: "Run unit integration tests (ubuntu-24.04 only)"
+        if: matrix.os == 'ubuntu-24.04'
+        env:
+          SYSSET_RUN_INTEGRATION_DEPS: "1"
+        run: bash test/run-unit.sh --integration
+
       - name: "Run scripts/ unit tests (Python)"
         shell: bash
         run: |

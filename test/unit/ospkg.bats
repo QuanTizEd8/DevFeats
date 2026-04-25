@@ -8,6 +8,19 @@ setup() {
   load 'helpers/stubs'
 }
 
+setup_file() {
+  load 'helpers/common'
+  OSPKG_JQ_READY=0
+  if bash -c '. "$1" && _json__ensure_jq' _ "${LIB_ROOT}/json.sh" > /dev/null 2>&1; then
+    OSPKG_JQ_READY=1
+  fi
+  export OSPKG_JQ_READY
+}
+
+_require_ospkg_jq() {
+  [[ "${OSPKG_JQ_READY:-0}" == "1" ]] || skip "jq bootstrap unavailable for ospkg manifest tests"
+}
+
 # ---------------------------------------------------------------------------
 # ospkg__detect  (direct calls — checks internal state variables)
 # ---------------------------------------------------------------------------
@@ -204,7 +217,7 @@ _seed_apt_context() {
 
 @test "ospkg__parse_manifest_yaml emits package records from plain packages list" {
   _seed_apt_context
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"packages":["curl","wget","git"]}' > "$_json_file"
@@ -218,7 +231,7 @@ _seed_apt_context() {
 
 @test "ospkg__parse_manifest_yaml emits prescript record" {
   _seed_apt_context
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"prescripts":"echo hello\\n","packages":["curl"]}' > "$_json_file"
@@ -230,7 +243,7 @@ _seed_apt_context() {
 
 @test "ospkg__parse_manifest_yaml filters packages with when clause" {
   _seed_apt_context
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   # brew-only package should NOT appear for apt context.
@@ -245,7 +258,7 @@ _seed_apt_context() {
 
 @test "ospkg__parse_manifest_yaml skips the manifest when top-level when mismatches" {
   _seed_apt_context
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"when":{"pm":"brew"},"packages":["should-not-appear"]}' > "$_json_file"
@@ -257,7 +270,7 @@ _seed_apt_context() {
 
 @test "ospkg__parse_manifest_yaml emits packages from pm-specific apt block" {
   _seed_apt_context
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"apt":{"packages":["libssl-dev"]},"brew":{"packages":["openssl"]}}' > "$_json_file"
@@ -270,7 +283,7 @@ _seed_apt_context() {
 
 @test "ospkg__parse_manifest_yaml when clause supports version_codename" {
   _seed_apt_context
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   # jammy-only package should appear; bookworm-only should not.
@@ -319,7 +332,7 @@ _seed_apt_context_with_yq() {
   # Old code: rm -rf "$_OSPKG_YQ_TMPDIR"; _OSPKG_YQ_BIN= inside ospkg__run.
   # Fix: yq dir lives in _SYSSET_TMPDIR for the process lifetime; ospkg__run
   # never deletes it.
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   _seed_apt_context_with_yq
 
   ospkg__run --manifest $'packages:\n  - regrpkg\n' --dry_run > /dev/null 2>&1
@@ -342,7 +355,7 @@ _seed_apt_context_with_yq() {
   # path) so a second call silently processed no packages.
   # Fix: _OSPKG_YQ_BIN persists; _ospkg_ensure_yq early-returns and the binary
   # at that path is still valid.
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   _seed_apt_context_with_yq
 
   local _log="${BATS_TEST_TMPDIR}/run.log"
@@ -373,7 +386,7 @@ _seed_apt_context_with_yq() {
   # failing yq was swallowed — ospkg__run returned 0 with nothing installed.
   # Fix: block is plain sequential code; a failing yq exits the function under
   # set -e.
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   local _ospkg_lib="${BATS_TEST_DIRNAME}/../../lib/ospkg.sh"
 
   run bash -c "
@@ -682,7 +695,7 @@ _mock_snapshots() {
 # ---------------------------------------------------------------------------
 @test "ospkg__run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
-  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _require_ospkg_jq
   reload_lib ospkg.sh
 
   # A fake yq that ignores its arguments and emits a fixed JSON manifest.

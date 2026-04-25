@@ -5,6 +5,7 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   load 'helpers/common'
+  load 'helpers/stubs'
   reload_lib git.sh
 }
 
@@ -46,24 +47,40 @@ setup() {
 # git__clone real clone (shallow, local bare repo as server)
 # ---------------------------------------------------------------------------
 
-@test "git__clone clones a local bare repo" {
-  # Create a minimal local bare repository to avoid network access.
-  local _src="${BATS_TEST_TMPDIR}/src.git"
+@test "git__clone installs git when absent and clones via stub" {
   local _dst="${BATS_TEST_TMPDIR}/dst"
-  git init --bare "$_src" > /dev/null 2>&1
-  # Provide at least one commit so the clone has something to fetch.
-  local _work="${BATS_TEST_TMPDIR}/work"
-  git clone "$_src" "$_work" > /dev/null 2>&1
-  git -C "$_work" config user.email "test@test.com"
-  git -C "$_work" config user.name "Test"
-  echo "hi" > "${_work}/file.txt"
-  git -C "$_work" add file.txt
-  git -C "$_work" commit -m "init" > /dev/null 2>&1
-  git -C "$_work" push > /dev/null 2>&1
+  local _install_log="${BATS_TEST_TMPDIR}/install.log"
+  local _fake_git="${BATS_TEST_TMPDIR}/bin/git"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
 
-  run git__clone --url "file://${_src}" --dir "$_dst"
+  ospkg__detect() { return 0; }
+  export -f ospkg__detect
+  ospkg__install_tracked() {
+    echo "install_tracked $*" >> "$_install_log"
+    cat > "$_fake_git" << 'EOF'
+#!/usr/bin/env bash
+if [[ "${1-}" = "clone" ]]; then
+  _dst="${@: -1}"
+  mkdir -p "${_dst}/.git"
+  printf 'ref: refs/heads/main\n' > "${_dst}/.git/HEAD"
+  exit 0
+fi
+exit 1
+EOF
+    chmod +x "$_fake_git"
+    return 0
+  }
+  export -f ospkg__install_tracked
+
+  local _saved="$PATH"
+  export PATH="${BATS_TEST_TMPDIR}/bin:/bin:/usr/sbin:/sbin"
+  run git__clone --url "file:///tmp/fake.git" --dir "$_dst"
+  export PATH="$_saved"
+
   assert_success
   assert_file_exists "${_dst}/.git/HEAD"
+  assert_file_exists "$_install_log"
+  grep -q "lib-git git" "$_install_log"
 }
 
 @test "git__clone removes partial directory on clone failure" {

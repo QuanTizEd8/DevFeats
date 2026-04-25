@@ -4,12 +4,20 @@
 # Sets LIB_ROOT, configures BATS_LIB_PATH, loads bats-support/-assert/-file,
 # and defines the reload_lib() helper.
 
-# LIB_ROOT: canonical lib/ directory (two levels up from test/unit/).
-LIB_ROOT="${BATS_TEST_DIRNAME}/../../lib"
+# LIB_ROOT: canonical lib/ directory.
+if [[ -f "${BATS_TEST_DIRNAME}/../../lib/os.sh" ]]; then
+  LIB_ROOT="${BATS_TEST_DIRNAME}/../../lib"
+else
+  LIB_ROOT="${BATS_TEST_DIRNAME}/../../../lib"
+fi
 
 # Point bats library loader at the vendored bats/ subdirectory so that
 # bats_load_library <name> finds <name>/load.bash inside test/unit/bats/.
-export BATS_LIB_PATH="${BATS_TEST_DIRNAME}/bats"
+if [[ -d "${BATS_TEST_DIRNAME}/bats" ]]; then
+  export BATS_LIB_PATH="${BATS_TEST_DIRNAME}/bats"
+else
+  export BATS_LIB_PATH="${BATS_TEST_DIRNAME}/../bats"
+fi
 
 bats_load_library bats-support
 bats_load_library bats-assert

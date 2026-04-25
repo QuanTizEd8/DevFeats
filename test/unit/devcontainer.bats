@@ -5,6 +5,7 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   load 'helpers/common'
+  load 'helpers/json_assert'
   load 'helpers/stubs'
   reload_lib devcontainer.sh
 }
@@ -14,8 +15,7 @@ setup() {
   printf '%s' '{"a":1}' > "$_f"
   run devcontainer__parse_config "$_f"
   assert_success
-  run bash -c 'jq -c .' <<< "$output"
-  assert_output '{"a":1}'
+  assert_json_compact_equals "$output" '{"a":1}'
   rm -f "$_f"
 }
 
@@ -104,9 +104,8 @@ setup() {
 EOF
   run devcontainer__parse_config "$_f"
   assert_success
-  # Normalize for comparison.
-  run bash -c "jq -c '.' <<< '$output'"
-  assert_success
+  assert_output --partial '"name": "x"'
+  assert_output --partial '"ghcr.io/foo/bar": {}'
   rm -f "$_f"
 }
 

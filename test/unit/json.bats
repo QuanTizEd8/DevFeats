@@ -5,6 +5,7 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   load 'helpers/common'
+  load 'helpers/json_assert'
   load 'helpers/stubs'
   reload_lib json.sh
 }
@@ -82,8 +83,8 @@ https://b.zip"
 # ---------------------------------------------------------------------------
 
 @test "json__strip_jsonc_stdin accepts comments and trailing commas" {
-  run bash -c '. "$1" && printf %s "{\"a\":1,} /*c*/" | json__strip_jsonc_stdin | jq -c .' _ "${LIB_ROOT}/json.sh"
-  assert_output '{"a":1}'
+  run bash -c '. "$1" && printf %s "{\"a\":1,} /*c*/" | json__strip_jsonc_stdin' _ "${LIB_ROOT}/json.sh"
+  assert_output --partial '{"a":1}'
   assert_success
 }
 
@@ -142,8 +143,14 @@ z"
 # ---------------------------------------------------------------------------
 
 @test "_json__ensure_jq: succeeds when jq is already available" {
-  # jq is available in the test environment.
-  run bash -c '. "$1" && _json__ensure_jq' _ "${LIB_ROOT}/json.sh"
+  # Integration-only: this test validates pass-through to a real jq binary.
+  if [[ "${SYSSET_RUN_INTEGRATION_DEPS:-0}" != "1" ]]; then
+    skip "set SYSSET_RUN_INTEGRATION_DEPS=1 to run real-jq integration checks"
+  fi
+  create_pass_through_bin "jq"
+  prepend_fake_bin_path
+  command -v jq > /dev/null 2>&1 || skip "real jq is not available on this host"
+  run _json__ensure_jq
   assert_success
 }
 

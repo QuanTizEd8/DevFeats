@@ -6,6 +6,8 @@
 #   bash test/run-unit.sh --module os           # run test/unit/os.bats only
 #   bash test/run-unit.sh --filter "platform"   # regex filter (--filter-tags)
 #   bash test/run-unit.sh --jobs 1              # serial execution (default: auto)
+#   bash test/run-unit.sh --paths test/unit/integration
+#   bash test/run-unit.sh --integration
 
 set -euo pipefail
 
@@ -35,6 +37,9 @@ _UNIT_DIR="${_REPO_ROOT}/test/unit"
 _module=""
 _filter=""
 _jobs=0 # 0 = let bats decide (auto / num CPUs)
+_integration=false
+_exclude_integration=true
+declare -a _paths=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -53,13 +58,32 @@ while [[ $# -gt 0 ]]; do
       _jobs="$1"
       shift
       ;;
+    --paths)
+      shift
+      _paths+=("$1")
+      shift
+      ;;
+    --integration)
+      _integration=true
+      _exclude_integration=false
+      shift
+      ;;
+    --exclude-integration)
+      # Last flag wins: explicitly disable integration-only selection.
+      _integration=false
+      _exclude_integration=true
+      shift
+      ;;
     --help | -h)
       cat << 'HELP'
-Usage: bash test/run-unit.sh [--module <name>] [--filter <regex>] [--jobs <n>]
+Usage: bash test/run-unit.sh [--module <name>] [--filter <regex>] [--jobs <n>] [--paths <glob>] [--integration]
 
   --module <name>    Run only test/unit/<name>.bats  (e.g. os, shell, ospkg)
   --filter <regex>   Pass --filter to bats (matches test names by regex)
   --jobs <n>         Parallel job count (default: auto)
+  --paths <glob>     Add explicit test file/path glob (repeatable)
+  --integration      Run integration tests under test/unit/integration
+  --exclude-integration Exclude test/unit/integration (default)
 HELP
       exit 0
       ;;
@@ -79,7 +103,15 @@ fi
 
 # ── Build file list ──────────────────────────────────────────────────────────
 declare -a _test_files=()
-if [[ -n "$_module" ]]; then
+if [[ ${#_paths[@]} -gt 0 ]]; then
+  for _path_glob in "${_paths[@]}"; do
+    while IFS= read -r -d '' _f; do
+      _test_files+=("$_f")
+    done < <(compgen -G "${_path_glob}" | while IFS= read -r _m; do
+      [[ -d "$_m" ]] && find "$_m" -name '*.bats' -print0 || printf '%s\0' "$_m"
+    done)
+  done
+elif [[ -n "$_module" ]]; then
   _target="${_UNIT_DIR}/${_module}.bats"
   if [[ ! -f "$_target" ]]; then
     echo "⛔ Module test not found: '${_target}'" >&2
@@ -87,9 +119,19 @@ if [[ -n "$_module" ]]; then
   fi
   _test_files=("$_target")
 else
-  while IFS= read -r -d '' _f; do
-    _test_files+=("$_f")
-  done < <(find "$_UNIT_DIR" -maxdepth 1 -name '*.bats' -print0 | sort -z)
+  if [[ "$_integration" == true ]]; then
+    while IFS= read -r -d '' _f; do
+      _test_files+=("$_f")
+    done < <(find "$_UNIT_DIR/integration" -name '*.bats' -print0 2> /dev/null | sort -z)
+  elif [[ "$_exclude_integration" == true ]]; then
+    while IFS= read -r -d '' _f; do
+      _test_files+=("$_f")
+    done < <(find "$_UNIT_DIR" -maxdepth 1 -name '*.bats' -print0 | sort -z)
+  else
+    while IFS= read -r -d '' _f; do
+      _test_files+=("$_f")
+    done < <(find "$_UNIT_DIR" -name '*.bats' -print0 | sort -z)
+  fi
 fi
 
 if [[ ${#_test_files[@]} -eq 0 ]]; then
