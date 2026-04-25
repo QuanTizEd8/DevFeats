@@ -1,7 +1,7 @@
 {
     "name": "SysSet Full Featured Dev Container",
     "image": "ubuntu:latest",
-    "initializeCommand": "bash scripts/sync-src.sh",
+    "initializeCommand": "bash scripts/python.sh scripts/sync-src.py",
     "containerUser": "sysuser",
     "features": {
       "../.src/install-os-pkg": {},

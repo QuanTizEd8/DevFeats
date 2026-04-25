@@ -11,7 +11,7 @@
     "features": {
         "ghcr.io/devcontainers/features/docker-in-docker:2": {}
     },
-    "initializeCommand": "bash -c '[ -d src ] || bash scripts/sync-src.sh'",
+    "initializeCommand": "bash -c '[ -d src ] || bash scripts/python.sh scripts/sync-src.py'",
     "updateContentCommand": "npm install -g @devcontainers/cli lefthook",
     "postCreateCommand": "lefthook install",
     "customizations": {

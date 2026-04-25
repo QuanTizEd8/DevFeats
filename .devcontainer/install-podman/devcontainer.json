@@ -1,7 +1,7 @@
 {
     "name": "install-podman",
     "image": "ubuntu:latest",
-    "initializeCommand": "bash scripts/sync-src.sh",
+    "initializeCommand": "bash scripts/python.sh scripts/sync-src.py",
     "containerUser": "ubuntu",
     "features": {"../_src/install-podman": {}},
     "postStartCommand": "podman run --rm hello-world"
