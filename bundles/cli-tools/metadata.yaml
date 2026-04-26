@@ -34,8 +34,8 @@ jq:
     transforming JSON data from the command line. Essential for working with
     APIs, configuration files, and log processing.
   url:
-    docs: https://stedolan.github.io/jq/manual/
-    source: https://github.com/stedolan/jq
+    docs: https://jqlang.org/
+    source: https://github.com/jqlang/jq
 
 less:
   summary: Terminal pager for viewing text one screen at a time.
