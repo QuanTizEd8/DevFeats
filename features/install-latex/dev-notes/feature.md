@@ -116,7 +116,7 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Paper default: `--paper=a4|letter`.
   - Doc/src toggles: `--no-doc-install`, `--no-src-install`.
   - Batch profile mode: `--profile <file>` / `--init-from-profile <file>`.
-  - Install modes: `--portable` for self-contained portable trees, and `--in-place` for using an existing TL checkout as source (quick-and-dirty, manual removal required, and intended for advanced use).
+  - Install modes: `--portable` for self-contained portable trees (forces `TEXMFHOME`, `TEXMFCONFIG`, and `TEXMFVAR` to map to system trees; disables path adjustment and, on Windows, desktop integration/file associations), and `--in-place` for using an existing TL checkout as source (quick-and-dirty, manual removal required, and intended for advanced use).
   - Advanced repository and binary controls: `--select-repository` (explicit mirror/local-media selection in interactive modes) and `--custom-bin <path>` (inject custom-built binaries; not compatible with `--in-place`).
   - With `--custom-bin`, supplied binaries are copied to `TLROOT/bin/custom`, that literal path should be used in PATH, and ongoing updates require `wget`, `xz`, and `xzdec` in PATH; platform-script symlinks in `bin/custom` must be maintained manually.
   - Failure-handling controls: `--strict` aborts when post-install commands fail; `--no-continue` aborts after retry failure of non-core package installs.
@@ -135,7 +135,7 @@ export PATH=/usr/local/texlive/2026/bin/x86_64-linux:$PATH
   - Alternative Unix symlink mode is available via `tlmgr option sys_bin|sys_man|sys_info` plus `tlmgr path add`; rerun `tlmgr path` when future updates add/remove linked executables.
 
 - **Configuration Files**:
-  - Installer writes installation profile (`tlpkg/texlive.profile`) and system config overlays (`texmf.cnf`, `texmfcnf.lua`) in the install tree.
+  - Installer writes installation profile (`tlpkg/texlive.profile` for normal installs; `TEXDIR/texlive.profile` for `--in-place`) and system config overlays (`texmf.cnf`, `texmfcnf.lua`) in the install tree.
   - Post-install generation refreshes key TeX config artifacts (`fmtutil.cnf`, `updmap.cfg`, `language.dat`, `language.def`, `language.dat.lua`) based on installed package metadata.
   - Legacy single-file overlays (`fmtutil-local.cnf`, `updmap-local.cfg`) are obsolete; local additions should be placed in layered files such as `TEXMFLOCAL/web2c/fmtutil.cnf`, `TEXMFLOCAL/web2c/updmap.cfg`, and `language-local.*` files under TEXMFLOCAL.
 - **Environment Variables**:
