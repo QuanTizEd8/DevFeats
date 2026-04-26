@@ -128,6 +128,7 @@ pandoc --version
   - Linux `.deb` installs can be removed using distro package management/removal commands.
 - **Idempotency**:
   - Re-running install with the same version is generally replacement-safe; package systems and explicit file replacement semantics handle repeated runs predictably.
+  - Upstream warns that mixing installation methods can leave separate pandoc installations side by side; uninstall the current method before switching to another install method.
 
 #### Notes and Best Practices
 
@@ -228,6 +229,9 @@ pandoc --version
 
 - This method integrates best with host lifecycle and security update workflows.
 - Repository versions may lag upstream releases; if exact version pinning is mandatory, prefer official release artifacts.
+- Pandoc uses LaTeX for PDF generation by default.
+- Linux guidance from upstream is to install TeX Live via package manager (for example `apt-get install texlive` on Debian/Ubuntu).
+- macOS guidance from upstream is to prefer BasicTeX or TinyTeX; if font-related errors occur, install additional fonts with `tlmgr install collection-fontsrecommended`.
 
 ### Conda Forge
 
@@ -452,7 +456,8 @@ Upstream also recommends running tests (`cabal test` / `stack test`) for source-
   - Not required for user-local prefixes; required only for system-owned prefixes.
 - **Tool-Specific Configurations**:
   - `pandoc` flag: `embed_data_files` for relocatable/self-contained binaries.
-  - `pandoc-cli` flags include `lua` and `server` support.
+  - Additional `pandoc` build flag: `http` (enabled in upstream macOS release build script).
+  - `pandoc-cli` flags include `lua`, `server`, `repl`, and `nightly`.
 
 #### Post-Installation Steps and Cleanup
 
