@@ -26,7 +26,7 @@ Upstream explicitly supports multiple acquisition and install approaches (networ
 
 #### Dependencies
 
-- **Common Dependencies**: A working Perl runtime with core modules, archive utilities (`tar`, `zcat`/`gzip`), network downloader (`wget` or `curl`), and writable install destination.
+- **Common Dependencies**: A working Perl runtime with core modules, archive utilities (`tar`, `zcat`/`gzip`, `xz`), downloader support (`LWP` Perl module is recommended for performance; `wget`/`curl` are fallback paths), and writable install destination.
 - **Platform-Specific Dependencies**:
   - Linux: root/sudo only if installing into system-owned paths such as `/usr/local/texlive`.
   - macOS: same installer flow works; native MacTeX package route is an alternative.
@@ -43,6 +43,14 @@ zcat < install-tl-unx.tar.gz | tar xf -
 cd install-tl-2*
 perl ./install-tl --no-interaction
 ```
+
+Other upstream-supported source media for the same installer include local hard disk trees, mirrored local repositories, and DVD/ISO-based layouts. Example local-repository invocation:
+
+```bash
+perl ./install-tl --no-interaction --repository /path/to/local/tlnet
+```
+
+For older/frozen yearly states, TeX Live historical repositories can be used by setting `--repository` to the desired archived tlnet endpoint.
 
 Commonly used explicit options for feature automation:
 
@@ -86,7 +94,9 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Repository selection controls source/version stream (`--repository`), including historic yearly snapshots when needed.
 - **Installation Path**:
   - Default system tree is under `/usr/local/texlive/YYYY`.
-  - User tree defaults are `~/.texliveYYYY/...` (macOS defaults differ for some user-tree paths).
+  - User tree defaults are platform-dependent:
+    - `TEXMFHOME`: `~/texmf` on Unix, `~/Library/texmf` on macOS.
+    - `TEXMFCONFIG`/`TEXMFVAR`: `~/.texliveYYYY/texmf-{config,var}` on Unix, `~/texliveYYYY/texmf-{config,var}` on macOS.
   - Path trees are configurable via `--texdir`, `--texuserdir`, and related `--texmf*` options.
 - **User Targeting**:
   - Supported both system-wide and user-scoped installs, depending on destination directories and permissions.
@@ -98,7 +108,7 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Paper default: `--paper=a4|letter`.
   - Doc/src toggles: `--no-doc-install`, `--no-src-install`.
   - Batch profile mode: `--profile <file>` / `--init-from-profile <file>`.
-  - Verification and download behavior from installer/tooling (for example `--verify-downloads`, persistent downloads).
+  - Verification and download behavior from installer/tooling (verification is enabled by default when `gpg` is available and can be disabled with `--no-verify-downloads`; persistent-download controls are also available).
 
 #### Post-Installation Steps and Cleanup
 
@@ -154,7 +164,7 @@ tlmgr update --self --all
 - **Common Dependencies**: macOS package installer support (`.pkg`) and downloaded installer package.
 - **Platform-Specific Dependencies**:
   - Administrator privileges for default system-wide installation.
-  - Optional GUI helper tools (TeX Live Utility and other apps) depending on chosen package set.
+  - Full MacTeX installs GUI helper tools (including TeX Live Utility), while BasicTeX installs only the TeX Live distribution components.
 
 #### Installation Steps
 
@@ -168,7 +178,7 @@ BasicTeX install:
 
 1. Download `BasicTeX.pkg`.
 2. Install; resulting tree is `/usr/local/texlive/2026basic`.
-3. Add missing packages later with `tlmgr` as needed.
+3. Add missing packages later with `tlmgr` as needed; BasicTeX intentionally omits the GUI application bundle and Ghostscript components included with full MacTeX.
 
 #### Installation Verification
 
@@ -213,14 +223,17 @@ Also verify TeX distribution root when needed:
 - **Cleanup**:
   - Remove downloaded `.pkg` artifacts if not needed.
   - Run TeX Live Utility updates after install to bring package state current.
+  - For MacTeX-2026 users affected by the notarization-driven package refresh, use TeX Live Utility to reinstall forcibly removed ConTeXt packages after updates.
 
 #### Changing Versions and Uninstallation
 
 - **Upgrading/Downgrading**:
   - Install another yearly package; versions can coexist in `/usr/local/texlive`.
-  - Switch active default distribution using TeX Live Utility configuration.
+  - Switch active default distribution using TeX Live Utility (`Configure -> Change Default TeX Live Version`); `/Library/TeX/texbin` remains the stable path used by GUI and shell workflows.
 - **Uninstallation**:
-  - Use documented MacTeX uninstall guidance; removal is essentially of installed TeX tree(s), links, and related app components as desired.
+  - Remove the specific TeX Live year directory under `/usr/local/texlive` (administrator credentials required).
+  - Remove GUI apps from `/Applications/TeX` if desired.
+  - Remove `/Library/TeX` only with care, because other TeX distributions can also place files there.
 - **Idempotency**:
   - Re-running same installer is generally safe and converges on packaged state.
   - Installing new yearly packages is additive (side-by-side), not destructive to prior yearly trees.
@@ -229,6 +242,7 @@ Also verify TeX distribution root when needed:
 
 - MacTeX is the easiest native path for full-feature macOS setups.
 - BasicTeX is intentionally small and often requires follow-up package installs via `tlmgr` for broader document compatibility.
+- In the 2026 cycle, MacTeX package contents changed to satisfy Apple notarization requirements: LuaMetaTeX and dependent ConTeXt files were removed from the installer package and must be restored via TeX Live Utility "Reinstall Selected Packages" if needed.
 - macOS-specific release notes can include post-release package content adjustments; running TeX Live Utility after installation is important.
 
 ### Distro-Provided TeX Live Packages (System Package Managers)
@@ -311,6 +325,7 @@ Check package-manager metadata for installed package set as needed.
 
 - [TeX Live Home](https://www.tug.org/texlive/) - Official upstream overview and release status, including current release and release date.
 - [TeX Live Acquire](https://www.tug.org/texlive/acquire.html) - Official acquisition/install channel matrix and lifecycle notes.
+- [TeX Live Network Install](https://www.tug.org/texlive/acquire-netinstall.html) - Upstream internet install flow, mirror guidance, and recommendation to install Perl LWP for faster downloads.
 - [TeX Live Quick Install](https://www.tug.org/texlive/quickinstall.html) - Canonical quick install commands, PATH guidance, and post-install basics.
 - [install-tl Manual](https://www.tug.org/texlive/doc/install-tl.html) - Full installer option semantics, profile format, defaults, and environment controls.
 - [tlmgr Manual](https://www.tug.org/texlive/doc/tlmgr.html) - Package lifecycle commands (`install`, `update`, `remove`, `option`, `path`, repository, verification, user mode).
@@ -321,6 +336,8 @@ Check package-manager metadata for installed package set as needed.
 - [MacTeX Main Page](https://www.tug.org/mactex/) - Official MacTeX/BasicTeX positioning, compatibility, and workflow guidance.
 - [MacTeX Download](https://www.tug.org/mactex/mactex-download.html) - Current MacTeX package artifact details, install path behavior, and post-install notes.
 - [MacTeX More Packages / BasicTeX](https://www.tug.org/mactex/morepackages.html) - BasicTeX package details and scope relative to full MacTeX.
+- [MacTeX Multiple Distributions](https://www.tug.org/mactex/multipletexdistributions.html) - Authoritative behavior for switching active TeX distribution and `/Library/TeX/texbin` indirection.
+- [MacTeX Uninstalling](https://www.tug.org/mactex/uninstalling.html) - Official uninstallation guidance for TeX trees, GUI applications, and distribution support directories.
 - [MacTeX Unix Install Page](https://www.tug.org/mactex/mactex-unix-download.html) - macOS Unix-script installation specifics and legacy-system notes.
 - [Alpine texlive-full Package](https://pkgs.alpinelinux.org/package/edge/community/x86_64/texlive-full) - Concrete distro package example for full TeX distribution.
 - [prulloac Devcontainer LaTeX Feature README](https://raw.githubusercontent.com/prulloac/devcontainer-features/main/src/latex/README.md) - Similar-feature option design (`scheme`, `packages`, `mirror`) and operational notes.
