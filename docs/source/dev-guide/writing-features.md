@@ -122,27 +122,24 @@ any other work, with the EXIT trap to ensure cleanup runs even on error:
 
 ```bash
 logging__setup
-echo "↪️ Script entry: My Feature" >&2
+logging__entry "My Feature"
 trap 'logging__cleanup' EXIT
 ```
 
 `logging__setup` redirects stdout and stderr through `tee` into a temp file.
-`logging__cleanup` (called on EXIT) flushes the captured output to `$LOGFILE`
-if that variable is set. Enabling debug tracing must come after setting up
-logging so that the trace output is also captured:
-
-```bash
-[[ "$DEBUG" == true ]] && set -x
-```
+`logging__cleanup` (called on EXIT) flushes the captured output to `$LOG_FILE`
+if that variable is set. `logging__set_level` centrally applies both
+`_LOGGING_LEVEL` and shell tracing state (`set -x` only when `log_level=trace`),
+so call it after parsing options.
 
 ### Dual-mode argument parsing
 
 Every feature must work in two modes:
 
 - **Devcontainer mode** (no CLI arguments): the devcontainer tooling injects
-  options as environment variables (`VERSION`, `DEBUG`, `LOGFILE`, etc.).
+  options as environment variables (`VERSION`, `LOG_LEVEL`, `LOG_FILE`, etc.).
 - **CLI mode** (arguments present): a human or another script calls
-  `install.bash --version 1.2.3 --debug` directly.
+  `install.bash --version 1.2.3 --log_level trace` directly.
 
 The standard pattern:
 
@@ -150,24 +147,24 @@ The standard pattern:
 if [ "$#" -gt 0 ]; then
   # Reset all variables before parsing to avoid inheriting env from the caller.
   VERSION=""
-  DEBUG=""
-  LOGFILE=""
+  LOG_LEVEL=""
+  LOG_FILE=""
   # ... reset all others ...
 
   while [[ $# -gt 0 ]]; do
     case $1 in
       --version)  shift; VERSION="$1"; shift ;;
-      --debug)    DEBUG=true; shift ;;
-      --logfile)  shift; LOGFILE="$1"; shift ;;
+      --log_level) shift; LOG_LEVEL="$1"; shift ;;
+      --log_file)  shift; LOG_FILE="$1"; shift ;;
       --help|-h)  __usage__; exit 0 ;;
-      --*)        echo "⛔ Unknown option: '${1}'" >&2; exit 1 ;;
-      *)          echo "⛔ Unexpected argument: '${1}'" >&2; exit 1 ;;
+      --*)        logging__error "Unknown option: '${1}'"; exit 1 ;;
+      *)          logging__error "Unexpected argument: '${1}'"; exit 1 ;;
     esac
   done
 else
-  echo "ℹ️ Script called with no arguments — reading environment variables." >&2
-  # Optional: echo each expected var when present, for debug transparency:
-  [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
+  logging__info "Script called with no arguments — reading environment variables."
+  # Optional: log each expected var when present, for debug transparency:
+  [ "${VERSION+defined}" ] && logging__read "Argument 'version': '${VERSION}'"
 fi
 ```
 
@@ -185,19 +182,15 @@ substitutes when the variable is unset **or empty**:
 
 ```bash
 : "${VERSION:=latest}"
-: "${DEBUG:=false}"
-: "${LOGFILE:=}"
+: "${LOG_LEVEL:=info}"
+: "${LOG_FILE:=}"
 ```
 
 This works correctly in both modes — devcontainer mode sets the variables via
 the environment, CLI mode may have left some unset.
 
-Enable debug tracing **after** applying defaults (so `$DEBUG` is reliably
-set):
-
-```bash
-[[ "$DEBUG" == true ]] && set -x
-```
+`logging__set_level` should run after parsing/defaults so shell tracing follows
+the final `LOG_LEVEL` value.
 
 ### Validation
 
@@ -207,7 +200,7 @@ Validate early and exit with a clear message:
 os__require_root
 
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$|^latest$ ]]; then
-  echo "⛔ Invalid version: '${VERSION}'" >&2
+  logging__error "Invalid version: '${VERSION}'"
   exit 1
 fi
 ```
@@ -222,9 +215,9 @@ done before doing it:
 
 ```bash
 if command -v mytool > /dev/null 2>&1; then
-  echo "ℹ️  mytool already installed — skipping." >&2
+  logging__info "mytool already installed — skipping."
 else
-  echo "📦 Installing mytool..." >&2
+  logging__install "Installing mytool..."
   # ... installation steps ...
 fi
 ```
@@ -242,7 +235,7 @@ propagate it. See [Sync](#sync).
 End the script with a clear success message:
 
 ```bash
-echo "✅ my-feature setup complete." >&2
+logging__success "my-feature setup complete."
 ```
 
 ### Cleanup
@@ -255,7 +248,7 @@ earlier steps succeeded:
 ```bash
 # (at the very end, before the success echo)
 ospkg__clean
-echo "✅ my-feature setup complete." >&2
+logging__success "my-feature setup complete."
 ```
 
 ---
@@ -343,11 +336,12 @@ Auto-loaded by `ospkg.sh`. Can also be sourced standalone.
 | `os__arch` | `os__arch` | Prints the CPU architecture (e.g. `x86_64`, `aarch64`). Cached; use instead of `uname -m`. |
 | `os__id` | `os__id` | Prints the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`). |
 | `os__id_like` | `os__id_like` | Prints the `ID_LIKE` field from `/etc/os-release` (space-separated distro family list). |
-| `os__platform` | `os__platform` | Prints a canonical platform tag: `debian` | `alpine` | `rhel` | `macos`. |
+| `os__platform` | `os__platform` | Prints a canonical platform tag: `debian` | `alpine` | `rhel` | `suse` | `macos`. |
 | `os__require_root` | `os__require_root` | Exits 1 with an error message if the current user is not root. |
 | `os__font_dir` | `os__font_dir` | Print the font directory for the current user. |
 | `os__is_container` | `os__is_container` | Returns 0 if running inside a container (Docker, Podman, Kubernetes, CI), 1 otherwise. |
 | `os__codename` | `os__codename` | Prints `VERSION_CODENAME` from `/etc/os-release` (e.g. `jammy`, `bookworm`). Empty string if absent or on macOS. |
+| `os__run_as` | `os__run_as <user> [--cwd <dir>] -- <command> [args]` | If already <user>, run in-process; else su -l with bash %q-quoted argv. Requires bash on PATH for the non-self path. |
 <!-- END lib-os-table MARKER -->
 
 ### `logging.sh`
@@ -355,14 +349,35 @@ Auto-loaded by `ospkg.sh`. Can also be sourced standalone.
 <!-- START lib-logging-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
+| `logging__fatal` | `logging__fatal <line>...` | Always printed (even LOG_LEVEL=silent). Prefix: ❌ |
+| `logging__error` | `logging__error <line>...` | LOG_LEVEL ≥ error. Prefix: ⛔ |
+| `logging__warn` | `logging__warn <line>...` | LOG_LEVEL ≥ warn. Prefix: ⚠️ |
+| `logging__success` | `logging__success <line>...` | LOG_LEVEL ≥ info. Prefix: ✅ |
+| `logging__info` | `logging__info <line>...` | LOG_LEVEL ≥ info. Prefix: ℹ️ |
+| `logging__debug` | `logging__debug <line>...` | LOG_LEVEL ≥ debug. Prefix: 🐞 |
+| `logging__entry` | `logging__entry <feature_name>...` | LOG_LEVEL ≥ info. One line: ↪️ Script entry: … |
+| `logging__detect` | `logging__detect <line>...` | LOG_LEVEL ≥ info. Prefix: 🛠️ |
+| `logging__inspect` | `logging__inspect <line>...` | LOG_LEVEL ≥ info (dry-run / probes). Prefix: 🔍 |
+| `logging__install` | `logging__install <line>...` | LOG_LEVEL ≥ info. Prefix: 📦 |
+| `logging__download` | `logging__download <line>...` | LOG_LEVEL ≥ info. Prefix: 📥 |
+| `logging__build` | `logging__build <line>...` | LOG_LEVEL ≥ info. Prefix: 🔨 |
+| `logging__remove` | `logging__remove <line>...` | LOG_LEVEL ≥ info. Prefix: 🗑️ |
+| `logging__clean` | `logging__clean <line>...` | LOG_LEVEL ≥ info. Prefix: 🧹 |
+| `logging__launch` | `logging__launch <line>...` | LOG_LEVEL ≥ info. Prefix: 🚀 |
+| `logging__read` | `logging__read <line>...` | LOG_LEVEL ≥ info (env var echo). Prefix: 📩 |
+| `logging__fn_entry` | `logging__fn_entry <detail>...` | LOG_LEVEL ≥ info. Prefix: ↪️ ("Function entry: …") |
+| `logging__fn_exit` | `logging__fn_exit <detail>...` | LOG_LEVEL ≥ info. Prefix: ↩️ ("Function exit: …") |
+| `logging__set_level` | `logging__set_level` | Re-read LOG_LEVEL into _LOGGING_LEVEL (call after CLI/env parsing). |
 | `logging__setup` | `logging__setup` | Redirect stdout+stderr through `tee` into a temp log file; save original fds. |
-| `logging__mask_secret` | `logging__mask_secret <value>` | Register a secret value to be redacted when `logging__cleanup` writes to `$LOGFILE`. |
+| `logging__mask_secret` | `logging__mask_secret <value>` | Register a secret value to be redacted when `logging__cleanup` writes to `$LOG_FILE`. |
 | `logging__tmpdir` | `logging__tmpdir <name>` | Return (and create if needed) a named subdirectory of `_SYSSET_TMPDIR`. Lazy-initialises `_SYSSET_TMPDIR` if needed. Idempotent. |
-| `logging__cleanup` | `logging__cleanup` | Restore original fds, flush the temp log to `$LOGFILE` if set, and delete `_SYSSET_TMPDIR`. |
+| `logging__cleanup` | `logging__cleanup` | Restore original fds, flush the temp log to `$LOG_FILE` if set, and delete `_SYSSET_TMPDIR`. |
 <!-- END lib-logging-table MARKER -->
 
-`$LOGFILE` is a user-visible option (type string, default `""`). When set,
+`$LOG_FILE` is a user-visible option (type string, default `""`). When set,
 `logging__cleanup` appends the full session log to that file.
+
+`$LOG_LEVEL` is a shared string option (`silent`, `error`, `warn`, `info`, `debug`, `trace`; default `info`) injected into every feature. The generated installer calls `logging__set_level` after parsing CLI flags / reading env vars so `--log_level` takes effect. `logging__fatal` is always emitted (e.g. the non-zero exit summary in the generated `EXIT` trap). `trace` additionally enables bash xtrace (`set -x`) in generated installers.
 
 ### `net.sh`
 
@@ -372,7 +387,7 @@ for `net__ensure_fetch_tool` and `net__ensure_ca_certs`).
 <!-- START lib-net-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `net__fetch_with_retry` | `net__fetch_with_retry [--retries N] [--delay N] <cmd...>` | Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay). |
+| `net__fetch_with_retry` | `net__fetch_with_retry [--retries N] [--delay N] [--bail-on CODE] <cmd...>` | Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay). |
 | `net__fetch_url_stdout` | `net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]...` | Download `<url>` to stdout with retries. Auto-detects curl/wget. |
 | `net__fetch_url_file` | `net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]...` | Download `<url>` to `<dest>` with retries. Auto-detects curl/wget. |
 <!-- END lib-net-table MARKER -->
@@ -384,12 +399,18 @@ Source when you need to parse JSON in shell without ad hoc `grep`/`sed` pipeline
 <!-- START lib-json-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
+| `json__query` | `json__query` | jq passthrough; ensures jq is available (installs via ospkg if needed). |
 | `json__root_scalar_stdin` | `json__root_scalar_stdin <key>` | Read one JSON object from stdin; print .[key] when string or number. |
 | `json__array_field_lines_stdin` | `json__array_field_lines_stdin <field>` | Read JSON from stdin (expected: top-level array); print one line per element's .[field] when string or number. |
 | `json__object_array_field_lines_stdin` | `json__object_array_field_lines_stdin <arrayKey> <field>` | Read one JSON object from stdin; print one line per element of .[arrayKey][].[field] when string or number. |
 | `json__object_map_string_values_stdin` | `json__object_map_string_values_stdin [<objectKey>]` | Read one JSON object; print all string values from the root object or from .[objectKey] when it is an object map (string values only). When `.[key]` may be an array of strings instead, use `json__object_key_string_lines_stdin`. |
 | `json__object_key_string_lines_stdin` | `json__object_key_string_lines_stdin <key>` | Read one JSON object from stdin; print each string from `.[key]` when that value is a JSON array of strings or an object whose values are strings (one line per string). |
 | `json__nodejs_index_version_stdin` | `json__nodejs_index_version_stdin <op> [arg]` | Read nodejs.org-style dist index.json (array of objects); print one version string. |
+| `json__strip_jsonc_stdin` | `json__strip_jsonc_stdin` | Read JSON/JSONC from stdin; print strict JSON. Requires python3 and lib/jsonc.py next to this file. |
+| `json__object_keys_stdin` | `json__object_keys_stdin [<objectKey>]` | Keys of the root object or of .[objectKey]; one per line. Requires jq. |
+| `json__value_stdin` | `json__value_stdin <jq-expr>` | Read JSON from stdin; print compact value at <jq-expr> (e.g. .name, .features). |
+| `json__coerce_scalar_stdin` | `json__coerce_scalar_stdin` | Read one JSON value from stdin; print string form for use in env (bool/number: jq tostring, string: raw, null: empty). Object/array: exit 1. Requires jq. |
+| `json__detect_duplicate_keys_stdin` | `json__detect_duplicate_keys_stdin [<objectKey>]` | Reject JSON with duplicate object keys (uses lib/jsonc.py). Ignores <objectKey> (full document checked). |
 <!-- END lib-json-table MARKER -->
 
 Typical download pattern:
@@ -420,8 +441,13 @@ net__fetch_with_retry curl \
 | `ospkg__install` | `ospkg__install <pkg>...` | Install one or more packages. Skips if all are already installed (APT, DNF/YUM). |
 | `ospkg__clean` | `ospkg__clean` | Remove the package manager cache to reduce image layer size. |
 | `ospkg__parse_manifest_yaml` | `ospkg__parse_manifest_yaml <json-file>` | Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout. |
-| `ospkg__install_tracked` | `ospkg__install_tracked <group-id> <pkg>...` | Install packages and register |
+| `ospkg__take_initial_snapshot` | `ospkg__take_initial_snapshot <file>` | Snapshot the current installed- |
+| `ospkg__install_tracked` | `ospkg__install_tracked <sub-id> <pkg>...` | Install packages and register |
 | `ospkg__cleanup_all_build_groups` | `ospkg__cleanup_all_build_groups` | Remove every registered build-dep |
+| `ospkg__cleanup_session_build_groups` | `ospkg__cleanup_session_build_groups <get-bash-keep>` | Manifest-mode |
+| `ospkg__track_resource` | `ospkg__track_resource <group-id> <path>...` | Register filesystem paths |
+| `ospkg__cleanup_resources` | `ospkg__cleanup_resources` | Remove all files registered via |
+| `ospkg__install_user` | `ospkg__install_user <pkg>...` | Install packages and protect them from |
 | `ospkg__run` | `ospkg__run [--manifest <f>] [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>]` | Run the full installation pipeline from a manifest. |
 <!-- END lib-ospkg-table MARKER -->
 
@@ -487,6 +513,11 @@ Bash-only. Small argv / string helpers; prefer **one result line per item** on s
 | Function | Signature | Description |
 |---|---|---|
 | `str__basename_each` | `str__basename_each [<path-token>...]` | For each argument, strip spaces and print basename on its own line. |
+| `str__safe_id` | `str__safe_id <s>` | Validated feature option key → env var name: uppercase, preserving `_` and mapping `-` → `_`. |
+| `str__has_any_prefix` | `str__has_any_prefix <s> <prefix>...` | Return 0 if s starts with any prefix. |
+| `str__strip_any_prefix` | `str__strip_any_prefix <s> <prefix>...` | Print s with the first-matching leading prefix removed; if none match, print s. |
+| `str__rsplit_once` | `str__rsplit_once <s> <sep>` | Print two lines: text before the last <sep>, then text after that separator. |
+| `str__extract_version_suffix` | `str__extract_version_suffix <s>` | If s matches … vM.m.p at the end, print M.m.p; else print empty. |
 <!-- END lib-str-table MARKER -->
 
 ### `git.sh`
@@ -508,10 +539,11 @@ Source explicitly. Requires `net.sh` (and `ospkg.sh`) to have been sourced first
 | `github__release_json_tag_name` | `github__release_json_tag_name <file>` | Print tag_name from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk). |
 | `github__release_json_id` | `github__release_json_id <file>` | Print the root release numeric id from a single-release JSON file. |
 | `github__release_json_digest_for_asset` | `github__release_json_digest_for_asset <release.json> <asset_name>` | Print lowercase hex SHA-256 from the GitHub Releases API asset `digest` field (`sha256:…`) for the asset whose `name` equals <asset_name> exactly. |
+| `github__fetch_release_asset_tarball` | `github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file>` | Download a release asset; verify SHA-256 if digest is in the API (requires net.sh, checksum__verify_sha256). |
 | `github__latest_tag` | `github__latest_tag <owner/repo>` | Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed. |
-| `github__release_tags` | `github__release_tags <owner/repo> [--per_page N]` | Print one release tag per line (newest first) from `/releases?per_page=N` (default 100). |
-| `github__resolve_version` | `github__resolve_version <owner/repo> [<version-spec>]` | Resolve a partial or full version spec to an exact release tag. |
-| `github__tags` | `github__tags <owner/repo> [--per_page N]` | Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release. |
+| `github__release_tags` | `github__release_tags <owner/repo> [--per_page N] [--all]` | Print one release tag per line (newest first) from `/releases?per_page=N` (default 100). |
+| `github__resolve_version` | `github__resolve_version <owner/repo> [<version-spec>] [--prefix <str>] [--all]` | Resolve a partial or full version spec to an exact release tag. |
+| `github__tags` | `github__tags <owner/repo> [--per_page N] [--all]` | Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release. |
 | `github__release_asset_urls` | `github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` | Print `browser_download_url` values from a release. `--filter` applies an ERE grep to the URL list. |
 | `github__pick_release_asset` | `github__pick_release_asset <owner/repo> [--tag <tag>] [--asset-regex <ERE>]` | Select a single release asset URL using heuristic arch/platform filters. |
 <!-- END lib-github-table MARKER -->
@@ -521,7 +553,7 @@ Typical patterns:
 ```bash
 # Resolve "latest" to a concrete tag:
 if [[ "$VERSION" == "latest" ]]; then
-  VERSION="$(github__latest_tag owner/repo)" || { echo "⛔ Failed to resolve version." >&2; exit 1; }
+  VERSION="$(github__latest_tag owner/repo)" || { logging__error "Failed to resolve version."; exit 1; }
 fi
 
 # Pick a release tag matching a partial version string:
@@ -564,6 +596,7 @@ Source explicitly. Reads the standard devcontainer user-config env vars
 | `users__resolve_list` | `users__resolve_list` | Print one deduplicated username per line from devcontainer user-config env vars. |
 | `users__set_write_permissions` | `users__set_write_permissions <prefix> <owner> <group> [<user>...]` |  |
 | `users__set_login_shell` | `users__set_login_shell <shell_path> <username>...` | Register `<shell_path>` in `/etc/shells`, patch Alpine PAM if needed, then call `chsh -s` for each user. |
+| `users__get_current` | `users__get_current [--no-sudo]` | Print the current username using a robust fallback chain. |
 <!-- END lib-users-table MARKER -->
 
 Typical bash caller pattern:
@@ -571,7 +604,7 @@ Typical bash caller pattern:
 ```bash
 mapfile -t _RESOLVED_USERS < <(users__resolve_list)
 if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
-  echo "ℹ️  No users to configure." >&2
+  logging__info "No users to configure."
 fi
 for _username in "${_RESOLVED_USERS[@]}"; do
   # ... per-user configuration ...
