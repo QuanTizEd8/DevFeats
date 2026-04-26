@@ -56,12 +56,12 @@ docs(<fid>): update feature reference document
 
 After completing your research, writing/updating the Feature Reference document, and committing the file, invoke the **feature-research-reviewer** subagent and provide it with the feature ID (`<fid>`). They will independently read the document from disk, verify the accuracy and completeness of the information, check for proper citations, and return a structured review report with any identified issues, critiques, questions, or suggestions for improvement.
 
-**THIS PHASE IS ONLY COMPLETE WHEN THE REVIEWER FULLY APPROVES THE DOCUMENT. OTHERWISE, YOU MUST FULLY ADDRESS EVERY SINGLE ISSUE RAISED BY THE REVIEWER BEFORE PROCEEDING TO PHASE 3**: This requires further online research and double-checking sources, investigation, and reasoning. Go through each issue individually, and follow these steps:
+**THIS PHASE IS ONLY COMPLETE WHEN THE REVIEWER FULLY APPROVES THE DOCUMENT. OTHERWISE, YOU MUST FULLY ADDRESS EVERY SINGLE ISSUE RAISED BY THE REVIEWER BEFORE PROCEEDING TO PHASE 3**: Never blindly accept the reviewer's feedback. Every feedback requires further online research and double-checking sources, investigation, and reasoning. Go through each issue individually, and follow these steps:
 1. Carefully read each issue and understand the underlying concern or gap in the research.
 2. Conduct additional research to fill in any knowledge gaps, verify information, and clarify uncertainties.
-4. Update the reference document when needed, ensuring that all information is accurate, comprehensive, and well-cited.
+4. Only change the reference document when you have independently verified that the reviewer's concerns are valid, ensuring that all information is accurate, comprehensive, and well-cited.
 
-After addressing all issues and making the necessary changes, commit the updated document with the following commit message format:
+After addressing all issues and making the necessary changes, commit the updated document with the following commit message format (when there are changes to commit):
 ```
 docs(<fid>): resolve issues in feature reference document
 
@@ -72,8 +72,8 @@ docs(<fid>): resolve issues in feature reference document
 <Detailed description of the issue, the research you did to address it, and the changes you made to the document to resolve it.>
 ```
 
-After committing the fixes, YOU MUST RE-INVOKE THE REVIEWER to verify that all issues have been satisfactorily addressed: Start over from the beginning of Phase 2, re-invoking the `feature-research-reviewer` agent with the same feature ID (`<fid>`),
-and going through their review process again. YOU MUST REPEAT THIS CYCLE UNTIL THE REVIEWER HAS NO REMAINING ISSUES WITH THE DOCUMENT. This iterative review process ensures that the final Feature Reference document is of the highest quality, accuracy, and completeness before it is used to guide API design and implementation in the next phases.
+After addressing all feedback and committing the fixes, YOU MUST RE-INVOKE THE REVIEWER to verify that all issues have been satisfactorily addressed: Start over from the beginning of Phase 2, re-invoking the `feature-research-reviewer` agent with the same feature ID (`<fid>`),
+and going through their review process again. Provide the reviewer with a summary of how you addressed each prior issue. YOU MUST REPEAT THIS CYCLE UNTIL THE REVIEWER HAS NO REMAINING ISSUES WITH THE DOCUMENT. This iterative review process ensures that the final Feature Reference document is of the highest quality, accuracy, and completeness before it is used to guide API design and implementation in the next phases.
 
 ### Phase 3 — Report and Handoff
 
