@@ -18,6 +18,8 @@ For SysSet implementation planning on macOS and Linux, the primary practical met
 
 Upstream installation docs explicitly describe installers/binaries, package-manager installs, conda-forge, Docker images, and source builds. For SysSet feature implementation, Docker is usually a runtime execution method rather than host provisioning, but it is included below for completeness because upstream treats it as a first-class usage/install path.
 
+Upstream also documents Chrome OS and BSD package-manager routes. Those paths are intentionally out of scope for this SysSet feature reference, which targets macOS and Linux host/container setup paths.
+
 ### Official Release Artifacts (GitHub Releases)
 
 #### Supported Platforms
@@ -201,8 +203,9 @@ pandoc --version
 #### Post-Installation Steps and Cleanup
 
 - **PATH Setup**:
-  - Usually automatic for Linux distro package-manager installs and MacPorts.
+  - Usually automatic for Linux distro package-manager installs.
   - Homebrew may require shell profile initialization (`brew shellenv`) if Homebrew paths are not yet configured.
+  - MacPorts environments may require shell-profile updates depending on local shell setup.
 - **Configuration Files**:
   - None required.
 - **Environment Variables**:
@@ -267,6 +270,7 @@ If installed into a named environment, verify after activating that environment.
   - Usually not required for user-local environments.
 - **Tool-Specific Configurations**:
   - Upstream documents that conda-forge installs a statically linked executable with the same Lua C-module limitation as official static binaries.
+  - Upstream also notes companion ecosystem packages are available on conda-forge (for example `pandoc-citeproc`, `pandoc-plot`, and `rsvg-convert` via `librsvg`).
 
 #### Post-Installation Steps and Cleanup
 
@@ -441,6 +445,7 @@ Upstream also recommends running tests (`cabal test` / `stack test`) for source-
   - Stack default install location: `~/.local/bin`.
   - Cabal quick method symlink location: `$HOME/.cabal/bin` (Linux/unix/macOS) and `%APPDATA%\cabal\bin` on Windows.
   - Custom install directories can be set with cabal options such as `--installdir` and broader `cabal configure` directory flags.
+  - Cabal can copy binaries instead of symlinking with `--install-method=copy`.
 - **User Targeting**:
   - Typically user-local unless explicitly installing to system directories.
 - **Required Privileges**:
@@ -482,8 +487,11 @@ Upstream also recommends running tests (`cabal test` / `stack test`) for source-
 - [Pandoc Installing Guide](https://pandoc.org/installing.html) - Official installation methods, platform notes, commands, and caveats.
 - [Pandoc INSTALL.md (upstream source)](https://raw.githubusercontent.com/jgm/pandoc/main/INSTALL.md) - Canonical source for install instructions, caveats, and source-build procedures.
 - [Pandoc Repository](https://github.com/jgm/pandoc) - Official source repository and project metadata.
+- [Pandoc cabal file](https://raw.githubusercontent.com/jgm/pandoc/main/pandoc.cabal) - Upstream package definition including cabal flags such as `embed_data_files`.
+- [Pandoc CLI cabal file](https://raw.githubusercontent.com/jgm/pandoc/main/pandoc-cli/pandoc-cli.cabal) - Upstream CLI package definition including CLI-level flags.
 - [Pandoc Latest Release Page](https://github.com/jgm/pandoc/releases/latest) - Official current release and downloadable assets.
 - [Pandoc Releases API (latest)](https://api.github.com/repos/jgm/pandoc/releases/latest) - Machine-readable latest version/date/assets and per-asset digests.
+- [Homebrew Installation](https://docs.brew.sh/Installation) - Official Homebrew shell environment setup guidance (`brew shellenv`) and install behavior.
 - [Pandoc Linux package control template](https://raw.githubusercontent.com/jgm/pandoc/main/linux/control.in) - Debian package metadata/dependency declarations used in release packaging.
 - [Pandoc Linux artifact builder](https://raw.githubusercontent.com/jgm/pandoc/main/linux/make_artifacts.sh) - Official Linux release packaging script (binary checks, symlinks, tar/deb assembly).
 - [Pandoc macOS package distribution template](https://raw.githubusercontent.com/jgm/pandoc/main/macos/distribution.xml.in) - macOS package ID, architecture gating, and installer metadata.
