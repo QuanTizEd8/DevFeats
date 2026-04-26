@@ -73,18 +73,20 @@ _ospkg_clean_brew() {
 # lists, parse errors). net__fetch_with_retry --bail-on 2 will not retry these.
 _ospkg_update_cmd() {
   [[ ${#_OSPKG_UPDATE[@]} -eq 0 ]] && return 0
-  local _rc _err_tmp
+  local _rc=0 _err_tmp
   _err_tmp="$(mktemp)"
   # Keep interactive mode possible on TTY, but prevent PMs from draining
   # caller-provided stdin in piped/non-interactive contexts.
+  # Use || _rc=$? on each branch so set -e callers do not abort before we can
+  # normalise non-fatal exit codes (e.g. dnf check-update exits 100 when
+  # updates are available; zypper refresh exits 6 for skipped repos).
   if [[ -t 0 ]]; then
-    "${_OSPKG_UPDATE[@]}" 2> "$_err_tmp"
+    "${_OSPKG_UPDATE[@]}" 2> "$_err_tmp" || _rc=$?
   elif [[ "$_OSPKG_PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
-    DEBIAN_FRONTEND=noninteractive "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp"
+    DEBIAN_FRONTEND=noninteractive "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
   else
-    "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp"
+    "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
   fi
-  _rc=$?
   cat "$_err_tmp" >&2
   [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] &&
     [[ $_rc -eq 100 ]] && rm -f "$_err_tmp" && return 0
