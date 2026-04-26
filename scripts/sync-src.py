@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 import subprocess
 import tempfile
+from typing import Literal
 
 import jsonschema
 import yaml
@@ -67,14 +68,19 @@ def run(check_only: bool = False):
         if not feature_dirpath.is_dir() or feature_dirpath.name[0] in (".", "_"):
             continue
 
-        n_features += 1
         feature_id = feature_dirpath.name
-        output_files: dict[Path, str] = {}
-
         metadata = read_metadata(feature_id)
-        if metadata is None:
+
+        if metadata == 0:
+            # No metadata.yaml found; skip without counting as a failure (allows draft features to be added).
+            continue
+
+        if metadata == 1:
             n_failures["read"] += 1
             continue
+
+        n_features += 1
+        output_files: dict[Path, str] = {}
 
         augmentation_ok = augment_metadata(feature_id, metadata)
         if not augmentation_ok:
@@ -105,35 +111,38 @@ def run(check_only: bool = False):
         if not sync_ok:
             n_failures["sync"] += 1
 
-    log("Final results:")
+    log("\nFinal results:")
     if any(n_failures.values()):
         n_failures_total = sum(n_failures.values())
         log(f"\n{n_failures_total}/{n_features} feature(s) failed validation.")
+        for stage, count in n_failures.items():
+            if count:
+                log(f"- {count} failed at {stage} stage")
         return 1
 
-    log(f"\n✅  All {n_features} features passed.")
+    log(f"✅ All {n_features} features passed.")
     return 0
 
 
 # Metadata Reading
 # ----------------
 
-def read_metadata(feature_id: str) -> dict | None:
+def read_metadata(feature_id: str) -> dict | Literal[0, 1]:
     """Read and parse the metadata.yaml for the given feature ID."""
     metadata_filepath = FEATURES_DIRPATH / feature_id / "metadata.yaml"
     if not metadata_filepath.is_file():
-        log(f"⛔ {feature_id}: metadata.yaml not found")
-        return None
+        log(f"⚠️ {feature_id}: metadata.yaml not found for feature '{feature_id}'; skipping")
+        return 0
 
     try:
         data = yaml.safe_load(metadata_filepath.read_text(encoding="utf-8"))
     except yaml.YAMLError as exc:
         log(f"❌ {feature_id}: YAML parse error: {exc}")
-        return None
+        return 1
 
     if not isinstance(data, dict):
         log(f"❌ {feature_id}: metadata.yaml does not contain a mapping (got {type(data).__name__})")
-        return None
+        return 1
 
     return data
 
