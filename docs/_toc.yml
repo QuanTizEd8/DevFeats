@@ -1,13 +1,13 @@
 root: index
 
 entries:
-  - title: Install
-    file: install
-    # entries:
-    #   - file: intro/background/index
-    #     entries:
-    #       - file: intro/background/env-vars
-    #       - file: intro/background/shell-config
+  - title: Manual
+    file: manual
+    entries:
+      - file: manual/options
+        # entries:
+        #   - file: intro/background/env-vars
+        #   - file: intro/background/shell-config
 
   - title: Features
     file: features

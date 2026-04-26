@@ -1,13 +1,12 @@
 # SysSet
 
-**Declarative System Setup Tools as Dev Container Features and Standalone Installers**
+**Declarative System Setup for Containers, Virtual Machines, and Host Environments**
 
-**SysSet** is a collection of software installers and system setup tools – collectively *features*.
-Each feature is designed to be compatible with a wide range of environments,
-including macOS and various Linux distributions, both in containers and on host machines.
-Features are distributed as both [**devcontainer features**](https://containers.dev/implementors/features/) and **self-contained/bundled installers**,
-published to [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
-and [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases), respectively.
-They provide a seamless experience for installing and configuring essential software,
-with rich configuration options that cater to a wide range of use cases and requirements.
-Features are thoroughly tested and documented, with a consistent design and user experience across the board.
+**SysSet** is a tool for installing software and configuring environments in a consistent, repeatable way across containers, virtual machines, and physical computers running macOS or any major Linux distribution. It enables users to declare a platform-agnostic system state in a single configuration file, and use it on any machine to set up a complete environment with a single command.
+
+SysSet consists of a collection of ***features*** — modular, specialized software installers and setup scripts with a rich options surface to customize their behavior and configuration. All features are available through **two** channels:
+
+1. Self-contained files that can be downloaded from [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) and executed directly on any supported platform, with no requirements other than a POSIX-compliant shell. This method can be used universally on host machines (e.g. set up a new laptop, update a PC), virtual machines (e.g. CI runner, Cloud VM, WSL2 distro), and containers (e.g. RUN instruction in a Dockerfile, executing inside a running container).
+2. [Dev Container Features](https://containers.dev/implementors/features/) that can be referenced in a [`devcontainer.json`](https://containers.dev/implementors/json_reference/) file and automatically installed when the container is built or started by a supporting tool (e.g. VS Code, GitHub Codespaces, JetBrains Projector).
+
+In addition, SysSet provides an ***orchestrator*** — a single downloadable script that can take a `devcontainer.json` file as input and execute the same installation process as a Dev Container supporting tool, but directly on the running machine without any requirements. This means that you can use the same configuration file to set up your environment whether you're working in a container, on a VM, or directly on your host machine.

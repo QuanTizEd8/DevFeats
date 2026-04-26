@@ -6,31 +6,10 @@ once they are ready for release.
 
 ## Versioning
 
-Each feature is versioned **independently** via the `version` field in its
-`metadata.yaml` (which is also copied to its generated
-`devcontainer-feature.json`). Versions follow [semver](https://semver.org):
-
-```yaml
-id: install-shell
-version: 0.1.0
-name: "Install shell"
-...
-```
-
-When making a change:
-
-- **Patch** (`0.1.x`) — bug fixes and minor corrections with no behaviour change.
-- **Minor** (`0.x.0`) — new options or capabilities, backwards-compatible.
-- **Major** (`x.0.0`) — breaking changes to option names, defaults, or behaviour.
-
-A published feature is usually pinned by major version in consumers' `devcontainer.json`:
-
-```jsonc
-"ghcr.io/quantized8/sysset/install-shell:0": {}
-```
-
-The `:0` tag always resolves to the latest `0.x.y` release.
-
+Each feature is versioned **independently** via the `version` field in its `metadata.yaml` (which is also copied to its generated `devcontainer-feature.json`). Versions follow [semver](https://semver.org) format (`X.Y.Z`). When making a change to a feature, bump the version according to the nature of the change:
+- **Patch** (`X.Y.Z+1`) — backwards-compatible bug fixes and minor corrections with no behaviour change.
+- **Minor** (`X.Y+1.0`) — backwards-compatible new options or capabilities.
+- **Major** (`X+1.0.0`) — breaking changes to option names, defaults, or behaviour.
 
 ### Version-bump discipline (CI guard)
 
