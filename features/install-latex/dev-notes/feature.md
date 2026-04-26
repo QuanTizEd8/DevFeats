@@ -97,7 +97,7 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Default system tree is under `/usr/local/texlive/YYYY`.
   - User tree defaults are platform-dependent:
     - `TEXMFHOME`: `~/texmf` on Unix, `~/Library/texmf` on macOS.
-    - `TEXMFCONFIG`/`TEXMFVAR`: `~/.texliveYYYY/texmf-{config,var}` on Unix, `~/texliveYYYY/texmf-{config,var}` on macOS.
+    - `TEXMFCONFIG`/`TEXMFVAR`: `~/.texliveYYYY/texmf-{config,var}` on Unix, `~/Library/texlive/YYYY/texmf-{config,var}` on macOS.
   - Path trees are configurable via `--texdir`, `--texuserdir`, and related `--texmf*` options.
 - **User Targeting**:
   - Supported both system-wide and user-scoped installs, depending on destination directories and permissions.
@@ -158,7 +158,7 @@ tlmgr update --self --all
 #### Supported Platforms
 
 - MacTeX-2026 and BasicTeX-2026: macOS 11 (Big Sur) and newer, Intel and Apple Silicon.
-- Older macOS versions can use the Unix `install-tl` path instead of MacTeX package installers.
+- Older macOS versions can use the Unix `install-tl` path instead of MacTeX package installers (documented down to macOS Snow Leopard 10.6).
 
 #### Dependencies
 
