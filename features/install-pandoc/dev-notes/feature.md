@@ -317,6 +317,9 @@ stack install pandoc-cli
 Upstream quick cabal method:
 
 ```bash
+# Install ghcup first (provides ghc and cabal)
+# https://www.haskell.org/ghcup/install/
+
 cabal update
 cabal install pandoc-cli
 ```
@@ -326,9 +329,12 @@ Upstream source acquisition options:
 ```bash
 # Source tarball from Hackage
 wget https://hackage.haskell.org/package/pandoc-<version>/pandoc-<version>.tar.gz
+tar xvzf pandoc-<version>.tar.gz
+cd pandoc-<version>
 
 # Or development source
 git clone https://github.com/jgm/pandoc
+cd pandoc
 ```
 
 #### Installation Verification
