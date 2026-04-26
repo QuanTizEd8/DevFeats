@@ -58,12 +58,12 @@ reload_lib() {
   # Pre-declare global associative arrays BEFORE sourcing to work around a bash
   # scoping rule: 'declare -A' without -g in a file sourced from within a
   # function creates a LOCAL variable (goes away when the function returns).
-  # Using declare -gA here ensures the array exists at global scope; the local
-  # copy created by the source statement in ospkg.sh simply shadows it during
-  # this function's execution and disappears on return, leaving the global.
-  case "$_mod" in
-    ospkg.sh) declare -gA _OSPKG_OS_RELEASE=() ;;
-  esac
+  #
+  # This must be done even when sourcing modules that load ospkg.sh indirectly
+  # (e.g. devcontainer.sh -> json.sh -> ospkg.sh), otherwise _OSPKG_OS_RELEASE
+  # can degrade to an indexed array after reload_lib returns and string-key
+  # lookups collapse onto index 0.
+  declare -gA _OSPKG_OS_RELEASE=()
 
   # shellcheck source=/dev/null
   source "${LIB_ROOT}/${_mod}"
