@@ -18,9 +18,11 @@ _REPO_ROOT = _WEBSITE_ROOT.parent
 _FEATURES_DIR = _REPO_ROOT / "features"
 _FEATURES_DOC_DIR = _WEBSITE_SOURCE_DIR / "features" / "reference"
 
-sys.path.insert(0, str(Path(__file__).parent / "_build_scripts"))
+sys.path.insert(0, str(_WEBSITE_ROOT / "_build_scripts"))
+sys.path.insert(0, str(_REPO_ROOT / "scripts"))
 
 import feat_doc_gen
+import git_utils
 
 
 def setup(app):
@@ -40,7 +42,7 @@ def _load_feature_metadata() -> dict[str, dict]:
     for meta_path in _FEATURES_DIR.glob("*/metadata.yaml"):
         with meta_path.open(encoding="utf-8") as fh:
             data = _yaml.safe_load(fh)
-        feat_id = data["id"]
+        feat_id = meta_path.parent.name
         metadata[feat_id] = data
     return metadata
 
@@ -179,8 +181,8 @@ html_theme_options = {
 }
 
 html_context = {
-    "github_user": "quantized8",
-    "github_repo": "sysset",
+    "github_user": git_utils.git_owner_repo()[0],
+    "github_repo": git_utils.git_owner_repo()[1],
     "github_version": "main",
     "doc_path": "docs/source",
     "feats": _feature_metadata,  # for Jinja templating in source files
