@@ -1,6 +1,6 @@
 # Feature Reference
 
-just is a command runner that executes named recipes from a justfile. It is widely used as a modern replacement for ad-hoc shell scripts and many Makefile task-runner use cases, with strong cross-platform behavior and clear command-line ergonomics. For SysSet, the practical installation approaches are: OS package managers, the official install script, manual release-asset installation, and Rust toolchain installation.
+just is a command runner that executes named recipes from a justfile. It is widely used as a modern replacement for ad-hoc shell scripts and many Makefile task-runner use cases, with strong cross-platform behavior and clear command-line ergonomics. For SysSet, the practical installation approaches are: OS package managers, the official install script, manual release-asset installation, container-image copy from GHCR, and Rust toolchain installation.
 
 - **Homepage**: https://just.systems/
 - **Source Code**: https://github.com/casey/just
@@ -14,7 +14,8 @@ just is distributed through many channels. For a SysSet feature targeting macOS 
 1. OS package manager install for distro-native lifecycle management.
 2. Official installer script (`just.systems/install.sh`) for fast binary install with optional version pinning.
 3. Manual prebuilt release archive install from GitHub Releases for deterministic and auditable installs.
-4. Rust ecosystem install (`cargo install` / `cargo binstall`) when Rust toolchain-based workflows are preferred.
+4. Container-image copy from `ghcr.io/casey/just` for Docker/devcontainer build contexts.
+5. Rust ecosystem install (`cargo install` / `cargo binstall`) when Rust toolchain-based workflows are preferred.
 
 ### OS Package Manager
 
@@ -55,6 +56,18 @@ sudo pacman -S --noconfirm just
 
 # openSUSE
 sudo zypper in -y just
+
+# Gentoo
+sudo emerge -av dev-build/just
+
+# NixOS
+nix-env -iA nixos.just
+
+# Solus
+sudo eopkg install just
+
+# Void
+sudo xbps-install -S just
 
 # macOS Homebrew
 brew install just
@@ -165,7 +178,7 @@ sudo port uninstall just
 
 #### Dependencies
 
-- **Common Dependencies**: `curl` or `wget`, `mkdir`, `mktemp`.
+- **Common Dependencies**: `bash`, `curl` or `wget`, `mkdir`, `mktemp`.
 - **Platform-Specific Dependencies**:
   - `tar` for non-Windows target archives.
   - `unzip` for Windows zip archive flow.
@@ -292,6 +305,7 @@ curl -fsSLO "${base}/SHA256SUMS"
 shasum --algorithm 256 --ignore-missing --check SHA256SUMS
 
 tar -xzf "${asset}"
+mkdir -p "$HOME/.local/bin"
 install -m 0755 just "$HOME/.local/bin/just"
 ```
 
@@ -308,6 +322,7 @@ curl -fsSLO "${base}/SHA256SUMS"
 shasum --algorithm 256 --ignore-missing --check SHA256SUMS
 
 tar -xzf "${asset}"
+mkdir -p "$HOME/.local/bin"
 install -m 0755 just "$HOME/.local/bin/just"
 ```
 
@@ -335,7 +350,7 @@ shasum --algorithm 256 --ignore-missing --check SHA256SUMS
   - Only needed when writing to privileged paths.
 - **Tool-Specific Configurations**:
   - Target triple selection must match host ABI expectations.
-  - Release archives contain additional artifacts (completions, manpage, docs) in addition to binary.
+  - Release archives contain `just` plus `Cargo.lock`, `Cargo.toml`, `GRAMMAR.md`, `LICENSE`, `README.md`, `completions/`, and `man/just.1`.
 
 #### Post-Installation Steps and Cleanup
 
@@ -373,6 +388,89 @@ rm -f "$HOME/.local/bin/just"
 - Prefer explicit tag pinning in automation rather than "latest".
 - For container builds, this method aligns well with immutable-image workflows.
 
+### Container Image Copy (GHCR)
+
+#### Supported Platforms
+
+- Container builds that can use multi-stage `COPY --from=` with images from `ghcr.io/casey/just`.
+- Official release workflow publishes multi-arch image variants for `linux/amd64` and `linux/arm64`.
+
+#### Dependencies
+
+- **Common Dependencies**: Docker-compatible build system with network access to GHCR.
+- **Platform-Specific Dependencies**:
+  - Linux container context (the published image content is a Linux binary at `/just`).
+  - Registry access controls/credentials as required by environment.
+
+#### Installation Steps
+
+In a Dockerfile, copy the binary from official image into target image:
+
+```dockerfile
+COPY --from=ghcr.io/casey/just:latest /just /usr/local/bin/just
+```
+
+For reproducibility, pin version tag instead of `latest`:
+
+```dockerfile
+COPY --from=ghcr.io/casey/just:1.50.0 /just /usr/local/bin/just
+```
+
+#### Installation Verification
+
+```dockerfile
+RUN just --version
+```
+
+At runtime, validate with:
+
+```bash
+command -v just
+just --version
+```
+
+#### Configuration Options
+
+- **Version Selection**:
+  - Controlled by image tag (`ghcr.io/casey/just:<tag>`).
+  - Prefer pinned release tags over `latest`.
+- **Installation Path**:
+  - Destination path in final image is user-defined (`/usr/local/bin/just` is common).
+- **User Targeting**:
+  - System-wide within image filesystem.
+- **Required Privileges**:
+  - Depends on effective user in Docker build stage; root is common in build stages.
+- **Tool-Specific Configurations**:
+  - Upstream image is `FROM scratch` and only contains `/just`, so this is a minimal-copy install path.
+
+#### Post-Installation Steps and Cleanup
+
+- **PATH Setup**:
+  - Ensure destination path is on PATH in target image.
+- **Configuration Files**:
+  - None required.
+- **Environment Variables**:
+  - None required by just runtime.
+- **Activation Scripts**:
+  - None required.
+- **Cleanup**:
+  - Multi-stage copy avoids residual package-manager caches and installer artifacts in final image.
+
+#### Changing Versions and Uninstallation
+
+- **Upgrading/Downgrading**:
+  - Change source image tag and rebuild image.
+- **Uninstallation**:
+  - Remove copied binary path in image build recipe or base image layer.
+- **Idempotency**:
+  - Docker builds are deterministic per Dockerfile and image tag; repeated builds produce equivalent result when inputs are unchanged.
+
+#### Notes and Best Practices
+
+- Best suited for container-focused provisioning and CI image builds.
+- Does not provide host-level package management; this is an image-build installation strategy.
+- Keep tag pinning explicit in production images to avoid drift.
+
 ### Rust Toolchain Installation (`cargo install` / `cargo binstall`)
 
 #### Supported Platforms
@@ -391,10 +489,10 @@ rm -f "$HOME/.local/bin/just"
 
 ```bash
 # Build from source
-cargo install just
+cargo install --locked just
 
 # Version pin
-cargo install --version 1.50.0 just
+cargo install --locked --version 1.50.0 just
 
 # Binary-oriented cargo flow (if cargo-binstall is installed)
 cargo binstall just
@@ -420,7 +518,9 @@ cargo install --list | grep '^just '
 - **Required Privileges**:
   - Usually no root required.
 - **Tool-Specific Configurations**:
-  - `cargo install` can use lockfile/feature flags according to Cargo options.
+  - `cargo install --locked` uses the crate's lockfile for more reproducible dependency resolution.
+  - `cargo install --root <path>` controls install prefix.
+  - `cargo install --force` replaces existing installs when changing versions in place.
   - `cargo binstall` may reduce build time by fetching binaries where available.
 
 #### Post-Installation Steps and Cleanup
