@@ -3,7 +3,7 @@
 
 # Generated documentation
 docs/source/features/
-docs/source/dev-guide/features/
+docs/source/dev-guide/features/reference/
 
 # Local development files
 /.local/
