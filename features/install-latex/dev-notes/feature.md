@@ -30,6 +30,7 @@ Upstream explicitly supports multiple acquisition and install approaches (networ
 - **Platform-Specific Dependencies**:
   - Linux: root/sudo only if installing into system-owned paths such as `/usr/local/texlive`.
   - macOS: same installer flow works; native MacTeX package route is an alternative.
+  - Installer checksum backend for integrity checks: at least one of `Digest::SHA`, `openssl`, `sha512sum`, or `shasum` must be available (or checksum warnings/checks can be explicitly disabled).
   - Optional but strongly recommended for verification: `gpg` for signature verification support.
 
 #### Installation Steps
@@ -215,7 +216,8 @@ Also verify TeX distribution root when needed:
 - **PATH Setup**:
   - Use `/Library/TeX/texbin` in PATH (MacTeX-managed stable indirection).
 - **Configuration Files**:
-  - MacTeX installs TeXDist link/metadata plumbing to make GUI tool discovery consistent.
+  - Native MacTeX installs expose a stable `/Library/TeX/texbin` path for GUI and shell discovery.
+  - For macOS Unix-script installation workflows (outside `MacTeX.pkg`), `TeXDist-YYYY.pkg` is used to install `/Library/TeX/texdist` switching support.
 - **Environment Variables**:
   - None required for baseline usage.
 - **Activation Scripts**:
@@ -234,6 +236,7 @@ Also verify TeX distribution root when needed:
   - Remove the specific TeX Live year directory under `/usr/local/texlive` (administrator credentials required).
   - Remove GUI apps from `/Applications/TeX` if desired.
   - Remove `/Library/TeX` only with care, because other TeX distributions can also place files there.
+  - If full MacTeX Ghostscript components were installed, cleanup is typically under `/usr/local/bin` and `/usr/local/share`; in many cases installing a newer Ghostscript is simpler than manually removing old files.
 - **Idempotency**:
   - Re-running same installer is generally safe and converges on packaged state.
   - Installing new yearly packages is additive (side-by-side), not destructive to prior yearly trees.
