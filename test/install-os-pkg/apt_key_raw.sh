@@ -6,8 +6,8 @@ set -e
 
 source dev-container-features-test-lib
 
-check "nginx is installed"       command -v nginx
-check "key file was cleaned up"  bash -c '! test -f /usr/share/keyrings/nginx-signing.key'
+check "nginx is installed" command -v nginx
+check "key file was cleaned up" bash -c '! test -f /usr/share/keyrings/nginx-signing.key'
 check "repo file was cleaned up" bash -c '! test -f /etc/apt/sources.list.d/syspkg-installer.list'
 
 reportResults

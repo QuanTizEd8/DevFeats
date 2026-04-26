@@ -972,9 +972,9 @@ _ospkg_protect_user_pkgs() {
     for _pkg in "$@"; do
       if grep -qxF "$_pkg" "$_sidecar" 2> /dev/null; then
         _tmp="${_sidecar}.protect_tmp"
-        grep -Fxv "$_pkg" "$_sidecar" > "$_tmp" 2> /dev/null \
-          && mv "$_tmp" "$_sidecar" \
-          || rm -f "$_tmp" || true
+        grep -Fxv "$_pkg" "$_sidecar" > "$_tmp" 2> /dev/null &&
+          mv "$_tmp" "$_sidecar" ||
+          rm -f "$_tmp" || true
         echo "ℹ️  Evicted '${_pkg}' from build-group sidecar '${_sidecar_name}'." >&2
       fi
     done
