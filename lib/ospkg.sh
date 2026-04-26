@@ -778,6 +778,12 @@ def merge_flags(gf; pf):
         (pf | if type == "array" then .[] else . end)] | join(" ")
   end;
 
+def repo_content:
+  if type == "string" then .
+  elif type == "object" then (.content // empty)
+  else empty
+  end;
+
 # visit(k; inherited_flags): traverse packages array, emitting items of kind k.
 def visit(k; gf):
   if type == "string" then
@@ -799,7 +805,7 @@ def visit(k; gf):
         else empty end),
         ($g.packages[] | visit(k; $mf))
       elif k == "repo" then
-        (if $g | has("repos") then $g.repos[] | {kind: "repo", content: (.content // .)} else empty end),
+        (if $g | has("repos") then $g.repos[] | {kind: "repo", content: repo_content} else empty end),
         ($g.packages[] | visit(k; $mf))
       elif k == "package" then
         ($g.packages[] | visit(k; $mf))
@@ -825,7 +831,7 @@ def visit(k; gf):
           $e.keys[] | {kind: "key", url: (.url // null), dest: .dest, dearmor: (.dearmor // null), fingerprint: (.fingerprint // null)}
         else empty end
       elif k == "repo" then
-        if $e | has("repos") then $e.repos[] | {kind: "repo", content: (.content // .)} else empty end
+        if $e | has("repos") then $e.repos[] | {kind: "repo", content: repo_content} else empty end
       elif k == "package" then
         {kind: "package",
          name: (
@@ -870,10 +876,10 @@ else empty end),
 
 # Phase: REPOS — top-level, PM block, then inline
 (if $doc | has("repos") then
-  $doc.repos[] | {kind: "repo", content: (.content // .)}
+  $doc.repos[] | {kind: "repo", content: repo_content}
 else empty end),
 (if ($doc | has($pm)) and ($doc[$pm] | has("repos")) then
-  $doc[$pm].repos[] | {kind: "repo", content: (.content // .)}
+  $doc[$pm].repos[] | {kind: "repo", content: repo_content}
 else empty end),
 (if $doc | has("packages") then
   $doc.packages[] | visit("repo"; null) else empty end),
@@ -1511,6 +1517,21 @@ ospkg__run() {
     fi
 
     local _item _kind
+    local _parsed_records
+    if ! _parsed_records="$(ospkg__parse_manifest_yaml "$_json_tmp")"; then
+      local _manifest_origin _manifest_preview
+      if [[ "$_manifest" == *$'\n'* ]]; then
+        _manifest_origin="<inline>"
+      else
+        _manifest_origin="$_manifest"
+      fi
+      _manifest_preview="$(printf '%s' "$_manifest_content" | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g' | cut -c1-220)"
+      rm -f "$_json_tmp"
+      echo "⛔ Manifest parse failed for: ${_manifest_origin}" >&2
+      [[ -n "${_manifest_preview:-}" ]] && echo "ℹ️  Manifest preview: ${_manifest_preview}" >&2
+      echo "⛔ Manifest parse failed — see jq error above." >&2
+      return 1
+    fi
     while IFS= read -r _item; do
       _kind="$(printf '%s' "$_item" | json__query -r '.kind' 2> /dev/null)" || continue
       case "$_kind" in
@@ -1526,7 +1547,7 @@ ospkg__run() {
         cask) _Y_CASKS+=("$_item") ;;
         script) _Y_SCRIPTS+=("$_item") ;;
       esac
-    done < <(ospkg__parse_manifest_yaml "$_json_tmp")
+    done <<< "$_parsed_records"
     rm -f "$_json_tmp"
     echo "ℹ️  YAML manifest parsed: ${#_Y_PRESCRIPTS[@]} prescript(s), ${#_Y_KEYS[@]} key(s), ${#_Y_REPOS[@]} repo(s), ${#_Y_PPAS[@]} ppa(s), ${#_Y_TAPS[@]} tap(s), ${#_Y_COPR[@]} copr(s), ${#_Y_MODULES[@]} module(s), ${#_Y_GROUPS[@]} group(s), ${#_Y_PACKAGES[@]} package(s), ${#_Y_CASKS[@]} cask(s), ${#_Y_SCRIPTS[@]} script(s)." >&2
 

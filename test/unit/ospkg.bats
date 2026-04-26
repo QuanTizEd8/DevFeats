@@ -297,6 +297,21 @@ _seed_apt_context() {
   [[ "$_output" != *'"name":"bookworm-pkg"'* ]]
 }
 
+@test "ospkg__parse_manifest_yaml accepts repos as strings and objects" {
+  _seed_apt_context
+  _require_ospkg_jq
+  local _json_file
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
+  printf '{"repos":["deb http://deb.debian.org/debian stable main",{"content":"deb http://example.invalid/debian stable main"}],"packages":["tree"]}' \
+    > "$_json_file"
+  local _output
+  _output="$(ospkg__parse_manifest_yaml "$_json_file")"
+  rm -f "$_json_file"
+  [[ "$_output" == *'"kind":"repo","content":"deb http://deb.debian.org/debian stable main"'* ]]
+  [[ "$_output" == *'"kind":"repo","content":"deb http://example.invalid/debian stable main"'* ]]
+  [[ "$_output" == *'"kind":"package","name":"tree"'* ]]
+}
+
 # ---------------------------------------------------------------------------
 # ospkg__run — regression: stale yq binary path and silent parse failure
 #
@@ -410,6 +425,42 @@ _seed_apt_context_with_yq() {
     printf '#!/bin/bash\nexit 1\n' > \"\$_OSPKG_YQ_BIN\"
     chmod +x \"\$_OSPKG_YQ_BIN\"
     _ospkg_ensure_yq() { return 0; }
+
+    ospkg__run --manifest \$'packages:\n  - curl\n' --dry_run
+  "
+  assert_failure
+}
+
+@test "ospkg__run fails when manifest parser returns non-zero" {
+  _require_ospkg_jq
+  local _ospkg_lib="${BATS_TEST_DIRNAME}/../../lib/ospkg.sh"
+
+  run bash -c "
+    set -euo pipefail
+    source '${_ospkg_lib}'
+
+    _OSPKG_DETECTED=true
+    _OSPKG_PKG_MNGR='apt-get'
+    _OSPKG_PREFIX='apt'
+    _OSPKG_OS_RELEASE[pm]='apt'
+    _OSPKG_OS_RELEASE[arch]='x86_64'
+    _OSPKG_OS_RELEASE[id]='ubuntu'
+    _OSPKG_OS_RELEASE[id_like]='debian'
+    _OSPKG_OS_RELEASE[version_id]='22.04'
+    _OSPKG_OS_RELEASE[version_codename]='jammy'
+
+    # yq returns valid JSON; parser failure is injected directly.
+    _OSPKG_YQ_BIN='${BATS_TEST_TMPDIR}/bin/yq'
+    mkdir -p '${BATS_TEST_TMPDIR}/bin'
+    cat > \"\$_OSPKG_YQ_BIN\" <<'YQ'
+#!/bin/bash
+cat <<'JSON'
+{\"packages\":[\"curl\"]}
+JSON
+YQ
+    chmod +x \"\$_OSPKG_YQ_BIN\"
+    _ospkg_ensure_yq() { return 0; }
+    ospkg__parse_manifest_yaml() { return 42; }
 
     ospkg__run --manifest \$'packages:\n  - curl\n' --dry_run
   "
