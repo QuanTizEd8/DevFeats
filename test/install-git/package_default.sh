@@ -17,11 +17,9 @@ git --version 2>&1 || echo "(failed)"
 check "git --version succeeds" git --version
 check "git version is at least 2" bash -c '[ "$(git --version | awk "{print \$3}" | cut -d. -f1)" -ge 2 ]'
 
-# --- PPA path ---
-check "PPA sources.list.d entry created" test -f /etc/apt/sources.list.d/git-core-ppa.list
-check "PPA keyring created" test -f /usr/share/keyrings/git-core-ppa.gpg
-check "PPA signed-by annotation present" grep -Fq "signed-by=/usr/share/keyrings/git-core-ppa.gpg" /etc/apt/sources.list.d/git-core-ppa.list
-check "PPA entry targets noble" grep -Fq 'https://ppa.launchpadcontent.net/git-core/ppa/ubuntu noble main' /etc/apt/sources.list.d/git-core-ppa.list
+# --- PPA build artifacts cleaned up ---
+check "PPA keyring cleaned up" bash -c '! test -f /usr/share/keyrings/git-core-ppa.gpg'
+check "PPA sources.list.d entry cleaned up" bash -c '! test -f /etc/apt/sources.list.d/syspkg-installer.list'
 
 # --- default system gitconfig (default_branch=main by default) ---
 echo "=== /etc/gitconfig ==="
