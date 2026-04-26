@@ -50,117 +50,8 @@ src/<feature-id>/
 generated artefacts — they are created by `python3 scripts/sync-src.py`. Never edit
 them directly.
 
----
 
-## `devcontainer-feature.json`
 
-```jsonc
-{
-  "id": "my-feature",          // Must match the directory name under src/
-  "version": "0.1.0",          // Semver — bump for every published change
-  "name": "My Feature",
-  "description": "One-sentence description.",
-  "options": {
-    // ... (see below)
-  }
-}
-```
-
-### Options
-
-Each option becomes both a CLI flag (`--<option_name>`) and an environment
-variable (`<OPTION_NAME>`) injected by the devcontainer tooling at build time.
-Option names use snake_case; the CLI flag uses double-dashes
-(`--option_name`).
-
-```jsonc
-"options": {
-  "version": {
-    "type": "string",
-    "default": "latest",
-    "description": "Version to install."
-  },
-  "debug": {
-    "type": "boolean",
-    "default": false,
-    "description": "Enable debug output."
-  },
-  "mode": {
-    "type": "string",
-    "default": "fast",
-    "enum": ["fast", "safe", "dry_run"],
-    "description": "Operating mode."
-  }
-}
-```
-
-Supported types: `"string"`, `"boolean"`.
-
-For string options, two properties control how supporting tools (VS Code,
-Codespaces) present the allowed values to users:
-
-| Property | Behaviour |
-|---|---|
-| `"enum"` | **Strict** — the user must choose one of the listed values. Any other value is rejected by the tooling. Use when the script only handles a closed set of values. |
-| `"proposals"` | **Suggestive** — the listed values appear as suggestions in the UI, but the user is free to type any value. Use when the script can handle arbitrary input and you only want to provide convenient defaults. |
-
-```jsonc
-// Closed set — only these three values are accepted
-"mode": {
-  "type": "string",
-  "default": "fast",
-  "enum": ["fast", "safe", "dry_run"],
-  "description": "Operating mode."
-}
-
-// Open set — suggests common versions, but any semver is valid
-"version": {
-  "type": "string",
-  "default": "latest",
-  "proposals": ["latest", "3.12", "3.11", "3.10"],
-  "description": "Version to install."
-}
-```
-
-Always include a `"debug"` option (boolean, default false) and a `"logfile"`
-option (string, default `""`) — they follow the standard from all existing
-features and are expected by the logging pattern.
-
-### Dependencies on other features
-
-If your feature needs another feature to have already run at build time
-(e.g. it calls `install-os-pkg`), declare it with `"dependsOn"`:
-
-```jsonc
-{
-  "id": "my-feature",
-  ...
-  "dependsOn": {
-    "ghcr.io/quantized8/sysset/install-os-pkg:0": {}
-  }
-}
-```
-
-The devcontainer CLI resolves the installation order automatically.
-
----
-
-## The bootstrap pattern
-
-The devcontainer spec guarantees only POSIX `sh` when `install.sh` runs —
-bash is not guaranteed. The library and installer scripts require bash ≥4.
-The bootstrap resolves this two-step:
-
-1. **`install.sh`** (POSIX sh) — checks whether `bash` is present; if not,
-   installs it via the system package manager (`apk`, `apt-get`, `dnf`, etc.).
-   Then `exec bash install.bash "$@"` to hand off.
-2. **`install.bash`** (bash ≥4) — the real installer with full access
-   to the shared library.
-
-`install.sh` at the feature root is generated from `features/bootstrap.sh` by
-`scripts/sync-src.py`. It is identical in every feature. **Never write it manually.**
-
----
 
 ## `install.bash` structure
 
@@ -702,29 +593,7 @@ _FILES_DIR="${_BASE_DIR}/files"
 cp "${_FILES_DIR}/my-config.conf" /etc/my-config.conf
 ```
 
----
 
-## Sync
-
-After creating or editing `install.bash`, run:
-
-```bash
-python3 scripts/sync-src.py
-```
-
-This assembles `src/<feature-id>/install.bash` (header + body), generates
-`install.sh` (bootstrap) and `_lib/` for your new feature.
-The entire `src/` directory is git-ignored — never commit anything there.
-
-[Lefthook](https://github.com/evilmartians/lefthook) can run sync on commit if you enable the corresponding commands in `lefthook.yml` (they are **commented out** in the repo default).
-
-Verify the sync is up to date before pushing:
-
-```bash
-python3 scripts/sync-src.py --check
-```
-
----
 
 ## References
 
