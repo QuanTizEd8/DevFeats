@@ -116,8 +116,10 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Paper default: `--paper=a4|letter`.
   - Doc/src toggles: `--no-doc-install`, `--no-src-install`.
   - Batch profile mode: `--profile <file>` / `--init-from-profile <file>`.
+  - Install modes: `--portable` for self-contained portable trees, and `--in-place` for using an existing TL checkout as source (quick-and-dirty, manual removal required, and intended for advanced use).
   - Advanced repository and binary controls: `--select-repository` (explicit mirror/local-media selection in interactive modes) and `--custom-bin <path>` (inject custom-built binaries; not compatible with `--in-place`).
   - With `--custom-bin`, supplied binaries are copied to `TLROOT/bin/custom`, that literal path should be used in PATH, and ongoing updates require `wget`, `xz`, and `xzdec` in PATH; platform-script symlinks in `bin/custom` must be maintained manually.
+  - Failure-handling controls: `--strict` aborts when post-install commands fail; `--no-continue` aborts after retry failure of non-core package installs.
   - Verification and download behavior from installer/tooling (verification is enabled by default when `gpg` is available and can be disabled with `--no-verify-downloads`; for package operations, `tlmgr --verify-repo=none|main|all` controls repository signature requirements; persistent-download controls are also available).
 
 #### Post-Installation Steps and Cleanup
@@ -242,7 +244,7 @@ Also verify TeX distribution root when needed:
 - **PATH Setup**:
   - Use `/Library/TeX/texbin` in PATH (MacTeX-managed stable indirection); do not edit the link directly.
   - TeX Live Utility switching keeps this stable path while updating active distribution wiring, including command-line path behavior and GUI app discovery.
-  - For macOS Unix-script installation workflows (outside `MacTeX.pkg`), `TeXDist-YYYY.pkg` (or documented postinstall helper scripts) provide `/Library/TeX/texdist` switching support used by GUI tool discovery.
+  - For macOS Unix-script installation workflows (outside `MacTeX.pkg`), `TeXDist-YYYY.pkg` (or documented postinstall helper scripts) create/refresh the internal `/Library/TeX/texdist` support structure; GUI/shell discovery still uses `/Library/TeX/texbin`.
 - **Configuration Files**:
   - None required for baseline package-installer workflows.
 - **Environment Variables**:
