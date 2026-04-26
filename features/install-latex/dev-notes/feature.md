@@ -104,6 +104,7 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - User tree defaults are platform-dependent:
     - `TEXMFHOME`: `~/texmf` on Unix, `~/Library/texmf` on macOS.
     - `TEXMFCONFIG`/`TEXMFVAR`: `~/.texliveYYYY/texmf-{config,var}` on Unix, `~/Library/texlive/YYYY/texmf-{config,var}` on macOS.
+  - Note: some embedded installer-manual text still shows older macOS path wording; current installer code paths are the authoritative source for these defaults.
   - Path trees are configurable via `--texdir`, `--texuserdir`, and related `--texmf*` options.
 - **User Targeting**:
   - Supported both system-wide and user-scoped installs, depending on destination directories and permissions.
@@ -165,6 +166,7 @@ tlmgr update --self --all
 
 - MacTeX-2026 and BasicTeX-2026: macOS 11 (Big Sur) and newer, Intel and Apple Silicon.
 - Older macOS versions can use the Unix `install-tl` path instead of MacTeX package installers (documented down to macOS Snow Leopard 10.6).
+- For El Capitan (10.11) and earlier, certificate-chain issues can block network downloads unless the documented certificate workaround is applied.
 
 #### Dependencies
 
@@ -354,6 +356,7 @@ Check package-manager metadata for installed package set as needed.
 - [MacTeX Multiple Distributions](https://www.tug.org/mactex/multipletexdistributions.html) - Authoritative behavior for switching active TeX distribution and `/Library/TeX/texbin` indirection.
 - [MacTeX Uninstalling](https://www.tug.org/mactex/uninstalling.html) - Official uninstallation guidance for TeX trees, GUI applications, and distribution support directories.
 - [MacTeX Unix Install Page](https://www.tug.org/mactex/mactex-unix-download.html) - macOS Unix-script installation specifics and legacy-system notes.
+- [MacTeX Expired Certificate Notes](https://www.tug.org/mactex/expiredcertificate.html) - Legacy macOS certificate-chain issue details and workaround guidance for affected versions.
 - [Alpine texlive-full Package](https://pkgs.alpinelinux.org/package/edge/community/x86_64/texlive-full) - Concrete distro package example for full TeX distribution.
 - [prulloac Devcontainer LaTeX Feature README](https://raw.githubusercontent.com/prulloac/devcontainer-features/main/src/latex/README.md) - Similar-feature option design (`scheme`, `packages`, `mirror`) and operational notes.
 - [prulloac Devcontainer LaTeX Installer Script](https://raw.githubusercontent.com/prulloac/devcontainer-features/main/src/latex/install.sh) - Similar-feature implementation pattern (`install-tl`, `tlmgr`, symlinking, cleanup).
