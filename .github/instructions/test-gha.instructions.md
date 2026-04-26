@@ -389,13 +389,6 @@ gh run view <run-id> --log-failed
 gh run view <run-id> --job <job-id> --log
 ```
 
-To look up a job ID by name:
-
-```bash
-# Find the database ID for a job matching a name substring
-gh run view <run-id> --json jobs \
-  | jq -r '.jobs[] | select(.name | test("Test install-shell")) | .databaseId'
-```
 
 Then fetch its logs:
 
@@ -431,25 +424,3 @@ gh workflow run "CD" --field tag=v1.2.3
 # Re-run only the failed jobs in a run
 gh run rerun <run-id> --failed
 ```
-
-### Using the GitHub REST API
-
-For finer-grained access (e.g. downloading step-level logs as raw text):
-
-```bash
-# List all jobs for a run (returns IDs, names, steps, conclusions)
-gh api repos/quantized8/sysset/actions/runs/<run-id>/jobs
-
-# Get the log redirect URL for a specific job
-gh api repos/quantized8/sysset/actions/jobs/<job-id>/logs
-```
-
-### MCP GitHub tools (for agents using MCP)
-
-MCP tools do not expose workflow-run APIs. Use them only to look up context that correlates with a run:
-
-- `mcp_github_list_pull_requests` / `mcp_io_github_git_list_pull_requests` — find the PR associated with a branch
-- `mcp_github_get_commit` / `mcp_io_github_git_get_commit` — inspect the commit that triggered a run
-- `mcp_github_list_commits` / `mcp_io_github_git_list_commits` — find recent commits on a branch
-
-For all workflow-run and job-log operations, use `gh` CLI (`gh run list`, `gh run view`, `gh run watch`, `gh api`) rather than MCP tools.
