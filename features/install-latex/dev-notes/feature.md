@@ -166,7 +166,7 @@ tlmgr update --self --all
 
 - MacTeX-2026 and BasicTeX-2026: macOS 11 (Big Sur) and newer, Intel and Apple Silicon.
 - Older macOS versions can use the Unix `install-tl` path instead of MacTeX package installers (documented down to macOS Snow Leopard 10.6).
-- For El Capitan (10.11) and earlier, certificate-chain issues can block network downloads unless the documented certificate workaround is applied.
+- Legacy certificate behavior is version-sensitive: El Capitan (10.11) and earlier may require a workaround, Sierra (10.12) is unaffected, High Sierra/Mojave use installer-side workarounds, Catalina is fixed in 10.15.5+, and Big Sur+ is unaffected.
 
 #### Dependencies
 
@@ -229,9 +229,9 @@ Also verify TeX distribution root when needed:
 
 - **PATH Setup**:
   - Use `/Library/TeX/texbin` in PATH (MacTeX-managed stable indirection).
+  - For macOS Unix-script installation workflows (outside `MacTeX.pkg`), `TeXDist-YYYY.pkg` (or documented postinstall helper scripts) provide `/Library/TeX/texdist` switching support used by GUI tool discovery.
 - **Configuration Files**:
-  - Native MacTeX installs expose a stable `/Library/TeX/texbin` path for GUI and shell discovery.
-  - For macOS Unix-script installation workflows (outside `MacTeX.pkg`), `TeXDist-YYYY.pkg` is used to install `/Library/TeX/texdist` switching support.
+  - None required for baseline package-installer workflows.
 - **Environment Variables**:
   - None required for baseline usage.
 - **Activation Scripts**:
