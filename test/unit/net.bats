@@ -88,11 +88,9 @@ EOF
 @test "_net__ensure_fetch_tool detects wget when curl is absent" {
   reload_lib net.sh
   create_fake_bin "wget" ""
-  # Temporarily restrict PATH to only the fake bin dir so the real curl
-  # (e.g. /usr/local/bin/curl) is not found.  PATH is restored before
-  # returning so bats cleanup commands (rm, etc.) can still find their tools.
-  local _saved_path="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"
+  # Temporarily isolate PATH so the real curl (e.g. /usr/local/bin/curl)
+  # is not found.
+  begin_path_isolation
   _net__ensure_ca_certs() {
     _NET_CA_CERTS_OK=true
     return 0
@@ -100,7 +98,7 @@ EOF
   export -f _net__ensure_ca_certs
   _net__ensure_fetch_tool
   local _result="$_NET_FETCH_TOOL"
-  export PATH="$_saved_path"
+  end_path_isolation
   [[ "$_result" == "wget" ]]
 }
 

@@ -173,12 +173,10 @@ z"
   }
   export -f ospkg__install_tracked
 
-  local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"
-
+  begin_path_isolation
   run _json__ensure_jq
   local _rc=$?
-  export PATH="$_saved"
+  end_path_isolation
 
   [[ $_rc -eq 0 ]]
   assert_file_exists "$_install_log"
@@ -212,12 +210,10 @@ z"
   }
   export -f ospkg__install_tracked
 
-  local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"
-
+  begin_path_isolation
   run _json__ensure_python3
   local _rc=$?
-  export PATH="$_saved"
+  end_path_isolation
 
   [[ $_rc -eq 0 ]]
   assert_file_exists "$_install_log"

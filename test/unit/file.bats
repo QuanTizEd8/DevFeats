@@ -24,13 +24,11 @@ setup() {
 @test "_file__ensure_extract_tool tar: fails with diagnostic when tar is absent" {
   # Restrict PATH to only our empty bin dir so tar is not found.
   # We must NOT call prepend_fake_bin_path before this — just restrict directly.
-  mkdir -p "${BATS_TEST_TMPDIR}/bin"
-  local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"
+  begin_path_isolation
 
   run _file__ensure_extract_tool tar
 
-  export PATH="$_saved"
+  end_path_isolation
   assert_failure
   assert_output --partial "tar is required"
 }
@@ -45,9 +43,7 @@ setup() {
 
 @test "_file__ensure_extract_tool zip: fails with diagnostic when unzip absent and ospkg install fails" {
   # ospkg is now always loaded; simulate install failure so unzip stays absent.
-  mkdir -p "${BATS_TEST_TMPDIR}/bin"
-  local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"
+  begin_path_isolation
 
   ospkg__update() { return 0; }
   export -f ospkg__update
@@ -56,7 +52,7 @@ setup() {
 
   run _file__ensure_extract_tool zip
 
-  export PATH="$_saved"
+  end_path_isolation
   assert_failure
   assert_output --partial "unzip is required"
 }
@@ -224,19 +220,12 @@ setup() {
   local _arc="${BATS_TEST_TMPDIR}/test_no_tar.tar.gz"
   touch "$_arc"
   local _dest="${BATS_TEST_TMPDIR}/out_no_tar"
-  # file.sh needs basename and mkdir; place pass-through symlinks so they're
-  # available even with the restricted PATH.
-  create_pass_through_bin "basename"
-  create_pass_through_bin "mkdir"
-  create_pass_through_bin "sort"
-
   # Restrict PATH so tar is not found (our bin dir has no tar).
-  local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"
+  begin_path_isolation "basename" "mkdir" "sort"
 
   run file__extract_archive "$_arc" "$_dest"
 
-  export PATH="$_saved"
+  end_path_isolation
   assert_failure
   assert_output --partial "tar is required"
 }

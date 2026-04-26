@@ -13,8 +13,9 @@ setup() {
 @test "devcontainer__parse_config prints normalized JSON" {
   _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.XXXXXX")"
   printf '%s' '{"a":1}' > "$_f"
-  run devcontainer__parse_config "$_f"
+  run --separate-stderr devcontainer__parse_config "$_f"
   assert_success
+  # Keep stdout contract strict: only normalized JSON belongs on stdout.
   assert_json_compact_equals "$output" '{"a":1}'
   rm -f "$_f"
 }

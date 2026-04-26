@@ -150,11 +150,10 @@ bob"
 
 @test "users__set_login_shell warns when chsh is not installed" {
   reload_lib users.sh
-  # Save PATH first; export an empty fake bin dir so chsh is not found.
-  local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"
+  # Isolate PATH so chsh is not found.
+  begin_path_isolation
   run users__set_login_shell "/usr/bin/zsh" "alice"
-  export PATH="$_saved"
+  end_path_isolation
   assert_success
   assert_output --partial "chsh not found"
 }

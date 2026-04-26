@@ -41,3 +41,32 @@ create_pass_through_bin() {
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   ln -sf "$_real" "${BATS_TEST_TMPDIR}/bin/${_name}"
 }
+
+# begin_path_isolation [<allowed_cmd>...]
+#
+# Replaces PATH with ${BATS_TEST_TMPDIR}/bin and optionally injects pass-through
+# symlinks for selected host commands. Useful for lean tests that need to prove
+# a tool is absent while keeping a minimal set of core utilities available.
+begin_path_isolation() {
+  if [[ -z "${_STUBS_PATH_SAVED+x}" ]]; then
+    _STUBS_PATH_SAVED="$PATH"
+  fi
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+
+  local _cmd
+  for _cmd in "$@"; do
+    create_pass_through_bin "$_cmd"
+  done
+
+  export PATH="${BATS_TEST_TMPDIR}/bin"
+}
+
+# end_path_isolation
+#
+# Restores PATH captured by begin_path_isolation.
+end_path_isolation() {
+  if [[ -n "${_STUBS_PATH_SAVED+x}" ]]; then
+    export PATH="$_STUBS_PATH_SAVED"
+    unset _STUBS_PATH_SAVED
+  fi
+}

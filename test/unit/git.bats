@@ -72,10 +72,11 @@ EOF
   }
   export -f ospkg__install_tracked
 
-  local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin:/bin:/usr/sbin:/sbin"
+  # Hermetic PATH: keep core tools available, but ensure git is truly absent
+  # until ospkg__install_tracked drops the fake git binary.
+  begin_path_isolation "mkdir" "rm" "cat" "chmod" "bash"
   run git__clone --url "file:///tmp/fake.git" --dir "$_dst"
-  export PATH="$_saved"
+  end_path_isolation
 
   assert_success
   assert_file_exists "${_dst}/.git/HEAD"
