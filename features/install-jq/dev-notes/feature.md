@@ -135,7 +135,7 @@ apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
 #### Changing Versions and Uninstallation
 
 - **Upgrading/Downgrading**:
-  - Debian/Ubuntu: `apt-get install jq=<version>` or `apt-get upgrade jq`.
+  - Debian/Ubuntu: `apt-get install jq=<version>` for version pin/downgrade, or `apt-get install --only-upgrade jq` to upgrade jq without a full system upgrade.
   - Fedora/RHEL-family: `dnf upgrade jq` or version-qualified install where available.
   - openSUSE: `zypper update jq` or version-qualified install.
   - Arch: `pacman -Syu jq`.
@@ -178,8 +178,8 @@ brew uninstall jq
 #### Supported Platforms
 
 - Linux and macOS on architectures for which jq publishes release assets.
-- Official 1.8.1 assets include at least Linux `amd64`, `arm64`, `i386` (and additional Linux arches), plus macOS `amd64` and `arm64`.
-- This method works on most Linux distributions (including musl-based ones) when a matching release binary exists.
+- Official 1.8.1 assets documented on the jq download page are Linux `amd64`, `arm64`, `i386`, and macOS `amd64`, `arm64`.
+- This method works when a matching official binary exists for the target OS/architecture and executes successfully in the target environment.
 
 #### Dependencies
 
@@ -245,7 +245,8 @@ curl -fsSLo jq-release-new.key \
 gpg --import jq-release-new.key
 # Optional fingerprint check: 93079A9511EFC0B7D6CDBFB5B0DA60FB454BAF18
 
-curl -fsSLO "https://github.com/jqlang/jq/releases/download/jq-1.8.1/jq-linux-amd64.asc"
+curl -fsSLo jq-linux-amd64.asc \
+  https://raw.githubusercontent.com/jqlang/jq/master/sig/v1.8.1/jq-linux-amd64.asc
 gpg --verify jq-linux-amd64.asc jq-linux-amd64
 ```
 
