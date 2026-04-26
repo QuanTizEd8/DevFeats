@@ -1,17 +1,13 @@
 #!/bin/bash
-# Verifies that a '--- key' section with a .gpg destination fetches the
-# ASCII-armored key and converts it to binary PGP format via gpg --dearmor.
-# Also exercises auto-installation of curl and gnupg when absent.
+# Verifies the full key+repo+package lifecycle with a dearmored (.gpg) key:
+# ASCII-armored nginx key fetched and converted to binary GPG format, repo
+# added, nginx installed from the third-party repo, key and repo cleaned up.
 set -e
 
 source dev-container-features-test-lib
 
-check "tree is installed" command -v tree
-check "fetch tool was auto-installed" bash -c "command -v curl || command -v wget"
-check "ca-certificates was auto-installed" test -s /etc/ssl/certs/ca-certificates.crt
-check "gpg was auto-installed" command -v gpg
-check "dearmored key file exists" test -f /usr/share/keyrings/nginx-archive-keyring.gpg
-check "dearmored key is non-empty" test -s /usr/share/keyrings/nginx-archive-keyring.gpg
-check "dearmored key is not ASCII armor" bash -c '! grep -q "BEGIN PGP" /usr/share/keyrings/nginx-archive-keyring.gpg'
+check "nginx is installed"       command -v nginx
+check "key file was cleaned up"  bash -c '! test -f /usr/share/keyrings/nginx-archive-keyring.gpg'
+check "repo file was cleaned up" bash -c '! test -f /etc/apt/sources.list.d/syspkg-installer.list'
 
 reportResults

@@ -1,11 +1,12 @@
 FROM debian:latest
 ARG GITHUB_TOKEN
 ENV GITHUB_TOKEN=${GITHUB_TOKEN}
-RUN apt-get update \
- && printf '%s\n' \
+RUN printf '%s\n' \
       'keys:' \
       '  - url: https://nginx.org/keys/nginx_signing.key' \
       '    dest: /usr/share/keyrings/nginx-archive-keyring.gpg' \
+      'repos:' \
+      '  - content: "deb [arch=${deb_arch} signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian ${version_codename} nginx"' \
       'packages:' \
-      '  - tree' \
+      '  - nginx' \
       > /tmp/manifest.yaml

@@ -1460,6 +1460,9 @@ ospkg__run() {
       echo "ℹ️  No prescripts found — skipping." >&2
     fi
 
+    local _yaml_key_added=false
+    local -a _yaml_keys_written=()
+
     # Phase: SIGNING KEYS.
     if [[ ${#_Y_KEYS[@]} -gt 0 ]]; then
       echo "🔑 Installing ${#_Y_KEYS[@]} signing key(s)." >&2
@@ -1489,6 +1492,8 @@ ospkg__run() {
           fi
         else
           _ospkg_install_key_entry "$_kurl" "$_kdest" "$_kdearmor" "$_kfp"
+          _yaml_keys_written+=("$_keff")
+          _yaml_key_added=true
         fi
       done
       if [[ "$_dry_run" == false ]]; then
@@ -1796,6 +1801,19 @@ ospkg__run() {
       fi
     elif [[ "$_yaml_repo_added" == true ]]; then
       echo "ℹ️  Keeping added repositories (--keep_repos)." >&2
+    fi
+
+    # Phase: KEY CLEANUP.
+    # Signing keys added during this run are removed unless --keep_repos.
+    if [[ "$_yaml_key_added" == true && "$_keep_repos" == false ]]; then
+      echo "🗑️  Removing installed signing keys." >&2
+      local _kpath
+      for _kpath in "${_yaml_keys_written[@]}"; do
+        rm -f "$_kpath"
+        echo "🗑️  Removed signing key: ${_kpath}" >&2
+      done
+    elif [[ "$_yaml_key_added" == true ]]; then
+      echo "ℹ️  Keeping installed signing keys (--keep_repos)." >&2
     fi
 
     # Apply build-group tracking: diff against pre-install snapshot, mark new packages.

@@ -1,16 +1,13 @@
 #!/bin/bash
-# Verifies that a '--- key' section with a non-.gpg destination downloads the
-# key as raw bytes (no dearmoring). Also exercises auto-installation of curl
-# when neither curl nor wget is present on the base image.
+# Verifies the full key+repo+package lifecycle with a raw (ASCII-armored) key:
+# nginx key fetched without dearmoring, repo added, nginx installed from the
+# third-party repo, key and repo cleaned up after install.
 set -e
 
 source dev-container-features-test-lib
 
-check "tree is installed" command -v tree
-check "fetch tool was auto-installed" bash -c "command -v curl || command -v wget"
-check "ca-certificates was auto-installed" test -s /etc/ssl/certs/ca-certificates.crt
-check "raw key file exists" test -f /usr/share/keyrings/nginx-signing.key
-check "raw key is non-empty" test -s /usr/share/keyrings/nginx-signing.key
-check "raw key retains ASCII armor" grep -q "BEGIN PGP PUBLIC KEY BLOCK" /usr/share/keyrings/nginx-signing.key
+check "nginx is installed"       command -v nginx
+check "key file was cleaned up"  bash -c '! test -f /usr/share/keyrings/nginx-signing.key'
+check "repo file was cleaned up" bash -c '! test -f /etc/apt/sources.list.d/syspkg-installer.list'
 
 reportResults
