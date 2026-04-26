@@ -116,6 +116,7 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Paper default: `--paper=a4|letter`.
   - Doc/src toggles: `--no-doc-install`, `--no-src-install`.
   - Batch profile mode: `--profile <file>` / `--init-from-profile <file>`.
+  - Advanced repository and binary controls: `--select-repository` (explicit mirror/local-media selection in interactive modes) and `--custom-bin <path>` (inject custom-built binaries).
   - Verification and download behavior from installer/tooling (verification is enabled by default when `gpg` is available and can be disabled with `--no-verify-downloads`; for package operations, `tlmgr --verify-repo=none|main|all` controls repository signature requirements; persistent-download controls are also available).
 
 #### Post-Installation Steps and Cleanup
@@ -129,6 +130,8 @@ export PATH=/usr/local/texlive/2026/bin/x86_64-linux:$PATH
 
 - **Configuration Files**:
   - Installer writes installation profile (`tlpkg/texlive.profile`) and system config overlays (`texmf.cnf`, `texmfcnf.lua`) in the install tree.
+  - Post-install generation refreshes key TeX config artifacts (`fmtutil.cnf`, `updmap.cfg`, `language.dat`, `language.def`, `language.dat.lua`) based on installed package metadata.
+  - Legacy single-file overlays (`fmtutil-local.cnf`, `updmap-local.cfg`) are no longer the preferred mechanism; modern tooling expects configuration layering in the active TEXMF trees.
 - **Environment Variables**:
   - Installer honors several environment variables (`TEXLIVE_INSTALL_*`, `TEXLIVE_INSTALL_PAPER`, and others) for automation/scripting.
 - **Activation Scripts**:
@@ -152,6 +155,7 @@ tlmgr update --self --all
   - For interrupted/retry scenarios, upstream quick-install docs explicitly show removing incomplete trees before reattempting.
 - **Idempotency**:
   - Re-running installer with same settings is generally repeatable; installer supports profile-based non-interactive flows and has logic for aborted-install resume behavior.
+  - If a copied `install-tl` script inside an existing tree starts failing due infrastructure drift, rerun from a fresh installer archive (`install-tl-unx.tar.gz`) instead of the in-tree copy.
 
 #### Notes and Best Practices
 
@@ -228,7 +232,8 @@ Also verify TeX distribution root when needed:
 #### Post-Installation Steps and Cleanup
 
 - **PATH Setup**:
-  - Use `/Library/TeX/texbin` in PATH (MacTeX-managed stable indirection).
+  - Use `/Library/TeX/texbin` in PATH (MacTeX-managed stable indirection); do not edit the link directly.
+  - TeX Live Utility switching keeps this stable path while updating active distribution wiring, including command-line path behavior and GUI app discovery.
   - For macOS Unix-script installation workflows (outside `MacTeX.pkg`), `TeXDist-YYYY.pkg` (or documented postinstall helper scripts) provide `/Library/TeX/texdist` switching support used by GUI tool discovery.
 - **Configuration Files**:
   - None required for baseline package-installer workflows.
