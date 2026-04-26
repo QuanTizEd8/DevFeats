@@ -1,4 +1,4 @@
-## The bootstrap pattern
+# Bootstrap Script
 
 The devcontainer spec guarantees only POSIX `sh` when `install.sh` runs —
 bash is not guaranteed. The library and installer scripts require bash ≥4.
