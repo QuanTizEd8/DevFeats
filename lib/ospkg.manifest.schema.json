@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "lib/ospkg.manifest.schema.json",
+  "$id": "https://raw.githubusercontent.com/quantized8/sysset/main/lib/ospkg.manifest.schema.json",
   "title": "OS Package Manifest",
   "description": "Declarative YAML/JSON manifest for cross-platform OS package installation. Replaces the text-based manifest DSL. Consumed by ospkg__run() in lib/ospkg.sh.\n\nExecution order: prescripts \u2192 PM-block setup (keys, repos, taps, ppas, copr, modules) \u2192 package-manager update \u2192 packages \u2192 PM-block scripts \u2192 scripts \u2192 repo cleanup \u2192 cache clean.\n\nInline keys/repos/scripts on package entries and groups are collected and executed in the same batch order \u2014 structural co-location is for authoring convenience, not execution sequencing.",
   "type": "object",

@@ -85,14 +85,14 @@
           "description": "Runtime dependencies.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "lib/ospkg.manifest.schema.json"
+            "$ref": "https://raw.githubusercontent.com/quantized8/sysset/main/lib/ospkg.manifest.schema.json"
           }
         },
         "build": {
           "description": "Build dependencies. These are only required when installing the Feature, and can be removed afterwards to save space.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "lib/ospkg.manifest.schema.json"
+            "$ref": "https://raw.githubusercontent.com/quantized8/sysset/main/lib/ospkg.manifest.schema.json"
           }
         }
       }
