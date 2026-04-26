@@ -45,7 +45,7 @@ The full release also includes additional assets such as Windows installers/arch
 
 - **Common Dependencies**: Download tool (`curl`/`wget`), extraction/install tooling (`tar`, `unzip`, `dpkg` or platform installer), and checksum tooling (`sha256sum`/`shasum`) for integrity checks.
 - **Platform-Specific Dependencies**:
-  - Linux `.deb`: `dpkg`, sufficient privileges for system-wide install, and runtime dependencies declared by upstream package metadata (`libc6`, `libgmp10`, `zlib1g`).
+  - Linux `.deb`: `dpkg`, sufficient privileges for system-wide install, runtime dependencies declared by upstream package metadata (`libc6 (>= 2.13)`, `libgmp10`, `zlib1g (>= 1:1.1.4)`), and upstream-suggested TeX packages for PDF workflows (`texlive-latex-recommended`, `texlive-xetex`, `texlive-fonts-recommended`).
   - Linux tarball: writable destination path (for example `/usr/local` with sudo or `$HOME/.local` without sudo).
   - macOS `.pkg`: macOS installer subsystem and elevated privileges for system-wide install.
 
@@ -414,6 +414,23 @@ Upstream quick cabal method:
 # https://www.haskell.org/ghcup/install/
 
 cabal update
+cabal install pandoc-cli
+```
+
+Upstream custom cabal method (maximal control, useful for packagers):
+
+```bash
+cabal update
+cabal build --only-dependencies
+
+cabal configure --prefix=DIR --bindir=DIR --libdir=DIR \
+  --datadir=DIR --libsubdir=DIR --datasubdir=DIR --docdir=DIR \
+  --htmldir=DIR --program-prefix=PREFIX --program-suffix=SUFFIX \
+  --mandir=DIR --flags=FLAGSPEC --enable-tests
+
+cabal build
+cabal test
+cabal haddock --html-location=URL --hyperlink-source
 cabal install pandoc-cli
 ```
 
