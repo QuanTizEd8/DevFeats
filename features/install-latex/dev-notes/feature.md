@@ -117,6 +117,7 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Doc/src toggles: `--no-doc-install`, `--no-src-install`.
   - Batch profile mode: `--profile <file>` / `--init-from-profile <file>`.
   - Advanced repository and binary controls: `--select-repository` (explicit mirror/local-media selection in interactive modes) and `--custom-bin <path>` (inject custom-built binaries; not compatible with `--in-place`).
+  - With `--custom-bin`, supplied binaries are copied to `TLROOT/bin/custom`, that literal path should be used in PATH, and ongoing updates require `wget`, `xz`, and `xzdec` in PATH; platform-script symlinks in `bin/custom` must be maintained manually.
   - Verification and download behavior from installer/tooling (verification is enabled by default when `gpg` is available and can be disabled with `--no-verify-downloads`; for package operations, `tlmgr --verify-repo=none|main|all` controls repository signature requirements; persistent-download controls are also available).
 
 #### Post-Installation Steps and Cleanup
@@ -128,12 +129,19 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
 export PATH=/usr/local/texlive/2026/bin/x86_64-linux:$PATH
 ```
 
+  - Installer profile option `instopt_adjustpath` controls installer-side PATH adjustment behavior (default off on Unix, on for Windows).
+  - Alternative Unix symlink mode is available via `tlmgr option sys_bin|sys_man|sys_info` plus `tlmgr path add`; rerun `tlmgr path` when future updates add/remove linked executables.
+
 - **Configuration Files**:
   - Installer writes installation profile (`tlpkg/texlive.profile`) and system config overlays (`texmf.cnf`, `texmfcnf.lua`) in the install tree.
   - Post-install generation refreshes key TeX config artifacts (`fmtutil.cnf`, `updmap.cfg`, `language.dat`, `language.def`, `language.dat.lua`) based on installed package metadata.
   - Legacy single-file overlays (`fmtutil-local.cnf`, `updmap-local.cfg`) are obsolete; local additions should be placed in layered files such as `TEXMFLOCAL/web2c/fmtutil.cnf`, `TEXMFLOCAL/web2c/updmap.cfg`, and `language-local.*` files under TEXMFLOCAL.
 - **Environment Variables**:
-  - Installer honors several environment variables (`TEXLIVE_INSTALL_*`, `TEXLIVE_INSTALL_PAPER`, and others) for automation/scripting.
+  - Installer automation controls include:
+    - Directory overrides: `TEXLIVE_INSTALL_PREFIX` and `TEXLIVE_INSTALL_TEXMF*` variables.
+    - Behavior toggles: `TEXLIVE_INSTALL_PAPER`, `TEXLIVE_INSTALL_ENV_NOCHECK`, and `TEXLIVE_INSTALL_NO_*` controls such as disk-check, resume-check, context-cache, and welcome-message toggles.
+    - Downloader/tool selection: `TEXLIVE_DOWNLOADER`, `TL_DOWNLOAD_PROGRAM`, `TL_DOWNLOAD_ARGS`, `TEXLIVE_PREFER_OWN`.
+    - Help-output control: `NOPERLDOC`.
 - **Activation Scripts**:
   - None required beyond shell PATH initialization for chosen install prefix.
 - **Cleanup**:
@@ -351,6 +359,7 @@ Check package-manager metadata for installed package set as needed.
 - [TeX Live Network Install](https://www.tug.org/texlive/acquire-netinstall.html) - Upstream internet install flow, mirror guidance, and recommendation to install Perl LWP for faster downloads.
 - [TeX Live Quick Install](https://www.tug.org/texlive/quickinstall.html) - Canonical quick install commands, PATH guidance, and post-install basics.
 - [install-tl Manual](https://www.tug.org/texlive/doc/install-tl.html) - Full installer option semantics, profile format, defaults, and environment controls.
+- [TeX Live Custom Binaries](https://www.tug.org/texlive/custom-bin.html) - Official operational details for `--custom-bin`, PATH expectations, and update-time maintenance caveats.
 - [tlmgr Manual](https://www.tug.org/texlive/doc/tlmgr.html) - Package lifecycle commands (`install`, `update`, `remove`, `option`, `path`, repository, verification, user mode).
 - [TeX Live and Distros](https://www.tug.org/texlive/distro.html) - Upstream guidance for distro-packaged TeX Live and package-manager ownership boundaries.
 - [TeX Live Installer Repository](https://github.com/TeX-Live/installer) - Upstream mirror containing installer source and release metadata files.
