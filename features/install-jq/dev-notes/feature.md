@@ -25,7 +25,7 @@ The official jq container image exists, but it is not typically treated as a hos
 - Fedora/RHEL-family systems with `dnf` and available jq package.
 - openSUSE via `zypper`.
 - Arch Linux via `pacman`.
-- macOS via Homebrew.
+- macOS and Linux via Homebrew.
 - Alpine Linux via `apk` package repositories.
 
 #### Dependencies
@@ -59,7 +59,7 @@ sudo pacman -S --noconfirm jq
 # Alpine
 sudo apk add --no-cache jq
 
-# macOS (Homebrew)
+# Homebrew (macOS/Linux)
 brew install jq
 ```
 
@@ -310,7 +310,7 @@ rm -f "$HOME/.local/bin/jq"
 
 #### Supported Platforms
 
-- Linux, macOS, Cygwin, and other POSIX-like systems where build dependencies are available.
+- Linux, macOS, and other POSIX-like systems where build dependencies are available.
 - Most portable method when package-manager or binary methods are insufficient.
 
 #### Dependencies
