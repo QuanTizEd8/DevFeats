@@ -39,7 +39,7 @@ LIB_DIRPATH = REPO_DIRPATH / "lib"
 FEATURES_DIRPATH = REPO_DIRPATH / "features"
 SRC_DIRPATH = REPO_DIRPATH / "src"
 INSTALL_SCRIPT_TEMPLATES_DIRPATH = FEATURES_DIRPATH / "_templates"
-DERIVED_OPTIONS_FILEPATH = FEATURES_DIRPATH / "derived-options.yaml"
+COMMON_OPTIONS_FILEPATH = FEATURES_DIRPATH / "shared-options.yaml"
 METADATA_SCHEMA_FILEPATH = FEATURES_DIRPATH / "metadata.schema.json"
 OSPKG_MANIFEST_SCHEMA_FILEPATH = LIB_DIRPATH / "ospkg.manifest.schema.json"
 BOOTSTRAP_FILEPATH = FEATURES_DIRPATH / "bootstrap.sh"
@@ -144,7 +144,7 @@ def read_metadata(feature_id: str) -> dict | None:
 def augment_metadata(feature_id: str, metadata: dict) -> bool:
     """Generate the full options dict for a feature.
 
-    Add derived options from features/derived-options.yaml,
+    Add common options from features/shared-options.yaml,
     conditionally applying options with _apply_when
     based on the feature's full metadata dict.
     """
@@ -207,7 +207,7 @@ def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
     return True, current
 
 
-with DERIVED_OPTIONS_FILEPATH.open(encoding="utf-8") as _fh:
+with COMMON_OPTIONS_FILEPATH.open(encoding="utf-8") as _fh:
     _derived_options: dict = yaml.safe_load(_fh)
 
 
