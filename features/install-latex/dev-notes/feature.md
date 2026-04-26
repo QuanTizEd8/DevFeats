@@ -116,7 +116,7 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Paper default: `--paper=a4|letter`.
   - Doc/src toggles: `--no-doc-install`, `--no-src-install`.
   - Batch profile mode: `--profile <file>` / `--init-from-profile <file>`.
-  - Advanced repository and binary controls: `--select-repository` (explicit mirror/local-media selection in interactive modes) and `--custom-bin <path>` (inject custom-built binaries).
+  - Advanced repository and binary controls: `--select-repository` (explicit mirror/local-media selection in interactive modes) and `--custom-bin <path>` (inject custom-built binaries; not compatible with `--in-place`).
   - Verification and download behavior from installer/tooling (verification is enabled by default when `gpg` is available and can be disabled with `--no-verify-downloads`; for package operations, `tlmgr --verify-repo=none|main|all` controls repository signature requirements; persistent-download controls are also available).
 
 #### Post-Installation Steps and Cleanup
@@ -131,7 +131,7 @@ export PATH=/usr/local/texlive/2026/bin/x86_64-linux:$PATH
 - **Configuration Files**:
   - Installer writes installation profile (`tlpkg/texlive.profile`) and system config overlays (`texmf.cnf`, `texmfcnf.lua`) in the install tree.
   - Post-install generation refreshes key TeX config artifacts (`fmtutil.cnf`, `updmap.cfg`, `language.dat`, `language.def`, `language.dat.lua`) based on installed package metadata.
-  - Legacy single-file overlays (`fmtutil-local.cnf`, `updmap-local.cfg`) are no longer the preferred mechanism; modern tooling expects configuration layering in the active TEXMF trees.
+  - Legacy single-file overlays (`fmtutil-local.cnf`, `updmap-local.cfg`) are obsolete; local additions should be placed in layered files such as `TEXMFLOCAL/web2c/fmtutil.cnf`, `TEXMFLOCAL/web2c/updmap.cfg`, and `language-local.*` files under TEXMFLOCAL.
 - **Environment Variables**:
   - Installer honors several environment variables (`TEXLIVE_INSTALL_*`, `TEXLIVE_INSTALL_PAPER`, and others) for automation/scripting.
 - **Activation Scripts**:
