@@ -208,6 +208,34 @@ EOF
   assert_output --partial "User-Agent: sysset"
 }
 
+@test "net__fetch_url_stdout returns failure when curl fails" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  curl() {
+    return 22
+  }
+  export -f curl
+  run net__fetch_url_stdout "https://example.com/missing"
+  assert_failure
+  assert_output --partial "failed to fetch"
+  assert_output --partial "exit 22"
+}
+
+@test "net__fetch_url_file returns failure when curl fails" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  curl() {
+    return 22
+  }
+  export -f curl
+  run net__fetch_url_file "https://example.com/missing" "/tmp/out"
+  assert_failure
+  assert_output --partial "failed to fetch"
+  assert_output --partial "exit 22"
+}
+
 @test "net__fetch_url_stdout does not override an explicit User-Agent header" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
@@ -249,6 +277,20 @@ EOF
   assert_output --partial "tool=wget"
   assert_output --partial "retry=60"
   assert_output --partial "delay=5"
+}
+
+@test "net__fetch_url_stdout returns failure when wget retry helper fails" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=wget
+  _NET_CA_CERTS_OK=true
+  net__fetch_with_retry() {
+    return 1
+  }
+  export -f net__fetch_with_retry
+  run net__fetch_url_stdout "https://example.com/missing"
+  assert_failure
+  assert_output --partial "failed to fetch"
+  assert_output --partial "with wget"
 }
 
 @test "net__fetch_url_stdout passes --retries to curl" {
@@ -329,6 +371,20 @@ EOF
   export -f net__fetch_with_retry
   run net__fetch_url_file "https://example.com" "/tmp/out" --retries 3
   assert_output --partial "retry=3"
+}
+
+@test "net__fetch_url_file returns failure when wget retry helper fails" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=wget
+  _NET_CA_CERTS_OK=true
+  net__fetch_with_retry() {
+    return 1
+  }
+  export -f net__fetch_with_retry
+  run net__fetch_url_file "https://example.com/missing" "/tmp/out"
+  assert_failure
+  assert_output --partial "failed to fetch"
+  assert_output --partial "with wget"
 }
 
 @test "net__fetch_url_stdout passes --delay to curl" {

@@ -181,7 +181,7 @@ github__fetch_release_asset_tarball() {
 github__latest_tag() {
   local _repo="$1"
   local _json _tag
-  _json="$(github__fetch_release_json "$_repo" 2> /dev/null)" || true
+  _json="$(github__fetch_release_json "$_repo")" || true
   _tag="$(printf '%s\n' "$_json" | json__root_scalar_stdin tag_name)" || _tag=""
   if [ -z "$_tag" ]; then
     _tag="$(printf '%s\n' "$_json" |
@@ -203,8 +203,8 @@ github__latest_tag() {
   # Use the net module for curl/wget abstraction.
   local _fallback_tag=""
   _fallback_tag="$(
-    net__fetch_url_stdout "https://github.com/${_repo}/releases/latest" 2> /dev/null |
-      sed -n 's|.*href="/'"${_repo}"'/releases/tag/\\([^"?#]*\\)".*|\\1|p' |
+    net__fetch_url_stdout "https://github.com/${_repo}/releases/latest" |
+      sed -n 's|.*href="/'"${_repo}"'/releases/tag/\([^"?#]*\)".*|\1|p' |
       head -1 || true
   )"
 

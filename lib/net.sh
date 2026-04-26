@@ -123,6 +123,10 @@ net__fetch_url_stdout() {
 $_hdrs
 _NET_HDR_EOF_
     curl "$@" "$_url"
+    local _rc=$?
+    [ "${_rc}" -eq 0 ] && return 0
+    echo "⛔ net__fetch_url_stdout: failed to fetch '${_url}' with curl (exit ${_rc})." >&2
+    return "${_rc}"
   else
     set -- -O-
     while IFS= read -r _h; do
@@ -132,8 +136,11 @@ _NET_HDR_EOF_
 $_hdrs
 _NET_HDR_EOF_
     net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
+    local _rc=$?
+    [ "${_rc}" -eq 0 ] && return 0
+    echo "⛔ net__fetch_url_stdout: failed to fetch '${_url}' with wget (exit ${_rc})." >&2
+    return "${_rc}"
   fi
-  return 0
 }
 
 # @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
@@ -186,6 +193,10 @@ net__fetch_url_file() {
 $_hdrs
 _NET_HDR_EOF_
     curl "$@" -o "$_dest" "$_url"
+    local _rc=$?
+    [ "${_rc}" -eq 0 ] && return 0
+    echo "⛔ net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with curl (exit ${_rc})." >&2
+    return "${_rc}"
   else
     set -- -O "$_dest"
     while IFS= read -r _h; do
@@ -195,8 +206,11 @@ _NET_HDR_EOF_
 $_hdrs
 _NET_HDR_EOF_
     net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
+    local _rc=$?
+    [ "${_rc}" -eq 0 ] && return 0
+    echo "⛔ net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with wget (exit ${_rc})." >&2
+    return "${_rc}"
   fi
-  return 0
 }
 
 # _net__ensure_fetch_tool (internal)

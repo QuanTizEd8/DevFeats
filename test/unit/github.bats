@@ -41,9 +41,23 @@ setup() {
 
 @test "github__latest_tag fails when fetch returns empty" {
   github__fetch_release_json() { return 1; }
+  net__fetch_url_stdout() { return 1; }
+  export -f net__fetch_url_stdout
   export -f github__fetch_release_json
   run github__latest_tag "owner/repo"
   assert_failure
+}
+
+@test "github__latest_tag falls back to releases/latest HTML redirect parsing" {
+  github__fetch_release_json() { return 1; }
+  net__fetch_url_stdout() {
+    printf '%s\n' '<a href="/owner/repo/releases/tag/v9.8.7">latest</a>'
+    return 0
+  }
+  export -f github__fetch_release_json net__fetch_url_stdout
+  run github__latest_tag "owner/repo"
+  assert_success
+  assert_output "v9.8.7"
 }
 
 @test "github__latest_tag fails when tag_name is absent from JSON" {
