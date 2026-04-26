@@ -1,50 +1,40 @@
 # Developer Guide
 
-SysSet is a collection of [dev container features](https://containers.dev/implementors/features/)
-published to GitHub Container Registry. This guide covers everything needed
-to work on the repository — understanding the structure, writing new features,
-testing them, and publishing releases.
 
----
 
-## Prerequisites
 
-- Bash ≥ 4.0
-- **Docker** — must be running and accessible for feature integration tests.
-- **Node.js / npm** — required for the devcontainer CLI.
-- **devcontainer CLI** — install once:
-  ```bash
-  npm install -g @devcontainers/cli
-  ```
-- **shfmt** — bash formatter ([mvdan/sh](https://github.com/mvdan/sh)):
-  ```bash
-  brew install shfmt
-  ```
-- [`shellcheck`](https://shellcheck.net/) — bash linter:
-  ```bash
-  brew install shellcheck
-  ```
-- **Lefthook** — runs `scripts/sync-src.sh`, shfmt, and shellcheck automatically
-  on commit:
-  ```bash
-  brew install lefthook
-  lefthook install
-  ```
-- [devcontainer CLI](https://github.com/devcontainers/cli) (`npm install -g @devcontainers/cli`)
-- [bats](https://github.com/bats-core/bats-core) (included as git submodule under `test/unit/bats/`)
 
 ---
 
 ## Guide sections
 
 | Section | Description |
-|---|---|
-| [Repository structure](repo-structure.md) | Directory layout, synced files, code style tooling, dev container setup, CI workflows |
-| [Writing features](writing-features.md) | Feature anatomy, bootstrap pattern, argument parsing, shared library reference |
-| [Testing](testing.md) | Test framework, scenario scripts, running tests locally and in CI |
-| [Publishing](publishing.md) | Versioning, GHCR publication, making packages public, adding to the index |
+|---------|-------------|
+| [Repository structure](repo-structure.md) | Directory layout, synced files, tooling, dev container, CI |
+| [CI](ci.md) | `cicd.yaml`, `ci.yaml`, `cd.yaml`, path-based jobs |
+| [Writing features](writing-features.md) | Feature anatomy, bootstrap pattern, argument parsing, shared library |
+| [Testing](testing.md) | Scenario tests, unit tests, running locally vs CI |
+| [Publishing](publishing.md) | Versioning, GHCR, releases |
 
 ---
+
+Install [just](https://github.com/casey/just), then from the repo root:
+
+```bash
+just --list
+```
+
+That prints every recipe, its `[group]`, and the comment text above it in the [`justfile`](../../justfile). Prefer this over maintaining a duplicate table here.
+
+
+Direct equivalents still work (e.g. `python3 scripts/sync-src.py`) and are mentioned in the `justfile` comments where relevant.
+
+## Releases (not wrapped by `just`)
+
+Publishing to GHCR and GitHub Releases is done via GitHub Actions. See [Publishing](../dev-guide/publishing.md).
+
+
+
 
 ## Shared library quick reference
 
@@ -52,7 +42,7 @@ Every feature's `install.bash` has access to a shared bash library
 (sourced from `_lib/`, a synced copy of `lib/`):
 
 | Module | Key functions |
-|---|---|
+|--------|---------------|
 | `os.sh` | `os__require_root` |
 | `logging.sh` | `logging__setup`, `logging__cleanup` |
 | `net.sh` | `net__fetch_url_file`, `net__fetch_url_stdout`, `net__fetch_with_retry` |
@@ -65,44 +55,29 @@ for the full API.
 
 ---
 
-
 ## Common commands
 
+Run **`just --list`** for the full recipe list. Typical workflow:
+
 ```sh
-# Regenerate lib/ copies in each feature (run after editing lib/ or features/bootstrap.sh)
-bash scripts/sync-src.sh
-
-# Format all shell scripts
-just format
-
-# Lint all shell scripts
-just lint
-
-# Build standalone distribution artifacts
-just artifacts              # version = ""
-just artifacts v1.0.0       # version = "v1.0.0"
-
-# Run a feature's integration tests (scenarios + fail cases)
-bash test/run.sh feature install-pixi
-
-# Run all bats unit tests
+just sync                    # regenerate src/ (or: python3 scripts/sync-src.py)
+just format && just lint     # format + shellcheck
+just test-feature install-pixi
 just test-unit
-
-# Run unit tests for a single lib module
-bash test/run-unit.sh --module ospkg
+just watch-gha --commit HEAD # after push — stream CI logs
 ```
 
+Release automation is documented in [Publishing](publishing.md), not as `just` tasks.
 
+---
 
-## Pre-commit hooks
+## Lefthook
 
-[lefthook](https://github.com/evilmartians/lefthook) runs automatically on commit:
+[`lefthook.yml`](../lefthook.yml) is present for optional Git hooks. **Pre-commit commands that run `sync`, `format`, and `validate-metadata` are currently commented out**, so commits are not automatically reformatted or re-synced unless you re-enable those blocks.
 
-- **shellcheck** — lint all staged shell files
-- **shfmt** — format check all staged shell files
-- **sync-lib** — regenerate `_lib/` copies when `lib/` or `features/bootstrap.sh` change
+The devcontainer **`postCreateCommand`** still runs **`lefthook install`**, so hook definitions are registered when you use that environment.
 
-
+---
 
 ## References
 

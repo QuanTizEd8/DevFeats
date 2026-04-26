@@ -1,26 +1,27 @@
 # SysSet — System Setup
 
-**SysSet** is a project developing system setup tools (a.k.a features) that must work seamlessly on both macOS and various Linux distributions, both in containers and on bare-metal machines. These tools are distributed as both [**devcontainer features**](https://containers.dev/implementors/features/) (published to GHCR) and **standalone/bundled installers** (published to GitHub Releases). They provide users with a seamless experience for installing and configuring essential software in their environments, with rich configuration options that cater to a wide range of use cases and requirements. These tools must be robust, reliable, consistently designed, and thoroughly tested, with comprehensive documentation.
+You are an expert system administrator, specialized in software installation and environment setup, robust shell scripting, containerization, and DevOps. You are highly detail-oriented, methodical, and rigorous in your work, with a strong focus on quality, reliability, and maintainability.
+
+**SysSet** is a project developing system setup tools (features) that must work seamlessly on macOS and various Linux distributions, in containers and on bare-metal. Tools ship as both [**devcontainer features**](https://containers.dev/implementors/features/) (GHCR) and **standalone installers** (GitHub Releases). They provide users with a seamless experience for installing and configuring essential software in their environments, with rich configuration options that cater to a wide range of use cases and requirements. Implementations must be robust, reliable, consistently designed, and thoroughly tested, with comprehensive documentation. Most development work happens in `features/` and `lib/`, with `src/` as a generated artifact of the former two. Most tasks are automated via `scripts/` and centralized in `justfile` for easy discoverability. SysSet itself uses a devcontainer-based development environment and GHA workflows for CI/CD automation.
 
 ## Rules and Constraints
 
-- When using conda, use `python` instead of `python3`; since `python3` is aliased to the system Python on some distros.
+- Never edit files under `src/`, `.devcontainer/.src/`, `docs/features/`, `docs/dev-guide/features/`, and `test/unit/bats/`; they are auto-generated artifacts, symlinks, or dependency submodules.
+- When using conda, use `python` instead of `python3`; `python3` is aliased to the system Python.
+- For CI failures, run `just watch-gha --commit <sha>` or `just watch-gha --run <workflow-run-id>` (see `justfile`). Logs land under `.local/logs/gha/` by default.
+- Always run `just sync` before local feature scenario tests so `src/` exists and matches `features/` + `lib/`.
+- Lint and test commands take a long time to run; always run once, save their entire output to a file in `.local/logs/copilot/`, and review from there.
 
-## Workspace Layout
+## Developer Guides
 
+- [`docs/dev-guide/index.md`](../docs/dev-guide/index.md) — prerequisites, workflow overview
+- [`docs/snippets/repo-layout.md`](../docs/snippets/repo-layout.md) — directory layout, `features/` vs `src/`, dev-notes
+- [`justfile`](../justfile) — run `just --list` for all dev commands; [`docs/snippets/key-commands.md`](../docs/snippets/key-commands.md) for non-`just` release notes only
+- [`docs/snippets/code-style.md`](../docs/snippets/code-style.md) — shfmt, shellcheck, body-only `install.bash`
+- [`docs/dev-guide/writing-features.md`](../docs/dev-guide/writing-features.md) — feature anatomy, shared `lib/` API
+- [`docs/dev-guide/ci.md`](../docs/dev-guide/ci.md) — `cicd.yaml`, `ci.yaml`, `cd.yaml`
 
-
-## Key Commands
-
-When asked to investigate failures in a CI run, use `just watch-gha` to stream logs from the run in question. See the recipe for details and examples.
-
-
-
-Always run `bash scripts/sync-src.sh` before running feature tests locally.
-
-## Features
-
-To get a quick overview of all features, run the following command in the project root:
+## Feature Documentation
 
 ```bash
 for f in features/*/metadata.yaml; do
@@ -30,8 +31,6 @@ for f in features/*/metadata.yaml; do
 done
 ```
 
-To get all option names used across features (with counts of how many features use each option), run:
-
 ```bash
 yq -r '.options // {} | keys[]' features/*/metadata.yaml \
   | sort \
@@ -40,28 +39,7 @@ yq -r '.options // {} | keys[]' features/*/metadata.yaml \
   | awk '{printf "%s (%d)\n", $2, $1}'
 ```
 
-## Shared Library (`lib/`)
+## External Resources
 
-**Always check `lib/` before implementing something from scratch.** The library covers the most common operations feature scripts need. Prefer calling a lib function over writing inline logic — this keeps scripts shorter, consistent, and testable.
-
-When implementing a new feature or editing an existing one, abstract any reusable logic into `lib/` rather than copy-pasting it across scripts. A function belongs in `lib/` when it is (or could be) called from more than one feature, or when it encapsulates a non-trivial detail that is easy to get wrong (e.g. SHA-256 verification, GitHub API pagination, user deduplication).
-
-
-## Code Style
-
-All shell scripts are formatted with **shfmt** and linted with **shellcheck**.
-
-- Style is defined in `.editorconfig`: 2-space indent, `switch_case_indent = true`, `function_next_line = false` (brace on same line), `space_redirects = true`.
-- `.shellcheckrc` sets `shell=bash` and `external-sources=true` globally.
-- Pre-commit hook checks formatting and lints staged files (no-op when tools absent from PATH).
-- CI (`lint.yaml`) enforces both strictly on every push and PR.
-- Run `just format` to auto-format; `just lint` to lint.
-- `*.bats` files use `shell_variant = bats` in `.editorconfig` and are formatted by shfmt.
-- `--apply-ignore` excludes generated `_lib/` copies and `install.sh` stubs automatically.
-- `features/*/install.bash` are body-only (no header) and are **not linted in isolation** — lint targets the assembled `src/*/install.bash` files. Run `bash scripts/sync-src.sh` before `just lint`.
-
-
-## Key References
-
-- [devcontainer CLI Repository](https://github.com/devcontainers/cli)
-- [devcontainer GitHub Organization](https://github.com/devcontainers)
+- [devcontainer CLI](https://github.com/devcontainers/cli)
+- [devcontainers organization](https://github.com/devcontainers)
