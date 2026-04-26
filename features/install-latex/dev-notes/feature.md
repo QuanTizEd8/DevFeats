@@ -240,6 +240,7 @@ Also verify TeX distribution root when needed:
   - Remove downloaded `.pkg` artifacts if not needed.
   - Run TeX Live Utility updates after install to bring package state current.
   - For MacTeX-2026 users affected by the notarization-driven package refresh, use TeX Live Utility to reinstall forcibly removed ConTeXt packages after updates.
+  - If the Apple installer hangs at `Verifying...` or aborts due the 600-second postinstall timeout, follow the official recovery flow (reboot/retry, then run documented postinstall commands or the provided `postinstall2026.sh` helper).
 
 #### Changing Versions and Uninstallation
 
