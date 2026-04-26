@@ -3,29 +3,15 @@
 #
 # Requires net.sh (and ospkg.sh) to have been sourced first. Loads json.sh from
 # the same lib directory (see _json_sh resolution below).
+# Respects `GITHUB_TOKEN` for all API calls.
 
 [ -n "${_GITHUB__LIB_LOADED-}" ] && return 0
-
-if [ -z "${_JSON__LIB_LOADED-}" ]; then
-  _json_sh=""
-  if [ -n "${_SYSSET_LIB_DIR:-}" ] && [ -r "${_SYSSET_LIB_DIR}/json.sh" ]; then
-    _json_sh="${_SYSSET_LIB_DIR}/json.sh"
-  elif [ -n "${_SELF_DIR:-}" ] && [ -r "${_SELF_DIR}/_lib/json.sh" ]; then
-    _json_sh="${_SELF_DIR}/_lib/json.sh"
-  elif [ -n "${LIB_ROOT:-}" ] && [ -r "${LIB_ROOT}/json.sh" ]; then
-    _json_sh="${LIB_ROOT}/json.sh"
-  elif [ -n "${LIB_DIR:-}" ] && [ -r "${LIB_DIR}/json.sh" ]; then
-    _json_sh="${LIB_DIR}/json.sh"
-  fi
-  if [ -z "$_json_sh" ]; then
-    echo "⛔ github.sh: cannot find json.sh (set _SYSSET_LIB_DIR, _SELF_DIR, LIB_ROOT, or LIB_DIR)." >&2
-    return 1
-  fi
-  # shellcheck source=lib/json.sh
-  . "$_json_sh" || return $?
-fi
-
 _GITHUB__LIB_LOADED=1
+
+_GITHUB__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/json.sh
+. "$_GITHUB__LIB_DIR/json.sh"
+
 
 # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
 #
