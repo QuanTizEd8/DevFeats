@@ -20,6 +20,7 @@ docs/.build/
 # Python cache files
 *.pyc
 __pycache__/
+.venv/
 
 # OS-generated metadata / temp files (keep in sync with .gitignore so that
 # sync-src.py's _is_junk_file() picks them up via _gitignore_basename_patterns)
