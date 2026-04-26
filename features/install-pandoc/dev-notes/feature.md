@@ -191,7 +191,8 @@ pandoc --version
 - **Installation Path**:
   - Package-manager controlled.
 - **User Targeting**:
-  - Typically system-wide.
+  - Linux distro package-manager installs and MacPorts installs are typically system-wide.
+  - Homebrew installs into its managed prefix and is generally user-managed.
 - **Required Privileges**:
   - Usually required on Linux for install/remove/upgrade.
 - **Tool-Specific Configurations**:
@@ -200,7 +201,8 @@ pandoc --version
 #### Post-Installation Steps and Cleanup
 
 - **PATH Setup**:
-  - Usually automatic for package-manager installs.
+  - Usually automatic for Linux distro package-manager installs and MacPorts.
+  - Homebrew may require shell profile initialization (`brew shellenv`) if Homebrew paths are not yet configured.
 - **Configuration Files**:
   - None required.
 - **Environment Variables**:
@@ -419,6 +421,8 @@ cd pandoc-<version>
 git clone https://github.com/jgm/pandoc
 cd pandoc
 ```
+
+Upstream cautions that development source may sometimes be broken or require additional libraries; unless development snapshots are specifically required, released versions are recommended.
 
 #### Installation Verification
 
