@@ -68,21 +68,37 @@ _ospkg_clean_brew() {
 #                      unreachable, but all reachable repos were refreshed OK.
 #                      Common in containers that inherit subscription-only or
 #                      stale mirror repos from the base image.
+#
+# Returns exit code 2 for non-transient configuration errors (malformed source
+# lists, parse errors). net__fetch_with_retry --bail-on 2 will not retry these.
 _ospkg_update_cmd() {
   [[ ${#_OSPKG_UPDATE[@]} -eq 0 ]] && return 0
+  local _rc _err_tmp
+  _err_tmp="$(mktemp)"
   # Keep interactive mode possible on TTY, but prevent PMs from draining
   # caller-provided stdin in piped/non-interactive contexts.
   if [[ -t 0 ]]; then
-    "${_OSPKG_UPDATE[@]}" >&2
+    "${_OSPKG_UPDATE[@]}" 2> "$_err_tmp"
   elif [[ "$_OSPKG_PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
-    DEBIAN_FRONTEND=noninteractive "${_OSPKG_UPDATE[@]}" < /dev/null >&2
+    DEBIAN_FRONTEND=noninteractive "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp"
   else
-    "${_OSPKG_UPDATE[@]}" < /dev/null >&2
+    "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp"
   fi
-  local _rc=$?
+  _rc=$?
+  cat "$_err_tmp" >&2
   [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] &&
-    [[ $_rc -eq 100 ]] && return 0
-  [[ "$_OSPKG_PKG_MNGR" == "zypper" ]] && [[ $_rc -eq 6 ]] && return 0
+    [[ $_rc -eq 100 ]] && rm -f "$_err_tmp" && return 0
+  [[ "$_OSPKG_PKG_MNGR" == "zypper" ]] && [[ $_rc -eq 6 ]] && rm -f "$_err_tmp" && return 0
+  if [[ $_rc -ne 0 ]]; then
+    # Detect non-transient configuration errors — retrying will never fix these.
+    if grep -qiE 'Malformed line|source list could not be read|parse error|invalid source' \
+      "$_err_tmp" 2> /dev/null; then
+      echo "⛔ Package list update failed due to a configuration error — not retrying." >&2
+      rm -f "$_err_tmp"
+      return 2
+    fi
+  fi
+  rm -f "$_err_tmp"
   return $_rc
 }
 
@@ -629,7 +645,7 @@ ospkg__update() {
 
   if [[ "$_skip" == false ]]; then
     echo "🔄 Updating package lists." >&2
-    net__fetch_with_retry _ospkg_update_cmd
+    net__fetch_with_retry --bail-on 2 _ospkg_update_cmd
     _OSPKG_UPDATED=true
     echo "✅ Package lists updated." >&2
   fi
@@ -781,7 +797,7 @@ def visit(k; gf):
         else empty end),
         ($g.packages[] | visit(k; $mf))
       elif k == "repo" then
-        (if $g | has("repos") then $g.repos[] | {kind: "repo", content: .} else empty end),
+        (if $g | has("repos") then $g.repos[] | {kind: "repo", content: (.content // .)} else empty end),
         ($g.packages[] | visit(k; $mf))
       elif k == "package" then
         ($g.packages[] | visit(k; $mf))
@@ -807,7 +823,7 @@ def visit(k; gf):
           $e.keys[] | {kind: "key", url: (.url // null), dest: .dest, dearmor: (.dearmor // null), fingerprint: (.fingerprint // null)}
         else empty end
       elif k == "repo" then
-        if $e | has("repos") then $e.repos[] | {kind: "repo", content: .} else empty end
+        if $e | has("repos") then $e.repos[] | {kind: "repo", content: (.content // .)} else empty end
       elif k == "package" then
         {kind: "package",
          name: (
@@ -852,10 +868,10 @@ else empty end),
 
 # Phase: REPOS — top-level, PM block, then inline
 (if $doc | has("repos") then
-  $doc.repos[] | {kind: "repo", content: .}
+  $doc.repos[] | {kind: "repo", content: (.content // .)}
 else empty end),
 (if ($doc | has($pm)) and ($doc[$pm] | has("repos")) then
-  $doc[$pm].repos[] | {kind: "repo", content: .}
+  $doc[$pm].repos[] | {kind: "repo", content: (.content // .)}
 else empty end),
 (if $doc | has("packages") then
   $doc.packages[] | visit("repo"; null) else empty end),

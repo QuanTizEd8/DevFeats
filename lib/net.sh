@@ -26,7 +26,7 @@ _net__hdrs_with_default_ua() {
   fi
 }
 
-# @brief net__fetch_with_retry [--retries N] [--delay N] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
+# @brief net__fetch_with_retry [--retries N] [--delay N] [--bail-on CODE] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
 #
 # Does NOT require ospkg.sh. Prefer net__fetch_url_stdout / net__fetch_url_file
 # for curl/wget downloads; those handle tool detection, --compressed, and
@@ -34,11 +34,13 @@ _net__hdrs_with_default_ua() {
 # that are not curl/wget.
 #
 # Args:
-#   --retries N  Maximum number of attempts (default: 60).
-#   --delay N    Seconds to wait between failures (default: 5).
-#   <cmd...>     Command and arguments to run.
+#   --retries N      Maximum number of attempts (default: 60).
+#   --delay N        Seconds to wait between failures (default: 5).
+#   --bail-on CODE   If the command exits with CODE, stop immediately without
+#                    retrying (use for non-transient configuration errors).
+#   <cmd...>         Command and arguments to run.
 net__fetch_with_retry() {
-  local _max=60 _delay=5
+  local _max=60 _delay=5 _bail_on=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --retries)
@@ -49,6 +51,10 @@ net__fetch_with_retry() {
         _delay="$2"
         shift 2
         ;;
+      --bail-on)
+        _bail_on="$2"
+        shift 2
+        ;;
       --)
         shift
         break
@@ -56,9 +62,12 @@ net__fetch_with_retry() {
       *) break ;;
     esac
   done
-  local _i=1
+  local _i=1 _rc
   while [ "$_i" -le "$_max" ]; do
-    "$@" && return 0
+    "$@"
+    _rc=$?
+    [ "$_rc" -eq 0 ] && return 0
+    [ -n "$_bail_on" ] && [ "$_rc" -eq "$_bail_on" ] && return "$_rc"
     [ "$_i" -lt "$_max" ] && echo "⚠️  Attempt $_i/$_max failed — retrying in ${_delay}s..." >&2 && sleep "$_delay"
     _i=$((_i + 1))
   done
