@@ -70,7 +70,15 @@ _ospkg_clean_brew() {
 #                      stale mirror repos from the base image.
 _ospkg_update_cmd() {
   [[ ${#_OSPKG_UPDATE[@]} -eq 0 ]] && return 0
-  "${_OSPKG_UPDATE[@]}" >&2
+  # Keep interactive mode possible on TTY, but prevent PMs from draining
+  # caller-provided stdin in piped/non-interactive contexts.
+  if [[ -t 0 ]]; then
+    "${_OSPKG_UPDATE[@]}" >&2
+  elif [[ "$_OSPKG_PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
+    DEBIAN_FRONTEND=noninteractive "${_OSPKG_UPDATE[@]}" < /dev/null >&2
+  else
+    "${_OSPKG_UPDATE[@]}" < /dev/null >&2
+  fi
   local _rc=$?
   [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] &&
     [[ $_rc -eq 100 ]] && return 0
@@ -658,7 +666,15 @@ ospkg__install() {
   fi
   echo "📲 Installing packages:" >&2
   printf '  - %s\n' "$@" >&2
-  net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" >&2
+  # Keep interactive mode possible on TTY, but prevent PMs from draining
+  # caller-provided stdin in piped/non-interactive contexts.
+  if [[ -t 0 ]]; then
+    net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" >&2
+  elif [[ "$_OSPKG_PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
+    DEBIAN_FRONTEND=noninteractive net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" < /dev/null >&2
+  else
+    net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" < /dev/null >&2
+  fi
   return 0
 }
 
