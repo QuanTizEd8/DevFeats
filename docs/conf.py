@@ -13,9 +13,10 @@ if TYPE_CHECKING:
     from sphinx.application import Sphinx
 
 _WEBSITE_ROOT = Path(__file__).resolve().parent
+_WEBSITE_SOURCE_DIR = _WEBSITE_ROOT / "source"
 _REPO_ROOT = _WEBSITE_ROOT.parent
 _FEATURES_DIR = _REPO_ROOT / "features"
-_FEATURES_DOC_DIR = _WEBSITE_ROOT / "features"
+_FEATURES_DOC_DIR = _WEBSITE_SOURCE_DIR / "features"
 
 sys.path.insert(0, str(Path(__file__).parent / "_build_scripts"))
 
@@ -125,8 +126,8 @@ extensions = [
     "sphinxcontrib.bibtex",
 ]
 
-# sphinx-external-toc: path relative to confdir
-external_toc_path = "_toc.yml"
+# sphinx-external-toc: absolute path keeps this stable even when callers vary -c/confdir.
+external_toc_path = str(_WEBSITE_ROOT / "_toc.yml")
 external_toc_exclude_missing = False
 
 # MyST options
@@ -181,7 +182,7 @@ html_context = {
     "github_user": "quantized8",
     "github_repo": "sysset",
     "github_version": "main",
-    "doc_path": "docs",
+    "doc_path": "docs/source",
     "feats": _feature_metadata,  # for Jinja templating in source files
 }
 

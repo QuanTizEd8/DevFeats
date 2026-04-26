@@ -20,7 +20,7 @@ def generate(
     # (including links) is used verbatim so MyST renders it correctly.  The
     # ## Options table is generated from the options dict in metadata.yaml.
     # devcontainer-feature.json is a generated artifact and not read here.
-    features_doc_dir.mkdir(exist_ok=True)
+    features_doc_dir.mkdir(parents=True, exist_ok=True)
     for feat_id, feat_metadata in metadata.items():
         preamble = _gen_feature_preamble(feat_metadata)
         notes_path = features_dir / feat_id / notes_filename
@@ -30,7 +30,7 @@ def generate(
         else:
             content = preamble
         doc_path = features_doc_dir / f"{feat_id}.md"
-        doc_path.write_text(content)
+        _write_if_changed(doc_path, content)
     return
 
 
@@ -108,3 +108,14 @@ def _option_desc_full(opt: dict) -> str:
     """
     desc = opt.get("description", "")
     return " ".join(line.strip() for line in desc.splitlines() if line.strip())
+
+
+def _write_if_changed(path: Path, content: str) -> None:
+    """Write file only when content differs to keep builds idempotent.
+
+    This prevents sphinx-autobuild from retriggering on no-op writes.
+    """
+    if path.exists() and path.read_text() == content:
+        return
+    path.write_text(content)
+    return

@@ -1,28 +1,30 @@
 root: index
 
 entries:
-  - title: Getting Started
-    file: intro/index
-    entries:
-      - file: intro/background/index
-        entries:
-          - file: intro/background/env-vars
-          - file: intro/background/shell-config
+  - title: Install
+    file: install
+    # entries:
+    #   - file: intro/background/index
+    #     entries:
+    #       - file: intro/background/env-vars
+    #       - file: intro/background/shell-config
 
   - title: Features
     file: features
     entries:
       - glob: features/*
 
-  - title: Developer Guide
-    file: dev-guide/index
+  - title: Contribute
+    file: contribute
     entries:
-      - file: dev-guide/repo-structure
-      - file: dev-guide/ci
-      - file: dev-guide/writing-features
-      - file: dev-guide/testing
-      - file: dev-guide/publishing
-      - file: dev-guide/features
+      - file: dev-guide/index
         entries:
-          - glob: dev-guide/features/*
+          - file: dev-guide/repo-structure
+          - file: dev-guide/ci
+          - file: dev-guide/writing-features
+          - file: dev-guide/testing
+          - file: dev-guide/publishing
+          - file: dev-guide/features
+            entries:
+              - glob: dev-guide/features/*
 

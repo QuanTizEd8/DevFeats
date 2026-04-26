@@ -156,7 +156,7 @@ gen-docs-check:
 ]
 build-website:
     conda run -n sysset-website --no-capture-output \
-      python -m sphinx -b dirhtml docs docs/.build \
+      python -m sphinx -b dirhtml -c docs docs/source docs/.build \
       --keep-going --color --jobs auto
 
 
@@ -166,8 +166,8 @@ build-website:
 ]
 build-website-live:
     conda run -n sysset-website --no-capture-output \
-      python -m sphinx_autobuild docs docs/.build \
-      -b dirhtml --open-browser --watch docs
+      python -m sphinx_autobuild docs/source docs/.build \
+      -b dirhtml -c docs --open-browser --watch docs/source --watch docs
 
 
 # ── Dev tooling ───────────────────────────────────────────────────────────────

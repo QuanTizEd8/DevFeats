@@ -1,4 +1,4 @@
-# Quickstart and Installation Guide
+# Installation Guide
 
 SysSet is a curated collection of system-setup tools — **features** — that install and configure common developer software in a consistent, repeatable way across macOS and every major Linux distribution. Each feature is a small, focused installer (git, GitHub CLI, shell, Homebrew, Miniforge, Pixi, Node, Podman, fonts, user setup, …) with a rich, well-documented options surface, and is shipped through **two** complementary channels so you can use the same component interchangeably inside a container or directly on a VM, CI runner, WSL2 distro, or bare-metal host.
 
