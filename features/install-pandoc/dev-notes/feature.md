@@ -16,7 +16,7 @@ For SysSet implementation planning on macOS and Linux, the primary practical met
 
 ## Available Installation Methods
 
-Upstream installation docs explicitly describe installers/binaries, package-manager installs, conda-forge, Docker images, and source builds. For a SysSet install feature targeting host/container environments, Docker images are typically a usage/runtime method rather than a host provisioning install method, so they are documented in notes and references but not treated as the core install path for this feature.
+Upstream installation docs explicitly describe installers/binaries, package-manager installs, conda-forge, Docker images, and source builds. For SysSet feature implementation, Docker is usually a runtime execution method rather than host provisioning, but it is included below for completeness because upstream treats it as a first-class usage/install path.
 
 ### Official Release Artifacts (GitHub Releases)
 
@@ -59,6 +59,8 @@ Official Linux `.deb` install command from upstream docs:
 sudo dpkg -i "$DEB"
 ```
 
+Upstream also notes that RPM-family users may be able to install the official `.deb` via `alien`.
+
 Official Linux tarball install command from upstream docs:
 
 ```bash
@@ -69,7 +71,7 @@ Where `$DEST` is commonly `/usr/local/` (system-wide) or `$HOME/.local` (user-lo
 
 Official macOS `.zip` flow from upstream docs: unzip the archive, then move the binaries and man pages into desired install locations (for example a system prefix or user-local prefix).
 
-On macOS, upstream provides `.pkg` installers and `.zip` archives; `.pkg` installation can be performed via Finder/Installer UI or CLI workflow according to standard macOS package installation practice.
+On macOS, upstream provides `.pkg` installers and `.zip` archives; `.pkg` installation is provided via the package installer on the download page.
 
 #### Installation Verification
 
@@ -290,6 +292,87 @@ If installed into a named environment, verify after activating that environment.
 
 - Strong option when pandoc should remain isolated within project environments.
 - For workflows requiring Lua filters with C-based Lua modules, avoid static-build methods (including conda-forge builds).
+
+### Docker Images
+
+#### Supported Platforms
+
+- Any platform with a working Docker runtime that can pull and run official `pandoc/*` images.
+- Upstream image variants include `pandoc/minimal`, `pandoc/core`, `pandoc/latex`, and `pandoc/extra`.
+- Upstream documentation states all images are available on Alpine stack, and `minimal`, `latex`, and `extra` are also available with an Ubuntu stack.
+
+#### Dependencies
+
+- **Common Dependencies**: Docker Engine/CLI and network access to pull image tags.
+- **Platform-Specific Dependencies**:
+  - Permission to run Docker commands (root or Docker-group equivalent).
+  - Host bind-mount support for source/output files.
+
+#### Installation Steps
+
+This method installs/uses pandoc through container images rather than placing a host binary in system paths.
+
+1. Pull or run an official pandoc image.
+2. Bind-mount your working directory into `/data`.
+3. Run pandoc command arguments via the image entrypoint.
+
+Upstream example:
+
+```bash
+docker run --rm --volume "`pwd`:/data" --user `id -u`:`id -g` pandoc/latex README.md -o README.pdf
+```
+
+#### Installation Verification
+
+- Verify image-based pandoc execution:
+
+```bash
+docker run --rm pandoc/core --version
+```
+
+- Verify a conversion succeeds with mounted test input.
+
+#### Configuration Options
+
+- **Version Selection**:
+  - Select explicit image tags (for example `pandoc/latex:3.9.0.2`) for reproducibility.
+  - Upstream recommends hardcoding version tags rather than floating tags for stable pipelines.
+- **Installation Path**:
+  - Not a host install path; pandoc binary lives inside the container image.
+- **User Targeting**:
+  - Runtime user identity can be set via `--user UID:GID` to control host output file ownership.
+- **Required Privileges**:
+  - Docker runtime privileges are required.
+- **Tool-Specific Configurations**:
+  - Choose image variant by required capabilities (`minimal` vs `core` vs `latex` vs `extra`).
+
+#### Post-Installation Steps and Cleanup
+
+- **PATH Setup**:
+  - Not applicable on host; invoke through `docker run`.
+- **Configuration Files**:
+  - None required for baseline container usage.
+- **Environment Variables**:
+  - Upstream image docs note `XDG_DATA_HOME` is set to `/usr/local/share` in images; extensions are typically placed under `/usr/local/share/pandoc` when building custom images.
+- **Activation Scripts**:
+  - None required.
+- **Cleanup**:
+  - Remove unused images/layers according to Docker cleanup policy.
+
+#### Changing Versions and Uninstallation
+
+- **Upgrading/Downgrading**:
+  - Pull/use a different image tag.
+- **Uninstallation**:
+  - Remove local image tags/layers with Docker image removal commands.
+- **Idempotency**:
+  - Re-running with the same image tag is idempotent for tool provisioning; repeated pulls refresh local cache state as needed.
+
+#### Notes and Best Practices
+
+- Containerized pandoc is ideal for CI/CD and hermetic conversion workflows.
+- Pin exact image tags to avoid unplanned behavior changes.
+- Prefer `--user` to avoid root-owned output files on host bind mounts.
 
 ### Compiling From Source
 
