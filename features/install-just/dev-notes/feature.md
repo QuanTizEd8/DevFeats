@@ -1,6 +1,6 @@
 # Feature Reference
 
-just is a command runner that executes named recipes from a justfile. It is widely used as a modern replacement for ad-hoc shell scripts and many Makefile task-runner use cases, with strong cross-platform behavior and clear command-line ergonomics. For SysSet, the practical installation approaches are: OS package managers, the official install script, manual release-asset installation, container-image copy from GHCR, and Rust toolchain installation.
+just is a command runner that executes named recipes from a justfile. The project documents installation via package managers, prebuilt binaries, an official installer script, and Rust tooling. For SysSet, the practical installation approaches are: OS package managers, the official install script, manual release-asset installation, container-image copy from GHCR, and Rust toolchain installation.
 
 - **Homepage**: https://just.systems/
 - **Source Code**: https://github.com/casey/just
@@ -22,7 +22,7 @@ just is distributed through many channels. For a SysSet feature targeting macOS 
 #### Supported Platforms
 
 - macOS via Homebrew (`brew`) and MacPorts (`port`).
-- Linux distributions with published packages, including Alpine (`apk`), Arch (`pacman`), Debian/Ubuntu (`apt`), Fedora (`dnf`), Gentoo (`emerge`), NixOS (`nix-env`), openSUSE (`zypper`), Solus (`eopkg`), and Void (`xbps-install`).
+- Linux distributions with published packages, including Alpine (`apk`), Arch (`pacman`), Debian 13 and Ubuntu 24.04 derivatives (`apt`), Fedora (`dnf`), Gentoo (`emerge`), NixOS (`nix-env`), openSUSE (`zypper`), Solus (`eopkg`), and Void (`xbps-install`).
 - BSD package managers are also documented upstream, but SysSet scope here is macOS and Linux.
 
 #### Dependencies
@@ -166,7 +166,7 @@ sudo port uninstall just
 
 - Package-manager installation is usually the simplest default and integrates with host lifecycle tooling.
 - Repository versions may lag upstream release cadence.
-- Several community devcontainer features use package-manager-first patterns for simplicity, often with binary-download fallback for stricter pinning.
+- Community devcontainer feature implementations show mixed strategies: direct package-manager install, direct release-binary download, and delegation to the official installer script.
 
 ### Official Installer Script (`https://just.systems/install.sh`)
 
@@ -178,7 +178,7 @@ sudo port uninstall just
 
 #### Dependencies
 
-- **Common Dependencies**: `bash`, `curl` or `wget`, `mkdir`, `mktemp`.
+- **Common Dependencies**: `bash`, `curl` or `wget`, `mkdir`, `mktemp`, `uname` (for auto target detection).
 - **Platform-Specific Dependencies**:
   - `tar` for non-Windows target archives.
   - `unzip` for Windows zip archive flow.
@@ -269,7 +269,8 @@ rm -f "$HOME/bin/just"
 
 - Installer convenience is high, but integrity checks are implicit TLS transport only; checksum verification is not performed by the script itself.
 - In CI environments behind shared IPs, latest-tag API calls can hit rate limits. Prefer explicit `--tag` for reproducibility and reliability.
-- Upstream release matrix currently includes targets not auto-detected by installer (for example `riscv64gc-unknown-linux-musl`), and the script's archive-extension branching only explicitly handles `x86_64-pc-windows-msvc` zip flow.
+- Upstream release matrix currently includes targets not auto-detected by installer (for example `riscv64gc-unknown-linux-musl`).
+- The release matrix includes `aarch64-pc-windows-msvc`, but current installer zip-handling logic explicitly branches only on `x86_64-pc-windows-msvc`, so Windows ARM64 is not covered by the script's default archive-selection behavior.
 
 ### Manual Prebuilt Release Archives (GitHub Releases)
 
@@ -489,10 +490,10 @@ just --version
 
 ```bash
 # Build from source
-cargo install --locked just
+cargo install just
 
 # Version pin
-cargo install --locked --version 1.50.0 just
+cargo install --version 1.50.0 just
 
 # Binary-oriented cargo flow (if cargo-binstall is installed)
 cargo binstall just
@@ -518,7 +519,7 @@ cargo install --list | grep '^just '
 - **Required Privileges**:
   - Usually no root required.
 - **Tool-Specific Configurations**:
-  - `cargo install --locked` uses the crate's lockfile for more reproducible dependency resolution.
+  - `cargo install --locked` is an optional Cargo-side hardening flag for more reproducible dependency resolution.
   - `cargo install --root <path>` controls install prefix.
   - `cargo install --force` replaces existing installs when changing versions in place.
   - `cargo binstall` may reduce build time by fetching binaries where available.
