@@ -43,11 +43,12 @@ The full release also includes additional assets such as Windows installers/arch
 
 #### Dependencies
 
-- **Common Dependencies**: Download tool (`curl`/`wget`), extraction/install tooling (`tar`, `unzip`, `dpkg` or platform installer), and checksum tooling (`sha256sum`/`shasum`) for integrity checks.
+- **Common Dependencies**: Download tool (`curl`/`wget`) and checksum tooling (`sha256sum`/`shasum`) for integrity checks.
 - **Platform-Specific Dependencies**:
   - Linux `.deb`: `dpkg`, sufficient privileges for system-wide install, runtime dependencies declared by upstream package metadata (`libc6 (>= 2.13)`, `libgmp10`, `zlib1g (>= 1:1.1.4)`), and upstream-suggested TeX packages for PDF workflows (`texlive-latex-recommended`, `texlive-xetex`, `texlive-fonts-recommended`).
-  - Linux tarball: writable destination path (for example `/usr/local` with sudo or `$HOME/.local` without sudo).
+  - Linux tarball: `tar` and a writable destination path (for example `/usr/local` with sudo or `$HOME/.local` without sudo).
   - macOS `.pkg`: macOS installer subsystem and elevated privileges for system-wide install.
+  - macOS `.zip`: `unzip` and writable destination path(s) for binaries/man pages.
 
 #### Installation Steps
 
@@ -72,6 +73,8 @@ tar xvzf "$TGZ" --strip-components 1 -C "$DEST"
 Where `$DEST` is commonly `/usr/local/` (system-wide) or `$HOME/.local` (user-local).
 
 Official macOS `.zip` flow from upstream docs: unzip the archive, then move the binaries and man pages into desired install locations (for example a system prefix or user-local prefix).
+
+Upstream packaging scripts show a platform difference in installed entrypoints: Linux release artifacts include `pandoc-server` and `pandoc-lua` symlinked binaries in addition to `pandoc`, while macOS release packaging installs `pandoc` plus man pages without creating those extra symlink entrypoints.
 
 On macOS, upstream provides `.pkg` installers and `.zip` archives; `.pkg` installation is provided via the package installer on the download page.
 
