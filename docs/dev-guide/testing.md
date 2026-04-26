@@ -579,11 +579,25 @@ bash test/run-unit.sh --filter "platform"
 
 # Serial execution (useful for debugging output)
 bash test/run-unit.sh --jobs 1
+
+# Run integration-only bats files (requires real jq/git toolchain)
+SYSSET_RUN_INTEGRATION_DEPS=1 bash test/run-unit.sh --integration
+
+# Run an explicit path or directory of bats files
+bash test/run-unit.sh --paths test/unit/integration
 ```
 
 `test/run-unit.sh` automatically re-execs itself under bash ≥4 on macOS
 (where `/bin/bash` is 3.2 due to the GPL licence change), so it works
 correctly without any pre-flight setup on a stock Mac with Homebrew bash.
+
+The suite uses a two-tier model:
+
+- **Lean tier (default):** runs top-level `test/unit/*.bats` only, suitable for
+  distro containers that install just `bash`.
+- **Integration tier:** runs `test/unit/integration/*.bats` and is intended for
+  environments where real `git`/`jq` are available. Enable with
+  `SYSSET_RUN_INTEGRATION_DEPS=1` and `--integration`.
 
 ### Test anatomy
 
@@ -621,6 +635,22 @@ setup() {
   prepend_fake_bin_path
 }
 ```
+
+**`begin_path_isolation [allowed_cmd...]`** and **`end_path_isolation`** —
+also defined in `helpers/stubs.bash`. Use this pair for lean-tier tests that
+must prove a tool is absent even when the host/runner has it installed. The
+helper swaps `PATH` to `$BATS_TEST_TMPDIR/bin` and optionally injects explicit
+pass-through commands (for example `mkdir`, `cat`, `bash`) so only the tools
+you allow remain visible to the test.
+
+```bash
+begin_path_isolation "mkdir" "cat" "bash"
+run _json__ensure_jq
+end_path_isolation
+```
+
+Prefer this helper over ad-hoc `PATH` save/restore snippets. It keeps lean
+unit tests deterministic across local machines and CI runners.
 
 **`bash -c` subprocess isolation** — modules that manipulate file descriptors
 (e.g. `logging__setup` redirects fd 3 and 4) must be tested in isolated
