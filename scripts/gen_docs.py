@@ -46,7 +46,7 @@ SRC_DIR = REPO / "src"
 DOCS_REF_DIR = REPO / "docs" / "ref"
 
 LIB_INSTRUCTIONS = REPO / ".github" / "instructions" / "lib.instructions.md"
-WRITING_FEATURES = REPO / "docs" / "dev-guide" / "writing-features.md"
+WRITING_FEATURES = REPO / "docs" / "source" / "dev-guide" / "writing-features.md"
 
 # ── Canonical module order (matches writing-features.md section order) ─────────
 

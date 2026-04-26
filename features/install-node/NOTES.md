@@ -419,4 +419,4 @@ Per-user writes (when `users` is specified): the same snippet is also written to
 
 **pnpm or yarn install fails / `node: command not found` during pnpm/yarn install:**
 - Both `pnpm_version` and `yarn_version` are skipped when `version=none` (no Node.js was installed). Set a non-`none` version to install Node.js first.
-- If using `method=nvm`, the installer must source nvm internally before running npm. If you see `npm not found`, check that `NODE_GYPDEPS` is not preventing nvm from loading (use `debug=true` to trace the issue).
+- If using `method=nvm`, the installer must source nvm internally before running npm. If you see `npm not found`, check that `NODE_GYPDEPS` is not preventing nvm from loading (use `log_level=trace` to trace the issue).

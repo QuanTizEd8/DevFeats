@@ -19,10 +19,10 @@ _json__ensure_json_lib_dir() {
 # _json__ensure_jq (internal) — ensure jq is on PATH; install via ospkg if absent.
 _json__ensure_jq() {
   command -v jq > /dev/null 2>&1 && return 0
-  echo "ℹ️  jq not found — installing." >&2
+  logging__info "jq not found — installing."
   ospkg__install_tracked "lib-json" jq >&2 || true
   command -v jq > /dev/null 2>&1 || {
-    echo "⛔ json.sh: jq could not be installed." >&2
+    logging__error "json.sh: jq could not be installed."
     return 1
   }
 }
@@ -30,10 +30,10 @@ _json__ensure_jq() {
 # _json__ensure_python3 (internal) — ensure python3 is on PATH; install via ospkg if absent.
 _json__ensure_python3() {
   command -v python3 > /dev/null 2>&1 && return 0
-  echo "ℹ️  python3 not found — installing." >&2
+  logging__info "python3 not found — installing."
   ospkg__install_tracked "lib-json" python3 >&2 || true
   command -v python3 > /dev/null 2>&1 || {
-    echo "⛔ json.sh: python3 could not be installed." >&2
+    logging__error "json.sh: python3 could not be installed."
     return 1
   }
 }
@@ -177,7 +177,7 @@ json__nodejs_index_version_stdin() {
 # @brief json__strip_jsonc_stdin — Read JSON/JSONC from stdin; print strict JSON. Requires python3 and lib/jsonc.py next to this file.
 json__strip_jsonc_stdin() {
   if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
-    echo "⛔ lib/jsonc.py not found (expected: ${_JSON__LIB_DIR}/jsonc.py)" >&2
+    logging__error "lib/jsonc.py not found (expected: ${_JSON__LIB_DIR}/jsonc.py)"
     return 1
   fi
   _json__ensure_python3 || return 1
@@ -237,7 +237,7 @@ json__coerce_scalar_stdin() {
 # @brief json__detect_duplicate_keys_stdin [<objectKey>] — Reject JSON with duplicate object keys (uses lib/jsonc.py). Ignores <objectKey> (full document checked).
 json__detect_duplicate_keys_stdin() {
   if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
-    echo "⛔ lib/jsonc.py not found" >&2
+    logging__error "lib/jsonc.py not found"
     return 1
   fi
   _json__ensure_python3 || return 1

@@ -3,7 +3,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-miniforge": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -13,7 +13,7 @@
             "install-miniforge": {
                 "prefix": "/opt/myforge",
                 "symlink": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -22,7 +22,7 @@
         "features": {
             "install-miniforge": {
                 "version": "24.7.1",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -31,7 +31,7 @@
         "features": {
             "install-miniforge": {
                 "write_group": "conda",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -40,7 +40,7 @@
         "features": {
             "install-miniforge": {
                 "shell_activations": "bash",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -54,7 +54,7 @@
         "features": {
             "install-miniforge": {
                 "shell_activations": "bash\nzsh",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -64,16 +64,16 @@
             "install-miniforge": {
                 "shell_activations": "bash",
                 "activate_env": "myenv",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
-    "logfile": {
+    "log_file": {
         "image": "ubuntu:latest",
         "features": {
             "install-miniforge": {
-                "logfile": "/tmp/miniforge.log",
-                "debug": true
+                "log_file": "/tmp/miniforge.log",
+                "log_level": "trace"
             }
         }
     },
@@ -82,7 +82,7 @@
         "features": {
             "install-miniforge": {
                 "keep_installer": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -96,7 +96,7 @@
         "features": {
             "install-miniforge": {
                 "if_exists": "reinstall",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -110,7 +110,7 @@
         "features": {
             "install-miniforge": {
                 "if_exists": "skip",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -119,7 +119,7 @@
         "features": {
             "install-miniforge": {
                 "if_exists": "fail",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -128,7 +128,7 @@
         "features": {
             "install-miniforge": {
                 "if_exists": "update",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -136,7 +136,7 @@
         "image": "debian:latest",
         "features": {
             "install-miniforge": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -151,7 +151,7 @@
             "install-miniforge": {
                 "write_group": "conda",
                 "add_users": "testuser1\ntestuser2",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -159,7 +159,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-miniforge": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -169,7 +169,7 @@
             "install-miniforge": {
                 "prefix": "/opt/myforge",
                 "symlink": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -179,7 +179,7 @@
             "install-miniforge": {
                 "prefix": "/opt/myforge",
                 "symlink": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -188,7 +188,7 @@
         "features": {
             "install-miniforge": {
                 "export_path": "",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -197,7 +197,7 @@
         "features": {
             "install-miniforge": {
                 "export_path": "/tmp/test_bashrc",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -212,7 +212,7 @@
             "install-miniforge": {
                 "prefix": "/opt/myforge",
                 "symlink": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -220,7 +220,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-miniforge": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -235,7 +235,7 @@
             "install-miniforge": {
                 "version": "24.7.1",
                 "if_exists": "reinstall",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -250,7 +250,7 @@
             "install-miniforge": {
                 "if_exists": "reinstall",
                 "preserve_envs": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -265,7 +265,7 @@
             "install-miniforge": {
                 "if_exists": "reinstall",
                 "preserve_envs": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -280,7 +280,7 @@
             "install-miniforge": {
                 "if_exists": "reinstall",
                 "preserve_config": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -295,7 +295,7 @@
             "install-miniforge": {
                 "if_exists": "reinstall",
                 "preserve_config": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -309,7 +309,7 @@
         "features": {
             "install-miniforge": {
                 "if_exists": "update",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -325,7 +325,7 @@
             "install-miniforge": {
                 "prefix": "/opt/myforge",
                 "symlink": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -335,7 +335,7 @@
             "install-miniforge": {
                 "prefix": "/root/myforge",
                 "symlink": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

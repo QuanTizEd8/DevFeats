@@ -317,7 +317,7 @@ The old prefix is derived as `dirname(dirname(command -v git))` — e.g. `/usr/l
 
 - `prefix="auto"` — resolves to `/usr/local` (root) or `$HOME/.local` (non-root). Explicit paths are validated for writeability; the script exits with a clear error if the path cannot be created.
 - `sysconfdir="auto"` — resolves to `/etc` (root) or `$HOME/.config` (non-root). Controls where git reads its system-level `gitconfig`.
-- `installer_dir` — cleaned after a successful build; set `keep_installer=true` to preserve for debugging.
+- `installer_dir` — cleaned after a successful build; set `keep_installer=true` to preserve for troubleshooting.
 
 ### Non-root Source Builds
 

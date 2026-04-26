@@ -4,6 +4,10 @@
 [[ -n "${_GRAPH__LIB_LOADED-}" ]] && return 0
 _GRAPH__LIB_LOADED=1
 
+_GRAPH__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/logging.sh
+. "$_GRAPH__LIB_DIR/logging.sh"
+
 # @brief graph__round_order
 #   --hard-edges-file F  pred<TAB>succ  (pred before succ; both must appear in node list)
 #   --soft-edges-file F  same; pred ignored if not in node list
@@ -44,7 +48,7 @@ graph__round_order() {
   done
 
   if [[ ${#_nodes[@]} -eq 0 ]]; then
-    echo "⛔ graph__round_order: need node ids after --" >&2
+    logging__error "graph__round_order: need node ids after --"
     return 1
   fi
 
@@ -71,7 +75,7 @@ graph__round_order() {
         continue
       fi
       if [[ -z "${_have[$p]+x}" || -z "${_have[$q]+x}" ]]; then
-        echo "⛔ graph__round_order: hard edge unknown node (${p} -> ${q})" >&2
+        logging__error "graph__round_order: hard edge unknown node (${p} -> ${q})"
         return 1
       fi
       _hdep["$q"]+="${p} "
@@ -110,7 +114,7 @@ graph__round_order() {
     if ((${#_cand[@]} == 0)); then
       for _a in "${!_have[@]}"; do
         [[ -z "${_done[$_a]+x}" ]] && {
-          echo "⛔ graph__round_order: cycle in dependencies" >&2
+          logging__error "graph__round_order: cycle in dependencies"
           return 1
         }
       done

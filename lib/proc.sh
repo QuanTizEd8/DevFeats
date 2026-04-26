@@ -6,6 +6,8 @@ _PROC__LIB_LOADED=1
 _PROC__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/json.sh
 . "$_PROC__LIB_DIR/json.sh"
+# shellcheck source=lib/logging.sh
+. "$_PROC__LIB_DIR/logging.sh"
 
 # @brief proc__run_parallel — --outdir <dir> -- <label> <argv...> [-- <label> <argv> ...]
 proc__run_parallel() {
@@ -25,7 +27,7 @@ proc__run_parallel() {
         break
         ;;
       *)
-        echo "⛔ proc__run_parallel: use --outdir and --" >&2
+        logging__error "proc__run_parallel: use --outdir and --"
         return 1
         ;;
     esac
@@ -98,7 +100,7 @@ proc__run_command_form() {
   _rc() {
     if [[ -n "$_user" ]]; then
       if ! command -v os__run_as > /dev/null 2>&1; then
-        echo "⛔ proc__run_command_form: --user requires os.sh (os__run_as)" >&2
+        logging__error "proc__run_command_form: --user requires os.sh (os__run_as)"
         return 1
       fi
       if [[ -n "$_cwd" ]]; then
@@ -140,7 +142,7 @@ proc__run_command_form() {
           mapfile -t _av2 < <(printf '%s' "$_v" | json__query -r '.[]' 2> /dev/null) || continue
           _pl+=("$_k" "${_av2[@]}")
         else
-          echo "⛔ proc__run_command_form: object values must be string or array" >&2
+          logging__error "proc__run_command_form: object values must be string or array"
           rm -rf "$_od"
           return 1
         fi
@@ -157,7 +159,7 @@ proc__run_command_form() {
       return "$_e"
       ;;
     *)
-      echo "⛔ proc__run_command_form: not string/array/object" >&2
+      logging__error "proc__run_command_form: not string/array/object"
       return 1
       ;;
   esac

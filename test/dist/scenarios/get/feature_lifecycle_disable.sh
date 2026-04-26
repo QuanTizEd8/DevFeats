@@ -56,13 +56,13 @@ unset SYSSET_VERSION
 
 # ── 1. --no-lifecycle skips every feature-level phase ───────────────────────
 check "get.sh ${_FEAT}@${_VER} --no-lifecycle succeeds" \
-  sudo -E bash "${REPO_ROOT}/get.sh" --logfile "$_log1" --no-lifecycle "${_FEAT}@${_VER}"
+  sudo -E bash "${REPO_ROOT}/get.sh" --log_file "$_log1" --no-lifecycle "${_FEAT}@${_VER}"
 check "no probe strings in log when --no-lifecycle is set" \
   bash -c "! grep -q 'sysset-probe:' '$_log1'"
 
 # ── 2. --no-feature-lifecycle-command postCreateCommand skips that phase ────
 check "get.sh ${_FEAT}@${_VER} --no-feature-lifecycle-command postCreateCommand succeeds" \
-  sudo -E bash "${REPO_ROOT}/get.sh" --logfile "$_log2" \
+  sudo -E bash "${REPO_ROOT}/get.sh" --log_file "$_log2" \
   --no-feature-lifecycle-command postCreateCommand "${_FEAT}@${_VER}"
 check "onCreate and updateContent hooks ran when only postCreate is disabled" \
   bash -c "grep -q 'sysset-probe:on-create-ran' '$_log2' && grep -q 'sysset-probe:update-content-ran' '$_log2'"

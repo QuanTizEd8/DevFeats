@@ -495,7 +495,7 @@ Options:
   --font_dir <path>            Font installation directory (auto-detected when empty)
   --p10k_fonts                 Install Powerlevel10k MesloLGS NF fonts
   --overwrite                  Overwrite existing fonts on PostScript name collision
-  --debug                      Enable debug output (set -x)
+  --log_level trace                      Enable trace output (set -x)
   -h, --help                   Show this help
 ```
 

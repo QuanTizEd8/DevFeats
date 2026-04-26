@@ -302,17 +302,17 @@ _handle_job() {
     | .name
   ' <<< "${job}")
 
-  local logfile
-  logfile=$(_download_log "${job_id}")
+  local log_file
+  log_file=$(_download_log "${job_id}")
 
   if [[ -z "${failing_steps}" ]]; then
-    echo "${job_name} --- (no failing step identified) --- ${logfile}" >> "${FAILING_LOG}"
+    echo "${job_name} --- (no failing step identified) --- ${log_file}" >> "${FAILING_LOG}"
     _stat_fail=$((_stat_fail + 1))
     return 0
   fi
 
   while IFS= read -r step_name; do
-    echo "${job_name} --- ${step_name} --- ${logfile}" >> "${FAILING_LOG}"
+    echo "${job_name} --- ${step_name} --- ${log_file}" >> "${FAILING_LOG}"
     _stat_fail=$((_stat_fail + 1))
   done <<< "${failing_steps}"
 }

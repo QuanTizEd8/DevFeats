@@ -447,7 +447,6 @@ def _generate_block(feature_name: str, options: dict, dependencies: dict | None 
         _render_template("preamble", FEATURE_NAME=feature_name),
         _section_usage(options),
         _section_arg_parse(options),
-        _section_debug_flag(),
         _section_defaults(options),
         _section_validation(options),
         _section_unexport(options),
@@ -522,7 +521,7 @@ def _section_arg_parse(options: dict) -> str:
 
     lines = [
         'if [ "$#" -gt 0 ]; then',
-        '  echo "ℹ️ Script called with arguments: $*" >&2',
+        '  logging__info "Script called with arguments: $*"',
     ]
     lines.extend(cli_inits)
     lines.extend(['  while [ "$#" -gt 0 ]; do', "    case $1 in"])
@@ -533,26 +532,22 @@ def _section_arg_parse(options: dict) -> str:
         "        exit 0",
         "        ;;",
         "      --*)",
-        "        echo \"⛔ Unknown option: '${1}'\" >&2",
+        "        logging__error \"Unknown option: '${1}'\"",
         "        exit 1",
         "        ;;",
         "      *)",
-        "        echo \"⛔ Unexpected argument: '${1}'\" >&2",
+        "        logging__error \"Unexpected argument: '${1}'\"",
         "        exit 1",
         "        ;;",
         "    esac",
         "  done",
         "else",
-        '  echo "ℹ️ Script called with no arguments. Read environment variables." >&2',
+        '  logging__info "Script called with no arguments. Read environment variables."',
     ])
     lines.extend(env_reads)
     lines.append("fi")
+    lines.append("logging__set_level")
     return "\n".join(lines)
-
-
-def _section_debug_flag() -> str:
-    return '[[ "${DEBUG:-}" == true ]] && set -x'
-
 
 def _section_defaults(options: dict) -> str:
     """Emit the '# Apply defaults.' block."""

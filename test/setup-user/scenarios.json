@@ -3,7 +3,7 @@
         "image": "ubuntu:latest",
         "features": {
             "setup-user": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -12,7 +12,7 @@
         "features": {
             "setup-user": {
                 "sudo_access": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -24,7 +24,7 @@
                 "user_id": "2000",
                 "group_id": "2000",
                 "group_name": "devgroup",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -33,7 +33,7 @@
         "features": {
             "setup-user": {
                 "home_dir": "/workspaces/myapp",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -42,7 +42,7 @@
         "features": {
             "setup-user": {
                 "user_shell": "/bin/sh",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -56,7 +56,7 @@
         "features": {
             "setup-user": {
                 "extra_groups": "builders\ntesters",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -69,7 +69,7 @@
         },
         "features": {
             "setup-user": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -84,7 +84,7 @@
             "setup-user": {
                 "replace_existing": false,
                 "sudo_access": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -92,16 +92,16 @@
         "image": "alpine:latest",
         "features": {
             "setup-user": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
-    "logfile": {
+    "log_file": {
         "image": "ubuntu:latest",
         "features": {
             "setup-user": {
-                "logfile": "/tmp/setup-user.log",
-                "debug": true
+                "log_file": "/tmp/setup-user.log",
+                "log_level": "trace"
             }
         }
     }

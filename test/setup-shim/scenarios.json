@@ -3,7 +3,7 @@
         "image": "ubuntu:latest",
         "features": {
             "setup-shim": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -14,7 +14,7 @@
                 "code": true,
                 "devcontainer-info": false,
                 "systemctl": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -25,7 +25,7 @@
                 "code": false,
                 "devcontainer-info": false,
                 "systemctl": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

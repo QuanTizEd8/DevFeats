@@ -44,7 +44,7 @@ For each option, verify:
 - Same type (boolean, string, enum) across those sources.
 - Same default value across those sources.
 - Same description/semantics across those sources.
-- `debug` and `logfile` options are present (required by convention).
+- `log_level` and `log_file` options are present (required by convention; `trace` is available).
 
 Report ANY discrepancy, no matter how minor (typo in description, different default, missing option in one file).
 

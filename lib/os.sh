@@ -3,6 +3,10 @@
 [ -n "${_OS__LIB_LOADED-}" ] && return 0
 _OS__LIB_LOADED=1
 
+_OS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/logging.sh
+. "$_OS__LIB_DIR/logging.sh"
+
 # ── Cached globals (populated lazily) ────────────────────────────────────────
 _OS__KERNEL=""
 _OS__ARCH=""
@@ -73,7 +77,7 @@ os__platform() {
 # @brief os__require_root — Exits 1 with an error message if the current user is not root.
 os__require_root() {
   if [ "$(id -u)" -ne 0 ]; then
-    echo '⛔ This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.' >&2
+    logging__error 'This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.'
     exit 1
   fi
   return 0
@@ -175,7 +179,7 @@ os__run_as() {
     return $?
   fi
   if ! command -v bash > /dev/null 2>&1; then
-    echo "⛔ os__run_as: bash is required to run a command as another user" >&2
+    logging__error "os__run_as: bash is required to run a command as another user"
     return 1
   fi
   # shellcheck disable=SC2016  # $a is intentionally single-quoted — it is bash's variable, not the current shell's

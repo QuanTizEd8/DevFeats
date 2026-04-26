@@ -7,7 +7,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -20,7 +20,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "update": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -33,7 +33,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "keep_cache": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -45,11 +45,11 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
-    "apt_logfile": {
+    "apt_log_file": {
         "build": {
             "dockerfile": "Dockerfile",
             "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
@@ -57,8 +57,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "logfile": "/tmp/install-os-pkg.log",
-                "debug": true
+                "log_file": "/tmp/install-os-pkg.log",
+                "log_level": "trace"
             }
         }
     },
@@ -70,7 +70,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -82,7 +82,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -94,7 +94,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -107,7 +107,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "update": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -119,7 +119,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -131,7 +131,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -143,7 +143,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -155,7 +155,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -164,7 +164,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "# inline manifest\npackages:\n  - tree\n  - curl\n",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -176,11 +176,11 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
-    "apt_manifest_file_debug": {
+    "apt_manifest_file_trace": {
         "build": {
             "dockerfile": "Dockerfile",
             "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
@@ -188,7 +188,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -200,7 +200,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -212,7 +212,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -224,7 +224,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -236,7 +236,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -249,7 +249,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "install_self": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -259,7 +259,7 @@
             "install-os-pkg": {
                 "manifest": "packages:\n  - tree\n",
                 "install_self": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -268,7 +268,7 @@
         "features": {
             "install-os-pkg": {
                 "install_self": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -281,11 +281,11 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "lifecycle_hook": "postCreate",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
-    "apt_lifecycle_hook_postcreate_debug": {
+    "apt_lifecycle_hook_postcreate_trace": {
         "build": {
             "dockerfile": "Dockerfile",
             "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
@@ -294,7 +294,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "lifecycle_hook": "postCreate",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -307,7 +307,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "lifecycle_hook": "onCreate",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -320,7 +320,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "lifecycle_hook": "updateContent",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -334,7 +334,7 @@
                 "manifest": "/tmp/manifest.yaml",
                 "keep_repos": true,
                 "update": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -347,7 +347,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "update": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -359,7 +359,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -371,7 +371,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -383,7 +383,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -396,7 +396,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "dry_run": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -409,7 +409,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "lists_max_age": "0",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -422,7 +422,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "skip_installed": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

@@ -22,7 +22,7 @@ check "gh --version succeeds" gh --version
 
 # --- run the feature (if_exists=skip default, version=latest default) ---
 bash "${REPO_ROOT}/src/install-gh/install.sh" \
-  --debug true
+  --log_level trace
 
 # --- gh is still functional after the feature skips ---
 check "gh on PATH after feature run" command -v gh

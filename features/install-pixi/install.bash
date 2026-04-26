@@ -4,26 +4,26 @@
 # resolved at call-time, not at definition-time.
 
 _cleanup_hook() {
-  echo "↪️ Function entry: _cleanup_hook" >&2
+  logging__fn_entry "_cleanup_hook"
   if [ "${KEEP_INSTALLER:-false}" != "true" ]; then
     [ -f "${ARCHIVE:-}" ] && {
-      echo "🗑 Removing archive '${ARCHIVE}'" >&2
+      logging__remove "Removing archive '${ARCHIVE}'"
       rm -f "${ARCHIVE}"
     }
     [ -f "${SIDECAR:-}" ] && {
-      echo "🗑 Removing sidecar '${SIDECAR}'" >&2
+      logging__remove "Removing sidecar '${SIDECAR}'"
       rm -f "${SIDECAR}"
     }
     [ -d "${INSTALLER_DIR:-}" ] && [ -z "$(ls -A "${INSTALLER_DIR:-}")" ] && {
-      echo "🗑 Removing empty installer directory '${INSTALLER_DIR}'" >&2
+      logging__remove "Removing empty installer directory '${INSTALLER_DIR}'"
       rmdir "${INSTALLER_DIR}"
     }
   fi
-  echo "↩️ Function exit: _cleanup_hook" >&2
+  logging__fn_exit "_cleanup_hook"
 }
 
 resolve_bin_dir() {
-  echo "↪️ Function entry: resolve_bin_dir" >&2
+  logging__fn_entry "resolve_bin_dir"
   case "${PREFIX}" in
     auto)
       if [ "$(id -u)" = "0" ]; then
@@ -37,49 +37,49 @@ resolve_bin_dir() {
       ;;
     *) ;; # explicit value: use as-is
   esac
-  echo "ℹ️ Resolved prefix to '${PREFIX}'" >&2
-  echo "↩️ Function exit: resolve_bin_dir" >&2
+  logging__info "Resolved prefix to '${PREFIX}'"
+  logging__fn_exit "resolve_bin_dir"
   return 0
 }
 
 check_root_requirement() {
-  echo "↪️ Function entry: check_root_requirement" >&2
+  logging__fn_entry "check_root_requirement"
   case "${PREFIX}" in
     /opt/* | /usr/* | /var/* | /srv/* | /snap/*)
       os__require_root
       ;;
     *)
-      echo "ℹ️ Root not required for prefix '${PREFIX}'." >&2
+      logging__info "Root not required for prefix '${PREFIX}'."
       ;;
   esac
-  echo "↩️ Function exit: check_root_requirement" >&2
+  logging__fn_exit "check_root_requirement"
   return 0
 }
 
 resolve_pixi_version() {
-  echo "↪️ Function entry: resolve_pixi_version" >&2
+  logging__fn_entry "resolve_pixi_version"
   if [ "${VERSION}" = "latest" ]; then
     local _tag
     _tag="$(github__latest_tag "prefix-dev/pixi")" || {
-      echo "⛔ Failed to fetch latest pixi tag from GitHub." >&2
+      logging__error "Failed to fetch latest pixi tag from GitHub."
       exit 1
     }
     VERSION="${_tag#v}"
-    echo "ℹ️ Resolved 'latest' to version '${VERSION}'" >&2
+    logging__info "Resolved 'latest' to version '${VERSION}'"
   else
     VERSION="${VERSION#v}"
     # Validate: must be strict semver — X.Y or X.Y.Z with only digits and dots.
     if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-      echo "⛔ Unrecognised version string '${VERSION}'. Expected X.Y or X.Y.Z (with or without leading v)." >&2
+      logging__error "Unrecognised version string '${VERSION}'. Expected X.Y or X.Y.Z (with or without leading v)."
       exit 1
     fi
   fi
-  echo "↩️ Function exit: resolve_pixi_version" >&2
+  logging__fn_exit "resolve_pixi_version"
   return 0
 }
 
 detect_triple() {
-  echo "↪️ Function entry: detect_triple" >&2
+  logging__fn_entry "detect_triple"
   local _kernel _arch
   _kernel="$(os__kernel)"
   _arch="${ARCH:-$(os__arch)}"
@@ -90,38 +90,38 @@ detect_triple() {
     Darwin/x86_64) TRIPLE="x86_64-apple-darwin" ;;
     Darwin/aarch64) TRIPLE="aarch64-apple-darwin" ;;
     *)
-      echo "⛔ Unsupported platform: kernel='${_kernel}' arch='${_arch}'" >&2
+      logging__error "Unsupported platform: kernel='${_kernel}' arch='${_arch}'"
       exit 1
       ;;
   esac
-  echo "ℹ️ Detected release triple: '${TRIPLE}'" >&2
-  echo "↩️ Function exit: detect_triple" >&2
+  logging__info "Detected release triple: '${TRIPLE}'"
+  logging__fn_exit "detect_triple"
   return 0
 }
 
 resolve_installer_paths() {
-  echo "↪️ Function entry: resolve_installer_paths" >&2
+  logging__fn_entry "resolve_installer_paths"
   if [ -n "${DOWNLOAD_URL}" ]; then
     ARCHIVE_URL="${DOWNLOAD_URL}"
     SIDECAR_URL=""
     ARCHIVE="${INSTALLER_DIR}/pixi-custom.tar.gz"
     SIDECAR=""
-    echo "ℹ️ Using custom download URL; checksum verification will be skipped." >&2
+    logging__info "Using custom download URL; checksum verification will be skipped."
   else
     ARCHIVE_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz"
     SIDECAR_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256"
     ARCHIVE="${INSTALLER_DIR}/pixi-${TRIPLE}.tar.gz"
     SIDECAR="${INSTALLER_DIR}/pixi-${TRIPLE}.tar.gz.sha256"
   fi
-  echo "ℹ️ Archive URL: '${ARCHIVE_URL}'" >&2
-  echo "↩️ Function exit: resolve_installer_paths" >&2
+  logging__info "Archive URL: '${ARCHIVE_URL}'"
+  logging__fn_exit "resolve_installer_paths"
   return 0
 }
 
 download_pixi() {
-  echo "↪️ Function entry: download_pixi" >&2
+  logging__fn_entry "download_pixi"
   mkdir -p "${INSTALLER_DIR}"
-  echo "📥 Downloading pixi archive from '${ARCHIVE_URL}'" >&2
+  logging__download "Downloading pixi archive from '${ARCHIVE_URL}'"
   if [ -n "${NETRC}" ]; then
     if command -v curl > /dev/null 2>&1; then
       curl --fail --location --retry 3 \
@@ -130,31 +130,31 @@ download_pixi() {
       wget --tries=3 --auth-no-challenge \
         --netrc-file "${NETRC}" --output-document "${ARCHIVE}" "${ARCHIVE_URL}"
     else
-      echo "⛔ Neither curl nor wget is available." >&2
+      logging__error "Neither curl nor wget is available."
       exit 1
     fi
   else
     net__fetch_url_file "${ARCHIVE_URL}" "${ARCHIVE}"
   fi
   if [ -n "${SIDECAR_URL:-}" ]; then
-    echo "📥 Downloading checksum sidecar from '${SIDECAR_URL}'" >&2
+    logging__download "Downloading checksum sidecar from '${SIDECAR_URL}'"
     net__fetch_url_file "${SIDECAR_URL}" "${SIDECAR}"
   fi
-  echo "↩️ Function exit: download_pixi" >&2
+  logging__fn_exit "download_pixi"
   return 0
 }
 
 verify_pixi() {
-  echo "↪️ Function entry: verify_pixi" >&2
+  logging__fn_entry "verify_pixi"
   if [ -z "${SIDECAR_URL:-}" ]; then
-    echo "⚠️ Checksum verification skipped (custom download_url set; ensure your source is trusted)." >&2
-    echo "↩️ Function exit: verify_pixi" >&2
+    logging__warn "Checksum verification skipped (custom download_url set; ensure your source is trusted)."
+    logging__fn_exit "verify_pixi"
     return 0
   fi
-  echo "🔍 Verifying SHA-256 checksum..." >&2
+  logging__inspect "Verifying SHA-256 checksum..."
   checksum__verify_sha256_sidecar "${ARCHIVE}" "${SIDECAR}"
-  echo "✅ Checksum verified." >&2
-  echo "↩️ Function exit: verify_pixi" >&2
+  logging__success "Checksum verified."
+  logging__fn_exit "verify_pixi"
   return 0
 }
 
@@ -174,18 +174,18 @@ get_installed_version() {
 }
 
 handle_if_exists() {
-  echo "↪️ Function entry: handle_if_exists" >&2
+  logging__fn_entry "handle_if_exists"
   case "${IF_EXISTS}" in
     skip)
-      echo "ℹ️ pixi already installed — skipping install (if_exists=skip)." >&2
+      logging__info "pixi already installed — skipping install (if_exists=skip)."
       _SKIP_INSTALL=true
       ;;
     fail)
-      echo "⛔ pixi already installed and if_exists=fail." >&2
+      logging__error "pixi already installed and if_exists=fail."
       exit 1
       ;;
     reinstall)
-      echo "🗑 Removing existing pixi binary at '${PREFIX}/bin/pixi'..." >&2
+      logging__remove "Removing existing pixi binary at '${PREFIX}/bin/pixi'..."
       rm -f "${PREFIX}/bin/pixi"
       _SKIP_INSTALL=false
       ;;
@@ -194,82 +194,82 @@ handle_if_exists() {
       _SKIP_INSTALL=true
       ;;
   esac
-  echo "↩️ Function exit: handle_if_exists" >&2
+  logging__fn_exit "handle_if_exists"
   return 0
 }
 
 update_pixi() {
-  echo "↪️ Function entry: update_pixi" >&2
+  logging__fn_entry "update_pixi"
   local _pixi_bin
   if [ -x "${PREFIX}/bin/pixi" ]; then
     _pixi_bin="${PREFIX}/bin/pixi"
   elif command -v pixi > /dev/null 2>&1; then
     _pixi_bin="$(command -v pixi)"
   else
-    echo "⛔ Cannot find pixi binary for self-update." >&2
+    logging__error "Cannot find pixi binary for self-update."
     exit 1
   fi
-  echo "⬆️ Updating pixi via self-update to version '${VERSION}'..." >&2
+  logging__info "Updating pixi via self-update to version '${VERSION}'..."
   "${_pixi_bin}" self-update --version "${VERSION}"
-  echo "↩️ Function exit: update_pixi" >&2
+  logging__fn_exit "update_pixi"
   return 0
 }
 
 install_pixi_binary() {
-  echo "↪️ Function entry: install_pixi_binary" >&2
+  logging__fn_entry "install_pixi_binary"
   local _tmpdir="${INSTALLER_DIR}/_extract"
   mkdir -p "${PREFIX}/bin" "${_tmpdir}"
-  echo "📦 Extracting archive to '${PREFIX}/bin/pixi'..." >&2
+  logging__install "Extracting archive to '${PREFIX}/bin/pixi'..."
   tar -xzf "${ARCHIVE}" -C "${_tmpdir}"
   mv "${_tmpdir}/pixi" "${PREFIX}/bin/pixi"
   chmod 0755 "${PREFIX}/bin/pixi"
   rm -rf "${_tmpdir}"
-  echo "✅ pixi binary installed to '${PREFIX}/bin/pixi'" >&2
-  echo "↩️ Function exit: install_pixi_binary" >&2
+  logging__success "pixi binary installed to '${PREFIX}/bin/pixi'"
+  logging__fn_exit "install_pixi_binary"
   return 0
 }
 
 create_symlink() {
-  echo "↪️ Function entry: create_symlink" >&2
+  logging__fn_entry "create_symlink"
   if [ "${SYMLINK}" != "true" ]; then
-    echo "ℹ️ symlink=false; skipping symlink creation." >&2
-    echo "↩️ Function exit: create_symlink" >&2
+    logging__info "symlink=false; skipping symlink creation."
+    logging__fn_exit "create_symlink"
     return 0
   fi
   shell__create_symlink \
     --src "${PREFIX}/bin/pixi" \
     --system-target "/usr/local/bin/pixi" \
     --user-target "${HOME}/.pixi/bin/pixi"
-  echo "↩️ Function exit: create_symlink" >&2
+  logging__fn_exit "create_symlink"
   return 0
 }
 
 verify_installed_binary() {
-  echo "↪️ Function entry: verify_installed_binary" >&2
+  logging__fn_entry "verify_installed_binary"
   local _ver=""
   if "${PREFIX}/bin/pixi" --version > /dev/null 2>&1; then
     _ver="$("${PREFIX}/bin/pixi" --version 2> /dev/null)"
   elif command -v pixi > /dev/null 2>&1; then
     _ver="$(pixi --version 2> /dev/null)"
   else
-    echo "⛔ pixi not found at '${PREFIX}/bin/pixi' and not on PATH." >&2
+    logging__error "pixi not found at '${PREFIX}/bin/pixi' and not on PATH."
     exit 1
   fi
-  echo "ℹ️ Verified pixi: ${_ver}" >&2
-  echo "↩️ Function exit: verify_installed_binary" >&2
+  logging__info "Verified pixi: ${_ver}"
+  logging__fn_exit "verify_installed_binary"
   return 0
 }
 
 export_path_main() {
-  echo "↪️ Function entry: export_path_main" >&2
+  logging__fn_entry "export_path_main"
   if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    echo "ℹ️ export_path is empty; skipping PATH export." >&2
-    echo "↩️ Function exit: export_path_main" >&2
+    logging__info "export_path is empty; skipping PATH export."
+    logging__fn_exit "export_path_main"
     return 0
   fi
   if [ "${EXPORT_PATH[*]}" = "auto" ] && [ "${PREFIX}" = "/usr/local" ]; then
-    echo "ℹ️ PREFIX is /usr/local which is already on PATH in all container images; skipping PATH write." >&2
-    echo "↩️ Function exit: export_path_main" >&2
+    logging__info "PREFIX is /usr/local which is already on PATH in all container images; skipping PATH write."
+    logging__fn_exit "export_path_main"
     return 0
   fi
   local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
@@ -279,29 +279,29 @@ export_path_main() {
     _target_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
   else
     if [ "$(id -u)" = "0" ]; then
-      echo "ℹ️ System-wide PATH export (root)." >&2
+      logging__info "System-wide PATH export (root)."
       _target_files="$(shell__system_path_files --profile_d "pixi_bin_path.sh")"
     else
-      echo "ℹ️ User-scoped PATH export (non-root)." >&2
+      logging__info "User-scoped PATH export (non-root)."
       # shellcheck disable=SC2119
       _target_files="$(shell__user_path_files)"
     fi
   fi
   shell__sync_block --files "${_target_files}" --marker "${_marker}" --content "${_content}"
-  echo "↩️ Function exit: export_path_main" >&2
+  logging__fn_exit "export_path_main"
   return 0
 }
 
 export_pixi_home_main() {
-  echo "↪️ Function entry: export_pixi_home_main" >&2
+  logging__fn_entry "export_pixi_home_main"
   if [ -z "${HOME_DIR}" ]; then
-    echo "ℹ️ home_dir is empty; skipping PIXI_HOME export." >&2
-    echo "↩️ Function exit: export_pixi_home_main" >&2
+    logging__info "home_dir is empty; skipping PIXI_HOME export."
+    logging__fn_exit "export_pixi_home_main"
     return 0
   fi
   if [ "${#EXPORT_PIXI_HOME[@]}" -eq 0 ]; then
-    echo "ℹ️ export_pixi_home is empty; skipping PIXI_HOME export." >&2
-    echo "↩️ Function exit: export_pixi_home_main" >&2
+    logging__info "export_pixi_home is empty; skipping PIXI_HOME export."
+    logging__fn_exit "export_pixi_home_main"
     return 0
   fi
   local _content="export PIXI_HOME=\"${HOME_DIR}\""
@@ -311,24 +311,24 @@ export_pixi_home_main() {
     _target_files="$(printf '%s\n' "${EXPORT_PIXI_HOME[@]}")"
   else
     if [ "$(id -u)" = "0" ]; then
-      echo "ℹ️ System-wide PIXI_HOME export (root)." >&2
+      logging__info "System-wide PIXI_HOME export (root)."
       _target_files="$(shell__system_path_files --profile_d "pixi_home.sh")"
     else
-      echo "ℹ️ User-scoped PIXI_HOME export (non-root)." >&2
+      logging__info "User-scoped PIXI_HOME export (non-root)."
       # shellcheck disable=SC2119
       _target_files="$(shell__user_path_files)"
     fi
   fi
   shell__sync_block --files "${_target_files}" --marker "${_marker}" --content "${_content}"
-  echo "↩️ Function exit: export_pixi_home_main" >&2
+  logging__fn_exit "export_pixi_home_main"
   return 0
 }
 
 install_completion() {
-  echo "↪️ Function entry: install_completion" >&2
+  logging__fn_entry "install_completion"
   if [ "${#SHELL_COMPLETIONS[@]}" -eq 0 ]; then
-    echo "ℹ️ shell_completions is empty; skipping completion install." >&2
-    echo "↩️ Function exit: install_completion" >&2
+    logging__info "shell_completions is empty; skipping completion install."
+    logging__fn_exit "install_completion"
     return 0
   fi
   local _marker="pixi completion (install-pixi)"
@@ -361,16 +361,16 @@ install_completion() {
         _target_file="${HOME}/.config/elvish/rc.elv"
         ;;
       *)
-        echo "⛔ Unsupported shell: '${_shell}' (expected: bash, zsh, fish, nushell, elvish)" >&2
+        logging__error "Unsupported shell: '${_shell}' (expected: bash, zsh, fish, nushell, elvish)"
         exit 1
         ;;
     esac
     mkdir -p "$(dirname "${_target_file}")"
     [ -f "${_target_file}" ] || touch "${_target_file}"
     shell__write_block --file "${_target_file}" --marker "${_marker}" --content "${_content}"
-    echo "✅ Shell completion for '${_shell}' written to '${_target_file}'" >&2
+    logging__success "Shell completion for '${_shell}' written to '${_target_file}'"
   done
-  echo "↩️ Function exit: install_completion" >&2
+  logging__fn_exit "install_completion"
   return 0
 }
 
@@ -397,7 +397,7 @@ if [ -x "${PREFIX}/bin/pixi" ]; then
 fi
 _SKIP_INSTALL=false
 if [ -n "${_INSTALLED_VER}" ] && [ "${_INSTALLED_VER}" = "${VERSION}" ]; then
-  echo "ℹ️ Installed pixi version '${_INSTALLED_VER}' matches '${VERSION}'. Skipping install." >&2
+  logging__info "Installed pixi version '${_INSTALLED_VER}' matches '${VERSION}'. Skipping install."
   _SKIP_INSTALL=true
 elif [ -x "${PREFIX}/bin/pixi" ]; then
   # A different version is already at the requested install target: apply policy.

@@ -196,7 +196,7 @@ options:
     default: false
     description: |-
       Keep the installer_dir after a successful install when method=binary.
-      Useful for debugging or inspecting the extracted archive.
+      Useful for troubleshooting or inspecting the extracted archive.
       Ignored when method=repos.
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}

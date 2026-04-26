@@ -3,7 +3,7 @@
         "image": "ubuntu:24.04",
         "features": {
             "install-git": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -12,7 +12,7 @@
         "features": {
             "install-git": {
                 "version": "stable",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -26,7 +26,7 @@
                 "symlink": false,
                 "shell_completions": "",
                 "keep_installer": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -35,7 +35,7 @@
         "features": {
             "install-git": {
                 "version": "stable",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -44,7 +44,7 @@
         "features": {
             "install-git": {
                 "version": "stable",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -55,7 +55,7 @@
                 "default_branch": "trunk",
                 "safe_directory": "*\n/workspaces/sysset\n/tmp/repo",
                 "system_gitconfig": "[push]\n  default = simple\n[fetch]\n  prune = true",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -73,16 +73,16 @@
                 "user_name": "Dev User",
                 "user_email": "dev@example.com",
                 "user_gitconfig": "[pull]\n  rebase = false",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
-    "logfile": {
+    "log_file": {
         "image": "ubuntu:24.04",
         "features": {
             "install-git": {
-                "logfile": "/tmp/git.log",
-                "debug": true
+                "log_file": "/tmp/git.log",
+                "log_level": "trace"
             }
         }
     },
@@ -92,7 +92,7 @@
             "install-git": {
                 "method": "source",
                 "version": "stable",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -102,7 +102,7 @@
             "install-git": {
                 "method": "source",
                 "version": "2.47.2",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -113,7 +113,7 @@
                 "method": "source",
                 "version": "stable",
                 "keep_installer": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -124,7 +124,7 @@
                 "method": "source",
                 "version": "stable",
                 "prefix": "/opt/git",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -137,7 +137,7 @@
                 "prefix": "/opt/git",
                 "export_path": "",
                 "symlink": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -148,7 +148,7 @@
                 "method": "source",
                 "version": "stable",
                 "no_flags": "perl",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -162,7 +162,7 @@
         "features": {
             "install-git": {
                 "if_exists": "skip",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -180,7 +180,7 @@
                 "prefix": "/opt/git",
                 "if_exists": "reinstall",
                 "default_branch": "trunk",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -196,7 +196,7 @@
                 "if_exists": "update",
                 "version": "stable",
                 "default_branch": "trunk",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -205,7 +205,7 @@
         "features": {
             "install-git": {
                 "if_exists": "fail",
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

@@ -233,12 +233,12 @@ checksums, shell config writes, OS packages, and logging.
 
 ```
 1.  Source _lib/ospkg.sh, _lib/logging.sh, _lib/shell.sh, _lib/github.sh, _lib/checksum.sh
-2.  logging__setup                  — tee to LOGFILE if set
+2.  logging__setup                  — tee to LOG_FILE if set
 3.  trap '__cleanup__' EXIT
 4.  ospkg__run --manifest base.yaml --skip_installed
 5.  Parse CLI args OR read env vars (dual-mode)
 6.  Apply defaults
-7.  [[ DEBUG == true ]] && set -x
+7.  [[ LOG_LEVEL == true ]] && set -x
 8.  resolve_bin_dir                 — resolve "auto" / "" to concrete path
 9.  check_root_requirement
 10. resolve_pixi_version             — normalise VERSION to bare semver

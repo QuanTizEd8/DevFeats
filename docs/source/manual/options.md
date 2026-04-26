@@ -22,8 +22,8 @@ The Dev Containers spec mandates that features be configured via environment var
 
 A handful of options are implemented the same way across every feature and worth calling out up front:
 
-- **`debug`** *(boolean, default `false`)* — enables `bash -x` tracing inside the installer. Trace output is captured into the normal log stream.
-- **`logfile`** *(string, default `""`)* — when set to an absolute path, the installer appends its full captured output to that file on exit (with known secrets redacted).
+- **`log_level`** *(string, default `"info"`)* — controls logging verbosity (`silent`, `error`, `warn`, `info`, `debug`, `trace`). Use `trace` to enable `bash -x` tracing inside generated feature installers.
+- **`log_file`** *(string, default `""`)* — when set to an absolute path, the installer appends its full captured output to that file on exit (with known secrets redacted).
 - **`username`** / **`add_users`** — several features resolve a list of target users from the current context (`$USER`, `_REMOTE_USER`, detected non-root accounts) and apply per-user configuration. Where relevant, `add_users` lets you include users the feature would otherwise skip.
 - **`export_path`** *(array, default `auto`)* — for features that put binaries on `PATH`, this controls which shell startup files receive the export. `auto` does the right thing per platform (see per-feature docs); a list of absolute file paths targets only those files.
 
@@ -63,7 +63,7 @@ Each `--<flag> <value>` pair **appends** to the array.
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts": {
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-fonts": {
       "nerd_fonts": "Meslo\nFiraCode"
     }
   }

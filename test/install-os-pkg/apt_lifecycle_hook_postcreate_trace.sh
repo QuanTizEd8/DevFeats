@@ -1,5 +1,5 @@
 #!/bin/bash
-# Same assertions as apt_lifecycle_hook_postcreate but with debug=true,
+# Same assertions as apt_lifecycle_hook_postcreate but with log_level=trace,
 # so the build log will show the exact LIFECYCLE_HOOK env var value.
 set -e
 

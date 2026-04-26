@@ -232,7 +232,7 @@ After the installer completes (or is skipped when `if_exists=skip`):
 | `~/.zprofile` | Case B (macOS/non-root), `export_path=auto` | shellenv block |
 | `~/.zshrc` | Case B (macOS/non-root), `export_path=auto` | shellenv block |
 | Custom path(s) | `export_path` is a path list | shellenv block |
-| `${logfile}` | `logfile` option set | full install log |
+| `${log_file}` | `log_file` option set | full install log |
 
 ---
 

@@ -1,5 +1,5 @@
 if [[ -z "$MANIFEST" && "$INSTALL_SELF" != true ]]; then
-  echo "⛔ 'MANIFEST' is required when 'install_self' is false." >&2
+  logging__error "'MANIFEST' is required when 'install_self' is false."
   exit 1
 fi
 # Normalize: some environments (e.g. devcontainer CLI build args) serialize
@@ -12,13 +12,13 @@ fi
 
 if [[ -n "$LIFECYCLE_HOOK" ]]; then
   if [[ -z "$MANIFEST" ]]; then
-    echo "⛔ 'manifest' is required when 'lifecycle_hook' is set." >&2
+    logging__error "'manifest' is required when 'lifecycle_hook' is set."
     exit 1
   fi
 fi
 
 if ! [[ "$LISTS_MAX_AGE" =~ ^[0-9]+$ ]]; then
-  echo "⛔ Invalid lists_max_age value: '$LISTS_MAX_AGE'. Must be a non-negative integer." >&2
+  logging__error "Invalid lists_max_age value: '$LISTS_MAX_AGE'. Must be a non-negative integer."
   exit 1
 fi
 
@@ -38,10 +38,10 @@ if [[ "$INSTALL_SELF" == true ]]; then
   if [ ! -x "$_BIN" ]; then
     printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" > "$_BIN"
     chmod +x "$_BIN"
-    echo "✅ Installed system command: $_BIN" >&2
+    logging__success "Installed system command: $_BIN"
   fi
 else
-  echo "ℹ️ Skipping system command installation (install_self=false)." >&2
+  logging__info "Skipping system command installation (install_self=false)."
 fi
 
 # When lifecycle_hook is set, write a hook script and exit without installing.
@@ -52,13 +52,13 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   if [[ "$MANIFEST" == *$'\n'* ]]; then
     printf '%s' "$MANIFEST" > "$_HOOK_DIR/manifest.yaml"
     _MANIFEST_ARG="$_HOOK_DIR/manifest.yaml"
-    echo "ℹ️  Saved inline manifest to '$_MANIFEST_ARG'." >&2
+    logging__info "Saved inline manifest to '$_MANIFEST_ARG'."
   fi
   _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"
-  [[ "$DEBUG" == true ]] && _HOOK_OPTS+=" --debug true"
+  [[ "${LOG_LEVEL:-info}" == "trace" ]] && _HOOK_OPTS+=" --log_level trace"
   [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive true"
   [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos true"
-  [[ -n "$LOGFILE" ]] && _HOOK_OPTS+=" --logfile $(printf '%q' "$LOGFILE")"
+  [[ -n "$LOG_FILE" ]] && _HOOK_OPTS+=" --log_file $(printf '%q' "$LOG_FILE")"
   [[ "$UPDATE" == false ]] && _HOOK_OPTS+=" --update false"
   _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
   [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run true"
@@ -73,7 +73,7 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   printf '#!/bin/sh\nset -e\nexec bash "%s" %s\n' \
     "/usr/local/lib/install-os-pkg/install.sh" "$_HOOK_OPTS" > "$_HOOK_FILE"
   chmod +x "$_HOOK_FILE"
-  echo "✅ Registered lifecycle hook '$LIFECYCLE_HOOK': $_HOOK_FILE" >&2
+  logging__success "Registered lifecycle hook '$LIFECYCLE_HOOK': $_HOOK_FILE"
   exit 0
 fi
 

@@ -62,7 +62,7 @@ unset SYSSET_VERSION
 
 # ── 1. --workspace-folder sets default cwd for lifecycle commands ────────────
 check "get.sh --workspace-folder <ws> runs hook in <ws>" \
-  sudo -E bash "${REPO_ROOT}/get.sh" --logfile "$_log" \
+  sudo -E bash "${REPO_ROOT}/get.sh" --log_file "$_log" \
   --workspace-folder "$_dest_ws" "${_FEAT}@${_VER}"
 check "sentinel file under --workspace-folder is present" \
   test -f "$_sentinel_ws"

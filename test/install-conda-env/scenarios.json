@@ -5,7 +5,7 @@
             "install-conda-env": {
                 "env_name": "myenv",
                 "packages": "numpy pandas",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -15,7 +15,7 @@
             "install-conda-env": {
                 "env_name": "py311",
                 "python_version": "3.11",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -29,7 +29,7 @@
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/simple.yml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -43,7 +43,7 @@
         "features": {
             "install-conda-env": {
                 "env_dirs": "/tmp/test-envs",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -57,7 +57,7 @@
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/envA.yml\n/tmp/test-envs/envB.yml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -71,7 +71,7 @@
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/simple.yml",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -82,7 +82,7 @@
                 "env_name": "chanenv",
                 "packages": "numpy",
                 "channels": "conda-forge\ndefaults",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -94,7 +94,7 @@
                 "packages": "numpy",
                 "channels": "conda-forge",
                 "strict_channel_priority": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -105,7 +105,7 @@
                 "env_name": "solverenv",
                 "packages": "numpy",
                 "solver": "conda",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -121,7 +121,7 @@
                 "env_name": "pipenv",
                 "packages": "pip",
                 "pip_requirements_files": "/tmp/requirements.txt",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -138,7 +138,7 @@
                 "packages": "pip",
                 "pip_requirements_files": "/tmp/requirements.txt",
                 "pip_env": "pipenv",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -154,18 +154,18 @@
                 "env_name": "scriptenv",
                 "packages": "numpy",
                 "post_env_script": "/tmp/post-env.sh",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
-    "logfile": {
+    "log_file": {
         "image": "condaforge/miniforge3",
         "features": {
             "install-conda-env": {
                 "env_name": "logenv",
                 "packages": "numpy",
-                "logfile": "/tmp/conda-env.log",
-                "debug": true
+                "log_file": "/tmp/conda-env.log",
+                "log_level": "trace"
             }
         }
     },
@@ -176,7 +176,7 @@
                 "env_name": "cleanenv",
                 "packages": "numpy",
                 "keep_cache": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

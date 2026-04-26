@@ -68,10 +68,13 @@ net__fetch_with_retry() {
     _rc=$?
     [ "$_rc" -eq 0 ] && return 0
     [ -n "$_bail_on" ] && [ "$_rc" -eq "$_bail_on" ] && return "$_rc"
-    [ "$_i" -lt "$_max" ] && echo "⚠️  Attempt $_i/$_max failed — retrying in ${_delay}s..." >&2 && sleep "$_delay"
+    if [ "$_i" -lt "$_max" ]; then
+      logging__warn "Attempt $_i/$_max failed — retrying in ${_delay}s..."
+      sleep "$_delay"
+    fi
     _i=$((_i + 1))
   done
-  echo "⛔ Failed after $_max attempt(s)." >&2
+  logging__error "Failed after $_max attempt(s)."
   return 1
 }
 
@@ -107,7 +110,7 @@ net__fetch_url_stdout() {
         shift 2
         ;;
       *)
-        echo "⛔ net__fetch_url_stdout: unknown option: '$1'" >&2
+        logging__error "net__fetch_url_stdout: unknown option: '$1'"
         return 1
         ;;
     esac
@@ -125,7 +128,7 @@ _NET_HDR_EOF_
     curl "$@" "$_url"
     local _rc=$?
     [ "${_rc}" -eq 0 ] && return 0
-    echo "⛔ net__fetch_url_stdout: failed to fetch '${_url}' with curl (exit ${_rc})." >&2
+    logging__error "net__fetch_url_stdout: failed to fetch '${_url}' with curl (exit ${_rc})."
     return "${_rc}"
   else
     set -- -O-
@@ -138,7 +141,7 @@ _NET_HDR_EOF_
     net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
     local _rc=$?
     [ "${_rc}" -eq 0 ] && return 0
-    echo "⛔ net__fetch_url_stdout: failed to fetch '${_url}' with wget (exit ${_rc})." >&2
+    logging__error "net__fetch_url_stdout: failed to fetch '${_url}' with wget (exit ${_rc})."
     return "${_rc}"
   fi
 }
@@ -177,7 +180,7 @@ net__fetch_url_file() {
         shift 2
         ;;
       *)
-        echo "⛔ net__fetch_url_file: unknown option: '$1'" >&2
+        logging__error "net__fetch_url_file: unknown option: '$1'"
         return 1
         ;;
     esac
@@ -195,7 +198,7 @@ _NET_HDR_EOF_
     curl "$@" -o "$_dest" "$_url"
     local _rc=$?
     [ "${_rc}" -eq 0 ] && return 0
-    echo "⛔ net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with curl (exit ${_rc})." >&2
+    logging__error "net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with curl (exit ${_rc})."
     return "${_rc}"
   else
     set -- -O "$_dest"
@@ -208,7 +211,7 @@ _NET_HDR_EOF_
     net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
     local _rc=$?
     [ "${_rc}" -eq 0 ] && return 0
-    echo "⛔ net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with wget (exit ${_rc})." >&2
+    logging__error "net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with wget (exit ${_rc})."
     return "${_rc}"
   fi
 }
@@ -223,7 +226,7 @@ _net__ensure_fetch_tool() {
     elif command -v wget > /dev/null 2>&1; then
       _NET_FETCH_TOOL=wget
     else
-      echo "ℹ️  Neither curl nor wget found — installing curl." >&2
+      logging__info "Neither curl nor wget found — installing curl."
       ospkg__install_tracked "lib-net" curl
       _NET_FETCH_TOOL=curl
     fi
@@ -243,7 +246,7 @@ _net__ensure_ca_certs() {
     return 0
   }
   if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
-    echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
+    logging__info "CA certificate bundle missing — installing ca-certificates."
     ospkg__install_tracked "lib-net" ca-certificates
   fi
   _NET_CA_CERTS_OK=true

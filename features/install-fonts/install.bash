@@ -77,9 +77,9 @@ _do_install_font() {
 
   if [[ -n "$_collision_name" ]]; then
     if [[ "$OVERWRITE" == true ]]; then
-      echo "ℹ️  Font '${_collision_name}' already registered — overwriting '${_basename}'." >&2
+      logging__info "Font '${_collision_name}' already registered — overwriting '${_basename}'."
     else
-      echo "ℹ️  Font '${_collision_name}' already registered — skipping '${_basename}'." >&2
+      logging__info "Font '${_collision_name}' already registered — skipping '${_basename}'."
       return 0
     fi
   fi
@@ -132,7 +132,7 @@ install_archive_contents() {
     -o -name '*.woff' -o -name '*.woff2' \) -print0)
 
   if [[ ${#_font_files[@]} -eq 0 ]]; then
-    echo "⚠️  No font files found in archive." >&2
+    logging__warn "No font files found in archive."
     return 0
   fi
 
@@ -204,7 +204,7 @@ fi
 _download_deps__install
 
 if [[ "$P10K_FONTS" == true ]]; then
-  echo "ℹ️  Installing Powerlevel10k MesloLGS NF fonts..." >&2
+  logging__info "Installing Powerlevel10k MesloLGS NF fonts..."
   _P10K_FONT_FILES=(
     "MesloLGS%20NF%20Regular.ttf"
     "MesloLGS%20NF%20Bold.ttf"
@@ -217,11 +217,11 @@ if [[ "$P10K_FONTS" == true ]]; then
     if net__fetch_url_file "${_P10K_BASE_URL}/${_FONT}" "$_TMPFILE"; then
       install_font_file "$_TMPFILE" "p10k/MesloLGS-NF/${_LOCAL_NAME}"
     else
-      echo "⚠️  Could not download '${_LOCAL_NAME}' — skipping." >&2
+      logging__warn "Could not download '${_LOCAL_NAME}' — skipping."
     fi
     rm -f "$_TMPFILE"
   done
-  echo "✅ Powerlevel10k MesloLGS NF fonts processed." >&2
+  logging__success "Powerlevel10k MesloLGS NF fonts processed."
 fi
 
 # ---------------------------------------------------------------------------
@@ -231,16 +231,16 @@ if [[ "${#NERD_FONTS[@]}" -gt 0 ]]; then
   for _font_name in "${NERD_FONTS[@]}"; do
     [[ -z "$_font_name" ]] && continue
 
-    echo "ℹ️  Downloading Nerd Font '${_font_name}'..." >&2
+    logging__info "Downloading Nerd Font '${_font_name}'..."
     _ARCHIVE="$(mktemp)"
     _TMPDIR="$(mktemp -d)"
     if net__fetch_url_file "${_NF_BASE_URL}/${_font_name}.tar.xz" "$_ARCHIVE"; then
       if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "${_font_name}.tar.xz"; then
         install_archive_contents "$_TMPDIR" "nerd/${_font_name}"
-        echo "✅ Nerd Font '${_font_name}' processed." >&2
+        logging__success "Nerd Font '${_font_name}' processed."
       fi
     else
-      echo "⚠️  Could not download '${_font_name}' from nerd-fonts releases — skipping." >&2
+      logging__warn "Could not download '${_font_name}' from nerd-fonts releases — skipping."
     fi
     rm -f "$_ARCHIVE"
     rm -rf "$_TMPDIR"
@@ -260,12 +260,12 @@ if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
     _owner="${_repo_path%%/*}"
     _repo_name="${_repo_path##*/}"
 
-    echo "ℹ️  Querying release assets for '${_slug}'..." >&2
+    logging__info "Querying release assets for '${_slug}'..."
     _API_RESPONSE="$(mktemp)"
     _fetch_args=()
     [[ -n "$_tag" ]] && _fetch_args+=(--tag "$_tag")
     if ! github__fetch_release_json "$_repo_path" "${_fetch_args[@]}" --dest "$_API_RESPONSE"; then
-      echo "⚠️  Could not query GitHub release for '${_slug}' — skipping." >&2
+      logging__warn "Could not query GitHub release for '${_slug}' — skipping."
       rm -f "$_API_RESPONSE"
       continue
     fi
@@ -274,7 +274,7 @@ if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
     _tag_name="$(github__release_json_tag_name "$_API_RESPONSE")" || _tag_name=""
     _release_id="$(github__release_json_id "$_API_RESPONSE")" || _release_id=""
     if [[ -z "$_tag_name" || -z "$_release_id" ]]; then
-      echo "⚠️  Could not parse tag_name or release id from GitHub response for '${_slug}' — setting to 0." >&2
+      logging__warn "Could not parse tag_name or release id from GitHub response for '${_slug}' — setting to 0."
       _tag_name="0"
       _release_id="0"
     fi
@@ -288,7 +288,7 @@ if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
     rm -f "$_API_RESPONSE"
 
     if [[ ${#_ALL_ASSET_URLS[@]} -eq 0 ]]; then
-      echo "⚠️  No font or archive assets found in '${_slug}' release — skipping." >&2
+      logging__warn "No font or archive assets found in '${_slug}' release — skipping."
       continue
     fi
 
@@ -309,10 +309,10 @@ if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
 
     for _asset_url in "${_DOWNLOAD_URLS[@]}"; do
       _asset_basename="${_asset_url##*/}"
-      echo "ℹ️  Downloading '${_asset_basename}' from '${_slug}' release..." >&2
+      logging__info "Downloading '${_asset_basename}' from '${_slug}' release..."
       _ARCHIVE="$(mktemp)"
       if ! net__fetch_url_file "$_asset_url" "$_ARCHIVE"; then
-        echo "⚠️  Could not download '${_asset_basename}' — skipping." >&2
+        logging__warn "Could not download '${_asset_basename}' — skipping."
         rm -f "$_ARCHIVE"
         continue
       fi
@@ -330,7 +330,7 @@ if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
       esac
       rm -f "$_ARCHIVE"
     done
-    echo "✅ GitHub release '${_slug}' processed." >&2
+    logging__success "GitHub release '${_slug}' processed."
   done
 fi
 
@@ -349,33 +349,33 @@ if [[ "${#FONT_URLS[@]}" -gt 0 ]]; then
 
     case "$_basename" in
       *.tar.xz | *.tar.gz | *.tgz | *.zip)
-        echo "ℹ️  Downloading font archive '${_basename}'..." >&2
+        logging__info "Downloading font archive '${_basename}'..."
         _ARCHIVE="$(mktemp)"
         _TMPDIR="$(mktemp -d)"
         if net__fetch_url_file "$_url" "$_ARCHIVE"; then
           if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "$_basename"; then
             install_archive_contents "$_TMPDIR" "$_NS"
-            echo "✅ Font archive '${_basename}' processed." >&2
+            logging__success "Font archive '${_basename}' processed."
           fi
         else
-          echo "⚠️  Could not download '${_basename}' — skipping." >&2
+          logging__warn "Could not download '${_basename}' — skipping."
         fi
         rm -f "$_ARCHIVE"
         rm -rf "$_TMPDIR"
         ;;
       *.ttf | *.otf | *.woff | *.woff2)
-        echo "ℹ️  Downloading font file '${_basename}'..." >&2
+        logging__info "Downloading font file '${_basename}'..."
         _TMPFILE="$(mktemp)"
         if net__fetch_url_file "$_url" "$_TMPFILE"; then
           install_font_file "$_TMPFILE" "${_NS}/${_basename}"
-          echo "✅ Font file '${_basename}' processed." >&2
+          logging__success "Font file '${_basename}' processed."
         else
-          echo "⚠️  Could not download '${_basename}' — skipping." >&2
+          logging__warn "Could not download '${_basename}' — skipping."
         fi
         rm -f "$_TMPFILE"
         ;;
       *)
-        echo "⚠️  Unrecognized extension in URL '${_url}' — skipping." >&2
+        logging__warn "Unrecognized extension in URL '${_url}' — skipping."
         ;;
     esac
   done
@@ -386,12 +386,12 @@ fi
 # ---------------------------------------------------------------------------
 if [[ -n "$_INSTALL_DIR" ]]; then
   find "$_INSTALL_DIR" -type d -exec chmod 755 {} +
-  echo "✅ Font installation complete. Fonts installed to '${_INSTALL_DIR}'." >&2
+  logging__success "Font installation complete. Fonts installed to '${_INSTALL_DIR}'."
 else
-  echo "ℹ️  No new fonts to install — all requested fonts already registered." >&2
+  logging__info "No new fonts to install — all requested fonts already registered."
 fi
 
 if command -v fc-cache > /dev/null 2>&1; then
-  echo "ℹ️  Refreshing font cache..." >&2
+  logging__info "Refreshing font cache..."
   fc-cache -f "$FONT_DIR" 2> /dev/null || true
 fi

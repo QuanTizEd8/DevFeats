@@ -12,7 +12,7 @@ export _SYSSET_BUILD_CONTEXT
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging__setup
-echo "↪️ Script entry: @@FEATURE_NAME@@" >&2
+logging__entry "@@FEATURE_NAME@@"
 # Override _cleanup_hook in the hand-written section for feature-specific
 # cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
 # _on_exit owns that call and guarantees it runs exactly once, last.
@@ -26,14 +26,14 @@ _on_exit() {
     if [[ "$(id -u)" -eq 0 ]]; then
       ospkg__clean
     else
-      echo "ℹ️ Skipping package-manager cache cleanup (not root)." >&2
+      logging__info "Skipping package-manager cache cleanup (not root)."
     fi
   fi
   [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && ospkg__cleanup_all_build_groups
   if [[ $_rc -eq 0 ]]; then
-    echo "✅ @@FEATURE_NAME@@ script finished successfully." >&2
+    logging__success "@@FEATURE_NAME@@ script finished successfully."
   else
-    echo "❌ @@FEATURE_NAME@@ script exited with error ${_rc}." >&2
+    logging__fatal "@@FEATURE_NAME@@ script exited with error ${_rc}."
   fi
   logging__cleanup
   return

@@ -11,7 +11,7 @@
 - Resolving devcontainer user lists with a local associative array → use `users__resolve_list`.
 - Calling `chsh` manually for a list of users → use `users__set_login_shell`.
 
-**When adding new logic**, ask: could this be useful in more than one feature, or does it encapsulate a detail that is easy to get wrong? If yes, add it to `lib/` rather than keeping it inline. After adding to `lib/`, run `bash scripts/sync-src.sh` to propagate it to all features.
+**When adding new logic**, ask: could this be useful in more than one feature, or does it encapsulate a detail that is easy to get wrong? If yes, add it to `lib/` rather than keeping it inline. After adding to `lib/`, run `python3 scripts/sync-src.py` to propagate it to all features.
 
 ### Library Sourcing
 
@@ -59,24 +59,23 @@ if [[ "$#" -gt 0 ]]; then
   while [[ $# -gt 0 ]]; do
     case $1 in
       --optname) shift; OPTNAME="$1"; shift;;
-      --debug)   shift; DEBUG="$1";   shift;;
-      --logfile) shift; LOGFILE="$1"; shift;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *)   echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --log_level) shift; LOG_LEVEL="$1"; shift;;
+      --log_file) shift; LOG_FILE="$1"; shift;;
+      --*) logging__error "Unknown option: '${1}'"; exit 1;;
+      *)   logging__error "Unexpected argument: '${1}'"; exit 1;;
     esac
   done
 else
-  [ "${OPTNAME+defined}" ] && echo "📩 Read argument 'optname': '${OPTNAME}'" >&2
-  [ "${DEBUG+defined}"   ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+  [ "${OPTNAME+defined}"   ] && logging__read "Argument 'optname': '${OPTNAME}'"
+  [ "${LOG_LEVEL+defined}" ] && logging__read "Argument 'log_level': '${LOG_LEVEL}'"
+  [ "${LOG_FILE+defined}"   ] && logging__read "Argument 'log_file': '${LOG_FILE}'"
 fi
-
-[[ "$DEBUG" == true ]] && set -x
 
 # Apply defaults AFTER parsing
 [ -z "${OPTNAME-}" ] && OPTNAME="default_value"
-[ -z "${DEBUG-}"   ] && DEBUG=false
-[ -z "${LOGFILE-}" ] && LOGFILE=""
+[ -z "${LOG_LEVEL-}" ] && LOG_LEVEL=info
+[ -z "${LOG_FILE-}" ] && LOG_FILE=""
+logging__set_level
 ```
 
 

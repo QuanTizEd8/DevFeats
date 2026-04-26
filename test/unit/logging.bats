@@ -23,7 +23,7 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
-    [[ -f \"\${_LOGFILE_TMP}\" ]] && echo TMPFILE_EXISTS
+    [[ -f \"\${_LOG_FILE_TMP}\" ]] && echo TMPFILE_EXISTS
     logging__cleanup
   "
   assert_success
@@ -56,7 +56,7 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
-    _tmp=\"\${_LOGFILE_TMP}\"
+    _tmp=\"\${_LOG_FILE_TMP}\"
     logging__cleanup
     [[ ! -f \"\${_tmp}\" ]] && echo FILE_GONE
   "
@@ -64,13 +64,13 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_output --partial "FILE_GONE"
 }
 
-@test "logging__cleanup writes captured output to LOGFILE when set" {
+@test "logging__cleanup writes captured output to LOG_FILE when set" {
   local _dest="${BATS_TEST_TMPDIR}/out.log"
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
     echo 'hello log'
-    LOGFILE='${_dest}' logging__cleanup
+    LOG_FILE='${_dest}' logging__cleanup
   "
   assert_success
   assert_file_exists "$_dest"
@@ -163,14 +163,14 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
 # logging__mask_secret / GITHUB_TOKEN masking
 # ---------------------------------------------------------------------------
 
-@test "logging__mask_secret redacts registered value in LOGFILE" {
+@test "logging__mask_secret redacts registered value in LOG_FILE" {
   local _dest="${BATS_TEST_TMPDIR}/masked.log"
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
     logging__mask_secret 'supersecret'
     echo 'value is supersecret here'
-    LOGFILE='${_dest}' logging__cleanup
+    LOG_FILE='${_dest}' logging__cleanup
   "
   assert_success
   assert_file_exists "$_dest"
@@ -186,7 +186,7 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
     source '${_LOGGING_LIB}'
     logging__setup
     echo 'value is notasecret here'
-    LOGFILE='${_dest}' logging__cleanup
+    LOG_FILE='${_dest}' logging__cleanup
   "
   assert_success
   assert_file_exists "$_dest"
@@ -194,7 +194,7 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_success # must appear unchanged
 }
 
-@test "logging__mask_secret redacts multiple values in LOGFILE" {
+@test "logging__mask_secret redacts multiple values in LOG_FILE" {
   local _dest="${BATS_TEST_TMPDIR}/multi.log"
   run bash -c "
     source '${_LOGGING_LIB}'
@@ -202,7 +202,7 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
     logging__mask_secret 'token-aaa'
     logging__mask_secret 'token-bbb'
     echo 'first token-aaa second token-bbb done'
-    LOGFILE='${_dest}' logging__cleanup
+    LOG_FILE='${_dest}' logging__cleanup
   "
   assert_success
   assert_file_exists "$_dest"
@@ -212,14 +212,14 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_failure
 }
 
-@test "logging__setup auto-masks GITHUB_TOKEN in LOGFILE" {
+@test "logging__setup auto-masks GITHUB_TOKEN in LOG_FILE" {
   local _dest="${BATS_TEST_TMPDIR}/ghtoken.log"
   run bash -c "
     source '${_LOGGING_LIB}'
     export GITHUB_TOKEN='ghp_testtoken123'
     logging__setup
     echo \"token value is \${GITHUB_TOKEN}\"
-    LOGFILE='${_dest}' logging__cleanup
+    LOG_FILE='${_dest}' logging__cleanup
   "
   assert_success
   assert_file_exists "$_dest"
@@ -237,4 +237,125 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   "
   assert_success
   assert_output --partial "EMPTY"
+}
+
+# ---------------------------------------------------------------------------
+# logging__* message helpers + LOG_LEVEL
+# ---------------------------------------------------------------------------
+
+@test "logging__info prints one line to stderr" {
+  run bash -c "source '${_LOGGING_LIB}'; logging__info 'hello'" 2>&1
+  assert_success
+  assert_output --partial "ℹ️ hello"
+}
+
+@test "logging__entry formats script entry line" {
+  run bash -c "source '${_LOGGING_LIB}'; logging__entry 'install-git'" 2>&1
+  assert_success
+  assert_output --partial "↪️ Script entry: install-git"
+}
+
+@test "logging__fn_entry and logging__fn_exit use trace emojis" {
+  run bash -c "source '${_LOGGING_LIB}'; logging__fn_entry 'foo'; logging__fn_exit 'foo (ok)'" 2>&1
+  assert_success
+  assert_output --partial "↪️ Function entry: foo"
+  assert_output --partial "↩️ Function exit: foo (ok)"
+}
+
+@test "LOG_LEVEL=warn suppresses logging__info" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    LOG_LEVEL=warn
+    logging__set_level
+    logging__info 'should-not-appear'
+    logging__warn 'should-appear'
+  " 2>&1
+  assert_success
+  assert_output --partial "should-appear"
+  refute_output --partial "should-not-appear"
+}
+
+@test "LOG_LEVEL=silent allows only logging__fatal" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    LOG_LEVEL=silent
+    logging__set_level
+    logging__error 'no-error'
+    logging__warn 'no-warn'
+    logging__info 'no-info'
+    logging__fatal 'yes-fatal'
+  " 2>&1
+  assert_success
+  assert_output --partial "yes-fatal"
+  refute_output --partial "no-error"
+  refute_output --partial "no-warn"
+  refute_output --partial "no-info"
+}
+
+@test "LOG_LEVEL=debug enables logging__debug" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    LOG_LEVEL=info
+    logging__set_level
+    logging__debug 'hidden'
+    LOG_LEVEL=debug
+    logging__set_level
+    logging__debug 'visible'
+  " 2>&1
+  assert_success
+  refute_output --partial "hidden"
+  assert_output --partial "🐞 visible"
+}
+
+@test "LOG_LEVEL=trace also enables logging__debug" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    LOG_LEVEL=trace
+    logging__set_level
+    logging__debug 'visible-in-trace'
+  " 2>&1
+  assert_success
+  assert_output --partial "🐞 visible-in-trace"
+}
+
+@test "logging__set_level toggles xtrace based on LOG_LEVEL" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    LOG_LEVEL=trace
+    logging__set_level
+    set -o | awk '/xtrace/ { print \$2 }'
+    LOG_LEVEL=info
+    logging__set_level
+    set -o | awk '/xtrace/ { print \$2 }'
+  " 2>&1
+  assert_success
+  assert_output --partial "on"
+  assert_output --partial "off"
+}
+
+@test "logging__phase helpers emit expected emoji" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging__detect 'd1'
+    logging__inspect 'i1'
+    logging__install 'p1'
+    logging__download 'dl'
+    logging__build 'b1'
+    logging__remove 'r1'
+    logging__clean 'c1'
+    logging__launch 'l1'
+    logging__read 'rd'
+    logging__success 'ok'
+  " 2>&1
+  assert_success
+  assert_output --partial "🛠️ d1"
+  assert_output --partial "🔍 i1"
+  assert_output --partial "📦 p1"
+  assert_output --partial "📥 dl"
+  assert_output --partial "🔨 b1"
+  assert_output --partial "🗑️ r1"
+  assert_output --partial "🧹 c1"
+  assert_output --partial "🚀 l1"
+  assert_output --partial "📩 rd"
+  assert_output --partial "✅ ok"
 }

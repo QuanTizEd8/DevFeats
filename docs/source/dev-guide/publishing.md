@@ -36,7 +36,7 @@ Each feature has its own release identity:
 - **GitHub Release** per tag, shipping exactly one asset:
   `sysset-<feature-id>.tar.gz`.
 - **GHCR tag** per version:
-  `ghcr.io/quantized8/sysset/<feature-id>:<major>`, `:<major.minor>`, and
+  `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>:<major>`, `:<major.minor>`, and
   `:<major.minor.patch>`.
 
 Each CD run also produces an **accumulator-tagged bundle release**
@@ -173,11 +173,11 @@ package as public:
 
 1. Navigate to the package settings URL:
    ```
-   https://github.com/users/quantized8/packages/container/sysset%2F<feature-id>/settings
+   https://github.com/users/|{{github_user}}|/packages/container/sysset%2F<feature-id>/settings
    ```
    For example, for `install-shell`:
    ```
-   https://github.com/users/quantized8/packages/container/sysset%2Finstall-shell/settings
+   https://github.com/users/|{{github_user}}|/packages/container/sysset%2Finstall-shell/settings
    ```
 2. Under **Danger Zone**, set the visibility to **Public**.
 
@@ -195,7 +195,7 @@ repository to add an entry to the
 file.
 
 The index entry registers the feature collection namespace
-(`ghcr.io/quantized8/sysset`) so that supporting tools can surface all
+(`ghcr.io/|{{github_user}}|/sysset`) so that supporting tools can surface all
 features from this repository in their dev container creation UI.
 
 ---
@@ -213,12 +213,12 @@ Add a `customizations.codespaces.repositories` block to the consuming
 {
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/quantized8/sysset/install-shell:0": {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:0": {}
   },
   "customizations": {
     "codespaces": {
       "repositories": {
-        "quantized8/sysset": {
+        "|{{github_user}}|/sysset": {
           "permissions": {
             "packages": "read",
             "contents": "read"

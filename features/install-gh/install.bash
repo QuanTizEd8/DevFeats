@@ -1,28 +1,28 @@
 # _gh__resolve_version — prints the resolved semver (no "v" prefix) to stdout.
 _gh__resolve_version() {
-  echo "↪️ Function entry: _gh__resolve_version" >&2
+  logging__fn_entry "_gh__resolve_version"
   if [ "${VERSION}" = "latest" ]; then
     local _tag
     _tag="$(github__latest_tag "cli/cli")" || {
-      echo "⛔ Failed to fetch latest gh tag from GitHub." >&2
+      logging__error "Failed to fetch latest gh tag from GitHub."
       exit 1
     }
     local _ver="${_tag#v}"
-    echo "ℹ️ Resolved 'latest' to version '${_ver}'" >&2
+    logging__info "Resolved 'latest' to version '${_ver}'"
     echo "${_ver}"
   else
     echo "${VERSION#v}"
   fi
-  echo "↩️ Function exit: _gh__resolve_version" >&2
+  logging__fn_exit "_gh__resolve_version"
   return 0
 }
 
 # _gh__check_existing — applies IF_EXISTS policy; exits or returns normally.
 # $1 = resolved version string (e.g. "2.89.0")
 _gh__check_existing() {
-  echo "↪️ Function entry: _gh__check_existing" >&2
+  logging__fn_entry "_gh__check_existing"
   command -v gh > /dev/null 2>&1 || {
-    echo "↩️ Function exit: _gh__check_existing (gh not found)" >&2
+    logging__fn_exit "_gh__check_existing (gh not found)"
     return 0
   }
 
@@ -31,27 +31,27 @@ _gh__check_existing() {
 
   # Same-version idempotency: always exit 0 regardless of if_exists.
   if [ -n "${_installed_ver}" ] && [ "${_installed_ver}" = "${1}" ]; then
-    echo "ℹ️ gh ${1} is already installed — skipping (version match)." >&2
+    logging__info "gh ${1} is already installed — skipping (version match)."
     exit 0
   fi
 
   case "${IF_EXISTS}" in
     skip)
-      echo "ℹ️ gh is already installed (${_installed_ver}) — skipping (if_exists=skip)." >&2
+      logging__info "gh is already installed (${_installed_ver}) — skipping (if_exists=skip)."
       exit 0
       ;;
     fail)
-      echo "⛔ gh is already installed (${_installed_ver}) and if_exists=fail." >&2
+      logging__error "gh is already installed (${_installed_ver}) and if_exists=fail."
       exit 1
       ;;
   esac
-  echo "↩️ Function exit: _gh__check_existing" >&2
+  logging__fn_exit "_gh__check_existing"
   return 0
 }
 
 # _gh__install_repos — dispatch to the correct platform-specific repos installer.
 _gh__install_repos() {
-  echo "↪️ Function entry: _gh__install_repos" >&2
+  logging__fn_entry "_gh__install_repos"
   local _id _id_like _platform
   _id="$(os__id)"
   _id_like="$(os__id_like)"
@@ -62,20 +62,20 @@ _gh__install_repos() {
     arch | manjaro)
       # github-cli is available from the official Arch repos; no extra repo setup needed.
       if [ "${VERSION}" != "latest" ]; then
-        echo "⚠️ Version pinning is not supported for method=repos on Arch. Installing latest available github-cli." >&2
+        logging__warn "Version pinning is not supported for method=repos on Arch. Installing latest available github-cli."
       fi
       ospkg__install_user github-cli
-      echo "↩️ Function exit: _gh__install_repos" >&2
+      logging__fn_exit "_gh__install_repos"
       return 0
       ;;
   esac
   case "${_id_like}" in
     *arch*)
       if [ "${VERSION}" != "latest" ]; then
-        echo "⚠️ Version pinning is not supported for method=repos on Arch. Installing latest available github-cli." >&2
+        logging__warn "Version pinning is not supported for method=repos on Arch. Installing latest available github-cli."
       fi
       ospkg__install_user github-cli
-      echo "↩️ Function exit: _gh__install_repos" >&2
+      logging__fn_exit "_gh__install_repos"
       return 0
       ;;
   esac
@@ -104,19 +104,19 @@ _gh__install_repos() {
       _gh__repos_macos
       ;;
     *)
-      echo "⛔ Unsupported platform '${_platform}' for method=repos." >&2
+      logging__error "Unsupported platform '${_platform}' for method=repos."
       exit 1
       ;;
   esac
-  echo "↩️ Function exit: _gh__install_repos" >&2
+  logging__fn_exit "_gh__install_repos"
   return 0
 }
 
 # _gh__repos_rhel — add GitHub CLI rpm repo and install gh.
 _gh__repos_rhel() {
-  echo "↪️ Function entry: _gh__repos_rhel" >&2
+  logging__fn_entry "_gh__repos_rhel"
   if [ "${VERSION}" != "latest" ]; then
-    echo "⚠️ Version pinning is not supported for method=repos on RHEL-based systems. Installing latest available gh." >&2
+    logging__warn "Version pinning is not supported for method=repos on RHEL-based systems. Installing latest available gh."
   fi
   if command -v zypper > /dev/null 2>&1; then
     mkdir -p /etc/zypp/repos.d
@@ -148,39 +148,39 @@ _gh__repos_rhel() {
       "/etc/yum.repos.d/gh-cli.repo"
     yum install -y gh
   else
-    echo "⛔ No supported package manager found for RHEL-based system." >&2
+    logging__error "No supported package manager found for RHEL-based system."
     exit 1
   fi
-  echo "↩️ Function exit: _gh__repos_rhel" >&2
+  logging__fn_exit "_gh__repos_rhel"
   return 0
 }
 
 # _gh__repos_alpine — install github-cli via apk community package.
 _gh__repos_alpine() {
-  echo "↪️ Function entry: _gh__repos_alpine" >&2
+  logging__fn_entry "_gh__repos_alpine"
   if [ "${VERSION}" != "latest" ]; then
-    echo "⚠️ Version pinning is not supported for method=repos on Alpine. Installing latest available github-cli." >&2
+    logging__warn "Version pinning is not supported for method=repos on Alpine. Installing latest available github-cli."
   fi
   ospkg__install_user github-cli
-  echo "↩️ Function exit: _gh__repos_alpine" >&2
+  logging__fn_exit "_gh__repos_alpine"
   return 0
 }
 
 # _gh__repos_macos — install gh via Homebrew.
 _gh__repos_macos() {
-  echo "↪️ Function entry: _gh__repos_macos" >&2
+  logging__fn_entry "_gh__repos_macos"
   if [ "${VERSION}" != "latest" ]; then
-    echo "⚠️ Homebrew has no versioned formula for gh. Installing latest gh. Use method=binary for version pinning." >&2
+    logging__warn "Homebrew has no versioned formula for gh. Installing latest gh. Use method=binary for version pinning."
   fi
   ospkg__install_user gh
-  echo "↩️ Function exit: _gh__repos_macos" >&2
+  logging__fn_exit "_gh__repos_macos"
   return 0
 }
 
 # _gh__install_binary — download, verify, extract and install the gh binary.
 # $1 = resolved version string (e.g. "2.89.0")
 _gh__install_binary() {
-  echo "↪️ Function entry: _gh__install_binary" >&2
+  logging__fn_entry "_gh__install_binary"
   local _version="${1}"
 
   # Determine asset name components.
@@ -197,7 +197,7 @@ _gh__install_binary() {
       _ext="zip"
       ;;
     *)
-      echo "⛔ Unsupported kernel '${_kernel}' for method=binary." >&2
+      logging__error "Unsupported kernel '${_kernel}' for method=binary."
       exit 1
       ;;
   esac
@@ -207,7 +207,7 @@ _gh__install_binary() {
     i386 | i686) _asset_arch="386" ;;
     armv6l | armv7l) _asset_arch="armv6" ;;
     *)
-      echo "⛔ Unsupported architecture '${_arch}' for method=binary." >&2
+      logging__error "Unsupported architecture '${_arch}' for method=binary."
       exit 1
       ;;
   esac
@@ -217,30 +217,30 @@ _gh__install_binary() {
   # Download archive + checksums.
   mkdir -p "${INSTALLER_DIR}"
   local _url_base="https://github.com/cli/cli/releases/download/v${_version}"
-  echo "📥 Downloading ${_archive_name} from GitHub Releases..." >&2
+  logging__download "Downloading ${_archive_name} from GitHub Releases..."
   net__fetch_url_file "${_url_base}/${_archive_name}" "${INSTALLER_DIR}/${_archive_name}"
-  echo "📥 Downloading checksums file..." >&2
+  logging__download "Downloading checksums file..."
   net__fetch_url_file "${_url_base}/gh_${_version}_checksums.txt" "${INSTALLER_DIR}/checksums.txt"
 
   # Verify checksum.
-  echo "🔍 Verifying SHA-256 checksum..." >&2
+  logging__inspect "Verifying SHA-256 checksum..."
   local _expected
   _expected="$(grep "${_archive_name}" "${INSTALLER_DIR}/checksums.txt" | awk '{print $1}')"
   if [ -z "${_expected}" ]; then
-    echo "⛔ Could not find checksum for '${_archive_name}' in checksums.txt." >&2
+    logging__error "Could not find checksum for '${_archive_name}' in checksums.txt."
     exit 1
   fi
   checksum__verify_sha256 "${INSTALLER_DIR}/${_archive_name}" "${_expected}"
-  echo "✅ Checksum verified." >&2
+  logging__success "Checksum verified."
 
   # Extract archive.
-  echo "📦 Extracting archive..." >&2
+  logging__install "Extracting archive..."
   file__extract_archive "${INSTALLER_DIR}/${_archive_name}" "${INSTALLER_DIR}" "${_archive_name}"
 
   # Install binary.
   mkdir -p "${PREFIX}/bin"
   install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${PREFIX}/bin/gh"
-  echo "✅ gh binary installed to '${PREFIX}/bin/gh'" >&2
+  logging__success "gh binary installed to '${PREFIX}/bin/gh'"
 
   # Install completions from archive (if requested).
   if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
@@ -249,34 +249,34 @@ _gh__install_binary() {
 
   # Cleanup (unless keep_installer=true).
   if [ "${KEEP_INSTALLER}" != "true" ]; then
-    echo "🗑 Cleaning up installer directory '${INSTALLER_DIR}'..." >&2
+    logging__remove "Cleaning up installer directory '${INSTALLER_DIR}'..."
     rm -rf "${INSTALLER_DIR}"
   fi
 
   # Verify.
   "${PREFIX}/bin/gh" --version > /dev/null
-  echo "↩️ Function exit: _gh__install_binary" >&2
+  logging__fn_exit "_gh__install_binary"
   return 0
 }
 
 # _gh__create_symlink — create symlink to PREFIX/bin/gh in the canonical bin dir.
 _gh__create_symlink() {
-  echo "↪️ Function entry: _gh__create_symlink" >&2
+  logging__fn_entry "_gh__create_symlink"
   if [ "${SYMLINK}" != "true" ]; then
-    echo "ℹ️ symlink=false; skipping." >&2
-    echo "↩️ Function exit: _gh__create_symlink" >&2
+    logging__info "symlink=false; skipping."
+    logging__fn_exit "_gh__create_symlink"
     return 0
   fi
   if [ "${METHOD}" != "binary" ]; then
-    echo "ℹ️ method=repos; symlink not applicable." >&2
-    echo "↩️ Function exit: _gh__create_symlink" >&2
+    logging__info "method=repos; symlink not applicable."
+    logging__fn_exit "_gh__create_symlink"
     return 0
   fi
   shell__create_symlink \
     --src "${PREFIX}/bin/gh" \
     --system-target "/usr/local/bin/gh" \
     --user-target "${HOME}/.local/bin/gh"
-  echo "↩️ Function exit: _gh__create_symlink" >&2
+  logging__fn_exit "_gh__create_symlink"
   return 0
 }
 
@@ -284,10 +284,10 @@ _gh__create_symlink() {
 # Usage: _gh__install_completions --from-archive <dir>
 #        _gh__install_completions --from-command
 _gh__install_completions() {
-  echo "↪️ Function entry: _gh__install_completions" >&2
+  logging__fn_entry "_gh__install_completions"
   if [ "${#SHELL_COMPLETIONS[@]}" -eq 0 ]; then
-    echo "ℹ️ shell_completions is empty; skipping completion install." >&2
-    echo "↩️ Function exit: _gh__install_completions" >&2
+    logging__info "shell_completions is empty; skipping completion install."
+    logging__fn_exit "_gh__install_completions"
     return 0
   fi
   local _mode="$1"
@@ -299,12 +299,12 @@ _gh__install_completions() {
         local _bash_content
         if [ "${_mode}" = "--from-archive" ]; then
           _bash_content="$(cat "${_archive_dir}/share/bash-completion/completions/gh" 2> /dev/null)" || {
-            echo "⚠️ bash completion file not found in archive; skipping bash completion." >&2
+            logging__warn "bash completion file not found in archive; skipping bash completion."
             _bash_content=""
           }
         else
           _bash_content="$(gh completion -s bash 2> /dev/null)" || {
-            echo "⚠️ gh completion -s bash failed; skipping bash completion." >&2
+            logging__warn "gh completion -s bash failed; skipping bash completion."
             _bash_content=""
           }
         fi
@@ -312,11 +312,11 @@ _gh__install_completions() {
           if [ "$(id -u)" = "0" ]; then
             mkdir -p /etc/bash_completion.d
             printf '%s\n' "${_bash_content}" > /etc/bash_completion.d/gh
-            echo "✅ Bash completion written to /etc/bash_completion.d/gh" >&2
+            logging__success "Bash completion written to /etc/bash_completion.d/gh"
           else
             mkdir -p "${HOME}/.local/share/bash-completion/completions"
             printf '%s\n' "${_bash_content}" > "${HOME}/.local/share/bash-completion/completions/gh"
-            echo "✅ Bash completion written to ${HOME}/.local/share/bash-completion/completions/gh" >&2
+            logging__success "Bash completion written to ${HOME}/.local/share/bash-completion/completions/gh"
           fi
         fi
         ;;
@@ -324,12 +324,12 @@ _gh__install_completions() {
         local _zsh_content
         if [ "${_mode}" = "--from-archive" ]; then
           _zsh_content="$(cat "${_archive_dir}/share/zsh/site-functions/_gh" 2> /dev/null)" || {
-            echo "⚠️ zsh completion file not found in archive; skipping zsh completion." >&2
+            logging__warn "zsh completion file not found in archive; skipping zsh completion."
             _zsh_content=""
           }
         else
           _zsh_content="$(gh completion -s zsh 2> /dev/null)" || {
-            echo "⚠️ gh completion -s zsh failed; skipping zsh completion." >&2
+            logging__warn "gh completion -s zsh failed; skipping zsh completion."
             _zsh_content=""
           }
         fi
@@ -339,36 +339,36 @@ _gh__install_completions() {
             _zshdir="$(shell__detect_zshdir)"
             mkdir -p "${_zshdir}/completions"
             printf '%s\n' "${_zsh_content}" > "${_zshdir}/completions/_gh"
-            echo "✅ Zsh completion written to ${_zshdir}/completions/_gh" >&2
+            logging__success "Zsh completion written to ${_zshdir}/completions/_gh"
           else
             mkdir -p "${HOME}/.zfunc"
             printf '%s\n' "${_zsh_content}" > "${HOME}/.zfunc/_gh"
-            echo "✅ Zsh completion written to ${HOME}/.zfunc/_gh" >&2
+            logging__success "Zsh completion written to ${HOME}/.zfunc/_gh"
           fi
         fi
         ;;
       *)
-        echo "⛔ Unsupported shell: '${_shell}' (expected: bash, zsh)" >&2
+        logging__error "Unsupported shell: '${_shell}' (expected: bash, zsh)"
         exit 1
         ;;
     esac
   done
-  echo "↩️ Function exit: _gh__install_completions" >&2
+  logging__fn_exit "_gh__install_completions"
   return 0
 }
 
 # _gh__configure_user — apply per-user gh/git configuration.
 _gh__configure_user() {
-  echo "↪️ Function entry: _gh__configure_user" >&2
+  logging__fn_entry "_gh__configure_user"
   local _users
   _users="$(users__resolve_list)" || {
-    echo "⚠️ users__resolve_list failed; skipping per-user configuration." >&2
-    echo "↩️ Function exit: _gh__configure_user" >&2
+    logging__warn "users__resolve_list failed; skipping per-user configuration."
+    logging__fn_exit "_gh__configure_user"
     return 0
   }
   if [ -z "${_users}" ]; then
-    echo "ℹ️ No users resolved; skipping per-user configuration." >&2
-    echo "↩️ Function exit: _gh__configure_user" >&2
+    logging__info "No users resolved; skipping per-user configuration."
+    logging__fn_exit "_gh__configure_user"
     return 0
   fi
 
@@ -377,11 +377,11 @@ _gh__configure_user() {
     [ -z "${_user}" ] && continue
     _home="$(shell__resolve_home "${_user}")"
 
-    echo "ℹ️ Configuring gh/git for user '${_user}' (home: ${_home})..." >&2
+    logging__info "Configuring gh/git for user '${_user}' (home: ${_home})..."
 
     # git_protocol: run gh config set as the target user.
     if [ -n "${GIT_PROTOCOL}" ]; then
-      echo "ℹ️ Setting git_protocol=${GIT_PROTOCOL} for '${_user}'..." >&2
+      logging__info "Setting git_protocol=${GIT_PROTOCOL} for '${_user}'..."
       if [ "$(id -u)" = "0" ] && [ "${_user}" != "root" ]; then
         su -l "${_user}" -c "gh config set git_protocol '${GIT_PROTOCOL}'"
       else
@@ -391,7 +391,7 @@ _gh__configure_user() {
 
     # setup_git: register gh as credential helper.
     if [ "${SETUP_GIT}" = "true" ]; then
-      echo "ℹ️ Running gh auth setup-git for '${_user}' (hostname: ${GIT_HOSTNAME})..." >&2
+      logging__info "Running gh auth setup-git for '${_user}' (hostname: ${GIT_HOSTNAME})..."
       if [ "$(id -u)" = "0" ] && [ "${_user}" != "root" ]; then
         su -l "${_user}" -c "gh auth setup-git --force --hostname '${GIT_HOSTNAME}'"
       else
@@ -413,7 +413,7 @@ _gh__configure_user() {
       fi
       case "${SIGN_COMMITS}" in
         ssh)
-          echo "ℹ️ Configuring SSH commit signing for '${_user}'..." >&2
+          logging__info "Configuring SSH commit signing for '${_user}'..."
           if [ -n "${_git_cfg_cmd_prefix}" ]; then
             ${_git_cfg_cmd_prefix} "git config --global gpg.format ssh"
             ${_git_cfg_cmd_prefix} "git config --global commit.gpgsign true"
@@ -423,7 +423,7 @@ _gh__configure_user() {
           fi
           ;;
         gpg)
-          echo "ℹ️ Configuring GPG commit signing for '${_user}'..." >&2
+          logging__info "Configuring GPG commit signing for '${_user}'..."
           if [ -n "${_git_cfg_cmd_prefix}" ]; then
             # Exit code 5 when key is absent — suppress with || true under set -e.
             ${_git_cfg_cmd_prefix} "git config --global --unset-all gpg.format || true"
@@ -441,22 +441,22 @@ _gh__configure_user() {
   done << EOF
 ${_users}
 EOF
-  echo "↩️ Function exit: _gh__configure_user" >&2
+  logging__fn_exit "_gh__configure_user"
   return 0
 }
 
 # _gh__install_extensions — install gh CLI extensions for all resolved users.
 _gh__install_extensions() {
-  echo "↪️ Function entry: _gh__install_extensions" >&2
+  logging__fn_entry "_gh__install_extensions"
   local _users
   _users="$(users__resolve_list)" || {
-    echo "⚠️ users__resolve_list failed; skipping extension install." >&2
-    echo "↩️ Function exit: _gh__install_extensions" >&2
+    logging__warn "users__resolve_list failed; skipping extension install."
+    logging__fn_exit "_gh__install_extensions"
     return 0
   }
   if [ -z "${_users}" ]; then
-    echo "ℹ️ No users resolved; skipping extension install." >&2
-    echo "↩️ Function exit: _gh__install_extensions" >&2
+    logging__info "No users resolved; skipping extension install."
+    logging__fn_exit "_gh__install_extensions"
     return 0
   fi
 
@@ -467,23 +467,23 @@ _gh__install_extensions() {
     for _ext in "${EXTENSIONS[@]}"; do
       _ext="$(printf '%s' "${_ext}" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')"
       [ -z "${_ext}" ] && continue
-      echo "🔌 Installing gh extension '${_ext}' for user '${_user}'..." >&2
+      logging__install "Installing gh extension '${_ext}' for user '${_user}'..."
       if [ "$(id -u)" = "0" ] && [ "${_user}" != "root" ]; then
         su -l "${_user}" -c "gh extension install '${_ext}'" || {
-          echo "⚠️ Failed to install extension '${_ext}' for '${_user}' (non-fatal)." >&2
+          logging__warn "Failed to install extension '${_ext}' for '${_user}' (non-fatal)."
         }
       else
         GH_CONFIG_DIR="${_home}/.config/gh" \
           HOME="${_home}" \
           gh extension install "${_ext}" || {
-          echo "⚠️ Failed to install extension '${_ext}' (non-fatal)." >&2
+          logging__warn "Failed to install extension '${_ext}' (non-fatal)."
         }
       fi
     done
   done << EOF
 ${_users}
 EOF
-  echo "↩️ Function exit: _gh__install_extensions" >&2
+  logging__fn_exit "_gh__install_extensions"
   return 0
 }
 
@@ -507,11 +507,11 @@ EOF
 if [ "${VERSION}" = "latest" ] && command -v gh > /dev/null 2>&1; then
   if [ "${IF_EXISTS}" = "skip" ]; then
     _existing="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _existing=""
-    echo "ℹ️ gh ${_existing} is already installed — skipping (if_exists=skip, version=latest)." >&2
+    logging__info "gh ${_existing} is already installed — skipping (if_exists=skip, version=latest)."
     exit 0
   elif [ "${IF_EXISTS}" = "fail" ]; then
     _existing="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _existing=""
-    echo "⛔ gh is already installed (${_existing}) and if_exists=fail." >&2
+    logging__error "gh is already installed (${_existing}) and if_exists=fail."
     exit 1
   fi
 fi
@@ -526,7 +526,7 @@ if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
   else
     PREFIX="${HOME}/.local"
   fi
-  echo "ℹ️ Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'." >&2
+  logging__info "Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'."
 fi
 
 # Resolve version (may call GitHub API).

@@ -3,7 +3,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-gh": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -13,7 +13,7 @@
             "install-gh": {
                 "version": "2.67.0",
                 "method": "binary",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -21,7 +21,7 @@
         "image": "debian:12",
         "features": {
             "install-gh": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -29,7 +29,7 @@
         "image": "alpine:3.20",
         "features": {
             "install-gh": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -37,7 +37,7 @@
         "image": "fedora:41",
         "features": {
             "install-gh": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -45,7 +45,7 @@
         "image": "opensuse/leap:15.6",
         "features": {
             "install-gh": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -56,7 +56,7 @@
                 "method": "binary",
                 "prefix": "/opt/gh",
                 "symlink": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -67,7 +67,7 @@
                 "method": "binary",
                 "prefix": "/opt/gh",
                 "symlink": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -77,7 +77,7 @@
             "install-gh": {
                 "method": "binary",
                 "shell_completions": "",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -86,7 +86,7 @@
         "features": {
             "install-gh": {
                 "shell_completions": "",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -104,7 +104,7 @@
                 "add_current_user": false,
                 "add_container_user": false,
                 "git_protocol": "https",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -122,7 +122,7 @@
                 "add_current_user": false,
                 "add_container_user": false,
                 "setup_git": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -140,7 +140,7 @@
                 "add_current_user": false,
                 "add_container_user": false,
                 "sign_commits": "ssh",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -158,7 +158,7 @@
                 "add_current_user": false,
                 "add_container_user": false,
                 "sign_commits": "gpg",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -172,7 +172,7 @@
         "features": {
             "install-gh": {
                 "if_exists": "skip",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -186,7 +186,7 @@
         "features": {
             "install-gh": {
                 "if_exists": "skip",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -202,7 +202,7 @@
                 "method": "binary",
                 "version": "2.67.0",
                 "if_exists": "fail",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -212,17 +212,17 @@
             "install-gh": {
                 "method": "binary",
                 "keep_installer": true,
-                "installer_dir": "/tmp/gh-debug",
-                "debug": true
+                "installer_dir": "/tmp/gh-trace",
+                "log_level": "trace"
             }
         }
     },
-    "logfile": {
+    "log_file": {
         "image": "ubuntu:latest",
         "features": {
             "install-gh": {
-                "logfile": "/tmp/gh-install.log",
-                "debug": true
+                "log_file": "/tmp/gh-install.log",
+                "log_level": "trace"
             }
         }
     },
@@ -239,7 +239,7 @@
                 "method": "binary",
                 "prefix": "/opt/gh",
                 "symlink": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -258,7 +258,7 @@
                 "add_container_user": false,
                 "setup_git": true,
                 "git_hostname": "git.corp.example.com",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -276,7 +276,7 @@
                 "add_remote_user": false,
                 "add_container_user": false,
                 "setup_git": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -294,8 +294,8 @@
                 "add_current_user": false,
                 "add_container_user": false,
                 "extensions": "github/gh-copilot",
-                "logfile": "/tmp/gh-ext-install.log",
-                "debug": true
+                "log_file": "/tmp/gh-ext-install.log",
+                "log_level": "trace"
             }
         }
     },
@@ -306,7 +306,7 @@
                 "method": "binary",
                 "prefix": "/root/gh",
                 "symlink": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

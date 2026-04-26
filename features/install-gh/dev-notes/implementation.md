@@ -248,7 +248,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
     KEEP_INSTALLER=false, EXTENSIONS="", GIT_PROTOCOL="", SETUP_GIT=false, SIGN_COMMITS="",
     GIT_HOSTNAME=github.com, ADD_CURRENT_USER=true, ADD_REMOTE_USER=true,
     ADD_CONTAINER_USER=true, ADD_USERS=""
-5.  [[ DEBUG == true ]] && set -x
+5.  [[ LOG_LEVEL == true ]] && set -x
 6.  EARLY-EXIT (no-mutation): if VERSION=latest AND gh is already in PATH:
       if IF_EXISTS=skip:  print info, exit 0  (no deps installed, no API call)
       if IF_EXISTS=fail:  print error, exit 1 (no deps installed, no API call)

@@ -16,15 +16,15 @@ _file__ensure_extract_tool() {
   case "$_ext" in
     zip)
       command -v unzip > /dev/null 2>&1 && return 0
-      echo "ℹ️  unzip not found — installing." >&2
+      logging__info "unzip not found — installing."
       ospkg__install_tracked "lib-file" unzip
       command -v unzip > /dev/null 2>&1 && return 0
-      echo "⛔ file.sh: unzip is required to extract .zip archives but could not be installed." >&2
+      logging__error "file.sh: unzip is required to extract .zip archives but could not be installed."
       return 1
       ;;
     tar)
       command -v tar > /dev/null 2>&1 && return 0
-      echo "⛔ file.sh: tar is required but not found. Install it via your system package manager." >&2
+      logging__error "file.sh: tar is required but not found. Install it via your system package manager."
       return 1
       ;;
     *)
@@ -61,7 +61,7 @@ file__extract_archive() {
       unzip -q -o "$_arc" -d "$_dest"
       ;;
     *)
-      echo "⚠️  Unrecognized archive format: '$(basename "$_name")'. Skipping." >&2
+      logging__warn "Unrecognized archive format: '$(basename "$_name")'. Skipping."
       return 1
       ;;
   esac

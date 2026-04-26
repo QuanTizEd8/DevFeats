@@ -13,9 +13,9 @@ check "gh --version succeeds" gh --version
 
 # --- extension install was attempted ---
 echo "===== /tmp/gh-ext-install.log (last 20 lines) ====="
-tail -n 20 /tmp/gh-ext-install.log 2> /dev/null || echo "(logfile missing)"
+tail -n 20 /tmp/gh-ext-install.log 2> /dev/null || echo "(log_file missing)"
 
-check "install logfile was created" test -f /tmp/gh-ext-install.log
+check "install log_file was created" test -f /tmp/gh-ext-install.log
 check "extension install was attempted for vscode" bash -c \
   "grep -q \"Installing gh extension 'github/gh-copilot' for user 'vscode'\" \
    /tmp/gh-ext-install.log 2>/dev/null"

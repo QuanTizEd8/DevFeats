@@ -8,7 +8,7 @@
 #   • After get.bash (feature mode) installs the feature, all three hooks run in
 #     declaration order (onCreate → updateContent → postCreate).
 #   • Each hook echoes a well-known probe string; all three must appear in the
-#     captured logfile.
+#     captured log_file.
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -59,7 +59,7 @@ unset SYSSET_VERSION
 # Run feature-mode install. The feature declares string-form hooks for all three
 # phases; each echoes a well-known probe string to stdout.
 check "get.sh installs ${_FEAT}@${_VER} (feature mode)" \
-  sudo -E bash "${REPO_ROOT}/get.sh" --logfile "$_log" "${_FEAT}@${_VER}"
+  sudo -E bash "${REPO_ROOT}/get.sh" --log_file "$_log" "${_FEAT}@${_VER}"
 
 check "onCreateCommand hook was executed" \
   bash -c "grep -q 'sysset-probe:on-create-ran' '$_log'"

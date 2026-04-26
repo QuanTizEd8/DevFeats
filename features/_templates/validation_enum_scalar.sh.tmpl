@@ -1,7 +1,7 @@
 case "${@@VAR@@}" in
   @@PATTERN@@) ;;
   *)
-    echo "⛔ Invalid value for '@@KEY@@': '${@@VAR@@}' (expected: @@EXPECTED@@)" >&2
+    logging__error "Invalid value for '@@KEY@@': '${@@VAR@@}' (expected: @@EXPECTED@@)"
     exit 1
     ;;
 esac

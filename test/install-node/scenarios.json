@@ -4,7 +4,7 @@
         "features": {
             "install-node": {
                 "set_permissions": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -22,7 +22,7 @@
                 "add_remote_user": false,
                 "add_container_user": false,
                 "set_permissions": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -35,7 +35,7 @@
                 "add_current_user": false,
                 "add_container_user": false,
                 "set_permissions": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -44,7 +44,7 @@
         "features": {
             "install-node": {
                 "set_permissions": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

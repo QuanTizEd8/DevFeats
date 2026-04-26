@@ -53,7 +53,7 @@ _ensure_xcode_clt() {
   if [ -z "$_pkg" ]; then
     rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
     echo "⛔ No 'Command Line Tools' package found in softwareupdate -l." >&2
-    echo "   Install manually with: xcode-select --install" >&2
+    echo "ℹ️ Install manually with: xcode-select --install" >&2
     exit 1
   fi
   echo "📦 Installing via softwareupdate: '${_pkg}'" >&2

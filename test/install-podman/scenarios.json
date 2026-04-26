@@ -9,7 +9,7 @@
         },
         "features": {
             "install-podman": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -23,7 +23,7 @@
         "features": {
             "install-podman": {
                 "add_users": "root",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -40,7 +40,7 @@
                 "add_remote_user": true,
                 "add_container_user": false,
                 "add_current_user": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -57,7 +57,7 @@
                 "add_container_user": true,
                 "add_remote_user": false,
                 "add_current_user": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -74,7 +74,7 @@
                 "add_remote_user": false,
                 "add_container_user": false,
                 "add_current_user": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -91,7 +91,7 @@
                 "add_remote_user": false,
                 "add_container_user": false,
                 "add_current_user": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -107,7 +107,7 @@
                 "add_remote_user": false,
                 "add_container_user": false,
                 "add_current_user": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -124,7 +124,7 @@
                 "add_remote_user": false,
                 "add_container_user": false,
                 "add_current_user": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

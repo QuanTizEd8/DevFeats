@@ -1,6 +1,6 @@
       @@FLAG@@)
         shift
         @@VAR@@+=("$1")
-        echo "📩 Read argument '@@KEY@@': '$1'" >&2
+        logging__read "Argument '@@KEY@@': '$1'"
         shift
         ;;

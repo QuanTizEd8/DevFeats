@@ -37,8 +37,8 @@ EOF
 
 _PORT=18547
 _manifest_dir="$(mktemp -d)"
-_logfile="$(mktemp)"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_logfile"' EXIT
+_log_file="$(mktemp)"
+trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_log_file"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
@@ -58,10 +58,10 @@ cat > "$_manifest" << EOF
 EOF
 
 check "get.bash completes even with non-sysset feature key present" \
-  bash "${REPO_ROOT}/get.bash" --logfile "$_logfile" "$_manifest"
+  bash "${REPO_ROOT}/get.bash" --log_file "$_log_file" "$_manifest"
 
 check "warning was emitted for non-compatible feature key" \
-  bash -c "grep -q 'skip feature key (not sysset-compatible).*devcontainers/features/docker-in-docker' '$_logfile'"
+  bash -c "grep -q 'skip feature key (not sysset-compatible).*devcontainers/features/docker-in-docker' '$_log_file'"
 
 check "install-pixi installed (sibling was not blocked by incompatible key)" \
   command -v pixi

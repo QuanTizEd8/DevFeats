@@ -3,10 +3,10 @@
 # installing brew (if_exists=skip, since brew is pre-installed) and exporting
 # shellenv.
 #
-# The logfile option is used to capture installer output so the absence of
+# The log_file option is used to capture installer output so the absence of
 # 'brew update' can be verified.
 #
-# Cleanup: removes the logfile and shellenv blocks from user dotfiles on EXIT.
+# Cleanup: removes the log_file and shellenv blocks from user dotfiles on EXIT.
 set -e
 
 REPO_ROOT="$1"
@@ -16,18 +16,18 @@ source "${REPO_ROOT}/test/lib/assert.sh"
 _HOME="$HOME"
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
-_LOGFILE="/tmp/brew-update-false-test-$$.log"
+_LOG_FILE="/tmp/brew-update-false-test-$$.log"
 
 _cleanup() {
-  rm -f "$_LOGFILE"
+  rm -f "$_LOG_FILE"
   block_cleanup_all "brew shellenv (install-homebrew)"
 }
 trap _cleanup EXIT
 
-# --- run the feature with update=false and a logfile ---
+# --- run the feature with update=false and a log_file ---
 bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
   --update false \
-  --logfile "$_LOGFILE"
+  --log_file "$_LOG_FILE"
 
 # --- brew is intact (if_exists=skip) ---
 echo "=== brew --version ==="
@@ -45,14 +45,14 @@ check "a user dotfile has shellenv marker" \
              grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.zprofile     2>/dev/null ||
              grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.zshrc        2>/dev/null'
 
-# --- brew update was NOT run (logfile must not contain the update completion marker) ---
-echo "===== ${_LOGFILE} (last 30 lines) ====="
-tail -30 "$_LOGFILE" 2> /dev/null || echo "(missing)"
-check "logfile was created" test -f "$_LOGFILE"
-check "logfile is non-empty" test -s "$_LOGFILE"
+# --- brew update was NOT run (log_file must not contain the update completion marker) ---
+echo "===== ${_LOG_FILE} (last 30 lines) ====="
+tail -30 "$_LOG_FILE" 2> /dev/null || echo "(missing)"
+check "log_file was created" test -f "$_LOG_FILE"
+check "log_file is non-empty" test -s "$_LOG_FILE"
 check "brew update NOT run" \
-  bash -c '! grep -q "brew update completed" "'"$_LOGFILE"'"'
+  bash -c '! grep -q "brew update completed" "'"$_LOG_FILE"'"'
 check "install completed successfully" \
-  grep -q "Homebrew Installation script finished successfully" "$_LOGFILE"
+  grep -q "Homebrew Installation script finished successfully" "$_LOG_FILE"
 
 reportResults

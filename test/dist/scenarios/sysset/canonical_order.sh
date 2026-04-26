@@ -35,9 +35,9 @@ features:
 EOF
 
 _PORT=18541
-_logfile="$(mktemp)"
+_log_file="$(mktemp)"
 _manifest_dir="$(mktemp -d)"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_logfile" "$_manifest_dir"' EXIT
+trap 'stop_file_server; rm -rf "${_MIRROR}" "$_log_file" "$_manifest_dir"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
@@ -57,14 +57,14 @@ cat > "$_manifest" << EOF
 EOF
 
 check "get.bash completes with canonical-order manifest" \
-  bash "${REPO_ROOT}/get.bash" --logfile "$_logfile" "$_manifest"
+  bash "${REPO_ROOT}/get.bash" --log_file "$_log_file" "$_manifest"
 
 # In the log, install-os-pkg should appear before install-pixi.
 # NOTE: Use the "running install.sh" marker to match only the installation
 # phase, not the staging phase (which logs [feature-id] in alphabetical order).
 check "install-os-pkg ran before install-pixi" \
   bash -c '
-    log="'"$_logfile"'"
+    log="'"$_log_file"'"
     line_ospkg=$(grep -n "\[install-os-pkg\] running install\.sh" "$log" | head -1 | cut -d: -f1)
     line_pixi=$(grep -n "\[install-pixi\] running install\.sh" "$log" | head -1 | cut -d: -f1)
     [[ -n "$line_ospkg" && -n "$line_pixi" && "$line_ospkg" -lt "$line_pixi" ]]

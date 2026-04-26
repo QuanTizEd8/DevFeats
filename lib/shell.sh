@@ -6,6 +6,8 @@
 _SHELL__LIB_LOADED=1
 
 _SHELL__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/logging.sh
+. "$_SHELL__LIB_DIR/logging.sh"
 # shellcheck source=lib/os.sh
 . "$_SHELL__LIB_DIR/os.sh"
 
@@ -111,10 +113,10 @@ shell__write_block() {
       found { next }
       { print }
     ' "$_file" > "${_file}.tmp" && mv "${_file}.tmp" "$_file"
-    echo "♻️ Updated shell block '${_marker}' in '${_file}'." >&2
+    logging__info "Updated shell block '${_marker}' in '${_file}'."
   else
     printf '\n%s\n%s\n%s\n' "$_begin" "$_content" "$_end" >> "$_file"
-    echo "✅ Appended shell block '${_marker}' to '${_file}'." >&2
+    logging__success "Appended shell block '${_marker}' to '${_file}'."
   fi
   return 0
 }
@@ -168,7 +170,7 @@ shell__sync_block() {
         found { next }
         { print }
       ' "$_f" > "${_f}.tmp" && mv "${_f}.tmp" "$_f"
-      echo "🗑 Removed shell block '${_marker}' from '${_f}'." >&2
+      logging__remove "Removed shell block '${_marker}' from '${_f}'."
     fi
   done <<< "$_files"
   return 0
@@ -495,7 +497,7 @@ shell__resolve_home() {
 shell__ensure_bashenv() {
   # 1. Live environment variable
   if [ -n "${BASH_ENV:-}" ]; then
-    echo "ℹ️ BASH_ENV already set to '${BASH_ENV}'; reusing." >&2
+    logging__info "BASH_ENV already set to '${BASH_ENV}'; reusing."
     echo "$BASH_ENV"
     return 0
   fi
@@ -509,7 +511,7 @@ shell__ensure_bashenv() {
       _env_val="${_env_val#BASH_ENV=}"
       _env_val="${_env_val#[\"\']}"
       _env_val="${_env_val%[\"\']}"
-      echo "ℹ️ Found BASH_ENV='${_env_val}' in '${_env_file}'; reusing." >&2
+      logging__info "Found BASH_ENV='${_env_val}' in '${_env_file}'; reusing."
       echo "$_env_val"
       return 0
     fi
@@ -520,7 +522,7 @@ shell__ensure_bashenv() {
   local _bashenv_dir
   _bashenv_dir="$(dirname "$_bashrc")"
   local _bashenv_path="${_bashenv_dir}/bashenv"
-  echo "ℹ️ No BASH_ENV found; creating '${_bashenv_path}' and registering in '${_env_file}'." >&2
+  logging__info "No BASH_ENV found; creating '${_bashenv_path}' and registering in '${_env_file}'."
   mkdir -p "$_bashenv_dir"
   [ -f "$_bashenv_path" ] || touch "$_bashenv_path"
   printf 'BASH_ENV="%s"\n' "$_bashenv_path" >> "$_env_file"
@@ -585,18 +587,18 @@ shell__create_symlink() {
   done <<< "$_passwd_entries"
   # If src and target are the same path, no symlink is needed.
   if [[ "$_src" == "$_target" ]]; then
-    echo "ℹ️ src and target are identical ('${_target}'); no symlink needed." >&2
+    logging__info "src and target are identical ('${_target}'); no symlink needed."
     return 0
   fi
   # Guard: refuse to clobber a real file or directory.
   if [[ -e "$_target" && ! -L "$_target" ]]; then
-    echo "⛔ '${_target}' exists as a real file or directory; cannot create symlink." >&2
+    logging__error "'${_target}' exists as a real file or directory; cannot create symlink."
     return 1
   fi
   # Remove stale symlink before recreating.
   [[ -L "$_target" ]] && rm -f "$_target"
   mkdir -p "$(dirname "$_target")"
   ln -s "$_src" "$_target"
-  echo "✅ Created symlink '${_target}' -> '${_src}'." >&2
+  logging__success "Created symlink '${_target}' -> '${_src}'."
   return 0
 }

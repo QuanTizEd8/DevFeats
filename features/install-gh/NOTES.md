@@ -181,14 +181,14 @@ Install the binary to a non-default location with a symlink at `/usr/local/bin/g
 
 ---
 
-### Keep Installer Artifacts for Debugging
+### Keep Installer Artifacts for Trace Troubleshooting
 
 ```jsonc
 "features": {
   "ghcr.io/quantized8/sysset/install-gh:0": {
     "method": "binary",
     "keep_installer": true,
-    "installer_dir": "/tmp/gh-debug"
+    "installer_dir": "/tmp/gh-trace"
   }
 }
 ```

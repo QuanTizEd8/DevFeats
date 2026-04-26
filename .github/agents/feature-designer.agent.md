@@ -36,7 +36,7 @@ The user will provide the slug name of a feature, referenced as `<feature-name>`
    - Target users (root vs non-root, multiple users).
    - PATH addition and shell activation options.
    - Idempotency behavior (what to do when the tool already exists).
-   - Logging (`debug`, `logfile` — required by convention).
+   - Logging (`log_level`, `log_file` — required by convention; use `trace` for xtrace).
    - Other tool-specific configuration knobs.
 3. Ensure **cross-feature uniformity**: similar options share the same name, type, and semantics across all features.
 4. Create or update `features/<feature-name>/metadata.yaml` with the designed API,

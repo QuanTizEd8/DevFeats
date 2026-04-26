@@ -750,7 +750,7 @@ Example output:
 
 > **Note:** When used as a devcontainer feature, the build step succeeds
 > without installing anything, which is useful for manifest auditing or
-> debugging selector logic in CI.
+> troubleshooting selector logic in CI.
 
 ---
 
@@ -788,7 +788,7 @@ When `lifecycle_hook` is set:
 - If the manifest value is inline content it is saved to
   `/usr/local/share/install-os-pkg/manifest.yaml` so it is accessible at
   hook runtime.
-- All other options (`debug`, `keep_repos`, `logfile`, etc.) are forwarded
+- All other options (`log_level`, `keep_repos`, `log_file`, etc.) are forwarded
   into the hook script automatically.
 - The other two lifecycle commands are registered as safe no-ops (the files
   for those hooks are absent, so the conditional test in the lifecycle

@@ -3,7 +3,7 @@
         "image": "debian:latest",
         "features": {
             "install-fonts": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -12,7 +12,7 @@
         "features": {
             "install-fonts": {
                 "p10k_fonts": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -21,7 +21,7 @@
         "features": {
             "install-fonts": {
                 "font_dir": "/opt/fonts",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -30,7 +30,7 @@
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -40,7 +40,7 @@
             "install-fonts": {
                 "nerd_fonts": "",
                 "font_urls": "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.tar.xz",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -50,7 +50,7 @@
             "install-fonts": {
                 "nerd_fonts": "",
                 "font_urls": "https://github.com/JetBrains/JetBrainsMono/raw/v2.304/fonts/ttf/JetBrainsMono-Regular.ttf",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -63,7 +63,7 @@
             "install-fonts": {
                 "nerd_fonts": "",
                 "gh_release_fonts": "JetBrains/JetBrainsMono",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -76,7 +76,7 @@
             "install-fonts": {
                 "nerd_fonts": "",
                 "gh_release_fonts": "JetBrains/JetBrainsMono@v2.304",
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

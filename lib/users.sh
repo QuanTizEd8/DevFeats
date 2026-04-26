@@ -39,7 +39,7 @@ users__resolve_list() {
   local _out=""
   local _raw_add_users="${ADD_USERS-}"
 
-  echo "ℹ️  users__resolve_list: inputs ADD_CURRENT_USER='${ADD_CURRENT_USER:-true}' ADD_REMOTE_USER='${ADD_REMOTE_USER:-true}' ADD_CONTAINER_USER='${ADD_CONTAINER_USER:-true}' SUDO_USER='${SUDO_USER-}' _REMOTE_USER='${_REMOTE_USER-}' _CONTAINER_USER='${_CONTAINER_USER-}' _REMOTE_USER_HOME='${_REMOTE_USER_HOME-}' _CONTAINER_USER_HOME='${_CONTAINER_USER_HOME-}' ADD_USERS='${_raw_add_users}'" >&2
+  logging__info "users__resolve_list: inputs ADD_CURRENT_USER='${ADD_CURRENT_USER:-true}' ADD_REMOTE_USER='${ADD_REMOTE_USER:-true}' ADD_CONTAINER_USER='${ADD_CONTAINER_USER:-true}' SUDO_USER='${SUDO_USER-}' _REMOTE_USER='${_REMOTE_USER-}' _CONTAINER_USER='${_CONTAINER_USER-}' _REMOTE_USER_HOME='${_REMOTE_USER_HOME-}' _CONTAINER_USER_HOME='${_CONTAINER_USER_HOME-}' ADD_USERS='${_raw_add_users}'"
 
   _users_add() {
     local _name="$1"
@@ -118,11 +118,11 @@ users__resolve_list() {
     _users_add "root"
   fi
 
-  # Log final result (or explicit empty marker) to aid CI debugging.
+  # Log final result (or explicit empty marker) to aid CI troubleshooting.
   if [ -n "$_out" ]; then
-    echo "ℹ️  users__resolve_list: resolved users='${_out# }'" >&2
+    logging__info "users__resolve_list: resolved users='${_out# }'"
   else
-    echo "ℹ️  users__resolve_list: resolved users='(empty)'" >&2
+    logging__info "users__resolve_list: resolved users='(empty)'"
   fi
 
   # Print one name per line (strip leading space from _out).
@@ -151,22 +151,22 @@ users__set_write_permissions() {
   local _group="$3"
   shift 3
   if ! command -v groupadd > /dev/null 2>&1; then
-    echo "ℹ️  groupadd not found — installing shadow-utils." >&2
+    logging__info "groupadd not found — installing shadow-utils."
     ospkg__install_tracked "lib-users" shadow-utils 2> /dev/null ||
       ospkg__install_tracked "lib-users" shadow 2> /dev/null || true
     if ! command -v groupadd > /dev/null 2>&1; then
-      echo "⚠️  groupadd not found — skipping write-permission setup." >&2
+      logging__warn "groupadd not found — skipping write-permission setup."
       return 0
     fi
   fi
-  echo "🔐 Setting write permissions on '${_prefix}' (owner: '${_owner}', group: '${_group}')." >&2
+  logging__info "Setting write permissions on '${_prefix}' (owner: '${_owner}', group: '${_group}')."
   getent group "$_group" > /dev/null 2>&1 || groupadd -r "$_group"
   local _u
   for _u in "$@"; do
     [ -z "$_u" ] && continue
     id -nG "$_u" 2> /dev/null | grep -qw "$_group" && continue
     if ! command -v usermod > /dev/null 2>&1; then
-      echo "⚠️  usermod not found — cannot add '${_u}' to group '${_group}'." >&2
+      logging__warn "usermod not found — cannot add '${_u}' to group '${_group}'."
       continue
     fi
     usermod -a -G "$_group" "$_u"
@@ -194,10 +194,10 @@ users__set_login_shell() {
   shift
 
   if ! command -v chsh > /dev/null 2>&1; then
-    echo "ℹ️  chsh not found — installing passwd package." >&2
+    logging__info "chsh not found — installing passwd package."
     ospkg__install_tracked "lib-users" passwd 2> /dev/null || true
     if ! command -v chsh > /dev/null 2>&1; then
-      echo "⚠️  chsh not found — skipping shell change. Install the 'passwd' package." >&2
+      logging__warn "chsh not found — skipping shell change. Install the 'passwd' package."
       return 0
     fi
   fi
@@ -207,7 +207,7 @@ users__set_login_shell() {
   [ -f /usr/share/defaults/etc/shells ] && _shells_file=/usr/share/defaults/etc/shells
   if [ -f "$_shells_file" ] && ! grep -qx "$_shell" "$_shells_file" 2> /dev/null; then
     echo "$_shell" >> "$_shells_file"
-    echo "ℹ️  Added '${_shell}' to '${_shells_file}'." >&2
+    logging__info "Added '${_shell}' to '${_shells_file}'."
   fi
 
   # Alpine PAM: chsh requires a password even when run as root unless
@@ -220,7 +220,7 @@ users__set_login_shell() {
       else
         printf 'auth sufficient pam_rootok.so\n' >> /etc/pam.d/chsh
       fi
-      echo "ℹ️  Fixed pam_rootok.so in /etc/pam.d/chsh." >&2
+      logging__info "Fixed pam_rootok.so in /etc/pam.d/chsh."
     fi
   fi
 
@@ -228,13 +228,13 @@ users__set_login_shell() {
     [ -z "$_username" ] && continue
     _current_shell="$(getent passwd "$_username" 2> /dev/null | cut -d: -f7 || true)"
     if [ "$_current_shell" = "$_shell" ]; then
-      echo "ℹ️  Shell for '${_username}' already set to '${_shell}'." >&2
+      logging__info "Shell for '${_username}' already set to '${_shell}'."
       continue
     fi
     if chsh -s "$_shell" "$_username" 2> /dev/null; then
-      echo "✅ Shell for '${_username}' set to '${_shell}'." >&2
+      logging__success "Shell for '${_username}' set to '${_shell}'."
     else
-      echo "⚠️  chsh failed for '${_username}'." >&2
+      logging__warn "chsh failed for '${_username}'."
     fi
   done
   return 0
@@ -286,6 +286,6 @@ users__get_current() {
     return 0
   fi
 
-  echo "⛔ users__get_current: unable to determine current user" >&2
+  logging__error "users__get_current: unable to determine current user"
   return 1
 }

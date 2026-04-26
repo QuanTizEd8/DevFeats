@@ -95,7 +95,7 @@ _ospkg_update_cmd() {
     # Detect non-transient configuration errors — retrying will never fix these.
     if grep -qiE 'Malformed line|source list could not be read|parse error|invalid source' \
       "$_err_tmp" 2> /dev/null; then
-      echo "⛔ Package list update failed due to a configuration error — not retrying." >&2
+      logging__error "Package list update failed due to a configuration error — not retrying."
       rm -f "$_err_tmp"
       return 2
     fi
@@ -120,14 +120,14 @@ _ospkg_dnf_bin() {
     echo "yum"
     return 0
   fi
-  echo "⛔ '${_OSPKG_PKG_MNGR}' does not support copr/module subcommands; install full dnf first." >&2
+  logging__error "'${_OSPKG_PKG_MNGR}' does not support copr/module subcommands; install full dnf first."
   return 1
 }
 
 # ── Private: key / repo helpers ──────────────────────────────────────────────
 _ospkg_ensure_gpg() {
   command -v gpg > /dev/null 2>&1 && return 0
-  echo "ℹ️  gpg not found — installing gnupg." >&2
+  logging__info "gpg not found — installing gnupg."
   local _gpg_pkg
   case "$_OSPKG_PREFIX" in
     dnf) _gpg_pkg=gnupg2 ;;
@@ -166,36 +166,36 @@ _ospkg_install_key_entry() {
   # Fingerprint-only: no URL, fetch from keyserver.
   if [[ -z "${_url}" || "${_url}" == "null" ]]; then
     if [[ -n "${_fingerprint}" ]]; then
-      echo "🔑 Installing key by fingerprint ${_fingerprint} → ${_target}" >&2
+      logging__info "Installing key by fingerprint ${_fingerprint} → ${_target}"
       _ospkg_install_key_by_fingerprint "${_fingerprint}" "${_target}"
       return $?
     fi
-    echo "⛔ _ospkg_install_key_entry: neither url nor fingerprint provided." >&2
+    logging__error "_ospkg_install_key_entry: neither url nor fingerprint provided."
     return 1
   fi
 
   case "${_dearmor}" in
     true)
       _ospkg_ensure_gpg
-      echo "🔑 Fetching and dearmoring key (dearmor: true) → ${_target}" >&2
+      logging__info "Fetching and dearmoring key (dearmor: true) → ${_target}"
       net__fetch_url_stdout "$_url" | gpg --dearmor -o "${_target}"
       ;;
     false)
-      echo "🔑 Fetching key (dearmor: false) → ${_target}" >&2
+      logging__info "Fetching key (dearmor: false) → ${_target}"
       net__fetch_url_file "$_url" "${_target}"
       ;;
     auto)
       if [[ "${_dest}" == *.gpg ]]; then
         _ospkg_ensure_gpg
-        echo "🔑 Fetching and dearmoring key (dest ends in .gpg) → ${_target}" >&2
+        logging__info "Fetching and dearmoring key (dest ends in .gpg) → ${_target}"
         net__fetch_url_stdout "$_url" | gpg --dearmor -o "${_target}"
       else
-        echo "🔑 Fetching key → ${_target}" >&2
+        logging__info "Fetching key → ${_target}"
         net__fetch_url_file "$_url" "${_target}"
       fi
       ;;
     *)
-      echo "⛔ _ospkg_install_key_entry: invalid dearmor (use true, false, or auto): '${_dearmor}'" >&2
+      logging__error "_ospkg_install_key_entry: invalid dearmor (use true, false, or auto): '${_dearmor}'"
       return 1
       ;;
   esac
@@ -219,7 +219,7 @@ _ospkg_install_key_by_fingerprint() {
   if printf '%s' "${_key_data}" | grep -q 'BEGIN PGP'; then
     if printf '%s' "${_key_data}" | gpg --dearmor -o "${_dest}"; then
       chmod 0644 "${_dest}"
-      echo "✅ GPG key installed via HTTPS keyserver → ${_dest}" >&2
+      logging__success "GPG key installed via HTTPS keyserver → ${_dest}"
       return 0
     fi
   fi
@@ -227,17 +227,17 @@ _ospkg_install_key_by_fingerprint() {
   # Fallback: gpg --recv-keys via HKP keyservers.
   local _ks
   for _ks in "hkp://keyserver.ubuntu.com" "hkp://keyserver.pgp.com"; do
-    echo "ℹ️  Trying keyserver ${_ks}..." >&2
+    logging__info "Trying keyserver ${_ks}..."
     if gpg --recv-keys --keyserver "${_ks}" "${_fingerprint}" 2> /dev/null; then
       if gpg --export "${_fingerprint}" | gpg --dearmor -o "${_dest}"; then
         chmod 0644 "${_dest}"
-        echo "✅ GPG key installed via ${_ks} → ${_dest}" >&2
+        logging__success "GPG key installed via ${_ks} → ${_dest}"
         return 0
       fi
     fi
   done
 
-  echo "⛔ Failed to install GPG key for fingerprint ${_fingerprint} from all keyservers." >&2
+  logging__error "Failed to install GPG key for fingerprint ${_fingerprint} from all keyservers."
   return 1
 }
 
@@ -259,27 +259,27 @@ _ospkg_install_repo_content() {
   _content="$(_ospkg_expand_content_vars "$1")"
   if [[ "$_OSPKG_PREFIX" = "apt" ]]; then
     printf '%s' "$_content" >> /etc/apt/sources.list.d/syspkg-installer.list
-    echo "📄 Appended to /etc/apt/sources.list.d/syspkg-installer.list" >&2
+    logging__info "Appended to /etc/apt/sources.list.d/syspkg-installer.list"
   elif [[ "$_OSPKG_PREFIX" = "apk" ]]; then
     local _rline
     while IFS= read -r _rline; do
       [[ -z "${_rline:-}" || "${_rline}" =~ ^[[:space:]]*# ]] && continue
       echo "$_rline" >> /etc/apk/repositories
       _OSPKG_APK_ADDED_REPOS+=("$_rline")
-      echo "📄 Added APK repo: ${_rline}" >&2
+      logging__info "Added APK repo: ${_rline}"
     done <<< "$_content"
   elif [[ "$_OSPKG_PREFIX" = "dnf" ]]; then
     printf '%s' "$_content" >> /etc/yum.repos.d/syspkg-installer.repo
-    echo "📄 Appended to /etc/yum.repos.d/syspkg-installer.repo" >&2
+    logging__info "Appended to /etc/yum.repos.d/syspkg-installer.repo"
   elif [[ "$_OSPKG_PREFIX" = "zypper" ]]; then
     printf '%s' "$_content" >> /etc/zypp/repos.d/syspkg-installer.repo
-    echo "📄 Appended to /etc/zypp/repos.d/syspkg-installer.repo" >&2
+    logging__info "Appended to /etc/zypp/repos.d/syspkg-installer.repo"
   elif [[ "$_OSPKG_PREFIX" = "pacman" ]]; then
     mkdir -p /etc/pacman.d
     printf '%s' "$_content" >> /etc/pacman.d/syspkg-installer.conf
     grep -qxF 'Include = /etc/pacman.d/syspkg-installer.conf' /etc/pacman.conf ||
       echo "Include = /etc/pacman.d/syspkg-installer.conf" >> /etc/pacman.conf
-    echo "📄 Written to /etc/pacman.d/syspkg-installer.conf" >&2
+    logging__info "Written to /etc/pacman.d/syspkg-installer.conf"
   fi
   return 0
 }
@@ -302,7 +302,7 @@ _ospkg_brew_run() {
   # Bare-metal root: su to the owner of the Homebrew prefix.
   local _prefix _owner
   _prefix="$(brew --prefix 2> /dev/null)" || {
-    echo "⛔ Could not determine Homebrew prefix." >&2
+    logging__error "Could not determine Homebrew prefix."
     return 1
   }
   _owner="$(stat -f '%Su' "$_prefix" 2> /dev/null || stat -c '%U' "$_prefix" 2> /dev/null)"
@@ -310,7 +310,7 @@ _ospkg_brew_run() {
     brew "$@"
     return
   fi
-  echo "ℹ️  Running brew as user '${_owner}' (brew prefix owner)." >&2
+  logging__info "Running brew as user '${_owner}' (brew prefix owner)."
   os__run_as "$_owner" -- brew "$@"
   return 0
 }
@@ -328,19 +328,19 @@ _ospkg_ensure_yq() {
   # Accept any yq in PATH that understands the -o=json flag (mikefarah/yq).
   if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
     _OSPKG_YQ_BIN="yq"
-    echo "ℹ️  yq already available: $(command -v yq)" >&2
+    logging__info "yq already available: $(command -v yq)"
     return 0
   fi
   # If yq is not in PATH at all, try installing from the package manager.
   # Modern distros (Ubuntu ≥22.04, Debian ≥12, Alpine ≥3.16) package mikefarah/yq.
   # Older distros package kislyuk/yq (incompatible) or nothing at all.
   if ! command -v yq > /dev/null 2>&1; then
-    echo "ℹ️  yq not found — attempting package manager install." >&2
+    logging__info "yq not found — attempting package manager install."
     ospkg__install_tracked "sysset-ospkg-internals" yq >&2 || true
     # Re-test after potential install.
     if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
       _OSPKG_YQ_BIN="yq"
-      echo "ℹ️  yq installed from package manager: $(command -v yq)" >&2
+      logging__info "yq installed from package manager: $(command -v yq)"
       return 0
     fi
   fi
@@ -357,7 +357,7 @@ _ospkg_ensure_yq() {
     x86_64) _arch="amd64" ;;
     aarch64 | arm64) _arch="arm64" ;;
     *)
-      echo "⛔ yq: unsupported architecture '${_arch}'." >&2
+      logging__error "yq: unsupported architecture '${_arch}'."
       return 1
       ;;
   esac
@@ -365,7 +365,7 @@ _ospkg_ensure_yq() {
   _url="${_yq_base}/yq_${_os}_${_arch}"
   _yq_dir="$(logging__tmpdir "ospkg/yq")"
   _dest="${_yq_dir}/yq"
-  echo "ℹ️  Downloading yq (${_os}/${_arch}) from GitHub Releases." >&2
+  logging__info "Downloading yq (${_os}/${_arch}) from GitHub Releases."
   net__fetch_url_file "$_url" "$_dest"
   net__fetch_url_file "${_yq_base}/checksums" "${_yq_dir}/checksums"
   net__fetch_url_file "${_yq_base}/checksums_hashes_order" "${_yq_dir}/checksums_hashes_order"
@@ -375,16 +375,16 @@ _ospkg_ensure_yq() {
   # error-page body, making curl exit 0 but producing garbage content.
   # A valid SHA-256 hash is exactly 64 lowercase hex characters.
   if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
-    echo "⛔ yq: extracted checksum is not a valid SHA-256 hash (got: '${_expected_hash:-<empty>}') — a download may have been corrupted by a CDN error page." >&2
+    logging__error "yq: extracted checksum is not a valid SHA-256 hash (got: '${_expected_hash:-<empty>}') — a download may have been corrupted by a CDN error page."
     return 1
   fi
   if ! checksum__verify_sha256 "$_dest" "$_expected_hash"; then
-    echo "⛔ yq: checksum verification failed — aborting." >&2
+    logging__error "yq: checksum verification failed — aborting."
     return 1
   fi
   chmod +x "$_dest"
   _OSPKG_YQ_BIN="$_dest"
-  echo "✅ yq downloaded to ${_dest}." >&2
+  logging__success "yq downloaded to ${_dest}."
   return 0
 }
 
@@ -393,7 +393,7 @@ _ospkg_ensure_yq() {
 # Called only from ospkg__detect().
 
 _ospkg_set_apt() {
-  echo "🛠️  Detected ecosystem: APT (tool: apt-get)" >&2
+  logging__detect "Detected ecosystem: APT (tool: apt-get)"
   _OSPKG_PREFIX="apt"
   _OSPKG_PKG_MNGR="apt-get"
   _OSPKG_UPDATE=(apt-get update)
@@ -407,7 +407,7 @@ _ospkg_set_apt() {
 }
 
 _ospkg_set_apk() {
-  echo "🛠️  Detected ecosystem: APK (tool: apk)" >&2
+  logging__detect "Detected ecosystem: APK (tool: apk)"
   _OSPKG_PREFIX="apk"
   _OSPKG_PKG_MNGR="apk"
   _OSPKG_UPDATE=(apk update)
@@ -420,7 +420,7 @@ _ospkg_set_apk() {
 }
 
 _ospkg_set_dnf() {
-  echo "🛠️  Detected ecosystem: DNF (tool: dnf)" >&2
+  logging__detect "Detected ecosystem: DNF (tool: dnf)"
   _OSPKG_PREFIX="dnf"
   _OSPKG_PKG_MNGR="dnf"
   _OSPKG_UPDATE=(dnf check-update)
@@ -433,7 +433,7 @@ _ospkg_set_dnf() {
 }
 
 _ospkg_set_microdnf() {
-  echo "🛠️  Detected ecosystem: DNF (tool: microdnf)" >&2
+  logging__detect "Detected ecosystem: DNF (tool: microdnf)"
   _OSPKG_PREFIX="dnf"
   _OSPKG_PKG_MNGR="microdnf"
   _OSPKG_UPDATE=()
@@ -446,7 +446,7 @@ _ospkg_set_microdnf() {
 }
 
 _ospkg_set_yum() {
-  echo "🛠️  Detected ecosystem: YUM (tool: yum)" >&2
+  logging__detect "Detected ecosystem: YUM (tool: yum)"
   _OSPKG_PREFIX="dnf"
   _OSPKG_PKG_MNGR="yum"
   _OSPKG_UPDATE=(yum check-update)
@@ -459,7 +459,7 @@ _ospkg_set_yum() {
 }
 
 _ospkg_set_zypper() {
-  echo "🛠️  Detected ecosystem: Zypper (tool: zypper)" >&2
+  logging__detect "Detected ecosystem: Zypper (tool: zypper)"
   _OSPKG_PREFIX="zypper"
   _OSPKG_PKG_MNGR="zypper"
   _OSPKG_UPDATE=(zypper --non-interactive refresh)
@@ -472,7 +472,7 @@ _ospkg_set_zypper() {
 }
 
 _ospkg_set_pacman() {
-  echo "🛠️  Detected ecosystem: Pacman (tool: pacman)" >&2
+  logging__detect "Detected ecosystem: Pacman (tool: pacman)"
   _OSPKG_PREFIX="pacman"
   _OSPKG_PKG_MNGR="pacman"
   _OSPKG_UPDATE=(pacman -Sy --noconfirm)
@@ -486,7 +486,7 @@ _ospkg_set_pacman() {
 
 _ospkg_set_brew() {
   local _label="${1:-Linux}"
-  echo "🛠️  Detected ecosystem: Homebrew (tool: brew) [${_label}]" >&2
+  logging__detect "Detected ecosystem: Homebrew (tool: brew) [${_label}]"
   _OSPKG_PREFIX="brew"
   _OSPKG_PKG_MNGR="brew"
   _OSPKG_UPDATE=(_ospkg_brew_run update)
@@ -515,7 +515,7 @@ _ospkg_load_linux_release() {
   fi
   _OSPKG_OS_RELEASE[kernel]="linux"
   _OSPKG_OS_RELEASE[arch]="$(uname -m)"
-  echo "🔍 OS context: pm=${_OSPKG_OS_RELEASE[pm]-} arch=${_OSPKG_OS_RELEASE[arch]-} id=${_OSPKG_OS_RELEASE[id]-} id_like=${_OSPKG_OS_RELEASE[id_like]-} version_id=${_OSPKG_OS_RELEASE[version_id]-} version_codename=${_OSPKG_OS_RELEASE[version_codename]-}" >&2
+  logging__inspect "OS context: pm=${_OSPKG_OS_RELEASE[pm]-} arch=${_OSPKG_OS_RELEASE[arch]-} id=${_OSPKG_OS_RELEASE[id]-} id_like=${_OSPKG_OS_RELEASE[id_like]-} version_id=${_OSPKG_OS_RELEASE[version_id]-} version_codename=${_OSPKG_OS_RELEASE[version_codename]-}"
   return 0
 }
 
@@ -533,9 +533,9 @@ ospkg__detect() {
   if [[ "$_kernel" == "Darwin" ]]; then
     # macOS: Homebrew is the only supported package manager.
     if ! type brew > /dev/null 2>&1; then
-      echo "⛔ Homebrew (brew) not found on macOS." >&2
-      echo "⛔ Install Homebrew first: https://brew.sh" >&2
-      echo "⛔ Or add the 'install-homebrew' devcontainer feature." >&2
+      logging__error "Homebrew (brew) not found on macOS."
+      logging__error "Install Homebrew first: https://brew.sh"
+      logging__error "Or add the 'install-homebrew' devcontainer feature."
       return 1
     fi
     _ospkg_set_brew "macOS"
@@ -544,7 +544,7 @@ ospkg__detect() {
     _OSPKG_OS_RELEASE[id_like]="macos"
     _OSPKG_OS_RELEASE[version_id]="$(sw_vers -productVersion 2> /dev/null || echo "")"
     _OSPKG_OS_RELEASE[arch]="$(uname -m)"
-    echo "🔍 OS context: pm=brew arch=${_OSPKG_OS_RELEASE[arch]-} id=macos version_id=${_OSPKG_OS_RELEASE[version_id]-}" >&2
+    logging__inspect "OS context: pm=brew arch=${_OSPKG_OS_RELEASE[arch]-} id=macos version_id=${_OSPKG_OS_RELEASE[version_id]-}"
     _OSPKG_DETECTED=true
     return 0
   fi
@@ -575,7 +575,7 @@ ospkg__detect() {
   elif type brew > /dev/null 2>&1; then
     _ospkg_set_brew "Linux/Linuxbrew"
   else
-    echo "⛔ No supported package manager found." >&2
+    logging__error "No supported package manager found."
     return 1
   fi
 
@@ -610,7 +610,7 @@ ospkg__update() {
         _repo_added=true
         ;;
       *)
-        echo "⛔ ospkg__update: unknown option: $1" >&2
+        logging__error "ospkg__update: unknown option: $1"
         return 1
         ;;
     esac
@@ -618,7 +618,7 @@ ospkg__update() {
 
   if [[ ${#_OSPKG_UPDATE[@]} -eq 0 ]]; then
     # microdnf bakes --refresh into every install call; no separate update step is needed.
-    echo "ℹ️  Package list update handled per-install by '${_OSPKG_PKG_MNGR}' (--refresh) — skipping explicit update." >&2
+    logging__info "Package list update handled per-install by '${_OSPKG_PKG_MNGR}' (--refresh) — skipping explicit update."
     return 0
   fi
 
@@ -627,7 +627,7 @@ ospkg__update() {
     _skip=false
   elif [[ "$_OSPKG_UPDATED" == true ]]; then
     # Already ran an update in this process — skip unless force/repo_added.
-    echo "ℹ️  Package lists already updated in this process — skipping." >&2
+    logging__info "Package lists already updated in this process — skipping."
     _skip=true
   elif [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
     # brew: no simple lists age check — always update unless forced off.
@@ -640,16 +640,16 @@ ospkg__update() {
       _age=$(($(date +%s) - _mtime))
       if [[ $_age -lt $_max_age ]]; then
         _skip=true
-        echo "ℹ️  Package lists refreshed ${_age}s ago — skipping update (threshold: ${_max_age}s)." >&2
+        logging__info "Package lists refreshed ${_age}s ago — skipping update (threshold: ${_max_age}s)."
       fi
     fi
   fi
 
   if [[ "$_skip" == false ]]; then
-    echo "🔄 Updating package lists." >&2
+    logging__info "Updating package lists."
     net__fetch_with_retry --bail-on 2 _ospkg_update_cmd
     _OSPKG_UPDATED=true
-    echo "✅ Package lists updated." >&2
+    logging__success "Package lists updated."
   fi
   return 0
 }
@@ -663,14 +663,14 @@ ospkg__install() {
   ospkg__detect
   ospkg__update || true
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
-    echo "📲 Installing packages:" >&2
+    logging__info "Installing packages:"
     printf '  - %s\n' "$@" >&2
     net__fetch_with_retry _ospkg_brew_run install "$@" >&2
     return 0
   fi
   if [[ "$_OSPKG_PKG_MNGR" = "apt-get" ]]; then
     if dpkg -s "$@" > /dev/null 2>&1; then
-      echo "ℹ️  Packages already installed: $*" >&2
+      logging__info "Packages already installed: $*"
       return 0
     fi
   elif [[ "$_OSPKG_PKG_MNGR" = "dnf" || "$_OSPKG_PKG_MNGR" = "yum" ]]; then
@@ -678,11 +678,11 @@ ospkg__install() {
     local _num_installed
     _num_installed=$("$_OSPKG_PKG_MNGR" -C list installed "$@" 2> /dev/null | sed '1,/^Installed/d' | wc -l) || _num_installed=0
     if [[ $_num_pkgs -eq $_num_installed ]]; then
-      echo "ℹ️  Packages already installed: $*" >&2
+      logging__info "Packages already installed: $*"
       return 0
     fi
   fi
-  echo "📲 Installing packages:" >&2
+  logging__info "Installing packages:"
   printf '  - %s\n' "$@" >&2
   # Keep interactive mode possible on TTY, but prevent PMs from draining
   # caller-provided stdin in piped/non-interactive contexts.
@@ -700,7 +700,7 @@ ospkg__install() {
 # @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
 ospkg__clean() {
   ospkg__detect
-  echo "🧹 Cleaning package manager cache." >&2
+  logging__clean "Cleaning package manager cache."
   "$_OSPKG_CLEAN"
   return 0
 }
@@ -999,7 +999,7 @@ _ospkg_protect_user_pkgs() {
         grep -Fxv "$_pkg" "$_sidecar" > "$_tmp" 2> /dev/null &&
           mv "$_tmp" "$_sidecar" ||
           rm -f "$_tmp" || true
-        echo "ℹ️  Evicted '${_pkg}' from build-group sidecar '${_sidecar_name}'." >&2
+        logging__info "Evicted '${_pkg}' from build-group sidecar '${_sidecar_name}'."
       fi
     done
   done
@@ -1015,7 +1015,7 @@ ospkg__take_initial_snapshot() {
   local _dest="$1"
   ospkg__detect
   _ospkg_snapshot_packages "$_dest"
-  echo "ℹ️  Initial package snapshot written to ${_dest}." >&2
+  logging__info "Initial package snapshot written to ${_dest}."
   return 0
 }
 
@@ -1049,13 +1049,13 @@ _ospkg_mark_build_group() {
   mapfile -t _new_pkgs < <(comm -13 "$_before_file" "$_after_file" 2> /dev/null)
   rm -f "$_after_file"
   if [[ ${#_new_pkgs[@]} -eq 0 ]]; then
-    echo "ℹ️  Build group '${_group_id}': no new packages installed — nothing to track." >&2
+    logging__info "Build group '${_group_id}': no new packages installed — nothing to track."
     # Preserve an existing sidecar (may already list packages from a prior call
     # with the same group ID).  Only create an empty sentinel if not yet present.
     [[ ! -f "$_sidecar" ]] && : > "$_sidecar"
     return 0
   fi
-  echo "ℹ️  Build group '${_group_id}': tracking ${#_new_pkgs[@]} package(s): ${_new_pkgs[*]}" >&2
+  logging__info "Build group '${_group_id}': tracking ${#_new_pkgs[@]} package(s): ${_new_pkgs[*]}"
   # Append to the sidecar so that multiple calls with the same group ID
   # accumulate all tracked packages (idempotent across repeat calls).
   printf '%s\n' "${_new_pkgs[@]}" >> "$_sidecar"
@@ -1088,16 +1088,16 @@ _ospkg_remove_build_group() {
   _deps_dir="$(_ospkg_build_deps_dir)"
   _sidecar="${_deps_dir}/${_group_id//\//_}"
   if [[ ! -f "$_sidecar" ]]; then
-    echo "ℹ️  Build group '${_group_id}': sidecar not found — nothing to remove." >&2
+    logging__info "Build group '${_group_id}': sidecar not found — nothing to remove."
     return 0
   fi
   local -a _pkgs=()
   mapfile -t _pkgs < "$_sidecar"
   if [[ ${#_pkgs[@]} -eq 0 ]]; then
-    echo "ℹ️  Build group '${_group_id}': sidecar empty — nothing to remove." >&2
+    logging__info "Build group '${_group_id}': sidecar empty — nothing to remove."
     return 0
   fi
-  echo "🗑️  Build group '${_group_id}': removing ${#_pkgs[@]} package(s): ${_pkgs[*]}" >&2
+  logging__remove "Build group '${_group_id}': removing ${#_pkgs[@]} package(s): ${_pkgs[*]}"
   case "$_OSPKG_PKG_MNGR" in
     apt-get)
       # Packages were marked 'auto' at install time; autoremove handles transitive removal.
@@ -1130,7 +1130,7 @@ _ospkg_remove_build_group() {
         if [[ -z "$(brew uses --installed "$_pkg" 2> /dev/null)" ]]; then
           _ospkg_brew_run remove "$_pkg" >&2 || true
         else
-          echo "ℹ️  brew: keeping '$_pkg' (still in use)." >&2
+          logging__info "brew: keeping '$_pkg' (still in use)."
         fi
       done
       ;;
@@ -1254,14 +1254,14 @@ ospkg__cleanup_session_build_groups() {
   done
 
   if [[ ${#_to_remove[@]} -gt 0 ]]; then
-    echo "🗑️  Session cleanup: removing ${#_to_remove[@]} build-dep package(s): ${_to_remove[*]}" >&2
+    logging__remove "Session cleanup: removing ${#_to_remove[@]} build-dep package(s): ${_to_remove[*]}"
     local _synth_dir _synth_sidecar
     _synth_dir="$(_ospkg_build_deps_dir)"
     _synth_sidecar="${_synth_dir}/__session_cleanup__"
     printf '%s\n' "${_to_remove[@]}" | sort > "$_synth_sidecar"
     _ospkg_remove_build_group "__session_cleanup__" || true
   else
-    echo "ℹ️  Session cleanup: no packages to remove (all kept or nothing installed)." >&2
+    logging__info "Session cleanup: no packages to remove (all kept or nothing installed)."
   fi
 
   rm -rf "$_SYSSET_SESSION_TRACK_DIR"
@@ -1308,7 +1308,7 @@ ospkg__cleanup_resources() {
     while IFS= read -r _path; do
       [[ -z "$_path" ]] && continue
       if [[ -e "$_path" ]]; then
-        rm -f "$_path" 2> /dev/null || echo "⚠️  ospkg__cleanup_resources: could not remove '${_path}'" >&2
+        rm -f "$_path" 2> /dev/null || logging__warn "ospkg__cleanup_resources: could not remove '${_path}'"
       fi
     done < "$_sidecar"
     rm -f "$_sidecar"
@@ -1418,28 +1418,28 @@ ospkg__run() {
         shift
         ;;
       *)
-        echo "⛔ ospkg__run: unknown option: $1" >&2
+        logging__error "ospkg__run: unknown option: $1"
         return 1
         ;;
     esac
   done
 
   if ! [[ "$_lists_max_age" =~ ^[0-9]+$ ]]; then
-    echo "⛔ ospkg__run: invalid lists_max_age value: '$_lists_max_age'." >&2
+    logging__error "ospkg__run: invalid lists_max_age value: '$_lists_max_age'."
     return 1
   fi
 
   if [[ -n "$_build_group" && -z "$_manifest" ]]; then
-    echo "⛔ ospkg__run: --build-group requires --manifest." >&2
+    logging__error "ospkg__run: --build-group requires --manifest."
     return 1
   fi
 
   if [[ -n "$_remove_build_group" && (-n "$_build_group" || -n "$_manifest") ]]; then
-    echo "⛔ ospkg__run: --remove-build-group must be used alone (no --manifest or --build-group)." >&2
+    logging__error "ospkg__run: --remove-build-group must be used alone (no --manifest or --build-group)."
     return 1
   fi
 
-  [[ "$_dry_run" == true ]] && echo "🔍 Dry-run mode enabled — no changes will be made." >&2
+  [[ "$_dry_run" == true ]] && logging__inspect "Dry-run mode enabled — no changes will be made."
 
   # Set prefer_linuxbrew early so detect() picks it up.
   _OSPKG_PREFER_LINUXBREW="$_prefer_linuxbrew"
@@ -1454,7 +1454,7 @@ ospkg__run() {
   # --remove-build-group: cleanup build-only packages and return immediately.
   if [[ -n "$_remove_build_group" ]]; then
     if [[ "$_dry_run" == true ]]; then
-      echo "🔍 [dry-run] remove-build-group '${_remove_build_group}' — would remove build-only packages." >&2
+      logging__inspect "[dry-run] remove-build-group '${_remove_build_group}' — would remove build-only packages."
       return 0
     fi
     _ospkg_remove_build_group "$_remove_build_group"
@@ -1462,7 +1462,7 @@ ospkg__run() {
   fi
 
   if [[ "$_OSPKG_PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
-    echo "🆗 Setting APT to non-interactive mode." >&2
+    logging__info "Setting APT to non-interactive mode."
     export DEBIAN_FRONTEND=noninteractive
   fi
 
@@ -1474,7 +1474,7 @@ ospkg__run() {
     elif [[ -f "$_manifest" ]]; then
       _manifest_content="$(< "$_manifest")"
     else
-      echo "⛔ Manifest file not found: '$_manifest'" >&2
+      logging__error "Manifest file not found: '$_manifest'"
       return 1
     fi
   fi
@@ -1485,7 +1485,7 @@ ospkg__run() {
     local _bd_dir
     _bd_dir="$(_ospkg_build_deps_dir)"
     _before_snapshot_file="${_bd_dir}/${_build_group//\//_}.before"
-    echo "ℹ️  Build group '${_build_group}': recording pre-install package snapshot." >&2
+    logging__info "Build group '${_build_group}': recording pre-install package snapshot."
     _ospkg_snapshot_packages "$_before_snapshot_file"
   fi
 
@@ -1494,7 +1494,7 @@ ospkg__run() {
 
     # yq is required to convert YAML to JSON.
     if ! _ospkg_ensure_yq; then
-      echo "⛔ yq is required for YAML manifests but could not be obtained." >&2
+      logging__error "yq is required for YAML manifests but could not be obtained."
       return 1
     fi
 
@@ -1508,7 +1508,7 @@ ospkg__run() {
     local -a _Y_PRESCRIPTS=() _Y_KEYS=() _Y_REPOS=() _Y_PPAS=() _Y_TAPS=() _Y_COPR=()
     local -a _Y_MODULES=() _Y_GROUPS=() _Y_PACKAGES=() _Y_CASKS=() _Y_SCRIPTS=()
 
-    echo "ℹ️  Converting manifest to JSON via yq." >&2
+    logging__info "Converting manifest to JSON via yq."
     if [[ "$_manifest_content" == *$'\n'* ]]; then
       printf '%s' "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
     else
@@ -1527,9 +1527,9 @@ ospkg__run() {
       fi
       _manifest_preview="$(printf '%s' "$_manifest_content" | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g' | cut -c1-220)"
       rm -f "$_json_tmp"
-      echo "⛔ Manifest parse failed for: ${_manifest_origin}" >&2
-      [[ -n "${_manifest_preview:-}" ]] && echo "ℹ️  Manifest preview: ${_manifest_preview}" >&2
-      echo "⛔ Manifest parse failed — see jq error above." >&2
+      logging__error "Manifest parse failed for: ${_manifest_origin}"
+      [[ -n "${_manifest_preview:-}" ]] && logging__info "Manifest preview: ${_manifest_preview}"
+      logging__error "Manifest parse failed — see jq error above."
       return 1
     fi
     while IFS= read -r _item; do
@@ -1549,7 +1549,7 @@ ospkg__run() {
       esac
     done <<< "$_parsed_records"
     rm -f "$_json_tmp"
-    echo "ℹ️  YAML manifest parsed: ${#_Y_PRESCRIPTS[@]} prescript(s), ${#_Y_KEYS[@]} key(s), ${#_Y_REPOS[@]} repo(s), ${#_Y_PPAS[@]} ppa(s), ${#_Y_TAPS[@]} tap(s), ${#_Y_COPR[@]} copr(s), ${#_Y_MODULES[@]} module(s), ${#_Y_GROUPS[@]} group(s), ${#_Y_PACKAGES[@]} package(s), ${#_Y_CASKS[@]} cask(s), ${#_Y_SCRIPTS[@]} script(s)." >&2
+    logging__info "YAML manifest parsed: ${#_Y_PRESCRIPTS[@]} prescript(s), ${#_Y_KEYS[@]} key(s), ${#_Y_REPOS[@]} repo(s), ${#_Y_PPAS[@]} ppa(s), ${#_Y_TAPS[@]} tap(s), ${#_Y_COPR[@]} copr(s), ${#_Y_MODULES[@]} module(s), ${#_Y_GROUPS[@]} group(s), ${#_Y_PACKAGES[@]} package(s), ${#_Y_CASKS[@]} cask(s), ${#_Y_SCRIPTS[@]} script(s)."
 
     # Helper: run a shell script with dry-run support.
     _run_script() {
@@ -1558,9 +1558,9 @@ ospkg__run() {
       _stmp="$(mktemp "${_ospkg_dir}/script_XXXXXX")"
       printf '%s\n' "$_content" > "$_stmp"
       chmod +x "$_stmp"
-      echo "🚀 Running ${_label}." >&2
+      logging__launch "Running ${_label}."
       if [[ "$_dry_run" == true ]]; then
-        echo "🔍 [dry-run] ${_label} — would execute:" >&2
+        logging__inspect "[dry-run] ${_label} — would execute:"
         sed 's/^/    /' "$_stmp" >&2
       else
         bash "$_stmp"
@@ -1577,9 +1577,9 @@ ospkg__run() {
         _combined_prescript+="$(printf '%s' "$_pitem" | json__query -r '.content')"$'\n'
       done
       _run_script "prescript" "$_combined_prescript"
-      echo "✅ Prescript(s) completed." >&2
+      logging__success "Prescript(s) completed."
     else
-      echo "ℹ️  No prescripts found — skipping." >&2
+      logging__info "No prescripts found — skipping."
     fi
 
     local _yaml_key_added=false
@@ -1587,7 +1587,7 @@ ospkg__run() {
 
     # Phase: SIGNING KEYS.
     if [[ ${#_Y_KEYS[@]} -gt 0 ]]; then
-      echo "🔑 Installing ${#_Y_KEYS[@]} signing key(s)." >&2
+      logging__info "Installing ${#_Y_KEYS[@]} signing key(s)."
       local _key_gnupghome
       _key_gnupghome="$(mktemp -d "${_SYSSET_TMPDIR:-${TMPDIR:-/tmp}}/ospkg_gnupg_XXXXXX")"
       chmod 700 "$_key_gnupghome"
@@ -1606,11 +1606,11 @@ ospkg__run() {
         _keff="$(_ospkg_key_effective_path "$_kdest" "$_kdearmor")"
         if [[ "$_dry_run" == true ]]; then
           if [[ -n "${_kfp:-}" && -z "${_kurl:-}" ]]; then
-            echo "🔍 [dry-run] key: fingerprint=${_kfp} → ${_keff}" >&2
+            logging__inspect "[dry-run] key: fingerprint=${_kfp} → ${_keff}"
           elif [[ "${_keff}" != "${_kdest}" ]]; then
-            echo "🔍 [dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor}; manifest dest=${_kdest})" >&2
+            logging__inspect "[dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor}; manifest dest=${_kdest})"
           else
-            echo "🔍 [dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor})" >&2
+            logging__inspect "[dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor})"
           fi
         else
           _ospkg_install_key_entry "$_kurl" "$_kdest" "$_kdearmor" "$_kfp"
@@ -1622,59 +1622,59 @@ ospkg__run() {
         unset GNUPGHOME
       fi
       rm -rf "$_key_gnupghome"
-      echo "✅ Signing keys installed." >&2
+      logging__success "Signing keys installed."
     else
-      echo "ℹ️  No signing keys found — skipping." >&2
+      logging__info "No signing keys found — skipping."
     fi
 
     # Phase: REPOS.
     local _yaml_repo_added=false
     local _OSPKG_APK_ADDED_REPOS=()
     if [[ ${#_Y_REPOS[@]} -gt 0 ]]; then
-      echo "🗃  Adding ${#_Y_REPOS[@]} repository entry/entries." >&2
+      logging__info "Adding ${#_Y_REPOS[@]} repository entry/entries."
       local _ritem _rcontent
       for _ritem in "${_Y_REPOS[@]}"; do
         _rcontent="$(printf '%s' "$_ritem" | json__query -r '.content')"
         if [[ "$_dry_run" == true ]]; then
-          echo "🔍 [dry-run] repo: would add: ${_rcontent}" >&2
+          logging__inspect "[dry-run] repo: would add: ${_rcontent}"
         else
           _ospkg_install_repo_content "${_rcontent}"$'\n'
           _yaml_repo_added=true
         fi
       done
     else
-      echo "ℹ️  No repo entries found — skipping." >&2
+      logging__info "No repo entries found — skipping."
     fi
 
     # Phase: PPAs (APT only).
     if [[ ${#_Y_PPAS[@]} -gt 0 ]]; then
       if [[ "$_OSPKG_PREFIX" == "apt" ]]; then
-        echo "📎 Adding ${#_Y_PPAS[@]} PPA(s)." >&2
+        logging__info "Adding ${#_Y_PPAS[@]} PPA(s)."
         if ! command -v add-apt-repository > /dev/null 2>&1; then
-          echo "ℹ️  add-apt-repository not found — installing software-properties-common." >&2
+          logging__info "add-apt-repository not found — installing software-properties-common."
           [[ "$_dry_run" == false ]] && ospkg__install_tracked "sysset-ospkg-internals" software-properties-common
         fi
         local _ppitem _ppa
         for _ppitem in "${_Y_PPAS[@]}"; do
           _ppa="$(printf '%s' "$_ppitem" | json__query -r '.ppa')"
           if [[ "$_dry_run" == true ]]; then
-            echo "🔍 [dry-run] ppa: would run: add-apt-repository -y '${_ppa}'" >&2
+            logging__inspect "[dry-run] ppa: would run: add-apt-repository -y '${_ppa}'"
           else
-            echo "📎 Adding PPA: ${_ppa}" >&2
+            logging__info "Adding PPA: ${_ppa}"
             add-apt-repository -y "$_ppa"
             _yaml_repo_added=true
-            echo "✅ PPA added: ${_ppa}" >&2
+            logging__success "PPA added: ${_ppa}"
           fi
         done
       else
-        echo "⚠️  PPAs are only supported on APT — ignoring (current PM: ${_OSPKG_PKG_MNGR})." >&2
+        logging__warn "PPAs are only supported on APT — ignoring (current PM: ${_OSPKG_PKG_MNGR})."
       fi
     fi
 
     # Phase: TAPS (brew only).
     if [[ ${#_Y_TAPS[@]} -gt 0 ]]; then
       if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
-        echo "🍺 Adding ${#_Y_TAPS[@]} Homebrew tap(s)." >&2
+        logging__info "Adding ${#_Y_TAPS[@]} Homebrew tap(s)."
         local _titem _tap_val _tap_name _tap_url
         for _titem in "${_Y_TAPS[@]}"; do
           _tap_val="$(printf '%s' "$_titem" | json__query -r '.tap')"
@@ -1687,19 +1687,19 @@ ospkg__run() {
             _tap_url="$(printf '%s' "$_titem" | json__query -r '.tap | if type == "object" then (.url // "") else "" end')"
           fi
           if [[ "$_dry_run" == true ]]; then
-            echo "🔍 [dry-run] tap: would run: brew tap ${_tap_name}${_tap_url:+ ${_tap_url}}" >&2
+            logging__inspect "[dry-run] tap: would run: brew tap ${_tap_name}${_tap_url:+ ${_tap_url}}"
           else
-            echo "🍺 Tapping: ${_tap_name}" >&2
+            logging__info "Tapping: ${_tap_name}"
             if [[ -n "${_tap_url:-}" ]]; then
               _ospkg_brew_run tap "$_tap_name" "$_tap_url"
             else
               _ospkg_brew_run tap "$_tap_name"
             fi
-            echo "✅ Tap added: ${_tap_name}" >&2
+            logging__success "Tap added: ${_tap_name}"
           fi
         done
       else
-        echo "⚠️  Homebrew taps are only supported when PM is brew — ignoring." >&2
+        logging__warn "Homebrew taps are only supported when PM is brew — ignoring."
       fi
     fi
 
@@ -1708,23 +1708,23 @@ ospkg__run() {
       if [[ "$_OSPKG_PREFIX" == "dnf" ]]; then
         local _copr_dnf_bin
         if ! _copr_dnf_bin="$(_ospkg_dnf_bin)"; then
-          echo "⚠️  COPR repos require full dnf — '${_OSPKG_PKG_MNGR}' does not support 'copr enable'; skipping." >&2
+          logging__warn "COPR repos require full dnf — '${_OSPKG_PKG_MNGR}' does not support 'copr enable'; skipping."
         else
-          echo "🧩 Enabling ${#_Y_COPR[@]} COPR repo(s)." >&2
+          logging__info "Enabling ${#_Y_COPR[@]} COPR repo(s)."
           local _copritem _copr
           for _copritem in "${_Y_COPR[@]}"; do
             _copr="$(printf '%s' "$_copritem" | json__query -r '.copr')"
             if [[ "$_dry_run" == true ]]; then
-              echo "🔍 [dry-run] copr: would run: ${_copr_dnf_bin} copr enable -y '${_copr}'" >&2
+              logging__inspect "[dry-run] copr: would run: ${_copr_dnf_bin} copr enable -y '${_copr}'"
             else
-              echo "🧩 Enabling COPR: ${_copr}" >&2
+              logging__info "Enabling COPR: ${_copr}"
               "$_copr_dnf_bin" copr enable -y "$_copr"
               _yaml_repo_added=true
             fi
           done
         fi
       else
-        echo "⚠️  COPR repos are only supported on DNF — ignoring (current PM: ${_OSPKG_PKG_MNGR})." >&2
+        logging__warn "COPR repos are only supported on DNF — ignoring (current PM: ${_OSPKG_PKG_MNGR})."
       fi
     fi
 
@@ -1733,23 +1733,23 @@ ospkg__run() {
       if [[ "$_OSPKG_PREFIX" == "dnf" ]]; then
         local _mod_dnf_bin
         if ! _mod_dnf_bin="$(_ospkg_dnf_bin)"; then
-          echo "⚠️  DNF module streams require full dnf — '${_OSPKG_PKG_MNGR}' does not support 'module enable'; skipping." >&2
+          logging__warn "DNF module streams require full dnf — '${_OSPKG_PKG_MNGR}' does not support 'module enable'; skipping."
         else
-          echo "🔩 Enabling ${#_Y_MODULES[@]} DNF module stream(s)." >&2
+          logging__info "Enabling ${#_Y_MODULES[@]} DNF module stream(s)."
           local _moditem _mod
           for _moditem in "${_Y_MODULES[@]}"; do
             _mod="$(printf '%s' "$_moditem" | json__query -r '.module')"
             if [[ "$_dry_run" == true ]]; then
-              echo "🔍 [dry-run] module: would run: ${_mod_dnf_bin} module enable -y '${_mod}'" >&2
+              logging__inspect "[dry-run] module: would run: ${_mod_dnf_bin} module enable -y '${_mod}'"
             else
-              echo "🔩 Enabling module: ${_mod}" >&2
+              logging__info "Enabling module: ${_mod}"
               "$_mod_dnf_bin" module enable -y "$_mod"
-              echo "✅ Module enabled: ${_mod}" >&2
+              logging__success "Module enabled: ${_mod}"
             fi
           done
         fi
       else
-        echo "⚠️  DNF modules are only supported on DNF — ignoring (current PM: ${_OSPKG_PKG_MNGR})." >&2
+        logging__warn "DNF modules are only supported on DNF — ignoring (current PM: ${_OSPKG_PKG_MNGR})."
       fi
     fi
 
@@ -1761,26 +1761,26 @@ ospkg__run() {
         case "$_OSPKG_PREFIX" in
           dnf)
             if [[ "$_dry_run" == true ]]; then
-              echo "🔍 [dry-run] group: would run: ${_OSPKG_PKG_MNGR} group install -y '${_grp}'" >&2
+              logging__inspect "[dry-run] group: would run: ${_OSPKG_PKG_MNGR} group install -y '${_grp}'"
             else
-              echo "📦 Installing group '${_grp}' (dnf)." >&2
+              logging__install "Installing group '${_grp}' (dnf)."
               "$_OSPKG_PKG_MNGR" group install -y "$_grp"
-              echo "✅ Group '${_grp}' installed." >&2
+              logging__success "Group '${_grp}' installed."
             fi
             ;;
           zypper)
             if [[ "$_dry_run" == true ]]; then
-              echo "🔍 [dry-run] group: would run: zypper --non-interactive install -t pattern '${_grp}'" >&2
+              logging__inspect "[dry-run] group: would run: zypper --non-interactive install -t pattern '${_grp}'"
             else
-              echo "📦 Installing pattern '${_grp}' (zypper)." >&2
+              logging__install "Installing pattern '${_grp}' (zypper)."
               zypper --non-interactive install -t pattern "$_grp"
             fi
             ;;
           pacman)
             if [[ "$_dry_run" == true ]]; then
-              echo "🔍 [dry-run] group: would run: ${_OSPKG_INSTALL[*]} '${_grp}'" >&2
+              logging__inspect "[dry-run] group: would run: ${_OSPKG_INSTALL[*]} '${_grp}'"
             else
-              echo "📦 Installing group '${_grp}' (pacman)." >&2
+              logging__install "Installing group '${_grp}' (pacman)."
               ospkg__install "$_grp"
               if [[ -z "${_build_group:-}" ]]; then
                 local -a _grp_members=()
@@ -1790,7 +1790,7 @@ ospkg__run() {
             fi
             ;;
           *)
-            echo "⚠️  Group '${_grp}' — groups not supported on '${_OSPKG_PKG_MNGR}'; skipping." >&2
+            logging__warn "Group '${_grp}' — groups not supported on '${_OSPKG_PKG_MNGR}'; skipping."
             ;;
         esac
       done
@@ -1802,20 +1802,20 @@ ospkg__run() {
       [[ "$_yaml_repo_added" == true ]] && _update_args+=(--repo_added)
       if [[ "$_dry_run" == true ]]; then
         if [[ ${#_OSPKG_UPDATE[@]} -gt 0 ]]; then
-          echo "🔍 [dry-run] update: would run: ${_OSPKG_UPDATE[*]}" >&2
+          logging__inspect "[dry-run] update: would run: ${_OSPKG_UPDATE[*]}"
         else
-          echo "ℹ️  Package list update not supported by '${_OSPKG_PKG_MNGR}' — skipping." >&2
+          logging__info "Package list update not supported by '${_OSPKG_PKG_MNGR}' — skipping."
         fi
       else
         ospkg__update "${_update_args[@]}"
       fi
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 && "$_yaml_repo_added" == false ]]; then
-      echo "ℹ️  Package list update skipped (no packages and no repos in manifest)." >&2
+      logging__info "Package list update skipped (no packages and no repos in manifest)."
     else
-      echo "ℹ️  Package list update skipped (update=false)." >&2
+      logging__info "Package list update skipped (update=false)."
       _OSPKG_UPDATED=true
       if [[ "$_yaml_repo_added" == true ]]; then
-        echo "⚠️  A repository was added but update=false — packages may not be found." >&2
+        logging__warn "A repository was added but update=false — packages may not be found."
       fi
     fi
 
@@ -1841,7 +1841,7 @@ ospkg__run() {
       fi
 
       if [[ "$_skip_installed" == true ]] && command -v "$_pkgname" > /dev/null 2>&1; then
-        echo "ℹ️  '${_pkgname}' already available in PATH — skipping." >&2
+        logging__info "'${_pkgname}' already available in PATH — skipping."
         [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "$_pkgname"
         continue
       fi
@@ -1849,9 +1849,9 @@ ospkg__run() {
       # For PMs that support per-package flags, build the install command.
       if [[ -n "${_pkgflags:-}" ]]; then
         if [[ "$_dry_run" == true ]]; then
-          echo "🔍 [dry-run] package: ${_OSPKG_INSTALL[*]} ${_pkgflags} ${_pkginstall}" >&2
+          logging__inspect "[dry-run] package: ${_OSPKG_INSTALL[*]} ${_pkgflags} ${_pkginstall}"
         else
-          echo "📲 Installing: ${_pkginstall} (flags: ${_pkgflags})" >&2
+          logging__info "Installing: ${_pkginstall} (flags: ${_pkgflags})"
           # shellcheck disable=SC2086
           "${_OSPKG_INSTALL[@]}" $_pkgflags "$_pkginstall"
           [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "$_pkgname"
@@ -1863,34 +1863,34 @@ ospkg__run() {
     done
 
     if [[ ${#_pkgs_to_install[@]} -gt 0 ]]; then
-      echo "📦 Installing ${#_pkgs_to_install[@]} package(s)." >&2
+      logging__install "Installing ${#_pkgs_to_install[@]} package(s)."
       if [[ "$_dry_run" == true ]]; then
-        echo "🔍 [dry-run] packages: ${_pkgs_to_install[*]}" >&2
+        logging__inspect "[dry-run] packages: ${_pkgs_to_install[*]}"
       else
         ospkg__install "${_pkgs_to_install[@]}"
         [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "${_pkg_base_names[@]}"
       fi
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then
-      echo "ℹ️  No packages to install — skipping." >&2
+      logging__info "No packages to install — skipping."
     fi
 
     # Phase: CASKS (brew/macOS only).
     if [[ ${#_Y_CASKS[@]} -gt 0 ]]; then
       if [[ "$_OSPKG_PKG_MNGR" == "brew" && "$(uname -s)" == "Darwin" ]]; then
-        echo "🍺 Installing ${#_Y_CASKS[@]} Homebrew cask(s)." >&2
+        logging__info "Installing ${#_Y_CASKS[@]} Homebrew cask(s)."
         local _caskitem _cask
         for _caskitem in "${_Y_CASKS[@]}"; do
           _cask="$(printf '%s' "$_caskitem" | json__query -r '.cask')"
           if [[ "$_dry_run" == true ]]; then
-            echo "🔍 [dry-run] cask: would run: brew install --cask '${_cask}'" >&2
+            logging__inspect "[dry-run] cask: would run: brew install --cask '${_cask}'"
           else
-            echo "🍺 Installing cask: ${_cask}" >&2
+            logging__info "Installing cask: ${_cask}"
             _ospkg_brew_run install --cask "$_cask"
-            echo "✅ Cask installed: ${_cask}" >&2
+            logging__success "Cask installed: ${_cask}"
           fi
         done
       else
-        echo "⚠️  Casks are only supported on macOS with Homebrew — ignoring." >&2
+        logging__warn "Casks are only supported on macOS with Homebrew — ignoring."
       fi
     fi
 
@@ -1902,28 +1902,28 @@ ospkg__run() {
         _combined_script+="$(printf '%s' "$_sitem" | json__query -r '.content')"$'\n'
       done
       _run_script "script" "$_combined_script"
-      echo "✅ Script(s) completed." >&2
+      logging__success "Script(s) completed."
     else
-      echo "ℹ️  No scripts found — skipping." >&2
+      logging__info "No scripts found — skipping."
     fi
 
     # Phase: REPO CLEANUP.
     # Taps: always kept (never cleaned up).
     # Other repos: remove unless --keep_repos.
     if [[ "$_yaml_repo_added" == true && "$_keep_repos" == false ]]; then
-      echo "🗑️  Removing added repositories." >&2
+      logging__remove "Removing added repositories."
       if [[ "$_OSPKG_PREFIX" = "apt" ]]; then
         rm -f /etc/apt/sources.list.d/syspkg-installer.list
-        echo "🗑️  Removed /etc/apt/sources.list.d/syspkg-installer.list" >&2
+        logging__remove "Removed /etc/apt/sources.list.d/syspkg-installer.list"
       elif [[ "$_OSPKG_PREFIX" = "apk" ]]; then
         local _rl
         for _rl in "${_OSPKG_APK_ADDED_REPOS[@]}"; do
           sed -i "\\|^${_rl}$|d" /etc/apk/repositories
-          echo "🗑️  Removed APK repo: ${_rl}" >&2
+          logging__remove "Removed APK repo: ${_rl}"
         done
       elif [[ "$_OSPKG_PREFIX" = "dnf" ]]; then
         rm -f /etc/yum.repos.d/syspkg-installer.repo
-        echo "🗑️  Removed /etc/yum.repos.d/syspkg-installer.repo" >&2
+        logging__remove "Removed /etc/yum.repos.d/syspkg-installer.repo"
       elif [[ "$_OSPKG_PREFIX" = "zypper" ]]; then
         rm -f /etc/zypp/repos.d/syspkg-installer.repo
       elif [[ "$_OSPKG_PREFIX" = "pacman" ]]; then
@@ -1931,20 +1931,20 @@ ospkg__run() {
         sed -i '/^Include = \/etc\/pacman.d\/syspkg-installer.conf$/d' /etc/pacman.conf
       fi
     elif [[ "$_yaml_repo_added" == true ]]; then
-      echo "ℹ️  Keeping added repositories (--keep_repos)." >&2
+      logging__info "Keeping added repositories (--keep_repos)."
     fi
 
     # Phase: KEY CLEANUP.
     # Signing keys added during this run are removed unless --keep_repos.
     if [[ "$_yaml_key_added" == true && "$_keep_repos" == false ]]; then
-      echo "🗑️  Removing installed signing keys." >&2
+      logging__remove "Removing installed signing keys."
       local _kpath
       for _kpath in "${_yaml_keys_written[@]}"; do
         rm -f "$_kpath"
-        echo "🗑️  Removed signing key: ${_kpath}" >&2
+        logging__remove "Removed signing key: ${_kpath}"
       done
     elif [[ "$_yaml_key_added" == true ]]; then
-      echo "ℹ️  Keeping installed signing keys (--keep_repos)." >&2
+      logging__info "Keeping installed signing keys (--keep_repos)."
     fi
 
     # Apply build-group tracking: diff against pre-install snapshot, mark new packages.

@@ -49,7 +49,7 @@ export SYSSET_BASE_URL
 unset SYSSET_VERSION
 
 check "get.sh ignores disable entry for a different feature id (with warning)" \
-  sudo -E bash "${REPO_ROOT}/get.sh" --logfile "$_log" \
+  sudo -E bash "${REPO_ROOT}/get.sh" --log_file "$_log" \
   --no-feature-lifecycle-command "install-pixi:postCreateCommand" \
   "${_FEAT}@${_VER}"
 

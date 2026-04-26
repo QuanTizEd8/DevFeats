@@ -28,14 +28,26 @@ keep_build_deps:
     By default these are removed to reduce image layer size.
     Set to true if you need them at runtime (e.g. compiling native Node.js modules).
 
-debug:
-  type: boolean
-  default: false
-  description: >-
-    Enable debug output.
-    This adds `set -x` to the installer script, which prints each command before executing it.
-
-logfile:
+log_file:
   type: string
   default: ""
   description: Log all output (stdout + stderr) to this file in addition to console.
+
+log_level:
+  type: string
+  default: info
+  description: >-
+    Control installer log verbosity (emoji-prefixed lines printed to stderr).
+  enum:
+    - value: silent
+      description: Only fatal (e.g. non-zero exit summary).
+    - value: error
+      description: fatal and error (⛔).
+    - value: warn
+      description: fatal, error, and warning (⚠️).
+    - value: info
+      description: Above plus info, success, and phase helpers (default).
+    - value: debug
+      description: Above plus debug (🐞).
+    - value: trace
+      description: Above plus bash xtrace (`set -x`) for command-level tracing.

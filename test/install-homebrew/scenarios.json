@@ -3,7 +3,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-homebrew": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -11,7 +11,7 @@
         "image": "debian:latest",
         "features": {
             "install-homebrew": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -20,7 +20,7 @@
         "features": {
             "install-homebrew": {
                 "export_path": "",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -29,7 +29,7 @@
         "features": {
             "install-homebrew": {
                 "export_path": "/tmp/custom-brew.sh",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -42,7 +42,7 @@
         },
         "features": {
             "install-homebrew": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -55,7 +55,7 @@
         },
         "features": {
             "install-homebrew": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -63,7 +63,7 @@
         "image": "archlinux:latest",
         "features": {
             "install-homebrew": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -71,7 +71,7 @@
         "image": "fedora:latest",
         "features": {
             "install-homebrew": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -79,7 +79,7 @@
         "image": "opensuse/leap:latest",
         "features": {
             "install-homebrew": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -93,7 +93,7 @@
         "features": {
             "install-homebrew": {
                 "if_exists": "reinstall",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -102,16 +102,16 @@
         "features": {
             "install-homebrew": {
                 "update": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
-    "logfile": {
+    "log_file": {
         "image": "ubuntu:latest",
         "features": {
             "install-homebrew": {
-                "logfile": "/tmp/brew.log",
-                "debug": true
+                "log_file": "/tmp/brew.log",
+                "log_level": "trace"
             }
         }
     },
@@ -126,7 +126,7 @@
         "features": {
             "install-homebrew": {
                 "add_remote_user": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }

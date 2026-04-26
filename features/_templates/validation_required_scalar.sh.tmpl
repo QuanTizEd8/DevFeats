@@ -1,1 +1,1 @@
-[ -z "${@@VAR@@}" ] && { echo "⛔ Missing required argument '@@KEY@@'." >&2; exit 1; }
+[ -z "${@@VAR@@}" ] && { logging__error "Missing required argument '@@KEY@@'."; exit 1; }

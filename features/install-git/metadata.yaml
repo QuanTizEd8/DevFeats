@@ -77,7 +77,7 @@ options:
     default: false
     description: |-
       Keep the source build directory (`installer_dir`) after a successful install.
-      Useful for debugging build failures or inspecting the compiled binaries.
+      Useful for troubleshooting build failures or inspecting the compiled binaries.
       Ignored when `method=package`.
   no_flags:
     type: array

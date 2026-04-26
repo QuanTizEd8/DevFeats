@@ -1,4 +1,4 @@
 declare -p @@VAR@@ &> /dev/null || {
   @@VAR@@=()
-  echo "ℹ️ Argument '@@KEY@@' set to default value '(empty)'." >&2
+  logging__info "Argument '@@KEY@@' set to default value '(empty)'."
 }

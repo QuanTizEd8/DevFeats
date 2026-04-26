@@ -31,18 +31,18 @@ _git__check_exists() {
     _resolved_ver="${VERSION}"
   fi
   if [ -n "${_resolved_ver}" ] && [ "${_installed_ver}" = "${_resolved_ver}" ]; then
-    echo "ℹ️ git ${_resolved_ver} is already installed — skipping." >&2
+    logging__info "git ${_resolved_ver} is already installed — skipping."
     exit 0
   fi
 
   # Apply if_exists policy.
   case "${IF_EXISTS}" in
     skip)
-      echo "ℹ️ git is already installed (${_installed_ver}) — skipping (if_exists=skip)." >&2
+      logging__info "git is already installed (${_installed_ver}) — skipping (if_exists=skip)."
       exit 0
       ;;
     fail)
-      echo "⛔ git is already installed (${_installed_ver}) and if_exists=fail." >&2
+      logging__error "git is already installed (${_installed_ver}) and if_exists=fail."
       exit 1
       ;;
     reinstall)
@@ -71,7 +71,7 @@ _git__check_exists() {
       # package→package: package manager handles upgrade natively.
       ;;
     *)
-      echo "⛔ Unknown if_exists value: '${IF_EXISTS}'" >&2
+      logging__error "Unknown if_exists value: '${IF_EXISTS}'"
       exit 1
       ;;
   esac
@@ -115,7 +115,7 @@ _git__reinstall() {
   local _remove_prefix="${2:-${PREFIX}}"
 
   if [ "${_existing_method}" = "package" ]; then
-    echo "🗑 Removing package-managed git..." >&2
+    logging__remove "Removing package-managed git..."
     case "$(os__platform)" in
       debian) apt-get remove -y git ;;
       alpine) apk del git ;;
@@ -124,7 +124,7 @@ _git__reinstall() {
       macos) brew remove git ;;
     esac
   else
-    echo "🗑 Removing source-installed git from ${_remove_prefix}..." >&2
+    logging__remove "Removing source-installed git from ${_remove_prefix}..."
     rm -f "${_remove_prefix}/bin/git" "${_remove_prefix}/bin/git-"*
     rm -rf "${_remove_prefix}/lib/git-core/"
     rm -rf "${_remove_prefix}/share/git-core/"
@@ -171,7 +171,7 @@ _git__source_resolve_version() {
   local _tags _tag
   if [ "${VERSION}" = "latest" ]; then
     _tags="$(github__tags "git/git")" || {
-      echo "⛔ Failed to fetch git tags from GitHub." >&2
+      logging__error "Failed to fetch git tags from GitHub."
       return 1
     }
     _tag="$(printf '%s\n' "${_tags}" |
@@ -181,7 +181,7 @@ _git__source_resolve_version() {
       tail -1)"
   elif [ "${VERSION}" = "stable" ]; then
     _tags="$(github__tags "git/git")" || {
-      echo "⛔ Failed to fetch git tags from GitHub." >&2
+      logging__error "Failed to fetch git tags from GitHub."
       return 1
     }
     _tag="$(printf '%s\n' "${_tags}" |
@@ -194,7 +194,7 @@ _git__source_resolve_version() {
   fi
 
   if [ -z "${_tag}" ]; then
-    echo "⛔ Could not resolve a git version from tags." >&2
+    logging__error "Could not resolve a git version from tags."
     return 1
   fi
   echo "${_tag}"
@@ -212,14 +212,14 @@ _git__source_fetch_verify() {
   local _sumfile="${INSTALLER_DIR}/sha256sums.asc"
 
   mkdir -p "${INSTALLER_DIR}"
-  echo "📥 Downloading git-${_ver}.tar.gz..." >&2
+  logging__download "Downloading git-${_ver}.tar.gz..."
   net__fetch_url_file "${_tar_url}" "${_tarfile}"
   net__fetch_url_file "${_sum_url}" "${_sumfile}"
 
   local _expected
   _expected="$(grep "git-${_ver}.tar.gz" "${_sumfile}" | awk '{print $1}')"
   if [ -z "${_expected}" ]; then
-    echo "⛔ No checksum found for git-${_ver}.tar.gz in sha256sums.asc." >&2
+    logging__error "No checksum found for git-${_ver}.tar.gz in sha256sums.asc."
     return 1
   fi
   checksum__verify_sha256 "${_tarfile}" "${_expected}"
@@ -252,7 +252,7 @@ _git__source_build() {
         ;;
       '') ;;
       *)
-        echo "⚠️ no_flags: unknown keyword '${_flag}' — ignored" >&2
+        logging__warn "no_flags: unknown keyword '${_flag}' — ignored"
         ;;
     esac
   done
@@ -297,7 +297,7 @@ _git__source_register() {
   local _ver="$1"
   # Non-root installs cannot register packages via apt/dpkg.
   if [ "$(id -u)" != "0" ]; then
-    echo "ℹ️ Non-root mode: skipping package manager registration for source-built git." >&2
+    logging__info "Non-root mode: skipping package manager registration for source-built git."
     return 0
   fi
   case "$(os__platform)" in
@@ -310,7 +310,7 @@ _git__source_register() {
 
   if [ "${_had_equivs}" = "false" ]; then
     ospkg__install equivs || {
-      echo "⚠️ Could not install equivs — skipping package manager registration." >&2
+      logging__warn "Could not install equivs — skipping package manager registration."
       return 0
     }
   fi
@@ -334,7 +334,7 @@ EOF
     equivs-build ./git.control
     dpkg -i ./git_*.deb
   ) || {
-    echo "⚠️ equivs dummy package installation failed — skipping registration." >&2
+    logging__warn "equivs dummy package installation failed — skipping registration."
     rm -rf "${_tmpdir}"
     if [ "${_had_equivs}" = "false" ]; then
       apt-get purge -y equivs > /dev/null 2>&1 || true
@@ -348,7 +348,7 @@ EOF
     apt-get purge -y equivs > /dev/null 2>&1 || true
     apt-get autoremove -y > /dev/null 2>&1 || true
   fi
-  echo "✅ Registered git ${_ver} with apt via equivs dummy package." >&2
+  logging__success "Registered git ${_ver} with apt via equivs dummy package."
   return 0
 }
 
@@ -358,7 +358,7 @@ _git__install_source() {
   # 1. Validate prefix writeability.
   mkdir -p "${PREFIX}" 2> /dev/null || true
   if [ ! -w "${PREFIX}" ]; then
-    echo "⛔ PREFIX '${PREFIX}' is not writable." >&2
+    logging__error "PREFIX '${PREFIX}' is not writable."
     return 1
   fi
 
@@ -369,8 +369,8 @@ _git__install_source() {
   # 3. Check Xcode CLT on macOS.
   if [ "$(os__kernel)" = "Darwin" ]; then
     xcode-select --print-path > /dev/null 2>&1 || {
-      echo "⛔ Xcode Command Line Tools are required for source builds on macOS." >&2
-      echo "   Install with: xcode-select --install" >&2
+      logging__error "Xcode Command Line Tools are required for source builds on macOS."
+      logging__info "Install with: xcode-select --install"
       return 1
     }
   fi
@@ -381,18 +381,18 @@ _git__install_source() {
   if [ "$(id -u)" = "0" ]; then
     _source_build_deps__install
   else
-    echo "ℹ️ Non-root mode: skipping build dependency installation; expecting required packages to be preinstalled." >&2
+    logging__info "Non-root mode: skipping build dependency installation; expecting required packages to be preinstalled."
   fi
 
   # 5. Download and verify tarball.
   _git__source_fetch_verify "${_resolved_ver}"
 
   # 6. Extract.
-  echo "📦 Extracting git-${_resolved_ver}.tar.gz..." >&2
+  logging__install "Extracting git-${_resolved_ver}.tar.gz..."
   tar -xzf "${INSTALLER_DIR}/git-${_resolved_ver}.tar.gz" -C "${INSTALLER_DIR}"
 
   # 7. Build and install.
-  echo "🔨 Building git ${_resolved_ver}..." >&2
+  logging__build "Building git ${_resolved_ver}..."
   _git__source_build "${_resolved_ver}"
 
   # 8. Register with package manager (Debian/Ubuntu only, non-fatal).
@@ -403,7 +403,7 @@ _git__install_source() {
 
   # 10. Verify.
   "${PREFIX}/bin/git" --version
-  echo "✅ git ${_resolved_ver} installed to ${PREFIX}/bin/git." >&2
+  logging__success "git ${_resolved_ver} installed to ${PREFIX}/bin/git."
   return 0
 }
 
@@ -457,12 +457,12 @@ _git__write_user_gitconfig() {
     [ -z "${_user}" ] && continue
     # Non-root: only write to the invoking user's config.
     if [ "$(id -u)" != "0" ] && [ "${_user}" != "${_current_user}" ]; then
-      echo "⚠️ Non-root: skipping gitconfig for '${_user}' (can only write for '${_current_user}')." >&2
+      logging__warn "Non-root: skipping gitconfig for '${_user}' (can only write for '${_current_user}')."
       continue
     fi
 
     _home="$(shell__resolve_home "${_user}")" || {
-      echo "⚠️ Could not resolve home directory for '${_user}' — skipping." >&2
+      logging__warn "Could not resolve home directory for '${_user}' — skipping."
       continue
     }
     _cfg="${_home}/.gitconfig"
@@ -483,7 +483,7 @@ _git__write_user_gitconfig() {
     if [ "$(id -u)" = "0" ]; then
       chown "${_user}:${_user}" "${_cfg}" 2> /dev/null || true
     fi
-    echo "✅ Wrote gitconfig for user '${_user}'." >&2
+    logging__success "Wrote gitconfig for user '${_user}'."
   done < <(users__resolve_list)
   return 0
 }
@@ -511,7 +511,7 @@ case "${METHOD}" in
   package) _git__install_package ;;
   source) _git__install_source ;;
   *)
-    echo "⛔ Unknown method: '${METHOD}'" >&2
+    logging__error "Unknown method: '${METHOD}'"
     exit 1
     ;;
 esac
@@ -520,7 +520,7 @@ esac
 if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
   _comp_src="${PREFIX}/share/git-core/contrib/completion"
   if [ ! -d "${_comp_src}" ]; then
-    echo "ℹ️  Completion scripts not found at '${_comp_src}' — skipping." >&2
+    logging__info "Completion scripts not found at '${_comp_src}' — skipping."
   else
     for _shell in "${SHELL_COMPLETIONS[@]}"; do
       case "${_shell}" in
@@ -528,12 +528,12 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
           if [ "$(id -u)" = "0" ]; then
             mkdir -p /etc/bash_completion.d
             cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
-            echo "✅ Bash completion written to /etc/bash_completion.d/git" >&2
+            logging__success "Bash completion written to /etc/bash_completion.d/git"
           else
             mkdir -p "${HOME}/.local/share/bash-completion/completions"
             cp "${_comp_src}/git-completion.bash" \
               "${HOME}/.local/share/bash-completion/completions/git"
-            echo "✅ Bash completion written to ${HOME}/.local/share/bash-completion/completions/git" >&2
+            logging__success "Bash completion written to ${HOME}/.local/share/bash-completion/completions/git"
           fi
           ;;
         zsh)
@@ -541,15 +541,15 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
             _zshdir="$(shell__detect_zshdir)"
             mkdir -p "${_zshdir}/completions"
             cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"
-            echo "✅ Zsh completion written to ${_zshdir}/completions/_git" >&2
+            logging__success "Zsh completion written to ${_zshdir}/completions/_git"
           else
             mkdir -p "${HOME}/.zfunc"
             cp "${_comp_src}/git-completion.zsh" "${HOME}/.zfunc/_git"
-            echo "✅ Zsh completion written to ${HOME}/.zfunc/_git" >&2
+            logging__success "Zsh completion written to ${HOME}/.zfunc/_git"
           fi
           ;;
         *)
-          echo "⛔ Unsupported shell: '${_shell}' (expected: bash, zsh)" >&2
+          logging__error "Unsupported shell: '${_shell}' (expected: bash, zsh)"
           exit 1
           ;;
       esac
@@ -595,10 +595,10 @@ fi
 if [ "${METHOD}" = "source" ] && [ "${SYMLINK}" = "true" ]; then
   if [ "$(id -u)" = "0" ] && [ "${PREFIX}" != "/usr/local" ]; then
     ln -sf "${PREFIX}/bin/git" /usr/local/bin/git
-    echo "✅ Created symlink /usr/local/bin/git → ${PREFIX}/bin/git" >&2
+    logging__success "Created symlink /usr/local/bin/git → ${PREFIX}/bin/git"
   elif [ "$(id -u)" != "0" ] && [ "${PREFIX}" != "${HOME}/.local" ]; then
     mkdir -p "${HOME}/.local/bin"
     ln -sf "${PREFIX}/bin/git" "${HOME}/.local/bin/git"
-    echo "✅ Created symlink ${HOME}/.local/bin/git → ${PREFIX}/bin/git" >&2
+    logging__success "Created symlink ${HOME}/.local/bin/git → ${PREFIX}/bin/git"
   fi
 fi

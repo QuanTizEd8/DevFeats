@@ -2,5 +2,5 @@
 if [ "$(id -u)" -eq 0 ]; then
   _base_deps__install
 else
-  echo "ℹ️ Skipping base run-dependency install (not root); ensure packages from dependencies/run/base.yaml are already installed." >&2
+  logging__info "Skipping base run-dependency install (not root); ensure packages from dependencies/run/base.yaml are already installed."
 fi

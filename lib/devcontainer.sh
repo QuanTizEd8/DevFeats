@@ -4,6 +4,10 @@
 [[ -n "${_DEVCONTAINER__LIB_LOADED-}" ]] && return 0
 _DEVCONTAINER__LIB_LOADED=1
 
+_DEVCONTAINER__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/logging.sh
+. "$_DEVCONTAINER__LIB_DIR/logging.sh"
+
 # shellcheck source=lib/json.sh disable=SC1091
 [[ -n "${_JSON__LIB_LOADED-}" ]] || { _j="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/json.sh" && . "$_j" || return 1; }
 # shellcheck source=lib/str.sh disable=SC1091
@@ -155,7 +159,7 @@ devcontainer__iter_features() {
       esac
     fi
     ((_hit == 0)) && {
-      echo "⚠️  skip feature key (not sysset-compatible): $_k" >&2
+      logging__warn "skip feature key (not sysset-compatible): $_k"
       continue
     }
     _rest="${_k##*/}"
@@ -184,7 +188,7 @@ devcontainer__feature_env_exports() {
     # shellcheck disable=SC2016
     _t="$(printf '%s' "$_j" | json__query -r --arg k "$_k" '.[$k] | type' 2> /dev/null)" || return 1
     if [[ "$_t" == "array" || "$_t" == "object" ]]; then
-      echo "⛔ Option '${_k}': only boolean/string allowed by devcontainer spec (got ${_t})" >&2
+      logging__error "Option '${_k}': only boolean/string allowed by devcontainer spec (got ${_t})"
       return 1
     fi
     # shellcheck disable=SC2016
@@ -235,7 +239,7 @@ devcontainer__build_ordering_inputs() {
   done
   local -a _ids=("$@")
   [[ -n "$_hf" && -n "$_sf" && -n "$_pf" && -n "$_root" && -n "$_cfg" ]] || {
-    echo "⛔ devcontainer__build_ordering_inputs: missing flag" >&2
+    logging__error "devcontainer__build_ordering_inputs: missing flag"
     return 1
   }
   : > "$_hf"

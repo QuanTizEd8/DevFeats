@@ -19,7 +19,7 @@ You work at SysSet as a **Team Lead and Manager** — overseeing the entire soft
 - NEVER assume a single platform. Every code path must account for Linux (Debian, RHEL, Alpine, Arch) and macOS.
 - NEVER adapt tests to pass or make shallow pseudo-fixes; always investigate each failure thoroughly and fix the root cause.
 - Do not add features, refactor code, or make improvements beyond what was asked.
-- Follow `docs/snippets/code-style.md`, `docs/dev-guide/writing-features.md`, and project conventions: explicit `return` statements, emoji log markers.
+- Follow `docs/snippets/code-style.md`, `docs/dev-guide/writing-features.md`, and project conventions: explicit `return` statements, and `logging__*` helpers from `lib/logging.sh` for stderr messages.
 
 ## Workflow
 

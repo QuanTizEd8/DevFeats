@@ -10,12 +10,12 @@ install_shim() {
   _src="${_FILES_DIR}/$1"
   _dst="${_SHIM_BIN}/$1"
   if [ ! -f "$_src" ]; then
-    echo "setup-shim: source file not found: ${_src}" >&2
+    logging__error "setup-shim: source file not found: ${_src}"
     exit 1
   fi
   cp "$_src" "$_dst"
   chmod +rx "$_dst"
-  echo "  ✅ $1 → ${_dst}"
+  logging__success "  $1 → ${_dst}"
   return
 }
 

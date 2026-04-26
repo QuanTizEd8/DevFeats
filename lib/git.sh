@@ -38,32 +38,32 @@ git__clone() {
         shift
         ;;
       --*)
-        echo "⛔ git__clone: unknown option '${1}'" >&2
+        logging__error "git__clone: unknown option '${1}'"
         return 1
         ;;
       *)
-        echo "⛔ git__clone: unexpected argument '${1}'" >&2
+        logging__error "git__clone: unexpected argument '${1}'"
         return 1
         ;;
     esac
   done
   [ -z "${dir}" ] && {
-    echo "⛔ git__clone: missing --dir" >&2
+    logging__error "git__clone: missing --dir"
     return 1
   }
   [ -z "${url}" ] && {
-    echo "⛔ git__clone: missing --url" >&2
+    logging__error "git__clone: missing --url"
     return 1
   }
 
   if [ -d "${dir}/.git" ]; then
-    echo "ℹ️  '${dir}' already exists — skipping clone." >&2
+    logging__info "'${dir}' already exists — skipping clone."
     return 0
   fi
 
   # Auto-provision git if not yet available (idempotent if already installed).
   if ! command -v git > /dev/null 2>&1; then
-    echo "ℹ️  git not found — installing." >&2
+    logging__info "git not found — installing."
     ospkg__detect
     ospkg__install_tracked "lib-git" git
   fi
@@ -79,7 +79,7 @@ git__clone() {
 
   if ! git clone "${_clone_args[@]}" "$url" "$dir" 2>&1; then
     rm -rf "$dir" 2> /dev/null || true
-    echo "⛔ git clone of '${url}' failed." >&2
+    logging__error "git clone of '${url}' failed."
     return 1
   fi
   return 0

@@ -1,4 +1,4 @@
-# Feature Metadata
+# Metadata
 
 Each feature must include a `metadata.yaml` file, following the JSON schema defined in [features/metadata.schema.json](/features/metadata.schema.json). This file contains all metadata about the feature, and is used to generate
 1. `devcontainer-feature.json` files consumed by the devcontainer CLI
@@ -29,10 +29,11 @@ Option names use snake_case; the CLI flag uses double-dashes
     "default": "latest",
     "description": "Version to install."
   },
-  "debug": {
-    "type": "boolean",
-    "default": false,
-    "description": "Enable debug output."
+  "log_level": {
+    "type": "string",
+    "default": "info",
+    "enum": ["silent", "error", "warn", "info", "debug", "trace"],
+    "description": "Control log verbosity; use trace for xtrace."
   },
   "mode": {
     "type": "string",
@@ -71,16 +72,16 @@ Codespaces) present the allowed values to users:
 }
 ```
 
-Always include a `"debug"` option (boolean, default false) and a `"logfile"`
-option (string, default `""`) — they follow the standard from all existing
-features and are expected by the logging pattern.
+Always include a `"log_file"` option (string, default `""`). The shared
+`"log_level"` option is auto-injected from `features/shared-options.yaml`,
+so it does not need to be repeated in each feature metadata file.
 
 
 
 
 ### Shared Options
 
-The `features/shared-options.yaml` file defines shared options that are injected into each feature at sync time. This is useful for options that are common across many features, such as `debug` and `logfile`, so they are not repeated in every metadata file.
+The `features/shared-options.yaml` file defines shared options that are injected into each feature at sync time. This is useful for options that are common across many features, such as `log_level` and `log_file`, so they are not repeated in every metadata file.
 
 
 ## Synchronization and Validation
@@ -103,7 +104,7 @@ containerEnv:
 
 # Declare feature dependencies
 dependsOn:
-  ghcr.io/quantized8/sysset/setup-user: {}
+  ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user: {}
 ```
 
 ### Dependencies on other features
@@ -113,7 +114,7 @@ If your feature needs another feature to have already run at build time
 
 ```yaml
 dependsOn:
-  ghcr.io/quantized8/sysset/setup-user: {}
+  ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user: {}
 ```
 The devcontainer CLI resolves the installation order automatically.
 

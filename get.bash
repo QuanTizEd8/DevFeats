@@ -23,8 +23,8 @@
 #   get.bash <devcontainer.json|.jsonc>
 #
 # Options (consumed by get.bash; not forwarded to feature installers in manifest mode):
-#   --logfile <path>  Append captured output to this file on exit.
-#   --debug           Enable bash -x trace.
+#   --log_file <path>  Append captured output to this file on exit.
+#   --log_level <level>  Log verbosity: silent|error|warn|info|debug|trace.
 #   --help, -h        Show this help.
 #   --workspace-folder <path>  Default cwd for init/lifecycle (manifest); feature mode default CWD.
 #   --no-initialize-command    Skip devcontainer "initializeCommand" (manifest only).
@@ -109,7 +109,7 @@ _SYSSET_LIB_DIR="$_lib_dir"
 logging__setup
 trap 'rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 
-echo "↪️  Script entry: sysset installer" >&2
+logging__entry "sysset installer"
 
 # ── Canonical install order ───────────────────────────────────────────────────
 _CANONICAL_ORDER=(
@@ -136,7 +136,7 @@ Usage:
   Devcontainer:    get.sh <devcontainer.json[.jsonc]>
 
 Options (see also header comment in get.bash):
-  --logfile, --debug, --help
+  --log_file, --log_level, --help
   --workspace-folder, --no-initialize-command, --initialize-command-dir, --lifecycle-command-dir
   --no-feature-lifecycle-command, --no-container-lifecycle-command, --compatible-prefix
   --no-lifecycle (feature mode: skip that feature's post-install hooks)
@@ -147,8 +147,8 @@ EOF
 }
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
-LOGFILE=""
-_debug=false
+LOG_FILE="${LOG_FILE:-}"
+LOG_LEVEL="${LOG_LEVEL:-info}"
 _mode_arg=""
 _WORKSPACE_CUSTOM=""
 _NO_INIT_CMD=false
@@ -161,24 +161,29 @@ _FEATURE_SKIP_LIFECYCLE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --logfile)
+    --log_file)
       shift
       [[ $# -eq 0 ]] && {
-        echo "⛔ --logfile requires a value." >&2
+        logging__error "--log_file requires a value."
         exit 1
       }
-      LOGFILE="$1"
+      LOG_FILE="$1"
       shift
       ;;
-    --debug)
-      _debug=true
+    --log_level)
+      shift
+      [[ $# -eq 0 ]] && {
+        logging__error "--log_level requires a value."
+        exit 1
+      }
+      LOG_LEVEL="$1"
       shift
       ;;
     --help | -h) __usage__ ;;
     --workspace-folder)
       shift
       [[ $# -eq 0 ]] && {
-        echo "⛔ --workspace-folder needs a value." >&2
+        logging__error "--workspace-folder needs a value."
         exit 1
       }
       _WORKSPACE_CUSTOM="$1"
@@ -201,7 +206,7 @@ while [[ $# -gt 0 ]]; do
     --no-feature-lifecycle-command)
       shift
       [[ $# -eq 0 ]] && {
-        echo "⛔ --no-feature-lifecycle-command needs a value." >&2
+        logging__error "--no-feature-lifecycle-command needs a value."
         exit 1
       }
       _NO_FE_LIFE+=("$1")
@@ -210,7 +215,7 @@ while [[ $# -gt 0 ]]; do
     --no-container-lifecycle-command)
       shift
       [[ $# -eq 0 ]] && {
-        echo "⛔ --no-container-lifecycle-command needs a value." >&2
+        logging__error "--no-container-lifecycle-command needs a value."
         exit 1
       }
       _NO_CO_LIFE+=("$1")
@@ -219,7 +224,7 @@ while [[ $# -gt 0 ]]; do
     --compatible-prefix)
       shift
       [[ $# -eq 0 ]] && {
-        echo "⛔ --compatible-prefix needs a value." >&2
+        logging__error "--compatible-prefix needs a value."
         exit 1
       }
       _COMPAT_PREFIX+=("$1")
@@ -230,7 +235,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --*)
-      echo "⛔ Unknown option: '${1}'" >&2
+      logging__error "Unknown option: '${1}'"
       exit 1
       ;;
     *)
@@ -241,10 +246,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ "$_debug" == true ]] && set -x
+logging__set_level
 
 if [[ -z "$_mode_arg" ]]; then
-  echo "⛔ No feature or manifest specified." >&2
+  logging__error "No feature or manifest specified."
   __usage__ 1
 fi
 
@@ -361,20 +366,20 @@ _fetch_and_verify_tarball() {
 _resolve_install_tag() {
   local _feature="$1" _spec="${2:-}" _version=""
   if [[ -n "$_spec" ]]; then
-    echo "ℹ️  [${_feature}] Resolving per-feature version (spec: '${_spec}')..." >&2
+    logging__info "[${_feature}] Resolving per-feature version (spec: '${_spec}')..."
     _resolve_feature_tag "$_feature" "$_spec"
     return $?
   fi
   if [[ -n "$_BUNDLE_TAG" ]]; then
     _version="$(_lookup_bundle_feature_version "$_BUNDLE_MANIFEST_FILE" "$_feature")" || {
-      echo "⛔ [${_feature}] Feature not listed in bundle '${_BUNDLE_TAG}' manifest." >&2
+      logging__error "[${_feature}] Feature not listed in bundle '${_BUNDLE_TAG}' manifest."
       return 1
     }
-    echo "ℹ️  [${_feature}] Using bundle ${_BUNDLE_TAG} → version '${_version}'." >&2
+    logging__info "[${_feature}] Using bundle ${_BUNDLE_TAG} -> version '${_version}'."
     printf '%s/%s\n' "$_feature" "$_version"
     return 0
   fi
-  echo "ℹ️  [${_feature}] Resolving latest per-feature release..." >&2
+  logging__info "[${_feature}] Resolving latest per-feature release..."
   _resolve_feature_tag "$_feature" ""
 }
 
@@ -418,7 +423,7 @@ _sysset_warn_unknown_fe_scope() {
     done
     ((_isphase)) && continue
     [[ "$_head" == "$_fid" ]] && continue
-    echo "⚠️  --no-feature-lifecycle-command '$_e' references a different feature (installed: '$_fid'); ignoring." >&2
+    logging__warn "--no-feature-lifecycle-command '$_e' references a different feature (installed: '$_fid'); ignoring."
   done
 }
 
@@ -427,7 +432,7 @@ _sysset_run_feature_lifecycle() {
   local _root="${1-}" _fid="${2-}" _w="${3:-$PWD}" _ph _line _scope _sid _cmd
   local _df="${_root}/devcontainer-feature.json"
   [[ -f "$_df" ]] || {
-    echo "ℹ️  No devcontainer-feature.json; skipping feature lifecycle" >&2
+    logging__info "No devcontainer-feature.json; skipping feature lifecycle"
     return 0
   }
   _sysset_warn_unknown_fe_scope "$_fid"
@@ -443,7 +448,7 @@ _sysset_run_feature_lifecycle() {
     while IFS=$'\t' read -r _scope _sid _cmd; do
       [[ "$_scope" == feature ]] || continue
       if _sysset_disabled_fe "$_sid" "$_ph" ""; then
-        echo "ℹ️  [${_sid}] skip feature ${_ph} (disabled)" >&2
+        logging__info "[${_sid}] skip feature ${_ph} (disabled)"
         continue
       fi
       printf '%s' "$_cmd" | proc__run_command_form --cwd "$_w" || return 1
@@ -478,7 +483,7 @@ if [[ "$_mode" == "feature" ]]; then
 
   if [[ -z "$_feat_version_spec" && -n "${SYSSET_VERSION:-}" ]]; then
     if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${SYSSET_VERSION}")" || [[ -z "$_BUNDLE_TAG" ]]; then
-      echo "⛔ Bad SYSSET_VERSION" >&2
+      logging__error "Bad SYSSET_VERSION"
       exit 1
     fi
     _BUNDLE_MANIFEST_FILE="$(mktemp)"
@@ -501,13 +506,13 @@ if [[ "$_mode" == "feature" ]]; then
     _lf="${_LIFE_CMD_DIR:-$_wf}"
     _sysset_run_feature_lifecycle "$_tmpdir" "$_feature" "$_lf" || exit 1
   fi
-  echo "↩️  Script exit: sysset installer" >&2
+  logging__fn_exit "sysset installer"
   exit 0
 fi
 
 # ══ Devcontainer manifest mode ══════════════════════════════════════════
 if [[ ! -f "$_mode_arg" ]]; then
-  echo "⛔ Not found: $_mode_arg" >&2
+  logging__error "Not found: $_mode_arg"
   exit 1
 fi
 os__require_root
@@ -540,7 +545,7 @@ elif [[ -n "$_BUNDLE_NAME_VER" ]]; then
 fi
 if [[ -n "$_bspec" ]]; then
   if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${_bspec}")" || [[ -z "$_BUNDLE_TAG" ]]; then
-    echo "⛔ Bundle tag not found for '$_bspec'" >&2
+    logging__error "Bundle tag not found for '$_bspec'"
     exit 1
   fi
   _BUNDLE_MANIFEST_FILE="$(mktemp)"
@@ -558,7 +563,7 @@ while IFS=$'\t' read -r _id _k _tt; do
   _TAG_OF["$_id"]="$_tt"
 done < <(devcontainer__iter_features "$_DCJ" "$_WORK_ROOT" "${_COMPAT_PREFIX[@]}")
 ((${#_IDS[@]})) || {
-  echo "⛔ no features" >&2
+  logging__error "no features"
   exit 1
 }
 
@@ -580,14 +585,14 @@ for _id in "${_IDS[@]}"; do
     continue
   fi
   if [[ ! -f "${_STAGED}/${_id}/devcontainer-feature.json" ]]; then
-    echo "⛔ missing devcontainer-feature.json in $_id" >&2
+    logging__error "missing devcontainer-feature.json in $_id"
     _failed+=("$_id")
     continue
   fi
   _OK_IDS+=("$_id")
 done
 ((${#_OK_IDS[@]})) || {
-  echo "⛔ no features could be staged" >&2
+  logging__error "no features could be staged"
   exit 1
 }
 _IDS=("${_OK_IDS[@]}")
@@ -604,7 +609,7 @@ devcontainer__build_ordering_inputs \
   --staged-root "$_STAGED" \
   --config-file "$_DCJ" \
   -- "${_IDS[@]}" || {
-  echo "⛔ failed to build ordering inputs" >&2
+  logging__error "failed to build ordering inputs"
   exit 1
 }
 
@@ -624,12 +629,12 @@ mapfile -t _ORDER < <(graph__round_order --hard-edges-file "$ht" --soft-edges-fi
     ((_in)) || _ORDER+=("$_i")
   done
 }
-echo "ℹ️  order: ${_ORDER[*]}" >&2
+logging__info "order: ${_ORDER[*]}"
 
 if [[ "$_NO_INIT_CMD" != true ]]; then
   _iv="$(jq -c 'if (has("initializeCommand")|not) then null else .initializeCommand end' < "$_DCJ" 2> /dev/null || echo "null")"
   if [[ -n "$_iv" && "$_iv" != "null" ]]; then
-    echo "⚠️  initializeCommand (host): trust this config" >&2
+    logging__warn "initializeCommand (host): trust this config"
     (cd "${_INIT_CMD_DIR:-$_WORK_ROOT}" && printf '%s' "$_iv" | proc__run_command_form --cwd "${_INIT_CMD_DIR:-$_WORK_ROOT}") || exit 1
   fi
 fi
@@ -667,7 +672,7 @@ for _id in "${_ORDER[@]}"; do
     export _CONTAINER_USER_HOME="${_CU_HOME}"
     export _SYSSET_BUILD_CONTEXT="feature::${_id}"
     cd "$_wdir" || exit 1
-    echo "ℹ️  [${_id}] running install.sh" >&2
+    logging__info "[${_id}] running install.sh"
     sh install.sh
   ) && _passed+=("$_id") || _failed+=("$_id")
   rm -rf "$_wdir"
@@ -680,12 +685,12 @@ for _ph in onCreateCommand updateContentCommand postCreateCommand postStartComma
     [[ -z "$_scope" ]] && continue
     if [[ "$_scope" == feature ]]; then
       if _sysset_disabled_fe "$_sid" "$_ph" ""; then
-        echo "ℹ️  [${_sid}] skip feature ${_ph} (disabled)" >&2
+        logging__info "[${_sid}] skip feature ${_ph} (disabled)"
         continue
       fi
     else
       if _sysset_disabled_co "$_ph" ""; then
-        echo "ℹ️  skip container ${_ph} (disabled)" >&2
+        logging__info "skip container ${_ph} (disabled)"
         continue
       fi
     fi
@@ -698,8 +703,8 @@ for _ph in onCreateCommand updateContentCommand postCreateCommand postStartComma
 done
 
 ((${#_failed[@]} > 0)) && {
-  echo "⛔ failed: ${_failed[*]}" >&2
+  logging__error "failed: ${_failed[*]}"
   exit 1
 }
-echo "↩️  Script exit: sysset installer" >&2
+logging__fn_exit "sysset installer"
 exit 0

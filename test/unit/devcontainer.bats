@@ -178,9 +178,9 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "devcontainer__feature_env_exports coerces booleans + strings" {
-  run bash -c '. "$1" && printf %s "{\"debug\":true,\"prefix\":\"/opt\"}" | devcontainer__feature_env_exports' _ "${LIB_ROOT}/devcontainer.sh"
+  run bash -c '. "$1" && printf %s "{\"log_level\":\"trace\",\"prefix\":\"/opt\"}" | devcontainer__feature_env_exports' _ "${LIB_ROOT}/devcontainer.sh"
   assert_success
-  assert_output --partial "export DEBUG=true"
+  assert_output --partial "export LOG_LEVEL=trace"
   assert_output --partial "export PREFIX=/opt"
 }
 

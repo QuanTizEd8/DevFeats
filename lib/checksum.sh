@@ -26,22 +26,22 @@ checksum__verify_sha256() {
   elif command -v shasum > /dev/null 2>&1; then
     _actual="$(shasum --algorithm 256 "$_file" | awk '{print $1}')"
   else
-    echo "ℹ️  sha256sum/shasum not found — installing coreutils." >&2
+    logging__info "sha256sum/shasum not found — installing coreutils."
     ospkg__install_tracked "lib-checksum" coreutils
     if command -v sha256sum > /dev/null 2>&1; then
       _actual="$(sha256sum "$_file" | awk '{print $1}')"
     else
-      echo "⛔ checksum__verify_sha256: neither sha256sum nor shasum is available." >&2
+      logging__error "checksum__verify_sha256: neither sha256sum nor shasum is available."
       return 1
     fi
   fi
 
   if [ "$_expected" = "$_actual" ]; then
-    echo "✅ Checksum verification passed." >&2
+    logging__success "Checksum verification passed."
   else
-    echo "❌ Checksum verification failed." >&2
-    echo "   Expected: ${_expected}" >&2
-    echo "   Actual:   ${_actual}" >&2
+    logging__fatal "Checksum verification failed."
+    logging__error "   Expected: ${_expected}"
+    logging__error "   Actual:   ${_actual}"
     return 1
   fi
   return 0
@@ -61,7 +61,7 @@ checksum__verify_sha256_sidecar() {
   local _expected
   _expected="$(awk '{print $1}' "$_sha256_file")"
   [ -z "$_expected" ] && {
-    echo "⛔ checksum__verify_sha256_sidecar: could not read hash from '${_sha256_file}'." >&2
+    logging__error "checksum__verify_sha256_sidecar: could not read hash from '${_sha256_file}'."
     return 1
   }
   checksum__verify_sha256 "$_file" "$_expected"

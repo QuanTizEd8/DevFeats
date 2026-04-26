@@ -16,7 +16,7 @@ chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap 2> /dev/null || true
 mapfile -t _RESOLVED_USERS < <(users__resolve_list)
 
 if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
-  echo "install-podman: No users to configure." >&2
+  logging__info "install-podman: No users to configure."
 fi
 
 # ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ mkdir -p "${GRAPH_ROOT}"
 SUBUID_OFFSET=100000
 for _username in "${_RESOLVED_USERS[@]}"; do
   if ! id "$_username" > /dev/null 2>&1; then
-    echo "install-podman: User '${_username}' does not exist — skipping." >&2
+    logging__info "install-podman: User '${_username}' does not exist — skipping."
     continue
   fi
 

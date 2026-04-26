@@ -38,7 +38,7 @@ SysSet features are published in two parallel forms. They are built from the sam
 :::{grid-item-card} Dev Container features (OCI, GHCR)
 :class-title: sd-text-center
 
-Referenced from a `devcontainer.json` as `ghcr.io/quantized8/sysset/<feature-id>:<tag>`. Consumed by the Dev Containers spec tooling — VS Code Dev Containers, GitHub Codespaces, the `@devcontainers/cli`, and every other spec-compliant builder. Use this when you are building a container.
+Referenced from a `devcontainer.json` as `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>:<tag>`. Consumed by the Dev Containers spec tooling — VS Code Dev Containers, GitHub Codespaces, the `@devcontainers/cli`, and every other spec-compliant builder. Use this when you are building a container.
 :::
 
 :::{grid-item-card} Standalone installers (GitHub Releases)
@@ -66,12 +66,12 @@ Add any feature to `.devcontainer/devcontainer.json` under `features` and rebuil
 {
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user:0":    { "username": "dev" },
-    "ghcr.io/quantized8/sysset/install-shell:0": {
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user:0":    { "username": "dev" },
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:0": {
       "set_user_shells": "zsh",
       "ohmyzsh_theme":   "romkatv/powerlevel10k"
     },
-    "ghcr.io/quantized8/sysset/install-pixi:0":  {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:0":  {}
   },
   "remoteUser": "dev"
 }
@@ -89,14 +89,14 @@ devcontainer up --workspace-folder .
 Pipe `get.sh` into your shell to install a single feature. All arguments after `sh -s --` are forwarded to the feature's installer.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/get.sh \
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh \
   | sh -s -- install-pixi --version 0.66.0
 ```
 
 Or download `get.sh` once and run it as many times as you like:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/get.sh -o get.sh
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh -o get.sh
 sh get.sh install-shell --set_user_shells zsh
 sh get.sh setup-user    --username dev
 ```
@@ -107,7 +107,7 @@ sh get.sh setup-user    --username dev
 Write a `devcontainer.json` (or `.jsonc`) and hand it to `get.sh`. It installs the listed features in dependency order on the host — no container required.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/get.sh -o get.sh
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh -o get.sh
 sudo sh get.sh .devcontainer/my-setup.jsonc
 ```
 
@@ -118,12 +118,12 @@ Where `my-setup.jsonc` is:
   "name": "my env v1.2.0",
   "remoteUser": "dev",
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user":    { "username": "dev" },
-    "ghcr.io/quantized8/sysset/install-shell": {
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user":    { "username": "dev" },
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell": {
       "set_user_shells": "zsh",
       "ohmyzsh_theme":   "romkatv/powerlevel10k"
     },
-    "ghcr.io/quantized8/sysset/install-pixi":  {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi":  {}
   }
 }
 ```
@@ -139,18 +139,18 @@ Where `my-setup.jsonc` is:
 
 ## Installing as a dev container feature
 
-Each SysSet feature is published to GHCR under `ghcr.io/quantized8/sysset/<feature-id>`, with OCI tags for every released version. Add any combination of features to your `.devcontainer/devcontainer.json` — the Dev Containers tooling will fetch, order, and install them for you on build.
+Each SysSet feature is published to GHCR under `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>`, with OCI tags for every released version. Add any combination of features to your `.devcontainer/devcontainer.json` — the Dev Containers tooling will fetch, order, and install them for you on build.
 
 ```jsonc
 {
   "image": "ubuntu:24.04",
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user:0":    { "username": "dev" },
-    "ghcr.io/quantized8/sysset/install-shell:0": {
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user:0":    { "username": "dev" },
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:0": {
       "ohmyzsh_theme":   "romkatv/powerlevel10k",
       "set_user_shells": "zsh"
     },
-    "ghcr.io/quantized8/sysset/install-pixi:0":  {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:0":  {}
   },
   "remoteUser": "dev"
 }
@@ -189,15 +189,15 @@ The fastest path: give `get.sh` a feature ID and optionally a `@<version>` suffi
 
 ```sh
 # One-shot, latest version
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/get.sh \
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh \
   | sh -s -- install-pixi
 
 # Pass options to the feature installer
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/get.sh \
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh \
   | sh -s -- install-pixi --version 0.66.0
 
 # Download once, run many times
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/get.sh -o get.sh
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh -o get.sh
 sh get.sh install-shell --set_user_shells zsh --ohmyzsh_theme romkatv/powerlevel10k
 sh get.sh install-fonts --nerd_fonts Meslo --nerd_fonts FiraCode
 sh get.sh setup-user    --username dev
@@ -222,7 +222,7 @@ sudo sh get.sh .devcontainer/devcontainer.jsonc
 Every release ships a self-contained tarball per feature. It contains the bootstrap, the real installer, and a private copy of the shared library, so it runs entirely offline once downloaded:
 
 ```sh
-curl -fsSL https://github.com/quantized8/sysset/releases/download/install-pixi/1.2.3/sysset-install-pixi.tar.gz \
+curl -fsSL https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/install-pixi/1.2.3/sysset-install-pixi.tar.gz \
   | tar xz -C /tmp/pixi
 sudo sh /tmp/pixi/install.sh --version 0.66.0
 ```
@@ -254,7 +254,7 @@ Every feature is released under its own semver line, with a dedicated Git tag an
 
 - **Git tag:** `<feature-id>/<X.Y.Z>` — e.g. `install-pixi/1.2.3`.
 - **GitHub release:** per-tag, with a single asset `sysset-<feature-id>.tar.gz`.
-- **OCI tags:** `ghcr.io/quantized8/sysset/<feature-id>:<major>`, `:<major>.<minor>`, `:<major>.<minor>.<patch>`.
+- **OCI tags:** `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>:<major>`, `:<major>.<minor>`, `:<major>.<minor>.<patch>`.
 
 Semver is applied per feature: a patch bump is behavior-preserving, a minor bump is backwards-compatible, a major bump is breaking.
 
@@ -376,7 +376,7 @@ SYSSET_VERSION=v1.2.0 sh get.sh install-pixi@1.4 install-shell
 * - `name`
   - Optional. A trailing `v<major>.<minor>.<patch>` suffix can pin bundle resolution — equivalent to setting `SYSSET_VERSION`.
 * - `features`
-  - Object whose keys are OCI feature references (`ghcr.io/quantized8/sysset/<id>`, optionally with `:<tag>`) **or** local paths under the workspace that contain a `devcontainer-feature.json`. Values are the feature's options object (scalars only: booleans, strings, numbers).
+  - Object whose keys are OCI feature references (`ghcr.io/|{{github_user}}|/|{{github_repo}}|/<id>`, optionally with `:<tag>`) **or** local paths under the workspace that contain a `devcontainer-feature.json`. Values are the feature's options object (scalars only: booleans, strings, numbers).
 * - `overrideFeatureInstallOrder`
   - Optional array of feature references. Earlier entries get **higher priority** within a scheduling round, after hard/soft dependency edges are satisfied.
 * - `remoteUser` / `containerUser`
@@ -412,17 +412,17 @@ Fields that only have meaning for a container build (buildah/docker image assemb
   // Hard/soft dependency edges come from each feature's own metadata.
   // This list only breaks ties *within* a scheduling round.
   "overrideFeatureInstallOrder": [
-    "ghcr.io/quantized8/sysset/setup-user",
-    "ghcr.io/quantized8/sysset/install-shell"
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user",
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell"
   ],
 
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user":      { "username": "dev" },
-    "ghcr.io/quantized8/sysset/install-shell:1": {
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user":      { "username": "dev" },
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1": {
       "set_user_shells": "zsh",
       "ohmyzsh_theme":   "romkatv/powerlevel10k"
     },
-    "ghcr.io/quantized8/sysset/install-pixi":    {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi":    {}
   },
 
   "initializeCommand":      "echo 'prepping host'",
@@ -522,10 +522,10 @@ Usage:
 
 * - Flag
   - Description
-* - `--logfile <path>`
+* - `--log_file <path>`
   - Append the full captured output to this file on exit (absolute path recommended). Secrets detected via `GITHUB_TOKEN` are redacted.
-* - `--debug`
-  - Enable `bash -x` trace inside `get.bash` itself. (To enable tracing inside a feature, pass `--debug` among its feature options or set the `DEBUG` env var.)
+* - `--log_level <level>`
+  - Set `get.bash` log verbosity (`silent`, `error`, `warn`, `info`, `debug`, `trace`). `trace` enables `bash -x` for `get.bash`; for feature installers, use each feature's own `--log_level trace` / `LOG_LEVEL=trace`.
 * - `--help`, `-h`
   - Print the embedded usage and exit.
 * - `--workspace-folder <path>`
@@ -541,7 +541,7 @@ Usage:
 * - `--no-container-lifecycle-command <pattern>`
   - Repeatable. Disable container-level (manifest) lifecycle commands using the same grammar.
 * - `--compatible-prefix <oci-prefix>`
-  - Repeatable. Sets of OCI prefixes accepted in `features[…]`. Defaults to `ghcr.io/quantized8/sysset/`. Unknown prefixes are skipped with a warning.
+  - Repeatable. Sets of OCI prefixes accepted in `features[…]`. Defaults to `ghcr.io/|{{github_user}}|/|{{github_repo}}|/`. Unknown prefixes are skipped with a warning.
 * - `--no-lifecycle`
   - Feature mode only. Skip the installed feature's lifecycle hooks (short-circuits the per-feature `devcontainer-feature.json` lifecycle).
 ::::
@@ -561,13 +561,13 @@ Environment variables influence both `get.sh` (the POSIX bootstrap) and `get.bas
 * - `SYSSET_VERSION`
   - Bundle pin. Any spec understood by the version resolver (`""`, `latest`, `1`, `1.2`, `v1.2.3`, `1.2.3`). Per-feature `@spec` overrides still win. Equivalent to a `v*.*.*` suffix on the manifest's `name`.
 * - `SYSSET_BASE_URL`
-  - GitHub Releases base URL. Default: `https://github.com/quantized8/sysset/releases/download`. URLs are constructed as `<base>/<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` for per-feature releases and `<base>/v<X.Y.Z>/manifest.yaml` for bundles. Override for mirrors (including `file://` paths).
+  - GitHub Releases base URL. Default: `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. URLs are constructed as `<base>/<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` for per-feature releases and `<base>/v<X.Y.Z>/manifest.yaml` for bundles. Override for mirrors (including `file://` paths).
 * - `SYSSET_RAW_BASE`
-  - Raw GitHub base for `get.bash` and `lib/*.sh`. Default: `https://raw.githubusercontent.com/quantized8/sysset/main`. Override to use a fork, a branch, or a local mirror.
+  - Raw GitHub base for `get.bash` and `lib/*.sh`. Default: `https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main`. Override to use a fork, a branch, or a local mirror.
 * - `SYSSET_FETCH_TOOL`
   - Force `curl` or `wget`. Auto-detected when unset. Also exported by `get.sh` so `get.bash` inherits the same choice.
-* - `LOGFILE`
-  - Append the installer's captured output to this file on exit. Equivalent to `--logfile`. Also honored by individual features.
+* - `LOG_FILE`
+  - Append the installer's captured output to this file on exit. Equivalent to `--log_file`. Also honored by individual features.
 * - `GITHUB_TOKEN` *(optional)*
   - If set, used to authenticate GitHub API calls (avoids anonymous rate limits). Always masked in the captured log stream.
 ::::
@@ -585,8 +585,8 @@ Understanding the asset layout makes it easy to mirror releases, archive snapsho
 | Git tag           | `<feature-id>/<X.Y.Z>` (e.g. `install-pixi/1.2.3`)                                            |
 | GitHub Release    | One per tag                                                                                  |
 | Single asset      | `sysset-<feature-id>.tar.gz`                                                                  |
-| Download URL      | `https://github.com/quantized8/sysset/releases/download/<feature-id>/<X.Y.Z>/sysset-<feature-id>.tar.gz` |
-| OCI image         | `ghcr.io/quantized8/sysset/<feature-id>`                                                     |
+| Download URL      | `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/<feature-id>/<X.Y.Z>/sysset-<feature-id>.tar.gz` |
+| OCI image         | `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>`                                                     |
 | OCI tags          | `:<major>`, `:<major>.<minor>`, `:<major>.<minor>.<patch>`                                   |
 
 ### Bundle release
@@ -597,7 +597,7 @@ Understanding the asset layout makes it easy to mirror releases, archive snapsho
 | GitHub Release    | Marked as `latest` on the repository                                                          |
 | Asset #1          | `sysset-all.tar.gz` — every per-feature tarball, flat layout                                  |
 | Asset #2          | `manifest.yaml` — per-feature version map for the bundle                                      |
-| Download URLs     | `https://github.com/quantized8/sysset/releases/download/v<X.Y.Z>/sysset-all.tar.gz`<br/>`https://github.com/quantized8/sysset/releases/download/v<X.Y.Z>/manifest.yaml` |
+| Download URLs     | `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/v<X.Y.Z>/sysset-all.tar.gz`<br/>`https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/v<X.Y.Z>/manifest.yaml` |
 
 :::{dropdown} Publication strategy
 
@@ -622,16 +622,16 @@ The standalone channel is designed to work with no outbound network, provided yo
 VERSION=v1.2.0
 
 # Fetch both bundle assets once, somewhere you can copy them from later.
-curl -fsSL "https://github.com/quantized8/sysset/releases/download/${VERSION}/sysset-all.tar.gz" \
+curl -fsSL "https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/${VERSION}/sysset-all.tar.gz" \
   | tar xz -C /opt/sysset
-curl -fsSL "https://github.com/quantized8/sysset/releases/download/${VERSION}/manifest.yaml" \
-  -o /opt/sysset/manifest.yaml
+curl -fsSL "https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/${VERSION}/manifest.yaml" \
+  -o /opt/|{{github_repo}}|/manifest.yaml
 ```
 
 At this point, each `sysset-<feature>.tar.gz` under `/opt/sysset` is a self-contained per-feature install, so you can already run any one of them offline:
 
 ```sh
-tar xz -C /tmp/pixi < /opt/sysset/sysset-install-pixi.tar.gz
+tar xz -C /tmp/pixi < /opt/|{{github_repo}}|/sysset-install-pixi.tar.gz
 sudo sh /tmp/pixi/install.sh --version 0.66.0
 ```
 
@@ -643,11 +643,11 @@ For `get.bash` manifest mode, build a mirror that mirrors `<base>/<feature>/<X.Y
 VERSION=v1.2.0
 
 mkdir -p /opt/sysset-mirror/${VERSION}
-cp /opt/sysset/manifest.yaml /opt/sysset-mirror/${VERSION}/
+cp /opt/|{{github_repo}}|/manifest.yaml /opt/sysset-mirror/${VERSION}/
 
 python3 - <<'PY'
 import pathlib, shutil, yaml
-m = yaml.safe_load(pathlib.Path("/opt/sysset/manifest.yaml").read_text())
+m = yaml.safe_load(pathlib.Path("/opt/|{{github_repo}}|/manifest.yaml").read_text())
 root = pathlib.Path("/opt/sysset-mirror")
 src  = pathlib.Path("/opt/sysset")
 for feat, ver in m["features"].items():
@@ -683,8 +683,8 @@ Or skip `get.sh` entirely and run the per-feature tarballs directly — they con
 Every feature goes through the same logging pipeline, which makes failures easy to triage.
 
 - **Emoji markers** — stdout and stderr use a consistent vocabulary (`↪️` entry, `ℹ️` info, `📩` input read, `📦` install step, `⚠️` warning, `⛔` / `❌` error, `↩️` exit). Grep for `⛔` / `❌` in a log file to jump straight to failures.
-- **`--logfile <path>`** (on `get.sh`, or `--logfile` as a feature option) captures the full `tee`d output. Append-safe; works across features in the same run.
-- **`--debug`** enables `bash -x` inside the installer; combine with `--logfile` to capture the trace.
+- **`--log_file <path>`** (on `get.sh`, or `--log_file` as a feature option) captures the full `tee`d output. Append-safe; works across features in the same run.
+- **`--log_level trace`** enables `bash -x` inside generated feature installers; combine with `--log_file` to capture the trace.
 - **Partial failures** — in manifest mode, `get.bash` attempts every feature and exits non-zero if any failed, naming them at the end. Order is still respected: a feature whose hard dependencies failed is skipped.
 - **Re-runs are idempotent** — installers check for already-done work and skip it, so you can rerun after fixing an environment issue without uninstalling first.
 

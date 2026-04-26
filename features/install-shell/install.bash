@@ -45,7 +45,7 @@ install_ohmyzsh() {
     _custom_dir="${_install_dir}/custom"
   fi
 
-  echo "ℹ️  Installing Oh My Zsh to '${_install_dir}' (branch: ${_branch})..." >&2
+  logging__info "Installing Oh My Zsh to '${_install_dir}' (branch: ${_branch})..."
   local _prev_umask
   _prev_umask="$(umask)"
   umask g-w,o-w
@@ -62,7 +62,7 @@ install_ohmyzsh() {
     local _theme_repo_name
     _theme_repo_name="$(basename "$_theme")"
     git__clone --url "${_GITHUB_BASE_URL}/${_theme}" --dir "${_custom_dir}/themes/${_theme_repo_name}"
-    echo "ℹ️  Installed custom theme '${_theme}'." >&2
+    logging__info "Installed custom theme '${_theme}'."
   fi
 
   local _slug
@@ -70,16 +70,16 @@ install_ohmyzsh() {
     _slug="${_slug// /}"
     [ -z "$_slug" ] && continue
     if [[ "$_slug" != */* ]]; then
-      echo "ℹ️  '${_slug}' is a built-in plugin — skipping clone." >&2
+      logging__info "'${_slug}' is a built-in plugin — skipping clone."
       continue
     fi
     local _plugin_name
     _plugin_name="$(basename "$_slug")"
     git__clone --url "${_GITHUB_BASE_URL}/${_slug}" --dir "${_custom_dir}/plugins/${_plugin_name}"
-    echo "ℹ️  Installed custom plugin '${_slug}'." >&2
+    logging__info "Installed custom plugin '${_slug}'."
   done
 
-  echo "✅ Oh My Zsh installation complete." >&2
+  logging__success "Oh My Zsh installation complete."
   return 0
 }
 
@@ -102,7 +102,7 @@ install_ohmybash() {
     _custom_dir="${_install_dir}/custom"
   fi
 
-  echo "ℹ️  Installing Oh My Bash to '${_install_dir}' (branch: ${_branch})..." >&2
+  logging__info "Installing Oh My Bash to '${_install_dir}' (branch: ${_branch})..."
   local _prev_umask
   _prev_umask="$(umask)"
   umask g-w,o-w
@@ -119,7 +119,7 @@ install_ohmybash() {
     local _theme_repo_name
     _theme_repo_name="$(basename "$_theme")"
     git__clone --url "${_GITHUB_BASE_URL}/${_theme}" --dir "${_custom_dir}/themes/${_theme_repo_name}"
-    echo "ℹ️  Installed custom theme '${_theme}'." >&2
+    logging__info "Installed custom theme '${_theme}'."
   fi
 
   local _slug
@@ -127,16 +127,16 @@ install_ohmybash() {
     _slug="${_slug// /}"
     [ -z "$_slug" ] && continue
     if [[ "$_slug" != */* ]]; then
-      echo "ℹ️  '${_slug}' is a built-in plugin — skipping clone." >&2
+      logging__info "'${_slug}' is a built-in plugin — skipping clone."
       continue
     fi
     local _plugin_name
     _plugin_name="$(basename "$_slug")"
     git__clone --url "${_GITHUB_BASE_URL}/${_slug}" --dir "${_custom_dir}/plugins/${_plugin_name}"
-    echo "ℹ️  Installed custom plugin '${_slug}'." >&2
+    logging__info "Installed custom plugin '${_slug}'."
   done
 
-  echo "✅ Oh My Bash installation complete." >&2
+  logging__success "Oh My Bash installation complete."
   return 0
 }
 
@@ -148,7 +148,7 @@ install_fzf() {
   local _bin_dir="${FZF_PREFIX}/bin"
 
   if [ -x "${_bin_dir}/fzf" ]; then
-    echo "ℹ️  fzf already installed at '${_bin_dir}/fzf' — skipping." >&2
+    logging__info "fzf already installed at '${_bin_dir}/fzf' — skipping."
     return 0
   fi
 
@@ -158,15 +158,15 @@ install_fzf() {
   trap "rm -f '${_reljson}'" RETURN
 
   if ! github__fetch_release_json "junegunn/fzf" --dest "$_reljson"; then
-    echo "⛔ Failed to fetch fzf release metadata from GitHub." >&2
+    logging__error "Failed to fetch fzf release metadata from GitHub."
     return 1
   fi
   _tag="$(github__release_json_tag_name "$_reljson")" || {
-    echo "⛔ Failed to parse fzf release tag from GitHub JSON." >&2
+    logging__error "Failed to parse fzf release tag from GitHub JSON."
     return 1
   }
   _version="${_tag#v}"
-  echo "ℹ️  Installing fzf ${_version} to '${_bin_dir}'..." >&2
+  logging__info "Installing fzf ${_version} to '${_bin_dir}'..."
 
   local _kernel _arch _os _fzf_arch
   _kernel="$(os__kernel)"
@@ -175,7 +175,7 @@ install_fzf() {
     Linux) _os="linux" ;;
     Darwin) _os="darwin" ;;
     *)
-      echo "⛔ Unsupported kernel for fzf install: '${_kernel}'" >&2
+      logging__error "Unsupported kernel for fzf install: '${_kernel}'"
       return 1
       ;;
   esac
@@ -183,7 +183,7 @@ install_fzf() {
     x86_64) _fzf_arch="amd64" ;;
     aarch64) _fzf_arch="arm64" ;;
     *)
-      echo "⛔ Unsupported arch for fzf install: '${_arch}'" >&2
+      logging__error "Unsupported arch for fzf install: '${_arch}'"
       return 1
       ;;
   esac
@@ -209,7 +209,7 @@ install_fzf() {
   tar -xzf "$_archive" -C "$_bin_dir" fzf
   chmod 755 "${_bin_dir}/fzf"
 
-  echo "✅ fzf installed to '${_bin_dir}/fzf'." >&2
+  logging__success "fzf installed to '${_bin_dir}/fzf'."
   return 0
 }
 
@@ -225,13 +225,13 @@ install_zsh_completions() {
     return 0
   fi
 
-  echo "ℹ️  Installing zsh-completions (git) → '${_ZSH_COMPLETIONS_PREFIX}'..." >&2
+  logging__info "Installing zsh-completions (git) → '${_ZSH_COMPLETIONS_PREFIX}'..."
   local _prev_umask
   _prev_umask="$(umask)"
   umask g-w,o-w
   git__clone --url "$_ZSH_COMPLETIONS_REPO_URL" --dir "$_ZSH_COMPLETIONS_PREFIX"
   umask "$_prev_umask"
-  echo "✅ zsh-completions ready (fpath: '${_ZSH_COMPLETIONS_SRC}')." >&2
+  logging__success "zsh-completions ready (fpath: '${_ZSH_COMPLETIONS_SRC}')."
   return 0
 }
 
@@ -242,11 +242,11 @@ install_starship() {
   local _bin_dir="${STARSHIP_PREFIX}/bin"
 
   if [ -x "${_bin_dir}/starship" ]; then
-    echo "ℹ️  Starship already installed at '${_bin_dir}/starship' — skipping." >&2
+    logging__info "Starship already installed at '${_bin_dir}/starship' — skipping."
     return 0
   fi
 
-  echo "ℹ️  Installing Starship to '${_bin_dir}'..." >&2
+  logging__info "Installing Starship to '${_bin_dir}'..."
   local _installer_script
   _installer_script="$(mktemp)"
   # shellcheck disable=SC2064
@@ -257,9 +257,9 @@ install_starship() {
   sh "$_installer_script" --yes --bin-dir "$_bin_dir" >&2
 
   if [ -x "${_bin_dir}/starship" ]; then
-    echo "✅ Starship installed to '${_bin_dir}/starship'." >&2
+    logging__success "Starship installed to '${_bin_dir}/starship'."
   else
-    echo "⛔ Starship installation failed." >&2
+    logging__error "Starship installation failed."
     return 1
   fi
   return 0
@@ -336,12 +336,12 @@ configure_user() {
   _cu_group="$(id -gn "$_cu_username" 2> /dev/null || echo "$_cu_username")"
 
   if [ ! -d "$_cu_home" ]; then
-    echo "⚠️  Home directory '${_cu_home}' does not exist for user '${_cu_username}' — creating." >&2
+    logging__warn "Home directory '${_cu_home}' does not exist for user '${_cu_username}' — creating."
     mkdir -p "$_cu_home"
     chown "${_cu_username}:${_cu_group}" "$_cu_home"
   fi
 
-  echo "ℹ️  Configuring user '${_cu_username}' (home: ${_cu_home}, mode: ${USER_CONFIG_MODE})..." >&2
+  logging__info "Configuring user '${_cu_username}' (home: ${_cu_home}, mode: ${USER_CONFIG_MODE})..."
 
   # Resolve per-user XDG and Zsh config paths.
   local _cu_xdg_config_home="${_cu_home}/.config"
@@ -367,7 +367,7 @@ configure_user() {
   # Mode: skip — bail out if any dotfile already exists.
   if [[ "$USER_CONFIG_MODE" == "skip" ]]; then
     if [ -f "${_cu_zdotdir}/.zshrc" ] || [ -f "${_cu_home}/.bashrc" ]; then
-      echo "ℹ️  User '${_cu_username}' already has dotfiles — skipping (mode=skip)." >&2
+      logging__info "User '${_cu_username}' already has dotfiles — skipping (mode=skip)."
       return 0
     fi
   fi
@@ -437,7 +437,7 @@ configure_user() {
     if [[ "$_cu_starship_shells" == *zsh* ]]; then
       _cu_zsh_use_starship=true
       if [ -n "$OHMYZSH_THEME" ]; then
-        echo "⚠️  ohmyzsh_theme='${OHMYZSH_THEME}' is set but starship_shells includes 'zsh' — theme ignored, Starship will own the prompt." >&2
+        logging__warn "ohmyzsh_theme='${OHMYZSH_THEME}' is set but starship_shells includes 'zsh' — theme ignored, Starship will own the prompt."
       fi
     fi
 
@@ -517,7 +517,7 @@ configure_user() {
   # Append Starship integration for zsh.
   if [[ "$_cu_starship_shells" == *zsh* ]]; then
     if ! command -v starship > /dev/null 2>&1 && [ ! -x "${_cu_bin_dir}/starship" ]; then
-      echo "⚠️  starship_shells includes 'zsh' but starship is not on PATH — integration injected anyway." >&2
+      logging__warn "starship_shells includes 'zsh' but starship is not on PATH — integration injected anyway."
     fi
     # shellcheck disable=SC2016
     _cu_zshtheme_content+='command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"'$'\n'
@@ -529,12 +529,12 @@ configure_user() {
     case "$USER_CONFIG_MODE" in
       overwrite)
         printf '%s' "$_cu_zshtheme_content" > "$_cu_zshtheme"
-        echo "ℹ️  Written zsh theme file '${_cu_zshtheme}'." >&2
+        logging__info "Written zsh theme file '${_cu_zshtheme}'."
         ;;
       augment)
         if [ ! -f "$_cu_zshtheme" ]; then
           printf '%s' "$_cu_zshtheme_content" > "$_cu_zshtheme"
-          echo "ℹ️  Written zsh theme file '${_cu_zshtheme}'." >&2
+          logging__info "Written zsh theme file '${_cu_zshtheme}'."
         fi
         ;;
     esac
@@ -580,7 +580,7 @@ configure_user() {
     if [[ "$_cu_starship_shells" == *bash* ]]; then
       _cu_bash_use_starship=true
       if [ -n "$OHMYBASH_THEME" ]; then
-        echo "⚠️  ohmybash_theme='${OHMYBASH_THEME}' is set but starship_shells includes 'bash' — theme ignored, Starship will own the prompt." >&2
+        logging__warn "ohmybash_theme='${OHMYBASH_THEME}' is set but starship_shells includes 'bash' — theme ignored, Starship will own the prompt."
       fi
     fi
 
@@ -634,7 +634,7 @@ configure_user() {
   # Append Starship integration for bash.
   if [[ "$_cu_starship_shells" == *bash* ]]; then
     if ! command -v starship > /dev/null 2>&1 && [ ! -x "${_cu_bin_dir}/starship" ]; then
-      echo "⚠️  starship_shells includes 'bash' but starship is not on PATH — integration injected anyway." >&2
+      logging__warn "starship_shells includes 'bash' but starship is not on PATH — integration injected anyway."
     fi
     # shellcheck disable=SC2016
     _cu_bashtheme_content+='command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"'$'\n'
@@ -646,12 +646,12 @@ configure_user() {
     case "$USER_CONFIG_MODE" in
       overwrite)
         printf '%s' "$_cu_bashtheme_content" > "$_cu_bashtheme"
-        echo "ℹ️  Written bash theme file '${_cu_bashtheme}'." >&2
+        logging__info "Written bash theme file '${_cu_bashtheme}'."
         ;;
       augment)
         if [ ! -f "$_cu_bashtheme" ]; then
           printf '%s' "$_cu_bashtheme_content" > "$_cu_bashtheme"
-          echo "ℹ️  Written bash theme file '${_cu_bashtheme}'." >&2
+          logging__info "Written bash theme file '${_cu_bashtheme}'."
         fi
         ;;
     esac
@@ -660,7 +660,7 @@ configure_user() {
   # Fix ownership — give the user full ownership of their entire home directory.
   chown -R "${_cu_username}:${_cu_group}" "$_cu_home"
 
-  echo "✅ User '${_cu_username}' configuration complete." >&2
+  logging__success "User '${_cu_username}' configuration complete."
   return 0
 }
 
@@ -673,10 +673,10 @@ _download_deps__install
 
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
-    echo "ℹ️  Zsh already installed — skipping." >&2
+    logging__info "Zsh already installed — skipping."
     _ospkg_protect_user_pkgs zsh
   else
-    echo "📦 Installing Zsh..." >&2
+    logging__install "Installing Zsh..."
     ospkg__install_user zsh
   fi
 fi
@@ -684,7 +684,7 @@ fi
 # Verify prerequisites are available.
 for _cmd in git curl; do
   if ! command -v "$_cmd" > /dev/null 2>&1; then
-    echo "⛔ Required command '${_cmd}' not found. Install it first." >&2
+    logging__error "Required command '${_cmd}' not found. Install it first."
     exit 1
   fi
 done
@@ -693,17 +693,17 @@ done
 # Step 2.5: Install shell tool integrations
 # ===================================================================
 if [[ "$INSTALL_BASH_COMPLETION" == true ]]; then
-  echo "📦 Installing bash-completion..." >&2
+  logging__install "Installing bash-completion..."
   ospkg__run --manifest $'packages:\n  - name: bash-completion\n    brew: bash-completion@2'
 fi
 
 if [[ "$INSTALL_ZSH_COMPLETIONS" == true ]] && command -v zsh > /dev/null 2>&1; then
-  echo "📦 Installing zsh-completions..." >&2
+  logging__install "Installing zsh-completions..."
   install_zsh_completions
 fi
 
 if [[ "$INSTALL_DIRENV" == true ]]; then
-  echo "📦 Installing direnv..." >&2
+  logging__install "Installing direnv..."
   ospkg__install_user direnv
 fi
 
@@ -717,7 +717,7 @@ fi
 _OMZ_INSTALLED=false
 if [[ "$INSTALL_OHMYZSH" == true ]]; then
   if ! command -v zsh > /dev/null 2>&1; then
-    echo "⚠️  Zsh not available — skipping Oh My Zsh installation." >&2
+    logging__warn "Zsh not available — skipping Oh My Zsh installation."
   else
     install_ohmyzsh
     _OMZ_INSTALLED=true
@@ -743,7 +743,7 @@ fi
 # ===================================================================
 # Step 5: Deploy system-wide shell configuration files
 # ===================================================================
-echo "📄 Deploying system-wide shell configuration files..." >&2
+logging__info "Deploying system-wide shell configuration files..."
 
 # --- Shared (shell-agnostic) files ---
 for _name in shellenv shellrc shellaliases; do
@@ -752,7 +752,7 @@ for _name in shellenv shellrc shellaliases; do
   if [ -f "$_src" ]; then
     cp -f "$_src" "$_dest"
     chmod 644 "$_dest"
-    echo "  ✅ ${_dest}" >&2
+    logging__success "  ${_dest}"
   fi
 done
 
@@ -761,7 +761,7 @@ _src="${_FILES_DIR}/profile"
 if [ -f "$_src" ]; then
   cp -f "$_src" "/etc/profile"
   chmod 644 "/etc/profile"
-  echo "  ✅ /etc/profile" >&2
+  logging__success "  /etc/profile"
 fi
 
 # --- Bash system-wide bashrc ---
@@ -771,7 +771,7 @@ if [ -f "$_src" ]; then
   mkdir -p "$(dirname "$_SYS_BASHRC")"
   cp -f "$_src" "$_SYS_BASHRC"
   chmod 644 "$_SYS_BASHRC"
-  echo "  ✅ ${_SYS_BASHRC}" >&2
+  logging__success "  ${_SYS_BASHRC}"
 fi
 
 # --- Bash bashenv (if present in files/) ---
@@ -784,7 +784,7 @@ if [ -f "$_src" ]; then
   [[ "$_SYS_BASHRC" == "/etc/bashrc" ]] && _bashenv_dest="/etc/bashenv"
   cp -f "$_src" "$_bashenv_dest"
   chmod 644 "$_bashenv_dest"
-  echo "  ✅ ${_bashenv_dest}" >&2
+  logging__success "  ${_bashenv_dest}"
 
   # Ensure BASH_ENV is set system-wide so non-interactive non-login bash
   # sessions (VS Code tasks, devcontainer exec, CI runners) source it.
@@ -792,7 +792,7 @@ if [ -f "$_src" ]; then
     # Remove any stale BASH_ENV line first, then append the correct one.
     sed -i '/^BASH_ENV=/d' /etc/environment 2> /dev/null || true
     echo "BASH_ENV=${_bashenv_dest}" >> /etc/environment
-    echo "  ✅ BASH_ENV=${_bashenv_dest} → /etc/environment" >&2
+    logging__success "  BASH_ENV=${_bashenv_dest} → /etc/environment"
   fi
 fi
 
@@ -807,7 +807,7 @@ if command -v zsh > /dev/null 2>&1; then
     if [ -f "$_src" ]; then
       cp -f "$_src" "$_dest"
       chmod 644 "$_dest"
-      echo "  ✅ ${_dest}" >&2
+      logging__success "  ${_dest}"
     fi
   done
 
@@ -831,7 +831,7 @@ if command -v zsh > /dev/null 2>&1; then
           --file "$_zshrc_dest" \
           --marker "install-shell-pre-compinit" \
           --content "fpath=( '${_zsh_comp_fpath}' \${fpath[@]} )"
-        echo "  ✅ zsh-completions fpath → ${_zshrc_dest}" >&2
+        logging__success "  zsh-completions fpath → ${_zshrc_dest}"
       fi
     fi
   fi
@@ -843,9 +843,9 @@ fi
 mapfile -t _RESOLVED_USERS < <(users__resolve_list)
 
 if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
-  echo "ℹ️  No users to configure." >&2
+  logging__info "No users to configure."
 else
-  echo "👤 Users to configure: ${_RESOLVED_USERS[*]}" >&2
+  logging__info "Users to configure: ${_RESOLVED_USERS[*]}"
 fi
 
 # ===================================================================
@@ -854,7 +854,7 @@ fi
 for _username in "${_RESOLVED_USERS[@]}"; do
   # Verify the user exists.
   if ! id "$_username" > /dev/null 2>&1; then
-    echo "⚠️  User '${_username}' does not exist — skipping." >&2
+    logging__warn "User '${_username}' does not exist — skipping."
     continue
   fi
 
@@ -870,19 +870,19 @@ if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
     zsh)
       _TARGET_SHELL="$(command -v zsh 2> /dev/null || true)"
       if [ -z "$_TARGET_SHELL" ]; then
-        echo "⛔ set_user_shells=zsh but zsh is not installed." >&2
+        logging__error "set_user_shells=zsh but zsh is not installed."
         exit 1
       fi
       ;;
     bash)
       _TARGET_SHELL="$(command -v bash 2> /dev/null || true)"
       if [ -z "$_TARGET_SHELL" ]; then
-        echo "⛔ set_user_shells=bash but bash is not installed." >&2
+        logging__error "set_user_shells=bash but bash is not installed."
         exit 1
       fi
       ;;
     *)
-      echo "⛔ Invalid set_user_shells value: '${SET_USER_SHELLS}' (expected: zsh, bash, none)." >&2
+      logging__error "Invalid set_user_shells value: '${SET_USER_SHELLS}' (expected: zsh, bash, none)."
       exit 1
       ;;
   esac

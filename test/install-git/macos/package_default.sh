@@ -26,7 +26,7 @@ bash "${REPO_ROOT}/src/install-git/install.sh" \
   --method package \
   --version stable \
   --if_exists skip \
-  --debug true
+  --log_level trace
 
 # --- git is still functional after the feature skips ---
 check "git on PATH after feature run" command -v git

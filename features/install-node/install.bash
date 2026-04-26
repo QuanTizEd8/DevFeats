@@ -1,18 +1,18 @@
 _cleanup_hook() {
-  echo "↪️ Function entry: _cleanup_hook" >&2
+  logging__fn_entry "_cleanup_hook"
   # shellcheck disable=SC2015  # || true is intentional: cleanup must not abort on rm failure
   [ -n "${INSTALLER_DIR-}" ] && rm -rf "$INSTALLER_DIR" 2> /dev/null || true
   if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${NVM_DIR-}" ] && [ -f "${NVM_DIR}/nvm.sh" ] && [ -n "${_NVM_USER-}" ]; then
     su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
   fi
-  echo "↩️ Function exit: _cleanup_hook" >&2
+  logging__fn_exit "_cleanup_hook"
 }
 
 # _node_build_platform_string
 # Outputs a nodejs.org platform string (e.g. linux-x64, darwin-arm64).
 # Arguments: kernel arch
 _node_build_platform_string() {
-  echo "↪️ Function entry: _node_build_platform_string" >&2
+  logging__fn_entry "_node_build_platform_string"
   local _kernel="$1"
   local _arch="$2"
 
@@ -32,13 +32,13 @@ _node_build_platform_string() {
     Darwin:x86_64) _platform="darwin-x64" ;;
     Darwin:arm64) _platform="darwin-arm64" ;;
     *)
-      echo "⛔ Unsupported kernel/arch combination for Node.js binary: ${_kernel}/${_arch}" >&2
-      echo "   Use method=nvm for source-based installation on unsupported architectures." >&2
+      logging__error "Unsupported kernel/arch combination for Node.js binary: ${_kernel}/${_arch}"
+      logging__info "Use method=nvm for source-based installation on unsupported architectures."
       return 1
       ;;
   esac
   echo "$_platform"
-  echo "↩️ Function exit: _node_build_platform_string → ${_platform}" >&2
+  logging__fn_exit "_node_build_platform_string → ${_platform}"
   return 0
 }
 
@@ -46,7 +46,7 @@ _node_build_platform_string() {
 # Resolves a version spec to an exact vX.Y.Z string using a downloaded index.json.
 # Arguments: version_spec index_json_path
 _node_resolve_binary_version() {
-  echo "↪️ Function entry: _node_resolve_binary_version" >&2
+  logging__fn_entry "_node_resolve_binary_version"
   local _spec="$1"
   local _index="$2"
 
@@ -68,7 +68,7 @@ _node_resolve_binary_version() {
       # Exact semver with leading v
       _resolved="$_spec"
       if ! json__nodejs_index_version_stdin exact "$_spec" < "$_index" > /dev/null; then
-        echo "⛔ Node.js version '${_spec}' was not found in nodejs.org/dist/index.json." >&2
+        logging__error "Node.js version '${_spec}' was not found in nodejs.org/dist/index.json."
         return 1
       fi
       ;;
@@ -76,44 +76,44 @@ _node_resolve_binary_version() {
       # Exact semver without leading v
       _resolved="v${_spec}"
       if ! json__nodejs_index_version_stdin exact "v${_spec}" < "$_index" > /dev/null; then
-        echo "⛔ Node.js version '${_spec}' was not found in nodejs.org/dist/index.json." >&2
+        logging__error "Node.js version '${_spec}' was not found in nodejs.org/dist/index.json."
         return 1
       fi
       ;;
     *)
-      echo "⛔ Version spec '${_spec}' is not supported by method=binary." >&2
-      echo "   Supported formats: lts/*, latest, a major number (e.g. 22), or an exact semver." >&2
-      echo "   nvm-style named LTS aliases (e.g. 'lts/iron') are not supported; use method=nvm instead." >&2
+      logging__error "Version spec '${_spec}' is not supported by method=binary."
+      logging__info "Supported formats: lts/*, latest, a major number (e.g. 22), or an exact semver."
+      logging__info "nvm-style named LTS aliases (e.g. 'lts/iron') are not supported; use method=nvm instead."
       return 1
       ;;
   esac
 
   if [ -z "$_resolved" ]; then
-    echo "⛔ Could not resolve Node.js version '${_spec}' from index.json." >&2
+    logging__error "Could not resolve Node.js version '${_spec}' from index.json."
     return 1
   fi
 
   echo "$_resolved"
-  echo "↩️ Function exit: _node_resolve_binary_version → ${_resolved}" >&2
+  logging__fn_exit "_node_resolve_binary_version → ${_resolved}"
   return 0
 }
 
 # _node_check_if_exists
 # Pre-install check: handles if_exists option for an existing node binary.
 _node_check_if_exists() {
-  echo "↪️ Function entry: _node_check_if_exists" >&2
+  logging__fn_entry "_node_check_if_exists"
   command -v node > /dev/null 2>&1 || {
-    echo "↩️ Function exit: _node_check_if_exists (not found)" >&2
+    logging__fn_exit "_node_check_if_exists (not found)"
     return 0
   }
 
   local _installed_ver
   _installed_ver="$(node --version 2> /dev/null || true)"
-  echo "ℹ️ Existing node found: ${_installed_ver}" >&2
+  logging__info "Existing node found: ${_installed_ver}"
 
   # For binary method: compare against the pre-resolved target version.
   if [ "$METHOD" = "binary" ] && [ -n "${_NODE_VERSION:-}" ] && [ "$_installed_ver" = "$_NODE_VERSION" ]; then
-    echo "ℹ️ Node.js ${_NODE_VERSION} is already installed — skipping (version matches)." >&2
+    logging__info "Node.js ${_NODE_VERSION} is already installed — skipping (version matches)."
     exit 0
   fi
 
@@ -125,7 +125,7 @@ _node_check_if_exists() {
       v[0-9]*\.*\.[0-9]* | [0-9]*\.*\.[0-9]*)
         local _target="v${_spec#v}"
         if [ "$_installed_ver" = "$_target" ]; then
-          echo "ℹ️ Node.js ${_target} is already installed — skipping (version matches)." >&2
+          logging__info "Node.js ${_target} is already installed — skipping (version matches)."
           exit 0
         fi
         ;;
@@ -134,21 +134,21 @@ _node_check_if_exists() {
 
   case "$IF_EXISTS" in
     skip)
-      echo "ℹ️ node is already installed (${_installed_ver}) and if_exists=skip — skipping." >&2
+      logging__info "node is already installed (${_installed_ver}) and if_exists=skip — skipping."
       exit 0
       ;;
     fail)
-      echo "⛔ node is already installed (${_installed_ver}) and if_exists=fail." >&2
+      logging__error "node is already installed (${_installed_ver}) and if_exists=fail."
       exit 1
       ;;
     reinstall)
-      echo "ℹ️ node is already installed (${_installed_ver}) — reinstalling (if_exists=reinstall)." >&2
+      logging__info "node is already installed (${_installed_ver}) — reinstalling (if_exists=reinstall)."
       if [ "$METHOD" = "binary" ]; then
         for _bin in node npm npx corepack; do
           local _p
           _p="$(command -v "$_bin" 2> /dev/null || true)"
           [ -n "$_p" ] && {
-            echo "ℹ️ Removing ${_p}" >&2
+            logging__info "Removing ${_p}"
             rm -f "$_p"
           }
         done
@@ -160,33 +160,33 @@ _node_check_if_exists() {
           [ "$_ver_to_remove" = "lts" ] && _ver_to_remove="lts/*"
           nvm uninstall "$_ver_to_remove" 2> /dev/null || true
         else
-          echo "ℹ️ NVM_DIR/nvm.sh not found — skipping nvm uninstall (will install fresh)." >&2
+          logging__info "NVM_DIR/nvm.sh not found — skipping nvm uninstall (will install fresh)."
         fi
       fi
       ;;
   esac
 
-  echo "↩️ Function exit: _node_check_if_exists" >&2
+  logging__fn_exit "_node_check_if_exists"
   return 0
 }
 
 # _node_set_permissions
 # Create nvm group, configure ownership/bits on NVM_DIR, add users to the group.
 _node_set_permissions() {
-  echo "↪️ Function entry: _node_set_permissions" >&2
+  logging__fn_entry "_node_set_permissions"
   if [ "$(os__platform)" = "macos" ]; then
-    echo "ℹ️ set_permissions is not supported on macOS (groupadd/usermod are unavailable) — skipping." >&2
-    echo "↩️ Function exit: _node_set_permissions (skipped on macOS)" >&2
+    logging__info "set_permissions is not supported on macOS (groupadd/usermod are unavailable) — skipping."
+    logging__fn_exit "_node_set_permissions (skipped on macOS)"
     return 0
   fi
 
-  echo "ℹ️ Creating group '${GROUP}' and configuring permissions on '${NVM_DIR}'." >&2
+  logging__info "Creating group '${GROUP}' and configuring permissions on '${NVM_DIR}'."
   getent group "$GROUP" > /dev/null 2>&1 || groupadd -r "$GROUP"
 
   for _u in "${_RESOLVED_USERS[@]}"; do
     [[ -z "$_u" ]] && continue
     id -nG "$_u" 2> /dev/null | grep -qw "$GROUP" || {
-      echo "ℹ️ Adding user '${_u}' to group '${GROUP}'." >&2
+      logging__info "Adding user '${_u}' to group '${GROUP}'."
       usermod -a -G "$GROUP" "$_u"
     }
   done
@@ -195,26 +195,26 @@ _node_set_permissions() {
   chown -R "${_NVM_USER}:${GROUP}" "$NVM_DIR"
   chmod g+rws "$NVM_DIR"
 
-  echo "↩️ Function exit: _node_set_permissions" >&2
+  logging__fn_exit "_node_set_permissions"
   return 0
 }
 
 # _node_install_via_nvm
 # Full nvm-based installation flow.
 _node_install_via_nvm() {
-  echo "↪️ Function entry: _node_install_via_nvm" >&2
+  logging__fn_entry "_node_install_via_nvm"
   local _nvm_tag
 
   # Resolve nvm tag
   if [ "$NVM_VERSION" = "latest" ]; then
-    echo "ℹ️ Resolving latest nvm release tag..." >&2
+    logging__info "Resolving latest nvm release tag..."
     _nvm_tag="$(github__latest_tag nvm-sh/nvm)"
-    echo "ℹ️ Latest nvm tag: ${_nvm_tag}" >&2
+    logging__info "Latest nvm tag: ${_nvm_tag}"
   else
     _nvm_tag="v${NVM_VERSION#v}"
   fi
 
-  echo "ℹ️ Installing nvm ${_nvm_tag}..." >&2
+  logging__info "Installing nvm ${_nvm_tag}..."
 
   # Download nvm install script
   mkdir -p "$INSTALLER_DIR"
@@ -234,7 +234,7 @@ _node_install_via_nvm() {
   _NVM_CLEANUP_ENABLED="true"
 
   # Run nvm installer as target user
-  echo "ℹ️ Running nvm installer as user '${_NVM_USER}'..." >&2
+  logging__info "Running nvm installer as user '${_NVM_USER}'..."
   su "$_NVM_USER" -c \
     "umask 0002 && PROFILE=/dev/null NVM_SYMLINK_CURRENT=true NVM_DIR='${NVM_DIR}' bash '${INSTALLER_DIR}/nvm-install.sh'"
 
@@ -242,37 +242,37 @@ _node_install_via_nvm() {
   # shellcheck disable=SC1091
   . "${NVM_DIR}/nvm.sh"
   command -v nvm > /dev/null 2>&1 || {
-    echo "⛔ nvm command not found after installation." >&2
+    logging__error "nvm command not found after installation."
     return 1
   }
-  echo "✅ nvm installed successfully." >&2
+  logging__success "nvm installed successfully."
 
   # Normalise version; if none, skip Node.js install
   local _node_ver_spec="$VERSION"
   [ "$_node_ver_spec" = "lts" ] && _node_ver_spec="lts/*"
 
   if [ "$_node_ver_spec" = "none" ]; then
-    echo "ℹ️ version=none — skipping Node.js installation." >&2
+    logging__info "version=none — skipping Node.js installation."
     if [ "${#ADDITIONAL_VERSIONS[@]}" -gt 0 ]; then
-      echo "⚠️ VERSION=none with additional_versions: no default alias is set — run 'nvm alias default <version>' manually inside the container." >&2
+      logging__warn "VERSION=none with additional_versions: no default alias is set — run 'nvm alias default <version>' manually inside the container."
       local _add_ver
       local _add_versions=("${ADDITIONAL_VERSIONS[@]}")
       for _add_ver in "${_add_versions[@]}"; do
         _add_ver="${_add_ver## }"
         _add_ver="${_add_ver%% }"
         [ -z "$_add_ver" ] && continue
-        echo "ℹ️ Installing additional Node.js version: ${_add_ver}" >&2
+        logging__info "Installing additional Node.js version: ${_add_ver}"
         su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
       done
     fi
-    echo "↩️ Function exit: _node_install_via_nvm (version=none)" >&2
+    logging__fn_exit "_node_install_via_nvm (version=none)"
     return 0
   fi
 
   # Install primary version
-  echo "ℹ️ Installing Node.js '${_node_ver_spec}' via nvm..." >&2
+  logging__info "Installing Node.js '${_node_ver_spec}' via nvm..."
   if [ "$(os__platform)" = "alpine" ]; then
-    echo "ℹ️ Alpine detected — compiling Node.js from source (nvm install -s)." >&2
+    logging__info "Alpine detected — compiling Node.js from source (nvm install -s)."
     su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm install -s '${_node_ver_spec}'"
   else
     su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm install '${_node_ver_spec}'"
@@ -286,7 +286,7 @@ _node_install_via_nvm() {
 
   # Capture exact version
   _NODE_VERSION="$(su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm version '${_node_ver_spec}'")"
-  echo "ℹ️ Installed Node.js version: ${_NODE_VERSION}" >&2
+  logging__info "Installed Node.js version: ${_NODE_VERSION}"
 
   # Fix version directory permissions (tarballs extracted by nvm may lack group-write)
   if [ -d "${NVM_DIR}/versions" ]; then
@@ -301,26 +301,26 @@ _node_install_via_nvm() {
       _add_ver="${_add_ver## }"
       _add_ver="${_add_ver%% }"
       [ -z "$_add_ver" ] && continue
-      echo "ℹ️ Installing additional Node.js version: ${_add_ver}" >&2
+      logging__info "Installing additional Node.js version: ${_add_ver}"
       su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
     done
     # Restore default after additional installs
     su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm use default"
   fi
 
-  echo "✅ Node.js ${_NODE_VERSION} installed via nvm." >&2
-  echo "↩️ Function exit: _node_install_via_nvm" >&2
+  logging__success "Node.js ${_NODE_VERSION} installed via nvm."
+  logging__fn_exit "_node_install_via_nvm"
   return 0
 }
 
 # _node_install_via_binary
 # Full binary-tarball installation flow.
 _node_install_via_binary() {
-  echo "↪️ Function entry: _node_install_via_binary" >&2
+  logging__fn_entry "_node_install_via_binary"
 
   if [ "$(os__platform)" = "alpine" ]; then
-    echo "⛔ method=binary is not supported on Alpine Linux (glibc-only binaries)." >&2
-    echo "   Use method=nvm instead — nvm will compile Node.js from source on Alpine." >&2
+    logging__error "method=binary is not supported on Alpine Linux (glibc-only binaries)."
+    logging__info "Use method=nvm instead — nvm will compile Node.js from source on Alpine."
     return 1
   fi
 
@@ -343,14 +343,14 @@ _node_install_via_binary() {
   # Resolve exact version (may already be set from pre-install check step)
   mkdir -p "$INSTALLER_DIR"
   if [ -z "${_NODE_VERSION:-}" ]; then
-    echo "ℹ️ Downloading Node.js release index..." >&2
+    logging__info "Downloading Node.js release index..."
     net__fetch_url_file \
       "https://nodejs.org/dist/index.json" \
       "${INSTALLER_DIR}/index.json"
     _NODE_VERSION="$(_node_resolve_binary_version "$VERSION" "${INSTALLER_DIR}/index.json")"
   fi
 
-  echo "ℹ️ Installing Node.js ${_NODE_VERSION} (${_platform}) to ${_prefix}..." >&2
+  logging__info "Installing Node.js ${_NODE_VERSION} (${_platform}) to ${_prefix}..."
 
   local _tarball="node-${_NODE_VERSION}-${_platform}.tar.xz"
 
@@ -368,7 +368,7 @@ _node_install_via_binary() {
   local _hash
   _hash="$(grep "  ${_tarball}$" "${INSTALLER_DIR}/SHASUMS256.txt" | awk '{print $1}')"
   if [ -z "$_hash" ]; then
-    echo "⛔ Could not find checksum for '${_tarball}' in SHASUMS256.txt." >&2
+    logging__error "Could not find checksum for '${_tarball}' in SHASUMS256.txt."
     return 1
   fi
 
@@ -382,15 +382,15 @@ _node_install_via_binary() {
   # Update PREFIX with resolved value for use by caller
   PREFIX="$_prefix"
 
-  echo "✅ Node.js ${_NODE_VERSION} extracted to ${_prefix}." >&2
-  echo "↩️ Function exit: _node_install_via_binary" >&2
+  logging__success "Node.js ${_NODE_VERSION} extracted to ${_prefix}."
+  logging__fn_exit "_node_install_via_binary"
   return 0
 }
 
 # _node_resolve_nvm_dir
 # Resolves NVM_DIR from 'auto' to an identity-appropriate path.
 _node_resolve_nvm_dir() {
-  echo "↪️ Function entry: _node_resolve_nvm_dir" >&2
+  logging__fn_entry "_node_resolve_nvm_dir"
   case "${NVM_DIR}" in
     auto)
       if [ "$(id -u)" = "0" ]; then
@@ -402,18 +402,18 @@ _node_resolve_nvm_dir() {
     "") NVM_DIR="${HOME}/.nvm" ;;
     *) ;; # explicit value: use as-is
   esac
-  echo "ℹ️ Resolved nvm_dir to '${NVM_DIR}'" >&2
-  echo "↩️ Function exit: _node_resolve_nvm_dir" >&2
+  logging__info "Resolved nvm_dir to '${NVM_DIR}'"
+  logging__fn_exit "_node_resolve_nvm_dir"
   return 0
 }
 
 # _node_create_symlinks
 # Creates containerEnv-bridge symlinks and per-binary symlinks.
 _node_create_symlinks() {
-  echo "↪️ Function entry: _node_create_symlinks" >&2
+  logging__fn_entry "_node_create_symlinks"
   if [ "$SYMLINK" != "true" ]; then
-    echo "ℹ️ Skipping symlink creation (symlink=false)." >&2
-    echo "↩️ Function exit: _node_create_symlinks (skipped)" >&2
+    logging__info "Skipping symlink creation (symlink=false)."
+    logging__fn_exit "_node_create_symlinks (skipped)"
     return 0
   fi
 
@@ -424,7 +424,7 @@ _node_create_symlinks() {
       # for any non-default nvm_dir value (root only — non-root can't write there).
       local _nvm_canonical_root="/usr/local/share/nvm"
       if [ "$NVM_DIR" != "${_nvm_canonical_root}" ]; then
-        echo "ℹ️ Creating NVM_DIR bridge symlink: ${_nvm_canonical_root} → ${NVM_DIR}" >&2
+        logging__info "Creating NVM_DIR bridge symlink: ${_nvm_canonical_root} → ${NVM_DIR}"
         mkdir -p "$(dirname "${_nvm_canonical_root}")"
         ln -sf "$NVM_DIR" "${_nvm_canonical_root}"
       fi
@@ -433,12 +433,12 @@ _node_create_symlinks() {
     elif [ "$METHOD" = "binary" ]; then
       # Binaries already in /usr/local/bin when prefix is /usr/local
       if [ "$PREFIX" = "/usr/local" ]; then
-        echo "ℹ️ prefix=/usr/local — binary symlinks not needed." >&2
+        logging__info "prefix=/usr/local — binary symlinks not needed."
       else
         for _bin in node npm npx corepack; do
           local _src="${PREFIX}/bin/${_bin}"
           if [ -f "$_src" ]; then
-            echo "ℹ️ Symlinking ${_src} → /usr/local/bin/${_bin}" >&2
+            logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
             ln -sf "$_src" "/usr/local/bin/${_bin}"
           fi
         done
@@ -451,16 +451,16 @@ _node_create_symlinks() {
       for _bin in node npm npx corepack; do
         local _src="${PREFIX}/bin/${_bin}"
         if [ -f "$_src" ]; then
-          echo "ℹ️ Symlinking ${_src} → ${HOME}/.local/bin/${_bin}" >&2
+          logging__info "Symlinking ${_src} → ${HOME}/.local/bin/${_bin}"
           ln -sf "$_src" "${HOME}/.local/bin/${_bin}"
         fi
       done
     else
-      echo "ℹ️ Skipping symlink creation (non-root: method=nvm or prefix is ${HOME}/.local)." >&2
+      logging__info "Skipping symlink creation (non-root: method=nvm or prefix is ${HOME}/.local)."
     fi
   fi
 
-  echo "↩️ Function exit: _node_create_symlinks" >&2
+  logging__fn_exit "_node_create_symlinks"
   return 0
 }
 
@@ -468,7 +468,7 @@ _node_create_symlinks() {
 # Writes the nvm shell-initialisation snippet to startup files.
 # Arguments: [--home <dir>]  (omit for system-wide write)
 _node_write_nvm_rc() {
-  echo "↪️ Function entry: _node_write_nvm_rc" >&2
+  logging__fn_entry "_node_write_nvm_rc"
   local _home=""
   while [ "$#" -gt 0 ]; do
     case $1 in
@@ -505,17 +505,17 @@ NVMRC
     shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
   fi
 
-  echo "↩️ Function exit: _node_write_nvm_rc" >&2
+  logging__fn_exit "_node_write_nvm_rc"
   return 0
 }
 
 # _node_configure_path
 # Writes PATH and shell-init exports to startup files.
 _node_configure_path() {
-  echo "↪️ Function entry: _node_configure_path" >&2
+  logging__fn_entry "_node_configure_path"
   if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    echo "ℹ️ export_path='' — skipping all PATH writes." >&2
-    echo "↩️ Function exit: _node_configure_path (skipped)" >&2
+    logging__info "export_path='' — skipping all PATH writes."
+    logging__fn_exit "_node_configure_path (skipped)"
     return 0
   fi
 
@@ -535,7 +535,7 @@ _node_configure_path() {
   elif [ "$METHOD" = "binary" ]; then
     # Binaries already on PATH when prefix is /usr/local
     if [ "$PREFIX" = "/usr/local" ]; then
-      echo "ℹ️ prefix=/usr/local — PATH write not needed (already on PATH)." >&2
+      logging__info "prefix=/usr/local — PATH write not needed (already on PATH)."
     else
       local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
       local _marker="node PATH (install-node)"
@@ -562,25 +562,25 @@ _node_configure_path() {
     fi
   fi
 
-  echo "↩️ Function exit: _node_configure_path" >&2
+  logging__fn_exit "_node_configure_path"
   return 0
 }
 
 # _node_install_pnpm
 # Installs pnpm globally after Node.js is installed.
 _node_install_pnpm() {
-  echo "↪️ Function entry: _node_install_pnpm" >&2
+  logging__fn_entry "_node_install_pnpm"
   if [ "$PNPM_VERSION" = "none" ]; then
-    echo "↩️ Function exit: _node_install_pnpm (skipped: pnpm_version=none)" >&2
+    logging__fn_exit "_node_install_pnpm (skipped: pnpm_version=none)"
     return 0
   fi
   if [ "$VERSION" = "none" ]; then
-    echo "⚠️ Skipping pnpm install: no Node.js version was installed (version=none)." >&2
-    echo "↩️ Function exit: _node_install_pnpm (skipped: version=none)" >&2
+    logging__warn "Skipping pnpm install: no Node.js version was installed (version=none)."
+    logging__fn_exit "_node_install_pnpm (skipped: version=none)"
     return 0
   fi
 
-  echo "ℹ️ Installing pnpm@${PNPM_VERSION}..." >&2
+  logging__info "Installing pnpm@${PNPM_VERSION}..."
   if [ "$METHOD" = "nvm" ]; then
     su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && npm install -g 'pnpm@${PNPM_VERSION}'"
   else
@@ -588,26 +588,26 @@ _node_install_pnpm() {
   fi
 
   pnpm --version
-  echo "✅ pnpm installed." >&2
-  echo "↩️ Function exit: _node_install_pnpm" >&2
+  logging__success "pnpm installed."
+  logging__fn_exit "_node_install_pnpm"
   return 0
 }
 
 # _node_install_yarn
 # Installs Yarn globally after Node.js is installed.
 _node_install_yarn() {
-  echo "↪️ Function entry: _node_install_yarn" >&2
+  logging__fn_entry "_node_install_yarn"
   if [ "$YARN_VERSION" = "none" ]; then
-    echo "↩️ Function exit: _node_install_yarn (skipped: yarn_version=none)" >&2
+    logging__fn_exit "_node_install_yarn (skipped: yarn_version=none)"
     return 0
   fi
   if [ "$VERSION" = "none" ]; then
-    echo "⚠️ Skipping yarn install: no Node.js version was installed (version=none)." >&2
-    echo "↩️ Function exit: _node_install_yarn (skipped: version=none)" >&2
+    logging__warn "Skipping yarn install: no Node.js version was installed (version=none)."
+    logging__fn_exit "_node_install_yarn (skipped: version=none)"
     return 0
   fi
 
-  echo "ℹ️ Installing yarn@${YARN_VERSION}..." >&2
+  logging__info "Installing yarn@${YARN_VERSION}..."
 
   local _install_cmd
   if [ "$YARN_VERSION" = "latest" ]; then
@@ -627,8 +627,8 @@ _node_install_yarn() {
   fi
 
   yarn --version
-  echo "✅ yarn installed." >&2
-  echo "↩️ Function exit: _node_install_yarn" >&2
+  logging__success "yarn installed."
+  logging__fn_exit "_node_install_yarn"
   return 0
 }
 
@@ -669,7 +669,7 @@ _node_resolve_nvm_dir
 # OS base dependencies (always — ensures curl is available for download)
 # =============================================================================
 
-echo "ℹ️ Installing base OS dependencies..." >&2
+logging__info "Installing base OS dependencies..."
 _download_deps__install
 
 # =============================================================================
@@ -680,13 +680,13 @@ _download_deps__install
 # so the version comparison can be made.
 _NODE_VERSION=""
 if [ "$METHOD" = "binary" ] && [ "$VERSION" != "none" ]; then
-  echo "ℹ️ Resolving Node.js version for binary install..." >&2
+  logging__info "Resolving Node.js version for binary install..."
   mkdir -p "$INSTALLER_DIR"
   net__fetch_url_file \
     "https://nodejs.org/dist/index.json" \
     "${INSTALLER_DIR}/index.json"
   _NODE_VERSION="$(_node_resolve_binary_version "$VERSION" "${INSTALLER_DIR}/index.json")"
-  echo "ℹ️ Resolved Node.js version: ${_NODE_VERSION}" >&2
+  logging__info "Resolved Node.js version: ${_NODE_VERSION}"
 fi
 
 _node_check_if_exists
@@ -696,33 +696,33 @@ _node_check_if_exists
 # =============================================================================
 
 if [ "$METHOD" = "nvm" ]; then
-  echo "ℹ️ Installing nvm runtime dependencies..." >&2
+  logging__info "Installing nvm runtime dependencies..."
   _nvm_runtime_deps__install
-  echo "ℹ️ Installing nvm build dependencies..." >&2
+  logging__info "Installing nvm build dependencies..."
   _nvm_deps__install
 fi
 
 if [ "$NODE_GYP_DEPS" = "true" ]; then
   # Skip node-gyp deps on Alpine+nvm (already covered by nvm.yaml build toolchain)
   if [ "$METHOD" = "nvm" ] && [ "$(os__platform)" = "alpine" ]; then
-    echo "ℹ️ Alpine+nvm detected — node-gyp build tools already provided by nvm.yaml; skipping node-gyp.yaml." >&2
+    logging__info "Alpine+nvm detected — node-gyp build tools already provided by nvm.yaml; skipping node-gyp.yaml."
   else
-    echo "ℹ️ Installing node-gyp build dependencies..." >&2
+    logging__info "Installing node-gyp build dependencies..."
     _node_gyp_deps__install
     if [ "$(os__platform)" = "macos" ]; then
-      echo "ℹ️ node-gyp build dependencies on macOS require Xcode Command Line Tools." >&2
-      echo "   Install them with: xcode-select --install" >&2
+      logging__info "node-gyp build dependencies on macOS require Xcode Command Line Tools."
+      logging__info "Install them with: xcode-select --install"
     fi
   fi
 fi
 
 if [ "$METHOD" = "binary" ]; then
   if [ "$(os__platform)" = "alpine" ]; then
-    echo "⛔ method=binary is not supported on Alpine Linux (glibc-only binaries)." >&2
-    echo "   Use method=nvm instead — nvm will compile Node.js from source on Alpine." >&2
+    logging__error "method=binary is not supported on Alpine Linux (glibc-only binaries)."
+    logging__info "Use method=nvm instead — nvm will compile Node.js from source on Alpine."
     exit 1
   fi
-  echo "ℹ️ Installing binary extraction OS dependencies..." >&2
+  logging__info "Installing binary extraction OS dependencies..."
   _binary_deps__install
 fi
 
@@ -753,12 +753,12 @@ fi
 # =============================================================================
 
 if [ "$VERSION" != "none" ] && [ -n "${_NODE_VERSION:-}" ]; then
-  echo "ℹ️ Verifying Node.js installation..." >&2
+  logging__info "Verifying Node.js installation..."
   if [ "$METHOD" = "nvm" ]; then
     su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && node --version && npm --version"
   else
     node --version
     npm --version
   fi
-  echo "✅ Node.js ${_NODE_VERSION} is ready." >&2
+  logging__success "Node.js ${_NODE_VERSION} is ready."
 fi

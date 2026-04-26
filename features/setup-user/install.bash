@@ -1,17 +1,17 @@
 os__require_root
 
 if [[ ! "$USER_ID" =~ ^[0-9]+$ ]]; then
-  echo "⛔ user_id must be a non-negative integer, got: '${USER_ID}'" >&2
+  logging__error "user_id must be a non-negative integer, got: '${USER_ID}'"
   exit 1
 fi
 
 if [[ ! "$GROUP_ID" =~ ^[0-9]+$ ]]; then
-  echo "⛔ group_id must be a non-negative integer, got: '${GROUP_ID}'" >&2
+  logging__error "group_id must be a non-negative integer, got: '${GROUP_ID}'"
   exit 1
 fi
 
 if [ ! -x "$USER_SHELL" ]; then
-  echo "⛔ Shell '${USER_SHELL}' does not exist or is not executable on this image." >&2
+  logging__error "Shell '${USER_SHELL}' does not exist or is not executable on this image."
   exit 1
 fi
 
@@ -29,29 +29,29 @@ _gid_of_name=$(getent group "$GROUP_NAME" 2> /dev/null | cut -d: -f3 || true)
 
 if [ -n "$_gid_of_name" ] && [ "$_gid_of_name" = "$GROUP_ID" ]; then
   # Group already correctly configured
-  echo "ℹ️ Group '${GROUP_NAME}' (GID ${GROUP_ID}) already exists."
+  logging__info "Group '${GROUP_NAME}' (GID ${GROUP_ID}) already exists."
   _group_already_ok=true
 elif [ -n "$_gid_of_name" ] && [ "$_gid_of_name" != "$GROUP_ID" ]; then
   # Group name exists but with the wrong GID
   if [ "$REPLACE_EXISTING" = "true" ]; then
-    echo "🔍 Group '${GROUP_NAME}' has GID ${_gid_of_name} (want ${GROUP_ID}) — removing."
-    groupdel "$GROUP_NAME" 2> /dev/null || echo "  ⚠️ Failed to delete group '${GROUP_NAME}'." >&2
+    logging__inspect "Group '${GROUP_NAME}' has GID ${_gid_of_name} (want ${GROUP_ID}) — removing."
+    groupdel "$GROUP_NAME" 2> /dev/null || logging__warn "Failed to delete group '${GROUP_NAME}'."
   else
-    echo "⛔ Group '${GROUP_NAME}' exists with GID ${_gid_of_name} (want ${GROUP_ID}). Set replace_existing=true to override." >&2
+    logging__error "Group '${GROUP_NAME}' exists with GID ${_gid_of_name} (want ${GROUP_ID}). Set replace_existing=true to override."
     exit 1
   fi
 elif [ -n "$_group_by_gid" ] && [ "$_group_by_gid" != "$GROUP_NAME" ]; then
   # GID is occupied by a different group
   if [ "$REPLACE_EXISTING" = "true" ]; then
-    echo "🔍 GID ${GROUP_ID} is in use by group '${_group_by_gid}' — removing members and group."
+    logging__inspect "GID ${GROUP_ID} is in use by group '${_group_by_gid}' — removing members and group."
     while IFS= read -r _u; do
       [ -z "$_u" ] && continue
-      echo "  🧑 Removing user '${_u}' (primary group conflict)."
-      userdel "$_u" 2> /dev/null || echo "  ⚠️ Failed to remove user '${_u}'." >&2
+      logging__info "Removing user '${_u}' (primary group conflict)."
+      userdel "$_u" 2> /dev/null || logging__warn "Failed to remove user '${_u}'."
     done < <(awk -F: -v gid="$GROUP_ID" '$4 == gid {print $1}' /etc/passwd)
-    groupdel "$_group_by_gid" 2> /dev/null || echo "  ⚠️ Failed to delete group '${_group_by_gid}'." >&2
+    groupdel "$_group_by_gid" 2> /dev/null || logging__warn "Failed to delete group '${_group_by_gid}'."
   else
-    echo "⛔ GID ${GROUP_ID} is already used by group '${_group_by_gid}'. Set replace_existing=true to override." >&2
+    logging__error "GID ${GROUP_ID} is already used by group '${_group_by_gid}'. Set replace_existing=true to override."
     exit 1
   fi
 fi
@@ -65,24 +65,24 @@ _uid_of_name=$(id -u "$USERNAME" 2> /dev/null || true)
 
 if [ -n "$_uid_of_name" ] && [ "$_uid_of_name" = "$USER_ID" ]; then
   # User already correctly configured
-  echo "ℹ️ User '${USERNAME}' (UID ${USER_ID}) already exists."
+  logging__info "User '${USERNAME}' (UID ${USER_ID}) already exists."
   _user_already_ok=true
 elif [ -n "$_uid_of_name" ] && [ "$_uid_of_name" != "$USER_ID" ]; then
   # Username exists but has the wrong UID
   if [ "$REPLACE_EXISTING" = "true" ]; then
-    echo "🔍 User '${USERNAME}' has UID ${_uid_of_name} (want ${USER_ID}) — removing."
-    userdel "$USERNAME" 2> /dev/null || echo "  ⚠️ Failed to remove user '${USERNAME}'." >&2
+    logging__inspect "User '${USERNAME}' has UID ${_uid_of_name} (want ${USER_ID}) — removing."
+    userdel "$USERNAME" 2> /dev/null || logging__warn "Failed to remove user '${USERNAME}'."
   else
-    echo "⛔ User '${USERNAME}' exists with UID ${_uid_of_name} (want ${USER_ID}). Set replace_existing=true to override." >&2
+    logging__error "User '${USERNAME}' exists with UID ${_uid_of_name} (want ${USER_ID}). Set replace_existing=true to override."
     exit 1
   fi
 elif [ -n "$_user_by_uid" ] && [ "$_user_by_uid" != "$USERNAME" ]; then
   # UID is occupied by a different user
   if [ "$REPLACE_EXISTING" = "true" ]; then
-    echo "🔍 UID ${USER_ID} is in use by '${_user_by_uid}' — removing."
-    userdel "$_user_by_uid" 2> /dev/null || echo "  ⚠️ Failed to remove user '${_user_by_uid}'." >&2
+    logging__inspect "UID ${USER_ID} is in use by '${_user_by_uid}' — removing."
+    userdel "$_user_by_uid" 2> /dev/null || logging__warn "Failed to remove user '${_user_by_uid}'."
   else
-    echo "⛔ UID ${USER_ID} is already used by user '${_user_by_uid}'. Set replace_existing=true to override." >&2
+    logging__error "UID ${USER_ID} is already used by user '${_user_by_uid}'. Set replace_existing=true to override."
     exit 1
   fi
 fi
@@ -91,7 +91,7 @@ fi
 # Create primary group
 # ---------------------------------------------------------------------------
 if [ "$_group_already_ok" != "true" ]; then
-  echo "➕ Creating group '${GROUP_NAME}' (GID ${GROUP_ID})."
+  logging__info "Creating group '${GROUP_NAME}' (GID ${GROUP_ID})."
   groupadd --gid "$GROUP_ID" "$GROUP_NAME"
 fi
 
@@ -99,7 +99,7 @@ fi
 # Create user
 # ---------------------------------------------------------------------------
 if [ "$_user_already_ok" != "true" ]; then
-  echo "➕ Creating user '${USERNAME}' (UID=${USER_ID} GID=${GROUP_ID} home=${HOME_DIR} shell=${USER_SHELL})."
+  logging__info "Creating user '${USERNAME}' (UID=${USER_ID} GID=${GROUP_ID} home=${HOME_DIR} shell=${USER_SHELL})."
   useradd \
     --no-create-home \
     --home-dir "$HOME_DIR" \
@@ -114,10 +114,10 @@ if [ ! -d "$HOME_DIR" ]; then
   mkdir -p "$HOME_DIR"
   cp -rn /etc/skel/. "$HOME_DIR/" 2> /dev/null || true
   chown -R "${USERNAME}:${GROUP_NAME}" "$HOME_DIR"
-  echo "  🏠 Created home directory '${HOME_DIR}'."
+  logging__info "Created home directory '${HOME_DIR}'."
 else
   chown "${USERNAME}:${GROUP_NAME}" "$HOME_DIR"
-  echo "  ℹ️ Home directory '${HOME_DIR}' already exists — ownership set."
+  logging__info "Home directory '${HOME_DIR}' already exists — ownership set."
 fi
 
 # ---------------------------------------------------------------------------
@@ -130,12 +130,12 @@ if [ "$SUDO_ACCESS" = "true" ]; then
   chmod 0440 "${SUDOERS_DIR}/${USERNAME}"
   if command -v visudo > /dev/null 2>&1; then
     visudo -c -f "${SUDOERS_DIR}/${USERNAME}" || {
-      echo "⛔ sudoers file validation failed." >&2
+      logging__error "sudoers file validation failed."
       rm -f "${SUDOERS_DIR}/${USERNAME}"
       exit 1
     }
   fi
-  echo "  ✅ Granted passwordless sudo to '${USERNAME}'."
+  logging__success "Granted passwordless sudo to '${USERNAME}'."
 fi
 
 # ---------------------------------------------------------------------------
@@ -146,12 +146,12 @@ if [ "${#EXTRA_GROUPS[@]}" -gt 0 ]; then
     _grp="${_grp// /}" # trim spaces
     [ -z "$_grp" ] && continue
     if ! getent group "$_grp" > /dev/null 2>&1; then
-      echo "  ⚠️ Supplementary group '${_grp}' does not exist — skipping." >&2
+      logging__warn "Supplementary group '${_grp}' does not exist — skipping."
       continue
     fi
     usermod -aG "$_grp" "$USERNAME"
-    echo "  ✅ Added '${USERNAME}' to group '${_grp}'."
+    logging__success "Added '${USERNAME}' to group '${_grp}'."
   done
 fi
 
-echo "✅ User '${USERNAME}' (UID=${USER_ID}, GID=${GROUP_ID}) configured successfully."
+logging__success "User '${USERNAME}' (UID=${USER_ID}, GID=${GROUP_ID}) configured successfully."

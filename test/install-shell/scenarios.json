@@ -3,7 +3,7 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -14,7 +14,7 @@
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
                 "install_starship": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -25,7 +25,7 @@
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
                 "install_starship": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -41,7 +41,7 @@
             "install-shell": {
                 "ohmyzsh_plugins": "zsh-users/zsh-autosuggestions\nzsh-users/zsh-syntax-highlighting",
                 "add_current_user": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -51,7 +51,7 @@
             "install-shell": {
                 "set_user_shells": "zsh",
                 "add_users": "root",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -62,7 +62,7 @@
                 "ohmyzsh_theme": "romkatv/powerlevel10k",
                 "starship_shells": "",
                 "add_users": "root",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -73,7 +73,7 @@
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
                 "install_starship": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -83,7 +83,7 @@
             "install-shell": {
                 "ohmyzsh_install_dir": "/opt/oh-my-zsh",
                 "ohmybash_install_dir": "/opt/oh-my-bash",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -91,7 +91,7 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -99,7 +99,7 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -108,7 +108,7 @@
         "features": {
             "install-shell": {
                 "user_config_mode": "skip",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -116,7 +116,7 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -125,7 +125,7 @@
         "features": {
             "install-shell": {
                 "zdotdir": "~/.zsh",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -134,7 +134,7 @@
         "features": {
             "install-shell": {
                 "ohmyzsh_custom_dir": "/opt/zsh-custom",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -143,7 +143,7 @@
         "features": {
             "install-shell": {
                 "ohmyzsh_custom_dir": "~/.zsh-custom",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -157,7 +157,7 @@
         "features": {
             "install-shell": {
                 "user_config_mode": "augment",
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -165,7 +165,7 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -173,7 +173,7 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -183,7 +183,7 @@
         "features": {
             "install-shell": {
                 "add_remote_user": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -193,7 +193,7 @@
         "features": {
             "install-shell": {
                 "add_container_user": true,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -209,7 +209,7 @@
                 "add_users": "devuser",
                 "add_container_user": false,
                 "add_remote_user": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -220,7 +220,7 @@
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
                 "install_starship": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -233,7 +233,7 @@
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
                 "install_starship": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -245,7 +245,7 @@
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
                 "install_starship": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     },
@@ -257,7 +257,7 @@
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
                 "install_starship": false,
-                "debug": true
+                "log_level": "trace"
             }
         }
     }
