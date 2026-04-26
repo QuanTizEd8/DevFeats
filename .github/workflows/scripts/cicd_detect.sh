@@ -31,6 +31,7 @@ macos_all=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
 #      feature/version (useful for hotfixes or retrying a failed release).
 is_release=false
 features_to_release="[]"
+echo "ℹ️  release-gate: EVENT_NAME='${EVENT_NAME:-}' REF_TYPE='${REF_TYPE:-}' REF_NAME='${REF_NAME:-}' BEFORE='${BEFORE:-}'" >&2
 if [[ "$EVENT_NAME" == "workflow_dispatch" &&
   -n "${INPUT_FEATURE:-}" && -n "${INPUT_VERSION:-}" ]]; then
   features_to_release=$(jq -cn \
@@ -38,14 +39,19 @@ if [[ "$EVENT_NAME" == "workflow_dispatch" &&
     --arg ver "$INPUT_VERSION" \
     '[{feature:$feat, version:$ver, tag:"\($feat)/\($ver)"}]')
   is_release=true
+  echo "ℹ️  release-gate: manual release request detected for feature='${INPUT_FEATURE}' version='${INPUT_VERSION}'." >&2
 elif [[ "$EVENT_NAME" == "push" &&
   "$REF_TYPE" == "branch" && "$REF_NAME" == "main" ]]; then
+  echo "ℹ️  release-gate: push-to-main detected; running detect-releasable.py." >&2
   features_to_release=$(bash scripts/python.sh scripts/detect-releasable.py \
     --repo "$REPOSITORY" --features-dir features)
+  echo "ℹ️  release-gate: detect-releasable.py output: ${features_to_release}" >&2
   if [[ -n "$features_to_release" && "$features_to_release" != "[]" ]]; then
     is_release=true
   fi
 fi
+_release_count="$(jq -r 'length' <<< "$features_to_release" 2> /dev/null || echo "0")"
+echo "ℹ️  release-gate: is_release='${is_release}' features_to_release_count='${_release_count}'." >&2
 
 # ── Compute changed files (when not a force run) ───────────────────
 if [[ "$is_force" == "true" ]]; then
