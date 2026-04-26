@@ -221,7 +221,7 @@ install_fzf() {
 install_zsh_completions() {
   ospkg__detect
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
-    ospkg__install zsh-completions
+    ospkg__install_user zsh-completions
     return 0
   fi
 
@@ -674,9 +674,10 @@ _download_deps__install
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
     echo "ℹ️  Zsh already installed — skipping." >&2
+    _ospkg_protect_user_pkgs zsh
   else
     echo "📦 Installing Zsh..." >&2
-    ospkg__install zsh
+    ospkg__install_user zsh
   fi
 fi
 
@@ -703,7 +704,7 @@ fi
 
 if [[ "$INSTALL_DIRENV" == true ]]; then
   echo "📦 Installing direnv..." >&2
-  ospkg__install direnv
+  ospkg__install_user direnv
 fi
 
 if [[ "$INSTALL_FZF" == true ]]; then

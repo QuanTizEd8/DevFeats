@@ -64,7 +64,7 @@ _gh__install_repos() {
       if [ "${VERSION}" != "latest" ]; then
         echo "⚠️ Version pinning is not supported for method=repos on Arch. Installing latest available github-cli." >&2
       fi
-      ospkg__install github-cli
+      ospkg__install_user github-cli
       echo "↩️ Function exit: _gh__install_repos" >&2
       return 0
       ;;
@@ -74,7 +74,7 @@ _gh__install_repos() {
       if [ "${VERSION}" != "latest" ]; then
         echo "⚠️ Version pinning is not supported for method=repos on Arch. Installing latest available github-cli." >&2
       fi
-      ospkg__install github-cli
+      ospkg__install_user github-cli
       echo "↩️ Function exit: _gh__install_repos" >&2
       return 0
       ;;
@@ -89,9 +89,9 @@ _gh__install_repos() {
       # which also triggers apt-get update. Then install gh (with optional version pin).
       _repos_debian_deps__install
       if [ "${VERSION}" = "latest" ]; then
-        ospkg__install gh
+        ospkg__install_user gh
       else
-        ospkg__install "gh=${VERSION}"
+        ospkg__install_user "gh=${VERSION}"
       fi
       ;;
     rhel)
@@ -161,7 +161,7 @@ _gh__repos_alpine() {
   if [ "${VERSION}" != "latest" ]; then
     echo "⚠️ Version pinning is not supported for method=repos on Alpine. Installing latest available github-cli." >&2
   fi
-  ospkg__install github-cli
+  ospkg__install_user github-cli
   echo "↩️ Function exit: _gh__repos_alpine" >&2
   return 0
 }
@@ -172,7 +172,7 @@ _gh__repos_macos() {
   if [ "${VERSION}" != "latest" ]; then
     echo "⚠️ Homebrew has no versioned formula for gh. Installing latest gh. Use method=binary for version pinning." >&2
   fi
-  ospkg__install gh
+  ospkg__install_user gh
   echo "↩️ Function exit: _gh__repos_macos" >&2
   return 0
 }

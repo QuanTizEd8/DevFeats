@@ -944,6 +944,44 @@ _ospkg_build_deps_dir() {
   return
 }
 
+# _ospkg_protect_user_pkgs <pkg-name>... — mark packages as user-requested so
+# build-group cleanup cannot remove them. Accepts bare package names only (no
+# version suffixes). Applies PM-native marking for marking-capable PMs and
+# evicts each package from every build-group sidecar (covers explicit-list PMs:
+# apk, zypper, microdnf, brew). All operations are non-fatal.
+_ospkg_protect_user_pkgs() {
+  [[ $# -eq 0 ]] && return 0
+  ospkg__detect
+  # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
+  case "$_OSPKG_PKG_MNGR" in
+    apt-get) apt-mark manual "$@" > /dev/null 2>&1 || true ;;
+    dnf | yum) dnf mark user "$@" > /dev/null 2>&1 || true ;;
+    pacman) pacman -D --asexplicit "$@" > /dev/null 2>&1 || true ;;
+    *) ;;
+  esac
+  # Sidecar eviction: remove each package from every build-group sidecar so
+  # explicit-list PMs do not delete them during build-group cleanup.
+  local _bd_dir _sidecar _sidecar_name _pkg _tmp
+  _bd_dir="$(_ospkg_build_deps_dir)"
+  [[ -d "$_bd_dir" ]] || return 0
+  for _sidecar in "$_bd_dir"/*; do
+    [[ -f "$_sidecar" ]] || continue
+    _sidecar_name="$(basename "$_sidecar")"
+    # Skip temporary snapshot files used during build-dep tracking.
+    [[ "$_sidecar_name" == *.before || "$_sidecar_name" == *.after ]] && continue
+    for _pkg in "$@"; do
+      if grep -qxF "$_pkg" "$_sidecar" 2> /dev/null; then
+        _tmp="${_sidecar}.protect_tmp"
+        grep -Fxv "$_pkg" "$_sidecar" > "$_tmp" 2> /dev/null \
+          && mv "$_tmp" "$_sidecar" \
+          || rm -f "$_tmp" || true
+        echo "ℹ️  Evicted '${_pkg}' from build-group sidecar '${_sidecar_name}'." >&2
+      fi
+    done
+  done
+  return 0
+}
+
 # ── Public: ospkg__take_initial_snapshot ─────────────────────────────────────
 # @brief ospkg__take_initial_snapshot <file> — Snapshot the current installed-
 # package list to <file> for use as a session baseline. Called once by
@@ -1254,6 +1292,35 @@ ospkg__cleanup_resources() {
   return 0
 }
 
+# ── Public: ospkg__install_user ──────────────────────────────────────────────
+# @brief ospkg__install_user <pkg>... — Install packages and protect them from
+# build-group cleanup. Use this for all user-facing package installs.
+#
+# Calls ospkg__install then calls _ospkg_protect_user_pkgs with bare package
+# names (version suffixes stripped per PM convention). Packages installed this
+# way will not be removed by ospkg__cleanup_all_build_groups even if a prior
+# build-group install had marked them as auto/asdeps or added them to a sidecar.
+#
+# Args:
+#   <pkg>...  One or more package specs (versioned forms like gh=2.40.0 accepted).
+ospkg__install_user() {
+  ospkg__install "$@"
+  ospkg__detect
+  # Strip PM-native version suffixes to get bare package names for marking.
+  local -a _bare_names=()
+  local _p
+  for _p in "$@"; do
+    case "$_OSPKG_PKG_MNGR" in
+      apt-get | apk | pacman | zypper) _bare_names+=("${_p%%=*}") ;;
+      dnf | yum) _bare_names+=("${_p%%-[0-9]*}") ;;
+      brew) _bare_names+=("${_p%%@*}") ;;
+      *) _bare_names+=("$_p") ;;
+    esac
+  done
+  _ospkg_protect_user_pkgs "${_bare_names[@]}"
+  return 0
+}
+
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
 # @brief ospkg__run [--manifest <f>] [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>] — Run the full installation pipeline from a manifest.
 #
@@ -1546,7 +1613,7 @@ ospkg__run() {
         echo "📎 Adding ${#_Y_PPAS[@]} PPA(s)." >&2
         if ! command -v add-apt-repository > /dev/null 2>&1; then
           echo "ℹ️  add-apt-repository not found — installing software-properties-common." >&2
-          [[ "$_dry_run" == false ]] && ospkg__install software-properties-common
+          [[ "$_dry_run" == false ]] && ospkg__install_tracked "sysset-ospkg-internals" software-properties-common
         fi
         local _ppitem _ppa
         for _ppitem in "${_Y_PPAS[@]}"; do
@@ -1676,6 +1743,11 @@ ospkg__run() {
             else
               echo "📦 Installing group '${_grp}' (pacman)." >&2
               ospkg__install "$_grp"
+              if [[ -z "${_build_group:-}" ]]; then
+                local -a _grp_members=()
+                mapfile -t _grp_members < <(pacman -Sg "$_grp" 2> /dev/null | awk '{print $2}')
+                [[ ${#_grp_members[@]} -gt 0 ]] && _ospkg_protect_user_pkgs "${_grp_members[@]}"
+              fi
             fi
             ;;
           *)
@@ -1709,7 +1781,7 @@ ospkg__run() {
     fi
 
     # Phase: INSTALL PACKAGES.
-    local -a _pkgs_to_install=()
+    local -a _pkgs_to_install=() _pkg_base_names=()
     local _pkgitem _pkgname _pkgflags _pkgversion _pkginstall
     for _pkgitem in "${_Y_PACKAGES[@]}"; do
       _pkgname="$(printf '%s' "$_pkgitem" | json__query -r '.name')"
@@ -1731,6 +1803,7 @@ ospkg__run() {
 
       if [[ "$_skip_installed" == true ]] && command -v "$_pkgname" > /dev/null 2>&1; then
         echo "ℹ️  '${_pkgname}' already available in PATH — skipping." >&2
+        [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "$_pkgname"
         continue
       fi
 
@@ -1742,9 +1815,11 @@ ospkg__run() {
           echo "📲 Installing: ${_pkginstall} (flags: ${_pkgflags})" >&2
           # shellcheck disable=SC2086
           "${_OSPKG_INSTALL[@]}" $_pkgflags "$_pkginstall"
+          [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "$_pkgname"
         fi
       else
         _pkgs_to_install+=("$_pkginstall")
+        _pkg_base_names+=("$_pkgname")
       fi
     done
 
@@ -1754,6 +1829,7 @@ ospkg__run() {
         echo "🔍 [dry-run] packages: ${_pkgs_to_install[*]}" >&2
       else
         ospkg__install "${_pkgs_to_install[@]}"
+        [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "${_pkg_base_names[@]}"
       fi
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then
       echo "ℹ️  No packages to install — skipping." >&2
