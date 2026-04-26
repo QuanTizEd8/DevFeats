@@ -86,6 +86,12 @@ Optional package-level check:
 tlmgr info --only-installed latex
 ```
 
+Upstream quick-install smoke test:
+
+```bash
+latex small2e
+```
+
 When cryptographic verification is active, installer/tlmgr output indicates repository verification status (`(verified)` vs `(not verified)`).
 
 #### Configuration Options
@@ -109,7 +115,7 @@ When cryptographic verification is active, installer/tlmgr output indicates repo
   - Paper default: `--paper=a4|letter`.
   - Doc/src toggles: `--no-doc-install`, `--no-src-install`.
   - Batch profile mode: `--profile <file>` / `--init-from-profile <file>`.
-  - Verification and download behavior from installer/tooling (verification is enabled by default when `gpg` is available and can be disabled with `--no-verify-downloads`; persistent-download controls are also available).
+  - Verification and download behavior from installer/tooling (verification is enabled by default when `gpg` is available and can be disabled with `--no-verify-downloads`; for package operations, `tlmgr --verify-repo=none|main|all` controls repository signature requirements; persistent-download controls are also available).
 
 #### Post-Installation Steps and Cleanup
 
@@ -186,6 +192,12 @@ BasicTeX install:
 ```bash
 /Library/TeX/texbin/latex --version
 /Library/TeX/texbin/tlmgr --version
+```
+
+Recommended smoke test:
+
+```bash
+/Library/TeX/texbin/latex small2e
 ```
 
 Also verify TeX distribution root when needed:
