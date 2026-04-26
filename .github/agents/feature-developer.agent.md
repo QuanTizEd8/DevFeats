@@ -34,7 +34,7 @@ Execute these phases in order. DO NOT SKIP PHASES.
 - NEVER assume a single platform. Every code path must account for Linux (Debian, RHEL, Alpine, Arch) and macOS.
 - NEVER adapt tests to pass or make shallow pseudo-fixes; always investigate each failure thoroughly and fix the root cause.
 - Do not add features, refactor code, or make improvements beyond what was asked.
-- Follow `docs/snippets/code-style.md`, `docs/dev-guide/writing-features.md`, and project conventions: explicit `return` statements, emoji log markers.
+- Follow `docs/snippets/code-style.md`, `docs/dev-guide/writing-features.md`, and project conventions: explicit `return` statements, and `logging__*` helpers from `lib/logging.sh` (not raw `echo "…" >&2`) for user-visible stderr lines.
 
 
 
@@ -52,7 +52,7 @@ Execute these phases in order. DO NOT SKIP PHASES.
    - Target users (root vs non-root, multiple users).
    - PATH addition and shell activation options.
    - Idempotency behavior (what to do when the tool already exists).
-   - Logging (`debug`, `logfile` — required by convention).
+   - Logging (`log_level`, `log_file` — required by convention; use `trace` for xtrace).
    - Other tool-specific configuration knobs.
 3. Ensure **cross-feature uniformity**: similar options share the same name, type, and semantics across all features.
 4. Create or update `features/<feature-name>/metadata.yaml` with the designed API,
