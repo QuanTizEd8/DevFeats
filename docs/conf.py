@@ -110,7 +110,7 @@ author = "SysSet contributors"
 extensions = [
     # Core Markdown + notebook support
     "myst_parser",
-    # External TOC (docs/_toc.yml)
+    # External TOC (docs/toc.yaml)
     "sphinx_external_toc",
     # pydata theme extras
     "sphinx_design",
@@ -129,7 +129,7 @@ extensions = [
 ]
 
 # sphinx-external-toc: absolute path keeps this stable even when callers vary -c/confdir.
-external_toc_path = str(_WEBSITE_ROOT / "_toc.yml")
+external_toc_path = str(_WEBSITE_ROOT / "toc.yaml")
 external_toc_exclude_missing = False
 
 # MyST options
