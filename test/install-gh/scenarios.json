@@ -92,7 +92,12 @@
     },
     "git_protocol_https": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "add_remote_user": true,
@@ -105,7 +110,12 @@
     },
     "setup_git": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "add_remote_user": true,
@@ -118,7 +128,12 @@
     },
     "sign_commits_ssh": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "add_remote_user": true,
@@ -131,7 +146,12 @@
     },
     "sign_commits_gpg": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "add_remote_user": true,
@@ -143,7 +163,12 @@
         }
     },
     "if_exists_skip": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "if_exists": "skip",
@@ -152,7 +177,12 @@
         }
     },
     "if_exists_skip_no_mutation": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "if_exists": "skip",
@@ -161,7 +191,12 @@
         }
     },
     "version_match_idempotency": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "method": "binary",
@@ -193,7 +228,12 @@
     },
     "binary_custom_path_nonroot": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "method": "binary",
@@ -205,7 +245,12 @@
     },
     "ghes_hostname": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "add_remote_user": true,
@@ -218,7 +263,12 @@
         }
     },
     "add_users": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "add_users": "testuser",
@@ -232,7 +282,12 @@
     },
     "extensions": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-gh": {
                 "add_remote_user": true,

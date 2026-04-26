@@ -45,7 +45,12 @@
         }
     },
     "if_exists_skip": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-pixi": {
                 "if_exists": "skip",
@@ -54,7 +59,12 @@
         }
     },
     "if_exists_reinstall": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-pixi": {
                 "if_exists": "reinstall",
@@ -72,7 +82,12 @@
         }
     },
     "if_exists_update_existing": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-pixi": {
                 "version": "latest",
@@ -82,7 +97,12 @@
         }
     },
     "version_match_idempotency": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-pixi": {
                 "version": "0.41.0",
@@ -92,7 +112,12 @@
         }
     },
     "version_match_path_only_symlink": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-pixi": {
                 "version": "0.41.0",
@@ -160,7 +185,12 @@
     },
     "custom_bin_dir_symlink_nonroot": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-pixi": {
                 "prefix": "/opt/pixi",

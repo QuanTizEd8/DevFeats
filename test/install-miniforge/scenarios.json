@@ -10,31 +10,52 @@
     "custom_bin_dir": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "prefix": "/opt/myforge", "symlink": false, "debug": true }
+            "install-miniforge": {
+                "prefix": "/opt/myforge",
+                "symlink": false,
+                "debug": true
+            }
         }
     },
     "specific_version": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "version": "24.7.1", "debug": true }
+            "install-miniforge": {
+                "version": "24.7.1",
+                "debug": true
+            }
         }
     },
     "set_permission": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "write_group": "conda", "debug": true }
+            "install-miniforge": {
+                "write_group": "conda",
+                "debug": true
+            }
         }
     },
     "activate_bashrc": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "shell_activations": "bash", "debug": true }
+            "install-miniforge": {
+                "shell_activations": "bash",
+                "debug": true
+            }
         }
     },
     "activate_multi": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "shell_activations": "bash\nzsh", "debug": true }
+            "install-miniforge": {
+                "shell_activations": "bash\nzsh",
+                "debug": true
+            }
         }
     },
     "custom_active_env": {
@@ -50,37 +71,65 @@
     "logfile": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "logfile": "/tmp/miniforge.log", "debug": true }
+            "install-miniforge": {
+                "logfile": "/tmp/miniforge.log",
+                "debug": true
+            }
         }
     },
     "keep_installer": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "keep_installer": true, "debug": true }
+            "install-miniforge": {
+                "keep_installer": true,
+                "debug": true
+            }
         }
     },
     "if_exists_reinstall": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "if_exists": "reinstall", "debug": true }
+            "install-miniforge": {
+                "if_exists": "reinstall",
+                "debug": true
+            }
         }
     },
     "if_exists_skip": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "if_exists": "skip", "debug": true }
+            "install-miniforge": {
+                "if_exists": "skip",
+                "debug": true
+            }
         }
     },
     "if_exists_fail": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "if_exists": "fail", "debug": true }
+            "install-miniforge": {
+                "if_exists": "fail",
+                "debug": true
+            }
         }
     },
     "if_exists_update": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "if_exists": "update", "debug": true }
+            "install-miniforge": {
+                "if_exists": "update",
+                "debug": true
+            }
         }
     },
     "debian": {
@@ -92,9 +141,18 @@
         }
     },
     "multi_user_permissions": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "write_group": "conda", "add_users": "testuser1\ntestuser2", "debug": true }
+            "install-miniforge": {
+                "write_group": "conda",
+                "add_users": "testuser1\ntestuser2",
+                "debug": true
+            }
         }
     },
     "export_path_default": {
@@ -108,31 +166,54 @@
     "export_path_custom_dir": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "prefix": "/opt/myforge", "symlink": false, "debug": true }
+            "install-miniforge": {
+                "prefix": "/opt/myforge",
+                "symlink": false,
+                "debug": true
+            }
         }
     },
     "export_path_symlink": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "prefix": "/opt/myforge", "symlink": true, "debug": true }
+            "install-miniforge": {
+                "prefix": "/opt/myforge",
+                "symlink": true,
+                "debug": true
+            }
         }
     },
     "export_path_disabled": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "export_path": "", "debug": true }
+            "install-miniforge": {
+                "export_path": "",
+                "debug": true
+            }
         }
     },
     "export_path_custom_list": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "export_path": "/tmp/test_bashrc", "debug": true }
+            "install-miniforge": {
+                "export_path": "/tmp/test_bashrc",
+                "debug": true
+            }
         }
     },
     "export_path_idempotency": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "prefix": "/opt/myforge", "symlink": false, "debug": true }
+            "install-miniforge": {
+                "prefix": "/opt/myforge",
+                "symlink": false,
+                "debug": true
+            }
         }
     },
     "latest_version": {
@@ -144,52 +225,118 @@
         }
     },
     "version_match_idempotency": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "version": "24.7.1", "if_exists": "reinstall", "debug": true }
+            "install-miniforge": {
+                "version": "24.7.1",
+                "if_exists": "reinstall",
+                "debug": true
+            }
         }
     },
     "preserve_envs_true": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "if_exists": "reinstall", "preserve_envs": true, "debug": true }
+            "install-miniforge": {
+                "if_exists": "reinstall",
+                "preserve_envs": true,
+                "debug": true
+            }
         }
     },
     "preserve_envs_false": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "if_exists": "reinstall", "preserve_envs": false, "debug": true }
+            "install-miniforge": {
+                "if_exists": "reinstall",
+                "preserve_envs": false,
+                "debug": true
+            }
         }
     },
     "preserve_config_true": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "if_exists": "reinstall", "preserve_config": true, "debug": true }
+            "install-miniforge": {
+                "if_exists": "reinstall",
+                "preserve_config": true,
+                "debug": true
+            }
         }
     },
     "preserve_config_false": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "if_exists": "reinstall", "preserve_config": false, "debug": true }
+            "install-miniforge": {
+                "if_exists": "reinstall",
+                "preserve_config": false,
+                "debug": true
+            }
         }
     },
     "if_exists_update_preinstall": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "if_exists": "update", "debug": true }
+            "install-miniforge": {
+                "if_exists": "update",
+                "debug": true
+            }
         }
     },
     "export_path_symlink_nonroot": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
-            "install-miniforge": { "prefix": "/opt/myforge", "symlink": true, "debug": true }
+            "install-miniforge": {
+                "prefix": "/opt/myforge",
+                "symlink": true,
+                "debug": true
+            }
         }
     },
     "symlink_user_home_prefix": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "prefix": "/root/myforge", "symlink": true, "debug": true }
+            "install-miniforge": {
+                "prefix": "/root/myforge",
+                "symlink": true,
+                "debug": true
+            }
         }
     }
 }

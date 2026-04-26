@@ -48,7 +48,10 @@
     },
     "extra_groups": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
         },
         "features": {
             "setup-user": {
@@ -59,7 +62,10 @@
     },
     "replace_existing": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
         },
         "features": {
             "setup-user": {
@@ -69,7 +75,10 @@
     },
     "already_configured": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
         },
         "features": {
             "setup-user": {

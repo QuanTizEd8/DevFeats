@@ -61,7 +61,12 @@
     },
     "gitconfig_user": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-git": {
                 "add_remote_user": true,
@@ -148,7 +153,12 @@
         }
     },
     "if_exists_skip": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-git": {
                 "if_exists": "skip",
@@ -157,7 +167,12 @@
         }
     },
     "if_exists_reinstall_source": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-git": {
                 "method": "source",
@@ -170,7 +185,12 @@
         }
     },
     "if_exists_update_package": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-git": {
                 "if_exists": "update",

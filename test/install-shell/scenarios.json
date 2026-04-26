@@ -32,7 +32,10 @@
     "apt_multi_plugins": {
         "remoteUser": "vscode",
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
         },
         "features": {
             "install-shell": {
@@ -146,7 +149,10 @@
     },
     "apt_augment_mode": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
         },
         "features": {
             "install-shell": {
@@ -193,7 +199,10 @@
     },
     "apt_add_users": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
         },
         "features": {
             "install-shell": {

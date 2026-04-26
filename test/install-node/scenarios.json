@@ -10,7 +10,10 @@
     },
     "nvm_add_users": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
         },
         "features": {
             "install-node": {

@@ -20,7 +20,12 @@
         }
     },
     "env_files": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/simple.yml",
@@ -29,7 +34,12 @@
         }
     },
     "env_dirs": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-conda-env": {
                 "env_dirs": "/tmp/test-envs",
@@ -38,7 +48,12 @@
         }
     },
     "multi_env_files": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/envA.yml\n/tmp/test-envs/envB.yml",
@@ -47,7 +62,12 @@
         }
     },
     "update_existing": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/simple.yml",
@@ -90,7 +110,12 @@
         }
     },
     "pip_requirements": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-conda-env": {
                 "env_name": "pipenv",
@@ -101,7 +126,12 @@
         }
     },
     "pip_env_override": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-conda-env": {
                 "env_name": "pipenv",
@@ -113,7 +143,12 @@
         }
     },
     "post_env_script": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-conda-env": {
                 "env_name": "scriptenv",

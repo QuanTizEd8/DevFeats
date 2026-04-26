@@ -1,7 +1,12 @@
 {
     "apt_default": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-podman": {
                 "debug": true
@@ -9,7 +14,12 @@
         }
     },
     "apt_root_user_config": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-podman": {
                 "add_users": "root",
@@ -19,7 +29,12 @@
     },
     "apt_remote_user": {
         "remoteUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-podman": {
                 "add_remote_user": true,
@@ -31,7 +46,12 @@
     },
     "apt_container_user": {
         "containerUser": "vscode",
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-podman": {
                 "add_container_user": true,
@@ -42,7 +62,12 @@
         }
     },
     "apt_explicit_user": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-podman": {
                 "add_users": "devuser",
@@ -54,7 +79,12 @@
         }
     },
     "apt_multi_user": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-podman": {
                 "add_users": "alice\nbob",
@@ -66,7 +96,12 @@
         }
     },
     "apt_no_users": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-podman": {
                 "add_remote_user": false,
@@ -77,7 +112,12 @@
         }
     },
     "apt_nonexistent_user": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
         "features": {
             "install-podman": {
                 "add_users": "ghost",
