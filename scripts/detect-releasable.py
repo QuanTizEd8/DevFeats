@@ -54,7 +54,7 @@ def _iter_feature_metadata(features_dir: pathlib.Path):
     for metadata_path in sorted(features_dir.glob("*/metadata.yaml")):
         with metadata_path.open(encoding="utf-8") as fp:
             data = yaml.safe_load(fp) or {}
-        # Prefer the directory name (canonical) but fall back to the id field.
+        # Feature IDs are canonicalized from directory names.
         fid = metadata_path.parent.name
         yield fid, data
 

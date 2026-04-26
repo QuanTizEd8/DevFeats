@@ -6,10 +6,6 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "id": {
-      "description": "ID of the Feature. The id should be unique in the context of the repository/published package where the feature exists and must match the name of the directory where the devcontainer-feature.json resides.",
-      "type": "string"
-    },
     "version": {
       "description": "The version of the Feature. Follows the semanatic versioning (semver) specification.",
       "type": "string"
@@ -194,7 +190,6 @@
     }
   },
   "required": [
-    "id",
     "version",
     "name",
     "description",

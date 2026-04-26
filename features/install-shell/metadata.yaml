@@ -1,4 +1,3 @@
-id: install-shell
 version: 0.1.0
 name: Shell Installation
 description: Install and configure [Zsh](https://www.zsh.org/) and Bash with [Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/), and the [Starship](https://starship.rs/) prompt.

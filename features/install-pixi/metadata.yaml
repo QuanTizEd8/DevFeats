@@ -1,4 +1,3 @@
-id: install-pixi
 version: 0.1.0
 name: Pixi Installation
 description: Install the [Pixi](https://pixi.sh/) package and project manager.

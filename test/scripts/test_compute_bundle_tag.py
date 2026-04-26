@@ -140,7 +140,6 @@ class LoadFeaturesTest(unittest.TestCase):
                 (fd / "metadata.yaml").write_text(
                     textwrap.dedent(
                         f"""\
-                        id: {fid}
                         version: {ver}
                         name: Install {fid}
                         """
@@ -155,7 +154,7 @@ class LoadFeaturesTest(unittest.TestCase):
             features_dir = pathlib.Path(tmp)
             fd = features_dir / "broken"
             fd.mkdir()
-            (fd / "metadata.yaml").write_text("id: broken\n", encoding="utf-8")
+            (fd / "metadata.yaml").write_text("name: Broken feature\n", encoding="utf-8")
             result = CBT._load_features(features_dir)
             self.assertEqual(result, {})
 
@@ -183,7 +182,7 @@ class ComputeTest(unittest.TestCase):
             fd = tmp / fid
             fd.mkdir()
             (fd / "metadata.yaml").write_text(
-                f"id: {fid}\nversion: {ver}\n", encoding="utf-8"
+                f"version: {ver}\n", encoding="utf-8"
             )
         return tmp
 

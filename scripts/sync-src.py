@@ -14,7 +14,6 @@ Usage:
 
 from __future__ import annotations
 
-import copy
 import fnmatch
 import json
 import re
@@ -90,6 +89,7 @@ def run(check_only: bool = False):
             n_failures["schema validation"] += 1
             continue
 
+        metadata["id"] = feature_id
         dependency_manifests = generate_dependency_manifests(metadata)
         output_files.update(dependency_manifests)
 

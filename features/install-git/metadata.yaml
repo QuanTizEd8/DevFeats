@@ -1,4 +1,3 @@
-id: install-git
 version: 0.1.0
 name: Git Installation
 description: Install [Git](https://git-scm.com/) via the OS package manager or build from a kernel.org source tarball.

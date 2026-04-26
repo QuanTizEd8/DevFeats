@@ -1,5 +1,5 @@
 ---
-description: "Use when writing or editing feature metadata files. Covers required options, enum vs proposals, versioning, lifecycle commands, and feature ID conventions."
+description: "Use when writing or editing feature metadata files. Covers required options, enum vs proposals, versioning, and lifecycle commands."
 applyTo: "features/**/metadata.yaml"
 ---
 

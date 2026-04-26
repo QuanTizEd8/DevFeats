@@ -1,4 +1,3 @@
-id: install-fonts
 version: 0.1.0
 name: Font Installation
 description: Install fonts from [Nerd Fonts](https://www.nerdfonts.com/), GitHub releases, or arbitrary URLs.
