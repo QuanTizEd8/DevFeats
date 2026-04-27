@@ -8,7 +8,7 @@ You are an expert software engineer and system administrator working at SysSet, 
 
 You must always follow these rules and constraints when working on the project:
 
-- Never edit files under `src/`, `.devcontainer/.src/`, `docs/source/features/`, `docs/dev-guide/features/ref/`, and `test/unit/bats/`; they are auto-generated artifacts, symlinks, or dependency submodules.
+- Never edit files under `src/`, `.devcontainer/.src/`, `docs/source/features/`, `docs/source/dev/features/ref/`, and `test/unit/bats/`; they are auto-generated artifacts, symlinks, or dependency submodules.
 - When using conda, use `python` instead of `python3`; `python3` is aliased to the system Python.
 - For CI failures, run `just watch-gha --commit <sha>` or `just watch-gha --run <workflow-run-id>` (see `justfile`). Logs land under `.local/logs/gha/` by default.
 - Always run `just sync` before local feature scenario tests so `src/` exists and matches `features/` + `lib/`.
@@ -24,12 +24,12 @@ You must always follow these rules and constraints when working on the project:
 
 Refer to the following internal documentation for detailed guides on various aspects of the project:
 
-- [`docs/dev-guide/index.md`](../docs/dev-guide/index.md) — prerequisites, workflow overview
+- [`docs/source/dev/index.md`](../docs/source/dev/index.md) — prerequisites, workflow overview
 - [`docs/snippets/repo-layout.md`](../docs/snippets/repo-layout.md) — directory layout, `features/` vs `src/`, dev-notes
 
 - [`docs/snippets/code-style.md`](../docs/snippets/code-style.md) — shfmt, shellcheck, body-only `install.bash`
-- [`docs/dev-guide/writing-features.md`](../docs/dev-guide/writing-features.md) — feature anatomy, shared `lib/` API
-- [`docs/dev-guide/ci.md`](../docs/dev-guide/ci.md) — `cicd.yaml`, `ci.yaml`, `cd.yaml`
+- [`docs/source/dev/writing-features.md`](../docs/source/dev/writing-features.md) — feature anatomy, shared `lib/` API
+- [`docs/source/dev/ci.md`](../docs/source/dev/ci.md) — `cicd.yaml`, `ci.yaml`, `cd.yaml`
 
 
 ## External Resources
