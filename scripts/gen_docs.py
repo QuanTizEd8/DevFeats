@@ -16,7 +16,7 @@ Usage:
 
 Modes (default: all):
     --lib    Inject lib API tables into lib.instructions.md and
-             docs/dev-guide/writing-features.md
+             docs/source/dev/writing-features.md
     --check  Dry-run: print what would change and exit 1 if anything differs
 
 Note: Feature reference preambles (H1, description, ## Options table) are now
@@ -184,7 +184,7 @@ def process_file(
 def run_lib(check: bool) -> bool:
     """
     Parse @brief from lib/*.sh, inject tables into lib.instructions.md and
-    docs/dev-guide/writing-features.md.  Returns True if any file changed.
+    docs/source/dev/writing-features.md.  Returns True if any file changed.
     """
     modules: dict[str, list[dict]] = {}
     for module in LIB_MODULE_ORDER:
