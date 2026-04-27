@@ -3,7 +3,7 @@
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
 # Small argv / string helpers. List-style results use one stdout line per item
-# (see docs/dev-guide/writing-features.md — Shared library reference).
+# (see docs/source/dev/writing-features.md — Shared library reference).
 
 [[ -n "${_STR__LIB_LOADED-}" ]] && return 0
 _STR__LIB_LOADED=1
