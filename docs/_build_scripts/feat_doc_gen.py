@@ -64,30 +64,37 @@ def _render_options_table(data: dict) -> str:
         return ""
     rows = [
         "## Options",
-        "",
-        "| Option | Type | Default | Description |",
-        "|--------|------|---------|-------------|",
     ]
     for opt_name, opt in options.items():
-        type_str = _option_type_str(opt)
+        opt_type = opt["type"]
+        # if opt_type == "string":
+        #     if "enum" in opt:
+        #         return "string (enum)"
+        #     if "proposals" in opt:
+        #         return "string (proposals)"
+
         default_str = "\\n".join(_option_default_str(opt).splitlines())
-        desc_str = _option_desc_full(opt)
-        rows.append(f"| `{opt_name}` | {type_str} | {default_str} | {desc_str} |")
+        rows.extend(
+            [
+                f"### `{opt_name}`",
+                _option_desc_full(opt),
+                f"- Type: `{opt_type}`",
+                f"- Default: {default_str}",
+            ]
+        )
+        if "enum" in opt:
+            rows.append("- Allowed values:")
+            for enum in opt["enum"]:
+                rows.append(f'  - `"{enum["value"]}"`: {enum["description"].strip()}')
+        elif "proposals" in opt:
+            rows.append("- Examples:")
+            for proposal in opt["proposals"]:
+                rows.append(f'  - `"{proposal["value"]}"`: {proposal["description"].strip()}')
+
     return "\n".join(rows) + "\n"
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
-
-
-def _option_type_str(opt: dict) -> str:
-    t = opt.get("type", "string")
-    if t == "string":
-        if "enum" in opt:
-            return "string (enum)"
-        if "proposals" in opt:
-            return "string (proposals)"
-    return t
-
 
 def _option_default_str(opt: dict) -> str:
     default = opt.get("default")
