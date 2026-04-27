@@ -20,7 +20,7 @@ SysSet's installer can also take a `devcontainer.json` file and execute the whol
 :link: manual/index
 :link-type: doc
 
-Quickstart guide, installation methods, manifests, versioning, and other general user documentation.
+Start here to learn more about how to use SysSet: quickstart guide, installation methods and options, recipes, version pinning, and other general user documentation.
 :::
 
 :::{grid-item-card} Feature Reference
@@ -28,7 +28,7 @@ Quickstart guide, installation methods, manifests, versioning, and other general
 :link: features/index
 :link-type: doc
 
-Feature descriptions, options, defaults, examples, and other details.
+Navigate all available features and their documentation: options, examples, defaults, and other per-feature details.
 :::
 
 :::{grid-item-card} Background Knowledge
