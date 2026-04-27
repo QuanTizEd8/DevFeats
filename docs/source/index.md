@@ -20,7 +20,7 @@ SysSet's installer can also take a `devcontainer.json` file and execute the whol
 :link: manual/index
 :link-type: doc
 
-Start here to learn more about how to use SysSet: quickstart guide, installation methods and options, recipes, version pinning, and other general user documentation.
+Read more about how to use SysSet: quickstart guide, installation methods and options, recipes, version pinning, and other general user documentation.
 :::
 
 :::{grid-item-card} Feature Reference
@@ -36,7 +36,7 @@ Navigate all available features and their documentation: options, examples, defa
 :link: learn/index
 :link-type: doc
 
-Dev Containers, configuration files, shell profiles, environment variables, and other background knowledge.
+Learn about the concepts and tools that SysSet builds on: POSIX shells, package managers, Dev Containers, configuration files, shell profiles, environment variables, and other background knowledge.
 :::
 
 :::{grid-item-card} Contribution Guide
@@ -44,7 +44,7 @@ Dev Containers, configuration files, shell profiles, environment variables, and 
 :link: dev/index
 :link-type: doc
 
-Feedback, bug report, feature request, developer guide, donation.
+Find out how to contribute to SysSet: feedback, bug report, feature request, developer guide, donations, and other ways to get involved.
 :::
 
 ::::
