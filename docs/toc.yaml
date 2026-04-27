@@ -1,30 +1,32 @@
 root: index
-
 entries:
+
   - title: Manual
-    file: manual
+    file: manual/index
     entries:
+      - file: manual/installation
       - file: manual/options
-        # entries:
-        #   - file: intro/background/env-vars
-        #   - file: intro/background/shell-config
+      - file: manual/manifests
+      - file: manual/versioning
 
   - title: Features
-    file: features
+    file: features/index
     entries:
       - glob: features/*
 
-  - title: Contribute
-    file: contribute
+  - title: Learn
+    file: learn/index
     entries:
-      - file: dev-guide/index
-        entries:
-          - file: dev-guide/repo-structure
-          - file: dev-guide/ci
-          - file: dev-guide/writing-features
-          - file: dev-guide/testing
-          - file: dev-guide/publishing
-          - file: dev-guide/features
-            entries:
-              - glob: dev-guide/features/*
+      - file: learn/env-vars
+      - file: learn/shell-config
 
+  - title: Contribute
+    file: contribute/index
+    entries:
+      - file: dev/index
+        entries:
+          - file: dev/repo-structure
+          - file: dev/writing-features
+          - file: dev/testing
+          - file: dev/ci
+          - file: dev/publishing
