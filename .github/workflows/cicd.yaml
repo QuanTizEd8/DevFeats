@@ -48,19 +48,9 @@ jobs:
       - name: "Detect changes and set outputs"
         id: detect
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          REF_TYPE: ${{ github.ref_type }}
-          REF_NAME: ${{ github.ref_name }}
-          HEAD_REF: ${{ github.head_ref }}
-          BASE_REF: ${{ github.base_ref }}
-          BEFORE: ${{ github.event.before }}
-          INPUT_REBUILD_DEVCONTAINER: ${{ inputs.rebuild_devcontainer }}
-          INPUT_FEATURE: ${{ inputs.feature }}
-          INPUT_VERSION: ${{ inputs.version }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPOSITORY: ${{ github.repository }}
+          GITHUB_CONTEXT: ${{ toJson(github) }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash .github/workflows/scripts/cicd_detect.sh
+        run: python3 .github/workflows/scripts/cicd_detect.py
 
   # Build devcontainer image (when needed)
   build-devcontainer:

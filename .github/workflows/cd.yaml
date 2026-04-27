@@ -5,7 +5,7 @@ on:
     inputs:
       features_to_release:
         description: |
-          JSON array of features to release, as produced by cicd_detect.sh.
+          JSON array of features to release, as produced by cicd_detect.py.
           Each element: {"feature":"<id>","version":"<X.Y.Z>","tag":"<id>/<X.Y.Z>"}.
         type: string
         required: true
