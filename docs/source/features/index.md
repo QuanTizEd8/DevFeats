@@ -1,12 +1,12 @@
 # Features
 
-::::{grid} 2
+::::{grid} 1
 :gutter: 3
 
-|{% for feat in feats.values()|sort(attribute='id') %}|
+|{% for feat_id, feat in feats.items()|sort(attribute='1.name') %}|
 :::{grid-item-card} |{{ feat.name }}|
 :class-title: sd-text-center
-:link: features/|{{ feat.id }}|
+:link: features/|{{ feat_id }}|
 :link-type: doc
 |{{ feat.description }}|
 :::
