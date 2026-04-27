@@ -9,17 +9,17 @@ applyTo: "test/install-os-pkg/dry-run/**, test/**/linux/**, .github/workflows/*.
 
 | Workflow | File | Trigger | Purpose |
 |---|---|---|---|
-| CI/CD Orchestrator | `cicd.yaml` | push/PR, `v*` tag push, `workflow_dispatch` | Runs `detect` → calls `ci.yaml`, then `cd.yaml` on release |
+| CI/CD Orchestrator | `cicd.yaml` | push to `main`, PRs, `workflow_dispatch` | Runs `detect` → calls `ci.yaml`, then `cd.yaml` when releasable features detected |
 | Continuous Integration | `ci.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | All lint/validate/unit/feature/dist tests |
 | Continuous Deployment | `cd.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | Publish to GHCR + GitHub Release |
 
-All jobs run `bash scripts/sync-src.sh` as an early step.
+All jobs run `python3 scripts/sync-src.py` as an early step.
 
 ## macOS GHA Runner
 
 Unit tests (`test-unit.yaml`) run on `ubuntu-latest`, `macos-latest`, and several Linux distribution containers. Feature scenario tests that use Docker run only on `ubuntu-latest` — macOS GHA runners cannot run Docker containers.
 
-Features that require a real macOS environment (e.g. `install-homebrew`) use a separate workflow (`test-macos.yaml`) that runs native bash scenario scripts directly on a `macos-latest` runner without Docker.
+Features that require a real macOS environment (e.g. `install-homebrew`) use the `test-macos` job in `ci.yaml`, which runs native bash scenario scripts directly on a `macos-latest` runner without Docker.
 
 ### bash version on macOS
 
@@ -68,7 +68,7 @@ gh run watch
 
 ## macOS Feature Scenarios
 
-`test-macos.yaml` runs feature tests that require a real macOS environment. These scenarios run native bash scripts directly on a `macos-latest` runner — no Docker, no devcontainer CLI.
+The `test-macos` job in `ci.yaml` runs feature tests that require a real macOS environment. These scenarios run native bash scripts directly on a `macos-latest` runner — no Docker, no devcontainer CLI.
 
 ### Directory structure
 
@@ -289,7 +289,7 @@ The `test-features` job in `ci.yaml` runs `bash test/run.sh feature <feature>`, 
 | `install-os-pkg` in `features[]` | `run_features` → `test-os-pkg` (6-distro matrix) |
 | `features/install.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
 
-On `workflow_dispatch` or a `v*` tag push, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch (zero-SHA `before`) also sets `is_force=true` as a safe fallback.
+On `workflow_dispatch`, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch (zero-SHA `before`) also sets `is_force=true` as a safe fallback.
 
 ### Feature test and macOS test discovery
 
@@ -324,11 +324,11 @@ pre-push:
 
 ### Release and publish
 
-`is_release=true` is set when the trigger is a `v*` tag push or a `workflow_dispatch` with a `tag` input. The `cd` job in `cicd.yaml` runs only when `is_release=true` AND the `ci` job result is `success`. CD can also be triggered standalone:
+`is_release=true` is set by `cicd_detect.py` when the push to `main` has at least one feature with an untagged version (a version in `metadata.yaml` with no matching release tag). Alternatively, a `workflow_dispatch` with `feature` + `version` inputs triggers a manual single-feature release. The `cd` job in `cicd.yaml` runs only when `is_release=true` AND the `ci` job result is `success`.
 
 ```bash
-# Publish without tests (e.g. hotfix or re-deploy)
-gh workflow run "CD" --field tag=v1.2.3
+# Manual single-feature release (CI still runs first)
+gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
 ```
 
 ## Monitoring CI Runs (for Agents)
@@ -409,17 +409,14 @@ gh run watch <run-id>
 ### Triggering and re-running
 
 ```bash
-# Run the full CI/CD suite (no publish)
+# Run the full CI/CD suite (auto-detects what to release)
 gh workflow run "CI/CD"
 
-# Run with a release tag (triggers publish if CI passes)
-gh workflow run "CI/CD" --field tag=v1.2.3
+# Manual single-feature release (CI still runs first)
+gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
 
 # Run CI tests only (standalone, discovers all features automatically)
 gh workflow run "CI"
-
-# Publish only (no tests) — useful for hotfix or re-deploy
-gh workflow run "CD" --field tag=v1.2.3
 
 # Re-run only the failed jobs in a run
 gh run rerun <run-id> --failed
