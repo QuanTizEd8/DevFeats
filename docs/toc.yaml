@@ -4,7 +4,7 @@ entries:
   - title: Manual
     file: manual/index
     entries:
-      - file: manual/installation
+      - file: manual/install
       - file: manual/options
       - file: manual/manifests
       - file: manual/versioning
