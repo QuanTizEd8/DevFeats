@@ -475,7 +475,7 @@ def main() -> None:
     LOG.info("ℹ️  groups: loaded decision groups: %s", ", ".join(sorted(groups.keys())))
 
     changed = changed_files(env)
-    LOG.info("ℹ️  changed-files: %s", ", ".join(changed) if changed else "none")
+    LOG.info("ℹ️  Changed files: %s", json.dumps(changed, indent=4) if changed else "none")
 
     is_force = (
         env.event_name == "workflow_dispatch"
@@ -490,14 +490,7 @@ def main() -> None:
 
     is_release, features_to_release = detect_release(env)
 
-    if is_force:
-        LOG.info("ℹ️  diff: skipped changed-files detection due to force mode.")
-    else:
-        LOG.info("ℹ️  diff: changed_files_count='%s'", len(changed))
-        if changed:
-            LOG.info("ℹ️  diff: changed_files=%s", json.dumps(changed, separators=(",", ":")))
-
-    if is_force:
+    if is_force or is_release:
         run_lint = run_validate = run_unit = run_features = run_dist = True
         features = all_feature_ids
         macos_features = macos_capable
@@ -524,6 +517,7 @@ def main() -> None:
         run_features = bool(features)
         run_macos = bool(macos_features)
         run_dist = any_match(changed, groups["dist_test"])
+
     LOG.info(
         (
             "ℹ️  decision: run_lint='%s' run_validate='%s' run_unit='%s' "
