@@ -42,7 +42,7 @@ def setup(app):
 def _load_feature_metadata() -> dict[str, dict]:
     """Load feature metadata from all features' metadata.yaml files into a dict."""
     metadata = {}
-    for meta_path in _FEATURES_DIR.glob("*/metadata.yaml"):
+    for meta_path in sorted(_FEATURES_DIR.glob("*/metadata.yaml")):
         with meta_path.open(encoding="utf-8") as fh:
             data = _yaml.safe_load(fh)
         feat_id = meta_path.parent.name
