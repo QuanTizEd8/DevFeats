@@ -33,12 +33,14 @@ import yaml
 
 
 CI_TRIGGER_PATHS_FILEPATH = ".github/ci_trigger_paths.yaml"
-FEATURE_DIRPATH = Path("features")
+FEATURE_DIRPATH = "features"
 
+
+SELF_FILEPATH = Path(__file__).resolve()
 REPO_ROOT = Path(
     subprocess.check_output(
         ["git", "rev-parse", "--show-toplevel"],
-        cwd=Path(__file__).resolve().parent,
+        cwd=SELF_FILEPATH.parent,
         text=True,
     )
     .strip()
@@ -478,7 +480,7 @@ def main() -> None:
     is_force = (
         env.event_name == "workflow_dispatch"
         or (env.event_name == "push" and env.before == "0000000000000000000000000000000000000000")
-        or any_match(changed, [".github/workflows/*.yaml"])
+        or any_match(changed, [".github/workflows/*.yaml", SELF_FILEPATH.relative_to(REPO_ROOT).as_posix()])
     )
     LOG.info("ℹ️  force-gate: is_force='%s'", str(is_force).lower())
 
