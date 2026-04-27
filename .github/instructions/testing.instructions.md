@@ -103,5 +103,5 @@ bash test/run.sh dry-run
 
 ## Further Reading
 
-- `docs/dev-guide/testing.md` — full narrative guide with examples
+- `docs/source/dev/testing.md` — full narrative guide with examples
 - [devcontainer CLI test framework docs](https://raw.githubusercontent.com/devcontainers/cli/refs/heads/main/docs/features/test.md)
