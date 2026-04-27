@@ -310,5 +310,5 @@ CI runs these automatically via `test-macos.yaml` on a `macos-latest` runner. No
 
 ## Further Reading
 
-- `docs/dev-guide/testing.md` — full narrative guide with examples
+- `docs/source/dev/testing.md` — full narrative guide with examples
 - `test-gha.instructions.md` — CI workflow triggers, discover job, macOS runner
