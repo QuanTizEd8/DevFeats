@@ -1,7 +1,33 @@
-containing comprehensive usage instructions, details on options and behavior, and any other relevant information that doesn't fit in the concise `metadata.yaml` description. Each file must only contain a collection of level-3 headings and their content (no H1 or H2) to ensure they integrate cleanly into the generated feature documentation. Each H3 should represent a distinct topic or aspect of the feature, and can be further organized with subheadings as needed.
+<!--
+This is the template for the Feature Notes document.
+It contains comprehensive usage instructions, details on settings and behavior, and any other relevant information that doesn't fit in the `metadata.yaml` file. Refrain from repeating information that is already covered in the metadata, such as general feature description, option descriptions, and examples that can be automatically generated. Instead, focus on providing additional context, details, limitations, and other important usage notes for users to understand and effectively use the feature, for example:
+
+- Schemas, contrac
+- Important considerations for certain combinations of options.
+- Platform-specific behavior or limitations.
+-
+- Best practices for using the API effectively.
+- Troubleshooting tips for common issues or misconfigurations.
+- Any other relevant information.
 
 
-## Details
+
+Each file must only contain a collection of level-2 headings and their content (no H1) to ensure they integrate cleanly into the generated feature documentation. Each H2 should represent a distinct topic or aspect of the feature, and can be further organized with subheadings as needed. There are no strict requirements on the content of each section, since it depends on the specific feature; below are some common topics that are often covered in the notes, but feel free to include/exclude any sections as appropriate for the specific feature.
+
+
+Provide all necessary information for users to understand and effectively use the API, including:
+
+
+Organize the information in a clear, logical manner with appropriate subheadings, bullet points, and formatting to enhance readability and comprehension, e.g.:
+
+### <Platform Name> Limitations and Workarounds
+- Describe any limitations or quirks of the API on this platform.
+- Provide any known workarounds or mitigation strategies for these limitations.
+
+
+
+-->
+
 
 ### Supported Installation Methods
 
@@ -16,59 +42,16 @@ Shortly describe the method, and any considerations, limitations, or other impor
 - if there are any important trade-offs to consider when choosing this method (e.g. simplicity vs flexibility, speed vs reliability, etc.).
 - if there are special dependenies or requirements for this method that users should be aware of.
 
-##### Usage Example
 
-As a devcontainer feature in `devcontainer.json`:
-````json
-{
-  "features": {
-    "ghcr.io/quantized8/sysset/<feature-name>:<version>": {
-      "<option>": "<value>",
-      ...
-    }
-  }
-}
-````
-
-As a standalone installer:
-````bash
-curl -L https://... | bash -s -- --version 1.2.3 --install-path /opt/some-tool`
-````
 
 ### Version Selection
 
 Describe how users can select the version of the tool to install, if applicable. If the version selection availability or behavior differs based on the installation method or other factors, make sure to clearly explain these differences and any important considerations for users when selecting versions.
 
-#### Usage Example
-
-Include usage example as shown above.
-
 ### Installation Path
 
-Describe how users can specify the installation path or prefix for the tool, if applicable.
-If the installation path configuration availability or behavior differs based on the installation method, target platform, or other factors, make sure to clearly explain these differences and any important considerations for users when specifying installation paths.
-If there are any important limitations or caveats related to installation paths (e.g. certain platforms not supporting custom installation paths, or specific requirements for PATH addition when using custom paths), make sure to clearly explain them and provide any necessary workarounds or mitigation strategies.
-
-#### Usage Example
-
-Include usage example as shown above.
+If the installation path configuration availability or behavior differs based on the installation method, target platform, or other factors, make sure to clearly explain these differences and any important considerations for users when specifying installation paths. If there are any important limitations or caveats related to installation paths (e.g. certain platforms not supporting custom installation paths, or specific requirements for PATH addition when using custom paths), make sure to clearly explain them and provide any necessary workarounds or mitigation strategies.
 
 ### User Installation
 
 Describe how users can specify the target user(s) for the installation, if applicable (e.g. root vs non-root, specific user names, multiple users). If the installation can only be done by the root user, make sure to clearly explain this limitation and provide any necessary workarounds or mitigation strategies for users who want to install for non-root users. If there are any important considerations or limitations related to user targeting (e.g. certain platforms having specific requirements or quirks when installing for non-root users), make sure to clearly explain them and provide any necessary workarounds or mitigation strategies.
-
-
-
-Provide all necessary information for users to understand and effectively use the API, including:
-- Important considerations for certain options or combinations of options.
-- Any platform-specific behavior or limitations.
-- Best practices for using the API effectively.
-- Troubleshooting tips for common issues or misconfigurations.
-- Any other relevant information.
-
-Organize the information in a clear, logical manner with appropriate subheadings, bullet points, and formatting to enhance readability and comprehension, e.g.:
-
-### <Platform Name> Limitations and Workarounds
-- Describe any limitations or quirks of the API on this platform.
-- Provide any known workarounds or mitigation strategies for these limitations.
-
