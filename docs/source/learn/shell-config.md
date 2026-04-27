@@ -84,8 +84,7 @@ configured through mechanisms that cover non-login shells:
 - **PATH and dynamic variables for all zsh**: `/etc/zsh/zshenv`
 - **PATH and dynamic variables for non-interactive bash**: `BASH_ENV` in `/etc/environment`
 
-See the [Environment Variables guide](../environment/index.md) for a complete
-breakdown of which files cover which scenarios and the recommended setup.
+See {doc}`env-vars` for a complete breakdown of which files cover which scenarios and the recommended setup.
 
 ### Checking Invocation Type
 
@@ -292,7 +291,7 @@ BASH_ENV=/etc/bash/bash_env
 emulate sh -c 'source "/etc/bash/bash_env"'
 ```
 
-See the [Environment Variables guide](../environment/index.md) for details.
+See {doc}`env-vars` for details.
 
 ### Modularize Your Configuration
 
