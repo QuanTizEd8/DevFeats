@@ -44,7 +44,7 @@ Referenced from a `devcontainer.json` as `ghcr.io/|{{github_user}}|/|{{github_re
 :::{grid-item-card} Standalone installers (GitHub Releases)
 :class-title: sd-text-center
 
-Self-contained per-feature tarballs plus an accumulator bundle. Driven by the `get.sh` / `get.bash` installer in this repo, or run straight from a downloaded tarball. Use this on VMs, CI runners, WSL2, remote hosts, and any environment where you do not want (or cannot use) a dev container toolchain.
+Self-contained per-feature tarballs plus an accumulator bundle. Driven by the `install.sh` / `install.bash` installer in this repo, or run straight from a downloaded tarball. Use this on VMs, CI runners, WSL2, remote hosts, and any environment where you do not want (or cannot use) a dev container toolchain.
 :::
 ::::
 
@@ -86,29 +86,29 @@ devcontainer up --workspace-folder .
 
 ::::{tab-item} As a one-shot standalone install
 
-Pipe `get.sh` into your shell to install a single feature. All arguments after `sh -s --` are forwarded to the feature's installer.
+Pipe `install.sh` into your shell to install a single feature. All arguments after `sh -s --` are forwarded to the feature's installer.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh \
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/install.sh \
   | sh -s -- install-pixi --version 0.66.0
 ```
 
-Or download `get.sh` once and run it as many times as you like:
+Or download `install.sh` once and run it as many times as you like:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh -o get.sh
-sh get.sh install-shell --set_user_shells zsh
-sh get.sh setup-user    --username dev
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/install.sh -o install.sh
+sh install.sh install-shell --set_user_shells zsh
+sh install.sh setup-user    --username dev
 ```
 ::::
 
 ::::{tab-item} From a multi-feature manifest
 
-Write a `devcontainer.json` (or `.jsonc`) and hand it to `get.sh`. It installs the listed features in dependency order on the host — no container required.
+Write a `devcontainer.json` (or `.jsonc`) and hand it to `install.sh`. It installs the listed features in dependency order on the host — no container required.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh -o get.sh
-sudo sh get.sh .devcontainer/my-setup.jsonc
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/install.sh -o install.sh
+sudo sh install.sh .devcontainer/my-setup.jsonc
 ```
 
 Where `my-setup.jsonc` is:
@@ -132,7 +132,7 @@ Where `my-setup.jsonc` is:
 :::::
 
 :::{note}
-`sudo` is required when a feature writes to system directories (almost all of them do). On a devcontainer, the spec tooling already runs feature installs as root; with `get.sh` you need to provide the privilege yourself.
+`sudo` is required when a feature writes to system directories (almost all of them do). On a devcontainer, the spec tooling already runs feature installs as root; with `install.sh` you need to provide the privilege yourself.
 :::
 
 ---
@@ -167,13 +167,13 @@ Every feature publishes three OCI tags per release — `:<major>`, `:<major>.<mi
 | `:0.1.3` | Exact `0.1.3`                | You need a fully reproducible build.                  |
 | *(no tag)* | Latest, any version        | Not recommended outside of experiments.               |
 
-See [Versioning and pinning](#versioning-and-pinning) below for how this interacts with the bundle-level pin when you use `get.sh` in manifest mode.
+See [Versioning and pinning](#versioning-and-pinning) below for how this interacts with the bundle-level pin when you use `install.sh` in manifest mode.
 
 ---
 
-## Installing with `get.sh` (standalone)
+## Installing with `install.sh` (standalone)
 
-`get.sh` is a tiny POSIX `sh` bootstrap committed at the root of this repo. It locates (or installs) bash ≥ 4, downloads the full `get.bash` implementation, and hands off execution — forwarding every argument verbatim. It operates in one of two modes depending on the first positional argument.
+`install.sh` is a tiny POSIX `sh` bootstrap committed at the root of this repo. It locates (or installs) bash ≥ 4, downloads the full `install.bash` implementation, and hands off execution — forwarding every argument verbatim. It operates in one of two modes depending on the first positional argument.
 
 :::{card} Requirements
 :class-card: sd-border-0
@@ -185,22 +185,22 @@ See [Versioning and pinning](#versioning-and-pinning) below for how this interac
 
 ### Feature mode — install one feature
 
-The fastest path: give `get.sh` a feature ID and optionally a `@<version>` suffix. Everything after the feature ID is forwarded to the feature's `install.bash` as CLI flags.
+The fastest path: give `install.sh` a feature ID and optionally a `@<version>` suffix. Everything after the feature ID is forwarded to the feature's `install.bash` as CLI flags.
 
 ```sh
 # One-shot, latest version
-curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh \
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/install.sh \
   | sh -s -- install-pixi
 
 # Pass options to the feature installer
-curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh \
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/install.sh \
   | sh -s -- install-pixi --version 0.66.0
 
 # Download once, run many times
-curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/get.sh -o get.sh
-sh get.sh install-shell --set_user_shells zsh --ohmyzsh_theme romkatv/powerlevel10k
-sh get.sh install-fonts --nerd_fonts Meslo --nerd_fonts FiraCode
-sh get.sh setup-user    --username dev
+curl -fsSL https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main/install.sh -o install.sh
+sh install.sh install-shell --set_user_shells zsh --ohmyzsh_theme romkatv/powerlevel10k
+sh install.sh install-fonts --nerd_fonts Meslo --nerd_fonts FiraCode
+sh install.sh setup-user    --username dev
 ```
 
 :::{note}
@@ -209,13 +209,13 @@ sh get.sh setup-user    --username dev
 
 ### Manifest mode — install multiple features
 
-If the first argument ends in `.json` or `.jsonc`, `get.sh` treats it as a devcontainer manifest (see the [manifest-mode section below](#manifest-mode-devcontainer-json-parity)) and installs every entry under `features`:
+If the first argument ends in `.json` or `.jsonc`, `install.sh` treats it as a devcontainer manifest (see the [manifest-mode section below](#manifest-mode-devcontainer-json-parity)) and installs every entry under `features`:
 
 ```sh
-sudo sh get.sh .devcontainer/devcontainer.jsonc
+sudo sh install.sh .devcontainer/devcontainer.jsonc
 ```
 
-`get.sh` parses the file, resolves per-feature tags and/or a bundle pin, fetches every feature's tarball, orders them using the combined hard/soft dependency graph, and runs each `install.sh` with the corresponding options injected as environment variables. Lifecycle commands (`initializeCommand`, `onCreateCommand`, …) are honored, on the host — see [Lifecycle commands](#lifecycle-commands).
+`install.sh` parses the file, resolves per-feature tags and/or a bundle pin, fetches every feature's tarball, orders them using the combined hard/soft dependency graph, and runs each `install.sh` with the corresponding options injected as environment variables. Lifecycle commands (`initializeCommand`, `onCreateCommand`, …) are honored, on the host — see [Lifecycle commands](#lifecycle-commands).
 
 ### Directly running a per-feature tarball
 
@@ -239,7 +239,7 @@ sysset-<feature-id>.tar.gz
 └── files/                      ← Supplementary files (when the feature has any)
 ```
 
-The bootstrap (`install.sh`) is identical across all features and handles bash ≥ 4 resolution the same way `get.sh` does. You can safely inspect every file in the tarball before running it.
+The bootstrap (`install.sh`) is identical across all features and handles bash ≥ 4 resolution the same way `install.sh` does. You can safely inspect every file in the tarball before running it.
 :::
 
 ---
@@ -265,7 +265,7 @@ On every CD run that publishes at least one per-feature release, the pipeline al
 | Asset                | Purpose                                                                                   |
 |----------------------|-------------------------------------------------------------------------------------------|
 | `sysset-all.tar.gz`  | Every feature's per-feature tarball, flat layout — convenient for mirrors and archives.    |
-| `manifest.yaml`      | Machine-readable version map for this bundle, consumed by `get.bash` for bundle pinning.   |
+| `manifest.yaml`      | Machine-readable version map for this bundle, consumed by `install.bash` for bundle pinning.   |
 
 :::{dropdown} Example `manifest.yaml`
 
@@ -312,26 +312,26 @@ Anywhere you pass a per-feature version — `@spec` on the CLI, a `:tag` on an O
 | `1.2.3`, `v1.2.3` | Exact          |
 
 ```sh
-sh get.sh install-pixi@1            # latest 1.x.y
-sh get.sh install-pixi@1.2          # latest 1.2.x
-sh get.sh install-pixi@1.2.3        # exact 1.2.3
-sh get.sh install-pixi@1.2 --version 0.66.0   # pin the tarball, pass --version through
+sh install.sh install-pixi@1            # latest 1.x.y
+sh install.sh install-pixi@1.2          # latest 1.2.x
+sh install.sh install-pixi@1.2.3        # exact 1.2.3
+sh install.sh install-pixi@1.2 --version 0.66.0   # pin the tarball, pass --version through
 ```
 
 The `@spec` suffix only affects *which* tarball is downloaded for that feature; all CLI flags after the feature ID (like `--version 0.66.0` above) are forwarded to the installer unchanged.
 
 #### Bundle pinning
 
-Set `SYSSET_VERSION` — or put a `v<major>.<minor>.<patch>` suffix on the `name` of a devcontainer manifest — to pin the **bundle** for the whole run. `get.bash` downloads the bundle's `manifest.yaml` first, then resolves each requested feature to the version listed there.
+Set `SYSSET_VERSION` — or put a `v<major>.<minor>.<patch>` suffix on the `name` of a devcontainer manifest — to pin the **bundle** for the whole run. `install.bash` downloads the bundle's `manifest.yaml` first, then resolves each requested feature to the version listed there.
 
 ```sh
 # Every feature pinned to the versions in bundle v1.2.0
-SYSSET_VERSION=v1.2.0 sh get.sh install-pixi install-shell
+SYSSET_VERSION=v1.2.0 sh install.sh install-pixi install-shell
 
 # Partial specs and 'latest' also work (resolved against v* bundle tags)
-SYSSET_VERSION=v1    sh get.sh my-setup.jsonc
-SYSSET_VERSION=v1.2  sh get.sh my-setup.jsonc
-SYSSET_VERSION=latest sh get.sh my-setup.jsonc
+SYSSET_VERSION=v1    sh install.sh my-setup.jsonc
+SYSSET_VERSION=v1.2  sh install.sh my-setup.jsonc
+SYSSET_VERSION=latest sh install.sh my-setup.jsonc
 ```
 
 Inside a manifest, the equivalent pin is the optional version suffix on `name`:
@@ -356,14 +356,14 @@ A per-feature override **always** wins over a bundle pin — useful for taking a
 
 ```sh
 # Pin everything to v1.2.0, except install-pixi which rolls to its latest 1.4.x
-SYSSET_VERSION=v1.2.0 sh get.sh install-pixi@1.4 install-shell
+SYSSET_VERSION=v1.2.0 sh install.sh install-pixi@1.4 install-shell
 ```
 
 ---
 
 ## Manifest mode: `devcontainer.json` parity
 
-`get.bash` reads a `devcontainer.json` (strict JSON) or `.jsonc` (with `//` and `/* */` comments and trailing commas — stripped before parsing) and honors a focused subset of the [official Dev Container spec](https://containers.dev/implementors/json_reference/), chosen so that the same file you use to build a container can also drive a host install.
+`install.bash` reads a `devcontainer.json` (strict JSON) or `.jsonc` (with `//` and `/* */` comments and trailing commas — stripped before parsing) and honors a focused subset of the [official Dev Container spec](https://containers.dev/implementors/json_reference/), chosen so that the same file you use to build a container can also drive a host install.
 
 ### Honored fields
 
@@ -388,12 +388,12 @@ SYSSET_VERSION=v1.2.0 sh get.sh install-pixi@1.4 install-shell
 :::
 
 :::{warning}
-The contents of `initializeCommand` are executed on your host before any feature runs. Only point `get.sh` at manifests you trust (the installer prints `⚠️  initializeCommand (host): trust this config` as a reminder).
+The contents of `initializeCommand` are executed on your host before any feature runs. Only point `install.sh` at manifests you trust (the installer prints `⚠️  initializeCommand (host): trust this config` as a reminder).
 :::
 
 ### Ignored fields
 
-Fields that only have meaning for a container build (buildah/docker image assembly, mount semantics, VS Code customizations, `portsAttributes`, `runArgs`, and similar) are skipped when `get.bash` reads the file. Unknown top-level keys are silently ignored, so the same manifest can drive both a dev container build and a host install without error.
+Fields that only have meaning for a container build (buildah/docker image assembly, mount semantics, VS Code customizations, `portsAttributes`, `runArgs`, and similar) are skipped when `install.bash` reads the file. Unknown top-level keys are silently ignored, so the same manifest can drive both a dev container build and a host install without error.
 
 ### Rejected inputs
 
@@ -434,12 +434,12 @@ Fields that only have meaning for a container build (buildah/docker image assemb
 
 ## Install order
 
-When `get.bash` installs multiple features, the order is determined by a **round-based topological sort** over a combined dependency graph:
+When `install.bash` installs multiple features, the order is determined by a **round-based topological sort** over a combined dependency graph:
 
 1. **Hard edges** — from each feature's `dependsOn` in its generated `devcontainer-feature.json`. A feature cannot run until every hard dependency has completed.
 2. **Soft edges** — from each feature's `installsAfter`. Honored whenever possible, but dropped if they would create a cycle.
 3. **Priority** — `overrideFeatureInstallOrder` in the manifest. Earlier entries get higher priority *within the same round*; this is a tie-break, **not** an override of true dependency edges.
-4. **Fallback** — if the graph is unsatisfiable for any reason, `get.bash` falls back to the canonical static order below, appending any remaining features at the end.
+4. **Fallback** — if the graph is unsatisfiable for any reason, `install.bash` falls back to the canonical static order below, appending any remaining features at the end.
 
 :::{dropdown} The canonical fallback order
 
@@ -468,7 +468,7 @@ The resolved order is printed to stderr at startup (`ℹ️  order: …`) so you
 
 ## Lifecycle commands
 
-`get.bash` implements devcontainer-style lifecycle hooks, merged across the container-level manifest and the per-feature `devcontainer-feature.json` inside each tarball. Each phase's commands are run in order, and run as the resolved user (see below).
+`install.bash` implements devcontainer-style lifecycle hooks, merged across the container-level manifest and the per-feature `devcontainer-feature.json` inside each tarball. Each phase's commands are run in order, and run as the resolved user (see below).
 
 | Phase                  | Where it comes from                                                                  | Runs as                                 |
 |------------------------|--------------------------------------------------------------------------------------|-----------------------------------------|
@@ -506,14 +506,14 @@ The flag is repeatable; each invocation adds a rule. Feature mode also accepts `
 
 ---
 
-## `get.sh` and `get.bash` command-line reference
+## `install.sh` and `install.bash` command-line reference
 
-`get.sh` forwards every argument to `get.bash`, so the two have the same CLI. The wrapper-level flags below are consumed by `get.bash` itself; any extra arguments in feature mode are forwarded to the selected feature's `install.bash`.
+`install.sh` forwards every argument to `install.bash`, so the two have the same CLI. The wrapper-level flags below are consumed by `install.bash` itself; any extra arguments in feature mode are forwarded to the selected feature's `install.bash`.
 
 ```text
 Usage:
-  Feature mode:   get.sh <feature>[@<spec>] [feature-opts...]
-  Manifest mode:  get.sh <devcontainer.json[.jsonc]>
+  Feature mode:   install.sh <feature>[@<spec>] [feature-opts...]
+  Manifest mode:  install.sh <devcontainer.json[.jsonc]>
 ```
 
 ::::{list-table}
@@ -525,7 +525,7 @@ Usage:
 * - `--log_file <path>`
   - Append the full captured output to this file on exit (absolute path recommended). Secrets detected via `GITHUB_TOKEN` are redacted.
 * - `--log_level <level>`
-  - Set `get.bash` log verbosity (`silent`, `error`, `warn`, `info`, `debug`, `trace`). `trace` enables `bash -x` for `get.bash`; for feature installers, use each feature's own `--log_level trace` / `LOG_LEVEL=trace`.
+  - Set `install.bash` log verbosity (`silent`, `error`, `warn`, `info`, `debug`, `trace`). `trace` enables `bash -x` for `install.bash`; for feature installers, use each feature's own `--log_level trace` / `LOG_LEVEL=trace`.
 * - `--help`, `-h`
   - Print the embedded usage and exit.
 * - `--workspace-folder <path>`
@@ -550,7 +550,7 @@ Usage:
 
 ## Environment variables
 
-Environment variables influence both `get.sh` (the POSIX bootstrap) and `get.bash` (the full installer). Set them on the process or export them in your shell before calling.
+Environment variables influence both `install.sh` (the POSIX bootstrap) and `install.bash` (the full installer). Set them on the process or export them in your shell before calling.
 
 ::::{list-table}
 :header-rows: 1
@@ -563,9 +563,9 @@ Environment variables influence both `get.sh` (the POSIX bootstrap) and `get.bas
 * - `SYSSET_BASE_URL`
   - GitHub Releases base URL. Default: `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. URLs are constructed as `<base>/<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` for per-feature releases and `<base>/v<X.Y.Z>/manifest.yaml` for bundles. Override for mirrors (including `file://` paths).
 * - `SYSSET_RAW_BASE`
-  - Raw GitHub base for `get.bash` and `lib/*.sh`. Default: `https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main`. Override to use a fork, a branch, or a local mirror.
+  - Raw GitHub base for `install.bash` and `lib/*.sh`. Default: `https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main`. Override to use a fork, a branch, or a local mirror.
 * - `SYSSET_FETCH_TOOL`
-  - Force `curl` or `wget`. Auto-detected when unset. Also exported by `get.sh` so `get.bash` inherits the same choice.
+  - Force `curl` or `wget`. Auto-detected when unset. Also exported by `install.sh` so `install.bash` inherits the same choice.
 * - `LOG_FILE`
   - Append the installer's captured output to this file on exit. Equivalent to `--log_file`. Also honored by individual features.
 * - `GITHUB_TOKEN` *(optional)*
@@ -614,7 +614,7 @@ The full publishing pipeline is documented under {doc}`/dev-guide/publishing`.
 
 ## Offline and air-gapped installs
 
-The standalone channel is designed to work with no outbound network, provided you mirror two things: the tarballs from a bundle release, and (optionally) `get.bash` + `lib/` from the repo.
+The standalone channel is designed to work with no outbound network, provided you mirror two things: the tarballs from a bundle release, and (optionally) `install.bash` + `lib/` from the repo.
 
 ### Step 1 — stage the bundle
 
@@ -637,7 +637,7 @@ sudo sh /tmp/pixi/install.sh --version 0.66.0
 
 ### Step 2 — build a mirror matching the GitHub Releases URL layout
 
-For `get.bash` manifest mode, build a mirror that mirrors `<base>/<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` + `<base>/v<X.Y.Z>/manifest.yaml`. Then point `SYSSET_BASE_URL` at it:
+For `install.bash` manifest mode, build a mirror that mirrors `<base>/<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` + `<base>/v<X.Y.Z>/manifest.yaml`. Then point `SYSSET_BASE_URL` at it:
 
 ```sh
 VERSION=v1.2.0
@@ -658,23 +658,23 @@ PY
 
 SYSSET_BASE_URL="file:///opt/sysset-mirror" \
 SYSSET_VERSION="${VERSION}" \
-  sudo sh get.sh my-setup.jsonc
+  sudo sh install.sh my-setup.jsonc
 ```
 
-With `SYSSET_VERSION` set, `get.sh` downloads `manifest.yaml` from the mirror, then resolves each feature's version from it before downloading `<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` — fully reproducible.
+With `SYSSET_VERSION` set, `install.sh` downloads `manifest.yaml` from the mirror, then resolves each feature's version from it before downloading `<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` — fully reproducible.
 
-### Step 3 — fully air-gapped (`get.bash` + `lib/` offline too)
+### Step 3 — fully air-gapped (`install.bash` + `lib/` offline too)
 
-`get.sh` itself still downloads `get.bash` and `lib/*.sh` from `SYSSET_RAW_BASE`. For a completely offline host, mirror those too and override both bases:
+`install.sh` itself still downloads `install.bash` and `lib/*.sh` from `SYSSET_RAW_BASE`. For a completely offline host, mirror those too and override both bases:
 
 ```sh
 SYSSET_RAW_BASE="http://my-mirror.internal/sysset" \
 SYSSET_BASE_URL="file:///opt/sysset-mirror" \
 SYSSET_VERSION="v1.2.0" \
-  sudo sh get.sh my-setup.jsonc
+  sudo sh install.sh my-setup.jsonc
 ```
 
-Or skip `get.sh` entirely and run the per-feature tarballs directly — they contain everything needed to install, with zero outbound traffic.
+Or skip `install.sh` entirely and run the per-feature tarballs directly — they contain everything needed to install, with zero outbound traffic.
 
 ---
 
@@ -683,9 +683,9 @@ Or skip `get.sh` entirely and run the per-feature tarballs directly — they con
 Every feature goes through the same logging pipeline, which makes failures easy to triage.
 
 - **Emoji markers** — stdout and stderr use a consistent vocabulary (`↪️` entry, `ℹ️` info, `📩` input read, `📦` install step, `⚠️` warning, `⛔` / `❌` error, `↩️` exit). Grep for `⛔` / `❌` in a log file to jump straight to failures.
-- **`--log_file <path>`** (on `get.sh`, or `--log_file` as a feature option) captures the full `tee`d output. Append-safe; works across features in the same run.
+- **`--log_file <path>`** (on `install.sh`, or `--log_file` as a feature option) captures the full `tee`d output. Append-safe; works across features in the same run.
 - **`--log_level trace`** enables `bash -x` inside generated feature installers; combine with `--log_file` to capture the trace.
-- **Partial failures** — in manifest mode, `get.bash` attempts every feature and exits non-zero if any failed, naming them at the end. Order is still respected: a feature whose hard dependencies failed is skipped.
+- **Partial failures** — in manifest mode, `install.bash` attempts every feature and exits non-zero if any failed, naming them at the end. Order is still respected: a feature whose hard dependencies failed is skipped.
 - **Re-runs are idempotent** — installers check for already-done work and skip it, so you can rerun after fixing an environment issue without uninstalling first.
 
 ---

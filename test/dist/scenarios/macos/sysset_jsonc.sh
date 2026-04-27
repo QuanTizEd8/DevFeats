@@ -44,12 +44,12 @@ cat > "$_manifest" << 'EOF'
 }
 EOF
 
-check "get.bash processes devcontainer.jsonc (comments stripped)" \
+check "install.bash processes devcontainer.jsonc (comments stripped)" \
   sudo env PATH="$PATH" \
   SYSSET_RAW_BASE="$SYSSET_RAW_BASE" \
   SYSSET_BASE_URL="$SYSSET_BASE_URL" \
   SYSSET_VERSION="${_BUNDLE}" \
-  bash "${REPO_ROOT}/get.bash" "$_manifest"
+  bash "${REPO_ROOT}/install.bash" "$_manifest"
 
 check "code shim installed" \
   test -f /usr/local/share/setup-shim/bin/code

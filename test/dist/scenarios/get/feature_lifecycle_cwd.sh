@@ -61,8 +61,8 @@ export SYSSET_BASE_URL
 unset SYSSET_VERSION
 
 # ── 1. --workspace-folder sets default cwd for lifecycle commands ────────────
-check "get.sh --workspace-folder <ws> runs hook in <ws>" \
-  sudo -E bash "${REPO_ROOT}/get.sh" --log_file "$_log" \
+check "install.sh --workspace-folder <ws> runs hook in <ws>" \
+  sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log" \
   --workspace-folder "$_dest_ws" "${_FEAT}@${_VER}"
 check "sentinel file under --workspace-folder is present" \
   test -f "$_sentinel_ws"
@@ -84,8 +84,8 @@ EOF
 tar -C "${_stage}/root" -czf "${_stage}/sysset-${_FEAT}.tar.gz" .
 cp "${_stage}/sysset-${_FEAT}.tar.gz" "${_MIRROR}/${_FEAT}/${_VER}/"
 
-check "get.sh --lifecycle-command-dir <lc> runs hook in <lc>" \
-  sudo -E bash "${REPO_ROOT}/get.sh" \
+check "install.sh --lifecycle-command-dir <lc> runs hook in <lc>" \
+  sudo -E bash "${REPO_ROOT}/install.sh" \
   --workspace-folder "$_dest_ws" \
   --lifecycle-command-dir "$_dest_lc" \
   "${_FEAT}@${_VER}"

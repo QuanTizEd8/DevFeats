@@ -7,7 +7,7 @@
 # dependsOn, both are in the first round; higher priority (pixi) should run
 # first. Log order should show [install-pixi] before [install-os-pkg].
 #
-# Requires: root (get.bash manifest mode calls os__require_root).
+# Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -61,8 +61,8 @@ cat > "$_manifest" << EOF
 }
 EOF
 
-check "get.bash completes with overrideFeatureInstallOrder" \
-  bash "${REPO_ROOT}/get.bash" --log_file "$_log_file" "$_manifest"
+check "install.bash completes with overrideFeatureInstallOrder" \
+  bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
 
 # install-pixi should appear before install-os-pkg in the log.
 # NOTE: Use the "running install.sh" marker to match only the installation

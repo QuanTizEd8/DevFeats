@@ -3,11 +3,11 @@
 #
 # What this tests:
 #   • SYSSET_VERSION=<bundle-tag> drives bundle-pinned mode.
-#   • get.bash fetches <bundle>/manifest.yaml from the mirror.
+#   • install.bash fetches <bundle>/manifest.yaml from the mirror.
 #   • Per-feature versions are read from the manifest and used to construct
 #     <feature>/<X.Y.Z>/sysset-<feature>.tar.gz URLs.
 #   • The mirror also hosts a foreign feature's tag (install-shell/0.1.0) to
-#     verify that get.bash ignores unrelated features present in the mirror
+#     verify that install.bash ignores unrelated features present in the mirror
 #     (prefix-scoped resolution only downloads what the manifest says).
 set -euo pipefail
 
@@ -53,8 +53,8 @@ SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
 export SYSSET_VERSION="${_BUNDLE}"
 
-check "get.sh installs install-pixi via bundle-pinned manifest (${_BUNDLE} → ${_PIXI_VER})" \
-  sudo -E bash "${REPO_ROOT}/get.sh" install-pixi
+check "install.sh installs install-pixi via bundle-pinned manifest (${_BUNDLE} → ${_PIXI_VER})" \
+  sudo -E bash "${REPO_ROOT}/install.sh" install-pixi
 
 check "pixi binary present in PATH after bundle-pinned install" \
   command -v pixi

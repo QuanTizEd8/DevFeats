@@ -12,7 +12,7 @@ Install the latest GitHub CLI release using the official package repository (def
 
 Standalone installer:
 ```bash
-curl -fsSL https://sysset.quantized8.dev/get.sh | bash -s -- install-gh
+curl -fsSL https://sysset.quantized8.dev/install.sh | bash -s -- install-gh
 ```
 
 ---
@@ -32,7 +32,7 @@ Install an exact version of gh using the binary download method, for reproducibl
 
 Standalone installer:
 ```bash
-curl -fsSL https://sysset.quantized8.dev/get.sh | bash -s -- install-gh \
+curl -fsSL https://sysset.quantized8.dev/install.sh | bash -s -- install-gh \
   --version 2.89.0 --method binary
 ```
 

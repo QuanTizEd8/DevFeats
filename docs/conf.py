@@ -25,6 +25,9 @@ import feat_doc_gen
 import git_utils
 
 
+_REPO_OWNER, _REPO_NAME = git_utils.git_owner_repo()
+
+
 def setup(app):
     """Register lexer aliases and connect build-time feature preamble injection."""
     from pygments.lexers.data import JsonLexer
@@ -168,7 +171,7 @@ html_title = "SysSet"
 html_logo = None  # add docs/_static/logo.svg when available
 
 html_theme_options = {
-    "github_url": "https://github.com/quantized8/sysset",
+    "github_url": f"https://github.com/{_REPO_OWNER}/{_REPO_NAME}",
     "use_edit_page_button": True,
     "show_toc_level": 2,
     "navigation_with_keys": True,
@@ -181,8 +184,8 @@ html_theme_options = {
 }
 
 html_context = {
-    "github_user": git_utils.git_owner_repo()[0],
-    "github_repo": git_utils.git_owner_repo()[1],
+    "github_user": _REPO_OWNER,
+    "github_repo": _REPO_NAME,
     "github_version": "main",
     "doc_path": "docs/source",
     "feats": _feature_metadata,  # for Jinja templating in source files

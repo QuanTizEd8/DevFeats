@@ -4,13 +4,13 @@
 #
 # What this tests:
 #   • devcontainer__name_version_suffix extracts the trailing vX.Y.Z.
-#   • get.bash uses the extracted version as the bundle spec when SYSSET_VERSION
+#   • install.bash uses the extracted version as the bundle spec when SYSSET_VERSION
 #     is not set, fetches <bundle>/manifest.yaml, and installs per-feature
 #     versions listed there.
 #   • Per-feature versions in the manifest (not the bundle tag itself) govern
 #     the downloaded tarball URLs.
 #
-# Requires: root (get.bash manifest mode calls os__require_root).
+# Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -63,8 +63,8 @@ cat > "$_manifest" << EOF
 }
 EOF
 
-check "get.bash uses name-suffix version to drive bundle pin" \
-  bash "${REPO_ROOT}/get.bash" "$_manifest"
+check "install.bash uses name-suffix version to drive bundle pin" \
+  bash "${REPO_ROOT}/install.bash" "$_manifest"
 
 check "pixi installed by sysset (name-suffix mode)" \
   command -v pixi

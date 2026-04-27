@@ -7,15 +7,15 @@ Each feature declares its options in a `metadata.yaml` file (the same schema tha
 | Channel                            | How options are delivered                                 |
 |------------------------------------|-----------------------------------------------------------|
 | Dev Container features (OCI)       | Injected as environment variables by the dev container tooling. |
-| `get.sh <feature>` (feature mode)  | Passed as CLI flags after the feature ID (`--option value`). |
-| `get.sh <manifest>` (manifest mode)| Extracted from `features[…]` and injected as environment variables (same as OCI). |
+| `install.sh <feature>` (feature mode)  | Passed as CLI flags after the feature ID (`--option value`). |
+| `install.sh <manifest>` (manifest mode)| Extracted from `features[…]` and injected as environment variables (same as OCI). |
 | Direct tarball                     | Either: set env vars before `sh install.sh`, **or** pass CLI flags. |
 
 The mapping is mechanical: an option named `set_user_shells` in `metadata.yaml` becomes the CLI flag `--set_user_shells` and the env var `SET_USER_SHELLS`. Option names are always snake-case; flag spelling matches the option name verbatim (no hyphenation).
 
 :::{dropdown} Why both modes? (design note)
 
-The Dev Containers spec mandates that features be configured via environment variables — tooling gathers them from the `options` object and exports them before invoking `install.sh`. But that mode is unergonomic on the CLI (no `--help`, no validation, easy to forget which variable applies to which feature). By making every installer **dual-mode**, SysSet keeps full spec compliance while still offering a first-class CLI experience. `get.bash` in manifest mode reuses the env-var path exactly, so manifests behave identically to dev container tooling.
+The Dev Containers spec mandates that features be configured via environment variables — tooling gathers them from the `options` object and exports them before invoking `install.sh`. But that mode is unergonomic on the CLI (no `--help`, no validation, easy to forget which variable applies to which feature). By making every installer **dual-mode**, SysSet keeps full spec compliance while still offering a first-class CLI experience. `install.bash` in manifest mode reuses the env-var path exactly, so manifests behave identically to dev container tooling.
 :::
 
 ### Common option behaviors
@@ -52,7 +52,7 @@ options:
 
 :::{tab-item} CLI (repeat the flag)
 ```sh
-sh get.sh install-fonts \
+sh install.sh install-fonts \
   --nerd_fonts Meslo \
   --nerd_fonts FiraCode
 ```

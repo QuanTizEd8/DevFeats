@@ -5,7 +5,7 @@
 #   1. Per-feature tarballs exist for every feature with an install.bash.
 #   2. Each tarball contains: install.sh, install.bash, _lib/.
 #   3. sysset-all.tar.gz exists and contains all per-feature tarballs.
-#   4. dist/ does NOT contain get.sh (it lives in the repo root).
+#   4. dist/ does NOT contain install.sh (it lives in the repo root).
 #   5. dist/ does NOT contain scripts/ (old arch artefact).
 set -euo pipefail
 
@@ -26,10 +26,10 @@ done < <(find "${REPO_ROOT}/src" -maxdepth 2 -name "devcontainer-feature.json" |
 # ── Checks ────────────────────────────────────────────────────────────────────
 
 check "dist/sysset-all.tar.gz exists" test -f "${DIST}/sysset-all.tar.gz"
-check "dist/ does not contain get.sh (it lives in repo root)" test ! -f "${DIST}/get.sh"
+check "dist/ does not contain install.sh (it lives in repo root)" test ! -f "${DIST}/install.sh"
 check "dist/scripts/ absent after build" test ! -d "${DIST}/scripts"
-check "repo root get.sh exists" test -f "${REPO_ROOT}/get.sh"
-check "repo root get.bash exists" test -f "${REPO_ROOT}/get.bash"
+check "repo root install.sh exists" test -f "${REPO_ROOT}/install.sh"
+check "repo root install.bash exists" test -f "${REPO_ROOT}/install.bash"
 
 for _feat in "${_features[@]}"; do
   _tarball="${DIST}/sysset-${_feat}.tar.gz"
@@ -51,7 +51,7 @@ for _feat in "${_features[@]}"; do
 done
 check "sysset-all: does NOT contain scripts/sysset.sh" \
   bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'sysset\.sh'"
-check "sysset-all: does NOT contain get.sh" \
-  bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -qx '\./get\.sh\|get\.sh'"
+check "sysset-all: does NOT contain install.sh" \
+  bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -qx '\./install\.sh\|install\.sh'"
 
 reportResults

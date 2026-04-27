@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# sysset/canonical_order.sh — Verify that get.bash orders features using the
+# sysset/canonical_order.sh — Verify that install.bash orders features using the
 # graph (and jq key order / priorities), with install-os-pkg before install-pixi
 # when there is no override privileging pixi.
 #
 # Strategy: use a devcontainer with both features. Log lines
 # "ℹ️  [install-os-pkg]…" and "ℹ️  [install-pixi]…" record install order.
 #
-# Requires: root (get.bash manifest mode calls os__require_root).
+# Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -56,8 +56,8 @@ cat > "$_manifest" << EOF
 }
 EOF
 
-check "get.bash completes with canonical-order manifest" \
-  bash "${REPO_ROOT}/get.bash" --log_file "$_log_file" "$_manifest"
+check "install.bash completes with canonical-order manifest" \
+  bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
 
 # In the log, install-os-pkg should appear before install-pixi.
 # NOTE: Use the "running install.sh" marker to match only the installation

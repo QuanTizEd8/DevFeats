@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# get/bad_feature.sh — Verify that get.sh exits non-zero when the requested
+# get/bad_feature.sh — Verify that install.sh exits non-zero when the requested
 # feature is unknown.
 #
 # Uses bundle-pinned mode with a manifest that lists install-pixi only. Asking
@@ -31,8 +31,8 @@ SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
 export SYSSET_VERSION="${_BUNDLE}"
 
-# "does-not-exist" is not in the bundle manifest — get.sh should error out.
-fail_check "get.sh exits non-zero for feature absent from bundle manifest" \
-  bash "${REPO_ROOT}/get.sh" does-not-exist
+# "does-not-exist" is not in the bundle manifest — install.sh should error out.
+fail_check "install.sh exits non-zero for feature absent from bundle manifest" \
+  bash "${REPO_ROOT}/install.sh" does-not-exist
 
 reportResults

@@ -21,7 +21,7 @@ library available to every script.
 6. If the feature requires OS packages before `install.bash` runs,
    add a `_dependencies.base` key to `features/<feature-id>/metadata.yaml`.
 
-**Multi-feature installs** use `get.bash` with a `devcontainer.json[.jsonc]`. When adding `dependsOn` / `installsAfter` in the generated `devcontainer-feature.json`, keep the graph consistent with the rest of the suite; see the [Quickstart and Installation Guide](../intro/index.md) for the full list of honored fields, CLI flags, and ordering rules.
+**Multi-feature installs** use `install.bash` with a `devcontainer.json[.jsonc]`. When adding `dependsOn` / `installsAfter` in the generated `devcontainer-feature.json`, keep the graph consistent with the rest of the suite; see the [Quickstart and Installation Guide](../intro/index.md) for the full list of honored fields, CLI flags, and ordering rules.
 
 ---
 
@@ -444,7 +444,7 @@ net__fetch_with_retry curl \
 | `ospkg__take_initial_snapshot` | `ospkg__take_initial_snapshot <file>` | Snapshot the current installed- |
 | `ospkg__install_tracked` | `ospkg__install_tracked <sub-id> <pkg>...` | Install packages and register |
 | `ospkg__cleanup_all_build_groups` | `ospkg__cleanup_all_build_groups` | Remove every registered build-dep |
-| `ospkg__cleanup_session_build_groups` | `ospkg__cleanup_session_build_groups <get-bash-keep>` | Manifest-mode |
+| `ospkg__cleanup_session_build_groups` | `ospkg__cleanup_session_build_groups <install-bash-keep>` | Manifest-mode |
 | `ospkg__track_resource` | `ospkg__track_resource <group-id> <path>...` | Register filesystem paths |
 | `ospkg__cleanup_resources` | `ospkg__cleanup_resources` | Remove all files registered via |
 | `ospkg__install_user` | `ospkg__install_user <pkg>...` | Install packages and protect them from |

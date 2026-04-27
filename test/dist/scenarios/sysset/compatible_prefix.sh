@@ -11,7 +11,7 @@
 #     namespace; keys under the added prefix are accepted (and must resolve,
 #     or an install failure surfaces through the normal error path).
 #
-# Requires: root (get.bash manifest mode calls os__require_root).
+# Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -57,8 +57,8 @@ cat > "$_manifest" << EOF
 }
 EOF
 
-check "get.bash completes even with non-sysset feature key present" \
-  bash "${REPO_ROOT}/get.bash" --log_file "$_log_file" "$_manifest"
+check "install.bash completes even with non-sysset feature key present" \
+  bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
 
 check "warning was emitted for non-compatible feature key" \
   bash -c "grep -q 'skip feature key (not sysset-compatible).*devcontainers/features/docker-in-docker' '$_log_file'"

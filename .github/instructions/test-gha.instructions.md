@@ -287,7 +287,7 @@ The `test-features` job in `ci.yaml` runs `bash test/run.sh feature <feature>`, 
 | `src/<f>/` or `test/<f>/` | `run_features`, `features[]` → `test-features` matrix |
 | macOS-capable feature in `features[]` | `run_macos`, `macos_features[]` → `test-macos` matrix |
 | `install-os-pkg` in `features[]` | `run_features` → `test-os-pkg` (6-distro matrix) |
-| `features/get.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
+| `features/install.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
 
 On `workflow_dispatch` or a `v*` tag push, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch (zero-SHA `before`) also sets `is_force=true` as a safe fallback.
 

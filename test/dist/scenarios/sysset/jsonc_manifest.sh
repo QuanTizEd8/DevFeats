@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# sysset/jsonc_manifest.sh — Verify that get.bash accepts JSONC (comments +
+# sysset/jsonc_manifest.sh — Verify that install.bash accepts JSONC (comments +
 # trailing commas) as devcontainer input and installs features via the
 # local HTTP mirror.
 #
 # What this tests:
 #   • sysset-all.tar.gz contains the expected per-feature tarballs.
-#   • get.bash processes a .jsonc manifest with SYSSET_VERSION bundle pin.
+#   • install.bash processes a .jsonc manifest with SYSSET_VERSION bundle pin.
 #   • Line and block comments, and a trailing comma, are tolerated.
 #   • Bundle-pinned resolution reads per-feature versions from manifest.yaml.
 #   • install-os-pkg is processed before install-pixi (graph + jq key order;
 #     log markers [install-*] are emitted per feature).
 #   • Both features install successfully (verified via installed artifacts).
 #
-# Requires: root (get.bash manifest mode calls os__require_root).
+# Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -72,9 +72,9 @@ cat > "$_manifest" << EOF
 }
 EOF
 
-# ── Run get.bash in manifest mode ─────────────────────────────────────────────
-check "get.bash runs .jsonc devcontainer manifest to completion" \
-  bash "${REPO_ROOT}/get.bash" "$_manifest"
+# ── Run install.bash in manifest mode ─────────────────────────────────────────────
+check "install.bash runs .jsonc devcontainer manifest to completion" \
+  bash "${REPO_ROOT}/install.bash" "$_manifest"
 
 check "pixi installed by sysset" \
   command -v pixi

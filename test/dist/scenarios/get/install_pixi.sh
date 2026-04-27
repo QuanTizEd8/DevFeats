@@ -3,13 +3,13 @@
 #
 # What this tests:
 #   • SYSSET_BASE_URL override directs downloads to the local file-server.
-#   • get.sh resolves `install-pixi@<ver>` without hitting the GitHub API
+#   • install.sh resolves `install-pixi@<ver>` without hitting the GitHub API
 #     (exact 3-part spec → direct tag construction).
 #   • URL scheme is the new <feature>/<X.Y.Z>/sysset-<feature>.tar.gz layout.
 #   • The tarball is extracted, the bootstrap runs, and pixi is installed.
 #
 # The mirror layout is intentionally sparse (only install-pixi) to verify
-# that get.bash does not depend on sibling features being present.
+# that install.bash does not depend on sibling features being present.
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -34,10 +34,10 @@ SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
 unset SYSSET_VERSION
 
-# ── Run get.sh ───────────────────────────────────────────────────────────────
+# ── Run install.sh ───────────────────────────────────────────────────────────────
 # install-pixi requires root (ospkg__require_root); installs pixi to /usr/local/bin.
-check "get.sh installs install-pixi@${_VER} successfully (rolling mode, @spec)" \
-  sudo -E bash "${REPO_ROOT}/get.sh" "${_FEAT}@${_VER}"
+check "install.sh installs install-pixi@${_VER} successfully (rolling mode, @spec)" \
+  sudo -E bash "${REPO_ROOT}/install.sh" "${_FEAT}@${_VER}"
 
 check "pixi binary present in PATH after install" \
   command -v pixi

@@ -20,7 +20,7 @@ two mutually exclusive flags) that all share a single underlying computation:
                   ``notes.md`` and passed to ``gh release create --notes-file``.
     --manifest    Machine-readable manifest (YAML) published alongside
                   ``sysset-all.tar.gz`` as a bundle release asset.
-                  ``get.bash`` consumes this file when ``SYSSET_VERSION`` is
+                  ``install.bash`` consumes this file when ``SYSSET_VERSION`` is
                   set to resolve per-feature versions deterministically.
 
 Rules (see the design plan for full rationale):

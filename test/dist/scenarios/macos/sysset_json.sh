@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# macos/sysset_json.sh — Verify that get.bash processes a devcontainer.json and
+# macos/sysset_json.sh — Verify that install.bash processes a devcontainer.json and
 # installs features on macOS using a local HTTP file server.
 #
 # setup-shim is used because it requires no package manager (no ospkg__run
 # call), works on macOS as root, and produces verifiable shim artifacts.
-# Requires: root for get.bash manifest mode (os__require_root).
+# Requires: root for install.bash manifest mode (os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -47,12 +47,12 @@ cat > "$_manifest" << EOF
 }
 EOF
 
-check "get.bash processes devcontainer.json on macOS (bundle-pinned via SYSSET_VERSION)" \
+check "install.bash processes devcontainer.json on macOS (bundle-pinned via SYSSET_VERSION)" \
   sudo env PATH="$PATH" \
   SYSSET_RAW_BASE="$SYSSET_RAW_BASE" \
   SYSSET_BASE_URL="$SYSSET_BASE_URL" \
   SYSSET_VERSION="${_BUNDLE}" \
-  bash "${REPO_ROOT}/get.bash" "$_manifest"
+  bash "${REPO_ROOT}/install.bash" "$_manifest"
 
 check "code shim installed by setup-shim (macOS)" \
   test -f /usr/local/share/setup-shim/bin/code

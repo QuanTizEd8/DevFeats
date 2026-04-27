@@ -41,8 +41,8 @@ SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
 export SYSSET_VERSION="${_BUNDLE}"
 
-check "get.sh installs install-pixi@${_GOOD_VER} overriding bundle manifest (${_BOGUS_VER})" \
-  sudo -E bash "${REPO_ROOT}/get.sh" "install-pixi@${_GOOD_VER}"
+check "install.sh installs install-pixi@${_GOOD_VER} overriding bundle manifest (${_BOGUS_VER})" \
+  sudo -E bash "${REPO_ROOT}/install.sh" "install-pixi@${_GOOD_VER}"
 
 check "pixi binary present in PATH after override install" \
   command -v pixi

@@ -40,7 +40,7 @@ The automation stack lives under `.github/workflows/`. A short overview is also 
 | `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
 | `src/<feature>/` or `test/<feature>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
 | `install-os-pkg` in changed list | `test-os-pkg` (multi-distro matrix) |
-| `features/get.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
+| `features/install.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
 
 On `workflow_dispatch` or a `v*` tag push, **all** jobs run. **CD** runs only when the workflow decides it is a release (`is_release=true`) **and** CI succeeds.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# devcontainer.sh — devcontainer.json glue for get.bash (JSONC, workspace, feature filter, env exports, disable globs).
+# devcontainer.sh — devcontainer.json glue for install.bash (JSONC, workspace, feature filter, env exports, disable globs).
 # Bash >=4. Source: json str graph proc (optional: os, users) after path setup.
 [[ -n "${_DEVCONTAINER__LIB_LOADED-}" ]] && return 0
 _DEVCONTAINER__LIB_LOADED=1

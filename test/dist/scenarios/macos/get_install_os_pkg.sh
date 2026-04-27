@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# macos/get_install_os_pkg.sh — Verify get.sh downloads and installs a feature
+# macos/get_install_os_pkg.sh — Verify install.sh downloads and installs a feature
 # on macOS using a local HTTP file server.
 #
 # setup-shim is used because it requires no package manager (no ospkg__run
@@ -25,11 +25,11 @@ export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
 
-check "get.sh installs setup-shim on macOS (rolling mode, @spec)" \
+check "install.sh installs setup-shim on macOS (rolling mode, @spec)" \
   sudo env PATH="$PATH" \
   SYSSET_RAW_BASE="$SYSSET_RAW_BASE" \
   SYSSET_BASE_URL="$SYSSET_BASE_URL" \
-  bash "${REPO_ROOT}/get.sh" "${_FEAT}@${_VER}"
+  bash "${REPO_ROOT}/install.sh" "${_FEAT}@${_VER}"
 
 check "code shim installed by setup-shim" \
   test -f /usr/local/share/setup-shim/bin/code

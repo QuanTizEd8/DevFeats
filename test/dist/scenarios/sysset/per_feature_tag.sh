@@ -7,7 +7,7 @@
 #     install-pixi/<tag>/sysset-install-pixi.tar.gz on the mirror.
 #   • Co-installed features without a :tag keep using the bundle mapping.
 #
-# Requires: root (get.bash manifest mode calls os__require_root).
+# Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -60,11 +60,11 @@ cat > "$_manifest" << EOF
 EOF
 
 # The bundle manifest deliberately uses a different install-pixi version at the
-# bundle path; if get.bash honors the per-feature :tag, the install will
+# bundle path; if install.bash honors the per-feature :tag, the install will
 # fetch install-pixi/${_PIXI_PIN}/... and succeed. Otherwise the mirror has
 # no tarball at install-pixi/${_BUNDLE_VER}/ so the install would fail.
-check "get.bash honors per-feature OCI :tag over bundle mapping" \
-  bash "${REPO_ROOT}/get.bash" "$_manifest"
+check "install.bash honors per-feature OCI :tag over bundle mapping" \
+  bash "${REPO_ROOT}/install.bash" "$_manifest"
 
 check "pixi installed via per-feature pinned tag" \
   command -v pixi

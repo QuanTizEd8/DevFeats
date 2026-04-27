@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# get.bash — Full bash >=4 implementation of the sysset installer.
+# install.bash — Full bash >=4 implementation of the sysset installer.
 #
-# Invoked by get.sh after bash >=4 is confirmed. Downloads lib/*.sh from the
+# Invoked by install.sh after bash >=4 is confirmed. Downloads lib/*.sh from the
 # repo, then operates in one of two modes:
 #
 #   Feature mode:   install a single feature (optionally version-pinned via @)
@@ -19,10 +19,10 @@
 #                            or features[].version) still take precedence.
 #
 # Usage:
-#   get.bash <feature>[@<feature-version>] [feature-opts...]
-#   get.bash <devcontainer.json|.jsonc>
+#   install.bash <feature>[@<feature-version>] [feature-opts...]
+#   install.bash <devcontainer.json|.jsonc>
 #
-# Options (consumed by get.bash; not forwarded to feature installers in manifest mode):
+# Options (consumed by install.bash; not forwarded to feature installers in manifest mode):
 #   --log_file <path>  Append captured output to this file on exit.
 #   --log_level <level>  Log verbosity: silent|error|warn|info|debug|trace.
 #   --help, -h        Show this help.
@@ -38,7 +38,7 @@
 # Environment overrides:
 #   SYSSET_BASE_URL   GitHub Releases base URL  (default: github.com releases)
 #   SYSSET_RAW_BASE   Raw GitHub base URL       (default: main branch)
-#   SYSSET_FETCH_TOOL curl|wget                 (set by get.sh; auto-detected here if unset)
+#   SYSSET_FETCH_TOOL curl|wget                 (set by install.sh; auto-detected here if unset)
 #   SYSSET_VERSION    Pin the bundle version; feature versions are read from
 #                     that bundle's manifest.yaml. Accepts any spec understood
 #                     by github__resolve_version ("", "latest", "1", "1.2",
@@ -50,8 +50,8 @@ SYSSET_RELEASE_BASE="${SYSSET_BASE_URL:-https://github.com/${SYSSET_REPO}/releas
 SYSSET_RAW_BASE="${SYSSET_RAW_BASE:-https://raw.githubusercontent.com/${SYSSET_REPO}/main}"
 
 # ── Lib bootstrap ─────────────────────────────────────────────────────────────
-# Download lib/*.sh before anything else. SYSSET_FETCH_TOOL is set by get.sh;
-# fall back to curl detection here in case get.bash is invoked directly.
+# Download lib/*.sh before anything else. SYSSET_FETCH_TOOL is set by install.sh;
+# fall back to curl detection here in case install.bash is invoked directly.
 
 if [[ -z "${SYSSET_FETCH_TOOL:-}" ]]; then
   if command -v curl > /dev/null 2>&1; then
@@ -132,10 +132,10 @@ _CANONICAL_ORDER=(
 __usage__() {
   cat >&2 << 'EOF'
 Usage:
-  Feature mode:   get.sh <feature>[@<feature-version>] [feature-opts...]
-  Devcontainer:    get.sh <devcontainer.json[.jsonc]>
+  Feature mode:   install.sh <feature>[@<feature-version>] [feature-opts...]
+  Devcontainer:    install.sh <devcontainer.json[.jsonc]>
 
-Options (see also header comment in get.bash):
+Options (see also header comment in install.bash):
   --log_file, --log_level, --help
   --workspace-folder, --no-initialize-command, --initialize-command-dir, --lifecycle-command-dir
   --no-feature-lifecycle-command, --no-container-lifecycle-command, --compatible-prefix
@@ -516,7 +516,7 @@ if [[ ! -f "$_mode_arg" ]]; then
   exit 1
 fi
 os__require_root
-_SYSSET_BUILD_CONTEXT="get-bash"
+_SYSSET_BUILD_CONTEXT="install-bash"
 export _SYSSET_BUILD_CONTEXT
 _SYSSET_SESSION_TRACK_DIR="$(mktemp -d)"
 export _SYSSET_SESSION_TRACK_DIR

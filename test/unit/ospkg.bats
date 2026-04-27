@@ -988,10 +988,10 @@ _seed_session_cleanup_context() {
   [[ ! -f "$_APT_LOG" ]] || ! grep -q "sharedpkg" "$_APT_LOG"
 }
 
-@test "ospkg__cleanup_session_build_groups: get-bash keep=true prevents removal" {
+@test "ospkg__cleanup_session_build_groups: install-bash keep=true prevents removal" {
   _seed_session_cleanup_context
-  # get-bash contributed 'gbpkg' and requests keep=true.
-  printf 'gbpkg\n' > "${_SESSION_DIR}/get-bash::bootstrap"
+  # install-bash contributed 'gbpkg' and requests keep=true.
+  printf 'gbpkg\n' > "${_SESSION_DIR}/install-bash::bootstrap"
 
   ospkg__cleanup_session_build_groups "true"
 

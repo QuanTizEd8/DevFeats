@@ -15,7 +15,7 @@ Three workflow files form the pipeline:
 | `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
 | `src/<f>/` or `test/<f>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
 | `install-os-pkg` in changed list | `test-os-pkg` (6-distro matrix) |
-| `features/get.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
+| `features/install.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
 
 On `workflow_dispatch` or `v*` tag push, all jobs run. CD runs only when `is_release=true` AND CI passes.
 

@@ -1009,7 +1009,7 @@ _ospkg_protect_user_pkgs() {
 # ── Public: ospkg__take_initial_snapshot ─────────────────────────────────────
 # @brief ospkg__take_initial_snapshot <file> — Snapshot the current installed-
 # package list to <file> for use as a session baseline. Called once by
-# get.bash before any installs in manifest mode. Used by ospkg__install_tracked
+# install.bash before any installs in manifest mode. Used by ospkg__install_tracked
 # to exclude pre-existing packages from session co-ownership tracking.
 ospkg__take_initial_snapshot() {
   local _dest="$1"
@@ -1165,7 +1165,7 @@ ospkg__install_tracked() {
   rm -f "$_before_snapshot"
   # Session co-ownership tracking (manifest mode only).
   # Register all requested packages not present in the initial snapshot so that
-  # the get.bash coordinator can apply keep-wins policy across all co-owners.
+  # the install.bash coordinator can apply keep-wins policy across all co-owners.
   if [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" && -d "${_SYSSET_SESSION_TRACK_DIR}" ]]; then
     local _session_sidecar _pkg
     _session_sidecar="${_SYSSET_SESSION_TRACK_DIR}/${_group_id//\//_}"
@@ -1200,14 +1200,14 @@ ospkg__cleanup_all_build_groups() {
   return 0
 }
 
-# @brief ospkg__cleanup_session_build_groups <get-bash-keep> — Manifest-mode
+# @brief ospkg__cleanup_session_build_groups <install-bash-keep> — Manifest-mode
 # coordinator. Reads co-ownership entries from _SYSSET_SESSION_TRACK_DIR,
 # applies Rule 1 (keep wins over clean), then removes packages not kept by any
 # co-owner. Deletes _SYSSET_SESSION_TRACK_DIR on completion.
 #
-# <get-bash-keep>: "true"|"false" — keep_build_deps for the get-bash context.
+# <install-bash-keep>: "true"|"false" — keep_build_deps for the install-bash context.
 # Feature keep_build_deps is read from the _OPT_OF associative array (must be
-# in scope when called from get.bash). Defaults to false when not found.
+# in scope when called from install.bash). Defaults to false when not found.
 #
 # No-ops when _SYSSET_SESSION_TRACK_DIR is unset or does not exist.
 ospkg__cleanup_session_build_groups() {
@@ -1223,15 +1223,15 @@ ospkg__cleanup_session_build_groups() {
     _basename="$(basename "$_sidecar")"
     # Derive keep policy from context prefix in the filename.
     # Filename is the context-qualified group ID, e.g.:
-    #   "get-bash::bootstrap", "feature::install-gh::lib-net"
-    if [[ "$_basename" == get-bash::* ]]; then
+    #   "install-bash::bootstrap", "feature::install-gh::lib-net"
+    if [[ "$_basename" == install-bash::* ]]; then
       _keep="$_getbash_keep"
     else
       # Extract feature ID from "feature::<id>::<module>" pattern.
       _feature_id="${_basename#feature::}"
       _feature_id="${_feature_id%%::*}"
       _keep=false
-      # Read from _OPT_OF if declared in the caller's scope (get.bash).
+      # Read from _OPT_OF if declared in the caller's scope (install.bash).
       if declare -p _OPT_OF > /dev/null 2>&1 && [[ -n "${_OPT_OF[$_feature_id]+x}" ]]; then
         if [[ "${_OPT_OF[$_feature_id]}" =~ \"keep_build_deps\":[[:space:]]*true ]]; then
           _keep=true
@@ -1273,7 +1273,7 @@ ospkg__cleanup_session_build_groups() {
 # for cleanup alongside package cleanup. Paths are written to a resource sidecar
 # in _SYSSET_TMPDIR/ospkg/resources/ (one path per line). When
 # _SYSSET_SESSION_TRACK_DIR is set, also mirrors to the session dir so the
-# get.bash coordinator can clean cross-feature resources.
+# install.bash coordinator can clean cross-feature resources.
 ospkg__track_resource() {
   local _group_id="$1"
   shift

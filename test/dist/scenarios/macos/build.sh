@@ -12,10 +12,10 @@ DIST="${REPO_ROOT}/dist"
 . "${REPO_ROOT}/test/lib/assert.sh"
 
 check "dist/sysset-all.tar.gz exists" test -f "${DIST}/sysset-all.tar.gz"
-check "dist/ does not contain get.sh" test ! -f "${DIST}/get.sh"
+check "dist/ does not contain install.sh" test ! -f "${DIST}/install.sh"
 check "dist/scripts/ absent after build" test ! -d "${DIST}/scripts"
-check "repo root get.sh exists" test -f "${REPO_ROOT}/get.sh"
-check "repo root get.bash exists" test -f "${REPO_ROOT}/get.bash"
+check "repo root install.sh exists" test -f "${REPO_ROOT}/install.sh"
+check "repo root install.bash exists" test -f "${REPO_ROOT}/install.bash"
 
 # spot-check a few features
 for _feat in install-pixi install-os-pkg setup-user; do

@@ -7,7 +7,7 @@
 #   • A failing initializeCommand aborts the whole run (exit non-zero, no
 #     features are installed).
 #
-# Requires: root (get.bash manifest mode calls os__require_root).
+# Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -56,8 +56,8 @@ cat > "$_mfa" << EOF
 }
 EOF
 
-check "get.bash runs initializeCommand and then installs features" \
-  bash "${REPO_ROOT}/get.bash" "$_mfa"
+check "install.bash runs initializeCommand and then installs features" \
+  bash "${REPO_ROOT}/install.bash" "$_mfa"
 check "initializeCommand sentinel was created" \
   test -f "$_sentinel"
 check "install-pixi installed despite initializeCommand" \
@@ -75,8 +75,8 @@ cat > "$_mfb" << EOF
 }
 EOF
 
-check "get.bash honors --no-initialize-command" \
-  bash "${REPO_ROOT}/get.bash" --no-initialize-command "$_mfb"
+check "install.bash honors --no-initialize-command" \
+  bash "${REPO_ROOT}/install.bash" --no-initialize-command "$_mfb"
 check "initializeCommand sentinel was NOT created when suppressed" \
   bash -c "[ ! -f '${_skip_sentinel}' ]"
 
@@ -92,7 +92,7 @@ cat > "$_mfc" << EOF
 }
 EOF
 
-fail_check "get.bash exits non-zero when initializeCommand fails" \
-  bash "${REPO_ROOT}/get.bash" "$_mfc"
+fail_check "install.bash exits non-zero when initializeCommand fails" \
+  bash "${REPO_ROOT}/install.bash" "$_mfc"
 
 reportResults

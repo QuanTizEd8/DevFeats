@@ -44,7 +44,7 @@ Each CD run also produces an **accumulator-tagged bundle release**
 
 - `sysset-all.tar.gz` — every feature's tarball, flat layout.
 - `manifest.yaml` — a machine-readable map of the feature versions
-  contained in this bundle (consumed by `get.bash` for bundle pinning when
+  contained in this bundle (consumed by `install.bash` for bundle pinning when
   `SYSSET_VERSION` or a `v*.*.*` suffix in a devcontainer `name` is used).
 
 The bundle's global semver is derived from the highest per-feature bump in
@@ -159,7 +159,7 @@ features:
   install-shell: 0.2.0
 ```
 
-This is what `get.bash` downloads in bundle-pinned mode
+This is what `install.bash` downloads in bundle-pinned mode
 (`SYSSET_VERSION=v1.2.0`) to resolve each requested feature to its version
 inside that bundle.
 

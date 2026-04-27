@@ -1,12 +1,12 @@
 #!/bin/sh
-# get.sh — Thin POSIX sh bootstrap for the sysset installer.
+# install.sh — Thin POSIX sh bootstrap for the sysset installer.
 #
-# Finds (or installs) bash >=4, detects a fetch tool, downloads get.bash from
+# Finds (or installs) bash >=4, detects a fetch tool, downloads install.bash from
 # the repo, and hands off via exec. All arguments are forwarded verbatim.
 #
 # Usage:
-#   sh get.sh <feature>[@<version>] [feature-opts...]
-#   sh get.sh <devcontainer.json[.jsonc]>
+#   sh install.sh <feature>[@<version>] [feature-opts...]
+#   sh install.sh <devcontainer.json[.jsonc]>
 #
 # Environment overrides:
 #   SYSSET_RAW_BASE   Raw GitHub base URL  (default: main branch of SYSSET_REPO)
@@ -83,17 +83,17 @@ if [ -z "${SYSSET_FETCH_TOOL:-}" ]; then
 fi
 export SYSSET_FETCH_TOOL
 
-# ── Download get.bash and exec ────────────────────────────────────────────────
+# ── Download install.bash and exec ────────────────────────────────────────────
 
 _tmpdir="$(mktemp -d)"
 trap 'rm -rf "$_tmpdir"' EXIT
 
-_get_bash_url="${SYSSET_RAW_BASE}/get.bash"
+_install_bash_url="${SYSSET_RAW_BASE}/install.bash"
 
 if [ "$SYSSET_FETCH_TOOL" = "wget" ]; then
-  wget -qO "$_tmpdir/get.bash" --tries=3 --waitretry=5 "$_get_bash_url"
+  wget -qO "$_tmpdir/install.bash" --tries=3 --waitretry=5 "$_install_bash_url"
 else
-  curl -fsSL --retry 3 --retry-delay 5 "$_get_bash_url" -o "$_tmpdir/get.bash"
+  curl -fsSL --retry 3 --retry-delay 5 "$_install_bash_url" -o "$_tmpdir/install.bash"
 fi
 
-exec "$_BASH4" "$_tmpdir/get.bash" "$@"
+exec "$_BASH4" "$_tmpdir/install.bash" "$@"
