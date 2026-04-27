@@ -32,7 +32,7 @@ from typing import Dict, Iterable, List
 import yaml
 
 
-CI_TRIGGER_PATHS_FILEPATH = ".github/workflows/ci_trigger_paths.yaml"
+CI_TRIGGER_PATHS_FILEPATH = ".github/ci_trigger_paths.yaml"
 FEATURE_DIRPATH = Path("features")
 
 REPO_ROOT = Path(
@@ -166,23 +166,19 @@ def discover_macos_capable() -> List[str]:
     return sorted(ids)
 
 
-def changed_files(env: Env, is_force: bool) -> List[str]:
+def changed_files(env: Env) -> List[str]:
     """Collect changed files for the current event context.
 
     Parameters
     ----------
     env : Env
         Parsed environment/context values.
-    is_force : bool
-        Force-run mode flag. If True, returns an empty list.
 
     Returns
     -------
     list of str
         Changed file paths according to event-specific diff baseline.
     """
-    if is_force:
-        return []
     if env.event_name == "pull_request":
         out = sh(["git", "diff", "--name-only", f"origin/{env.base_ref}...HEAD"])
     else:
@@ -476,8 +472,13 @@ def main() -> None:
     groups = yaml.safe_load(PATHS_FILE.read_text(encoding="utf-8"))
     LOG.info("ℹ️  groups: loaded decision groups: %s", ", ".join(sorted(groups.keys())))
 
-    is_force = env.event_name == "workflow_dispatch" or (
-        env.event_name == "push" and env.before == "0000000000000000000000000000000000000000"
+    changed = changed_files(env)
+    LOG.info("ℹ️  changed-files: %s", ", ".join(changed) if changed else "none")
+
+    is_force = (
+        env.event_name == "workflow_dispatch"
+        or (env.event_name == "push" and env.before == "0000000000000000000000000000000000000000")
+        or any_match(changed, [".github/workflows/*.yaml"])
     )
     LOG.info("ℹ️  force-gate: is_force='%s'", str(is_force).lower())
 
@@ -487,7 +488,6 @@ def main() -> None:
 
     is_release, features_to_release = detect_release(env)
 
-    changed = changed_files(env, is_force)
     if is_force:
         LOG.info("ℹ️  diff: skipped changed-files detection due to force mode.")
     else:
