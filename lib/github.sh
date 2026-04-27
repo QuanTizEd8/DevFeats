@@ -14,7 +14,6 @@ _GITHUB__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/json.sh
 . "$_GITHUB__LIB_DIR/json.sh"
 
-
 # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
 #
 # Without --tag: fetches /releases/latest. With --tag: fetches

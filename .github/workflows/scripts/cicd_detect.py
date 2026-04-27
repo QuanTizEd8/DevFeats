@@ -126,11 +126,11 @@ def discover_feature_ids() -> List[str]:
     Returns
     -------
     list of str
-        Sorted unique feature IDs inferred from `features/*/*/metadata.yaml`.
+        Sorted unique feature IDs inferred from `features/*/metadata.yaml`.
     """
     ids: List[str] = []
     features_root = REPO_ROOT / FEATURE_DIRPATH
-    for metadata in sorted(features_root.glob("*/*/metadata.yaml")):
+    for metadata in sorted(features_root.glob("*/metadata.yaml")):
         rel = metadata.relative_to(features_root).as_posix()
         ids.append(rel.replace("/metadata.yaml", ""))
     return sorted(set(ids))
