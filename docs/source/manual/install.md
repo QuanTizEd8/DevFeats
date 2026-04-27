@@ -1,4 +1,4 @@
-# Installation
+# Installation Guide
 
 SysSet features are available through two parallel channels: **Dev Container Features** (OCI packages on GHCR) and **standalone installers** (tarballs on GitHub Releases). Both are built from the same source on every release; only the invocation mechanism differs.
 
