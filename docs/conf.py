@@ -16,7 +16,7 @@ _WEBSITE_ROOT = Path(__file__).resolve().parent
 _WEBSITE_SOURCE_DIR = _WEBSITE_ROOT / "source"
 _REPO_ROOT = _WEBSITE_ROOT.parent
 _FEATURES_DIR = _REPO_ROOT / "features"
-_FEATURES_DOC_DIR = _WEBSITE_SOURCE_DIR / "features" / "reference"
+_FEATURES_DOC_DIR = _WEBSITE_SOURCE_DIR / "features"
 
 sys.path.insert(0, str(_WEBSITE_ROOT / "_build_scripts"))
 sys.path.insert(0, str(_REPO_ROOT / "scripts"))
