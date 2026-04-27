@@ -2,8 +2,9 @@
 /src/
 
 # Generated documentation
-docs/source/features/
-docs/source/dev-guide/features/reference/
+docs/source/features/**
+!docs/source/features/index.md
+docs/source/dev/features/reference/
 
 # Local development files
 /.local/
