@@ -178,3 +178,28 @@ build-website-live:
 ]
 watch-gha *args:
     bash scripts/watch-gha-run.sh {{args}}
+
+
+[
+  group('dev'),
+  doc('Print a list of all features and their descriptions (from metadata.yaml).')
+]
+list-features:
+    #!/usr/bin/env bash
+    for f in features/*/metadata.yaml; do
+      name=$(basename "$(dirname "$f")")
+      desc=$(yq -r '.description' "$f")
+      printf '%s: %s\n' "$name" "$desc"
+    done
+
+
+[
+  group('dev'),
+  doc('Print a list of all feature options and their number of occurrences across all features.')
+]
+list-feature-options:
+  yq -r '.options // {} | keys[]' features/*/metadata.yaml \
+    | sort \
+    | uniq -c \
+    | sort -nr \
+    | awk '{printf "%s (%d)\n", $2, $1}'
