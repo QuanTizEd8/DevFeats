@@ -34,7 +34,7 @@ Execute these phases in order. DO NOT SKIP PHASES.
 - NEVER assume a single platform. Every code path must account for Linux (Debian, RHEL, Alpine, Arch) and macOS.
 - NEVER adapt tests to pass or make shallow pseudo-fixes; always investigate each failure thoroughly and fix the root cause.
 - Do not add features, refactor code, or make improvements beyond what was asked.
-- Follow `docs/snippets/code-style.md`, `docs/dev-guide/writing-features.md`, and project conventions: explicit `return` statements, and `logging__*` helpers from `lib/logging.sh` (not raw `echo "…" >&2`) for user-visible stderr lines.
+- Follow `docs/snippets/code-style.md`, `docs/source/dev/writing-features.md`, and project conventions: explicit `return` statements, and `logging__*` helpers from `lib/logging.sh` (not raw `echo "…" >&2`) for user-visible stderr lines.
 
 
 
@@ -91,7 +91,7 @@ RUN THE TESTS AND VERIFY THEY FAIL BEFORE IMPLEMENTING THE BUILDING BLOCK, to en
 4. After modifying `lib/`, run `python3 scripts/sync-src.py` to propagate changes, then run the unit tests for the modified library modules to verify that the new implementation is correct and doesn't introduce regressions.
 5. After all building blocks are implemented and their unit tests pass, adopt the same TDD approach and implement comprehensive scenario tests for the feature under `test/<feature-name>/`, covering all relevant use cases, options, and edge cases, and fully verifying the correctness of the implementation according to the reference documents. Make sure to include failing and passing scenarios for all supported platforms, including macOS tests (run on CI runners). Scenario tests are too heavy to run locally, so NEVER TRY TO RUN THEM LOCALLY.
 6. Write the installer script under `features/<feature-name>/install.bash` following all conventions:
-   - **Body-only file** — no manual header; `scripts/sync-src.py` prepends the generated header to `src/<feature-name>/install.bash`. See `docs/dev-guide/writing-features.md`.
+   - **Body-only file** — no manual header; `scripts/sync-src.py` prepends the generated header to `src/<feature-name>/install.bash`. See `docs/source/dev/writing-features.md`.
    - Source `ospkg.sh` first, then `logging.sh`, then other needed modules.
    - `logging__setup` + EXIT trap for `logging__cleanup`.
    - Dual-mode argument parsing (env vars for devcontainer CLI, `--flags` for standalone).
@@ -187,7 +187,7 @@ If the verdict is **NOT APPROVED**:
 - **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `scripts/sync-src.py`.
 - **Test layers**: bats unit tests (`test/unit/`), devcontainer scenario tests (`test/<feature-name>/`), fail scenarios, dry-run manifest tests.
 - **CI workflows**: `cicd.yaml` (orchestrator — triggers on push/PR/tag), `ci.yaml` (reusable CI — lint, validate, unit, feature, dist tests), `cd.yaml` (reusable CD — GHCR publish + GitHub Release).
-- **Lefthook**: optional; sync/format hooks are **disabled by default** in `lefthook.yml` (commented). See `docs/dev-guide/index.md`.
+- **Lefthook**: optional; sync/format hooks are **disabled by default** in `lefthook.yml` (commented). See `docs/source/dev/index.md`.
 
 ## Tools & Commands Quick Reference
 
