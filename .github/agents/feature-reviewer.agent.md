@@ -91,7 +91,7 @@ For each of these categories, actively try to find failure modes:
 
 ### Step 3 — Write Targeted Tests
 
-Read the general test writing instructions before writing tests: `.github/instructions/testing.instructions.md`. When in doubt, read `docs/dev-guide/testing.md` for a more comprehensive documentation of testing practices and examples.
+Read the general test writing instructions before writing tests: `.github/instructions/testing.instructions.md`. When in doubt, read `docs/source/dev/testing.md` for a more comprehensive documentation of testing practices and examples.
 
 Based on findings from Step 2, write comprehensive tests that target all identified issues. Test ALL issues, even minor ones. Err on the side of over-testing. Make sure all tests have comprehensive documentation in the test files themselves, explaining the purpose of the test, with references to the specific flaw it targets and the related parts of the code and reference documents. The tests must include all four categories:
 
