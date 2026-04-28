@@ -1,0 +1,31 @@
+{
+    "default_install": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-yq": {
+                "log_level": "trace"
+            }
+        }
+    },
+    "release_custom_prefix": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-yq": {
+                "method": "release",
+                "prefix": "/opt/yq-bin",
+                "if_exists": "reinstall",
+                "log_level": "trace"
+            }
+        }
+    },
+    "repos_install": {
+        "image": "debian:latest",
+        "features": {
+            "install-yq": {
+                "method": "repos",
+                "if_exists": "reinstall",
+                "log_level": "trace"
+            }
+        }
+    }
+}

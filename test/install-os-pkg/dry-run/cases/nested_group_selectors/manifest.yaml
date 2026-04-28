@@ -1,0 +1,18 @@
+# nested_group_selectors — nested group objects should inherit group-level
+# `when` filters while still applying package-level selectors inside children.
+packages:
+  - label: apt-or-apk-group
+    when:
+      - pm: apt
+      - pm: apk
+    packages:
+      - name: group-main
+      - label: nested
+        packages:
+          - name: apt-only-in-nested
+            when:
+              pm: apt
+          - name: apk-only-in-nested
+            when:
+              pm: apk
+  - name: all-pm

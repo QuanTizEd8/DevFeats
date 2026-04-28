@@ -14,6 +14,8 @@ _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OSPKG_LIB_DIR/logging.sh"
 # shellcheck source=lib/json.sh
 . "$_OSPKG_LIB_DIR/json.sh"
+# shellcheck source=lib/install/yq.sh
+. "$_OSPKG_LIB_DIR/install/yq.sh"
 
 # ── Internal state ────────────────────────────────────────────────────────────
 _OSPKG_DETECTED=false
@@ -317,74 +319,18 @@ _ospkg_brew_run() {
 
 # ── Private: yq auto-installer ────────────────────────────────────────────────
 # _ospkg_ensure_yq
-# Ensures mikefarah/yq is available.  Sets _OSPKG_YQ_BIN.
-# If a compatible yq is already in PATH it is reused; otherwise attempts to
-# install from the package manager, then falls back to downloading from GitHub
-# Releases if the package manager provides an incompatible or no yq.
-# The download is verified against the release checksums file before the binary
-# is marked executable.
+# Delegates to the shared yq installer module with internal context.
 _ospkg_ensure_yq() {
   [[ -n "${_OSPKG_YQ_BIN:-}" ]] && return 0
-  # Accept any yq in PATH that understands the -o=json flag (mikefarah/yq).
-  if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
-    _OSPKG_YQ_BIN="yq"
-    logging__info "yq already available: $(command -v yq)"
-    return 0
-  fi
-  # If yq is not in PATH at all, try installing from the package manager.
-  # Modern distros (Ubuntu ≥22.04, Debian ≥12, Alpine ≥3.16) package mikefarah/yq.
-  # Older distros package kislyuk/yq (incompatible) or nothing at all.
-  if ! command -v yq > /dev/null 2>&1; then
-    logging__info "yq not found — attempting package manager install."
-    ospkg__install_tracked "sysset-ospkg-internals" yq >&2 || true
-    # Re-test after potential install.
-    if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
-      _OSPKG_YQ_BIN="yq"
-      logging__info "yq installed from package manager: $(command -v yq)"
-      return 0
+  _OSPKG_YQ_BIN="$(install__yq --context internal --owner-group sysset-ospkg-internals --method auto || true)"
+  if [[ -z "${_OSPKG_YQ_BIN}" ]]; then
+    if command -v yq > /dev/null 2>&1; then
+      _OSPKG_YQ_BIN="$(command -v yq)"
+    else
+      logging__error "yq could not be installed."
+      return 1
     fi
   fi
-  # Package manager provided no yq or an incompatible one; fetch mikefarah/yq
-  # from GitHub Releases using the stable /releases/latest/download/ redirect
-  # URLs.  These bypass the GitHub API entirely, avoiding rate-limit failures
-  # in Docker builds that run without a GITHUB_TOKEN.
-  # shellcheck source=lib/checksum.sh
-  . "$_OSPKG_LIB_DIR/checksum.sh"
-  local _os _arch _yq_base _url _yq_dir _dest _expected_hash
-  _os="$(os__kernel | tr '[:upper:]' '[:lower:]')" # linux | darwin
-  _arch="$(os__arch)"
-  case "$_arch" in
-    x86_64) _arch="amd64" ;;
-    aarch64 | arm64) _arch="arm64" ;;
-    *)
-      logging__error "yq: unsupported architecture '${_arch}'."
-      return 1
-      ;;
-  esac
-  _yq_base="https://github.com/mikefarah/yq/releases/latest/download"
-  _url="${_yq_base}/yq_${_os}_${_arch}"
-  _yq_dir="$(logging__tmpdir "ospkg/yq")"
-  _dest="${_yq_dir}/yq"
-  logging__info "Downloading yq (${_os}/${_arch}) from GitHub Releases."
-  net__fetch_url_file "$_url" "$_dest"
-  net__fetch_url_file "${_yq_base}/checksums" "${_yq_dir}/checksums"
-  net__fetch_url_file "${_yq_base}/checksums_hashes_order" "${_yq_dir}/checksums_hashes_order"
-  net__fetch_url_file "${_yq_base}/extract-checksum.sh" "${_yq_dir}/extract-checksum.sh"
-  _expected_hash="$(cd "${_yq_dir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
-  # Guard against CDN soft errors: a lying CDN may return HTTP 200 with an
-  # error-page body, making curl exit 0 but producing garbage content.
-  # A valid SHA-256 hash is exactly 64 lowercase hex characters.
-  if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
-    logging__error "yq: extracted checksum is not a valid SHA-256 hash (got: '${_expected_hash:-<empty>}') — a download may have been corrupted by a CDN error page."
-    return 1
-  fi
-  if ! checksum__verify_sha256 "$_dest" "$_expected_hash"; then
-    logging__error "yq: checksum verification failed — aborting."
-    return 1
-  fi
-  chmod +x "$_dest"
-  _OSPKG_YQ_BIN="$_dest"
-  logging__success "yq downloaded to ${_dest}."
   return 0
 }
 
@@ -1290,6 +1236,38 @@ ospkg__track_resource() {
     for _path in "$@"; do
       printf '%s\n' "$_path" >> "$_sess_sidecar"
     done
+  fi
+  return 0
+}
+
+# @brief ospkg__untrack_resource <group-id> <path>... — Remove resource paths
+# from local and session sidecars created by ospkg__track_resource.
+ospkg__untrack_resource() {
+  local _group_id="$1"
+  shift
+  local _res_dir _sidecar _path _tmp
+  _res_dir="$(logging__tmpdir "ospkg/resources")"
+  _sidecar="${_res_dir}/${_group_id//\//_}"
+  if [[ -f "$_sidecar" ]]; then
+    _tmp="${_sidecar}.tmp.$$"
+    cp "$_sidecar" "$_tmp" || return 1
+    for _path in "$@"; do
+      awk -v p="$_path" '$0 != p { print }' "$_tmp" > "${_tmp}.next"
+      mv "${_tmp}.next" "$_tmp"
+    done
+    mv "$_tmp" "$_sidecar"
+  fi
+  if [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" && -d "${_SYSSET_SESSION_TRACK_DIR}/resources" ]]; then
+    local _sess_sidecar="${_SYSSET_SESSION_TRACK_DIR}/resources/${_group_id//\//_}"
+    if [[ -f "$_sess_sidecar" ]]; then
+      _tmp="${_sess_sidecar}.tmp.$$"
+      cp "$_sess_sidecar" "$_tmp" || return 1
+      for _path in "$@"; do
+        awk -v p="$_path" '$0 != p { print }' "$_tmp" > "${_tmp}.next"
+        mv "${_tmp}.next" "$_tmp"
+      done
+      mv "$_tmp" "$_sess_sidecar"
+    fi
   fi
   return 0
 }

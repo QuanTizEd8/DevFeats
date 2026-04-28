@@ -1,0 +1,57 @@
+version: 0.1.0
+name: yq Installation
+description: Install [yq](https://github.com/mikefarah/yq) - a portable YAML processor.
+keywords:
+  - yq
+  - yaml
+  - json
+  - cli
+  - tooling
+_long_description: |-
+  Installs the `yq` command-line tool for querying, transforming, and validating YAML documents.
+  This feature supports installation from OS package repositories or from upstream release binaries,
+  with `auto` mode trying repository installation first and falling back to release artifacts.
+
+  Use `method=repos` when you want distro-managed packages, or `method=release` when you need a
+  portable upstream binary path. The install is idempotent by default and can be configured with
+  `if_exists` behavior.
+options:
+  method:
+    type: string
+    default: auto
+    description: Installation method to use.
+    enum:
+      - value: auto
+        description: Try package manager install first, then fallback to upstream release binary.
+      - value: repos
+        description: Install from the operating system package manager.
+      - value: release
+        description: Install from upstream GitHub release artifacts.
+  prefix:
+    type: string
+    default: auto
+    description: |-
+      Installation prefix for `method=release` (`$prefix/bin/yq`).
+      `auto` resolves to `/usr/local` as root, or `$HOME/.local` as non-root.
+      Ignored for `method=repos`.
+  if_exists:
+    type: string
+    default: skip
+    description: Behavior when a compatible `yq` is already present in PATH.
+    enum:
+      - value: skip
+        description: Reuse existing install and exit successfully.
+      - value: fail
+        description: Exit with an error when `yq` already exists.
+      - value: reinstall
+        description: Reinstall yq using the selected method.
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+  build:
+    download:
+      packages:
+        - curl
+installsAfter: []

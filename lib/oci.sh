@@ -7,6 +7,8 @@ _OCI__LIB_LOADED=1
 _OCI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_OCI_LIB_DIR/ospkg.sh"
+# shellcheck source=lib/install/oras.sh
+. "$_OCI_LIB_DIR/install/oras.sh"
 # shellcheck source=lib/logging.sh
 . "$_OCI_LIB_DIR/logging.sh"
 # shellcheck source=lib/checksum.sh
@@ -103,6 +105,15 @@ oci__ensure_oras() {
   _bin="$(command -v oras 2> /dev/null || true)"
   if [[ -z "$_bin" ]]; then
     logging__info "oras not found — installing."
+    _bin="$(install__oras \
+      --context internal \
+      --owner-group "lib-oci-oras" \
+      --version "${SYSSET_ORAS_VERSION:-latest}" \
+      --method auto \
+      --if-exists skip 2> /dev/null || true)"
+    [[ -n "$_bin" ]] || _bin="$(command -v oras 2> /dev/null || true)"
+  fi
+  if [[ -z "$_bin" ]]; then
     ospkg__install_tracked "lib-oci" oras >&2 || true
     _bin="$(command -v oras 2> /dev/null || true)"
   fi

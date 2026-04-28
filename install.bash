@@ -77,7 +77,8 @@ _bootstrap_fetch() {
 }
 
 echo "ℹ️  Downloading sysset lib files..." >&2
-for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh checksum.sh oci.sh lock.sh graph.sh proc.sh devcontainer.sh jsonc.py users.sh; do
+for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh checksum.sh oci.sh lock.sh graph.sh proc.sh devcontainer.sh jsonc.py users.sh install/common.sh install/oras.sh install/yq.sh; do
+  mkdir -p "$(dirname "${_lib_dir}/${_f}")"
   _bootstrap_fetch "${SYSSET_RAW_BASE}/lib/${_f}" "${_lib_dir}/${_f}"
 done
 unset -f _bootstrap_fetch
@@ -109,7 +110,7 @@ _SYSSET_LIB_DIR="$_lib_dir"
 . "${_lib_dir}/users.sh"
 
 logging__setup
-trap 'rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+trap 'ospkg__cleanup_resources; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 
 logging__entry "sysset installer"
 
@@ -118,6 +119,7 @@ _CANONICAL_ORDER=(
   setup-user
   install-homebrew
   install-os-pkg
+  install-oras
   install-git
   install-gh
   install-shell
@@ -734,7 +736,7 @@ if [[ "$_mode" == "feature" ]]; then
     exit 1
   fi
   _tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$_lib_tmpdir" "$_tmpdir"; logging__cleanup' EXIT
+  trap 'ospkg__cleanup_resources; rm -rf "$_lib_tmpdir" "$_tmpdir"; logging__cleanup' EXIT
   if ! _fetch_and_verify_tarball "$_feature" "$_RESOLVED" "${_tmpdir}/feature.tar.gz"; then
     exit 1
   fi
@@ -763,7 +765,7 @@ fi
 
 _DCJ="$(mktemp)"
 # shellcheck disable=SC2064
-trap 'rm -f "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+trap 'ospkg__cleanup_resources; rm -f "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 devcontainer__parse_config "$_mode_arg" > "$_DCJ" || exit 1
 declare -A _LOCK_RESOLVED=()
 _ACTIVE_LOCKFILE="${_FROZEN_LOCKFILE_PATH:-${_LOCKFILE_PATH:-}}"
@@ -860,7 +862,7 @@ ospkg__take_initial_snapshot "$_SYSSET_INITIAL_SNAPSHOT"
 
 _STAGED="$(mktemp -d)"
 # shellcheck disable=SC2064
-trap 'ospkg__cleanup_session_build_groups "false"; rm -rf "${_SYSSET_SESSION_TRACK_DIR:-}" "${_SYSSET_INITIAL_SNAPSHOT:-}" "$_STAGED" "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+trap 'ospkg__cleanup_session_build_groups "false"; ospkg__cleanup_resources; rm -rf "${_SYSSET_SESSION_TRACK_DIR:-}" "${_SYSSET_INITIAL_SNAPSHOT:-}" "$_STAGED" "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 
 declare -A _KEY_OF=() _OPT_OF=() _TAG_OF=()
 _IDS=()

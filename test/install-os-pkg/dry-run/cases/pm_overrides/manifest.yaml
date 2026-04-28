@@ -1,0 +1,10 @@
+# pm_overrides — packageObject PM override fields should select the PM-specific
+# package name instead of the default `name`.
+packages:
+  - name: pkg-default
+    apt: pkg-apt
+    apk: pkg-apk
+    dnf: pkg-dnf
+    yum: pkg-yum
+    zypper: pkg-zypper
+    pacman: pkg-pacman

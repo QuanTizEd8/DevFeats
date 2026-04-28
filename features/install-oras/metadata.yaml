@@ -1,0 +1,126 @@
+version: 0.1.0
+name: ORAS Installation
+description: Install [ORAS](https://oras.land/) – an OCI registry client.
+keywords:
+  - oras
+  - oci
+  - registry
+  - artifact
+_long_description: |-
+  ORAS (OCI Registry As Storage) is a CLI for working with OCI artifacts in container registries
+  beyond container images. It is useful for publishing and consuming artifacts such as Helm charts,
+  SBOMs, provenance/signature payloads, WASM modules, and other build outputs in registries like
+  GHCR, Docker Hub, and private OCI-compliant registries.
+
+  This feature installs the `oras` binary and makes it available on PATH so it can be used from
+  build scripts, CI tasks, and interactive shell sessions. By default, the latest ORAS version is
+  installed, or you can pin a specific release. The installer supports release-based installation
+  and package-manager installation, with `auto` preferring the release path first.
+
+  For release installs, artifact integrity is enforced with checksum and GPG signature validation.
+  If ORAS is already present, `if_exists` controls whether the install is reused, failed, or
+  reinstalled.
+options:
+  version:
+    type: string
+    default: latest
+    description: Version of ORAS to install. Use `latest` or a specific version (e.g. `1.3.2`).
+    proposals:
+      - value: latest
+        description: Resolve the latest ORAS release.
+      - value: 1.3.2
+        description: Install ORAS v1.3.2.
+  method:
+    type: string
+    default: auto
+    description: Installation method to use.
+    enum:
+      - value: auto
+        description: Prefer verified release artifacts, then fallback to package manager.
+      - value: release
+        description: Install from official ORAS GitHub release artifacts.
+      - value: repos
+        description: |-
+          Install from the operating system package manager.
+          Package selection and platform support are controlled by `_dependencies.run.os-pkg`.
+  prefix:
+    type: string
+    default: auto
+    description: |-
+      Installation prefix for release installs (`$prefix/bin/oras`).
+      `auto` resolves to `/usr/local` as root or `$HOME/.local` as non-root.
+      Ignored for `method=repos`.
+  if_exists:
+    type: string
+    default: skip
+    description: Behavior when `oras` already exists.
+    enum:
+      - value: skip
+        description: Reuse existing install when compatible.
+      - value: fail
+        description: Exit with an error if `oras` already exists.
+      - value: reinstall
+        description: Reinstall ORAS using the selected method.
+  download_url:
+    type: string
+    default: ''
+    description: |-
+      Optional custom URL to an ORAS release tarball (used with `method=release`).
+      This is currently unsupported because checksum + GPG verification is mandatory.
+      Leave empty to use official ORAS release artifacts.
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    os-pkg:
+      # This manifest is consumed by the generated `_os_pkg_deps__install` helper.
+      # Keep this aligned with upstream package availability.
+      apt:
+        packages:
+          # Debian repositories provide `oras`.
+          - name: oras
+            when:
+              id: debian
+          # Ubuntu repositories provide `oras` starting from 25.04.
+          - name: oras
+            when:
+              id: ubuntu
+              version_id:
+                - "25.04"
+                - "25.10"
+                - "26.04"
+      apk:
+        packages:
+          # Alpine package name differs (`oras-cli` provides cmd:oras).
+          - name: oras-cli
+      dnf:
+        packages:
+          # Fedora package name differs (`golang-oras` installs /usr/bin/oras).
+          - name: golang-oras
+            when:
+              id: fedora
+      yum:
+        packages:
+          - name: golang-oras
+            when:
+              id: fedora
+      zypper:
+        packages:
+          - name: oras
+            when:
+              id:
+                - opensuse-tumbleweed
+                - opensuse-slowroll
+      brew:
+        packages:
+          - name: oras
+      pacman:
+        scripts: |-
+          logging__error "install-oras: method=repos is unsupported on pacman because ORAS is not available in official Arch repositories."
+          return 1
+  build:
+    download:
+      packages:
+        - curl
+installsAfter: []
