@@ -51,8 +51,8 @@ EOF
 fail_check "install.bash exits non-zero when a feature fails" \
   bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
 
-check "unknown feature failure is visible in logs" \
-  bash -c "grep -q 'failed:\\|no features could be staged\\|does-not-exist\\|failed to pull\\|failed to list tags\\|no tag found for spec' '$_log_file'"
+check "unknown feature id is reported in failed feature summary" \
+  bash -c "grep -q 'failed:.*does-not-exist' '$_log_file'"
 
 check "install-pixi still installed despite partial failure" \
   command -v pixi
