@@ -45,13 +45,25 @@ lint *files:
     #!/usr/bin/env bash
     set -euo pipefail
     ncpu=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+    # shellcheck with external-sources can be memory-heavy on large files.
+    # Use conservative parallelism by default to avoid OOM kills (exit 137)
+    # in CI and local runs; allow override when needed.
+    jobs="${LINT_JOBS:-2}"
+    if [[ ! "$jobs" =~ ^[0-9]+$ || "$jobs" -lt 1 ]]; then
+      jobs=2
+    fi
+    ((jobs > ncpu)) && jobs="$ncpu"
+    batch="${LINT_BATCH:-2}"
+    if [[ ! "$batch" =~ ^[0-9]+$ || "$batch" -lt 1 ]]; then
+      batch=2
+    fi
     if [[ $# -gt 0 ]]; then
-      echo "$@" | xargs -P"${ncpu}" -n8 shellcheck
+      echo "$@" | xargs -P"${jobs}" -n"${batch}" shellcheck
     else
       [[ -d src ]] || just sync
       { git ls-files -- '*.sh' '*.bash' | grep -v '^features/[^/]*/install\.bash$'
         find src -maxdepth 2 -name 'install.bash' 2>/dev/null
-      } | sort -u | xargs -P"${ncpu}" -n8 shellcheck
+      } | sort -u | xargs -P"${jobs}" -n"${batch}" shellcheck
     fi
 
 
