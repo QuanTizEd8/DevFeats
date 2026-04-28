@@ -91,7 +91,9 @@ jobs:
   cd:
     name: "CD"
     needs: [detect, ci]
-    if: needs.detect.outputs.is_release == 'true' && needs.ci.result == 'success'
+    # Keep always() to avoid implicit success() skip behavior when an upstream
+    # needed job is skipped (for example, optional build-devcontainer).
+    if: ${{ always() && needs.detect.outputs.is_release == 'true' && needs.ci.result == 'success' }}
     permissions:
       contents: write
       pull-requests: write
