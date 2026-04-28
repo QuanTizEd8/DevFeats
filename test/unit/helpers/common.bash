@@ -65,6 +65,9 @@ reload_lib() {
   # can degrade to an indexed array after reload_lib returns and string-key
   # lookups collapse onto index 0.
   declare -gA _OSPKG_OS_RELEASE=()
+  declare -gA _OCI__AUTH_USER=()
+  declare -gA _OCI__AUTH_TOKEN=()
+  declare -gA _OCI__AUTH_DONE=()
 
   # shellcheck source=/dev/null
   source "${LIB_ROOT}/${_mod}"

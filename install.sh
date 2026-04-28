@@ -77,8 +77,36 @@ if [ -z "${SYSSET_FETCH_TOOL:-}" ]; then
   elif command -v wget > /dev/null 2>&1; then
     SYSSET_FETCH_TOOL="wget"
   else
-    echo "⛔ Neither curl nor wget found. Install one and retry." >&2
-    exit 1
+    echo "🔍 Neither curl nor wget found — installing a fetch tool." >&2
+    if command -v apk > /dev/null 2>&1; then
+      apk add --no-cache curl || apk add --no-cache wget
+    elif command -v apt-get > /dev/null 2>&1; then
+      apt-get update && (apt-get install -y --no-install-recommends curl || apt-get install -y --no-install-recommends wget)
+    elif command -v dnf > /dev/null 2>&1; then
+      dnf install -y curl || dnf install -y wget
+    elif command -v microdnf > /dev/null 2>&1; then
+      microdnf install -y curl || microdnf install -y wget
+    elif command -v yum > /dev/null 2>&1; then
+      yum install -y curl || yum install -y wget
+    elif command -v zypper > /dev/null 2>&1; then
+      zypper --non-interactive install curl || zypper --non-interactive install wget
+    elif command -v pacman > /dev/null 2>&1; then
+      pacman -S --noconfirm --needed curl || pacman -S --noconfirm --needed wget
+    elif command -v brew > /dev/null 2>&1; then
+      brew install curl || brew install wget
+    elif command -v port > /dev/null 2>&1; then
+      port install curl || port install wget
+    elif command -v nix-env > /dev/null 2>&1; then
+      nix-env -iA nixpkgs.curl || nix-env -iA nixpkgs.wget
+    fi
+    if command -v curl > /dev/null 2>&1; then
+      SYSSET_FETCH_TOOL="curl"
+    elif command -v wget > /dev/null 2>&1; then
+      SYSSET_FETCH_TOOL="wget"
+    else
+      echo "⛔ Neither curl nor wget found. Install one and retry." >&2
+      exit 1
+    fi
   fi
 fi
 export SYSSET_FETCH_TOOL

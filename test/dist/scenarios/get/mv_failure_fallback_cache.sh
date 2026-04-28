@@ -20,7 +20,11 @@ _fakebin="${_tmp}/fakebin"
 mkdir -p "${_registry}" "${_fakebin}"
 
 _payload_tgz="${REPO_ROOT}/dist/sysset-install-pixi.tar.gz"
-_hex="$(shasum -a 256 "$_payload_tgz" | awk '{print $1}')"
+if command -v sha256sum > /dev/null 2>&1; then
+  _hex="$(sha256sum "$_payload_tgz" | awk '{print $1}')"
+else
+  _hex="$(shasum -a 256 "$_payload_tgz" | awk '{print $1}')"
+fi
 _dkey="sha256:${_hex}"
 _ref="ghcr.io/quantized8/sysset/install-pixi:1.2.3"
 _rel="features/ghcr.io/quantized8/sysset/install-pixi/sha256/${_hex}/"
@@ -28,8 +32,13 @@ _dest="${_registry}/${_rel}"
 mkdir -p "$_dest"
 tar -xzf "$_payload_tgz" -C "$_dest"
 
-_c_install="$(shasum -a 256 "${_dest}/install.sh" | awk '{print $1}')"
-_c_dcj="$(shasum -a 256 "${_dest}/devcontainer-feature.json" | awk '{print $1}')"
+if command -v sha256sum > /dev/null 2>&1; then
+  _c_install="$(sha256sum "${_dest}/install.sh" | awk '{print $1}')"
+  _c_dcj="$(sha256sum "${_dest}/devcontainer-feature.json" | awk '{print $1}')"
+else
+  _c_install="$(shasum -a 256 "${_dest}/install.sh" | awk '{print $1}')"
+  _c_dcj="$(shasum -a 256 "${_dest}/devcontainer-feature.json" | awk '{print $1}')"
+fi
 
 cat > "${_registry}/manifest.json" <<EOF
 {

@@ -6,12 +6,12 @@
 _URI__LIB_LOADED=1
 
 _URI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-[[ -z "${_NET__LIB_LOADED-}" ]] && # shellcheck source=lib/net.sh
-  . "$_URI_LIB_DIR/net.sh"
-[[ -z "${_CHECKSUM__LIB_LOADED-}" ]] && # shellcheck source=lib/checksum.sh
-  . "$_URI_LIB_DIR/checksum.sh"
-[[ -z "${_OCI__LIB_LOADED-}" ]] && # shellcheck source=lib/oci.sh
-  . "$_URI_LIB_DIR/oci.sh"
+# shellcheck source=lib/net.sh
+[[ -z "${_NET__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/net.sh"
+# shellcheck source=lib/checksum.sh
+[[ -z "${_CHECKSUM__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/checksum.sh"
+# shellcheck source=lib/oci.sh
+[[ -z "${_OCI__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/oci.sh"
 
 # _uri__split_frag <full-uri> — prints base-uri on first line, fragment part on second (may be empty).
 _uri__split_frag() {

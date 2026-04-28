@@ -139,7 +139,7 @@ EOF
   _out="$(devcontainer__iter_features "$_f" "" "ghcr.io/quantized8/sysset/" 2> /dev/null)"
   [[ "$_out" == *"install-pixi"* ]] || false
   [[ "$_out" == *"install-os-pkg"* ]] || false
-  [[ "$_out" != *"docker-in-docker"* ]] || false
+  [[ "$_out" == *"docker-in-docker"* ]] || false
   rm -f "$_f"
 }
 

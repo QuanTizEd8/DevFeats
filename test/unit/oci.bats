@@ -8,6 +8,19 @@ setup() {
   reload_lib oci.sh
 }
 
+_test_sha256_file() {
+  local _f="${1-}"
+  if command -v sha256sum > /dev/null 2>&1; then
+    sha256sum "$_f" | awk '{print $1}'
+    return 0
+  fi
+  if command -v shasum > /dev/null 2>&1; then
+    shasum -a 256 "$_f" | awk '{print $1}'
+    return 0
+  fi
+  return 1
+}
+
 @test "oci__ghcr_image_ref prints ghcr.io qualified name" {
   run oci__ghcr_image_ref "quantized8/sysset" "install-pixi" "1.2.3"
   assert_success
@@ -103,7 +116,7 @@ EOF
   printf '%s\n' '{}' > "${_tmp}/p/devcontainer-feature.json"
   tar -czf "$_good" -C "${_tmp}/p" .
   local _hash
-  _hash="$(shasum -a 256 "$_good" | awk '{print $1}')"
+  _hash="$(_test_sha256_file "$_good")"
 
   oras() {
     if [[ "$1" == "version" ]]; then
@@ -139,7 +152,7 @@ EOF
   printf '%s\n' '{}' > "${_tmp}/p/devcontainer-feature.json"
   tar -czf "$_good" -C "${_tmp}/p" .
   local _hash
-  _hash="$(shasum -a 256 "$_good" | awk '{print $1}')"
+  _hash="$(_test_sha256_file "$_good")"
   local _log="${_tmp}/log"
 
   oras() {

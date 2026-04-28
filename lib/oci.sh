@@ -6,9 +6,9 @@ _OCI__LIB_LOADED=1
 
 _OCI__ORAS_MIN_VERSION="${_OCI__ORAS_MIN_VERSION:-1.2.0}"
 _OCI__AUTH_LOADED=0
-declare -A _OCI__AUTH_USER=()
-declare -A _OCI__AUTH_TOKEN=()
-declare -A _OCI__AUTH_DONE=()
+declare -gA _OCI__AUTH_USER=()
+declare -gA _OCI__AUTH_TOKEN=()
+declare -gA _OCI__AUTH_DONE=()
 
 _oci__is_registry_host_like() {
   local _host="${1-}"
@@ -211,6 +211,17 @@ oci__resolve_version() {
       ;;
   esac
 
+  local _norm="${_spec#v}" _allow_pre=false
+  [[ "$_norm" == *-* ]] && _allow_pre=true
+  if [[ "$_norm" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+    if printf '%s\n' "$_tags" | sed '/^$/d' | grep -qx "$_norm"; then
+      printf '%s\n' "$_norm"
+      return 0
+    fi
+    logging__error "oci.sh: no tag found for spec '${_spec}' in '${_repo}'."
+    return 1
+  fi
+
   if printf '%s\n' "$_tags" | sed '/^$/d' | grep -qx "$_spec"; then
     printf '%s\n' "$_spec"
     return 0
@@ -220,8 +231,6 @@ oci__resolve_version() {
     return 0
   fi
 
-  local _norm="${_spec#v}" _allow_pre=false
-  [[ "$_norm" == *-* ]] && _allow_pre=true
   local _cands="" _t _sv
   while IFS= read -r _t; do
     _sv="$(_oci__semver_from_tag "$_t" 2> /dev/null || true)"
@@ -292,7 +301,10 @@ oci__pull_feature_tgz() {
     return 1
   fi
   local _tgz
-  _tgz="$(ls "$_tmp"/*.tgz 2> /dev/null | head -n1 || true)"
+  for _tgz in "$_tmp"/*.tgz; do
+    [[ -f "$_tgz" ]] && break
+  done
+  [[ "${_tgz:-}" == "$_tmp/*.tgz" ]] && _tgz=""
   [[ -n "$_tgz" ]] || {
     rm -rf "$_tmp"
     logging__error "oci.sh: no .tgz layer materialized for '${_ref}'."
