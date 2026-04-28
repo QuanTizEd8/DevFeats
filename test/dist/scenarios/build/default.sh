@@ -4,7 +4,7 @@
 # Checks:
 #   1. Per-feature tarballs exist for every feature with an install.bash.
 #   2. Each tarball contains: install.sh, install.bash, _lib/.
-#   3. sysset-all.tar.gz exists and contains all per-feature tarballs.
+#   3. build-offline-kit.sh can assemble an offline kit from dist/ + manifest base.
 #   4. dist/ does NOT contain install.sh (it lives in the repo root).
 #   5. dist/ does NOT contain scripts/ (old arch artefact).
 set -euo pipefail
@@ -14,6 +14,8 @@ DIST="${REPO_ROOT}/dist"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
+# shellcheck source=test/lib/offline_kit_mirror.sh
+. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 # ── Helper: list features that have an install.bash ─────────────────────────
 _features=()
@@ -25,7 +27,6 @@ done < <(find "${REPO_ROOT}/src" -maxdepth 2 -name "devcontainer-feature.json" |
 
 # ── Checks ────────────────────────────────────────────────────────────────────
 
-check "dist/sysset-all.tar.gz exists" test -f "${DIST}/sysset-all.tar.gz"
 check "dist/ does not contain install.sh (it lives in repo root)" test ! -f "${DIST}/install.sh"
 check "dist/scripts/ absent after build" test ! -d "${DIST}/scripts"
 check "repo root install.sh exists" test -f "${REPO_ROOT}/install.sh"
@@ -44,14 +45,13 @@ for _feat in "${_features[@]}"; do
     bash -c "tar -tzf '${_tarball}' | grep -q 'devcontainer-feature\.json'"
 done
 
-# sysset-all.tar.gz contains only per-feature tarballs (no runtime scripts).
-for _feat in "${_features[@]}"; do
-  check "sysset-all: contains sysset-${_feat}.tar.gz" \
-    bash -c "tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'sysset-${_feat}\.tar\.gz'"
-done
-check "sysset-all: does NOT contain scripts/sysset.sh" \
-  bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'sysset\.sh'"
-check "sysset-all: does NOT contain install.sh" \
-  bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -qx '\./install\.sh\|install\.sh'"
+_f0="${_features[0]}"
+_ver="$(grep -E '^[[:space:]]*version:' "${REPO_ROOT}/features/${_f0}/metadata.yaml" | head -1 | awk '{print $2}')"
+_kit_mirror="$(mktemp -d)"
+trap 'rm -rf "${_kit_mirror:-}"' EXIT
+offline_kit_publish_mirror "${_kit_mirror}" "v0.0.777-disttest" "${DIST}" "${_f0}:${_ver}"
+check "offline kit tarball exists" test -f "${_kit_mirror}/v0.0.777-disttest/sysset-v0.0.777-disttest.tar.gz"
+check "offline kit contains manifest.json" \
+  bash -c "tar -tzf '${_kit_mirror}/v0.0.777-disttest/sysset-v0.0.777-disttest.tar.gz' | grep -qx '\./manifest\.json\|manifest\.json'"
 
 reportResults

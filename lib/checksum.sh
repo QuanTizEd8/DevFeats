@@ -8,6 +8,32 @@ _CHECKSUM__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_CHECKSUM__LIB_DIR/ospkg.sh"
 
+# @brief checksum__sha256_file <file> — Print lowercase hex SHA-256 of `<file>` to stdout (no success/failure logging).
+#
+# Uses sha256sum (Linux) or shasum --algorithm 256 (macOS); may install coreutils via ospkg when neither tool exists.
+#
+# Args:
+#   <file>  Path to an existing regular file.
+checksum__sha256_file() {
+  local _file="$1"
+  [ -f "$_file" ] || return 1
+
+  if command -v sha256sum > /dev/null 2>&1; then
+    sha256sum "$_file" | awk '{print $1}'
+  elif command -v shasum > /dev/null 2>&1; then
+    shasum --algorithm 256 "$_file" | awk '{print $1}'
+  else
+    logging__info "sha256sum/shasum not found — installing coreutils."
+    ospkg__install_tracked "lib-checksum" coreutils
+    if command -v sha256sum > /dev/null 2>&1; then
+      sha256sum "$_file" | awk '{print $1}'
+    else
+      logging__error "checksum__sha256_file: neither sha256sum nor shasum is available."
+      return 1
+    fi
+  fi
+}
+
 # @brief checksum__verify_sha256 <file> <expected_hash> — Verify the SHA-256 digest of `<file>`. Uses `sha256sum` (Linux) or `shasum -a 256` (macOS). Returns 1 on mismatch.
 #
 # Uses sha256sum (Linux) or shasum --algorithm 256 (macOS) transparently.
@@ -21,20 +47,7 @@ checksum__verify_sha256() {
   local _expected="$2"
   local _actual
 
-  if command -v sha256sum > /dev/null 2>&1; then
-    _actual="$(sha256sum "$_file" | awk '{print $1}')"
-  elif command -v shasum > /dev/null 2>&1; then
-    _actual="$(shasum --algorithm 256 "$_file" | awk '{print $1}')"
-  else
-    logging__info "sha256sum/shasum not found — installing coreutils."
-    ospkg__install_tracked "lib-checksum" coreutils
-    if command -v sha256sum > /dev/null 2>&1; then
-      _actual="$(sha256sum "$_file" | awk '{print $1}')"
-    else
-      logging__error "checksum__verify_sha256: neither sha256sum nor shasum is available."
-      return 1
-    fi
-  fi
+  _actual="$(checksum__sha256_file "$_file")" || return 1
 
   if [ "$_expected" = "$_actual" ]; then
     logging__success "Checksum verification passed."

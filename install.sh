@@ -5,7 +5,7 @@
 # the repo, and hands off via exec. All arguments are forwarded verbatim.
 #
 # Usage:
-#   sh install.sh <feature>[@<version>] [feature-opts...]
+#   sh install.sh <feature>[:<version>] [feature-opts...]
 #   sh install.sh <devcontainer.json[.jsonc]>
 #
 # Environment overrides:

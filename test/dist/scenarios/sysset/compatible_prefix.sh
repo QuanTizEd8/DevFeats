@@ -18,22 +18,18 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
+# shellcheck source=test/lib/offline_kit_mirror.sh
+. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 DIST="${REPO_ROOT}/dist"
 
 _BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
 _MIRROR="${REPO_ROOT}/test-mirror-sysset-compat-prefix"
-mkdir -p "${_MIRROR}/${_BUNDLE}"
+mkdir -p "${_MIRROR}"
 mkdir -p "${_MIRROR}/install-pixi/${_VER}"
 cp "${DIST}/sysset-install-pixi.tar.gz" "${_MIRROR}/install-pixi/${_VER}/"
-cat > "${_MIRROR}/${_BUNDLE}/manifest.yaml" << EOF
-bundle: ${_BUNDLE}
-prior_bundle: v0.0.0
-generated_at: "1970-01-01T00:00:00Z"
-features:
-  install-pixi: ${_VER}
-EOF
+offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "install-pixi:${_VER}"
 
 _PORT=18547
 _manifest_dir="$(mktemp -d)"

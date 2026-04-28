@@ -10,8 +10,9 @@ DIST="${REPO_ROOT}/dist"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
+# shellcheck source=test/lib/offline_kit_mirror.sh
+. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
-check "dist/sysset-all.tar.gz exists" test -f "${DIST}/sysset-all.tar.gz"
 check "dist/ does not contain install.sh" test ! -f "${DIST}/install.sh"
 check "dist/scripts/ absent after build" test ! -d "${DIST}/scripts"
 check "repo root install.sh exists" test -f "${REPO_ROOT}/install.sh"
@@ -28,7 +29,11 @@ for _feat in install-pixi install-os-pkg setup-user; do
     bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q 'devcontainer-feature\.json'"
 done
 
-check "sysset-all: does NOT contain scripts/sysset.sh" \
-  bash -c "! tar -tzf '${DIST}/sysset-all.tar.gz' | grep -q 'sysset\.sh'"
+_f0="install-pixi"
+_ver="$(grep -E '^[[:space:]]*version:' "${REPO_ROOT}/features/${_f0}/metadata.yaml" | head -1 | awk '{print $2}')"
+_kit_mirror="$(mktemp -d)"
+trap 'rm -rf "${_kit_mirror}"' EXIT
+offline_kit_publish_mirror "${_kit_mirror}" "v0.0.777-disttest" "${DIST}" "${_f0}:${_ver}"
+check "offline kit tarball exists" test -f "${_kit_mirror}/v0.0.777-disttest/sysset-v0.0.777-disttest.tar.gz"
 
 reportResults

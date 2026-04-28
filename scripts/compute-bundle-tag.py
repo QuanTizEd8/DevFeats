@@ -18,10 +18,9 @@ two mutually exclusive flags) that all share a single underlying computation:
                   bump classifications). Consumed by CI to set the Git tag.
     --notes-body  Human-readable release notes (Markdown). Written to
                   ``notes.md`` and passed to ``gh release create --notes-file``.
-    --manifest    Machine-readable manifest (YAML) published alongside
-                  ``sysset-all.tar.gz`` as a bundle release asset.
-                  ``install.bash`` consumes this file when ``SYSSET_VERSION`` is
-                  set to resolve per-feature versions deterministically.
+    --manifest    Machine-readable ``manifest.json`` base (offline kit v2) for
+                  ``scripts/offline_kit_assemble.py`` / ``build-offline-kit.sh``.
+                  Shipped kit tarball embeds the completed manifest.
 
 Rules (see the design plan for full rationale):
 
@@ -404,16 +403,24 @@ def _format_notes(record: dict) -> str:
     return "\n".join(lines)
 
 
-def _format_manifest(record: dict, commit: str) -> str:
+def _format_manifest(record: dict, commit: str, repo: str) -> str:
     features_now: dict[str, str] = record["features_now"]
-    # Assemble as an ordered dict and serialize deterministically.
-    manifest = {
-        "bundle": record["next_tag"],
-        "commit": commit,
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    nxt = record["next_tag"]
+    manifest: dict = {
+        "schemaVersion": "2.0.0",
+        "version": nxt,
+        "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "createdBy": "sysset-compute-bundle-tag",
+        "source": {
+            "repo": repo,
+            "commit": (commit or "")[:40],
+            "ref": f"refs/tags/{nxt}",
+        },
         "features": {fid: features_now[fid] for fid in sorted(features_now)},
+        "refs": {},
+        "digests": {},
     }
-    return yaml.safe_dump(manifest, sort_keys=False, default_flow_style=False)
+    return json.dumps(manifest, indent=2, sort_keys=False) + "\n"
 
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
@@ -455,7 +462,7 @@ def main() -> int:
     mode.add_argument(
         "--manifest",
         action="store_true",
-        help="Emit the bundle manifest (YAML) instead of the JSON decision record.",
+        help="Emit the offline-kit manifest.json base (JSON) instead of the decision record.",
     )
     args = parser.parse_args()
 
@@ -478,7 +485,7 @@ def main() -> int:
     if args.notes_body:
         sys.stdout.write(_format_notes(record))
     elif args.manifest:
-        sys.stdout.write(_format_manifest(record, args.commit))
+        sys.stdout.write(_format_manifest(record, args.commit, args.repo))
     else:
         sys.stdout.write(_format_json(record))
     return 0

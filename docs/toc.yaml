@@ -8,6 +8,7 @@ entries:
       - file: manual/options
       - file: manual/manifests
       - file: manual/versioning
+      - file: manual/offline
 
   - title: Features
     file: features/index

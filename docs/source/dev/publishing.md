@@ -42,10 +42,8 @@ Each feature has its own release identity:
 Each CD run also produces an **accumulator-tagged bundle release**
 (`v<X.Y.Z>`) whose assets are:
 
-- `sysset-all.tar.gz` — every feature's tarball, flat layout.
-- `manifest.yaml` — a machine-readable map of the feature versions
-  contained in this bundle (consumed by `install.bash` for bundle pinning when
-  `SYSSET_VERSION` or a `v*.*.*` suffix in a devcontainer `name` is used).
+- `sysset-v<X.Y.Z>.tar.gz` — offline kit (installers, `manifest.json`, digest-keyed `features/`), consumed by `install.bash` for bundle pinning when
+  `SYSSET_VERSION` is set or a `v*.*.*` suffix appears in a devcontainer `name`.
 
 The bundle's global semver is derived from the highest per-feature bump in
 the run; see [Bundle accumulator](#bundle-accumulator) below.
@@ -79,9 +77,10 @@ runs with three jobs:
      --title "<feature> <X.Y.Z>" --generate-notes`.
 3. **`publish-bundle`** (`needs: [publish-ghcr, publish-gh-release]`) —
    runs [`scripts/compute-bundle-tag.py`](../../scripts/compute-bundle-tag.py)
-   to compute the next `v<X.Y.Z>`, produce `notes.md`, and emit
-   `manifest.yaml`. Creates the tag, then
-   `gh release create "v<X.Y.Z>" sysset-all.tar.gz manifest.yaml
+   to compute the next `v<X.Y.Z>`, produce `notes.md`, emit a JSON manifest
+   base, and run `scripts/build-offline-kit.sh` to produce
+   `sysset-v<X.Y.Z>.tar.gz`. Creates the tag, then
+   `gh release create "v<X.Y.Z>" sysset-v<X.Y.Z>.tar.gz
    --latest --notes-file notes.md`. Skips cleanly when the aggregate bump
    is `none` (idempotent re-runs).
 
@@ -90,8 +89,8 @@ CI artefact built once in `ci.yaml`'s `prepare` step — no `gh release
 download` round-trip. The
 [version-bump guard](#version-bump-discipline-ci-guard) guarantees that a
 feature whose `metadata.yaml` version is unchanged on this commit has
-identical payload to its already-published release, so the bundle's
-`sysset-all.tar.gz` is always a faithful snapshot of what is published.
+identical payload to its already-published release. The offline kit tarball is
+assembled from those same per-feature `dist/*.tar.gz` files via `scripts/build-offline-kit.sh`.
 
 
 ### Manual single-feature publish (`workflow_dispatch`)
@@ -120,7 +119,7 @@ Before pushing, preview what the next CD run will do:
 just detect-releasable            # prints the features_to_release JSON
 just compute-bundle-tag           # prints the JSON decision record
 just compute-bundle-tag notes     # prints the release-notes markdown
-just compute-bundle-tag manifest  # prints the bundle manifest YAML
+just compute-bundle-tag manifest  # prints the bundle manifest JSON base
 ```
 
 
@@ -147,21 +146,12 @@ Because the accumulator owns the `v*` namespace exclusively, no marker or
 body-gating is needed to distinguish "real" bundle tags from historical
 ones.
 
-The resulting `manifest.yaml` is the canonical per-feature version map for
-the bundle:
+The resulting `manifest.json` embedded in the kit is the canonical per-feature version map for the bundle (field `features`, plus `refs` / `digests` for offline resolution).
 
-```yaml
-bundle: v1.2.0
-commit: 3f7a…
-features:
-  install-fonts: 0.1.0
-  install-pixi: 1.3.0
-  install-shell: 0.2.0
-```
-
-This is what `install.bash` downloads in bundle-pinned mode
-(`SYSSET_VERSION=v1.2.0`) to resolve each requested feature to its version
-inside that bundle.
+In bundle-pinned mode (`SYSSET_VERSION=v1.2.0`), `install.bash` downloads
+`sysset-v1.2.0.tar.gz` for that tag and reads `manifest.json` from it (or uses a
+local extracted kit) to resolve each requested feature to its version inside
+that bundle.
 
 
 ## Making GHCR packages public

@@ -92,7 +92,7 @@ detect-releasable *args:
 
 [
   group('build'),
-  doc('Preview next bundle tag/notes/manifest. Pass args directly to scripts/compute-bundle-tag.py (e.g. --notes-body, --manifest, --repo owner/name).')
+  doc('Preview next bundle tag/notes/manifest JSON. Pass args to scripts/compute-bundle-tag.py (e.g. --notes-body, --manifest, --repo owner/name).')
 ]
 compute-bundle-tag *args:
     {{py}} scripts/compute-bundle-tag.py --repo quantized8/sysset {{args}}

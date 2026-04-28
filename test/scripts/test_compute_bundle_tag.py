@@ -301,18 +301,21 @@ class FormattersTest(unittest.TestCase):
         self.assertIn("new", text)
         self.assertIn("minor", text)
 
-    def test_format_manifest_yaml_has_features_map(self):
-        import yaml
+    def test_format_manifest_json_has_features_map(self):
+        import json
 
         record = self._make_record()
-        text = CBT._format_manifest(record, commit="deadbeef")
-        data = yaml.safe_load(text)
-        self.assertEqual(data["bundle"], "v0.2.0")
-        self.assertEqual(data["commit"], "deadbeef")
+        text = CBT._format_manifest(record, commit="deadbeef", repo="owner/repo")
+        data = json.loads(text)
+        self.assertEqual(data["schemaVersion"], "2.0.0")
+        self.assertEqual(data["version"], "v0.2.0")
+        self.assertEqual(data["source"]["commit"], "deadbeef")
         self.assertEqual(
             data["features"],
             {"install-pixi": "0.2.0", "install-git": "0.2.0", "install-new": "0.1.0"},
         )
+        self.assertEqual(data["refs"], {})
+        self.assertEqual(data["digests"], {})
 
 
 # ─── Retry-aware HTTP helper tests ─────────────────────────────────────────────

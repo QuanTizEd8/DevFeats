@@ -5,7 +5,7 @@
 # What this tests:
 #   • devcontainer__name_version_suffix extracts the trailing vX.Y.Z.
 #   • install.bash uses the extracted version as the bundle spec when SYSSET_VERSION
-#     is not set, fetches <bundle>/manifest.yaml, and installs per-feature
+#     is not set, fetches the bundle kit and installs per-feature
 #     versions listed there.
 #   • Per-feature versions in the manifest (not the bundle tag itself) govern
 #     the downloaded tarball URLs.
@@ -17,6 +17,8 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
+# shellcheck source=test/lib/offline_kit_mirror.sh
+. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 DIST="${REPO_ROOT}/dist"
 _OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
@@ -26,19 +28,13 @@ _OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
 _BUNDLE="v99.99.0"
 _VER="99.99.0-name"
 _MIRROR="${REPO_ROOT}/test-mirror-sysset-name-suffix"
-mkdir -p "${_MIRROR}/${_BUNDLE}"
+mkdir -p "${_MIRROR}"
 for _f in install-pixi install-os-pkg; do
   mkdir -p "${_MIRROR}/${_f}/${_VER}"
   cp "${DIST}/sysset-${_f}.tar.gz" "${_MIRROR}/${_f}/${_VER}/"
 done
-cat > "${_MIRROR}/${_BUNDLE}/manifest.yaml" << EOF
-bundle: ${_BUNDLE}
-prior_bundle: v0.0.0
-generated_at: "1970-01-01T00:00:00Z"
-features:
-  install-pixi: ${_VER}
-  install-os-pkg: ${_VER}
-EOF
+offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" \
+  "install-pixi:${_VER}" "install-os-pkg:${_VER}"
 
 _PORT=18544
 _manifest_dir="$(mktemp -d)"

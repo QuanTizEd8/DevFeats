@@ -3,18 +3,20 @@
 #
 # What this tests:
 #   • SYSSET_VERSION=<bundle-tag> drives bundle-pinned mode.
-#   • install.bash fetches <bundle>/manifest.yaml from the mirror.
+#   • install.bash downloads sysset-v<bundle>.tar.gz from the mirror and reads
+#     manifest.json from that kit.
 #   • Per-feature versions are read from the manifest and used to construct
 #     <feature>/<X.Y.Z>/sysset-<feature>.tar.gz URLs.
 #   • The mirror also hosts a foreign feature's tag (install-shell/0.1.0) to
-#     verify that install.bash ignores unrelated features present in the mirror
-#     (prefix-scoped resolution only downloads what the manifest says).
+#     verify that install.bash ignores unrelated features present in the mirror.
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
+# shellcheck source=test/lib/offline_kit_mirror.sh
+. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 _BUNDLE="v99.99.0-test"
 _PIXI_VER="99.99.0-test"
@@ -24,22 +26,11 @@ mkdir -p "${_MIRROR}/${_BUNDLE}"
 mkdir -p "${_MIRROR}/install-pixi/${_PIXI_VER}"
 mkdir -p "${_MIRROR}/install-shell/0.1.0"
 
-# Bundle manifest mapping install-pixi → _PIXI_VER.
-cat > "${_MIRROR}/${_BUNDLE}/manifest.yaml" << EOF
-bundle: ${_BUNDLE}
-prior_bundle: v0.0.0
-generated_at: "1970-01-01T00:00:00Z"
-features:
-  install-pixi: ${_PIXI_VER}
-  install-shell: 0.1.0
-EOF
+offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${REPO_ROOT}/dist" \
+  "install-pixi:${_PIXI_VER}"
 
-# Pre-stage the correct install-pixi tarball at the manifest-addressed path.
 cp "${REPO_ROOT}/dist/sysset-install-pixi.tar.gz" \
   "${_MIRROR}/install-pixi/${_PIXI_VER}/"
-# Foreign feature tarball (not exercised by this scenario but mirrors multi-
-# feature hosting): use the real install-shell tarball if it exists, else a
-# placeholder.
 if [[ -f "${REPO_ROOT}/dist/sysset-install-shell.tar.gz" ]]; then
   cp "${REPO_ROOT}/dist/sysset-install-shell.tar.gz" \
     "${_MIRROR}/install-shell/0.1.0/"
@@ -53,7 +44,7 @@ SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
 export SYSSET_VERSION="${_BUNDLE}"
 
-check "install.sh installs install-pixi via bundle-pinned manifest (${_BUNDLE} → ${_PIXI_VER})" \
+check "install.sh installs install-pixi via bundle-pinned kit (${_BUNDLE} → ${_PIXI_VER})" \
   sudo -E bash "${REPO_ROOT}/install.sh" install-pixi
 
 check "pixi binary present in PATH after bundle-pinned install" \

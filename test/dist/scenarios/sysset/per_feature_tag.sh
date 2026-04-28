@@ -14,6 +14,8 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
+# shellcheck source=test/lib/offline_kit_mirror.sh
+. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 DIST="${REPO_ROOT}/dist"
 _OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
@@ -23,20 +25,14 @@ _BUNDLE_VER="99.99.0-bundle"
 _PIXI_PIN="99.99.0-pin"
 
 _MIRROR="${REPO_ROOT}/test-mirror-sysset-per-feature-tag"
-mkdir -p "${_MIRROR}/${_BUNDLE}"
+mkdir -p "${_MIRROR}"
 # Bundle points install-os-pkg at <bundle-ver>; install-pixi lives at <pin>.
 mkdir -p "${_MIRROR}/install-os-pkg/${_BUNDLE_VER}"
 mkdir -p "${_MIRROR}/install-pixi/${_PIXI_PIN}"
 cp "${DIST}/sysset-install-os-pkg.tar.gz" "${_MIRROR}/install-os-pkg/${_BUNDLE_VER}/"
 cp "${DIST}/sysset-install-pixi.tar.gz" "${_MIRROR}/install-pixi/${_PIXI_PIN}/"
-cat > "${_MIRROR}/${_BUNDLE}/manifest.yaml" << EOF
-bundle: ${_BUNDLE}
-prior_bundle: v0.0.0
-generated_at: "1970-01-01T00:00:00Z"
-features:
-  install-pixi: ${_BUNDLE_VER}
-  install-os-pkg: ${_BUNDLE_VER}
-EOF
+offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" \
+  "install-pixi:${_BUNDLE_VER}" "install-os-pkg:${_BUNDLE_VER}"
 
 _PORT=18545
 _manifest_dir="$(mktemp -d)"

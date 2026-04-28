@@ -243,7 +243,8 @@ jobs:
           fi
 
           bash scripts/python.sh scripts/compute-bundle-tag.py --repo "$REPOSITORY" --notes-body > notes.md
-          bash scripts/python.sh scripts/compute-bundle-tag.py --repo "$REPOSITORY" --manifest  > dist/manifest.yaml
+          bash scripts/python.sh scripts/compute-bundle-tag.py --repo "$REPOSITORY" --manifest > dist/manifest-base.json
+          bash scripts/build-offline-kit.sh "${NEXT_TAG}" dist dist/manifest-base.json
 
       - name: Create annotated tag and push
         if: steps.compute.outputs.skip != 'true'
@@ -268,20 +269,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          _bundle="dist/sysset-all.tar.gz"
-          _manifest="dist/manifest.yaml"
-          for f in "$_bundle" "$_manifest"; do
-            if [[ ! -f "$f" ]]; then
-              echo "⛔ Expected asset not found: $f" >&2
-              ls -la dist/ >&2 || true
-              exit 1
-            fi
-          done
+          _kit="dist/sysset-${TAG}.tar.gz"
+          if [[ ! -f "$_kit" ]]; then
+            echo "⛔ Expected kit not found: $_kit" >&2
+            ls -la dist/ >&2 || true
+            exit 1
+          fi
           if gh release view "${TAG}" > /dev/null 2>&1; then
             echo "ℹ️  Release ${TAG} already exists — uploading/replacing assets." >&2
-            gh release upload "${TAG}" "$_bundle" "$_manifest" --clobber
+            gh release upload "${TAG}" "$_kit" --clobber
           else
-            gh release create "${TAG}" "$_bundle" "$_manifest" \
+            gh release create "${TAG}" "$_kit" \
               --title "SysSet bundle ${TAG}" \
               --latest \
               --notes-file notes.md

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016
+# (jq filter bodies use $foo for jq-side bindings; shellcheck flags single-quoted jq.)
 # install.bash — Full bash >=4 implementation of the sysset installer.
 #
 # Invoked by install.sh after bash >=4 is confirmed. Downloads lib/*.sh from the
 # repo, then operates in one of two modes:
 #
-#   Feature mode:   install a single feature (optionally version-pinned via @)
+#   Feature mode:   install a single feature (optionally version-pinned via :)
 #   Manifest mode:  install multiple features from a devcontainer.json[.jsonc] manifest
 #
 # Version resolution modes (per-feature releases are independent; the bundle
@@ -15,11 +17,12 @@
 #   Bundle-pinned:           `SYSSET_VERSION` (env) or `.version` (manifest)
 #                            resolves to a bundle tag (`v<X.Y.Z>`); each
 #                            feature's version is read from that bundle's
-#                            `manifest.yaml`. Per-feature overrides (`@spec`
-#                            or features[].version) still take precedence.
+#                            embedded ``manifest.json`` (offline kit) or the
+#                            kit tarball on the release. Per-feature overrides
+#                            (`feature:version` or features[].version) still win.
 #
 # Usage:
-#   install.bash <feature>[@<feature-version>] [feature-opts...]
+#   install.bash <feature>[:<feature-version>] [feature-opts...]
 #   install.bash <devcontainer.json|.jsonc>
 #
 # Options (consumed by install.bash; not forwarded to feature installers in manifest mode):
@@ -34,13 +37,18 @@
 #   --no-container-lifecycle-command <path>  Repeat. Disable devcontainer.json lifecycle entries.
 #   --compatible-prefix <oci-prefix>  Repeat. Default: ghcr.io/quantized8/sysset/
 #   --no-lifecycle   Feature mode: skip the installed feature's lifecycle hooks.
+#   --local-registry <path>  Registry root (manifest.json + features/). Default: directory of this install.bash, or SYSSET_LOCAL_REGISTRY.
+#   --download-only   Fetch into the local registry and update manifest.json; do not run installers (see plan).
+#   --report-file <path>  With --download-only: JSON summary of partial failures.
 #
 # Environment overrides:
 #   SYSSET_BASE_URL   GitHub Releases base URL  (default: github.com releases)
 #   SYSSET_RAW_BASE   Raw GitHub base URL       (default: main branch)
 #   SYSSET_FETCH_TOOL curl|wget                 (set by install.sh; auto-detected here if unset)
+#   SYSSET_GHCR_NAMESPACE  GHCR namespace path for oci__ refs (default: quantized8/sysset)
+#   SYSSET_LOCAL_REGISTRY  Optional directory override for the local registry root.
 #   SYSSET_VERSION    Pin the bundle version; feature versions are read from
-#                     that bundle's manifest.yaml. Accepts any spec understood
+#                     that bundle's manifest.json. Accepts any spec understood
 #                     by github__resolve_version ("", "latest", "1", "1.2",
 #                     "v1.2.3", "1.2.3"). Per-feature overrides still win.
 set -euo pipefail
@@ -48,6 +56,7 @@ set -euo pipefail
 SYSSET_REPO="quantized8/sysset"
 SYSSET_RELEASE_BASE="${SYSSET_BASE_URL:-https://github.com/${SYSSET_REPO}/releases/download}"
 SYSSET_RAW_BASE="${SYSSET_RAW_BASE:-https://raw.githubusercontent.com/${SYSSET_REPO}/main}"
+SYSSET_GHCR_NAMESPACE="${SYSSET_GHCR_NAMESPACE:-quantized8/sysset}"
 
 # ── Lib bootstrap ─────────────────────────────────────────────────────────────
 # Download lib/*.sh before anything else. SYSSET_FETCH_TOOL is set by install.sh;
@@ -79,7 +88,7 @@ _bootstrap_fetch() {
 }
 
 echo "ℹ️  Downloading sysset lib files..." >&2
-for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh checksum.sh graph.sh proc.sh devcontainer.sh jsonc.py users.sh; do
+for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh checksum.sh oci.sh lock.sh graph.sh proc.sh devcontainer.sh jsonc.py users.sh; do
   _bootstrap_fetch "${SYSSET_RAW_BASE}/lib/${_f}" "${_lib_dir}/${_f}"
 done
 unset -f _bootstrap_fetch
@@ -95,6 +104,10 @@ _SYSSET_LIB_DIR="$_lib_dir"
 . "${_lib_dir}/github.sh"
 # shellcheck source=lib/checksum.sh
 . "${_lib_dir}/checksum.sh"
+# shellcheck source=lib/oci.sh
+. "${_lib_dir}/oci.sh"
+# shellcheck source=lib/lock.sh
+. "${_lib_dir}/lock.sh"
 # shellcheck source=lib/str.sh
 . "${_lib_dir}/str.sh"
 # shellcheck source=lib/graph.sh
@@ -132,7 +145,7 @@ _CANONICAL_ORDER=(
 __usage__() {
   cat >&2 << 'EOF'
 Usage:
-  Feature mode:   install.sh <feature>[@<feature-version>] [feature-opts...]
+  Feature mode:   install.sh <feature>[:<feature-version>] [feature-opts...]
   Devcontainer:    install.sh <devcontainer.json[.jsonc]>
 
 Options (see also header comment in install.bash):
@@ -140,8 +153,12 @@ Options (see also header comment in install.bash):
   --workspace-folder, --no-initialize-command, --initialize-command-dir, --lifecycle-command-dir
   --no-feature-lifecycle-command, --no-container-lifecycle-command, --compatible-prefix
   --no-lifecycle (feature mode: skip that feature's post-install hooks)
+  --local-registry <path>   Registry root: manifest.json + features/ (overrides SYSSET_LOCAL_REGISTRY)
+  --download-only           Stage tarballs and update registry only; do not run installers
+  --report-file <path>      With --download-only: write JSON ok/failures (manifest mode)
 
 Version priority: per OCI :tag  >  SYSSET_VERSION  >  name vX.Y.Z suffix  >  latest
+  (Use ``feature:version`` — ``@`` is not supported.)
 EOF
   exit "${1:-0}"
 }
@@ -158,6 +175,9 @@ _NO_FE_LIFE=()
 _NO_CO_LIFE=()
 _COMPAT_PREFIX=("ghcr.io/quantized8/sysset/")
 _FEATURE_SKIP_LIFECYCLE=false
+_DOWNLOAD_ONLY=false
+_REPORT_FILE=""
+_SYSSET_REGISTRY_ROOT=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -234,6 +254,28 @@ while [[ $# -gt 0 ]]; do
       _FEATURE_SKIP_LIFECYCLE=true
       shift
       ;;
+    --local-registry)
+      shift
+      [[ $# -eq 0 ]] && {
+        logging__error "--local-registry needs a path."
+        exit 1
+      }
+      _SYSSET_REGISTRY_ROOT="$(cd "$1" && pwd -P)"
+      shift
+      ;;
+    --download-only)
+      _DOWNLOAD_ONLY=true
+      shift
+      ;;
+    --report-file)
+      shift
+      [[ $# -eq 0 ]] && {
+        logging__error "--report-file needs a path."
+        exit 1
+      }
+      _REPORT_FILE="$1"
+      shift
+      ;;
     --*)
       logging__error "Unknown option: '${1}'"
       exit 1
@@ -246,7 +288,22 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -z "$_SYSSET_REGISTRY_ROOT" ]]; then
+  if [[ -n "${SYSSET_LOCAL_REGISTRY:-}" ]]; then
+    _SYSSET_REGISTRY_ROOT="$(cd "${SYSSET_LOCAL_REGISTRY}" && pwd -P)"
+  else
+    _SYSSET_REGISTRY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+  fi
+fi
+
 logging__set_level
+
+if [[ "$_DOWNLOAD_ONLY" == true ]]; then
+  _json__ensure_jq || {
+    logging__error "--download-only requires jq (json.sh could not install it)."
+    exit 1
+  }
+fi
 
 if [[ -z "$_mode_arg" ]]; then
   logging__error "No feature or manifest specified."
@@ -272,11 +329,129 @@ _resolve_feature_tag() {
     --prefix "${_feature}/" --all
 }
 
+# ── Offline kit / local registry (installer-only) ─────────────────────────────
+_sysset_bundle_kit_tarball_name() {
+  local _tag="${1-}"
+  [[ "$_tag" == v* ]] || _tag="v${_tag}"
+  printf 'sysset-%s.tar.gz\n' "$_tag"
+}
+
+_sysset_default_oci_ref() {
+  oci__ghcr_image_ref "${SYSSET_GHCR_NAMESPACE}" "${1,,}" "${2-}"
+}
+
+_sysset_verify_digest_checksums() {
+  local _root="${1%/}" _dkey="${2-}" _mf="${3-}" _rp _ent _path _sum _expect
+  _json__ensure_jq || return 1
+  _rp="$(json__query -r --arg d "$_dkey" '.digests[$d].relativePath // empty' "$_mf" 2> /dev/null)" || _rp=""
+  [[ -n "$_rp" && "$_rp" != "null" ]] || return 1
+  while IFS=$'\t' read -r _ent _expect; do
+    [[ -z "$_ent" || "$_ent" == "null" ]] && continue
+    _path="${_root}/${_rp%/}/${_ent}"
+    [[ -f "$_path" ]] || {
+      logging__error "local registry: missing payload file ${_path}"
+      return 1
+    }
+    _sum="$(checksum__sha256_file "$_path")" || return 1
+    if [[ "${_sum}" != "${_expect}" ]]; then
+      logging__error "local registry: checksum mismatch for ${_ent}"
+      return 1
+    fi
+  done < <(json__query -r --arg d "$_dkey" '.digests[$d].checksums // {} | to_entries[] | "\(.key)\t\(.value)"' "$_mf" 2> /dev/null)
+  return 0
+}
+
+_sysset_pack_digest_payload_to_tarball() {
+  local _root="${1%/}" _dkey="${2-}" _mf="${3-}" _dest="${4-}" _rp _d
+  _json__ensure_jq || return 1
+  _rp="$(json__query -r --arg d "$_dkey" '.digests[$d].relativePath // empty' "$_mf" 2> /dev/null)" || _rp=""
+  [[ -n "$_rp" && "$_rp" != "null" ]] || return 1
+  _d="${_root}/${_rp}"
+  [[ -d "$_d" ]] || return 1
+  tar -czf "$_dest" -C "$_d" .
+  return 0
+}
+
+# shellcheck disable=SC2329 # called from _sysset_manifest_registry_append_unlocked (dynamic analysis misses eval chain)
+_sysset_checksums_json_for_payload_dir() {
+  local _d="${1-}" _j="{}"
+  local _f _h
+  _json__ensure_jq || return 1
+  for _f in install.sh install.bash devcontainer-feature.json; do
+    [[ -f "${_d}/${_f}" ]] || continue
+    _h="$(checksum__sha256_file "${_d}/${_f}")" || return 1
+    _j="$(json__query -n --argjson cur "$_j" --arg k "$_f" --arg v "$_h" '$cur + {($k): $v}')"
+  done
+  printf '%s\n' "$_j"
+}
+
+_sysset_manifest_registry_append() {
+  local _root="${1%/}" _feat="$2" _ver="$3" _tb="$4"
+  local _mf="${_root}/manifest.json"
+  [[ -f "$_mf" ]] || return 1
+  [[ -f "$_tb" ]] || return 1
+  lock__run_with_lockfile "${_mf}.lock" "$(printf '_sysset_manifest_registry_append_unlocked %q %q %q %q' "$_root" "$_feat" "$_ver" "$_tb")"
+}
+
+# shellcheck disable=SC2329 # invoked via eval from lock__run_with_lockfile (see _sysset_manifest_registry_append)
+_sysset_manifest_registry_append_unlocked() {
+  local _root="${1%/}" _feat="$2" _ver="$3" _tb="$4"
+  local _mf="${_root}/manifest.json"
+  local _hex _dkey _rel _dest _ref _now _chk _tmp
+  _hex="$(checksum__sha256_file "$_tb")" || return 1
+  _dkey="sha256:${_hex}"
+  # Match offline kit layout: OCI path segment is lowercased (see offline_kit_assemble.py).
+  _rel="features/ghcr.io/${SYSSET_GHCR_NAMESPACE}/${_feat,,}/sha256/${_hex}/"
+  _dest="${_root}/${_rel}"
+  _ref="$(_sysset_default_oci_ref "$_feat" "$_ver")"
+  _ref="${_ref,,}"
+  _now="$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2> /dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  [[ -d "$_dest" ]] && rm -rf "$_dest"
+  mkdir -p "$_dest"
+  tar -xzf "$_tb" -C "$_dest" || return 1
+  _chk="$(_sysset_checksums_json_for_payload_dir "$_dest")" || return 1
+  _tmp="${_mf}.tmp.$$"
+  if ! json__query \
+    --arg ref "$_ref" \
+    --arg dig "$_dkey" \
+    --arg rp "$_rel" \
+    --arg fa "$_now" \
+    --arg fv "$_feat" \
+    --arg vs "$_ver" \
+    --argjson chk "$_chk" \
+    --argjson digestsprev "$(json__query -c '.digests // {}' "$_mf" 2> /dev/null || echo '{}')" \
+    '
+    .refs[$ref] = $dig
+    | .digests[$dig] = (
+        {
+          relativePath: $rp,
+          fetchedAt: $fa,
+          sourceRefs: (
+            ( ($digestsprev[$dig].sourceRefs // []) + [$ref] ) | unique
+          ),
+          checksums: $chk
+        }
+      )
+    | .features[$fv] = $vs
+    ' "$_mf" > "$_tmp"
+  then
+    rm -rf "$_dest"
+    rm -f "$_tmp"
+    return 1
+  fi
+  mv "$_tmp" "$_mf" || {
+    rm -rf "$_dest"
+    rm -f "$_tmp"
+    return 1
+  }
+  return 0
+}
+
 # ── Bundle manifest: fetch + parse ──────────────────────────────────────────
-# Bundle-pinned mode fetches <bundle>/manifest.yaml once and caches it on disk.
+# Bundle-pinned mode fetches <bundle>/sysset-vX.Y.Z.tar.gz (manifest.json) or uses a local manifest.json.
 # The manifest records {<feature>: <X.Y.Z>} per feature at bundle-cut time.
 _BUNDLE_TAG=""           # Resolved bundle tag (e.g. v1.2.3); "" in rolling mode.
-_BUNDLE_MANIFEST_FILE="" # Path to downloaded bundle manifest.yaml; "" if N/A.
+_BUNDLE_MANIFEST_FILE="" # Path to downloaded bundle manifest.json; "" if N/A.
 
 # _resolve_bundle_tag <spec> — Resolve a bundle-version spec to its v<X.Y.Z> tag.
 _resolve_bundle_tag() {
@@ -284,61 +459,43 @@ _resolve_bundle_tag() {
   github__resolve_version "${SYSSET_REPO}" "$_spec" --prefix "v" --all
 }
 
-# _fetch_bundle_manifest <bundle-tag> <dest-file> — Download manifest.yaml from
-# the bundle release.
+# _fetch_bundle_manifest <bundle-tag> <dest-file> — Obtain manifest.json from
+# local registry (matching .version) or from the bundle kit tarball on the release.
 _fetch_bundle_manifest() {
   local _tag="$1" _dest="$2"
-  local _url="${SYSSET_RELEASE_BASE}/${_tag}/manifest.yaml"
-  net__fetch_url_file "${_url}" "${_dest}" || return 1
+  local _local_mf="${_SYSSET_REGISTRY_ROOT}/manifest.json"
+  if [[ -f "$_local_mf" ]]; then
+    local _lv=""
+    _lv="$(json__query -r '.version // empty' "$_local_mf" 2> /dev/null)" || _lv=""
+    if [[ "$_lv" == "$_tag" ]]; then
+      cp "$_local_mf" "$_dest"
+      return 0
+    fi
+  fi
+  local _kit _url _tmp _td
+  _kit="$(_sysset_bundle_kit_tarball_name "$_tag")"
+  _url="${SYSSET_RELEASE_BASE}/${_tag}/${_kit}"
+  _tmp="$(mktemp)"
+  if ! net__fetch_url_file "${_url}" "${_tmp}"; then
+    rm -f "$_tmp"
+    return 1
+  fi
+  _td="$(mktemp -d)"
+  if ! tar -xzf "$_tmp" -C "$_td" manifest.json 2> /dev/null; then
+    rm -rf "$_td" "$_tmp"
+    return 1
+  fi
+  cp "$_td/manifest.json" "$_dest"
+  rm -rf "$_td" "$_tmp"
   return 0
 }
 
-# _lookup_bundle_feature_version <manifest.yaml> <feature> — Print the feature's
-# X.Y.Z version from the bundle manifest. Exits 1 if the feature is absent.
+# _lookup_bundle_feature_version <manifest.json> <feature> — Print semver from .features.
 _lookup_bundle_feature_version() {
-  local _manifest="$1" _feature="$2" _version=""
-  if command -v yq > /dev/null 2>&1; then
-    # shellcheck disable=SC2016  # $f is a yq variable (--arg), not a shell variable
-    _version="$(yq -r --arg f "$_feature" '.features[$f] // ""' "$_manifest" 2> /dev/null)" || _version=""
-  fi
-  if [[ -z "${_version}" || "${_version}" == "null" ]] && command -v python3 > /dev/null 2>&1; then
-    _version="$(python3 -c '
-import sys
-path, feat = sys.argv[1], sys.argv[2]
-try:
-    import yaml  # type: ignore
-    with open(path, encoding="utf-8") as fp:
-        data = yaml.safe_load(fp) or {}
-except ImportError:
-    data = {}
-    current = None
-    in_features = False
-    with open(path, encoding="utf-8") as fp:
-        for raw in fp:
-            line = raw.rstrip("\n")
-            if not line or line.lstrip().startswith("#"):
-                continue
-            if line.startswith("features:"):
-                in_features = True
-                continue
-            if in_features:
-                if line and not line[0].isspace():
-                    in_features = False
-                    continue
-                stripped = line.strip()
-                if ":" in stripped:
-                    k, v = stripped.split(":", 1)
-                    data.setdefault("features", {})[k.strip()] = v.strip().strip("\"\x27")
-feats = (data or {}).get("features") or {}
-v = feats.get(feat, "")
-if isinstance(v, str):
-    print(v)
-' "$_manifest" "$_feature" 2> /dev/null)" || _version=""
-  fi
-  if [[ -z "${_version}" || "${_version}" == "null" ]]; then
-    return 1
-  fi
-  printf '%s\n' "$_version"
+  local _mf="${1-}" _feat="${2-}" _v=""
+  _v="$(json__query -r --arg f "$_feat" '.features[$f] // empty' "$_mf" 2> /dev/null)" || _v=""
+  [[ -n "$_v" && "$_v" != "null" ]] || return 1
+  printf '%s\n' "$_v"
 }
 
 # ── Shared tarball fetch + verify ────────────────────────────────────────────
@@ -348,8 +505,31 @@ if isinstance(v, str):
 _fetch_and_verify_tarball() {
   # $1 = feature id, $2 = resolved tag (<feature>/<X.Y.Z>), $3 = destination file
   local _feature="$1" _resolved="$2" _dest="$3"
+  local _ver="${_resolved##*/}"
+  local _ref _norm _mf _dkey
+  _mf="${_SYSSET_REGISTRY_ROOT}/manifest.json"
+  _ref="$(_sysset_default_oci_ref "$_feature" "$_ver")"
+  _norm="${_ref,,}"
+  if [[ -f "$_mf" ]]; then
+    _dkey="$(json__query -r --arg r "$_norm" '.refs[$r] // empty' "$_mf" 2> /dev/null)" || _dkey=""
+    if [[ -n "$_dkey" && "$_dkey" != "null" ]]; then
+      if _sysset_verify_digest_checksums "$_SYSSET_REGISTRY_ROOT" "$_dkey" "$_mf" &&
+        _sysset_pack_digest_payload_to_tarball "$_SYSSET_REGISTRY_ROOT" "$_dkey" "$_mf" "$_dest"; then
+        logging__info "[${_feature}] using local registry (${_dkey})."
+        return 0
+      fi
+      logging__warn "[${_feature}] local registry digest failed verification — refetching."
+    fi
+  fi
   local _asset_name="sysset-${_feature}.tar.gz"
-  github__fetch_release_asset_tarball "${SYSSET_REPO}" "${_resolved}" "${_asset_name}" "${_dest}" || return 1
+  if ! github__fetch_release_asset_tarball "${SYSSET_REPO}" "${_resolved}" "${_asset_name}" "${_dest}"; then
+    return 1
+  fi
+  if [[ -f "$_mf" && -w "$_mf" ]]; then
+    _sysset_manifest_registry_append "$_SYSSET_REGISTRY_ROOT" "$_feature" "$_ver" "$_dest" || {
+      logging__warn "[${_feature}] could not update local manifest.json."
+    }
+  fi
   return 0
 }
 
@@ -470,16 +650,33 @@ _sysset_run_feature_lifecycle() {
 
 # ── Feature mode ─────────────────────────────────────────────────────────────
 if [[ "$_mode" == "feature" ]]; then
+  [[ "$_mode_arg" == *@* ]] && {
+    logging__error "Use 'feature:version' instead of 'feature@version'."
+    exit 1
+  }
   case "$_mode_arg" in
-    *@*)
-      _feature="${_mode_arg%%@*}"
-      _feat_version_spec="${_mode_arg#*@}"
+    ./* | ../* | /* | ~/*)
+      _feature="$_mode_arg"
+      _feat_version_spec=""
+      ;;
+    *:*)
+      _feature="${_mode_arg%%:*}"
+      _feat_version_spec="${_mode_arg#*:}"
       ;;
     *)
       _feature="$_mode_arg"
       _feat_version_spec=""
       ;;
   esac
+
+  if [[ "$_DOWNLOAD_ONLY" == true ]]; then
+    case "$_mode_arg" in
+      ./* | ../* | /*)
+        logging__error "--download-only cannot be used with a single local feature path."
+        exit 1
+        ;;
+    esac
+  fi
 
   if [[ -z "$_feat_version_spec" && -n "${SYSSET_VERSION:-}" ]]; then
     if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${SYSSET_VERSION}")" || [[ -z "$_BUNDLE_TAG" ]]; then
@@ -499,6 +696,12 @@ if [[ "$_mode" == "feature" ]]; then
   if ! _fetch_and_verify_tarball "$_feature" "$_RESOLVED" "${_tmpdir}/feature.tar.gz"; then
     exit 1
   fi
+  if [[ "$_DOWNLOAD_ONLY" == true ]]; then
+    logging__info "[${_feature}] --download-only: fetched ${_RESOLVED}."
+    [[ -n "$_REPORT_FILE" ]] && printf '%s\n' "{\"ok\":[\"${_feature}\"]}" > "$_REPORT_FILE"
+    logging__fn_exit "sysset installer"
+    exit 0
+  fi
   tar -xzf "${_tmpdir}/feature.tar.gz" -C "$_tmpdir"
   sh "${_tmpdir}/install.sh" "$@"
   _wf="${_WORKSPACE_CUSTOM:-$PWD}"
@@ -515,6 +718,86 @@ if [[ ! -f "$_mode_arg" ]]; then
   logging__error "Not found: $_mode_arg"
   exit 1
 fi
+
+_DCJ="$(mktemp)"
+# shellcheck disable=SC2064
+trap 'rm -f "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
+devcontainer__parse_config "$_mode_arg" > "$_DCJ" || exit 1
+
+_WORK_ROOT="$(devcontainer__workspace_folder "$_mode_arg")"
+[[ -n "$_WORKSPACE_CUSTOM" ]] && _WORK_ROOT="$_WORKSPACE_CUSTOM"
+
+if [[ "$_DOWNLOAD_ONLY" == true ]]; then
+  _BUNDLE_NAME_VER="$(devcontainer__name_version_suffix "$(json__query -r '.name // ""' "$_DCJ" 2> /dev/null || true)")"
+  _bspec=""
+  if [[ -n "${SYSSET_VERSION:-}" ]]; then
+    _bspec="${SYSSET_VERSION}"
+  elif [[ -n "$_BUNDLE_NAME_VER" ]]; then
+    _bspec="${_BUNDLE_NAME_VER}"
+  fi
+  if [[ -n "$_bspec" ]]; then
+    if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${_bspec}")" || [[ -z "$_BUNDLE_TAG" ]]; then
+      logging__error "Bundle tag not found for '$_bspec'"
+      exit 1
+    fi
+    _BUNDLE_MANIFEST_FILE="$(mktemp)"
+    _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE" || exit 1
+  fi
+  declare -A _D_K=() _D_T=()
+  _D_IDS=()
+  while IFS=$'\t' read -r _id _k _tt; do
+    [[ -z "$_id" ]] && continue
+    if [[ "$_k" == ./* || "$_k" == ../* || "$_k" == /* ]]; then
+      continue
+    fi
+    _D_IDS+=("$_id")
+    _D_K["$_id"]="$_k"
+    _D_T["$_id"]="$_tt"
+  done < <(devcontainer__iter_features "$_DCJ" "$_WORK_ROOT" "${_COMPAT_PREFIX[@]}")
+  declare -A _D_SEEN=()
+  _D_QUEUE=("${_D_IDS[@]}")
+  _D_FAIL=()
+  _D_OK=()
+  while ((${#_D_QUEUE[@]} > 0)); do
+    _cur="${_D_QUEUE[0]}"
+    _D_QUEUE=("${_D_QUEUE[@]:1}")
+    [[ -n "${_D_SEEN[$_cur]:-}" ]] && continue
+    _D_SEEN["$_cur"]=1
+    if ! _rt="$(_resolve_install_tag "$_cur" "${_D_T[$_cur]}")" || [[ -z "$_rt" ]]; then
+      _D_FAIL+=("$_cur")
+      continue
+    fi
+    _wdir="$(mktemp -d)"
+    if ! _fetch_and_verify_tarball "$_cur" "$_rt" "${_wdir}/a.tgz"; then
+      _D_FAIL+=("$_cur")
+      rm -rf "$_wdir"
+      continue
+    fi
+    tar -xzf "${_wdir}/a.tgz" -C "$_wdir"
+    _D_OK+=("$_cur")
+    if [[ -f "${_wdir}/devcontainer-feature.json" ]]; then
+      while IFS= read -r _dep; do
+        [[ -z "$_dep" || "$_dep" == "null" ]] && continue
+        [[ "$_dep" != *ghcr.io/quantized8/sysset/* ]] && continue
+        _drest="${_dep##*/}"
+        _did="${_drest%%:*}"
+        [[ -n "${_D_SEEN[$_did]:-}" ]] && continue
+        _D_QUEUE+=("$_did")
+      done < <(json__query -r '.dependsOn[]? // empty' "${_wdir}/devcontainer-feature.json" 2> /dev/null)
+    fi
+    rm -rf "$_wdir"
+  done
+  if [[ -n "$_REPORT_FILE" ]]; then
+    json__query -n \
+      --argjson ok "$(json__query -n '$ARGS.positional' --args -- ${_D_OK[@]+"${_D_OK[@]}"})" \
+      --argjson fail "$(json__query -n '$ARGS.positional' --args -- ${_D_FAIL[@]+"${_D_FAIL[@]}"})" \
+      '{ok:$ok, failures:$fail}' > "$_REPORT_FILE" 2> /dev/null || true
+  fi
+  ((${#_D_FAIL[@]} > 0)) && exit 1
+  logging__fn_exit "sysset installer"
+  exit 0
+fi
+
 os__require_root
 _SYSSET_BUILD_CONTEXT="install-bash"
 export _SYSSET_BUILD_CONTEXT
@@ -524,19 +807,11 @@ _SYSSET_INITIAL_SNAPSHOT="$(mktemp)"
 export _SYSSET_INITIAL_SNAPSHOT
 ospkg__take_initial_snapshot "$_SYSSET_INITIAL_SNAPSHOT"
 
-_DCJ="$(mktemp)"
-# shellcheck disable=SC2064
-trap 'rm -f "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
-devcontainer__parse_config "$_mode_arg" > "$_DCJ" || exit 1
-
 _STAGED="$(mktemp -d)"
 # shellcheck disable=SC2064
 trap 'ospkg__cleanup_session_build_groups "false"; rm -rf "${_SYSSET_SESSION_TRACK_DIR:-}" "${_SYSSET_INITIAL_SNAPSHOT:-}" "$_STAGED" "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 
-_WORK_ROOT="$(devcontainer__workspace_folder "$_mode_arg")"
-[[ -n "$_WORKSPACE_CUSTOM" ]] && _WORK_ROOT="$_WORKSPACE_CUSTOM"
-
-_BUNDLE_NAME_VER="$(devcontainer__name_version_suffix "$(jq -r '.name // ""' < "$_DCJ")")"
+_BUNDLE_NAME_VER="$(devcontainer__name_version_suffix "$(json__query -r '.name // ""' "$_DCJ" 2> /dev/null || true)")"
 _bspec=""
 if [[ -n "${SYSSET_VERSION:-}" ]]; then
   _bspec="${SYSSET_VERSION}"
@@ -556,7 +831,7 @@ declare -A _KEY_OF=() _OPT_OF=() _TAG_OF=()
 _IDS=()
 while IFS=$'\t' read -r _id _k _tt; do
   [[ -z "$_id" ]] && continue
-  _opt="$(jq -c --arg k "$_k" '(.features // {})[$k] // {}' < "$_DCJ")"
+  _opt="$(json__query -c --arg k "$_k" '(.features // {})[$k] // {}' "$_DCJ")"
   _IDS+=("$_id")
   _KEY_OF["$_id"]="$_k"
   _OPT_OF["$_id"]="$_opt"
@@ -632,15 +907,15 @@ mapfile -t _ORDER < <(graph__round_order --hard-edges-file "$ht" --soft-edges-fi
 logging__info "order: ${_ORDER[*]}"
 
 if [[ "$_NO_INIT_CMD" != true ]]; then
-  _iv="$(jq -c 'if (has("initializeCommand")|not) then null else .initializeCommand end' < "$_DCJ" 2> /dev/null || echo "null")"
+  _iv="$(json__query -c 'if (has("initializeCommand")|not) then null else .initializeCommand end' "$_DCJ" 2> /dev/null || echo "null")"
   if [[ -n "$_iv" && "$_iv" != "null" ]]; then
     logging__warn "initializeCommand (host): trust this config"
     (cd "${_INIT_CMD_DIR:-$_WORK_ROOT}" && printf '%s' "$_iv" | proc__run_command_form --cwd "${_INIT_CMD_DIR:-$_WORK_ROOT}") || exit 1
   fi
 fi
 
-_RU="$(jq -r '.remoteUser // ""' < "$_DCJ" 2> /dev/null | head -1)"
-_CU="$(jq -r '.containerUser // ""' < "$_DCJ" 2> /dev/null | head -1)"
+_RU="$(json__query -r '.remoteUser // ""' "$_DCJ" 2> /dev/null | head -1)"
+_CU="$(json__query -r '.containerUser // ""' "$_DCJ" 2> /dev/null | head -1)"
 _SELF_USER="$(users__get_current)"
 _EFF_USER="${_RU:-${_CU:-$_SELF_USER}}"
 _EFF_CUSER="${_CU:-$_SELF_USER}"

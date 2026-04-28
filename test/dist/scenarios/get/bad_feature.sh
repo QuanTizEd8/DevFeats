@@ -11,17 +11,13 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
+# shellcheck source=test/lib/offline_kit_mirror.sh
+. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 _BUNDLE="v99.99.0-test"
 _MIRROR="${REPO_ROOT}/test-mirror-get-bad-feature"
-mkdir -p "${_MIRROR}/${_BUNDLE}"
-cat > "${_MIRROR}/${_BUNDLE}/manifest.yaml" << 'EOF'
-bundle: v99.99.0-test
-prior_bundle: v0.0.0
-generated_at: "1970-01-01T00:00:00Z"
-features:
-  install-pixi: 99.99.0-test
-EOF
+mkdir -p "${_MIRROR}"
+offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${REPO_ROOT}/dist" "install-pixi:99.99.0-test"
 
 _PORT=18533
 trap 'stop_file_server; rm -rf "${_MIRROR}"' EXIT

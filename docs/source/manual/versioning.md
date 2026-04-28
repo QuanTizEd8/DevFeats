@@ -16,22 +16,30 @@ Semver semantics per feature: patch = behavior-preserving fix, minor = backwards
 
 ## Bundle releases
 
-On every CD run that publishes at least one per-feature release, the pipeline also creates a **bundle release** under the tag `v<X.Y.Z>`. Each bundle ships two assets:
+On every CD run that publishes at least one per-feature release, the pipeline also creates a **bundle release** under the tag `v<X.Y.Z>`. Each bundle ships **one** offline kit asset:
 
 | Asset | Purpose |
 |-------|---------|
-| `sysset-all.tar.gz` | Every feature's tarball in a flat layout — convenient for mirrors and archives |
-| `manifest.yaml` | Machine-readable version map for this bundle, consumed by `install.bash` for bundle pinning |
+| `sysset-v<X.Y.Z>.tar.gz` | Self-contained kit: `install.sh`, `install.bash`, `_lib/`, `manifest.json`, and digest-primary `features/` tree. The filename uses the **same** `v`-prefixed bundle tag as the GitHub Release (for `v1.2.0`, the file is `sysset-v1.2.0.tar.gz`), so one variable can build both the release path and the asset name. |
 
-:::{dropdown} Example `manifest.yaml`
+`manifest.json` (schema version `2.0.0`) holds `version` (the bundle tag such as `v1.2.0`), provenance in `source`, a `features` map (`<feature-id>` → semver) for bundle pinning, plus `refs` and `digests` for local-registry / offline resolution. A JSON Schema lives at [`schemas/kit-manifest.schema.json`](https://github.com/quantized8/sysset/blob/main/schemas/kit-manifest.schema.json).
 
-```yaml
-bundle: v1.2.0
-commit: 3f7a…
-features:
-  install-fonts: 0.1.0
-  install-pixi:  1.3.0
-  install-shell: 0.2.0
+:::{dropdown} Example `manifest.json` (truncated)
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "version": "v1.2.0",
+  "generatedAt": "2026-04-27T12:00:00Z",
+  "source": { "repo": "quantized8/sysset", "commit": "3f7a…" },
+  "features": {
+    "install-fonts": "0.1.0",
+    "install-pixi": "1.3.0",
+    "install-shell": "0.2.0"
+  },
+  "refs": { "ghcr.io/quantized8/sysset/install-pixi:1.3.0": "sha256:…" },
+  "digests": { "sha256:…": { "relativePath": "features/…", "checksums": { } } }
+}
 ```
 :::
 
@@ -48,8 +56,8 @@ Three orthogonal pinning mechanisms let you choose the right trade-off between r
 Every feature resolves to its latest per-feature release. Good for dev loops; avoid for production or archives.
 :::
 
-:::{grid-item-card} Per-feature (`@spec`)
-Pin one feature to a specific version line. Good for hotfixes and bisects.
+:::{grid-item-card} Per-feature (`:spec`)
+Pin one feature to a specific version line (`feature:version`). Good for hotfixes and bisects.
 :::
 
 :::{grid-item-card} Bundle (`SYSSET_VERSION`)
@@ -59,7 +67,7 @@ Pin **every** feature to the versions inside a specific bundle release. Good for
 
 ### Per-feature version spec
 
-A version spec can appear as `@spec` on the CLI, as a `:tag` on an OCI reference, or as a version value in a manifest:
+A version spec can appear as `feature:version` on the CLI, as a `:tag` on an OCI reference, or as a version value in a manifest:
 
 | Spec | Resolves to |
 |------|------------|
@@ -69,17 +77,17 @@ A version spec can appear as `@spec` on the CLI, as a `:tag` on an OCI reference
 | `1.2.3` or `v1.2.3` | Exact version |
 
 ```sh
-sh install.sh install-pixi@1              # latest 1.x.y
-sh install.sh install-pixi@1.2            # latest 1.2.x
-sh install.sh install-pixi@1.2.3          # exact 1.2.3
-sh install.sh install-pixi@1.2 --version 0.66.0   # pin tarball, pass option through
+sh install.sh install-pixi:1              # latest 1.x.y
+sh install.sh install-pixi:1.2            # latest 1.2.x
+sh install.sh install-pixi:1.2.3          # exact 1.2.3
+sh install.sh install-pixi:1.2 --version 0.66.0   # pin tarball, pass option through
 ```
 
-The `@spec` suffix only affects *which* tarball is downloaded; all CLI flags after the feature ID are forwarded to the installer unchanged.
+The `:spec` suffix only affects *which* tarball is downloaded; all CLI flags after the feature ID are forwarded to the installer unchanged.
 
 ### Bundle pinning
 
-Set `SYSSET_VERSION`, or add a `v<X>.<Y>.<Z>` suffix to the manifest's `name` field, to pin the bundle for the whole run. `install.bash` downloads the bundle's `manifest.yaml` first, then resolves each feature to the version listed there.
+Set `SYSSET_VERSION`, or add a `v<X>.<Y>.<Z>` suffix to the manifest's `name` field, to pin the bundle for the whole run. `install.bash` downloads `sysset-v<X.Y.Z>.tar.gz` for that bundle tag and reads `manifest.json` from it (or uses `manifest.json` next to the running installer when you use an extracted kit), then resolves each feature to the version listed in `features`.
 
 ```sh
 # All features pinned to bundle v1.2.0
@@ -101,7 +109,7 @@ In a manifest, the equivalent pin is a version suffix on `name`:
 When more than one pinning mechanism applies, the highest priority wins:
 
 ```text
-OCI per-feature tag  (:tag  or  @spec)
+OCI per-feature tag  (:tag  on the key, or  feature:version  on the CLI)
         ↓
 SYSSET_VERSION  or  v<X>.<Y>.<Z> in manifest name  (bundle)
         ↓
@@ -112,7 +120,7 @@ A per-feature override always wins over a bundle pin — useful for taking a hot
 
 ```sh
 # Everything at v1.2.0, except install-pixi which rolls to latest 1.4.x
-SYSSET_VERSION=v1.2.0 sh install.sh install-pixi@1.4 install-shell
+SYSSET_VERSION=v1.2.0 sh install.sh install-pixi:1.4 install-shell
 ```
 
 ---
@@ -122,7 +130,7 @@ SYSSET_VERSION=v1.2.0 sh install.sh install-pixi@1.4 install-shell
 `install.sh` forwards every argument to `install.bash`, so both share the same CLI.
 
 ```text
-Feature mode:   install.sh <feature>[@<spec>] [feature-opts...]
+Feature mode:   install.sh <feature>[:<spec>] [feature-opts...]
 Manifest mode:  install.sh <devcontainer.json[.jsonc]>
 ```
 
@@ -139,6 +147,9 @@ Manifest mode:  install.sh <devcontainer.json[.jsonc]>
 | `--no-container-lifecycle-command <pattern>` | Repeatable. Disable container-level lifecycle commands using the same grammar. |
 | `--compatible-prefix <oci-prefix>` | Repeatable. OCI prefixes accepted in `features[…]`. Defaults to `ghcr.io/|{{github_user}}|/|{{github_repo}}|/`. Unknown prefixes are skipped with a warning. |
 | `--no-lifecycle` | Feature mode only: skip the installed feature's lifecycle hooks. |
+| `--local-registry <path>` | Registry root containing `manifest.json` and `features/`. Default: directory of the resolved `install.bash`, or `SYSSET_LOCAL_REGISTRY`. |
+| `--download-only` | Fetch features into the local registry and update `manifest.json`; do not run installers. |
+| `--report-file <path>` | With `--download-only`, write a JSON summary of successes and failures. |
 
 ---
 
@@ -146,8 +157,9 @@ Manifest mode:  install.sh <devcontainer.json[.jsonc]>
 
 | Variable | Description |
 |----------|-------------|
-| `SYSSET_VERSION` | Bundle pin. Accepts: `""`, `latest`, `1`, `1.2`, `v1.2.3`, `1.2.3`. Per-feature `@spec` overrides still win. Equivalent to a `v*.*.*` suffix on the manifest's `name`. |
-| `SYSSET_BASE_URL` | GitHub Releases base URL. Default: `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. URLs are constructed as `<base>/<feature>/<X.Y.Z>/sysset-<feature>.tar.gz` (per-feature) and `<base>/v<X.Y.Z>/manifest.yaml` (bundle). Override for mirrors, including `file://` paths. |
+| `SYSSET_VERSION` | Bundle pin. Accepts: `""`, `latest`, `1`, `1.2`, `v1.2.3`, `1.2.3`. Per-feature `:spec` overrides still win. Equivalent to a `v*.*.*` suffix on the manifest's `name`. |
+| `SYSSET_LOCAL_REGISTRY` | Directory containing the offline kit (`manifest.json`, `features/`, …). Overrides the default registry root (the directory of `install.bash`). |
+| `SYSSET_BASE_URL` | GitHub Releases base URL. Default: `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. Per-feature URLs: `<base>/<feature-id>/<X.Y.Z>/sysset-<feature-id>.tar.gz`. Bundle kit: `<base>/v<X.Y.Z>/sysset-v<X.Y.Z>.tar.gz`. Override for mirrors, including `file://` paths. |
 | `SYSSET_RAW_BASE` | Raw GitHub base for `install.bash` and `lib/*.sh`. Default: `https://raw.githubusercontent.com/|{{github_user}}|/|{{github_repo}}|/main`. Override to use a fork, a branch, or a local mirror. |
 | `SYSSET_FETCH_TOOL` | Force `curl` or `wget`. Auto-detected when unset. |
 | `LOG_FILE` | Append the installer's output to this file on exit. Equivalent to `--log_file`. Also honored by individual features. |
@@ -174,70 +186,14 @@ Manifest mode:  install.sh <devcontainer.json[.jsonc]>
 |------|-------|
 | Git tag | `v<X.Y.Z>` |
 | GitHub Release | Marked `latest` on the repository |
-| Asset #1 | `sysset-all.tar.gz` — every per-feature tarball, flat layout |
-| Asset #2 | `manifest.yaml` — per-feature version map |
-| Download URLs | `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/v<X.Y.Z>/sysset-all.tar.gz` · `…/manifest.yaml` |
+| Asset | `sysset-v<X.Y.Z>.tar.gz` — offline kit (installers + `manifest.json` + digest layout) |
+| Download URL | `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/v<X.Y.Z>/sysset-v<X.Y.Z>.tar.gz` |
 
 ---
 
 ## Offline and air-gapped installs
 
-The standalone channel is designed to work with no outbound network once you mirror two things: the tarballs from a bundle release and, optionally, `install.bash` + `lib/` from the repo.
-
-### Step 1 — stage the bundle
-
-```sh
-VERSION=v1.2.0
-curl -fsSL "https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/${VERSION}/sysset-all.tar.gz" \
-  | tar xz -C /opt/sysset
-curl -fsSL "https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/${VERSION}/manifest.yaml" \
-  -o /opt/sysset/manifest.yaml
-```
-
-Each `sysset-<feature>.tar.gz` under `/opt/sysset` is self-contained and can be run offline immediately:
-
-```sh
-tar xz -C /tmp/pixi < /opt/sysset/sysset-install-pixi.tar.gz
-sudo sh /tmp/pixi/install.sh --version 0.66.0
-```
-
-### Step 2 — build a mirror for manifest mode
-
-For `install.bash` manifest mode, mirror the assets at the expected URL layout and point `SYSSET_BASE_URL` at your mirror:
-
-```sh
-VERSION=v1.2.0
-mkdir -p /opt/sysset-mirror/${VERSION}
-cp /opt/sysset/manifest.yaml /opt/sysset-mirror/${VERSION}/
-
-python3 - <<'PY'
-import pathlib, shutil, yaml
-m = yaml.safe_load(pathlib.Path("/opt/sysset/manifest.yaml").read_text())
-root = pathlib.Path("/opt/sysset-mirror")
-src  = pathlib.Path("/opt/sysset")
-for feat, ver in m["features"].items():
-    dst = root / feat / ver
-    dst.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src / f"sysset-{feat}.tar.gz", dst / f"sysset-{feat}.tar.gz")
-PY
-
-SYSSET_BASE_URL="file:///opt/sysset-mirror" \
-SYSSET_VERSION="${VERSION}" \
-  sudo sh install.sh my-setup.jsonc
-```
-
-### Step 3 — fully air-gapped
-
-`install.sh` still downloads `install.bash` and `lib/*.sh` from `SYSSET_RAW_BASE` unless you override it. For a completely offline host, mirror those too:
-
-```sh
-SYSSET_RAW_BASE="http://my-mirror.internal/sysset" \
-SYSSET_BASE_URL="file:///opt/sysset-mirror" \
-SYSSET_VERSION="v1.2.0" \
-  sudo sh install.sh my-setup.jsonc
-```
-
-Or skip `install.sh` entirely and run per-feature tarballs directly — they are fully self-contained with zero outbound traffic.
+The usual approach is to **extract the bundle kit** `sysset-v<X.Y.Z>.tar.gz`, run `install.sh` or `install.bash` from that directory (or set `SYSSET_LOCAL_REGISTRY` to the extracted root), and set `SYSSET_VERSION` so versions resolve from the embedded `manifest.json`. For mirrors, `--download-only` pre-seeding, digest / registry behavior, and bootstrap without network, see the dedicated guide: {doc}`offline`.
 
 ---
 

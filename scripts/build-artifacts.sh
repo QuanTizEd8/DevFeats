@@ -8,7 +8,9 @@
 #
 # Outputs (all under dist/):
 #   sysset-<feature>.tar.gz       One tarball per feature
-#   sysset-all.tar.gz             All feature tarballs bundled for offline use
+#
+# The bundle offline kit ``sysset-vX.Y.Z.tar.gz`` is produced by
+# ``scripts/build-offline-kit.sh`` (not here).
 #
 # Tarball layout (per feature):
 #   install.sh        POSIX sh bootstrap (handles bash>=4 on any platform)
@@ -96,19 +98,6 @@ for _feature_dir in "${_feature_dirs[@]}"; do
 done
 
 rm -rf "${_DIST_DIR}/tmp"
-
-# ── Step 4: Build all-bundle ────────────────────────────────────────────────
-# Contains only feature tarballs — for offline use with SYSSET_BASE_URL=file://...
-_feature_tarballs=()
-while IFS= read -r _t; do
-  _feature_tarballs+=("$(basename "$_t")")
-done < <(find "${_DIST_DIR}" -maxdepth 1 -name "sysset-*.tar.gz" | sort)
-
-(
-  cd "${_DIST_DIR}"
-  tar -czf sysset-all.tar.gz "${_feature_tarballs[@]}"
-)
-echo "✅ Built dist/sysset-all.tar.gz" >&2
 
 echo "" >&2
 echo "✅ Build complete. Artifacts in dist/:" >&2
