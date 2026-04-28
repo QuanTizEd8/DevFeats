@@ -203,6 +203,8 @@ jobs:
     name: "Unit Tests - ${{ matrix.os }} VM"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -260,6 +262,8 @@ jobs:
     name: "Unit Tests - ${{ matrix.image }}"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -296,6 +300,7 @@ jobs:
           docker run --rm \
             -v "$PWD:/repo" \
             -w /repo \
+            -e GITHUB_TOKEN \
             ${{ matrix.image }} \
             sh -c "${{ matrix.install }} && bash test/run-unit.sh"
 
@@ -407,6 +412,8 @@ jobs:
           path: src/
 
       - name: "Test ${{ matrix.feature }} macOS scenarios"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash test/run-macos.sh "${{ matrix.feature }}"
 
   # ── Dist: build artifacts ─────────────────────────────────────────────────

@@ -105,6 +105,25 @@ v2.0.0"
   assert_output --partial "unknown option"
 }
 
+@test "github__release_tags --retries replays after repeated API list failure" {
+  # Stub the list helper (not net__fetch_url_stdout): sourcing json/ospkg pulls
+  # net.sh back in and would replace a net stub before github__release_tags runs.
+  _gh_list_n=0
+  _github__api_list_field() {
+    _gh_list_n=$((_gh_list_n + 1))
+    if [ "$_gh_list_n" -lt 3 ]; then
+      return 1
+    fi
+    printf '%s\n' 'v1.0.0'
+    return 0
+  }
+  export -f _github__api_list_field
+  run --separate-stderr github__release_tags "owner/repo" --retries 3 --retry-delay 0
+  assert_success
+  assert_output "v1.0.0"
+  assert_stderr --partial "retrying"
+}
+
 # ---------------------------------------------------------------------------
 # github__release_asset_urls  (parsing logic via fake fetch_release_json)
 # ---------------------------------------------------------------------------

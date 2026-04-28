@@ -130,8 +130,24 @@ _dependencies:
     linux-build:
       # Build tools — names differ by ecosystem. Build-time only on Linux;
       # macOS provides these via Xcode CLT which is handled separately.
+      #
+      # Primary reference: https://docs.brew.sh/Homebrew-on-Linux#requirements
+      # The upstream install.sh post-install hint also lists package groups /
+      # packages per PM (apt-get, dnf, yum, pacman, apk). Homebrew does **not**
+      # document openSUSE (zypper); the zypper list below is an explicit minimal
+      # toolchain analogous to the usual `pattern(devel_basis)` bundle, without
+      # installing that pattern (some `opensuse/leap:latest` images hit zypper
+      # solver conflicts on `devel_basis`, breaking non-interactive CI).
+      #
+      # Together with `run.base` (git, curl, file, gzip), each PM block matches
+      # the doc one-liners where they exist:
+      #   • apt:   build-essential procps  (+ run.base ≈ curl file git; gzip extra)
+      #   • dnf:   group development-tools + procps-ng  (+ run.base)
+      #   • pacman: base-devel + procps-ng  (+ run.base)
+      #   • apk:   build-base  (+ run.base); procps added for ps/top parity with procps on apt/dnf.
+      # zypper adds procps plus gcc/make/patch/headers/binutils/pkgconf/perl so
+      # bottles and formula builds have a typical C/C++ build environment.
 
-      # APT/DNF/zypper/pacman build toolchains
       apt:
         packages:
           - build-essential
@@ -142,9 +158,23 @@ _dependencies:
       zypper:
         packages:
           - procps
+          # Explicit RPMs (see linux-build comment above), not pattern(devel_basis).
+          - binutils
+          - gcc
+          - gcc-c++
+          - make
+          - patch
+          - glibc-devel
+          - libstdc++-devel
+          - perl
+          - pkgconf
       pacman:
         packages:
           - procps-ng
+      apk:
+        packages:
+          - build-base
+          - procps
 
       # Package groups for build toolchains
       groups:
@@ -152,5 +182,3 @@ _dependencies:
           when: {pm: dnf}
         - name: base-devel
           when: {pm: pacman}
-        - name: devel_basis
-          when: {pm: zypper}

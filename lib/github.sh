@@ -204,7 +204,7 @@ github__latest_tag() {
   return 1
 }
 
-# @brief github__release_tags <owner/repo> [--per_page N] [--all] — Print one release tag per line (newest first) from `/releases?per_page=N` (default 100).
+# @brief github__release_tags <owner/repo> [--per_page N] [--all] [--retries N] [--retry-delay SEC>] — Print one release tag per line (newest first) from `/releases?per_page=N` (default 100).
 #
 # Useful for version-matching against a list (grep/sort/tail in the caller).
 # Without --all: fetches only the first page (up to --per_page tags). With
@@ -212,16 +212,22 @@ github__latest_tag() {
 # items (short-page termination — simpler than Link-header parsing and
 # correct for idempotent helpers).
 #
+# HTTP fetches already use curl retries (5xx, 429, etc.) via net__fetch_url_stdout;
+# --retries/--retry-delay add full end-to-end attempts when parsing fails or the
+# API returns an error payload after a successful HTTP status.
+#
 # Args:
-#   <owner/repo>   GitHub repository in "owner/repo" format.
-#   --per_page N   Releases per page to request (default: 100).
-#   --all          Paginate through every release (default: first page only).
+#   <owner/repo>       GitHub repository in "owner/repo" format.
+#   --per_page N       Releases per page to request (default: 100).
+#   --all              Paginate through every release (default: first page only).
+#   --retries N        Maximum attempts for the whole list operation (default: 1).
+#   --retry-delay SEC  Seconds to sleep between attempts (default: 4; ignored when N=1).
 #
 # Stdout: one tag name per line, newest first.
 github__release_tags() {
   local _repo="$1"
   shift
-  local _per_page=100 _all=false
+  local _per_page=100 _all=false _retries=1 _retry_delay=4
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --per_page)
@@ -233,6 +239,16 @@ github__release_tags() {
         _all=true
         shift
         ;;
+      --retries)
+        shift
+        _retries="$1"
+        shift
+        ;;
+      --retry-delay)
+        shift
+        _retry_delay="$1"
+        shift
+        ;;
       *)
         logging__error "github__release_tags: unknown option: '$1'"
         return 1
@@ -240,22 +256,41 @@ github__release_tags() {
     esac
   done
 
-  if [ "$_all" = "false" ]; then
-    local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}"
-    _github__api_list_field "$_url" "tag_name" || {
-      logging__error "github__release_tags: failed to reach GitHub API for '${_repo}'."
-      return 1
-    }
-    return 0
-  fi
-
-  _github__paginate_list_field \
-    "https://api.github.com/repos/${_repo}/releases" \
-    "tag_name" "$_per_page" || {
-    logging__error "github__release_tags: failed to reach GitHub API for '${_repo}'."
+  case "$_retries" in '' | *[!0-9]*)
+    logging__error "github__release_tags: --retries must be a non-negative integer."
     return 1
-  }
-  return 0
+    ;;
+  esac
+  [ "$_retries" -lt 1 ] && _retries=1
+  case "$_retry_delay" in '' | *[!0-9]*)
+    logging__error "github__release_tags: --retry-delay must be a non-negative integer."
+    return 1
+    ;;
+  esac
+
+  local _attempt=1
+  while [ "$_attempt" -le "$_retries" ]; do
+    if [ "$_all" = "false" ]; then
+      local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}"
+      if _github__api_list_field "$_url" "tag_name"; then
+        return 0
+      fi
+    else
+      if _github__paginate_list_field \
+        "https://api.github.com/repos/${_repo}/releases" \
+        "tag_name" "$_per_page"; then
+        return 0
+      fi
+    fi
+
+    if [ "$_attempt" -ge "$_retries" ]; then
+      logging__error "github__release_tags: failed to reach GitHub API for '${_repo}' after ${_retries} attempt(s)."
+      return 1
+    fi
+    logging__warn "github__release_tags: GitHub API list failed for '${_repo}' (attempt ${_attempt}/${_retries}); retrying in ${_retry_delay}s."
+    sleep "$_retry_delay"
+    _attempt=$((_attempt + 1))
+  done
 }
 
 # @brief github__resolve_version <owner/repo> [<version-spec>] [--prefix <str>] [--all] — Resolve a partial or full version spec to an exact release tag.
@@ -670,10 +705,29 @@ github__pick_release_asset() {
 _github__api_list_field() {
   local _url="$1"
   local _field="$2"
-  local _json
+  local _json _lines _msg
   _json="$(_github__api_get "$_url")" || return 1
   [ -z "$_json" ] && return 1
-  printf '%s\n' "$_json" | json__array_field_lines_stdin "$_field"
+
+  if printf '%s\n' "$_json" | json__query -e 'type == "object" and (.message | type == "string")' >/dev/null 2>&1; then
+    _msg="$(printf '%s\n' "$_json" | json__query -r '.message // empty' 2>/dev/null)" || _msg=""
+    logging__error "_github__api_list_field: GitHub API error for '${_url}': ${_msg}"
+    return 1
+  fi
+
+  _lines="$(printf '%s\n' "$_json" | json__array_field_lines_stdin "$_field")" || _lines=""
+  if [ -n "$_lines" ]; then
+    printf '%s\n' "$_lines"
+    return 0
+  fi
+
+  if printf '%s\n' "$_json" | json__query -e 'type == "array" and length == 0' >/dev/null 2>&1; then
+    logging__error "_github__api_list_field: GitHub API returned an empty JSON array for '${_url}'."
+    return 1
+  fi
+
+  logging__error "_github__api_list_field: no '${_field}' values extracted from GitHub API response for '${_url}' (expected a non-empty JSON array of objects)."
+  return 1
 }
 
 # _github__paginate_list_field <base_url> <field> <per_page>  (internal)

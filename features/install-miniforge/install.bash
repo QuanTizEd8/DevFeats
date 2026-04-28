@@ -223,8 +223,10 @@ resolve_miniforge_version() {
     }
   else
     logging__info "Resolving Miniforge release tag for conda version '${VERSION}' from GitHub API."
+    # --all: many Miniforge releases; older conda versions are not on the first page.
+    # --retries/--retry-delay: full replays for flakes (curl already retries HTTP).
     local releases
-    releases="$(github__release_tags conda-forge/miniforge)" || {
+    releases="$(github__release_tags conda-forge/miniforge --all --retries 3 --retry-delay 4)" || {
       logging__error "Failed to list Miniforge releases."
       exit 1
     }

@@ -76,7 +76,7 @@
         }
     },
     "opensuse": {
-        "image": "opensuse/leap:latest",
+        "image": "opensuse/leap:15.6",
         "features": {
             "install-homebrew": {
                 "log_level": "trace"
