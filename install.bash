@@ -526,6 +526,37 @@ _sysset_lockfile_lookup_ref() {
   json__query -r --arg k "$_key" '.features[$k].resolved // empty' "$_lf" 2> /dev/null
 }
 
+_sysset_resolve_local_feature_dir() {
+  local _key="${1-}" _work_root="${2:-$PWD}" _src=""
+  case "$_key" in
+    ~/*)
+      _src="${_key/#\~/$HOME}"
+      ;;
+    /*)
+      _src="$_key"
+      ;;
+    ./* | ../*)
+      _src="${_work_root%/}/${_key}"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  if [[ "$_src" == */devcontainer-feature.json ]]; then
+    _src="${_src%/devcontainer-feature.json}"
+  fi
+  [[ -d "$_src" ]] || return 1
+  [[ -f "${_src}/install.sh" && -f "${_src}/devcontainer-feature.json" ]] || return 1
+  printf '%s\n' "$_src"
+}
+
+_sysset_stage_local_manifest_feature() {
+  local _key="${1-}" _id="${2-}" _work_root="${3-}" _dest_dir="${4-}" _src=""
+  _src="$(_sysset_resolve_local_feature_dir "$_key" "$_work_root")" || return 1
+  cp -R "${_src}/." "${_dest_dir}/"
+  return 0
+}
+
 _sysset_lockfile_write() {
   local _path="${1-}"
   [[ -n "$_path" ]] || return 0
@@ -680,9 +711,8 @@ if [[ "$_mode" == "feature" ]]; then
     esac
   fi
 
-  if [[ "$_feature" == ./* || "$_feature" == ../* || "$_feature" == /* || "$_feature" == ~/* ]]; then
-    _local_feature="${_feature/#\~/$HOME}"
-    [[ -d "$_local_feature" && -f "${_local_feature}/install.sh" && -f "${_local_feature}/devcontainer-feature.json" ]] || {
+  if _local_feature="$(_sysset_resolve_local_feature_dir "$_feature" "$PWD")"; then
+    [[ -n "$_local_feature" ]] || {
       logging__error "Local feature path is invalid: ${_feature}"
       exit 1
     }
@@ -852,6 +882,15 @@ _failed=()
 _OK_IDS=()
 for _id in "${_IDS[@]}"; do
   mkdir -p "${_STAGED}/${_id}"
+  if [[ "${_KEY_OF[$_id]}" == ./* || "${_KEY_OF[$_id]}" == ../* || "${_KEY_OF[$_id]}" == /* || "${_KEY_OF[$_id]}" == ~/* ]]; then
+    if ! _sysset_stage_local_manifest_feature "${_KEY_OF[$_id]}" "$_id" "$_WORK_ROOT" "${_STAGED}/${_id}"; then
+      logging__error "[${_id}] invalid local feature path in manifest: ${_KEY_OF[$_id]}"
+      _failed+=("$_id")
+      continue
+    fi
+    _OK_IDS+=("$_id")
+    continue
+  fi
   if [[ -n "$_FROZEN_LOCKFILE_PATH" ]]; then
     _rt="$(_sysset_lockfile_lookup_ref "$_FROZEN_LOCKFILE_PATH" "${_KEY_OF[$_id]}" || true)"
     [[ -n "$_rt" ]] || {
@@ -938,7 +977,7 @@ _CU_HOME="$(devcontainer__user_home "$_EFF_CUSER" 2> /dev/null || true)"
 
 _passed=()
 for _id in "${_ORDER[@]}"; do
-  if [[ ! -f "${_STAGED}/${_id}/a.tgz" || ! -f "${_STAGED}/${_id}/install.sh" ]]; then
+  if [[ ! -f "${_STAGED}/${_id}/install.sh" ]]; then
     logging__error "[${_id}] staged payload missing; skipping."
     _failed+=("$_id")
     continue
