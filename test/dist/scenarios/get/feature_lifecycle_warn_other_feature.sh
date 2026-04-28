@@ -51,7 +51,7 @@ unset SYSSET_VERSION
 check "install.sh ignores disable entry for a different feature id (with warning)" \
   sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log" \
   --no-feature-lifecycle-command "install-pixi:postCreateCommand" \
-  "${_FEAT}@${_VER}"
+  "${_FEAT}:${_VER}"
 
 check "warning was emitted about mismatched feature id" \
   bash -c "grep -Eq 'references a different feature|installed:' '$_log'"

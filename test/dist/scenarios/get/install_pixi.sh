@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# get/install_pixi.sh — Rolling per-feature mode with an explicit @spec.
+# get/install_pixi.sh — Rolling per-feature mode with an explicit :version spec.
 #
 # What this tests:
 #   • SYSSET_BASE_URL override directs downloads to the local file-server.
-#   • install.sh resolves `install-pixi@<ver>` without hitting the GitHub API
+#   • install.sh resolves `install-pixi:<ver>` without hitting the GitHub API
 #     (exact 3-part spec → direct tag construction).
 #   • URL scheme is the new <feature>/<X.Y.Z>/sysset-<feature>.tar.gz layout.
 #   • The tarball is extracted, the bootstrap runs, and pixi is installed.
@@ -36,8 +36,8 @@ unset SYSSET_VERSION
 
 # ── Run install.sh ───────────────────────────────────────────────────────────────
 # install-pixi requires root (ospkg__require_root); installs pixi to /usr/local/bin.
-check "install.sh installs install-pixi@${_VER} successfully (rolling mode, @spec)" \
-  sudo -E bash "${REPO_ROOT}/install.sh" "${_FEAT}@${_VER}"
+check "install.sh installs install-pixi:${_VER} successfully (rolling mode, explicit spec)" \
+  sudo -E bash "${REPO_ROOT}/install.sh" "${_FEAT}:${_VER}"
 
 check "pixi binary present in PATH after install" \
   command -v pixi

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # get/forward_options.sh — Verify feature-install options are forwarded
-# verbatim by install.sh to the feature's install.sh (rolling mode with @spec).
+# verbatim by install.sh to the feature's install.sh (rolling mode with explicit :version).
 #
 # Strategy: pass --version <specific_version> to install-pixi and confirm the
 # installed binary reports that exact version.
@@ -27,7 +27,7 @@ export SYSSET_BASE_URL
 unset SYSSET_VERSION
 
 check "install.sh installs pixi with explicit --version (forwarded)" \
-  sudo -E bash "${REPO_ROOT}/install.sh" "${_FEAT}@${_VER}" \
+  sudo -E bash "${REPO_ROOT}/install.sh" "${_FEAT}:${_VER}" \
   --version "$_PIXI_VERSION" --if_exists reinstall
 
 check "installed pixi reports expected version" \

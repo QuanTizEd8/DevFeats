@@ -55,15 +55,15 @@ export SYSSET_BASE_URL
 unset SYSSET_VERSION
 
 # ── 1. --no-lifecycle skips every feature-level phase ───────────────────────
-check "install.sh ${_FEAT}@${_VER} --no-lifecycle succeeds" \
-  sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log1" --no-lifecycle "${_FEAT}@${_VER}"
+check "install.sh ${_FEAT}:${_VER} --no-lifecycle succeeds" \
+  sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log1" --no-lifecycle "${_FEAT}:${_VER}"
 check "no probe strings in log when --no-lifecycle is set" \
   bash -c "! grep -q 'sysset-probe:' '$_log1'"
 
 # ── 2. --no-feature-lifecycle-command postCreateCommand skips that phase ────
-check "install.sh ${_FEAT}@${_VER} --no-feature-lifecycle-command postCreateCommand succeeds" \
+check "install.sh ${_FEAT}:${_VER} --no-feature-lifecycle-command postCreateCommand succeeds" \
   sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log2" \
-  --no-feature-lifecycle-command postCreateCommand "${_FEAT}@${_VER}"
+  --no-feature-lifecycle-command postCreateCommand "${_FEAT}:${_VER}"
 check "onCreate and updateContent hooks ran when only postCreate is disabled" \
   bash -c "grep -q 'sysset-probe:on-create-ran' '$_log2' && grep -q 'sysset-probe:update-content-ran' '$_log2'"
 check "postCreate hook was NOT invoked when that phase is disabled" \

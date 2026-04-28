@@ -25,11 +25,11 @@ export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
 
-check "install.sh installs setup-shim on macOS (rolling mode, @spec)" \
+check "install.sh installs setup-shim on macOS (rolling mode, explicit :version)" \
   sudo env PATH="$PATH" \
   SYSSET_RAW_BASE="$SYSSET_RAW_BASE" \
   SYSSET_BASE_URL="$SYSSET_BASE_URL" \
-  bash "${REPO_ROOT}/install.sh" "${_FEAT}@${_VER}"
+  bash "${REPO_ROOT}/install.sh" "${_FEAT}:${_VER}"
 
 check "code shim installed by setup-shim" \
   test -f /usr/local/share/setup-shim/bin/code

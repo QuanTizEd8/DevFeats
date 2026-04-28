@@ -58,8 +58,8 @@ unset SYSSET_VERSION
 
 # Run feature-mode install. The feature declares string-form hooks for all three
 # phases; each echoes a well-known probe string to stdout.
-check "install.sh installs ${_FEAT}@${_VER} (feature mode)" \
-  sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log" "${_FEAT}@${_VER}"
+check "install.sh installs ${_FEAT}:${_VER} (feature mode)" \
+  sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log" "${_FEAT}:${_VER}"
 
 check "onCreateCommand hook was executed" \
   bash -c "grep -q 'sysset-probe:on-create-ran' '$_log'"
