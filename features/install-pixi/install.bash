@@ -19,6 +19,10 @@ _cleanup_hook() {
       rmdir "${INSTALLER_DIR}"
     }
   fi
+  if [[ -n "${_pixi_netrc_tmp:-}" && -f "${_pixi_netrc_tmp}" ]]; then
+    logging__remove "Removing temporary netrc '${_pixi_netrc_tmp}'"
+    rm -f "${_pixi_netrc_tmp}"
+  fi
   logging__fn_exit "_cleanup_hook"
 }
 
@@ -122,23 +126,12 @@ download_pixi() {
   logging__fn_entry "download_pixi"
   mkdir -p "${INSTALLER_DIR}"
   logging__download "Downloading pixi archive from '${ARCHIVE_URL}'"
-  if [ -n "${NETRC}" ]; then
-    if command -v curl > /dev/null 2>&1; then
-      curl --fail --location --retry 3 \
-        --netrc-file "${NETRC}" --output "${ARCHIVE}" "${ARCHIVE_URL}"
-    elif command -v wget > /dev/null 2>&1; then
-      wget --tries=3 --auth-no-challenge \
-        --netrc-file "${NETRC}" --output-document "${ARCHIVE}" "${ARCHIVE_URL}"
-    else
-      logging__error "Neither curl nor wget is available."
-      exit 1
-    fi
-  else
-    net__fetch_url_file "${ARCHIVE_URL}" "${ARCHIVE}"
-  fi
+  local _netrc_args=()
+  [[ -n "${NETRC:-}" ]] && _netrc_args+=(--netrc-file "${NETRC}")
+  net__fetch_url_file "${ARCHIVE_URL}" "${ARCHIVE}" "${_netrc_args[@]}"
   if [ -n "${SIDECAR_URL:-}" ]; then
     logging__download "Downloading checksum sidecar from '${SIDECAR_URL}'"
-    net__fetch_url_file "${SIDECAR_URL}" "${SIDECAR}"
+    net__fetch_url_file "${SIDECAR_URL}" "${SIDECAR}" "${_netrc_args[@]}"
   fi
   logging__fn_exit "download_pixi"
   return 0
@@ -382,6 +375,31 @@ install_completion() {
 . "${_SELF_DIR}/_lib/github.sh"
 # shellcheck source=lib/checksum.sh
 . "${_SELF_DIR}/_lib/checksum.sh"
+# shellcheck source=lib/uri.sh
+# shellcheck disable=SC1094
+. "${_SELF_DIR}/_lib/uri.sh"
+
+declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
+[ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
+
+_pixi_uri_fetch_args=()
+if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+  for _ph in "${FETCH_HEADERS[@]}"; do
+    [[ -n "${_ph}" ]] && _pixi_uri_fetch_args+=(--header "$_ph")
+  done
+fi
+[[ -n "${FETCH_NETRC:-}" ]] && _pixi_uri_fetch_args+=(--netrc-file "${FETCH_NETRC}")
+
+if [[ -n "${NETRC:-}" ]]; then
+  case "${NETRC}" in
+    http://* | https://* | file://* | oci://* | gh://*)
+      _pixi_netrc_tmp="$(mktemp "${TMPDIR:-/tmp}/sysset-netrc.XXXXXX")"
+      chmod 600 "${_pixi_netrc_tmp}" || true
+      NETRC="$(uri__resolve "${NETRC}" "${_pixi_netrc_tmp}" "${_pixi_uri_fetch_args[@]}")"
+      chmod 600 "${NETRC}"
+      ;;
+  esac
+fi
 
 resolve_bin_dir
 check_root_requirement

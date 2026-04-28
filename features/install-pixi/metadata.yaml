@@ -13,6 +13,7 @@ _long_description: >-
   R, and any language distributed via conda channels. The installer is downloaded from
   the official Pixi release channel, with optional version pinning and checksum
   verification. Shell activation is configured for the specified users after installation.
+_user_file_fetch: true
 options:
   version:
     type: string
@@ -91,9 +92,18 @@ options:
     default: ''
     description: |-
       Path to a `.netrc` file for authenticating the download request.
-      Passed to `curl` via `--netrc-file`.
+      Passed to `curl` / `wget` via `--netrc-file`.
+      Also accepts `file://` / `http(s)://` / `oci://` / `gh://` URIs; content is fetched to a temporary file with mode 0600 before download.
+      Use `fetch_headers` and `fetch_netrc` (shared options) when the netrc itself must be fetched with extra auth.
       Use when downloading from a private mirror that requires credentials.
       See [pixi docs: authentication](https://pixi.prefix.dev/latest/installation/#using-netrc-for-authentication).
+    proposals:
+    - value: /run/secrets/netrc
+      description: Docker BuildKit secret mounted at `/run/secrets/netrc`.
+    - value: file:///etc/pixi-netrc
+      description: Explicit path via `file://`.
+    - value: https://internal.example.com/secrets/netrc
+      description: HTTPS URL (use `fetch_headers` if the endpoint needs a bearer token).
   export_path:
     type: array
     default: auto

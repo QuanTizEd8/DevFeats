@@ -76,6 +76,10 @@
       "description": "Long description of the Feature.",
       "type": "string"
     },
+    "_user_file_fetch": {
+      "description": "Internal capability flag: feature accepts user-provided file/URI inputs and should receive shared fetch options.",
+      "type": "boolean"
+    },
     "_dependencies": {
       "description": "Build and runtime dependency manifests for the Feature.",
       "type": "object",

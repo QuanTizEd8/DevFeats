@@ -17,6 +17,7 @@ _long_description: >-
   apk (Alpine), and brew (macOS/Linuxbrew). Packages are declared in a single JSON or
   YAML manifest with per-environment selectors, repository configuration, key import,
   and pre/post install hooks.
+_user_file_fetch: true
 options:
   install_self:
     default: false
@@ -72,7 +73,20 @@ options:
         when: condition (dict or list-of-dicts) on /etc/os-release fields plus 'pm', 'arch', 'kernel'.
 
       Inline content is detected when the value contains a newline;
-      otherwise the value is treated as a file path.
+      otherwise the value is treated as a file path, `file://` / `http(s)://` / `oci://` / `gh://owner/repo@ref:path` URI.
+      Append `#sha256=<hex>` for integrity verification. Use `fetch_headers` and `fetch_netrc` for authentication.
+    proposals:
+    - value: /workspaces/${localWorkspaceFolderBasename}/.devcontainer/packages.yaml
+      description: Manifest file in the mounted workspace.
+    - value: https://raw.githubusercontent.com/owner/repo/main/packages.yaml
+      description: Public GitHub raw URL.
+    - value: gh://owner/repo@main:.devcontainer/packages.yaml
+      description: Manifest from a GitHub repository (`gh://` form).
+    - value: |
+        packages:
+          - git
+          - curl
+      description: Inline manifest (newline in value).
     type: string
   update:
     default: true

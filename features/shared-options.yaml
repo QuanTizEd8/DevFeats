@@ -33,6 +33,32 @@ log_file:
   default: ""
   description: Log all output (stdout + stderr) to this file in addition to console.
 
+fetch_headers:
+  _apply_when:
+    jsonpath: $._user_file_fetch
+    condition: equals
+    value: true
+  type: array
+  default: ''
+  description: >-
+    Additional HTTP headers (one per line, "Name: value") sent with every
+    URI fetch performed by this feature (remote environment files, manifests,
+    netrc, etc.). Useful for "Authorization: Bearer …" against private GitHub
+    raw URLs, OCI registries, or internal mirrors.
+
+fetch_netrc:
+  _apply_when:
+    jsonpath: $._user_file_fetch
+    condition: equals
+    value: true
+  type: string
+  default: ''
+  description: >-
+    Path to a .netrc file used for HTTP basic authentication on URI fetches
+    that use netrc (curl/wget --netrc-file). Ignored when empty.
+    Does not replace feature-specific credential options (e.g. install-pixi `netrc`
+    for the pixi binary download); use together when both apply.
+
 log_level:
   type: string
   default: info

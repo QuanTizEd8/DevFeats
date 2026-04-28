@@ -1,3 +1,35 @@
+# shellcheck source=lib/uri.sh
+. "$_SELF_DIR/_lib/uri.sh"
+
+_URI_TMP="$(mktemp -d)"
+_cleanup_hook() {
+  rm -rf "${_URI_TMP:-}"
+}
+
+declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
+[ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
+
+_uri_fetch_args=()
+if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+  for _uh in "${FETCH_HEADERS[@]}"; do
+    [[ -n "${_uh}" ]] && _uri_fetch_args+=(--header "$_uh")
+  done
+fi
+[[ -n "${FETCH_NETRC:-}" ]] && _uri_fetch_args+=(--netrc-file "${FETCH_NETRC}")
+
+if [[ ${#ENV_FILES[@]} -gt 0 ]]; then
+  _env_list="$(printf '%s\n' "${ENV_FILES[@]}")"
+  mapfile -t ENV_FILES < <(uri__resolve_list "$_env_list" "$_URI_TMP/env" "${_uri_fetch_args[@]}")
+fi
+if [[ ${#PIP_REQUIREMENTS_FILES[@]} -gt 0 ]]; then
+  _pip_list="$(printf '%s\n' "${PIP_REQUIREMENTS_FILES[@]}")"
+  mapfile -t PIP_REQUIREMENTS_FILES < <(uri__resolve_list "$_pip_list" "$_URI_TMP/pip" "${_uri_fetch_args[@]}")
+fi
+if [[ -n "${POST_ENV_SCRIPT:-}" ]]; then
+  _post_tmp="$(mktemp "${_URI_TMP}/post_env.XXXXXX")"
+  POST_ENV_SCRIPT="$(uri__resolve "$POST_ENV_SCRIPT" "$_post_tmp" "${_uri_fetch_args[@]}" --chmod-exec)"
+fi
+
 for elem in "${ENV_DIRS[@]}"; do
   [ -n "${elem-}" ] && [ ! -d "${elem}" ] && {
     logging__error "Directory argument to parameter 'env_dirs' not found: '${elem}'"

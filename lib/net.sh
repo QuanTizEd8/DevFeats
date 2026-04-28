@@ -78,7 +78,7 @@ net__fetch_with_retry() {
   return 1
 }
 
-# @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... — Download `<url>` to stdout with retries. Auto-detects curl/wget.
+# @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
 #
 # curl uses --retry (transient errors only: 5xx, 408, 429, connection
 # failures); wget falls back to net__fetch_with_retry. Calls
@@ -90,10 +90,11 @@ net__fetch_with_retry() {
 #   --delay N      Seconds between failures (default: 5).
 #   --header <H>   Request header (e.g. "Authorization: Bearer $TOKEN").
 #                  May be specified multiple times.
+#   --netrc-file <path>  Optional netrc file for HTTP authentication (curl/wget).
 net__fetch_url_stdout() {
   local _url="$1"
   shift
-  local _max=60 _delay=5 _hdrs=''
+  local _max=60 _delay=5 _hdrs='' _netrc=''
   while [ $# -gt 0 ]; do
     case "$1" in
       --retries)
@@ -109,6 +110,10 @@ net__fetch_url_stdout() {
 "
         shift 2
         ;;
+      --netrc-file)
+        _netrc="$2"
+        shift 2
+        ;;
       *)
         logging__error "net__fetch_url_stdout: unknown option: '$1'"
         return 1
@@ -119,6 +124,7 @@ net__fetch_url_stdout() {
   _net__ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
+    [ -n "$_netrc" ] && set -- "$@" --netrc-file "$_netrc"
     while IFS= read -r _h; do
       [ -z "$_h" ] && continue
       set -- "$@" -H "$_h"
@@ -132,6 +138,7 @@ _NET_HDR_EOF_
     return "${_rc}"
   else
     set -- -O-
+    [ -n "$_netrc" ] && set -- "$@" "--netrc-file=${_netrc}"
     while IFS= read -r _h; do
       [ -z "$_h" ] && continue
       set -- "$@" "--header=${_h}"
@@ -146,7 +153,7 @@ _NET_HDR_EOF_
   fi
 }
 
-# @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
+# @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
 #
 # curl uses --retry (transient errors only: 5xx, 408, 429, connection
 # failures); wget falls back to net__fetch_with_retry. Calls
@@ -159,11 +166,12 @@ _NET_HDR_EOF_
 #   --delay N      Seconds between failures (default: 5).
 #   --header <H>   Request header (e.g. "Authorization: Bearer $TOKEN").
 #                  May be specified multiple times.
+#   --netrc-file <path>  Optional netrc file for HTTP authentication (curl/wget).
 net__fetch_url_file() {
   local _url="$1"
   local _dest="$2"
   shift 2
-  local _max=60 _delay=5 _hdrs=''
+  local _max=60 _delay=5 _hdrs='' _netrc=''
   while [ $# -gt 0 ]; do
     case "$1" in
       --retries)
@@ -179,6 +187,10 @@ net__fetch_url_file() {
 "
         shift 2
         ;;
+      --netrc-file)
+        _netrc="$2"
+        shift 2
+        ;;
       *)
         logging__error "net__fetch_url_file: unknown option: '$1'"
         return 1
@@ -189,6 +201,7 @@ net__fetch_url_file() {
   _net__ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
+    [ -n "$_netrc" ] && set -- "$@" --netrc-file "$_netrc"
     while IFS= read -r _h; do
       [ -z "$_h" ] && continue
       set -- "$@" -H "$_h"
@@ -202,6 +215,7 @@ _NET_HDR_EOF_
     return "${_rc}"
   else
     set -- -O "$_dest"
+    [ -n "$_netrc" ] && set -- "$@" "--netrc-file=${_netrc}"
     while IFS= read -r _h; do
       [ -z "$_h" ] && continue
       set -- "$@" "--header=${_h}"

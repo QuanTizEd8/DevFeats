@@ -425,5 +425,17 @@
                 "log_level": "trace"
             }
         }
+    },
+    "apt_manifest_uri_file": {
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
+        },
+        "features": {
+            "install-os-pkg": {
+                "manifest": "file:///tmp/manifest.yaml",
+                "log_level": "trace"
+            }
+        }
     }
 }

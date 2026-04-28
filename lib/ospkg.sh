@@ -1346,7 +1346,7 @@ ospkg__install_user() {
 }
 
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
-# @brief ospkg__run [--manifest <f>] [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>] — Run the full installation pipeline from a manifest.
+# @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>] — Run the full installation pipeline from a manifest.
 #
 # Full pipeline: detect → root check → parse manifest → prescript → keys →
 # repos → PM setup → update → install → casks → script.
@@ -1355,7 +1355,12 @@ ospkg__install_user() {
 # (e.g. via the _on_exit trap) when you want to purge the package manager cache.
 #
 # Args:
-#   --manifest <f>          Path to the YAML manifest file.
+#   --manifest <f>          Path to the YAML manifest file, inline YAML/JSON (with
+#                           embedded newlines), or a URI (http(s)://, file://, oci://, gh://).
+#   --fetch-netrc-file <path>  Optional .netrc file passed to URI fetches when
+#                           resolving a URI manifest.
+#   --fetch-header <H>      Additional HTTP header passed to URI fetches when
+#                           resolving a URI manifest. Repeatable.
 #   --update <bool>         Run package index update before installing (default: true).
 #   --keep_repos            Do not remove added third-party repo files after installation.
 #   --dry_run               Print what would be installed without doing it.
@@ -1369,12 +1374,24 @@ ospkg__run() {
   local _manifest='' _update=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false
   local _prefer_linuxbrew=false _build_group='' _remove_build_group=''
+  local _fetch_netrc_file=''
+  local -a _fetch_headers=()
 
   while [[ $# -gt 0 ]]; do
     case $1 in
       --manifest)
         shift
         _manifest="$1"
+        shift
+        ;;
+      --fetch-netrc-file)
+        shift
+        _fetch_netrc_file="$1"
+        shift
+        ;;
+      --fetch-header)
+        shift
+        _fetch_headers+=("$1")
         shift
         ;;
       --update)
@@ -1468,9 +1485,35 @@ ospkg__run() {
 
   # Resolve manifest content.
   local _manifest_content=
+  local _hl=''
+  local -a _ospkg_uri_args=()
+  local _ospkg_uri_tmp=''
+
   if [[ -n "$_manifest" ]]; then
     if [[ "$_manifest" == *$'\n'* ]]; then
       _manifest_content="$_manifest"
+    elif [[ "$_manifest" == http://* || "$_manifest" == https://* || "$_manifest" == file://* || "$_manifest" == oci://* || "$_manifest" == gh://* ]]; then
+      # shellcheck source=lib/uri.sh
+      # shellcheck disable=SC1094
+      . "$_OSPKG_LIB_DIR/uri.sh"
+      _ospkg_uri_tmp="$(mktemp "${TMPDIR:-/tmp}/ospkg-manifest-uri.XXXXXX")"
+      _ospkg_uri_args=()
+      if [[ -n "${_fetch_netrc_file:-}" ]]; then
+        _ospkg_uri_args+=(--netrc-file "$_fetch_netrc_file")
+      fi
+      for _hl in "${_fetch_headers[@]}"; do
+        [[ -z "${_hl//[[:space:]]/}" ]] && continue
+        _ospkg_uri_args+=(--header "$_hl")
+      done
+      if ! uri__resolve "$_manifest" "$_ospkg_uri_tmp" "${_ospkg_uri_args[@]}"; then
+        rm -f "$_ospkg_uri_tmp"
+        return 1
+      fi
+      if ! _manifest_content="$(< "$_ospkg_uri_tmp")"; then
+        rm -f "$_ospkg_uri_tmp"
+        return 1
+      fi
+      rm -f "$_ospkg_uri_tmp"
     elif [[ -f "$_manifest" ]]; then
       _manifest_content="$(< "$_manifest")"
     else

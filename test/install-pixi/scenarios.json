@@ -208,5 +208,19 @@
                 "log_level": "trace"
             }
         }
+    },
+    "netrc_uri_file": {
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
+        "features": {
+            "install-pixi": {
+                "netrc": "file:///tmp/test.netrc",
+                "log_level": "trace"
+            }
+        }
     }
 }

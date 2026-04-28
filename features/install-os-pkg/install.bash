@@ -10,6 +10,9 @@ if [[ -n "$MANIFEST" && "$MANIFEST" != *$'\n'* && "$MANIFEST" == *'\n'* ]]; then
   printf 'ℹ️  Expanded literal \\n escapes in MANIFEST value.\n' >&2
 fi
 
+declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
+[ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
+
 if [[ -n "$LIFECYCLE_HOOK" ]]; then
   if [[ -z "$MANIFEST" ]]; then
     logging__error "'manifest' is required when 'lifecycle_hook' is set."
@@ -55,6 +58,12 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
     logging__info "Saved inline manifest to '$_MANIFEST_ARG'."
   fi
   _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"
+  [[ -n "${FETCH_NETRC:-}" ]] && _HOOK_OPTS+=" --fetch-netrc-file $(printf '%q' "$FETCH_NETRC")"
+  if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+    for _osh in "${FETCH_HEADERS[@]}"; do
+      [[ -n "${_osh}" ]] && _HOOK_OPTS+=" --fetch-header $(printf '%q' "$_osh")"
+    done
+  fi
   [[ "${LOG_LEVEL:-info}" == "trace" ]] && _HOOK_OPTS+=" --log_level trace"
   [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive true"
   [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos true"
@@ -79,6 +88,12 @@ fi
 
 _OSPKG_ARGS=()
 [[ -n "$MANIFEST" ]] && _OSPKG_ARGS+=(--manifest "$MANIFEST")
+[[ -n "${FETCH_NETRC:-}" ]] && _OSPKG_ARGS+=(--fetch-netrc-file "$FETCH_NETRC")
+if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+  for _osh in "${FETCH_HEADERS[@]}"; do
+    [[ -n "${_osh}" ]] && _OSPKG_ARGS+=(--fetch-header "$_osh")
+  done
+fi
 [[ "$UPDATE" == false ]] && _OSPKG_ARGS+=(--update false)
 
 [[ "$KEEP_REPOS" == true ]] && _OSPKG_ARGS+=(--keep_repos)

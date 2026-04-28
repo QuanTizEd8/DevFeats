@@ -13,6 +13,7 @@ _long_description: >-
   and a post-install script can run after environment creation for additional setup.
   Conda must already be available on the system; pair with the install-miniforge feature
   to provide it.
+_user_file_fetch: true
 options:
   conda_dir:
     default: ''
@@ -22,7 +23,19 @@ options:
     type: string
   env_files:
     default: ''
-    description: Paths to conda environment YAML files to create or update.
+    description: |-
+      Paths to conda environment YAML files to create or update.
+      Also accepts a local path, `file://` / `http(s)://` / `oci://` / `gh://owner/repo@ref:path` URI.
+      Append `#sha256=<hex>` for integrity verification. Use the `fetch_headers` and `fetch_netrc` options for authentication.
+    proposals:
+    - value: https://raw.githubusercontent.com/owner/repo/main/environment.yaml
+      description: Public GitHub raw URL.
+    - value: gh://owner/repo@v1.2.3:envs/dev.yaml
+      description: GitHub repository file (sysset `gh://` form, pinned to a tag).
+    - value: oci://ghcr.io/org/conda-envs:v1?path=dev.yaml
+      description: OCI artifact; `?path=` selects a file from the pulled content.
+    - value: file:///workspaces/${localWorkspaceFolderBasename}/environment.yaml
+      description: Workspace file via explicit `file://` URL.
     type: array
   env_dirs:
     default: ''
@@ -69,6 +82,15 @@ options:
       Paths to pip requirements files to install.
       By default, packages are installed into the same environment as each env file.
       Use `pip_env` to override the target environment.
+      Also accepts `file://` / `http(s)://` / `oci://` / `gh://` URIs as for `env_files`.
+      Append `#sha256=<hex>` for integrity. Use `fetch_headers` and `fetch_netrc` for auth.
+    proposals:
+    - value: https://raw.githubusercontent.com/owner/repo/main/requirements.txt
+      description: Public GitHub raw URL.
+    - value: gh://owner/repo@main:requirements/dev.txt
+      description: GitHub repository file (`gh://` form).
+    - value: oci://ghcr.io/org/pyenv:requirements?path=base.txt
+      description: OCI artifact with optional `?path=`.
     type: array
   pip_env:
     default: ''
@@ -81,6 +103,15 @@ options:
     description: |-
       Path to a script to run after each environment is created or updated.
       The environment name is passed as the first argument.
+      Also accepts `file://` / `http(s)://` / `oci://` / `gh://` URIs; remote scripts are fetched and made executable.
+      Append `#sha256=<hex>` for integrity. Use `fetch_headers` and `fetch_netrc` for auth.
+    proposals:
+    - value: /workspaces/${localWorkspaceFolderBasename}/.devcontainer/post-env.sh
+      description: Script in the mounted workspace.
+    - value: gh://owner/repo@main:scripts/post-env.sh
+      description: Script from a GitHub repository (`gh://` form).
+    - value: https://example.com/post-env.sh
+      description: Arbitrary HTTPS URL.
     type: string
   solver:
     default: auto

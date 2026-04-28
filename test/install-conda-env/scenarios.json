@@ -179,5 +179,19 @@
                 "log_level": "trace"
             }
         }
+    },
+    "env_files_uri": {
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": {
+                "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+            }
+        },
+        "features": {
+            "install-conda-env": {
+                "env_files": "file:///tmp/test-envs/simple.yml",
+                "log_level": "trace"
+            }
+        }
     }
 }
