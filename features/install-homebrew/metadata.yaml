@@ -120,12 +120,15 @@ _dependencies:
       # Not needed on macOS — Xcode Command Line Tools provide these, and the
       # installer checks / installs CLT directly in the script.
 
-      # Common packages — same name on all package managers
+      # Common packages — same name on all package managers.
+      # `tar` is required: brew update installs Portable Ruby by unpacking a
+      # .tar.gz (vendor-install.sh); minimal images often omit tar → "tar: command not found".
       packages:
         - git
         - curl
         - file
         - gzip
+        - tar
   build:
     linux-build:
       # Build tools — names differ by ecosystem. Build-time only on Linux;
@@ -139,7 +142,7 @@ _dependencies:
       # installing that pattern (some `opensuse/leap:latest` images hit zypper
       # solver conflicts on `devel_basis`, breaking non-interactive CI).
       #
-      # Together with `run.base` (git, curl, file, gzip), each PM block matches
+      # Together with `run.base` (git, curl, file, gzip, tar), each PM block matches
       # the doc one-liners where they exist:
       #   • apt:   build-essential procps  (+ run.base ≈ curl file git; gzip extra)
       #   • dnf:   group development-tools + procps-ng  (+ run.base)
