@@ -173,6 +173,31 @@ EOF
   rm -rf "$_root"
 }
 
+@test "devcontainer__iter_features accepts OCI refs outside compatible prefix" {
+  _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter3.XXXXXX")"
+  cat > "$_f" << 'EOF'
+{
+  "features": {
+    "mcr.microsoft.com/devcontainers/features/common-utils:2": {},
+    "ghcr.io/devcontainers/features/git@sha256:abc123": {}
+  }
+}
+EOF
+  run devcontainer__iter_features "$_f" "" "ghcr.io/quantized8/sysset/"
+  assert_success
+  [[ "$output" == *"common-utils"* ]] || false
+  [[ "$output" == *"git"* ]] || false
+  rm -f "$_f"
+}
+
+@test "devcontainer__is_compatible_key accepts OCI refs by shape" {
+  run devcontainer__is_compatible_key "mcr.microsoft.com/devcontainers/features/common-utils:2" "ghcr.io/quantized8/sysset/"
+  assert_success
+
+  run devcontainer__is_compatible_key "ghcr.io/devcontainers/features/git@sha256:abc123" "ghcr.io/quantized8/sysset/"
+  assert_success
+}
+
 # ---------------------------------------------------------------------------
 # devcontainer__feature_env_exports
 # ---------------------------------------------------------------------------

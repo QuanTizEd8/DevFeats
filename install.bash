@@ -9,17 +9,10 @@
 #   Feature mode:   install a single feature (optionally version-pinned via :)
 #   Manifest mode:  install multiple features from a devcontainer.json[.jsonc] manifest
 #
-# Version resolution modes (per-feature releases are independent; the bundle
-# tag `v<X.Y.Z>` is an accumulator over per-feature versions):
-#
-#   Rolling (default):       each feature resolves to the latest
-#                            `<feature>/<X.Y.Z>` release tag independently.
-#   Bundle-pinned:           `SYSSET_VERSION` (env) or `.version` (manifest)
-#                            resolves to a bundle tag (`v<X.Y.Z>`); each
-#                            feature's version is read from that bundle's
-#                            embedded ``manifest.json`` (offline kit) or the
-#                            kit tarball on the release. Per-feature overrides
-#                            (`feature:version` or features[].version) still win.
+# Version resolution modes:
+#   Rolling (default):       each feature resolves from OCI tags independently.
+#   Explicit per-feature:    `feature:version` (CLI) or features[].version in
+#                            devcontainer manifest.
 #
 # Usage:
 #   install.bash <feature>[:<feature-version>] [feature-opts...]
@@ -42,19 +35,14 @@
 #   --report-file <path>  With --download-only: JSON summary of partial failures.
 #
 # Environment overrides:
-#   SYSSET_BASE_URL   GitHub Releases base URL  (default: github.com releases)
 #   SYSSET_RAW_BASE   Raw GitHub base URL       (default: main branch)
 #   SYSSET_FETCH_TOOL curl|wget                 (set by install.sh; auto-detected here if unset)
 #   SYSSET_GHCR_NAMESPACE  GHCR namespace path for oci__ refs (default: quantized8/sysset)
 #   SYSSET_LOCAL_REGISTRY  Optional directory override for the local registry root.
-#   SYSSET_VERSION    Pin the bundle version; feature versions are read from
-#                     that bundle's manifest.json. Accepts any spec understood
-#                     by github__resolve_version ("", "latest", "1", "1.2",
-#                     "v1.2.3", "1.2.3"). Per-feature overrides still win.
+#   SYSSET_VERSION    Ignored by installer (bundle pinning removed).
 set -euo pipefail
 
 SYSSET_REPO="quantized8/sysset"
-SYSSET_RELEASE_BASE="${SYSSET_BASE_URL:-https://github.com/${SYSSET_REPO}/releases/download}"
 SYSSET_RAW_BASE="${SYSSET_RAW_BASE:-https://raw.githubusercontent.com/${SYSSET_REPO}/main}"
 SYSSET_GHCR_NAMESPACE="${SYSSET_GHCR_NAMESPACE:-quantized8/sysset}"
 
@@ -157,7 +145,7 @@ Options (see also header comment in install.bash):
   --download-only           Stage tarballs and update registry only; do not run installers
   --report-file <path>      With --download-only: write JSON ok/failures (manifest mode)
 
-Version priority: per OCI :tag  >  SYSSET_VERSION  >  name vX.Y.Z suffix  >  latest
+Version priority: explicit OCI :tag/@digest  >  per-feature version spec  >  latest
   (Use ``feature:version`` — ``@`` is not supported.)
 EOF
   exit "${1:-0}"
@@ -318,15 +306,16 @@ case "$_mode_arg" in
 esac
 
 # ── Per-feature version resolution ──────────────────────────────────────────
-# Resolves a feature-scoped version to its exact `<feature>/<X.Y.Z>` release
-# tag. Supports partial/empty specs via github__resolve_version with
-# --prefix '<feature>/' and --all (release tags fan out across all features,
-# so per_page=100 is not enough).
+_sysset_repo_ref_for_feature() {
+  local _feature="${1-}"
+  printf 'ghcr.io/%s/%s\n' "${SYSSET_GHCR_NAMESPACE}" "${_feature,,}"
+}
+
 _resolve_feature_tag() {
   # $1 = feature id, $2 = version spec (may be empty → latest)
-  local _feature="$1" _spec="${2:-}"
-  github__resolve_version "${SYSSET_REPO}" "$_spec" \
-    --prefix "${_feature}/" --all
+  local _feature="$1" _spec="${2:-}" _repo
+  _repo="$(_sysset_repo_ref_for_feature "$_feature")"
+  oci__resolve_version "$_repo" "$_spec"
 }
 
 # ── Offline kit / local registry (installer-only) ─────────────────────────────
@@ -386,24 +375,24 @@ _sysset_checksums_json_for_payload_dir() {
 }
 
 _sysset_manifest_registry_append() {
-  local _root="${1%/}" _feat="$2" _ver="$3" _tb="$4"
+  local _root="${1%/}" _ref="$2" _tb="$3"
   local _mf="${_root}/manifest.json"
   [[ -f "$_mf" ]] || return 1
   [[ -f "$_tb" ]] || return 1
-  lock__run_with_lockfile "${_mf}.lock" "$(printf '_sysset_manifest_registry_append_unlocked %q %q %q %q' "$_root" "$_feat" "$_ver" "$_tb")"
+  lock__run_with_lockfile "${_mf}.lock" "$(printf '_sysset_manifest_registry_append_unlocked %q %q %q' "$_root" "$_ref" "$_tb")"
 }
 
 # shellcheck disable=SC2329 # invoked via eval from lock__run_with_lockfile (see _sysset_manifest_registry_append)
 _sysset_manifest_registry_append_unlocked() {
-  local _root="${1%/}" _feat="$2" _ver="$3" _tb="$4"
+  local _root="${1%/}" _ref="$2" _tb="$3"
   local _mf="${_root}/manifest.json"
-  local _hex _dkey _rel _dest _ref _now _chk _tmp
+  local _hex _dkey _rel _dest _now _chk _tmp _repo
   _hex="$(checksum__sha256_file "$_tb")" || return 1
   _dkey="sha256:${_hex}"
-  # Match offline kit layout: OCI path segment is lowercased (see offline_kit_assemble.py).
-  _rel="features/ghcr.io/${SYSSET_GHCR_NAMESPACE}/${_feat,,}/sha256/${_hex}/"
+  _repo="$(_oci__repo_from_ref "$_ref")"
+  _repo="${_repo,,}"
+  _rel="features/${_repo}/sha256/${_hex}/"
   _dest="${_root}/${_rel}"
-  _ref="$(_sysset_default_oci_ref "$_feat" "$_ver")"
   _ref="${_ref,,}"
   _now="$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2> /dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")"
   [[ -d "$_dest" ]] && rm -rf "$_dest"
@@ -416,8 +405,6 @@ _sysset_manifest_registry_append_unlocked() {
     --arg dig "$_dkey" \
     --arg rp "$_rel" \
     --arg fa "$_now" \
-    --arg fv "$_feat" \
-    --arg vs "$_ver" \
     --argjson chk "$_chk" \
     --argjson digestsprev "$(json__query -c '.digests // {}' "$_mf" 2> /dev/null || echo '{}')" \
     '
@@ -432,7 +419,6 @@ _sysset_manifest_registry_append_unlocked() {
           checksums: $chk
         }
       )
-    | .features[$fv] = $vs
     ' "$_mf" > "$_tmp"; then
     rm -rf "$_dest"
     rm -f "$_tmp"
@@ -446,84 +432,18 @@ _sysset_manifest_registry_append_unlocked() {
   return 0
 }
 
-# ── Bundle manifest: fetch + parse ──────────────────────────────────────────
-# Bundle-pinned mode fetches <bundle>/sysset-vX.Y.Z.tar.gz (manifest.json) or uses a local manifest.json.
-# The manifest records {<feature>: <X.Y.Z>} per feature at bundle-cut time.
-_BUNDLE_TAG=""           # Resolved bundle tag (e.g. v1.2.3); "" in rolling mode.
-_BUNDLE_MANIFEST_FILE="" # Path to downloaded bundle manifest.json; "" if N/A.
-
-# _resolve_bundle_tag <spec> — Resolve a bundle-version spec to its v<X.Y.Z> tag.
-_resolve_bundle_tag() {
-  local _spec="${1:-}"
-  github__resolve_version "${SYSSET_REPO}" "$_spec" --prefix "v" --all
-}
-
-# _fetch_bundle_manifest <bundle-tag> <dest-file> — Obtain manifest.json from
-# local registry (matching .version) or from the bundle kit tarball on the release.
-_fetch_bundle_manifest() {
-  local _tag="$1" _dest="$2"
-  local _local_mf="${_SYSSET_REGISTRY_ROOT}/manifest.json"
-  if [[ -f "$_local_mf" ]]; then
-    local _lv=""
-    _lv="$(json__query -r '.version // empty' "$_local_mf" 2> /dev/null)" || _lv=""
-    if [[ "$_lv" == "$_tag" ]]; then
-      cp "$_local_mf" "$_dest"
-      return 0
-    fi
-  fi
-  local _kit _url _tmp _td
-  _kit="$(_sysset_bundle_kit_tarball_name "$_tag")"
-  _url="${SYSSET_RELEASE_BASE}/${_tag}/${_kit}"
-  _tmp="$(mktemp)"
-  if ! net__fetch_url_file "${_url}" "${_tmp}"; then
-    logging__error "Could not download bundle kit '${_url}'."
-    rm -f "$_tmp"
-    return 1
-  fi
-  _td="$(mktemp -d)"
-  # Some tar implementations can be strict when extracting a single member name
-  # (e.g. "manifest.json" vs "./manifest.json"). Extract the kit and then pick
-  # the manifest path explicitly.
-  if ! tar -xzf "$_tmp" -C "$_td" 2> /dev/null; then
-    logging__error "Could not extract bundle kit '${_kit}'."
-    rm -rf "$_td" "$_tmp"
-    return 1
-  fi
-  if [[ -f "$_td/manifest.json" ]]; then
-    cp "$_td/manifest.json" "$_dest"
-  elif [[ -f "$_td/./manifest.json" ]]; then
-    cp "$_td/./manifest.json" "$_dest"
-  else
-    logging__error "Bundle kit '${_kit}' does not contain manifest.json."
-    rm -rf "$_td" "$_tmp"
-    return 1
-  fi
-  rm -rf "$_td" "$_tmp"
-  return 0
-}
-
-# _lookup_bundle_feature_version <manifest.json> <feature> — Print semver from .features.
-_lookup_bundle_feature_version() {
-  local _mf="${1-}" _feat="${2-}" _v=""
-  _v="$(json__query -r --arg f "$_feat" '.features[$f] // empty' "$_mf" 2> /dev/null)" || _v=""
-  [[ -n "$_v" && "$_v" != "null" ]] || return 1
-  printf '%s\n' "$_v"
-}
-
 # ── Shared tarball fetch + verify ────────────────────────────────────────────
-# Downloads sysset-<feature>.tar.gz for a feature's <feature>/<X.Y.Z> tag and
-# verifies its SHA-256 against the digest field from the GitHub Releases API.
-# Best-effort: warns when the API omits the digest; fails on a mismatch.
 _fetch_and_verify_tarball() {
-  # $1 = feature id, $2 = resolved tag (<feature>/<X.Y.Z>), $3 = destination file
+  # $1 = feature label/id, $2 = resolved oci ref, $3 = destination file
   local _feature="$1" _resolved="$2" _dest="$3"
-  local _ver="${_resolved##*/}"
   local _ref _norm _mf _dkey
   _mf="${_SYSSET_REGISTRY_ROOT}/manifest.json"
-  _ref="$(_sysset_default_oci_ref "$_feature" "$_ver")"
+  _ref="${_resolved}"
   _norm="${_ref,,}"
-  if [[ -f "$_mf" ]]; then
+  if [[ "$_norm" == *@sha256:* && -f "$_mf" ]]; then
+    _dkey="${_norm##*@}"
     _dkey="$(json__query -r --arg r "$_norm" '.refs[$r] // empty' "$_mf" 2> /dev/null)" || _dkey=""
+    [[ -n "$_dkey" && "$_dkey" != "null" ]] || _dkey="${_norm##*@}"
     if [[ -n "$_dkey" && "$_dkey" != "null" ]]; then
       if _sysset_verify_digest_checksums "$_SYSSET_REGISTRY_ROOT" "$_dkey" "$_mf" &&
         _sysset_pack_digest_payload_to_tarball "$_SYSSET_REGISTRY_ROOT" "$_dkey" "$_mf" "$_dest"; then
@@ -533,46 +453,65 @@ _fetch_and_verify_tarball() {
       logging__warn "[${_feature}] local registry digest failed verification — refetching."
     fi
   fi
-  local _asset_name="sysset-${_feature}.tar.gz"
-  if ! github__fetch_release_asset_tarball "${SYSSET_REPO}" "${_resolved}" "${_asset_name}" "${_dest}"; then
-    return 1
+  local _pulled=0 _tmp
+  _tmp="$(mktemp)"
+  if oci__pull_feature_tgz "$_ref" "$_tmp"; then
+    if mv "$_tmp" "$_dest"; then
+      _pulled=1
+    else
+      logging__warn "[${_feature}] OCI pull succeeded but could not move payload to destination; trying local cache fallback."
+    fi
   fi
+  if [[ "$_pulled" -eq 0 && -f "$_mf" ]]; then
+    _dkey="$(json__query -r --arg r "$_norm" '.refs[$r] // empty' "$_mf" 2> /dev/null)" || _dkey=""
+    if [[ -n "$_dkey" && "$_dkey" != "null" ]] &&
+      _sysset_verify_digest_checksums "$_SYSSET_REGISTRY_ROOT" "$_dkey" "$_mf" &&
+      _sysset_pack_digest_payload_to_tarball "$_SYSSET_REGISTRY_ROOT" "$_dkey" "$_mf" "$_dest"; then
+      logging__warn "[${_feature}] registry unreachable; using cached ref ${_norm}."
+      _pulled=2
+    fi
+  fi
+  rm -f "$_tmp"
+  [[ "$_pulled" -ne 0 ]] || return 1
   if [[ -f "$_mf" && -w "$_mf" ]]; then
-    _sysset_manifest_registry_append "$_SYSSET_REGISTRY_ROOT" "$_feature" "$_ver" "$_dest" || {
+    _sysset_manifest_registry_append "$_SYSSET_REGISTRY_ROOT" "$_norm" "$_dest" || {
       logging__warn "[${_feature}] could not update local manifest.json."
     }
   fi
   return 0
 }
 
-# ── Resolve (feature, spec) → tag ──────────────────────────────────────────
-# Applies the priority rules:
-#
-#   1. If <spec> is non-empty, resolve <feature>/<spec> directly
-#      (per-feature override; wins in every mode).
-#   2. Else if bundle mode is active, look up the feature's version in the
-#      bundle manifest; return <feature>/<version>.
-#   3. Else (rolling mode), resolve the latest <feature>/<X.Y.Z> release.
-#
-# Stdout: the resolved <feature>/<X.Y.Z> tag.
+# ── Resolve (feature, spec, key) → oci-ref ──────────────────────────────────
 _resolve_install_tag() {
-  local _feature="$1" _spec="${2:-}" _version=""
-  if [[ -n "$_spec" ]]; then
-    logging__info "[${_feature}] Resolving per-feature version (spec: '${_spec}')..."
-    _resolve_feature_tag "$_feature" "$_spec"
-    return $?
+  local _feature="$1" _spec="${2:-}" _key="${3:-}" _repo="" _tag="" _raw=""
+  if [[ -n "$_key" && "$_key" != "$_feature" ]]; then
+    _raw="$_key"
+  else
+    _raw="$_feature"
   fi
-  if [[ -n "$_BUNDLE_TAG" ]]; then
-    _version="$(_lookup_bundle_feature_version "$_BUNDLE_MANIFEST_FILE" "$_feature")" || {
-      logging__error "[${_feature}] Feature not listed in bundle '${_BUNDLE_TAG}' manifest."
-      return 1
-    }
-    logging__info "[${_feature}] Using bundle ${_BUNDLE_TAG} -> version '${_version}'."
-    printf '%s/%s\n' "$_feature" "$_version"
+
+  if [[ "$_raw" == */* && ( "${_raw%%/*}" == *.* || "${_raw%%/*}" == localhost ) ]]; then
+    _repo="$(_oci__repo_from_ref "$_raw")"
+    if [[ "$_raw" == *@sha256:* ]]; then
+      printf '%s\n' "${_raw,,}"
+      return 0
+    fi
+    if [[ -n "$_spec" ]]; then
+      _tag="$(oci__resolve_version "$_repo" "$_spec")" || return 1
+      printf '%s:%s\n' "${_repo,,}" "$_tag"
+      return 0
+    fi
+    if _tag="$(_oci__tag_from_ref "$_raw" 2> /dev/null || true)" && [[ -n "$_tag" ]]; then
+      printf '%s\n' "${_raw,,}"
+      return 0
+    fi
+    printf '%s:latest\n' "${_repo,,}"
     return 0
   fi
-  logging__info "[${_feature}] Resolving latest per-feature release..."
-  _resolve_feature_tag "$_feature" ""
+
+  _repo="$(_sysset_repo_ref_for_feature "$_feature")"
+  _tag="$(oci__resolve_version "$_repo" "$_spec")" || return 1
+  printf '%s:%s\n' "${_repo,,}" "$_tag"
 }
 
 # _sysset_options_to_env — apply options JSON (stdin) as exported env vars in current shell.
@@ -671,6 +610,18 @@ if [[ "$_mode" == "feature" ]]; then
       _feature="$_mode_arg"
       _feat_version_spec=""
       ;;
+    */*)
+      if [[ "${_mode_arg%%/*}" == *.* || "${_mode_arg%%/*}" == localhost ]]; then
+        _feature="$_mode_arg"
+        _feat_version_spec=""
+      elif [[ "$_mode_arg" == *:* ]]; then
+        _feature="${_mode_arg%%:*}"
+        _feat_version_spec="${_mode_arg#*:}"
+      else
+        _feature="$_mode_arg"
+        _feat_version_spec=""
+      fi
+      ;;
     *:*)
       _feature="${_mode_arg%%:*}"
       _feat_version_spec="${_mode_arg#*:}"
@@ -690,21 +641,31 @@ if [[ "$_mode" == "feature" ]]; then
     esac
   fi
 
-  if [[ -z "$_feat_version_spec" && -n "${SYSSET_VERSION:-}" ]]; then
-    if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${SYSSET_VERSION}")" || [[ -z "$_BUNDLE_TAG" ]]; then
-      logging__error "Bad SYSSET_VERSION"
+  if [[ "$_feature" == ./* || "$_feature" == ../* || "$_feature" == /* || "$_feature" == ~/* ]]; then
+    _local_feature="${_feature/#\~/$HOME}"
+    [[ -d "$_local_feature" && -f "${_local_feature}/install.sh" && -f "${_local_feature}/devcontainer-feature.json" ]] || {
+      logging__error "Local feature path is invalid: ${_feature}"
+      exit 1
+    }
+    if [[ "$_DOWNLOAD_ONLY" == true ]]; then
+      logging__error "--download-only cannot be used with a local feature path."
       exit 1
     fi
-    _BUNDLE_MANIFEST_FILE="$(mktemp)"
-    trap 'rm -f "$_BUNDLE_MANIFEST_FILE"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
-    _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE" || exit 1
+    (cd "$_local_feature" && sh "./install.sh" "$@")
+    _wf="${_WORKSPACE_CUSTOM:-$PWD}"
+    if [[ "$_FEATURE_SKIP_LIFECYCLE" != true ]]; then
+      _lf="${_LIFE_CMD_DIR:-$_wf}"
+      _sysset_run_feature_lifecycle "$_local_feature" "$_feature" "$_lf" || exit 1
+    fi
+    logging__fn_exit "sysset installer"
+    exit 0
   fi
 
-  if ! _RESOLVED="$(_resolve_install_tag "$_feature" "$_feat_version_spec")" || [[ -z "$_RESOLVED" ]]; then
+  if ! _RESOLVED="$(_resolve_install_tag "$_feature" "$_feat_version_spec" "$_mode_arg")" || [[ -z "$_RESOLVED" ]]; then
     exit 1
   fi
   _tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$_lib_tmpdir" "$_tmpdir" ${_BUNDLE_MANIFEST_FILE:+"$_BUNDLE_MANIFEST_FILE"}; logging__cleanup' EXIT
+  trap 'rm -rf "$_lib_tmpdir" "$_tmpdir"; logging__cleanup' EXIT
   if ! _fetch_and_verify_tarball "$_feature" "$_RESOLVED" "${_tmpdir}/feature.tar.gz"; then
     exit 1
   fi
@@ -740,21 +701,6 @@ _WORK_ROOT="$(devcontainer__workspace_folder "$_mode_arg")"
 [[ -n "$_WORKSPACE_CUSTOM" ]] && _WORK_ROOT="$_WORKSPACE_CUSTOM"
 
 if [[ "$_DOWNLOAD_ONLY" == true ]]; then
-  _BUNDLE_NAME_VER="$(devcontainer__name_version_suffix "$(json__query -r '.name // ""' "$_DCJ" 2> /dev/null || true)")"
-  _bspec=""
-  if [[ -n "${SYSSET_VERSION:-}" ]]; then
-    _bspec="${SYSSET_VERSION}"
-  elif [[ -n "$_BUNDLE_NAME_VER" ]]; then
-    _bspec="${_BUNDLE_NAME_VER}"
-  fi
-  if [[ -n "$_bspec" ]]; then
-    if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${_bspec}")" || [[ -z "$_BUNDLE_TAG" ]]; then
-      logging__error "Bundle tag not found for '$_bspec'"
-      exit 1
-    fi
-    _BUNDLE_MANIFEST_FILE="$(mktemp)"
-    _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE" || exit 1
-  fi
   declare -A _D_K=() _D_T=()
   _D_IDS=()
   while IFS=$'\t' read -r _id _k _tt; do
@@ -775,7 +721,7 @@ if [[ "$_DOWNLOAD_ONLY" == true ]]; then
     _D_QUEUE=("${_D_QUEUE[@]:1}")
     [[ -n "${_D_SEEN[$_cur]:-}" ]] && continue
     _D_SEEN["$_cur"]=1
-    if ! _rt="$(_resolve_install_tag "$_cur" "${_D_T[$_cur]}")" || [[ -z "$_rt" ]]; then
+    if ! _rt="$(_resolve_install_tag "$_cur" "${_D_T[$_cur]}" "${_D_K[$_cur]}")" || [[ -z "$_rt" ]]; then
       _D_FAIL+=("$_cur")
       continue
     fi
@@ -790,10 +736,15 @@ if [[ "$_DOWNLOAD_ONLY" == true ]]; then
     if [[ -f "${_wdir}/devcontainer-feature.json" ]]; then
       while IFS= read -r _dep; do
         [[ -z "$_dep" || "$_dep" == "null" ]] && continue
-        [[ "$_dep" != *ghcr.io/quantized8/sysset/* ]] && continue
+        if [[ "$_dep" != */* ]]; then
+          continue
+        fi
         _drest="${_dep##*/}"
         _did="${_drest%%:*}"
+        _did="${_did%%@*}"
         [[ -n "${_D_SEEN[$_did]:-}" ]] && continue
+        _D_K["$_did"]="$_dep"
+        _D_T["$_did"]=""
         _D_QUEUE+=("$_did")
       done < <(json__query -r '.dependsOn[]? // empty' "${_wdir}/devcontainer-feature.json" 2> /dev/null)
     fi
@@ -823,22 +774,6 @@ _STAGED="$(mktemp -d)"
 # shellcheck disable=SC2064
 trap 'ospkg__cleanup_session_build_groups "false"; rm -rf "${_SYSSET_SESSION_TRACK_DIR:-}" "${_SYSSET_INITIAL_SNAPSHOT:-}" "$_STAGED" "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 
-_BUNDLE_NAME_VER="$(devcontainer__name_version_suffix "$(json__query -r '.name // ""' "$_DCJ" 2> /dev/null || true)")"
-_bspec=""
-if [[ -n "${SYSSET_VERSION:-}" ]]; then
-  _bspec="${SYSSET_VERSION}"
-elif [[ -n "$_BUNDLE_NAME_VER" ]]; then
-  _bspec="${_BUNDLE_NAME_VER}"
-fi
-if [[ -n "$_bspec" ]]; then
-  if ! _BUNDLE_TAG="$(_resolve_bundle_tag "${_bspec}")" || [[ -z "$_BUNDLE_TAG" ]]; then
-    logging__error "Bundle tag not found for '$_bspec'"
-    exit 1
-  fi
-  _BUNDLE_MANIFEST_FILE="$(mktemp)"
-  _fetch_bundle_manifest "$_BUNDLE_TAG" "$_BUNDLE_MANIFEST_FILE" || exit 1
-fi
-
 declare -A _KEY_OF=() _OPT_OF=() _TAG_OF=()
 _IDS=()
 while IFS=$'\t' read -r _id _k _tt; do
@@ -859,7 +794,7 @@ _failed=()
 _OK_IDS=()
 for _id in "${_IDS[@]}"; do
   mkdir -p "${_STAGED}/${_id}"
-  if ! _rt="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}")" || [[ -z "$_rt" ]]; then
+  if ! _rt="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}" "${_KEY_OF[$_id]}")" || [[ -z "$_rt" ]]; then
     _failed+=("$_id")
     continue
   fi
@@ -938,7 +873,7 @@ _CU_HOME="$(devcontainer__user_home "$_EFF_CUSER" 2> /dev/null || true)"
 
 _passed=()
 for _id in "${_ORDER[@]}"; do
-  _r2="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}")" || {
+  _r2="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}" "${_KEY_OF[$_id]}")" || {
     _failed+=("$_id")
     continue
   }

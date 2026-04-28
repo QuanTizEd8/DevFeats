@@ -69,6 +69,7 @@ devcontainer__oci_id_and_tag() {
 # @brief devcontainer__is_compatible_key <key> <prefix> ... — 0 if OCI key matches a prefix, or a local path with devcontainer-feature.json
 devcontainer__is_compatible_key() {
   local _k="${1-}"
+  local _host
   shift
   local _p
   for _p in "$@"; do
@@ -81,6 +82,12 @@ devcontainer__is_compatible_key() {
       return 0
     fi
     if [[ -d "$_d" && -f "${_d}/devcontainer-feature.json" ]]; then
+      return 0
+    fi
+  fi
+  if [[ "$_k" == */* && ( "$_k" == *@sha256:* || "$_k" == *:* ) ]]; then
+    _host="${_k%%/*}"
+    if [[ "$_host" == "localhost" || "$_host" == *.* ]]; then
       return 0
     fi
   fi
@@ -137,7 +144,7 @@ devcontainer__iter_features() {
   shift 2 || return 1
   local -a _prefixes=("$@")
   [[ -f "$_cfg" ]] || return 1
-  local _k _p _hit _id _tag _rest _full
+  local _k _p _hit _id _tag _rest _full _host
   while IFS= read -r _k; do
     [[ -z "$_k" ]] && continue
     _hit=0
@@ -157,6 +164,14 @@ devcontainer__iter_features() {
           fi
           ;;
       esac
+    fi
+    if ((_hit == 0)); then
+      if [[ "$_k" == */* && ( "$_k" == *@sha256:* || "$_k" == *:* ) ]]; then
+        _host="${_k%%/*}"
+        if [[ "$_host" == "localhost" || "$_host" == *.* ]]; then
+          _hit=1
+        fi
+      fi
     fi
     ((_hit == 0)) && {
       logging__warn "skip feature key (not sysset-compatible): $_k"
