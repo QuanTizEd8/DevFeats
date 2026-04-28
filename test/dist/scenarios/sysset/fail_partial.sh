@@ -28,8 +28,8 @@ offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "install-pixi:${_
 
 _PORT=18542
 _manifest_dir="$(mktemp -d)"
-_log_file="$(mktemp)"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_log_file"' EXIT
+_run_log="$(mktemp)"
+trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_run_log"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
@@ -48,11 +48,11 @@ cat > "$_manifest" << EOF
 EOF
 
 # install.bash should exit non-zero overall.
-fail_check "install.bash exits non-zero when a feature fails" \
-  bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
+check "install.bash exits non-zero when a feature fails" \
+  bash -c "bash \"${REPO_ROOT}/install.bash\" \"$_manifest\" >\"$_run_log\" 2>&1; test \$? -ne 0"
 
 check "unknown feature id is reported in failed feature summary" \
-  bash -c "grep -q 'failed:.*does-not-exist' '$_log_file'"
+  bash -c "grep -q 'failed:.*does-not-exist' '$_run_log'"
 
 check "install-pixi still installed despite partial failure" \
   command -v pixi
