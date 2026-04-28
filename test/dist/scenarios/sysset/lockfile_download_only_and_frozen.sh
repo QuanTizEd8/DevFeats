@@ -25,9 +25,13 @@ mkdir -p "${_work}/payload"
 printf '%s\n' '#!/usr/bin/env sh' > "${_work}/payload/install.sh"
 printf '%s\n' '{}' > "${_work}/payload/devcontainer-feature.json"
 tar -czf "${_payload}" -C "${_work}/payload" .
-_hash="$(shasum -a 256 "${_payload}" | awk '{print $1}')"
+if command -v sha256sum > /dev/null 2>&1; then
+  _hash="$(sha256sum "${_payload}" | awk '{print $1}')"
+else
+  _hash="$(shasum -a 256 "${_payload}" | awk '{print $1}')"
+fi
 
-cat > "${_manifest}" <<'EOF'
+cat > "${_manifest}" << 'EOF'
 {
   "name": "lockfile check",
   "features": {
@@ -36,7 +40,7 @@ cat > "${_manifest}" <<'EOF'
 }
 EOF
 
-cat > "${_fakebin}/oras" <<'EOF'
+cat > "${_fakebin}/oras" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 case "${1-}" in

@@ -49,7 +49,7 @@ _test_sha256_file() {
 
 @test "oci__resolve_version resolves latest and partial specs" {
   oci__list_tags() {
-    cat <<'EOF'
+    cat << 'EOF'
 latest
 1
 1.2
@@ -74,7 +74,7 @@ EOF
 
 @test "oci__resolve_version excludes prereleases unless explicitly requested" {
   oci__list_tags() {
-    cat <<'EOF'
+    cat << 'EOF'
 1.2.3
 1.2.4-rc.1
 1.2.4
@@ -94,7 +94,7 @@ EOF
 
 @test "oci__resolve_version falls back to highest semver when latest tag missing" {
   oci__list_tags() {
-    cat <<'EOF'
+    cat << 'EOF'
 1.0.0
 1.1.0
 2.0.0-rc.1
@@ -124,7 +124,7 @@ EOF
       return 0
     fi
     if [[ "$1" == "manifest" && "$2" == "fetch" ]]; then
-      cat <<EOF
+      cat << EOF
 {"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"sha256:${_hash}"}]}
 EOF
       return 0
@@ -165,7 +165,7 @@ EOF
       return 0
     fi
     if [[ "$1" == "manifest" && "$2" == "fetch" ]]; then
-      cat <<EOF
+      cat << EOF
 {"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"sha256:${_hash}"}]}
 EOF
       return 0
@@ -263,7 +263,7 @@ EOF
       return 0
     fi
     if [[ "$1" == "manifest" && "$2" == "fetch" ]]; then
-      cat <<'EOF'
+      cat << 'EOF'
 {"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]}
 EOF
       return 0

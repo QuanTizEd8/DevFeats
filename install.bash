@@ -337,24 +337,6 @@ _sysset_repo_ref_for_feature() {
   printf 'ghcr.io/%s/%s\n' "${SYSSET_GHCR_NAMESPACE}" "${_feature,,}"
 }
 
-_resolve_feature_tag() {
-  # $1 = feature id, $2 = version spec (may be empty → latest)
-  local _feature="$1" _spec="${2:-}" _repo
-  _repo="$(_sysset_repo_ref_for_feature "$_feature")"
-  oci__resolve_version "$_repo" "$_spec"
-}
-
-# ── Offline kit / local registry (installer-only) ─────────────────────────────
-_sysset_bundle_kit_tarball_name() {
-  local _tag="${1-}"
-  [[ "$_tag" == v* ]] || _tag="v${_tag}"
-  printf 'sysset-%s.tar.gz\n' "$_tag"
-}
-
-_sysset_default_oci_ref() {
-  oci__ghcr_image_ref "${SYSSET_GHCR_NAMESPACE}" "${1,,}" "${2-}"
-}
-
 _sysset_verify_digest_checksums() {
   local _root="${1%/}" _dkey="${2-}" _mf="${3-}" _rp _ent _path _sum _expect
   _json__ensure_jq || return 1

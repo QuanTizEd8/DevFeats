@@ -4,6 +4,16 @@
 [[ -n "${_OCI__LIB_LOADED-}" ]] && return 0
 _OCI__LIB_LOADED=1
 
+_OCI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/ospkg.sh
+. "$_OCI_LIB_DIR/ospkg.sh"
+# shellcheck source=lib/logging.sh
+. "$_OCI_LIB_DIR/logging.sh"
+# shellcheck source=lib/checksum.sh
+. "$_OCI_LIB_DIR/checksum.sh"
+# shellcheck source=lib/json.sh
+. "$_OCI_LIB_DIR/json.sh"
+
 _OCI__ORAS_MIN_VERSION="${_OCI__ORAS_MIN_VERSION:-1.2.0}"
 _OCI__AUTH_LOADED=0
 declare -gA _OCI__AUTH_USER=()
@@ -222,13 +232,15 @@ oci__resolve_version() {
     return 1
   fi
 
-  if printf '%s\n' "$_tags" | sed '/^$/d' | grep -qx "$_spec"; then
-    printf '%s\n' "$_spec"
-    return 0
-  fi
-  if [[ "$_spec" == v* ]] && printf '%s\n' "$_tags" | sed '/^$/d' | grep -qx "${_spec#v}"; then
-    printf '%s\n' "${_spec#v}"
-    return 0
+  if [[ ! "$_norm" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    if printf '%s\n' "$_tags" | sed '/^$/d' | grep -qx "$_spec"; then
+      printf '%s\n' "$_spec"
+      return 0
+    fi
+    if [[ "$_spec" == v* ]] && printf '%s\n' "$_tags" | sed '/^$/d' | grep -qx "${_spec#v}"; then
+      printf '%s\n' "${_spec#v}"
+      return 0
+    fi
   fi
 
   local _cands="" _t _sv
@@ -264,7 +276,6 @@ _oci__validate_feature_tgz() {
 
 _oci__expected_layer_digest_for_ref() {
   local _ref="${1-}" _manifest _dig
-  _json__ensure_jq || return 1
   _manifest="$(oras manifest fetch "$_ref" 2> /dev/null || true)"
   [[ -n "$_manifest" ]] || return 1
   _dig="$(printf '%s' "$_manifest" |
@@ -278,6 +289,9 @@ _oci__expected_layer_digest_for_ref() {
         | .digest
       ][0] // empty
     ' 2> /dev/null)" || _dig=""
+  if [[ -z "$_dig" || "$_dig" == "null" ]]; then
+    _dig="$(printf '%s\n' "$_manifest" | sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"\(sha256:[0-9a-fA-F]\{64\}\)".*/\1/p' | head -n1)"
+  fi
   [[ -n "$_dig" && "$_dig" != "null" ]] || return 1
   printf '%s\n' "$_dig"
 }

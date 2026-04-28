@@ -18,6 +18,9 @@ SUITE_FILTER=""
 NAME_FILTER=""
 BUILD=true
 VERSION="v0.1.0-test"
+TEST_ORAS_DIR=""
+TEST_ORAS_PAYLOAD=""
+TEST_ORAS_SHA=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -75,6 +78,73 @@ _bold_sep() {
   echo
 }
 
+setup_fake_oras() {
+  local _tmp
+  _tmp="$(mktemp -d)"
+  TEST_ORAS_DIR="${_tmp}/fakebin"
+  TEST_ORAS_PAYLOAD="${_tmp}/feature.tgz"
+  mkdir -p "${TEST_ORAS_DIR}" "${_tmp}/payload"
+  printf '%s\n' '#!/usr/bin/env sh' > "${_tmp}/payload/install.sh"
+  printf '%s\n' '{}' > "${_tmp}/payload/devcontainer-feature.json"
+  tar -czf "${TEST_ORAS_PAYLOAD}" -C "${_tmp}/payload" .
+  if command -v sha256sum > /dev/null 2>&1; then
+    TEST_ORAS_SHA="$(sha256sum "${TEST_ORAS_PAYLOAD}" | awk '{print $1}')"
+  else
+    TEST_ORAS_SHA="$(shasum -a 256 "${TEST_ORAS_PAYLOAD}" | awk '{print $1}')"
+  fi
+  cat > "${TEST_ORAS_DIR}/oras" << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+case "${1-}" in
+  version)
+    echo "Version: 1.2.0"
+    ;;
+  login)
+    exit 0
+    ;;
+  repo)
+    if [[ "${2-}" == "tags" ]]; then
+      cat << 'TAGS'
+latest
+1
+1.0
+1.0.0
+TAGS
+      exit 0
+    fi
+    exit 1
+    ;;
+  manifest)
+    if [[ "${2-}" == "fetch" ]]; then
+      cat <<JSON
+{"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"sha256:${SYSSET_TEST_FAKE_ORAS_SHA}"}]}
+JSON
+      exit 0
+    fi
+    exit 1
+    ;;
+  pull)
+    _out=""
+    while [[ $# -gt 0 ]]; do
+      if [[ "${1}" == "-o" ]]; then
+        _out="${2-}"
+        shift 2
+      else
+        shift
+      fi
+    done
+    [[ -n "${_out}" ]] || exit 1
+    mkdir -p "${_out}"
+    cp "${SYSSET_TEST_FAKE_ORAS_TGZ}" "${_out}/devcontainer-feature-x.tgz"
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "${TEST_ORAS_DIR}/oras"
+}
+
 run_scenario() {
   local _suite="$1"
   local _script="$2"
@@ -90,7 +160,19 @@ run_scenario() {
   _sep
   echo "▶  dist / ${_suite} / ${_name}"
   _sep
-  if bash "$_script" "$REPO_ROOT"; then
+  if [[ "$_suite" == "get" || "$_suite" == "sysset" ]]; then
+    if PATH="${TEST_ORAS_DIR}:${PATH}" \
+      SYSSET_TEST_FAKE_ORAS_TGZ="${TEST_ORAS_PAYLOAD}" \
+      SYSSET_TEST_FAKE_ORAS_SHA="${TEST_ORAS_SHA}" \
+      bash "$_script" "$REPO_ROOT"; then
+      echo "✅ PASS: ${_suite}/${_name}"
+      ((_pass++)) || true
+    else
+      echo "❌ FAIL: ${_suite}/${_name}"
+      _errors+=("${_suite}/${_name}")
+      ((_fail++)) || true
+    fi
+  elif bash "$_script" "$REPO_ROOT"; then
     echo "✅ PASS: ${_suite}/${_name}"
     ((_pass++)) || true
   else
@@ -99,6 +181,8 @@ run_scenario() {
     ((_fail++)) || true
   fi
 }
+
+setup_fake_oras
 
 for suite in "${SUITES[@]}"; do
   [[ -n "$SUITE_FILTER" && "$suite" != "$SUITE_FILTER" ]] && continue
