@@ -476,15 +476,28 @@ _fetch_bundle_manifest() {
   _url="${SYSSET_RELEASE_BASE}/${_tag}/${_kit}"
   _tmp="$(mktemp)"
   if ! net__fetch_url_file "${_url}" "${_tmp}"; then
+    logging__error "Could not download bundle kit '${_url}'."
     rm -f "$_tmp"
     return 1
   fi
   _td="$(mktemp -d)"
-  if ! tar -xzf "$_tmp" -C "$_td" manifest.json 2> /dev/null; then
+  # Some tar implementations can be strict when extracting a single member name
+  # (e.g. "manifest.json" vs "./manifest.json"). Extract the kit and then pick
+  # the manifest path explicitly.
+  if ! tar -xzf "$_tmp" -C "$_td" 2> /dev/null; then
+    logging__error "Could not extract bundle kit '${_kit}'."
     rm -rf "$_td" "$_tmp"
     return 1
   fi
-  cp "$_td/manifest.json" "$_dest"
+  if [[ -f "$_td/manifest.json" ]]; then
+    cp "$_td/manifest.json" "$_dest"
+  elif [[ -f "$_td/./manifest.json" ]]; then
+    cp "$_td/./manifest.json" "$_dest"
+  else
+    logging__error "Bundle kit '${_kit}' does not contain manifest.json."
+    rm -rf "$_td" "$_tmp"
+    return 1
+  fi
   rm -rf "$_td" "$_tmp"
   return 0
 }
