@@ -14,7 +14,7 @@ _lockfile="${_tmp}/devcontainer-lock.json"
 _port=18567
 trap 'stop_file_server; rm -rf "${_tmp}"' EXIT
 
-cat > "${_manifest}" <<'EOF'
+cat > "${_manifest}" << 'EOF'
 {
   "name": "frozen-missing",
   "features": {
@@ -23,7 +23,7 @@ cat > "${_manifest}" <<'EOF'
 }
 EOF
 
-cat > "${_lockfile}" <<'EOF'
+cat > "${_lockfile}" << 'EOF'
 {
   "schemaVersion": "1",
   "features": {}
@@ -34,6 +34,6 @@ start_file_server "${REPO_ROOT}" "${_port}"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_port}"
 
 fail_check "--frozen-lockfile fails when entry is missing" \
-  bash "${REPO_ROOT}/install.bash" --download-only --compatible-prefix "ghcr.io/example/features/" --frozen-lockfile "${_lockfile}" "${_manifest}"
+  bash "${REPO_ROOT}/install.bash" --download-only --frozen-lockfile "${_lockfile}" "${_manifest}"
 
 reportResults

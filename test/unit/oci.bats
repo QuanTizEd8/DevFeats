@@ -21,6 +21,39 @@ _test_sha256_file() {
   return 1
 }
 
+_mock_tar_fixture_bin() {
+  local _dir="${1-}" _good="${2-}" _bad="${3-}"
+  local _good_hash _bad_hash
+  _good_hash="$(_test_sha256_file "$_good")"
+  _bad_hash="$(_test_sha256_file "$_bad")"
+  mkdir -p "${_dir}/bin"
+  cat > "${_dir}/bin/tar" << EOF
+#!/usr/bin/env bash
+set -euo pipefail
+_sha256_file() {
+  if command -v sha256sum > /dev/null 2>&1; then
+    sha256sum "\$1" | awk '{print \$1}'
+    return 0
+  fi
+  shasum -a 256 "\$1" | awk '{print \$1}'
+}
+if [[ "\${1-}" == "-tzf" ]]; then
+  _h="\$(_sha256_file "\${2-}")"
+  if [[ "\$_h" == "${_bad_hash}" ]]; then
+    printf '%s\\n' "./devcontainer-feature.json"
+    exit 0
+  fi
+  if [[ "\$_h" == "${_good_hash}" ]]; then
+    printf '%s\\n' "./install.sh" "./devcontainer-feature.json"
+    exit 0
+  fi
+  exit 1
+fi
+exit 1
+EOF
+  chmod +x "${_dir}/bin/tar"
+}
+
 @test "oci__ghcr_image_ref prints ghcr.io qualified name" {
   run oci__ghcr_image_ref "quantized8/sysset" "install-pixi" "1.2.3"
   assert_success
@@ -111,10 +144,12 @@ EOF
   local _tmp
   _tmp="$(mktemp -d)"
   local _good="${_tmp}/good.tgz"
-  mkdir -p "${_tmp}/p"
-  printf '%s\n' '#!/usr/bin/env sh' > "${_tmp}/p/install.sh"
-  printf '%s\n' '{}' > "${_tmp}/p/devcontainer-feature.json"
-  tar -czf "$_good" -C "${_tmp}/p" .
+  local _bad="${_tmp}/bad.tgz"
+  printf '%s\n' "good archive fixture" > "$_good"
+  printf '%s\n' "bad archive fixture" > "$_bad"
+  _mock_tar_fixture_bin "$_tmp" "$_good" "$_bad"
+  export PATH="${_tmp}/bin:${PATH}"
+  hash -r
   local _hash
   _hash="$(_test_sha256_file "$_good")"
 
@@ -147,10 +182,12 @@ EOF
   local _tmp
   _tmp="$(mktemp -d)"
   local _good="${_tmp}/good.tgz"
-  mkdir -p "${_tmp}/p"
-  printf '%s\n' '#!/usr/bin/env sh' > "${_tmp}/p/install.sh"
-  printf '%s\n' '{}' > "${_tmp}/p/devcontainer-feature.json"
-  tar -czf "$_good" -C "${_tmp}/p" .
+  local _bad="${_tmp}/bad.tgz"
+  printf '%s\n' "good archive fixture" > "$_good"
+  printf '%s\n' "bad archive fixture" > "$_bad"
+  _mock_tar_fixture_bin "$_tmp" "$_good" "$_bad"
+  export PATH="${_tmp}/bin:${PATH}"
+  hash -r
   local _hash
   _hash="$(_test_sha256_file "$_good")"
   local _log="${_tmp}/log"
@@ -225,9 +262,12 @@ EOF
   local _tmp
   _tmp="$(mktemp -d)"
   local _bad="${_tmp}/bad.tgz"
-  mkdir -p "${_tmp}/q"
-  printf '%s\n' '{}' > "${_tmp}/q/devcontainer-feature.json"
-  tar -czf "$_bad" -C "${_tmp}/q" .
+  local _good="${_tmp}/good.tgz"
+  printf '%s\n' "bad archive fixture" > "$_bad"
+  printf '%s\n' "good archive fixture" > "$_good"
+  _mock_tar_fixture_bin "$_tmp" "$_good" "$_bad"
+  export PATH="${_tmp}/bin:${PATH}"
+  hash -r
 
   oras() {
     if [[ "$1" == "version" ]]; then
@@ -252,10 +292,12 @@ EOF
   local _tmp
   _tmp="$(mktemp -d)"
   local _good="${_tmp}/good.tgz"
-  mkdir -p "${_tmp}/p"
-  printf '%s\n' '#!/usr/bin/env sh' > "${_tmp}/p/install.sh"
-  printf '%s\n' '{}' > "${_tmp}/p/devcontainer-feature.json"
-  tar -czf "$_good" -C "${_tmp}/p" .
+  local _bad="${_tmp}/bad.tgz"
+  printf '%s\n' "good archive fixture" > "$_good"
+  printf '%s\n' "bad archive fixture" > "$_bad"
+  _mock_tar_fixture_bin "$_tmp" "$_good" "$_bad"
+  export PATH="${_tmp}/bin:${PATH}"
+  hash -r
 
   oras() {
     if [[ "$1" == "version" ]]; then

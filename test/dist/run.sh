@@ -95,6 +95,31 @@ setup_fake_oras() {
   cat > "${TEST_ORAS_DIR}/oras" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+_sha256_file() {
+  local _f="${1-}"
+  if command -v sha256sum > /dev/null 2>&1; then
+    sha256sum "$_f" | awk '{print $1}'
+    return 0
+  fi
+  shasum -a 256 "$_f" | awk '{print $1}'
+}
+
+_payload_for_ref() {
+  local _ref="${1-}" _seg _id _cand
+  _seg="${_ref##*/}"
+  _id="${_seg%%:*}"
+  _id="${_id%%@*}"
+  if [[ -n "${SYSSET_TEST_REPO_ROOT:-}" ]]; then
+    _cand="${SYSSET_TEST_REPO_ROOT}/dist/sysset-${_id}.tar.gz"
+    if [[ -f "${_cand}" ]]; then
+      printf '%s\n' "${_cand}"
+      return 0
+    fi
+  fi
+  printf '%s\n' "${SYSSET_TEST_FAKE_ORAS_TGZ}"
+}
+
 case "${1-}" in
   version)
     echo "Version: 1.2.0"
@@ -106,6 +131,9 @@ case "${1-}" in
     if [[ "${2-}" == "tags" ]]; then
       cat << 'TAGS'
 latest
+0
+0.66
+0.66.0
 1
 1.0
 1.0.0
@@ -116,14 +144,17 @@ TAGS
     ;;
   manifest)
     if [[ "${2-}" == "fetch" ]]; then
+      _payload="$(_payload_for_ref "${3-}")"
+      _dig="sha256:$(_sha256_file "${_payload}")"
       cat <<JSON
-{"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"sha256:${SYSSET_TEST_FAKE_ORAS_SHA}"}]}
+{"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"${_dig}"}]}
 JSON
       exit 0
     fi
     exit 1
     ;;
   pull)
+    _ref="${2-}"
     _out=""
     while [[ $# -gt 0 ]]; do
       if [[ "${1}" == "-o" ]]; then
@@ -135,7 +166,8 @@ JSON
     done
     [[ -n "${_out}" ]] || exit 1
     mkdir -p "${_out}"
-    cp "${SYSSET_TEST_FAKE_ORAS_TGZ}" "${_out}/devcontainer-feature-x.tgz"
+    _payload="$(_payload_for_ref "${_ref}")"
+    cp "${_payload}" "${_out}/devcontainer-feature-x.tgz"
     ;;
   *)
     exit 1
@@ -164,6 +196,7 @@ run_scenario() {
     if PATH="${TEST_ORAS_DIR}:${PATH}" \
       SYSSET_TEST_FAKE_ORAS_TGZ="${TEST_ORAS_PAYLOAD}" \
       SYSSET_TEST_FAKE_ORAS_SHA="${TEST_ORAS_SHA}" \
+      SYSSET_TEST_REPO_ROOT="${REPO_ROOT}" \
       bash "$_script" "$REPO_ROOT"; then
       echo "✅ PASS: ${_suite}/${_name}"
       ((_pass++)) || true

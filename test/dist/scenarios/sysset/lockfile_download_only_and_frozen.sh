@@ -93,7 +93,7 @@ export SYSSET_TEST_PAYLOAD_SHA="${_hash}"
 
 export SYSSET_TEST_EXPECT_REF="ghcr.io/example/features/demo:latest"
 check "--lockfile writes resolved ref in download-only mode" \
-  bash "${REPO_ROOT}/install.bash" --download-only --compatible-prefix "ghcr.io/example/features/" --lockfile "${_lockfile}" "${_manifest}"
+  bash "${REPO_ROOT}/install.bash" --download-only --lockfile "${_lockfile}" "${_manifest}"
 
 check "lockfile contains expected resolved ref" \
   bash -c "jq -e '(.features | to_entries | length) == 1 and ((.features | to_entries[0].value.resolved) == \"ghcr.io/example/features/demo:latest\")' \"${_lockfile}\" >/dev/null"
@@ -101,6 +101,6 @@ check "lockfile contains expected resolved ref" \
 export SYSSET_TEST_FROZEN_MODE=1
 export SYSSET_TEST_EXPECT_REF="ghcr.io/example/features/demo:latest"
 check "--frozen-lockfile uses locked ref without tag resolution" \
-  bash "${REPO_ROOT}/install.bash" --download-only --compatible-prefix "ghcr.io/example/features/" --frozen-lockfile "${_lockfile}" "${_manifest}"
+  bash "${REPO_ROOT}/install.bash" --download-only --frozen-lockfile "${_lockfile}" "${_manifest}"
 
 reportResults

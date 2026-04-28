@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-# sysset/compatible_prefix.sh — Verify that feature keys not matching any of
-# the --compatible-prefix entries are warned about and skipped, not fatal.
+# sysset/compatible_prefix.sh — Verify that OCI feature keys from any registry
+# prefix are accepted and installed.
 #
 # What this tests:
-#   • The default compatible prefix "ghcr.io/quantized8/sysset/" is honored.
-#   • An extra key under a different prefix (e.g. `ghcr.io/devcontainers/features/...`)
-#     emits a "skip feature key (not sysset-compatible)" warning and does NOT
-#     stop the installation of a compatible sibling feature.
-#   • --compatible-prefix can be extended via CLI to include an additional
-#     namespace; keys under the added prefix are accepted (and must resolve,
-#     or an install failure surfaces through the normal error path).
+#   • OCI keys outside `ghcr.io/quantized8/sysset/` are not filtered out.
+#   • Mixed-prefix manifests install successfully when referenced feature IDs
+#     are available in the local bundle/mirror.
 #
 # Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
@@ -28,8 +24,10 @@ _VER="99.99.0-test"
 _MIRROR="${REPO_ROOT}/test-mirror-sysset-compat-prefix"
 mkdir -p "${_MIRROR}"
 mkdir -p "${_MIRROR}/install-pixi/${_VER}"
+mkdir -p "${_MIRROR}/install-os-pkg/${_VER}"
 cp "${DIST}/sysset-install-pixi.tar.gz" "${_MIRROR}/install-pixi/${_VER}/"
-offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "install-pixi:${_VER}"
+cp "${DIST}/sysset-install-os-pkg.tar.gz" "${_MIRROR}/install-os-pkg/${_VER}/"
+offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "install-pixi:${_VER}" "install-os-pkg:${_VER}"
 
 _PORT=18547
 _manifest_dir="$(mktemp -d)"
@@ -47,19 +45,22 @@ cat > "$_manifest" << EOF
 {
   "name": "compat ${_BUNDLE}",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" }
+    "ghcr.io/example/features/install-pixi": { "version": "0.66.0" },
+    "ghcr.io/quantized8/sysset/install-os-pkg": {}
   }
 }
 EOF
 
-check "install.bash completes even with non-sysset feature key present" \
+check "install.bash completes with mixed-prefix OCI keys" \
   bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
 
-check "warning was emitted for non-compatible feature key" \
-  bash -c "grep -q 'skip feature key (not sysset-compatible).*devcontainers/features/docker-in-docker' '$_log_file'"
+check "no prefix-filter warning was emitted" \
+  bash -c "! grep -q 'not sysset-compatible\\|not OCI ref or local-path feature' '$_log_file'"
 
-check "install-pixi installed (sibling was not blocked by incompatible key)" \
+check "install-pixi installed from non-sysset prefix key" \
   command -v pixi
+
+check "install-os-pkg sibling feature also installed" \
+  command -v tree
 
 reportResults

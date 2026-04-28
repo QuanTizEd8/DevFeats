@@ -75,15 +75,10 @@ devcontainer__oci_id_and_tag() {
   return 0
 }
 
-# @brief devcontainer__is_compatible_key <key> <prefix> ... — 0 if OCI key matches a prefix, or a local path with devcontainer-feature.json
+# @brief devcontainer__is_compatible_key <key> — 0 if key is OCI-shaped or a local path with devcontainer-feature.json
 devcontainer__is_compatible_key() {
   local _k="${1-}"
   local _host
-  shift
-  local _p
-  for _p in "$@"; do
-    [[ -n "$_p" && "$_k" == "$_p"* ]] && return 0
-  done
   if [[ "$_k" == ./* || "$_k" == ../* || "$_k" == /* ]]; then
     local _d
     _d="${_k%/devcontainer-feature.json}"
@@ -94,7 +89,7 @@ devcontainer__is_compatible_key() {
       return 0
     fi
   fi
-  if [[ "$_k" == */* && ( "$_k" == *@sha256:* || "$_k" == *:* ) ]]; then
+  if [[ "$_k" == */* ]]; then
     _host="${_k%%/*}"
     devcontainer__is_registry_host_like "$_host" && return 0
   fi
@@ -140,46 +135,36 @@ devcontainer__lifecycle_disabled() {
   return 1
 }
 
-# @brief devcontainer__iter_features <config-file> <workspace-folder> <compat-prefix>...
+# @brief devcontainer__iter_features <config-file> <workspace-folder>
 # Emits TAB-delimited lines: <id>\t<key>\t<tag>
 # - <id>   the trailing path component without :tag suffix
 # - <key>  the raw features[] key
 # - <tag>  the :tag suffix after the last ':' in the last segment, or empty
-# Keys that don't match any prefix and aren't a resolvable local path → warned + skipped.
+# Keys that are neither OCI-shaped refs nor resolvable local paths → warned + skipped.
 devcontainer__iter_features() {
   local _cfg="${1-}" _wf="${2-}"
-  shift 2 || return 1
-  local -a _prefixes=("$@")
   [[ -f "$_cfg" ]] || return 1
   local _k _p _hit _id _tag _rest _full _host
   while IFS= read -r _k; do
     [[ -z "$_k" ]] && continue
     _hit=0
-    for _p in "${_prefixes[@]+"${_prefixes[@]}"}"; do
-      [[ -n "$_p" && "$_k" == "$_p"* ]] && {
-        _hit=1
-        break
-      }
-    done
+    case "$_k" in
+      ./* | ../* | /*)
+        _full="$_k"
+        [[ "$_full" != /* && -n "$_wf" ]] && _full="${_wf%/}/${_k}"
+        if [[ -f "${_full%/}/devcontainer-feature.json" || -f "${_full}/devcontainer-feature.json" ]]; then
+          _hit=1
+        fi
+        ;;
+    esac
     if ((_hit == 0)); then
-      case "$_k" in
-        ./* | ../* | /*)
-          _full="$_k"
-          [[ "$_full" != /* && -n "$_wf" ]] && _full="${_wf%/}/${_k}"
-          if [[ -f "${_full%/}/devcontainer-feature.json" || -f "${_full}/devcontainer-feature.json" ]]; then
-            _hit=1
-          fi
-          ;;
-      esac
-    fi
-    if ((_hit == 0)); then
-      if [[ "$_k" == */* && ( "$_k" == *@sha256:* || "$_k" == *:* ) ]]; then
+      if [[ "$_k" == */* ]]; then
         _host="${_k%%/*}"
         devcontainer__is_registry_host_like "$_host" && _hit=1
       fi
     fi
     ((_hit == 0)) && {
-      logging__warn "skip feature key (not sysset-compatible): $_k"
+      logging__warn "skip feature key (not OCI ref or local-path feature): $_k"
       continue
     }
     _rest="${_k##*/}"

@@ -28,7 +28,6 @@
 #   --lifecycle-command-dir <path>  CWD for all lifecycle commands.
 #   --no-feature-lifecycle-command <path>  Repeat. Disable feature lifecycle (grammar: all, feature, phase, ...).
 #   --no-container-lifecycle-command <path>  Repeat. Disable devcontainer.json lifecycle entries.
-#   --compatible-prefix <oci-prefix>  Repeat. Default: ghcr.io/quantized8/sysset/
 #   --no-lifecycle   Feature mode: skip the installed feature's lifecycle hooks.
 #   --local-registry <path>  Registry root (manifest.json + features/). Default: directory of this install.bash, or SYSSET_LOCAL_REGISTRY.
 #   --download-only   Fetch into the local registry and update manifest.json; do not run installers (see plan).
@@ -141,7 +140,7 @@ Usage:
 Options (see also header comment in install.bash):
   --log_file, --log_level, --help
   --workspace-folder, --no-initialize-command, --initialize-command-dir, --lifecycle-command-dir
-  --no-feature-lifecycle-command, --no-container-lifecycle-command, --compatible-prefix
+  --no-feature-lifecycle-command, --no-container-lifecycle-command
   --no-lifecycle (feature mode: skip that feature's post-install hooks)
   --local-registry <path>   Registry root: manifest.json + features/ (overrides SYSSET_LOCAL_REGISTRY)
   --download-only           Stage tarballs and update registry only; do not run installers
@@ -163,7 +162,6 @@ _INIT_CMD_DIR=""
 _LIFE_CMD_DIR=""
 _NO_FE_LIFE=()
 _NO_CO_LIFE=()
-_COMPAT_PREFIX=("ghcr.io/quantized8/sysset/")
 _FEATURE_SKIP_LIFECYCLE=false
 _DOWNLOAD_ONLY=false
 _REPORT_FILE=""
@@ -231,15 +229,6 @@ while [[ $# -gt 0 ]]; do
         exit 1
       }
       _NO_CO_LIFE+=("$1")
-      shift
-      ;;
-    --compatible-prefix)
-      shift
-      [[ $# -eq 0 ]] && {
-        logging__error "--compatible-prefix needs a value."
-        exit 1
-      }
-      _COMPAT_PREFIX+=("$1")
       shift
       ;;
     --no-lifecycle)
@@ -767,7 +756,7 @@ if [[ "$_DOWNLOAD_ONLY" == true ]]; then
     _D_IDS+=("$_id")
     _D_K["$_id"]="$_k"
     _D_T["$_id"]="$_tt"
-  done < <(devcontainer__iter_features "$_DCJ" "$_WORK_ROOT" "${_COMPAT_PREFIX[@]}")
+  done < <(devcontainer__iter_features "$_DCJ" "$_WORK_ROOT")
   declare -A _D_SEEN=()
   _D_QUEUE=("${_D_IDS[@]}")
   _D_FAIL=()
@@ -852,7 +841,7 @@ while IFS=$'\t' read -r _id _k _tt; do
   _KEY_OF["$_id"]="$_k"
   _OPT_OF["$_id"]="$_opt"
   _TAG_OF["$_id"]="$_tt"
-done < <(devcontainer__iter_features "$_DCJ" "$_WORK_ROOT" "${_COMPAT_PREFIX[@]}")
+done < <(devcontainer__iter_features "$_DCJ" "$_WORK_ROOT")
 ((${#_IDS[@]})) || {
   logging__error "no features"
   exit 1

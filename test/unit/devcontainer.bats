@@ -124,7 +124,7 @@ EOF
 # devcontainer__iter_features
 # ---------------------------------------------------------------------------
 
-@test "devcontainer__iter_features filters by compatible prefix" {
+@test "devcontainer__iter_features accepts OCI refs regardless of prefix" {
   _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter.XXXXXX")"
   cat > "$_f" << 'EOF'
 {
@@ -136,7 +136,7 @@ EOF
 }
 EOF
   # Capture stdout only (the warning for non-compatible keys goes to stderr).
-  _out="$(devcontainer__iter_features "$_f" "" "ghcr.io/quantized8/sysset/" 2> /dev/null)"
+  _out="$(devcontainer__iter_features "$_f" "" 2> /dev/null)"
   [[ "$_out" == *"install-pixi"* ]] || false
   [[ "$_out" == *"install-os-pkg"* ]] || false
   [[ "$_out" == *"docker-in-docker"* ]] || false
@@ -148,7 +148,7 @@ EOF
   cat > "$_f" << 'EOF'
 {"features":{"ghcr.io/quantized8/sysset/install-pixi:1.2.3":{}}}
 EOF
-  run devcontainer__iter_features "$_f" "" "ghcr.io/quantized8/sysset/"
+  run devcontainer__iter_features "$_f" ""
   assert_success
   # Output format: <id>\t<key>\t<tag>; assert id and tag parsed correctly.
   [[ "$output" == *$'\t'*$'\t'"1.2.3" ]] || false
@@ -173,7 +173,7 @@ EOF
   rm -rf "$_root"
 }
 
-@test "devcontainer__iter_features accepts OCI refs outside compatible prefix" {
+@test "devcontainer__iter_features accepts OCI refs outside sysset namespace" {
   _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter3.XXXXXX")"
   cat > "$_f" << 'EOF'
 {
@@ -183,7 +183,7 @@ EOF
   }
 }
 EOF
-  run devcontainer__iter_features "$_f" "" "ghcr.io/quantized8/sysset/"
+  run devcontainer__iter_features "$_f" ""
   assert_success
   [[ "$output" == *"common-utils"* ]] || false
   [[ "$output" == *"git"* ]] || false
@@ -191,13 +191,13 @@ EOF
 }
 
 @test "devcontainer__is_compatible_key accepts OCI refs by shape" {
-  run devcontainer__is_compatible_key "mcr.microsoft.com/devcontainers/features/common-utils:2" "ghcr.io/quantized8/sysset/"
+  run devcontainer__is_compatible_key "mcr.microsoft.com/devcontainers/features/common-utils:2"
   assert_success
 
-  run devcontainer__is_compatible_key "localhost:5000/devcontainers/features/common-utils:2" "ghcr.io/quantized8/sysset/"
+  run devcontainer__is_compatible_key "localhost:5000/devcontainers/features/common-utils:2"
   assert_success
 
-  run devcontainer__is_compatible_key "ghcr.io/devcontainers/features/git@sha256:abc123" "ghcr.io/quantized8/sysset/"
+  run devcontainer__is_compatible_key "ghcr.io/devcontainers/features/git@sha256:abc123"
   assert_success
 }
 
