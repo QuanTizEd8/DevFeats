@@ -40,7 +40,7 @@ else
   _c_dcj="$(shasum -a 256 "${_dest}/devcontainer-feature.json" | awk '{print $1}')"
 fi
 
-cat > "${_registry}/manifest.json" <<EOF
+cat > "${_registry}/manifest.json" << EOF
 {
   "schemaVersion": "2.0.0",
   "refs": {
@@ -64,7 +64,7 @@ EOF
 # - version: satisfy oci__ensure_oras
 # - repo tags: resolve install-pixi -> 1.2.3
 # - pull: succeed and materialize a *.tgz payload
-cat > "${_fakebin}/oras" <<'EOF'
+cat > "${_fakebin}/oras" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 case "${1-}" in
@@ -97,7 +97,7 @@ EOF
 chmod +x "${_fakebin}/oras"
 
 # Force mv failure to exercise fallback path after successful pull.
-cat > "${_fakebin}/mv" <<'EOF'
+cat > "${_fakebin}/mv" << 'EOF'
 #!/usr/bin/env bash
 exit 1
 EOF
