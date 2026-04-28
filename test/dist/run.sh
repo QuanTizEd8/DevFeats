@@ -92,6 +92,10 @@ setup_fake_oras() {
   else
     TEST_ORAS_SHA="$(shasum -a 256 "${TEST_ORAS_PAYLOAD}" | awk '{print $1}')"
   fi
+  # Fake ORAS contract for dist tests:
+  # - Unknown feature refs must fail (no generic success fallback).
+  # - Tags are computed per repo with optional scenario-provided extras via
+  #   SYSSET_TEST_FAKE_ORAS_EXTRA_TAGS (space/comma/newline separated).
   cat > "${TEST_ORAS_DIR}/oras" << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -105,11 +109,37 @@ _sha256_file() {
   shasum -a 256 "$_f" | awk '{print $1}'
 }
 
-_payload_for_ref() {
-  local _ref="${1-}" _seg _id _cand
-  _seg="${_ref##*/}"
+_feature_id_from_ref_or_repo() {
+  local _target="${1-}" _seg _id
+  _seg="${_target##*/}"
   _id="${_seg%%:*}"
   _id="${_id%%@*}"
+  printf '%s\n' "${_id}"
+}
+
+_emit_tags_for_target() {
+  local _target="${1-}" _tags="" _t
+  # Stable defaults used by existing get/sysset scenarios.
+  _tags="latest
+0
+0.66
+0.66.0
+1
+1.0
+1.0.0"
+  if [[ -n "${SYSSET_TEST_FAKE_ORAS_EXTRA_TAGS:-}" ]]; then
+    while IFS= read -r _t; do
+      [[ -z "${_t}" ]] && continue
+      _tags="${_tags}"$'\n'"${_t}"
+    done < <(printf '%s\n' "${SYSSET_TEST_FAKE_ORAS_EXTRA_TAGS}" | tr ', ' '\n\n' | sed '/^$/d')
+  fi
+  # Print unique tags preserving first-seen order.
+  printf '%s\n' "${_tags}" | awk '!seen[$0]++'
+}
+
+_payload_for_ref() {
+  local _ref="${1-}" _id _cand
+  _id="$(_feature_id_from_ref_or_repo "${_ref}")"
   if [[ -n "${SYSSET_TEST_REPO_ROOT:-}" ]]; then
     _cand="${SYSSET_TEST_REPO_ROOT}/dist/sysset-${_id}.tar.gz"
     if [[ -f "${_cand}" ]]; then
@@ -117,7 +147,7 @@ _payload_for_ref() {
       return 0
     fi
   fi
-  printf '%s\n' "${SYSSET_TEST_FAKE_ORAS_TGZ}"
+  return 1
 }
 
 case "${1-}" in
@@ -129,22 +159,14 @@ case "${1-}" in
     ;;
   repo)
     if [[ "${2-}" == "tags" ]]; then
-      cat << 'TAGS'
-latest
-0
-0.66
-0.66.0
-1
-1.0
-1.0.0
-TAGS
+      _emit_tags_for_target "${3-}"
       exit 0
     fi
     exit 1
     ;;
   manifest)
     if [[ "${2-}" == "fetch" ]]; then
-      _payload="$(_payload_for_ref "${3-}")"
+      _payload="$(_payload_for_ref "${3-}")" || exit 1
       _dig="sha256:$(_sha256_file "${_payload}")"
       cat <<JSON
 {"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"${_dig}"}]}
@@ -166,7 +188,7 @@ JSON
     done
     [[ -n "${_out}" ]] || exit 1
     mkdir -p "${_out}"
-    _payload="$(_payload_for_ref "${_ref}")"
+    _payload="$(_payload_for_ref "${_ref}")" || exit 1
     cp "${_payload}" "${_out}/devcontainer-feature-x.tgz"
     ;;
   *)

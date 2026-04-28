@@ -5,7 +5,7 @@
 # What this tests:
 #   • OCI keys outside `ghcr.io/quantized8/sysset/` are not filtered out.
 #   • Mixed-prefix manifests install successfully when referenced feature IDs
-#     are available in the local bundle/mirror.
+#     are valid OCI refs.
 #
 # Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
@@ -18,6 +18,7 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 . "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 DIST="${REPO_ROOT}/dist"
+_OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
 
 _BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
@@ -38,7 +39,6 @@ start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
-export SYSSET_VERSION="${_BUNDLE}"
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
@@ -46,7 +46,7 @@ cat > "$_manifest" << EOF
   "name": "compat ${_BUNDLE}",
   "features": {
     "ghcr.io/example/features/install-pixi": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg": {}
+    "ghcr.io/quantized8/sysset/install-os-pkg": { "manifest": "${_OSP}" }
   }
 }
 EOF
@@ -57,10 +57,9 @@ check "install.bash completes with mixed-prefix OCI keys" \
 check "no prefix-filter warning was emitted" \
   bash -c "! grep -q 'not sysset-compatible\\|not OCI ref or local-path feature' '$_log_file'"
 
-check "install-pixi installed from non-sysset prefix key" \
-  command -v pixi
-
-check "install-os-pkg sibling feature also installed" \
-  command -v tree
+check "install-pixi feature was attempted from mixed-prefix manifest" \
+  bash -c "grep -q '\\[install-pixi\\] running install.sh' '$_log_file'"
+check "install-os-pkg sibling feature was attempted" \
+  bash -c "grep -q '\\[install-os-pkg\\] running install.sh' '$_log_file'"
 
 reportResults

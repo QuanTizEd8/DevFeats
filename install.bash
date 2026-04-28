@@ -11,8 +11,8 @@
 #
 # Version resolution modes:
 #   Rolling (default):       each feature resolves from OCI tags independently.
-#   Explicit per-feature:    `feature:version` (CLI) or features[].version in
-#                            devcontainer manifest.
+#   Explicit per-feature:    `feature:version` (CLI) or OCI key `:tag`/`@sha256`
+#                            in devcontainer manifests.
 #
 # Usage:
 #   install.bash <feature>[:<feature-version>] [feature-opts...]

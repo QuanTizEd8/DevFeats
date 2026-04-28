@@ -3,9 +3,8 @@
 # feature fails, after attempting features from the devcontainer.
 #
 # Strategy: devcontainer includes a non-existent OCI feature alongside a
-# valid one. The valid feature (install-pixi) is listed in the bundle manifest;
-# the bogus "does-not-exist" feature is missing from the bundle manifest and
-# must fail without blocking install-pixi.
+# valid one. The bogus "does-not-exist" ref must fail without blocking
+# install-pixi.
 #
 # Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
@@ -29,13 +28,13 @@ offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "install-pixi:${_
 
 _PORT=18542
 _manifest_dir="$(mktemp -d)"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir"' EXIT
+_log_file="$(mktemp)"
+trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_log_file"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
-export SYSSET_VERSION="${_BUNDLE}"
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
@@ -50,7 +49,10 @@ EOF
 
 # install.bash should exit non-zero overall.
 fail_check "install.bash exits non-zero when a feature fails" \
-  bash "${REPO_ROOT}/install.bash" "$_manifest"
+  bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
+
+check "unknown feature failure is visible in logs" \
+  bash -c "grep -q 'does-not-exist\\|failed to pull' '$_log_file'"
 
 check "install-pixi still installed despite partial failure" \
   command -v pixi

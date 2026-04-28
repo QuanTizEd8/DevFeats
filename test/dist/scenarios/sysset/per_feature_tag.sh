@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # sysset/per_feature_tag.sh — Verify that ":tag" in the OCI features key
-# pins that feature to a specific version, overriding bundle resolution.
+# pins that feature to a specific version.
 #
 # What this tests:
 #   • features["ghcr.io/.../install-pixi:<tag>"] resolves directly to
 #     install-pixi/<tag>/sysset-install-pixi.tar.gz on the mirror.
-#   • Co-installed features without a :tag keep using the bundle mapping.
+#   • Co-installed features without a :tag resolve independently.
 #
 # Requires: root (install.bash manifest mode calls os__require_root).
 set -euo pipefail
@@ -36,13 +36,15 @@ offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" \
 
 _PORT=18545
 _manifest_dir="$(mktemp -d)"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir"' EXIT
+_log_file="$(mktemp)"
+trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_log_file"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
 export SYSSET_BASE_URL
-export SYSSET_VERSION="${_BUNDLE}"
+# Fake ORAS tags are static by default; declare the scenario-specific pin.
+export SYSSET_TEST_FAKE_ORAS_EXTRA_TAGS="${_PIXI_PIN}"
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
@@ -55,12 +57,11 @@ cat > "$_manifest" << EOF
 }
 EOF
 
-# The bundle manifest deliberately uses a different install-pixi version at the
-# bundle path; if install.bash honors the per-feature :tag, the install will
-# fetch install-pixi/${_PIXI_PIN}/... and succeed. Otherwise the mirror has
-# no tarball at install-pixi/${_BUNDLE_VER}/ so the install would fail.
-check "install.bash honors per-feature OCI :tag over bundle mapping" \
-  bash "${REPO_ROOT}/install.bash" "$_manifest"
+check "install.bash honors per-feature OCI :tag on key" \
+  bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
+
+check "no missing-tag resolver error was emitted" \
+  bash -c "! grep -q \"no tag found for spec '${_PIXI_PIN}'\" '$_log_file'"
 
 check "pixi installed via per-feature pinned tag" \
   command -v pixi
