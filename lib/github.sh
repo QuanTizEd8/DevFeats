@@ -709,8 +709,8 @@ _github__api_list_field() {
   _json="$(_github__api_get "$_url")" || return 1
   [ -z "$_json" ] && return 1
 
-  if printf '%s\n' "$_json" | json__query -e 'type == "object" and (.message | type == "string")' >/dev/null 2>&1; then
-    _msg="$(printf '%s\n' "$_json" | json__query -r '.message // empty' 2>/dev/null)" || _msg=""
+  if printf '%s\n' "$_json" | json__query -e 'type == "object" and (.message | type == "string")' > /dev/null 2>&1; then
+    _msg="$(printf '%s\n' "$_json" | json__query -r '.message // empty' 2> /dev/null)" || _msg=""
     logging__error "_github__api_list_field: GitHub API error for '${_url}': ${_msg}"
     return 1
   fi
@@ -721,7 +721,7 @@ _github__api_list_field() {
     return 0
   fi
 
-  if printf '%s\n' "$_json" | json__query -e 'type == "array" and length == 0' >/dev/null 2>&1; then
+  if printf '%s\n' "$_json" | json__query -e 'type == "array" and length == 0' > /dev/null 2>&1; then
     logging__error "_github__api_list_field: GitHub API returned an empty JSON array for '${_url}'."
     return 1
   fi

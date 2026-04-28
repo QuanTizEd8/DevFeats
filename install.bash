@@ -433,8 +433,7 @@ _sysset_manifest_registry_append_unlocked() {
         }
       )
     | .features[$fv] = $vs
-    ' "$_mf" > "$_tmp"
-  then
+    ' "$_mf" > "$_tmp"; then
     rm -rf "$_dest"
     rm -f "$_tmp"
     return 1
