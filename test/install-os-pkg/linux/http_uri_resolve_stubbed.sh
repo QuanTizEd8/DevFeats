@@ -6,13 +6,14 @@ REPO_ROOT="${1:?REPO_ROOT required}"
 # shellcheck source=test/lib/assert.sh
 source "${REPO_ROOT}/test/lib/assert.sh"
 
-net__fetch_url_file() {
-  printf '%s\n' 'packages:' '  - tree' > "$2"
-}
-export -f net__fetch_url_file
-
 # shellcheck disable=SC1091
 source "${REPO_ROOT}/lib/uri.sh"
+
+# Stub the uri-layer fetch seam (after sourcing uri.sh) so net.sh loading cannot overwrite it.
+_uri__net_fetch() {
+  printf '%s\n' 'packages:' '  - tree' > "$2"
+}
+export -f _uri__net_fetch
 
 _dest="$(mktemp "${TMPDIR:-/tmp}/ospkg-uri.XXXXXX")"
 uri__resolve "https://stub.internal/manifest.yaml" "$_dest"
