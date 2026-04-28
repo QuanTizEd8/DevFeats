@@ -5,6 +5,72 @@
 _OCI__LIB_LOADED=1
 
 _OCI__ORAS_MIN_VERSION="${_OCI__ORAS_MIN_VERSION:-1.2.0}"
+_OCI__AUTH_LOADED=0
+declare -A _OCI__AUTH_USER=()
+declare -A _OCI__AUTH_TOKEN=()
+declare -A _OCI__AUTH_DONE=()
+
+_oci__is_registry_host_like() {
+  local _host="${1-}"
+  [[ -n "$_host" ]] || return 1
+  [[ "$_host" == "localhost" || "$_host" =~ ^localhost:[0-9]+$ ]] && return 0
+  [[ "$_host" == *.* ]] && return 0
+  [[ "$_host" =~ ^\[[0-9A-Fa-f:.]+\](:[0-9]+)?$ ]] && return 0
+  return 1
+}
+
+_oci__registry_from_ref_or_repo() {
+  local _v="${1-}"
+  [[ "$_v" == */* ]] || return 1
+  printf '%s\n' "${_v%%/*}"
+}
+
+_oci__load_auth_map() {
+  [[ "$_OCI__AUTH_LOADED" -eq 1 ]] && return 0
+  _OCI__AUTH_LOADED=1
+  local _src="${SYSSET_OCI_AUTH-}" _entry _reg _usr _tok
+  if [[ -z "$_src" && -n "${SYSSET_OCI_AUTH_FILE-}" && -f "${SYSSET_OCI_AUTH_FILE}" ]]; then
+    _src="$(tr -d '\n' < "${SYSSET_OCI_AUTH_FILE}" 2> /dev/null || true)"
+  fi
+  [[ -n "$_src" ]] || return 0
+  for _entry in ${_src//,/ }; do
+    _reg="${_entry%%|*}"
+    [[ "$_entry" == *"|"* ]] || continue
+    _usr="${_entry#*|}"
+    [[ "$_usr" == *"|"* ]] || continue
+    _tok="${_usr#*|}"
+    _usr="${_usr%%|*}"
+    [[ -n "$_reg" && -n "$_usr" && -n "$_tok" ]] || continue
+    _OCI__AUTH_USER["$_reg"]="$_usr"
+    _OCI__AUTH_TOKEN["$_reg"]="$_tok"
+  done
+  return 0
+}
+
+_oci__ensure_auth_for() {
+  local _target="${1-}" _reg _usr _tok _tmp
+  _reg="$(_oci__registry_from_ref_or_repo "$_target" 2> /dev/null || true)"
+  [[ -n "$_reg" ]] || return 0
+  [[ -n "${_OCI__AUTH_DONE[$_reg]+x}" ]] && return 0
+  _oci__load_auth_map
+  _usr="${_OCI__AUTH_USER[$_reg]-}"
+  _tok="${_OCI__AUTH_TOKEN[$_reg]-}"
+  if [[ -z "$_usr" || -z "$_tok" ]]; then
+    _OCI__AUTH_DONE["$_reg"]=1
+    return 0
+  fi
+  _tmp="$(mktemp)"
+  printf '%s' "$_tok" > "$_tmp"
+  if oras login "$_reg" -u "$_usr" --password-stdin < "$_tmp" > /dev/null 2>&1; then
+    _OCI__AUTH_DONE["$_reg"]=1
+  else
+    rm -f "$_tmp"
+    logging__error "oci.sh: failed to authenticate to '${_reg}'."
+    return 1
+  fi
+  rm -f "$_tmp"
+  return 0
+}
 
 # @brief oci__ghcr_image_ref <namespace/path> <image-name> <tag> — Print ghcr.io/<namespace>/<image>:<tag>
 #
@@ -56,9 +122,7 @@ oci__is_feature_ref_key() {
   _host="${_k%%/*}"
   _rest="${_k#*/}"
   [[ -n "$_host" && -n "$_rest" ]] || return 1
-  if [[ "$_host" != "localhost" && "$_host" != *.* ]]; then
-    return 1
-  fi
+  _oci__is_registry_host_like "$_host" || return 1
   [[ "$_k" == *@sha256:* || "$_k" == *:* ]] || return 1
   return 0
 }
@@ -90,6 +154,7 @@ oci__list_tags() {
   local _repo="${1-}"
   [[ -n "$_repo" ]] || return 1
   oci__ensure_oras || return 1
+  _oci__ensure_auth_for "$_repo" || return 1
   local _raw
   if ! _raw="$(oras repo tags "$_repo" 2> /dev/null)"; then
     logging__error "oci.sh: failed to list tags for ${_repo}."
@@ -188,6 +253,26 @@ _oci__validate_feature_tgz() {
   printf '%s\n' "$_list" | grep -Eq '(^|/)\.?/?devcontainer-feature\.json$' || return 1
 }
 
+_oci__expected_layer_digest_for_ref() {
+  local _ref="${1-}" _manifest _dig
+  _json__ensure_jq || return 1
+  _manifest="$(oras manifest fetch "$_ref" 2> /dev/null || true)"
+  [[ -n "$_manifest" ]] || return 1
+  _dig="$(printf '%s' "$_manifest" |
+    json__query -r '
+      [
+        .layers[]?
+        | select(.mediaType == "application/vnd.devcontainers.layer.v1+tar"
+            or .mediaType == "application/vnd.devcontainers.layer.v1+tgz"
+            or .mediaType == "application/vnd.oci.image.layer.v1.tar+gzip"
+            or .mediaType == "application/vnd.oci.image.layer.v1.tar")
+        | .digest
+      ][0] // empty
+    ' 2> /dev/null)" || _dig=""
+  [[ -n "$_dig" && "$_dig" != "null" ]] || return 1
+  printf '%s\n' "$_dig"
+}
+
 # @brief oci__pull_feature_tgz <oci-ref> <dest-tgz> — Pull OCI feature artifact as tgz.
 oci__pull_feature_tgz() {
   local _ref="${1-}" _dest="${2-}"
@@ -196,8 +281,11 @@ oci__pull_feature_tgz() {
     return 1
   }
   oci__ensure_oras || return 1
+  _oci__ensure_auth_for "$_ref" || return 1
   local _tmp
   _tmp="$(mktemp -d)"
+  local _expect_digest=""
+  _expect_digest="$(_oci__expected_layer_digest_for_ref "$_ref" 2> /dev/null || true)"
   if ! oras pull "$_ref" -o "$_tmp" > /dev/null 2>&1; then
     rm -rf "$_tmp"
     logging__error "oci.sh: failed to pull '${_ref}'."
@@ -214,6 +302,15 @@ oci__pull_feature_tgz() {
     rm -rf "$_tmp"
     logging__error "oci.sh: invalid feature artifact shape for '${_ref}'."
     return 1
+  fi
+  if [[ -n "$_expect_digest" && "$_expect_digest" == sha256:* ]]; then
+    local _got
+    _got="sha256:$(checksum__sha256_file "$_tgz" 2> /dev/null || true)"
+    if [[ "$_got" != "$_expect_digest" ]]; then
+      rm -rf "$_tmp"
+      logging__error "oci.sh: pulled layer digest mismatch for '${_ref}'."
+      return 1
+    fi
   fi
   cp "$_tgz" "$_dest" || {
     rm -rf "$_tmp"

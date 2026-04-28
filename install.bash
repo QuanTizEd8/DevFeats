@@ -33,6 +33,8 @@
 #   --local-registry <path>  Registry root (manifest.json + features/). Default: directory of this install.bash, or SYSSET_LOCAL_REGISTRY.
 #   --download-only   Fetch into the local registry and update manifest.json; do not run installers (see plan).
 #   --report-file <path>  With --download-only: JSON summary of partial failures.
+#   --lockfile <path>  Write resolved immutable feature refs after manifest installs.
+#   --frozen-lockfile <path>  Require lockfile entries and install exactly those refs.
 #
 # Environment overrides:
 #   SYSSET_RAW_BASE   Raw GitHub base URL       (default: main branch)
@@ -166,6 +168,8 @@ _FEATURE_SKIP_LIFECYCLE=false
 _DOWNLOAD_ONLY=false
 _REPORT_FILE=""
 _SYSSET_REGISTRY_ROOT=""
+_LOCKFILE_PATH=""
+_FROZEN_LOCKFILE_PATH=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -264,6 +268,24 @@ while [[ $# -gt 0 ]]; do
       _REPORT_FILE="$1"
       shift
       ;;
+    --lockfile)
+      shift
+      [[ $# -eq 0 ]] && {
+        logging__error "--lockfile needs a path."
+        exit 1
+      }
+      _LOCKFILE_PATH="$1"
+      shift
+      ;;
+    --frozen-lockfile)
+      shift
+      [[ $# -eq 0 ]] && {
+        logging__error "--frozen-lockfile needs a path."
+        exit 1
+      }
+      _FROZEN_LOCKFILE_PATH="$1"
+      shift
+      ;;
     --*)
       logging__error "Unknown option: '${1}'"
       exit 1
@@ -296,6 +318,10 @@ fi
 if [[ -z "$_mode_arg" ]]; then
   logging__error "No feature or manifest specified."
   __usage__ 1
+fi
+if [[ -n "$_LOCKFILE_PATH" && -n "$_FROZEN_LOCKFILE_PATH" && "$_LOCKFILE_PATH" != "$_FROZEN_LOCKFILE_PATH" ]]; then
+  logging__error "--lockfile and --frozen-lockfile must reference the same path when both are set."
+  exit 1
 fi
 
 # ── Mode detection ────────────────────────────────────────────────────────────
@@ -482,6 +508,15 @@ _fetch_and_verify_tarball() {
 }
 
 # ── Resolve (feature, spec, key) → oci-ref ──────────────────────────────────
+_sysset_is_registry_host_like() {
+  local _host="${1-}"
+  [[ -n "$_host" ]] || return 1
+  [[ "$_host" == "localhost" || "$_host" =~ ^localhost:[0-9]+$ ]] && return 0
+  [[ "$_host" == *.* ]] && return 0
+  [[ "$_host" =~ ^\[[0-9A-Fa-f:.]+\](:[0-9]+)?$ ]] && return 0
+  return 1
+}
+
 _resolve_install_tag() {
   local _feature="$1" _spec="${2:-}" _key="${3:-}" _repo="" _tag="" _raw=""
   if [[ -n "$_key" && "$_key" != "$_feature" ]]; then
@@ -490,7 +525,7 @@ _resolve_install_tag() {
     _raw="$_feature"
   fi
 
-  if [[ "$_raw" == */* && ( "${_raw%%/*}" == *.* || "${_raw%%/*}" == localhost ) ]]; then
+  if [[ "$_raw" == */* ]] && _sysset_is_registry_host_like "${_raw%%/*}"; then
     _repo="$(_oci__repo_from_ref "$_raw")"
     if [[ "$_raw" == *@sha256:* ]]; then
       printf '%s\n' "${_raw,,}"
@@ -512,6 +547,39 @@ _resolve_install_tag() {
   _repo="$(_sysset_repo_ref_for_feature "$_feature")"
   _tag="$(oci__resolve_version "$_repo" "$_spec")" || return 1
   printf '%s:%s\n' "${_repo,,}" "$_tag"
+}
+
+_sysset_lockfile_lookup_ref() {
+  local _lf="${1-}" _key="${2-}"
+  [[ -f "$_lf" ]] || return 1
+  json__query -r --arg k "$_key" '.features[$k].resolved // empty' "$_lf" 2> /dev/null
+}
+
+_sysset_lockfile_write() {
+  local _path="${1-}"
+  [[ -n "$_path" ]] || return 0
+  local _tmp
+  _tmp="${_path}.tmp.$$"
+  : > "$_tmp"
+  {
+    printf '{\n  "schemaVersion": "1",\n  "features": {\n'
+    local _first=1 _k
+    for _k in "${!_LOCK_RESOLVED[@]}"; do
+      local _resolved="${_LOCK_RESOLVED[$_k]}"
+      local _json_line
+      _json_line="$(json__query -n --arg k "$_k" --arg r "$_resolved" '{"k":$k,"r":$r}')" || return 1
+      local _kk _rr
+      _kk="$(printf '%s' "$_json_line" | json__query -r '.k')" || return 1
+      _rr="$(printf '%s' "$_json_line" | json__query -r '.r')" || return 1
+      if [[ $_first -eq 0 ]]; then
+        printf ',\n'
+      fi
+      _first=0
+      printf '    "%s": { "resolved": "%s" }' "$_kk" "$_rr"
+    done
+    printf '\n  }\n}\n'
+  } > "$_tmp"
+  mv "$_tmp" "$_path"
 }
 
 # _sysset_options_to_env — apply options JSON (stdin) as exported env vars in current shell.
@@ -611,7 +679,7 @@ if [[ "$_mode" == "feature" ]]; then
       _feat_version_spec=""
       ;;
     */*)
-      if [[ "${_mode_arg%%/*}" == *.* || "${_mode_arg%%/*}" == localhost ]]; then
+      if _sysset_is_registry_host_like "${_mode_arg%%/*}"; then
         _feature="$_mode_arg"
         _feat_version_spec=""
       elif [[ "$_mode_arg" == *:* ]]; then
@@ -696,6 +764,12 @@ _DCJ="$(mktemp)"
 # shellcheck disable=SC2064
 trap 'rm -f "$_DCJ"; rm -rf "$_lib_tmpdir"; logging__cleanup' EXIT
 devcontainer__parse_config "$_mode_arg" > "$_DCJ" || exit 1
+declare -A _LOCK_RESOLVED=()
+_ACTIVE_LOCKFILE="${_FROZEN_LOCKFILE_PATH:-${_LOCKFILE_PATH:-}}"
+if [[ -n "$_FROZEN_LOCKFILE_PATH" && ! -f "$_FROZEN_LOCKFILE_PATH" ]]; then
+  logging__error "--frozen-lockfile requires existing file: ${_FROZEN_LOCKFILE_PATH}"
+  exit 1
+fi
 
 _WORK_ROOT="$(devcontainer__workspace_folder "$_mode_arg")"
 [[ -n "$_WORKSPACE_CUSTOM" ]] && _WORK_ROOT="$_WORKSPACE_CUSTOM"
@@ -721,7 +795,13 @@ if [[ "$_DOWNLOAD_ONLY" == true ]]; then
     _D_QUEUE=("${_D_QUEUE[@]:1}")
     [[ -n "${_D_SEEN[$_cur]:-}" ]] && continue
     _D_SEEN["$_cur"]=1
-    if ! _rt="$(_resolve_install_tag "$_cur" "${_D_T[$_cur]}" "${_D_K[$_cur]}")" || [[ -z "$_rt" ]]; then
+    if [[ -n "$_FROZEN_LOCKFILE_PATH" ]]; then
+      _rt="$(_sysset_lockfile_lookup_ref "$_FROZEN_LOCKFILE_PATH" "${_D_K[$_cur]}" || true)"
+      [[ -n "$_rt" ]] || {
+        _D_FAIL+=("$_cur")
+        continue
+      }
+    elif ! _rt="$(_resolve_install_tag "$_cur" "${_D_T[$_cur]}" "${_D_K[$_cur]}")" || [[ -z "$_rt" ]]; then
       _D_FAIL+=("$_cur")
       continue
     fi
@@ -733,6 +813,7 @@ if [[ "$_DOWNLOAD_ONLY" == true ]]; then
     fi
     tar -xzf "${_wdir}/a.tgz" -C "$_wdir"
     _D_OK+=("$_cur")
+    _LOCK_RESOLVED["${_D_K[$_cur]}"]="${_rt,,}"
     if [[ -f "${_wdir}/devcontainer-feature.json" ]]; then
       while IFS= read -r _dep; do
         [[ -z "$_dep" || "$_dep" == "null" ]] && continue
@@ -746,7 +827,7 @@ if [[ "$_DOWNLOAD_ONLY" == true ]]; then
         _D_K["$_did"]="$_dep"
         _D_T["$_did"]=""
         _D_QUEUE+=("$_did")
-      done < <(json__query -r '.dependsOn[]? // empty' "${_wdir}/devcontainer-feature.json" 2> /dev/null)
+      done < <(json__query -r '(.dependsOn // {}) | keys[]' "${_wdir}/devcontainer-feature.json" 2> /dev/null)
     fi
     rm -rf "$_wdir"
   done
@@ -755,6 +836,12 @@ if [[ "$_DOWNLOAD_ONLY" == true ]]; then
       --argjson ok "$(json__query -n '$ARGS.positional' --args -- ${_D_OK[@]+"${_D_OK[@]}"})" \
       --argjson fail "$(json__query -n '$ARGS.positional' --args -- ${_D_FAIL[@]+"${_D_FAIL[@]}"})" \
       '{ok:$ok, failures:$fail}' > "$_REPORT_FILE" 2> /dev/null || true
+  fi
+  if [[ -n "$_ACTIVE_LOCKFILE" ]]; then
+    _sysset_lockfile_write "$_ACTIVE_LOCKFILE" || {
+      logging__error "failed to write lockfile: ${_ACTIVE_LOCKFILE}"
+      exit 1
+    }
   fi
   ((${#_D_FAIL[@]} > 0)) && exit 1
   logging__fn_exit "sysset installer"
@@ -794,7 +881,13 @@ _failed=()
 _OK_IDS=()
 for _id in "${_IDS[@]}"; do
   mkdir -p "${_STAGED}/${_id}"
-  if ! _rt="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}" "${_KEY_OF[$_id]}")" || [[ -z "$_rt" ]]; then
+  if [[ -n "$_FROZEN_LOCKFILE_PATH" ]]; then
+    _rt="$(_sysset_lockfile_lookup_ref "$_FROZEN_LOCKFILE_PATH" "${_KEY_OF[$_id]}" || true)"
+    [[ -n "$_rt" ]] || {
+      _failed+=("$_id")
+      continue
+    }
+  elif ! _rt="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}" "${_KEY_OF[$_id]}")" || [[ -z "$_rt" ]]; then
     _failed+=("$_id")
     continue
   fi
@@ -811,6 +904,7 @@ for _id in "${_IDS[@]}"; do
     _failed+=("$_id")
     continue
   fi
+  _LOCK_RESOLVED["${_KEY_OF[$_id]}"]="${_rt,,}"
   _OK_IDS+=("$_id")
 done
 ((${#_OK_IDS[@]})) || {
@@ -873,17 +967,11 @@ _CU_HOME="$(devcontainer__user_home "$_EFF_CUSER" 2> /dev/null || true)"
 
 _passed=()
 for _id in "${_ORDER[@]}"; do
-  _r2="$(_resolve_install_tag "$_id" "${_TAG_OF[$_id]}" "${_KEY_OF[$_id]}")" || {
+  if [[ ! -f "${_STAGED}/${_id}/a.tgz" || ! -f "${_STAGED}/${_id}/install.sh" ]]; then
+    logging__error "[${_id}] staged payload missing; skipping."
     _failed+=("$_id")
-    continue
-  }
-  _wdir="$(mktemp -d)"
-  if ! _fetch_and_verify_tarball "$_id" "$_r2" "${_wdir}/a.tgz"; then
-    _failed+=("$_id")
-    rm -rf "$_wdir"
     continue
   fi
-  tar -xzf "${_wdir}/a.tgz" -C "$_wdir"
   (
     if ! _sysset_options_to_env <<< "${_OPT_OF[$_id]-}"; then
       exit 1
@@ -893,11 +981,10 @@ for _id in "${_ORDER[@]}"; do
     export _REMOTE_USER_HOME="${_RU_HOME}"
     export _CONTAINER_USER_HOME="${_CU_HOME}"
     export _SYSSET_BUILD_CONTEXT="feature::${_id}"
-    cd "$_wdir" || exit 1
+    cd "${_STAGED}/${_id}" || exit 1
     logging__info "[${_id}] running install.sh"
     sh install.sh
   ) && _passed+=("$_id") || _failed+=("$_id")
-  rm -rf "$_wdir"
 done
 
 _LCW="${_LIFE_CMD_DIR:-$_WORK_ROOT}"
@@ -928,5 +1015,11 @@ done
   logging__error "failed: ${_failed[*]}"
   exit 1
 }
+if [[ -n "$_ACTIVE_LOCKFILE" ]]; then
+  _sysset_lockfile_write "$_ACTIVE_LOCKFILE" || {
+    logging__error "failed to write lockfile: ${_ACTIVE_LOCKFILE}"
+    exit 1
+  }
+fi
 logging__fn_exit "sysset installer"
 exit 0

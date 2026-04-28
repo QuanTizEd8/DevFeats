@@ -16,6 +16,15 @@ _DEVCONTAINER__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC2034
 _DEVCONTAINER_LIFECYCLE_PHASES=(onCreateCommand updateContentCommand postCreateCommand postStartCommand postAttachCommand)
 
+devcontainer__is_registry_host_like() {
+  local _host="${1-}"
+  [[ -n "$_host" ]] || return 1
+  [[ "$_host" == "localhost" || "$_host" =~ ^localhost:[0-9]+$ ]] && return 0
+  [[ "$_host" == *.* ]] && return 0
+  [[ "$_host" =~ ^\[[0-9A-Fa-f:.]+\](:[0-9]+)?$ ]] && return 0
+  return 1
+}
+
 # @brief devcontainer__parse_config <file> — print normalized JSON to stdout; return 1 on error.
 devcontainer__parse_config() {
   local _f="${1-}"
@@ -87,9 +96,7 @@ devcontainer__is_compatible_key() {
   fi
   if [[ "$_k" == */* && ( "$_k" == *@sha256:* || "$_k" == *:* ) ]]; then
     _host="${_k%%/*}"
-    if [[ "$_host" == "localhost" || "$_host" == *.* ]]; then
-      return 0
-    fi
+    devcontainer__is_registry_host_like "$_host" && return 0
   fi
   return 1
 }
@@ -168,9 +175,7 @@ devcontainer__iter_features() {
     if ((_hit == 0)); then
       if [[ "$_k" == */* && ( "$_k" == *@sha256:* || "$_k" == *:* ) ]]; then
         _host="${_k%%/*}"
-        if [[ "$_host" == "localhost" || "$_host" == *.* ]]; then
-          _hit=1
-        fi
+        devcontainer__is_registry_host_like "$_host" && _hit=1
       fi
     fi
     ((_hit == 0)) && {
@@ -260,7 +265,17 @@ devcontainer__build_ordering_inputs() {
   : > "$_hf"
   : > "$_sf"
   : > "$_pf"
-  local _id _dep _short _hit
+  local _id _dep _short _hit _legacy
+  local -A _alias_to_id=()
+  for _id in "${_ids[@]+"${_ids[@]}"}"; do
+    local _df0="${_root}/${_id}/devcontainer-feature.json"
+    [[ -f "$_df0" ]] || continue
+    _alias_to_id["$_id"]="$_id"
+    while IFS= read -r _legacy; do
+      [[ -z "$_legacy" ]] && continue
+      _alias_to_id["$_legacy"]="$_id"
+    done < <(json__query -r '(.legacyIds // [])[]' "$_df0" 2> /dev/null || true)
+  done
   for _id in "${_ids[@]+"${_ids[@]}"}"; do
     local _df="${_root}/${_id}/devcontainer-feature.json"
     [[ -f "$_df" ]] || continue
@@ -268,20 +283,21 @@ devcontainer__build_ordering_inputs() {
       [[ -z "$_dep" ]] && continue
       _short="${_dep##*/}"
       _short="${_short%%:*}"
+      _short="${_short%%@*}"
       _hit=0
-      for _c in "${_ids[@]}"; do
-        [[ "$_c" == "$_short" ]] && {
-          _hit=1
-          break
-        }
-      done
-      ((_hit)) && printf '%s\t%s\n' "$_short" "$_id" >> "$_hf"
+      if [[ -n "${_alias_to_id[$_short]+x}" ]]; then
+        printf '%s\t%s\n' "${_alias_to_id[$_short]}" "$_id" >> "$_hf"
+        _hit=1
+      fi
     done < <(json__query -r '(.dependsOn // {}) | keys[]' "$_df" 2> /dev/null || true)
     while IFS= read -r _dep; do
       [[ -z "$_dep" ]] && continue
       _short="${_dep##*/}"
       _short="${_short%%:*}"
-      printf '%s\t%s\n' "$_short" "$_id" >> "$_sf"
+      _short="${_short%%@*}"
+      if [[ -n "${_alias_to_id[$_short]+x}" ]]; then
+        printf '%s\t%s\n' "${_alias_to_id[$_short]}" "$_id" >> "$_sf"
+      fi
     done < <(json__query -r '(.installsAfter // [])[]' "$_df" 2> /dev/null || true)
   done
   local _oi=0 _entry _eshort
@@ -289,9 +305,10 @@ devcontainer__build_ordering_inputs() {
     [[ -z "$_entry" ]] && continue
     _eshort="${_entry##*/}"
     _eshort="${_eshort%%:*}"
-    for _id in "${_ids[@]}"; do
-      [[ "$_id" == "$_eshort" ]] && printf '%s\t%d\n' "$_id" "$((1000000 - _oi))" >> "$_pf"
-    done
+    _eshort="${_eshort%%@*}"
+    if [[ -n "${_alias_to_id[$_eshort]+x}" ]]; then
+      printf '%s\t%d\n' "${_alias_to_id[$_eshort]}" "$((1000000 - _oi))" >> "$_pf"
+    fi
     _oi=$((_oi + 1))
   done < <(json__query -r '(.overrideFeatureInstallOrder // [])[]' "$_cfg" 2> /dev/null || true)
   return 0

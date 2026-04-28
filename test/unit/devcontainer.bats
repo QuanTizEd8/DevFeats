@@ -194,6 +194,9 @@ EOF
   run devcontainer__is_compatible_key "mcr.microsoft.com/devcontainers/features/common-utils:2" "ghcr.io/quantized8/sysset/"
   assert_success
 
+  run devcontainer__is_compatible_key "localhost:5000/devcontainers/features/common-utils:2" "ghcr.io/quantized8/sysset/"
+  assert_success
+
   run devcontainer__is_compatible_key "ghcr.io/devcontainers/features/git@sha256:abc123" "ghcr.io/quantized8/sysset/"
   assert_success
 }
@@ -280,6 +283,39 @@ EOF
   run cat "$_p"
   assert_output --partial "a"
   assert_output --partial "b"
+  rm -rf "$_root" "$_cfg" "$_h" "$_s" "$_p"
+}
+
+@test "devcontainer__build_ordering_inputs maps legacyIds in deps and priority" {
+  _root="$(mktemp -d "${BATS_TEST_TMPDIR}/bo2.XXXXXX")"
+  mkdir -p "${_root}/newname" "${_root}/b"
+  cat > "${_root}/newname/devcontainer-feature.json" << 'EOF'
+{"id":"newname","legacyIds":["oldname"]}
+EOF
+  cat > "${_root}/b/devcontainer-feature.json" << 'EOF'
+{"id":"b","dependsOn":{"ghcr.io/x/oldname:1":{}},"installsAfter":["ghcr.io/x/oldname"]}
+EOF
+  _cfg="$(mktemp "${BATS_TEST_TMPDIR}/bo2-cfg.XXXXXX")"
+  cat > "$_cfg" << 'EOF'
+{"overrideFeatureInstallOrder":["ghcr.io/x/oldname"]}
+EOF
+  _h="$(mktemp "${BATS_TEST_TMPDIR}/bo2-h.XXXXXX")"
+  _s="$(mktemp "${BATS_TEST_TMPDIR}/bo2-s.XXXXXX")"
+  _p="$(mktemp "${BATS_TEST_TMPDIR}/bo2-p.XXXXXX")"
+  run devcontainer__build_ordering_inputs \
+    --hard-edges-file "$_h" \
+    --soft-edges-file "$_s" \
+    --priority-file "$_p" \
+    --staged-root "$_root" \
+    --config-file "$_cfg" \
+    -- newname b
+  assert_success
+  run cat "$_h"
+  assert_output --partial $'newname\tb'
+  run cat "$_s"
+  assert_output --partial $'newname\tb'
+  run cat "$_p"
+  assert_output --partial "newname"
   rm -rf "$_root" "$_cfg" "$_h" "$_s" "$_p"
 }
 
