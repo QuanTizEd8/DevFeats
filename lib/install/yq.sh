@@ -112,13 +112,34 @@ install__yq() {
   local _context="internal" _method="auto" _owner_group="sysset-ospkg-internals" _if_exists="skip" _prefix="auto" _repos_manifest=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --context) shift; _context="${1-}" ;;
-      --method) shift; _method="${1-}" ;;
-      --owner-group) shift; _owner_group="${1-}" ;;
-      --if-exists) shift; _if_exists="${1-}" ;;
-      --prefix) shift; _prefix="${1-}" ;;
-      --repos-manifest) shift; _repos_manifest="${1-}" ;;
-      *) logging__error "install__yq: unknown option '$1'"; return 1 ;;
+      --context)
+        shift
+        _context="${1-}"
+        ;;
+      --method)
+        shift
+        _method="${1-}"
+        ;;
+      --owner-group)
+        shift
+        _owner_group="${1-}"
+        ;;
+      --if-exists)
+        shift
+        _if_exists="${1-}"
+        ;;
+      --prefix)
+        shift
+        _prefix="${1-}"
+        ;;
+      --repos-manifest)
+        shift
+        _repos_manifest="${1-}"
+        ;;
+      *)
+        logging__error "install__yq: unknown option '$1'"
+        return 1
+        ;;
     esac
     shift
   done

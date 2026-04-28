@@ -204,16 +204,46 @@ install__oras() {
   local _if_exists="skip" _download_url="" _repos_manifest="" _owner_group="lib-oci-oras"
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --context) shift; _context="${1-}" ;;
-      --version) shift; _version="${1-}" ;;
-      --min-version) shift; _min_version="${1-}" ;;
-      --method) shift; _method="${1-}" ;;
-      --prefix) shift; _prefix="${1-}" ;;
-      --if-exists) shift; _if_exists="${1-}" ;;
-      --download-url) shift; _download_url="${1-}" ;;
-      --repos-manifest) shift; _repos_manifest="${1-}" ;;
-      --owner-group) shift; _owner_group="${1-}" ;;
-      *) logging__error "install__oras: unknown option '$1'"; return 1 ;;
+      --context)
+        shift
+        _context="${1-}"
+        ;;
+      --version)
+        shift
+        _version="${1-}"
+        ;;
+      --min-version)
+        shift
+        _min_version="${1-}"
+        ;;
+      --method)
+        shift
+        _method="${1-}"
+        ;;
+      --prefix)
+        shift
+        _prefix="${1-}"
+        ;;
+      --if-exists)
+        shift
+        _if_exists="${1-}"
+        ;;
+      --download-url)
+        shift
+        _download_url="${1-}"
+        ;;
+      --repos-manifest)
+        shift
+        _repos_manifest="${1-}"
+        ;;
+      --owner-group)
+        shift
+        _owner_group="${1-}"
+        ;;
+      *)
+        logging__error "install__oras: unknown option '$1'"
+        return 1
+        ;;
     esac
     shift
   done
