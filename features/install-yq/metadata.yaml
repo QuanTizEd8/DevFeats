@@ -1,6 +1,6 @@
 version: 0.1.0
 name: yq Installation
-description: Install [yq](https://github.com/mikefarah/yq) - a portable YAML processor.
+description: Install [mikefarah/yq](https://github.com/mikefarah/yq) (Go-based yq v4 CLI).
 keywords:
   - yq
   - yaml
@@ -8,9 +8,15 @@ keywords:
   - cli
   - tooling
 _long_description: |-
-  Installs the `yq` command-line tool for querying, transforming, and validating YAML documents.
-  This feature supports installation from OS package repositories or from upstream release binaries,
-  with `auto` mode trying repository installation first and falling back to release artifacts.
+  Installs Mike Farah's `yq` (the Go-based yq v4 CLI) for querying, transforming, and validating
+  YAML documents. This feature targets the `mikefarah/yq` implementation specifically (supports flags
+  like `-o=json`) and does not install distro packages that provide the Python jq-wrapper variant.
+
+  Installation supports OS package repositories where the mikefarah package is available, or upstream
+  release binaries,
+  with `auto` mode preferring upstream release binaries for compatibility and falling back to
+  repository installation only when compatible packages are declared. On Debian/Ubuntu apt, `method=repos`
+  is intentionally unsupported because distro `yq` is the Python jq-wrapper implementation.
 
   Use `method=repos` when you want distro-managed packages, or `method=release` when you need a
   portable upstream binary path. The install is idempotent by default and can be configured with
@@ -22,9 +28,10 @@ options:
     description: Installation method to use.
     enum:
       - value: auto
-        description: Try package manager install first, then fallback to upstream release binary.
+        description: Prefer verified upstream release binary, then fallback to package manager.
       - value: repos
-        description: Install from the operating system package manager.
+        description: |-
+          Install from the operating system package manager when it provides Mike Farah's yq.
       - value: release
         description: Install from upstream GitHub release artifacts.
   prefix:
@@ -50,6 +57,50 @@ _dependencies:
     base:
       packages:
         - ca-certificates
+    os-pkg:
+      brew:
+        packages:
+          - name: yq
+      pacman:
+        packages:
+          - name: go-yq
+      apk:
+        packages:
+          # Alpine 3.20+ renamed package to yq-go.
+          - name: yq-go
+            when:
+              version_id:
+                - "3.20"
+                - "3.21"
+                - "3.22"
+                - "3.23"
+          # Alpine <=3.19 used yq for mikefarah/yq.
+          - name: yq
+            when:
+              version_id:
+                - "3.16"
+                - "3.17"
+                - "3.18"
+                - "3.19"
+      dnf:
+        packages:
+          - name: yq
+            when:
+              - id: fedora
+              - id_like: rhel
+      yum:
+        packages:
+          - name: yq
+            when:
+              id_like: rhel
+      zypper:
+        packages:
+          - name: yq
+            when:
+              id:
+                - opensuse-tumbleweed
+                - opensuse-leap
+                - opensuse-slowroll
   build:
     download:
       packages:

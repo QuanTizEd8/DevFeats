@@ -22,7 +22,7 @@
         "image": "debian:latest",
         "features": {
             "install-yq": {
-                "method": "repos",
+                "method": "auto",
                 "if_exists": "reinstall",
                 "log_level": "trace"
             }

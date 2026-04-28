@@ -321,16 +321,24 @@ _ospkg_brew_run() {
 # _ospkg_ensure_yq
 # Delegates to the shared yq installer module with internal context.
 _ospkg_ensure_yq() {
-  [[ -n "${_OSPKG_YQ_BIN:-}" ]] && return 0
-  _OSPKG_YQ_BIN="$(install__yq --context internal --owner-group sysset-ospkg-internals --method auto || true)"
-  if [[ -z "${_OSPKG_YQ_BIN}" ]]; then
-    if command -v yq > /dev/null 2>&1; then
-      _OSPKG_YQ_BIN="$(command -v yq)"
-    else
-      logging__error "yq could not be installed."
-      return 1
-    fi
+  # Fast path: already cached and still compatible.
+  if [[ -n "${_OSPKG_YQ_BIN:-}" ]] && [[ -x "${_OSPKG_YQ_BIN}" ]] && _install__yq_compatible "${_OSPKG_YQ_BIN}"; then
+    return 0
   fi
+  _OSPKG_YQ_BIN="$(
+    install__yq \
+      --context internal \
+      --owner-group sysset-ospkg-internals \
+      --method release \
+      --if-exists skip
+  )" || {
+    logging__error "yq could not be installed."
+    return 1
+  }
+  [[ -n "${_OSPKG_YQ_BIN}" ]] || {
+    logging__error "yq could not be installed."
+    return 1
+  }
   return 0
 }
 

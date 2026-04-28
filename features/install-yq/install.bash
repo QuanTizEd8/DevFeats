@@ -7,4 +7,5 @@ install__yq \
   --owner-group "feature::install-yq" \
   --method "${METHOD}" \
   --if-exists "${IF_EXISTS}" \
+  --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" \
   --prefix "${PREFIX}" > /dev/null

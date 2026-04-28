@@ -7,7 +7,7 @@ REPO_ROOT="${1:?REPO_ROOT required}"
 source "${REPO_ROOT}/test/lib/assert.sh"
 
 fail_check "if_exists=fail exits non-zero when yq exists" \
-  bash "${REPO_ROOT}/src/install-yq/install.bash" --method repos --if_exists fail
+  bash "${REPO_ROOT}/src/install-yq/install.bash" --method auto --if_exists fail
 
 check "preinstalled yq remains available" command -v yq
 

@@ -32,7 +32,7 @@ EOF
   run install__state_context "oras"
   assert_success
   assert_output "user"
-  run bash -c "rg \"${_bin_dir}/oras\" \"${BATS_TEST_TMPDIR}/ospkg/resources/old-group\""
+  run grep -F -- "${_bin_dir}/oras" "${BATS_TEST_TMPDIR}/ospkg/resources/old-group"
   assert_failure
 }
 
@@ -43,9 +43,9 @@ EOF
 
   run ospkg__untrack_resource "abc" "/tmp/one"
   assert_success
-  run bash -c "rg \"/tmp/one\" \"${BATS_TEST_TMPDIR}/ospkg/resources/abc\""
+  run grep -F -- "/tmp/one" "${BATS_TEST_TMPDIR}/ospkg/resources/abc"
   assert_failure
-  run bash -c "rg \"/tmp/two\" \"${BATS_TEST_TMPDIR}/ospkg/resources/abc\""
+  run grep -F -- "/tmp/two" "${BATS_TEST_TMPDIR}/ospkg/resources/abc"
   assert_success
 }
 

@@ -29,7 +29,10 @@ _install__yq_platform_arch() {
   case "$_arch" in
     x86_64) _arch="amd64" ;;
     aarch64 | arm64) _arch="arm64" ;;
-    *) return 1 ;;
+    *)
+      logging__error "install__yq: unsupported architecture '${_arch}'."
+      return 1
+      ;;
   esac
   printf '%s %s\n' "$_os" "$_arch"
 }
@@ -37,16 +40,20 @@ _install__yq_platform_arch() {
 # @brief _install__yq_install_release <context> <group> <prefix> — Install yq from GitHub release assets with checksum verification.
 _install__yq_install_release() {
   local _context="${1-}" _group="${2-}" _prefix="${3-}"
-  local _os _arch _base _dir _dest _expected_hash _line _final_dest
+  local _os _arch _base _dir _dest _expected_hash _final_dest
   read -r _os _arch <<< "$(_install__yq_platform_arch)" || return 1
   _base="https://github.com/mikefarah/yq/releases/latest/download"
   _dir="$(logging__tmpdir "install/yq")"
   _dest="${_dir}/yq_${_os}_${_arch}"
   net__fetch_url_file "${_base}/yq_${_os}_${_arch}" "$_dest" || return 1
   net__fetch_url_file "${_base}/checksums" "${_dir}/checksums" || return 1
-  _line="$(sed -n "/ yq_${_os}_${_arch}\$/p" "${_dir}/checksums" | head -n1)"
-  _expected_hash="$(printf '%s\n' "$_line" | awk '{print $1}')"
-  [[ "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]] || return 1
+  net__fetch_url_file "${_base}/checksums_hashes_order" "${_dir}/checksums_hashes_order" || return 1
+  net__fetch_url_file "${_base}/extract-checksum.sh" "${_dir}/extract-checksum.sh" || return 1
+  _expected_hash="$(cd "${_dir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
+  if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
+    logging__error "install__yq: extracted checksum is invalid for yq_${_os}_${_arch}."
+    return 1
+  fi
   checksum__verify_sha256 "$_dest" "$_expected_hash" || return 1
   chmod +x "$_dest" || return 1
   _final_dest="$_dest"
@@ -75,24 +82,34 @@ _install__yq_install_release() {
   return 0
 }
 
-# @brief _install__yq_install_repos <context> <group> — Install yq via package manager with context-aware tracking.
+# @brief _install__yq_install_repos <context> <group> [repos-manifest] — Install yq via package manager with context-aware tracking.
 _install__yq_install_repos() {
-  local _context="${1-}" _group="${2-}" _bin
-  if [[ "$_context" == "user" ]]; then
-    ospkg__install_user yq || return 1
+  local _context="${1-}" _group="${2-}" _repos_manifest="${3-}" _bin _pm
+  ospkg__detect || return 1
+  _pm="${_OSPKG_PKG_MNGR:-unknown}"
+  if [[ -n "$_repos_manifest" ]]; then
+    ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
   else
-    ospkg__install_tracked "$_group" yq || return 1
+    logging__warn "install__yq: no repos manifest provided; attempting package 'yq' from '${_pm}'."
+    if [[ "$_context" == "user" ]]; then
+      ospkg__install_user yq || return 1
+    else
+      ospkg__install_tracked "$_group" yq || return 1
+    fi
   fi
   _bin="$(command -v yq 2> /dev/null || true)"
-  _install__yq_compatible "${_bin}" || return 1
+  if ! _install__yq_compatible "${_bin}"; then
+    logging__error "install__yq: method=repos did not yield a mikefarah/yq-compatible binary on package manager '${_pm}'."
+    return 1
+  fi
   install__state_record "yq" "$_context" "repos" "$_bin" "$_group" || true
   printf '%s\n' "$_bin"
   return 0
 }
 
-# @brief install__yq --context <internal|user> [--method <auto|release|repos>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--prefix <path|auto>] — Ensure yq is installed with context-aware ownership semantics.
+# @brief install__yq --context <internal|user> [--method <auto|release|repos>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
 install__yq() {
-  local _context="internal" _method="auto" _owner_group="sysset-ospkg-internals" _if_exists="skip" _prefix="auto"
+  local _context="internal" _method="auto" _owner_group="sysset-ospkg-internals" _if_exists="skip" _prefix="auto" _repos_manifest=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context) shift; _context="${1-}" ;;
@@ -100,6 +117,7 @@ install__yq() {
       --owner-group) shift; _owner_group="${1-}" ;;
       --if-exists) shift; _if_exists="${1-}" ;;
       --prefix) shift; _prefix="${1-}" ;;
+      --repos-manifest) shift; _repos_manifest="${1-}" ;;
       *) logging__error "install__yq: unknown option '$1'"; return 1 ;;
     esac
     shift
@@ -111,21 +129,28 @@ install__yq() {
   _state_path="$(install__state_install_path "yq" 2> /dev/null || true)"
   _state_group="$(install__state_owner_group "yq" 2> /dev/null || true)"
   if [[ -n "$_existing" ]] && _install__yq_compatible "$_existing"; then
+    if [[ "$_if_exists" == "reinstall" ]]; then
+      :
+    elif [[ "$_if_exists" == "fail" ]]; then
+      logging__error "install__yq: yq already installed at $_existing."
+      return 1
+    else
+      if [[ "$_context" == "user" && "$_state_ctx" == "internal" ]]; then
+        install__promote_path_to_user "${_state_group:-$_owner_group}" "$_state_path"
+        install__state_record "yq" "user" "${_method}" "$_existing" "$_owner_group" || true
+      fi
+      printf '%s\n' "$_existing"
+      return 0
+    fi
     if [[ "$_context" == "user" && "$_state_ctx" == "internal" ]]; then
       install__promote_path_to_user "${_state_group:-$_owner_group}" "$_state_path"
       install__state_record "yq" "user" "${_method}" "$_existing" "$_owner_group" || true
     fi
-    if [[ "$_if_exists" == "fail" ]]; then
-      logging__error "install__yq: yq already installed at $_existing."
-      return 1
-    fi
-    printf '%s\n' "$_existing"
-    return 0
   fi
   case "$_method" in
     release) _install__yq_install_release "$_context" "$_owner_group" "$_prefix" ;;
-    repos) _install__yq_install_repos "$_context" "$_owner_group" ;;
-    auto) _install__yq_install_repos "$_context" "$_owner_group" || _install__yq_install_release "$_context" "$_owner_group" "$_prefix" ;;
+    repos) _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
+    auto) _install__yq_install_release "$_context" "$_owner_group" "$_prefix" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     *) return 1 ;;
   esac
 }
