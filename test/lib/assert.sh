@@ -186,6 +186,7 @@ push_oci_feature() {
   local _host="${1-}" _repo_tag="${2-}" _tgz="${3-}"
   local _repo="${_repo_tag%%:*}" _tag="${_repo_tag#*:}"
   local _base="http://${_host}/v2/${_repo}"
+  local _url _http _tmp
 
   local _layer_hash _layer_size
   if command -v sha256sum > /dev/null 2>&1; then
@@ -196,58 +197,60 @@ push_oci_feature() {
   _layer_size="$(wc -c < "$_tgz" | tr -d '[:space:]')"
   local _layer_dig="sha256:${_layer_hash}"
 
-  # Empty-JSON config — sha256({}) is well-known.
+  # Empty-JSON config blob — sha256('{}') is well-known.
   local _cfg_dig="sha256:44136fa355ba77b9ad7b3537ed8669bed197405c2ec3cd0a3e8e62c1e78c40b7"
   local _cfg_size=2
 
-  # Upload config blob.
-  local _upload_url
-  _upload_url="$(curl -sf -X POST -D - "${_base}/blobs/uploads/" \
-    -H "Content-Length: 0" 2> /dev/null |
-    grep -i '^location:' | tr -d '\r\n' | sed 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//')"
-  [[ -n "$_upload_url" ]] || {
+  # Init a blob upload session; print the PUT URL (with digest appended) or return 1.
+  _pof_upload_url() {
+    local _b="${1-}" _d="${2-}" _l
+    _l="$(curl -sf -X POST -D - "${_b}/blobs/uploads/" 2> /dev/null |
+      grep -i '^location:' | tr -d '\r\n' |
+      sed 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//')"
+    [[ -n "$_l" ]] || return 1
+    [[ "$_l" == http* ]] || _l="http://${_host}${_l}"
+    if [[ "$_l" == *'?'* ]]; then
+      printf '%s&digest=%s\n' "$_l" "$_d"
+    else
+      printf '%s?digest=%s\n' "$_l" "$_d"
+    fi
+  }
+
+  # Upload config blob via a temp file so curl determines Content-Length from file size.
+  _tmp="$(mktemp)"
+  printf '{}' > "$_tmp"
+  _url="$(_pof_upload_url "$_base" "$_cfg_dig")" || {
+    rm -f "$_tmp"
     printf 'push_oci_feature: config upload init failed for %s:%s\n' "$_repo" "$_tag" >&2
     return 1
   }
-  [[ "$_upload_url" == http* ]] || _upload_url="http://${_host}${_upload_url}"
-  if [[ "$_upload_url" == *'?'* ]]; then
-    _upload_url="${_upload_url}&digest=${_cfg_dig}"
-  else
-    _upload_url="${_upload_url}?digest=${_cfg_dig}"
-  fi
-  curl -sf -X PUT "$_upload_url" \
+  _http="$(curl -s -o /dev/null -w '%{http_code}' -X PUT "$_url" \
     -H "Content-Type: application/octet-stream" \
-    -H "Content-Length: ${_cfg_size}" \
-    -d '{}' > /dev/null || true # config blob may already exist; ignore
+    --data-binary "@${_tmp}")"
+  rm -f "$_tmp"
+  [[ "$_http" == "201" ]] || {
+    printf 'push_oci_feature: config blob upload failed (HTTP %s) for %s:%s\n' \
+      "$_http" "$_repo" "$_tag" >&2
+    return 1
+  }
 
   # Upload layer blob.
-  _upload_url="$(curl -sf -X POST -D - "${_base}/blobs/uploads/" \
-    -H "Content-Length: 0" 2> /dev/null |
-    grep -i '^location:' | tr -d '\r\n' | sed 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//')"
-  [[ -n "$_upload_url" ]] || {
+  _url="$(_pof_upload_url "$_base" "$_layer_dig")" || {
     printf 'push_oci_feature: layer upload init failed for %s:%s\n' "$_repo" "$_tag" >&2
     return 1
   }
-  [[ "$_upload_url" == http* ]] || _upload_url="http://${_host}${_upload_url}"
-  if [[ "$_upload_url" == *'?'* ]]; then
-    _upload_url="${_upload_url}&digest=${_layer_dig}"
-  else
-    _upload_url="${_upload_url}?digest=${_layer_dig}"
-  fi
-  curl -sf -X PUT "$_upload_url" \
+  _http="$(curl -s -o /dev/null -w '%{http_code}' -X PUT "$_url" \
     -H "Content-Type: application/octet-stream" \
-    -H "Content-Length: ${_layer_size}" \
-    --data-binary "@${_tgz}" > /dev/null ||
-    {
-      printf 'push_oci_feature: layer upload failed for %s:%s\n' "$_repo" "$_tag" >&2
-      return 1
-    }
+    --data-binary "@${_tgz}")"
+  [[ "$_http" == "201" ]] || {
+    printf 'push_oci_feature: layer blob upload failed (HTTP %s) for %s:%s\n' \
+      "$_http" "$_repo" "$_tag" >&2
+    return 1
+  }
 
-  # Push OCI manifest.
-  # Use application/vnd.oci.image.config.v1+json (not vnd.oci.empty.v1+json)
-  # for the config media type — registry:2 rejects the OCI 1.1 empty-config type.
-  local _manifest_json
-  _manifest_json="$(printf '{
+  # Build and push OCI manifest via a temp file so curl sets Content-Length from file.
+  local _manifest
+  _manifest="$(printf '{
   "schemaVersion": 2,
   "mediaType": "application/vnd.oci.image.manifest.v1+json",
   "config": {
@@ -266,14 +269,15 @@ push_oci_feature() {
     }
   ]
 }' "$_cfg_dig" "$_cfg_size" "$_layer_dig" "$_layer_size")"
-  local _manifest_size _http_code
-  _manifest_size="$(printf '%s' "$_manifest_json" | wc -c | tr -d '[:space:]')"
-  _http_code="$(curl -s -o /dev/null -w '%{http_code}' -X PUT "${_base}/manifests/${_tag}" \
+  _tmp="$(mktemp)"
+  printf '%s' "$_manifest" > "$_tmp"
+  _http="$(curl -s -o /dev/null -w '%{http_code}' -X PUT "${_base}/manifests/${_tag}" \
     -H "Content-Type: application/vnd.oci.image.manifest.v1+json" \
-    -H "Content-Length: ${_manifest_size}" \
-    --data-binary "$_manifest_json")"
-  [[ "$_http_code" == "201" ]] || {
-    printf 'push_oci_feature: manifest push failed (HTTP %s) for %s:%s\n' "$_http_code" "$_repo" "$_tag" >&2
+    --data-binary "@${_tmp}")"
+  rm -f "$_tmp"
+  [[ "$_http" == "201" ]] || {
+    printf 'push_oci_feature: manifest push failed (HTTP %s) for %s:%s\n' \
+      "$_http" "$_repo" "$_tag" >&2
     return 1
   }
 }

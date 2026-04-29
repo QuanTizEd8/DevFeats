@@ -55,7 +55,7 @@ case "${1-}" in
       # If frozen mode still tries to resolve tags, fail hard.
       exit 1
     fi
-    echo "1.0.0"
+    echo "latest"
     ;;
   manifest)
     cat <<JSON
