@@ -6,3 +6,11 @@
 # Follow sourced files (equivalent to -x / --external-sources).
 # Allows shellcheck to lint through `source` / `.` directives.
 external-sources=true
+
+# ShellCheck's whole-program dataflow analysis can consume excessive memory on
+# large/cyclic source graphs (known upstream behavior), which leads to OOM
+# kills (exit 137 / signal 9) in CI.
+# https://github.com/koalaman/shellcheck/issues/2652
+# https://github.com/koalaman/shellcheck/issues/2721
+# https://github.com/koalaman/shellcheck/issues/3177
+extended-analysis=false
