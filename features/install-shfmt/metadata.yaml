@@ -67,7 +67,7 @@ options:
 customizations:
   vscode:
     extensions:
-      - mkhl.shfmt
+      - foxundermoon.shell-format
 _dependencies:
   run:
     os-pkg:
