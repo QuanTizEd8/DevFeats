@@ -13,36 +13,30 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
-# shellcheck source=test/lib/offline_kit_mirror.sh
-. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 DIST="${REPO_ROOT}/dist"
-
-_BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
-_MIRROR="${REPO_ROOT}/test-mirror-sysset-fail-partial"
-mkdir -p "${_MIRROR}"
-mkdir -p "${_MIRROR}/install-pixi/${_VER}"
-cp "${DIST}/sysset-install-pixi.tar.gz" "${_MIRROR}/install-pixi/${_VER}/"
-offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "install-pixi:${_VER}"
 
 _PORT=18542
 _manifest_dir="$(mktemp -d)"
 _run_log="$(mktemp)"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_run_log"' EXIT
+trap 'stop_file_server; rm -rf "$_manifest_dir" "$_run_log"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
-export SYSSET_BASE_URL
+
+# Push install-pixi only; "does-not-exist" is intentionally absent.
+push_oci_feature "${SYSSET_REGISTRY_HOST}" \
+  "quantized8/sysset/install-pixi:${_VER}" \
+  "${DIST}/sysset-install-pixi.tar.gz"
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
 {
-  "name": "partial ${_BUNDLE}",
+  "name": "partial-fail test",
   "features": {
     "ghcr.io/quantized8/sysset/does-not-exist": {},
-    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" }
+    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" }
   }
 }
 EOF

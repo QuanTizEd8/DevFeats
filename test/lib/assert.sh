@@ -172,3 +172,95 @@ wait_for_port() {
     fi
   done
 }
+
+# ── OCI registry push helper ──────────────────────────────────────────────────
+
+# push_oci_feature <registry_host> <repo/path:tag> <tarball>
+# Pushes a single-layer OCI artifact to a local registry using the v2 HTTP
+# API (curl only — no docker or oras required for the push step).
+#
+# The layer is pushed as media type application/vnd.devcontainers.layer.v1+tgz
+# with the org.opencontainers.image.title annotation set to "feature.tgz" so
+# that `oras pull` materialises a .tgz file that oci__pull_feature_tgz can find.
+push_oci_feature() {
+  local _host="${1-}" _repo_tag="${2-}" _tgz="${3-}"
+  local _repo="${_repo_tag%%:*}" _tag="${_repo_tag#*:}"
+  local _base="http://${_host}/v2/${_repo}"
+
+  local _layer_hash _layer_size
+  if command -v sha256sum > /dev/null 2>&1; then
+    _layer_hash="$(sha256sum "$_tgz" | awk '{print $1}')"
+  else
+    _layer_hash="$(shasum -a 256 "$_tgz" | awk '{print $1}')"
+  fi
+  _layer_size="$(wc -c < "$_tgz" | tr -d '[:space:]')"
+  local _layer_dig="sha256:${_layer_hash}"
+
+  # Empty-JSON config — sha256({}) is well-known.
+  local _cfg_dig="sha256:44136fa355ba77b9ad7b3537ed8669bed197405c2ec3cd0a3e8e62c1e78c40b7"
+  local _cfg_size=2
+
+  # Upload config blob.
+  local _upload_url
+  _upload_url="$(curl -sf -X POST -D - "${_base}/blobs/uploads/" \
+    -H "Content-Length: 0" 2> /dev/null |
+    grep -i '^location:' | tr -d '\r\n' | sed 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//')"
+  [[ -n "$_upload_url" ]] || { printf 'push_oci_feature: config upload init failed for %s:%s\n' "$_repo" "$_tag" >&2; return 1; }
+  [[ "$_upload_url" == http* ]] || _upload_url="http://${_host}${_upload_url}"
+  if [[ "$_upload_url" == *'?'* ]]; then
+    _upload_url="${_upload_url}&digest=${_cfg_dig}"
+  else
+    _upload_url="${_upload_url}?digest=${_cfg_dig}"
+  fi
+  curl -sf -X PUT "$_upload_url" \
+    -H "Content-Type: application/octet-stream" \
+    -H "Content-Length: ${_cfg_size}" \
+    -d '{}' > /dev/null || true  # config blob may already exist; ignore
+
+  # Upload layer blob.
+  _upload_url="$(curl -sf -X POST -D - "${_base}/blobs/uploads/" \
+    -H "Content-Length: 0" 2> /dev/null |
+    grep -i '^location:' | tr -d '\r\n' | sed 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//')"
+  [[ -n "$_upload_url" ]] || { printf 'push_oci_feature: layer upload init failed for %s:%s\n' "$_repo" "$_tag" >&2; return 1; }
+  [[ "$_upload_url" == http* ]] || _upload_url="http://${_host}${_upload_url}"
+  if [[ "$_upload_url" == *'?'* ]]; then
+    _upload_url="${_upload_url}&digest=${_layer_dig}"
+  else
+    _upload_url="${_upload_url}?digest=${_layer_dig}"
+  fi
+  curl -sf -X PUT "$_upload_url" \
+    -H "Content-Type: application/octet-stream" \
+    -H "Content-Length: ${_layer_size}" \
+    --data-binary "@${_tgz}" > /dev/null ||
+    { printf 'push_oci_feature: layer upload failed for %s:%s\n' "$_repo" "$_tag" >&2; return 1; }
+
+  # Push OCI manifest.
+  local _manifest_json
+  _manifest_json="$(printf '{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.manifest.v1+json",
+  "artifactType": "application/vnd.devcontainers.layer.v1+tgz",
+  "config": {
+    "mediaType": "application/vnd.oci.empty.v1+json",
+    "digest": "%s",
+    "size": %s
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.devcontainers.layer.v1+tgz",
+      "digest": "%s",
+      "size": %s,
+      "annotations": {
+        "org.opencontainers.image.title": "feature.tgz"
+      }
+    }
+  ]
+}' "$_cfg_dig" "$_cfg_size" "$_layer_dig" "$_layer_size")"
+  local _manifest_size
+  _manifest_size="$(printf '%s' "$_manifest_json" | wc -c | tr -d '[:space:]')"
+  curl -sf -X PUT "${_base}/manifests/${_tag}" \
+    -H "Content-Type: application/vnd.oci.image.manifest.v1+json" \
+    -H "Content-Length: ${_manifest_size}" \
+    --data-binary "$_manifest_json" > /dev/null ||
+    { printf 'push_oci_feature: manifest push failed for %s:%s\n' "$_repo" "$_tag" >&2; return 1; }
+}

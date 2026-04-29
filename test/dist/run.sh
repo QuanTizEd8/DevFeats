@@ -18,9 +18,8 @@ SUITE_FILTER=""
 NAME_FILTER=""
 BUILD=true
 VERSION="v0.1.0-test"
-TEST_ORAS_DIR=""
-TEST_ORAS_PAYLOAD=""
-TEST_ORAS_SHA=""
+SYSSET_TEST_REGISTRY_HOST="${SYSSET_TEST_REGISTRY_HOST:-}"
+_REGISTRY_CONTAINER=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -78,125 +77,52 @@ _bold_sep() {
   echo
 }
 
-setup_fake_oras() {
-  local _tmp
-  _tmp="$(mktemp -d)"
-  TEST_ORAS_DIR="${_tmp}/fakebin"
-  TEST_ORAS_PAYLOAD="${_tmp}/feature.tgz"
-  mkdir -p "${TEST_ORAS_DIR}" "${_tmp}/payload"
-  printf '%s\n' '#!/usr/bin/env sh' > "${_tmp}/payload/install.sh"
-  printf '%s\n' '{}' > "${_tmp}/payload/devcontainer-feature.json"
-  tar -czf "${TEST_ORAS_PAYLOAD}" -C "${_tmp}/payload" .
-  if command -v sha256sum > /dev/null 2>&1; then
-    TEST_ORAS_SHA="$(sha256sum "${TEST_ORAS_PAYLOAD}" | awk '{print $1}')"
-  else
-    TEST_ORAS_SHA="$(shasum -a 256 "${TEST_ORAS_PAYLOAD}" | awk '{print $1}')"
-  fi
-  # Fake ORAS contract for dist tests:
-  # - Unknown feature refs must fail (no generic success fallback).
-  # - Tags are computed per repo with optional scenario-provided extras via
-  #   SYSSET_TEST_FAKE_ORAS_EXTRA_TAGS (space/comma/newline separated).
-  cat > "${TEST_ORAS_DIR}/oras" << 'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-_sha256_file() {
-  local _f="${1-}"
-  if command -v sha256sum > /dev/null 2>&1; then
-    sha256sum "$_f" | awk '{print $1}'
+# ── Local OCI registry (skipped with --no-build for build/ suite only) ───────
+# Starts a registry:2 container on a random local port and exports
+# SYSSET_TEST_REGISTRY_HOST for use by get/ and sysset/ scenario scripts.
+# If SYSSET_TEST_REGISTRY_HOST is already set in the environment (e.g. for
+# sysset/ scenarios inside a minimal docker container where docker is not
+# available), the existing value is used as-is and no container is started.
+setup_local_registry() {
+  if [[ -n "${SYSSET_TEST_REGISTRY_HOST:-}" ]]; then
+    echo "ℹ️  Using pre-configured test OCI registry: ${SYSSET_TEST_REGISTRY_HOST}" >&2
     return 0
   fi
-  shasum -a 256 "$_f" | awk '{print $1}'
-}
-
-_feature_id_from_ref_or_repo() {
-  local _target="${1-}" _seg _id
-  _seg="${_target##*/}"
-  _id="${_seg%%:*}"
-  _id="${_id%%@*}"
-  printf '%s\n' "${_id}"
-}
-
-_emit_tags_for_target() {
-  local _target="${1-}" _tags="" _t
-  # Stable defaults used by existing get/sysset scenarios.
-  _tags="latest
-0
-0.66
-0.66.0
-1
-1.0
-1.0.0"
-  if [[ -n "${SYSSET_TEST_FAKE_ORAS_EXTRA_TAGS:-}" ]]; then
-    while IFS= read -r _t; do
-      [[ -z "${_t}" ]] && continue
-      _tags="${_tags}"$'\n'"${_t}"
-    done < <(printf '%s\n' "${SYSSET_TEST_FAKE_ORAS_EXTRA_TAGS}" | tr ', ' '\n\n' | sed '/^$/d')
+  local _port _cid
+  _port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); p=s.getsockname()[1]; s.close(); print(p)')" || {
+    echo "⛔ Could not pick a free port for the local OCI registry" >&2
+    return 1
+  }
+  _cid="$(docker run -d --rm -p "${_port}:5000" registry:2 2>&1)" || {
+    echo "⛔ Could not start local OCI registry (is docker available?): ${_cid}" >&2
+    return 1
+  }
+  _REGISTRY_CONTAINER="${_cid}"
+  SYSSET_TEST_REGISTRY_HOST="localhost:${_port}"
+  local _deadline _ready=0
+  _deadline=$(( $(date +%s) + 30 ))
+  while [[ $(date +%s) -lt $_deadline ]]; do
+    if curl -sf "http://127.0.0.1:${_port}/v2/" > /dev/null 2>&1; then
+      _ready=1
+      break
+    fi
+    sleep 0.5
+  done
+  if [[ "$_ready" -eq 0 ]]; then
+    echo "⛔ Local OCI registry did not become ready at port ${_port}" >&2
+    docker stop "$_REGISTRY_CONTAINER" > /dev/null 2>&1 || true
+    _REGISTRY_CONTAINER=""
+    return 1
   fi
-  # Print unique tags preserving first-seen order.
-  printf '%s\n' "${_tags}" | awk '!seen[$0]++'
+  export SYSSET_TEST_REGISTRY_HOST
+  echo "ℹ️  Local OCI registry ready at ${SYSSET_TEST_REGISTRY_HOST}" >&2
 }
 
-_payload_for_ref() {
-  local _ref="${1-}" _id _cand
-  _id="$(_feature_id_from_ref_or_repo "${_ref}")"
-  if [[ -n "${SYSSET_TEST_REPO_ROOT:-}" ]]; then
-    _cand="${SYSSET_TEST_REPO_ROOT}/dist/sysset-${_id}.tar.gz"
-    if [[ -f "${_cand}" ]]; then
-      printf '%s\n' "${_cand}"
-      return 0
-    fi
+teardown_local_registry() {
+  if [[ -n "$_REGISTRY_CONTAINER" ]]; then
+    docker stop "$_REGISTRY_CONTAINER" > /dev/null 2>&1 || true
+    _REGISTRY_CONTAINER=""
   fi
-  return 1
-}
-
-case "${1-}" in
-  version)
-    echo "Version: 1.2.0"
-    ;;
-  login)
-    exit 0
-    ;;
-  repo)
-    if [[ "${2-}" == "tags" ]]; then
-      _emit_tags_for_target "${3-}"
-      exit 0
-    fi
-    exit 1
-    ;;
-  manifest)
-    if [[ "${2-}" == "fetch" ]]; then
-      _payload="$(_payload_for_ref "${3-}")" || exit 1
-      _dig="sha256:$(_sha256_file "${_payload}")"
-      cat <<JSON
-{"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"${_dig}"}]}
-JSON
-      exit 0
-    fi
-    exit 1
-    ;;
-  pull)
-    _ref="${2-}"
-    _out=""
-    while [[ $# -gt 0 ]]; do
-      if [[ "${1}" == "-o" ]]; then
-        _out="${2-}"
-        shift 2
-      else
-        shift
-      fi
-    done
-    [[ -n "${_out}" ]] || exit 1
-    mkdir -p "${_out}"
-    _payload="$(_payload_for_ref "${_ref}")" || exit 1
-    cp "${_payload}" "${_out}/devcontainer-feature-x.tgz"
-    ;;
-  *)
-    exit 1
-    ;;
-esac
-EOF
-  chmod +x "${TEST_ORAS_DIR}/oras"
 }
 
 run_scenario() {
@@ -215,9 +141,7 @@ run_scenario() {
   echo "▶  dist / ${_suite} / ${_name}"
   _sep
   if [[ "$_suite" == "get" || "$_suite" == "sysset" ]]; then
-    if PATH="${TEST_ORAS_DIR}:${PATH}" \
-      SYSSET_TEST_FAKE_ORAS_TGZ="${TEST_ORAS_PAYLOAD}" \
-      SYSSET_TEST_FAKE_ORAS_SHA="${TEST_ORAS_SHA}" \
+    if SYSSET_REGISTRY_HOST="${SYSSET_TEST_REGISTRY_HOST}" \
       SYSSET_TEST_REPO_ROOT="${REPO_ROOT}" \
       bash "$_script" "$REPO_ROOT"; then
       echo "✅ PASS: ${_suite}/${_name}"
@@ -237,7 +161,14 @@ run_scenario() {
   fi
 }
 
-setup_fake_oras
+_needs_registry=false
+if [[ -z "$SUITE_FILTER" || "$SUITE_FILTER" == "get" || "$SUITE_FILTER" == "sysset" ]]; then
+  _needs_registry=true
+fi
+if [[ "$_needs_registry" == true ]]; then
+  setup_local_registry
+  trap 'teardown_local_registry' EXIT
+fi
 
 for suite in "${SUITES[@]}"; do
   [[ -n "$SUITE_FILTER" && "$suite" != "$SUITE_FILTER" ]] && continue

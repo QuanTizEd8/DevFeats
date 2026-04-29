@@ -36,9 +36,10 @@
 #   --frozen-lockfile <path>  Require lockfile entries and install exactly those refs.
 #
 # Environment overrides:
-#   SYSSET_RAW_BASE   Raw GitHub base URL       (default: main branch)
-#   SYSSET_FETCH_TOOL curl|wget                 (set by install.sh; auto-detected here if unset)
-#   SYSSET_BASE_URL   Feature repository base URL override (used by dist/get test mirrors)
+#   SYSSET_RAW_BASE        Raw GitHub base URL       (default: main branch)
+#   SYSSET_FETCH_TOOL      curl|wget                 (set by install.sh; auto-detected here if unset)
+#   SYSSET_REGISTRY_HOST   Registry host override    (default: ghcr.io); routes sysset-owned OCI
+#                          refs to an alternate registry (e.g. a local test registry).
 #   SYSSET_GHCR_NAMESPACE  GHCR namespace path for oci__ refs (default: quantized8/sysset)
 #   SYSSET_LOCAL_REGISTRY  Optional directory override for the local registry root.
 #   SYSSET_VERSION    Ignored by installer (bundle pinning removed).
@@ -326,11 +327,7 @@ esac
 # ── Per-feature version resolution ──────────────────────────────────────────
 _sysset_repo_ref_for_feature() {
   local _feature="${1-}"
-  if [[ -n "${SYSSET_BASE_URL:-}" ]]; then
-    printf '%s/%s\n' "${SYSSET_BASE_URL%/}" "${_feature,,}"
-    return 0
-  fi
-  printf 'ghcr.io/%s/%s\n' "${SYSSET_GHCR_NAMESPACE}" "${_feature,,}"
+  printf '%s/%s/%s\n' "${SYSSET_REGISTRY_HOST:-ghcr.io}" "${SYSSET_GHCR_NAMESPACE}" "${_feature,,}"
 }
 
 _sysset_verify_digest_checksums() {
@@ -505,26 +502,21 @@ _resolve_install_tag() {
 
   if [[ "$_raw" == */* ]] && _sysset_is_registry_host_like "${_raw%%/*}"; then
     _repo="$(_oci__repo_from_ref "$_raw")"
+    # Redirect sysset-owned registry refs to SYSSET_REGISTRY_HOST when set.
+    if [[ -n "${SYSSET_REGISTRY_HOST:-}" && "$_repo" == "ghcr.io/${SYSSET_GHCR_NAMESPACE}/"* ]]; then
+      _repo="${SYSSET_REGISTRY_HOST}/${_repo#ghcr.io/}"
+    fi
     if [[ "$_raw" == *@sha256:* ]]; then
       printf '%s\n' "${_raw,,}"
       return 0
     fi
     if [[ -n "$_spec" ]]; then
-      # SYSSET_BASE_URL points to a static test mirror; bypass oci__resolve_version
-      # for sysset-owned features just as the short-name branch does below.
-      if [[ -n "${SYSSET_BASE_URL:-}" && "$_repo" == "ghcr.io/${SYSSET_GHCR_NAMESPACE}/"* ]]; then
-        local _mirror_repo
-        _mirror_repo="$(_sysset_repo_ref_for_feature "$_feature")"
-        _tag="${_spec#v}"
-        printf '%s:%s\n' "${_mirror_repo,,}" "$_tag"
-        return 0
-      fi
       _tag="$(oci__resolve_version "$_repo" "$_spec")" || return 1
       printf '%s:%s\n' "${_repo,,}" "$_tag"
       return 0
     fi
     if _tag="$(_oci__tag_from_ref "$_raw" 2> /dev/null || true)" && [[ -n "$_tag" ]]; then
-      printf '%s\n' "${_raw,,}"
+      printf '%s:%s\n' "${_repo,,}" "$_tag"
       return 0
     fi
     printf '%s:latest\n' "${_repo,,}"
@@ -532,13 +524,6 @@ _resolve_install_tag() {
   fi
 
   _repo="$(_sysset_repo_ref_for_feature "$_feature")"
-  # SYSSET_BASE_URL points to static test mirrors (not OCI registries). When an
-  # explicit version is provided, use it directly instead of probing tags via ORAS.
-  if [[ -n "${SYSSET_BASE_URL:-}" && -n "$_spec" ]]; then
-    _tag="${_spec#v}"
-    printf '%s:%s\n' "${_repo,,}" "$_tag"
-    return 0
-  fi
   _tag="$(oci__resolve_version "$_repo" "$_spec")" || return 1
   printf '%s:%s\n' "${_repo,,}" "$_tag"
 }

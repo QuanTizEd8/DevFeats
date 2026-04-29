@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# sysset/lifecycle_disable.sh — Verify the grammar-(c) disable flags for
+# sysset/lifecycle_disable.sh — Verify the grammar for disable flags for
 # feature- and container-level lifecycle commands.
 #
 # What this tests (manifest mode):
 #   • Container-level postCreateCommand runs by default.
 #   • --no-container-lifecycle-command <phase> suppresses that phase
-#     container-wide (bare phase name is authoritative).
+#     container-wide.
 #   • --no-feature-lifecycle-command <feature>:<phase> suppresses one
 #     feature's phase but leaves the container-level entry for that phase
-#     running (when not also suppressed).
+#     running.
 #   • --no-feature-lifecycle-command all suppresses every feature-level phase.
 #
 # Requires: root (install.bash manifest mode calls os__require_root).
@@ -18,33 +18,24 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
-# shellcheck source=test/lib/offline_kit_mirror.sh
-. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 DIST="${REPO_ROOT}/dist"
 _OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
-
-_BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
-_MIRROR="${REPO_ROOT}/test-mirror-sysset-lifecycle-disable"
-mkdir -p "${_MIRROR}"
-for _f in install-pixi install-os-pkg; do
-  mkdir -p "${_MIRROR}/${_f}/${_VER}"
-  cp "${DIST}/sysset-${_f}.tar.gz" "${_MIRROR}/${_f}/${_VER}/"
-done
-offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" \
-  "install-pixi:${_VER}" "install-os-pkg:${_VER}"
 
 _PORT=18548
 _manifest_dir="$(mktemp -d)"
 _state="$(mktemp -d)"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_state"' EXIT
+trap 'stop_file_server; rm -rf "$_manifest_dir" "$_state"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
-export SYSSET_BASE_URL
-export SYSSET_VERSION="${_BUNDLE}"
+
+for _f in install-pixi install-os-pkg; do
+  push_oci_feature "${SYSSET_REGISTRY_HOST}" \
+    "quantized8/sysset/${_f}:${_VER}" \
+    "${DIST}/sysset-${_f}.tar.gz"
+done
 
 _manifest() {
   # $1 = state sentinel prefix
@@ -52,10 +43,10 @@ _manifest() {
   local _f="${_manifest_dir}/dc-${_p}.json"
   cat > "$_f" << EOF
 {
-  "name": "lifecycle-disable ${_BUNDLE}",
+  "name": "lifecycle-disable test",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg": { "manifest": "${_OSP}" }
+    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" },
+    "ghcr.io/quantized8/sysset/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
   },
   "postCreateCommand": "touch '${_state}/container-${_p}'"
 }

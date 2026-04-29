@@ -42,7 +42,7 @@ _oci__registry_from_ref_or_repo() {
 }
 
 _oci__normalize_target() {
-  local _in="${1-}" _plain=0
+  local _in="${1-}" _plain=0 _host
   case "$_in" in
     http://*)
       _in="${_in#http://}"
@@ -50,6 +50,11 @@ _oci__normalize_target() {
       ;;
     https://*) _in="${_in#https://}" ;;
   esac
+  _host="${_in%%/*}"
+  _host="${_host%%:*}"
+  if [[ "$_host" == "localhost" || "$_host" == "127.0.0.1" ]]; then
+    _plain=1
+  fi
   printf '%s\t%s\n' "$_in" "$_plain"
 }
 

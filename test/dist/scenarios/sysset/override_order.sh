@@ -14,45 +14,36 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
-# shellcheck source=test/lib/offline_kit_mirror.sh
-. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 DIST="${REPO_ROOT}/dist"
 _OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
-
-_BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
-_MIRROR="${REPO_ROOT}/test-mirror-sysset-override-order"
-mkdir -p "${_MIRROR}"
-for _f in install-pixi install-os-pkg; do
-  mkdir -p "${_MIRROR}/${_f}/${_VER}"
-  cp "${DIST}/sysset-${_f}.tar.gz" "${_MIRROR}/${_f}/${_VER}/"
-done
-offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" \
-  "install-pixi:${_VER}" "install-os-pkg:${_VER}"
 
 _PORT=18543
 _log_file="$(mktemp)"
 _manifest_dir="$(mktemp -d)"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_log_file" "$_manifest_dir"' EXIT
+trap 'stop_file_server; rm -rf "$_log_file" "$_manifest_dir"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
-export SYSSET_BASE_URL
-export SYSSET_VERSION="${_BUNDLE}"
+
+for _f in install-pixi install-os-pkg; do
+  push_oci_feature "${SYSSET_REGISTRY_HOST}" \
+    "quantized8/sysset/${_f}:${_VER}" \
+    "${DIST}/sysset-${_f}.tar.gz"
+done
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
 {
-  "name": "override ${_BUNDLE}",
+  "name": "override-order test",
   "overrideFeatureInstallOrder": [
     "ghcr.io/quantized8/sysset/install-pixi",
     "ghcr.io/quantized8/sysset/install-os-pkg"
   ],
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg": { "manifest": "${_OSP}" }
+    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" },
+    "ghcr.io/quantized8/sysset/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
   }
 }
 EOF
@@ -61,8 +52,6 @@ check "install.bash completes with overrideFeatureInstallOrder" \
   bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
 
 # install-pixi should appear before install-os-pkg in the log.
-# NOTE: Use the "running install.sh" marker to match only the installation
-# phase, not the staging phase (which logs [feature-id] in alphabetical order).
 check "install-pixi ran before install-os-pkg (override order)" \
   bash -c '
     log="'"$_log_file"'"

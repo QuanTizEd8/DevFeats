@@ -14,40 +14,32 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
-# shellcheck source=test/lib/offline_kit_mirror.sh
-. "${REPO_ROOT}/test/lib/offline_kit_mirror.sh"
 
 DIST="${REPO_ROOT}/dist"
-
-_BUNDLE="v99.99.0-test"
 _VER="99.99.0-test"
-_MIRROR="${REPO_ROOT}/test-mirror-sysset-initcmd"
-mkdir -p "${_MIRROR}"
-mkdir -p "${_MIRROR}/install-pixi/${_VER}"
-cp "${DIST}/sysset-install-pixi.tar.gz" "${_MIRROR}/install-pixi/${_VER}/"
-offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "install-pixi:${_VER}"
 
 _PORT=18546
 _manifest_dir="$(mktemp -d)"
 _state_dir="$(mktemp -d)"
 _sentinel="${_state_dir}/init-ran"
 _skip_sentinel="${_state_dir}/init-skipped"
-trap 'stop_file_server; rm -rf "${_MIRROR}" "$_manifest_dir" "$_state_dir"' EXIT
+trap 'stop_file_server; rm -rf "$_manifest_dir" "$_state_dir"' EXIT
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
-SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/$(basename "${_MIRROR}")"
-export SYSSET_BASE_URL
-export SYSSET_VERSION="${_BUNDLE}"
+
+push_oci_feature "${SYSSET_REGISTRY_HOST}" \
+  "quantized8/sysset/install-pixi:${_VER}" \
+  "${DIST}/sysset-install-pixi.tar.gz"
 
 # ── 1. initializeCommand runs before install ─────────────────────────────────
 _mfa="${_manifest_dir}/with-init.json"
 cat > "$_mfa" << EOF
 {
-  "name": "init ${_BUNDLE}",
+  "name": "init test",
   "initializeCommand": "touch '${_sentinel}'",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" }
+    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" }
   }
 }
 EOF
@@ -63,10 +55,10 @@ check "install-pixi installed despite initializeCommand" \
 _mfb="${_manifest_dir}/skip-init.json"
 cat > "$_mfb" << EOF
 {
-  "name": "skip-init ${_BUNDLE}",
+  "name": "skip-init test",
   "initializeCommand": "touch '${_skip_sentinel}'",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" }
+    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" }
   }
 }
 EOF
@@ -80,10 +72,10 @@ check "initializeCommand sentinel was NOT created when suppressed" \
 _mfc="${_manifest_dir}/fail-init.json"
 cat > "$_mfc" << EOF
 {
-  "name": "fail-init ${_BUNDLE}",
+  "name": "fail-init test",
   "initializeCommand": "false",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" }
+    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" }
   }
 }
 EOF
