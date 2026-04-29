@@ -80,3 +80,5 @@ _dependencies:
     download:
       packages:
         - curl
+        - name: xz
+          apt: xz-utils
