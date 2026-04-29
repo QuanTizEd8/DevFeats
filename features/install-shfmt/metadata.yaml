@@ -54,6 +54,10 @@ options:
         description: Exit with an error when `shfmt` already exists.
       - value: reinstall
         description: Reinstall using the selected method.
+customizations:
+  vscode:
+    extensions:
+      - mkhl.shfmt
 _dependencies:
   run:
     os-pkg:
