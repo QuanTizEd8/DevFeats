@@ -1,0 +1,118 @@
+version: 0.1.0
+name: just Installation
+description: Install [just](https://just.systems/) via release assets, package repositories, the official script, or Cargo.
+keywords:
+  - just
+  - task-runner
+  - build
+  - cli
+_long_description: |-
+  Installs the `just` command runner with configurable installation methods:
+  GitHub release assets, distro package repositories, the official installer script,
+  and Cargo-based installation.
+
+  `method=auto` prefers release assets for deterministic binaries, then falls back
+  to distro repositories, official script, and Cargo. Use `version` to pin an exact
+  release, `prefix` to control installation destination for non-repository methods,
+  and `if_exists` to control behavior when `just` is already available.
+options:
+  method:
+    type: string
+    default: auto
+    description: Installation method to use.
+    enum:
+      - value: auto
+        description: Prefer release assets, then repositories, script, then Cargo.
+      - value: release
+        description: Install from GitHub release tarballs with SHA-256 verification.
+      - value: repos
+        description: Install from the operating system package manager.
+      - value: script
+        description: Install via https://just.systems/install.sh.
+      - value: cargo
+        description: Install using Cargo (`cargo install` or `cargo binstall`).
+  version:
+    type: string
+    default: latest
+    description: Version to install (`latest` or a concrete version like `1.50.0`).
+    proposals:
+      - value: latest
+        description: Resolve and install the latest release.
+      - value: 1.50.0
+        description: Install just v1.50.0.
+  prefix:
+    type: string
+    default: auto
+    description: |-
+      Installation prefix for `release`, `script`, and `cargo` methods (`$prefix/bin/just`).
+      `auto` resolves to `/usr/local` as root, or `$HOME/.local` as non-root.
+      Ignored for `method=repos`.
+  if_exists:
+    type: string
+    default: skip
+    description: Behavior when `just` already exists in PATH.
+    enum:
+      - value: skip
+        description: Reuse the existing install and exit successfully.
+      - value: fail
+        description: Exit with an error when `just` already exists.
+      - value: reinstall
+        description: Reinstall using the selected method.
+  target:
+    type: string
+    default: auto
+    description: |-
+      Release/script target triple override.
+      `auto` resolves from host kernel and architecture.
+    proposals:
+      - value: auto
+        description: Detect target automatically.
+      - value: x86_64-unknown-linux-musl
+        description: Linux x86_64 static binary.
+      - value: aarch64-unknown-linux-musl
+        description: Linux arm64 static binary.
+      - value: x86_64-apple-darwin
+        description: macOS Intel binary.
+      - value: aarch64-apple-darwin
+        description: macOS Apple Silicon binary.
+  script_force:
+    type: boolean
+    default: false
+    description: Add `--force` when running the official installer script.
+  cargo_binstall:
+    type: boolean
+    default: false
+    description: Use `cargo binstall` for `method=cargo` when available.
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    os-pkg:
+      apt:
+        packages:
+          - just
+      apk:
+        packages:
+          - just
+      dnf:
+        packages:
+          - just
+      yum:
+        packages:
+          - just
+      zypper:
+        packages:
+          - just
+      pacman:
+        packages:
+          - just
+      brew:
+        packages:
+          - just
+  build:
+    download:
+      packages:
+        - curl
+        - tar
+installsAfter: []

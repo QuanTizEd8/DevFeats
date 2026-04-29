@@ -1,0 +1,31 @@
+{
+    "default_install": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-just": {
+                "log_level": "trace"
+            }
+        }
+    },
+    "release_custom_prefix": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-just": {
+                "method": "release",
+                "prefix": "/opt/just-bin",
+                "if_exists": "reinstall",
+                "log_level": "trace"
+            }
+        }
+    },
+    "repos_install": {
+        "image": "debian:latest",
+        "features": {
+            "install-just": {
+                "method": "repos",
+                "if_exists": "reinstall",
+                "log_level": "trace"
+            }
+        }
+    }
+}
