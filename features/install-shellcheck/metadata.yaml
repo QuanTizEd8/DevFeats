@@ -59,6 +59,11 @@ options:
         description: Exit with an error when `shellcheck` already exists.
       - value: reinstall
         description: Reinstall using the selected method.
+customizations:
+  vscode:
+    extensions:
+      - timonwong.shellcheck  # https://github.com/vscode-shellcheck/vscode-shellcheck
+      - mads-hartmann.bash-ide-vscode
 _dependencies:
   run:
     os-pkg:
