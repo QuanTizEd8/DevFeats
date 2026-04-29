@@ -9,6 +9,8 @@
 . "${_SELF_DIR}/_lib/net.sh"
 # shellcheck source=lib/os.sh
 . "${_SELF_DIR}/_lib/os.sh"
+# shellcheck source=lib/shell.sh
+. "${_SELF_DIR}/_lib/shell.sh"
 # shellcheck source=lib/users.sh
 . "${_SELF_DIR}/_lib/users.sh"
 
@@ -20,6 +22,12 @@ _shellcheck__resolve_version() {
   _version="${_version#v}"
   [[ "$_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
   printf '%s\n' "$_version"
+}
+
+_shellcheck__resolve_prefix() {
+  if [[ -z "${PREFIX}" || "${PREFIX}" == "auto" ]]; then
+    PREFIX="$(users__default_prefix)"
+  fi
 }
 
 # @stdout "<os> <arch>" for the GitHub release asset name, or return 1 when no
@@ -52,7 +60,7 @@ _shellcheck__platform_arch() {
 }
 
 _shellcheck__install_release() {
-  local _version="${1-}" _install_prefix="${2-}"
+  local _version="${1-}"
   local _os _arch _asset _tmp _extracted _dest
   read -r _os _arch <<< "$(_shellcheck__platform_arch)" || return 1
   _asset="shellcheck-v${_version}.${_os}.${_arch}.tar.xz"
@@ -65,10 +73,7 @@ _shellcheck__install_release() {
   _extracted="${_tmp}/shellcheck-v${_version}/shellcheck"
   [[ -f "$_extracted" ]] || return 1
 
-  if [[ -z "$_install_prefix" || "$_install_prefix" == "auto" ]]; then
-    _install_prefix="$(users__default_prefix)"
-  fi
-  _dest="${_install_prefix%/}/bin/shellcheck"
+  _dest="${PREFIX%/}/bin/shellcheck"
   mkdir -p "$(dirname "$_dest")" || return 1
   if command -v install > /dev/null 2>&1; then
     install -m 0755 "$_extracted" "$_dest" || return 1
@@ -100,6 +105,22 @@ _shellcheck__handle_existing() {
   esac
 }
 
+_shellcheck__create_symlink() {
+  if [[ "${SYMLINK}" != "true" ]]; then
+    logging__info "symlink=false; skipping symlink creation."
+    return 0
+  fi
+  if [[ "${METHOD}" == "repos" ]]; then
+    logging__info "method=repos; symlink not applicable."
+    return 0
+  fi
+  shell__create_symlink \
+    --src "${PREFIX}/bin/shellcheck" \
+    --system-target "/usr/local/bin/shellcheck" \
+    --user-target "${HOME}/.local/bin/shellcheck"
+}
+
+_shellcheck__resolve_prefix
 _existing="$(command -v shellcheck 2> /dev/null || true)"
 _shellcheck__handle_existing "$_existing" "$IF_EXISTS"
 
@@ -109,20 +130,23 @@ case "$METHOD" in
       logging__error "install-shellcheck: could not resolve version '${VERSION}'."
       exit 1
     }
-    _shellcheck__install_release "$_resolved" "$PREFIX"
+    _shellcheck__install_release "$_resolved"
     ;;
   repos)
     _shellcheck__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
     ;;
   auto)
     _resolved="$(_shellcheck__resolve_version "$VERSION" 2> /dev/null || true)"
-    if [[ -n "$_resolved" ]] && _shellcheck__install_release "$_resolved" "$PREFIX" 2> /dev/null; then
-      exit 0
+    if [[ -n "$_resolved" ]] && _shellcheck__install_release "$_resolved" 2> /dev/null; then
+      :
+    else
+      _shellcheck__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
     fi
-    _shellcheck__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
     ;;
   *)
     logging__error "install-shellcheck: invalid method '${METHOD}'."
     exit 1
     ;;
 esac
+
+_shellcheck__create_symlink
