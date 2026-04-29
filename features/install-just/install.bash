@@ -191,16 +191,46 @@ install__just() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --context) shift; _context="${1-}" ;;
-      --method) shift; _method="${1-}" ;;
-      --version) shift; _version="${1-}" ;;
-      --prefix) shift; _prefix="${1-}" ;;
-      --if-exists) shift; _if_exists="${1-}" ;;
-      --target) shift; _target="${1-}" ;;
-      --repos-manifest) shift; _repos_manifest="${1-}" ;;
-      --script-force) shift; _script_force="${1-}" ;;
-      --cargo-binstall) shift; _cargo_binstall="${1-}" ;;
-      --owner-group) shift; _owner_group="${1-}" ;;
+      --context)
+        shift
+        _context="${1-}"
+        ;;
+      --method)
+        shift
+        _method="${1-}"
+        ;;
+      --version)
+        shift
+        _version="${1-}"
+        ;;
+      --prefix)
+        shift
+        _prefix="${1-}"
+        ;;
+      --if-exists)
+        shift
+        _if_exists="${1-}"
+        ;;
+      --target)
+        shift
+        _target="${1-}"
+        ;;
+      --repos-manifest)
+        shift
+        _repos_manifest="${1-}"
+        ;;
+      --script-force)
+        shift
+        _script_force="${1-}"
+        ;;
+      --cargo-binstall)
+        shift
+        _cargo_binstall="${1-}"
+        ;;
+      --owner-group)
+        shift
+        _owner_group="${1-}"
+        ;;
       *)
         logging__error "install-just: unknown option '$1'"
         return 1
