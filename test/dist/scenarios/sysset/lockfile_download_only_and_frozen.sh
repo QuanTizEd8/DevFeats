@@ -63,17 +63,21 @@ case "${1-}" in
 JSON
     ;;
   pull)
-    _ref="${2-}"
-    [[ "${_ref}" == "${SYSSET_TEST_EXPECT_REF}" ]] || exit 1
     _out=""
-    while [[ $# -gt 0 ]]; do
-      if [[ "${1}" == "-o" ]]; then
-        _out="${2}"
-        shift 2
-      else
-        shift
+    _ref=""
+    _skip_next=0
+    for _a in "${@:2}"; do
+      if [[ "$_skip_next" -eq 1 ]]; then
+        _out="$_a"
+        _skip_next=0
+      elif [[ "$_a" == "-o" || "$_a" == "--output" ]]; then
+        _skip_next=1
+      elif [[ "$_a" != -* ]]; then
+        _ref="$_a"
       fi
     done
+    [[ "${_ref}" == "${SYSSET_TEST_EXPECT_REF}" ]] || exit 1
+    [[ -n "${_out}" ]] || exit 1
     mkdir -p "${_out}"
     cp "${SYSSET_TEST_PAYLOAD}" "${_out}/demo.tgz"
     ;;

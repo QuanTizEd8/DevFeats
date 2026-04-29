@@ -197,9 +197,18 @@ push_oci_feature() {
   _layer_size="$(wc -c < "$_tgz" | tr -d '[:space:]')"
   local _layer_dig="sha256:${_layer_hash}"
 
-  # Empty-JSON config blob — sha256('{}') is well-known.
-  local _cfg_dig="sha256:44136fa355ba77b9ad7b3537ed8669bed197405c2ec3cd0a3e8e62c1e78c40b7"
-  local _cfg_size=2
+  # Config blob is a minimal empty-JSON object; compute digest dynamically so
+  # it always matches the actual bytes written (avoids DIGEST_INVALID on PUT).
+  local _cfg_hash _cfg_size _cfg_dig
+  _tmp="$(mktemp)"
+  printf '{}' > "$_tmp"
+  if command -v sha256sum > /dev/null 2>&1; then
+    _cfg_hash="$(sha256sum "$_tmp" | awk '{print $1}')"
+  else
+    _cfg_hash="$(shasum -a 256 "$_tmp" | awk '{print $1}')"
+  fi
+  _cfg_size="$(wc -c < "$_tmp" | tr -d '[:space:]')"
+  _cfg_dig="sha256:${_cfg_hash}"
 
   # Init a blob upload session; print the PUT URL (with digest appended) or return 1.
   _pof_upload_url() {
@@ -216,9 +225,7 @@ push_oci_feature() {
     fi
   }
 
-  # Upload config blob via a temp file so curl determines Content-Length from file size.
-  _tmp="$(mktemp)"
-  printf '{}' > "$_tmp"
+  # Upload config blob (temp file already written above).
   _url="$(_pof_upload_url "$_base" "$_cfg_dig")" || {
     rm -f "$_tmp"
     printf 'push_oci_feature: config upload init failed for %s:%s\n' "$_repo" "$_tag" >&2
