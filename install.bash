@@ -510,6 +510,15 @@ _resolve_install_tag() {
       return 0
     fi
     if [[ -n "$_spec" ]]; then
+      # SYSSET_BASE_URL points to a static test mirror; bypass oci__resolve_version
+      # for sysset-owned features just as the short-name branch does below.
+      if [[ -n "${SYSSET_BASE_URL:-}" && "$_repo" == "ghcr.io/${SYSSET_GHCR_NAMESPACE}/"* ]]; then
+        local _mirror_repo
+        _mirror_repo="$(_sysset_repo_ref_for_feature "$_feature")"
+        _tag="${_spec#v}"
+        printf '%s:%s\n' "${_mirror_repo,,}" "$_tag"
+        return 0
+      fi
       _tag="$(oci__resolve_version "$_repo" "$_spec")" || return 1
       printf '%s:%s\n' "${_repo,,}" "$_tag"
       return 0
