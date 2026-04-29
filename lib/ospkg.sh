@@ -90,6 +90,15 @@ _ospkg_update_cmd() {
     "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
   fi
   cat "$_err_tmp" >&2
+  # APT can occasionally report index corruption/partial fetch failures while
+  # still exiting successfully; force retry when those signatures appear.
+  if [[ "$_OSPKG_PKG_MNGR" == "apt-get" ]] && grep -qiE \
+    'Hash Sum mismatch|Failed to fetch|Some index files failed to download' \
+    "$_err_tmp" 2> /dev/null; then
+    _rc=100
+    apt-get clean > /dev/null 2>&1 || true
+    apt-get dist-clean > /dev/null 2>&1 || rm -rf /var/lib/apt/lists/* 2> /dev/null || true
+  fi
   [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] &&
     [[ $_rc -eq 100 ]] && rm -f "$_err_tmp" && return 0
   [[ "$_OSPKG_PKG_MNGR" == "zypper" ]] && [[ $_rc -eq 6 ]] && rm -f "$_err_tmp" && return 0
