@@ -11,8 +11,8 @@ keywords:
 _long_description: |-
   Installs ShellCheck, the static analysis tool for shell scripts.
 
-  `method=auto` prefers a verified upstream release archive with SHA-512
-  verification and falls back to the OS package manager. Use `version` to pin
+  `method=auto` prefers a verified upstream release archive and falls back to
+  the OS package manager. Use `version` to pin
   an exact release, `prefix` to control the installation destination for the
   release method, and `if_exists` to control behaviour when `shellcheck` is
   already available.
@@ -29,7 +29,7 @@ options:
       - value: auto
         description: Prefer release binary, then fall back to package manager.
       - value: release
-        description: Install from GitHub release archives with SHA-512 verification.
+        description: Install from GitHub release archives with checksum verification.
       - value: repos
         description: Install from the operating system package manager.
   version:
@@ -74,4 +74,6 @@ _dependencies:
       packages:
         - curl
         - tar
+        - name: xz
+          apt: xz-utils
 installsAfter: []

@@ -10,7 +10,7 @@ _FILE__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # _file__ensure_extract_tool <ext> (internal)
 # Ensures the extraction tool for <ext> is available; installs it via ospkg when possible.
-# <ext>: "zip" (installs unzip), "tar" (hard-fail — system primitive).
+# <ext>: "zip" (installs unzip), "xz" (installs xz-utils/xz), "tar" (hard-fail — system primitive).
 _file__ensure_extract_tool() {
   local _ext="$1"
   case "$_ext" in
@@ -20,6 +20,20 @@ _file__ensure_extract_tool() {
       ospkg__install_tracked "lib-file" unzip
       command -v unzip > /dev/null 2>&1 && return 0
       logging__error "file.sh: unzip is required to extract .zip archives but could not be installed."
+      return 1
+      ;;
+    xz)
+      command -v xz > /dev/null 2>&1 && return 0
+      logging__info "xz not found — installing."
+      local _xz_pkg
+      ospkg__detect
+      case "$_OSPKG_PREFIX" in
+        apt) _xz_pkg=xz-utils ;;
+        *) _xz_pkg=xz ;;
+      esac
+      ospkg__install_tracked "lib-file" "$_xz_pkg"
+      command -v xz > /dev/null 2>&1 && return 0
+      logging__error "file.sh: xz is required to extract .tar.xz archives but could not be installed."
       return 1
       ;;
     tar)
@@ -50,6 +64,7 @@ file__extract_archive() {
   case "$_name" in
     *.tar.xz)
       _file__ensure_extract_tool tar || return 1
+      _file__ensure_extract_tool xz || return 1
       tar -xJf "$_arc" -C "$_dest"
       ;;
     *.tar.gz | *.tgz)

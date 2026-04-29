@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck source=lib/checksum.sh
 . "${_SELF_DIR}/_lib/checksum.sh"
+# shellcheck source=lib/file.sh
+. "${_SELF_DIR}/_lib/file.sh"
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
 # shellcheck source=lib/net.sh
@@ -59,7 +61,7 @@ _shellcheck__install_release() {
 
   github__fetch_release_asset_tarball "koalaman/shellcheck" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
 
-  tar -xJf "${_tmp}/${_asset}" -C "$_tmp" || return 1
+  file__extract_archive "${_tmp}/${_asset}" "$_tmp" || return 1
   _extracted="${_tmp}/shellcheck-v${_version}/shellcheck"
   [[ -f "$_extracted" ]] || return 1
 
