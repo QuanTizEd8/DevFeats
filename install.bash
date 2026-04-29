@@ -523,6 +523,13 @@ _resolve_install_tag() {
   fi
 
   _repo="$(_sysset_repo_ref_for_feature "$_feature")"
+  # SYSSET_BASE_URL points to static test mirrors (not OCI registries). When an
+  # explicit version is provided, use it directly instead of probing tags via ORAS.
+  if [[ -n "${SYSSET_BASE_URL:-}" && -n "$_spec" ]]; then
+    _tag="${_spec#v}"
+    printf '%s:%s\n' "${_repo,,}" "$_tag"
+    return 0
+  fi
   _tag="$(oci__resolve_version "$_repo" "$_spec")" || return 1
   printf '%s:%s\n' "${_repo,,}" "$_tag"
 }
