@@ -317,5 +317,5 @@ if [[ -n "$ENV_NAME" ]]; then setup_inline_env; fi
 if [[ ${#ENV_FILES[@]} -gt 0 || ${#ENV_DIRS[@]} -gt 0 ]]; then setup_environment; fi
 if [[ "$KEEP_CACHE" == false ]]; then
   logging__clean "Cleaning up conda cache."
-  "$SOLVER_EXEC" clean --all -y
+  "$SOLVER_EXEC" clean --all --yes
 fi
