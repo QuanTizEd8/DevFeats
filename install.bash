@@ -79,7 +79,7 @@ _bootstrap_fetch() {
 }
 
 echo "ℹ️  Downloading sysset lib files..." >&2
-for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh checksum.sh oci.sh lock.sh graph.sh proc.sh devcontainer.sh jsonc.py users.sh install/common.sh install/oras.sh install/yq.sh; do
+for _f in net.sh os.sh str.sh json.sh github.sh ospkg.sh logging.sh verify.sh oci.sh lock.sh graph.sh proc.sh devcontainer.sh jsonc.py users.sh install/common.sh install/oras.sh install/yq.sh; do
   mkdir -p "$(dirname "${_lib_dir}/${_f}")"
   _bootstrap_fetch "${SYSSET_RAW_BASE}/lib/${_f}" "${_lib_dir}/${_f}"
 done
@@ -94,8 +94,8 @@ _SYSSET_LIB_DIR="$_lib_dir"
 . "${_lib_dir}/logging.sh"
 # shellcheck source=lib/github.sh
 . "${_lib_dir}/github.sh"
-# shellcheck source=lib/checksum.sh
-. "${_lib_dir}/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_lib_dir}/verify.sh"
 # shellcheck source=lib/oci.sh
 . "${_lib_dir}/oci.sh"
 # shellcheck source=lib/lock.sh
@@ -342,7 +342,7 @@ _sysset_verify_digest_checksums() {
       logging__error "local registry: missing payload file ${_path}"
       return 1
     }
-    _sum="$(checksum__hash_file "$_path")" || return 1
+    _sum="$(verify__hash_file "$_path")" || return 1
     if [[ "${_sum}" != "${_expect}" ]]; then
       logging__error "local registry: checksum mismatch for ${_ent}"
       return 1
@@ -369,7 +369,7 @@ _sysset_checksums_json_for_payload_dir() {
   _json__ensure_jq || return 1
   for _f in install.sh install.bash devcontainer-feature.json; do
     [[ -f "${_d}/${_f}" ]] || continue
-    _h="$(checksum__hash_file "${_d}/${_f}")" || return 1
+    _h="$(verify__hash_file "${_d}/${_f}")" || return 1
     _j="$(json__query -n --argjson cur "$_j" --arg k "$_f" --arg v "$_h" '$cur + {($k): $v}')"
   done
   printf '%s\n' "$_j"
@@ -388,7 +388,7 @@ _sysset_manifest_registry_append_unlocked() {
   local _root="${1%/}" _ref="$2" _tb="$3"
   local _mf="${_root}/manifest.json"
   local _hex _dkey _rel _dest _now _chk _tmp _repo
-  _hex="$(checksum__hash_file "$_tb")" || return 1
+  _hex="$(verify__hash_file "$_tb")" || return 1
   _dkey="sha256:${_hex}"
   _repo="$(_oci__repo_from_ref "$_ref")"
   _repo="${_repo,,}"

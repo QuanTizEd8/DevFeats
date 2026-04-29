@@ -145,7 +145,7 @@ verify_pixi() {
     return 0
   fi
   logging__inspect "Verifying SHA-256 checksum..."
-  checksum__verify_sidecar "${ARCHIVE}" "${SIDECAR}"
+  verify__sha_sidecar "${ARCHIVE}" "${SIDECAR}"
   logging__success "Checksum verified."
   logging__fn_exit "verify_pixi"
   return 0
@@ -373,8 +373,8 @@ install_completion() {
 . "${_SELF_DIR}/_lib/shell.sh"
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
-# shellcheck source=lib/checksum.sh
-. "${_SELF_DIR}/_lib/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_SELF_DIR}/_lib/verify.sh"
 # shellcheck source=lib/uri.sh
 # shellcheck disable=SC1094
 . "${_SELF_DIR}/_lib/uri.sh"

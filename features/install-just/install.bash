@@ -7,8 +7,8 @@
 . "${_SELF_DIR}/_lib/ospkg.sh"
 # shellcheck source=lib/net.sh
 . "${_SELF_DIR}/_lib/net.sh"
-# shellcheck source=lib/checksum.sh
-. "${_SELF_DIR}/_lib/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_SELF_DIR}/_lib/verify.sh"
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
 # shellcheck source=lib/shell.sh
@@ -72,7 +72,7 @@ _install__just_install_release() {
     logging__error "install-just: could not resolve checksum for ${_asset}."
     return 1
   fi
-  checksum__verify "$_tar" "$_hash" || return 1
+  verify__sha "$_tar" "$_hash" || return 1
 
   tar -xzf "$_tar" -C "$_tmp" || return 1
   [[ -f "${_tmp}/just" ]] || return 1

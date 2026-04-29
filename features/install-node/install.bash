@@ -373,7 +373,7 @@ _node_install_via_binary() {
   fi
 
   # Verify checksum
-  checksum__verify "${INSTALLER_DIR}/${_tarball}" "$_hash"
+  verify__sha "${INSTALLER_DIR}/${_tarball}" "$_hash"
 
   # Extract to install prefix
   mkdir -p "$_install_prefix"
@@ -634,8 +634,8 @@ _node_install_yarn() {
 
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
-# shellcheck source=lib/checksum.sh
-. "${_SELF_DIR}/_lib/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_SELF_DIR}/_lib/verify.sh"
 # shellcheck source=lib/shell.sh
 . "${_SELF_DIR}/_lib/shell.sh"
 # shellcheck source=lib/users.sh

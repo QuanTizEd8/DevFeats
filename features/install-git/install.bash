@@ -1,7 +1,7 @@
 # shellcheck source=lib/github.sh
 . "$_SELF_DIR/_lib/github.sh"
-# shellcheck source=lib/checksum.sh
-. "$_SELF_DIR/_lib/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_SELF_DIR}/_lib/verify.sh"
 # shellcheck source=lib/users.sh
 . "$_SELF_DIR/_lib/users.sh"
 # shellcheck source=lib/shell.sh
@@ -222,7 +222,7 @@ _git__source_fetch_verify() {
     logging__error "No checksum found for git-${_ver}.tar.gz in sha256sums.asc."
     return 1
   fi
-  checksum__verify "${_tarfile}" "${_expected}"
+  verify__sha "${_tarfile}" "${_expected}"
   return 0
 }
 

@@ -230,7 +230,7 @@ _gh__install_binary() {
     logging__error "Could not find checksum for '${_archive_name}' in checksums.txt."
     exit 1
   fi
-  checksum__verify "${INSTALLER_DIR}/${_archive_name}" "${_expected}"
+  verify__sha "${INSTALLER_DIR}/${_archive_name}" "${_expected}"
   logging__success "Checksum verified."
 
   # Extract archive.
@@ -489,8 +489,8 @@ EOF
 
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
-# shellcheck source=lib/checksum.sh
-. "${_SELF_DIR}/_lib/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_SELF_DIR}/_lib/verify.sh"
 # shellcheck source=lib/file.sh
 . "${_SELF_DIR}/_lib/file.sh"
 # shellcheck source=lib/shell.sh

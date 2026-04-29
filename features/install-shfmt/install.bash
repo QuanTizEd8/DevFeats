@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# shellcheck source=lib/checksum.sh
-. "${_SELF_DIR}/_lib/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_SELF_DIR}/_lib/verify.sh"
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
 # shellcheck source=lib/net.sh

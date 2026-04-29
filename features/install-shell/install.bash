@@ -10,8 +10,8 @@
 . "$_SELF_DIR/_lib/net.sh"
 # shellcheck source=lib/github.sh
 . "$_SELF_DIR/_lib/github.sh"
-# shellcheck source=lib/checksum.sh
-. "$_SELF_DIR/_lib/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_SELF_DIR}/_lib/verify.sh"
 
 _GITHUB_BASE_URL="https://github.com"
 _ZSH_COMPLETIONS_REPO_URL="${_GITHUB_BASE_URL}/zsh-users/zsh-completions"
@@ -199,10 +199,10 @@ install_fzf() {
 
   local _expect_sha=""
   if _expect_sha="$(github__release_json_digest_for_asset "$_reljson" "$_filename")"; then
-    checksum__verify "$_archive" "$_expect_sha"
+    verify__sha "$_archive" "$_expect_sha"
   else
     net__fetch_url_file "${_base_url}/${_filename}.sha256" "$_sidecar"
-    checksum__verify_sidecar "$_archive" "$_sidecar"
+    verify__sha_sidecar "$_archive" "$_sidecar"
   fi
 
   mkdir -p "$_bin_dir"

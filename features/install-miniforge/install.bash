@@ -340,7 +340,7 @@ uninstall_miniforge() {
 verify_miniforge() {
   logging__fn_entry "verify_miniforge"
   logging__install "Verifying installer checksum"
-  checksum__verify_sidecar "$INSTALLER" "$CHECKSUM"
+  verify__sha_sidecar "$INSTALLER" "$CHECKSUM"
   logging__fn_exit "verify_miniforge"
 }
 
@@ -423,8 +423,8 @@ readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 . "$_SELF_DIR/_lib/github.sh"
 # shellcheck source=lib/json.sh
 . "$_SELF_DIR/_lib/json.sh"
-# shellcheck source=lib/checksum.sh
-. "$_SELF_DIR/_lib/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_SELF_DIR}/_lib/verify.sh"
 # shellcheck source=lib/users.sh
 . "$_SELF_DIR/_lib/users.sh"
 

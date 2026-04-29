@@ -88,7 +88,7 @@ setup() {
   local _src="${BATS_TEST_TMPDIR}/data"
   printf 'payload\n' > "$_src"
   local _expect
-  _expect="$(checksum__hash_file "$_src")"
+  _expect="$(verify__hash_file "$_src")"
   local _dst="${BATS_TEST_TMPDIR}/out"
   run uri__resolve "${_src}#sha256=${_expect}" "$_dst"
   assert_success
