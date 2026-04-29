@@ -33,8 +33,24 @@ _oci__is_registry_host_like() {
 
 _oci__registry_from_ref_or_repo() {
   local _v="${1-}"
+  case "$_v" in
+    http://*) _v="${_v#http://}" ;;
+    https://*) _v="${_v#https://}" ;;
+  esac
   [[ "$_v" == */* ]] || return 1
   printf '%s\n' "${_v%%/*}"
+}
+
+_oci__normalize_target() {
+  local _in="${1-}" _plain=0
+  case "$_in" in
+    http://*)
+      _in="${_in#http://}"
+      _plain=1
+      ;;
+    https://*) _in="${_in#https://}" ;;
+  esac
+  printf '%s\t%s\n' "$_in" "$_plain"
 }
 
 _oci__load_auth_map() {
@@ -173,11 +189,24 @@ _oci__tag_from_ref() {
 # @brief oci__list_tags <repo> — Print one tag per line from `oras repo tags`.
 oci__list_tags() {
   local _repo="${1-}"
+  local _target _plain
   [[ -n "$_repo" ]] || return 1
   oci__ensure_oras || return 1
   _oci__ensure_auth_for "$_repo" || return 1
+  IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_repo")"
   local _raw
-  if ! _raw="$(oras repo tags "$_repo" 2> /dev/null)"; then
+  if [[ "$_plain" == "1" ]]; then
+    _raw="$(oras repo tags --plain-http "$_target" 2> /dev/null)" || {
+      logging__error "oci.sh: failed to list tags for ${_repo}."
+      return 1
+    }
+  else
+    _raw="$(oras repo tags "$_target" 2> /dev/null)" || {
+      logging__error "oci.sh: failed to list tags for ${_repo}."
+      return 1
+    }
+  fi
+  if [[ -z "${_raw:-}" ]]; then
     logging__error "oci.sh: failed to list tags for ${_repo}."
     return 1
   fi
@@ -286,8 +315,13 @@ _oci__validate_feature_tgz() {
 }
 
 _oci__expected_layer_digest_for_ref() {
-  local _ref="${1-}" _manifest _dig
-  _manifest="$(oras manifest fetch "$_ref" 2> /dev/null || true)"
+  local _ref="${1-}" _manifest _dig _target _plain
+  IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_ref")"
+  if [[ "$_plain" == "1" ]]; then
+    _manifest="$(oras manifest fetch --plain-http "$_target" 2> /dev/null || true)"
+  else
+    _manifest="$(oras manifest fetch "$_target" 2> /dev/null || true)"
+  fi
   [[ -n "$_manifest" ]] || return 1
   _dig="$(printf '%s' "$_manifest" |
     json__query -r '
@@ -309,18 +343,25 @@ _oci__expected_layer_digest_for_ref() {
 
 # @brief oci__pull_feature_tgz <oci-ref> <dest-tgz> — Pull OCI feature artifact as tgz.
 oci__pull_feature_tgz() {
-  local _ref="${1-}" _dest="${2-}"
+  local _ref="${1-}" _dest="${2-}" _target _plain
   [[ -n "$_ref" && -n "$_dest" ]] || {
     logging__error "oci__pull_feature_tgz: requires <oci-ref> and <dest-tgz>."
     return 1
   }
   oci__ensure_oras || return 1
   _oci__ensure_auth_for "$_ref" || return 1
+  IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_ref")"
   local _tmp
   _tmp="$(mktemp -d)"
   local _expect_digest=""
   _expect_digest="$(_oci__expected_layer_digest_for_ref "$_ref" 2> /dev/null || true)"
-  if ! oras pull "$_ref" -o "$_tmp" > /dev/null 2>&1; then
+  if [[ "$_plain" == "1" ]]; then
+    oras pull --plain-http "$_target" -o "$_tmp" > /dev/null 2>&1 || {
+      rm -rf "$_tmp"
+      logging__error "oci.sh: failed to pull '${_ref}'."
+      return 1
+    }
+  elif ! oras pull "$_target" -o "$_tmp" > /dev/null 2>&1; then
     rm -rf "$_tmp"
     logging__error "oci.sh: failed to pull '${_ref}'."
     return 1
