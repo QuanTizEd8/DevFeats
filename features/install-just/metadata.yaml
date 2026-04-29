@@ -93,6 +93,10 @@ options:
     type: boolean
     default: false
     description: Use `cargo binstall` for `method=cargo` when available.
+customizations:
+  vscode:
+    extensions:
+      - nefrob.vscode-just-syntax
 _dependencies:
   run:
     base:
