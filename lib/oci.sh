@@ -55,14 +55,28 @@ _oci__normalize_target() {
 
 _oci__oras_capture() {
   local _target="${1-}" _plain="${2-}"
-  shift 2 || true
+  shift 2
+  local -a _prefix=() _suffix=()
+  local _split=0 _arg
+  for _arg in "$@"; do
+    if [[ "$_arg" == "--" && "$_split" -eq 0 ]]; then
+      _split=1
+      continue
+    fi
+    if [[ "$_split" -eq 0 ]]; then
+      _prefix+=("$_arg")
+    else
+      _suffix+=("$_arg")
+    fi
+  done
   [[ -n "$_target" ]] || return 1
+  [[ "${#_prefix[@]}" -gt 0 ]] || return 1
   if [[ "$_plain" == "1" ]]; then
-    "$@" --plain-http "$_target" 2> /dev/null && return 0
-    ORAS_PLAIN_HTTP=1 "$@" "$_target" 2> /dev/null && return 0
+    "${_prefix[@]}" --plain-http "$_target" "${_suffix[@]}" 2> /dev/null && return 0
+    ORAS_PLAIN_HTTP=1 "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null && return 0
     return 1
   fi
-  "$@" "$_target" 2> /dev/null
+  "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null
 }
 
 _oci__load_auth_map() {
@@ -353,7 +367,7 @@ oci__pull_feature_tgz() {
   _tmp="$(mktemp -d)"
   local _expect_digest=""
   _expect_digest="$(_oci__expected_layer_digest_for_ref "$_ref" 2> /dev/null || true)"
-  if ! _oci__oras_capture "$_target" "$_plain" oras pull -o "$_tmp" > /dev/null; then
+  if ! _oci__oras_capture "$_target" "$_plain" oras pull -- -o "$_tmp" > /dev/null; then
     rm -rf "$_tmp"
     logging__error "oci.sh: failed to pull '${_ref}'."
     return 1
