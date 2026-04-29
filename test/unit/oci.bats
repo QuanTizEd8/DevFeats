@@ -323,3 +323,50 @@ EOF
   run oci__pull_feature_tgz "ghcr.io/acme/x:1.0.0" "$_out"
   assert_failure
 }
+
+@test "oci__pull_feature_tgz supports plain-http mirrors for pull and manifest" {
+  local _tmp
+  _tmp="$(mktemp -d)"
+  local _good="${_tmp}/good.tgz"
+  local _bad="${_tmp}/bad.tgz"
+  printf '%s\n' "good archive fixture" > "$_good"
+  printf '%s\n' "bad archive fixture" > "$_bad"
+  _mock_tar_fixture_bin "$_tmp" "$_good" "$_bad"
+  export PATH="${_tmp}/bin:${PATH}"
+  hash -r
+  local _hash
+  _hash="$(_test_sha256_file "$_good")"
+
+  oras() {
+    if [[ "${1-}" == "version" ]]; then
+      printf '%s\n' "Version: 1.2.0"
+      return 0
+    fi
+    if [[ "${1-}" == "manifest" && "${2-}" == "fetch" ]]; then
+      [[ "${ORAS_PLAIN_HTTP-}" == "1" || "${3-}" == "--plain-http" ]] || return 1
+      cat << EOF
+{"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"sha256:${_hash}"}]}
+EOF
+      return 0
+    fi
+    if [[ "${1-}" == "pull" ]]; then
+      [[ "${ORAS_PLAIN_HTTP-}" == "1" || "${2-}" == "--plain-http" ]] || return 1
+      local _out_dir=""
+      if [[ "${2-}" == "--plain-http" ]]; then
+        _out_dir="${5-}"
+      else
+        _out_dir="${4-}"
+      fi
+      mkdir -p "$_out_dir"
+      cp "$_good" "$_out_dir/devcontainer-feature-x.tgz"
+      return 0
+    fi
+    return 1
+  }
+  export -f oras
+
+  local _out="${_tmp}/out.tgz"
+  run oci__pull_feature_tgz "http://127.0.0.1:5000/acme/x:1.0.0" "$_out"
+  assert_success
+  [[ -f "$_out" ]]
+}

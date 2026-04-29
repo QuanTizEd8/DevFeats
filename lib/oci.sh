@@ -56,7 +56,7 @@ _oci__normalize_target() {
 _oci__oras_capture() {
   local _target="${1-}" _plain="${2-}"
   shift 2
-  local -a _prefix=() _suffix=()
+  local -a _prefix=() _suffix=() _global_plain=()
   local _split=0 _arg
   for _arg in "$@"; do
     if [[ "$_arg" == "--" && "$_split" -eq 0 ]]; then
@@ -72,8 +72,16 @@ _oci__oras_capture() {
   [[ -n "$_target" ]] || return 1
   [[ "${#_prefix[@]}" -gt 0 ]] || return 1
   if [[ "$_plain" == "1" ]]; then
-    "${_prefix[@]}" --plain-http "$_target" "${_suffix[@]}" 2> /dev/null && return 0
+    # Some oras subcommands honor plain-http only via env or global flag.
     ORAS_PLAIN_HTTP=1 "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null && return 0
+    if [[ "${_prefix[0]}" == "oras" ]]; then
+      _global_plain=("oras" --plain-http)
+      if [[ "${#_prefix[@]}" -gt 1 ]]; then
+        _global_plain+=("${_prefix[@]:1}")
+      fi
+      "${_global_plain[@]}" "$_target" "${_suffix[@]}" 2> /dev/null && return 0
+    fi
+    "${_prefix[@]}" --plain-http "$_target" "${_suffix[@]}" 2> /dev/null && return 0
     return 1
   fi
   "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null
