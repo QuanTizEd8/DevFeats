@@ -42,7 +42,7 @@ push_oci_feature "${SYSSET_REGISTRY_HOST}" \
 
 check "install.sh --no-lifecycle-commands succeeds" \
   sudo -E bash "${REPO_ROOT}/install.sh" \
-  --no-lifecycle-commands "${_FEAT}:${_VER}"
+  --no-lifecycle "${_FEAT}:${_VER}"
 
 check "lifecycle sentinel was NOT created" \
   bash -c "[[ ! -f '$_sentinel' ]]"
