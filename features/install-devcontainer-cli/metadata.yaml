@@ -39,17 +39,18 @@ options:
     type: string
     default: auto
     description: |-
-      Installation prefix for `method=script` and optional npm global prefix.
-      `auto` resolves to `/usr/local` as root, or `$HOME/.local` as non-root.
+      Installation prefix for `method=script` and npm global prefix for `method=npm`.
+      `auto` resolves to `/opt/devcontainers` as root, or `$HOME/.devcontainers` as non-root,
+      matching the upstream install script's default layout (which places the bundled Node.js runtime,
+      CLI package, and wrapper binary all under this dedicated directory).
   symlink:
     type: boolean
     default: true
     description: |-
-      Create a symlink from the canonical bin directory to `$prefix/bin/devcontainer` when prefix
-      resolves to a non-default path (`method=script` and `method=npm`).
+      Create a symlink from a standard bin directory to `$prefix/bin/devcontainer` (`method=script` and `method=npm`).
       - System-wide (prefix not under any user home): creates `/usr/local/bin/devcontainer` → `$prefix/bin/devcontainer`.
       - User-scoped (prefix under a user home): creates `$HOME/.local/bin/devcontainer` → `$prefix/bin/devcontainer`.
-      Ensures the binary is always reachable on PATH regardless of the chosen prefix.
+      Ensures the binary is reachable on PATH without requiring the `$prefix/bin` directory to be in PATH.
       No-op when `$prefix/bin/devcontainer` is already the chosen target path.
   if_exists:
     type: string
@@ -79,6 +80,8 @@ options:
     type: boolean
     default: false
     description: Uninstall instead of install (supported for `method=script` and npm).
+containerEnv:
+  PATH: ${HOME}/.devcontainers/bin:/opt/devcontainers/bin:${PATH}
 _dependencies:
   run:
     base:

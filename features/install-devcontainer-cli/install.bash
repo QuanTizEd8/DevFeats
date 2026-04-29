@@ -96,7 +96,11 @@ _devcontainer_cli__create_symlink() {
 }
 
 if [[ -z "${PREFIX}" || "${PREFIX}" == "auto" ]]; then
-  PREFIX="$(users__default_prefix)"
+  if users__is_root; then
+    PREFIX="/opt/devcontainers"
+  else
+    PREFIX="${HOME}/.devcontainers"
+  fi
 fi
 
 _resolved_method="${METHOD}"
@@ -136,10 +140,10 @@ if [[ "${UNINSTALL}" == "true" ]]; then
   exit 0
 fi
 
-if ! command -v devcontainer > /dev/null 2>&1; then
-  logging__error "install-devcontainer-cli: devcontainer not found after install."
+if [[ ! -x "${PREFIX}/bin/devcontainer" ]]; then
+  logging__error "install-devcontainer-cli: devcontainer not found at ${PREFIX}/bin/devcontainer after install."
   exit 1
 fi
 
-logging__success "install-devcontainer-cli: installed $(devcontainer --version 2> /dev/null | head -n 1)"
 _devcontainer_cli__create_symlink
+logging__success "install-devcontainer-cli: installed $("${PREFIX}/bin/devcontainer" --version 2> /dev/null | head -n 1)"
