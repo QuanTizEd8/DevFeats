@@ -55,7 +55,7 @@ options:
         description: jq v1.8.1.
       - value: 1.7.1
         description: jq v1.7.1.
-      - value: 1.6
+      - value: '1.6'
         description: jq v1.6 (uses legacy release asset naming).
   prefix:
     type: string
