@@ -1,0 +1,12 @@
+{
+    "default_install": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-devcontainer-cli": {
+                "method": "script",
+                "if_exists": "reinstall",
+                "log_level": "trace"
+            }
+        }
+    }
+}

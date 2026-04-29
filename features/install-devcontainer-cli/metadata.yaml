@@ -1,0 +1,82 @@
+version: 0.1.0
+name: Dev Container CLI Installation
+description: Install the [Dev Container CLI](https://github.com/devcontainers/cli).
+keywords:
+  - devcontainer
+  - devcontainers
+  - cli
+  - containers
+  - tooling
+_long_description: |-
+  Installs the Dev Container CLI (`devcontainer`) using either the upstream standalone
+  installer script (bundled Node.js runtime) or npm (`@devcontainers/cli`).
+
+  The default `method=auto` selects the upstream script on supported Linux/macOS
+  architectures and falls back to npm otherwise. `if_exists` controls idempotency
+  behavior when `devcontainer` is already present.
+options:
+  method:
+    type: string
+    default: auto
+    description: Installation method.
+    enum:
+      - value: auto
+        description: Prefer upstream install script on supported platforms; fallback to npm.
+      - value: script
+        description: Use upstream `scripts/install.sh` (bundled Node.js).
+      - value: npm
+        description: Install via `npm install -g @devcontainers/cli`.
+  version:
+    type: string
+    default: latest
+    description: Version to install (`latest` or an explicit version like `0.82.0`).
+    proposals:
+      - value: latest
+        description: Install latest available release.
+      - value: 0.82.0
+        description: Install a specific release.
+  prefix:
+    type: string
+    default: auto
+    description: |-
+      Installation prefix for `method=script` and optional npm global prefix.
+      `auto` resolves to `/usr/local/devcontainers` as root, `${HOME}/.devcontainers` as non-root.
+  if_exists:
+    type: string
+    default: skip
+    description: Behavior when `devcontainer` already exists in PATH.
+    enum:
+      - value: skip
+        description: Reuse existing install and exit successfully.
+      - value: fail
+        description: Exit non-zero when an existing install is detected.
+      - value: reinstall
+        description: Reinstall using the selected method.
+  node_version:
+    type: string
+    default: "20"
+    description: Node.js major version passed to upstream install script (`method=script`).
+    proposals:
+      - value: "20"
+        description: Node.js 20 LTS line.
+      - value: "22"
+        description: Node.js 22 LTS line.
+  update:
+    type: boolean
+    default: false
+    description: Run the updater mode when supported (`method=script`).
+  uninstall:
+    type: boolean
+    default: false
+    description: Uninstall instead of install (supported for `method=script` and npm).
+containerEnv:
+  PATH: ${HOME}/.local/bin:${HOME}/.devcontainers/bin:/usr/local/devcontainers/bin:${PATH}
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+  build:
+    download:
+      packages:
+        - curl
