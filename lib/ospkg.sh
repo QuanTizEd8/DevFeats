@@ -325,18 +325,28 @@ _ospkg_ensure_yq() {
   if [[ -n "${_OSPKG_YQ_BIN:-}" ]] && [[ -x "${_OSPKG_YQ_BIN}" ]] && _install__yq_compatible "${_OSPKG_YQ_BIN}"; then
     return 0
   fi
-  _OSPKG_YQ_BIN="$(
-    install__yq \
-      --context internal \
-      --owner-group sysset-ospkg-internals \
-      --method release \
-      --if-exists skip
-  )" || {
+  local _yq_out_dir _yq_out_file
+  _OSPKG_YQ_BIN=""
+  _yq_out_dir="$(logging__tmpdir "ospkg/yq")"
+  _yq_out_file="$(mktemp "${_yq_out_dir}/install_yq_XXXXXX")" || {
     logging__error "yq could not be installed."
     return 1
   }
-  [[ -n "${_OSPKG_YQ_BIN}" ]] || {
+  install__yq \
+    --context internal \
+    --owner-group sysset-ospkg-internals \
+    --method release \
+    --if-exists skip > "${_yq_out_file}" || {
     logging__error "yq could not be installed."
+    return 1
+  }
+  IFS= read -r _OSPKG_YQ_BIN < "${_yq_out_file}" || _OSPKG_YQ_BIN=""
+  [[ -n "${_OSPKG_YQ_BIN}" && -x "${_OSPKG_YQ_BIN}" ]] || {
+    logging__error "install__yq did not return a usable yq path."
+    return 1
+  }
+  _install__yq_compatible "${_OSPKG_YQ_BIN}" || {
+    logging__error "yq could not be installed (or installed binary is incompatible)."
     return 1
   }
   return 0

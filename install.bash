@@ -38,6 +38,7 @@
 # Environment overrides:
 #   SYSSET_RAW_BASE   Raw GitHub base URL       (default: main branch)
 #   SYSSET_FETCH_TOOL curl|wget                 (set by install.sh; auto-detected here if unset)
+#   SYSSET_BASE_URL   Feature repository base URL override (used by dist/get test mirrors)
 #   SYSSET_GHCR_NAMESPACE  GHCR namespace path for oci__ refs (default: quantized8/sysset)
 #   SYSSET_LOCAL_REGISTRY  Optional directory override for the local registry root.
 #   SYSSET_VERSION    Ignored by installer (bundle pinning removed).
@@ -325,6 +326,10 @@ esac
 # ── Per-feature version resolution ──────────────────────────────────────────
 _sysset_repo_ref_for_feature() {
   local _feature="${1-}"
+  if [[ -n "${SYSSET_BASE_URL:-}" ]]; then
+    printf '%s/%s\n' "${SYSSET_BASE_URL%/}" "${_feature,,}"
+    return 0
+  fi
   printf 'ghcr.io/%s/%s\n' "${SYSSET_GHCR_NAMESPACE}" "${_feature,,}"
 }
 
