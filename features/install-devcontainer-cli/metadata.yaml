@@ -40,7 +40,17 @@ options:
     default: auto
     description: |-
       Installation prefix for `method=script` and optional npm global prefix.
-      `auto` resolves to `/usr/local/devcontainers` as root, `${HOME}/.devcontainers` as non-root.
+      `auto` resolves to `/usr/local` as root, or `$HOME/.local` as non-root.
+  symlink:
+    type: boolean
+    default: true
+    description: |-
+      Create a symlink from the canonical bin directory to `$prefix/bin/devcontainer` when prefix
+      resolves to a non-default path (`method=script` and `method=npm`).
+      - System-wide (prefix not under any user home): creates `/usr/local/bin/devcontainer` → `$prefix/bin/devcontainer`.
+      - User-scoped (prefix under a user home): creates `$HOME/.local/bin/devcontainer` → `$prefix/bin/devcontainer`.
+      Ensures the binary is always reachable on PATH regardless of the chosen prefix.
+      No-op when `$prefix/bin/devcontainer` is already the chosen target path.
   if_exists:
     type: string
     default: skip
@@ -69,8 +79,6 @@ options:
     type: boolean
     default: false
     description: Uninstall instead of install (supported for `method=script` and npm).
-containerEnv:
-  PATH: ${HOME}/.local/bin:${HOME}/.devcontainers/bin:/usr/local/devcontainers/bin:${PATH}
 _dependencies:
   run:
     base:

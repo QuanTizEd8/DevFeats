@@ -5,23 +5,14 @@
 . "${_SELF_DIR}/_lib/net.sh"
 # shellcheck source=lib/ospkg.sh
 . "${_SELF_DIR}/_lib/ospkg.sh"
+# shellcheck source=lib/shell.sh
+. "${_SELF_DIR}/_lib/shell.sh"
+# shellcheck source=lib/users.sh
+. "${_SELF_DIR}/_lib/users.sh"
 
 _devcontainer_cli__detect_version() {
   command -v devcontainer > /dev/null 2>&1 || return 1
   devcontainer --version 2> /dev/null | head -n 1
-}
-
-_devcontainer_cli__resolve_prefix() {
-  local _resolved_prefix="${1-}"
-  if [[ -z "${_resolved_prefix}" || "${_resolved_prefix}" == "auto" ]]; then
-    if [[ "$(id -u)" -eq 0 ]]; then
-      printf '%s\n' "/usr/local/devcontainers"
-    else
-      printf '%s\n' "${HOME}/.devcontainers"
-    fi
-    return 0
-  fi
-  printf '%s\n' "${_resolved_prefix}"
 }
 
 _devcontainer_cli__install_script() {
@@ -93,11 +84,25 @@ _devcontainer_cli__auto_method() {
   esac
 }
 
+_devcontainer_cli__create_symlink() {
+  if [[ "${SYMLINK}" != "true" ]]; then
+    logging__info "symlink=false; skipping symlink creation."
+    return 0
+  fi
+  shell__create_symlink \
+    --src "${PREFIX}/bin/devcontainer" \
+    --system-target "/usr/local/bin/devcontainer" \
+    --user-target "${HOME}/.local/bin/devcontainer"
+}
+
+if [[ -z "${PREFIX}" || "${PREFIX}" == "auto" ]]; then
+  PREFIX="$(users__default_prefix)"
+fi
+
 _resolved_method="${METHOD}"
 if [[ "${_resolved_method}" == "auto" ]]; then
   _resolved_method="$(_devcontainer_cli__auto_method)"
 fi
-_resolved_prefix="$(_devcontainer_cli__resolve_prefix "${PREFIX}")"
 
 _existing_ver="$(_devcontainer_cli__detect_version 2> /dev/null || true)"
 if [[ -n "${_existing_ver}" && "${UNINSTALL}" != "true" ]]; then
@@ -114,11 +119,11 @@ fi
 case "${_resolved_method}" in
   script)
     _download_deps__install || exit 1
-    _devcontainer_cli__install_script "${VERSION}" "${_resolved_prefix}" "${NODE_VERSION}" "${UPDATE}" "${UNINSTALL}" || exit 1
+    _devcontainer_cli__install_script "${VERSION}" "${PREFIX}" "${NODE_VERSION}" "${UPDATE}" "${UNINSTALL}" || exit 1
     _download_deps__cleanup || true
     ;;
   npm)
-    _devcontainer_cli__install_npm "${VERSION}" "${_resolved_prefix}" "${UNINSTALL}" || exit 1
+    _devcontainer_cli__install_npm "${VERSION}" "${PREFIX}" "${UNINSTALL}" || exit 1
     ;;
   *)
     logging__error "install-devcontainer-cli: unsupported method '${_resolved_method}'."
@@ -137,3 +142,4 @@ if ! command -v devcontainer > /dev/null 2>&1; then
 fi
 
 logging__success "install-devcontainer-cli: installed $(devcontainer --version 2> /dev/null | head -n 1)"
+_devcontainer_cli__create_symlink
