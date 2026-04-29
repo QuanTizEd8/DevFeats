@@ -23,13 +23,13 @@ _make_hello_file() {
 _HELLO_SHA256="2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
 
 # ---------------------------------------------------------------------------
-# checksum__sha256_file
+# checksum__hash_file
 # ---------------------------------------------------------------------------
 
-@test "checksum__sha256_file prints known hex digest" {
+@test "checksum__hash_file prints known hex digest" {
   local _f
   _f="$(_make_hello_file)"
-  run checksum__sha256_file "$_f"
+  run checksum__hash_file "$_f"
   assert_success
   assert_output "$_HELLO_SHA256"
 }
