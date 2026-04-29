@@ -53,6 +53,18 @@ _oci__normalize_target() {
   printf '%s\t%s\n' "$_in" "$_plain"
 }
 
+_oci__oras_capture() {
+  local _target="${1-}" _plain="${2-}"
+  shift 2 || true
+  [[ -n "$_target" ]] || return 1
+  if [[ "$_plain" == "1" ]]; then
+    "$@" --plain-http "$_target" 2> /dev/null && return 0
+    ORAS_PLAIN_HTTP=1 "$@" "$_target" 2> /dev/null && return 0
+    return 1
+  fi
+  "$@" "$_target" 2> /dev/null
+}
+
 _oci__load_auth_map() {
   [[ "$_OCI__AUTH_LOADED" -eq 1 ]] && return 0
   _OCI__AUTH_LOADED=1
@@ -195,17 +207,7 @@ oci__list_tags() {
   _oci__ensure_auth_for "$_repo" || return 1
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_repo")"
   local _raw
-  if [[ "$_plain" == "1" ]]; then
-    _raw="$(oras repo tags --plain-http "$_target" 2> /dev/null)" || {
-      logging__error "oci.sh: failed to list tags for ${_repo}."
-      return 1
-    }
-  else
-    _raw="$(oras repo tags "$_target" 2> /dev/null)" || {
-      logging__error "oci.sh: failed to list tags for ${_repo}."
-      return 1
-    }
-  fi
+  _raw="$(_oci__oras_capture "$_target" "$_plain" oras repo tags || true)"
   if [[ -z "${_raw:-}" ]]; then
     logging__error "oci.sh: failed to list tags for ${_repo}."
     return 1
@@ -317,11 +319,7 @@ _oci__validate_feature_tgz() {
 _oci__expected_layer_digest_for_ref() {
   local _ref="${1-}" _manifest _dig _target _plain
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_ref")"
-  if [[ "$_plain" == "1" ]]; then
-    _manifest="$(oras manifest fetch --plain-http "$_target" 2> /dev/null || true)"
-  else
-    _manifest="$(oras manifest fetch "$_target" 2> /dev/null || true)"
-  fi
+  _manifest="$(_oci__oras_capture "$_target" "$_plain" oras manifest fetch || true)"
   [[ -n "$_manifest" ]] || return 1
   _dig="$(printf '%s' "$_manifest" |
     json__query -r '
@@ -355,13 +353,7 @@ oci__pull_feature_tgz() {
   _tmp="$(mktemp -d)"
   local _expect_digest=""
   _expect_digest="$(_oci__expected_layer_digest_for_ref "$_ref" 2> /dev/null || true)"
-  if [[ "$_plain" == "1" ]]; then
-    oras pull --plain-http "$_target" -o "$_tmp" > /dev/null 2>&1 || {
-      rm -rf "$_tmp"
-      logging__error "oci.sh: failed to pull '${_ref}'."
-      return 1
-    }
-  elif ! oras pull "$_target" -o "$_tmp" > /dev/null 2>&1; then
+  if ! _oci__oras_capture "$_target" "$_plain" oras pull -o "$_tmp" > /dev/null; then
     rm -rf "$_tmp"
     logging__error "oci.sh: failed to pull '${_ref}'."
     return 1
