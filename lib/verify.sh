@@ -133,18 +133,9 @@ verify__gpg_ensure() {
 #   [group_id]  Tracking group used when auto-installing gpg (default: lib-verify).
 verify__gpg_detached() {
   local _file="$1" _sig="${2-}" _key="${3-}" _group="${4:-lib-verify}"
-  [[ -f "$_file" ]] || {
-    logging__error "verify__gpg_detached: artifact not found: '${_file}'."
-    return 1
-  }
-  [[ -f "$_sig" ]] || {
-    logging__error "verify__gpg_detached: signature file not found: '${_sig}'."
-    return 1
-  }
-  [[ -f "$_key" ]] || {
-    logging__error "verify__gpg_detached: key file not found: '${_key}'."
-    return 1
-  }
+  [[ -f "$_file" ]] || { logging__error "verify__gpg_detached: artifact not found: '${_file}'."; return 1; }
+  [[ -f "$_sig" ]] || { logging__error "verify__gpg_detached: signature file not found: '${_sig}'."; return 1; }
+  [[ -f "$_key" ]] || { logging__error "verify__gpg_detached: key file not found: '${_key}'."; return 1; }
 
   verify__gpg_ensure "$_group" || return 1
 

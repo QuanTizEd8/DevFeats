@@ -11,8 +11,7 @@ check "method=source installs jq successfully" \
   bash "${REPO_ROOT}/src/install-jq/install.bash" \
   --method source \
   --version 1.8.1 \
-  --prefix /usr/local \
-  --if_exists reinstall
+  --prefix /usr/local
 
 check "jq binary present at /usr/local/bin/jq" test -f /usr/local/bin/jq
 check "jq binary is executable" test -x /usr/local/bin/jq
