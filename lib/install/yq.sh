@@ -7,8 +7,8 @@ _INSTALL_YQ__LIB_LOADED=1
 _INSTALL_YQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/install/common.sh
 . "${_INSTALL_YQ_LIB_DIR}/common.sh"
-# shellcheck source=lib/checksum.sh
-. "${_INSTALL_YQ_LIB_DIR}/../checksum.sh"
+# shellcheck source=lib/verify.sh
+. "${_INSTALL_YQ_LIB_DIR}/../verify.sh"
 # shellcheck source=lib/os.sh
 . "${_INSTALL_YQ_LIB_DIR}/../os.sh"
 # shellcheck source=lib/ospkg.sh
@@ -61,7 +61,7 @@ _install__yq_install_release() {
     logging__error "install__yq: extracted checksum is invalid for yq_${_os}_${_arch}."
     return 1
   fi
-  checksum__verify "$_dest" "$_expected_hash" || return 1
+  verify__sha "$_dest" "$_expected_hash" || return 1
   chmod +x "$_dest" || return 1
   _final_dest="$_dest"
   if [[ "$_context" == "user" ]]; then

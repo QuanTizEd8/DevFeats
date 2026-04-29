@@ -8,8 +8,8 @@ _URI__LIB_LOADED=1
 _URI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/net.sh
 [[ -z "${_NET__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/net.sh"
-# shellcheck source=lib/checksum.sh
-[[ -z "${_CHECKSUM__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/checksum.sh"
+# shellcheck source=lib/verify.sh
+[[ -z "${_VERIFY__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/verify.sh"
 # shellcheck source=lib/oci.sh
 [[ -z "${_OCI__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/oci.sh"
 
@@ -177,7 +177,7 @@ _uri__resolve_oci_to() {
   local _expect
   _expect="$(_uri__frag_sha256 "$_frag")"
   if [[ -n "$_expect" ]]; then
-    checksum__verify "$_dest" "$_expect" || return 1
+    verify__sha "$_dest" "$_expect" || return 1
   fi
   return 0
 }
@@ -248,7 +248,7 @@ uri__resolve() {
     http)
       _uri__net_fetch "$_base" "$_dest" "${_args[@]}" || return 1
       if [[ -n "$_expect" ]]; then
-        checksum__verify "$_dest" "$_expect" || return 1
+        verify__sha "$_dest" "$_expect" || return 1
       fi
       ;;
     gh)
@@ -259,7 +259,7 @@ uri__resolve() {
       }
       _uri__net_fetch "$_https" "$_dest" "${_args[@]}" || return 1
       if [[ -n "$_expect" ]]; then
-        checksum__verify "$_dest" "$_expect" || return 1
+        verify__sha "$_dest" "$_expect" || return 1
       fi
       ;;
     oci)
@@ -272,7 +272,7 @@ uri__resolve() {
   esac
 
   if [[ "$_cls" == "local" || "$_cls" == "file" ]] && [[ -n "$_expect" ]]; then
-    checksum__verify "$_dest" "$_expect" || return 1
+    verify__sha "$_dest" "$_expect" || return 1
   fi
 
   [[ "$_chmod_exec" == true ]] && chmod +x "$_dest"

@@ -58,8 +58,8 @@ if ! command -v yq > /dev/null 2>&1 || ! yq -o=json '.' /dev/null > /dev/null 2>
   echo "▶  Installing yq (required by YAML parser)."
   # shellcheck source=lib/github.sh
   . "$LIB_DIR/github.sh"
-  # shellcheck source=lib/checksum.sh
-  . "$LIB_DIR/checksum.sh"
+  # shellcheck source=lib/verify.sh
+  . "$LIB_DIR/verify.sh"
   _ospkg_ensure_yq
   # Make yq available system-wide for subsequent test invocations.
   if [[ -n "${_OSPKG_YQ_BIN:-}" && "$_OSPKG_YQ_BIN" != "yq" ]]; then

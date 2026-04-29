@@ -15,6 +15,8 @@ _INSTALL_ORAS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_INSTALL_ORAS_LIB_DIR}/../github.sh"
 # shellcheck source=lib/net.sh
 . "${_INSTALL_ORAS_LIB_DIR}/../net.sh"
+# shellcheck source=lib/verify.sh
+[[ -z "${_VERIFY__LIB_LOADED-}" ]] && . "${_INSTALL_ORAS_LIB_DIR}/../verify.sh"
 
 # @brief _install__oras_version_ge <a> <b> — Return 0 when semantic version `a` is greater than or equal to `b`.
 _install__oras_version_ge() {
@@ -57,49 +59,6 @@ _install__oras_resolve_version() {
   printf '%s\n' "${_version#v}"
 }
 
-# @brief _install__oras_ensure_gpg <group-id> <context> — Ensure `gpg` is available (tracked install in internal context).
-_install__oras_ensure_gpg() {
-  local _group="${1-}" _context="${2-}"
-  command -v gpg > /dev/null 2>&1 && return 0
-  if [[ "$_context" != "internal" ]]; then
-    logging__error "install__oras: gpg is required for strict verification but was not found."
-    return 1
-  fi
-  ospkg__detect || return 1
-  local _pkg="gnupg"
-  case "${_OSPKG_PKG_MNGR:-}" in
-    dnf | yum) _pkg="gnupg2" ;;
-  esac
-  ospkg__install_tracked "$_group" "$_pkg" || return 1
-  command -v gpg > /dev/null 2>&1 || return 1
-}
-
-# @brief _install__oras_verify_release_signature <tag> <asset-file> <group-id> <context> — Verify ORAS artifact signature using upstream KEYS and `.asc` sidecar.
-_install__oras_verify_release_signature() {
-  local _tag="${1-}" _asset_file="${2-}" _group="${3-}" _context="${4-}"
-  [[ -n "$_tag" && -f "$_asset_file" ]] || return 1
-  _install__oras_ensure_gpg "$_group" "$_context" || return 1
-
-  local _asset_name _asc _keys _ghome
-  _asset_name="$(basename "$_asset_file")"
-  _asc="${_asset_file}.asc"
-  _keys="$(dirname "$_asset_file")/KEYS"
-  net__fetch_url_file "https://github.com/oras-project/oras/releases/download/${_tag}/${_asset_name}.asc" "$_asc" || return 1
-  net__fetch_url_file "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" "$_keys" || return 1
-  _ghome="$(mktemp -d)"
-  chmod 0700 "$_ghome"
-  if ! gpg --homedir "$_ghome" --import "$_keys" > /dev/null 2>&1; then
-    rm -rf "$_ghome"
-    return 1
-  fi
-  if ! gpg --homedir "$_ghome" --verify "$_asc" "$_asset_file" > /dev/null 2>&1; then
-    rm -rf "$_ghome"
-    return 1
-  fi
-  rm -rf "$_ghome"
-  return 0
-}
-
 # @brief _install__oras_install_release <version> <prefix> <group> <context> <download_url> — Install ORAS from release artifact with mandatory checksum+GPG verification.
 _install__oras_install_release() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _download_url="${5-}"
@@ -118,7 +77,15 @@ _install__oras_install_release() {
       rm -rf "$_tmp"
       return 1
     }
-    _install__oras_verify_release_signature "$_tag" "${_tmp}/${_asset}" "$_group" "$_context" || {
+    net__fetch_url_file "https://github.com/oras-project/oras/releases/download/${_tag}/${_asset}.asc" "${_tmp}/${_asset}.asc" || {
+      rm -rf "$_tmp"
+      return 1
+    }
+    net__fetch_url_file "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" "${_tmp}/KEYS" || {
+      rm -rf "$_tmp"
+      return 1
+    }
+    verify__gpg_detached "${_tmp}/${_asset}" "${_tmp}/${_asset}.asc" "${_tmp}/KEYS" "$_group" || {
       logging__error "install__oras: signature verification failed for ${_asset}."
       rm -rf "$_tmp"
       return 1

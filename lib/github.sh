@@ -114,7 +114,7 @@ github__release_json_digest_for_asset() {
   return 0
 }
 
-# @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset; verify SHA-256 if digest is in the API (requires net.sh, checksum__verify).
+# @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset; verify SHA-256 if digest is in the API (requires net.sh, verify__sha).
 #
 # URL: ${SYSSET_RELEASE_BASE:-https://github.com/<repo>/releases/download}/<tag>/<asset-name>
 # Respects the same GITHUB API auth as github__fetch_release_json.
@@ -149,8 +149,8 @@ github__fetch_release_asset_tarball() {
     return 1
   fi
 
-  if [ -n "$_digest" ] && [ "$_digest" != "null" ] && command -v checksum__verify > /dev/null 2>&1; then
-    if ! checksum__verify "$_dest" "$_digest"; then
+  if [ -n "$_digest" ] && [ "$_digest" != "null" ] && command -v verify__sha > /dev/null 2>&1; then
+    if ! verify__sha "$_dest" "$_digest"; then
       return 1
     fi
   else

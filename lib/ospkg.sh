@@ -16,6 +16,8 @@ _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OSPKG_LIB_DIR/json.sh"
 # shellcheck source=lib/install/yq.sh
 . "$_OSPKG_LIB_DIR/install/yq.sh"
+# shellcheck source=lib/verify.sh
+[[ -z "${_VERIFY__LIB_LOADED-}" ]] && . "$_OSPKG_LIB_DIR/verify.sh"
 
 # ── Internal state ────────────────────────────────────────────────────────────
 _OSPKG_DETECTED=false
@@ -135,20 +137,7 @@ _ospkg_dnf_bin() {
   return 1
 }
 
-# ── Private: key / repo helpers ──────────────────────────────────────────────
-_ospkg_ensure_gpg() {
-  command -v gpg > /dev/null 2>&1 && return 0
-  logging__info "gpg not found — installing gnupg."
-  local _gpg_pkg
-  case "$_OSPKG_PREFIX" in
-    dnf) _gpg_pkg=gnupg2 ;;
-    *) _gpg_pkg=gnupg ;;
-  esac
-  ospkg__install_tracked "sysset-ospkg-internals" "$_gpg_pkg"
-  return 0
-}
-
-# _ospkg_key_effective_path <dest> <dearmor>
+# ── Private: key / repo helpers ──────────────────────────────────────────────# _ospkg_key_effective_path <dest> <dearmor>
 # Prints the filesystem path the key is written to (same rules as
 # _ospkg_install_key_entry). dearmor: true | false | auto
 _ospkg_key_effective_path() {
@@ -187,9 +176,8 @@ _ospkg_install_key_entry() {
 
   case "${_dearmor}" in
     true)
-      _ospkg_ensure_gpg
       logging__info "Fetching and dearmoring key (dearmor: true) → ${_target}"
-      net__fetch_url_stdout "$_url" | gpg --dearmor -o "${_target}"
+      net__fetch_url_stdout "$_url" | verify__gpg_dearmor_stream "${_target}" "sysset-ospkg-internals"
       ;;
     false)
       logging__info "Fetching key (dearmor: false) → ${_target}"
@@ -197,9 +185,8 @@ _ospkg_install_key_entry() {
       ;;
     auto)
       if [[ "${_dest}" == *.gpg ]]; then
-        _ospkg_ensure_gpg
         logging__info "Fetching and dearmoring key (dest ends in .gpg) → ${_target}"
-        net__fetch_url_stdout "$_url" | gpg --dearmor -o "${_target}"
+        net__fetch_url_stdout "$_url" | verify__gpg_dearmor_stream "${_target}" "sysset-ospkg-internals"
       else
         logging__info "Fetching key → ${_target}"
         net__fetch_url_file "$_url" "${_target}"
@@ -216,40 +203,10 @@ _ospkg_install_key_entry() {
 
 # _ospkg_install_key_by_fingerprint <fingerprint> <dest>
 # Fetches and installs a GPG signing key by its 40-hex-char fingerprint.
-# Tries Ubuntu HTTPS keyserver first, then two HKP keyserver fallbacks.
-# Always writes a dearmored binary keyring to <dest>.
+# Delegates to verify__gpg_fetch_key_by_fingerprint.
 _ospkg_install_key_by_fingerprint() {
   local _fingerprint="$1" _dest="$2"
-  _ospkg_ensure_gpg
-  mkdir -p "$(dirname "$_dest")"
-
-  # Primary: HTTPS download from Ubuntu keyserver.
-  local _key_data
-  _key_data="$(net__fetch_url_stdout \
-    "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${_fingerprint}" 2> /dev/null)" || true
-  if printf '%s' "${_key_data}" | grep -q 'BEGIN PGP'; then
-    if printf '%s' "${_key_data}" | gpg --dearmor -o "${_dest}"; then
-      chmod 0644 "${_dest}"
-      logging__success "GPG key installed via HTTPS keyserver → ${_dest}"
-      return 0
-    fi
-  fi
-
-  # Fallback: gpg --recv-keys via HKP keyservers.
-  local _ks
-  for _ks in "hkp://keyserver.ubuntu.com" "hkp://keyserver.pgp.com"; do
-    logging__info "Trying keyserver ${_ks}..."
-    if gpg --recv-keys --keyserver "${_ks}" "${_fingerprint}" 2> /dev/null; then
-      if gpg --export "${_fingerprint}" | gpg --dearmor -o "${_dest}"; then
-        chmod 0644 "${_dest}"
-        logging__success "GPG key installed via ${_ks} → ${_dest}"
-        return 0
-      fi
-    fi
-  done
-
-  logging__error "Failed to install GPG key for fingerprint ${_fingerprint} from all keyservers."
-  return 1
+  verify__gpg_fetch_key_by_fingerprint "$_fingerprint" "$_dest" "sysset-ospkg-internals"
 }
 
 # _ospkg_expand_content_vars <content>

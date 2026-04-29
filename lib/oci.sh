@@ -11,8 +11,8 @@ _OCI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OCI_LIB_DIR/install/oras.sh"
 # shellcheck source=lib/logging.sh
 . "$_OCI_LIB_DIR/logging.sh"
-# shellcheck source=lib/checksum.sh
-. "$_OCI_LIB_DIR/checksum.sh"
+# shellcheck source=lib/verify.sh
+. "$_OCI_LIB_DIR/verify.sh"
 # shellcheck source=lib/json.sh
 . "$_OCI_LIB_DIR/json.sh"
 
@@ -402,7 +402,7 @@ oci__pull_feature_tgz() {
   fi
   if [[ -n "$_expect_digest" && "$_expect_digest" == sha256:* ]]; then
     local _got
-    _got="sha256:$(checksum__hash_file "$_tgz" 2> /dev/null || true)"
+    _got="sha256:$(verify__hash_file "$_tgz" 2> /dev/null || true)"
     if [[ "$_got" != "$_expect_digest" ]]; then
       rm -rf "$_tmp"
       logging__error "oci.sh: pulled layer digest mismatch for '${_ref}'."
