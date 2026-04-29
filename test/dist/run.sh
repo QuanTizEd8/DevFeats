@@ -100,7 +100,7 @@ setup_local_registry() {
   _REGISTRY_CONTAINER="${_cid}"
   SYSSET_TEST_REGISTRY_HOST="localhost:${_port}"
   local _deadline _ready=0
-  _deadline=$(( $(date +%s) + 30 ))
+  _deadline=$(($(date +%s) + 30))
   while [[ $(date +%s) -lt $_deadline ]]; do
     if curl -sf "http://127.0.0.1:${_port}/v2/" > /dev/null 2>&1; then
       _ready=1

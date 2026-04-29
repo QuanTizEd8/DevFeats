@@ -9,6 +9,11 @@ set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
+# This scenario uses its own fake oras and a local manifest with ghcr.io refs.
+# Unset SYSSET_REGISTRY_HOST so that ref construction uses ghcr.io (matching
+# the manifest keys below) rather than any test registry override.
+unset SYSSET_REGISTRY_HOST
+
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
 

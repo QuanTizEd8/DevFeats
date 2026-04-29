@@ -12,7 +12,7 @@ _FEAT="fake-lifecycle-disable-probe"
 _VER="0.0.1-test"
 _stage="$(mktemp -d)"
 _sentinel="$(mktemp)"
-rm -f "$_sentinel"  # ensure it does not exist before the install
+rm -f "$_sentinel" # ensure it does not exist before the install
 _log="$(mktemp)"
 _PORT=18538
 trap 'stop_file_server; rm -rf "$_stage" "$_log"' EXIT

@@ -205,7 +205,10 @@ push_oci_feature() {
   _upload_url="$(curl -sf -X POST -D - "${_base}/blobs/uploads/" \
     -H "Content-Length: 0" 2> /dev/null |
     grep -i '^location:' | tr -d '\r\n' | sed 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//')"
-  [[ -n "$_upload_url" ]] || { printf 'push_oci_feature: config upload init failed for %s:%s\n' "$_repo" "$_tag" >&2; return 1; }
+  [[ -n "$_upload_url" ]] || {
+    printf 'push_oci_feature: config upload init failed for %s:%s\n' "$_repo" "$_tag" >&2
+    return 1
+  }
   [[ "$_upload_url" == http* ]] || _upload_url="http://${_host}${_upload_url}"
   if [[ "$_upload_url" == *'?'* ]]; then
     _upload_url="${_upload_url}&digest=${_cfg_dig}"
@@ -215,13 +218,16 @@ push_oci_feature() {
   curl -sf -X PUT "$_upload_url" \
     -H "Content-Type: application/octet-stream" \
     -H "Content-Length: ${_cfg_size}" \
-    -d '{}' > /dev/null || true  # config blob may already exist; ignore
+    -d '{}' > /dev/null || true # config blob may already exist; ignore
 
   # Upload layer blob.
   _upload_url="$(curl -sf -X POST -D - "${_base}/blobs/uploads/" \
     -H "Content-Length: 0" 2> /dev/null |
     grep -i '^location:' | tr -d '\r\n' | sed 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//')"
-  [[ -n "$_upload_url" ]] || { printf 'push_oci_feature: layer upload init failed for %s:%s\n' "$_repo" "$_tag" >&2; return 1; }
+  [[ -n "$_upload_url" ]] || {
+    printf 'push_oci_feature: layer upload init failed for %s:%s\n' "$_repo" "$_tag" >&2
+    return 1
+  }
   [[ "$_upload_url" == http* ]] || _upload_url="http://${_host}${_upload_url}"
   if [[ "$_upload_url" == *'?'* ]]; then
     _upload_url="${_upload_url}&digest=${_layer_dig}"
@@ -232,16 +238,20 @@ push_oci_feature() {
     -H "Content-Type: application/octet-stream" \
     -H "Content-Length: ${_layer_size}" \
     --data-binary "@${_tgz}" > /dev/null ||
-    { printf 'push_oci_feature: layer upload failed for %s:%s\n' "$_repo" "$_tag" >&2; return 1; }
+    {
+      printf 'push_oci_feature: layer upload failed for %s:%s\n' "$_repo" "$_tag" >&2
+      return 1
+    }
 
   # Push OCI manifest.
+  # Use application/vnd.oci.image.config.v1+json (not vnd.oci.empty.v1+json)
+  # for the config media type — registry:2 rejects the OCI 1.1 empty-config type.
   local _manifest_json
   _manifest_json="$(printf '{
   "schemaVersion": 2,
   "mediaType": "application/vnd.oci.image.manifest.v1+json",
-  "artifactType": "application/vnd.devcontainers.layer.v1+tgz",
   "config": {
-    "mediaType": "application/vnd.oci.empty.v1+json",
+    "mediaType": "application/vnd.oci.image.config.v1+json",
     "digest": "%s",
     "size": %s
   },
@@ -256,11 +266,14 @@ push_oci_feature() {
     }
   ]
 }' "$_cfg_dig" "$_cfg_size" "$_layer_dig" "$_layer_size")"
-  local _manifest_size
+  local _manifest_size _http_code
   _manifest_size="$(printf '%s' "$_manifest_json" | wc -c | tr -d '[:space:]')"
-  curl -sf -X PUT "${_base}/manifests/${_tag}" \
+  _http_code="$(curl -s -o /dev/null -w '%{http_code}' -X PUT "${_base}/manifests/${_tag}" \
     -H "Content-Type: application/vnd.oci.image.manifest.v1+json" \
     -H "Content-Length: ${_manifest_size}" \
-    --data-binary "$_manifest_json" > /dev/null ||
-    { printf 'push_oci_feature: manifest push failed for %s:%s\n' "$_repo" "$_tag" >&2; return 1; }
+    --data-binary "$_manifest_json")"
+  [[ "$_http_code" == "201" ]] || {
+    printf 'push_oci_feature: manifest push failed (HTTP %s) for %s:%s\n' "$_http_code" "$_repo" "$_tag" >&2
+    return 1
+  }
 }
