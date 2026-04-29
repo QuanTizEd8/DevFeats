@@ -1,0 +1,109 @@
+version: 0.1.0
+name: jq Installation
+description: Install [jqlang/jq](https://github.com/jqlang/jq) — a lightweight command-line JSON processor.
+keywords:
+  - jq
+  - json
+  - cli
+  - tooling
+_long_description: |-
+  Installs `jq`, the lightweight command-line JSON processor written in portable C.
+  Widely used for filtering, transforming, and validating JSON in shell pipelines,
+  CI/CD scripts, and configuration tooling.
+
+  `method=auto` prefers a verified upstream release binary for reproducible version
+  pinning and falls back to the OS package manager. Use `version` to pin an exact
+  release, `prefix` to control the installation destination for the release or source
+  method, and `if_exists` to control behaviour when `jq` is already available.
+  Use `method=source` when package or binary methods do not satisfy constraints
+  (e.g. uncommon architectures or patching requirements).
+options:
+  method:
+    type: string
+    default: auto
+    description: Installation method to use.
+    enum:
+      - value: auto
+        description: Prefer release binary with SHA-256 verification, then fall back to package manager.
+      - value: release
+        description: |-
+          Install from GitHub release binaries with SHA-256 checksum verification.
+          Official release assets exist for Linux amd64, arm64, and i386, and macOS amd64 and arm64.
+          `method=auto` falls back to `repos` automatically when no matching asset is available.
+      - value: repos
+        description: Install from the operating system package manager.
+      - value: source
+        description: |-
+          Build and install from source (release tarball or git clone).
+          Requires a C toolchain, libtool, automake, and autoconf.
+          Use when package or binary methods do not satisfy constraints.
+  version:
+    type: string
+    default: latest
+    description: |-
+      Version of jq to install. Accepts `latest` (resolved via the GitHub Releases API) or any
+      `X.Y.Z` or `vX.Y.Z` version string.
+      If the installed jq version at the target prefix already matches the resolved version,
+      the install is skipped silently regardless of the `if_exists` setting.
+      Ignored when `method=repos` (the package manager installs its available version).
+      Note: jq 1.6 and older use a different release asset naming convention; version-specific
+      asset name mapping is applied automatically.
+    proposals:
+      - value: latest
+        description: Resolve the latest release via the GitHub Releases API.
+      - value: 1.8.1
+        description: jq v1.8.1.
+      - value: 1.7.1
+        description: jq v1.7.1.
+      - value: 1.6
+        description: jq v1.6 (uses legacy release asset naming).
+  prefix:
+    type: string
+    default: auto
+    description: |-
+      Installation prefix for `method=release` and `method=source` (`$prefix/bin/jq`).
+      `auto` resolves to `/usr/local` as root, or `$HOME/.local` as non-root.
+      Ignored for `method=repos`.
+  symlink:
+    type: boolean
+    default: true
+    description: |-
+      Create a symlink from the canonical bin directory to `$prefix/bin/jq` when prefix
+      resolves to a non-default path (`method=release` or `method=source` only).
+      - System-wide (prefix not under any user home): creates `/usr/local/bin/jq` → `$prefix/bin/jq`.
+      - User-scoped (prefix under a user home): creates `$HOME/.local/bin/jq` → `$prefix/bin/jq`.
+      Ensures the binary is always reachable on PATH regardless of the chosen prefix.
+      No-op when `$prefix/bin/jq` is already the chosen target path, or when `method=repos`.
+  if_exists:
+    type: string
+    default: skip
+    description: Behavior when `jq` already exists in PATH.
+    enum:
+      - value: skip
+        description: Reuse the existing install and exit successfully.
+      - value: fail
+        description: Exit with an error when `jq` already exists.
+      - value: reinstall
+        description: Reinstall using the selected method.
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    os-pkg:
+      packages:
+        - jq
+  build:
+    download:
+      packages:
+        - curl
+    source:
+      packages:
+        - make
+        - automake
+        - autoconf
+        - libtool
+        - name: gcc
+          apt: build-essential
+          apk: build-base
+installsAfter: []
