@@ -126,7 +126,7 @@ if [[ "${_SKIP_INSTALL}" != "true" ]]; then
     --context user \
     --owner-group "feature::install-jq" \
     --method "${METHOD}" \
-    --if-exists "${IF_EXISTS}" \
+    --if-exists reinstall \
     --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" \
     --prefix "${PREFIX}" \
     --version "${VERSION}" > /dev/null
