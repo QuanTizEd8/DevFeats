@@ -203,13 +203,34 @@ install__jq() {
   local _if_exists="skip" _repos_manifest="" _owner_group="feature::install-jq"
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --context) shift; _context="${1-}" ;;
-      --version) shift; _version="${1-}" ;;
-      --method) shift; _method="${1-}" ;;
-      --prefix) shift; _install_prefix="${1-}" ;;
-      --if-exists) shift; _if_exists="${1-}" ;;
-      --repos-manifest) shift; _repos_manifest="${1-}" ;;
-      --owner-group) shift; _owner_group="${1-}" ;;
+      --context)
+        shift
+        _context="${1-}"
+        ;;
+      --version)
+        shift
+        _version="${1-}"
+        ;;
+      --method)
+        shift
+        _method="${1-}"
+        ;;
+      --prefix)
+        shift
+        _install_prefix="${1-}"
+        ;;
+      --if-exists)
+        shift
+        _if_exists="${1-}"
+        ;;
+      --repos-manifest)
+        shift
+        _repos_manifest="${1-}"
+        ;;
+      --owner-group)
+        shift
+        _owner_group="${1-}"
+        ;;
       *)
         logging__error "install__jq: unknown option '$1'"
         return 1
@@ -220,8 +241,19 @@ install__jq() {
   [[ "$_context" == "internal" || "$_context" == "user" ]] || return 1
   [[ -n "$_owner_group" ]] || _owner_group="install-jq"
 
+  # Resolve prefix early so the existence check targets the actual install
+  # location rather than any jq found anywhere in PATH.
+  local _check_prefix="$_install_prefix"
+  if [[ "$_check_prefix" == "auto" || -z "$_check_prefix" ]]; then
+    _check_prefix="$(users__default_prefix)"
+  fi
+
   local _existing _state_ctx _state_path _state_group
-  _existing="$(command -v jq 2> /dev/null || true)"
+  if [[ "$_method" != "repos" && -x "${_check_prefix}/bin/jq" ]]; then
+    _existing="${_check_prefix}/bin/jq"
+  else
+    _existing="$(command -v jq 2> /dev/null || true)"
+  fi
   _state_ctx="$(install__state_context "jq" 2> /dev/null || true)"
   _state_path="$(install__state_install_path "jq" 2> /dev/null || true)"
   _state_group="$(install__state_owner_group "jq" 2> /dev/null || true)"
@@ -248,13 +280,7 @@ install__jq() {
     # if_exists=reinstall: fall through to install.
   fi
 
-  if [[ "$_install_prefix" == "auto" || -z "$_install_prefix" ]]; then
-    if [[ "$(id -u)" -eq 0 ]]; then
-      _install_prefix="/usr/local"
-    else
-      _install_prefix="${HOME}/.local"
-    fi
-  fi
+  _install_prefix="$_check_prefix"
 
   case "$_method" in
     release)
