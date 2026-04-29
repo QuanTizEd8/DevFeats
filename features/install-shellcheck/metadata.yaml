@@ -1,0 +1,72 @@
+version: 0.1.0
+name: shellcheck Installation
+description: Install [koalaman/shellcheck](https://github.com/koalaman/shellcheck) — a shell script static analysis tool.
+keywords:
+  - shellcheck
+  - shell
+  - lint
+  - static-analysis
+  - bash
+  - cli
+_long_description: |-
+  Installs ShellCheck, the static analysis tool for shell scripts.
+
+  `method=auto` prefers a verified upstream release archive with SHA-512
+  verification and falls back to the OS package manager. Use `version` to pin
+  an exact release, `prefix` to control the installation destination for the
+  release method, and `if_exists` to control behaviour when `shellcheck` is
+  already available.
+
+  Note: upstream releases do not provide an ARM64 macOS binary; on Apple
+  Silicon `method=release` is unavailable and `method=auto` falls back to
+  the package manager automatically.
+options:
+  method:
+    type: string
+    default: auto
+    description: Installation method to use.
+    enum:
+      - value: auto
+        description: Prefer release binary, then fall back to package manager.
+      - value: release
+        description: Install from GitHub release archives with SHA-512 verification.
+      - value: repos
+        description: Install from the operating system package manager.
+  version:
+    type: string
+    default: latest
+    description: Version to install (`latest` or a concrete version like `0.10.0`).
+    proposals:
+      - value: latest
+        description: Resolve and install the latest release.
+      - value: 0.10.0
+        description: Install shellcheck v0.10.0.
+  prefix:
+    type: string
+    default: auto
+    description: |-
+      Installation prefix for `method=release` (`$prefix/bin/shellcheck`).
+      `auto` resolves to `/usr/local` as root, or `$HOME/.local` as non-root.
+      Ignored for `method=repos`.
+  if_exists:
+    type: string
+    default: skip
+    description: Behavior when `shellcheck` already exists in PATH.
+    enum:
+      - value: skip
+        description: Reuse the existing install and exit successfully.
+      - value: fail
+        description: Exit with an error when `shellcheck` already exists.
+      - value: reinstall
+        description: Reinstall using the selected method.
+_dependencies:
+  run:
+    os-pkg:
+      packages:
+        - shellcheck
+  build:
+    download:
+      packages:
+        - curl
+        - tar
+installsAfter: []

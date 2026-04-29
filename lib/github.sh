@@ -114,7 +114,7 @@ github__release_json_digest_for_asset() {
   return 0
 }
 
-# @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset; verify SHA-256 if digest is in the API (requires net.sh, checksum__verify_sha256).
+# @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset; verify SHA-256 if digest is in the API (requires net.sh, checksum__verify).
 #
 # URL: ${SYSSET_RELEASE_BASE:-https://github.com/<repo>/releases/download}/<tag>/<asset-name>
 # Respects the same GITHUB API auth as github__fetch_release_json.
@@ -149,8 +149,8 @@ github__fetch_release_asset_tarball() {
     return 1
   fi
 
-  if [ -n "$_digest" ] && [ "$_digest" != "null" ] && command -v checksum__verify_sha256 > /dev/null 2>&1; then
-    if ! checksum__verify_sha256 "$_dest" "$_digest"; then
+  if [ -n "$_digest" ] && [ "$_digest" != "null" ] && command -v checksum__verify > /dev/null 2>&1; then
+    if ! checksum__verify "$_dest" "$_digest"; then
       return 1
     fi
   else
@@ -331,12 +331,12 @@ github__release_tags() {
 github__resolve_version() {
   local _repo="$1"
   shift
-  local _spec="" _prefix="v" _all=false _spec_set=false
+  local _spec="" _tag_prefix="v" _all=false _spec_set=false
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --prefix)
         shift
-        _prefix="$1"
+        _tag_prefix="$1"
         shift
         ;;
       --all)
@@ -363,7 +363,7 @@ github__resolve_version() {
   # ── "latest" / empty spec ─────────────────────────────────────────────
   case "$_spec" in
     "" | latest)
-      if [ "$_prefix" = "v" ]; then
+      if [ "$_tag_prefix" = "v" ]; then
         # Backward-compatible fast path via /releases/latest.
         github__latest_tag "$_repo"
         return $?
@@ -375,12 +375,12 @@ github__resolve_version() {
       else
         _tags="$(github__release_tags "$_repo")" || return 1
       fi
-      _matched="$(printf '%s\n' "$_tags" | grep -m1 "^$(_github__escape_ere "$_prefix")")" || _matched=""
+      _matched="$(printf '%s\n' "$_tags" | grep -m1 "^$(_github__escape_ere "$_tag_prefix")")" || _matched=""
       if [ -n "$_matched" ]; then
         printf '%s\n' "$_matched"
         return 0
       fi
-      logging__error "github__resolve_version: no release found with prefix '${_prefix}' for '${_repo}'."
+      logging__error "github__resolve_version: no release found with prefix '${_tag_prefix}' for '${_repo}'."
       return 1
       ;;
   esac
@@ -389,7 +389,7 @@ github__resolve_version() {
   # For prefix="v", preserve today's input-equivalence ("v1.2.3" == "1.2.3").
   # For non-"v" prefixes, treat the spec verbatim.
   local _stripped="$_spec"
-  if [ "$_prefix" = "v" ]; then
+  if [ "$_tag_prefix" = "v" ]; then
     _stripped="${_spec#v}"
   fi
 
@@ -397,13 +397,13 @@ github__resolve_version() {
   local _dots
   _dots="$(printf '%s' "$_stripped" | tr -cd '.' | wc -c | tr -d ' ')"
   if [ "$_dots" -ge 2 ]; then
-    printf '%s%s\n' "$_prefix" "$_stripped"
+    printf '%s%s\n' "$_tag_prefix" "$_stripped"
     return 0
   fi
 
   # ── Partial spec — fetch release list and filter ──────────────────────
   local _escaped_prefix _escaped_stripped _tags _matched=""
-  _escaped_prefix="$(_github__escape_ere "$_prefix")"
+  _escaped_prefix="$(_github__escape_ere "$_tag_prefix")"
   _escaped_stripped="$(printf '%s' "$_stripped" | sed 's/\./\\./g')"
   if [ "$_all" = "true" ]; then
     _tags="$(github__release_tags "$_repo" --all)" || return 1
@@ -418,7 +418,7 @@ github__resolve_version() {
     return 0
   fi
 
-  logging__error "github__resolve_version: no release found matching '${_spec}' (prefix: '${_prefix}') for '${_repo}'."
+  logging__error "github__resolve_version: no release found matching '${_spec}' (prefix: '${_tag_prefix}') for '${_repo}'."
   return 1
 }
 

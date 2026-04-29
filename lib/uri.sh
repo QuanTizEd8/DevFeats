@@ -177,7 +177,7 @@ _uri__resolve_oci_to() {
   local _expect
   _expect="$(_uri__frag_sha256 "$_frag")"
   if [[ -n "$_expect" ]]; then
-    checksum__verify_sha256 "$_dest" "$_expect" || return 1
+    checksum__verify "$_dest" "$_expect" || return 1
   fi
   return 0
 }
@@ -248,7 +248,7 @@ uri__resolve() {
     http)
       _uri__net_fetch "$_base" "$_dest" "${_args[@]}" || return 1
       if [[ -n "$_expect" ]]; then
-        checksum__verify_sha256 "$_dest" "$_expect" || return 1
+        checksum__verify "$_dest" "$_expect" || return 1
       fi
       ;;
     gh)
@@ -259,7 +259,7 @@ uri__resolve() {
       }
       _uri__net_fetch "$_https" "$_dest" "${_args[@]}" || return 1
       if [[ -n "$_expect" ]]; then
-        checksum__verify_sha256 "$_dest" "$_expect" || return 1
+        checksum__verify "$_dest" "$_expect" || return 1
       fi
       ;;
     oci)
@@ -272,7 +272,7 @@ uri__resolve() {
   esac
 
   if [[ "$_cls" == "local" || "$_cls" == "file" ]] && [[ -n "$_expect" ]]; then
-    checksum__verify_sha256 "$_dest" "$_expect" || return 1
+    checksum__verify "$_dest" "$_expect" || return 1
   fi
 
   [[ "$_chmod_exec" == true ]] && chmod +x "$_dest"

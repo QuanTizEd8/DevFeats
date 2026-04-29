@@ -11,18 +11,16 @@
 . "${_SELF_DIR}/_lib/checksum.sh"
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
+# shellcheck source=lib/users.sh
+. "${_SELF_DIR}/_lib/users.sh"
 
 _install__just_resolve_prefix() {
-  local _prefix="${1-}"
-  if [[ -z "$_prefix" || "$_prefix" == "auto" ]]; then
-    if [[ "$(id -u)" -eq 0 ]]; then
-      printf '%s\n' "/usr/local"
-    else
-      printf '%s\n' "${HOME}/.local"
-    fi
+  local _resolved_prefix="${1-}"
+  if [[ -z "$_resolved_prefix" || "$_resolved_prefix" == "auto" ]]; then
+    users__default_prefix
     return 0
   fi
-  printf '%s\n' "$_prefix"
+  printf '%s\n' "$_resolved_prefix"
 }
 
 _install__just_resolve_version() {
@@ -57,7 +55,7 @@ _install__just_resolve_target() {
 }
 
 _install__just_install_release() {
-  local _version="${1-}" _prefix="${2-}" _target="${3-}" _context="${4-}" _group="${5-}"
+  local _version="${1-}" _install_prefix="${2-}" _target="${3-}" _context="${4-}" _group="${5-}"
   local _base _asset _tmp _tar _sums _hash _dest
   _base="https://github.com/casey/just/releases/download/${_version}"
   _asset="just-${_version}-${_target}.tar.gz"
@@ -72,11 +70,11 @@ _install__just_install_release() {
     logging__error "install-just: could not resolve checksum for ${_asset}."
     return 1
   fi
-  checksum__verify_sha256 "$_tar" "$_hash" || return 1
+  checksum__verify "$_tar" "$_hash" || return 1
 
   tar -xzf "$_tar" -C "$_tmp" || return 1
   [[ -f "${_tmp}/just" ]] || return 1
-  _dest="${_prefix%/}/bin/just"
+  _dest="${_install_prefix%/}/bin/just"
   mkdir -p "$(dirname "$_dest")" || return 1
   if command -v install > /dev/null 2>&1; then
     install -m 0755 "${_tmp}/just" "$_dest" || return 1
@@ -119,16 +117,16 @@ _install__just_install_repos() {
 }
 
 _install__just_install_script() {
-  local _version="${1-}" _prefix="${2-}" _target="${3-}" _force="${4-}" _context="${5-}" _group="${6-}"
+  local _version="${1-}" _install_prefix="${2-}" _target="${3-}" _force="${4-}" _context="${5-}" _group="${6-}"
   local _tmp _script _dest
   _tmp="$(logging__tmpdir "install/just-script")"
   _script="${_tmp}/install.sh"
-  _dest="${_prefix%/}/bin/just"
+  _dest="${_install_prefix%/}/bin/just"
   net__fetch_url_file "https://just.systems/install.sh" "$_script" || return 1
   chmod +x "$_script" || return 1
 
   local -a _cmd
-  _cmd=(bash "$_script" --to "${_prefix%/}/bin")
+  _cmd=(bash "$_script" --to "${_install_prefix%/}/bin")
   if [[ -n "$_version" && "$_version" != "latest" ]]; then
     _cmd+=(--tag "$_version")
   fi
@@ -149,7 +147,7 @@ _install__just_install_script() {
 }
 
 _install__just_install_cargo() {
-  local _version="${1-}" _prefix="${2-}" _binstall="${3-}" _force="${4-}" _context="${5-}" _group="${6-}"
+  local _version="${1-}" _install_prefix="${2-}" _binstall="${3-}" _force="${4-}" _context="${5-}" _group="${6-}"
   local _dest
   command -v cargo > /dev/null 2>&1 || {
     logging__error "install-just: method=cargo requires cargo in PATH."
@@ -158,13 +156,13 @@ _install__just_install_cargo() {
 
   if [[ "$_binstall" == "true" ]] && cargo binstall --help > /dev/null 2>&1; then
     if [[ -n "$_version" && "$_version" != "latest" ]]; then
-      cargo binstall --no-confirm --root "$_prefix" --version "$_version" just || return 1
+      cargo binstall --no-confirm --root "$_install_prefix" --version "$_version" just || return 1
     else
-      cargo binstall --no-confirm --root "$_prefix" just || return 1
+      cargo binstall --no-confirm --root "$_install_prefix" just || return 1
     fi
   else
     local -a _cmd
-    _cmd=(cargo install --root "$_prefix")
+    _cmd=(cargo install --root "$_install_prefix")
     if [[ "$_force" == "true" ]]; then
       _cmd+=(--force)
     fi
@@ -175,7 +173,7 @@ _install__just_install_cargo() {
     "${_cmd[@]}" || return 1
   fi
 
-  _dest="${_prefix%/}/bin/just"
+  _dest="${_install_prefix%/}/bin/just"
   [[ -x "$_dest" ]] || return 1
   if [[ "$_context" == "internal" ]]; then
     install__track_internal_path "$_group" "$_dest"
@@ -185,7 +183,7 @@ _install__just_install_cargo() {
 }
 
 install__just() {
-  local _context="internal" _method="auto" _version="latest" _prefix="auto" _if_exists="skip"
+  local _context="internal" _method="auto" _version="latest" _install_prefix="auto" _if_exists="skip"
   local _target="auto" _repos_manifest="" _script_force="false" _cargo_binstall="false"
   local _owner_group="install-just"
 
@@ -205,7 +203,7 @@ install__just() {
         ;;
       --prefix)
         shift
-        _prefix="${1-}"
+        _install_prefix="${1-}"
         ;;
       --if-exists)
         shift
@@ -273,13 +271,13 @@ install__just() {
     fi
   fi
 
-  _prefix="$(_install__just_resolve_prefix "$_prefix")" || return 1
+  _install_prefix="$(_install__just_resolve_prefix "$_install_prefix")" || return 1
   case "$_method" in
     release)
       local _resolved_version _resolved_target
       _resolved_version="$(_install__just_resolve_version "$_version")" || return 1
       _resolved_target="$(_install__just_resolve_target "$_target")" || return 1
-      _install__just_install_release "$_resolved_version" "$_prefix" "$_resolved_target" "$_context" "$_owner_group"
+      _install__just_install_release "$_resolved_version" "$_install_prefix" "$_resolved_target" "$_context" "$_owner_group"
       ;;
     repos)
       _install__just_install_repos "$_version" "$_repos_manifest" "$_context" "$_owner_group"
@@ -289,25 +287,25 @@ install__just() {
       _script_version="$(_install__just_resolve_version "$_version" 2> /dev/null || true)"
       [[ -z "$_script_version" ]] && _script_version="latest"
       _script_target="$(_install__just_resolve_target "$_target")" || return 1
-      _install__just_install_script "$_script_version" "$_prefix" "$_script_target" "$_script_force" "$_context" "$_owner_group"
+      _install__just_install_script "$_script_version" "$_install_prefix" "$_script_target" "$_script_force" "$_context" "$_owner_group"
       ;;
     cargo)
       local _cargo_version
       _cargo_version="$(_install__just_resolve_version "$_version" 2> /dev/null || true)"
       [[ -z "$_cargo_version" ]] && _cargo_version="latest"
-      _install__just_install_cargo "$_cargo_version" "$_prefix" "$_cargo_binstall" "true" "$_context" "$_owner_group"
+      _install__just_install_cargo "$_cargo_version" "$_install_prefix" "$_cargo_binstall" "true" "$_context" "$_owner_group"
       ;;
     auto)
       local _auto_version _auto_target
       _auto_version="$(_install__just_resolve_version "$_version" 2> /dev/null || true)"
       _auto_target="$(_install__just_resolve_target "$_target" 2> /dev/null || true)"
       if [[ -n "$_auto_version" && -n "$_auto_target" ]]; then
-        _install__just_install_release "$_auto_version" "$_prefix" "$_auto_target" "$_context" "$_owner_group" &&
+        _install__just_install_release "$_auto_version" "$_install_prefix" "$_auto_target" "$_context" "$_owner_group" &&
           return 0
       fi
       _install__just_install_repos "$_version" "$_repos_manifest" "$_context" "$_owner_group" && return 0
-      _install__just_install_script "${_auto_version:-latest}" "$_prefix" "${_auto_target:-auto}" "$_script_force" "$_context" "$_owner_group" && return 0
-      _install__just_install_cargo "${_auto_version:-latest}" "$_prefix" "$_cargo_binstall" "true" "$_context" "$_owner_group"
+      _install__just_install_script "${_auto_version:-latest}" "$_install_prefix" "${_auto_target:-auto}" "$_script_force" "$_context" "$_owner_group" && return 0
+      _install__just_install_cargo "${_auto_version:-latest}" "$_install_prefix" "$_cargo_binstall" "true" "$_context" "$_owner_group"
       ;;
     *)
       logging__error "install-just: invalid method '${_method}'."

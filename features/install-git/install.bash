@@ -222,7 +222,7 @@ _git__source_fetch_verify() {
     logging__error "No checksum found for git-${_ver}.tar.gz in sha256sums.asc."
     return 1
   fi
-  checksum__verify_sha256 "${_tarfile}" "${_expected}"
+  checksum__verify "${_tarfile}" "${_expected}"
   return 0
 }
 

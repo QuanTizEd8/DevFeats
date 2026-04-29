@@ -112,7 +112,7 @@ _ospkg_update_cmd() {
     fi
   fi
   rm -f "$_err_tmp"
-  return $_rc
+  return "$_rc"
 }
 
 # _ospkg_dnf_bin — Prints the name of the full-featured dnf binary, or returns 1.

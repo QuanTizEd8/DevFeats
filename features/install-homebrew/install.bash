@@ -341,7 +341,7 @@ validate_install_user() {
 # No-op when not running as root (target user is responsible for their own home).
 prepare_prefix_if_needed() {
   logging__fn_entry "prepare_prefix_if_needed"
-  local _prefix="$1" _user="$2"
+  local _install_prefix="$1" _user="$2"
   # Create the linuxbrew system user if it does not yet exist.
   if [ "$_user" = "linuxbrew" ] && ! id linuxbrew &> /dev/null; then
     logging__info "Creating 'linuxbrew' system user."
@@ -351,38 +351,38 @@ prepare_prefix_if_needed() {
     chmod 755 /home/linuxbrew
   fi
   # Create the prefix directory if it does not exist yet.
-  if [ ! -e "$_prefix" ]; then
-    logging__info "Creating prefix directory '${_prefix}' owned by '${_user}'."
-    mkdir -p "$_prefix"
-    chmod 755 "$(dirname "$_prefix")" 2> /dev/null || true
-    chown "$_user" "$_prefix"
+  if [ ! -e "$_install_prefix" ]; then
+    logging__info "Creating prefix directory '${_install_prefix}' owned by '${_user}'."
+    mkdir -p "$_install_prefix"
+    chmod 755 "$(dirname "$_install_prefix")" 2> /dev/null || true
+    chown "$_user" "$_install_prefix"
     logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
   # Prefix already exists — inspect ownership.
   local _owner
-  _owner="$(stat -c '%U' "$_prefix" 2> /dev/null || echo '')"
+  _owner="$(stat -c '%U' "$_install_prefix" 2> /dev/null || echo '')"
   if [ "$_owner" = "$_user" ]; then
-    logging__info "Prefix '${_prefix}' already owned by '${_user}'."
+    logging__info "Prefix '${_install_prefix}' already owned by '${_user}'."
     logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
   # A brew binary is present: ownership mismatch is handled by if_exists.
-  if [ -f "${_prefix}/bin/brew" ]; then
-    logging__warn "Prefix '${_prefix}' is owned by '${_owner}' (not '${_user}')."
+  if [ -f "${_install_prefix}/bin/brew" ]; then
+    logging__warn "Prefix '${_install_prefix}' is owned by '${_owner}' (not '${_user}')."
     logging__info "Existing installation will be handled by if_exists='${IF_EXISTS}'."
     logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
   # Empty directory: safe to re-own.
-  if [ -z "$(ls -A "$_prefix" 2> /dev/null)" ]; then
-    logging__info "Re-owning empty prefix '${_prefix}' to '${_user}'."
-    chown "$_user" "$_prefix"
+  if [ -z "$(ls -A "$_install_prefix" 2> /dev/null)" ]; then
+    logging__info "Re-owning empty prefix '${_install_prefix}' to '${_user}'."
+    chown "$_user" "$_install_prefix"
     logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
   # Non-empty directory owned by someone else with no brew binary — conflict.
-  logging__error "Prefix '${_prefix}' is non-empty and owned by '${_owner}' (not '${_user}')."
+  logging__error "Prefix '${_install_prefix}' is non-empty and owned by '${_owner}' (not '${_user}')."
   logging__info "Remove or empty the directory first, or set a different prefix."
   exit 1
 }

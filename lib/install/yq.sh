@@ -13,6 +13,8 @@ _INSTALL_YQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_INSTALL_YQ_LIB_DIR}/../os.sh"
 # shellcheck source=lib/ospkg.sh
 . "${_INSTALL_YQ_LIB_DIR}/../ospkg.sh"
+# shellcheck source=lib/users.sh
+. "${_INSTALL_YQ_LIB_DIR}/../users.sh"
 
 # @brief _install__yq_compatible <bin> — Return 0 when candidate binary is mikefarah/yq-compatible (`-o=json` supported).
 _install__yq_compatible() {
@@ -39,7 +41,7 @@ _install__yq_platform_arch() {
 
 # @brief _install__yq_install_release <context> <group> <prefix> — Install yq from GitHub release assets with checksum verification.
 _install__yq_install_release() {
-  local _context="${1-}" _group="${2-}" _prefix="${3-}"
+  local _context="${1-}" _group="${2-}" _install_prefix="${3-}"
   local _os _arch _base _dir _dest _expected_hash _final_dest
   read -r _os _arch <<< "$(_install__yq_platform_arch)" || return 1
   _base="https://github.com/mikefarah/yq/releases/latest/download"
@@ -54,18 +56,14 @@ _install__yq_install_release() {
     logging__error "install__yq: extracted checksum is invalid for yq_${_os}_${_arch}."
     return 1
   fi
-  checksum__verify_sha256 "$_dest" "$_expected_hash" || return 1
+  checksum__verify "$_dest" "$_expected_hash" || return 1
   chmod +x "$_dest" || return 1
   _final_dest="$_dest"
   if [[ "$_context" == "user" ]]; then
-    if [[ -z "$_prefix" || "$_prefix" == "auto" ]]; then
-      if [[ "$(id -u)" -eq 0 ]]; then
-        _prefix="/usr/local"
-      else
-        _prefix="${HOME}/.local"
-      fi
+    if [[ -z "$_install_prefix" || "$_install_prefix" == "auto" ]]; then
+      _install_prefix="$(users__default_prefix)"
     fi
-    _final_dest="${_prefix%/}/bin/yq"
+    _final_dest="${_install_prefix%/}/bin/yq"
     mkdir -p "$(dirname "$_final_dest")" || return 1
     if command -v install > /dev/null 2>&1; then
       install -m 0755 "$_dest" "$_final_dest" || return 1
@@ -109,7 +107,7 @@ _install__yq_install_repos() {
 
 # @brief install__yq --context <internal|user> [--method <auto|release|repos>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
 install__yq() {
-  local _context="internal" _method="auto" _owner_group="sysset-ospkg-internals" _if_exists="skip" _prefix="auto" _repos_manifest=""
+  local _context="internal" _method="auto" _owner_group="sysset-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context)
@@ -130,7 +128,7 @@ install__yq() {
         ;;
       --prefix)
         shift
-        _prefix="${1-}"
+        _install_prefix="${1-}"
         ;;
       --repos-manifest)
         shift
@@ -169,9 +167,9 @@ install__yq() {
     fi
   fi
   case "$_method" in
-    release) _install__yq_install_release "$_context" "$_owner_group" "$_prefix" ;;
+    release) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" ;;
     repos) _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
-    auto) _install__yq_install_release "$_context" "$_owner_group" "$_prefix" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
+    auto) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     *) return 1 ;;
   esac
 }

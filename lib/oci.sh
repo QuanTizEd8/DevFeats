@@ -397,7 +397,7 @@ oci__pull_feature_tgz() {
   fi
   if [[ -n "$_expect_digest" && "$_expect_digest" == sha256:* ]]; then
     local _got
-    _got="sha256:$(checksum__sha256_file "$_tgz" 2> /dev/null || true)"
+    _got="sha256:$(checksum__hash_file "$_tgz" 2> /dev/null || true)"
     if [[ "$_got" != "$_expect_digest" ]]; then
       rm -rf "$_tmp"
       logging__error "oci.sh: pulled layer digest mismatch for '${_ref}'."

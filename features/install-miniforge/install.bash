@@ -340,7 +340,7 @@ uninstall_miniforge() {
 verify_miniforge() {
   logging__fn_entry "verify_miniforge"
   logging__install "Verifying installer checksum"
-  checksum__verify_sha256_sidecar "$INSTALLER" "$CHECKSUM"
+  checksum__verify_sidecar "$INSTALLER" "$CHECKSUM"
   logging__fn_exit "verify_miniforge"
 }
 

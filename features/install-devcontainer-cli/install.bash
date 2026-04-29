@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# shellcheck source=_lib/os.sh
+# shellcheck source=lib/os.sh
 . "${_SELF_DIR}/_lib/os.sh"
-# shellcheck source=_lib/net.sh
+# shellcheck source=lib/net.sh
 . "${_SELF_DIR}/_lib/net.sh"
-# shellcheck source=_lib/ospkg.sh
+# shellcheck source=lib/ospkg.sh
 . "${_SELF_DIR}/_lib/ospkg.sh"
 
 _devcontainer_cli__detect_version() {
@@ -12,8 +12,8 @@ _devcontainer_cli__detect_version() {
 }
 
 _devcontainer_cli__resolve_prefix() {
-  local _prefix="${1-}"
-  if [[ -z "${_prefix}" || "${_prefix}" == "auto" ]]; then
+  local _resolved_prefix="${1-}"
+  if [[ -z "${_resolved_prefix}" || "${_resolved_prefix}" == "auto" ]]; then
     if [[ "$(id -u)" -eq 0 ]]; then
       printf '%s\n' "/usr/local/devcontainers"
     else
@@ -21,11 +21,11 @@ _devcontainer_cli__resolve_prefix() {
     fi
     return 0
   fi
-  printf '%s\n' "${_prefix}"
+  printf '%s\n' "${_resolved_prefix}"
 }
 
 _devcontainer_cli__install_script() {
-  local _version="${1-}" _prefix="${2-}" _node_version="${3-}" _update="${4-}" _uninstall="${5-}"
+  local _version="${1-}" _install_prefix="${2-}" _node_version="${3-}" _update="${4-}" _uninstall="${5-}"
   local _tmp_dir _script
   _tmp_dir="$(mktemp -d)"
   _script="${_tmp_dir}/install.sh"
@@ -38,7 +38,7 @@ _devcontainer_cli__install_script() {
   chmod +x "${_script}" || true
 
   local -a _args
-  _args=(--prefix "${_prefix}" --node-version "${_node_version}")
+  _args=(--prefix "${_install_prefix}" --node-version "${_node_version}")
   [[ -n "${_version}" && "${_version}" != "latest" ]] && _args+=(--version "${_version}")
   [[ "${_update}" == "true" ]] && _args+=(--update)
   [[ "${_uninstall}" == "true" ]] && _args+=(--uninstall)
@@ -58,7 +58,7 @@ _devcontainer_cli__ensure_npm() {
 }
 
 _devcontainer_cli__install_npm() {
-  local _version="${1-}" _prefix="${2-}" _uninstall="${3-}"
+  local _version="${1-}" _install_prefix="${2-}" _uninstall="${3-}"
   _devcontainer_cli__ensure_npm || {
     logging__error "install-devcontainer-cli: npm is required for method=npm."
     return 1
@@ -66,7 +66,7 @@ _devcontainer_cli__install_npm() {
 
   local -a _args
   _args=(-g)
-  [[ -n "${_prefix}" && "${_prefix}" != "auto" ]] && _args+=(--prefix "${_prefix}")
+  [[ -n "${_install_prefix}" && "${_install_prefix}" != "auto" ]] && _args+=(--prefix "${_install_prefix}")
   if [[ "${_uninstall}" == "true" ]]; then
     npm "${_args[@]}" uninstall "@devcontainers/cli"
     return 0

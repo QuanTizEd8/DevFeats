@@ -199,10 +199,10 @@ install_fzf() {
 
   local _expect_sha=""
   if _expect_sha="$(github__release_json_digest_for_asset "$_reljson" "$_filename")"; then
-    checksum__verify_sha256 "$_archive" "$_expect_sha"
+    checksum__verify "$_archive" "$_expect_sha"
   else
     net__fetch_url_file "${_base_url}/${_filename}.sha256" "$_sidecar"
-    checksum__verify_sha256_sidecar "$_archive" "$_sidecar"
+    checksum__verify_sidecar "$_archive" "$_sidecar"
   fi
 
   mkdir -p "$_bin_dir"

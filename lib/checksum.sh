@@ -8,46 +8,55 @@ _CHECKSUM__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_CHECKSUM__LIB_DIR/ospkg.sh"
 
-# @brief checksum__sha256_file <file> — Print lowercase hex SHA-256 of `<file>` to stdout (no success/failure logging).
-#
-# Uses sha256sum (Linux) or shasum --algorithm 256 (macOS); may install coreutils via ospkg when neither tool exists.
-#
-# Args:
-#   <file>  Path to an existing regular file.
-checksum__sha256_file() {
-  local _file="$1"
-  [ -f "$_file" ] || return 1
-
-  if command -v sha256sum > /dev/null 2>&1; then
-    sha256sum "$_file" | awk '{print $1}'
+# Try sha<algo>sum then shasum; return 1 if neither is found.
+_checksum__dispatch() {
+  local _file="$1" _algo="$2"
+  if command -v "sha${_algo}sum" > /dev/null 2>&1; then
+    "sha${_algo}sum" "$_file" | awk '{print $1}'
   elif command -v shasum > /dev/null 2>&1; then
-    shasum --algorithm 256 "$_file" | awk '{print $1}'
+    shasum --algorithm "${_algo}" "$_file" | awk '{print $1}'
   else
-    logging__info "sha256sum/shasum not found — installing coreutils."
-    ospkg__install_tracked "lib-checksum" coreutils
-    if command -v sha256sum > /dev/null 2>&1; then
-      sha256sum "$_file" | awk '{print $1}'
-    else
-      logging__error "checksum__sha256_file: neither sha256sum nor shasum is available."
-      return 1
-    fi
+    return 1
   fi
 }
 
-# @brief checksum__verify_sha256 <file> <expected_hash> — Verify the SHA-256 digest of `<file>`. Uses `sha256sum` (Linux) or `shasum -a 256` (macOS). Returns 1 on mismatch.
+# @brief checksum__hash_file <file> [algo] — Print lowercase hex digest of `<file>` to stdout.
 #
-# Uses sha256sum (Linux) or shasum --algorithm 256 (macOS) transparently.
-# Returns 1 if neither tool is available or if the digest does not match.
+# `algo` is `256` (default) or `512`.
+# Uses sha<N>sum (Linux/coreutils) or shasum --algorithm <N> (macOS/Perl).
+# Falls back to installing coreutils via ospkg when neither tool exists.
+#
+# Args:
+#   <file>   Path to an existing regular file.
+#   [algo]   Hash algorithm: 256 (default) or 512.
+checksum__hash_file() {
+  local _file="$1"
+  local _algo="${2:-256}"
+  [ -f "$_file" ] || return 1
+  _checksum__dispatch "$_file" "$_algo" && return
+  logging__info "sha${_algo}sum/shasum not found — installing coreutils."
+  ospkg__install_tracked "lib-checksum" coreutils
+  _checksum__dispatch "$_file" "$_algo" || {
+    logging__error "checksum__hash_file: no sha${_algo}sum or shasum available after coreutils install."
+    return 1
+  }
+}
+
+# @brief checksum__verify <file> <expected_hash> [algo] — Verify the digest of `<file>`. Returns 1 on mismatch.
+#
+# `algo` is `256` (default) or `512`.
 #
 # Args:
 #   <file>           Path to the file to verify.
-#   <expected_hash>  Expected lowercase hex SHA-256 digest.
-checksum__verify_sha256() {
+#   <expected_hash>  Expected lowercase hex digest.
+#   [algo]           Hash algorithm: 256 (default) or 512.
+checksum__verify() {
   local _file="$1"
   local _expected="$2"
+  local _algo="${3:-256}"
   local _actual
 
-  _actual="$(checksum__sha256_file "$_file")" || return 1
+  _actual="$(checksum__hash_file "$_file" "$_algo")" || return 1
 
   if [ "$_expected" = "$_actual" ]; then
     logging__success "Checksum verification passed."
@@ -60,23 +69,24 @@ checksum__verify_sha256() {
   return 0
 }
 
-# @brief checksum__verify_sha256_sidecar <file> <sha256_file> — Read the expected hash from the first field of `<sha256_file>` and delegate to `checksum__verify_sha256`.
+# @brief checksum__verify_sidecar <file> <hash_file> [algo] — Read expected hash from first field of `<hash_file>` and delegate to checksum__verify.
 #
-# Reads the first whitespace-separated field of <sha256_file> as the expected
-# hash. Suitable for the common `<name>.sha256` sidecar file pattern.
+# Suitable for the common `<name>.sha256` / `<name>.sha512` sidecar file pattern.
 #
 # Args:
-#   <file>          Path to the file to verify.
-#   <sha256_file>   Path to the sidecar file containing the expected hash.
-checksum__verify_sha256_sidecar() {
+#   <file>       Path to the file to verify.
+#   <hash_file>  Path to the sidecar file containing the expected hash.
+#   [algo]       Hash algorithm: 256 (default) or 512.
+checksum__verify_sidecar() {
   local _file="$1"
-  local _sha256_file="$2"
+  local _hash_file="$2"
+  local _algo="${3:-256}"
   local _expected
-  _expected="$(awk '{print $1}' "$_sha256_file")"
+  _expected="$(awk '{print $1}' "$_hash_file")"
   [ -z "$_expected" ] && {
-    logging__error "checksum__verify_sha256_sidecar: could not read hash from '${_sha256_file}'."
+    logging__error "checksum__verify_sidecar: could not read hash from '${_hash_file}'."
     return 1
   }
-  checksum__verify_sha256 "$_file" "$_expected"
+  checksum__verify "$_file" "$_expected" "$_algo"
   return $?
 }

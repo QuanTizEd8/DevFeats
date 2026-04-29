@@ -145,7 +145,7 @@ verify_pixi() {
     return 0
   fi
   logging__inspect "Verifying SHA-256 checksum..."
-  checksum__verify_sha256_sidecar "${ARCHIVE}" "${SIDECAR}"
+  checksum__verify_sidecar "${ARCHIVE}" "${SIDECAR}"
   logging__success "Checksum verified."
   logging__fn_exit "verify_pixi"
   return 0

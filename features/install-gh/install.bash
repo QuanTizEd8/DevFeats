@@ -230,7 +230,7 @@ _gh__install_binary() {
     logging__error "Could not find checksum for '${_archive_name}' in checksums.txt."
     exit 1
   fi
-  checksum__verify_sha256 "${INSTALLER_DIR}/${_archive_name}" "${_expected}"
+  checksum__verify "${INSTALLER_DIR}/${_archive_name}" "${_expected}"
   logging__success "Checksum verified."
 
   # Extract archive.

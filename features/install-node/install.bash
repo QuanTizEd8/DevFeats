@@ -335,9 +335,9 @@ _node_install_via_binary() {
   _platform="$(_node_build_platform_string "$_kernel_str" "$_arch_str")"
 
   # Resolve install prefix
-  local _prefix="$PREFIX"
-  if [ "$_prefix" = "auto" ]; then
-    _prefix="/usr/local"
+  local _install_prefix="$PREFIX"
+  if [ "$_install_prefix" = "auto" ]; then
+    _install_prefix="/usr/local"
   fi
 
   # Resolve exact version (may already be set from pre-install check step)
@@ -350,7 +350,7 @@ _node_install_via_binary() {
     _NODE_VERSION="$(_node_resolve_binary_version "$VERSION" "${INSTALLER_DIR}/index.json")"
   fi
 
-  logging__info "Installing Node.js ${_NODE_VERSION} (${_platform}) to ${_prefix}..."
+  logging__info "Installing Node.js ${_NODE_VERSION} (${_platform}) to ${_install_prefix}..."
 
   local _tarball="node-${_NODE_VERSION}-${_platform}.tar.xz"
 
@@ -373,16 +373,16 @@ _node_install_via_binary() {
   fi
 
   # Verify checksum
-  checksum__verify_sha256 "${INSTALLER_DIR}/${_tarball}" "$_hash"
+  checksum__verify "${INSTALLER_DIR}/${_tarball}" "$_hash"
 
   # Extract to install prefix
-  mkdir -p "$_prefix"
-  tar -xJf "${INSTALLER_DIR}/${_tarball}" --strip-components=1 -C "$_prefix"
+  mkdir -p "$_install_prefix"
+  tar -xJf "${INSTALLER_DIR}/${_tarball}" --strip-components=1 -C "$_install_prefix"
 
   # Update PREFIX with resolved value for use by caller
-  PREFIX="$_prefix"
+  PREFIX="$_install_prefix"
 
-  logging__success "Node.js ${_NODE_VERSION} extracted to ${_prefix}."
+  logging__success "Node.js ${_NODE_VERSION} extracted to ${_install_prefix}."
   logging__fn_exit "_node_install_via_binary"
   return 0
 }

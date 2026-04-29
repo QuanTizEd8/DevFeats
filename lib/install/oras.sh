@@ -102,7 +102,7 @@ _install__oras_verify_release_signature() {
 
 # @brief _install__oras_install_release <version> <prefix> <group> <context> <download_url> — Install ORAS from release artifact with mandatory checksum+GPG verification.
 _install__oras_install_release() {
-  local _version="${1-}" _prefix="${2-}" _group="${3-}" _context="${4-}" _download_url="${5-}"
+  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _download_url="${5-}"
   local _platform _arch _asset _tmp _bin_src _bin_dest _tag
   _platform="$(_install__oras_platform)" || return 1
   _arch="$(_install__oras_arch)" || return 1
@@ -133,7 +133,7 @@ _install__oras_install_release() {
     rm -rf "$_tmp"
     return 1
   }
-  _bin_dest="${_prefix%/}/bin/oras"
+  _bin_dest="${_install_prefix%/}/bin/oras"
   mkdir -p "$(dirname "$_bin_dest")" || {
     rm -rf "$_tmp"
     return 1
@@ -200,7 +200,7 @@ _install__oras_install_repos() {
 
 # @brief install__oras --context <internal|user> [--version <ver|latest>] [--min-version <ver>] [--method <auto|release|repos>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--download-url <url>] [--repos-manifest <path>] [--owner-group <id>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
 install__oras() {
-  local _context="internal" _version="latest" _min_version="" _method="auto" _prefix="auto"
+  local _context="internal" _version="latest" _min_version="" _method="auto" _install_prefix="auto"
   local _if_exists="skip" _download_url="" _repos_manifest="" _owner_group="lib-oci-oras"
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -222,7 +222,7 @@ install__oras() {
         ;;
       --prefix)
         shift
-        _prefix="${1-}"
+        _install_prefix="${1-}"
         ;;
       --if-exists)
         shift
@@ -281,23 +281,23 @@ install__oras() {
     fi
   fi
 
-  if [[ "$_prefix" == "auto" || -z "$_prefix" ]]; then
+  if [[ "$_install_prefix" == "auto" || -z "$_install_prefix" ]]; then
     if [[ "$(id -u)" -eq 0 ]]; then
-      _prefix="/usr/local"
+      _install_prefix="/usr/local"
     else
-      _prefix="${HOME}/.local"
+      _install_prefix="${HOME}/.local"
     fi
   fi
   _version="$(_install__oras_resolve_version "$_version")" || return 1
   case "$_method" in
     release)
-      _install__oras_install_release "$_version" "$_prefix" "$_owner_group" "$_context" "$_download_url"
+      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_download_url"
       ;;
     repos)
       _install__oras_install_repos "$_version" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     auto)
-      _install__oras_install_release "$_version" "$_prefix" "$_owner_group" "$_context" "$_download_url" ||
+      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_download_url" ||
         _install__oras_install_repos "$_version" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)

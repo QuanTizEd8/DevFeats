@@ -11,6 +11,20 @@ _USERS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_USERS__LIB_DIR/ospkg.sh"
 
+# @brief users__is_root — Return 0 when the current process runs as root (uid 0), 1 otherwise.
+users__is_root() {
+  [ "$(id -u)" -eq 0 ]
+}
+
+# @brief users__default_prefix — Print the default binary installation prefix: `/usr/local` as root, `$HOME/.local` as non-root.
+users__default_prefix() {
+  if users__is_root; then
+    printf '%s\n' "/usr/local"
+  else
+    printf '%s\n' "${HOME}/.local"
+  fi
+}
+
 # @brief users__resolve_list — Print one deduplicated username per line from devcontainer user-config env vars.
 #
 # Root is excluded from auto-detected paths (SUDO_USER, _REMOTE_USER,
@@ -146,7 +160,7 @@ users__resolve_list() {
 #   <group>     OS group name to create (if absent) and use.
 #   [<user>...] Additional users to add to the group.
 users__set_write_permissions() {
-  local _prefix="$1"
+  local _path="$1"
   local _owner="$2"
   local _group="$3"
   shift 3
@@ -159,7 +173,7 @@ users__set_write_permissions() {
       return 0
     fi
   fi
-  logging__info "Setting write permissions on '${_prefix}' (owner: '${_owner}', group: '${_group}')."
+  logging__info "Setting write permissions on '${_path}' (owner: '${_owner}', group: '${_group}')."
   getent group "$_group" > /dev/null 2>&1 || groupadd -r "$_group"
   local _u
   for _u in "$@"; do
@@ -171,9 +185,9 @@ users__set_write_permissions() {
     fi
     usermod -a -G "$_group" "$_u"
   done
-  chown -R "${_owner}:${_group}" "$_prefix"
-  chmod -R g+rwX "$_prefix"
-  find "$_prefix" -type d -print0 | xargs -0 chmod g+s
+  chown -R "${_owner}:${_group}" "$_path"
+  chmod -R g+rwX "$_path"
+  find "$_path" -type d -print0 | xargs -0 chmod g+s
   return 0
 }
 

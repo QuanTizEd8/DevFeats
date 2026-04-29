@@ -1,0 +1,66 @@
+version: 0.1.0
+name: shfmt Installation
+description: Install [mvdan/shfmt](https://github.com/mvdan/sh) — a shell script formatter.
+keywords:
+  - shfmt
+  - shell
+  - format
+  - bash
+  - cli
+_long_description: |-
+  Installs `shfmt`, the shell script formatter from the mvdan/sh project.
+  Supports formatting sh, bash, and mksh scripts.
+
+  `method=auto` prefers a verified upstream release binary and falls back to
+  the OS package manager. Use `version` to pin an exact release, `prefix` to
+  control the installation destination for the release method, and `if_exists`
+  to control behaviour when `shfmt` is already available.
+options:
+  method:
+    type: string
+    default: auto
+    description: Installation method to use.
+    enum:
+      - value: auto
+        description: Prefer release binary, then fall back to package manager.
+      - value: release
+        description: Install from GitHub release binaries with SHA-256 verification.
+      - value: repos
+        description: Install from the operating system package manager.
+  version:
+    type: string
+    default: latest
+    description: Version to install (`latest` or a concrete version like `3.10.0`).
+    proposals:
+      - value: latest
+        description: Resolve and install the latest release.
+      - value: 3.10.0
+        description: Install shfmt v3.10.0.
+  prefix:
+    type: string
+    default: auto
+    description: |-
+      Installation prefix for `method=release` (`$prefix/bin/shfmt`).
+      `auto` resolves to `/usr/local` as root, or `$HOME/.local` as non-root.
+      Ignored for `method=repos`.
+  if_exists:
+    type: string
+    default: skip
+    description: Behavior when `shfmt` already exists in PATH.
+    enum:
+      - value: skip
+        description: Reuse the existing install and exit successfully.
+      - value: fail
+        description: Exit with an error when `shfmt` already exists.
+      - value: reinstall
+        description: Reinstall using the selected method.
+_dependencies:
+  run:
+    os-pkg:
+      packages:
+        - shfmt
+  build:
+    download:
+      packages:
+        - curl
+installsAfter: []
