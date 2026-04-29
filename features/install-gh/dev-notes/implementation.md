@@ -28,10 +28,10 @@ library functions are required.
 - **Reuse** from `lib/net.sh`.
 - Used by `_gh__install_binary` to download the release archive and checksums file.
 
-### `checksum__verify_sha256`
+### `checksum__verify`
 - **Reuse** from `lib/checksum.sh`.
 - The `gh_<ver>_checksums.txt` file is a multi-asset file; the caller extracts the expected hash with `grep`
-  and passes it to `checksum__verify_sha256 <archive> <hash>`.
+  and passes it to `checksum__verify <archive> <hash>`.
 
 ### `shell__detect_zshdir`
 - **Reuse** from `lib/shell.sh`.
@@ -162,7 +162,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
    ```bash
    _expected="$(grep "${_archive_name}" "${INSTALLER_DIR}/checksums.txt" | awk '{print $1}')"
    ```
-5. Verify: `checksum__verify_sha256 "${INSTALLER_DIR}/${_archive_name}" "${_expected}"`; exit 1 on mismatch.
+5. Verify: `checksum__verify "${INSTALLER_DIR}/${_archive_name}" "${_expected}"`; exit 1 on mismatch.
 6. Extract archive:
    - Linux: `tar -xzf ... -C "${INSTALLER_DIR}"`
    - macOS: `unzip -q ... -d "${INSTALLER_DIR}"`
@@ -332,6 +332,6 @@ macOS (zip) uses the same structure with `macOS` in the directory name.
 - [install-git install.bash — Platform dispatch and GPG key import patterns](../../src/install-git/install.bash)
 - [install-pixi install.bash — Binary download + version resolution pattern](../../src/install-pixi/install.bash)
 - [lib/github.sh — github__latest_tag, github__release_asset_urls](../../lib/github.sh)
-- [lib/checksum.sh — checksum__verify_sha256](../../lib/checksum.sh)
+- [lib/checksum.sh — checksum__verify](../../lib/checksum.sh)
 - [lib/shell.sh — shell__detect_zshdir](../../lib/shell.sh)
 - [lib/users.sh — users__resolve_list](../../lib/users.sh)

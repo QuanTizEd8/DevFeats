@@ -22,10 +22,10 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
 
 ---
 
-### `checksum__verify_sha256` — SHA-256 Verification
+### `checksum__verify` — SHA-256 Verification
 
 - **Module:** `lib/checksum.sh`
-- **Reuse:** ✅ Existing function (note: `checksum__verify_sha256_sidecar` is NOT used here — `SHASUMS256.txt` has multiple entries; the correct hash must be extracted first with `grep "${TARBALL}" SHASUMS256.txt | awk '{print $1}'`, then passed to `checksum__verify_sha256`).
+- **Reuse:** ✅ Existing function (note: `checksum__verify_sidecar` is NOT used here — `SHASUMS256.txt` has multiple entries; the correct hash must be extracted first with `grep "${TARBALL}" SHASUMS256.txt | awk '{print $1}'`, then passed to `checksum__verify`).
 
 ---
 
@@ -149,7 +149,7 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
   7. Download tarball: `net__fetch_url_file "https://nodejs.org/dist/${_NODE_VERSION}/${TARBALL}" "${INSTALLER_DIR}/${TARBALL}"`
   8. Download checksums: `net__fetch_url_file "https://nodejs.org/dist/${_NODE_VERSION}/SHASUMS256.txt" "${INSTALLER_DIR}/SHASUMS256.txt"`
   9. Extract expected hash: `_hash=$(grep "  ${TARBALL}$" "${INSTALLER_DIR}/SHASUMS256.txt" | awk '{print $1}')`; exit 1 with error if empty. Note: the format is `{sha256hex}  {filename}` — two spaces between hash and filename.
-  10. Verify: `checksum__verify_sha256 "${INSTALLER_DIR}/${TARBALL}" "$_hash"`
+  10. Verify: `checksum__verify "${INSTALLER_DIR}/${TARBALL}" "$_hash"`
   11. Create prefix: `mkdir -p "${PREFIX}"`
   12. Extract: `tar -xJf "${INSTALLER_DIR}/${TARBALL}" --strip-components=1 -C "${PREFIX}"`
   13. Return `_NODE_VERSION` and `PREFIX` to caller. (Cleanup of `$INSTALLER_DIR` is handled by the EXIT trap — do not clean up inline here.)
@@ -463,7 +463,7 @@ install.bash
 - [nodejs.org/dist/index.json](https://nodejs.org/dist/index.json) — Release index format (`version`, `lts`, `npm`)
 - [devcontainers/features node install.sh](https://raw.githubusercontent.com/devcontainers/features/main/src/node/install.sh) — Reference implementation for nvm + Alpine patterns
 - [lib/github.sh](../../../lib/github.sh) — `github__latest_tag`
-- [lib/checksum.sh](../../../lib/checksum.sh) — `checksum__verify_sha256`
+- [lib/checksum.sh](../../../lib/checksum.sh) — `checksum__verify`
 - [lib/shell.sh](../../../lib/shell.sh) — `shell__system_path_files`, `shell__user_path_files`, `shell__sync_block` for PATH and shell configuration
 - [lib/users.sh](../../../lib/users.sh) — `users__resolve_list`
 - [lib/os.sh](../../../lib/os.sh) — `os__platform`, `os__arch`, `os__kernel`

@@ -36,8 +36,8 @@ checksums, shell config writes, OS packages, and logging.
 - **Responsibility:** Downloads a URL to a local file path with retries.
 - **Reuse or New:** Reused. Called by `download_pixi` for both the `.tar.gz` archive and the `.tar.gz.sha256` sidecar.
 
-### `checksum__verify_sha256_sidecar` — Reused from `lib/checksum.sh`
-- **Responsibility:** Reads the expected hash from a `.tar.gz.sha256` sidecar and calls `checksum__verify_sha256`.
+### `checksum__verify_sidecar` — Reused from `lib/checksum.sh`
+- **Responsibility:** Reads the expected hash from a `.tar.gz.sha256` sidecar and calls `checksum__verify`.
 - **Reuse or New:** Reused. Called after both files are downloaded, before extraction.
 
 ### `shell__system_path_files` — Reused from `lib/shell.sh`
@@ -138,7 +138,7 @@ checksums, shell config writes, OS packages, and logging.
 - **Inputs (globals):** `INSTALLER_DIR`, `ARCHIVE`, `SIDECAR`, `ARCHIVE_URL`, `SIDECAR_URL`, `NETRC`.
 
 ### `verify_pixi`
-- **Responsibility:** Calls `checksum__verify_sha256_sidecar "$ARCHIVE" "$SIDECAR"`.
+- **Responsibility:** Calls `checksum__verify_sidecar "$ARCHIVE" "$SIDECAR"`.
   - Skipped when `SIDECAR_URL` is empty (i.e. when `download_url` was set) — logs a warning instead.
 - **Inputs (globals):** `ARCHIVE`, `SIDECAR`, `SIDECAR_URL`.
 
@@ -376,7 +376,7 @@ The `__cleanup__` EXIT trap always runs `logging__cleanup`. The installer files
 - [install-miniforge/install.bash](../../src/install-miniforge/install.bash) — reference pattern for dual-mode parsing, export_path_main, cleanup, if_exists logic.
 - [install-git/install.bash](../../src/install-git/install.bash) — reference pattern for `prefix="auto"` root/non-root resolution and `create_symlink` (steps 1 and 8).
 - [lib/shell.sh](../../lib/shell.sh) — `shell__sync_block`, `shell__system_path_files`, `shell__user_path_files`, `shell__detect_bashrc`, `shell__detect_zshdir`.
-- [lib/checksum.sh](../../lib/checksum.sh) — `checksum__verify_sha256_sidecar`.
+- [lib/checksum.sh](../../lib/checksum.sh) — `checksum__verify_sidecar`.
 - [lib/github.sh](../../lib/github.sh) — `github__latest_tag`.
 - [lib/net.sh](../../lib/net.sh) — `net__fetch_url_file`.
 - [lib/os.sh](../../lib/os.sh) — `os__kernel`, `os__arch`, `os__require_root`.

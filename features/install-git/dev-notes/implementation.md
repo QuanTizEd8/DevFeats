@@ -112,14 +112,14 @@ ospkg__install git
 
 ---
 
-### 4. `checksum__verify_sha256` — **REUSED from `lib/checksum.sh`**
+### 4. `checksum__verify` — **REUSED from `lib/checksum.sh`**
 
 **Responsibility:** Verify a downloaded file's SHA-256 digest. Used after fetching the `kernel.org` tarball for the `source` method.
 
 **Usage:** The script fetches `sha256sums.asc` alongside the tarball, parses the expected hash for the specific filename with `awk`/`grep`, and passes it to this function:
 ```bash
 _expected="$(grep "git-${_VERSION}.tar.gz" "${_INSTALLER_DIR}/sha256sums.asc" | awk '{print $1}')"
-checksum__verify_sha256 "${_INSTALLER_DIR}/git-${_VERSION}.tar.gz" "$_expected"
+checksum__verify "${_INSTALLER_DIR}/git-${_VERSION}.tar.gz" "$_expected"
 ```
 
 Note: `sha256sums.asc` from kernel.org is a GPG-signed file; the plaintext hash lines are still readable without GPG verification. The feature verifies the **hash** of the tarball but does NOT verify the GPG signature of the sidecar file itself (requiring `gpg` and the kernel.org key would add significant complexity). This is the same posture as the devcontainers/features reference implementation.
@@ -522,7 +522,7 @@ net__fetch_url_file "$_SUM_URL" "$_SUMFILE"
 
 _expected="$(grep "git-${_RESOLVED_VERSION}.tar.gz" "$_SUMFILE" | awk '{print $1}')"
 [ -z "$_expected" ] → fatal: version not found in sha256sums.asc
-checksum__verify_sha256 "$_TARFILE" "$_expected"
+checksum__verify "$_TARFILE" "$_expected"
 ```
 
 ---
@@ -823,7 +823,7 @@ The existing `dependencies/base.yaml` is replaced by `dependencies/os-pkg.yaml` 
 - [Installation Reference](./installation.md) — all method details, build flags, PPA key steps, codename matrix
 - [API Reference](./api.md) — option semantics, auto-selection table, usage examples
 - [lib/github.sh](../../../lib/github.sh) — existing GitHub API helpers; `github__tags` added here
-- [lib/checksum.sh](../../../lib/checksum.sh) — `checksum__verify_sha256` and `checksum__verify_sha256_sidecar`
+- [lib/checksum.sh](../../../lib/checksum.sh) — `checksum__verify` and `checksum__verify_sidecar`
 - [lib/os.sh](../../../lib/os.sh) — `os__id`, `os__platform`, `os__kernel`
 - [alpine/aports APKBUILD](https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/main/git/APKBUILD) — Alpine-specific make flags
 - [kernel.org git directory](https://www.kernel.org/pub/software/scm/git/) — tarball + sha256sums.asc

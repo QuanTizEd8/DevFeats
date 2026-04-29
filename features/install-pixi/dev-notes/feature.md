@@ -232,11 +232,11 @@ https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.
 **Implementation using `lib/checksum.sh`:**
 
 ```bash
-checksum__verify_sha256_sidecar "$ARCHIVE" "$SHA256_FILE"
+checksum__verify_sidecar "$ARCHIVE" "$SHA256_FILE"
 ```
 
 This function reads the first whitespace-separated field from `$SHA256_FILE`
-and calls `checksum__verify_sha256` which uses `sha256sum` (Linux) or
+and calls `checksum__verify` which uses `sha256sum` (Linux) or
 `shasum --algorithm 256` (macOS) transparently.
 
 **Skip condition:** When `download_url` is set to a custom URL (mirror or
@@ -422,7 +422,7 @@ environments declared in `pixi.toml`. Omit it if your project doesn't have a
 - [install-miniforge feature](../../src/install-miniforge/) — Sister feature;
   reference for `if_exists`, dual-mode parsing, `shell__export_path`, and
   `ospkg__run` patterns.
-- [lib/checksum.sh](../../lib/checksum.sh) — `checksum__verify_sha256_sidecar`
+- [lib/checksum.sh](../../lib/checksum.sh) — `checksum__verify_sidecar`
   for cross-platform archive verification.
 - [lib/shell.sh](../../lib/shell.sh) — `shell__write_block` for completion setup;
   `shell__export_path` for PATH management.
