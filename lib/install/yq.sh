@@ -39,12 +39,17 @@ _install__yq_platform_arch() {
   printf '%s %s\n' "$_os" "$_arch"
 }
 
-# @brief _install__yq_install_release <context> <group> <prefix> — Install yq from GitHub release assets with checksum verification.
+# @brief _install__yq_install_release <context> <group> <prefix> [version] — Install yq from GitHub release assets with checksum verification.
+# version: bare semver (no "v" prefix). If empty, uses latest/download URL.
 _install__yq_install_release() {
-  local _context="${1-}" _group="${2-}" _install_prefix="${3-}"
+  local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}"
   local _os _arch _base _dir _dest _expected_hash _final_dest
   read -r _os _arch <<< "$(_install__yq_platform_arch)" || return 1
-  _base="https://github.com/mikefarah/yq/releases/latest/download"
+  if [[ -n "$_version" ]]; then
+    _base="https://github.com/mikefarah/yq/releases/download/v${_version}"
+  else
+    _base="https://github.com/mikefarah/yq/releases/latest/download"
+  fi
   _dir="$(logging__tmpdir "install/yq")"
   _dest="${_dir}/yq_${_os}_${_arch}"
   net__fetch_url_file "${_base}/yq_${_os}_${_arch}" "$_dest" || return 1
@@ -105,9 +110,9 @@ _install__yq_install_repos() {
   return 0
 }
 
-# @brief install__yq --context <internal|user> [--method <auto|release|repos>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
+# @brief install__yq --context <internal|user> [--method <auto|release|repos>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--version <semver|''>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
 install__yq() {
-  local _context="internal" _method="auto" _owner_group="sysset-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest=""
+  local _context="internal" _method="auto" _owner_group="sysset-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest="" _version=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context)
@@ -133,6 +138,10 @@ install__yq() {
       --repos-manifest)
         shift
         _repos_manifest="${1-}"
+        ;;
+      --version)
+        shift
+        _version="${1-}"
         ;;
       *)
         logging__error "install__yq: unknown option '$1'"
@@ -167,9 +176,9 @@ install__yq() {
     fi
   fi
   case "$_method" in
-    release) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" ;;
+    release) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" ;;
     repos) _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
-    auto) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
+    auto) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     *) return 1 ;;
   esac
 }
