@@ -340,7 +340,7 @@ _ospkg_ensure_yq() {
     logging__error "yq could not be installed."
     return 1
   }
-  IFS= read -r _OSPKG_YQ_BIN < "${_yq_out_file}" || _OSPKG_YQ_BIN=""
+  _OSPKG_YQ_BIN="$(awk 'NF{last=$0} END{print last}' "${_yq_out_file}")"
   [[ -n "${_OSPKG_YQ_BIN}" && -x "${_OSPKG_YQ_BIN}" ]] || {
     logging__error "install__yq did not return a usable yq path."
     return 1
