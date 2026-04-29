@@ -447,11 +447,6 @@ jobs:
     needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.setup.outputs.ci_image }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -461,10 +456,29 @@ jobs:
           name: sysset-dist
           path: dist/
 
+      - name: Start test OCI registry
+        run: |
+          PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); p=s.getsockname()[1]; s.close(); print(p)')
+          docker run -d --rm --name sysset-test-registry-get -p "${PORT}:5000" registry:2
+          until curl -sf "http://localhost:${PORT}/v2/" > /dev/null 2>&1; do sleep 0.5; done
+          echo "SYSSET_TEST_REGISTRY_HOST=localhost:${PORT}" >> "$GITHUB_ENV"
+
       - name: "Run get/ scenarios"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash test/dist/run.sh --suite get --no-build
+        run: |
+          docker run --rm \
+            --network host \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -w /repo \
+            -e GITHUB_TOKEN \
+            -e SYSSET_TEST_REGISTRY_HOST \
+            ubuntu:24.04 \
+            sh -c "apt-get update -qq && apt-get install -y --no-install-recommends bash jq curl ca-certificates python3 sudo && bash test/dist/run.sh --suite get --no-build"
+
+      - name: Stop test OCI registry
+        if: always()
+        run: docker stop sysset-test-registry-get 2>/dev/null || true
 
   # ── Dist: sysset/ scenarios (Linux containers) ────────────────────────────
   test-dist-sysset:
@@ -494,6 +508,13 @@ jobs:
           name: sysset-dist
           path: dist/
 
+      - name: Start test OCI registry
+        run: |
+          PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); p=s.getsockname()[1]; s.close(); print(p)')
+          docker run -d --rm --name sysset-test-registry -p "${PORT}:5000" registry:2
+          until curl -sf "http://localhost:${PORT}/v2/" > /dev/null 2>&1; do sleep 0.5; done
+          echo "SYSSET_TEST_REGISTRY_HOST=localhost:${PORT}" >> "$GITHUB_ENV"
+
       - name: "Run sysset/ scenarios inside ${{ matrix.distro }} container"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -503,8 +524,13 @@ jobs:
             -v "$GITHUB_WORKSPACE:/repo" \
             -w /repo \
             -e GITHUB_TOKEN \
+            -e SYSSET_TEST_REGISTRY_HOST \
             "${{ matrix.image }}" \
             sh -c "${{ matrix.pre }} && bash test/dist/run.sh --suite sysset --no-build"
+
+      - name: Stop test OCI registry
+        if: always()
+        run: docker stop sysset-test-registry 2>/dev/null || true
 
   # ── Dist: macOS scenarios ─────────────────────────────────────────────────
   test-dist-macos:
