@@ -375,7 +375,7 @@ oci__pull_feature_tgz() {
   _tmp="$(mktemp -d)"
   local _expect_digest=""
   _expect_digest="$(_oci__expected_layer_digest_for_ref "$_ref" 2> /dev/null || true)"
-  if ! _oci__oras_capture "$_target" "$_plain" oras pull -- -o "$_tmp" > /dev/null; then
+  if ! _oci__oras_capture "$_target" "$_plain" oras pull -o "$_tmp" > /dev/null; then
     rm -rf "$_tmp"
     logging__error "oci.sh: failed to pull '${_ref}'."
     return 1

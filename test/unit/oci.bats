@@ -21,6 +21,18 @@ _test_sha256_file() {
   return 1
 }
 
+_mock_oras_pull_outdir() {
+  local _i
+  for ((_i = 1; _i <= $#; _i++)); do
+    if [[ "${!_i}" == "-o" ]]; then
+      _i=$((_i + 1))
+      printf '%s\n' "${!_i}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 _mock_tar_fixture_bin() {
   local _dir="${1-}" _good="${2-}" _bad="${3-}"
   local _good_hash _bad_hash
@@ -165,8 +177,10 @@ EOF
       return 0
     fi
     if [[ "$1" == "pull" ]]; then
-      mkdir -p "$4"
-      cp "$_good" "$4/devcontainer-feature-x.tgz"
+      local _out
+      _out="$(_mock_oras_pull_outdir "$@")" || return 1
+      mkdir -p "$_out"
+      cp "$_good" "$_out/devcontainer-feature-x.tgz"
       return 0
     fi
     return 1
@@ -208,8 +222,10 @@ EOF
       return 0
     fi
     if [[ "$1" == "pull" ]]; then
-      mkdir -p "$4"
-      cp "$_good" "$4/devcontainer-feature-x.tgz"
+      local _out
+      _out="$(_mock_oras_pull_outdir "$@")" || return 1
+      mkdir -p "$_out"
+      cp "$_good" "$_out/devcontainer-feature-x.tgz"
       return 0
     fi
     return 1
@@ -275,8 +291,10 @@ EOF
       return 0
     fi
     if [[ "$1" == "pull" ]]; then
-      mkdir -p "$4"
-      cp "$_bad" "$4/devcontainer-feature-x.tgz"
+      local _out
+      _out="$(_mock_oras_pull_outdir "$@")" || return 1
+      mkdir -p "$_out"
+      cp "$_bad" "$_out/devcontainer-feature-x.tgz"
       return 0
     fi
     return 1
@@ -311,8 +329,10 @@ EOF
       return 0
     fi
     if [[ "$1" == "pull" ]]; then
-      mkdir -p "$4"
-      cp "$_good" "$4/devcontainer-feature-x.tgz"
+      local _out
+      _out="$(_mock_oras_pull_outdir "$@")" || return 1
+      mkdir -p "$_out"
+      cp "$_good" "$_out/devcontainer-feature-x.tgz"
       return 0
     fi
     return 1
@@ -352,11 +372,7 @@ EOF
     if [[ "${1-}" == "pull" ]]; then
       [[ "${ORAS_PLAIN_HTTP-}" == "1" || "${2-}" == "--plain-http" ]] || return 1
       local _out_dir=""
-      if [[ "${2-}" == "--plain-http" ]]; then
-        _out_dir="${5-}"
-      else
-        _out_dir="${4-}"
-      fi
+      _out_dir="$(_mock_oras_pull_outdir "$@")" || return 1
       mkdir -p "$_out_dir"
       cp "$_good" "$_out_dir/devcontainer-feature-x.tgz"
       return 0
