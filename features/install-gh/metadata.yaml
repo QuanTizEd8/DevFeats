@@ -200,6 +200,12 @@ options:
       Ignored when method=repos.
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
+customizations:
+  vscode:
+    extensions:
+      - github.vscode-github-actions
+      - github.vscode-pull-request-github
+      - github.remotehub
 _dependencies:
   run:
     base:

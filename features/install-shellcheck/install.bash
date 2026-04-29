@@ -51,21 +51,13 @@ _shellcheck__platform_arch() {
 
 _shellcheck__install_release() {
   local _version="${1-}" _install_prefix="${2-}"
-  local _os _arch _asset _base _tmp _expected_hash _extracted _dest
+  local _os _arch _asset _tmp _extracted _dest
   read -r _os _arch <<< "$(_shellcheck__platform_arch)" || return 1
   _asset="shellcheck-v${_version}.${_os}.${_arch}.tar.xz"
-  _base="https://github.com/koalaman/shellcheck/releases/download/v${_version}"
   _tmp="$(logging__tmpdir "install/shellcheck")"
   _download_deps__install
 
-  net__fetch_url_file "${_base}/${_asset}" "${_tmp}/${_asset}" || return 1
-  net__fetch_url_file "${_base}/shellcheck-v${_version}.SHA512" "${_tmp}/shellcheck.SHA512" || return 1
-  _expected_hash="$(awk -v f="${_asset}" '$2 == f { print $1; exit }' "${_tmp}/shellcheck.SHA512")"
-  if [[ ! "${_expected_hash:-}" =~ ^[0-9a-fA-F]{128}$ ]]; then
-    logging__error "install-shellcheck: could not resolve checksum for ${_asset}."
-    return 1
-  fi
-  checksum__verify "${_tmp}/${_asset}" "$_expected_hash" 512 || return 1
+  github__fetch_release_asset_tarball "koalaman/shellcheck" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
 
   tar -xJf "${_tmp}/${_asset}" -C "$_tmp" || return 1
   _extracted="${_tmp}/shellcheck-v${_version}/shellcheck"

@@ -43,16 +43,13 @@ _shfmt__platform_arch() {
 
 _shfmt__install_release() {
   local _version="${1-}" _install_prefix="${2-}"
-  local _os _arch _asset _base _tmp _dest
+  local _os _arch _asset _tmp _dest
   read -r _os _arch <<< "$(_shfmt__platform_arch)" || return 1
   _asset="shfmt_v${_version}_${_os}_${_arch}"
-  _base="https://github.com/mvdan/sh/releases/download/v${_version}"
   _tmp="$(logging__tmpdir "install/shfmt")"
   _download_deps__install
 
-  net__fetch_url_file "${_base}/${_asset}" "${_tmp}/${_asset}" || return 1
-  net__fetch_url_file "${_base}/${_asset}.sha256" "${_tmp}/${_asset}.sha256" || return 1
-  checksum__verify_sidecar "${_tmp}/${_asset}" "${_tmp}/${_asset}.sha256" || return 1
+  github__fetch_release_asset_tarball "mvdan/sh" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
   chmod +x "${_tmp}/${_asset}" || return 1
 
   if [[ -z "$_install_prefix" || "$_install_prefix" == "auto" ]]; then
