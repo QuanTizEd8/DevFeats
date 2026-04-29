@@ -50,6 +50,16 @@ options:
       Installation prefix for release installs (`$prefix/bin/oras`).
       `auto` resolves to `/usr/local` as root or `$HOME/.local` as non-root.
       Ignored for `method=repos`.
+  symlink:
+    type: boolean
+    default: true
+    description: |-
+      Create a symlink from the canonical bin directory to `$prefix/bin/oras` when prefix
+      resolves to a non-default path (`method=release` only).
+      - System-wide (prefix not under any user home): creates `/usr/local/bin/oras` → `$prefix/bin/oras`.
+      - User-scoped (prefix under a user home): creates `$HOME/.local/bin/oras` → `$prefix/bin/oras`.
+      Ensures the binary is always reachable on PATH regardless of the chosen prefix.
+      No-op when `$prefix/bin/oras` is already the chosen target path, or when `method=repos`.
   if_exists:
     type: string
     default: skip

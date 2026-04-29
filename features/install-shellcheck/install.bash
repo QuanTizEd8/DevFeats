@@ -114,6 +114,9 @@ _shellcheck__create_symlink() {
     logging__info "method=repos; symlink not applicable."
     return 0
   fi
+  if [[ ! -x "${PREFIX}/bin/shellcheck" ]]; then
+    return 0
+  fi
   shell__create_symlink \
     --src "${PREFIX}/bin/shellcheck" \
     --system-target "/usr/local/bin/shellcheck" \

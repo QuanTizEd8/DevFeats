@@ -11,6 +11,8 @@
 . "${_SELF_DIR}/_lib/checksum.sh"
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
+# shellcheck source=lib/shell.sh
+. "${_SELF_DIR}/_lib/shell.sh"
 # shellcheck source=lib/users.sh
 . "${_SELF_DIR}/_lib/users.sh"
 
@@ -314,6 +316,25 @@ install__just() {
   esac
 }
 
+_just__create_symlink() {
+  if [[ "${SYMLINK}" != "true" ]]; then
+    logging__info "symlink=false; skipping symlink creation."
+    return 0
+  fi
+  if [[ "${METHOD}" == "repos" ]]; then
+    logging__info "method=repos; symlink not applicable."
+    return 0
+  fi
+  if [[ ! -x "${PREFIX}/bin/just" ]]; then
+    return 0
+  fi
+  shell__create_symlink \
+    --src "${PREFIX}/bin/just" \
+    --system-target "/usr/local/bin/just" \
+    --user-target "${HOME}/.local/bin/just"
+}
+
+PREFIX="$(_install__just_resolve_prefix "${PREFIX}")"
 install__just \
   --context user \
   --owner-group "feature::install-just" \
@@ -325,3 +346,5 @@ install__just \
   --script-force "${SCRIPT_FORCE}" \
   --cargo-binstall "${CARGO_BINSTALL}" \
   --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" > /dev/null
+
+_just__create_symlink

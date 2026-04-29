@@ -102,6 +102,9 @@ _shfmt__create_symlink() {
     logging__info "method=repos; symlink not applicable."
     return 0
   fi
+  if [[ ! -x "${PREFIX}/bin/shfmt" ]]; then
+    return 0
+  fi
   shell__create_symlink \
     --src "${PREFIX}/bin/shfmt" \
     --system-target "/usr/local/bin/shfmt" \
