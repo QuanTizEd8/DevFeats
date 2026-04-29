@@ -409,7 +409,7 @@ _cleanup_hook() {
   if [ -n "${PREFIX-}" ] && [ -d "$PREFIX" ]; then
     find "$PREFIX" -follow -type f -name '*.a' -delete 2> /dev/null || true
     find "$PREFIX" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
-    conda clean --all --yes
+    "$CONDA_EXEC" clean --all --yes 2> /dev/null || true
   fi
   logging__fn_exit "_cleanup_hook"
 }
