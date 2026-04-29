@@ -249,10 +249,12 @@ install__jq() {
   fi
 
   local _existing _state_ctx _state_path _state_group
-  if [[ "$_method" != "repos" && -x "${_check_prefix}/bin/jq" ]]; then
+  if [[ "$_method" == "repos" ]]; then
+    _existing="$(command -v jq 2> /dev/null || true)"
+  elif [[ -x "${_check_prefix}/bin/jq" ]]; then
     _existing="${_check_prefix}/bin/jq"
   else
-    _existing="$(command -v jq 2> /dev/null || true)"
+    _existing=""
   fi
   _state_ctx="$(install__state_context "jq" 2> /dev/null || true)"
   _state_path="$(install__state_install_path "jq" 2> /dev/null || true)"
