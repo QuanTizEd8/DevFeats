@@ -182,10 +182,9 @@ options:
       - method: [install-tl]
     default: ctan
     description: |-
-      TeX Live package repository to use as the source of installation
-      (passed as `--repository` to the installer).
+      TeX Live package repository to use as the source of installation.
       Set an explicit URL to:
-      - Avoid mirror-selection variability in CI (use a specific, trusted mirror).
+      - Avoid mirror-selection variability (use a specific, trusted mirror).
       - Install from a historic yearly snapshot (pin to an older TeX Live release).
       - Use a local directory or internal network cache for air-gapped environments.
     proposals:
