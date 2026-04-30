@@ -79,7 +79,7 @@
     },
     "version_match_idempotency": {
         "build": {
-            "dockerfile": "version_match_idempotency/Dockerfile",
+            "dockerfile": "Dockerfile",
             "args": {}
         },
         "features": {
@@ -92,7 +92,7 @@
     },
     "reinstall": {
         "build": {
-            "dockerfile": "reinstall/Dockerfile",
+            "dockerfile": "Dockerfile",
             "args": {}
         },
         "features": {
