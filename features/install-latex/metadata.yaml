@@ -1,0 +1,395 @@
+version: 0.1.0
+name: TeX Live Installation
+description: >-
+  Install [TeX Live](https://www.tug.org/texlive/) via the official Unix installer,
+  native macOS packages (MacTeX / BasicTeX), or the system package manager.
+keywords:
+  - latex
+  - tex
+  - texlive
+  - pdflatex
+  - xelatex
+  - lualatex
+  - typesetting
+  - document
+  - tlmgr
+_long_description: |-
+  [TeX Live](https://www.tug.org/texlive/) is the comprehensive cross-platform
+  LaTeX/TeX distribution maintained by TeX user groups. It ships TeX engines
+  (pdfLaTeX, XeLaTeX, LuaLaTeX, plain TeX), an extensive library of macro packages
+  and fonts, and `tlmgr` — the package manager for ongoing CTAN package lifecycle.
+
+  Three installation paths are supported:
+
+  - **`install-tl`** (default) — The [official TeX Live Unix installer](https://www.tug.org/texlive/quickinstall.html),
+    downloaded from CTAN. Works on Linux (glibc and musl/Alpine) and macOS. Provides full
+    control over the installation scheme, target directory, repository mirror, paper size,
+    and whether to include documentation and source. Use `packages` to add individual CTAN
+    packages on top of the chosen scheme.
+
+  - **`mactex`** — The [MacTeX](https://www.tug.org/mactex/) native `.pkg` installer
+    (macOS only). Full TeX Live distribution plus macOS GUI helpers (TeX Live Utility).
+    Installs to `/usr/local/texlive/YYYY`; the stable path `/Library/TeX/texbin` is used
+    for shell access. Requires administrator privileges.
+
+  - **`basictex`** — The [BasicTeX](https://www.tug.org/mactex/morepackages.html) `.pkg`
+    installer (macOS only). A lightweight macOS-native TeX Live subset (~300 MB). No GUI
+    helpers; use the `packages` option to extend via `tlmgr`.
+
+  - **`os_pkg`** — Install distro-packaged TeX Live from the system package manager. The
+    `scheme` option influences the package set selected where the distro offers multiple
+    granularity levels. Version is controlled by the distribution's package policy.
+
+options:
+  method:
+    type: string
+    default: install-tl
+    description: Installation method to use.
+    enum:
+      - value: install-tl
+        description: |-
+          Download and run the [official TeX Live Unix installer](https://www.tug.org/texlive/quickinstall.html)
+          (`install-tl`). Supports Linux (glibc and musl/Alpine) and macOS. Requires Perl. Provides
+          full control over scheme, mirror, directory, paper size, documentation, and source.
+          After installation, `tlmgr` manages individual CTAN packages without a full reinstall.
+      - value: mactex
+        description: |-
+          Install [MacTeX](https://www.tug.org/mactex/) via the official `.pkg` package installer
+          (macOS only — exits with an error on Linux). Full TeX Live distribution plus macOS GUI
+          helpers (TeX Live Utility). Installs to `/usr/local/texlive/YYYY`; shell access via
+          `/Library/TeX/texbin`.
+      - value: basictex
+        description: |-
+          Install [BasicTeX](https://www.tug.org/mactex/morepackages.html) via the official `.pkg`
+          installer (macOS only — exits with an error on Linux). A lightweight macOS-native TeX Live
+          subset (~300 MB). No GUI helpers; use `packages` to extend via `tlmgr`.
+      - value: os_pkg
+        description: |-
+          Install TeX Live from the system package manager (`apt`, `dnf`, `apk`, `brew`, etc.).
+          The `scheme` option influences the package set where multiple granularity levels are
+          available (e.g. apt distinguishes `texlive-latex-base` vs `texlive-latex-recommended`
+          vs `texlive-full`). Version is controlled by the distribution's package repository;
+          `tlmgr` is typically not used for updates in this mode.
+
+  scheme:
+    type: string
+    default: small
+    description: |-
+      TeX Live installation scheme — the bundle of packages to include.
+      Applies to `method=install-tl` (passed as `--scheme=<value>`) and influences package
+      selection for `method=os_pkg` where distro packaging allows it.
+      Ignored for `method=mactex` (always full) and `method=basictex` (always basic/small).
+    enum:
+      - value: full
+        description: >-
+          Complete TeX Live distribution: all packages, engines, and fonts (~7 GB). Choose when
+          any LaTeX document must build without missing-package errors.
+      - value: medium
+        description: >-
+          LaTeX plus a large set of commonly used extra packages and fonts (~2 GB). A practical
+          default for general document production workflows.
+      - value: small
+        description: >-
+          LaTeX plus a curated set of recommended packages (~400 MB). Good balance between
+          functionality and image size for most document workflows; extend with `packages`.
+      - value: basic
+        description: >-
+          LaTeX plus fundamental packages only (~200 MB). Suitable when you want a working base
+          and will add exactly the CTAN packages needed via `packages`.
+      - value: minimal
+        description: >-
+          TeX engine and bare-minimum formats only (~100 MB). Pair with `packages` to build a
+          purpose-specific installation. `latex` and most macro packages are absent until added.
+      - value: infraonly
+        description: >-
+          Only `tlmgr` infrastructure, no TeX packages (~30 MB). Use when you want full control
+          over exactly which packages are present by listing them in `packages`. The `latex` binary
+          will not be present until you add `latex-bin` (and friends) to `packages`.
+
+  packages:
+    type: array
+    default: latexmk
+    description: |-
+      Additional CTAN packages to install via `tlmgr install` after the base scheme or
+      package-manager installation. Each line is a CTAN package name
+      (e.g. `latexmk`, `biber`, `pgf`, `collection-fontsrecommended`).
+      Applied for all methods that include a working `tlmgr` installation
+      (`install-tl`, `mactex`, `basictex`, and `os_pkg` where `tlmgr` is writable).
+    proposals:
+      - value: latexmk
+        description: |-
+          `latexmk` — automated LaTeX build tool; required by VS Code LaTeX Workshop.
+      - value: "latexmk\nbiber"
+        description: |-
+          `latexmk` + `biber` — build automation and modern bibliography backend (BibLaTeX).
+      - value: "latexmk\nbiber\ncollection-fontsrecommended"
+        description: |-
+          `latexmk` + `biber` + the recommended CTAN fonts collection.
+      - value: "latexmk\nbiber\ncollection-latexextra"
+        description: |-
+          `latexmk` + `biber` + the large `collection-latexextra` package collection
+          (~500 MB additional packages).
+      - value: "latexmk\nbiber\ncollection-fontsrecommended\nxetex\nlualatex-math"
+        description: |-
+          `latexmk` + `biber` + recommended fonts + XeTeX + LuaLaTeX math support.
+      - value: ''
+        description: Install no additional packages beyond the chosen scheme.
+
+  repository:
+    type: string
+    default: ''
+    description: |-
+      Override the TeX Live repository URL for `method=install-tl`, passed as `--repository`.
+      Leave empty (default) to use the installer's built-in mirror selection (mirror.ctan.org,
+      which auto-selects a geographically close mirror). Set an explicit URL to:
+      - Avoid mirror-selection variability in CI (use a specific, trusted mirror).
+      - Install from a historic yearly snapshot (pin to an older TeX Live release).
+      - Use a local directory or internal network cache for air-gapped environments.
+      Ignored for `method=mactex`, `method=basictex`, and `method=os_pkg`; use `year` to target
+      a specific MacTeX release year.
+    proposals:
+      - value: ''
+        description: Installer default — auto-selected CTAN mirror (mirror.ctan.org).
+      - value: https://mirror.ctan.org/systems/texlive/tlnet
+        description: Canonical CTAN redirect URL (equivalent to default, but explicit).
+      - value: https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2025/tlnet-final
+        description: Historic TeX Live 2025 frozen snapshot (University of Utah mirror).
+      - value: https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2024/tlnet-final
+        description: Historic TeX Live 2024 frozen snapshot (University of Utah mirror).
+
+  texdir:
+    type: string
+    default: ''
+    description: |-
+      Full path to the TeX Live installation root for `method=install-tl`, passed as `--texdir`.
+      Leave empty (default) to use the installer's default: `/usr/local/texlive/YYYY` (root) or
+      `~/texlive/YYYY` (non-root), where `YYYY` is the current TeX Live year.
+      When set, the path is used verbatim and the installer does NOT append the year
+      automatically (unlike `TEXLIVE_INSTALL_PREFIX`), so include the year in the path if you
+      want year-based organization (e.g. `/opt/texlive/2026`).
+      Ignored for all other methods.
+    proposals:
+      - value: ''
+        description: Installer default — `/usr/local/texlive/YYYY` as root.
+      - value: /opt/texlive/2026
+        description: Custom system-wide path with explicit year.
+
+  year:
+    type: string
+    default: latest
+    description: |-
+      MacTeX / BasicTeX release year for `method=mactex` and `method=basictex`.
+      `latest` automatically uses the current calendar year (auto-detected at install time).
+      An explicit four-digit year (e.g. `2026`) downloads that year's package from the official
+      MacTeX download page.
+      Ignored for `method=install-tl` and `method=os_pkg`; use `repository` to pin a specific
+      TeX Live year snapshot with the Unix installer.
+    proposals:
+      - value: latest
+        description: Current year (auto-detected from the system date at install time).
+      - value: '2026'
+        description: MacTeX / BasicTeX 2026 (requires macOS 11 Big Sur or newer).
+      - value: '2025'
+        description: MacTeX / BasicTeX 2025.
+
+  paper:
+    type: string
+    default: a4
+    description: |-
+      Default paper size for TeX Live. Passed as `--paper=<value>` to the `install-tl` installer,
+      or applied via `tlmgr option paper <value>` after installation for other methods where
+      `tlmgr` is available.
+    enum:
+      - value: a4
+        description: A4 paper (210 × 297 mm) — international default.
+      - value: letter
+        description: US Letter paper (8.5 × 11 in) — North American default.
+
+  install_doc:
+    type: boolean
+    default: false
+    description: |-
+      Install TeX Live documentation files alongside the packages (`--no-doc-install` is passed
+      when false). Documentation files add several hundred MB. Disable (the default) for CI and
+      headless container images; enable for developer workstation images that use local TeX docs.
+      Only applies to `method=install-tl`.
+
+  install_src:
+    type: boolean
+    default: false
+    description: |-
+      Install TeX Live package source files (`--no-src-install` is passed when false). Source
+      files are rarely needed in container environments. Enable only for TeX package development
+      or when debugging macro package internals.
+      Only applies to `method=install-tl`.
+
+  verify_downloads:
+    type: boolean
+    default: true
+    description: |-
+      Verify the integrity of downloaded TeX Live packages using GPG signatures when `gpg` is
+      available. When true (default), `gpg` is installed as a build dependency before the
+      installer runs and the installer's built-in signature verification is active.
+      Set to false to pass `--no-verify-downloads` to the installer, disabling signature checks
+      — useful in air-gapped environments where the TeX Live GPG infrastructure is unreachable.
+      Only applies to `method=install-tl`.
+
+  path_mode:
+    type: string
+    default: symlink
+    description: |-
+      How to add TeX Live executables to the system PATH after installation.
+      For `method=mactex`/`basictex`, the path `/Library/TeX/texbin` is added to shell startup
+      files automatically regardless of this setting.
+      For `method=os_pkg`, PATH is managed by the package manager and this option is ignored.
+    enum:
+      - value: symlink
+        description: |-
+          Run `tlmgr option sys_bin <dir> && tlmgr path add` to create symlinks for all TeX Live
+          binaries (and man/info pages) in a well-known directory already on PATH. The target is
+          controlled by `sys_bin` (default: `/usr/local/bin` as root, `~/.local/bin` as non-root).
+          Recommended for containers: no year- or architecture-specific path needs to appear in
+          `containerEnv` or shell startup files.
+      - value: export
+        description: |-
+          Write an explicit `export PATH=<texdir>/bin/<platform>:$PATH` block to the shell
+          startup files controlled by `export_path`. The binary directory path — including the
+          TeX Live year and CPU architecture — is embedded at install time.
+      - value: both
+        description: |-
+          Both `symlink` and `export`: creates symlinks in `sys_bin` AND writes an explicit
+          PATH export to shell startup files.
+      - value: none
+        description: |-
+          Skip all PATH configuration. Use when PATH is managed externally, or when `sys_bin`
+          is already on PATH and symlinks are not desired.
+
+  sys_bin:
+    type: string
+    default: auto
+    description: |-
+      Target directory for `tlmgr path add` symlinks when `path_mode` includes `symlink`.
+      Invokes `tlmgr option sys_bin <dir> && tlmgr path add` so that all installed TeX Live
+      binaries are reachable from `<dir>`. `tlmgr` also creates corresponding man-page and
+      info-page symlinks in the standard share subdirectories adjacent to `<dir>`.
+      `auto` (default) resolves to `/usr/local/bin` as root or `~/.local/bin` as non-root.
+      An explicit absolute path is used as-is; the directory is created if it does not exist.
+      Ignored when `path_mode` is `export` or `none`.
+    proposals:
+      - value: auto
+        description: '`/usr/local/bin` as root, `~/.local/bin` as non-root.'
+      - value: /usr/local/bin
+        description: System-wide bin directory (root only).
+
+  export_path:
+    type: array
+    default: auto
+    description: |-
+      Controls which shell startup files receive an explicit `PATH` export block for the TeX Live
+      binary directory (e.g. `/usr/local/texlive/2026/bin/x86_64-linux`). Only used when
+      `path_mode` includes `export`.
+      - `auto` (default) — writes to all relevant system-wide files (root) or user-scoped files
+        (non-root): `/etc/environment`, `/etc/profile.d/install-latex.sh`, the system-wide
+        bashrc, and the zsh env file.
+      - `''` (empty) — skips all PATH writes.
+      - A list of absolute file paths — writes only to those specific files.
+
+  tlmgr_update:
+    type: boolean
+    default: false
+    description: |-
+      Run `tlmgr update --self --all` after the initial installation to pull in the latest
+      package updates from the configured repository. Disabled by default to keep the
+      installation reproducible and deterministic. Enable in development images where the latest
+      CTAN state is always desired.
+      Applies to `method=install-tl`, `method=mactex`, and `method=basictex`.
+
+  if_exists:
+    type: string
+    default: skip
+    description: |-
+      What to do when a TeX Live installation is already detected before installation begins.
+      Detection checks for a `latex` binary in PATH (for `path_mode=symlink` and `os_pkg`)
+      or at the resolved `texdir` (for `path_mode=export`/`none`).
+    enum:
+      - value: skip
+        description: Log a notice and exit successfully without making any changes (idempotent).
+      - value: fail
+        description: Print an error and exit non-zero.
+      - value: reinstall
+        description: |-
+          Remove the existing TeX Live installation tree and reinstall from scratch.
+          For `method=install-tl`, removes `texdir` before re-running the installer.
+          All `tlmgr`-installed packages are lost; `packages` will re-add them.
+
+  installer_dir:
+    type: string
+    default: /tmp/texlive-installer
+    description: |-
+      Temporary directory for downloading and extracting the TeX Live installer archive
+      (`install-tl-unx.tar.gz`) and its extracted contents for `method=install-tl`.
+      All files are removed after a successful installation unless `keep_installer=true`.
+      Ignored for all other methods.
+
+  keep_installer:
+    type: boolean
+    default: false
+    description: |-
+      Keep the installer directory and all downloaded files after a successful installation.
+      By default the installer archive and extracted tree are removed to reduce image layer size.
+      Set to true for debugging or to inspect the installer profile written to
+      `installer_dir/texlive.profile`.
+      Only used by `method=install-tl`.
+
+containerEnv:
+  # /Library/TeX/texbin is the stable macOS path managed by MacTeX and BasicTeX.
+  # Adding it here is a no-op on Linux (non-existent PATH entries are silently ignored).
+  # For method=install-tl with path_mode=symlink, latex is accessible via /usr/local/bin
+  # (the tlmgr path add target) which is already on PATH without a containerEnv entry.
+  PATH: /Library/TeX/texbin:${PATH}
+
+customizations:
+  vscode:
+    extensions:
+      - james-yu.latex-workshop
+    settings:
+      github.copilot.chat.codeGeneration.instructions:
+        - text: >-
+            This dev container has TeX Live installed with `latex`, `pdflatex`, `xelatex`,
+            `lualatex`, and `tlmgr` available on the PATH. For building LaTeX documents,
+            prefer `latexmk` (pre-installed) which handles multi-pass compilation and
+            bibliography processing automatically.
+
+installsAfter: []
+
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+        - fontconfig
+        # macOS ships with system Perl (/usr/bin/perl); skip brew install.
+        # tlmgr is a Perl script so Perl is required at runtime on Linux.
+        - name: perl
+          when: {kernel: linux}
+  build:
+    download:
+      packages:
+        - curl
+    installer:
+      # xz is used by the TeX Live installer to decompress .xz package archives
+      # from the CTAN repository during installation.
+      # Users who need to run 'tlmgr install' or 'tlmgr update' after image build
+      # should set keep_build_deps=true so xz remains available.
+      apt:
+        packages:
+          - xz-utils
+      apk:
+        packages:
+          - xz
+      dnf:
+        packages:
+          - xz
+      brew:
+        packages:
+          - xz
