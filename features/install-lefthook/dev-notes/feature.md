@@ -45,6 +45,7 @@ The upstream project documents many install channels. For SysSet feature design,
 4. Verify SHA-256 checksum against the exact matching entry.
 5. Install binary into a PATH directory (for example `/usr/local/bin/lefthook`) and ensure executable mode.
 6. In each repository that should use Lefthook, run `lefthook install`.
+  - You can also install specific hooks only: `lefthook install <hook-1> <hook-2> ...`.
 
 #### Installation Verification
 
@@ -71,7 +72,7 @@ The upstream project documents many install channels. For SysSet feature design,
 - **Tool-Specific Configurations**:
   - `lefthook install --force` allows installation even if `core.hooksPath` is set.
   - `lefthook install --reset-hooks-path` unsets local/global `core.hooksPath` automatically.
-  - `LEFTHOOK_CONFIG` can override config file path lookup.
+  - `LEFTHOOK_CONFIG` overrides main config path lookup only; local config, extends, and remotes are still loaded.
   - `lefthook self-update` supports `--yes` and `--force`.
 
 #### Post-Installation Steps and Cleanup
@@ -94,11 +95,14 @@ The upstream project documents many install channels. For SysSet feature design,
 
 - **Upgrading/Downgrading**:
   - Replace binary with another release asset, or use `lefthook self-update` for latest.
+  - `self-update` is intended for source or GitHub Release-binary installs. For package-manager installs, use package-manager-native upgrades.
   - `self-update` verifies SHA-256 against `lefthook_checksums.txt`, swaps binaries with backup/rollback logic, and sets executable mode.
 - **Uninstallation**:
   - Remove binary from PATH.
-  - Run `lefthook uninstall` in repositories to remove installed Lefthook-managed hooks.
-  - Optional `lefthook uninstall --remove-configs` removes Lefthook config files.
+  - `lefthook uninstall` removes Lefthook-managed hooks and restores `.old` backups when present.
+  - `lefthook uninstall --force` removes all Git hooks, not only Lefthook-managed ones.
+  - `lefthook uninstall --remove-configs` removes Lefthook main/local config files for extensions `.yml`, `.yaml`, `.toml`, `.json`.
+  - Uninstall also removes the remotes folder state under `.git`.
 - **Idempotency**:
   - Hook installation tracks config checksum and timestamp in `.git/info/lefthook.checksum`.
   - If hooks are synchronized, repeated install is effectively a no-op.
@@ -118,7 +122,7 @@ The upstream project documents many install channels. For SysSet feature design,
 
 - Homebrew: macOS and Linux (`brew install lefthook`)
 - Debian/Ubuntu: APT via Cloudsmith setup + `apt install lefthook`
-- RPM-based Linux: Cloudsmith setup + `yum install lefthook` (script also handles DNF/microdnf/zypper families)
+- RPM-based Linux: Cloudsmith setup plus manager-specific install (`yum`/`dnf`/`microdnf`/`zypper` families)
 - Alpine Linux: Cloudsmith setup + `apk add lefthook`
 - Arch Linux: AUR packages (`lefthook`, `lefthook-bin`)
 - Linux (Snap): `snap install --classic lefthook`
@@ -144,7 +148,11 @@ The upstream project documents many install channels. For SysSet feature design,
   - `sudo apt install lefthook`
 - RPM-based Linux:
   - `curl -1sLf 'https://dl.cloudsmith.io/public/evilmartians/lefthook/setup.rpm.sh' | sudo -E bash`
-  - `sudo yum install lefthook`
+  - Install with available manager family (for example):
+    - `sudo yum install lefthook`
+    - `sudo dnf install lefthook`
+    - `sudo microdnf install lefthook`
+    - `sudo zypper install lefthook`
 - Alpine:
   - `sudo apk add --no-cache bash curl`
   - `curl -1sLf 'https://dl.cloudsmith.io/public/evilmartians/lefthook/setup.alpine.sh' | sudo -E bash`
@@ -229,6 +237,7 @@ The upstream project documents many install channels. For SysSet feature design,
   - Corresponding ecosystem tooling (npm/yarn/pnpm, gem/bundler, python/pip or pipx, Go toolchain, etc.)
 - **Platform-Specific Dependencies**:
   - PATH setup may be required for user-local installs (notably Ruby/Python toolchains).
+  - Python package declares `requires-python >=3.6`.
 
 #### Installation Steps
 
@@ -246,7 +255,11 @@ The upstream project documents many install channels. For SysSet feature design,
   - `go install github.com/evilmartians/lefthook/v2@v2.1.6`
   - or project tool mode `go get -tool github.com/evilmartians/lefthook/v2`
 - Additional documented methods:
-  - Swift plugin, `mise use lefthook@latest`, `devbox add lefthook@latest`
+  - Swift wrapper plugin:
+    - Swift Package Manager: `.package(url: "https://github.com/csjones/lefthook-plugin.git", exact: "2.1.6"),`
+    - Mint: `mint run csjones/lefthook-plugin`
+  - Mise: `mise use lefthook@latest`
+  - Devbox: `devbox add lefthook@latest`
 
 #### Installation Verification
 
@@ -318,12 +331,18 @@ The upstream project documents many install channels. For SysSet feature design,
 - [Installation: Snap](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/installation/snap.md) - Snap install command.
 - [Installation: Winget](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/installation/winget.md) - Winget command.
 - [Installation: Scoop](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/installation/scoop.md) - Scoop command.
+- [Installation: Swift](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/installation/swift.md) - Swift wrapper plugin methods.
+- [Installation: Mise](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/installation/mise.md) - Community-maintained mise install method.
+- [Installation: Devbox](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/installation/devbox.md) - Community-maintained devbox install method.
 - [Usage Command: install](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/commands/install.md) - Install command behavior notes and specific-hook usage.
 - [Usage Command: uninstall](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/commands/uninstall.md) - Uninstall command purpose.
 - [Usage Command: self-update](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/commands/self-update.md) - Scope and limitations of self-update.
+- [Usage Command: check-install](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/commands/check-install.md) - Hook install/sync verification semantics and exit codes.
 - [Usage Command: version](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/commands/version.md) - Version verification CLI details.
+- [Usage Env: LEFTHOOK_CONFIG](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/envs/LEFTHOOK_CONFIG.md) - Main-config override scope and loading caveats.
 - [Go Module Metadata](https://raw.githubusercontent.com/evilmartians/lefthook/master/go.mod) - Minimum Go version/toolchain requirement.
 - [Install Command Source](https://raw.githubusercontent.com/evilmartians/lefthook/master/cmd/install.go) - Install CLI flags (`--force`, `--reset-hooks-path`).
+- [check-install Command Source](https://raw.githubusercontent.com/evilmartians/lefthook/master/cmd/check_install.go) - `check-install` command wiring and exit-code intent.
 - [Uninstall Command Source](https://raw.githubusercontent.com/evilmartians/lefthook/master/cmd/uninstall.go) - Uninstall CLI flags (`--force`, `--remove-configs`).
 - [Self-update Command Source](https://raw.githubusercontent.com/evilmartians/lefthook/master/cmd/self_update.go) - Self-update CLI flags and entrypoint.
 - [Install Internals](https://raw.githubusercontent.com/evilmartians/lefthook/master/internal/command/install.go) - Config discovery/creation, hooksPath handling, synchronization/checksum behavior.
