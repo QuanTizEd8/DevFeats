@@ -381,17 +381,45 @@ tlmgr update --self --all
 
 #### Installation Steps
 
-MacTeX full install:
+MacTeX full install (interactive GUI):
 
 1. Download `MacTeX.pkg` from the MacTeX download page.
 2. Run installer package and follow install wizard.
 3. Use default component set unless you intentionally customize (for example Ghostscript component selection).
 
-BasicTeX install:
+MacTeX full install (non-interactive CLI):
+
+1. Download package artifact (for example `MacTeX.pkg` from the CTAN mirror URL).
+2. Run unattended installation:
+
+```bash
+sudo installer -pkg /path/to/MacTeX.pkg -target /
+```
+
+3. Optional CI/logging form:
+
+```bash
+sudo installer -pkg /path/to/MacTeX.pkg -target / -verboseR -dumplog
+```
+
+4. If you need unattended component customization, use Apple installer choice XML (`installer -showChoicesXML` and `installer -applyChoiceChangesXML`).
+
+BasicTeX install (interactive GUI):
 
 1. Download `BasicTeX.pkg`.
 2. Install; resulting tree is `/usr/local/texlive/2026basic`.
 3. Add missing packages later with `tlmgr` as needed; BasicTeX intentionally omits the GUI application bundle and Ghostscript components included with full MacTeX.
+
+BasicTeX install (non-interactive CLI):
+
+1. Download package artifact (for example `BasicTeX.pkg` from the CTAN mirror URL).
+2. Run unattended installation:
+
+```bash
+sudo installer -pkg /path/to/BasicTeX.pkg -target /
+```
+
+3. Add missing packages later with `tlmgr` as needed.
 
 #### Installation Verification
 
