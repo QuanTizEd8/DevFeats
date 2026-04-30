@@ -41,7 +41,9 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
    - `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
 5. Pin a specific Windows installer version by URL path:
    - `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/0.11.8/install.ps1 | iex"`
-6. The installer selects an artifact for the detected platform, downloads from mirror-first URLs, verifies embedded checksums when checksum tools exist, extracts binaries, installs to a resolved executable directory, and optionally updates shell PATH config.
+6. The installer selects an artifact for the detected platform, downloads from mirror-first URLs, extracts binaries, installs to a resolved executable directory, and optionally updates PATH.
+   - Unix shell installer verifies embedded checksums when checksum tools are available.
+   - PowerShell installer does not perform equivalent embedded checksum validation.
 
 #### Installation Verification
 
@@ -49,8 +51,8 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
   - `uv --version`
   - `uvx --version`
 - Integrity checks:
-  - The installer embeds expected SHA256 values per artifact and verifies them when supported checksum tools are present.
-  - Release pages also publish `sha256` files and GitHub artifact attestations (`gh attestation verify ... --repo astral-sh/uv`).
+   - Unix shell installer embeds expected SHA256 values per artifact and verifies them when supported checksum tools are present.
+   - PowerShell installer does not include equivalent embedded checksum verification; prefer release checksum files and GitHub artifact attestations (`gh attestation verify ... --repo astral-sh/uv`) for independent validation.
 
 #### Configuration Options
 
@@ -94,6 +96,8 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 
 - **Upgrading/Downgrading**:
    - Standalone installs support `uv self update`.
+   - `uv self update --dry-run` is supported and reports the planned version change without applying it.
+   - `uv self update --token <token>` is supported for authenticated update checks/downloads (for example, avoiding GitHub API rate limits in non-official/custom update paths).
    - `uv self update` failure/constraint cases from upstream implementation:
       - Fails in offline mode (`--offline`).
       - Requires a standalone install receipt; if missing, uv assumes package-manager install and exits with guidance to use package-manager upgrades.
