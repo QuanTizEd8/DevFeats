@@ -24,7 +24,10 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 #### Dependencies
 
 - **Common Dependencies**: `curl` or `wget` downloader, plus basic Unix tools used by the script (`uname`, `mktemp`, `chmod`, `mkdir`, `rm`, `tar`, `grep`, `cat`, `sed`).
-- **Platform-Specific Dependencies**: Linux code paths also use utilities like `ldd`, `awk`, `head`, `tail`, and may use `getent` if `$HOME` is missing. Checksum verification uses available tools (`sha256sum`, etc.); if missing, verification is skipped with a message. On macOS 12, `realpath` is a known requirement per upstream platform policy.
+- **Platform-Specific Dependencies**:
+   - Linux shell-installer code paths also use utilities like `ldd`, `awk`, `head`, `tail`, and may use `getent` if `$HOME` is missing. Checksum verification uses available tools (`sha256sum`, etc.); if missing, verification is skipped with a message.
+   - Windows PowerShell installer requires PowerShell 5+, a permissive execution policy (`Unrestricted`, `RemoteSigned`, or `Bypass`), and TLS 1.2 support (documented as .NET Framework 4.5+ requirement in installer preflight).
+   - On macOS 12, `realpath` is a known requirement per upstream platform policy.
 
 #### Installation Steps
 
@@ -53,24 +56,36 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 
 - **Version Selection**: pin by using versioned installer URLs (`.../uv/<version>/install.sh`).
 - **Installation Path**: set `UV_INSTALL_DIR` to force the install directory.
-- **User Targeting**: default behavior is user-local install into executable-directory resolution order (`$XDG_BIN_HOME`, `$XDG_DATA_HOME/../bin`, `$HOME/.local/bin`).
+- **User Targeting**: default behavior is user-local install into executable-directory resolution order.
+   - Unix: `$XDG_BIN_HOME`, then `$XDG_DATA_HOME/../bin`, then `$HOME/.local/bin`.
+   - Windows: `%XDG_BIN_HOME%`, then `%XDG_DATA_HOME%\\..\\bin`, then `%USERPROFILE%\\.local\\bin`.
 - **Required Privileges**: no root required for user-local install; root/sudo required only if targeting privileged directories.
 - **Tool-Specific Configurations**:
-  - `UV_NO_MODIFY_PATH=1`: disable shell profile PATH edits.
-  - `UV_UNMANAGED_INSTALL=/path`: install to fixed path, disable profile edits and disable self-updates.
-  - `UV_DISABLE_UPDATE=1`: skip updater/receipt install behavior.
-  - `UV_DOWNLOAD_URL` / `INSTALLER_DOWNLOAD_URL`: override artifact download base URL.
-  - `UV_INSTALLER_GITHUB_BASE_URL` / `UV_INSTALLER_GHE_BASE_URL`: alternate GitHub base URL routing.
-  - `UV_GITHUB_TOKEN`: auth token for GitHub downloads.
-  - `UV_PRINT_VERBOSE` / `UV_PRINT_QUIET`: installer output verbosity controls.
-  - Script flags include `--help`, `--verbose`, `--quiet`, and deprecated `--no-modify-path`.
+   - Shared installer env vars (shell and PowerShell):
+      - `UV_INSTALL_DIR`: force install directory.
+      - `UV_NO_MODIFY_PATH=1`: disable PATH mutation.
+      - `UV_UNMANAGED_INSTALL=/path`: fixed unmanaged install path; disables PATH mutation and updater receipt behavior.
+      - `UV_DISABLE_UPDATE=1`: skip updater/receipt install behavior.
+      - `UV_DOWNLOAD_URL` / `INSTALLER_DOWNLOAD_URL`: override artifact base URL.
+      - `UV_INSTALLER_GITHUB_BASE_URL` / `UV_INSTALLER_GHE_BASE_URL`: override GitHub base URLs.
+      - `UV_GITHUB_TOKEN`: token for GitHub downloads.
+   - Unix shell-installer-only controls:
+      - `UV_PRINT_VERBOSE` / `UV_PRINT_QUIET`.
+      - Script flags: `--help`, `--verbose`, `--quiet`, and deprecated `--no-modify-path`.
+   - Windows PowerShell installer controls:
+      - Parameters: `-Help`, `-NoModifyPath` (with deprecation guidance in favor of `UV_NO_MODIFY_PATH`).
 
 #### Post-Installation Steps and Cleanup
 
-- **PATH Setup**: by default the installer writes profile sourcing lines for sh/bash/zsh/fish targets and adds CI path hints via `GITHUB_PATH`; this can be disabled with `UV_NO_MODIFY_PATH`.
-- **Configuration Files**: standalone installs write an install receipt (for updater tracking) under uv config directories.
+- **PATH Setup**: by default the installer mutates PATH, but mechanism differs by installer.
+   - Unix shell installer writes profile sourcing lines for sh/bash/zsh/fish targets and also writes CI hints via `GITHUB_PATH` when present.
+   - Windows PowerShell installer prepends install dir to user-level PATH via `HKEY_CURRENT_USER\\Environment\\Path` and also writes `GITHUB_PATH` hints when present.
+   - Disable PATH mutation with `UV_NO_MODIFY_PATH=1` (or `-NoModifyPath` in PowerShell).
+- **Configuration Files**: standalone installs write an install receipt (for updater tracking) under uv config directories (`$XDG_CONFIG_HOME`/`$HOME/.config` on Unix; `%LOCALAPPDATA%\\uv` on Windows in installer implementation).
 - **Environment Variables**: no mandatory runtime env vars are required for normal use.
-- **Activation Scripts**: profile updates source generated env snippets (`env`/`env.fish`) when PATH modification is enabled.
+- **Activation Scripts**:
+   - Unix: profile updates source generated env snippets (`env`/`env.fish`) when PATH modification is enabled.
+   - Windows: no shell-profile script sourcing is used; PATH registry mutation is used instead.
 - **Cleanup**: installer removes temporary download directories; optional user cleanup is covered in uninstallation.
 
 #### Changing Versions and Uninstallation
@@ -92,10 +107,15 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
     - `rm -r "$(uv tool dir)"`
   - Remove executables (typical default path):
     - `rm ~/.local/bin/uv ~/.local/bin/uvx`
+   - Windows default-path removal (official docs):
+      - `rm $HOME\.local\bin\uv.exe`
+      - `rm $HOME\.local\bin\uvx.exe`
+      - `rm $HOME\.local\bin\uvw.exe`
   - For legacy installs before 0.5.0, old binaries may remain under `~/.cargo/bin`.
    - The upstream uninstall page does not remove shell-profile source lines written by the installer. For full cleanup when PATH mutation was enabled, manually remove:
       - Source lines for the generated env scripts from `~/.profile`, `~/.bashrc`, `~/.bash_profile`, `~/.bash_login`, zsh startup files under `$ZDOTDIR` when set (otherwise under `~`), and fish conf.d entries.
       - Generated env helper files in the install directory (typically `~/.local/bin/env` and `~/.local/bin/env.fish`, or equivalents under custom install paths).
+    - For Windows standalone installs with PATH mutation enabled, also remove the install directory from user PATH registry (`HKEY_CURRENT_USER\\Environment\\Path`) if it should no longer be present.
 - **Idempotency**: rerunning installer is safe; it updates binaries in-place, reuses existing env scripts, and avoids duplicate shell-profile entries by checking for existing source lines and whether install dir is already on `PATH`.
 
 #### Notes and Best Practices
