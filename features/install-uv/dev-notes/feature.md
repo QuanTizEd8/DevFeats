@@ -1,6 +1,6 @@
 # Feature Reference
 
-uv is a Rust-based Python package and project manager from Astral. It covers package management, lockfiles, tool execution (`uvx`), Python runtime installation, and pip-compatible workflows in a single CLI. Upstream documents multiple install paths (standalone installer, package managers, release binaries, and source-based methods), with the standalone installer as the primary cross-platform path.
+uv is a Rust-based Python package and project manager from Astral. It covers package management, lockfiles, tool execution (`uvx`), Python runtime installation, and pip-compatible workflows in a single CLI. Upstream documents multiple install paths (standalone installers, package managers, release binaries, Docker image usage, and source-based methods), with the standalone installer as the primary cross-platform path.
 
 - **Homepage**: https://astral.sh/uv
 - **Source Code**: https://github.com/astral-sh/uv
@@ -9,20 +9,22 @@ uv is a Rust-based Python package and project manager from Astral. It covers pac
 
 ## Available Installation Methods
 
-Upstream supports installation via a standalone installer script, direct release artifacts, PyPI (via `pipx` or `pip`), system package managers like Homebrew and MacPorts, and Cargo. For SysSet's macOS/Linux scope, the most implementation-relevant methods are: standalone installer, direct release binary extraction, PyPI, Homebrew/MacPorts, and Cargo.
+Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Homebrew, MacPorts, WinGet, Scoop, Docker image usage, direct GitHub release artifacts, and Cargo. This reference focuses implementation depth on SysSet-relevant macOS/Linux host installation methods, while still capturing Windows-only and container-only methods for completeness and auditability.
 
 ### Standalone Installer Script
 
 #### Supported Platforms
 
-- macOS and Linux are first-class for the shell installer (`install.sh`).
-- Windows uses a PowerShell installer (`install.ps1`) and is documented separately upstream.
-- The installer maps host OS/arch to published artifacts and includes Linux libc-aware selection logic (glibc baseline checks with musl fallback where available).
+- Shell installer (`install.sh`) is for macOS and Linux; Windows uses PowerShell (`install.ps1`).
+- Upstream platform policy: macOS 13+ is supported; macOS 12 is known to work when `realpath` is available.
+- Linux selection is libc-aware in both policy and installer implementation.
+   - glibc targets include per-arch minimum baselines (for example: x86_64/i686/armv7/ppc64le/s390x at glibc 2.17+, aarch64 at 2.28+, riscv64 at 2.31+).
+   - When glibc checks fail on supported arches, the installer falls back to musl artifacts where available.
 
 #### Dependencies
 
 - **Common Dependencies**: `curl` or `wget` downloader, plus basic Unix tools used by the script (`uname`, `mktemp`, `chmod`, `mkdir`, `rm`, `tar`, `grep`, `cat`).
-- **Platform-Specific Dependencies**: Linux code paths also use utilities like `ldd`, `awk`, `head`, `tail`, and may use `getent` if `$HOME` is missing. Checksum verification uses available tools (`sha256sum`, etc.); if missing, verification is skipped with a message.
+- **Platform-Specific Dependencies**: Linux code paths also use utilities like `ldd`, `awk`, `head`, `tail`, and may use `getent` if `$HOME` is missing. Checksum verification uses available tools (`sha256sum`, etc.); if missing, verification is skipped with a message. On macOS 12, `realpath` is a known requirement per upstream platform policy.
 
 #### Installation Steps
 
@@ -70,9 +72,15 @@ Upstream supports installation via a standalone installer script, direct release
 #### Changing Versions and Uninstallation
 
 - **Upgrading/Downgrading**:
-  - Standalone installs support `uv self update`.
-  - Upgrades can also be forced by rerunning installer with a versioned URL.
-  - `UV_UNMANAGED_INSTALL` disables self-update behavior.
+   - Standalone installs support `uv self update`.
+   - `uv self update` failure/constraint cases from upstream implementation:
+      - Fails in offline mode (`--offline`).
+      - Requires a standalone install receipt; if missing, uv assumes package-manager install and exits with guidance to use package-manager upgrades.
+      - Requires the receipt to match the current executable location; mismatches (for example, multiple uv copies) fail with an explanatory error.
+      - Explicit target versions must be exact `major.minor.patch` (for example, `1.2.3`); short forms (`0.10`) or prefixed forms (`v1.2.3`) are rejected.
+      - With an explicit target, update runs when current version differs from target (allowing downgrade). Without explicit target, update runs only when a newer version exists.
+   - Upgrades can also be forced by rerunning installer with a versioned URL.
+   - `UV_UNMANAGED_INSTALL` and `UV_DISABLE_UPDATE=1` disable updater installation behavior.
 - **Uninstallation**:
   - Optional data cleanup:
     - `uv cache clean`
@@ -81,7 +89,10 @@ Upstream supports installation via a standalone installer script, direct release
   - Remove executables (typical default path):
     - `rm ~/.local/bin/uv ~/.local/bin/uvx`
   - For legacy installs before 0.5.0, old binaries may remain under `~/.cargo/bin`.
-- **Idempotency**: rerunning installer is safe; it updates binaries in-place and avoids duplicate PATH entries by checking existing shell config/PATH state.
+   - The upstream uninstall page does not remove shell-profile source lines written by the installer. For full cleanup when PATH mutation was enabled, manually remove:
+      - Source lines for the generated env scripts from `~/.profile`, `~/.bashrc`, `~/.bash_profile`, `~/.bash_login`, `~/.zshrc`, `~/.zshenv`, and fish conf.d entries.
+      - Generated env helper files in the install directory (typically `~/.local/bin/env` and `~/.local/bin/env.fish`, or equivalents under custom install paths).
+- **Idempotency**: rerunning installer is safe; it updates binaries in-place, reuses existing env scripts, and avoids duplicate shell-profile entries by checking for existing source lines and whether install dir is already on `PATH`.
 
 #### Notes and Best Practices
 
@@ -242,6 +253,105 @@ Upstream supports installation via a standalone installer script, direct release
 
 - As with other non-standalone installs, update flow should stay with the package manager rather than `uv self update`.
 
+### Windows Package Managers (WinGet and Scoop) - Out of SysSet Scope
+
+#### Supported Platforms
+
+- Windows only.
+- Included for upstream method completeness; not directly used by SysSet's macOS/Linux feature implementation.
+
+#### Dependencies
+
+- **Common Dependencies**: corresponding package manager (`winget` or `scoop`).
+- **Platform-Specific Dependencies**: Windows environment and package-manager bootstrap/configuration.
+
+#### Installation Steps
+
+1. WinGet:
+   - `winget install --id=astral-sh.uv -e`
+2. Scoop:
+   - `scoop install main/uv`
+
+#### Installation Verification
+
+- `uv --version`
+- `uvx --version`
+
+#### Configuration Options
+
+- **Version Selection**: manager-specific constraints/pinning behavior.
+- **Installation Path**: manager controlled.
+- **User Targeting**: manager/runtime dependent.
+- **Required Privileges**: manager/runtime dependent.
+- **Tool-Specific Configurations**: managed through package manager workflows.
+
+#### Post-Installation Steps and Cleanup
+
+- **PATH Setup**: handled by manager conventions.
+- **Configuration Files**: none required for base install.
+- **Environment Variables**: none required for base install.
+- **Activation Scripts**: none for base install.
+- **Cleanup**: use manager-specific removal/cleanup commands.
+
+#### Changing Versions and Uninstallation
+
+- **Upgrading/Downgrading**: use manager-native update/version commands.
+- **Uninstallation**: use manager-native uninstall commands.
+- **Idempotency**: manager-controlled.
+
+#### Notes and Best Practices
+
+- As with all non-standalone methods, use package-manager updates instead of `uv self update`.
+
+### Docker Image Usage (Container Method)
+
+#### Supported Platforms
+
+- Any platform capable of running Docker-compatible containers.
+- This is a container distribution/integration method, not a host binary install path.
+
+#### Dependencies
+
+- **Common Dependencies**: Docker (or compatible container runtime).
+- **Platform-Specific Dependencies**: runtime and host-specific container prerequisites.
+
+#### Installation Steps
+
+1. Pull and use uv image from `ghcr.io/astral-sh/uv`.
+2. Follow upstream Docker integration guide for invocation patterns and volume/env configuration.
+
+#### Installation Verification
+
+- Verify image pull and run commands succeed.
+- Verify `uv --version` inside container runtime context.
+
+#### Configuration Options
+
+- **Version Selection**: image tag/digest selection.
+- **Installation Path**: not applicable to host; tool lives in image filesystem.
+- **User Targeting**: container user/runtime configuration.
+- **Required Privileges**: depends on runtime and host policy.
+- **Tool-Specific Configurations**: Docker runtime options and uv runtime settings inside container.
+
+#### Post-Installation Steps and Cleanup
+
+- **PATH Setup**: container-image defined.
+- **Configuration Files**: container/workload specific.
+- **Environment Variables**: container/workload specific.
+- **Activation Scripts**: container/workload specific.
+- **Cleanup**: remove images/volumes with container runtime commands.
+
+#### Changing Versions and Uninstallation
+
+- **Upgrading/Downgrading**: change image tag/digest.
+- **Uninstallation**: remove local image/container artifacts.
+- **Idempotency**: container runtime/image pull semantics.
+
+#### Notes and Best Practices
+
+- Prefer digest-pinned images in CI for reproducibility.
+- Treat this as complementary to host installation methods, not a replacement for host PATH-based installs.
+
 ### Cargo Installation
 
 #### Supported Platforms
@@ -293,6 +403,7 @@ Upstream supports installation via a standalone installer script, direct release
 
 - [uv Installation Guide](https://docs.astral.sh/uv/getting-started/installation/) - Official installation methods, upgrade/uninstall steps, and shell-completion commands.
 - [uv Installer Reference](https://docs.astral.sh/uv/reference/installer/) - Official installer environment variables and script invocation options.
+- [uv Docker Integration Guide](https://docs.astral.sh/uv/guides/integration/docker/) - Official guidance for running uv through container images.
 - [uv Storage Reference](https://docs.astral.sh/uv/reference/storage/) - Executable directory resolution and uv data directory behavior.
 - [uv Platform Support Policy](https://docs.astral.sh/uv/reference/policies/platforms/) - Tier support, macOS minimum guidance, and Linux libc target baselines.
 - [uv GitHub Repository](https://github.com/astral-sh/uv) - Official source repository and project metadata.
