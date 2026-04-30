@@ -250,7 +250,7 @@ def _get_metadata_schema_validator():
 def _rewrite_remote_refs(obj: object) -> None:
     """Replace the remote manifest $ref with the local file:// URI (in-place)."""
     if isinstance(obj, dict):
-        if obj.get("$ref") == OSPKG_MANIFEST_SCHEMA_ID:
+        if obj.get("$ref", "").lower() == OSPKG_MANIFEST_SCHEMA_ID.lower():
             obj["$ref"] = OSPKG_MANIFEST_SCHEMA_FILEPATH.as_uri()
         for v in obj.values():
             _rewrite_remote_refs(v)
