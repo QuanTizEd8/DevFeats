@@ -60,7 +60,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 - **Installation Path**: set `UV_INSTALL_DIR` to force the install directory. This only changes where uv executables are installed; uv data locations (cache, Python installs, tools, etc.) remain governed by storage defaults or their own dedicated environment variables.
 - **User Targeting**: default behavior is user-local install into executable-directory resolution order.
    - Unix: `$XDG_BIN_HOME`, then `$XDG_DATA_HOME/../bin`, then `$HOME/.local/bin`.
-   - Windows: `%XDG_BIN_HOME%`, then `%XDG_DATA_HOME%\\..\\bin`, then `%USERPROFILE%\\.local\\bin`.
+   - Windows: `%XDG_BIN_HOME%`, then `%XDG_DATA_HOME%\\..\\bin`, then home-directory `.local\\bin` fallback (`$HOME\\.local\\bin`, typically `%USERPROFILE%\\.local\\bin`).
 - **Required Privileges**: no root required for user-local install; root/sudo required only if targeting privileged directories.
 - **Tool-Specific Configurations**:
    - Shared installer env vars (shell and PowerShell):
