@@ -72,6 +72,7 @@ The upstream project documents many install channels. For SysSet feature design,
 - **Tool-Specific Configurations**:
   - `lefthook install --force` allows installation even if `core.hooksPath` is set.
   - `lefthook install --reset-hooks-path` unsets local/global `core.hooksPath` automatically.
+  - `lefthook install <hook-1> <hook-2> ...` installs selected hooks; non-Git hook names are skipped unless `install_non_git_hooks: true` is set.
   - `LEFTHOOK_CONFIG` overrides main config path lookup only; local config, extends, and remotes are still loaded.
   - `lefthook self-update` supports `--yes` and `--force`.
 
@@ -340,6 +341,7 @@ The upstream project documents many install channels. For SysSet feature design,
 - [Usage Command: check-install](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/commands/check-install.md) - Hook install/sync verification semantics and exit codes.
 - [Usage Command: version](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/commands/version.md) - Version verification CLI details.
 - [Usage Env: LEFTHOOK_CONFIG](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/usage/envs/LEFTHOOK_CONFIG.md) - Main-config override scope and loading caveats.
+- [Configuration: install_non_git_hooks](https://raw.githubusercontent.com/evilmartians/lefthook/master/docs/configuration/install_non_git_hooks.md) - Enables installation of non-Git hook names into `.git/hooks`.
 - [Go Module Metadata](https://raw.githubusercontent.com/evilmartians/lefthook/master/go.mod) - Minimum Go version/toolchain requirement.
 - [Install Command Source](https://raw.githubusercontent.com/evilmartians/lefthook/master/cmd/install.go) - Install CLI flags (`--force`, `--reset-hooks-path`).
 - [check-install Command Source](https://raw.githubusercontent.com/evilmartians/lefthook/master/cmd/check_install.go) - `check-install` command wiring and exit-code intent.
