@@ -82,16 +82,44 @@ def _render_options_table(data: dict) -> str:
                 f"- Default: {default_str}",
             ]
         )
+
+        if "_applies_when" in opt:
+            conditions: list[dict] = opt["_applies_when"]
+            conditions_str = [_render_option_condition(cond) for cond in conditions]
+            if len(conditions) == 1:
+                rows.append(f"- Applies when: {conditions_str[0]}")
+            else:
+                rows.append("- Applies when:")
+                for cond_str in conditions_str:
+                    rows.append(f"  - {cond_str}")
+
         if "enum" in opt:
             rows.append("- Allowed values:")
             for enum in opt["enum"]:
                 rows.append(f'  - `"{enum["value"]}"`: {enum["description"].strip()}')
+
         elif "proposals" in opt:
             rows.append("- Examples:")
             for proposal in opt["proposals"]:
                 rows.append(f'  - `"{proposal["value"]}"`: {proposal["description"].strip()}')
 
     return "\n".join(rows) + "\n"
+
+
+def _render_option_condition(condition: dict) -> str:
+    """Render an option applicability condition to a human-readable string."""
+    parts = []
+    for key, values in condition.items():
+        if isinstance(values, str):
+            parts.append(f'`{key} = "{values}"`')
+        elif isinstance(values, bool):
+            parts.append(f'`{key} = {str(values).lower()}`')
+        elif isinstance(values, list):
+            values_str = ", ".join(f'"{v}"' for v in values)
+            parts.append(f'`{key} ∈ {{{values_str}}}`')
+        else:
+            raise ValueError(f"Unsupported condition value type: {type(values)} for key {key}")
+    return " and ".join(parts)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────

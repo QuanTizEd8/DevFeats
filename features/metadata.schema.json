@@ -204,211 +204,125 @@
   "definitions": {
     "FeatureOption": {
       "description": "Feature option. Two internal-use-only array types are added in addition to the standard boolean and string types for script generation purposes. Externally, these array types are represented as string options where array values are newline-delimited.",
-      "anyOf": [
-        {
-          "type": "object",
-          "description": "Boolean value.",
-          "additionalProperties": false,
-          "properties": {
-            "default": {
-              "description": "Default value if the user omits this option from their configuration.",
-              "type": "boolean"
-            },
-            "description": {
-              "description": "A description of the option displayed to the user by a supporting tool.",
-              "type": "string"
-            },
-            "type": {
-              "description": "The type of the option. Can be 'boolean' or 'string'.  Options of type 'string' should use the 'enum' or 'proposals' property to provide a list of allowed values.",
-              "const": "boolean",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "default",
-            "description"
-          ]
+      "type": "object",
+      "unevaluatedProperties": false,
+      "properties": {
+        "description": {
+          "description": "A description of the option displayed to the user by a supporting tool.",
+          "type": "string"
         },
-        {
-          "type": "object",
-          "description": "Enum value.",
-          "additionalProperties": false,
-          "properties": {
-            "default": {
-              "description": "Default value if the user omits this option from their configuration.",
-              "type": "string"
-            },
-            "description": {
-              "description": "A description of the option displayed to the user by a supporting tool.",
-              "type": "string"
-            },
-            "enum": {
-              "description": "Allowed values for this option.  Unlike 'proposals', the user cannot provide a custom value not included in the 'enum' array.",
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "value": {
-                    "description": "The value of the option",
-                    "type": "string"
-                  },
-                  "description": {
-                    "description": "A description of the option value to display to the user by a supporting tool.",
-                    "type": "string"
-                  }
-                },
-                "required": ["value", "description"]
+        "type": {
+          "description": "The type of the option. Can be 'boolean' or 'string'.  Options of type 'string' should use the 'enum' or 'proposals' property to provide a list of allowed values.",
+          "const": "boolean",
+          "type": "string"
+        },
+        "default": {
+          "description": "Default value if the user omits this option from their configuration.",
+          "type": ["boolean", "string"]
+        },
+        "enum": {
+          "description": "Allowed values for this option. Unlike 'proposals', the user cannot provide a custom value not included in the 'enum' array.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "description": "The value of the option",
+                "type": "string"
               },
-              "type": "array"
-            },
-            "type": {
-              "description": "The type of the option. Can be 'boolean' or 'string'.  Options of type 'string' should use the 'enum' or 'proposals' property to provide a list of allowed values.",
-              "const": "string",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "enum",
-            "default",
-            "description"
-          ]
-        },
-        {
-          "type": "object",
-          "description": "Arbitrary value.",
-          "additionalProperties": false,
-          "properties": {
-            "default": {
-              "description": "Default value if the user omits this option from their configuration.",
-              "type": "string"
-            },
-            "description": {
-              "description": "A description of the option displayed to the user by a supporting tool.",
-              "type": "string"
-            },
-            "proposals": {
-              "type": "array",
-              "description": "Suggested values for this option.  Unlike 'enum', the 'proposals' attribute indicates the installation script can handle arbitrary values provided by the user.",
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "value": {
-                    "description": "The value of the option",
-                    "type": "string"
-                  },
-                  "description": {
-                    "description": "A description of the option value to display to the user by a supporting tool.",
-                    "type": "string"
-                  }
-                },
-                "required": ["value", "description"]
+              "description": {
+                "description": "A description of the option value to display to the user by a supporting tool.",
+                "type": "string"
               }
             },
-            "type": {
-              "description": "The type of the option. Can be 'boolean' or 'string'.  Options of type 'string' should use the 'enum' or 'proposals' property to provide a list of allowed values.",
-              "const": "string",
-              "type": "string"
+            "required": ["value", "description"]
+          }
+        },
+        "proposals": {
+          "type": "array",
+          "description": "Suggested values for this option. Unlike 'enum', the 'proposals' attribute indicates the installation script can handle arbitrary values provided by the user.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "description": "The value of the option",
+                "type": "string"
+              },
+              "description": {
+                "description": "A description of the option value to display to the user by a supporting tool.",
+                "type": "string"
+              }
+            },
+            "required": ["value", "description"]
+          }
+        },
+        "_applies_when": {
+          "description": "Internal-use-only property for indicating when this option is applicable based on other option values. Several conditions can be provided in the array, where different conditions are OR-ed together.",
+          "type": "array",
+          "items": {
+            "description": "A condition for when this option is applicable. All conditions in a single object are AND-ed together.",
+            "type": "object",
+            "additionalProperties": {
+              "description": "The value of the other option that makes this option applicable. If an array of values is provided, values are OR-ed together.",
+              "type": ["string", "boolean", "array"],
+              "items": {
+                "type": "string"
+              }
             }
+          }
+        }
+      },
+      "required": ["description", "type", "default"],
+      "anyOf": [
+        {
+          "description": "Boolean value.",
+          "properties": {
+            "type": {"const": "boolean"},
+            "default": {"type": "boolean"}
           },
-          "required": [
-            "type",
-            "default",
-            "description"
+          "allOf": [
+            {"not": {"required": ["enum"]}},
+            {"not": {"required": ["proposals"]}}
           ]
+        },
+        {
+          "description": "Enum value.",
+          "properties": {
+            "type": {"const": "string"},
+            "default": {"type": "string"}
+          },
+          "required": ["enum"],
+          "not": {"required": ["proposals"]}
+        },
+        {
+          "description": "Arbitrary value.",
+          "properties": {
+            "type": {"const": "string"},
+            "default": {"type": "string"}
+          },
+          "not": {"required": ["enum"]}
         },
         {
           "description": "Array of enum values.",
           "is_internal": true,
-          "type": "object",
-          "additionalProperties": false,
           "properties": {
-            "default": {
-              "description": "Default value if the user omits this option from their configuration.",
-              "type": "string"
-            },
-            "description": {
-              "description": "A description of the option displayed to the user by a supporting tool.",
-              "type": "string"
-            },
-            "enum": {
-              "description": "Allowed values for this option.  Unlike 'proposals', the user cannot provide a custom value not included in the 'enum' array.",
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "value": {
-                    "description": "The value of the option",
-                    "type": "string"
-                  },
-                  "description": {
-                    "description": "A description of the option value to display to the user by a supporting tool.",
-                    "type": "string"
-                  }
-                },
-                "required": ["value", "description"]
-              },
-              "type": "array"
-            },
-            "type": {
-              "description": "The type of the option. Can be 'boolean' or 'string'.  Options of type 'string' should use the 'enum' or 'proposals' property to provide a list of allowed values.",
-              "const": "array",
-              "type": "string"
-            }
+            "type": {"const": "array"},
+            "default": {"type": "string"}
           },
-          "required": [
-            "type",
-            "enum",
-            "default",
-            "description"
-          ]
+          "required": ["enum"],
+          "not": {"required": ["proposals"]}
         },
         {
           "description": "Array of arbitrary values.",
           "is_internal": true,
-          "type": "object",
-          "additionalProperties": false,
           "properties": {
-            "default": {
-              "description": "Default value if the user omits this option from their configuration.",
-              "type": "string"
-            },
-            "description": {
-              "description": "A description of the option displayed to the user by a supporting tool.",
-              "type": "string"
-            },
-            "proposals": {
-              "type": "array",
-              "description": "Suggested values for this option.  Unlike 'enum', the 'proposals' attribute indicates the installation script can handle arbitrary values provided by the user.",
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "value": {
-                    "description": "The value of the option",
-                    "type": "string"
-                  },
-                  "description": {
-                    "description": "A description of the option value to display to the user by a supporting tool.",
-                    "type": "string"
-                  }
-                },
-                "required": ["value", "description"]
-              }
-            },
-            "type": {
-              "description": "The type of the option. Can be 'boolean' or 'string'.  Options of type 'string' should use the 'enum' or 'proposals' property to provide a list of allowed values.",
-              "const": "array",
-              "type": "string"
-            }
+            "type": {"const": "array"},
+            "default": {"type": "string"}
           },
-          "required": [
-            "type",
-            "default",
-            "description"
-          ]
+          "required": ["proposals"],
+          "not": {"required": ["enum"]}
         }
       ]
     },
