@@ -263,6 +263,13 @@ install__jq() {
   _state_path="$(install__state_install_path "jq" 2> /dev/null || true)"
   _state_group="$(install__state_owner_group "jq" 2> /dev/null || true)"
 
+  # For repos: a jq that landed in PATH solely as a transient build-dep (e.g.
+  # lib-json) has no state record.  Clear _existing so _install__jq_install_repos
+  # always runs and marks the package permanent via the package manager.
+  if [[ "$_method" == "repos" && -n "$_existing" && -z "$_state_ctx" ]]; then
+    _existing=""
+  fi
+
   if [[ -n "$_existing" && "$_context" == "user" && "$_state_ctx" == "internal" ]]; then
     install__promote_path_to_user "${_state_group:-$_owner_group}" "$_state_path"
     install__state_record "jq" "user" "${_method}" "${_existing}" "$_owner_group" || true
