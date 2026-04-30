@@ -10,7 +10,9 @@ RUN (apt-get update || (sleep 15 && apt-get update)) \
       *)       ASSET_ARCH="amd64" ;; \
     esac \
  && GH_VERSION="2.67.0" \
- && curl --fail --silent --location --retry 3 \
+ && curl --fail --location --retry 3 --retry-connrefused \
+        -o /tmp/gh.tar.gz \
         "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ASSET_ARCH}.tar.gz" \
-    | tar -xz -C /tmp \
- && install -m 755 "/tmp/gh_${GH_VERSION}_linux_${ASSET_ARCH}/bin/gh" /usr/local/bin/gh
+ && tar -xz -C /tmp -f /tmp/gh.tar.gz \
+ && install -m 755 "/tmp/gh_${GH_VERSION}_linux_${ASSET_ARCH}/bin/gh" /usr/local/bin/gh \
+ && rm /tmp/gh.tar.gz
