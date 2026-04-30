@@ -23,7 +23,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 
 #### Dependencies
 
-- **Common Dependencies**: `curl` or `wget` downloader, plus basic Unix tools used by the script (`uname`, `mktemp`, `chmod`, `mkdir`, `rm`, `tar`, `grep`, `cat`).
+- **Common Dependencies**: `curl` or `wget` downloader, plus basic Unix tools used by the script (`uname`, `mktemp`, `chmod`, `mkdir`, `rm`, `tar`, `grep`, `cat`, `sed`).
 - **Platform-Specific Dependencies**: Linux code paths also use utilities like `ldd`, `awk`, `head`, `tail`, and may use `getent` if `$HOME` is missing. Checksum verification uses available tools (`sha256sum`, etc.); if missing, verification is skipped with a message. On macOS 12, `realpath` is a known requirement per upstream platform policy.
 
 #### Installation Steps
@@ -34,7 +34,11 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
    - `wget -qO- https://astral.sh/uv/install.sh | sh`
 3. Pin a specific version by URL path:
    - `curl -LsSf https://astral.sh/uv/0.11.8/install.sh | sh`
-4. The installer selects an artifact for the detected platform, downloads from mirror-first URLs, verifies embedded checksums when checksum tools exist, extracts binaries, installs to a resolved executable directory, and optionally updates shell PATH config.
+4. Install latest on Windows (PowerShell installer):
+   - `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+5. Pin a specific Windows installer version by URL path:
+   - `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/0.11.8/install.ps1 | iex"`
+6. The installer selects an artifact for the detected platform, downloads from mirror-first URLs, verifies embedded checksums when checksum tools exist, extracts binaries, installs to a resolved executable directory, and optionally updates shell PATH config.
 
 #### Installation Verification
 
@@ -90,7 +94,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
     - `rm ~/.local/bin/uv ~/.local/bin/uvx`
   - For legacy installs before 0.5.0, old binaries may remain under `~/.cargo/bin`.
    - The upstream uninstall page does not remove shell-profile source lines written by the installer. For full cleanup when PATH mutation was enabled, manually remove:
-      - Source lines for the generated env scripts from `~/.profile`, `~/.bashrc`, `~/.bash_profile`, `~/.bash_login`, `~/.zshrc`, `~/.zshenv`, and fish conf.d entries.
+      - Source lines for the generated env scripts from `~/.profile`, `~/.bashrc`, `~/.bash_profile`, `~/.bash_login`, zsh startup files under `$ZDOTDIR` when set (otherwise under `~`), and fish conf.d entries.
       - Generated env helper files in the install directory (typically `~/.local/bin/env` and `~/.local/bin/env.fish`, or equivalents under custom install paths).
 - **Idempotency**: rerunning installer is safe; it updates binaries in-place, reuses existing env scripts, and avoids duplicate shell-profile entries by checking for existing source lines and whether install dir is already on `PATH`.
 
@@ -117,6 +121,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 2. Download artifact and checksum sidecar (`.sha256`) or checksum manifest.
 3. Verify checksums.
 4. Extract `uv` and `uvx` binaries to desired executable directory.
+   - For Windows assets, include `uvw.exe` in addition to `uv.exe` and `uvx.exe`.
 5. Ensure the target directory is on PATH.
 
 #### Installation Verification
@@ -402,6 +407,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 ## References
 
 - [uv Installation Guide](https://docs.astral.sh/uv/getting-started/installation/) - Official installation methods, upgrade/uninstall steps, and shell-completion commands.
+- [uv Installation Guide (raw source)](https://raw.githubusercontent.com/astral-sh/uv/main/docs/getting-started/installation.md) - Source markdown for exact tabbed Windows/macOS/Linux install and uninstall commands.
 - [uv Installer Reference](https://docs.astral.sh/uv/reference/installer/) - Official installer environment variables and script invocation options.
 - [uv Docker Integration Guide](https://docs.astral.sh/uv/guides/integration/docker/) - Official guidance for running uv through container images.
 - [uv Storage Reference](https://docs.astral.sh/uv/reference/storage/) - Executable directory resolution and uv data directory behavior.
