@@ -212,9 +212,9 @@
           "type": "string"
         },
         "type": {
-          "description": "The type of the option. Can be 'boolean' or 'string'.  Options of type 'string' should use the 'enum' or 'proposals' property to provide a list of allowed values.",
-          "const": "boolean",
-          "type": "string"
+          "description": "The type of the option.",
+          "type": "string",
+          "enum": ["boolean", "string", "array"]
         },
         "default": {
           "description": "Default value if the user omits this option from their configuration.",
