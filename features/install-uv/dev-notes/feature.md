@@ -55,7 +55,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 #### Configuration Options
 
 - **Version Selection**: pin by using versioned installer URLs (`.../uv/<version>/install.sh`).
-- **Installation Path**: set `UV_INSTALL_DIR` to force the install directory.
+- **Installation Path**: set `UV_INSTALL_DIR` to force the install directory. This only changes where uv executables are installed; uv data locations (cache, Python installs, tools, etc.) remain governed by storage defaults or their own dedicated environment variables.
 - **User Targeting**: default behavior is user-local install into executable-directory resolution order.
    - Unix: `$XDG_BIN_HOME`, then `$XDG_DATA_HOME/../bin`, then `$HOME/.local/bin`.
    - Windows: `%XDG_BIN_HOME%`, then `%XDG_DATA_HOME%\\..\\bin`, then `%USERPROFILE%\\.local\\bin`.
@@ -67,10 +67,12 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
       - `UV_UNMANAGED_INSTALL=/path`: fixed unmanaged install path; disables PATH mutation and updater receipt behavior.
       - `UV_DISABLE_UPDATE=1`: skip updater/receipt install behavior.
       - `UV_DOWNLOAD_URL` / `INSTALLER_DOWNLOAD_URL`: override artifact base URL.
-      - `UV_INSTALLER_GITHUB_BASE_URL` / `UV_INSTALLER_GHE_BASE_URL`: override GitHub base URLs.
+      - `UV_INSTALLER_GITHUB_BASE_URL` / `UV_INSTALLER_GHE_BASE_URL`: override GitHub base URLs. These variables are also checked by `uv self update` logic and cause self-update to use the non-official/custom updater path.
       - `UV_GITHUB_TOKEN`: token for GitHub downloads.
+      - Backward-compatible alias: `INSTALLER_NO_MODIFY_PATH`.
    - Unix shell-installer-only controls:
       - `UV_PRINT_VERBOSE` / `UV_PRINT_QUIET`.
+      - Backward-compatible aliases: `INSTALLER_PRINT_VERBOSE` / `INSTALLER_PRINT_QUIET`.
       - Script flags: `--help`, `--verbose`, `--quiet`, and deprecated `--no-modify-path`.
    - Windows PowerShell installer controls:
       - Parameters: `-Help`, `-NoModifyPath` (with deprecation guidance in favor of `UV_NO_MODIFY_PATH`).
@@ -86,7 +88,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 - **Activation Scripts**:
    - Unix: profile updates source generated env snippets (`env`/`env.fish`) when PATH modification is enabled.
    - Windows: no shell-profile script sourcing is used; PATH registry mutation is used instead.
-- **Cleanup**: installer removes temporary download directories; optional user cleanup is covered in uninstallation.
+- **Cleanup**: Unix shell installer removes its temporary download directory. PowerShell installer removes unpacked files but may leave the parent temp directory. Optional user cleanup is covered in uninstallation.
 
 #### Changing Versions and Uninstallation
 
