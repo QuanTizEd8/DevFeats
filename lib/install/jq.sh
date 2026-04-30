@@ -93,15 +93,18 @@ _install__jq_install_release() {
   _dest="${_dir}/${_asset}"
 
   net__fetch_url_file "${_base_url}/${_asset}" "$_dest" || return 1
-  net__fetch_url_file "${_base_url}/sha256sum.txt" "${_dir}/sha256sum.txt" || return 1
 
-  # Extract and verify SHA-256 checksum.
-  _expected_hash="$(grep " ${_asset}$" "${_dir}/sha256sum.txt" | awk '{print $1}')"
-  if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
-    logging__error "install__jq: could not extract valid SHA-256 for '${_asset}' from sha256sum.txt."
-    return 1
+  # jq 1.6 and older releases have no sha256sum.txt — skip SHA verification.
+  if net__fetch_url_file "${_base_url}/sha256sum.txt" "${_dir}/sha256sum.txt" 2> /dev/null; then
+    _expected_hash="$(grep " ${_asset}$" "${_dir}/sha256sum.txt" | awk '{print $1}')"
+    if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
+      logging__error "install__jq: could not extract valid SHA-256 for '${_asset}' from sha256sum.txt."
+      return 1
+    fi
+    verify__sha "$_dest" "$_expected_hash" || return 1
+  else
+    logging__info "No sha256sum.txt for jq ${_version} — skipping SHA verification (GPG still checked)."
   fi
-  verify__sha "$_dest" "$_expected_hash" || return 1
 
   # Verify GPG detached signature.
   _key_url="$(_install__jq_gpg_key_url "$_version")"
