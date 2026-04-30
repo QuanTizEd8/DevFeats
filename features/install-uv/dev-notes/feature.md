@@ -85,7 +85,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
    - Unix shell installer writes profile sourcing lines for sh/bash/zsh/fish targets and also writes CI hints via `GITHUB_PATH` when present.
    - Windows PowerShell installer prepends install dir to user-level PATH via `HKEY_CURRENT_USER\\Environment\\Path` and also writes `GITHUB_PATH` hints when present.
    - Disable PATH mutation with `UV_NO_MODIFY_PATH=1` (or `-NoModifyPath` in PowerShell).
-- **Configuration Files**: standalone installs write an install receipt (for updater tracking) under uv config directories (`$XDG_CONFIG_HOME`/`$HOME/.config` on Unix; `%LOCALAPPDATA%\\uv` on Windows in installer implementation).
+- **Configuration Files**: standalone installs write an install receipt (for updater tracking) under uv config directories (`$XDG_CONFIG_HOME`/`$HOME/.config` on Unix; `%XDG_CONFIG_HOME%\\uv` when set on Windows, otherwise `%LOCALAPPDATA%\\uv`, per installer logic).
 - **Environment Variables**: no mandatory runtime env vars are required for normal use.
 - **Activation Scripts**:
    - Unix: profile updates source generated env snippets (`env`/`env.fish`) when PATH modification is enabled.
@@ -135,6 +135,7 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 #### Supported Platforms
 
 - Official release artifacts are published for Tier 1 and Tier 2 uv platforms (macOS, Linux, Windows families documented in platform policy and release assets).
+- Release pages also include Windows i686 artifacts (for example, `uv-i686-pc-windows-msvc.zip` in 0.11.8).
 
 #### Dependencies
 
