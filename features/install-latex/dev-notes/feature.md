@@ -137,7 +137,7 @@ A comprehensive reference of all `install-tl` configuration options. Each option
 
 | Profile | CLI | Env Var | Description |
 |---------|-----|---------|-------------|
-| – | `--no-interaction` / `-N` | – | Suppress all interactive prompts; run fully non-interactively. Also triggered automatically when stdin is not a terminal. |
+| – | `--no-interaction` | – | Suppress all interactive prompts; run fully non-interactively. Also triggered automatically when stdin is not a terminal. |
 | `instopt_portable 0\|1` | `--portable` | – | Install into a fully self-contained portable tree. Forces `TEXMFHOME`, `TEXMFCONFIG`, and `TEXMFVAR` to reside inside `TEXDIR`; disables `instopt_adjustpath`; disables desktop integration and file associations on Windows. Default: `0`. Overrides user-tree directory options if any are also set. |
 | – | `--in-place` | – | Use an existing TeX Live VCS checkout in `TEXDIR` directly without copying files. Intended for developers. Incompatible with `--custom-bin`. No uninstall script is generated; manual removal is required. |
 | – | `--strict` / `--no-strict` | – | `--strict`: abort the entire installation if any post-install command fails (e.g. `fmtutil`, `updmap`). `--no-strict` (default): log warnings and continue. |
@@ -145,7 +145,7 @@ A comprehensive reference of all `install-tl` configuration options. Each option
 | – | `--non-admin` | – | **Windows only.** Force a per-user installation even when running as Administrator; skips `HKEY_LOCAL_MACHINE` registry writes. Equivalent to `tlpdbopt_w32_multi_user 0`. |
 | – | `--gui [=tcl\|perltk\|text\|wizard\|expert\|extl]` | – | Launch the interactive GUI installer. The optional argument selects the frontend: `tcl` (Tcl/Tk), `perltk` (Perl/Tk), `text` (readline, default on Unix/Linux), `wizard`, `expert`, or `extl`. Default on Windows: `tcl`. Use `--no-gui` to force text mode regardless of environment. |
 | – | `--no-gui` | – | Force text-mode installation, overriding any GUI default. Distinct from `--gui=text` in that it prevents any GUI from being attempted. |
-| – | `--lang LANG` / `--gui-lang LANG` | – | Set the GUI display language via an ISO 639 code (e.g. `de`, `fr`, `ja`). GUI mode only; ignored in non-interactive mode. |
+| – | `--lang LANG` | – | Set the GUI display language via an ISO 639 code (e.g. `de`, `fr`, `ja`). GUI mode only; ignored in non-interactive mode. |
 | – | `--logfile FILE` | – | Write the installation log to `FILE`. Default: `$TEXDIR/install-tl.log` (inside the installation root). |
 | – | `--version` | – | Print the installer version and exit. |
 | – | `--help` / `-?` | – | Print help text and exit. Output format depends on `NOPERLDOC`. |
@@ -160,7 +160,7 @@ A comprehensive reference of all `install-tl` configuration options. Each option
 |---------|-----|---------|-------------|
 | – | `--profile FILE` | – | Load a profile file and run a non-interactive installation. The file is plain text with `key value` pairs, one per line; blank lines and `#`-prefixed lines are ignored. All profile keys documented in the other sections may appear in this file. |
 | – | `--init-from-profile FILE` | – | Read a profile to pre-populate defaults, then continue interactively. Useful for seeding the interactive installer with specific values without fully automating it. |
-| – | `--no-installation` | – | Skip the actual installation entirely and exit immediately. Useful as a debugging or dry-run option to verify configuration without writing anything to disk. Note: despite what might be expected, this option does **not** write a profile file. |
+| – | `--no-installation` | – | Skip the actual installation entirely and exit immediately. Useful as a debugging or dry-run option to verify configuration without writing anything to disk. |
 
 ---
 
@@ -168,7 +168,7 @@ A comprehensive reference of all `install-tl` configuration options. Each option
 
 | Profile | CLI | Env Var | Description |
 |---------|-----|---------|-------------|
-| `tlpdbopt_location URL` | `--location URL` / `--repository URL` / `--url URL` / `--repos URL` / `-repo URL` | – | Repository URL or local path to install from. Accepted forms: `http://`, `https://`, `ftp://`, `file:///path`, or a bare local directory path. May include a `texlive/YYYY` subdirectory. Default: CTAN mirror auto-selected at runtime. Legacy profile alias `location` (without the `tlpdbopt_` prefix) is auto-translated to this key. |
+| `tlpdbopt_location URL` | `--repository URL` | – | Repository URL or local path to install from. Accepted forms: `http://`, `https://`, `ftp://`, `file:///path`, or a bare local directory path. May include a `texlive/YYYY` subdirectory. Default: CTAN mirror auto-selected at runtime. Legacy profile alias `location` (without the `tlpdbopt_` prefix) is auto-translated to this key. |
 | `instopt_adjustrepo 0\|1` | – | – | Adjust the repository URL to use the best-performing CTAN mirror. `1` = adjust (default); `0` = use the configured URL verbatim. Profile-only; there are no `--adjust-repo` or `--no-adjust-repo` CLI flags. |
 | – | `--select-repository` | – | **Interactive mode only.** Present a numbered mirror list and prompt the user to choose. Ignored in non-interactive mode. |
 
@@ -199,8 +199,8 @@ All seven TEXMF paths can be specified as profile keys, CLI flags, and environme
 | `selected_scheme SCHEME` | `--scheme SCHEME` / `-scheme SCHEME` / `-s SCHEME` | – | Metapackage scheme to install. Values: `scheme-full`, `scheme-medium`, `scheme-small`, `scheme-basic`, `scheme-minimal`, `scheme-infraonly`, `scheme-bookpublishing`, `scheme-context`, `scheme-gust`, `scheme-tetex`. Default: `scheme-full`. Each scheme is a predefined collection of collections. `scheme-infraonly` installs only the TeX Live infrastructure; no typesetting packages. |
 | `collection-NAME 0\|1` | – | – | Override collection inclusion. `1` = force-include a collection not in the selected scheme; `0` = force-exclude a collection that the scheme would include. `NAME` is the collection identifier (e.g. `collection-latex`, `collection-fontsrecommended`). One entry per line; multiple entries allowed. Run `tlmgr info collections` for the full list of identifiers. |
 | `binary_PLATFORM 1` | – | – | Include the binary set for `PLATFORM` (e.g. `binary_x86_64-linux 1`, `binary_universal-darwin 1`). The host platform is always included; add extra platforms only for cross-use. |
-| `tlpdbopt_install_docfiles 0\|1` | `--doc-install` / `--no-doc-install` | – | Install documentation files bundled with packages (`.pdf`, HTML docs, man pages). `--doc-install` sets `1` (install); `--no-doc-install` sets `0` (skip). Upstream default: `1`. Feature default: `0` (smaller container images). |
-| `tlpdbopt_install_srcfiles 0\|1` | `--src-install` / `--no-src-install` | – | Install source files bundled with packages (`.dtx`, `.ins`, etc.). `--src-install` sets `1` (install); `--no-src-install` sets `0` (skip). Upstream default: `1`. Feature default: `0`. |
+| `tlpdbopt_install_docfiles 0\|1` | `--no-doc-install` | – | Install documentation files bundled with packages (`.pdf`, HTML docs, man pages). `--no-doc-install` sets `0` (skip). Upstream default: `1`. |
+| `tlpdbopt_install_srcfiles 0\|1` | `--no-src-install` | – | Install source files bundled with packages (`.dtx`, `.ins`, etc.). `--no-src-install` sets `0` (skip). Upstream default: `1`. |
 
 ---
 
