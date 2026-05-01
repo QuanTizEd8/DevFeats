@@ -57,29 +57,3 @@ _install_jsonschema() {
   python3 -m pip install "${_pip_flags[@]}" -r "${_SCRIPT_DIR}/requirements.txt"
   echo "✅ jsonschema installed." >&2
 }
-
-_install_lefthook() {
-  if _has lefthook; then
-    echo "✅ lefthook already installed — skipping." >&2
-    return
-  fi
-  echo "▶ Installing lefthook..." >&2
-  npm install -g lefthook
-  echo "✅ lefthook installed." >&2
-}
-
-# ── Dispatch ───────────────────────────────────────────────────────────────────
-for _tool in $_tools; do
-  case "$_tool" in
-    pyyaml) _install_pyyaml ;;
-    jsonschema) _install_jsonschema ;;
-    shfmt) _install_shfmt ;;
-    shellcheck) _install_shellcheck ;;
-    just) _install_just ;;
-    lefthook) _install_lefthook ;;
-    *)
-      echo "Unknown tool: $_tool" >&2
-      exit 1
-      ;;
-  esac
-done
