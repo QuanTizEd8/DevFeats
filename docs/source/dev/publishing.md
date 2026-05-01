@@ -42,8 +42,7 @@ Each feature has its own release identity:
 Each CD run also produces an **accumulator-tagged bundle release**
 (`v<X.Y.Z>`) whose assets are:
 
-- `sysset-v<X.Y.Z>.tar.gz` — offline kit (installers, `manifest.json`, digest-keyed `features/`), consumed by `install.bash` for bundle pinning when
-  `SYSSET_VERSION` is set or a `v*.*.*` suffix appears in a devcontainer `name`.
+- `sysset-v<X.Y.Z>.tar.gz` — offline kit (installers, `manifest.json`, digest-keyed `features/`) for manual/offline transfer. Installer runtime resolution is OCI per-feature and does not consume bundle pinning.
 
 The bundle's global semver is derived from the highest per-feature bump in
 the run; see [Bundle accumulator](#bundle-accumulator) below.
@@ -148,10 +147,9 @@ ones.
 
 The resulting `manifest.json` embedded in the kit is the canonical per-feature version map for the bundle (field `features`, plus `refs` / `digests` for offline resolution).
 
-In bundle-pinned mode (`SYSSET_VERSION=v1.2.0`), `install.bash` downloads
-`sysset-v1.2.0.tar.gz` for that tag and reads `manifest.json` from it (or uses a
-local extracted kit) to resolve each requested feature to its version inside
-that bundle.
+`install.bash` does not use bundle tags for runtime resolution. It resolves each
+feature from OCI tags/specs independently; bundle kits remain an offline
+distribution artifact.
 
 
 ## Making GHCR packages public
