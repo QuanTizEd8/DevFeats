@@ -1,4 +1,4 @@
-# SysSet
+# |{{project_name}}|
 
 **Declarative System Setup for Containers, Virtual Machines, and Host Environments**
 
@@ -31,7 +31,7 @@ Navigate all available features and their documentation: options, examples, defa
 :link: learn/index
 :link-type: doc
 
-Learn about the concepts and tools that SysSet builds on: POSIX shells, package managers, Dev Containers, configuration files, shell profiles, environment variables, and other background knowledge.
+Learn about the concepts and tools that |{{project_name}} builds on: POSIX shells, package managers, Dev Containers, configuration files, shell profiles, environment variables, and other background knowledge.
 :::
 
 :::{grid-item-card} Contribution Guide
@@ -39,7 +39,7 @@ Learn about the concepts and tools that SysSet builds on: POSIX shells, package 
 :link: dev/index
 :link-type: doc
 
-Find out how to contribute to SysSet: feedback, bug report, feature request, developer guide, donations, and other ways to get involved.
+Find out how to contribute to |{{project_name}}: feedback, bug report, feature request, developer guide, donations, and other ways to get involved.
 :::
 
 ::::
