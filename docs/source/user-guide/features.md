@@ -1,4 +1,4 @@
-# Feature Reference
+# Features
 
 <br>
 
