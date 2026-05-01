@@ -57,7 +57,7 @@ sh install.sh setup-user    --username dev
 
 ### Feature mode — install one feature
 
-Give `install.sh` a feature ID, optionally with a `@<version>` suffix. Every argument after the feature ID is forwarded to the feature's `install.bash` as CLI flags:
+Give `install.sh` a feature ID, optionally with a `:<version>` suffix. Every argument after the feature ID is forwarded to the feature's `install.bash` as CLI flags:
 
 ```sh
 # Latest version
@@ -70,7 +70,7 @@ sh install.sh install-pixi --version 0.66.0
 sh install.sh install-fonts --nerd_fonts Meslo --nerd_fonts FiraCode
 
 # Pin to a specific version line
-sh install.sh install-pixi@1.2.3 --version 0.66.0
+sh install.sh install-pixi:1.2.3 --version 0.66.0
 ```
 
 ### Manifest mode — install multiple features
@@ -81,7 +81,39 @@ If the first argument ends in `.json` or `.jsonc`, `install.sh` treats it as a d
 sudo sh install.sh .devcontainer/devcontainer.jsonc
 ```
 
-`install.sh` parses the file, resolves per-feature tags and/or a bundle pin, fetches each feature's tarball, orders them by dependency, and runs each installer with the corresponding options injected as environment variables. See {doc}`manifests` for full details on the manifest format, install ordering, and lifecycle commands.
+`install.sh` parses the file, resolves each feature independently (OCI refs / per-feature specs), fetches each feature artifact, orders them by dependency, and runs each installer with the corresponding options injected as environment variables. See {doc}`manifests` for full details on the manifest format, install ordering, and lifecycle commands.
+
+### Lockfile modes
+
+`install.bash` supports optional lockfiles for reproducible OCI installs:
+
+- `--lockfile <path>` writes resolved refs after a successful manifest install.
+- `--frozen-lockfile <path>` requires an existing lockfile and installs exactly the listed refs.
+
+The lockfile records the feature key and resolved immutable ref used by the installer.
+
+### OCI authentication inputs
+
+For private registries, provide credentials via:
+
+- `SYSSET_OCI_AUTH` as comma-separated `registry|username|token` entries
+- `SYSSET_OCI_AUTH_FILE` pointing to a file containing the same value format
+
+Example:
+
+```sh
+export SYSSET_OCI_AUTH="ghcr.io|USERNAME|ghp_xxx,registry.example.com|robot|s3cr3t"
+sudo sh install.sh .devcontainer/devcontainer.json --lockfile .devcontainer/devcontainer-lock.json
+```
+
+### OCI integrity validation
+
+For OCI feature pulls, `install.bash` validates two layers before execution:
+
+- **Artifact shape** — pulled archive must contain `install.sh` and `devcontainer-feature.json`
+- **Layer digest** — when registry manifest metadata provides a compatible feature layer digest, the pulled archive hash must match that digest
+
+Digest-pinned refs (`@sha256:...`) additionally prefer the local validated registry cache when available.
 
 ### Directly running a per-feature tarball
 
