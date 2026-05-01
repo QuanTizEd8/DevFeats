@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
 
-import yaml as _yaml  # noqa: E402 (pyyaml; available in sysset-website env via myst-parser)
+import yaml as _yaml
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -104,9 +104,9 @@ feat_doc_gen.generate(
 
 # ── Project information ────────────────────────────────────────────────────────
 
-project = "SysSet"
-copyright = "2024–2025, SysSet contributors"
-author = "SysSet contributors"
+project = _REPO_NAME
+copyright = f"2024–2025, {_REPO_NAME} contributors"
+author = f"{_REPO_NAME} contributors"
 
 # ── General configuration ──────────────────────────────────────────────────────
 
@@ -167,7 +167,7 @@ exclude_patterns = [
 # ── HTML output ────────────────────────────────────────────────────────────────
 
 html_theme = "pydata_sphinx_theme"
-html_title = "SysSet"
+html_title = _REPO_NAME
 html_logo = None  # add docs/_static/logo.svg when available
 
 html_theme_options = {
@@ -184,6 +184,7 @@ html_theme_options = {
 }
 
 html_context = {
+    "project_name": _REPO_NAME,
     "github_user": _REPO_OWNER,
     "github_repo": _REPO_NAME,
     "github_version": "main",
@@ -204,5 +205,5 @@ bibtex_bibfiles = []
 
 # ── OpenGraph ──────────────────────────────────────────────────────────────────
 
-ogp_site_url = "https://quantized8.github.io/sysset/"
+ogp_site_url = f"https://{_REPO_OWNER.lower()}.github.io/{_REPO_NAME.lower()}/"
 ogp_description_length = 200
