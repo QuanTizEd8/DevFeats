@@ -4,41 +4,6 @@ This guide covers everything needed to contribute to SysSet: setting up the deve
 
 ---
 
-## Development environment
-
-### Using the dev container (recommended)
-
-The repository ships a ready-to-use dev container at `.devcontainer/devcontainer.json`. It installs Node.js, Docker-in-Docker, Python dev tools, the devcontainer CLI, `shfmt`, `shellcheck`, `just`, and `lefthook` automatically on create.
-
-Open the repository in VS Code and choose **Reopen in Container**, or run:
-
-```sh
-devcontainer up --workspace-folder .
-```
-
-The dev container also has `_src → ../src` symlink under `.devcontainer/` so the devcontainer CLI can reference locally-built features during development. See {doc}`testing` for details.
-
-### Host setup
-
-To work directly on macOS or Linux:
-
-1. Run `just install-dev` from the repo root. This executes `.devcontainer/setup-dev.sh`, which installs pinned versions of `shfmt`, `shellcheck`, `just`, `PyYAML`, `jsonschema`, `@devcontainers/cli`, and `lefthook` depending on your OS and the `--tools` flags.
-2. Initialize bats submodules for unit tests:
-   ```sh
-   git submodule update --init --recursive
-   ```
-3. (Optional) Create the Sphinx docs environment:
-   ```sh
-   # Requires conda or mamba
-   conda env create -f docs/environment.yaml
-   ```
-
-**Requirements:**
-- Bash ≥ 4 (macOS ships with 3.2; install via `brew install bash`)
-- Docker — running and accessible for feature integration tests
-- Node.js / npm — needed for the devcontainer CLI (`npm install -g @devcontainers/cli`)
-
----
 
 ## Common commands
 
