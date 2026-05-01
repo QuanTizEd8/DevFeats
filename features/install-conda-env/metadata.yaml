@@ -124,7 +124,9 @@ options:
     - value: conda
       description: Force the conda solver.
     type: string
-# installsAfter:
-#   - ghcr.io/quantized8/sysset/install-miniforge
-#   - ghcr.io/quantized8/sysset/install-shell
-#   - ghcr.io/quantized8/sysset/setup-user
+installsAfter:
+  - ghcr.io/quantized8/sysset/setup-user
+  - ghcr.io/quantized8/sysset/install-jq
+  - ghcr.io/quantized8/sysset/install-yq
+  - ghcr.io/quantized8/sysset/install-shell
+  - ghcr.io/quantized8/sysset/install-miniforge
