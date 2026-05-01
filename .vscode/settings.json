@@ -12,16 +12,6 @@
     "files.associations": {
         "*.bats": "shellscript"
     },
-    // ── YAML Schema ─────────────────────────────────────────────────────────
-    "yaml.schemas": {
-        "features/metadata.schema.json": [
-            "features/*/metadata.yaml",
-            "**/features/*/metadata.yaml"
-        ]
-    },
-    "yaml.schemaStore.enable": false,
-    "yaml.trace.server": "verbose",
-
     // ── Copilot ───────────────────────────────────────────────────────────────
     "chat.checkpoints.showFileChanges": true,
     "chat.agent.thinking.collapsedTools": "withThinking",
@@ -36,5 +26,9 @@
     "chat.mcp.gallery.enabled": true,
     "makefile.configureOnOpen": false,
     "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda"
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    // ── YAML schemas ─────────────────────────────────────────────────────────
+    "yaml.schemas": {
+        "./features/metadata.schema.json": "features/*/metadata.yaml"
+    }
 }
