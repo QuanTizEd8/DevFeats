@@ -18,6 +18,7 @@ dependencies:
   - conda-forge::libffi ==3.5.2
   - conda-forge::cairo ==1.18.4
   - conda-forge::intersphinx-registry ==0.2603.16
+  - conda-forge::pyyaml
   - pip
   - pip:
       - jsonschema-autodoc ==0.1.0
