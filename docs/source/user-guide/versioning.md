@@ -7,6 +7,12 @@ Features are versioned independently using a [semantic versioning](https://semve
 - **Patch** release: Otherwise (no breaking changes or significant new capabilities), if the release includes only backwards-compatible bug fixes, minor corrections, or documentation updates, the patch version is incremented: `X.Y.Z` → `X.Y.(Z+1)` (e.g. `1.2.3` → `1.2.4`). Backwards-compatible bug fixes include corrections to installation scripts, fixes for edge cases that do not alter existing behavior, and improvements to error handling that do not change the public API.
 
 
+:::{note}
+
+Feature versions represent the evolution of the feature's API, functionality, and behavior itself, not the versions of the underlying tools they install. For features that install versioned tools, the tool versions can be specified via feature input options, regardless of the feature's own version.
+:::
+
+
 ## Version Pinning
 
 Features can be pinned separately to specific versions at the desired precision level (major, minor, or patch), to balance stability and access to new updates as needed. This is done by appending a version specifier `:<version>` to the feature ID, either in the `devcontainer.json` file for Dev Container Features or on the CLI when invoking the installer:
