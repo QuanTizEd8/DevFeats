@@ -1,16 +1,9 @@
 """Generate feature documentation from metadata.yaml and NOTES.md files."""
 
-from __future__ import annotations
-
-from pathlib import Path
+from typing import Any
 
 
-def generate(
-    metadata: dict[str, dict],
-    features_dir: Path,
-    features_doc_dir: Path,
-    notes_filename: str = "NOTES.md",
-) -> None:
+def generate(metadata: dict[str, Any], notes: str = "") -> str:
     """Generate feature documentation."""
     # ── Feature reference preamble injection ───────────────────────────────────────
     # At build time, prepend each feature's H1 title, description, and ## Options
@@ -20,32 +13,18 @@ def generate(
     # (including links) is used verbatim so MyST renders it correctly.  The
     # ## Options table is generated from the options dict in metadata.yaml.
     # devcontainer-feature.json is a generated artifact and not read here.
-    features_doc_dir.mkdir(parents=True, exist_ok=True)
-    for feat_id, feat_metadata in metadata.items():
-        preamble = _gen_feature_preamble(feat_metadata)
-        notes_path = features_dir / feat_id / notes_filename
-        if notes_path.exists():
-            notes = notes_path.read_text()
-            content = f"{preamble}\n\n{notes}"
-        else:
-            content = preamble
-        doc_path = features_doc_dir / f"{feat_id}.md"
-        _write_if_changed(doc_path, content)
-    return
-
-
-def _gen_feature_preamble(feat_metadata: dict) -> str:
-    name = feat_metadata["name"]
-    description = feat_metadata["description"].strip()
-    long_description = feat_metadata.get("_long_description", "").strip()
-    options = _render_options_table(feat_metadata)
+    name = metadata["name"]
+    description = metadata["description"].strip()
+    long_description = metadata.get("_long_description", "").strip()
+    options = _render_options_table(metadata)
     parts = [
         f"# {name}",
         description,
         long_description,
         options,
+        notes,
     ]
-    return "\n\n".join(parts) + "\n"
+    return f"{'\n\n'.join(parts).strip()}\n"
 
 
 def _render_options_table(data: dict) -> str:
@@ -67,11 +46,6 @@ def _render_options_table(data: dict) -> str:
     ]
     for opt_name, opt in options.items():
         opt_type = opt["type"]
-        # if opt_type == "string":
-        #     if "enum" in opt:
-        #         return "string (enum)"
-        #     if "proposals" in opt:
-        #         return "string (proposals)"
 
         default_str = "\\n".join(_option_default_str(opt).splitlines())
         rows.extend(
@@ -143,14 +117,3 @@ def _option_desc_full(opt: dict) -> str:
     """
     desc = opt.get("description", "")
     return " ".join(line.strip() for line in desc.splitlines() if line.strip())
-
-
-def _write_if_changed(path: Path, content: str) -> None:
-    """Write file only when content differs to keep builds idempotent.
-
-    This prevents sphinx-autobuild from retriggering on no-op writes.
-    """
-    if path.exists() and path.read_text() == content:
-        return
-    path.write_text(content)
-    return
