@@ -19,7 +19,7 @@ sudo sh install.sh .devcontainer/devcontainer.jsonc
 * - Field
   - Role
 * - `name`
-  - Optional. A trailing `v<major>.<minor>.<patch>` suffix pins bundle resolution — equivalent to setting `SYSSET_VERSION`.
+  - Optional. Human label only. A trailing `v<major>.<minor>.<patch>` suffix is ignored by installer resolution.
 * - `features`
   - Object whose keys are OCI feature references (`ghcr.io/|{{github_user}}|/|{{github_repo}}|/<id>`, optionally with `:<tag>`) **or** local paths containing a `devcontainer-feature.json`. Values are the feature's options object (scalars: booleans, strings, numbers).
 * - `overrideFeatureInstallOrder`
@@ -44,13 +44,13 @@ Fields that only have meaning for a container build (image assembly, mount seman
 
 - **Duplicate keys** in JSON objects — hard error.
 - **Non-scalar** feature option values (objects or arrays) inside `features[…]` — hard error. Use the [array type](options.md#the-array-type) (newline-delimited string) for list-valued options.
-- Feature references outside the configured **compatible prefixes** — skipped with a warning (see `--compatible-prefix`).
+- Feature keys that are neither valid OCI references nor local feature paths — skipped with a warning.
 
 ## Full example
 
 ```jsonc
 {
-  // Bundle pin via the v*.*.* suffix on name; equivalent to SYSSET_VERSION=v1.2.0
+  // Name is metadata only; version resolution comes from each feature key/spec.
   "name": "my env v1.2.0",
   "remoteUser": "dev",
 
@@ -82,8 +82,9 @@ When installing multiple features, `install.bash` determines order via a **round
 
 1. **Hard edges** — from each feature's `dependsOn` in its `devcontainer-feature.json`. A feature cannot run until every hard dependency has completed.
 2. **Soft edges** — from each feature's `installsAfter`. Honored where possible; dropped if they create a cycle.
-3. **Priority** — `overrideFeatureInstallOrder` in the manifest. Earlier entries get higher priority *within the same round* — this is a tie-break, not an override of dependency edges.
-4. **Fallback** — if the graph is unsatisfiable, `install.bash` falls back to a canonical static order, appending remaining features at the end.
+3. **Alias resolution** — dependency references are matched against both feature IDs and `legacyIds`, so renamed features still satisfy `dependsOn`, `installsAfter`, and `overrideFeatureInstallOrder`.
+4. **Priority** — `overrideFeatureInstallOrder` in the manifest. Earlier entries get higher priority *within the same round* — this is a tie-break, not an override of dependency edges.
+5. **Fallback** — if the graph is unsatisfiable, `install.bash` falls back to a canonical static order, appending remaining features at the end.
 
 :::{dropdown} Canonical fallback order
 
@@ -107,6 +108,20 @@ This mirrors what the dependency graph produces for a typical full-featured setu
 :::
 
 The resolved order is printed to stderr at startup (`ℹ️  order: …`) so you can confirm what will run.
+
+## Lockfiles
+
+Use `--lockfile <path>` with manifest installs to persist the resolved OCI refs used for each feature key. Use `--frozen-lockfile <path>` to require those exact refs on future runs (fails if an entry is missing).
+
+This is useful for deterministic CI and protects against mutable-tag drift between runs.
+
+## OCI key compatibility
+
+Manifest feature keys are treated as OCI references when they include a registry host and a path. A tag or digest is optional (`:latest` is implied when absent). Supported registry host forms include:
+
+- FQDN hosts (for example `ghcr.io`, `registry.example.com`)
+- `localhost` and `localhost:<port>`
+- bracketed IPv6 hosts (for example `[2001:db8::1]:5000`)
 
 ---
 
