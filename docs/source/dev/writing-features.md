@@ -177,7 +177,7 @@ Source only the libraries you need. `ospkg.sh` sources `os.sh` and `net.sh` auto
 . "$_SELF_DIR/_lib/git.sh"
 ```
 
-> **Check the library first.** Before writing inline logic, confirm there is no existing function: use `os__kernel`/`os__arch` instead of `uname -s`/`uname -m`; `os__font_dir` instead of manual platform detection; `github__latest_tag` instead of a hand-rolled API call; `checksum__verify_sha256_sidecar` instead of inline sha256sum logic; `users__resolve_list` + `users__set_login_shell` instead of manual deduplication and `chsh` calls.
+> **Check the library first.** Before writing inline logic, confirm there is no existing function: use `os__kernel`/`os__arch` instead of `uname -s`/`uname -m`; `os__font_dir` instead of manual platform detection; `github__latest_tag` instead of a hand-rolled API call; `checksum__verify_sidecar` instead of inline sha256sum logic; `users__is_root`/`users__default_prefix` instead of `id -u` checks; `users__resolve_list` + `users__set_login_shell` instead of manual deduplication and `chsh` calls.
 
 ### Logging setup
 
@@ -265,6 +265,8 @@ fi
 ```
 
 When writing new logic, ask: could this be useful in more than one feature, or does it encapsulate a non-trivial detail easy to get wrong? If yes, add it to `lib/` and run `just sync` to propagate it.
+
+For installer logic that is used both by SysSet internals and by user-facing features, place it under `lib/install/` and expose exactly one public entrypoint (for example `install__oras`). Keep resolve/download/verify helpers private in that module. Feature `install.bash` files should be thin wrappers that pass user options with `context=user`, while internal callers pass `context=internal`. This keeps ownership, cleanup, and promotion semantics consistent across all call sites.
 
 End the script with a success message:
 
@@ -510,8 +512,9 @@ Source explicitly. Works with `sha256sum` (Linux) or `shasum` (macOS).
 <!-- START lib-checksum-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `checksum__verify_sha256` | `checksum__verify_sha256 <file> <expected_hash>` | Verify the SHA-256 digest of `<file>`. Returns 1 on mismatch. |
-| `checksum__verify_sha256_sidecar` | `checksum__verify_sha256_sidecar <file> <sha256_file>` | Read the expected hash from the first field of `<sha256_file>` and delegate to `checksum__verify_sha256`. |
+| `checksum__hash_file` | `checksum__hash_file <file> [algo]` | Compute the SHA-`<algo>` digest of `<file>` (default algo: `256`). Returns 1 if the file does not exist or no sha tool is available. |
+| `checksum__verify` | `checksum__verify <file> <expected_hash> [algo]` | Verify the SHA-`<algo>` digest of `<file>` against `<expected_hash>` (default algo: `256`). Returns 1 on mismatch. |
+| `checksum__verify_sidecar` | `checksum__verify_sidecar <file> <hash_file> [algo]` | Read the expected hash from the first field of `<hash_file>` and delegate to `checksum__verify`. Default algo: `256`. Pass `512` for SHA-512 sidecars. |
 <!-- END lib-checksum-table MARKER -->
 
 Typical pattern:
@@ -519,7 +522,7 @@ Typical pattern:
 ```bash
 net__fetch_url_file "$DOWNLOAD_URL" /tmp/tool.bin
 net__fetch_url_file "$DOWNLOAD_URL.sha256" /tmp/tool.bin.sha256
-checksum__verify_sha256_sidecar /tmp/tool.bin /tmp/tool.bin.sha256
+checksum__verify_sidecar /tmp/tool.bin /tmp/tool.bin.sha256
 ```
 
 ### `users.sh`
@@ -529,6 +532,8 @@ Source explicitly. Reads standard devcontainer user-config environment variables
 <!-- START lib-users-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
+| `users__is_root` | `users__is_root` | Returns 0 if the current user is root (`id -u` = 0). |
+| `users__default_prefix` | `users__default_prefix` | Print `/usr/local` when root, `${HOME}/.local` otherwise. Use instead of inline `id -u` checks. |
 | `users__resolve_list` | `users__resolve_list` | Print one deduplicated username per line from devcontainer user-config env vars. |
 | `users__set_login_shell` | `users__set_login_shell <shell_path> <username>...` | Register `<shell_path>` in `/etc/shells`, patch Alpine PAM if needed, then call `chsh -s` for each user. |
 | `users__get_current` | `users__get_current [--no-sudo]` | Print the current username using a robust fallback chain. |
