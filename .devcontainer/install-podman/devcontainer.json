@@ -3,6 +3,6 @@
     "image": "ubuntu:latest",
     "initializeCommand": "bash scripts/python.sh scripts/sync-src.py",
     "containerUser": "ubuntu",
-    "features": {"../_src/install-podman": {}},
+    "features": {"../.src/install-podman": {}},
     "postStartCommand": "podman run --rm hello-world"
 }
