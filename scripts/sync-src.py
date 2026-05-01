@@ -39,7 +39,7 @@ REPO_OWNER, REPO_NAME = git_owner_repo()
 LIB_DIRPATH = REPO_DIRPATH / "lib"
 FEATURES_DIRPATH = REPO_DIRPATH / "features"
 SRC_DIRPATH = REPO_DIRPATH / "src"
-INSTALL_SCRIPT_TEMPLATES_DIRPATH = FEATURES_DIRPATH / "_templates"
+INSTALL_SCRIPT_TEMPLATES_DIRPATH = FEATURES_DIRPATH / "_install.sh-templates"
 COMMON_OPTIONS_FILEPATH = FEATURES_DIRPATH / "shared-options.yaml"
 METADATA_SCHEMA_FILEPATH = FEATURES_DIRPATH / "metadata.schema.json"
 OSPKG_MANIFEST_SCHEMA_FILEPATH = LIB_DIRPATH / "ospkg.manifest.schema.json"
@@ -740,7 +740,7 @@ def _usage_type_hint(opt: dict) -> str:
 
 
 def _render_template(name: str, **subs: str) -> str:
-    """Load a shell snippet template from features/_templates/ and substitute @@KEY@@ placeholders."""
+    """Load a shell snippet template and substitute @@KEY@@ placeholders."""
     template = _install_script_templates[name]
     for key, val in subs.items():
         template = template.replace(f"@@{key}@@", val)
@@ -748,7 +748,7 @@ def _render_template(name: str, **subs: str) -> str:
 
 
 def _read_templates() -> dict[str, str]:
-    """Read all templates from the _templates directory and return a mapping of template name to content."""
+    """Read all templates from `INSTALL_SCRIPT_TEMPLATES_DIRPATH` and return a mapping of template name to content."""
     templates = {}
     for template_path in INSTALL_SCRIPT_TEMPLATES_DIRPATH.glob("*.tmpl"):
         template_name = template_path.name.removesuffix(".sh.tmpl")
