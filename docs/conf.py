@@ -17,7 +17,7 @@ _WEBSITE_ROOT = Path(__file__).resolve().parent
 _WEBSITE_SOURCE_DIR = _WEBSITE_ROOT / "source"
 _REPO_ROOT = _WEBSITE_ROOT.parent
 _FEATURES_DIR = _REPO_ROOT / "features"
-_FEATURES_DOC_DIR = _WEBSITE_SOURCE_DIR / "user-guide/features"
+_FEATURES_DOC_DIR = _WEBSITE_SOURCE_DIR / "features"
 _FEATURES_NOTES_FILENAME = "NOTES.md"
 
 sys.path.insert(0, str(_WEBSITE_ROOT / "_build_scripts"))
@@ -61,10 +61,6 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
     - https://www.ericholscher.com/blog/2016/jul/25/integrating-jinja-rst-sphinx/
     - https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html#event-source-read
     """
-    error_msg = (
-        f"Could not render page '{docname}' as Jinja template. "
-        "Please ensure that the page content is valid."
-    )
     # Change Jinja environment markers to avoid clashes with the MyST Attributes extension
     # as well as templating syntax in control center configurations.
     # Refs:
@@ -89,7 +85,12 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
             app.config.html_context | {"docname": app.env.docname},
         )
     except Exception as e:
-        raise RuntimeError(error_msg) from e
+        full_path = app.env.doc2path(docname)
+        raise RuntimeError(
+            f"Could not render '{full_path}' as Jinja template "
+            f"(in {__name__}._source_jinja_template): "
+            f"{type(e).__name__}: {e}"
+        ) from e
     # Revert Jinja environment markers to their defaults
     # so that other templates and tools have the default markers.
     for attr, attr_val in attrs_default.items():
