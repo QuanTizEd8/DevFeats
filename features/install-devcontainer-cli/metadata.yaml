@@ -82,6 +82,13 @@ options:
     description: Uninstall instead of install (supported for `method=script` and npm).
 containerEnv:
   PATH: ${HOME}/.devcontainers/bin:/opt/devcontainers/bin:${PATH}
+installsAfter:
+  - ghcr.io/quantized8/sysset/setup-user
+  - ghcr.io/quantized8/sysset/install-jq
+  - ghcr.io/quantized8/sysset/install-yq
+  - ghcr.io/quantized8/sysset/install-shell
+  - ghcr.io/quantized8/sysset/install-node
+
 _dependencies:
   run:
     base:
