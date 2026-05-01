@@ -1,40 +1,66 @@
 {
-    "remoteUser": "sysset-dev",
-    "build": {
-        "dockerfile": "Dockerfile",
-        "options": ["--progress=plain"],
-        "cacheFrom": [
-            "ghcr.io/quantized8/sysset-devcontainer:cache-linux-amd64",
-            "ghcr.io/quantized8/sysset-devcontainer:cache-linux-arm64"
+  "name": "SysSet Development Environment",
+  "containerUser": "sysset-dev",
+  "remoteUser": "sysset-dev",
+  "build": {
+    // Currently, there is no way to define cache sources when using "image",
+    // so we have to use "dockerfile" even though we don't need a custom one.
+    "dockerfile": "Dockerfile",
+    "options": [
+      "--progress=plain"
+    ],
+    "cacheFrom": [
+      "ghcr.io/quantized8/sysset-devcontainer:cache-linux-amd64",
+      "ghcr.io/quantized8/sysset-devcontainer:cache-linux-arm64"
+    ]
+  },
+  "features": {
+    "ghcr.io/quantized8/sysset/setup-user": {
+      "username": "sysset-dev"
+    },
+    "ghcr.io/quantized8/sysset/install-gh": {},
+    "ghcr.io/quantized8/sysset/install-git": {},
+    "ghcr.io/quantized8/sysset/install-jq": {},
+    "ghcr.io/quantized8/sysset/install-just": {
+      "version": "1.50.0"
+    },
+    "ghcr.io/quantized8/sysset/install-shfmt": {
+      "version": "3.13.1"
+    },
+    "ghcr.io/quantized8/sysset/install-shellcheck": {
+      "version": "0.11.0"
+    },
+    "ghcr.io/quantized8/sysset/install-miniforge": {},
+    "ghcr.io/quantized8/sysset/install-shell": {},
+    "ghcr.io/quantized8/sysset/install-yq": {},
+    "ghcr.io/quantized8/sysset/install-devcontainer-cli": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  // "postCreateCommand": "lefthook install",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        // ── YAML Schema ─────────────────────────────────────────────────────────
+        "yaml.schemas": {
+            "features/metadata.schema.json": ["features/*/metadata.yaml"]
+        },
+        "yaml.schemaStore.enable": false,
+        "yaml.trace.server": "verbose",
+        // ── JSON Schema ─────────────────────────────────────────────────────────
+        "json.schemas": [
+          {
+            "fileMatch": [
+              "**/devcontainer-feature.json"
+            ],
+            "url": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json"
+          }
         ]
-    },
-    "features": {
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
-    },
-    "initializeCommand": "bash -c '[ -d src ] || bash scripts/python.sh scripts/sync-src.py'",
-    "updateContentCommand": "npm install -g @devcontainers/cli lefthook",
-    "postCreateCommand": "lefthook install",
-    "customizations": {
-        "vscode": {
-            "settings": {
-                "json.schemas": [
-                    {
-                        "fileMatch": [
-                            "*/devcontainer-feature.json"
-                        ],
-                        "url": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json"
-                    }
-                ]
-            },
-            "extensions": [
-                "mads-hartmann.bash-ide-vscode",
-                "timonwong.shellcheck",
-                "foxundermoon.shell-format",
-                "EditorConfig.EditorConfig",
-                "redhat.vscode-yaml",
-                // Syntax support for 'just': https://marketplace.visualstudio.com/items?itemName=nefrob.vscode-just-syntax
-                "nefrob.vscode-just-syntax"
-            ]
-        }
+      },
+      "extensions": [
+        "mads-hartmann.bash-ide-vscode",
+        "EditorConfig.EditorConfig",
+        "redhat.vscode-yaml"
+      ]
     }
+  }
 }
