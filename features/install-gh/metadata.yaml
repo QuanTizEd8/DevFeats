@@ -206,6 +206,12 @@ customizations:
       - github.vscode-github-actions
       - github.vscode-pull-request-github
       - github.remotehub
+installsAfter:
+  - ghcr.io/quantized8/sysset/setup-user
+  - ghcr.io/quantized8/sysset/install-jq
+  - ghcr.io/quantized8/sysset/install-yq
+  - ghcr.io/quantized8/sysset/install-shell
+  - ghcr.io/quantized8/sysset/install-git
 _dependencies:
   run:
     base:
