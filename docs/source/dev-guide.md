@@ -2,10 +2,6 @@
 
 
 
-
-
----
-
 ## Guide sections
 
 | Section | Description |
