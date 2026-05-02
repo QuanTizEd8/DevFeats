@@ -14,8 +14,8 @@ entries:
     file: user-guide
     entries:
       - file: user-guide/installation
-      - file: user-guide/installation-order
       - file: user-guide/options
+      - file: user-guide/installation-order
       - file: user-guide/manual
       - file: user-guide/versioning
 
