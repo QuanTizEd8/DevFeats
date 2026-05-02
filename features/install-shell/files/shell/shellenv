@@ -114,7 +114,7 @@ extend_path --prepend \
     "/sbin" \
     "/bin"
 if [ "$(id -u)" -ne 0 ]; then
-    extend_path "/usr/games"
+    extend_path --append "/usr/games"
 fi
 
 # --- XDG Base Directory Specification ---
