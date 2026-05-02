@@ -198,11 +198,14 @@ watch-gha *args:
 ]
 list-features:
     #!/usr/bin/env bash
+    total=0
     for f in features/*/metadata.yaml; do
       name=$(basename "$(dirname "$f")")
       desc=$(yq -r '.description' "$f")
       printf '%s: %s\n' "$name" "$desc"
+      total=$((total + 1))
     done
+    printf 'Total features: %d\n' "$total"
 
 
 [
