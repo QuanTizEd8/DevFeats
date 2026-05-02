@@ -49,7 +49,10 @@ elif [ -n "$_group_by_gid" ] && [ "$_group_by_gid" != "$GROUP_NAME" ]; then
       logging__info "Removing user '${_u}' (primary group conflict)."
       userdel "$_u" 2> /dev/null || logging__warn "Failed to remove user '${_u}'."
     done < <(awk -F: -v gid="$GROUP_ID" '$4 == gid {print $1}' /etc/passwd)
-    groupdel "$_group_by_gid" 2> /dev/null || logging__warn "Failed to delete group '${_group_by_gid}'."
+    # userdel on Debian/Ubuntu auto-removes the primary group, so guard the call.
+    if getent group "$_group_by_gid" > /dev/null 2>&1; then
+      groupdel "$_group_by_gid" 2> /dev/null || logging__warn "Failed to delete group '${_group_by_gid}'."
+    fi
   else
     logging__error "GID ${GROUP_ID} is already used by group '${_group_by_gid}'. Set replace_existing=true to override."
     exit 1
