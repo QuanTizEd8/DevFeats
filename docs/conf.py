@@ -216,6 +216,7 @@ html_context = {
     "github_version": "main",
     "doc_path": "docs/source",
     "feats": _feature_metadata,  # for Jinja templating in source files
+    "lib_modules": {},  # TODO: populate with module metadata for doc generation and templating
 }
 
 html_static_path = ["_static"]
