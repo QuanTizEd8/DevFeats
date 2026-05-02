@@ -1,9 +1,0 @@
-{
-    "name": "install-shell",
-    "image": "ubuntu:latest",
-    "initializeCommand": "bash scripts/python.sh scripts/sync-src.py",
-    "containerUser": "ubuntu",
-    "features": {
-        "../_src/install-shell": {}
-    }
-}
