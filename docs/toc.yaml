@@ -15,9 +15,8 @@ entries:
     entries:
       - file: user-guide/installation
       - file: user-guide/options
-      - file: user-guide/installation-order
-      - file: user-guide/manual
       - file: user-guide/versioning
+      - file: user-guide/technical
 
   - title: Features
     file: features
