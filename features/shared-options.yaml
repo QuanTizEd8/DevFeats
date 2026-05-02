@@ -54,17 +54,12 @@ fetch_netrc:
     Does not replace feature-specific credential options (e.g. install-pixi `netrc`
     for the pixi binary download); use together when both apply.
 
-log_file:
-  type: string
-  default: ""
-  description: Log all output (stdout + stderr) to this file in addition to console.
-
 log_level:
   type: string
   default: info
   description: >-
-    Control installer log verbosity (emoji-prefixed lines printed to stderr).
-  enum:
+    Minimum log level emitted to console (stderr).
+  enum: &log_levels
     - value: silent
       description: Only fatal (e.g. non-zero exit summary).
     - value: error
@@ -77,3 +72,15 @@ log_level:
       description: Above plus debug (🐞).
     - value: trace
       description: Above plus bash xtrace (`set -x`) for command-level tracing.
+
+log_file:
+  type: string
+  default: ""
+  description: Log all output (stdout + stderr) to this file in addition to console.
+
+log_file_level:
+  type: string
+  default: debug
+  description: >-
+    Minimum log level to capture in the log file specified by `log_file`.
+  enum: *log_levels
