@@ -13,7 +13,7 @@
 
 :::{grid-item-card} Introduction
 :class-title: sd-text-center
-:link: intro/index
+:link: intro
 :link-type: doc
 
 Learn about the motivation and goals behind |{{project_name}}|, the problems it solves, and how it compares to other tools in the ecosystem.
@@ -22,7 +22,7 @@ Learn about the motivation and goals behind |{{project_name}}|, the problems it 
 
 :::{grid-item-card} User Guide
 :class-title: sd-text-center
-:link: user-guide/index
+:link: user-guide
 :link-type: doc
 
 Find out how to use |{{project_name}}|: installation guide, customization, versioning, examples, and other general usage details.
@@ -30,7 +30,7 @@ Find out how to use |{{project_name}}|: installation guide, customization, versi
 
 :::{grid-item-card} Features
 :class-title: sd-text-center
-:link: user-guide/features
+:link: features
 :link-type: doc
 
 Navigate all available features and their documentation: options, examples, defaults, and other per-feature details.
@@ -38,15 +38,15 @@ Navigate all available features and their documentation: options, examples, defa
 
 :::{grid-item-card} Background Knowledge
 :class-title: sd-text-center
-:link: learn/index
+:link: background
 :link-type: doc
 
 Learn about the concepts and tools that |{{project_name}}| builds on: shells, package managers, Dev Containers, environment variables, and other background knowledge.
 :::
 
-:::{grid-item-card} Contribution Guide
+:::{grid-item-card} Developer Guide
 :class-title: sd-text-center
-:link: dev/index
+:link: dev-guide
 :link-type: doc
 
 Find out how to contribute to |{{project_name}}|: feedback, bug report, feature request, developer guide, donations, and other ways to get involved.
