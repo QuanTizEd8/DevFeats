@@ -189,7 +189,7 @@ Some options are shared across features, such as logging-related options, cache 
 
 ### Logging
 
-All features support emitting logs to the console (stderr) and/or to a file, with configurable verbosity (and known secrets redacted). Log lines are prefixed with emojis to indicate their level. The logging is controlled by three options that are supported across all features:
+All features support emitting logs to the console (stderr) and/or to a file, with configurable verbosity (and known secrets redacted). Log lines are prefixed with emojis to indicate their level (grep for `❌` / `⛔` in a log file to jump straight to failures.). The logging is controlled by three options that are supported across all features:
 
 - **`log_level`** *(string, default `"info"`)* — controls logging verbosity for the console (stderr). Levels are, in increasing order of verbosity:
   - `silent`: only fatal errors (❌)
@@ -198,7 +198,7 @@ All features support emitting logs to the console (stderr) and/or to a file, wit
   - `info`: above plus general info (ℹ️)
   - `debug`: above plus debug messages (🐞)
   - `trace`: above plus `bash -x` tracing inside the installer
-- **`log_file`** *(string, default `""`)* — when set to a file path, all logs are also captured to that file in addition to the console. The file receives the same log lines as the console, but filtered by `log_file_level` instead of `log_level`, so you can have verbose logs in the file and a quieter console output.
+- **`log_file`** *(string, default `""`)* — when set to a file path, all logs are also captured to that file in addition to the console. The file receives the same log lines as the console, but filtered by `log_file_level` instead of `log_level`, so you can have verbose logs in the file and a quieter console output. Append-safe; works across features in the same run.
 - **`log_file_level`** *(string, default `"debug"`)* — controls the minimum log level captured in the log file specified by `log_file`. Same levels as `log_level`.
 
 ### Caching
