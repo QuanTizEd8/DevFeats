@@ -1,8 +1,6 @@
 # User Guide
 
-This guide provides general instructions for installing and using features. For a complete list of available features and detailed documentation on each, see [Features Reference](features.md).
-
----
+This guide provides general instructions for installing and using features. For a complete list of available features and detailed documentation on each, see the [Features](features.md).
 
 ::::{grid} 1
 :gutter: 3
