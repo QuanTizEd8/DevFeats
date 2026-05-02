@@ -62,10 +62,10 @@ net__fetch_with_retry() {
       *) break ;;
     esac
   done
-  local _i=1 _rc
+  local _i=1 _rc=0
   while [ "$_i" -le "$_max" ]; do
-    "$@"
-    _rc=$?
+    _rc=0
+    "$@" || _rc=$?
     [ "$_rc" -eq 0 ] && return 0
     [ -n "$_bail_on" ] && [ "$_rc" -eq "$_bail_on" ] && return "$_rc"
     if [ "$_i" -lt "$_max" ]; then
