@@ -577,7 +577,7 @@ ospkg__update() {
 
   if [[ "$_skip" == false ]]; then
     logging__info "Updating package lists."
-    net__fetch_with_retry --bail-on 2 _ospkg_update_cmd
+    net__fetch_with_retry --bail-on 2 --retries 10 _ospkg_update_cmd
     _OSPKG_UPDATED=true
     logging__success "Package lists updated."
   fi
