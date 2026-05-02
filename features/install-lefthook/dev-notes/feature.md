@@ -9,7 +9,7 @@ Lefthook is a Git hook manager implemented as a single Go binary. It installs sm
 
 ## Available Installation Methods
 
-The upstream project documents many install channels. For SysSet feature design, the most implementation-relevant methods are: direct GitHub Release binary installation, OS package manager installation, and language-ecosystem package installation.
+The upstream project documents many install channels. For DevFeats feature design, the most implementation-relevant methods are: direct GitHub Release binary installation, OS package manager installation, and language-ecosystem package installation.
 
 ### GitHub Release Binary (Manual Installation)
 

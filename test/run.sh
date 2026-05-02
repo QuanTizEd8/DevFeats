@@ -6,7 +6,7 @@
 #   bash test/run.sh feature <feature>
 #   bash test/run.sh linux   <feature> [--filter <scenario>]
 #   bash test/run.sh macos   <feature> [--filter <scenario>]
-#   bash test/run.sh dist    [--suite <build|get|sysset|macos>] [--filter <name>]
+#   bash test/run.sh dist    [--suite <build|get|devfeats|macos>] [--filter <name>]
 #   bash test/run.sh dry-run
 #   bash test/run.sh all
 #
@@ -24,7 +24,7 @@ Subcommands:
   feature <feature>
   linux   <feature> [--filter <scenario>]
   macos   <feature> [--filter <scenario>]
-  dist    [--suite <build|get|sysset|macos>] [--filter <name>]
+  dist    [--suite <build|get|devfeats|macos>] [--filter <name>]
   dry-run
   all                        run unit, dry-run, and dist
 EOF
@@ -50,7 +50,7 @@ case "$SUBCMD" in
     # build args so unauthenticated GitHub API calls in feature install never hit
     # rate limits when CI (or a local user) exports GITHUB_TOKEN. Tracked
     # test/**/scenarios.json stays unchanged; see test/scripts/merge_github_token_into_scenarios.py
-    _WORK="$(mktemp -d "${TMPDIR:-/tmp}/sysset-feature-test.XXXXXX")"
+    _WORK="$(mktemp -d "${TMPDIR:-/tmp}/devfeats-feature-test.XXXXXX")"
     trap 'rm -rf "${_WORK}"' EXIT
     ln -sfn "${REPO_ROOT}/src" "${_WORK}/src"
     cp -a "${REPO_ROOT}/test" "${_WORK}/test"

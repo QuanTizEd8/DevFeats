@@ -160,7 +160,7 @@ EOF
   assert_output --partial "curl"
   assert_output --partial "--retry 60"
   assert_output --partial "--compressed"
-  assert_output --partial "User-Agent: sysset"
+  assert_output --partial "User-Agent: devfeats"
 }
 
 @test "net__fetch_url_stdout routes to wget when _NET_FETCH_TOOL=wget" {
@@ -205,7 +205,7 @@ EOF
   assert_output --partial "curl"
   assert_output --partial "--retry 60"
   assert_output --partial "--compressed"
-  assert_output --partial "User-Agent: sysset"
+  assert_output --partial "User-Agent: devfeats"
 }
 
 @test "net__fetch_url_stdout returns failure when curl fails" {
@@ -247,7 +247,7 @@ EOF
   export -f curl
   run net__fetch_url_stdout "https://example.com" --header "User-Agent: other/1"
   assert_output --partial "User-Agent: other/1"
-  refute_output --partial "User-Agent: sysset"
+  refute_output --partial "User-Agent: devfeats"
 }
 
 @test "net__fetch_url_file routes to wget when _NET_FETCH_TOOL=wget" {

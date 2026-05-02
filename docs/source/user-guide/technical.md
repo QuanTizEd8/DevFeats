@@ -7,7 +7,7 @@ Features are packaged as self-contained tarballs, versioned according to Semanti
 Every feature is released under its own version, with a dedicated Git tag, GitHub release, and OCI tags for the major, minor, and patch versions (and a rolling `latest` tag):
 
 - **Git tag:** `<feature-id>/<version>` (e.g. `install-pixi/1.2.3`)
-- **GitHub release:** per-tag, with a single asset `sysset-<feature-id>-<version>.tar.gz` (e.g. `sysset-install-pixi-1.2.3.tar.gz`).
+- **GitHub release:** per-tag, with a single asset `devfeats-<feature-id>-<version>.tar.gz` (e.g. `devfeats-install-pixi-1.2.3.tar.gz`).
 - **OCI tags:** `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>:<version>`, where `<version>` can be `latest` (e.g. `ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:latest`), `<major>` (e.g. `ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:1`), `<major>.<minor>` (e.g. `ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:1.2`), or `<major>.<minor>.<patch>` (e.g. `ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:1.2.3`).
 
 ### Release Artifacts
@@ -15,7 +15,7 @@ Every feature is released under its own version, with a dedicated Git tag, GitHu
 Feature tarballs follow a consistent structure:
 
 ```text
-sysset-<feature-id>.tar.gz
+devfeats-<feature-id>.tar.gz
 ├── devcontainer-feature.json
 ├── install.sh
 ├── install.bash

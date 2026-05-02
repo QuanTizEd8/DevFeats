@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/override_order.sh — Verify that overrideFeatureInstallOrder raises
+# devfeats/override_order.sh — Verify that overrideFeatureInstallOrder raises
 # priority for earlier entries so a listed feature can run before another in
 # the same round when the graph has no hard edges between them.
 #
@@ -29,8 +29,8 @@ export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 for _f in install-pixi install-os-pkg; do
   push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-    "quantized8/sysset/${_f}:${_VER}" \
-    "${DIST}/sysset-${_f}.tar.gz"
+    "quantized8/devfeats/${_f}:${_VER}" \
+    "${DIST}/devfeats-${_f}.tar.gz"
 done
 
 _manifest="${_manifest_dir}/devcontainer.json"
@@ -38,12 +38,12 @@ cat > "$_manifest" << EOF
 {
   "name": "override-order test",
   "overrideFeatureInstallOrder": [
-    "ghcr.io/quantized8/sysset/install-pixi",
-    "ghcr.io/quantized8/sysset/install-os-pkg"
+    "ghcr.io/quantized8/devfeats/install-pixi",
+    "ghcr.io/quantized8/devfeats/install-os-pkg"
   ],
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
+    "ghcr.io/quantized8/devfeats/install-pixi:${_VER}": { "version": "0.66.0" },
+    "ghcr.io/quantized8/devfeats/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
   }
 }
 EOF

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/lockfile_download_only_and_frozen.sh
+# devfeats/lockfile_download_only_and_frozen.sh
 # Verifies:
 # 1) --lockfile writes resolved OCI refs in --download-only mode
 # 2) --frozen-lockfile installs using the lockfile ref without tag resolution

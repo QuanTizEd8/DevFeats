@@ -393,7 +393,7 @@ fi
 if [[ -n "${NETRC:-}" ]]; then
   case "${NETRC}" in
     http://* | https://* | file://* | oci://* | gh://*)
-      _pixi_netrc_tmp="$(mktemp "${TMPDIR:-/tmp}/sysset-netrc.XXXXXX")"
+      _pixi_netrc_tmp="$(mktemp "${TMPDIR:-/tmp}/devfeats-netrc.XXXXXX")"
       chmod 600 "${_pixi_netrc_tmp}" || true
       NETRC="$(uri__resolve "${NETRC}" "${_pixi_netrc_tmp}" "${_pixi_uri_fetch_args[@]}")"
       chmod 600 "${NETRC}"

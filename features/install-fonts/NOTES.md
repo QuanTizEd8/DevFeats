@@ -6,7 +6,7 @@
 // .devcontainer/devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {}
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {}
   }
 }
 ```
@@ -22,7 +22,7 @@ With the defaults above, the feature will:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "nerd_fonts": "Meslo,FiraCode,Hack,JetBrainsMono"
     }
   }
@@ -38,7 +38,7 @@ for example, `Meslo` downloads `Meslo.tar.xz`.
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "nerd_fonts": ""
     }
   }
@@ -50,7 +50,7 @@ for example, `Meslo` downloads `Meslo.tar.xz`.
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "nerd_fonts": "",
       "font_urls": "https://example.com/fonts/MyFont-Regular.ttf"
     }
@@ -61,14 +61,14 @@ for example, `Meslo` downloads `Meslo.tar.xz`.
 Supported extensions for individual files: `.ttf`, `.otf`, `.woff`, `.woff2`.
 The file is deduplicated by PostScript name against already-registered fonts and
 installed under a namespaced path:
-`<font_dir>/sysset-install-fonts-<timestamp>/url/<host>/<path>/MyFont-Regular.ttf`
+`<font_dir>/devfeats-install-fonts-<timestamp>/url/<host>/<path>/MyFont-Regular.ttf`
 
 ### Direct URL — archive
 
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "nerd_fonts": "",
       "font_urls": "https://example.com/fonts/MyFont-2.0.tar.xz"
     }
@@ -79,14 +79,14 @@ installed under a namespaced path:
 Supported archive formats: `.tar.xz`, `.tar.gz`, `.tgz`, `.zip`. Font files
 inside the archive are deduplicated by PostScript name and installed preserving
 the archive's internal directory structure under a namespaced path:
-`<font_dir>/sysset-install-fonts-<timestamp>/url/<host>/<path>/...`
+`<font_dir>/devfeats-install-fonts-<timestamp>/url/<host>/<path>/...`
 
 ### GitHub release — latest
 
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "nerd_fonts": "",
       "gh_release_fonts": "JetBrains/JetBrainsMono"
     }
@@ -98,14 +98,14 @@ Fetches all font/archive assets from the latest release of
 `github.com/JetBrains/JetBrainsMono`. Archives are preferred over individual
 files when both are present. Fonts are deduplicated by PostScript name and
 installed under:
-`<font_dir>/sysset-install-fonts-<timestamp>/gh/JetBrains/JetBrainsMono/<tag>/<release_id>/...`
+`<font_dir>/devfeats-install-fonts-<timestamp>/gh/JetBrains/JetBrainsMono/<tag>/<release_id>/...`
 
 ### GitHub release — pinned tag
 
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "nerd_fonts": "",
       "gh_release_fonts": "JetBrains/JetBrainsMono@v2.304"
     }
@@ -121,7 +121,7 @@ API instead of the latest endpoint.
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "p10k_fonts": true
     }
   }
@@ -132,14 +132,14 @@ Installs the four
 [MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts required
 by the [Powerlevel10k](https://github.com/romkatv/powerlevel10k) Zsh theme:
 Regular, Bold, Italic, and Bold Italic. Fonts land under:
-`<font_dir>/sysset-install-fonts-<timestamp>/p10k/MesloLGS-NF/`
+`<font_dir>/devfeats-install-fonts-<timestamp>/p10k/MesloLGS-NF/`
 
 ### Custom font directory
 
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "font_dir": "/opt/fonts"
     }
   }
@@ -155,7 +155,7 @@ non-standard font paths.
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "nerd_fonts": "Meslo,FiraCode",
       "font_urls": "https://example.com/MyFont.tar.gz,https://example.com/Extra.ttf",
       "gh_release_fonts": "JetBrains/JetBrainsMono@v2.304",
@@ -175,7 +175,7 @@ installed. Set `overwrite: true` to invert this behavior.
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-fonts:0": {
+    "ghcr.io/quantized8/devfeats/install-fonts:0": {
       "nerd_fonts": "Meslo",
       "overwrite": true
     }
@@ -229,7 +229,7 @@ For each of the four MesloLGS NF variants:
 1. Downloads the file to a temp path.
 2. Queries its PostScript name; checks against `_SEEN_NAMES`.
 3. If new (or `overwrite: true`): lazily creates
-   `<font_dir>/sysset-install-fonts-<timestamp>/` (once, on first write),
+   `<font_dir>/devfeats-install-fonts-<timestamp>/` (once, on first write),
    copies to `p10k/MesloLGS-NF/<filename>`, and registers the name.
 4. If already registered: logs and skips (or overwrites, if `overwrite: true`).
 
@@ -372,7 +372,7 @@ installed.
 | `/usr/share/fonts/` | Default font directory (root/container) |
 | `~/Library/Fonts/` | Default font directory (macOS user) |
 | `~/.local/share/fonts/` | Default font directory (Linux non-root user, XDG default) |
-| `<font_dir>/sysset-install-fonts-<timestamp>/` | Timestamped install dir created once per run (only when new fonts are written) |
+| `<font_dir>/devfeats-install-fonts-<timestamp>/` | Timestamped install dir created once per run (only when new fonts are written) |
 | `.../p10k/MesloLGS-NF/` | Powerlevel10k MesloLGS NF fonts |
 | `.../nerd/<FontName>/` | Nerd Font files (archive internal structure preserved) |
 | `.../gh/<owner>/<repo>/<tag>/<id>/` | GitHub release fonts (archive internal structure preserved) |
@@ -388,7 +388,7 @@ directory is never created.
 
 ```
 <font_dir>/
-  sysset-install-fonts-<unix-timestamp>/
+  devfeats-install-fonts-<unix-timestamp>/
     p10k/
       MesloLGS-NF/
         "MesloLGS NF Regular.ttf"
@@ -436,7 +436,7 @@ than modifying the first.
 | `unzip` | Extract `.zip` archives |
 
 This feature declares a hard dependency on
-`ghcr.io/quantized8/sysset/install-os-pkg:0`. That feature provides the
+`ghcr.io/quantized8/devfeats/install-os-pkg:0`. That feature provides the
 `install-os-pkg` command and is guaranteed to run before `install-fonts`.
 
 ---
@@ -537,7 +537,7 @@ src/install-fonts/
 - **Font PostScript name already registered (`overwrite: false`)** — the
   font file is skipped with an `ℹ️` message and the existing copy is kept.
   This is the default idempotency mechanism: repeated runs create no new
-  `sysset-install-fonts-*` directory when all requested fonts are already
+  `devfeats-install-fonts-*` directory when all requested fonts are already
   present.
 - **Font PostScript name already registered (`overwrite: true`)** — the new
   file overwrites the registered name in `_SEEN_NAMES` and is installed.

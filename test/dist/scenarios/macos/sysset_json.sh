@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# macos/sysset_json.sh — Verify that install.bash processes a devcontainer.json and
+# macos/devfeats_json.sh — Verify that install.bash processes a devcontainer.json and
 # installs features on macOS using a local HTTP file server.
 #
 # setup-shim is used because it requires no package manager (no ospkg__run
@@ -24,8 +24,8 @@ _fakebin="${_tmp}/fakebin"
 mkdir -p "${_fakebin}"
 mkdir -p "${_MIRROR}"
 mkdir -p "${_MIRROR}/setup-shim/${_VER}"
-cp "${DIST}/sysset-setup-shim.tar.gz" "${_MIRROR}/setup-shim/${_VER}/"
-_PAYLOAD="${DIST}/sysset-setup-shim.tar.gz"
+cp "${DIST}/devfeats-setup-shim.tar.gz" "${_MIRROR}/setup-shim/${_VER}/"
+_PAYLOAD="${DIST}/devfeats-setup-shim.tar.gz"
 _HASH="$(shasum -a 256 "$_PAYLOAD" | awk '{print $1}')"
 offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "setup-shim:${_VER}"
 
@@ -79,7 +79,7 @@ cat > "$_manifest" << EOF
 {
   "name": "macos ${_BUNDLE}",
   "features": {
-    "ghcr.io/quantized8/sysset/setup-shim": {}
+    "ghcr.io/quantized8/devfeats/setup-shim": {}
   }
 }
 EOF

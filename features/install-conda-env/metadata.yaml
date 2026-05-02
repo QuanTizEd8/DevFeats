@@ -31,7 +31,7 @@ options:
     - value: https://raw.githubusercontent.com/owner/repo/main/environment.yaml
       description: Public GitHub raw URL.
     - value: gh://owner/repo@v1.2.3:envs/dev.yaml
-      description: GitHub repository file (sysset `gh://` form, pinned to a tag).
+      description: GitHub repository file (devfeats `gh://` form, pinned to a tag).
     - value: oci://ghcr.io/org/conda-envs:v1?path=dev.yaml
       description: OCI artifact; `?path=` selects a file from the pulled content.
     - value: file:///workspaces/${localWorkspaceFolderBasename}/environment.yaml
@@ -125,8 +125,8 @@ options:
       description: Force the conda solver.
     type: string
 installsAfter:
-  - ghcr.io/quantized8/sysset/setup-user
-  - ghcr.io/quantized8/sysset/install-jq
-  - ghcr.io/quantized8/sysset/install-yq
-  - ghcr.io/quantized8/sysset/install-shell
-  - ghcr.io/quantized8/sysset/install-miniforge
+  - ghcr.io/quantized8/devfeats/setup-user
+  - ghcr.io/quantized8/devfeats/install-jq
+  - ghcr.io/quantized8/devfeats/install-yq
+  - ghcr.io/quantized8/devfeats/install-shell
+  - ghcr.io/quantized8/devfeats/install-miniforge

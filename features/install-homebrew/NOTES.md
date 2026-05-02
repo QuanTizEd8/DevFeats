@@ -6,7 +6,7 @@
 // .devcontainer/devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-homebrew:0": {}
+    "ghcr.io/quantized8/devfeats/install-homebrew:0": {}
   }
 }
 ```
@@ -16,7 +16,7 @@ Install and make a couple of tools available at build time:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-homebrew:0": {}
+    "ghcr.io/quantized8/devfeats/install-homebrew:0": {}
   },
   "postCreateCommand": "brew install bat ripgrep"
 }
@@ -31,11 +31,11 @@ below.
 
 ```sh
 # Linux (run as root or with sudo)
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/src/install-homebrew/install.sh \
+curl -fsSL https://raw.githubusercontent.com/quantized8/devfeats/main/src/install-homebrew/install.sh \
   | sudo bash
 
 # macOS (run as your regular user, or with sudo for system-wide shellenv)
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/src/install-homebrew/install.sh \
+curl -fsSL https://raw.githubusercontent.com/quantized8/devfeats/main/src/install-homebrew/install.sh \
   | bash
 ```
 

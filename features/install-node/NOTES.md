@@ -8,14 +8,14 @@ The simplest use — installs the latest Active LTS Node.js release using nvm wi
 // devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {}
+    "ghcr.io/quantized8/devfeats/install-node:1": {}
   }
 }
 ```
 
 Equivalent standalone invocation:
 ```bash
-curl -fsSL https://get.sysset.dev | bash -s -- install-node
+curl -fsSL https://get.devfeats.dev | bash -s -- install-node
 ```
 
 ### Pin a Specific Node.js Version
@@ -25,7 +25,7 @@ Install an exact Node.js version using the binary method (fastest, no nvm overhe
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "method": "binary",
       "version": "22.15.1"
     }
@@ -35,7 +35,7 @@ Install an exact Node.js version using the binary method (fastest, no nvm overhe
 
 Standalone:
 ```bash
-curl -fsSL https://get.sysset.dev | bash -s -- install-node --method binary --version 22.15.1
+curl -fsSL https://get.devfeats.dev | bash -s -- install-node --method binary --version 22.15.1
 ```
 
 ### Pin a Major LTS Line
@@ -45,7 +45,7 @@ Install the latest release in the v22 "Jod" LTS line:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "version": "22"
     }
   }
@@ -60,7 +60,7 @@ Alpine requires `method=nvm` (the default). The installer automatically switches
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "method": "nvm",
       "version": "lts/*"
     }
@@ -78,7 +78,7 @@ the installer creates a symlink `/usr/local/share/nvm` → `/opt/nvm`—so `cont
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "method": "nvm",
       "nvm_version": "0.40.4",
       "nvm_dir": "/opt/nvm",
@@ -90,7 +90,7 @@ the installer creates a symlink `/usr/local/share/nvm` → `/opt/nvm`—so `cont
 
 Standalone:
 ```bash
-curl -fsSL https://get.sysset.dev | bash -s -- install-node \
+curl -fsSL https://get.devfeats.dev | bash -s -- install-node \
   --method nvm --nvm_version 0.40.4 --nvm_dir /opt/nvm --version 22
 ```
 
@@ -101,7 +101,7 @@ Install the Node.js binary to `/opt/node` with a symlink in `/usr/local/bin`:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "method": "binary",
       "version": "24",
       "prefix": "/opt/node",
@@ -118,7 +118,7 @@ Export the PATH for the devcontainer remote user in addition to system-wide file
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:2": {
+    "ghcr.io/quantized8/devfeats/install-node:2": {
       "method": "binary",
       "version": "lts/*",
       "add_remote_user": true
@@ -135,7 +135,7 @@ disable redundant PATH writes:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "export_path": ""
     }
   }
@@ -149,7 +149,7 @@ Reinstall Node.js even if it's already present in PATH:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "if_exists": "reinstall",
       "version": "22"
     }
@@ -164,7 +164,7 @@ Install both pnpm and Yarn alongside Node.js:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "version": "22",
       "pnpm_version": "latest",
       "yarn_version": "latest"
@@ -175,7 +175,7 @@ Install both pnpm and Yarn alongside Node.js:
 
 Standalone:
 ```bash
-curl -fsSL https://get.sysset.dev | bash -s -- install-node \
+curl -fsSL https://get.devfeats.dev | bash -s -- install-node \
   --version 22 --pnpm_version latest --yarn_version latest
 ```
 
@@ -186,7 +186,7 @@ Install v22 as default and also install v20 and v18 (for cross-version testing):
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "version": "22",
       "additional_versions": "20,18"
     }
@@ -201,7 +201,7 @@ For minimal images where native module compilation is not needed:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "version": "lts/*",
       "node_gyp_deps": false
     }
@@ -216,7 +216,7 @@ Install nvm without installing any Node.js version — useful when a `.nvmrc` or
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "version": "none"
     }
   }
@@ -287,7 +287,7 @@ The feature sets `NVM_DIR=/usr/local/share/nvm` in `containerEnv`. This means:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/devfeats/install-node:1": {
       "nvm_dir": "/opt/nvm",
       "symlink": false
     }

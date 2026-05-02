@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/initialize_command.sh — Exercise host-side `initializeCommand`.
+# devfeats/initialize_command.sh — Exercise host-side `initializeCommand`.
 #
 # What this tests:
 #   • A string initializeCommand runs via /bin/sh -c before any feature install.
@@ -29,8 +29,8 @@ start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/install-pixi:${_VER}" \
-  "${DIST}/sysset-install-pixi.tar.gz"
+  "quantized8/devfeats/install-pixi:${_VER}" \
+  "${DIST}/devfeats-install-pixi.tar.gz"
 
 # ── 1. initializeCommand runs before install ─────────────────────────────────
 _mfa="${_manifest_dir}/with-init.json"
@@ -39,7 +39,7 @@ cat > "$_mfa" << EOF
   "name": "init test",
   "initializeCommand": "touch '${_sentinel}'",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" }
+    "ghcr.io/quantized8/devfeats/install-pixi:${_VER}": { "version": "0.66.0" }
   }
 }
 EOF
@@ -58,7 +58,7 @@ cat > "$_mfb" << EOF
   "name": "skip-init test",
   "initializeCommand": "touch '${_skip_sentinel}'",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" }
+    "ghcr.io/quantized8/devfeats/install-pixi:${_VER}": { "version": "0.66.0" }
   }
 }
 EOF
@@ -75,7 +75,7 @@ cat > "$_mfc" << EOF
   "name": "fail-init test",
   "initializeCommand": "false",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" }
+    "ghcr.io/quantized8/devfeats/install-pixi:${_VER}": { "version": "0.66.0" }
   }
 }
 EOF

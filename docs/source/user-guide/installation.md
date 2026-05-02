@@ -40,27 +40,27 @@ Features are then downloaded, [ordered](installation-order.md), and installed au
 
 ## Universal Installation
 
-Outside Dev Containers, features can be installed either using SysSet, or directly from their release artifacts.
+Outside Dev Containers, features can be installed either using DevFeats, or directly from their release artifacts.
 **Re-runs are idempotent** — installers check for already-done work and skip it, so you can rerun after fixing an environment issue without uninstalling first.
 
 
-### SysSet Installation
+### DevFeats Installation
 
-This is the recommended method for installing features outside Dev Containers. SysSet is a Dev Container supporting tool that can install any Dev Container Feature on any compatible platform, with the same behavior as if it were running inside a container. It provides a convenient CLI interface, handles all the plumbing around downloading and invoking features, and correctly handles all Dev Container specific configurations such as dependency resolution, installation order, and lifecycle hooks. It can be used to install features one at a time:
+This is the recommended method for installing features outside Dev Containers. DevFeats is a Dev Container supporting tool that can install any Dev Container Feature on any compatible platform, with the same behavior as if it were running inside a container. It provides a convenient CLI interface, handles all the plumbing around downloading and invoking features, and correctly handles all Dev Container specific configurations such as dependency resolution, installation order, and lifecycle hooks. It can be used to install features one at a time:
 
 ```sh
-sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1 --version 2.89.0
+devfeats feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1 --version 2.89.0
 ```
 
 or even whole environments defined by `devcontainer.json` files:
 
 ```sh
-sysset env install /path/to/devcontainer.json
+devfeats env install /path/to/devcontainer.json
 ```
 
 ### Direct Installation
 
-Features can also be installed directly from their release artifacts, without using SysSet. This involves:
+Features can also be installed directly from their release artifacts, without using DevFeats. This involves:
 
 1. download the corresponding asset from GHCR or GitHub Releases,
 2. extract the tarball,
@@ -115,17 +115,17 @@ oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-miniforge:0.1 --ou
 
 ##### From GitHub Releases
 
-Features are published to GitHub Releases under `<base>/<feature-id>/<version>/sysset-<feature-id>-<version>.tar.gz`, where `<base>` is `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. To download a feature from GitHub Releases, you can use any networking tool (e.g. `curl` or `wget`) to download the corresponding asset. For example:
+Features are published to GitHub Releases under `<base>/<feature-id>/<version>/devfeats-<feature-id>-<version>.tar.gz`, where `<base>` is `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. To download a feature from GitHub Releases, you can use any networking tool (e.g. `curl` or `wget`) to download the corresponding asset. For example:
 
 ```sh
 # Use curl to download 'install-gh' version '0.1.0' and save as 'install-gh.tar.gz'
 ID=install-gh VERSION=0.1.0 curl -fsSL \
-  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/sysset-$ID-$VERSION.tar.gz \
+  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz \
   -o install-gh.tar.gz
 
 # Use wget to download 'install-git' version '0.1.0' and save as 'install-git.tar.gz'
 ID=install-git VERSION=0.1.0 wget -qO- \
-  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/sysset-$ID-$VERSION.tar.gz \
+  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz \
   -O install-git.tar.gz
 ```
 

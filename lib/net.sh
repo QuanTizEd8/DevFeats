@@ -14,14 +14,14 @@ _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
 
 # _net__hdrs_with_default_ua <hdr_block> — Echo <hdr_block> unchanged if it
-# already contains a User-Agent line; otherwise prepend "User-Agent: sysset".
+# already contains a User-Agent line; otherwise prepend "User-Agent: devfeats".
 # GitHub and some CDNs return 403 for curl's default anonymous User-Agent.
 _net__hdrs_with_default_ua() {
   local _net__ua_in="$1"
   if printf '%s\n' "$_net__ua_in" | grep -qi '^user-agent:'; then
     printf '%s' "$_net__ua_in"
   else
-    printf '%s%s' "User-Agent: sysset
+    printf '%s%s' "User-Agent: devfeats
 " "$_net__ua_in"
   fi
 }

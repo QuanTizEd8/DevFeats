@@ -1,6 +1,6 @@
 # Feature Reference
 
-jq is a lightweight command-line JSON processor written in portable C. It is widely used in shell pipelines, CI/CD scripts, data-processing jobs, and configuration tooling to filter, transform, and validate JSON. The jq project publishes multiple installation paths: distro package managers, prebuilt release binaries, source tarballs, and a container image. For a SysSet feature that must work across macOS and Linux (including containers and bare metal), the practical methods are: OS package manager, prebuilt binary download, and source build.
+jq is a lightweight command-line JSON processor written in portable C. It is widely used in shell pipelines, CI/CD scripts, data-processing jobs, and configuration tooling to filter, transform, and validate JSON. The jq project publishes multiple installation paths: distro package managers, prebuilt release binaries, source tarballs, and a container image. For a DevFeats feature that must work across macOS and Linux (including containers and bare metal), the practical methods are: OS package manager, prebuilt binary download, and source build.
 
 - **Homepage**: https://jqlang.org/
 - **Source Code**: https://github.com/jqlang/jq

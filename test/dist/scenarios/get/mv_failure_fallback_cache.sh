@@ -24,15 +24,15 @@ _registry="${_tmp}/registry"
 _fakebin="${_tmp}/fakebin"
 mkdir -p "${_registry}" "${_fakebin}"
 
-_payload_tgz="${REPO_ROOT}/dist/sysset-install-pixi.tar.gz"
+_payload_tgz="${REPO_ROOT}/dist/devfeats-install-pixi.tar.gz"
 if command -v sha256sum > /dev/null 2>&1; then
   _hex="$(sha256sum "$_payload_tgz" | awk '{print $1}')"
 else
   _hex="$(shasum -a 256 "$_payload_tgz" | awk '{print $1}')"
 fi
 _dkey="sha256:${_hex}"
-_ref="ghcr.io/quantized8/sysset/install-pixi:1.2.3"
-_rel="features/ghcr.io/quantized8/sysset/install-pixi/sha256/${_hex}/"
+_ref="ghcr.io/quantized8/devfeats/install-pixi:1.2.3"
+_rel="features/ghcr.io/quantized8/devfeats/install-pixi/sha256/${_hex}/"
 _dest="${_registry}/${_rel}"
 mkdir -p "$_dest"
 tar -xzf "$_payload_tgz" -C "$_dest"

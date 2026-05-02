@@ -6,7 +6,7 @@
 // .devcontainer/devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user:0": {}
+    "ghcr.io/quantized8/devfeats/setup-user:0": {}
   }
 }
 ```
@@ -23,7 +23,7 @@ With the defaults above, the feature creates:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user:0": {
+    "ghcr.io/quantized8/devfeats/setup-user:0": {
       "username": "devuser",
       "user_id": "2000",
       "group_id": "2000",
@@ -38,7 +38,7 @@ With the defaults above, the feature creates:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user:0": {
+    "ghcr.io/quantized8/devfeats/setup-user:0": {
       "home_dir": "/workspaces/myapp",
       "user_shell": "/bin/zsh"
     }
@@ -51,7 +51,7 @@ With the defaults above, the feature creates:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user:0": {
+    "ghcr.io/quantized8/devfeats/setup-user:0": {
       "sudo_access": false,
       "extra_groups": "docker,dialout"
     }

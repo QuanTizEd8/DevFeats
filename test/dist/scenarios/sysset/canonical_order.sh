@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/canonical_order.sh — Verify that install.bash orders features using the
+# devfeats/canonical_order.sh — Verify that install.bash orders features using the
 # graph (and jq key order / priorities), with install-os-pkg before install-pixi
 # when there is no override privileging pixi.
 #
@@ -28,8 +28,8 @@ export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 for _f in install-pixi install-os-pkg; do
   push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-    "quantized8/sysset/${_f}:${_VER}" \
-    "${DIST}/sysset-${_f}.tar.gz"
+    "quantized8/devfeats/${_f}:${_VER}" \
+    "${DIST}/devfeats-${_f}.tar.gz"
 done
 
 _manifest="${_manifest_dir}/devcontainer.json"
@@ -37,8 +37,8 @@ cat > "$_manifest" << EOF
 {
   "name": "canonical-order test",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
+    "ghcr.io/quantized8/devfeats/install-pixi:${_VER}": { "version": "0.66.0" },
+    "ghcr.io/quantized8/devfeats/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
   }
 }
 EOF

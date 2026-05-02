@@ -36,14 +36,14 @@ cat > "${_stage}/root/devcontainer-feature.json" << EOF
   }
 }
 EOF
-tar -C "${_stage}/root" -czf "${_stage}/sysset-${_FEAT}.tar.gz" .
+tar -C "${_stage}/root" -czf "${_stage}/devfeats-${_FEAT}.tar.gz" .
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/${_FEAT}:${_VER}" \
-  "${_stage}/sysset-${_FEAT}.tar.gz"
+  "quantized8/devfeats/${_FEAT}:${_VER}" \
+  "${_stage}/devfeats-${_FEAT}.tar.gz"
 
 # ── 1. --workspace-folder sets default cwd for lifecycle commands ────────────
 check "install.sh --workspace-folder <ws> runs hook in <ws>" \
@@ -66,10 +66,10 @@ cat > "${_stage}/root/devcontainer-feature.json" << EOF
   }
 }
 EOF
-tar -C "${_stage}/root" -czf "${_stage}/sysset-${_FEAT}.tar.gz" .
+tar -C "${_stage}/root" -czf "${_stage}/devfeats-${_FEAT}.tar.gz" .
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/${_FEAT}:${_VER}" \
-  "${_stage}/sysset-${_FEAT}.tar.gz"
+  "quantized8/devfeats/${_FEAT}:${_VER}" \
+  "${_stage}/devfeats-${_FEAT}.tar.gz"
 
 check "install.sh --lifecycle-command-dir <lc> runs hook in <lc>" \
   sudo -E bash "${REPO_ROOT}/install.sh" \

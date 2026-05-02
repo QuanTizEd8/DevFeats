@@ -9,7 +9,7 @@ uv is a Rust-based Python package and project manager from Astral. It covers pac
 
 ## Available Installation Methods
 
-Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Homebrew, MacPorts, WinGet, Scoop, Docker image usage, direct GitHub release artifacts, and Cargo. This reference focuses implementation depth on SysSet-relevant macOS/Linux host installation methods, while still capturing Windows-only and container-only methods for completeness and auditability.
+Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Homebrew, MacPorts, WinGet, Scoop, Docker image usage, direct GitHub release artifacts, and Cargo. This reference focuses implementation depth on DevFeats-relevant macOS/Linux host installation methods, while still capturing Windows-only and container-only methods for completeness and auditability.
 
 ### Standalone Installer Script
 
@@ -285,12 +285,12 @@ Upstream installation methods are: standalone installer, PyPI (`pipx`/`pip`), Ho
 
 - As with other non-standalone installs, update flow should stay with the package manager rather than `uv self update`.
 
-### Windows Package Managers (WinGet and Scoop) - Out of SysSet Scope
+### Windows Package Managers (WinGet and Scoop) - Out of DevFeats Scope
 
 #### Supported Platforms
 
 - Windows only.
-- Included for upstream method completeness; not directly used by SysSet's macOS/Linux feature implementation.
+- Included for upstream method completeness; not directly used by DevFeats's macOS/Linux feature implementation.
 
 #### Dependencies
 

@@ -177,7 +177,7 @@ _ospkg_install_key_entry() {
   case "${_dearmor}" in
     true)
       logging__info "Fetching and dearmoring key (dearmor: true) → ${_target}"
-      net__fetch_url_stdout "$_url" | verify__gpg_dearmor_stream "${_target}" "sysset-ospkg-internals"
+      net__fetch_url_stdout "$_url" | verify__gpg_dearmor_stream "${_target}" "devfeats-ospkg-internals"
       ;;
     false)
       logging__info "Fetching key (dearmor: false) → ${_target}"
@@ -186,7 +186,7 @@ _ospkg_install_key_entry() {
     auto)
       if [[ "${_dest}" == *.gpg ]]; then
         logging__info "Fetching and dearmoring key (dest ends in .gpg) → ${_target}"
-        net__fetch_url_stdout "$_url" | verify__gpg_dearmor_stream "${_target}" "sysset-ospkg-internals"
+        net__fetch_url_stdout "$_url" | verify__gpg_dearmor_stream "${_target}" "devfeats-ospkg-internals"
       else
         logging__info "Fetching key → ${_target}"
         net__fetch_url_file "$_url" "${_target}"
@@ -206,7 +206,7 @@ _ospkg_install_key_entry() {
 # Delegates to verify__gpg_fetch_key_by_fingerprint.
 _ospkg_install_key_by_fingerprint() {
   local _fingerprint="$1" _dest="$2"
-  verify__gpg_fetch_key_by_fingerprint "$_fingerprint" "$_dest" "sysset-ospkg-internals"
+  verify__gpg_fetch_key_by_fingerprint "$_fingerprint" "$_dest" "devfeats-ospkg-internals"
 }
 
 # _ospkg_expand_content_vars <content>
@@ -300,7 +300,7 @@ _ospkg_ensure_yq() {
   }
   install__yq \
     --context internal \
-    --owner-group sysset-ospkg-internals \
+    --owner-group devfeats-ospkg-internals \
     --method release \
     --if-exists skip > "${_yq_out_file}" || {
     logging__error "yq could not be installed."
@@ -1076,7 +1076,7 @@ _ospkg_remove_build_group() {
 # Requires ospkg__detect to have been called first.
 #
 # The full group-id is composed as "${_SYSSET_BUILD_CONTEXT:-uncontexted}::<sub-id>".
-# Callers pass only the bare sub-id (e.g. "lib-net", "sysset-ospkg-internals");
+# Callers pass only the bare sub-id (e.g. "lib-net", "devfeats-ospkg-internals");
 # the build-context prefix is added automatically.
 #
 # Session co-ownership: when _SYSSET_SESSION_TRACK_DIR is set (manifest mode),
@@ -1657,7 +1657,7 @@ ospkg__run() {
         logging__info "Adding ${#_Y_PPAS[@]} PPA(s)."
         if ! command -v add-apt-repository > /dev/null 2>&1; then
           logging__info "add-apt-repository not found — installing software-properties-common."
-          [[ "$_dry_run" == false ]] && ospkg__install_tracked "sysset-ospkg-internals" software-properties-common
+          [[ "$_dry_run" == false ]] && ospkg__install_tracked "devfeats-ospkg-internals" software-properties-common
         fi
         local _ppitem _ppa
         for _ppitem in "${_Y_PPAS[@]}"; do

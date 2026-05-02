@@ -187,7 +187,7 @@ Derivable fields such as `id`, `documentationURL`, and `licenseURL` are **prohib
 
 Each option becomes both a CLI flag (`--<option_name>`) and an environment variable (`<OPTION_NAME>`) injected by devcontainer tooling at build time. Option names use snake_case.
 
-Supported types: `"string"`, `"boolean"`, and the SysSet-internal **`"array"`** type (serialized as `type: string` in the generated JSON). See {doc}`/guide/options` for how the array type works across all invocation channels.
+Supported types: `"string"`, `"boolean"`, and the DevFeats-internal **`"array"`** type (serialized as `type: string` in the generated JSON). See {doc}`/guide/options` for how the array type works across all invocation channels.
 
 For string options, two properties control how supporting tools present the allowed values:
 

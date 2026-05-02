@@ -34,19 +34,19 @@ cat > "${_stage}/root/devcontainer-feature.json" << EOF
   "id": "${_FEAT}",
   "version": "${_VER}",
   "name": "Fake lifecycle probe",
-  "onCreateCommand": "echo 'sysset-probe:on-create-ran'",
-  "updateContentCommand": "echo 'sysset-probe:update-content-ran'",
-  "postCreateCommand": "echo 'sysset-probe:post-create-ran'"
+  "onCreateCommand": "echo 'devfeats-probe:on-create-ran'",
+  "updateContentCommand": "echo 'devfeats-probe:update-content-ran'",
+  "postCreateCommand": "echo 'devfeats-probe:post-create-ran'"
 }
 EOF
-tar -C "${_stage}/root" -czf "${_stage}/sysset-${_FEAT}.tar.gz" .
+tar -C "${_stage}/root" -czf "${_stage}/devfeats-${_FEAT}.tar.gz" .
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/${_FEAT}:${_VER}" \
-  "${_stage}/sysset-${_FEAT}.tar.gz"
+  "quantized8/devfeats/${_FEAT}:${_VER}" \
+  "${_stage}/devfeats-${_FEAT}.tar.gz"
 
 # Run feature-mode install. The feature declares string-form hooks for all three
 # phases; each echoes a well-known probe string to stdout.
@@ -54,10 +54,10 @@ check "install.sh installs ${_FEAT}:${_VER} (feature mode)" \
   sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log" "${_FEAT}:${_VER}"
 
 check "onCreateCommand hook was executed" \
-  bash -c "grep -q 'sysset-probe:on-create-ran' '$_log'"
+  bash -c "grep -q 'devfeats-probe:on-create-ran' '$_log'"
 check "updateContentCommand hook was executed" \
-  bash -c "grep -q 'sysset-probe:update-content-ran' '$_log'"
+  bash -c "grep -q 'devfeats-probe:update-content-ran' '$_log'"
 check "postCreateCommand hook was executed" \
-  bash -c "grep -q 'sysset-probe:post-create-ran' '$_log'"
+  bash -c "grep -q 'devfeats-probe:post-create-ran' '$_log'"
 
 reportResults

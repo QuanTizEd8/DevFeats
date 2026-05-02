@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compute the next bundle tag for the SysSet accumulator-tagged release.
+"""Compute the next bundle tag for the DevFeats accumulator-tagged release.
 
 Terminology:
     - **Bundle tag** — a global semver tag of the form ``v<X.Y.Z>`` that
@@ -135,7 +135,7 @@ def _github_get(url: str, token: str | None) -> tuple[int, bytes]:
         req = urllib.request.Request(url, method="GET")
         req.add_header("Accept", "application/vnd.github+json")
         req.add_header("X-GitHub-Api-Version", "2022-11-28")
-        req.add_header("User-Agent", "sysset-compute-bundle-tag")
+        req.add_header("User-Agent", "devfeats-compute-bundle-tag")
         if token:
             req.add_header("Authorization", f"Bearer {token}")
         try:
@@ -410,7 +410,7 @@ def _format_manifest(record: dict, commit: str, repo: str) -> str:
         "schemaVersion": "2.0.0",
         "version": nxt,
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "createdBy": "sysset-compute-bundle-tag",
+        "createdBy": "devfeats-compute-bundle-tag",
         "source": {
             "repo": repo,
             "commit": (commit or "")[:40],

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/gen_docs.py — Documentation injection tool for sysset.
+"""scripts/gen_docs.py — Documentation injection tool for devfeats.
 
 Reads structured @brief annotations from lib/*.sh and injects auto-generated
 content between special marker comments in documentation files.

@@ -446,7 +446,7 @@ class GithubGetRetryTest(unittest.TestCase):
             CBT._github_get("https://api.github.com/x", "supersecret")
         # urllib normalises header names to Title-Case.
         self.assertEqual(captured.get("Authorization"), "Bearer supersecret")
-        self.assertIn("sysset-compute-bundle-tag", captured.get("User-agent", ""))
+        self.assertIn("devfeats-compute-bundle-tag", captured.get("User-agent", ""))
 
 
 if __name__ == "__main__":

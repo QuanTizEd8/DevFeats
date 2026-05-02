@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/features/metadata.schema.json",
+  "$id": "https://raw.githubusercontent.com/QuanTizEd8/DevFeats/main/features/metadata.schema.json",
   "title": "Feature Metadata",
   "description": "JSON Schema for features' `metadata.yaml` files. This is a superset of the devcontainer-feature.json schema at `https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json`, extended with internal-use-only properties (prefixed with an underscore) for richer metadata and documentation generation. All 'description' fields support simple (links, formatting) Markdown and HTML.",
   "type": "object",
@@ -89,14 +89,14 @@
           "description": "Runtime dependencies.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "https://raw.githubusercontent.com/quantized8/sysset/main/lib/ospkg.manifest.schema.json"
+            "$ref": "https://raw.githubusercontent.com/quantized8/devfeats/main/lib/ospkg.manifest.schema.json"
           }
         },
         "build": {
           "description": "Build dependencies. These are only required when installing the Feature, and can be removed afterwards to save space.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "https://raw.githubusercontent.com/quantized8/sysset/main/lib/ospkg.manifest.schema.json"
+            "$ref": "https://raw.githubusercontent.com/quantized8/devfeats/main/lib/ospkg.manifest.schema.json"
           }
         }
       }
@@ -354,7 +354,7 @@
     },
     "LifecycleCommand": {
       "type": "object",
-      "description": "A set of commands to run at a specific lifecycle event. Each property is a unique ID for the command with format 'sysset_<feature-id>_<task>', e.g. 'sysset_install-os-pkg_install', and the value is the command to run. Each provided command will be run in parallel.",
+      "description": "A set of commands to run at a specific lifecycle event. Each property is a unique ID for the command with format 'devfeats_<feature-id>_<task>', e.g. 'devfeats_install-os-pkg_install', and the value is the command to run. Each provided command will be run in parallel.",
       "additionalProperties": {
         "description": "If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell.",
         "type": [

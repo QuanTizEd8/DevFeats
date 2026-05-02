@@ -4,7 +4,7 @@
 Reads a partial manifest (from compute-bundle-tag --manifest) with at least:
   schemaVersion, version, generatedAt, features, refs, digests
 
-For each entry in ``features``, expects ``dist/sysset-<id>.tar.gz``, computes
+For each entry in ``features``, expects ``dist/devfeats-<id>.tar.gz``, computes
 ``sha256`` of that tarball file, extracts it under the digest path, and fills
 ``refs`` / ``digests``.
 """
@@ -66,7 +66,7 @@ def _check_manifest_version_matches_tag(data: dict, bundle_tag: str) -> str | No
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("bundle_tag", help="Bundle tag e.g. v1.2.0")
-    p.add_argument("dist_dir", type=Path, help="Directory with sysset-<feature>.tar.gz")
+    p.add_argument("dist_dir", type=Path, help="Directory with devfeats-<feature>.tar.gz")
     p.add_argument("base_manifest", type=Path, help="Partial JSON manifest path")
     p.add_argument("staging_dir", type=Path, help="Output staging directory (created)")
     args = p.parse_args()
@@ -90,12 +90,12 @@ def main() -> int:
     digests: dict[str, dict] = {}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    oci_ns = "ghcr.io/quantized8/sysset"
+    oci_ns = "ghcr.io/quantized8/devfeats"
 
     first_tar: Path | None = None
     for feat in sorted(features):
         ver = str(features[feat]).strip()
-        tb = dist_dir / f"sysset-{feat}.tar.gz"
+        tb = dist_dir / f"devfeats-{feat}.tar.gz"
         if not tb.is_file():
             print(f"⛔ offline_kit_assemble: missing tarball {tb}", file=sys.stderr)
             return 1

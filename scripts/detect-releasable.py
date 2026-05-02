@@ -81,7 +81,7 @@ def _github_request(url: str, token: str | None) -> tuple[int, bytes]:
         req = urllib.request.Request(url, method="GET")
         req.add_header("Accept", "application/vnd.github+json")
         req.add_header("X-GitHub-Api-Version", "2022-11-28")
-        req.add_header("User-Agent", "sysset-detect-releasable")
+        req.add_header("User-Agent", "devfeats-detect-releasable")
         if token:
             req.add_header("Authorization", f"Bearer {token}")
         try:
@@ -155,7 +155,7 @@ def main() -> int:
     parser.add_argument(
         "--repo",
         required=True,
-        help="GitHub repository in 'owner/name' format (e.g. quantized8/sysset).",
+        help="GitHub repository in 'owner/name' format (e.g. quantized8/devfeats).",
     )
     parser.add_argument(
         "--features-dir",

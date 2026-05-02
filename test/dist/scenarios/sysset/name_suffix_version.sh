@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/name_suffix_version.sh — Verify manifest name suffix is ignored.
+# devfeats/name_suffix_version.sh — Verify manifest name suffix is ignored.
 #
 # What this tests:
 #   • A trailing "vX.Y.Z" in devcontainer `name` no longer drives installer
@@ -20,8 +20,8 @@ _manifest_dir="$(mktemp -d)"
 _pixi_dir="$(mktemp -d)"
 _ospkg_dir="$(mktemp -d)"
 trap 'rm -rf "$_manifest_dir" "$_pixi_dir" "$_ospkg_dir"' EXIT
-tar -xzf "${DIST}/sysset-install-pixi.tar.gz" -C "$_pixi_dir"
-tar -xzf "${DIST}/sysset-install-os-pkg.tar.gz" -C "$_ospkg_dir"
+tar -xzf "${DIST}/devfeats-install-pixi.tar.gz" -C "$_pixi_dir"
+tar -xzf "${DIST}/devfeats-install-os-pkg.tar.gz" -C "$_ospkg_dir"
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
@@ -37,7 +37,7 @@ EOF
 check "install.bash ignores name suffix version and installs local-path features" \
   bash "${REPO_ROOT}/install.bash" "$_manifest"
 
-check "pixi installed by sysset (name-suffix mode)" \
+check "pixi installed by devfeats (name-suffix mode)" \
   command -v pixi
 check "tree installed by install-os-pkg (name-suffix mode)" \
   command -v tree

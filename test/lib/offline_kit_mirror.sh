@@ -4,8 +4,8 @@
 # Usage (source from a scenario script after REPO_ROOT is set):
 #   offline_kit_publish_mirror <mirror_root> <bundle_tag_vX> <dist_dir> [feature:ver ...]
 #
-# Creates: <mirror_root>/<bundle_tag>/sysset-vX.Y.Z.tar.gz (same ``v`` prefix as the release tag)
-# Requires: jq, bash scripts/build-offline-kit.sh, dist sysset-<feature>.tar.gz for each feature.
+# Creates: <mirror_root>/<bundle_tag>/devfeats-vX.Y.Z.tar.gz (same ``v`` prefix as the release tag)
+# Requires: jq, bash scripts/build-offline-kit.sh, dist devfeats-<feature>.tar.gz for each feature.
 offline_kit_publish_mirror() {
   local _mr="${1:?mirror root}" _bt="${2:?bundle tag}" _dd="${3:?dist}"
   shift 3 || true
@@ -22,11 +22,11 @@ offline_kit_publish_mirror() {
       schemaVersion: "2.0.0",
       version: $v,
       generatedAt: "1970-01-01T00:00:00Z",
-      source: {repo: "quantized8/sysset", commit: "0000000000000000000000000000000000000000"},
+      source: {repo: "quantized8/devfeats", commit: "0000000000000000000000000000000000000000"},
       features: $f,
       refs: {},
       digests: {}
     }' > "$_base"
-  bash "${REPO_ROOT:?}/scripts/build-offline-kit.sh" "${_bt}" "${_dd}" "${_base}" "${_mr}/${_bt}/sysset-${_kit_tag}.tar.gz"
+  bash "${REPO_ROOT:?}/scripts/build-offline-kit.sh" "${_bt}" "${_dd}" "${_base}" "${_mr}/${_bt}/devfeats-${_kit_tag}.tar.gz"
   rm -f "$_base"
 }

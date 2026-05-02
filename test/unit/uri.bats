@@ -31,9 +31,9 @@ setup() {
 }
 
 @test "_uri__gh_to_https maps gh:// to raw.githubusercontent.com" {
-  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__gh_to_https 'gh://quantized8/sysset@v1.2.3:docs/README.md'"
+  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__gh_to_https 'gh://quantized8/devfeats@v1.2.3:docs/README.md'"
   assert_success
-  assert_output "https://raw.githubusercontent.com/quantized8/sysset/v1.2.3/docs/README.md"
+  assert_output "https://raw.githubusercontent.com/quantized8/devfeats/v1.2.3/docs/README.md"
 }
 
 @test "uri__resolve copies a local file" {

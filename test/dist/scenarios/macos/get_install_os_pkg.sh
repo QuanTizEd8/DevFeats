@@ -19,8 +19,8 @@ _fakebin="${_tmp}/fakebin"
 mkdir -p "${_fakebin}"
 
 mkdir -p "${_MIRROR}/${_FEAT}/${_VER}"
-cp "${REPO_ROOT}/dist/sysset-${_FEAT}.tar.gz" "${_MIRROR}/${_FEAT}/${_VER}/"
-_PAYLOAD="${REPO_ROOT}/dist/sysset-${_FEAT}.tar.gz"
+cp "${REPO_ROOT}/dist/devfeats-${_FEAT}.tar.gz" "${_MIRROR}/${_FEAT}/${_VER}/"
+_PAYLOAD="${REPO_ROOT}/dist/devfeats-${_FEAT}.tar.gz"
 _HASH="$(shasum -a 256 "$_PAYLOAD" | awk '{print $1}')"
 
 cat > "${_fakebin}/oras" << 'EOF'

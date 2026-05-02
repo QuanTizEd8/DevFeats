@@ -6,7 +6,7 @@
 // .devcontainer/devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-podman:0": {}
+    "ghcr.io/quantized8/devfeats/install-podman:0": {}
   }
 }
 ```
@@ -24,7 +24,7 @@ podman run --rm -v "$(pwd):/work" --userns=keep-id -w /work some-image some-tool
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-podman:0": {
+    "ghcr.io/quantized8/devfeats/install-podman:0": {
       "add_users": "root"
     }
   }
@@ -36,7 +36,7 @@ podman run --rm -v "$(pwd):/work" --userns=keep-id -w /work some-image some-tool
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-podman:0": {
+    "ghcr.io/quantized8/devfeats/install-podman:0": {
       "add_users": "myuser"
     }
   }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/frozen_lockfile_missing_entry.sh
+# devfeats/frozen_lockfile_missing_entry.sh
 # Verifies --frozen-lockfile fails when a manifest feature key is missing.
 set -euo pipefail
 

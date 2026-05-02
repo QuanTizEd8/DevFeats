@@ -72,7 +72,7 @@ _install_homebrew_bare() {
   _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
   curl -fsSL --compressed \
     --retry 60 --retry-delay 5 --retry-connrefused \
-    -H "User-Agent: sysset" \
+    -H "User-Agent: devfeats" \
     -o "$_tmpfile" \
     "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
   NONINTERACTIVE=1 /bin/bash "$_tmpfile"

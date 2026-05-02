@@ -20,13 +20,13 @@ check "repo root install.bash exists" test -f "${REPO_ROOT}/install.bash"
 
 # spot-check a few features
 for _feat in install-pixi install-os-pkg setup-user; do
-  check "sysset-${_feat}.tar.gz exists" test -f "${DIST}/sysset-${_feat}.tar.gz"
-  check "sysset-${_feat}: contains install.bash" \
-    bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q 'install\.bash'"
-  check "sysset-${_feat}: contains _lib/" \
-    bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q '_lib/'"
-  check "sysset-${_feat}: contains devcontainer-feature.json" \
-    bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q 'devcontainer-feature\.json'"
+  check "devfeats-${_feat}.tar.gz exists" test -f "${DIST}/devfeats-${_feat}.tar.gz"
+  check "devfeats-${_feat}: contains install.bash" \
+    bash -c "tar -tzf '${DIST}/devfeats-${_feat}.tar.gz' | grep -q 'install\.bash'"
+  check "devfeats-${_feat}: contains _lib/" \
+    bash -c "tar -tzf '${DIST}/devfeats-${_feat}.tar.gz' | grep -q '_lib/'"
+  check "devfeats-${_feat}: contains devcontainer-feature.json" \
+    bash -c "tar -tzf '${DIST}/devfeats-${_feat}.tar.gz' | grep -q 'devcontainer-feature\.json'"
 done
 
 _f0="install-pixi"
@@ -34,6 +34,6 @@ _ver="$(grep -E '^[[:space:]]*version:' "${REPO_ROOT}/features/${_f0}/metadata.y
 _kit_mirror="$(mktemp -d)"
 trap 'rm -rf "${_kit_mirror}"' EXIT
 offline_kit_publish_mirror "${_kit_mirror}" "v0.0.777-disttest" "${DIST}" "${_f0}:${_ver}"
-check "offline kit tarball exists" test -f "${_kit_mirror}/v0.0.777-disttest/sysset-v0.0.777-disttest.tar.gz"
+check "offline kit tarball exists" test -f "${_kit_mirror}/v0.0.777-disttest/devfeats-v0.0.777-disttest.tar.gz"
 
 reportResults

@@ -155,8 +155,8 @@ postStartCommand:
     conda info
 installsAfter: []
 # installsAfter:
-#   - ghcr.io/quantized8/sysset/install-shell
-#   - ghcr.io/quantized8/sysset/setup-user
+#   - ghcr.io/quantized8/devfeats/install-shell
+#   - ghcr.io/quantized8/devfeats/setup-user
 _dependencies:
   run:
     base:

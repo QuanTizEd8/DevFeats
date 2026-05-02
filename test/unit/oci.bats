@@ -67,9 +67,9 @@ EOF
 }
 
 @test "oci__ghcr_image_ref prints ghcr.io qualified name" {
-  run oci__ghcr_image_ref "quantized8/sysset" "install-pixi" "1.2.3"
+  run oci__ghcr_image_ref "quantized8/devfeats" "install-pixi" "1.2.3"
   assert_success
-  assert_output "ghcr.io/quantized8/sysset/install-pixi:1.2.3"
+  assert_output "ghcr.io/quantized8/devfeats/install-pixi:1.2.3"
 }
 
 @test "oci__is_feature_ref_key accepts OCI refs and rejects non-refs" {

@@ -518,7 +518,7 @@ When `cicd.yaml` calls `ci.yaml`, the callee's jobs appear as individual job ent
 | `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
 | `src/<f>/` or `test/<f>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
 | `install-os-pkg` in changed list | `test-os-pkg` (6-distro matrix) |
-| `features/install.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
+| `features/install.sh`, `features/devfeats.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
 
 On `workflow_dispatch`, all flags are forced true regardless of diff. CD runs when `cicd_detect.py` determines the push to `main` has releasable features (untagged versions in `metadata.yaml`), AND CI passed. A `workflow_dispatch` with `feature` + `version` inputs triggers a manual single-feature release.
 

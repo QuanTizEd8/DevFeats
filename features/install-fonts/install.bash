@@ -14,7 +14,7 @@ _NF_BASE_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
 # ---------------------------------------------------------------------------
 _ensure_install_dir() {
   if [[ -z "$_INSTALL_DIR" ]]; then
-    _INSTALL_DIR="${FONT_DIR}/sysset-install-fonts-$(date +%s)"
+    _INSTALL_DIR="${FONT_DIR}/devfeats-install-fonts-$(date +%s)"
     mkdir -p "$_INSTALL_DIR"
   fi
 }
@@ -177,7 +177,7 @@ fi
 # final install location.
 #
 # All installed fonts land under:
-#   <font_dir>/sysset-install-fonts-<timestamp>/
+#   <font_dir>/devfeats-install-fonts-<timestamp>/
 #     p10k/MesloLGS-NF/
 #     nerd/<FontName>/
 #     gh/<owner>/<repo>/<tag_name>/<release_id>/

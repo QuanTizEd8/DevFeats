@@ -6,7 +6,7 @@
 // .devcontainer/devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/setup-shim:0": {}
+    "ghcr.io/quantized8/devfeats/setup-shim:0": {}
   }
 }
 ```
@@ -19,7 +19,7 @@ With the defaults above, all three shims (`code`, `devcontainer-info`,
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/setup-shim:0": {
+    "ghcr.io/quantized8/devfeats/setup-shim:0": {
       "devcontainer-info": false,
       "systemctl": false
     }

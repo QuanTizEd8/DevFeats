@@ -129,9 +129,9 @@ EOF
   cat > "$_f" << 'EOF'
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi": { "version": "0.66.0" },
+    "ghcr.io/quantized8/devfeats/install-pixi": { "version": "0.66.0" },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "ghcr.io/quantized8/sysset/install-os-pkg:1.0.0": {}
+    "ghcr.io/quantized8/devfeats/install-os-pkg:1.0.0": {}
   }
 }
 EOF
@@ -146,7 +146,7 @@ EOF
 @test "devcontainer__iter_features parses trailing :tag from the OCI key" {
   _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter2.XXXXXX")"
   cat > "$_f" << 'EOF'
-{"features":{"ghcr.io/quantized8/sysset/install-pixi:1.2.3":{}}}
+{"features":{"ghcr.io/quantized8/devfeats/install-pixi:1.2.3":{}}}
 EOF
   run devcontainer__iter_features "$_f" ""
   assert_success
@@ -166,14 +166,14 @@ EOF
   cat > "$_f" << 'EOF'
 {"features":{"./features/my-feat":{}}}
 EOF
-  run devcontainer__iter_features "$_f" "$_root" "ghcr.io/quantized8/sysset/"
+  run devcontainer__iter_features "$_f" "$_root" "ghcr.io/quantized8/devfeats/"
   assert_success
   # id column = "my-feat" from the basename of the path.
   [[ "$output" == "my-feat"$'\t'* ]] || false
   rm -rf "$_root"
 }
 
-@test "devcontainer__iter_features accepts OCI refs outside sysset namespace" {
+@test "devcontainer__iter_features accepts OCI refs outside devfeats namespace" {
   _f="$(mktemp "${BATS_TEST_TMPDIR}/dc.iter3.XXXXXX")"
   cat > "$_f" << 'EOF'
 {
@@ -219,7 +219,7 @@ EOF
 }
 
 @test "devcontainer__feature_env_exports preserves embedded newlines in string values" {
-  # The devcontainer spec forbids JSON arrays in option values; sysset's
+  # The devcontainer spec forbids JSON arrays in option values; devfeats's
   # type: array is transported as a newline-separated string.
   run bash -c '. "$1" && printf %s "{\"packages\":\"a\nb\"}" | devcontainer__feature_env_exports' _ "${LIB_ROOT}/devcontainer.sh"
   assert_success

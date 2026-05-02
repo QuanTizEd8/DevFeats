@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# sysset/compatible_prefix.sh — Verify that OCI feature keys from any registry
+# devfeats/compatible_prefix.sh — Verify that OCI feature keys from any registry
 # prefix are accepted and installed.
 #
 # What this tests:
-#   • OCI keys outside `ghcr.io/quantized8/sysset/` are not filtered out.
+#   • OCI keys outside `ghcr.io/quantized8/devfeats/` are not filtered out.
 #   • Mixed-prefix manifests install successfully when referenced feature IDs
 #     are valid OCI refs pointing to the local test registry.
 #
@@ -32,15 +32,15 @@ start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 # Push install-pixi under the "example/features" org on the local registry
-# (simulates a non-sysset OCI prefix that is NOT auto-redirected).
+# (simulates a non-devfeats OCI prefix that is NOT auto-redirected).
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
   "example/features/install-pixi:${_VER}" \
-  "${DIST}/sysset-install-pixi.tar.gz"
+  "${DIST}/devfeats-install-pixi.tar.gz"
 
-# Push install-os-pkg under the sysset namespace (gets auto-redirected).
+# Push install-os-pkg under the devfeats namespace (gets auto-redirected).
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/install-os-pkg:${_VER}" \
-  "${DIST}/sysset-install-os-pkg.tar.gz"
+  "quantized8/devfeats/install-os-pkg:${_VER}" \
+  "${DIST}/devfeats-install-os-pkg.tar.gz"
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
@@ -48,7 +48,7 @@ cat > "$_manifest" << EOF
   "name": "compat-prefix test",
   "features": {
     "${SYSSET_REGISTRY_HOST}/example/features/install-pixi:${_VER}": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
+    "ghcr.io/quantized8/devfeats/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
   }
 }
 EOF
@@ -57,7 +57,7 @@ check "install.bash completes with mixed-prefix OCI keys" \
   bash "${REPO_ROOT}/install.bash" --log_file "$_log_file" "$_manifest"
 
 check "no prefix-filter warning was emitted" \
-  bash -c "! grep -q 'not sysset-compatible\|not OCI ref or local-path feature' '$_log_file'"
+  bash -c "! grep -q 'not devfeats-compatible\|not OCI ref or local-path feature' '$_log_file'"
 
 check "install-pixi feature was attempted from mixed-prefix manifest" \
   bash -c "grep -q '\[install-pixi\] running install\.sh' '$_log_file'"

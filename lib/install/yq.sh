@@ -112,7 +112,7 @@ _install__yq_install_repos() {
 
 # @brief install__yq --context <internal|user> [--method <auto|release|repos>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--version <semver|''>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
 install__yq() {
-  local _context="internal" _method="auto" _owner_group="sysset-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest="" _version=""
+  local _context="internal" _method="auto" _owner_group="devfeats-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest="" _version=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context)

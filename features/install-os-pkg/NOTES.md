@@ -6,7 +6,7 @@
 // .devcontainer/devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+    "ghcr.io/quantized8/devfeats/install-os-pkg:0": {
       "manifest": "/existing/path/packages.yaml"
       // or:   "/nonexistent/path/packages.json"
     }
@@ -20,7 +20,7 @@ when it contains a newline, and as a file path otherwise:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+    "ghcr.io/quantized8/devfeats/install-os-pkg:0": {
       "manifest": "packages: [git, curl, jq]\n"
       // or: "{\"packages\": [\"git\", \"curl\", \"jq\"]}\n"
     }
@@ -40,7 +40,7 @@ On macOS it may run as a regular user or with `sudo`.
 
 ```sh
 # From a manifest file
-curl -fsSL https://raw.githubusercontent.com/quantized8/sysset/main/src/install-os-pkg/install.sh \
+curl -fsSL https://raw.githubusercontent.com/quantized8/devfeats/main/src/install-os-pkg/install.sh \
   | sudo bash -s -- --manifest /path/to/packages.yaml
 
 # Inline manifest (trailing newline required for inline detection)
@@ -65,7 +65,7 @@ their own setup process:
 // devcontainer-feature.json of another feature
 {
   "dependsOn": {
-    "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+    "ghcr.io/quantized8/devfeats/install-os-pkg:0": {
         "install_self": true
     }
   }
@@ -87,7 +87,7 @@ install and how. A formal JSON Schema is available at
 and can be referenced in editors for autocompletion and validation:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/lib/ospkg.manifest.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/QuanTizEd8/DevFeats/main/lib/ospkg.manifest.schema.json
 ```
 
 ### Top-level structure
@@ -764,7 +764,7 @@ the workspace fully mounted.
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+    "ghcr.io/quantized8/devfeats/install-os-pkg:0": {
       "manifest": "/workspace/.devcontainer/packages.yaml",
       "lifecycle_hook": "postCreate"
     }
@@ -993,7 +993,7 @@ Add the JSON Schema reference to the top of your manifest file to enable IDE
 validation and autocompletion:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/src/install-os-pkg/manifest.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/QuanTizEd8/DevFeats/main/src/install-os-pkg/manifest.schema.json
 ```
 
 ### Packages not found after adding a repository
@@ -1068,7 +1068,7 @@ cases but had fundamental limitations that motivated the move to YAML:
 
 YAML was chosen over other structured formats because:
 
-- **`sysset.sh` already has a proven YAML pipeline** — `yq` auto-download +
+- **`devfeats.sh` already has a proven YAML pipeline** — `yq` auto-download +
   YAML→JSON→`jq` processing. The same infrastructure is reused in
   `lib/ospkg.sh` via `_ospkg_ensure_yq()`.
 - **JSON Schema provides machine-verifiable contracts** — one schema file
@@ -1332,7 +1332,7 @@ The manifest parser uses a `yq` + `jq` pipeline:
    etc. into a normalized intermediate form consumable by bash.
 
 `yq` is auto-downloaded if not present, using the same pattern as
-`sysset.sh`:
+`devfeats.sh`:
 
 - Binary is fetched from [mikefarah/yq GitHub Releases](https://github.com/mikefarah/yq/releases)
   for the current platform (`linux`/`darwin`) and architecture

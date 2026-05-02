@@ -2,7 +2,7 @@
 
 Pandoc is a universal document converter: a command-line tool and Haskell library for converting between many markup and document formats. It is commonly used in documentation pipelines, publishing toolchains, CI/CD conversion jobs, and static-site/book workflows. Upstream supports many installation routes (OS package managers, official release artifacts, conda-forge, Docker images, and source builds).
 
-For SysSet implementation planning on macOS and Linux, the primary practical methods are:
+For DevFeats implementation planning on macOS and Linux, the primary practical methods are:
 
 1. Official release artifacts from the pandoc GitHub Releases page (best for deterministic pinning).
 2. OS package manager installation (best for distro-native lifecycle management).
@@ -16,9 +16,9 @@ For SysSet implementation planning on macOS and Linux, the primary practical met
 
 ## Available Installation Methods
 
-Upstream installation docs explicitly describe installers/binaries, package-manager installs, conda-forge, Docker images, and source builds. For SysSet feature implementation, Docker is usually a runtime execution method rather than host provisioning, but it is included below for completeness because upstream treats it as a first-class usage/install path.
+Upstream installation docs explicitly describe installers/binaries, package-manager installs, conda-forge, Docker images, and source builds. For DevFeats feature implementation, Docker is usually a runtime execution method rather than host provisioning, but it is included below for completeness because upstream treats it as a first-class usage/install path.
 
-Upstream also documents Chrome OS and BSD package-manager routes. Those paths are intentionally out of scope for this SysSet feature reference, which targets macOS and Linux host/container setup paths.
+Upstream also documents Chrome OS and BSD package-manager routes. Those paths are intentionally out of scope for this DevFeats feature reference, which targets macOS and Linux host/container setup paths.
 
 ### Official Release Artifacts (GitHub Releases)
 
@@ -26,7 +26,7 @@ Upstream also documents Chrome OS and BSD package-manager routes. Those paths ar
 
 - Linux via `.deb` packages and `.tar.gz` archives.
 - macOS via `.pkg` installer packages and `.zip` archives.
-- Windows via `.msi` installer and `.zip` archives (officially available upstream, though SysSet feature scope is macOS/Linux).
+- Windows via `.msi` installer and `.zip` archives (officially available upstream, though DevFeats feature scope is macOS/Linux).
 
 For macOS/Linux-relevant current latest release assets include:
 
@@ -505,7 +505,7 @@ Upstream also recommends running tests (`cabal test` / `stack test`) for source-
 #### Notes and Best Practices
 
 - Prefer source builds for custom feature support, local patches, or unsupported binary/package combinations.
-- For feature implementation simplicity and reproducibility in SysSet, source builds are usually fallback rather than default method.
+- For feature implementation simplicity and reproducibility in DevFeats, source builds are usually fallback rather than default method.
 
 ## References
 

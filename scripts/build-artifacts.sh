@@ -7,9 +7,9 @@
 #   <tag>   Release tag (used only for informational output; default: "dev")
 #
 # Outputs (all under dist/):
-#   sysset-<feature>.tar.gz       One tarball per feature
+#   devfeats-<feature>.tar.gz       One tarball per feature
 #
-# The bundle offline kit ``sysset-vX.Y.Z.tar.gz`` is produced by
+# The bundle offline kit ``devfeats-vX.Y.Z.tar.gz`` is produced by
 # ``scripts/build-offline-kit.sh`` (not here).
 #
 # Tarball layout (per feature):
@@ -69,7 +69,7 @@ echo "ℹ️  Found ${#_feature_dirs[@]} features." >&2
 for _feature_dir in "${_feature_dirs[@]}"; do
   _name="$(basename "$_feature_dir")"
   _staging="${_DIST_DIR}/tmp/${_name}"
-  _tarball="${_DIST_DIR}/sysset-${_name}.tar.gz"
+  _tarball="${_DIST_DIR}/devfeats-${_name}.tar.gz"
 
   mkdir -p "$_staging"
 
@@ -94,7 +94,7 @@ for _feature_dir in "${_feature_dirs[@]}"; do
 
   tar -czf "$_tarball" -C "$_staging" .
   rm -rf "$_staging"
-  echo "✅ ${_name}: built sysset-${_name}.tar.gz" >&2
+  echo "✅ ${_name}: built devfeats-${_name}.tar.gz" >&2
 done
 
 rm -rf "${_DIST_DIR}/tmp"

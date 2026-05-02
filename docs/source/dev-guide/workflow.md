@@ -37,7 +37,7 @@ just test-feature install-pixi
 # Run shared library unit tests (no Docker needed)
 just test-unit
 
-# Build the docs website locally (requires sysset-website conda env)
+# Build the docs website locally (requires devfeats-website conda env)
 just build-website
 
 # Serve docs with live reload
@@ -184,7 +184,7 @@ Each feature has its own release identity:
 
 - **Tag scheme:** `<feature-id>/<X.Y.Z>` (e.g. `install-pixi/1.2.3`).
 - **GitHub Release** per tag, shipping exactly one asset:
-  `sysset-<feature-id>.tar.gz`.
+  `devfeats-<feature-id>.tar.gz`.
 - **GHCR tag** per version:
   `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>:<major>`, `:<major.minor>`, and
   `:<major.minor.patch>`.
@@ -192,7 +192,7 @@ Each feature has its own release identity:
 Each CD run also produces an **accumulator-tagged bundle release**
 (`v<X.Y.Z>`) whose assets are:
 
-- `sysset-v<X.Y.Z>.tar.gz` — offline kit (installers, `manifest.json`, digest-keyed `features/`) for manual/offline transfer. Installer runtime resolution is OCI per-feature and does not consume bundle pinning.
+- `devfeats-v<X.Y.Z>.tar.gz` — offline kit (installers, `manifest.json`, digest-keyed `features/`) for manual/offline transfer. Installer runtime resolution is OCI per-feature and does not consume bundle pinning.
 
 The bundle's global semver is derived from the highest per-feature bump in
 the run; see [Bundle accumulator](#bundle-accumulator) below.
@@ -222,18 +222,18 @@ runs with three jobs:
 2. **`publish-gh-release`** — matrix over `features_to_release`. For each
    entry:
    - Creates an annotated Git tag `<feature>/<X.Y.Z>` on `github.sha`.
-   - Runs `gh release create "<feature>/<X.Y.Z>" sysset-<feature>.tar.gz
+   - Runs `gh release create "<feature>/<X.Y.Z>" devfeats-<feature>.tar.gz
      --title "<feature> <X.Y.Z>" --generate-notes`.
 3. **`publish-bundle`** (`needs: [publish-ghcr, publish-gh-release]`) —
    runs [`scripts/compute-bundle-tag.py`](../../scripts/compute-bundle-tag.py)
    to compute the next `v<X.Y.Z>`, produce `notes.md`, emit a JSON manifest
    base, and run `scripts/build-offline-kit.sh` to produce
-   `sysset-v<X.Y.Z>.tar.gz`. Creates the tag, then
-   `gh release create "v<X.Y.Z>" sysset-v<X.Y.Z>.tar.gz
+   `devfeats-v<X.Y.Z>.tar.gz`. Creates the tag, then
+   `gh release create "v<X.Y.Z>" devfeats-v<X.Y.Z>.tar.gz
    --latest --notes-file notes.md`. Skips cleanly when the aggregate bump
    is `none` (idempotent re-runs).
 
-The per-feature and bundle artefacts all come from the same `sysset-dist`
+The per-feature and bundle artefacts all come from the same `devfeats-dist`
 CI artefact built once in `ci.yaml`'s `prepare` step — no `gh release
 download` round-trip. The
 [version-bump guard](#version-bump-discipline-ci-guard) guarantees that a

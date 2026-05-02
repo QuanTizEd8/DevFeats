@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# macos/sysset_jsonc.sh — Same as sysset_json.sh but uses a .jsonc file so
+# macos/devfeats_jsonc.sh — Same as devfeats_json.sh but uses a .jsonc file so
 # json__strip_jsonc_stdin and duplicate-key checks are exercised.
 set -euo pipefail
 
@@ -20,8 +20,8 @@ _fakebin="${_tmp}/fakebin"
 mkdir -p "${_fakebin}"
 mkdir -p "${_MIRROR}"
 mkdir -p "${_MIRROR}/setup-shim/${_VER}"
-cp "${DIST}/sysset-setup-shim.tar.gz" "${_MIRROR}/setup-shim/${_VER}/"
-_PAYLOAD="${DIST}/sysset-setup-shim.tar.gz"
+cp "${DIST}/devfeats-setup-shim.tar.gz" "${_MIRROR}/setup-shim/${_VER}/"
+_PAYLOAD="${DIST}/devfeats-setup-shim.tar.gz"
 _HASH="$(shasum -a 256 "$_PAYLOAD" | awk '{print $1}')"
 offline_kit_publish_mirror "${_MIRROR}" "${_BUNDLE}" "${DIST}" "setup-shim:${_VER}"
 
@@ -76,7 +76,7 @@ cat > "$_manifest" << 'EOF'
   // devcontainer with JSONC
   "name": "jsonc",
   "features": {
-    "ghcr.io/quantized8/sysset/setup-shim": {}
+    "ghcr.io/quantized8/devfeats/setup-shim": {}
   }
 }
 EOF

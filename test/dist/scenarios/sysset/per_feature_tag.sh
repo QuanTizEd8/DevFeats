@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/per_feature_tag.sh — Verify that ":tag" in the OCI features key
+# devfeats/per_feature_tag.sh — Verify that ":tag" in the OCI features key
 # pins that feature to a specific version.
 #
 # What this tests:
@@ -30,19 +30,19 @@ export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 # Push install-pixi at the pinned tag; install-os-pkg at the bundle tag.
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/install-pixi:${_PIXI_PIN}" \
-  "${DIST}/sysset-install-pixi.tar.gz"
+  "quantized8/devfeats/install-pixi:${_PIXI_PIN}" \
+  "${DIST}/devfeats-install-pixi.tar.gz"
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/install-os-pkg:${_BUNDLE_VER}" \
-  "${DIST}/sysset-install-os-pkg.tar.gz"
+  "quantized8/devfeats/install-os-pkg:${_BUNDLE_VER}" \
+  "${DIST}/devfeats-install-os-pkg.tar.gz"
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
 {
   "name": "per-feature-tag test",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:${_PIXI_PIN}": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg:${_BUNDLE_VER}": { "manifest": "${_OSP}" }
+    "ghcr.io/quantized8/devfeats/install-pixi:${_PIXI_PIN}": { "version": "0.66.0" },
+    "ghcr.io/quantized8/devfeats/install-os-pkg:${_BUNDLE_VER}": { "manifest": "${_OSP}" }
   }
 }
 EOF

@@ -287,7 +287,7 @@ The `test-features` job in `ci.yaml` runs `bash test/run.sh feature <feature>`, 
 | `src/<f>/` or `test/<f>/` | `run_features`, `features[]` → `test-features` matrix |
 | macOS-capable feature in `features[]` | `run_macos`, `macos_features[]` → `test-macos` matrix |
 | `install-os-pkg` in `features[]` | `run_features` → `test-os-pkg` (6-distro matrix) |
-| `features/install.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
+| `features/install.sh`, `features/devfeats.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
 
 On `workflow_dispatch`, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch (zero-SHA `before`) also sets `is_force=true` as a safe fallback.
 
@@ -343,7 +343,7 @@ Use the `gh` CLI to inspect workflow runs, job results, and logs. MCP GitHub too
 - `ci / setup`, `ci / lint`, `ci / validate`, `ci / unit-native (ubuntu-latest)`, `ci / unit-native (macos-latest)`, `ci / unit-linux (debian)`, ...
 - `ci / test-features (install-shell)`, `ci / test-features (install-pixi)`, ... (matrix)
 - `ci / test-macos (install-homebrew)`, ... (matrix, if applicable)
-- `ci / test-dist-build`, `ci / test-dist-sysset (debian)`, ...
+- `ci / test-dist-build`, `ci / test-dist-devfeats (debian)`, ...
 - `cd / publish` — only on release triggers
 
 ### Listing and identifying runs

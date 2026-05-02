@@ -1,6 +1,6 @@
 # Feature Reference
 
-just is a command runner that executes named recipes from a justfile. The project documents installation via package managers, prebuilt binaries, an official installer script, and Rust tooling. For SysSet, the practical installation approaches are: OS package managers, the official install script, manual release-asset installation, container-image copy from GHCR, and Rust toolchain installation.
+just is a command runner that executes named recipes from a justfile. The project documents installation via package managers, prebuilt binaries, an official installer script, and Rust tooling. For DevFeats, the practical installation approaches are: OS package managers, the official install script, manual release-asset installation, container-image copy from GHCR, and Rust toolchain installation.
 
 - **Homepage**: https://just.systems/
 - **Source Code**: https://github.com/casey/just
@@ -9,7 +9,7 @@ just is a command runner that executes named recipes from a justfile. The projec
 
 ## Available Installation Methods
 
-just is distributed through many channels. For a SysSet feature targeting macOS and Linux across containers and bare metal, the implementation-relevant methods are:
+just is distributed through many channels. For a DevFeats feature targeting macOS and Linux across containers and bare metal, the implementation-relevant methods are:
 
 1. OS package manager install for distro-native lifecycle management.
 2. Official installer script (`just.systems/install.sh`) for fast binary install with optional version pinning.
@@ -23,7 +23,7 @@ just is distributed through many channels. For a SysSet feature targeting macOS 
 
 - macOS via Homebrew (`brew`) and MacPorts (`port`).
 - Linux distributions with published packages, including Alpine (`apk`), Arch (`pacman`), Debian 13 and Ubuntu 24.04 derivatives (`apt`), Fedora (`dnf`), Gentoo (`emerge`), NixOS (`nix-env`), openSUSE (`zypper`), Solus (`eopkg`), and Void (`xbps-install`).
-- BSD package managers are also documented upstream, but SysSet scope here is macOS and Linux.
+- BSD package managers are also documented upstream, but DevFeats scope here is macOS and Linux.
 
 #### Dependencies
 
@@ -174,7 +174,7 @@ sudo port uninstall just
 
 - Linux and macOS with automatic target detection in the script.
 - Windows support exists in script logic for `x86_64-pc-windows-msvc` targets.
-- For SysSet scope, this method is directly applicable to macOS and Linux.
+- For DevFeats scope, this method is directly applicable to macOS and Linux.
 
 #### Dependencies
 

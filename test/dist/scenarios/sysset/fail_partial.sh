@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/fail_partial.sh — Verify that install.bash reports failure when one
+# devfeats/fail_partial.sh — Verify that install.bash reports failure when one
 # feature fails, after attempting features from the devcontainer.
 #
 # Strategy: devcontainer includes a non-existent OCI feature alongside a
@@ -27,16 +27,16 @@ export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 # Push install-pixi only; "does-not-exist" is intentionally absent.
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/install-pixi:${_VER}" \
-  "${DIST}/sysset-install-pixi.tar.gz"
+  "quantized8/devfeats/install-pixi:${_VER}" \
+  "${DIST}/devfeats-install-pixi.tar.gz"
 
 _manifest="${_manifest_dir}/devcontainer.json"
 cat > "$_manifest" << EOF
 {
   "name": "partial-fail test",
   "features": {
-    "ghcr.io/quantized8/sysset/does-not-exist": {},
-    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" }
+    "ghcr.io/quantized8/devfeats/does-not-exist": {},
+    "ghcr.io/quantized8/devfeats/install-pixi:${_VER}": { "version": "0.66.0" }
   }
 }
 EOF

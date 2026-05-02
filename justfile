@@ -1,4 +1,4 @@
-# SysSet Developer Tasks.
+# DevFeats Developer Tasks.
 #
 # List recipes: `just --list`.
 # Global: bash, strict mode.
@@ -99,7 +99,7 @@ build-dist *args: sync
   doc('Preview which features need a new GitHub Release (queries GitHub API). Extra args pass through to scripts/detect-releasable.py.')
 ]
 detect-releasable *args:
-    {{py}} scripts/detect-releasable.py --repo quantized8/sysset {{args}}
+    {{py}} scripts/detect-releasable.py --repo quantized8/devfeats {{args}}
 
 
 [
@@ -107,7 +107,7 @@ detect-releasable *args:
   doc('Preview next bundle tag/notes/manifest JSON. Pass args to scripts/compute-bundle-tag.py (e.g. --notes-body, --manifest, --repo owner/name).')
 ]
 compute-bundle-tag *args:
-    {{py}} scripts/compute-bundle-tag.py --repo quantized8/sysset {{args}}
+    {{py}} scripts/compute-bundle-tag.py --repo quantized8/devfeats {{args}}
 
 
 # ── Testing ───────────────────────────────────────────────────────────────────
@@ -164,10 +164,10 @@ gen-docs-check:
 
 [
   group('docs'),
-  doc('Build Sphinx site to docs/.build/ (conda env sysset-website from docs/environment.yaml).')
+  doc('Build Sphinx site to docs/.build/ (conda env devfeats-website from docs/environment.yaml).')
 ]
 build-website:
-    conda run -n sysset-website --no-capture-output \
+    conda run -n devfeats-website --no-capture-output \
       python -m sphinx -b dirhtml -c docs docs/source docs/.build \
       --keep-going --color --jobs auto
 
@@ -177,7 +177,7 @@ build-website:
   doc('Live-rebuild Sphinx with browser preview (same conda env as docs).')
 ]
 build-website-live:
-    conda run -n sysset-website --no-capture-output \
+    conda run -n devfeats-website --no-capture-output \
       python -m sphinx_autobuild docs/source docs/.build \
       -b dirhtml -c docs --open-browser --watch docs/source --watch docs
 

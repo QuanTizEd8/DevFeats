@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup-dev.sh — Install development tools for sysset.
+# setup-dev.sh — Install development tools for devfeats.
 # Usage: bash .devcontainer/setup-dev.sh [--tools tool1,tool2,...]
 #
 # Available tools: pyyaml jsonschema shfmt shellcheck just devcontainers-cli lefthook

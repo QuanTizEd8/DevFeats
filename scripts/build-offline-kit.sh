@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# build-offline-kit.sh — Assemble sysset-vX.Y.Z.tar.gz offline kit from dist/ + manifest base JSON.
+# build-offline-kit.sh — Assemble devfeats-vX.Y.Z.tar.gz offline kit from dist/ + manifest base JSON.
 #
 # Usage:
 #   bash scripts/build-offline-kit.sh <bundle-tag> <dist-dir> <manifest-base.json> [output-tarball]
 #
 #   bundle-tag       e.g. v1.2.0 (manifest ``version`` field)
-#   dist-dir         Directory containing sysset-<feature>.tar.gz from build-artifacts.sh
+#   dist-dir         Directory containing devfeats-<feature>.tar.gz from build-artifacts.sh
 #   manifest-base    JSON from: compute-bundle-tag.py --manifest
-#   output-tarball   Optional path for the kit (default: <dist-dir>/../sysset-vX.Y.Z.tar.gz)
+#   output-tarball   Optional path for the kit (default: <dist-dir>/../devfeats-vX.Y.Z.tar.gz)
 #
 # Requires: Python 3 (stdlib), tar, gzip.
 set -euo pipefail
@@ -27,7 +27,7 @@ _kit_tag="${_TAG}"
 if [[ $# -ge 4 && -n "${4-}" ]]; then
   _OUT="$(cd "$(dirname "$4")" && pwd)/$(basename "$4")"
 else
-  _OUT="$(dirname "${_DIST}")/sysset-${_kit_tag}.tar.gz"
+  _OUT="$(dirname "${_DIST}")/devfeats-${_kit_tag}.tar.gz"
 fi
 
 _STAGING="$(mktemp -d)"

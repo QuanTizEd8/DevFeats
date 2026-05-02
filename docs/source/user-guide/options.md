@@ -24,11 +24,11 @@ In Dev Containers, each feature's options are defined in the `devcontainer.json`
 
 ### CLI
 
-When using SysSet or invoking the installer script directly, options can be passed as CLI flags with the form `--<option_name> <value>`, passed after the feature ID. The CLI flag spelling matches the option name verbatim (no hyphenation):
+When using DevFeats or invoking the installer script directly, options can be passed as CLI flags with the form `--<option_name> <value>`, passed after the feature ID. The CLI flag spelling matches the option name verbatim (no hyphenation):
 
 ```sh
-# Using SysSet:
-sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user \
+# Using DevFeats:
+devfeats feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user \
   --username myusername \
   --user_id 1000
 
@@ -134,7 +134,7 @@ INSTALL_DIRENV=true sh install.sh install-shell
 
 ### Array
 
-SysSet extends the standard devcontainer feature option schema with an internal **array** type (serialized as `string` in the generated `devcontainer-feature.json`, so spec tooling accepts it). It lets a feature take a list of values ergonomically in every invocation channel. Array elements can be either strings or enums. Some options of this type also support single sentinel values (e.g. `auto`) that resolves to a default array based on the context. An empty string input corresponds to an empty array. Inside the installer, the variable is always a bash array, regardless of which channel populated it.
+DevFeats extends the standard devcontainer feature option schema with an internal **array** type (serialized as `string` in the generated `devcontainer-feature.json`, so spec tooling accepts it). It lets a feature take a list of values ergonomically in every invocation channel. Array elements can be either strings or enums. Some options of this type also support single sentinel values (e.g. `auto`) that resolves to a default array based on the context. An empty string input corresponds to an empty array. Inside the installer, the variable is always a bash array, regardless of which channel populated it.
 
 ::::{tab-set}
 

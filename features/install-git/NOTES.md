@@ -8,14 +8,14 @@ Installs git from the OS package manager. On Ubuntu, activates the git-core PPA 
 // devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {}
+    "ghcr.io/quantized8/devfeats/install-git": {}
   }
 }
 ```
 
 Standalone:
 ```bash
-curl -fsSL https://github.com/quantized8/sysset/releases/latest/download/install-git.sh | bash
+curl -fsSL https://github.com/quantized8/devfeats/releases/latest/download/install-git.sh | bash
 ```
 
 ---
@@ -27,7 +27,7 @@ Always uses the native package manager, even on Ubuntu. Installs whatever versio
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "version": "stable"
     }
   }
@@ -43,7 +43,7 @@ Installs a specific version via the package manager. The version must exist in t
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "version": "2.34.1"
     }
   }
@@ -59,7 +59,7 @@ Resolves the current stable release via the GitHub Tags API and builds from a ke
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "method": "source",
       "version": "stable"
     }
@@ -69,7 +69,7 @@ Resolves the current stable release via the GitHub Tags API and builds from a ke
 
 Standalone:
 ```bash
-curl -fsSL https://github.com/quantized8/sysset/releases/latest/download/install-git.sh | bash -s -- --method source --version stable
+curl -fsSL https://github.com/quantized8/devfeats/releases/latest/download/install-git.sh | bash -s -- --method source --version stable
 ```
 
 ---
@@ -81,7 +81,7 @@ Resolves the absolute newest git tag (RCs included) and builds from source. Use 
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "method": "source"
     }
   }
@@ -97,7 +97,7 @@ Builds exactly `2.47.2` from the kernel.org tarball. Works on all supported Linu
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "method": "source",
       "version": "2.47.2"
     }
@@ -107,7 +107,7 @@ Builds exactly `2.47.2` from the kernel.org tarball. Works on all supported Linu
 
 Standalone:
 ```bash
-curl -fsSL https://github.com/quantized8/sysset/releases/latest/download/install-git.sh | bash -s -- --method source --version 2.47.2
+curl -fsSL https://github.com/quantized8/devfeats/releases/latest/download/install-git.sh | bash -s -- --method source --version 2.47.2
 ```
 
 ---
@@ -117,7 +117,7 @@ curl -fsSL https://github.com/quantized8/sysset/releases/latest/download/install
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "method": "source",
       "version": "2.47.2",
       "prefix": "/opt/git"
@@ -135,7 +135,7 @@ The caller is responsible for adding `/opt/git/bin` to PATH.
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "if_exists": "fail"
     }
   }
@@ -151,7 +151,7 @@ Trusts all directories (essential when the UID inside the container differs from
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "safe_directory": "*",
       "default_branch": "main",
       "add_remote_user": true,
@@ -164,7 +164,7 @@ Trusts all directories (essential when the UID inside the container differs from
 
 Standalone (non-root, writes to `~/.config/git/config` and `~/.gitconfig`):
 ```bash
-curl -fsSL https://github.com/quantized8/sysset/releases/latest/download/install-git.sh | \
+curl -fsSL https://github.com/quantized8/devfeats/releases/latest/download/install-git.sh | \
   bash -s -- --safe_directory '*' --default_branch main --user_name 'Dev User' --user_email dev@example.com
 ```
 
@@ -177,7 +177,7 @@ Appends freeform gitconfig content to `/etc/gitconfig` (system-level). Useful fo
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "system_gitconfig": "[core]\n  autocrlf = input\n[push]\n  default = simple"
     }
   }
@@ -424,7 +424,7 @@ For a typical devcontainer with `remoteUser: "vscode"` that needs all repositori
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-git": {
+    "ghcr.io/quantized8/devfeats/install-git": {
       "safe_directory": "*",
       "default_branch": "main",
       "add_remote_user": true,

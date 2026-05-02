@@ -19,8 +19,8 @@ start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/${_FEAT}:${_VER}" \
-  "${REPO_ROOT}/dist/sysset-${_FEAT}.tar.gz"
+  "quantized8/devfeats/${_FEAT}:${_VER}" \
+  "${REPO_ROOT}/dist/devfeats-${_FEAT}.tar.gz"
 
 # install-pixi requires root (ospkg__require_root); installs pixi to /usr/local/bin.
 check "install.sh installs ${_FEAT}:${_VER} successfully" \

@@ -6,7 +6,7 @@
 // .devcontainer/devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-shell:0": {}
+    "ghcr.io/quantized8/devfeats/install-shell:0": {}
   }
 }
 ```
@@ -27,7 +27,7 @@ With the defaults above, the feature will:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-shell:0": {
+    "ghcr.io/quantized8/devfeats/install-shell:0": {
       "install_ohmyzsh": false,
       "install_ohmybash": false,
       "install_starship": false
@@ -41,7 +41,7 @@ With the defaults above, the feature will:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-shell:0": {
+    "ghcr.io/quantized8/devfeats/install-shell:0": {
       "ohmyzsh_theme": "romkatv/powerlevel10k",
       "ohmyzsh_plugins": "zsh-users/zsh-syntax-highlighting,zsh-users/zsh-autosuggestions",
       "set_user_shells": "zsh",
@@ -57,7 +57,7 @@ With the defaults above, the feature will:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-shell:0": {
+    "ghcr.io/quantized8/devfeats/install-shell:0": {
       "ohmyzsh_install_dir": "/opt/oh-my-zsh",
       "ohmybash_install_dir": "/opt/oh-my-bash"
     }
@@ -70,7 +70,7 @@ With the defaults above, the feature will:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-shell:0": {
+    "ghcr.io/quantized8/devfeats/install-shell:0": {
       "zdotdir": "~/.zsh",
       "ohmyzsh_custom_dir": "~/.zsh/custom",
       "ohmybash_custom_dir": "~/.config/bash/custom"

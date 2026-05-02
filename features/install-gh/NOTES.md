@@ -6,13 +6,13 @@ Install the latest GitHub CLI release using the official package repository (def
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {}
+  "ghcr.io/quantized8/devfeats/install-gh:0": {}
 }
 ```
 
 Standalone installer:
 ```bash
-curl -fsSL https://sysset.quantized8.dev/install.sh | bash -s -- install-gh
+curl -fsSL https://devfeats.quantized8.dev/install.sh | bash -s -- install-gh
 ```
 
 ---
@@ -23,7 +23,7 @@ Install an exact version of gh using the binary download method, for reproducibl
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "version": "2.89.0",
     "method": "binary"
   }
@@ -32,7 +32,7 @@ Install an exact version of gh using the binary download method, for reproducibl
 
 Standalone installer:
 ```bash
-curl -fsSL https://sysset.quantized8.dev/install.sh | bash -s -- install-gh \
+curl -fsSL https://devfeats.quantized8.dev/install.sh | bash -s -- install-gh \
   --version 2.89.0 --method binary
 ```
 
@@ -44,7 +44,7 @@ Install an exact version via apt (Debian/Ubuntu only; not supported on Alpine/Ar
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "version": "2.89.0",
     "method": "repos"
   }
@@ -59,7 +59,7 @@ Install the binary to a non-default location (e.g. a user-writable `~/.local`).
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "method": "binary",
     "prefix": "/home/vscode/.local"
   }
@@ -74,7 +74,7 @@ Install the GitHub CLI and one or more extensions. By default extensions are ins
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "extensions": "dlvhdr/gh-dash,github/gh-copilot"
   }
 }
@@ -83,7 +83,7 @@ Install the GitHub CLI and one or more extensions. By default extensions are ins
 Install extensions for one specific user only:
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "extensions": "dlvhdr/gh-dash,github/gh-copilot",
     "add_current_user": false,
     "add_remote_user": false,
@@ -100,7 +100,7 @@ Install extensions for one specific user only:
 Default behavior — silently skip if gh is already installed:
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "if_exists": "skip"
   }
 }
@@ -109,7 +109,7 @@ Default behavior — silently skip if gh is already installed:
 Fail loudly if gh is already present (useful to enforce a clean baseline):
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "if_exists": "fail"
   }
 }
@@ -123,7 +123,7 @@ Register `gh` as the git credential helper so that `git push/pull` authenticates
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "setup_git": true
   }
 }
@@ -132,7 +132,7 @@ Register `gh` as the git credential helper so that `git push/pull` authenticates
 For GitHub Enterprise Server:
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "setup_git": true,
     "git_hostname": "git.corp.example.com"
   }
@@ -147,7 +147,7 @@ Set the default git protocol to SSH and enable SSH-based commit signing (require
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "git_protocol": "ssh",
     "sign_commits": "ssh"
   }
@@ -157,7 +157,7 @@ Set the default git protocol to SSH and enable SSH-based commit signing (require
 For GPG signing instead:
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "sign_commits": "gpg"
   }
 }
@@ -171,7 +171,7 @@ Install the binary to a non-default location with a symlink at `/usr/local/bin/g
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "method": "binary",
     "prefix": "/opt/gh",
     "symlink": true
@@ -185,7 +185,7 @@ Install the binary to a non-default location with a symlink at `/usr/local/bin/g
 
 ```jsonc
 "features": {
-  "ghcr.io/quantized8/sysset/install-gh:0": {
+  "ghcr.io/quantized8/devfeats/install-gh:0": {
     "method": "binary",
     "keep_installer": true,
     "installer_dir": "/tmp/gh-trace"

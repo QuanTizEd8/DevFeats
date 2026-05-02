@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # get/feature_lifecycle_warn_other_feature.sh — Verify that install.sh warns
-# when a sysset-unknown feature lifecycle hook references another feature's
+# when a devfeats-unknown feature lifecycle hook references another feature's
 # resource and still completes successfully.
 set -euo pipefail
 
@@ -30,26 +30,26 @@ cat > "${_stage}/root/devcontainer-feature.json" << EOF
   "version": "${_VER}",
   "name": "Fake warn lifecycle probe",
   "customizations": {
-    "sysset": {
-      "dependsOn": "quantized8/sysset/other-feature"
+    "devfeats": {
+      "dependsOn": "quantized8/devfeats/other-feature"
     }
   },
-  "postCreateCommand": "echo 'sysset-probe:warn-lifecycle-ran'"
+  "postCreateCommand": "echo 'devfeats-probe:warn-lifecycle-ran'"
 }
 EOF
-tar -C "${_stage}/root" -czf "${_stage}/sysset-${_FEAT}.tar.gz" .
+tar -C "${_stage}/root" -czf "${_stage}/devfeats-${_FEAT}.tar.gz" .
 
 start_file_server "${REPO_ROOT}" "$_PORT"
 export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-  "quantized8/sysset/${_FEAT}:${_VER}" \
-  "${_stage}/sysset-${_FEAT}.tar.gz"
+  "quantized8/devfeats/${_FEAT}:${_VER}" \
+  "${_stage}/devfeats-${_FEAT}.tar.gz"
 
 check "install.sh succeeds despite unresolvable dependency hint" \
   sudo -E bash "${REPO_ROOT}/install.sh" --log_file "$_log" "${_FEAT}:${_VER}"
 
 check "postCreateCommand still ran" \
-  bash -c "grep -q 'sysset-probe:warn-lifecycle-ran' '$_log'"
+  bash -c "grep -q 'devfeats-probe:warn-lifecycle-ran' '$_log'"
 
 reportResults

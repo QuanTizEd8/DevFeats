@@ -15,7 +15,7 @@ Three workflow files form the pipeline:
 | `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
 | `src/<f>/` or `test/<f>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
 | `install-os-pkg` in changed list | `test-os-pkg` (6-distro matrix) |
-| `features/install.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
+| `features/install.sh`, `features/devfeats.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
 
 On `workflow_dispatch` or `v*` tag push, all jobs run. CD runs only when `is_release=true` AND CI passes.
 
@@ -48,11 +48,11 @@ package as public:
 
 1. Navigate to the package settings URL:
    ```
-   https://github.com/users/|{{github_user}}|/packages/container/sysset%2F<feature-id>/settings
+   https://github.com/users/|{{github_user}}|/packages/container/devfeats%2F<feature-id>/settings
    ```
    For example, for `install-shell`:
    ```
-   https://github.com/users/|{{github_user}}|/packages/container/sysset%2Finstall-shell/settings
+   https://github.com/users/|{{github_user}}|/packages/container/devfeats%2Finstall-shell/settings
    ```
 2. Under **Danger Zone**, set the visibility to **Public**.
 
@@ -70,7 +70,7 @@ repository to add an entry to the
 file.
 
 The index entry registers the feature collection namespace
-(`ghcr.io/|{{github_user}}|/sysset`) so that supporting tools can surface all
+(`ghcr.io/|{{github_user}}|/devfeats`) so that supporting tools can surface all
 features from this repository in their dev container creation UI.
 
 ---
@@ -93,7 +93,7 @@ Add a `customizations.codespaces.repositories` block to the consuming
   "customizations": {
     "codespaces": {
       "repositories": {
-        "|{{github_user}}|/sysset": {
+        "|{{github_user}}|/devfeats": {
           "permissions": {
             "packages": "read",
             "contents": "read"

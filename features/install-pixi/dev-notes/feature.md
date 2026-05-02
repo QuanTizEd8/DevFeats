@@ -350,8 +350,8 @@ this mount:
 ]
 ```
 
-This creates a named Docker volume (e.g. `sysset-pixi` for a workspace folder
-named `sysset`) and mounts it at `<workspace>/.pixi` inside the container.
+This creates a named Docker volume (e.g. `devfeats-pixi` for a workspace folder
+named `devfeats`) and mounts it at `<workspace>/.pixi` inside the container.
 The volume persists across container rebuilds, so environments do not need to
 be reinstalled on every rebuild.
 

@@ -15,7 +15,7 @@ _TMP="$(mktemp -d)"
 trap 'rm -rf "${_TMP}"' EXIT
 
 mkdir -p "${_TMP}/feature"
-tar -xzf "${REPO_ROOT}/dist/sysset-install-pixi.tar.gz" -C "${_TMP}/feature"
+tar -xzf "${REPO_ROOT}/dist/devfeats-install-pixi.tar.gz" -C "${_TMP}/feature"
 export SYSSET_VERSION="v99.99.0-test"
 check "install.sh local-path install succeeds even when SYSSET_VERSION is set" \
   sudo -E bash "${REPO_ROOT}/install.sh" "${_TMP}/feature"

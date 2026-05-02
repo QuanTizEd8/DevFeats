@@ -1,4 +1,4 @@
-name: sysset-website
+name: devfeats-website
 dependencies:
   - conda-forge::sphinx ==9.1.0
   - conda-forge::pydata-sphinx-theme ==0.16.1

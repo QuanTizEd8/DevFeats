@@ -1,6 +1,6 @@
 # Feature Reference
 
-TeX Live is the upstream TeX distribution maintained by TeX user groups and is the canonical source for LaTeX engines, macro packages, fonts, and tooling across Linux, macOS, and Windows. For SysSet `install-latex`, the practical goal is to provide reliable LaTeX toolchain provisioning (at minimum `latex` and package management via `tlmgr`) across macOS and Linux, including container environments.
+TeX Live is the upstream TeX distribution maintained by TeX user groups and is the canonical source for LaTeX engines, macro packages, fonts, and tooling across Linux, macOS, and Windows. For DevFeats `install-latex`, the practical goal is to provide reliable LaTeX toolchain provisioning (at minimum `latex` and package management via `tlmgr`) across macOS and Linux, including container environments.
 
 For this feature, three installation paths are relevant in practice:
 
@@ -15,7 +15,7 @@ For this feature, three installation paths are relevant in practice:
 
 ## Available Installation Methods
 
-Upstream explicitly supports multiple acquisition and install approaches (network installer, ISO, DVD, mirrored repositories, and platform-specific packaging). For SysSet implementation on macOS/Linux, the most operationally useful methods are detailed below.
+Upstream explicitly supports multiple acquisition and install approaches (network installer, ISO, DVD, mirrored repositories, and platform-specific packaging). For DevFeats implementation on macOS/Linux, the most operationally useful methods are detailed below.
 
 ### Official TeX Live Unix Installer (`install-tl`)
 

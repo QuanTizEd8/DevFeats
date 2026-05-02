@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/jsonc_manifest.sh — Verify that install.bash accepts JSONC (comments +
+# devfeats/jsonc_manifest.sh — Verify that install.bash accepts JSONC (comments +
 # trailing commas) as devcontainer input and installs features via the
 # local OCI registry.
 #
@@ -21,8 +21,8 @@ DIST="${REPO_ROOT}/dist"
 _OSP="${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml"
 _VER="99.99.0-test"
 
-check "dist has sysset-install-pixi.tar.gz" test -f "${DIST}/sysset-install-pixi.tar.gz"
-check "dist has sysset-install-os-pkg.tar.gz" test -f "${DIST}/sysset-install-os-pkg.tar.gz"
+check "dist has devfeats-install-pixi.tar.gz" test -f "${DIST}/devfeats-install-pixi.tar.gz"
+check "dist has devfeats-install-os-pkg.tar.gz" test -f "${DIST}/devfeats-install-os-pkg.tar.gz"
 
 _PORT=18540
 _manifest_dir="$(mktemp -d)"
@@ -33,8 +33,8 @@ export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 for _f in install-pixi install-os-pkg; do
   push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-    "quantized8/sysset/${_f}:${_VER}" \
-    "${DIST}/sysset-${_f}.tar.gz"
+    "quantized8/devfeats/${_f}:${_VER}" \
+    "${DIST}/devfeats-${_f}.tar.gz"
 done
 
 # ── Devcontainer manifest (.jsonc with comments + trailing comma) ────────────
@@ -46,8 +46,8 @@ cat > "$_manifest" << EOF
   "name": "dist test jsonc",
   "features": {
     // Pin install-pixi explicitly via its own option.
-    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }, // trailing comma
+    "ghcr.io/quantized8/devfeats/install-pixi:${_VER}": { "version": "0.66.0" },
+    "ghcr.io/quantized8/devfeats/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }, // trailing comma
   },
 }
 EOF
@@ -55,7 +55,7 @@ EOF
 check "install.bash runs .jsonc devcontainer manifest to completion" \
   bash "${REPO_ROOT}/install.bash" "$_manifest"
 
-check "pixi installed by sysset" \
+check "pixi installed by devfeats" \
   command -v pixi
 check "tree installed by install-os-pkg" \
   command -v tree

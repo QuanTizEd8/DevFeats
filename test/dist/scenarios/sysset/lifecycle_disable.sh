@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sysset/lifecycle_disable.sh — Verify the grammar for disable flags for
+# devfeats/lifecycle_disable.sh — Verify the grammar for disable flags for
 # feature- and container-level lifecycle commands.
 #
 # What this tests (manifest mode):
@@ -33,8 +33,8 @@ export SYSSET_RAW_BASE="http://127.0.0.1:${_PORT}"
 
 for _f in install-pixi install-os-pkg; do
   push_oci_feature "${SYSSET_REGISTRY_HOST}" \
-    "quantized8/sysset/${_f}:${_VER}" \
-    "${DIST}/sysset-${_f}.tar.gz"
+    "quantized8/devfeats/${_f}:${_VER}" \
+    "${DIST}/devfeats-${_f}.tar.gz"
 done
 
 _manifest() {
@@ -45,8 +45,8 @@ _manifest() {
 {
   "name": "lifecycle-disable test",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:${_VER}": { "version": "0.66.0" },
-    "ghcr.io/quantized8/sysset/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
+    "ghcr.io/quantized8/devfeats/install-pixi:${_VER}": { "version": "0.66.0" },
+    "ghcr.io/quantized8/devfeats/install-os-pkg:${_VER}": { "manifest": "${_OSP}" }
   },
   "postCreateCommand": "touch '${_state}/container-${_p}'"
 }

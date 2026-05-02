@@ -827,7 +827,7 @@ _github__api_get() {
   set -- \
     --header "Accept: application/vnd.github+json" \
     --header "X-GitHub-Api-Version: 2022-11-28" \
-    --header "User-Agent: sysset"
+    --header "User-Agent: devfeats"
   [ -n "${GITHUB_TOKEN:-}" ] && set -- "$@" --header "Authorization: Bearer ${GITHUB_TOKEN}"
 
   local _ec=0

@@ -210,7 +210,7 @@ _logging__recompute_level || logging__warn "Unknown LOG_LEVEL '${LOG_LEVEL:-}'; 
 # Cleanup deletes _SYSSET_TMPDIR and all logging__tmpdir subdirectories.
 # Auto-registers GITHUB_TOKEN (if set) as a masked secret.
 logging__setup() {
-  [[ -z "${_SYSSET_TMPDIR:-}" ]] && _SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/sysset_XXXXXX")"
+  [[ -z "${_SYSSET_TMPDIR:-}" ]] && _SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
   _LOG_FILE_TMP="$(mktemp "${_SYSSET_TMPDIR}/log_XXXXXX")"
   exec 3>&1 4>&2
   exec > >(tee -a "$_LOG_FILE_TMP" >&3) 2>&1
@@ -239,7 +239,7 @@ logging__mask_secret() {
 #
 # Stdout: absolute path to the named subdirectory.
 logging__tmpdir() {
-  [[ -z "${_SYSSET_TMPDIR:-}" ]] && _SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/sysset_XXXXXX")"
+  [[ -z "${_SYSSET_TMPDIR:-}" ]] && _SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
   mkdir -p "${_SYSSET_TMPDIR}/${1}"
   echo "${_SYSSET_TMPDIR}/${1}"
   return 0

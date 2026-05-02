@@ -46,14 +46,14 @@ Install the latest pixi to `/usr/local/bin` (already on PATH in all devcontainer
 // .devcontainer/devcontainer.json
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {}
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {}
   }
 }
 ```
 
 Standalone equivalent:
 ```bash
-curl -fsSL https://github.com/quantized8/sysset/releases/latest/download/install-pixi.tar.gz | tar -xz
+curl -fsSL https://github.com/quantized8/devfeats/releases/latest/download/install-pixi.tar.gz | tar -xz
 bash install-pixi/install.sh
 ```
 
@@ -64,7 +64,7 @@ bash install-pixi/install.sh
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {
       "version": "0.67.0"
     }
   }
@@ -85,7 +85,7 @@ Install to `/opt/pixi` (requires root) and write a PATH export to all system-wid
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {
       "prefix": "/opt/pixi",
       "export_path": "auto"
     }
@@ -111,7 +111,7 @@ to fix ownership and optionally auto-install environments:
 {
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {}
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {}
   },
   "remoteUser": "vscode",
   "postCreateCommand": "sudo chown vscode ${containerWorkspaceFolder}/.pixi && pixi install"
@@ -129,7 +129,7 @@ Set `home_dir` to a stable path (e.g. a volume-backed directory) so global pixi 
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {
       "home_dir": "/var/pixi"
     }
   }
@@ -145,7 +145,7 @@ Note: `PIXI_HOME` is read by pixi on every invocation, so it must be exported to
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {
       "shell_completions": "bash zsh"
     }
   }
@@ -174,7 +174,7 @@ Use `download_url` to point directly to an internal mirror. Checksum verificatio
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {
       "download_url": "https://mirror.internal/pixi/pixi-x86_64-unknown-linux-musl.tar.gz"
     }
   }
@@ -186,7 +186,7 @@ For authenticated mirrors, provide a `.netrc` file:
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {
       "download_url": "https://mirror.internal/pixi/pixi-x86_64-unknown-linux-musl.tar.gz",
       "netrc": "/run/secrets/netrc"
     }
@@ -203,7 +203,7 @@ If pixi is already installed in the image and you want to upgrade it on each reb
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {
       "version": "latest",
       "if_exists": "update"
     }
@@ -220,7 +220,7 @@ Keep the `.tar.gz` and `.tar.gz.sha256` sidecar in `installer_dir` after install
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-pixi:1": {
+    "ghcr.io/quantized8/devfeats/install-pixi:1": {
       "installer_dir": "/tmp/pixi-installer",
       "keep_installer": true
     }

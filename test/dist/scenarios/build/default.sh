@@ -33,15 +33,15 @@ check "repo root install.sh exists" test -f "${REPO_ROOT}/install.sh"
 check "repo root install.bash exists" test -f "${REPO_ROOT}/install.bash"
 
 for _feat in "${_features[@]}"; do
-  _tarball="${DIST}/sysset-${_feat}.tar.gz"
-  check "sysset-${_feat}.tar.gz exists" test -f "$_tarball"
-  check "sysset-${_feat}: contains install.sh" \
+  _tarball="${DIST}/devfeats-${_feat}.tar.gz"
+  check "devfeats-${_feat}.tar.gz exists" test -f "$_tarball"
+  check "devfeats-${_feat}: contains install.sh" \
     bash -c "tar -tzf '${_tarball}' | grep -qx '\./install\.sh\|install\.sh'"
-  check "sysset-${_feat}: contains install.bash" \
+  check "devfeats-${_feat}: contains install.bash" \
     bash -c "tar -tzf '${_tarball}' | grep -qx '\./install\.bash\|install\.bash'"
-  check "sysset-${_feat}: contains _lib/" \
+  check "devfeats-${_feat}: contains _lib/" \
     bash -c "tar -tzf '${_tarball}' | grep -q '_lib/'"
-  check "sysset-${_feat}: contains devcontainer-feature.json" \
+  check "devfeats-${_feat}: contains devcontainer-feature.json" \
     bash -c "tar -tzf '${_tarball}' | grep -q 'devcontainer-feature\.json'"
 done
 
@@ -50,8 +50,8 @@ _ver="$(grep -E '^[[:space:]]*version:' "${REPO_ROOT}/features/${_f0}/metadata.y
 _kit_mirror="$(mktemp -d)"
 trap 'rm -rf "${_kit_mirror:-}"' EXIT
 offline_kit_publish_mirror "${_kit_mirror}" "v0.0.777-disttest" "${DIST}" "${_f0}:${_ver}"
-check "offline kit tarball exists" test -f "${_kit_mirror}/v0.0.777-disttest/sysset-v0.0.777-disttest.tar.gz"
+check "offline kit tarball exists" test -f "${_kit_mirror}/v0.0.777-disttest/devfeats-v0.0.777-disttest.tar.gz"
 check "offline kit contains manifest.json" \
-  bash -c "tar -tzf '${_kit_mirror}/v0.0.777-disttest/sysset-v0.0.777-disttest.tar.gz' | grep -qx '\./manifest\.json\|manifest\.json'"
+  bash -c "tar -tzf '${_kit_mirror}/v0.0.777-disttest/devfeats-v0.0.777-disttest.tar.gz' | grep -qx '\./manifest\.json\|manifest\.json'"
 
 reportResults

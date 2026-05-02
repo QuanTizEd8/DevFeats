@@ -66,7 +66,7 @@ on:
         type: string
         default: ""
       run_dist:
-        description: "Run dist tests (features/install.sh, features/sysset.sh)"
+        description: "Run dist tests (features/install.sh, features/devfeats.sh)"
         type: boolean
         default: true
       version:
@@ -133,7 +133,7 @@ jobs:
       - name: Upload src/ artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
           include-hidden-files: true
           retention-days: 1
@@ -141,7 +141,7 @@ jobs:
       - name: Upload dist/ artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sysset-dist
+          name: devfeats-dist
           path: dist/
           retention-days: 1
 
@@ -162,7 +162,7 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
 
       - name: "Check formatting (shfmt)"
@@ -189,7 +189,7 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
 
       - name: "Validate devcontainer-feature.json files"
@@ -228,7 +228,7 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
 
       - name: "Install bash ≥4 (macOS)"
@@ -292,7 +292,7 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
 
       - name: "Run unit tests in container"
@@ -335,7 +335,7 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
 
       - name: Log in to GitHub Container Registry
@@ -379,7 +379,7 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
 
       - name: "Run manifest resolution tests"
@@ -408,7 +408,7 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
 
       - name: "Test ${{ matrix.feature }} macOS scenarios"
@@ -433,7 +433,7 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-src
+          name: devfeats-src
           path: src/
 
       - name: "Run build scenario"
@@ -453,13 +453,13 @@ jobs:
       - name: Download dist/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-dist
+          name: devfeats-dist
           path: dist/
 
       - name: Start test OCI registry
         run: |
           PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); p=s.getsockname()[1]; s.close(); print(p)')
-          docker run -d --rm --name sysset-test-registry-get -p "${PORT}:5000" registry:2
+          docker run -d --rm --name devfeats-test-registry-get -p "${PORT}:5000" registry:2
           until curl -sf "http://localhost:${PORT}/v2/" > /dev/null 2>&1; do sleep 0.5; done
           echo "SYSSET_TEST_REGISTRY_HOST=localhost:${PORT}" >> "$GITHUB_ENV"
 
@@ -478,11 +478,11 @@ jobs:
 
       - name: Stop test OCI registry
         if: always()
-        run: docker stop sysset-test-registry-get 2>/dev/null || true
+        run: docker stop devfeats-test-registry-get 2>/dev/null || true
 
-  # ── Dist: sysset/ scenarios (Linux containers) ────────────────────────────
-  test-dist-sysset:
-    name: "Dist Tests - sysset/ scenarios (${{ matrix.distro }})"
+  # ── Dist: devfeats/ scenarios (Linux containers) ────────────────────────────
+  test-dist-devfeats:
+    name: "Dist Tests - devfeats/ scenarios (${{ matrix.distro }})"
     needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: ubuntu-latest
@@ -505,17 +505,17 @@ jobs:
       - name: Download dist/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-dist
+          name: devfeats-dist
           path: dist/
 
       - name: Start test OCI registry
         run: |
           PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); p=s.getsockname()[1]; s.close(); print(p)')
-          docker run -d --rm --name sysset-test-registry -p "${PORT}:5000" registry:2
+          docker run -d --rm --name devfeats-test-registry -p "${PORT}:5000" registry:2
           until curl -sf "http://localhost:${PORT}/v2/" > /dev/null 2>&1; do sleep 0.5; done
           echo "SYSSET_TEST_REGISTRY_HOST=localhost:${PORT}" >> "$GITHUB_ENV"
 
-      - name: "Run sysset/ scenarios inside ${{ matrix.distro }} container"
+      - name: "Run devfeats/ scenarios inside ${{ matrix.distro }} container"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -526,11 +526,11 @@ jobs:
             -e GITHUB_TOKEN \
             -e SYSSET_TEST_REGISTRY_HOST \
             "${{ matrix.image }}" \
-            sh -c "${{ matrix.pre }} && bash test/dist/run.sh --suite sysset --no-build"
+            sh -c "${{ matrix.pre }} && bash test/dist/run.sh --suite devfeats --no-build"
 
       - name: Stop test OCI registry
         if: always()
-        run: docker stop sysset-test-registry 2>/dev/null || true
+        run: docker stop devfeats-test-registry 2>/dev/null || true
 
   # ── Dist: macOS scenarios ─────────────────────────────────────────────────
   test-dist-macos:
@@ -544,7 +544,7 @@ jobs:
       - name: Download dist/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-dist
+          name: devfeats-dist
           path: dist/
 
       - name: "Install bash ≥4 (macOS)"

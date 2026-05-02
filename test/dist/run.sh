@@ -2,7 +2,7 @@
 # run.sh — Runner for test/dist/ scenarios.
 #
 # Usage:
-#   bash test/dist/run.sh [--suite <build|get|sysset|macos>] [--filter <name>]
+#   bash test/dist/run.sh [--suite <build|get|devfeats|macos>] [--filter <name>]
 #
 # Discovers and runs scenario scripts under test/dist/scenarios/<suite>/*.sh.
 # Each scenario is executed in a subshell; return code determines pass/fail.
@@ -12,7 +12,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCENARIOS_BASE="${REPO_ROOT}/test/dist/scenarios"
-SUITES=(build get sysset macos)
+SUITES=(build get devfeats macos)
 
 SUITE_FILTER=""
 NAME_FILTER=""
@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --suite)
       shift
-      SUITE_FILTER="${1:?--suite requires a value (build|get|sysset|macos)}"
+      SUITE_FILTER="${1:?--suite requires a value (build|get|devfeats|macos)}"
       shift
       ;;
     --filter)
@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --help | -h)
       cat << EOF
-Usage: bash test/dist/run.sh [--suite <build|get|sysset|macos>] [--filter <name>] [--version <tag>] [--no-build]
+Usage: bash test/dist/run.sh [--suite <build|get|devfeats|macos>] [--filter <name>] [--version <tag>] [--no-build]
 EOF
       exit 0
       ;;
@@ -79,9 +79,9 @@ _bold_sep() {
 
 # ── Local OCI registry (skipped with --no-build for build/ suite only) ───────
 # Starts a registry:2 container on a random local port and exports
-# SYSSET_TEST_REGISTRY_HOST for use by get/ and sysset/ scenario scripts.
+# SYSSET_TEST_REGISTRY_HOST for use by get/ and devfeats/ scenario scripts.
 # If SYSSET_TEST_REGISTRY_HOST is already set in the environment (e.g. for
-# sysset/ scenarios inside a minimal docker container where docker is not
+# devfeats/ scenarios inside a minimal docker container where docker is not
 # available), the existing value is used as-is and no container is started.
 setup_local_registry() {
   if [[ -n "${SYSSET_TEST_REGISTRY_HOST:-}" ]]; then
@@ -140,7 +140,7 @@ run_scenario() {
   _sep
   echo "▶  dist / ${_suite} / ${_name}"
   _sep
-  if [[ "$_suite" == "get" || "$_suite" == "sysset" ]]; then
+  if [[ "$_suite" == "get" || "$_suite" == "devfeats" ]]; then
     if SYSSET_REGISTRY_HOST="${SYSSET_TEST_REGISTRY_HOST}" \
       SYSSET_TEST_REPO_ROOT="${REPO_ROOT}" \
       bash "$_script" "$REPO_ROOT"; then
@@ -162,7 +162,7 @@ run_scenario() {
 }
 
 _needs_registry=false
-if [[ -z "$SUITE_FILTER" || "$SUITE_FILTER" == "get" || "$SUITE_FILTER" == "sysset" ]]; then
+if [[ -z "$SUITE_FILTER" || "$SUITE_FILTER" == "get" || "$SUITE_FILTER" == "devfeats" ]]; then
   _needs_registry=true
 fi
 if [[ "$_needs_registry" == true ]]; then
