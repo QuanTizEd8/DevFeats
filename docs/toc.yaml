@@ -23,6 +23,11 @@ entries:
     entries:
       - glob: features/*
 
+  - title: Library
+    file: library
+    entries:
+      - file: library/*
+
   - title: Dev Guide
     file: dev-guide
     entries:
