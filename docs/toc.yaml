@@ -26,8 +26,8 @@ entries:
   - title: Dev Guide
     file: dev-guide
     entries:
-      - file: dev/repo-structure
-      - file: dev/writing-features
-      - file: dev/testing
-      - file: dev/ci
-      - file: dev/publishing
+      - file: dev-guide/repo-structure
+      - file: dev-guide/writing-features
+      - file: dev-guide/testing
+      - file: dev-guide/ci
+      - file: dev-guide/publishing
