@@ -15,7 +15,7 @@ _conda_init_snippet() {
   local _shell="$1"
   local _tmpdir _f
   _tmpdir="$(mktemp -d)"
-  HOME="$_tmpdir" "$CONDA_EXEC" init "$_shell" -q 2> /dev/null || true
+  HOME="$_tmpdir" "$CONDA_EXEC" init "$_shell" > /dev/null 2>&1 || true
   for _f in "$_tmpdir"/.bashrc "$_tmpdir"/.bash_profile \
     "$_tmpdir"/.zshrc "$_tmpdir"/.zprofile; do
     if [[ -f "$_f" && -s "$_f" ]]; then
