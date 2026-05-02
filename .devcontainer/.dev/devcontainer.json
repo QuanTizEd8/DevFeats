@@ -37,6 +37,10 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   // "postCreateCommand": "lefthook install",
+  "postStartCommand": {
+    "initialize_bats_submodules": "git submodule update --init --recursive",
+    "install_website_deps": "conda env create -f .devcontainer/.dev/website-conda-env.yaml"
+  },
   "customizations": {
     "vscode": {
       "settings": {
