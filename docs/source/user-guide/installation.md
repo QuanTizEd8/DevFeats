@@ -41,6 +41,8 @@ Features are then downloaded, [ordered](installation-order.md), and installed au
 ## Universal Installation
 
 Outside Dev Containers, features can be installed either using SysSet, or directly from their release artifacts.
+**Re-runs are idempotent** — installers check for already-done work and skip it, so you can rerun after fixing an environment issue without uninstalling first.
+
 
 ### SysSet Installation
 
