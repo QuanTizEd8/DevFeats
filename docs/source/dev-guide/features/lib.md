@@ -7,25 +7,23 @@ The `lib/` directory contains reusable POSIX-compliant and Bash-specific files t
 All `lib/*.sh` modules must start with an idempotency guard:
 
 ```bash
-[[ -n "${_LIB_MYMODULE_LOADED-}" ]] && return 0
-_LIB_MYMODULE_LOADED=1
+[[ -n "${_MYMODULE__LIB_LOADED-}" ]] && return 0
+_MYMODULE__LIB_LOADED=1
 ```
 
-## API
 
-<!-- START lib-api MARKER -->
-| Module | Key API |
-|---|---|
-| `logging.sh` | `logging__setup` · `logging__mask_secret <value>` · `logging__tmpdir <name>` · `logging__cleanup` |
-| `os.sh` | `os__kernel` · `os__arch` · `os__id` · `os__id_like` · `os__platform` · `os__require_root` · `os__font_dir` · `os__is_container` · `os__codename` |
-| `ospkg.sh` | `ospkg__detect` · `ospkg__update [--force] [--lists_max_age N] [--repo_added]` · `ospkg__install <pkg>...` · `ospkg__clean` · `ospkg__parse_manifest_yaml <json-file>` · `ospkg__install_tracked <group-id> <pkg>...` · `ospkg__cleanup_all_build_groups` · `ospkg__run [--manifest <f>] [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>]` |
-| `net.sh` | `net__fetch_with_retry [--retries N] [--delay N] <cmd...>` · `net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]...` · `net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]...` |
-| `json.sh` | `json__root_scalar_stdin <key>` · `json__array_field_lines_stdin <field>` · `json__object_array_field_lines_stdin <arrayKey> <field>` · `json__object_map_string_values_stdin [<objectKey>]` · `json__object_key_string_lines_stdin <key>` · `json__nodejs_index_version_stdin <op> [arg]` |
-| `git.sh` | `git__clone --url <url> --dir <dir> [--branch <branch>]` |
-| `shell.sh` | `shell__detect_bashrc` · `shell__detect_zshdir` · `shell__write_block --file <f> --marker <id> --content <c>` · `shell__sync_block --files <list> --marker <id> [--content <c>]` · `shell__user_login_file [--home <dir>]` · `shell__system_path_files [--profile_d <filename>]` · `shell__detect_zdotdir [--home <dir>]` · `shell__user_path_files [--home <dir>] [--zdotdir <dir>]` · `shell__user_init_files [--home <dir>] [--zdotdir <dir>]` · `shell__user_rc_files [--home <dir>] [--zdotdir <dir>]` · `shell__system_rc_files` · `shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>` · `shell__resolve_home <username>` · `shell__ensure_bashenv` · `shell__create_symlink --src <s> --system-target <t> --user-target <t>` |
-| `str.sh` | `str__basename_each [<path-token>...]` |
-| `github.sh` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` · `github__release_json_tag_name <file>` · `github__release_json_id <file>` · `github__release_json_digest_for_asset <release.json> <asset_name>` · `github__latest_tag <owner/repo>` · `github__release_tags <owner/repo> [--per_page N]` · `github__resolve_version <owner/repo> [<version-spec>]` · `github__tags <owner/repo> [--per_page N]` · `github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` · `github__pick_release_asset <owner/repo> [--tag <tag>] [--asset-regex <ERE>]` |
-| `checksum.sh` | `checksum__verify_sha256 <file> <expected_hash>` · `checksum__verify_sha256_sidecar <file> <sha256_file>` |
-| `users.sh` | `users__resolve_list` · `users__set_write_permissions <prefix> <owner> <group> [<user>...]` · `users__set_login_shell <shell_path> <username>...` |
-<!-- END lib-api MARKER -->
 
+## Shared library
+
+`lib/` contains the canonical source for the shared helper library, where each file is a module of related functions for a specific domain. These are copied into every feature's `src/*/_lib/`, which are then sourced by the feature scripts.
+
+
+## Shared library reference
+
+All library files live in `lib/` and are synced to `_lib/` in each feature. Source them from `$_SELF_DIR/_lib/<file>.sh`.
+
+Each module uses a guard variable (`_LIB_<NAME>_LOADED`) to prevent double-sourcing. Every public function is covered by the bats unit suite under `test/unit/`. Run `just test-unit` to verify changes locally before pushing.
+
+**Multi-value conventions:** many helpers return multiple logical items as one stdout line per item (empty list → no output). This composes naturally with pipes, `while read -r`, and `mapfile`.
+
+> **Always check here before implementing something from scratch.** If a function does what you need, use it. If you are writing logic that could benefit other features, add it to `lib/` instead of keeping it inline.

@@ -1,0 +1,836 @@
+# Testing
+
+This guide covers everything needed
+to write and run tests for features in this repository
+— the framework used, how tests are structured, writing assertions,
+running tests locally and in CI, and other tips and notes.
+
+
+## Framework overview
+
+The test suite has four layers:
+
+| Layer | Directory | Framework | Docker required |
+|-------|-----------|-----------|----------------|
+| Shared library unit tests | `test/unit/` | bats-core | No |
+| Feature scenario tests | `test/<feature>/` | devcontainer CLI | Yes (Linux) |
+| Linux-native scenarios | `test/<feature>/linux/` | plain Docker + assert.sh | Yes (Linux) |
+| macOS feature scenarios | `test/<feature>/macos/` | native bash scripts | No (macOS runner) |
+
+### Devcontainer CLI scenarios
+
+Tests use the **devcontainer CLI** ([`@devcontainers/cli`](https://github.com/devcontainers/cli))
+as the test runner.
+For each scenario it:
+
+1. Reads the scenario's entry in `scenarios.json` as a `devcontainer.json` configuration object.
+2. Creates a temporary project: writes that config as `devcontainer.json`, copies the local feature source into it, and merges any per-scenario build context files (see [Scenario build context](#scenario-build-context) below).
+3. Builds and starts a container from that project.
+4. Runs `<scenario>.sh` inside the container.
+5. Reports each named `check` as pass or fail.
+
+The assertions inside `<scenario>.sh` are written with `check` and `reportResults`, provided by the `dev-container-features-test-lib` helper. The CLI injects this library into the container at test time — it is never installed manually.
+
+---
+
+## Test structure
+
+### Directory layout
+
+Every feature has a mirror directory under `test/`:
+
+```
+src/
+  <feature>/            ← feature source
+test/
+  <feature>/
+    scenarios.json      ← scenario registry
+    <scenario>.sh       ← assertion script for that scenario
+    <scenario>/         ← optional build context (see below)
+      Dockerfile
+      ...
+```
+
+### scenarios.json
+
+`scenarios.json` maps scenario names to **[devcontainer.json](https://containers.dev/implementors/json_reference/) configuration objects**. The CLI writes each entry verbatim as the `devcontainer.json` for its test container, so any property valid in `devcontainer.json` is valid here.
+
+**The only required field is `"features"`.** The base image is specified with either `"image"` (a plain image pull) or `"build"` (a Dockerfile build):
+
+```jsonc
+{
+    // Plain image — simplest form, no Dockerfile needed
+    "<scenario-name>": {
+        "image": "<image>",
+        "features": {
+            "<feature-dir>": { "<option>": "<value>" }
+        }
+    },
+
+    // Dockerfile build — for scenarios that require a pre-condition state
+    "<other-scenario>": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "<feature-dir>": { "<option>": "<value>" }
+        }
+    }
+}
+```
+
+**Feature keys** in `"features"` must be the **directory name under `src/`** — the CLI uses the key as a filesystem path to locate and copy the feature source. Per the devcontainer spec, a feature's `"id"` must match its directory name, so the key also equals the feature's `"id"`.
+
+To reference a feature from outside this repository, use its fully-qualified registry ID (containing a `/`), e.g. `"ghcr.io/devcontainers/features/go": {}`. The CLI passes such keys through unchanged without touching local disk, which allows composing local and published features in a single scenario.
+
+Other `devcontainer.json` properties are valid at the scenario level too. Commonly used ones:
+
+- **`"remoteUser"`** — runs the test script as the specified user inside the container.
+- **`"build": { "args": { ... } }`** — passes Docker build arguments; values can reference local environment variables with `${localEnv:VAR}`.
+
+When a scenario uses `"build"`, it needs a corresponding `<scenario>/` subdirectory containing the referenced Dockerfile and any other build-time files — see [Scenario build context](#scenario-build-context) below.
+
+### Scenario build context
+
+The `<scenario>/` subdirectory is the **build context** for a `"build"`-based scenario. If the directory exists, the CLI merges its entire contents directly into the temporary `.devcontainer/` folder — the contents land flat in `.devcontainer/`, not inside a nested subfolder:
+
+```
+test/<feature>/<scenario>/          →   $TMP/.devcontainer/
+  Dockerfile                        →     Dockerfile
+  setup.sh                          →     setup.sh
+  data/seed.sql                     →     data/seed.sql
+```
+
+Every file in the subdirectory is therefore `COPY`-addressable from the Dockerfile using its path relative to `<scenario>/`:
+
+```dockerfile
+FROM ubuntu:latest
+COPY setup.sh /tmp/setup.sh          # from <scenario>/setup.sh
+COPY data/seed.sql /tmp/seed.sql     # from <scenario>/data/seed.sql
+RUN bash /tmp/setup.sh
+```
+
+The Dockerfile filename is not fixed — `"build": { "dockerfile": "..." }` can reference any name, as long as the file exists in the subdirectory at that relative path. By convention this repo always uses `Dockerfile`.
+
+The subdirectory is only needed when a scenario uses `"build"`. Scenarios that specify `"image"` pull the image directly and need no subdirectory at all. Use a Dockerfile when you need to pre-install packages, create files, set up users, or otherwise establish a pre-condition state that a plain image cannot provide.
+
+### Scenario scripts
+
+Each `<scenario>.sh`:
+
+- Has the same name as its key in `scenarios.json`.
+- Sources `dev-container-features-test-lib` to gain access to `check` and `reportResults`.
+- Runs entirely **inside the built container**, after the feature has been installed.
+- Starts with `#!/bin/bash` and `set -e`, and ends with `reportResults`.
+
+---
+
+## Writing tests
+
+### Anatomy of a scenario script
+
+```bash
+#!/bin/bash
+# One-line summary of what the scenario verifies.
+set -e
+
+source dev-container-features-test-lib
+
+# --- section heading ---
+check "<description>"    <command>
+
+reportResults
+```
+
+Use section headings (comments like `# --- foo ---`) to visually group related checks. Keep the description column aligned for readability.
+
+### The `check` function
+
+```
+check "<description>" <command...>
+```
+
+`check` runs `<command>` and records pass/fail against `<description>`. The description is printed in the test output and identifies the assertion — make it precise and self-explanatory.
+
+The command must exit `0` to pass. Anything that evaluates as a shell command is valid: `test ...`, `command -v ...`, `grep ...`, `bash -c '...'`, etc.
+
+### Common assertion patterns
+
+| Intent | Pattern |
+|---|---|
+| File exists | `check "..." test -f /path/to/file` |
+| Directory exists | `check "..." test -d /path/to/dir` |
+| File is executable | `check "..." test -x /path/to/file` |
+| File is non-empty | `check "..." test -s /path/to/file` |
+| Command is in PATH | `check "..." command -v <name>` |
+| Command exits zero | `check "..." /path/to/cmd --flag` |
+| File contains string | `check "..." grep -q "pattern" /path/to/file` |
+| File contains exact line | `check "..." grep -Fq "exact string" /path/to/file` |
+| Python import succeeds | `check "..." /opt/conda/envs/<name>/bin/python -c 'import <pkg>'` |
+| Conda env exists | `check "..." bash -c '/opt/conda/bin/conda env list \| grep -q <name>'` |
+
+### Using bash -c for compound checks
+
+When a check needs pipes, subshells, string comparison, or arithmetic, wrap it in `bash -c '...'`:
+
+```bash
+# Value comparison
+check "uid is 1000"     bash -c '[ "$(id -u vscode)" = "1000" ]'
+
+# Counting occurrences
+check "exactly one activation line"  bash -c '[ "$(grep -Fc "conda.sh" /root/.bashrc)" -eq 1 ]'
+
+# Command output validation
+check "conda info --base correct"    bash -c '[ "$(/opt/conda/bin/conda info --base)" = "/opt/conda" ]'
+```
+
+Be careful with quoting: single quotes inside `bash -c '...'` require escaping or use of `'\''` (end-single-quote, escaped-quote, re-open-single-quote).
+
+```bash
+check "group name is vscode"  bash -c '[ "$(id -gn vscode)" = "vscode" ]'
+# If the pattern contains single quotes, break them out:
+check "no dup line"  bash -c '[ "$(grep -Fc '"'"'conda.sh'"'"' /root/.bashrc)" -eq 1 ]'
+```
+
+### Negative checks
+
+Prefix the command with `!` inside `bash -c '...'` to assert something does **not** exist or **does not** succeed:
+
+```bash
+check "tree was NOT installed"   bash -c '! command -v tree'
+check "old_user was evicted"     bash -c '! id old_user > /dev/null 2>&1'
+check "system command absent"    bash -c '! test -x /usr/local/bin/install-os-pkg'
+```
+
+### Dockerfile pre-conditions
+
+When a scenario must test behavior that depends on a specific pre-existing system state, set it up using `RUN` instructions in the Dockerfile. Keep Dockerfiles minimal: only set up the exact pre-condition the scenario tests, nothing more.
+
+**Examples:**
+
+```dockerfile
+# Scenario: reinstall — a conda installation already exists
+FROM ubuntu:latest
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates bash \
+ && rm -rf /var/lib/apt/lists/* \
+ && ARCH="$(uname -m)" \
+ && curl --fail --location --retry 3 \
+        --output /tmp/miniforge.sh \
+        "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-${ARCH}.sh" \
+ && bash /tmp/miniforge.sh -b -p /opt/conda \
+ && rm /tmp/miniforge.sh
+ENV PATH="/opt/conda/bin:${PATH}"
+```
+
+```dockerfile
+# Scenario: replace_existing — a conflicting user already occupies UID 1000
+FROM ubuntu:latest
+RUN userdel ubuntu 2>/dev/null || true && \
+    groupdel ubuntu 2>/dev/null || true && \
+    useradd --uid 1000 --user-group --no-create-home --shell /bin/sh old_user
+```
+
+```dockerfile
+# Scenario: update_existing — conda env pre-created, YAML then updated
+FROM condaforge/miniforge3
+RUN mkdir -p /tmp/test-envs \
+ && printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml \
+ && /opt/conda/bin/conda env create -f /tmp/test-envs/simple.yml \
+ && printf 'name: simple\ndependencies:\n  - numpy\n  - pandas\n' > /tmp/test-envs/simple.yml
+```
+
+### Build arguments
+
+To pass build arguments into a Dockerfile (e.g. for API tokens):
+
+```jsonc
+"<scenario>": {
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
+    },
+    ...
+}
+```
+
+In the Dockerfile:
+
+```dockerfile
+ARG GITHUB_TOKEN
+FROM debian:latest
+ARG GITHUB_TOKEN
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
+```
+
+`${localEnv:VAR}` reads from the environment of the machine running the devcontainer CLI.
+
+### remoteUser
+
+Set `"remoteUser"` at the scenario level to run the test script as a specific user:
+
+```jsonc
+"apt_multi_plugins": {
+    "remoteUser": "vscode",
+    "build": { "dockerfile": "Dockerfile" },
+    ...
+}
+```
+
+This is useful when a feature's behavior differs based on the effective user (e.g. user-level shell config files).
+
+---
+
+## Running tests
+
+### Prerequisites
+
+- **Docker** — must be running and accessible.
+- **Node.js / npm** — required to install the devcontainer CLI.
+- **devcontainer CLI** — install once:
+  ```bash
+  npm install -g @devcontainers/cli
+  ```
+
+### Run all scenarios for a feature
+
+From the **repository root**:
+
+```bash
+bash test/run.sh feature <feature-folder-name>
+```
+
+This runs all `scenarios.json` scenarios **and** any fail scenarios in one pass.
+
+Replace `<feature-folder-name>` with the directory name under `src/`, for example:
+
+```bash
+bash test/run.sh feature install-miniforge
+bash test/run.sh feature install-conda-env
+bash test/run.sh feature setup-user
+bash test/run.sh feature install-os-pkg
+```
+
+The CLI reads `scenarios.json` for the feature, builds each scenario image, and runs the matching `.sh` script inside it.
+
+### Run a single scenario
+
+```bash
+devcontainer features test \
+  -f <feature-folder-name> \
+  --skip-autogenerated \
+  --filter <scenario-name> \
+  --project-folder . \
+  .
+```
+
+Example — run only the `reinstall` scenario for `install-miniforge`:
+
+```bash
+devcontainer features test \
+  -f install-miniforge \
+  --skip-autogenerated \
+  --filter reinstall \
+  --project-folder . \
+  .
+```
+
+### Dry-run / manifest resolution tests
+
+`install-os-pkg` has a separate unit-test suite under `test/install-os-pkg/dry-run/` that verifies the manifest parsing and package resolution logic without building a full container. It runs against a matrix of distro images.
+
+Run it for a specific distro:
+
+```bash
+docker run --rm \
+  -v "$(pwd):/repo" \
+  debian:latest \
+  bash /repo/test/install-os-pkg/dry-run/run.sh
+```
+
+Replace `debian:latest` with any of `ubuntu:latest`, `alpine:latest`, `fedora:latest`, `opensuse/leap:latest`, `archlinux:latest`.
+
+Set `PLATFORM_ID` to override auto-detection (useful on macOS where `/etc/os-release` does not exist):
+
+```bash
+docker run --rm \
+  -e PLATFORM_ID=debian \
+  -v "$(pwd):/repo" \
+  debian:latest \
+  bash /repo/test/install-os-pkg/dry-run/run.sh
+```
+
+#### Adding a dry-run test case
+
+1. Create a subdirectory under `test/install-os-pkg/dry-run/cases/<case-name>/`.
+2. Add `manifest.yaml` — the YAML manifest content to parse.
+3. Add `<platform-id>.expected` files — one per distro you want to cover. Each file lists the expected package names, one per line, sorted (the runner sorts both sides before comparing). An empty file asserts zero packages are resolved. Omitting a `<platform-id>.expected` file marks the case as SKIP on that distro.
+
+### The --skip-autogenerated flag
+
+`bash test/run.sh feature <feature>` passes `--skip-autogenerated` automatically. If you call the devcontainer CLI directly (e.g. to run a single scenario with `--filter`), always include the flag:
+
+```bash
+devcontainer features test -f <feature> --skip-autogenerated --filter <scenario> --project-folder . .
+```
+
+Without it the CLI also runs autogenerated tests that build the feature with all default option values, which fails for features that require mandatory options (e.g. `install-os-pkg`).
+
+Always pass `--skip-autogenerated` when invoking the devcontainer CLI directly.
+
+---
+
+## Linux-native scenarios
+
+Linux-native scenarios run outside the devcontainer CLI — they use plain Docker and `test/lib/assert.sh`. Use them when you need to:
+
+- Assert that a feature install **exits non-zero** (the devcontainer CLI has no `fail_check` equivalent).
+- Test **non-root install paths** by running the feature as a non-root user via `RUN_AS`.
+- Test **network-isolated** behavior by setting `NETWORK=none` in the `.conf` sidecar.
+- Run additional assertions before or after an install without a full devcontainer build.
+
+### Script anatomy
+
+```bash
+#!/usr/bin/env bash
+# Brief description of what this scenario verifies.
+set -euo pipefail
+
+REPO_ROOT="${1:?REPO_ROOT required}"
+# shellcheck source=test/lib/assert.sh
+source "${REPO_ROOT}/test/lib/assert.sh"
+
+# Negative assertion: expects install.bash to exit non-zero
+fail_check "invalid method exits non-zero" \
+  bash "${REPO_ROOT}/src/install-git/install.bash" --method invalid
+
+check "git not installed" bash -c '! command -v git'
+
+reportResults
+```
+
+### The `.conf` sidecar
+
+An optional `<scenario>.conf` file alongside the script configures the runner:
+
+```bash
+# Docker image to use (default: ubuntu:latest)
+IMAGE=ubuntu:latest
+
+# Block all outbound network
+NETWORK=none
+
+# Root commands to run before the scenario (sets up pre-condition state)
+SETUP_CMD=apt-get update -qq && apt-get install -y git && useradd -m vscode
+
+# Run the scenario script as this user (SETUP_CMD still runs as root)
+RUN_AS=vscode
+```
+
+### Running Linux-native scenarios locally
+
+```bash
+# All Linux-native scenarios for a feature
+bash test/run-linux.sh <feature>
+
+# Or via the unified dispatcher
+bash test/run.sh linux <feature>
+
+# Single scenario
+bash test/run-linux.sh <feature> --filter <scenario_name>
+```
+
+CI runs Linux scenarios automatically as part of `bash test/run.sh feature <feature>`. No `ci.yaml` changes are needed when adding a new `linux/` scenario.
+
+---
+
+## macOS scenarios
+
+Some features (e.g. `install-homebrew`) need to run on real macOS and cannot use Docker at all. These use native bash scripts under `test/<feature>/macos/` that run directly on a `macos-latest` GHA runner without the devcontainer CLI.
+
+```
+test/<feature>/macos/
+  <scenario>.sh         native bash scenario script
+test/lib/
+  assert.sh             check() / fail_check() / reportResults() / shellenv_block_cleanup()
+```
+
+### Script anatomy
+
+macOS scenario scripts source `test/lib/assert.sh` instead of `dev-container-features-test-lib`. The repo root is passed as `$1`. The `check` / `reportResults` API is identical to devcontainer CLI scenarios:
+
+```bash
+#!/usr/bin/env bash
+set -e
+REPO_ROOT="$1"
+source "${REPO_ROOT}/test/lib/assert.sh"
+
+_BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+
+_cleanup() {
+  # Remove any shellenv blocks written to dotfiles by the installer
+  for f in ~/.bash_profile ~/.bashrc ~/.zprofile ~/.zshrc; do
+    shellenv_block_cleanup "$f"
+  done
+}
+trap _cleanup EXIT
+
+bash "${REPO_ROOT}/src/install-homebrew/install.sh"
+
+check "brew binary present"     test -f "${_BREW_PREFIX}/bin/brew"
+check "brew --version succeeds" "${_BREW_PREFIX}/bin/brew" --version
+
+reportResults
+```
+
+The library also provides `fail_check "label" <cmd>` (passes when the command exits non-zero), `checkMultiple "label" <min> "cmd1" ["cmd2"...]` (passes if at least `<min>` commands succeed), and `shellenv_block_cleanup <file>` (removes `install-homebrew` shellenv markers from dotfiles).
+
+### Running macOS scenarios locally
+
+```bash
+# All macOS scenarios for a feature (macOS only)
+bash test/run-macos.sh <feature>
+
+# Single scenario
+bash test/run-macos.sh <feature> --filter <scenario_name>
+```
+
+No `scenarios.json` entry is needed — `run-macos.sh` discovers scripts directly from `test/<feature>/macos/*.sh`. CI runs these via the `test-macos` job in `ci.yaml` on a dedicated `macos-latest` runner.
+
+---
+
+## CI
+
+All CI/CD runs through three workflow files:
+
+**`cicd.yaml` — Orchestrator.** The only file with event triggers (push to `main`, PRs, `workflow_dispatch`). A `detect` job analyses changed files and computes flags and feature arrays, then calls `ci.yaml` (reusable CI) and conditionally `cd.yaml` (reusable CD) when releasable features are detected.
+
+**`ci.yaml` — Reusable CI.** Contains all lint, validation, unit, feature, and dist test jobs. Also directly callable via `workflow_dispatch` for a standalone full-suite run.
+
+**`cd.yaml` — Reusable CD.** Contains the publish job (sync → build artifacts → GHCR publish → GitHub Release). Directly callable via `workflow_dispatch` with `feature` + `version` inputs for a single-feature hotfix publish.
+
+When `cicd.yaml` calls `ci.yaml`, the callee's jobs appear as individual job entries inside the same GHA run — there is no separate nested run.
+
+**Change detection.** The `detect` job maps changed paths to which CI jobs run:
+
+| Changed path(s) | CI jobs triggered |
+|---|---|
+| `*.sh`, `*.bash`, `*.bats` | `lint` |
+| `src/**/devcontainer-feature.json` | `validate` |
+| `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
+| `src/<f>/` or `test/<f>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
+| `install-os-pkg` in changed list | `test-os-pkg` (6-distro matrix) |
+| `features/install.sh`, `features/sysset.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
+
+On `workflow_dispatch`, all flags are forced true regardless of diff. CD runs when `cicd_detect.py` determines the push to `main` has releasable features (untagged versions in `metadata.yaml`), AND CI passed. A `workflow_dispatch` with `feature` + `version` inputs triggers a manual single-feature release.
+
+When adding a new feature, no CI changes are needed — discovery is automatic once a `devcontainer-feature.json` and `test/` directory exist. When adding macOS scenarios, no CI changes are needed — `ci.yaml` discovers them automatically.
+
+**Trigger manually with `gh`:**
+
+```bash
+# Full suite (no publish)
+gh workflow run "CI/CD"
+
+# Full suite (auto-detects what to release)
+gh workflow run "CI/CD"
+
+# Manual single-feature release (after CI passes)
+gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
+
+# CI only (standalone, runs all tests)
+gh workflow run "CI"
+```
+
+To watch the most recent run:
+
+```bash
+gh run watch
+```
+
+List recent runs:
+
+```bash
+gh run list --workflow "CI/CD"
+```
+
+---
+
+## Notes and tips
+
+**Verify syntax locally before pushing:**
+
+```bash
+bash -n src/<feature>/install.bash
+bash -n test/<feature>/<scenario>.sh
+```
+
+**Use absolute paths in checks.** The container may not have a rich `PATH`. For executables like `conda` or `mamba`, prefer `/opt/conda/bin/conda` over `conda`.
+
+**`true` is a valid check command** when you are asserting that a build step succeeded and there is nothing more to inspect:
+
+```bash
+check "feature exited cleanly" true
+```
+
+**Conda env list versus directory existence** — `conda env list` parses config and is authoritative, but also check `test -d /opt/conda/envs/<name>` since directory existence is a fast lower-level confirmation.
+
+**Test one thing per scenario.** Avoid scenarios that mix unrelated feature flags. A scenario whose name describes its configuration precisely (e.g. `strict_channel_priority`, `update_existing`) is far easier to debug than a combined scenario.
+
+**Prefer `grep -Fq` over `grep -q`** for exact-string matching of file content to avoid regex metacharacters in paths and strings accidentally broadening or breaking the check.
+
+**Idempotency check.** If a feature is supposed to be idempotent (e.g. `already_configured` in `setup-user`), write a scenario whose Dockerfile pre-configures the desired state and assert that the feature exits cleanly and leaves the state intact.
+
+**`docker system prune`** between test runs clears stale image layers and frees disk space. Test images can be large (several GB for conda-based scenarios).
+
+**Distro-specific scenarios.** Use a different `FROM` line in the Dockerfile when a scenario needs to test on a specific distro. For example, `install-miniforge/debian/Dockerfile` uses `FROM debian:latest` to exercise Debian-specific code paths.
+
+**No parallelism within a feature.** The CLI runs scenarios for a given feature sequentially. CI parallelises across features using a matrix job.
+
+**Network access required.** Scenarios that download packages (conda, apt, apk, etc.) require outbound internet access. There is no offline mode.
+
+**Build cache.** The CLI invokes Docker. Docker's layer cache applies, so repeat runs of the same scenario are faster if the base image layers have not changed. Run `docker system prune` if you need a clean slate.
+
+**`--skip-autogenerated` is always required.** This flag tells the CLI to skip its built-in autogenerated test pass (which would build the feature with all default option values). Without it some features (e.g. `install-os-pkg`, which requires a mandatory option) would fail immediately. `bash test/run.sh feature <feature>` passes this flag automatically.
+
+**`${localEnv:VAR}` is resolved at build time.** Build args that reference local environment variables (e.g. `GITHUB_TOKEN`) must be set in the shell before running the CLI. Missing values result in empty strings being passed to Docker.
+
+---
+
+## Unit tests for lib/
+
+### Overview
+
+In addition to the container-based feature scenarios, the shared bash library
+under `lib/` has a dedicated [bats](https://bats-core.readthedocs.io/) unit
+test suite. The suite tests every public function in every module without
+requiring Docker, making it fast and runnable on both Linux and macOS.
+
+The vendor libraries (bats-core, bats-support, bats-assert, bats-file) live
+as git submodules under `test/unit/bats/` and are checked out with
+`git clone --recurse-submodules` or `git submodule update --init --recursive`.
+
+### Directory layout
+
+```
+test/unit/
+  setup_suite.bash        bash ≥4 guard — auto-discovered by bats
+  <module>.bats           one test file per lib/ module
+  helpers/
+    common.bash           bats library loader + reload_lib() helper
+    stubs.bash            create_fake_bin() / prepend_fake_bin_path()
+  bats/                   ← git submodules, never edit
+    bats-core/
+    bats-support/
+    bats-assert/
+    bats-file/
+```
+
+Module coverage:
+
+| Test file | lib/ module | Tests |
+|---|---|---|
+| `os.bats` | `os.sh` | 28 |
+| `shell.bats` | `shell.sh` | 61 |
+| `str.bats` | `str.sh` | 3 |
+| `ospkg.bats` | `ospkg.sh` | 28 |
+| `logging.bats` | `logging.sh` | 6 |
+| `net.bats` | `net.sh` | 11 |
+| `json.bats` | `json.sh` | 8 |
+| `git.bats` | `git.sh` | 6 |
+| `checksum.bats` | `checksum.sh` | 6 |
+| `github.bats` | `github.sh` | 47 |
+| `users.bats` | `users.sh` | 13 |
+
+### Running unit tests
+
+```bash
+# Run all modules
+just test-unit
+
+# Run a single module
+bash test/run-unit.sh --module os
+
+# Filter by test-name regex
+bash test/run-unit.sh --filter "platform"
+
+# Serial execution (useful for debugging output)
+bash test/run-unit.sh --jobs 1
+
+# Run integration-only bats files (requires real jq/git toolchain)
+SYSSET_RUN_INTEGRATION_DEPS=1 bash test/run-unit.sh --integration
+
+# Run an explicit path or directory of bats files
+bash test/run-unit.sh --paths test/unit/integration
+```
+
+`test/run-unit.sh` automatically re-execs itself under bash ≥4 on macOS
+(where `/bin/bash` is 3.2 due to the GPL licence change), so it works
+correctly without any pre-flight setup on a stock Mac with Homebrew bash.
+
+The suite uses a two-tier model:
+
+- **Lean tier (default):** runs top-level `test/unit/*.bats` only, suitable for
+  distro containers that install just `bash`.
+- **Integration tier:** runs `test/unit/integration/*.bats` and is intended for
+  environments where real `git`/`jq` are available. Enable with
+  `SYSSET_RUN_INTEGRATION_DEPS=1` and `--integration`.
+
+### Test anatomy
+
+Each test file starts by sourcing the helpers:
+
+```bash
+bats_load_library bats-support
+bats_load_library bats-assert
+bats_load_library bats-file
+load helpers/common
+load helpers/stubs
+```
+
+**`reload_lib <module.sh>`** — defined in `helpers/common.bash`. It clears all
+lib load-guards and relevant cached globals, then `source`s the module. Call
+it in `setup()` or at the top of individual tests that need a clean module
+state:
+
+```bash
+setup() {
+  reload_lib os.sh
+}
+```
+
+**`create_fake_bin <name> [stdout]`** and **`prepend_fake_bin_path`** — defined
+in `helpers/stubs.bash`. They create a small stub executable under
+`$BATS_TEST_TMPDIR/bin/` and prepend that directory to `PATH`, so tests can
+control what commands like `curl`, `wget`, `git`, or `apt-get` return without
+touching the real system:
+
+```bash
+setup() {
+  reload_lib net.sh
+  create_fake_bin curl ""
+  prepend_fake_bin_path
+}
+```
+
+**`begin_path_isolation [allowed_cmd...]`** and **`end_path_isolation`** —
+also defined in `helpers/stubs.bash`. Use this pair for lean-tier tests that
+must prove a tool is absent even when the host/runner has it installed. The
+helper swaps `PATH` to `$BATS_TEST_TMPDIR/bin` and optionally injects explicit
+pass-through commands (for example `mkdir`, `cat`, `bash`) so only the tools
+you allow remain visible to the test.
+
+```bash
+begin_path_isolation "mkdir" "cat" "bash"
+run _json__ensure_jq
+end_path_isolation
+```
+
+Prefer this helper over ad-hoc `PATH` save/restore snippets. It keeps lean
+unit tests deterministic across local machines and CI runners.
+
+**`bash -c` subprocess isolation** — modules that manipulate file descriptors
+(e.g. `logging__setup` redirects fd 3 and 4) must be tested in isolated
+subprocesses to avoid interfering with bats' own TAP output on fd 3:
+
+```bash
+@test "logging__setup creates a temp log file" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging__setup
+    [[ -f \"\${_LOGGING_TMPFILE}\" ]] && echo OK
+  "
+  assert_success
+  assert_output "OK"
+}
+```
+
+### Writing new unit tests
+
+When adding or changing a function in `lib/`:
+
+1. Open (or create) `test/unit/<module>.bats`.
+2. Add a `@test` block. Prefer calling `reload_lib` in `setup()` to isolate
+   each test; only skip it for tests that explicitly check idempotency or
+   cached-state behaviour.
+3. Use `assert_success`, `assert_failure`, `assert_output`, `assert_line`, etc.
+   from bats-assert. Use `assert_file_exists` etc. from bats-file.
+4. Keep each test focused on one behaviour. One test per distinct outcome
+   (success path, failure path, edge case) is the right granularity.
+5. Run `just test-unit` (or `bash test/run-unit.sh --module <name>`) to verify
+   before committing.
+
+### Unit test CI
+
+The `unit-native` and `unit-linux` jobs in `ci.yaml` run on every push or PR that touches `lib/**` or `test/unit/**`. Two job groups run in parallel — no per-module discovery:
+
+| Job | Environment | Notes |
+|---|---|---|
+| `unit-native` | ubuntu-latest + macos-latest | Installs bash ≥4 on macOS via `brew install bash` |
+| `unit-linux` | debian:bookworm, fedora:latest, rockylinux:9, alpine:3.20 containers | Validates glibc and musl compatibility |
+
+The GHA `macos-latest` runner does **not** have bash ≥4 pre-installed; `ci.yaml` adds an explicit `brew install bash` step before running the suite. `test/run-unit.sh` handles the re-exec automatically for local runs.
+
+```bash
+# Trigger all unit tests manually (runs all CI including unit tests)
+gh workflow run "CI"
+
+# Watch the run
+gh run watch
+```
+
+Run `just test-unit` before pushing changes to `lib/` or `test/unit/`; CI runs the same suite when those paths change.
+
+---
+
+
+## Live Testing
+
+The `install-shell/`, `install-miniforge/`, and `install-podman/`
+subdirectories each contain a `devcontainer.json` that references the local
+feature via a relative path. These exist so you can open a VS Code window
+scoped to a specific feature's dev container — useful for exercising the
+feature interactively during development.
+
+### The `_src` symlink
+
+The devcontainer CLI enforces a constraint: locally-referenced features must
+reside **inside** the `.devcontainer/` directory (it validates paths using
+`path.relative('.devcontainer', child)` and rejects any path containing
+`..`). Since `src/` lives at the repo root (not inside `.devcontainer/`), a
+symlink is used to satisfy this constraint:
+
+```
+.devcontainer/_src  →  ../src
+```
+
+The symlink's apparent path (`.devcontainer/_src/install-shell`) passes the
+CLI's check. At build time Node.js follows the symlink and reads the real
+files from `src/`.
+
+Per-feature `devcontainer.json` files reference features using this path:
+
+```jsonc
+{
+  "features": {
+    "../_src/install-shell": {}
+  }
+}
+```
+
+The `_` prefix signals that `_src` is infrastructure, not a real source
+directory.
+
+---
+
+
+## References
+
+- [Dev Containers — Feature authoring specification](https://containers.dev/implementors/features/)
+- [Dev Containers — Feature distribution specification](https://containers.dev/implementors/features-distribution/)
+- [devcontainers/cli — features test command](https://github.com/devcontainers/cli/blob/main/docs/features/test.md)
+- [devcontainers/cli — npm package](https://www.npmjs.com/package/@devcontainers/cli)
+- [devcontainers/feature-starter — reference template](https://github.com/devcontainers/feature-starter)
+- [devcontainers/feature-starter — example scenarios.json](https://github.com/devcontainers/feature-starter/blob/main/test/hello/scenarios.json)
+- [`dev-container-features-test-lib` — source](https://github.com/devcontainers/cli/blob/main/src/test/dev-container-features-test-lib)
+- [Dev Containers — scenarios.json schema](https://containers.dev/implementors/features/#testing)
+- [devcontainers/cli — `testCommandImpl.ts` (scenarios.json parsing)](https://github.com/devcontainers/cli/blob/main/src/spec-node/featuresCLI/testCommandImpl.ts)
+- [devcontainers/action — GitHub Action for CI](https://github.com/devcontainers/action)
