@@ -34,7 +34,26 @@ entries:
       - file: dev-guide/environment
       - file: dev-guide/workspace
       - file: dev-guide/workflow
-      - file: dev-guide/documentation
+      - file: dev-guide/docs
+
       - file: dev-guide/features
+        entries:
+          - file: dev-guide/features/quickstart
+          - file: dev-guide/features/metadata.yaml
+          - file: dev-guide/features/lib
+          - file: dev-guide/features/install.sh
+          - file: dev-guide/features/install.bash
+          - file: dev-guide/features/src
+
       - file: dev-guide/tests
+        entries:
+          - file: dev-guide/tests/quickstart
+          - file: dev-guide/tests/lib
+          - file: dev-guide/tests/features
+          - file: dev-guide/tests/live
+
       - file: dev-guide/devops
+        entries:
+          - file: dev-guide/devops/dev
+          - file: dev-guide/devops/ops
+          - file: dev-guide/devops/ai
