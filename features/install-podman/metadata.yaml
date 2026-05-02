@@ -53,6 +53,9 @@ options:
     default: ''
     description: |-
       Additional usernames to register subuid/subgid ranges and write Podman storage config for.
+postStartCommand:
+  install-podman-feature-welcome: >-
+    podman run --rm hello-world
 _dependencies:
   run:
     base:
