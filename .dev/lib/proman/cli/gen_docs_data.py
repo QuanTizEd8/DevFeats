@@ -8,7 +8,7 @@ from pathlib import Path
 
 from proman import feat_doc_gen
 from proman.git_utils import git_owner_repo, git_repo_root
-from proman.sync.metadata import load_and_augment
+from proman.sync import load_and_augment
 
 _FEATURES_NOTES_FILENAME = "NOTES.md"
 

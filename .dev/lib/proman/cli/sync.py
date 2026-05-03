@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from proman.sync.pipeline import run
+from proman.sync import run
 
 
 def main() -> None:
