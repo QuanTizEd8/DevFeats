@@ -160,6 +160,8 @@ mounts:
 - source: ${localWorkspaceFolderBasename}-pixi
   target: ${containerWorkspaceFolder}/.pixi
   type: volume
+postCreateCommand:
+  devfeats_install-pixi_chown-pixi-dir: "sudo chown $(id -u):$(id -g) .pixi"
 containerEnv:
   PATH: ${HOME}/.pixi/bin:${PATH}
 installsAfter: []
