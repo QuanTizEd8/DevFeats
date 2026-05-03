@@ -56,7 +56,7 @@ The following files and directories should **never be edited**; they are either 
 :`src/`:
     [Feature Output](/dev-guide/features/src) — publication-ready feature scripts generated from `features/` and `lib/`.
 
-:`test/unit/bats/`:
+:`test/lib/bats/`:
     [Bats Testing Framework](/dev-guide/tests/unit) — Git submodule containing the Bats testing framework for unit tests.
 
 :::

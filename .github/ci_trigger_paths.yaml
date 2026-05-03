@@ -9,10 +9,11 @@ unit_test:
   - "lib/*.sh"
   - "lib/*.bash"
   - "lib/*.json"
-  - "test/unit/**"
+  - "test/lib/**"
+  - "test/support/**"
 scenario_test:
   - "features/bootstrap.sh"
   - "lib/**"
-  - "test/lib/**"
+  - "test/features/**"
 devcontainer:
   - ".devcontainer/.dev/**"

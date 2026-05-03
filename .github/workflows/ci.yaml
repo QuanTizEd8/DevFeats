@@ -102,7 +102,7 @@ jobs:
           INPUT_MACOS_FEATURES: ${{ inputs.macos_features }}
           INPUT_VERSION: ${{ inputs.version }}
           INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
-        run: bash .github/workflows/scripts/ci_setup.sh
+        run: bash .dev/scripts/ci/ci_setup.sh
 
   # ── Prepare: sync src/, build dist/, upload artifacts ────────────────────
   prepare:
@@ -227,23 +227,16 @@ jobs:
         run: brew install bash
 
       - name: "Run unit tests"
-        run: bash test/run-unit.sh
+        run: bash .dev/scripts/test/run-unit.sh
 
       - name: "Run unit integration tests (ubuntu-24.04 only)"
         if: matrix.os == 'ubuntu-24.04'
         env:
           SYSSET_RUN_INTEGRATION_DEPS: "1"
-        run: bash test/run-unit.sh --integration
+        run: bash .dev/scripts/test/run-unit.sh --integration
 
       - name: "Run scripts/ unit tests (Python)"
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! python3 -c 'import yaml' >/dev/null 2>&1; then
-            python3 -m pip install --disable-pip-version-check --user pyyaml \
-              || python3 -m pip install --disable-pip-version-check --user --break-system-packages pyyaml
-          fi
-          python3 -m unittest discover -s test/scripts -t test/scripts -v
+        run: pixi run --environment test test-proman
 
   # ── Unit tests (Linux distribution containers) ────────────────────────────
   test-unit-container:
@@ -290,7 +283,7 @@ jobs:
             -w /repo \
             -e GITHUB_TOKEN \
             ${{ matrix.image }} \
-            sh -c "${{ matrix.install }} && bash test/run-unit.sh"
+            sh -c "${{ matrix.install }} && bash .dev/scripts/test/run-unit.sh"
 
   # ── Feature scenario tests (Linux / devcontainer) ─────────────────────────
   test-features:
@@ -343,7 +336,7 @@ jobs:
             -w /repo \
             -e GITHUB_TOKEN \
             "$CI_IMAGE" \
-            bash .github/workflows/scripts/ci_test-features_dind.sh "${{ matrix.feature }}"
+            bash .dev/scripts/ci/ci_test-features_dind.sh "${{ matrix.feature }}"
 
   # ── install-os-pkg manifest resolution (6 distros) ────────────────────────
   test-os-pkg:
@@ -378,7 +371,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/repo" \
             -e GITHUB_TOKEN \
             "${{ matrix.image }}" \
-            sh -c 'command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null 2>&1; bash /repo/test/install-os-pkg/dry-run/run.sh'
+            sh -c 'command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null 2>&1; bash /repo/test/features/install-os-pkg/unit/run.sh /repo'
 
   # ── Feature scenario tests (macOS native) ─────────────────────────────────
   test-macos:
@@ -402,4 +395,4 @@ jobs:
       - name: "Test ${{ matrix.feature }} macOS scenarios"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash test/run-macos.sh "${{ matrix.feature }}"
+        run: bash .dev/scripts/test/run-macos.sh "${{ matrix.feature }}"

@@ -12,7 +12,7 @@ Three workflow files form the pipeline:
 |---|---|
 | `*.sh`, `*.bash`, `*.bats` | `lint` |
 | `src/**/devcontainer-feature.json` | `validate` |
-| `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
+| `lib/**`, `test/lib/**` | `unit-native`, `unit-linux` |
 | `src/<f>/` or `test/<f>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
 | `install-os-pkg` in changed list | `test-os-pkg` (6-distro matrix) |
 | `features/install.sh`, `features/devfeats.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |

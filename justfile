@@ -106,18 +106,18 @@ detect-releasable *args:
 
 [
   group('testing'),
-  doc('Run all bats unit tests for lib/ (git submodule init for test/unit/bats required).')
+  doc('Run all bats unit tests for lib/ (git submodule init for test/lib/bats required).')
 ]
 test-unit:
-    bash test/run-unit.sh
+    bash .dev/scripts/test/run-unit.sh
 
 
 [
   group('testing'),
-  doc('Run Python unit tests for scripts/ (stdlib unittest; no extra deps beyond PyYAML).')
+  doc('Run Python unit tests for proman/ (pytest).')
 ]
-test-scripts:
-    pixi run python -m unittest discover -s test/scripts -t test/scripts -v
+test-proman:
+    pixi run --environment test test-proman
 
 
 [
@@ -125,7 +125,7 @@ test-scripts:
   doc('Run unit tests for one lib module e.g. just test-module ospkg.')
 ]
 test-module module:
-    bash test/run-unit.sh --module {{module}}
+    bash .dev/scripts/test/run-unit.sh --module {{module}}
 
 
 [
@@ -133,7 +133,7 @@ test-module module:
   doc('Run scenario and fail tests for one feature e.g. just test-feature install-pixi.')
 ]
 test-feature feat:
-    bash test/run.sh feature {{feat}}
+    bash .dev/scripts/test/run.sh feature {{feat}}
 
 
 # ── Docs ─────────────────────────────────────────────────────────────────────

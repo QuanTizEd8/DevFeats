@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
 from proman.docs import feat_doc_gen
 from proman.git import git_owner_repo, git_repo_root
@@ -14,6 +13,7 @@ _FEATURES_NOTES_FILENAME = "NOTES.md"
 
 
 def main() -> int:
+    """Generate docs-data.json and per-feature Markdown from metadata."""
     repo = git_repo_root()
     features_dir = repo / "features"
     output_dir = repo / ".dev" / "output"
@@ -56,7 +56,7 @@ def main() -> int:
 
     print(
         f"docs-data: {len(all_metadata)} features → "
-        f".dev/output/docs-data.json + docs/source/features/*.md"
+        f".dev/output/docs-data.json + docs/source/features/*.md",
     )
     return 0
 

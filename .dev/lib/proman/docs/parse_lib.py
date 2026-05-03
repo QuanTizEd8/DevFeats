@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Parse structured @brief + body comments from lib/*.sh files.
 
 Each public function in a lib/*.sh file is documented with a comment block
@@ -28,7 +27,10 @@ Exported function:
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ── Data types ────────────────────────────────────────────────────────────────
 
@@ -40,6 +42,7 @@ class ParagraphBlock:
         self.lines = lines
 
     def __repr__(self) -> str:  # pragma: no cover
+        """Return debug representation."""
         return f"ParagraphBlock({self.lines!r})"
 
 
@@ -56,6 +59,7 @@ class SectionBlock:
         self.items = items
 
     def __repr__(self) -> str:  # pragma: no cover
+        """Return debug representation."""
         return f"SectionBlock({self.title!r}, {self.items!r})"
 
 
@@ -75,6 +79,7 @@ class LibFunction:
         self.body: list[ParagraphBlock | SectionBlock] = body
 
     def __repr__(self) -> str:  # pragma: no cover
+        """Return debug representation."""
         return f"LibFunction({self.name!r})"
 
 
@@ -117,10 +122,10 @@ def _classify_block(lines: list[str]) -> ParagraphBlock | SectionBlock:
 
     # Rule 1: "Args:" header + indented items.
     m = _SECTION_HEADER_RE.match(first)
-    if m and len(lines) > 1 and all(l[:2] == "  " for l in lines[1:]):
+    if m and len(lines) > 1 and all(ln[:2] == "  " for ln in lines[1:]):
         return SectionBlock(
             title=m.group(1),
-            items=[l.lstrip() for l in lines[1:]],
+            items=[ln.lstrip() for ln in lines[1:]],
         )
 
     # Rule 2: "Stdout: text" / "Returns: text" inline label.
@@ -132,8 +137,10 @@ def _classify_block(lines: list[str]) -> ParagraphBlock | SectionBlock:
 
 
 def _parse_body(raw_lines: list[str]) -> list[ParagraphBlock | SectionBlock]:
-    """Group raw stripped comment-body lines into ParagraphBlock / SectionBlock
-    objects, splitting on blank lines.
+    """Group raw stripped comment-body lines into blocks, splitting on blank lines.
+
+    Produces ParagraphBlock and SectionBlock objects from stripped comment
+    lines, using blank lines as delimiters.
     """
     # Drop leading blank lines.
     while raw_lines and not raw_lines[0]:
@@ -211,7 +218,7 @@ def parse_lib_file(path: Path) -> list[LibFunction]:
                 signature=sig,
                 description=desc,
                 body=_parse_body(raw_body),
-            )
+            ),
         )
         i = j
 

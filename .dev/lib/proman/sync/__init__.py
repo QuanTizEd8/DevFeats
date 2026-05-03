@@ -1,3 +1,5 @@
+"""Feature sync pipeline: assembly of src/ from features/ + lib/."""
+
 from proman.sync.install_script import HEADER_END_MARKER, InstallScriptGenerator
 from proman.sync.metadata import (
     augment_metadata,

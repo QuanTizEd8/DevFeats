@@ -70,7 +70,7 @@ The `detect` job in `cicd.yaml` runs `python3 .github/workflows/scripts/cicd_det
 |----------------|------------------|
 | `*.sh`, `*.bash`, `*.bats` | `lint` |
 | `src/**/devcontainer-feature.json` | `validate` |
-| `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
+| `lib/**`, `test/lib/**` | `unit-native`, `unit-linux` |
 | `src/<feature>/` or `test/<feature>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
 | `install-os-pkg` in changed list | `test-os-pkg` (multi-distro matrix) |
 | `features/install.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |

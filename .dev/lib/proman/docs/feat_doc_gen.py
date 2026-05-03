@@ -5,14 +5,6 @@ from typing import Any
 
 def generate(metadata: dict[str, Any], notes: str = "") -> str:
     """Generate feature documentation."""
-    # ── Feature reference preamble injection ───────────────────────────────────────
-    # At build time, prepend each feature's H1 title, description, and ## Options
-    # table to the stripped reference pages.
-    #
-    # metadata.yaml is the single source of truth.  The raw markdown description
-    # (including links) is used verbatim so MyST renders it correctly.  The
-    # ## Options table is generated from the options dict in metadata.yaml.
-    # devcontainer-feature.json is a generated artifact and not read here.
     name = metadata["name"]
     description = metadata["description"].strip()
     long_description = metadata.get("_long_description", "").strip()
@@ -24,15 +16,18 @@ def generate(metadata: dict[str, Any], notes: str = "") -> str:
         options,
         notes,
     ]
-    return f"{'\n\n'.join(parts).strip()}\n"
+    sep = "\n\n"
+    return sep.join(parts).strip() + "\n"
 
 
 def _render_options_table(data: dict) -> str:
     """Render the ## Options table from a feature metadata dict.
 
-    Args:
-        data  Feature metadata dict (from devcontainer-feature.json or
-              metadata.yaml — same structure).
+    Parameters
+    ----------
+    data : dict
+        Feature metadata dict (from devcontainer-feature.json or
+        metadata.yaml — same structure).
 
     Returns a Markdown ``## Options`` table string, or an empty string when
     the feature has no options.  Does **not** include the feature description
@@ -54,7 +49,7 @@ def _render_options_table(data: dict) -> str:
                 _option_desc_full(opt),
                 f"- Type: `{opt_type}`",
                 f"- Default: {default_str}",
-            ]
+            ],
         )
 
         if "_applies_when" in opt:
@@ -64,18 +59,20 @@ def _render_options_table(data: dict) -> str:
                 rows.append(f"- Applies when: {conditions_str[0]}")
             else:
                 rows.append("- Applies when:")
-                for cond_str in conditions_str:
-                    rows.append(f"  - {cond_str}")
+                rows.extend(f"  - {cond_str}" for cond_str in conditions_str)
 
         if "enum" in opt:
             rows.append("- Allowed values:")
-            for enum in opt["enum"]:
-                rows.append(f'  - `"{enum["value"]}"`: {enum["description"].strip()}')
-
+            rows.extend(
+                f"  - `\"{e['value']}\"`: {e['description'].strip()}"
+                for e in opt["enum"]
+            )
         elif "proposals" in opt:
             rows.append("- Examples:")
-            for proposal in opt["proposals"]:
-                rows.append(f'  - `"{proposal["value"]}"`: {proposal["description"].strip()}')
+            rows.extend(
+                f"  - `\"{p['value']}\"`: {p['description'].strip()}"
+                for p in opt["proposals"]
+            )
 
     return "\n".join(rows) + "\n"
 
@@ -87,12 +84,13 @@ def _render_option_condition(condition: dict) -> str:
         if isinstance(values, str):
             parts.append(f'`{key} = "{values}"`')
         elif isinstance(values, bool):
-            parts.append(f'`{key} = {str(values).lower()}`')
+            parts.append(f"`{key} = {str(values).lower()}`")
         elif isinstance(values, list):
             values_str = ", ".join(f'"{v}"' for v in values)
-            parts.append(f'`{key} ∈ {{{values_str}}}`')
+            parts.append(f"`{key} ∈ {{{values_str}}}`")
         else:
-            raise ValueError(f"Unsupported condition value type: {type(values)} for key {key}")
+            msg = f"Unsupported condition value type: {type(values)} for key {key}"
+            raise TypeError(msg)
     return " and ".join(parts)
 
 

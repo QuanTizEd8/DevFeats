@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Detect which features in features/*/metadata.yaml need a new GitHub Release.
+r"""Detect which features in features/*/metadata.yaml need a new GitHub Release.
 
 For every feature in ``features/<id>/metadata.yaml``:
 
@@ -34,13 +33,19 @@ import os
 import pathlib
 import sys
 import urllib.parse
+from typing import TYPE_CHECKING
 
 import yaml
-from pylinks.api.github import GitHub
+from pylinks.api.github import GitHub, Repo
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 from pylinks.exception.api import WebAPIPersistentStatusCodeError
 
 
-def _iter_feature_metadata(features_dir: pathlib.Path):
+def _iter_feature_metadata(
+    features_dir: pathlib.Path,
+) -> Generator[tuple[str, dict], None, None]:
     """Yield ``(feature_id, metadata_dict)`` tuples for each feature."""
     for metadata_path in sorted(features_dir.glob("*/metadata.yaml")):
         with metadata_path.open(encoding="utf-8") as fp:
@@ -49,7 +54,7 @@ def _iter_feature_metadata(features_dir: pathlib.Path):
         yield fid, data
 
 
-def _release_exists(repo, tag: str) -> bool:
+def _release_exists(repo: Repo, tag: str) -> bool:
     """Return True iff a GitHub Release with ``tag_name == tag`` exists."""
     encoded_tag = urllib.parse.quote(tag, safe="")
     try:
@@ -58,9 +63,12 @@ def _release_exists(repo, tag: str) -> bool:
     except WebAPIPersistentStatusCodeError as exc:
         if exc.response.status_code == 404:
             return False
-        raise RuntimeError(
+        msg = (
             f"unexpected GitHub API response for tag {tag!r}: "
             f"HTTP {exc.response.status_code}"
+        )
+        raise RuntimeError(
+            msg,
         ) from exc
 
 
@@ -79,7 +87,10 @@ def detect_releasable(
     for fid, meta in _iter_feature_metadata(features_dir):
         version = str(meta.get("version", "")).strip()
         if not version:
-            print(f"⚠️  detect-releasable: {fid} has no version field — skipping.", file=sys.stderr)
+            print(
+                f"⚠️  detect-releasable: {fid} has no version field — skipping.",
+                file=sys.stderr,
+            )
             continue
         tag = f"{fid}/{version}"
         if not _release_exists(repo, tag):
@@ -88,20 +99,39 @@ def detect_releasable(
 
 
 def main() -> int:
+    """Parse CLI arguments and run the releasable-feature detection pipeline."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", required=True, help="GitHub repository in 'owner/name' format.")
-    parser.add_argument("--features-dir", default="features", help="Path to the features directory (default: features).")
-    parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN"), help="GitHub token (defaults to $GITHUB_TOKEN).")
+    parser.add_argument(
+        "--repo",
+        required=True,
+        help="GitHub repository in 'owner/name' format.",
+    )
+    parser.add_argument(
+        "--features-dir",
+        default="features",
+        help="Path to the features directory (default: features).",
+    )
+    parser.add_argument(
+        "--token",
+        default=os.environ.get("GITHUB_TOKEN"),
+        help="GitHub token (defaults to $GITHUB_TOKEN).",
+    )
     args = parser.parse_args()
 
     features_dir = pathlib.Path(args.features_dir).resolve()
     if not features_dir.is_dir():
-        print(f"⛔ detect-releasable: features directory not found: {features_dir}", file=sys.stderr)
+        print(
+            f"⛔ detect-releasable: features directory not found: {features_dir}",
+            file=sys.stderr,
+        )
         return 1
 
     owner, _, name = args.repo.partition("/")
     if not owner or not name:
-        print(f"⛔ detect-releasable: --repo must be 'owner/name', got: {args.repo!r}", file=sys.stderr)
+        print(
+            f"⛔ detect-releasable: --repo must be 'owner/name', got: {args.repo!r}",
+            file=sys.stderr,
+        )
         return 1
 
     try:

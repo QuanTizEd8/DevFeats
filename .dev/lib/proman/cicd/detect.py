@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Detect CI/CD workflow decisions from repository and event state.
 
 This module replaces the shell-based `cicd_detect.sh` logic with Python while
@@ -27,12 +26,14 @@ import subprocess
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import TYPE_CHECKING
 
 import yaml
 
 from proman.release.detect import detect_releasable
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 CI_TRIGGER_PATHS_FILEPATH = ".github/ci_trigger_paths.yaml"
 FEATURE_DIRPATH = "features"
@@ -44,8 +45,7 @@ REPO_ROOT = Path(
         ["git", "rev-parse", "--show-toplevel"],
         cwd=SELF_FILEPATH.parent,
         text=True,
-    )
-    .strip()
+    ).strip(),
 )
 PATHS_FILE = REPO_ROOT / CI_TRIGGER_PATHS_FILEPATH
 LOG = logging.getLogger("cicd_detect")
@@ -70,7 +70,7 @@ class Env:
     github_output: str
 
 
-def sh(cmd: List[str], cwd: Path | None = None, check: bool = True) -> str:
+def sh(cmd: list[str], cwd: Path | None = None, *, check: bool = True) -> str:
     """Run a subprocess command and return stripped stdout.
 
     Parameters
@@ -122,7 +122,7 @@ def any_match(paths: Iterable[str], patterns: Iterable[str]) -> bool:
     return False
 
 
-def discover_feature_ids() -> List[str]:
+def discover_feature_ids() -> list[str]:
     """Discover feature IDs from feature metadata files.
 
     Returns
@@ -130,7 +130,7 @@ def discover_feature_ids() -> List[str]:
     list of str
         Sorted unique feature IDs inferred from `features/*/metadata.yaml`.
     """
-    ids: List[str] = []
+    ids: list[str] = []
     features_root = REPO_ROOT / FEATURE_DIRPATH
     for metadata in sorted(features_root.glob("*/metadata.yaml")):
         rel = metadata.relative_to(features_root).as_posix()
@@ -138,7 +138,7 @@ def discover_feature_ids() -> List[str]:
     return sorted(set(ids))
 
 
-def discover_macos_capable() -> List[str]:
+def discover_macos_capable() -> list[str]:
     """Discover features with macOS shell scenarios.
 
     Returns
@@ -160,7 +160,7 @@ def discover_macos_capable() -> List[str]:
             "*.sh",
             "-path",
             "*/macos/*",
-        ]
+        ],
     )
     ids = set()
     for line in out.splitlines():
@@ -170,7 +170,7 @@ def discover_macos_capable() -> List[str]:
     return sorted(ids)
 
 
-def changed_files(env: Env) -> List[str]:
+def changed_files(env: Env) -> list[str]:
     """Collect changed files for the current event context.
 
     Parameters
@@ -187,7 +187,7 @@ def changed_files(env: Env) -> List[str]:
         out = sh(["git", "diff", "--name-only", f"origin/{env.base_ref}...HEAD"])
     else:
         out = sh(["git", "diff", "--name-only", f"{env.before}...HEAD"])
-    return [l.strip() for l in out.splitlines() if l.strip()]
+    return [line.strip() for line in out.splitlines() if line.strip()]
 
 
 def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
@@ -208,39 +208,48 @@ def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
     is_release = False
     features_to_release: list[dict[str, str]] = []
     LOG.info(
-        "ℹ️  release-gate: EVENT_NAME='%s' REF_TYPE='%s' REF_NAME='%s' BEFORE='%s'",
+        "release-gate: EVENT_NAME='%s' REF_TYPE='%s' REF_NAME='%s' BEFORE='%s'",
         env.event_name,
         env.ref_type,
         env.ref_name,
         env.before,
     )
-    if env.event_name == "workflow_dispatch" and env.input_feature and env.input_version:
+    dispatch = env.event_name == "workflow_dispatch"
+    if dispatch and env.input_feature and env.input_version:
         is_release = True
         features_to_release = [
             {
                 "feature": env.input_feature,
                 "version": env.input_version,
                 "tag": f"{env.input_feature}/{env.input_version}",
-            }
+            },
         ]
         LOG.info(
-            "ℹ️  release-gate: manual release request detected for feature='%s' version='%s'.",
+            "release-gate: manual release request detected for"
+            " feature='%s' version='%s'.",
             env.input_feature,
             env.input_version,
         )
-    elif env.event_name == "push" and env.ref_type == "branch" and env.ref_name == "main":
-        LOG.info("ℹ️  release-gate: push-to-main detected; running detect_releasable().")
+    elif (
+        env.event_name == "push"
+        and env.ref_type == "branch"
+        and env.ref_name == "main"
+    ):
+        LOG.info("release-gate: push-to-main detected; running detect_releasable().")
         features_dir = REPO_ROOT / "features"
         try:
             features_to_release = detect_releasable(env.repository, features_dir)
         except RuntimeError as exc:
-            LOG.error("⛔ release-gate: %s", exc)
+            LOG.exception("release-gate: detect_releasable() failed")
             raise SystemExit(1) from exc
-        LOG.info("ℹ️  release-gate: detect_releasable() result: %s", features_to_release)
+        LOG.info(
+            "release-gate: detect_releasable() result: %s",
+            features_to_release,
+        )
         if features_to_release:
             is_release = True
     LOG.info(
-        "ℹ️  release-gate: is_release='%s' features_to_release_count='%s'.",
+        "release-gate: is_release='%s' features_to_release_count='%s'.",
         str(is_release).lower(),
         len(features_to_release),
     )
@@ -284,7 +293,13 @@ def base_feature_version(base_ref: str, feature_id: str) -> str:
         Version string if present in base; otherwise an empty string.
     """
     try:
-        content = sh(["git", "show", f"origin/{base_ref}:features/{feature_id}/metadata.yaml"])
+        content = sh(
+            [
+                "git",
+                "show",
+                f"origin/{base_ref}:features/{feature_id}/metadata.yaml",
+            ],
+        )
     except subprocess.CalledProcessError:
         return ""
     payload = yaml.safe_load(content) or {}
@@ -292,7 +307,12 @@ def base_feature_version(base_ref: str, feature_id: str) -> str:
     return str(version) if version is not None else ""
 
 
-def enforce_version_bump(event_name: str, base_ref: str, changed: List[str], feature_ids: List[str]) -> None:
+def enforce_version_bump(
+    event_name: str,
+    base_ref: str,
+    changed: list[str],
+    feature_ids: list[str],
+) -> None:
     """Enforce version-bump policy for pull requests.
 
     Parameters
@@ -310,7 +330,7 @@ def enforce_version_bump(event_name: str, base_ref: str, changed: List[str], fea
         return
     libs_changed = any(p.startswith("lib/") for p in changed)
     bootstrap_changed = "features/bootstrap.sh" in changed
-    needs_bump: List[str] = []
+    needs_bump: list[str] = []
 
     for fid in feature_ids:
         fid_changed = any(p.startswith(f"features/{fid}/") for p in changed)
@@ -325,16 +345,26 @@ def enforce_version_bump(event_name: str, base_ref: str, changed: List[str], fea
 
     if needs_bump:
         LOG.error(
-            "⛔ version-bump lint: modified features without metadata bump vs. origin/%s:",
+            "version-bump lint: modified features without metadata bump vs."
+            " origin/%s:",
             base_ref,
         )
         for item in needs_bump:
             LOG.error("  - %s", item)
-        LOG.error("   Bump the version field in each listed feature's metadata.yaml before merging.")
+        LOG.error(
+            "   Bump the version field in each listed feature's"
+            " metadata.yaml before merging.",
+        )
         raise SystemExit(1)
 
 
-def detect_devcontainer_changed(env: Env, is_force: bool, changed: List[str], groups: Dict[str, List[str]]) -> bool:
+def detect_devcontainer_changed(
+    env: Env,
+    *,
+    is_force: bool,
+    changed: list[str],
+    groups: dict[str, list[str]],
+) -> bool:
     """Decide whether devcontainer sources should be treated as changed.
 
     Parameters
@@ -360,7 +390,7 @@ def detect_devcontainer_changed(env: Env, is_force: bool, changed: List[str], gr
     return any_match(changed, groups["devcontainer"])
 
 
-def ghcr_tags(env: Env) -> List[str]:
+def ghcr_tags(env: Env) -> list[str]:
     """Query existing devcontainer tags from GHCR.
 
     Parameters
@@ -382,7 +412,8 @@ def ghcr_tags(env: Env) -> List[str]:
     elif owner_type == "User":
         package_scope = f"users/{owner_name}"
     else:
-        raise RuntimeError(f"Unsupported repository owner type for GHCR query: {owner_type}")
+        msg = f"Unsupported repository owner type for GHCR query: {owner_type}"
+        raise RuntimeError(msg)
     if not package_scope:
         return []
     try:
@@ -390,17 +421,20 @@ def ghcr_tags(env: Env) -> List[str]:
             [
                 "gh",
                 "api",
-                f"{package_scope}/packages/container/{package_name}-devcontainer/versions",
+                (
+                    f"{package_scope}/packages/container"
+                    f"/{package_name}-devcontainer/versions"
+                ),
                 "--jq",
                 ".[].metadata.container.tags[]",
-            ]
+            ],
         )
     except subprocess.CalledProcessError:
         return []
-    return [l.strip() for l in out.splitlines() if l.strip()]
+    return [line.strip() for line in out.splitlines() if line.strip()]
 
 
-def write_outputs(path: str, outputs: Dict[str, str]) -> None:
+def write_outputs(path: str, outputs: dict[str, str]) -> None:
     """Append key-value outputs to GitHub Actions output file.
 
     Parameters
@@ -410,9 +444,8 @@ def write_outputs(path: str, outputs: Dict[str, str]) -> None:
     outputs : dict of str to str
         Output values to append.
     """
-    with open(path, "a", encoding="utf-8") as f:
-        for k, v in outputs.items():
-            f.write(f"{k}={v}\n")
+    with Path(path).open("a", encoding="utf-8") as f:
+        f.writelines(f"{k}={v}\n" for k, v in outputs.items())
 
 
 def parse_env_from_context() -> Env:
@@ -425,7 +458,8 @@ def parse_env_from_context() -> Env:
     """
     github_ctx_raw = os.getenv("GITHUB_CONTEXT")
     if not github_ctx_raw:
-        raise SystemExit("GITHUB_CONTEXT is required")
+        msg = "GITHUB_CONTEXT is required"
+        raise SystemExit(msg)
     github_ctx = json.loads(github_ctx_raw)
     event = github_ctx["event"]
     repository_payload = event["repository"]
@@ -438,7 +472,9 @@ def parse_env_from_context() -> Env:
         head_ref=str(github_ctx.get("head_ref", "")),
         base_ref=str(github_ctx.get("base_ref", "")),
         before=str(event.get("before", "")),
-        input_rebuild_devcontainer=str(event_inputs.get("rebuild_devcontainer", "false")),
+        input_rebuild_devcontainer=str(
+            event_inputs.get("rebuild_devcontainer", "false"),
+        ),
         input_feature=str(event_inputs.get("feature", "")),
         input_version=str(event_inputs.get("version", "")),
         repo_owner=str(github_ctx["repository_owner"]),
@@ -454,9 +490,11 @@ def main() -> None:
 
     env = parse_env_from_context()
     if not env.github_output:
-        raise SystemExit("GITHUB_OUTPUT is required")
+        msg = "GITHUB_OUTPUT is required"
+        raise SystemExit(msg)
     LOG.info(
-        "ℹ️  context: event='%s' ref_type='%s' ref_name='%s' head_ref='%s' base_ref='%s'",
+        "context: event='%s' ref_type='%s' ref_name='%s'"
+        " head_ref='%s' base_ref='%s'",
         env.event_name,
         env.ref_type,
         env.ref_name,
@@ -465,21 +503,35 @@ def main() -> None:
     )
 
     groups = yaml.safe_load(PATHS_FILE.read_text(encoding="utf-8"))
-    LOG.info("ℹ️  groups: loaded decision groups: %s", ", ".join(sorted(groups.keys())))
+    LOG.info("groups: loaded decision groups: %s", ", ".join(sorted(groups.keys())))
 
     changed = changed_files(env)
-    LOG.info("ℹ️  Changed files: %s", json.dumps(changed, indent=4) if changed else "none")
+    LOG.info(
+        "Changed files: %s",
+        json.dumps(changed, indent=4) if changed else "none",
+    )
 
+    zero_sha = "0" * 40
     is_force = (
         env.event_name == "workflow_dispatch"
-        or (env.event_name == "push" and env.before == "0000000000000000000000000000000000000000")
-        or any_match(changed, [".github/workflows/*.yaml", SELF_FILEPATH.relative_to(REPO_ROOT).as_posix()])
+        or (env.event_name == "push" and env.before == zero_sha)
+        or any_match(
+            changed,
+            [
+                ".github/workflows/*.yaml",
+                SELF_FILEPATH.relative_to(REPO_ROOT).as_posix(),
+            ],
+        )
     )
-    LOG.info("ℹ️  force-gate: is_force='%s'", str(is_force).lower())
+    LOG.info("force-gate: is_force='%s'", str(is_force).lower())
 
     all_feature_ids = discover_feature_ids()
     macos_capable = discover_macos_capable()
-    LOG.info("ℹ️  features: discovered total='%s' macos_capable='%s'", len(all_feature_ids), len(macos_capable))
+    LOG.info(
+        "features: discovered total='%s' macos_capable='%s'",
+        len(all_feature_ids),
+        len(macos_capable),
+    )
 
     is_release, features_to_release = detect_release(env)
 
@@ -500,32 +552,46 @@ def main() -> None:
             features = [
                 f
                 for f in all_feature_ids
-                if any(p.startswith(f"features/{f}/") or p.startswith(f"test/features/{f}/") for p in changed)
+                if any(
+                    p.startswith((f"features/{f}/", f"test/features/{f}/"))
+                    for p in changed
+                )
             ]
             macos_features = [
                 f
                 for f in macos_capable
-                if any(p.startswith(f"features/{f}/") or p.startswith(f"test/features/{f}/") for p in changed)
+                if any(
+                    p.startswith((f"features/{f}/", f"test/features/{f}/"))
+                    for p in changed
+                )
             ]
         run_features = bool(features)
         run_macos = bool(macos_features)
 
     LOG.info(
-        (
-            "ℹ️  decision: run_lint='%s' run_validate='%s' run_unit='%s' "
-            "run_features='%s' run_macos='%s'"
-        ),
+        "decision: run_lint='%s' run_validate='%s' run_unit='%s'"
+        " run_features='%s' run_macos='%s'",
         str(run_lint).lower(),
         str(run_validate).lower(),
         str(run_unit).lower(),
         str(run_features).lower(),
         str(run_macos).lower(),
     )
-    LOG.info("ℹ️  decision: features_count='%s' macos_features_count='%s'", len(features), len(macos_features))
+    LOG.info(
+        "decision: features_count='%s' macos_features_count='%s'",
+        len(features),
+        len(macos_features),
+    )
     if features:
-        LOG.info("ℹ️  decision: features=%s", json.dumps(features, separators=(",", ":")))
+        LOG.info(
+            "decision: features=%s",
+            json.dumps(features, separators=(",", ":")),
+        )
     if macos_features:
-        LOG.info("ℹ️  decision: macos_features=%s", json.dumps(macos_features, separators=(",", ":")))
+        LOG.info(
+            "decision: macos_features=%s",
+            json.dumps(macos_features, separators=(",", ":")),
+        )
 
     enforce_version_bump(env.event_name, env.base_ref, changed, all_feature_ids)
 
@@ -538,29 +604,45 @@ def main() -> None:
         "run_macos": str(run_macos).lower(),
         "macos_features": json.dumps(macos_features, separators=(",", ":")),
         "is_release": str(is_release).lower(),
-        "features_to_release": json.dumps(features_to_release, separators=(",", ":")),
+        "features_to_release": json.dumps(
+            features_to_release,
+            separators=(",", ":"),
+        ),
     }
     final_outputs = dict(outputs)
     write_outputs(env.github_output, outputs)
-    LOG.info("ℹ️  output: wrote primary decision outputs to GITHUB_OUTPUT.")
+    LOG.info("output: wrote primary decision outputs to GITHUB_OUTPUT.")
 
-    branch_name = env.head_ref if env.head_ref else env.ref_name
+    branch_name = env.head_ref or env.ref_name
     branch_tag = "branch-" + re.sub(r"[^a-zA-Z0-9._-]", "-", branch_name)
-    LOG.info("ℹ️  image-gate: branch_name='%s' branch_tag='%s'", branch_name, branch_tag)
+    LOG.info(
+        "image-gate: branch_name='%s' branch_tag='%s'",
+        branch_name,
+        branch_tag,
+    )
 
-    devcontainer_changed = detect_devcontainer_changed(env, is_force, changed, groups)
+    devcontainer_changed = detect_devcontainer_changed(
+        env,
+        is_force=is_force,
+        changed=changed,
+        groups=groups,
+    )
     existing_tags = ghcr_tags(env)
     has_latest = "latest" in existing_tags
     has_branch = branch_tag in existing_tags
     LOG.info(
-        "ℹ️  image-gate: devcontainer_changed='%s' existing_tags_count='%s' has_latest='%s' has_branch='%s'",
+        "image-gate: devcontainer_changed='%s' existing_tags_count='%s'"
+        " has_latest='%s' has_branch='%s'",
         str(devcontainer_changed).lower(),
         len(existing_tags),
         str(has_latest).lower(),
         str(has_branch).lower(),
     )
     if existing_tags:
-        LOG.info("ℹ️  image-gate: existing_tags=%s", json.dumps(existing_tags, separators=(",", ":")))
+        LOG.info(
+            "image-gate: existing_tags=%s",
+            json.dumps(existing_tags, separators=(",", ":")),
+        )
 
     build_image = False
     image_tag = "latest"
@@ -568,19 +650,18 @@ def main() -> None:
         image_tag = "latest"
         if devcontainer_changed or not has_latest:
             build_image = True
+    elif devcontainer_changed:
+        build_image = True
+        image_tag = branch_tag
+    elif has_branch:
+        build_image = False
+        image_tag = branch_tag
+    elif has_latest:
+        build_image = False
+        image_tag = "latest"
     else:
-        if devcontainer_changed:
-            build_image = True
-            image_tag = branch_tag
-        elif has_branch:
-            build_image = False
-            image_tag = branch_tag
-        elif has_latest:
-            build_image = False
-            image_tag = "latest"
-        else:
-            build_image = True
-            image_tag = branch_tag
+        build_image = True
+        image_tag = branch_tag
 
     image_outputs = {
         "build_image": str(build_image).lower(),
@@ -589,12 +670,12 @@ def main() -> None:
     final_outputs.update(image_outputs)
     write_outputs(env.github_output, image_outputs)
     LOG.info(
-        "ℹ️  image-gate: final build_image='%s' image_tag='%s'",
+        "image-gate: final build_image='%s' image_tag='%s'",
         str(build_image).lower(),
         image_tag,
     )
     LOG.info(
-        "ℹ️  output: final outputs=%s",
+        "output: final outputs=%s",
         json.dumps(final_outputs, separators=(",", ":")),
     )
 

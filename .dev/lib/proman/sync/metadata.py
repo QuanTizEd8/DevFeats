@@ -5,14 +5,17 @@ from __future__ import annotations
 import json
 import re
 import sys
-from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import jsonschema
 import yaml
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 def log(msg: str) -> None:
+    """Write a diagnostic message to stderr."""
     print(msg, file=sys.stderr)
 
 def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
@@ -33,7 +36,8 @@ def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 
     """Read and parse the metadata.yaml for the given feature ID."""
     metadata_filepath = features_dirpath / feature_id / "metadata.yaml"
     if not metadata_filepath.is_file():
-        log(f"⚠️ {feature_id}: metadata.yaml not found for feature '{feature_id}'; skipping")
+        log(f"⚠️ {feature_id}: metadata.yaml not found for feature '{feature_id}';"
+            " skipping")
         return 0
 
     try:
@@ -43,7 +47,8 @@ def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 
         return 1
 
     if not isinstance(data, dict):
-        log(f"❌ {feature_id}: metadata.yaml does not contain a mapping (got {type(data).__name__})")
+        log(f"❌ {feature_id}: metadata.yaml does not contain a mapping"
+            f" (got {type(data).__name__})")
         return 1
 
     return data
@@ -59,18 +64,20 @@ def augment_metadata(feature_id: str, metadata: dict, derived_options: dict) -> 
     conditionally applying options with _apply_when
     based on the feature's full metadata dict.
     """
-
     options: dict = metadata.get("options", {})
     for option_id, option_def in derived_options.items():
         if option_id in options:
-            log(f"⛔ {feature_id}: option '{option_id}' is a derived option and cannot be manually defined in metadata.yaml")
+            log(f"⛔ {feature_id}: option '{option_id}' is a derived option and"
+                " cannot be manually defined in metadata.yaml")
             return False
         should_apply = (
             _evaluate_condition(option_def["_apply_when"], metadata)
             if "_apply_when" in option_def else True
         )
         if should_apply:
-            options[option_id] = {k: v for k, v in option_def.items() if not k.startswith("_")}
+            options[option_id] = {
+                k: v for k, v in option_def.items() if not k.startswith("_")
+            }
     metadata["options"] = options
     return True
 
@@ -90,7 +97,8 @@ def _evaluate_condition(apply_when: dict, data: dict) -> bool:
     if condition == "not_equals":
         expected = apply_when["value"]
         return not exists or value != expected
-    raise ValueError(f"Unsupported condition: {condition}")
+    msg = f"Unsupported condition: {condition}"
+    raise ValueError(msg)
 
 
 def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
@@ -108,7 +116,8 @@ def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
         The value at the path if it exists, or None if it does not exist.
     """
     if not jsonpath.startswith("$."):
-        raise ValueError(f"Unsupported JSONPath expression: {jsonpath}")
+        msg = f"Unsupported JSONPath expression: {jsonpath}"
+        raise ValueError(msg)
     path_parts = jsonpath[2:].split(".")
     current = data
     for part in path_parts:
@@ -119,13 +128,22 @@ def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
 
 
 def load_derived_options(features_dirpath: Path) -> dict:
+    """Load shared-options.yaml and return its contents as a dict."""
     with (features_dirpath / "shared-options.yaml").open(encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
 # Schema Validation
 # -----------------
 
-def validate_metadata_schema(feature_id: str, metadata: dict, validator: jsonschema.Draft7Validator) -> bool:
+def validate_metadata_schema(
+    feature_id: str,
+    metadata: dict,
+    validator: jsonschema.Draft7Validator,
+) -> bool:
+    """Validate metadata against the JSON schema.
+
+    Logs all validation errors and returns False on failure.
+    """
     errs = sorted(
         validator.iter_errors(metadata),
         key=lambda e: list(e.absolute_path),
@@ -148,6 +166,7 @@ def build_metadata_validator(
     lib_dirpath: Path,
     ospkg_schema_id: str,
 ) -> jsonschema.Draft7Validator:
+    """Build and return a JSON schema validator for feature metadata."""
     schema_path = features_dirpath / "metadata.schema.json"
     ospkg_manifest_path = lib_dirpath / "ospkg.manifest.schema.json"
     metadata_schema = json.loads(schema_path.read_text(encoding="utf-8"))
@@ -155,7 +174,11 @@ def build_metadata_validator(
     return jsonschema.Draft7Validator(metadata_schema)
 
 
-def _rewrite_remote_refs(obj: object, ospkg_schema_id: str, ospkg_manifest_path: Path) -> None:
+def _rewrite_remote_refs(
+    obj: object,
+    ospkg_schema_id: str,
+    ospkg_manifest_path: Path,
+) -> None:
     """Replace the remote manifest $ref with the local file:// URI (in-place)."""
     if isinstance(obj, dict):
         if obj.get("$ref", "").lower() == ospkg_schema_id.lower():
@@ -165,7 +188,6 @@ def _rewrite_remote_refs(obj: object, ospkg_schema_id: str, ospkg_manifest_path:
     elif isinstance(obj, list):
         for item in obj:
             _rewrite_remote_refs(item, ospkg_schema_id, ospkg_manifest_path)
-    return
 
 
 # Markdown Sanitation
@@ -173,14 +195,12 @@ def _rewrite_remote_refs(obj: object, ospkg_schema_id: str, ospkg_manifest_path:
 
 def sanitize_markdown(metadata: dict) -> None:
     """Recursively process a value, stripping markdown from description fields."""
-
     metadata["description"] = _normalize_description(metadata["description"])
 
     if "options" in metadata:
         for option in metadata["options"].values():
             option["description"] = _normalize_description(option["description"])
 
-    return
 
 
 def _normalize_description(text: str) -> str:
@@ -245,7 +265,6 @@ def _strip_markdown(text: str) -> str:
     # HTML tags: closing tags </foo> and opening tags with attributes <foo ...>
     # Single-word tokens like <version> or <shell> are NOT matched.
     text = re.sub(r"</[a-zA-Z][^>]*>", "", text)
-    text = re.sub(r"<[a-zA-Z][^>]*\s[^>]*>", "", text)
-    return text
+    return re.sub(r"<[a-zA-Z][^>]*\s[^>]*>", "", text)
 
 

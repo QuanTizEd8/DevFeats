@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""scripts/gen_docs.py — Documentation injection tool for devfeats.
+"""Documentation injection tool for devfeats.
 
 Reads structured @brief annotations from lib/*.sh and injects auto-generated
 content between special marker comments in documentation files.
@@ -87,12 +86,13 @@ def _find_markers(content: str, tag: str) -> tuple[int, int] | None:
 
 
 def has_markers(content: str, tag: str) -> bool:
+    """Return True if START/END markers for ``tag`` are present in ``content``."""
     return _find_markers(content, tag) is not None
 
 
 def inject_block(content: str, tag: str, new_block: str) -> tuple[str, bool]:
-    """
-    Replace content between START/END markers for <tag>.
+    """Replace content between START/END markers for ``tag``.
+
     Returns (new_content, changed).  Returns (content, False) if markers absent.
     """
     positions = _find_markers(content, tag)
@@ -136,8 +136,10 @@ def render_module_table(functions: list[LibFunction]) -> str:
         "| Function | Signature | Description |",
         "|---|---|---|",
     ]
-    for fn in functions:
-        lines.append(f"| `{fn.name}` | `{fn.signature}` | {fn.description} |")
+    lines.extend(
+        f"| `{fn.name}` | `{fn.signature}` | {fn.description} |"
+        for fn in functions
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -147,11 +149,12 @@ def render_module_table(functions: list[LibFunction]) -> str:
 def process_file(
     path: Path,
     injections: list[tuple[str, str]],
+    *,
     check: bool,
 ) -> bool:
-    """
-    Apply all (tag, new_block) injections to a file.
-    Returns True if any change was made (or would be made in --check mode).
+    """Apply all (tag, new_block) injections to a file.
+
+    Returns True if any change was made (or would be made in ``--check`` mode).
     In check mode, prints a message but does not write.
     """
     content = path.read_text(encoding="utf-8")
@@ -181,10 +184,11 @@ def process_file(
 # ── Mode: lib ──────────────────────────────────────────────────────────────────
 
 
-def run_lib(check: bool) -> bool:
-    """
-    Parse @brief from lib/*.sh, inject tables into lib.instructions.md and
-    docs/source/dev/writing-features.md.  Returns True if any file changed.
+def run_lib(*, check: bool) -> bool:
+    """Parse @brief from lib/*.sh and inject tables.
+
+    Injects into lib.instructions.md and docs/source/dev/writing-features.md.
+    Returns True if any file changed.
     """
     modules: dict[str, list[dict]] = {}
     for module in LIB_MODULE_ORDER:
@@ -199,7 +203,7 @@ def run_lib(check: bool) -> bool:
 
     # lib.instructions.md — compact | Module | Key API | table
     compact = render_compact_table(modules)
-    if process_file(LIB_INSTRUCTIONS, [("lib-api", compact)], check):
+    if process_file(LIB_INSTRUCTIONS, [("lib-api", compact)], check=check):
         any_changed = True
 
     # writing-features.md — per-module | Function | Signature | Description | tables
@@ -210,7 +214,7 @@ def run_lib(check: bool) -> bool:
         table = render_module_table(functions)
         injections.append((tag, table))
 
-    if process_file(WRITING_FEATURES, injections, check):
+    if process_file(WRITING_FEATURES, injections, check=check):
         any_changed = True
 
     return any_changed
@@ -220,6 +224,7 @@ def run_lib(check: bool) -> bool:
 
 
 def main() -> int:
+    """Run the documentation injection pipeline."""
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -235,13 +240,13 @@ def main() -> int:
     any_changed = False
 
     print("── lib ──────────────────────────────────────────────────────────────")
-    if run_lib(args.check):
+    if run_lib(check=args.check):
         any_changed = True
 
     if any_changed:
         if args.check:
             print(
-                "\n✗ Some docs are out of date. Run 'just gen-docs' to regenerate."
+                "\n✗ Some docs are out of date. Run 'just gen-docs' to regenerate.",
             )
             return 1
         return 0

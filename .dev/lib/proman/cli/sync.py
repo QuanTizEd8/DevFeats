@@ -9,8 +9,9 @@ from proman.sync import run
 
 
 def main() -> None:
+    """Parse CLI arguments and run the feature sync pipeline."""
     parser = argparse.ArgumentParser(
-        description="Assemble each feature's src/ directory from features/ + lib/."
+        description="Assemble each feature's src/ directory from features/ + lib/.",
     )
     parser.add_argument(
         "--check",

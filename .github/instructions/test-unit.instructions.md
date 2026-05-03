@@ -1,23 +1,23 @@
 ---
-description: "Use when writing or editing bats unit tests for lib/ modules under test/unit/. Covers the bats framework, reload_lib helper, the declare -gA ospkg workaround, command stubs, subprocess isolation for logging, macOS bash ≥4 requirements, and common pitfalls."
-applyTo: "test/unit/**"
+description: "Use when writing or editing bats unit tests for lib/ modules under test/lib/. Covers the bats framework, reload_lib helper, the declare -gA ospkg workaround, command stubs, subprocess isolation for logging, macOS bash ≥4 requirements, and common pitfalls."
+applyTo: "test/lib/**"
 ---
 
 # Lib Unit Tests (bats)
 
-Unit tests for `lib/` live under `test/unit/`. Each `.bats` file covers one module.
+Unit tests for `lib/` live under `test/lib/`. Each `.bats` file covers one module.
 
 Tests run without Docker by sourcing lib files directly into the bats test process. The full suite runs on both Linux and macOS in CI.
 
 ## Vendor Libraries
 
-bats-core and its companion libraries are git submodules at `test/unit/bats/`. Initialise once after cloning:
+bats-core and its companion libraries are git submodules at `test/lib/bats/`. Initialise once after cloning:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-Never edit files under `test/unit/bats/` — they are vendored.
+Never edit files under `test/lib/bats/` — they are vendored.
 
 | Submodule | Purpose |
 |---|---|
@@ -173,12 +173,12 @@ This isolation is specific to `logging.sh`. Other modules do not need it.
 
 ## Writing New Tests
 
-1. Open `test/unit/<module>.bats` for the module you changed.
+1. Open `test/lib/<module>.bats` for the module you changed.
 2. Add `reload_lib <module>.sh` in `setup()` unless the test explicitly checks idempotency.
 3. Stub any external commands the function invokes.
 4. Use `run` for exit-code / stdout assertions; call directly for global-state assertions.
 5. One observable behaviour per `@test`.
-6. Run `bash test/run-unit.sh --module <name> --jobs 1` before committing.
+6. Run `bash .dev/scripts/test/run-unit.sh --module <name> --jobs 1` before committing.
 
 ## Running Tests Locally
 
@@ -187,23 +187,23 @@ This isolation is specific to `logging.sh`. Other modules do not need it.
 just test-unit
 
 # Single module
-bash test/run-unit.sh --module os
+bash .dev/scripts/test/run-unit.sh --module os
 
 # Filter by test name (regex)
-bash test/run-unit.sh --filter "platform"
+bash .dev/scripts/test/run-unit.sh --filter "platform"
 
 # Serial output — useful for debugging
-bash test/run-unit.sh --jobs 1
+bash .dev/scripts/test/run-unit.sh --jobs 1
 
 # Direct bats invocation — skips scripts/sync-src.py, useful for iteration
-test/unit/bats/bats-core/bin/bats test/unit/os.bats
+test/lib/bats/bats-core/bin/bats test/lib/os.bats
 ```
 
 ## macOS Considerations
 
 macOS ships bash 3.2 due to the GPL licence change in bash 4+. All lib/ modules require bash ≥4.
 
-`test/run-unit.sh` handles this automatically:
+`.dev/scripts/test/run-unit.sh` handles this automatically:
 
 1. Detects `BASH_VERSINFO[0] < 4`.
 2. Tries `/opt/homebrew/bin/bash` (Apple Silicon) then `/usr/local/bin/bash` (Intel).

@@ -22,7 +22,7 @@ _MYMODULE__LIB_LOADED=1
 
 All library files live in `lib/` and are synced to `_lib/` in each feature. Source them from `$_SELF_DIR/_lib/<file>.sh`.
 
-Each module uses a guard variable (`_LIB_<NAME>_LOADED`) to prevent double-sourcing. Every public function is covered by the bats unit suite under `test/unit/`. Run `just test-unit` to verify changes locally before pushing.
+Each module uses a guard variable (`_LIB_<NAME>_LOADED`) to prevent double-sourcing. Every public function is covered by the bats unit suite under `test/lib/`. Run `just test-unit` to verify changes locally before pushing.
 
 **Multi-value conventions:** many helpers return multiple logical items as one stdout line per item (empty list → no output). This composes naturally with pipes, `while read -r`, and `mapfile`.
 

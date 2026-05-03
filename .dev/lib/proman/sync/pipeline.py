@@ -22,8 +22,19 @@ from proman.sync.metadata import (
 )
 
 
-def run(check_only: bool = False) -> int:
+def run(*, check_only: bool = False) -> int:
+    """Assemble src/ for all features from features/ + lib/.
 
+    Parameters
+    ----------
+    check_only : bool
+        If True, verify sync state without writing files; return non-zero if stale.
+
+    Returns
+    -------
+    int
+        0 on success, 1 if any feature failed validation or sync.
+    """
     repo_dirpath = git_repo_root()
     owner, name = git_owner_repo()
 
@@ -66,7 +77,8 @@ def run(check_only: bool = False) -> int:
         metadata = read_metadata(feature_id, features_dirpath)
 
         if metadata == 0:
-            # No metadata.yaml found; skip without counting as a failure (allows draft features to be added).
+            # No metadata.yaml found; skip without counting as a failure
+            # (allows draft features to be added).
             continue
 
         if metadata == 1:
@@ -89,13 +101,20 @@ def run(check_only: bool = False) -> int:
 
         sanitize_markdown(metadata)
 
-        output_files.update(_generate_metadata_json(feature_id, metadata, license_url, doc_url_template))
+        output_files.update(
+            _generate_metadata_json(
+                feature_id, metadata, license_url, doc_url_template,
+            ),
+        )
         output_files.update(generator.generate(feature_id, metadata))
         output_files.update(lib_files)
         output_files.update(bootstrap_file)
         output_files.update(_gather_feature_files(feature_id, features_dirpath))
 
-        if not _sync_source_files(feature_id, output_files, src_dirpath, gitignore_patterns, check_only):
+        if not _sync_source_files(
+            feature_id, output_files, src_dirpath, gitignore_patterns,
+            check_only=check_only,
+        ):
             n_failures["sync"] += 1
 
     _log("\nFinal results:")
@@ -126,7 +145,12 @@ def _generate_dependency_manifests(metadata: dict) -> dict[Path, str]:
     for lifecycle, groups in deps.items():
         for dep_name, dep_content in groups.items():
             dep_path = dirpath / lifecycle / f"{dep_name}.yaml"
-            manifest = yaml.dump(dep_content, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            manifest = yaml.dump(
+                dep_content,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
             manifests[dep_path] = manifest
     return manifests
 
@@ -165,7 +189,10 @@ def _generate_metadata_json(
             options[option_id] = option
         metadata_json_dict[key] = options
 
-    metadata_json = json.dumps(metadata_json_dict, sort_keys=True, indent=3, ensure_ascii=False) + "\n"
+    metadata_json = (
+        json.dumps(metadata_json_dict, sort_keys=True, indent=3, ensure_ascii=False)
+        + "\n"
+    )
     return {Path("devcontainer-feature.json"): metadata_json}
 
 
@@ -173,7 +200,7 @@ def _generate_metadata_json(
 
 
 def _gather_lib_files(lib_dirpath: Path) -> dict[Path, str]:
-    """Read all files from lib/ and return them keyed by their _lib/-relative output paths."""
+    """Read all files from lib/ and return them keyed by their _lib/-relative paths."""
     files: dict[Path, str] = {}
     for src_path in sorted(lib_dirpath.rglob("*")):
         if not src_path.is_file():
@@ -185,11 +212,12 @@ def _gather_lib_files(lib_dirpath: Path) -> dict[Path, str]:
 
 def _gather_bootstrap(features_dirpath: Path) -> dict[Path, str]:
     """Read features/bootstrap.sh and return it keyed as install.sh."""
-    return {Path("install.sh"): (features_dirpath / "bootstrap.sh").read_text(encoding="utf-8")}
+    bootstrap = (features_dirpath / "bootstrap.sh").read_text(encoding="utf-8")
+    return {Path("install.sh"): bootstrap}
 
 
 def _gather_feature_files(feature_id: str, features_dirpath: Path) -> dict[Path, str]:
-    """Read features/<id>/files/** and return them keyed by their files/-relative output paths.
+    """Read features/<id>/files/** keyed by their files/-relative output paths.
 
     Only git-tracked files are included.  This ensures that OS-generated
     artefacts (e.g. ``.DS_Store``) that happen to exist on disk but were never
@@ -205,7 +233,9 @@ def _gather_feature_files(feature_id: str, features_dirpath: Path) -> dict[Path,
     )
     tracked = frozenset(files_dir / rel for rel in ls.stdout.split("\0") if rel)
     return {
-        Path("files") / src_path.relative_to(files_dir): src_path.read_text(encoding="utf-8")
+        Path("files") / src_path.relative_to(files_dir): src_path.read_text(
+            encoding="utf-8",
+        )
         for src_path in sorted(files_dir.rglob("*"))
         if src_path.is_file() and src_path in tracked
     }
@@ -226,14 +256,15 @@ def _gitignore_basename_patterns(repo_dirpath: Path) -> list[str]:
     patterns: list[str] = []
     for raw in gitignore.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
-        if not line or line.startswith("#") or line.startswith("!"):
+        if not line or line.startswith(("#", "!")):
             continue
         # Directory-only patterns (trailing '/') are not file patterns.
         if line.endswith("/"):
             continue
         # Strip leading '/' anchors before the slash check.
         body = line.lstrip("/")
-        # Skip patterns that contain a '/' — they are path-specific, not basename patterns.
+        # Skip patterns that contain a '/' — they are path-specific, not basename
+        # patterns.
         if "/" in body:
             continue
         patterns.append(body)
@@ -248,13 +279,15 @@ def _sync_source_files(
     new_files: dict[Path, str],
     src_dirpath: Path,
     gitignore_patterns: list[str],
+    *,
     check_only: bool = False,
 ) -> bool:
     feature_src_dir = src_dirpath / feature_id
     old_files = {
         path.relative_to(feature_src_dir): path.read_text(encoding="utf-8")
         for path in sorted(feature_src_dir.rglob("*"))
-        if path.is_file() and not any(fnmatch.fnmatch(path.name, p) for p in gitignore_patterns)
+        if path.is_file()
+        and not any(fnmatch.fnmatch(path.name, p) for p in gitignore_patterns)
     } if feature_src_dir.exists() else {}
 
     is_in_sync = True
@@ -265,8 +298,9 @@ def _sync_source_files(
                 is_in_sync = False
                 _log(f"⛔ {feature_id}: {new_filepath} is missing")
             else:
-                (feature_src_dir / new_filepath).parent.mkdir(parents=True, exist_ok=True)
-                (feature_src_dir / new_filepath).write_text(new_content, encoding="utf-8")
+                dest = feature_src_dir / new_filepath
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(new_content, encoding="utf-8")
                 _log(f"✅ {feature_id}: {new_filepath} created")
             continue
 
