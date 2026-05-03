@@ -3,27 +3,28 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-import sys
 from typing import TYPE_CHECKING
-
-import yaml as _yaml
 
 if TYPE_CHECKING:
     from typing import Any
     from sphinx.application import Sphinx
 
 _WEBSITE_ROOT = Path(__file__).resolve().parent
-_WEBSITE_SOURCE_DIR = _WEBSITE_ROOT / "source"
 _REPO_ROOT = _WEBSITE_ROOT.parent
-_FEATURES_DIR = _REPO_ROOT / "features"
-_FEATURES_DOC_DIR = _WEBSITE_SOURCE_DIR / "features"
-_FEATURES_NOTES_FILENAME = "NOTES.md"
+_DOCS_DATA_PATH = _REPO_ROOT / ".dev" / "output" / "docs-data.json"
 
-from proman import feat_doc_gen, git_utils
+if not _DOCS_DATA_PATH.exists():
+    raise FileNotFoundError(
+        f"Docs data artifact not found: {_DOCS_DATA_PATH}\n"
+        "Run 'pixi run gen-docs-data' before building the docs."
+    )
 
-
-_REPO_OWNER, _REPO_NAME = git_utils.git_owner_repo()
+_docs_data: dict[str, Any] = json.loads(_DOCS_DATA_PATH.read_text(encoding="utf-8"))
+_REPO_OWNER: str = _docs_data["repo_owner"]
+_REPO_NAME: str = _docs_data["repo_name"]
+_feature_metadata: dict[str, dict[str, Any]] = _docs_data["features"]
 
 
 def setup(app):
@@ -35,18 +36,6 @@ def setup(app):
     app.add_lexer("gitconfig", IniLexer)
     app.connect("source-read", _source_jinja_template)
     return
-
-
-def _load_feature_metadata() -> dict[str, dict[str, Any]]:
-    """Load feature metadata from all features' metadata.yaml files into a dict."""
-    all_metadata: dict[str, dict[str, Any]] = {}
-    for meta_path in sorted(_FEATURES_DIR.glob("*/metadata.yaml")):
-        with meta_path.open(encoding="utf-8") as fh:
-            feat_metadata = _yaml.safe_load(fh)
-        feat_id = meta_path.parent.name
-        feat_metadata["id"] = feat_id
-        all_metadata[feat_id] = feat_metadata
-    return all_metadata
 
 
 def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> None:
@@ -92,36 +81,6 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
     for attr, attr_val in attrs_default.items():
         setattr(app.builder.templates.environment, attr, attr_val)
     return
-
-
-def _update_source_file(path: Path, content: str) -> None:
-    """Write file only when content differs to keep builds idempotent.
-
-    This prevents sphinx-autobuild from retriggering on no-op writes.
-    """
-    if path.exists() and path.read_text() == content:
-        return
-    path.write_text(content)
-    return
-
-
-def _generate_docs(metadata: dict[str, dict]) -> None:
-    """Generate auto-generated docs."""
-    _FEATURES_DOC_DIR.mkdir(parents=True, exist_ok=True)
-    for feat_id, feat_metadata in metadata.items():
-        feat_notes_path = _FEATURES_DIR / feat_id / _FEATURES_NOTES_FILENAME
-        feat_notes = feat_notes_path.read_text() if feat_notes_path.exists() else ""
-        feat_doc = feat_doc_gen.generate(
-            metadata=feat_metadata,
-            notes=feat_notes,
-        )
-        feat_doc_path = _FEATURES_DOC_DIR / f"{feat_id}.md"
-        _update_source_file(feat_doc_path, feat_doc)
-    return
-
-
-_feature_metadata = _load_feature_metadata()
-_generate_docs(_feature_metadata)
 
 
 # ── Project information ────────────────────────────────────────────────────────
