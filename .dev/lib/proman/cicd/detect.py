@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import yaml
+from gittidy import Git
 
 from proman.release.detect import detect_releasable
 
@@ -60,6 +61,7 @@ def _resolve_repo_root() -> Path:
 
 
 REPO_ROOT = _resolve_repo_root()
+_GIT = Git(REPO_ROOT)
 PATHS_FILE = REPO_ROOT / CI_TRIGGER_PATHS_FILEPATH
 LOG = logging.getLogger("cicd_detect")
 
@@ -159,27 +161,11 @@ def discover_macos_capable() -> list[str]:
     list of str
         Sorted unique feature/test identifiers that have macOS scenarios.
     """
-    # Preserve shell parity with:
-    # find test/features -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*"
-    out = sh(
-        [
-            "find",
-            "test/features",
-            "-mindepth",
-            "3",
-            "-maxdepth",
-            "3",
-            "-name",
-            "*.sh",
-            "-path",
-            "*/macos/*",
-        ],
-    )
-    ids = set()
-    for line in out.splitlines():
-        rel = line.strip().removeprefix("test/features/")
-        if "/macos/" in rel:
-            ids.add(rel.split("/macos/", 1)[0])
+    test_features_root = REPO_ROOT / "test" / "features"
+    ids = {
+        path.parent.parent.name
+        for path in test_features_root.glob("*/macos/*.sh")
+    }
     return sorted(ids)
 
 
@@ -305,15 +291,12 @@ def base_feature_version(base_ref: str, feature_id: str) -> str:
     str
         Version string if present in base; otherwise an empty string.
     """
-    try:
-        content = sh(
-            [
-                "git",
-                "show",
-                f"origin/{base_ref}:features/{feature_id}/metadata.yaml",
-            ],
-        )
-    except subprocess.CalledProcessError:
+    content = _GIT.file_at_ref(
+        f"origin/{base_ref}",
+        f"features/{feature_id}/metadata.yaml",
+        raise_missing=False,
+    )
+    if not content:
         return ""
     payload = yaml.safe_load(content) or {}
     version = payload.get("version", "")
