@@ -15,13 +15,22 @@ immediately before the function definition:
     # Stdout: one-line description of what is printed to stdout.
     funcname() {
 
+Module-level docs use this convention (immediately after the shebang):
+
+    # Short single-line summary.
+    #
+    # Longer description with light markdown.
+    # Can span multiple lines.
+
 Exported types:
-    LibFunction   — parsed function (name, signature, description, body)
+    LibModule    — parsed module (name, summary, description, functions)
+    LibFunction  — parsed function (name, signature, description, body)
     ParagraphBlock — a block of prose lines
     SectionBlock   — a labelled section (Args, Stdout, Returns, …)
 
-Exported function:
-    parse_lib_file(path) → list[LibFunction]
+Exported functions:
+    parse_lib_module(path) → LibModule
+    parse_lib_file(path)   → list[LibFunction]
 """
 
 from __future__ import annotations
@@ -81,6 +90,26 @@ class LibFunction:
     def __repr__(self) -> str:  # pragma: no cover
         """Return debug representation."""
         return f"LibFunction({self.name!r})"
+
+
+class LibModule:
+    """A parsed lib/*.sh file with module-level docs and public functions."""
+
+    def __init__(
+        self,
+        name: str,
+        summary: str,
+        description: str,
+        functions: list[LibFunction],
+    ) -> None:
+        self.name = name
+        self.summary = summary
+        self.description = description
+        self.functions = functions
+
+    def __repr__(self) -> str:  # pragma: no cover
+        """Return debug representation."""
+        return f"LibModule({self.name!r})"
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -163,7 +192,72 @@ def _parse_body(raw_lines: list[str]) -> list[ParagraphBlock | SectionBlock]:
     return blocks
 
 
+def _parse_module_header(lines: list[str]) -> tuple[str, str]:
+    """Extract (summary, long_description) from the initial comment block.
+
+    Reads the consecutive comment lines immediately after the shebang.
+    The first non-empty line is the summary; lines after the first blank
+    comment line form the long description.
+
+    Returns
+    -------
+    tuple[str, str]
+        ``(summary, long_description)``, both empty strings if absent.
+    """
+    start = 1 if lines and lines[0].startswith("#!") else 0
+    raw: list[str] = []
+    for line in lines[start:]:
+        content = _strip_comment_prefix(line)
+        if content is None:
+            break
+        raw.append(content)
+
+    # Drop leading blank lines.
+    while raw and not raw[0]:
+        raw.pop(0)
+
+    if not raw:
+        return "", ""
+
+    summary = raw[0].strip()
+
+    # Long description follows the first blank comment line.
+    try:
+        blank_idx = raw.index("", 1)
+    except ValueError:
+        return summary, ""
+
+    desc_lines = raw[blank_idx + 1:]
+    while desc_lines and not desc_lines[-1]:
+        desc_lines.pop()
+    return summary, "\n".join(desc_lines).strip()
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
+
+
+def parse_lib_module(path: Path) -> LibModule:
+    """Parse a lib/*.sh file; return module-level docs and all @brief functions.
+
+    Parameters
+    ----------
+    path : Path
+        Absolute path to the lib/*.sh file.
+
+    Returns
+    -------
+    LibModule
+        Module name (stem), summary, long description, and list of functions.
+    """
+    lines = path.read_text(encoding="utf-8").splitlines()
+    summary, description = _parse_module_header(lines)
+    functions = parse_lib_file(path)
+    return LibModule(
+        name=path.stem,
+        summary=summary,
+        description=description,
+        functions=functions,
+    )
 
 
 def parse_lib_file(path: Path) -> list[LibFunction]:
@@ -173,10 +267,15 @@ def parse_lib_file(path: Path) -> list[LibFunction]:
     For each function, collects all comment lines between the @brief line and
     the function definition, then parses them into structured blocks.
 
-    Args:
-        path  Absolute path to the lib/*.sh file.
+    Parameters
+    ----------
+    path : Path
+        Absolute path to the lib/*.sh file.
 
-    Returns a list of LibFunction objects in source order.
+    Returns
+    -------
+    list[LibFunction]
+        LibFunction objects in source order.
     """
     functions: list[LibFunction] = []
     lines = path.read_text(encoding="utf-8").splitlines()
