@@ -5,19 +5,14 @@
 # and defines the reload_lib() helper.
 
 # LIB_ROOT: canonical lib/ directory.
-if [[ -f "${BATS_TEST_DIRNAME}/../../lib/os.sh" ]]; then
-  LIB_ROOT="${BATS_TEST_DIRNAME}/../../lib"
-else
-  LIB_ROOT="${BATS_TEST_DIRNAME}/../../../lib"
+# REPO_ROOT is exported by the test runner; fall back to git for direct invocation.
+if [[ -z "${REPO_ROOT:-}" ]]; then
+  REPO_ROOT="$(git -C "${BATS_TEST_DIRNAME}" rev-parse --show-toplevel)"
 fi
+LIB_ROOT="${REPO_ROOT}/lib"
 
-# Point bats library loader at the vendored bats/ subdirectory so that
-# bats_load_library <name> finds <name>/load.bash inside test/unit/bats/.
-if [[ -d "${BATS_TEST_DIRNAME}/bats" ]]; then
-  export BATS_LIB_PATH="${BATS_TEST_DIRNAME}/bats"
-else
-  export BATS_LIB_PATH="${BATS_TEST_DIRNAME}/../bats"
-fi
+# Point bats library loader at the vendored bats/ subdirectory.
+export BATS_LIB_PATH="${REPO_ROOT}/test/lib/bats"
 
 bats_load_library bats-support
 bats_load_library bats-assert
