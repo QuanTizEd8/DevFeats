@@ -98,7 +98,7 @@ build-dist *args: sync
   doc('Preview which features need a new GitHub Release (queries GitHub API). Extra args pass through to .dev/scripts/release/detect-releasable.py.')
 ]
 detect-releasable *args:
-    pixi run python .dev/scripts/release/detect-releasable.py --repo quantized8/devfeats {{args}}
+    proman-release-detect --repo quantized8/devfeats {{args}}
 
 
 [
