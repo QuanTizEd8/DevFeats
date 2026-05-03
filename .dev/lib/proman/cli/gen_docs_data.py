@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 import sys
 
-from proman.docs import feat_doc_gen
+from proman.docs import feat_doc_gen, lib_doc_gen
+from proman.docs.parse_lib import parse_lib_module
 from proman.git import git_owner_repo, git_repo_root
 from proman.sync import load_and_augment
 
@@ -13,13 +14,16 @@ _FEATURES_NOTES_FILENAME = "NOTES.md"
 
 
 def main() -> int:
-    """Generate docs-data.json and per-feature Markdown from metadata."""
+    """Generate docs-data.json and per-feature/library Markdown from metadata."""
     repo = git_repo_root()
     features_dir = repo / "features"
+    lib_dir = repo / "lib"
     output_dir = repo / ".dev" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     owner, repo_name = git_owner_repo()
+
+    # ── Feature metadata ──────────────────────────────────────────────────────
 
     all_metadata: dict[str, dict] = {}
     for meta_path in sorted(features_dir.glob("*/metadata.yaml")):
@@ -34,15 +38,33 @@ def main() -> int:
         feat_metadata["id"] = feat_id
         all_metadata[feat_id] = feat_metadata
 
+    # ── Library module metadata ───────────────────────────────────────────────
+
+    lib_modules: dict[str, str] = {}
+    for sh_path in sorted(lib_dir.glob("*.sh")):
+        module = parse_lib_module(sh_path)
+        if not module.summary:
+            print(
+                f"⚠️  gen-docs-data: {sh_path.name} has no module-level docs; skipping",
+                file=sys.stderr,
+            )
+            continue
+        lib_modules[module.name] = module.summary
+
+    # ── Write docs-data.json ──────────────────────────────────────────────────
+
     docs_data = {
         "repo_owner": owner,
         "repo_name": repo_name,
         "features": all_metadata,
+        "lib_modules": lib_modules,
     }
     (output_dir / "docs-data.json").write_text(
         json.dumps(docs_data, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
+
+    # ── Feature docs ──────────────────────────────────────────────────────────
 
     feat_doc_dir = repo / "docs" / "source" / "features"
     feat_doc_dir.mkdir(parents=True, exist_ok=True)
@@ -54,9 +76,22 @@ def main() -> int:
         if not doc_path.exists() or doc_path.read_text(encoding="utf-8") != doc_content:
             doc_path.write_text(doc_content, encoding="utf-8")
 
+    # ── Library docs ──────────────────────────────────────────────────────────
+
+    lib_doc_dir = repo / "docs" / "source" / "library"
+    lib_doc_dir.mkdir(parents=True, exist_ok=True)
+    for sh_path in sorted(lib_dir.glob("*.sh")):
+        module = parse_lib_module(sh_path)
+        if not module.summary:
+            continue
+        doc_content = lib_doc_gen.generate(module)
+        doc_path = lib_doc_dir / f"{module.name}.md"
+        if not doc_path.exists() or doc_path.read_text(encoding="utf-8") != doc_content:
+            doc_path.write_text(doc_content, encoding="utf-8")
+
     print(
-        f"docs-data: {len(all_metadata)} features → "
-        f".dev/output/docs-data.json + docs/source/features/*.md",
+        f"docs-data: {len(all_metadata)} features, {len(lib_modules)} lib modules"
+        f" → .dev/output/docs-data.json + docs/source/{{features,library}}/*.md",
     )
     return 0
 
