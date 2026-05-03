@@ -9,14 +9,21 @@ platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
 [dependencies]
 python = { version = "3.13.*", channel = "conda-forge" }
 
-[pypi-dependencies]
-proman = { path = ".dev/lib", editable = true }
-
 
 # ── Environments ──────────────────────────────────────────────────────────────
 
 [environments]
+default = { features = ["proman"], solve-group = "main" }
 docs = { features = ["docs"], solve-group = "main" }
+
+
+# ── ProMan Feature ────────────────────────────────────────────────────────────
+
+[feature.proman.pypi-dependencies]
+proman = { path = ".dev/lib", editable = true }
+
+[feature.proman.tasks]
+gen-docs-data = "proman-gen-docs-data"
 
 
 # ── Docs / Website Feature ────────────────────────────────────────────────────
@@ -50,9 +57,14 @@ sphinx-notfound-page = { version = "==1.1.0" }
 sphinx-tippy = { version = "==0.4.3" }
 sphinxcontrib-svg2pdfconverter = { version = "==2.1.0", extras = ["CairoSVG"] }
 
-[feature.docs.tasks]
-build-website = { cmd = "python -m sphinx -b $SPHINX_BUILDER $SPHINX_BUILD_OPTIONS -c . source .build", cwd = "docs" }
-build-website-live = { cmd = "python -m sphinx_autobuild source .build -c .", cwd = "docs" }
+[feature.docs.tasks.build-website]
+depends-on = [{ task = "gen-docs-data", environment = "default" }]
+cwd = "docs"
+cmd = "python -m sphinx -b $SPHINX_BUILDER $SPHINX_BUILD_OPTIONS -c . source .build"
+
+[feature.docs.tasks.build-website-live]
+cwd = "docs"
+cmd = "python -m sphinx_autobuild source .build -c . --watch ../features --pre-build 'pixi run gen-docs-data'"
 
 [feature.docs.activation.env]
 SPHINX_BUILDER = "dirhtml"
