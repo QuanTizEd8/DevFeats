@@ -3,7 +3,6 @@
 
 # Generated documentation
 docs/source/features/**
-!docs/source/features/index.md
 docs/source/dev/features/reference/
 docs/source/library/
 
