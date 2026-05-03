@@ -31,6 +31,8 @@ from typing import Dict, Iterable, List
 
 import yaml
 
+from proman.release.detect import detect_releasable
+
 
 CI_TRIGGER_PATHS_FILEPATH = ".github/ci_trigger_paths.yaml"
 FEATURE_DIRPATH = "features"
@@ -227,23 +229,14 @@ def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
             env.input_version,
         )
     elif env.event_name == "push" and env.ref_type == "branch" and env.ref_name == "main":
-        LOG.info("ℹ️  release-gate: push-to-main detected; running detect-releasable.py.")
-        raw = sh(
-            [
-                "bash",
-                "scripts/python.sh",
-                "scripts/detect-releasable.py",
-                "--repo",
-                env.repository,
-                "--features-dir",
-                "features",
-            ]
-        )
-        LOG.info("ℹ️  release-gate: detect-releasable.py output: %s", raw)
-        if raw:
-            parsed = json.loads(raw)
-            if isinstance(parsed, list):
-                features_to_release = parsed
+        LOG.info("ℹ️  release-gate: push-to-main detected; running detect_releasable().")
+        features_dir = REPO_ROOT / "features"
+        try:
+            features_to_release = detect_releasable(env.repository, features_dir)
+        except RuntimeError as exc:
+            LOG.error("⛔ release-gate: %s", exc)
+            raise SystemExit(1) from exc
+        LOG.info("ℹ️  release-gate: detect_releasable() result: %s", features_to_release)
         if features_to_release:
             is_release = True
     LOG.info(
