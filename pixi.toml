@@ -15,6 +15,8 @@ python = { version = "3.13.*", channel = "conda-forge" }
 [environments]
 default = { features = ["proman"] }
 docs = { features = ["docs"] }
+lint = { features = ["lint"], no-default-feature = true }
+test = { features = ["proman", "test"] }
 
 
 # ── ProMan Feature ────────────────────────────────────────────────────────────
@@ -28,6 +30,27 @@ sync = "proman-sync"
 sync-check = "proman-sync --check"
 gen-docs = "proman-gen-docs"
 gen-docs-check = "proman-gen-docs --check"
+
+
+# ── Lint Feature ─────────────────────────────────────────────────────────────
+
+[feature.lint.dependencies]
+ruff = "==0.15.11"
+
+[feature.lint.tasks]
+lint-py = "ruff check ."
+lint-py-fix = "ruff check --fix ."
+format-py = "ruff format ."
+format-py-check = "ruff format --check ."
+
+
+# ── Test Feature ─────────────────────────────────────────────────────────────
+
+[feature.test.dependencies]
+pytest = "==9.0.3"
+
+[feature.test.tasks]
+test-proman = "pytest test/proman -v"
 
 
 # ── Docs / Website Feature ────────────────────────────────────────────────────
