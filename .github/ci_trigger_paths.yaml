@@ -14,14 +14,5 @@ scenario_test:
   - "features/bootstrap.sh"
   - "lib/**"
   - "test/lib/**"
-dist_test:
-  - "features/**"
-  - "features/bootstrap.sh"
-  - "install.sh"
-  - "install.bash"
-  - "scripts/build-artifacts.sh"
-  - "lib/**"
-  - "test/dist/**"
-  - "test/lib/**"
 devcontainer:
   - ".devcontainer/.dev/**"

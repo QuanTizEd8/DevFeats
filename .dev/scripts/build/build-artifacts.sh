@@ -9,9 +9,6 @@
 # Outputs (all under dist/):
 #   devfeats-<feature>.tar.gz       One tarball per feature
 #
-# The bundle offline kit ``devfeats-vX.Y.Z.tar.gz`` is produced by
-# ``scripts/build-offline-kit.sh`` (not here).
-#
 # Tarball layout (per feature):
 #   install.sh        POSIX sh bootstrap (handles bash>=4 on any platform)
 #   install.bash      Real bash>=4 installer

@@ -6,7 +6,6 @@
 #   bash test/run.sh feature <feature>
 #   bash test/run.sh linux   <feature> [--filter <scenario>]
 #   bash test/run.sh macos   <feature> [--filter <scenario>]
-#   bash test/run.sh dist    [--suite <build|get|devfeats|macos>] [--filter <name>]
 #   bash test/run.sh dry-run
 #   bash test/run.sh all
 #
@@ -24,9 +23,8 @@ Subcommands:
   feature <feature>
   linux   <feature> [--filter <scenario>]
   macos   <feature> [--filter <scenario>]
-  dist    [--suite <build|get|devfeats|macos>] [--filter <name>]
   dry-run
-  all                        run unit, dry-run, and dist
+  all                        run unit and dry-run
 EOF
 }
 
@@ -67,9 +65,6 @@ case "$SUBCMD" in
   macos)
     exec bash "${REPO_ROOT}/test/run-macos.sh" "$@"
     ;;
-  dist)
-    exec bash "${REPO_ROOT}/test/dist/run.sh" "$@"
-    ;;
   dry-run)
     exec bash "${REPO_ROOT}/test/install-os-pkg/dry-run/run.sh" "$@"
     ;;
@@ -77,7 +72,6 @@ case "$SUBCMD" in
     _rc=0
     bash "${REPO_ROOT}/test/run-unit.sh" || _rc=1
     bash "${REPO_ROOT}/test/install-os-pkg/dry-run/run.sh" || _rc=1
-    bash "${REPO_ROOT}/test/dist/run.sh" || _rc=1
     exit "$_rc"
     ;;
   --help | -h)

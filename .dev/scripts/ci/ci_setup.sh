@@ -31,7 +31,7 @@ fi
 
 # ── run_prepare: true if any job that consumes artifacts is requested ─
 run_prepare=false
-for flag in "$INPUT_RUN_LINT" "$INPUT_RUN_VALIDATE" "$INPUT_RUN_UNIT" "$INPUT_RUN_FEATURES" "$INPUT_RUN_MACOS" "$INPUT_RUN_DIST"; do
+for flag in "$INPUT_RUN_LINT" "$INPUT_RUN_VALIDATE" "$INPUT_RUN_UNIT" "$INPUT_RUN_FEATURES" "$INPUT_RUN_MACOS"; do
   if [[ "$flag" == "true" ]]; then
     run_prepare=true
     break
@@ -53,7 +53,6 @@ ci_image="ghcr.io/${repo_lower}-devcontainer:${INPUT_IMAGE_TAG:-latest}"
   echo "features=$features"
   echo "run_macos=$INPUT_RUN_MACOS"
   echo "macos_features=$macos_features"
-  echo "run_dist=$INPUT_RUN_DIST"
   echo "run_prepare=$run_prepare"
   echo "version=$version"
   echo "ci_image=$ci_image"

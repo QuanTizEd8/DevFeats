@@ -484,7 +484,7 @@ def main() -> None:
     is_release, features_to_release = detect_release(env)
 
     if is_force or is_release:
-        run_lint = run_validate = run_unit = run_features = run_dist = True
+        run_lint = run_validate = run_unit = run_features = True
         features = all_feature_ids
         macos_features = macos_capable
         run_macos = bool(macos_features)
@@ -509,19 +509,17 @@ def main() -> None:
             ]
         run_features = bool(features)
         run_macos = bool(macos_features)
-        run_dist = any_match(changed, groups["dist_test"])
 
     LOG.info(
         (
             "ℹ️  decision: run_lint='%s' run_validate='%s' run_unit='%s' "
-            "run_features='%s' run_macos='%s' run_dist='%s'"
+            "run_features='%s' run_macos='%s'"
         ),
         str(run_lint).lower(),
         str(run_validate).lower(),
         str(run_unit).lower(),
         str(run_features).lower(),
         str(run_macos).lower(),
-        str(run_dist).lower(),
     )
     LOG.info("ℹ️  decision: features_count='%s' macos_features_count='%s'", len(features), len(macos_features))
     if features:
@@ -539,7 +537,6 @@ def main() -> None:
         "features": json.dumps(features, separators=(",", ":")),
         "run_macos": str(run_macos).lower(),
         "macos_features": json.dumps(macos_features, separators=(",", ":")),
-        "run_dist": str(run_dist).lower(),
         "is_release": str(is_release).lower(),
         "features_to_release": json.dumps(features_to_release, separators=(",", ":")),
     }

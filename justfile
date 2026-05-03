@@ -101,13 +101,6 @@ detect-releasable *args:
     proman-release-detect --repo quantized8/devfeats {{args}}
 
 
-[
-  group('build'),
-  doc('Preview next bundle tag/notes/manifest JSON. Pass args to .dev/scripts/release/compute-bundle-tag.py (e.g. --notes-body, --manifest, --repo owner/name).')
-]
-compute-bundle-tag *args:
-    pixi run python .dev/scripts/release/compute-bundle-tag.py --repo quantized8/devfeats {{args}}
-
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 

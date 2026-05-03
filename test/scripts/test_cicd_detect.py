@@ -47,16 +47,13 @@ class DiscoverMacosCapableTest(unittest.TestCase):
             [
                 "test/install-git/macos/package_default.sh",
                 "test/vendor/install-homebrew/macos/default.sh",
-                "test/dist/scenarios/macos/build.sh",
                 "test/install-gh/linux/default.sh",
             ]
         )
         with mock.patch.object(CD, "sh", return_value=find_output):
             got = CD.discover_macos_capable()
 
-        # `dist/scenarios` is intentionally included because the original shell
-        # implementation includes every `*/macos/*.sh` candidate under test/.
-        self.assertEqual(got, ["dist/scenarios", "install-git", "vendor/install-homebrew"])
+        self.assertEqual(got, ["install-git", "vendor/install-homebrew"])
 
     def test_empty_find_output_returns_empty_list(self):
         with mock.patch.object(CD, "sh", return_value=""):

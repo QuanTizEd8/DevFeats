@@ -34,7 +34,6 @@ jobs:
       features: ${{ steps.detect.outputs.features }}
       run_macos: ${{ steps.detect.outputs.run_macos }}
       macos_features: ${{ steps.detect.outputs.macos_features }}
-      run_dist: ${{ steps.detect.outputs.run_dist }}
       is_release: ${{ steps.detect.outputs.is_release }}
       features_to_release: ${{ steps.detect.outputs.features_to_release }}
       build_image: ${{ steps.detect.outputs.build_image }}
@@ -85,7 +84,6 @@ jobs:
       features: ${{ needs.detect.outputs.features }}
       run_macos: ${{ needs.detect.outputs.run_macos }}
       macos_features: ${{ needs.detect.outputs.macos_features }}
-      run_dist: ${{ needs.detect.outputs.run_dist }}
       version: ${{ github.sha }}
       image_tag: ${{ needs.detect.outputs.image_tag }}
     secrets: inherit
