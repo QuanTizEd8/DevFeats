@@ -64,57 +64,48 @@ def _release_exists(repo, tag: str) -> bool:
         ) from exc
 
 
+def detect_releasable(
+    repository: str,
+    features_dir: pathlib.Path,
+    token: str | None = None,
+) -> list[dict[str, str]]:
+    """Return features that need a new GitHub Release.
+
+    Raises RuntimeError on unexpected GitHub API errors.
+    """
+    owner, _, name = repository.partition("/")
+    repo = GitHub(token).user(owner).repo(name)
+    releasable: list[dict[str, str]] = []
+    for fid, meta in _iter_feature_metadata(features_dir):
+        version = str(meta.get("version", "")).strip()
+        if not version:
+            print(f"⚠️  detect-releasable: {fid} has no version field — skipping.", file=sys.stderr)
+            continue
+        tag = f"{fid}/{version}"
+        if not _release_exists(repo, tag):
+            releasable.append({"feature": fid, "version": version, "tag": tag})
+    return releasable
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--repo",
-        required=True,
-        help="GitHub repository in 'owner/name' format (e.g. quantized8/devfeats).",
-    )
-    parser.add_argument(
-        "--features-dir",
-        default="features",
-        help="Path to the features directory (default: features).",
-    )
-    parser.add_argument(
-        "--token",
-        default=os.environ.get("GITHUB_TOKEN"),
-        help="GitHub token (defaults to $GITHUB_TOKEN).",
-    )
+    parser.add_argument("--repo", required=True, help="GitHub repository in 'owner/name' format.")
+    parser.add_argument("--features-dir", default="features", help="Path to the features directory (default: features).")
+    parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN"), help="GitHub token (defaults to $GITHUB_TOKEN).")
     args = parser.parse_args()
 
     features_dir = pathlib.Path(args.features_dir).resolve()
     if not features_dir.is_dir():
-        print(
-            f"⛔ detect-releasable: features directory not found: {features_dir}",
-            file=sys.stderr,
-        )
+        print(f"⛔ detect-releasable: features directory not found: {features_dir}", file=sys.stderr)
         return 1
 
     owner, _, name = args.repo.partition("/")
     if not owner or not name:
-        print(
-            f"⛔ detect-releasable: --repo must be 'owner/name', got: {args.repo!r}",
-            file=sys.stderr,
-        )
+        print(f"⛔ detect-releasable: --repo must be 'owner/name', got: {args.repo!r}", file=sys.stderr)
         return 1
 
-    repo = GitHub(args.token).user(owner).repo(name)
-
-    releasable: list[dict[str, str]] = []
     try:
-        for fid, meta in _iter_feature_metadata(features_dir):
-            version = str(meta.get("version", "")).strip()
-            if not version:
-                print(
-                    f"⚠️  detect-releasable: {fid} has no version field — skipping.",
-                    file=sys.stderr,
-                )
-                continue
-            tag = f"{fid}/{version}"
-            if _release_exists(repo, tag):
-                continue
-            releasable.append({"feature": fid, "version": version, "tag": tag})
+        releasable = detect_releasable(args.repo, features_dir, args.token)
     except RuntimeError as exc:
         print(f"⛔ detect-releasable: {exc}", file=sys.stderr)
         return 1
