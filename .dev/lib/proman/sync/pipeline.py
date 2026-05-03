@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from proman.git_utils import git_owner_repo, git_repo_root
+from proman.git import git_owner_repo, git_repo_root
 from proman.sync.install_script import InstallScriptGenerator
 from proman.sync.metadata import (
     augment_metadata,

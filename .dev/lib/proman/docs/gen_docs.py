@@ -34,8 +34,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from proman.parse_lib import LibFunction, parse_lib_file
-from proman.git_utils import git_repo_root
+from proman.docs.parse_lib import LibFunction, parse_lib_file
+from proman.git import git_repo_root
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
