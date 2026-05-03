@@ -32,3 +32,6 @@ Desktop.ini
 ehthumbs.db
 
 .serena/
+# pixi environments
+.pixi/*
+!.pixi/config.toml
