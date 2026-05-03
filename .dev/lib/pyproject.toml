@@ -5,6 +5,7 @@ requires-python = ">=3.11"
 dependencies = [
     "pyyaml>=6",
     "jsonschema>=4",
+    "gittidy>=0.3.1,<0.4",
 ]
 
 [project.scripts]
