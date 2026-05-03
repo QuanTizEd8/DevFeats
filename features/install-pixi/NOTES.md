@@ -100,12 +100,14 @@ bash install-pixi/install.sh --prefix /opt/pixi --export_path auto
 
 ---
 
-### `.pixi` Volume Mount and `postCreateCommand`
+### `.pixi` Volume Mount and Ownership
 
-The feature automatically mounts a named volume at `${containerWorkspaceFolder}/.pixi`.
-Because the feature installer runs as `root`, the mount is initially root-owned.
-If your devcontainer runs as a non-root user (e.g. `vscode`), add a `postCreateCommand`
-to fix ownership and optionally auto-install environments:
+The feature automatically mounts a named volume at `${containerWorkspaceFolder}/.pixi`
+and fixes its ownership in a `postCreateCommand` so the container user can write to it.
+No additional `postCreateCommand` is required for the ownership fix.
+
+If you also want to auto-install pixi environments on container creation, add your own
+`postCreateCommand` for that step:
 
 ```jsonc
 {
@@ -114,11 +116,9 @@ to fix ownership and optionally auto-install environments:
     "ghcr.io/quantized8/devfeats/install-pixi:1": {}
   },
   "remoteUser": "vscode",
-  "postCreateCommand": "sudo chown vscode ${containerWorkspaceFolder}/.pixi && pixi install"
+  "postCreateCommand": "pixi install"
 }
 ```
-
-Omit `&& pixi install` if your project has no `pixi.toml`, or if you prefer to run it manually.
 
 ---
 
