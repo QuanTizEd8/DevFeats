@@ -6,10 +6,9 @@ import json
 import sys
 from pathlib import Path
 
-import yaml as _yaml
-
 from proman import feat_doc_gen
 from proman.git_utils import git_owner_repo, git_repo_root
+from proman.sync.metadata import load_and_augment
 
 _FEATURES_NOTES_FILENAME = "NOTES.md"
 
@@ -24,9 +23,14 @@ def main() -> int:
 
     all_metadata: dict[str, dict] = {}
     for meta_path in sorted(features_dir.glob("*/metadata.yaml")):
-        with meta_path.open(encoding="utf-8") as fh:
-            feat_metadata = _yaml.safe_load(fh)
         feat_id = meta_path.parent.name
+        feat_metadata = load_and_augment(feat_id, features_dir)
+        if feat_metadata is None:
+            print(
+                f"⚠️  gen-docs-data: skipping {feat_id} (metadata load/augment failed)",
+                file=sys.stderr,
+            )
+            continue
         feat_metadata["id"] = feat_id
         all_metadata[feat_id] = feat_metadata
 
