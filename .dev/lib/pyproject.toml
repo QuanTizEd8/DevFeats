@@ -12,6 +12,9 @@ dependencies = [
 [project.scripts]
 proman-sync = "proman.cli.sync:main"
 proman-gen-docs-data = "proman.cli.gen_docs_data:main"
+proman-gen-docs = "proman.docs.gen_docs:main"
+proman-release-detect = "proman.release.detect:main"
+proman-cicd-detect = "proman.cicd.detect:main"
 
 [build-system]
 requires = ["hatchling"]
