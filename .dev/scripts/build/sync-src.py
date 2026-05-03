@@ -27,9 +27,7 @@ import jsonschema
 import yaml
 
 
-SCRIPT_DIRPATH = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIRPATH))
-from git_utils import git_owner_repo, git_repo_root
+from proman.git_utils import git_owner_repo, git_repo_root
 
 
 REPO_DIRPATH = git_repo_root()

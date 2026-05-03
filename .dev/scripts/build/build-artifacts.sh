@@ -23,8 +23,8 @@ set -euo pipefail
 
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=scripts/git_helpers.sh
-. "${_SCRIPT_DIR}/git_helpers.sh"
+# shellcheck source=.dev/scripts/git_helpers.sh
+. "${_SCRIPT_DIR}/../git_helpers.sh"
 
 _REPO_ROOT="$(git__require_repo_root)"
 _TAG="${1:-dev}"

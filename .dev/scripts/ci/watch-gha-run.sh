@@ -36,8 +36,8 @@ export GH_PAGER=cat
 
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=scripts/git_helpers.sh
-. "${_SCRIPT_DIR}/git_helpers.sh"
+# shellcheck source=.dev/scripts/git_helpers.sh
+. "${_SCRIPT_DIR}/../git_helpers.sh"
 
 _usage() {
   cat << 'EOF'

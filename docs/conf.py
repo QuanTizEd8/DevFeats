@@ -20,11 +20,7 @@ _FEATURES_DIR = _REPO_ROOT / "features"
 _FEATURES_DOC_DIR = _WEBSITE_SOURCE_DIR / "features"
 _FEATURES_NOTES_FILENAME = "NOTES.md"
 
-sys.path.insert(0, str(_WEBSITE_ROOT / "_build_scripts"))
-sys.path.insert(0, str(_REPO_ROOT / "scripts"))
-
-import feat_doc_gen
-import git_utils
+from proman import feat_doc_gen, git_utils
 
 
 _REPO_OWNER, _REPO_NAME = git_utils.git_owner_repo()
