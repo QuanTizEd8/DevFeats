@@ -2,11 +2,11 @@
 # Run Linux-native test scenarios for a given feature inside Docker containers.
 #
 # Usage:
-#   bash test/run-linux.sh <feature> [--filter <scenario_name>]
+#   bash .dev/scripts/test/run-linux.sh <feature> [--filter <scenario_name>]
 #
-# Discovers and runs every test/<feature>/linux/*.sh script in alphabetical
-# order.  Each scenario script receives the repository root as its first
-# positional argument and runs inside a fresh Docker container.
+# Discovers and runs every test/features/<feature>/linux/*.sh script in
+# alphabetical order.  Each scenario script receives the repository root as its
+# first positional argument and runs inside a fresh Docker container.
 #
 # A <name>.conf sidecar alongside each script may set:
 #   IMAGE      — Docker image to use (default: ubuntu:latest).
@@ -37,8 +37,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SCENARIOS_DIR="${REPO_ROOT}/test/${FEATURE}/linux"
+REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+SCENARIOS_DIR="${REPO_ROOT}/test/features/${FEATURE}/linux"
 
 if [[ ! -d "$SCENARIOS_DIR" ]]; then
   echo "ℹ️  No Linux scenarios for '${FEATURE}' (${SCENARIOS_DIR} does not exist) — skipping."
@@ -46,7 +46,7 @@ if [[ ! -d "$SCENARIOS_DIR" ]]; then
 fi
 
 echo "ℹ️  Syncing _lib/ copies from lib/ before running Linux scenarios."
-[ -d "${REPO_ROOT}/src" ] || bash "${REPO_ROOT}/scripts/sync-src.sh"
+[ -d "${REPO_ROOT}/src" ] || just sync
 
 _pass=0
 _fail=0
@@ -100,9 +100,9 @@ for scenario in "${SCENARIOS_DIR}"/*.sh; do
   fi
 
   # Compose the inner command, optionally switching to RUN_AS user.
-  inner_cmd="bash /repo/test/${FEATURE}/linux/${name}.sh /repo"
+  inner_cmd="bash /repo/test/features/${FEATURE}/linux/${name}.sh /repo"
   if [[ -n "$RUN_AS" ]]; then
-    inner_cmd="su -s /bin/bash ${RUN_AS} -c 'bash /repo/test/${FEATURE}/linux/${name}.sh /repo'"
+    inner_cmd="su -s /bin/bash ${RUN_AS} -c 'bash /repo/test/features/${FEATURE}/linux/${name}.sh /repo'"
   fi
   full_cmd="${SETUP_CMD:+${SETUP_CMD} && }${inner_cmd}"
 
