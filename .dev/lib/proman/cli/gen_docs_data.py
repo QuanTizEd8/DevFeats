@@ -59,10 +59,10 @@ def main() -> int:
         "features": all_metadata,
         "lib_modules": lib_modules,
     }
-    (output_dir / "docs-data.json").write_text(
-        json.dumps(docs_data, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    docs_data_path = output_dir / "docs-data.json"
+    docs_data_content = json.dumps(docs_data, indent=2, ensure_ascii=False)
+    if not docs_data_path.exists() or docs_data_path.read_text(encoding="utf-8") != docs_data_content:
+        docs_data_path.write_text(docs_data_content, encoding="utf-8")
 
     # ── Feature docs ──────────────────────────────────────────────────────────
 
