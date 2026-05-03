@@ -1,4 +1,4 @@
-"""Unit tests for .github/workflows/scripts/cicd_detect.py.
+"""Unit tests for proman.cicd.detect.
 
 Focuses on regression-prone helpers that drive CI job decisions:
 - glob-style decision-group matching used by ``any_match``
@@ -7,32 +7,18 @@ Focuses on regression-prone helpers that drive CI job decisions:
 Run with:
 
     python3 -m unittest test.scripts.test_cicd_detect
+
+or:
+
+    just test-scripts
 """
 
 from __future__ import annotations
 
-import importlib.util
-import pathlib
-import sys
 import unittest
 from unittest import mock
 
-
-REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-SCRIPT_PATH = REPO_ROOT / ".github" / "workflows" / "scripts" / "cicd_detect.py"
-
-
-def _load_module():
-    """Import cicd_detect.py under a valid identifier name."""
-    spec = importlib.util.spec_from_file_location("cicd_detect", SCRIPT_PATH)
-    assert spec is not None and spec.loader is not None
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules.setdefault("cicd_detect", mod)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-CD = _load_module()
+import proman.cicd.detect as CD
 
 
 class AnyMatchTest(unittest.TestCase):
