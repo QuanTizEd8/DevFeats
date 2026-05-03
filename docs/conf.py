@@ -25,6 +25,7 @@ _docs_data: dict[str, Any] = json.loads(_DOCS_DATA_PATH.read_text(encoding="utf-
 _REPO_OWNER: str = _docs_data["repo_owner"]
 _REPO_NAME: str = _docs_data["repo_name"]
 _feature_metadata: dict[str, dict[str, Any]] = _docs_data["features"]
+_lib_modules: dict[str, str] = _docs_data.get("lib_modules", {})
 
 
 def setup(app):
@@ -171,7 +172,7 @@ html_context = {
     "github_version": "main",
     "doc_path": "docs/source",
     "feats": _feature_metadata,  # for Jinja templating in source files
-    "lib_modules": {},  # TODO: populate with module metadata for doc generation and templating
+    "lib_modules": _lib_modules,
 }
 
 html_static_path = ["_static"]
