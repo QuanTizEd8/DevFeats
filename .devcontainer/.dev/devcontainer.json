@@ -63,7 +63,9 @@
       "extensions": [
         "mads-hartmann.bash-ide-vscode",
         "EditorConfig.EditorConfig",
-        "redhat.vscode-yaml"
+        "redhat.vscode-yaml",
+        "tamasfe.even-better-toml",
+        "ms-python.python"
       ]
     }
   }
