@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# This file must be sourced from bash (>=4.0), not sh.
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# Structured logging with emoji prefixes and configurable verbosity levels.
+#
+# Log level is controlled via the `LOG_LEVEL` environment variable
+# (`silent` | `error` | `warn` | `info` | `debug` | `trace`; defaults to `info`).
+# Call `logging__setup` at script start and `logging__cleanup` at the end to
+# capture all output to a log file.
 
 [[ -n "${_LOGGING__LIB_LOADED-}" ]] && return 0
 _LOGGING__LIB_LOADED=1
@@ -183,6 +187,7 @@ logging__fn_exit() {
 }
 
 # @brief logging__set_level — Re-read LOG_LEVEL into _LOGGING_LEVEL (call after CLI/env parsing).
+#
 # Enables xtrace for LOG_LEVEL=trace and disables it otherwise.
 logging__set_level() {
   if ! _logging__recompute_level; then

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# lock.sh — Serialize concurrent writers around a lockfile (bash ≥4).
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# Advisory file locking: serialize concurrent writers around a lockfile.
+#
+# Wraps `flock` to ensure only one writer holds the lockfile at a time. Use
+# when multiple parallel feature installers may write to the same resource.
 [[ -n "${_LOCK__LIB_LOADED-}" ]] && return 0
 _LOCK__LIB_LOADED=1
 
@@ -11,6 +13,10 @@ _LOCK__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # @brief lock__run_with_lockfile <lockfile> <command-string> — Run eval on command-string while holding an exclusive lock.
 #
 # Uses flock(1) when available; otherwise a mkdir spin-lock in the same directory with a ~30s timeout.
+#
+# Args:
+#   <lockfile>        Path to the lockfile (created if absent).
+#   <command-string>  Shell command string to eval under the lock.
 lock__run_with_lockfile() {
   local _lock="${1-}" _cmd="${2-}"
   [[ -n "$_lock" ]] || return 1

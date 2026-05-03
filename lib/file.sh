@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# File and archive helpers: extract `.tar.xz`, `.tar.gz`, `.tgz`, and `.zip` archives.
+#
+# Returns 1 on unrecognized format or missing extraction tool.
 
 [ -n "${_FILE__LIB_LOADED-}" ] && return 0
 _FILE__LIB_LOADED=1
@@ -47,16 +49,18 @@ _file__ensure_extract_tool() {
   esac
 }
 
-# @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, or `.zip` archive to `<dest_dir>`. Returns 1 on unrecognized format or missing tool.
+# @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, or `.zip` archive to `<dest_dir>`.
 #
-# <original_name> is used for format detection when <archive_file> is a temp
+# `<original_name>` is used for format detection when `<archive_file>` is a temp
 # path with no meaningful extension (e.g. a mktemp output). When omitted,
-# the basename of <archive_file> is used.
+# the basename of `<archive_file>` is used.
 #
 # Args:
 #   <archive_file>   Path to the archive to extract.
 #   <dest_dir>       Destination directory (created if absent).
 #   <original_name>  Optional filename used for extension-based format detection.
+#
+# Returns: 0 on success, 1 on unrecognized format or missing extraction tool.
 file__extract_archive() {
   local _arc="$1" _dest="$2"
   local _name="${3:-$(basename "$_arc")}"

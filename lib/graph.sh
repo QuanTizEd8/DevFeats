@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# graph.sh — round-based installation order (devcontainer-style). Bash >=4.
-# Do not edit _lib/ copies — edit lib/ instead.
+# Round-based dependency ordering for parallel devcontainer feature installation.
+#
+# Accepts hard and soft dependency edges and emits features in installation
+# rounds, where all features within a round can be installed in parallel.
 [[ -n "${_GRAPH__LIB_LOADED-}" ]] && return 0
 _GRAPH__LIB_LOADED=1
 
@@ -8,12 +10,16 @@ _GRAPH__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/logging.sh
 . "$_GRAPH__LIB_DIR/logging.sh"
 
-# @brief graph__round_order
-#   --hard-edges-file F  pred<TAB>succ  (pred before succ; both must appear in node list)
-#   --soft-edges-file F  same; pred ignored if not in node list
-#   --priority-file F    id<TAB>int  (higher = earlier within a round; default 0)
-#   --compare CMD        optional: sort candidate batch (stdin: ids, stdout: ordered ids). Default: numeric priority desc then sort -u.
-#   --                   then: one node id per argument
+# @brief graph__round_order [--hard-edges-file F] [--soft-edges-file F] [--priority-file F] [--compare CMD] -- <id>... — Emit node ids in dependency-ordered rounds; all nodes in a round have no unresolved predecessors.
+#
+# Args:
+#   --hard-edges-file F  TSV file with pred<TAB>succ lines; both nodes must be in the node list.
+#   --soft-edges-file F  TSV file with pred<TAB>succ lines; pred is ignored when not in the node list.
+#   --priority-file F    TSV file with id<TAB>int lines; higher integer = earlier position in a round.
+#   --compare CMD        Optional shell command: reads candidate ids from stdin, writes ordered ids to stdout.
+#   -- <id>...           Node ids to order (remaining arguments after --).
+#
+# Stdout: one node id per line in installation order.
 graph__round_order() {
   local -a _nodes=() _cand=() _pick=()
   local _hf="" _sf="" _pf="" _cmp=""

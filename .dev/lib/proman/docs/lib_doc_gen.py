@@ -8,6 +8,18 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from proman.docs.parse_lib import LibFunction, LibModule, ParagraphBlock, SectionBlock
 
+# Sections rendered as definition lists (multi-item, name + description pairs).
+_DEFLIST_SECTIONS = frozenset({"Args", "Parameters", "Env"})
+
+# Map from section title to the heading label used in rendered output.
+_SECTION_HEADINGS = {
+    "Args": "Parameters",
+    "Parameters": "Parameters",
+    "Env": "Environment",
+    "Stdout": "Stdout",
+    "Returns": "Returns",
+}
+
 
 def generate(module: LibModule) -> str:
     """Generate API reference Markdown for a lib/*.sh module.
@@ -54,11 +66,13 @@ def _render_function(func: LibFunction) -> str:
 def _render_section(block: SectionBlock) -> str:
     """Render a SectionBlock as a ### subsection.
 
-    Multi-item sections (Args) become definition lists.
-    Inline sections (Stdout, Returns) become a heading + text.
+    - ``Args`` / ``Env`` → definition list under a mapped heading.
+    - ``Stdout`` / ``Returns`` → heading + plain text.
     """
-    lines: list[str] = [f"### {block.title}", ""]
-    if len(block.items) > 1 or block.title in ("Args", "Parameters"):
+    heading = _SECTION_HEADINGS.get(block.title, block.title)
+    lines: list[str] = [f"### {heading}", ""]
+
+    if block.title in _DEFLIST_SECTIONS:
         for item in block.items:
             # Split param name from description on 2+ consecutive spaces.
             parts = re.split(r"  +", item, maxsplit=1)
@@ -71,4 +85,5 @@ def _render_section(block: SectionBlock) -> str:
             lines.append("")
     else:
         lines.extend(block.items)
+
     return "\n".join(lines).rstrip()

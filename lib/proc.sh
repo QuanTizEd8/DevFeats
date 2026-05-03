@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# proc.sh — parallel / devcontainer-style command values. Bash >=4. Requires json.sh (jq via json__query); requires os.sh when using --user.
+# Parallel process execution following devcontainer command-value conventions.
+#
+# Supports devcontainer-style command values: a string (shell command) or an
+# array of strings (direct exec). Requires `json.sh` for array command parsing
+# and `os.sh` when using the `--user` option.
 [[ -n "${_PROC__LIB_LOADED-}" ]] && return 0
 _PROC__LIB_LOADED=1
 
@@ -9,7 +13,15 @@ _PROC__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/logging.sh
 . "$_PROC__LIB_DIR/logging.sh"
 
-# @brief proc__run_parallel — --outdir <dir> -- <label> <argv...> [-- <label> <argv> ...]
+# @brief proc__run_parallel [--outdir <dir>] [--cwd <dir>] -- <label> <argv...> [-- <label> <argv>...] — Run labelled commands in parallel; stream output in label order when all finish.
+#
+# Args:
+#   --outdir <dir>  Directory to store per-label output files (default: mktemp -d).
+#   --cwd <dir>     Working directory for all subprocesses (optional).
+#   -- <label>      Label for the following command; repeat with -- to add more.
+#   <argv...>       Command and arguments for the labelled subprocess.
+#
+# Returns: exit code of the first failed subprocess, or 0 if all succeeded.
 proc__run_parallel() {
   local _od="" _cwd=""
   while [[ $# -gt 0 ]]; do
@@ -71,7 +83,11 @@ proc__run_parallel() {
   return "$_ec"
 }
 
-# @brief proc__run_command_form [--cwd d] [--user u] — JSON from stdin. string → sh -c; array → direct exec; object → proc__run_parallel (keys = labels).
+# @brief proc__run_command_form [--cwd <dir>] [--user <user>] — Execute a devcontainer command-value from stdin: string → sh -c; array → direct exec; object → proc__run_parallel (keys = labels).
+#
+# Args:
+#   --cwd <dir>    Working directory for the command (optional).
+#   --user <user>  Username to run as via os__run_as (requires os.sh; optional).
 proc__run_command_form() {
   local _cwd="" _user="" _json
   while [[ $# -gt 0 ]]; do

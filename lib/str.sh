@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# This file must be sourced from bash (>=4.0), not sh.
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# String and path utilities: safe identifiers, prefix operations, version extraction.
 #
-# Small argv / string helpers. List-style results use one stdout line per item
-# (see docs/source/dev/writing-features.md — Shared library reference).
+# Provides helpers for safe identifier conversion, basename extraction, prefix
+# stripping, and version suffix parsing. All functions write results to stdout,
+# one item per line.
 
 [[ -n "${_STR__LIB_LOADED-}" ]] && return 0
 _STR__LIB_LOADED=1
@@ -14,7 +14,7 @@ _STR__LIB_LOADED=1
 # without `/` still pass through basename (e.g. `git` → `git`).
 #
 # Args:
-#   <path-token>  One token per argument; pass a bash array as `"${arr[@]}"`.
+#   <path-token>...  One token per argument; pass a bash array as `"${arr[@]}"`.
 #
 # Stdout: one basename per line.
 str__basename_each() {
@@ -26,7 +26,12 @@ str__basename_each() {
   return 0
 }
 
-# @brief str__safe_id <s> — Validated feature option key → env var name: uppercase, preserving `_` and mapping `-` → `_`.
+# @brief str__safe_id <s> — Convert a feature option key to an env var name: uppercase, `_` preserved, `-` → `_`.
+#
+# Args:
+#   <s>  Input string (e.g. `my-option`).
+#
+# Stdout: uppercased env var name (e.g. `MY_OPTION`).
 str__safe_id() {
   local s="${1-}"
   s="${s//-/_}"
@@ -34,7 +39,11 @@ str__safe_id() {
   return 0
 }
 
-# @brief str__has_any_prefix <s> <prefix>... — Return 0 if s starts with any prefix.
+# @brief str__has_any_prefix <s> <prefix>... — Return 0 if `<s>` starts with any of the given prefixes.
+#
+# Args:
+#   <s>         String to test.
+#   <prefix>... One or more prefix strings to check.
 str__has_any_prefix() {
   local s="${1-}"
   shift || return 1
@@ -47,7 +56,13 @@ str__has_any_prefix() {
   return 1
 }
 
-# @brief str__strip_any_prefix <s> <prefix>... — Print s with the first-matching leading prefix removed; if none match, print s.
+# @brief str__strip_any_prefix <s> <prefix>... — Print `<s>` with the first-matching leading prefix removed; if none match, print `<s>` unchanged.
+#
+# Args:
+#   <s>         Input string.
+#   <prefix>... One or more prefix strings to try removing.
+#
+# Stdout: the modified or original string.
 str__strip_any_prefix() {
   local s="${1-}"
   shift
@@ -62,7 +77,15 @@ str__strip_any_prefix() {
   return 0
 }
 
-# @brief str__rsplit_once <s> <sep> — Print two lines: text before the last <sep>, then text after that separator.
+# @brief str__rsplit_once <s> <sep> — Print two lines: text before the last occurrence of `<sep>`, then text after it.
+#
+# If `<sep>` is absent from `<s>`, prints `<s>` on the first line and an empty line.
+#
+# Args:
+#   <s>    Input string.
+#   <sep>  Separator string.
+#
+# Stdout: two lines — the head and the tail.
 str__rsplit_once() {
   local s="${1-}" sep="${2-}" _head _rest
   if [[ -z "$sep" ]]; then
@@ -87,7 +110,12 @@ str__rsplit_once() {
   return 0
 }
 
-# @brief str__extract_version_suffix <s> — If s matches … vM.m.p at the end, print M.m.p; else print empty.
+# @brief str__extract_version_suffix <s> — Extract a semver suffix `vM.m.p` from the end of `<s>`; print the version number or empty string.
+#
+# Args:
+#   <s>  Input string (e.g. `my-tool v1.2.3`).
+#
+# Stdout: version string (e.g. `1.2.3`), or empty if no semver suffix found.
 str__extract_version_suffix() {
   local s="${1-}" _re
   # Avoid [[ ... ]] + literal [[:space:]] — the `]]` would terminate `[[` early.

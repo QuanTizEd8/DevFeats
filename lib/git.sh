@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# This file must be sourced from bash (>=4.0), not sh.
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# Git helpers: shallow clone and other repository operations.
+#
+# `git__clone` performs a `--depth=1` clone and is idempotent: it skips the
+# clone if the target directory already contains a `.git` directory.
 
 [[ -n "${_GIT__LIB_LOADED-}" ]] && return 0
 _GIT__LIB_LOADED=1
@@ -9,15 +11,17 @@ _GIT__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_GIT__LIB_DIR/ospkg.sh"
 
-# @brief git__clone --url <url> --dir <dir> [--branch <branch>] — Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent; skips if `<dir>/.git` already exists.
+# @brief git__clone --url <url> --dir <dir> [--branch <branch>] — Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists.
 #
-# On failure, the partially-created <dir> is removed so that a re-run does
+# On failure, the partially-created `<dir>` is removed so that a re-run does
 # not silently skip a broken clone.
 #
 # Args:
 #   --url <url>        Repository URL to clone.
 #   --dir <dir>        Local destination directory.
 #   --branch <branch>  Branch or tag to check out (optional; defaults to HEAD).
+#
+# Returns: 0 on success or if already cloned, 1 on failure.
 git__clone() {
   local branch="" dir="" url=""
   while [[ $# -gt 0 ]]; do

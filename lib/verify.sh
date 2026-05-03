@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# verify.sh — Artifact integrity verification: SHA hash checking and GPG signature verification.
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# Artifact integrity verification: SHA-256 hash checking and GPG signature verification.
+#
+# Returns non-zero on mismatch, logging expected and actual values. Designed
+# for use with downloaded release artifacts.
 
 [ -n "${_VERIFY__LIB_LOADED-}" ] && return 0
 _VERIFY__LIB_LOADED=1
@@ -28,12 +30,16 @@ _verify__sha_dispatch() {
 # @brief verify__hash_file <file> [algo] — Print lowercase hex digest of `<file>` to stdout.
 #
 # `algo` is `256` (default) or `512`.
-# Uses sha<N>sum (Linux/coreutils) or shasum --algorithm <N> (macOS/Perl).
+# Uses `sha<N>sum` (Linux/coreutils) or `shasum --algorithm <N>` (macOS/Perl).
 # Falls back to installing coreutils via ospkg when neither tool exists.
 #
 # Args:
 #   <file>   Path to an existing regular file.
-#   [algo]   Hash algorithm: 256 (default) or 512.
+#   [algo]   Hash algorithm: `256` (default) or `512`.
+#
+# Stdout: lowercase hex digest string.
+#
+# Returns: 0 on success, 1 if file does not exist or tool unavailable.
 verify__hash_file() {
   local _file="$1"
   local _algo="${2:-256}"
@@ -47,14 +53,16 @@ verify__hash_file() {
   }
 }
 
-# @brief verify__sha <file> <expected_hash> [algo] — Verify the digest of `<file>`. Returns 1 on mismatch.
+# @brief verify__sha <file> <expected_hash> [algo] — Verify the SHA digest of `<file>` against `<expected_hash>`.
 #
 # `algo` is `256` (default) or `512`.
 #
 # Args:
 #   <file>           Path to the file to verify.
 #   <expected_hash>  Expected lowercase hex digest.
-#   [algo]           Hash algorithm: 256 (default) or 512.
+#   [algo]           Hash algorithm: `256` (default) or `512`.
+#
+# Returns: 0 on match, 1 on mismatch or error.
 verify__sha() {
   local _file="$1"
   local _expected="$2"
@@ -74,14 +82,16 @@ verify__sha() {
   return 0
 }
 
-# @brief verify__sha_sidecar <file> <hash_file> [algo] — Read expected hash from first field of `<hash_file>` and delegate to verify__sha.
+# @brief verify__sha_sidecar <file> <hash_file> [algo] — Read expected hash from the first field of `<hash_file>` and verify via `verify__sha`.
 #
 # Suitable for the common `<name>.sha256` / `<name>.sha512` sidecar file pattern.
 #
 # Args:
 #   <file>       Path to the file to verify.
 #   <hash_file>  Path to the sidecar file containing the expected hash.
-#   [algo]       Hash algorithm: 256 (default) or 512.
+#   [algo]       Hash algorithm: `256` (default) or `512`.
+#
+# Returns: 0 on match, 1 on mismatch or unreadable hash file.
 verify__sha_sidecar() {
   local _file="$1"
   local _hash_file="$2"
@@ -103,7 +113,9 @@ verify__sha_sidecar() {
 # Installs `gnupg` (or `gnupg2` on dnf/yum) via ospkg tracked under `group_id`.
 #
 # Args:
-#   [group_id]  Tracking group for the auto-installed package (default: lib-verify).
+#   [group_id]  Tracking group for the auto-installed package (default: `lib-verify`).
+#
+# Returns: 0 if gpg is available, 1 if installation fails.
 verify__gpg_ensure() {
   local _group="${1:-lib-verify}"
   command -v gpg > /dev/null 2>&1 && return 0
@@ -120,17 +132,19 @@ verify__gpg_ensure() {
   }
 }
 
-# @brief verify__gpg_detached <file> <sig_file> <key_file> [group_id] — Verify a file against a detached ASCII-armored signature.
+# @brief verify__gpg_detached <file> <sig_file> <key_file> [group_id] — Verify a file against a detached ASCII-armored GPG signature.
 #
-# Creates an isolated GNUPGHOME, imports the key, runs `gpg --verify`, then
+# Creates an isolated `GNUPGHOME`, imports the key, runs `gpg --verify`, then
 # removes the temporary keyring. The caller is responsible for downloading
 # `sig_file` and `key_file` before calling this function.
 #
 # Args:
 #   <file>      Path to the artifact to verify.
-#   <sig_file>  Path to the detached PGP signature file (.asc or .sig).
-#   <key_file>  Path to the ASCII-armored or binary public key to verify against.
-#   [group_id]  Tracking group used when auto-installing gpg (default: lib-verify).
+#   <sig_file>  Path to the detached PGP signature file (`.asc` or `.sig`).
+#   <key_file>  Path to the ASCII-armored or binary public key.
+#   [group_id]  Tracking group used when auto-installing gpg (default: `lib-verify`).
+#
+# Returns: 0 on successful verification, 1 on failure.
 verify__gpg_detached() {
   local _file="$1" _sig="${2-}" _key="${3-}" _group="${4:-lib-verify}"
   [[ -f "$_file" ]] || {

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# User management: resolve users, set login shells, manage installation prefixes.
 #
-# users__set_login_shell uses awk and shell utilities available on all
-# supported platforms (Debian, Alpine, macOS).
+# Provides helpers for detecting root, resolving the remote user list from
+# devcontainer env vars, managing file permissions, and setting the login shell
+# for one or more users. Works on Alpine (patching PAM), Debian-based, and macOS.
 
 [ -n "${_USERS__LIB_LOADED-}" ] && return 0
 _USERS__LIB_LOADED=1
@@ -12,11 +13,15 @@ _USERS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_USERS__LIB_DIR/ospkg.sh"
 
 # @brief users__is_root — Return 0 when the current process runs as root (uid 0), 1 otherwise.
+#
+# Returns: 0 if uid is 0, 1 otherwise.
 users__is_root() {
   [ "$(id -u)" -eq 0 ]
 }
 
 # @brief users__default_prefix — Print the default binary installation prefix: `/usr/local` as root, `$HOME/.local` as non-root.
+#
+# Stdout: `/usr/local` when root, `$HOME/.local` otherwise.
 users__default_prefix() {
   if users__is_root; then
     printf '%s\n' "/usr/local"
@@ -34,19 +39,13 @@ users__default_prefix() {
 # (e.g. plain container images, standalone macOS use). Root is always
 # accepted in ADD_USERS.
 #
-# Env vars consumed (all optional):
-#   ADD_CURRENT_USER   — "true" to include SUDO_USER / whoami (default: true)
-#   ADD_REMOTE_USER    — "true" to include _REMOTE_USER (default: true)
-#   ADD_CONTAINER_USER — "true" to include _CONTAINER_USER (default: true)
-#   ADD_USERS          — extra usernames (bash array, newline-delimited string,
-#                        or comma-separated string); root allowed here
+# Env:
+#   ADD_CURRENT_USER    "true" to include SUDO_USER / whoami (default: true).
+#   ADD_REMOTE_USER     "true" to include _REMOTE_USER (default: true).
+#   ADD_CONTAINER_USER  "true" to include _CONTAINER_USER (default: true).
+#   ADD_USERS           Extra usernames (bash array, newline-delimited, or comma-separated); root allowed.
 #
 # Stdout: one username per line.
-#
-# Usage (bash — collect into array):
-#   mapfile -t _users < <(users__resolve_list)
-# Usage (POSIX sh — iterate):
-#   users__resolve_list | while IFS= read -r _u; do ...; done
 users__resolve_list() {
   # Track seen names in a local space-separated string for dedup.
   local _seen=""
@@ -147,18 +146,16 @@ users__resolve_list() {
   return 0
 }
 
-# @brief users__set_write_permissions <prefix> <owner> <group> [<user>...]
-#   Create OS group, add listed users to it, then apply group-write bits on
-#   a shared installation prefix so group members can install packages.
+# @brief users__set_write_permissions <prefix> <owner> <group> [<user>...] — Create OS group, add listed users, then apply group-write bits on a shared installation prefix.
 #
-#   Sets the setgid bit on all subdirectories so new files inherit the group.
-#   No-op on platforms that lack groupadd/usermod (e.g. macOS — log a warning).
+# Sets the setgid bit on all subdirectories so new files inherit the group.
+# No-op on platforms that lack groupadd/usermod (e.g. macOS — logs a warning).
 #
 # Args:
-#   <prefix>    Absolute path to the installation directory.
-#   <owner>     Username of the primary file owner (chown target).
-#   <group>     OS group name to create (if absent) and use.
-#   [<user>...] Additional users to add to the group.
+#   <prefix>     Absolute path to the installation directory.
+#   <owner>      Username of the primary file owner (chown target).
+#   <group>      OS group name to create (if absent) and use.
+#   [<user>...]  Additional users to add to the group.
 users__set_write_permissions() {
   local _path="$1"
   local _owner="$2"
@@ -201,8 +198,10 @@ users__set_write_permissions() {
 # password (inserts "auth sufficient pam_rootok.so" if not already present).
 #
 # Args:
-#   <shell_path>    Absolute path to the shell binary (e.g. /bin/zsh).
-#   <username>...   One or more usernames to update.
+#   <shell_path>   Absolute path to the shell binary (e.g. `/bin/zsh`).
+#   <username>...  One or more usernames to update.
+#
+# Returns: 0 on success (warnings logged for individual failures, not propagated).
 users__set_login_shell() {
   local _shell="$1"
   shift
@@ -256,17 +255,15 @@ users__set_login_shell() {
 
 # @brief users__get_current [--no-sudo] — Print the current username using a robust fallback chain.
 #
-# Options:
-#   --no-sudo   Skip SUDO_USER and always return the effective user (the process owner).
-#
 # Resolution order (default):
-#   1) SUDO_USER (when running via sudo)
-#   2) whoami
-#   3) id -un; if that yields nothing, id -u + /etc/passwd scan (NSS bypass)
-#   4) USER
-#   5) LOGNAME
+# SUDO_USER (when running via sudo) → whoami → id -un → /etc/passwd scan → USER → LOGNAME.
 #
-# Exits 1 when no username can be determined.
+# Args:
+#   [--no-sudo]  Skip SUDO_USER and always return the effective user (the process owner).
+#
+# Stdout: username string.
+#
+# Returns: 0 on success, 1 if no username can be determined.
 users__get_current() {
   if [ "${1:-}" != "--no-sudo" ] && [ -n "${SUDO_USER:-}" ]; then
     printf '%s\n' "${SUDO_USER}"

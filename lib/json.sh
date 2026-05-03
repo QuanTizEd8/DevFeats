@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# JSON query and manipulation helpers using jq (auto-installed via ospkg if absent).
 #
-# JSON helpers: jq backend (auto-installed via ospkg when absent).
-# JSONC helpers require python3 (auto-installed via ospkg when absent).
+# Functions read from stdin and write to stdout. JSONC (JSON with comments)
+# helpers require `python3` (auto-installed via `ospkg` when absent).
 
 [ -n "${_JSON__LIB_LOADED-}" ] && return 0
 _JSON__LIB_LOADED=1
@@ -39,14 +39,25 @@ _json__ensure_python3() {
 }
 
 # @brief json__query — jq passthrough; ensures jq is available (installs via ospkg if needed).
+#
+# All arguments are forwarded to `jq` unchanged.
+#
+# Stdout: jq output.
+#
+# Returns: jq exit code.
 json__query() {
   _json__ensure_jq || return 1
   jq "$@"
 }
 
-# @brief json__root_scalar_stdin <key> — Read one JSON object from stdin; print .[key] when string or number.
+# @brief json__root_scalar_stdin <key> — Read one JSON object from stdin; print `.[key]` when it is a string or number.
 #
-# Returns 1 if jq unavailable, stdin is empty, or the value is missing or non-scalar.
+# Args:
+#   <key>  Top-level object key to extract.
+#
+# Stdout: string value of `.[key]`.
+#
+# Returns: 0 on success, 1 if jq is unavailable, stdin is empty, or the value is missing or non-scalar.
 json__root_scalar_stdin() {
   local _key="$1" _json _out
   _json="$(cat)" || return 1
@@ -61,7 +72,14 @@ json__root_scalar_stdin() {
   return 1
 }
 
-# @brief json__array_field_lines_stdin <field> — Read JSON from stdin (expected: top-level array); print one line per element's .[field] when string or number.
+# @brief json__array_field_lines_stdin <field> — Read JSON from stdin (expected: top-level array); print one line per element's `.[field]` when string or number.
+#
+# Args:
+#   <field>  Field name to extract from each array element.
+#
+# Stdout: one value per line.
+#
+# Returns: 0 on success, 1 if no values found or jq is unavailable.
 json__array_field_lines_stdin() {
   local _field="$1" _json _out
   _json="$(cat)" || return 1
@@ -76,9 +94,17 @@ json__array_field_lines_stdin() {
   return 1
 }
 
-# @brief json__object_array_field_lines_stdin <arrayKey> <field> — Read one JSON object from stdin; print one line per element of .[arrayKey][].[field] when string or number.
+# @brief json__object_array_field_lines_stdin <arrayKey> <field> — Read one JSON object from stdin; print one line per element of `.[arrayKey][].[field]` when string or number.
 #
-# Requires root to be an object and .[arrayKey] to be an array of objects.
+# Requires root to be an object and `.[arrayKey]` to be an array of objects.
+#
+# Args:
+#   <arrayKey>  Key whose value is the array to iterate.
+#   <field>     Field to extract from each array element.
+#
+# Stdout: one value per line.
+#
+# Returns: 0 on success, 1 if no values found or jq is unavailable.
 json__object_array_field_lines_stdin() {
   local _ak="$1" _field="$2" _json _out
   _json="$(cat)" || return 1
@@ -93,9 +119,16 @@ json__object_array_field_lines_stdin() {
   return 1
 }
 
-# @brief json__object_map_string_values_stdin [<objectKey>] — Read one JSON object; print all string values from the root object or from .[objectKey] when it is an object map (string values only). When `.[key]` may be an array of strings instead, use `json__object_key_string_lines_stdin`.
+# @brief json__object_map_string_values_stdin [<objectKey>] — Read one JSON object from stdin; print all string values from the root object or from `.[objectKey]`.
 #
-# If <objectKey> is omitted or empty, uses the root object. One line per string value.
+# When `.[key]` may be an array of strings instead, use `json__object_key_string_lines_stdin`.
+#
+# Args:
+#   [<objectKey>]  Optional sub-key to descend into (defaults to root object).
+#
+# Stdout: one string value per line.
+#
+# Returns: 0 on success, 1 if no values found or jq is unavailable.
 json__object_map_string_values_stdin() {
   local _sub="${1-}" _json _out
   _json="$(cat)" || return 1
@@ -140,8 +173,13 @@ json__object_key_string_lines_stdin() {
 
 # @brief json__nodejs_index_version_stdin <op> [arg] — Read nodejs.org-style dist index.json (array of objects); print one version string.
 #
-# <op>: lts-first (first entry with lts not JSON false), head (first entry), major (arg = major e.g. 22), exact (arg = full version as in JSON e.g. v22.0.0).
-# Field is always "version".
+# Args:
+#   <op>   Operation: `lts-first` (first LTS entry), `head` (first entry), `major` (arg = major e.g. `22`), `exact` (arg = full version e.g. `v22.0.0`).
+#   [arg]  Required for `major` and `exact` ops.
+#
+# Stdout: version string (e.g. `v22.0.0`).
+#
+# Returns: 0 on success, 1 if no matching entry found or jq is unavailable.
 json__nodejs_index_version_stdin() {
   local _op="$1" _arg="${2-}" _json _out
   _json="$(cat)" || return 1
@@ -174,7 +212,11 @@ json__nodejs_index_version_stdin() {
   return 0
 }
 
-# @brief json__strip_jsonc_stdin — Read JSON/JSONC from stdin; print strict JSON. Requires python3 and lib/jsonc.py next to this file.
+# @brief json__strip_jsonc_stdin — Read JSON/JSONC from stdin; print strict JSON to stdout. Requires `python3` and `lib/jsonc.py` next to this file.
+#
+# Stdout: strict JSON (comments and trailing commas stripped).
+#
+# Returns: 0 on success, 1 if `lib/jsonc.py` is not found or python3 is unavailable.
 json__strip_jsonc_stdin() {
   if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
     logging__error "lib/jsonc.py not found (expected: ${_JSON__LIB_DIR}/jsonc.py)"
@@ -184,7 +226,14 @@ json__strip_jsonc_stdin() {
   python3 "${_JSON__LIB_DIR}/jsonc.py" strip
 }
 
-# @brief json__object_keys_stdin [<objectKey>] — Keys of the root object or of .[objectKey]; one per line. Requires jq.
+# @brief json__object_keys_stdin [<objectKey>] — Print keys of the root object or of `.[objectKey]`; one key per line.
+#
+# Args:
+#   [<objectKey>]  Optional sub-key to descend into (defaults to root object).
+#
+# Stdout: one key per line.
+#
+# Returns: 0 on success, 1 if jq is unavailable or input is not an object.
 json__object_keys_stdin() {
   local _sub="${1-}" _json _out
   _json="$(cat)" || return 1
@@ -199,7 +248,14 @@ json__object_keys_stdin() {
   return 0
 }
 
-# @brief json__value_stdin <jq-expr> — Read JSON from stdin; print compact value at <jq-expr> (e.g. .name, .features).
+# @brief json__value_stdin <jq-expr> — Read JSON from stdin; print compact value at `<jq-expr>`.
+#
+# Args:
+#   <jq-expr>  jq expression to evaluate (e.g. `.name`, `.features`).
+#
+# Stdout: compact JSON value at the given path.
+#
+# Returns: 0 on success, 1 if jq is unavailable or expression is empty.
 json__value_stdin() {
   local _expr="${1-}" _json
   [ -z "$_expr" ] && return 1
@@ -209,7 +265,13 @@ json__value_stdin() {
   printf '%s\n' "$_json" | jq -c "$_expr" 2> /dev/null
 }
 
-# @brief json__coerce_scalar_stdin — Read one JSON value from stdin; print string form for use in env (bool/number: jq tostring, string: raw, null: empty). Object/array: exit 1. Requires jq.
+# @brief json__coerce_scalar_stdin — Read one JSON scalar from stdin; print its string form for use in environment variables.
+#
+# Booleans and numbers are converted via `jq tostring`; strings are printed raw; null prints an empty line. Objects and arrays return 1.
+#
+# Stdout: string representation of the scalar value.
+#
+# Returns: 0 on success, 1 for objects, arrays, or jq errors.
 json__coerce_scalar_stdin() {
   local _json _t
   _json="$(cat)" || return 1
@@ -234,7 +296,12 @@ json__coerce_scalar_stdin() {
   esac
 }
 
-# @brief json__detect_duplicate_keys_stdin [<objectKey>] — Reject JSON with duplicate object keys (uses lib/jsonc.py). Ignores <objectKey> (full document checked).
+# @brief json__detect_duplicate_keys_stdin [<objectKey>] — Reject JSON with duplicate object keys. Uses `lib/jsonc.py`; the full document is checked regardless of `<objectKey>`.
+#
+# Args:
+#   [<objectKey>]  Ignored; present for API symmetry.
+#
+# Returns: 0 if no duplicates, 1 if duplicates found or `lib/jsonc.py` is unavailable.
 json__detect_duplicate_keys_stdin() {
   if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
     logging__error "lib/jsonc.py not found"

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# This file must be sourced from bash (>=4.0), not sh.
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# Cross-distro package manager abstraction: install, update, clean, and track dependencies.
+#
+# Detects the host package manager (`apt`, `apk`, `brew`, `dnf`/`yum`, `zypper`)
+# automatically. Supports grouping packages into build-time and run-time
+# dependency groups for later cleanup.
 
 [[ -n "${_OSPKG__LIB_LOADED-}" ]] && return 0
 _OSPKG__LIB_LOADED=1
@@ -452,8 +455,10 @@ _ospkg_load_linux_release() {
 # ── Public: ospkg__detect ────────────────────────────────────────────────────
 # @brief ospkg__detect — Detect the package manager and populate internal state. Idempotent; called automatically by all other `ospkg__*` functions.
 #
-# Respects _OSPKG_PREFER_LINUXBREW: when true, brew is checked before the
+# Respects `_OSPKG_PREFER_LINUXBREW`: when true, brew is checked before the
 # native Linux PM chain (no effect on macOS where brew is always used).
+#
+# Returns: 0 on success, 1 if no supported package manager is found.
 ospkg__detect() {
   [[ "$_OSPKG_DETECTED" == true ]] && return 0
 
@@ -521,6 +526,8 @@ ospkg__detect() {
 #   --force             Unconditionally refresh (overrides the age check).
 #   --lists_max_age N   Skip if package lists were updated within N seconds (default: 300).
 #   --repo_added        A new repo was just added; forces an unconditional refresh.
+#
+# Returns: 0 on success.
 ospkg__update() {
   ospkg__detect
   local _force=false _max_age=3600 _repo_added=false
@@ -589,6 +596,8 @@ ospkg__update() {
 #
 # Args:
 #   <pkg>...  One or more package names to install.
+#
+# Returns: 0 on success.
 ospkg__install() {
   ospkg__detect
   ospkg__update || true
@@ -628,6 +637,8 @@ ospkg__install() {
 
 # ── Public: ospkg__clean ─────────────────────────────────────────────────────
 # @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
+#
+# Returns: 0 on success.
 ospkg__clean() {
   ospkg__detect
   logging__clean "Cleaning package manager cache."
@@ -656,6 +667,10 @@ ospkg__clean() {
 #
 # Args:
 #   <json-file>  Path to the manifest JSON file (use `yq -o=json` to convert YAML first).
+#
+# Stdout: one compact JSON record per line.
+#
+# Returns: 0 on success.
 ospkg__parse_manifest_yaml() {
   local _json_file="$1"
 
@@ -937,10 +952,16 @@ _ospkg_protect_user_pkgs() {
 }
 
 # ── Public: ospkg__take_initial_snapshot ─────────────────────────────────────
-# @brief ospkg__take_initial_snapshot <file> — Snapshot the current installed-
-# package list to <file> for use as a session baseline. Called once by
-# install.bash before any installs in manifest mode. Used by ospkg__install_tracked
-# to exclude pre-existing packages from session co-ownership tracking.
+# @brief ospkg__take_initial_snapshot <file> — Snapshot the current installed-package list to `<file>` as a session baseline.
+#
+# Called once by install.bash before any installs in manifest mode. Used by
+# `ospkg__install_tracked` to exclude pre-existing packages from session
+# co-ownership tracking.
+#
+# Args:
+#   <file>  Destination path for the snapshot (one package name per line).
+#
+# Returns: 0 on success.
 ospkg__take_initial_snapshot() {
   local _dest="$1"
   ospkg__detect
@@ -1070,19 +1091,17 @@ _ospkg_remove_build_group() {
 }
 
 # ── Public: ospkg__install_tracked ────────────────────────────────────────────
-# @brief ospkg__install_tracked <sub-id> <pkg>... — Install packages and register
-# them as build-only under <sub-id> for cleanup when keep_build_deps=false.
-# Idempotent: if all packages are already installed the sidecar is unchanged.
-# Requires ospkg__detect to have been called first.
+# @brief ospkg__install_tracked <sub-id> <pkg>... — Install packages and register them as build-only under `<sub-id>` for later cleanup. Idempotent.
 #
-# The full group-id is composed as "${_SYSSET_BUILD_CONTEXT:-uncontexted}::<sub-id>".
-# Callers pass only the bare sub-id (e.g. "lib-net", "devfeats-ospkg-internals");
-# the build-context prefix is added automatically.
+# The full group-id is `"${_SYSSET_BUILD_CONTEXT:-uncontexted}::<sub-id>"`. When
+# `_SYSSET_SESSION_TRACK_DIR` is set, also mirrors tracking to the session dir
+# for cross-feature co-ownership.
 #
-# Session co-ownership: when _SYSSET_SESSION_TRACK_DIR is set (manifest mode),
-# also appends each requested package absent from _SYSSET_INITIAL_SNAPSHOT to
-# the session sidecar for _group_id. This registers co-ownership for packages
-# already installed by a prior feature in the same session.
+# Args:
+#   <sub-id>  Build-group sub-identifier (e.g. `lib-net`); context prefix added automatically.
+#   <pkg>...  One or more package names to install.
+#
+# Returns: 0 on success.
 ospkg__install_tracked() {
   local _group_id="${_SYSSET_BUILD_CONTEXT:-uncontexted}::$1"
   shift
@@ -1111,10 +1130,9 @@ ospkg__install_tracked() {
   return 0
 }
 
-# @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep
-# group (both feature-level groups and lib-level groups auto-created by
-# ospkg__install_tracked).  Scans the build-deps sidecar directory and calls
-# _ospkg_remove_build_group for each file found.
+# @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep group. Scans the sidecar directory and calls `_ospkg_remove_build_group` for each entry.
+#
+# Returns: 0 on success.
 ospkg__cleanup_all_build_groups() {
   local _deps_dir
   _deps_dir="$(_ospkg_build_deps_dir)"
@@ -1130,16 +1148,17 @@ ospkg__cleanup_all_build_groups() {
   return 0
 }
 
-# @brief ospkg__cleanup_session_build_groups <install-bash-keep> — Manifest-mode
-# coordinator. Reads co-ownership entries from _SYSSET_SESSION_TRACK_DIR,
-# applies Rule 1 (keep wins over clean), then removes packages not kept by any
-# co-owner. Deletes _SYSSET_SESSION_TRACK_DIR on completion.
+# @brief ospkg__cleanup_session_build_groups <install-bash-keep> — Manifest-mode coordinator: apply keep-wins policy across co-owners and remove unneeded build packages.
 #
-# <install-bash-keep>: "true"|"false" — keep_build_deps for the install-bash context.
-# Feature keep_build_deps is read from the _OPT_OF associative array (must be
-# in scope when called from install.bash). Defaults to false when not found.
+# Reads co-ownership entries from `_SYSSET_SESSION_TRACK_DIR`, applies keep-wins
+# (any `true` overrides all `false`), then removes packages not kept by any
+# co-owner. Deletes `_SYSSET_SESSION_TRACK_DIR` on completion. No-op when
+# `_SYSSET_SESSION_TRACK_DIR` is unset or does not exist.
 #
-# No-ops when _SYSSET_SESSION_TRACK_DIR is unset or does not exist.
+# Args:
+#   <install-bash-keep>  `"true"` or `"false"` — keep_build_deps for the install-bash context. Feature keep_build_deps is read from `_OPT_OF`.
+#
+# Returns: 0 on success.
 ospkg__cleanup_session_build_groups() {
   local _getbash_keep="${1:-false}"
   [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" ]] || return 0
@@ -1199,11 +1218,13 @@ ospkg__cleanup_session_build_groups() {
 }
 
 # ── Public: resource tracking ─────────────────────────────────────────────────
-# @brief ospkg__track_resource <group-id> <path>... — Register filesystem paths
-# for cleanup alongside package cleanup. Paths are written to a resource sidecar
-# in _SYSSET_TMPDIR/ospkg/resources/ (one path per line). When
-# _SYSSET_SESSION_TRACK_DIR is set, also mirrors to the session dir so the
-# install.bash coordinator can clean cross-feature resources.
+# @brief ospkg__track_resource <group-id> <path>... — Register filesystem paths for cleanup via `ospkg__cleanup_resources`. Also mirrors to the session dir when `_SYSSET_SESSION_TRACK_DIR` is set.
+#
+# Args:
+#   <group-id>  Cleanup group identifier.
+#   <path>...   One or more absolute paths to register.
+#
+# Returns: 0 on success.
 ospkg__track_resource() {
   local _group_id="$1"
   shift
@@ -1224,8 +1245,13 @@ ospkg__track_resource() {
   return 0
 }
 
-# @brief ospkg__untrack_resource <group-id> <path>... — Remove resource paths
-# from local and session sidecars created by ospkg__track_resource.
+# @brief ospkg__untrack_resource <group-id> <path>... — Remove resource paths from local and session sidecars registered by `ospkg__track_resource`.
+#
+# Args:
+#   <group-id>  Cleanup group identifier.
+#   <path>...   One or more paths to deregister.
+#
+# Returns: 0 on success, 1 if copying the sidecar fails.
 ospkg__untrack_resource() {
   local _group_id="$1"
   shift
@@ -1256,10 +1282,9 @@ ospkg__untrack_resource() {
   return 0
 }
 
-# @brief ospkg__cleanup_resources — Remove all files registered via
-# ospkg__track_resource. Reads resource sidecars from
-# _SYSSET_TMPDIR/ospkg/resources/ and rm -f's each listed path.
-# Non-fatal: removal failures emit a warning and continue.
+# @brief ospkg__cleanup_resources — Remove all files registered via `ospkg__track_resource`. Reads sidecars from `_SYSSET_TMPDIR/ospkg/resources/` and `rm -f`s each listed path.
+#
+# Returns: 0 (always; removal failures emit a warning and continue).
 ospkg__cleanup_resources() {
   local _res_dir
   _res_dir="$(logging__tmpdir "ospkg/resources")"
@@ -1279,16 +1304,17 @@ ospkg__cleanup_resources() {
 }
 
 # ── Public: ospkg__install_user ──────────────────────────────────────────────
-# @brief ospkg__install_user <pkg>... — Install packages and protect them from
-# build-group cleanup. Use this for all user-facing package installs.
+# @brief ospkg__install_user <pkg>... — Install packages and protect them from build-group cleanup. Prefer over `ospkg__install` for all user-facing installs.
 #
-# Calls ospkg__install then calls _ospkg_protect_user_pkgs with bare package
-# names (version suffixes stripped per PM convention). Packages installed this
-# way will not be removed by ospkg__cleanup_all_build_groups even if a prior
-# build-group install had marked them as auto/asdeps or added them to a sidecar.
+# Version suffixes are stripped per PM convention before calling
+# `_ospkg_protect_user_pkgs`, so packages will not be removed by
+# `ospkg__cleanup_all_build_groups` even if a prior build-group install had
+# marked them.
 #
 # Args:
-#   <pkg>...  One or more package specs (versioned forms like gh=2.40.0 accepted).
+#   <pkg>...  One or more package specs (versioned forms like `gh=2.40.0` accepted).
+#
+# Returns: 0 on success.
 ospkg__install_user() {
   ospkg__install "$@"
   ospkg__detect
@@ -1332,6 +1358,8 @@ ospkg__install_user() {
 #                           them in a sidecar file for later cleanup. Requires --manifest.
 #   --remove-build-group <id>  Remove previously-installed build-only packages using
 #                              PM-native mechanisms. Does not require --manifest.
+#
+# Returns: 0 on success, 1 on invalid arguments or manifest parse failure.
 ospkg__run() {
   local _manifest='' _update=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false

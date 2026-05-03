@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# devcontainer.sh — devcontainer.json glue for install.bash (JSONC, workspace, feature filter, env exports, disable globs).
-# Bash >=4. Source: json str graph proc (optional: os, users) after path setup.
+# Devcontainer JSON helpers: parse configs, resolve features, export env vars, compute install ordering.
+#
+# Provides helpers for reading devcontainer workspace settings, resolving feature
+# configurations, iterating lifecycle hooks, and exporting feature environment
+# variables. Requires `json`, `str`, `graph`, and `proc` to be sourced first.
 [[ -n "${_DEVCONTAINER__LIB_LOADED-}" ]] && return 0
 _DEVCONTAINER__LIB_LOADED=1
 
@@ -25,7 +28,14 @@ devcontainer__is_registry_host_like() {
   return 1
 }
 
-# @brief devcontainer__parse_config <file> — print normalized JSON to stdout; return 1 on error.
+# @brief devcontainer__parse_config <file> — Print normalized, JSONC-stripped JSON to stdout.
+#
+# Args:
+#   <file>  Path to the devcontainer.json (or .jsonc) config file.
+#
+# Stdout: normalized JSON.
+#
+# Returns: 0 on success, 1 if the file does not exist or contains duplicate keys.
 devcontainer__parse_config() {
   local _f="${1-}"
   [[ -f "$_f" ]] || return 1
@@ -35,7 +45,14 @@ devcontainer__parse_config() {
   return 0
 }
 
-# @brief devcontainer__workspace_folder <config-path> — print workspace realpath.
+# @brief devcontainer__workspace_folder <config-path> — Print the workspace root by stripping `/.devcontainer` suffix components from the config's directory.
+#
+# Args:
+#   <config-path>  Path to the devcontainer.json config file.
+#
+# Stdout: absolute workspace folder path.
+#
+# Returns: 0 on success, 1 if the file does not exist.
 devcontainer__workspace_folder() {
   local _f="${1-}" _d _r
   [[ -f "$_f" ]] || return 1
@@ -53,13 +70,23 @@ devcontainer__workspace_folder() {
   return 0
 }
 
-# @brief devcontainer__name_version_suffix <name-string>
+# @brief devcontainer__name_version_suffix <name-string> — Extract the version suffix from a feature name string.
+#
+# Args:
+#   <name-string>  Feature name possibly containing a version suffix.
+#
+# Stdout: version suffix (e.g. `@1.2.3`), or empty if none.
 devcontainer__name_version_suffix() {
   str__extract_version_suffix "${1-}"
   return 0
 }
 
-# @brief devcontainer__oci_id_and_tag <oci-key> — line1: id (no tag), line2: tag or empty
+# @brief devcontainer__oci_id_and_tag <oci-key> — Split an OCI feature key into its id and tag components.
+#
+# Args:
+#   <oci-key>  OCI reference key (e.g. `ghcr.io/owner/repo/feature:tag`).
+#
+# Stdout: two lines — line 1: id without tag; line 2: tag, or empty if absent.
 devcontainer__oci_id_and_tag() {
   local _k="${1-}" _rest _t _id
   _rest="${_k##*/}"
@@ -75,7 +102,12 @@ devcontainer__oci_id_and_tag() {
   return 0
 }
 
-# @brief devcontainer__is_compatible_key <key> — 0 if key is OCI-shaped or a local path with devcontainer-feature.json
+# @brief devcontainer__is_compatible_key <key> — Return 0 if `<key>` is an OCI-shaped ref or a local path containing `devcontainer-feature.json`.
+#
+# Args:
+#   <key>  Feature key from a devcontainer.json `features` block.
+#
+# Returns: 0 if compatible, 1 otherwise.
 devcontainer__is_compatible_key() {
   local _k="${1-}"
   local _host
@@ -96,18 +128,19 @@ devcontainer__is_compatible_key() {
   return 1
 }
 
-# @brief devcontainer__lifecycle_disabled <entry> <scope> <featureId> <phase> [<cmdname>]
-# Returns 0 if this lifecycle entry should be skipped. scope=feature|container
-# Grammar (option (c) in plan §1.2.6):
-#   all                               → always match
-#   <phase>                           → bare phase (authoritative when name matches)
-#   <phase>:<cmd>                     → phase + named object-form sub-command
-#   <featureId>                       → feature-scope match (ignored at container scope)
-#   <featureId>:<phase>               → feature-scope match (ignored at container scope)
-#   <featureId>:<phase>:<cmd>         → feature-scope match for a named object-form command
-# Caller is expected to call this only for entries that belong to the relevant
-# flag (feature flag vs container flag); ambiguous forms are already constrained
-# by the caller's scope.
+# @brief devcontainer__lifecycle_disabled <entry> <scope> <featureId> <phase> [<cmdname>] — Return 0 if this lifecycle entry should be skipped for the given context.
+#
+# Entry grammar: `all`, `<phase>`, `<phase>:<cmd>`, `<featureId>`, `<featureId>:<phase>`,
+# or `<featureId>:<phase>:<cmd>`. Feature-scoped entries are ignored at container scope.
+#
+# Args:
+#   <entry>     Disable-entry string (see grammar above).
+#   <scope>     `feature` or `container`.
+#   <featureId> Feature identifier for feature-scope matching.
+#   <phase>     Current lifecycle phase name.
+#   [<cmdname>] Optional object-form sub-command name.
+#
+# Returns: 0 if the entry matches (should be skipped), 1 otherwise.
 devcontainer__lifecycle_disabled() {
   local _e="${1-}" _sc="${2-}" _fid="${3-}" _ph="${4-}" _cn="${5-}"
   [[ -z "$_e" ]] && return 1
@@ -135,12 +168,17 @@ devcontainer__lifecycle_disabled() {
   return 1
 }
 
-# @brief devcontainer__iter_features <config-file> <workspace-folder>
-# Emits TAB-delimited lines: <id>\t<key>\t<tag>
-# - <id>   the trailing path component without :tag suffix
-# - <key>  the raw features[] key
-# - <tag>  the :tag suffix after the last ':' in the last segment, or empty
-# Keys that are neither OCI-shaped refs nor resolvable local paths → warned + skipped.
+# @brief devcontainer__iter_features <config-file> <workspace-folder> — Emit one TAB-delimited line per feature in the config's `features` block.
+#
+# Keys that are neither OCI-shaped refs nor resolvable local paths are warned and skipped.
+#
+# Args:
+#   <config-file>      Path to the devcontainer.json config.
+#   <workspace-folder> Workspace root (used to resolve relative local paths).
+#
+# Stdout: TAB-delimited lines `<id>\t<key>\t<tag>` — id is the trailing path component without `:tag`; key is the raw features[] key; tag is the `:tag` suffix or empty.
+#
+# Returns: 0 on success, 1 if the config file does not exist.
 devcontainer__iter_features() {
   local _cfg="${1-}" _wf="${2-}"
   [[ -f "$_cfg" ]] || return 1
@@ -180,10 +218,14 @@ devcontainer__iter_features() {
   return 0
 }
 
-# @brief devcontainer__feature_env_exports <opts-json-stdin> <safe-id-prefix-or-empty>
-# Reads a JSON object on stdin; emits `export KEY=VALUE` lines suitable for eval.
-# Values are coerced via json__coerce_scalar_stdin; arrays/objects fail.
-# Bash %q quoting preserves newlines, tabs, and non-ASCII characters verbatim.
+# @brief devcontainer__feature_env_exports — Read a feature options JSON object from stdin; emit `export KEY=VALUE` lines suitable for eval.
+#
+# Values are coerced via `json__coerce_scalar_stdin`; arrays and objects cause an error.
+# Keys are normalized with `str__safe_id`. Bash `%q` quoting is used for values.
+#
+# Stdout: `export KEY=VALUE` lines, one per option key.
+#
+# Returns: 0 on success, 1 if any value is an array or object.
 devcontainer__feature_env_exports() {
   local _j _k _t _v _n
   _j="$(cat)"
@@ -205,12 +247,20 @@ devcontainer__feature_env_exports() {
   return 0
 }
 
-# @brief devcontainer__build_ordering_inputs --hard-edges-file F --soft-edges-file F \
-#     --priority-file F --staged-root D --config-file F -- <id>...
-# Writes graph__round_order input files.
-# - hard edges derive from each feature's `dependsOn` (keys map back to staged ids).
-# - soft edges derive from `installsAfter` (missing targets ignored by graph__round_order).
-# - priority reflects `overrideFeatureInstallOrder`: first entry gets highest score.
+# @brief devcontainer__build_ordering_inputs --hard-edges-file F --soft-edges-file F --priority-file F --staged-root D --config-file F -- <id>... — Write `graph__round_order` input files for feature install ordering.
+#
+# Hard edges derive from `dependsOn`; soft edges from `installsAfter`; priority
+# from `overrideFeatureInstallOrder` (first entry gets highest score).
+#
+# Args:
+#   --hard-edges-file F  Output path for hard dependency edges (TAB-delimited `<from>\t<to>`).
+#   --soft-edges-file F  Output path for soft dependency edges.
+#   --priority-file F    Output path for priority scores (TAB-delimited `<id>\t<score>`).
+#   --staged-root D      Directory containing staged feature subdirectories.
+#   --config-file F      Path to the devcontainer.json config.
+#   <id>...              Feature IDs to process.
+#
+# Returns: 0 on success, 1 if any required flag is missing.
 devcontainer__build_ordering_inputs() {
   local _hf="" _sf="" _pf="" _root="" _cfg=""
   while [[ $# -gt 0 ]]; do
@@ -299,12 +349,19 @@ devcontainer__build_ordering_inputs() {
   return 0
 }
 
-# @brief devcontainer__lifecycle_iter --config-file F --staged-root D --phase P -- <id>...
-# Emits lines: <scope>\t<id>\t<cmd-json>
-# - scope is "feature" for feature-level commands, "container" for devcontainer.json
-# - id is the feature id for feature scope, or "_container_" for container scope
-# - cmd-json is compact JSON (one line) — string/array/object form
-# Features iterated in provided order; container-level entry is emitted last.
+# @brief devcontainer__lifecycle_iter --config-file F --staged-root D --phase P -- <id>... — Emit lifecycle commands for the given phase across features and container config.
+#
+# Features are iterated in the provided order; the container-level entry is emitted last.
+#
+# Args:
+#   --config-file F  Path to the devcontainer.json config.
+#   --staged-root D  Directory containing staged feature subdirectories.
+#   --phase P        Lifecycle phase name (e.g. `postCreateCommand`).
+#   <id>...          Feature IDs to iterate.
+#
+# Stdout: TAB-delimited lines `<scope>\t<id>\t<cmd-json>` — scope is `feature` or `container`; id is the feature id or `_container_`; cmd-json is compact JSON.
+#
+# Returns: 0 on success, 1 if `--phase` is not provided or jq is unavailable.
 devcontainer__lifecycle_iter() {
   local _cfg="" _root="" _ph=""
   while [[ $# -gt 0 ]]; do
@@ -350,9 +407,16 @@ devcontainer__lifecycle_iter() {
   return 0
 }
 
-# @brief devcontainer__user_home <user>
-# Prints the resolved home directory for <user>, or empty if unresolvable.
-# Uses getent (Linux) then dscl (macOS) then eval-tilde as a last resort.
+# @brief devcontainer__user_home <user> — Print the resolved home directory for `<user>`, or empty if unresolvable.
+#
+# Detection order: `getent passwd` (Linux) → `dscl` (macOS) → tilde expansion.
+#
+# Args:
+#   <user>  Username to resolve.
+#
+# Stdout: absolute home directory path, or empty if unresolvable.
+#
+# Returns: 0 on success, 1 if no username is provided.
 devcontainer__user_home() {
   local _u="${1-}"
   [[ -z "$_u" ]] && return 1

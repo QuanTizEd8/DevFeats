@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# oci.sh — Container registry reference helpers (bash ≥4).
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# OCI and GHCR container registry helpers: resolve tags, pull feature artifacts.
+#
+# Provides helpers for constructing `ghcr.io` image references, listing tags,
+# pulling feature artifacts, and resolving version specs from OCI tag lists.
+# Requires `oras` to be available; `oci__ensure_oras` installs it if absent.
 [[ -n "${_OCI__LIB_LOADED-}" ]] && return 0
 _OCI__LIB_LOADED=1
 
@@ -139,10 +142,14 @@ _oci__ensure_auth_for() {
   return 0
 }
 
-# @brief oci__ghcr_image_ref <namespace/path> <image-name> <tag> — Print ghcr.io/<namespace>/<image>:<tag>
+# @brief oci__ghcr_image_ref <namespace/path> <image-name> <tag> — Print a fully-qualified `ghcr.io` image reference.
 #
-# Example: oci__ghcr_image_ref quantized8/devfeats install-pixi 1.0.0
-#   → ghcr.io/quantized8/devfeats/install-pixi:1.0.0
+# Args:
+#   <namespace/path>  GitHub namespace and optional path prefix (e.g. `owner/repo`).
+#   <image-name>      Image name (e.g. `install-pixi`).
+#   <tag>             Image tag (e.g. `1.0.0`).
+#
+# Stdout: `ghcr.io/<namespace>/<image-name>:<tag>`.
 oci__ghcr_image_ref() {
   local _ns="${1-}" _name="${2-}" _tag="${3-}"
   printf 'ghcr.io/%s/%s:%s\n' "$_ns" "$_name" "$_tag"
@@ -154,7 +161,9 @@ _oci__version_ge() {
   [[ "$(printf '%s\n' "$_a" "$_b" | sort -V | tail -n1)" == "$_a" ]]
 }
 
-# @brief oci__ensure_oras — Ensure `oras` exists and meets minimum version.
+# @brief oci__ensure_oras — Ensure `oras` is available and meets the minimum required version, auto-installing it if needed.
+#
+# Returns: 0 on success, 1 if oras cannot be installed or is below the minimum version.
 oci__ensure_oras() {
   local _bin=""
   _bin="$(command -v oras 2> /dev/null || true)"
@@ -191,7 +200,10 @@ oci__ensure_oras() {
   return 0
 }
 
-# @brief oci__is_feature_ref_key <key> — Return 0 for OCI-style feature refs.
+# @brief oci__is_feature_ref_key <key> — Return 0 when `<key>` looks like an OCI image reference (registry-host/path[:tag]).
+#
+# Args:
+#   <key>  Key string to test.
 oci__is_feature_ref_key() {
   local _k="${1-}" _host _rest
   [[ "$_k" == *"/"* ]] || return 1
@@ -225,7 +237,14 @@ _oci__tag_from_ref() {
   printf '%s\n' "${_tail#*:}"
 }
 
-# @brief oci__list_tags <repo> — Print one tag per line from `oras repo tags`.
+# @brief oci__list_tags <repo> — Print one tag per line for an OCI repository using `oras repo tags`.
+#
+# Args:
+#   <repo>  OCI repository reference (e.g. `ghcr.io/owner/repo`).
+#
+# Stdout: one tag per line.
+#
+# Returns: 0 on success, 1 if tags cannot be listed.
 oci__list_tags() {
   local _repo="${1-}"
   local _target _plain
@@ -267,7 +286,18 @@ _oci__highest_semver() {
   printf '%s' "$_list" | sed '/^$/d' | sort -V | tail -n1
 }
 
-# @brief oci__resolve_version <repo> [<spec>] — Resolve version spec from OCI tags.
+# @brief oci__resolve_version <repo> [<spec>] — Resolve a version spec to a concrete tag from an OCI repository's tag list.
+#
+# `<spec>` may be empty/`latest`, a full semver (`1.2.3`), a major (`1`),
+# a major.minor (`1.2`), or any literal tag name.
+#
+# Args:
+#   <repo>   OCI repository reference (e.g. `ghcr.io/owner/repo`).
+#   <spec>   Version specification (optional; defaults to `latest`).
+#
+# Stdout: the resolved tag string.
+#
+# Returns: 0 on success, 1 if no matching tag is found.
 oci__resolve_version() {
   local _repo="${1-}" _spec="${2-}"
   [[ -n "$_repo" ]] || return 1
@@ -366,7 +396,16 @@ _oci__expected_layer_digest_for_ref() {
   printf '%s\n' "$_dig"
 }
 
-# @brief oci__pull_feature_tgz <oci-ref> <dest-tgz> — Pull OCI feature artifact as tgz.
+# @brief oci__pull_feature_tgz <oci-ref> <dest-tgz> — Pull an OCI devcontainer feature artifact and write it as a `.tgz` file to `<dest-tgz>`.
+#
+# Validates that the pulled artifact contains `install.sh` and
+# `devcontainer-feature.json` before writing.
+#
+# Args:
+#   <oci-ref>   Full OCI image reference (e.g. `ghcr.io/owner/repo:tag`).
+#   <dest-tgz>  Destination path for the feature `.tgz` file.
+#
+# Returns: 0 on success, 1 on pull failure or invalid artifact shape.
 oci__pull_feature_tgz() {
   local _ref="${1-}" _dest="${2-}" _target _plain
   [[ -n "$_ref" && -n "$_dest" ]] || {

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# OS and hardware detection: cached accessors for kernel, arch, distro ID, and platform tag.
+#
+# Results for `os__kernel` and `os__arch` are cached for the lifetime of the
+# script. `os__platform` maps OS IDs to a canonical tag (`debian`, `alpine`,
+# `rhel`, `suse`, `macos`).
 
 [ -n "${_OS__LIB_LOADED-}" ] && return 0
 _OS__LIB_LOADED=1
@@ -16,37 +21,47 @@ _OS__CODENAME=""
 _OS__PLATFORM=""
 _OS__RELEASE_LOADED=""
 
-# @brief os__kernel — Prints the kernel name (`Linux` or `Darwin`). Cached; use instead of `uname -s`.
+# @brief os__kernel — Print the kernel name (`Linux` or `Darwin`). Cached; use instead of `uname -s`.
+#
+# Stdout: kernel name.
 os__kernel() {
   [ -n "${_OS__KERNEL-}" ] || _OS__KERNEL="$(uname -s)"
   echo "$_OS__KERNEL"
   return 0
 }
 
-# @brief os__arch — Prints the CPU architecture (e.g. `x86_64`, `aarch64`). Cached; use instead of `uname -m`.
+# @brief os__arch — Print the CPU architecture (e.g. `x86_64`, `aarch64`). Cached; use instead of `uname -m`.
+#
+# Stdout: architecture string.
 os__arch() {
   [ -n "${_OS__ARCH-}" ] || _OS__ARCH="$(uname -m)"
   echo "$_OS__ARCH"
   return 0
 }
 
-# @brief os__id — Prints the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`).
+# @brief os__id — Print the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`).
+#
+# Stdout: distro ID string, or empty on macOS.
 os__id() {
   _os__load_release
   echo "${_OS__ID:-}"
   return 0
 }
 
-# @brief os__id_like — Prints the `ID_LIKE` field from `/etc/os-release` (space-separated distro family list).
+# @brief os__id_like — Print the `ID_LIKE` field from `/etc/os-release` (space-separated distro family list).
+#
+# Stdout: distro family string, or empty if absent.
 os__id_like() {
   _os__load_release
   echo "${_OS__ID_LIKE:-}"
   return 0
 }
 
-# @brief os__platform — Prints a canonical platform tag: `debian` | `alpine` | `rhel` | `suse` | `macos`.
+# @brief os__platform — Print a canonical platform tag: `debian` | `alpine` | `rhel` | `suse` | `macos`.
 #
 # Falls back to `debian` for unrecognised Linux distros.
+#
+# Stdout: one of `debian`, `alpine`, `rhel`, `suse`, `macos`.
 os__platform() {
   if [ -n "${_OS__PLATFORM-}" ]; then
     echo "$_OS__PLATFORM"
@@ -74,7 +89,7 @@ os__platform() {
   return 0
 }
 
-# @brief os__require_root — Exits 1 with an error message if the current user is not root.
+# @brief os__require_root — Exit 1 with an error message if the current user is not root.
 os__require_root() {
   if [ "$(id -u)" -ne 0 ]; then
     logging__error 'This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.'
@@ -83,12 +98,9 @@ os__require_root() {
   return 0
 }
 
-# @brief os__font_dir — Print the font directory for the current user.
+# @brief os__font_dir — Print the platform-appropriate font directory for the current user.
 #
-# Stdout:
-#   root (id -u = 0)  /usr/share/fonts
-#   macOS non-root    ~/Library/Fonts
-#   Linux non-root    ${XDG_DATA_HOME:-~/.local/share}/fonts
+# Stdout: `/usr/share/fonts` (root), `~/Library/Fonts` (macOS non-root), or `${XDG_DATA_HOME:-~/.local/share}/fonts` (Linux non-root).
 os__font_dir() {
   if [ "$(id -u)" -eq 0 ]; then
     echo "/usr/share/fonts"
@@ -100,10 +112,10 @@ os__font_dir() {
   return 0
 }
 
-# @brief os__is_container — Returns 0 if running inside a container (Docker, Podman, Kubernetes, CI), 1 otherwise.
+# @brief os__is_container — Return 0 if running inside a container (Docker, Podman, Kubernetes, CI), 1 otherwise.
 #
-# Uses the same heuristics as Homebrew's check-run-command-as-root()
-# (Library/Homebrew/brew.sh) so that brew can run as root in devcontainers.
+# Uses the same heuristics as Homebrew's `check-run-command-as-root()` so that
+# brew can run as root in devcontainers.
 os__is_container() {
   [ -f /.dockerenv ] && return 0
   [ -f /run/.containerenv ] && return 0
@@ -136,16 +148,25 @@ _os__load_release() {
   return 0
 }
 
-# @brief os__codename — Prints `VERSION_CODENAME` from `/etc/os-release` (e.g. `jammy`, `bookworm`). Empty string if absent or on macOS.
+# @brief os__codename — Print `VERSION_CODENAME` from `/etc/os-release` (e.g. `jammy`, `bookworm`); empty string if absent or on macOS.
 #
-# Falls back to UBUNTU_CODENAME if VERSION_CODENAME is absent.
+# Falls back to `UBUNTU_CODENAME` when `VERSION_CODENAME` is absent.
+#
+# Stdout: distro codename, or empty string.
 os__codename() {
   _os__load_release
   echo "${_OS__CODENAME:-}"
   return 0
 }
 
-# @brief os__run_as <user> [--cwd <dir>] -- <command> [args] — If already <user>, run in-process; else su -l with bash %q-quoted argv. Requires bash on PATH for the non-self path.
+# @brief os__run_as <user> [--cwd <dir>] -- <command> [args] — Run a command as `<user>`: in-process if already that user, otherwise via `su -l` with bash-quoted argv.
+#
+# Requires `bash` on PATH for the non-self path.
+#
+# Args:
+#   <user>       Username to run as.
+#   --cwd <dir>  Working directory for the command (optional).
+#   -- <cmd>...  Command and arguments to execute.
 os__run_as() {
   if [ -z "$1" ]; then
     return 1

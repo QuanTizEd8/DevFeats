@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# uri.sh — Resolve local paths and remote URIs to materialized files for feature installers.
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# URI resolution: materialize local paths and remote URIs to files for feature installers.
+#
+# Resolves local paths (with optional verification) and remote URIs (HTTPS,
+# GitHub release shortcuts) to a materialized local file. Used by feature
+# installers to obtain binaries regardless of source type.
 
 [[ -n "${_URI__LIB_LOADED-}" ]] && return 0
 _URI__LIB_LOADED=1
@@ -92,7 +95,12 @@ _uri__dest_for_uri() {
   printf '%s/%s-%s\n' "$_dir" "$_id" "$_base"
 }
 
-# @brief uri__classify <input> — Echo local | file | http | oci | gh | unknown (non-zero).
+# @brief uri__classify <input> — Print the URI class: `local` | `file` | `http` | `oci` | `gh`. Returns non-zero for unsupported schemes.
+#
+# Args:
+#   <input>  URI or local path to classify.
+#
+# Stdout: one of `local`, `file`, `http`, `oci`, `gh`.
 uri__classify() {
   local _in="$1"
   local _base
@@ -182,10 +190,22 @@ _uri__resolve_oci_to() {
   return 0
 }
 
-# @brief uri__resolve <input> <dest-file> [--header <H>]... [--netrc-file <path>] [--chmod-exec]
-# Materialize <input> to <dest-file>. For local paths, copies when needed.
-# Optional #sha256=<hex> fragment is verified after fetch.
-# --chmod-exec: chmod +x on dest after successful resolve (for scripts).
+# @brief uri__resolve <input> <dest-file> [--header <H>]... [--netrc-file <path>] [--chmod-exec] — Materialize `<input>` to `<dest-file>`. For local paths, copies when needed.
+#
+# Supports `http(s)://`, `file://`, `gh://`, `oci://`, and plain local paths.
+# An optional `#sha256=<hex>` fragment in `<input>` is verified after fetch.
+# `--chmod-exec` runs `chmod +x` on `<dest-file>` after a successful resolve.
+#
+# Args:
+#   <input>              URI, local path, or `gh://owner/repo@ref:path` shorthand.
+#   <dest-file>          Destination file path.
+#   --header <H>         HTTP request header; repeatable.
+#   --netrc-file <path>  Optional netrc file for HTTP authentication.
+#   --chmod-exec         chmod +x on dest after successful resolve.
+#
+# Stdout: the resolved `<dest-file>` path.
+#
+# Returns: 0 on success, 1 on fetch or verification failure.
 uri__resolve() {
   local _input="$1" _dest="$2"
   shift 2
@@ -280,8 +300,15 @@ uri__resolve() {
   return 0
 }
 
-# @brief uri__resolve_line <input> <materialize-dir> [--header <H>]... [--netrc-file <path>]
-# For local inputs, prints the original path. For remote inputs, materializes under materialize-dir and prints path.
+# @brief uri__resolve_line <input> <materialize-dir> [--header <H>]... [--netrc-file <path>] — For local inputs, print the original path. For remote inputs, materialize under `<materialize-dir>` and print the resulting path.
+#
+# Args:
+#   <input>              URI or local path.
+#   <materialize-dir>    Directory used to store downloaded files for remote URIs.
+#   --header <H>         HTTP request header; repeatable.
+#   --netrc-file <path>  Optional netrc file for HTTP authentication.
+#
+# Stdout: resolved local file path.
 uri__resolve_line() {
   local _input="$1" _mdir="$2"
   shift 2
@@ -314,8 +341,15 @@ uri__resolve_line() {
   return 0
 }
 
-# @brief uri__resolve_list <newline-separated-list> <materialize-dir> [--header <H>]... [--netrc-file <path>]
-# Prints one output path per non-empty input line.
+# @brief uri__resolve_list <newline-separated-list> <materialize-dir> [--header <H>]... [--netrc-file <path>] — Resolve each non-empty line of `<newline-separated-list>` and print one output path per line.
+#
+# Args:
+#   <newline-separated-list>  Newline-separated list of URIs or local paths.
+#   <materialize-dir>         Directory used to store downloaded files for remote URIs.
+#   --header <H>              HTTP request header; repeatable.
+#   --netrc-file <path>       Optional netrc file for HTTP authentication.
+#
+# Stdout: one resolved local file path per non-empty input line.
 uri__resolve_list() {
   local _list="$1" _mdir="$2"
   shift 2

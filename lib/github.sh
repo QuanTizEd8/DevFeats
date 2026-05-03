@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Do not edit _lib/ copies directly — edit lib/ instead.
+# GitHub Releases API: fetch JSON, resolve versions, select and download release assets.
 #
-# Requires net.sh (and ospkg.sh) to have been sourced first. Loads json.sh from
-# the same lib directory (see _json_sh resolution below).
+# Fetches release metadata via the GitHub API, resolves version specs, selects
+# platform-appropriate assets using arch/platform heuristics, and downloads
+# them with optional SHA-256 verification.
+# Requires `net.sh`, `ospkg.sh`, and `json.sh` to be sourced first.
 # Respects `GITHUB_TOKEN` for all API calls.
 
 [ -n "${_GITHUB__LIB_LOADED-}" ] && return 0
@@ -16,14 +18,18 @@ _GITHUB__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
 #
-# Without --tag: fetches /releases/latest. With --tag: fetches
-# /releases/tags/<tag>. Without --dest: writes JSON to stdout.
-# Respects GITHUB_TOKEN (sets Authorization: Bearer automatically).
+# Without `--tag`: fetches `/releases/latest`. With `--tag`: fetches
+# `/releases/tags/<tag>`. Respects `GITHUB_TOKEN` (sets
+# `Authorization: Bearer` automatically).
 #
 # Args:
-#   <owner/repo>   GitHub repository in "owner/repo" format.
+#   <owner/repo>   GitHub repository in `owner/repo` format.
 #   --tag <tag>    Release tag to fetch (optional; defaults to latest).
 #   --dest <file>  Write JSON to this file instead of stdout (optional).
+#
+# Stdout: release JSON (suppressed when `--dest` is given).
+#
+# Returns: 0 on success, 1 on HTTP error or missing tool.
 github__fetch_release_json() {
   local _repo="$1"
   shift
@@ -58,10 +64,17 @@ github__fetch_release_json() {
   return $?
 }
 
-# @brief github__release_json_tag_name <file> — Print tag_name from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk).
+# @brief github__release_json_tag_name <file> — Print `tag_name` from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk).
 #
-# Prefers jq (via json__query) for correct parsing on minified or pretty JSON. Falls back to
-# grep -o for tag_name only (first root tag_name key).
+# Prefers jq (via `json__query`) for correct parsing on minified or pretty JSON.
+# Falls back to `grep -o` for `tag_name` only (first root `tag_name` key).
+#
+# Args:
+#   <file>  Path to a GitHub release JSON file.
+#
+# Stdout: tag name string (e.g. `v1.2.3`).
+#
+# Returns: 0 on success, 1 if unreadable or tag_name not found.
 github__release_json_tag_name() {
   local _f="$1"
   local _line
@@ -74,26 +87,35 @@ github__release_json_tag_name() {
   printf '%s\n' "$_line" | sed 's/^"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)"$/\1/'
 }
 
-# @brief github__release_json_id <file> — Print the root release numeric id from a single-release JSON file.
+# @brief github__release_json_id <file> — Print the root release numeric `id` from a single-release JSON file.
 #
-# Uses jq (via json__query). A plain-text grep for the first "id" is unsafe on minified
-# responses (asset objects include "id" before the root release id).
+# Uses jq (via `json__query`). Plain-text grep for the first `"id"` is unsafe on minified
+# responses where asset objects include `"id"` before the root release `id`.
+#
+# Args:
+#   <file>  Path to a GitHub release JSON file.
+#
+# Stdout: numeric release id.
+#
+# Returns: 0 on success, 1 if unreadable or id not found.
 github__release_json_id() {
   local _f="$1"
   [ -r "$_f" ] || return 1
   json__root_scalar_stdin id < "$_f"
 }
 
-# @brief github__release_json_digest_for_asset <release.json> <asset_name> — Print lowercase hex SHA-256 from the GitHub Releases API asset `digest` field (`sha256:…`) for the asset whose `name` equals <asset_name> exactly.
+# @brief github__release_json_digest_for_asset <release.json> <asset_name> — Print lowercase hex SHA-256 from the GitHub Releases API asset `digest` field for the asset whose `name` equals `<asset_name>` exactly.
 #
 # Newer releases publish `digest` on each asset; older releases omit it — callers
 # should fall back to a downloaded `.sha256` sidecar when this returns 1.
 #
 # Args:
 #   <release.json>  Path to a `/releases/latest` or `/releases/tags/…` JSON file.
-#   <asset_name>      Exact `name` value of the release asset (e.g. `fzf-0.71.0-linux_amd64.tar.gz`).
+#   <asset_name>    Exact `name` value of the release asset (e.g. `fzf-0.71.0-linux_amd64.tar.gz`).
 #
-# Stdout: 64-character lowercase hex digest. Returns 1 if unreadable, unparsable, not found, or digest absent.
+# Stdout: 64-character lowercase hex digest.
+#
+# Returns: 0 on success, 1 if unreadable, unparsable, not found, or digest absent.
 github__release_json_digest_for_asset() {
   local _f="$1" _name="$2" _out=""
   [ -r "$_f" ] || return 1
@@ -114,10 +136,19 @@ github__release_json_digest_for_asset() {
   return 0
 }
 
-# @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset; verify SHA-256 if digest is in the API (requires net.sh, verify__sha).
+# @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset and verify its SHA-256 if a digest is available in the API.
 #
-# URL: ${SYSSET_RELEASE_BASE:-https://github.com/<repo>/releases/download}/<tag>/<asset-name>
-# Respects the same GITHUB API auth as github__fetch_release_json.
+# The download URL is `${SYSSET_RELEASE_BASE:-https://github.com/<repo>/releases/download}/<tag>/<asset-name>`.
+# Respects the same GitHub API auth as `github__fetch_release_json`.
+# Requires `net.sh` to be sourced and `verify__sha` to be available.
+#
+# Args:
+#   <owner/repo>   GitHub repository in "owner/repo" format.
+#   <tag>          Release tag (e.g. `v1.2.3`).
+#   <asset-name>   Exact asset filename (e.g. `fzf-0.71.0-linux_amd64.tar.gz`).
+#   <dest-file>    Destination path to write the downloaded file.
+#
+# Returns: 0 on success, 1 on download failure or SHA-256 mismatch.
 github__fetch_release_asset_tarball() {
   local _repo="$1" _tag="$2" _asset="$3" _dest="$4"
   local _rel _digest _url
@@ -159,12 +190,14 @@ github__fetch_release_asset_tarball() {
   return 0
 }
 
-# @brief github__latest_tag <owner/repo> — Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed.
+# @brief github__latest_tag <owner/repo> — Print the latest release tag name.
 #
 # Args:
 #   <owner/repo>  GitHub repository in "owner/repo" format.
 #
 # Stdout: the tag name (e.g. `v1.2.3`).
+#
+# Returns: 0 on success, 1 if the API call fails or the tag cannot be parsed.
 github__latest_tag() {
   local _repo="$1"
   local _json _tag
@@ -326,8 +359,9 @@ github__release_tags() {
 #   --all              Paginate through every release when listing is needed
 #                      (default: first page only).
 #
-# Stdout: resolved tag name (e.g. `v1.2.3`, `install-pixi/1.2.3`). Returns 1
-# if no match found.
+# Stdout: resolved tag name (e.g. `v1.2.3`, `install-pixi/1.2.3`).
+#
+# Returns: 0 on success, 1 if no match found.
 github__resolve_version() {
   local _repo="$1"
   shift

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# net.sh — HTTP fetch helpers (curl / wget). Bash >=4.
-# _net__ensure_fetch_tool and _net__ensure_ca_certs are internal helpers.
-# They auto-install curl or ca-certificates via ospkg when absent.
+# HTTP fetch helpers with retry support using curl or wget.
+#
+# Auto-detects `curl` or `wget` (installs via `ospkg` if absent). All fetch
+# functions support configurable retries, delay between attempts, and custom
+# HTTP headers.
 
 [ -n "${_NET__LIB_LOADED-}" ] && return 0
 _NET__LIB_LOADED=1
@@ -39,6 +41,8 @@ _net__hdrs_with_default_ua() {
 #   --bail-on CODE   If the command exits with CODE, stop immediately without
 #                    retrying (use for non-transient configuration errors).
 #   <cmd...>         Command and arguments to run.
+#
+# Returns: 0 on success, 1 after all retries exhausted.
 net__fetch_with_retry() {
   local _max=60 _delay=5 _bail_on=""
   while [ $# -gt 0 ]; do
@@ -85,12 +89,15 @@ net__fetch_with_retry() {
 # _net__ensure_fetch_tool automatically if not already initialised.
 #
 # Args:
-#   <url>          URL to download.
-#   --retries N    Maximum number of attempts (default: 60, ≈5 min at 5s).
-#   --delay N      Seconds between failures (default: 5).
-#   --header <H>   Request header (e.g. "Authorization: Bearer $TOKEN").
-#                  May be specified multiple times.
-#   --netrc-file <path>  Optional netrc file for HTTP authentication (curl/wget).
+#   <url>                URL to download.
+#   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
+#   --delay N            Seconds between failures (default: 5).
+#   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
+#   --netrc-file <path>  Optional netrc file for HTTP authentication.
+#
+# Stdout: downloaded content.
+#
+# Returns: 0 on success, non-zero on HTTP error or timeout.
 net__fetch_url_stdout() {
   local _url="$1"
   shift
@@ -160,13 +167,14 @@ _NET_HDR_EOF_
 # _net__ensure_fetch_tool automatically if not already initialised.
 #
 # Args:
-#   <url>          URL to download.
-#   <dest>         Destination file path.
-#   --retries N    Maximum number of attempts (default: 60, ≈5 min at 5s).
-#   --delay N      Seconds between failures (default: 5).
-#   --header <H>   Request header (e.g. "Authorization: Bearer $TOKEN").
-#                  May be specified multiple times.
-#   --netrc-file <path>  Optional netrc file for HTTP authentication (curl/wget).
+#   <url>                URL to download.
+#   <dest>               Destination file path.
+#   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
+#   --delay N            Seconds between failures (default: 5).
+#   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
+#   --netrc-file <path>  Optional netrc file for HTTP authentication.
+#
+# Returns: 0 on success, non-zero on HTTP error or timeout.
 net__fetch_url_file() {
   local _url="$1"
   local _dest="$2"
