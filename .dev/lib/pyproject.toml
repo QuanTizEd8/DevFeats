@@ -10,6 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
+proman-sync = "proman.cli.sync:main"
 proman-gen-docs-data = "proman.cli.gen_docs_data:main"
 
 [build-system]
