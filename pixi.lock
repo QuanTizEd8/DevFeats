@@ -6374,7 +6374,7 @@ packages:
 - pypi: ./.dev/lib
   name: proman
   version: 0.1.0
-  sha256: 5ea5dcb4751d6d7128965a2fa8e38567d61e48a3739f69e7ef4ce357b94978a9
+  sha256: 74e19886295be5250c6bcf2dd2279b27aa230c2807b1f2de7735b78de766b8da
   requires_dist:
   - pyyaml>=6
   - jsonschema>=4
