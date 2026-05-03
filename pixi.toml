@@ -9,6 +9,9 @@ platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
 [dependencies]
 python = { version = "3.13.*", channel = "conda-forge" }
 
+[pypi-dependencies]
+proman = { path = ".dev/lib", editable = true }
+
 
 # ── Environments ──────────────────────────────────────────────────────────────
 
