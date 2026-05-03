@@ -18,9 +18,9 @@ def log(msg: str) -> None:
 # Metadata Reading
 # ----------------
 
-def read_metadata(feature_id: str) -> dict | Literal[0, 1]:
+def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 1]:
     """Read and parse the metadata.yaml for the given feature ID."""
-    metadata_filepath = FEATURES_DIRPATH / feature_id / "metadata.yaml"
+    metadata_filepath = features_dirpath / feature_id / "metadata.yaml"
     if not metadata_filepath.is_file():
         log(f"⚠️ {feature_id}: metadata.yaml not found for feature '{feature_id}'; skipping")
         return 0
@@ -41,7 +41,7 @@ def read_metadata(feature_id: str) -> dict | Literal[0, 1]:
 # Metadata Augmentation
 # ---------------------
 
-def augment_metadata(feature_id: str, metadata: dict) -> bool:
+def augment_metadata(feature_id: str, metadata: dict, derived_options: dict) -> bool:
     """Generate the full options dict for a feature.
 
     Add common options from features/shared-options.yaml,
@@ -50,7 +50,7 @@ def augment_metadata(feature_id: str, metadata: dict) -> bool:
     """
 
     options: dict = metadata.get("options", {})
-    for option_id, option_def in _derived_options.items():
+    for option_id, option_def in derived_options.items():
         if option_id in options:
             log(f"⛔ {feature_id}: option '{option_id}' is a derived option and cannot be manually defined in metadata.yaml")
             return False
@@ -107,14 +107,16 @@ def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
     return True, current
 
 
-with COMMON_OPTIONS_FILEPATH.open(encoding="utf-8") as _fh:
-    _derived_options: dict = yaml.safe_load(_fh)
+def load_derived_options(features_dirpath: Path) -> dict:
+    with (features_dirpath / "shared-options.yaml").open(encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
 # Schema Validation
 # -----------------
 
-def validate_metadata_schema(feature_id: str, metadata: dict) -> bool:
+def validate_metadata_schema(feature_id: str, metadata: dict, validator: jsonschema.Draft7Validator) -> bool:
     errs = sorted(
-        _metadata_schema_validator.iter_errors(metadata),
+        validator.iter_errors(metadata),
         key=lambda e: list(e.absolute_path),
     )
     if errs:
@@ -130,26 +132,31 @@ def validate_metadata_schema(feature_id: str, metadata: dict) -> bool:
     return True
 
 
-def _get_metadata_schema_validator():
-    metadata_schema = json.loads(METADATA_SCHEMA_FILEPATH.read_text(encoding="utf-8"))
-    _rewrite_remote_refs(metadata_schema)
+def build_metadata_validator(
+    features_dirpath: Path,
+    lib_dirpath: Path,
+    ospkg_schema_id: str,
+) -> jsonschema.Draft7Validator:
+    schema_path = features_dirpath / "metadata.schema.json"
+    ospkg_manifest_path = lib_dirpath / "ospkg.manifest.schema.json"
+    metadata_schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    _rewrite_remote_refs(metadata_schema, ospkg_schema_id, ospkg_manifest_path)
     return jsonschema.Draft7Validator(metadata_schema)
 
 
-def _rewrite_remote_refs(obj: object) -> None:
+def _rewrite_remote_refs(obj: object, ospkg_schema_id: str, ospkg_manifest_path: Path) -> None:
     """Replace the remote manifest $ref with the local file:// URI (in-place)."""
     if isinstance(obj, dict):
-        if obj.get("$ref", "").lower() == OSPKG_MANIFEST_SCHEMA_ID.lower():
-            obj["$ref"] = OSPKG_MANIFEST_SCHEMA_FILEPATH.as_uri()
+        if obj.get("$ref", "").lower() == ospkg_schema_id.lower():
+            obj["$ref"] = ospkg_manifest_path.as_uri()
         for v in obj.values():
-            _rewrite_remote_refs(v)
+            _rewrite_remote_refs(v, ospkg_schema_id, ospkg_manifest_path)
     elif isinstance(obj, list):
         for item in obj:
-            _rewrite_remote_refs(item)
+            _rewrite_remote_refs(item, ospkg_schema_id, ospkg_manifest_path)
     return
 
 
-_metadata_schema_validator = _get_metadata_schema_validator()
 # Markdown Sanitation
 # -------------------
 
