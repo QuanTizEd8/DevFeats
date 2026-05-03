@@ -13,8 +13,8 @@ python = { version = "3.13.*", channel = "conda-forge" }
 # ── Environments ──────────────────────────────────────────────────────────────
 
 [environments]
-default = { features = ["proman"], solve-group = "main" }
-docs = { features = ["docs"], solve-group = "main" }
+default = { features = ["proman"] }
+docs = { features = ["docs"] }
 
 
 # ── ProMan Feature ────────────────────────────────────────────────────────────
