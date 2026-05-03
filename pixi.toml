@@ -91,7 +91,7 @@ cmd = "python -m sphinx -b $SPHINX_BUILDER $SPHINX_BUILD_OPTIONS -c . source .bu
 
 [feature.docs.tasks.build-website-live]
 cwd = "docs"
-cmd = "python -m sphinx_autobuild source .build -c . --watch ../features --pre-build 'pixi run --environment default gen-docs-data'"
+cmd = "python -m sphinx_autobuild source .build --conf-dir . --watch ../features --watch ../.dev/ --pre-build 'pixi run --environment default gen-docs-data' --jobs auto --write-all --nitpicky --open-browser"
 
 [feature.docs.activation.env]
 SPHINX_BUILDER = "dirhtml"
