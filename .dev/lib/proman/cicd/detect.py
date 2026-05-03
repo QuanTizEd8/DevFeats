@@ -40,13 +40,26 @@ FEATURE_DIRPATH = "features"
 
 
 SELF_FILEPATH = Path(__file__).resolve()
-REPO_ROOT = Path(
-    subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=SELF_FILEPATH.parent,
-        text=True,
-    ).strip(),
-)
+_DETECT_REPO_RELPATH = ".dev/lib/proman/cicd/detect.py"
+
+
+def _resolve_repo_root() -> Path:
+    for start in (Path.cwd(), SELF_FILEPATH.parent):
+        try:
+            out = subprocess.check_output(
+                ["git", "rev-parse", "--show-toplevel"],
+                cwd=str(start),
+                text=True,
+                stderr=subprocess.DEVNULL,
+            )
+            return Path(out.strip())
+        except subprocess.CalledProcessError:
+            continue
+    msg = "Cannot determine git repository root from CWD or script location."
+    raise RuntimeError(msg)
+
+
+REPO_ROOT = _resolve_repo_root()
 PATHS_FILE = REPO_ROOT / CI_TRIGGER_PATHS_FILEPATH
 LOG = logging.getLogger("cicd_detect")
 
@@ -519,7 +532,7 @@ def main() -> None:
             changed,
             [
                 ".github/workflows/*.yaml",
-                SELF_FILEPATH.relative_to(REPO_ROOT).as_posix(),
+                _DETECT_REPO_RELPATH,
             ],
         )
     )
