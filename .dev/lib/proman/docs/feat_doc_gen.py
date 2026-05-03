@@ -1,6 +1,11 @@
 """Generate feature documentation from metadata.yaml and NOTES.md files."""
 
+import json
 from typing import Any
+
+import mdit
+
+from proman.git import git_owner_repo
 
 
 def generate(metadata: dict[str, Any], notes: str = "") -> str:
@@ -9,15 +14,59 @@ def generate(metadata: dict[str, Any], notes: str = "") -> str:
     description = metadata["description"].strip()
     long_description = metadata.get("_long_description", "").strip()
     options = _render_options_table(metadata)
+    example = _generate_usage_tabset(metadata)
     parts = [
         f"# {name}",
         description,
         long_description,
+        "## Example Usage",
+        example,
         options,
         notes,
     ]
     sep = "\n\n"
     return sep.join(parts).strip() + "\n"
+
+
+def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
+    feat_id = metadata.get("id", "")
+    major = metadata.get("version", "1").split(".")[0]
+    owner, repo_name = git_owner_repo()
+    feature_ref = f"ghcr.io/{owner}/{repo_name}/{feat_id}:{major}"
+
+    options = metadata.get("options", {})
+    defaults = {k: v.get("default") for k, v in options.items()}
+
+    dc_json_lines = json.dumps({"features": {feature_ref: defaults}}, indent=2).splitlines()
+    dc_json = "\n".join(
+        [
+            "// devcontainer.json",
+            *dc_json_lines[:-2],
+            "    // other features...",
+            dc_json_lines[-2],
+            "  // other properties...",
+            dc_json_lines[-1]
+        ]
+    )
+
+    items = list(defaults.items())
+    cli_lines = [f"{feat_id} \\"]
+    for i, (k, v) in enumerate(items):
+        flag = f"--{k.replace('_', '-')}"
+        val = str(v).lower() if isinstance(v, bool) else (v if v != "" else '""')
+        suffix = " \\" if i < len(items) - 1 else ""
+        cli_lines.append(f"  {flag} {val}{suffix}")
+    cli_code = "\n".join(cli_lines)
+
+    ts = mdit.element.TabSet(mdit.block_container())
+    ts.append(mdit.element.CodeBlock(dc_json, language="json"), title="Dev Container")
+    ts.append(mdit.element.CodeBlock(cli_code, language="bash"), title="CLI")
+    tabset_str = ts.source(target="sphinx")
+    description = (
+        "For demonstration purposes, all available options are explicitly included with their default values. "
+        "In real usage, you only need to specify the options you want to override."
+    )
+    return f"{description}\n\n{tabset_str}"
 
 
 def _render_options_table(data: dict) -> str:
