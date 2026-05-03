@@ -147,11 +147,11 @@ def discover_macos_capable() -> List[str]:
         Sorted unique feature/test identifiers that have macOS scenarios.
     """
     # Preserve shell parity with:
-    # find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*"
+    # find test/features -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*"
     out = sh(
         [
             "find",
-            "test",
+            "test/features",
             "-mindepth",
             "3",
             "-maxdepth",
@@ -164,7 +164,7 @@ def discover_macos_capable() -> List[str]:
     )
     ids = set()
     for line in out.splitlines():
-        rel = line.strip().removeprefix("test/")
+        rel = line.strip().removeprefix("test/features/")
         if "/macos/" in rel:
             ids.add(rel.split("/macos/", 1)[0])
     return sorted(ids)
@@ -500,12 +500,12 @@ def main() -> None:
             features = [
                 f
                 for f in all_feature_ids
-                if any(p.startswith(f"features/{f}/") or p.startswith(f"test/{f}/") for p in changed)
+                if any(p.startswith(f"features/{f}/") or p.startswith(f"test/features/{f}/") for p in changed)
             ]
             macos_features = [
                 f
                 for f in macos_capable
-                if any(p.startswith(f"features/{f}/") or p.startswith(f"test/{f}/") for p in changed)
+                if any(p.startswith(f"features/{f}/") or p.startswith(f"test/features/{f}/") for p in changed)
             ]
         run_features = bool(features)
         run_macos = bool(macos_features)
