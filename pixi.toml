@@ -26,8 +26,8 @@ proman = { path = ".dev/lib", editable = true }
 gen-docs-data = "proman-gen-docs-data"
 sync = "proman-sync"
 sync-check = "proman-sync --check"
-gen-docs = "python .dev/scripts/docs/gen_docs.py"
-gen-docs-check = "python .dev/scripts/docs/gen_docs.py --check"
+gen-docs = "proman-gen-docs"
+gen-docs-check = "proman-gen-docs --check"
 
 
 # ── Docs / Website Feature ────────────────────────────────────────────────────
