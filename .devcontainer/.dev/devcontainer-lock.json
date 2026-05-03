@@ -1,0 +1,64 @@
+{
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "2.16.1",
+      "resolved": "ghcr.io/devcontainers/features/docker-in-docker@sha256:ce078b7bf7d9ef3bcb9813b32103795d8d72172446890b64772cbe1dec6baafd",
+      "integrity": "sha256:ce078b7bf7d9ef3bcb9813b32103795d8d72172446890b64772cbe1dec6baafd"
+    },
+    "ghcr.io/quantized8/sysset/install-devcontainer-cli": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-devcontainer-cli@sha256:16d4eb36fa7086a1c26ae3d24d2682ad29aaa8a2db4a032c08a80eacacd3390d",
+      "integrity": "sha256:16d4eb36fa7086a1c26ae3d24d2682ad29aaa8a2db4a032c08a80eacacd3390d"
+    },
+    "ghcr.io/quantized8/sysset/install-gh": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-gh@sha256:c6999931282f136cd1a17d0c64965548a6f2bd0a655081cff1cf172082778e8a",
+      "integrity": "sha256:c6999931282f136cd1a17d0c64965548a6f2bd0a655081cff1cf172082778e8a"
+    },
+    "ghcr.io/quantized8/sysset/install-jq": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-jq@sha256:37496fb34d0d83c2d5be8b378a6a6d5e1ce28eb1c732ee81c4000b83fcb8722d",
+      "integrity": "sha256:37496fb34d0d83c2d5be8b378a6a6d5e1ce28eb1c732ee81c4000b83fcb8722d"
+    },
+    "ghcr.io/quantized8/sysset/install-just": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-just@sha256:9fb558dfec94f00e2645210b3b0ac04edc25fdfdc010bb89a0000b435bf20dff",
+      "integrity": "sha256:9fb558dfec94f00e2645210b3b0ac04edc25fdfdc010bb89a0000b435bf20dff"
+    },
+    "ghcr.io/quantized8/sysset/install-oras": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-oras@sha256:d4aaa3cdafe357f920de440200060ebed9bba2ee3e7e53e91bb458d5ea1642cf",
+      "integrity": "sha256:d4aaa3cdafe357f920de440200060ebed9bba2ee3e7e53e91bb458d5ea1642cf"
+    },
+    "ghcr.io/quantized8/sysset/install-pixi": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-pixi@sha256:39fe2f24a2a8ca7e02c23a66cdf04e69a8eb9a546baed8559dd917d3e65051f3",
+      "integrity": "sha256:39fe2f24a2a8ca7e02c23a66cdf04e69a8eb9a546baed8559dd917d3e65051f3"
+    },
+    "ghcr.io/quantized8/sysset/install-shell": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-shell@sha256:7ed29df3d1f7e425a58507ac1e1a69a3a78537f6a7b1eaebd6348fca479eeb70",
+      "integrity": "sha256:7ed29df3d1f7e425a58507ac1e1a69a3a78537f6a7b1eaebd6348fca479eeb70"
+    },
+    "ghcr.io/quantized8/sysset/install-shellcheck": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-shellcheck@sha256:bc472077251307acba7b61f7ea561dcd1a8402ce5ff0e8655b5c0561f7b27464",
+      "integrity": "sha256:bc472077251307acba7b61f7ea561dcd1a8402ce5ff0e8655b5c0561f7b27464"
+    },
+    "ghcr.io/quantized8/sysset/install-shfmt": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-shfmt@sha256:41451f6b3f4f6899f5098af70f867f434a8c1a46247e71ece0167cf544772923",
+      "integrity": "sha256:41451f6b3f4f6899f5098af70f867f434a8c1a46247e71ece0167cf544772923"
+    },
+    "ghcr.io/quantized8/sysset/install-yq": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-yq@sha256:9d4a8d3a3978cbbb82ef19eccf23a1c5fbf6bb4353aaac96b29691088003cfb3",
+      "integrity": "sha256:9d4a8d3a3978cbbb82ef19eccf23a1c5fbf6bb4353aaac96b29691088003cfb3"
+    },
+    "ghcr.io/quantized8/sysset/setup-user": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/setup-user@sha256:d4bce448ddb87bb7e1280aafacddb7cdeb44da3ee4359b135ebdf77039d3738c",
+      "integrity": "sha256:d4bce448ddb87bb7e1280aafacddb7cdeb44da3ee4359b135ebdf77039d3738c"
+    }
+  }
+}
