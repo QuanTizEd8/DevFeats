@@ -13,7 +13,7 @@ You work at DevFeats as a **Team Lead and Manager** — overseeing the entire so
 
 ## Rules and Constraints
 
-- NEVER edit generated files: all of `src/` is generated. Run `python3 scripts/sync-src.py` to regenerate `src/` from `features/` + `lib/` + `features/bootstrap.sh`.
+- NEVER edit generated files: all of `src/` is generated. Run `python3 scripts/sync-src.py` to regenerate `src/` from `features/` + `lib/` + `features/install.sh`.
 - NEVER skip the research phase. Always read `features/<feature-name>/dev-notes/feature.md` (and `implementation.md` if present) before implementing.
 - NEVER reimplement logic that already exists in `lib/`. Check the shared library first.
 - NEVER assume a single platform. Every code path must account for Linux (Debian, RHEL, Alpine, Arch) and macOS.
@@ -165,7 +165,7 @@ If the verdict is **NOT APPROVED**:
 ## Key Project Facts
 
 - **Generated files** (entire `src/`): never edit; run `python3 scripts/sync-src.py` to regenerate from `features/`.
-- **features/bootstrap.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files via `scripts/sync-src.py`.
+- **features/install.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files via `scripts/sync-src.py`.
 - **Dual distribution**: devcontainer features (GHCR) + standalone tarballs (GitHub Releases via `scripts/build-artifacts.sh`).
 - **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `scripts/sync-src.py`.
 - **Test layers**: bats unit tests (`test/unit/`), devcontainer scenario tests (`test/<feature-name>/`), fail scenarios, dry-run manifest tests.

@@ -19,7 +19,7 @@ just watch-gha --commit HEAD # after push — stream CI logs
 Run `just --list` for the full recipe list with descriptions. Key workflows:
 
 ```sh
-# Regenerate src/ from features/ + lib/ + bootstrap.sh
+# Regenerate src/ from features/ + lib/ + install.sh
 just sync
 
 # Format shell files in-place, then run shellcheck
@@ -75,7 +75,7 @@ The `detect` job in `cicd.yaml` runs `python3 .github/workflows/scripts/cicd_det
 | `install-os-pkg` in changed list | `test-os-pkg` (multi-distro matrix) |
 | `features/install.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
 
-`cicd_detect.py` also enforces the **version-bump discipline** on pull requests: any PR that touches `lib/`, `features/bootstrap.sh`, or a `features/<id>/` directory must bump the corresponding `metadata.yaml` version. A failed check names the features that need a bump. See {doc}`publishing` for full versioning rules.
+`cicd_detect.py` also enforces the **version-bump discipline** on pull requests: any PR that touches `lib/`, `features/install.sh`, or a `features/<id>/` directory must bump the corresponding `metadata.yaml` version. A failed check names the features that need a bump. See {doc}`publishing` for full versioning rules.
 
 CD (`cd.yaml`) runs only when:
 1. The push to `main` has at least one feature with an untagged version (determined by `scripts/detect-releasable.py` inside `cicd_detect.py`), **and**
@@ -167,9 +167,9 @@ Because `lib/` is embedded into every feature tarball as `_lib/`, a change
 in `lib/` semantically affects every feature's payload. A CI lint enforces
 the following rule on pull requests:
 
-> Any PR that touches `lib/`, `features/bootstrap.sh`, or a `features/<id>/`
+> Any PR that touches `lib/`, `features/install.sh`, or a `features/<id>/`
 > directory must bump the `version` in the corresponding `metadata.yaml`
-> file(s). For `lib/` and `features/bootstrap.sh` changes, **every** feature
+> file(s). For `lib/` and `features/install.sh` changes, **every** feature
 > that embeds the changed file must be bumped (in practice: all of them).
 
 The guard is implemented in

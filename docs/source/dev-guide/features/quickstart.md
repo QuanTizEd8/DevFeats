@@ -12,7 +12,7 @@ Each subdirectory of `features/` holds the source of one feature. The directory 
 
 The `features/` directory also contains some source files shared across features:
 
-- `bootstrap.sh`: A thin POSIX-compliant shim that ensures bash is available, then exec's the feature's `install.bash`.
+- `install.sh`: A thin POSIX-compliant shim that ensures bash is available, then exec's the feature's `install.bash`.
 - `features/shared-options.yaml`: Shared options that are injected into each feature at sync time.
 - `features/metadata.schema.json`: JSON Schema for `metadata.yaml` files.
 - `features/install-os-pkg/manifest.schema.json`: JSON Schema for `install-os-pkg` manifest files.

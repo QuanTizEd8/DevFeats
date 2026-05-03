@@ -211,8 +211,8 @@ def _gather_lib_files(lib_dirpath: Path) -> dict[Path, str]:
 
 
 def _gather_bootstrap(features_dirpath: Path) -> dict[Path, str]:
-    """Read features/bootstrap.sh and return it keyed as install.sh."""
-    bootstrap = (features_dirpath / "bootstrap.sh").read_text(encoding="utf-8")
+    """Read features/install.sh and return it keyed as install.sh."""
+    bootstrap = (features_dirpath / "install.sh").read_text(encoding="utf-8")
     return {Path("install.sh"): bootstrap}
 
 

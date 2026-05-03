@@ -329,7 +329,7 @@ def enforce_version_bump(
     if event_name != "pull_request":
         return
     libs_changed = any(p.startswith("lib/") for p in changed)
-    bootstrap_changed = "features/bootstrap.sh" in changed
+    bootstrap_changed = "features/install.sh" in changed
     needs_bump: list[str] = []
 
     for fid in feature_ids:

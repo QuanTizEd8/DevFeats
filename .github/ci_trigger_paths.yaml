@@ -12,7 +12,7 @@ unit_test:
   - "test/lib/**"
   - "test/support/**"
 scenario_test:
-  - "features/bootstrap.sh"
+  - "features/install.sh"
   - "lib/**"
   - "test/features/**"
 devcontainer:
