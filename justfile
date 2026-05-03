@@ -4,7 +4,6 @@
 # Global: bash, strict mode.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
-py := "bash scripts/python.sh"
 
 
 # ── Code quality ──────────────────────────────────────────────────────────────
@@ -75,39 +74,39 @@ lint *files:
   doc('Regenerate git-ignored src/ from features/, lib/, bootstrap (JSON, deps, install.bash, _lib/, files/).')
 ]
 sync:
-    {{py}} scripts/sync-src.py
+    pixi run sync
 
 
 [
   group('build'),
-  doc('Fail if src/ is stale or missing (no writes); same as scripts/sync-src.py --check.')
+  doc('Fail if src/ is stale or missing (no writes); same as .dev/scripts/build/sync-src.py --check.')
 ]
 sync-check:
-    {{py}} scripts/sync-src.py --check
+    pixi run sync-check
 
 
 [
   group('build'),
-  doc('Build dist/ release artifacts; pass args directly to scripts/build-artifacts.sh (e.g. just build-dist v1.2.3); runs sync first.')
+  doc('Build dist/ release artifacts; pass args directly to .dev/scripts/build/build-artifacts.sh (e.g. just build-dist v1.2.3); runs sync first.')
 ]
 build-dist *args: sync
-    bash scripts/build-artifacts.sh {{args}}
+    bash .dev/scripts/build/build-artifacts.sh {{args}}
 
 
 [
   group('build'),
-  doc('Preview which features need a new GitHub Release (queries GitHub API). Extra args pass through to scripts/detect-releasable.py.')
+  doc('Preview which features need a new GitHub Release (queries GitHub API). Extra args pass through to .dev/scripts/release/detect-releasable.py.')
 ]
 detect-releasable *args:
-    {{py}} scripts/detect-releasable.py --repo quantized8/devfeats {{args}}
+    pixi run python .dev/scripts/release/detect-releasable.py --repo quantized8/devfeats {{args}}
 
 
 [
   group('build'),
-  doc('Preview next bundle tag/notes/manifest JSON. Pass args to scripts/compute-bundle-tag.py (e.g. --notes-body, --manifest, --repo owner/name).')
+  doc('Preview next bundle tag/notes/manifest JSON. Pass args to .dev/scripts/release/compute-bundle-tag.py (e.g. --notes-body, --manifest, --repo owner/name).')
 ]
 compute-bundle-tag *args:
-    {{py}} scripts/compute-bundle-tag.py --repo quantized8/devfeats {{args}}
+    pixi run python .dev/scripts/release/compute-bundle-tag.py --repo quantized8/devfeats {{args}}
 
 
 # ── Testing ───────────────────────────────────────────────────────────────────
@@ -125,7 +124,7 @@ test-unit:
   doc('Run Python unit tests for scripts/ (stdlib unittest; no extra deps beyond PyYAML).')
 ]
 test-scripts:
-    {{py}} -m unittest discover -s test/scripts -t test/scripts -v
+    pixi run python -m unittest discover -s test/scripts -t test/scripts -v
 
 
 [
@@ -151,7 +150,7 @@ test-feature feat:
   doc('Regenerate injected doc markers (lib API tables in writing-features and lib.instructions).')
 ]
 gen-docs:
-    {{py}} scripts/gen_docs.py
+    pixi run gen-docs
 
 
 [
@@ -159,37 +158,33 @@ gen-docs:
   doc('CI: exit non-zero if gen-docs would modify tracked files.')
 ]
 gen-docs-check:
-    {{py}} scripts/gen_docs.py --check
+    pixi run gen-docs-check
 
 
 [
   group('docs'),
-  doc('Build Sphinx site to docs/.build/ (conda env devfeats-website from docs/environment.yaml).')
+  doc('Build Sphinx site to docs/.build/.')
 ]
 build-website:
-    conda run -n devfeats-website --no-capture-output \
-      python -m sphinx -b dirhtml -c docs docs/source docs/.build \
-      --keep-going --color --jobs auto
+    pixi run build-website
 
 
 [
   group('docs'),
-  doc('Live-rebuild Sphinx with browser preview (same conda env as docs).')
+  doc('Live-rebuild Sphinx with browser preview.')
 ]
 build-website-live:
-    conda run -n devfeats-website --no-capture-output \
-      python -m sphinx_autobuild docs/source docs/.build \
-      -b dirhtml -c docs --open-browser --watch docs/source --watch docs
+    pixi run build-website-live
 
 
 # ── Dev tooling ───────────────────────────────────────────────────────────────
 
 [
   group('dev'),
-  doc('Watch GHA via scripts/watch-gha-run.sh; pass args through directly (e.g. just watch-gha --run <id> or just watch-gha --commit <sha>). Logs in .local/logs/gha/.')
+  doc('Watch GHA via .dev/scripts/ci/watch-gha-run.sh; pass args through directly (e.g. just watch-gha --run <id> or just watch-gha --commit <sha>). Logs in .local/logs/gha/.')
 ]
 watch-gha *args:
-    bash scripts/watch-gha-run.sh {{args}}
+    bash .dev/scripts/ci/watch-gha-run.sh {{args}}
 
 
 [
