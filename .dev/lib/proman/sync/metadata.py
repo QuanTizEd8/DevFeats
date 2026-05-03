@@ -15,6 +15,17 @@ import yaml
 def log(msg: str) -> None:
     print(msg, file=sys.stderr)
 
+def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
+    """Read and augment metadata for a single feature; return None on failure."""
+    derived_options = load_derived_options(features_dirpath)
+    metadata = read_metadata(feature_id, features_dirpath)
+    if not isinstance(metadata, dict):
+        return None
+    if not augment_metadata(feature_id, metadata, derived_options):
+        return None
+    return metadata
+
+
 # Metadata Reading
 # ----------------
 
