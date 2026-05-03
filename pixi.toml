@@ -24,8 +24,8 @@ proman = { path = ".dev/lib", editable = true }
 
 [feature.proman.tasks]
 gen-docs-data = "proman-gen-docs-data"
-sync = "python .dev/scripts/build/sync-src.py"
-sync-check = "python .dev/scripts/build/sync-src.py --check"
+sync = "proman-sync"
+sync-check = "proman-sync --check"
 gen-docs = "python .dev/scripts/docs/gen_docs.py"
 gen-docs-check = "python .dev/scripts/docs/gen_docs.py --check"
 
