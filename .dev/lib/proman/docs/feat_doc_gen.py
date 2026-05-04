@@ -5,6 +5,7 @@ from typing import Any
 
 import mdit
 
+from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.git import git_owner_repo
 
 
@@ -26,9 +27,12 @@ def generate(metadata: dict[str, Any], notes: str = "") -> str:
         example,
         "## Options",
         options,
-        "## Notes",
-        notes,
     ]
+    lifecycle_notes = _generate_lifecycle_notes(metadata)
+    if lifecycle_notes:
+        parts.extend(["## Lifecycle Commands", lifecycle_notes])
+    if notes:
+        parts.extend(["## Notes", notes])
     sep = "\n\n"
     return sep.join(parts).strip() + "\n"
 
@@ -68,7 +72,6 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     dc_json_lines = json.dumps({"features": {feature_ref: defaults}}, indent=2).splitlines()
     dc_json = "\n".join(
         [
-            "// devcontainer.json",
             *dc_json_lines[:-2],
             "    // other features...",
             dc_json_lines[-2],
@@ -86,9 +89,15 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
         cli_lines.append(f"  {flag} {val}{suffix}")
     cli_code = "\n".join(cli_lines)
 
-    ts = mdit.element.TabSet(mdit.block_container())
-    ts.append(mdit.element.CodeBlock(dc_json, language="json"), title="Dev Container")
-    ts.append(mdit.element.CodeBlock(cli_code, language="bash"), title="CLI")
+    ts = mdit.element.tab_set()
+    ts.append(
+        mdit.element.code_block(dc_json, language="json", caption="{fas}`file-code` devcontainer.json"),
+        title="Dev Container"
+    )
+    ts.append(
+        mdit.element.code_block(cli_code, language="bash", caption="{fas}`terminal` Terminal"),
+        title="CLI"
+    )
     tabset_str = ts.source(target="sphinx")
     description = (
         "For demonstration purposes, all available options are explicitly included with their default values. "
@@ -153,6 +162,24 @@ def _generate_options_sections(data: dict) -> str:
     return "\n".join(rows) + "\n"
 
 
+def _generate_lifecycle_notes(metadata: dict) -> str:
+    tab_set = mdit.element.tab_set()
+    for key in LIFECYCLE_COMMAND_KEYS:
+        if key not in metadata:
+            continue
+        unordered_list = mdit.element.unordered_list()
+        for command in metadata[key].values():
+            command_code = mdit.element.code_block(command["command"], language="sh")
+            command_desc = command["description"]
+            container = mdit.block_container([command_desc, command_code])
+            unordered_list.append(container)
+        tab_set.append(unordered_list, title=key)
+    return str(tab_set.source(target="sphinx")) if tab_set.content else ""
+
+
+# ── helpers ──────────────────────────────────────────────────────────
+
+
 def _render_option_condition(condition: dict) -> str:
     """Render an option applicability condition to a human-readable string."""
     parts = []
@@ -169,8 +196,6 @@ def _render_option_condition(condition: dict) -> str:
             raise TypeError(msg)
     return " and ".join(parts)
 
-
-# ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _option_default_str(opt: dict) -> str:
     default = opt.get("default")
