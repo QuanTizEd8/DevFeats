@@ -1,6 +1,6 @@
 # Installation Guide
 
-Features are packaged as self-contained tarballs compliant with the [Dev Container Features Specification](https://containers.dev/implementors/features/), versioned according to Semantic Versioning, and [released](releases.md) as immutable artifacts to both [GitHub Container Registry](https://github.com/|{{github_user}}|?tab=packages&repo_name=|{{github_repo}}|) (GHCR) and [GitHub Releases](https://github.com/|{{github_user}}|/|{{github_repo}}|/releases). They can be downloaded and installed in any POSIX-compliant environment, including physical machines (e.g. to set up a new laptop or update a PC), virtual machines (e.g. to set up a cloud VM such as a GitHub Actions runner), containers (e.g. as a RUN instruction in a Dockerfile or executed inside a running container), and Dev Containers — with the same behavior across all platforms and installation methods.
+Features are packaged as self-contained tarballs compliant with the [Dev Container Features Specification](https://containers.dev/implementors/features/), [versioned](versioning.md) according to Semantic Versioning, and [released](technical.md/#releases) as immutable artifacts to both [GitHub Container Registry](https://github.com/|{{github_user}}|?tab=packages&repo_name=|{{github_repo}}|) (GHCR) and [GitHub Releases](https://github.com/|{{github_user}}|/|{{github_repo}}|/releases). They can be downloaded and installed in any POSIX-compliant environment, including physical machines (e.g. to set up a new laptop or update a PC), virtual machines (e.g. to set up a cloud VM such as a GitHub Actions runner), containers (e.g. as a RUN instruction in a Dockerfile or executed inside a running container), and Dev Containers — with the same behavior across all platforms and installation methods.
 
 ## Dev Container Installation
 
@@ -80,16 +80,21 @@ For example, the same installation process for the following `devcontainer.json`
 }
 ```
 
-can be performed directly on the command line using:
+can be performed directly on the command line (paste into a terminal and run):
 
 ```sh
-TMP_DIR=$(mktemp -d) && \
-oras pull \
-  ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0 \
-  --output install-gh.tar.gz && \
-tar -xzf install-gh.tar.gz -C $TMP_DIR && \
-sudo sh $TMP_DIR/install.sh --version 2.89.0 && \
-rm -rf $TMP_DIR install-gh.tar.gz
+( # set feature OCI reference
+  FEAT_REF=ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0
+  # create a temporary directory and move into it to perform the installation
+  TMP_DIR=$(mktemp -d) && cd "$TMP_DIR"
+  # make sure the temporary directory is removed on exit
+  set -e && trap 'rm -rf "$TMP_DIR"' EXIT
+  # pull the feature content from GHCR and save it to the temporary directory
+  oras pull $FEAT_REF
+  # extract the single feature tarball file into the temporary directory
+  tar -xf *
+  # execute the feature's install.sh script with the desired options
+  sudo sh install.sh --version 2.89.0 )
 ```
 
 :::{caution}
@@ -109,14 +114,17 @@ While we recommend using SysSet, which handles both of the above concerns, below
 Features are published to GHCR under `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>`, with tags for major, minor, and patch versions (and a rolling `latest` tag). To download a feature from GHCR, the best way is to use a networking tool that recognizes the [OCI Artifact Distribution Specification](https://github.com/opencontainers/distribution-spec), such as [`oras`](https://github.com/oras-project/oras). For example:
 
 ```sh
-# Download 'install-gh' version '0.1.0' and save as 'install-gh.tar.gz'
-oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0 --output install-gh.tar.gz
+# download latest 'install-git'
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git:latest
 
-# Download latest 'install-git' and save as 'install-git.tar.gz'
-oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git:latest --output install-git.tar.gz
+# download latest 0.1.x version of 'install-miniforge'
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-miniforge:0.1
 
-# Download latest 0.1.x version of 'install-miniforge' and save as 'install-miniforge.tar.gz'
-oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-miniforge:0.1 --output install-miniforge.tar.gz
+# download 'install-gh' version '0.1.0'
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0
+
+# download to a specific directory (default is current directory)
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0 -o /path/to/directory
 ```
 
 ##### From GitHub Releases
@@ -124,15 +132,15 @@ oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-miniforge:0.1 --ou
 Features are published to GitHub Releases under `<base>/<feature-id>/<version>/devfeats-<feature-id>-<version>.tar.gz`, where `<base>` is `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. To download a feature from GitHub Releases, you can use any networking tool (e.g. `curl` or `wget`) to download the corresponding asset. For example:
 
 ```sh
-# Use curl to download 'install-gh' version '0.1.0' and save as 'install-gh.tar.gz'
-ID=install-gh VERSION=0.1.0 curl -fsSL \
+# use curl to download 'install-gh' version '0.1.0' and save as 'feature.tar.gz'
+ID=install-gh; VERSION=0.1.0; curl -fsSL \
   https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz \
-  -o install-gh.tar.gz
+  -o ./feature.tar.gz
 
-# Use wget to download 'install-git' version '0.1.0' and save as 'install-git.tar.gz'
-ID=install-git VERSION=0.1.0 wget -qO- \
+# use wget to download 'install-git' version '0.1.0' and save as 'feature.tar.gz'
+ID=install-git; VERSION=0.1.0; wget -q \
   https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz \
-  -O install-git.tar.gz
+  -O ./feature.tar.gz
 ```
 
 :::{caution}
@@ -145,20 +153,34 @@ Note that GitHub Releases only supports a single tag per release, so you can onl
 After downloading the feature's tarball, you need to extract it with a tarball extraction tool (e.g. `tar`):
 
 ```sh
-tar -xzf install-gh.tar.gz -C /path/to/extract
-```
+# extract in the current directory
+tar -xf ./feature.tar.gz
 
-#### Execution
-
-After extracting the tarball, you can navigate to the extracted directory and use a POSIX-compliant shell (e.g. `sh` or `bash`) to run the included `install.sh` script with the desired options passed as [CLI flags](options.md):
-
-```sh
-sudo sh /path/to/extract/install.sh --version 2.89.0
+# or extract to a specific directory with 'C' flag
+tar -xf ./feature.tar.gz -C /path/to/extract
 ```
 
 :::{note}
 
-`sudo` is required when a feature writes to system directories (almost all of them do). Dev container tooling already runs feature installs as root; with `install.sh` you need to supply the privilege yourself.
+When using `ghcr.io` references with `oras`, you can only specify the output directory with the `-o` flag, since OCI artifacts may contain multiple files. However, Dev Container Features packaged as OCI artifacts always only contain a single tarball file. The naming convention used by the [Dev Container CLI](https://github.com/devcontainers/cli) (which we use for publishing features to GHCR) to create the tarball file is `devcontainer-feature-<feature-id>.tgz`, e.g. `devcontainer-feature-install-gh.tgz`, but this is out of our control and may change in the future. Therefore, we recommend extracting the tarball file into an empty (temporary) directory, and then extracting the content of the only available file in that directory:
+
+```sh
+# assuming you are in an empty directory and have downloaded the feature tarball here
+tar -xf *
+```
+:::
+
+#### Execution
+
+After extracting the tarball, you can use a POSIX-compliant shell (e.g. `sh` or `bash`) to run the included `install.sh` script with the desired options passed as [CLI flags](options.md):
+
+```sh
+sudo sh ./install.sh --version 2.89.0
+```
+
+:::{note}
+
+`sudo` is required when a feature writes to system directories (almost all of them do). Dev container tooling already runs feature installs as root; in direct installations you need to supply the privilege yourself.
 :::
 
 #### Dev Container Specific Configurations
@@ -167,10 +189,16 @@ Configurations only included in the `devcontainer-feature.json` metadata file ar
 
 ##### Environment Variables
 
-The `containerEnv` property specifies environment variables to set (or override if existing) in the container. It is an object where keys are the names of environment variables and values are their corresponding values. For Dev Container features, they are added during container build by the Dev Container tooling as `ENV` commands in the Dockerfile before the feature is executed. If a feature has any relevant environment variables declared, you can set them in your shell profile (e.g. `.bashrc` or `.zshrc`) or export them in your terminal session, e.g., using the following script:
+The `containerEnv` property specifies environment variables to set (or override if existing) in the container. It is an object where keys are the names of environment variables and values are their corresponding values. For Dev Container features, they are added during container build by the Dev Container tooling as `ENV` commands in the Dockerfile before the feature is executed. If a feature has any relevant environment variables declared, you can set them in your shell profile, for example:
 
 ```sh
-jq -r '.containerEnv | to_entries[] | "export \(.key)=\(.value)"' /path/to/extract/devcontainer-feature.json >> ~/.bashrc
+# write to system-wide profile (requires sudo)
+jq -r '(.containerEnv // empty) | to_entries[] | "export \(.key)=\"\(.value)\""' \
+  ./devcontainer-feature.json | sudo tee /etc/profile.d/devcontainer-feature-env-vars.sh > /dev/null
+
+# or write to user-specific bash profile
+jq -r '(.containerEnv // empty) | to_entries[] | "export \(.key)=\"\(.value)\""' \
+  ./devcontainer-feature.json >> ~/.bash_profile
 ```
 
 ##### Lifecycle Hooks
@@ -195,10 +223,11 @@ For consistency, |{{project_name}}| features always use the object format for al
 To execute all available lifecycle hooks in the intended order, you can run:
 
 ```sh
-for hook in onCreateCommand updateContentCommand postCreateCommand postStartCommand postAttachCommand;
-do
-  # Extract the commands for the current hook and execute them in sequence
-  jq -r --arg hook "$hook" '.[$hook] | to_entries[] | .value | if type=="string" then . else @sh end' /path/to/extract/devcontainer-feature.json | while read -r cmd; do eval "$cmd"; done
+for hook in onCreateCommand updateContentCommand postCreateCommand postStartCommand postAttachCommand; do
+  jq -r --arg hook "$hook" \
+    '.[$hook] // empty | to_entries[] | .value | if type == "string" then . else @sh end' \
+    ./devcontainer-feature.json | \
+  while IFS= read -r cmd; do eval "$cmd"; done
 done
 ```
 
@@ -224,5 +253,6 @@ The `customizations` property is an object where each supporting tool can declar
 To install the above extensions, you can use the [VS Code CLI](https://code.visualstudio.com/docs/editor/command-line#_extension-management) to install them directly from the command line:
 
 ```sh
-jq -r '.customizations.vscode.extensions[]' /path/to/extract/devcontainer-feature.json | xargs -L 1 code --install-extension
+jq -r '(.customizations.vscode.extensions // [])[]' ./devcontainer-feature.json \
+  | while IFS= read -r ext; do code --install-extension "$ext"; done
 ```
