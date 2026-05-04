@@ -6,10 +6,19 @@ This section provides a reference for all available features, with detailed docu
 :gutter: 3
 
 |{% for feat_id, feat in feats.items()|sort(attribute='1.name') %}|
-:::{grid-item-card} |{{ feat.name }}| <br> `|{{ feat_id }}|`
+:::{grid-item-card} |{{ feat.name }}| – `|{{ feat_id }}|`
 :class-title: sd-text-center
 :link: /features/|{{ feat_id }}|
 :link-type: doc
+
+<div style="text-align:center">
+
+|{% for keyword in feat.keywords -%}|
+{bdg-info}`|{{ keyword }}|`
+|{% endfor %}|
+
+</div>
+
 |{{ feat.description }}|
 :::
 |{% endfor %}|
