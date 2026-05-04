@@ -7,7 +7,7 @@ dependencies = [
     "jsonschema>=4",
     "gittidy>=0.3.1,<0.4",
     "pylinks>=0.1.0,<0.2",
-    "mdit>=0.1.0,<0.2",
+    "mdit>=0.1.1,<0.2",
 ]
 
 [project.scripts]
