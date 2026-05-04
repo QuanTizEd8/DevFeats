@@ -1,6 +1,6 @@
 # Install dependencies/build/base.yaml when root (see argparse.py).
 if [ "$(id -u)" -eq 0 ]; then
-  _base_deps__install
+  _build_deps__install_base
 else
   logging__info "Skipping base build-dependency install (not root); ensure packages from dependencies/build/base.yaml are already installed."
 fi

@@ -127,7 +127,7 @@ fi
 # Sudo access
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
-  _sudo_deps__install
+  _run_deps__install_sudo
   mkdir -p "$SUDOERS_DIR"
   echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
   chmod 0440 "${SUDOERS_DIR}/${USERNAME}"

@@ -55,7 +55,7 @@ _shfmt__install_release() {
   read -r _os _arch <<< "$(_shfmt__platform_arch)" || return 1
   _asset="shfmt_v${_version}_${_os}_${_arch}"
   _tmp="$(logging__tmpdir "install/shfmt")"
-  _download_deps__install
+  _build_deps__install_download
 
   github__fetch_release_asset_tarball "mvdan/sh" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
   chmod +x "${_tmp}/${_asset}" || return 1

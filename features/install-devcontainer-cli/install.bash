@@ -122,9 +122,9 @@ fi
 
 case "${_resolved_method}" in
   script)
-    _download_deps__install || exit 1
+    _build_deps__install_download || exit 1
     _devcontainer_cli__install_script "${VERSION}" "${PREFIX}" "${NODE_VERSION}" "${UPDATE}" "${UNINSTALL}" || exit 1
-    _download_deps__cleanup || true
+    _build_deps__cleanup_download || true
     ;;
   npm)
     _devcontainer_cli__install_npm "${VERSION}" "${PREFIX}" "${UNINSTALL}" || exit 1

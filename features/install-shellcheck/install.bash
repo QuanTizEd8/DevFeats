@@ -65,7 +65,7 @@ _shellcheck__install_release() {
   read -r _os _arch <<< "$(_shellcheck__platform_arch)" || return 1
   _asset="shellcheck-v${_version}.${_os}.${_arch}.tar.xz"
   _tmp="$(logging__tmpdir "install/shellcheck")"
-  _download_deps__install
+  _build_deps__install_download
 
   github__fetch_release_asset_tarball "koalaman/shellcheck" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
 

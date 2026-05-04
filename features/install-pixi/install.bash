@@ -403,7 +403,7 @@ fi
 
 resolve_bin_dir
 check_root_requirement
-_download_deps__install
+_build_deps__install_download
 resolve_pixi_version
 
 # Version-match idempotency check: only compare against the requested install

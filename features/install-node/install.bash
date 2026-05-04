@@ -670,7 +670,7 @@ _node_resolve_nvm_dir
 # =============================================================================
 
 logging__info "Installing base OS dependencies..."
-_download_deps__install
+_build_deps__install_download
 
 # =============================================================================
 # Pre-install check
@@ -697,9 +697,9 @@ _node_check_if_exists
 
 if [ "$METHOD" = "nvm" ]; then
   logging__info "Installing nvm runtime dependencies..."
-  _nvm_runtime_deps__install
+  _run_deps__install_nvm_runtime
   logging__info "Installing nvm build dependencies..."
-  _nvm_deps__install
+  _build_deps__install_nvm
 fi
 
 if [ "$NODE_GYP_DEPS" = "true" ]; then
@@ -708,7 +708,7 @@ if [ "$NODE_GYP_DEPS" = "true" ]; then
     logging__info "Alpine+nvm detected — node-gyp build tools already provided by nvm.yaml; skipping node-gyp.yaml."
   else
     logging__info "Installing node-gyp build dependencies..."
-    _node_gyp_deps__install
+    _run_deps__install_node_gyp
     if [ "$(os__platform)" = "macos" ]; then
       logging__info "node-gyp build dependencies on macOS require Xcode Command Line Tools."
       logging__info "Install them with: xcode-select --install"
@@ -723,7 +723,7 @@ if [ "$METHOD" = "binary" ]; then
     exit 1
   fi
   logging__info "Installing binary extraction OS dependencies..."
-  _binary_deps__install
+  _build_deps__install_binary
 fi
 
 # =============================================================================

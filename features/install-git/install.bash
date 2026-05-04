@@ -150,7 +150,7 @@ _git__install_package() {
     # On Ubuntu + apt, install git from ppa:git-core/ppa (latest upstream git).
     # The ppa manifest group has when: {id: ubuntu, pm: apt}, so it is a no-op
     # on any other platform that might reach this branch.
-    _ppa_deps__install
+    _run_deps__install_ppa
     return 0
   fi
 
@@ -159,7 +159,7 @@ _git__install_package() {
     # shellcheck disable=SC2059
     ospkg__run --manifest "$(printf 'packages:\n  - name: git\n    version: "%s"\n' "${VERSION}")"
   else
-    _os_pkg_deps__install
+    _run_deps__install_os_pkg
   fi
   return 0
 }
@@ -379,7 +379,7 @@ _git__install_source() {
   # Non-root installs cannot invoke the OS package manager; assume deps were
   # preinstalled by the caller (e.g. Linux non-root test setup).
   if [ "$(id -u)" = "0" ]; then
-    _source_build_deps__install
+    _build_deps__install_source_build
   else
     logging__info "Non-root mode: skipping build dependency installation; expecting required packages to be preinstalled."
   fi
