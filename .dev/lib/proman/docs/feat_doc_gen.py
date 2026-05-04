@@ -101,7 +101,8 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     tabset_str = ts.source(target="sphinx")
     description = (
         "For demonstration purposes, all available options are explicitly included with their default values. "
-        "In real usage, you only need to specify the options you want to override."
+        "In real usage, you only need to specify the options you want to override. "
+        "For more information on installing features, see the [Installation Guide](/user-guide/installation.md)."
     )
     return f"{description}\n\n{tabset_str}"
 
