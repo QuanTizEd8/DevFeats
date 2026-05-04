@@ -145,7 +145,7 @@ ID=install-git; VERSION=0.1.0; wget -q \
 
 :::{caution}
 
-Note that GitHub Releases only supports a single tag per release, so you can only download a specific version (e.g. `0.1.0`), while GHCR supports multiple tags per release, allowing you [pin the version](versioning.md) to a specific major (e.g. `0`) or minor version (e.g. `0.1`) or even use the rolling `latest` tag.
+GitHub Releases only supports a single tag per release, so you can only download a specific version (e.g. `0.1.0`), while GHCR supports multiple tags per release, allowing you [pin the version](versioning.md) to a specific major (e.g. `0`) or minor version (e.g. `0.1`) or even use the rolling `latest` tag.
 :::
 
 #### Extraction
