@@ -1,7 +1,7 @@
-LIFECYCLE_COMMAND_KEYS = frozenset({
+LIFECYCLE_COMMAND_KEYS = (
     "onCreateCommand",
     "updateContentCommand",
     "postCreateCommand",
     "postStartCommand",
     "postAttachCommand",
-})
+)
