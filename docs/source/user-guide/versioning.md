@@ -7,7 +7,8 @@ Features are versioned independently using a [semantic versioning](https://semve
 - **Patch** release: Otherwise (no breaking changes or significant new capabilities), if the release includes only backwards-compatible bug fixes, minor corrections, or documentation updates, the patch version is incremented: `X.Y.Z` → `X.Y.(Z+1)` (e.g. `1.2.3` → `1.2.4`). Backwards-compatible bug fixes include corrections to installation scripts, fixes for edge cases that do not alter existing behavior, and improvements to error handling that do not change the public API.
 
 
-:::{note}
+:::{admonition} Feature Version ≠ Tool Version
+:class: note dropdown
 
 Feature versions represent the evolution of the feature's API, functionality, and behavior itself, not the versions of the underlying tools they install. For features that install versioned tools, the tool versions can be specified via feature input options, regardless of the feature's own version.
 :::
@@ -21,6 +22,12 @@ Features can be pinned separately to specific versions at the desired precision 
 - **Minor**: `:<major>.<minor>` (e.g. `:1.2`)
 - **Major**: `:<major>` (e.g. `:1`)
 - **Latest**: `:latest` or no specifier (e.g. `:latest`)
+
+:::{admonition} Pinning GitHub Releases
+:class: attention dropdown
+
+When [directly downloading from GitHub Releases](installation.md#from-github-releases), you can only download a specific patch version (e.g. `0.1.0`), since GitHub Releases only supports a single tag per release. If you need to pin to a specific minor or major version or use the rolling `latest` tag, and you can only download from GitHub Releases, you can query the GitHub API to get a list of releases and their tags, find the appropriate version that matches your desired specifier, and then download that specific version from its corresponding full tag.
+:::
 
 ### Patch Version
 
@@ -39,9 +46,22 @@ Pin to a full patch version to ensure that the exact same version of the feature
 ```
 ::::
 
-::::{tab-item} CLI
+::::{tab-item} SysSet
 ```sh
-sh install install-shell:1.2.3
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2.3
+```
+::::
+
+::::{tab-item} GHCR
+```sh
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2.3
+```
+::::
+
+::::{tab-item} GitHub Release
+```sh
+ID=install-shell; VERSION=1.2.3; curl -fsSL \
+  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz
 ```
 ::::
 
@@ -65,9 +85,15 @@ Pin to a minor version (e.g. `1.2`) to receive all patch updates within that min
 ```
 ::::
 
-::::{tab-item} CLI
+::::{tab-item} SysSet
 ```sh
-sh install install-shell:1.2
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2
+```
+::::
+
+::::{tab-item} GHCR
+```sh
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2
 ```
 ::::
 
@@ -91,9 +117,15 @@ Pin to a major version (e.g. `1`) to receive all minor and patch updates within 
 ```
 ::::
 
-::::{tab-item} CLI
+::::{tab-item} SysSet
 ```sh
-sh install install-shell:1
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1
+```
+::::
+
+::::{tab-item} GHCR
+```sh
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1
 ```
 ::::
 
@@ -119,14 +151,19 @@ No version specifier (or `latest`) means the feature will always resolve to the 
 }
 ```
 ::::
-
-::::{tab-item} CLI
+::::{tab-item} SysSet
 ```sh
 # with `:latest` tag
-sh install install-shell:latest
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:latest
 
 # or no tag (same as `:latest`)
-sh install install-git
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git
+```
+::::
+
+::::{tab-item} GHCR
+```sh
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:latest
 ```
 ::::
 
