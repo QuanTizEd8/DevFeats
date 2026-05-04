@@ -123,8 +123,8 @@ oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-miniforge:0.1
 # download 'install-gh' version '0.1.0'
 oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0
 
-# download to a specific directory (default is current directory)
-oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0 -o /path/to/directory
+# download to a directory (default is current directory)
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0 -o ./install-gh
 ```
 
 ##### From GitHub Releases
@@ -132,15 +132,15 @@ oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0 -o /path/
 Features are published to GitHub Releases under `<base>/<feature-id>/<version>/devfeats-<feature-id>-<version>.tar.gz`, where `<base>` is `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. To download a feature from GitHub Releases, you can use any networking tool (e.g. `curl` or `wget`) to download the corresponding asset. For example:
 
 ```sh
-# use curl to download 'install-gh' version '0.1.0' and save as 'feature.tar.gz'
+# use curl to download 'install-gh' version '0.1.0' and save as './feature.tgz'
 ID=install-gh; VERSION=0.1.0; curl -fsSL \
   https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz \
-  -o ./feature.tar.gz
+  -o ./feature.tgz
 
-# use wget to download 'install-git' version '0.1.0' and save as 'feature.tar.gz'
+# use wget to download 'install-git' version '0.1.0' and save as 'install-git/feature.tgz'
 ID=install-git; VERSION=0.1.0; wget -q \
   https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz \
-  -O ./feature.tar.gz
+  -O $ID/feature.tgz
 ```
 
 :::{caution}
@@ -153,19 +153,19 @@ Note that GitHub Releases only supports a single tag per release, so you can onl
 After downloading the feature's tarball, you need to extract it with a tarball extraction tool (e.g. `tar`):
 
 ```sh
-# extract in the current directory
-tar -xf ./feature.tar.gz
+# extract tarball in current directory into the current directory
+tar -xf feature.tgz
 
-# or extract to a specific directory with 'C' flag
-tar -xf ./feature.tar.gz -C /path/to/extract
+# extract tarball in 'install-git/feature.tgz' into 'install-git/' directory
+tar -xf install-git/feature.tgz -C install-git/
 ```
 
 :::{note}
 
-When using `ghcr.io` references with `oras`, you can only specify the output directory with the `-o` flag, since OCI artifacts may contain multiple files. However, Dev Container Features packaged as OCI artifacts always only contain a single tarball file. The naming convention used by the [Dev Container CLI](https://github.com/devcontainers/cli) (which we use for publishing features to GHCR) to create the tarball file is `devcontainer-feature-<feature-id>.tgz`, e.g. `devcontainer-feature-install-gh.tgz`, but this is out of our control and may change in the future. Therefore, we recommend extracting the tarball file into an empty (temporary) directory, and then extracting the content of the only available file in that directory:
+When using `ghcr.io` references with `oras`, you can only specify the output directory with the `-o` flag, since OCI artifacts may contain multiple files. However, Dev Container Features packaged as OCI artifacts always only contain a single tarball file. The naming convention used by the [Dev Container CLI](https://github.com/devcontainers/cli) (which we use for publishing features to GHCR) to create the tarball file is `devcontainer-feature-<feature-id>.tgz`, e.g. `devcontainer-feature-install-gh.tgz`, but this is out of our control and may change in the future. Therefore, we recommend pulling the feature into an empty (temporary) directory, and then extracting the content of the only available file in that directory:
 
 ```sh
-# assuming you are in an empty directory and have downloaded the feature tarball here
+# assuming you are in the directory containing the pulled artifact
 tar -xf *
 ```
 :::
@@ -175,7 +175,8 @@ tar -xf *
 After extracting the tarball, you can use a POSIX-compliant shell (e.g. `sh` or `bash`) to run the included `install.sh` script with the desired options passed as [CLI flags](options.md):
 
 ```sh
-sudo sh ./install.sh --version 2.89.0
+# assuming you are in the directory containing the extracted content
+sudo sh install.sh --version 2.89.0
 ```
 
 :::{note}
@@ -194,11 +195,11 @@ The `containerEnv` property specifies environment variables to set (or override 
 ```sh
 # write to system-wide profile (requires sudo)
 jq -r '(.containerEnv // empty) | to_entries[] | "export \(.key)=\"\(.value)\""' \
-  ./devcontainer-feature.json | sudo tee /etc/profile.d/devcontainer-feature-env-vars.sh > /dev/null
+  devcontainer-feature.json | sudo tee /etc/profile.d/devcontainer-feature-env-vars.sh > /dev/null
 
 # or write to user-specific bash profile
 jq -r '(.containerEnv // empty) | to_entries[] | "export \(.key)=\"\(.value)\""' \
-  ./devcontainer-feature.json >> ~/.bash_profile
+  devcontainer-feature.json >> ~/.bash_profile
 ```
 
 ##### Lifecycle Hooks
@@ -226,7 +227,7 @@ To execute all available lifecycle hooks in the intended order, you can run:
 for hook in onCreateCommand updateContentCommand postCreateCommand postStartCommand postAttachCommand; do
   jq -r --arg hook "$hook" \
     '.[$hook] // empty | to_entries[] | .value | if type == "string" then . else @sh end' \
-    ./devcontainer-feature.json | \
+    devcontainer-feature.json | \
   while IFS= read -r cmd; do eval "$cmd"; done
 done
 ```
@@ -253,6 +254,6 @@ The `customizations` property is an object where each supporting tool can declar
 To install the above extensions, you can use the [VS Code CLI](https://code.visualstudio.com/docs/editor/command-line#_extension-management) to install them directly from the command line:
 
 ```sh
-jq -r '(.customizations.vscode.extensions // [])[]' ./devcontainer-feature.json \
+jq -r '(.customizations.vscode.extensions // [])[]' devcontainer-feature.json \
   | while IFS= read -r ext; do code --install-extension "$ext"; done
 ```
