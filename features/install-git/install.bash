@@ -305,16 +305,6 @@ _git__source_register() {
     *) return 0 ;;
   esac
 
-  local _had_equivs=false
-  dpkg -s equivs 2> /dev/null | grep -q 'Status: install ok installed' && _had_equivs=true
-
-  if [ "${_had_equivs}" = "false" ]; then
-    ospkg__install equivs || {
-      logging__warn "Could not install equivs — skipping package manager registration."
-      return 0
-    }
-  fi
-
   local _tmpdir
   _tmpdir="$(mktemp -d)"
 
@@ -336,18 +326,10 @@ EOF
   ) || {
     logging__warn "equivs dummy package installation failed — skipping registration."
     rm -rf "${_tmpdir}"
-    if [ "${_had_equivs}" = "false" ]; then
-      apt-get purge -y equivs > /dev/null 2>&1 || true
-    fi
     return 0
   }
 
   rm -rf "${_tmpdir}"
-
-  if [ "${_had_equivs}" = "false" ]; then
-    apt-get purge -y equivs > /dev/null 2>&1 || true
-    apt-get autoremove -y > /dev/null 2>&1 || true
-  fi
   logging__success "Registered git ${_ver} with apt via equivs dummy package."
   return 0
 }
