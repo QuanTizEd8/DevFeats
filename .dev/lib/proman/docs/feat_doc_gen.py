@@ -13,19 +13,47 @@ def generate(metadata: dict[str, Any], notes: str = "") -> str:
     name = metadata["name"]
     description = metadata["description"].strip()
     long_description = metadata.get("_long_description", "").strip()
-    options = _render_options_table(metadata)
+    options = _generate_options_sections(metadata)
     example = _generate_usage_tabset(metadata)
+    keywords = _generate_keyword_badges(metadata)
     parts = [
         f"# {name}",
         description,
+        keywords,
         long_description,
+        _generate_spec_summary(metadata),
         "## Example Usage",
         example,
+        "## Options",
         options,
+        "## Notes",
         notes,
     ]
     sep = "\n\n"
     return sep.join(parts).strip() + "\n"
+
+
+def _generate_keyword_badges(metadata: dict[str, Any]) -> str:
+    keywords = metadata.get("keywords", [])
+    if not keywords:
+        return ""
+    badges = " ".join(f"{{bdg-info}}`{kw}`" for kw in keywords)
+    return f"<div style=\"text-align:center\">\n\n{badges}\n\n</div>\n\n"
+
+
+def _generate_spec_summary(metadata: dict[str, Any]) -> str:
+    feat_id = metadata["id"]
+    feat_ver = metadata["version"]
+    owner, repo = git_owner_repo()
+    ghcr = f"ghcr.io/{owner}/{repo}/{feat_id}"
+    summary = f":**Latest Version**: `{feat_ver}`\n:**Feature ID**: `{feat_id}`\n:**OCI Reference**: `{ghcr}`"
+    if "_unsupported_platforms" in metadata:
+        badges = [
+            f"{{bdg-danger}}`{plat}`" for plat in metadata["_unsupported_platforms"]
+        ]
+        badges_str = " ".join(badges)
+        summary += f"\n:**Unsupported Platforms**: {badges_str}"
+    return summary
 
 
 def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
@@ -69,8 +97,8 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     return f"{description}\n\n{tabset_str}"
 
 
-def _render_options_table(data: dict) -> str:
-    """Render the ## Options table from a feature metadata dict.
+def _generate_options_sections(data: dict) -> str:
+    """Render the feature options section from the metadata dict.
 
     Parameters
     ----------
@@ -78,16 +106,15 @@ def _render_options_table(data: dict) -> str:
         Feature metadata dict (from devcontainer-feature.json or
         metadata.yaml — same structure).
 
-    Returns a Markdown ``## Options`` table string, or an empty string when
-    the feature has no options.  Does **not** include the feature description
-    so callers can inject the raw (markdown-rich) description themselves.
+    Returns
+    -------
+    str
+        Markdown string for the options section, or empty string if no options.
     """
     options = data.get("options", {})
     if not options:
         return ""
-    rows = [
-        "## Options",
-    ]
+    rows = []
     for opt_name, opt in options.items():
         opt_type = opt["type"]
 
