@@ -31,6 +31,9 @@ def generate(metadata: dict[str, Any], notes: str = "") -> str:
     lifecycle_notes = _generate_lifecycle_notes(metadata)
     if lifecycle_notes:
         parts.extend(["## Lifecycle Commands", lifecycle_notes])
+    extensions_section = _generate_extensions_section(metadata)
+    if extensions_section:
+        parts.extend(["## VS Code Extensions", extensions_section])
     if notes:
         parts.extend(["## Notes", notes])
     sep = "\n\n"
@@ -161,6 +164,34 @@ def _generate_options_sections(data: dict) -> str:
             )
 
     return "\n".join(rows) + "\n"
+
+
+def _generate_extensions_section(metadata: dict) -> str:
+    extensions = metadata.get("customizations", {}).get("vscode", {}).get("extensions", [])
+    if not extensions:
+        return ""
+    out = ["The following VS Code extensions are automatically installed:"]
+    for ext in extensions:
+        url = f"https://marketplace.visualstudio.com/items?itemName={ext}"
+        out.append(f"- [{ext}]({url})")
+
+    opt_out_text = (
+        "You can [opt out](https://github.com/microsoft/vscode-docs/blob/main/remote-release-notes/v1_85.md#opt-out-of-extensions) "
+        "of any of these extensions by listing them with a leading `-` in the `customizations.vscode.extensions` array "
+        "of your `devcontainer.json` file. For example, to opt out of all extensions, your `devcontainer.json` should include the following:"
+    )
+    opt_out_dict = {"customizations": {"vscode": {"extensions": [f"-{ext}" for ext in extensions]}}}
+    opt_out_json = json.dumps(opt_out_dict, indent=2)
+    opt_out_code = mdit.element.code_block(opt_out_json, language="json", caption="{fas}`file-code` devcontainer.json")
+    opt_out_admo = mdit.element.admonition(
+        title="Opt Out",
+        body=mdit.block_container([opt_out_text, opt_out_code]),
+        type="hint",
+        dropdown=True,
+    )
+    opt_out_str = str(opt_out_admo.source(target="sphinx"))
+    out.append(opt_out_str)
+    return "\n\n".join(out)
 
 
 def _generate_lifecycle_notes(metadata: dict) -> str:
