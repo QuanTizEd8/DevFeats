@@ -35,7 +35,7 @@ Features are published to GHCR under `ghcr.io/|{{github_user}}|/|{{github_repo}}
 }
 ```
 
-Features are then downloaded, ordered according to their dependency graph, and installed automatically when the container is built by [VS Code](https://code.visualstudio.com/docs/devcontainers/containers), [GitHub Codespaces](https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration/introduction-to-dev-containers), [`@devcontainers/cli`](https://github.com/devcontainers/cli), or any other [supporting tools](https://containers.dev/supporting).
+Features are then downloaded, ordered according to their dependency graph, and installed automatically when the container is built by [VS Code](https://code.visualstudio.com/docs/devcontainers/containers), [GitHub Codespaces](https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration/introduction-to-dev-containers), [Dev Container CLI](https://github.com/devcontainers/cli), or any other [supporting tools](https://containers.dev/supporting).
 
 
 ## Universal Installation
