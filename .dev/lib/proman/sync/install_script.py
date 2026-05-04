@@ -82,7 +82,7 @@ class InstallScriptGenerator:
             self._section_validation(options),
             self._section_unexport(options),
             self._section_dep_helpers(run_deps, build_deps),
-            self._section_base_deps_call(run_deps),
+            self._section_base_deps_call(run_deps, build_deps),
             HEADER_END_MARKER,
         ]
         return "\n\n".join(p for p in parts if p)
@@ -325,11 +325,14 @@ class InstallScriptGenerator:
         )
         return "\n".join(blocks)
 
-    def _section_base_deps_call(self, run_deps: dict) -> str:
-        """Emit the root-guarded _base_deps__install() call, or '' if no base group."""
-        if "base" not in run_deps:
-            return ""
-        return self._render_template("base_deps_call")
+    def _section_base_deps_call(self, run_deps: dict, build_deps: dict) -> str:
+        """Emit root-guarded _base_deps__install() calls: build first, then run."""
+        parts = []
+        if "base" in build_deps:
+            parts.append(self._render_template("build_base_deps_call"))
+        if "base" in run_deps:
+            parts.append(self._render_template("base_deps_call"))
+        return "\n\n".join(parts)
 
     def _shfmt_format(self, text: str) -> str:
         """Format a bash script fragment through shfmt, respecting .editorconfig.
