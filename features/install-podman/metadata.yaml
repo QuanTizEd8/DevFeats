@@ -54,8 +54,9 @@ options:
     description: |-
       Additional usernames to register subuid/subgid ranges and write Podman storage config for.
 postStartCommand:
-  install-podman-feature-welcome: >-
-    podman run --rm hello-world
+  install-podman-feature-welcome:
+    command: podman run --rm hello-world
+    description: Verify Podman is working by running the hello-world container after the devcontainer starts.
 _dependencies:
   run:
     base:

@@ -130,8 +130,14 @@ installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-homebrew
 onCreateCommand:
-  devfeats_install-os-pkg_install: '[ -f /usr/local/share/install-os-pkg/on-create.sh ] && sh /usr/local/share/install-os-pkg/on-create.sh || true'
+  devfeats_install-os-pkg_install:
+    command: '[ -f /usr/local/share/install-os-pkg/on-create.sh ] && sh /usr/local/share/install-os-pkg/on-create.sh || true'
+    description: When `lifecycle_hook` is set to `onCreate`, install OS packages at container creation time.
 updateContentCommand:
-  devfeats_install-os-pkg_install: '[ -f /usr/local/share/install-os-pkg/update-content.sh ] && sh /usr/local/share/install-os-pkg/update-content.sh || true'
+  devfeats_install-os-pkg_install:
+    command: '[ -f /usr/local/share/install-os-pkg/update-content.sh ] && sh /usr/local/share/install-os-pkg/update-content.sh || true'
+    description: When `lifecycle_hook` is set to `updateContent`, reinstall OS packages when workspace content changes.
 postCreateCommand:
-  devfeats_install-os-pkg_install: '[ -f /usr/local/share/install-os-pkg/post-create.sh ] && sh /usr/local/share/install-os-pkg/post-create.sh || true'
+  devfeats_install-os-pkg_install:
+    command: '[ -f /usr/local/share/install-os-pkg/post-create.sh ] && sh /usr/local/share/install-os-pkg/post-create.sh || true'
+    description: When `lifecycle_hook` is set to `postCreate`, install OS packages after the container is fully created.

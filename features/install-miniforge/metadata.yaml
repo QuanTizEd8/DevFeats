@@ -151,8 +151,9 @@ options:
 containerEnv:
   PATH: ${HOME}/miniforge3/bin:/opt/conda/bin:${PATH}
 postStartCommand:
-  install-miniforge-feature-welcome: >-
-    conda info
+  install-miniforge-feature-welcome:
+    command: conda info
+    description: Print conda installation info to confirm Miniforge is active after container start.
 installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-shell

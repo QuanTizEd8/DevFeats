@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 
+from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.git import git_owner_repo, git_repo_root
 from proman.sync.install_script import InstallScriptGenerator
 from proman.sync.metadata import (
@@ -171,7 +172,13 @@ def _generate_metadata_json(
         if key.startswith("_"):
             continue
         if key != "options":
-            metadata_json_dict[key] = value
+            if key in LIFECYCLE_COMMAND_KEYS:
+                metadata_json_dict[key] = {
+                    entry_id: entry["command"]
+                    for entry_id, entry in value.items()
+                }
+            else:
+                metadata_json_dict[key] = value
             continue
 
         options = {}

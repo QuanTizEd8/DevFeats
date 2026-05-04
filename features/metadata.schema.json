@@ -356,13 +356,27 @@
       "type": "object",
       "description": "A set of commands to run at a specific lifecycle event. Each property is a unique ID for the command with format 'devfeats_<feature-id>_<task>', e.g. 'devfeats_install-os-pkg_install', and the value is the command to run. Each provided command will be run in parallel.",
       "additionalProperties": {
-        "description": "If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell.",
-        "type": [
-          "string",
-          "array"
+        "description": "A command entry with an executable command and a human-readable description of its purpose.",
+        "type": "object",
+        "required": [
+          "command",
+          "description"
         ],
-        "items": {
-          "type": "string"
+        "properties": {
+          "command": {
+            "description": "If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell.",
+            "type": [
+              "string",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "description": "A short description of what this command does.",
+            "type": "string"
+          }
         }
       }
     }
