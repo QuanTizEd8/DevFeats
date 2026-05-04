@@ -10,40 +10,97 @@
       "--progress=plain"
     ],
     "cacheFrom": [
-      "ghcr.io/quantized8/devfeats-devcontainer:cache-linux-amd64",
-      "ghcr.io/quantized8/devfeats-devcontainer:cache-linux-arm64"
+      "ghcr.io/quantized8/sysset-devcontainer:cache-linux-amd64",
+      "ghcr.io/quantized8/sysset-devcontainer:cache-linux-arm64"
     ]
   },
   "features": {
-    "ghcr.io/quantized8/devfeats/setup-user": {
+    "ghcr.io/quantized8/sysset/setup-user": {
       "username": "devfeats-dev"
     },
-    "ghcr.io/quantized8/devfeats/install-gh": {},
-    "ghcr.io/quantized8/devfeats/install-git": {},
-    "ghcr.io/quantized8/devfeats/install-jq": {},
-    "ghcr.io/quantized8/devfeats/install-just": {
+    "ghcr.io/quantized8/sysset/install-gh": {},
+
+    // "ghcr.io/quantized8/sysset/install-git": {},
+    "../.src/install-git": {"version": "stable"},
+
+    "ghcr.io/quantized8/sysset/install-jq": {},
+    "ghcr.io/quantized8/sysset/install-just": {
       "version": "1.50.0"
     },
-    "ghcr.io/quantized8/devfeats/install-shfmt": {
+    "ghcr.io/quantized8/sysset/install-shfmt": {
       "version": "3.13.1"
     },
-    "ghcr.io/quantized8/devfeats/install-shellcheck": {
+    "ghcr.io/quantized8/sysset/install-shellcheck": {
       "version": "0.11.0"
     },
-    "ghcr.io/quantized8/devfeats/install-miniforge": {},
-    "ghcr.io/quantized8/devfeats/install-shell": {},
-    "ghcr.io/quantized8/devfeats/install-yq": {},
-    "ghcr.io/quantized8/devfeats/install-devcontainer-cli": {},
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+
+    // "ghcr.io/quantized8/sysset/install-miniforge": {},
+    "../.src/install-miniforge": {},
+
+    "ghcr.io/quantized8/sysset/install-pixi": {},
+    "ghcr.io/quantized8/sysset/install-shell": {},
+    "ghcr.io/quantized8/sysset/install-yq": {},
+    "ghcr.io/quantized8/sysset/install-devcontainer-cli": {},
+    "ghcr.io/quantized8/sysset/install-oras": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
   },
+  // Stop the container when VS Code window closes (prevents orphaned containers on clean disconnect)
+  "shutdownAction": "stopContainer",
+
+  // Limit CPU to avoid host starvation if a process spirals (uncomment and tune as needed)
+  // "runArgs": ["--cpus=3"],
+
   // "postCreateCommand": "lefthook install",
   "postStartCommand": {
     "initialize_bats_submodules": "git submodule update --init --recursive",
     "pixi_install": "pixi install"
   },
+  "overrideFeatureInstallOrder": [
+    "ghcr.io/quantized8/sysset/install-git",
+    "../.src/install-git",
+
+    "ghcr.io/quantized8/sysset/install-jq",
+    "ghcr.io/quantized8/sysset/install-yq",
+    "ghcr.io/quantized8/sysset/setup-user",
+    "ghcr.io/quantized8/sysset/install-shell",
+    "ghcr.io/quantized8/sysset/install-gh",
+    "ghcr.io/quantized8/sysset/install-just",
+    "ghcr.io/quantized8/sysset/install-shfmt",
+    "ghcr.io/quantized8/sysset/install-shellcheck",
+
+    "ghcr.io/quantized8/sysset/install-miniforge",
+    "../.src/install-miniforge",
+
+
+    "ghcr.io/quantized8/sysset/install-pixi",
+    "ghcr.io/quantized8/sysset/install-node",
+    "ghcr.io/quantized8/sysset/install-devcontainer-cli",
+    "ghcr.io/devcontainers/features/docker-in-docker:2",
+    "ghcr.io/quantized8/sysset/install-oras"
+  ],
   "customizations": {
     "vscode": {
       "settings": {
+        // ── File Watcher / Search Excludes ──────────────────────────────────────
+        // Prevents virtiofs cross-VM inotify storms on large/generated directories
+        "files.watcherExclude": {
+          "**/.git/**": true,
+          "**/__pycache__/**": true,
+          "**/.pixi/**": true,
+          "**/miniforge3/**": true,
+          "**/*.egg-info/**": true
+        },
+        "search.exclude": {
+          "**/.git": true,
+          "**/__pycache__": true,
+          "**/.pixi": true,
+          "**/miniforge3": true
+        },
+        // Prevents Pylance from indexing conda/pixi envs (has its own watcher, ignores files.watcherExclude)
+        "python.analysis.exclude": [
+          "**/.pixi/**",
+          "**/miniforge3/**"
+        ],
         // ── YAML Schema ─────────────────────────────────────────────────────────
         "yaml.schemas": {
             "features/metadata.schema.json": ["features/*/metadata.yaml"]
