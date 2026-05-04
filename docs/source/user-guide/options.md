@@ -4,7 +4,7 @@ Features provide a rich set of options to customize their behavior. All options 
 
 ## Input Modes
 
-Options can be set via different mechanisms depending on the installation method, but they all share the same names and semantics across channels.
+Options can be set via different mechanisms depending on the installation method, but they all share the same names and semantics across channels. For the full list of available options for each feature, see the reference documentation on each feature's page in the [Features](/features.md) section.
 
 ### Dev Container
 
@@ -24,16 +24,16 @@ In Dev Containers, each feature's options are defined in the `devcontainer.json`
 
 ### CLI
 
-When using DevFeats or invoking the installer script directly, options can be passed as CLI flags with the form `--<option_name> <value>`, passed after the feature ID. The CLI flag spelling matches the option name verbatim (no hyphenation):
+When using SysSet or invoking the installer script directly, options can be passed as CLI flags with the form `--<option_name> <value>`, passed after the feature ID. The CLI flag spelling matches the option name verbatim (no hyphenation):
 
 ```sh
-# Using DevFeats:
-devfeats feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user \
+# Using SysSet:
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user \
   --username myusername \
   --user_id 1000
 
 # Directly invoking the installer:
-sh install.sh setup-user \
+sh setup-user/install.sh \
   --username myusername \
   --user_id 1000
 ```
@@ -46,7 +46,7 @@ To be Dev Container Feature compliant, all features also support reading options
 ```sh
 USERNAME=myusername \
 USER_ID=1000 \
-sh install.sh setup-user
+sh setup-user/install.sh
 ```
 
 However, this type of delivery is discouraged outside of dev container features, as it is more error-prone (e.g. an unrelated existing environment variable with the same name as a feature option can cause unintended configuration). Therefore, to avoid unexpected interactions, features only read options from environment variables when no CLI flags are provided at all. Even a single CLI flag for any option will disable environment variable parsing for all options in that invocation, causing any options not explicitly set via CLI flags to fall back to their defaults.
@@ -78,7 +78,7 @@ String options take a single arbitrary string value. Depending on the context, t
 :::{tab-item} CLI
 
 ```sh
-sh install.sh install-git \
+sh install-git/install.sh \
   --version "2.54.0"
 ```
 :::
@@ -86,7 +86,7 @@ sh install.sh install-git \
 :::{tab-item} Env Var
 
 ```sh
-VERSION="2.54.0" sh install.sh install-git
+VERSION="2.54.0" sh install-git/install.sh
 ```
 :::
 
@@ -118,7 +118,7 @@ Boolean options are flags that can be either `true` or `false`.
 :::{tab-item} CLI
 
 ```sh
-sh install.sh install-shell \
+sh install-shell/install.sh \
   --install_direnv true
 ```
 :::
@@ -126,7 +126,7 @@ sh install.sh install-shell \
 :::{tab-item} Env Var
 
 ```sh
-INSTALL_DIRENV=true sh install.sh install-shell
+INSTALL_DIRENV=true sh install-shell/install.sh
 ```
 :::
 
@@ -158,7 +158,7 @@ Since `devcontainer.json` only supports string and boolean types, array options 
 In the CLI, array options are set by repeating the corresponding flag for each element (each `--<flag> <value>` pair **appends** one element to the array):
 
 ```sh
-sh install.sh install-fonts \
+sh install-fonts/install.sh \
   --nerd_fonts Meslo \
   --nerd_fonts FiraCode
 ```
@@ -169,14 +169,14 @@ sh install.sh install-fonts \
 Similarly to `devcontainer.json`, array option can be set via environment variable by using a newline-delimited string. In bash, this can be done with ANSI-C quoting (`$'...'`):
 
 ```sh
-NERD_FONTS=$'Meslo\nFiraCode' sh install.sh install-fonts
+NERD_FONTS=$'Meslo\nFiraCode' sh install-fonts/install.sh
 ```
 
 In POSIX shells that don't support ANSI-C quoting, you can use a literal multi-line string:
 
 ```sh
 NERD_FONTS="Meslo
-FiraCode" sh install.sh install-fonts
+FiraCode" sh install-fonts/install.sh
 ```
 :::
 
@@ -240,7 +240,7 @@ Some features support options that are secrets (e.g. tokens, passwords, private 
 
 ```sh
 GITHUB_TOKEN=ghp_1234567890abcdef \
-sh install.sh install-miniforge \
+sh install-miniforge/install.sh \
   --version 26.1.1-3
 ```
 :::
