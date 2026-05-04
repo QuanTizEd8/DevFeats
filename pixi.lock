@@ -7018,12 +7018,13 @@ packages:
 - pypi: ./.dev/lib
   name: proman
   version: 0.1.0
-  sha256: 1c1cad26a29eb95e0c64b558162662f98cd1a572ad6d03848edf1ff081743204
+  sha256: 2a28468ba555cb984b05c60675f5561ad129860c9e37b21c7838697aca818409
   requires_dist:
   - pyyaml>=6
   - jsonschema>=4
   - gittidy>=0.3.1,<0.4
   - pylinks>=0.1.0,<0.2
+  - mdit>=0.1.0,<0.2
   requires_python: '>=3.11'
 - pypi: https://files.pythonhosted.org/packages/8d/9b/d4b1e644385499c8346fa9b622a3f030dce14cd6ef8a1871c221a17a67e7/prometheus_client-0.25.0-py3-none-any.whl
   name: prometheus-client
