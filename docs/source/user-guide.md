@@ -2,6 +2,31 @@
 
 This guide provides general instructions for installing and using features. For a complete list of available features and detailed documentation on each, see the [Features](features.md).
 
+## Quickstart Guide
+
+Create a `devcontainer.json` file and add the features you want to use in the `features` property, for example:
+
+```jsonc
+{
+  "features": {
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-os-pkg": {},
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user": {},
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell": {},
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git": {},
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh": {},
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi": {},
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-just": {}
+  },
+  // other properties...
+}
+```
+
+You can then use any [Dev Container supporting tool](https://containers.dev/supporting) such as [VS Code](https://code.visualstudio.com/docs/devcontainers/containers), [GitHub Codespaces](https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration/introduction-to-dev-containers), or [Dev Container CLI](https://github.com/devcontainers/cli) to build and start your container, which will automatically install the specified features. Outside of a Dev Container context, you can use [SysSet](https://github.com/repodynamics/sysset) or download and install features manually from their release artifacts. For detailed instructions on different installation contexts, see the [Installation Guide](user-guide/installation.md).
+
+## Learn More
+
+<br>
+
 ::::{grid} 1
 :gutter: 3
 
