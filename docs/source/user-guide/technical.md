@@ -42,7 +42,7 @@ These are commands that run at specific points in the container lifecycle, such 
 
 ### Feature Dependencies
 
-Features can declare soft and hard dependencies on other features in their `devcontainer-feature.json` file, using the `installsAfter` and `dependsOn` properties, respectively. These properties are only consumed by dev container tooling to determine installation order; the installer does not read them or enforce them in any way. The order is determined by a **round-based topological sort** over a combined dependency graph:
+Features can declare soft and hard dependencies on other features in their `devcontainer-feature.json` file, using the `installsAfter` and `dependsOn` properties, respectively. These properties are only consumed by dev container tooling to determine installation order; the features' install script does not read them or enforce them in any way. The order is determined by a **round-based topological sort** over a combined dependency graph:
 
 1. **Hard edges** — from each feature's `dependsOn` in its generated `devcontainer-feature.json`. A feature cannot run until every hard dependency has completed.
 2. **Soft edges** — from each feature's `installsAfter`. Honored whenever possible, but dropped if they would create a cycle.
