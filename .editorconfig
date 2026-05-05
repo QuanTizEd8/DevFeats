@@ -36,7 +36,11 @@ indent_style = space
 indent_size = 2
 
 # Bats vendor libraries (git submodules) — never reformat third-party code.
-[test/unit/bats/**]
+[test/lib/bats/**]
+ignore = true
+
+# Pixi environments contain non-shell files shfmt must not touch.
+[.pixi/**]
 ignore = true
 
 # p10k config uses zsh-only syntax not parseable by shfmt.
