@@ -103,25 +103,6 @@ _dependencies:
       packages:
         - ca-certificates
     os-pkg:
-      apt:
-        packages:
-          - just
-      apk:
-        packages:
-          - just
-      dnf:
-        packages:
-          - just
-      yum:
-        packages:
-          - just
-      zypper:
-        packages:
-          - just
-      pacman:
-        packages:
-          - just
-      brew:
-        packages:
-          - just
+      packages:
+        - just
 installsAfter: []
