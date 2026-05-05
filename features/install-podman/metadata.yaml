@@ -68,7 +68,6 @@ _dependencies:
         - slirp4netns
 
       # UID/GID mapping tools — package name varies by distro
-      packages:
         - when: {pm: apt}
           packages: [uidmap]
         - when: {pm: [dnf, yum]}
