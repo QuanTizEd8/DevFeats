@@ -148,8 +148,4 @@ _dependencies:
                 - opensuse-tumbleweed
                 - opensuse-leap
                 - opensuse-slowroll
-  build:
-    download:
-      packages:
-        - curl
 installsAfter: []

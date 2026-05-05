@@ -94,9 +94,6 @@ _dependencies:
       packages:
         - jq
   build:
-    download:
-      packages:
-        - curl
     source:
       packages:
         - make

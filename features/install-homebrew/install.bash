@@ -345,7 +345,7 @@ prepare_prefix_if_needed() {
   # Create the linuxbrew system user if it does not yet exist.
   if [ "$_user" = "linuxbrew" ] && ! id linuxbrew &> /dev/null; then
     logging__info "Creating 'linuxbrew' system user."
-    useradd --create-home --shell /bin/bash linuxbrew
+    users__create_system_user linuxbrew --home /home/linuxbrew --shell /bin/bash
     # Ubuntu 22.04+ creates home directories with mode 750; make the home
     # world-traversable so other users can reach the brew binary.
     chmod 755 /home/linuxbrew

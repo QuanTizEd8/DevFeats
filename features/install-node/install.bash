@@ -174,27 +174,9 @@ _node_check_if_exists() {
 # Create nvm group, configure ownership/bits on NVM_DIR, add users to the group.
 _node_set_permissions() {
   logging__fn_entry "_node_set_permissions"
-  if [ "$(os__platform)" = "macos" ]; then
-    logging__info "set_permissions is not supported on macOS (groupadd/usermod are unavailable) — skipping."
-    logging__fn_exit "_node_set_permissions (skipped on macOS)"
-    return 0
-  fi
-
   logging__info "Creating group '${GROUP}' and configuring permissions on '${NVM_DIR}'."
-  getent group "$GROUP" > /dev/null 2>&1 || groupadd -r "$GROUP"
-
-  for _u in "${_RESOLVED_USERS[@]}"; do
-    [[ -z "$_u" ]] && continue
-    id -nG "$_u" 2> /dev/null | grep -qw "$GROUP" || {
-      logging__info "Adding user '${_u}' to group '${GROUP}'."
-      usermod -a -G "$GROUP" "$_u"
-    }
-  done
-
   mkdir -p "$NVM_DIR"
-  chown -R "${_NVM_USER}:${GROUP}" "$NVM_DIR"
-  chmod g+rws "$NVM_DIR"
-
+  users__set_write_permissions "$NVM_DIR" "$_NVM_USER" "$GROUP" "${_RESOLVED_USERS[@]}"
   logging__fn_exit "_node_set_permissions"
   return 0
 }
@@ -377,7 +359,7 @@ _node_install_via_binary() {
 
   # Extract to install prefix
   mkdir -p "$_install_prefix"
-  tar -xJf "${INSTALLER_DIR}/${_tarball}" --strip-components=1 -C "$_install_prefix"
+  file__extract_archive "${INSTALLER_DIR}/${_tarball}" "$_install_prefix" "" --strip 1
 
   # Update PREFIX with resolved value for use by caller
   PREFIX="$_install_prefix"
@@ -640,6 +622,8 @@ _node_install_yarn() {
 . "${_SELF_DIR}/_lib/shell.sh"
 # shellcheck source=lib/users.sh
 . "${_SELF_DIR}/_lib/users.sh"
+# shellcheck source=lib/file.sh
+. "${_SELF_DIR}/_lib/file.sh"
 
 os__require_root
 
@@ -664,13 +648,6 @@ fi
 # =============================================================================
 
 _node_resolve_nvm_dir
-
-# =============================================================================
-# OS base dependencies (always — ensures curl is available for download)
-# =============================================================================
-
-logging__info "Installing base OS dependencies..."
-_build_deps__install_download
 
 # =============================================================================
 # Pre-install check
@@ -722,8 +699,6 @@ if [ "$METHOD" = "binary" ]; then
     logging__info "Use method=nvm instead — nvm will compile Node.js from source on Alpine."
     exit 1
   fi
-  logging__info "Installing binary extraction OS dependencies..."
-  _build_deps__install_binary
 fi
 
 # =============================================================================

@@ -75,19 +75,3 @@ _dependencies:
     base:
       packages:
         - fontconfig
-  build:
-    download:
-      packages:
-        - ca-certificates
-        - curl
-        - jq
-        - unzip
-      apt:
-        packages:
-          - xz-utils
-      apk:
-        packages:
-          - xz
-      dnf:
-        packages:
-          - xz

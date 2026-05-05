@@ -97,6 +97,5 @@ _dependencies:
   build:
     download:
       packages:
-        - curl
         - name: xz
           apt: xz-utils

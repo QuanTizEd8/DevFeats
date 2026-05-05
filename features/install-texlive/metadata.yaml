@@ -644,9 +644,6 @@ _dependencies:
         - name: perl
           when: {kernel: linux}
   build:
-    download:
-      packages:
-        - curl
     installer:
       # xz is used by the TeX Live installer to decompress .xz package archives
       # from the CTAN repository during installation.

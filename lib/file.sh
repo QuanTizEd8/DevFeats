@@ -49,7 +49,7 @@ _file__ensure_extract_tool() {
   esac
 }
 
-# @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, or `.zip` archive to `<dest_dir>`.
+# @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] [--strip N] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, or `.zip` archive to `<dest_dir>`.
 #
 # `<original_name>` is used for format detection when `<archive_file>` is a temp
 # path with no meaningful extension (e.g. a mktemp output). When omitted,
@@ -59,21 +59,34 @@ _file__ensure_extract_tool() {
 #   <archive_file>   Path to the archive to extract.
 #   <dest_dir>       Destination directory (created if absent).
 #   <original_name>  Optional filename used for extension-based format detection.
+#   --strip N        Strip N leading path components (tar --strip-components=N). Ignored for zip.
 #
 # Returns: 0 on success, 1 on unrecognized format or missing extraction tool.
 file__extract_archive() {
   local _arc="$1" _dest="$2"
   local _name="${3:-$(basename "$_arc")}"
+  local _strip=""
+  if [ "${4:-}" = "--strip" ]; then
+    _strip="${5:-}"
+  fi
   mkdir -p "$_dest"
   case "$_name" in
     *.tar.xz)
       _file__ensure_extract_tool tar || return 1
       _file__ensure_extract_tool xz || return 1
-      tar -xJf "$_arc" -C "$_dest"
+      if [ -n "$_strip" ]; then
+        tar -xJf "$_arc" -C "$_dest" --strip-components="$_strip"
+      else
+        tar -xJf "$_arc" -C "$_dest"
+      fi
       ;;
     *.tar.gz | *.tgz)
       _file__ensure_extract_tool tar || return 1
-      tar -xzf "$_arc" -C "$_dest"
+      if [ -n "$_strip" ]; then
+        tar -xzf "$_arc" -C "$_dest" --strip-components="$_strip"
+      else
+        tar -xzf "$_arc" -C "$_dest"
+      fi
       ;;
     *.zip)
       _file__ensure_extract_tool zip || return 1

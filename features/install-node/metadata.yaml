@@ -306,24 +306,6 @@ _dependencies:
       brew:
         packages: []
   build:
-    download:
-      packages:
-        - curl
-    binary:
-      # Dependencies for extracting Node.js .tar.xz archives (method=binary).
-      packages:
-        - tar
-      apt:
-        packages:
-          - xz-utils
-      apk:
-        packages:
-          - xz
-      dnf:
-        packages:
-          - xz
-      brew:
-        packages: []
     nvm:
       # nvm build prerequisites on Alpine Linux.
       # Installs the full build toolchain required by nvm to compile Node.js

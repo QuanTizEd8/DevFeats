@@ -73,8 +73,4 @@ _dependencies:
     os-pkg:
       packages:
         - shfmt
-  build:
-    download:
-      packages:
-        - curl
 installsAfter: []

@@ -10,6 +10,8 @@
 . "$_SELF_DIR/_lib/net.sh"
 # shellcheck source=lib/github.sh
 . "$_SELF_DIR/_lib/github.sh"
+# shellcheck source=lib/file.sh
+. "$_SELF_DIR/_lib/file.sh"
 # shellcheck source=lib/verify.sh
 . "${_SELF_DIR}/_lib/verify.sh"
 
@@ -206,7 +208,10 @@ install_fzf() {
   fi
 
   mkdir -p "$_bin_dir"
-  tar -xzf "$_archive" -C "$_bin_dir" fzf
+  local _extract_tmp="${_tmpdir}/_extract"
+  mkdir -p "$_extract_tmp"
+  file__extract_archive "$_archive" "$_extract_tmp"
+  mv "${_extract_tmp}/fzf" "${_bin_dir}/fzf"
   chmod 755 "${_bin_dir}/fzf"
 
   logging__success "fzf installed to '${_bin_dir}/fzf'."
@@ -668,8 +673,6 @@ _FILES_DIR="${_BASE_DIR}/files"
 _SKEL_DIR="${_FILES_DIR}/skel"
 
 os__require_root
-
-_build_deps__install_download
 
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then

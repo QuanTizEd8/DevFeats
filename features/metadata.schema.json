@@ -99,7 +99,7 @@
           }
         },
         "build": {
-          "description": "Install-time OS package dependencies, i.e., dependencies required only during the installation of the feature, but not afterwards.",
+          "description": "Install-time OS package dependencies, i.e., dependencies required only during the installation of the feature, but not afterwards. These must only include the packages directly used by the `install.bash` script. Packages implicitly used through library function calls should not be added here.",
           "type": "object",
           "properties": {
             "base": {

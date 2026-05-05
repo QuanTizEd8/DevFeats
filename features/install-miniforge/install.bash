@@ -436,7 +436,6 @@ set_executable_paths
 
 resolve_miniforge_version
 set_installer_filename
-_build_deps__install_download
 download_miniforge
 if [[ -f "$CHECKSUM" ]]; then
   verify_miniforge

@@ -138,8 +138,6 @@ _gh__repos_rhel() {
     net__fetch_url_file \
       "https://cli.github.com/packages/rpm/gh-cli.repo" \
       "/etc/yum.repos.d/gh-cli.repo"
-    # gh RPM has a hard dependency on git; ensure it is available first.
-    dnf install -y git
     dnf install -y gh --repo gh-cli
   elif command -v yum > /dev/null 2>&1; then
     mkdir -p /etc/yum.repos.d
@@ -517,8 +515,6 @@ if [ "${VERSION}" = "latest" ] && command -v gh > /dev/null 2>&1; then
 fi
 
 os__require_root
-
-_build_deps__install_download
 
 if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
   if [ "$(id -u)" = "0" ]; then

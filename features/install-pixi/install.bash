@@ -213,7 +213,7 @@ install_pixi_binary() {
   local _tmpdir="${INSTALLER_DIR}/_extract"
   mkdir -p "${PREFIX}/bin" "${_tmpdir}"
   logging__install "Extracting archive to '${PREFIX}/bin/pixi'..."
-  tar -xzf "${ARCHIVE}" -C "${_tmpdir}"
+  file__extract_archive "${ARCHIVE}" "${_tmpdir}"
   mv "${_tmpdir}/pixi" "${PREFIX}/bin/pixi"
   chmod 0755 "${PREFIX}/bin/pixi"
   rm -rf "${_tmpdir}"
@@ -378,6 +378,8 @@ install_completion() {
 # shellcheck source=lib/uri.sh
 # shellcheck disable=SC1094
 . "${_SELF_DIR}/_lib/uri.sh"
+# shellcheck source=lib/file.sh
+. "${_SELF_DIR}/_lib/file.sh"
 
 declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
 [ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
@@ -403,7 +405,6 @@ fi
 
 resolve_bin_dir
 check_root_requirement
-_build_deps__install_download
 resolve_pixi_version
 
 # Version-match idempotency check: only compare against the requested install

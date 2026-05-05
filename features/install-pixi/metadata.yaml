@@ -172,7 +172,3 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-  build:
-    download:
-      packages:
-        - curl

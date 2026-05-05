@@ -235,7 +235,3 @@ _dependencies:
           sed -i 's/^# \(en_US\.UTF-8\)/\1/' /etc/locale.gen
           locale-gen
         fi
-  build:
-    download:
-      packages:
-        - curl

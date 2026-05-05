@@ -124,9 +124,4 @@ _dependencies:
       brew:
         packages:
           - just
-  build:
-    download:
-      packages:
-        - curl
-        - tar
 installsAfter: []

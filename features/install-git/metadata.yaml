@@ -253,10 +253,6 @@ _dependencies:
         - git
   build:
     source-build:
-      packages:
-        - curl
-        - tar
-
       apt:
         packages:
           - build-essential

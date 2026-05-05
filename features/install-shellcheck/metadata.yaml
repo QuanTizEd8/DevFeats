@@ -79,11 +79,4 @@ _dependencies:
     os-pkg:
       packages:
         - shellcheck
-  build:
-    download:
-      packages:
-        - curl
-        - tar
-        - name: xz
-          apt: xz-utils
 installsAfter: []

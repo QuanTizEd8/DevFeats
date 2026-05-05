@@ -149,7 +149,7 @@ users__resolve_list() {
 # @brief users__set_write_permissions <prefix> <owner> <group> [<user>...] — Create OS group, add listed users, then apply group-write bits on a shared installation prefix.
 #
 # Sets the setgid bit on all subdirectories so new files inherit the group.
-# No-op on platforms that lack groupadd/usermod (e.g. macOS — logs a warning).
+# Uses dseditgroup on macOS and groupadd/usermod on Linux.
 #
 # Args:
 #   <prefix>     Absolute path to the installation directory.
@@ -157,31 +157,39 @@ users__resolve_list() {
 #   <group>      OS group name to create (if absent) and use.
 #   [<user>...]  Additional users to add to the group.
 users__set_write_permissions() {
-  local _path="$1"
-  local _owner="$2"
-  local _group="$3"
+  local _path="$1" _owner="$2" _group="$3"
   shift 3
-  if ! command -v groupadd > /dev/null 2>&1; then
-    logging__info "groupadd not found — installing shadow-utils."
-    ospkg__install_tracked "lib-users" shadow-utils 2> /dev/null ||
-      ospkg__install_tracked "lib-users" shadow 2> /dev/null || true
+  logging__info "Setting write permissions on '${_path}' (owner: '${_owner}', group: '${_group}')."
+  if command -v dseditgroup > /dev/null 2>&1; then
+    dseditgroup -o read "$_group" > /dev/null 2>&1 || dseditgroup -o create -q "$_group"
+    local _u
+    for _u in "$@"; do
+      [ -z "$_u" ] && continue
+      dseditgroup -o checkmember -m "$_u" "$_group" > /dev/null 2>&1 ||
+        dseditgroup -o edit -a "$_u" -t user "$_group"
+    done
+  else
     if ! command -v groupadd > /dev/null 2>&1; then
-      logging__warn "groupadd not found — skipping write-permission setup."
-      return 0
+      logging__info "groupadd not found — installing shadow-utils."
+      ospkg__install_tracked "lib-users" shadow-utils 2> /dev/null ||
+        ospkg__install_tracked "lib-users" shadow 2> /dev/null || true
+    fi
+    if command -v groupadd > /dev/null 2>&1; then
+      getent group "$_group" > /dev/null 2>&1 || groupadd -r "$_group"
+      local _u
+      for _u in "$@"; do
+        [ -z "$_u" ] && continue
+        id -nG "$_u" 2> /dev/null | grep -qw "$_group" && continue
+        if command -v usermod > /dev/null 2>&1; then
+          usermod -a -G "$_group" "$_u"
+        else
+          logging__warn "usermod not found — cannot add '${_u}' to group '${_group}'."
+        fi
+      done
+    else
+      logging__warn "Neither dseditgroup nor groupadd found — skipping group setup."
     fi
   fi
-  logging__info "Setting write permissions on '${_path}' (owner: '${_owner}', group: '${_group}')."
-  getent group "$_group" > /dev/null 2>&1 || groupadd -r "$_group"
-  local _u
-  for _u in "$@"; do
-    [ -z "$_u" ] && continue
-    id -nG "$_u" 2> /dev/null | grep -qw "$_group" && continue
-    if ! command -v usermod > /dev/null 2>&1; then
-      logging__warn "usermod not found — cannot add '${_u}' to group '${_group}'."
-      continue
-    fi
-    usermod -a -G "$_group" "$_u"
-  done
   chown -R "${_owner}:${_group}" "$_path"
   chmod -R g+rwX "$_path"
   find "$_path" -type d -print0 | xargs -0 chmod g+s
@@ -250,6 +258,51 @@ users__set_login_shell() {
       logging__warn "chsh failed for '${_username}'."
     fi
   done
+  return 0
+}
+
+# @brief users__create_system_user <username> [--home <path>] [--shell <shell>] — Create a system user if it does not already exist.
+#
+# Ensures useradd is available, installing shadow-utils/shadow/passwd if needed.
+# No-op if the user already exists.
+#
+# Args:
+#   <username>       Login name for the new user.
+#   --home <path>    Home directory. Optional.
+#   --shell <shell>  Login shell. Optional.
+#
+# Returns: 0 on success or if user already exists, 1 if useradd cannot be installed.
+users__create_system_user() {
+  local _username="$1"
+  shift
+  local _home="" _shell=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --home) _home="$2"; shift 2 ;;
+      --shell) _shell="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  if id "$_username" > /dev/null 2>&1; then
+    logging__info "User '${_username}' already exists — skipping."
+    return 0
+  fi
+  if ! command -v useradd > /dev/null 2>&1; then
+    logging__info "useradd not found — installing."
+    ospkg__install_tracked "lib-users" shadow-utils 2> /dev/null ||
+      ospkg__install_tracked "lib-users" shadow 2> /dev/null ||
+      ospkg__install_tracked "lib-users" passwd 2> /dev/null || true
+    if ! command -v useradd > /dev/null 2>&1; then
+      logging__warn "useradd not found — cannot create user '${_username}'."
+      return 1
+    fi
+  fi
+  local -a _cmd=("useradd" "--system" "--create-home")
+  [ -n "$_home" ] && _cmd+=("--home-dir" "$_home")
+  [ -n "$_shell" ] && _cmd+=("--shell" "$_shell")
+  _cmd+=("$_username")
+  "${_cmd[@]}"
+  logging__success "Created system user '${_username}'."
   return 0
 }
 

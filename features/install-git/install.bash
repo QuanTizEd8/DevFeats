@@ -6,6 +6,8 @@
 . "$_SELF_DIR/_lib/users.sh"
 # shellcheck source=lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
+# shellcheck source=lib/file.sh
+. "$_SELF_DIR/_lib/file.sh"
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
@@ -371,7 +373,7 @@ _git__install_source() {
 
   # 6. Extract.
   logging__install "Extracting git-${_resolved_ver}.tar.gz..."
-  tar -xzf "${INSTALLER_DIR}/git-${_resolved_ver}.tar.gz" -C "${INSTALLER_DIR}"
+  file__extract_archive "${INSTALLER_DIR}/git-${_resolved_ver}.tar.gz" "${INSTALLER_DIR}"
 
   # 7. Build and install.
   logging__build "Building git ${_resolved_ver}..."

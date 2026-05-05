@@ -11,6 +11,8 @@
 . "${_SELF_DIR}/_lib/verify.sh"
 # shellcheck source=lib/github.sh
 . "${_SELF_DIR}/_lib/github.sh"
+# shellcheck source=lib/file.sh
+. "${_SELF_DIR}/_lib/file.sh"
 # shellcheck source=lib/shell.sh
 . "${_SELF_DIR}/_lib/shell.sh"
 # shellcheck source=lib/users.sh
@@ -74,7 +76,7 @@ _install__just_install_release() {
   fi
   verify__sha "$_tar" "$_hash" || return 1
 
-  tar -xzf "$_tar" -C "$_tmp" || return 1
+  file__extract_archive "$_tar" "$_tmp" || return 1
   [[ -f "${_tmp}/just" ]] || return 1
   _dest="${_install_prefix%/}/bin/just"
   mkdir -p "$(dirname "$_dest")" || return 1
