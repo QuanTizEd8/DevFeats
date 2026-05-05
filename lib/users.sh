@@ -12,6 +12,28 @@ _USERS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_USERS__LIB_DIR/ospkg.sh"
 
+read -r -d '' _USERS__SHADOW_UTILS_MANIFEST << 'EOF' || true
+packages:
+  - when: {pm: apt}
+    packages: [passwd]
+  - when: {pm: [apk, zypper, pacman]}
+    packages: [shadow]
+  - when: {pm: [dnf, yum]}
+    packages: [shadow-utils]
+EOF
+
+read -r -d '' _USERS__CHSH_MANIFEST << 'EOF' || true
+packages:
+  - when: {pm: apt}
+    packages: [passwd]
+  - when: {pm: apk}
+    packages: [shadow]
+  - when: {pm: [dnf, yum]}
+    packages: [util-linux-user]
+  - when: {pm: [zypper, pacman]}
+    packages: [util-linux]
+EOF
+
 # @brief users__is_root — Return 0 when the current process runs as root (uid 0), 1 otherwise.
 #
 # Returns: 0 if uid is 0, 1 otherwise.
@@ -169,12 +191,7 @@ users__set_write_permissions() {
         dseditgroup -o edit -a "$_u" -t user "$_group"
     done
   else
-    if ! command -v groupadd > /dev/null 2>&1; then
-      logging__info "groupadd not found — installing shadow-utils."
-      ospkg__install_tracked "lib-users" shadow-utils 2> /dev/null ||
-        ospkg__install_tracked "lib-users" shadow 2> /dev/null || true
-    fi
-    if command -v groupadd > /dev/null 2>&1; then
+    if ospkg__run --manifest "$_USERS__SHADOW_UTILS_MANIFEST" --build-group "lib-users" --skip_installed; then
       getent group "$_group" > /dev/null 2>&1 || groupadd -r "$_group"
       local _u
       for _u in "$@"; do
@@ -214,13 +231,9 @@ users__set_login_shell() {
   local _shell="$1"
   shift
 
-  if ! command -v chsh > /dev/null 2>&1; then
-    logging__info "chsh not found — installing passwd package."
-    ospkg__install_tracked "lib-users" passwd 2> /dev/null || true
-    if ! command -v chsh > /dev/null 2>&1; then
-      logging__warn "chsh not found — skipping shell change. Install the 'passwd' package."
-      return 0
-    fi
+  if ! ospkg__run --manifest "$_USERS__CHSH_MANIFEST" --build-group "lib-users" --skip_installed; then
+    logging__warn "chsh not found — skipping shell change."
+    return 0
   fi
 
   # Register the shell in /etc/shells.
@@ -263,7 +276,7 @@ users__set_login_shell() {
 
 # @brief users__create_system_user <username> [--home <path>] [--shell <shell>] — Create a system user if it does not already exist.
 #
-# Ensures useradd is available, installing shadow-utils/shadow/passwd if needed.
+# Ensures useradd is available, installing the appropriate shadow package if needed.
 # No-op if the user already exists.
 #
 # Args:
@@ -287,15 +300,9 @@ users__create_system_user() {
     logging__info "User '${_username}' already exists — skipping."
     return 0
   fi
-  if ! command -v useradd > /dev/null 2>&1; then
-    logging__info "useradd not found — installing."
-    ospkg__install_tracked "lib-users" shadow-utils 2> /dev/null ||
-      ospkg__install_tracked "lib-users" shadow 2> /dev/null ||
-      ospkg__install_tracked "lib-users" passwd 2> /dev/null || true
-    if ! command -v useradd > /dev/null 2>&1; then
-      logging__warn "useradd not found — cannot create user '${_username}'."
-      return 1
-    fi
+  if ! ospkg__run --manifest "$_USERS__SHADOW_UTILS_MANIFEST" --build-group "lib-users" --skip_installed; then
+    logging__warn "useradd not found — cannot create user '${_username}'."
+    return 1
   fi
   local -a _cmd=("useradd" "--system" "--create-home")
   [ -n "$_home" ] && _cmd+=("--home-dir" "$_home")
