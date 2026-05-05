@@ -291,8 +291,14 @@ users__create_system_user() {
   local _home="" _shell=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --home) _home="$2"; shift 2 ;;
-      --shell) _shell="$2"; shift 2 ;;
+      --home)
+        _home="$2"
+        shift 2
+        ;;
+      --shell)
+        _shell="$2"
+        shift 2
+        ;;
       *) shift ;;
     esac
   done

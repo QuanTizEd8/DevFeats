@@ -56,7 +56,7 @@ case "$SUBCMD" in
     mkdir -p "${_WORK}/test"
     for feat_dir in "${REPO_ROOT}/test/features"/*/; do
       feat="$(basename "$feat_dir")"
-      [[ -d "${feat_dir}/devcontainer" ]] && \
+      [[ -d "${feat_dir}/devcontainer" ]] &&
         cp -a "${feat_dir}/devcontainer" "${_WORK}/test/${feat}"
     done
     python3 "${_SCRIPTS_DIR}/merge_github_token_into_scenarios.py" \
