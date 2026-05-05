@@ -12,6 +12,7 @@ packages:
   # ── Cryptography / key management ────────────────────────────────────────
   - name: gnupg
     dnf: gnupg2
+    yum: gnupg2
     zypper: gpg2
 
   # ── TLS / certificate tooling ─────────────────────────────────────────────
@@ -21,6 +22,7 @@ packages:
   - name: openssh-client
     brew: openssh
     dnf: openssh-clients
+    yum: openssh-clients
     zypper: openssh
     pacman: openssh
 
@@ -29,14 +31,15 @@ packages:
     brew: bind
     apk: bind-tools
     dnf: bind-utils
+    yum: bind-utils
     zypper: bind-utils
     pacman: bind
 
   # ── TCP/UDP connection testing ────────────────────────────────────────────
   - name: netcat-openbsd
     brew: netcat
-    apk: netcat-openbsd
     dnf: nmap-ncat
+    yum: nmap-ncat
     zypper: ncat
     pacman: openbsd-netcat
 
@@ -44,21 +47,14 @@ packages:
   - nmap
 
   # ── ICMP ping (Linux-only — macOS ships ping as a system tool) ────────────
-  - name: iputils-ping
+  - name: iputils
     when: {kernel: linux}
-    apk: iputils
-    dnf: iputils
-    zypper: iputils
-    pacman: iputils
+    apt: iputils-ping
 
   # ── Network diagnostics (traceroute + ping) ───────────────────────────────
   # mtr-tiny is the headless variant (no GTK) — preferred for containers
-  - name: mtr-tiny
-    brew: mtr
-    apk: mtr
-    dnf: mtr
-    zypper: mtr
-    pacman: mtr
+  - name: mtr
+    apt: mtr-tiny
 
   # ── Multipurpose relay ────────────────────────────────────────────────────
   - socat
@@ -82,7 +78,5 @@ packages:
   # ── Network interface and routing (Linux-only) ────────────────────────────
   - name: iproute2
     when: {kernel: linux}
-    apk: iproute2
     dnf: iproute
-    zypper: iproute2
-    pacman: iproute2
+    yum: iproute

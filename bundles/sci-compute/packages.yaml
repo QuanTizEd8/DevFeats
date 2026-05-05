@@ -1,72 +1,63 @@
 packages:
 
   # ── HDF5 (array/dataset storage) ─────────────────────────────────────────
-  - name: libhdf5-dev
+  - name: hdf5-devel
+    apt: libhdf5-dev
     brew: hdf5
     apk: hdf5-dev
-    dnf: hdf5-devel
-    zypper: hdf5-devel
     pacman: hdf5
 
   # ── Linear algebra (BLAS / LAPACK) ───────────────────────────────────────
-  - name: libopenblas-dev
+  - name: openblas-devel
+    apt: libopenblas-dev
     brew: openblas
     apk: openblas-dev
-    dnf: openblas-devel
-    zypper: openblas-devel
     pacman: openblas
 
-  - name: liblapack-dev
+  - name: lapack-devel
+    apt: liblapack-dev
     brew: lapack
     apk: lapack-dev
-    dnf: lapack-devel
-    zypper: lapack-devel
     pacman: lapack
 
   # ── Protocol Buffers ─────────────────────────────────────────────────────
   # Both entries map to the same 'protobuf' formula on Homebrew (idempotent).
-  - name: libprotobuf-dev
+  - name: protobuf-devel
+    apt: libprotobuf-dev
     brew: protobuf
     apk: protobuf-dev
-    dnf: protobuf-devel
-    zypper: protobuf-devel
     pacman: protobuf
 
-  - name: protobuf-compiler
-    brew: protobuf
-    apk: protobuf
+  - name: protobuf
+    apt: protobuf-compiler
     dnf: protobuf-compiler
-    zypper: protobuf
-    pacman: protobuf
+    yum: protobuf-compiler
 
   # ── Fourier analysis ────────────────────────────────────────────────────
-  - name: libfftw3-dev
+  - name: fftw-devel
+    apt: libfftw3-dev
     brew: fftw
     apk: fftw-dev
-    dnf: fftw-devel
     zypper: fftw3-devel
     pacman: fftw
 
   # ── GNU Scientific Library ────────────────────────────────────────────────
-  - name: libgsl-dev
+  - name: gsl-devel
+    apt: libgsl-dev
     brew: gsl
     apk: gsl-dev
-    dnf: gsl-devel
-    zypper: gsl-devel
     pacman: gsl
 
   # ── Eigen (C++ linear algebra, header-only) ───────────────────────────────
-  - name: libeigen3-dev
+  - name: eigen3-devel
+    apt: libeigen3-dev
     brew: eigen
     apk: eigen-dev
-    dnf: eigen3-devel
-    zypper: eigen3-devel
     pacman: eigen
 
   # ── Boost C++ libraries ───────────────────────────────────────────────────
-  - name: libboost-dev
+  - name: boost-devel
+    apt: libboost-dev
     brew: boost
     apk: boost-dev
-    dnf: boost-devel
-    zypper: boost-devel
     pacman: boost

@@ -2,22 +2,20 @@ packages:
   # man-db: man command and manual page database
   - name: man-db
     when: {kernel: linux}
-    apk: man-db
-    dnf: man-db
     zypper: man
-    pacman: man-db
 
   # manpages: Linux manual pages for user commands
   - name: manpages
     when: {kernel: linux}
     dnf: man-pages
+    yum: man-pages
     zypper: man-pages
     pacman: man-pages
 
   # manpages-dev: POSIX/C library/syscall man pages (sections 2, 3, 4, 7)
   - name: manpages-dev
     when: {kernel: linux}
-    apt: manpages-dev
     dnf: man-pages
+    yum: man-pages
     zypper: man-pages
     pacman: man-pages

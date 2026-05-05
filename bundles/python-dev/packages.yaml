@@ -5,6 +5,7 @@ packages:
     when: {kernel: linux}
     apk: py3-pip
     dnf: python3-pip
+    yum: python3-pip
     zypper: python3-pip
     pacman: python-pip
 

@@ -9,12 +9,8 @@ packages:
   # ── Fast grep replacements ────────────────────────────────────────────────
   - ripgrep
 
-  - name: silversearcher-ag
-    brew: the_silver_searcher
-    apk: the_silver_searcher
-    dnf: the_silver_searcher
-    zypper: the_silver_searcher
-    pacman: the_silver_searcher
+  - name: the_silver_searcher
+    apt: silversearcher-ag
 
   # ── Enhanced awk ──────────────────────────────────────────────────────────
   - gawk

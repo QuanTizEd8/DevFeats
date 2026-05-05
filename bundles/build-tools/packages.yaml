@@ -61,16 +61,14 @@ packages:
     when: {kernel: linux}
 
   # Build system helpers
-  - name: ninja-build
-    brew: ninja
-    apk: ninja
+  - name: ninja
+    apt: ninja-build
     dnf: ninja-build
-    zypper: ninja
-    pacman: ninja
+    yum: ninja-build
 
-  - name: pkg-config
-    apk: pkgconf
+  - name: pkgconf
+    apt: pkg-config
+    brew: pkg-config
     dnf: pkgconf-pkg-config
-    zypper: pkgconf
-    pacman: pkgconf
+    yum: pkgconfig
 

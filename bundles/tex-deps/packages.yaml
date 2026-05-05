@@ -8,14 +8,10 @@ packages:
   # python-is-python3 is Debian/Ubuntu-specific (creates /usr/bin/python →
   # python3). Other distros already provide 'python' pointing to Python 3.
   - name: python-is-python3
-    apt: python-is-python3
+    when: {pm: apt}
 
   # Python 3 interpreter — required by a number of TeX Live tools.
   - name: python3
-    brew: python3
-    apk: python3
-    dnf: python3
-    zypper: python3
     pacman: python
 
   # Java runtime — required by the arara build tool and luafindfont.
@@ -23,6 +19,7 @@ packages:
     brew: openjdk
     apk: openjdk21-jre
     dnf: java-21-openjdk-headless
+    yum: java-21-openjdk-headless
     zypper: java-21-openjdk-headless
     pacman: jre-openjdk-headless
 
@@ -33,37 +30,37 @@ packages:
   # or expect them to be installed via cpan.
 
   - name: libfile-homedir-perl
-    apt: libfile-homedir-perl
+    when: {pm: apt}
 
   - name: libunicode-linebreak-perl
-    apt: libunicode-linebreak-perl
+    when: {pm: apt}
 
   - name: libyaml-tiny-perl
-    apt: libyaml-tiny-perl
+    when: {pm: apt}
 
   - name: libgetopt-long-descriptive-perl
-    apt: libgetopt-long-descriptive-perl
+    when: {pm: apt}
 
   - name: libdigest-perl-md5-perl
-    apt: libdigest-perl-md5-perl
+    when: {pm: apt}
 
   # ── asymptote (OpenGL) ─────────────────────────────────────────────────────
   # asymptote links against libglut. Ubuntu Noble ships libglut3.12 but
   # omits the expected libglut.so.3 symlink; see post_install below.
   - name: libglut3.12
-    apt: libglut3.12
+    when: {pm: apt}
 
   # ── Font coverage ──────────────────────────────────────────────────────────
   # GNU FreeFont provides broad Unicode coverage needed by TeX documents that
   # reference characters outside the Latin range.
   - name: fonts-freefont-otf
-    apt: fonts-freefont-otf
+    when: {pm: apt}
 
   # ── TeX Live install helper ────────────────────────────────────────────────
   # equivs lets the installer create a dummy 'texlive-local' package that
   # satisfies apt dependency checks without installing the distro TeX Live.
   - name: equivs
-    apt: equivs
+    when: {pm: apt}
 
 post_install:
   # Ubuntu Noble's libglut3.12 does not ship the libglut.so.3 compatibility

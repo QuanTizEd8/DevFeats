@@ -1,192 +1,174 @@
 packages:
   # ── Compression ───────────────────────────────────────────────────────────
-  - name: zlib1g-dev
+  - name: zlib-devel
+    apt: zlib1g-dev
     brew: zlib
     apk: zlib-dev
-    dnf: zlib-devel
-    zypper: zlib-devel
     pacman: zlib
 
-  - name: libbz2-dev
+  - name: bzip2-devel
+    apt: libbz2-dev
     brew: bzip2
     apk: bzip2-dev
-    dnf: bzip2-devel
     zypper: libbz2-devel
     pacman: bzip2
 
-  - name: liblzma-dev
+  - name: xz-devel
+    apt: liblzma-dev
     brew: xz
     apk: xz-dev
-    dnf: xz-devel
-    zypper: xz-devel
     pacman: xz
 
   # ── Crypto / TLS ──────────────────────────────────────────────────────────
-  - name: libssl-dev
+  - name: openssl-devel
+    apt: libssl-dev
     brew: openssl@3
     apk: openssl-dev
-    dnf: openssl-devel
     zypper: libopenssl-devel
     pacman: openssl
 
-  - name: libkrb5-dev
+  - name: krb5-devel
+    apt: libkrb5-dev
     brew: krb5
     apk: krb5-dev
-    dnf: krb5-devel
-    zypper: krb5-devel
     pacman: krb5
 
   # ── Secret storage ────────────────────────────────────────────────────────
-  - name: libsecret-1-dev
+  - name: libsecret-devel
+    apt: libsecret-1-dev
     brew: libsecret
     apk: libsecret-dev
-    dnf: libsecret-devel
-    zypper: libsecret-devel
     pacman: libsecret
 
   # ── Network / HTTP ────────────────────────────────────────────────────────
-  - name: libcurl4-openssl-dev
+  - name: libcurl-devel
+    apt: libcurl4-openssl-dev
     brew: curl
     apk: curl-dev
-    dnf: libcurl-devel
-    zypper: libcurl-devel
     pacman: curl
 
-  - name: libevent-dev
-    brew: libevent
+  - name: libevent-devel
+    apt: libevent-dev
     apk: libevent-dev
-    dnf: libevent-devel
-    zypper: libevent-devel
+    brew: libevent
     pacman: libevent
 
   # ── FFI / Dynamic loading ─────────────────────────────────────────────────
-  - name: libffi-dev
-    brew: libffi
+  - name: libffi-devel
+    apt: libffi-dev
     apk: libffi-dev
-    dnf: libffi-devel
-    zypper: libffi-devel
+    brew: libffi
     pacman: libffi
 
   # ── Terminal / readline ───────────────────────────────────────────────────
-  - name: libreadline-dev
+  - name: readline-devel
+    apt: libreadline-dev
     brew: readline
     apk: readline-dev
-    dnf: readline-devel
-    zypper: readline-devel
     pacman: readline
 
-  - name: libncurses-dev
+  - name: ncurses-devel
+    apt: libncurses-dev
     brew: ncurses
     apk: ncurses-dev
-    dnf: ncurses-devel
-    zypper: ncurses-devel
     pacman: ncurses
 
   # ── SQLite dev headers ────────────────────────────────────────────────────
-  - name: libsqlite3-dev
+  - name: sqlite-devel
+    apt: libsqlite3-dev
     brew: sqlite
     apk: sqlite-dev
-    dnf: sqlite-devel
     zypper: sqlite3-devel
     pacman: sqlite
 
   # ── UUID ──────────────────────────────────────────────────────────────────
   # macOS provides UUID in the system SDK; install only on Linux
-  - name: uuid-dev
+  - name: libuuid-devel
     when: {kernel: linux}
+    apt: uuid-dev
     apk: util-linux-dev
-    dnf: libuuid-devel
-    zypper: libuuid-devel
     pacman: util-linux
 
   # ── GLib ──────────────────────────────────────────────────────────────────
-  - name: libglib2.0-dev
+  - name: glib2-devel
+    apt: libglib2.0-dev
     brew: glib
     apk: glib-dev
-    dnf: glib2-devel
-    zypper: glib2-devel
     pacman: glib2
 
   # ── XML / Parsing ─────────────────────────────────────────────────────────
-  - name: libxml2-dev
+  - name: libxml2-devel
+    apt: libxml2-dev
     brew: libxml2
     apk: libxml2-dev
-    dnf: libxml2-devel
-    zypper: libxml2-devel
     pacman: libxml2
 
-  # apt package name is libxslt1-dev; all others follow a consistent pattern
-  - name: libxslt1-dev
+  - name: libxslt-devel
+    apt: libxslt1-dev
     brew: libxslt
     apk: libxslt-dev
-    dnf: libxslt-devel
-    zypper: libxslt-devel
     pacman: libxslt
 
-  - name: libyaml-dev
+  - name: libyaml-devel
+    apt: libyaml-dev
     brew: libyaml
     apk: yaml-dev
-    dnf: libyaml-devel
-    zypper: libyaml-devel
     pacman: libyaml
 
-  - name: libexpat1-dev
+  - name: expat-devel
+    apt: libexpat1-dev
     brew: expat
     apk: expat-dev
-    dnf: expat-devel
     zypper: libexpat-devel
     pacman: expat
 
   # ── Regular expressions ───────────────────────────────────────────────────
-  - name: libpcre2-dev
+  - name: pcre2-devel
+    apt: libpcre2-dev
     brew: pcre2
     apk: pcre2-dev
-    dnf: pcre2-devel
-    zypper: pcre2-devel
     pacman: pcre2
 
   # ── Arbitrary-precision arithmetic ───────────────────────────────────────
-  - name: libgmp-dev
+  - name: gmp-devel
+    apt: libgmp-dev
     brew: gmp
     apk: gmp-dev
-    dnf: gmp-devel
-    zypper: gmp-devel
     pacman: gmp
 
   # ── Image formats ─────────────────────────────────────────────────────────
-  - name: libpng-dev
+  - name: libpng-devel
+    apt: libpng-dev
     brew: libpng
     apk: libpng-dev
-    dnf: libpng-devel
     zypper: libpng16-compat-devel
     pacman: libpng
 
-  - name: libjpeg-dev
+  - name: libjpeg-turbo-devel
+    apt: libjpeg-dev
     brew: libjpeg-turbo
     apk: libjpeg-turbo-dev
-    dnf: libjpeg-turbo-devel
     zypper: libjpeg8-devel
     pacman: libjpeg-turbo
 
-  - name: libwebp-dev
+  - name: libwebp-devel
+    apt: libwebp-dev
     brew: webp
     apk: libwebp-dev
-    dnf: libwebp-devel
-    zypper: libwebp-devel
     pacman: libwebp
 
   # ── Tcl/Tk GUI toolkit ────────────────────────────────────────────────────
-  - name: tk-dev
+  - name: tk-devel
+    apt: tk-dev
     brew: tcl-tk@8
     apk: tk-dev
-    dnf: tk-devel
-    zypper: tk-devel
     pacman: tk
+
   # ── Modern cryptography ──────────────────────────────────────────────────
-  - name: libsodium-dev
+  - name: libsodium-devel
+    apt: libsodium-dev
+    apk: libsodium-dev
     brew: libsodium
-    dnf: libsodium-devel
-    zypper: libsodium-devel
     pacman: libsodium
 
   # ── ImageMagick dev headers (apt-only; other PMs bundle headers) ───────────
@@ -197,32 +179,28 @@ packages:
 
   # ── Python development headers ──────────────────────────────────────────────
   # Required for building Python C extensions (e.g. pip-compiled packages)
-  - name: python3-dev
-    brew: python@3
+  - name: python3-devel
+    apt: python3-dev
     apk: python3-dev
-    dnf: python3-devel
-    zypper: python3-devel
+    brew: python@3
     pacman: python
 
   # ── Messaging / async I/O ─────────────────────────────────────────────────
-  - name: libzmq3-dev
+  - name: zeromq-devel
+    apt: libzmq3-dev
     brew: zeromq
     apk: zeromq-dev
-    dnf: zeromq-devel
-    zypper: zeromq-devel
     pacman: zeromq
 
-  - name: libuv1-dev
+  - name: libuv-devel
+    apt: libuv1-dev
     brew: libuv
     apk: libuv-dev
-    dnf: libuv-devel
-    zypper: libuv-devel
     pacman: libuv
 
   # ── Regular expressions (RE2) ─────────────────────────────────────────────
-  - name: libre2-dev
+  - name: re2-devel
+    apt: libre2-dev
     brew: re2
     apk: re2-dev
-    dnf: re2-devel
-    zypper: re2-devel
     pacman: re2

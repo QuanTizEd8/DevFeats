@@ -4,6 +4,7 @@ packages:
     brew: libpq
     # apk name is also 'libpq-dev' — no override needed
     dnf: libpq-devel
+    yum: postgresql-devel
     zypper: postgresql-devel
     pacman: postgresql-libs
 
@@ -12,22 +13,20 @@ packages:
     brew: mysql-client
     apk: mariadb-dev
     dnf: mariadb-connector-c-devel
+    yum: mariadb-devel
     zypper: mariadb-devel
     pacman: mariadb-libs
 
   # ── SQLite CLI ──────────────────────────────────────────────────────────────
   # dev headers (libsqlite3-dev) live in the dev-libs bundle
-  - name: sqlite3
-    brew: sqlite
-    apk: sqlite
-    dnf: sqlite
+  - name: sqlite
+    apt: sqlite3
     zypper: sqlite3
-    pacman: sqlite
 
   # ── ODBC ──────────────────────────────────────────────────────────────────
   - name: unixodbc-dev
     brew: unixodbc
-    apk: unixodbc-dev
     dnf: unixODBC-devel
+    yum: unixODBC-devel
     zypper: unixodbc-devel
     pacman: unixodbc

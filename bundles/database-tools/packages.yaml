@@ -1,23 +1,19 @@
 packages:
   # ── PostgreSQL client (psql, pg_dump, pg_restore …) ──────────────────────
-  - name: postgresql-client
+  - name: postgresql
+    apt: postgresql-client
+    apk: postgresql-client
     brew: libpq
-    dnf: postgresql
-    zypper: postgresql
-    pacman: postgresql
 
   # ── MySQL / MariaDB client ────────────────────────────────────────────────
   - name: default-mysql-client
     brew: mysql-client
     apk: mariadb-client
     dnf: mariadb
+    yum: mariadb
     zypper: mariadb-client
     pacman: mariadb-clients
 
   # ── Redis CLI ─────────────────────────────────────────────────────────────
-  - name: redis-tools
-    brew: redis
-    apk: redis
-    dnf: redis
-    zypper: redis
-    pacman: redis
+  - name: redis
+    apt: redis-tools

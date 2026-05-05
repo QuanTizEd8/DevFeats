@@ -4,10 +4,6 @@ packages:
   # ca-certificates: trusted CA certs for HTTPS/TLS; macOS ships its own
   - name: ca-certificates
     when: {kernel: linux}
-    apk: ca-certificates
-    dnf: ca-certificates
-    zypper: ca-certificates
-    pacman: ca-certificates
 
   # sudo: run commands as root; macOS ships its own
   - name: sudo
@@ -20,17 +16,14 @@ packages:
   # tzdata: time zone data; macOS ships its own
   - name: tzdata
     when: {kernel: linux}
-    apk: tzdata
-    dnf: tzdata
     zypper: timezone
-    pacman: tzdata
 
   # ── Apt-only ─────────────────────────────────────────────────────────────────
 
   # locales: locale data and locale-gen utility
   - name: locales
     when: {pm: apt}
-    post_install: |
+    script: |
       if ! grep -o -E '^\s*en_US.UTF-8\s+UTF-8' /etc/locale.gen > /dev/null; then
           echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen;
           locale-gen;
@@ -46,8 +39,7 @@ packages:
 
   # lsb-release: lsb_release command for distro identification
   - name: lsb-release
-    when: {pm: apt}
-    zypper: lsb-release
+    when: {pm: [apt, zypper, pacman]}
 
   # apt-utils: APT internal utilities (progress reporting, etc.)
   - name: apt-utils

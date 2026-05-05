@@ -3,9 +3,9 @@ packages:
   - hyperfine
 
   # ── Code navigation ───────────────────────────────────────────────────────
-  - name: universal-ctags
-    apk: ctags
-    pacman: ctags
+  - name: ctags
+    apt: universal-ctags
+    brew: universal-ctags
 
   # ── Code metrics ──────────────────────────────────────────────────────────
   - cloc

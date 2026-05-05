@@ -17,17 +17,14 @@ packages:
   # ── Plotting ──────────────────────────────────────────────────────────────
   # On apt, gnuplot-nox is the headless (no-X11) variant; all other PMs ship
   # a single 'gnuplot' package.
-  - name: gnuplot-nox
-    brew: gnuplot
-    apk: gnuplot
-    dnf: gnuplot
-    zypper: gnuplot
-    pacman: gnuplot
+  - name: gnuplot
+    apt: gnuplot-nox
 
   # ── Image manipulation ────────────────────────────────────────────────────
-  # Capital 'I' and 'M' on Fedora (dnf) and openSUSE (zypper).
+  # Capital 'I' and 'M' on Fedora (dnf/yum) and openSUSE (zypper).
   - name: imagemagick
     dnf: ImageMagick
+    yum: ImageMagick
     zypper: ImageMagick
 
   # ── Font infrastructure ───────────────────────────────────────────────────
@@ -37,24 +34,20 @@ packages:
   - name: python3-pygments
     brew: pygments
     apk: py3-pygments
-    dnf: python3-pygments
     zypper: python3-Pygments
     pacman: python-pygments
 
   # ── SVG rendering ─────────────────────────────────────────────────────────
   # rsvg-convert: SVG → PNG/PDF/PS conversion
-  - name: librsvg2-bin
-    brew: librsvg
-    apk: librsvg
+  - name: librsvg
+    apt: librsvg2-bin
     dnf: librsvg2-tools
+    yum: librsvg2-tools
     zypper: rsvg-convert
-    pacman: librsvg
 
   # ── OCR ───────────────────────────────────────────────────────────────────
-  - name: tesseract-ocr
-    brew: tesseract
+  - name: tesseract
+    apt: tesseract-ocr
     apk: tesseract-ocr
-    dnf: tesseract
     zypper: tesseract-ocr
-    pacman: tesseract
 

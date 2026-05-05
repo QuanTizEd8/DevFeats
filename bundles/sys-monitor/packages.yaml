@@ -9,6 +9,7 @@ packages:
   - name: procps
     when: {kernel: linux}
     dnf: procps-ng
+    yum: procps-ng
     pacman: procps-ng
 
   # psmisc: killall, fuser, pstree, pmap

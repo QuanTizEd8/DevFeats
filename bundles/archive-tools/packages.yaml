@@ -9,23 +9,15 @@ packages:
   - zip
 
   # ── 7-zip ─────────────────────────────────────────────────────────────────
-  - name: p7zip-full
-    brew: p7zip
-    apk: p7zip
-    dnf: p7zip
-    zypper: p7zip
-    pacman: p7zip
+  - name: p7zip
+    apt: p7zip-full
 
   # ── Compression formats ────────────────────────────────────────────────────
   - gzip
   - bzip2
 
-  - name: xz-utils
-    brew: xz
-    apk: xz
-    dnf: xz
-    zypper: xz
-    pacman: xz
+  - name: xz
+    apt: xz-utils
 
   - zstd
   - lz4
