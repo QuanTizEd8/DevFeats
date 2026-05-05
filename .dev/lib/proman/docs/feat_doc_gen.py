@@ -28,16 +28,23 @@ def generate(metadata: dict[str, Any], notes: str = "") -> str:
         "## Options",
         options,
     ]
+
     lifecycle_notes = _generate_lifecycle_notes(metadata)
     if lifecycle_notes:
         parts.extend(["## Lifecycle Commands", lifecycle_notes])
+
+    installs_after = _generate_installs_after(metadata)
+    if installs_after:
+        parts.extend(["## Installation Order", installs_after])
+
     extensions_section = _generate_extensions_section(metadata)
     if extensions_section:
         parts.extend(["## VS Code Extensions", extensions_section])
+
     if notes:
         parts.extend(["## Notes", notes])
-    sep = "\n\n"
-    return sep.join(parts).strip() + "\n"
+
+    return "\n\n".join(parts).strip() + "\n"
 
 
 def _generate_keyword_badges(metadata: dict[str, Any]) -> str:
@@ -208,6 +215,15 @@ def _generate_lifecycle_notes(metadata: dict) -> str:
         tab_set.append(unordered_list, title=key)
     return str(tab_set.source(target="sphinx")) if tab_set.content else ""
 
+
+def _generate_installs_after(metadata: dict) -> str:
+    installs_after = metadata.get("installsAfter", [])
+    if not installs_after:
+        return ""
+    out = ["This feature is best installed after the following features:"]
+    for feat in installs_after:
+        out.append(f"- `{feat}`")
+    return "\n".join(out)
 
 # ── helpers ──────────────────────────────────────────────────────────
 
