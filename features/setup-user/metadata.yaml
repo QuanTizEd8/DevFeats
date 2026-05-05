@@ -58,11 +58,13 @@ options:
 _dependencies:
   run:
     base:
-      # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt/dnf distros,
-      # but requires the shadow package on Alpine.
-      apk:
-        packages:
-          - shadow
+      # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt distros,
+      # but requires the shadow package on Alpine/zypper/pacman and shadow-utils on dnf/yum.
+      packages:
+        - when: {pm: [apk, zypper, pacman]}
+          packages: [shadow]
+        - when: {pm: [dnf, yum]}
+          packages: [shadow-utils]
     sudo:
       # Installed only when sudo_access=true.
       packages:

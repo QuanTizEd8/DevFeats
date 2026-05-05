@@ -217,18 +217,16 @@ _dependencies:
       packages:
         - git
         - ca-certificates
-
-      apt:
-        packages:
-          # Locale: generate en_US.UTF-8 so LANG/LC_ALL set in /etc/shellenv resolve correctly.
-          - locales
-      apk:
-        packages:
-          - musl-locales
-          - musl-locales-lang
-      dnf:
-        packages:
-          - glibc-langpack-en
+        - when: {pm: apt}
+          packages: [locales]
+        - when: {pm: apk}
+          packages: [musl-locales, musl-locales-lang]
+        - when: {pm: [dnf, yum]}
+          packages: [glibc-langpack-en]
+        - when: {pm: zypper}
+          packages: [glibc-i18ndata]
+        - when: {pm: pacman}
+          packages: [glibc]
 
       scripts: |
         if command -v dpkg > /dev/null 2>&1; then

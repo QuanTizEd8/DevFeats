@@ -151,37 +151,22 @@ _dependencies:
       # zypper adds procps plus gcc/make/patch/headers/binutils/pkgconf/perl so
       # bottles and formula builds have a typical C/C++ build environment.
 
-      apt:
-        packages:
-          - build-essential
-          - procps
-      dnf:
-        packages:
-          - procps-ng
-      zypper:
-        packages:
-          - procps
+      packages:
+        - when: {pm: apt}
+          packages: [build-essential]
+        - when: {pm: apk}
+          packages: [build-base]
+        - when: {pm: [apt, apk, zypper]}
+          packages: [procps]
+        - when: {pm: [dnf, yum, pacman]}
+          packages: [procps-ng]
+        - when: {pm: zypper}
           # Explicit RPMs (see linux-build comment above), not pattern(devel_basis).
-          - binutils
-          - gcc
-          - gcc-c++
-          - make
-          - patch
-          - glibc-devel
-          - libstdc++-devel
-          - perl
-          - pkgconf
-      pacman:
-        packages:
-          - procps-ng
-      apk:
-        packages:
-          - build-base
-          - procps
+          packages: [binutils, gcc, gcc-c++, make, patch, glibc-devel, libstdc++-devel, perl, pkgconf]
 
       # Package groups for build toolchains
       groups:
         - name: development-tools
-          when: {pm: dnf}
+          when: {pm: [dnf, yum]}
         - name: base-devel
           when: {pm: pacman}

@@ -68,12 +68,12 @@ _dependencies:
         - slirp4netns
 
       # UID/GID mapping tools — package name varies by distro
-      apt:
-        packages:
-          - uidmap
-      dnf:
-        packages:
-          - shadow-utils
-      apk:
-        packages:
-          - shadow-uidmap
+      packages:
+        - when: {pm: apt}
+          packages: [uidmap]
+        - when: {pm: [dnf, yum]}
+          packages: [shadow-utils]
+        - when: {pm: apk}
+          packages: [shadow-uidmap]
+        - when: {pm: [zypper, pacman]}
+          packages: [shadow]

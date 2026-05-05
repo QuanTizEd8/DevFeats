@@ -649,15 +649,6 @@ _dependencies:
       # from the CTAN repository during installation.
       # Users who need to run 'tlmgr install' or 'tlmgr update' after image build
       # should set keep_build_deps=true so xz remains available.
-      apt:
-        packages:
-          - xz-utils
-      apk:
-        packages:
-          - xz
-      dnf:
-        packages:
-          - xz
-      brew:
-        packages:
-          - xz
+      packages:
+        - name: xz
+          apt: xz-utils

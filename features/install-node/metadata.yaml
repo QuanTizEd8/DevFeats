@@ -291,20 +291,14 @@ _dependencies:
       # 'npm install' with native modules inside the container.
       packages:
         - make
-      apt:
-        packages:
-          - g++
-          - gcc
-          - python3-minimal
-      apk:
-        packages: []
-      dnf:
-        packages:
-          - gcc
-          - gcc-c++
-          - python3
-      brew:
-        packages: []
+        - when: {pm: [apt, dnf, yum, zypper, pacman]}
+          packages: [gcc]
+        - when: {pm: apt}
+          packages: [g++, python3-minimal]
+        - when: {pm: [dnf, yum, zypper]}
+          packages: [gcc-c++, python3]
+        - when: {pm: pacman}
+          packages: [python]
   build:
     nvm:
       # nvm build prerequisites on Alpine Linux.
