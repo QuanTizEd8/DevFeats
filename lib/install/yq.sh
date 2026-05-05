@@ -87,13 +87,11 @@ _install__yq_install_release() {
 
 # @brief _install__yq_install_repos <context> <group> [repos-manifest] — Install yq via package manager with context-aware tracking.
 _install__yq_install_repos() {
-  local _context="${1-}" _group="${2-}" _repos_manifest="${3-}" _bin _pm
-  ospkg__detect || return 1
-  _pm="${_OSPKG_PKG_MNGR:-unknown}"
+  local _context="${1-}" _group="${2-}" _repos_manifest="${3-}" _bin
   if [[ -n "$_repos_manifest" ]]; then
     ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
   else
-    logging__warn "install__yq: no repos manifest provided; attempting package 'yq' from '${_pm}'."
+    logging__warn "install__yq: no repos manifest provided; attempting package 'yq'."
     if [[ "$_context" == "user" ]]; then
       ospkg__install_user yq || return 1
     else
@@ -102,7 +100,7 @@ _install__yq_install_repos() {
   fi
   _bin="$(command -v yq 2> /dev/null || true)"
   if ! _install__yq_compatible "${_bin}"; then
-    logging__error "install__yq: method=repos did not yield a mikefarah/yq-compatible binary on package manager '${_pm}'."
+    logging__error "install__yq: method=repos did not yield a mikefarah/yq-compatible binary."
     return 1
   fi
   install__state_record "yq" "$_context" "repos" "$_bin" "$_group" || true

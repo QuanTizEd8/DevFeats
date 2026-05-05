@@ -132,9 +132,6 @@ _install__oras_install_release() {
 # @brief _install__oras_install_repos <version> <group> <context> [repos-manifest] — Install ORAS via system package manager.
 _install__oras_install_repos() {
   local _version="${1-}" _group="${2-}" _context="${3-}" _repos_manifest="${4-}"
-  ospkg__detect || return 1
-  local _pm="${_OSPKG_PKG_MNGR:-}"
-  local _pkg="oras"
   if [[ -n "$_repos_manifest" && "$_context" == "user" ]]; then
     ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
     local _bin_from_manifest
@@ -144,18 +141,23 @@ _install__oras_install_repos() {
     printf '%s\n' "$_bin_from_manifest"
     return 0
   fi
+  local _manifest
   if [[ -n "$_version" && "$_version" != "latest" ]]; then
-    case "$_pm" in
-      apt-get) _pkg="${_pkg}=${_version}" ;;
-      *)
-        logging__warn "install__oras: version pinning is not supported for method=repos on '${_pm:-unknown}'; installing latest available ORAS package."
-        ;;
-    esac
+    read -r -d '' _manifest << EOF || true
+packages:
+  - name: oras
+    apt: "oras=${_version}"
+EOF
+  else
+    read -r -d '' _manifest << 'EOF' || true
+packages:
+  - oras
+EOF
   fi
   if [[ "$_context" == "user" ]]; then
-    ospkg__install_user "$_pkg"
+    ospkg__run --manifest "$_manifest" --skip_installed || return 1
   else
-    ospkg__install_tracked "$_group" "$_pkg"
+    ospkg__run --manifest "$_manifest" --build-group "$_group" --skip_installed || return 1
   fi
   local _bin
   _bin="$(command -v oras 2> /dev/null || true)"

@@ -139,7 +139,6 @@ _install__jq_install_release() {
 # @brief _install__jq_install_repos <group> <context> [repos-manifest] — Install jq via the OS package manager.
 _install__jq_install_repos() {
   local _group="${1-}" _context="${2-}" _repos_manifest="${3-}"
-  ospkg__detect || return 1
   if [[ -n "$_repos_manifest" ]]; then
     ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
   else

@@ -10,6 +10,13 @@ _VERIFY__LIB_LOADED=1
 _VERIFY__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_VERIFY__LIB_DIR/ospkg.sh"
+
+read -r -d '' _VERIFY__GPG_MANIFEST << 'EOF' || true
+packages:
+  - name: gnupg
+    dnf: gnupg2
+    yum: gnupg2
+EOF
 # shellcheck source=lib/net.sh
 [[ -z "${_NET__LIB_LOADED-}" ]] && . "$_VERIFY__LIB_DIR/net.sh"
 
@@ -120,14 +127,9 @@ verify__gpg_ensure() {
   local _group="${1:-lib-verify}"
   command -v gpg > /dev/null 2>&1 && return 0
   logging__info "gpg not found — installing gnupg."
-  ospkg__detect || return 1
-  local _pkg="gnupg"
-  case "${_OSPKG_PKG_MNGR:-}" in
-    dnf | yum) _pkg="gnupg2" ;;
-  esac
-  ospkg__install_tracked "$_group" "$_pkg" || return 1
+  ospkg__run --manifest "$_VERIFY__GPG_MANIFEST" --build-group "$_group" || return 1
   command -v gpg > /dev/null 2>&1 || {
-    logging__error "verify__gpg_ensure: gpg still not found after installing ${_pkg}."
+    logging__error "verify__gpg_ensure: gpg still not found after installing gnupg."
     return 1
   }
 }
