@@ -225,7 +225,6 @@ _git__source_fetch_verify() {
     return 1
   fi
   verify__sha "${_tarfile}" "${_expected}"
-  return 0
 }
 
 # _git__source_build
