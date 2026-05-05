@@ -69,24 +69,18 @@ file__extract_archive() {
   if [ "${4:-}" = "--strip" ]; then
     _strip="${5:-}"
   fi
+  local -a _strip_arg=()
+  [ -n "$_strip" ] && _strip_arg=(--strip-components="$_strip")
   mkdir -p "$_dest"
   case "$_name" in
     *.tar.xz)
       _file__ensure_extract_tool tar || return 1
       _file__ensure_extract_tool xz || return 1
-      if [ -n "$_strip" ]; then
-        tar -xJf "$_arc" -C "$_dest" --strip-components="$_strip"
-      else
-        tar -xJf "$_arc" -C "$_dest"
-      fi
+      tar -xJf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.tar.gz | *.tgz)
       _file__ensure_extract_tool tar || return 1
-      if [ -n "$_strip" ]; then
-        tar -xzf "$_arc" -C "$_dest" --strip-components="$_strip"
-      else
-        tar -xzf "$_arc" -C "$_dest"
-      fi
+      tar -xzf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.zip)
       _file__ensure_extract_tool zip || return 1
@@ -97,5 +91,4 @@ file__extract_archive() {
       return 1
       ;;
   esac
-  return 0
 }
