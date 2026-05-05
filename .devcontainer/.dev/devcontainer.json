@@ -20,8 +20,8 @@
     },
     "ghcr.io/quantized8/sysset/install-gh": {},
 
-    // "ghcr.io/quantized8/sysset/install-git": {},
-    "../.src/install-git": {"version": "stable"},
+    "ghcr.io/quantized8/sysset/install-git": {"version": "stable"},
+    // "../.src/install-git": {"version": "stable"},
 
     "ghcr.io/quantized8/sysset/install-jq": {},
     "ghcr.io/quantized8/sysset/install-just": {
@@ -35,7 +35,7 @@
     },
 
     // "ghcr.io/quantized8/sysset/install-miniforge": {},
-    "../.src/install-miniforge": {},
+    // "../.src/install-miniforge": {},
 
     "ghcr.io/quantized8/sysset/install-pixi": {},
     "ghcr.io/quantized8/sysset/install-shell": {},
