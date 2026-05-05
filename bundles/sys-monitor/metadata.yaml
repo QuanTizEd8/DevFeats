@@ -62,7 +62,7 @@ inotify-tools:
     docs: https://github.com/inotify-tools/inotify-tools
     source: https://github.com/inotify-tools/inotify-tools
 
-extail:
+xtail:
   summary: Monitor multiple files like `tail -f`, even if they are rotated.
   description: |
     xtail allows users to watch the growth of multiple files at once,
@@ -73,12 +73,65 @@ extail:
     docs: https://manpages.ubuntu.com/manpages/noble/en/man1/xtail.1.html
     source: https://github.com/pbrady/xtail
 
-iproute2:
-  summary: Networking and traffic control utilities.
+sysstat:
+  summary: System activity reporting tools — sar, iostat, mpstat, pidstat.
   description: |
-    Provides tools like `ip` and `tc` for configuring network interfaces
-    and managing routing. Essential for network setup and diagnostics on
-    Linux. Linux-only — macOS ships equivalent tools via the OS.
+    sysstat provides sar (system activity reporter), iostat (CPU and I/O
+    statistics), mpstat (per-CPU statistics), and pidstat (per-process
+    statistics). Essential for performance profiling, diagnosing I/O
+    bottlenecks, and historical monitoring. Linux-only.
   url:
-    docs: https://man7.org/linux/man-pages/man8/ip.8.html
-    source: https://git.kernel.org/pub/scm/network/iproute2/iproute2.git
+    docs: https://sysstat.github.io/
+    source: https://github.com/sysstat/sysstat
+
+iotop:
+  summary: Monitor disk I/O usage by process.
+  description: |
+    iotop displays real-time disk I/O usage broken down by process, similar
+    to top(1) but for I/O. Invaluable for identifying processes causing disk
+    saturation or unexpected write amplification. Linux-only.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man8/iotop.8.html
+    source: https://github.com/Tomas-M/iotop
+
+nethogs:
+  summary: Monitor network bandwidth usage per process.
+  description: |
+    nethogs groups network traffic by process, showing which programs consume
+    bandwidth in real time. Useful for identifying unexpected network activity
+    or runaway upload/download processes. Linux-only.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man8/nethogs.8.html
+    source: https://github.com/raboof/nethogs
+
+btop:
+  summary: Resource monitor — CPU, memory, disks, network, and processes.
+  description: |
+    btop is a feature-rich, visually polished TUI resource monitor. Displays
+    CPU usage per core, memory and swap, disk I/O, network throughput, and a
+    sortable process list — all in one screen. A modern successor to htop/bpytop.
+  url:
+    docs: https://github.com/aristocratos/btop
+    source: https://github.com/aristocratos/btop
+
+duf:
+  summary: Disk usage/free — modern df with a clean table output.
+  description: |
+    duf lists mounted filesystems with colored, human-readable output,
+    grouping local, network, and special mounts. Provides the same information
+    as df(1) but in a far more readable format with device type icons.
+  url:
+    docs: https://github.com/muesli/duf
+    source: https://github.com/muesli/duf
+
+glances:
+  summary: Cross-platform curses system monitor with web UI and container support.
+  description: |
+    glances provides a real-time overview of system resources in a single
+    screen: CPU (per-core), memory, swap, disk I/O, network, processes,
+    temperatures, and Docker/Podman containers. Beyond the TUI, it exposes
+    a web UI, REST API, and Prometheus metrics endpoint — making it useful
+    for both interactive monitoring and automated collection.
+  url:
+    docs: https://glances.readthedocs.io/
+    source: https://github.com/nicolargo/glances

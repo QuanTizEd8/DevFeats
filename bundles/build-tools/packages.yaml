@@ -29,7 +29,6 @@ packages:
   - autoconf
   - automake
   - libtool
-  - gettext
 
   - meson
   - ccache
@@ -75,10 +74,3 @@ packages:
     zypper: pkgconf
     pacman: pkgconf
 
-  # manpages-dev: developer man pages for C library functions and system calls
-  - name: manpages-dev
-    when: {kernel: linux}
-    apt: manpages-dev
-    dnf: man-pages
-    zypper: man-pages
-    pacman: man-pages

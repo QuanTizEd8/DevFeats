@@ -1,0 +1,33 @@
+nano:
+  summary: Small, friendly text editor inspired by Pico.
+  description: |
+    GNU nano is a user-friendly terminal text editor with syntax highlighting,
+    undo/redo, and search-and-replace. Ideal for quick edits to config files
+    and scripts in headless environments.
+  url:
+    docs: https://www.nano-editor.org/docs.php
+    source: https://git.savannah.gnu.org/git/nano.git
+
+vim:
+  summary: Vi IMproved – enhanced vi text editor.
+  description: |
+    Vim is a highly configurable text editor widely used by developers for
+    editing source code. An improved version of vi with syntax highlighting,
+    plugins, and powerful editing commands.
+  url:
+    docs: https://vimhelp.org/
+    source: https://github.com/vim/vim
+
+neovim:
+  summary: Hyperextensible Vim-based text editor.
+  description: |
+    Neovim is a modernised fork of Vim with Lua-based configuration, a
+    built-in LSP client, Tree-sitter integration, and a rich async plugin
+    ecosystem. Drop-in compatible with most Vim configuration while offering
+    a cleaner architecture and faster development pace.
+  url:
+    docs: https://neovim.io/doc/
+    source: https://github.com/neovim/neovim
+  notes: |
+    Prefer Neovim for new setups. The distro-packaged version can lag behind
+    upstream; the `install-neovim` feature installs from GitHub Releases.

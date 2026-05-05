@@ -1,0 +1,31 @@
+miller:
+  summary: CSV/TSV/JSON/NDJSON swiss-army knife for structured data.
+  description: |
+    Miller (mlr) operates on record-oriented data streams in CSV, TSV, JSON,
+    NDJSON, and other formats with a rich set of verbs (filter, sort, stats,
+    reshape, join, etc.). A powerful complement to jq for tabular data.
+  url:
+    docs: https://miller.readthedocs.io/
+    source: https://github.com/johnkerl/miller
+
+xmlstarlet:
+  summary: Command-line XML/XPath/XSLT toolkit.
+  description: |
+    XMLStarlet provides tools to query (sel), edit (ed), validate (val),
+    transform (tr), and format (fo) XML documents from the command line.
+    Useful for processing pom.xml, Maven/Gradle build files, SOAP responses,
+    and any XML-based configuration.
+  url:
+    docs: http://xmlstar.sourceforge.net/doc/UG/xmlstarlet-ug.html
+    source: https://sourceforge.net/projects/xmlstar/
+
+visidata:
+  summary: Interactive terminal spreadsheet for CSV, JSON, SQLite, and more.
+  description: |
+    VisiData opens tabular data in a fast, keyboard-driven TUI spreadsheet.
+    Supports CSV, TSV, JSON, NDJSON, SQLite, Excel, Parquet, PostgreSQL, and
+    many other formats. Provides sorting, filtering, aggregation, pivot tables,
+    frequency analysis, and in-place editing — all without leaving the terminal.
+  url:
+    docs: https://www.visidata.org/docs/
+    source: https://github.com/saulpw/visidata

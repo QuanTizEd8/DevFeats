@@ -1,0 +1,14 @@
+packages:
+  # ── Benchmarking ──────────────────────────────────────────────────────────
+  - hyperfine
+
+  # ── Code navigation ───────────────────────────────────────────────────────
+  - name: universal-ctags
+    apk: ctags
+    pacman: ctags
+
+  # ── Code metrics ──────────────────────────────────────────────────────────
+  - cloc
+
+  # ── Fast code statistics ──────────────────────────────────────────────────
+  - tokei

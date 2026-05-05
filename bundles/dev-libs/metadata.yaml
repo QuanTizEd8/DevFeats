@@ -281,3 +281,45 @@ python3-dev:
   url:
     docs: https://docs.python.org/3/extending/
     source: https://github.com/python/cpython
+
+libzmq3-dev:
+  summary: Development files for ZeroMQ (ØMQ) messaging library.
+  description: |
+    ZeroMQ is a high-performance asynchronous messaging library providing
+    sockets for common patterns: push/pull pipelines, pub/sub, request/reply,
+    and router/dealer. Required for building Jupyter (which uses ZeroMQ for
+    kernel communication), PyZMQ, and distributed messaging systems.
+  url:
+    docs: https://zeromq.org/get-started/
+    source: https://github.com/zeromq/libzmq
+  notes: |
+    Package named 'libzmq3-dev' on apt; 'zeromq' on brew and pacman;
+    'zeromq-dev' on apk; 'zeromq-devel' on dnf and zypper.
+
+libuv1-dev:
+  summary: Development files for libuv (async I/O event loop).
+  description: |
+    libuv is the cross-platform async I/O library that powers Node.js.
+    Provides an event loop, async TCP/UDP/pipe I/O, timers, and thread pool.
+    Required for building Node.js from source, and for any C/C++ project that
+    uses libuv directly (e.g. Julia, cmake-server, neovim's job control).
+  url:
+    docs: https://libuv.org/
+    source: https://github.com/libuv/libuv
+  notes: |
+    Package named 'libuv1-dev' on apt; 'libuv' on brew and pacman;
+    'libuv-dev' on apk; 'libuv-devel' on dnf and zypper.
+
+libre2-dev:
+  summary: Development files for RE2 — fast, safe regular expression library.
+  description: |
+    RE2 is Google's regular expression library designed for linear-time
+    matching with guaranteed execution bounds — no catastrophic backtracking.
+    Required for building gRPC, Protocol Buffers, and language bindings that
+    use RE2 (e.g. pyre2, google-re2 Python package).
+  url:
+    docs: https://github.com/google/re2/wiki/Syntax
+    source: https://github.com/google/re2
+  notes: |
+    Package named 'libre2-dev' on apt; 're2' on brew and pacman;
+    're2-dev' on apk; 're2-devel' on dnf and zypper.

@@ -1,0 +1,34 @@
+man-db:
+  summary: On-disk database and utilities for Unix manual pages.
+  description: |
+    Installs and manages the manual page database and utilities such as
+    `man`. Allows users to read documentation about installed commands,
+    libraries, and APIs. Linux-only — macOS ships its own man implementation.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/man.1.html
+    source: https://salsa.debian.org/man-db-team/man-db
+
+manpages:
+  summary: Unix manual pages for user-level commands.
+  description: |
+    Provides a large collection of manual pages describing standard
+    user commands, file formats, and tools. Recommended for user and
+    developer reference. Linux-only.
+  url:
+    docs: https://man7.org/linux/man-pages/
+    source: https://salsa.debian.org/manpages-team/manpages
+
+manpages-dev:
+  summary: Manual pages for C library functions, system calls, and POSIX APIs.
+  description: |
+    Provides man pages for sections 2 (system calls), 3 (C library functions),
+    4 (devices), and 7 (miscellaneous POSIX overviews). Essential for C/C++
+    development without a browser — look up open(2), malloc(3), signal(7), etc.
+    directly in the terminal. Linux-only; macOS ships equivalent pages via Xcode.
+  url:
+    docs: https://man7.org/linux/man-pages/
+    source: https://salsa.debian.org/manpages-team/manpages-dev
+  notes: |
+    On dnf, zypper, and pacman the 'man-pages' package covers both user and
+    developer pages, so 'manpages' and 'manpages-dev' resolve to the same
+    package on those platforms.

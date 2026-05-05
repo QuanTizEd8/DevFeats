@@ -1,0 +1,19 @@
+packages:
+  # ── Interactive TUI dialogs ───────────────────────────────────────────────
+  - dialog
+
+  # ── Unix pipeline utilities ───────────────────────────────────────────────
+  - moreutils
+
+  # ── Arithmetic ────────────────────────────────────────────────────────────
+  - bc
+
+  # ── String interpolation / i18n utilities ─────────────────────────────────
+  # envsubst: substitute environment variables in text templates
+  - gettext
+
+  # ── Run commands on file change ───────────────────────────────────────────
+  - entr
+
+  # ── Monitor data throughput in pipelines ─────────────────────────────────
+  - pv

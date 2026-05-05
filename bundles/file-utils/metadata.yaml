@@ -1,0 +1,110 @@
+file:
+  summary: Determines file type using magic numbers.
+  description: |
+    The file command identifies the type of files using a magic number
+    database. Linux-only — macOS provides /usr/bin/file as part of the OS.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/file.1.html
+    source: https://github.com/file/file
+
+tree:
+  summary: Display directories and files in a tree-like format.
+  description: |
+    tree produces a recursive, depth-indented listing of files and directories.
+    Useful for visualizing project structures and for documentation.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/tree.1.html
+    source: https://gitlab.com/OldManProgrammer/unix-tree
+
+ncdu:
+  summary: Interactive disk usage analyzer with ncurses interface.
+  description: |
+    ncdu (NCurses Disk Usage) is a fast terminal-based disk usage analyzer that
+    lets you navigate directories, sort by size, and delete items directly.
+    Useful for identifying space hogs in containers.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/ncdu.1.html
+    source: https://g.blicky.net/ncdu.git/
+
+fd-find:
+  summary: Fast and user-friendly alternative to find.
+  description: |
+    fd is a simple, fast, and user-friendly alternative to find(1). Uses
+    sensible defaults (gitignore-aware, colourised output, regex patterns)
+    while remaining significantly faster than find for common use cases.
+  url:
+    docs: https://github.com/sharkdp/fd#readme
+    source: https://github.com/sharkdp/fd
+  notes: |
+    Package named 'fd-find' on apt (binary installed as 'fdfind') and on
+    dnf; 'fd' everywhere else (brew, apk, zypper, pacman).
+
+bat:
+  summary: A cat clone with syntax highlighting and Git integration.
+  description: |
+    bat displays file contents with syntax highlighting for hundreds of
+    languages, shows non-printable characters, and integrates with Git to
+    show modified lines. A drop-in upgrade for cat in interactive use.
+  url:
+    docs: https://github.com/sharkdp/bat#readme
+    source: https://github.com/sharkdp/bat
+  notes: |
+    On apt the binary is installed as 'batcat' (naming conflict); create an
+    alias or symlink `bat -> batcat` if needed.
+
+fzf:
+  summary: General-purpose command-line fuzzy finder.
+  description: |
+    fzf is an interactive Unix filter for any list — files, command history,
+    git commits, processes, etc. Integrates with shell history (Ctrl-R) and
+    file completion, and is used as a picker backend by many CLI tools.
+  url:
+    docs: https://github.com/junegunn/fzf#readme
+    source: https://github.com/junegunn/fzf
+
+ranger:
+  summary: Console-based file manager with vim-style key bindings.
+  description: |
+    ranger is a terminal file manager displaying a three-column directory
+    tree (parent / current / preview) navigable with vim keys. Supports bulk
+    renaming, archive extraction, image previews in compatible terminals,
+    and a rich rc.conf configuration system.
+  url:
+    docs: https://ranger.github.io/
+    source: https://github.com/ranger/ranger
+
+mc:
+  summary: Midnight Commander — classic two-panel terminal file manager.
+  description: |
+    Midnight Commander is a Norton Commander-style two-panel file manager
+    with a menu-driven interface for file operations, a built-in editor,
+    FTP/SFTP browsing, and archive handling. The go-to for sysadmin file
+    navigation requiring no vim-key muscle memory.
+  url:
+    docs: https://midnight-commander.org/wiki/doc
+    source: https://github.com/MidnightCommander/mc
+  notes: |
+    Package named 'mc' on most PMs; 'midnight-commander' on brew.
+
+eza:
+  summary: Modern ls replacement with colors, Git status, and tree view.
+  description: |
+    eza is a maintained, feature-rich replacement for ls. Adds color-coded
+    output, file type icons (with a Nerd Font), recursive tree view (--tree),
+    Git status integration showing modified/added/staged markers, extended
+    attribute display, and human-readable sizes. A community-maintained
+    successor to the abandoned exa.
+  url:
+    docs: https://github.com/eza-community/eza#readme
+    source: https://github.com/eza-community/eza
+
+hexyl:
+  summary: Colored hex viewer that categorizes bytes by type.
+  description: |
+    hexyl displays binary file contents as a color-coded hex dump. Each byte
+    category gets a distinct color: NULL, printable ASCII, whitespace, other
+    ASCII, and non-ASCII. From the same author as bat, fd, and hyperfine,
+    with the same Rust-quality UX polish.
+  url:
+    docs: https://github.com/sharkdp/hexyl#readme
+    source: https://github.com/sharkdp/hexyl

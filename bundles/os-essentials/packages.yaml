@@ -40,7 +40,6 @@ packages:
   - name: netbase
     when: {pm: apt}
 
-  # iproute2 moved to sys-monitor bundle
   # init-system-helpers: service/invoke-rc.d shims for init system compat
   - name: init-system-helpers
     when: {pm: apt}

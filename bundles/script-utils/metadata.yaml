@@ -1,0 +1,65 @@
+dialog:
+  summary: Display user-friendly dialog boxes from shell scripts.
+  description: |
+    dialog presents interactive dialog boxes (menus, input boxes, message boxes)
+    in terminal scripts. Useful for installer and configuration scripts that
+    require user interaction.
+  url:
+    docs: https://invisible-island.net/dialog/dialog.html
+
+moreutils:
+  summary: Collection of additional Unix utilities complementing core tools.
+  description: |
+    moreutils provides tools like sponge (safe in-place file editing), ts
+    (timestamp stdin lines), vidir (edit directories), vipe (insert editor into
+    a pipeline), and others.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/moreutils.1.html
+    source: https://launchpad.net/ubuntu/noble/+source/moreutils
+  notes: |
+    Conflicts with the `parallel` (GNU parallel) package on some PMs — both
+    ship a `parallel` binary. Do not install both in the same manifest.
+
+bc:
+  summary: Arbitrary-precision numeric processing language.
+  description: |
+    bc is an arbitrary-precision calculator and scripting language used in
+    shell scripts for floating-point arithmetic (which POSIX sh lacks natively).
+    Commonly used in build scripts, version comparisons, and scientific shell
+    pipelines.
+  url:
+    docs: https://www.gnu.org/software/bc/manual/bc.html
+
+gettext:
+  summary: GNU i18n utilities — envsubst, xgettext, msgfmt.
+  description: |
+    gettext provides `envsubst` (substitute environment variables in text
+    templates — widely used in container entrypoints and config templating),
+    `xgettext` (extract translatable strings from source), `msgfmt` (compile
+    .po message catalogues), and `autopoint`. The primary devcontainer use
+    case is `envsubst` for injecting runtime environment into config files.
+  url:
+    docs: https://www.gnu.org/software/gettext/manual/
+    source: https://git.savannah.gnu.org/git/gettext.git
+
+entr:
+  summary: Run arbitrary commands when files change.
+  description: |
+    entr watches a list of files (supplied on stdin) and re-runs a command
+    whenever any of them changes. Ideal for running tests, restarting servers,
+    or rebuilding on save without a full file-watching framework.
+  url:
+    docs: https://eradman.com/entrproject/
+    source: https://github.com/eradman/entr
+
+pv:
+  summary: Monitor progress of data through a pipeline.
+  description: |
+    pv (pipe viewer) measures and displays throughput, elapsed time, ETA, and
+    a progress bar for data flowing through a Unix pipeline. Useful for
+    long-running operations such as large file copies, database dumps, or
+    archive extraction.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/pv.1.html
+    source: https://codeberg.org/a-j-wood/pv
+

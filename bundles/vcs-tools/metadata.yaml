@@ -22,3 +22,50 @@ subversion:
   url:
     docs: https://subversion.apache.org/docs/
     source: https://svn.apache.org/repos/asf/subversion/trunk/
+
+tig:
+  summary: Text-mode interface for Git.
+  description: |
+    tig is a terminal-based UI for browsing git history, diffs, and status.
+    Provides an interactive ncurses interface for git log, git diff, git blame,
+    and git stash — a fast alternative to gitk or GitHub's PR diff view when
+    working over SSH.
+  url:
+    docs: https://jonas.github.io/tig/doc/tig.1.html
+    source: https://github.com/jonas/tig
+
+diffutils:
+  summary: GNU diff, cmp, diff3, and sdiff — file comparison utilities.
+  description: |
+    diffutils provides diff (line-by-line comparison), cmp (byte-by-byte
+    comparison), diff3 (three-way merge), and sdiff (side-by-side diff).
+    Fundamental to patch workflows, merge conflict resolution, and comparing
+    revisions. Often pre-installed but absent in minimal container images.
+  url:
+    docs: https://www.gnu.org/software/diffutils/manual/
+    source: https://savannah.gnu.org/projects/diffutils/
+
+git-lfs:
+  summary: Git extension for versioning large files.
+  description: |
+    Git LFS (Large File Storage) replaces large files in git history with
+    lightweight text pointers while storing the file contents on a remote
+    server. Required for repositories that track binary assets, datasets,
+    model weights, or other files that should not live in the git object store.
+  url:
+    docs: https://git-lfs.com/
+    source: https://github.com/git-lfs/git-lfs
+
+git-delta:
+  summary: Syntax-highlighting pager for git diff, git show, and git log.
+  description: |
+    delta adds syntax highlighting, configurable color themes, line numbers,
+    and optional side-by-side view to git diff, git show, git log -p, and
+    grep output. Configured as git's core.pager in ~/.gitconfig. One of the
+    highest-impact single-config quality-of-life upgrades for daily git use.
+  url:
+    docs: https://dandavison.github.io/delta/
+    source: https://github.com/dandavison/delta
+  notes: |
+    Package named 'git-delta' on apt, dnf, and pacman. Activate with:
+    git config --global core.pager delta

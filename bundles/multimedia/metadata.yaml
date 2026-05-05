@@ -40,3 +40,44 @@ libopus-dev:
   notes: |
     Package named 'libopus-dev' on apt; 'opus' on brew/pacman; 'opus-dev' on
     apk; 'opus-devel' on dnf; 'libopus-devel' on zypper.
+
+portaudio19-dev:
+  summary: Development files for PortAudio (cross-platform audio I/O).
+  description: |
+    PortAudio provides a portable, open-source C/C++ API for audio I/O across
+    all major platforms. Required by PyAudio and any application that records
+    or plays audio via a low-level stream interface.
+  url:
+    docs: https://files.portaudio.com/docs/v19-doxydocs/index.html
+    source: https://github.com/PortAudio/portaudio
+  notes: |
+    Package named 'portaudio19-dev' on apt; 'portaudio' on brew and pacman;
+    'portaudio-dev' on apk; 'portaudio-devel' on dnf and zypper.
+
+libflac-dev:
+  summary: Development files for the FLAC lossless audio codec.
+  description: |
+    FLAC (Free Lossless Audio Codec) provides lossless audio compression.
+    Headers and static libraries are required for encoding, decoding, or
+    streaming FLAC audio. Used by libsndfile, SoX, and audio-ML pipelines
+    that process losslessly compressed recordings.
+  url:
+    docs: https://xiph.org/flac/documentation.html
+    source: https://gitlab.xiph.org/xiph/flac
+  notes: |
+    Package named 'libflac-dev' on apt; 'flac' on brew and pacman;
+    'flac-dev' on apk; 'flac-devel' on dnf and zypper.
+
+libvorbis-dev:
+  summary: Development files for the Ogg Vorbis audio codec.
+  description: |
+    Ogg Vorbis is an open, patent-free lossy audio codec. Headers and static
+    libraries are required for encoding or decoding Vorbis streams, used in
+    game audio, libsndfile, GStreamer, and multimedia pipelines that handle
+    .ogg files.
+  url:
+    docs: https://xiph.org/vorbis/doc/
+    source: https://gitlab.xiph.org/xiph/vorbis
+  notes: |
+    Package named 'libvorbis-dev' on apt; 'libvorbis' on brew and pacman;
+    'libvorbis-dev' on apk; 'libvorbis-devel' on dnf and zypper.

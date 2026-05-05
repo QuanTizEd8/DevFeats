@@ -1,0 +1,20 @@
+bash:
+  summary: GNU Bourne Again SHell — the standard Linux interactive shell.
+  description: |
+    bash is the default shell on most Linux distributions and the de-facto
+    standard for shell scripting. Provides command history, job control,
+    arrays, associative arrays, and extensive POSIX compatibility.
+  url:
+    docs: https://www.gnu.org/software/bash/manual/
+    source: https://git.savannah.gnu.org/cgit/bash.git
+
+fish:
+  summary: Friendly Interactive SHell — modern shell with smart defaults.
+  description: |
+    fish (Friendly Interactive SHell) focuses on usability out of the box:
+    autosuggestions from history, syntax highlighting as you type, tab
+    completions that work without configuration, and a web-based config UI.
+    Not POSIX-compatible by design — scripting syntax differs from bash/sh.
+  url:
+    docs: https://fishshell.com/docs/current/
+    source: https://github.com/fish-shell/fish-shell

@@ -1,0 +1,48 @@
+less:
+  summary: Terminal pager for viewing text one screen at a time.
+  description: |
+    less allows viewing large files and command output one screen at a time,
+    with bidirectional navigation and search. More efficient than more(1) for
+    large inputs.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/less.1.html
+    source: https://github.com/gwsw/less
+
+tmux:
+  summary: Terminal multiplexer for persistent and split terminal sessions.
+  description: |
+    tmux allows a single terminal to be split into multiple panes and sessions
+    that persist across disconnects. Useful in devcontainers for running long
+    jobs or multiple shells simultaneously.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/tmux.1.html
+    source: https://github.com/tmux/tmux
+
+zoxide:
+  summary: Smarter cd — learns your most-used directories.
+  description: |
+    zoxide tracks which directories you visit most often and lets you jump to
+    them with a short substring: `z proj` navigates to `~/dev/my-project`
+    without typing the full path. A fast, Rust-based replacement for autojump
+    and z.
+  url:
+    docs: https://github.com/ajeetdsouza/zoxide
+    source: https://github.com/ajeetdsouza/zoxide
+  notes: |
+    Requires shell initialization: add `eval "$(zoxide init bash)"` (or zsh/
+    fish variant) to your shell's rc file.
+
+atuin:
+  summary: Shell history database with context-aware full-screen search.
+  description: |
+    atuin replaces ~/.bash_history / ~/.zsh_history with a SQLite database
+    storing each command with context: exit code, working directory, duration,
+    and hostname. The Ctrl-R history search becomes a full-screen TUI with
+    fuzzy matching, filtering by host/directory/exit code, and optional
+    end-to-end encrypted cross-machine sync.
+  url:
+    docs: https://docs.atuin.sh/
+    source: https://github.com/atuinsh/atuin
+  notes: |
+    Requires shell integration: add `eval "$(atuin init bash)"` (or zsh/fish)
+    to your rc file.

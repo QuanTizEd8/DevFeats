@@ -1,0 +1,90 @@
+tar:
+  summary: GNU tape archiver — create, list, and extract archive files.
+  description: |
+    tar creates and manipulates archive files (tarballs) in .tar, .tar.gz,
+    .tar.bz2, and .tar.xz formats. The fundamental tool for distributing
+    source code and container layer contents. Linux-only — macOS ships BSD
+    tar at /usr/bin/tar.
+  url:
+    docs: https://www.gnu.org/software/tar/manual/
+    source: https://git.savannah.gnu.org/git/tar.git
+
+unzip:
+  summary: De-archiver for .zip files.
+  description: |
+    unzip extracts files from .zip archives. Essential for handling compressed
+    sources and assets distributed in the ZIP format.
+  url:
+    docs: https://infozip.sourceforge.net/UnZip.html
+
+zip:
+  summary: Command-line utility for creating ZIP archives.
+  description: |
+    zip creates and manages .zip archive files with support for recursion,
+    exclusion patterns, and encryption. Widely used for packaging files for
+    distribution and backup.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/zip.1.html
+
+p7zip-full:
+  summary: 7-Zip file archiver with high compression ratio.
+  description: |
+    7-Zip supports .7z, .zip, .gz, .bz2, .xz, .tar, .iso, .rar, and many
+    other archive formats. Offers substantially better compression than zip
+    for large files. The -full variant (apt) includes all codecs.
+  url:
+    docs: https://www.7-zip.org/
+    source: https://github.com/p7zip-project/p7zip
+  notes: |
+    Package named 'p7zip-full' on apt; 'p7zip' on brew, apk, dnf, zypper,
+    and pacman.
+
+gzip:
+  summary: GNU gzip — compress and decompress .gz files.
+  description: |
+    gzip compresses files using the DEFLATE algorithm. The standard format
+    for compressed tarballs (.tar.gz / .tgz) and HTTP content-encoding.
+    Almost always pre-installed, but absent in some minimal container images.
+  url:
+    docs: https://www.gnu.org/software/gzip/manual/
+
+bzip2:
+  summary: High-quality block-sorting compressor.
+  description: |
+    bzip2 compresses files using the Burrows-Wheeler algorithm, typically
+    achieving better compression than gzip at the cost of speed. Used in
+    .tar.bz2 source tarballs and some Linux distribution packages.
+  url:
+    docs: https://sourceware.org/bzip2/
+
+xz-utils:
+  summary: Utilities for .xz compression.
+  description: |
+    XZ Utils provide tools for compressing and decompressing files using the
+    .xz format (LZMA2 algorithm). Essential for source tarballs and container
+    image layers.
+  url:
+    docs: https://tukaani.org/xz/
+    source: https://git.tukaani.org/?p=xz.git
+
+zstd:
+  summary: Fast lossless compression algorithm.
+  description: |
+    Zstandard (zstd) offers compression ratios comparable to zlib/deflate but
+    at much higher speeds. Used by Linux kernels, Docker image layers, modern
+    package managers (Arch, Fedora), and databases. The `zstd` CLI compresses
+    and decompresses .zst files.
+  url:
+    docs: https://facebook.github.io/zstd/
+    source: https://github.com/facebook/zstd
+
+lz4:
+  summary: Extremely fast lossless compression.
+  description: |
+    LZ4 prioritises decompression speed above compression ratio — commonly
+    used for in-memory buffers, kernel module compression, and real-time
+    data pipelines where latency matters more than size. Provides the `lz4`
+    CLI and `lz4cat`/`unlz4` helpers.
+  url:
+    docs: https://lz4.github.io/lz4/
+    source: https://github.com/lz4/lz4

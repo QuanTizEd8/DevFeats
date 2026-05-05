@@ -62,3 +62,11 @@ packages:
     dnf: eigen3-devel
     zypper: eigen3-devel
     pacman: eigen
+
+  # ── Boost C++ libraries ───────────────────────────────────────────────────
+  - name: libboost-dev
+    brew: boost
+    apk: boost-dev
+    dnf: boost-devel
+    zypper: boost-devel
+    pacman: boost

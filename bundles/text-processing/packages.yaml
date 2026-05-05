@@ -1,0 +1,29 @@
+packages:
+  # ── POSIX text utilities (ensure present in minimal images) ───────────────
+  - grep
+  - sed
+
+  # ── File comparison ───────────────────────────────────────────────────────
+  - diffutils
+
+  # ── Fast grep replacements ────────────────────────────────────────────────
+  - ripgrep
+
+  - name: silversearcher-ag
+    brew: the_silver_searcher
+    apk: the_silver_searcher
+    dnf: the_silver_searcher
+    zypper: the_silver_searcher
+    pacman: the_silver_searcher
+
+  # ── Enhanced awk ──────────────────────────────────────────────────────────
+  - gawk
+
+  # ── Scripting language for text processing one-liners ─────────────────────
+  - perl
+
+  # ── ripgrep extended to search inside PDFs, archives, and Office docs ─────
+  - ripgrep-all
+
+  # ── PDF text search ───────────────────────────────────────────────────────
+  - pdfgrep

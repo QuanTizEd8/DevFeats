@@ -1,0 +1,88 @@
+packages:
+  # ── HTTP / file transfer ──────────────────────────────────────────────────
+  - curl
+  - wget
+
+  # ── Parallel multi-protocol downloader ───────────────────────────────────
+  - aria2
+
+  # ── Remote sync ───────────────────────────────────────────────────────────
+  - rsync
+
+  # ── Cryptography / key management ────────────────────────────────────────
+  - name: gnupg
+    dnf: gnupg2
+    zypper: gpg2
+
+  # ── TLS / certificate tooling ─────────────────────────────────────────────
+  - openssl
+
+  # ── Secure shell client ────────────────────────────────────────────────────
+  - name: openssh-client
+    brew: openssh
+    dnf: openssh-clients
+    zypper: openssh
+    pacman: openssh
+
+  # ── DNS utilities (dig, nslookup, host) ───────────────────────────────────
+  - name: dnsutils
+    brew: bind
+    apk: bind-tools
+    dnf: bind-utils
+    zypper: bind-utils
+    pacman: bind
+
+  # ── TCP/UDP connection testing ────────────────────────────────────────────
+  - name: netcat-openbsd
+    brew: netcat
+    apk: netcat-openbsd
+    dnf: nmap-ncat
+    zypper: ncat
+    pacman: openbsd-netcat
+
+  # ── Port scanner / host discovery ────────────────────────────────────────
+  - nmap
+
+  # ── ICMP ping (Linux-only — macOS ships ping as a system tool) ────────────
+  - name: iputils-ping
+    when: {kernel: linux}
+    apk: iputils
+    dnf: iputils
+    zypper: iputils
+    pacman: iputils
+
+  # ── Network diagnostics (traceroute + ping) ───────────────────────────────
+  # mtr-tiny is the headless variant (no GTK) — preferred for containers
+  - name: mtr-tiny
+    brew: mtr
+    apk: mtr
+    dnf: mtr
+    zypper: mtr
+    pacman: mtr
+
+  # ── Multipurpose relay ────────────────────────────────────────────────────
+  - socat
+
+  # ── Bandwidth measurement ─────────────────────────────────────────────────
+  - iperf3
+
+  # ── Packet capture ────────────────────────────────────────────────────────
+  - tcpdump
+
+  # ── WHOIS domain lookups ─────────────────────────────────────────────────
+  - whois
+
+  # ── Human-friendly HTTP client ────────────────────────────────────────────
+  - name: httpie
+    pacman: python-httpie
+
+  # ── Interactive TLS HTTP/HTTPS intercepting proxy ─────────────────────────
+  - mitmproxy
+
+  # ── Network interface and routing (Linux-only) ────────────────────────────
+  - name: iproute2
+    when: {kernel: linux}
+    apk: iproute2
+    dnf: iproute
+    zypper: iproute2
+    pacman: iproute2

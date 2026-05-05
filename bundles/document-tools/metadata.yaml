@@ -83,3 +83,32 @@ python3-pygments:
     docs: https://pygments.org/docs/
     source: https://github.com/pygments/pygments
 
+librsvg2-bin:
+  summary: SVG rendering and conversion utility (rsvg-convert).
+  description: |
+    librsvg2-bin provides rsvg-convert, a command-line tool for converting
+    SVG files to PNG, PDF, PS, and other raster/vector formats. Used by
+    document pipelines, icon build systems, and LaTeX workflows that include
+    SVG artwork.
+  url:
+    docs: https://gnome.pages.gitlab.gnome.org/librsvg/
+    source: https://gitlab.gnome.org/GNOME/librsvg
+  notes: |
+    Package named 'librsvg2-bin' on apt; 'librsvg' on apk and pacman;
+    'librsvg2-tools' on dnf; 'rsvg-convert' on zypper; 'librsvg' on brew.
+
+tesseract-ocr:
+  summary: Open-source OCR engine.
+  description: |
+    Tesseract is the leading open-source OCR engine, originally developed at
+    HP and now maintained by Google. Reads image files and outputs recognized
+    text in formats including UTF-8, hOCR, PDF, and TSV. Language packs are
+    installed separately (e.g. tesseract-ocr-eng for English).
+  url:
+    docs: https://tesseract-ocr.github.io/tessdoc/
+    source: https://github.com/tesseract-ocr/tesseract
+  notes: |
+    Package named 'tesseract-ocr' on apt; 'tesseract' on brew, apk, dnf,
+    zypper, and pacman.
+
+

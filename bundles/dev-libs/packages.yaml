@@ -203,3 +203,26 @@ packages:
     dnf: python3-devel
     zypper: python3-devel
     pacman: python
+
+  # ── Messaging / async I/O ─────────────────────────────────────────────────
+  - name: libzmq3-dev
+    brew: zeromq
+    apk: zeromq-dev
+    dnf: zeromq-devel
+    zypper: zeromq-devel
+    pacman: zeromq
+
+  - name: libuv1-dev
+    brew: libuv
+    apk: libuv-dev
+    dnf: libuv-devel
+    zypper: libuv-devel
+    pacman: libuv
+
+  # ── Regular expressions (RE2) ─────────────────────────────────────────────
+  - name: libre2-dev
+    brew: re2
+    apk: re2-dev
+    dnf: re2-devel
+    zypper: re2-devel
+    pacman: re2

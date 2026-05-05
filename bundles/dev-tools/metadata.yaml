@@ -1,0 +1,45 @@
+hyperfine:
+  summary: Command-line benchmarking tool.
+  description: |
+    hyperfine runs a command multiple times and measures wall-clock time with
+    statistical analysis (mean, stddev, min/max). Supports warmup runs,
+    shell isolation, parametric benchmarks (`--parameter-scan`), and exports
+    results as JSON, CSV, or Markdown. The go-to tool for comparing command
+    performance.
+  url:
+    docs: https://github.com/sharkdp/hyperfine
+    source: https://github.com/sharkdp/hyperfine
+
+universal-ctags:
+  summary: Maintained ctags fork for code navigation across many languages.
+  description: |
+    universal-ctags generates tag files for code navigation in editors like
+    vim, Emacs, and VSCode. A community-maintained fork of Exuberant Ctags
+    with support for 100+ languages, new language parsers, and active
+    development. Enables `Ctrl-]`-style jump-to-definition workflows.
+  url:
+    docs: https://docs.ctags.io/en/latest/
+    source: https://github.com/universal-ctags/ctags
+  notes: |
+    Package named 'ctags' on apk (Alpine) and pacman (Arch).
+
+cloc:
+  summary: Count lines of code across many languages.
+  description: |
+    cloc counts blank lines, comment lines, and source code lines across
+    a directory or a set of files, broken down by language. Useful for
+    reporting project size, tracking technical debt, and comparing codebases.
+  url:
+    docs: https://github.com/AlDanial/cloc
+    source: https://github.com/AlDanial/cloc
+
+tokei:
+  summary: Fast code statistics — counts lines, blanks, and comments by language.
+  description: |
+    tokei counts lines of code, blank lines, and comment lines per language,
+    similar to cloc but written in Rust and significantly faster on large
+    repositories. Produces JSON, TOML, YAML, and table output. Useful for
+    project size reporting, language distribution analysis, and CI dashboards.
+  url:
+    docs: https://github.com/XAMPPRocky/tokei#readme
+    source: https://github.com/XAMPPRocky/tokei

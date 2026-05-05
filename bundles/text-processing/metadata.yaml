@@ -1,0 +1,102 @@
+grep:
+  summary: GNU grep — print lines matching a pattern.
+  description: |
+    grep searches input for lines matching a regular expression. Present on
+    virtually all systems, but absent in some ultra-minimal container images.
+    GNU grep adds -P (Perl-compatible regex) and -z (null-delimited input)
+    beyond POSIX.
+  url:
+    docs: https://www.gnu.org/software/grep/manual/
+    source: https://git.savannah.gnu.org/git/grep.git
+
+sed:
+  summary: GNU sed — stream editor for filtering and transforming text.
+  description: |
+    sed applies editing commands (substitution, deletion, insertion) to each
+    line of input. GNU sed extends POSIX with -i (in-place editing), \w word
+    boundaries, and multiline matching. Present on virtually all systems but
+    absent in some minimal images.
+  url:
+    docs: https://www.gnu.org/software/sed/manual/
+    source: https://git.savannah.gnu.org/git/sed.git
+
+diffutils:
+  summary: GNU diff, cmp, diff3, sdiff — file comparison utilities.
+  description: |
+    diffutils provides diff (line-by-line file comparison), cmp (byte-by-byte
+    comparison), diff3 (three-way merge), and sdiff (side-by-side diff).
+    Present on most systems but absent in minimal container images. Required
+    by patch workflows, merge tools, and test harnesses that compare expected
+    vs actual output.
+  url:
+    docs: https://www.gnu.org/software/diffutils/manual/
+    source: https://savannah.gnu.org/projects/diffutils/
+
+ripgrep:
+  summary: Recursively search directories using a regex — faster than grep.
+  description: |
+    ripgrep (rg) combines the usability of ag with the raw speed of GNU grep.
+    It respects .gitignore rules by default, searches binary files safely,
+    and handles Unicode correctly. The de-facto standard for interactive code
+    search in large repositories.
+  url:
+    docs: https://github.com/BurntSushi/ripgrep#readme
+    source: https://github.com/BurntSushi/ripgrep
+
+silversearcher-ag:
+  summary: Fast code search tool, similar to ack.
+  description: |
+    The Silver Searcher (ag) searches code faster than ack, ignores files
+    listed in .gitignore and .agignore, and integrates with vim and Emacs.
+    Predecessor to ripgrep; still widely used and available in most editors'
+    search backends.
+  url:
+    docs: https://github.com/ggreer/the_silver_searcher#readme
+    source: https://github.com/ggreer/the_silver_searcher
+  notes: |
+    Package named 'silversearcher-ag' on apt; 'the_silver_searcher' on brew,
+    apk, dnf, zypper, and pacman.
+
+gawk:
+  summary: GNU awk — pattern scanning and processing language.
+  description: |
+    GNU awk extends POSIX awk with additional built-in functions, TCP/IP
+    networking, and more control flow. Used for columnar data extraction,
+    log parsing, and in-place file transformations. More portable and featureful
+    than mawk or nawk.
+  url:
+    docs: https://www.gnu.org/software/gawk/manual/
+    source: https://git.savannah.gnu.org/git/gawk.git
+
+perl:
+  summary: Practical Extraction and Report Language.
+  description: |
+    Perl excels at one-liner text processing (`perl -pe`, `perl -ne`),
+    complex regex transformations, and glue scripting. The de-facto tool
+    for portable in-place file editing and multi-line regex across platforms
+    where sed behaviour differs (GNU vs BSD).
+  url:
+    docs: https://perldoc.perl.org/
+    source: https://github.com/Perl/perl5
+
+ripgrep-all:
+  summary: ripgrep extended to search PDFs, Office docs, archives, and more.
+  description: |
+    ripgrep-all (rga) wraps ripgrep to search inside PDFs, Word/LibreOffice
+    documents, EPUB e-books, ZIP and tar archives, SQLite databases, and more.
+    Uses the same fast regex engine, --type/-t flags, and gitignore behaviour
+    as ripgrep, transparently extracting content via format-specific adapters.
+  url:
+    docs: https://github.com/phiresky/ripgrep-all#readme
+    source: https://github.com/phiresky/ripgrep-all
+
+pdfgrep:
+  summary: Search for text in PDF files.
+  description: |
+    pdfgrep searches PDF files for text matching a pattern, similar to grep
+    for plain text. Supports regular expressions, case-insensitive matching,
+    page number reporting, and recursive directory search. Useful for searching
+    large collections of research papers and documentation.
+  url:
+    docs: https://pdfgrep.org/doc.html
+    source: https://gitlab.com/pdfgrep/pdfgrep

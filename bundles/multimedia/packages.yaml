@@ -17,3 +17,27 @@ packages:
     dnf: opus-devel
     zypper: libopus-devel
     pacman: opus
+
+  # ── PortAudio (cross-platform audio I/O) ─────────────────────────────────
+  - name: portaudio19-dev
+    brew: portaudio
+    apk: portaudio-dev
+    dnf: portaudio-devel
+    zypper: portaudio-devel
+    pacman: portaudio
+
+  # ── FLAC audio codec ─────────────────────────────────────────────────────
+  - name: libflac-dev
+    brew: flac
+    apk: flac-dev
+    dnf: flac-devel
+    zypper: flac-devel
+    pacman: flac
+
+  # ── Ogg Vorbis audio codec ────────────────────────────────────────────────
+  - name: libvorbis-dev
+    brew: libvorbis
+    apk: libvorbis-dev
+    dnf: libvorbis-devel
+    zypper: libvorbis-devel
+    pacman: libvorbis

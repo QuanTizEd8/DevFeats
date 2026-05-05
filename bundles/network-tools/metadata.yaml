@@ -1,0 +1,219 @@
+curl:
+  summary: Command-line tool for transferring data with URL syntax.
+  description: |
+    curl is a versatile tool for transferring data using various protocols
+    including HTTP, HTTPS, FTP, and more. Indispensable for fetching
+    dependencies, interacting with APIs, and testing web services.
+  url:
+    docs: https://curl.se/docs/
+    source: https://github.com/curl/curl
+
+wget:
+  summary: Non-interactive network downloader.
+  description: |
+    wget downloads files from the web using HTTP, HTTPS, and FTP. Particularly
+    useful for automated scripts and tasks that require fetching resources
+    without user interaction.
+  url:
+    docs: https://www.gnu.org/software/wget/
+
+rsync:
+  summary: Fast, versatile tool for local and remote file synchronization.
+  description: |
+    rsync efficiently transfers and synchronizes files using a delta-transfer
+    algorithm. Widely used for backups, mirroring, and as an enhanced
+    alternative to cp with SSH-based encrypted transfers.
+  url:
+    docs: https://rsync.samba.org/documentation.html
+    source: https://github.com/WayneD/rsync
+
+gnupg:
+  summary: GNU Privacy Guard — encryption and signing tool.
+  description: |
+    GnuPG implements the OpenPGP standard for encryption and signing. Required
+    for verifying package signing keys and adding third-party repositories.
+  url:
+    docs: https://gnupg.org/documentation/index.html
+
+openssh-client:
+  summary: Secure shell client for encrypted network connections.
+  description: |
+    The OpenSSH client provides encrypted SSH connections to remote hosts.
+    Used for remote login, tunnelling, and accessing private git repositories
+    inside devcontainers.
+  url:
+    docs: https://www.openssh.com/manual.html
+
+dnsutils:
+  summary: DNS query tools — dig, nslookup, host.
+  description: |
+    Provides dig (detailed DNS lookups), nslookup (interactive DNS queries),
+    and host (simple hostname resolution). Essential for diagnosing DNS
+    configuration, verifying record propagation, and debugging connectivity
+    in containerised environments.
+  url:
+    docs: https://bind9.readthedocs.io/en/stable/manpages.html
+    source: https://gitlab.isc.org/isc-projects/bind9
+  notes: |
+    Package named 'dnsutils' on apt; 'bind-tools' on apk; 'bind-utils' on dnf
+    and zypper; 'bind' on brew and pacman.
+
+netcat-openbsd:
+  summary: Versatile TCP/UDP networking utility.
+  description: |
+    Netcat reads and writes data across TCP and UDP connections. Used for
+    port scanning, banner grabbing, simple chat servers, piping data over
+    the network, and testing TCP connectivity to services.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/nc.1.html
+    source: https://salsa.debian.org/debian/netcat-openbsd
+  notes: |
+    Package named 'netcat-openbsd' on apt and apk; 'nmap-ncat' on dnf;
+    'ncat' on zypper; 'openbsd-netcat' on pacman; 'netcat' on brew.
+
+nmap:
+  summary: Network exploration and port scanning tool.
+  description: |
+    nmap discovers hosts and services on a network by sending packets and
+    analysing responses. Used for port scanning, OS detection, service version
+    detection, and network inventory. Invaluable for diagnosing connectivity
+    issues in containerised environments.
+  url:
+    docs: https://nmap.org/docs.html
+    source: https://github.com/nmap/nmap
+
+iputils-ping:
+  summary: ICMP ping utility for testing network reachability.
+  description: |
+    Provides the `ping` command for sending ICMP echo requests. Absent in
+    many minimal Linux container images. Linux-only — macOS ships ping as a
+    system tool.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/ping.8.html
+    source: https://github.com/iputils/iputils
+  notes: |
+    Package named 'iputils-ping' on apt; 'iputils' on apk, dnf, zypper, and
+    pacman.
+
+mtr-tiny:
+  summary: Network diagnostics combining ping and traceroute.
+  description: |
+    mtr continuously shows the route packets take to a destination and
+    measures latency and packet loss at each hop — more informative than
+    ping or traceroute alone. The -tiny variant (apt) omits GTK/ncurses
+    extras, preferred for container use.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man8/mtr.8.html
+    source: https://github.com/traviscross/mtr
+  notes: |
+    Package named 'mtr-tiny' on apt (text-only, no GTK); 'mtr' on brew, apk,
+    dnf, zypper, and pacman.
+
+socat:
+  summary: Multipurpose relay — bidirectional data transfer between endpoints.
+  description: |
+    socat establishes two bidirectional byte streams and transfers data between
+    them. Supports TCP, UDP, UNIX sockets, files, pipes, SSL, and more.
+    Used for port forwarding, socket testing, and ad-hoc proxies.
+  url:
+    docs: http://www.dest-unreach.org/socat/doc/socat.html
+    source: http://www.dest-unreach.org/socat/
+
+iperf3:
+  summary: Network bandwidth measurement tool.
+  description: |
+    iperf3 measures achievable TCP/UDP bandwidth between two hosts. Used to
+    benchmark network links, diagnose throughput degradation, and verify
+    container network performance.
+  url:
+    docs: https://software.es.net/iperf/
+    source: https://github.com/esnet/iperf
+
+whois:
+  summary: WHOIS domain and IP registration lookup client.
+  description: |
+    whois queries WHOIS servers to retrieve registration data for domain names
+    and IP addresses. Useful for identifying network owners, diagnosing
+    routing issues, and security investigations.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/whois.1.html
+    source: https://github.com/rfc1036/whois
+
+aria2:
+  summary: Lightweight multi-protocol parallel download utility.
+  description: |
+    aria2 downloads files via HTTP/HTTPS, FTP, BitTorrent, and Metalink with
+    multi-connection, multi-source segmented downloading. Simultaneously
+    fetches segments from multiple mirrors, resuming interrupted downloads
+    and often achieving higher throughput than curl or wget alone.
+  url:
+    docs: https://aria2.github.io/manual/en/html/
+    source: https://github.com/aria2/aria2
+
+openssl:
+  summary: Cryptography toolkit and TLS/SSL command-line utility.
+  description: |
+    The openssl command provides subcommands for TLS certificate generation
+    and inspection (x509, req, verify), key pair generation (genrsa, genpkey,
+    ecparam), symmetric encryption, hashing (dgst), and live TLS handshake
+    testing (s_client). Essential for debugging certificate issues and
+    generating self-signed certs for local development.
+  url:
+    docs: https://www.openssl.org/docs/
+    source: https://github.com/openssl/openssl
+
+tcpdump:
+  summary: Command-line network packet capture and analyzer.
+  description: |
+    tcpdump captures packets matching a BPF filter expression and displays
+    or writes them for offline analysis (e.g. in Wireshark). Used for
+    debugging protocol issues, verifying container networking, and diagnosing
+    TLS handshake failures. Requires elevated privileges (CAP_NET_RAW) or root.
+  url:
+    docs: https://www.tcpdump.org/manpages/tcpdump.1.html
+    source: https://github.com/the-tcpdump-group/tcpdump
+
+httpie:
+  summary: Human-friendly HTTP client for APIs and web services.
+  description: |
+    HTTPie (http/https commands) provides an intuitive syntax for HTTP
+    requests with automatic JSON formatting and colorized output, persistent
+    sessions, form and file upload, auth plugins, and response highlighting.
+    Far more readable than curl for interactive API exploration and debugging.
+  url:
+    docs: https://httpie.io/docs/cli
+    source: https://github.com/httpie/cli
+  notes: |
+    Package named 'httpie' on apt, brew, apk, and dnf; 'python-httpie' on
+    pacman. Provides the `http` and `https` commands.
+
+mitmproxy:
+  summary: Interactive TLS-capable HTTP/HTTPS intercepting proxy.
+  description: |
+    mitmproxy intercepts, inspects, modifies, and replays HTTP/HTTPS/WebSocket
+    traffic. Three interfaces: mitmproxy (interactive TUI), mitmdump
+    (tcpdump-style scripting with Python), and mitmweb (browser UI).
+    Invaluable for debugging API integrations, reverse-engineering endpoints,
+    and security testing of web applications.
+  url:
+    docs: https://docs.mitmproxy.org/
+    source: https://github.com/mitmproxy/mitmproxy
+  notes: |
+    Requires installing the mitmproxy CA certificate in the client trust store
+    to intercept TLS traffic. Run `mitmproxy` once to generate the cert, then
+    import ~/.mitmproxy/mitmproxy-ca-cert.pem.
+
+iproute2:
+  summary: Networking and traffic control utilities — ip, tc, ss.
+  description: |
+    iproute2 provides ip (network interface and route management), tc (traffic
+    control / QoS shaping), ss (socket statistics), and bridge. The modern
+    replacement for ifconfig/route/netstat on Linux. Essential for configuring
+    interfaces, inspecting routing tables, and diagnosing container networking.
+    Linux-only — macOS ships equivalent tools in the OS.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/ip.8.html
+    source: https://git.kernel.org/pub/scm/network/iproute2/iproute2.git
+  notes: |
+    Package named 'iproute2' on apt, apk, zypper, and pacman; 'iproute' on
+    dnf (Fedora/RHEL). Not available on macOS — use system ifconfig/route.

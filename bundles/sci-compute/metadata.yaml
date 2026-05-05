@@ -88,3 +88,19 @@ libeigen3-dev:
   notes: |
     Package named 'libeigen3-dev' on apt; 'eigen-dev' on apk; 'eigen3-devel'
     on dnf and zypper; 'eigen' on brew and pacman.
+
+libboost-dev:
+  summary: Development files for the Boost C++ libraries.
+  description: |
+    Boost provides peer-reviewed, portable C++ header-only and compiled
+    libraries covering algorithms, data structures, filesystem, regex, threads,
+    serialization, and more. Widely required by C++ projects, ROS, and
+    scientific simulation code.
+  url:
+    docs: https://www.boost.org/doc/
+    source: https://github.com/boostorg/boost
+  notes: |
+    Package named 'libboost-dev' on apt; 'boost' on brew and pacman;
+    'boost-dev' on apk; 'boost-devel' on dnf and zypper. Installs headers
+    only — individual compiled library packages (e.g. libboost-filesystem-dev)
+    are needed for non-header-only components.

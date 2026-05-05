@@ -1,0 +1,12 @@
+packages:
+  # ── Pager ─────────────────────────────────────────────────────────────────
+  - less
+
+  # ── Terminal multiplexer ──────────────────────────────────────────────────
+  - tmux
+
+  # ── Smart directory jumping ───────────────────────────────────────────────
+  - zoxide
+
+  # ── Shell history database with context-aware search ──────────────────────
+  - atuin

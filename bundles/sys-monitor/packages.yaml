@@ -1,6 +1,7 @@
 packages:
   # ── Cross-platform ────────────────────────────────────────────────────────
   - htop
+  - btop
   - lsof
 
   # ── Linux-only ────────────────────────────────────────────────────────────
@@ -26,10 +27,20 @@ packages:
   - name: xtail
     when: {kernel: linux}
 
-  # iproute2: ip, tc — network interface and routing tools
-  - name: iproute2
+  # sysstat: sar, iostat, mpstat, pidstat — system activity reporting
+  - name: sysstat
     when: {kernel: linux}
-    apk: iproute2
-    dnf: iproute
-    zypper: iproute2
-    pacman: iproute2
+
+  # iotop: per-process I/O monitoring
+  - name: iotop
+    when: {kernel: linux}
+
+  # nethogs: per-process network bandwidth monitoring
+  - name: nethogs
+    when: {kernel: linux}
+
+  # duf: modern df — disk usage/free with clean table output
+  - duf
+
+  # glances: cross-platform curses system monitor with web UI and container support
+  - glances

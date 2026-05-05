@@ -1,0 +1,41 @@
+postgresql-client:
+  summary: PostgreSQL interactive terminal and client utilities (psql).
+  description: |
+    Provides psql (interactive SQL shell), pg_dump / pg_restore (backup and
+    restore), createdb, dropdb, and other PostgreSQL client programs. Does
+    not include the server; connects to a remote or local PostgreSQL instance.
+  url:
+    docs: https://www.postgresql.org/docs/current/app-psql.html
+    source: https://github.com/postgres/postgres
+  notes: |
+    Package named 'postgresql-client' on apt; 'libpq' on brew (psql is
+    bundled); 'postgresql' on dnf, zypper, and pacman.
+
+default-mysql-client:
+  summary: MySQL / MariaDB command-line client (mysql, mysqldump).
+  description: |
+    Provides the mysql interactive client and mysqldump for querying and
+    backing up MySQL or MariaDB databases. The apt metapackage
+    'default-mysql-client' selects the distribution-preferred implementation
+    (typically MariaDB on Debian/Ubuntu).
+  url:
+    docs: https://dev.mysql.com/doc/refman/8.0/en/mysql.html
+    source: https://github.com/mysql/mysql-server
+  notes: |
+    Package named 'default-mysql-client' on apt; 'mysql-client' on brew;
+    'mariadb-client' on apk; 'mariadb' on dnf and zypper; 'mariadb-clients'
+    on pacman.
+
+redis-tools:
+  summary: Redis command-line client and utilities (redis-cli).
+  description: |
+    Provides redis-cli for interactive and scripted communication with a Redis
+    server: key inspection, pipeline benchmarking (redis-benchmark), and ad-hoc
+    queries. Does not include the server.
+  url:
+    docs: https://redis.io/docs/ui/cli/
+    source: https://github.com/redis/redis
+  notes: |
+    On apt, 'redis-tools' provides only the client binaries without the
+    server. On brew, apk, dnf, zypper, and pacman the 'redis' package
+    includes both client and server.

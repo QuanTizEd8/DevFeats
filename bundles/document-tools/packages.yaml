@@ -10,6 +10,7 @@ packages:
     brew: poppler
     zypper: poppler-tools
     pacman: poppler
+
   # ── Graph / diagram rendering ─────────────────────────────────────────────
   - graphviz
 
@@ -32,7 +33,6 @@ packages:
   # ── Font infrastructure ───────────────────────────────────────────────────
   - fontconfig
 
-
   # ── Syntax highlighting ───────────────────────────────────────────────────
   - name: python3-pygments
     brew: pygments
@@ -41,4 +41,20 @@ packages:
     zypper: python3-Pygments
     pacman: python-pygments
 
+  # ── SVG rendering ─────────────────────────────────────────────────────────
+  # rsvg-convert: SVG → PNG/PDF/PS conversion
+  - name: librsvg2-bin
+    brew: librsvg
+    apk: librsvg
+    dnf: librsvg2-tools
+    zypper: rsvg-convert
+    pacman: librsvg
+
+  # ── OCR ───────────────────────────────────────────────────────────────────
+  - name: tesseract-ocr
+    brew: tesseract
+    apk: tesseract-ocr
+    dnf: tesseract
+    zypper: tesseract-ocr
+    pacman: tesseract
 
