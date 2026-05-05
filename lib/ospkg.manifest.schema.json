@@ -6,6 +6,15 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional manifest ID for documentation, logging, and debugging purposes."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional manifest description for documentation, logging, and debugging purposes."
+    },
     "when": {
       "$ref": "#/$defs/whenClause",
       "description": "Top-level condition. If it does not match the active OS context, the entire manifest is skipped."
