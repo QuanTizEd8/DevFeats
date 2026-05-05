@@ -145,21 +145,7 @@ mounts:
 containerEnv:
   PATH: /opt/tool/bin:${PATH}
 
-# Declare feature dependencies
-dependsOn:
-  ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user: {}
 ```
-
-### Dependencies on other features
-
-If your feature needs another feature to have already run at build time
-(e.g. it calls `install-os-pkg`), declare it with `"dependsOn"`:
-
-```yaml
-dependsOn:
-  ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user: {}
-```
-The devcontainer CLI resolves the installation order automatically.
 
 
 
@@ -216,16 +202,7 @@ version:
 
 `features/shared-options.yaml` defines options injected into every feature at sync time (`log_level`, `log_file`, `keep_cache`, `keep_build_deps`, …). **Do not re-declare these in per-feature `metadata.yaml` files.**
 
-### Feature dependencies
 
-Declare `dependsOn` when your feature requires another feature to have run first at build time:
-
-```yaml
-dependsOn:
-  ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user: {}
-```
-
-The devcontainer CLI and `install.bash` both resolve install order automatically from these edges.
 
 ### OS package dependencies
 
