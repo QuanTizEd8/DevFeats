@@ -605,7 +605,7 @@ ospkg__install() {
     logging__info "Installing packages:"
     printf '  - %s\n' "$@" >&2
     net__fetch_with_retry _ospkg_brew_run install "$@" >&2
-    return 0
+    return
   fi
   if [[ "$_OSPKG_PKG_MNGR" = "apt-get" ]]; then
     if dpkg -s "$@" > /dev/null 2>&1; then
@@ -632,7 +632,6 @@ ospkg__install() {
   else
     net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" < /dev/null >&2
   fi
-  return 0
 }
 
 # ── Public: ospkg__clean ─────────────────────────────────────────────────────
