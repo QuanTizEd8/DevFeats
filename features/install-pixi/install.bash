@@ -134,7 +134,6 @@ download_pixi() {
     net__fetch_url_file "${SIDECAR_URL}" "${SIDECAR}" "${_netrc_args[@]}"
   fi
   logging__fn_exit "download_pixi"
-  return 0
 }
 
 verify_pixi() {
