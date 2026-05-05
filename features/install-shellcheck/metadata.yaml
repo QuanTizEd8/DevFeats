@@ -1,6 +1,6 @@
 version: 0.1.0
-name: shellcheck Installation
-description: Install [koalaman/shellcheck](https://github.com/koalaman/shellcheck) — a shell script static analysis tool.
+name: ShellCheck Installation
+description: Install [ShellCheck](https://github.com/koalaman/shellcheck) — a static analysis tool for shell scripts.
 keywords:
   - shellcheck
   - shell
