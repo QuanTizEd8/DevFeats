@@ -66,11 +66,10 @@ git__clone() {
   fi
 
   # Auto-provision git if not yet available (idempotent if already installed).
-  if ! command -v git > /dev/null 2>&1; then
-    logging__info "git not found — installing."
-    ospkg__detect
-    ospkg__install_tracked "lib-git" git
-  fi
+  ospkg__install_tracked "lib-git" git || {
+    logging__error "git could not be installed."
+    return 1
+  }
 
   mkdir -p "$dir"
   local _clone_args=(--depth=1
