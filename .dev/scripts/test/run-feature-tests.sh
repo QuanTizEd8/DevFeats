@@ -119,6 +119,7 @@ _run_standalone() {
     local shim_setup='mkdir -p /tmp/_testlib && cp /repo/test/support/assert.sh /tmp/_testlib/dev-container-features-test-lib && chmod +x /tmp/_testlib/dev-container-features-test-lib'
     local sudo_stub=''
     if [[ "$sudo_ok" == "false" ]]; then
+      # shellcheck disable=SC2016
       sudo_stub='mkdir -p /tmp/_nosudo && printf '"'"'#!/bin/sh\nexit 1\n'"'"' > /tmp/_nosudo/sudo && chmod +x /tmp/_nosudo/sudo && export PATH=/tmp/_nosudo:$PATH'
     fi
 
@@ -156,7 +157,7 @@ ${test_run_cmds}"
 
     printf '\n══ standalone: %s [%s] ══\n' "$key" "$env_name"
     "$SCRIPT_DIR/run-in-container.sh" \
-      --image "$image" --name "standalone-${FEATURE}-${key//./-}" \
+      --image "$image" --name "standalone-${FEATURE}-${key//[.+]/-}" \
       "${net_flag[@]+"${net_flag[@]}"}" --run "$run_cmd"
   done < <(jq -c '.[]' <<< "$_scenarios_json")
 }
@@ -199,15 +200,13 @@ PYEOF
     [[ -n "$env_build" ]] && eval "$env_build"
     [[ -n "$scenario_setup" ]] && eval "$scenario_setup"
 
-    while IFS='=' read -r k v; do
-      export "${k}"="${v}"
-    done < <(python3 -c "
+    eval "$(python3 -c "
 import json, sys
 opts = json.loads(sys.argv[1])
 for k, v in opts.items():
     key = k.upper().replace('-', '_')
-    print(f'{key}={repr(str(v))}')
-" "$options_json")
+    print(f'export {key}={repr(str(v))}')
+" "$options_json")"
 
     printf '\n══ macos: %s ══\n' "$key"
     bash "${REPO_ROOT}/src/${FEATURE}/install.bash"
@@ -216,7 +215,7 @@ for k, v in opts.items():
       if [[ -n "$user" ]]; then
         su "$user" -c "PATH='${shim_dir}:${PATH}' REPO_ROOT='${REPO_ROOT}' bash '${REPO_ROOT}/test/features/${FEATURE}/tests/${test_script}'"
       else
-        PATH="${shim_dir}:${PATH}" REPO_ROOT="${REPO_ROOT}" \
+        PATH="${shim_dir}:${PATH}" \
           bash "${REPO_ROOT}/test/features/${FEATURE}/tests/${test_script}"
       fi
     done < <(jq -r '.tests[]' <<< "$scenario")

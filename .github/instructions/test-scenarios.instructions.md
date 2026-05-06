@@ -46,6 +46,14 @@ nonroot_with_sudo:
     user: vscode
     sudo: true
 
+setup_required:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  setup: |
+    apt-get update -qq
+    apt-get install -y --no-install-recommends jq
+  tests: [setup_required.sh]
+
 network_isolated:
   envs: [ubuntu-latest+offline-deps]
   modes: [standalone]
@@ -73,6 +81,7 @@ macos_default:
 - `modes` — `[devcontainer]`, `[standalone]`, or both. Default: `[devcontainer, standalone]`. Ignored for macOS envs.
 - `options` — feature option key/value pairs. Merged with `defaults.options` (scenario wins).
 - `tests` — list of `.sh` filenames inside `tests/`. All run sequentially per scenario.
+- `setup` — optional shell commands run before `install.bash`. In standalone mode, executed inside the container before install; in devcontainer mode, baked into the generated Dockerfile as a `RUN` layer. Useful for pre-installing dependencies the feature requires (e.g., `apt-get install -y jq`).
 - `devcontainer` — devcontainer-specific config (optional):
   - `remoteUser`, `containerUser` — set in generated devcontainer scenario
 - `standalone` — standalone-specific config (optional):
