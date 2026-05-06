@@ -16,9 +16,9 @@ format *files:
     #!/usr/bin/env bash
     set -euo pipefail
     if [[ $# -gt 0 ]]; then
-      shfmt -w "$@"
+      shfmt --write "$@"
     else
-      shfmt -w --apply-ignore .
+      shfmt --write --apply-ignore .
     fi
 
 
@@ -30,9 +30,9 @@ format-check *files:
     #!/usr/bin/env bash
     set -euo pipefail
     if [[ $# -gt 0 ]]; then
-      shfmt -d "$@"
+      shfmt --diff "$@"
     else
-      shfmt -d --apply-ignore .
+      shfmt --diff --apply-ignore .
     fi
 
 
