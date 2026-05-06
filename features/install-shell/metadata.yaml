@@ -33,9 +33,10 @@ options:
     description: Install the [Starship](https://starship.rs/) prompt binary.
   starship_prefix:
     type: string
-    default: /usr/local
+    default: ''
     description: |-
       Installation prefix for Starship. The binary is placed at `$starship_prefix/bin/starship`.
+      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
   starship_shells:
     type: array
     default: zsh
@@ -207,8 +208,10 @@ options:
       Shell key-bindings and completion are injected per-user.
   fzf_prefix:
     type: string
-    default: /usr/local
-    description: Installation prefix for fzf. The binary is placed at `$fzf_prefix/bin/fzf`.
+    default: ''
+    description: |-
+      Installation prefix for fzf. The binary is placed at `$fzf_prefix/bin/fzf`.
+      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 _dependencies:

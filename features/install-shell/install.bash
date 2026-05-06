@@ -692,6 +692,13 @@ for _cmd in git curl; do
   fi
 done
 
+if [[ -z "${STARSHIP_PREFIX}" ]]; then
+  STARSHIP_PREFIX="$(users__default_prefix)"
+fi
+if [[ -z "${FZF_PREFIX}" ]]; then
+  FZF_PREFIX="$(users__default_prefix)"
+fi
+
 # ===================================================================
 # Step 2.5: Install shell tool integrations
 # ===================================================================
