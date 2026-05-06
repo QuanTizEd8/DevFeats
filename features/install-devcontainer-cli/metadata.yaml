@@ -88,7 +88,10 @@ installsAfter:
   - ghcr.io/quantized8/devfeats/install-yq
   - ghcr.io/quantized8/devfeats/install-shell
   - ghcr.io/quantized8/devfeats/install-node
-
+customizations:
+  vscode:
+    extensions:
+      - GitHub.codespaces
 _dependencies:
   run:
     base:
