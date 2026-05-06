@@ -203,9 +203,11 @@ containerEnv:
 customizations:
   vscode:
     extensions:
+      - GitHub.remotehub
+      - GitHub.codespaces
       - github.vscode-github-actions
       - github.vscode-pull-request-github
-      - github.remotehub
+      - ms-vscode.vscode-github-issue-notebooks
 installsAfter:
   - ghcr.io/quantized8/devfeats/setup-user
   - ghcr.io/quantized8/devfeats/install-jq
