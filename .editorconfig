@@ -9,7 +9,7 @@ charset = utf-8
 [*.{sh,bash}]
 indent_style = space
 indent_size = 2
-# shfmt-specific keys
+# shfmt-specific keys: https://github.com/mvdan/sh/blob/master/cmd/shfmt/shfmt.1.scd#readme
 shell_variant = bash
 binary_next_line = false
 switch_case_indent = true
