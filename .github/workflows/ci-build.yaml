@@ -1,0 +1,62 @@
+name: CI - Build
+
+on:
+  workflow_call:
+
+jobs:
+
+  source:
+    name: Source
+    if: needs.setup.outputs.run_prepare == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.setup.outputs.ci_image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build Artifacts
+        run: just build-dist "${{ needs.setup.outputs.version }}"
+
+      - name: Upload Source Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: devfeats-src
+          path: src/
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Upload Distribution Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: devfeats-dist
+          path: dist/
+          retention-days: 7
+
+  website:
+    name: Website
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.setup.outputs.ci_image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Full history required by sphinx-last-updated-by-git.
+          fetch-depth: 0
+
+      - name: Build
+        run: just package-docs
+
+      - name: Upload GH Pages Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: github-pages
+          path: docs/.build/artifact.tar
+          retention-days: 7

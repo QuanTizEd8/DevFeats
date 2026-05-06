@@ -1,4 +1,4 @@
-name: "CI/CD"
+name: CI/CD
 
 on:
   push:
@@ -20,7 +20,7 @@ on:
 
 jobs:
   # Detect what changed and compute per-job run flags
-  detect:
+  init:
     name: "Detect changes"
     runs-on: ubuntu-latest
     permissions:
@@ -56,9 +56,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: proman-cicd-detect
 
-  # Build devcontainer image (when needed)
-  build-devcontainer:
-    name: Devcontainer Image Build
+  cm-devcontainer:
+    name: CM - Devcontainer Image
     needs: detect
     if: needs.detect.outputs.build_image == 'true'
     permissions:
@@ -69,7 +68,22 @@ jobs:
       image_tag: ${{ needs.detect.outputs.image_tag }}
     secrets: inherit
 
-  # Run all CI tests (lint, validate, unit, feature, dist)
+  ci-build:
+    name: CI - Build
+
+  ci-lint:
+    name: CI - Lint
+
+  ci-test-dev:
+    name: CI - Test - Development
+
+  ci-test-feat:
+    name: CI - Test - Features
+
+  ci-test-lib:
+    name: CI - Test - Library
+
+    # Run all CI tests (lint, validate, unit, feature, dist)
   ci:
     name: "CI"
     needs: [detect, build-devcontainer]
@@ -111,7 +125,7 @@ jobs:
 
   # Publish to GHCR + GitHub Releases (only when features_to_release is non-empty)
   cd:
-    name: "CD"
+    name: CD
     needs: [detect, ci]
     # Keep always() to avoid implicit success() skip behavior when an upstream
     # needed job is skipped (for example, optional build-devcontainer).

@@ -1,0 +1,23 @@
+name: CI - Test - Development
+
+on:
+  workflow_call:
+
+jobs:
+
+  python:
+    name: Python
+    if: needs.setup.outputs.run_python == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.setup.outputs.ci_image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Test
+        if: always()
+        run: just test-proman

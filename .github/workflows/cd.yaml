@@ -1,4 +1,4 @@
-name: "CD"
+name: Continuous Deployment
 
 on:
   workflow_call:
@@ -9,46 +9,10 @@ on:
           Each element: {"feature":"<id>","version":"<X.Y.Z>","tag":"<id>/<X.Y.Z>"}.
         type: string
         required: true
-  workflow_dispatch:
-    inputs:
-      feature:
-        description: "Feature id (e.g. install-pixi)."
-        required: true
-      version:
-        description: "Feature version to publish (e.g. 1.2.3)."
-        required: true
 
 jobs:
-  # ── Resolve inputs (workflow_call vs workflow_dispatch) ────────────────────
-  setup:
-    name: "Resolve release inputs"
-    runs-on: ubuntu-latest
-    outputs:
-      features_to_release: ${{ steps.resolve.outputs.features_to_release }}
-    steps:
-      - name: Resolve features_to_release
-        id: resolve
-        env:
-          INPUT_LIST: ${{ inputs.features_to_release }}
-          INPUT_FEATURE: ${{ inputs.feature }}
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          if [[ -n "${INPUT_LIST:-}" ]]; then
-            features_to_release="${INPUT_LIST}"
-          else
-            features_to_release=$(jq -cn \
-              --arg feat "${INPUT_FEATURE}" \
-              --arg ver "${INPUT_VERSION}" \
-              '[{feature:$feat, version:$ver, tag:"\($feat)/\($ver)"}]')
-          fi
-          echo "features_to_release=${features_to_release}" >> "$GITHUB_OUTPUT"
-          echo "ℹ️  features_to_release: ${features_to_release}" >&2
-
-  # ── 1/3: publish to GHCR ────────────────────────────────────────────────────
-  publish-ghcr:
-    name: GHCR Publication
-    needs: setup
+  ghcr:
+    name: GHCR
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -56,31 +20,17 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-tags: true
 
-      - name: Download src/ artifact (workflow_call)
+      - name: Download Source Artifact
         if: github.event_name != 'workflow_dispatch'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: devfeats-src
           path: src/
-
-      - name: Log in to GHCR (workflow_dispatch fallback)
-        if: github.event_name == 'workflow_dispatch'
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build src/ (workflow_dispatch fallback)
-        if: github.event_name == 'workflow_dispatch'
-        uses: docker://ghcr.io/quantized8/devfeats-devcontainer:latest
-        with:
-          entrypoint: /bin/bash
-          args: -c "just sync"
 
       - name: Publish Features to GHCR
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
@@ -91,10 +41,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── 2/3: publish one GitHub Release per feature (matrix) ────────────────────
-  publish-gh-release:
-    name: "GitHub Release: ${{ matrix.entry.feature }} ${{ matrix.entry.version }}"
-    needs: setup
+  gh-release:
+    name: "GH Release: ${{ matrix.entry.feature }} ${{ matrix.entry.version }}"
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -103,33 +51,19 @@ jobs:
       matrix:
         entry: ${{ fromJSON(needs.setup.outputs.features_to_release) }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-tags: true
 
-      - name: Download dist/ artifact (workflow_call)
+      - name: Download Source Artifact
         if: github.event_name != 'workflow_dispatch'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: devfeats-dist
           path: dist/
 
-      - name: Log in to GHCR (workflow_dispatch fallback)
-        if: github.event_name == 'workflow_dispatch'
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build dist/ (workflow_dispatch fallback)
-        if: github.event_name == 'workflow_dispatch'
-        uses: docker://ghcr.io/quantized8/devfeats-devcontainer:latest
-        with:
-          entrypoint: /bin/bash
-          args: -c "just build-dist"
-
-      - name: Create annotated tag and push
+      - name: Create Annotated Tag and Push
         env:
           TAG: ${{ matrix.entry.tag }}
           FEATURE: ${{ matrix.entry.feature }}
@@ -168,3 +102,17 @@ jobs:
               --title "${FEATURE} ${VERSION}" \
               --generate-notes
           fi
+
+  gh-pages:
+    name: GH Pages
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

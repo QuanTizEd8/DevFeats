@@ -36,47 +36,5 @@ jobs:
         id: image
         run: echo "ci_image=ghcr.io/${GITHUB_REPOSITORY,,}-devcontainer:${{ inputs.image_tag }}" >>"$GITHUB_OUTPUT"
 
-  # ── Build Sphinx site and package it as a Pages artifact ──────────────────
-  build:
-    name: "Build"
-    needs: setup
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.setup.outputs.ci_image }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          # Full history required by sphinx-last-updated-by-git.
-          fetch-depth: 0
 
-      - name: "Build and package docs"
-        run: just package-docs
 
-      - name: "Upload Pages artifact"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: github-pages
-          path: docs/.build/artifact.tar
-          retention-days: 7
-
-  # ── Deploy to GitHub Pages (main branch only) ─────────────────────────────
-  deploy:
-    name: "Deploy"
-    needs: build
-    if: |
-      github.ref == 'refs/heads/main' &&
-      github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: "Deploy to GitHub Pages"
-        id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
