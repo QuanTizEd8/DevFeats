@@ -36,7 +36,11 @@ Execute the following phases in order. DO NOT SKIP PHASES AND DO NOT STOP UNTIL 
    1. Search the web to find the tool's official code repository, documentation, and website, and update the corresponding fields in the document. Use the official code repository as your primary source of information, and make sure to read through all relevant documentation, installation instructions, release notes, and other materials you can find, and extract all relevant information about the feature/tool.
    2. Always fully read the official installation documentation for the tool; do not rely solely on second-hand summaries.
    3. Always find and read the installer's source code in its entirety, when available.
-   4. Look for similar features in well-established projects (cf. [Available Dev Container Features](https://containers.dev/features) and [Devcontainer Features](https://github.com/devcontainers/features)) and analyze how they handle installation and configuration.
+   4. Look for similar features in well-established projects and analyze how they handle installation and configuration:
+      - [Devcontainer Features](https://github.com/devcontainers/features)
+      - [devcontainers-extra/features](https://github.com/devcontainers-extra/features)
+      - [devcontainer-community/devcontainer-features](https://github.com/devcontainer-community/devcontainer-features)
+      - [Available Dev Container Features](https://raw.githubusercontent.com/devcontainers/devcontainers.github.io/refs/heads/gh-pages/_data/collection-index.yml)
    5. Look for Dockerfiles and install scripts and analyze how they do it.
 2. If the feature already has a Feature Reference document at `features/<fid>/dev-notes/feature.md`, read it thoroughly and compare it against your version. If there are discrepancies, investigate and research further until you can reconcile them. Update/create the document with the most up-to-date and accurate information, ensuring that all information is comprehensive, well-cited, and clearly written following the Feature Reference template format and guidelines.
 3. Commit the updated/created Feature Reference document (don't commit any other files) with the following commit message format:

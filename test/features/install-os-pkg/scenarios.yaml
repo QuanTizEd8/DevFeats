@@ -1,0 +1,429 @@
+defaults:
+  options:
+    log_level: trace
+
+apt_installs_packages:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_installs_packages.sh]
+
+apt_update_false:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    apt-get update
+    printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    update: false
+  tests: [apt_update_false.sh]
+
+apt_keep_cache:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    keep_cache: true
+  tests: [apt_keep_cache.sh]
+
+apt_scripts:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' \
+          'prescripts:' \
+          '  - mkdir -p /tmp/markers && touch /tmp/markers/prescript-ran' \
+          'packages:' \
+          '  - tree' \
+          'scripts:' \
+          '  - mkdir -p /tmp/markers && touch /tmp/markers/script-ran' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_scripts.sh]
+
+apt_log_file:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    log_file: /tmp/install-os-pkg.log
+  tests: [apt_log_file.sh]
+
+apt_empty_dir:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_empty_dir.sh]
+
+no_matching_files:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'apk:' '  packages:' '    - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [no_matching_files.sh]
+
+apk_installs_packages:
+  envs: [alpine-latest+bash]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'apk:' '  packages:' '    - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apk_installs_packages.sh]
+
+apk_update_false:
+  envs: [alpine-latest+bash]
+  modes: [devcontainer]
+  setup: |
+    apk update
+    printf '%s\n' 'apk:' '  packages:' '    - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    update: false
+  tests: [apk_update_false.sh]
+
+dnf_installs_packages:
+  envs: [fedora-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'dnf:' '  packages:' '    - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [dnf_installs_packages.sh]
+
+zypper_installs_packages:
+  envs: [opensuse-leap-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'zypper:' '  packages:' '    - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [zypper_installs_packages.sh]
+
+pacman_installs_packages:
+  envs: [archlinux-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'pacman:' '  packages:' '    - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [pacman_installs_packages.sh]
+
+apt_pkg_selectors:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' \
+          'packages:' \
+          '  - name: tree' \
+          '    when: {pm: apt}' \
+          '  - name: curl' \
+          '    when: {pm: apt, id: debian}' \
+          '  - name: not-a-real-package' \
+          '    when: {pm: apk}' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_pkg_selectors.sh]
+
+apt_manifest_inline:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    manifest: "# inline manifest\npackages:\n  - tree\n  - curl\n"
+  tests: [apt_manifest_inline.sh]
+
+apt_manifest_file:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /tmp
+    printf '%s\n' \
+          '# packages from implicit leading pkg block' \
+          'packages:' \
+          '  - tree' \
+          '  - curl' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_manifest_file.sh]
+
+apt_manifest_file_trace:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /tmp
+    printf '%s\n' \
+          '# packages from implicit leading pkg block' \
+          'packages:' \
+          '  - tree' \
+          '  - curl' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_manifest_file_trace.sh]
+
+apt_manifest_section_selector:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' \
+          'apt:' \
+          '  packages:' \
+          '    - tree' \
+          '    - curl' \
+          'apk:' \
+          '  packages:' \
+          '    - not-a-real-package' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_manifest_section_selector.sh]
+
+apk_manifest_file:
+  envs: [alpine-latest+bash]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /tmp
+    printf '%s\n' \
+          'apt:' \
+          '  packages:' \
+          '    - not-a-real-package' \
+          'apk:' \
+          '  packages:' \
+          '    - tree' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apk_manifest_file.sh]
+
+apt_manifest_all_sections:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' \
+          'prescripts:' \
+          '  - touch /tmp/prescript-ran' \
+          'packages:' \
+          '  - tree' \
+          'scripts:' \
+          '  - touch /tmp/script-ran' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_manifest_all_sections.sh]
+
+apt_manifest_scripts:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' \
+          'prescripts:' \
+          '  - echo pre >> /tmp/order.log' \
+          'packages:' \
+          '  - tree' \
+          'scripts:' \
+          '  - echo post >> /tmp/order.log' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_manifest_scripts.sh]
+
+apt_system_command:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    install_self: true
+  tests: [apt_system_command.sh]
+
+install_self_false:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    install_self: false
+  tests: [install_self_false.sh]
+
+install_self_only:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_self: true
+  tests: [install_self_only.sh]
+
+apt_lifecycle_hook_postcreate:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    lifecycle_hook: postCreate
+  tests: [apt_lifecycle_hook_postcreate.sh]
+
+apt_lifecycle_hook_postcreate_trace:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    lifecycle_hook: postCreate
+  tests: [apt_lifecycle_hook_postcreate_trace.sh]
+
+apt_lifecycle_hook_oncreate:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    lifecycle_hook: onCreate
+  tests: [apt_lifecycle_hook_oncreate.sh]
+
+apt_lifecycle_hook_updatecontent:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    lifecycle_hook: updateContent
+  tests: [apt_lifecycle_hook_updatecontent.sh]
+
+apt_keep_repos:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    apt-get update
+    printf '%s\n' \
+          'repos:' \
+          '  - "deb http://deb.debian.org/debian stable main"' \
+          'packages:' \
+          '  - tree' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    keep_repos: true
+    update: false
+  tests: [apt_keep_repos.sh]
+
+apt_repo_cleanup:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    apt-get update
+    printf '%s\n' \
+          'repos:' \
+          '  - "deb http://deb.debian.org/debian stable main"' \
+          'packages:' \
+          '  - tree' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    update: false
+  tests: [apt_repo_cleanup.sh]
+
+apt_key_raw:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' \
+          'keys:' \
+          '  - url: https://nginx.org/keys/nginx_signing.key' \
+          '    dest: /usr/share/keyrings/nginx-signing.key' \
+          'repos:' \
+          '  - content: "deb [arch=${deb_arch} signed-by=/usr/share/keyrings/nginx-signing.key] http://nginx.org/packages/debian ${version_codename} nginx"' \
+          'packages:' \
+          '  - nginx' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_key_raw.sh]
+
+apt_key_dearmor:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' \
+          'keys:' \
+          '  - url: https://nginx.org/keys/nginx_signing.key' \
+          '    dest: /usr/share/keyrings/nginx-archive-keyring.gpg' \
+          'repos:' \
+          '  - content: "deb [arch=${deb_arch} signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian ${version_codename} nginx"' \
+          'packages:' \
+          '  - nginx' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_key_dearmor.sh]
+
+apt_version_selector:
+  envs: [debian-bookworm+bash]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' \
+          'packages:' \
+          '  - tree' \
+          '  - name: bc' \
+          '    when: {version_id: "12"}' \
+          '  - name: less' \
+          '    when: {id: debian, version_id: "12"}' \
+          '  - name: mlocate' \
+          '    when: {version_id: "22.04"}' \
+          > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+  tests: [apt_version_selector.sh]
+
+apt_dry_run:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    apt-get update
+    printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    dry_run: true
+  tests: [apt_dry_run.sh]
+
+apt_lists_max_age_zero:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    lists_max_age: "0"
+  tests: [apt_lists_max_age_zero.sh]
+
+apt_skip_installed:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    apt-get update
+    printf '#!/bin/sh\necho mytool-ok\n' > /usr/local/bin/mytool
+    chmod +x /usr/local/bin/mytool
+    printf '%s\n' 'packages:' '  - mytool' '  - tree' > /tmp/manifest.yaml
+  options:
+    manifest: /tmp/manifest.yaml
+    skip_installed: true
+  tests: [apt_skip_installed.sh]
+
+apt_manifest_uri_file:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: printf '%s\n' 'packages:' '  - tree' '  - curl' > /tmp/manifest.yaml
+  options:
+    manifest: "file:///tmp/manifest.yaml"
+  tests: [apt_manifest_uri_file.sh]
+
+http_uri_resolve_stubbed:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    skip_install: true
+  tests: [http_uri_resolve_stubbed.sh]

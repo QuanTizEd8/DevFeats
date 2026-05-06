@@ -1,314 +1,244 @@
 ---
-description: "Use when writing or editing devcontainer feature test scenarios, scenarios.json files, scenario assertion scripts, Linux-native scenario scripts (linux/), or test Dockerfiles under test/. Covers scenarios.json format, scenario script anatomy, assertion patterns, Dockerfiles, and Linux-native scenarios."
-applyTo: "test/*/scenarios.json, test/*/*.sh, test/**/linux/*.sh, test/**/Dockerfile"
+description: "Use when writing or editing devcontainer feature test scenarios, scenarios.yaml files, test scripts in tests/, or test environments. Covers scenarios.yaml format, test script anatomy, assertion patterns, environment definitions, standalone mode, and macOS native scenarios."
+applyTo: "test/features/**"
 ---
 
-# Feature Scenario Tests (devcontainer CLI)
+# Feature Scenario Tests
 
-Each feature test builds a dev container, installs the feature, then runs an assertion script inside the running container. Tests live under `test/<feature>/` and are driven by the devcontainer CLI.
+Each feature has a unified test definition in `test/features/<feature>/scenarios.yaml` and shared test scripts in `test/features/<feature>/tests/`. The same scripts run in devcontainer mode (via the devcontainer CLI), standalone mode (direct `install.bash` in a plain Docker container), and macOS mode (native bash on a macOS runner).
 
 ## Directory Layout
 
 ```
-test/<feature>/
-  scenarios.json           Test matrix — one entry per scenario (required)
-  <scenario>.sh            Assertion script (runs inside the container)
-  <scenario>/              Build context — only present when a Dockerfile is needed
-    Dockerfile
-    <other files>
-  linux/
-    <scenario>.sh          Linux-native assertion script (runs in Docker, see below)
-    <scenario>.conf        optional sidecar — runner config (IMAGE, NETWORK, SETUP_CMD, RUN_AS)
-  macos/
-    <scenario>.sh          macOS-native assertion script (runs directly on macOS runner)
+test/features/<feature>/
+  scenarios.yaml           unified test matrix
+  tests/
+    <scenario>.sh          assertion script (runs in all modes)
+test/environments.yaml     central environment registry
 ```
 
-## `scenarios.json` Format
+## `scenarios.yaml` Format
 
-```jsonc
-{
-  // Use "image" when no pre-condition state is needed (no <scenario>/ directory required).
-  "<scenario_name>": {
-    "image": "ubuntu:latest",
-    "features": {
-      "<feature-dir>": { "<option>": "<value>" }
-    }
-  },
+```yaml
+defaults:
+  options:
+    log_level: trace          # merged into every scenario's options
 
-  // Use "build" when the base image needs extra RUN steps.
-  "<other_scenario>": {
-    "remoteUser": "vscode",
-    "build": { "dockerfile": "Dockerfile" },
-    "features": {
-      "<feature-dir>": { "<option>": "<value>" }
-    }
-  }
-}
+default_install:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  tests: [default_install.sh]
+
+specific_version:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    version: "1.2.3"
+  tests: [specific_version.sh]
+
+nonroot_with_sudo:
+  envs: [ubuntu-latest+vscode-user]
+  modes: [devcontainer, standalone]
+  tests: [nonroot.sh]
+  devcontainer:
+    remoteUser: vscode
+  standalone:
+    user: vscode
+    sudo: true
+
+network_isolated:
+  envs: [ubuntu-latest+offline-deps]
+  modes: [standalone]
+  standalone:
+    network: none
+  tests: [network_isolated.sh]
+
+if_exists_fail:
+  envs: [ubuntu-latest+tool-stub]
+  modes: [standalone]
+  options:
+    if_exists: fail
+  standalone:
+    skip_install: true         # test script calls install.bash itself
+  tests: [if_exists_fail.sh]
+
+macos_default:
+  envs: [macos-latest]         # detected via ^macos; runs natively, no modes needed
+  tests: [macos_default.sh]
 ```
 
-- The feature key in `"features"` is the **directory name** under `src/` (equals the feature `"id"`).
-- Scenario names must exactly match the `.sh` filename (without `.sh`).
-- Use `"image"` for plain base images — no `<scenario>/` directory required.
-- Use `"build"` when the image needs pre-condition setup via Dockerfile; keep the Dockerfile in `<scenario>/`.
-- `"remoteUser"` is optional; set it only when the scenario tests user-specific behaviour.
+**Top-level fields:**
+- `defaults` — reserved key; only `options` is supported. Values merged into every scenario.
+- `envs` — array of environment names from `test/environments.yaml`. Required.
+- `modes` — `[devcontainer]`, `[standalone]`, or both. Default: `[devcontainer, standalone]`. Ignored for macOS envs.
+- `options` — feature option key/value pairs. Merged with `defaults.options` (scenario wins).
+- `tests` — list of `.sh` filenames inside `tests/`. All run sequentially per scenario.
+- `devcontainer` — devcontainer-specific config (optional):
+  - `remoteUser`, `containerUser` — set in generated devcontainer scenario
+- `standalone` — standalone-specific config (optional):
+  - `user` — run tests (and optionally install) as this user
+  - `sudo` — `false` disables sudo for `user` (default `true`)
+  - `network: none` — run container with `--network none`
+  - `skip_install: true` — don't call `install.bash`; test script calls it directly
 
-## Scenario Script Anatomy
+## `test/environments.yaml` Format
+
+```yaml
+ubuntu-latest:
+  image: ubuntu:latest
+
+ubuntu-latest+vscode-user:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends sudo
+      useradd -m -s /bin/bash vscode
+      echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+ubuntu-latest+tool-stub:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      printf '#!/bin/sh\necho "mytool 0.0.0-stub"\n' > /usr/local/bin/mytool
+      chmod +x /usr/local/bin/mytool
+
+# macOS environment — image matches ^macos; runs natively on GHA runner
+macos-latest:
+  image: macos-latest
+```
+
+`build.dockerfile` is inline shell commands. The orchestrator generates `FROM <image>\nRUN <<'EOF'\nset -eux\n<commands>\nEOF` and builds `devfeats-env-<name>:latest`. For macOS environments (image matches `^macos`), `build.dockerfile` is run as native setup on the runner before tests.
+
+Add new environments to `test/environments.yaml` — never duplicate inline Dockerfiles across multiple scenario files.
+
+## Test Script Anatomy
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 # One-line description of what this scenario verifies.
 set -e
-
+# shellcheck source=/dev/null
 source dev-container-features-test-lib
 
-# --- section heading ---
-check "binary on PATH"        which mytool
-check "version is correct"    bash -c "mytool --version | grep '1.2.3'"
-check "config dir created"    test -d /home/vscode/.config/mytool
+# --- tool on PATH ---
+check "mytool is installed"       command -v mytool
+check "version is correct"        bash -c "mytool --version | grep '1.2.3'"
+check "config dir created"        test -d /root/.config/mytool
 
 reportResults
 ```
 
-- `check "<label>" <cmd>` — passes if `<cmd>` exits 0.
+- `source dev-container-features-test-lib` — works in all modes. The standalone runner puts `test/support/assert.sh` on PATH as `dev-container-features-test-lib`.
+- `REPO_ROOT` is always set by the runner — use it for paths to repo files.
 - `reportResults` — required at the end; exits non-zero if any check failed.
-- Group related checks under section-heading comments (`# --- foo ---`).
+
+**For negative assertions (feature must exit non-zero):**
+
+```bash
+#!/usr/bin/env bash
+set -e
+source dev-container-features-test-lib
+
+fail_check "invalid option exits non-zero" \
+  bash "${REPO_ROOT}/src/<feature>/install.bash" --method invalid
+
+reportResults
+```
+
+Use `standalone.skip_install: true` in the scenario so the runner doesn't call `install.bash` before the test script does.
 
 ## Common Assertion Patterns
 
 ```bash
 # Tool on PATH
-check "pixi on PATH"                which pixi
+check "mytool on PATH"              command -v mytool
 
 # Version match
-check "version correct"             bash -c "pixi --version | grep '0.66'"
+check "version correct"             bash -c "mytool --version | grep '0.66'"
 
 # File / directory existence
-check "config dir exists"           test -d /home/vscode/.config/starship
+check "config dir exists"           test -d /root/.config/mytool
 check "binary is executable"        test -x /usr/local/bin/mytool
-check "file is non-empty"           test -s /etc/myconf
 
 # File content
 check "contains entry"              grep -Fq "export PATH" /root/.bashrc
 check "contains pattern"            grep -q "PATTERN" /path/to/file
 
-# Value comparison (compound expression — use bash -c)
+# Value comparison
 check "uid is 1000"                 bash -c '[ "$(id -u vscode)" = "1000" ]'
-check "shell is zsh"                bash -c 'getent passwd vscode | cut -d: -f7 | grep -q zsh'
 
 # Negative assertion
 check "tree not installed"          bash -c '! command -v tree'
-check "old user gone"               bash -c '! id old_user > /dev/null 2>&1'
 
-# Exact count
-check "exactly one activation line" bash -c '[ "$(grep -Fc "conda.sh" ~/.bashrc)" -eq 1 ]'
-
-# As a specific user
-check "plugin loaded"               bash -c "su -l vscode -c 'zsh -i -c \"omz plugin list\"' | grep autojump"
+# Negative check (expects non-zero exit)
+fail_check "invalid option fails"   bash "${REPO_ROOT}/src/<feat>/install.bash" --option bad
 ```
 
-Use `grep -Fq` (fixed string) rather than `grep -q` (regex) when checking literal file content — avoids regex metacharacters in paths broadening the match.
+Use `grep -Fq` (fixed string) rather than `grep -q` (regex) for literal content checks.
 
-## Dockerfiles
+## Options Key Transformation
 
-Only create a `<scenario>/Dockerfile` when the base image needs extra `RUN` instructions to establish a pre-condition state. Never create a Dockerfile that contains only a `FROM` line — use `"image"` in `scenarios.json` instead.
+In standalone and macOS modes, option keys are converted to env vars before calling `install.bash`:
+- `log_level` → `LOG_LEVEL`
+- `bin-dir` → `BIN_DIR`
+- `logLevel` → `LOGLEVEL`
 
-```dockerfile
-# Scenario: reinstall — test idempotency against an existing installation
-FROM ubuntu:latest
-RUN apt-get update \
- && apt-get install -y --no-install-recommends curl ca-certificates bash \
- && rm -rf /var/lib/apt/lists/*
+In devcontainer mode, keys are passed as-is to the features config object.
+
+## macOS Native Scenarios
+
+Reference a macOS environment (`image: macos-latest`) in `envs`. No `modes` field is needed — the runner auto-detects macOS environments. If the environment has `build.dockerfile`, those commands run as native setup on the runner.
+
+Test scripts use the same anatomy as other modes — `source dev-container-features-test-lib` works (the runner puts `test/support/assert.sh` on PATH).
+
+```yaml
+# scenarios.yaml
+macos_default:
+  envs: [macos-latest]
+  tests: [macos_default.sh]
 ```
-
-```dockerfile
-# Scenario: replace_existing — conflicting UID already occupied
-FROM ubuntu:latest
-RUN useradd --uid 1000 --user-group --no-create-home --shell /bin/sh old_user
-```
-
-Additional files in `<scenario>/` land flat in the temp `.devcontainer/` directory and are `COPY`-addressable by their path relative to `<scenario>/`:
-
-```dockerfile
-COPY setup.sh /tmp/setup.sh
-RUN bash /tmp/setup.sh
-```
-
-## Build Arguments
-
-Pass host environment variables into Docker build args:
-
-```jsonc
-"my_scenario": {
-  "build": {
-    "dockerfile": "Dockerfile",
-    "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
-  }
-}
-```
-
-```dockerfile
-ARG GITHUB_TOKEN
-FROM debian:latest
-ARG GITHUB_TOKEN
-ENV GITHUB_TOKEN=${GITHUB_TOKEN}
-```
-
-`${localEnv:VAR}` is resolved from the shell running the devcontainer CLI. Missing values become empty strings.
-
-## Linux Scenarios
-
-Linux scenarios are plain Docker-based tests that run outside the devcontainer CLI. Use them when you need to:
-
-- Assert that a feature install **exits non-zero** (devcontainer CLI has no `fail_check` equivalent).
-- Test **non-root install paths** by running the feature as a non-root user via `RUN_AS`.
-- Test **network-isolated** behaviour by setting `NETWORK=none` (pre-built base image provides required packages).
-- Run **additional positive assertions** before or after an install without a full devcontainer build.
-
-### Script anatomy
 
 ```bash
+# tests/macos_default.sh
 #!/usr/bin/env bash
-# Brief description of what this scenario verifies.
-set -euo pipefail
-
-REPO_ROOT="${1:?REPO_ROOT required}"
-# shellcheck source=test/support/assert.sh
-source "${REPO_ROOT}/test/support/assert.sh"
-
-# Negative assertion: expects install.bash to exit non-zero.
-fail_check "invalid method exits non-zero" \
-  bash "${REPO_ROOT}/src/install-git/install.bash" --method invalid
-
-# Mix positive and negative assertions freely.
-check "git not installed" bash -c '! command -v git'
-
+set -e
+source dev-container-features-test-lib
+bash "${REPO_ROOT}/src/<feature>/install.bash"
+check "tool installed"  command -v mytool
 reportResults
 ```
-
-### `.conf` sidecar
-
-Place an optional `<scenario>.conf` file alongside the script to configure the runner:
-
-```bash
-# Docker image to use (default: ubuntu:latest)
-IMAGE=ubuntu:latest
-
-# Block all outbound network; pre-builds a base image with feature deps.
-NETWORK=none
-
-# Root commands to run before the scenario (e.g. pre-install state, create users).
-SETUP_CMD=apt-get update -qq && apt-get install -y git && useradd -m vscode
-
-# Run the scenario script as this user (SETUP_CMD still runs as root).
-RUN_AS=vscode
-```
-
-### Running Linux scenarios locally
-
-```bash
-# All Linux scenarios for a feature
-bash .dev/scripts/test/run-linux.sh <feature>
-
-# Or via the unified dispatcher
-bash .dev/scripts/test/run.sh linux <feature>
-
-# Single scenario
-bash .dev/scripts/test/run-linux.sh <feature> --filter <scenario_name>
-```
-
-CI runs Linux scenarios automatically as part of `bash .dev/scripts/test/run.sh feature <feature>`. No `ci.yaml` changes are needed when adding a new `linux/` scenario.
 
 ## Running Tests Locally
 
 ```bash
-# Sync generated files first
-python3 scripts/sync-src.py
+# All modes for a feature (devcontainer + standalone)
+just test-feature <feature>
+bash .dev/scripts/test/run-feature-tests.sh <feature>
 
-# All scenarios + fail scenarios for a feature
-bash .dev/scripts/test/run.sh feature <feature>
+# Specific mode
+bash .dev/scripts/test/run-feature-tests.sh <feature> --mode devcontainer
+bash .dev/scripts/test/run-feature-tests.sh <feature> --mode standalone
 
-# Single scenario only (no fail scenarios)
-devcontainer features test -f <feature> --skip-autogenerated --project-folder . --filter <scenario_name>
+# Single scenario (by name prefix)
+bash .dev/scripts/test/run-feature-tests.sh <feature> --filter <scenario_name>
+
+# macOS scenarios (macOS host required)
+just test-macos <feature>
+bash .dev/scripts/test/run-feature-tests.sh <feature> --mode macos
 ```
-
-Always use `--project-folder .` (repo root). The `.devcontainer/_src → ../src` symlink lets the CLI resolve features from the root.
 
 Prerequisites: Docker running, Node.js, devcontainer CLI (`npm install -g @devcontainers/cli`).
 
 ## Notes
 
-- **Use absolute paths in checks.** Containers may have a sparse `PATH`. Prefer `/opt/conda/bin/conda` over bare `conda`.
-- **One thing per scenario.** A scenario named after its specific configuration (`strict_channel_priority`, `update_existing`) is far easier to debug than a combined one.
-- **`true` is a valid check command** when you only need to assert the feature exited cleanly: `check "installed cleanly" true`.
-
----
-
-## macOS Native Scenarios
-
-For features that install on macOS (e.g. `install-homebrew`), use native bash scripts that run directly on a macOS runner — no Docker, no devcontainer CLI.
-
-### Directory structure
-
-```
-test/<feature>/macos/
-  <scenario>.sh         native bash scenario script
-test/lib/
-  assert.sh             shared assertion library for macOS and dist scripts
-```
-
-### Script anatomy
-
-macOS scenarios source `test/support/assert.sh` instead of `dev-container-features-test-lib`. The `check` / `reportResults` API is identical. The repo root is passed as positional argument `$1`:
-
-```bash
-#!/usr/bin/env bash
-set -e
-REPO_ROOT="$1"
-source "${REPO_ROOT}/test/support/assert.sh"
-
-_BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-
-# Run the installer
-bash "${REPO_ROOT}/src/install-homebrew/install.sh"
-
-check "brew binary present"     test -f "${_BREW_PREFIX}/bin/brew"
-check "brew --version succeeds" "${_BREW_PREFIX}/bin/brew" --version
-
-reportResults
-```
-
-`test/support/assert.sh` provides the full API:
-- `check "label" <cmd>` — passes if `<cmd>` exits 0
-- `fail_check "label" <cmd>` — passes if `<cmd>` exits **non-zero** (for asserting expected failures)
-- `reportResults` — prints summary and exits 1 if any check failed
-- `shellenv_block_cleanup <file>` — removes `install-homebrew` shellenv blocks from a dotfile; use in a `trap ... EXIT` to clean up written dotfiles
-
-### Cleanup via trap
-
-macOS scenarios that write dotfiles should clean up after themselves:
-
-```bash
-_cleanup() {
-  for f in ~/.bash_profile ~/.bashrc ~/.zprofile ~/.zshrc; do
-    shellenv_block_cleanup "$f"
-  done
-}
-trap _cleanup EXIT
-```
-
-### Running macOS scenarios locally
-
-```bash
-# All macOS scenarios for a feature (requires macOS)
-bash .dev/scripts/test/run-macos.sh <feature>
-
-# Single scenario
-bash .dev/scripts/test/run-macos.sh <feature> --filter <scenario_name>
-```
-
-CI runs these automatically via `test-macos.yaml` on a `macos-latest` runner. No `scenarios.json` entry is needed — `run-macos.sh` discovers scenario scripts directly from the filesystem.
+- **One thing per scenario.** A scenario named after its specific configuration (`strict_channel_priority`, `network_isolated`) is easier to debug than a combined one.
+- **`true` is a valid check command** when you only need to assert the feature exited cleanly.
+- **Use absolute paths.** Containers may have sparse `PATH`. Prefer `/usr/local/bin/mytool` over bare `mytool` in existence checks.
+- **`tests/` scripts are shared.** If the same assertions work in both devcontainer and standalone modes, use one script — don't duplicate.
 
 ## Further Reading
 
 - `docs/source/dev/testing.md` — full narrative guide with examples
-- `test-gha.instructions.md` — CI workflow triggers, discover job, macOS runner
+- `test-gha.instructions.md` — CI workflow triggers, matrix generation
+- [devcontainer CLI test framework docs](https://raw.githubusercontent.com/devcontainers/cli/refs/heads/main/docs/features/test.md)

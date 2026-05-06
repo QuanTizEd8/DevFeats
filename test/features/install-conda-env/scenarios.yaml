@@ -1,0 +1,159 @@
+defaults:
+  options:
+    log_level: trace
+
+inline_env:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  options:
+    env_name: myenv
+    packages: "numpy pandas"
+  tests: [inline_env.sh]
+
+python_version:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  options:
+    env_name: py311
+    python_version: "3.11"
+  tests: [python_version.sh]
+
+env_files:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /tmp/test-envs
+    printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml
+  options:
+    env_files: /tmp/test-envs/simple.yml
+  tests: [env_files.sh]
+
+env_dirs:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /tmp/test-envs
+    printf 'name: direnv1\ndependencies:\n  - numpy\n' > /tmp/test-envs/direnv1.yml
+    printf 'name: direnv2\ndependencies:\n  - pandas\n' > /tmp/test-envs/direnv2.yml
+  options:
+    env_dirs: /tmp/test-envs
+  tests: [env_dirs.sh]
+
+multi_env_files:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /tmp/test-envs
+    printf 'name: envA\ndependencies:\n  - numpy\n' > /tmp/test-envs/envA.yml
+    printf 'name: envB\ndependencies:\n  - pandas\n' > /tmp/test-envs/envB.yml
+  options:
+    env_files: "/tmp/test-envs/envA.yml\n/tmp/test-envs/envB.yml"
+  tests: [multi_env_files.sh]
+
+update_existing:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /tmp/test-envs
+    printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml
+    /opt/conda/bin/conda env create -f /tmp/test-envs/simple.yml
+    printf 'name: simple\ndependencies:\n  - numpy\n  - pandas\n' > /tmp/test-envs/simple.yml
+  options:
+    env_files: /tmp/test-envs/simple.yml
+  tests: [update_existing.sh]
+
+channels:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  options:
+    env_name: chanenv
+    packages: numpy
+    channels: "conda-forge\ndefaults"
+  tests: [channels.sh]
+
+strict_channel_priority:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  options:
+    env_name: strictenv
+    packages: numpy
+    channels: conda-forge
+    strict_channel_priority: true
+  tests: [strict_channel_priority.sh]
+
+solver_conda:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  options:
+    env_name: solverenv
+    packages: numpy
+    solver: conda
+  tests: [solver_conda.sh]
+
+pip_requirements:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  setup: printf 'tomli\n' > /tmp/requirements.txt
+  options:
+    env_name: pipenv
+    packages: pip
+    pip_requirements_files: /tmp/requirements.txt
+  tests: [pip_requirements.sh]
+
+pip_env_override:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  setup: printf 'tomli\n' > /tmp/requirements.txt
+  options:
+    env_name: pipenv
+    packages: pip
+    pip_requirements_files: /tmp/requirements.txt
+    pip_env: pipenv
+  tests: [pip_env_override.sh]
+
+post_env_script:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  setup: |
+    printf '#!/bin/bash\necho "$1" > /tmp/post-env-ran\n' > /tmp/post-env.sh
+    chmod +x /tmp/post-env.sh
+  options:
+    env_name: scriptenv
+    packages: numpy
+    post_env_script: /tmp/post-env.sh
+  tests: [post_env_script.sh]
+
+log_file:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  options:
+    env_name: logenv
+    packages: numpy
+    log_file: /tmp/conda-env.log
+  tests: [log_file.sh]
+
+keep_cache:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  options:
+    env_name: cleanenv
+    packages: numpy
+    keep_cache: true
+  tests: [keep_cache.sh]
+
+env_files_uri:
+  envs: [condaforge-miniforge3]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /tmp/test-envs
+    printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml
+  options:
+    env_files: "file:///tmp/test-envs/simple.yml"
+  tests: [env_files_uri.sh]
+
+http_uri_resolve_stubbed:
+  envs: [condaforge-miniforge3]
+  modes: [standalone]
+  standalone:
+    skip_install: true
+  tests: [http_uri_resolve_stubbed.sh]

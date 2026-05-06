@@ -1,0 +1,77 @@
+defaults:
+  options:
+    log_level: trace
+
+default_install:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  tests: [default_install.sh]
+
+specific_version:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    version: "4.44.2"
+    method: release
+  tests: [specific_version.sh]
+
+release_custom_prefix:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    method: release
+    prefix: /opt/yq-bin
+    symlink: true
+    if_exists: reinstall
+  tests: [release_custom_prefix.sh]
+
+custom_prefix_no_symlink:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    method: release
+    prefix: /opt/yq-bin
+    symlink: false
+  tests: [custom_prefix_no_symlink.sh]
+
+repos_install:
+  envs: [debian-latest]
+  modes: [devcontainer, standalone]
+  options:
+    method: auto
+    if_exists: reinstall
+  tests: [repos_install.sh]
+
+version_match_idempotency:
+  envs: [ubuntu-latest+yq-4.44.2]
+  modes: [devcontainer, standalone]
+  options:
+    version: "4.44.2"
+    if_exists: fail
+  tests: [version_match_idempotency.sh]
+
+shell_completion_bash:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    shell_completions: bash
+  tests: [shell_completion_bash.sh]
+
+shell_completion_zsh:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    shell_completions: zsh
+  tests: [shell_completion_zsh.sh]
+
+if_exists_fail:
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [[ "${1-}" == "-o=json" ]]; then exit 0; fi\nif [[ "${1-}" == "--version" ]]; then echo "yq (fake)"; exit 0; fi\nexit 0\n' > /usr/local/bin/yq
+    chmod +x /usr/local/bin/yq
+  options:
+    method: auto
+  tests: [if_exists_fail.sh]
+  standalone:
+    skip_install: true

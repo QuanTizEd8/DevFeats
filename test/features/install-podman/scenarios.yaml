@@ -1,0 +1,108 @@
+defaults:
+  options:
+    log_level: trace
+
+apt_default:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    useradd -m -s /bin/bash vscode
+    truncate -s 0 /etc/subuid /etc/subgid
+  devcontainer:
+    remoteUser: vscode
+  tests: [apt_default.sh]
+
+apt_remote_user:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    useradd -m -s /bin/bash vscode
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_remote_user: true
+    add_container_user: false
+    add_current_user: false
+  devcontainer:
+    remoteUser: vscode
+  tests: [apt_remote_user.sh]
+
+apt_container_user:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    useradd -m -s /bin/bash vscode
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_container_user: true
+    add_remote_user: false
+    add_current_user: false
+  devcontainer:
+    containerUser: vscode
+  tests: [apt_container_user.sh]
+
+apt_root_user_config:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_users: root
+  tests: [apt_root_user_config.sh]
+
+apt_explicit_user:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    useradd -m -s /bin/bash devuser
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_users: devuser
+    add_remote_user: false
+    add_container_user: false
+    add_current_user: false
+  tests: [apt_explicit_user.sh]
+
+apt_multi_user:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    useradd -m -s /bin/bash alice
+    useradd -m -s /bin/bash bob
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_users: "alice\nbob"
+    add_remote_user: false
+    add_container_user: false
+    add_current_user: false
+  tests: [apt_multi_user.sh]
+
+apt_no_users:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_remote_user: false
+    add_container_user: false
+    add_current_user: false
+  tests: [apt_no_users.sh]
+
+apt_nonexistent_user:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_users: ghost
+    add_remote_user: false
+    add_container_user: false
+    add_current_user: false
+  tests: [apt_nonexistent_user.sh]

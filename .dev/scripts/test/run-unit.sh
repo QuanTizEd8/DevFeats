@@ -29,7 +29,11 @@ fi
 export PATH
 PATH="$(dirname "$BASH"):$PATH"
 
-_REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+if [[ -n "${REPO_ROOT:-}" ]]; then
+  _REPO_ROOT="$REPO_ROOT"
+else
+  _REPO_ROOT="$(git -C "$(cd "$(dirname "$0")" && pwd)" rev-parse --show-toplevel)"
+fi
 export REPO_ROOT="$_REPO_ROOT"
 _BATS="${_REPO_ROOT}/test/lib/bats/bats-core/bin/bats"
 _UNIT_DIR="${_REPO_ROOT}/test/lib"

@@ -57,10 +57,10 @@ If `src/<feature>/dependencies/base.yaml` exists (generated from `features/<feat
 ### Check 6 — Test Coverage Spot Check
 
 Read the test files and verify:
-- `test/<feature>/scenarios.json` exists and has at least one scenario.
-- Each scenario in `scenarios.json` has a corresponding `.sh` assertion script.
+- `test/features/<feature>/scenarios.yaml` exists and has at least one scenario.
+- Each scenario's `tests` list has a corresponding `.sh` script in `test/features/<feature>/tests/`.
 - Each assertion script actually tests something (contains `check` commands or assertions, not just `exit 0`).
-- If `lib/` modules were modified, verify `test/unit/<module>.bats` has tests for the changes.
+- If `lib/` modules were modified, verify `test/lib/<module>.bats` has tests for the changes.
 
 ### Check 7 — Run Tests
 
@@ -70,7 +70,7 @@ just test-unit
 
 If Docker is available:
 ```bash
-bash test/run.sh feature <feature>
+just test-feature <feature>
 ```
 
 Report pass/fail for each test suite.

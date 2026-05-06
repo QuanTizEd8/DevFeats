@@ -1,0 +1,41 @@
+defaults:
+  options:
+    log_level: trace
+
+nvm_set_permissions:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    set_permissions: true
+  tests: [nvm_set_permissions.sh]
+
+nvm_add_users:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  setup: useradd -m -s /bin/bash -u 1001 testuser
+  options:
+    add_users: testuser
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+    set_permissions: true
+  tests: [nvm_add_users.sh]
+
+nvm_remote_user:
+  envs: [devcontainers-base-ubuntu]
+  modes: [devcontainer]
+  options:
+    add_remote_user: true
+    add_current_user: false
+    add_container_user: false
+    set_permissions: true
+  tests: [nvm_remote_user.sh]
+  devcontainer:
+    remoteUser: vscode
+
+nvm_no_permissions:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    set_permissions: false
+  tests: [nvm_no_permissions.sh]

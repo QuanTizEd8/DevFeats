@@ -132,8 +132,46 @@ test-module module:
   group('testing'),
   doc('Run scenario and fail tests for one feature e.g. just test-feature install-pixi.')
 ]
-test-feature feat:
-    bash .dev/scripts/test/run.sh feature {{feat}}
+test-feature feat *args:
+    bash .dev/scripts/test/run-feature-tests.sh {{feat}} {{args}}
+
+
+[
+  group('testing'),
+  doc('Run lib/ unit tests in one container environment. e.g. just test-unit-in-env alpine-3.20')
+]
+test-unit-in-env env *args:
+    bash .dev/scripts/test/run-unit-matrix.sh --env {{env}} -- {{args}}
+
+
+[
+  group('testing'),
+  doc('Run lib/ unit tests in all container environments (requires docker).')
+]
+test-unit-containers *args:
+    bash .dev/scripts/test/run-unit-matrix.sh {{args}}
+
+
+[
+  group('testing'),
+  doc('Run macOS scenarios for a feature natively. e.g. just test-macos install-pixi')
+]
+test-macos feat *args:
+    bash .dev/scripts/test/run-feature-tests.sh {{feat}} --mode macos {{args}}
+
+
+[
+  group('testing'),
+  doc('Run all local test suites: unit (native + containers) + proman. Requires docker.')
+]
+test-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    _rc=0
+    just test-unit            || _rc=1
+    just test-proman          || _rc=1
+    just test-unit-containers || _rc=1
+    exit "$_rc"
 
 
 # ── Docs ─────────────────────────────────────────────────────────────────────

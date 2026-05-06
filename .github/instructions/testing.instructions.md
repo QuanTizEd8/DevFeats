@@ -1,57 +1,48 @@
 ---
-description: "Use when writing, editing, or reviewing any test file under test/. Covers the three-layer test architecture (unit tests, Linux feature scenarios, macOS native scenarios), directory structure, when to add each type of test, and quick-reference commands. Refer to framework-specific instruction files for full details."
+description: "Use when writing, editing, or reviewing any test file under test/. Covers the three-layer test architecture (unit tests, feature scenario tests, macOS native scenarios), directory structure, when to add each type of test, and quick-reference commands. Refer to framework-specific instruction files for full details."
 applyTo: "test/**"
 ---
 
 # Test Overview
 
-This repository has four layers of tests:
+This repository has three layers of tests:
 
 | Layer | Directory | Framework | Docker required |
 |---|---|---|-|
-| Shared library unit tests | `test/lib/` | bats-core | No |
-| Feature scenario tests (devcontainer) | `test/<feature>/` | devcontainer CLI | Yes (Linux only) |
-| Linux-native scenarios | `test/<feature>/linux/` | plain Docker + assert.sh | Yes (Linux only) |
-| macOS feature scenarios | `test/<feature>/macos/` | native bash scripts | No (macOS runner) |
+| Shared library unit tests | `test/lib/` | bats-core | No (bare distro containers in CI) |
+| Feature scenario tests | `test/features/<feature>/` | devcontainer CLI + plain Docker | Yes (Linux only) |
+| macOS feature scenarios | `test/features/<feature>/` (macOS envs) | native bash | No (macOS runner) |
 
 Supplementary test types:
 
-- **Manifest resolution dry-run** (`test/features/install-os-pkg/unit/`) — plain Docker; no devcontainer CLI
+- **Manifest resolution unit tests** (`test/features/install-os-pkg/unit/`) — wrapped in a standard `tests/dry_run.sh` scenario; plain Docker
 
 ## Directory Structure
 
 ```
 test/
-├── unit/                         ← bats unit tests for lib/ modules
-│   ├── *.bats                    one file per lib/ module
+├── environments.yaml             ← central environment registry (Linux + macOS)
+├── envs/                         ← escape-hatch Dockerfiles for complex envs
+│   └── <env-name>.Dockerfile
+├── lib/
+│   ├── *.bats                    unit tests for lib/ modules
+│   ├── scenarios.yaml            BATS unit test environments
 │   ├── helpers/
 │   │   ├── common.bash           reload_lib() + bats library loading
 │   │   └── stubs.bash            create_fake_bin() / prepend_fake_bin_path()
-│   ├── setup_suite.bash          bash ≥4 guard (auto-discovered by bats)
+│   ├── setup_suite.bash          bash ≥4 guard
 │   └── bats/                     git submodules — never edit
 │       ├── bats-core/
 │       ├── bats-support/
 │       ├── bats-assert/
 │       └── bats-file/
-├── <feature>/                    ← devcontainer CLI scenario tests (Linux)
-│   ├── scenarios.json            test matrix
-│   ├── <scenario>.sh             assertion script (runs inside the container)
-│   ├── <scenario>/               optional build context (only when needed)
-│   │   └── Dockerfile
-│   ├── linux/                    ← Linux-native scenarios (plain Docker)
-│   │   ├── <scenario>.sh           assert.sh-based script (fail_check, check)
-│   │   └── <scenario>.conf         optional: IMAGE, NETWORK, SETUP_CMD, RUN_AS
-│   └── macos/                    ← macOS native scenario scripts (no Docker)
-│       └── <scenario>.sh
-├── lib/
-│   └── assert.sh                 check() / fail_check() / reportResults() / block helpers for macOS and dist scripts
-└── install-os-pkg/
-    └── dry-run/                  manifest resolution tests (plain Docker)
-        ├── run.sh
-        └── cases/
-            └── <case>/
-                ├── manifest.yaml
-                └── <platform-id>.expected
+├── features/
+│   └── <feature>/
+│       ├── scenarios.yaml        unified test matrix (devcontainer, standalone, macOS)
+│       └── tests/                shared test scripts used by all modes
+│           └── *.sh
+└── support/
+    └── assert.sh                 check() / fail_check() / reportResults() — API-compatible with dev-container-features-test-lib
 ```
 
 ## When to Add Each Type of Test
@@ -59,47 +50,42 @@ test/
 | Situation | What to add |
 |---|---|
 | New or changed `lib/` function | Test in `test/lib/<module>.bats` |
-| New or changed feature behaviour (Linux) | Scenario in `test/<feature>/scenarios.json` + matching `.sh` |
-| Feature install should exit non-zero | `fail_check` in `test/<feature>/linux/<scenario>.sh` |
-| Non-root or network-isolated code path | `test/<feature>/linux/<scenario>.sh` + `.conf` sidecar |
-| Feature behaviour that requires real macOS | Script in `test/<feature>/macos/<scenario>.sh` |
+| New feature behaviour (Linux devcontainer) | Scenario in `test/features/<feature>/scenarios.yaml` with `modes: [devcontainer]` |
+| Feature install should exit non-zero | Standalone scenario with `standalone.skip_install: true`; use `fail_check` in the test script |
+| Non-root or network-isolated code path | Standalone scenario with `standalone.user`/`standalone.network: none` |
+| Feature behaviour that requires real macOS | Scenario in `scenarios.yaml` referencing a `macos-*` environment |
 | Manifest selector or package resolution change | Case under `test/features/install-os-pkg/unit/cases/<case>/` |
 
 ## Quick Reference: Running Tests
 
 ```bash
-# Always sync generated files first
-python3 scripts/sync-src.py
-
-# Lib unit tests
+# Lib unit tests (native bash)
 just test-unit                                        # all modules
-bash .dev/scripts/test/run-unit.sh --module os                     # single module
-bash .dev/scripts/test/run-unit.sh --filter "platform"             # filter by test-name regex
-bash .dev/scripts/test/run-unit.sh --jobs 1                        # serial (debug output)
+bash .dev/scripts/test/run-unit.sh --module os        # single module
+bash .dev/scripts/test/run-unit.sh --filter platform  # filter by test-name regex
+bash .dev/scripts/test/run-unit.sh --jobs 1           # serial (debug output)
 
-# Feature scenario tests + Linux scenarios (requires Docker + devcontainer CLI)
-bash .dev/scripts/test/run.sh feature <feature>
+# Unit tests in distro containers (requires Docker)
+just test-unit-containers                             # all environments
+just test-unit-in-env alpine-3.20                     # single environment
 
-# Linux-native scenarios only (plain Docker, no devcontainer CLI)
-bash .dev/scripts/test/run.sh linux <feature>
-bash .dev/scripts/test/run-linux.sh <feature> --filter <scenario_name>
+# Feature scenario tests (devcontainer + standalone, requires Docker)
+just test-feature <feature>
+bash .dev/scripts/test/run-feature-tests.sh <feature>                     # all modes
+bash .dev/scripts/test/run-feature-tests.sh <feature> --mode devcontainer # devcontainer only
+bash .dev/scripts/test/run-feature-tests.sh <feature> --mode standalone   # standalone only
+bash .dev/scripts/test/run-feature-tests.sh <feature> --filter <scenario> # single scenario
 
-# Single devcontainer scenario only (no Linux scenarios)
-devcontainer features test -f <feature> --skip-autogenerated --project-folder . --filter <scenario>
-
-# macOS feature scenarios (requires macOS — no Docker)
-bash .dev/scripts/test/run.sh macos <feature>
-bash .dev/scripts/test/run.sh macos <feature> --filter <scenario_name>
-
-# Manifest dry-run (requires Docker)
-bash .dev/scripts/test/run.sh dry-run
+# macOS feature scenarios (requires macOS)
+just test-macos <feature>
+bash .dev/scripts/test/run-feature-tests.sh <feature> --mode macos
 ```
 
 ## Framework-specific Instructions
 
 - **`test-unit.instructions.md`** — bats framework: `reload_lib`, stubs, subprocess isolation, macOS bash ≥4, common pitfalls
-- **`test-scenarios.instructions.md`** — devcontainer CLI: `scenarios.json`, assertion patterns, Dockerfiles, Linux-native scenarios, macOS native scenarios
-- **`test-gha.instructions.md`** — CI and GHA: workflow triggers, macOS runner, macOS feature scenarios, Linux scenarios in CI, dry-run manifest tests
+- **`test-scenarios.instructions.md`** — unified scenarios: `scenarios.yaml` format, test script anatomy, environments, standalone mode, macOS scenarios
+- **`test-gha.instructions.md`** — CI and GHA: workflow triggers, macOS runner, matrix generation, monitoring runs
 
 ## Further Reading
 

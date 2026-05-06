@@ -95,13 +95,13 @@ Read the general test writing instructions before writing tests: `.github/instru
 
 Based on findings from Step 2, write comprehensive tests that target all identified issues. Test ALL issues, even minor ones. Err on the side of over-testing. Make sure all tests have comprehensive documentation in the test files themselves, explaining the purpose of the test, with references to the specific flaw it targets and the related parts of the code and reference documents. The tests must include all four categories:
 
-1. **Unit tests** (`test/unit/<module>.bats`) — for any `lib/` function that was implemented, modified, or is used in a fragile way.
-Read `.github/instructions/test-unit.instructions.md` for detailed instructions on writing unit tests. Read `test/unit/helpers/common.bash` and existing `.bats` files to better understand the framework.
+1. **Unit tests** (`test/lib/<module>.bats`) — for any `lib/` function that was implemented, modified, or is used in a fragile way.
+Read `.github/instructions/test-unit.instructions.md` for detailed instructions on writing unit tests. Read `test/lib/helpers/common.bash` and existing `.bats` files to better understand the framework.
 
-2. **Scenario tests** (`test/<feature>/scenarios.json` + `<scenario>.sh`) — for devcontainer feature behavior.
-Read `.github/instructions/test-scenarios.instructions.md` for detailed instructions on writing scenario tests. Read existing `scenarios.json` files for format reference.
+2. **Scenario tests** (`test/features/<feature>/scenarios.yaml` + `tests/*.sh`) — for devcontainer feature behavior.
+Read `.github/instructions/test-scenarios.instructions.md` for detailed instructions on writing scenario tests. Read existing `scenarios.yaml` files for format reference.
 
-3. **Fail scenarios** (`test/<feature>/fail_scenarios.sh`) — for expected-failure inputs. Read `test/run-fail-scenarios.sh` for the runner contract.
+3. **Standalone fail scenarios** — for expected-failure inputs: add a scenario with `standalone.skip_install: true` and use `fail_check` in the test script. Read `.github/instructions/test-scenarios.instructions.md` for the pattern.
 
 4. **Standalone installer tests** — for testing the installer scripts outside of the devcontainer test framework, when directly invoking the script on a machine (especially for macOS, since devcontainer tests all run on Linux).
 

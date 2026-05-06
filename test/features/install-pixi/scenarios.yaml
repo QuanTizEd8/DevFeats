@@ -1,0 +1,222 @@
+defaults:
+  options:
+    log_level: trace
+
+default_install:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  tests: [default_install.sh]
+
+specific_version:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    version: "0.41.0"
+  tests: [specific_version.sh]
+
+custom_bin_dir:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    prefix: /opt/pixi
+    symlink: false
+  tests: [custom_bin_dir.sh]
+
+custom_bin_dir_symlink:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    prefix: /opt/pixi
+    symlink: true
+  tests: [custom_bin_dir_symlink.sh]
+
+debian:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [debian.sh]
+
+if_exists_skip:
+  envs: [ubuntu-latest+pixi-base]
+  modes: [devcontainer]
+  args:
+    PIXI_REF: latest/download
+    PIXI_INSTALL_DIR: /usr/local/bin
+  env_vars:
+    PATH: /usr/local/bin:${PATH}
+  options:
+    if_exists: skip
+  tests: [if_exists_skip.sh]
+
+if_exists_reinstall:
+  envs: [ubuntu-latest+pixi-base]
+  modes: [devcontainer]
+  args:
+    PIXI_REF: latest/download
+    PIXI_INSTALL_DIR: /usr/local/bin
+  env_vars:
+    PATH: /usr/local/bin:${PATH}
+  options:
+    if_exists: reinstall
+  tests: [if_exists_reinstall.sh]
+
+if_exists_update:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    if_exists: update
+  tests: [if_exists_update.sh]
+
+if_exists_update_existing:
+  envs: [ubuntu-latest+pixi-base]
+  modes: [devcontainer]
+  args:
+    PIXI_REF: download/v0.41.0
+    PIXI_INSTALL_DIR: /usr/local/bin
+  env_vars:
+    PATH: /usr/local/bin:${PATH}
+  options:
+    version: latest
+    if_exists: update
+  tests: [if_exists_update_existing.sh]
+
+version_match_idempotency:
+  envs: [ubuntu-latest+pixi-base]
+  modes: [devcontainer]
+  args:
+    PIXI_REF: download/v0.41.0
+    PIXI_INSTALL_DIR: /usr/local/bin
+  env_vars:
+    PATH: /usr/local/bin:${PATH}
+  options:
+    version: "0.41.0"
+    if_exists: reinstall
+  tests: [version_match_idempotency.sh]
+
+version_match_path_only_symlink:
+  envs: [ubuntu-latest+pixi-base]
+  modes: [devcontainer]
+  args:
+    PIXI_REF: download/v0.41.0
+    PIXI_INSTALL_DIR: /usr/bin
+  env_vars:
+    PATH: /usr/bin:${PATH}
+  options:
+    version: "0.41.0"
+    prefix: /opt/pixi
+    symlink: true
+  tests: [version_match_path_only_symlink.sh]
+
+keep_installer:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    keep_installer: true
+  tests: [keep_installer.sh]
+
+export_path_disabled:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    prefix: /opt/pixi
+    export_path: ""
+    symlink: false
+  tests: [export_path_disabled.sh]
+
+shell_completion_bash:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    shell_completions: bash
+  tests: [shell_completion_bash.sh]
+
+shell_completion_zsh:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    shell_completions: zsh
+  tests: [shell_completion_zsh.sh]
+
+home_dir:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    home_dir: /var/pixi
+  tests: [home_dir.sh]
+
+log_file:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    log_file: /tmp/pixi.log
+  tests: [log_file.sh]
+
+custom_bin_dir_symlink_nonroot:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: useradd -m -s /bin/bash vscode
+  options:
+    prefix: /opt/pixi
+    symlink: true
+  devcontainer:
+    remoteUser: vscode
+  tests: [custom_bin_dir_symlink_nonroot.sh]
+
+symlink_user_home_prefix:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    prefix: /root/pixi
+    symlink: true
+  tests: [symlink_user_home_prefix.sh]
+
+netrc_uri_file:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    printf '%s\n' 'machine github.com login token password placehold' > /tmp/test.netrc
+    chmod 600 /tmp/test.netrc
+  options:
+    netrc: "file:///tmp/test.netrc"
+  tests: [netrc_uri_file.sh]
+
+github_api_unreachable_network_isolated:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    network: none
+    skip_install: true
+  tests: [github_api_unreachable_network_isolated.sh]
+
+if_exists_fail_preinstalled:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "pixi 0.0.0"\n' > /usr/local/bin/pixi
+    chmod +x /usr/local/bin/pixi
+  options:
+    if_exists: fail
+  standalone:
+    skip_install: true
+  tests: [if_exists_fail_preinstalled.sh]
+
+http_uri_resolve_stubbed:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    skip_install: true
+  tests: [http_uri_resolve_stubbed.sh]
+
+invalid_version_string:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    skip_install: true
+  tests: [invalid_version_string.sh]
+
+invalid_version_suffix:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    skip_install: true
+  tests: [invalid_version_suffix.sh]

@@ -1,0 +1,286 @@
+defaults:
+  options:
+    log_level: trace
+
+download_and_install:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  tests: [download_and_install.sh]
+
+custom_bin_dir:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    prefix: /opt/myforge
+    symlink: false
+  tests: [custom_bin_dir.sh]
+
+specific_version:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    version: "24.7.1"
+  tests: [specific_version.sh]
+
+set_permission:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    write_group: conda
+  tests: [set_permission.sh]
+
+activate_bashrc:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    shell_activations: bash
+  tests: [activate_bashrc.sh]
+
+activate_multi:
+  envs: [ubuntu-latest+zsh]
+  modes: [devcontainer]
+  options:
+    shell_activations: "bash\nzsh"
+  tests: [activate_multi.sh]
+
+custom_active_env:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    shell_activations: bash
+    activate_env: myenv
+  tests: [custom_active_env.sh]
+
+log_file:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    log_file: /tmp/miniforge.log
+  tests: [log_file.sh]
+
+keep_installer:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    keep_installer: true
+  tests: [keep_installer.sh]
+
+if_exists_reinstall:
+  envs: [ubuntu-latest+miniforge-base]
+  modes: [devcontainer]
+  args:
+    MINIFORGE_PATH: latest/download
+    MINIFORGE_FILENAME: Miniforge3-Linux
+  options:
+    if_exists: reinstall
+  tests: [if_exists_reinstall.sh]
+
+if_exists_skip:
+  envs: [ubuntu-latest+miniforge-base]
+  modes: [devcontainer]
+  args:
+    MINIFORGE_PATH: latest/download
+    MINIFORGE_FILENAME: Miniforge3-Linux
+  options:
+    if_exists: skip
+  tests: [if_exists_skip.sh]
+
+if_exists_fail:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    if_exists: fail
+  tests: [if_exists_fail.sh]
+
+if_exists_update:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    if_exists: update
+  tests: [if_exists_update.sh]
+
+debian:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [debian.sh]
+
+multi_user_permissions:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    useradd -m testuser1
+    useradd -m testuser2
+  options:
+    write_group: conda
+    add_users: "testuser1\ntestuser2"
+  tests: [multi_user_permissions.sh]
+
+export_path_default:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  tests: [export_path_default.sh]
+
+export_path_custom_dir:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    prefix: /opt/myforge
+    symlink: false
+  tests: [export_path_custom_dir.sh]
+
+export_path_symlink:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    prefix: /opt/myforge
+    symlink: true
+  tests: [export_path_symlink.sh]
+
+export_path_disabled:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    export_path: ""
+  tests: [export_path_disabled.sh]
+
+export_path_custom_list:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    export_path: /tmp/test_bashrc
+  tests: [export_path_custom_list.sh]
+
+export_path_idempotency:
+  envs: [ubuntu-latest+curl]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /etc/profile.d
+    printf '# >>> conda PATH (install-miniforge) >>>\nexport PATH="/opt/conda/bin:${PATH}"\n# <<< conda PATH (install-miniforge) <<<\n' \
+        >> /etc/profile.d/conda_bin_path.sh
+    printf '# >>> conda PATH (install-miniforge) >>>\nexport PATH="/opt/conda/bin:${PATH}"\n# <<< conda PATH (install-miniforge) <<<\n' \
+        >> /etc/bash.bashrc
+    mkdir -p /etc/zsh
+    printf '# >>> conda PATH (install-miniforge) >>>\nexport PATH="/opt/conda/bin:${PATH}"\n# <<< conda PATH (install-miniforge) <<<\n' \
+        >> /etc/zsh/zshenv
+    printf '# >>> conda PATH (install-miniforge) >>>\nexport PATH="/opt/conda/bin:${PATH}"\n# <<< conda PATH (install-miniforge) <<<\n' \
+        >> /etc/bashenv
+    printf 'BASH_ENV="/etc/bashenv"\n' >> /etc/environment
+  options:
+    prefix: /opt/myforge
+    symlink: false
+  tests: [export_path_idempotency.sh]
+
+latest_version:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  tests: [latest_version.sh]
+
+version_match_idempotency:
+  envs: [ubuntu-latest+miniforge-base]
+  modes: [devcontainer]
+  args:
+    MINIFORGE_PATH: download/24.7.1-2
+    MINIFORGE_FILENAME: Miniforge3-24.7.1-2-Linux
+  options:
+    version: "24.7.1"
+    if_exists: reinstall
+  tests: [version_match_idempotency.sh]
+
+preserve_envs_true:
+  envs: [ubuntu-latest+miniforge-base]
+  modes: [devcontainer]
+  args:
+    MINIFORGE_PATH: download/24.7.1-2
+    MINIFORGE_FILENAME: Miniforge3-24.7.1-2-Linux
+  setup: /opt/conda/bin/conda create -n myenv --yes
+  options:
+    if_exists: reinstall
+    preserve_envs: true
+  tests: [preserve_envs_true.sh]
+
+preserve_envs_false:
+  envs: [ubuntu-latest+miniforge-base]
+  modes: [devcontainer]
+  args:
+    MINIFORGE_PATH: download/24.7.1-2
+    MINIFORGE_FILENAME: Miniforge3-24.7.1-2-Linux
+  setup: /opt/conda/bin/conda create -n myenv --yes
+  options:
+    if_exists: reinstall
+    preserve_envs: false
+  tests: [preserve_envs_false.sh]
+
+preserve_config_true:
+  envs: [ubuntu-latest+miniforge-base]
+  modes: [devcontainer]
+  args:
+    MINIFORGE_PATH: download/24.7.1-2
+    MINIFORGE_FILENAME: Miniforge3-24.7.1-2-Linux
+  setup: |
+    /opt/conda/bin/conda init bash
+    echo "auto_activate_base: false" > /root/.condarc
+  options:
+    if_exists: reinstall
+    preserve_config: true
+  tests: [preserve_config_true.sh]
+
+preserve_config_false:
+  envs: [ubuntu-latest+miniforge-base]
+  modes: [devcontainer]
+  args:
+    MINIFORGE_PATH: download/24.7.1-2
+    MINIFORGE_FILENAME: Miniforge3-24.7.1-2-Linux
+  setup: |
+    /opt/conda/bin/conda init bash
+    echo "auto_activate_base: false" > /root/.condarc
+  options:
+    if_exists: reinstall
+    preserve_config: false
+  tests: [preserve_config_false.sh]
+
+if_exists_update_preinstall:
+  envs: [ubuntu-latest+miniforge-base]
+  modes: [devcontainer]
+  args:
+    MINIFORGE_PATH: download/24.7.1-2
+    MINIFORGE_FILENAME: Miniforge3-24.7.1-2-Linux
+  setup: /opt/conda/bin/conda create -n myenv --yes
+  options:
+    if_exists: update
+  tests: [if_exists_update_preinstall.sh]
+
+export_path_symlink_nonroot:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: useradd -m -s /bin/bash vscode
+  options:
+    prefix: /opt/myforge
+    symlink: true
+  devcontainer:
+    remoteUser: vscode
+  tests: [export_path_symlink_nonroot.sh]
+
+symlink_user_home_prefix:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    prefix: /root/myforge
+    symlink: true
+  tests: [symlink_user_home_prefix.sh]
+
+github_api_unreachable_network_isolated:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    network: none
+    skip_install: true
+  tests: [github_api_unreachable_network_isolated.sh]
+
+invalid_version:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  options:
+    version: "0.0.0"
+  standalone:
+    skip_install: true
+  tests: [invalid_version.sh]

@@ -1,0 +1,95 @@
+defaults:
+  options:
+    log_level: trace
+
+default_install:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  tests: [default.sh]
+
+specific_version:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    version: "1.8.1"
+    method: release
+  tests: [specific_version.sh]
+
+legacy_version:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    version: "1.6"
+    method: release
+  tests: [legacy_version.sh]
+
+release_custom_prefix:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    method: release
+    prefix: /opt/jq-bin
+    symlink: "true"
+    if_exists: reinstall
+  tests: [release_custom_prefix.sh]
+
+custom_prefix_no_symlink:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    method: release
+    prefix: /opt/jq-bin
+    symlink: "false"
+  tests: [custom_prefix_no_symlink.sh]
+
+repos_install:
+  envs: [debian-bookworm+bash, alpine-3.20+bash, fedora-latest+bash]
+  modes: [devcontainer, standalone]
+  options:
+    method: repos
+  tests: [default.sh]
+
+version_match_idempotency:
+  envs: [ubuntu-24.04+jq-1.8.1]
+  modes: [devcontainer, standalone]
+  options:
+    version: "1.8.1"
+    if_exists: fail
+  tests: [version_match_idempotency.sh]
+
+reinstall:
+  envs: [ubuntu-24.04+jq-1.8.1]
+  modes: [devcontainer, standalone]
+  options:
+    version: "1.7.1"
+    method: release
+    if_exists: reinstall
+  tests: [reinstall.sh]
+
+if_exists_fail:
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "jq-9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/jq
+    chmod +x /usr/local/bin/jq
+  tests: [if_exists_fail.sh]
+  standalone:
+    skip_install: true
+
+if_exists_skip:
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "jq-9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/jq
+    chmod +x /usr/local/bin/jq
+  tests: [if_exists_skip.sh]
+  standalone:
+    skip_install: true
+
+source_build:
+  envs: [debian-bookworm+jq-source-build-deps]
+  modes: [standalone]
+  options:
+    method: source
+    version: "1.8.1"
+  tests: [source_build.sh]

@@ -16,6 +16,8 @@ proman-gen-docs-data = "proman.cli.gen_docs_data:main"
 proman-gen-docs = "proman.docs.gen_docs:main"
 proman-release-detect = "proman.release.detect:main"
 proman-cicd-detect = "proman.cicd.detect:main"
+proman-test-resolve-env = "proman.test.environments:resolve_cli"
+proman-test-gen-devcontainer = "proman.test.gen_devcontainer:main_cli"
 
 [build-system]
 requires = ["hatchling"]

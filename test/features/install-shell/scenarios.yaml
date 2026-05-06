@@ -1,0 +1,203 @@
+defaults:
+  options:
+    log_level: trace
+
+apt_default:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_default.sh]
+
+apt_zsh_only:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_ohmyzsh: false
+    install_ohmybash: false
+    install_starship: false
+  tests: [apt_zsh_only.sh]
+
+apt_no_fonts:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_ohmyzsh: false
+    install_ohmybash: false
+    install_starship: false
+  tests: [apt_no_fonts.sh]
+
+apt_multi_plugins:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: useradd -m -s /bin/bash vscode
+  options:
+    ohmyzsh_plugins: "zsh-users/zsh-autosuggestions\nzsh-users/zsh-syntax-highlighting"
+    add_current_user: true
+  devcontainer:
+    remoteUser: vscode
+  tests: [apt_multi_plugins.sh]
+
+apt_set_shell_zsh:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    set_user_shells: zsh
+    add_users: root
+  tests: [apt_set_shell_zsh.sh]
+
+apt_omz_p10k:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    ohmyzsh_theme: romkatv/powerlevel10k
+    starship_shells: ""
+    add_users: root
+  tests: [apt_omz_p10k.sh]
+
+apt_starship_only:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_ohmyzsh: false
+    install_ohmybash: false
+    install_starship: true
+  tests: [apt_starship_only.sh]
+
+apt_custom_dirs:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    ohmyzsh_install_dir: /opt/oh-my-zsh
+    ohmybash_install_dir: /opt/oh-my-bash
+  tests: [apt_custom_dirs.sh]
+
+apt_no_git:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_no_git.sh]
+
+apt_user_config:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_user_config.sh]
+
+apt_user_config_skip:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    user_config_mode: skip
+  tests: [apt_user_config_skip.sh]
+
+apt_zdotdir_default:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_zdotdir_default.sh]
+
+apt_zdotdir_custom:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    zdotdir: "~/.zsh"
+  tests: [apt_zdotdir_custom.sh]
+
+apt_custom_dir_system:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    ohmyzsh_custom_dir: /opt/zsh-custom
+  tests: [apt_custom_dir_system.sh]
+
+apt_custom_dir_per_user:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    ohmyzsh_custom_dir: "~/.zsh-custom"
+  tests: [apt_custom_dir_per_user.sh]
+
+apt_augment_mode:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /root/.config/zsh
+    echo '# MY_CUSTOM_LINE' > /root/.config/zsh/.zshrc
+    echo '# MY_CUSTOM_BASHRC' > /root/.bashrc
+  options:
+    user_config_mode: augment
+  tests: [apt_augment_mode.sh]
+
+apt_skel_placement:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_skel_placement.sh]
+
+apt_omb_user_config:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_omb_user_config.sh]
+
+apt_remote_user:
+  envs: [devcontainers-base-debian]
+  modes: [devcontainer]
+  options:
+    add_remote_user: true
+  devcontainer:
+    remoteUser: vscode
+  tests: [apt_remote_user.sh]
+
+apt_container_user:
+  envs: [devcontainers-base-debian]
+  modes: [devcontainer]
+  options:
+    add_container_user: true
+  devcontainer:
+    containerUser: vscode
+  tests: [apt_container_user.sh]
+
+apt_add_users:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  setup: useradd -m -s /bin/bash devuser
+  options:
+    add_users: devuser
+    add_container_user: false
+    add_remote_user: false
+  tests: [apt_add_users.sh]
+
+apt_shell_tools:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_ohmyzsh: false
+    install_ohmybash: false
+    install_starship: false
+  tests: [apt_shell_tools.sh]
+
+apt_no_shell_tools:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_bash_completion: false
+    install_zsh_completions: false
+    install_ohmyzsh: false
+    install_ohmybash: false
+    install_starship: false
+  tests: [apt_no_shell_tools.sh]
+
+apt_direnv:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_direnv: true
+    install_ohmyzsh: false
+    install_ohmybash: false
+    install_starship: false
+  tests: [apt_direnv.sh]
+
+apt_fzf:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_fzf: true
+    install_ohmyzsh: false
+    install_ohmybash: false
+    install_starship: false
+  tests: [apt_fzf.sh]

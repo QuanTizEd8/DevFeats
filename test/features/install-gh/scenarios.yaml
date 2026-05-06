@@ -1,0 +1,299 @@
+defaults:
+  options:
+    log_level: trace
+
+default_install:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  tests: [default_install.sh]
+
+specific_version_binary:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    version: "2.67.0"
+    method: binary
+  tests: [specific_version_binary.sh]
+
+repos_debian:
+  envs: [debian-12]
+  modes: [devcontainer]
+  tests: [repos_debian.sh]
+
+repos_alpine:
+  envs: [alpine-3.20]
+  modes: [devcontainer]
+  tests: [repos_alpine.sh]
+
+repos_fedora:
+  envs: [fedora-41]
+  modes: [devcontainer]
+  tests: [repos_fedora.sh]
+
+repos_opensuse:
+  envs: [opensuse-leap+bash]
+  modes: [devcontainer]
+  tests: [repos_opensuse.sh]
+
+binary_custom_path:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    method: binary
+    prefix: /opt/gh
+    symlink: true
+  tests: [binary_custom_path.sh]
+
+binary_no_symlink:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    method: binary
+    prefix: /opt/gh
+    symlink: false
+  tests: [binary_no_symlink.sh]
+
+binary_no_completions:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    method: binary
+    shell_completions: ""
+  tests: [binary_no_completions.sh]
+
+repos_no_completions:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    shell_completions: ""
+  tests: [repos_no_completions.sh]
+
+git_protocol_https:
+  envs: [ubuntu-latest+git+sudo]
+  modes: [devcontainer]
+  setup: |
+    useradd -m -s /bin/bash vscode
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
+  options:
+    add_remote_user: true
+    add_current_user: false
+    add_container_user: false
+    git_protocol: https
+  devcontainer:
+    remoteUser: vscode
+  tests: [git_protocol_https.sh]
+
+setup_git:
+  envs: [ubuntu-latest+git+sudo]
+  modes: [devcontainer]
+  setup: |
+    useradd -m -s /bin/bash vscode
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
+  options:
+    add_remote_user: true
+    add_current_user: false
+    add_container_user: false
+    setup_git: true
+  devcontainer:
+    remoteUser: vscode
+  tests: [setup_git.sh]
+
+sign_commits_ssh:
+  envs: [ubuntu-latest+git+sudo]
+  modes: [devcontainer]
+  setup: |
+    useradd -m -s /bin/bash vscode
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
+  options:
+    add_remote_user: true
+    add_current_user: false
+    add_container_user: false
+    sign_commits: ssh
+  devcontainer:
+    remoteUser: vscode
+  tests: [sign_commits_ssh.sh]
+
+sign_commits_gpg:
+  envs: [ubuntu-latest+git+sudo]
+  modes: [devcontainer]
+  setup: |
+    useradd -m -s /bin/bash vscode
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
+  options:
+    add_remote_user: true
+    add_current_user: false
+    add_container_user: false
+    sign_commits: gpg
+  devcontainer:
+    remoteUser: vscode
+  tests: [sign_commits_gpg.sh]
+
+if_exists_skip:
+  envs: [ubuntu-latest+gh-2.67.0-preinstalled]
+  modes: [devcontainer]
+  options:
+    if_exists: skip
+  tests: [if_exists_skip.sh]
+
+if_exists_skip_no_mutation:
+  envs: [ubuntu-latest+gh-2.67.0-preinstalled]
+  modes: [devcontainer]
+  setup: |
+    apt-get purge -y curl
+    apt-get autoremove -y
+    rm -rf /var/lib/apt/lists/*
+  options:
+    if_exists: skip
+  tests: [if_exists_skip_no_mutation.sh]
+
+version_match_idempotency:
+  envs: [ubuntu-latest+gh-2.67.0-preinstalled]
+  modes: [devcontainer]
+  options:
+    method: binary
+    version: "2.67.0"
+    if_exists: fail
+  tests: [version_match_idempotency.sh]
+
+keep_installer:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    method: binary
+    keep_installer: true
+    installer_dir: /tmp/gh-trace
+  tests: [keep_installer.sh]
+
+log_file:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    log_file: /tmp/gh-install.log
+  tests: [log_file.sh]
+
+binary_custom_path_nonroot:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: useradd -m -s /bin/bash vscode
+  options:
+    method: binary
+    prefix: /opt/gh
+    symlink: true
+  devcontainer:
+    remoteUser: vscode
+  tests: [binary_custom_path_nonroot.sh]
+
+ghes_hostname:
+  envs: [ubuntu-latest+git+sudo]
+  modes: [devcontainer]
+  setup: |
+    useradd -m -s /bin/bash vscode
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
+  options:
+    add_remote_user: true
+    add_current_user: false
+    add_container_user: false
+    setup_git: true
+    git_hostname: git.corp.example.com
+  devcontainer:
+    remoteUser: vscode
+  tests: [ghes_hostname.sh]
+
+add_users:
+  envs: [ubuntu-latest+git+sudo]
+  modes: [devcontainer]
+  setup: |
+    useradd -m -s /bin/bash -u 1001 testuser
+    echo "testuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/testuser
+  options:
+    add_users: testuser
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+    setup_git: true
+  tests: [add_users.sh]
+
+extensions:
+  envs: [ubuntu-latest+git+sudo]
+  modes: [devcontainer]
+  setup: |
+    useradd -m -s /bin/bash vscode
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
+  options:
+    add_remote_user: true
+    add_current_user: false
+    add_container_user: false
+    extensions: github/gh-copilot
+    log_file: /tmp/gh-ext-install.log
+  devcontainer:
+    remoteUser: vscode
+  tests: [extensions.sh]
+
+binary_symlink_user_home_prefix:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    method: binary
+    prefix: /root/gh
+    symlink: true
+  tests: [binary_symlink_user_home_prefix.sh]
+
+if_exists_fail_preinstalled:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "gh version 2.67.0 (2025-01-01)"\n' > /usr/local/bin/gh
+    chmod +x /usr/local/bin/gh
+  options:
+    if_exists: fail
+  standalone:
+    skip_install: true
+  tests: [if_exists_fail_preinstalled.sh]
+
+if_exists_fail_preinstalled_network_isolated:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "gh version 2.67.0 (2025-01-01)"\n' > /usr/local/bin/gh
+    chmod +x /usr/local/bin/gh
+  options:
+    if_exists: fail
+  standalone:
+    network: none
+    skip_install: true
+  tests: [if_exists_fail_preinstalled_network_isolated.sh]
+
+network_isolated_version_resolution:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    network: none
+    skip_install: true
+  tests: [network_isolated_version_resolution.sh]
+
+invalid_if_exists:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    skip_install: true
+  tests: [invalid_if_exists.sh]
+
+invalid_method:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    skip_install: true
+  tests: [invalid_method.sh]
+
+invalid_sign_commits:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  standalone:
+    skip_install: true
+  tests: [invalid_sign_commits.sh]
+
+macos_binary_default:
+  envs: [macos-latest]
+  tests: [macos_binary_default.sh]

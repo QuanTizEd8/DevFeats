@@ -2,6 +2,14 @@
 
 The project ships a ready-to-use Dev Container at `.devcontainer/.dev/`, which encapsulates the full development environment for the project. It installs all necessary tools for development, testing, and documentation, ensuring a consistent setup across different machines and operating systems. You can use this Dev Container in [VS Code](https://code.visualstudio.com/docs/devcontainers/containers), [GitHub Codespaces](https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration/introduction-to-dev-containers), or any other [supporting tool](https://containers.dev/supporting) that adheres to the [Development Container Specification](https://containers.dev/implementors/spec/); simply open your local clone of the repository in the Dev Container to get started.
 
+To set up, clone the repository including its submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/QuanTizEd8/DevFeats.git
+# or, if already cloned:
+git submodule update --init --recursive
+```
+
 
 ## Git Hooks
 

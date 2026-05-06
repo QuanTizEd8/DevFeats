@@ -1,0 +1,22 @@
+defaults:
+  options:
+    method: script
+    if_exists: reinstall
+    log_level: trace
+
+default_install:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  tests: [default_install.sh]
+
+if_exists_fail:
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then echo "0.0.0"; exit 0; fi\nexit 0\n' > /usr/local/bin/devcontainer
+    chmod +x /usr/local/bin/devcontainer
+  options:
+    method: script
+  tests: [if_exists_fail.sh]
+  standalone:
+    skip_install: true

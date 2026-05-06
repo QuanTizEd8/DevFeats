@@ -1,0 +1,256 @@
+ubuntu-24.04:
+  image: ubuntu:24.04
+
+ubuntu-24.04+bash+git:
+  image: ubuntu:24.04
+  build:
+    dockerfile: apt-get update -qq && apt-get install -y bash git
+
+alpine-3.20:
+  image: alpine:3.20
+
+alpine-3.20+bash:
+  image: alpine:3.20
+  build:
+    dockerfile: apk add --no-cache bash
+
+debian-bookworm+bash:
+  image: debian:bookworm
+  build:
+    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends bash
+
+fedora-latest+bash:
+  image: fedora:latest
+  build:
+    dockerfile: dnf install -y bash
+
+rocky-9+bash:
+  image: rockylinux:9
+  build:
+    dockerfile: dnf install -y bash
+
+opensuse-leap+bash:
+  image: opensuse/leap:15.6
+  build:
+    dockerfile: zypper install -y bash
+
+arch+bash:
+  image: archlinux:base
+  build:
+    dockerfile: pacman -Sy --noconfirm bash
+
+ubuntu-24.04+build-essentials:
+  image: ubuntu:24.04
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends build-essential curl ca-certificates
+
+ubuntu-24.04+jq-1.8.1:
+  image: ubuntu:24.04
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends curl ca-certificates
+      apt-get clean
+      rm -rf /var/lib/apt/lists/*
+      ARCH="$(uname -m)"
+      case "${ARCH}" in
+        x86_64)  JQ_ARCH="amd64" ;;
+        aarch64) JQ_ARCH="arm64" ;;
+        *) echo "Unsupported arch: ${ARCH}" && exit 1 ;;
+      esac
+      curl --fail --location --retry 3 \
+        "https://github.com/jqlang/jq/releases/download/jq-1.8.1/jq-linux-${JQ_ARCH}" \
+        -o /usr/local/bin/jq
+      chmod +x /usr/local/bin/jq
+
+debian-bookworm+jq-source-build-deps:
+  image: debian:bookworm
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends \
+        make automake autoconf libtool build-essential curl ca-certificates
+      rm -rf /var/lib/apt/lists/*
+
+# General-purpose base images
+ubuntu-latest:
+  image: ubuntu:latest
+
+debian-latest:
+  image: debian:latest
+
+debian-12:
+  image: debian:12
+
+fedora-41:
+  image: fedora:41
+
+fedora-latest:
+  image: fedora:latest
+
+opensuse-leap-latest:
+  image: opensuse/leap:latest
+
+alpine-latest+bash:
+  image: alpine:latest
+  build:
+    dockerfile: apk add --no-cache bash
+
+archlinux+bash:
+  image: archlinux:base
+  build:
+    dockerfile: pacman -Sy --noconfirm bash
+
+archlinux-latest:
+  image: archlinux:latest
+
+condaforge-miniforge3:
+  image: condaforge/miniforge3
+
+# Tool stub environments (pre-installed or fake tools for if_exists failure testing)
+debian-latest+just-stub:
+  image: debian:latest
+  build:
+    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends just
+
+ubuntu-latest+yq-4.44.2:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update
+      apt-get install -y --no-install-recommends curl ca-certificates
+      apt-get clean
+      apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
+      ARCH="$(uname -m)"
+      case "${ARCH}" in
+        x86_64)  YQ_ARCH="amd64" ;;
+        aarch64) YQ_ARCH="arm64" ;;
+        *)        echo "Unsupported arch: ${ARCH}" && exit 1 ;;
+      esac
+      curl --fail --location --retry 3 \
+        "https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_${YQ_ARCH}" \
+        -o /usr/local/bin/yq
+      chmod +x /usr/local/bin/yq
+
+devcontainers-base-ubuntu:
+  image: mcr.microsoft.com/devcontainers/base:ubuntu
+
+devcontainers-base-debian:
+  image: mcr.microsoft.com/devcontainers/base:debian
+
+alpine-latest:
+  image: alpine:latest
+
+# macOS environments — image matches ^macos; no Docker container is used
+macos-latest:
+  image: macos-latest
+
+# ── git environments ─────────────────────────────────────────────────────────
+ubuntu-24.04+git-preinstalled:
+  image: ubuntu:24.04
+  build:
+    dockerfile: apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+ubuntu-24.04+git-source-build-deps:
+  image: ubuntu:24.04
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends \
+        build-essential gettext libcurl4-openssl-dev libexpat1-dev \
+        libpcre2-dev libssl-dev zlib1g-dev libpcre2-posix3 \
+        curl ca-certificates tar jq yq
+      rm -rf /var/lib/apt/lists/*
+
+# ── gh environments ──────────────────────────────────────────────────────────
+ubuntu-latest+git+sudo:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      (apt-get update || (sleep 15 && apt-get update))
+      apt-get install -y --no-install-recommends git sudo
+      rm -rf /var/lib/apt/lists/*
+
+ubuntu-latest+gh-2.67.0-preinstalled:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      (apt-get update || (sleep 15 && apt-get update))
+      apt-get install -y --no-install-recommends curl ca-certificates
+      rm -rf /var/lib/apt/lists/*
+      ARCH="$(uname -m)"
+      case "${ARCH}" in
+        x86_64)  ASSET_ARCH="amd64" ;;
+        aarch64) ASSET_ARCH="arm64" ;;
+        *)       ASSET_ARCH="amd64" ;;
+      esac
+      GH_VERSION="2.67.0"
+      curl --fail --location --retry 3 --retry-connrefused \
+           -o /tmp/gh.tar.gz \
+           "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ASSET_ARCH}.tar.gz"
+      tar -xz -C /tmp -f /tmp/gh.tar.gz
+      install -m 755 "/tmp/gh_${GH_VERSION}_linux_${ASSET_ARCH}/bin/gh" /usr/local/bin/gh
+      rm /tmp/gh.tar.gz
+
+# ── homebrew environments ─────────────────────────────────────────────────────
+ubuntu-latest+homebrew-preinstalled:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update \
+       && apt-get install -y --no-install-recommends \
+              git curl file build-essential procps ca-certificates \
+       && apt-get clean \
+       && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
+      useradd -m -s /bin/bash linuxbrew
+      runuser -u linuxbrew -- env NONINTERACTIVE=1 /bin/bash -c \
+          "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+ubuntu-latest+curl:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update
+      apt-get install -y --no-install-recommends curl ca-certificates bash
+      rm -rf /var/lib/apt/lists/*
+
+# ── miniforge environments ────────────────────────────────────────────────────
+ubuntu-latest+zsh:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update \
+       && apt-get install -y --no-install-recommends zsh \
+       && apt-get clean \
+       && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
+
+ubuntu-latest+miniforge-base:
+  from: ubuntu-latest+curl
+  build:
+    dockerfile: |
+      ARCH="$(uname -m)"
+      curl --fail --location --retry 3 \
+        --output /tmp/miniforge.sh \
+        "https://github.com/conda-forge/miniforge/releases/${MINIFORGE_PATH}/${MINIFORGE_FILENAME}-${ARCH}.sh"
+      bash /tmp/miniforge.sh -b -p /opt/conda
+      rm /tmp/miniforge.sh
+  env_vars:
+    PATH: /opt/conda/bin:${PATH}
+
+# ── pixi environments ────────────────────────────────────────────────────────
+ubuntu-latest+pixi-base:
+  from: ubuntu-latest+curl
+  build:
+    dockerfile: |
+      ARCH="$(uname -m)"
+      case "${ARCH}" in
+        x86_64)  TRIPLE="x86_64-unknown-linux-musl" ;;
+        aarch64) TRIPLE="aarch64-unknown-linux-musl" ;;
+        *)       TRIPLE="${ARCH}-unknown-linux-musl" ;;
+      esac
+      curl --fail --location --retry 3 \
+        "https://github.com/prefix-dev/pixi/releases/${PIXI_REF}/pixi-${TRIPLE}.tar.gz" \
+        | tar -xz -C "${PIXI_INSTALL_DIR}"
+      chmod +x "${PIXI_INSTALL_DIR}/pixi"

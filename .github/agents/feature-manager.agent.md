@@ -70,10 +70,10 @@ DO NOT PROCEED TO PHASE 6 (IMPLEMENTATION) OR ASK THE USER WHETHER YOU SHOULD PR
 
 1. Review the latest version of the implementation reference document you and the user finalized in Phase 5, ensuring you have a deep understanding of the implementation plan, building blocks, and overall approach. Pay special attention to any edge cases, platform-specific behavior, and important considerations outlined in the document.
 2. Generate dependency manifests for base (`features/<feature-name>/metadata.yaml` under `_dependencies.base`) and option-specific dependencies (`_dependencies.<option-or-case>`) based on the installation requirements outlined in the Installation Reference document, following the instructions in `.github/instructions/ospkg-manifests.instructions.md`. Ensure that all dependencies are accurately represented with correct package names, versions, and platform-specific details as needed.
-3. For each building block that is to be implemented or updated, use a test-driven development (TDD) approach and write comprehensive unit tests for it in the `test/unit/` directory before implementing the actual logic. The tests should cover all expected behavior, edge cases, and error conditions for the building block.
+3. For each building block that is to be implemented or updated, use a test-driven development (TDD) approach and write comprehensive unit tests for it in the `test/lib/` directory before implementing the actual logic. The tests should cover all expected behavior, edge cases, and error conditions for the building block.
 RUN THE TESTS AND VERIFY THEY FAIL BEFORE IMPLEMENTING THE BUILDING BLOCK, to ensure that the tests are correctly written and that they will effectively validate the implementation. After writing the tests, implement the building block in `lib/`, ensuring that it fulfills the specification outlined in the implementation reference document, is robust against all current and anticipated use cases, follows best practices, and is well-documented.
 4. After modifying `lib/`, run `python3 scripts/sync-src.py` to propagate changes, then run the unit tests for the modified library modules to verify that the new implementation is correct and doesn't introduce regressions.
-5. After all building blocks are implemented and their unit tests pass, adopt the same TDD approach and implement comprehensive scenario tests for the feature under `test/<feature-name>/`, covering all relevant use cases, options, and edge cases, and fully verifying the correctness of the implementation according to the reference documents. Make sure to include failing and passing scenarios for all supported platforms, including macOS tests (run on CI runners). Scenario tests are too heavy to run locally, so NEVER TRY TO RUN THEM LOCALLY.
+5. After all building blocks are implemented and their unit tests pass, adopt the same TDD approach and implement comprehensive scenario tests for the feature under `test/features/<feature-name>/`, covering all relevant use cases, options, and edge cases, and fully verifying the correctness of the implementation according to the reference documents. Make sure to include failing and passing scenarios for all supported platforms, including macOS tests (run on CI runners). Scenario tests are too heavy to run locally, so NEVER TRY TO RUN THEM LOCALLY.
 6. Write the installer script under `features/<feature-name>/install.bash` following all conventions:
    - **Body-only** — no manual file header; sync generates the header in `src/`. See `docs/source/dev/writing-features.md`.
    - Source `ospkg.sh` first, then `logging.sh`, then other needed modules.
@@ -168,7 +168,7 @@ If the verdict is **NOT APPROVED**:
 - **features/install.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files via `scripts/sync-src.py`.
 - **Dual distribution**: devcontainer features (GHCR) + standalone tarballs (GitHub Releases via `scripts/build-artifacts.sh`).
 - **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `scripts/sync-src.py`.
-- **Test layers**: bats unit tests (`test/unit/`), devcontainer scenario tests (`test/<feature-name>/`), fail scenarios, dry-run manifest tests.
+- **Test layers**: bats unit tests (`test/lib/`), devcontainer scenario tests (`test/features/<feature-name>/`), standalone scenarios, macOS scenarios.
 - **CI workflows**: `cicd.yaml` (orchestrator — triggers on push/PR/tag), `ci.yaml` (reusable CI — lint, validate, unit, feature, dist tests), `cd.yaml` (reusable CD — GHCR publish + GitHub Release).
 - **Lefthook**: optional; sync/format hooks are **disabled by default** in `lefthook.yml`. See `docs/source/dev/index.md`.
 
@@ -182,8 +182,8 @@ If the verdict is **NOT APPROVED**:
 | Check formatting (no writes) | `just format-check` |
 | Lint shell files | `just lint` |
 | Run all unit tests | `just test-unit` |
-| Run unit tests for one module | `just test-module <name>` (or `bash test/run-unit.sh --module <name>`) |
-| Test one feature (scenarios + fail cases) | `just test-feature <feature-name>` (or `bash test/run.sh feature <feature-name>`) |
+| Run unit tests for one module | `just test-module <name>` (or `bash .dev/scripts/test/run-unit.sh --module <name>`) |
+| Test one feature (scenarios + fail cases) | `just test-feature <feature-name>` |
 | Build distribution artifacts | `bash scripts/build-artifacts.sh [tag]` |
 
 ## Output

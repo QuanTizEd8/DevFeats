@@ -1,0 +1,140 @@
+defaults:
+  options:
+    log_level: trace
+
+apt_default:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  tests: [apt_default.sh]
+
+debian:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [debian.sh]
+
+export_path_disabled:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    export_path: ""
+  tests: [export_path_disabled.sh]
+
+export_path_custom_file:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    export_path: /tmp/custom-brew.sh
+  tests: [export_path_custom_file.sh]
+
+export_path_idempotent:
+  envs: [ubuntu-latest+homebrew-preinstalled]
+  modes: [devcontainer]
+  setup: |
+    mkdir -p /etc/profile.d
+    printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' \
+        >> /etc/profile.d/brew.sh
+    printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' \
+        >> /etc/bash.bashrc
+    mkdir -p /etc/zsh
+    printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' \
+        >> /etc/zsh/zshenv
+  tests: [export_path_idempotent.sh]
+
+if_exists_skip:
+  envs: [ubuntu-latest+homebrew-preinstalled]
+  modes: [devcontainer]
+  tests: [if_exists_skip.sh]
+
+arch:
+  envs: [archlinux-latest]
+  modes: [devcontainer]
+  tests: [arch.sh]
+
+fedora:
+  envs: [fedora-latest+bash]
+  modes: [devcontainer]
+  tests: [fedora.sh]
+
+opensuse:
+  envs: [opensuse-leap+bash]
+  modes: [devcontainer]
+  tests: [opensuse.sh]
+
+if_exists_reinstall:
+  envs: [ubuntu-latest+homebrew-preinstalled]
+  modes: [devcontainer]
+  options:
+    if_exists: reinstall
+  tests: [if_exists_reinstall.sh]
+
+update_false:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    update: false
+  tests: [update_false.sh]
+
+log_file:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  options:
+    log_file: /tmp/brew.log
+  tests: [log_file.sh]
+
+shellenv_remote_user:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: useradd -m -s /bin/bash vscode
+  options:
+    add_remote_user: true
+  devcontainer:
+    remoteUser: vscode
+  tests: [shellenv_remote_user.sh]
+
+macos_default:
+  envs: [macos-latest]
+  tests: [macos_default.sh]
+
+macos_fresh_install:
+  envs: [macos-latest]
+  tests: [macos_fresh_install.sh]
+
+macos_if_exists_fail:
+  envs: [macos-latest]
+  tests: [macos_if_exists_fail.sh]
+
+macos_if_exists_reinstall:
+  envs: [macos-latest]
+  tests: [macos_if_exists_reinstall.sh]
+
+macos_export_path_disabled:
+  envs: [macos-latest]
+  options:
+    export_path: ""
+  tests: [macos_export_path_disabled.sh]
+
+macos_export_path_custom_file:
+  envs: [macos-latest]
+  tests: [macos_export_path_custom_file.sh]
+
+macos_export_path_idempotent:
+  envs: [macos-latest]
+  tests: [macos_export_path_idempotent.sh]
+
+macos_brew_git_remote:
+  envs: [macos-latest]
+  tests: [macos_brew_git_remote.sh]
+
+macos_no_install_from_api:
+  envs: [macos-latest]
+  tests: [macos_no_install_from_api.sh]
+
+macos_logfile:
+  envs: [macos-latest]
+  tests: [macos_logfile.sh]
+
+macos_update_false:
+  envs: [macos-latest]
+  options:
+    update: false
+  tests: [macos_update_false.sh]

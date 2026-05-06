@@ -1,6 +1,6 @@
 ---
-description: "Use when working with CI/CD workflows (.github/workflows/cicd.yaml, ci.yaml, cd.yaml), the install-os-pkg manifest dry-run tests (test/features/install-os-pkg/unit/), or Linux-native scenario scripts (test/**/linux/). Covers macOS GHA runner behaviour, macOS native feature scenarios, Linux scenario structure, dry-run test structure, adding dry-run cases, CI trigger logic, and how to inspect workflow run results and logs."
-applyTo: "test/features/install-os-pkg/unit/**, test/**/linux/**, .github/workflows/*.yaml"
+description: "Use when working with CI/CD workflows (.github/workflows/cicd.yaml, ci.yaml, cd.yaml), the install-os-pkg manifest unit tests (test/features/install-os-pkg/unit/), or CI trigger logic. Covers macOS GHA runner behaviour, macOS native feature scenarios, CI matrix generation, dry-run test structure, and how to inspect workflow run results and logs."
+applyTo: "test/features/install-os-pkg/unit/**, .github/workflows/*.yaml"
 ---
 
 # CI, macOS GHA Runner, and Supplementary Tests
@@ -13,28 +13,20 @@ applyTo: "test/features/install-os-pkg/unit/**, test/**/linux/**, .github/workfl
 | Continuous Integration | `ci.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | All lint/validate/unit/feature/dist tests |
 | Continuous Deployment | `cd.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | Publish to GHCR + GitHub Release |
 
-All jobs run `python3 scripts/sync-src.py` as an early step.
-
 ## macOS GHA Runner
 
-Unit tests (`test-unit.yaml`) run on `ubuntu-latest`, `macos-latest`, and several Linux distribution containers. Feature scenario tests that use Docker run only on `ubuntu-latest` — macOS GHA runners cannot run Docker containers.
+Feature scenario tests that use Docker run only on `ubuntu-latest` — macOS GHA runners cannot run Docker containers.
 
-Features that require a real macOS environment (e.g. `install-homebrew`) use the `test-macos` job in `ci.yaml`, which runs native bash scenario scripts directly on a `macos-latest` runner without Docker.
+Features with macOS scenarios (environments referencing `macos-*` runners) run in the `test-macos` job on a native `macos-latest` runner.
 
 ### bash version on macOS
 
-macOS ships bash 3.2 (GNU GPL licence prevents Apple bundling bash 4+). All lib/ modules require bash ≥4. `.dev/scripts/test/run-unit.sh` handles this automatically:
+macOS ships bash 3.2. All `lib/` modules require bash ≥4. `.dev/scripts/test/run-unit.sh` handles this automatically by re-execing under a Homebrew bash ≥4 if found.
 
-1. Checks `BASH_VERSINFO[0] < 4`.
-2. Tries `/opt/homebrew/bin/bash` (Apple Silicon) then `/usr/local/bin/bash` (Intel).
-3. Re-execs itself under the first bash ≥4 found.
-4. Prepends that executable's directory to `PATH` so `#!/usr/bin/env bash` sub-scripts (bats-exec-test, bats-exec-suite) also resolve to bash ≥4.
-
-The GHA `macos-latest` runner does **not** have bash ≥4 pre-installed. The `unit-native` job in `ci.yaml` adds an explicit step:
+The `test-unit-native` job in `ci.yaml` installs bash ≥4 explicitly:
 
 ```yaml
-- name: Install bash ≥4 (macOS)
-  if: runner.os == 'macOS'
+- name: Install bash ≥4
   run: brew install bash
 ```
 
@@ -52,9 +44,21 @@ macOS has no `/etc/os-release`, so kernel/platform/distro detection uses `uname 
 | `os__font_dir` (as root) | `/Library/Fonts` |
 | `os__font_dir` (non-root, no `$XDG_DATA_HOME`) | `${HOME}/Library/Fonts` |
 
-### `shell__detect_bashrc` / `shell__detect_zshdir` on macOS
+## macOS Feature Scenarios
 
-These functions probe binary paths using `strings`. On macOS, `strings` may return different paths than on Linux. Tests exercising these functions should use `create_fake_bin "strings" "..."` to control the probe output rather than relying on the host.
+Features with macOS environments in their `test/features/<feature>/scenarios.yaml` are automatically included in the `test-macos` CI job. The matrix is derived from `test/environments.yaml` entries whose `image` matches `^macos`.
+
+### CI matrix generation
+
+`ci_setup.sh` reads all `test/features/*/scenarios.yaml` files and builds `macos_matrix`:
+
+```json
+[{"feature": "install-homebrew", "runner": "macos-latest"}, ...]
+```
+
+`test-macos` in `ci.yaml` runs `bash .dev/scripts/test/run-feature-tests.sh "${{ matrix.job.feature }}" --mode macos`.
+
+No changes to `ci.yaml` are needed when adding a macOS scenario — discovery is fully automatic once the environment is in `test/environments.yaml` and referenced from `scenarios.yaml`.
 
 ### Trigger unit tests manually on macOS
 
@@ -66,73 +70,18 @@ bash .dev/scripts/test/run-unit.sh
 gh run watch
 ```
 
-## macOS Feature Scenarios
+## install-os-pkg Unit Tests
 
-The `test-macos` job in `ci.yaml` runs feature tests that require a real macOS environment. These scenarios run native bash scripts directly on a `macos-latest` runner — no Docker, no devcontainer CLI.
-
-### Directory structure
-
-```
-test/<feature>/macos/
-  <scenario>.sh         native bash scenario script
-test/lib/
-  assert.sh             check() / fail_check() / reportResults() / shellenv_block_cleanup()
-```
-
-### Script anatomy
-
-Scenario scripts source `test/support/assert.sh` (not `dev-container-features-test-lib`). The repo root is passed as positional argument `$1`. The `check` / `reportResults` API is identical to devcontainer CLI scenarios:
-
-```bash
-#!/usr/bin/env bash
-set -e
-REPO_ROOT="$1"
-source "${REPO_ROOT}/test/support/assert.sh"
-
-# Run the installer directly
-bash "${REPO_ROOT}/src/install-homebrew/install.sh"
-
-check "brew binary present"     test -f "$(brew --prefix)/bin/brew"
-check "brew --version succeeds" "$(brew --prefix)/bin/brew" --version
-
-# Negative check
-fail_check "brew not writable by root" test -w "$(brew --prefix)/bin/brew"
-
-reportResults
-```
-
-`test/support/assert.sh` additional API:
-- `fail_check "label" <cmd>` — passes when `<cmd>` exits **non-zero** (inverse of `check`)
-- `shellenv_block_cleanup <file>` — removes `install-homebrew` shellenv blocks from a dotfile in-place; useful in `trap ... EXIT` cleanup
-
-### Running macOS scenarios locally
-
-```bash
-# All macOS scenarios for a feature
-bash .dev/scripts/test/run-macos.sh <feature>
-
-# Single scenario
-bash .dev/scripts/test/run-macos.sh <feature> --filter <scenario_name>
-```
-
-### CI discovery
-
-The `test-macos` job in `ci.yaml` automatically discovers features that have at least one file under `test/<feature>/macos/*.sh`. On push/PR, only features with both macOS scenarios AND changed files under `src/<feature>/` or `test/<feature>/` are tested. On `workflow_dispatch` (including when called from `cicd.yaml` with `is_force=true`), all features with macOS scenarios are tested.
-
-No changes to `ci.yaml` are needed when adding a new macOS scenario — discovery is fully automatic.
-
-## install-os-pkg Dry-Run Tests
-
-`test/features/install-os-pkg/unit/` is a standalone test suite that verifies manifest parsing and package resolution without a full devcontainer build. It mounts the repo into a plain Docker container and runs `run.sh` inside it.
+`test/features/install-os-pkg/unit/` is a standalone test suite that verifies manifest parsing and package resolution without a full devcontainer build. It is invoked as a standard standalone scenario via `test/features/install-os-pkg/tests/dry_run.sh`.
 
 ### Directory structure
 
 ```
 test/features/install-os-pkg/unit/
-  run.sh                        test runner (executed inside Docker)
+  run.sh                        test runner (executed inside Docker via dry_run.sh)
   cases/
     <case-name>/
-      manifest.yaml              manifest content to parse
+      manifest.yaml             manifest content to parse
       debian.expected           expected resolved packages for platform=debian
       alpine.expected           expected resolved packages for platform=alpine
       rhel.expected             expected resolved packages for platform=rhel
@@ -144,192 +93,49 @@ test/features/install-os-pkg/unit/
 - An **empty** `.expected` file asserts that zero packages are resolved on that platform.
 - **Omitting** a `<platform-id>.expected` file marks the case as SKIP on that platform.
 
-### Running dry-run tests
+### Running unit tests
 
 ```bash
-# Debian / Ubuntu
+# Via the unified runner (uses ubuntu-latest container)
+bash .dev/scripts/test/run-feature-tests.sh install-os-pkg --mode standalone --filter dry_run
+
+# Or directly against any distro
 docker run --rm -v "$(pwd):/repo" debian:latest \
-  bash /repo/test/features/install-os-pkg/unit/run.sh
-
-# Alpine
-docker run --rm -v "$(pwd):/repo" alpine:latest \
-  bash /repo/test/features/install-os-pkg/unit/run.sh
-
-# Fedora / RHEL
-docker run --rm -v "$(pwd):/repo" fedora:latest \
-  bash /repo/test/features/install-os-pkg/unit/run.sh
-
-# opensuse, arch also supported
-docker run --rm -v "$(pwd):/repo" opensuse/leap:latest \
-  bash /repo/test/features/install-os-pkg/unit/run.sh
-
-# Override platform detection (useful on macOS host where /etc/os-release is absent)
-docker run --rm -e PLATFORM_ID=debian -v "$(pwd):/repo" debian:latest \
-  bash /repo/test/features/install-os-pkg/unit/run.sh
+  bash /repo/test/features/install-os-pkg/unit/run.sh /repo
 ```
 
-### Adding a dry-run test case
+### Adding a unit test case
 
 1. Create `test/features/install-os-pkg/unit/cases/<case-name>/`.
 2. Add `manifest.yaml` with the manifest content to test.
-3. Add one `<platform-id>.expected` file per distro you want to cover. Sort the package names (`sort` the list before writing).
-4. Run the dry-run suite against the relevant distro image(s) to verify.
-
-Example — a manifest with a selector block:
-
-```yaml
-# manifest.yaml
-packages:
-  - curl
-apt:
-  packages:
-    - apt-specific-pkg
-```
-
-```
-# debian.expected
-apt-specific-pkg
-curl
-```
-
-```
-# alpine.expected
-curl
-```
-
-CI (`ci.yaml`) runs the dry-run suite in a matrix across all supported distro images whenever `install-os-pkg` is in the discovered changed-feature set.
-
-## Linux Scenarios
-
-The devcontainer CLI cannot assert that a feature install exits non-zero, and always runs features as root — it cannot test non-root code paths. Linux scenarios fill both gaps: they run assertion scripts inside plain Docker containers (not devcontainer builds), enabling negative assertions (`fail_check`) and any desired user context via `RUN_AS`.
-
-### Directory structure
-
-```
-test/<feature>/linux/
-  <scenario>.sh       bash assertion script (sources test/support/assert.sh)
-  <scenario>.conf     optional sidecar — KEY=VALUE config for the runner
-test/lib/
-  assert.sh           shared assertion library
-```
-
-### Script anatomy
-
-```bash
-#!/usr/bin/env bash
-# Brief description of what this scenario verifies.
-set -euo pipefail
-
-REPO_ROOT="${1:?REPO_ROOT required}"
-# shellcheck source=test/support/assert.sh
-source "${REPO_ROOT}/test/support/assert.sh"
-
-# Negative assertion: expects install.bash to exit non-zero.
-fail_check "invalid method exits non-zero" \
-  bash "${REPO_ROOT}/src/install-git/install.bash" --method invalid
-
-# Positive assertion (also valid in linux/ scenarios).
-check "git on PATH" command -v git
-
-reportResults
-```
-
-### `.conf` sidecar
-
-An optional `<scenario>.conf` file alongside the script sets per-scenario runner variables. It is sourced as a bash script before the Docker container is started:
-
-```bash
-# IMAGE      — Docker image (default: ubuntu:latest)
-IMAGE=ubuntu:latest
-
-# NETWORK    — Set to "none" to block all outbound network access inside the
-#              container. run-linux.sh pre-builds a base image with the
-#              feature's apt dependencies (from src/<feature>/dependencies/base.yaml)
-#              pre-installed so the scenario itself does not need network.
-NETWORK=none
-
-# SETUP_CMD  — Shell commands run as root before the scenario script.
-SETUP_CMD=apt-get update -qq && apt-get install -y git
-
-# RUN_AS     — Username to su to before running the scenario script.
-#              SETUP_CMD (still runs as root) should create the user first.
-RUN_AS=vscode
-```
-
-### Running Linux scenarios
-
-```bash
-# All Linux scenarios for a feature
-bash .dev/scripts/test/run-linux.sh <feature>
-
-# Or via the unified dispatcher
-bash .dev/scripts/test/run.sh linux <feature>
-
-# Single scenario
-bash .dev/scripts/test/run-linux.sh <feature> --filter <scenario_name>
-```
-
-### CI integration
-
-The `test-features` job in `ci.yaml` runs `bash .dev/scripts/test/run.sh feature <feature>`, which calls both the devcontainer scenario matrix and `run-linux.sh`. No changes to `ci.yaml` are needed when adding a new `linux/` scenario — discovery is fully automatic.
+3. Add one `<platform-id>.expected` file per distro. Sort package names alphabetically.
+4. Run the dry-run suite to verify.
 
 ## CI Trigger Logic
 
 ### Change detection
 
-`cicd.yaml` runs a `detect` job on every event that computes per-job run flags from the changed-file diff:
+`cicd.yaml` runs a `detect` job on every event:
 
 | Changed path(s) | Flag set / Jobs gated |
 |---|---|
 | `*.sh`, `*.bash`, `*.bats` | `run_lint` → `lint` |
 | `src/**/devcontainer-feature.json` | `run_validate` → `validate` |
-| `lib/**`, `test/lib/**` | `run_unit` → `unit-native`, `unit-linux` |
+| `lib/**`, `test/lib/**` | `run_unit` → `test-unit-native`, `test-unit-container` |
 | `src/<f>/` or `test/<f>/` | `run_features`, `features[]` → `test-features` matrix |
-| macOS-capable feature in `features[]` | `run_macos`, `macos_features[]` → `test-macos` matrix |
-| `install-os-pkg` in `features[]` | `run_features` → `test-os-pkg` (6-distro matrix) |
-| `features/install.sh`, `features/devfeats.sh`, `scripts/build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
+| macOS-capable feature in `features[]` | `run_macos`, `macos_matrix` → `test-macos` matrix |
 
-On `workflow_dispatch`, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch (zero-SHA `before`) also sets `is_force=true` as a safe fallback.
+On `workflow_dispatch`, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch also sets `is_force=true`.
 
-### Feature test and macOS test discovery
+### Unit test matrix
 
-The `detect` job discovers changed features by intersecting all `ls src` names against `src/<f>/` or `test/<f>/` diff paths. macOS-eligible features are found by scanning `test/<feature>/macos/*.sh`.
+`ci_setup.sh` reads `test/lib/scenarios.yaml` to build `unit_env_matrix`. Adding an environment to `test/lib/scenarios.yaml` + `test/environments.yaml` automatically adds a new `test-unit-container` matrix job.
 
-- **push/PR**: only changed features that exist under `src/` and `test/`
-- **`workflow_dispatch` or tag push**: all features
+`unit_macos_matrix` is derived from `test/environments.yaml` entries whose `image` matches `^macos`. The `test-unit-native` job runs on all of these runners.
 
-No changes to any workflow file are needed when adding a new feature or new macOS scenarios — discovery is automatic.
+### No CI changes needed for new scenarios
 
-### Unit test triggers
-
-The `unit-native` and `unit-linux` jobs in `ci.yaml` run when `lib/**` or `test/lib/**` are changed. Two job groups run in parallel — no per-module discovery:
-
-| Job | Runs on | Notes |
-|---|---|---|
-| `unit-native` | ubuntu-latest + macos-latest | Installs bash ≥4 on macOS via `brew install bash` |
-| `unit-linux` | debian:bookworm, fedora:latest, rockylinux:9, alpine:3.20 containers | Validates glibc and musl compatibility |
-
-`fail-fast: false` ensures a failure in one matrix cell does not cancel the rest.
-
-A lefthook **pre-push** hook also runs the full bats suite locally when `lib/` or `test/lib/` files are changed:
-
-```yaml
-# lefthook.yml excerpt
-pre-push:
-  commands:
-    unit-tests:
-      glob: "{lib/**,test/lib/**}"
-      run: bash .dev/scripts/test/run-unit.sh
-```
-
-### Release and publish
-
-`is_release=true` is set by `cicd_detect.py` when the push to `main` has at least one feature with an untagged version (a version in `metadata.yaml` with no matching release tag). Alternatively, a `workflow_dispatch` with `feature` + `version` inputs triggers a manual single-feature release. The `cd` job in `cicd.yaml` runs only when `is_release=true` AND the `ci` job result is `success`.
-
-```bash
-# Manual single-feature release (CI still runs first)
-gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
-```
+Adding a new scenario to `test/features/<feature>/scenarios.yaml` does not require any changes to `ci.yaml`. Feature discovery, macOS matrix generation, and standalone test dispatch are all fully automatic.
 
 ## Monitoring CI Runs (for Agents)
 
@@ -337,87 +143,45 @@ Use the `gh` CLI to inspect workflow runs, job results, and logs. MCP GitHub too
 
 ### Workflow and run structure
 
-`cicd.yaml` is the orchestrator — the only file with event triggers. Its `ci` and `cd` jobs call `ci.yaml` and `cd.yaml` via `workflow_call`. The called workflows' jobs appear as individual entries **inside the same parent run** (no separate nested runs). A typical run contains:
+`cicd.yaml` is the orchestrator — the only file with event triggers. Its `ci` and `cd` jobs call `ci.yaml` and `cd.yaml` via `workflow_call`. The called workflows' jobs appear as individual entries inside the same parent run. A typical run contains:
 
 - `detect` — always runs; sets flags
-- `ci / setup`, `ci / lint`, `ci / validate`, `ci / unit-native (ubuntu-latest)`, `ci / unit-native (macos-latest)`, `ci / unit-linux (debian)`, ...
+- `ci / setup`, `ci / lint`, `ci / validate`
+- `ci / test-unit-native (macos-latest)`, `ci / test-unit-container (ubuntu-24.04)`, ...
 - `ci / test-features (install-shell)`, `ci / test-features (install-pixi)`, ... (matrix)
 - `ci / test-macos (install-homebrew)`, ... (matrix, if applicable)
-- `ci / test-dist-build`, `ci / test-dist-devfeats (debian)`, ...
 - `cd / publish` — only on release triggers
 
 ### Listing and identifying runs
 
 ```bash
-# List recent runs (all workflows)
 gh run list --limit 10
-
-# List runs for the orchestrator
-gh run list --workflow "CI/CD" --limit 10
-
-# Filter by branch or status
 gh run list --workflow "CI/CD" --branch main --status failure --limit 5
 ```
-
-Output columns: run ID, status/conclusion, workflow name, branch, event, elapsed time.
 
 ### Viewing run summary and job results
 
 ```bash
-# Show run summary: all jobs, their status, and job IDs
 gh run view <run-id>
-
-# Get job list as JSON (includes job IDs, names, conclusions, steps)
 gh run view <run-id> --json jobs
-
-# Get full run metadata as JSON
-gh run view <run-id> --json jobs,status,conclusion,event,headBranch,headSha
-```
-
-Use `--json jobs` to map job names to numeric IDs for log retrieval.
-
-### Fetching logs
-
-```bash
-# Stream all logs for the entire run (verbose for large matrix runs)
-gh run view <run-id> --log
-
-# Fetch only the failed steps' logs — fastest way to find the root cause
 gh run view <run-id> --log-failed
-
-# Fetch logs for a specific job by job ID
 gh run view <run-id> --job <job-id> --log
-```
-
-
-Then fetch its logs:
-
-```bash
-gh run view <run-id> --job <job-id> --log
-```
-
-### Watching a run in progress
-
-```bash
-# Watch the most recent run
-gh run watch
-
-# Watch a specific run
-gh run watch <run-id>
 ```
 
 ### Triggering and re-running
 
 ```bash
-# Run the full CI/CD suite (auto-detects what to release)
 gh workflow run "CI/CD"
+gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
+gh workflow run "CI"
+gh run rerun <run-id> --failed
+```
 
+### Release and publish
+
+`is_release=true` is set by `cicd_detect.py` when the push to `main` has at least one feature with an untagged version. The `cd` job runs only when `is_release=true` AND `ci` succeeded.
+
+```bash
 # Manual single-feature release (CI still runs first)
 gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
-
-# Run CI tests only (standalone, discovers all features automatically)
-gh workflow run "CI"
-
-# Re-run only the failed jobs in a run
-gh run rerun <run-id> --failed
 ```

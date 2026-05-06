@@ -1,0 +1,26 @@
+defaults:
+  options:
+    log_level: trace
+
+default:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  tests: [default.sh]
+
+code_only:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    code: true
+    devcontainer-info: false
+    systemctl: false
+  tests: [code_only.sh]
+
+none_enabled:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    code: false
+    devcontainer-info: false
+    systemctl: false
+  tests: [none_enabled.sh]
