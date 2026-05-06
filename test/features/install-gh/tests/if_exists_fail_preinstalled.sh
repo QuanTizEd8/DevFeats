@@ -3,7 +3,7 @@
 # SETUP_CMD (in if_exists_fail_preinstalled.conf) places a stub gh binary.
 set -euo pipefail
 
-# shellcheck source=test/support/assert.sh
+# shellcheck source=/dev/null
 source dev-container-features-test-lib
 
 # Confirm the stub is pre-installed by SETUP_CMD.

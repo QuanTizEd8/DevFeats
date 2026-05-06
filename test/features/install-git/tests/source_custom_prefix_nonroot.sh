@@ -8,7 +8,7 @@
 # The scenario then runs as vscode via RUN_AS=vscode.
 set -euo pipefail
 
-# shellcheck source=test/support/assert.sh
+# shellcheck source=/dev/null
 source dev-container-features-test-lib
 
 # Confirm the scenario is running as a non-root user.

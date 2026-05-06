@@ -3,7 +3,7 @@
 # SETUP_CMD (in if_exists_fail_preinstalled.conf) pre-installs git via apt-get.
 set -euo pipefail
 
-# shellcheck source=test/support/assert.sh
+# shellcheck source=/dev/null
 source dev-container-features-test-lib
 
 # Confirm git is pre-installed by SETUP_CMD.

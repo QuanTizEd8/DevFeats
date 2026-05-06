@@ -13,7 +13,7 @@
 # the documented behaviour of if_exists=skip.
 set -e
 
-# shellcheck source=test/support/assert.sh
+# shellcheck source=/dev/null
 source dev-container-features-test-lib
 
 # --- baseline: git is in PATH before the feature runs ---
