@@ -122,7 +122,14 @@
         "EditorConfig.EditorConfig",
         "redhat.vscode-yaml",
         "tamasfe.even-better-toml",
-        "ms-python.python"
+        "ms-python.python",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker",
+        "yzhang.markdown-all-in-one",
+        "anthropic.claude-code",
+        "tomoki1207.pdf"
       ]
     }
   }
