@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import yaml
+
 if TYPE_CHECKING:
     from typing import Any
     from sphinx.application import Sphinx
@@ -14,6 +16,11 @@ if TYPE_CHECKING:
 _WEBSITE_ROOT = Path(__file__).resolve().parent
 _REPO_ROOT = _WEBSITE_ROOT.parent
 _DOCS_DATA_PATH = _REPO_ROOT / ".dev" / "output" / "docs-data.json"
+
+_docs_cfg: dict = yaml.safe_load(
+    (_REPO_ROOT / ".dev/config/docs.yaml").read_text(encoding="utf-8")
+)["sphinx"]
+globals().update(_docs_cfg)
 
 if not _DOCS_DATA_PATH.exists():
     raise FileNotFoundError(
@@ -92,101 +99,25 @@ author = f"{_REPO_NAME} contributors"
 
 # ── General configuration ──────────────────────────────────────────────────────
 
-extensions = [
-    # Core Markdown + notebook support
-    "myst_parser",
-    # External TOC (docs/toc.yaml)
-    "sphinx_external_toc",
-    # pydata theme extras
-    "sphinx_design",
-    "sphinx_copybutton",
-    "sphinx_togglebutton",
-    # Diagrams
-    "sphinxcontrib.mermaid",
-    # OpenGraph meta tags
-    "sphinxext.opengraph",
-    # Last-updated timestamps from git
-    "sphinx_last_updated_by_git",
-    # 404 page
-    "notfound.extension",
-    # Bibliography / cite role
-    "sphinxcontrib.bibtex",
-]
-
 # sphinx-external-toc: absolute path keeps this stable even when callers vary -c/confdir.
 external_toc_path = str(_WEBSITE_ROOT / "toc.yaml")
-external_toc_exclude_missing = False
-
-# MyST options
-myst_enable_extensions = [
-    "colon_fence",      # ::: directive shorthand
-    "deflist",          # definition lists
-    "fieldlist",        # field lists
-    "substitution",     # |sub| substitutions
-    "tasklist",         # - [ ] checkboxes
-    "attrs_inline",     # inline attribute syntax
-]
-myst_heading_anchors = 3
-myst_links_external_new_tab = True
-
-suppress_warnings = [
-    "myst.xref_missing",         # suppress missing cross-ref warnings during early dev
-    "bibtex.key_not_found",      # .bib file not yet populated
-    "misc.highlighting_failure", # jsonc blocks with ... ellipsis retry in relaxed mode (harmless)
-    "etoc.toctree",              # sphinx-external-toc manages all toctrees
-]
-
-templates_path = ["_templates"]
-exclude_patterns = [
-    "_build",
-    "website",
-    "**.ipynb_checkpoints",
-    "environment.yaml",
-    # Flat stub superseded by ref/install-pixi/ subdirectory
-    "ref/install-pixi.md",
-]
 
 # ── HTML output ────────────────────────────────────────────────────────────────
 
-html_theme = "pydata_sphinx_theme"
 html_title = _REPO_NAME
-html_logo = None  # add docs/_static/logo.svg when available
 
-html_theme_options = {
+html_theme_options = _docs_cfg["html_theme_options"] | {
     "github_url": f"https://github.com/{_REPO_OWNER}/{_REPO_NAME}",
-    "use_edit_page_button": True,
-    "show_toc_level": 2,
-    "navigation_with_keys": True,
-    "navbar_align": "left",
-    "footer_start": ["copyright"],
-    "footer_end": ["theme-version"],
-    "secondary_sidebar_items": ["page-toc", "edit-this-page", "sourcelink"],
-    "pygments_light_style": "friendly",
-    "pygments_dark_style": "monokai",
 }
 
-html_context = {
+html_context = _docs_cfg["html_context"] | {
     "project_name": _REPO_NAME,
     "github_user": _REPO_OWNER,
     "github_repo": _REPO_NAME,
-    "github_version": "main",
-    "doc_path": "docs/source",
-    "feats": _feature_metadata,  # for Jinja templating in source files
+    "feats": _feature_metadata,
     "lib_modules": _lib_modules,
 }
-
-html_static_path = ["_static"]
-html_css_files = []
-
-# sphinx-copybutton: strip prompt characters from copied shell blocks
-copybutton_prompt_text = r"^\$ |^# "
-copybutton_prompt_is_regexp = True
-
-# sphinxcontrib-bibtex
-bibtex_bibfiles = []
-
 
 # ── OpenGraph ──────────────────────────────────────────────────────────────────
 
 ogp_site_url = f"https://{_REPO_OWNER.lower()}.github.io/{_REPO_NAME.lower()}/"
-ogp_description_length = 200

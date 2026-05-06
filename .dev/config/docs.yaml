@@ -1,0 +1,78 @@
+version: 1
+
+# All values under `sphinx` map directly to Sphinx configuration variable names
+# and are loaded via globals().update() in conf.py.
+sphinx:
+  extensions:
+    - myst_parser
+    - sphinx_external_toc
+    - sphinx_design
+    - sphinx_copybutton
+    - sphinx_togglebutton
+    - sphinxcontrib.mermaid
+    - sphinxext.opengraph
+    - sphinx_last_updated_by_git
+    - notfound.extension
+    - sphinxcontrib.bibtex
+
+  external_toc_exclude_missing: false
+
+  myst_enable_extensions:
+    - colon_fence
+    - deflist
+    - fieldlist
+    - substitution
+    - tasklist
+    - attrs_inline
+  myst_heading_anchors: 3
+  myst_links_external_new_tab: true
+
+  suppress_warnings:
+    - myst.xref_missing
+    - bibtex.key_not_found
+    - misc.highlighting_failure
+    - etoc.toctree
+
+  templates_path:
+    - _templates
+  exclude_patterns:
+    - _build
+    - website
+    - "**.ipynb_checkpoints"
+    - environment.yaml
+    - ref/install-pixi.md
+
+  html_theme: pydata_sphinx_theme
+  html_logo: null
+  html_static_path:
+    - _static
+  html_css_files: []
+
+  # github_url is injected at runtime from repo owner/name
+  html_theme_options:
+    use_edit_page_button: true
+    show_toc_level: 2
+    navigation_with_keys: true
+    navbar_align: left
+    footer_start:
+      - copyright
+    footer_end:
+      - theme-version
+    secondary_sidebar_items:
+      - page-toc
+      - edit-this-page
+      - sourcelink
+    pygments_light_style: friendly
+    pygments_dark_style: monokai
+
+  # project_name, github_user, github_repo, feats, lib_modules injected at runtime
+  html_context:
+    github_version: main
+    doc_path: docs/source
+
+  copybutton_prompt_text: '^\$ |^# '
+  copybutton_prompt_is_regexp: true
+
+  bibtex_bibfiles: []
+
+  ogp_description_length: 200
