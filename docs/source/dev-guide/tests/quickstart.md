@@ -14,9 +14,6 @@
     - `test/features/<feature>/<scenario>/`: Per-scenario build context (if needed), e.g. Dockerfile or other files needed at build time.
 
 
-- `.devcontainer/`: Development environment definitions.
-  - `.devcontainer/devcontainer.json`: Dev container configuration.
-  - `.devcontainer/_src/`: Symlink to `src/` for local feature development inside the dev container.
 
 
 ## Tests
