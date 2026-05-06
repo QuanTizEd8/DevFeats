@@ -473,8 +473,8 @@ _git__write_user_gitconfig() {
 
 # ── Top-level dispatch ────────────────────────────────────────────────────────
 
-# 1. Resolve auto prefix/sysconfdir.
-if [ "${PREFIX}" = "auto" ]; then
+# 1. Resolve prefix/sysconfdir.
+if [ -z "${PREFIX}" ]; then
   [ "$(id -u)" = "0" ] && PREFIX="/usr/local" || PREFIX="${HOME}/.local"
 fi
 if [ "${SYSCONFDIR}" = "auto" ]; then

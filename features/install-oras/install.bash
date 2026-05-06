@@ -24,7 +24,7 @@ _oras__create_symlink() {
     --user-target "${HOME}/.local/bin/oras"
 }
 
-if [[ -z "${PREFIX}" || "${PREFIX}" == "auto" ]]; then
+if [[ -z "${PREFIX}" ]]; then
   PREFIX="$(users__default_prefix)"
 fi
 

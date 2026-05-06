@@ -62,10 +62,10 @@ options:
       Not recommended for images where environment reproducibility matters.
     type: boolean
   prefix:
-    default: auto
+    default: ''
     description: |-
       Path to the conda installation directory (installation root/prefix).
-      `auto` (default) — resolves to `/opt/conda` when running as root (the de-facto standard used by continuumio Docker images and the devcontainer ecosystem), or `~/miniforge3` when running as non-root (the Miniforge installer's own default prefix).
+      Leave empty to use the default: `/opt/conda` as root (the de-facto standard used by continuumio Docker images and the devcontainer ecosystem), or `~/miniforge3` as non-root (the Miniforge installer's own default prefix).
       An explicit path — used as-is; the directory is created if it does not exist.
       With `symlink=true`, a symlink is created from the canonical prefix to `$prefix` when they differ: `/opt/conda` → `$prefix` for root, `$HOME/miniforge3` → `$prefix` for non-root.
     type: string

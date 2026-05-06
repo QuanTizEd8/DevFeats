@@ -57,7 +57,7 @@ _devcontainer_cli__install_npm() {
 
   local -a _args
   _args=(-g)
-  [[ -n "${_install_prefix}" && "${_install_prefix}" != "auto" ]] && _args+=(--prefix "${_install_prefix}")
+  [[ -n "${_install_prefix}" ]] && _args+=(--prefix "${_install_prefix}")
   if [[ "${_uninstall}" == "true" ]]; then
     npm "${_args[@]}" uninstall "@devcontainers/cli"
     return 0
@@ -95,7 +95,7 @@ _devcontainer_cli__create_symlink() {
     --user-target "${HOME}/.local/bin/devcontainer"
 }
 
-if [[ -z "${PREFIX}" || "${PREFIX}" == "auto" ]]; then
+if [[ -z "${PREFIX}" ]]; then
   if users__is_root; then
     PREFIX="/opt/devcontainers"
   else

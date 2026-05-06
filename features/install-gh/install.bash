@@ -516,13 +516,13 @@ fi
 
 os__require_root
 
-if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
+if [ -z "${PREFIX}" ]; then
   if [ "$(id -u)" = "0" ]; then
     PREFIX="/usr/local"
   else
     PREFIX="${HOME}/.local"
   fi
-  logging__info "Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'."
+  logging__info "Argument 'PREFIX' resolved to '${PREFIX}'."
 fi
 
 # Resolve version (may call GitHub API).

@@ -54,10 +54,10 @@ options:
         description: Install from upstream GitHub release artifacts.
   prefix:
     type: string
-    default: auto
+    default: ''
     description: |-
       Installation prefix for `method=release` (`$prefix/bin/yq`).
-      `auto` resolves to `/usr/local` as root, or `$HOME/.local` as non-root.
+      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
       Ignored for `method=repos`.
   symlink:
     type: boolean

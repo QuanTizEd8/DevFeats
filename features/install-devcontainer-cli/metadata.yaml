@@ -37,10 +37,10 @@ options:
         description: Install a specific release.
   prefix:
     type: string
-    default: auto
+    default: ''
     description: |-
       Installation prefix for `method=script` and npm global prefix for `method=npm`.
-      `auto` resolves to `/opt/devcontainers` as root, or `$HOME/.devcontainers` as non-root,
+      Leave empty to use the default: `/opt/devcontainers` as root, or `$HOME/.devcontainers` as non-root,
       matching the upstream install script's default layout (which places the bundled Node.js runtime,
       CLI package, and wrapper binary all under this dedicated directory).
   symlink:

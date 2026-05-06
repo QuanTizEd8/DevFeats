@@ -1,10 +1,10 @@
-if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
+if [ -z "${PREFIX}" ]; then
   if [ "$(id -u)" = "0" ]; then
     PREFIX="/opt/conda"
   else
     PREFIX="${HOME}/miniforge3"
   fi
-  logging__info "Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'."
+  logging__info "Argument 'PREFIX' resolved to '${PREFIX}'."
 fi
 
 # _conda_init_snippet <shell>

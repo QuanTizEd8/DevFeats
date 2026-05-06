@@ -29,10 +29,10 @@ _yq__resolve_version() {
   return 0
 }
 
-# _yq__resolve_prefix — resolve PREFIX global from 'auto' to an absolute path.
+# _yq__resolve_prefix — resolve PREFIX global to an absolute path.
 _yq__resolve_prefix() {
   logging__fn_entry "_yq__resolve_prefix"
-  if [[ -z "${PREFIX}" || "${PREFIX}" = "auto" ]]; then
+  if [[ -z "${PREFIX}" ]]; then
     PREFIX="$(users__default_prefix)"
     logging__info "Resolved prefix to '${PREFIX}'"
   fi

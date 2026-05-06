@@ -34,12 +34,11 @@ options:
       description: Pixi v0.65.0.
   prefix:
     type: string
-    default: auto
+    default: ''
     description: |-
       Installation prefix for pixi. The `pixi` binary is placed at `$prefix/bin/pixi`.
-      `auto` (default) — resolves to `/usr/local` when running as root, or `$HOME/.pixi` when running as non-root.
+      Leave empty to use the default: `/usr/local` as root, or `$HOME/.pixi` as non-root.
       An explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.
-      Set to `''` to use the upstream default (`$HOME/.pixi`) regardless of the current user.
   if_exists:
     type: string
     default: skip

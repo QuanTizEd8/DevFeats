@@ -25,7 +25,7 @@ _shellcheck__resolve_version() {
 }
 
 _shellcheck__resolve_prefix() {
-  if [[ -z "${PREFIX}" || "${PREFIX}" == "auto" ]]; then
+  if [[ -z "${PREFIX}" ]]; then
     PREFIX="$(users__default_prefix)"
   fi
 }

@@ -20,7 +20,7 @@
 
 _install__just_resolve_prefix() {
   local _resolved_prefix="${1-}"
-  if [[ -z "$_resolved_prefix" || "$_resolved_prefix" == "auto" ]]; then
+  if [[ -z "$_resolved_prefix" ]]; then
     users__default_prefix
     return 0
   fi
@@ -187,7 +187,7 @@ _install__just_install_cargo() {
 }
 
 install__just() {
-  local _context="internal" _method="auto" _version="latest" _install_prefix="auto" _if_exists="skip"
+  local _context="internal" _method="auto" _version="latest" _install_prefix="" _if_exists="skip"
   local _target="auto" _repos_manifest="" _script_force="false" _cargo_binstall="false"
   local _owner_group="install-just"
 

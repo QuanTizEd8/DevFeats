@@ -107,10 +107,10 @@ options:
       description: nvm v0.40.3.
   nvm_dir:
     type: string
-    default: auto
+    default: ''
     description: |-
       Directory where nvm is installed (`$NVM_DIR`). Only used when `method=nvm`.
-      `auto` resolves to `/usr/local/share/nvm` (root) or `${HOME}/.nvm` (non-root).
+      Leave empty to use the default: `/usr/local/share/nvm` as root or `${HOME}/.nvm` as non-root.
       An explicit path (e.g. `/opt/nvm`) is used as-is; the resolved value is written as
       `export NVM_DIR=...` into shell startup files so all sessions see the correct path.
       Note: `containerEnv.NVM_DIR` is statically set to `/usr/local/share/nvm`; for non-root
@@ -130,10 +130,10 @@ options:
       description: Custom system-wide path.
   prefix:
     type: string
-    default: auto
+    default: ''
     description: |-
       Installation prefix for method=binary (Node.js binaries land in $prefix/bin). Only used when method=binary.
-      'auto' (default) — resolves to /usr/local when running as root, or $HOME/.local when running as non-root.
+      Leave empty to use the default: /usr/local as root, or $HOME/.local as non-root.
       An explicit absolute path (e.g. '/opt/node') — used as-is; the script exits with an error if the path is not writable and cannot be created.
   arch:
     type: string

@@ -318,7 +318,7 @@ _node_install_via_binary() {
 
   # Resolve install prefix
   local _install_prefix="$PREFIX"
-  if [ "$_install_prefix" = "auto" ]; then
+  if [ -z "$_install_prefix" ]; then
     _install_prefix="/usr/local"
   fi
 
@@ -370,18 +370,17 @@ _node_install_via_binary() {
 }
 
 # _node_resolve_nvm_dir
-# Resolves NVM_DIR from 'auto' to an identity-appropriate path.
+# Resolves NVM_DIR to an identity-appropriate path when empty.
 _node_resolve_nvm_dir() {
   logging__fn_entry "_node_resolve_nvm_dir"
   case "${NVM_DIR}" in
-    auto)
+    "")
       if [ "$(id -u)" = "0" ]; then
         NVM_DIR="/usr/local/share/nvm"
       else
         NVM_DIR="${HOME}/.nvm"
       fi
       ;;
-    "") NVM_DIR="${HOME}/.nvm" ;;
     *) ;; # explicit value: use as-is
   esac
   logging__info "Resolved nvm_dir to '${NVM_DIR}'"

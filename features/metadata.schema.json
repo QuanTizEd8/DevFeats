@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/QuanTizEd8/DevFeats/main/features/metadata.schema.json",
   "title": "Feature Metadata",
   "description": "JSON Schema for features' `metadata.yaml` files. This is a superset of the devcontainer-feature.json schema at `https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainerFeature.schema.json`, extended with internal-use-only properties (prefixed with an underscore) for richer metadata and documentation generation. All 'description' fields support simple (links, formatting) Markdown and HTML.",
@@ -31,8 +31,20 @@
         "description": "Option keys must start with an ASCII letter and then contain only ASCII letters, digits, underscores, or hyphens.",
         "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
       },
+      "properties": {
+        "prefix": {
+          "description": "Installation prefix for the feature's binary. Leave empty (the default) to resolve automatically: `/usr/local` when running as root, `$HOME/.local` when running as non-root. An explicit absolute path is used as-is; the feature exits with an error if the path is not writable and cannot be created.",
+          "$ref": "#/$defs/PrefixOption"
+        }
+      },
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_]*_prefix$": {
+          "description": "Installation prefix for a specific sub-component of the feature. Follows the same convention as `prefix`: leave empty (the default) to resolve automatically to `/usr/local` as root or `$HOME/.local` as non-root; an explicit absolute path is used as-is.",
+          "$ref": "#/$defs/PrefixOption"
+        }
+      },
       "additionalProperties": {
-        "$ref": "#/definitions/FeatureOption"
+        "$ref": "#/$defs/FeatureOption"
       },
       "type": "object"
     },
@@ -169,7 +181,7 @@
     "mounts": {
       "description": "Mounts a volume or bind mount into the container.",
       "items": {
-        "$ref": "#/definitions/Mount"
+        "$ref": "#/$defs/Mount"
       },
       "type": "array"
     },
@@ -186,23 +198,23 @@
     },
     "onCreateCommand": {
       "description": "A command to run when creating the container. This command is run after \"initializeCommand\" and before \"updateContentCommand\". Each provided command will be run in parallel.",
-      "$ref": "#/definitions/LifecycleCommand"
+      "$ref": "#/$defs/LifecycleCommand"
     },
     "updateContentCommand": {
       "description": "A command to run when creating the container and rerun when the workspace content was updated while creating the container. This command is run after \"onCreateCommand\" and before \"postCreateCommand\". Each provided command will be run in parallel.",
-      "$ref": "#/definitions/LifecycleCommand"
+      "$ref": "#/$defs/LifecycleCommand"
     },
     "postCreateCommand": {
       "description": "A command to run after creating the container. This command is run after \"updateContentCommand\" and before \"postStartCommand\". Each provided command will be run in parallel.",
-      "$ref": "#/definitions/LifecycleCommand"
+      "$ref": "#/$defs/LifecycleCommand"
     },
     "postStartCommand": {
       "description": "A command to run after starting the container. This command is run after \"postCreateCommand\" and before \"postAttachCommand\". Each provided command will be run in parallel.",
-      "$ref": "#/definitions/LifecycleCommand"
+      "$ref": "#/$defs/LifecycleCommand"
     },
     "postAttachCommand": {
       "description": "A command to run when attaching to the container. This command is run after \"postStartCommand\". Each provided command will be run in parallel.",
-      "$ref": "#/definitions/LifecycleCommand"
+      "$ref": "#/$defs/LifecycleCommand"
     }
   },
   "required": [
@@ -213,7 +225,15 @@
     "options",
     "_long_description"
   ],
-  "definitions": {
+  "$defs": {
+    "PrefixOption": {
+      "description": "A FeatureOption for an installation path prefix following the devfeats uniform convention. `type` must be `\"string\"` and `default` must be `\"\"` (empty string). At install time an empty value resolves to `/usr/local` when running as root or `$HOME/.local` when running as non-root; an explicit absolute path is used as-is.",
+      "$ref": "#/$defs/FeatureOption",
+      "properties": {
+        "type": {"const": "string"},
+        "default": {"const": ""}
+      }
+    },
     "FeatureOption": {
       "description": "Feature option. Two internal-use-only array types are added in addition to the standard boolean and string types for script generation purposes. Externally, these array types are represented as string options where array values are newline-delimited.",
       "type": "object",

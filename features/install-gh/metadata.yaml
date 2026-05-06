@@ -51,10 +51,10 @@ options:
         - `method=binary`: downloads exactly that release from https://github.com/cli/cli/releases.
   prefix:
     type: string
-    default: auto
+    default: ''
     description: |-
       Installation prefix when `method=binary`. The `gh` binary is placed at `$prefix/bin/gh`.
-      `auto` (default) — resolves to `/usr/local` when running as root, or `$HOME/.local` when running as non-root.
+      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
       An explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.
       Ignored when `method=repos` (the package manager controls the install location, typically `/usr/bin`).
   symlink:
