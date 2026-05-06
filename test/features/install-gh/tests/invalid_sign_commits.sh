@@ -2,7 +2,7 @@
 # Verify that passing an invalid sign_commits value causes the installer to exit non-zero.
 set -euo pipefail
 
-# shellcheck source=/dev/null
+# shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
 fail_check "invalid sign_commits value exits non-zero" \

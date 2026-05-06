@@ -4,7 +4,7 @@
 # The base image (built by run-linux.sh) pre-installs feature dependencies.
 set -euo pipefail
 
-# shellcheck source=/dev/null
+# shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
 fail_check "network-isolated: version resolution fails" \

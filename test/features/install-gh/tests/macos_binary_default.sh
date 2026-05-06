@@ -12,7 +12,7 @@
 #   - CLI argument parsing works end-to-end
 set -e
 
-# shellcheck source=/dev/null
+# shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
 # --- baseline: gh is in PATH before the feature runs ---

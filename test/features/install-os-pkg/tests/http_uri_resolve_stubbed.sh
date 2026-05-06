@@ -2,7 +2,7 @@
 # Stub net fetch; verify uri__resolve materializes an http:// manifest for install-os-pkg-style YAML.
 set -euo pipefail
 
-# shellcheck source=/dev/null
+# shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
 # shellcheck disable=SC1091

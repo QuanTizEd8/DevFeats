@@ -5,7 +5,7 @@
 # so no SETUP_CMD is needed — the feature handles its own dep installation.
 set -euo pipefail
 
-# shellcheck source=/dev/null
+# shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
 fail_check "source build: nonexistent version 0.0.0 exits non-zero" \

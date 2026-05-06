@@ -5,7 +5,7 @@
 # apt-get is not needed inside the isolated container.
 set -euo pipefail
 
-# shellcheck source=/dev/null
+# shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
 fail_check "source build: network-isolated version resolution fails" \

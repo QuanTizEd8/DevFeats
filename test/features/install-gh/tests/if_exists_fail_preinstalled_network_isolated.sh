@@ -4,7 +4,7 @@
 # The base image (built by run-linux.sh) provides the required apt packages.
 set -euo pipefail
 
-# shellcheck source=/dev/null
+# shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
 check "gh stub pre-installed by setup" command -v gh
