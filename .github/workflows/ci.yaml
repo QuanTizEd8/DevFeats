@@ -24,6 +24,9 @@ on:
       macos_features:
         type: string
         default: "[]"
+      run_python:
+        type: string
+        default: "false"
       version:
         description: "Version to stamp into built artifacts (commit SHA or release tag)."
         type: string
@@ -62,6 +65,10 @@ on:
         description: "macOS features to test — blank = all capable, or comma-separated names"
         type: string
         default: ""
+      run_python:
+        description: "Run Python lint (ruff) and tests (pytest)"
+        type: boolean
+        default: true
       version:
         description: "Version to stamp into built artifacts (leave blank to use commit SHA)"
         type: string
@@ -86,6 +93,7 @@ jobs:
       macos_matrix: ${{ steps.setup.outputs.macos_matrix }}
       unit_macos_matrix: ${{ steps.setup.outputs.unit_macos_matrix }}
       run_prepare: ${{ steps.setup.outputs.run_prepare }}
+      run_python: ${{ steps.setup.outputs.run_python }}
       version: ${{ steps.setup.outputs.version }}
       ci_image: ${{ steps.setup.outputs.ci_image }}
       unit_env_matrix: ${{ steps.setup.outputs.unit_env_matrix }}
@@ -102,6 +110,7 @@ jobs:
           INPUT_FEATURES: ${{ inputs.features }}
           INPUT_RUN_MACOS: ${{ inputs.run_macos }}
           INPUT_MACOS_FEATURES: ${{ inputs.macos_features }}
+          INPUT_RUN_PYTHON: ${{ inputs.run_python }}
           INPUT_VERSION: ${{ inputs.version }}
           INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
         run: bash .dev/scripts/ci/ci_setup.sh
@@ -329,3 +338,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .dev/scripts/test/run-feature-tests.sh "${{ matrix.job.feature }}" --mode macos
+
+  # ── Python lint (ruff) + tests (pytest) ──────────────────────────────────
+  test-python:
+    name: "Python – lint & test"
+    needs: [setup]
+    if: needs.setup.outputs.run_python == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.setup.outputs.ci_image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Lint (ruff check)"
+        run: just lint-py
+
+      - name: "Check formatting (ruff format)"
+        if: always()
+        run: just format-py-check
+
+      - name: "Test (pytest)"
+        if: always()
+        run: just test-proman

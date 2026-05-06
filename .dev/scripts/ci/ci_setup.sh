@@ -81,6 +81,7 @@ unit_env_matrix=$(yq -o=json '.' "test/lib/scenarios.yaml" |
   echo "macos_matrix=$macos_matrix"
   echo "unit_macos_matrix=$unit_macos_matrix"
   echo "run_prepare=$run_prepare"
+  echo "run_python=$INPUT_RUN_PYTHON"
   echo "version=$version"
   echo "ci_image=$ci_image"
   echo "unit_env_matrix=$unit_env_matrix"

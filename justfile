@@ -66,6 +66,22 @@ lint *files:
     fi
 
 
+[
+  group('code-quality'),
+  doc('Lint Python files with ruff.')
+]
+lint-py:
+    pixi run --environment lint lint-py
+
+
+[
+  group('code-quality'),
+  doc('Check Python formatting with ruff (CI-style, no writes).')
+]
+format-py-check:
+    pixi run --environment lint format-py-check
+
+
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
