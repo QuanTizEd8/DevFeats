@@ -93,7 +93,10 @@ cmd = "python -m sphinx -b $SPHINX_BUILDER $SPHINX_BUILD_OPTIONS -c . source .bu
 cwd = "docs"
 cmd = "python -m sphinx_autobuild source .build --conf-dir . --watch ../features --watch ../.dev/ --pre-build 'pixi run --environment default gen-docs-data' --jobs auto --write-all --nitpicky"
 
+[feature.docs.tasks.package-docs]
+cmd = "bash .dev/scripts/build/package-docs.sh"
+
 [feature.docs.activation.env]
 SPHINX_BUILDER = "dirhtml"
 SPHINX_BUILD_OPTIONS = "--verbose --show-traceback --keep-going --color --nitpicky --jobs auto"
-WEBSITE_TAR_FILEPATH = "docs/.build/website.tar"
+WEBSITE_TAR_FILEPATH = "docs/.build/artifact.tar"

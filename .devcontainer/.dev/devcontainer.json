@@ -53,7 +53,7 @@
   // "postCreateCommand": "lefthook install",
   "postStartCommand": {
     "initialize_bats_submodules": "git submodule update --init --recursive",
-    "pixi_install": "pixi install"
+    "pixi_install": "pixi install --all"
   },
   "overrideFeatureInstallOrder": [
     "ghcr.io/quantized8/sysset/install-git",

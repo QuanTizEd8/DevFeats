@@ -17,3 +17,9 @@ scenario_test:
   - "test/features/**"
 devcontainer:
   - ".devcontainer/.dev/**"
+docs:
+  - "docs/**"
+  - "features/**"
+  - "lib/**"
+  - ".dev/scripts/build/package-docs.sh"
+  - ".github/workflows/docs.yaml"

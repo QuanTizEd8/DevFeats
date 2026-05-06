@@ -170,6 +170,14 @@ build-website-live:
     pixi run build-website-live
 
 
+[
+  group('docs'),
+  doc('Package docs/.build/ into a GitHub Pages artifact tarball (docs/.build/website.tar).')
+]
+package-docs: build-website
+    pixi run package-docs
+
+
 # ── Dev tooling ───────────────────────────────────────────────────────────────
 
 [

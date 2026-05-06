@@ -34,6 +34,7 @@ jobs:
       features: ${{ steps.detect.outputs.features }}
       run_macos: ${{ steps.detect.outputs.run_macos }}
       macos_features: ${{ steps.detect.outputs.macos_features }}
+      run_docs: ${{ steps.detect.outputs.run_docs }}
       is_release: ${{ steps.detect.outputs.is_release }}
       features_to_release: ${{ steps.detect.outputs.features_to_release }}
       build_image: ${{ steps.detect.outputs.build_image }}
@@ -85,6 +86,24 @@ jobs:
       run_macos: ${{ needs.detect.outputs.run_macos }}
       macos_features: ${{ needs.detect.outputs.macos_features }}
       version: ${{ github.sha }}
+      image_tag: ${{ needs.detect.outputs.image_tag }}
+    secrets: inherit
+
+  # Build and deploy the documentation site to GitHub Pages
+  docs:
+    name: "Docs"
+    needs: [detect, build-devcontainer]
+    if: |
+      always() &&
+      needs.detect.result == 'success' &&
+      needs.detect.outputs.run_docs == 'true' &&
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped')
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs.yaml
+    with:
       image_tag: ${{ needs.detect.outputs.image_tag }}
     secrets: inherit
 
