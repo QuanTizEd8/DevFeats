@@ -167,6 +167,11 @@ postCreateCommand:
 containerEnv:
   PATH: ${HOME}/.pixi/bin:${PATH}
 installsAfter: []
+customizations:
+  vscode:
+    extensions:
+      - ms-python.python
+      - renan-r-santos.pixi-code
 _dependencies:
   run:
     base:
