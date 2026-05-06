@@ -39,13 +39,6 @@ arch+bash:
   build:
     dockerfile: pacman -Sy --noconfirm bash
 
-ubuntu-24.04+build-essentials:
-  image: ubuntu:24.04
-  build:
-    dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends build-essential curl ca-certificates
-
 ubuntu-24.04+jq-1.8.1:
   image: ubuntu:24.04
   build:
@@ -97,11 +90,6 @@ alpine-latest+bash:
   image: alpine:latest
   build:
     dockerfile: apk add --no-cache bash
-
-archlinux+bash:
-  image: archlinux:base
-  build:
-    dockerfile: pacman -Sy --noconfirm bash
 
 archlinux-latest:
   image: archlinux:latest

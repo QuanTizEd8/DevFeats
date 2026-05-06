@@ -86,7 +86,7 @@ _run_devcontainer() {
 # ── Standalone mode ──────────────────────────────────────────────────────────
 _run_standalone() {
   while IFS= read -r entry; do
-    local key env_name scenario modes user sudo_ok network options_json image
+    local key env_name scenario modes user sudo_ok network options_json image skip_install
 
     key=$(jq -r '.key' <<< "$entry")
     env_name=$(jq -r '.env_name' <<< "$entry")
@@ -173,7 +173,7 @@ _run_macos() {
   while IFS= read -r entry; do
     [[ "$(jq -r '.env_is_macos' <<< "$entry")" != "true" ]] && continue
 
-    local key env_name scenario options_json user
+    local key env_name scenario options_json user skip_install
 
     key=$(jq -r '.key' <<< "$entry")
     env_name=$(jq -r '.env_name' <<< "$entry")
@@ -183,6 +183,7 @@ _run_macos() {
 
     options_json=$(jq -c '.options // {}' <<< "$scenario")
     user=$(jq -r '.standalone.user // ""' <<< "$scenario")
+    skip_install=$(jq -r '.standalone.skip_install // false' <<< "$scenario")
 
     local scenario_setup
     scenario_setup=$(jq -r '.setup // ""' <<< "$scenario")
@@ -209,7 +210,9 @@ for k, v in opts.items():
 " "$options_json")"
 
     printf '\n══ macos: %s ══\n' "$key"
-    bash "${REPO_ROOT}/src/${FEATURE}/install.bash"
+    if [[ "$skip_install" != "true" ]]; then
+      bash "${REPO_ROOT}/src/${FEATURE}/install.bash"
+    fi
 
     while IFS= read -r test_script; do
       if [[ -n "$user" ]]; then
