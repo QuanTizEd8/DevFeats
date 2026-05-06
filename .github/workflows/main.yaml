@@ -2,8 +2,6 @@ name: CI/CD
 
 on:
   push:
-    branches:
-      - main
   pull_request:
   workflow_dispatch:
     inputs:
@@ -11,45 +9,62 @@ on:
         description: "Force devcontainer image rebuild for this manual run."
         type: boolean
         default: false
-      feature:
-        description: "Feature id to publish (e.g. install-pixi). Leave empty to run CI only."
-        required: false
-      version:
-        description: "Feature version to publish (e.g. 1.2.3). Required together with 'feature'."
-        required: false
+      run_lint:
+        description: "Run lint (shfmt + shellcheck)"
+        type: boolean
+        default: true
+      run_validate:
+        description: "Run validate (devcontainer-feature.json)"
+        type: boolean
+        default: true
+      run_unit:
+        description: "Run unit tests"
+        type: boolean
+        default: true
+      run_features:
+        description: "Run feature scenario tests"
+        type: boolean
+        default: true
+      features:
+        description: "Features to test — blank = all, or comma-separated names"
+        type: string
+        default: ""
+      run_macos:
+        description: "Run macOS native feature tests"
+        type: boolean
+        default: true
+      macos_features:
+        description: "macOS features to test — blank = all capable, or comma-separated names"
+        type: string
+        default: ""
+      run_python:
+        description: "Run Python lint (ruff) and tests (pytest)"
+        type: boolean
+        default: true
+      run_docs:
+        description: "Build docs website"
+        type: boolean
+        default: true
 
 jobs:
-  # Detect what changed and compute per-job run flags
   init:
-    name: "Detect changes"
+    name: Initialization
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
     outputs:
-      run_lint: ${{ steps.detect.outputs.run_lint }}
-      run_validate: ${{ steps.detect.outputs.run_validate }}
-      run_unit: ${{ steps.detect.outputs.run_unit }}
-      run_features: ${{ steps.detect.outputs.run_features }}
-      features: ${{ steps.detect.outputs.features }}
-      run_macos: ${{ steps.detect.outputs.run_macos }}
-      macos_features: ${{ steps.detect.outputs.macos_features }}
-      run_docs: ${{ steps.detect.outputs.run_docs }}
-      run_python: ${{ steps.detect.outputs.run_python }}
-      is_release: ${{ steps.detect.outputs.is_release }}
-      features_to_release: ${{ steps.detect.outputs.features_to_release }}
-      build_image: ${{ steps.detect.outputs.build_image }}
-      image_tag: ${{ steps.detect.outputs.image_tag }}
+      config: ${{ steps.detect.outputs.config }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: "Install proman"
+      - name: Install manager
         run: pip install .dev/lib
 
-      - name: "Detect changes and set outputs"
+      - name: Detect changes
         id: detect
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -58,83 +73,92 @@ jobs:
 
   cm-devcontainer:
     name: CM - Devcontainer Image
-    needs: detect
-    if: needs.detect.outputs.build_image == 'true'
+    needs: [init]
+    if: fromJSON(needs.init.outputs.config).cm_devcontainer.enabled == true
     permissions:
       contents: read
       packages: write
-    uses: ./.github/workflows/devcontainer.yaml
+    uses: ./.github/workflows/cm-devcontainer.yaml
     with:
-      image_tag: ${{ needs.detect.outputs.image_tag }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).cm_devcontainer) }}
     secrets: inherit
 
   ci-build:
     name: CI - Build
+    needs: [init, cm-devcontainer]
+    if: |
+      always() &&
+      needs.init.result == 'success' &&
+      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped')
+    uses: ./.github/workflows/ci-build.yaml
+    with:
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_build) }}
+    secrets: inherit
 
   ci-lint:
     name: CI - Lint
+    needs: [init, cm-devcontainer, ci-build]
+    if: |
+      always() &&
+      needs.init.result == 'success' &&
+      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
+      (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
+    uses: ./.github/workflows/ci-lint.yaml
+    with:
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_lint) }}
+    secrets: inherit
 
   ci-test-dev:
     name: CI - Test - Development
+    needs: [init, cm-devcontainer]
+    if: |
+      always() &&
+      needs.init.result == 'success' &&
+      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped')
+    uses: ./.github/workflows/ci-test-dev.yaml
+    with:
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_test_dev) }}
+    secrets: inherit
 
   ci-test-feat:
     name: CI - Test - Features
+    needs: [init, cm-devcontainer, ci-build]
+    if: |
+      always() &&
+      needs.init.result == 'success' &&
+      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
+      (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
+    uses: ./.github/workflows/ci-test-feat.yaml
+    with:
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_test_feat) }}
+    secrets: inherit
 
   ci-test-lib:
     name: CI - Test - Library
-
-    # Run all CI tests (lint, validate, unit, feature, dist)
-  ci:
-    name: "CI"
-    needs: [detect, build-devcontainer]
+    needs: [init, cm-devcontainer, ci-build]
     if: |
       always() &&
-      needs.detect.result == 'success' &&
-      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped')
-    uses: ./.github/workflows/ci.yaml
+      needs.init.result == 'success' &&
+      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
+      (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
+    uses: ./.github/workflows/ci-test-lib.yaml
     with:
-      run_lint: ${{ needs.detect.outputs.run_lint }}
-      run_validate: ${{ needs.detect.outputs.run_validate }}
-      run_unit: ${{ needs.detect.outputs.run_unit }}
-      run_features: ${{ needs.detect.outputs.run_features }}
-      features: ${{ needs.detect.outputs.features }}
-      run_macos: ${{ needs.detect.outputs.run_macos }}
-      macos_features: ${{ needs.detect.outputs.macos_features }}
-      run_python: ${{ needs.detect.outputs.run_python }}
-      version: ${{ github.sha }}
-      image_tag: ${{ needs.detect.outputs.image_tag }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_test_lib) }}
     secrets: inherit
 
-  # Build and deploy the documentation site to GitHub Pages
-  docs:
-    name: "Docs"
-    needs: [detect, build-devcontainer]
-    if: |
-      always() &&
-      needs.detect.result == 'success' &&
-      needs.detect.outputs.run_docs == 'true' &&
-      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped')
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/docs.yaml
-    with:
-      image_tag: ${{ needs.detect.outputs.image_tag }}
-    secrets: inherit
-
-  # Publish to GHCR + GitHub Releases (only when features_to_release is non-empty)
   cd:
     name: CD
-    needs: [detect, ci]
-    # Keep always() to avoid implicit success() skip behavior when an upstream
-    # needed job is skipped (for example, optional build-devcontainer).
-    if: ${{ always() && needs.detect.outputs.is_release == 'true' && needs.ci.result == 'success' }}
+    needs: [init, ci-build, ci-lint, ci-test-dev, ci-test-feat, ci-test-lib]
+    if: |
+      always() &&
+      fromJSON(needs.init.outputs.config).cd.enabled == true &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     permissions:
       contents: write
       pull-requests: write
       packages: write
     uses: ./.github/workflows/cd.yaml
     with:
-      features_to_release: ${{ needs.detect.outputs.features_to_release }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).cd) }}
     secrets: inherit

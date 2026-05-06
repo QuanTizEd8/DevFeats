@@ -1,5 +1,5 @@
 ---
-description: "Use when working with CI/CD workflows (.github/workflows/cicd.yaml, ci.yaml, cd.yaml), the install-os-pkg manifest unit tests (test/features/install-os-pkg/unit/), or CI trigger logic. Covers macOS GHA runner behaviour, macOS native feature scenarios, CI matrix generation, dry-run test structure, and how to inspect workflow run results and logs."
+description: "Use when working with CI/CD workflows (.github/workflows/main.yaml, ci-*.yaml, cd.yaml), the install-os-pkg manifest unit tests (test/features/install-os-pkg/unit/), or CI trigger logic. Covers macOS GHA runner behaviour, macOS native feature scenarios, CI matrix generation, dry-run test structure, and how to inspect workflow run results and logs."
 applyTo: "test/features/install-os-pkg/unit/**, .github/workflows/*.yaml"
 ---
 
@@ -9,9 +9,8 @@ applyTo: "test/features/install-os-pkg/unit/**, .github/workflows/*.yaml"
 
 | Workflow | File | Trigger | Purpose |
 |---|---|---|---|
-| CI/CD Orchestrator | `cicd.yaml` | push to `main`, PRs, `workflow_dispatch` | Runs `detect` → calls `ci.yaml`, then `cd.yaml` when releasable features detected |
-| Continuous Integration | `ci.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | All lint/validate/unit/feature/dist tests |
-| Continuous Deployment | `cd.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | Publish to GHCR + GitHub Release |
+| CI/CD Orchestrator | `main.yaml` | push to `main`, PRs, `workflow_dispatch` | Runs `init` (detect) → calls composable `ci-*.yaml` and `cd.yaml` jobs |
+| Continuous Deployment | `cd.yaml` | `workflow_call` from `main.yaml` | Publish to GHCR + GitHub Release |
 
 ## macOS GHA Runner
 
@@ -50,15 +49,15 @@ Features with macOS environments in their `test/features/<feature>/scenarios.yam
 
 ### CI matrix generation
 
-`ci_setup.sh` reads all `test/features/*/scenarios.yaml` files and builds `macos_matrix`:
+`proman-cicd-detect` reads all `test/features/*/scenarios.yaml` files and builds `macos_matrix`:
 
 ```json
 [{"feature": "install-homebrew", "runner": "macos-latest"}, ...]
 ```
 
-`test-macos` in `ci.yaml` runs `bash .dev/scripts/test/run-feature-tests.sh "${{ matrix.job.feature }}" --mode macos`.
+`macos` in `ci-test-feat.yaml` runs `bash "${TEST_SCRIPT}" "${{ matrix.job.feature }}" --mode macos`.
 
-No changes to `ci.yaml` are needed when adding a macOS scenario — discovery is fully automatic once the environment is in `test/environments.yaml` and referenced from `scenarios.yaml`.
+No changes to any workflow file are needed when adding a macOS scenario — discovery is fully automatic once the environment is in `test/environments.yaml` and referenced from `scenarios.yaml`.
 
 ### Trigger unit tests manually on macOS
 
@@ -115,21 +114,21 @@ docker run --rm -v "$(pwd):/repo" debian:latest \
 
 ### Change detection
 
-`cicd.yaml` runs a `detect` job on every event:
+`main.yaml` runs an `init` job on every event:
 
 | Changed path(s) | Flag set / Jobs gated |
 |---|---|
-| `*.sh`, `*.bash`, `*.bats` | `run_lint` → `lint` |
-| `src/**/devcontainer-feature.json` | `run_validate` → `validate` |
-| `lib/**`, `test/lib/**` | `run_unit` → `test-unit-native`, `test-unit-container` |
-| `src/<f>/` or `test/<f>/` | `run_features`, `features[]` → `test-features` matrix |
-| macOS-capable feature in `features[]` | `run_macos`, `macos_matrix` → `test-macos` matrix |
+| `*.sh`, `*.bash`, `*.bats` | `shell.enabled` → `ci-lint / shell` |
+| `src/**/devcontainer-feature.json` | `validate.enabled` → `ci-lint / json-schema` |
+| `lib/**`, `test/lib/**` | `ci_test_lib.enabled` → `ci-test-lib / linux`, `/ macos` |
+| `src/<f>/` or `test/<f>/` | `linux.enabled`, `linux.features[]` → `ci-test-feat / linux` matrix |
+| macOS-capable feature in `features[]` | `macos.enabled`, `macos.matrix` → `ci-test-feat / macos` matrix |
 
-On `workflow_dispatch`, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch also sets `is_force=true`.
+On `workflow_dispatch`, flags are resolved from the dispatch inputs. First push to a new branch sets `is_force=true` which enables all jobs.
 
 ### Unit test matrix
 
-`ci_setup.sh` reads `test/lib/scenarios.yaml` to build `unit_env_matrix`. Adding an environment to `test/lib/scenarios.yaml` + `test/environments.yaml` automatically adds a new `test-unit-container` matrix job.
+`proman-cicd-detect` reads `test/lib/scenarios.yaml` to build `unit_env_matrix`. Adding an environment to `test/lib/scenarios.yaml` + `test/environments.yaml` automatically adds a new unit test matrix job.
 
 `unit_macos_matrix` is derived from `test/environments.yaml` entries whose `image` matches `^macos`. The `test-unit-native` job runs on all of these runners.
 
@@ -143,14 +142,15 @@ Use the `gh` CLI to inspect workflow runs, job results, and logs. MCP GitHub too
 
 ### Workflow and run structure
 
-`cicd.yaml` is the orchestrator — the only file with event triggers. Its `ci` and `cd` jobs call `ci.yaml` and `cd.yaml` via `workflow_call`. The called workflows' jobs appear as individual entries inside the same parent run. A typical run contains:
+`main.yaml` is the orchestrator — the only file with event triggers. Its jobs call the composable `ci-*.yaml` and `cd.yaml` workflows via `workflow_call`. The called workflows' jobs appear as individual entries inside the same parent run. A typical run contains:
 
-- `detect` — always runs; sets flags
-- `ci / setup`, `ci / lint`, `ci / validate`
-- `ci / test-unit-native (macos-latest)`, `ci / test-unit-container (ubuntu-24.04)`, ...
-- `ci / test-features (install-shell)`, `ci / test-features (install-pixi)`, ... (matrix)
-- `ci / test-macos (install-homebrew)`, ... (matrix, if applicable)
-- `cd / publish` — only on release triggers
+- `init` — always runs; runs `proman-cicd-detect` and emits a single `config` JSON output
+- `ci-build / source`, `ci-build / docs`
+- `ci-lint / shell`, `ci-lint / json-schema`, `ci-lint / python`
+- `ci-test-dev / python`
+- `ci-test-lib / linux (ubuntu-24.04)`, `ci-test-lib / macos (macos-latest)`, ... (matrix)
+- `ci-test-feat / linux (install-shell)`, `ci-test-feat / macos (install-homebrew)`, ... (matrix)
+- `cd / ghcr`, `cd / gh-release`, `cd / gh-pages` — only on release triggers
 
 ### Listing and identifying runs
 
@@ -172,16 +172,9 @@ gh run view <run-id> --job <job-id> --log
 
 ```bash
 gh workflow run "CI/CD"
-gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
-gh workflow run "CI"
 gh run rerun <run-id> --failed
 ```
 
 ### Release and publish
 
-`is_release=true` is set by `cicd_detect.py` when the push to `main` has at least one feature with an untagged version. The `cd` job runs only when `is_release=true` AND `ci` succeeded.
-
-```bash
-# Manual single-feature release (CI still runs first)
-gh workflow run "CI/CD" --field feature=install-pixi --field version=1.2.3
-```
+`cd.enabled` is set to `true` by `proman-cicd-detect` when the push to `main` has at least one feature with an untagged version. The `cd` job runs only when `cd.enabled == true` AND all CI jobs succeeded.

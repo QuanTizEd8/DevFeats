@@ -5,58 +5,21 @@ name: Devcontainer Image Deployment
 on:
   workflow_call:
     inputs:
-      image_tag:
-        description: Image tag to push (e.g. 'latest' or 'branch-my-feature')
+      config:
         type: string
-        default: latest
-      config_dir:
-        description: Directory containing devcontainer.json
-        type: string
-        default: .devcontainer/.dev
-  workflow_dispatch:
-    inputs:
-      image_tag:
-        description: Image tag to push (e.g. 'latest' or 'branch-my-feature')
-        type: string
-        default: latest
-      config_dir:
-        description: Directory containing devcontainer.json
-        type: string
-        default: .devcontainer/.dev
-
-env:
-  TAG: ${{ inputs.image_tag || 'latest' }}
+        required: true
 
 jobs:
-  prepare:
-    name: Prepare Variables
-    runs-on: ubuntu-latest
-    outputs:
-      image: ${{ steps.image.outputs.image }}
-    steps:
-      - name: Resolve Image Name
-        id: image
-        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-devcontainer" >>"$GITHUB_OUTPUT"
-
   build:
     # Build and push separate images for each platform.
     name: Build (${{ matrix.platform }})
-    needs: prepare
     strategy:
       matrix:
-        include:
-          - runner: ubuntu-latest
-            platform: linux/amd64
-            platform_tag: linux-amd64
-          - runner: ubuntu-24.04-arm
-            platform: linux/arm64
-            platform_tag: linux-arm64
+        include: ${{ fromJSON(inputs.config).build_matrix }}
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
-    env:
-      USERDATA_DIR: /tmp/devcontainer-userdata
 
     steps:
       - name: Repository Checkout
@@ -65,7 +28,7 @@ jobs:
       - name: GHCR Login
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
-          registry: ghcr.io
+          registry: ${{ fromJSON(inputs.config).registry }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -76,33 +39,27 @@ jobs:
 
       - name: Caching
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        env:
-          CACHE_KEY: devcontainer-userdata-${{ matrix.platform_tag }}
         with:
-          path: ${{ env.USERDATA_DIR }}
-          key: ${{ env.CACHE_KEY }}-${{ hashFiles(format('{0}/**', inputs.config_dir)) }}
-          restore-keys: ${{ env.CACHE_KEY }}-
+          path: ${{ fromJSON(inputs.config).userdata_dir }}
+          key: ${{ fromJSON(inputs.config).cache_ref_prefix }}-${{ matrix.platform_tag }}-${{ hashFiles(format('{0}/**', fromJSON(inputs.config).config_dir)) }}
+          restore-keys: ${{ fromJSON(inputs.config).cache_ref_prefix }}-${{ matrix.platform_tag }}-
 
       - name: Build & Push
         uses: devcontainers/ci@b63b30de439b47a52267f241112c5b453b673db5 # v0.3.1900000449
-        env:
-          CACHE_REF: ${{ needs.prepare.outputs.image }}:cache-${{ matrix.platform_tag }}
         with:
-          imageName: ${{ needs.prepare.outputs.image }}
-          imageTag: "${{ env.TAG }}-${{ matrix.platform_tag }}"
-          configFile: ${{ inputs.config_dir }}/devcontainer.json
-          userDataFolder: ${{ env.USERDATA_DIR }}
-          cacheFrom: ${{ env.CACHE_REF }}
-          cacheTo: type=registry,ref=${{ env.CACHE_REF }},mode=max
+          imageName: ${{ fromJSON(inputs.config).image_name }}
+          imageTag: ${{ fromJSON(inputs.config).image_tag }}-${{ matrix.platform_tag }}
+          configFile: ${{ fromJSON(inputs.config).config_dir }}/devcontainer.json
+          userDataFolder: ${{ fromJSON(inputs.config).userdata_dir }}
+          cacheFrom: ${{ fromJSON(inputs.config).image_name }}:${{ fromJSON(inputs.config).cache_ref_prefix }}-${{ matrix.platform_tag }}
+          cacheTo: type=registry,ref=${{ fromJSON(inputs.config).image_name }}:${{ fromJSON(inputs.config).cache_ref_prefix }}-${{ matrix.platform_tag }},mode=max
           push: always
 
   merge:
     # Create and push a single multi-arch manifest
     # that references both platform-specific images built in the previous job.
     name: Multi-Arch Merge
-    needs:
-      - prepare
-      - build
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -112,7 +69,7 @@ jobs:
       - name: GHCR Login
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
-          registry: ghcr.io
+          registry: ${{ fromJSON(inputs.config).registry }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -123,12 +80,18 @@ jobs:
 
       - name: Manifest Creation & Push
         env:
-          IMAGE: ${{ needs.prepare.outputs.image }}
+          IMAGE: ${{ fromJSON(inputs.config).image_name }}
+          TAG: ${{ fromJSON(inputs.config).image_tag }}
+          TAG_IS_LATEST: ${{ fromJSON(inputs.config).tag_is_latest }}
+          CONFIG: ${{ inputs.config }}
           SHA: ${{ github.sha }}
         run: |
-          ARCH_IMAGES=("${IMAGE}:${TAG}-linux-amd64" "${IMAGE}:${TAG}-linux-arm64")
+          ARCH_IMAGES=()
+          while IFS= read -r ptag; do
+            ARCH_IMAGES+=("${IMAGE}:${TAG}-${ptag}")
+          done < <(echo "${CONFIG}" | jq -r '.build_matrix[].platform_tag')
           docker buildx imagetools create -t "${IMAGE}:${TAG}" "${ARCH_IMAGES[@]}"
           # Push immutable sha tag only for latest (main-branch builds)
-          if [[ "${TAG}" == "latest" ]]; then
+          if [[ "${TAG_IS_LATEST}" == "true" ]]; then
             docker buildx imagetools create -t "${IMAGE}:sha-${SHA}" "${ARCH_IMAGES[@]}"
           fi

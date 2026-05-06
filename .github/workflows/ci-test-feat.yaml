@@ -1,17 +1,21 @@
 name: CI - Test - Features
 
-jobs:
-  devcontainer:
+on:
+  workflow_call:
+    inputs:
+      config:
+        type: string
+        required: true
 
+jobs:
   linux:
     name: "Scenario Tests - ${{ matrix.feature }}"
-    needs: [setup, prepare]
-    if: needs.setup.outputs.run_features == 'true' && needs.setup.outputs.features != '[]'
+    if: fromJSON(inputs.config).linux.enabled == true
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        feature: ${{ fromJSON(needs.setup.outputs.features) }}
+        feature: ${{ fromJSON(inputs.config).linux.features }}
     steps:
       # Host-only: removing preinstalled SDKs and caches only affects the runner
       # disk when this step runs on the host (not inside jobs.container). See
@@ -20,60 +24,63 @@ jobs:
       - name: Free disk space (GitHub-hosted runner)
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
-          tool-cache: true
-          swap-storage: true
-          docker-images: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
+          tool-cache: ${{ fromJSON(inputs.config).linux.free_disk_space.tool_cache }}
+          swap-storage: ${{ fromJSON(inputs.config).linux.free_disk_space.swap_storage }}
+          docker-images: ${{ fromJSON(inputs.config).linux.free_disk_space.docker_images }}
+          android: ${{ fromJSON(inputs.config).linux.free_disk_space.android }}
+          dotnet: ${{ fromJSON(inputs.config).linux.free_disk_space.dotnet }}
+          haskell: ${{ fromJSON(inputs.config).linux.free_disk_space.haskell }}
+          large-packages: ${{ fromJSON(inputs.config).linux.free_disk_space.large_packages }}
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Download src/ artifact
+      - name: Download Source Artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: devfeats-src
-          path: src/
+          name: ${{ fromJSON(inputs.config).artifact_src_name }}
+          path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
-          registry: ghcr.io
+          registry: ${{ fromJSON(inputs.config).linux.registry }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test Feature Scenarios (DinD in devcontainer image)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CI_IMAGE: ${{ needs.setup.outputs.ci_image }}
+          CI_IMAGE: ${{ fromJSON(inputs.config).linux.ci_image }}
+          DIND_SCRIPT: ${{ fromJSON(inputs.config).linux.dind_script }}
         run: |
           docker run --rm --privileged \
             -v "${GITHUB_WORKSPACE}:/repo" \
             -w /repo \
             -e GITHUB_TOKEN \
             "$CI_IMAGE" \
-            bash .dev/scripts/ci/ci_test-features_dind.sh "${{ matrix.feature }}"
+            bash "${DIND_SCRIPT}" "${{ matrix.feature }}"
 
   macos:
     name: "Scenario Tests - ${{ matrix.job.feature }} (macOS)"
-    needs: [setup, prepare]
-    if: needs.setup.outputs.run_macos == 'true' && needs.setup.outputs.macos_matrix != '[]'
+    if: fromJSON(inputs.config).macos.enabled == true
     runs-on: ${{ matrix.job.runner }}
     strategy:
       fail-fast: false
       matrix:
-        job: ${{ fromJSON(needs.setup.outputs.macos_matrix) }}
+        job: ${{ fromJSON(inputs.config).macos.matrix }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Download src/ artifact
+      - name: Download Source Artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: devfeats-src
-          path: src/
+          name: ${{ fromJSON(inputs.config).artifact_src_name }}
+          path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
       - name: "Test ${{ matrix.job.feature }} macOS scenarios"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash .dev/scripts/test/run-feature-tests.sh "${{ matrix.job.feature }}" --mode macos
+          TEST_SCRIPT: ${{ fromJSON(inputs.config).macos.test_script }}
+        run: bash "${TEST_SCRIPT}" "${{ matrix.job.feature }}" --mode macos

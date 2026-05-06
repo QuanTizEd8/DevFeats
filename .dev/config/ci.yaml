@@ -1,0 +1,78 @@
+version: 1
+
+image:
+  suffix: "-devcontainer"
+  config_dir: ".devcontainer/.dev"
+  userdata_dir: "/tmp/devcontainer-userdata"
+  cache_ref_prefix: cache
+  build_matrix:
+    - runner: ubuntu-latest
+      platform: linux/amd64
+      platform_tag: linux-amd64
+    - runner: ubuntu-24.04-arm
+      platform: linux/arm64
+      platform_tag: linux-arm64
+
+artifacts:
+  retention_days: 7
+  src:
+    name: devfeats-src
+    path: src/
+  dist:
+    name: devfeats-dist
+    path: dist/
+  pages:
+    name: github-pages
+    path: docs/.build/artifact.tar
+
+publish:
+  registry: ghcr.io
+  git_bot:
+    name: "github-actions[bot]"
+    email: "41898282+github-actions[bot]@users.noreply.github.com"
+  pages_environment: github-pages
+
+runner:
+  free_disk_space:
+    tool_cache: true
+    swap_storage: true
+    docker_images: true
+    android: true
+    dotnet: true
+    haskell: true
+    large_packages: true
+
+scripts:
+  features_src: "./src"
+  dind: ".dev/scripts/ci/ci_test-features_dind.sh"
+  macos_test: ".dev/scripts/test/run-feature-tests.sh"
+
+triggers:
+  lint:
+    - "**/*.sh"
+    - "**/*.bash"
+    - "**/*.bats"
+  validate:
+    - "**/metadata.yaml"
+    - "**/*.schema.json"
+  unit_test:
+    - "lib/*.sh"
+    - "lib/*.bash"
+    - "lib/*.json"
+    - "test/lib/**"
+    - "test/support/**"
+  scenario_test:
+    - "features/install.sh"
+    - "lib/**"
+    - "test/features/**"
+  devcontainer:
+    - ".devcontainer/.dev/**"
+  docs:
+    - "docs/**"
+    - "features/**"
+    - "lib/**"
+    - ".dev/scripts/build/package-docs.sh"
+    - ".github/workflows/docs.yaml"
+  python_test:
+    - ".dev/lib/**"
+    - "test/proman/**"

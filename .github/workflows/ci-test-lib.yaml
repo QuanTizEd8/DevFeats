@@ -2,22 +2,25 @@ name: CI - Test - Library
 
 on:
   workflow_call:
+    inputs:
+      config:
+        type: string
+        required: true
 
 jobs:
   linux:
     name: "Unit Tests - ${{ matrix.env.name }}"
-    needs: [setup, prepare]
-    if: needs.setup.outputs.run_unit == 'true'
+    if: fromJSON(inputs.config).enabled == true
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.setup.outputs.ci_image }}
+      image: ${{ fromJSON(inputs.config).ci_image }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
-        env: ${{ fromJSON(needs.setup.outputs.unit_env_matrix) }}
+        env: ${{ fromJSON(inputs.config).linux_matrix }}
     steps:
       - name: "Checkout (with submodules)"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -27,8 +30,8 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: devfeats-src
-          path: src/
+          name: ${{ fromJSON(inputs.config).artifact_src_name }}
+          path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
       - name: "Run unit tests in ${{ matrix.env.name }}"
         env:
@@ -37,15 +40,14 @@ jobs:
 
   macos:
     name: "Unit Tests - macOS (${{ matrix.os.runner }})"
-    needs: [setup, prepare]
-    if: needs.setup.outputs.run_unit == 'true'
+    if: fromJSON(inputs.config).enabled == true
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ${{ matrix.os.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.setup.outputs.unit_macos_matrix) }}
+        os: ${{ fromJSON(inputs.config).macos_matrix }}
     steps:
       - name: "Checkout (with submodules)"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -55,12 +57,11 @@ jobs:
       - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: devfeats-src
-          path: src/
+          name: ${{ fromJSON(inputs.config).artifact_src_name }}
+          path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
       - name: "Install bash ≥4"
         run: brew install bash
 
       - name: "Run unit tests"
         run: bash .dev/scripts/test/run-unit.sh
-

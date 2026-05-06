@@ -2,15 +2,19 @@ name: CI - Test - Development
 
 on:
   workflow_call:
+    inputs:
+      config:
+        type: string
+        required: true
 
 jobs:
 
   python:
     name: Python
-    if: needs.setup.outputs.run_python == 'true'
+    if: fromJSON(inputs.config).enabled == true
     runs-on: ubuntu-latest
     container:
-      image: ${{ needs.setup.outputs.ci_image }}
+      image: ${{ fromJSON(inputs.config).ci_image }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

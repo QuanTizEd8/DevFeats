@@ -4,14 +4,18 @@ from __future__ import annotations
 
 from functools import cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from gittidy import Git
+if TYPE_CHECKING:
+    from gittidy import Git
 
 _PROMAN_DIR = Path(__file__).resolve().parent
 
 
 @cache
 def _git() -> Git:
+    from gittidy import Git
+
     return Git(_PROMAN_DIR)
 
 

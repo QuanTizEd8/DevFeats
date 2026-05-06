@@ -12,8 +12,9 @@ Responsibilities include:
 - enforcing PR version-bump rules for changed features
 - resolving release eligibility and releasable feature list
 - deciding devcontainer image build/reuse strategy
+- computing all CI job configuration and emitting a single ``config`` JSON
 
-The script writes all computed values to `GITHUB_OUTPUT`.
+The script writes a single ``config`` key to ``GITHUB_OUTPUT``.
 """
 
 from __future__ import annotations
@@ -29,40 +30,21 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import yaml
-from gittidy import Git
 
+from proman.config import load_ci
+from proman.git import git_repo_root
 from proman.release.detect import detect_releasable
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from gittidy import Git
 
-CI_TRIGGER_PATHS_FILEPATH = ".github/ci_trigger_paths.yaml"
 FEATURE_DIRPATH = "features"
-
 
 SELF_FILEPATH = Path(__file__).resolve()
 _DETECT_REPO_RELPATH = ".dev/lib/proman/cicd/detect.py"
 
 
-def _resolve_repo_root() -> Path:
-    for start in (Path.cwd(), SELF_FILEPATH.parent):
-        try:
-            out = subprocess.check_output(
-                ["git", "rev-parse", "--show-toplevel"],
-                cwd=str(start),
-                text=True,
-                stderr=subprocess.DEVNULL,
-            )
-            return Path(out.strip())
-        except subprocess.CalledProcessError:
-            continue
-    msg = "Cannot determine git repository root from CWD or script location."
-    raise RuntimeError(msg)
-
-
-REPO_ROOT = _resolve_repo_root()
-_GIT = Git(REPO_ROOT)
-PATHS_FILE = REPO_ROOT / CI_TRIGGER_PATHS_FILEPATH
 LOG = logging.getLogger("cicd_detect")
 
 
@@ -77,8 +59,16 @@ class Env:
     base_ref: str
     before: str
     input_rebuild_devcontainer: str
-    input_feature: str
-    input_version: str
+    # Dispatch override inputs (empty string = not provided)
+    input_run_lint: str
+    input_run_validate: str
+    input_run_unit: str
+    input_run_features: str
+    input_features: str
+    input_run_macos: str
+    input_macos_features: str
+    input_run_python: str
+    input_run_docs: str
     repo_owner: str
     repository: str
     repository_owner_type: str
@@ -104,7 +94,7 @@ def sh(cmd: list[str], cwd: Path | None = None, *, check: bool = True) -> str:
     """
     proc = subprocess.run(
         cmd,
-        cwd=str(cwd or REPO_ROOT),
+        cwd=str(cwd or git_repo_root()),
         check=check,
         text=True,
         capture_output=True,
@@ -143,30 +133,126 @@ def discover_feature_ids() -> list[str]:
     Returns
     -------
     list of str
-        Sorted unique feature IDs inferred from `features/*/metadata.yaml`.
+        Sorted unique feature IDs inferred from ``features/*/metadata.yaml``.
     """
     ids: list[str] = []
-    features_root = REPO_ROOT / FEATURE_DIRPATH
+    features_root = git_repo_root() / FEATURE_DIRPATH
     for metadata in sorted(features_root.glob("*/metadata.yaml")):
         rel = metadata.relative_to(features_root).as_posix()
         ids.append(rel.replace("/metadata.yaml", ""))
     return sorted(set(ids))
 
 
-def discover_macos_capable() -> list[str]:
-    """Discover features with macOS shell scenarios.
+def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
+    """Compute ``{feature, runner}`` pairs for macOS testing.
+
+    Reads ``test/environments.yaml`` and each feature's
+    ``test/features/{id}/scenarios.yaml`` to find scenarios that target a macOS
+    environment (image name starts with ``"macos"``).
+
+    Parameters
+    ----------
+    feature_ids : list of str
+        Feature IDs to inspect. Only features with macOS scenarios are included.
+
+    Returns
+    -------
+    list of dict
+        Unique ``{"feature": str, "runner": str}`` pairs sorted by feature then runner.
+    """
+    envs_data: dict = yaml.safe_load(
+        (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
+    ) or {}
+    seen: set[tuple[str, str]] = set()
+    result: list[dict[str, str]] = []
+    for fid in sorted(feature_ids):
+        scenarios_file = git_repo_root() / "test" / "features" / fid / "scenarios.yaml"
+        if not scenarios_file.exists():
+            continue
+        scenarios: dict = yaml.safe_load(scenarios_file.read_text(encoding="utf-8")) or {}
+        for key, scenario in scenarios.items():
+            if key == "defaults":
+                continue
+            for env_name in (scenario.get("envs") or []):
+                env_def = envs_data.get(env_name)
+                if not isinstance(env_def, dict):
+                    continue
+                image = env_def.get("image", "")
+                if image.startswith("macos"):
+                    pair = (fid, image)
+                    if pair not in seen:
+                        seen.add(pair)
+                        result.append({"feature": fid, "runner": image})
+    return result
+
+
+def compute_unit_macos_matrix() -> list[dict[str, str]]:
+    """Compute macOS runner entries for unit tests.
+
+    Returns
+    -------
+    list of dict
+        Unique ``{"runner": image}`` entries from ``test/environments.yaml``
+        where the image name starts with ``"macos"``, sorted by runner name.
+    """
+    envs_data: dict = yaml.safe_load(
+        (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
+    ) or {}
+    runners: set[str] = set()
+    for val in envs_data.values():
+        if isinstance(val, dict) and val.get("image", "").startswith("macos"):
+            runners.add(val["image"])
+    return [{"runner": r} for r in sorted(runners)]
+
+
+def compute_unit_env_matrix() -> list[dict[str, str]]:
+    """Compute Linux environment entries for unit tests.
+
+    Returns
+    -------
+    list of dict
+        ``{"name": scenario_key, "env": env_name}`` for every non-``defaults``
+        entry in ``test/lib/scenarios.yaml``, preserving file order.
+    """
+    data: dict = yaml.safe_load(
+        (git_repo_root() / "test/lib/scenarios.yaml").read_text(encoding="utf-8"),
+    ) or {}
+    return [{"name": k, "env": v["env"]} for k, v in data.items() if k != "defaults"]
+
+
+def _parse_feature_list(s: str) -> list[str]:
+    """Parse a feature list from a dispatch input string.
+
+    Parameters
+    ----------
+    s : str
+        Either a JSON array string (``"[\"a\",\"b\"]"``) or a comma-separated
+        list (``"a, b"``).
 
     Returns
     -------
     list of str
-        Sorted unique feature/test identifiers that have macOS scenarios.
+        Parsed feature IDs with empty strings filtered out.
     """
-    test_features_root = REPO_ROOT / "test" / "features"
-    ids = {
-        path.parent.parent.name
-        for path in test_features_root.glob("*/macos/*.sh")
-    }
-    return sorted(ids)
+    s = s.strip()
+    if s.startswith("["):
+        return json.loads(s)
+    return [f.strip() for f in s.split(",") if f.strip()]
+
+
+def _bool_inp(val: str, *, default: bool = True) -> bool:
+    """Convert a dispatch boolean input string to bool.
+
+    Parameters
+    ----------
+    val : str
+        ``"true"``, ``"false"``, or ``""`` (not provided).
+    default : bool
+        Value to return when ``val`` is empty.
+    """
+    if val == "":
+        return default
+    return val == "true"
 
 
 def changed_files(env: Env) -> list[str]:
@@ -201,7 +287,7 @@ def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
     -------
     tuple
         Pair of:
-        - `is_release` boolean
+        - ``is_release`` boolean
         - release entries as list of dicts
     """
     is_release = False
@@ -213,29 +299,13 @@ def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
         env.ref_name,
         env.before,
     )
-    dispatch = env.event_name == "workflow_dispatch"
-    if dispatch and env.input_feature and env.input_version:
-        is_release = True
-        features_to_release = [
-            {
-                "feature": env.input_feature,
-                "version": env.input_version,
-                "tag": f"{env.input_feature}/{env.input_version}",
-            },
-        ]
-        LOG.info(
-            "release-gate: manual release request detected for"
-            " feature='%s' version='%s'.",
-            env.input_feature,
-            env.input_version,
-        )
-    elif (
+    if (
         env.event_name == "push"
         and env.ref_type == "branch"
         and env.ref_name == "main"
     ):
         LOG.info("release-gate: push-to-main detected; running detect_releasable().")
-        features_dir = REPO_ROOT / "features"
+        features_dir = git_repo_root() / "features"
         try:
             features_to_release = detect_releasable(env.repository, features_dir)
         except RuntimeError as exc:
@@ -261,14 +331,14 @@ def head_feature_version(feature_id: str) -> str:
     Parameters
     ----------
     feature_id : str
-        Feature identifier path under `features/`.
+        Feature identifier path under ``features/``.
 
     Returns
     -------
     str
         Version string if present; otherwise an empty string.
     """
-    p = REPO_ROOT / FEATURE_DIRPATH / feature_id / "metadata.yaml"
+    p = git_repo_root() / FEATURE_DIRPATH / feature_id / "metadata.yaml"
     if not p.exists():
         return ""
     payload = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
@@ -282,16 +352,18 @@ def base_feature_version(base_ref: str, feature_id: str) -> str:
     Parameters
     ----------
     base_ref : str
-        Pull request base ref (without `origin/` prefix).
+        Pull request base ref (without ``origin/`` prefix).
     feature_id : str
-        Feature identifier path under `features/`.
+        Feature identifier path under ``features/``.
 
     Returns
     -------
     str
         Version string if present in base; otherwise an empty string.
     """
-    content = _GIT.file_at_ref(
+    from gittidy import Git
+
+    content = Git(git_repo_root()).file_at_ref(
         f"origin/{base_ref}",
         f"features/{feature_id}/metadata.yaml",
         raise_missing=False,
@@ -412,6 +484,7 @@ def ghcr_tags(env: Env) -> list[str]:
         raise RuntimeError(msg)
     if not package_scope:
         return []
+    image_suffix = load_ci()["image"]["suffix"]
     try:
         out = sh(
             [
@@ -419,7 +492,7 @@ def ghcr_tags(env: Env) -> list[str]:
                 "api",
                 (
                     f"{package_scope}/packages/container"
-                    f"/{package_name}-devcontainer/versions"
+                    f"/{package_name}{image_suffix}/versions"
                 ),
                 "--jq",
                 ".[].metadata.container.tags[]",
@@ -436,7 +509,7 @@ def write_outputs(path: str, outputs: dict[str, str]) -> None:
     Parameters
     ----------
     path : str
-        Path to `GITHUB_OUTPUT`.
+        Path to ``GITHUB_OUTPUT``.
     outputs : dict of str to str
         Output values to append.
     """
@@ -445,7 +518,7 @@ def write_outputs(path: str, outputs: dict[str, str]) -> None:
 
 
 def parse_env_from_context() -> Env:
-    """Parse runtime environment from `GITHUB_CONTEXT` and process env vars.
+    """Parse runtime environment from ``GITHUB_CONTEXT`` and process env vars.
 
     Returns
     -------
@@ -460,7 +533,7 @@ def parse_env_from_context() -> Env:
     event = github_ctx["event"]
     repository_payload = event["repository"]
     repository_owner_payload = repository_payload["owner"]
-    event_inputs = event.get("inputs", {})
+    event_inputs = event.get("inputs") or {}
     return Env(
         event_name=str(github_ctx["event_name"]),
         ref_type=str(github_ctx["ref_type"]),
@@ -471,13 +544,145 @@ def parse_env_from_context() -> Env:
         input_rebuild_devcontainer=str(
             event_inputs.get("rebuild_devcontainer", "false"),
         ),
-        input_feature=str(event_inputs.get("feature", "")),
-        input_version=str(event_inputs.get("version", "")),
+        input_run_lint=str(event_inputs.get("run_lint", "")),
+        input_run_validate=str(event_inputs.get("run_validate", "")),
+        input_run_unit=str(event_inputs.get("run_unit", "")),
+        input_run_features=str(event_inputs.get("run_features", "")),
+        input_features=str(event_inputs.get("features", "")),
+        input_run_macos=str(event_inputs.get("run_macos", "")),
+        input_macos_features=str(event_inputs.get("macos_features", "")),
+        input_run_python=str(event_inputs.get("run_python", "")),
+        input_run_docs=str(event_inputs.get("run_docs", "")),
         repo_owner=str(github_ctx["repository_owner"]),
         repository=str(github_ctx["repository"]),
         repository_owner_type=str(repository_owner_payload["type"]),
         github_output=os.getenv("GITHUB_OUTPUT", ""),
     )
+
+
+def build_config(  # noqa: PLR0913
+    *,
+    build_image: bool,
+    image_name: str,
+    image_tag: str,
+    ci_image: str,
+    run_lint: bool,
+    run_validate: bool,
+    run_unit: bool,
+    run_features: bool,
+    features: list[str],
+    run_macos: bool,
+    macos_matrix: list[dict[str, str]],
+    run_python: bool,
+    run_docs: bool,
+    is_release: bool,
+    features_to_release: list[dict[str, str]],
+    unit_env_matrix: list[dict[str, str]],
+    unit_macos_matrix: list[dict[str, str]],
+) -> dict:
+    """Assemble the single ``config`` dict written to GITHUB_OUTPUT."""
+    ci = load_ci()
+    img = ci["image"]
+    art = ci["artifacts"]
+    pub = ci["publish"]
+    scr = ci["scripts"]
+    fds = ci["runner"]["free_disk_space"]
+    source_enabled = any([run_lint, run_validate, run_unit, run_features, run_macos])
+    return {
+        "cm_devcontainer": {
+            "enabled": build_image,
+            "image_name": image_name,
+            "image_tag": image_tag,
+            "tag_is_latest": image_tag == "latest",
+            "config_dir": img["config_dir"],
+            "userdata_dir": img["userdata_dir"],
+            "cache_ref_prefix": img["cache_ref_prefix"],
+            "registry": pub["registry"],
+            "build_matrix": img["build_matrix"],
+        },
+        "ci_build": {
+            "ci_image": ci_image,
+            "source": {
+                "enabled": source_enabled,
+                "artifact_src": {
+                    "name": art["src"]["name"],
+                    "path": art["src"]["path"],
+                    "retention_days": art["retention_days"],
+                },
+                "artifact_dist": {
+                    "name": art["dist"]["name"],
+                    "path": art["dist"]["path"],
+                    "retention_days": art["retention_days"],
+                },
+            },
+            "docs": {
+                "enabled": run_docs,
+                "artifact": {
+                    "name": art["pages"]["name"],
+                    "path": art["pages"]["path"],
+                    "retention_days": art["retention_days"],
+                },
+            },
+        },
+        "ci_lint": {
+            "ci_image": ci_image,
+            "artifact_src_name": art["src"]["name"],
+            "artifact_src_path": art["src"]["path"],
+            "shell": {"enabled": run_lint},
+            "validate": {"enabled": run_validate, "features_path": scr["features_src"]},
+            "python": {"enabled": run_python},
+        },
+        "ci_test_dev": {
+            "enabled": run_python,
+            "ci_image": ci_image,
+        },
+        "ci_test_feat": {
+            "artifact_src_name": art["src"]["name"],
+            "artifact_src_path": art["src"]["path"],
+            "linux": {
+                "enabled": run_features,
+                "features": features,
+                "ci_image": ci_image,
+                "registry": pub["registry"],
+                "dind_script": scr["dind"],
+                "free_disk_space": {
+                    "tool_cache": fds["tool_cache"],
+                    "swap_storage": fds["swap_storage"],
+                    "docker_images": fds["docker_images"],
+                    "android": fds["android"],
+                    "dotnet": fds["dotnet"],
+                    "haskell": fds["haskell"],
+                    "large_packages": fds["large_packages"],
+                },
+            },
+            "macos": {
+                "enabled": run_macos,
+                "matrix": macos_matrix,
+                "test_script": scr["macos_test"],
+            },
+        },
+        "ci_test_lib": {
+            "enabled": run_unit,
+            "ci_image": ci_image,
+            "artifact_src_name": art["src"]["name"],
+            "artifact_src_path": art["src"]["path"],
+            "linux_matrix": unit_env_matrix,
+            "macos_matrix": unit_macos_matrix,
+        },
+        "cd": {
+            "enabled": is_release,
+            "features": features_to_release,
+            "artifact_src_name": art["src"]["name"],
+            "artifact_src_path": art["src"]["path"],
+            "artifact_dist_name": art["dist"]["name"],
+            "artifact_dist_path": art["dist"]["path"],
+            "features_src_path": scr["features_src"],
+            "registry": pub["registry"],
+            "git_bot_name": pub["git_bot"]["name"],
+            "git_bot_email": pub["git_bot"]["email"],
+            "pages_environment": pub["pages_environment"],
+        },
+    }
 
 
 def main() -> None:
@@ -498,7 +703,7 @@ def main() -> None:
         env.base_ref,
     )
 
-    groups = yaml.safe_load(PATHS_FILE.read_text(encoding="utf-8"))
+    groups = load_ci()["triggers"]
     LOG.info("groups: loaded decision groups: %s", ", ".join(sorted(groups.keys())))
 
     changed = changed_files(env)
@@ -509,33 +714,59 @@ def main() -> None:
 
     zero_sha = "0" * 40
     is_force = (
-        env.event_name == "workflow_dispatch"
-        or (env.event_name == "push" and env.before == zero_sha)
-        or any_match(
-            changed,
-            [
-                ".github/workflows/*.yaml",
-                _DETECT_REPO_RELPATH,
-            ],
+        env.event_name != "workflow_dispatch"
+        and (
+            (env.event_name == "push" and env.before == zero_sha)
+            or any_match(
+                changed,
+                [
+                    ".github/workflows/*.yaml",
+                    _DETECT_REPO_RELPATH,
+                ],
+            )
         )
     )
     LOG.info("force-gate: is_force='%s'", str(is_force).lower())
 
     all_feature_ids = discover_feature_ids()
-    macos_capable = discover_macos_capable()
-    LOG.info(
-        "features: discovered total='%s' macos_capable='%s'",
-        len(all_feature_ids),
-        len(macos_capable),
-    )
+    LOG.info("features: discovered total='%s'", len(all_feature_ids))
 
     is_release, features_to_release = detect_release(env)
 
-    if is_force or is_release:
-        run_lint = run_validate = run_unit = run_features = run_docs = run_python = True
+    # ── Resolve run flags ────────────────────────────────────────────────────
+    if env.event_name == "workflow_dispatch":
+        run_lint = _bool_inp(env.input_run_lint)
+        run_validate = _bool_inp(env.input_run_validate)
+        run_unit = _bool_inp(env.input_run_unit)
+        run_features_flag = _bool_inp(env.input_run_features)
+        run_macos_flag = _bool_inp(env.input_run_macos)
+        run_python = _bool_inp(env.input_run_python)
+        run_docs = _bool_inp(env.input_run_docs)
+        features: list[str] = (
+            _parse_feature_list(env.input_features)
+            if env.input_features
+            else (all_feature_ids if run_features_flag else [])
+        )
+        macos_capable_ids: list[str] = (
+            _parse_feature_list(env.input_macos_features)
+            if env.input_macos_features
+            else (
+                [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
+                if run_macos_flag
+                else []
+            )
+        )
+        LOG.info(
+            "dispatch: run_lint=%s run_validate=%s run_unit=%s"
+            " run_features=%s run_macos=%s run_python=%s run_docs=%s",
+            run_lint, run_validate, run_unit,
+            run_features_flag, run_macos_flag, run_python, run_docs,
+        )
+    elif is_force or is_release:
+        run_lint = run_validate = run_unit = run_python = run_docs = True
         features = all_feature_ids
-        macos_features = macos_capable
-        run_macos = bool(macos_features)
+        macos_capable_ids = [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
+        LOG.info("force-gate: all jobs enabled; all features selected")
     else:
         run_lint = any_match(changed, groups["lint"])
         run_validate = any_match(changed, groups["validate"])
@@ -545,7 +776,7 @@ def main() -> None:
 
         if any_match(changed, groups["scenario_test"]):
             features = all_feature_ids
-            macos_features = macos_capable
+            macos_capable_ids = [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
         else:
             features = [
                 f
@@ -555,74 +786,44 @@ def main() -> None:
                     for p in changed
                 )
             ]
-            macos_features = [
+            macos_capable_ids = [
                 f
-                for f in macos_capable
+                for f in [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
                 if any(
                     p.startswith((f"features/{f}/", f"test/features/{f}/"))
                     for p in changed
                 )
             ]
-        run_features = bool(features)
-        run_macos = bool(macos_features)
 
     LOG.info(
         "decision: run_lint='%s' run_validate='%s' run_unit='%s'"
-        " run_features='%s' run_macos='%s' run_docs='%s' run_python='%s'",
+        " run_python='%s' run_docs='%s'",
         str(run_lint).lower(),
         str(run_validate).lower(),
         str(run_unit).lower(),
-        str(run_features).lower(),
-        str(run_macos).lower(),
-        str(run_docs).lower(),
         str(run_python).lower(),
+        str(run_docs).lower(),
     )
+
+    # ── Compute matrices ─────────────────────────────────────────────────────
+    macos_matrix = compute_macos_matrix(macos_capable_ids)
+    run_macos = bool(macos_matrix)
+    run_features = bool(features)
+
+    unit_env_matrix = compute_unit_env_matrix()
+    unit_macos_matrix = compute_unit_macos_matrix()
+
     LOG.info(
-        "decision: features_count='%s' macos_features_count='%s'",
+        "matrices: features=%d macos_matrix=%d unit_env=%d unit_macos=%d",
         len(features),
-        len(macos_features),
+        len(macos_matrix),
+        len(unit_env_matrix),
+        len(unit_macos_matrix),
     )
-    if features:
-        LOG.info(
-            "decision: features=%s",
-            json.dumps(features, separators=(",", ":")),
-        )
-    if macos_features:
-        LOG.info(
-            "decision: macos_features=%s",
-            json.dumps(macos_features, separators=(",", ":")),
-        )
 
     enforce_version_bump(env.event_name, env.base_ref, changed, all_feature_ids)
 
-    outputs = {
-        "run_lint": str(run_lint).lower(),
-        "run_validate": str(run_validate).lower(),
-        "run_unit": str(run_unit).lower(),
-        "run_features": str(run_features).lower(),
-        "features": json.dumps(features, separators=(",", ":")),
-        "run_macos": str(run_macos).lower(),
-        "run_docs": str(run_docs).lower(),
-        "run_python": str(run_python).lower(),
-        "macos_features": json.dumps(macos_features, separators=(",", ":")),
-        "is_release": str(is_release).lower(),
-        "features_to_release": json.dumps(
-            features_to_release,
-            separators=(",", ":"),
-        ),
-    }
-    final_outputs = dict(outputs)
-    write_outputs(env.github_output, outputs)
-    LOG.info("output: wrote primary decision outputs to GITHUB_OUTPUT.")
-
-    branch_name = env.head_ref or env.ref_name
-    branch_tag = "branch-" + re.sub(r"[^a-zA-Z0-9._-]", "-", branch_name)
-    LOG.info(
-        "image-gate: branch_name='%s' branch_tag='%s'",
-        branch_name,
-        branch_tag,
-    )
-
+    # ── Devcontainer image gate ───────────────────────────────────────────────
     devcontainer_changed = detect_devcontainer_changed(
         env,
         is_force=is_force,
@@ -631,7 +832,11 @@ def main() -> None:
     )
     existing_tags = ghcr_tags(env)
     has_latest = "latest" in existing_tags
+
+    branch_name = env.head_ref or env.ref_name
+    branch_tag = "branch-" + re.sub(r"[^a-zA-Z0-9._-]", "-", branch_name)
     has_branch = branch_tag in existing_tags
+
     LOG.info(
         "image-gate: devcontainer_changed='%s' existing_tags_count='%s'"
         " has_latest='%s' has_branch='%s'",
@@ -640,11 +845,6 @@ def main() -> None:
         str(has_latest).lower(),
         str(has_branch).lower(),
     )
-    if existing_tags:
-        LOG.info(
-            "image-gate: existing_tags=%s",
-            json.dumps(existing_tags, separators=(",", ":")),
-        )
 
     build_image = False
     image_tag = "latest"
@@ -665,21 +865,39 @@ def main() -> None:
         build_image = True
         image_tag = branch_tag
 
-    image_outputs = {
-        "build_image": str(build_image).lower(),
-        "image_tag": image_tag,
-    }
-    final_outputs.update(image_outputs)
-    write_outputs(env.github_output, image_outputs)
     LOG.info(
         "image-gate: final build_image='%s' image_tag='%s'",
         str(build_image).lower(),
         image_tag,
     )
-    LOG.info(
-        "output: final outputs=%s",
-        json.dumps(final_outputs, separators=(",", ":")),
+
+    # ── Assemble and emit single config output ────────────────────────────────
+    ci_cfg = load_ci()
+    image_name = f"{ci_cfg['publish']['registry']}/{env.repository.lower()}{ci_cfg['image']['suffix']}"
+    ci_image = f"{image_name}:{image_tag}"
+
+    config = build_config(
+        build_image=build_image,
+        image_name=image_name,
+        image_tag=image_tag,
+        ci_image=ci_image,
+        run_lint=run_lint,
+        run_validate=run_validate,
+        run_unit=run_unit,
+        run_features=run_features,
+        features=features,
+        run_macos=run_macos,
+        macos_matrix=macos_matrix,
+        run_python=run_python,
+        run_docs=run_docs,
+        is_release=is_release,
+        features_to_release=features_to_release,
+        unit_env_matrix=unit_env_matrix,
+        unit_macos_matrix=unit_macos_matrix,
     )
+
+    write_outputs(env.github_output, {"config": json.dumps(config, separators=(",", ":"))})
+    LOG.info("output: wrote config to GITHUB_OUTPUT (keys: %s)", ", ".join(config.keys()))
 
 
 if __name__ == "__main__":

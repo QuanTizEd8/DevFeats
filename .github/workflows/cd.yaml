@@ -3,12 +3,16 @@ name: Continuous Deployment
 on:
   workflow_call:
     inputs:
-      features_to_release:
-        description: |
-          JSON array of features to release, as produced by cicd_detect.py.
-          Each element: {"feature":"<id>","version":"<X.Y.Z>","tag":"<id>/<X.Y.Z>"}.
+      config:
         type: string
         required: true
+
+# Prevent concurrent deployments from clobbering each other.
+# cancel-in-progress: false ensures an in-flight deploy is never aborted by a
+# new push; the new run will queue and execute after the current one finishes.
+concurrency:
+  group: deploy-queue
+  cancel-in-progress: false
 
 jobs:
   ghcr:
@@ -26,17 +30,16 @@ jobs:
           fetch-tags: true
 
       - name: Download Source Artifact
-        if: github.event_name != 'workflow_dispatch'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: devfeats-src
-          path: src/
+          name: ${{ fromJSON(inputs.config).artifact_src_name }}
+          path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
       - name: Publish Features to GHCR
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
         with:
           publish-features: "true"
-          base-path-to-features: "./src"
+          base-path-to-features: ${{ fromJSON(inputs.config).features_src_path }}
           disable-repo-tagging: "true"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,19 +52,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        entry: ${{ fromJSON(needs.setup.outputs.features_to_release) }}
+        entry: ${{ fromJSON(inputs.config).features }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-tags: true
 
-      - name: Download Source Artifact
-        if: github.event_name != 'workflow_dispatch'
+      - name: Download Distribution Artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: devfeats-dist
-          path: dist/
+          name: ${{ fromJSON(inputs.config).artifact_dist_name }}
+          path: ${{ fromJSON(inputs.config).artifact_dist_path }}
 
       - name: Create Annotated Tag and Push
         env:
@@ -69,10 +71,12 @@ jobs:
           FEATURE: ${{ matrix.entry.feature }}
           VERSION: ${{ matrix.entry.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_BOT_NAME: ${{ fromJSON(inputs.config).git_bot_name }}
+          GIT_BOT_EMAIL: ${{ fromJSON(inputs.config).git_bot_email }}
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "${GIT_BOT_NAME}"
+          git config user.email "${GIT_BOT_EMAIL}"
           if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
             echo "ℹ️  Tag '${TAG}' already exists locally; skipping create." >&2
           else
@@ -86,12 +90,13 @@ jobs:
           FEATURE: ${{ matrix.entry.feature }}
           VERSION: ${{ matrix.entry.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_DIST_PATH: ${{ fromJSON(inputs.config).artifact_dist_path }}
         run: |
           set -euo pipefail
-          _asset="dist/devfeats-${FEATURE}.tar.gz"
+          _asset="${ARTIFACT_DIST_PATH}devfeats-${FEATURE}.tar.gz"
           if [[ ! -f "$_asset" ]]; then
             echo "⛔ Expected asset not found: $_asset" >&2
-            ls -la dist/ >&2 || true
+            ls -la "${ARTIFACT_DIST_PATH}" >&2 || true
             exit 1
           fi
           if gh release view "${TAG}" > /dev/null 2>&1; then
@@ -110,7 +115,7 @@ jobs:
       pages: write
       id-token: write
     environment:
-      name: github-pages
+      name: ${{ fromJSON(inputs.config).pages_environment }}
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy
