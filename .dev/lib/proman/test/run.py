@@ -37,7 +37,8 @@ def _options_exports(options: dict) -> str:
     lines = []
     for k, v in options.items():
         env_key = k.upper().replace("-", "_")
-        lines.append(f"export {env_key}={shlex.quote(str(v))}")
+        val = str(v).lower() if isinstance(v, bool) else str(v)
+        lines.append(f"export {env_key}={shlex.quote(val)}")
     return "\n".join(lines)
 
 
