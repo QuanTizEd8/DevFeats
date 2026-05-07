@@ -28,7 +28,7 @@ def _run_env(
 
     image = resolve(env_name, envs, repo_root)
 
-    print(f"\n══ {name} [{env_name}] ══")
+    print(f"\n══ {name} [{env_name}] ══", flush=True)
 
     cmd = [
         "bash",
