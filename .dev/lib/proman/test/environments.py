@@ -41,17 +41,20 @@ def _collect_layers(
     child_args: {KEY: VALUE} dict passed by the immediate child env via args:.
     """
     env = envs[env_name]
-    from_env  = env.get("from")
-    image     = env.get("image")
-    build     = env.get("build", {})
+    from_env = env.get("from")
+    image = env.get("image")
+    build = env.get("build", {})
     df_inline = build.get("dockerfile")
-    df_path   = build.get("dockerfilePath")
-    env_vars  = env.get("env_vars", {})
-    my_args   = env.get("args", {})  # args THIS level passes UP to its parent
+    df_path = build.get("dockerfilePath")
+    env_vars = env.get("env_vars", {})
+    my_args = env.get("args", {})  # args THIS level passes UP to its parent
 
     if from_env:
         base_image, body, build_args = _collect_layers(
-            from_env, envs, envs_dir, child_args=my_args,
+            from_env,
+            envs,
+            envs_dir,
+            child_args=my_args,
         )
     else:
         base_image, body, build_args = image, "", {}
@@ -99,7 +102,10 @@ def resolve(
 
     envs_dir = repo_root / "test" / "envs"
     base_image, body, build_args = _collect_layers(
-        env_name, envs, envs_dir, child_args=scenario_args or None,
+        env_name,
+        envs,
+        envs_dir,
+        child_args=scenario_args or None,
     )
 
     if scenario_env_vars:
@@ -123,7 +129,10 @@ def resolve(
     dockerfile_content = f"FROM {base_image}\n{_TOKEN_LINES}{body}"
 
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".Dockerfile", dir=envs_dir, delete=False,
+        mode="w",
+        suffix=".Dockerfile",
+        dir=envs_dir,
+        delete=False,
     ) as tf:
         tf.write(dockerfile_content)
         df_tmp = tf.name

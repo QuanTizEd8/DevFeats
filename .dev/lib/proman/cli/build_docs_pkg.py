@@ -60,7 +60,9 @@ def _package(output: Path) -> int:
 def main() -> None:
     """Package docs/.build/ into a GitHub Pages artifact tarball."""
     repo = git_repo_root()
-    default_output = repo / os.environ.get("WEBSITE_TAR_FILEPATH", "docs/.build/artifact.tar")
+    default_output = repo / os.environ.get(
+        "WEBSITE_TAR_FILEPATH", "docs/.build/artifact.tar"
+    )
 
     parser = argparse.ArgumentParser(
         description="Package docs/.build/ into a GitHub Pages artifact tarball.",

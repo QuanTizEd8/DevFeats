@@ -25,7 +25,8 @@ def merge_defaults(scenario: dict, defaults: dict) -> dict:
 
 
 def expand_envs(
-    name: str, scenario: dict,
+    name: str,
+    scenario: dict,
 ) -> list[tuple[str, str, dict]]:
     envs: list[str] = scenario.get("envs", [])
     if len(envs) == 1:
@@ -34,7 +35,8 @@ def expand_envs(
 
 
 def expand_test_files(
-    tests_spec: Any, base_dir: Path | str,
+    tests_spec: Any,
+    base_dir: Path | str,
 ) -> list[str]:
     base = Path(base_dir)
 

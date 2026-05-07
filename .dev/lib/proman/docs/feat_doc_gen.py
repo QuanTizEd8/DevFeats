@@ -79,7 +79,9 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     options = metadata.get("options", {})
     defaults = {k: v.get("default") for k, v in options.items()}
 
-    dc_json_lines = json.dumps({"features": {feature_ref: defaults}}, indent=2).splitlines()
+    dc_json_lines = json.dumps(
+        {"features": {feature_ref: defaults}}, indent=2
+    ).splitlines()
     dc_json = "\n".join(
         [
             *dc_json_lines[:-2],
@@ -101,11 +103,15 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
 
     ts = mdit.element.tab_set()
     ts.append(
-        mdit.element.code_block(dc_json, language="json", caption="{fas}`file-code` devcontainer.json"),
+        mdit.element.code_block(
+            dc_json, language="json", caption="{fas}`file-code` devcontainer.json"
+        ),
         title="Dev Container",
     )
     ts.append(
-        mdit.element.code_block(cli_code, language="bash", caption="{fas}`terminal` Terminal"),
+        mdit.element.code_block(
+            cli_code, language="bash", caption="{fas}`terminal` Terminal"
+        ),
         title="CLI",
     )
     tabset_str = ts.source(target="sphinx")
@@ -160,13 +166,12 @@ def _generate_options_sections(data: dict) -> str:
         if "enum" in opt:
             rows.append("- Allowed values:")
             rows.extend(
-                f"  - `\"{e['value']}\"`: {e['description'].strip()}"
-                for e in opt["enum"]
+                f'  - `"{e["value"]}"`: {e["description"].strip()}' for e in opt["enum"]
             )
         elif "proposals" in opt:
             rows.append("- Examples:")
             rows.extend(
-                f"  - `\"{p['value']}\"`: {p['description'].strip()}"
+                f'  - `"{p["value"]}"`: {p["description"].strip()}'
                 for p in opt["proposals"]
             )
 
@@ -174,7 +179,9 @@ def _generate_options_sections(data: dict) -> str:
 
 
 def _generate_extensions_section(metadata: dict) -> str:
-    extensions = metadata.get("customizations", {}).get("vscode", {}).get("extensions", [])
+    extensions = (
+        metadata.get("customizations", {}).get("vscode", {}).get("extensions", [])
+    )
     if not extensions:
         return ""
     out = ["The following VS Code extensions are automatically installed:"]
@@ -187,9 +194,13 @@ def _generate_extensions_section(metadata: dict) -> str:
         "of any of these extensions by listing them with a leading `-` in the `customizations.vscode.extensions` array "
         "of your `devcontainer.json` file. For example, to opt out of all extensions, your `devcontainer.json` should include the following:"
     )
-    opt_out_dict = {"customizations": {"vscode": {"extensions": [f"-{ext}" for ext in extensions]}}}
+    opt_out_dict = {
+        "customizations": {"vscode": {"extensions": [f"-{ext}" for ext in extensions]}}
+    }
     opt_out_json = json.dumps(opt_out_dict, indent=2)
-    opt_out_code = mdit.element.code_block(opt_out_json, language="json", caption="{fas}`file-code` devcontainer.json")
+    opt_out_code = mdit.element.code_block(
+        opt_out_json, language="json", caption="{fas}`file-code` devcontainer.json"
+    )
     opt_out_admo = mdit.element.admonition(
         title="Opt Out",
         body=mdit.block_container([opt_out_text, opt_out_code]),
@@ -224,6 +235,7 @@ def _generate_installs_after(metadata: dict) -> str:
     for feat in installs_after:
         out.append(f"- `{feat}`")
     return "\n".join(out)
+
 
 # ── helpers ──────────────────────────────────────────────────────────
 

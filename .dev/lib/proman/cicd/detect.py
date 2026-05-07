@@ -160,20 +160,25 @@ def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
     list of dict
         Unique ``{"feature": str, "runner": str}`` pairs sorted by feature then runner.
     """
-    envs_data: dict = yaml.safe_load(
-        (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
-    ) or {}
+    envs_data: dict = (
+        yaml.safe_load(
+            (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
+        )
+        or {}
+    )
     seen: set[tuple[str, str]] = set()
     result: list[dict[str, str]] = []
     for fid in sorted(feature_ids):
         scenarios_file = git_repo_root() / "test" / "features" / fid / "scenarios.yaml"
         if not scenarios_file.exists():
             continue
-        scenarios: dict = yaml.safe_load(scenarios_file.read_text(encoding="utf-8")) or {}
+        scenarios: dict = (
+            yaml.safe_load(scenarios_file.read_text(encoding="utf-8")) or {}
+        )
         for key, scenario in scenarios.items():
             if key == "defaults":
                 continue
-            for env_name in (scenario.get("envs") or []):
+            for env_name in scenario.get("envs") or []:
                 env_def = envs_data.get(env_name)
                 if not isinstance(env_def, dict):
                     continue
@@ -195,9 +200,12 @@ def compute_unit_macos_matrix() -> list[dict[str, str]]:
         Unique ``{"runner": image}`` entries from ``test/environments.yaml``
         where the image name starts with ``"macos"``, sorted by runner name.
     """
-    envs_data: dict = yaml.safe_load(
-        (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
-    ) or {}
+    envs_data: dict = (
+        yaml.safe_load(
+            (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
+        )
+        or {}
+    )
     runners: set[str] = set()
     for val in envs_data.values():
         if isinstance(val, dict) and val.get("image", "").startswith("macos"):
@@ -214,9 +222,12 @@ def compute_unit_env_matrix() -> list[dict[str, str]]:
         ``{"name": scenario_key, "env": env_name}`` for every non-``defaults``
         entry in ``test/lib/scenarios.yaml``, preserving file order.
     """
-    data: dict = yaml.safe_load(
-        (git_repo_root() / "test/lib/scenarios.yaml").read_text(encoding="utf-8"),
-    ) or {}
+    data: dict = (
+        yaml.safe_load(
+            (git_repo_root() / "test/lib/scenarios.yaml").read_text(encoding="utf-8"),
+        )
+        or {}
+    )
     return [{"name": k, "env": v["env"]} for k, v in data.items() if k != "defaults"]
 
 
@@ -299,11 +310,7 @@ def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
         env.ref_name,
         env.before,
     )
-    if (
-        env.event_name == "push"
-        and env.ref_type == "branch"
-        and env.ref_name == "main"
-    ):
+    if env.event_name == "push" and env.ref_type == "branch" and env.ref_name == "main":
         LOG.info("release-gate: push-to-main detected; running detect_releasable().")
         features_dir = git_repo_root() / "features"
         try:
@@ -413,8 +420,7 @@ def enforce_version_bump(
 
     if needs_bump:
         LOG.error(
-            "version-bump lint: modified features without metadata bump vs."
-            " origin/%s:",
+            "version-bump lint: modified features without metadata bump vs. origin/%s:",
             base_ref,
         )
         for item in needs_bump:
@@ -692,8 +698,7 @@ def main() -> None:
         msg = "GITHUB_OUTPUT is required"
         raise SystemExit(msg)
     LOG.info(
-        "context: event='%s' ref_type='%s' ref_name='%s'"
-        " head_ref='%s' base_ref='%s'",
+        "context: event='%s' ref_type='%s' ref_name='%s' head_ref='%s' base_ref='%s'",
         env.event_name,
         env.ref_type,
         env.ref_name,
@@ -711,17 +716,14 @@ def main() -> None:
     )
 
     zero_sha = "0" * 40
-    is_force = (
-        env.event_name != "workflow_dispatch"
-        and (
-            (env.event_name == "push" and env.before == zero_sha)
-            or any_match(
-                changed,
-                [
-                    ".github/workflows/*.yaml",
-                    _DETECT_REPO_RELPATH,
-                ],
-            )
+    is_force = env.event_name != "workflow_dispatch" and (
+        (env.event_name == "push" and env.before == zero_sha)
+        or any_match(
+            changed,
+            [
+                ".github/workflows/*.yaml",
+                _DETECT_REPO_RELPATH,
+            ],
         )
     )
     LOG.info("force-gate: is_force='%s'", str(is_force).lower())
@@ -757,13 +759,20 @@ def main() -> None:
         LOG.info(
             "dispatch: run_lint=%s run_validate=%s run_unit=%s"
             " run_features=%s run_macos=%s run_python=%s run_docs=%s",
-            run_lint, run_validate, run_unit,
-            run_features_flag, run_macos_flag, run_python, run_docs,
+            run_lint,
+            run_validate,
+            run_unit,
+            run_features_flag,
+            run_macos_flag,
+            run_python,
+            run_docs,
         )
     elif is_force or is_release:
         run_lint = run_validate = run_unit = run_python = run_docs = True
         features = all_feature_ids
-        macos_capable_ids = [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
+        macos_capable_ids = [
+            d["feature"] for d in compute_macos_matrix(all_feature_ids)
+        ]
         LOG.info("force-gate: all jobs enabled; all features selected")
     else:
         run_lint = any_match(changed, groups["lint"])
@@ -774,7 +783,9 @@ def main() -> None:
 
         if any_match(changed, groups["scenario_test"]):
             features = all_feature_ids
-            macos_capable_ids = [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
+            macos_capable_ids = [
+                d["feature"] for d in compute_macos_matrix(all_feature_ids)
+            ]
         else:
             features = [
                 f
@@ -894,8 +905,12 @@ def main() -> None:
         unit_macos_matrix=unit_macos_matrix,
     )
 
-    write_outputs(env.github_output, {"config": json.dumps(config, separators=(",", ":"))})
-    LOG.info("output: wrote config to GITHUB_OUTPUT (keys: %s)", ", ".join(config.keys()))
+    write_outputs(
+        env.github_output, {"config": json.dumps(config, separators=(",", ":"))}
+    )
+    LOG.info(
+        "output: wrote config to GITHUB_OUTPUT (keys: %s)", ", ".join(config.keys())
+    )
 
 
 if __name__ == "__main__":

@@ -70,7 +70,6 @@ def run(*, check_only: bool = False) -> int:
     }
 
     for feature_dirpath in sorted(features_dirpath.iterdir()):
-
         if not feature_dirpath.is_dir() or feature_dirpath.name[0] in (".", "_"):
             continue
 
@@ -104,7 +103,10 @@ def run(*, check_only: bool = False) -> int:
 
         output_files.update(
             _generate_metadata_json(
-                feature_id, metadata, license_url, doc_url_template,
+                feature_id,
+                metadata,
+                license_url,
+                doc_url_template,
             ),
         )
         output_files.update(generator.generate(feature_id, metadata))
@@ -113,7 +115,10 @@ def run(*, check_only: bool = False) -> int:
         output_files.update(_gather_feature_files(feature_id, features_dirpath))
 
         if not _sync_source_files(
-            feature_id, output_files, src_dirpath, gitignore_patterns,
+            feature_id,
+            output_files,
+            src_dirpath,
+            gitignore_patterns,
             check_only=check_only,
         ):
             n_failures["sync"] += 1
@@ -174,8 +179,7 @@ def _generate_metadata_json(
         if key != "options":
             if key in LIFECYCLE_COMMAND_KEYS:
                 metadata_json_dict[key] = {
-                    entry_id: entry["command"]
-                    for entry_id, entry in value.items()
+                    entry_id: entry["command"] for entry_id, entry in value.items()
                 }
             else:
                 metadata_json_dict[key] = value
@@ -235,7 +239,9 @@ def _gather_feature_files(feature_id: str, features_dirpath: Path) -> dict[Path,
         return {}
     ls = subprocess.run(
         ["git", "ls-files", "-z", "--", "."],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
         cwd=files_dir,
     )
     tracked = frozenset(files_dir / rel for rel in ls.stdout.split("\0") if rel)
@@ -290,12 +296,16 @@ def _sync_source_files(
     check_only: bool = False,
 ) -> bool:
     feature_src_dir = src_dirpath / feature_id
-    old_files = {
-        path.relative_to(feature_src_dir): path.read_text(encoding="utf-8")
-        for path in sorted(feature_src_dir.rglob("*"))
-        if path.is_file()
-        and not any(fnmatch.fnmatch(path.name, p) for p in gitignore_patterns)
-    } if feature_src_dir.exists() else {}
+    old_files = (
+        {
+            path.relative_to(feature_src_dir): path.read_text(encoding="utf-8")
+            for path in sorted(feature_src_dir.rglob("*"))
+            if path.is_file()
+            and not any(fnmatch.fnmatch(path.name, p) for p in gitignore_patterns)
+        }
+        if feature_src_dir.exists()
+        else {}
+    )
 
     is_in_sync = True
 

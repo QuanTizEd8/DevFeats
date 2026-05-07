@@ -7,7 +7,9 @@ from pathlib import Path
 import proman.config as CFG
 
 
-def _patch_loaders(monkeypatch, tmp_path: Path, project_yaml: str, ci_yaml: str) -> None:
+def _patch_loaders(
+    monkeypatch, tmp_path: Path, project_yaml: str, ci_yaml: str
+) -> None:
     """Write YAML files to tmp_path and redirect loaders to read them."""
     (tmp_path / ".dev/config").mkdir(parents=True)
     (tmp_path / ".dev/config/project.yaml").write_text(project_yaml, encoding="utf-8")

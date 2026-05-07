@@ -37,7 +37,10 @@ def _build_scenario(
     sc_env_vars = scenario.get("env_vars") or {}
 
     base_image, body, build_args = _collect_layers(
-        env_name, envs, envs_dir, child_args=sc_args or None,
+        env_name,
+        envs,
+        envs_dir,
+        child_args=sc_args or None,
     )
 
     if sc_env_vars:
@@ -97,7 +100,13 @@ def generate(
                 continue
 
             output[key] = _build_scenario(
-                key, env_name, scenario, feature, envs, out_dir, envs_dir,
+                key,
+                env_name,
+                scenario,
+                feature,
+                envs,
+                out_dir,
+                envs_dir,
             )
 
     _inject_github_token(output)

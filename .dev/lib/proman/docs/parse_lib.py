@@ -227,7 +227,7 @@ def _parse_module_header(lines: list[str]) -> tuple[str, str]:
     except ValueError:
         return summary, ""
 
-    desc_lines = raw[blank_idx + 1:]
+    desc_lines = raw[blank_idx + 1 :]
     while desc_lines and not desc_lines[-1]:
         desc_lines.pop()
     return summary, "\n".join(desc_lines).strip()
@@ -287,7 +287,7 @@ def parse_lib_file(path: Path) -> list[LibFunction]:
             i += 1
             continue
 
-        brief = s[len("# @brief "):].strip()
+        brief = s[len("# @brief ") :].strip()
 
         # Split signature from description on em-dash (preferred) or ' - '.
         if "\u2014" in brief:

@@ -119,7 +119,9 @@ class InstallScriptGenerator:
             "Options:",
         ]
         for (flag_str, desc, disp_default, is_required), _ in zip(
-            entries, options.items(), strict=False,
+            entries,
+            options.items(),
+            strict=False,
         ):
             padding = " " * (col_width - len(flag_str) + 2)
             if is_required:
@@ -153,19 +155,37 @@ class InstallScriptGenerator:
                 else:
                     cli_inits.append(f"  {vname}={_shell_val(opt['default'], typ)}")
             if typ == "array":
-                case_arms.append(self._render_template(
-                    "case_arm_array", FLAG=flag, VAR=vname, KEY=key,
-                ))
-                env_reads.append(self._render_template(
-                    "env_read_array", VAR=vname, KEY=key,
-                ))
+                case_arms.append(
+                    self._render_template(
+                        "case_arm_array",
+                        FLAG=flag,
+                        VAR=vname,
+                        KEY=key,
+                    )
+                )
+                env_reads.append(
+                    self._render_template(
+                        "env_read_array",
+                        VAR=vname,
+                        KEY=key,
+                    )
+                )
             else:
-                case_arms.append(self._render_template(
-                    "case_arm_scalar", FLAG=flag, VAR=vname, KEY=key,
-                ))
-                env_reads.append(self._render_template(
-                    "env_read_scalar", VAR=vname, KEY=key,
-                ))
+                case_arms.append(
+                    self._render_template(
+                        "case_arm_scalar",
+                        FLAG=flag,
+                        VAR=vname,
+                        KEY=key,
+                    )
+                )
+                env_reads.append(
+                    self._render_template(
+                        "env_read_scalar",
+                        VAR=vname,
+                        KEY=key,
+                    )
+                )
 
         lines = [
             'if [ "$#" -gt 0 ]; then',
@@ -174,25 +194,27 @@ class InstallScriptGenerator:
         lines.extend(cli_inits)
         lines.extend(['  while [ "$#" -gt 0 ]; do', "    case $1 in"])
         lines.extend(case_arms)
-        lines.extend([
-            "      -h | --help)",
-            "        __usage__",
-            "        exit 0",
-            "        ;;",
-            "      --*)",
-            "        logging__error \"Unknown option: '${1}'\"",
-            "        exit 1",
-            "        ;;",
-            "      *)",
-            "        logging__error \"Unexpected argument: '${1}'\"",
-            "        exit 1",
-            "        ;;",
-            "    esac",
-            "  done",
-            "else",
-            '  logging__info "Script called with no arguments.'
-            ' Read environment variables."',
-        ])
+        lines.extend(
+            [
+                "      -h | --help)",
+                "        __usage__",
+                "        exit 0",
+                "        ;;",
+                "      --*)",
+                "        logging__error \"Unknown option: '${1}'\"",
+                "        exit 1",
+                "        ;;",
+                "      *)",
+                "        logging__error \"Unexpected argument: '${1}'\"",
+                "        exit 1",
+                "        ;;",
+                "    esac",
+                "  done",
+                "else",
+                '  logging__info "Script called with no arguments.'
+                ' Read environment variables."',
+            ]
+        )
         lines.extend(env_reads)
         lines.append("fi")
         lines.append("logging__set_level")
@@ -209,9 +231,13 @@ class InstallScriptGenerator:
             if typ == "array":
                 raw_default = opt["default"]
                 if raw_default == "" or raw_default is None:
-                    blocks.append(self._render_template(
-                        "default_array_empty", VAR=vname, KEY=key,
-                    ))
+                    blocks.append(
+                        self._render_template(
+                            "default_array_empty",
+                            VAR=vname,
+                            KEY=key,
+                        )
+                    )
                 else:
                     # Embed the default as an ANSI-C quoted string so newlines
                     # are preserved.
@@ -223,10 +249,15 @@ class InstallScriptGenerator:
                         .replace("\r", "\\r")
                     )
                     disp = ", ".join(str(raw_default).splitlines())
-                    blocks.append(self._render_template(
-                        "default_array_value",
-                        VAR=vname, ESCAPED=escaped, KEY=key, DISP=disp,
-                    ))
+                    blocks.append(
+                        self._render_template(
+                            "default_array_value",
+                            VAR=vname,
+                            ESCAPED=escaped,
+                            KEY=key,
+                            DISP=disp,
+                        )
+                    )
             else:
                 rhs = _shell_val(opt["default"], typ)
                 if typ == "boolean":
@@ -235,9 +266,15 @@ class InstallScriptGenerator:
                     disp = ""
                 else:
                     disp = str(opt["default"])
-                blocks.append(self._render_template(
-                    "default_scalar", VAR=vname, RHS=rhs, KEY=key, DISP=disp,
-                ))
+                blocks.append(
+                    self._render_template(
+                        "default_scalar",
+                        VAR=vname,
+                        RHS=rhs,
+                        KEY=key,
+                        DISP=disp,
+                    )
+                )
         return "\n".join(blocks)
 
     def _section_validation(self, options: dict) -> str:
@@ -273,17 +310,21 @@ class InstallScriptGenerator:
                     for item in opt["enum"]
                 ]
                 expected = ", ".join(repr(v) if v == "" else v for v in values)
-                pattern = " | ".join(
-                    "''" if v == "" else v for v in values
-                )
+                pattern = " | ".join("''" if v == "" else v for v in values)
                 tpl = (
                     "validation_enum_array"
                     if typ == "array"
                     else "validation_enum_scalar"
                 )
-                validations.append(self._render_template(
-                    tpl, VAR=vname, KEY=key, PATTERN=pattern, EXPECTED=expected,
-                ))
+                validations.append(
+                    self._render_template(
+                        tpl,
+                        VAR=vname,
+                        KEY=key,
+                        PATTERN=pattern,
+                        EXPECTED=expected,
+                    )
+                )
             parts.append("# Validate enum options.\n" + "\n".join(validations))
 
         return "\n\n".join(parts)
@@ -297,11 +338,13 @@ class InstallScriptGenerator:
         ]
         if not scalar_vars:
             return ""
-        return "\n".join([
-            "# Unexport option variables — values remain accessible in this script but",
-            "# are not inherited by child processes.",
-            "declare +x " + " ".join(scalar_vars),
-        ])
+        return "\n".join(
+            [
+                "# Unexport option variables — values remain accessible in this script but",
+                "# are not inherited by child processes.",
+                "declare +x " + " ".join(scalar_vars),
+            ]
+        )
 
     def _section_dep_helpers(self, run_deps: dict, build_deps: dict) -> str:
         """Emit _<group>_deps__install() / _<group>_deps__cleanup() helper functions."""
@@ -313,13 +356,17 @@ class InstallScriptGenerator:
         ]
         blocks.extend(
             self._render_template(
-                "dep_helper_run", SAFE=gn.replace("-", "_"), GROUP=gn,
+                "dep_helper_run",
+                SAFE=gn.replace("-", "_"),
+                GROUP=gn,
             )
             for gn in run_deps
         )
         blocks.extend(
             self._render_template(
-                "dep_helper_build", SAFE=gn.replace("-", "_"), GROUP=gn,
+                "dep_helper_build",
+                SAFE=gn.replace("-", "_"),
+                GROUP=gn,
             )
             for gn in build_deps
         )
@@ -376,10 +423,11 @@ class InstallScriptGenerator:
         templates = {}
         for template_path in templates_dirpath.glob("*.tmpl"):
             template_name = template_path.name.removesuffix(".sh.tmpl")
-            templates[template_name] = (
-                template_path.read_text(encoding="utf-8").rstrip("\n")
+            templates[template_name] = template_path.read_text(encoding="utf-8").rstrip(
+                "\n"
             )
         return templates
+
 
 # ── Pure utilities ────────────────────────────────────────────────────────────
 

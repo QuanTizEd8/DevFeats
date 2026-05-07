@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from gittidy import Git
 
+
 @cache
 def _git() -> Git:
     from gittidy import Git

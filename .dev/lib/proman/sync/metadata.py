@@ -18,6 +18,7 @@ def log(msg: str) -> None:
     """Write a diagnostic message to stderr."""
     print(msg, file=sys.stderr)
 
+
 def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
     """Read and augment metadata for a single feature; return None on failure."""
     derived_options = load_derived_options(features_dirpath)
@@ -32,12 +33,15 @@ def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
 # Metadata Reading
 # ----------------
 
+
 def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 1]:
     """Read and parse the metadata.yaml for the given feature ID."""
     metadata_filepath = features_dirpath / feature_id / "metadata.yaml"
     if not metadata_filepath.is_file():
-        log(f"⚠️ {feature_id}: metadata.yaml not found for feature '{feature_id}';"
-            " skipping")
+        log(
+            f"⚠️ {feature_id}: metadata.yaml not found for feature '{feature_id}';"
+            " skipping"
+        )
         return 0
 
     try:
@@ -47,8 +51,10 @@ def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 
         return 1
 
     if not isinstance(data, dict):
-        log(f"❌ {feature_id}: metadata.yaml does not contain a mapping"
-            f" (got {type(data).__name__})")
+        log(
+            f"❌ {feature_id}: metadata.yaml does not contain a mapping"
+            f" (got {type(data).__name__})"
+        )
         return 1
 
     return data
@@ -56,6 +62,7 @@ def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 
 
 # Metadata Augmentation
 # ---------------------
+
 
 def augment_metadata(feature_id: str, metadata: dict, derived_options: dict) -> bool:
     """Generate the full options dict for a feature.
@@ -67,12 +74,15 @@ def augment_metadata(feature_id: str, metadata: dict, derived_options: dict) -> 
     options: dict = metadata.get("options", {})
     for option_id, option_def in derived_options.items():
         if option_id in options:
-            log(f"⛔ {feature_id}: option '{option_id}' is a derived option and"
-                " cannot be manually defined in metadata.yaml")
+            log(
+                f"⛔ {feature_id}: option '{option_id}' is a derived option and"
+                " cannot be manually defined in metadata.yaml"
+            )
             return False
         should_apply = (
             _evaluate_condition(option_def["_apply_when"], metadata)
-            if "_apply_when" in option_def else True
+            if "_apply_when" in option_def
+            else True
         )
         if should_apply:
             options[option_id] = {
@@ -132,8 +142,10 @@ def load_derived_options(features_dirpath: Path) -> dict:
     with (features_dirpath / "shared-options.yaml").open(encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
+
 # Schema Validation
 # -----------------
+
 
 def validate_metadata_schema(
     feature_id: str,
@@ -193,6 +205,7 @@ def _rewrite_remote_refs(
 # Markdown Sanitation
 # -------------------
 
+
 def sanitize_markdown(metadata: dict) -> None:
     """Recursively process a value, stripping markdown from description fields."""
     metadata["description"] = _normalize_description(metadata["description"])
@@ -200,7 +213,6 @@ def sanitize_markdown(metadata: dict) -> None:
     if "options" in metadata:
         for option in metadata["options"].values():
             option["description"] = _normalize_description(option["description"])
-
 
 
 def _normalize_description(text: str) -> str:
@@ -266,5 +278,3 @@ def _strip_markdown(text: str) -> str:
     # Single-word tokens like <version> or <shell> are NOT matched.
     text = re.sub(r"</[a-zA-Z][^>]*>", "", text)
     return re.sub(r"<[a-zA-Z][^>]*\s[^>]*>", "", text)
-
-

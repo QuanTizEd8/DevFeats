@@ -137,8 +137,7 @@ def render_module_table(functions: list[LibFunction]) -> str:
         "|---|---|---|",
     ]
     lines.extend(
-        f"| `{fn.name}` | `{fn.signature}` | {fn.description} |"
-        for fn in functions
+        f"| `{fn.name}` | `{fn.signature}` | {fn.description} |" for fn in functions
     )
     return "\n".join(lines) + "\n"
 
