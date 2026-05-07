@@ -114,6 +114,7 @@ def resolve(
     if not body and not build_args:
         return base_image  # fast path: nothing to build
 
+    safe_name = re.sub(r"[^a-zA-Z0-9_.\-]", "-", env_name)
     if scenario_args or scenario_env_vars:
         h = hashlib.sha256(
             json.dumps(
@@ -121,9 +122,9 @@ def resolve(
                 sort_keys=True,
             ).encode(),
         ).hexdigest()[:8]
-        tag = f"devfeats-env-{env_name}-{h}:latest"
+        tag = f"devfeats-env-{safe_name}-{h}:latest"
     else:
-        tag = f"devfeats-env-{env_name}:latest"
+        tag = f"devfeats-env-{safe_name}:latest"
 
     envs_dir.mkdir(parents=True, exist_ok=True)
     dockerfile_content = f"FROM {base_image}\n{_TOKEN_LINES}{body}"
