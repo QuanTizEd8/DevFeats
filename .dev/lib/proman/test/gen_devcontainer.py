@@ -88,6 +88,9 @@ def generate(
     envs = load_envs(envs_path)
     envs_dir = envs_path.parent / "envs"
 
+    scenarios_dir = out_dir / "test" / feature
+    scenarios_dir.mkdir(parents=True, exist_ok=True)
+
     output: dict = {}
     for name, sc in scenarios.items():
         sc = merge_defaults(sc, defaults)
@@ -99,19 +102,22 @@ def generate(
             if modes == ["standalone"]:
                 continue
 
+            # Dockerfiles go into a per-scenario subdir so the devcontainer CLI
+            # picks them up via its test/{feature}/{key}/ → .devcontainer/ copy.
+            scenario_dir = scenarios_dir / key
+            scenario_dir.mkdir(parents=True, exist_ok=True)
+
             output[key] = _build_scenario(
                 key,
                 env_name,
                 scenario,
                 feature,
                 envs,
-                out_dir,
+                scenario_dir,
                 envs_dir,
             )
 
     _inject_github_token(output)
-    scenarios_dir = out_dir / "test" / feature
-    scenarios_dir.mkdir(parents=True, exist_ok=True)
     (scenarios_dir / "scenarios.json").write_text(json.dumps(output, indent=4) + "\n")
 
 
