@@ -29,14 +29,38 @@
         "build_matrix"
       ],
       "properties": {
-        "enabled": {"description": "Whether to rebuild the devcontainer image.", "type": "boolean"},
-        "image_name": {"description": "Full image name without tag, e.g. ghcr.io/org/repo-devcontainer.", "type": "string"},
-        "image_tag": {"description": "Image tag to push, e.g. 'latest' or 'branch-my-feature'.", "type": "string"},
-        "tag_is_latest": {"description": "True when image_tag == 'latest'; controls whether a sha-prefixed alias tag is also pushed.", "type": "boolean"},
-        "config_dir": {"description": "Repo-relative path to the devcontainer config directory.", "type": "string"},
-        "userdata_dir": {"description": "Absolute path used as the devcontainer userdata/cache folder on the runner.", "type": "string"},
-        "cache_ref_prefix": {"description": "Registry-side tag prefix used for buildx layer-cache refs.", "type": "string"},
-        "registry": {"description": "Container registry hostname used for docker/login-action.", "type": "string"},
+        "enabled": {
+          "description": "Whether to rebuild the devcontainer image.",
+          "type": "boolean"
+        },
+        "image_name": {
+          "description": "Full image name without tag, e.g. ghcr.io/org/repo-devcontainer.",
+          "type": "string"
+        },
+        "image_tag": {
+          "description": "Image tag to push, e.g. 'latest' or 'branch-my-feature'.",
+          "type": "string"
+        },
+        "tag_is_latest": {
+          "description": "True when image_tag == 'latest'; controls whether a sha-prefixed alias tag is also pushed.",
+          "type": "boolean"
+        },
+        "config_dir": {
+          "description": "Repo-relative path to the devcontainer config directory.",
+          "type": "string"
+        },
+        "userdata_dir": {
+          "description": "Absolute path used as the devcontainer userdata/cache folder on the runner.",
+          "type": "string"
+        },
+        "cache_ref_prefix": {
+          "description": "Registry-side tag prefix used for buildx layer-cache refs.",
+          "type": "string"
+        },
+        "registry": {
+          "description": "Container registry hostname used for docker/login-action.",
+          "type": "string"
+        },
         "build_matrix": {
           "description": "Per-platform build jobs; each entry maps to one GHA matrix runner.",
           "type": "array",
@@ -44,11 +68,24 @@
             "description": "A single platform build job.",
             "type": "object",
             "additionalProperties": false,
-            "required": ["runner", "platform", "platform_tag"],
+            "required": [
+              "runner",
+              "platform",
+              "platform_tag"
+            ],
             "properties": {
-              "runner": {"description": "GHA runs-on label for this platform.", "type": "string"},
-              "platform": {"description": "Docker platform string passed to buildx, e.g. linux/amd64.", "type": "string"},
-              "platform_tag": {"description": "Short suffix appended to the image tag for the per-arch manifest, e.g. linux-amd64.", "type": "string"}
+              "runner": {
+                "description": "GHA runs-on label for this platform.",
+                "type": "string"
+              },
+              "platform": {
+                "description": "Docker platform string passed to buildx, e.g. linux/amd64.",
+                "type": "string"
+              },
+              "platform_tag": {
+                "description": "Short suffix appended to the image tag for the per-arch manifest, e.g. linux-amd64.",
+                "type": "string"
+              }
             }
           }
         }
@@ -58,28 +95,57 @@
       "description": "Config slice for the ci-build reusable workflow (source packaging and docs build).",
       "type": "object",
       "additionalProperties": false,
-      "required": ["ci_image", "source", "docs"],
+      "required": [
+        "ci_image",
+        "source",
+        "docs"
+      ],
       "properties": {
-        "ci_image": {"description": "Full devcontainer image URI used as the job container.", "type": "string"},
+        "ci_image": {
+          "description": "Full devcontainer image URI used as the job container.",
+          "type": "string"
+        },
         "source": {
           "description": "Controls the source-packaging job that produces the src and dist artifacts.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["enabled", "artifact_src", "artifact_dist"],
+          "required": [
+            "enabled",
+            "artifact_src",
+            "artifact_dist"
+          ],
           "properties": {
-            "enabled": {"description": "Whether to run the source-packaging job.", "type": "boolean"},
-            "artifact_src": {"description": "Artifact spec for the raw source tree uploaded for downstream jobs.", "$ref": "#/$defs/artifact"},
-            "artifact_dist": {"description": "Artifact spec for the distribution tarballs uploaded for release.", "$ref": "#/$defs/artifact"}
+            "enabled": {
+              "description": "Whether to run the source-packaging job.",
+              "type": "boolean"
+            },
+            "artifact_src": {
+              "description": "Artifact spec for the raw source tree uploaded for downstream jobs.",
+              "$ref": "#/$defs/artifact"
+            },
+            "artifact_dist": {
+              "description": "Artifact spec for the distribution tarballs uploaded for release.",
+              "$ref": "#/$defs/artifact"
+            }
           }
         },
         "docs": {
           "description": "Controls the documentation build job.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["enabled", "artifact"],
+          "required": [
+            "enabled",
+            "artifact"
+          ],
           "properties": {
-            "enabled": {"description": "Whether to run the docs build job.", "type": "boolean"},
-            "artifact": {"description": "Artifact spec for the built docs archive uploaded for GitHub Pages deployment.", "$ref": "#/$defs/artifact"}
+            "enabled": {
+              "description": "Whether to run the docs build job.",
+              "type": "boolean"
+            },
+            "artifact": {
+              "description": "Artifact spec for the built docs archive uploaded for GitHub Pages deployment.",
+              "$ref": "#/$defs/artifact"
+            }
           }
         }
       }
@@ -97,35 +163,63 @@
         "python"
       ],
       "properties": {
-        "ci_image": {"description": "Full devcontainer image URI used as the job container.", "type": "string"},
-        "artifact_src_name": {"description": "Name of the source artifact downloaded by all lint jobs.", "type": "string"},
-        "artifact_src_path": {"description": "Local path where the source artifact is extracted.", "type": "string"},
+        "ci_image": {
+          "description": "Full devcontainer image URI used as the job container.",
+          "type": "string"
+        },
+        "artifact_src_name": {
+          "description": "Name of the source artifact downloaded by all lint jobs.",
+          "type": "string"
+        },
+        "artifact_src_path": {
+          "description": "Local path where the source artifact is extracted.",
+          "type": "string"
+        },
         "shell": {
           "description": "Controls the shell-script linting job (shellcheck / shfmt).",
           "type": "object",
           "additionalProperties": false,
-          "required": ["enabled"],
+          "required": [
+            "enabled"
+          ],
           "properties": {
-            "enabled": {"description": "Whether to run shell linting.", "type": "boolean"}
+            "enabled": {
+              "description": "Whether to run shell linting.",
+              "type": "boolean"
+            }
           }
         },
         "validate": {
           "description": "Controls the devcontainer-feature JSON schema validation job.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["enabled", "features_path"],
+          "required": [
+            "enabled",
+            "features_path"
+          ],
           "properties": {
-            "enabled": {"description": "Whether to run JSON schema validation.", "type": "boolean"},
-            "features_path": {"description": "Path passed to devcontainers/action base-path-to-features.", "type": "string"}
+            "enabled": {
+              "description": "Whether to run JSON schema validation.",
+              "type": "boolean"
+            },
+            "features_path": {
+              "description": "Path passed to devcontainers/action base-path-to-features.",
+              "type": "string"
+            }
           }
         },
         "python": {
           "description": "Controls the Python linting job (ruff check + format).",
           "type": "object",
           "additionalProperties": false,
-          "required": ["enabled"],
+          "required": [
+            "enabled"
+          ],
           "properties": {
-            "enabled": {"description": "Whether to run Python linting.", "type": "boolean"}
+            "enabled": {
+              "description": "Whether to run Python linting.",
+              "type": "boolean"
+            }
           }
         }
       }
@@ -134,10 +228,19 @@
       "description": "Config slice for the ci-test-dev reusable workflow (Python unit tests for proman dev tooling).",
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "ci_image"],
+      "required": [
+        "enabled",
+        "ci_image"
+      ],
       "properties": {
-        "enabled": {"description": "Whether to run the Python dev tests.", "type": "boolean"},
-        "ci_image": {"description": "Full devcontainer image URI used as the job container.", "type": "string"}
+        "enabled": {
+          "description": "Whether to run the Python dev tests.",
+          "type": "boolean"
+        },
+        "ci_image": {
+          "description": "Full devcontainer image URI used as the job container.",
+          "type": "string"
+        }
       }
     },
     "ci_test_feat": {
@@ -151,8 +254,14 @@
         "macos"
       ],
       "properties": {
-        "artifact_src_name": {"description": "Name of the source artifact downloaded by feature test jobs.", "type": "string"},
-        "artifact_src_path": {"description": "Local path where the source artifact is extracted.", "type": "string"},
+        "artifact_src_name": {
+          "description": "Name of the source artifact downloaded by feature test jobs.",
+          "type": "string"
+        },
+        "artifact_src_path": {
+          "description": "Local path where the source artifact is extracted.",
+          "type": "string"
+        },
         "linux": {
           "description": "Controls the Linux feature test matrix job (Docker-in-Docker on ubuntu-latest).",
           "type": "object",
@@ -165,10 +274,25 @@
             "free_disk_space"
           ],
           "properties": {
-            "enabled": {"description": "Whether to run Linux feature tests.", "type": "boolean"},
-            "features": {"description": "List of feature IDs to test on Linux.", "type": "array", "items": {"type": "string"}},
-            "ci_image": {"description": "Full devcontainer image URI used as the job container.", "type": "string"},
-            "registry": {"description": "Container registry hostname used for docker/login-action.", "type": "string"},
+            "enabled": {
+              "description": "Whether to run Linux feature tests.",
+              "type": "boolean"
+            },
+            "features": {
+              "description": "List of feature IDs to test on Linux.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "ci_image": {
+              "description": "Full devcontainer image URI used as the job container.",
+              "type": "string"
+            },
+            "registry": {
+              "description": "Container registry hostname used for docker/login-action.",
+              "type": "string"
+            },
             "free_disk_space": {
               "description": "Flags passed to jlumbroso/free-disk-space to reclaim runner disk before large Docker builds.",
               "type": "object",
@@ -183,13 +307,34 @@
                 "large_packages"
               ],
               "properties": {
-                "tool_cache": {"description": "Remove the GHA tool cache.", "type": "boolean"},
-                "swap_storage": {"description": "Remove swap storage.", "type": "boolean"},
-                "docker_images": {"description": "Remove pre-installed Docker images.", "type": "boolean"},
-                "android": {"description": "Remove Android SDK.", "type": "boolean"},
-                "dotnet": {"description": "Remove .NET SDK.", "type": "boolean"},
-                "haskell": {"description": "Remove Haskell toolchain.", "type": "boolean"},
-                "large_packages": {"description": "Remove large apt packages.", "type": "boolean"}
+                "tool_cache": {
+                  "description": "Remove the GHA tool cache.",
+                  "type": "boolean"
+                },
+                "swap_storage": {
+                  "description": "Remove swap storage.",
+                  "type": "boolean"
+                },
+                "docker_images": {
+                  "description": "Remove pre-installed Docker images.",
+                  "type": "boolean"
+                },
+                "android": {
+                  "description": "Remove Android SDK.",
+                  "type": "boolean"
+                },
+                "dotnet": {
+                  "description": "Remove .NET SDK.",
+                  "type": "boolean"
+                },
+                "haskell": {
+                  "description": "Remove Haskell toolchain.",
+                  "type": "boolean"
+                },
+                "large_packages": {
+                  "description": "Remove large apt packages.",
+                  "type": "boolean"
+                }
               }
             }
           }
@@ -198,9 +343,15 @@
           "description": "Controls the macOS feature test matrix job (native runner, no Docker).",
           "type": "object",
           "additionalProperties": false,
-          "required": ["enabled", "matrix"],
+          "required": [
+            "enabled",
+            "matrix"
+          ],
           "properties": {
-            "enabled": {"description": "Whether to run macOS feature tests.", "type": "boolean"},
+            "enabled": {
+              "description": "Whether to run macOS feature tests.",
+              "type": "boolean"
+            },
             "matrix": {
               "description": "Per-feature macOS test jobs derived from scenarios whose environment image starts with 'macos'.",
               "type": "array",
@@ -208,17 +359,27 @@
                 "description": "A single macOS feature test job.",
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["feature", "runner"],
+                "required": [
+                  "feature",
+                  "runner"
+                ],
                 "properties": {
-                  "feature": {"description": "Feature ID to test.", "type": "string"},
-                  "runner": {"description": "GHA runs-on label for the macOS runner.", "type": "string"}
+                  "feature": {
+                    "description": "Feature ID to test.",
+                    "type": "string"
+                  },
+                  "runner": {
+                    "description": "GHA runs-on label for the macOS runner.",
+                    "type": "string"
+                  }
                 }
               }
             }
           }
         }
       }
-    },    "ci_test_lib": {
+    },
+    "ci_test_lib": {
       "description": "Config slice for the ci-test-lib reusable workflow (shell library unit tests).",
       "type": "object",
       "additionalProperties": false,
@@ -231,10 +392,22 @@
         "macos_matrix"
       ],
       "properties": {
-        "enabled": {"description": "Whether to run library unit tests.", "type": "boolean"},
-        "ci_image": {"description": "Full devcontainer image URI used as the job container.", "type": "string"},
-        "artifact_src_name": {"description": "Name of the source artifact downloaded by lib test jobs.", "type": "string"},
-        "artifact_src_path": {"description": "Local path where the source artifact is extracted.", "type": "string"},
+        "enabled": {
+          "description": "Whether to run library unit tests.",
+          "type": "boolean"
+        },
+        "ci_image": {
+          "description": "Full devcontainer image URI used as the job container.",
+          "type": "string"
+        },
+        "artifact_src_name": {
+          "description": "Name of the source artifact downloaded by lib test jobs.",
+          "type": "string"
+        },
+        "artifact_src_path": {
+          "description": "Local path where the source artifact is extracted.",
+          "type": "string"
+        },
         "linux_matrix": {
           "description": "Linux distro environments to run unit tests against, sourced from test/lib/scenarios.yaml.",
           "type": "array",
@@ -242,10 +415,19 @@
             "description": "A single Linux unit test environment.",
             "type": "object",
             "additionalProperties": false,
-            "required": ["name", "env"],
+            "required": [
+              "name",
+              "env"
+            ],
             "properties": {
-              "name": {"description": "Human-readable environment name used in the job display name.", "type": "string"},
-              "env": {"description": "Docker image reference for the test container.", "type": "string"}
+              "name": {
+                "description": "Human-readable environment name used in the job display name.",
+                "type": "string"
+              },
+              "env": {
+                "description": "Docker image reference for the test container.",
+                "type": "string"
+              }
             }
           }
         },
@@ -256,9 +438,14 @@
             "description": "A single macOS unit test runner.",
             "type": "object",
             "additionalProperties": false,
-            "required": ["runner"],
+            "required": [
+              "runner"
+            ],
             "properties": {
-              "runner": {"description": "GHA runs-on label for the macOS runner.", "type": "string"}
+              "runner": {
+                "description": "GHA runs-on label for the macOS runner.",
+                "type": "string"
+              }
             }
           }
         }
@@ -282,7 +469,10 @@
         "pages_environment"
       ],
       "properties": {
-        "enabled": {"description": "Whether to run the CD pipeline; true only when at least one feature has an untagged version on main.", "type": "boolean"},
+        "enabled": {
+          "description": "Whether to run the CD pipeline; true only when at least one feature has an untagged version on main.",
+          "type": "boolean"
+        },
         "features": {
           "description": "Features to release, each with its version string and the git tag to create.",
           "type": "array",
@@ -290,23 +480,63 @@
             "description": "A single feature release entry.",
             "type": "object",
             "additionalProperties": false,
-            "required": ["feature", "version", "tag"],
+            "required": [
+              "feature",
+              "version",
+              "tag"
+            ],
             "properties": {
-              "feature": {"description": "Feature ID, e.g. install-git.", "type": "string"},
-              "version": {"description": "Version string from metadata.yaml, e.g. 1.2.3.", "type": "string"},
-              "tag": {"description": "Annotated git tag to create, e.g. install-git/1.2.3.", "type": "string"}
+              "feature": {
+                "description": "Feature ID, e.g. install-git.",
+                "type": "string"
+              },
+              "version": {
+                "description": "Version string from metadata.yaml, e.g. 1.2.3.",
+                "type": "string"
+              },
+              "tag": {
+                "description": "Annotated git tag to create, e.g. install-git/1.2.3.",
+                "type": "string"
+              }
             }
           }
         },
-        "artifact_src_name": {"description": "Name of the source artifact downloaded for GHCR publish.", "type": "string"},
-        "artifact_src_path": {"description": "Local path where the source artifact is extracted.", "type": "string"},
-        "artifact_dist_name": {"description": "Name of the distribution artifact downloaded for GitHub Release upload.", "type": "string"},
-        "artifact_dist_path": {"description": "Local path where the distribution artifact is extracted.", "type": "string"},
-        "features_src_path": {"description": "Path passed to devcontainers/action base-path-to-features for GHCR publish.", "type": "string"},
-        "registry": {"description": "Container registry hostname used for docker/login-action during GHCR publish.", "type": "string"},
-        "git_bot_name": {"description": "Git user.name for annotated tag commits.", "type": "string"},
-        "git_bot_email": {"description": "Git user.email for annotated tag commits.", "type": "string"},
-        "pages_environment": {"description": "GitHub Actions environment name used by the GitHub Pages deployment job.", "type": "string"}
+        "artifact_src_name": {
+          "description": "Name of the source artifact downloaded for GHCR publish.",
+          "type": "string"
+        },
+        "artifact_src_path": {
+          "description": "Local path where the source artifact is extracted.",
+          "type": "string"
+        },
+        "artifact_dist_name": {
+          "description": "Name of the distribution artifact downloaded for GitHub Release upload.",
+          "type": "string"
+        },
+        "artifact_dist_path": {
+          "description": "Local path where the distribution artifact is extracted.",
+          "type": "string"
+        },
+        "features_src_path": {
+          "description": "Path passed to devcontainers/action base-path-to-features for GHCR publish.",
+          "type": "string"
+        },
+        "registry": {
+          "description": "Container registry hostname used for docker/login-action during GHCR publish.",
+          "type": "string"
+        },
+        "git_bot_name": {
+          "description": "Git user.name for annotated tag commits.",
+          "type": "string"
+        },
+        "git_bot_email": {
+          "description": "Git user.email for annotated tag commits.",
+          "type": "string"
+        },
+        "pages_environment": {
+          "description": "GitHub Actions environment name used by the GitHub Pages deployment job.",
+          "type": "string"
+        }
       }
     }
   },
@@ -315,11 +545,24 @@
       "description": "A GitHub Actions artifact: its name, the local path it maps to, and how long to retain it.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "path", "retention_days"],
+      "required": [
+        "name",
+        "path",
+        "retention_days"
+      ],
       "properties": {
-        "name": {"description": "Artifact name used with actions/upload-artifact and actions/download-artifact.", "type": "string"},
-        "path": {"description": "Local filesystem path the artifact is uploaded from or downloaded to.", "type": "string"},
-        "retention_days": {"description": "Number of days before GitHub automatically deletes the artifact.", "type": "integer"}
+        "name": {
+          "description": "Artifact name used with actions/upload-artifact and actions/download-artifact.",
+          "type": "string"
+        },
+        "path": {
+          "description": "Local filesystem path the artifact is uploaded from or downloaded to.",
+          "type": "string"
+        },
+        "retention_days": {
+          "description": "Number of days before GitHub automatically deletes the artifact.",
+          "type": "integer"
+        }
       }
     }
   }
