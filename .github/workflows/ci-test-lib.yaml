@@ -12,11 +12,6 @@ jobs:
     name: ${{ matrix.env.name }}
     if: fromJSON(inputs.config).enabled == true
     runs-on: ubuntu-latest
-    container:
-      image: ${{ fromJSON(inputs.config).ci_image }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -33,10 +28,25 @@ jobs:
           name: ${{ fromJSON(inputs.config).artifact_src_name }}
           path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: "Run unit tests in ${{ matrix.env.name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: just test-lib-env "${{ matrix.env.name }}"
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/repo" \
+            -w /repo \
+            -v "/var/run/docker.sock:/var/run/docker.sock" \
+            -e GITHUB_TOKEN \
+            -e "HOST_REPO_ROOT=${GITHUB_WORKSPACE}" \
+            "${{ fromJSON(inputs.config).ci_image }}" \
+            just test-lib-env "${{ matrix.env.name }}"
 
   macos:
     name: ${{ matrix.os.runner }}
