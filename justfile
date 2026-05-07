@@ -157,7 +157,7 @@ gha-dind *args:
   doc('Run scenario and fail tests for one feature e.g. just test-feature install-pixi.')
 ]
 test-feature feat *args:
-    bash .dev/scripts/test/run-feature-tests.sh {{feat}} {{args}}
+    pixi run --environment test test-feature {{feat}} {{args}}
 
 
 [
@@ -181,7 +181,7 @@ test-unit-containers *args:
   doc('Run macOS scenarios for a feature natively. e.g. just test-macos install-pixi')
 ]
 test-macos feat *args:
-    bash .dev/scripts/test/run-feature-tests.sh {{feat}} --mode macos {{args}}
+    pixi run --environment test test-feature {{feat}} --mode macos {{args}}
 
 
 [
@@ -237,7 +237,7 @@ build-website-live:
   doc('Package docs/.build/ into a GitHub Pages artifact tarball (docs/.build/website.tar).')
 ]
 package-docs: build-website
-    pixi run package-docs
+    bash .dev/scripts/build/package-docs.sh
 
 
 # ── Dev tooling ───────────────────────────────────────────────────────────────

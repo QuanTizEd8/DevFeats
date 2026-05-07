@@ -70,15 +70,13 @@ just test-unit-containers                             # all environments
 just test-unit-in-env alpine-3.20                     # single environment
 
 # Feature scenario tests (devcontainer + standalone, requires Docker)
-just test-feature <feature>
-bash .dev/scripts/test/run-feature-tests.sh <feature>                     # all modes
-bash .dev/scripts/test/run-feature-tests.sh <feature> --mode devcontainer # devcontainer only
-bash .dev/scripts/test/run-feature-tests.sh <feature> --mode standalone   # standalone only
-bash .dev/scripts/test/run-feature-tests.sh <feature> --filter <scenario> # single scenario
+just test-feature <feature>                             # all modes
+just test-feature <feature> --mode devcontainer         # devcontainer only
+just test-feature <feature> --mode standalone           # standalone only
+just test-feature <feature> --filter <scenario>         # single scenario
 
 # macOS feature scenarios (requires macOS)
 just test-macos <feature>
-bash .dev/scripts/test/run-feature-tests.sh <feature> --mode macos
 ```
 
 ## Framework-specific Instructions
