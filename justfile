@@ -145,6 +145,14 @@ test-module module:
 
 
 [
+  private,
+  doc('Run any command inside a Docker-in-Docker environment (GHA CI use only).')
+]
+gha-dind *args:
+    bash .dev/scripts/ci/gha-dind.sh {{args}}
+
+
+[
   group('testing'),
   doc('Run scenario and fail tests for one feature e.g. just test-feature install-pixi.')
 ]

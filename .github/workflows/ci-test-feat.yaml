@@ -52,14 +52,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_IMAGE: ${{ fromJSON(inputs.config).linux.ci_image }}
-          DIND_SCRIPT: ${{ fromJSON(inputs.config).linux.dind_script }}
         run: |
           docker run --rm --privileged \
             -v "${GITHUB_WORKSPACE}:/repo" \
             -w /repo \
             -e GITHUB_TOKEN \
             "$CI_IMAGE" \
-            bash "${DIND_SCRIPT}" "${{ matrix.feature }}"
+            just gha-dind just test-feature "${{ matrix.feature }}"
 
   macos:
     name: "Scenario Tests - ${{ matrix.job.feature }} (macOS)"
@@ -82,5 +81,4 @@ jobs:
       - name: "Test ${{ matrix.job.feature }} macOS scenarios"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TEST_SCRIPT: ${{ fromJSON(inputs.config).macos.test_script }}
-        run: bash "${TEST_SCRIPT}" "${{ matrix.job.feature }}" --mode macos
+        run: just test-feature "${{ matrix.job.feature }}" --mode macos

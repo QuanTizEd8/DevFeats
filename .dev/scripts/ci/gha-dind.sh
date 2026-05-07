@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Used by .github/workflows/ci.yaml test-features job: run inside the
-# devcontainer image with --privileged so an inner dockerd can power
-# `devcontainer features test`. See workflow comments for why DinD is required.
+# Run any command inside a Docker-in-Docker environment.
+# Usage: dind.sh <command> [args...]
 set -euo pipefail
 
-FEATURE="${1:?usage: run-feature-tests-dind.sh <feature-name>}"
+[[ $# -gt 0 ]] || { printf 'usage: dind.sh <command> [args...]\n' >&2; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -n "${GITHUB_WORKSPACE:-}" ]] &&
@@ -54,4 +53,4 @@ mkdir -p "$DIND_ROOT"
 dockerd --data-root "$DIND_ROOT" --storage-driver overlay2 > /tmp/dockerd.log 2>&1 &
 timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 0.5; done'
 
-exec just test-feature "$FEATURE"
+exec "$@"

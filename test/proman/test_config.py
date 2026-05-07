@@ -62,8 +62,6 @@ runner:
     large_packages: true
 scripts:
   features_src: "./src"
-  dind: ".dev/scripts/ci/ci_test-features_dind.sh"
-  macos_test: ".dev/scripts/test/run-feature-tests.sh"
 triggers:
   lint: ["**/*.sh"]
   validate: ["**/metadata.yaml"]

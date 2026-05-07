@@ -162,7 +162,6 @@
             "features",
             "ci_image",
             "registry",
-            "dind_script",
             "free_disk_space"
           ],
           "properties": {
@@ -170,7 +169,6 @@
             "features": {"description": "List of feature IDs to test on Linux.", "type": "array", "items": {"type": "string"}},
             "ci_image": {"description": "Full devcontainer image URI used as the job container.", "type": "string"},
             "registry": {"description": "Container registry hostname used for docker/login-action.", "type": "string"},
-            "dind_script": {"description": "Repo-relative path to the Docker-in-Docker test runner script.", "type": "string"},
             "free_disk_space": {
               "description": "Flags passed to jlumbroso/free-disk-space to reclaim runner disk before large Docker builds.",
               "type": "object",
@@ -200,7 +198,7 @@
           "description": "Controls the macOS feature test matrix job (native runner, no Docker).",
           "type": "object",
           "additionalProperties": false,
-          "required": ["enabled", "matrix", "test_script"],
+          "required": ["enabled", "matrix"],
           "properties": {
             "enabled": {"description": "Whether to run macOS feature tests.", "type": "boolean"},
             "matrix": {
@@ -216,13 +214,11 @@
                   "runner": {"description": "GHA runs-on label for the macOS runner.", "type": "string"}
                 }
               }
-            },
-            "test_script": {"description": "Repo-relative path to the feature test runner script.", "type": "string"}
+            }
           }
         }
       }
-    },
-    "ci_test_lib": {
+    },    "ci_test_lib": {
       "description": "Config slice for the ci-test-lib reusable workflow (shell library unit tests).",
       "type": "object",
       "additionalProperties": false,

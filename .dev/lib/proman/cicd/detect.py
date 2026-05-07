@@ -644,7 +644,6 @@ def build_config(  # noqa: PLR0913
                 "features": features,
                 "ci_image": ci_image,
                 "registry": pub["registry"],
-                "dind_script": scr["dind"],
                 "free_disk_space": {
                     "tool_cache": fds["tool_cache"],
                     "swap_storage": fds["swap_storage"],
@@ -658,7 +657,6 @@ def build_config(  # noqa: PLR0913
             "macos": {
                 "enabled": run_macos,
                 "matrix": macos_matrix,
-                "test_script": scr["macos_test"],
             },
         },
         "ci_test_lib": {
