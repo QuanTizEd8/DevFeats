@@ -1,0 +1,26 @@
+line-length = 88
+cache-dir = ".local/cache/ruff"
+exclude = ["test/lib/bats"]
+
+[lint]
+select = ["ALL"]
+ignore = [
+    # print() is intentional in CLI entry points and progress logging
+    "T201",
+    # subprocess calls use trusted, hardcoded commands from within the repo
+    "S603",
+    "S607",
+    # gittidy exposes a private `_rest_query` as its public query API
+    "SLF001",
+    # HTTP 404 is a well-known constant; defining HTTP_NOT_FOUND adds no clarity
+    "PLR2004",
+    # "consider else block" — valid but too pedantic for this codebase
+    "TRY300",
+    # C/PLR complexity rules fire on intentional orchestration functions
+    "C901",
+    "PLR0912",
+    "PLR0915",
+]
+
+[lint.pydocstyle]
+convention = "numpy"

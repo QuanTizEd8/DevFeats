@@ -43,10 +43,10 @@ release-detect = "proman-release-detect --repo quantized8/devfeats"
 ruff = "==0.15.11"
 
 [feature.lint.tasks]
-lint-py-check = "ruff check ."
-lint-py = "ruff check --fix ."
-format-py = "ruff format ."
-format-py-check = "ruff format --check ."
+lint-py-check = "ruff check --config .dev/config/ruff.toml ."
+lint-py = "ruff check --fix --config .dev/config/ruff.toml ."
+format-py = "ruff format --config .dev/config/ruff.toml ."
+format-py-check = "ruff format --check --config .dev/config/ruff.toml ."
 
 
 # ── Test Feature ─────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ format-py-check = "ruff format --check ."
 pytest = "==9.0.3"
 
 [feature.test.tasks]
-test-py = "pytest test/proman -v"
+test-py = "pytest -c .dev/config/pytest.ini test/proman -v"
 test-feats = "proman-test-run"
 
 
