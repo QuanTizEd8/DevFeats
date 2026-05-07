@@ -87,7 +87,7 @@ jobs:
     name: CI - Build
     needs: [init, cm-devcontainer]
     if: |
-      always() &&
+      !cancelled() &&
       needs.init.result == 'success' &&
       (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped')
     uses: ./.github/workflows/ci-build.yaml
@@ -99,7 +99,7 @@ jobs:
     name: CI - Lint
     needs: [init, cm-devcontainer, ci-build]
     if: |
-      always() &&
+      !cancelled() &&
       needs.init.result == 'success' &&
       (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
       (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
@@ -112,7 +112,7 @@ jobs:
     name: CI - Test - Development
     needs: [init, cm-devcontainer]
     if: |
-      always() &&
+      !cancelled() &&
       needs.init.result == 'success' &&
       (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped')
     uses: ./.github/workflows/ci-test-dev.yaml
@@ -124,7 +124,7 @@ jobs:
     name: CI - Test - Features
     needs: [init, cm-devcontainer, ci-build]
     if: |
-      always() &&
+      !cancelled() &&
       needs.init.result == 'success' &&
       (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
       (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
@@ -137,7 +137,7 @@ jobs:
     name: CI - Test - Library
     needs: [init, cm-devcontainer, ci-build]
     if: |
-      always() &&
+      !cancelled() &&
       needs.init.result == 'success' &&
       (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
       (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
@@ -150,7 +150,8 @@ jobs:
     name: CD
     needs: [init, ci-build, ci-lint, ci-test-dev, ci-test-feat, ci-test-lib]
     if: |
-      always() &&
+      !cancelled() &&
+      needs.init.result == 'success' &&
       fromJSON(needs.init.outputs.config).cd.enabled == true &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
