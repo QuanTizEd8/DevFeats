@@ -31,7 +31,7 @@ jobs:
         run: just format-sh-check
 
       - name: Lint
-        if: !cancelled()
+        if: "!cancelled()"
         run: just lint-sh-check
 
   json-schema:
@@ -76,5 +76,5 @@ jobs:
         run: just format-py-check
 
       - name: Lint
-        if: !cancelled()
+        if: "!cancelled()"
         run: just lint-py-check
