@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # jsonc.py — JSONC → JSON (strip comments) and duplicate-key checks for lib/json.sh helpers.
 # Stdlib only. Invoked: python3 jsonc.py strip | dup [objectKey]
+from __future__ import annotations
+
 import json
 import sys
 from typing import Any
