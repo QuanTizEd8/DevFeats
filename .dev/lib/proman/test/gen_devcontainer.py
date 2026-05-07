@@ -5,8 +5,10 @@ import json
 import sys
 from pathlib import Path
 
-from .environments import load as load_envs, is_macos, _collect_layers, _TOKEN_LINES
-from .scenarios import load as load_scenarios, merge_defaults, expand_envs
+from .environments import _TOKEN_LINES, _collect_layers, is_macos
+from .environments import load as load_envs
+from .scenarios import expand_envs, merge_defaults
+from .scenarios import load as load_scenarios
 
 
 def _inject_github_token(scenarios: dict) -> None:
@@ -35,7 +37,7 @@ def _build_scenario(
     sc_env_vars = scenario.get("env_vars") or {}
 
     base_image, body, build_args = _collect_layers(
-        env_name, envs, envs_dir, child_args=sc_args or None
+        env_name, envs, envs_dir, child_args=sc_args or None,
     )
 
     if sc_env_vars:
@@ -58,7 +60,7 @@ def _build_scenario(
         result["containerUser"] = dc["containerUser"]
     if dc.get("build", {}).get("args"):
         result.setdefault("build", {}).setdefault("args", {}).update(
-            dc["build"]["args"]
+            dc["build"]["args"],
         )
 
     options = scenario.get("options", {})
@@ -95,7 +97,7 @@ def generate(
                 continue
 
             output[key] = _build_scenario(
-                key, env_name, scenario, feature, envs, out_dir, envs_dir
+                key, env_name, scenario, feature, envs, out_dir, envs_dir,
             )
 
     _inject_github_token(output)
@@ -104,7 +106,7 @@ def generate(
 
 def main_cli() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate devcontainer scenarios.json from unified scenarios.yaml"
+        description="Generate devcontainer scenarios.json from unified scenarios.yaml",
     )
     parser.add_argument("--feature", required=True)
     parser.add_argument("--unified", required=True, type=Path)

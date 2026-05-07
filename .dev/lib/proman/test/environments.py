@@ -51,7 +51,7 @@ def _collect_layers(
 
     if from_env:
         base_image, body, build_args = _collect_layers(
-            from_env, envs, envs_dir, child_args=my_args
+            from_env, envs, envs_dir, child_args=my_args,
         )
     else:
         base_image, body, build_args = image, "", {}
@@ -99,7 +99,7 @@ def resolve(
 
     envs_dir = repo_root / "test" / "envs"
     base_image, body, build_args = _collect_layers(
-        env_name, envs, envs_dir, child_args=scenario_args or None
+        env_name, envs, envs_dir, child_args=scenario_args or None,
     )
 
     if scenario_env_vars:
@@ -113,7 +113,7 @@ def resolve(
             json.dumps(
                 {"a": scenario_args or {}, "e": scenario_env_vars or {}},
                 sort_keys=True,
-            ).encode()
+            ).encode(),
         ).hexdigest()[:8]
         tag = f"devfeats-env-{env_name}-{h}:latest"
     else:
@@ -123,7 +123,7 @@ def resolve(
     dockerfile_content = f"FROM {base_image}\n{_TOKEN_LINES}{body}"
 
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".Dockerfile", dir=envs_dir, delete=False
+        mode="w", suffix=".Dockerfile", dir=envs_dir, delete=False,
     ) as tf:
         tf.write(dockerfile_content)
         df_tmp = tf.name
@@ -196,5 +196,5 @@ def resolve_cli() -> None:
             repo_root,
             scenario_args=scenario_args or None,
             scenario_env_vars=scenario_env_vars or None,
-        )
+        ),
     )

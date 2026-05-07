@@ -6,9 +6,8 @@ from unittest import mock
 
 import pytest
 import yaml
-from pylinks.exception.api import WebAPIPersistentStatusCodeError
-
 from proman.release.detect import _release_exists, detect_releasable
+from pylinks.exception.api import WebAPIPersistentStatusCodeError
 
 
 def _make_status_error(status_code: int) -> WebAPIPersistentStatusCodeError:

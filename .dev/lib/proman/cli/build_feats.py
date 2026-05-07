@@ -6,7 +6,6 @@ import argparse
 import shutil
 import sys
 import tarfile
-from pathlib import Path
 
 from proman.git import git_repo_root
 

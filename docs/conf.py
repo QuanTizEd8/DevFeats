@@ -11,6 +11,7 @@ import yaml
 
 if TYPE_CHECKING:
     from typing import Any
+
     from sphinx.application import Sphinx
 
 _WEBSITE_ROOT = Path(__file__).resolve().parent
@@ -18,14 +19,14 @@ _REPO_ROOT = _WEBSITE_ROOT.parent
 _DOCS_DATA_PATH = _REPO_ROOT / ".dev" / "output" / "docs-data.json"
 
 _docs_cfg: dict = yaml.safe_load(
-    (_REPO_ROOT / ".dev/config/docs.yaml").read_text(encoding="utf-8")
+    (_REPO_ROOT / ".dev/config/docs.yaml").read_text(encoding="utf-8"),
 )["sphinx"]
 globals().update(_docs_cfg)
 
 if not _DOCS_DATA_PATH.exists():
     raise FileNotFoundError(
         f"Docs data artifact not found: {_DOCS_DATA_PATH}\n"
-        "Run 'pixi run gen-docs-data' before building the docs."
+        "Run 'pixi run gen-docs-data' before building the docs.",
     )
 
 _docs_data: dict[str, Any] = json.loads(_DOCS_DATA_PATH.read_text(encoding="utf-8"))
@@ -37,13 +38,12 @@ _lib_modules: dict[str, str] = _docs_data.get("lib_modules", {})
 
 def setup(app):
     """Register lexer aliases and connect build-time feature preamble injection."""
-    from pygments.lexers.data import JsonLexer
     from pygments.lexers.configs import IniLexer
+    from pygments.lexers.data import JsonLexer
 
     app.add_lexer("jsonc", JsonLexer)
     app.add_lexer("gitconfig", IniLexer)
     app.connect("source-read", _source_jinja_template)
-    return
 
 
 def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> None:
@@ -82,13 +82,12 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
         raise RuntimeError(
             f"Could not render '{full_path}' as Jinja template "
             f"(in {__name__}._source_jinja_template): "
-            f"{type(e).__name__}: {e}"
+            f"{type(e).__name__}: {e}",
         ) from e
     # Revert Jinja environment markers to their defaults
     # so that other templates and tools have the default markers.
     for attr, attr_val in attrs_default.items():
         setattr(app.builder.templates.environment, attr, attr_val)
-    return
 
 
 # ── Project information ────────────────────────────────────────────────────────

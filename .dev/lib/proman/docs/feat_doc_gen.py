@@ -52,7 +52,7 @@ def _generate_keyword_badges(metadata: dict[str, Any]) -> str:
     if not keywords:
         return ""
     badges = " ".join(f"{{bdg-info}}`{kw}`" for kw in keywords)
-    return f"<div style=\"text-align:center\">\n\n{badges}\n\n</div>\n\n"
+    return f'<div style="text-align:center">\n\n{badges}\n\n</div>\n\n'
 
 
 def _generate_spec_summary(metadata: dict[str, Any]) -> str:
@@ -86,8 +86,8 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
             "    // other features...",
             dc_json_lines[-2],
             "  // other properties...",
-            dc_json_lines[-1]
-        ]
+            dc_json_lines[-1],
+        ],
     )
 
     items = list(defaults.items())
@@ -102,11 +102,11 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     ts = mdit.element.tab_set()
     ts.append(
         mdit.element.code_block(dc_json, language="json", caption="{fas}`file-code` devcontainer.json"),
-        title="Dev Container"
+        title="Dev Container",
     )
     ts.append(
         mdit.element.code_block(cli_code, language="bash", caption="{fas}`terminal` Terminal"),
-        title="CLI"
+        title="CLI",
     )
     tabset_str = ts.source(target="sphinx")
     description = (

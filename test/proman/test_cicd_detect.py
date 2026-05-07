@@ -4,7 +4,6 @@ from pathlib import Path
 
 import proman.cicd.detect as CD
 
-
 # ── any_match ─────────────────────────────────────────────────────────────────
 
 

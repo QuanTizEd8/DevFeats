@@ -13,7 +13,7 @@ from proman.git import git_repo_root
 def load_project() -> dict:
     """Return the parsed contents of .dev/config/project.yaml."""
     return yaml.safe_load(
-        (git_repo_root() / ".dev/config/project.yaml").read_text(encoding="utf-8")
+        (git_repo_root() / ".dev/config/project.yaml").read_text(encoding="utf-8"),
     )
 
 
@@ -21,5 +21,5 @@ def load_project() -> dict:
 def load_ci() -> dict:
     """Return the parsed contents of .dev/config/ci.yaml."""
     return yaml.safe_load(
-        (git_repo_root() / ".dev/config/ci.yaml").read_text(encoding="utf-8")
+        (git_repo_root() / ".dev/config/ci.yaml").read_text(encoding="utf-8"),
     )

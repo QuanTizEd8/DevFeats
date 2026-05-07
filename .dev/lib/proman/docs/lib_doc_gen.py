@@ -6,7 +6,11 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from proman.docs.parse_lib import LibFunction, LibModule, ParagraphBlock, SectionBlock
+    from proman.docs.parse_lib import (
+        LibFunction,
+        LibModule,
+        SectionBlock,
+    )
 
 # Sections rendered as definition lists (multi-item, name + description pairs).
 _DEFLIST_SECTIONS = frozenset({"Args", "Parameters", "Env"})
@@ -49,7 +53,7 @@ def generate(module: LibModule) -> str:
 
 def _render_function(func: LibFunction) -> str:
     """Render a single LibFunction as a Markdown ## subsection."""
-    from proman.docs.parse_lib import ParagraphBlock, SectionBlock
+    from proman.docs.parse_lib import ParagraphBlock
 
     parts: list[str] = [f"## `{func.name}`"]
     if func.description:

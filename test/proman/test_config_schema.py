@@ -4,9 +4,8 @@ import json
 from pathlib import Path
 
 import jsonschema
-import pytest
-
 import proman.cicd.detect as CD
+import pytest
 
 SCHEMA = json.loads((Path(CD.__file__).parent / "config_schema.json").read_text())
 

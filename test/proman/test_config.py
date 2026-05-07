@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from functools import cache
 from pathlib import Path
-
-import pytest
 
 import proman.config as CFG
 

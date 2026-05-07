@@ -3,14 +3,14 @@
 # Stdlib only. Invoked: python3 jsonc.py strip | dup [objectKey]
 import json
 import sys
-from typing import Any, List, Tuple
+from typing import Any
 
 _WS = set(" \t\n\r")
 
 
 def _strip_comments(text: str) -> str:
     """Remove // and /* */ only outside JSON strings. Assume valid-ish JSON/JSONC."""
-    out: List[str] = []
+    out: list[str] = []
     i = 0
     n = len(text)
     in_string = False
@@ -62,7 +62,7 @@ def _trailing_commas(text: str) -> str:
 
 
 def _trailing_commas_once(text: str) -> str:
-    out: List[str] = []
+    out: list[str] = []
     i = 0
     n = len(text)
     in_string = False
@@ -102,7 +102,7 @@ def strip_jsonc(text: str) -> str:
 
 
 def _strict_pairs(
-    pairs: List[Tuple[str, Any]],
+    pairs: list[tuple[str, Any]],
 ) -> Any:
     """object_pairs_hook — called for every JSON object; reject duplicate keys."""
     d: Any = {}

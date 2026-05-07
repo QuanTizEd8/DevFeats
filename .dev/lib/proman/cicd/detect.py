@@ -37,7 +37,7 @@ from proman.release.detect import detect_releasable
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from gittidy import Git
+
 
 FEATURE_DIRPATH = "features"
 
