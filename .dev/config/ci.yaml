@@ -69,7 +69,6 @@ triggers:
     - "docs/**"
     - "features/**"
     - "lib/**"
-    - ".dev/scripts/build/package-docs.sh"
     - ".github/workflows/docs.yaml"
   python_test:
     - ".dev/lib/**"
