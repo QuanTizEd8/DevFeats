@@ -189,7 +189,7 @@ def _run_standalone(
         if network == "none":
             container_cmd.append("--network-none")
 
-        print(f"\n══ standalone: {key} [{env_name}] ══")
+        print(f"\n══ standalone: {key} [{env_name}] ══", flush=True)
         result = subprocess.run(container_cmd, check=False)
         if result.returncode != 0:
             success = False
@@ -246,7 +246,7 @@ def _run_macos(
                 os.environ[env_key] = str(v)
 
             try:
-                print(f"\n══ macos: {key} ══")
+                print(f"\n══ macos: {key} ══", flush=True)
 
                 if not skip_install:
                     install_script = repo_root / "src" / feature / "install.bash"
