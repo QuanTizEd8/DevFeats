@@ -43,7 +43,7 @@ done
   exit 1
 }
 
-_HOST_REPO="${REPO_ROOT:-$(git -C "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" rev-parse --show-toplevel)}"
+_HOST_REPO="${HOST_REPO_ROOT:-${REPO_ROOT:-$(git -C "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" rev-parse --show-toplevel)}}"
 _NAME_ARGS=()
 [[ -n "$_NAME" ]] && _NAME_ARGS=("--name" "$_NAME")
 
