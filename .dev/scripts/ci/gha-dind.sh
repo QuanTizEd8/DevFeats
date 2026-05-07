@@ -3,7 +3,10 @@
 # Usage: dind.sh <command> [args...]
 set -euo pipefail
 
-[[ $# -gt 0 ]] || { printf 'usage: dind.sh <command> [args...]\n' >&2; exit 1; }
+[[ $# -gt 0 ]] || {
+  printf 'usage: dind.sh <command> [args...]\n' >&2
+  exit 1
+}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -n "${GITHUB_WORKSPACE:-}" ]] &&
