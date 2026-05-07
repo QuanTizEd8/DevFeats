@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Package-docs.sh — Package the built Sphinx site into a GitHub Pages artifact.
+# Package the built Sphinx site into a GitHub Pages artifact.
 #
 # Usage:
-#   bash .dev/scripts/build/package-docs.sh [<output-path>]
+#   bash package-docs.sh [<output-path>]
 #
 #   <output-path>   Path for the output tar file.
 #                   Defaults to $WEBSITE_TAR_FILEPATH (set by the pixi docs env
