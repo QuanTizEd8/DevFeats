@@ -1,6 +1,6 @@
 # Build and push a multi-arch devcontainer image to GHCR.
 
-name: Devcontainer Image Deployment
+name: CM - Devcontainer Image Deployment
 
 on:
   workflow_call:
