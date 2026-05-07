@@ -1,0 +1,85 @@
+"""Orchestrate lib/ unit tests across container environments."""
+
+from __future__ import annotations
+
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+from .environments import load as load_envs
+from .environments import resolve
+from .scenarios import expand_test_files
+from .scenarios import load as load_scenarios
+
+
+def _run_env(
+    name: str,
+    scenario: dict,
+    repo_root: Path,
+    envs: dict,
+    run_in_container: Path,
+    extra_args: list[str],
+) -> bool:
+    env_name = scenario["env"]
+    env_vars = scenario.get("env_vars", {})
+    lib_dir = repo_root / "test" / "lib"
+    test_files = expand_test_files(scenario.get("tests"), lib_dir)
+
+    image = resolve(env_name, envs, repo_root)
+
+    print(f"\n══ {name} [{env_name}] ══")
+
+    cmd = [
+        "bash",
+        str(run_in_container),
+        "--image",
+        image,
+        "--name",
+        f"test-unit-{name}",
+    ]
+    for k, v in env_vars.items():
+        cmd += ["--env", f"{k}={v}"]
+
+    run_unit_parts: list[str] = ["bash", "/repo/.dev/scripts/test/run-unit.sh"]
+    for tf in test_files:
+        rel = Path(tf).relative_to(repo_root)
+        run_unit_parts += ["--paths", f"/repo/{rel}"]
+    run_unit_parts += extra_args
+
+    cmd += ["--run", " ".join(shlex.quote(p) for p in run_unit_parts)]
+
+    result = subprocess.run(cmd, check=False)
+    return result.returncode == 0
+
+
+def run(target_env: str | None, extra_args: list[str], repo_root: Path) -> int:
+    _, scenarios = load_scenarios(repo_root / "test" / "lib" / "scenarios.yaml")
+    envs = load_envs(repo_root / "test" / "environments.yaml")
+    run_in_container = (
+        repo_root / ".dev" / "scripts" / "test" / "run-in-container.sh"
+    )
+
+    if target_env is not None:
+        if target_env not in scenarios:
+            print(f"⛔ Unknown environment: {target_env!r}", file=sys.stderr)
+            return 1
+        ok = _run_env(
+            target_env,
+            scenarios[target_env],
+            repo_root,
+            envs,
+            run_in_container,
+            extra_args,
+        )
+        return 0 if ok else 1
+
+    passed = failed = 0
+    for name, scenario in scenarios.items():
+        if _run_env(name, scenario, repo_root, envs, run_in_container, extra_args):
+            passed += 1
+        else:
+            failed += 1
+
+    print(f"\nMatrix: {passed} passed, {failed} failed")
+    return 0 if failed == 0 else 1

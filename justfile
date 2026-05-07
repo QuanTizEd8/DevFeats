@@ -228,7 +228,7 @@ test-lib-mod module:
   doc('Run lib/ unit tests in one container environment e.g. just test-lib-env alpine-3.20.')
 ]
 test-lib-env env *args:
-    bash .dev/scripts/test/run-unit-matrix.sh --env {{env}} -- {{args}}
+    pixi run --environment test test-lib-env {{env}} {{args}}
 
 
 [
@@ -236,7 +236,7 @@ test-lib-env env *args:
   doc('Run lib/ unit tests in all container environments (requires docker).')
 ]
 test-lib-envs *args:
-    bash .dev/scripts/test/run-unit-matrix.sh {{args}}
+    pixi run --environment test test-lib-envs {{args}}
 
 
 [
