@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # JSON query and manipulation helpers using jq (auto-installed via ospkg if absent).
 #
-# Functions read from stdin and write to stdout. JSONC (JSON with comments)
-# helpers require `python3` (auto-installed via `ospkg` when absent).
+# Functions read from stdin and write to stdout.
 
 [ -n "${_JSON__LIB_LOADED-}" ] && return 0
 _JSON__LIB_LOADED=1
@@ -23,17 +22,6 @@ _json__ensure_jq() {
   ospkg__install_tracked "lib-json" jq >&2 || true
   command -v jq > /dev/null 2>&1 || {
     logging__error "json.sh: jq could not be installed."
-    return 1
-  }
-}
-
-# _json__ensure_python3 (internal) — ensure python3 is on PATH; install via ospkg if absent.
-_json__ensure_python3() {
-  command -v python3 > /dev/null 2>&1 && return 0
-  logging__info "python3 not found — installing."
-  ospkg__install_tracked "lib-json" python3 >&2 || true
-  command -v python3 > /dev/null 2>&1 || {
-    logging__error "json.sh: python3 could not be installed."
     return 1
   }
 }
@@ -212,20 +200,6 @@ json__nodejs_index_version_stdin() {
   return 0
 }
 
-# @brief json__strip_jsonc_stdin — Read JSON/JSONC from stdin; print strict JSON to stdout. Requires `python3` and `lib/jsonc.py` next to this file.
-#
-# Stdout: strict JSON (comments and trailing commas stripped).
-#
-# Returns: 0 on success, 1 if `lib/jsonc.py` is not found or python3 is unavailable.
-json__strip_jsonc_stdin() {
-  if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
-    logging__error "lib/jsonc.py not found (expected: ${_JSON__LIB_DIR}/jsonc.py)"
-    return 1
-  fi
-  _json__ensure_python3 || return 1
-  python3 "${_JSON__LIB_DIR}/jsonc.py" strip
-}
-
 # @brief json__object_keys_stdin [<objectKey>] — Print keys of the root object or of `.[objectKey]`; one key per line.
 #
 # Args:
@@ -294,19 +268,4 @@ json__coerce_scalar_stdin() {
     object | array) return 1 ;;
     *) return 1 ;;
   esac
-}
-
-# @brief json__detect_duplicate_keys_stdin [<objectKey>] — Reject JSON with duplicate object keys. Uses `lib/jsonc.py`; the full document is checked regardless of `<objectKey>`.
-#
-# Args:
-#   [<objectKey>]  Ignored; present for API symmetry.
-#
-# Returns: 0 if no duplicates, 1 if duplicates found or `lib/jsonc.py` is unavailable.
-json__detect_duplicate_keys_stdin() {
-  if [ ! -f "${_JSON__LIB_DIR}/jsonc.py" ]; then
-    logging__error "lib/jsonc.py not found"
-    return 1
-  fi
-  _json__ensure_python3 || return 1
-  python3 "${_JSON__LIB_DIR}/jsonc.py" dup "$@"
 }

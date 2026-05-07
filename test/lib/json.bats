@@ -78,16 +78,6 @@ https://b.zip"
   assert_success
 }
 
-# ---------------------------------------------------------------------------
-# JSONC / jq helpers (bash-sourced; jsonc.py + jq)
-# ---------------------------------------------------------------------------
-
-@test "json__strip_jsonc_stdin accepts comments and trailing commas" {
-  run bash -c '. "$1" && printf %s "{\"a\":1,} /*c*/" | json__strip_jsonc_stdin' _ "${LIB_ROOT}/json.sh"
-  assert_output --partial '{"a":1}'
-  assert_success
-}
-
 @test "json__object_keys_stdin lists top-level keys" {
   run bash -c '. "$1" && printf %s "{\"z\":1,\"a\":2}" | json__object_keys_stdin' _ "${LIB_ROOT}/json.sh"
   assert_output "a
@@ -110,16 +100,6 @@ z"
 @test "json__coerce_scalar_stdin fails on object" {
   run bash -c '. "$1" && printf %s "{}" | json__coerce_scalar_stdin' _ "${LIB_ROOT}/json.sh"
   assert_failure
-}
-
-@test "json__detect_duplicate_keys_stdin fails on duplicate keys" {
-  run bash -c '. "$1" && printf %s "{\"a\":1,\"a\":2}" | json__detect_duplicate_keys_stdin' _ "${LIB_ROOT}/json.sh"
-  assert_failure
-}
-
-@test "json__detect_duplicate_keys_stdin passes for unique keys" {
-  run bash -c '. "$1" && printf %s "{\"a\":1}" | json__detect_duplicate_keys_stdin' _ "${LIB_ROOT}/json.sh"
-  assert_success
 }
 
 # ---------------------------------------------------------------------------
@@ -181,41 +161,4 @@ z"
   [[ $_rc -eq 0 ]]
   assert_file_exists "$_install_log"
   grep -q "jq" "$_install_log"
-}
-
-# ---------------------------------------------------------------------------
-# _json__ensure_python3 — auto-installs python3 when absent
-# ---------------------------------------------------------------------------
-
-@test "_json__ensure_python3: succeeds when python3 is already available" {
-  run bash -c '. "$1" && _json__ensure_python3' _ "${LIB_ROOT}/json.sh"
-  assert_success
-}
-
-@test "_json__ensure_python3: calls ospkg__install_tracked when python3 absent" {
-  reload_lib json.sh
-
-  local _install_log="${BATS_TEST_TMPDIR}/install.log"
-  local _fake_py="${BATS_TEST_TMPDIR}/bin/python3"
-  mkdir -p "${BATS_TEST_TMPDIR}/bin"
-
-  ospkg__update() { return 0; }
-  export -f ospkg__update
-
-  ospkg__install_tracked() {
-    echo "install_tracked $*" >> "$_install_log"
-    printf '#!/bin/sh\nexit 0\n' > "$_fake_py"
-    chmod +x "$_fake_py"
-    return 0
-  }
-  export -f ospkg__install_tracked
-
-  begin_path_isolation
-  run _json__ensure_python3
-  local _rc=$?
-  end_path_isolation
-
-  [[ $_rc -eq 0 ]]
-  assert_file_exists "$_install_log"
-  grep -q "python3" "$_install_log"
 }
