@@ -9,7 +9,7 @@ on:
 
 jobs:
   linux:
-    name: "Unit Tests - ${{ matrix.env.name }}"
+    name: ${{ matrix.env.name }}
     if: fromJSON(inputs.config).enabled == true
     runs-on: ubuntu-latest
     container:
@@ -39,7 +39,7 @@ jobs:
         run: just test-lib-env "${{ matrix.env.name }}"
 
   macos:
-    name: "Unit Tests - macOS (${{ matrix.os.runner }})"
+    name: ${{ matrix.os.runner }}
     if: fromJSON(inputs.config).enabled == true
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

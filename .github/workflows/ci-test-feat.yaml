@@ -9,7 +9,7 @@ on:
 
 jobs:
   linux:
-    name: "Scenario Tests - ${{ matrix.feature }}"
+    name: ${{ matrix.feature }}
     if: fromJSON(inputs.config).linux.enabled == true
     runs-on: ubuntu-latest
     strategy:
@@ -61,7 +61,7 @@ jobs:
             just run-gha-dind just test-feats "${{ matrix.feature }}"
 
   macos:
-    name: "Scenario Tests - ${{ matrix.job.feature }} (macOS)"
+    name: ${{ matrix.job.feature }} (macOS)
     if: fromJSON(inputs.config).macos.enabled == true
     runs-on: ${{ matrix.job.runner }}
     strategy:
