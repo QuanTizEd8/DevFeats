@@ -101,6 +101,14 @@
           "**/.pixi/**",
           "**/miniforge3/**"
         ],
+        // ── Bash IDE (shellcheck) ────────────────────────────────────────────────
+        // Default is 500 files analysed in parallel — causes 8+ concurrent shellcheck
+        // processes each at 30%+ CPU on this workspace due to --external-sources chains.
+        // Limit to 1 background file at a time; active file is still linted on save.
+        "bashIde.backgroundAnalysisMaxFiles": 1,
+        // Stop bash-ide following --source-path chains across the whole workspace,
+        // which is what makes each shellcheck process so expensive here.
+        "bashIde.enableSourceErrorDiagnostics": false,
         // ── YAML Schema ─────────────────────────────────────────────────────────
         "yaml.schemas": {
             "features/metadata.schema.json": ["features/*/metadata.yaml"]
