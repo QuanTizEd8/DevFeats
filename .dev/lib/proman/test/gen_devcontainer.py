@@ -67,7 +67,7 @@ def _build_scenario(
         )
 
     options = scenario.get("options", {})
-    result["features"] = {f"./src/{feature}": options}
+    result["features"] = {feature: options}
     result["testFiles"] = scenario.get("tests", [])
 
     return result
