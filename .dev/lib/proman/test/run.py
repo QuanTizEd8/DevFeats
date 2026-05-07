@@ -74,7 +74,7 @@ def _run_devcontainer(
             feature=feature,
             scenarios_path=repo_root / "test" / "features" / feature / "scenarios.yaml",
             envs_path=repo_root / "test" / "environments.yaml",
-            out_dir=test_out_dir,
+            out_dir=tmpdir,
         )
 
         if filter_prefix:

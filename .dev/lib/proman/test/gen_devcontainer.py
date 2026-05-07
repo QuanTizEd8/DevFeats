@@ -110,7 +110,9 @@ def generate(
             )
 
     _inject_github_token(output)
-    (out_dir / "scenarios.json").write_text(json.dumps(output, indent=4) + "\n")
+    scenarios_dir = out_dir / "test" / feature
+    scenarios_dir.mkdir(parents=True, exist_ok=True)
+    (scenarios_dir / "scenarios.json").write_text(json.dumps(output, indent=4) + "\n")
 
 
 def main_cli() -> None:
