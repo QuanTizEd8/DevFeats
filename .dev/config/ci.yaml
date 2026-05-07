@@ -65,6 +65,7 @@ triggers:
     - "test/features/**"
   devcontainer:
     - ".devcontainer/.dev/**"
+    - ".github/workflows/cm-devcontainer.yaml"
   docs:
     - "docs/**"
     - "features/**"

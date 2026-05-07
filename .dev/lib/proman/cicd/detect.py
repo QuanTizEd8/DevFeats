@@ -435,7 +435,7 @@ def enforce_version_bump(
 def detect_devcontainer_changed(
     env: Env,
     *,
-    is_force: bool,
+    is_first_push: bool,
     changed: list[str],
     groups: dict[str, list[str]],
 ) -> bool:
@@ -445,8 +445,9 @@ def detect_devcontainer_changed(
     ----------
     env : Env
         Parsed environment/context values.
-    is_force : bool
-        Force-run mode flag.
+    is_first_push : bool
+        True when this is the first push to a new branch (before == zero SHA).
+        Workflow/detect-script changes do not trigger a devcontainer rebuild.
     changed : list of str
         Changed file paths.
     groups : dict of str to list of str
@@ -459,7 +460,7 @@ def detect_devcontainer_changed(
     """
     if env.event_name == "workflow_dispatch":
         return env.input_rebuild_devcontainer == "true"
-    if is_force:
+    if is_first_push:
         return True
     return any_match(changed, groups["devcontainer"])
 
@@ -716,8 +717,9 @@ def main() -> None:
     )
 
     zero_sha = "0" * 40
+    is_first_push = env.event_name == "push" and env.before == zero_sha
     is_force = env.event_name != "workflow_dispatch" and (
-        (env.event_name == "push" and env.before == zero_sha)
+        is_first_push
         or any_match(
             changed,
             [
@@ -726,7 +728,11 @@ def main() -> None:
             ],
         )
     )
-    LOG.info("force-gate: is_force='%s'", str(is_force).lower())
+    LOG.info(
+        "force-gate: is_force='%s' is_first_push='%s'",
+        str(is_force).lower(),
+        str(is_first_push).lower(),
+    )
 
     all_feature_ids = discover_feature_ids()
     LOG.info("features: discovered total='%s'", len(all_feature_ids))
@@ -835,7 +841,7 @@ def main() -> None:
     # ── Devcontainer image gate ───────────────────────────────────────────────
     devcontainer_changed = detect_devcontainer_changed(
         env,
-        is_force=is_force,
+        is_first_push=is_first_push,
         changed=changed,
         groups=groups,
     )
