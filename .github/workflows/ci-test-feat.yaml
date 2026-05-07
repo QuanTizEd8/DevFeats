@@ -57,7 +57,7 @@ jobs:
             -v "${GITHUB_WORKSPACE}:/repo" \
             -w /repo \
             -e GITHUB_TOKEN \
-            -e "HOST_REPO_ROOT=${GITHUB_WORKSPACE}" \
+            -e "HOST_REPO_ROOT=/repo" \
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ matrix.feature }}"
 
