@@ -107,10 +107,10 @@ _seed_context() {
 
   # Point _ospkg_ensure_yq at the pre-installed binary to avoid re-downloading
   # yq on every test.  Mirrors the early-return guard in the real function.
-  local _yq="${MANIFEST_TESTS_YQ_BIN}"
+  # MANIFEST_TESTS_YQ_BIN is exported by setup_file() and accessible here.
   _ospkg_ensure_yq() {
     [[ -n "${_OSPKG_YQ_BIN:-}" ]] && return 0
-    _OSPKG_YQ_BIN="${_yq}"
+    _OSPKG_YQ_BIN="${MANIFEST_TESTS_YQ_BIN}"
   }
   export -f _ospkg_ensure_yq
 }

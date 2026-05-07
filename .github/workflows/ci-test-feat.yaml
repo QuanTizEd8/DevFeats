@@ -79,6 +79,9 @@ jobs:
           name: ${{ fromJSON(inputs.config).artifact_src_name }}
           path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
+      - name: Install just
+        run: brew install just
+
       - name: "Test ${{ matrix.job.feature }} macOS scenarios"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
