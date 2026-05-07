@@ -154,7 +154,7 @@ postStartCommand:
   install-miniforge-feature-welcome:
     command: conda info
     description: Print conda installation info to confirm Miniforge is active after container start.
-installsAfter: []
+# installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-shell
 #   - ghcr.io/quantized8/devfeats/setup-user

@@ -82,12 +82,12 @@ options:
     description: Uninstall instead of install (supported for `method=script` and npm).
 containerEnv:
   PATH: ${HOME}/.devcontainers/bin:/opt/devcontainers/bin:${PATH}
-installsAfter:
-  - ghcr.io/quantized8/devfeats/setup-user
-  - ghcr.io/quantized8/devfeats/install-jq
-  - ghcr.io/quantized8/devfeats/install-yq
-  - ghcr.io/quantized8/devfeats/install-shell
-  - ghcr.io/quantized8/devfeats/install-node
+# installsAfter:
+#   - ghcr.io/quantized8/devfeats/setup-user
+#   - ghcr.io/quantized8/devfeats/install-jq
+#   - ghcr.io/quantized8/devfeats/install-yq
+#   - ghcr.io/quantized8/devfeats/install-shell
+#   - ghcr.io/quantized8/devfeats/install-node
 customizations:
   vscode:
     extensions:

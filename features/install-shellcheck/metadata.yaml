@@ -79,4 +79,4 @@ _dependencies:
     os-pkg:
       packages:
         - shellcheck
-installsAfter: []
+# installsAfter: []

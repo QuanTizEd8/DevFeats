@@ -165,7 +165,7 @@ postCreateCommand:
     description: Fix ownership of the .pixi volume mount so the container user can write to it.
 containerEnv:
   PATH: ${HOME}/.pixi/bin:${PATH}
-installsAfter: []
+# installsAfter: []
 customizations:
   vscode:
     extensions:

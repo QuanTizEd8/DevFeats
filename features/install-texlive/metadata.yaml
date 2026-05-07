@@ -631,7 +631,7 @@ customizations:
             prefer `latexmk` (pre-installed) which handles multi-pass compilation and
             bibliography processing automatically.
 
-installsAfter: []
+# installsAfter: []
 
 _dependencies:
   run:

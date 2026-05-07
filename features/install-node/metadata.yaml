@@ -327,5 +327,5 @@ customizations:
     settings:
       github.copilot.chat.codeGeneration.instructions:
       - text: This dev container includes 'node', 'npm', and optionally 'pnpm'/'yarn' pre-installed and available on the PATH for Node.js development.
-installsAfter:
-- ghcr.io/devcontainers/features/common-utils
+# installsAfter:
+# - ghcr.io/devcontainers/features/common-utils

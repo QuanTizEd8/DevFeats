@@ -105,4 +105,4 @@ _dependencies:
     os-pkg:
       packages:
         - just
-installsAfter: []
+# installsAfter: []

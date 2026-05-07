@@ -227,11 +227,11 @@ options:
       No-op when `method=package` (git is already in `/usr/bin`), or when prefix already resolves to the canonical path (`/usr/local` for root, `$HOME/.local` for non-root).
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
-installsAfter:
-  - ghcr.io/quantized8/devfeats/setup-user
-  - ghcr.io/quantized8/devfeats/install-jq
-  - ghcr.io/quantized8/devfeats/install-yq
-  - ghcr.io/quantized8/devfeats/install-shell
+# installsAfter:
+#   - ghcr.io/quantized8/devfeats/setup-user
+#   - ghcr.io/quantized8/devfeats/install-jq
+#   - ghcr.io/quantized8/devfeats/install-yq
+#   - ghcr.io/quantized8/devfeats/install-shell
 _dependencies:
   run:
     base:
