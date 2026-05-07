@@ -9,14 +9,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from gittidy import Git
 
-_PROMAN_DIR = Path(__file__).resolve().parent
-
-
 @cache
 def _git() -> Git:
     from gittidy import Git
 
-    return Git(_PROMAN_DIR)
+    return Git(Path.cwd())
 
 
 def git_repo_root() -> Path:
