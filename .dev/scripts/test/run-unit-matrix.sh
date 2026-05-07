@@ -49,7 +49,7 @@ _run_env() {
   local env_name env_vars_args=() run_unit_args=()
   env_name=$(jq -r --arg n "$name" '.[$n].env' <<< "$_scenarios_json")
   local image
-  image=$("$SCRIPT_DIR/resolve-env.sh" "$env_name")
+  image=$(pixi run --environment test proman-test-resolve-env "$env_name")
 
   while IFS='=' read -r k v; do
     [[ -n "$k" ]] && env_vars_args+=("--env" "${k}=${v}")

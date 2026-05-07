@@ -28,11 +28,11 @@ jobs:
           path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
       - name: Check Formatting
-        run: just format-check
+        run: just format-sh-check
 
       - name: Lint
-        if: always()
-        run: just lint
+        if: !cancelled()
+        run: just lint-sh-check
 
   json-schema:
     name: Schema Validation
@@ -76,5 +76,5 @@ jobs:
         run: just format-py-check
 
       - name: Lint
-        if: always()
-        run: just lint-py
+        if: !cancelled()
+        run: just lint-py-check

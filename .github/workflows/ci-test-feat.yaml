@@ -58,7 +58,7 @@ jobs:
             -w /repo \
             -e GITHUB_TOKEN \
             "$CI_IMAGE" \
-            just gha-dind just test-feature "${{ matrix.feature }}"
+            just run-gha-dind just test-feats "${{ matrix.feature }}"
 
   macos:
     name: "Scenario Tests - ${{ matrix.job.feature }} (macOS)"
@@ -81,4 +81,4 @@ jobs:
       - name: "Test ${{ matrix.job.feature }} macOS scenarios"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: just test-feature "${{ matrix.job.feature }}" --mode macos
+        run: just test-feats-macos "${{ matrix.job.feature }}"

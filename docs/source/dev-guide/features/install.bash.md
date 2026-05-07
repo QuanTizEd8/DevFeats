@@ -209,7 +209,7 @@ else
 fi
 ```
 
-When writing new logic, ask: could this be useful in more than one feature, or does it encapsulate a non-trivial detail easy to get wrong? If yes, add it to `lib/` and run `just sync` to propagate it.
+When writing new logic, ask: could this be useful in more than one feature, or does it encapsulate a non-trivial detail easy to get wrong? If yes, add it to `lib/` and run `just sync-src` to propagate it.
 
 For installer logic that is used both by DevFeats internals and by user-facing features, place it under `lib/install/` and expose exactly one public entrypoint (for example `install__oras`). Keep resolve/download/verify helpers private in that module. Feature `install.bash` files should be thin wrappers that pass user options with `context=user`, while internal callers pass `context=internal`. This keeps ownership, cleanup, and promotion semantics consistent across all call sites.
 

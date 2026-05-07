@@ -60,23 +60,23 @@ test/
 
 ```bash
 # Lib unit tests (native bash)
-just test-unit                                        # all modules
+just test-lib                                        # all modules
 bash .dev/scripts/test/run-unit.sh --module os        # single module
 bash .dev/scripts/test/run-unit.sh --filter platform  # filter by test-name regex
 bash .dev/scripts/test/run-unit.sh --jobs 1           # serial (debug output)
 
 # Unit tests in distro containers (requires Docker)
-just test-unit-containers                             # all environments
-just test-unit-in-env alpine-3.20                     # single environment
+just test-lib-containers                             # all environments
+just test-lib-in-env alpine-3.20                     # single environment
 
 # Feature scenario tests (devcontainer + standalone, requires Docker)
-just test-feature <feature>                             # all modes
-just test-feature <feature> --mode devcontainer         # devcontainer only
-just test-feature <feature> --mode standalone           # standalone only
-just test-feature <feature> --filter <scenario>         # single scenario
+just test-feats <feature>                             # all modes
+just test-feats <feature> --mode devcontainer         # devcontainer only
+just test-feats <feature> --mode standalone           # standalone only
+just test-feats <feature> --filter <scenario>         # single scenario
 
 # macOS feature scenarios (requires macOS)
-just test-macos <feature>
+just test-feats-macos <feature>
 ```
 
 ## Framework-specific Instructions

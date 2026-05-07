@@ -2,17 +2,33 @@
 #
 # List recipes: `just --list`.
 # Global: bash, strict mode.
+#
+# ── Invocation patterns ───────────────────────────────────────────────────────
+#
+#   pixi run [--environment ENV] <task>   all pixi-managed tools (proman, ruff, sphinx)
+#   bash .dev/scripts/CATEGORY/SCRIPT.sh  system-level ops (Docker, bats, streaming)
+#
+# ── Naming convention ─────────────────────────────────────────────────────────
+#
+#   <type>-<domain>[-<modifier>]
+#
+#   Types:   sync · build · lint · format · test · fetch · show · release · run
+#   Domains: sh · py · src · feats · lib · docs · gha
+#   Modifiers: check (verify-only) · live (file-watch) · pkg · env · envs · mod · macos
+#
+#   Bare name = apply/write; -check variant = verify-only (no writes).
+#   Composite tasks (no domain) run every subdomain variant: lint, format, test.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 
-# ── Code quality ──────────────────────────────────────────────────────────────
+# ── Format ────────────────────────────────────────────────────────────────────
 
 [
-  group('code-quality'),
+  group('format'),
   doc('Format shell files with shfmt (whole tree or pass paths; respects .editorconfig ignores).')
 ]
-format *files:
+format-sh *files:
     #!/usr/bin/env bash
     set -euo pipefail
     if [[ $# -gt 0 ]]; then
@@ -23,10 +39,10 @@ format *files:
 
 
 [
-  group('code-quality'),
+  group('format'),
   doc('Check shell files formatting without writing (CI-style); pass paths to limit scope.')
 ]
-format-check *files:
+format-sh-check *files:
     #!/usr/bin/env bash
     set -euo pipefail
     if [[ $# -gt 0 ]]; then
@@ -37,10 +53,42 @@ format-check *files:
 
 
 [
-  group('code-quality'),
-  doc('Shellcheck tracked shell and assembled src/*/install.bash; no args runs sync if src/ missing; pass paths to limit.')
+  group('format'),
+  doc('Format Python files with ruff.')
 ]
-lint *files:
+format-py:
+    pixi run --environment lint format-py
+
+
+[
+  group('format'),
+  doc('Check Python formatting with ruff (CI-style, no writes).')
+]
+format-py-check:
+    pixi run --environment lint format-py-check
+
+
+[
+  group('format'),
+  doc('Format all files: shell + Python.')
+]
+format: format-sh format-py
+
+
+[
+  group('format'),
+  doc('Check formatting of all files without writing.')
+]
+format-check: format-sh-check format-py-check
+
+
+# ── Lint ──────────────────────────────────────────────────────────────────────
+
+[
+  group('lint'),
+  doc('Shellcheck tracked shell and assembled src/*/install.bash; no args runs sync-src if src/ missing; pass paths to limit.')
+]
+lint-sh-check *files:
     #!/usr/bin/env bash
     set -euo pipefail
     ncpu=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
@@ -59,7 +107,7 @@ lint *files:
     if [[ $# -gt 0 ]]; then
       echo "$@" | xargs -P"${jobs}" -n"${batch}" shellcheck
     else
-      [[ -d src ]] || just sync
+      [[ -d src ]] || just sync-src
       { git ls-files -- '*.sh' '*.bash' | grep -v '^features/[^/]*/install\.bash$'
         find src -maxdepth 2 -name 'install.bash' 2>/dev/null
       } | sort -u | xargs -P"${jobs}" -n"${batch}" shellcheck
@@ -67,212 +115,211 @@ lint *files:
 
 
 [
-  group('code-quality'),
-  doc('Lint Python files with ruff.')
+  group('lint'),
+  doc('Check Python files with ruff (no fixes).')
+]
+lint-py-check:
+    pixi run --environment lint lint-py-check
+
+
+[
+  group('lint'),
+  doc('Lint and fix Python files with ruff.')
 ]
 lint-py:
     pixi run --environment lint lint-py
 
 
 [
-  group('code-quality'),
-  doc('Check Python formatting with ruff (CI-style, no writes).')
+  group('lint'),
+  doc('Run all linters: shell + Python (check only, no writes).')
 ]
-format-py-check:
-    pixi run --environment lint format-py-check
+lint: lint-sh-check lint-py-check
 
+
+# ── Sync ──────────────────────────────────────────────────────────────────────
+
+[
+  group('sync'),
+  doc('Regenerate git-ignored src/ from features/, lib/, bootstrap (JSON, deps, install.bash, _lib/, files/).')
+]
+sync-src:
+    pixi run sync-src
+
+
+[
+  group('sync'),
+  doc('Fail if src/ is stale or missing (no writes); same as proman-sync --check.')
+]
+sync-src-check:
+    pixi run sync-src-check
+
+
+[
+  group('sync'),
+  doc('Regenerate injected doc markers (lib API tables in writing-features and lib.instructions).')
+]
+sync-docs:
+    pixi run sync-docs
+
+
+[
+  group('sync'),
+  doc('CI: exit non-zero if sync-docs would modify tracked files.')
+]
+sync-docs-check:
+    pixi run sync-docs-check
 
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 [
   group('build'),
-  doc('Regenerate git-ignored src/ from features/, lib/, bootstrap (JSON, deps, install.bash, _lib/, files/).')
+  doc('Build dist/ release artifacts; pass args directly to proman-build-feats (e.g. just build-feats v1.2.3); runs sync-src first.')
 ]
-sync:
-    pixi run sync
+build-feats *args: sync-src
+    pixi run build-feats {{args}}
 
 
 [
   group('build'),
-  doc('Fail if src/ is stale or missing (no writes); same as .dev/scripts/build/sync-src.py --check.')
+  doc('Build Sphinx docs site to docs/.build/.')
 ]
-sync-check:
-    pixi run sync-check
+build-docs:
+    pixi run build-docs
 
 
 [
   group('build'),
-  doc('Build dist/ release artifacts; pass args directly to .dev/scripts/build/build-artifacts.sh (e.g. just build-dist v1.2.3); runs sync first.')
+  doc('Live-rebuild Sphinx with browser preview.')
 ]
-build-dist *args: sync
-    bash .dev/scripts/build/build-artifacts.sh {{args}}
+build-docs-live:
+    pixi run build-docs-live
 
 
 [
   group('build'),
-  doc('Preview which features need a new GitHub Release (queries GitHub API). Extra args pass through to .dev/scripts/release/detect-releasable.py.')
+  doc('Package docs/.build/ into a GitHub Pages artifact tarball.')
 ]
-detect-releasable *args:
-    proman-release-detect --repo quantized8/devfeats {{args}}
+build-docs-pkg: build-docs
+    pixi run build-docs-pkg
 
 
-
-# ── Testing ───────────────────────────────────────────────────────────────────
+# ── Test ──────────────────────────────────────────────────────────────────────
 
 [
-  group('testing'),
+  group('test'),
   doc('Run all bats unit tests for lib/ (git submodule init for test/lib/bats required).')
 ]
-test-unit:
+test-lib:
     bash .dev/scripts/test/run-unit.sh
 
 
 [
-  group('testing'),
-  doc('Run Python unit tests for proman/ (pytest).')
+  group('test'),
+  doc('Run unit tests for one lib module e.g. just test-lib-mod ospkg.')
 ]
-test-proman:
-    pixi run --environment test test-proman
+test-lib-mod module:
+    bash .dev/scripts/test/run-unit.sh --module {{module}}
 
 
 [
-  group('testing'),
-  doc('Run unit tests for one lib module e.g. just test-module ospkg.')
+  group('test'),
+  doc('Run lib/ unit tests in one container environment e.g. just test-lib-env alpine-3.20.')
 ]
-test-module module:
-    bash .dev/scripts/test/run-unit.sh --module {{module}}
+test-lib-env env *args:
+    bash .dev/scripts/test/run-unit-matrix.sh --env {{env}} -- {{args}}
 
+
+[
+  group('test'),
+  doc('Run lib/ unit tests in all container environments (requires docker).')
+]
+test-lib-envs *args:
+    bash .dev/scripts/test/run-unit-matrix.sh {{args}}
+
+
+[
+  group('test'),
+  doc('Run Python unit tests for proman/ (pytest).')
+]
+test-py:
+    pixi run --environment test test-py
+
+
+[
+  group('test'),
+  doc('Run scenario and fail tests for one feature e.g. just test-feats install-pixi.')
+]
+test-feats feat *args:
+    pixi run --environment test test-feats {{feat}} {{args}}
+
+
+[
+  group('test'),
+  doc('Run macOS scenarios for a feature natively e.g. just test-feats-macos install-pixi.')
+]
+test-feats-macos feat *args:
+    pixi run --environment test test-feats {{feat}} --mode macos {{args}}
+
+
+[
+  group('test'),
+  doc('Run all local test suites: lib (native) + Python + features. Requires docker.')
+]
+test:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    _rc=0
+    just test-lib  || _rc=1
+    just test-py   || _rc=1
+    just test-feats || _rc=1
+    exit "$_rc"
+
+
+# ── Release ───────────────────────────────────────────────────────────────────
+
+[
+  group('release'),
+  doc('Preview which features need a new GitHub Release (queries GitHub API). Extra args pass through to proman-release-detect.')
+]
+release-detect *args:
+    pixi run release-detect {{args}}
+
+
+# ── Show ──────────────────────────────────────────────────────────────────────
+
+[
+  group('show'),
+  doc('Print a list of all features and their descriptions.')
+]
+show-feats:
+    pixi run show-feats
+
+
+[
+  group('show'),
+  doc('Print a list of all feature options and their number of occurrences across all features.')
+]
+show-feat-opts:
+    pixi run show-feat-opts
+
+
+# ── Fetch ─────────────────────────────────────────────────────────────────────
+
+[
+  group('fetch'),
+  doc('Fetch GHA workflow run logs; pass args through directly (e.g. just fetch-gha --run <id> or just fetch-gha --commit <sha>). Logs in .local/logs/gha/.')
+]
+fetch-gha *args:
+    bash .dev/scripts/ci/watch-gha-run.sh {{args}}
+
+
+# ── Internal ──────────────────────────────────────────────────────────────────
 
 [
   private,
   doc('Run any command inside a Docker-in-Docker environment (GHA CI use only).')
 ]
-gha-dind *args:
+run-gha-dind *args:
     bash .dev/scripts/ci/gha-dind.sh {{args}}
-
-
-[
-  group('testing'),
-  doc('Run scenario and fail tests for one feature e.g. just test-feature install-pixi.')
-]
-test-feature feat *args:
-    pixi run --environment test test-feature {{feat}} {{args}}
-
-
-[
-  group('testing'),
-  doc('Run lib/ unit tests in one container environment. e.g. just test-unit-in-env alpine-3.20')
-]
-test-unit-in-env env *args:
-    bash .dev/scripts/test/run-unit-matrix.sh --env {{env}} -- {{args}}
-
-
-[
-  group('testing'),
-  doc('Run lib/ unit tests in all container environments (requires docker).')
-]
-test-unit-containers *args:
-    bash .dev/scripts/test/run-unit-matrix.sh {{args}}
-
-
-[
-  group('testing'),
-  doc('Run macOS scenarios for a feature natively. e.g. just test-macos install-pixi')
-]
-test-macos feat *args:
-    pixi run --environment test test-feature {{feat}} --mode macos {{args}}
-
-
-[
-  group('testing'),
-  doc('Run all local test suites: unit (native + containers) + proman. Requires docker.')
-]
-test-all:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    _rc=0
-    just test-unit            || _rc=1
-    just test-proman          || _rc=1
-    just test-unit-containers || _rc=1
-    exit "$_rc"
-
-
-# ── Docs ─────────────────────────────────────────────────────────────────────
-
-[
-  group('docs'),
-  doc('Regenerate injected doc markers (lib API tables in writing-features and lib.instructions).')
-]
-gen-docs:
-    pixi run gen-docs
-
-
-[
-  group('docs'),
-  doc('CI: exit non-zero if gen-docs would modify tracked files.')
-]
-gen-docs-check:
-    pixi run gen-docs-check
-
-
-[
-  group('docs'),
-  doc('Build Sphinx site to docs/.build/.')
-]
-build-website:
-    pixi run build-website
-
-
-[
-  group('docs'),
-  doc('Live-rebuild Sphinx with browser preview.')
-]
-build-website-live:
-    pixi run build-website-live
-
-
-[
-  group('docs'),
-  doc('Package docs/.build/ into a GitHub Pages artifact tarball (docs/.build/website.tar).')
-]
-package-docs: build-website
-    bash .dev/scripts/build/package-docs.sh
-
-
-# ── Dev tooling ───────────────────────────────────────────────────────────────
-
-[
-  group('dev'),
-  doc('Watch GHA via .dev/scripts/ci/watch-gha-run.sh; pass args through directly (e.g. just watch-gha --run <id> or just watch-gha --commit <sha>). Logs in .local/logs/gha/.')
-]
-watch-gha *args:
-    bash .dev/scripts/ci/watch-gha-run.sh {{args}}
-
-
-[
-  group('dev'),
-  doc('Print a list of all features and their descriptions (from metadata.yaml).')
-]
-list-features:
-    #!/usr/bin/env bash
-    total=0
-    for f in features/*/metadata.yaml; do
-      name=$(basename "$(dirname "$f")")
-      desc=$(yq -r '.description' "$f")
-      printf '%s: %s\n' "$name" "$desc"
-      total=$((total + 1))
-    done
-    printf 'Total features: %d\n' "$total"
-
-
-[
-  group('dev'),
-  doc('Print a list of all feature options and their number of occurrences across all features.')
-]
-list-feature-options:
-  yq -r '.options // {} | keys[]' features/*/metadata.yaml \
-    | sort \
-    | uniq -c \
-    | sort -nr \
-    | awk '{printf "%s (%d)\n", $2, $1}'

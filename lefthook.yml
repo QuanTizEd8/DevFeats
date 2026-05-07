@@ -3,10 +3,10 @@ env:
 
 pre-commit:
   commands:
-    # sync:
+    # sync-src:
     #   glob: "{lib/*,features/install.sh}"
-    #   run: just sync
-    # format:
+    #   run: just sync-src
+    # format-sh:
     #   glob: "*.{sh,bash,bats}"
-    #   run: just format {staged_files} && git add {staged_files}
+    #   run: just format-sh {staged_files} && git add {staged_files}
 

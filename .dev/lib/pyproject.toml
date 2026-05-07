@@ -19,6 +19,10 @@ proman-cicd-detect = "proman.cicd.detect:main"
 proman-test-resolve-env = "proman.test.environments:resolve_cli"
 proman-test-gen-devcontainer = "proman.test.gen_devcontainer:main_cli"
 proman-test-run = "proman.test.run:main"
+proman-show-feats = "proman.cli.show_feats:main"
+proman-show-feat-opts = "proman.cli.show_feat_opts:main"
+proman-build-feats = "proman.cli.build_feats:main"
+proman-build-docs-pkg = "proman.cli.build_docs_pkg:main"
 
 [build-system]
 requires = ["hatchling"]

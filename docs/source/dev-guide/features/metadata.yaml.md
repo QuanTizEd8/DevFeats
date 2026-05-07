@@ -129,7 +129,7 @@ Available `when` condition keys: `pm` (detected PM: `apt`, `brew`, `dnf`, `apk`,
 
 ## Synchronization and Validation
 
-Run `just sync` to validate metadata, regenerate all feature files in `src/`, and check for stale files. This runs `scripts/sync-src.py` which handles validation, JSON generation, install script assembly, and file copies.
+Run `just sync-src` to validate metadata, regenerate all feature files in `src/`, and check for stale files. This runs `scripts/sync-src.py` which handles validation, JSON generation, install script assembly, and file copies.
 
 
 ## Common Patterns
@@ -226,8 +226,8 @@ ospkg__clean
 ### Validation and sync
 
 ```sh
-just sync        # validate metadata, regenerate src/, check for stale files
-just sync-check  # verify copies are up to date (exits non-zero if stale)
+just sync-src        # validate metadata, regenerate src/, check for stale files
+just sync-src-check  # verify copies are up to date (exits non-zero if stale)
 ```
 
 ---

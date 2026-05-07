@@ -65,12 +65,12 @@ Read the test files and verify:
 ### Check 7 — Run Tests
 
 ```bash
-just test-unit
+just test-lib
 ```
 
 If Docker is available:
 ```bash
-just test-feature <feature>
+just test-feats <feature>
 ```
 
 Report pass/fail for each test suite.

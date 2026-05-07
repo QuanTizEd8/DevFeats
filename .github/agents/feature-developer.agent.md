@@ -110,13 +110,13 @@ RUN THE TESTS AND VERIFY THEY FAIL BEFORE IMPLEMENTING THE BUILDING BLOCK, to en
 1. Push the commit to GitHub, and then get the commit SHA of the last commit you just pushed: `git rev-parse HEAD`. This will be used to monitor the CI workflows triggered by this commit in real-time.
 2. Run the following command in a background terminal without blocking, i.e. use `run_in_terminal` with `mode=async`:
    ```bash
-   just watch-gha --commit <commit-sha>
+   just fetch-gha --commit <commit-sha>
    ```
-   (Equivalent: `bash scripts/watch-gha-run.sh --commit <commit-sha>`.)
+   (Equivalent: `bash .dev/scripts/ci/watch-gha-run.sh --commit <commit-sha>`.)
    This will find all GHA workflow runs triggered by the commit, and start watching them in real-time, printing status updates to the terminal, and downloading logs of any failed jobs/steps as soon as they are available. This allows you to get immediate feedback on any issues that arise in CI and start diagnosing them right away, as other jobs are still running. In addition priting job status updates to stderr, the script also creates a gitignored directory `.local/logs/gha/<commit-sha>/` where you can find:
    - `passing.log`: name of passing jobs, one per line, appended in real-time as they finish.
    - `failing.log`: one entry per line, appended in real-time as failures are detected. Each entry contains the job name, failing step name, and the name of the corresponding log file where the full logs of the failed job/step are saved (next to the `passing.log` and `failing.log` files), in the format `<job-name> --- <step-name> --- <log-file-name>`.
-3. Monitor the terminal output and the log files as the workflows run; as soon as the first failure is detected, stop monitoring and start diagnosing the failure by reading the corresponding log file. Log files are usually very long, but you can parse them efficiently by searching for keywords such as "error", "failed", "exception", "traceback", "warning", as well as emoji log markers such as "❌", "⛔", and "⚠️", to quickly find the relevant sections of the logs that indicate what went wrong. Read the failure messages and the relevant context around them carefully to understand the root cause of the failure. If the failure is not a trivial mistake (e.g. a syntax error, variable name typo), carefully reread the relevant parts in the reference documents and determine whether the failure indicates a gap in the implementation reference, a misunderstanding of the requirements, or an edge case that was not properly handled. Make sure to understand the root cause of the failure before attempting to fix it, and ensure that any fix you make directly addresses the root cause without introducing new issues or masking symptoms. DO NOT SIMPLY MAKE A CHANGE TO THE TEST OR THE IMPLEMENTATION JUST TO MAKE THE TEST PASS WITHOUT FULLY UNDERSTANDING AND ADDRESSING THE MAIN ISSUE. Compare the test and the source code with the reference documents to accurately identify whether the issue is due to a gap or error in the implementation, a misunderstanding of the requirements, or an edge case that was not properly handled. After understanding the root cause, make the necessary changes to the implementation to fix the issue, ensuring that you follow best practices for robust fixes and do not introduce new issues. After finishing one fix, check the live logs to see if any new failures have appeared, and if so, repeat the diagnosis and fixing process until all failures are resolved. THIS TASK IS NOT COMPLETE UNTIL ALL FAILURES ARE RESOLVED AND THE watch-gha command (`just watch-gha` / `scripts/watch-gha-run.sh`) EXITS WITH 0 OR 1.
+3. Monitor the terminal output and the log files as the workflows run; as soon as the first failure is detected, stop monitoring and start diagnosing the failure by reading the corresponding log file. Log files are usually very long, but you can parse them efficiently by searching for keywords such as "error", "failed", "exception", "traceback", "warning", as well as emoji log markers such as "❌", "⛔", and "⚠️", to quickly find the relevant sections of the logs that indicate what went wrong. Read the failure messages and the relevant context around them carefully to understand the root cause of the failure. If the failure is not a trivial mistake (e.g. a syntax error, variable name typo), carefully reread the relevant parts in the reference documents and determine whether the failure indicates a gap in the implementation reference, a misunderstanding of the requirements, or an edge case that was not properly handled. Make sure to understand the root cause of the failure before attempting to fix it, and ensure that any fix you make directly addresses the root cause without introducing new issues or masking symptoms. DO NOT SIMPLY MAKE A CHANGE TO THE TEST OR THE IMPLEMENTATION JUST TO MAKE THE TEST PASS WITHOUT FULLY UNDERSTANDING AND ADDRESSING THE MAIN ISSUE. Compare the test and the source code with the reference documents to accurately identify whether the issue is due to a gap or error in the implementation, a misunderstanding of the requirements, or an edge case that was not properly handled. After understanding the root cause, make the necessary changes to the implementation to fix the issue, ensuring that you follow best practices for robust fixes and do not introduce new issues. After finishing one fix, check the live logs to see if any new failures have appeared, and if so, repeat the diagnosis and fixing process until all failures are resolved. THIS TASK IS NOT COMPLETE UNTIL ALL FAILURES ARE RESOLVED AND THE watch-gha command (`just fetch-gha` / `.dev/scripts/ci/watch-gha-run.sh`) EXITS WITH 0 OR 1.
 4. If there were any failures, commit the fixes with a clear commit message describing the issue, what was fixed, how, and why, then start again from step 1 of this phase (push + monitor + diagnose + fix + commit + push + monitor ...).
 5. You are only allowed to proceed to the next phase (adversarial audit) when all tests in a workflow run triggered by your commit pass successfully without any failures. Remember that CI jobs are triggered based on the changed files in the commit, so make sure the passing workflow has actually run all the relevant tests. If that is not the case (e.g. when your last commit was only documentation changes, which do not trigger feature tests), manually trigger a new workflow run for the "CI" workflow using the workflow_dispatch event, providing the branch and commit SHA of your last commit, to ensure that all relevant tests are run and pass successfully before proceeding to phase 8.
 
@@ -134,7 +134,7 @@ After getting the commit SHA from the auditor, follow these steps:
   1. Analyze the affected code, the relevant sections in the reference documents, and the tests that were written to target the issue.
   2. Determine whether the issue is genuine and requires a fix, and whether you expect the auditor's tests to fail on your current implementation.
   3. If you determine that the issue is genuine, apply the necessary fixes to the implementation to address the root cause of the issue, following best practices and the general implementation guidelines described in the previous phases.
-2. After addressing all issues specified in the commit and applying the necessary fixes, start monitoring the CI workflows triggered by the auditor's commit using the same `just watch-gha --commit <sha>` approach as in Phase 7, to get real-time feedback on the tests that the auditor wrote to target the issues it found. For each job that finishes, check whether the actual outcome of the auditor's tests matches your expectation based on your analysis of the issue:
+2. After addressing all issues specified in the commit and applying the necessary fixes, start monitoring the CI workflows triggered by the auditor's commit using the same `just fetch-gha --commit <sha>` approach as in Phase 7, to get real-time feedback on the tests that the auditor wrote to target the issues it found. For each job that finishes, check whether the actual outcome of the auditor's tests matches your expectation based on your analysis of the issue:
   - If the tests fail as expected, read the failure messages and relevant log context to verify that the failures are indeed due to the issues reported by the auditor and that your fixes are properly addressing them. If the failures are not due to the reported issues or if they indicate that your fixes are not properly addressing the root cause, carefully re-analyze the issue, your fixes, and the auditor's tests to identify any gaps in your understanding or implementation, and apply additional fixes as needed.
   - If the tests pass when you expected them to fail, carefully analyze the tests and the relevant code and reference documents to determine whether the issue is not genuine, whether there is a gap in the auditor's tests, or whether there is a gap in your understanding or implementation that caused you to misjudge the issue. If you find that the issue is not genuine or that there is a gap
   in the auditor's tests, you can let it go without making any changes. However, if you find that there is a gap in your understanding or implementation, apply the necessary fixes to address it.
@@ -183,8 +183,8 @@ If the verdict is **NOT APPROVED**:
 
 - **Generated files** (entire `src/`): never edit; run `python3 scripts/sync-src.py` to regenerate from `features/`.
 - **features/install.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files via `scripts/sync-src.py`.
-- **Dual distribution**: devcontainer features (GHCR) + standalone tarballs (GitHub Releases via `scripts/build-artifacts.sh`).
-- **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `scripts/sync-src.py`.
+- **Dual distribution**: devcontainer features (GHCR) + standalone tarballs (GitHub Releases via `just build-feats`).
+- **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `just sync-src`.
 - **Test layers**: bats unit tests (`test/lib/`), devcontainer scenario tests (`test/features/<feature-name>/`), standalone scenarios, macOS scenarios.
 - **CI workflows**: `cicd.yaml` (orchestrator — triggers on push/PR/tag), `ci.yaml` (reusable CI — lint, validate, unit, feature, dist tests), `cd.yaml` (reusable CD — GHCR publish + GitHub Release).
 - **Lefthook**: optional; sync/format hooks are **disabled by default** in `lefthook.yml` (commented). See `docs/source/dev/index.md`.
@@ -193,15 +193,15 @@ If the verdict is **NOT APPROVED**:
 
 | Task | Command |
 |------|---------|
-| Sync generated files | `just sync` or `python3 scripts/sync-src.py` |
-| Verify sync is up to date | `just sync-check` or `python3 scripts/sync-src.py --check` |
-| Format shell files | `just format` |
-| Check formatting (no writes) | `just format-check` |
-| Lint shell files | `just lint` |
-| Run all unit tests | `just test-unit` |
-| Run unit tests for one module | `just test-module <name>` (or `bash .dev/scripts/test/run-unit.sh --module <name>`) |
-| Test one feature (scenarios + fail cases) | `just test-feature <feature-name>` |
-| Build distribution artifacts | `bash scripts/build-artifacts.sh [tag]` |
+| Sync generated files | `just sync-src` |
+| Verify sync is up to date | `just sync-src-check` |
+| Format shell files | `just format-sh` |
+| Check formatting (no writes) | `just format-sh-check` |
+| Lint shell files | `just lint-sh-check` |
+| Run all unit tests | `just test-lib` |
+| Run unit tests for one module | `just test-lib-mod <name>` |
+| Test one feature (scenarios + fail cases) | `just test-feats <feature-name>` |
+| Build distribution artifacts | `just build-feats [tag]` |
 
 ## Output
 

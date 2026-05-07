@@ -25,11 +25,16 @@ test = { features = ["proman", "test"] }
 proman = { path = ".dev/lib", editable = true }
 
 [feature.proman.tasks]
-gen-docs-data = "proman-gen-docs-data"
-sync = "proman-sync"
-sync-check = "proman-sync --check"
-gen-docs = "proman-gen-docs"
-gen-docs-check = "proman-gen-docs --check"
+_sync-docs-data = "proman-gen-docs-data"
+sync-src = "proman-sync"
+sync-src-check = "proman-sync --check"
+sync-docs = "proman-gen-docs"
+sync-docs-check = "proman-gen-docs --check"
+show-feats = "proman-show-feats"
+show-feat-opts = "proman-show-feat-opts"
+build-feats = "proman-build-feats"
+build-docs-pkg = "proman-build-docs-pkg"
+release-detect = "proman-release-detect --repo quantized8/devfeats"
 
 
 # ── Lint Feature ─────────────────────────────────────────────────────────────
@@ -38,8 +43,8 @@ gen-docs-check = "proman-gen-docs --check"
 ruff = "==0.15.11"
 
 [feature.lint.tasks]
-lint-py = "ruff check ."
-lint-py-fix = "ruff check --fix ."
+lint-py-check = "ruff check ."
+lint-py = "ruff check --fix ."
 format-py = "ruff format ."
 format-py-check = "ruff format --check ."
 
@@ -50,8 +55,8 @@ format-py-check = "ruff format --check ."
 pytest = "==9.0.3"
 
 [feature.test.tasks]
-test-proman = "pytest test/proman -v"
-test-feature = "proman-test-run"
+test-py = "pytest test/proman -v"
+test-feats = "proman-test-run"
 
 
 # ── Docs / Website Feature ────────────────────────────────────────────────────
@@ -85,14 +90,14 @@ sphinx-notfound-page = { version = "==1.1.0" }
 sphinx-tippy = { version = "==0.4.3" }
 sphinxcontrib-svg2pdfconverter = { version = "==2.1.0", extras = ["CairoSVG"] }
 
-[feature.docs.tasks.build-website]
-depends-on = [{ task = "gen-docs-data", environment = "default" }]
+[feature.docs.tasks.build-docs]
+depends-on = [{ task = "_sync-docs-data", environment = "default" }]
 cwd = "docs"
 cmd = "python -m sphinx -b $SPHINX_BUILDER $SPHINX_BUILD_OPTIONS -c . source .build"
 
-[feature.docs.tasks.build-website-live]
+[feature.docs.tasks.build-docs-live]
 cwd = "docs"
-cmd = "python -m sphinx_autobuild source .build --conf-dir . --watch ../features --watch ../.dev/ --pre-build 'pixi run --environment default gen-docs-data' --jobs auto --write-all --nitpicky"
+cmd = "python -m sphinx_autobuild source .build --conf-dir . --watch ../features --watch ../.dev/ --pre-build 'pixi run --environment default _sync-docs-data' --jobs auto --write-all --nitpicky"
 
 [feature.docs.activation.env]
 SPHINX_BUILDER = "dirhtml"

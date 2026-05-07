@@ -36,7 +36,7 @@ jobs:
       - name: "Run unit tests in ${{ matrix.env.name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: just test-unit-in-env "${{ matrix.env.name }}"
+        run: just test-lib-env "${{ matrix.env.name }}"
 
   macos:
     name: "Unit Tests - macOS (${{ matrix.os.runner }})"

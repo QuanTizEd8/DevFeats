@@ -12,8 +12,8 @@ You must always follow these rules and constraints when working on the project:
 
 - Never edit files under `src/`, `.devcontainer/.src/`, `docs/source/features/`, `docs/source/dev/features/ref/`, and `test/unit/bats/`; they are auto-generated artifacts, symlinks, or dependency submodules.
 - When using conda, use `python` instead of `python3`; `python3` is aliased to the system Python.
-- For CI failures, run `just watch-gha --commit <sha>` or `just watch-gha --run <workflow-run-id>` (see `justfile`). Logs land under `.local/logs/gha/` by default.
-- Always run `just sync` before local feature scenario tests so `src/` exists and matches `features/` + `lib/`.
+- For CI failures, run `just fetch-gha --commit <sha>` or `just fetch-gha --run <workflow-run-id>` (see `justfile`). Logs land under `.local/logs/gha/` by default.
+- Always run `just sync-src` before local feature scenario tests so `src/` exists and matches `features/` + `lib/`.
 - Lint and test commands take a long time to run; always run once, save their entire output to a file in `.local/logs/copilot/`, and review from there.
 
 

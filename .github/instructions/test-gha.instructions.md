@@ -96,7 +96,7 @@ test/features/install-os-pkg/unit/
 
 ```bash
 # Via the unified runner (uses ubuntu-latest container)
-just test-feature install-os-pkg --mode standalone --filter dry_run
+just test-feats install-os-pkg --mode standalone --filter dry_run
 
 # Or directly against any distro
 docker run --rm -v "$(pwd):/repo" debian:latest \

@@ -644,7 +644,7 @@ Module coverage:
 
 ```bash
 # Run all modules
-just test-unit
+just test-lib
 
 # Run a single module
 bash .dev/scripts/test/run-unit.sh --module os
@@ -755,7 +755,7 @@ When adding or changing a function in `lib/`:
    from bats-assert. Use `assert_file_exists` etc. from bats-file.
 4. Keep each test focused on one behaviour. One test per distinct outcome
    (success path, failure path, edge case) is the right granularity.
-5. Run `just test-unit` (or `bash .dev/scripts/test/run-unit.sh --module <name>`) to verify
+5. Run `just test-lib` (or `bash .dev/scripts/test/run-unit.sh --module <name>`) to verify
    before committing.
 
 ### Unit test CI
@@ -777,7 +777,7 @@ gh workflow run "CI"
 gh run watch
 ```
 
-Run `just test-unit` before pushing changes to `lib/` or `test/lib/`; CI runs the same suite when those paths change.
+Run `just test-lib` before pushing changes to `lib/` or `test/lib/`; CI runs the same suite when those paths change.
 
 
 

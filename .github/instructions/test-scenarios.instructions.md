@@ -222,15 +222,15 @@ reportResults
 
 ```bash
 # All modes for a feature (devcontainer + standalone)
-just test-feature <feature>                             # all modes
-just test-feature <feature> --mode devcontainer         # devcontainer only
-just test-feature <feature> --mode standalone           # standalone only
+just test-feats <feature>                             # all modes
+just test-feats <feature> --mode devcontainer         # devcontainer only
+just test-feats <feature> --mode standalone           # standalone only
 
 # Single scenario (by name prefix)
-just test-feature <feature> --filter <scenario_name>
+just test-feats <feature> --filter <scenario_name>
 
 # macOS scenarios (macOS host required)
-just test-macos <feature>
+just test-feats-macos <feature>
 ```
 
 Prerequisites: Docker running, Node.js, devcontainer CLI (`npm install -g @devcontainers/cli`).
