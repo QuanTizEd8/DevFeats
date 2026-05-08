@@ -102,7 +102,8 @@ _brew_bin_from_install_context() {
   _brew="$_prefix/bin/brew"
   [ -x "$_brew" ] || return 1
   # Homebrew was freshly installed; ensure this shell can invoke it.
-  export PATH="$(dirname "$_brew"):$PATH"
+  _brew_bin_dir="$(dirname "$_brew")"
+  export PATH="$_brew_bin_dir:$PATH"
   echo "$_brew"
   return 0
 }
