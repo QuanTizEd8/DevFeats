@@ -603,9 +603,15 @@ ospkg__install() {
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
     local _pkg _all_installed=true
     for _pkg in "$@"; do
-      brew list --formula "$_pkg" > /dev/null 2>&1 || { _all_installed=false; break; }
+      brew list --formula "$_pkg" > /dev/null 2>&1 || {
+        _all_installed=false
+        break
+      }
     done
-    [[ "$_all_installed" == true ]] && { logging__info "Packages already installed: $*"; return 0; }
+    [[ "$_all_installed" == true ]] && {
+      logging__info "Packages already installed: $*"
+      return 0
+    }
   elif [[ "$_OSPKG_PKG_MNGR" = "apt-get" ]]; then
     if dpkg -s "$@" > /dev/null 2>&1; then
       logging__info "Packages already installed: $*"
