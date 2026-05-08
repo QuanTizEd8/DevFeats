@@ -30,5 +30,8 @@ ignore = [
 # docs/conf.py is a Sphinx config file, not a Python package module
 "docs/conf.py" = ["INP001", "A001"]
 
+[lint.pylint]
+max-args = 10
+
 [lint.pydocstyle]
 convention = "numpy"
