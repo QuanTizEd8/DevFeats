@@ -60,7 +60,11 @@ def _generate_spec_summary(metadata: dict[str, Any]) -> str:
     feat_ver = metadata["version"]
     owner, repo = git_owner_repo()
     ghcr = f"ghcr.io/{owner}/{repo}/{feat_id}"
-    summary = f":**Latest Version**: `{feat_ver}`\n:**Feature ID**: `{feat_id}`\n:**OCI Reference**: `{ghcr}`"
+    summary = (
+        f":**Latest Version**: `{feat_ver}`\n"
+        f":**Feature ID**: `{feat_id}`\n"
+        f":**OCI Reference**: `{ghcr}`"
+    )
     if "_unsupported_platforms" in metadata:
         badges = [
             f"{{bdg-danger}}`{plat}`" for plat in metadata["_unsupported_platforms"]
@@ -116,9 +120,11 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     )
     tabset_str = ts.source(target="sphinx")
     description = (
-        "For demonstration purposes, all available options are explicitly included with their default values. "
+        "For demonstration purposes, all available options are explicitly"
+        " included with their default values. "
         "In real usage, you only need to specify the options you want to override. "
-        "For more information on installing features, see the [Installation Guide](/user-guide/installation.md)."
+        "For more information on installing features, see the"
+        " [Installation Guide](/user-guide/installation.md)."
     )
     return f"{description}\n\n{tabset_str}"
 
@@ -190,9 +196,12 @@ def _generate_extensions_section(metadata: dict) -> str:
         out.append(f"- [{ext}]({url})")
 
     opt_out_text = (
-        "You can [opt out](https://github.com/microsoft/vscode-docs/blob/main/remote-release-notes/v1_85.md#opt-out-of-extensions) "
-        "of any of these extensions by listing them with a leading `-` in the `customizations.vscode.extensions` array "
-        "of your `devcontainer.json` file. For example, to opt out of all extensions, your `devcontainer.json` should include the following:"
+        "You can [opt out](https://github.com/microsoft/vscode-docs/blob/main"
+        "/remote-release-notes/v1_85.md#opt-out-of-extensions) "
+        "of any of these extensions by listing them with a leading `-` in the"
+        " `customizations.vscode.extensions` array "
+        "of your `devcontainer.json` file. For example, to opt out of all"
+        " extensions, your `devcontainer.json` should include the following:"
     )
     opt_out_dict = {
         "customizations": {"vscode": {"extensions": [f"-{ext}" for ext in extensions]}},
@@ -232,8 +241,7 @@ def _generate_installs_after(metadata: dict) -> str:
     if not installs_after:
         return ""
     out = ["This feature is best installed after the following features:"]
-    for feat in installs_after:
-        out.append(f"- `{feat}`")
+    out.extend(f"- `{feat}`" for feat in installs_after)
     return "\n".join(out)
 
 
