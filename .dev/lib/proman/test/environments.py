@@ -1,3 +1,5 @@
+"""Build and resolve Docker environments for devcontainer tests."""
+
 from __future__ import annotations
 
 import hashlib
@@ -11,15 +13,17 @@ from pathlib import Path
 
 import yaml
 
-_TOKEN_LINES = "ARG GITHUB_TOKEN\nENV GITHUB_TOKEN=${GITHUB_TOKEN}\n"
+_DOCKER_GITHUB_ARG_LINES = "ARG GITHUB_TOKEN\nENV GITHUB_TOKEN=${GITHUB_TOKEN}\n"
 
 
 def load(path: Path | str) -> dict:
-    with open(path) as f:
+    """Load an environments YAML file and return its contents as a dict."""
+    with Path(path).open() as f:
         return yaml.safe_load(f) or {}
 
 
 def is_macos(env_name: str, envs: dict) -> bool:
+    """Return True if the named environment uses a macOS runner image."""
     env = envs.get(env_name, {})
     image = env.get("image", "")
     return bool(re.match(r"^macos", image))
@@ -91,6 +95,7 @@ def resolve(
     scenario_args: dict | None = None,
     scenario_env_vars: dict | None = None,
 ) -> str:
+    """Resolve an environment name to a Docker image tag, building if needed."""
     repo_root = Path(repo_root)
     env = envs.get(env_name)
     if env is None:
@@ -127,7 +132,7 @@ def resolve(
         tag = f"devfeats-env-{safe_name}:latest"
 
     envs_dir.mkdir(parents=True, exist_ok=True)
-    dockerfile_content = f"FROM {base_image}\n{_TOKEN_LINES}{body}"
+    dockerfile_content = f"FROM {base_image}\n{_DOCKER_GITHUB_ARG_LINES}{body}"
 
     with tempfile.NamedTemporaryFile(
         mode="w",
@@ -151,6 +156,7 @@ def resolve(
 
 
 def resolve_cli() -> None:
+    """Parse CLI arguments and print the resolved Docker image tag."""
     env_name: str | None = None
     scenario_args: dict = {}
     scenario_env_vars: dict = {}
