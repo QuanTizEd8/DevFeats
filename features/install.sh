@@ -75,9 +75,35 @@ _install_homebrew_bare() {
     -H "User-Agent: devfeats" \
     -o "$_tmpfile" \
     "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
-  NONINTERACTIVE=1 /bin/bash "$_tmpfile"
+  _prefix="${HOMEBREW_PREFIX:-}"
+  if [ -n "$_prefix" ]; then
+    NONINTERACTIVE=1 HOMEBREW_PREFIX="$_prefix" /bin/bash "$_tmpfile"
+  else
+    NONINTERACTIVE=1 /bin/bash "$_tmpfile"
+  fi
   rm -f "$_tmpfile"
   echo "✅ Homebrew installed." >&2
+  return 0
+}
+
+# _brew_bin_from_install_context — resolve brew path deterministically.
+# Uses HOMEBREW_PREFIX if provided; otherwise uses Homebrew's default prefix:
+# - arm64 macOS: /opt/homebrew
+# - non-arm64 macOS: /usr/local
+_brew_bin_from_install_context() {
+  _prefix="${HOMEBREW_PREFIX:-}"
+  if [ -z "$_prefix" ]; then
+    if [ "$(uname -m)" = "arm64" ]; then
+      _prefix="/opt/homebrew"
+    else
+      _prefix="/usr/local"
+    fi
+  fi
+  _brew="$_prefix/bin/brew"
+  [ -x "$_brew" ] || return 1
+  # Homebrew was freshly installed; ensure this shell can invoke it.
+  export PATH="$(dirname "$_brew"):$PATH"
+  echo "$_brew"
   return 0
 }
 
@@ -106,7 +132,11 @@ if ! _find_bash4 > /dev/null; then
   elif [ "$(uname -s)" = "Darwin" ]; then
     # On macOS, Homebrew is the path to bash >=4 when no package manager exists.
     _install_homebrew_bare
-    brew install bash
+    _BREW=$(_brew_bin_from_install_context) || {
+      echo "⛔ Homebrew was installed but expected brew binary was not found." >&2
+      exit 1
+    }
+    "$_BREW" install bash
   else
     echo "⛔ No supported package manager found to install bash >=4." >&2
     exit 1
