@@ -25,7 +25,7 @@
     },
     "chat.mcp.gallery.enabled": true,
     "makefile.configureOnOpen": false,
-    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultEnvManager": "",
     "python-envs.defaultPackageManager": "ms-python.python:conda",
     // ── YAML schemas ─────────────────────────────────────────────────────────
     "yaml.schemas": {
