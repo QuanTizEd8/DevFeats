@@ -39,3 +39,6 @@ ehthumbs.db
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# AI tool chat history (Claude Code + Copilot) — project-local but not version-controlled
+.ai/

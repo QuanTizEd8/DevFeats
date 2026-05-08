@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Symlink the container's Copilot chat storage to the host's, so both share the same history.
+"""Symlink both the container's and host's Copilot chat storage to .ai/copilot/ in the workspace.
 
 VS Code keys workspaceStorage by an MD5 hash of the workspace URI. The URI differs between
 the container (vscode-remote://dev-container+...) and the host (file://...), so the hashes
-differ. This script detects the runtime environment, computes the container hash by trying
-common Docker contexts, locates the host hash by scanning workspace.json files in the mounted
-host storage, then symlinks the container's GitHub.copilot-chat directory to the host's.
+differ. This script detects the runtime environment, computes both hashes, then symlinks both
+workspaceStorage/GitHub.copilot-chat entries to <workspace>/.ai/copilot/ so that chat history
+lives in the project directory and travels with it on backup or move.
 
 Usage: link-copilot-storage.py <host_workspace> <container_workspace> <config_file>
 """
@@ -114,26 +114,45 @@ def link_copilot_storage(host_path: str, container_path: str, config_file: str) 
     if not host_hash:
         return 1
 
+    # Project-local storage: both symlinks point here using their respective absolute paths.
+    # The two paths resolve to the same physical directory via the workspace bind mount.
+    project_chat_container = Path(container_path) / ".ai" / "copilot"
+    project_chat_host = Path(host_path) / ".ai" / "copilot"
+    project_chat_container.mkdir(parents=True, exist_ok=True)
+
     container_chat = VSCODE_SERVER_STORAGE / container_hash / "GitHub.copilot-chat"
     host_chat = host_storage / host_hash / "GitHub.copilot-chat"
 
-    host_chat.mkdir(parents=True, exist_ok=True)
-    container_chat.parent.mkdir(parents=True, exist_ok=True)
+    # Migrate existing host-side data into the project dir before symlinking.
+    if host_chat.is_dir() and not host_chat.is_symlink():
+        for item in host_chat.iterdir():
+            dest = project_chat_container / item.name
+            if not dest.exists():
+                shutil.move(str(item), str(dest))
+        shutil.rmtree(host_chat)
+    elif host_chat.is_symlink():
+        host_chat.unlink()
 
+    # Symlink host-side workspaceStorage → project dir (host-valid absolute path).
+    host_chat.parent.mkdir(parents=True, exist_ok=True)
+    host_chat.symlink_to(project_chat_host)
+
+    # Symlink container-side workspaceStorage → project dir.
+    container_chat.parent.mkdir(parents=True, exist_ok=True)
     if container_chat.is_symlink():
         container_chat.unlink()
     elif container_chat.is_dir() and any(container_chat.iterdir()):
-        # Migrate existing container-side data to host storage before symlinking.
         for item in container_chat.iterdir():
-            dest = host_chat / item.name
+            dest = project_chat_container / item.name
             if not dest.exists():
                 shutil.move(str(item), str(dest))
         shutil.rmtree(container_chat)
     elif container_chat.is_dir():
         container_chat.rmdir()
 
-    container_chat.symlink_to(host_chat)
-    print(f"Linked {container_chat} -> {host_chat}")
+    container_chat.symlink_to(project_chat_container)
+    print(f"Linked {container_chat} -> {project_chat_container}")
+    print(f"Linked {host_chat} -> {project_chat_host}")
     return 0
 
 

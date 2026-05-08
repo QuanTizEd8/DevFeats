@@ -82,12 +82,13 @@
   "postStartCommand": {
     "initialize_bats_submodules": "git submodule update --init --recursive",
     "pixi_install": "pixi install --all",
-    // Symlink the container's Claude project key to the host's so both share the same chat history.
+    // Point both the host and container Claude project keys at .ai/claude/ inside the workspace,
+    // so chat history travels with the project. Migrates any existing host-key data on first run.
     // ${localWorkspaceFolder} and ${containerWorkspaceFolder} are substituted by the devcontainer
     // spec before the shell runs; Claude's project key format is the path with slashes → dashes.
-    "link_claude_project": "HOST_KEY=$(echo \"${localWorkspaceFolder}\" | tr '/' '-') && CONTAINER_KEY=$(echo \"${containerWorkspaceFolder}\" | tr '/' '-') && mkdir -p ~/.claude/projects/\"$HOST_KEY\" && ln -sfn ~/.claude/projects/\"$HOST_KEY\" ~/.claude/projects/\"$CONTAINER_KEY\" || true",
-    // Symlink the container's Copilot workspaceStorage hash directory to the host's.
-    // The script computes the container hash from the known VS Code URI formula and locates
+    "link_claude_project": "HOST_KEY=$(echo \"${localWorkspaceFolder}\" | tr '/' '-') && CONTAINER_KEY=$(echo \"${containerWorkspaceFolder}\" | tr '/' '-') && AI_DIR=\"${containerWorkspaceFolder}/.ai/claude\" && mkdir -p \"$AI_DIR\" && ([ -d ~/.claude/projects/\"$HOST_KEY\" ] && [ ! -L ~/.claude/projects/\"$HOST_KEY\" ] && { cp -rn ~/.claude/projects/\"$HOST_KEY\"/. \"$AI_DIR\"/ 2>/dev/null; rm -rf ~/.claude/projects/\"$HOST_KEY\"; }; true) && ln -sfn \"$AI_DIR\" ~/.claude/projects/\"$CONTAINER_KEY\" && ln -sfn \"${localWorkspaceFolder}/.ai/claude\" ~/.claude/projects/\"$HOST_KEY\" || true",
+    // Point both the container and host Copilot workspaceStorage hash dirs at .ai/copilot/ inside
+    // the workspace. The script computes both hashes from the known VS Code URI formula and locates
     // the host hash by scanning workspace.json files in the mounted host VS Code storage.
     "link_copilot_history": "python3 \"${containerWorkspaceFolder}/.devcontainer/.dev/link-copilot-storage.py\" \"${localWorkspaceFolder}\" \"${containerWorkspaceFolder}\" \"${localWorkspaceFolder}/.devcontainer/.dev/devcontainer.json\" || true"
   },
