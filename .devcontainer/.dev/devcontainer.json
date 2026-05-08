@@ -45,20 +45,39 @@
   // Stop the container when VS Code window closes (prevents orphaned containers on clean disconnect)
   "shutdownAction": "stopContainer",
 
+  // Ensure both candidate VS Code workspaceStorage paths exist on the host before Docker
+  // bind-mounts them. Only one is real per OS (macOS uses ~/Library/Application Support/Code,
+  // Linux uses ~/.config/Code); the other is created empty so the bind mount succeeds and
+  // link-copilot-storage.py can pick whichever has workspace.json files inside.
+  "initializeCommand": {
+    "ensure_vscode_storage_dirs": "mkdir -p \"$HOME/Library/Application Support/Code/User/workspaceStorage\" \"$HOME/.config/Code/User/workspaceStorage\""
+  },
+
   // Share host ~/.claude into container so all invocations of this workspace share the same chat history.
   // The postStartCommand below symlinks the container's project key to the host's, so Claude Code
   // finds the same conversations regardless of whether it's running inside or outside the container.
   "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/devfeats-dev/.claude,type=bind,consistency=cached",
-    "source=devfeats-vscode-server,target=/home/devfeats-dev/.vscode-server,type=volume",
+    {
+      "source": "${localEnv:HOME}/.claude",
+      "target": "/home/devfeats-dev/.claude",
+      "type": "bind"
+    },
+    {
+      "source": "devfeats-vscode-server",
+      "target": "/home/devfeats-dev/.vscode-server",
+      "type": "volume"
+    },
     // Both storage paths are always mounted; the script uses whichever has workspace.json files.
-    // Object format required for the macOS path — "Application Support" contains a space.
     {
       "source": "${localEnv:HOME}/Library/Application Support/Code/User/workspaceStorage",
       "target": "/host-vscode-workspacestorage",
       "type": "bind"
     },
-    "source=${localEnv:HOME}/.config/Code/User/workspaceStorage,target=/host-vscode-workspacestorage-linux,type=bind"
+    {
+      "source": "${localEnv:HOME}/.config/Code/User/workspaceStorage",
+      "target": "/host-vscode-workspacestorage-linux",
+      "type": "bind"
+    }
   ],
 
   // Limit CPU to avoid host starvation if a process spirals (uncomment and tune as needed)
