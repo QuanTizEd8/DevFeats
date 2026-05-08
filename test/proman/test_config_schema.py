@@ -4,14 +4,15 @@ import json
 from pathlib import Path
 
 import jsonschema
-import proman.cicd.detect as CD
+import proman.cicd.detect as cd
 import pytest
 
-SCHEMA = json.loads((Path(CD.__file__).parent / "config_schema.json").read_text())
+SCHEMA = json.loads((Path(cd.__file__).parent / "config_schema.json").read_text())
 
 
 def _make_valid_config() -> dict:
-    return CD.build_config(
+    """Build a fully-populated valid CI config dict."""
+    return cd.build_config(
         build_image=True,
         image_name="ghcr.io/org/repo-devcontainer",
         image_tag="latest",
@@ -32,32 +33,37 @@ def _make_valid_config() -> dict:
     )
 
 
-def test_valid_config_passes():
+def test_valid_config_passes() -> None:
+    """Verify a fully-populated valid config passes schema validation."""
     jsonschema.validate(_make_valid_config(), SCHEMA)
 
 
-def test_missing_top_level_key_fails():
+def test_missing_top_level_key_fails() -> None:
+    """Verify schema validation fails when a required top-level key is absent."""
     cfg = _make_valid_config()
     del cfg["ci_build"]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(cfg, SCHEMA)
 
 
-def test_string_where_bool_required_fails():
+def test_string_where_bool_required_fails() -> None:
+    """Verify schema validation fails when a boolean field receives a string."""
     cfg = _make_valid_config()
     cfg["ci_lint"]["shell"]["enabled"] = "true"
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(cfg, SCHEMA)
 
 
-def test_extra_key_fails_due_to_additional_properties():
+def test_extra_key_fails_due_to_additional_properties() -> None:
+    """Verify schema validation fails when an unknown key is added."""
     cfg = _make_valid_config()
     cfg["ci_build"]["unknown_key"] = "x"
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(cfg, SCHEMA)
 
 
-def test_cm_devcontainer_build_matrix_items_typed():
+def test_cm_devcontainer_build_matrix_items_typed() -> None:
+    """Verify build matrix items must have string fields."""
     cfg = _make_valid_config()
     cfg["cm_devcontainer"]["build_matrix"] = [
         {"runner": 42, "platform": "x", "platform_tag": "y"},
@@ -66,14 +72,16 @@ def test_cm_devcontainer_build_matrix_items_typed():
         jsonschema.validate(cfg, SCHEMA)
 
 
-def test_cd_features_list_typed():
+def test_cd_features_list_typed() -> None:
+    """Verify features list items must have string version fields."""
     cfg = _make_valid_config()
     cfg["cd"]["features"] = [{"feature": "x", "version": 1, "tag": "x/1"}]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(cfg, SCHEMA)
 
 
-def test_ci_test_lib_linux_matrix_typed():
+def test_ci_test_lib_linux_matrix_typed() -> None:
+    """Verify linux_matrix items must include both name and env fields."""
     cfg = _make_valid_config()
     cfg["ci_test_lib"]["linux_matrix"] = [{"name": "x"}]  # missing "env"
     with pytest.raises(jsonschema.ValidationError):
