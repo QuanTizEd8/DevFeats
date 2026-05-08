@@ -1,20 +1,23 @@
+"""Load and expand devcontainer test scenarios from YAML files."""
+
 from __future__ import annotations
 
 import fnmatch
 from pathlib import Path
-from typing import Any
 
 import yaml
 
 
 def load(path: Path | str) -> tuple[dict, dict]:
-    with open(path) as f:
+    """Load scenarios YAML and split off the defaults key."""
+    with Path(path).open() as f:
         data = yaml.safe_load(f) or {}
     defaults = data.pop("defaults", {})
     return defaults, data
 
 
 def merge_defaults(scenario: dict, defaults: dict) -> dict:
+    """Merge top-level defaults into a scenario dict."""
     merged = dict(scenario)
     for key in ("options", "args", "env_vars"):
         if key in defaults:
@@ -28,6 +31,7 @@ def expand_envs(
     name: str,
     scenario: dict,
 ) -> list[tuple[str, str, dict]]:
+    """Expand a scenario into one entry per environment."""
     envs: list[str] = scenario.get("envs", [])
     if len(envs) == 1:
         return [(name, envs[0], scenario)]
@@ -35,9 +39,10 @@ def expand_envs(
 
 
 def expand_test_files(
-    tests_spec: Any,
+    tests_spec: dict | list | None,
     base_dir: Path | str,
 ) -> list[str]:
+    """Expand a tests spec into a list of absolute file paths."""
     base = Path(base_dir)
 
     if tests_spec is None:
