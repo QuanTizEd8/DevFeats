@@ -592,7 +592,7 @@ ospkg__update() {
 }
 
 # ── Public: ospkg__install ───────────────────────────────────────────────────
-# @brief ospkg__install <pkg>... — Install one or more packages. Skips if all are already installed (APT, DNF/YUM).
+# @brief ospkg__install <pkg>... — Install one or more packages. Skips if all are already installed (APT, DNF/YUM, Homebrew).
 #
 # Args:
 #   <pkg>...  One or more package names to install.
@@ -600,14 +600,13 @@ ospkg__update() {
 # Returns: 0 on success.
 ospkg__install() {
   ospkg__detect || return 1
-  ospkg__update || true
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
-    logging__info "Installing packages:"
-    printf '  - %s\n' "$@" >&2
-    net__fetch_with_retry _ospkg_brew_run install "$@" >&2
-    return
-  fi
-  if [[ "$_OSPKG_PKG_MNGR" = "apt-get" ]]; then
+    local _pkg _all_installed=true
+    for _pkg in "$@"; do
+      brew list --formula "$_pkg" > /dev/null 2>&1 || { _all_installed=false; break; }
+    done
+    [[ "$_all_installed" == true ]] && { logging__info "Packages already installed: $*"; return 0; }
+  elif [[ "$_OSPKG_PKG_MNGR" = "apt-get" ]]; then
     if dpkg -s "$@" > /dev/null 2>&1; then
       logging__info "Packages already installed: $*"
       return 0
@@ -621,6 +620,7 @@ ospkg__install() {
       return 0
     fi
   fi
+  ospkg__update || true
   logging__info "Installing packages:"
   printf '  - %s\n' "$@" >&2
   # Keep interactive mode possible on TTY, but prevent PMs from draining
