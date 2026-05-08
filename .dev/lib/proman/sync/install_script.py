@@ -340,7 +340,8 @@ class InstallScriptGenerator:
             return ""
         return "\n".join(
             [
-                "# Unexport option variables — values remain accessible in this script but",
+                "# Unexport option variables — values remain accessible in this"
+                " script but",
                 "# are not inherited by child processes.",
                 "declare +x " + " ".join(scalar_vars),
             ],
