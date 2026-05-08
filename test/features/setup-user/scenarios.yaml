@@ -45,7 +45,7 @@ extra_groups:
     groupadd builders
     groupadd testers
   options:
-    extra_groups: builders\ntesters
+    extra_groups: "builders\ntesters"
   tests: [extra_groups.sh]
 
 replace_existing:
