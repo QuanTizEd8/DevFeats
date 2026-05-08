@@ -32,6 +32,30 @@ _SUDO_STUB = (
     " && export PATH=/tmp/_nosudo:$PATH"
 )
 
+_MACOS_CLEAN_BASE_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
+
+_MACOS_ENV_PASSTHROUGH = frozenset(
+    {
+        "HOME",
+        "USER",
+        "LOGNAME",
+        "SHELL",
+        "TERM",
+        "TMPDIR",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "LC_MESSAGES",
+        "LC_NUMERIC",
+        "LC_TIME",
+        "CI",
+        "GITHUB_TOKEN",
+        "GITHUB_WORKSPACE",
+        "XPC_FLAGS",
+        "XPC_SERVICE_NAME",
+    }
+)
+
 
 def _options_exports(options: dict) -> str:
     lines = []
@@ -40,6 +64,27 @@ def _options_exports(options: dict) -> str:
         val = str(v).lower() if isinstance(v, bool) else str(v)
         lines.append(f"export {env_key}={shlex.quote(val)}")
     return "\n".join(lines)
+
+
+def _build_macos_base_env(env_name: str, envs: dict, repo_root: Path) -> dict:
+    """Return the env dict used for all macOS subprocess calls in a scenario.
+
+    When clean_path is set on the environment, starts from an allowlist of
+    essential variables and replaces PATH with the macOS system baseline plus
+    any path_prepend directories declared on the environment. Otherwise returns
+    a copy of os.environ (unchanged behaviour for environments without clean_path).
+    """
+    env_def = envs.get(env_name, {})
+    if not env_def.get("clean_path", False):
+        base = dict(os.environ)
+        base["REPO_ROOT"] = str(repo_root)
+        return base
+    base = {k: v for k, v in os.environ.items() if k in _MACOS_ENV_PASSTHROUGH}
+    prepend = env_def.get("path_prepend", "").strip()
+    clean_base = _MACOS_CLEAN_BASE_PATH
+    base["PATH"] = f"{prepend}:{clean_base}" if prepend else clean_base
+    base["REPO_ROOT"] = str(repo_root)
+    return base
 
 
 def _load_entries(feature: str, repo_root: Path, envs: dict) -> list[dict]:
@@ -228,63 +273,60 @@ def _run_macos(
             skip_install = standalone_cfg.get("skip_install", False)
             options = scenario.get("options", {})
 
-            # Apply env-level build setup (inline dockerfile commands run as shell)
+            # base_env: clean or full runner env, no feature options yet.
+            # Mirrors Docker: env-level setup and scenario setup run before
+            # feature options are exported, matching standalone mode behaviour.
+            base_env = _build_macos_base_env(env_name, envs, repo_root)
+
             env_def = envs.get(env_name, {})
             env_build = env_def.get("build", {}).get("dockerfile", "")
             if env_build:
-                subprocess.run(["bash", "-c", env_build], check=True)
+                subprocess.run(["bash", "-c", env_build], check=True, env=base_env)
 
-            # Apply scenario setup
             scenario_setup = scenario.get("setup", "")
             if scenario_setup:
-                subprocess.run(["bash", "-c", scenario_setup], check=True)
+                subprocess.run(["bash", "-c", scenario_setup], check=True, env=base_env)
 
-            # Export options into the current process environment
-            saved_env = {}
+            # run_env adds feature options on top of base_env for the install
+            # script and test scripts.
+            run_env = dict(base_env)
             for k, v in options.items():
                 env_key = k.upper().replace("-", "_")
-                saved_env[env_key] = os.environ.get(env_key)
-                os.environ[env_key] = str(v)
+                run_env[env_key] = str(v).lower() if isinstance(v, bool) else str(v)
 
-            try:
-                print(f"\n══ macos: {key} ══", flush=True)
+            print(f"\n══ macos: {key} ══", flush=True)
 
-                if not skip_install:
-                    install_script = repo_root / "src" / feature / "install.bash"
-                    subprocess.run(["bash", str(install_script)], check=True)
+            if not skip_install:
+                install_script = repo_root / "src" / feature / "install.bash"
+                subprocess.run(["bash", str(install_script)], check=True, env=run_env)
 
-                test_scripts = scenario.get("tests", [])
-                for ts in test_scripts:
-                    ts_path = str(
-                        repo_root / "test" / "features" / feature / "tests" / ts,
+            test_scripts = scenario.get("tests", [])
+            for ts in test_scripts:
+                ts_path = str(
+                    repo_root / "test" / "features" / feature / "tests" / ts,
+                )
+                test_env = {
+                    **run_env,
+                    "PATH": f"{shim_dir}:{run_env['PATH']}",
+                }
+                if user:
+                    path_q = shlex.quote(test_env["PATH"])
+                    root_q = shlex.quote(str(repo_root))
+                    ts_q = shlex.quote(ts_path)
+                    cmd = f"PATH={path_q} REPO_ROOT={root_q} bash {ts_q}"
+                    result = subprocess.run(
+                        ["su", user, "-c", cmd],
+                        check=False,
+                        env=test_env,
                     )
-                    test_env = {
-                        **os.environ,
-                        "PATH": f"{shim_dir}:{os.environ.get('PATH', '')}",
-                        "REPO_ROOT": str(repo_root),
-                    }
-                    if user:
-                        path_q = shlex.quote(test_env["PATH"])
-                        root_q = shlex.quote(str(repo_root))
-                        ts_q = shlex.quote(ts_path)
-                        cmd = f"PATH={path_q} REPO_ROOT={root_q} bash {ts_q}"
-                        result = subprocess.run(["su", user, "-c", cmd], check=False)
-                    else:
-                        result = subprocess.run(
-                            ["bash", ts_path],
-                            env=test_env,
-                            check=False,
-                        )
-                    if result.returncode != 0:
-                        success = False
-
-            finally:
-                # Restore original env
-                for env_key, orig in saved_env.items():
-                    if orig is None:
-                        os.environ.pop(env_key, None)
-                    else:
-                        os.environ[env_key] = orig
+                else:
+                    result = subprocess.run(
+                        ["bash", ts_path],
+                        env=test_env,
+                        check=False,
+                    )
+                if result.returncode != 0:
+                    success = False
 
         return success
     finally:

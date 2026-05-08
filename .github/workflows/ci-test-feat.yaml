@@ -100,7 +100,7 @@ jobs:
             just run-gha-dind just test-feats "${{ matrix.feature }}" --mode standalone
 
   macos:
-    name: ${{ matrix.job.feature }} (macOS)
+    name: ${{ matrix.job.feature }} / ${{ matrix.job.scenario }} (macOS)
     if: fromJSON(inputs.config).macos.enabled == true
     runs-on: ${{ matrix.job.runner }}
     strategy:
@@ -120,7 +120,7 @@ jobs:
       - name: Install just
         run: brew install just
 
-      - name: "Test ${{ matrix.job.feature }} macOS scenarios"
+      - name: "Test ${{ matrix.job.feature }} / ${{ matrix.job.scenario }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: just test-feats-macos "${{ matrix.job.feature }}"
+        run: just test-feats-macos "${{ matrix.job.feature }}" --filter "${{ matrix.job.scenario }}"

@@ -34,6 +34,7 @@ import yaml
 from proman.config import load_ci
 from proman.git import git_repo_root
 from proman.release.detect import detect_releasable
+from proman.test.scenarios import expand_envs, merge_defaults
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -144,11 +145,11 @@ def discover_feature_ids() -> list[str]:
 
 
 def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
-    """Compute ``{feature, runner}`` pairs for macOS testing.
+    """Compute ``{feature, runner, scenario}`` entries for macOS testing.
 
-    Reads ``test/environments.yaml`` and each feature's
-    ``test/features/{id}/scenarios.yaml`` to find scenarios that target a macOS
-    environment (image name starts with ``"macos"``).
+    Each macOS scenario becomes a separate matrix entry so that every scenario
+    runs on its own fresh GHA runner, providing the same per-scenario isolation
+    that Docker containers give Linux tests.
 
     Parameters
     ----------
@@ -158,7 +159,8 @@ def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
     Returns
     -------
     list of dict
-        Unique ``{"feature": str, "runner": str}`` pairs sorted by feature then runner.
+        ``{"feature": str, "runner": str, "scenario": str}`` entries, one per
+        macOS scenario, sorted by feature then scenario key.
     """
     envs_data: dict = (
         yaml.safe_load(
@@ -166,39 +168,34 @@ def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
         )
         or {}
     )
-    seen: set[tuple[str, str]] = set()
     result: list[dict[str, str]] = []
     for fid in sorted(feature_ids):
         scenarios_file = git_repo_root() / "test" / "features" / fid / "scenarios.yaml"
         if not scenarios_file.exists():
             continue
-        scenarios: dict = (
-            yaml.safe_load(scenarios_file.read_text(encoding="utf-8")) or {}
-        )
-        for key, scenario in scenarios.items():
-            if key == "defaults":
-                continue
-            for env_name in scenario.get("envs") or []:
+        raw: dict = yaml.safe_load(scenarios_file.read_text(encoding="utf-8")) or {}
+        defaults = raw.pop("defaults", {})
+        for sc_name, sc in raw.items():
+            merged = merge_defaults(sc, defaults)
+            for key, env_name, _ in expand_envs(sc_name, merged):
                 env_def = envs_data.get(env_name)
                 if not isinstance(env_def, dict):
                     continue
                 image = env_def.get("image", "")
                 if image.startswith("macos"):
-                    pair = (fid, image)
-                    if pair not in seen:
-                        seen.add(pair)
-                        result.append({"feature": fid, "runner": image})
+                    result.append({"feature": fid, "runner": image, "scenario": key})
     return result
 
 
-def compute_unit_macos_matrix() -> list[dict[str, str]]:
+def compute_unit_macos_matrix() -> list[dict]:
     """Compute macOS runner entries for unit tests.
 
     Returns
     -------
     list of dict
-        Unique ``{"runner": image}`` entries from ``test/environments.yaml``
-        where the image name starts with ``"macos"``, sorted by runner name.
+        Unique ``{"runner": str, "clean_path": bool}`` entries from
+        ``test/environments.yaml`` where the image name starts with ``"macos"``,
+        sorted by runner name.
     """
     envs_data: dict = (
         yaml.safe_load(
@@ -206,11 +203,13 @@ def compute_unit_macos_matrix() -> list[dict[str, str]]:
         )
         or {}
     )
-    runners: set[str] = set()
+    seen: dict[str, bool] = {}
     for val in envs_data.values():
-        if isinstance(val, dict) and val.get("image", "").startswith("macos"):
-            runners.add(val["image"])
-    return [{"runner": r} for r in sorted(runners)]
+        if isinstance(val, dict):
+            image = val.get("image", "")
+            if image.startswith("macos") and image not in seen:
+                seen[image] = bool(val.get("clean_path", False))
+    return [{"runner": r, "clean_path": seen[r]} for r in sorted(seen)]
 
 
 def compute_unit_env_matrix() -> list[dict[str, str]]:

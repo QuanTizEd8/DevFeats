@@ -113,7 +113,13 @@ linux_only:
 """,
     )
     result = cd.compute_macos_matrix(["install-bar", "install-foo"])
-    assert result == [{"feature": "install-foo", "runner": "macos-latest"}]
+    assert result == [
+        {
+            "feature": "install-foo",
+            "runner": "macos-latest",
+            "scenario": "macos_default",
+        },
+    ]
 
 
 def test_compute_macos_matrix_empty_when_no_macos(
@@ -134,11 +140,11 @@ def test_compute_macos_matrix_empty_when_no_macos(
     assert result == []
 
 
-def test_compute_macos_matrix_deduplicates(
+def test_compute_macos_matrix_one_entry_per_scenario(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify each feature appears at most once in the macOS matrix."""
+    """Verify each macOS scenario gets its own matrix entry for runner isolation."""
     monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
@@ -156,7 +162,10 @@ scenario_b:
 """,
     )
     result = cd.compute_macos_matrix(["install-foo"])
-    assert result == [{"feature": "install-foo", "runner": "macos-latest"}]
+    assert result == [
+        {"feature": "install-foo", "runner": "macos-latest", "scenario": "scenario_a"},
+        {"feature": "install-foo", "runner": "macos-latest", "scenario": "scenario_b"},
+    ]
 
 
 # ── compute_unit_env_matrix ───────────────────────────────────────────────────
@@ -194,7 +203,7 @@ def test_compute_unit_macos_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify unit macOS matrix contains only macOS runners."""
+    """Verify unit macOS matrix contains only macOS runners with clean_path flag."""
     monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
@@ -203,12 +212,13 @@ ubuntu-latest:
   image: ubuntu-latest
 macos-latest:
   image: macos-latest
+  clean_path: true
 debian-latest:
   image: debian-latest
 """,
     )
     result = cd.compute_unit_macos_matrix()
-    assert result == [{"runner": "macos-latest"}]
+    assert result == [{"runner": "macos-latest", "clean_path": True}]
 
 
 def test_compute_unit_macos_matrix_empty_when_no_macos(

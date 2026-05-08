@@ -132,8 +132,14 @@ alpine-latest:
   image: alpine:latest
 
 # macOS environments — image matches ^macos; no Docker container is used
+# clean_path: strips the GHA runner's pre-installed PATH down to the macOS
+# system baseline (/usr/bin:/bin:/usr/sbin:/sbin) so test scenarios cannot
+# accidentally rely on tools that happen to be pre-installed on the runner.
+# path_prepend: colon-separated dirs to prepend to the clean base PATH when
+# a scenario legitimately needs them (e.g. /opt/homebrew/bin).
 macos-latest:
   image: macos-latest
+  clean_path: true
 
 # ── git environments ─────────────────────────────────────────────────────────
 ubuntu-24.04+git-preinstalled:

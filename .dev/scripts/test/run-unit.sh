@@ -44,6 +44,7 @@ _filter=""
 _jobs=0 # 0 = let bats decide (auto / num CPUs)
 _integration=false
 _exclude_integration=true
+_clean_path=false
 declare -a _paths=()
 
 while [[ $# -gt 0 ]]; do
@@ -79,6 +80,10 @@ while [[ $# -gt 0 ]]; do
       _exclude_integration=true
       shift
       ;;
+    --clean-path)
+      _clean_path=true
+      shift
+      ;;
     --help | -h)
       cat << 'HELP'
 Usage: bash .dev/scripts/test/run-unit.sh [--module <name>] [--filter <regex>] [--jobs <n>] [--paths <glob>] [--integration]
@@ -98,6 +103,14 @@ HELP
       ;;
   esac
 done
+
+# ── PATH isolation ───────────────────────────────────────────────────────────
+# Strips the GHA runner's pre-installed tools, keeping only the macOS system
+# baseline plus the bash ≥4 binary selected by the re-exec above.
+if [[ "$_clean_path" == true ]]; then
+  PATH="$(dirname "$BASH"):/usr/bin:/bin:/usr/sbin:/sbin"
+  export PATH
+fi
 
 # ── Pre-flight checks ────────────────────────────────────────────────────────
 if [[ ! -x "$_BATS" ]]; then
