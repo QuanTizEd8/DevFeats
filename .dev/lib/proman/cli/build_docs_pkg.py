@@ -29,7 +29,8 @@ def _package(output: Path) -> int:
     symlinks = [p for p in build_dir.rglob("*") if p.is_symlink()]
     if symlinks:
         print(
-            "Symlinks found in docs/.build/ — the GitHub Pages API will reject this artifact:",
+            "Symlinks found in docs/.build/ — the GitHub Pages API will reject"
+            " this artifact:",
             file=sys.stderr,
         )
         for s in symlinks:
