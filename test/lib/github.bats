@@ -22,6 +22,9 @@ setup() {
     return 0
   }
   export -f net__ensure_fetch_tool net__ensure_ca_certs
+  # Ensure jq is installed outside any `run` call so installation output
+  # does not pollute $output and cause assert_output mismatches.
+  _json__ensure_jq || true
 }
 
 # ---------------------------------------------------------------------------

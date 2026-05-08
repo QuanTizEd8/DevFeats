@@ -1126,6 +1126,7 @@ ospkg__install_tracked() {
     done
     [[ -f "$_session_sidecar" ]] && sort -u "$_session_sidecar" -o "$_session_sidecar"
   fi
+  return 0
 }
 
 # @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep group. Scans the sidecar directory and calls `_ospkg_remove_build_group` for each entry.
