@@ -56,8 +56,8 @@ format-sh-check *files:
   group('format'),
   doc('Format Python files with ruff.')
 ]
-format-py:
-    pixi run --environment lint format-py
+format-py *files:
+    pixi run --environment lint format-py {{ if files != "" { '"' + files + '"' } else { "" } }}
 
 
 [
@@ -126,8 +126,8 @@ lint-py-check:
   group('lint'),
   doc('Lint and fix Python files with ruff.')
 ]
-lint-py:
-    pixi run --environment lint lint-py
+lint-py *files:
+    pixi run --environment lint lint-py {{ if files != "" { '"' + files + '"' } else { "" } }}
 
 
 [

@@ -44,9 +44,15 @@ ruff = "==0.15.11"
 
 [feature.lint.tasks]
 lint-py-check = "ruff check --config .dev/config/ruff.toml ."
-lint-py = "ruff check --fix --config .dev/config/ruff.toml ."
-format-py = "ruff format --config .dev/config/ruff.toml ."
 format-py-check = "ruff format --check --config .dev/config/ruff.toml ."
+
+[feature.lint.tasks.lint-py]
+cmd = "ruff check --fix --config .dev/config/ruff.toml {{ paths }}"
+args = [{ arg = "paths", default = "." }]
+
+[feature.lint.tasks.format-py]
+cmd = "ruff format --config .dev/config/ruff.toml {{ paths }}"
+args = [{ arg = "paths", default = "." }]
 
 
 # ── Test Feature ─────────────────────────────────────────────────────────────
