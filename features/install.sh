@@ -101,9 +101,6 @@ _brew_bin_from_install_context() {
   fi
   _brew="$_prefix/bin/brew"
   [ -x "$_brew" ] || return 1
-  # Homebrew was freshly installed; ensure this shell can invoke it.
-  _brew_bin_dir="$(dirname "$_brew")"
-  export PATH="$_brew_bin_dir:$PATH"
   echo "$_brew"
   return 0
 }
@@ -137,6 +134,9 @@ if ! _find_bash4 > /dev/null; then
       echo "⛔ Homebrew was installed but expected brew binary was not found." >&2
       exit 1
     }
+    # Command substitution runs in a subshell; export PATH in the parent shell.
+    _BREW_BIN_DIR="$(dirname "$_BREW")"
+    export PATH="$_BREW_BIN_DIR:$PATH"
     "$_BREW" install bash
   else
     echo "⛔ No supported package manager found to install bash >=4." >&2
