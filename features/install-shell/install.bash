@@ -685,7 +685,7 @@ if [[ "$INSTALL_ZSH" == true ]]; then
 fi
 
 # Verify prerequisites are available.
-for _cmd in git curl; do
+for _cmd in git; do
   if ! command -v "$_cmd" > /dev/null 2>&1; then
     logging__error "Required command '${_cmd}' not found. Install it first."
     exit 1
