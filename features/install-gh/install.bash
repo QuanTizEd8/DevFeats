@@ -138,7 +138,7 @@ _gh__repos_rhel() {
     net__fetch_url_file \
       "https://cli.github.com/packages/rpm/gh-cli.repo" \
       "/etc/yum.repos.d/gh-cli.repo"
-    dnf install -y gh --repo gh-cli
+    dnf install -y gh
   elif command -v yum > /dev/null 2>&1; then
     mkdir -p /etc/yum.repos.d
     net__fetch_url_file \
