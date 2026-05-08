@@ -29,17 +29,17 @@ _cleanup_hook() {
 resolve_bin_dir() {
   logging__fn_entry "resolve_bin_dir"
   case "${PREFIX}" in
-    auto)
+    "")
+      # Empty prefix means "use platform default":
+      # - root: /usr/local
+      # - non-root: $HOME/.pixi
       if [ "$(id -u)" = "0" ]; then
         PREFIX="/usr/local"
       else
         PREFIX="${HOME}/.pixi"
       fi
       ;;
-    "")
-      PREFIX="${HOME}/.pixi"
-      ;;
-    *) ;; # explicit value: use as-is
+    *) ;; # explicit value: use as-is (including the literal string "auto")
   esac
   logging__info "Resolved prefix to '${PREFIX}'"
   logging__fn_exit "resolve_bin_dir"
