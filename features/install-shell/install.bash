@@ -685,12 +685,10 @@ if [[ "$INSTALL_ZSH" == true ]]; then
 fi
 
 # Verify prerequisites are available.
-for _cmd in git; do
-  if ! command -v "$_cmd" > /dev/null 2>&1; then
-    logging__error "Required command '${_cmd}' not found. Install it first."
-    exit 1
-  fi
-done
+if ! command -v git > /dev/null 2>&1; then
+  logging__error "Required command 'git' not found. Install it first."
+  exit 1
+fi
 
 if [[ -z "${STARSHIP_PREFIX}" ]]; then
   STARSHIP_PREFIX="$(users__default_prefix)"
