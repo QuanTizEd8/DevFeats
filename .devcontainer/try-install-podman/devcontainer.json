@@ -1,0 +1,8 @@
+{
+   "containerUser": "ubuntu",
+   "features": {
+      "ghcr.io/QuanTizEd8/DevFeats/install-podman:0.1.0": {}
+   },
+   "image": "ubuntu:latest",
+   "name": "Try install-podman"
+}

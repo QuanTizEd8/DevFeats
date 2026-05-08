@@ -1,0 +1,8 @@
+{
+   "containerUser": "vscode",
+   "features": {
+      "ghcr.io/QuanTizEd8/DevFeats/setup-user:0.1.0": {}
+   },
+   "image": "ubuntu:latest",
+   "name": "Try setup-user"
+}
