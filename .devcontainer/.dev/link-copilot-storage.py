@@ -74,7 +74,10 @@ def compute_hash(
 
 
 def find_container_hash(
-    host_path: str, container_path: str, config_file: str, local_docker: bool,
+    host_path: str,
+    container_path: str,
+    config_file: str,
+    local_docker: bool,
 ) -> str:
     """Try common Docker contexts and return whichever hash has an existing workspaceStorage dir."""
     if local_docker:
@@ -90,7 +93,11 @@ def find_container_hash(
 
     # No existing dir found yet (first run); fall back to first candidate.
     return compute_hash(
-        host_path, container_path, config_file, local_docker, contexts[0],
+        host_path,
+        container_path,
+        config_file,
+        local_docker,
+        contexts[0],
     )
 
 
@@ -116,7 +123,10 @@ def find_host_hash(host_storage: Path, host_workspace: str) -> str | None:
 def link_copilot_storage(host_path: str, container_path: str, config_file: str) -> int:
     local_docker = detect_local_docker(container_path)
     container_hash = find_container_hash(
-        host_path, container_path, config_file, local_docker,
+        host_path,
+        container_path,
+        config_file,
+        local_docker,
     )
 
     host_storage = find_host_storage()
