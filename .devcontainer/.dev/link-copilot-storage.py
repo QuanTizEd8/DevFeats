@@ -21,15 +21,15 @@ VSCODE_SERVER_STORAGE = Path.home() / ".vscode-server/data/User/workspaceStorage
 
 # Both candidates are always mounted; whichever has workspace.json files is the active one.
 HOST_STORAGE_CANDIDATES = [
-    Path("/host-vscode-workspacestorage"),        # macOS: ~/Library/Application Support/Code
-    Path("/host-vscode-workspacestorage-linux"),   # Linux: ~/.config/Code
+    Path("/host-vscode-workspacestorage"),  # macOS: ~/Library/Application Support/Code
+    Path("/host-vscode-workspacestorage-linux"),  # Linux: ~/.config/Code
 ]
 
 # Tried in order; first whose computed hash matches an existing workspaceStorage dir wins.
 DOCKER_CONTEXT_CANDIDATES: list[str | None] = [
     os.environ.get("DOCKER_CONTEXT"),  # user override via containerEnv, may be None
-    "desktop-linux",                    # Docker Desktop (macOS and Linux)
-    "default",                          # native Docker
+    "desktop-linux",  # Docker Desktop (macOS and Linux)
+    "default",  # native Docker
 ]
 
 
@@ -52,19 +52,30 @@ def detect_local_docker(container_workspace: str) -> bool:
     return False
 
 
-def compute_hash(host_path: str, container_path: str, config_file: str,
-                 local_docker: bool, context: str | None) -> str:
+def compute_hash(
+    host_path: str,
+    container_path: str,
+    config_file: str,
+    local_docker: bool,
+    context: str | None,
+) -> str:
     obj: dict = {"hostPath": host_path, "localDocker": local_docker}
     if context is not None:
         obj["settings"] = {"context": context}
-    obj["configFile"] = {"$mid": 1, "fsPath": config_file, "path": config_file, "scheme": "file"}
+    obj["configFile"] = {
+        "$mid": 1,
+        "fsPath": config_file,
+        "path": config_file,
+        "scheme": "file",
+    }
     json_str = json.dumps(obj, separators=(",", ":"))
     uri = f"vscode-remote://dev-container%2B{json_str.encode().hex()}{container_path}"
     return hashlib.md5(uri.encode()).hexdigest()
 
 
-def find_container_hash(host_path: str, container_path: str, config_file: str,
-                        local_docker: bool) -> str:
+def find_container_hash(
+    host_path: str, container_path: str, config_file: str, local_docker: bool,
+) -> str:
     """Try common Docker contexts and return whichever hash has an existing workspaceStorage dir."""
     if local_docker:
         # Native Docker has no Docker Desktop context; settings field is absent from the URI.
@@ -78,7 +89,9 @@ def find_container_hash(host_path: str, container_path: str, config_file: str,
             return h
 
     # No existing dir found yet (first run); fall back to first candidate.
-    return compute_hash(host_path, container_path, config_file, local_docker, contexts[0])
+    return compute_hash(
+        host_path, container_path, config_file, local_docker, contexts[0],
+    )
 
 
 def find_host_storage() -> Path | None:
@@ -102,18 +115,24 @@ def find_host_hash(host_storage: Path, host_workspace: str) -> str | None:
 
 def link_copilot_storage(host_path: str, container_path: str, config_file: str) -> int:
     local_docker = detect_local_docker(container_path)
-    container_hash = find_container_hash(host_path, container_path, config_file, local_docker)
+    container_hash = find_container_hash(
+        host_path, container_path, config_file, local_docker,
+    )
 
     host_storage = find_host_storage()
     if not host_storage:
-        print("Copilot history sync skipped: host VS Code storage not found at any expected "
-              "mount point (are the workspaceStorage bind mounts active?)")
+        print(
+            "Copilot history sync skipped: host VS Code storage not found at any expected "
+            "mount point (are the workspaceStorage bind mounts active?)",
+        )
         return 0
 
     host_hash = find_host_hash(host_storage, host_path)
     if not host_hash:
-        print(f"Copilot history sync skipped: no workspace.json found for {host_path} "
-              "(open the project in VS Code on the host first)")
+        print(
+            f"Copilot history sync skipped: no workspace.json found for {host_path} "
+            "(open the project in VS Code on the host first)",
+        )
         return 0
 
     # Project-local storage: both symlinks point here using their respective absolute paths.
@@ -160,7 +179,9 @@ def link_copilot_storage(host_path: str, container_path: str, config_file: str) 
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print(f"Usage: {sys.argv[0]} <host_workspace> <container_workspace> <config_file>",
-              file=sys.stderr)
+        print(
+            f"Usage: {sys.argv[0]} <host_workspace> <container_workspace> <config_file>",
+            file=sys.stderr,
+        )
         sys.exit(1)
     sys.exit(link_copilot_storage(sys.argv[1], sys.argv[2], sys.argv[3]))
