@@ -66,6 +66,8 @@ _dependencies:
         # rootless networking — passt is the new default on Fedora; slirp4netns still required on Debian/Ubuntu
         - passt
         - slirp4netns
+        # netavark (rootful network backend) calls nft to manage container network rules
+        - nftables
 
       # UID/GID mapping tools — package name varies by distro
         - when: {pm: apt}
