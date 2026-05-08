@@ -69,3 +69,5 @@ _dependencies:
       # Installed only when sudo_access=true.
       packages:
         - sudo
+_devcontainer:
+  containerUser: vscode

@@ -22,7 +22,7 @@ class InstallScriptGenerator:
         self._templates = self._load_templates(templates_dirpath)
         self._repo_dirpath = repo_dirpath
 
-    def generate(self, feature_id: str, metadata: dict) -> dict[Path, str]:
+    def generate(self, metadata: dict) -> dict[Path, str]:
         """Generate the full install.bash content for a feature.
 
         The generated content covers everything from the shebang (#!/usr/bin/env bash)
@@ -44,7 +44,7 @@ class InstallScriptGenerator:
         devcontainer-feature.json (handled by metadata.py).
         """
         target_file = Path("install.bash")
-        body_path = self._features_dirpath / feature_id / target_file
+        body_path = self._features_dirpath / metadata["id"] / target_file
 
         if not body_path.exists():
             return {}

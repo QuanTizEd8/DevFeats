@@ -6,7 +6,6 @@ from typing import Any
 import mdit
 
 from proman.const import LIFECYCLE_COMMAND_KEYS
-from proman.git import git_owner_repo
 
 
 def generate(metadata: dict[str, Any], notes: str = "") -> str:
@@ -58,8 +57,7 @@ def _generate_keyword_badges(metadata: dict[str, Any]) -> str:
 def _generate_spec_summary(metadata: dict[str, Any]) -> str:
     feat_id = metadata["id"]
     feat_ver = metadata["version"]
-    owner, repo = git_owner_repo()
-    ghcr = f"ghcr.io/{owner}/{repo}/{feat_id}"
+    ghcr = metadata["_oci_ref"]
     summary = (
         f":**Latest Version**: `{feat_ver}`\n"
         f":**Feature ID**: `{feat_id}`\n"
@@ -77,8 +75,7 @@ def _generate_spec_summary(metadata: dict[str, Any]) -> str:
 def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     feat_id = metadata.get("id", "")
     major = metadata.get("version", "1").split(".")[0]
-    owner, repo_name = git_owner_repo()
-    feature_ref = f"ghcr.io/{owner}/{repo_name}/{feat_id}:{major}"
+    feature_ref = f"{metadata['_oci_ref']}:{major}"
 
     options = metadata.get("options", {})
     defaults = {k: v.get("default") for k, v in options.items()}

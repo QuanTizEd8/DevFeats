@@ -8,7 +8,7 @@ import sys
 from proman.docs import feat_doc_gen, lib_doc_gen
 from proman.docs.parse_lib import parse_lib_module
 from proman.git import git_owner_repo, git_repo_root
-from proman.sync import load_and_augment
+from proman.sync import load_and_augment, sync_file
 
 _FEATURES_NOTES_FILENAME = "NOTES.md"
 
@@ -61,11 +61,7 @@ def main() -> int:
     }
     docs_data_path = output_dir / "docs-data.json"
     docs_data_content = json.dumps(docs_data, indent=2, ensure_ascii=False)
-    if (
-        not docs_data_path.exists()
-        or docs_data_path.read_text(encoding="utf-8") != docs_data_content
-    ):
-        docs_data_path.write_text(docs_data_content, encoding="utf-8")
+    sync_file(docs_data_path, docs_data_content)
 
     # ── Feature docs ──────────────────────────────────────────────────────────
 
@@ -76,8 +72,7 @@ def main() -> int:
         notes = notes_path.read_text(encoding="utf-8") if notes_path.exists() else ""
         doc_content = feat_doc_gen.generate(metadata=feat_metadata, notes=notes)
         doc_path = feat_doc_dir / f"{feat_id}.md"
-        if not doc_path.exists() or doc_path.read_text(encoding="utf-8") != doc_content:
-            doc_path.write_text(doc_content, encoding="utf-8")
+        sync_file(doc_path, doc_content)
 
     # ── Library docs ──────────────────────────────────────────────────────────
 
@@ -89,8 +84,7 @@ def main() -> int:
             continue
         doc_content = lib_doc_gen.generate(module)
         doc_path = lib_doc_dir / f"{module.name}.md"
-        if not doc_path.exists() or doc_path.read_text(encoding="utf-8") != doc_content:
-            doc_path.write_text(doc_content, encoding="utf-8")
+        sync_file(doc_path, doc_content)
 
     print(
         f"docs-data: {len(all_metadata)} features, {len(lib_modules)} lib modules"

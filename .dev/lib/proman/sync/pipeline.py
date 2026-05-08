@@ -12,6 +12,7 @@ import yaml
 
 from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.git import git_owner_repo, git_repo_root
+from proman.sync.file_sync import SyncStatus, remove_file, sync_file
 from proman.sync.install_script import InstallScriptGenerator
 from proman.sync.metadata import (
     augment_metadata,
@@ -37,18 +38,22 @@ def run(*, check_only: bool = False) -> int:
         0 on success, 1 if any feature failed validation or sync.
     """
     repo_dirpath = git_repo_root()
-    owner, name = git_owner_repo()
+    repo_owner, repo_name = git_owner_repo()
 
     lib_dirpath = repo_dirpath / "lib"
     features_dirpath = repo_dirpath / "features"
     src_dirpath = repo_dirpath / "src"
+    devcontainer_dirpath = repo_dirpath / ".devcontainer"
 
     ospkg_schema_id = (
-        f"https://raw.githubusercontent.com/{owner}/{name}/main/"
+        f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/main/"
         f"lib/ospkg.manifest.schema.json"
     )
-    license_url = f"https://github.com/{owner}/{name}/blob/main/LICENSE"
-    doc_url_template = f"https://{owner}.github.io/{name}/features/{{feature_id}}"
+    license_url = f"https://github.com/{repo_owner}/{repo_name}/blob/main/LICENSE"
+    doc_url_template = (
+        f"https://{repo_owner}.github.io/{repo_name}/features/{{feature_id}}"
+    )
+    oci_ref_template = f"ghcr.io/{repo_owner}/{repo_name}/{{feature_id}}"
 
     derived_options = load_derived_options(features_dirpath)
     validator = build_metadata_validator(features_dirpath, lib_dirpath, ospkg_schema_id)
@@ -97,30 +102,43 @@ def run(*, check_only: bool = False) -> int:
             continue
 
         metadata["id"] = feature_id
+        metadata["_oci_ref"] = oci_ref_template.format(feature_id=feature_id)
+
         output_files.update(_generate_dependency_manifests(metadata))
 
         sanitize_markdown(metadata)
 
         output_files.update(
             _generate_metadata_json(
-                feature_id,
-                metadata,
-                license_url,
-                doc_url_template,
+                metadata=metadata,
+                license_url=license_url,
+                doc_url_template=doc_url_template,
             ),
         )
-        output_files.update(generator.generate(feature_id, metadata))
+        output_files.update(generator.generate(metadata))
         output_files.update(lib_files)
         output_files.update(bootstrap_file)
         output_files.update(_gather_feature_files(feature_id, features_dirpath))
 
-        if not _sync_source_files(
+        feature_in_sync = _sync_source_files(
             feature_id,
             output_files,
             src_dirpath,
             gitignore_patterns,
             check_only=check_only,
-        ):
+        )
+
+        devcontainers_in_sync = True
+        for prefix, is_local in (("test", True), ("try", False)):
+            devcontainer_status = sync_file(
+                devcontainer_dirpath / f"{prefix}-{feature_id}" / "devcontainer.json",
+                _generate_feature_devcontainer_json(metadata, local=is_local),
+                check_only=check_only,
+            )
+            if not devcontainer_status.is_in_sync:
+                devcontainers_in_sync = False
+
+        if not (feature_in_sync and devcontainers_in_sync):
             n_failures["sync"] += 1
 
     _log("\nFinal results:")
@@ -162,14 +180,13 @@ def _generate_dependency_manifests(metadata: dict) -> dict[Path, str]:
 
 
 def _generate_metadata_json(
-    feature_id: str,
     metadata: dict,
     license_url: str,
     doc_url_template: str,
 ) -> dict[Path, str]:
     """Generate devcontainer-feature.json content from parsed YAML data."""
     metadata_json_dict: dict = {
-        "documentationURL": doc_url_template.format(feature_id=feature_id),
+        "documentationURL": doc_url_template.format(feature_id=metadata["id"]),
         "licenseURL": license_url,
     }
 
@@ -205,6 +222,46 @@ def _generate_metadata_json(
         + "\n"
     )
     return {Path("devcontainer-feature.json"): metadata_json}
+
+
+def _generate_feature_devcontainer_json(metadata: dict, *, local: bool) -> str:
+    """Generate .devcontainer/<feature>/devcontainer.json for live testing."""
+    defaults = {
+        "image": "ubuntu:latest",
+        "containerUser": "ubuntu",
+    }
+
+    overrides = {
+        "name": f"{'Test' if local else 'Try'} {metadata['id']}",
+    }
+
+    sample = metadata.get("_devcontainer", {})
+
+    devcontainer_json = defaults | sample | overrides
+
+    features = devcontainer_json.setdefault("features", {})
+    feature_id = metadata["id"]
+    feat_options = {}
+    for feat_id, feat_opts in features.items():
+        if feature_id in feat_id:
+            feat_options = feat_opts
+            break
+    feat_ref = (
+        f"../.src/{feature_id}"
+        if local
+        else f"{metadata['_oci_ref']}:{metadata['version']}"
+    )
+    features[feat_ref] = feat_options
+
+    return (
+        json.dumps(
+            devcontainer_json,
+            sort_keys=True,
+            indent=3,
+            ensure_ascii=False,
+        )
+        + "\n"
+    )
 
 
 # ── File gathering ────────────────────────────────────────────────────────────
@@ -295,52 +352,32 @@ def _sync_source_files(
     *,
     check_only: bool = False,
 ) -> bool:
+    """Sync ``src/<feature_id>/`` to match ``new_files``; deleting strays."""
     feature_src_dir = src_dirpath / feature_id
-    old_files = (
+    old_filepaths: set[Path] = (
         {
-            path.relative_to(feature_src_dir): path.read_text(encoding="utf-8")
-            for path in sorted(feature_src_dir.rglob("*"))
+            path.relative_to(feature_src_dir)
+            for path in feature_src_dir.rglob("*")
             if path.is_file()
             and not any(fnmatch.fnmatch(path.name, p) for p in gitignore_patterns)
         }
         if feature_src_dir.exists()
-        else {}
+        else set()
     )
 
-    is_in_sync = True
-
-    for new_filepath, new_content in new_files.items():
-        if new_filepath not in old_files:
-            if check_only:
-                is_in_sync = False
-                _log(f"⛔ {feature_id}: {new_filepath} is missing")
-            else:
-                dest = feature_src_dir / new_filepath
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_text(new_content, encoding="utf-8")
-                _log(f"✅ {feature_id}: {new_filepath} created")
-            continue
-
-        if old_files[new_filepath] == new_content:
-            _log(f"✅ {feature_id}: {new_filepath} unchanged")
-            continue
-
-        if check_only:
-            is_in_sync = False
-            _log(f"⛔ {feature_id}: {new_filepath} is stale")
-        else:
-            (feature_src_dir / new_filepath).write_text(new_content, encoding="utf-8")
-            _log(f"✅ {feature_id}: {new_filepath} updated")
-
-    for old_filepath in old_files:
-        if old_filepath not in new_files:
-            if check_only:
-                is_in_sync = False
-                _log(f"⛔ {feature_id}: {old_filepath} must be removed")
-            else:
-                (feature_src_dir / old_filepath).unlink()
-                _log(f"🗑️  {feature_id}: {old_filepath} removed")
-    return is_in_sync
+    statuses: list[SyncStatus] = [
+        sync_file(
+            feature_src_dir / new_filepath,
+            new_content,
+            check_only=check_only,
+        )
+        for new_filepath, new_content in new_files.items()
+    ]
+    statuses.extend(
+        remove_file(feature_src_dir / old_filepath, check_only=check_only)
+        for old_filepath in sorted(old_filepaths - new_files.keys())
+    )
+    return all(status.is_in_sync for status in statuses)
 
 
 def _log(msg: str) -> None:
