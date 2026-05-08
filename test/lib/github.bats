@@ -4,7 +4,7 @@
 # Network calls are replaced with function stubs or fake curl binaries that
 # return canned JSON fixtures.
 
-bats_require_minimum_version 1.5.0
+bats_require_minimum_version 1.7.0
 
 setup() {
   load 'helpers/common'
@@ -22,9 +22,6 @@ setup() {
     return 0
   }
   export -f net__ensure_fetch_tool net__ensure_ca_certs
-  # Ensure jq is installed outside any `run` call so installation output
-  # does not pollute $output and cause assert_output mismatches.
-  _json__ensure_jq || true
 }
 
 # ---------------------------------------------------------------------------
@@ -37,7 +34,7 @@ setup() {
     return 0
   }
   export -f github__fetch_release_json
-  run github__latest_tag "owner/repo"
+  run --separate-stderr github__latest_tag "owner/repo"
   assert_output "v1.2.3"
   assert_success
 }
