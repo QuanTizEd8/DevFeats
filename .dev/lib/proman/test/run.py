@@ -297,8 +297,12 @@ def _run_macos(
             print(f"\n══ macos: {key} ══", flush=True)
 
             if not skip_install:
-                install_script = repo_root / "src" / feature / "install.bash"
-                subprocess.run(["bash", str(install_script)], check=True, env=run_env)
+                install_script = repo_root / "src" / feature / "install.sh"
+                subprocess.run(
+                    ["/bin/sh", str(install_script)],
+                    check=True,
+                    env=run_env,
+                )
 
             test_scripts = scenario.get("tests", [])
             for ts in test_scripts:
