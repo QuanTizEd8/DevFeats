@@ -118,7 +118,7 @@ jobs:
           path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
       - name: Install just
-        run: brew install just
+        run: brew install just pixi
 
       - name: "Test ${{ fromJSON(inputs.config).feature }} / ${{ matrix.sc.scenario }}"
         env:
