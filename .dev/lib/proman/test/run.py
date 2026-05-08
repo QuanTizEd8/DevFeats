@@ -305,6 +305,8 @@ def _run_macos(
             base_env = _build_macos_base_env(env_name, envs, repo_root)
 
             env_def = envs.get(env_name, {})
+            # macOS: `build.dockerfile` is env bootstrap shell (not Docker). Linux
+            # envs use it as Dockerfile RUN body via environments.resolve().
             env_build = env_def.get("build", {}).get("dockerfile", "")
             if env_build:
                 subprocess.run(["bash", "-c", env_build], check=True, env=base_env)

@@ -96,7 +96,7 @@ macos_default:
   tests: [macos_default.sh]
 
 macos_fresh_install:
-  envs: [macos-latest]
+  envs: [macos-latest-fresh-install]
   tests: [macos_fresh_install.sh]
 
 macos_if_exists_fail:

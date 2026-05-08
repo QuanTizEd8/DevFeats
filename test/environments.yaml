@@ -140,6 +140,26 @@ alpine-latest:
 macos-latest:
   image: macos-latest
   clean_path: true
+  # Homebrew lives outside the stripped PATH; scenarios and setup scripts invoke
+  # `brew --prefix` and must resolve the real binary (arm64: /opt/homebrew, Intel: /usr/local).
+  path_prepend: /opt/homebrew/bin:/usr/local/bin
+
+# Same runner as macos-latest, but no path_prepend: bare `brew` is not on PATH.
+# On native macOS, `build.dockerfile` is not a Docker layer — proman runs it as a
+# shell snippet before scenario `setup` and the feature install (same hook shape
+# as Linux envs). Use for any scenario that needs a clean Homebrew slate; after
+# install, use "${prefix}/bin/brew" in tests until PATH is extended.
+macos-latest-fresh-install:
+  image: macos-latest
+  clean_path: true
+  build:
+    dockerfile: |
+      set -eux
+      _UNINSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
+      _UNINSTALL_TMP="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
+      curl -fsSL "$_UNINSTALL_URL" -o "$_UNINSTALL_TMP"
+      NONINTERACTIVE=1 bash "$_UNINSTALL_TMP" --force
+      rm -f "$_UNINSTALL_TMP"
 
 # ── git environments ─────────────────────────────────────────────────────────
 ubuntu-24.04+git-preinstalled:
