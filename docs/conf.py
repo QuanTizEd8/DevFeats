@@ -1,5 +1,4 @@
-# Configuration file for the Sphinx documentation builder.
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+"""Sphinx configuration for the devfeats documentation site."""
 
 from __future__ import annotations
 
@@ -8,6 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import yaml
+from pygments.lexers.configs import IniLexer
+from pygments.lexers.data import JsonLexer
 
 if TYPE_CHECKING:
     from typing import Any
@@ -24,10 +25,11 @@ _docs_cfg: dict = yaml.safe_load(
 globals().update(_docs_cfg)
 
 if not _DOCS_DATA_PATH.exists():
-    raise FileNotFoundError(
+    msg = (
         f"Docs data artifact not found: {_DOCS_DATA_PATH}\n"
-        "Run 'pixi run gen-docs-data' before building the docs.",
+        "Run 'pixi run gen-docs-data' before building the docs."
     )
+    raise FileNotFoundError(msg)
 
 _docs_data: dict[str, Any] = json.loads(_DOCS_DATA_PATH.read_text(encoding="utf-8"))
 _REPO_OWNER: str = _docs_data["repo_owner"]
@@ -36,11 +38,8 @@ _feature_metadata: dict[str, dict[str, Any]] = _docs_data["features"]
 _lib_modules: dict[str, str] = _docs_data.get("lib_modules", {})
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
     """Register lexer aliases and connect build-time feature preamble injection."""
-    from pygments.lexers.configs import IniLexer
-    from pygments.lexers.data import JsonLexer
-
     app.add_lexer("jsonc", JsonLexer)
     app.add_lexer("gitconfig", IniLexer)
     app.connect("source-read", _source_jinja_template)
@@ -54,8 +53,8 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
     - https://www.ericholscher.com/blog/2016/jul/25/integrating-jinja-rst-sphinx/
     - https://www.sphinx-doc.org/en/master/extdev/event_callbacks.html#event-source-read
     """
-    # Change Jinja environment markers to avoid clashes with the MyST Attributes extension
-    # as well as templating syntax in control center configurations.
+    # Change Jinja environment markers to avoid clashes with the MyST Attributes
+    # extension as well as templating syntax in control center configurations.
     # Refs:
     # - Jinja: https://jinja.palletsprojects.com/en/stable/api/#jinja2.Environment
     # - MyST: https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#attributes
@@ -79,11 +78,12 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
         )
     except Exception as e:
         full_path = app.env.doc2path(docname)
-        raise RuntimeError(
+        msg = (
             f"Could not render '{full_path}' as Jinja template "
             f"(in {__name__}._source_jinja_template): "
-            f"{type(e).__name__}: {e}",
-        ) from e
+            f"{type(e).__name__}: {e}"
+        )
+        raise RuntimeError(msg) from e
     # Revert Jinja environment markers to their defaults
     # so that other templates and tools have the default markers.
     for attr, attr_val in attrs_default.items():
@@ -93,12 +93,13 @@ def _source_jinja_template(app: Sphinx, docname: str, content: list[str]) -> Non
 # ── Project information ────────────────────────────────────────────────────────
 
 project = _REPO_NAME
-copyright = f"2024–2025, {_REPO_NAME} contributors"
+copyright = f"2024-2025, {_REPO_NAME} contributors"
 author = f"{_REPO_NAME} contributors"
 
 # ── General configuration ──────────────────────────────────────────────────────
 
-# sphinx-external-toc: absolute path keeps this stable even when callers vary -c/confdir.
+# sphinx-external-toc: absolute path keeps this stable even when callers
+# vary -c/confdir.
 external_toc_path = str(_WEBSITE_ROOT / "toc.yaml")
 
 # ── HTML output ────────────────────────────────────────────────────────────────
