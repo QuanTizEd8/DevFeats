@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 @cache
 def _git() -> Git:
-    from gittidy import Git
+    from gittidy import Git  # noqa: PLC0415
 
     return Git(Path.cwd())
 

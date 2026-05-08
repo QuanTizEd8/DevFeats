@@ -368,7 +368,7 @@ def base_feature_version(base_ref: str, feature_id: str) -> str:
     str
         Version string if present in base; otherwise an empty string.
     """
-    from gittidy import Git
+    from gittidy import Git  # noqa: PLC0415
 
     content = Git(git_repo_root()).file_at_ref(
         f"origin/{base_ref}",
