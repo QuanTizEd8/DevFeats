@@ -18,13 +18,14 @@ def _run_env(
     scenario: dict,
     repo_root: Path,
     envs: dict,
-    run_in_container: Path,
     extra_args: list[str],
 ) -> bool:
+    """Run unit tests for one environment; return True on success."""
     env_name = scenario["env"]
     env_vars = scenario.get("env_vars", {})
     lib_dir = repo_root / "test" / "lib"
     test_files = expand_test_files(scenario.get("tests"), lib_dir)
+    run_in_container = repo_root / ".dev" / "scripts" / "test" / "run-in-container.sh"
 
     image = resolve(env_name, envs, repo_root)
 
@@ -54,9 +55,9 @@ def _run_env(
 
 
 def run(target_env: str | None, extra_args: list[str], repo_root: Path) -> int:
+    """Run lib unit tests for one or all environments; return exit code."""
     _, scenarios = load_scenarios(repo_root / "test" / "lib" / "scenarios.yaml")
     envs = load_envs(repo_root / "test" / "environments.yaml")
-    run_in_container = repo_root / ".dev" / "scripts" / "test" / "run-in-container.sh"
 
     if target_env is not None:
         if target_env not in scenarios:
@@ -67,14 +68,13 @@ def run(target_env: str | None, extra_args: list[str], repo_root: Path) -> int:
             scenarios[target_env],
             repo_root,
             envs,
-            run_in_container,
             extra_args,
         )
         return 0 if ok else 1
 
     passed = failed = 0
     for name, scenario in scenarios.items():
-        if _run_env(name, scenario, repo_root, envs, run_in_container, extra_args):
+        if _run_env(name, scenario, repo_root, envs, extra_args):
             passed += 1
         else:
             failed += 1
