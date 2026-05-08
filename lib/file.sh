@@ -23,24 +23,28 @@ _file__ensure_extract_tool() {
   local _ext="$1"
   case "$_ext" in
     zip)
+      command -v unzip > /dev/null 2>&1 && return 0
       ospkg__install_tracked "lib-file" unzip || true
       command -v unzip > /dev/null 2>&1 && return 0
       logging__error "file.sh: unzip is required to extract .zip archives but could not be installed."
       return 1
       ;;
     xz)
+      command -v xz > /dev/null 2>&1 && return 0
       ospkg__run --manifest "$_FILE__XZ_MANIFEST" --build-group "lib-file" --skip_installed || true
       command -v xz > /dev/null 2>&1 && return 0
       logging__error "file.sh: xz is required to extract .tar.xz archives but could not be installed."
       return 1
       ;;
     gz)
+      command -v gzip > /dev/null 2>&1 && return 0
       ospkg__install_tracked "lib-file" gzip || true
       command -v gzip > /dev/null 2>&1 && return 0
       logging__error "file.sh: gzip is required to extract .tar.gz archives but could not be installed."
       return 1
       ;;
     tar)
+      command -v tar > /dev/null 2>&1 && return 0
       ospkg__install_tracked "lib-file" tar || true
       command -v tar > /dev/null 2>&1 && return 0
       logging__error "file.sh: tar is required but could not be installed."
