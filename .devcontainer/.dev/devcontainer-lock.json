@@ -15,6 +15,11 @@
       "resolved": "ghcr.io/quantized8/sysset/install-gh@sha256:c6999931282f136cd1a17d0c64965548a6f2bd0a655081cff1cf172082778e8a",
       "integrity": "sha256:c6999931282f136cd1a17d0c64965548a6f2bd0a655081cff1cf172082778e8a"
     },
+    "ghcr.io/quantized8/sysset/install-git": {
+      "version": "0.1.0",
+      "resolved": "ghcr.io/quantized8/sysset/install-git@sha256:9c74146759c5c91c0171cf675f1efdcf14eab11cffabeca5be7baeffd12844d5",
+      "integrity": "sha256:9c74146759c5c91c0171cf675f1efdcf14eab11cffabeca5be7baeffd12844d5"
+    },
     "ghcr.io/quantized8/sysset/install-jq": {
       "version": "0.1.0",
       "resolved": "ghcr.io/quantized8/sysset/install-jq@sha256:37496fb34d0d83c2d5be8b378a6a6d5e1ce28eb1c732ee81c4000b83fcb8722d",
