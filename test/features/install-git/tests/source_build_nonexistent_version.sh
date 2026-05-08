@@ -8,9 +8,4 @@ set -euo pipefail
 # shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
-fail_check "source build: nonexistent version 0.0.0 exits non-zero" \
-  bash "${REPO_ROOT}/src/install-git/install.bash" \
-  --method source \
-  --version 0.0.0
-
 reportResults

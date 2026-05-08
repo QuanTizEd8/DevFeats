@@ -1,32 +1,46 @@
 defaults:
   options:
     log_level: trace
-
 default_install:
-  envs: [ubuntu-latest]
-  modes: [devcontainer, standalone]
-  tests: [default_install.sh]
-
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  tests:
+  - default_install.sh
 release_custom_prefix:
-  envs: [ubuntu-latest]
-  modes: [devcontainer, standalone]
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
   options:
     method: release
     prefix: /opt/just-bin
     if_exists: reinstall
-  tests: [release_custom_prefix.sh]
-
+  tests:
+  - release_custom_prefix.sh
 repos_install:
-  envs: [debian-latest]
-  modes: [devcontainer, standalone]
+  envs:
+  - debian-latest
+  modes:
+  - devcontainer
+  - standalone
   options:
     method: repos
     if_exists: reinstall
-  tests: [repos_install.sh]
-
+  tests:
+  - repos_install.sh
 if_exists_fail:
-  envs: [debian-latest+just-stub]
-  modes: [standalone]
-  tests: [if_exists_fail.sh]
+  expect_install_failure: true
+  envs:
+  - debian-latest+just-stub
+  modes:
+  - standalone
+  tests:
+  - if_exists_fail.sh
   standalone:
-    skip_install: true
+    skip_install: false
+  options:
+    if_exists: fail

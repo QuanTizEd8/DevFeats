@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016,SC2088  # bash -c literal script, ~/ in labels
-# export_path_idempotent: run the feature twice with export_path=auto.
-# The second run must update the shellenv blocks in-place without appending
-# a duplicate — each begin marker must appear exactly once per file.
+# export_path_idempotent: setup pre-seeds duplicate shellenv blocks, then a
+# single feature run with export_path=auto must collapse to one marker/file.
 #
 # Cleanup: removes shellenv blocks from all four user dotfiles on EXIT.
 set -e
@@ -20,11 +19,6 @@ _cleanup() {
   done
 }
 trap _cleanup EXIT
-
-# First run
-bash "${REPO_ROOT}/src/install-homebrew/install.sh"
-# Second run (idempotency check)
-bash "${REPO_ROOT}/src/install-homebrew/install.sh"
 
 # --- brew is intact ---
 check "brew binary present" test -f "$_BREW"

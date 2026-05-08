@@ -101,10 +101,15 @@ macos_fresh_install:
 
 macos_if_exists_fail:
   envs: [macos-latest]
+  options:
+    if_exists: fail
+  expect_install_failure: true
   tests: [macos_if_exists_fail.sh]
 
 macos_if_exists_reinstall:
   envs: [macos-latest]
+  options:
+    if_exists: reinstall
   tests: [macos_if_exists_reinstall.sh]
 
 macos_export_path_disabled:
@@ -115,26 +120,55 @@ macos_export_path_disabled:
 
 macos_export_path_custom_file:
   envs: [macos-latest]
+  options:
+    export_path: /tmp/test-brew-custom.sh
   tests: [macos_export_path_custom_file.sh]
 
 macos_export_path_idempotent:
   envs: [macos-latest]
+  setup: |
+    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+      mkdir -p "$(dirname "$f")"
+      printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/opt/homebrew/bin/brew shellenv 2> /dev/null || /usr/local/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' >> "$f"
+      printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/opt/homebrew/bin/brew shellenv 2> /dev/null || /usr/local/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' >> "$f"
+    done
   tests: [macos_export_path_idempotent.sh]
 
 macos_brew_git_remote:
   envs: [macos-latest]
+  setup: |
+    BREW_PREFIX="$(brew --prefix 2> /dev/null || true)"
+    if [ "$(uname -m)" = "arm64" ]; then
+      BREW_REPO="$BREW_PREFIX"
+    else
+      BREW_REPO="$BREW_PREFIX/Homebrew"
+    fi
+    REMOTE_URL="$(git -C "$BREW_REPO" remote get-url origin 2> /dev/null || \
+      echo "https://github.com/Homebrew/brew")"
+    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+      mkdir -p "$(dirname "$f")"
+      printf '# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>\nexport HOMEBREW_BREW_GIT_REMOTE="%s"\n# <<< HOMEBREW_BREW_GIT_REMOTE (install-homebrew) <<<\n' "$REMOTE_URL" >> "$f"
+    done
   tests: [macos_brew_git_remote.sh]
 
 macos_no_install_from_api:
   envs: [macos-latest]
+  setup: |
+    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+      mkdir -p "$(dirname "$f")"
+      printf '# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>\nexport HOMEBREW_NO_INSTALL_FROM_API=1\n# <<< HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) <<<\n' >> "$f"
+    done
   tests: [macos_no_install_from_api.sh]
 
 macos_logfile:
   envs: [macos-latest]
+  options:
+    log_file: /tmp/brew-macos-test.log
   tests: [macos_logfile.sh]
 
 macos_update_false:
   envs: [macos-latest]
   options:
     update: false
+    log_file: /tmp/brew-update-false-test.log
   tests: [macos_update_false.sh]

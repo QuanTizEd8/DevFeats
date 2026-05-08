@@ -11,16 +11,12 @@ source dev-container-features-test-lib
 
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
-_CUSTOM_FILE="/tmp/test-brew-custom-$$.sh"
+_CUSTOM_FILE="/tmp/test-brew-custom.sh"
 
 _cleanup() {
   rm -f "$_CUSTOM_FILE"
 }
 trap _cleanup EXIT
-
-# --- run the feature ---
-bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
-  --export_path "$_CUSTOM_FILE"
 
 # --- brew is intact ---
 echo "=== brew --version ==="

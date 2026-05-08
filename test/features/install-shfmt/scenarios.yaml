@@ -1,36 +1,52 @@
 defaults:
   options:
     log_level: trace
-
 default_install:
-  envs: [ubuntu-latest]
-  modes: [devcontainer, standalone]
-  tests: [default_install.sh]
-
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  tests:
+  - default_install.sh
 release_custom_prefix:
-  envs: [ubuntu-latest]
-  modes: [devcontainer, standalone]
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
   options:
     method: release
     prefix: /opt/shfmt-bin
     if_exists: reinstall
-  tests: [release_custom_prefix.sh]
-
+  tests:
+  - release_custom_prefix.sh
 repos_install:
-  envs: [debian-latest]
-  modes: [devcontainer, standalone]
+  envs:
+  - debian-latest
+  modes:
+  - devcontainer
+  - standalone
   options:
     method: repos
-  tests: [repos_install.sh]
-
+  tests:
+  - repos_install.sh
 if_exists_fail:
-  envs: [debian-latest]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then echo "v3.0.0 (fake)"; exit 0; fi\nexec cat\n' > /usr/local/bin/shfmt
+  expect_install_failure: true
+  envs:
+  - debian-latest
+  modes:
+  - standalone
+  setup: 'printf ''#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then echo
+    "v3.0.0 (fake)"; exit 0; fi\nexec cat\n'' > /usr/local/bin/shfmt
+
     chmod +x /usr/local/bin/shfmt
+
+    '
   options:
     method: auto
-  tests: [if_exists_fail.sh]
+    if_exists: fail
+  tests:
+  - if_exists_fail.sh
   standalone:
-    skip_install: true
+    skip_install: false

@@ -8,8 +8,4 @@ set -euo pipefail
 # shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
-fail_check "source build: network-isolated version resolution fails" \
-  bash "${REPO_ROOT}/src/install-git/install.bash" \
-  --method source
-
 reportResults

@@ -9,8 +9,4 @@ source dev-container-features-test-lib
 # Confirm git is pre-installed by SETUP_CMD.
 check "git pre-installed by setup" command -v git
 
-fail_check "if_exists=fail with pre-installed git exits non-zero" \
-  bash "${REPO_ROOT}/src/install-git/install.bash" \
-  --if_exists fail
-
 reportResults

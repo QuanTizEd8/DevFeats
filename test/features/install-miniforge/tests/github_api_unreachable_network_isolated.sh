@@ -6,7 +6,4 @@ set -euo pipefail
 
 source dev-container-features-test-lib
 
-fail_check "network-isolated: GitHub API unreachable" \
-  bash "${REPO_ROOT}/src/install-miniforge/install.bash"
-
 reportResults

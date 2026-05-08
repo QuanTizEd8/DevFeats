@@ -5,8 +5,4 @@ set -euo pipefail
 
 source dev-container-features-test-lib
 
-fail_check "invalid version 0.0.0 exits non-zero" \
-  bash "${REPO_ROOT}/src/install-miniforge/install.bash" \
-  --version 0.0.0
-
 reportResults

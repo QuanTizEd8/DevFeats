@@ -22,16 +22,6 @@ _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
 check "brew present before reinstall (pre-condition)" test -f "$_BREW"
 
-# ── Run the feature with if_exists=reinstall ──────────────────────────────────
-echo "=== Running install-homebrew with if_exists=reinstall ==="
-bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
-  --if_exists reinstall
-echo "=== Feature completed ==="
-# The feature's internal uninstall+reinstall removes /opt/homebrew/bin/bash
-# (installed by an earlier scenario) without reinstalling it.  Clear the
-# command hash table so subsequent 'bash …' calls fall through to /bin/bash.
-hash -r
-
 # ── Verify brew is functional after reinstall ────────────────────────────────
 echo "=== brew --version ==="
 "$_BREW" --version 2>&1 || echo "(failed)"

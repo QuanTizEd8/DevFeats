@@ -176,6 +176,7 @@ def _run_standalone(
         sudo_ok = standalone_cfg.get("sudo", True)
         network = standalone_cfg.get("network", "")
         skip_install = standalone_cfg.get("skip_install", False)
+        expect_install_failure = bool(scenario.get("expect_install_failure", False))
         options = scenario.get("options", {})
         sc_args = scenario.get("args") or {}
         sc_env_vars = scenario.get("env_vars") or {}
@@ -195,11 +196,13 @@ def _run_standalone(
             if user:
                 test_cmd_lines.append(
                     f"su {user} -c 'PATH=/tmp/_testlib:$PATH"
-                    f" REPO_ROOT=/repo bash {ts_path}'",
+                    f" REPO_ROOT=/repo FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC"
+                    f" bash {ts_path}'",
                 )
             else:
                 test_cmd_lines.append(
-                    f"PATH=/tmp/_testlib:$PATH REPO_ROOT=/repo bash {ts_path}",
+                    f"PATH=/tmp/_testlib:$PATH REPO_ROOT=/repo"
+                    f" FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC bash {ts_path}",
                 )
 
         parts = [
@@ -210,6 +213,32 @@ def _run_standalone(
         ]
         if not skip_install:
             parts.append(f"sh /repo/src/{feature}/install.sh")
+            parts.append("FEATURE_INSTALL_RC=$?")
+            if expect_install_failure:
+                parts.append(
+                    'if [ "${FEATURE_INSTALL_RC}" -eq 0 ]; then '
+                    'echo "⛔ standalone scenario '
+                    + key
+                    + ": install unexpectedly succeeded "
+                    '(expect_install_failure=true)." >&2; '
+                    "exit 1; fi",
+                )
+            else:
+                parts.append(
+                    'if [ "${FEATURE_INSTALL_RC}" -ne 0 ]; then '
+                    'echo "⛔ standalone scenario '
+                    + key
+                    + ': install failed with exit code ${FEATURE_INSTALL_RC}." >&2; '
+                    "exit ${FEATURE_INSTALL_RC}; fi",
+                )
+        else:
+            parts.append("FEATURE_INSTALL_RC=0")
+            if expect_install_failure:
+                parts.append(
+                    'echo "⛔ standalone scenario ' + key + ": invalid config "
+                    '(skip_install=true with expect_install_failure=true)." >&2; '
+                    "exit 1",
+                )
         parts.extend(test_cmd_lines)
 
         run_cmd = "\n".join(p for p in parts if p)
@@ -267,6 +296,7 @@ def _run_macos(
             standalone_cfg = scenario.get("standalone", {})
             user = standalone_cfg.get("user", "")
             skip_install = standalone_cfg.get("skip_install", False)
+            expect_install_failure = bool(scenario.get("expect_install_failure", False))
             options = scenario.get("options", {})
 
             # base_env: clean or full runner env, no feature options yet.
@@ -292,13 +322,40 @@ def _run_macos(
 
             print(f"\n══ macos: {key} ══", flush=True)
 
+            install_rc = 0
             if not skip_install:
                 install_script = repo_root / "src" / feature / "install.sh"
-                subprocess.run(
+                install_result = subprocess.run(
                     ["/bin/sh", str(install_script)],
-                    check=True,
+                    check=False,
                     env=run_env,
                 )
+                install_rc = install_result.returncode
+                if expect_install_failure:
+                    if install_rc == 0:
+                        print(
+                            f"⛔ macos scenario {key}: install unexpectedly succeeded "
+                            "(expect_install_failure=true).",
+                            file=sys.stderr,
+                        )
+                        success = False
+                elif install_rc != 0:
+                    print(
+                        f"⛔ macos scenario {key}: install failed with exit code {install_rc}.",
+                        file=sys.stderr,
+                    )
+                    success = False
+                    # Preserve previous semantics: when install unexpectedly fails,
+                    # skip scenario tests because setup state is not guaranteed.
+                    continue
+            elif expect_install_failure:
+                print(
+                    f"⛔ macos scenario {key}: invalid config "
+                    "(skip_install=true with expect_install_failure=true).",
+                    file=sys.stderr,
+                )
+                success = False
+                continue
 
             test_scripts = scenario.get("tests", [])
             for ts in test_scripts:
@@ -308,6 +365,7 @@ def _run_macos(
                 test_env = {
                     **run_env,
                     "PATH": f"{shim_dir}:{run_env['PATH']}",
+                    "FEATURE_INSTALL_RC": str(install_rc),
                 }
                 if user:
                     path_q = shlex.quote(test_env["PATH"])

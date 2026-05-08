@@ -7,8 +7,4 @@ source dev-container-features-test-lib
 
 check "pixi stub pre-installed by setup" command -v pixi
 
-fail_check "if_exists=fail with pre-installed pixi exits non-zero" \
-  bash "${REPO_ROOT}/src/install-pixi/install.bash" \
-  --if_exists fail
-
 reportResults

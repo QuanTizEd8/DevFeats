@@ -14,18 +14,13 @@ source dev-container-features-test-lib
 _HOME="$HOME"
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
-_LOG_FILE="/tmp/brew-update-false-test-$$.log"
+_LOG_FILE="/tmp/brew-update-false-test.log"
 
 _cleanup() {
   rm -f "$_LOG_FILE"
   block_cleanup_all "brew shellenv (install-homebrew)"
 }
 trap _cleanup EXIT
-
-# --- run the feature with update=false and a log_file ---
-bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
-  --update false \
-  --log_file "$_LOG_FILE"
 
 # --- brew is intact (if_exists=skip) ---
 echo "=== brew --version ==="

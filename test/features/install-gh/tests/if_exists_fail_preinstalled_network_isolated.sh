@@ -9,8 +9,4 @@ source dev-container-features-test-lib
 
 check "gh stub pre-installed by setup" command -v gh
 
-fail_check "if_exists=fail (network-isolated) with pre-installed gh exits non-zero" \
-  bash "${REPO_ROOT}/src/install-gh/install.bash" \
-  --if_exists fail
-
 reportResults

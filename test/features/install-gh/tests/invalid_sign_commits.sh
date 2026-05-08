@@ -5,7 +5,4 @@ set -euo pipefail
 # shellcheck source=test/support/assert.sh
 source dev-container-features-test-lib
 
-fail_check "invalid sign_commits value exits non-zero" \
-  bash "${REPO_ROOT}/src/install-gh/install.bash" --sign_commits invalid
-
 reportResults

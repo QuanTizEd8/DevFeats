@@ -41,11 +41,6 @@ hash -r
 check "brew binary absent after uninstall" \
   bash -c '! command -v brew > /dev/null 2>&1'
 
-# ── Step 3: Run the feature (fresh install) ───────────────────────────────────
-echo "=== Running install-homebrew feature (fresh install) ==="
-bash "${REPO_ROOT}/src/install-homebrew/install.sh"
-echo "=== Feature completed ==="
-
 # Resolve the prefix the feature would have chosen (same logic as detect_brew_prefix).
 if [[ "$(uname -m)" == "arm64" ]]; then
   _BREW_PREFIX="/opt/homebrew"

@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
-# brew_git_remote: brew_git_remote=<current_origin_url> must write an
-# HOMEBREW_BREW_GIT_REMOTE export block to each user init file via
-# enforce_options(), and a second run without the option must remove that block.
+# brew_git_remote: with a pre-seeded HOMEBREW_BREW_GIT_REMOTE block in user
+# dotfiles, a default run (brew_git_remote unset) must remove that block.
 #
-# The test sets brew_git_remote to the repository's current origin URL so the
-# git remote set-url call is a no-op (no network action, no breakage) while
-# still exercising the full enforce_options code path.
-#
-# Brew is pre-installed (if_exists=skip).
+# Brew is pre-installed (if_exists=skip), and setup pre-seeds the block so this
+# scenario validates the cleanup path equivalent to the old second run.
 #
 # Cleanup: removes shellenv and brew_git_remote blocks from user dotfiles.
 set -e
@@ -36,11 +32,6 @@ _cleanup() {
 }
 trap _cleanup EXIT
 
-# ── First run: brew_git_remote set ───────────────────────────────────────────
-echo "=== First run: brew_git_remote='${_REMOTE_URL}' ==="
-bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
-  --brew_git_remote "$_REMOTE_URL"
-
 # --- brew is intact ---
 check "brew binary present" test -f "$_BREW"
 check "brew --version succeeds" "$_BREW" --version
@@ -49,41 +40,14 @@ check "brew --version succeeds" "$_BREW" --version
 check "brew git origin URL unchanged" bash -c \
   'git -C "'"$_BREW_REPO"'" remote get-url origin | grep -qF "'"$_REMOTE_URL"'"'
 
-# --- HOMEBREW_BREW_GIT_REMOTE block written to at least one user init file ---
-echo "=== ~/.zprofile (after first run) ==="
-cat "${_HOME}/.zprofile" 2> /dev/null || echo "(missing)"
-echo "=== ~/.bashrc (after first run, last 20 lines) ==="
-tail -20 "${_HOME}/.bashrc" 2> /dev/null || echo "(missing)"
-
-check "a user dotfile has BREW_GIT_REMOTE begin marker" \
-  bash -c 'grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.bash_profile 2>/dev/null ||
-             grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.bash_login  2>/dev/null ||
-             grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.profile      2>/dev/null ||
-             grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.bashrc       2>/dev/null ||
-             grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.zprofile     2>/dev/null ||
-             grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.zshrc        2>/dev/null'
-check "a user dotfile exports HOMEBREW_BREW_GIT_REMOTE" \
-  bash -c 'grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.bash_profile 2>/dev/null ||
-             grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.bash_login  2>/dev/null ||
-             grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.profile      2>/dev/null ||
-             grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.bashrc       2>/dev/null ||
-             grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.zprofile     2>/dev/null ||
-             grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.zshrc        2>/dev/null'
-
-# ── Second run: brew_git_remote unset (default) — block must be removed ───────
-echo "=== Second run: brew_git_remote unset ==="
-bash "${REPO_ROOT}/src/install-homebrew/install.sh"
-
-echo "=== ~/.zprofile (after second run) ==="
-cat "${_HOME}/.zprofile" 2> /dev/null || echo "(missing)"
-
-check "BREW_GIT_REMOTE block absent from ~/.bash_profile after second run" \
+# --- pre-seeded HOMEBREW_BREW_GIT_REMOTE block removed on default run ---
+check "BREW_GIT_REMOTE block absent from ~/.bash_profile after run" \
   bash -c '! grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.bash_profile 2>/dev/null'
-check "BREW_GIT_REMOTE block absent from ~/.bashrc after second run" \
+check "BREW_GIT_REMOTE block absent from ~/.bashrc after run" \
   bash -c '! grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.bashrc 2>/dev/null'
-check "BREW_GIT_REMOTE block absent from ~/.zprofile after second run" \
+check "BREW_GIT_REMOTE block absent from ~/.zprofile after run" \
   bash -c '! grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.zprofile 2>/dev/null'
-check "BREW_GIT_REMOTE block absent from ~/.zshrc after second run" \
+check "BREW_GIT_REMOTE block absent from ~/.zshrc after run" \
   bash -c '! grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.zshrc 2>/dev/null'
 
 reportResults

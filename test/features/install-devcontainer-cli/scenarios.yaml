@@ -10,6 +10,7 @@ default_install:
   tests: [default_install.sh]
 
 if_exists_fail:
+  expect_install_failure: true
   envs: [debian-latest]
   modes: [standalone]
   setup: |
@@ -17,6 +18,7 @@ if_exists_fail:
     chmod +x /usr/local/bin/devcontainer
   options:
     method: script
+    if_exists: fail
   tests: [if_exists_fail.sh]
   standalone:
-    skip_install: true
+    skip_install: false

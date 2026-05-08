@@ -1,57 +1,74 @@
 defaults:
   options:
     log_level: trace
-
 package_default:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
-  tests: [package_default.sh]
-
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  tests:
+  - package_default.sh
 package_debian:
-  envs: [debian-12]
-  modes: [devcontainer]
+  envs:
+  - debian-12
+  modes:
+  - devcontainer
   options:
     version: stable
-  tests: [package_debian.sh]
-
+  tests:
+  - package_debian.sh
 package_stable:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     version: stable
     prefix: /opt/git
     export_path: /tmp/install-git-path.sh
     symlink: false
-    shell_completions: ""
+    shell_completions: ''
     keep_installer: true
-  tests: [package_stable.sh]
-
+  tests:
+  - package_stable.sh
 package_alpine:
-  envs: [alpine-3.20]
-  modes: [devcontainer]
+  envs:
+  - alpine-3.20
+  modes:
+  - devcontainer
   options:
     version: stable
-  tests: [package_alpine.sh]
-
+  tests:
+  - package_alpine.sh
 package_fedora:
-  envs: [fedora-41]
-  modes: [devcontainer]
+  envs:
+  - fedora-41
+  modes:
+  - devcontainer
   options:
     version: stable
-  tests: [package_fedora.sh]
-
+  tests:
+  - package_fedora.sh
 gitconfig_system:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     default_branch: trunk
-    safe_directory: "*\n/workspaces/devfeats\n/tmp/repo"
-    system_gitconfig: "[push]\n  default = simple\n[fetch]\n  prune = true"
-  tests: [gitconfig_system.sh]
+    safe_directory: '*
 
+      /workspaces/devfeats
+
+      /tmp/repo'
+    system_gitconfig: "[push]\n  default = simple\n[fetch]\n  prune = true"
+  tests:
+  - gitconfig_system.sh
 gitconfig_user:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   setup: useradd -m -s /bin/bash vscode
   options:
     add_remote_user: true
@@ -60,153 +77,206 @@ gitconfig_user:
     user_gitconfig: "[pull]\n  rebase = false"
   devcontainer:
     remoteUser: vscode
-  tests: [gitconfig_user.sh]
-
+  tests:
+  - gitconfig_user.sh
 log_file:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     log_file: /tmp/git.log
-  tests: [log_file.sh]
-
+  tests:
+  - log_file.sh
 source_stable:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     method: source
     version: stable
-  tests: [source_stable.sh]
-
+  tests:
+  - source_stable.sh
 source_pinned:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     method: source
-    version: "2.47.2"
-  tests: [source_pinned.sh]
-
+    version: 2.47.2
+  tests:
+  - source_pinned.sh
 source_keep_installer:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     method: source
     version: stable
     keep_installer: true
-  tests: [source_keep_installer.sh]
-
+  tests:
+  - source_keep_installer.sh
 source_custom_prefix:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     method: source
     version: stable
     prefix: /opt/git
-  tests: [source_custom_prefix.sh]
-
+  tests:
+  - source_custom_prefix.sh
 source_export_path_disabled:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     method: source
     version: stable
     prefix: /opt/git
-    export_path: ""
+    export_path: ''
     symlink: false
-  tests: [source_export_path_disabled.sh]
-
+  tests:
+  - source_export_path_disabled.sh
 source_no_flags_perl:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     method: source
     version: stable
     no_flags: perl
-  tests: [source_no_flags_perl.sh]
-
+  tests:
+  - source_no_flags_perl.sh
 if_exists_skip:
-  envs: [ubuntu-24.04+git-preinstalled]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04+git-preinstalled
+  modes:
+  - devcontainer
   options:
     if_exists: skip
-  tests: [if_exists_skip.sh]
-
+  tests:
+  - if_exists_skip.sh
 if_exists_reinstall_source:
-  envs: [ubuntu-24.04+git-preinstalled]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04+git-preinstalled
+  modes:
+  - devcontainer
   options:
     method: source
     version: stable
     prefix: /opt/git
     if_exists: reinstall
     default_branch: trunk
-  tests: [if_exists_reinstall_source.sh]
-
+  tests:
+  - if_exists_reinstall_source.sh
 if_exists_update_package:
-  envs: [ubuntu-24.04+git-preinstalled]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04+git-preinstalled
+  modes:
+  - devcontainer
   options:
     if_exists: update
     version: stable
     default_branch: trunk
-  tests: [if_exists_update_package.sh]
-
+  tests:
+  - if_exists_update_package.sh
 if_exists_fail:
-  envs: [ubuntu-24.04]
-  modes: [devcontainer]
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
   options:
     if_exists: fail
-  tests: [if_exists_fail.sh]
-
+  tests:
+  - if_exists_fail.sh
 if_exists_fail_preinstalled:
-  envs: [ubuntu-24.04+git-preinstalled]
-  modes: [standalone]
+  expect_install_failure: true
+  envs:
+  - ubuntu-24.04+git-preinstalled
+  modes:
+  - standalone
   options:
     if_exists: fail
   standalone:
-    skip_install: true
-  tests: [if_exists_fail_preinstalled.sh]
-
+    skip_install: false
+  tests:
+  - if_exists_fail_preinstalled.sh
 source_build_network_isolated:
-  envs: [ubuntu-24.04]
-  modes: [standalone]
+  expect_install_failure: true
+  envs:
+  - ubuntu-24.04
+  modes:
+  - standalone
   standalone:
     network: none
-    skip_install: true
-  tests: [source_build_network_isolated.sh]
-
+    skip_install: false
+  tests:
+  - source_build_network_isolated.sh
+  options:
+    method: source
 source_custom_prefix_nonroot:
-  envs: [ubuntu-24.04+git-source-build-deps]
-  modes: [standalone]
-  setup: |
-    useradd -m -s /bin/bash vscode
+  envs:
+  - ubuntu-24.04+git-source-build-deps
+  modes:
+  - standalone
+  setup: 'useradd -m -s /bin/bash vscode
+
     mkdir -p /opt/git
+
     chown vscode:vscode /opt/git
+
+    '
   standalone:
     user: vscode
     skip_install: true
-  tests: [source_custom_prefix_nonroot.sh]
-
+  tests:
+  - source_custom_prefix_nonroot.sh
 invalid_if_exists:
-  envs: [ubuntu-24.04]
-  modes: [standalone]
+  expect_install_failure: true
+  envs:
+  - ubuntu-24.04
+  modes:
+  - standalone
   standalone:
-    skip_install: true
-  tests: [invalid_if_exists.sh]
-
+    skip_install: false
+  tests:
+  - invalid_if_exists.sh
+  options:
+    if_exists: invalid
 invalid_method:
-  envs: [ubuntu-24.04]
-  modes: [standalone]
+  expect_install_failure: true
+  envs:
+  - ubuntu-24.04
+  modes:
+  - standalone
   standalone:
-    skip_install: true
-  tests: [invalid_method.sh]
-
+    skip_install: false
+  tests:
+  - invalid_method.sh
+  options:
+    method: invalid
 source_build_nonexistent_version:
-  envs: [ubuntu-24.04]
-  modes: [standalone]
+  expect_install_failure: true
+  envs:
+  - ubuntu-24.04
+  modes:
+  - standalone
   standalone:
-    skip_install: true
-  tests: [source_build_nonexistent_version.sh]
-
+    skip_install: false
+  tests:
+  - source_build_nonexistent_version.sh
+  options:
+    method: source
+    version: 0.0.0
 macos_package_default:
-  envs: [macos-latest]
-  tests: [macos_package_default.sh]
+  envs:
+  - macos-latest
+  tests:
+  - macos_package_default.sh

@@ -10,7 +10,7 @@ source dev-container-features-test-lib
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
 _HOME="$HOME"
-_LOG_FILE="/tmp/brew-macos-test-$$.log"
+_LOG_FILE="/tmp/brew-macos-test.log"
 
 _cleanup() {
   rm -f "$_LOG_FILE"
@@ -20,10 +20,6 @@ _cleanup() {
   done
 }
 trap _cleanup EXIT
-
-# --- run the feature ---
-bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
-  --log_file "$_LOG_FILE"
 
 # --- brew is intact ---
 echo "=== brew --version ==="

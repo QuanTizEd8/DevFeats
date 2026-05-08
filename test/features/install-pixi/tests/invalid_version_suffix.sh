@@ -5,8 +5,4 @@ set -euo pipefail
 
 source dev-container-features-test-lib
 
-fail_check "version with invalid suffix '1.2beta' exits non-zero" \
-  bash "${REPO_ROOT}/src/install-pixi/install.bash" \
-  --version 1.2beta
-
 reportResults

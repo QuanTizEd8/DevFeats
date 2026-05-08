@@ -1,36 +1,53 @@
 defaults:
   options:
     log_level: trace
-
 default_install:
-  envs: [ubuntu-latest]
-  modes: [devcontainer, standalone]
-  tests: [default_install.sh]
-
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  tests:
+  - default_install.sh
 release_custom_prefix:
-  envs: [ubuntu-latest]
-  modes: [devcontainer, standalone]
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
   options:
     method: release
     prefix: /opt/shellcheck-bin
     if_exists: reinstall
-  tests: [release_custom_prefix.sh]
-
+  tests:
+  - release_custom_prefix.sh
 repos_install:
-  envs: [debian-latest]
-  modes: [devcontainer, standalone]
+  envs:
+  - debian-latest
+  modes:
+  - devcontainer
+  - standalone
   options:
     method: repos
-  tests: [repos_install.sh]
-
+  tests:
+  - repos_install.sh
 if_exists_fail:
-  envs: [debian-latest]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then printf "ShellCheck - shell script analysis tool\nversion: 0.0.0 (fake)\n"; exit 0; fi\nexit 0\n' > /usr/local/bin/shellcheck
+  expect_install_failure: true
+  envs:
+  - debian-latest
+  modes:
+  - standalone
+  setup: 'printf ''#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then printf
+    "ShellCheck - shell script analysis tool\nversion: 0.0.0 (fake)\n"; exit 0; fi\nexit
+    0\n'' > /usr/local/bin/shellcheck
+
     chmod +x /usr/local/bin/shellcheck
+
+    '
   options:
     method: auto
-  tests: [if_exists_fail.sh]
+    if_exists: fail
+  tests:
+  - if_exists_fail.sh
   standalone:
-    skip_install: true
+    skip_install: false

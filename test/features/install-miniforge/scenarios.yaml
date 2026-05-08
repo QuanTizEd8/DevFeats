@@ -269,18 +269,20 @@ symlink_user_home_prefix:
   tests: [symlink_user_home_prefix.sh]
 
 github_api_unreachable_network_isolated:
+  expect_install_failure: true
   envs: [ubuntu-latest]
   modes: [standalone]
   standalone:
     network: none
-    skip_install: true
+    skip_install: false
   tests: [github_api_unreachable_network_isolated.sh]
 
 invalid_version:
+  expect_install_failure: true
   envs: [ubuntu-latest]
   modes: [standalone]
   options:
     version: "0.0.0"
   standalone:
-    skip_install: true
+    skip_install: false
   tests: [invalid_version.sh]

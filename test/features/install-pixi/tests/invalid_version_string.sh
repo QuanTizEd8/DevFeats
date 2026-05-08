@@ -4,8 +4,4 @@ set -euo pipefail
 
 source dev-container-features-test-lib
 
-fail_check "invalid version string 'not_a_semver_string' exits non-zero" \
-  bash "${REPO_ROOT}/src/install-pixi/install.bash" \
-  --version not_a_semver_string
-
 reportResults

@@ -10,8 +10,4 @@ source dev-container-features-test-lib
 check "gh stub pre-installed by setup" command -v gh
 check "gh stub reports a version" bash -c 'gh --version | grep -qE "gh version [0-9]"'
 
-fail_check "if_exists=fail with pre-installed gh exits non-zero" \
-  bash "${REPO_ROOT}/src/install-gh/install.bash" \
-  --if_exists fail
-
 reportResults
