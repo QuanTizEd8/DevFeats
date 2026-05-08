@@ -97,7 +97,6 @@ def find_host_hash(host_storage: Path, host_workspace: str) -> str | None:
                 return workspace_json.parent.name
         except Exception:
             continue
-    print(f"No workspace.json found matching {folder_uri}", file=sys.stderr)
     return None
 
 
@@ -107,12 +106,15 @@ def link_copilot_storage(host_path: str, container_path: str, config_file: str) 
 
     host_storage = find_host_storage()
     if not host_storage:
-        print("Host VS Code storage not found at any expected mount point", file=sys.stderr)
-        return 1
+        print("Copilot history sync skipped: host VS Code storage not found at any expected "
+              "mount point (are the workspaceStorage bind mounts active?)")
+        return 0
 
     host_hash = find_host_hash(host_storage, host_path)
     if not host_hash:
-        return 1
+        print(f"Copilot history sync skipped: no workspace.json found for {host_path} "
+              "(open the project in VS Code on the host first)")
+        return 0
 
     # Project-local storage: both symlinks point here using their respective absolute paths.
     # The two paths resolve to the same physical directory via the workspace bind mount.
