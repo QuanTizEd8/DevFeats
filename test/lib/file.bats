@@ -198,6 +198,7 @@ setup() {
   assert_output --partial "gzip is required"
 }
 
+@test "file__extract_archive: fails when tar is absent and format is .tar.gz" {
   # Create test artifacts and pass-through bins for system tools BEFORE restricting PATH.
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   local _arc="${BATS_TEST_TMPDIR}/test_no_tar.tar.gz"
