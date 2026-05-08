@@ -1,22 +1,23 @@
-# Generated feature outputs
+# Auto-Generated Outputs
+/.devcontainer/test-*/
+
 /src/
 
-# Generated documentation
-docs/source/features/**
-docs/source/dev/features/reference/
-docs/source/library/
+/docs/source/features/**
+/docs/source/dev/features/reference/
+/docs/source/library/
 
 # Local development files
 /.local/
 
 # Generated artifacts (cross-environment communication)
-.dev/output/
+/.dev/output/
 
 # Distribution artifacts
 /dist/
 
 # Website build output
-docs/.build/
+/docs/.build/
 
 # CI only: inner dockerd graph dir when using DinD in GHA job containers.
 .dind-docker/
