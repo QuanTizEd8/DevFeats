@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -73,7 +74,6 @@ def _build_scenario(
 
     options = scenario.get("options", {})
     result["features"] = {feature: options}
-    result["testFiles"] = scenario.get("tests", [])
 
     return result
 
@@ -97,6 +97,7 @@ def generate(
     scenarios_dir = out_dir / "test" / feature
     scenarios_dir.mkdir(parents=True, exist_ok=True)
 
+    tests_src_dir = scenarios_path.parent / "tests"
     output: dict = {}
     for name, raw_sc in scenarios.items():
         sc = merge_defaults(raw_sc, defaults)
@@ -122,6 +123,10 @@ def generate(
                 scenario_dir,
                 envs_dir,
             )
+
+            tests = scenario.get("tests", [])
+            if tests:
+                shutil.copy(tests_src_dir / tests[0], scenarios_dir / f"{key}.sh")
 
     _inject_github_token(output)
     (scenarios_dir / "scenarios.json").write_text(json.dumps(output, indent=4) + "\n")

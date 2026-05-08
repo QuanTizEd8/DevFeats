@@ -133,10 +133,6 @@ def _run_devcontainer(
                 json.dump(filtered, f, indent=4)
                 f.write("\n")
 
-        tests_dir = repo_root / "test" / "features" / feature / "tests"
-        for sh_file in tests_dir.glob("*.sh"):
-            shutil.copy(sh_file, test_out_dir / sh_file.name)
-
         result = subprocess.run(
             [
                 "devcontainer",

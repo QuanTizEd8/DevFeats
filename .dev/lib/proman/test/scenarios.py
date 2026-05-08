@@ -31,11 +31,27 @@ def expand_envs(
     name: str,
     scenario: dict,
 ) -> list[tuple[str, str, dict]]:
-    """Expand a scenario into one entry per environment."""
+    """Expand a scenario into one entry per (environment, test file)."""
     envs: list[str] = scenario.get("envs", [])
-    if len(envs) == 1:
-        return [(name, envs[0], scenario)]
-    return [(f"{name}.{env_name}", env_name, scenario) for env_name in envs]
+    tests: list[str] = scenario.get("tests", [])
+    multi_env = len(envs) > 1
+    multi_test = len(tests) > 1
+
+    entries = []
+    test_iter: list = tests or [None]
+    for env_name in envs:
+        for test_file in test_iter:
+            parts = [name]
+            if multi_env:
+                parts.append(env_name)
+            if multi_test:
+                parts.append(Path(test_file).stem)
+            sc = dict(scenario)
+            if test_file is not None:
+                sc["tests"] = [test_file]
+            entries.append((".".join(parts), env_name, sc))
+
+    return entries
 
 
 def expand_test_files(
