@@ -62,11 +62,6 @@
       "target": "/home/devfeats-dev/.claude",
       "type": "bind"
     },
-    {
-      "source": "devfeats-vscode-server",
-      "target": "/home/devfeats-dev/.vscode-server",
-      "type": "volume"
-    },
     // Both storage paths are always mounted; the script uses whichever has workspace.json files.
     {
       "source": "${localEnv:HOME}/Library/Application Support/Code/User/workspaceStorage",
