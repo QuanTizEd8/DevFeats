@@ -341,7 +341,8 @@ def _run_macos(
                         success = False
                 elif install_rc != 0:
                     print(
-                        f"⛔ macos scenario {key}: install failed with exit code {install_rc}.",
+                        f"⛔ macos scenario {key}: install failed with "
+                        f"exit code {install_rc}.",
                         file=sys.stderr,
                     )
                     success = False

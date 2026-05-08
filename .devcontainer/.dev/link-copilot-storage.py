@@ -1,26 +1,32 @@
 #!/usr/bin/env python3
 """Symlink Copilot workspaceStorage entries to .ai/copilot/ in the workspace.
 
-VS Code keys workspaceStorage by an MD5 hash of the workspace URI. The URI differs between
-the container (vscode-remote://dev-container+...) and the host (file://...), so the hashes
-differ. This script computes both hashes, then symlinks all Copilot-related workspaceStorage
-entries to <workspace>/.ai/copilot/ so that chat history lives in the project directory and
-travels with it on backup or move.
+VS Code keys workspaceStorage by an MD5 hash of the workspace URI. The URI
+differs between the container (vscode-remote://dev-container+...) and the host
+(file://...), so the hashes differ. This script computes both hashes, then
+symlinks all Copilot-related workspaceStorage entries to <workspace>/.ai/copilot/
+so that chat history lives in the project directory and travels with it on backup
+or move.
 
 Managed entries (each becomes a subdirectory under .ai/copilot/):
   chatSessions/          full message history for each Copilot chat
   chatEditingSessions/   inline edit session history
-  GitHub.copilot-chat/   extension-private folder (workspace index, transcripts, debug logs)
+  GitHub.copilot-chat/   extension-private folder (workspace index,
+                         transcripts, debug logs)
 
-Usage: link-copilot-storage.py <host_workspace> <container_workspace> <config_file>
+Usage: link-copilot-storage.py <host_workspace> <container_workspace>
+                       <config_file>
 """
 
 import hashlib
 import json
+import logging
 import os
 import shutil
 import sys
 from pathlib import Path
+
+_logger = logging.getLogger(__name__)
 
 VSCODE_SERVER_STORAGE = Path.home() / ".vscode-server/data/User/workspaceStorage"
 
@@ -30,28 +36,37 @@ MANAGED_ENTRIES = ["chatSessions", "chatEditingSessions", "GitHub.copilot-chat"]
 # If found there, they are migrated into .ai/copilot/GitHub.copilot-chat/.
 _LEGACY_FLAT_ITEMS = ["debug-logs", "transcripts", "workspace-chunks.db"]
 
-# Both candidates are always mounted; whichever has workspace.json files is the active one.
+# Both candidates are always mounted; whichever has workspace.json files is the
+# active one.
 HOST_STORAGE_CANDIDATES = [
-    Path("/host-vscode-workspacestorage"),        # macOS: ~/Library/Application Support/Code
-    Path("/host-vscode-workspacestorage-linux"),   # Linux: ~/.config/Code
+    Path(
+        "/host-vscode-workspacestorage",
+    ),  # macOS: ~/Library/Application Support/Code
+    Path(
+        "/host-vscode-workspacestorage-linux",
+    ),  # Linux: ~/.config/Code
 ]
 
-# Tried in order; first whose computed hash matches an existing workspaceStorage dir wins.
+# Tried in order; first whose computed hash matches an existing
+# workspaceStorage dir wins.
 DOCKER_CONTEXT_CANDIDATES: list[str | None] = [
-    os.environ.get("DOCKER_CONTEXT"),  # user override via containerEnv, may be None
-    "desktop-linux",                    # Docker Desktop (macOS and Linux)
-    "default",                          # native Docker
+    os.environ.get(
+        "DOCKER_CONTEXT",
+    ),  # user override via containerEnv, may be None
+    "desktop-linux",  # Docker Desktop (macOS and Linux)
+    "default",  # native Docker
 ]
 
 
 def detect_local_docker(container_workspace: str) -> bool:
-    """Returns True when running on native Linux Docker (no VM), False for Docker Desktop.
+    """Detect if running on native Linux Docker (no VM) vs Docker Desktop.
 
-    Docker Desktop mounts the workspace via virtiofs/fakeowner (a VM passthrough layer).
-    Native Linux Docker uses a host filesystem type like ext4 or overlay.
+    Returns True for native Linux Docker, False for Docker Desktop.
+    Docker Desktop mounts via virtiofs/fakeowner (VM passthrough layer).
+    Native Linux Docker uses host filesystem type like ext4 or overlay.
     """
     try:
-        with open("/proc/1/mountinfo") as f:
+        with Path("/proc/1/mountinfo").open() as f:
             for line in f:
                 parts = line.split()
                 if len(parts) > 4 and parts[4] == container_workspace:
@@ -63,51 +78,89 @@ def detect_local_docker(container_workspace: str) -> bool:
     return False
 
 
-def compute_hash(host_path: str, container_path: str, config_file: str,
-                 local_docker: bool, context: str | None) -> str:
+def compute_hash(
+    host_path: str,
+    container_path: str,
+    config_file: str,
+    *,
+    local_docker: bool,
+    context: str | None,
+) -> str:
+    """Compute VS Code workspace storage directory hash for a devcontainer."""
     obj: dict = {"hostPath": host_path, "localDocker": local_docker}
     if context is not None:
         obj["settings"] = {"context": context}
-    obj["configFile"] = {"$mid": 1, "fsPath": config_file, "path": config_file, "scheme": "file"}
+    obj["configFile"] = {
+        "$mid": 1,
+        "fsPath": config_file,
+        "path": config_file,
+        "scheme": "file",
+    }
     json_str = json.dumps(obj, separators=(",", ":"))
-    uri = f"vscode-remote://dev-container%2B{json_str.encode().hex()}{container_path}"
-    return hashlib.md5(uri.encode()).hexdigest()
+    uri = (
+        f"vscode-remote://dev-container%2B{json_str.encode().hex()}"
+        f"{container_path}"
+    )
+    # nosec: MD5 is used here for VS Code compatibility, not security
+    return hashlib.md5(uri.encode()).hexdigest()  # noqa: S324
 
 
-def find_container_hash(host_path: str, container_path: str, config_file: str,
-                        local_docker: bool) -> str:
-    """Try common Docker contexts and return whichever hash has an existing workspaceStorage dir."""
+def find_container_hash(
+    host_path: str, container_path: str, config_file: str, *, local_docker: bool,
+) -> str:
+    """Find VS Code workspace storage hash, trying common Docker contexts."""
     if local_docker:
-        # Native Docker has no Docker Desktop context; settings field is absent from the URI.
+        # Native Docker has no Docker Desktop context; settings field is
+        # absent from the URI.
         contexts: list[str | None] = [None, "default"]
     else:
         contexts = [c for c in DOCKER_CONTEXT_CANDIDATES if c is not None]
 
     for context in contexts:
-        h = compute_hash(host_path, container_path, config_file, local_docker, context)
+        h = compute_hash(
+            host_path,
+            container_path,
+            config_file,
+            local_docker=local_docker,
+            context=context,
+        )
         if (VSCODE_SERVER_STORAGE / h).exists():
             return h
 
     # No existing dir found yet (first run); fall back to first candidate.
-    return compute_hash(host_path, container_path, config_file, local_docker, contexts[0])
+    return compute_hash(
+        host_path,
+        container_path,
+        config_file,
+        local_docker=local_docker,
+        context=contexts[0],
+    )
 
 
 def find_host_storage() -> Path | None:
+    """Find the host VS Code workspaceStorage directory."""
     for candidate in HOST_STORAGE_CANDIDATES:
         if candidate.exists() and any(candidate.glob("*/workspace.json")):
             return candidate
     return None
 
 
+def _load_workspace_json(workspace_json: Path) -> dict | None:
+    """Load and parse workspace.json file."""
+    try:
+        return json.loads(workspace_json.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        _logger.debug("Failed to read %s: %s", workspace_json, e)
+        return None
+
+
 def find_host_hash(host_storage: Path, host_workspace: str) -> str | None:
+    """Find the host VS Code workspace storage hash for the workspace."""
     folder_uri = f"file://{host_workspace}"
     for workspace_json in host_storage.glob("*/workspace.json"):
-        try:
-            data = json.loads(workspace_json.read_text())
-            if data.get("folder") == folder_uri:
-                return workspace_json.parent.name
-        except Exception:
-            continue
+        data = _load_workspace_json(workspace_json)
+        if data and data.get("folder") == folder_uri:
+            return workspace_json.parent.name
     return None
 
 
@@ -153,19 +206,27 @@ def link_entry(entry_name: str,
 
 
 def link_copilot_storage(host_path: str, container_path: str, config_file: str) -> int:
+    """Symlink Copilot storage entries between host and container."""
     local_docker = detect_local_docker(container_path)
-    container_hash = find_container_hash(host_path, container_path, config_file, local_docker)
+    container_hash = find_container_hash(
+        host_path, container_path, config_file, local_docker=local_docker,
+    )
 
     host_storage = find_host_storage()
     if not host_storage:
-        print("Copilot history sync skipped: host VS Code storage not found at any expected "
-              "mount point (are the workspaceStorage bind mounts active?)")
+        print(
+            "Copilot history sync skipped: host VS Code storage not found at "
+            "any expected mount point (are the workspaceStorage bind mounts "
+            "active?)",
+        )
         return 0
 
     host_hash = find_host_hash(host_storage, host_path)
     if not host_hash:
-        print(f"Copilot history sync skipped: no workspace.json found for {host_path} "
-              "(open the project in VS Code on the host first)")
+        print(
+            f"Copilot history sync skipped: no workspace.json found for "
+            f"{host_path} (open the project in VS Code on the host first)",
+        )
         return 0
 
     ai_copilot = Path(container_path) / ".ai" / "copilot"
@@ -196,7 +257,10 @@ def link_copilot_storage(host_path: str, container_path: str, config_file: str) 
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print(f"Usage: {sys.argv[0]} <host_workspace> <container_workspace> <config_file>",
-              file=sys.stderr)
+        print(
+            f"Usage: {sys.argv[0]} <host_workspace> <container_workspace> "
+            f"<config_file>",
+            file=sys.stderr,
+        )
         sys.exit(1)
     sys.exit(link_copilot_storage(sys.argv[1], sys.argv[2], sys.argv[3]))
