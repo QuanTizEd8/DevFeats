@@ -22,5 +22,13 @@ ignore = [
     "PLR0915",
 ]
 
+[lint.per-file-ignores]
+# pytest uses `assert` by design; S101 is irrelevant for test files.
+# INP001: test/proman/ is intentionally not a package — making it one would
+# shadow the installed `proman` package and break pytest import resolution.
+"test/**/*.py" = ["S101", "INP001"]
+# docs/conf.py is a Sphinx config file, not a Python package module
+"docs/conf.py" = ["INP001", "A001"]
+
 [lint.pydocstyle]
 convention = "numpy"
