@@ -40,7 +40,7 @@ def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 
     if not metadata_filepath.is_file():
         log(
             f"⚠️ {feature_id}: metadata.yaml not found for feature '{feature_id}';"
-            " skipping"
+            " skipping",
         )
         return 0
 
@@ -53,7 +53,7 @@ def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 
     if not isinstance(data, dict):
         log(
             f"❌ {feature_id}: metadata.yaml does not contain a mapping"
-            f" (got {type(data).__name__})"
+            f" (got {type(data).__name__})",
         )
         return 1
 
@@ -76,7 +76,7 @@ def augment_metadata(feature_id: str, metadata: dict, derived_options: dict) -> 
         if option_id in options:
             log(
                 f"⛔ {feature_id}: option '{option_id}' is a derived option and"
-                " cannot be manually defined in metadata.yaml"
+                " cannot be manually defined in metadata.yaml",
             )
             return False
         should_apply = (

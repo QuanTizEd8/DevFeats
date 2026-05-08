@@ -56,9 +56,7 @@ def _run_env(
 def run(target_env: str | None, extra_args: list[str], repo_root: Path) -> int:
     _, scenarios = load_scenarios(repo_root / "test" / "lib" / "scenarios.yaml")
     envs = load_envs(repo_root / "test" / "environments.yaml")
-    run_in_container = (
-        repo_root / ".dev" / "scripts" / "test" / "run-in-container.sh"
-    )
+    run_in_container = repo_root / ".dev" / "scripts" / "test" / "run-in-container.sh"
 
     if target_env is not None:
         if target_env not in scenarios:

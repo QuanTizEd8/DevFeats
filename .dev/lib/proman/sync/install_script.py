@@ -161,14 +161,14 @@ class InstallScriptGenerator:
                         FLAG=flag,
                         VAR=vname,
                         KEY=key,
-                    )
+                    ),
                 )
                 env_reads.append(
                     self._render_template(
                         "env_read_array",
                         VAR=vname,
                         KEY=key,
-                    )
+                    ),
                 )
             else:
                 case_arms.append(
@@ -177,14 +177,14 @@ class InstallScriptGenerator:
                         FLAG=flag,
                         VAR=vname,
                         KEY=key,
-                    )
+                    ),
                 )
                 env_reads.append(
                     self._render_template(
                         "env_read_scalar",
                         VAR=vname,
                         KEY=key,
-                    )
+                    ),
                 )
 
         lines = [
@@ -213,7 +213,7 @@ class InstallScriptGenerator:
                 "else",
                 '  logging__info "Script called with no arguments.'
                 ' Read environment variables."',
-            ]
+            ],
         )
         lines.extend(env_reads)
         lines.append("fi")
@@ -236,7 +236,7 @@ class InstallScriptGenerator:
                             "default_array_empty",
                             VAR=vname,
                             KEY=key,
-                        )
+                        ),
                     )
                 else:
                     # Embed the default as an ANSI-C quoted string so newlines
@@ -256,7 +256,7 @@ class InstallScriptGenerator:
                             ESCAPED=escaped,
                             KEY=key,
                             DISP=disp,
-                        )
+                        ),
                     )
             else:
                 rhs = _shell_val(opt["default"], typ)
@@ -273,7 +273,7 @@ class InstallScriptGenerator:
                         RHS=rhs,
                         KEY=key,
                         DISP=disp,
-                    )
+                    ),
                 )
         return "\n".join(blocks)
 
@@ -323,7 +323,7 @@ class InstallScriptGenerator:
                         KEY=key,
                         PATTERN=pattern,
                         EXPECTED=expected,
-                    )
+                    ),
                 )
             parts.append("# Validate enum options.\n" + "\n".join(validations))
 
@@ -343,7 +343,7 @@ class InstallScriptGenerator:
                 "# Unexport option variables — values remain accessible in this script but",
                 "# are not inherited by child processes.",
                 "declare +x " + " ".join(scalar_vars),
-            ]
+            ],
         )
 
     def _section_dep_helpers(self, run_deps: dict, build_deps: dict) -> str:
@@ -424,7 +424,7 @@ class InstallScriptGenerator:
         for template_path in templates_dirpath.glob("*.tmpl"):
             template_name = template_path.name.removesuffix(".sh.tmpl")
             templates[template_name] = template_path.read_text(encoding="utf-8").rstrip(
-                "\n"
+                "\n",
             )
         return templates
 

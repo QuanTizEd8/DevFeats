@@ -80,7 +80,7 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     defaults = {k: v.get("default") for k, v in options.items()}
 
     dc_json_lines = json.dumps(
-        {"features": {feature_ref: defaults}}, indent=2
+        {"features": {feature_ref: defaults}}, indent=2,
     ).splitlines()
     dc_json = "\n".join(
         [
@@ -104,13 +104,13 @@ def _generate_usage_tabset(metadata: dict[str, Any]) -> str:
     ts = mdit.element.tab_set()
     ts.append(
         mdit.element.code_block(
-            dc_json, language="json", caption="{fas}`file-code` devcontainer.json"
+            dc_json, language="json", caption="{fas}`file-code` devcontainer.json",
         ),
         title="Dev Container",
     )
     ts.append(
         mdit.element.code_block(
-            cli_code, language="bash", caption="{fas}`terminal` Terminal"
+            cli_code, language="bash", caption="{fas}`terminal` Terminal",
         ),
         title="CLI",
     )
@@ -195,11 +195,11 @@ def _generate_extensions_section(metadata: dict) -> str:
         "of your `devcontainer.json` file. For example, to opt out of all extensions, your `devcontainer.json` should include the following:"
     )
     opt_out_dict = {
-        "customizations": {"vscode": {"extensions": [f"-{ext}" for ext in extensions]}}
+        "customizations": {"vscode": {"extensions": [f"-{ext}" for ext in extensions]}},
     }
     opt_out_json = json.dumps(opt_out_dict, indent=2)
     opt_out_code = mdit.element.code_block(
-        opt_out_json, language="json", caption="{fas}`file-code` devcontainer.json"
+        opt_out_json, language="json", caption="{fas}`file-code` devcontainer.json",
     )
     opt_out_admo = mdit.element.admonition(
         title="Opt Out",

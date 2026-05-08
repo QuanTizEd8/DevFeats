@@ -105,7 +105,7 @@ linux_only:
 def test_compute_macos_matrix_empty_when_no_macos(tmp_path, monkeypatch):
     monkeypatch.setattr(CD, "git_repo_root", lambda: tmp_path)
     _write(
-        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n"
+        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n",
     )
     _write(
         tmp_path / "test/features/install-foo/scenarios.yaml",
@@ -118,7 +118,7 @@ def test_compute_macos_matrix_empty_when_no_macos(tmp_path, monkeypatch):
 def test_compute_macos_matrix_deduplicates(tmp_path, monkeypatch):
     monkeypatch.setattr(CD, "git_repo_root", lambda: tmp_path)
     _write(
-        tmp_path / "test/environments.yaml", "macos-latest:\n  image: macos-latest\n"
+        tmp_path / "test/environments.yaml", "macos-latest:\n  image: macos-latest\n",
     )
     _write(
         tmp_path / "test/features/install-foo/scenarios.yaml",
@@ -182,7 +182,7 @@ debian-latest:
 def test_compute_unit_macos_matrix_empty_when_no_macos(tmp_path, monkeypatch):
     monkeypatch.setattr(CD, "git_repo_root", lambda: tmp_path)
     _write(
-        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n"
+        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n",
     )
     result = CD.compute_unit_macos_matrix()
     assert result == []

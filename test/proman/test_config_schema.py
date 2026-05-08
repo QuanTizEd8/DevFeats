@@ -60,7 +60,7 @@ def test_extra_key_fails_due_to_additional_properties():
 def test_cm_devcontainer_build_matrix_items_typed():
     cfg = _make_valid_config()
     cfg["cm_devcontainer"]["build_matrix"] = [
-        {"runner": 42, "platform": "x", "platform_tag": "y"}
+        {"runner": 42, "platform": "x", "platform_tag": "y"},
     ]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(cfg, SCHEMA)
