@@ -915,10 +915,12 @@ def main() -> None:
     )
 
     write_outputs(
-        env.github_output, {"config": json.dumps(config, separators=(",", ":"))},
+        env.github_output,
+        {"config": json.dumps(config, separators=(",", ":"))},
     )
     LOG.info(
-        "output: wrote config to GITHUB_OUTPUT (keys: %s)", ", ".join(config.keys()),
+        "output: wrote config to GITHUB_OUTPUT (keys: %s)",
+        ", ".join(config.keys()),
     )
 
 

@@ -79,7 +79,8 @@ def _write(path: Path, content: str) -> None:
 
 
 def test_compute_macos_matrix_from_scenarios_yaml(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify macOS matrix is built from scenarios that reference macOS envs."""
     monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
@@ -116,12 +117,14 @@ linux_only:
 
 
 def test_compute_macos_matrix_empty_when_no_macos(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify macOS matrix is empty when no scenario references a macOS env."""
     monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
     _write(
-        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n",
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n",
     )
     _write(
         tmp_path / "test/features/install-foo/scenarios.yaml",
@@ -132,12 +135,14 @@ def test_compute_macos_matrix_empty_when_no_macos(
 
 
 def test_compute_macos_matrix_deduplicates(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify each feature appears at most once in the macOS matrix."""
     monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
     _write(
-        tmp_path / "test/environments.yaml", "macos-latest:\n  image: macos-latest\n",
+        tmp_path / "test/environments.yaml",
+        "macos-latest:\n  image: macos-latest\n",
     )
     _write(
         tmp_path / "test/features/install-foo/scenarios.yaml",
@@ -158,7 +163,8 @@ scenario_b:
 
 
 def test_compute_unit_env_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify unit env matrix is built from scenarios.yaml entries."""
     monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
@@ -185,7 +191,8 @@ debian-bookworm:
 
 
 def test_compute_unit_macos_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify unit macOS matrix contains only macOS runners."""
     monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
@@ -205,12 +212,14 @@ debian-latest:
 
 
 def test_compute_unit_macos_matrix_empty_when_no_macos(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify unit macOS matrix is empty when no macOS environments exist."""
     monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
     _write(
-        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n",
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n",
     )
     result = cd.compute_unit_macos_matrix()
     assert result == []

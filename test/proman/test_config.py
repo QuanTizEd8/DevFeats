@@ -81,7 +81,8 @@ triggers:
 
 
 def test_load_project_returns_name(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Verify load_project returns the project name and version from YAML."""
     _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
@@ -91,7 +92,8 @@ def test_load_project_returns_name(
 
 
 def test_load_ci_image_section(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Verify load_ci parses the image section correctly."""
     _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
@@ -103,7 +105,8 @@ def test_load_ci_image_section(
 
 
 def test_load_ci_artifacts_section(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Verify load_ci parses the artifacts section correctly."""
     _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
@@ -115,7 +118,8 @@ def test_load_ci_artifacts_section(
 
 
 def test_load_ci_publish_section(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Verify load_ci parses the publish section correctly."""
     _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
@@ -126,7 +130,8 @@ def test_load_ci_publish_section(
 
 
 def test_load_ci_triggers_section(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Verify load_ci parses the triggers section correctly."""
     _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
@@ -137,7 +142,8 @@ def test_load_ci_triggers_section(
 
 
 def test_load_ci_runner_free_disk_space(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Verify load_ci parses the runner free_disk_space flags correctly."""
     _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
@@ -148,7 +154,8 @@ def test_load_ci_runner_free_disk_space(
 
 
 def test_load_project_is_cached(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Verify load_project returns the same object on repeated calls."""
     _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
@@ -156,7 +163,8 @@ def test_load_project_is_cached(
 
 
 def test_load_ci_is_cached(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """Verify load_ci returns the same object on repeated calls."""
     _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)

@@ -1,3 +1,5 @@
+"""Generate devcontainer scenarios.json from unified scenarios.yaml."""
+
 from __future__ import annotations
 
 import argparse
@@ -5,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from .environments import _TOKEN_LINES, _collect_layers, is_macos
+from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
 from .environments import load as load_envs
 from .scenarios import expand_envs, merge_defaults
 from .scenarios import load as load_scenarios
@@ -33,6 +35,7 @@ def _build_scenario(
     out_dir: Path,
     envs_dir: Path,
 ) -> dict:
+    """Build a single scenario dict and write its Dockerfile."""
     sc_args = scenario.get("args") or {}
     sc_env_vars = scenario.get("env_vars") or {}
 
@@ -51,7 +54,9 @@ def _build_scenario(
         body += f"RUN <<'EOF'\nset -eux\n{setup}\nEOF\n"
 
     df_name = f"{key}.Dockerfile"
-    (out_dir / df_name).write_text(f"FROM {base_image}\n{_TOKEN_LINES}{body}")
+    (out_dir / df_name).write_text(
+        f"FROM {base_image}\n{_DOCKER_GITHUB_ARG_LINES}{body}",
+    )
     result: dict = {"build": {"dockerfile": df_name}}
     if build_args:
         result["build"]["args"] = dict(build_args)
@@ -79,6 +84,7 @@ def generate(
     envs_path: Path | str,
     out_dir: Path | str,
 ) -> None:
+    """Generate scenarios.json and Dockerfiles for all devcontainer test scenarios."""
     scenarios_path = Path(scenarios_path)
     envs_path = Path(envs_path)
     out_dir = Path(out_dir)
@@ -92,8 +98,8 @@ def generate(
     scenarios_dir.mkdir(parents=True, exist_ok=True)
 
     output: dict = {}
-    for name, sc in scenarios.items():
-        sc = merge_defaults(sc, defaults)
+    for name, raw_sc in scenarios.items():
+        sc = merge_defaults(raw_sc, defaults)
         modes: list[str] = sc.get("modes", ["devcontainer", "standalone"])
 
         for key, env_name, scenario in expand_envs(name, sc):
@@ -122,6 +128,7 @@ def generate(
 
 
 def main_cli() -> None:
+    """Parse CLI arguments and run scenario generation."""
     parser = argparse.ArgumentParser(
         description="Generate devcontainer scenarios.json from unified scenarios.yaml",
     )

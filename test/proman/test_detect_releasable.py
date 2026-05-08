@@ -61,7 +61,9 @@ def test_tag_is_url_encoded() -> None:
 
 
 def _write_metadata(
-    features_dir: pathlib.Path, feature_id: str, version: str,
+    features_dir: pathlib.Path,
+    feature_id: str,
+    version: str,
 ) -> None:
     """Write a minimal metadata.yaml for a feature under features_dir."""
     d = features_dir / feature_id
