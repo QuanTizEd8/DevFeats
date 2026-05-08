@@ -17,7 +17,7 @@ def main() -> None:
     counts: Counter[str] = Counter()
     for meta_path in sorted(features_dir.glob("*/metadata.yaml")):
         meta = yaml.safe_load(meta_path.read_text(encoding="utf-8"))
-        for key in (meta.get("options") or {}).keys():
+        for key in (meta.get("options") or {}):
             counts[key] += 1
     for key, count in counts.most_common():
         print(f"{key} ({count})")
