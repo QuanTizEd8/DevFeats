@@ -35,16 +35,6 @@
       "resolved": "ghcr.io/quantized8/sysset/install-oras@sha256:d4aaa3cdafe357f920de440200060ebed9bba2ee3e7e53e91bb458d5ea1642cf",
       "integrity": "sha256:d4aaa3cdafe357f920de440200060ebed9bba2ee3e7e53e91bb458d5ea1642cf"
     },
-    "ghcr.io/quantized8/sysset/install-pixi": {
-      "version": "0.1.0",
-      "resolved": "ghcr.io/quantized8/sysset/install-pixi@sha256:39fe2f24a2a8ca7e02c23a66cdf04e69a8eb9a546baed8559dd917d3e65051f3",
-      "integrity": "sha256:39fe2f24a2a8ca7e02c23a66cdf04e69a8eb9a546baed8559dd917d3e65051f3"
-    },
-    "ghcr.io/quantized8/sysset/install-shell": {
-      "version": "0.1.0",
-      "resolved": "ghcr.io/quantized8/sysset/install-shell@sha256:7ed29df3d1f7e425a58507ac1e1a69a3a78537f6a7b1eaebd6348fca479eeb70",
-      "integrity": "sha256:7ed29df3d1f7e425a58507ac1e1a69a3a78537f6a7b1eaebd6348fca479eeb70"
-    },
     "ghcr.io/quantized8/sysset/install-shellcheck": {
       "version": "0.1.0",
       "resolved": "ghcr.io/quantized8/sysset/install-shellcheck@sha256:bc472077251307acba7b61f7ea561dcd1a8402ce5ff0e8655b5c0561f7b27464",
