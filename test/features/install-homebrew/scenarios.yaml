@@ -127,10 +127,14 @@ macos_export_path_custom_file:
 macos_export_path_idempotent:
   envs: [macos-latest]
   setup: |
+    # One stale shellenv block per file (not two). `shell__write_block` updates
+    # each marker span in place but does not collapse multiple duplicate blocks;
+    # the old test used two installs (first write, second update). A single stale
+    # block per file reproduces the "update in place" half of that story under
+    # one runner-controlled install.
     for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
       mkdir -p "$(dirname "$f")"
-      printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/opt/homebrew/bin/brew shellenv 2> /dev/null || /usr/local/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' >> "$f"
-      printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/opt/homebrew/bin/brew shellenv 2> /dev/null || /usr/local/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' >> "$f"
+      printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/__stale_prefix__/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' >> "$f"
     done
   tests: [macos_export_path_idempotent.sh]
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016,SC2088  # bash -c literal script, ~/ in labels
-# export_path_idempotent: setup pre-seeds duplicate shellenv blocks, then a
-# single feature run with export_path=auto must collapse to one marker/file.
+# export_path_idempotent: setup pre-seeds one stale shellenv block per dotfile;
+# a single feature run with export_path=auto must update that block in place
+# (exactly one begin marker per file; inner line matches resolved brew prefix).
 #
 # Cleanup: removes shellenv blocks from all four user dotfiles on EXIT.
 set -e
@@ -40,6 +41,18 @@ check "~/.zprofile has exactly one begin marker" \
   bash -c '[[ "$({ grep -cF "# >>> brew shellenv (install-homebrew) >>>" ~/.zprofile      2>/dev/null || echo 0; })" -eq 1 ]]'
 check "~/.zshrc has exactly one begin marker" \
   bash -c '[[ "$({ grep -cF "# >>> brew shellenv (install-homebrew) >>>" ~/.zshrc         2>/dev/null || echo 0; })" -eq 1 ]]'
+
+# --- stale placeholder must be gone; block must reference real brew ---
+check "~/.bash_profile block references resolved brew binary" \
+  bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.bash_profile'
+check "~/.bashrc block references resolved brew binary" \
+  bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.bashrc'
+check "~/.zprofile block references resolved brew binary" \
+  bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.zprofile'
+check "~/.zshrc block references resolved brew binary" \
+  bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.zshrc'
+check "stale placeholder is not left in dotfiles" \
+  bash -c '! grep -qF "__stale_prefix__" ~/.bash_profile ~/.bashrc ~/.zprofile ~/.zshrc 2>/dev/null'
 
 echo "=== ~/.zprofile ==="
 cat "${_HOME}/.zprofile" 2> /dev/null || echo "(missing)"
