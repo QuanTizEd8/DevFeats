@@ -1,4 +1,4 @@
-name: CI - Test - Features
+name: Test Features
 
 on:
   workflow_call:
@@ -8,7 +8,7 @@ on:
         required: true
 
 jobs:
-  devcontainer:
+  test-features-devcontainer:
     name: ${{ matrix.scenario }} (devcontainer)
     if: fromJSON(inputs.config).devcontainer.enabled == true
     runs-on: ubuntu-latest
@@ -61,7 +61,7 @@ jobs:
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode devcontainer --filter "${{ matrix.scenario }}"
 
-  linux:
+  test-features-linux:
     name: ${{ matrix.scenario }} (linux)
     if: fromJSON(inputs.config).linux.enabled == true
     runs-on: ubuntu-latest
@@ -99,7 +99,7 @@ jobs:
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode standalone --filter "${{ matrix.scenario }}"
 
-  macos:
+  test-features-macos:
     name: ${{ matrix.sc.scenario }} (macOS)
     if: fromJSON(inputs.config).macos.enabled == true
     runs-on: ${{ matrix.sc.runner }}

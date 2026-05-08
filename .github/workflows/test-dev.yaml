@@ -1,4 +1,4 @@
-name: CI - Test - Development
+name: Test Development
 
 on:
   workflow_call:
@@ -9,8 +9,8 @@ on:
 
 jobs:
 
-  python:
-    name: Python
+  test-dev:
+    name: Development
     if: fromJSON(inputs.config).enabled == true
     runs-on: ubuntu-latest
     container:

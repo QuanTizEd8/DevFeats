@@ -663,7 +663,7 @@ def build_config(  # noqa: PLR0913
     fds = ci["runner"]["free_disk_space"]
     source_enabled = any([run_lint, run_validate, run_unit, bool(feature_matrix_raw)])
     return {
-        "cm_devcontainer": {
+        "build_devcontainer": {
             "enabled": build_image,
             "image_name": image_name,
             "image_tag": image_tag,
@@ -674,31 +674,30 @@ def build_config(  # noqa: PLR0913
             "registry": pub["registry"],
             "build_matrix": img["build_matrix"],
         },
-        "ci_build": {
+        "build_features": {
             "ci_image": ci_image,
-            "source": {
-                "enabled": source_enabled,
-                "artifact_src": {
-                    "name": art["src"]["name"],
-                    "path": art["src"]["path"],
-                    "retention_days": art["retention_days"],
-                },
-                "artifact_dist": {
-                    "name": art["dist"]["name"],
-                    "path": art["dist"]["path"],
-                    "retention_days": art["retention_days"],
-                },
+            "enabled": source_enabled,
+            "artifact_src": {
+                "name": art["src"]["name"],
+                "path": art["src"]["path"],
+                "retention_days": art["retention_days"],
             },
-            "docs": {
-                "enabled": run_docs,
-                "artifact": {
-                    "name": art["pages"]["name"],
-                    "path": art["pages"]["path"],
-                    "retention_days": art["retention_days"],
-                },
+            "artifact_dist": {
+                "name": art["dist"]["name"],
+                "path": art["dist"]["path"],
+                "retention_days": art["retention_days"],
             },
         },
-        "ci_lint": {
+        "build_docs": {
+            "ci_image": ci_image,
+            "enabled": run_docs,
+            "artifact": {
+                "name": art["pages"]["name"],
+                "path": art["pages"]["path"],
+                "retention_days": art["retention_days"],
+            },
+        },
+        "lint": {
             "ci_image": ci_image,
             "artifact_src_name": art["src"]["name"],
             "artifact_src_path": art["src"]["path"],
@@ -706,11 +705,11 @@ def build_config(  # noqa: PLR0913
             "validate": {"enabled": run_validate, "features_path": scr["features_src"]},
             "python": {"enabled": run_python},
         },
-        "ci_test_dev": {
+        "test_dev": {
             "enabled": run_python,
             "ci_image": ci_image,
         },
-        "ci_test_feat": {
+        "test_features": {
             "enabled": bool(feature_matrix_raw),
             "feature_matrix": [
                 {
@@ -744,7 +743,7 @@ def build_config(  # noqa: PLR0913
                 for entry in feature_matrix_raw
             ],
         },
-        "ci_test_lib": {
+        "test_lib": {
             "enabled": run_unit,
             "ci_image": ci_image,
             "artifact_src_name": art["src"]["name"],
@@ -752,7 +751,7 @@ def build_config(  # noqa: PLR0913
             "linux_matrix": unit_env_matrix,
             "macos_matrix": unit_macos_matrix,
         },
-        "cd": {
+        "deploy": {
             "enabled": is_release,
             "features": features_to_release,
             "artifact_src_name": art["src"]["name"],

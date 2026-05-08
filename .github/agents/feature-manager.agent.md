@@ -169,7 +169,7 @@ If the verdict is **NOT APPROVED**:
 - **Dual distribution**: devcontainer features (GHCR) + standalone tarballs (GitHub Releases via `just build-feats`).
 - **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `just sync-src`.
 - **Test layers**: bats unit tests (`test/lib/`), devcontainer scenario tests (`test/features/<feature-name>/`), standalone scenarios, macOS scenarios.
-- **CI workflows**: `cicd.yaml` (orchestrator — triggers on push/PR/tag), `ci.yaml` (reusable CI — lint, validate, unit, feature, dist tests), `cd.yaml` (reusable CD — GHCR publish + GitHub Release).
+- **CI workflows**: `main.yaml` (orchestrator — triggers on push/PR/dispatch), `build-features.yaml`, `build-docs.yaml`, `lint.yaml`, `test-dev.yaml`, `test-features.yaml`, `test-lib.yaml` (reusable CI), `deploy.yaml` (reusable CD — GHCR publish + GitHub Release + GH Pages).
 - **Lefthook**: optional; sync/format hooks are **disabled by default** in `lefthook.yml`. See `docs/source/dev/index.md`.
 
 ## Tools & Commands Quick Reference

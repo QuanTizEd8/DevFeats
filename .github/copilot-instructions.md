@@ -44,7 +44,7 @@ Refer to the following internal documentation for detailed guides on various asp
 
 - [`docs/snippets/code-style.md`](../docs/snippets/code-style.md) — shfmt, shellcheck, body-only `install.bash`
 - [`docs/source/dev/writing-features.md`](../docs/source/dev/writing-features.md) — feature anatomy, shared `lib/` API
-- [`docs/source/dev/ci.md`](../docs/source/dev/ci.md) — `cicd.yaml`, `ci.yaml`, `cd.yaml`
+- [`docs/source/dev/ci.md`](../docs/source/dev/ci.md) — `main.yaml`, reusable build/lint/test/deploy workflows
 
 ## External Resources
 

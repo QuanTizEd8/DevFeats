@@ -1,6 +1,6 @@
 # Build and push a multi-arch devcontainer image to GHCR.
 
-name: CM - Devcontainer Image Deployment
+name: Build & Deploy Devcontainer
 
 on:
   workflow_call:
@@ -10,7 +10,8 @@ on:
         required: true
 
 jobs:
-  build:
+
+  build-devcontainer:
     # Build and push separate images for each platform.
     name: Build (${{ matrix.platform }})
     strategy:
@@ -62,11 +63,11 @@ jobs:
           cacheTo: type=registry,ref=${{ fromJSON(inputs.config).image_name }}:${{ fromJSON(inputs.config).cache_ref_prefix }}-${{ matrix.platform_tag }},mode=max
           push: always
 
-  merge:
+  merge-devcontainer:
     # Create and push a single multi-arch manifest
     # that references both platform-specific images built in the previous job.
     name: Multi-Arch Merge
-    needs: [build]
+    needs: [build-devcontainer]
     runs-on: ubuntu-latest
     permissions:
       contents: read

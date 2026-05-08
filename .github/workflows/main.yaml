@@ -6,43 +6,47 @@ on:
   workflow_dispatch:
     inputs:
       rebuild_devcontainer:
-        description: "Force devcontainer image rebuild for this manual run."
+        description: Force devcontainer image rebuild.
         type: boolean
         default: false
       run_lint:
-        description: "Run lint (shfmt + shellcheck)"
+        description: Run lint
+        type: boolean
+        default: true
+      run_format:
+        description: Run formatting checks
         type: boolean
         default: true
       run_validate:
-        description: "Run validate (devcontainer-feature.json)"
+        description: Run validate (devcontainer-feature.json)
         type: boolean
         default: true
       run_unit:
-        description: "Run unit tests"
+        description: Run unit tests
         type: boolean
         default: true
       run_features:
-        description: "Run feature scenario tests"
+        description: Run feature scenario tests
         type: boolean
         default: true
       features:
-        description: "Features to test — blank = all, or comma-separated names"
+        description: Features to test — blank = all, or comma-separated names
         type: string
         default: ""
       run_macos:
-        description: "Run macOS native feature tests"
+        description: Run macOS native feature tests
         type: boolean
         default: true
       macos_features:
-        description: "macOS features to test — blank = all capable, or comma-separated names"
+        description: macOS features to test — blank = all capable, or comma-separated names
         type: string
         default: ""
       run_python:
-        description: "Run Python lint (ruff) and tests (pytest)"
+        description: Run Python lint (ruff) and tests (pytest)
         type: boolean
         default: true
       run_docs:
-        description: "Build docs website"
+        description: Build docs website
         type: boolean
         default: true
 
@@ -71,93 +75,105 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: proman-cicd-detect
 
-  cm-devcontainer:
-    name: CM - Devcontainer Image
+  build-devcontainer:
+    name: Build & Deploy Devcontainer
     needs: [init]
-    if: fromJSON(needs.init.outputs.config).cm_devcontainer.enabled == true
+    if: fromJSON(needs.init.outputs.config).build_devcontainer.enabled == true
     permissions:
       contents: read
       packages: write
-    uses: ./.github/workflows/cm-devcontainer.yaml
+    uses: ./.github/workflows/build-devcontainer.yaml
     with:
-      config: ${{ toJSON(fromJSON(needs.init.outputs.config).cm_devcontainer) }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).build_devcontainer) }}
     secrets: inherit
 
-  ci-build:
-    name: CI - Build
-    needs: [init, cm-devcontainer]
+  build-docs:
+    name: Build Docs
+    needs: [init, build-devcontainer]
     if: |
       !cancelled() &&
       needs.init.result == 'success' &&
-      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped')
-    uses: ./.github/workflows/ci-build.yaml
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped')
+    uses: ./.github/workflows/build-docs.yaml
     with:
-      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_build) }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).build_docs) }}
     secrets: inherit
 
-  ci-lint:
-    name: CI - Lint
-    needs: [init, cm-devcontainer, ci-build]
+  build-features:
+    name: Build Features
+    needs: [init, build-devcontainer]
     if: |
       !cancelled() &&
       needs.init.result == 'success' &&
-      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
-      (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
-    uses: ./.github/workflows/ci-lint.yaml
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped')
+    uses: ./.github/workflows/build-features.yaml
     with:
-      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_lint) }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).build_features) }}
     secrets: inherit
 
-  ci-test-dev:
-    name: CI - Test - Development
-    needs: [init, cm-devcontainer]
+  lint:
+    name: Lint
+    needs: [init, build-devcontainer, build-features]
     if: |
       !cancelled() &&
       needs.init.result == 'success' &&
-      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped')
-    uses: ./.github/workflows/ci-test-dev.yaml
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped') &&
+      (needs.build-features.result == 'success' || needs.build-features.result == 'skipped')
+    uses: ./.github/workflows/lint.yaml
     with:
-      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_test_dev) }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).lint) }}
     secrets: inherit
 
-  ci-test-feat:
-    name: CI - Test - Features (${{ matrix.feature_cfg.feature }})
-    needs: [init, cm-devcontainer, ci-build]
+  test-dev:
+    name: Test Development
+    needs: [init, build-devcontainer]
     if: |
       !cancelled() &&
       needs.init.result == 'success' &&
-      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
-      (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped') &&
-      fromJSON(needs.init.outputs.config).ci_test_feat.enabled == true
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped')
+    uses: ./.github/workflows/test-dev.yaml
+    with:
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).test_dev) }}
+    secrets: inherit
+
+  test-features:
+    name: Test Feature ${{ matrix.feature_cfg.feature }}
+    needs: [init, build-devcontainer, build-features]
+    if: |
+      !cancelled() &&
+      needs.init.result == 'success' &&
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped') &&
+      (needs.build-features.result == 'success' || needs.build-features.result == 'skipped') &&
+      fromJSON(needs.init.outputs.config).test_features.enabled == true
     strategy:
       fail-fast: false
       matrix:
-        feature_cfg: ${{ fromJSON(needs.init.outputs.config).ci_test_feat.feature_matrix }}
-    uses: ./.github/workflows/ci-test-feat.yaml
+        feature_cfg: ${{ fromJSON(needs.init.outputs.config).test_features.feature_matrix }}
+    uses: ./.github/workflows/test-features.yaml
     with:
       config: ${{ toJSON(matrix.feature_cfg) }}
     secrets: inherit
 
-  ci-test-lib:
-    name: CI - Test - Library
-    needs: [init, cm-devcontainer, ci-build]
+  test-lib:
+    name: Test Library
+    needs: [init, build-devcontainer, build-features]
     if: |
       !cancelled() &&
       needs.init.result == 'success' &&
-      (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
-      (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
-    uses: ./.github/workflows/ci-test-lib.yaml
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped') &&
+      (needs.build-features.result == 'success' || needs.build-features.result == 'skipped')
+    uses: ./.github/workflows/test-lib.yaml
     with:
-      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_test_lib) }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).test_lib) }}
     secrets: inherit
 
-  cd:
-    name: CD
-    needs: [init, ci-build, ci-lint, ci-test-dev, ci-test-feat, ci-test-lib]
+  deploy:
+    name: Deploy
+    needs: [init, build-docs, build-features, lint, test-dev, test-features, test-lib]
     if: |
       !cancelled() &&
       needs.init.result == 'success' &&
-      fromJSON(needs.init.outputs.config).cd.enabled == true &&
+      fromJSON(needs.init.outputs.config).deploy.enabled == true &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     permissions:
@@ -166,7 +182,7 @@ jobs:
       packages: write
       pages: write
       id-token: write
-    uses: ./.github/workflows/cd.yaml
+    uses: ./.github/workflows/deploy.yaml
     with:
-      config: ${{ toJSON(fromJSON(needs.init.outputs.config).cd) }}
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).deploy) }}
     secrets: inherit

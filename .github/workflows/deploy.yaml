@@ -1,4 +1,4 @@
-name: CD
+name: Deploy
 
 on:
   workflow_call:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  ghcr:
+  deploy-ghcr:
     name: GHCR
     runs-on: ubuntu-latest
     permissions:
@@ -44,7 +44,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  gh-release:
+  deploy-gh-release:
     name: "GH Release: ${{ matrix.entry.feature }} ${{ matrix.entry.version }}"
     runs-on: ubuntu-latest
     permissions:
@@ -108,7 +108,7 @@ jobs:
               --generate-notes
           fi
 
-  gh-pages:
+  deploy-gh-pages:
     name: GH Pages
     runs-on: ubuntu-latest
     permissions:

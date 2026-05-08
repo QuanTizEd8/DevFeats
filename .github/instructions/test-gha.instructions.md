@@ -1,5 +1,5 @@
 ---
-description: "Use when working with CI/CD workflows (.github/workflows/main.yaml, ci-*.yaml, cd.yaml), the install-os-pkg manifest unit tests (test/features/install-os-pkg/unit/), or CI trigger logic. Covers macOS GHA runner behaviour, macOS native feature scenarios, CI matrix generation, dry-run test structure, and how to inspect workflow run results and logs."
+description: "Use when working with CI/CD workflows (.github/workflows/main.yaml, build-*.yaml, lint.yaml, test-*.yaml, deploy.yaml), the install-os-pkg manifest unit tests (test/features/install-os-pkg/unit/), or CI trigger logic. Covers macOS GHA runner behaviour, macOS native feature scenarios, CI matrix generation, dry-run test structure, and how to inspect workflow run results and logs."
 applyTo: "test/features/install-os-pkg/unit/**, .github/workflows/*.yaml"
 ---
 
@@ -9,8 +9,8 @@ applyTo: "test/features/install-os-pkg/unit/**, .github/workflows/*.yaml"
 
 | Workflow | File | Trigger | Purpose |
 |---|---|---|---|
-| CI/CD Orchestrator | `main.yaml` | push to `main`, PRs, `workflow_dispatch` | Runs `init` (detect) → calls composable `ci-*.yaml` and `cd.yaml` jobs |
-| Continuous Deployment | `cd.yaml` | `workflow_call` from `main.yaml` | Publish to GHCR + GitHub Release |
+| CI/CD Orchestrator | `main.yaml` | push to `main`, PRs, `workflow_dispatch` | Runs `init` (detect) → calls composable reusable workflows |
+| Continuous Deployment | `deploy.yaml` | `workflow_call` from `main.yaml` | Publish to GHCR + GitHub Release + GH Pages |
 
 ## macOS GHA Runner
 
@@ -22,7 +22,7 @@ Features with macOS scenarios (environments referencing `macos-*` runners) run i
 
 macOS ships bash 3.2. All `lib/` modules require bash ≥4. `.dev/scripts/test/run-unit.sh` handles this automatically by re-execing under a Homebrew bash ≥4 if found.
 
-The `test-unit-native` job in `ci.yaml` installs bash ≥4 explicitly:
+The `test-unit-native` job in `test-lib.yaml` installs bash ≥4 explicitly:
 
 ```yaml
 - name: Install bash ≥4
@@ -55,7 +55,7 @@ Features with macOS environments in their `test/features/<feature>/scenarios.yam
 [{"feature": "install-homebrew", "runner": "macos-latest"}, ...]
 ```
 
-`macos` in `ci-test-feat.yaml` runs `bash "${TEST_SCRIPT}" "${{ matrix.job.feature }}" --mode macos`.
+The `test-features-macos` job in `test-features.yaml` runs `bash "${TEST_SCRIPT}" "${{ matrix.job.feature }}" --mode macos`.
 
 No changes to any workflow file are needed when adding a macOS scenario — discovery is fully automatic once the environment is in `test/environments.yaml` and referenced from `scenarios.yaml`.
 
@@ -118,11 +118,11 @@ docker run --rm -v "$(pwd):/repo" debian:latest \
 
 | Changed path(s) | Flag set / Jobs gated |
 |---|---|
-| `*.sh`, `*.bash`, `*.bats` | `shell.enabled` → `ci-lint / shell` |
-| `src/**/devcontainer-feature.json` | `validate.enabled` → `ci-lint / json-schema` |
-| `lib/**`, `test/lib/**` | `ci_test_lib.enabled` → `ci-test-lib / linux`, `/ macos` |
-| `src/<f>/` or `test/<f>/` | `linux.enabled`, `linux.features[]` → `ci-test-feat / linux` matrix |
-| macOS-capable feature in `features[]` | `macos.enabled`, `macos.matrix` → `ci-test-feat / macos` matrix |
+| `*.sh`, `*.bash`, `*.bats` | `shell.enabled` → `lint / shell` |
+| `src/**/devcontainer-feature.json` | `validate.enabled` → `lint / json-schema` |
+| `lib/**`, `test/lib/**` | `test_lib.enabled` → `test-lib / linux`, `/ macos` |
+| `src/<f>/` or `test/<f>/` | `linux.enabled`, `linux.features[]` → `test-features / linux` matrix |
+| macOS-capable feature in `features[]` | `macos.enabled`, `macos.matrix` → `test-features / macos` matrix |
 
 On `workflow_dispatch`, flags are resolved from the dispatch inputs. First push to a new branch sets `is_force=true` which enables all jobs.
 
@@ -134,7 +134,7 @@ On `workflow_dispatch`, flags are resolved from the dispatch inputs. First push 
 
 ### No CI changes needed for new scenarios
 
-Adding a new scenario to `test/features/<feature>/scenarios.yaml` does not require any changes to `ci.yaml`. Feature discovery, macOS matrix generation, and standalone test dispatch are all fully automatic.
+Adding a new scenario to `test/features/<feature>/scenarios.yaml` does not require any changes to `test-features.yaml`. Feature discovery, macOS matrix generation, and standalone test dispatch are all fully automatic.
 
 ## Monitoring CI Runs (for Agents)
 
@@ -142,15 +142,15 @@ Use the `gh` CLI to inspect workflow runs, job results, and logs. MCP GitHub too
 
 ### Workflow and run structure
 
-`main.yaml` is the orchestrator — the only file with event triggers. Its jobs call the composable `ci-*.yaml` and `cd.yaml` workflows via `workflow_call`. The called workflows' jobs appear as individual entries inside the same parent run. A typical run contains:
+`main.yaml` is the orchestrator — the only file with event triggers. Its jobs call the composable reusable workflows via `workflow_call`. The called workflows' jobs appear as individual entries inside the same parent run. A typical run contains:
 
 - `init` — always runs; runs `proman-cicd-detect` and emits a single `config` JSON output
-- `ci-build / source`, `ci-build / docs`
-- `ci-lint / shell`, `ci-lint / json-schema`, `ci-lint / python`
-- `ci-test-dev / python`
-- `ci-test-lib / linux (ubuntu-24.04)`, `ci-test-lib / macos (macos-latest)`, ... (matrix)
-- `ci-test-feat / linux (install-shell)`, `ci-test-feat / macos (install-homebrew)`, ... (matrix)
-- `cd / ghcr`, `cd / gh-release`, `cd / gh-pages` — only on release triggers
+- `build-features / features`, `build-docs / docs`
+- `lint / shell`, `lint / json-schema`, `lint / python`
+- `test-dev / development`
+- `test-lib / linux (ubuntu-24.04)`, `test-lib / macos (macos-latest)`, ... (matrix)
+- `test-features / linux (install-shell)`, `test-features / macos (install-homebrew)`, ... (matrix)
+- `deploy / ghcr`, `deploy / gh-release`, `deploy / gh-pages` — only on release triggers
 
 ### Listing and identifying runs
 
@@ -177,4 +177,4 @@ gh run rerun <run-id> --failed
 
 ### Release and publish
 
-`cd.enabled` is set to `true` by `proman-cicd-detect` when the push to `main` has at least one feature with an untagged version. The `cd` job runs only when `cd.enabled == true` AND all CI jobs succeeded.
+`deploy.enabled` is set to `true` by `proman-cicd-detect` when the push to `main` has at least one feature with an untagged version. The `deploy` job runs only when `deploy.enabled == true` AND all CI jobs succeeded.

@@ -1,4 +1,4 @@
-name: CI - Test - Library
+name: Test Library
 
 on:
   workflow_call:
@@ -8,7 +8,7 @@ on:
         required: true
 
 jobs:
-  linux:
+  test-lib-linux:
     name: ${{ matrix.env.name }}
     if: fromJSON(inputs.config).enabled == true
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
             "${{ fromJSON(inputs.config).ci_image }}" \
             just test-lib-env "${{ matrix.env.name }}"
 
-  macos:
+  test-lib-macos:
     name: ${{ matrix.os.runner }}
     if: fromJSON(inputs.config).enabled == true
     env:

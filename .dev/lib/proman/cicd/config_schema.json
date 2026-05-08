@@ -4,17 +4,18 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "cm_devcontainer",
-    "ci_build",
-    "ci_lint",
-    "ci_test_dev",
-    "ci_test_feat",
-    "ci_test_lib",
-    "cd"
+    "build_devcontainer",
+    "build_features",
+    "build_docs",
+    "lint",
+    "test_dev",
+    "test_features",
+    "test_lib",
+    "deploy"
   ],
   "properties": {
-    "cm_devcontainer": {
-      "description": "Config slice for the cm-devcontainer reusable workflow (multi-platform devcontainer image build and push).",
+    "build_devcontainer": {
+      "description": "Config slice for the build-devcontainer reusable workflow (multi-platform devcontainer image build and push).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -91,67 +92,61 @@
         }
       }
     },
-    "ci_build": {
-      "description": "Config slice for the ci-build reusable workflow (source packaging and docs build).",
+    "build_features": {
+      "description": "Config slice for the build-features reusable workflow (feature source and distribution artifact build).",
       "type": "object",
       "additionalProperties": false,
       "required": [
         "ci_image",
-        "source",
-        "docs"
+        "enabled",
+        "artifact_src",
+        "artifact_dist"
       ],
       "properties": {
         "ci_image": {
           "description": "Full devcontainer image URI used as the job container.",
           "type": "string"
         },
-        "source": {
-          "description": "Controls the source-packaging job that produces the src and dist artifacts.",
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "enabled",
-            "artifact_src",
-            "artifact_dist"
-          ],
-          "properties": {
-            "enabled": {
-              "description": "Whether to run the source-packaging job.",
-              "type": "boolean"
-            },
-            "artifact_src": {
-              "description": "Artifact spec for the raw source tree uploaded for downstream jobs.",
-              "$ref": "#/$defs/artifact"
-            },
-            "artifact_dist": {
-              "description": "Artifact spec for the distribution tarballs uploaded for release.",
-              "$ref": "#/$defs/artifact"
-            }
-          }
+        "enabled": {
+          "description": "Whether to run the build-features job.",
+          "type": "boolean"
         },
-        "docs": {
-          "description": "Controls the documentation build job.",
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "enabled",
-            "artifact"
-          ],
-          "properties": {
-            "enabled": {
-              "description": "Whether to run the docs build job.",
-              "type": "boolean"
-            },
-            "artifact": {
-              "description": "Artifact spec for the built docs archive uploaded for GitHub Pages deployment.",
-              "$ref": "#/$defs/artifact"
-            }
-          }
+        "artifact_src": {
+          "description": "Artifact spec for the raw source tree uploaded for downstream jobs.",
+          "$ref": "#/$defs/artifact"
+        },
+        "artifact_dist": {
+          "description": "Artifact spec for the distribution tarballs uploaded for release.",
+          "$ref": "#/$defs/artifact"
         }
       }
     },
-    "ci_lint": {
-      "description": "Config slice for the ci-lint reusable workflow (shell, JSON schema, and Python linting).",
+    "build_docs": {
+      "description": "Config slice for the build-docs reusable workflow (Sphinx documentation build).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ci_image",
+        "enabled",
+        "artifact"
+      ],
+      "properties": {
+        "ci_image": {
+          "description": "Full devcontainer image URI used as the job container.",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Whether to run the build-docs job.",
+          "type": "boolean"
+        },
+        "artifact": {
+          "description": "Artifact spec for the built docs archive uploaded for GitHub Pages deployment.",
+          "$ref": "#/$defs/artifact"
+        }
+      }
+    },
+    "lint": {
+      "description": "Config slice for the lint reusable workflow (shell, JSON schema, and Python linting).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -224,8 +219,8 @@
         }
       }
     },
-    "ci_test_dev": {
-      "description": "Config slice for the ci-test-dev reusable workflow (Python unit tests for proman dev tooling).",
+    "test_dev": {
+      "description": "Config slice for the test-dev reusable workflow (Python unit tests for proman dev tooling).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -243,8 +238,8 @@
         }
       }
     },
-    "ci_test_feat": {
-      "description": "Config slice for the ci-test-feat reusable workflow (devcontainer feature integration tests).",
+    "test_features": {
+      "description": "Config slice for the test-features reusable workflow (devcontainer feature integration tests).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -257,7 +252,7 @@
           "type": "boolean"
         },
         "feature_matrix": {
-          "description": "Per-feature test configuration objects; each entry is passed as inputs.config to ci-test-feat.yaml.",
+          "description": "Per-feature test configuration objects; each entry is passed as inputs.config to test-features.yaml.",
           "type": "array",
           "items": {
             "description": "Self-contained configuration for a single feature's test jobs across all platforms.",
@@ -426,8 +421,8 @@
         }
       }
     },
-    "ci_test_lib": {
-      "description": "Config slice for the ci-test-lib reusable workflow (shell library unit tests).",
+    "test_lib": {
+      "description": "Config slice for the test-lib reusable workflow (shell library unit tests).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -503,8 +498,8 @@
         }
       }
     },
-    "cd": {
-      "description": "Config slice for the cd reusable workflow (GHCR publish, GitHub Release, GitHub Pages deploy).",
+    "deploy": {
+      "description": "Config slice for the deploy reusable workflow (GHCR publish, GitHub Release, GitHub Pages deploy).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -522,7 +517,7 @@
       ],
       "properties": {
         "enabled": {
-          "description": "Whether to run the CD pipeline; true only when at least one feature has an untagged version on main.",
+          "description": "Whether to run the deploy pipeline; true only when at least one feature has an untagged version on main.",
           "type": "boolean"
         },
         "features": {
