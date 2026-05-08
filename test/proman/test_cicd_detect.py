@@ -168,6 +168,183 @@ scenario_b:
     ]
 
 
+# ── compute_feature_matrix ────────────────────────────────────────────────────
+
+
+def test_compute_feature_matrix_default_modes_in_both_linux_lists(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify default-modes scenario is in both devcontainer and linux lists."""
+    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n",
+    )
+    _write(
+        tmp_path / "test/features/install-foo/scenarios.yaml",
+        "default:\n  envs: [ubuntu-latest]\n  tests: [default.sh]\n",
+    )
+    result = cd.compute_feature_matrix(["install-foo"], [])
+    assert result == [
+        {
+            "feature": "install-foo",
+            "devcontainer_scenarios": ["default"],
+            "linux_scenarios": ["default"],
+            "macos_scenarios": [],
+        },
+    ]
+
+
+def test_compute_feature_matrix_standalone_only_excluded_from_devcontainer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify modes: [standalone] excludes scenario from devcontainer but not linux."""
+    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n",
+    )
+    _write(
+        tmp_path / "test/features/install-foo/scenarios.yaml",
+        """\
+only_standalone:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  tests: [t.sh]
+""",
+    )
+    result = cd.compute_feature_matrix(["install-foo"], [])
+    assert result == [
+        {
+            "feature": "install-foo",
+            "devcontainer_scenarios": [],
+            "linux_scenarios": ["only_standalone"],
+            "macos_scenarios": [],
+        },
+    ]
+
+
+def test_compute_feature_matrix_macos_env_only_in_macos_scenarios(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify a macOS-env scenario appears only in macos_scenarios."""
+    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "macos-latest:\n  image: macos-latest\n",
+    )
+    _write(
+        tmp_path / "test/features/install-foo/scenarios.yaml",
+        "mac_sc:\n  envs: [macos-latest]\n  tests: [mac.sh]\n",
+    )
+    result = cd.compute_feature_matrix([], ["install-foo"])
+    assert result == [
+        {
+            "feature": "install-foo",
+            "devcontainer_scenarios": [],
+            "linux_scenarios": [],
+            "macos_scenarios": [{"scenario": "mac_sc", "runner": "macos-latest"}],
+        },
+    ]
+
+
+def test_compute_feature_matrix_feature_in_both_linux_and_macos(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify a feature in both linux_ids and macos_ids gets all three lists."""
+    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n"
+        "macos-latest:\n  image: macos-latest\n",
+    )
+    _write(
+        tmp_path / "test/features/install-foo/scenarios.yaml",
+        """\
+default:
+  envs: [ubuntu-latest]
+  tests: [default.sh]
+mac_sc:
+  envs: [macos-latest]
+  tests: [mac.sh]
+""",
+    )
+    result = cd.compute_feature_matrix(["install-foo"], ["install-foo"])
+    assert result == [
+        {
+            "feature": "install-foo",
+            "devcontainer_scenarios": ["default"],
+            "linux_scenarios": ["default"],
+            "macos_scenarios": [{"scenario": "mac_sc", "runner": "macos-latest"}],
+        },
+    ]
+
+
+def test_compute_feature_matrix_macos_only_id_excludes_linux_scenarios(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify a feature in only macos_ids (not linux_ids) has empty linux lists."""
+    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n"
+        "macos-latest:\n  image: macos-latest\n",
+    )
+    _write(
+        tmp_path / "test/features/install-foo/scenarios.yaml",
+        """\
+default:
+  envs: [ubuntu-latest]
+  tests: [default.sh]
+mac_sc:
+  envs: [macos-latest]
+  tests: [mac.sh]
+""",
+    )
+    result = cd.compute_feature_matrix([], ["install-foo"])
+    assert result == [
+        {
+            "feature": "install-foo",
+            "devcontainer_scenarios": [],
+            "linux_scenarios": [],
+            "macos_scenarios": [{"scenario": "mac_sc", "runner": "macos-latest"}],
+        },
+    ]
+
+
+def test_compute_feature_matrix_missing_scenarios_file_excluded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify a feature with no scenarios.yaml file is excluded from the result."""
+    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n",
+    )
+    result = cd.compute_feature_matrix(["install-missing"], [])
+    assert result == []
+
+
+def test_compute_feature_matrix_empty_inputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify empty linux_ids and macos_ids returns an empty list."""
+    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n",
+    )
+    result = cd.compute_feature_matrix([], [])
+    assert result == []
+
+
 # ── compute_unit_env_matrix ───────────────────────────────────────────────────
 
 

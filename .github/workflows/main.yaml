@@ -121,16 +121,21 @@ jobs:
     secrets: inherit
 
   ci-test-feat:
-    name: CI - Test - Features
+    name: CI - Test - Features (${{ matrix.feature_cfg.feature }})
     needs: [init, cm-devcontainer, ci-build]
     if: |
       !cancelled() &&
       needs.init.result == 'success' &&
       (needs.cm-devcontainer.result == 'success' || needs.cm-devcontainer.result == 'skipped') &&
-      (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped')
+      (needs.ci-build.result == 'success' || needs.ci-build.result == 'skipped') &&
+      fromJSON(needs.init.outputs.config).ci_test_feat.enabled == true
+    strategy:
+      fail-fast: false
+      matrix:
+        feature_cfg: ${{ fromJSON(needs.init.outputs.config).ci_test_feat.feature_matrix }}
     uses: ./.github/workflows/ci-test-feat.yaml
     with:
-      config: ${{ toJSON(fromJSON(needs.init.outputs.config).ci_test_feat) }}
+      config: ${{ toJSON(matrix.feature_cfg) }}
     secrets: inherit
 
   ci-test-lib:

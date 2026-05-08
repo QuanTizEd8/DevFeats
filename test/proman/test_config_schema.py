@@ -20,16 +20,20 @@ def _make_valid_config() -> dict:
         run_lint=True,
         run_validate=True,
         run_unit=True,
-        run_features=True,
-        features=["install-git"],
-        run_macos=True,
-        macos_matrix=[{"feature": "install-git", "runner": "macos-latest"}],
+        feature_matrix_raw=[
+            {
+                "feature": "install-git",
+                "devcontainer_scenarios": ["default"],
+                "linux_scenarios": ["default"],
+                "macos_scenarios": [{"scenario": "mac", "runner": "macos-latest"}],
+            },
+        ],
         run_python=True,
         run_docs=True,
         is_release=False,
         features_to_release=[],
         unit_env_matrix=[{"name": "ubuntu-24.04", "env": "ubuntu-latest"}],
-        unit_macos_matrix=[{"runner": "macos-latest"}],
+        unit_macos_matrix=[{"runner": "macos-latest", "clean_path": True}],
     )
 
 

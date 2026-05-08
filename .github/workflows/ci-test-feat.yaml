@@ -9,13 +9,13 @@ on:
 
 jobs:
   devcontainer:
-    name: ${{ matrix.feature }} (devcontainer)
-    if: fromJSON(inputs.config).linux.enabled == true
+    name: ${{ matrix.scenario }} (devcontainer)
+    if: fromJSON(inputs.config).devcontainer.enabled == true
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        feature: ${{ fromJSON(inputs.config).linux.features }}
+        scenario: ${{ fromJSON(inputs.config).devcontainer.scenarios }}
     steps:
       # Host-only: removing preinstalled SDKs and caches only affects the runner
       # disk when this step runs on the host (not inside jobs.container). See
@@ -24,13 +24,13 @@ jobs:
       - name: Free disk space (GitHub-hosted runner)
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
-          tool-cache: ${{ fromJSON(inputs.config).linux.free_disk_space.tool_cache }}
-          swap-storage: ${{ fromJSON(inputs.config).linux.free_disk_space.swap_storage }}
-          docker-images: ${{ fromJSON(inputs.config).linux.free_disk_space.docker_images }}
-          android: ${{ fromJSON(inputs.config).linux.free_disk_space.android }}
-          dotnet: ${{ fromJSON(inputs.config).linux.free_disk_space.dotnet }}
-          haskell: ${{ fromJSON(inputs.config).linux.free_disk_space.haskell }}
-          large-packages: ${{ fromJSON(inputs.config).linux.free_disk_space.large_packages }}
+          tool-cache: ${{ fromJSON(inputs.config).free_disk_space.tool_cache }}
+          swap-storage: ${{ fromJSON(inputs.config).free_disk_space.swap_storage }}
+          docker-images: ${{ fromJSON(inputs.config).free_disk_space.docker_images }}
+          android: ${{ fromJSON(inputs.config).free_disk_space.android }}
+          dotnet: ${{ fromJSON(inputs.config).free_disk_space.dotnet }}
+          haskell: ${{ fromJSON(inputs.config).free_disk_space.haskell }}
+          large-packages: ${{ fromJSON(inputs.config).free_disk_space.large_packages }}
 
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -44,14 +44,14 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
-          registry: ${{ fromJSON(inputs.config).linux.registry }}
+          registry: ${{ fromJSON(inputs.config).registry }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test Feature Scenarios — devcontainer mode (DinD in devcontainer image)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CI_IMAGE: ${{ fromJSON(inputs.config).linux.ci_image }}
+          CI_IMAGE: ${{ fromJSON(inputs.config).ci_image }}
         run: |
           docker run --rm --privileged \
             -v "${GITHUB_WORKSPACE}:/repo" \
@@ -59,16 +59,16 @@ jobs:
             -e GITHUB_TOKEN \
             -e "HOST_REPO_ROOT=/repo" \
             "$CI_IMAGE" \
-            just run-gha-dind just test-feats "${{ matrix.feature }}" --mode devcontainer
+            just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode devcontainer --filter "${{ matrix.scenario }}"
 
   linux:
-    name: ${{ matrix.feature }} (linux)
+    name: ${{ matrix.scenario }} (linux)
     if: fromJSON(inputs.config).linux.enabled == true
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        feature: ${{ fromJSON(inputs.config).linux.features }}
+        scenario: ${{ fromJSON(inputs.config).linux.scenarios }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -82,14 +82,14 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
-          registry: ${{ fromJSON(inputs.config).linux.registry }}
+          registry: ${{ fromJSON(inputs.config).registry }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test Feature Scenarios — standalone mode (DinD in devcontainer image)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CI_IMAGE: ${{ fromJSON(inputs.config).linux.ci_image }}
+          CI_IMAGE: ${{ fromJSON(inputs.config).ci_image }}
         run: |
           docker run --rm --privileged \
             -v "${GITHUB_WORKSPACE}:/repo" \
@@ -97,16 +97,16 @@ jobs:
             -e GITHUB_TOKEN \
             -e "HOST_REPO_ROOT=/repo" \
             "$CI_IMAGE" \
-            just run-gha-dind just test-feats "${{ matrix.feature }}" --mode standalone
+            just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode standalone --filter "${{ matrix.scenario }}"
 
   macos:
-    name: ${{ matrix.job.feature }} / ${{ matrix.job.scenario }} (macOS)
+    name: ${{ matrix.sc.scenario }} (macOS)
     if: fromJSON(inputs.config).macos.enabled == true
-    runs-on: ${{ matrix.job.runner }}
+    runs-on: ${{ matrix.sc.runner }}
     strategy:
       fail-fast: false
       matrix:
-        job: ${{ fromJSON(inputs.config).macos.matrix }}
+        sc: ${{ fromJSON(inputs.config).macos.scenarios }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -120,7 +120,7 @@ jobs:
       - name: Install just
         run: brew install just
 
-      - name: "Test ${{ matrix.job.feature }} / ${{ matrix.job.scenario }}"
+      - name: "Test ${{ fromJSON(inputs.config).feature }} / ${{ matrix.sc.scenario }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: just test-feats-macos "${{ matrix.job.feature }}" --filter "${{ matrix.job.scenario }}"
+        run: just test-feats-macos "${{ fromJSON(inputs.config).feature }}" --filter "${{ matrix.sc.scenario }}"

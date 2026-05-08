@@ -248,129 +248,176 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "artifact_src_name",
-        "artifact_src_path",
-        "linux",
-        "macos"
+        "enabled",
+        "feature_matrix"
       ],
       "properties": {
-        "artifact_src_name": {
-          "description": "Name of the source artifact downloaded by feature test jobs.",
-          "type": "string"
+        "enabled": {
+          "description": "Whether any feature tests should run; false when feature_matrix is empty.",
+          "type": "boolean"
         },
-        "artifact_src_path": {
-          "description": "Local path where the source artifact is extracted.",
-          "type": "string"
-        },
-        "linux": {
-          "description": "Controls the Linux feature test matrix job (Docker-in-Docker on ubuntu-latest).",
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "enabled",
-            "features",
-            "ci_image",
-            "registry",
-            "free_disk_space"
-          ],
-          "properties": {
-            "enabled": {
-              "description": "Whether to run Linux feature tests.",
-              "type": "boolean"
-            },
-            "features": {
-              "description": "List of feature IDs to test on Linux.",
-              "type": "array",
-              "items": {
+        "feature_matrix": {
+          "description": "Per-feature test configuration objects; each entry is passed as inputs.config to ci-test-feat.yaml.",
+          "type": "array",
+          "items": {
+            "description": "Self-contained configuration for a single feature's test jobs across all platforms.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "feature",
+              "artifact_src_name",
+              "artifact_src_path",
+              "ci_image",
+              "registry",
+              "free_disk_space",
+              "devcontainer",
+              "linux",
+              "macos"
+            ],
+            "properties": {
+              "feature": {
+                "description": "Feature ID, e.g. install-pixi.",
                 "type": "string"
-              }
-            },
-            "ci_image": {
-              "description": "Full devcontainer image URI used as the job container.",
-              "type": "string"
-            },
-            "registry": {
-              "description": "Container registry hostname used for docker/login-action.",
-              "type": "string"
-            },
-            "free_disk_space": {
-              "description": "Flags passed to jlumbroso/free-disk-space to reclaim runner disk before large Docker builds.",
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "tool_cache",
-                "swap_storage",
-                "docker_images",
-                "android",
-                "dotnet",
-                "haskell",
-                "large_packages"
-              ],
-              "properties": {
-                "tool_cache": {
-                  "description": "Remove the GHA tool cache.",
-                  "type": "boolean"
-                },
-                "swap_storage": {
-                  "description": "Remove swap storage.",
-                  "type": "boolean"
-                },
-                "docker_images": {
-                  "description": "Remove pre-installed Docker images.",
-                  "type": "boolean"
-                },
-                "android": {
-                  "description": "Remove Android SDK.",
-                  "type": "boolean"
-                },
-                "dotnet": {
-                  "description": "Remove .NET SDK.",
-                  "type": "boolean"
-                },
-                "haskell": {
-                  "description": "Remove Haskell toolchain.",
-                  "type": "boolean"
-                },
-                "large_packages": {
-                  "description": "Remove large apt packages.",
-                  "type": "boolean"
-                }
-              }
-            }
-          }
-        },
-        "macos": {
-          "description": "Controls the macOS feature test matrix job (native runner, no Docker).",
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "enabled",
-            "matrix"
-          ],
-          "properties": {
-            "enabled": {
-              "description": "Whether to run macOS feature tests.",
-              "type": "boolean"
-            },
-            "matrix": {
-              "description": "Per-feature macOS test jobs derived from scenarios whose environment image starts with 'macos'.",
-              "type": "array",
-              "items": {
-                "description": "A single macOS feature test job.",
+              },
+              "artifact_src_name": {
+                "description": "Name of the source artifact downloaded by test jobs.",
+                "type": "string"
+              },
+              "artifact_src_path": {
+                "description": "Local path where the source artifact is extracted.",
+                "type": "string"
+              },
+              "ci_image": {
+                "description": "Full devcontainer image URI used as the DinD host container.",
+                "type": "string"
+              },
+              "registry": {
+                "description": "Container registry hostname used for docker/login-action.",
+                "type": "string"
+              },
+              "free_disk_space": {
+                "description": "Flags passed to jlumbroso/free-disk-space to reclaim runner disk before large Docker builds.",
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
-                  "feature",
-                  "runner"
+                  "tool_cache",
+                  "swap_storage",
+                  "docker_images",
+                  "android",
+                  "dotnet",
+                  "haskell",
+                  "large_packages"
                 ],
                 "properties": {
-                  "feature": {
-                    "description": "Feature ID to test.",
-                    "type": "string"
+                  "tool_cache": {
+                    "description": "Remove the GHA tool cache.",
+                    "type": "boolean"
                   },
-                  "runner": {
-                    "description": "GHA runs-on label for the macOS runner.",
-                    "type": "string"
+                  "swap_storage": {
+                    "description": "Remove swap storage.",
+                    "type": "boolean"
+                  },
+                  "docker_images": {
+                    "description": "Remove pre-installed Docker images.",
+                    "type": "boolean"
+                  },
+                  "android": {
+                    "description": "Remove Android SDK.",
+                    "type": "boolean"
+                  },
+                  "dotnet": {
+                    "description": "Remove .NET SDK.",
+                    "type": "boolean"
+                  },
+                  "haskell": {
+                    "description": "Remove Haskell toolchain.",
+                    "type": "boolean"
+                  },
+                  "large_packages": {
+                    "description": "Remove large apt packages.",
+                    "type": "boolean"
+                  }
+                }
+              },
+              "devcontainer": {
+                "description": "devcontainer-mode scenarios for this feature.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "enabled",
+                  "scenarios"
+                ],
+                "properties": {
+                  "enabled": {
+                    "description": "Whether any devcontainer-mode scenarios exist for this feature.",
+                    "type": "boolean"
+                  },
+                  "scenarios": {
+                    "description": "Scenario keys to run in devcontainer mode, one GHA job each.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "linux": {
+                "description": "standalone-mode scenarios for this feature.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "enabled",
+                  "scenarios"
+                ],
+                "properties": {
+                  "enabled": {
+                    "description": "Whether any standalone-mode scenarios exist for this feature.",
+                    "type": "boolean"
+                  },
+                  "scenarios": {
+                    "description": "Scenario keys to run in standalone mode, one GHA job each.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "macos": {
+                "description": "macOS-mode scenarios for this feature.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "enabled",
+                  "scenarios"
+                ],
+                "properties": {
+                  "enabled": {
+                    "description": "Whether any macOS scenarios exist for this feature.",
+                    "type": "boolean"
+                  },
+                  "scenarios": {
+                    "description": "macOS scenarios, one GHA job each on a fresh native runner.",
+                    "type": "array",
+                    "items": {
+                      "description": "A single macOS scenario job.",
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "scenario",
+                        "runner"
+                      ],
+                      "properties": {
+                        "scenario": {
+                          "description": "Scenario key to run.",
+                          "type": "string"
+                        },
+                        "runner": {
+                          "description": "GHA runs-on label for the macOS runner.",
+                          "type": "string"
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -439,12 +486,17 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "runner"
+              "runner",
+              "clean_path"
             ],
             "properties": {
               "runner": {
                 "description": "GHA runs-on label for the macOS runner.",
                 "type": "string"
+              },
+              "clean_path": {
+                "description": "Whether to strip GHA pre-installed tools from PATH before running tests.",
+                "type": "boolean"
               }
             }
           }

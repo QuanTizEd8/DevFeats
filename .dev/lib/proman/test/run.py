@@ -53,7 +53,7 @@ _MACOS_ENV_PASSTHROUGH = frozenset(
         "GITHUB_WORKSPACE",
         "XPC_FLAGS",
         "XPC_SERVICE_NAME",
-    }
+    },
 )
 
 

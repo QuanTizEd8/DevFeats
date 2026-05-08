@@ -187,6 +187,77 @@ def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
     return result
 
 
+def compute_feature_matrix(
+    linux_ids: list[str],
+    macos_ids: list[str],
+) -> list[dict]:
+    """Compute per-feature test configuration for the two-level matrix split.
+
+    Returns one entry per feature with scenario lists for each platform.
+    Features with no scenarios on any platform are omitted.
+
+    Parameters
+    ----------
+    linux_ids : list of str
+        Feature IDs to consider for devcontainer and standalone testing.
+    macos_ids : list of str
+        Feature IDs to consider for macOS testing.
+
+    Returns
+    -------
+    list of dict
+        ``{"feature": str, "devcontainer_scenarios": list[str],
+        "linux_scenarios": list[str], "macos_scenarios": list[dict]}``
+        entries sorted by feature name.
+    """
+    envs_data: dict = (
+        yaml.safe_load(
+            (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
+        )
+        or {}
+    )
+    linux_set = set(linux_ids)
+    macos_set = set(macos_ids)
+    all_ids = sorted(linux_set | macos_set)
+    result = []
+    for fid in all_ids:
+        scenarios_file = git_repo_root() / "test" / "features" / fid / "scenarios.yaml"
+        if not scenarios_file.exists():
+            continue
+        raw: dict = yaml.safe_load(scenarios_file.read_text(encoding="utf-8")) or {}
+        defaults = raw.pop("defaults", {})
+        devcontainer_scenarios: list[str] = []
+        linux_scenarios: list[str] = []
+        macos_scenarios: list[dict[str, str]] = []
+        for sc_name, sc in raw.items():
+            merged = merge_defaults(sc, defaults)
+            modes = merged.get("modes", ["devcontainer", "standalone"])
+            for key, env_name, _ in expand_envs(sc_name, merged):
+                env_def = envs_data.get(env_name)
+                if not isinstance(env_def, dict):
+                    continue
+                image = env_def.get("image", "")
+                if image.startswith("macos"):
+                    if fid in macos_set:
+                        macos_scenarios.append({"scenario": key, "runner": image})
+                elif fid in linux_set:
+                    if modes != ["standalone"]:
+                        devcontainer_scenarios.append(key)
+                    if "standalone" in modes:
+                        linux_scenarios.append(key)
+        if not (devcontainer_scenarios or linux_scenarios or macos_scenarios):
+            continue
+        result.append(
+            {
+                "feature": fid,
+                "devcontainer_scenarios": devcontainer_scenarios,
+                "linux_scenarios": linux_scenarios,
+                "macos_scenarios": macos_scenarios,
+            },
+        )
+    return result
+
+
 def compute_unit_macos_matrix() -> list[dict]:
     """Compute macOS runner entries for unit tests.
 
@@ -575,10 +646,7 @@ def build_config(  # noqa: PLR0913
     run_lint: bool,
     run_validate: bool,
     run_unit: bool,
-    run_features: bool,
-    features: list[str],
-    run_macos: bool,
-    macos_matrix: list[dict[str, str]],
+    feature_matrix_raw: list[dict],
     run_python: bool,
     run_docs: bool,
     is_release: bool,
@@ -593,7 +661,7 @@ def build_config(  # noqa: PLR0913
     pub = ci["publish"]
     scr = ci["scripts"]
     fds = ci["runner"]["free_disk_space"]
-    source_enabled = any([run_lint, run_validate, run_unit, run_features, run_macos])
+    source_enabled = any([run_lint, run_validate, run_unit, bool(feature_matrix_raw)])
     return {
         "cm_devcontainer": {
             "enabled": build_image,
@@ -643,27 +711,38 @@ def build_config(  # noqa: PLR0913
             "ci_image": ci_image,
         },
         "ci_test_feat": {
-            "artifact_src_name": art["src"]["name"],
-            "artifact_src_path": art["src"]["path"],
-            "linux": {
-                "enabled": run_features,
-                "features": features,
-                "ci_image": ci_image,
-                "registry": pub["registry"],
-                "free_disk_space": {
-                    "tool_cache": fds["tool_cache"],
-                    "swap_storage": fds["swap_storage"],
-                    "docker_images": fds["docker_images"],
-                    "android": fds["android"],
-                    "dotnet": fds["dotnet"],
-                    "haskell": fds["haskell"],
-                    "large_packages": fds["large_packages"],
-                },
-            },
-            "macos": {
-                "enabled": run_macos,
-                "matrix": macos_matrix,
-            },
+            "enabled": bool(feature_matrix_raw),
+            "feature_matrix": [
+                {
+                    "feature": entry["feature"],
+                    "artifact_src_name": art["src"]["name"],
+                    "artifact_src_path": art["src"]["path"],
+                    "ci_image": ci_image,
+                    "registry": pub["registry"],
+                    "free_disk_space": {
+                        "tool_cache": fds["tool_cache"],
+                        "swap_storage": fds["swap_storage"],
+                        "docker_images": fds["docker_images"],
+                        "android": fds["android"],
+                        "dotnet": fds["dotnet"],
+                        "haskell": fds["haskell"],
+                        "large_packages": fds["large_packages"],
+                    },
+                    "devcontainer": {
+                        "enabled": bool(entry["devcontainer_scenarios"]),
+                        "scenarios": entry["devcontainer_scenarios"],
+                    },
+                    "linux": {
+                        "enabled": bool(entry["linux_scenarios"]),
+                        "scenarios": entry["linux_scenarios"],
+                    },
+                    "macos": {
+                        "enabled": bool(entry["macos_scenarios"]),
+                        "scenarios": entry["macos_scenarios"],
+                    },
+                }
+                for entry in feature_matrix_raw
+            ],
         },
         "ci_test_lib": {
             "enabled": run_unit,
@@ -820,17 +899,15 @@ def main() -> None:
     )
 
     # ── Compute matrices ─────────────────────────────────────────────────────
-    macos_matrix = compute_macos_matrix(macos_capable_ids)
-    run_macos = bool(macos_matrix)
-    run_features = bool(features)
+    feature_matrix_raw = compute_feature_matrix(features, macos_capable_ids)
 
     unit_env_matrix = compute_unit_env_matrix()
     unit_macos_matrix = compute_unit_macos_matrix()
 
     LOG.info(
-        "matrices: features=%d macos_matrix=%d unit_env=%d unit_macos=%d",
+        "matrices: features=%d feature_matrix=%d unit_env=%d unit_macos=%d",
         len(features),
-        len(macos_matrix),
+        len(feature_matrix_raw),
         len(unit_env_matrix),
         len(unit_macos_matrix),
     )
@@ -901,10 +978,7 @@ def main() -> None:
         run_lint=run_lint,
         run_validate=run_validate,
         run_unit=run_unit,
-        run_features=run_features,
-        features=features,
-        run_macos=run_macos,
-        macos_matrix=macos_matrix,
+        feature_matrix_raw=feature_matrix_raw,
         run_python=run_python,
         run_docs=run_docs,
         is_release=is_release,
