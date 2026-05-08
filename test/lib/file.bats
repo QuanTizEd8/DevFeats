@@ -107,16 +107,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "file__extract_archive: extracts .tar.gz when tar is available" {
-  # Build the archive BEFORE restricting PATH so we use the real tar.
-  local _real_tar
-  _real_tar="$(command -v tar)" || skip "real tar not found for test setup"
-  local _src="${BATS_TEST_TMPDIR}/payload"
-  mkdir -p "$_src"
-  echo "hello" > "${_src}/hello.txt"
-  local _arc="${BATS_TEST_TMPDIR}/test.tar.gz"
-  "$_real_tar" -czf "$_arc" -C "$_src" hello.txt
-
-  # Place real tar on the isolated PATH so file__extract_archive can find it.
+  local _arc="${BATS_TEST_DIRNAME}/fixtures/archives/hello.tar.gz"
   create_pass_through_bin "tar"
   prepend_fake_bin_path
 
@@ -127,14 +118,7 @@ setup() {
 }
 
 @test "file__extract_archive: extracts .tgz using .tgz extension" {
-  local _real_tar
-  _real_tar="$(command -v tar)" || skip "real tar not found for test setup"
-  local _src="${BATS_TEST_TMPDIR}/payload_tgz"
-  mkdir -p "$_src"
-  echo "world" > "${_src}/world.txt"
-  local _arc="${BATS_TEST_TMPDIR}/test.tgz"
-  "$_real_tar" -czf "$_arc" -C "$_src" world.txt
-
+  local _arc="${BATS_TEST_DIRNAME}/fixtures/archives/world.tgz"
   create_pass_through_bin "tar"
   prepend_fake_bin_path
 
@@ -163,22 +147,15 @@ setup() {
 }
 
 @test "file__extract_archive: uses original_name for format detection" {
-  local _real_tar
-  _real_tar="$(command -v tar)" || skip "real tar not found for test setup"
-
-  # Archive stored at a tempfile path with no meaningful extension.
-  local _src="${BATS_TEST_TMPDIR}/payload_named"
-  mkdir -p "$_src"
-  echo "named" > "${_src}/named.txt"
+  # Fixture is a .tar.gz copied to a path with no meaningful extension.
   local _tmpfile
   _tmpfile="$(mktemp "${BATS_TEST_TMPDIR}/archive.XXXXXX")"
-  "$_real_tar" -czf "$_tmpfile" -C "$_src" named.txt
+  cp "${BATS_TEST_DIRNAME}/fixtures/archives/named.tar.gz" "$_tmpfile"
 
   create_pass_through_bin "tar"
   prepend_fake_bin_path
 
   local _dest="${BATS_TEST_TMPDIR}/out_named"
-  # Pass original name to trigger .tar.gz branch.
   run file__extract_archive "$_tmpfile" "$_dest" "some_release.tar.gz"
   assert_success
   [[ -f "${_dest}/named.txt" ]]
@@ -195,15 +172,7 @@ setup() {
 }
 
 @test "file__extract_archive: creates destination directory when absent" {
-  local _real_tar
-  _real_tar="$(command -v tar)" || skip "real tar not found for test setup"
-
-  local _src="${BATS_TEST_TMPDIR}/payload_mkdir"
-  mkdir -p "$_src"
-  echo "mkdir test" > "${_src}/mkdir_test.txt"
-  local _arc="${BATS_TEST_TMPDIR}/mkdir_test.tar.gz"
-  "$_real_tar" -czf "$_arc" -C "$_src" mkdir_test.txt
-
+  local _arc="${BATS_TEST_DIRNAME}/fixtures/archives/mkdir_test.tar.gz"
   create_pass_through_bin "tar"
   prepend_fake_bin_path
 
@@ -214,7 +183,21 @@ setup() {
   assert_dir_exists "$_dest"
 }
 
-@test "file__extract_archive: fails when tar is absent and format is .tar.gz" {
+@test "file__extract_archive: fails when gzip is absent and format is .tar.gz" {
+  local _arc="${BATS_TEST_TMPDIR}/test_no_gzip.tar.gz"
+  touch "$_arc"
+  local _dest="${BATS_TEST_TMPDIR}/out_no_gzip"
+  # Restrict PATH so gzip is not found but tar is available.
+  create_pass_through_bin "tar"
+  begin_path_isolation "basename" "mkdir" "sort" "tar"
+
+  run file__extract_archive "$_arc" "$_dest"
+
+  end_path_isolation
+  assert_failure
+  assert_output --partial "gzip is required"
+}
+
   # Create test artifacts and pass-through bins for system tools BEFORE restricting PATH.
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   local _arc="${BATS_TEST_TMPDIR}/test_no_tar.tar.gz"

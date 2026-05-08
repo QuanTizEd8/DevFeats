@@ -599,7 +599,7 @@ ospkg__update() {
 #
 # Returns: 0 on success.
 ospkg__install() {
-  ospkg__detect
+  ospkg__detect || return 1
   ospkg__update || true
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
     logging__info "Installing packages:"
@@ -1108,7 +1108,7 @@ ospkg__install_tracked() {
   _bd_dir="$(_ospkg_build_deps_dir)"
   _before_snapshot="${_bd_dir}/${_group_id//\//\_}.before"
   _ospkg_snapshot_packages "$_before_snapshot"
-  ospkg__install "$@"
+  ospkg__install "$@" || return 1
   _ospkg_mark_build_group "$_group_id" "$_before_snapshot"
   rm -f "$_before_snapshot"
   # Session co-ownership tracking (manifest mode only).
@@ -1126,7 +1126,6 @@ ospkg__install_tracked() {
     done
     [[ -f "$_session_sidecar" ]] && sort -u "$_session_sidecar" -o "$_session_sidecar"
   fi
-  return 0
 }
 
 # @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep group. Scans the sidecar directory and calls `_ospkg_remove_build_group` for each entry.
@@ -1450,7 +1449,7 @@ ospkg__run() {
   # Set prefer_linuxbrew early so detect() picks it up.
   _OSPKG_PREFER_LINUXBREW="$_prefer_linuxbrew"
 
-  ospkg__detect
+  ospkg__detect || return 1
 
   # Root check: brew is exempt (it manages its own user/root logic via _ospkg_brew_run).
   if [[ "$_dry_run" == false && "$_OSPKG_PKG_MNGR" != "brew" ]]; then
