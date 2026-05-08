@@ -12,6 +12,8 @@ if TYPE_CHECKING:
         SectionBlock,
     )
 
+from proman.docs.parse_lib import ParagraphBlock
+
 # Sections rendered as definition lists (multi-item, name + description pairs).
 _DEFLIST_SECTIONS = frozenset({"Args", "Parameters", "Env"})
 
@@ -43,8 +45,7 @@ def generate(module: LibModule) -> str:
         parts.append(module.summary)
     if module.description:
         parts.append(module.description)
-    for func in module.functions:
-        parts.append(_render_function(func))
+    parts.extend(_render_function(func) for func in module.functions)
     return "\n\n".join(parts) + "\n"
 
 
@@ -53,8 +54,6 @@ def generate(module: LibModule) -> str:
 
 def _render_function(func: LibFunction) -> str:
     """Render a single LibFunction as a Markdown ## subsection."""
-    from proman.docs.parse_lib import ParagraphBlock
-
     parts: list[str] = [f"## `{func.name}`"]
     if func.description:
         parts.append(func.description)
