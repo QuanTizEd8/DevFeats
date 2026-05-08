@@ -213,7 +213,7 @@ def _run_standalone(
             _options_exports(options),
         ]
         if not skip_install:
-            parts.append(f"bash /repo/src/{feature}/install.bash")
+            parts.append(f"sh /repo/src/{feature}/install.sh")
         parts.extend(test_cmd_lines)
 
         run_cmd = "\n".join(p for p in parts if p)
