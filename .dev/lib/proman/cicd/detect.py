@@ -232,7 +232,7 @@ def compute_unit_env_matrix() -> list[dict[str, str]]:
 
 
 def _parse_feature_list(s: str) -> list[str]:
-    """Parse a feature list from a dispatch input string.
+    r"""Parse a feature list from a dispatch input string.
 
     Parameters
     ----------
@@ -888,7 +888,10 @@ def main() -> None:
 
     # ── Assemble and emit single config output ────────────────────────────────
     ci_cfg = load_ci()
-    image_name = f"{ci_cfg['publish']['registry']}/{env.repository.lower()}{ci_cfg['image']['suffix']}"
+    image_name = (
+        f"{ci_cfg['publish']['registry']}/{env.repository.lower()}"
+        f"{ci_cfg['image']['suffix']}"
+    )
     ci_image = f"{image_name}:{image_tag}"
 
     config = build_config(
