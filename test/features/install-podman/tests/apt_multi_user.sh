@@ -14,7 +14,10 @@ check "alice in /etc/subgid" grep -q "^alice:" /etc/subgid
 check "alice storage.conf exists" test -f /home/alice/.config/containers/storage.conf
 check "alice storage.conf overlay driver" grep -q 'driver = "overlay"' /home/alice/.config/containers/storage.conf
 check "alice storage.conf graphRoot correct" grep -qF "graphRoot = \"${_GRAPH_ROOT_BASE}/alice\"" /home/alice/.config/containers/storage.conf
-check "alice .config owned by alice" bash -c '[ "$(stat -c %U /home/alice/.config/containers)" = "alice" ]'
+check "alice home owned by alice" bash -c '[ "$(stat -c %U /home/alice)" = "alice" ]'
+check "alice .config/containers owned by alice" bash -c '[ "$(stat -c %U /home/alice/.config/containers)" = "alice" ]'
+check "alice .config/cni exists" test -d /home/alice/.config/cni
+check "alice .config/cni owned by alice" bash -c '[ "$(stat -c %U /home/alice/.config/cni)" = "alice" ]'
 
 # --- bob configured ---
 check "bob in /etc/subuid" grep -q "^bob:" /etc/subuid
@@ -22,7 +25,10 @@ check "bob in /etc/subgid" grep -q "^bob:" /etc/subgid
 check "bob storage.conf exists" test -f /home/bob/.config/containers/storage.conf
 check "bob storage.conf overlay driver" grep -q 'driver = "overlay"' /home/bob/.config/containers/storage.conf
 check "bob storage.conf graphRoot correct" grep -qF "graphRoot = \"${_GRAPH_ROOT_BASE}/bob\"" /home/bob/.config/containers/storage.conf
-check "bob .config owned by bob" bash -c '[ "$(stat -c %U /home/bob/.config/containers)" = "bob" ]'
+check "bob home owned by bob" bash -c '[ "$(stat -c %U /home/bob)" = "bob" ]'
+check "bob .config/containers owned by bob" bash -c '[ "$(stat -c %U /home/bob/.config/containers)" = "bob" ]'
+check "bob .config/cni exists" test -d /home/bob/.config/cni
+check "bob .config/cni owned by bob" bash -c '[ "$(stat -c %U /home/bob/.config/cni)" = "bob" ]'
 
 # --- subuid ranges do not overlap ---
 # alice is first (offset 100000), bob is second (offset 165536)

@@ -35,8 +35,11 @@ check "vscode storage.conf exists" test -f "${_VSCODE_STORAGE_CONF}"
 check "vscode storage.conf sets overlay driver" grep -q 'driver = "overlay"' "${_VSCODE_STORAGE_CONF}"
 check "vscode storage.conf sets correct graphRoot" grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" "${_VSCODE_STORAGE_CONF}"
 
-# --- storage.conf ownership ---
+# --- home directory and config dir ownership ---
+check "vscode home owned by vscode" bash -c '[ "$(stat -c %U /home/vscode)" = "vscode" ]'
 check "vscode .config/containers owned by vscode" bash -c '[ "$(stat -c %U /home/vscode/.config/containers)" = "vscode" ]'
+check "vscode .config/cni exists" test -d /home/vscode/.config/cni
+check "vscode .config/cni owned by vscode" bash -c '[ "$(stat -c %U /home/vscode/.config/cni)" = "vscode" ]'
 
 # --- system containers.conf ---
 check "system containers.conf exists" test -f /etc/containers/containers.conf

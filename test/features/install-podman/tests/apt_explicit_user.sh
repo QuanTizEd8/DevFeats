@@ -16,8 +16,11 @@ check "devuser storage.conf exists" test -f "${_DEVUSER_HOME}/.config/containers
 check "devuser storage.conf overlay driver" grep -q 'driver = "overlay"' "${_DEVUSER_HOME}/.config/containers/storage.conf"
 check "devuser storage.conf graphRoot correct" grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" "${_DEVUSER_HOME}/.config/containers/storage.conf"
 
-# --- config dir is owned by devuser ---
+# --- home directory and config dir ownership ---
+check "devuser home owned by devuser" bash -c '[ "$(stat -c %U /home/devuser)" = "devuser" ]'
 check "devuser .config/containers owned by devuser" bash -c '[ "$(stat -c %U /home/devuser/.config/containers)" = "devuser" ]'
+check "devuser .config/cni exists" test -d /home/devuser/.config/cni
+check "devuser .config/cni owned by devuser" bash -c '[ "$(stat -c %U /home/devuser/.config/cni)" = "devuser" ]'
 
 # --- root should NOT be configured ---
 check "root NOT in /etc/subuid" bash -c '! grep -q "^root:" /etc/subuid'

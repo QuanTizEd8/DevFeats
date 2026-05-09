@@ -106,3 +106,36 @@ apt_nonexistent_user:
     add_container_user: false
     add_current_user: false
   tests: [apt_nonexistent_user.sh]
+
+# ---------------------------------------------------------------------------
+# Functional (podman run) scenarios
+# These require privileged mode (metadata.yaml: privileged: true) and
+# the named volume mounted at /var/lib/containers/storage.  The feature
+# entrypoint runs automatically as a postStartCommand before test scripts
+# execute, so rshared mount and cgroup delegation are already in place.
+# ---------------------------------------------------------------------------
+
+apt_podman_run:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    useradd -m -s /bin/bash vscode
+    truncate -s 0 /etc/subuid /etc/subgid
+  devcontainer:
+    remoteUser: vscode
+  tests: [apt_podman_run.sh]
+
+apt_podman_run_explicit_user:
+  envs: [ubuntu-latest]
+  modes: [devcontainer]
+  setup: |
+    userdel ubuntu
+    useradd -m -s /bin/bash devuser
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_users: devuser
+    add_remote_user: false
+    add_container_user: false
+    add_current_user: false
+  tests: [apt_podman_run_explicit_user.sh]
