@@ -34,7 +34,7 @@ mounts:
   type: volume
 # Mark / as rshared so bind-mount propagation works inside rootless
 # Podman's user namespace (avoids "not a shared mount" warnings).
-entrypoint: /usr/local/share/install-podman/entrypoint
+entrypoint: /usr/local/share/devfeats/install-podman/entrypoint.sh
 options:
   add_current_user:
     type: boolean

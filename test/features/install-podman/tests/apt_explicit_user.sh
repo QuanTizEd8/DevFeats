@@ -6,7 +6,7 @@ set -e
 
 source dev-container-features-test-lib
 
-_GRAPH_ROOT="/var/lib/containers/storage"
+_GRAPH_ROOT="/var/lib/containers/storage/users/devuser"
 _DEVUSER_HOME="/home/devuser"
 
 # --- devuser configured via add_users ---

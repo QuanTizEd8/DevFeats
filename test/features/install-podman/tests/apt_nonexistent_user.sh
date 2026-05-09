@@ -8,7 +8,7 @@ source dev-container-features-test-lib
 
 # --- install succeeded: shared infrastructure is present ---
 check "podman is installed" command -v podman
-check "entrypoint exists" test -f /usr/local/share/install-podman/entrypoint
+check "entrypoint exists" test -f /usr/local/share/devfeats/install-podman/entrypoint.sh
 check "containers.conf exists" test -f /etc/containers/containers.conf
 
 # --- nonexistent user was skipped, not written ---

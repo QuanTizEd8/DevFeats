@@ -98,9 +98,13 @@ the user is allowed to map inside a user namespace. Without these entries
 ### Per-user `storage.conf`
 
 A `~/.config/containers/storage.conf` is written for each configured user,
-pointing `graphRoot` at the shared named volume. This is necessary because
+pointing `graphRoot` at a **per-user subdirectory** of the named volume:
+`/var/lib/containers/storage/users/<username>`.  This is necessary because
 rootless Podman ignores the system-level storage default and reads only the
-per-user config file.
+per-user config file.  Giving each user their own subdirectory prevents
+ownership conflicts: if a shared graphRoot were used, root Podman would create
+`libpod/` as `root:root 0700`, blocking non-root users from accessing their
+state on the next container start.
 
 ### System-level `containers.conf`
 
@@ -117,14 +121,51 @@ Podman already defaults to `cgroupfs` and `file`, but root Podman defaults to
 `systemd` and `journald` — neither of which is available inside a Docker
 container.
 
-### Entrypoint: `mount --make-rshared /`
+### Entrypoint: `mount --make-rshared /` and cgroup v2 nesting
 
 The feature installs an entrypoint script at
-`/usr/local/share/install-podman/entrypoint` that runs
-`mount --make-rshared /` at container startup. Docker sets the container root
-mount to `private` propagation by default, which blocks bind-mount propagation
-into rootless Podman's user namespace and produces the warning
-`"/" is not a shared mount`.
+`/usr/local/share/devfeats/install-podman/entrypoint.sh` that runs two operations at
+container startup.
+
+**`mount --make-rshared /`**: Docker sets the container root mount to `private`
+propagation by default, which blocks bind-mount propagation into rootless
+Podman's user namespace and produces the warning `"\"/ \" is not a shared mount"`.
+On Linux Docker hosts this fix works correctly.  On **macOS Docker Desktop**,
+the call fails with `Unknown error 5005` — a VM-level restriction that cannot
+be worked around from inside the container.  Podman's `"\"/ \" is not a shared
+mount"` warning will therefore persist on macOS; basic container usage is
+unaffected.
+
+**cgroup v2 nesting setup**: On cgroup v2, the kernel's "no internal process"
+rule prevents a cgroup that contains processes from enabling controllers for
+its children. Docker places container processes directly in the root cgroup
+(`/sys/fs/cgroup/`), so root Podman's attempt to write to
+`cgroup.subtree_control` in order to enable the `pids`, `memory`, and other
+controllers fails with EBUSY. The fix (mirroring the official Moby
+[docker-in-docker entrypoint](https://github.com/moby/moby/blob/master/hack/dind))
+is to move all processes into `/sys/fs/cgroup/init/`, making the root cgroup
+process-free, and then enable all available controllers via
+`cgroup.subtree_control`. Root Podman can then create and fully manage its
+`/sys/fs/cgroup/libpod_parent/` hierarchy. The guard
+`[ -f /sys/fs/cgroup/cgroup.controllers ]` makes this a no-op on cgroup v1.
+
+**macOS Docker Desktop note**: On macOS, `mkdir /sys/fs/cgroup/init` is also
+denied (even with `privileged: true`) because Docker Desktop's VM does not
+allow cgroupfs writes from inside containers.  Both operations are therefore
+best-effort and emit a `WARN` when they fail, without preventing startup.
+
+### `containerUser` must be root
+
+The feature entrypoint performs privileged operations (`mount --make-rshared`,
+cgroup namespace setup) that require `CAP_SYS_ADMIN`.  The devcontainer CLI
+runs feature entrypoints as `containerUser` — the user that the container
+process runs as.  If `containerUser` is set to a non-root user, both operations
+will fail with permission denied.
+
+**Recommendation**: do not set `containerUser` to a non-root user for this
+feature.  Use `remoteUser` instead — it controls only what user the VS Code
+server and lifecycle commands (`postCreateCommand`, etc.) run as, without
+changing the container's OS user.  Root is the default and works correctly.
 
 ---
 
@@ -137,12 +178,30 @@ User namespaces are being blocked. Ensure `"privileged": true` is set in your
 Debian/Ubuntu hosts the host sysctl
 `kernel.unprivileged_userns_clone` may also need to be `1`.
 
+### `WARN: failed to set '/' mount propagation to rshared` (macOS only)
+
+This is expected on macOS Docker Desktop. The Docker Desktop VM does not allow
+`mount --make-rshared /` from inside containers even with `privileged: true`.
+Podman's `"\"/ \" is not a shared mount"` warning will also persist.
+Basic container usage (`podman run`, `podman pull`) is unaffected.
+
+### `WARN: could not create /sys/fs/cgroup/init` (macOS or non-root)
+
+On macOS Docker Desktop, cgroupfs writes are blocked at the VM level even for
+root containers.  When `containerUser` is non-root, `CAP_SYS_ADMIN` is absent.
+In both cases Podman falls back to cgroupfs management without full controller
+delegation; `podman run` still works for typical usage.
+
 ### `OCI runtime error: the requested cgroup controller 'pids' is not available`
 
-Occurs when running Podman as **root**. Root Podman defaults to the `systemd`
-cgroup manager, which requires a running systemd. Either use
-`add_users: "root"` so the feature writes the corrective
-`containers.conf`, or run as a non-root user.
+Occurs when running Podman as **root** on a cgroup v2 host. Root Podman
+attempts to enable the `pids` controller in its cgroup hierarchy, but the
+root cgroup (where Docker places container processes) blocks `subtree_control`
+writes while it contains processes. The feature's entrypoint performs cgroup
+nesting setup at container start to resolve this: it moves all processes to
+`/sys/fs/cgroup/init/` and enables all available controllers. If the entrypoint
+has not run yet (e.g., the container was started outside a devcontainer
+lifecycle), run it manually: `/usr/local/share/devfeats/install-podman/entrypoint.sh`.
 
 ### `newuidmap: write to uid_map failed: Operation not permitted`
 
@@ -232,36 +291,66 @@ so each devcontainer gets its own isolated image store.
 Rootless Podman ignores the system-level `/etc/containers/storage.conf`
 for `graphRoot` — it only reads the per-user `~/.config/containers/storage.conf`.
 Only the per-user file is therefore written, inside the loop over resolved users.
-Root is treated identically: if `add_root_user_config` is set, root gets
-`/root/.config/containers/storage.conf`.
+Each user's `graphRoot` points to their own subdirectory on the named volume
+(`/var/lib/containers/storage/users/<username>`) so their Podman state is
+fully isolated from other users.  Root is treated identically: if configured,
+root gets `/root/.config/containers/storage.conf` pointing at
+`/var/lib/containers/storage/users/root`.
 
-### The entrypoint: `mount --make-rshared /`
+### The entrypoint: `mount --make-rshared /` and cgroup v2 nesting
 
 After the named volume fix, bind mounts like `-v $(pwd):/data` started
-producing a warning: `"/" is not a shared mount`.
+producing a warning: `"\"/ \" is not a shared mount"`.
 This is because Docker sets the container's root mount point to `private` propagation.
 Rootless Podman creates a user namespace and tries to bind-mount host paths into it,
 which requires the root mount to have `shared` (or `rshared`) propagation
 so kernel mount events propagate across the namespace boundary.
 
-The fix is a one-line entrypoint that runs at container startup
-(before any Podman command): `mount --make-rshared /`.
-This cannot be done at image build time because it requires a running container
-— it is a runtime mount namespace operation.
+Root Podman also failed with:
 
-The entrypoint script is generated during `install.sh` via `printf`
-and installed at `/usr/local/share/install-podman/entrypoint`
-(not in `$PATH`, since it is not a user-facing tool).
+```
+Error: OCI runtime error: crun: the requested cgroup controller `pids` is not available
+```
+
+On cgroup v2, the kernel's "no internal process" rule blocks writing to
+`cgroup.subtree_control` in any cgroup that currently contains processes.
+Docker places container processes directly in the root cgroup
+(`/sys/fs/cgroup/`), so root Podman cannot enable the `pids` controller
+(or any other) in its `libpod_parent/` hierarchy — the write fails with EBUSY.
+
+The established fix for both issues is the entrypoint pattern from the Moby
+[docker-in-docker script](https://github.com/moby/moby/blob/master/hack/dind),
+which the `devcontainers/features` `docker-in-docker` feature also uses:
+
+```sh
+# cgroup v2: enable controller delegation
+if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+    mkdir -p /sys/fs/cgroup/init
+    xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs || true
+    sed -e 's/ / +/g' -e 's/^/+/' < /sys/fs/cgroup/cgroup.controllers \
+        > /sys/fs/cgroup/cgroup.subtree_control || true
+fi
+```
+
+This moves all processes out of the root cgroup into `/sys/fs/cgroup/init/`,
+making the root cgroup process-free. All available controllers can then be
+enabled. Root Podman can create and fully manage its `libpod_parent/`
+hierarchy including pids, memory, and cpu controllers.
+
+Both operations (`mount --make-rshared /` and cgroup nesting) are runtime
+operations that cannot be done at image build time — they require a running,
+privileged container. The entrypoint is generated during `install.sh` and
+installed at `/usr/local/share/devfeats/install-podman/entrypoint.sh` (not in `$PATH`,
+since it is not a user-facing tool).
 The `devcontainer-feature.json`'s `entrypoint` field points to it.
 
 ### `containers.conf`: cgroupfs and file event logger
 
-When testing with `add_root_user_config: true`, Podman failed with:
+When testing with root Podman, it failed immediately:
 
 ```
 WARN[0000] Failed to add conmon to cgroupfs sandbox cgroup: creating cgroup path
 /libpod_parent/conmon: write /sys/fs/cgroup/cgroup.subtree_control: device or resource busy
-Error: OCI runtime error: crun: the requested cgroup controller `pids` is not available
 ```
 
 Root Podman defaults to the `systemd` cgroup manager and `journald` event logger.
@@ -278,7 +367,9 @@ events_logger = "file"
 
 This is written unconditionally (not only when root config is requested),
 since it is harmless for rootless users and ensures correct behaviour whenever
-root runs Podman in this container.
+root runs Podman in this container. The cgroup v2 controller delegation
+problem (pids, memory, cpu controllers not being available) is addressed
+by the entrypoint — see above.
 
 ### Removing `userns = "keep-id"`
 
@@ -353,9 +444,12 @@ handled separately by `add_remote_user`.
 
 Each user gets 65,536 UIDs/GIDs starting at an incrementing offset
 (`SUBUID_OFFSET=100000`, `+65536` per user). The feature checks for an
-existing entry before writing, so rebuilds are idempotent. The `graphRoot`
-is `chmod 1777` (sticky + world-writable) so all configured users can access
-the same named volume.
+existing entry before writing, so rebuilds are idempotent. Each user's
+`graphRoot` is an isolated subdirectory (`/var/lib/containers/storage/users/<username>`)
+owned by that user; their `libpod/` state and image layers are private.
+The parent `users/` directory is `chmod 1777` (sticky + world-writable)
+so each user can create their own subdirectory; Podman initialises it with
+mode 0700 on first run.
 
 ---
 

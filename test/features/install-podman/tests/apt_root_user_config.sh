@@ -5,7 +5,7 @@ set -e
 
 source dev-container-features-test-lib
 
-_GRAPH_ROOT="/var/lib/containers/storage"
+_GRAPH_ROOT="/var/lib/containers/storage/users/root"
 
 # No remoteUser is set so this test runs as root, allowing access to /root/.
 # With add_users="root" and all other user options at their defaults

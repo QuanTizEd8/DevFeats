@@ -7,7 +7,7 @@ set -e
 
 source dev-container-features-test-lib
 
-_GRAPH_ROOT="/var/lib/containers/storage"
+_GRAPH_ROOT="/var/lib/containers/storage/users/vscode"
 _VSCODE_HOME="/home/vscode"
 _VSCODE_STORAGE_CONF="${_VSCODE_HOME}/.config/containers/storage.conf"
 
@@ -44,9 +44,10 @@ check "containers.conf sets cgroupfs manager" grep -q 'cgroup_manager = "cgroupf
 check "containers.conf sets file events logger" grep -q 'events_logger = "file"' /etc/containers/containers.conf
 
 # --- entrypoint ---
-check "entrypoint script exists" test -f /usr/local/share/install-podman/entrypoint
-check "entrypoint is executable" test -x /usr/local/share/install-podman/entrypoint
-check "entrypoint runs make-rshared" grep -q 'mount --make-rshared /' /usr/local/share/install-podman/entrypoint
+check "entrypoint script exists" test -f /usr/local/share/devfeats/install-podman/entrypoint.sh
+check "entrypoint is executable" test -x /usr/local/share/devfeats/install-podman/entrypoint.sh
+check "entrypoint runs make-rshared" grep -q 'mount --make-rshared /' /usr/local/share/devfeats/install-podman/entrypoint.sh
+check "entrypoint sets up cgroup v2 nesting" grep -q 'cgroup.subtree_control' /usr/local/share/devfeats/install-podman/entrypoint.sh
 
 # --- root should NOT be configured ---
 check "root NOT in /etc/subuid" bash -c '! grep -q "^root:" /etc/subuid'

@@ -1,6 +1,8 @@
 # shellcheck source=lib/users.sh
 . "$_SELF_DIR/_lib/users.sh"
 
+_FILES_DIR="${_BASE_DIR}/files"
+
 # ---------------------------------------------------------------------------
 # 2. Ensure newuidmap / newgidmap have setuid bit
 #
@@ -22,10 +24,14 @@ fi
 # ---------------------------------------------------------------------------
 # 4. Write Podman configuration
 #
-# storage.conf (per-user): native overlay on the named volume at
-# /var/lib/containers/storage.  Avoids both the overlay-on-overlay problem
-# and fuse-overlayfs's nested-userns noexec issue.  Written to each user's
-# config dir because rootless Podman ignores the system-level graphRoot.
+# storage.conf (per-user): native overlay on a per-user subdirectory of the
+# named volume (/var/lib/containers/storage/users/<username>).  Each user
+# gets an isolated graphRoot, preventing ownership conflicts between root and
+# non-root Podman runs.  The parent users/ directory is 1777 (sticky +
+# world-writable) so each user can create their own subdirectory; Podman
+# initialises the subdirectory itself with mode 0700 on first run.
+# Written to each user's config dir because rootless Podman ignores the
+# system-level graphRoot.
 # ---------------------------------------------------------------------------
 # Write system-level containers.conf.
 # These settings are only required when running Podman as root. Rootless
@@ -39,8 +45,12 @@ mkdir -p /etc/containers
 printf '[engine]\ncgroup_manager = "cgroupfs"\nevents_logger = "file"\n' \
   > /etc/containers/containers.conf
 
-GRAPH_ROOT="/var/lib/containers/storage"
-mkdir -p "${GRAPH_ROOT}"
+_STORAGE_BASE="/var/lib/containers/storage"
+_USERS_DIR="${_STORAGE_BASE}/users"
+# Create the per-user graphRoot parent on the image layer.  The entrypoint
+# re-creates it at startup because the named volume shadows the image layer.
+mkdir -p "${_USERS_DIR}"
+chmod 1777 "${_USERS_DIR}"
 
 SUBUID_OFFSET=100000
 for _username in "${_RESOLVED_USERS[@]}"; do
@@ -58,29 +68,36 @@ for _username in "${_RESOLVED_USERS[@]}"; do
   fi
   SUBUID_OFFSET=$((SUBUID_OFFSET + 65536))
 
-  # Write per-user storage.conf
+  # Write per-user storage.conf pointing at the user's own graphRoot subdir.
+  # Podman creates the subdirectory on first run (mode 0700, owned by user).
+  _user_graph_root="${_USERS_DIR}/${_username}"
   _home=$(eval echo "~${_username}")
   _config_dir="${_home}/.config/containers"
   mkdir -p "${_config_dir}"
   cat > "${_config_dir}/storage.conf" << EOF
 [storage]
 driver = "overlay"
-graphRoot = "${GRAPH_ROOT}"
+graphRoot = "${_user_graph_root}"
 EOF
 
   # Fix ownership so Podman can write to config dirs at runtime
   chown -R "${_username}:$(id -gn "$_username")" "${_home}/.config"
 done
 
-# Ensure the graphRoot is accessible to all configured users.
-# With privileged mode + user namespaces, broad permissions are safe.
-chmod 1777 "${GRAPH_ROOT}"
-
 # ---------------------------------------------------------------------------
 # 5. Install entrypoint:
-#    Mark "/" as rshared so bind-mount propagation
-#    works inside rootless Podman's user namespace.
+#    a) Mark "/" as rshared so bind-mount propagation works inside
+#       rootless Podman's user namespace.
+#    b) On cgroup v2, enable controller delegation so root Podman can
+#       create and manage its libpod_parent cgroup hierarchy.  Docker
+#       places container processes in the root cgroup; the kernel's
+#       "no internal process" rule then blocks writes to subtree_control
+#       (EBUSY).  Moving processes to /sys/fs/cgroup/init/ makes the
+#       root cgroup process-free, allowing all available controllers to
+#       be enabled.  Mirrors the Moby docker-in-docker entrypoint:
+#       https://github.com/moby/moby/blob/master/hack/dind
 # ---------------------------------------------------------------------------
-mkdir -p /usr/local/share/install-podman
-printf '#!/bin/sh\nmount --make-rshared /\n' > /usr/local/share/install-podman/entrypoint
-chmod +x /usr/local/share/install-podman/entrypoint
+_ENTRYPOINT_DEST="/usr/local/share/devfeats/install-podman/entrypoint.sh"
+mkdir -p "$(dirname "$_ENTRYPOINT_DEST")"
+cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
+chmod +x "$_ENTRYPOINT_DEST"
