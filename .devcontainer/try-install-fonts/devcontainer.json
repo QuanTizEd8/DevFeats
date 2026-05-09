@@ -1,8 +1,8 @@
 {
-   "containerUser": "ubuntu",
    "features": {
       "ghcr.io/QuanTizEd8/DevFeats/install-fonts:0.1.0": {}
    },
    "image": "ubuntu:latest",
-   "name": "Try install-fonts"
+   "name": "Try install-fonts",
+   "remoteUser": "ubuntu"
 }

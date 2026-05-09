@@ -40,7 +40,7 @@ apt_container_user:
     add_remote_user: false
     add_current_user: false
   devcontainer:
-    containerUser: vscode
+    remoteUser: vscode
   tests: [apt_container_user.sh]
 
 apt_root_user_config:

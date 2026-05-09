@@ -1,8 +1,8 @@
 {
-   "containerUser": "ubuntu",
    "features": {
       "ghcr.io/QuanTizEd8/DevFeats/install-homebrew:0.1.0": {}
    },
    "image": "ubuntu:latest",
-   "name": "Try install-homebrew"
+   "name": "Try install-homebrew",
+   "remoteUser": "ubuntu"
 }

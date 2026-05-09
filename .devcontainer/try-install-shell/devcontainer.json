@@ -1,8 +1,8 @@
 {
-   "containerUser": "ubuntu",
    "features": {
       "ghcr.io/QuanTizEd8/DevFeats/install-shell:0.1.0": {}
    },
    "image": "ubuntu:latest",
-   "name": "Try install-shell"
+   "name": "Try install-shell",
+   "remoteUser": "ubuntu"
 }

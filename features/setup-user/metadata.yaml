@@ -70,4 +70,4 @@ _dependencies:
       packages:
         - sudo
 _devcontainer:
-  containerUser: vscode
+  remoteUser: vscode

@@ -228,7 +228,7 @@ def _generate_feature_devcontainer_json(metadata: dict, *, local: bool) -> str:
     """Generate .devcontainer/<feature>/devcontainer.json for live testing."""
     defaults = {
         "image": "ubuntu:latest",
-        "containerUser": "ubuntu",
+        "remoteUser": "ubuntu",
     }
 
     overrides = {
