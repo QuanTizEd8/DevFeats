@@ -278,5 +278,9 @@ source_build_nonexistent_version:
 macos_package_default:
   envs:
   - macos-latest
+  setup: |
+    # Hosted runners may ship XDG git config; skip semantics do not touch it — isolate the assertion.
+    rm -f "${HOME}/.config/git/config"
+    rmdir "${HOME}/.config/git" 2>/dev/null || true
   tests:
   - macos_package_default.sh
