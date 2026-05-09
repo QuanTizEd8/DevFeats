@@ -144,11 +144,13 @@ macos-latest:
   # `brew --prefix` and must resolve the real binary (arm64: /opt/homebrew, Intel: /usr/local).
   path_prepend: /opt/homebrew/bin:/usr/local/bin
 
-# Same runner as macos-latest, but no path_prepend: bare `brew` is not on PATH.
-# On native macOS, `build.dockerfile` is not a Docker layer — proman runs it as a
-# shell snippet before scenario `setup` and the feature install (same hook shape
-# as Linux envs). Use for any scenario that needs a clean Homebrew slate; after
-# install, use "${prefix}/bin/brew" in tests until PATH is extended.
+# Bare macOS — closest analog to a minimal Linux image on hosted runners: no Homebrew
+# on disk (official uninstall), clean_path, no path_prepend, and no user configuration
+# under $HOME (XDG, shell rc files, VCS/tool dirs). Does not touch ~/Library, user
+# media folders, or macOS locale files (e.g. .CFUserTextEncoding). Tests cannot use
+# bare `brew`/`gh` until something reinstalls them; use explicit "${prefix}/bin/brew"
+# after install-homebrew runs. On native macOS, `build.dockerfile` is shell bootstrap
+# (see run.py), not Docker. Extra scenario prep still belongs in scenario `setup`.
 macos-latest-fresh-install:
   image: macos-latest
   clean_path: true
@@ -160,6 +162,39 @@ macos-latest-fresh-install:
       curl -fsSL "$_UNINSTALL_URL" -o "$_UNINSTALL_TMP"
       NONINTERACTIVE=1 bash "$_UNINSTALL_TMP" --force
       rm -f "$_UNINSTALL_TMP"
+      # User configuration only (not ~/Library, Documents, .CFUserTextEncoding, …).
+      rm -rf \
+        "${HOME}/.config" \
+        "${HOME}/.local" \
+        "${HOME}/.cache" \
+        "${HOME}/.docker" \
+        "${HOME}/.ssh" \
+        "${HOME}/.gnupg"
+      rm -f \
+        "${HOME}/.bash_profile" \
+        "${HOME}/.bashrc" \
+        "${HOME}/.bash_login" \
+        "${HOME}/.profile" \
+        "${HOME}/.zprofile" \
+        "${HOME}/.zshrc" \
+        "${HOME}/.zshenv" \
+        "${HOME}/.zlogin" \
+        "${HOME}/.shrc" \
+        "${HOME}/.gitconfig" \
+        "${HOME}/.gitignore_global" \
+        "${HOME}/.gitattributes" \
+        "${HOME}/.git-credentials" \
+        "${HOME}/.netrc" \
+        "${HOME}/.curlrc" \
+        "${HOME}/.wgetrc" \
+        "${HOME}/.wget-hsts" \
+        "${HOME}/.inputrc" \
+        "${HOME}/.vimrc" \
+        "${HOME}/.npmrc" \
+        "${HOME}/.yarnrc" \
+        "${HOME}/.yarnrc.yml" \
+        "${HOME}/.pypirc" \
+        "${HOME}/.condarc"
 
 # ── git environments ─────────────────────────────────────────────────────────
 ubuntu-24.04+git-preinstalled:
