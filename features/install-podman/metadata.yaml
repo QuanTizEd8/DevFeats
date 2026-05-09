@@ -32,8 +32,10 @@ mounts:
 - source: podman-storage-devcontainer-${devcontainerId}
   target: /var/lib/containers/storage
   type: volume
-# Mark / as rshared so bind-mount propagation works inside rootless
-# Podman's user namespace (avoids "not a shared mount" warnings).
+# At container start: marks / as rshared for rootless bind-mount propagation,
+# sets up cgroup v2 controller delegation (DinD nesting), and ensures the
+# per-user graphRoot parent directory (/var/lib/containers/storage/users/)
+# has correct sticky-world-writable permissions.
 entrypoint: /usr/local/share/devfeats/install-podman/entrypoint.sh
 options:
   add_current_user:
@@ -55,7 +57,7 @@ options:
       Additional usernames to register subuid/subgid ranges and write Podman storage config for.
 postStartCommand:
   install-podman-feature-welcome:
-    command: podman run --rm hello-world
+    command: podman run --rm docker.io/library/hello-world
     description: Verify Podman is working by running the hello-world container after the devcontainer starts.
 _dependencies:
   run:
