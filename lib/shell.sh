@@ -473,12 +473,28 @@ shell__resolve_omz_theme() {
 
 # @brief shell__resolve_home <username> — Print the home directory for the given user.
 #
+# Uses `getent passwd` when available, falling back to a direct scan of
+# `/etc/passwd`. Falls back to tilde expansion only as a last resort.
+# Avoids the fragility of `eval echo "~<username>"` for users with
+# non-standard home directories.
+#
 # Args:
 #   <username>  Username to resolve.
 #
-# Stdout: home directory path (via tilde expansion).
+# Stdout: home directory path.
 shell__resolve_home() {
   local _user="$1"
+  local _entry
+  if command -v getent > /dev/null 2>&1; then
+    _entry="$(getent passwd "$_user" 2> /dev/null)"
+  else
+    _entry="$(grep -m1 "^${_user}:" /etc/passwd 2> /dev/null)"
+  fi
+  if [ -n "$_entry" ]; then
+    printf '%s\n' "$(printf '%s\n' "$_entry" | cut -d: -f6)"
+    return 0
+  fi
+  # Last-resort fallback for environments without getent or /etc/passwd access.
   eval echo "~${_user}"
   return 0
 }
