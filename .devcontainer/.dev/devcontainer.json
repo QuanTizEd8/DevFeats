@@ -123,7 +123,10 @@
     // Point both the container and host Copilot workspaceStorage hash dirs at .ai/copilot/ inside
     // the workspace. The script computes both hashes from the known VS Code URI formula and locates
     // the host hash by scanning workspace.json files in the mounted host VS Code storage.
-    "link_copilot_history": "python3 \"${containerWorkspaceFolder}/.devcontainer/.dev/link-copilot-storage.py\" \"${localWorkspaceFolder}\" \"${containerWorkspaceFolder}\" \"${localWorkspaceFolder}/.devcontainer/.dev/devcontainer.json\" || true"
+    "link_copilot_history": "python3 \"${containerWorkspaceFolder}/.devcontainer/.dev/link-copilot-storage.py\" \"${localWorkspaceFolder}\" \"${containerWorkspaceFolder}\" \"${localWorkspaceFolder}/.devcontainer/.dev/devcontainer.json\" || true",
+    // Background loop: sync container→host chatSessions + state.vscdb every 5 min,
+    // and do one final sync on SIGTERM (container shutdown). Output goes to /tmp.
+    "copilot_background_sync": "python3 \"${containerWorkspaceFolder}/.devcontainer/.dev/link-copilot-storage.py\" \"${localWorkspaceFolder}\" \"${containerWorkspaceFolder}\" \"${localWorkspaceFolder}/.devcontainer/.dev/devcontainer.json\" --background >> /tmp/copilot-bg-sync.log 2>&1 & true"
   },
   "customizations": {
     "vscode": {
