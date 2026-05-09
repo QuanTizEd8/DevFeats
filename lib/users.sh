@@ -213,6 +213,64 @@ users__set_write_permissions() {
   return 0
 }
 
+# @brief users__ensure_setuid <binary>... — Locate each binary with `command -v` and set the setuid bit.
+#
+# Uses `command -v` for portable binary discovery across distros where binaries
+# may live in `/usr/bin`, `/usr/sbin`, or `/sbin` (e.g. `newuidmap`/`newgidmap`
+# on Fedora/RHEL/Alpine). Logs a warning when a binary is not found or `chmod`
+# fails, but does not abort.
+#
+# Args:
+#   <binary>...  One or more binary names (not full paths) to locate and set setuid on.
+#
+# Returns: 0 always (best-effort; individual failures are logged as warnings).
+users__ensure_setuid() {
+  local _bin _path
+  for _bin in "$@"; do
+    _path="$(command -v "$_bin" 2> /dev/null)" || true
+    if [ -z "$_path" ]; then
+      logging__warn "users__ensure_setuid: '${_bin}' not found on PATH — skipping setuid"
+      continue
+    fi
+    if chmod u+s "$_path"; then
+      logging__info "users__ensure_setuid: set setuid on '${_path}'"
+    else
+      logging__warn "users__ensure_setuid: chmod u+s '${_path}' failed"
+    fi
+  done
+  return 0
+}
+
+# @brief users__next_subid_offset <file> — Print the next available subuid/subgid offset beyond all existing ranges in <file>.
+#
+# Scans every entry in <file> (format: `user:start:count`) and returns
+# `max(start + count)` across all entries, floored at 100000 (the
+# conventional minimum subordinate-ID starting point). This ensures a new
+# range appended immediately after the returned offset will never overlap
+# any pre-existing range — including ranges written by the base image or
+# other features.
+#
+# Args:
+#   <file>  Path to `/etc/subuid` or `/etc/subgid`.
+#
+# Stdout: next available offset (integer ≥ 100000).
+users__next_subid_offset() {
+  local _file="$1"
+  local _max=100000
+  local _user _start _count _end
+  [ -f "$_file" ] || { printf '%s\n' "$_max"; return 0; }
+  while IFS=: read -r _user _start _count; do
+    # Skip comment lines and blank/malformed entries.
+    case "$_user" in '#'* | '') continue ;; esac
+    case "$_start" in '' | *[!0-9]*) continue ;; esac
+    case "$_count" in '' | *[!0-9]*) continue ;; esac
+    _end=$((_start + _count))
+    [ "$_end" -gt "$_max" ] && _max="$_end"
+  done < "$_file"
+  printf '%s\n' "$_max"
+  return 0
+}
+
 # @brief users__set_login_shell <shell_path> <username>... — Register `<shell_path>` in `/etc/shells`, patch Alpine PAM if needed, then call `chsh -s` for each user.
 #
 # Exits early with a warning (not an error) if chsh is not installed.
