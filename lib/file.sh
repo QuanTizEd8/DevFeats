@@ -16,6 +16,12 @@ packages:
     apt: xz-utils
 EOF
 
+read -r -d '' _FILE__COREUTILS_MANIFEST << 'EOF' || true
+packages:
+  - when: {pm: [apt, apk, dnf, yum, zypper, pacman]}
+    packages: [coreutils]
+EOF
+
 # _file__ensure_extract_tool <ext> (internal)
 # Ensures the extraction tool for <ext> is available; installs it via ospkg when possible.
 # <ext>: "zip" (installs unzip), "xz" (installs xz-utils/xz), "gz" (installs gzip), "tar" (installs tar).
@@ -54,6 +60,56 @@ _file__ensure_extract_tool() {
       return 0
       ;;
   esac
+}
+
+# _file__ensure_install_cmd (internal) — Ensure `install` (coreutils) is available.
+# `install` is provided by GNU coreutils on Linux (including BusyBox on Alpine)
+# and by BSD utils on macOS. It is absent only in severely stripped container
+# images. Falls back to ospkg when missing.
+_file__ensure_install_cmd() {
+  command -v install > /dev/null 2>&1 && return 0
+  logging__info "file.sh: 'install' command not found; installing coreutils."
+  ospkg__run --manifest "$_FILE__COREUTILS_MANIFEST" --build-group "lib-file" --skip_installed || true
+  if ! command -v install > /dev/null 2>&1; then
+    logging__error "file.sh: 'install' is required but could not be installed."
+    return 1
+  fi
+  return 0
+}
+
+# @brief file__install_dir [--owner <user>] [--group <group>] [--mode <mode>] <dir>... — Create one or more directories with specified ownership and permissions.
+#
+# Uses `install -d` (GNU coreutils on Linux, BSD utils on macOS — identical
+# flags on both). Sets ownership and mode both on creation and on pre-existing
+# directories. Installs coreutils via ospkg if `install` is not available.
+#
+# Args:
+#   --owner <user>  Owner username. Optional.
+#   --group <group> Group name. Optional.
+#   --mode <mode>   Permissions in octal (default: 0755).
+#   <dir>...        One or more directory paths to create.
+#
+# Returns: 0 on success, 1 if `install` is unavailable or the operation fails.
+file__install_dir() {
+  local _owner="" _group="" _mode="0755"
+  local -a _dirs=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --owner) _owner="$2"; shift 2 ;;
+      --group) _group="$2"; shift 2 ;;
+      --mode) _mode="$2"; shift 2 ;;
+      *) _dirs+=("$1"); shift ;;
+    esac
+  done
+  if [[ ${#_dirs[@]} -eq 0 ]]; then
+    logging__error "file__install_dir: no directories specified"
+    return 1
+  fi
+  _file__ensure_install_cmd || return 1
+  local -a _cmd=(install -d -m "$_mode")
+  [[ -n "$_owner" ]] && _cmd+=(-o "$_owner")
+  [[ -n "$_group" ]] && _cmd+=(-g "$_group")
+  "${_cmd[@]}" "${_dirs[@]}"
 }
 
 # @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] [--strip N] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, or `.zip` archive to `<dest_dir>`.
