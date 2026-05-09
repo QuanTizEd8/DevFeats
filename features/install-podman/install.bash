@@ -1,5 +1,9 @@
 # shellcheck source=lib/users.sh
 . "$_SELF_DIR/_lib/users.sh"
+# shellcheck source=lib/shell.sh
+. "$_SELF_DIR/_lib/shell.sh"
+# shellcheck source=lib/file.sh
+. "$_SELF_DIR/_lib/file.sh"
 
 _FILES_DIR="${_BASE_DIR}/files"
 
@@ -9,8 +13,10 @@ _FILES_DIR="${_BASE_DIR}/files"
 # The uidmap package ships these as setuid-root on Debian/Ubuntu.  Verify
 # the bit is set — it is essential for rootless user-namespace creation.
 # At runtime, privileged mode ensures nosuid is not applied.
+# Use command -v to locate the binaries: on Fedora/RHEL/Alpine they may
+# live in /usr/sbin or /sbin rather than /usr/bin.
 # ---------------------------------------------------------------------------
-chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap 2> /dev/null || true
+users__ensure_setuid newuidmap newgidmap
 
 # ---------------------------------------------------------------------------
 # 3. Resolve user list
@@ -52,36 +58,44 @@ _USERS_DIR="${_STORAGE_BASE}/users"
 mkdir -p "${_USERS_DIR}"
 chmod 1777 "${_USERS_DIR}"
 
-SUBUID_OFFSET=100000
 for _username in "${_RESOLVED_USERS[@]}"; do
   if ! id "$_username" > /dev/null 2>&1; then
     logging__info "install-podman: User '${_username}' does not exist — skipping."
     continue
   fi
 
-  # Register subuid/subgid ranges (non-overlapping)
+  # Register subuid/subgid ranges (non-overlapping).
+  # Probe the current high-water mark of each file immediately before
+  # appending so the new range never collides with entries already present
+  # in the base image or written by a prior iteration of this loop.
   if ! grep -q "^${_username}:" /etc/subuid 2> /dev/null; then
-    echo "${_username}:${SUBUID_OFFSET}:65536" >> /etc/subuid
+    echo "${_username}:$(users__next_subid_offset /etc/subuid):65536" >> /etc/subuid
   fi
   if ! grep -q "^${_username}:" /etc/subgid 2> /dev/null; then
-    echo "${_username}:${SUBUID_OFFSET}:65536" >> /etc/subgid
+    echo "${_username}:$(users__next_subid_offset /etc/subgid):65536" >> /etc/subgid
   fi
-  SUBUID_OFFSET=$((SUBUID_OFFSET + 65536))
 
   # Write per-user storage.conf pointing at the user's own graphRoot subdir.
   # Podman creates the subdirectory on first run (mode 0700, owned by user).
   _user_graph_root="${_USERS_DIR}/${_username}"
-  _home=$(eval echo "~${_username}")
+  _home=$(shell__resolve_home "$_username")
   _config_dir="${_home}/.config/containers"
-  mkdir -p "${_config_dir}"
+  _group="$(id -gn "$_username")"
+  # Create Podman config dirs with correct ownership.
+  # `install -d -o/-g` is a POSIX standard (GNU coreutils on Linux,
+  # BSD utils on macOS) that creates missing directories and sets
+  # ownership/mode in one step — no separate chown pass needed.
+  # cni/ is needed at runtime for network plugin config.
+  file__install_dir --owner "${_username}" --group "${_group}" --mode 0755 \
+    "${_home}/.config" \
+    "${_config_dir}" \
+    "${_home}/.config/cni"
   cat > "${_config_dir}/storage.conf" << EOF
 [storage]
 driver = "overlay"
 graphRoot = "${_user_graph_root}"
 EOF
-
-  # Fix ownership so Podman can write to config dirs at runtime
-  chown -R "${_username}:$(id -gn "$_username")" "${_home}/.config"
+  chown "${_username}:${_group}" "${_config_dir}/storage.conf"
 done
 
 # ---------------------------------------------------------------------------
