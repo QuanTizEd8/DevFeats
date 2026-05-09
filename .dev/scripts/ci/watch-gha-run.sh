@@ -280,6 +280,11 @@ _handle_job() {
   job_name=$(jq -r '.name' <<< "${job}")
   conclusion=$(jq -r '.conclusion' <<< "${job}")
 
+  # GHA never resolves matrix expressions for skipped jobs; the API returns
+  # literal strings like "${{ matrix.sc.scenario }}". Replace them so log
+  # files are legible.
+  job_name=$(sed 's/\${{ *[^}]* *}}/<matrix>/g' <<< "${job_name}")
+
   # Skip already-processed jobs
   [[ ${_processed[${job_id}]+_} ]] && return 0
   _processed["${job_id}"]=1
@@ -322,26 +327,38 @@ _handle_job() {
 # Fetches jobs for a run, handles completed jobs, appends in-progress job
 # names to the named array. Log files live under
 #   <GHA_LOG_BASE>/<path_commit_sha>/<run_id>/  . Returns 0 on success.
+# Paginates through all job pages (runs can have well over 100 jobs).
 # ---------------------------------------------------------------------------
 _process_run_jobs() {
   local run_id="$1"
   local -n _inprogress_ref="$2"
   local path_sha="$3"
-  local jobs_resp job job_status
+  local jobs_ndjson job job_status
 
   _activate_run_logdir "${path_sha}" "${run_id}"
 
-  jobs_resp=$(_gh_api_json \
-    "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100") || return 1
+  # --paginate fetches all pages; --jq emits each job object as one compact
+  # JSON line, giving us a newline-delimited stream safe for `while read`.
+  if ! jobs_ndjson=$(gh api --paginate \
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100" \
+      --jq '.jobs[]' 2>&1); then
+    local _one="${jobs_ndjson//$'\n'/ }"
+    [[ ${#_one} -gt 200 ]] && _one="${_one:0:200}…"
+    _ts "gh api failed: ${_one}"
+    return 1
+  fi
+
+  [[ -z "${jobs_ndjson}" ]] && return 0
 
   while IFS= read -r job; do
+    [[ -z "${job}" ]] && continue
     job_status=$(jq -r '.status' <<< "${job}")
     if [[ "${job_status}" == "completed" ]]; then
       _handle_job "${job}"
     elif [[ "${job_status}" == "in_progress" ]]; then
       _inprogress_ref+=("$(jq -r '.name' <<< "${job}")")
     fi
-  done < <(jq -c '.jobs[]' <<< "${jobs_resp}")
+  done <<< "${jobs_ndjson}"
   return 0
 }
 
