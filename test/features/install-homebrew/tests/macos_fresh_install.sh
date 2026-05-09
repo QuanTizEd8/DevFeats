@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016,SC2088  # bash -c literal script, ~/ in labels
-# fresh_install: env `macos-latest-fresh-install` runs the official uninstall
-# script (see test/environments.yaml `build.dockerfile`) before the feature
-# install, so the installer exercises the full macOS path (fetch, official
-# install script, Case B shellenv). This test only asserts post-install state;
-# use "${_BREW_PREFIX}/bin/brew" — bare `brew` is not on PATH in that env.
+# fresh_install: env `macos-latest-fresh-install` bootstraps with the official
+# Homebrew uninstall (see test/environments.yaml), then the feature install runs —
+# full macOS path (fetch, official install script, Case B shellenv). Assert post-install
+# only; use "${_BREW_PREFIX}/bin/brew" — bare `brew` is not on PATH (no path_prepend).
 #
-# ⚠️  DESTRUCTIVE for the job: the env bootstrap removes Homebrew; the feature reinstalls it.
+# ⚠️  DESTRUCTIVE for the job: env bootstrap removes Homebrew; the feature reinstalls it.
 #
 # Cleanup: removes shellenv blocks from user dotfiles on EXIT (brew stays installed).
 set -e
