@@ -61,7 +61,7 @@ _LEGACY_FLAT_ITEMS = ["debug-logs", "transcripts", "workspace-chunks.db"]
 # Both candidates are always mounted; whichever has workspace.json files is the
 # active one.
 HOST_STORAGE_CANDIDATES = [
-    Path("/host-vscode-workspacestorage"),       # macOS: ~/Library/Application Support/Code
+    Path("/host-vscode-workspacestorage"),  # macOS: ~/Library/Application Support/Code
     Path("/host-vscode-workspacestorage-linux"),  # Linux: ~/.config/Code
 ]
 
@@ -69,8 +69,8 @@ HOST_STORAGE_CANDIDATES = [
 # workspaceStorage dir wins.
 DOCKER_CONTEXT_CANDIDATES: list[str | None] = [
     os.environ.get("DOCKER_CONTEXT"),  # user override via containerEnv, may be None
-    "desktop-linux",                   # Docker Desktop (macOS and Linux)
-    "default",                         # native Docker
+    "desktop-linux",  # Docker Desktop (macOS and Linux)
+    "default",  # native Docker
 ]
 
 
@@ -108,10 +108,7 @@ def compute_hash(
         "scheme": "file",
     }
     json_str = json.dumps(obj, separators=(",", ":"))
-    uri = (
-        f"vscode-remote://dev-container%2B{json_str.encode().hex()}"
-        f"{container_path}"
-    )
+    uri = f"vscode-remote://dev-container%2B{json_str.encode().hex()}{container_path}"
     # nosec: MD5 is used here for VS Code compatibility, not security
     return hashlib.md5(uri.encode()).hexdigest()  # noqa: S324
 
@@ -136,7 +133,11 @@ def _find_container_hash_by_scan(container_path: str) -> str | None:
 
 
 def find_container_hash(
-    host_path: str, container_path: str, config_file: str, *, local_docker: bool,
+    host_path: str,
+    container_path: str,
+    config_file: str,
+    *,
+    local_docker: bool,
 ) -> str:
     """Find VS Code workspace storage hash for this devcontainer.
 
@@ -157,8 +158,11 @@ def find_container_hash(
 
     for context in contexts:
         h = compute_hash(
-            host_path, container_path, config_file,
-            local_docker=local_docker, context=context,
+            host_path,
+            container_path,
+            config_file,
+            local_docker=local_docker,
+            context=context,
         )
         if (VSCODE_SERVER_STORAGE / h).exists():
             print(f"  Found container hash by compute (context={context}): {h}")
@@ -166,10 +170,15 @@ def find_container_hash(
 
     # No existing dir yet (first run); fall back to first candidate.
     h = compute_hash(
-        host_path, container_path, config_file,
-        local_docker=local_docker, context=contexts[0],
+        host_path,
+        container_path,
+        config_file,
+        local_docker=local_docker,
+        context=contexts[0],
     )
-    print(f"  Container hash not found on disk; using computed: {h} (context={contexts[0]})")
+    print(
+        f"  Container hash not found on disk; using computed: {h} (context={contexts[0]})"
+    )
     return h
 
 
@@ -296,7 +305,9 @@ def link_symlink_entry(
     container_entry.parent.mkdir(parents=True, exist_ok=True)
     container_entry.symlink_to(project_dir_container)
 
-    print(f"Linked {entry_name}: container → {project_dir_container}, host → {project_dir_host}")
+    print(
+        f"Linked {entry_name}: container → {project_dir_container}, host → {project_dir_host}"
+    )
 
 
 # ── state.vscdb session index sync ──────────────────────────────────────────
@@ -307,7 +318,8 @@ def _read_vscdb(vscdb: Path, key: str) -> object:
     try:
         con = sqlite3.connect(str(vscdb), timeout=5)
         row = con.execute(
-            "SELECT value FROM ItemTable WHERE key = ?", (key,),
+            "SELECT value FROM ItemTable WHERE key = ?",
+            (key,),
         ).fetchone()
         con.close()
         return json.loads(row[0]) if row else None
@@ -389,9 +401,21 @@ def _filter_local_sessions(index: object) -> object:
             if field in index:
                 val = index[field]
                 if isinstance(val, list):
-                    return {**index, field: [s for s in val if isinstance(s, dict) and not _is_local_provider(s)]}
+                    return {
+                        **index,
+                        field: [
+                            s
+                            for s in val
+                            if isinstance(s, dict) and not _is_local_provider(s)
+                        ],
+                    }
                 if isinstance(val, dict):
-                    return {**index, field: {k: v for k, v in val.items() if not _is_local_provider(v)}}
+                    return {
+                        **index,
+                        field: {
+                            k: v for k, v in val.items() if not _is_local_provider(v)
+                        },
+                    }
     return index
 
 
@@ -439,25 +463,43 @@ def sync_chat_indices(
             try:
                 canonical_index = json.loads(canonical_file.read_text())
             except (json.JSONDecodeError, OSError) as e:
-                _logger.debug("Failed to read canonical index %s: %s", canonical_file, e)
+                _logger.debug(
+                    "Failed to read canonical index %s: %s", canonical_file, e
+                )
 
         # Read what container already has to preserve sessions from previous
         # container runs that have not yet been synced back to the host.
         container_existing = _read_vscdb(container_vscdb, key)
 
         n_host = len(_extract_sessions(host_index)) if host_index is not None else 0
-        n_canonical = len(_extract_sessions(canonical_index)) if canonical_index is not None else 0
-        n_container = len(_extract_sessions(container_existing)) if container_existing is not None else 0
+        n_canonical = (
+            len(_extract_sessions(canonical_index))
+            if canonical_index is not None
+            else 0
+        )
+        n_container = (
+            len(_extract_sessions(container_existing))
+            if container_existing is not None
+            else 0
+        )
         print(
             f"  {key}: host={n_host} canonical={n_canonical} container={n_container}",
         )
 
-        if host_index is None and canonical_index is None and container_existing is None:
+        if (
+            host_index is None
+            and canonical_index is None
+            and container_existing is None
+        ):
             _logger.debug("No session index found for key %s, skipping", key)
             continue
 
         # Merge: host wins over canonical wins over container_existing.
-        base = host_index if host_index is not None else (canonical_index or container_existing)
+        base = (
+            host_index
+            if host_index is not None
+            else (canonical_index or container_existing)
+        )
         merged = _merge_indices(base, canonical_index)
         merged = _merge_indices(merged, container_existing)
         n = len(_extract_sessions(merged))
@@ -485,16 +527,23 @@ def sync_chat_indices(
             if _write_vscdb(host_vscdb, key, merged):
                 print(f"  → wrote {n} session(s) to host vscdb")
             else:
-                print(f"  Note: could not write to host vscdb (VS Code lock?) — will retry")
+                print(
+                    f"  Note: could not write to host vscdb (VS Code lock?) — will retry"
+                )
 
 
 def _resolve_hashes(
-    host_path: str, container_path: str, config_file: str,
+    host_path: str,
+    container_path: str,
+    config_file: str,
 ) -> tuple[Path | None, Path | None, Path | None]:
     """Return (host_hash_dir, container_hash_dir, ai_copilot) or None on failure."""
     local_docker = detect_local_docker(container_path)
     container_hash = find_container_hash(
-        host_path, container_path, config_file, local_docker=local_docker,
+        host_path,
+        container_path,
+        config_file,
+        local_docker=local_docker,
     )
 
     host_storage = find_host_storage()
@@ -515,7 +564,9 @@ def _resolve_hashes(
 def link_copilot_storage(host_path: str, container_path: str, config_file: str) -> int:
     """Full bidirectional sync on container start."""
     host_hash_dir, container_hash_dir, ai_copilot = _resolve_hashes(
-        host_path, container_path, config_file,
+        host_path,
+        container_path,
+        config_file,
     )
 
     if host_hash_dir is None:
@@ -540,7 +591,9 @@ def link_copilot_storage(host_path: str, container_path: str, config_file: str) 
         print("Migrated legacy flat items to GitHub.copilot-chat/")
 
     for entry_name in COPY_SYNC_ENTRIES:
-        sync_copy_entry(entry_name, host_hash_dir, container_hash_dir, ai_copilot / entry_name)
+        sync_copy_entry(
+            entry_name, host_hash_dir, container_hash_dir, ai_copilot / entry_name
+        )
 
     for entry_name in SYMLINK_ENTRIES:
         link_symlink_entry(
@@ -573,7 +626,10 @@ def _background_sync_once(
         n_from = _copy_new_files(container_hash_dir / entry_name, canonical_dir)
         n_to = _copy_new_files(canonical_dir, host_hash_dir / entry_name)
         if n_from or n_to:
-            print(f"[bg] {entry_name}: +{n_from} from container, +{n_to} to host", flush=True)
+            print(
+                f"[bg] {entry_name}: +{n_from} from container, +{n_to} to host",
+                flush=True,
+            )
 
     container_vscdb = container_hash_dir / "state.vscdb"
     host_vscdb = host_hash_dir / "state.vscdb"
@@ -604,13 +660,21 @@ def _background_sync_once(
 def background_sync(host_path: str, container_path: str, config_file: str) -> int:
     """Continuous background sync loop: container→host every 5 minutes."""
     host_hash_dir, container_hash_dir, ai_copilot = _resolve_hashes(
-        host_path, container_path, config_file,
+        host_path,
+        container_path,
+        config_file,
     )
     if host_hash_dir is None:
-        print("[bg] could not resolve storage paths; background sync inactive.", flush=True)
+        print(
+            "[bg] could not resolve storage paths; background sync inactive.",
+            flush=True,
+        )
         return 0
 
-    print(f"[bg] Background sync started — container: {container_hash_dir.name}", flush=True)
+    print(
+        f"[bg] Background sync started — container: {container_hash_dir.name}",
+        flush=True,
+    )
 
     def _shutdown(signum: int, frame: object) -> None:
         print("[bg] shutdown signal received; running final sync...", flush=True)
@@ -651,6 +715,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.background:
-        sys.exit(background_sync(args.host_workspace, args.container_workspace, args.config_file))
+        sys.exit(
+            background_sync(
+                args.host_workspace, args.container_workspace, args.config_file
+            )
+        )
     else:
-        sys.exit(link_copilot_storage(args.host_workspace, args.container_workspace, args.config_file))
+        sys.exit(
+            link_copilot_storage(
+                args.host_workspace, args.container_workspace, args.config_file
+            )
+        )
