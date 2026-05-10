@@ -30,11 +30,28 @@ check "bob .config/containers owned by bob" bash -c '[ "$(stat -c %U /home/bob/.
 check "bob .config/cni exists" test -d /home/bob/.config/cni
 check "bob .config/cni owned by bob" bash -c '[ "$(stat -c %U /home/bob/.config/cni)" = "bob" ]'
 
-# --- subuid ranges do not overlap ---
-# alice is first (offset 100000), bob is second (offset 165536)
-check "alice subuid offset is 100000" bash -c 'grep "^alice:" /etc/subuid | cut -d: -f2 | grep -qx 100000'
+# --- subuid / subgid: disjoint 65536-id ranges (order-independent) ---
+# install.bash assigns offsets in users__resolve_list order; the contract is
+# non-overlapping spans, not a fixed username→offset map.
 check "alice subuid count is 65536" bash -c 'grep "^alice:" /etc/subuid | cut -d: -f3 | grep -qx 65536'
-check "bob subuid offset is 165536" bash -c 'grep "^bob:" /etc/subuid | cut -d: -f2 | grep -qx 165536'
 check "bob subuid count is 65536" bash -c 'grep "^bob:" /etc/subuid | cut -d: -f3 | grep -qx 65536'
+check "alice subuid start >= 100000" bash -c 'a=$(grep "^alice:" /etc/subuid | cut -d: -f2); test "${a}" -ge 100000'
+check "bob subuid start >= 100000" bash -c 'b=$(grep "^bob:" /etc/subuid | cut -d: -f2); test "${b}" -ge 100000'
+check "subuid ranges do not overlap" bash -c '
+  a=$(grep "^alice:" /etc/subuid | cut -d: -f2)
+  b=$(grep "^bob:" /etc/subuid | cut -d: -f2)
+  d=$((a > b ? a - b : b - a))
+  test "${d}" -ge 65536
+'
+check "alice subgid count is 65536" bash -c 'grep "^alice:" /etc/subgid | cut -d: -f3 | grep -qx 65536'
+check "bob subgid count is 65536" bash -c 'grep "^bob:" /etc/subgid | cut -d: -f3 | grep -qx 65536'
+check "alice subgid start >= 100000" bash -c 'a=$(grep "^alice:" /etc/subgid | cut -d: -f2); test "${a}" -ge 100000'
+check "bob subgid start >= 100000" bash -c 'b=$(grep "^bob:" /etc/subgid | cut -d: -f2); test "${b}" -ge 100000'
+check "subgid ranges do not overlap" bash -c '
+  a=$(grep "^alice:" /etc/subgid | cut -d: -f2)
+  b=$(grep "^bob:" /etc/subgid | cut -d: -f2)
+  d=$((a > b ? a - b : b - a))
+  test "${d}" -ge 65536
+'
 
 reportResults
