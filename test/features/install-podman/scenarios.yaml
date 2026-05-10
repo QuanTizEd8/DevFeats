@@ -40,7 +40,7 @@ apt_container_user:
     add_remote_user: false
     add_current_user: false
   devcontainer:
-    remoteUser: vscode
+    containerUser: vscode
   tests: [apt_container_user.sh]
 
 apt_root_user_config:
@@ -139,3 +139,35 @@ apt_podman_run_explicit_user:
     add_container_user: false
     add_current_user: false
   tests: [apt_podman_run_explicit_user.sh]
+
+# ---------------------------------------------------------------------------
+# Standalone scenarios
+# Run via direct bash install.sh — no devcontainer CLI, no _REMOTE_USER.
+# Devcontainer-specific artifacts (containers.conf override, graphRoot
+# redirect in storage.conf, entrypoint) must NOT be written.
+# ---------------------------------------------------------------------------
+
+apt_standalone_default:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  setup: |
+    userdel ubuntu
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_remote_user: false
+    add_container_user: false
+  tests: [apt_standalone_default.sh]
+
+apt_standalone_user:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  setup: |
+    userdel ubuntu
+    useradd -m -s /bin/bash devuser
+    truncate -s 0 /etc/subuid /etc/subgid
+  options:
+    add_users: devuser
+    add_remote_user: false
+    add_container_user: false
+    add_current_user: false
+  tests: [apt_standalone_user.sh]

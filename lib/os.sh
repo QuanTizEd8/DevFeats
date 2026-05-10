@@ -112,6 +112,37 @@ os__font_dir() {
   return 0
 }
 
+# @brief os__is_devcontainer_build — Return 0 when this script is being executed by the devcontainer CLI as a feature installer, 1 otherwise.
+#
+# Uses three independent signals that must all be true:
+#
+# 1. We are running inside a container (`os__is_container`).
+#    This rules out host-side tools (e.g. SysSet) that may set the vars below
+#    but always run on a bare host.
+#
+# 2. The devcontainer CLI's four built-in env vars are present.
+#    The CLI unconditionally writes all of them into
+#    `devcontainer-features.builtin.env` and sources it before invoking
+#    `install.sh`:
+#      _REMOTE_USER, _CONTAINER_USER, _REMOTE_USER_HOME, _CONTAINER_USER_HOME
+#    Checking both `_REMOTE_USER` and `_CONTAINER_USER` (a devcontainer-spec
+#    concept) prevents a false positive if only `_REMOTE_USER` is set by
+#    another tool (e.g. SysSet running inside a container).
+#
+# 3. The CLI's feature staging directory is present on disk.
+#    The devcontainer CLI creates `/tmp/dev-container-features/` during the
+#    Docker build step and extracts all feature sources there.  This directory
+#    does not exist at container runtime, providing a build-vs-runtime
+#    discriminator that no env-var convention can fake.
+#
+# Returns: 0 in devcontainer feature-install context, 1 otherwise.
+os__is_devcontainer_build() {
+  os__is_container &&
+    [ "${_REMOTE_USER+defined}" = "defined" ] &&
+    [ "${_CONTAINER_USER+defined}" = "defined" ] &&
+    [ -d /tmp/dev-container-features ]
+}
+
 # @brief os__is_container — Return 0 if running inside a container (Docker, Podman, Kubernetes, CI), 1 otherwise.
 #
 # Uses the same heuristics as Homebrew's `check-run-command-as-root()` so that
