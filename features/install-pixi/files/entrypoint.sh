@@ -5,7 +5,10 @@
 # remote user can write to it (Docker creates named volumes owned by root).
 
 warn() { printf 'install-pixi entrypoint: WARN: %s\n' "$*" >&2; }
-die()  { printf 'install-pixi entrypoint: ERROR: %s\n' "$*" >&2; exit 1; }
+die() {
+  printf 'install-pixi entrypoint: ERROR: %s\n' "$*" >&2
+  exit 1
+}
 
 # Source runtime configuration written by the installer at image-build time.
 _CONF="/usr/local/share/devfeats/install-pixi/runtime.conf"
@@ -22,10 +25,10 @@ fix_pixi_volume_ownership() {
     warn "'${_pixi_dir}' is not a directory; the .pixi volume may not be mounted"
     return 1
   fi
-  if ! chown "${PIXI_VOLUME_USER}:" "$_pixi_dir" 2>/dev/null; then
+  if ! chown "${PIXI_VOLUME_USER}:" "$_pixi_dir" 2> /dev/null; then
     # Direct chown failed (entrypoint may not be running as root).
     # Try sudo for environments where the entrypoint user has passwordless sudo.
-    if ! sudo chown "${PIXI_VOLUME_USER}:" "$_pixi_dir" 2>/dev/null; then
+    if ! sudo chown "${PIXI_VOLUME_USER}:" "$_pixi_dir" 2> /dev/null; then
       warn "could not chown '${_pixi_dir}' to '${PIXI_VOLUME_USER}'; the container user may not be able to write to it"
     fi
   fi
