@@ -20,6 +20,8 @@ ignore = [
     "C901",
     "PLR0912",
     "PLR0915",
+    # Ruff recommends disabling COM812 when using the formatter too.
+    "COM812",
 ]
 
 [lint.per-file-ignores]
