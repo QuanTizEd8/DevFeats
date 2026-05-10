@@ -244,7 +244,7 @@ _node_install_via_nvm() {
         _add_ver="${_add_ver%% }"
         [ -z "$_add_ver" ] && continue
         logging__info "Installing additional Node.js version: ${_add_ver}"
-        su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
+        su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
       done
     fi
     logging__fn_exit "_node_install_via_nvm (version=none)"
@@ -255,19 +255,19 @@ _node_install_via_nvm() {
   logging__info "Installing Node.js '${_node_ver_spec}' via nvm..."
   if [ "$(os__platform)" = "alpine" ]; then
     logging__info "Alpine detected — compiling Node.js from source (nvm install -s)."
-    su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm install -s '${_node_ver_spec}'"
+    su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install -s '${_node_ver_spec}'"
   else
-    su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm install '${_node_ver_spec}'"
+    su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_node_ver_spec}'"
   fi
 
   # Set default alias
-  su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm alias default '${_node_ver_spec}'"
+  su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm alias default '${_node_ver_spec}'"
 
   # Restore primary version as active
-  su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm use default"
+  su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm use default"
 
   # Capture exact version
-  _NODE_VERSION="$(su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm version '${_node_ver_spec}'")"
+  _NODE_VERSION="$(su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm version '${_node_ver_spec}'")"
   logging__info "Installed Node.js version: ${_NODE_VERSION}"
 
   # Fix version directory permissions (tarballs extracted by nvm may lack group-write)
@@ -284,10 +284,10 @@ _node_install_via_nvm() {
       _add_ver="${_add_ver%% }"
       [ -z "$_add_ver" ] && continue
       logging__info "Installing additional Node.js version: ${_add_ver}"
-      su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
+      su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
     done
     # Restore default after additional installs
-    su "$_NVM_USER" -c "umask 0002 && . '${NVM_DIR}/nvm.sh' && nvm use default"
+    su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm use default"
   fi
 
   logging__success "Node.js ${_NODE_VERSION} installed via nvm."
@@ -570,7 +570,7 @@ _node_install_pnpm() {
 
   logging__info "Installing pnpm@${PNPM_VERSION}..."
   if [ "$METHOD" = "nvm" ]; then
-    su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && npm install -g 'pnpm@${PNPM_VERSION}'"
+    su "$_NVM_USER" -c "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && npm install -g 'pnpm@${PNPM_VERSION}'"
   else
     npm install -g "pnpm@${PNPM_VERSION}"
   fi
@@ -609,7 +609,7 @@ _node_install_yarn() {
   fi
 
   if [ "$METHOD" = "nvm" ]; then
-    su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && ${_install_cmd}"
+    su "$_NVM_USER" -c "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && ${_install_cmd}"
   else
     eval "$_install_cmd"
   fi
@@ -736,7 +736,7 @@ fi
 if [ "$VERSION" != "none" ] && [ -n "${_NODE_VERSION:-}" ]; then
   logging__info "Verifying Node.js installation..."
   if [ "$METHOD" = "nvm" ]; then
-    su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && node --version && npm --version"
+    su "$_NVM_USER" -c "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && node --version && npm --version"
   else
     node --version
     npm --version
