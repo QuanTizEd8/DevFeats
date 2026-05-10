@@ -7,6 +7,11 @@
 #   checkMultiple "label" <min> "cmd1" ["cmd2"...]  — passes if ≥ <min> cmds exit 0
 #   reportResults                                   — print summary; exit 1 if any failed
 #
+# On failure, check/fail_check print the quoted command and captured output.
+# If any check failed, reportResults runs _test_failure_diagnostics when that
+# function is defined in the test script (optional hook).
+#   log_install_homebrew_shell_init_diagnostics [HOME] [login_file] — stderr dump
+#
 # macOS block-cleanup helpers:
 #   block_cleanup "<marker>" "<file>"   — remove a named block from a file in-place
 #   block_cleanup_all "<marker>"        — remove from all standard shell init files
@@ -21,6 +26,15 @@ _TEST_PASS=0
 _TEST_FAIL=0
 _TEST_FAILURES=()
 
+# Print argv in a shell-safe quoted form (for failure logs).
+_check_quote_argv() {
+  local _a _q=()
+  for _a in "$@"; do
+    _q+=("$(printf '%q' "$_a")")
+  done
+  printf '%s' "${_q[*]}"
+}
+
 check() {
   local label="$1"
   shift
@@ -31,7 +45,8 @@ check() {
     ((_TEST_PASS++)) || true
   else
     printf '  ❌  FAIL — %s (exit %d)\n' "$label" "$rc"
-    [[ -n "$out" ]] && printf '         %s\n' "$out"
+    printf '         command: %s\n' "$(_check_quote_argv "$@")"
+    [[ -n "$out" ]] && printf '         output:\n%s\n' "$out"
     _TEST_FAILURES+=("$label")
     ((_TEST_FAIL++)) || true
   fi
@@ -48,7 +63,8 @@ fail_check() {
     ((_TEST_PASS++)) || true
   else
     printf '  ❌  FAIL (expected non-zero, got 0) — %s\n' "$label"
-    [[ -n "$out" ]] && printf '         %s\n' "$out"
+    printf '         command: %s\n' "$(_check_quote_argv "$@")"
+    [[ -n "$out" ]] && printf '         output:\n%s\n' "$out"
     _TEST_FAILURES+=("$label")
     ((_TEST_FAIL++)) || true
   fi
@@ -88,8 +104,55 @@ reportResults() {
     for _f in "${_TEST_FAILURES[@]}"; do
       printf '  — %s\n' "$_f"
     done
+    if declare -F _test_failure_diagnostics >/dev/null 2>&1; then
+      echo ""
+      echo "━━ Failure diagnostics ━━"
+      _test_failure_diagnostics || true
+    fi
     exit 1
   fi
+}
+
+# Verbose dump for macOS install-homebrew tests that depend on bash login files.
+# Non-fatal; prints to stderr. Args: [HOME] [resolved_login_file]
+log_install_homebrew_shell_init_diagnostics() {
+  local _home="${1:-$HOME}"
+  local _login="${2:-}"
+  [[ -z "$_login" ]] && _login="$(detect_bash_login_file)"
+  {
+    printf 'HOME=%q USER=%q\n' "${_home}" "${USER-}"
+    printf 'detect_bash_login_file -> %q\n' "${_login}"
+    local _cand
+    for _cand in "${_home}/.bash_profile" "${_home}/.bash_login" "${_home}/.profile"; do
+      echo ""
+      if [[ ! -e "$_cand" ]]; then
+        printf '%s (missing)\n' "$_cand"
+        continue
+      fi
+      printf '%s — ' "$_cand"
+      if [[ -f "$_cand" ]]; then
+        printf 'regular file'
+      elif [[ -L "$_cand" ]]; then
+        printf 'symlink -> %s' "$(readlink "$_cand" 2>/dev/null || echo '?')"
+      else
+        printf 'exists (not a regular file)'
+      fi
+      echo ""
+      command -v ls >/dev/null && ls -l "$_cand" 2>/dev/null || true
+      command -v file >/dev/null && file "$_cand" 2>/dev/null || true
+      echo "--- cat -v (visible non-printing chars) ---"
+      cat -v "$_cand" 2>/dev/null || echo "(unreadable)"
+      echo "--- od -An -tx1 (first 192 bytes) ---"
+      head -c 192 "$_cand" 2>/dev/null | od -An -tx1 || true
+    done
+    echo ""
+    echo "--- brew shellenv block lines inside resolved login file (awk) ---"
+    if [[ -f "$_login" ]]; then
+      awk '/# >>> brew shellenv \(install-homebrew\) >>>/{in=1;next} /# <<< brew shellenv \(install-homebrew\) <<</{in=0} in{print}' "$_login" 2>/dev/null || true
+    else
+      echo "(resolved login file missing)"
+    fi
+  } >&2
 }
 
 # ── macOS block-cleanup helpers ───────────────────────────────────────────────

@@ -22,6 +22,21 @@ _cleanup() {
 }
 trap _cleanup EXIT
 
+_test_failure_diagnostics() {
+  log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
+  printf 'Expected brew path fragment: %q\n' "${_BREW_PREFIX}/bin/brew" >&2
+  local f
+  for f in "${_HOME}/.bashrc" "${_HOME}/.zprofile" "${_HOME}/.zshrc"; do
+    echo "" >&2
+    printf '--- %q (cat -v) ---\n' "$f" >&2
+    if [[ -f "$f" ]]; then
+      cat -v "$f" >&2
+    else
+      echo "(missing)" >&2
+    fi
+  done
+}
+
 # --- brew is intact ---
 check "brew binary present" test -f "$_BREW"
 check "brew --version succeeds" "$_BREW" --version

@@ -21,6 +21,13 @@ _cleanup() {
 }
 trap _cleanup EXIT
 
+_test_failure_diagnostics() {
+  log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
+  echo "" >&2
+  echo "--- lines mentioning HOMEBREW_NO_INSTALL_FROM_API in resolved login file ---" >&2
+  grep -nF 'HOMEBREW_NO_INSTALL_FROM_API' "${_BASH_LOGIN_FILE}" 2>/dev/null || echo "(no matches)" >&2
+}
+
 # --- brew is intact ---
 check "brew binary present" test -f "$_BREW"
 check "brew --version succeeds" "$_BREW" --version
