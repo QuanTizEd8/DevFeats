@@ -78,6 +78,8 @@ shell__detect_zshdir() {
 #
 # Updates the block in-place if the marker already exists; appends otherwise.
 # Creates parent directories and the file if they do not exist.
+# Blank lines: one empty line below every block; one empty line above unless the
+# begin marker would be the first line of the file (append or in-place update).
 #
 # Args:
 #   --file <f>     Path to the target file.
@@ -114,6 +116,9 @@ shell__write_block() {
     # uses CRLF; some images also add a UTF-8 BOM and/or leading whitespace on
     # continued lines. grep -qF still finds the marker substring, but raw $0
     # equality with begin/end would otherwise never match.
+    #
+    # Formatting: one blank line above the block when it is not the first line
+    # in the file (unless a blank line is already there); one blank line below.
     awk -v begin="$_begin" -v end="$_end" -v content="$_content" '
       function norm(l) {
         if (length(l) >= 3 && substr(l, 1, 3) == "\357\273\277") l = substr(l, 4)
@@ -122,14 +127,39 @@ shell__write_block() {
         sub(/[[:space:]]+$/, "", l)
         return l
       }
-      norm($0) == begin { print begin; print content; found=1; next }
-      found && norm($0) == end { print end; found=0; next }
+      function is_blank_line(l) {
+        return norm(l) == ""
+      }
+      BEGIN { last_blank = 1 }
+      norm($0) == begin {
+        if (NR > 1 && !last_blank) print ""
+        print begin
+        print content
+        found = 1
+        next
+      }
+      found && norm($0) == end {
+        print end
+        print ""
+        last_blank = 1
+        found = 0
+        next
+      }
       found { next }
-      { print }
+      { print; last_blank = is_blank_line($0) }
     ' "$_file" > "${_file}.tmp" && mv "${_file}.tmp" "$_file"
     logging__info "Updated shell block '${_marker}' in '${_file}'."
   else
-    printf '\n%s\n%s\n%s\n' "$_begin" "$_content" "$_end" >> "$_file"
+    # Begin marker starts on its own line. Surround with blank lines: none above
+    # when the block is the entire file; otherwise one empty line above (after
+    # ensuring the file ends with a newline) and one empty line below.
+    if [ -f "$_file" ] && [ -s "$_file" ]; then
+      _lb="$(tail -c1 "$_file" 2>/dev/null || printf '')"
+      [ "$_lb" != "$(printf '\n')" ] && printf '\n' >> "$_file"
+      printf '\n%s\n%s\n%s\n\n' "$_begin" "$_content" "$_end" >> "$_file"
+    else
+      printf '%s\n%s\n%s\n\n' "$_begin" "$_content" "$_end" >> "$_file"
+    fi
     logging__success "Appended shell block '${_marker}' to '${_file}'."
   fi
   return 0

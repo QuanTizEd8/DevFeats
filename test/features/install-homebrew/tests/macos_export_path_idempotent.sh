@@ -24,11 +24,11 @@ trap _cleanup EXIT
 
 _test_failure_diagnostics() {
   log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
-  printf 'Expected brew path fragment: %q\n' "${_BREW_PREFIX}/bin/brew" >&2
+  printf 'Expected brew path fragment: %s\n' "${_BREW_PREFIX}/bin/brew" >&2
   local f
   for f in "${_HOME}/.bashrc" "${_HOME}/.zprofile" "${_HOME}/.zshrc"; do
     echo "" >&2
-    printf '--- %q (cat -v) ---\n' "$f" >&2
+    printf -- '--- %s (cat -v) ---\n' "$f" >&2
     if [[ -f "$f" ]]; then
       cat -v "$f" >&2
     else
