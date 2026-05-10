@@ -528,7 +528,7 @@ def sync_chat_indices(
                 print(f"  → wrote {n} session(s) to host vscdb")
             else:
                 print(
-                    f"  Note: could not write to host vscdb (VS Code lock?) — will retry"
+                    "  Note: could not write to host vscdb (VS Code lock?) — will retry"
                 )
 
 
