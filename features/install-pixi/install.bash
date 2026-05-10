@@ -1,3 +1,5 @@
+_FILES_DIR="${_BASE_DIR}/files"
+
 # ── Function definitions ──────────────────────────────────────────────────────
 # Functions are defined before library sourcing.  Bash does not evaluate
 # function bodies until they are called, so lib functions referenced here are
@@ -368,6 +370,8 @@ install_completion() {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+# shellcheck source=lib/os.sh
+. "${_SELF_DIR}/_lib/os.sh"
 # shellcheck source=lib/shell.sh
 . "${_SELF_DIR}/_lib/shell.sh"
 # shellcheck source=lib/github.sh
@@ -435,3 +439,22 @@ create_symlink
 export_path_main
 export_pixi_home_main
 install_completion
+
+# ---------------------------------------------------------------------------
+# Devcontainer entrypoint
+#
+# In a devcontainer build, install a root-owned entrypoint that runs at
+# container start to fix ownership of the .pixi named volume mount.
+# Docker creates named volumes owned by root; the entrypoint chowns the
+# directory to the configured remote user so they can write to it.
+# On standalone/host installs there is no named volume and no entrypoint
+# caller, so this section is skipped.
+# ---------------------------------------------------------------------------
+if os__is_devcontainer_build; then
+  _ENTRYPOINT_DEST="/usr/local/share/devfeats/install-pixi/entrypoint.sh"
+  mkdir -p "$(dirname "$_ENTRYPOINT_DEST")"
+  cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
+  chmod +x "$_ENTRYPOINT_DEST"
+  printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
+    > "/usr/local/share/devfeats/install-pixi/runtime.conf"
+fi

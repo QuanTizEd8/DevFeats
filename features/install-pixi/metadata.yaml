@@ -159,10 +159,7 @@ mounts:
 - source: ${localWorkspaceFolderBasename}-pixi
   target: ${containerWorkspaceFolder}/.pixi
   type: volume
-postCreateCommand:
-  devfeats_install-pixi_chown-pixi-dir:
-    command: "sudo chown $(id -u):$(id -g) .pixi"
-    description: Fix ownership of the .pixi volume mount so the container user can write to it.
+entrypoint: /usr/local/share/devfeats/install-pixi/entrypoint.sh ${containerWorkspaceFolder}/.pixi
 containerEnv:
   PATH: ${HOME}/.pixi/bin:${PATH}
 # installsAfter: []
