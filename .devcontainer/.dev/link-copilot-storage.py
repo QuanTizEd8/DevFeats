@@ -9,8 +9,23 @@ differs between the container (vscode-remote://dev-container+...) and the host
      canonical .ai/copilot/ store and both hash directories — VS Code on macOS
      refuses to read session .jsonl files through cross-volume symlinks.
   2. Symlinks GitHub.copilot-chat/ (auxiliary data; symlink is acceptable).
-  3. Merges the chat session index from host state.vscdb into the container
-     state.vscdb so the container sidebar lists host sessions.
+  3. Merges chat session indices from host + canonical + container state.vscdb
+     and writes the result to all three stores.
+
+Notes on session visibility:
+  - Local Copilot sessions (vscode-chat-session://local/) from the host DO NOT
+    appear in the container sidebar. VS Code's local-session provider maintains
+    an in-memory registry that can only be populated by the current VS Code
+    instance. Writing foreign sessions to state.vscdb has no effect on sidebar
+    visibility. The session .jsonl files are still synced so history is
+    preserved on the host.
+  - claude-code sessions appear in the sidebar but show no history when opened
+    in the Copilot Chat panel (isExternal:true; history lives in Claude Code's
+    own storage, not chatSessions/).
+  - Sessions created via Copilot Chat UI with the Claude model (untitled-* IDs)
+    may disappear from the sidebar after closing — this is a Copilot/Claude Code
+    extension behaviour: sessions are only persisted to agentSessions.model.cache
+    once the Claude Code CLI creates a matching .jsonl file.
 
 Canonical store: <workspace>/.ai/copilot/{entry}/
 Host hash dir:   (bind-mounted host workspaceStorage)/<hash>/
@@ -375,51 +390,6 @@ def _session_id(session: dict) -> str | None:
     return session.get("resource") or session.get("sessionId") or session.get("id")
 
 
-def _is_local_provider(session: dict) -> bool:
-    """Return True for sessions managed by Copilot's built-in local provider.
-
-    These sessions are discovered in the container by Copilot scanning the
-    chatSessions/ directory directly; writing them to state.vscdb causes
-    the local agent to "claim" them, fail its internal registry check (the
-    sessions were created in a foreign environment), and hide them.
-    """
-    provider = session.get("providerType", "")
-    resource = str(session.get("resource") or session.get("sessionId") or "")
-    return provider == "local" or resource.startswith("vscode-chat-session://local/")
-
-
-def _filter_local_sessions(index: object) -> object:
-    """Return a copy of index with local-provider sessions removed.
-
-    Used for container state.vscdb writes only — local sessions from the host
-    are discovered by Copilot's chatSessions/ scanner and must not be in
-    state.vscdb, or the local agent will claim and hide them.
-    """
-    if isinstance(index, list):
-        return [s for s in index if isinstance(s, dict) and not _is_local_provider(s)]
-    if isinstance(index, dict):
-        for field in ("sessions", "entries"):
-            if field in index:
-                val = index[field]
-                if isinstance(val, list):
-                    return {
-                        **index,
-                        field: [
-                            s
-                            for s in val
-                            if isinstance(s, dict) and not _is_local_provider(s)
-                        ],
-                    }
-                if isinstance(val, dict):
-                    return {
-                        **index,
-                        field: {
-                            k: v for k, v in val.items() if not _is_local_provider(v)
-                        },
-                    }
-    return index
-
-
 def _merge_indices(base: object, extra: object) -> object:
     """Merge two session index values; base takes priority for duplicate IDs.
 
@@ -505,16 +475,8 @@ def sync_chat_indices(
         merged = _merge_indices(merged, container_existing)
         n = len(_extract_sessions(merged))
 
-        # Write to container — but exclude local-provider sessions.
-        # Local sessions are discovered via chatSessions/ directory scan; if
-        # they are also in state.vscdb the local agent claims them, fails its
-        # internal registry check (foreign-environment sessions), and hides them.
-        container_safe = _filter_local_sessions(merged)
-        n_container = len(_extract_sessions(container_safe))
-        n_filtered = n - n_container
-        if _write_vscdb(container_vscdb, key, container_safe):
-            suffix = f" ({n_filtered} local filtered)" if n_filtered else ""
-            print(f"  → wrote {n_container} session(s) to container vscdb{suffix}")
+        if _write_vscdb(container_vscdb, key, merged):
+            print(f"  → wrote {n} session(s) to container vscdb")
         else:
             print(f"  Warning: could not write {key} to container vscdb")
 
