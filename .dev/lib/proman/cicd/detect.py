@@ -850,13 +850,23 @@ def main() -> None:
             run_python,
             run_docs,
         )
-    elif is_force or is_release:
+    elif is_force:
         run_lint = run_validate = run_unit = run_python = run_docs = True
         features = all_feature_ids
         macos_capable_ids = [
             d["feature"] for d in compute_macos_matrix(all_feature_ids)
         ]
         LOG.info("force-gate: all jobs enabled; all features selected")
+    elif is_release:
+        run_lint = run_validate = run_unit = run_python = run_docs = True
+        released_set = {d["feature"] for d in features_to_release}
+        features = [f for f in all_feature_ids if f in released_set]
+        macos_all = [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
+        macos_capable_ids = [f for f in macos_all if f in released_set]
+        LOG.info(
+            "release-gate: all jobs enabled; testing releasable features only: %s",
+            features,
+        )
     else:
         run_lint = any_match(changed, groups["lint"])
         run_validate = any_match(changed, groups["validate"])

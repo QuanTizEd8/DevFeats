@@ -62,7 +62,6 @@ triggers:
   scenario_test:
     - "features/install.sh"
     - "lib/**"
-    - "test/features/**"
   devcontainer:
     - ".devcontainer/.dev/**"
     - ".github/workflows/cm-devcontainer.yaml"
