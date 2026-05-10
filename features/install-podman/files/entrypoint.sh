@@ -26,7 +26,7 @@ setup_cgroup_v2_delegation() {
   # mkdir -p on a cgroupfs path requires CAP_SYS_ADMIN; on macOS Docker Desktop
   # and other restricted environments this is denied even with privileged: true.
   # Capture stderr so mkdir's own error message doesn't bypass our warn function.
-  if ! mkdir -p /sys/fs/cgroup/init 2>/dev/null; then
+  if ! mkdir -p /sys/fs/cgroup/init 2> /dev/null; then
     warn "could not create /sys/fs/cgroup/init (permission denied) — cgroup v2 controller delegation skipped"
     return 0
   fi
@@ -47,7 +47,7 @@ ensure_graphroot_users_parent() {
   # users/ parent directory must exist on the volume for each configured user
   # to be able to initialise their own graphRoot subdirectory on first Podman
   # run.  Podman creates the per-user subdirectory itself (mode 0700).
-  if ! mkdir -p "$_USERS_DIR" 2>/dev/null; then
+  if ! mkdir -p "$_USERS_DIR" 2> /dev/null; then
     warn "could not create $_USERS_DIR; per-user Podman storage may fail"
     return 0
   fi
@@ -57,10 +57,10 @@ ensure_graphroot_users_parent() {
   # because the install script creates users/ with 1777 in the image layer and
   # Docker copies that into a fresh named volume on first use.  Only warn when
   # permissions are wrong AND cannot be fixed.
-  _users_perms=$(stat -c '%a' "$_USERS_DIR" 2>/dev/null) || true
+  _users_perms=$(stat -c '%a' "$_USERS_DIR" 2> /dev/null) || true
   if [ "$_users_perms" != "1777" ]; then
-    chmod 1777 "$_USERS_DIR" 2>/dev/null \
-      || warn "could not set permissions on $_USERS_DIR (current: ${_users_perms:-unknown}); per-user Podman storage may fail"
+    chmod 1777 "$_USERS_DIR" 2> /dev/null ||
+      warn "could not set permissions on $_USERS_DIR (current: ${_users_perms:-unknown}); per-user Podman storage may fail"
   fi
 }
 

@@ -95,10 +95,22 @@ file__install_dir() {
   local -a _dirs=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --owner) _owner="$2"; shift 2 ;;
-      --group) _group="$2"; shift 2 ;;
-      --mode) _mode="$2"; shift 2 ;;
-      *) _dirs+=("$1"); shift ;;
+      --owner)
+        _owner="$2"
+        shift 2
+        ;;
+      --group)
+        _group="$2"
+        shift 2
+        ;;
+      --mode)
+        _mode="$2"
+        shift 2
+        ;;
+      *)
+        _dirs+=("$1")
+        shift
+        ;;
     esac
   done
   if [[ ${#_dirs[@]} -eq 0 ]]; then

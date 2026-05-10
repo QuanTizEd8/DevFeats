@@ -340,8 +340,8 @@ _process_run_jobs() {
   # --paginate fetches all pages; --jq emits each job object as one compact
   # JSON line, giving us a newline-delimited stream safe for `while read`.
   if ! jobs_ndjson=$(gh api --paginate \
-      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100" \
-      --jq '.jobs[]' 2>&1); then
+    "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100" \
+    --jq '.jobs[]' 2>&1); then
     local _one="${jobs_ndjson//$'\n'/ }"
     [[ ${#_one} -gt 200 ]] && _one="${_one:0:200}…"
     _ts "gh api failed: ${_one}"

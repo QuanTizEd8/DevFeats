@@ -258,7 +258,10 @@ users__next_subid_offset() {
   local _file="$1"
   local _max=100000
   local _user _start _count _end
-  [ -f "$_file" ] || { printf '%s\n' "$_max"; return 0; }
+  [ -f "$_file" ] || {
+    printf '%s\n' "$_max"
+    return 0
+  }
   while IFS=: read -r _user _start _count; do
     # Skip comment lines and blank/malformed entries.
     case "$_user" in '#'* | '') continue ;; esac
