@@ -37,7 +37,7 @@ _test_failure_diagnostics() {
   log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
   echo "" >&2
   echo "--- lines mentioning HOMEBREW_BREW_GIT_REMOTE in resolved login file ---" >&2
-  grep -nF 'HOMEBREW_BREW_GIT_REMOTE' "${_BASH_LOGIN_FILE}" 2>/dev/null || echo "(no matches)" >&2
+  grep -nF 'HOMEBREW_BREW_GIT_REMOTE' "${_BASH_LOGIN_FILE}" 2> /dev/null || echo "(no matches)" >&2
 }
 
 # --- brew is intact ---

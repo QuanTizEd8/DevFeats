@@ -154,7 +154,7 @@ shell__write_block() {
     # when the block is the entire file; otherwise one empty line above (after
     # ensuring the file ends with a newline) and one empty line below.
     if [ -f "$_file" ] && [ -s "$_file" ]; then
-      _lb="$(tail -c1 "$_file" 2>/dev/null || printf '')"
+      _lb="$(tail -c1 "$_file" 2> /dev/null || printf '')"
       [ "$_lb" != "$(printf '\n')" ] && printf '\n' >> "$_file"
       printf '\n%s\n%s\n%s\n\n' "$_begin" "$_content" "$_end" >> "$_file"
     else

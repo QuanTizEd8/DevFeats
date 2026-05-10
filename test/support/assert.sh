@@ -104,7 +104,7 @@ reportResults() {
     for _f in "${_TEST_FAILURES[@]}"; do
       printf '  — %s\n' "$_f"
     done
-    if declare -F _test_failure_diagnostics >/dev/null 2>&1; then
+    if declare -F _test_failure_diagnostics > /dev/null 2>&1; then
       echo ""
       echo "━━ Failure diagnostics ━━"
       _test_failure_diagnostics || true
@@ -133,22 +133,22 @@ log_install_homebrew_shell_init_diagnostics() {
       if [[ -f "$_cand" ]]; then
         printf 'regular file'
       elif [[ -L "$_cand" ]]; then
-        printf 'symlink -> %s' "$(readlink "$_cand" 2>/dev/null || echo '?')"
+        printf 'symlink -> %s' "$(readlink "$_cand" 2> /dev/null || echo '?')"
       else
         printf 'exists (not a regular file)'
       fi
       echo ""
-      command -v ls >/dev/null && ls -l "$_cand" 2>/dev/null || true
-      command -v file >/dev/null && file "$_cand" 2>/dev/null || true
+      command -v ls > /dev/null && ls -l "$_cand" 2> /dev/null || true
+      command -v file > /dev/null && file "$_cand" 2> /dev/null || true
       echo "--- cat -v (visible non-printing chars) ---"
-      cat -v "$_cand" 2>/dev/null || echo "(unreadable)"
+      cat -v "$_cand" 2> /dev/null || echo "(unreadable)"
       echo "--- od -An -tx1 (first 192 bytes) ---"
-      head -c 192 "$_cand" 2>/dev/null | od -An -tx1 || true
+      head -c 192 "$_cand" 2> /dev/null | od -An -tx1 || true
     done
     echo ""
     echo "--- brew shellenv block lines inside resolved login file (awk) ---"
     if [[ -f "$_login" ]]; then
-      awk '/# >>> brew shellenv \(install-homebrew\) >>>/{in=1;next} /# <<< brew shellenv \(install-homebrew\) <<</{in=0} in{print}' "$_login" 2>/dev/null || true
+      awk '/# >>> brew shellenv \(install-homebrew\) >>>/{in=1;next} /# <<< brew shellenv \(install-homebrew\) <<</{in=0} in{print}' "$_login" 2> /dev/null || true
     else
       echo "(resolved login file missing)"
     fi
