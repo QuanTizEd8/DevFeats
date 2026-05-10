@@ -224,6 +224,7 @@ options:
       For `method=nvm` (root only):
       - The feature sets `NVM_SYMLINK_CURRENT=true` (both in `containerEnv` and during install), which causes nvm to maintain a `$NVM_DIR/current` symlink always pointing to the active Node.js version. The `containerEnv` PATH includes `$NVM_DIR/current/bin`, so `nvm use` version switching works automatically for all container processes.
       - When `nvm_dir` resolves to a value other than `/usr/local/share/nvm` (the `containerEnv` `NVM_DIR` value), creates a directory symlink `/usr/local/share/nvm` → `nvm_dir` so that the `containerEnv` `NVM_DIR` and PATH entry remain valid.
+      - Symlinks `node`, `npm`, `npx`, and `corepack` from `$NVM_DIR/current/bin/` into `/usr/local/bin` when each source binary exists. This provides stable executable discovery in non-interactive contexts that may not source shell RC files.
       - No-op when running as non-root (cannot write to `/usr/local/share`).
 
       For `method=binary`:

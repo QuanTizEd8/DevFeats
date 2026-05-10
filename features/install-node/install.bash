@@ -409,8 +409,15 @@ _node_create_symlinks() {
         mkdir -p "$(dirname "${_nvm_canonical_root}")"
         ln -sf "$NVM_DIR" "${_nvm_canonical_root}"
       fi
-      # Note: the nvm current → version symlink is maintained by nvm itself
-      # (NVM_SYMLINK_CURRENT=true). No per-binary symlinks are needed.
+      # Create stable executable entrypoints for non-interactive contexts
+      # that may not source shell init files.
+      for _bin in node npm npx corepack; do
+        local _src="${NVM_DIR}/current/bin/${_bin}"
+        if [ -f "$_src" ]; then
+          logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
+          ln -sf "$_src" "/usr/local/bin/${_bin}"
+        fi
+      done
     elif [ "$METHOD" = "binary" ]; then
       # Binaries already in /usr/local/bin when prefix is /usr/local
       if [ "$PREFIX" = "/usr/local" ]; then

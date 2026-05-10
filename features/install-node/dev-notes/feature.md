@@ -98,7 +98,7 @@ Build time: ~10–20 minutes for Node.js LTS on typical container hardware.
 
 **nvm version pinning:** Use nvm's tag-based installer URL (`/nvm-sh/nvm/v0.40.4/install.sh`) rather than the unversioned redirect (`github.com/nvm-sh/nvm/install.sh`).
 
-**Key known issue:** nvm's PATH updates target user-level RC files (`~/.bashrc`, `~/.zshrc`), not system-wide files. For system-wide installs (as root in containers), a manual system-wide PATH setup is required.
+**Key known issue:** nvm's default installer updates user-level RC files (`~/.bashrc`, `~/.zshrc`), not system-wide files. This feature addresses that by writing system-wide init snippets and (for root installs with `symlink=true`) creating `/usr/local/bin/{node,npm,npx,corepack}` symlinks to `$NVM_DIR/current/bin/*`.
 
 ---
 
@@ -275,7 +275,7 @@ apt-get install -y nodejs
 
 For the `install-node` devcontainer feature and standalone installers, two methods are recommended, selected by a `method` option:
 
-1. **`nvm` (default):** Recommended for the broadest compatibility. Uses a pinned nvm version (default: latest, resolved at install time) to install the specified Node.js version. Works on all glibc Linux distributions and macOS. Alpine is supported via source compilation using `nvm install -s`, requiring the build dependencies documented above. The nvm installation is performed system-wide to a configurable `$NVM_DIR` (e.g. `/usr/local/share/nvm`); PATH is configured by exporting the active Node.js binary directory to system-wide shell startup files. Node version aliases (`lts/*`, `--lts`, major number, exact semver) are handled natively by nvm.
+1. **`nvm` (default):** Recommended for the broadest compatibility. Uses a pinned nvm version (default: latest, resolved at install time) to install the specified Node.js version. Works on all glibc Linux distributions and macOS. Alpine is supported via source compilation using `nvm install -s`, requiring the build dependencies documented above. The nvm installation is performed system-wide to a configurable `$NVM_DIR` (e.g. `/usr/local/share/nvm`); PATH is configured via system-wide shell init snippets, and root installs with `symlink=true` additionally create `/usr/local/bin/{node,npm,npx,corepack}` links to `$NVM_DIR/current/bin/*` for non-interactive command discovery. Node version aliases (`lts/*`, `--lts`, major number, exact semver) are handled natively by nvm.
 
 2. **`binary`:** Recommended for lean, fast container images where Alpine support is not required. Downloads the official prebuilt Node.js tarball from `https://nodejs.org/dist/` and verifies SHA-256 integrity against `SHASUMS256.txt`. Version resolution (`lts/*`, `latest`, major number) is performed by querying `https://nodejs.org/dist/index.json`. No nvm overhead; installs directly to a configurable prefix (default: `/usr/local`). Not compatible with Alpine (musl) — must fail with a clear actionable error message when Alpine is detected, directing the user to use `method=nvm`.
 

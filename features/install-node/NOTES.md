@@ -252,6 +252,7 @@ Install nvm without installing any Node.js version — useful when a `.nvmrc` or
 
 **`method=nvm`:**
 - In devcontainers, `containerEnv.PATH` includes `/usr/local/share/nvm/current/bin`, which resolves through the `$NVM_DIR/current` symlink (maintained by `NVM_SYMLINK_CURRENT=true`) to the active Node.js version's bin directory. `node`, `npm`, `npx`, and `corepack` are available to all container processes without any extra configuration.
+- In root installs with `symlink=true`, the installer also creates `/usr/local/bin/{node,npm,npx,corepack}` symlinks to `$NVM_DIR/current/bin/*` (when present). This keeps commands discoverable in non-interactive contexts that do not source shell init files.
 - In bare-metal and login-shell contexts (without `containerEnv`), `export_path=auto` writes an nvm initialisation snippet to system-wide shell startup files:
   - `/etc/profile.d/nvm_init.sh` (login shells)
   - System-wide bashrc (non-login interactive bash)
@@ -270,7 +271,7 @@ The feature sets `NVM_SYMLINK_CURRENT=true` in both `containerEnv` and the nvm i
 Key behaviors:
 - Running `nvm use <version>` inside the container automatically updates the `current` symlink, switching the active version for all new shells without rerunning the installer.
 - The installer sets `NVM_SYMLINK_CURRENT=true` before running `nvm install`, so `current` is created during installation.
-- For `method=nvm`, no manual per-binary symlinks to `/usr/local/bin` are needed — the `current/bin` path covers everything.
+- For `method=nvm` root installs with `symlink=true`, `/usr/local/bin/{node,npm,npx,corepack}` symlinks point at `$NVM_DIR/current/bin/*`, so command discovery is robust even when shell startup files are not sourced.
 - The nvm init snippet written to shell startup files (`/etc/profile.d/nvm_init.sh`, `.bashrc`, `.zshenv`, etc.) also exports `NVM_SYMLINK_CURRENT=true`, ensuring this behavior is preserved in bare-metal and non-container shell sessions where `containerEnv` is not active.
 
 ### NVM_DIR Container Environment
