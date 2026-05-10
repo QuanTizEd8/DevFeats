@@ -49,6 +49,16 @@ This ensures:
 - **Always highest priority** — the shim directory appears first in `PATH`, so
   shims are found before any real binary of the same name.
 
+### `export_path` option
+
+In addition to `containerEnv`, the feature can persist PATH updates into shell
+startup files via the `export_path` option:
+
+- `auto` (default): writes to system-wide shell files when root, or user shell
+  files when non-root.
+- `""` (empty): skips PATH writes.
+- Explicit file list: writes only to those absolute paths.
+
 ### Shim scripts
 
 #### `code`

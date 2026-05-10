@@ -18,6 +18,14 @@ _long_description: >-
 containerEnv:
   PATH: /usr/local/share/setup-shim/bin:$PATH
 options:
+  export_path:
+    type: array
+    default: auto
+    description: >-
+      Controls which shell startup files receive PATH export blocks for the shim directory.
+      - `auto` (default): root writes system-wide shell files; non-root writes user shell files.
+      - `''` (empty): skips PATH writes.
+      - A list of absolute file paths: writes only to those specific files.
   code:
     type: boolean
     default: true

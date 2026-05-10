@@ -1,6 +1,35 @@
 _SHIM_BIN="/usr/local/share/setup-shim/bin"
 _FILES_DIR="${_BASE_DIR}/files"
 
+# shellcheck source=lib/shell.sh
+. "$_SELF_DIR/_lib/shell.sh"
+
+# Write shim PATH exports to shell startup files.
+_shim_export_path_main() {
+  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
+    logging__info "export_path is empty; skipping PATH export."
+    return 0
+  fi
+
+  local _path_files
+  if [ "${EXPORT_PATH[*]}" = "auto" ]; then
+    if [ "$(id -u)" = "0" ]; then
+      _path_files="$(shell__system_path_files --profile_d setup-shim.sh)"
+    else
+      # shellcheck disable=SC2119
+      _path_files="$(shell__user_path_files)"
+    fi
+  else
+    _path_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
+  fi
+
+  shell__sync_block \
+    --files "${_path_files}" \
+    --marker "shim PATH (setup-shim)" \
+    --content "export PATH=\"${_SHIM_BIN}:\${PATH}\""
+  return 0
+}
+
 # ---------------------------------------------------------------------------
 # Install shims
 # ---------------------------------------------------------------------------
@@ -30,5 +59,9 @@ fi
 if [ "${SYSTEMCTL:-true}" = "true" ]; then
   install_shim "systemctl"
 fi
+
+# Make shims available for current process and persist PATH for future shells.
+export PATH="${_SHIM_BIN}:${PATH}"
+_shim_export_path_main
 
 exit 0
