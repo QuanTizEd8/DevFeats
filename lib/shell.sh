@@ -110,13 +110,20 @@ shell__write_block() {
   mkdir -p "$(dirname "$_file")"
   [ -f "$_file" ] || touch "$_file"
   if grep -qF "$_begin" "$_file"; then
-    # Compare after stripping a trailing CR so blocks still match on CRLF files
-    # (common for ~/.bash_profile on hosted macOS runners). grep -qF still
-    # finds the marker substring, but $0 == begin would otherwise never match.
+    # Normalize marker lines before comparing: hosted macOS ~/.bash_profile often
+    # uses CRLF; some images also add a UTF-8 BOM and/or leading whitespace on
+    # continued lines. grep -qF still finds the marker substring, but raw $0
+    # equality with begin/end would otherwise never match.
     awk -v begin="$_begin" -v end="$_end" -v content="$_content" '
-      function rl(l) { sub(/\r$/, "", l); return l }
-      rl($0) == begin { print begin; print content; found=1; next }
-      found && rl($0) == end { print end; found=0; next }
+      function norm(l) {
+        if (length(l) >= 3 && substr(l, 1, 3) == "\357\273\277") l = substr(l, 4)
+        sub(/^[[:space:]]+/, "", l)
+        sub(/\r$/, "", l)
+        sub(/[[:space:]]+$/, "", l)
+        return l
+      }
+      norm($0) == begin { print begin; print content; found=1; next }
+      found && norm($0) == end { print end; found=0; next }
       found { next }
       { print }
     ' "$_file" > "${_file}.tmp" && mv "${_file}.tmp" "$_file"
@@ -172,9 +179,15 @@ shell__sync_block() {
       [ -f "$_f" ] || continue
       grep -qF "$_begin" "$_f" || continue
       awk -v begin="$_begin" -v end="$_end" '
-        function rl(l) { sub(/\r$/, "", l); return l }
-        rl($0) == begin { found=1; next }
-        found && rl($0) == end { found=0; next }
+        function norm(l) {
+          if (length(l) >= 3 && substr(l, 1, 3) == "\357\273\277") l = substr(l, 4)
+          sub(/^[[:space:]]+/, "", l)
+          sub(/\r$/, "", l)
+          sub(/[[:space:]]+$/, "", l)
+          return l
+        }
+        norm($0) == begin { found=1; next }
+        found && norm($0) == end { found=0; next }
         found { next }
         { print }
       ' "$_f" > "${_f}.tmp" && mv "${_f}.tmp" "$_f"
