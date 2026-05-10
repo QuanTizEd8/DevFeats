@@ -20,6 +20,7 @@ Usage: link-copilot-storage.py <host_workspace> <container_workspace>
                        <config_file>
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -43,9 +44,9 @@ SYMLINK_ENTRIES = ["GitHub.copilot-chat"]
 MANAGED_ENTRIES = COPY_SYNC_ENTRIES + SYMLINK_ENTRIES
 
 # state.vscdb keys that enumerate and describe chat sessions.
-# agentSessions.model.cache  – sidebar list (titles, providers, icons).
-# agentSessions.state.cache  – per-session read timestamps.
-# chat.ChatSessionStore.index – full session metadata; VS Code uses this to
+# agentSessions.model.cache - sidebar list (titles, providers, icons).
+# agentSessions.state.cache - per-session read timestamps.
+# chat.ChatSessionStore.index - full session metadata; VS Code uses this to
 #   resolve session content when a session is opened (entries is a dict keyed
 #   by sessionId, unlike the list-based agentSessions keys).
 CHAT_INDEX_KEYS = [
@@ -176,9 +177,8 @@ def find_container_hash(
         local_docker=local_docker,
         context=contexts[0],
     )
-    print(
-        f"  Container hash not found on disk; using computed: {h} (context={contexts[0]})"
-    )
+    ctx = contexts[0]
+    print(f"  Container hash not found on disk; using computed: {h} (context={ctx})")
     return h
 
 
@@ -306,7 +306,8 @@ def link_symlink_entry(
     container_entry.symlink_to(project_dir_container)
 
     print(
-        f"Linked {entry_name}: container → {project_dir_container}, host → {project_dir_host}"
+        f"Linked {entry_name}: container -> {project_dir_container}, "
+        f"host -> {project_dir_host}"
     )
 
 
@@ -323,7 +324,7 @@ def _read_vscdb(vscdb: Path, key: str) -> object:
         ).fetchone()
         con.close()
         return json.loads(row[0]) if row else None
-    except Exception as e:
+    except (OSError, sqlite3.Error, json.JSONDecodeError, TypeError) as e:
         _logger.debug("_read_vscdb(%s, %s): %s", vscdb, key, e)
         return None
 
@@ -344,7 +345,7 @@ def _write_vscdb(vscdb: Path, key: str, value: object) -> bool:
         con.commit()
         con.close()
         return True
-    except Exception as e:
+    except (OSError, sqlite3.Error, TypeError, ValueError) as e:
         _logger.debug("_write_vscdb(%s, %s): %s", vscdb, key, e)
         return False
 
@@ -437,7 +438,7 @@ def _merge_indices(base: object, extra: object) -> object:
     if isinstance(base, dict) and base:
         field = next((k for k in ("sessions", "entries") if k in base), "sessions")
         if isinstance(base.get(field), dict):
-            # chat.ChatSessionStore.index: entries is {sessionId: metadata}
+            # ChatSessionStore index shape: dict entries keyed by sessionId.
             return {**base, field: {_session_id(s): s for s in merged.values()}}
         return {**base, field: list(merged.values())}
     return list(merged.values())
@@ -642,10 +643,8 @@ def _background_sync_once(
 
         canonical_index: object = None
         if canonical_file.exists():
-            try:
+            with contextlib.suppress(json.JSONDecodeError, OSError):
                 canonical_index = json.loads(canonical_file.read_text())
-            except (json.JSONDecodeError, OSError):
-                pass
 
         base = canonical_index if canonical_index is not None else container_index
         merged = _merge_indices(base, container_index)
@@ -676,13 +675,13 @@ def background_sync(host_path: str, container_path: str, config_file: str) -> in
         flush=True,
     )
 
-    def _shutdown(signum: int, frame: object) -> None:
+    def _shutdown(_signum: int, _frame: object) -> None:
         print("[bg] shutdown signal received; running final sync...", flush=True)
         # Give VS Code ~2 s to flush its own state to state.vscdb before we read it.
         time.sleep(2)
         try:
             _background_sync_once(host_hash_dir, container_hash_dir, ai_copilot)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(f"[bg] final sync error: {exc}", flush=True)
         print("[bg] final sync done.", flush=True)
         sys.exit(0)
@@ -694,7 +693,7 @@ def background_sync(host_path: str, container_path: str, config_file: str) -> in
         time.sleep(300)  # 5 minutes
         try:
             _background_sync_once(host_hash_dir, container_hash_dir, ai_copilot)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(f"[bg] sync error: {exc}", flush=True)
 
 
