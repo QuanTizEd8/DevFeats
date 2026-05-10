@@ -13,6 +13,7 @@ source dev-container-features-test-lib
 _HOME="$HOME"
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
+_BASH_LOGIN_FILE="$(detect_bash_login_file)"
 
 # Derive the Homebrew/brew git repository path (same logic as detect_brew_repository).
 if [[ "$(uname -m)" == "arm64" ]]; then
@@ -41,13 +42,13 @@ check "brew git origin URL unchanged" bash -c \
   'git -C "'"$_BREW_REPO"'" remote get-url origin | grep -qF "'"$_REMOTE_URL"'"'
 
 # --- pre-seeded HOMEBREW_BREW_GIT_REMOTE block removed on default run ---
-check "BREW_GIT_REMOTE block absent from ~/.bash_profile after run" \
-  bash -c '! grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.bash_profile 2>/dev/null'
+check "BREW_GIT_REMOTE marker block absent from resolved bash login file after run" \
+  bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" "$1" 2>/dev/null' -- "$_BASH_LOGIN_FILE"
 check "BREW_GIT_REMOTE block absent from ~/.bashrc after run" \
-  bash -c '! grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.bashrc 2>/dev/null'
+  bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.bashrc 2>/dev/null'
 check "BREW_GIT_REMOTE block absent from ~/.zprofile after run" \
-  bash -c '! grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.zprofile 2>/dev/null'
+  bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.zprofile 2>/dev/null'
 check "BREW_GIT_REMOTE block absent from ~/.zshrc after run" \
-  bash -c '! grep -qF "HOMEBREW_BREW_GIT_REMOTE" ~/.zshrc 2>/dev/null'
+  bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.zshrc 2>/dev/null'
 
 reportResults

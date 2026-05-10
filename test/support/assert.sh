@@ -124,6 +124,21 @@ block_cleanup_all() {
   done
 }
 
+# Resolve the effective bash login startup file for the current user.
+# Probes in order: ~/.bash_profile, ~/.bash_login, ~/.profile.
+# Falls back to ~/.bash_profile if none exist.
+detect_bash_login_file() {
+  local f
+  for f in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.profile"; do
+    [[ -f "$f" ]] && {
+      printf '%s\n' "$f"
+      return 0
+    }
+  done
+  printf '%s\n' "${HOME}/.bash_profile"
+  return 0
+}
+
 # Remove the install-homebrew shellenv block from a file, in-place.
 # No-op when the file does not exist or contains no block.
 shellenv_block_cleanup() {

@@ -13,6 +13,7 @@ source dev-container-features-test-lib
 _HOME="$HOME"
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
+_BASH_LOGIN_FILE="$(detect_bash_login_file)"
 
 _cleanup() {
   block_cleanup_all "brew shellenv (install-homebrew)"
@@ -25,13 +26,13 @@ check "brew binary present" test -f "$_BREW"
 check "brew --version succeeds" "$_BREW" --version
 
 # --- pre-seeded HOMEBREW_NO_INSTALL_FROM_API block removed on default run ---
-check "NO_INSTALL_FROM_API block absent from ~/.bash_profile after run" \
-  bash -c '! grep -qF "HOMEBREW_NO_INSTALL_FROM_API" ~/.bash_profile 2>/dev/null'
+check "NO_INSTALL_FROM_API marker block absent from resolved bash login file after run" \
+  bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" "$1" 2>/dev/null' -- "$_BASH_LOGIN_FILE"
 check "NO_INSTALL_FROM_API block absent from ~/.bashrc after run" \
-  bash -c '! grep -qF "HOMEBREW_NO_INSTALL_FROM_API" ~/.bashrc 2>/dev/null'
+  bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.bashrc 2>/dev/null'
 check "NO_INSTALL_FROM_API block absent from ~/.zprofile after run" \
-  bash -c '! grep -qF "HOMEBREW_NO_INSTALL_FROM_API" ~/.zprofile 2>/dev/null'
+  bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.zprofile 2>/dev/null'
 check "NO_INSTALL_FROM_API block absent from ~/.zshrc after run" \
-  bash -c '! grep -qF "HOMEBREW_NO_INSTALL_FROM_API" ~/.zshrc 2>/dev/null'
+  bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.zshrc 2>/dev/null'
 
 reportResults

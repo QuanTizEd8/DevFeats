@@ -12,6 +12,7 @@ source dev-container-features-test-lib
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
 _HOME="$HOME"
+_BASH_LOGIN_FILE="$(detect_bash_login_file)"
 
 _cleanup() {
   for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
@@ -33,8 +34,8 @@ _count_marker() {
 }
 export -f _count_marker 2> /dev/null || true
 
-check "~/.bash_profile has exactly one begin marker" \
-  bash -c '[[ "$({ grep -cF "# >>> brew shellenv (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || echo 0; })" -eq 1 ]]'
+check "resolved bash login file has exactly one begin marker" \
+  bash -c '[[ "$({ grep -cF "# >>> brew shellenv (install-homebrew) >>>" "$1" 2>/dev/null || echo 0; })" -eq 1 ]]' -- "$_BASH_LOGIN_FILE"
 check "~/.bashrc has exactly one begin marker" \
   bash -c '[[ "$({ grep -cF "# >>> brew shellenv (install-homebrew) >>>" ~/.bashrc        2>/dev/null || echo 0; })" -eq 1 ]]'
 check "~/.zprofile has exactly one begin marker" \
@@ -43,16 +44,22 @@ check "~/.zshrc has exactly one begin marker" \
   bash -c '[[ "$({ grep -cF "# >>> brew shellenv (install-homebrew) >>>" ~/.zshrc         2>/dev/null || echo 0; })" -eq 1 ]]'
 
 # --- stale placeholder must be gone; block must reference real brew ---
-check "~/.bash_profile block references resolved brew binary" \
-  bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.bash_profile'
+check "resolved bash login file block references resolved brew binary" \
+  bash -c 'grep -qF "$2" "$1"' -- "$_BASH_LOGIN_FILE" "${_BREW_PREFIX}/bin/brew"
 check "~/.bashrc block references resolved brew binary" \
   bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.bashrc'
 check "~/.zprofile block references resolved brew binary" \
   bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.zprofile'
 check "~/.zshrc block references resolved brew binary" \
   bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.zshrc'
-check "stale placeholder is not left in dotfiles" \
-  bash -c '! grep -qF "__stale_prefix__" ~/.bash_profile ~/.bashrc ~/.zprofile ~/.zshrc 2>/dev/null'
+check "resolved bash login file shellenv snippet has no stale placeholder" \
+  bash -c 'awk '"'"'/# >>> brew shellenv \(install-homebrew\) >>>/{in_block=1;next} /# <<< brew shellenv \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' "$1" | grep -qv "__stale_prefix__"' -- "$_BASH_LOGIN_FILE"
+check "~/.bashrc shellenv snippet has no stale placeholder" \
+  bash -c 'awk '"'"'/# >>> brew shellenv \(install-homebrew\) >>>/{in_block=1;next} /# <<< brew shellenv \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.bashrc | grep -qv "__stale_prefix__"'
+check "~/.zprofile shellenv snippet has no stale placeholder" \
+  bash -c 'awk '"'"'/# >>> brew shellenv \(install-homebrew\) >>>/{in_block=1;next} /# <<< brew shellenv \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.zprofile | grep -qv "__stale_prefix__"'
+check "~/.zshrc shellenv snippet has no stale placeholder" \
+  bash -c 'awk '"'"'/# >>> brew shellenv \(install-homebrew\) >>>/{in_block=1;next} /# <<< brew shellenv \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.zshrc | grep -qv "__stale_prefix__"'
 
 echo "=== ~/.zprofile ==="
 cat "${_HOME}/.zprofile" 2> /dev/null || echo "(missing)"
