@@ -56,4 +56,12 @@ mkdir -p "$DIND_ROOT"
 dockerd --data-root "$DIND_ROOT" --storage-driver overlay2 > /tmp/dockerd.log 2>&1 &
 timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 0.5; done'
 
+# Docker Hub applies strict pull limits to anonymous clients. Feature tests pull
+# bases like debian:latest from docker.io; authenticate here so inner builds
+# use the account tier (see https://docs.docker.com/docker-hub/download-rate-limit/).
+if [[ -n "${DOCKERHUB_USERNAME:-}" && -n "${DOCKERHUB_TOKEN:-}" ]]; then
+  printf '%s' "${DOCKERHUB_TOKEN}" |
+    docker login -u "${DOCKERHUB_USERNAME}" --password-stdin docker.io > /dev/null
+fi
+
 exec "$@"

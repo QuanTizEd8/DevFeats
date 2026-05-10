@@ -52,11 +52,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_IMAGE: ${{ fromJSON(inputs.config).ci_image }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           docker run --rm --privileged \
             -v "${GITHUB_WORKSPACE}:/repo" \
             -w /repo \
             -e GITHUB_TOKEN \
+            -e DOCKERHUB_USERNAME \
+            -e DOCKERHUB_TOKEN \
             -e "HOST_REPO_ROOT=/repo" \
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode devcontainer --filter "${{ matrix.scenario }}"
@@ -90,11 +94,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_IMAGE: ${{ fromJSON(inputs.config).ci_image }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           docker run --rm --privileged \
             -v "${GITHUB_WORKSPACE}:/repo" \
             -w /repo \
             -e GITHUB_TOKEN \
+            -e DOCKERHUB_USERNAME \
+            -e DOCKERHUB_TOKEN \
             -e "HOST_REPO_ROOT=/repo" \
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode standalone --filter "${{ matrix.scenario }}"
