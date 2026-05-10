@@ -172,7 +172,6 @@ jobs:
     needs: [init, build-docs, build-features, lint, test-dev, test-features, test-lib]
     if: |
       !cancelled() &&
-      needs.init.result == 'success' &&
       fromJSON(needs.init.outputs.config).deploy.enabled == true &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
