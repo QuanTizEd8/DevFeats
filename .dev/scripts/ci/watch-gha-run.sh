@@ -283,7 +283,7 @@ _handle_job() {
   # GHA never resolves matrix expressions for skipped jobs; the API returns
   # literal strings like "${{ matrix.sc.scenario }}". Replace them so log
   # files are legible.
-  job_name=$(sed 's/\${{ *[^}]* *}}/<matrix>/g' <<< "${job_name}")
+  job_name="${job_name//\$\{\{*\}\}/<matrix>}"
 
   # Skip already-processed jobs
   [[ ${_processed[${job_id}]+_} ]] && return 0
