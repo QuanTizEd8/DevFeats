@@ -112,35 +112,35 @@ os__font_dir() {
   return 0
 }
 
-# @brief os__is_devcontainer_build — Return 0 when this script is being executed by the devcontainer CLI as a feature installer, 1 otherwise.
+# @brief os__is_devcontainer_build — Return 0 when this script is being executed as a devcontainer feature installer, 1 otherwise.
 #
-# Uses three independent signals that must all be true:
+# The devcontainer Feature spec mandates that ALL FOUR of the following
+# variables be present in the installer environment, regardless of which
+# spec-compliant tool performs the build:
 #
-# 1. We are running inside a container (`os__is_container`).
-#    This rules out host-side tools (e.g. SysSet) that may set the vars below
-#    but always run on a bare host.
+#   _REMOTE_USER         remoteUser from devcontainer.json
+#   _CONTAINER_USER      containerUser (or default container user)
+#   _REMOTE_USER_HOME    home directory of _REMOTE_USER
+#   _CONTAINER_USER_HOME home directory of _CONTAINER_USER
 #
-# 2. The devcontainer CLI's four built-in env vars are present.
-#    The CLI unconditionally writes all of them into
-#    `devcontainer-features.builtin.env` and sources it before invoking
-#    `install.sh`:
-#      _REMOTE_USER, _CONTAINER_USER, _REMOTE_USER_HOME, _CONTAINER_USER_HOME
-#    Checking both `_REMOTE_USER` and `_CONTAINER_USER` (a devcontainer-spec
-#    concept) prevents a false positive if only `_REMOTE_USER` is set by
-#    another tool (e.g. SysSet running inside a container).
+# Requiring all four together is the spec-defined signal:
+# - `_REMOTE_USER` alone may be set by other tools (e.g. SysSet).
+# - `_CONTAINER_USER` is more specific but still not unique in isolation.
+# - All four sharing these exact names have no plausible source other than a
+#   devcontainer-spec-compliant feature installer.
 #
-# 3. The CLI's feature staging directory is present on disk.
-#    The devcontainer CLI creates `/tmp/dev-container-features/` during the
-#    Docker build step and extracts all feature sources there.  This directory
-#    does not exist at container runtime, providing a build-vs-runtime
-#    discriminator that no env-var convention can fake.
+# Note: `os__is_container()` and filesystem paths are intentionally NOT used
+# here. Features are installed during `docker build` (BuildKit RUN steps),
+# where `/.dockerenv` is absent — `os__is_container()` returns false in that
+# context. The `/tmp/dev-container-features` path is a specific CLI internal
+# that other compliant tools need not replicate.
 #
 # Returns: 0 in devcontainer feature-install context, 1 otherwise.
 os__is_devcontainer_build() {
-  os__is_container &&
-    [ "${_REMOTE_USER+defined}" = "defined" ] &&
+  [ "${_REMOTE_USER+defined}" = "defined" ] &&
     [ "${_CONTAINER_USER+defined}" = "defined" ] &&
-    [ -d /tmp/dev-container-features ]
+    [ "${_REMOTE_USER_HOME+defined}" = "defined" ] &&
+    [ "${_CONTAINER_USER_HOME+defined}" = "defined" ]
 }
 
 # @brief os__is_container — Return 0 if running inside a container (Docker, Podman, Kubernetes, CI), 1 otherwise.
