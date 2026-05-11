@@ -1,0 +1,20 @@
+version: 0.1.0
+name: Cursor Installation
+description: Placeholder
+keywords:
+- cursor
+- ai
+- llm
+_long_description: >-
+  Placeholder
+options:
+  cursor_user_dir:
+    type: string
+    default: .cursor
+    description: |-
+      Placeholder
+onCreateCommand:
+  devfeats--install-cursor--symlink-cursor-user-dir:
+    description: Symlink the specified workspace `cursor` directory to `~/.cursor-server/data/User`.
+    command: >-
+      /usr/local/share/repodynamics/devfeats/install-cursor/lifecycle--on-create--symlink-cursor-user-dir.sh ${containerWorkspaceFolder}
