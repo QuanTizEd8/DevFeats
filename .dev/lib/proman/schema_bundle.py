@@ -145,7 +145,9 @@ def build_metadata_validator(
     meta_data = deepcopy(json.loads(meta_path.read_text(encoding="utf-8")))
     meta_uri = meta_path.as_uri()
     stem_to_uri = lib_schema_stem_to_uri(lib_dirpath)
-    _walk_replace_bare_stem_refs(meta_data, stem_to_uri)
+    # metadata.schema.json uses $ref paths relative to features/ (e.g.
+    # ../lib/ospkg-manifest.schema.json) so IDE yaml.schemas can load them;
+    # jsonschema resolves those against meta_uri once $id is set below.
     _set_root_id(meta_data, meta_uri)
     registry = Registry().with_resource(meta_uri, DRAFT202012.create_resource(meta_data))
     for stem, uri in stem_to_uri.items():
