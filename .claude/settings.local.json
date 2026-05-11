@@ -4,5 +4,8 @@
       "WebSearch",
       "WebFetch"
     ]
+  },
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true
   }
 }
