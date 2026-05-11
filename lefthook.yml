@@ -3,7 +3,7 @@ env:
 
 pre-commit:
   commands:
-    sync-src:
+    sync:
       glob: "{lib/**/*,features/**/*}"
       run: just sync-src
     format-sh:
