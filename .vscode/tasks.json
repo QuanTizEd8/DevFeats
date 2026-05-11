@@ -67,10 +67,10 @@
             "presentation": {"reveal": "always", "panel": "dedicated"}
         },
         {
-            "label": "watch-gha",
+            "label": "fetch-gha",
             "detail": "Stream GHA logs — set run or commit input when prompted",
             "type": "shell",
-            "command": "just watch-gha --run ${input:gha_run_id}",
+            "command": "just fetch-gha --run ${input:gha_run_id}",
             "group": "build",
             "presentation": {"reveal": "always", "panel": "dedicated"}
         }

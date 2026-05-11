@@ -127,7 +127,7 @@ All task names follow `<type>-<domain>[-<modifier>]`.
 | `test-py` | `test-py` | `pytest test/proman` |
 | `test-feats` | `test-feats` | `proman-test-run` |
 | `test-feats-macos` | `test-feats` | `proman-test-run --mode macos` |
-| `fetch-gha` | — | `bash .dev/scripts/ci/watch-gha-run.sh` |
+| `fetch-gha` | — | `bash .dev/scripts/fetch/gha.sh` |
 | `run-gha-dind` (private) | — | `bash .dev/scripts/ci/gha-dind.sh` |
 
 ### Sphinx docs build context
@@ -151,7 +151,7 @@ The remaining pixi tasks are only ever called by justfile recipes and may be ren
 | `git_helpers.sh` | Reusable git functions (sourced library) | Other scripts |
 | `show/config.sh` | Print a field from `.config/*.yaml` via yq | `just show-config` |
 | `ci/gha-dind.sh` | Docker-in-Docker setup for GHA | `just run-gha-dind` |
-| `ci/watch-gha-run.sh` | Poll GHA workflow runs, stream logs | `just fetch-gha` |
+| `fetch/gha.sh` | Poll GHA workflow runs, stream logs | `just fetch-gha` |
 | `test/run-unit.sh` | Execute bats unit tests for `lib/` | `just test-lib`, `just test-lib-mod` |
 | `test/run-unit-matrix.sh` | Run `run-unit.sh` in container environments | `just test-lib-env`, `just test-lib-envs` |
 | `test/run-in-container.sh` | Docker exec wrapper (mounts repo) | `run-unit-matrix.sh` |

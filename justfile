@@ -320,7 +320,7 @@ show-config file key:
   doc('Fetch GHA workflow run logs; pass args through directly (e.g. just fetch-gha --run <id> or just fetch-gha --commit <sha>). Logs in .local/logs/gha/.')
 ]
 fetch-gha *args:
-    bash .dev/scripts/ci/watch-gha-run.sh {{args}}
+    bash .dev/scripts/fetch/gha.sh {{args}}
 
 
 # ── Internal ──────────────────────────────────────────────────────────────────

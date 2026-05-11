@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# watch-gha-run.sh — Monitor GHA workflow runs and collect job logs.
+# gha.sh — Monitor GHA workflow runs and collect job logs.
+#
+# Preferred entry point: just fetch-gha [args]
 #
 # Usage:
-#   watch-gha-run.sh [--log-base <dir>] --commit <commit-sha>
-#   watch-gha-run.sh [--log-base <dir>] --run <workflow-run-id>
-#   watch-gha-run.sh [--log-base <dir>] <commit-sha>   # same as --commit
-#   watch-gha-run.sh --help
+#   bash .dev/scripts/fetch/gha.sh [--log-base <dir>] --commit <commit-sha>
+#   bash .dev/scripts/fetch/gha.sh [--log-base <dir>] --run <workflow-run-id>
+#   bash .dev/scripts/fetch/gha.sh [--log-base <dir>] <commit-sha>   # same as --commit
+#   bash .dev/scripts/fetch/gha.sh --help
 #
 #   --commit, <commit-sha>  Full or short commit SHA. Short SHAs are
 #                 expanded via git rev-parse (fetching from origin if needed).
@@ -41,13 +43,13 @@ _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 _usage() {
   cat << 'EOF'
-watch-gha-run.sh — Monitor GHA workflow runs and collect job logs.
+gha.sh — Monitor GHA workflow runs and collect job logs.
 
 Usage:
-  watch-gha-run.sh [options] --commit <commit-sha>
-  watch-gha-run.sh [options] --run <workflow-run-id>
-  watch-gha-run.sh [options] <commit-sha>   # same as --commit
-  watch-gha-run.sh --help
+  just fetch-gha [options] --commit <commit-sha>
+  just fetch-gha [options] --run <workflow-run-id>
+  just fetch-gha [options] <commit-sha>   # same as --commit
+  bash .dev/scripts/fetch/gha.sh …         # same flags (direct invocation)
 
   --commit       Monitor all runs for a commit
   --run          Monitor a single run; commit is taken from the run metadata
