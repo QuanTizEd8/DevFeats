@@ -92,7 +92,7 @@ _dependencies:
       - curl
 ```
 
-Manifests are written in YAML. See [`features/install-os-pkg/manifest.schema.json`](../../features/install-os-pkg/manifest.schema.json) and the [ospkg manifest instructions](../../.github/instructions/ospkg-manifests.instructions.md) for the complete reference. A brief overview:
+Manifests are written in YAML. The machine-readable schema is [`lib/ospkg-manifest.schema.json`](../../../../lib/ospkg-manifest.schema.json) in-repo; the same schema is published for editors at `https://<owner>.github.io/<repo>/schema/ospkg-manifest.json` (see `.config/docs.yaml` → `json_schemas_publish`). See the [ospkg manifest instructions](../../../../.github/instructions/ospkg-manifests.instructions.md) for the full authoring reference. A brief overview:
 
 ```yaml
 # Optional global condition — skips the entire manifest if false

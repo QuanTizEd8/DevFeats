@@ -136,6 +136,8 @@ Sphinx loads `.local/data_transfer/docs_build_context.json` (repo owner/name, fe
 
 HTML output and the packaged Pages tarball are written under **`.local/build/docs/`** (`website.tar` next to the site). That directory is gitignored with the rest of `/.local/`.
 
+JSON Schemas listed in **`.config/docs.yaml`** under `json_schemas_publish` are rewritten with stable `$id` / `$ref` URLs and copied to **`.local/build/docs/schema/`** (for example **`/schema/ospkg-manifest.json`** on the published site). Add paths there when introducing new public schemas.
+
 ### pixi tasks called directly by CI
 
 The following pixi tasks are invoked by GHA workflows via `pixi run <task>` and **must not be renamed without updating the corresponding workflow files**:

@@ -45,10 +45,6 @@ def run(*, check_only: bool = False) -> int:
     src_dirpath = repo_dirpath / "src"
     devcontainer_dirpath = repo_dirpath / ".devcontainer"
 
-    ospkg_schema_id = (
-        f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/main/"
-        f"lib/ospkg.manifest.schema.json"
-    )
     license_url = f"https://github.com/{repo_owner}/{repo_name}/blob/main/LICENSE"
     doc_url_template = (
         f"https://{repo_owner}.github.io/{repo_name}/features/{{feature_id}}"
@@ -56,7 +52,7 @@ def run(*, check_only: bool = False) -> int:
     oci_ref_template = f"ghcr.io/{repo_owner}/{repo_name}/{{feature_id}}"
 
     derived_options = load_derived_options(features_dirpath)
-    validator = build_metadata_validator(features_dirpath, lib_dirpath, ospkg_schema_id)
+    validator = build_metadata_validator(features_dirpath, lib_dirpath)
     generator = InstallScriptGenerator(
         features_dirpath=features_dirpath,
         templates_dirpath=features_dirpath / "_install.sh-templates",

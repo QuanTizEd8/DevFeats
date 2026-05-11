@@ -9,9 +9,11 @@ import tarfile
 from pathlib import Path
 
 from proman.git import git_repo_root
+from proman.schema_bundle import publish_website_schemas
 
 
 def _package(output: Path) -> int:
+    repo_root = git_repo_root()
     build_dir = output.parent
 
     if not build_dir.is_dir():
@@ -36,6 +38,8 @@ def _package(output: Path) -> int:
         for s in symlinks:
             print(f"  {s}", file=sys.stderr)
         return 1
+
+    publish_website_schemas(repo_root, build_dir)
 
     print(f"Packaging {build_dir}/ → {output}", file=sys.stderr)
     output.unlink(missing_ok=True)
@@ -80,4 +84,4 @@ def main() -> None:
         help=f"Output tar path (default: {default_output}).",
     )
     args = parser.parse_args()
-    sys.exit(_package(Path(args.output)))
+    sys.exit(_package(Path(args.output).resolve()))

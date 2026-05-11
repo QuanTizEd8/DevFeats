@@ -69,6 +69,7 @@ triggers:
     - "docs/**"
     - "features/**"
     - "lib/**"
+    - ".config/docs.yaml"
     - ".github/workflows/docs.yaml"
   python_test:
     - ".dev/lib/**"

@@ -24,6 +24,7 @@ proman-show-feats = "proman.cli.show_feats:main"
 proman-show-feat-opts = "proman.cli.show_feat_opts:main"
 proman-build-feats = "proman.cli.build_feats:main"
 proman-build-docs-pkg = "proman.cli.build_docs_pkg:main"
+proman-publish-docs-schemas = "proman.cli.publish_docs_schemas:main"
 
 [build-system]
 requires = ["hatchling"]

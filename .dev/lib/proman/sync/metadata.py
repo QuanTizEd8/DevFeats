@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import re
 import sys
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-import jsonschema
 import yaml
+
+from proman.schema_bundle import build_metadata_validator as _build_metadata_validator
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -150,7 +150,7 @@ def load_derived_options(features_dirpath: Path) -> dict:
 def validate_metadata_schema(
     feature_id: str,
     metadata: dict,
-    validator: jsonschema.Draft7Validator,
+    validator: Any,
 ) -> bool:
     """Validate metadata against the JSON schema.
 
@@ -173,33 +173,9 @@ def validate_metadata_schema(
     return True
 
 
-def build_metadata_validator(
-    features_dirpath: Path,
-    lib_dirpath: Path,
-    ospkg_schema_id: str,
-) -> jsonschema.Draft7Validator:
+def build_metadata_validator(features_dirpath: Path, lib_dirpath: Path) -> Any:
     """Build and return a JSON schema validator for feature metadata."""
-    schema_path = features_dirpath / "metadata.schema.json"
-    ospkg_manifest_path = lib_dirpath / "ospkg.manifest.schema.json"
-    metadata_schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    _rewrite_remote_refs(metadata_schema, ospkg_schema_id, ospkg_manifest_path)
-    return jsonschema.Draft7Validator(metadata_schema)
-
-
-def _rewrite_remote_refs(
-    obj: object,
-    ospkg_schema_id: str,
-    ospkg_manifest_path: Path,
-) -> None:
-    """Replace the remote manifest $ref with the local file:// URI (in-place)."""
-    if isinstance(obj, dict):
-        if obj.get("$ref", "").lower() == ospkg_schema_id.lower():
-            obj["$ref"] = ospkg_manifest_path.as_uri()
-        for v in obj.values():
-            _rewrite_remote_refs(v, ospkg_schema_id, ospkg_manifest_path)
-    elif isinstance(obj, list):
-        for item in obj:
-            _rewrite_remote_refs(item, ospkg_schema_id, ospkg_manifest_path)
+    return _build_metadata_validator(features_dirpath, lib_dirpath)
 
 
 # Markdown Sanitation
