@@ -134,6 +134,8 @@ All task names follow `<type>-<domain>[-<modifier>]`.
 
 Sphinx loads `.local/data_transfer/docs_build_context.json` (repo owner/name, feature metadata, `lib/` summaries). That file is written by `proman-gen-docs-data` (`pixi run _sync-docs-data` in the default environment). The `build-docs` pixi task depends on `_sync-docs-data`; `build-docs-live` also runs it before each autobuild cycle. The path lives under `/.local/`, which is gitignored.
 
+HTML output and the packaged Pages tarball are written under **`.local/build/docs/`** (`website.tar` next to the site). That directory is gitignored with the rest of `/.local/`.
+
 ### pixi tasks called directly by CI
 
 The following pixi tasks are invoked by GHA workflows via `pixi run <task>` and **must not be renamed without updating the corresponding workflow files**:

@@ -23,7 +23,7 @@ artifacts:
     path: dist/
   pages:
     name: github-pages
-    path: docs/.build/artifact.tar
+    path: .local/build/docs/website.tar
 
 publish:
   registry: ghcr.io

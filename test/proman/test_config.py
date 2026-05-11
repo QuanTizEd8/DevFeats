@@ -51,7 +51,7 @@ artifacts:
     path: dist/
   pages:
     name: github-pages
-    path: docs/.build/artifact.tar
+    path: .local/build/docs/website.tar
 publish:
   registry: ghcr.io
   git_bot:
@@ -115,6 +115,7 @@ def test_load_ci_artifacts_section(
     assert ci["artifacts"]["src"]["name"] == "devfeats-src"
     assert ci["artifacts"]["dist"]["path"] == "dist/"
     assert ci["artifacts"]["pages"]["name"] == "github-pages"
+    assert ci["artifacts"]["pages"]["path"] == ".local/build/docs/website.tar"
 
 
 def test_load_ci_publish_section(

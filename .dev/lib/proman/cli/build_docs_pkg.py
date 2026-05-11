@@ -29,7 +29,7 @@ def _package(output: Path) -> int:
     symlinks = [p for p in build_dir.rglob("*") if p.is_symlink()]
     if symlinks:
         print(
-            "Symlinks found in docs/.build/ — the GitHub Pages API will reject"
+            f"Symlinks found in {build_dir}/ — the GitHub Pages API will reject"
             " this artifact:",
             file=sys.stderr,
         )
@@ -59,15 +59,18 @@ def _package(output: Path) -> int:
 
 
 def main() -> None:
-    """Package docs/.build/ into a GitHub Pages artifact tarball."""
+    """Package the Sphinx HTML output tree into a GitHub Pages artifact tarball."""
     repo = git_repo_root()
     default_output = repo / os.environ.get(
         "WEBSITE_TAR_FILEPATH",
-        "docs/.build/artifact.tar",
+        ".local/build/docs/website.tar",
     )
 
     parser = argparse.ArgumentParser(
-        description="Package docs/.build/ into a GitHub Pages artifact tarball.",
+        description=(
+            "Package the Sphinx HTML output (default: .local/build/docs/) "
+            "into a GitHub Pages artifact tarball."
+        ),
     )
     parser.add_argument(
         "output",

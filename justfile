@@ -183,7 +183,7 @@ build-feats *args: sync-src
 
 [
   group('build'),
-  doc('Build Sphinx docs site to docs/.build/.')
+  doc('Build Sphinx docs site to .local/build/docs/.')
 ]
 build-docs:
     pixi run build-docs
@@ -199,7 +199,7 @@ build-docs-live:
 
 [
   group('build'),
-  doc('Package docs/.build/ into a GitHub Pages artifact tarball.')
+  doc('Package .local/build/docs/ into a GitHub Pages artifact tarball.')
 ]
 build-docs-pkg: build-docs
     pixi run build-docs-pkg

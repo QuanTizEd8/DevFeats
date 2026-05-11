@@ -148,10 +148,10 @@ just test-feats install-pixi
 # Run shared library unit tests (no Docker needed)
 just test-lib
 
-# Build the docs website locally (requires devfeats-website conda env)
+# Build the docs website locally (HTML under .local/build/docs/; requires pixi docs env)
 just build-docs
 
-# Serve docs with live reload
+# Serve docs with live reload (same output directory)
 just build-docs-live
 
 # Watch GitHub Actions logs after a push
