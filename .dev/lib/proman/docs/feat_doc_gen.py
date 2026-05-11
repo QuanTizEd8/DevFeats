@@ -41,7 +41,7 @@ def generate(metadata: dict[str, Any], notes: str = "") -> str:
         parts.extend(["## VS Code Extensions", extensions_section])
 
     if notes:
-        parts.append([notes])
+        parts.append(notes)
 
     return "\n\n".join(parts).strip() + "\n"
 
