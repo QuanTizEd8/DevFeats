@@ -19,6 +19,7 @@ symlink_claude_config_dir() {
   _claude_config_dir_fullpath="${_container_workspace_folder}/${CLAUDE_CONFIG_DIR}"
 
   rm -rf ~/.claude
+  mkdir -p "$_claude_config_dir_fullpath"
   ln -s "$_claude_config_dir_fullpath" ~/.claude
 }
 
