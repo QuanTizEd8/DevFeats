@@ -1,14 +1,26 @@
-"""Feature metadata: read, augment, validate, and sanitize metadata.yaml."""
+"""Feature sync metadata helpers: validate and sanitize metadata for src/ generation.
+
+Shared read/augmentation logic lives in :mod:`proman.metadata`; this module
+re-exports the public symbols that callers import from ``proman.sync.metadata``
+so that existing import paths remain valid.
+"""
 
 from __future__ import annotations
 
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Literal
-
-import yaml
+from typing import TYPE_CHECKING, Any
 
 from proman.schema_bundle import build_metadata_validator as _build_metadata_validator
+
+# Re-export shared metadata API so existing callers don't break.
+from proman.metadata import (  # noqa: F401
+    augment_metadata,
+    load_all,
+    load_and_augment,
+    load_derived_options,
+    read_metadata,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -17,130 +29,6 @@ if TYPE_CHECKING:
 def log(msg: str) -> None:
     """Write a diagnostic message to stderr."""
     print(msg, file=sys.stderr)
-
-
-def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
-    """Read and augment metadata for a single feature; return None on failure."""
-    derived_options = load_derived_options(features_dirpath)
-    metadata = read_metadata(feature_id, features_dirpath)
-    if not isinstance(metadata, dict):
-        return None
-    if not augment_metadata(feature_id, metadata, derived_options):
-        return None
-    return metadata
-
-
-# Metadata Reading
-# ----------------
-
-
-def read_metadata(feature_id: str, features_dirpath: Path) -> dict | Literal[0, 1]:
-    """Read and parse the metadata.yaml for the given feature ID."""
-    metadata_filepath = features_dirpath / feature_id / "metadata.yaml"
-    if not metadata_filepath.is_file():
-        log(
-            f"⚠️ {feature_id}: metadata.yaml not found for feature '{feature_id}';"
-            " skipping",
-        )
-        return 0
-
-    try:
-        data = yaml.safe_load(metadata_filepath.read_text(encoding="utf-8"))
-    except yaml.YAMLError as exc:
-        log(f"❌ {feature_id}: YAML parse error: {exc}")
-        return 1
-
-    if not isinstance(data, dict):
-        log(
-            f"❌ {feature_id}: metadata.yaml does not contain a mapping"
-            f" (got {type(data).__name__})",
-        )
-        return 1
-
-    return data
-
-
-# Metadata Augmentation
-# ---------------------
-
-
-def augment_metadata(feature_id: str, metadata: dict, derived_options: dict) -> bool:
-    """Generate the full options dict for a feature.
-
-    Add common options from features/shared-options.yaml,
-    conditionally applying options with _apply_when
-    based on the feature's full metadata dict.
-    """
-    options: dict = metadata.get("options", {})
-    for option_id, option_def in derived_options.items():
-        if option_id in options:
-            log(
-                f"⛔ {feature_id}: option '{option_id}' is a derived option and"
-                " cannot be manually defined in metadata.yaml",
-            )
-            return False
-        should_apply = (
-            _evaluate_condition(option_def["_apply_when"], metadata)
-            if "_apply_when" in option_def
-            else True
-        )
-        if should_apply:
-            options[option_id] = {
-                k: v for k, v in option_def.items() if not k.startswith("_")
-            }
-    metadata["options"] = options
-    return True
-
-
-def _evaluate_condition(apply_when: dict, data: dict) -> bool:
-    """Evaluate an _apply_when condition against the feature's full metadata dict."""
-    jsonpath = apply_when["jsonpath"]
-    exists, value = _resolve_jsonpath(jsonpath, data)
-    condition = apply_when["condition"]
-    if condition == "exists":
-        return exists
-    if condition == "not_exists":
-        return not exists
-    if condition == "equals":
-        expected = apply_when["value"]
-        return exists and value == expected
-    if condition == "not_equals":
-        expected = apply_when["value"]
-        return not exists or value != expected
-    msg = f"Unsupported condition: {condition}"
-    raise ValueError(msg)
-
-
-def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
-    """Resolve a simple JSONPath expression against the feature metadata dict.
-
-    Supported JSONPath syntax:
-    - Root object: $
-    - Dot notation for object properties: $.property
-
-    Returns
-    -------
-    exists
-        Whether the path exists in the metadata dict.
-    value
-        The value at the path if it exists, or None if it does not exist.
-    """
-    if not jsonpath.startswith("$."):
-        msg = f"Unsupported JSONPath expression: {jsonpath}"
-        raise ValueError(msg)
-    path_parts = jsonpath[2:].split(".")
-    current = data
-    for part in path_parts:
-        if not isinstance(current, dict) or part not in current:
-            return False, None
-        current = current[part]
-    return True, current
-
-
-def load_derived_options(features_dirpath: Path) -> dict:
-    """Load shared-options.yaml and return its contents as a dict."""
-    with (features_dirpath / "shared-options.yaml").open(encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
 
 
 # Schema Validation
