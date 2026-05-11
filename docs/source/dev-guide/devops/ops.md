@@ -1,4 +1,4 @@
-# DevOps Operations
+# Operations
 
 
 ## Feature Discoverability
@@ -36,6 +36,11 @@ The index entry registers the feature collection namespace
 features from this repository in their dev container creation UI.
 
 ---
+
+## Feature Accessibility
+
+To allow users to readily try out features, the repository's `.devcontainer/` directory includes a set of "try-<feature-id>" demo containers that showcase each feature in a curated environment. These containers are referenced in the documentation and linked from the feature catalog. Users can open these containers in GitHub Codespaces or VS Code Dev Containers to interactively explore the features without needing to set up their own devcontainer.json.
+
 
 ## Private Features
 

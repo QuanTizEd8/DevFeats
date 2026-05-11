@@ -1,42 +1,19 @@
 # Developer Guide
 
-This guide is intended for developers who want to contribute to |{{project_name}}| by writing new features, improving existing ones, or contributing to the installer and shared library. It covers everything from setting up the development environment, understanding the repository layout, writing features, testing, CI/CD, and publishing releases.
+This guide is intended for developers who want to contribute to |{{project_name}}| by writing new features, improving existing ones, contributing to the shared library, writing documentations, or contributing to the development workflows, CI/CD pipelines, and DevOps practices. It covers everything from setting up the development environment, understanding the repository layout, writing features, testing, CI/CD, and publishing releases.
 
 
 ::::{grid} 1
 :gutter: 3
 
-:::{grid-item-card} Development Environment
+:::{grid-item-card} Quickstart Guide
 :class-title: sd-text-center
-:link: dev-guide/environment
+:link: dev-guide/quickstart
 :link-type: doc
 
-Learn how to set up a local development environment tailored for |{{project_name}}| development, with tools, configurations, and workflows optimized for writing and testing features.
+Learn how to set up a local development environment tailored for |{{project_name}}| development, with tools, configurations, and workflows optimized for writing and testing features. Understand the directory layout of the repository, the purpose of key files and folders, and how source files are synced. Learn about the development workflow, from making changes and running tests locally to pushing commits and triggering CI/CD pipelines.
 :::
 
-:::{grid-item-card} Workspace Layout
-:class-title: sd-text-center
-:link: dev-guide/workspace
-:link-type: doc
-
-Understand the directory layout of the repository, the purpose of key files and folders, and how source files are synced.
-:::
-
-:::{grid-item-card} Workflow and Automation
-:class-title: sd-text-center
-:link: dev-guide/workflow
-:link-type: doc
-
-Learn about the development workflow, from making changes and running tests locally to pushing commits and triggering CI/CD pipelines.
-:::
-
-:::{grid-item-card} Documentation
-:class-title: sd-text-center
-:link: dev-guide/documentation
-:link-type: doc
-
-Learn how documentation is structured, how to write and update docs, and how to build the documentation website locally.
-:::
 
 :::{grid-item-card} Features
 :class-title: sd-text-center
@@ -52,6 +29,14 @@ Learn how to write a new feature, with best practices for structure, argument pa
 :link-type: doc
 
 Learn how to test features effectively, with guidance on writing scenario tests, unit tests, and using the `dev-container-features-test-lib` for common testing patterns.
+:::
+
+:::{grid-item-card} Documentation
+:class-title: sd-text-center
+:link: dev-guide/documentation
+:link-type: doc
+
+Learn how documentation is structured, how to write and update docs, and how to build the documentation website locally.
 :::
 
 :::{grid-item-card} DevOps

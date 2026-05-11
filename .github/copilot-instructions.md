@@ -8,7 +8,7 @@ DevFeats is a collection of features — modular, specialized scripts for instal
 
 You must always follow these rules and constraints when working on the project:
 
-- Never edit files under `src/`, `.devcontainer/.src/`, `docs/source/features/`, `docs/source/dev/features/ref/`, and `test/unit/bats/`; they are auto-generated artifacts, symlinks, or dependency submodules.
+- Never edit files under `src/`, `.devcontainer/.src/`, `.devcontainer/try-*/`, `.devcontainer/test-*/`, `docs/source/features/`, `docs/source/library/`, and `test/lib/bats/`; they are auto-generated artifacts, symlinks, or dependency submodules.
 - For CI failures, run `just fetch-gha --commit <sha>` or `just fetch-gha --run <workflow-run-id>` (see `justfile`). Logs land under `.local/logs/gha/` by default.
 - Always run `just sync-src` before local feature scenario tests so `src/` exists and matches `features/` + `lib/`.
 - Lint and test commands take a long time to run; always run once, save their entire output to a file in `.local/logs/copilot/`, and review from there.
@@ -33,16 +33,16 @@ Read the following documents to learn about DevFeats from a user perspective:
 
 Read the following documents for detailed guides on various aspects of the project:
 
-- [Development Environment](../docs/source/dev-guide/environment.md) — devcontainer-based development environment
-- [Workspace Layout](../docs/source/dev-guide/workspace.md) — directory layout and file purposes
+- [Development Environment](/docs/source/dev-guide/environment.md) — devcontainer-based development environment
+- [Workspace Layout](/docs/source/dev-guide/workspace.md) — directory layout and file purposes
 - []
 
-- [`docs/source/dev/index.md`](../docs/source/dev/index.md) — prerequisites, workflow overview
-- [`docs/snippets/repo-layout.md`](../docs/snippets/repo-layout.md) — directory layout, `features/` vs `src/`, dev-notes
+- [`docs/source/dev/index.md`](/docs/source/dev/index.md) — prerequisites, workflow overview
+- [`docs/snippets/repo-layout.md`](/docs/snippets/repo-layout.md) — directory layout, `features/` vs `src/`, dev-notes
 
-- [`docs/snippets/code-style.md`](../docs/snippets/code-style.md) — shfmt, shellcheck, body-only `install.bash`
+- [`docs/snippets/code-style.md`](/docs/snippets/code-style.md) — shfmt, shellcheck, body-only `install.bash`
 - [`docs/source/dev/writing-features.md`](../docs/source/dev/writing-features.md) — feature anatomy, shared `lib/` API
-- [`docs/source/dev/ci.md`](../docs/source/dev/ci.md) — `main.yaml`, reusable build/lint/test/deploy workflows
+- [`docs/source/dev/ci.md`](/docs/source/dev-guide/ci.md) — `main.yaml`, reusable build/lint/test/deploy workflows
 
 ## External Resources
 

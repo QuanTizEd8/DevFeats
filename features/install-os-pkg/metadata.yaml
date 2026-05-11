@@ -12,31 +12,45 @@ keywords:
 - brew
 - package management
 _long_description: >-
-  A cross-platform package installer with support for apt (Debian/Ubuntu),
-  dnf/microdnf/yum (Fedora/RHEL/CentOS), zypper (openSUSE), pacman (Arch Linux),
-  apk (Alpine), and brew (macOS/Linuxbrew). Packages are declared in a single JSON or
-  YAML manifest with per-environment selectors, repository configuration, key import,
-  and pre/post install hooks.
+  A cross-platform package installer
+  with support for apt (Debian/Ubuntu),
+  dnf/microdnf/yum (Fedora/RHEL/CentOS),
+  zypper (openSUSE),
+  pacman (Arch Linux),
+  apk (Alpine),
+  and brew (macOS/Linuxbrew).
+  Packages are declared in a single JSON or YAML manifest
+  with environment selectors, repository configuration,
+  key import, and pre/post install hooks.
 _user_file_fetch: true
 options:
-  install_self:
-    default: false
-    description: |-
-      Install the `install-os-pkg` system command.
-      When true, a wrapper script is written to `/usr/local/bin/install-os-pkg`
-      so other features or scripts can invoke the installer directly.
-      Defaults to false; set to true only when you need the system command.
-    type: boolean
-  interactive:
-    default: false
-    description: Run in interactive mode, allowing the package manager to prompt the user.
-    type: boolean
-  keep_repos:
-    default: false
-    description: |-
-      Keep added repository drop-in files after installation.
-      By default, any repository files written during installation are removed after the script finishes.
-    type: boolean
+  manifest:
+    default: ''
+    description: |
+      Manifest to install packages from.
+      This can be in JSON or YAML format,
+      provided either as inline content or as a file/URI reference.
+      Inline content is detected when the value contains a newline;
+      otherwise the value is treated as a file path, `file://`,
+      `http(s)://`, `oci://`, or `gh://owner/repo@ref:path` URI.
+      Append `#sha256=<hex>` for integrity verification.
+      Use `fetch_headers` and `fetch_netrc` for authentication.
+    proposals:
+    - value: |
+        packages:
+          - git
+          - curl
+      description: Inline manifest (newline in value).
+    - value: ${containerWorkspaceFolder}/.devcontainer/packages.yaml
+      description: >-
+        Manifest file in the mounted workspace.
+        This requires setting `lifecycle_hook`,
+        since the file is not available at build time.
+    - value: https://raw.githubusercontent.com/owner/repo/main/packages.yaml
+      description: Public GitHub raw URL.
+    - value: gh://owner/repo@main:.devcontainer/packages.yaml
+      description: Manifest from a GitHub repository (`gh://` form).
+    type: string
   lifecycle_hook:
     default: ''
     description: |-
@@ -52,42 +66,14 @@ options:
     - value: postCreate
       description: Register a `postCreate` lifecycle hook script.
     type: string
-  manifest:
-    default: ''
-    description: |
-      Inline manifest content or path to a manifest file.
-      Accepts YAML or JSON format.
-
-      Manifest keys:
-        packages: list of package names or objects {name, version?, flags?, when?}.
-        apt / brew / dnf / apk / zypper / pacman: PM-specific package lists.
-        keys: list of {url, dest} objects for signing keys (dest ending .gpg → dearmored).
-        repos: list of repo strings or {content} objects added before installation.
-        ppas: list of PPA identifiers (APT only, e.g. 'ppa:git-core/ppa').
-        taps: list of Homebrew tap names or {name, url} objects (brew only).
-        copr: list of COPR names (DNF only, e.g. 'user/repo').
-        modules: list of DNF module streams (DNF only).
-        groups: list of package-group names.
-        casks: list of Homebrew cask names (macOS brew only).
-        prescripts / scripts: shell commands run before / after package installation.
-        when: condition (dict or list-of-dicts) on /etc/os-release fields plus 'pm', 'arch', 'kernel'.
-
-      Inline content is detected when the value contains a newline;
-      otherwise the value is treated as a file path, `file://` / `http(s)://` / `oci://` / `gh://owner/repo@ref:path` URI.
-      Append `#sha256=<hex>` for integrity verification. Use `fetch_headers` and `fetch_netrc` for authentication.
-    proposals:
-    - value: /workspaces/${localWorkspaceFolderBasename}/.devcontainer/packages.yaml
-      description: Manifest file in the mounted workspace.
-    - value: https://raw.githubusercontent.com/owner/repo/main/packages.yaml
-      description: Public GitHub raw URL.
-    - value: gh://owner/repo@main:.devcontainer/packages.yaml
-      description: Manifest from a GitHub repository (`gh://` form).
-    - value: |
-        packages:
-          - git
-          - curl
-      description: Inline manifest (newline in value).
-    type: string
+  install_self:
+    default: false
+    description: |-
+      Install the `install-os-pkg` system command.
+      When true, a wrapper script is written to `/usr/local/bin/install-os-pkg`
+      so other features or scripts can invoke the installer directly.
+      Defaults to false; set to true only when you need the system command.
+    type: boolean
   update:
     default: true
     description: |-
@@ -102,13 +88,6 @@ options:
       step is skipped automatically (unless a new repository was added by the manifest).
       Set to `0` to always update. Has no effect when `update=false`.
     type: string
-  dry_run:
-    default: false
-    description: |-
-      Print what would be installed/fetched without making any changes.
-      No packages are installed, no files are written, and no scripts are executed.
-      Root privilege is not required when this is set.
-    type: boolean
   skip_installed:
     default: false
     description: |-
@@ -116,6 +95,12 @@ options:
       When true, each package name is checked with `command -v` before installation.
       Packages whose binary is already present in PATH are skipped regardless of
       whether they were installed via the system package manager.
+    type: boolean
+  keep_repos:
+    default: false
+    description: |-
+      Keep added repository drop-in files after installation.
+      By default, any repository files written during installation are removed after the script finishes.
     type: boolean
   prefer_linuxbrew:
     default: false
@@ -125,19 +110,29 @@ options:
       the native package manager (`apt`, `dnf`, etc.).
       Has no effect on macOS (`brew` is always used there).
     type: boolean
+  dry_run:
+    default: false
+    description: |-
+      Print what would be installed/fetched without making any changes.
+      No packages are installed, no files are written, and no scripts are executed.
+      Root privilege is not required when this is set.
+    type: boolean
+  interactive:
+    default: false
+    description: Run in interactive mode, allowing the package manager to prompt the user.
+    type: boolean
 _dependencies: {}
-# installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-homebrew
 onCreateCommand:
-  devfeats_install-os-pkg_install:
+  devfeats--install-os-pkg--install:
     command: '[ -f /usr/local/share/install-os-pkg/on-create.sh ] && sh /usr/local/share/install-os-pkg/on-create.sh || true'
     description: When `lifecycle_hook` is set to `onCreate`, install OS packages at container creation time.
 updateContentCommand:
-  devfeats_install-os-pkg_install:
+  devfeats--install-os-pkg--install:
     command: '[ -f /usr/local/share/install-os-pkg/update-content.sh ] && sh /usr/local/share/install-os-pkg/update-content.sh || true'
     description: When `lifecycle_hook` is set to `updateContent`, reinstall OS packages when workspace content changes.
 postCreateCommand:
-  devfeats_install-os-pkg_install:
+  devfeats--install-os-pkg--install:
     command: '[ -f /usr/local/share/install-os-pkg/post-create.sh ] && sh /usr/local/share/install-os-pkg/post-create.sh || true'
     description: When `lifecycle_hook` is set to `postCreate`, install OS packages after the container is fully created.
