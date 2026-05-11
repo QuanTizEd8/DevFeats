@@ -105,7 +105,7 @@ cmd = "python -m sphinx -b $SPHINX_BUILDER $SPHINX_BUILD_OPTIONS -c . source .bu
 
 [feature.docs.tasks.build-docs-live]
 cwd = "docs"
-cmd = "python -m sphinx_autobuild source .build --conf-dir . --watch ../features --watch ../.dev/ --pre-build 'pixi run --environment default _sync-docs-data' --jobs auto --write-all --nitpicky"
+cmd = "python -m sphinx_autobuild source .build --conf-dir . --watch ../features --watch ../.dev/ --watch ../.local/data_transfer --pre-build 'pixi run --environment default _sync-docs-data' --jobs auto --write-all --nitpicky"
 
 [feature.docs.activation.env]
 SPHINX_BUILDER = "dirhtml"

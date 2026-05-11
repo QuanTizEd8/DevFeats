@@ -1,4 +1,4 @@
-"""CLI: generate docs-data artifact for cross-environment consumption."""
+"""CLI: generate docs build context JSON for Sphinx and cross-environment use."""
 
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ _FEATURES_NOTES_FILENAME = "NOTES.md"
 
 
 def main() -> int:
-    """Generate docs-data.json and per-feature/library Markdown from metadata."""
+    """Generate docs_build_context.json and per-feature/library Markdown from metadata."""
     repo = git_repo_root()
     features_dir = repo / "features"
     lib_dir = repo / "lib"
-    output_dir = repo / ".dev" / "output"
-    output_dir.mkdir(parents=True, exist_ok=True)
+    data_transfer_dir = repo / ".local" / "data_transfer"
+    data_transfer_dir.mkdir(parents=True, exist_ok=True)
 
     owner, repo_name = git_owner_repo()
 
@@ -51,7 +51,7 @@ def main() -> int:
             continue
         lib_modules[module.name] = module.summary
 
-    # ── Write docs-data.json ──────────────────────────────────────────────────
+    # ── Write docs_build_context.json ─────────────────────────────────────────
 
     docs_data = {
         "repo_owner": owner,
@@ -59,9 +59,9 @@ def main() -> int:
         "features": all_metadata,
         "lib_modules": lib_modules,
     }
-    docs_data_path = output_dir / "docs-data.json"
-    docs_data_content = json.dumps(docs_data, indent=2, ensure_ascii=False)
-    sync_file(docs_data_path, docs_data_content)
+    docs_build_context_path = data_transfer_dir / "docs_build_context.json"
+    docs_build_context_content = json.dumps(docs_data, indent=2, ensure_ascii=False)
+    sync_file(docs_build_context_path, docs_build_context_content)
 
     # ── Feature docs ──────────────────────────────────────────────────────────
 
@@ -87,8 +87,8 @@ def main() -> int:
         sync_file(doc_path, doc_content)
 
     print(
-        f"docs-data: {len(all_metadata)} features, {len(lib_modules)} lib modules"
-        f" → .dev/output/docs-data.json + docs/source/{{features,library}}/*.md",
+        f"docs build context: {len(all_metadata)} features, {len(lib_modules)} lib modules"
+        f" → .local/data_transfer/docs_build_context.json + docs/source/{{features,library}}/*.md",
     )
     return 0
 

@@ -10,9 +10,6 @@
 # Local development files
 /.local/
 
-# Generated artifacts (cross-environment communication)
-/.dev/output/
-
 # Distribution artifacts
 /dist/
 

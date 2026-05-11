@@ -17,25 +17,29 @@ if TYPE_CHECKING:
 
 _WEBSITE_ROOT = Path(__file__).resolve().parent
 _REPO_ROOT = _WEBSITE_ROOT.parent
-_DOCS_DATA_PATH = _REPO_ROOT / ".dev" / "output" / "docs-data.json"
+_DOCS_BUILD_CONTEXT_PATH = (
+    _REPO_ROOT / ".local" / "data_transfer" / "docs_build_context.json"
+)
 
 _docs_cfg: dict = yaml.safe_load(
     (_REPO_ROOT / ".dev/config/docs.yaml").read_text(encoding="utf-8"),
 )["sphinx"]
 globals().update(_docs_cfg)
 
-if not _DOCS_DATA_PATH.exists():
+if not _DOCS_BUILD_CONTEXT_PATH.exists():
     msg = (
-        f"Docs data artifact not found: {_DOCS_DATA_PATH}\n"
-        "Run 'pixi run gen-docs-data' before building the docs."
+        f"Docs build context not found: {_DOCS_BUILD_CONTEXT_PATH}\n"
+        "Run 'pixi run _sync-docs-data' (default environment) before building the docs."
     )
     raise FileNotFoundError(msg)
 
-_docs_data: dict[str, Any] = json.loads(_DOCS_DATA_PATH.read_text(encoding="utf-8"))
-_REPO_OWNER: str = _docs_data["repo_owner"]
-_REPO_NAME: str = _docs_data["repo_name"]
-_feature_metadata: dict[str, dict[str, Any]] = _docs_data["features"]
-_lib_modules: dict[str, str] = _docs_data.get("lib_modules", {})
+_docs_build_context: dict[str, Any] = json.loads(
+    _DOCS_BUILD_CONTEXT_PATH.read_text(encoding="utf-8"),
+)
+_REPO_OWNER: str = _docs_build_context["repo_owner"]
+_REPO_NAME: str = _docs_build_context["repo_name"]
+_feature_metadata: dict[str, dict[str, Any]] = _docs_build_context["features"]
+_lib_modules: dict[str, str] = _docs_build_context.get("lib_modules", {})
 
 
 def setup(app: Sphinx) -> None:
