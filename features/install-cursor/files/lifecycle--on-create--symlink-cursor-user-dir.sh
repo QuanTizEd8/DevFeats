@@ -19,6 +19,7 @@ symlink_cursor_user_dir() {
   _cursor_user_dir_fullpath="${_container_workspace_folder}/${CURSOR_USER_DIR}"
 
   rm -rf ~/.cursor-server/data/User
+  mkdir -p ~/.cursor-server/data
   mkdir -p "$_cursor_user_dir_fullpath"
   ln -s "$_cursor_user_dir_fullpath" ~/.cursor-server/data/User
 }
