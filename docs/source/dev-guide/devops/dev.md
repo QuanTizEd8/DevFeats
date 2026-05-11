@@ -112,6 +112,7 @@ All task names follow `<type>-<domain>[-<modifier>]`.
 | `release-detect` | `release-detect` | `proman-release-detect` |
 | `show-feats` | `show-feats` | `proman-show-feats` |
 | `show-feat-opts` | `show-feat-opts` | `proman-show-feat-opts` |
+| `show-config` | — | `bash .dev/scripts/show/config.sh` |
 | `lint-sh-check` | — | `shellcheck` (system tool) |
 | `lint-py-check` | `lint-py-check` | `ruff check` |
 | `lint-py` | `lint-py` | `ruff check --fix` |
@@ -148,6 +149,7 @@ The remaining pixi tasks are only ever called by justfile recipes and may be ren
 | Script | Purpose | Called from |
 |--------|---------|-------------|
 | `git_helpers.sh` | Reusable git functions (sourced library) | Other scripts |
+| `show/config.sh` | Print a field from `.config/*.yaml` via yq | `just show-config` |
 | `ci/gha-dind.sh` | Docker-in-Docker setup for GHA | `just run-gha-dind` |
 | `ci/watch-gha-run.sh` | Poll GHA workflow runs, stream logs | `just fetch-gha` |
 | `test/run-unit.sh` | Execute bats unit tests for `lib/` | `just test-lib`, `just test-lib-mod` |
