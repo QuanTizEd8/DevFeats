@@ -1,0 +1,24 @@
+version: 0.1.0
+name: Codex Installation
+description: Install [Codex](https://openai.com/codex/) – OpenAI's coding agent.
+keywords:
+- codex
+- ai
+- llm
+_long_description: >-
+  Placeholder
+options:
+  codex_home:
+    type: string
+    default: .codex
+    description: |-
+      Placeholder
+onCreateCommand:
+  devfeats--install-codex--symlink-codex-dir:
+    description: Symlink the specified workspace `codex` directory to `~/.codex`.
+    command: >-
+      /usr/local/share/repodynamics/devfeats/install-codex/lifecycle--on-create--symlink-codex-dir.sh ${containerWorkspaceFolder}
+customizations:
+  vscode:
+    extensions:
+      - openai.chatgpt
