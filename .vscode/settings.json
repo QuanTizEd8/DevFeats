@@ -39,4 +39,11 @@
     // Stop bash-ide following --source-path chains across the whole workspace,
     // which is what makes each shellcheck process so expensive here.
     "bashIde.enableSourceErrorDiagnostics": false,
+    "python-envs.pythonProjects": [
+        {
+            "path": "",
+            "envManager": "",
+            "packageManager": "ms-python.python:conda"
+        }
+    ],
 }
