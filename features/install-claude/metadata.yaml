@@ -1,0 +1,24 @@
+version: 0.1.0
+name: Claude Code Installation
+description: Placeholder
+keywords:
+- claude
+- ai
+- llm
+_long_description: >-
+  Placeholder
+options:
+  claude_config_dir:
+    type: string
+    default: .claude
+    description: |-
+      Placeholder
+onCreateCommand:
+  devfeats--install-claude--symlink-claude-dir:
+    description: Symlink the specified workspace `claude` directory to `~/.claude`.
+    command: >-
+      /usr/local/share/repodynamics/devfeats/install-claude/lifecycle--on-create--symlink-claude-dir.sh ${containerWorkspaceFolder}
+customizations:
+  vscode:
+    extensions:
+      - anthropic.claude-code
