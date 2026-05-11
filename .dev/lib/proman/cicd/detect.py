@@ -679,12 +679,18 @@ def parse_env_from_context() -> Env:
             default="false",
         ),
         input_run_lint=_workflow_dispatch_input_str(event_inputs.get("run_lint")),
-        input_run_validate=_workflow_dispatch_input_str(event_inputs.get("run_validate")),
+        input_run_validate=_workflow_dispatch_input_str(
+            event_inputs.get("run_validate")
+        ),
         input_run_unit=_workflow_dispatch_input_str(event_inputs.get("run_unit")),
-        input_run_features=_workflow_dispatch_input_str(event_inputs.get("run_features")),
+        input_run_features=_workflow_dispatch_input_str(
+            event_inputs.get("run_features")
+        ),
         input_features=_workflow_dispatch_input_str(event_inputs.get("features")),
         input_run_macos=_workflow_dispatch_input_str(event_inputs.get("run_macos")),
-        input_macos_features=_workflow_dispatch_input_str(event_inputs.get("macos_features")),
+        input_macos_features=_workflow_dispatch_input_str(
+            event_inputs.get("macos_features")
+        ),
         input_run_python=_workflow_dispatch_input_str(event_inputs.get("run_python")),
         input_run_docs=_workflow_dispatch_input_str(event_inputs.get("run_docs")),
         input_run_features_devcontainer=_workflow_dispatch_input_str(
@@ -693,8 +699,12 @@ def parse_env_from_context() -> Env:
         input_run_features_linux=_workflow_dispatch_input_str(
             event_inputs.get("run_features_linux"),
         ),
-        input_run_lib_linux=_workflow_dispatch_input_str(event_inputs.get("run_lib_linux")),
-        input_run_lib_macos=_workflow_dispatch_input_str(event_inputs.get("run_lib_macos")),
+        input_run_lib_linux=_workflow_dispatch_input_str(
+            event_inputs.get("run_lib_linux")
+        ),
+        input_run_lib_macos=_workflow_dispatch_input_str(
+            event_inputs.get("run_lib_macos")
+        ),
         repo_owner=str(github_ctx["repository_owner"]),
         repository=str(github_ctx["repository"]),
         repository_owner_type=str(repository_owner_payload["type"]),
@@ -809,8 +819,7 @@ def build_config(  # noqa: PLR0913
             ],
         },
         "test_lib": {
-            "enabled": run_unit
-            and (bool(unit_env_matrix) or bool(unit_macos_matrix)),
+            "enabled": run_unit and (bool(unit_env_matrix) or bool(unit_macos_matrix)),
             "linux_enabled": bool(unit_env_matrix),
             "macos_enabled": bool(unit_macos_matrix),
             "ci_image": ci_image,
