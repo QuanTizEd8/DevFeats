@@ -366,11 +366,14 @@ def test_apply_dispatch_feature_matrix_filters_drops_row_when_all_stripped() -> 
             "macos_scenarios": [],
         },
     ]
-    assert cd.apply_dispatch_feature_matrix_filters(
-        raw,
-        run_devcontainer=False,
-        run_linux=False,
-    ) == []
+    assert (
+        cd.apply_dispatch_feature_matrix_filters(
+            raw,
+            run_devcontainer=False,
+            run_linux=False,
+        )
+        == []
+    )
 
 
 def test_apply_dispatch_feature_matrix_filters_keeps_macos_when_linux_off() -> None:
