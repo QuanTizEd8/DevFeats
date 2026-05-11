@@ -1,0 +1,8 @@
+{
+   "features": {
+      "ghcr.io/QuanTizEd8/DevFeats/install-claude:0.1.0": {}
+   },
+   "image": "ubuntu:latest",
+   "name": "Try install-claude",
+   "remoteUser": "ubuntu"
+}
