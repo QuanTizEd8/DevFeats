@@ -43,15 +43,15 @@ release-detect = "proman-release-detect --repo quantized8/devfeats"
 ruff = "==0.15.11"
 
 [feature.lint.tasks]
-lint-py-check = "ruff check --config .dev/config/ruff.toml ."
-format-py-check = "ruff format --check --config .dev/config/ruff.toml ."
+lint-py-check = "ruff check --config .config/ruff.toml ."
+format-py-check = "ruff format --check --config .config/ruff.toml ."
 
 [feature.lint.tasks.lint-py]
-cmd = "ruff check --fix --config .dev/config/ruff.toml {{ paths }}"
+cmd = "ruff check --fix --config .config/ruff.toml {{ paths }}"
 args = [{ arg = "paths", default = "." }]
 
 [feature.lint.tasks.format-py]
-cmd = "ruff format --config .dev/config/ruff.toml {{ paths }}"
+cmd = "ruff format --config .config/ruff.toml {{ paths }}"
 args = [{ arg = "paths", default = "." }]
 
 
@@ -61,7 +61,7 @@ args = [{ arg = "paths", default = "." }]
 pytest = "==9.0.3"
 
 [feature.test.tasks]
-test-py = "pytest -c .dev/config/pytest.ini test/proman -v"
+test-py = "pytest -c .config/pytest.ini test/proman -v"
 test-feats = "proman-test-run"
 test-lib-env = "proman-test-lib-matrix --env"
 test-lib-envs = "proman-test-lib-matrix"
@@ -105,7 +105,7 @@ cmd = "python -m sphinx -b $SPHINX_BUILDER $SPHINX_BUILD_OPTIONS -c . source .bu
 
 [feature.docs.tasks.build-docs-live]
 cwd = "docs"
-cmd = "python -m sphinx_autobuild source .build --conf-dir . --watch ../features --watch ../.dev/ --watch ../.local/data_transfer --pre-build 'pixi run --environment default _sync-docs-data' --jobs auto --write-all --nitpicky"
+cmd = "python -m sphinx_autobuild source .build --conf-dir . --watch ../features --watch ../.config --watch ../.dev/ --watch ../.local/data_transfer --pre-build 'pixi run --environment default _sync-docs-data' --jobs auto --write-all --nitpicky"
 
 [feature.docs.activation.env]
 SPHINX_BUILDER = "dirhtml"

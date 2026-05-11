@@ -19,9 +19,9 @@ def _patch_loaders(
     ci_yaml: str,
 ) -> None:
     """Write YAML files to tmp_path and redirect loaders to read them."""
-    (tmp_path / ".dev/config").mkdir(parents=True)
-    (tmp_path / ".dev/config/project.yaml").write_text(project_yaml, encoding="utf-8")
-    (tmp_path / ".dev/config/ci.yaml").write_text(ci_yaml, encoding="utf-8")
+    (tmp_path / ".config").mkdir(parents=True)
+    (tmp_path / ".config/project.yaml").write_text(project_yaml, encoding="utf-8")
+    (tmp_path / ".config/ci.yaml").write_text(ci_yaml, encoding="utf-8")
     monkeypatch.setattr(cfg, "git_repo_root", lambda: tmp_path)
     # Clear caches so the patched root is used.
     cfg.load_project.cache_clear()

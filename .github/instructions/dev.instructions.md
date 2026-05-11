@@ -5,6 +5,6 @@ applyTo: ".dev/**"
 
 # Development Infrastructure
 
-The `.dev/` directory contains libraries, scripts, and configurations for development and CI tasks.
+The `.dev/` directory contains libraries and scripts for development and CI tasks.
 
 Read the [Development Infrastructure](/docs/source/dev-guide/devops/dev.md) docs to understand the contents, architecture, and conventions.
