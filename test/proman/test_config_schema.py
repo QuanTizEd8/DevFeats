@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 
 import jsonschema
-from jsonschema.validators import Draft202012Validator
 import proman.cicd.detect as cd
 import pytest
+from jsonschema.validators import Draft202012Validator
 
 SCHEMA = json.loads((Path(cd.__file__).parent / "config_schema.json").read_text())
 _VALIDATOR = Draft202012Validator(SCHEMA)
