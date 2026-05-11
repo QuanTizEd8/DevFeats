@@ -48,7 +48,8 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
 
     "../.src/install-claude": {},
-    "../.src/install-copilot": {}
+    "../.src/install-copilot": {},
+    "../.src/install-cursor": {}
   },
   "overrideFeatureInstallOrder": [
     "ghcr.io/quantized8/sysset/install-git",
