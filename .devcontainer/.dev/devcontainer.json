@@ -48,6 +48,7 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
 
     "../.src/install-claude": {},
+    "../.src/install-codex": {},
     "../.src/install-copilot": {},
     "../.src/install-cursor": {}
   },

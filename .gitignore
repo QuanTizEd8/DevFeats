@@ -36,4 +36,6 @@ ehthumbs.db
 
 # AI tool chat history (Claude Code + Copilot) — project-local but not version-controlled
 /.claude/
+/.codex/
 /.copilot/
+/.cursor/
