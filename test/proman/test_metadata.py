@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import textwrap
 from pathlib import Path
 
 import pytest
 import yaml
-
 from proman.metadata import (
     augment_metadata,
     load_all,
@@ -16,23 +14,26 @@ from proman.metadata import (
     read_metadata,
 )
 
+_FAKE_OWNER_REPO = ("testowner", "testrepo")
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def repo_root() -> Path:
+    """Return the repository root path."""
     return Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
 def features_dir(repo_root: Path) -> Path:
+    """Return the path to the features/ directory."""
     return repo_root / "features"
 
 
 @pytest.fixture
 def minimal_feature(tmp_path: Path) -> tuple[Path, str]:
-    """A minimal valid features/ directory with one feature."""
+    """Create a minimal valid features/ directory with one feature."""
     features = tmp_path / "features"
     feat_id = "test-feature"
     feat_dir = features / feat_id
@@ -140,7 +141,7 @@ def test_load_and_augment_sets_id_and_oci_ref(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """load_and_augment sets ``id`` and ``_oci_ref`` on the returned dict."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: ("testowner", "testrepo"))
+    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
     candidates = sorted(features_dir.glob("*/metadata.yaml"))
     assert candidates, "No real features found — check features/ directory."
     feat_id = candidates[0].parent.name
@@ -155,7 +156,7 @@ def test_load_and_augment_missing_feature(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Returns None when the feature directory has no metadata.yaml."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: ("testowner", "testrepo"))
+    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
     features = tmp_path / "features"
     (features / "ghost").mkdir(parents=True)
     (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
@@ -171,7 +172,7 @@ def test_load_all_returns_all_valid_features(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """load_all returns a non-empty dict keyed by feature IDs."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: ("testowner", "testrepo"))
+    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
     all_meta = load_all(features_dir)
     assert len(all_meta) > 0
     for feat_id, meta in all_meta.items():
@@ -184,7 +185,7 @@ def test_load_all_empty_features_dir(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """load_all returns an empty dict when no metadata.yaml files exist."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: ("testowner", "testrepo"))
+    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
     features = tmp_path / "features"
     features.mkdir()
     (features / "shared-options.yaml").write_text("{}", encoding="utf-8")

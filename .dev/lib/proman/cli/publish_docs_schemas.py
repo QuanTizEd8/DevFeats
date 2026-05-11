@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 from proman.git import git_repo_root
@@ -11,6 +10,7 @@ from proman.schema_bundle import publish_website_schemas
 
 
 def main() -> None:
+    """Write rewritten JSON schemas into the Sphinx output tree for GitHub Pages."""
     parser = argparse.ArgumentParser(
         description=(
             "Materialize JSON Schemas listed in .config/docs.yaml "

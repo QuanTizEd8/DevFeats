@@ -51,8 +51,8 @@ def test_bool_inp_empty_default_false() -> None:
 
 def test_workflow_dispatch_input_str_bool_json() -> None:
     """Verify JSON-style booleans normalize to lowercase strings."""
-    assert cd._workflow_dispatch_input_str(True) == "true"
-    assert cd._workflow_dispatch_input_str(False) == "false"
+    assert cd._workflow_dispatch_input_str(raw=True) == "true"
+    assert cd._workflow_dispatch_input_str(raw=False) == "false"
 
 
 def test_workflow_dispatch_input_str_none_uses_default() -> None:

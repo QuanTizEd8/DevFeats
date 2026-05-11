@@ -15,7 +15,7 @@ _FEATURES_NOTES_FILENAME = "NOTES.md"
 
 
 def main() -> int:
-    """Generate docs_build_context.json and per-feature/library Markdown from metadata."""
+    """Generate docs_build_context.json and per-feature/library Markdown files."""
     repo = git_repo_root()
     features_dir = repo / "features"
     lib_dir = repo / "lib"
@@ -77,8 +77,10 @@ def main() -> int:
         sync_file(doc_path, doc_content)
 
     print(
-        f"docs build context: {len(all_metadata)} features, {len(lib_modules)} lib modules"
-        f" → .local/data_transfer/docs_build_context.json + docs/source/{{features,library}}/*.md",
+        f"docs build context:"
+        f" {len(all_metadata)} features, {len(lib_modules)} lib modules"
+        " → .local/data_transfer/docs_build_context.json"
+        " + docs/source/{features,library}/*.md",
     )
     return 0
 

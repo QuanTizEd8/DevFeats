@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from proman.schema_bundle import (
     build_materialized_schemas_for_website,
     build_metadata_validator,
@@ -16,12 +15,14 @@ from proman.schema_bundle import (
 
 
 def test_schema_stem_and_published_name() -> None:
+    """Verify schema stem extraction and published filename generation."""
     p = Path("lib/ospkg-manifest.schema.json")
     assert schema_stem_from_path(p) == "ospkg-manifest"
     assert published_schema_basename("ospkg-manifest") == "ospkg-manifest.json"
 
 
 def test_build_materialized_for_website(tmp_path: Path) -> None:
+    """Verify $id and $ref rewriting in materialized schemas for the published site."""
     lib = tmp_path / "lib"
     lib.mkdir()
     minimal = {
@@ -50,4 +51,5 @@ def test_build_metadata_validator_smoke(repo_root: Path) -> None:
 
 @pytest.fixture
 def repo_root() -> Path:
+    """Return the repository root path."""
     return Path(__file__).resolve().parents[2]

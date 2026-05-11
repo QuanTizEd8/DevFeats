@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
+from jsonschema import Draft202012Validator
 from referencing import Registry
 from referencing.jsonschema import DRAFT202012
 
 from proman.git import git_owner_repo
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def load_docs_yaml(repo: Path) -> dict[str, Any]:
@@ -70,7 +73,7 @@ def build_materialized_schemas_for_website(
     base_url: str,
     publish_relpaths: list[str],
 ) -> dict[str, dict[str, Any]]:
-    """Return ``stem → schema`` dicts with ``$id`` and cross-``$ref`` URLs for publishing."""
+    """Return ``stem → schema`` dicts with ``$id`` and ``$ref`` URLs for publishing."""
     base = base_url if base_url.endswith("/") else f"{base_url}/"
     stems: list[str] = []
     paths: list[Path] = []
@@ -137,10 +140,8 @@ def lib_schema_stem_to_uri(lib_dirpath: Path) -> dict[str, str]:
 def build_metadata_validator(
     features_dirpath: Path,
     lib_dirpath: Path,
-) -> Any:
+) -> Draft202012Validator:
     """Return a Draft 2020-12 validator for ``metadata.yaml`` with local schema URIs."""
-    from jsonschema import Draft202012Validator
-
     meta_path = (features_dirpath / "metadata.schema.json").resolve()
     meta_data = deepcopy(json.loads(meta_path.read_text(encoding="utf-8")))
     meta_uri = meta_path.as_uri()
@@ -149,7 +150,9 @@ def build_metadata_validator(
     # ../lib/ospkg-manifest.schema.json) so IDE yaml.schemas can load them;
     # jsonschema resolves those against meta_uri once $id is set below.
     _set_root_id(meta_data, meta_uri)
-    registry = Registry().with_resource(meta_uri, DRAFT202012.create_resource(meta_data))
+    registry = Registry().with_resource(
+        meta_uri, DRAFT202012.create_resource(meta_data)
+    )
     for stem, uri in stem_to_uri.items():
         path = lib_dirpath / f"{stem}.schema.json"
         if not path.is_file():

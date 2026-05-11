@@ -9,9 +9,7 @@ from __future__ import annotations
 
 import re
 import sys
-from typing import TYPE_CHECKING, Any
-
-from proman.schema_bundle import build_metadata_validator as _build_metadata_validator
+from typing import TYPE_CHECKING
 
 # Re-export shared metadata API so existing callers don't break.
 from proman.metadata import (  # noqa: F401
@@ -21,9 +19,12 @@ from proman.metadata import (  # noqa: F401
     load_derived_options,
     read_metadata,
 )
+from proman.schema_bundle import build_metadata_validator as _build_metadata_validator
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from jsonschema import Draft202012Validator
 
 
 def log(msg: str) -> None:
@@ -38,7 +39,7 @@ def log(msg: str) -> None:
 def validate_metadata_schema(
     feature_id: str,
     metadata: dict,
-    validator: Any,
+    validator: Draft202012Validator,
 ) -> bool:
     """Validate metadata against the JSON schema.
 
@@ -61,7 +62,10 @@ def validate_metadata_schema(
     return True
 
 
-def build_metadata_validator(features_dirpath: Path, lib_dirpath: Path) -> Any:
+def build_metadata_validator(
+    features_dirpath: Path,
+    lib_dirpath: Path,
+) -> Draft202012Validator:
     """Build and return a JSON schema validator for feature metadata."""
     return _build_metadata_validator(features_dirpath, lib_dirpath)
 
