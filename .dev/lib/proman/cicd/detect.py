@@ -70,6 +70,10 @@ class Env:
     input_macos_features: str
     input_run_python: str
     input_run_docs: str
+    input_run_features_devcontainer: str
+    input_run_features_linux: str
+    input_run_lib_linux: str
+    input_run_lib_macos: str
     repo_owner: str
     repository: str
     repository_owner_type: str
@@ -256,6 +260,46 @@ def compute_feature_matrix(
             },
         )
     return result
+
+
+def apply_dispatch_feature_matrix_filters(
+    matrix: list[dict],
+    *,
+    run_devcontainer: bool,
+    run_linux: bool,
+) -> list[dict]:
+    """Apply ``workflow_dispatch`` toggles for feature-test modalities.
+
+    Parameters
+    ----------
+    matrix : list of dict
+        Raw rows from :func:`compute_feature_matrix`.
+    run_devcontainer : bool
+        When false, devcontainer-mode scenarios are stripped.
+    run_linux : bool
+        When false, standalone Linux (ubuntu runner + DinD) scenarios are stripped.
+
+    Returns
+    -------
+    list of dict
+        Filtered matrix; rows with no scenarios left on any platform are dropped.
+    """
+    out: list[dict] = []
+    for entry in matrix:
+        dc = list(entry["devcontainer_scenarios"]) if run_devcontainer else []
+        lx = list(entry["linux_scenarios"]) if run_linux else []
+        mc = list(entry["macos_scenarios"])
+        if not (dc or lx or mc):
+            continue
+        out.append(
+            {
+                **entry,
+                "devcontainer_scenarios": dc,
+                "linux_scenarios": lx,
+                "macos_scenarios": mc,
+            },
+        )
+    return out
 
 
 def compute_unit_macos_matrix() -> list[dict]:
@@ -594,6 +638,18 @@ def write_outputs(path: str, outputs: dict[str, str]) -> None:
         f.writelines(f"{k}={v}\n" for k, v in outputs.items())
 
 
+def _workflow_dispatch_input_str(raw: object, *, default: str = "") -> str:
+    """Normalize ``workflow_dispatch`` input values for string-based parsing.
+
+    GitHub may supply JSON booleans or strings; treat missing/``None`` as *default*.
+    """
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        return "true" if raw else "false"
+    return str(raw)
+
+
 def parse_env_from_context() -> Env:
     """Parse runtime environment from ``GITHUB_CONTEXT`` and process env vars.
 
@@ -618,18 +674,27 @@ def parse_env_from_context() -> Env:
         head_ref=str(github_ctx.get("head_ref", "")),
         base_ref=str(github_ctx.get("base_ref", "")),
         before=str(event.get("before", "")),
-        input_rebuild_devcontainer=str(
-            event_inputs.get("rebuild_devcontainer", "false"),
+        input_rebuild_devcontainer=_workflow_dispatch_input_str(
+            event_inputs.get("rebuild_devcontainer"),
+            default="false",
         ),
-        input_run_lint=str(event_inputs.get("run_lint", "")),
-        input_run_validate=str(event_inputs.get("run_validate", "")),
-        input_run_unit=str(event_inputs.get("run_unit", "")),
-        input_run_features=str(event_inputs.get("run_features", "")),
-        input_features=str(event_inputs.get("features", "")),
-        input_run_macos=str(event_inputs.get("run_macos", "")),
-        input_macos_features=str(event_inputs.get("macos_features", "")),
-        input_run_python=str(event_inputs.get("run_python", "")),
-        input_run_docs=str(event_inputs.get("run_docs", "")),
+        input_run_lint=_workflow_dispatch_input_str(event_inputs.get("run_lint")),
+        input_run_validate=_workflow_dispatch_input_str(event_inputs.get("run_validate")),
+        input_run_unit=_workflow_dispatch_input_str(event_inputs.get("run_unit")),
+        input_run_features=_workflow_dispatch_input_str(event_inputs.get("run_features")),
+        input_features=_workflow_dispatch_input_str(event_inputs.get("features")),
+        input_run_macos=_workflow_dispatch_input_str(event_inputs.get("run_macos")),
+        input_macos_features=_workflow_dispatch_input_str(event_inputs.get("macos_features")),
+        input_run_python=_workflow_dispatch_input_str(event_inputs.get("run_python")),
+        input_run_docs=_workflow_dispatch_input_str(event_inputs.get("run_docs")),
+        input_run_features_devcontainer=_workflow_dispatch_input_str(
+            event_inputs.get("run_features_devcontainer"),
+        ),
+        input_run_features_linux=_workflow_dispatch_input_str(
+            event_inputs.get("run_features_linux"),
+        ),
+        input_run_lib_linux=_workflow_dispatch_input_str(event_inputs.get("run_lib_linux")),
+        input_run_lib_macos=_workflow_dispatch_input_str(event_inputs.get("run_lib_macos")),
         repo_owner=str(github_ctx["repository_owner"]),
         repository=str(github_ctx["repository"]),
         repository_owner_type=str(repository_owner_payload["type"]),
@@ -744,7 +809,10 @@ def build_config(  # noqa: PLR0913
             ],
         },
         "test_lib": {
-            "enabled": run_unit,
+            "enabled": run_unit
+            and (bool(unit_env_matrix) or bool(unit_macos_matrix)),
+            "linux_enabled": bool(unit_env_matrix),
+            "macos_enabled": bool(unit_macos_matrix),
             "ci_image": ci_image,
             "artifact_src_name": art["src"]["name"],
             "artifact_src_path": art["src"]["path"],
@@ -912,6 +980,29 @@ def main() -> None:
 
     unit_env_matrix = compute_unit_env_matrix()
     unit_macos_matrix = compute_unit_macos_matrix()
+
+    if env.event_name == "workflow_dispatch":
+        run_dc = _bool_inp(env.input_run_features_devcontainer)
+        run_lx = _bool_inp(env.input_run_features_linux)
+        run_lib_lx = _bool_inp(env.input_run_lib_linux)
+        run_lib_mc = _bool_inp(env.input_run_lib_macos)
+        LOG.info(
+            "dispatch: modality_filters features_devcontainer='%s' features_linux='%s'"
+            " lib_linux='%s' lib_macos='%s'",
+            str(run_dc).lower(),
+            str(run_lx).lower(),
+            str(run_lib_lx).lower(),
+            str(run_lib_mc).lower(),
+        )
+        feature_matrix_raw = apply_dispatch_feature_matrix_filters(
+            feature_matrix_raw,
+            run_devcontainer=run_dc,
+            run_linux=run_lx,
+        )
+        if not run_lib_lx:
+            unit_env_matrix = []
+        if not run_lib_mc:
+            unit_macos_matrix = []
 
     LOG.info(
         "matrices: features=%d feature_matrix=%d unit_env=%d unit_macos=%d",

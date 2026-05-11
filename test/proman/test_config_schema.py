@@ -4,10 +4,17 @@ import json
 from pathlib import Path
 
 import jsonschema
+from jsonschema.validators import Draft202012Validator
 import proman.cicd.detect as cd
 import pytest
 
 SCHEMA = json.loads((Path(cd.__file__).parent / "config_schema.json").read_text())
+_VALIDATOR = Draft202012Validator(SCHEMA)
+
+
+def _validate(instance: dict) -> None:
+    """Validate *instance* against ``SCHEMA``."""
+    _VALIDATOR.validate(instance)
 
 
 def _make_valid_config() -> dict:
@@ -39,7 +46,7 @@ def _make_valid_config() -> dict:
 
 def test_valid_config_passes() -> None:
     """Verify a fully-populated valid config passes schema validation."""
-    jsonschema.validate(_make_valid_config(), SCHEMA)
+    _validate(_make_valid_config())
 
 
 def test_missing_top_level_key_fails() -> None:
@@ -47,7 +54,7 @@ def test_missing_top_level_key_fails() -> None:
     cfg = _make_valid_config()
     del cfg["build_features"]
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(cfg, SCHEMA)
+        _validate(cfg)
 
 
 def test_string_where_bool_required_fails() -> None:
@@ -55,7 +62,7 @@ def test_string_where_bool_required_fails() -> None:
     cfg = _make_valid_config()
     cfg["lint"]["shell"]["enabled"] = "true"
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(cfg, SCHEMA)
+        _validate(cfg)
 
 
 def test_extra_key_fails_due_to_additional_properties() -> None:
@@ -63,7 +70,7 @@ def test_extra_key_fails_due_to_additional_properties() -> None:
     cfg = _make_valid_config()
     cfg["build_features"]["unknown_key"] = "x"
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(cfg, SCHEMA)
+        _validate(cfg)
 
 
 def test_build_devcontainer_build_matrix_items_typed() -> None:
@@ -73,7 +80,7 @@ def test_build_devcontainer_build_matrix_items_typed() -> None:
         {"runner": 42, "platform": "x", "platform_tag": "y"},
     ]
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(cfg, SCHEMA)
+        _validate(cfg)
 
 
 def test_deploy_features_list_typed() -> None:
@@ -81,7 +88,7 @@ def test_deploy_features_list_typed() -> None:
     cfg = _make_valid_config()
     cfg["deploy"]["features"] = [{"feature": "x", "version": 1, "tag": "x/1"}]
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(cfg, SCHEMA)
+        _validate(cfg)
 
 
 def test_test_lib_linux_matrix_typed() -> None:
@@ -89,4 +96,4 @@ def test_test_lib_linux_matrix_typed() -> None:
     cfg = _make_valid_config()
     cfg["test_lib"]["linux_matrix"] = [{"name": "x"}]  # missing "env"
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(cfg, SCHEMA)
+        _validate(cfg)

@@ -427,6 +427,8 @@
       "additionalProperties": false,
       "required": [
         "enabled",
+        "linux_enabled",
+        "macos_enabled",
         "ci_image",
         "artifact_src_name",
         "artifact_src_path",
@@ -435,7 +437,15 @@
       ],
       "properties": {
         "enabled": {
-          "description": "Whether to run library unit tests.",
+          "description": "Whether to run any library unit test jobs.",
+          "type": "boolean"
+        },
+        "linux_enabled": {
+          "description": "Whether the Linux container matrix (test-lib-linux) should run.",
+          "type": "boolean"
+        },
+        "macos_enabled": {
+          "description": "Whether native macOS unit tests (test-lib-macos) should run.",
           "type": "boolean"
         },
         "ci_image": {

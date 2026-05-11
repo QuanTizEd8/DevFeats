@@ -49,6 +49,17 @@ def test_bool_inp_empty_default_false() -> None:
     assert cd._bool_inp("", default=False) is False
 
 
+def test_workflow_dispatch_input_str_bool_json() -> None:
+    """Verify JSON-style booleans normalize to lowercase strings."""
+    assert cd._workflow_dispatch_input_str(True) == "true"
+    assert cd._workflow_dispatch_input_str(False) == "false"
+
+
+def test_workflow_dispatch_input_str_none_uses_default() -> None:
+    """Verify absent inputs fall back to the default string."""
+    assert cd._workflow_dispatch_input_str(None, default="false") == "false"
+
+
 # ── _parse_feature_list ───────────────────────────────────────────────────────
 
 
@@ -343,6 +354,48 @@ def test_compute_feature_matrix_empty_inputs(
     )
     result = cd.compute_feature_matrix([], [])
     assert result == []
+
+
+def test_apply_dispatch_feature_matrix_filters_drops_row_when_all_stripped() -> None:
+    """Verify dispatch filter removes a feature row when no modalities remain."""
+    raw = [
+        {
+            "feature": "install-foo",
+            "devcontainer_scenarios": ["a"],
+            "linux_scenarios": ["b"],
+            "macos_scenarios": [],
+        },
+    ]
+    assert cd.apply_dispatch_feature_matrix_filters(
+        raw,
+        run_devcontainer=False,
+        run_linux=False,
+    ) == []
+
+
+def test_apply_dispatch_feature_matrix_filters_keeps_macos_when_linux_off() -> None:
+    """Verify macOS scenarios survive when Linux-only modalities are disabled."""
+    raw = [
+        {
+            "feature": "install-foo",
+            "devcontainer_scenarios": ["dc"],
+            "linux_scenarios": ["lx"],
+            "macos_scenarios": [{"scenario": "m", "runner": "macos-latest"}],
+        },
+    ]
+    out = cd.apply_dispatch_feature_matrix_filters(
+        raw,
+        run_devcontainer=False,
+        run_linux=False,
+    )
+    assert out == [
+        {
+            "feature": "install-foo",
+            "devcontainer_scenarios": [],
+            "linux_scenarios": [],
+            "macos_scenarios": [{"scenario": "m", "runner": "macos-latest"}],
+        },
+    ]
 
 
 # ── compute_unit_env_matrix ───────────────────────────────────────────────────

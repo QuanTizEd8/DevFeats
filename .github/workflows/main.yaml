@@ -10,45 +10,61 @@ on:
         type: boolean
         default: false
       run_lint:
-        description: Run lint
-        type: boolean
-        default: true
-      run_format:
-        description: Run formatting checks
+        description: Shell lint (shfmt + shellcheck); includes shell format check in the same job.
         type: boolean
         default: true
       run_validate:
         description: Run validate (devcontainer-feature.json)
         type: boolean
         default: true
-      run_unit:
-        description: Run unit tests
-        type: boolean
-        default: true
-      run_features:
-        description: Run feature scenario tests
-        type: boolean
-        default: true
-      features:
-        description: Features to test — blank = all, or comma-separated names
-        type: string
-        default: ""
-      run_macos:
-        description: Run macOS native feature tests
-        type: boolean
-        default: true
-      macos_features:
-        description: macOS features to test — blank = all capable, or comma-separated names
-        type: string
-        default: ""
       run_python:
-        description: Run Python lint (ruff) and tests (pytest)
+        description: Python format check, ruff lint, and pytest (lint reusable workflow + test-dev).
         type: boolean
         default: true
       run_docs:
         description: Build docs website
         type: boolean
         default: true
+      run_unit:
+        description: Run shell library unit tests (test-lib); use run_lib_linux / run_lib_macos to split platforms.
+        type: boolean
+        default: true
+      run_lib_linux:
+        description: Library unit tests — Linux matrix from test/lib/scenarios.yaml (Docker per env).
+        type: boolean
+        default: true
+      run_lib_macos:
+        description: Library unit tests — native macOS runners from test/environments.yaml.
+        type: boolean
+        default: true
+      run_features:
+        description: >-
+          Feature integration tests: selects which features get Linux/devcontainer-side
+          coverage (see features). macOS native tests are gated separately by run_macos.
+        type: boolean
+        default: true
+      features:
+        description: Features to test on Linux/devcontainer — blank = all, or comma-separated IDs.
+        type: string
+        default: ""
+      run_features_devcontainer:
+        description: Feature tests — devcontainer mode (DinD in CI image).
+        type: boolean
+        default: true
+      run_features_linux:
+        description: Feature tests — standalone Linux scenarios (ubuntu runner + DinD).
+        type: boolean
+        default: true
+      run_macos:
+        description: Feature tests — native macOS scenarios (per test/features/<id>/scenarios.yaml).
+        type: boolean
+        default: true
+      macos_features:
+        description: >-
+          Subset of features for macOS native tests — blank = all macOS-capable features
+          (when run_macos is true), or comma-separated IDs.
+        type: string
+        default: ""
 
 jobs:
   init:

@@ -10,7 +10,9 @@ on:
 jobs:
   test-lib-linux:
     name: ${{ matrix.env.name }}
-    if: fromJSON(inputs.config).enabled == true
+    if: |
+      fromJSON(inputs.config).enabled == true &&
+      fromJSON(inputs.config).linux_enabled == true
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -50,7 +52,9 @@ jobs:
 
   test-lib-macos:
     name: ${{ matrix.os.runner }}
-    if: fromJSON(inputs.config).enabled == true
+    if: |
+      fromJSON(inputs.config).enabled == true &&
+      fromJSON(inputs.config).macos_enabled == true
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ${{ matrix.os.runner }}

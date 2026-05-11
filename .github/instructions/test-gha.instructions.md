@@ -124,7 +124,7 @@ docker run --rm -v "$(pwd):/repo" debian:latest \
 | `src/<f>/` or `test/<f>/` | `linux.enabled`, `linux.features[]` → `test-features / linux` matrix |
 | macOS-capable feature in `features[]` | `macos.enabled`, `macos.matrix` → `test-features / macos` matrix |
 
-On `workflow_dispatch`, flags are resolved from the dispatch inputs. First push to a new branch sets `is_force=true` which enables all jobs.
+On `workflow_dispatch`, flags are resolved from the dispatch inputs in `main.yaml` (see `workflow_dispatch.inputs` there). They mirror `proman-cicd-detect` knobs: lint/validate/python/docs/unit, then **library unit tests** split with `run_lib_linux` vs `run_lib_macos`, then **feature tests** with `run_features` + `features` (Linux/devcontainer-side feature set), `run_features_devcontainer`, `run_features_linux`, and `run_macos` + `macos_features` for native macOS scenarios. Formatting is not a separate flag — it runs with shell lint and with Python when those jobs are enabled. First push to a new branch sets `is_force=true` which enables all jobs (dispatch inputs are ignored for that path).
 
 ### Unit test matrix
 
