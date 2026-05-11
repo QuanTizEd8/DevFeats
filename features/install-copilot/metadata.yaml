@@ -22,3 +22,4 @@ customizations:
   vscode:
     extensions:
       - github.copilot
+      - ms-vscode.vscode-chat-customizations-evaluations
