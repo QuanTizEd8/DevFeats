@@ -12,8 +12,8 @@ check "mamba binary installed" test -f /opt/conda/bin/mamba
 # --- only the specified file is written ---
 echo "=== /tmp/test_bashrc ==="
 cat /tmp/test_bashrc 2> /dev/null || echo "(missing)"
-echo "=== /etc/profile.d/conda_bin_path.sh ==="
-cat /etc/profile.d/conda_bin_path.sh 2> /dev/null || echo "(not present)"
+echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(not present)"
 echo "=== /etc/bash.bashrc (conda PATH block) ==="
 grep 'conda PATH' /etc/bash.bashrc 2> /dev/null || echo "(no block)"
 check "custom target file written" test -f /tmp/test_bashrc
@@ -21,7 +21,7 @@ check "custom target has marked block" grep -q 'conda PATH (install-miniforge)' 
 check "custom target exports /opt/conda/bin" grep -q '/opt/conda/bin' /tmp/test_bashrc
 
 # --- system files NOT written ---
-check "profile.d script NOT written" bash -c '! test -f /etc/profile.d/conda_bin_path.sh'
+check "profile.d script NOT written" bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
 check "bash.bashrc NOT modified" bash -c '! grep -q "conda PATH (install-miniforge)" /etc/bash.bashrc 2>/dev/null'
 check "BASH_ENV NOT in /etc/environment" bash -c '! grep -q "^BASH_ENV=" /etc/environment 2>/dev/null'
 

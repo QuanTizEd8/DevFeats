@@ -13,6 +13,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from proman.const import export_profile_d, feat_share_dir
+from proman.git import git_owner_repo
 from .environments import is_macos, resolve
 from .environments import load as load_envs
 from .gen_devcontainer import generate
@@ -191,17 +193,25 @@ def _run_standalone(
 
         test_scripts = scenario.get("tests", [])
         test_cmd_lines = []
+        _owner, _repo = git_owner_repo()
+        _feat_share = feat_share_dir(feature, _owner, _repo)
+        _export_pd = export_profile_d(feature, _owner, _repo)
         for ts in test_scripts:
             ts_path = f"/repo/test/features/{feature}/tests/{ts}"
             if user:
                 test_cmd_lines.append(
-                    f"su {user} -c 'PATH=/tmp/_testlib:$PATH"
+                    f"su {user} -c '"
+                    f"_FEAT_SHARE_DIR={shlex.quote(_feat_share)}"
+                    f" _EXPORT_PROFILE_D={shlex.quote(_export_pd)}"
+                    f" PATH=/tmp/_testlib:$PATH"
                     f" REPO_ROOT=/repo FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC"
                     f" bash {ts_path}'",
                 )
             else:
                 test_cmd_lines.append(
-                    f"PATH=/tmp/_testlib:$PATH REPO_ROOT=/repo"
+                    f"_FEAT_SHARE_DIR={shlex.quote(_feat_share)}"
+                    f" _EXPORT_PROFILE_D={shlex.quote(_export_pd)}"
+                    f" PATH=/tmp/_testlib:$PATH REPO_ROOT=/repo"
                     f" FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC bash {ts_path}",
                 )
 
@@ -365,10 +375,13 @@ def _run_macos(
                 ts_path = str(
                     repo_root / "test" / "features" / feature / "tests" / ts,
                 )
+                _owner, _repo = git_owner_repo()
                 test_env = {
                     **run_env,
                     "PATH": f"{shim_dir}:{run_env['PATH']}",
                     "FEATURE_INSTALL_RC": str(install_rc),
+                    "_FEAT_SHARE_DIR": feat_share_dir(feature, _owner, _repo),
+                    "_EXPORT_PROFILE_D": export_profile_d(feature, _owner, _repo),
                 }
                 if user:
                     path_q = shlex.quote(test_env["PATH"])

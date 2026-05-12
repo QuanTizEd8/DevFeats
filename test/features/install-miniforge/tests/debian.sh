@@ -21,11 +21,11 @@ check "mamba activation script exists" test -f /opt/conda/etc/profile.d/mamba.sh
 # --- PATH update ---
 echo "=== conda --version ==="
 /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
-echo "=== /etc/profile.d/conda_bin_path.sh ==="
-cat /etc/profile.d/conda_bin_path.sh 2> /dev/null || echo "(missing)"
-check "profile.d script written" test -f /etc/profile.d/conda_bin_path.sh
-check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
-check "profile.d script exports /opt/conda/bin" grep -q '/opt/conda/bin' /etc/profile.d/conda_bin_path.sh
+echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
+check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script exports /opt/conda/bin" grep -q '/opt/conda/bin' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 
 # --- functionality ---
 check "conda --version succeeds" /opt/conda/bin/conda --version

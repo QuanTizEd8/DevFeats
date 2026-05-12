@@ -17,16 +17,16 @@ ls /opt 2> /dev/null || echo "(failed)"
 check "/opt/conda does not exist" bash -c '! test -e /opt/conda'
 
 # --- all PATH export files reference /opt/myforge/bin ---
-echo "=== /etc/profile.d/conda_bin_path.sh ==="
-cat /etc/profile.d/conda_bin_path.sh 2> /dev/null || echo "(missing)"
+echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
 echo "=== /etc/bash.bashrc ==="
 cat /etc/bash.bashrc 2> /dev/null || echo "(missing)"
 echo "=== /etc/zsh/zshenv ==="
 cat /etc/zsh/zshenv 2> /dev/null || echo "(missing)"
 echo "=== /etc/environment ==="
 cat /etc/environment 2> /dev/null || echo "(missing)"
-check "profile.d script written" test -f /etc/profile.d/conda_bin_path.sh
-check "profile.d script exports /opt/myforge/bin" grep -q '/opt/myforge/bin' /etc/profile.d/conda_bin_path.sh
+check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script exports /opt/myforge/bin" grep -q '/opt/myforge/bin' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 check "bash.bashrc exports /opt/myforge/bin" grep -q '/opt/myforge/bin' /etc/bash.bashrc
 check "zshenv exports /opt/myforge/bin" grep -q '/opt/myforge/bin' /etc/zsh/zshenv
 check "BASH_ENV registered in /etc/environment" grep -q '^BASH_ENV=' /etc/environment

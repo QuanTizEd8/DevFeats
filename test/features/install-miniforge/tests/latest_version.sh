@@ -23,7 +23,7 @@ check "conda info --base returns /opt/conda" bash -c '[ "$(/opt/conda/bin/conda 
 check "base environment is accessible" /opt/conda/bin/conda env list
 
 # --- PATH export written ---
-check "profile.d script written" test -f /etc/profile.d/conda_bin_path.sh
-check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
+check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 
 reportResults

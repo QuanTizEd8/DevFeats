@@ -21,10 +21,10 @@ check "symlink target is /opt/git/bin/git" bash -c '[ "$(readlink /usr/local/bin
 check "git canonically resolves to /opt/git/bin/git" bash -c '[ "$(readlink -f "$(command -v git)")" = "/opt/git/bin/git" ]'
 
 # --- PATH export written for non-standard prefix ---
-echo "=== /etc/profile.d/install-git.sh ==="
-cat /etc/profile.d/install-git.sh 2> /dev/null || echo "(missing)"
-check "profile.d script written" test -f /etc/profile.d/install-git.sh
-check "profile.d exports /opt/git/bin" grep -Fq 'export PATH="/opt/git/bin:${PATH}"' /etc/profile.d/install-git.sh
-check "profile.d exports /opt/git/share/man" grep -Fq 'export MANPATH="/opt/git/share/man:${MANPATH}"' /etc/profile.d/install-git.sh
+echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
+check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d exports /opt/git/bin" grep -Fq 'export PATH="/opt/git/bin:${PATH}"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d exports /opt/git/share/man" grep -Fq 'export MANPATH="/opt/git/share/man:${MANPATH}"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 
 reportResults

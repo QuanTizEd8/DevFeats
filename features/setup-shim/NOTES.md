@@ -33,12 +33,12 @@ With the defaults above, all three shims (`code`, `devcontainer-info`,
 
 ### Shim directory
 
-Shims are installed to `/usr/local/share/setup-shim/bin/`. The feature
+Shims are installed to `/usr/local/share/QuanTizEd8/DevFeats/setup-shim/bin/`. The feature
 declares a `containerEnv` that prepends this directory to `PATH`:
 
 ```json
 "containerEnv": {
-  "PATH": "/usr/local/share/setup-shim/bin:${containerEnv:PATH}"
+  "PATH": "/usr/local/share/QuanTizEd8/DevFeats/setup-shim/bin:${containerEnv:PATH}"
 }
 ```
 

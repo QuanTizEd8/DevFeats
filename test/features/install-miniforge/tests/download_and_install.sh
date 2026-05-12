@@ -28,17 +28,17 @@ check "mamba activation script exists" test -f /opt/conda/etc/profile.d/mamba.sh
 # --- PATH export (export_path=auto by default, Debian Case A: public install + root) ---
 echo "=== conda --version ==="
 /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
-echo "=== /etc/profile.d/conda_bin_path.sh ==="
-cat /etc/profile.d/conda_bin_path.sh 2> /dev/null || echo "(missing)"
+echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
 echo "=== /etc/bash.bashrc ==="
 cat /etc/bash.bashrc 2> /dev/null || echo "(missing)"
 echo "=== /etc/zsh/zshenv ==="
 cat /etc/zsh/zshenv 2> /dev/null || echo "(missing)"
 echo "=== /etc/environment ==="
 cat /etc/environment 2> /dev/null || echo "(missing)"
-check "profile.d script written" test -f /etc/profile.d/conda_bin_path.sh
-check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
-check "profile.d script exports /opt/conda/bin" grep -q '/opt/conda/bin' /etc/profile.d/conda_bin_path.sh
+check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script exports /opt/conda/bin" grep -q '/opt/conda/bin' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 check "bash.bashrc has marked block" grep -q 'conda PATH (install-miniforge)' /etc/bash.bashrc
 check "bash.bashrc exports /opt/conda/bin" grep -q '/opt/conda/bin' /etc/bash.bashrc
 check "zshenv has marked block" grep -q 'conda PATH (install-miniforge)' /etc/zsh/zshenv

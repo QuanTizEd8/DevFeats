@@ -16,10 +16,10 @@ echo "=== pixi --version ==="
 check "pixi --version succeeds" /usr/local/bin/pixi --version
 
 # --- no PATH block written (prefix=/usr/local, no-op) ---
-check "no profile.d pixi_bin_path.sh written" bash -c '! test -f /etc/profile.d/pixi_bin_path.sh'
+check "no profile.d export file written" bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
 
 # --- no PIXI_HOME block written (home_dir is empty) ---
-check "no profile.d pixi_home.sh written" bash -c '! test -f /etc/profile.d/pixi_home.sh'
+check "no profile.d PIXI_HOME block written" bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
 
 # --- no installer artifacts left ---
 check "installer dir cleaned up" bash -c '! test -f /tmp/pixi-installer/pixi-*.tar.gz 2>/dev/null'

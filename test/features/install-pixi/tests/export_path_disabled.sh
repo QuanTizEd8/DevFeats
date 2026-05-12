@@ -11,7 +11,7 @@ check "pixi binary is executable" test -x /opt/pixi/bin/pixi
 check "/opt/pixi/bin/pixi --version succeeds" /opt/pixi/bin/pixi --version
 
 # --- no PATH blocks written at all ---
-check "no profile.d pixi_bin_path.sh written" bash -c '! test -f /etc/profile.d/pixi_bin_path.sh'
+check "no profile.d export file written" bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
 check "no pixi PATH marker in bash.bashrc" bash -c '! grep -Fq "pixi PATH (install-pixi)" /etc/bash.bashrc 2>/dev/null'
 check "no pixi PATH marker in zshenv" bash -c '! grep -Fq "pixi PATH (install-pixi)" /etc/zsh/zshenv 2>/dev/null'
 

@@ -25,7 +25,7 @@ check ".condarc has expected content" grep -q 'auto_activate_base' /root/.condar
 check ".bashrc has conda initialize block" grep -q 'conda initialize' /root/.bashrc
 
 # --- PATH export written ---
-check "profile.d script written" test -f /etc/profile.d/conda_bin_path.sh
-check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
+check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 
 reportResults

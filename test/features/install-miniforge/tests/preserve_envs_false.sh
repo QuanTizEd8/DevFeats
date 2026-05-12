@@ -22,7 +22,7 @@ check "myenv directory removed" bash -c '[ ! -d /opt/conda/envs/myenv ]'
 check "conda --version succeeds" /opt/conda/bin/conda --version
 
 # --- PATH export written ---
-check "profile.d script written" test -f /etc/profile.d/conda_bin_path.sh
-check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
+check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 
 reportResults

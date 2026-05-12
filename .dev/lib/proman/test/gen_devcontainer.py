@@ -4,14 +4,31 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import shutil
 import sys
 from pathlib import Path
 
+from proman.const import export_profile_d, feat_share_dir
+from proman.git import git_owner_repo
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
 from .environments import load as load_envs
 from .scenarios import expand_envs, merge_defaults
 from .scenarios import load as load_scenarios
+
+
+def _copy_test_script(src: Path, dst: Path, feature: str, owner: str, repo: str) -> None:
+    """Copy a test script, prepending _FEAT_SHARE_DIR/_EXPORT_PROFILE_D variable definitions."""
+    content = src.read_text(encoding="utf-8")
+    lines = content.splitlines(keepends=True)
+    insert_at = 1 if lines and lines[0].startswith("#!") else 0
+    vars_block = (
+        f"_FEAT_SHARE_DIR={shlex.quote(feat_share_dir(feature, owner, repo))}\n"
+        f"_EXPORT_PROFILE_D={shlex.quote(export_profile_d(feature, owner, repo))}\n"
+    )
+    lines.insert(insert_at, vars_block)
+    dst.write_text("".join(lines), encoding="utf-8")
+    shutil.copymode(src, dst)
 
 
 def _inject_github_token(scenarios: dict) -> None:
@@ -93,6 +110,7 @@ def generate(
     defaults, scenarios = load_scenarios(scenarios_path)
     envs = load_envs(envs_path)
     envs_dir = envs_path.parent / "envs"
+    owner, repo = git_owner_repo()
 
     scenarios_dir = out_dir / "test" / feature
     scenarios_dir.mkdir(parents=True, exist_ok=True)
@@ -126,7 +144,13 @@ def generate(
 
             tests = scenario.get("tests", [])
             if tests:
-                shutil.copy(tests_src_dir / tests[0], scenarios_dir / f"{key}.sh")
+                _copy_test_script(
+                    tests_src_dir / tests[0],
+                    scenarios_dir / f"{key}.sh",
+                    feature,
+                    owner,
+                    repo,
+                )
 
     _inject_github_token(output)
     (scenarios_dir / "scenarios.json").write_text(json.dumps(output, indent=4) + "\n")

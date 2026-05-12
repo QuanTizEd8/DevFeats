@@ -18,6 +18,6 @@ check "git --version succeeds" git --version
 # --- installation was skipped: verify git is still the pre-installed version ---
 check "git is still functional" bash -c 'git --version | grep -qE "^git version [0-9]"'
 check "skip did not write /etc/gitconfig" bash -c '! test -e /etc/gitconfig'
-check "skip did not write /etc/profile.d/install-git.sh" bash -c '! test -e /etc/profile.d/install-git.sh'
+check "skip did not write profile.d export file" bash -c '! test -e "/etc/profile.d/${_EXPORT_PROFILE_D}"'
 
 reportResults

@@ -15,6 +15,6 @@ echo "=== pixi --version ==="
 check "pixi --version succeeds" /usr/local/bin/pixi --version
 
 # --- no unnecessary PATH block written ---
-check "no profile.d pixi_bin_path.sh written" bash -c '! test -f /etc/profile.d/pixi_bin_path.sh'
+check "no profile.d export file written" bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
 
 reportResults

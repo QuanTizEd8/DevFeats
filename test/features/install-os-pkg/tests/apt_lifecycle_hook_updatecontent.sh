@@ -5,11 +5,11 @@ set -e
 
 source dev-container-features-test-lib
 
-check "update-content.sh exists" test -f /usr/local/share/install-os-pkg/update-content.sh
-check "update-content.sh is executable" test -x /usr/local/share/install-os-pkg/update-content.sh
-check "update-content.sh references manifest" grep -q -- '--manifest' /usr/local/share/install-os-pkg/update-content.sh
-check "on-create.sh not written" test ! -f /usr/local/share/install-os-pkg/on-create.sh
-check "post-create.sh not written" test ! -f /usr/local/share/install-os-pkg/post-create.sh
+check "update-content.sh exists" test -f "${_FEAT_SHARE_DIR}/update-content.sh"
+check "update-content.sh is executable" test -x "${_FEAT_SHARE_DIR}/update-content.sh"
+check "update-content.sh references manifest" grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/update-content.sh"
+check "on-create.sh not written" test ! -f "${_FEAT_SHARE_DIR}/on-create.sh"
+check "post-create.sh not written" test ! -f "${_FEAT_SHARE_DIR}/post-create.sh"
 check "tree installed by updateContent hook" command -v tree
 
 reportResults

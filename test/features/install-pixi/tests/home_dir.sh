@@ -11,11 +11,11 @@ check "pixi binary installed" test -f /usr/local/bin/pixi
 check "pixi --version succeeds" /usr/local/bin/pixi --version
 
 # --- PIXI_HOME export written to system-wide profile.d ---
-echo "=== /etc/profile.d/pixi_home.sh ==="
-cat /etc/profile.d/pixi_home.sh 2> /dev/null || echo "(missing)"
-check "profile.d pixi_home.sh written" test -f /etc/profile.d/pixi_home.sh
-check "profile.d pixi_home.sh has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' /etc/profile.d/pixi_home.sh
-check "profile.d pixi_home.sh exports /var/pixi" grep -Fq '/var/pixi' /etc/profile.d/pixi_home.sh
+echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
+check "profile.d export file written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d export file has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d export file exports /var/pixi" grep -Fq '/var/pixi' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 
 # --- PIXI_HOME export also written to the other startup files used by auto mode ---
 echo "=== /etc/environment ==="
@@ -32,6 +32,6 @@ check "/etc/bash.bashrc has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-
 check "/etc/zsh/zshenv has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' /etc/zsh/zshenv
 
 # --- no PATH block written (prefix=/usr/local, no-op) ---
-check "no profile.d pixi_bin_path.sh written" bash -c '! test -f /etc/profile.d/pixi_bin_path.sh'
+check "no pixi PATH block in export file" bash -c '! grep -Fq "pixi PATH (install-pixi)" "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null'
 
 reportResults

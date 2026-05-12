@@ -17,11 +17,11 @@ echo "=== /opt/pixi/bin/pixi --version ==="
 check "/opt/pixi/bin/pixi --version succeeds" /opt/pixi/bin/pixi --version
 
 # --- PATH block written to system-wide profile.d (root + non-default prefix) ---
-echo "=== /etc/profile.d/pixi_bin_path.sh ==="
-cat /etc/profile.d/pixi_bin_path.sh 2> /dev/null || echo "(missing)"
-check "profile.d pixi_bin_path.sh written" test -f /etc/profile.d/pixi_bin_path.sh
-check "profile.d script has pixi PATH marker" grep -Fq 'pixi PATH (install-pixi)' /etc/profile.d/pixi_bin_path.sh
-check "profile.d script exports /opt/pixi/bin" grep -Fq '/opt/pixi/bin' /etc/profile.d/pixi_bin_path.sh
+echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
+check "profile.d export file written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script has pixi PATH marker" grep -Fq 'pixi PATH (install-pixi)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script exports /opt/pixi/bin" grep -Fq '/opt/pixi/bin' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 
 # --- no symlink at /usr/local/bin/pixi ---
 check "no symlink at /usr/local/bin/pixi" bash -c '! test -L /usr/local/bin/pixi'

@@ -16,7 +16,7 @@ check "symlink points to /opt/pixi/bin/pixi" bash -c '[ "$(readlink /usr/local/b
 check "symlink is callable" /usr/local/bin/pixi --version
 
 # --- PATH block written (prefix != /usr/local) ---
-check "profile.d pixi_bin_path.sh written" test -f /etc/profile.d/pixi_bin_path.sh
-check "profile.d script exports /opt/pixi/bin" grep -Fq '/opt/pixi/bin' /etc/profile.d/pixi_bin_path.sh
+check "profile.d export file written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d script exports /opt/pixi/bin" grep -Fq '/opt/pixi/bin' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 
 reportResults

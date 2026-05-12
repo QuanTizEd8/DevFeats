@@ -22,11 +22,11 @@ check "/etc/gitconfig created" test -f /etc/gitconfig
 check "init.defaultBranch is main" bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
 
 # --- PATH export (export_path=auto default) ---
-echo "=== /etc/profile.d/install-git.sh ==="
-cat /etc/profile.d/install-git.sh 2> /dev/null || echo "(missing)"
-check "profile.d script written" test -f /etc/profile.d/install-git.sh
-check "profile.d has PATH block" grep -Fq 'git PATH (install-git)' /etc/profile.d/install-git.sh
-check "profile.d exports /usr/local/bin" grep -Fq 'export PATH="/usr/local/bin:${PATH}"' /etc/profile.d/install-git.sh
+echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
+check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d has PATH block" grep -Fq 'git PATH (install-git)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "profile.d exports /usr/local/bin" grep -Fq 'export PATH="/usr/local/bin:${PATH}"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 check "bashrc has PATH marker" grep -Fq 'git PATH (install-git)' /etc/bash.bashrc
 check "zshenv has PATH marker" grep -Fq 'git PATH (install-git)' /etc/zsh/zshenv
 
