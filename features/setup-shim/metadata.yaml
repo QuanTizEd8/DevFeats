@@ -18,14 +18,6 @@ _long_description: >-
 containerEnv:
   PATH: "@@_FEAT_SHARE_DIR@@/bin:$PATH"
 options:
-  export_path:
-    type: array
-    default: auto
-    description: >-
-      Controls which shell startup files receive PATH export blocks for the shim directory.
-      - `auto` (default): root writes system-wide shell files; non-root writes user shell files.
-      - `''` (empty): skips PATH writes.
-      - A list of absolute file paths: writes only to those specific files.
   code:
     type: boolean
     default: true
@@ -38,3 +30,14 @@ options:
     type: boolean
     default: true
     description: Install a `systemctl` shim that delegates to the real systemctl when systemd is running, or prints a helpful message suggesting the `service` command.
+_prefix_groups:
+  "":
+    default_root: "@@_FEAT_SHARE_DIR@@"
+    default_nonroot: "@@_FEAT_SHARE_DIR@@"
+    skip_symlink: true
+    export_path_description: >-
+      Controls which shell startup files receive PATH export blocks for the shim directory
+      (`${prefix}/bin`).
+      - `auto` (default): root writes system-wide shell files; non-root writes user shell files.
+      - `''` (empty): skips PATH writes.
+      - A list of absolute file paths: writes only to those specific files.

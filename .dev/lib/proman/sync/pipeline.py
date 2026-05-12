@@ -12,7 +12,7 @@ import yaml
 
 from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.git import git_owner_repo, git_repo_root
-from proman.metadata import _inject_prefix_options
+from proman.metadata import _feature_vars, _inject_prefix_options, _substitute_vars
 from proman.sync.file_sync import SyncStatus, remove_file, sync_file
 from proman.sync.install_script import InstallScriptGenerator
 from proman.sync.metadata import (
@@ -89,6 +89,8 @@ def run(*, check_only: bool = False) -> int:
 
         n_features += 1
         output_files: dict[Path, str] = {}
+
+        metadata = _substitute_vars(metadata, _feature_vars(feature_id, repo_owner, repo_name))
 
         if not augment_metadata(feature_id, metadata, derived_options):
             n_failures["augmentation"] += 1

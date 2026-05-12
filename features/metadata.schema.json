@@ -25,13 +25,23 @@
       "type": "array"
     },
     "options": {
-      "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container.",
+      "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container. The names `prefix`, `symlink`, and `export_path` — and any name matching `*_prefix`, `*_symlink`, or `*_export_path` — are permanently reserved for code generation via `_prefix_groups` and must never be defined manually here.",
       "propertyNames": {
         "description": "Option keys must start with an ASCII letter and then contain only ASCII letters, digits, underscores, or hyphens.",
         "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
       },
       "additionalProperties": {
         "$ref": "#/$defs/FeatureOption"
+      },
+      "properties": {
+        "prefix": false,
+        "symlink": false,
+        "export_path": false
+      },
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_]*_prefix$": false,
+        "^[A-Za-z][A-Za-z0-9_]*_symlink$": false,
+        "^[A-Za-z][A-Za-z0-9_]*_export_path$": false
       },
       "type": "object"
     },
@@ -82,9 +92,10 @@
       "type": "boolean"
     },
     "_prefix_groups": {
-      "description": "Internal key for auto-generating prefix/symlink/export_path options and bash helpers. Each entry key is a group ID (use \"\" for the unnamed group that generates prefix/symlink/export_path; use e.g. \"starship\" to generate starship_prefix/starship_symlink/starship_export_path). The generator emits resolver, symlink, and export_path functions for each group and wires them into the _prefix_post_install hook.",
+      "description": "Declares the installable-path groups that drive all of a feature's prefix, symlink, and PATH-export machinery.\n\n**Any feature that manages a user-configurable installation path must declare `_prefix_groups`.** The generator then emits all required user-facing options and bash helpers automatically. Manually defining `prefix`, `symlink`, or `export_path` options — or any variant matching `*_prefix`, `*_symlink`, or `*_export_path` — is always forbidden; those names are reserved exclusively for this system.\n\nFor each declared group the generator produces:\n- **Three user-facing options** (injected into `options` at build time): `{id}_prefix`, `{id}_symlink`, `{id}_export_path` (or the bare `prefix`, `symlink`, `export_path` for the unnamed group `\"\"`).\n- **Three bash helpers** (rendered from templates into `install.bash`): `resolve_{id}_prefix()`, `create_{id}_symlink()`, `export_{id}_path_main()`. All three are wired into `_prefix_post_install()` automatically.\n\n**Group key conventions:**\n- Use `\"\"` (empty string) as the key for a single, unnamed group. Generates the bare option names `prefix`, `symlink`, `export_path` and the bare function names `resolve_prefix()`, `create_symlink()`, `export_path_main()`.\n- Use a non-empty slug (e.g. `\"nvm\"`) for each additional named group. The slug becomes both the option-name prefix (`nvm_prefix`, `nvm_symlink`, `nvm_export_path`) and the function-name component (`resolve_nvm_dir()` if `option_name` overrides, otherwise `resolve_nvm_prefix()`, `create_nvm_symlink()`, `export_nvm_path_main()`).\n\nA feature may declare any number of groups.",
       "type": "object",
       "additionalProperties": {
+        "description": "Configuration for one installable-path group. The group key (empty string for the default unnamed group, or a non-empty slug for named groups) determines the generated option names and bash function names.",
         "type": "object",
         "additionalProperties": false,
         "properties": {
@@ -277,26 +288,6 @@
     "options",
     "_long_description"
   ],
-  "if": {
-    "required": ["_prefix_groups"]
-  },
-  "then": {
-    "properties": {
-      "options": {
-        "description": "When _prefix_groups is present, the prefix/symlink/export_path option names (and their group-prefixed variants) are reserved for code generation and cannot be manually defined.",
-        "properties": {
-          "prefix": false,
-          "symlink": false,
-          "export_path": false
-        },
-        "patternProperties": {
-          "^[A-Za-z][A-Za-z0-9_]*_prefix$": false,
-          "^[A-Za-z][A-Za-z0-9_]*_symlink$": false,
-          "^[A-Za-z][A-Za-z0-9_]*_export_path$": false
-        }
-      }
-    }
-  },
   "$defs": {
     "FeatureOption": {
       "description": "Feature option. Two internal-use-only array types are added in addition to the standard boolean and string types for script generation purposes. Externally, these array types are represented as string options where array values are newline-delimited.",

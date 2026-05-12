@@ -1,21 +1,7 @@
-_SHIM_BIN="${_FEAT_SHARE_DIR}/bin"
+_SHIM_BIN="${PREFIX}/bin"
 
 # shellcheck source=lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
-
-# Write shim PATH exports to shell startup files.
-_shim_export_path_main() {
-  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    logging__info "export_path is empty; skipping PATH export."
-    return 0
-  fi
-  shell__write_env_block \
-    --opt "$(printf '%s\n' "${EXPORT_PATH[@]}")" \
-    --profile-d "${_EXPORT_PROFILE_D}" \
-    --marker "shim PATH (setup-shim)" \
-    --content "export PATH=\"${_SHIM_BIN}:\${PATH}\""
-  return 0
-}
 
 # ---------------------------------------------------------------------------
 # Install shims
@@ -47,8 +33,7 @@ if [ "${SYSTEMCTL:-true}" = "true" ]; then
   install_shim "systemctl"
 fi
 
-# Make shims available for current process and persist PATH for future shells.
+# Make shims available for current process.
 export PATH="${_SHIM_BIN}:${PATH}"
-_shim_export_path_main
 
 exit 0
