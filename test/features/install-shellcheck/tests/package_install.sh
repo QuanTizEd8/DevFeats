@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies method=repos installs a working shellcheck.
+# Verifies method=package installs a working shellcheck.
 set -e
 
 source dev-container-features-test-lib

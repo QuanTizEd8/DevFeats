@@ -1,5 +1,5 @@
 #!/bin/bash
-# method=repos (default), shell_completions="" (no completions) on Ubuntu:
+# method=upstream-package (default), shell_completions="" (no completions) on Ubuntu:
 # gh is installed via the official apt repo but completion files must NOT be written.
 set -e
 

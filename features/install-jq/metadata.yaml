@@ -13,7 +13,7 @@ _long_description: |-
 
   `method=auto` prefers a verified upstream release binary for reproducible version
   pinning and falls back to the OS package manager. Use `version` to pin an exact
-  release, `prefix` to control the installation destination for the release or source
+  release, `prefix` to control the installation destination for the binary or source
   method, and `if_exists` to control behaviour when `jq` is already available.
   Use `method=source` when package or binary methods do not satisfy constraints
   (e.g. uncommon architectures or patching requirements).
@@ -25,12 +25,12 @@ options:
     enum:
       - value: auto
         description: Prefer release binary with SHA-256 verification, then fall back to package manager.
-      - value: release
+      - value: binary
         description: |-
           Install from GitHub release binaries with SHA-256 checksum verification.
           Official release assets exist for Linux amd64, arm64, and i386, and macOS amd64 and arm64.
-          `method=auto` falls back to `repos` automatically when no matching asset is available.
-      - value: repos
+          `method=auto` falls back to `package` automatically when no matching asset is available.
+      - value: package
         description: Install from the operating system package manager.
       - value: source
         description: |-
@@ -40,7 +40,7 @@ options:
   version:
     type: string
     _applies_when:
-      - method: [auto, release, source]
+      - method: [auto, binary, source]
     default: latest
     description: |-
       Version of jq to install. Accepts `latest` (resolved via the GitHub Releases API) or any

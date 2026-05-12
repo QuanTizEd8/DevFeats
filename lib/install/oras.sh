@@ -123,7 +123,7 @@ _install__oras_install_release() {
   if [[ "$_context" == "internal" ]]; then
     install__track_internal_path "$_group" "$_bin_dest"
   fi
-  install__state_record "oras" "$_context" "release" "$_bin_dest" "$_group" || true
+  install__state_record "oras" "$_context" "binary" "$_bin_dest" "$_group" || true
   rm -rf "$_tmp"
   printf '%s\n' "$_bin_dest"
   return 0
@@ -137,7 +137,7 @@ _install__oras_install_repos() {
     local _bin_from_manifest
     _bin_from_manifest="$(command -v oras 2> /dev/null || true)"
     [[ -n "$_bin_from_manifest" ]] || return 1
-    install__state_record "oras" "$_context" "repos" "$_bin_from_manifest" "$_group" || true
+    install__state_record "oras" "$_context" "package" "$_bin_from_manifest" "$_group" || true
     printf '%s\n' "$_bin_from_manifest"
     return 0
   fi
@@ -162,12 +162,12 @@ EOF
   local _bin
   _bin="$(command -v oras 2> /dev/null || true)"
   [[ -n "$_bin" ]] || return 1
-  install__state_record "oras" "$_context" "repos" "$_bin" "$_group" || true
+  install__state_record "oras" "$_context" "package" "$_bin" "$_group" || true
   printf '%s\n' "$_bin"
   return 0
 }
 
-# @brief install__oras --context <internal|user> [--version <ver|latest>] [--min-version <ver>] [--method <auto|release|repos>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--download-url <url>] [--repos-manifest <path>] [--owner-group <id>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
+# @brief install__oras --context <internal|user> [--version <ver|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--download-url <url>] [--repos-manifest <path>] [--owner-group <id>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
 install__oras() {
   local _context="internal" _version="latest" _min_version="" _method="auto" _install_prefix="auto"
   local _if_exists="skip" _download_url="" _repos_manifest="" _owner_group="lib-oci-oras"
@@ -259,10 +259,10 @@ install__oras() {
   fi
   _version="$(_install__oras_resolve_version "$_version")" || return 1
   case "$_method" in
-    release)
+    binary)
       _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_download_url"
       ;;
-    repos)
+    package)
       _install__oras_install_repos "$_version" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     auto)

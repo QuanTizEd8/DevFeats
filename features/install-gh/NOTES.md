@@ -46,7 +46,7 @@ Install an exact version via apt (Debian/Ubuntu only; not supported on Alpine/Ar
 "features": {
   "ghcr.io/quantized8/devfeats/install-gh:0": {
     "version": "2.89.0",
-    "method": "repos"
+    "method": "upstream-package"
   }
 }
 ```
@@ -197,7 +197,7 @@ Install the binary to a non-default location with a symlink at `/usr/local/bin/g
 
 ## Details
 
-### `method=repos` Behavior by Platform
+### `method=upstream-package` Behavior by Platform
 
 | Platform | Package manager | Package name | Source | Version pinning |
 |---|---|---|---|---|
@@ -238,7 +238,7 @@ For `method=binary`, the installer downloads `gh_<version>_checksums.txt` alongs
 When `shell_completions` is non-empty (default: `"bash zsh"`), shell completions are installed for the listed shells:
 
 - **`method=binary`:** Completion files are read from the release archive (`share/bash-completion/completions/gh` and `share/zsh/site-functions/_gh`), which are bundled in every GitHub Releases archive.
-- **`method=repos`:** Completions are generated on the fly via `gh completion -s bash` and `gh completion -s zsh`. This is necessary for Alpine and Arch, where the community package may not install completions, and ensures they land in the feature-controlled paths on all platforms.
+- **`method=upstream-package`:** Completions are generated on the fly via `gh completion -s bash` and `gh completion -s zsh`. This is necessary for Alpine and Arch, where the community package may not install completions, and ensures they land in the feature-controlled paths on all platforms.
 
 Installation paths:
 - **As root:** Bash → `/etc/bash_completion.d/gh`; Zsh → `<zshdir>/completions/_gh` (where `<zshdir>` is detected by `shell__detect_zshdir`)
@@ -290,13 +290,13 @@ For SSH signing to show commits as **Verified** on GitHub, the user's public key
 
 ### Security Considerations
 
-- `method=repos`: Uses GPG-signed package metadata for Debian/Ubuntu and RHEL/Fedora. The apt keyring is downloaded and placed in `/etc/apt/keyrings/` (modern, non-deprecated approach). The GPG fingerprints published by the GitHub CLI team are `2C6106201985B60E6C7AC87323F3D4EA75716059` and `7F38BBB59D064DBCB3D84D725612B36462313325`.
+- `method=upstream-package`: Uses GPG-signed package metadata for Debian/Ubuntu and RHEL/Fedora. The apt keyring is downloaded and placed in `/etc/apt/keyrings/` (modern, non-deprecated approach). The GPG fingerprints published by the GitHub CLI team are `2C6106201985B60E6C7AC87323F3D4EA75716059` and `7F38BBB59D064DBCB3D84D725612B36462313325`.
 - `method=binary`: Verifies SHA-256 of the downloaded archive against the `checksums.txt` file published with each release. Both the archive and checksums file are fetched from the same `github.com/cli/cli/releases/download/...` base URL over HTTPS.
 
 ### Troubleshooting
 
 - **`gh` not found after install with `method=binary`:** Ensure `$prefix/bin` is on `$PATH`. The `containerEnv.PATH` entry in the feature adds `/usr/local/bin` automatically; if using a custom `prefix`, either use `/usr/local` (default) or enable `symlink=true` so `/usr/local/bin/gh` points to the binary.
-- **Version not found with `method=repos` on Alpine/Arch:** Version pinning is not supported via `apk`/`pacman`. Use `method=binary` for an exact version on these platforms.
+- **Version not found with `method=upstream-package` on Alpine/Arch:** Version pinning is not supported via `apk`/`pacman`. Use `method=binary` for an exact version on these platforms.
 - **GPG key issues on Debian/Ubuntu:** If the apt keyring download (`cli.github.com/packages/githubcli-archive-keyring.gpg`) fails due to network restrictions, use `method=binary` instead.
 - **Extension install fails:** `gh extension install` requires network access to `github.com`. Ensure the container has internet access at feature install time.
 - **Commits not showing as Verified with `sign_commits=ssh`:** Ensure the user's `user.signingkey` is set (pointing to a `.pub` file, e.g. `~/.ssh/id_ed25519.pub`) and the corresponding public key is registered as an SSH signing key on GitHub.

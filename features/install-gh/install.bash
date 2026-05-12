@@ -62,7 +62,7 @@ _gh__install_repos() {
     arch | manjaro)
       # github-cli is available from the official Arch repos; no extra repo setup needed.
       if [ "${VERSION}" != "latest" ]; then
-        logging__warn "Version pinning is not supported for method=repos on Arch. Installing latest available github-cli."
+        logging__warn "Version pinning is not supported for method=upstream-package on Arch. Installing latest available github-cli."
       fi
       ospkg__install_user github-cli
       logging__fn_exit "_gh__install_repos"
@@ -72,7 +72,7 @@ _gh__install_repos() {
   case "${_id_like}" in
     *arch*)
       if [ "${VERSION}" != "latest" ]; then
-        logging__warn "Version pinning is not supported for method=repos on Arch. Installing latest available github-cli."
+        logging__warn "Version pinning is not supported for method=upstream-package on Arch. Installing latest available github-cli."
       fi
       ospkg__install_user github-cli
       logging__fn_exit "_gh__install_repos"
@@ -104,7 +104,7 @@ _gh__install_repos() {
       _gh__repos_macos
       ;;
     *)
-      logging__error "Unsupported platform '${_platform}' for method=repos."
+      logging__error "Unsupported platform '${_platform}' for method=upstream-package."
       exit 1
       ;;
   esac
@@ -116,7 +116,7 @@ _gh__install_repos() {
 _gh__repos_rhel() {
   logging__fn_entry "_gh__repos_rhel"
   if [ "${VERSION}" != "latest" ]; then
-    logging__warn "Version pinning is not supported for method=repos on RHEL-based systems. Installing latest available gh."
+    logging__warn "Version pinning is not supported for method=upstream-package on RHEL-based systems. Installing latest available gh."
   fi
   if command -v zypper > /dev/null 2>&1; then
     mkdir -p /etc/zypp/repos.d
@@ -157,7 +157,7 @@ _gh__repos_rhel() {
 _gh__repos_alpine() {
   logging__fn_entry "_gh__repos_alpine"
   if [ "${VERSION}" != "latest" ]; then
-    logging__warn "Version pinning is not supported for method=repos on Alpine. Installing latest available github-cli."
+    logging__warn "Version pinning is not supported for method=upstream-package on Alpine. Installing latest available github-cli."
   fi
   ospkg__install_user github-cli
   logging__fn_exit "_gh__repos_alpine"
@@ -508,14 +508,14 @@ export ADD_USERS
 _gh__check_existing "${_resolved_version}"
 
 # Install gh.
-if [ "${METHOD}" = "repos" ]; then
+if [ "${METHOD}" = "upstream-package" ]; then
   _gh__install_repos
 else
   _gh__install_binary "${_resolved_version}"
 fi
 
-# Install completions for repos method (binary method handles them internally).
-if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ] && [ "${METHOD}" = "repos" ]; then
+# Install completions for upstream-package method (binary method handles them internally).
+if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ] && [ "${METHOD}" = "upstream-package" ]; then
   _gh__install_completions --from-command
 fi
 

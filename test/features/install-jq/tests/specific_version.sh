@@ -1,5 +1,5 @@
 #!/bin/bash
-# version=1.8.1 + method=release: install a specific pinned version.
+# version=1.8.1 + method=binary: install a specific pinned version.
 # Verifies the binary reports exactly 1.8.1.
 set -e
 

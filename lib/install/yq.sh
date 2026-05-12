@@ -80,7 +80,7 @@ _install__yq_install_release() {
   if [[ "$_context" == "internal" ]]; then
     install__track_internal_path "$_group" "$_final_dest"
   fi
-  install__state_record "yq" "$_context" "release" "$_final_dest" "$_group" || true
+  install__state_record "yq" "$_context" "binary" "$_final_dest" "$_group" || true
   printf '%s\n' "$_final_dest"
   return 0
 }
@@ -100,15 +100,15 @@ _install__yq_install_repos() {
   fi
   _bin="$(command -v yq 2> /dev/null || true)"
   if ! _install__yq_compatible "${_bin}"; then
-    logging__error "install__yq: method=repos did not yield a mikefarah/yq-compatible binary."
+    logging__error "install__yq: method=package did not yield a mikefarah/yq-compatible binary."
     return 1
   fi
-  install__state_record "yq" "$_context" "repos" "$_bin" "$_group" || true
+  install__state_record "yq" "$_context" "package" "$_bin" "$_group" || true
   printf '%s\n' "$_bin"
   return 0
 }
 
-# @brief install__yq --context <internal|user> [--method <auto|release|repos>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--version <semver|''>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
+# @brief install__yq --context <internal|user> [--method <auto|binary|package>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--version <semver|''>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
 install__yq() {
   local _context="internal" _method="auto" _owner_group="devfeats-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest="" _version=""
   while [[ $# -gt 0 ]]; do
@@ -174,8 +174,8 @@ install__yq() {
     fi
   fi
   case "$_method" in
-    release) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" ;;
-    repos) _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
+    binary) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" ;;
+    package) _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     auto) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     *) return 1 ;;
   esac

@@ -43,8 +43,8 @@ _jq__get_installed_version() {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-# Version is not meaningful for repos; only resolve when actually needed.
-if [[ "${METHOD}" != "repos" ]]; then
+# Version is not meaningful for package; only resolve when actually needed.
+if [[ "${METHOD}" != "package" ]]; then
   _jq__resolve_version
 fi
 
@@ -57,7 +57,7 @@ fi
 # location already matches the resolved version (regardless of if_exists).
 _JQ_TARGET_BIN="${PREFIX}/bin/jq"
 _INSTALLED_VER=""
-if [[ "${METHOD}" != "repos" ]] && [[ -x "${_JQ_TARGET_BIN}" ]]; then
+if [[ "${METHOD}" != "package" ]] && [[ -x "${_JQ_TARGET_BIN}" ]]; then
   _INSTALLED_VER="$(_jq__get_installed_version "${_JQ_TARGET_BIN}")"
 fi
 
@@ -65,7 +65,7 @@ _SKIP_INSTALL=false
 if [[ -n "${_INSTALLED_VER}" && "${_INSTALLED_VER}" == "${VERSION}" ]]; then
   logging__info "jq ${VERSION} is already installed at '${_JQ_TARGET_BIN}' — skipping install."
   _SKIP_INSTALL=true
-elif [[ "${METHOD}" != "repos" ]] && [[ -x "${_JQ_TARGET_BIN}" ]]; then
+elif [[ "${METHOD}" != "package" ]] && [[ -x "${_JQ_TARGET_BIN}" ]]; then
   case "${IF_EXISTS}" in
     skip)
       logging__info "jq already installed at '${_JQ_TARGET_BIN}' (${_INSTALLED_VER:-unknown}) — skipping (if_exists=skip)."
@@ -94,8 +94,8 @@ if [[ "${_SKIP_INSTALL}" != "true" ]]; then
 fi
 if [[ "${METHOD}" == "auto" ]]; then
   if [[ -x "${PREFIX}/bin/jq" ]]; then
-    METHOD=release
+    METHOD=binary
   else
-    METHOD=repos
+    METHOD=package
   fi
 fi

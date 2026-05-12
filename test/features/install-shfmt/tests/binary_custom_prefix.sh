@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies method=release installs shfmt under a custom prefix.
+# Verifies method=binary installs shfmt under a custom prefix.
 set -e
 
 source dev-container-features-test-lib

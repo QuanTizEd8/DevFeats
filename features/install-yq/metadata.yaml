@@ -15,17 +15,17 @@ _long_description: |-
   Installation supports OS package repositories where the mikefarah package is available, or upstream
   release binaries,
   with `auto` mode preferring upstream release binaries for compatibility and falling back to
-  repository installation only when compatible packages are declared. On Debian/Ubuntu apt, `method=repos`
+  repository installation only when compatible packages are declared. On Debian/Ubuntu apt, `method=package`
   is intentionally unsupported because distro `yq` is the Python jq-wrapper implementation.
 
-  Use `method=repos` when you want distro-managed packages, or `method=release` when you need a
+  Use `method=package` when you want distro-managed packages, or `method=binary` when you need a
   portable upstream binary path. The install is idempotent by default and can be configured with
   `if_exists` behavior.
 options:
   version:
     type: string
     _applies_when:
-      - method: [auto, release]
+      - method: [auto, binary]
     default: latest
     description: |-
       Version of yq to install. Accepts `latest` (resolved via the GitHub Releases API) or any
@@ -48,10 +48,10 @@ options:
     enum:
       - value: auto
         description: Prefer verified upstream release binary, then fallback to package manager.
-      - value: repos
+      - value: package
         description: |-
           Install from the operating system package manager when it provides Mike Farah's yq.
-      - value: release
+      - value: binary
         description: Install from upstream GitHub release artifacts.
   if_exists:
     type: string

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies method=release installs shellcheck under a custom prefix.
+# Verifies method=binary installs shellcheck under a custom prefix.
 set -e
 
 source dev-container-features-test-lib

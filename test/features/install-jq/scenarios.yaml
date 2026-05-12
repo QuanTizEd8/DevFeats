@@ -12,7 +12,7 @@ specific_version:
   modes: [devcontainer, standalone]
   options:
     version: "1.8.1"
-    method: release
+    method: binary
   tests: [specific_version.sh]
 
 legacy_version:
@@ -20,33 +20,33 @@ legacy_version:
   modes: [devcontainer, standalone]
   options:
     version: "1.6"
-    method: release
+    method: binary
   tests: [legacy_version.sh]
 
-release_custom_prefix:
+binary_custom_prefix:
   envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
-    method: release
+    method: binary
     prefix: /opt/jq-bin
     symlink: "true"
     if_exists: reinstall
-  tests: [release_custom_prefix.sh]
+  tests: [binary_custom_prefix.sh]
 
 custom_prefix_no_symlink:
   envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
-    method: release
+    method: binary
     prefix: /opt/jq-bin
     symlink: "false"
   tests: [custom_prefix_no_symlink.sh]
 
-repos_install:
+package_install:
   envs: [debian-bookworm+bash, alpine-3.20+bash, fedora-latest+bash]
   modes: [devcontainer, standalone]
   options:
-    method: repos
+    method: package
   tests: [default.sh]
 
 version_match_idempotency:
@@ -62,7 +62,7 @@ reinstall:
   modes: [devcontainer, standalone]
   options:
     version: "1.7.1"
-    method: release
+    method: binary
     if_exists: reinstall
   tests: [reinstall.sh]
 

@@ -40,7 +40,7 @@ _shellcheck__platform_arch() {
     x86_64) _arch="x86_64" ;;
     aarch64 | arm64)
       if [[ "$_os" == "darwin" ]]; then
-        logging__debug "install-shellcheck: no release binary for darwin/arm64; falling back to repos."
+        logging__debug "install-shellcheck: no release binary for darwin/arm64; falling back to package."
         return 1
       fi
       _arch="aarch64"
@@ -101,23 +101,23 @@ _existing="$(command -v shellcheck 2> /dev/null || true)"
 _shellcheck__handle_existing "$_existing" "$IF_EXISTS"
 
 case "$METHOD" in
-  release)
+  binary)
     _resolved="$(_shellcheck__resolve_version "$VERSION")" || {
       logging__error "install-shellcheck: could not resolve version '${VERSION}'."
       exit 1
     }
     _shellcheck__install_release "$_resolved"
     ;;
-  repos)
+  package)
     _shellcheck__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
     ;;
   auto)
     _resolved="$(_shellcheck__resolve_version "$VERSION" 2> /dev/null || true)"
     if [[ -n "$_resolved" ]] && _shellcheck__install_release "$_resolved" 2> /dev/null; then
-      METHOD=release
+      METHOD=binary
     else
       _shellcheck__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
-      METHOD=repos
+      METHOD=package
     fi
     ;;
   *)

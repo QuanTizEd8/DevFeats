@@ -1,5 +1,5 @@
 #!/bin/bash
-# version=4.44.2 + method=release: install a specific pinned version.
+# version=4.44.2 + method=binary: install a specific pinned version.
 # Verifies the binary reports exactly 4.44.2.
 set -e
 

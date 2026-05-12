@@ -23,9 +23,9 @@ options:
     enum:
       - value: auto
         description: Prefer release assets, then repositories, script, then Cargo.
-      - value: release
+      - value: binary
         description: Install from GitHub release tarballs with SHA-256 verification.
-      - value: repos
+      - value: package
         description: Install from the operating system package manager.
       - value: script
         description: Install via https://just.systems/install.sh.

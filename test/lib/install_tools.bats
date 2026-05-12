@@ -24,7 +24,7 @@ EOF
   hash -r
 
   ospkg__track_resource "old-group" "${_bin_dir}/oras"
-  install__state_record "oras" "internal" "release" "${_bin_dir}/oras" "old-group"
+  install__state_record "oras" "internal" "binary" "${_bin_dir}/oras" "old-group"
 
   run install__oras --context user --if-exists skip --owner-group feature::install-oras
   assert_success
@@ -52,7 +52,7 @@ EOF
 @test "install__oras rejects removed --verify option" {
   reload_lib install/oras.sh
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
-  run install__oras --context internal --method repos --verify strict
+  run install__oras --context internal --method package --verify strict
   assert_failure
   [[ "$output" == *"unknown option '--verify'"* ]]
 }
@@ -62,7 +62,7 @@ EOF
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   run install__oras \
     --context internal \
-    --method release \
+    --method binary \
     --version 1.3.2 \
     --if-exists reinstall \
     --download-url "https://example.com/oras.tar.gz"

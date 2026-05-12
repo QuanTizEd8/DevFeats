@@ -131,7 +131,7 @@ _install__jq_install_release() {
   if [[ "$_context" == "internal" ]]; then
     install__track_internal_path "$_group" "$_final_dest"
   fi
-  install__state_record "jq" "$_context" "release" "$_final_dest" "$_group" || true
+  install__state_record "jq" "$_context" "binary" "$_final_dest" "$_group" || true
   printf '%s\n' "$_final_dest"
   return 0
 }
@@ -151,7 +151,7 @@ _install__jq_install_repos() {
   local _bin
   _bin="$(command -v jq 2> /dev/null || true)"
   [[ -n "$_bin" ]] || return 1
-  install__state_record "jq" "$_context" "repos" "$_bin" "$_group" || true
+  install__state_record "jq" "$_context" "package" "$_bin" "$_group" || true
   printf '%s\n' "$_bin"
   return 0
 }
@@ -251,7 +251,7 @@ install__jq() {
   fi
 
   local _existing _state_ctx _state_path _state_group
-  if [[ "$_method" == "repos" ]]; then
+  if [[ "$_method" == "package" ]]; then
     _existing="$(command -v jq 2> /dev/null || true)"
   elif [[ -x "${_check_prefix}/bin/jq" ]]; then
     _existing="${_check_prefix}/bin/jq"
@@ -262,10 +262,10 @@ install__jq() {
   _state_path="$(install__state_install_path "jq" 2> /dev/null || true)"
   _state_group="$(install__state_owner_group "jq" 2> /dev/null || true)"
 
-  # For repos: a jq that landed in PATH solely as a transient build-dep (e.g.
+  # For package: a jq that landed in PATH solely as a transient build-dep (e.g.
   # lib-json) has no state record.  Clear _existing so _install__jq_install_repos
   # always runs and marks the package permanent via the package manager.
-  if [[ "$_method" == "repos" && -n "$_existing" && -z "$_state_ctx" ]]; then
+  if [[ "$_method" == "package" && -n "$_existing" && -z "$_state_ctx" ]]; then
     _existing=""
   fi
 
@@ -294,10 +294,10 @@ install__jq() {
   _install_prefix="$_check_prefix"
 
   case "$_method" in
-    release)
+    binary)
       _install__jq_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context"
       ;;
-    repos)
+    package)
       _install__jq_install_repos "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     source)

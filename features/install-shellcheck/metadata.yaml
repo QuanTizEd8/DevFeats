@@ -18,7 +18,7 @@ _long_description: |-
   already available.
 
   Note: upstream releases do not provide an ARM64 macOS binary; on Apple
-  Silicon `method=release` is unavailable and `method=auto` falls back to
+  Silicon `method=binary` is unavailable and `method=auto` falls back to
   the package manager automatically.
 options:
   method:
@@ -28,9 +28,9 @@ options:
     enum:
       - value: auto
         description: Prefer release binary, then fall back to package manager.
-      - value: release
+      - value: binary
         description: Install from GitHub release archives with checksum verification.
-      - value: repos
+      - value: package
         description: Install from the operating system package manager.
   version:
     type: string
@@ -67,4 +67,4 @@ _prefix_groups:
   "":
     bin: shellcheck
     _applies_when:
-      - method: [release]
+      - method: [binary]

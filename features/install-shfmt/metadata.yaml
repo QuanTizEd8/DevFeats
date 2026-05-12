@@ -23,9 +23,9 @@ options:
     enum:
       - value: auto
         description: Prefer release binary, then fall back to package manager.
-      - value: release
+      - value: binary
         description: Install from GitHub release binaries with SHA-256 verification.
-      - value: repos
+      - value: package
         description: Install from the operating system package manager.
   version:
     type: string
@@ -61,4 +61,4 @@ _prefix_groups:
   "":
     bin: shfmt
     _applies_when:
-      - method: [release]
+      - method: [binary]

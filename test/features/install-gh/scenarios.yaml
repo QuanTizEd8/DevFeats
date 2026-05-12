@@ -18,34 +18,34 @@ specific_version_binary:
     method: binary
   tests:
   - specific_version_binary.sh
-repos_debian:
+upstream_package_debian:
   envs:
   - debian-12
   modes:
   - devcontainer
   tests:
-  - repos_debian.sh
-repos_alpine:
+  - upstream_package_debian.sh
+upstream_package_alpine:
   envs:
   - alpine-3.20
   modes:
   - devcontainer
   tests:
-  - repos_alpine.sh
-repos_fedora:
+  - upstream_package_alpine.sh
+upstream_package_fedora:
   envs:
   - fedora-41
   modes:
   - devcontainer
   tests:
-  - repos_fedora.sh
-repos_opensuse:
+  - upstream_package_fedora.sh
+upstream_package_opensuse:
   envs:
   - opensuse-leap+bash
   modes:
   - devcontainer
   tests:
-  - repos_opensuse.sh
+  - upstream_package_opensuse.sh
 binary_custom_path:
   envs:
   - ubuntu-latest
@@ -78,7 +78,7 @@ binary_no_completions:
     shell_completions: ''
   tests:
   - binary_no_completions.sh
-repos_no_completions:
+upstream_package_no_completions:
   envs:
   - ubuntu-latest
   modes:
@@ -86,7 +86,7 @@ repos_no_completions:
   options:
     shell_completions: ''
   tests:
-  - repos_no_completions.sh
+  - upstream_package_no_completions.sh
 git_protocol_https:
   envs:
   - ubuntu-latest+git+sudo

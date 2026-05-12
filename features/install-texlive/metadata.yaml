@@ -1,8 +1,7 @@
 version: 0.1.0
 name: TeX Live Installation
 description: >-
-  Install [TeX Live](https://www.tug.org/texlive/) via the official Unix installer,
-  native macOS packages (MacTeX / BasicTeX), or the system package manager.
+  Install [TeX Live](https://www.tug.org/texlive/) via the official TeX Live installer script or the system package manager.
 keywords:
   - latex
   - tex
@@ -19,9 +18,9 @@ _long_description: |-
   (pdfLaTeX, XeLaTeX, LuaLaTeX, plain TeX), an extensive library of macro packages
   and fonts, and `tlmgr` — the package manager for ongoing CTAN package lifecycle.
 
-  Three installation paths are supported:
+  Two installation paths are supported:
 
-  - **`install-tl`** (default) — The [official TeX Live Unix installer](https://www.tug.org/texlive/quickinstall.html),
+  - **`script`** (default) — The [official TeX Live Unix installer](https://www.tug.org/texlive/quickinstall.html),
     downloaded from CTAN. Works on Linux (glibc and musl/Alpine) and macOS. Provides
     full control over the installation scheme, target directory, repository mirror, paper size, and
     whether to include documentation and source. The installer is driven by a generated
@@ -29,26 +28,17 @@ _long_description: |-
     fully custom profile that takes complete precedence. Use `packages` to add individual CTAN
     packages on top of the chosen scheme.
 
-  - **`mactex`** — The [MacTeX](https://www.tug.org/mactex/) native `.pkg` installer (macOS only —
-    exits with an error on Linux). Full TeX Live distribution plus macOS GUI helpers (TeX Live
-    Utility). Installs to `/usr/local/texlive/YYYY`; the stable path `/Library/TeX/texbin` is used
-    for shell access.
-
-  - **`basictex`** — The [BasicTeX](https://www.tug.org/mactex/morepackages.html) `.pkg` installer
-    (macOS only — exits with an error on Linux). A lightweight macOS-native TeX Live subset (~300 MB).
-    No GUI helpers; use the `packages` option to extend via `tlmgr`.
-
-  - **`os_pkg`** — Install distro-packaged TeX Live from the system package manager. The `scheme`
+  - **`package`** — Install distro-packaged TeX Live from the system package manager. The `scheme`
     option influences the package set selected where the distro offers multiple granularity levels.
     Version is controlled by the distribution's package policy.
 
 options:
   method:
     type: string
-    default: install-tl
+    default: script
     description: Installation method to use.
     enum:
-      - value: install-tl
+      - value: script
         description: |-
           Download and run the [official TeX Live Unix installer](https://www.tug.org/texlive/quickinstall.html).
           Supports Linux (glibc and musl/Alpine) and macOS.
@@ -57,18 +47,7 @@ options:
           are written into the profile automatically.
           Use `profile` to bypass generation with a fully custom profile.
           After installation, `tlmgr` manages individual CTAN packages without a full reinstall.
-      - value: mactex
-        description: |-
-          Install [MacTeX](https://www.tug.org/mactex/) via the official `.pkg` package installer
-          (macOS only — exits with an error on Linux). Full TeX Live distribution plus macOS GUI
-          helpers (TeX Live Utility). Installs to `/usr/local/texlive/YYYY`; shell access via
-          `/Library/TeX/texbin`.
-      - value: basictex
-        description: |-
-          Install [BasicTeX](https://www.tug.org/mactex/morepackages.html) via the official `.pkg`
-          installer (macOS only — exits with an error on Linux). A lightweight macOS-native TeX Live
-          subset (~300 MB). No GUI helpers; use `packages` to extend via `tlmgr`.
-      - value: os_pkg
+      - value: package
         description: |-
           Install TeX Live from the system package manager (`apt`, `dnf`, `apk`, `brew`, etc.).
           The `scheme` option influences the package set where multiple granularity levels are
@@ -80,10 +59,10 @@ options:
     type: string
     default: small
     description: |-
-      TeX Live installation scheme — the bundle of packages to include. For `method=install-tl`,
+      TeX Live installation scheme — the bundle of packages to include. For `method=script`,
       sets the `selected_scheme scheme-<value>` key in the installer profile. Also influences
-      package selection for `method=os_pkg` where distro packaging allows multiple granularity
-      levels. Ignored for `method=mactex` (always full) and `method=basictex` (always small).
+      package selection for `method=package` where distro packaging allows multiple granularity
+      levels.
       Has no effect when `profile` is provided (the profile's `selected_scheme` takes precedence).
     enum:
       - value: full
@@ -120,7 +99,7 @@ options:
       package-manager installation. Each line is a CTAN package name
       (e.g. `latexmk`, `biber`, `pgf`, `collection-fontsrecommended`).
       Applied for all methods that include a working `tlmgr` installation
-      (`install-tl`, `mactex`, `basictex`, and `os_pkg` where `tlmgr` is writable).
+      (`script` and `package` where `tlmgr` is writable).
     proposals:
       - value: latexmk
         description: '`latexmk` — automated LaTeX build tool; required by VS Code LaTeX Workshop.'
@@ -139,7 +118,7 @@ options:
     type: string
     default: ''
     description: |
-      Inline `texlive.profile` content or path/URI to a profile file for `method=install-tl`.
+      Inline `texlive.profile` content or path/URI to a profile file for `method=script`.
       When non-empty, the profile is used directly as the installer profile and all individual
       profile-key options (`texdir`, `texmflocal`, `texmfsysvar`, `texmfsysconfig`, `texmfhome`,
       `texmfvar`, `texmfconfig`, `instopt_adjustpath`, `instopt_adjustrepo`, `instopt_letter`,
@@ -179,7 +158,7 @@ options:
   repository:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ctan
     description: |-
       TeX Live package repository to use as the source of installation.
@@ -209,28 +188,11 @@ options:
       - value: file:/path/to/local/tlnet
         description: Equivalent way to specify a local directory.
 
-  year:
-    type: string
-    _applies_when:
-      - method: [mactex, basictex]
-    default: latest
-    description: |-
-      MacTeX / BasicTeX release year.
-      `latest` automatically uses the current calendar year (auto-detected at install time).
-      An explicit four-digit year (e.g. `2026`) downloads that year's package from the official
-      MacTeX download page.
-    proposals:
-      - value: latest
-        description: Current year (auto-detected from the system date at install time).
-      - value: '2026'
-        description: MacTeX / BasicTeX 2026 (macOS 11 Big Sur or newer).
-      - value: '2025'
-        description: MacTeX / BasicTeX 2025.
 
   verify_downloads:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: true
     description: |-
       Verify the integrity of downloaded TeX Live packages using GPG signatures. When true
@@ -242,7 +204,7 @@ options:
   tlmgr_update:
     type: boolean
     _applies_when:
-      - method: [install-tl, mactex, basictex]
+      - method: [script]
     default: false
     description: |-
       Run `tlmgr update --self --all` after the initial installation to pull in the latest
@@ -253,7 +215,7 @@ options:
   tlmgr_verify_repo:
     type: string
     _applies_when:
-      - method: [install-tl, mactex, basictex]
+      - method: [script]
     default: main
     description: |-
       Set the `tlmgr` repository-signature verification level via `tlmgr option verify-repo
@@ -281,13 +243,13 @@ options:
       - value: reinstall
         description: |-
           Remove the existing TeX Live installation tree and reinstall from scratch.
-          For `method=install-tl`, removes `texdir` before re-running the installer.
+          For `method=script`, removes `texdir` before re-running the installer.
           All `tlmgr`-installed packages are lost; `packages` will re-add them.
 
   installer_dir:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: /tmp/texlive-installer
     description: |-
       Temporary directory for downloading and extracting the TeX Live installer archive
@@ -297,7 +259,7 @@ options:
   keep_installer:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: false
     description: |-
       Keep the installer directory and all downloaded files after a successful installation.
@@ -305,16 +267,16 @@ options:
       Set to true for debugging or to inspect the generated `texlive.profile` written to
       `installer_dir/texlive.profile`.
 
-  # ── install-tl profile options ────────────────────────────────────────────
+  # ── script profile options ───────────────────────────────────────────────
   # The following options map directly to keys in the texlive.profile file that
-  # drives the install-tl installer. They are all ignored when `profile` is set.
+  # drives the install-tl (TeX Live Unix installer) script. They are all ignored when `profile` is set.
 
   # -- directory keys --
 
   texdir:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       TeX Live system installation directory.
@@ -336,7 +298,7 @@ options:
   texmflocal:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       System-wide tree for local additions (packages, fonts,
@@ -353,7 +315,7 @@ options:
   texmfsysconfig:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       Profile key `TEXMFSYSCONFIG` — the system-wide directory for configuration files
@@ -367,7 +329,7 @@ options:
   texmfsysvar:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       Profile key `TEXMFSYSVAR` — the system-wide directory where the installer writes generated
@@ -381,7 +343,7 @@ options:
   texmfhome:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       Profile key `TEXMFHOME` — the per-user directory for personal macro files, fonts, and
@@ -397,7 +359,7 @@ options:
   texmfconfig:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       Profile key `TEXMFCONFIG` — the per-user directory for TeX Live configuration files
@@ -411,7 +373,7 @@ options:
   texmfvar:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       Profile key `TEXMFVAR` — the per-user directory where TeX Live caches generated files
@@ -427,7 +389,7 @@ options:
   instopt_adjustpath:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: true
     description: |-
       Profile key `instopt_adjustpath` — whether the installer creates symlinks for all TeX Live
@@ -440,7 +402,7 @@ options:
   instopt_adjustrepo:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: true
     description: |-
       Profile key `instopt_adjustrepo` — whether `tlmgr` adjusts the configured repository URL
@@ -455,7 +417,7 @@ options:
     default: a4
     description: |-
       Profile key `instopt_letter` — the default paper size (`0` = A4, `1` = Letter). For
-      `method=install-tl`, written into the profile. For other methods where `tlmgr` is
+      `method=script`, written into the profile. For other methods where `tlmgr` is
       available, applied via `tlmgr option paper <value>` after installation.
       Ignored when `profile` is provided (set `instopt_letter` in the profile directly).
     enum:
@@ -467,7 +429,7 @@ options:
   instopt_portable:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: false
     description: |-
       Profile key `instopt_portable` — whether to produce a self-contained portable installation.
@@ -480,7 +442,7 @@ options:
   instopt_write18_restricted:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: true
     description: |-
       Profile key `instopt_write18_restricted` — whether the `\write18` shell-escape primitive is
@@ -495,7 +457,7 @@ options:
   tlpdbopt_install_docfiles:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: false
     description: |-
       Profile key `tlpdbopt_install_docfiles` — whether to install package documentation files.
@@ -506,7 +468,7 @@ options:
   tlpdbopt_install_srcfiles:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: false
     description: |-
       Profile key `tlpdbopt_install_srcfiles` — whether to install package source files. Source
@@ -517,7 +479,7 @@ options:
   tlpdbopt_sys_bin:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: auto
     description: |-
       Profile key `tlpdbopt_sys_bin` — the directory where the installer creates symlinks for
@@ -534,7 +496,7 @@ options:
   tlpdbopt_sys_man:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       Profile key `tlpdbopt_sys_man` — the directory where the installer creates symlinks for
@@ -551,7 +513,7 @@ options:
   tlpdbopt_sys_info:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       Profile key `tlpdbopt_sys_info` — the directory where the installer creates symlinks for
@@ -568,7 +530,7 @@ options:
   tlpdbopt_create_formats:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: true
     description: |-
       Profile key `tlpdbopt_create_formats` — whether to generate TeX format files (`.fmt`)
@@ -580,7 +542,7 @@ options:
   tlpdbopt_post_code:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: true
     description: |-
       Profile key `tlpdbopt_post_code` — whether to run post-installation Perl code for each
@@ -593,7 +555,7 @@ options:
   tlpdbopt_generate_updmap:
     type: boolean
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: false
     description: |-
       Profile key `tlpdbopt_generate_updmap` — whether to regenerate `updmap.cfg` from scratch
@@ -606,7 +568,7 @@ options:
   tlpdbopt_autobackup:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: '1'
     description: |-
       Profile key `tlpdbopt_autobackup` — the number of `tlmgr` package backup copies to retain
@@ -627,7 +589,7 @@ options:
   tlpdbopt_backupdir:
     type: string
     _applies_when:
-      - method: [install-tl]
+      - method: [script]
     default: ''
     description: |-
       Profile key `tlpdbopt_backupdir` — the directory where `tlmgr` stores package backups
@@ -641,13 +603,6 @@ options:
         description: Custom backup directory outside the TeX Live tree.
 
 _user_file_fetch: true
-
-containerEnv:
-  # /Library/TeX/texbin is the stable macOS path managed by MacTeX and BasicTeX.
-  # Adding it here is a no-op on Linux (non-existent PATH entries are silently ignored).
-  # For method=install-tl with instopt_adjustpath=true, latex is accessible via
-  # tlpdbopt_sys_bin (default: /usr/local/bin), which is already on PATH.
-  PATH: /Library/TeX/texbin:${PATH}
 
 customizations:
   vscode:

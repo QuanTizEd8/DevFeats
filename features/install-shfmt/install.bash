@@ -89,23 +89,23 @@ _existing="$(command -v shfmt 2> /dev/null || true)"
 _shfmt__handle_existing "$_existing" "$IF_EXISTS"
 
 case "$METHOD" in
-  release)
+  binary)
     _resolved="$(_shfmt__resolve_version "$VERSION")" || {
       logging__error "install-shfmt: could not resolve version '${VERSION}'."
       exit 1
     }
     _shfmt__install_release "$_resolved"
     ;;
-  repos)
+  package)
     _shfmt__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
     ;;
   auto)
     _resolved="$(_shfmt__resolve_version "$VERSION" 2> /dev/null || true)"
     if [[ -n "$_resolved" ]] && _shfmt__install_release "$_resolved" 2> /dev/null; then
-      METHOD=release
+      METHOD=binary
     else
       _shfmt__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
-      METHOD=repos
+      METHOD=package
     fi
     ;;
   *)

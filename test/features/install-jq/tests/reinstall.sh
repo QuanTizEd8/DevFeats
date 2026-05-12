@@ -1,5 +1,5 @@
 #!/bin/bash
-# version=1.7.1 + method=release + if_exists=reinstall + jq 1.8.1 pre-installed (see reinstall/Dockerfile).
+# version=1.7.1 + method=binary + if_exists=reinstall + jq 1.8.1 pre-installed (see reinstall/Dockerfile).
 # Verifies that if_exists=reinstall replaces the existing binary and the new
 # version is reported correctly.
 set -e

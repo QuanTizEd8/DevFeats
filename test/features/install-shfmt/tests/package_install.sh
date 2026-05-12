@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies method=repos installs a working shfmt.
+# Verifies method=package installs a working shfmt.
 set -e
 
 source dev-container-features-test-lib

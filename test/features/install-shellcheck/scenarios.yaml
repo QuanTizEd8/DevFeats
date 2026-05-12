@@ -9,28 +9,28 @@ default_install:
   - standalone
   tests:
   - default_install.sh
-release_custom_prefix:
+binary_custom_prefix:
   envs:
   - ubuntu-latest
   modes:
   - devcontainer
   - standalone
   options:
-    method: release
+    method: binary
     prefix: /opt/shellcheck-bin
     if_exists: reinstall
   tests:
-  - release_custom_prefix.sh
-repos_install:
+  - binary_custom_prefix.sh
+package_install:
   envs:
   - debian-latest
   modes:
   - devcontainer
   - standalone
   options:
-    method: repos
+    method: package
   tests:
-  - repos_install.sh
+  - package_install.sh
 if_exists_fail:
   expect_install_failure: true
   envs:

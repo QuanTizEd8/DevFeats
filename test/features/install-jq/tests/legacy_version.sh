@@ -1,5 +1,5 @@
 #!/bin/bash
-# version=1.6 + method=release: install the legacy 1.6 release.
+# version=1.6 + method=binary: install the legacy 1.6 release.
 # jq 1.6 uses the legacy asset naming convention (jq-linux64 / jq-osx-amd64)
 # instead of the modern jq-linux-amd64 form. Verifies the binary installs and
 # reports exactly 1.6.

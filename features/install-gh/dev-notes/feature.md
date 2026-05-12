@@ -109,7 +109,7 @@ zypper install -y gh
 zypper update gh  # upgrade
 ```
 
-**Version pinning:** The official docs show only un-versioned `dnf install gh`; they do not document a version-pinned RPM install form. This is a design constraint of `method=repos` on RPM-family distros, not a gap in the feature: for exact version pinning on RHEL/Fedora, use `method=binary`.
+**Version pinning:** The official docs show only un-versioned `dnf install gh`; they do not document a version-pinned RPM install form. This is a design constraint of `method=upstream-package` on RPM-family distros, not a gap in the feature: for exact version pinning on RHEL/Fedora, use `method=binary`.
 
 **Note on dnf4 vs dnf5:** Both accept `dnf install -y gh --repo gh-cli` when the repo file is copied directly to `/etc/yum.repos.d/` — no `config-manager` plugin is needed.
 
@@ -255,7 +255,7 @@ for exact version pinning on macOS.
 For a devcontainer feature targeting containers and standalone Linux/macOS system setup, the recommended
 installation strategy is **two methods**:
 
-**1. `method=repos` (default):** Sets up and uses the officially maintained package repositories
+**1. `method=upstream-package` (default):** Sets up and uses the officially maintained package repositories
 ("supported by the GitHub CLI maintainers" per official docs):
 - Debian/Ubuntu: official apt repo with GPG key (`cli.github.com/packages`) — supports version pinning as `gh=<version>` via apt
 - RHEL/Fedora/CentOS/Amazon Linux/SUSE: official rpm repo — installs latest; exact version pinning is not documented by upstream for rpm-family installs and is excluded from this feature (use `method=binary` instead)
@@ -271,11 +271,11 @@ completions from the archive are optionally installed. This method is slightly m
 the feature must track the release asset naming convention and checksums format.
 
 **Key trade-offs:**
-- `method=repos` gives OS-managed packages (dpkg/rpm metadata, `apt upgrade` support). On Alpine/Arch, it
+- `method=upstream-package` gives OS-managed packages (dpkg/rpm metadata, `apt upgrade` support). On Alpine/Arch, it
   uses community-maintained packages without version pinning. On macOS, Homebrew is the official path.
 - `method=binary` enables exact version pinning on all platforms including Alpine (native static binary, no
   compatibility shim needed). It installs outside the OS package manager.
-- For security-conscious deployments: `method=repos` provides GPG-signed packages (official repos on
+- For security-conscious deployments: `method=upstream-package` provides GPG-signed packages (official repos on
   Debian/Ubuntu/RPM). `method=binary` relies on SHA-256 checksum verification from the same release page.
 
 **Scope of this feature:** Covers installation, shell completions, per-user git protocol and credential helper configuration (`gh config set`, `gh auth setup-git`), commit signing configuration (`gpg.format`, `commit.gpgsign`), and extension installation. Authentication (`gh auth login`) requires user interaction or a `GH_TOKEN` secret and is intentionally out of scope — users supply those at runtime.

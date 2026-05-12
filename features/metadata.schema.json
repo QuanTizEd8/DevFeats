@@ -37,7 +37,24 @@
         "prefix": false,
         "symlink": false,
         "export_path": false,
-        "runtime_path": false
+        "runtime_path": false,
+        "method": {
+          "description": "Installation method option. Enum values must be drawn from the known set of installation method identifiers.",
+          "allOf": [
+            { "$ref": "#/$defs/FeatureOption" },
+            {
+              "properties": {
+                "enum": {
+                  "items": {
+                    "properties": {
+                      "value": { "$ref": "#/$defs/MethodValue" }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
       },
       "patternProperties": {
         "^[A-Za-z][A-Za-z0-9_]*_prefix$": false,
@@ -145,6 +162,36 @@
           "export_path_description": {
             "type": "string",
             "description": "Override the auto-generated description for the injected export_path option."
+          },
+          "platform_overrides": {
+            "type": "array",
+            "description": "Platform-specific prefix defaults evaluated before the uid-based root/nonroot fallback. Entries are tested in order; the first matching `when` condition wins. Uses `os__when_matches` at runtime (same semantics as ospkg manifest `when` clauses, object form only). Supported keys: kernel, arch, id, id_like, codename.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["when", "default"],
+              "properties": {
+                "when": {
+                  "type": "object",
+                  "description": "Condition object. All key=value pairs must match (AND logic). Case-insensitive. Supported keys: kernel, arch, id, id_like, codename.",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "default": {
+                  "type": "string",
+                  "description": "Prefix to use when the condition matches, for both root and non-root. Overridden by default_root or default_nonroot when those are also specified."
+                },
+                "default_root": {
+                  "type": "string",
+                  "description": "Prefix to use when the condition matches and running as root (uid=0). Takes precedence over default."
+                },
+                "default_nonroot": {
+                  "type": "string",
+                  "description": "Prefix to use when the condition matches and running as non-root. Takes precedence over default."
+                }
+              }
+            }
           },
           "_applies_when": {
             "$ref": "#/$defs/appliesWhen"
@@ -524,6 +571,21 @@
           }
         }
       }
+    },
+    "MethodValue": {
+      "description": "Known installation method values across DevFeats features. Features define their subset via their 'method' option's 'enum' array.",
+      "type": "string",
+      "enum": [
+        "auto",
+        "binary",
+        "cargo",
+        "npm",
+        "nvm",
+        "package",
+        "script",
+        "source",
+        "upstream-package"
+      ]
     },
     "appliesWhen": {
       "description": "Internal-use-only property for indicating when this option is applicable based on other option values. Several conditions can be provided in the array, where different conditions are OR-ed together.",

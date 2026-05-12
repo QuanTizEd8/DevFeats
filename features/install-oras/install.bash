@@ -17,8 +17,8 @@ install__oras \
   --download-url "${DOWNLOAD_URL}" > /dev/null
 if [[ "${METHOD}" == "auto" ]]; then
   if [[ -x "${PREFIX}/bin/oras" ]]; then
-    METHOD=release
+    METHOD=binary
   else
-    METHOD=repos
+    METHOD=package
   fi
 fi

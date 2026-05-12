@@ -187,7 +187,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 - Called after gh is installed, regardless of method.
 - Iterates over each shell name in `SHELL_COMPLETIONS` (space-separated).
 - For `method=binary`: reads completion content from the extracted archive directory.
-- For `method=repos`: generates content on the fly via `gh completion -s <shell>`.
+- For `method=upstream-package`: generates content on the fly via `gh completion -s <shell>`.
 - Destination logic (per shell):
   - As root: bash → `/etc/bash_completion.d/gh`; zsh → `<zshdir>/completions/_gh` (via `shell__detect_zshdir`)
   - As non-root: bash → `$HOME/.local/share/bash-completion/completions/gh`; zsh → `$HOME/.zfunc/_gh`
@@ -268,7 +268,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
       _gh__install_repos
     elif METHOD=binary:
       _gh__install_binary "$_resolved_version"
-13. _gh__create_symlink  (no-op when method=repos or prefix=/usr/local)
+13. _gh__create_symlink  (no-op when method=upstream-package or prefix=/usr/local)
 14. if SHELL_COMPLETIONS is non-empty:
       if METHOD=binary:  (already called inside _gh__install_binary — no duplicate call needed)
         # completions handled inside _gh__install_binary via --from-archive
@@ -290,7 +290,7 @@ prevent this, the detection order in `_gh__install_repos` checks `os__id == arch
 
 ### Version Pinning Constraints
 
-| Platform / PM | `method=repos` pinning | `method=binary` pinning |
+| Platform / PM | `method=upstream-package` pinning | `method=binary` pinning |
 |---|---|---|
 | Debian / Ubuntu | `gh=<version>` (apt) | Exact tarball download |
 | RHEL / Fedora / Amazon Linux / SUSE | Not supported (warning logged) | Exact tarball download |

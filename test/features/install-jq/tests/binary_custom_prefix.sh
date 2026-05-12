@@ -1,5 +1,5 @@
 #!/bin/bash
-# method=release, prefix=/opt/jq-bin, symlink=true (default):
+# method=binary, prefix=/opt/jq-bin, symlink=true (default):
 # Verifies jq is installed at the custom prefix AND a symlink is created at
 # /usr/local/bin/jq pointing to the custom-prefix binary.
 set -e

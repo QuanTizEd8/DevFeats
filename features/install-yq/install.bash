@@ -109,14 +109,14 @@ _yq__resolve_version
 # location already matches the resolved version (regardless of if_exists).
 _YQ_TARGET_BIN="${PREFIX}/bin/yq"
 _INSTALLED_VER=""
-if [ "${METHOD}" != "repos" ] && [ -x "${_YQ_TARGET_BIN}" ]; then
+if [ "${METHOD}" != "package" ] && [ -x "${_YQ_TARGET_BIN}" ]; then
   _INSTALLED_VER="$(_yq__get_installed_version "${_YQ_TARGET_BIN}")"
 fi
 _SKIP_INSTALL=false
 if [ -n "${_INSTALLED_VER}" ] && [ "${_INSTALLED_VER}" = "${VERSION}" ]; then
   logging__info "yq ${VERSION} is already installed at '${_YQ_TARGET_BIN}' — skipping install."
   _SKIP_INSTALL=true
-elif [ "${METHOD}" != "repos" ] && [ -x "${_YQ_TARGET_BIN}" ]; then
+elif [ "${METHOD}" != "package" ] && [ -x "${_YQ_TARGET_BIN}" ]; then
   case "${IF_EXISTS}" in
     skip)
       logging__info "yq already installed at '${_YQ_TARGET_BIN}' (${_INSTALLED_VER}) — skipping (if_exists=skip)."
@@ -145,9 +145,9 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
 fi
 if [ "${METHOD}" = "auto" ]; then
   if [ -x "${PREFIX}/bin/yq" ]; then
-    METHOD=release
+    METHOD=binary
   else
-    METHOD=repos
+    METHOD=package
   fi
 fi
 _yq__install_completions

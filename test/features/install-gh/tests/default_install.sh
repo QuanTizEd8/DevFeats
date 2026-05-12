@@ -1,5 +1,5 @@
 #!/bin/bash
-# Default installation on Ubuntu: all defaults (method=repos).
+# Default installation on Ubuntu: all defaults (method=upstream-package).
 # Verifies gh is installed, callable, bash and zsh completions are present.
 set -e
 

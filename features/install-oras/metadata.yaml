@@ -37,9 +37,9 @@ options:
     enum:
       - value: auto
         description: Prefer verified release artifacts, then fallback to package manager.
-      - value: release
+      - value: binary
         description: Install from official ORAS GitHub release artifacts.
-      - value: repos
+      - value: package
         description: |-
           Install from the operating system package manager.
           Package selection and platform support are controlled by `_dependencies.run.os-pkg`.
@@ -58,7 +58,7 @@ options:
     type: string
     default: ''
     description: |-
-      Optional custom URL to an ORAS release tarball (used with `method=release`).
+      Optional custom URL to an ORAS release tarball (used with `method=binary`).
       This is currently unsupported because checksum + GPG verification is mandatory.
       Leave empty to use official ORAS release artifacts.
 _dependencies:
@@ -110,11 +110,11 @@ _dependencies:
           - name: oras
       pacman:
         scripts: |-
-          logging__error "install-oras: method=repos is unsupported on pacman because ORAS is not available in official Arch repositories."
+          logging__error "install-oras: method=package is unsupported on pacman because ORAS is not available in official Arch repositories."
           return 1
 # installsAfter: []
 _prefix_groups:
   "":
     bin: oras
     _applies_when:
-      - method: [release]
+      - method: [binary]

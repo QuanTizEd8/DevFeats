@@ -17,22 +17,22 @@ specific_version:
   - standalone
   options:
     version: 4.44.2
-    method: release
+    method: binary
   tests:
   - specific_version.sh
-release_custom_prefix:
+binary_custom_prefix:
   envs:
   - ubuntu-latest
   modes:
   - devcontainer
   - standalone
   options:
-    method: release
+    method: binary
     prefix: /opt/yq-bin
     symlink: true
     if_exists: reinstall
   tests:
-  - release_custom_prefix.sh
+  - binary_custom_prefix.sh
 custom_prefix_no_symlink:
   envs:
   - ubuntu-latest
@@ -40,12 +40,12 @@ custom_prefix_no_symlink:
   - devcontainer
   - standalone
   options:
-    method: release
+    method: binary
     prefix: /opt/yq-bin
     symlink: false
   tests:
   - custom_prefix_no_symlink.sh
-repos_install:
+package_install:
   envs:
   - debian-latest
   modes:
@@ -55,7 +55,7 @@ repos_install:
     method: auto
     if_exists: reinstall
   tests:
-  - repos_install.sh
+  - package_install.sh
 version_match_idempotency:
   envs:
   - ubuntu-latest+yq-4.44.2

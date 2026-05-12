@@ -90,7 +90,7 @@ _install__just_install_release() {
   if [[ "$_context" == "internal" ]]; then
     install__track_internal_path "$_group" "$_dest"
   fi
-  install__state_record "just" "$_context" "release" "$_dest" "$_group" || true
+  install__state_record "just" "$_context" "binary" "$_dest" "$_group" || true
   printf '%s\n' "$_dest"
 }
 
@@ -104,7 +104,7 @@ _install__just_install_repos() {
     if [[ "${_OSPKG_PKG_MNGR:-}" == "apt-get" ]]; then
       ospkg__run --manifest "$(printf 'packages:\n  - name: just\n    version: "%s"\n' "$_version")" || return 1
     else
-      logging__warn "install-just: version pinning for method=repos is not supported on '${_OSPKG_PKG_MNGR:-unknown}'."
+      logging__warn "install-just: version pinning for method=package is not supported on '${_OSPKG_PKG_MNGR:-unknown}'."
       ospkg__install just || return 1
     fi
   else
@@ -116,7 +116,7 @@ _install__just_install_repos() {
   fi
   _bin="$(command -v just 2> /dev/null || true)"
   [[ -n "$_bin" ]] || return 1
-  install__state_record "just" "$_context" "repos" "$_bin" "$_group" || true
+  install__state_record "just" "$_context" "package" "$_bin" "$_group" || true
   printf '%s\n' "$_bin"
 }
 
@@ -277,13 +277,13 @@ install__just() {
 
   _install_prefix="$(_install__just_resolve_prefix "$_install_prefix")" || return 1
   case "$_method" in
-    release)
+    binary)
       local _resolved_version _resolved_target
       _resolved_version="$(_install__just_resolve_version "$_version")" || return 1
       _resolved_target="$(_install__just_resolve_target "$_target")" || return 1
       _install__just_install_release "$_resolved_version" "$_install_prefix" "$_resolved_target" "$_context" "$_owner_group"
       ;;
-    repos)
+    package)
       _install__just_install_repos "$_version" "$_repos_manifest" "$_context" "$_owner_group"
       ;;
     script)
@@ -330,8 +330,8 @@ install__just \
   --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" > /dev/null
 if [[ "${METHOD}" == "auto" ]]; then
   if [[ -x "${PREFIX}/bin/just" ]]; then
-    METHOD=release
+    METHOD=binary
   else
-    METHOD=repos
+    METHOD=package
   fi
 fi

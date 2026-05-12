@@ -1,5 +1,5 @@
 #!/bin/bash
-# method=release, prefix=/opt/yq-bin, symlink=true (default):
+# method=binary, prefix=/opt/yq-bin, symlink=true (default):
 # Verifies yq is installed at the custom prefix AND a symlink is created at
 # /usr/local/bin/yq pointing to the custom-prefix binary.
 set -e
