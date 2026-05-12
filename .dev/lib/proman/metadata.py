@@ -227,8 +227,8 @@ def _inject_prefix_options(feature_id: str, metadata: dict) -> bool:
             elif binname:
                 symlink_desc = (
                     f"Create a symlink to `{binname}` in the standard binary directory"
-                    f" (`/usr/local/bin/{binname}` as root,"
-                    f" `$HOME/.local/bin/{binname}` as non-root)"
+                    f" (`{default_root}/bin/{binname}` as root,"
+                    f" `{default_nonroot}/bin/{binname}` as non-root)"
                     " when the prefix resolves to a non-default path."
                 )
             else:

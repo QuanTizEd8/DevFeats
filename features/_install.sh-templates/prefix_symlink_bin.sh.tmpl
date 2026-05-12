@@ -8,8 +8,8 @@
   fi
   shell__create_symlink \
     --src "${@@PREFIX_VAR@@}/@@BIN@@" \
-    --system-target "/usr/local/@@BIN@@" \
-    --user-target "${HOME}/.local/@@BIN@@"
+    --system-target "@@DEFAULT_ROOT@@/@@BIN@@" \
+    --user-target "@@DEFAULT_NONROOT@@/@@BIN@@"
   logging__fn_exit "@@FUNC_NAME@@"
   return
 }

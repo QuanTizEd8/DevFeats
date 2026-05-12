@@ -476,6 +476,8 @@ class InstallScriptGenerator:
                         SYMLINK_VAR=var_symlink,
                         SYMLINK_OPT=opt_symlink,
                         BIN=f"bin/{binname}",
+                        DEFAULT_ROOT=default_root,
+                        DEFAULT_NONROOT=default_nonroot,
                         APPLIES_WHEN_GUARD=guard_symlink,
                     )
                 )
