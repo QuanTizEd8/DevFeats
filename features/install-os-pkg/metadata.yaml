@@ -82,11 +82,13 @@ options:
     type: boolean
   lists_max_age:
     default: '300'
+    _applies_when:
+      - update: ['true']
     description: |-
       Maximum age of package lists (in seconds) before an update is considered necessary.
       When the package lists were refreshed more recently than this threshold the update
       step is skipped automatically (unless a new repository was added by the manifest).
-      Set to `0` to always update. Has no effect when `update=false`.
+      Set to `0` to always update.
     type: string
   skip_installed:
     default: false

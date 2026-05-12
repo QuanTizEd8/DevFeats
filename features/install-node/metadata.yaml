@@ -73,10 +73,12 @@ options:
         With `method=binary`, fetches exactly that release from nodejs.org/dist.
   additional_versions:
     type: array
+    _applies_when:
+      - method: [nvm]
     default: ''
     description: |-
       Additional Node.js versions to install via nvm alongside the primary `version`,
-      without setting them as the nvm default. Only applies when method=nvm.
+      without setting them as the nvm default.
       Uses the same version syntax as `version` (major number, exact semver, or LTS alias).
       Useful for testing across multiple Node.js versions in a single container or satisfying `.nvmrc` lookups for sub-projects.
     proposals:
@@ -92,9 +94,11 @@ options:
       description: Also install Node.js 22, 20, and 18.
   nvm_version:
     type: string
+    _applies_when:
+      - method: [nvm]
     default: latest
     description: |-
-      Version of nvm to install. Only used when method=nvm.
+      Version of nvm to install.
       An explicit tag (e.g. `0.40.4` or `v0.40.4`) pins nvm to that exact release;
       the installer downloads `nvm install.sh` from the tagged commit URL.
       `latest` resolves the newest tag via the GitHub Releases API.
@@ -107,12 +111,14 @@ options:
       description: nvm v0.40.3.
   arch:
     type: string
+    _applies_when:
+      - method: [binary]
     default: ''
     description: |-
-      Override the CPU architecture used when selecting a prebuilt binary (method=binary only).
+      Override the CPU architecture when selecting a prebuilt binary.
       Accepted values: 'x86_64', 'aarch64' (mapped to linux-x64 / linux-arm64 for Linux; darwin-arm64 for macOS).
       When empty (default), the architecture is detected automatically from uname -m.
-      Useful for cross-arch scenarios or forced emulation. Ignored when method=nvm.
+      Useful for cross-arch scenarios or forced emulation.
   installer_dir:
     type: string
     default: /tmp/node-installer

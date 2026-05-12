@@ -211,14 +211,14 @@ options:
 
   year:
     type: string
+    _applies_when:
+      - method: [mactex, basictex]
     default: latest
     description: |-
-      MacTeX / BasicTeX release year for `method=mactex` and `method=basictex`.
+      MacTeX / BasicTeX release year.
       `latest` automatically uses the current calendar year (auto-detected at install time).
       An explicit four-digit year (e.g. `2026`) downloads that year's package from the official
       MacTeX download page.
-      Ignored for `method=install-tl` and `method=os_pkg`; use `repository` to pin a specific
-      TeX Live year snapshot with the Unix installer.
     proposals:
       - value: latest
         description: Current year (auto-detected from the system date at install time).
@@ -229,6 +229,8 @@ options:
 
   verify_downloads:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: true
     description: |-
       Verify the integrity of downloaded TeX Live packages using GPG signatures. When true
@@ -236,26 +238,27 @@ options:
       installer's built-in signature verification is active. Set to false to pass
       `--no-verify-downloads` to the installer, disabling signature checks — useful in
       air-gapped environments where the TeX Live GPG infrastructure is unreachable.
-      Only applies to `method=install-tl`.
 
   tlmgr_update:
     type: boolean
+    _applies_when:
+      - method: [install-tl, mactex, basictex]
     default: false
     description: |-
       Run `tlmgr update --self --all` after the initial installation to pull in the latest
       package updates from the configured repository. Disabled by default to keep the
       installation reproducible and deterministic. Enable in development images where the latest
       CTAN state is always desired.
-      Applies to `method=install-tl`, `method=mactex`, and `method=basictex`.
 
   tlmgr_verify_repo:
     type: string
+    _applies_when:
+      - method: [install-tl, mactex, basictex]
     default: main
     description: |-
       Set the `tlmgr` repository-signature verification level via `tlmgr option verify-repo
       <value>` after installation. Controls which repositories must present a valid GPG signature
       before `tlmgr` will install packages from them.
-      Applies to all methods that include `tlmgr` (`install-tl`, `mactex`, `basictex`).
     enum:
       - value: none
         description: No signature verification for any repository.
@@ -283,22 +286,24 @@ options:
 
   installer_dir:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: /tmp/texlive-installer
     description: |-
       Temporary directory for downloading and extracting the TeX Live installer archive
-      (`install-tl-unx.tar.gz`) and its extracted contents for `method=install-tl`.
+      (`install-tl-unx.tar.gz`) and its extracted contents.
       All files are removed after a successful installation unless `keep_installer=true`.
-      Ignored for all other methods.
 
   keep_installer:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: false
     description: |-
       Keep the installer directory and all downloaded files after a successful installation.
       By default the installer archive and extracted tree are removed to reduce image layer size.
       Set to true for debugging or to inspect the generated `texlive.profile` written to
       `installer_dir/texlive.profile`.
-      Only used by `method=install-tl`.
 
   # ── install-tl profile options ────────────────────────────────────────────
   # The following options map directly to keys in the texlive.profile file that
@@ -308,6 +313,8 @@ options:
 
   texdir:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       TeX Live system installation directory.
@@ -319,7 +326,6 @@ options:
       When set, the path is used verbatim —
       the installer does NOT append the year automatically (unlike `TEXLIVE_INSTALL_PREFIX`),
       so include the year explicitly if you want year-based organization (e.g. `/opt/texlive/2026`).
-      Only applies to `method=install-tl`.
       Ignored when `profile` is provided (profile key `TEXDIR`).
     proposals:
       - value: ''
@@ -329,13 +335,14 @@ options:
 
   texmflocal:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       System-wide tree for local additions (packages, fonts,
       styles) shared across all users and across TeX Live years. Leave empty (default) to use
       the installer default (`/usr/local/texlive/texmf-local`), which sits one level above
       `TEXDIR` and is not wiped when upgrading to a new TeX Live year.
-      Only applies to `method=install-tl`.
       Ignored when `profile` is provided (profile key `TEXMFLOCAL`).
     proposals:
       - value: ''
@@ -345,36 +352,42 @@ options:
 
   texmfsysconfig:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       Profile key `TEXMFSYSCONFIG` — the system-wide directory for configuration files
       (e.g. `updmap.cfg`, `fmtutil.cnf`) that apply to all users.
       Leave empty (default) to use the installer default (`TEXDIR/texmf-config`).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: ''
         description: Installer default (`TEXDIR/texmf-config`).
 
   texmfsysvar:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       Profile key `TEXMFSYSVAR` — the system-wide directory where the installer writes generated
       files (format dumps, font maps, updmap output) that apply to all users.
       Leave empty (default) to use the installer default (`TEXDIR/texmf-var`).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: ''
         description: Installer default (`TEXDIR/texmf-var`).
 
   texmfhome:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       Profile key `TEXMFHOME` — the per-user directory for personal macro files, fonts, and
       styles. Leave empty (default) to use the installer default (`~/texmf`). Useful when the
       container user's home is non-standard or a project-relative path is preferred.
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: ''
         description: Installer default (`~/texmf`).
@@ -383,24 +396,28 @@ options:
 
   texmfconfig:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       Profile key `TEXMFCONFIG` — the per-user directory for TeX Live configuration files
       (e.g. personal `updmap.cfg`).
       Leave empty (default) to use the installer default (`~/.texlive<year>/texmf-config`).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: ''
         description: Installer default (`~/.texlive<year>/texmf-config`).
 
   texmfvar:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       Profile key `TEXMFVAR` — the per-user directory where TeX Live caches generated files
       (format dumps, font maps) for the current user.
       Leave empty (default) to use the installer default (`~/.texlive<year>/texmf-var`).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: ''
         description: Installer default (`~/.texlive<year>/texmf-var`).
@@ -409,6 +426,8 @@ options:
 
   instopt_adjustpath:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: true
     description: |-
       Profile key `instopt_adjustpath` — whether the installer creates symlinks for all TeX Live
@@ -416,10 +435,12 @@ options:
       (default, `instopt_adjustpath 1`), TeX Live binaries are reachable from a stable directory
       without year- or architecture-specific path components in `containerEnv` or shell startup
       files. Set to false (`instopt_adjustpath 0`) when PATH is managed externally. Note: `instopt_portable=true` forces this off regardless.
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
 
   instopt_adjustrepo:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: true
     description: |-
       Profile key `instopt_adjustrepo` — whether `tlmgr` adjusts the configured repository URL
@@ -427,7 +448,7 @@ options:
       `instopt_adjustrepo 1`), prevents version mismatches when the same profile is reused across
       years. Set to false only when pinning to a historic snapshot repository that must not be
       auto-adjusted.
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
 
   instopt_letter:
     type: string
@@ -445,6 +466,8 @@ options:
 
   instopt_portable:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: false
     description: |-
       Profile key `instopt_portable` — whether to produce a self-contained portable installation.
@@ -452,10 +475,12 @@ options:
       symlinks (`instopt_adjustpath` is forced off), no file associations, no desktop integration,
       no multi-user Windows configuration. Use for installations that must be fully relocatable
       (e.g. embedded in a project directory). In standard container builds, leave false (default).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
 
   instopt_write18_restricted:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: true
     description: |-
       Profile key `instopt_write18_restricted` — whether the `\write18` shell-escape primitive is
@@ -463,37 +488,43 @@ options:
       only whitelisted commands (e.g. `bibtex`, `biber`, `makeindex`) can be invoked; arbitrary
       shell commands are blocked. Set to false only for TeX documents that explicitly require
       unrestricted shell-escape (rare; consider the security implications carefully).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
 
   # -- tlpdbopt_* keys --
 
   tlpdbopt_install_docfiles:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: false
     description: |-
       Profile key `tlpdbopt_install_docfiles` — whether to install package documentation files.
       Documentation files add several hundred MB. Disable (the default, `tlpdbopt_install_docfiles 0`)
       for CI and headless container images; enable for developer workstation images that use local
-      TeX docs. Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      TeX docs. Ignored when `profile` is provided.
 
   tlpdbopt_install_srcfiles:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: false
     description: |-
       Profile key `tlpdbopt_install_srcfiles` — whether to install package source files. Source
       files are rarely needed in container environments. Enable only for TeX package development
       or when debugging macro package internals.
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
 
   tlpdbopt_sys_bin:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: auto
     description: |-
       Profile key `tlpdbopt_sys_bin` — the directory where the installer creates symlinks for
       all TeX Live binaries during installation. Only meaningful when `instopt_adjustpath=true`.
       `auto` resolves to `/usr/local/bin` as root or `~/.local/bin` as non-root at install time.
       An explicit absolute path is used verbatim; the directory is created if it does not exist.
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: auto
         description: '`/usr/local/bin` as root, `~/.local/bin` as non-root.'
@@ -502,13 +533,15 @@ options:
 
   tlpdbopt_sys_man:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       Profile key `tlpdbopt_sys_man` — the directory where the installer creates symlinks for
       TeX Live man pages during installation. Only meaningful when `instopt_adjustpath=true`.
       Leave empty (default) to use the installer default, which is derived from `tlpdbopt_sys_bin`
       (e.g. `/usr/local/share/man` when `tlpdbopt_sys_bin=/usr/local/bin`).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: ''
         description: Installer default (derived from `tlpdbopt_sys_bin`).
@@ -517,13 +550,15 @@ options:
 
   tlpdbopt_sys_info:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       Profile key `tlpdbopt_sys_info` — the directory where the installer creates symlinks for
       TeX Live GNU info pages during installation. Only meaningful when `instopt_adjustpath=true`.
       Leave empty (default) to use the installer default, which is derived from `tlpdbopt_sys_bin`
       (e.g. `/usr/local/share/info` when `tlpdbopt_sys_bin=/usr/local/bin`).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: ''
         description: Installer default (derived from `tlpdbopt_sys_bin`).
@@ -532,16 +567,20 @@ options:
 
   tlpdbopt_create_formats:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: true
     description: |-
       Profile key `tlpdbopt_create_formats` — whether to generate TeX format files (`.fmt`)
       during installation. When true (default, `tlpdbopt_create_formats 1`), format generation
       makes the first `pdflatex`/`latex` invocation significantly faster. Set to false only when
       building a base image layer where format generation will be deferred to a later layer or
-      container startup. Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      container startup. Ignored when `profile` is provided.
 
   tlpdbopt_post_code:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: true
     description: |-
       Profile key `tlpdbopt_post_code` — whether to run post-installation Perl code for each
@@ -549,10 +588,12 @@ options:
       (default, `tlpdbopt_post_code 1`), all post-install hooks fire during installation.
       Disabling speeds up installation at the cost of requiring a manual
       `tlmgr postaction install --all` run afterwards.
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
 
   tlpdbopt_generate_updmap:
     type: boolean
+    _applies_when:
+      - method: [install-tl]
     default: false
     description: |-
       Profile key `tlpdbopt_generate_updmap` — whether to regenerate `updmap.cfg` from scratch
@@ -560,17 +601,19 @@ options:
       (default, `tlpdbopt_generate_updmap 0`) in almost all cases; the standard post-install code
       controlled by `tlpdbopt_post_code` handles font map generation correctly. Enable only if
       directed by TeX Live documentation for a specific installation scenario.
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
 
   tlpdbopt_autobackup:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: '1'
     description: |-
       Profile key `tlpdbopt_autobackup` — the number of `tlmgr` package backup copies to retain
       so that `tlmgr restore` can roll back an update. `0` — no backups; `1` (default) — keep
       one backup per package; `-1` — unlimited backups. Set to `0` in CI images where
       `tlmgr update` is never run to avoid accumulating backup files.
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: '0'
         description: No backups (smallest footprint; cannot roll back).
@@ -583,12 +626,14 @@ options:
 
   tlpdbopt_backupdir:
     type: string
+    _applies_when:
+      - method: [install-tl]
     default: ''
     description: |-
       Profile key `tlpdbopt_backupdir` — the directory where `tlmgr` stores package backups
       when `tlmgr update` or `tlmgr install` replaces an existing package. Leave empty (default)
       to use the installer default (`TEXDIR/tlpkg/backups`).
-      Only applies to `method=install-tl`. Ignored when `profile` is provided.
+      Ignored when `profile` is provided.
     proposals:
       - value: ''
         description: Installer default (`TEXDIR/tlpkg/backups`).

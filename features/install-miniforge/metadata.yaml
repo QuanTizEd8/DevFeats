@@ -42,16 +42,19 @@ options:
     type: string
   preserve_envs:
     default: true
+    _applies_when:
+      - if_exists: [reinstall]
     description: |-
-      When `if_exists=reinstall`, export all non-base conda environments before
-      uninstalling and recreate them after reinstalling.
+      Export all non-base conda environments before uninstalling and recreate them after reinstalling.
       Each environment is exported with `--from-history`; on recreation failure the YAML
       is kept at `/tmp/conda-env-preserve` for manual recovery.
     type: boolean
   preserve_config:
     default: true
+    _applies_when:
+      - if_exists: [reinstall]
     description: |-
-      When `if_exists=reinstall`, skip `conda init --reverse` and preserve `.condarc`
+      Skip `conda init --reverse` and preserve `.condarc`
       and `.conda` directories during uninstall.
       Set to `false` to perform a full clean uninstall.
     type: boolean

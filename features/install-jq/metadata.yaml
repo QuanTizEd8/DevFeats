@@ -39,13 +39,14 @@ options:
           Use when package or binary methods do not satisfy constraints.
   version:
     type: string
+    _applies_when:
+      - method: [auto, release, source]
     default: latest
     description: |-
       Version of jq to install. Accepts `latest` (resolved via the GitHub Releases API) or any
       `X.Y.Z` or `vX.Y.Z` version string.
       If the installed jq version at the target prefix already matches the resolved version,
       the install is skipped silently regardless of the `if_exists` setting.
-      Ignored when `method=repos` (the package manager installs its available version).
       Note: jq 1.6 and older use a different release asset naming convention; version-specific
       asset name mapping is applied automatically.
     proposals:

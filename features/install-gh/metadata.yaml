@@ -161,25 +161,28 @@ options:
         beyond standard devcontainer spec; SSH signing is simpler in container environments.
   git_hostname:
     type: string
+    _applies_when:
+      - setup_git: ['true']
     default: github.com
     description: |-
-      The hostname to configure as the git credential helper target when setup_git=true.
+      The hostname to configure as the git credential helper target.
       Defaults to 'github.com'. Set to your GitHub Enterprise Server hostname (e.g. 'git.corp.example.com') when using GHES.
-      Ignored when setup_git=false.
   installer_dir:
     type: string
+    _applies_when:
+      - method: [binary]
     default: /tmp/gh-install
     description: |-
-      Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here.
+      Working directory used to download and extract the binary archive and checksums file.
       Removed automatically after a successful install unless keep_installer=true.
-      Ignored when method=repos.
   keep_installer:
     type: boolean
+    _applies_when:
+      - method: [binary]
     default: false
     description: |-
-      Keep the installer_dir after a successful install when method=binary.
+      Keep the installer_dir after a successful install.
       Useful for troubleshooting or inspecting the extracted archive.
-      Ignored when method=repos.
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
 customizations:

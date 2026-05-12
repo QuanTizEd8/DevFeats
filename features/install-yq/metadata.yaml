@@ -24,13 +24,14 @@ _long_description: |-
 options:
   version:
     type: string
+    _applies_when:
+      - method: [auto, release]
     default: latest
     description: |-
       Version of yq to install. Accepts `latest` (resolved via the GitHub Releases API) or any
       `X.Y.Z` or `vX.Y.Z` version string.
       If the installed yq version at the target prefix already matches the resolved version,
       the install is skipped silently regardless of the `if_exists` setting.
-      Ignored when `method=repos` (the package manager installs its available version).
     proposals:
       - value: latest
         description: Resolve the latest release via the GitHub Releases API.
