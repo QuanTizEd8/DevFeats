@@ -370,6 +370,7 @@ shell__detect_zdotdir() {
 #   --zdotdir <dir> ZDOTDIR override (default: auto-detected via `shell__detect_zdotdir`).
 #
 # Stdout: one path per line — login file, `<home>/.bashrc`, `<zdotdir>/.zshenv`.
+# shellcheck disable=SC2120  # called with no args at call site (SC2119 suppressed there)
 shell__user_path_files() {
   local _home="${HOME:-}" _zdotdir=""
   while [[ $# -gt 0 ]]; do
