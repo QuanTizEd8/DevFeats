@@ -1,4 +1,3 @@
-
 # ── Function definitions ──────────────────────────────────────────────────────
 # Functions are defined before library sourcing.  Bash does not evaluate
 # function bodies until they are called, so lib functions referenced here are

@@ -197,7 +197,8 @@ def _inject_prefix_options(feature_id: str, metadata: dict) -> bool:
         opt_prefix: dict = {
             "type": "string",
             "default": "",
-            "description": prefix_description or (
+            "description": prefix_description
+            or (
                 "Installation prefix."
                 " Resolved automatically when left empty:"
                 f" `{default_root}` (root) or `{default_nonroot}` (non-root).{bin_note}"
@@ -257,7 +258,8 @@ def _inject_prefix_options(feature_id: str, metadata: dict) -> bool:
             opt = {
                 "type": "array",
                 "default": export_path_default,
-                "description": export_path_description or (
+                "description": export_path_description
+                or (
                     "Write a PATH export block"
                     f' (`export PATH="${{{prefix_key.upper()}}}/{bin_dir}:$PATH"`)'
                     " to shell startup files."

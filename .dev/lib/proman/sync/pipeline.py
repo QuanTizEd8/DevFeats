@@ -90,7 +90,9 @@ def run(*, check_only: bool = False) -> int:
         n_features += 1
         output_files: dict[Path, str] = {}
 
-        metadata = _substitute_vars(metadata, _feature_vars(feature_id, repo_owner, repo_name))
+        metadata = _substitute_vars(
+            metadata, _feature_vars(feature_id, repo_owner, repo_name)
+        )
 
         if not augment_metadata(feature_id, metadata, derived_options):
             n_failures["augmentation"] += 1

@@ -381,11 +381,13 @@ class InstallScriptGenerator:
             this variable so the feature uses exactly one consistent filename.
         """
         _owner, _repo = git_owner_repo()
-        return "\n".join([
-            '_FILES_DIR="${_BASE_DIR}/files"',
-            f'_FEAT_SHARE_DIR="{feat_share_dir(feature_id, _owner, _repo)}"',
-            f'_EXPORT_PROFILE_D="{export_profile_d(feature_id, _owner, _repo)}"',
-        ])
+        return "\n".join(
+            [
+                '_FILES_DIR="${_BASE_DIR}/files"',
+                f'_FEAT_SHARE_DIR="{feat_share_dir(feature_id, _owner, _repo)}"',
+                f'_EXPORT_PROFILE_D="{export_profile_d(feature_id, _owner, _repo)}"',
+            ]
+        )
 
     def _section_prefix_helpers(self, prefix_groups: dict, feature_id: str) -> str:
         """Emit prefix resolver, symlink, and export_path bash functions."""
@@ -643,16 +645,16 @@ def _make_applies_when_guard(applies_when: list | None, func_name: str) -> str:
         return (
             f'  if [ "${{{var}}}" != "{val}" ]; then\n'
             f'    logging__fn_exit "{func_name}"\n'
-            '    return 0\n'
-            '  fi\n'
+            "    return 0\n"
+            "  fi\n"
         )
     pattern = "|".join(str(v) for v in values)
     return (
         f'  case "${{{var}}}" in {pattern}) ;; *)\n'
         f'    logging__fn_exit "{func_name}"\n'
-        '    return 0\n'
-        '    ;;\n'
-        '  esac\n'
+        "    return 0\n"
+        "    ;;\n"
+        "  esac\n"
     )
 
 

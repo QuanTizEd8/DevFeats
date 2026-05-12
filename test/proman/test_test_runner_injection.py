@@ -9,13 +9,16 @@ Covers:
 from __future__ import annotations
 
 import stat
-from pathlib import Path
-
-import pytest
+from typing import TYPE_CHECKING
 
 from proman.const import export_profile_d, feat_share_dir
-from proman.test.gen_devcontainer import _copy_test_script as _copy_test_script_with_vars
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+from proman.test.gen_devcontainer import (
+    _copy_test_script as _copy_test_script_with_vars,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers

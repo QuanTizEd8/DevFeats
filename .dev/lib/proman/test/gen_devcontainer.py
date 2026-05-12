@@ -11,14 +11,17 @@ from pathlib import Path
 
 from proman.const import export_profile_d, feat_share_dir
 from proman.git import git_owner_repo
+
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
 from .environments import load as load_envs
 from .scenarios import expand_envs, merge_defaults
 from .scenarios import load as load_scenarios
 
 
-def _copy_test_script(src: Path, dst: Path, feature: str, owner: str, repo: str) -> None:
-    """Copy a test script, prepending _FEAT_SHARE_DIR/_EXPORT_PROFILE_D variable definitions."""
+def _copy_test_script(
+    src: Path, dst: Path, feature: str, owner: str, repo: str
+) -> None:
+    """Copy a test script, prepending share-dir and export-profile env definitions."""
     content = src.read_text(encoding="utf-8")
     lines = content.splitlines(keepends=True)
     insert_at = 1 if lines and lines[0].startswith("#!") else 0

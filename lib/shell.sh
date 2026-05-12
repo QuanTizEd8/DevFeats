@@ -417,11 +417,27 @@ shell__write_env_block() {
   local _opt="" _profile_d="" _marker="" _content=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --opt)       shift; _opt="$1";       shift ;;
-      --profile-d) shift; _profile_d="$1"; shift ;;
-      --marker)    shift; _marker="$1";    shift ;;
-      --content)   shift; _content="$1";   shift ;;
-      *)           shift ;;
+      --opt)
+        shift
+        _opt="$1"
+        shift
+        ;;
+      --profile-d)
+        shift
+        _profile_d="$1"
+        shift
+        ;;
+      --marker)
+        shift
+        _marker="$1"
+        shift
+        ;;
+      --content)
+        shift
+        _content="$1"
+        shift
+        ;;
+      *) shift ;;
     esac
   done
   local _target_files

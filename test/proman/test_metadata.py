@@ -8,13 +8,13 @@ import pytest
 import yaml
 from proman.const import export_profile_d, feat_share_dir
 from proman.metadata import (
+    _feature_vars,
+    _substitute_vars,
     augment_metadata,
     load_all,
     load_and_augment,
     load_derived_options,
     read_metadata,
-    _feature_vars,
-    _substitute_vars,
 )
 
 _FAKE_OWNER_REPO = ("testowner", "testrepo")
@@ -202,8 +202,12 @@ def test_load_all_empty_features_dir(
 def test_feature_vars_delegates_to_const() -> None:
     """_feature_vars returns values produced by the canonical const formulas."""
     vars_ = _feature_vars("install-foo", "myowner", "myrepo")
-    assert vars_["_FEAT_SHARE_DIR"] == feat_share_dir("install-foo", "myowner", "myrepo")
-    assert vars_["_EXPORT_PROFILE_D"] == export_profile_d("install-foo", "myowner", "myrepo")
+    assert vars_["_FEAT_SHARE_DIR"] == feat_share_dir(
+        "install-foo", "myowner", "myrepo"
+    )
+    assert vars_["_EXPORT_PROFILE_D"] == export_profile_d(
+        "install-foo", "myowner", "myrepo"
+    )
 
 
 def test_substitute_vars_string() -> None:
