@@ -11,7 +11,7 @@ die() {
 }
 
 # Source runtime configuration written by the installer at image-build time.
-_CONF="/usr/local/share/devfeats/install-pixi/runtime.conf"
+_CONF="$(cd "$(dirname "$0")" && pwd)/runtime.conf"
 [ -f "$_CONF" ] || die "runtime config not found: ${_CONF}"
 # shellcheck source=/dev/null
 . "$_CONF"
