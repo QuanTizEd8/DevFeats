@@ -114,6 +114,7 @@
           "**/.pixi/**",
           "**/miniforge3/**"
         ],
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.pixi/envs/default/bin/python",
         // ── Bash IDE (shellcheck) ────────────────────────────────────────────────
         // Default is 500 files analysed in parallel — causes 8+ concurrent shellcheck
         // processes each at 30%+ CPU on this workspace due to --external-sources chains.
