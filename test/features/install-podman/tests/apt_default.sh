@@ -47,10 +47,10 @@ check "containers.conf sets cgroupfs manager" grep -q 'cgroup_manager = "cgroupf
 check "containers.conf sets file events logger" grep -q 'events_logger = "file"' /etc/containers/containers.conf
 
 # --- entrypoint ---
-check "entrypoint script exists" test -f /usr/local/share/devfeats/install-podman/entrypoint.sh
-check "entrypoint is executable" test -x /usr/local/share/devfeats/install-podman/entrypoint.sh
-check "entrypoint runs make-rshared" grep -q 'mount --make-rshared /' /usr/local/share/devfeats/install-podman/entrypoint.sh
-check "entrypoint sets up cgroup v2 nesting" grep -q 'cgroup.subtree_control' /usr/local/share/devfeats/install-podman/entrypoint.sh
+check "entrypoint script exists" test -f "${_FEAT_SHARE_DIR}/entrypoint.sh"
+check "entrypoint is executable" test -x "${_FEAT_SHARE_DIR}/entrypoint.sh"
+check "entrypoint runs make-rshared" grep -q 'mount --make-rshared /' "${_FEAT_SHARE_DIR}/entrypoint.sh"
+check "entrypoint sets up cgroup v2 nesting" grep -q 'cgroup.subtree_control' "${_FEAT_SHARE_DIR}/entrypoint.sh"
 
 # --- root should NOT be configured ---
 check "root NOT in /etc/subuid" bash -c '! grep -q "^root:" /etc/subuid'

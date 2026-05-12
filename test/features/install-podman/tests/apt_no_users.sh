@@ -17,9 +17,9 @@ check "containers.conf cgroupfs manager" grep -q 'cgroup_manager = "cgroupfs"' /
 check "containers.conf file events logger" grep -q 'events_logger = "file"' /etc/containers/containers.conf
 
 # --- entrypoint still installed ---
-check "entrypoint exists" test -f /usr/local/share/devfeats/install-podman/entrypoint.sh
-check "entrypoint is executable" test -x /usr/local/share/devfeats/install-podman/entrypoint.sh
-check "entrypoint sets up cgroup v2 nesting" grep -q 'cgroup.subtree_control' /usr/local/share/devfeats/install-podman/entrypoint.sh
+check "entrypoint exists" test -f "${_FEAT_SHARE_DIR}/entrypoint.sh"
+check "entrypoint is executable" test -x "${_FEAT_SHARE_DIR}/entrypoint.sh"
+check "entrypoint sets up cgroup v2 nesting" grep -q 'cgroup.subtree_control' "${_FEAT_SHARE_DIR}/entrypoint.sh"
 
 # --- no user-specific configuration written ---
 check "root NOT in /etc/subuid" bash -c '! grep -q "^root:" /etc/subuid 2>/dev/null'

@@ -26,8 +26,9 @@ def _copy_test_script(
     lines = content.splitlines(keepends=True)
     insert_at = 1 if lines and lines[0].startswith("#!") else 0
     vars_block = (
-        f"_FEAT_SHARE_DIR={shlex.quote(feat_share_dir(feature, owner, repo))}\n"
-        f"_EXPORT_PROFILE_D={shlex.quote(export_profile_d(feature, owner, repo))}\n"
+        f"export _FEAT_SHARE_DIR={shlex.quote(feat_share_dir(feature, owner, repo))}\n"
+        f"export _EXPORT_PROFILE_D="
+        f"{shlex.quote(export_profile_d(feature, owner, repo))}\n"
     )
     lines.insert(insert_at, vars_block)
     dst.write_text("".join(lines), encoding="utf-8")

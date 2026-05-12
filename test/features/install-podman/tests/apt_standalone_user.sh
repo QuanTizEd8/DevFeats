@@ -23,6 +23,6 @@ check "devuser .config/cni owned by devuser" bash -c '[ "$(stat -c %U /home/devu
 # --- devcontainer-specific artifacts must be absent ---
 check "containers.conf NOT written" bash -c '! test -f /etc/containers/containers.conf'
 check "devuser storage.conf NOT written" bash -c '! test -f /home/devuser/.config/containers/storage.conf'
-check "entrypoint NOT installed" bash -c '! test -f /usr/local/share/devfeats/install-podman/entrypoint.sh'
+check "entrypoint NOT installed" bash -c "! test -f '${_FEAT_SHARE_DIR}/entrypoint.sh'"
 
 reportResults

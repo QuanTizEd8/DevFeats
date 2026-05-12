@@ -30,6 +30,6 @@ check "root .config/cni exists" test -d /root/.config/cni
 # --- devcontainer-specific artifacts must be absent ---
 check "containers.conf NOT written" bash -c '! test -f /etc/containers/containers.conf'
 check "root storage.conf NOT written" bash -c '! test -f /root/.config/containers/storage.conf'
-check "entrypoint NOT installed" bash -c '! test -f /usr/local/share/devfeats/install-podman/entrypoint.sh'
+check "entrypoint NOT installed" bash -c "! test -f '${_FEAT_SHARE_DIR}/entrypoint.sh'"
 
 reportResults
