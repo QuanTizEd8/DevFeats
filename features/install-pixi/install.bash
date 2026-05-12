@@ -1,4 +1,3 @@
-_FILES_DIR="${_BASE_DIR}/files"
 
 # ── Function definitions ──────────────────────────────────────────────────────
 # Functions are defined before library sourcing.  Bash does not evaluate
@@ -26,26 +25,6 @@ _cleanup_hook() {
     rm -f "${_pixi_netrc_tmp}"
   fi
   logging__fn_exit "_cleanup_hook"
-}
-
-resolve_bin_dir() {
-  logging__fn_entry "resolve_bin_dir"
-  case "${PREFIX}" in
-    "")
-      # Empty prefix means "use platform default":
-      # - root: /usr/local
-      # - non-root: $HOME/.pixi
-      if [ "$(id -u)" = "0" ]; then
-        PREFIX="/usr/local"
-      else
-        PREFIX="${HOME}/.pixi"
-      fi
-      ;;
-    *) ;; # explicit value: use as-is (including the literal string "auto")
-  esac
-  logging__info "Resolved prefix to '${PREFIX}'"
-  logging__fn_exit "resolve_bin_dir"
-  return 0
 }
 
 check_root_requirement() {
@@ -223,21 +202,6 @@ install_pixi_binary() {
   return 0
 }
 
-create_symlink() {
-  logging__fn_entry "create_symlink"
-  if [ "${SYMLINK}" != "true" ]; then
-    logging__info "symlink=false; skipping symlink creation."
-    logging__fn_exit "create_symlink"
-    return 0
-  fi
-  shell__create_symlink \
-    --src "${PREFIX}/bin/pixi" \
-    --system-target "/usr/local/bin/pixi" \
-    --user-target "${HOME}/.pixi/bin/pixi"
-  logging__fn_exit "create_symlink"
-  return 0
-}
-
 verify_installed_binary() {
   logging__fn_entry "verify_installed_binary"
   local _ver=""
@@ -254,38 +218,6 @@ verify_installed_binary() {
   return 0
 }
 
-export_path_main() {
-  logging__fn_entry "export_path_main"
-  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    logging__info "export_path is empty; skipping PATH export."
-    logging__fn_exit "export_path_main"
-    return 0
-  fi
-  if [ "${EXPORT_PATH[*]}" = "auto" ] && [ "${PREFIX}" = "/usr/local" ]; then
-    logging__info "PREFIX is /usr/local which is already on PATH in all container images; skipping PATH write."
-    logging__fn_exit "export_path_main"
-    return 0
-  fi
-  local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
-  local _marker="pixi PATH (install-pixi)"
-  local _target_files
-  if [ "${EXPORT_PATH[*]}" != "auto" ]; then
-    _target_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
-  else
-    if [ "$(id -u)" = "0" ]; then
-      logging__info "System-wide PATH export (root)."
-      _target_files="$(shell__system_path_files --profile_d "pixi_bin_path.sh")"
-    else
-      logging__info "User-scoped PATH export (non-root)."
-      # shellcheck disable=SC2119
-      _target_files="$(shell__user_path_files)"
-    fi
-  fi
-  shell__sync_block --files "${_target_files}" --marker "${_marker}" --content "${_content}"
-  logging__fn_exit "export_path_main"
-  return 0
-}
-
 export_pixi_home_main() {
   logging__fn_entry "export_pixi_home_main"
   if [ -z "${HOME_DIR}" ]; then
@@ -298,24 +230,18 @@ export_pixi_home_main() {
     logging__fn_exit "export_pixi_home_main"
     return 0
   fi
-  local _content="export PIXI_HOME=\"${HOME_DIR}\""
-  local _marker="pixi PIXI_HOME (install-pixi)"
-  local _target_files
-  if [ "${EXPORT_PIXI_HOME[*]}" != "auto" ]; then
-    _target_files="$(printf '%s\n' "${EXPORT_PIXI_HOME[@]}")"
-  else
-    if [ "$(id -u)" = "0" ]; then
-      logging__info "System-wide PIXI_HOME export (root)."
-      _target_files="$(shell__system_path_files --profile_d "pixi_home.sh")"
-    else
-      logging__info "User-scoped PIXI_HOME export (non-root)."
-      # shellcheck disable=SC2119
-      _target_files="$(shell__user_path_files)"
-    fi
-  fi
-  shell__sync_block --files "${_target_files}" --marker "${_marker}" --content "${_content}"
+  shell__write_env_block \
+    --opt "$(printf '%s\n' "${EXPORT_PIXI_HOME[@]}")" \
+    --profile-d "${_EXPORT_PROFILE_D}" \
+    --marker "pixi PIXI_HOME (install-pixi)" \
+    --content "export PIXI_HOME=\"${HOME_DIR}\""
   logging__fn_exit "export_pixi_home_main"
   return 0
+}
+
+_prefix_post_install() {
+  _prefix_post_install__generated
+  export_pixi_home_main
 }
 
 install_completion() {
@@ -406,7 +332,6 @@ if [[ -n "${NETRC:-}" ]]; then
   esac
 fi
 
-resolve_bin_dir
 check_root_requirement
 resolve_pixi_version
 
@@ -435,9 +360,6 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
 fi
 
 verify_installed_binary
-create_symlink
-export_path_main
-export_pixi_home_main
 install_completion
 
 # ---------------------------------------------------------------------------
@@ -451,10 +373,10 @@ install_completion
 # caller, so this section is skipped.
 # ---------------------------------------------------------------------------
 if os__is_devcontainer_build; then
-  _ENTRYPOINT_DEST="/usr/local/share/devfeats/install-pixi/entrypoint.sh"
-  mkdir -p "$(dirname "$_ENTRYPOINT_DEST")"
+  _ENTRYPOINT_DEST="${_FEAT_SHARE_DIR}/entrypoint.sh"
+  mkdir -p "${_FEAT_SHARE_DIR}"
   cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
   chmod +x "$_ENTRYPOINT_DEST"
   printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
-    > "/usr/local/share/devfeats/install-pixi/runtime.conf"
+    > "${_FEAT_SHARE_DIR}/runtime.conf"
 fi

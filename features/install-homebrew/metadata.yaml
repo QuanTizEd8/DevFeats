@@ -30,14 +30,6 @@ options:
       Note: `_REMOTE_USER` is not used for install ownership because the official
       Homebrew installer hardcodes `/home/linuxbrew/.linuxbrew` on Linux and ignores
       `HOMEBREW_PREFIX`. Shellenv for remoteUser is written by `add_remote_user` instead.
-  prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix (`HOMEBREW_PREFIX`).
-      macOS defaults: `/opt/homebrew` (Apple Silicon) or `/usr/local` (Intel) — selected automatically by the installer.
-      Linux default: `/home/linuxbrew/.linuxbrew` — hardcoded by the official Homebrew installer; `HOMEBREW_PREFIX` is ignored on Linux.
-      Leave empty to accept the platform default.
   if_exists:
     type: string
     default: skip
@@ -53,14 +45,6 @@ options:
     type: boolean
     default: true
     description: Run `brew update` after installation to fetch the latest formula index.
-  export_path:
-    type: array
-    default: auto
-    description: |-
-      Controls which shell startup files receive `eval "$(brew shellenv)"`.
-      - `auto` — writes to all relevant system-wide files (root + Linux) or user-scoped files (macOS / non-root).
-      - `''` (empty) — skips all shell-env writes.
-      - A list of absolute paths — writes only to those files.
   add_current_user:
     type: boolean
     default: true
@@ -170,3 +154,15 @@ _dependencies:
           when: {pm: [dnf, yum]}
         - name: base-devel
           when: {pm: pacman}
+
+_prefix_groups:
+  "":
+    default_root: /home/linuxbrew/.linuxbrew
+    default_nonroot: "${HOME}/.linuxbrew"
+    bin: brew
+    skip_symlink: true
+    export_path_description: |-
+      Controls which shell startup files receive `eval "$(brew shellenv)"`.
+      - `auto` — writes to all relevant system-wide files (root + Linux) or user-scoped files (macOS / non-root).
+      - `''` (empty) — skips all shell-env writes.
+      - A list of absolute paths — writes only to those files.

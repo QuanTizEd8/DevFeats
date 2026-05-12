@@ -1,0 +1,17 @@
+# shellcheck disable=SC2329,SC2317
+@@FUNC_NAME@@() {
+  logging__fn_entry "@@FUNC_NAME@@"
+  case "${@@PREFIX_VAR@@}" in
+    "")
+      if [ "$(id -u)" = "0" ]; then
+        @@PREFIX_VAR@@="@@DEFAULT_ROOT@@"
+      else
+        @@PREFIX_VAR@@="@@DEFAULT_NONROOT@@"
+      fi
+      ;;
+    *) ;; # explicit value: use as-is
+  esac
+  logging__info "Argument '@@OPTNAME@@' resolved to '${@@PREFIX_VAR@@}'."
+  logging__fn_exit "@@FUNC_NAME@@"
+  return
+}

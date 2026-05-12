@@ -17,7 +17,7 @@ onCreateCommand:
   devfeats--install-claude--symlink-claude-dir:
     description: Symlink the specified workspace `claude` directory to `~/.claude`.
     command: >-
-      /usr/local/share/repodynamics/devfeats/install-claude/lifecycle--on-create--symlink-claude-dir.sh ${containerWorkspaceFolder}
+      @@_FEAT_SHARE_DIR@@/lifecycle--on-create--symlink-claude-dir.sh ${containerWorkspaceFolder}
 customizations:
   vscode:
     extensions:

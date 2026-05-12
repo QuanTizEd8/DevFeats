@@ -148,7 +148,7 @@ options:
       `tlpdbopt_create_formats`, `tlpdbopt_post_code`, `tlpdbopt_generate_updmap`,
       `tlpdbopt_autobackup`, `tlpdbopt_backupdir`) are ignored — the profile controls these
       settings completely. Non-profile options (`scheme`, `repository`, `verify_downloads`,
-      `packages`, `export_path`, `tlmgr_update`, `tlmgr_verify_repo`, `year`, `if_exists`,
+      `packages`, `tlmgr_update`, `tlmgr_verify_repo`, `year`, `if_exists`,
       `installer_dir`, `keep_installer`) remain active.
 
       A profile is a plain-text file with `key value` pairs, one per line. Unknown keys cause the
@@ -237,20 +237,6 @@ options:
       `--no-verify-downloads` to the installer, disabling signature checks — useful in
       air-gapped environments where the TeX Live GPG infrastructure is unreachable.
       Only applies to `method=install-tl`.
-
-  export_path:
-    type: array
-    default: ''
-    description: |-
-      Shell startup files to receive an explicit `PATH` export for the TeX Live binary directory
-      (e.g. `/usr/local/texlive/2026/bin/x86_64-linux`). Written as a post-install step,
-      independent of the profile-based `instopt_adjustpath` / `tlpdbopt_sys_bin` symlink mechanism
-      — both can be active simultaneously.
-      - `''` (empty, default) — no PATH writes; rely on `instopt_adjustpath=true` symlinks instead.
-      - `auto` — writes to all relevant system-wide files (root) or user-scoped files (non-root):
-        `/etc/environment`, `/etc/profile.d/install-latex.sh`, the system-wide bashrc, and the
-        zsh env file.
-      - A list of absolute file paths — writes only to the specified files.
 
   tlmgr_update:
     type: boolean
@@ -429,8 +415,7 @@ options:
       binaries (and man/info pages) in `tlpdbopt_sys_bin` during installation. When true
       (default, `instopt_adjustpath 1`), TeX Live binaries are reachable from a stable directory
       without year- or architecture-specific path components in `containerEnv` or shell startup
-      files. Set to false (`instopt_adjustpath 0`) when PATH is managed externally or via
-      `export_path`. Note: `instopt_portable=true` forces this off regardless.
+      files. Set to false (`instopt_adjustpath 0`) when PATH is managed externally. Note: `instopt_portable=true` forces this off regardless.
       Only applies to `method=install-tl`. Ignored when `profile` is provided.
 
   instopt_adjustrepo:

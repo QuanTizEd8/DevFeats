@@ -800,3 +800,52 @@ bob:x:1001:1001::/Users/bob:/bin/zsh"
   assert_success
   assert [ -L "$_sys" ]
 }
+
+# ---------------------------------------------------------------------------
+# shell__write_env_block
+# ---------------------------------------------------------------------------
+
+@test "shell__write_env_block writes block to explicit file list" {
+  reload_lib shell.sh
+  shell__write_env_block \
+    --opt "${BATS_TEST_TMPDIR}/explicit_rc" \
+    --marker "test block" \
+    --content "export MY_VAR=hello"
+  run grep "export MY_VAR=hello" "${BATS_TEST_TMPDIR}/explicit_rc"
+  assert_success
+}
+
+@test "shell__write_env_block routes auto to system_path_files when root" {
+  reload_lib shell.sh
+  create_fake_bin "id" "0"
+  prepend_fake_bin_path
+  local _sys_file="${BATS_TEST_TMPDIR}/fake_system_rc"
+  # Stub system_path_files to return a writable tmpdir path.
+  shell__system_path_files() { echo "$_sys_file"; }
+  export -f shell__system_path_files
+  shell__write_env_block \
+    --opt "auto" \
+    --profile-d "myfeature.sh" \
+    --marker "test block root" \
+    --content "export ROOT_VAR=1"
+  run grep "export ROOT_VAR=1" "$_sys_file"
+  assert_success
+}
+
+@test "shell__write_env_block routes auto to user_path_files when non-root" {
+  reload_lib shell.sh
+  create_fake_bin "id" "1001"
+  prepend_fake_bin_path
+  local _home="${BATS_TEST_TMPDIR}/home_nonroot"
+  mkdir -p "$_home"
+  HOME="$_home"
+  shell__detect_zdotdir() { echo "$_home"; }
+  export -f shell__detect_zdotdir
+  shell__write_env_block \
+    --opt "auto" \
+    --profile-d "ignored.sh" \
+    --marker "test block nonroot" \
+    --content "export NONROOT_VAR=2"
+  run grep -r "export NONROOT_VAR=2" "$_home"
+  assert_success
+}

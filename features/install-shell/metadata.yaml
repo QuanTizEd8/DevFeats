@@ -31,12 +31,6 @@ options:
     type: boolean
     default: true
     description: Install the [Starship](https://starship.rs/) prompt binary.
-  starship_prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix for Starship. The binary is placed at `$starship_prefix/bin/starship`.
-      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
   starship_shells:
     type: array
     default: zsh
@@ -206,12 +200,6 @@ options:
     description: |-
       Install [fzf](https://github.com/junegunn/fzf) (fuzzy finder) from GitHub Releases.
       Shell key-bindings and completion are injected per-user.
-  fzf_prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix for fzf. The binary is placed at `$fzf_prefix/bin/fzf`.
-      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 _dependencies:
@@ -236,3 +224,12 @@ _dependencies:
           sed -i 's/^# \(en_US\.UTF-8\)/\1/' /etc/locale.gen
           locale-gen
         fi
+_prefix_groups:
+  starship:
+    bin: starship
+    _applies_when:
+      - install_starship: ['true']
+  fzf:
+    bin: fzf
+    _applies_when:
+      - install_fzf: ['true']

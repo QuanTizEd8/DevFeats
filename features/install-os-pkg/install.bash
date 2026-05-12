@@ -49,7 +49,7 @@ fi
 
 # When lifecycle_hook is set, write a hook script and exit without installing.
 if [[ -n "$LIFECYCLE_HOOK" ]]; then
-  _HOOK_DIR="/usr/local/share/install-os-pkg"
+  _HOOK_DIR="${_FEAT_SHARE_DIR}"
   mkdir -p "$_HOOK_DIR"
   _MANIFEST_ARG="$MANIFEST"
   if [[ "$MANIFEST" == *$'\n'* ]]; then

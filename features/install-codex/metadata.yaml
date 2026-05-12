@@ -17,7 +17,7 @@ onCreateCommand:
   devfeats--install-codex--symlink-codex-dir:
     description: Symlink the specified workspace `codex` directory to `~/.codex`.
     command: >-
-      /usr/local/share/repodynamics/devfeats/install-codex/lifecycle--on-create--symlink-codex-dir.sh ${containerWorkspaceFolder}
+      @@_FEAT_SHARE_DIR@@/lifecycle--on-create--symlink-codex-dir.sh ${containerWorkspaceFolder}
 customizations:
   vscode:
     extensions:

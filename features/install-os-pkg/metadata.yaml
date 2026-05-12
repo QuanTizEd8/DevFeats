@@ -126,13 +126,13 @@ _dependencies: {}
 #   - ghcr.io/quantized8/devfeats/install-homebrew
 onCreateCommand:
   devfeats--install-os-pkg--install:
-    command: '[ -f /usr/local/share/install-os-pkg/on-create.sh ] && sh /usr/local/share/install-os-pkg/on-create.sh || true'
+    command: '[ -f @@_FEAT_SHARE_DIR@@/on-create.sh ] && sh @@_FEAT_SHARE_DIR@@/on-create.sh || true'
     description: When `lifecycle_hook` is set to `onCreate`, install OS packages at container creation time.
 updateContentCommand:
   devfeats--install-os-pkg--install:
-    command: '[ -f /usr/local/share/install-os-pkg/update-content.sh ] && sh /usr/local/share/install-os-pkg/update-content.sh || true'
+    command: '[ -f @@_FEAT_SHARE_DIR@@/update-content.sh ] && sh @@_FEAT_SHARE_DIR@@/update-content.sh || true'
     description: When `lifecycle_hook` is set to `updateContent`, reinstall OS packages when workspace content changes.
 postCreateCommand:
   devfeats--install-os-pkg--install:
-    command: '[ -f /usr/local/share/install-os-pkg/post-create.sh ] && sh /usr/local/share/install-os-pkg/post-create.sh || true'
+    command: '[ -f @@_FEAT_SHARE_DIR@@/post-create.sh ] && sh @@_FEAT_SHARE_DIR@@/post-create.sh || true'
     description: When `lifecycle_hook` is set to `postCreate`, install OS packages after the container is fully created.

@@ -18,10 +18,16 @@ logging__entry "@@FEATURE_NAME@@"
 # _on_exit owns that call and guarantees it runs exactly once, last.
 # shellcheck disable=SC2329,SC2317
 _cleanup_hook() { return; }
+# Override _prefix_post_install to add supplemental post-install steps
+# (e.g. exporting additional env vars). The generated block replaces this
+# stub with the real implementation when _prefix_groups is declared.
+# shellcheck disable=SC2329,SC2317
+_prefix_post_install() { return; }
 # shellcheck disable=SC2329,SC2317
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ $_rc -eq 0 ]] && _prefix_post_install
   if [[ "${KEEP_CACHE:-true}" != true ]]; then
     if [[ "$(id -u)" -eq 0 ]]; then
       ospkg__clean

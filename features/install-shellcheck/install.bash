@@ -24,12 +24,6 @@ _shellcheck__resolve_version() {
   printf '%s\n' "$_version"
 }
 
-_shellcheck__resolve_prefix() {
-  if [[ -z "${PREFIX}" ]]; then
-    PREFIX="$(users__default_prefix)"
-  fi
-}
-
 # @stdout "<os> <arch>" for the GitHub release asset name, or return 1 when no
 # release binary exists for the current platform (e.g. darwin/arm64).
 _shellcheck__platform_arch() {
@@ -103,26 +97,6 @@ _shellcheck__handle_existing() {
       ;;
   esac
 }
-
-_shellcheck__create_symlink() {
-  if [[ "${SYMLINK}" != "true" ]]; then
-    logging__info "symlink=false; skipping symlink creation."
-    return 0
-  fi
-  if [[ "${METHOD}" == "repos" ]]; then
-    logging__info "method=repos; symlink not applicable."
-    return 0
-  fi
-  if [[ ! -x "${PREFIX}/bin/shellcheck" ]]; then
-    return 0
-  fi
-  shell__create_symlink \
-    --src "${PREFIX}/bin/shellcheck" \
-    --system-target "/usr/local/bin/shellcheck" \
-    --user-target "${HOME}/.local/bin/shellcheck"
-}
-
-_shellcheck__resolve_prefix
 _existing="$(command -v shellcheck 2> /dev/null || true)"
 _shellcheck__handle_existing "$_existing" "$IF_EXISTS"
 
@@ -140,9 +114,10 @@ case "$METHOD" in
   auto)
     _resolved="$(_shellcheck__resolve_version "$VERSION" 2> /dev/null || true)"
     if [[ -n "$_resolved" ]] && _shellcheck__install_release "$_resolved" 2> /dev/null; then
-      :
+      METHOD=release
     else
       _shellcheck__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
+      METHOD=repos
     fi
     ;;
   *)
@@ -150,5 +125,3 @@ case "$METHOD" in
     exit 1
     ;;
 esac
-
-_shellcheck__create_symlink

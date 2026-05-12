@@ -105,36 +105,6 @@ options:
       description: nvm v0.40.4.
     - value: 0.40.3
       description: nvm v0.40.3.
-  nvm_dir:
-    type: string
-    default: ''
-    description: |-
-      Directory where nvm is installed (`$NVM_DIR`). Only used when `method=nvm`.
-      Leave empty to use the default: `/usr/local/share/nvm` as root or `${HOME}/.nvm` as non-root.
-      An explicit path (e.g. `/opt/nvm`) is used as-is; the resolved value is written as
-      `export NVM_DIR=...` into shell startup files so all sessions see the correct path.
-      Note: `containerEnv.NVM_DIR` is statically set to `/usr/local/share/nvm`; for non-root
-      installs, shell RC files override this. For non-interactive processes (CI, Docker RUN),
-      set `remoteEnv.NVM_DIR` in `devcontainer.json` if needed.
-      When running as root and `symlink=true`, a bridge
-      symlink `/usr/local/share/nvm` → `nvm_dir` is created if the two paths differ, keeping
-      the `containerEnv` value valid.
-    proposals:
-    - value: auto
-      description: Resolve to `/usr/local/share/nvm` when root, `${HOME}/.nvm` when non-root.
-    - value: /usr/local/share/nvm
-      description: System-wide nvm installation (root default).
-    - value: ${localEnv:HOME}/.nvm
-      description: Per-user nvm installation.
-    - value: /opt/nvm
-      description: Custom system-wide path.
-  prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix for method=binary (Node.js binaries land in $prefix/bin). Only used when method=binary.
-      Leave empty to use the default: /usr/local as root, or $HOME/.local as non-root.
-      An explicit absolute path (e.g. '/opt/node') — used as-is; the script exits with an error if the path is not writable and cannot be created.
   arch:
     type: string
     default: ''
@@ -165,14 +135,6 @@ options:
         Remove the existing Node.js installation and install fresh using the selected method.
         With `method=nvm`, runs `nvm uninstall <version>` then reinstalls.
         With `method=binary`, overwrites the extracted files.
-  export_path:
-    type: array
-    default: auto
-    description: |-
-      Controls which shell startup files receive PATH export blocks for the Node.js binary directory.
-      - `auto` (default) — as root, writes to all system-wide shell startup files: `/etc/environment` (`BASH_ENV` and `PATH`), `/etc/profile.d/install-node.sh` (login shells), the system-wide bashrc (non-login interactive bash), and the zsh env file (`zshenv`). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.
-      - `''` (empty) — skips all PATH writes (e.g. when `prefix=/usr/local` which is already on PATH, or when using symlinks only).
-      - A list of absolute file paths — writes only to those specific files.
   add_current_user:
     type: boolean
     default: true
@@ -215,21 +177,6 @@ options:
       Name of the group created to own 'nvm_dir' when set_permissions=true.
       All resolved users are added to this group.
       Only applies when method=nvm and set_permissions=true.
-  symlink:
-    type: boolean
-    default: true
-    description: |-
-      Create symlinks that ensure the containerEnv-declared paths always resolve to the actual installation.
-
-      For `method=nvm` (root only):
-      - The feature sets `NVM_SYMLINK_CURRENT=true` (both in `containerEnv` and during install), which causes nvm to maintain a `$NVM_DIR/current` symlink always pointing to the active Node.js version. The `containerEnv` PATH includes `$NVM_DIR/current/bin`, so `nvm use` version switching works automatically for all container processes.
-      - When `nvm_dir` resolves to a value other than `/usr/local/share/nvm` (the `containerEnv` `NVM_DIR` value), creates a directory symlink `/usr/local/share/nvm` → `nvm_dir` so that the `containerEnv` `NVM_DIR` and PATH entry remain valid.
-      - Symlinks `node`, `npm`, `npx`, and `corepack` from `$NVM_DIR/current/bin/` into `/usr/local/bin` when each source binary exists. This provides stable executable discovery in non-interactive contexts that may not source shell RC files.
-      - No-op when running as non-root (cannot write to `/usr/local/share`).
-
-      For `method=binary`:
-      - Root: symlinks `node`, `npm`, `npx`, and `corepack` from `$prefix/bin/` into `/usr/local/bin` when `prefix` is not `/usr/local`.
-      - Non-root: symlinks `node`, `npm`, `npx`, and `corepack` from `$prefix/bin/` into `$HOME/.local/bin` when `prefix` is not `$HOME/.local`.
   node_gyp_deps:
     type: boolean
     default: true
@@ -330,3 +277,27 @@ customizations:
       - text: This dev container includes 'node', 'npm', and optionally 'pnpm'/'yarn' pre-installed and available on the PATH for Node.js development.
 # installsAfter:
 # - ghcr.io/devcontainers/features/common-utils
+_prefix_groups:
+  "":
+    bin: node
+    symlink_description: |-
+      Create symlinks for `node`, `npm`, `npx`, and `corepack` in the standard
+      binary directory (`/usr/local/bin/` as root, `$HOME/.local/bin/` as
+      non-root) when the prefix resolves to a non-default path.
+    _applies_when:
+      - method:
+        - binary
+  nvm:
+    option_name: nvm_dir
+    default_root: /usr/local/share/nvm
+    default_nonroot: "${HOME}/.nvm"
+    dir_symlink: true
+    skip_export_path: true
+    symlink_description: |-
+      Root only. Creates a symlink from `$NVM_DIR` to `/usr/local/share/nvm`
+      when it resolves to a non-default path, and creates stable
+      `/usr/local/bin/` entrypoints for `node`, `npm`, `npx`, and `corepack`
+      pointing into `$NVM_DIR/current/bin/`. No-op when running as non-root.
+    _applies_when:
+      - method:
+        - nvm

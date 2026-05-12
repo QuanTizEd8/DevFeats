@@ -16,7 +16,7 @@ _long_description: >-
   files and displays or returns specific fields on request. Each shim can be individually
   enabled or disabled.
 containerEnv:
-  PATH: /usr/local/share/setup-shim/bin:$PATH
+  PATH: "@@_FEAT_SHARE_DIR@@/bin:$PATH"
 options:
   export_path:
     type: array

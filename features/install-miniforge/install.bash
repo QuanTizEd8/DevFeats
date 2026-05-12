@@ -1,12 +1,3 @@
-if [ -z "${PREFIX}" ]; then
-  if [ "$(id -u)" = "0" ]; then
-    PREFIX="/opt/conda"
-  else
-    PREFIX="${HOME}/miniforge3"
-  fi
-  logging__info "Argument 'PREFIX' resolved to '${PREFIX}'."
-fi
-
 # _conda_init_snippet <shell>
 # Runs `conda init <shell>` into a tmpdir with a clean HOME and prints the
 # full content of the rc file conda wrote (including conda's own markers).
@@ -344,52 +335,6 @@ verify_miniforge() {
   logging__fn_exit "verify_miniforge"
 }
 
-export_path_main() {
-  logging__fn_entry "export_path_main"
-  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    logging__info "export_path is empty; skipping PATH export."
-    logging__fn_exit "export_path_main"
-    return
-  fi
-  local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
-  local _marker="conda PATH (install-miniforge)"
-  local _target_files
-  if [ "${EXPORT_PATH[*]}" != "auto" ]; then
-    _target_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
-  else
-    local _is_public=true _is_root=false
-    case "$PREFIX" in "${HOME}"/*) _is_public=false ;; esac
-    [ "$(id -u)" = "0" ] && _is_root=true
-    logging__info "Platform: '$(os__platform)'; is_public=${_is_public}; is_root=${_is_root}."
-    if [ "$_is_public" = true ] && [ "$_is_root" = true ]; then
-      logging__info "Case A: system-wide PATH export (public install, root)."
-      _target_files="$(shell__system_path_files --profile_d "conda_bin_path.sh")"
-    else
-      logging__info "Case B: user-scoped PATH export."
-      # shellcheck disable=SC2119 # no args → uses $HOME default, intentional
-      _target_files="$(shell__user_path_files)"
-    fi
-  fi
-  shell__sync_block --files "$_target_files" --marker "$_marker" --content "$_content"
-  logging__fn_exit "export_path_main"
-  return
-}
-
-create_symlink() {
-  logging__fn_entry "create_symlink"
-  if [[ "$SYMLINK" != true ]]; then
-    logging__info "symlink=false; skipping symlink creation."
-    logging__fn_exit "create_symlink"
-    return 0
-  fi
-  shell__create_symlink \
-    --src "$PREFIX" \
-    --system-target "/opt/conda" \
-    --user-target "${HOME}/miniforge3"
-  logging__fn_exit "create_symlink"
-  return 0
-}
-
 _cleanup_hook() {
   logging__fn_entry "_cleanup_hook"
   if [[ "${KEEP_INSTALLER-}" != "true" ]]; then
@@ -489,9 +434,6 @@ else
 fi
 
 set_executable_paths --verify
-
-create_symlink
-export_path_main
 
 if [[ "${#SHELL_ACTIVATIONS[@]}" -gt 0 ]]; then add_activation_to_rcfile; fi
 if [[ "$UPDATE_BASE" == true ]]; then

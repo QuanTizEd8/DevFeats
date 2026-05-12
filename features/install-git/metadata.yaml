@@ -51,13 +51,6 @@ options:
         Install a specific version.
         - When `method=package`, passes the version to the package manager (user is responsible for availability).
         - When `method=source`, builds exactly that version from the kernel.org tarball.
-  prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix for source builds (passed as `prefix=` to `make install`).
-      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
-      An explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.
   sysconfdir:
     type: string
     default: auto
@@ -106,15 +99,6 @@ options:
       Additional flags to append verbatim to the `make` invocation for source builds (space-separated `KEY=VALUE` pairs, e.g. `NO_CURL=YesPlease OPENSSL_SHA256=YesPlease`).
       Appended after all computed flags including `no_flags`, so last-position values take effect.
       No validation — unknown flags are silently ignored by `make`. Silently ignored when `method=package`.
-  export_path:
-    type: array
-    default: auto
-    description: |-
-      Controls PATH and MANPATH export for source builds.
-      - `auto` (default) — writes idempotent export blocks to all system-wide shell startup files: the `BASH_ENV` file (non-login non-interactive bash, registered in `/etc/environment`), `/etc/profile.d/install-git.sh` (login shells), the system-wide bashrc (non-login interactive bash), and `<zshdir>/zshenv` (all zsh). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.
-      - `''` (empty) — skips all PATH/MANPATH writes.
-      - A list of absolute file paths — writes only to those files.
-      Ignored when `method=package` (git lands in `/usr/bin` which is universally on PATH).
   shell_completions:
     type: array
     default: "bash\nzsh"
@@ -215,16 +199,6 @@ options:
     type: string
     default: ''
     description: Freeform content to append to the per-user gitconfig (`~/.gitconfig`) for all resolved users. Accepts standard gitconfig format. Written after `user_name` and `user_email` settings. Set to `''` to skip.
-  symlink:
-    type: boolean
-    default: true
-    description: |-
-      Create a symlink from the canonical bin directory to `$prefix/bin/git` when prefix resolves to a non-default path (source builds only).
-      The symlink location is determined by whether `$prefix` falls under any user's home directory (as listed in `/etc/passwd`):
-      - System-wide (prefix is not under any user home): creates `/usr/local/bin/git` → `$prefix/bin/git`.
-      - User-scoped (prefix is under a user home): creates `$HOME/.local/bin/git` → `$prefix/bin/git`.
-      Ensures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.
-      No-op when `method=package` (git is already in `/usr/bin`), or when prefix already resolves to the canonical path (`/usr/local` for root, `$HOME/.local` for non-root).
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
 # installsAfter:
@@ -325,3 +299,15 @@ _dependencies:
           - expat
           - openssl
           - zlib
+_prefix_groups:
+  "":
+    bin: git
+    export_path_description: |-
+      Write `export PATH="${PREFIX}/bin:$PATH"` and
+      `export MANPATH="${PREFIX}/share/man:${MANPATH}"` blocks to shell
+      startup files. Set to `auto` to write to standard profiles
+      (system-wide as root, user-scoped otherwise), or provide explicit
+      file path(s) one per line. Leave empty to skip.
+    _applies_when:
+      - method:
+        - source

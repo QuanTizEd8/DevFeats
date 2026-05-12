@@ -17,4 +17,4 @@ onCreateCommand:
   devfeats--install-cursor--symlink-cursor-user-dir:
     description: Symlink the specified workspace `cursor` directory to `~/.cursor-server/data/User`.
     command: >-
-      /usr/local/share/repodynamics/devfeats/install-cursor/lifecycle--on-create--symlink-cursor-user-dir.sh ${containerWorkspaceFolder}
+      @@_FEAT_SHARE_DIR@@/lifecycle--on-create--symlink-cursor-user-dir.sh ${containerWorkspaceFolder}

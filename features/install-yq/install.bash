@@ -29,44 +29,11 @@ _yq__resolve_version() {
   return 0
 }
 
-# _yq__resolve_prefix — resolve PREFIX global to an absolute path.
-_yq__resolve_prefix() {
-  logging__fn_entry "_yq__resolve_prefix"
-  if [[ -z "${PREFIX}" ]]; then
-    PREFIX="$(users__default_prefix)"
-    logging__info "Resolved prefix to '${PREFIX}'"
-  fi
-  logging__fn_exit "_yq__resolve_prefix"
-  return 0
-}
-
 # _yq__get_installed_version <bin> — print bare semver of installed yq, or empty.
 _yq__get_installed_version() {
   local _bin="${1-}"
   [[ -x "${_bin}" ]] || return 0
   "${_bin}" --version 2> /dev/null | awk '{print $NF}' | sed 's/^v//' || true
-}
-
-# _yq__create_symlink — create symlink to ${PREFIX}/bin/yq in the canonical bin dir.
-# Skipped for method=repos (package manager controls install location).
-_yq__create_symlink() {
-  logging__fn_entry "_yq__create_symlink"
-  if [ "${SYMLINK}" != "true" ]; then
-    logging__info "symlink=false; skipping symlink creation."
-    logging__fn_exit "_yq__create_symlink"
-    return 0
-  fi
-  if [ "${METHOD}" = "repos" ]; then
-    logging__info "method=repos; symlink not applicable."
-    logging__fn_exit "_yq__create_symlink"
-    return 0
-  fi
-  shell__create_symlink \
-    --src "${PREFIX}/bin/yq" \
-    --system-target "/usr/local/bin/yq" \
-    --user-target "${HOME}/.local/bin/yq"
-  logging__fn_exit "_yq__create_symlink"
-  return 0
 }
 
 # _yq__install_completions — write shell completion files for shells in SHELL_COMPLETIONS.
@@ -136,8 +103,6 @@ _yq__install_completions() {
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
-
-_yq__resolve_prefix
 _yq__resolve_version
 
 # Version-match idempotency: skip reinstall when the binary at the target
@@ -178,6 +143,11 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
     --prefix "${PREFIX}" \
     --version "${VERSION}" > /dev/null
 fi
-
-_yq__create_symlink
+if [ "${METHOD}" = "auto" ]; then
+  if [ -x "${PREFIX}/bin/yq" ]; then
+    METHOD=release
+  else
+    METHOD=repos
+  fi
+fi
 _yq__install_completions

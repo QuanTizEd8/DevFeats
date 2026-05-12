@@ -1,0 +1,21 @@
+# shellcheck disable=SC2329,SC2317
+@@FUNC_NAME@@() {
+  logging__fn_entry "@@FUNC_NAME@@"
+@@APPLIES_WHEN_GUARD@@  if [ "${#@@EXPORT_VAR@@[@]}" -eq 0 ]; then
+    logging__info "@@EXPORT_OPT@@= is empty; skipping PATH export."
+    logging__fn_exit "@@FUNC_NAME@@"
+    return 0
+  fi
+  if [ "${@@EXPORT_VAR@@[*]}" = "auto" ] && [ "${@@PREFIX_VAR@@}" = "/usr/local" ]; then
+    logging__info "'@@PREFIX_VAR@@' is /usr/local which is already on PATH in all container images; skipping PATH write."
+    logging__fn_exit "@@FUNC_NAME@@"
+    return 0
+  fi
+  shell__write_env_block \
+    --opt "$(printf '%s\n' "${@@EXPORT_VAR@@[@]}")" \
+    --profile-d "${_EXPORT_PROFILE_D}" \
+    --marker "@@MARKER@@" \
+    --content "export PATH=\"${@@PREFIX_VAR@@}/@@BIN_DIR@@:\${PATH}\""
+  logging__fn_exit "@@FUNC_NAME@@"
+  return
+}

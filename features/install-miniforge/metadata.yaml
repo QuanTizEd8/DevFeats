@@ -61,32 +61,6 @@ options:
       Run `conda update --all` to update the base conda environment after installation.
       Not recommended for images where environment reproducibility matters.
     type: boolean
-  prefix:
-    default: ''
-    description: |-
-      Path to the conda installation directory (installation root/prefix).
-      Leave empty to use the default: `/opt/conda` as root (the de-facto standard used by continuumio Docker images and the devcontainer ecosystem), or `~/miniforge3` as non-root (the Miniforge installer's own default prefix).
-      An explicit path — used as-is; the directory is created if it does not exist.
-      With `symlink=true`, a symlink is created from the canonical prefix to `$prefix` when they differ: `/opt/conda` → `$prefix` for root, `$HOME/miniforge3` → `$prefix` for non-root.
-    type: string
-  export_path:
-    default: auto
-    description: |-
-      Controls which shell startup files receive the PATH export for `$prefix/bin`.
-      - `auto` — writes to all relevant system-wide files (root) or user-scoped files (non-root).
-      - `''` (empty) — skips all PATH writes.
-      - A list of absolute paths — writes only to those files.
-    type: array
-  symlink:
-    default: true
-    description: |-
-      Create a directory symlink from the canonical conda prefix to `$prefix` when prefix resolves to a non-default path.
-      The symlink location is determined by whether `$prefix` falls under any user's home directory (as listed in `/etc/passwd`):
-      - System-wide (prefix is not under any user home): creates `/opt/conda` → `$prefix`.
-      - User-scoped (prefix is under a user home): creates `$HOME/miniforge3` → `$prefix`.
-      Ensures the containerEnv PATH entries always resolve to the conda binaries regardless of the chosen prefix.
-      No-op when `$prefix` is already the chosen target path.
-    type: boolean
   shell_activations:
     default: "bash\nzsh"
     description: Shell names to write conda init blocks for. Set to `''` to skip all activation writes.
@@ -163,3 +137,9 @@ _dependencies:
     base:
       packages:
         - ca-certificates
+_prefix_groups:
+  "":
+    default_root: /opt/conda
+    default_nonroot: "${HOME}/miniforge3"
+    bin: conda
+    dir_symlink: true

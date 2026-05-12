@@ -12,6 +12,7 @@ import yaml
 
 from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.git import git_owner_repo, git_repo_root
+from proman.metadata import _inject_prefix_options
 from proman.sync.file_sync import SyncStatus, remove_file, sync_file
 from proman.sync.install_script import InstallScriptGenerator
 from proman.sync.metadata import (
@@ -95,6 +96,10 @@ def run(*, check_only: bool = False) -> int:
 
         if not validate_metadata_schema(feature_id, metadata, validator):
             n_failures["schema validation"] += 1
+            continue
+
+        if not _inject_prefix_options(feature_id, metadata):
+            n_failures["augmentation"] += 1
             continue
 
         metadata["id"] = feature_id

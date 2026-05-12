@@ -33,17 +33,6 @@ _jq__resolve_version() {
   return 0
 }
 
-# _jq__resolve_prefix — resolve PREFIX global to an absolute path.
-_jq__resolve_prefix() {
-  logging__fn_entry "_jq__resolve_prefix"
-  if [[ -z "${PREFIX}" ]]; then
-    PREFIX="$(users__default_prefix)"
-    logging__info "Resolved prefix to '${PREFIX}'"
-  fi
-  logging__fn_exit "_jq__resolve_prefix"
-  return 0
-}
-
 # _jq__get_installed_version <bin> — print bare semver of installed jq, or empty string.
 _jq__get_installed_version() {
   local _bin="${1-}"
@@ -52,35 +41,7 @@ _jq__get_installed_version() {
   "${_bin}" --version 2> /dev/null | sed 's/^jq-//' || true
 }
 
-# _jq__create_symlink — create symlink to ${PREFIX}/bin/jq in the canonical bin dir.
-# Skipped for method=repos (package manager controls install location).
-_jq__create_symlink() {
-  logging__fn_entry "_jq__create_symlink"
-  if [[ "${SYMLINK}" != "true" ]]; then
-    logging__info "symlink=false; skipping symlink creation."
-    logging__fn_exit "_jq__create_symlink"
-    return 0
-  fi
-  if [[ "${METHOD}" == "repos" ]]; then
-    logging__info "method=repos; symlink not applicable."
-    logging__fn_exit "_jq__create_symlink"
-    return 0
-  fi
-  if [[ ! -x "${PREFIX}/bin/jq" ]]; then
-    logging__fn_exit "_jq__create_symlink"
-    return 0
-  fi
-  shell__create_symlink \
-    --src "${PREFIX}/bin/jq" \
-    --system-target "/usr/local/bin/jq" \
-    --user-target "${HOME}/.local/bin/jq"
-  logging__fn_exit "_jq__create_symlink"
-  return 0
-}
-
 # ── Main ──────────────────────────────────────────────────────────────────────
-
-_jq__resolve_prefix
 
 # Version is not meaningful for repos; only resolve when actually needed.
 if [[ "${METHOD}" != "repos" ]]; then
@@ -131,5 +92,10 @@ if [[ "${_SKIP_INSTALL}" != "true" ]]; then
     --prefix "${PREFIX}" \
     --version "${VERSION}" > /dev/null
 fi
-
-_jq__create_symlink
+if [[ "${METHOD}" == "auto" ]]; then
+  if [[ -x "${PREFIX}/bin/jq" ]]; then
+    METHOD=release
+  else
+    METHOD=repos
+  fi
+fi

@@ -394,6 +394,53 @@ shell__user_path_files() {
   return 0
 }
 
+# @brief shell__write_env_block --opt <value> --profile-d <name> --marker <id> --content <c> — Resolve shell startup file targets and write an idempotent env-export block.
+#
+# Centralises the "auto vs. explicit file list" routing that every export-path
+# handler needs: pick system-wide files when root, user-scoped files when
+# non-root, or write directly to the caller-supplied list.
+#
+# Args:
+#   --opt <value>   "auto" to target the standard system/user startup files, or
+#                   a newline-separated list of absolute paths to target directly
+#                   (pass via `$(printf '%s\n' "${ARRAY[@]}")`).
+#   --profile-d <n> Base filename for an /etc/profile.d/ drop-in; only used when
+#                   --opt is "auto" and running as root (optional).
+#   --marker <id>   Block identifier passed to shell__sync_block.
+#   --content <c>   Shell code to write inside the idempotency block.
+#
+# When --opt is "auto":
+#   root  → shell__system_path_files (--profile_d <n> when --profile-d given)
+#   !root → shell__user_path_files
+# When --opt is an explicit newline-separated list: writes to those paths only.
+shell__write_env_block() {
+  local _opt="" _profile_d="" _marker="" _content=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --opt)       shift; _opt="$1";       shift ;;
+      --profile-d) shift; _profile_d="$1"; shift ;;
+      --marker)    shift; _marker="$1";    shift ;;
+      --content)   shift; _content="$1";   shift ;;
+      *)           shift ;;
+    esac
+  done
+  local _target_files
+  if [ "$_opt" = "auto" ]; then
+    if [ "$(id -u)" = "0" ]; then
+      logging__info "System-wide env block write (root)."
+      _target_files="$(shell__system_path_files ${_profile_d:+--profile_d "$_profile_d"})"
+    else
+      logging__info "User-scoped env block write (non-root)."
+      # shellcheck disable=SC2119
+      _target_files="$(shell__user_path_files)"
+    fi
+  else
+    _target_files="$_opt"
+  fi
+  shell__sync_block --files "${_target_files}" --marker "${_marker}" --content "${_content}"
+  return 0
+}
+
 # @brief shell__user_init_files [--home <dir>] [--zdotdir <dir>] — Print user startup file paths for a full initializer: bash login, `.bashrc`, `<zdotdir>/.zprofile`, `<zdotdir>/.zshrc`.
 #
 # Suitable for initializers that need to run in all contexts (e.g.

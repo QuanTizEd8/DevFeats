@@ -36,23 +36,6 @@ options:
         description: Resolve and install the latest release.
       - value: 3.10.0
         description: Install shfmt v3.10.0.
-  prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix for `method=release` (`$prefix/bin/shfmt`).
-      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
-      Ignored for `method=repos`.
-  symlink:
-    type: boolean
-    default: true
-    description: |-
-      Create a symlink from the canonical bin directory to `$prefix/bin/shfmt` when prefix
-      resolves to a non-default path (`method=release` only).
-      - System-wide (prefix not under any user home): creates `/usr/local/bin/shfmt` → `$prefix/bin/shfmt`.
-      - User-scoped (prefix under a user home): creates `$HOME/.local/bin/shfmt` → `$prefix/bin/shfmt`.
-      Ensures the binary is always reachable on PATH regardless of the chosen prefix.
-      No-op when `$prefix/bin/shfmt` is already the chosen target path, or when `method=repos`.
   if_exists:
     type: string
     default: skip
@@ -74,3 +57,8 @@ _dependencies:
       packages:
         - shfmt
 # installsAfter: []
+_prefix_groups:
+  "":
+    bin: shfmt
+    _applies_when:
+      - method: [release]

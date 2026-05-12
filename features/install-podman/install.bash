@@ -7,8 +7,6 @@
 # shellcheck source=lib/file.sh
 . "$_SELF_DIR/_lib/file.sh"
 
-_FILES_DIR="${_BASE_DIR}/files"
-
 # ---------------------------------------------------------------------------
 # 1. Devcontainer-context detection
 #
@@ -129,8 +127,8 @@ done
 # delegation; the entrypoint is not installed (nothing would call it).
 # ---------------------------------------------------------------------------
 if os__is_devcontainer_build; then
-  _ENTRYPOINT_DEST="/usr/local/share/devfeats/install-podman/entrypoint.sh"
-  mkdir -p "$(dirname "$_ENTRYPOINT_DEST")"
+  _ENTRYPOINT_DEST="${_FEAT_SHARE_DIR}/entrypoint.sh"
+  mkdir -p "${_FEAT_SHARE_DIR}"
   cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
   chmod +x "$_ENTRYPOINT_DEST"
 fi

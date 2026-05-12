@@ -471,12 +471,37 @@ _git__write_user_gitconfig() {
   return 0
 }
 
+_export_git_manpath() {
+  logging__fn_entry "_export_git_manpath"
+  if [ "${METHOD}" != "source" ]; then
+    logging__fn_exit "_export_git_manpath"
+    return 0
+  fi
+  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
+    logging__fn_exit "_export_git_manpath"
+    return 0
+  fi
+  if [ "${PREFIX}" = "/usr/local" ] || [ "${PREFIX}" = "${HOME}/.local" ]; then
+    logging__fn_exit "_export_git_manpath"
+    return 0
+  fi
+  shell__write_env_block \
+    --opt "$(printf '%s\n' "${EXPORT_PATH[@]}")" \
+    --profile-d "${_EXPORT_PROFILE_D}" \
+    --marker "git MANPATH (install-git)" \
+    --content "export MANPATH=\"${PREFIX}/share/man:\${MANPATH}\""
+  logging__fn_exit "_export_git_manpath"
+  return
+}
+
+_prefix_post_install() {
+  _prefix_post_install__generated
+  _export_git_manpath
+}
+
 # ── Top-level dispatch ────────────────────────────────────────────────────────
 
 # 1. Resolve prefix/sysconfdir.
-if [ -z "${PREFIX}" ]; then
-  [ "$(id -u)" = "0" ] && PREFIX="/usr/local" || PREFIX="${HOME}/.local"
-fi
 if [ "${SYSCONFDIR}" = "auto" ]; then
   [ "$(id -u)" = "0" ] && SYSCONFDIR="/etc" || SYSCONFDIR="${HOME}/.config"
 fi
@@ -540,48 +565,10 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
   fi
 fi
 
-# 6. PATH/MANPATH export (source build only).
-if [ "${METHOD}" = "source" ] && [ "${#EXPORT_PATH[@]}" -gt 0 ]; then
-  _path_files=""
-  if [ "${EXPORT_PATH[*]}" = "auto" ]; then
-    if [ "$(id -u)" = "0" ]; then
-      _path_files="$(shell__system_path_files --profile_d install-git.sh)"
-    else
-      # shellcheck disable=SC2119
-      _path_files="$(shell__user_path_files)"
-    fi
-  else
-    _path_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
-  fi
-  shell__sync_block \
-    --files "${_path_files}" \
-    --marker "git PATH (install-git)" \
-    --content "export PATH=\"${PREFIX}/bin:\${PATH}\""
-  # Write MANPATH only for non-standard prefixes.
-  if [ "${PREFIX}" != "/usr/local" ] && [ "${PREFIX}" != "${HOME}/.local" ]; then
-    shell__sync_block \
-      --files "${_path_files}" \
-      --marker "git MANPATH (install-git)" \
-      --content "export MANPATH=\"${PREFIX}/share/man:\${MANPATH}\""
-  fi
-fi
-
 # 7. Git configuration.
 if [ -n "${DEFAULT_BRANCH}${SYSTEM_GITCONFIG}" ] || [ "${#SAFE_DIRECTORY[@]}" -gt 0 ]; then
   _git__write_system_gitconfig
 fi
 if { [ "${ADD_CURRENT_USER}" = "true" ] || [ "${ADD_REMOTE_USER}" = "true" ] || [ "${ADD_CONTAINER_USER}" = "true" ] || [ -n "${ADD_USERS}" ]; } && [ -n "${USER_NAME}${USER_EMAIL}${USER_GITCONFIG}" ]; then
   _git__write_user_gitconfig
-fi
-
-# 8. Symlink (source builds + non-standard prefix only).
-if [ "${METHOD}" = "source" ] && [ "${SYMLINK}" = "true" ]; then
-  if [ "$(id -u)" = "0" ] && [ "${PREFIX}" != "/usr/local" ]; then
-    ln -sf "${PREFIX}/bin/git" /usr/local/bin/git
-    logging__success "Created symlink /usr/local/bin/git → ${PREFIX}/bin/git"
-  elif [ "$(id -u)" != "0" ] && [ "${PREFIX}" != "${HOME}/.local" ]; then
-    mkdir -p "${HOME}/.local/bin"
-    ln -sf "${PREFIX}/bin/git" "${HOME}/.local/bin/git"
-    logging__success "Created symlink ${HOME}/.local/bin/git → ${PREFIX}/bin/git"
-  fi
 fi

@@ -257,27 +257,6 @@ _gh__install_binary() {
   return 0
 }
 
-# _gh__create_symlink — create symlink to PREFIX/bin/gh in the canonical bin dir.
-_gh__create_symlink() {
-  logging__fn_entry "_gh__create_symlink"
-  if [ "${SYMLINK}" != "true" ]; then
-    logging__info "symlink=false; skipping."
-    logging__fn_exit "_gh__create_symlink"
-    return 0
-  fi
-  if [ "${METHOD}" != "binary" ]; then
-    logging__info "method=repos; symlink not applicable."
-    logging__fn_exit "_gh__create_symlink"
-    return 0
-  fi
-  shell__create_symlink \
-    --src "${PREFIX}/bin/gh" \
-    --system-target "/usr/local/bin/gh" \
-    --user-target "${HOME}/.local/bin/gh"
-  logging__fn_exit "_gh__create_symlink"
-  return 0
-}
-
 # _gh__install_completions — install completions for shells listed in SHELL_COMPLETIONS.
 # Usage: _gh__install_completions --from-archive <dir>
 #        _gh__install_completions --from-command
@@ -516,15 +495,6 @@ fi
 
 os__require_root
 
-if [ -z "${PREFIX}" ]; then
-  if [ "$(id -u)" = "0" ]; then
-    PREFIX="/usr/local"
-  else
-    PREFIX="${HOME}/.local"
-  fi
-  logging__info "Argument 'PREFIX' resolved to '${PREFIX}'."
-fi
-
 # Resolve version (may call GitHub API).
 _resolved_version="$(_gh__resolve_version)"
 
@@ -543,9 +513,6 @@ if [ "${METHOD}" = "repos" ]; then
 else
   _gh__install_binary "${_resolved_version}"
 fi
-
-# Create /usr/local/bin symlink (binary method, non-default prefix).
-_gh__create_symlink
 
 # Install completions for repos method (binary method handles them internally).
 if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ] && [ "${METHOD}" = "repos" ]; then

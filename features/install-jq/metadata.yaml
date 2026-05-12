@@ -57,23 +57,6 @@ options:
         description: jq v1.7.1.
       - value: '1.6'
         description: jq v1.6 (uses legacy release asset naming).
-  prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix for `method=release` and `method=source` (`$prefix/bin/jq`).
-      Leave empty to use the default: `/usr/local` as root, or `$HOME/.local` as non-root.
-      Ignored for `method=repos`.
-  symlink:
-    type: boolean
-    default: true
-    description: |-
-      Create a symlink from the canonical bin directory to `$prefix/bin/jq` when prefix
-      resolves to a non-default path (`method=release` or `method=source` only).
-      - System-wide (prefix not under any user home): creates `/usr/local/bin/jq` → `$prefix/bin/jq`.
-      - User-scoped (prefix under a user home): creates `$HOME/.local/bin/jq` → `$prefix/bin/jq`.
-      Ensures the binary is always reachable on PATH regardless of the chosen prefix.
-      No-op when `$prefix/bin/jq` is already the chosen target path, or when `method=repos`.
   if_exists:
     type: string
     default: skip
@@ -104,3 +87,8 @@ _dependencies:
           apt: build-essential
           apk: build-base
 # installsAfter: []
+_prefix_groups:
+  "":
+    bin: jq
+    _applies_when:
+      - method: [release, source]

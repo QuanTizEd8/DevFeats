@@ -32,13 +32,6 @@ options:
       description: Pixi v0.66.0.
     - value: 0.65.0
       description: Pixi v0.65.0.
-  prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix for pixi. The `pixi` binary is placed at `$prefix/bin/pixi`.
-      Leave empty to use the default: `/usr/local` as root, or `$HOME/.pixi` as non-root.
-      An explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.
   if_exists:
     type: string
     default: skip
@@ -103,14 +96,6 @@ options:
       description: Explicit path via `file://`.
     - value: https://internal.example.com/secrets/netrc
       description: HTTPS URL (use `fetch_headers` if the endpoint needs a bearer token).
-  export_path:
-    type: array
-    default: auto
-    description: |-
-      Controls which shell startup files receive the PATH export for `$prefix/bin`.
-      - `auto` — system-wide exports (root) or user-scoped exports (non-root). Skipped when `prefix=/usr/local` (already on PATH).
-      - `''` (empty) — skips all PATH writes.
-      - A list of absolute file paths — writes only to those files.
   export_pixi_home:
     type: array
     default: auto
@@ -123,16 +108,6 @@ options:
       `PIXI_HOME` is a runtime variable read on every pixi invocation; if it is not set
       in the environment, pixi will not find globally installed tools or config written
       to a custom `home_dir`.
-  symlink:
-    type: boolean
-    default: true
-    description: |-
-      Create a symlink from the canonical bin directory to `$prefix/bin/pixi` when prefix resolves to a non-default path.
-      The symlink location is determined by whether `$prefix` falls under any user's home directory (as listed in `/etc/passwd`):
-      - System-wide (prefix is not under any user home): creates `/usr/local/bin/pixi` → `$prefix/bin/pixi`.
-      - User-scoped (prefix is under a user home): creates `$HOME/.pixi/bin/pixi` → `$prefix/bin/pixi`.
-      Ensures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.
-      No-op when `$prefix/bin/pixi` is already the chosen target path.
   shell_completions:
     type: array
     default: ''
@@ -159,7 +134,7 @@ mounts:
 - source: ${localWorkspaceFolderBasename}-pixi
   target: ${containerWorkspaceFolder}/.pixi
   type: volume
-entrypoint: /usr/local/share/devfeats/install-pixi/entrypoint.sh ${containerWorkspaceFolder}/.pixi
+entrypoint: "@@_FEAT_SHARE_DIR@@/entrypoint.sh ${containerWorkspaceFolder}/.pixi"
 containerEnv:
   PATH: ${HOME}/.pixi/bin:${PATH}
 # installsAfter: []
@@ -174,3 +149,7 @@ _dependencies:
       packages:
         - ca-certificates
         - sudo
+_prefix_groups:
+  "":
+    default_nonroot: "${HOME}/.pixi"
+    bin: pixi

@@ -669,7 +669,6 @@ configure_user() {
   return 0
 }
 
-_FILES_DIR="${_BASE_DIR}/files"
 _SKEL_DIR="${_FILES_DIR}/skel"
 
 os__require_root
@@ -688,13 +687,6 @@ fi
 if ! command -v git > /dev/null 2>&1; then
   logging__error "Required command 'git' not found. Install it first."
   exit 1
-fi
-
-if [[ -z "${STARSHIP_PREFIX}" ]]; then
-  STARSHIP_PREFIX="$(users__default_prefix)"
-fi
-if [[ -z "${FZF_PREFIX}" ]]; then
-  FZF_PREFIX="$(users__default_prefix)"
 fi
 
 # ===================================================================

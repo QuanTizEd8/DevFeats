@@ -84,25 +84,6 @@ _devcontainer_cli__auto_method() {
   esac
 }
 
-_devcontainer_cli__create_symlink() {
-  if [[ "${SYMLINK}" != "true" ]]; then
-    logging__info "symlink=false; skipping symlink creation."
-    return 0
-  fi
-  shell__create_symlink \
-    --src "${PREFIX}/bin/devcontainer" \
-    --system-target "/usr/local/bin/devcontainer" \
-    --user-target "${HOME}/.local/bin/devcontainer"
-}
-
-if [[ -z "${PREFIX}" ]]; then
-  if users__is_root; then
-    PREFIX="/opt/devcontainers"
-  else
-    PREFIX="${HOME}/.devcontainers"
-  fi
-fi
-
 _resolved_method="${METHOD}"
 if [[ "${_resolved_method}" == "auto" ]]; then
   _resolved_method="$(_devcontainer_cli__auto_method)"
@@ -144,5 +125,4 @@ if [[ ! -x "${PREFIX}/bin/devcontainer" ]]; then
   exit 1
 fi
 
-_devcontainer_cli__create_symlink
 logging__success "install-devcontainer-cli: installed $("${PREFIX}/bin/devcontainer" --version 2> /dev/null | head -n 1)"

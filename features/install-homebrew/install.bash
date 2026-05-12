@@ -103,33 +103,28 @@ export_shellenv_main() {
   return 0
 }
 
+export_path_main() {
+  export_shellenv_main
+}
+
 # ── Helper functions ──────────────────────────────────────────────────────────
 
 resolve_prefix() {
   logging__fn_entry "resolve_prefix"
-  local _user="$1"
-  # Explicit option always wins.
-  if [ -n "${PREFIX-}" ]; then
+  if [ -n "${PREFIX:-}" ] && [ "${PREFIX}" != "auto" ]; then
     logging__info "Using explicit prefix: '${PREFIX}'."
-    echo "$PREFIX"
-    logging__fn_exit "resolve_prefix"
-    return 0
-  fi
-  # macOS: Homebrew only officially supports these two paths.
-  if [ "$(os__kernel)" = "Darwin" ]; then
+  elif [ "$(os__kernel)" = "Darwin" ]; then
     if [ "$(os__arch)" = "arm64" ]; then
-      echo "/opt/homebrew"
+      PREFIX="/opt/homebrew"
     else
-      echo "/usr/local"
+      PREFIX="/usr/local"
     fi
-    logging__fn_exit "resolve_prefix"
-    return 0
+  elif [ "$(id -u)" = "0" ]; then
+    PREFIX="/home/linuxbrew/.linuxbrew"
+  else
+    PREFIX="${HOME}/.linuxbrew"
   fi
-  # Linux: the official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
-  # at startup and ignores any HOMEBREW_PREFIX env var passed to it. Using any
-  # other path causes the permission check to fail for non-sudo users.
-  logging__info "Using Linux default prefix: '/home/linuxbrew/.linuxbrew'."
-  echo "/home/linuxbrew/.linuxbrew"
+  RESOLVED_PREFIX="${PREFIX}"
   logging__fn_exit "resolve_prefix"
   return 0
 }
@@ -396,7 +391,7 @@ prepare_prefix_if_needed() {
 RESOLVED_INSTALL_USER="$(resolve_install_user)"
 logging__info "Install user: '${RESOLVED_INSTALL_USER}'."
 validate_install_user "$RESOLVED_INSTALL_USER"
-RESOLVED_PREFIX="$(resolve_prefix "$RESOLVED_INSTALL_USER")"
+resolve_prefix
 logging__info "Prefix: '${RESOLVED_PREFIX}'."
 if [ "$(os__kernel)" != "Darwin" ] && [ "$(id -u)" = "0" ]; then
   prepare_prefix_if_needed "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER"
@@ -452,10 +447,7 @@ if [[ "$UPDATE" == true ]]; then
   logging__success "brew update completed."
 fi
 
-# ── Step 5: Export shellenv ───────────────────────────────────────────────────
-export_shellenv_main
-
-# ── Step 6: brew doctor (warn only) ──────────────────────────────────────────
+# ── Step 5: brew doctor (warn only) ──────────────────────────────────────────
 logging__info "Running 'brew doctor' (warnings only)."
 _brew_run_as_install_user "$_BREW_EXEC" doctor 2>&1 || true
 

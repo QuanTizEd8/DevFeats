@@ -6,12 +6,15 @@ from pathlib import Path
 
 import pytest
 import yaml
+from proman.const import export_profile_d, feat_share_dir
 from proman.metadata import (
     augment_metadata,
     load_all,
     load_and_augment,
     load_derived_options,
     read_metadata,
+    _feature_vars,
+    _substitute_vars,
 )
 
 _FAKE_OWNER_REPO = ("testowner", "testrepo")
@@ -191,3 +194,76 @@ def test_load_all_empty_features_dir(
     (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
     result = load_all(features)
     assert result == {}
+
+
+# ── _feature_vars / _substitute_vars ─────────────────────────────────────────
+
+
+def test_feature_vars_delegates_to_const() -> None:
+    """_feature_vars returns values produced by the canonical const formulas."""
+    vars_ = _feature_vars("install-foo", "myowner", "myrepo")
+    assert vars_["_FEAT_SHARE_DIR"] == feat_share_dir("install-foo", "myowner", "myrepo")
+    assert vars_["_EXPORT_PROFILE_D"] == export_profile_d("install-foo", "myowner", "myrepo")
+
+
+def test_substitute_vars_string() -> None:
+    """@@VAR@@ tokens in plain strings are replaced."""
+    vars_ = {"_FEAT_SHARE_DIR": "/usr/local/share/o/r/feat"}
+    result = _substitute_vars("@@_FEAT_SHARE_DIR@@/entrypoint.sh", vars_)
+    assert result == "/usr/local/share/o/r/feat/entrypoint.sh"
+
+
+def test_substitute_vars_nested_dict_and_list() -> None:
+    """Substitution recurses into dict values and list items; keys are untouched."""
+    vars_ = {"_FEAT_SHARE_DIR": "/share/o/r/f"}
+    obj = {
+        "@@_FEAT_SHARE_DIR@@": "key-is-not-touched",
+        "entrypoint": "@@_FEAT_SHARE_DIR@@/run.sh",
+        "env": {"PATH": "@@_FEAT_SHARE_DIR@@/bin:$PATH"},
+        "cmds": ["sh @@_FEAT_SHARE_DIR@@/a.sh", "echo done"],
+        "num": 42,
+    }
+    result = _substitute_vars(obj, vars_)
+    assert isinstance(result, dict)
+    assert "@@_FEAT_SHARE_DIR@@" in result  # key unchanged
+    assert result["entrypoint"] == "/share/o/r/f/run.sh"
+    assert result["env"]["PATH"] == "/share/o/r/f/bin:$PATH"
+    assert result["cmds"][0] == "sh /share/o/r/f/a.sh"
+    assert result["cmds"][1] == "echo done"
+    assert result["num"] == 42  # non-string scalar unchanged
+
+
+def test_load_and_augment_substitutes_feature_vars(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@@_FEAT_SHARE_DIR@@ and @@_EXPORT_PROFILE_D@@ are expanded in metadata values."""
+    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: ("myowner", "myrepo"))
+    features = tmp_path / "features"
+    feat_id = "install-bar"
+    feat_dir = features / feat_id
+    feat_dir.mkdir(parents=True)
+    raw = {
+        "version": "1.0.0",
+        "name": "Bar",
+        "description": "Test.",
+        "keywords": [],
+        "options": {},
+        "entrypoint": "@@_FEAT_SHARE_DIR@@/entrypoint.sh ${containerWorkspaceFolder}",
+        "containerEnv": {"PATH": "@@_FEAT_SHARE_DIR@@/bin:$PATH"},
+        "onCreateCommand": {
+            "run": {"command": "sh @@_FEAT_SHARE_DIR@@/on-create.sh || true"},
+        },
+    }
+    (feat_dir / "metadata.yaml").write_text(yaml.dump(raw), encoding="utf-8")
+    (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
+    result = load_and_augment(feat_id, features)
+    assert result is not None
+    expected_share = "/usr/local/share/myowner/myrepo/install-bar"
+    assert result["entrypoint"] == (
+        f"{expected_share}/entrypoint.sh ${{containerWorkspaceFolder}}"
+    )
+    assert result["containerEnv"]["PATH"] == f"{expected_share}/bin:$PATH"
+    assert result["onCreateCommand"]["run"]["command"] == (
+        f"sh {expected_share}/on-create.sh || true"
+    )

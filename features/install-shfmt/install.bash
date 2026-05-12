@@ -22,12 +22,6 @@ _shfmt__resolve_version() {
   printf '%s\n' "$_version"
 }
 
-_shfmt__resolve_prefix() {
-  if [[ -z "${PREFIX}" ]]; then
-    PREFIX="$(users__default_prefix)"
-  fi
-}
-
 _shfmt__platform_arch() {
   local _os _arch
   case "$(os__kernel)" in
@@ -91,26 +85,6 @@ _shfmt__handle_existing() {
       ;;
   esac
 }
-
-_shfmt__create_symlink() {
-  if [[ "${SYMLINK}" != "true" ]]; then
-    logging__info "symlink=false; skipping symlink creation."
-    return 0
-  fi
-  if [[ "${METHOD}" == "repos" ]]; then
-    logging__info "method=repos; symlink not applicable."
-    return 0
-  fi
-  if [[ ! -x "${PREFIX}/bin/shfmt" ]]; then
-    return 0
-  fi
-  shell__create_symlink \
-    --src "${PREFIX}/bin/shfmt" \
-    --system-target "/usr/local/bin/shfmt" \
-    --user-target "${HOME}/.local/bin/shfmt"
-}
-
-_shfmt__resolve_prefix
 _existing="$(command -v shfmt 2> /dev/null || true)"
 _shfmt__handle_existing "$_existing" "$IF_EXISTS"
 
@@ -128,9 +102,10 @@ case "$METHOD" in
   auto)
     _resolved="$(_shfmt__resolve_version "$VERSION" 2> /dev/null || true)"
     if [[ -n "$_resolved" ]] && _shfmt__install_release "$_resolved" 2> /dev/null; then
-      :
+      METHOD=release
     else
       _shfmt__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
+      METHOD=repos
     fi
     ;;
   *)
@@ -138,5 +113,3 @@ case "$METHOD" in
     exit 1
     ;;
 esac
-
-_shfmt__create_symlink

@@ -35,23 +35,6 @@ options:
         description: Install latest available release.
       - value: 0.82.0
         description: Install a specific release.
-  prefix:
-    type: string
-    default: ''
-    description: |-
-      Installation prefix for `method=script` and npm global prefix for `method=npm`.
-      Leave empty to use the default: `/opt/devcontainers` as root, or `$HOME/.devcontainers` as non-root,
-      matching the upstream install script's default layout (which places the bundled Node.js runtime,
-      CLI package, and wrapper binary all under this dedicated directory).
-  symlink:
-    type: boolean
-    default: true
-    description: |-
-      Create a symlink from a standard bin directory to `$prefix/bin/devcontainer` (`method=script` and `method=npm`).
-      - System-wide (prefix not under any user home): creates `/usr/local/bin/devcontainer` → `$prefix/bin/devcontainer`.
-      - User-scoped (prefix under a user home): creates `$HOME/.local/bin/devcontainer` → `$prefix/bin/devcontainer`.
-      Ensures the binary is reachable on PATH without requiring the `$prefix/bin` directory to be in PATH.
-      No-op when `$prefix/bin/devcontainer` is already the chosen target path.
   if_exists:
     type: string
     default: skip
@@ -102,3 +85,8 @@ _dependencies:
       packages:
         - name: xz
           apt: xz-utils
+_prefix_groups:
+  "":
+    default_root: /opt/devcontainers
+    default_nonroot: "${HOME}/.devcontainers"
+    bin: devcontainer

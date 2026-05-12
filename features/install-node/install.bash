@@ -369,87 +369,118 @@ _node_install_via_binary() {
   return 0
 }
 
-# _node_resolve_nvm_dir
-# Resolves NVM_DIR to an identity-appropriate path when empty.
-_node_resolve_nvm_dir() {
-  logging__fn_entry "_node_resolve_nvm_dir"
-  case "${NVM_DIR}" in
-    "")
-      if [ "$(id -u)" = "0" ]; then
-        NVM_DIR="/usr/local/share/nvm"
-      else
-        NVM_DIR="${HOME}/.nvm"
-      fi
-      ;;
-    *) ;; # explicit value: use as-is
-  esac
-  logging__info "Resolved nvm_dir to '${NVM_DIR}'"
-  logging__fn_exit "_node_resolve_nvm_dir"
-  return 0
-}
-
-# _node_create_symlinks
-# Creates containerEnv-bridge symlinks and per-binary symlinks.
-_node_create_symlinks() {
-  logging__fn_entry "_node_create_symlinks"
-  if [ "$SYMLINK" != "true" ]; then
-    logging__info "Skipping symlink creation (symlink=false)."
-    logging__fn_exit "_node_create_symlinks (skipped)"
+create_symlink() {
+  logging__fn_entry "create_symlink"
+  if [ "${METHOD}" != "binary" ]; then
+    logging__fn_exit "create_symlink"
     return 0
   fi
-
-  if [ "$(id -u)" = "0" ]; then
-    if [ "$METHOD" = "nvm" ]; then
-      # Bridge symlink: /usr/local/share/nvm → NVM_DIR (when they differ).
-      # The containerEnv.NVM_DIR is always /usr/local/share/nvm; keep it valid
-      # for any non-default nvm_dir value (root only — non-root can't write there).
-      local _nvm_canonical_root="/usr/local/share/nvm"
-      if [ "$NVM_DIR" != "${_nvm_canonical_root}" ]; then
-        logging__info "Creating NVM_DIR bridge symlink: ${_nvm_canonical_root} → ${NVM_DIR}"
-        mkdir -p "$(dirname "${_nvm_canonical_root}")"
-        ln -sf "$NVM_DIR" "${_nvm_canonical_root}"
-      fi
-      # Create stable executable entrypoints for non-interactive contexts
-      # that may not source shell init files.
-      for _bin in node npm npx corepack; do
-        local _src="${NVM_DIR}/current/bin/${_bin}"
-        if [ -f "$_src" ]; then
-          logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
-          ln -sf "$_src" "/usr/local/bin/${_bin}"
-        fi
-      done
-    elif [ "$METHOD" = "binary" ]; then
-      # Binaries already in /usr/local/bin when prefix is /usr/local
-      if [ "$PREFIX" = "/usr/local" ]; then
-        logging__info "prefix=/usr/local — binary symlinks not needed."
-      else
-        for _bin in node npm npx corepack; do
-          local _src="${PREFIX}/bin/${_bin}"
-          if [ -f "$_src" ]; then
-            logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
-            ln -sf "$_src" "/usr/local/bin/${_bin}"
-          fi
-        done
-      fi
-    fi
-  else
-    # Non-root: only method=binary with a non-default prefix.
-    if [ "$METHOD" = "binary" ] && [ "$PREFIX" != "${HOME}/.local" ]; then
-      mkdir -p "${HOME}/.local/bin"
-      for _bin in node npm npx corepack; do
-        local _src="${PREFIX}/bin/${_bin}"
-        if [ -f "$_src" ]; then
-          logging__info "Symlinking ${_src} → ${HOME}/.local/bin/${_bin}"
-          ln -sf "$_src" "${HOME}/.local/bin/${_bin}"
-        fi
-      done
-    else
-      logging__info "Skipping symlink creation (non-root: method=nvm or prefix is ${HOME}/.local)."
-    fi
+  if [ "${SYMLINK}" != "true" ]; then
+    logging__info "symlink=false; skipping binary symlinks."
+    logging__fn_exit "create_symlink"
+    return 0
   fi
+  for _bin in node npm npx corepack; do
+    local _src="${PREFIX}/bin/${_bin}"
+    [ -f "$_src" ] || continue
+    shell__create_symlink \
+      --src "$_src" \
+      --system-target "/usr/local/bin/${_bin}" \
+      --user-target "${HOME}/.local/bin/${_bin}"
+  done
+  logging__fn_exit "create_symlink"
+  return
+}
 
-  logging__fn_exit "_node_create_symlinks"
-  return 0
+create_nvm_symlink() {
+  logging__fn_entry "create_nvm_symlink"
+  if [ "${METHOD}" != "nvm" ]; then
+    logging__fn_exit "create_nvm_symlink"
+    return 0
+  fi
+  if [ "${NVM_SYMLINK}" != "true" ]; then
+    logging__info "nvm_symlink=false; skipping NVM bridge symlink."
+    logging__fn_exit "create_nvm_symlink"
+    return 0
+  fi
+  if [ "$(id -u)" != "0" ]; then
+    logging__info "Non-root: NVM bridge symlink not applicable."
+    logging__fn_exit "create_nvm_symlink"
+    return 0
+  fi
+  shell__create_symlink \
+    --src "${NVM_DIR}" \
+    --system-target "/usr/local/share/nvm" \
+    --user-target "${HOME}/.nvm"
+  # Create stable executable entrypoints for non-interactive contexts
+  # that may not source shell init files.
+  for _bin in node npm npx corepack; do
+    local _src="${NVM_DIR}/current/bin/${_bin}"
+    [ -f "$_src" ] || continue
+    logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
+    ln -sf "$_src" "/usr/local/bin/${_bin}"
+  done
+  logging__fn_exit "create_nvm_symlink"
+  return
+}
+
+export_path_main() {
+  logging__fn_entry "export_path_main"
+  if [ "${METHOD}" != "binary" ]; then
+    logging__fn_exit "export_path_main"
+    return 0
+  fi
+  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
+    logging__info "export_path is empty; skipping PATH export."
+    logging__fn_exit "export_path_main"
+    return 0
+  fi
+  if [ "${EXPORT_PATH[*]}" = "auto" ] && [ "${PREFIX}" = "/usr/local" ]; then
+    logging__info "prefix=/usr/local — PATH write not needed (already on PATH)."
+    logging__fn_exit "export_path_main"
+    return 0
+  fi
+  local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
+  local _marker="node PATH (install-node)"
+  shell__write_env_block \
+    --opt "$(printf '%s\n' "${EXPORT_PATH[@]}")" \
+    --profile-d "${_EXPORT_PROFILE_D}" \
+    --marker "${_marker}" \
+    --content "${_content}"
+  for _u in "${_RESOLVED_USERS[@]}"; do
+    [[ -z "$_u" ]] && continue
+    local _home
+    _home="$(shell__resolve_home "$_u")"
+    [ -z "$_home" ] && continue
+    local _user_files
+    _user_files="$(shell__user_path_files --home "$_home")"
+    shell__sync_block --files "$_user_files" --marker "$_marker" --content "$_content"
+  done
+  logging__fn_exit "export_path_main"
+  return
+}
+
+export_nvm_path_main() {
+  logging__fn_entry "export_nvm_path_main"
+  if [ "${METHOD}" != "nvm" ]; then
+    logging__fn_exit "export_nvm_path_main"
+    return 0
+  fi
+  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
+    logging__info "export_path is empty; skipping nvm shell init writes."
+    logging__fn_exit "export_nvm_path_main"
+    return 0
+  fi
+  _node_write_nvm_rc
+  for _u in "${_RESOLVED_USERS[@]}"; do
+    [[ -z "$_u" ]] && continue
+    local _home
+    _home="$(shell__resolve_home "$_u")"
+    [ -z "$_home" ] && continue
+    _node_write_nvm_rc --home "$_home"
+  done
+  logging__fn_exit "export_nvm_path_main"
+  return
 }
 
 # _node_write_nvm_rc
@@ -484,7 +515,7 @@ NVMRC
   if [ -z "$_home" ]; then
     # System-wide
     local _files
-    _files="$(shell__system_path_files --profile_d 'nvm_init.sh')"
+    _files="$(shell__system_path_files --profile_d "${_EXPORT_PROFILE_D}")"
     shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
   else
     # Per-user
@@ -496,64 +527,6 @@ NVMRC
   logging__fn_exit "_node_write_nvm_rc"
   return 0
 }
-
-# _node_configure_path
-# Writes PATH and shell-init exports to startup files.
-_node_configure_path() {
-  logging__fn_entry "_node_configure_path"
-  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    logging__info "export_path='' — skipping all PATH writes."
-    logging__fn_exit "_node_configure_path (skipped)"
-    return 0
-  fi
-
-  if [ "$METHOD" = "nvm" ]; then
-    # System-wide nvm init snippet
-    _node_write_nvm_rc
-
-    # Per-user nvm init snippets
-    for _u in "${_RESOLVED_USERS[@]}"; do
-      [[ -z "$_u" ]] && continue
-      local _home
-      _home="$(shell__resolve_home "$_u")"
-      [ -z "$_home" ] && continue
-      _node_write_nvm_rc --home "$_home"
-    done
-
-  elif [ "$METHOD" = "binary" ]; then
-    # Binaries already on PATH when prefix is /usr/local
-    if [ "$PREFIX" = "/usr/local" ]; then
-      logging__info "prefix=/usr/local — PATH write not needed (already on PATH)."
-    else
-      local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
-      local _marker="node PATH (install-node)"
-
-      # System-wide
-      local _sys_files
-      if [ "${EXPORT_PATH[*]}" != "auto" ]; then
-        _sys_files="$(printf '%s\n' "${EXPORT_PATH[@]}")"
-      else
-        _sys_files="$(shell__system_path_files --profile_d 'node_path.sh')"
-      fi
-      shell__sync_block --files "$_sys_files" --marker "$_marker" --content "$_content"
-
-      # Per-user
-      for _u in "${_RESOLVED_USERS[@]}"; do
-        [[ -z "$_u" ]] && continue
-        local _home
-        _home="$(shell__resolve_home "$_u")"
-        [ -z "$_home" ] && continue
-        local _user_files
-        _user_files="$(shell__user_path_files --home "$_home")"
-        shell__sync_block --files "$_user_files" --marker "$_marker" --content "$_content"
-      done
-    fi
-  fi
-
-  logging__fn_exit "_node_configure_path"
-  return 0
-}
-
 # _node_install_pnpm
 # Installs pnpm globally after Node.js is installed.
 _node_install_pnpm() {
@@ -653,8 +626,6 @@ fi
 # Resolve auto values
 # =============================================================================
 
-_node_resolve_nvm_dir
-
 # =============================================================================
 # Pre-install check
 # =============================================================================
@@ -716,9 +687,6 @@ if [ "$METHOD" = "nvm" ]; then
 elif [ "$METHOD" = "binary" ]; then
   _node_install_via_binary
 fi
-
-_node_create_symlinks
-_node_configure_path
 
 # Additional package managers
 if [ "$PNPM_VERSION" != "none" ] && [ "$VERSION" != "none" ]; then
