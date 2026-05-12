@@ -377,5 +377,5 @@ if os__is_devcontainer_build; then
   cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
   chmod +x "$_ENTRYPOINT_DEST"
   printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
-    > "${_FEAT_SHARE_DIR}/runtime.conf"
+    > "${_FEAT_SHARE_DIR}/entrypoint.sh.conf"
 fi
