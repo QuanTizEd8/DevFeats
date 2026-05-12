@@ -650,20 +650,12 @@ ${_home}/.config/zsh/.zshrc"
 # shell__create_symlink
 # ---------------------------------------------------------------------------
 
-# Fake passwd with two users: vscode (/home/vscode) and bob (/Users/bob).
-_FAKE_PASSWD="root:x:0:0:root:/root:/bin/bash
-vscode:x:1000:1000::/home/vscode:/bin/bash
-bob:x:1001:1001::/Users/bob:/bin/zsh"
-
-@test "shell__create_symlink creates system-wide symlink for non-home src" {
+@test "shell__create_symlink creates system-wide symlink when system dir is writable" {
   reload_lib shell.sh
   local _src="${BATS_TEST_TMPDIR}/opt/mytool/bin/mytool"
   local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/mytool"
   local _usr="${BATS_TEST_TMPDIR}/home/user/.local/bin/mytool"
-  mkdir -p "$(dirname "$_src")"
-  touch "$_src"
-  getent() { printf '%s\n' "$_FAKE_PASSWD"; }
-  export -f getent
+  mkdir -p "$(dirname "$_sys")" # writable → system target chosen
   run shell__create_symlink \
     --src "$_src" \
     --system-target "$_sys" \
@@ -673,13 +665,14 @@ bob:x:1001:1001::/Users/bob:/bin/zsh"
   assert [ ! -e "$_usr" ]
 }
 
-@test "shell__create_symlink creates user-scoped symlink for /home src" {
+@test "shell__create_symlink creates user-scoped symlink when system dir is not writable" {
   reload_lib shell.sh
-  local _src="/home/vscode/.mypixi/bin/pixi"
-  local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/pixi"
-  local _usr="${BATS_TEST_TMPDIR}/home/vscode/.pixi/bin/pixi"
-  getent() { printf '%s\n' "$_FAKE_PASSWD"; }
-  export -f getent
+  local _src="${BATS_TEST_TMPDIR}/opt/git/bin/git"
+  local _sys_dir="${BATS_TEST_TMPDIR}/readonly/bin"
+  local _sys="${_sys_dir}/git"
+  local _usr="${BATS_TEST_TMPDIR}/home/vscode/.local/bin/git"
+  mkdir -p "$_sys_dir"
+  chmod 555 "$_sys_dir" # exists but not writable → user target chosen
   run shell__create_symlink \
     --src "$_src" \
     --system-target "$_sys" \
@@ -689,63 +682,24 @@ bob:x:1001:1001::/Users/bob:/bin/zsh"
   assert [ ! -e "$_sys" ]
 }
 
-@test "shell__create_symlink creates user-scoped symlink for custom home src" {
+@test "shell__create_symlink errors with clear message when neither location is writable" {
   reload_lib shell.sh
-  local _src="/data/users/alice/mytool/bin/mytool"
-  local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/mytool"
-  local _usr="${BATS_TEST_TMPDIR}/data/users/alice/.local/bin/mytool"
-  # alice has a custom home dir not matching /home/* or /Users/*
-  getent() {
-    printf '%s\n' "$_FAKE_PASSWD"
-    printf 'alice:x:1002:1002::/data/users/alice:/bin/bash\n'
-  }
-  export -f getent
+  local _sys_dir="${BATS_TEST_TMPDIR}/sys/bin"
+  local _usr_dir="${BATS_TEST_TMPDIR}/usr/bin"
+  mkdir -p "$_sys_dir" "$_usr_dir"
+  chmod 555 "$_sys_dir" "$_usr_dir"
   run shell__create_symlink \
-    --src "$_src" \
-    --system-target "$_sys" \
-    --user-target "$_usr"
-  assert_success
-  assert [ -L "$_usr" ]
-  assert [ ! -e "$_sys" ]
-}
-
-@test "shell__create_symlink creates user-scoped symlink for /Users src" {
-  reload_lib shell.sh
-  local _src="/Users/bob/.mypixi/bin/pixi"
-  local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/pixi"
-  local _usr="${BATS_TEST_TMPDIR}/Users/bob/.pixi/bin/pixi"
-  getent() { printf '%s\n' "$_FAKE_PASSWD"; }
-  export -f getent
-  run shell__create_symlink \
-    --src "$_src" \
-    --system-target "$_sys" \
-    --user-target "$_usr"
-  assert_success
-  assert [ -L "$_usr" ]
-  assert [ ! -e "$_sys" ]
-}
-
-@test "shell__create_symlink falls back to _SHELL_PASSWD_FILE when getent unavailable" {
-  reload_lib shell.sh
-  local _passwd="${BATS_TEST_TMPDIR}/passwd"
-  printf '%s\n' "$_FAKE_PASSWD" > "$_passwd"
-  local _src="/home/vscode/.mypixi/bin/pixi"
-  local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/pixi"
-  local _usr="${BATS_TEST_TMPDIR}/home/vscode/.pixi/bin/pixi"
-  _SHELL_PASSWD_FILE="$_passwd" run shell__create_symlink \
-    --src "$_src" \
-    --system-target "$_sys" \
-    --user-target "$_usr"
-  assert_success
-  assert [ -L "$_usr" ]
-  assert [ ! -e "$_sys" ]
+    --src "/opt/mytool/bin/mytool" \
+    --system-target "${_sys_dir}/mytool" \
+    --user-target "${_usr_dir}/mytool"
+  assert_failure
+  assert_output --partial "no writable location available"
 }
 
 @test "shell__create_symlink skips when src equals chosen target" {
   reload_lib shell.sh
   local _path="${BATS_TEST_TMPDIR}/usr/local/bin/mytool"
-  getent() { printf '%s\n' "$_FAKE_PASSWD"; }
-  export -f getent
+  mkdir -p "$(dirname "$_path")" # writable → system target chosen; src == target → skip
   run shell__create_symlink \
     --src "$_path" \
     --system-target "$_path" \
@@ -759,9 +713,7 @@ bob:x:1001:1001::/Users/bob:/bin/zsh"
   reload_lib shell.sh
   local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/mytool"
   mkdir -p "$(dirname "$_sys")"
-  touch "$_sys"
-  getent() { printf '%s\n' "$_FAKE_PASSWD"; }
-  export -f getent
+  touch "$_sys" # real file → error
   run shell__create_symlink \
     --src "/opt/mytool/bin/mytool" \
     --system-target "$_sys" \
@@ -776,9 +728,7 @@ bob:x:1001:1001::/Users/bob:/bin/zsh"
   local _old_src="${BATS_TEST_TMPDIR}/old/src"
   local _new_src="${BATS_TEST_TMPDIR}/new/src"
   mkdir -p "$(dirname "$_sys")"
-  ln -s "$_old_src" "$_sys"
-  getent() { printf '%s\n' "$_FAKE_PASSWD"; }
-  export -f getent
+  ln -s "$_old_src" "$_sys" # stale symlink
   run shell__create_symlink \
     --src "$_new_src" \
     --system-target "$_sys" \
@@ -788,17 +738,19 @@ bob:x:1001:1001::/Users/bob:/bin/zsh"
   assert_output "$_new_src"
 }
 
-@test "shell__create_symlink creates parent directories for target" {
+@test "shell__create_symlink creates parent directories for user target" {
   reload_lib shell.sh
-  local _sys="${BATS_TEST_TMPDIR}/deep/nested/bin/mytool"
-  getent() { printf '%s\n' "$_FAKE_PASSWD"; }
-  export -f getent
+  local _sys_dir="${BATS_TEST_TMPDIR}/readonly/bin"
+  local _usr="${BATS_TEST_TMPDIR}/deep/user/bin/mytool"
+  mkdir -p "$_sys_dir"
+  chmod 555 "$_sys_dir" # exists but not writable → user target chosen;
+  # user target's parent also does not exist → mkdir -p must create it.
   run shell__create_symlink \
     --src "/opt/mytool/bin/mytool" \
-    --system-target "$_sys" \
-    --user-target "${BATS_TEST_TMPDIR}/home/u/.local/bin/mytool"
+    --system-target "${_sys_dir}/mytool" \
+    --user-target "$_usr"
   assert_success
-  assert [ -L "$_sys" ]
+  assert [ -L "$_usr" ]
 }
 
 # ---------------------------------------------------------------------------
