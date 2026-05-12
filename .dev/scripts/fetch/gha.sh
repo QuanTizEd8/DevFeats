@@ -220,20 +220,72 @@ _poll_interval=10
 _ts() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 
 # ---------------------------------------------------------------------------
-# _gh_api_json <path>  — GET a JSON value from the GitHub API via gh. Prints
-# the body on success. On failure, logs a one-line message and returns 1.
+# _gh_err_summary <text> — one line for logs; hide HTML 5xx bodies from gh.
+# ---------------------------------------------------------------------------
+_gh_err_summary() {
+  local t="${1//$'\r'/ }"
+  t="${t//$'\n'/ }"
+  while [[ "${t}" == *"  "* ]]; do t="${t//  / }"; done
+  if [[ "${t}" == *'<'* ]]; then
+    printf '%s' 'upstream HTML (5xx gateway or GitHub error page); stderr suppressed'
+    return 0
+  fi
+  [[ ${#t} -gt 160 ]] && t="${t:0:160}…"
+  printf '%s' "${t}"
+}
+
+# True when a retry may help (empty body, server/rate errors, HTML blob).
+# ---------------------------------------------------------------------------
+_gh_should_retry() {
+  local _ec="$1" _body="$2"
+  [[ "${_ec}" -ne 0 && -z "${_body}" ]] && return 0
+  [[ "${_body}" == *'<'* ]] && return 0
+  jq -e '
+    (.message? // "")
+    | test("Server Error|API rate limit exceeded|Bad Gateway|timed out|timeout"; "i")
+  ' > /dev/null 2>&1 <<< "${_body}" && return 0
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# _gh_api_json <path>  — GET JSON from the GitHub API via gh. Retries transient
+# 5xx / rate limits with backoff. Suppresses gh stderr during attempts so HTML
+# error pages are not dumped to the terminal. On failure, logs once and returns 1.
 # ---------------------------------------------------------------------------
 _gh_api_json() {
-  local _path="$1" _out _one
-  if ! _out=$(gh api "${_path}" 2>&1); then
-    _one="${_out//$'\n'/ }"
-    if [[ ${#_one} -gt 200 ]]; then
-      _one="${_one:0:200}…"
+  local _path="$1"
+  local _attempt=1 _max=8 _delay=2 _out _ec _both
+
+  while [[ ${_attempt} -le ${_max} ]]; do
+    _ec=0
+    _out=$(gh api "${_path}" 2> /dev/null) || _ec=$?
+
+    if [[ ${_ec} -eq 0 ]]; then
+      if _gh_should_retry 0 "${_out}"; then
+        sleep "${_delay}"
+        [[ ${_delay} -lt 25 ]] && _delay=$((_delay * 2)) || _delay=25
+        _attempt=$((_attempt + 1))
+        continue
+      fi
+      printf '%s' "${_out}"
+      return 0
     fi
-    _ts "gh api failed: ${_one}"
+
+    if _gh_should_retry "${_ec}" "${_out}"; then
+      sleep "${_delay}"
+      [[ ${_delay} -lt 25 ]] && _delay=$((_delay * 2)) || _delay=25
+      _attempt=$((_attempt + 1))
+      continue
+    fi
+
+    _both=$(gh api "${_path}" 2>&1) || true
+    _ts "gh api failed: $(_gh_err_summary "${_both}")"
     return 1
-  fi
-  printf '%s' "${_out}"
+  done
+
+  _both=$(gh api "${_path}" 2>&1) || true
+  _ts "gh api failed after ${_max} retries: $(_gh_err_summary "${_both}")"
+  return 1
 }
 
 # ---------------------------------------------------------------------------
@@ -264,9 +316,24 @@ _activate_run_logdir() {
 _download_log() {
   local job_id="$1"
   local dest="${LOGDIR}/${job_id}.log"
-  gh api "/repos/${REPO_OWNER}/${REPO_NAME}/actions/jobs/${job_id}/logs" |
-    awk '{ sub(/^[0-9T:.Z-]+[[:space:]]*/,""); print }' \
-      > "${dest}" 2> /dev/null || true
+  local _attempt=1 _max=8 _delay=2 _gh_ec
+
+  # gh writes HTML 5xx bodies to stderr; keep stderr off the terminal (same
+  # as _gh_api_json). Retry transient failures; PIPESTATUS tracks gh, not awk.
+  while [[ ${_attempt} -le ${_max} ]]; do
+    gh api "/repos/${REPO_OWNER}/${REPO_NAME}/actions/jobs/${job_id}/logs" 2> /dev/null |
+      awk '{ sub(/^[0-9T:.Z-]+[[:space:]]*/,""); print }' > "${dest}"
+    _gh_ec=${PIPESTATUS[0]}
+    if [[ ${_gh_ec} -eq 0 ]] && [[ -s "${dest}" ]]; then
+      basename "${dest}"
+      return 0
+    fi
+    : > "${dest}"
+    sleep "${_delay}"
+    [[ ${_delay} -lt 25 ]] && _delay=$((_delay * 2)) || _delay=25
+    _attempt=$((_attempt + 1))
+  done
+
   basename "${dest}"
 }
 
@@ -335,32 +402,49 @@ _process_run_jobs() {
   local run_id="$1"
   local -n _inprogress_ref="$2"
   local path_sha="$3"
-  local jobs_ndjson job job_status
+  local job job_status
+  local jobs_page total_count n_jobs page=1
 
   _activate_run_logdir "${path_sha}" "${run_id}"
 
-  # --paginate fetches all pages; --jq emits each job object as one compact
-  # JSON line, giving us a newline-delimited stream safe for `while read`.
-  if ! jobs_ndjson=$(gh api --paginate \
-    "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100" \
-    --jq '.jobs[]' 2>&1); then
-    local _one="${jobs_ndjson//$'\n'/ }"
-    [[ ${#_one} -gt 200 ]] && _one="${_one:0:200}…"
-    _ts "gh api failed: ${_one}"
-    return 1
-  fi
-
-  [[ -z "${jobs_ndjson}" ]] && return 0
-
-  while IFS= read -r job; do
-    [[ -z "${job}" ]] && continue
-    job_status=$(jq -r '.status' <<< "${job}")
-    if [[ "${job_status}" == "completed" ]]; then
-      _handle_job "${job}"
-    elif [[ "${job_status}" == "in_progress" ]]; then
-      _inprogress_ref+=("$(jq -r '.name' <<< "${job}")")
+  # Do not use `gh api --paginate` with `--jq` here: for >100 jobs, gh can
+  # feed jq a stream that jq rejects ("invalid character '<'…") after the
+  # first page. Page explicitly instead (same REST shape each time).
+  while true; do
+    if ! jobs_page=$(_gh_api_json \
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100&page=${page}"); then
+      return 1
     fi
-  done <<< "${jobs_ndjson}"
+
+    if ! jq -e '.jobs | type == "array"' > /dev/null 2>&1 <<< "${jobs_page}"; then
+      local _one="${jobs_page//$'\n'/ }"
+      [[ ${#_one} -gt 200 ]] && _one="${_one:0:200}…"
+      _ts "jobs API returned unexpected JSON: ${_one}"
+      return 1
+    fi
+
+    n_jobs=$(jq '.jobs | length' <<< "${jobs_page}")
+    total_count=$(jq '.total_count' <<< "${jobs_page}")
+
+    if [[ "${n_jobs}" -eq 0 ]]; then
+      break
+    fi
+
+    while IFS= read -r job; do
+      [[ -z "${job}" ]] && continue
+      job_status=$(jq -r '.status' <<< "${job}")
+      if [[ "${job_status}" == "completed" ]]; then
+        _handle_job "${job}"
+      elif [[ "${job_status}" == "in_progress" ]]; then
+        _inprogress_ref+=("$(jq -r '.name' <<< "${job}")")
+      fi
+    done < <(jq -c '.jobs[]' <<< "${jobs_page}")
+
+    if [[ "${n_jobs}" -lt 100 ]] || [[ $((page * 100)) -ge "${total_count}" ]]; then
+      break
+    fi
+    page=$((page + 1))
+  done
   return 0
 }
 
