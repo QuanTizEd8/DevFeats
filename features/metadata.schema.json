@@ -25,7 +25,7 @@
       "type": "array"
     },
     "options": {
-      "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container. The names `prefix`, `symlink`, and `export_path` — and any name matching `*_prefix`, `*_symlink`, or `*_export_path` — are permanently reserved for code generation via `_prefix_groups` and must never be defined manually here.",
+      "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container. The names `prefix`, `symlink`, `export_path`, and `runtime_path` — and any name matching `*_prefix`, `*_symlink`, or `*_export_path` — are permanently reserved for code generation via `_prefix_groups` and must never be defined manually here.",
       "propertyNames": {
         "description": "Option keys must start with an ASCII letter and then contain only ASCII letters, digits, underscores, or hyphens.",
         "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
@@ -36,7 +36,8 @@
       "properties": {
         "prefix": false,
         "symlink": false,
-        "export_path": false
+        "export_path": false,
+        "runtime_path": false
       },
       "patternProperties": {
         "^[A-Za-z][A-Za-z0-9_]*_prefix$": false,

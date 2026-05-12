@@ -273,6 +273,32 @@ def _inject_prefix_options(feature_id: str, metadata: dict) -> bool:
                 opt["_applies_when"] = applies_when
             options[export_key] = opt
 
+    # Inject a single feature-level runtime_path option when at least one group
+    # has export_path enabled. It is shared across all groups.
+    has_export_path = any(
+        not g.get("skip_export_path", False) for g in prefix_groups.values()
+    )
+    if has_export_path:
+        runtime_path_key = "runtime_path"
+        if runtime_path_key in options:
+            log(
+                f"⛔ {feature_id}: option '{runtime_path_key}' is a derived"
+                " runtime_path option and cannot be manually defined in metadata.yaml",
+            )
+            return False
+        options[runtime_path_key] = {
+            "type": "string",
+            "default": "",
+            "description": (
+                "Colon-separated directories guaranteed to be on PATH at runtime"
+                " (e.g. `/usr/local/bin:/usr/bin:/bin`)."
+                " When set, the PATH export step uses this value to decide whether"
+                " the installation directory is already reachable and the"
+                " startup-file write can be skipped."
+                " Leave empty (default) to check the PATH at install time instead."
+            ),
+        }
+
     return True
 
 

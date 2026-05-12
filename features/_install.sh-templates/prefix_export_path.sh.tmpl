@@ -6,10 +6,14 @@
     logging__fn_exit "@@FUNC_NAME@@"
     return 0
   fi
-  if [ "${@@EXPORT_VAR@@[*]}" = "auto" ] && [ "${@@PREFIX_VAR@@}" = "/usr/local" ]; then
-    logging__info "'@@PREFIX_VAR@@' is /usr/local which is already on PATH in all container images; skipping PATH write."
-    logging__fn_exit "@@FUNC_NAME@@"
-    return 0
+  if [ "${@@EXPORT_VAR@@[*]}" = "auto" ]; then
+    case ":${@@RUNTIME_PATH_VAR@@:-${PATH:-}}:" in
+      *":${@@PREFIX_VAR@@}/@@BIN_DIR@@:"*)
+        logging__info "'${@@PREFIX_VAR@@}/@@BIN_DIR@@' is already on the runtime PATH; skipping PATH write."
+        logging__fn_exit "@@FUNC_NAME@@"
+        return 0
+        ;;
+    esac
   fi
   shell__write_env_block \
     --opt "$(printf '%s\n' "${@@EXPORT_VAR@@[@]}")" \

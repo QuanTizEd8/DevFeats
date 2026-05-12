@@ -503,6 +503,7 @@ class InstallScriptGenerator:
                         BIN_DIR=bin_dir,
                         MARKER=marker,
                         APPLIES_WHEN_GUARD=guard_export,
+                        RUNTIME_PATH_VAR=_opt_to_var("runtime_path"),
                     )
                 )
 
