@@ -21,14 +21,14 @@ check "no PPA sources.list entry" bash -c '! test -f /etc/apt/sources.list.d/git
 check "/etc/gitconfig created" test -f /etc/gitconfig
 check "init.defaultBranch is main" bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
 
-# --- PATH export (export_path=auto default) ---
+# --- PATH export (export_path=auto default, prefix=/usr/local) ---
+# The export_path_main() guard skips all PATH writes when prefix is /usr/local
+# because it is already on PATH in every container image.
 echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
-check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "profile.d has PATH block" grep -Fq 'git PATH (install-git)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "profile.d exports /usr/local/bin" grep -Fq 'export PATH="/usr/local/bin:${PATH}"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "bashrc has PATH marker" grep -Fq 'git PATH (install-git)' /etc/bash.bashrc
-check "zshenv has PATH marker" grep -Fq 'git PATH (install-git)' /etc/zsh/zshenv
+cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing — expected)"
+check "profile.d script NOT written (default prefix already on PATH)" bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+check "bashrc PATH block NOT written" bash -c '! grep -Fq "git PATH (install-git)" /etc/bash.bashrc 2>/dev/null'
+check "zshenv PATH block NOT written" bash -c '! grep -Fq "git PATH (install-git)" /etc/zsh/zshenv 2>/dev/null'
 
 # --- shell completions (shell_completions="bash zsh" default) ---
 check "bash completion installed" test -f /etc/bash_completion.d/git
