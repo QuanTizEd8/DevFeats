@@ -159,6 +159,11 @@ _prefix_groups:
   "":
     default_root: /home/linuxbrew/.linuxbrew
     default_nonroot: "${HOME}/.linuxbrew"
+    platform_overrides:
+      - when: {kernel: Darwin, arch: arm64}
+        default: /opt/homebrew
+      - when: {kernel: Darwin}
+        default: /usr/local
     bin: brew
     skip_symlink: true
     export_path_description: |-

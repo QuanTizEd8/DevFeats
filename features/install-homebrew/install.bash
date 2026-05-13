@@ -109,26 +109,6 @@ export_path_main() {
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
-resolve_prefix() {
-  logging__fn_entry "resolve_prefix"
-  if [ -n "${PREFIX:-}" ] && [ "${PREFIX}" != "auto" ]; then
-    logging__info "Using explicit prefix: '${PREFIX}'."
-  elif [ "$(os__kernel)" = "Darwin" ]; then
-    if [ "$(os__arch)" = "arm64" ]; then
-      PREFIX="/opt/homebrew"
-    else
-      PREFIX="/usr/local"
-    fi
-  elif [ "$(id -u)" = "0" ]; then
-    PREFIX="/home/linuxbrew/.linuxbrew"
-  else
-    PREFIX="${HOME}/.linuxbrew"
-  fi
-  RESOLVED_PREFIX="${PREFIX}"
-  logging__fn_exit "resolve_prefix"
-  return 0
-}
-
 # Returns the path to the Homebrew/brew git repository — distinct from the
 # prefix on Intel macOS and Linux, where brew lives in ${prefix}/Homebrew.
 detect_brew_repository() {
@@ -391,7 +371,7 @@ prepare_prefix_if_needed() {
 RESOLVED_INSTALL_USER="$(resolve_install_user)"
 logging__info "Install user: '${RESOLVED_INSTALL_USER}'."
 validate_install_user "$RESOLVED_INSTALL_USER"
-resolve_prefix
+RESOLVED_PREFIX="${PREFIX}"
 logging__info "Prefix: '${RESOLVED_PREFIX}'."
 if [ "$(os__kernel)" != "Darwin" ] && [ "$(id -u)" = "0" ]; then
   prepare_prefix_if_needed "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER"

@@ -165,7 +165,7 @@
           },
           "platform_overrides": {
             "type": "array",
-            "description": "Platform-specific prefix defaults evaluated before the uid-based root/nonroot fallback. Entries are tested in order; the first matching `when` condition wins. Uses `os__when_matches` at runtime (same semantics as ospkg manifest `when` clauses, object form only). Supported keys: kernel, arch, id, id_like, codename.",
+            "description": "Platform-specific prefix defaults evaluated before the uid-based root/nonroot fallback. Entries are tested in order; the first matching `when` condition wins. Uses `os__match_spec` at runtime (same semantics as ospkg manifest `when` clauses, object form only). Supported keys: kernel, arch, id, id_like, codename.",
             "items": {
               "type": "object",
               "additionalProperties": false,

@@ -3,11 +3,7 @@
   logging__fn_entry "@@FUNC_NAME@@"
   case "${@@PREFIX_VAR@@}" in
     "")
-      if [ "$(id -u)" = "0" ]; then
-        @@PREFIX_VAR@@="@@DEFAULT_ROOT@@"
-      else
-        @@PREFIX_VAR@@="@@DEFAULT_NONROOT@@"
-      fi
+@@RESOLUTION_BLOCK@@
       ;;
     *) ;; # explicit value: use as-is
   esac

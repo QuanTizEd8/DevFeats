@@ -190,6 +190,26 @@ os__codename() {
   return 0
 }
 
+# @brief os__match_spec <key=value> [...] — Return 0 if the current OS context matches all given key=value conditions.
+#
+# Reads from _OSPKG_OS_RELEASE (populated by ospkg__detect). Calls ospkg__detect automatically
+# if the array is empty. AND logic: all key=value pairs must match. Case-insensitive.
+# Supported keys: kernel, arch, id, id_like, pm, version_id, version_codename, and any
+# /etc/os-release field.
+#
+# Returns: 0 if all conditions match, 1 otherwise.
+os__match_spec() {
+  [ $# -eq 0 ] && return 0
+  [ "${#_OSPKG_OS_RELEASE[@]}" -eq 0 ] && ospkg__detect
+  local _pair _k _v
+  for _pair in "$@"; do
+    _k="${_pair%%=*}"
+    _v="${_pair#*=}"
+    [[ "${_OSPKG_OS_RELEASE[$_k],,}" == "${_v,,}" ]] || return 1
+  done
+  return 0
+}
+
 # @brief os__run_as <user> [--cwd <dir>] -- <command> [args] — Run a command as `<user>`: in-process if already that user, otherwise via `su -l` with bash-quoted argv.
 #
 # Requires `bash` on PATH for the non-self path.

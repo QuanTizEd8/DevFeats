@@ -444,8 +444,12 @@ class InstallScriptGenerator:
                     FUNC_NAME=fn_resolve,
                     PREFIX_VAR=var_prefix,
                     OPTNAME=optname_disp,
-                    DEFAULT_ROOT=default_root,
-                    DEFAULT_NONROOT=default_nonroot,
+                    RESOLUTION_BLOCK=_make_resolution_block(
+                        var_prefix,
+                        default_root,
+                        default_nonroot,
+                        group_cfg.get("platform_overrides", []),
+                    ),
                 )
             )
 
@@ -613,6 +617,49 @@ class InstallScriptGenerator:
 
 
 # ── Pure utilities ────────────────────────────────────────────────────────────
+
+
+def _make_resolution_block(
+    var_prefix: str,
+    default_root: str,
+    default_nonroot: str,
+    platform_overrides: list[dict],
+) -> str:
+    """Build the shell if/elif/else resolution block for a prefix resolver.
+
+    Without platform_overrides, emits a simple uid-based if/else.
+    With overrides, prepends `os__match_spec` branches before the uid fallback.
+    Each override dict must have ``when`` (mapping of key→value) and ``default``.
+    ``default_root`` / ``default_nonroot`` within an override override ``default``
+    per uid, mirroring the top-level default_root / default_nonroot semantics.
+    """
+    indent = "      "  # 6 spaces — inside case "")
+    lines: list[str] = []
+    first = True
+    for override in platform_overrides:
+        when: dict = override.get("when", {})
+        default: str = override["default"]
+        root_val: str = override.get("default_root", default)
+        nonroot_val: str = override.get("default_nonroot", default)
+        when_args = " ".join(f"{k}={v}" for k, v in when.items())
+        keyword = "if" if first else "elif"
+        lines.append(f"{indent}{keyword} os__match_spec {when_args}; then")
+        if root_val == nonroot_val:
+            lines.append(f'{indent}  {var_prefix}="{root_val}"')
+        else:
+            lines.append(f'{indent}  if [ "$(id -u)" = "0" ]; then')
+            lines.append(f'{indent}    {var_prefix}="{root_val}"')
+            lines.append(f"{indent}  else")
+            lines.append(f'{indent}    {var_prefix}="{nonroot_val}"')
+            lines.append(f"{indent}  fi")
+        first = False
+    uid_keyword = "elif" if platform_overrides else "if"
+    lines.append(f'{indent}{uid_keyword} [ "$(id -u)" = "0" ]; then')
+    lines.append(f'{indent}  {var_prefix}="{default_root}"')
+    lines.append(f"{indent}else")
+    lines.append(f'{indent}  {var_prefix}="{default_nonroot}"')
+    lines.append(f"{indent}fi")
+    return "\n".join(lines)
 
 
 def _first_sentence(text: str) -> str:
