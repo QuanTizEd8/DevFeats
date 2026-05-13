@@ -697,14 +697,21 @@ shell__create_symlink() {
   # if the caller can write there (and thus create the full path via mkdir -p).
   # Prefer the system target; fall back to the user target; error if neither is
   # writable so the caller gets a clear diagnostic instead of a set -e death.
+  # Exception: when --src lives under the user's home directory the installation
+  # is inherently user-scoped, so skip the system target entirely and go
+  # straight to the user target (even if the system dir happens to be writable).
   _nearest_writable_ancestor() {
     local _d
     _d="$(dirname "$1")"
     while [ ! -d "$_d" ]; do _d="$(dirname "$_d")"; done
     [ -w "$_d" ]
   }
+  local _src_is_user_space=false
+  if [[ -n "${HOME:-}" ]] && [[ "$_src" == "${HOME}/"* ]]; then
+    _src_is_user_space=true
+  fi
   local _target
-  if _nearest_writable_ancestor "$_system_target"; then
+  if ! $_src_is_user_space && _nearest_writable_ancestor "$_system_target"; then
     _target="$_system_target"
   elif _nearest_writable_ancestor "$_user_target"; then
     _target="$_user_target"

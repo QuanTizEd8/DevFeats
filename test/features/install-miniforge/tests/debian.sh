@@ -18,14 +18,10 @@ check "pip installed in base env" test -f /opt/conda/bin/pip
 check "conda activation script exists" test -f /opt/conda/etc/profile.d/conda.sh
 check "mamba activation script exists" test -f /opt/conda/etc/profile.d/mamba.sh
 
-# --- PATH update ---
+# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
 echo "=== conda --version ==="
 /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
-echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
-check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "profile.d script exports /opt/conda/bin" grep -q '/opt/conda/bin' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 # --- functionality ---
 check "conda --version succeeds" /opt/conda/bin/conda --version

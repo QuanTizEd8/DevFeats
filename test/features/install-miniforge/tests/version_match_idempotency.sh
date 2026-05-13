@@ -20,8 +20,7 @@ check "conda --version succeeds" /opt/conda/bin/conda --version
 check "conda version is still 24.7.1" bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" = "24.7.1" ]'
 check "conda info --base returns /opt/conda" bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
 
-# --- post-install steps ran (PATH export was written) ---
-check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+# --- post-install steps ran (PATH is reachable via containerEnv; export_path=auto skips file writes) ---
+check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 reportResults

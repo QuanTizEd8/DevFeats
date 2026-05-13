@@ -33,7 +33,4 @@ if [ "${SYSTEMCTL:-true}" = "true" ]; then
   install_shim "systemctl"
 fi
 
-# Make shims available for current process.
-export PATH="${_SHIM_BIN}:${PATH}"
-
 exit 0

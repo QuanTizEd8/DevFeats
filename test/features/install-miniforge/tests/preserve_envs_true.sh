@@ -22,8 +22,7 @@ check "myenv directory exists" test -d /opt/conda/envs/myenv
 check "conda --version succeeds" /opt/conda/bin/conda --version
 check "conda env list includes myenv" bash -c '/opt/conda/bin/conda env list | grep -q myenv'
 
-# --- PATH export written ---
-check "profile.d script written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
+check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 reportResults

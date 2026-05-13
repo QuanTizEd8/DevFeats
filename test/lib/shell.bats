@@ -666,6 +666,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__create_symlink creates user-scoped symlink when system dir is not writable" {
+  [ "$(id -u)" -eq 0 ] && skip "Cannot simulate non-writable directory as root (chmod 555 bypassed by CAP_DAC_OVERRIDE)"
   reload_lib shell.sh
   local _src="${BATS_TEST_TMPDIR}/opt/git/bin/git"
   local _sys_dir="${BATS_TEST_TMPDIR}/readonly/bin"
@@ -683,6 +684,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__create_symlink errors with clear message when neither location is writable" {
+  [ "$(id -u)" -eq 0 ] && skip "Cannot simulate non-writable directory as root (chmod 555 bypassed by CAP_DAC_OVERRIDE)"
   reload_lib shell.sh
   local _sys_dir="${BATS_TEST_TMPDIR}/sys/bin"
   local _usr_dir="${BATS_TEST_TMPDIR}/usr/bin"
@@ -739,6 +741,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__create_symlink creates parent directories for user target" {
+  [ "$(id -u)" -eq 0 ] && skip "Cannot simulate non-writable directory as root (chmod 555 bypassed by CAP_DAC_OVERRIDE)"
   reload_lib shell.sh
   local _sys_dir="${BATS_TEST_TMPDIR}/readonly/bin"
   local _usr="${BATS_TEST_TMPDIR}/deep/user/bin/mytool"
