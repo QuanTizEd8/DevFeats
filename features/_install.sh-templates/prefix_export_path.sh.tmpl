@@ -15,11 +15,26 @@
         ;;
     esac
   fi
+  local _df_path_dir="${@@PREFIX_VAR@@}/@@BIN_DIR@@"
+  local _df_export_content
+  # shellcheck disable=SC2162
+  IFS= read -r -d '' _df_export_content << 'EOBLOCK' || true
+__df_prepend_path() {
+  local _d="$1" _p="${PATH:-}" _r="" _e
+  while [ -n "$_p" ]; do
+    _e="${_p%%:*}"; [ "$_p" = "${_p#*:}" ] && _p="" || _p="${_p#*:}"
+    [ "$_e" = "$_d" ] || _r="${_r:+${_r}:}${_e}"
+  done
+  export PATH="${_d}${_r:+:${_r}}"
+}
+EOBLOCK
+  _df_export_content="${_df_export_content}__df_prepend_path \"${_df_path_dir}\"
+unset -f __df_prepend_path"
   shell__write_env_block \
     --opt "$(printf '%s\n' "${@@EXPORT_VAR@@[@]}")" \
     --profile-d "${_EXPORT_PROFILE_D}" \
     --marker "@@MARKER@@" \
-    --content "export PATH=\"${@@PREFIX_VAR@@}/@@BIN_DIR@@:\${PATH}\""
+    --content "${_df_export_content}"
   logging__fn_exit "@@FUNC_NAME@@"
   return
 }
