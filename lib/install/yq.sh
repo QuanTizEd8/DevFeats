@@ -177,6 +177,9 @@ install__yq() {
     binary) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" ;;
     package) _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     auto) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
-    *) return 1 ;;
+    *)
+      logging__error "install__yq: invalid method '${_method}'."
+      return 1
+      ;;
   esac
 }
