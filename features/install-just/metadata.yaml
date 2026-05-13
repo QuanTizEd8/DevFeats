@@ -93,4 +93,4 @@ _prefix_groups:
   "":
     bin: just
     _applies_when:
-      - method: [release, script, cargo]
+      - method: [binary, script, cargo]

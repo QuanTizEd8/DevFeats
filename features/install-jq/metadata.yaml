@@ -92,4 +92,4 @@ _prefix_groups:
   "":
     bin: jq
     _applies_when:
-      - method: [release, source]
+      - method: [binary, source]

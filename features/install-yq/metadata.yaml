@@ -137,4 +137,4 @@ _prefix_groups:
   "":
     bin: yq
     _applies_when:
-      - method: [release]
+      - method: [binary]
