@@ -304,7 +304,7 @@ _ospkg_ensure_yq() {
   install__yq \
     --context internal \
     --owner-group devfeats-ospkg-internals \
-    --method release \
+    --method binary \
     --if-exists skip > "${_yq_out_file}" || {
     logging__error "yq could not be installed."
     return 1
