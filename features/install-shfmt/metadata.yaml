@@ -13,7 +13,7 @@ _long_description: |-
 
   `method=auto` prefers a verified upstream release binary and falls back to
   the OS package manager. Use `version` to pin an exact release, `prefix` to
-  control the installation destination for the release method, and `if_exists`
+  control the installation destination for the binary method, and `if_exists`
   to control behaviour when `shfmt` is already available.
 options:
   method:
