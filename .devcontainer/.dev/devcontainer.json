@@ -15,69 +15,50 @@
     ]
   },
   "features": {
-    "ghcr.io/quantized8/sysset/setup-user": {
+    "../.src/setup-user": {
       "username": "devfeats-dev"
     },
-    "ghcr.io/quantized8/sysset/install-gh": {},
-
-    "ghcr.io/quantized8/sysset/install-git": {"version": "stable"},
-
-    "ghcr.io/quantized8/sysset/install-jq": {},
-    "ghcr.io/quantized8/sysset/install-just": {
+    "../.src/install-gh": {},
+    "../.src/install-git": {"version": "stable"},
+    "../.src/install-jq": {},
+    "../.src/install-just": {
       "version": "1.50.0"
     },
-    "ghcr.io/quantized8/sysset/install-shfmt": {
+    "../.src/install-shfmt": {
       "version": "3.13.1"
     },
-    "ghcr.io/quantized8/sysset/install-shellcheck": {
+    "../.src/install-shellcheck": {
       "version": "0.11.0"
     },
-
-    // "ghcr.io/quantized8/sysset/install-miniforge": {},
     "../.src/install-miniforge": {},
-
-    // "ghcr.io/quantized8/sysset/install-pixi": {},
     "../.src/install-pixi": {},
-
-    // "ghcr.io/quantized8/sysset/install-shell": {},
     "../.src/install-shell": {},
-
-    "ghcr.io/quantized8/sysset/install-yq": {},
-    "ghcr.io/quantized8/sysset/install-devcontainer-cli": {},
-    "ghcr.io/quantized8/sysset/install-oras": {},
+    "../.src/install-yq": {},
+    "../.src/install-devcontainer-cli": {},
+    "../.src/install-oras": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-
     "../.src/install-claude": {},
     "../.src/install-codex": {},
     "../.src/install-copilot": {},
     "../.src/install-cursor": {}
   },
   "overrideFeatureInstallOrder": [
-    "ghcr.io/quantized8/sysset/install-git",
     "../.src/install-git",
-
-    "ghcr.io/quantized8/sysset/install-jq",
-    "ghcr.io/quantized8/sysset/install-yq",
-    "ghcr.io/quantized8/sysset/setup-user",
-
-    // "ghcr.io/quantized8/sysset/install-shell",
+    "../.src/install-git",
+    "../.src/install-jq",
+    "../.src/install-yq",
+    "../.src/setup-user",
     "../.src/install-shell",
-
-    "ghcr.io/quantized8/sysset/install-gh",
-    "ghcr.io/quantized8/sysset/install-just",
-    "ghcr.io/quantized8/sysset/install-shfmt",
-    "ghcr.io/quantized8/sysset/install-shellcheck",
-
-    // "ghcr.io/quantized8/sysset/install-miniforge",
+    "../.src/install-gh",
+    "../.src/install-just",
+    "../.src/install-shfmt",
+    "../.src/install-shellcheck",
     "../.src/install-miniforge",
-
-    // "ghcr.io/quantized8/sysset/install-pixi",
     "../.src/install-pixi",
-
-    "ghcr.io/quantized8/sysset/install-node",
-    "ghcr.io/quantized8/sysset/install-devcontainer-cli",
+    "../.src/install-node",
+    "../.src/install-devcontainer-cli",
     "ghcr.io/devcontainers/features/docker-in-docker:2",
-    "ghcr.io/quantized8/sysset/install-oras"
+    "../.src/install-oras"
   ],
 
   // Stop the container when VS Code window closes (prevents orphaned containers on clean disconnect)
