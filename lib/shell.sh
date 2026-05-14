@@ -737,3 +737,70 @@ shell__create_symlink() {
   logging__success "Created symlink '${_target}' -> '${_src}'."
   return 0
 }
+
+# @brief shell__write_activation_snippets <marker> <profile_d_name> <snippet_func> [<shell>...] — Write activation snippets for each shell to the appropriate init files.
+#
+# Routes snippets based on current user (root vs non-root), shell, and the
+# snippet function's exit code (0 = all contexts; 1 = interactive-only).
+#
+# Args:
+#   <marker>         Idempotency marker passed to shell__sync_block.
+#   <profile_d_name> Basename for the /etc/profile.d/ file (root+bash+everywhere only).
+#   <snippet_func>   Name of the function to call as `"$snippet_func" "$shell"`.
+#                    stdout: snippet content; exit 0 = all contexts; exit 1 = interactive-only.
+#   [<shell>...]     Shell names to iterate over (bash, zsh, ...).
+shell__write_activation_snippets() {
+  local _marker="$1" _profile_d_name="$2" _snippet_func="$3"
+  shift 3
+  local _shell _snippet _everywhere _files
+  for _shell in "$@"; do
+    [ -z "$_shell" ] && continue
+    _snippet="$("$_snippet_func" "$_shell")"
+    _everywhere=$?
+    [ -z "$_snippet" ] && continue
+    if [ "$(id -u)" = "0" ]; then
+      if [ "$_everywhere" -eq 0 ]; then
+        case "$_shell" in
+          bash)
+            shell__sync_block --files "/etc/profile.d/$_profile_d_name" \
+              --marker "$_marker" --content "$_snippet"
+            if [ -n "${BASH_ENV:-}" ] && [ -f "$BASH_ENV" ]; then
+              shell__sync_block --files "$BASH_ENV" \
+                --marker "$_marker" --content "$_snippet"
+            fi
+            _files="$(shell__detect_bashrc)"
+            ;;
+          zsh) _files="$(shell__detect_zshdir)/zshenv" ;;
+          *) continue ;;
+        esac
+      else
+        case "$_shell" in
+          bash) _files="$(shell__detect_bashrc)" ;;
+          zsh) _files="$(shell__detect_zshdir)/zshrc" ;;
+          *) continue ;;
+        esac
+      fi
+    else
+      if [ "$_everywhere" -eq 0 ]; then
+        case "$_shell" in
+          bash)
+            shell__sync_block --files "$(shell__user_login_file)" \
+              --marker "$_marker" --content "$_snippet"
+            _files="${HOME}/.bashrc"
+            ;;
+          zsh) _files="$(shell__detect_zdotdir)/.zshenv" ;;
+          *) continue ;;
+        esac
+      else
+        case "$_shell" in
+          bash) _files="${HOME}/.bashrc" ;;
+          zsh) _files="$(shell__detect_zdotdir)/.zshrc" ;;
+          *) continue ;;
+        esac
+      fi
+    fi
+    mkdir -p "$(dirname "$_files")"
+    [ -f "$_files" ] || touch "$_files"
+    shell__sync_block --files "$_files" --marker "$_marker" --content "$_snippet"
+  done
+}

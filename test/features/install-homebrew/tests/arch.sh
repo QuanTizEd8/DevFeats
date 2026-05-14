@@ -27,23 +27,23 @@ check "brew --version succeeds" "$_BREW" --version
 check "brew --version reports Homebrew" bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
 
 # --- shellenv export (Case A: root + Linux) ---
-echo "=== /etc/profile.d/brew.sh ==="
-cat /etc/profile.d/brew.sh 2> /dev/null || echo "(missing)"
+echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2> /dev/null || echo "(missing)"
 echo "=== /etc/bash.bashrc (tail) ==="
 tail -10 /etc/bash.bashrc 2> /dev/null || echo "(missing)"
 echo "=== /etc/zsh/zshenv ==="
 cat /etc/zsh/zshenv 2> /dev/null || echo "(missing)"
 
-check "profile.d/brew.sh written" test -f /etc/profile.d/brew.sh
-check "profile.d/brew.sh has begin marker" grep -qF '# >>> brew shellenv (install-homebrew) >>>' /etc/profile.d/brew.sh
-check "profile.d/brew.sh has shellenv eval" grep -qF 'brew shellenv' /etc/profile.d/brew.sh
+check "activation profile.d file written" test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "activation profile.d file has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "activation profile.d file has shellenv eval" grep -qF 'brew shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
 
 check "bash.bashrc written" test -f /etc/bash.bashrc
-check "bash.bashrc has begin marker" grep -qF '# >>> brew shellenv (install-homebrew) >>>' /etc/bash.bashrc
+check "bash.bashrc has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
 check "bash.bashrc has shellenv eval" grep -qF 'brew shellenv' /etc/bash.bashrc
 
 check "zsh/zshenv written" test -f /etc/zsh/zshenv
-check "zsh/zshenv has begin marker" grep -qF '# >>> brew shellenv (install-homebrew) >>>' /etc/zsh/zshenv
+check "zsh/zshenv has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/zsh/zshenv
 check "zsh/zshenv has shellenv eval" grep -qF 'brew shellenv' /etc/zsh/zshenv
 
 # --- login PATH includes linuxbrew ---

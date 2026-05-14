@@ -206,8 +206,6 @@ options:
     type: string
     default: ''
     description: Freeform content to append to the per-user gitconfig (`~/.gitconfig`) for all resolved users. Accepts standard gitconfig format. Written after `user_name` and `user_email` settings. Set to `''` to skip.
-containerEnv:
-  PATH: ${HOME}/.local/bin:${PATH}
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 #   - ghcr.io/quantized8/devfeats/install-jq
@@ -308,13 +306,16 @@ _dependencies:
           - zlib
 _prefix_groups:
   "":
-    bin: git
-    export_path_description: |-
-      Write `export PATH="${PREFIX}/bin:$PATH"` and
-      `export MANPATH="${PREFIX}/share/man:${MANPATH}"` blocks to shell
-      startup files. Set to `auto` to write to standard profiles
-      (system-wide as root, user-scoped otherwise), or provide explicit
-      file path(s) one per line. Leave empty to skip.
-    _applies_when:
+    prefix:
+      bins: [git]
+    exports:
+      description: |-
+        Write `export PATH="${PREFIX}/bin:$PATH"` and
+        `export MANPATH="${PREFIX}/share/man:${MANPATH}"` blocks to shell
+        startup files. Leave empty (default) to write to standard profiles
+        (system-wide as root, user-scoped otherwise), or provide explicit
+        file path(s) one per line. To skip all PATH/MANPATH writes,
+        set `prefix_discovery=none`.
+    applies_when:
       - method:
         - source

@@ -170,15 +170,23 @@ _node_check_if_exists() {
   return 0
 }
 
-# _node_set_permissions
-# Create nvm group, configure ownership/bits on NVM_DIR, add users to the group.
-_node_set_permissions() {
-  logging__fn_entry "_node_set_permissions"
-  logging__info "Creating group '${GROUP}' and configuring permissions on '${NVM_DIR}'."
-  mkdir -p "$NVM_DIR"
-  users__set_write_permissions "$NVM_DIR" "$_NVM_USER" "$GROUP" "${_RESOLVED_USERS[@]}"
-  logging__fn_exit "_node_set_permissions"
-  return 0
+# _resolve_nvm_install_user
+# Resolves the user under whom nvm operations are run (method=nvm only).
+# Explicit INSTALL_USER → SUDO_USER (non-root) → _REMOTE_USER (non-root) → id -nu.
+_resolve_nvm_install_user() {
+  if [ -n "${INSTALL_USER:-}" ]; then
+    printf '%s\n' "${INSTALL_USER}"
+    return 0
+  fi
+  if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+    printf '%s\n' "${SUDO_USER}"
+    return 0
+  fi
+  if [ -n "${_REMOTE_USER:-}" ] && [ "${_REMOTE_USER}" != "root" ]; then
+    printf '%s\n' "${_REMOTE_USER}"
+    return 0
+  fi
+  printf '%s\n' "$(id -nu)"
 }
 
 # _node_install_via_nvm
@@ -204,12 +212,18 @@ _node_install_via_nvm() {
     "https://raw.githubusercontent.com/nvm-sh/nvm/${_nvm_tag}/install.sh" \
     "${INSTALLER_DIR}/nvm-install.sh"
 
-  # Create NVM_DIR before set_permissions (which chowns it)
+  # Create NVM_DIR before write_group permissions (which chowns it)
   mkdir -p "$NVM_DIR"
 
-  # Set permissions (creates group, configures ownership)
-  if [ "$SET_PERMISSIONS" = "true" ] && [ "$(id -u)" = "0" ]; then
-    _node_set_permissions
+  # Set permissions so _NVM_USER can write NVM_DIR (before installer runs)
+  if [ -n "${NVM_WRITE_GROUP:-}" ] && [ "$(id -u)" = "0" ]; then
+    _nvm_wargs=()
+    if [ "${#NVM_WRITE_USERS[@]}" -gt 0 ]; then
+      _nvm_wargs=(--current false --remote false --container false)
+      for _u in "${NVM_WRITE_USERS[@]}"; do _nvm_wargs+=(--user "$_u"); done
+    fi
+    mapfile -t _write_users < <(users__resolve_list "${_nvm_wargs[@]}")
+    users__set_write_permissions "$NVM_DIR" "$_NVM_USER" "$NVM_WRITE_GROUP" "${_write_users[@]}"
   fi
 
   # Mark nvm cleanup as active now that NVM_DIR is initialised
@@ -369,43 +383,16 @@ _node_install_via_binary() {
   return 0
 }
 
-create_symlink() {
-  logging__fn_entry "create_symlink"
-  if [ "${METHOD}" != "binary" ]; then
-    logging__fn_exit "create_symlink"
-    return 0
-  fi
-  if [ "${SYMLINK}" != "true" ]; then
-    logging__info "symlink=false; skipping binary symlinks."
-    logging__fn_exit "create_symlink"
-    return 0
-  fi
-  for _bin in node npm npx corepack; do
-    local _src="${PREFIX}/bin/${_bin}"
-    [ -f "$_src" ] || continue
-    shell__create_symlink \
-      --src "$_src" \
-      --system-target "/usr/local/bin/${_bin}" \
-      --user-target "${HOME}/.local/bin/${_bin}"
-  done
-  logging__fn_exit "create_symlink"
-  return
-}
-
-create_nvm_symlink() {
-  logging__fn_entry "create_nvm_symlink"
+# shellcheck disable=SC2329,SC2317
+create_nvm_symlinks() {
+  logging__fn_entry "create_nvm_symlinks"
   if [ "${METHOD}" != "nvm" ]; then
-    logging__fn_exit "create_nvm_symlink"
-    return 0
-  fi
-  if [ "${NVM_SYMLINK}" != "true" ]; then
-    logging__info "nvm_symlink=false; skipping NVM bridge symlink."
-    logging__fn_exit "create_nvm_symlink"
+    logging__fn_exit "create_nvm_symlinks"
     return 0
   fi
   if [ "$(id -u)" != "0" ]; then
     logging__info "Non-root: NVM bridge symlink not applicable."
-    logging__fn_exit "create_nvm_symlink"
+    logging__fn_exit "create_nvm_symlinks"
     return 0
   fi
   shell__create_symlink \
@@ -420,113 +407,22 @@ create_nvm_symlink() {
     logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
     ln -sf "$_src" "/usr/local/bin/${_bin}"
   done
-  logging__fn_exit "create_nvm_symlink"
+  logging__fn_exit "create_nvm_symlinks"
   return
 }
 
-export_path_main() {
-  logging__fn_entry "export_path_main"
-  if [ "${METHOD}" != "binary" ]; then
-    logging__fn_exit "export_path_main"
-    return 0
-  fi
-  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    logging__info "export_path is empty; skipping PATH export."
-    logging__fn_exit "export_path_main"
-    return 0
-  fi
-  if [ "${EXPORT_PATH[*]}" = "auto" ] && [ "${PREFIX}" = "/usr/local" ]; then
-    logging__info "prefix=/usr/local — PATH write not needed (already on PATH)."
-    logging__fn_exit "export_path_main"
-    return 0
-  fi
-  local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
-  local _marker="node PATH (install-node)"
-  shell__write_env_block \
-    --opt "$(printf '%s\n' "${EXPORT_PATH[@]}")" \
-    --profile-d "${_EXPORT_PROFILE_D}" \
-    --marker "${_marker}" \
-    --content "${_content}"
-  for _u in "${_RESOLVED_USERS[@]}"; do
-    [[ -z "$_u" ]] && continue
-    local _home
-    _home="$(shell__resolve_home "$_u")"
-    [ -z "$_home" ] && continue
-    local _user_files
-    _user_files="$(shell__user_path_files --home "$_home")"
-    shell__sync_block --files "$_user_files" --marker "$_marker" --content "$_content"
-  done
-  logging__fn_exit "export_path_main"
-  return
-}
-
-export_nvm_path_main() {
-  logging__fn_entry "export_nvm_path_main"
-  if [ "${METHOD}" != "nvm" ]; then
-    logging__fn_exit "export_nvm_path_main"
-    return 0
-  fi
-  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    logging__info "export_path is empty; skipping nvm shell init writes."
-    logging__fn_exit "export_nvm_path_main"
-    return 0
-  fi
-  _node_write_nvm_rc
-  for _u in "${_RESOLVED_USERS[@]}"; do
-    [[ -z "$_u" ]] && continue
-    local _home
-    _home="$(shell__resolve_home "$_u")"
-    [ -z "$_home" ] && continue
-    _node_write_nvm_rc --home "$_home"
-  done
-  logging__fn_exit "export_nvm_path_main"
-  return
-}
-
-# _node_write_nvm_rc
-# Writes the nvm shell-initialisation snippet to startup files.
-# Arguments: [--home <dir>]  (omit for system-wide write)
-_node_write_nvm_rc() {
-  logging__fn_entry "_node_write_nvm_rc"
-  local _home=""
-  while [ "$#" -gt 0 ]; do
-    case $1 in
-      --home)
-        shift
-        _home="$1"
-        shift
-        ;;
-      *) shift ;;
-    esac
-  done
-
-  local _content
-  _content="$(
-    cat << NVMRC
+# shellcheck disable=SC2329,SC2317
+nvm_dir_activation_snippet() {
+  cat << SNIPPET
 export NVM_SYMLINK_CURRENT=true
 export NVM_DIR="${NVM_DIR}"
 # shellcheck disable=SC1090
 [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"
 [ -s "\$NVM_DIR/bash_completion" ] && . "\$NVM_DIR/bash_completion"
-NVMRC
-  )"
-  local _marker="nvm init (install-node)"
-
-  if [ -z "$_home" ]; then
-    # System-wide
-    local _files
-    _files="$(shell__system_path_files --profile_d "${_EXPORT_PROFILE_D}")"
-    shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
-  else
-    # Per-user
-    local _files
-    _files="$(shell__user_init_files --home "$_home")"
-    shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
-  fi
-
-  logging__fn_exit "_node_write_nvm_rc"
-  return 0
+SNIPPET
+  return 1
 }
+
 # _node_install_pnpm
 # Installs pnpm globally after Node.js is installed.
 _node_install_pnpm() {
@@ -607,20 +503,10 @@ _node_install_yarn() {
 os__require_root
 
 # =============================================================================
-# Resolve user list
+# Resolve nvm install user
 # =============================================================================
 
-mapfile -t _RESOLVED_USERS < <(users__resolve_list)
-
-# _NVM_USER: the user under whom nvm operations are run.
-# When set_permissions=true and running as root, use the first resolved user.
-# Otherwise fall back to the current user.
-_NVM_USER=""
-if [ "$SET_PERMISSIONS" = "true" ] && [ "${#_RESOLVED_USERS[@]}" -gt 0 ] && [ -n "${_RESOLVED_USERS[0]}" ]; then
-  _NVM_USER="${_RESOLVED_USERS[0]}"
-else
-  _NVM_USER="$(id -nu)"
-fi
+_NVM_USER="$(_resolve_nvm_install_user)"
 
 # =============================================================================
 # Resolve auto values

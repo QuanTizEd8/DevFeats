@@ -29,12 +29,12 @@ options:
   version:
     type: string
     default: latest
-    description: Version to install (`latest` or an explicit version like `0.82.0`).
+    description: Version to install.
     proposals:
       - value: latest
-        description: Install latest available release.
-      - value: 0.82.0
-        description: Install a specific release.
+        description: Install the latest available version.
+      - value: 0.86.1
+        description: Install a specific version.
   if_exists:
     type: string
     default: skip
@@ -63,8 +63,6 @@ options:
     type: boolean
     default: false
     description: Uninstall instead of install (supported for `method=script` and npm).
-containerEnv:
-  PATH: ${HOME}/.devcontainers/bin:/opt/devcontainers/bin:${PATH}
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 #   - ghcr.io/quantized8/devfeats/install-jq
@@ -87,6 +85,7 @@ _dependencies:
           apt: xz-utils
 _prefix_groups:
   "":
-    default_root: /opt/devcontainers
-    default_nonroot: "${HOME}/.devcontainers"
-    bin: devcontainer
+    prefix:
+      root: /opt/devcontainers
+      nonroot: "${HOME}/.devcontainers"
+      bins: [devcontainer]

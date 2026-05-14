@@ -13,73 +13,45 @@ setup() {
 # users__resolve_list
 # ---------------------------------------------------------------------------
 
-@test "users__resolve_list includes SUDO_USER when ADD_CURRENT_USER=true" {
-  ADD_CURRENT_USER=true \
-    SUDO_USER=alice \
-    ADD_REMOTE_USER=false \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS="" \
-    run --separate-stderr users__resolve_list
+@test "users__resolve_list includes SUDO_USER when --current true" {
+  SUDO_USER=alice \
+    run --separate-stderr users__resolve_list --current true --remote false --container false
   assert_output "alice"
 }
 
-@test "users__resolve_list includes _REMOTE_USER when ADD_REMOTE_USER=true" {
-  ADD_CURRENT_USER=false \
-    _REMOTE_USER=bob \
-    ADD_REMOTE_USER=true \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS="" \
-    run --separate-stderr users__resolve_list
+@test "users__resolve_list includes _REMOTE_USER when --remote true" {
+  _REMOTE_USER=bob \
+    run --separate-stderr users__resolve_list --current false --remote true --container false
   assert_output "bob"
 }
 
-@test "users__resolve_list includes _CONTAINER_USER when ADD_CONTAINER_USER=true" {
-  ADD_CURRENT_USER=false \
-    ADD_REMOTE_USER=false \
-    _CONTAINER_USER=carol \
-    ADD_CONTAINER_USER=true \
-    ADD_USERS="" \
-    run --separate-stderr users__resolve_list
+@test "users__resolve_list includes _CONTAINER_USER when --container true" {
+  _CONTAINER_USER=carol \
+    run --separate-stderr users__resolve_list --current false --remote false --container true
   assert_output "carol"
 }
 
-@test "users__resolve_list includes extra users from ADD_USERS" {
-  ADD_CURRENT_USER=false \
-    ADD_REMOTE_USER=false \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS="dave,eve" \
-    run --separate-stderr users__resolve_list
+@test "users__resolve_list includes extra users from --user flags" {
+  run --separate-stderr users__resolve_list \
+    --current false --remote false --container false \
+    --user dave --user eve
   assert_output "dave
 eve"
 }
 
-@test "users__resolve_list accepts newline-delimited ADD_USERS" {
-  ADD_CURRENT_USER=false \
-    ADD_REMOTE_USER=false \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS=$'dave\neve' \
-    run --separate-stderr users__resolve_list
-  assert_output "dave
-eve"
+@test "users__resolve_list deduplicates users passed via --user" {
+  run --separate-stderr users__resolve_list \
+    --current false --remote false --container false \
+    --user alice --user alice --user bob
+  assert_output "alice
+bob"
 }
 
-@test "users__resolve_list handles bash array ADD_USERS" {
-  ADD_CURRENT_USER=false
-  ADD_REMOTE_USER=false
-  ADD_CONTAINER_USER=false
-  ADD_USERS=(dave eve)
-
-  run --separate-stderr users__resolve_list
-  assert_output "dave
-eve"
-}
-
-@test "users__resolve_list deduplicates users" {
-  ADD_CURRENT_USER=false \
-    ADD_REMOTE_USER=false \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS="alice,alice,bob" \
-    run --separate-stderr users__resolve_list
+@test "users__resolve_list combines --current and --user" {
+  SUDO_USER=alice \
+    run --separate-stderr users__resolve_list \
+    --current true --remote false --container false \
+    --user bob
   assert_output "alice
 bob"
 }
@@ -88,12 +60,8 @@ bob"
   # When the build user is root and no other non-root users are auto-detected,
   # root is included so the feature has a target to configure (e.g. plain
   # container images or standalone macOS use with no remoteUser).
-  ADD_CURRENT_USER=true \
-    SUDO_USER=root \
-    ADD_REMOTE_USER=false \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS="" \
-    run --separate-stderr users__resolve_list
+  SUDO_USER=root \
+    run --separate-stderr users__resolve_list --current true --remote false --container false
   assert_output "root"
   assert_success
 }
@@ -101,47 +69,44 @@ bob"
 @test "users__resolve_list excludes root when a non-root user is also detected" {
   # Root must not be added when a non-root remoteUser / containerUser is present;
   # the build runs as root but the target for configuration is the named user.
-  ADD_CURRENT_USER=true \
-    SUDO_USER=root \
-    ADD_REMOTE_USER=true \
+  SUDO_USER=root \
     _REMOTE_USER=alice \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS="" \
-    run --separate-stderr users__resolve_list
+    run --separate-stderr users__resolve_list --current true --remote true --container false
   assert_output "alice"
   assert_success
 }
 
-@test "users__resolve_list allows root when explicitly in ADD_USERS" {
-  # Explicitly listing root in ADD_USERS is a deliberate override
+@test "users__resolve_list allows root when explicitly passed via --user" {
+  # Explicitly listing root via --user is a deliberate override
   # (used by install-podman to configure rootless Podman for the root user).
-  ADD_CURRENT_USER=false \
-    ADD_REMOTE_USER=false \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS="root,alice" \
-    run --separate-stderr users__resolve_list
+  run --separate-stderr users__resolve_list \
+    --current false --remote false --container false \
+    --user root --user alice
   assert_output "root
 alice"
 }
 
 @test "users__resolve_list returns empty output when all sources are disabled" {
-  ADD_CURRENT_USER=false \
-    ADD_REMOTE_USER=false \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS="" \
-    run --separate-stderr users__resolve_list
+  run --separate-stderr users__resolve_list --current false --remote false --container false
   assert_output ""
   assert_success
 }
 
-@test "users__resolve_list trims spaces around names in ADD_USERS" {
-  ADD_CURRENT_USER=false \
-    ADD_REMOTE_USER=false \
-    ADD_CONTAINER_USER=false \
-    ADD_USERS=" alice , bob " \
+@test "users__resolve_list auto-discovers all sources when called with no args" {
+  SUDO_USER=alice \
+    _REMOTE_USER=bob \
+    _CONTAINER_USER=carol \
     run --separate-stderr users__resolve_list
   assert_output "alice
-bob"
+bob
+carol"
+}
+
+@test "users__resolve_list skips empty _REMOTE_USER when --remote true" {
+  _REMOTE_USER="" \
+    run --separate-stderr users__resolve_list --current false --remote true --container false
+  assert_output ""
+  assert_success
 }
 
 # ---------------------------------------------------------------------------

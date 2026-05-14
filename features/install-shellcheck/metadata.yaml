@@ -65,6 +65,7 @@ _dependencies:
 # installsAfter: []
 _prefix_groups:
   "":
-    bin: shellcheck
-    _applies_when:
+    prefix:
+      bins: [shellcheck]
+    applies_when:
       - method: [binary]

@@ -91,6 +91,7 @@ _dependencies:
 # installsAfter: []
 _prefix_groups:
   "":
-    bin: just
-    _applies_when:
+    prefix:
+      bins: [just]
+    applies_when:
       - method: [binary, script, cargo]

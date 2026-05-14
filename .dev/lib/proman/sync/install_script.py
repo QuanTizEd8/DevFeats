@@ -390,35 +390,45 @@ class InstallScriptGenerator:
         )
 
     def _section_prefix_helpers(self, prefix_groups: dict, feature_id: str) -> str:
-        """Emit prefix resolver, symlink, and export_path bash functions."""
+        """Emit prefix resolver, symlinks, and exports bash functions."""
         if not prefix_groups:
             return ""
 
+        _owner, _repo = git_owner_repo()
         fn_blocks: list[str] = [
             "# ── prefix-group helpers (generated)"
             " ──────────────────────────────────────────────",
         ]
-        all_fn_calls: list[str] = []
+        post_install_blocks: list[str] = []
         resolver_calls: list[str] = []
 
         for group_id, group_cfg in prefix_groups.items():
-            option_name: str | None = group_cfg.get("option_name")
-            dir_symlink: bool = group_cfg.get("dir_symlink", False)
-            skip_symlink: bool = group_cfg.get("skip_symlink", False)
-            skip_export_path: bool = group_cfg.get("skip_export_path", False)
-            default_root: str = group_cfg.get("default_root", "/usr/local")
-            default_nonroot: str = group_cfg.get("default_nonroot", "${HOME}/.local")
-            binname: str = group_cfg.get("bin", "")
-            bin_dir: str = "bin"
-            applies_when: list | None = group_cfg.get("_applies_when")
+            prefix_cfg: dict = group_cfg.get("prefix", {})
+            symlink_cfg: dict = group_cfg.get("symlink", {})
+            exports_cfg: dict = group_cfg.get("exports", {})
 
-            opt_prefix = option_name or (f"{group_id}_prefix" if group_id else "prefix")
-            opt_symlink = f"{group_id}_symlink" if group_id else "symlink"
-            opt_export = f"{group_id}_export_path" if group_id else "export_path"
+            option_name: str | None = group_cfg.get("option_name")
+            skip_symlink: bool = symlink_cfg.get("skip", False)
+            skip_exports: bool = exports_cfg.get("skip", False)
+            default_root: str = prefix_cfg.get("root", "/usr/local")
+            default_nonroot: str = prefix_cfg.get("nonroot", "${HOME}/.local")
+            symlink_root: str = symlink_cfg.get("root", "/usr/local/bin")
+            symlink_nonroot: str = symlink_cfg.get("nonroot", "${HOME}/.local/bin")
+            bins: list[str] = prefix_cfg.get("bins", [])
+            bin_dir: str = prefix_cfg.get("bin_dir", "bin")
+            applies_when: list | None = group_cfg.get("applies_when")
+            activation_cfg: dict | None = group_cfg.get("activation")
+
+            stem = option_name or (f"{group_id}_prefix" if group_id else "prefix")
+            opt_prefix = stem
+            opt_symlinks = f"{stem}_symlinks"
+            opt_exports = f"{stem}_exports"
+            opt_discovery = f"{stem}_discovery"
 
             var_prefix = _opt_to_var(opt_prefix)
-            var_symlink = _opt_to_var(opt_symlink)
-            var_export = _opt_to_var(opt_export)
+            var_symlinks = _opt_to_var(opt_symlinks)
+            var_exports = _opt_to_var(opt_exports)
+            var_discovery = _opt_to_var(opt_discovery)
 
             safe_id = group_id.replace("-", "_")
             if option_name:
@@ -427,13 +437,19 @@ class InstallScriptGenerator:
                 fn_resolve = f"resolve_{safe_id}_prefix"
             else:
                 fn_resolve = "resolve_prefix"
-            fn_symlink = f"create_{safe_id}_symlink" if group_id else "create_symlink"
-            fn_export = (
+            fn_symlinks = (
+                f"create_{safe_id}_symlinks" if group_id else "create_symlinks"
+            )
+            fn_exports = (
                 f"export_{safe_id}_path_main" if group_id else "export_path_main"
             )
+            fn_activation_snippet = f"{stem}_activation_snippet"
+            var_activations = _opt_to_var(f"{stem}_activations")
+            activation_marker = f"{stem} activation ({feature_id})"
+            activation_profile_d = f"{_owner}-{_repo}-{feature_id}-{stem}-activation.sh"
 
-            guard_symlink = _make_applies_when_guard(applies_when, fn_symlink)
-            guard_export = _make_applies_when_guard(applies_when, fn_export)
+            guard_symlinks = _make_applies_when_guard(applies_when, fn_symlinks)
+            guard_exports = _make_applies_when_guard(applies_when, fn_exports)
 
             optname_disp = option_name or opt_prefix
 
@@ -448,80 +464,162 @@ class InstallScriptGenerator:
                         var_prefix,
                         default_root,
                         default_nonroot,
-                        group_cfg.get("platform_overrides", []),
+                        prefix_cfg.get("platform_overrides", []),
                     ),
                 )
             )
 
-            # Symlink function (or no-op stub)
+            # Symlinks function (or no-op stub)
             if skip_symlink:
                 fn_blocks.append(
-                    f"# shellcheck disable=SC2329,SC2317\n{fn_symlink}() {{ return; }}"
-                )
-            elif dir_symlink:
-                fn_blocks.append(
-                    self._render_template(
-                        "prefix_symlink_dir",
-                        FUNC_NAME=fn_symlink,
-                        PREFIX_VAR=var_prefix,
-                        SYMLINK_VAR=var_symlink,
-                        SYMLINK_OPT=opt_symlink,
-                        DEFAULT_ROOT=default_root,
-                        DEFAULT_NONROOT=default_nonroot,
-                        APPLIES_WHEN_GUARD=guard_symlink,
-                    )
+                    f"# shellcheck disable=SC2329,SC2317\n{fn_symlinks}() {{ return; }}"
                 )
             else:
+                bins_str = " ".join(bins) if bins else ""
                 fn_blocks.append(
                     self._render_template(
                         "prefix_symlink_bin",
-                        FUNC_NAME=fn_symlink,
+                        FUNC_NAME=fn_symlinks,
                         PREFIX_VAR=var_prefix,
-                        SYMLINK_VAR=var_symlink,
-                        SYMLINK_OPT=opt_symlink,
-                        BIN=f"bin/{binname}",
-                        DEFAULT_ROOT=default_root,
-                        DEFAULT_NONROOT=default_nonroot,
-                        APPLIES_WHEN_GUARD=guard_symlink,
+                        SYMLINKS_VAR=var_symlinks,
+                        BINS=bins_str,
+                        BIN_DIR=bin_dir,
+                        SYMLINK_ROOT=symlink_root,
+                        SYMLINK_NONROOT=symlink_nonroot,
+                        APPLIES_WHEN_GUARD=guard_symlinks,
                     )
                 )
 
-            # Export function (or no-op stub)
-            if skip_export_path:
+            # Exports function (or no-op stub)
+            if skip_exports:
                 fn_blocks.append(
-                    f"# shellcheck disable=SC2329,SC2317\n{fn_export}() {{ return; }}"
+                    f"# shellcheck disable=SC2329,SC2317\n{fn_exports}() {{ return; }}"
                 )
             else:
+                first_bin = bins[0] if bins else ""
                 marker = (
-                    f"{binname} PATH ({feature_id})"
-                    if binname
+                    f"{first_bin} PATH ({feature_id})"
+                    if first_bin
                     else f"PATH ({feature_id})"
                 )
                 fn_blocks.append(
                     self._render_template(
                         "prefix_export_path",
-                        FUNC_NAME=fn_export,
+                        FUNC_NAME=fn_exports,
                         PREFIX_VAR=var_prefix,
-                        EXPORT_VAR=var_export,
-                        EXPORT_OPT=opt_export,
+                        EXPORT_VAR=var_exports,
                         BIN_DIR=bin_dir,
                         MARKER=marker,
-                        APPLIES_WHEN_GUARD=guard_export,
-                        RUNTIME_PATH_VAR=_opt_to_var("runtime_path"),
+                        APPLIES_WHEN_GUARD=guard_exports,
                     )
                 )
 
-            all_fn_calls.append(fn_symlink)
-            all_fn_calls.append(fn_export)
+            # Activation snippet stub (body overrides to provide content and exit code)
+            if activation_cfg:
+                fn_blocks.append(
+                    f"# shellcheck disable=SC2329,SC2317\n"
+                    f"{fn_activation_snippet}() {{ return 1; }}"
+                )
+
+            # Discovery block for _prefix_post_install__generated()
+            if skip_symlink and skip_exports:
+                # Both disabled — call stubs unconditionally (body may override them)
+                post_install_blocks.append(f"{fn_symlinks}\n{fn_exports}")
+            elif skip_symlink:
+                # No symlinks possible — exports-only PATH check
+                post_install_blocks.append(
+                    self._render_template(
+                        "prefix_discovery_nolink",
+                        STEM=stem,
+                        DISCOVERY_VAR=var_discovery,
+                        PREFIX_VAR=var_prefix,
+                        BIN_DIR=bin_dir,
+                        RUNTIME_PATH_VAR=_opt_to_var("runtime_path"),
+                        FUNC_EXPORTS=fn_exports,
+                    )
+                )
+            else:
+                # Full discovery: symlinks + exports with PATH check and viability test
+                post_install_blocks.append(
+                    self._render_template(
+                        "prefix_discovery",
+                        STEM=stem,
+                        DISCOVERY_VAR=var_discovery,
+                        PREFIX_VAR=var_prefix,
+                        BIN_DIR=bin_dir,
+                        SYMLINKS_VAR=var_symlinks,
+                        RUNTIME_PATH_VAR=_opt_to_var("runtime_path"),
+                        SYMLINK_ROOT=symlink_root,
+                        SYMLINK_NONROOT=symlink_nonroot,
+                        FUNC_SYMLINKS=fn_symlinks,
+                        FUNC_EXPORTS=fn_exports,
+                    )
+                )
+
+            # Activation block for _prefix_post_install__generated()
+            if activation_cfg:
+                activation_block = self._render_template(
+                    "prefix_activation",
+                    STEM=stem,
+                    MARKER=activation_marker,
+                    PROFILE_D_NAME=activation_profile_d,
+                    SNIPPET_FUNC=fn_activation_snippet,
+                    ACTIVATIONS_VAR=var_activations,
+                )
+                post_install_blocks.append(
+                    _wrap_applies_when(applies_when, activation_block)
+                )
+
+            # Write-group block for _prefix_post_install__generated()
+            write_group_cfg: dict | None = group_cfg.get("write_group")
+            if write_group_cfg is not None:
+                if group_id:
+                    wg_key = f"{group_id}_write_group"
+                    wu_key = f"{group_id}_write_users"
+                else:
+                    wg_key = "write_group"
+                    wu_key = "write_users"
+                wg_var = _opt_to_var(wg_key)
+                wu_var = _opt_to_var(wu_key)
+                owner_var_name: str = write_group_cfg.get("owner_var", "")
+                if owner_var_name:
+                    owner_expr = f'"${{{owner_var_name}}}"'
+                else:
+                    owner_expr = '"$(id -nu)"'
+                _set_perms = (
+                    f"  users__set_write_permissions"
+                    f' "${{{var_prefix}}}"'
+                    f" {owner_expr}"
+                    f' "${{{wg_var}}}"'
+                    f' "${{_write_users[@]}}"'
+                )
+                write_group_block = (
+                    f"_wargs=()\n"
+                    f'if [[ "${{#{wu_var}[@]}}" -gt 0 ]]; then\n'
+                    f"  _wargs=(--current false"
+                    f" --remote false --container false)\n"
+                    f'  for _u in "${{{wu_var}[@]}}"'
+                    f'; do _wargs+=(--user "$_u"); done\n'
+                    f"fi\n"
+                    f"mapfile -t _write_users"
+                    f' < <(users__resolve_list "${{_wargs[@]}}")\n'
+                    f'if [[ -n "${{{wg_var}:-}}" ]]; then\n'
+                    f"{_set_perms}\n"
+                    f"fi"
+                )
+                post_install_blocks.append(
+                    _wrap_applies_when(applies_when, write_group_block)
+                )
+
             resolver_calls.append(fn_resolve)
 
-        # _prefix_post_install__generated() aggregating all per-group calls
-        post_install_body = "\n  ".join(all_fn_calls)
+        # _prefix_post_install__generated() aggregating all per-group discovery blocks
+        post_install_body = "\n\n".join(post_install_blocks)
         fn_blocks.append(
             "# shellcheck disable=SC2329,SC2317\n"
             "_prefix_post_install__generated() {\n"
-            f"  {post_install_body}\n"
-            "  return\n"
+            f"{post_install_body}\n"
+            "return\n"
             "}"
         )
 
@@ -639,8 +737,8 @@ def _make_resolution_block(
     for override in platform_overrides:
         when: dict = override.get("when", {})
         default: str = override["default"]
-        root_val: str = override.get("default_root", default)
-        nonroot_val: str = override.get("default_nonroot", default)
+        root_val: str = override.get("root", default)
+        nonroot_val: str = override.get("nonroot", default)
         when_args = " ".join(f"{k}={v}" for k, v in when.items())
         keyword = "if" if first else "elif"
         lines.append(f"{indent}{keyword} os__match_spec {when_args}; then")
@@ -706,6 +804,27 @@ def _make_applies_when_guard(applies_when: list | None, func_name: str) -> str:
         "    ;;\n"
         "  esac\n"
     )
+
+
+def _wrap_applies_when(applies_when: list | None, block: str) -> str:
+    """Wrap a shell block in a positive if/case guard from an applies_when condition.
+
+    Returns the block unchanged when applies_when is absent or unparseable.
+    Input format: [{varname: [val1, val2, ...]}] (same as _make_applies_when_guard).
+    """
+    if not applies_when:
+        return block
+    entry = applies_when[0]
+    if not isinstance(entry, dict) or len(entry) != 1:
+        return block
+    var_name, values = next(iter(entry.items()))
+    var = _opt_to_var(var_name)
+    if not values:
+        return block
+    if len(values) == 1:
+        return f'if [ "${{{var}}}" = "{values[0]}" ]; then\n{block}\nfi'
+    pattern = " | ".join(str(v) for v in values)
+    return f'case "${{{var}}}" in {pattern})\n{block}\n;;\nesac'
 
 
 def _opt_to_var(key: str) -> str:

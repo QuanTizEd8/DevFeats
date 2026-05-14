@@ -27,8 +27,8 @@ check "brew --version succeeds" "$_BREW" --version
 check "brew --version reports Homebrew" bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
 
 # --- shellenv export (Case A: root + Linux) ---
-echo "=== /etc/profile.d/brew.sh ==="
-cat /etc/profile.d/brew.sh 2> /dev/null || echo "(missing)"
+echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2> /dev/null || echo "(missing)"
 echo "=== /etc/bash.bashrc (tail) ==="
 tail -10 /etc/bash.bashrc 2> /dev/null || echo "(missing)"
 echo "=== /etc/bashrc (tail) ==="
@@ -38,19 +38,19 @@ cat /etc/zsh/zshenv 2> /dev/null || echo "(missing)"
 echo "=== /etc/zshenv ==="
 cat /etc/zshenv 2> /dev/null || echo "(missing)"
 
-check "profile.d/brew.sh written" test -f /etc/profile.d/brew.sh
-check "profile.d/brew.sh has begin marker" grep -qF '# >>> brew shellenv (install-homebrew) >>>' /etc/profile.d/brew.sh
-check "profile.d/brew.sh has shellenv eval" grep -qF 'brew shellenv' /etc/profile.d/brew.sh
+check "activation profile.d file written" test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "activation profile.d file has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "activation profile.d file has shellenv eval" grep -qF 'brew shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
 
 # The feature writes to whichever global bashrc file exists first
 check "a global bashrc has begin marker" \
-  bash -c 'grep -qF "# >>> brew shellenv (install-homebrew) >>>" /etc/bash.bashrc 2>/dev/null || grep -qF "# >>> brew shellenv (install-homebrew) >>>" /etc/bashrc 2>/dev/null'
+  bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bash.bashrc 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bashrc 2>/dev/null'
 check "a global bashrc has shellenv eval" \
   bash -c 'grep -qF "brew shellenv" /etc/bash.bashrc 2>/dev/null || grep -qF "brew shellenv" /etc/bashrc 2>/dev/null'
 
 # zshenv — /etc/zsh/zshenv (created) on the "debian" platform fallback
 check "a zshenv has begin marker" \
-  bash -c 'grep -qF "# >>> brew shellenv (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> brew shellenv (install-homebrew) >>>" /etc/zshenv 2>/dev/null'
+  bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zshenv 2>/dev/null'
 check "a zshenv has shellenv eval" \
   bash -c 'grep -qF "brew shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "brew shellenv" /etc/zshenv 2>/dev/null'
 

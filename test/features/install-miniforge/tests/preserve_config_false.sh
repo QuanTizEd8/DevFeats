@@ -23,7 +23,7 @@ check ".condarc removed" bash -c '[ ! -f /root/.condarc ]'
 # --- conda initialize block removed from .bashrc ---
 check ".bashrc has no conda initialize block" bash -c '! grep -q "conda initialize" /root/.bashrc'
 
-# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
+# --- PATH is reachable (exports permanently disabled; PATH comes from containerEnv) ---
 check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 reportResults

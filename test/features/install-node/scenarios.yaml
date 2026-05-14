@@ -6,7 +6,7 @@ nvm_set_permissions:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
   options:
-    set_permissions: true
+    nvm_write_group: nvm
   tests: [nvm_set_permissions.sh]
 
 nvm_add_users:
@@ -14,21 +14,15 @@ nvm_add_users:
   modes: [devcontainer, standalone]
   setup: useradd -m -s /bin/bash -u 1001 testuser
   options:
-    add_users: testuser
-    add_current_user: false
-    add_remote_user: false
-    add_container_user: false
-    set_permissions: true
+    nvm_write_group: nvm
+    nvm_write_users: testuser
   tests: [nvm_add_users.sh]
 
 nvm_remote_user:
   envs: [devcontainers-base-ubuntu]
   modes: [devcontainer]
   options:
-    add_remote_user: true
-    add_current_user: false
-    add_container_user: false
-    set_permissions: true
+    nvm_write_group: nvm
   tests: [nvm_remote_user.sh]
   devcontainer:
     remoteUser: vscode
@@ -37,5 +31,5 @@ nvm_no_permissions:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
   options:
-    set_permissions: false
+    nvm_write_group: ""
   tests: [nvm_no_permissions.sh]

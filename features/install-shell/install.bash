@@ -840,7 +840,14 @@ fi
 # ===================================================================
 # Step 6: Resolve user list
 # ===================================================================
-mapfile -t _RESOLVED_USERS < <(users__resolve_list)
+mapfile -t _RESOLVED_USERS < <(
+  _uargs=()
+  [ "${ADD_CURRENT_USER:-true}" != "true" ] && _uargs+=(--current false)
+  [ "${ADD_REMOTE_USER:-true}" != "true" ] && _uargs+=(--remote false)
+  [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _uargs+=(--container false)
+  for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _uargs+=(--user "$_u"); done
+  users__resolve_list "${_uargs[@]}"
+)
 
 if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
   logging__info "No users to configure."

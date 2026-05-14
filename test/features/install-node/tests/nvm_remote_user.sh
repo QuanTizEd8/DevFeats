@@ -1,7 +1,7 @@
 #!/bin/bash
-# add_remote_user=true with remoteUser="vscode" (injected as _REMOTE_USER by
-# the devcontainer CLI): vscode is added to the nvm group and receives the
-# nvm init snippet in ~/.bashrc.
+# nvm_write_group=nvm with remoteUser="vscode" (injected as _REMOTE_USER by
+# the devcontainer CLI): vscode is added to the nvm group and the nvm init
+# snippet is written to the system-wide /etc/bash.bashrc.
 set -e
 
 source dev-container-features-test-lib
@@ -23,11 +23,11 @@ check "nvm group exists" bash -c 'getent group nvm >/dev/null 2>&1'
 # --- vscode resolved via _REMOTE_USER ---
 check "vscode is in nvm group" bash -c 'id -nG vscode | grep -qw nvm'
 
-# --- per-user nvm init written ---
-echo "=== /home/vscode/.bashrc (nvm lines) ==="
-grep "nvm" /home/vscode/.bashrc 2> /dev/null || echo "(no nvm lines)"
+# --- system-wide nvm init written to /etc/bash.bashrc ---
+echo "=== /etc/bash.bashrc (nvm lines) ==="
+grep "nvm" /etc/bash.bashrc 2> /dev/null || echo "(no nvm lines)"
 
-check "vscode .bashrc contains nvm.sh source" bash -c \
-  'grep -Fq "nvm.sh" /home/vscode/.bashrc 2>/dev/null'
+check "/etc/bash.bashrc contains nvm.sh source" bash -c \
+  'grep -Fq "nvm.sh" /etc/bash.bashrc 2>/dev/null'
 
 reportResults

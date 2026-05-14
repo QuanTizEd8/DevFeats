@@ -12,7 +12,6 @@ custom_bin_dir:
   modes: [devcontainer]
   options:
     prefix: /opt/myforge
-    symlink: false
   tests: [custom_bin_dir.sh]
 
 specific_version:
@@ -112,7 +111,7 @@ multi_user_permissions:
     useradd -m testuser2
   options:
     write_group: conda
-    add_users: "testuser1\ntestuser2"
+    write_users: "testuser1\ntestuser2"
   tests: [multi_user_permissions.sh]
 
 export_path_default:
@@ -120,55 +119,24 @@ export_path_default:
   modes: [devcontainer]
   tests: [export_path_default.sh]
 
-export_path_custom_dir:
+prefix_discovery_symlink:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     prefix: /opt/myforge
-    symlink: false
-  tests: [export_path_custom_dir.sh]
+    prefix_discovery: symlink
+  tests: [prefix_discovery_symlink.sh]
 
-export_path_symlink:
+prefix_discovery_symlink_nonroot:
   envs: [ubuntu-latest]
   modes: [devcontainer]
+  setup: useradd -m -s /bin/bash vscode
   options:
     prefix: /opt/myforge
-    symlink: true
-  tests: [export_path_symlink.sh]
-
-export_path_disabled:
-  envs: [ubuntu-latest]
-  modes: [devcontainer]
-  options:
-    export_path: ""
-  tests: [export_path_disabled.sh]
-
-export_path_custom_list:
-  envs: [ubuntu-latest]
-  modes: [devcontainer]
-  options:
-    export_path: /tmp/test_bashrc
-  tests: [export_path_custom_list.sh]
-
-export_path_idempotency:
-  envs: [ubuntu-latest+curl]
-  modes: [devcontainer]
-  setup: |
-    mkdir -p /etc/profile.d
-    printf '# >>> conda PATH (install-miniforge) >>>\nexport PATH="/opt/conda/bin:${PATH}"\n# <<< conda PATH (install-miniforge) <<<\n' \
-        >> /etc/profile.d/conda_bin_path.sh
-    printf '# >>> conda PATH (install-miniforge) >>>\nexport PATH="/opt/conda/bin:${PATH}"\n# <<< conda PATH (install-miniforge) <<<\n' \
-        >> /etc/bash.bashrc
-    mkdir -p /etc/zsh
-    printf '# >>> conda PATH (install-miniforge) >>>\nexport PATH="/opt/conda/bin:${PATH}"\n# <<< conda PATH (install-miniforge) <<<\n' \
-        >> /etc/zsh/zshenv
-    printf '# >>> conda PATH (install-miniforge) >>>\nexport PATH="/opt/conda/bin:${PATH}"\n# <<< conda PATH (install-miniforge) <<<\n' \
-        >> /etc/bashenv
-    printf 'BASH_ENV="/etc/bashenv"\n' >> /etc/environment
-  options:
-    prefix: /opt/myforge
-    symlink: false
-  tests: [export_path_idempotency.sh]
+    prefix_discovery: symlink
+  devcontainer:
+    remoteUser: vscode
+  tests: [prefix_discovery_symlink_nonroot.sh]
 
 latest_version:
   envs: [ubuntu-latest]
@@ -249,23 +217,12 @@ if_exists_update_preinstall:
     if_exists: update
   tests: [if_exists_update_preinstall.sh]
 
-export_path_symlink_nonroot:
-  envs: [ubuntu-latest]
-  modes: [devcontainer]
-  setup: useradd -m -s /bin/bash vscode
-  options:
-    prefix: /opt/myforge
-    symlink: true
-  devcontainer:
-    remoteUser: vscode
-  tests: [export_path_symlink_nonroot.sh]
-
 symlink_user_home_prefix:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     prefix: /root/myforge
-    symlink: true
+    prefix_discovery: symlink
   tests: [symlink_user_home_prefix.sh]
 
 github_api_unreachable_network_isolated:

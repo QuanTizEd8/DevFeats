@@ -90,6 +90,7 @@ _dependencies:
 # installsAfter: []
 _prefix_groups:
   "":
-    bin: jq
-    _applies_when:
+    prefix:
+      bins: [jq]
+    applies_when:
       - method: [binary, source]

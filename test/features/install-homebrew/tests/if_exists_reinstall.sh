@@ -20,12 +20,12 @@ check "brew --version succeeds" "$_BREW" --version
 check "brew --version reports Homebrew" bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
 
 # --- post-install steps ran (shellenv export written by feature) ---
-echo "=== /etc/profile.d/brew.sh ==="
-cat /etc/profile.d/brew.sh 2> /dev/null || echo "(missing)"
+echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2> /dev/null || echo "(missing)"
 echo "=== /etc/bash.bashrc (tail) ==="
 tail -10 /etc/bash.bashrc 2> /dev/null || echo "(missing)"
-check "profile.d/brew.sh written" test -f /etc/profile.d/brew.sh
-check "profile.d/brew.sh has begin marker" grep -qF '# >>> brew shellenv (install-homebrew) >>>' /etc/profile.d/brew.sh
-check "bash.bashrc has begin marker" grep -qF '# >>> brew shellenv (install-homebrew) >>>' /etc/bash.bashrc
+check "activation profile.d file written" test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "activation profile.d file has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "bash.bashrc has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
 
 reportResults

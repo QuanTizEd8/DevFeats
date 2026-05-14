@@ -15,7 +15,7 @@ source dev-container-features-test-lib
 _HOME="$HOME"
 
 _cleanup() {
-  block_cleanup_all "brew shellenv (install-homebrew)"
+  block_cleanup_all "prefix activation (install-homebrew)"
 }
 trap _cleanup EXIT
 
@@ -36,24 +36,20 @@ check "brew binary is executable" test -x "$_BREW"
 check "brew --version succeeds" "$_BREW" --version
 check "brew --version reports Homebrew" bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
 
-echo "=== ~/.zprofile ==="
-cat "${_HOME}/.zprofile" 2> /dev/null || echo "(missing)"
-echo "=== ~/.zshrc ==="
-cat "${_HOME}/.zshrc" 2> /dev/null || echo "(missing)"
+echo "=== ~/.zshenv ==="
+cat "${_HOME}/.zshenv" 2> /dev/null || echo "(missing)"
 
 check "a login bash file has shellenv marker" \
-  bash -c 'grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.bash_profile 2>/dev/null ||
-             grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.bash_login  2>/dev/null ||
-             grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.profile      2>/dev/null'
+  bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null ||
+             grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login  2>/dev/null ||
+             grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile      2>/dev/null'
 check "~/.bashrc has shellenv marker" \
-  grep -qF '# >>> brew shellenv (install-homebrew) >>>' "${_HOME}/.bashrc"
-check "~/.zprofile has shellenv marker" \
-  grep -qF '# >>> brew shellenv (install-homebrew) >>>' "${_HOME}/.zprofile"
-check "~/.zshrc has shellenv marker" \
-  grep -qF '# >>> brew shellenv (install-homebrew) >>>' "${_HOME}/.zshrc"
+  grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.bashrc"
+check "~/.zshenv has shellenv marker" \
+  grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.zshenv"
 
 check "shellenv block references correct brew prefix" \
-  bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.zprofile 2>/dev/null ||
+  bash -c 'grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.zshenv 2>/dev/null ||
              grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.bash_profile 2>/dev/null'
 
 _ACTUAL_PREFIX="$("${_BREW}" --prefix 2> /dev/null || true)"

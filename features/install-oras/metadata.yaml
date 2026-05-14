@@ -115,6 +115,7 @@ _dependencies:
 # installsAfter: []
 _prefix_groups:
   "":
-    bin: oras
-    _applies_when:
+    prefix:
+      bins: [oras]
+    applies_when:
       - method: [binary]

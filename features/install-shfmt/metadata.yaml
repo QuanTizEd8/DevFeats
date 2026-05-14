@@ -59,6 +59,7 @@ _dependencies:
 # installsAfter: []
 _prefix_groups:
   "":
-    bin: shfmt
-    _applies_when:
+    prefix:
+      bins: [shfmt]
+    applies_when:
       - method: [binary]

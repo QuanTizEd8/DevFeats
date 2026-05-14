@@ -226,10 +226,12 @@ _dependencies:
         fi
 _prefix_groups:
   starship:
-    bin: starship
-    _applies_when:
+    prefix:
+      bins: [starship]
+    applies_when:
       - install_starship: ['true']
   fzf:
-    bin: fzf
-    _applies_when:
+    prefix:
+      bins: [fzf]
+    applies_when:
       - install_fzf: ['true']

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2088  # ~/ in check labels is intentional (display only)
-# export_path_disabled: export_path="" skips all shellenv writes.
-# Verifies that brew is intact (if_exists=skip) and that no dotfiles are touched.
+# export_path_disabled: prefix_activations="" skips all activation writes.
+# Verifies that brew is intact (if_exists=skip) and that no activation blocks
+# are written to any user dotfiles.
 set -e
 
 source dev-container-features-test-lib
 
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"
+_MARKER='prefix activation (install-homebrew)'
 
 # No cleanup needed: this scenario must not write to any file.
 
@@ -17,16 +19,12 @@ echo "=== brew --version ==="
 check "brew binary present" test -f "$_BREW"
 check "brew --version succeeds" "$_BREW" --version
 
-# --- no shellenv blocks written to any file ---
-check "~/.bash_profile has NO brew marker" \
-  bash -c '! grep -qF "brew shellenv (install-homebrew)" ~/.bash_profile 2>/dev/null'
-check "~/.bashrc has NO brew marker" \
-  bash -c '! grep -qF "brew shellenv (install-homebrew)" ~/.bashrc 2>/dev/null'
-check "~/.zprofile has NO brew marker" \
-  bash -c '! grep -qF "brew shellenv (install-homebrew)" ~/.zprofile 2>/dev/null'
-check "~/.zshrc has NO brew marker" \
-  bash -c '! grep -qF "brew shellenv (install-homebrew)" ~/.zshrc 2>/dev/null'
-check "profile.d/brew.sh NOT written" \
-  bash -c '! test -f /etc/profile.d/brew.sh'
+# --- no activation blocks written to any file ---
+check "~/.bash_profile has NO activation marker" \
+  bash -c '! grep -qF "'"$_MARKER"'" ~/.bash_profile 2>/dev/null'
+check "~/.bashrc has NO activation marker" \
+  bash -c '! grep -qF "'"$_MARKER"'" ~/.bashrc 2>/dev/null'
+check "~/.zshenv has NO activation marker" \
+  bash -c '! grep -qF "'"$_MARKER"'" ~/.zshenv 2>/dev/null'
 
 reportResults

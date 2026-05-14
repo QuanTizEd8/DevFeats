@@ -17,7 +17,7 @@ check "brew binary still present after fail" test -f "$_BREW"
 check "brew --version still succeeds after fail" "$_BREW" --version
 
 # --- no dotfiles were written (installer exited before export step) ---
-check "~/.zprofile has NO brew marker" \
-  bash -c '! grep -qF "brew shellenv (install-homebrew)" ~/.zprofile 2>/dev/null'
+check "~/.zshenv has NO brew marker" \
+  bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.zshenv 2>/dev/null'
 
 reportResults

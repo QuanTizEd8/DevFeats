@@ -22,7 +22,7 @@ check "myenv directory exists" test -d /opt/conda/envs/myenv
 check "conda --version succeeds" /opt/conda/bin/conda --version
 check "conda env list includes myenv" bash -c '/opt/conda/bin/conda env list | grep -q myenv'
 
-# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
+# --- PATH is reachable (exports permanently disabled; PATH comes from containerEnv) ---
 check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 reportResults

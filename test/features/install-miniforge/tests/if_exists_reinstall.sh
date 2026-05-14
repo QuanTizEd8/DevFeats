@@ -28,7 +28,7 @@ check "base environment accessible" /opt/conda/bin/conda env list
 # --- activation scripts exist (fresh install writes them) ---
 check "conda activation script exists" test -f /opt/conda/etc/profile.d/conda.sh
 
-# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
+# --- PATH is reachable (exports permanently disabled; PATH comes from containerEnv) ---
 check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 reportResults

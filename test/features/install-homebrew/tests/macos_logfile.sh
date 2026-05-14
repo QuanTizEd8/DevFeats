@@ -15,7 +15,7 @@ _LOG_FILE="/tmp/brew-macos-test.log"
 _cleanup() {
   rm -f "$_LOG_FILE"
   for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
-    "${_HOME}/.bashrc" "${_HOME}/.zprofile" "${_HOME}/.zshrc"; do
+    "${_HOME}/.bashrc" "${_HOME}/.zshenv"; do
     shellenv_block_cleanup "$f"
   done
 }

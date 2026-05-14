@@ -18,7 +18,7 @@ _LOG_FILE="/tmp/brew-update-false-test.log"
 
 _cleanup() {
   rm -f "$_LOG_FILE"
-  block_cleanup_all "brew shellenv (install-homebrew)"
+  block_cleanup_all "prefix activation (install-homebrew)"
 }
 trap _cleanup EXIT
 
@@ -31,12 +31,11 @@ check "brew --version succeeds" "$_BREW" --version
 
 # --- shellenv still written (export_path=auto by default) ---
 check "a user dotfile has shellenv marker" \
-  bash -c 'grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.bash_profile 2>/dev/null ||
-             grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.bash_login  2>/dev/null ||
-             grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.profile      2>/dev/null ||
-             grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.bashrc       2>/dev/null ||
-             grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.zprofile     2>/dev/null ||
-             grep -qF "# >>> brew shellenv (install-homebrew) >>>" ~/.zshrc        2>/dev/null'
+  bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null ||
+             grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login  2>/dev/null ||
+             grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile      2>/dev/null ||
+             grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bashrc       2>/dev/null ||
+             grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.zshenv       2>/dev/null'
 
 # --- brew update was NOT run (log_file must not contain the update completion marker) ---
 echo "===== ${_LOG_FILE} (last 30 lines) ====="

@@ -183,8 +183,6 @@ options:
     description: |-
       Keep the installer_dir after a successful install.
       Useful for troubleshooting or inspecting the extracted archive.
-containerEnv:
-  PATH: ${HOME}/.local/bin:${PATH}
 customizations:
   vscode:
     extensions:
@@ -215,6 +213,7 @@ _dependencies:
         - "deb [arch=${deb_arch} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
 _prefix_groups:
   "":
-    bin: gh
-    _applies_when:
+    prefix:
+      bins: [gh]
+    applies_when:
       - method: [binary]

@@ -1,8 +1,7 @@
 #!/bin/bash
-# add_users="testuser" with all other add_*_user=false:
-# testuser is added to the nvm group, NVM_DIR user-owned by testuser with
-# group-write + setgid bits set, and testuser's ~/.bashrc receives the nvm
-# init snippet.
+# nvm_write_group=nvm, nvm_write_users=testuser:
+# testuser is added to the nvm group; NVM_DIR has group-write + setgid bits
+# set; and the nvm init snippet is written to the system-wide bash.bashrc.
 set -e
 
 source dev-container-features-test-lib
@@ -23,20 +22,19 @@ stat -c "user=%U group=%G mode=%A" "${_NVM_DIR}" 2>&1 || echo "(failed)"
 
 check "nvm group exists" bash -c 'getent group nvm >/dev/null 2>&1'
 
-# --- testuser resolved as sole user ---
+# --- testuser added to the nvm group ---
 check "testuser is in nvm group" bash -c 'id -nG testuser | grep -qw nvm'
-check "NVM_DIR user-owned by testuser" bash -c '[ "$(stat -c "%U" /usr/local/share/nvm)" = "testuser" ]'
 
 # --- directory permission bits ---
 check "NVM_DIR group-owned by nvm" bash -c '[ "$(stat -c "%G" /usr/local/share/nvm)" = "nvm" ]'
 check "NVM_DIR is group-writable" bash -c '[ "$(stat -c "%A" /usr/local/share/nvm | cut -c6)" = "w" ]'
 check "NVM_DIR has setgid bit" bash -c 'stat -c "%A" /usr/local/share/nvm | grep -qE "^d.....(s|S)"'
 
-# --- per-user nvm init written ---
-echo "=== /home/testuser/.bashrc (nvm lines) ==="
-grep "nvm" /home/testuser/.bashrc 2> /dev/null || echo "(no nvm lines)"
+# --- system-wide nvm init written to /etc/bash.bashrc ---
+echo "=== /etc/bash.bashrc (nvm lines) ==="
+grep "nvm" /etc/bash.bashrc 2> /dev/null || echo "(no nvm lines)"
 
-check "testuser .bashrc contains nvm.sh source" bash -c \
-  'grep -Fq "nvm.sh" /home/testuser/.bashrc 2>/dev/null'
+check "/etc/bash.bashrc contains nvm.sh source" bash -c \
+  'grep -Fq "nvm.sh" /etc/bash.bashrc 2>/dev/null'
 
 reportResults

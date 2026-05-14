@@ -16,7 +16,7 @@ _BREW="${_BREW_PREFIX}/bin/brew"
 _BASH_LOGIN_FILE="$(detect_bash_login_file)"
 
 _cleanup() {
-  block_cleanup_all "brew shellenv (install-homebrew)"
+  block_cleanup_all "prefix activation (install-homebrew)"
   block_cleanup_all "HOMEBREW_NO_INSTALL_FROM_API (install-homebrew)"
 }
 trap _cleanup EXIT
@@ -37,9 +37,7 @@ check "NO_INSTALL_FROM_API marker block absent from resolved bash login file aft
   bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" "$1" 2>/dev/null' -- "$_BASH_LOGIN_FILE"
 check "NO_INSTALL_FROM_API block absent from ~/.bashrc after run" \
   bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.bashrc 2>/dev/null'
-check "NO_INSTALL_FROM_API block absent from ~/.zprofile after run" \
-  bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.zprofile 2>/dev/null'
-check "NO_INSTALL_FROM_API block absent from ~/.zshrc after run" \
-  bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.zshrc 2>/dev/null'
+check "NO_INSTALL_FROM_API block absent from ~/.zshenv after run" \
+  bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.zshenv 2>/dev/null'
 
 reportResults

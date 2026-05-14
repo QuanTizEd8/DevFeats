@@ -141,48 +141,16 @@ options:
         Remove the existing Node.js installation and install fresh using the selected method.
         With `method=nvm`, runs `nvm uninstall <version>` then reinstalls.
         With `method=binary`, overwrites the extracted files.
-  add_current_user:
-    type: boolean
-    default: true
-    description: |-
-      Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list.
-      Resolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.
-      Root is deferred: only included as a fallback when no other non-root user is resolved.
-  add_remote_user:
-    type: boolean
-    default: true
-    description: |-
-      Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list.
-      Resolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.
-      Ignored when _REMOTE_USER is unset or empty. Root is excluded from this path.
-  add_container_user:
-    type: boolean
-    default: true
-    description: |-
-      Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list.
-      Resolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.
-      Ignored when _CONTAINER_USER is unset or empty. Root is excluded from this path.
-  add_users:
-    type: array
-    default: ''
-    description: |-
-      Additional usernames to include in the resolved user list.
-      Resolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.
-      Root is accepted here (unlike the auto-detected paths above).
-  set_permissions:
-    type: boolean
-    default: true
-    description: |-
-      Create a dedicated group (name set by 'group', default 'nvm'), set group-write and setgid bits on 'nvm_dir', add all resolved users to that group, and run the nvm installer as the first resolved user rather than root.
-      This allows non-root container users to run 'nvm install', 'nvm use', and 'nvm ls' without sudo inside the running container.
-      Only applies when method=nvm and running as root. No-op when method=binary or running as non-root.
-  group:
+  install_user:
     type: string
-    default: nvm
+    default: ''
+    _applies_when:
+      - method: [nvm]
     description: |-
-      Name of the group created to own 'nvm_dir' when set_permissions=true.
-      All resolved users are added to this group.
-      Only applies when method=nvm and set_permissions=true.
+      User to run the nvm installer and Node.js operations as (method=nvm only).
+      Non-root callers cannot set this to a different user.
+      When empty (default), the install user is resolved as:
+        `SUDO_USER` (if set and non-root) → `_REMOTE_USER` (if set and non-root) → current effective user.
   node_gyp_deps:
     type: boolean
     default: true
@@ -273,7 +241,6 @@ _dependencies:
 containerEnv:
   NVM_DIR: /usr/local/share/nvm
   NVM_SYMLINK_CURRENT: 'true'
-  PATH: ${HOME}/.local/bin:${HOME}/.nvm/current/bin:/usr/local/share/nvm/current/bin:${PATH}
 customizations:
   vscode:
     extensions:
@@ -285,25 +252,31 @@ customizations:
 # - ghcr.io/devcontainers/features/common-utils
 _prefix_groups:
   "":
-    bin: node
-    symlink_description: |-
-      Create symlinks for `node`, `npm`, `npx`, and `corepack` in the standard
-      binary directory (`/usr/local/bin/` as root, `$HOME/.local/bin/` as
-      non-root) when the prefix resolves to a non-default path.
-    _applies_when:
+    prefix:
+      bins: [node, npm, npx, corepack]
+    symlink: {}
+    applies_when:
       - method:
         - binary
   nvm:
     option_name: nvm_dir
-    default_root: /usr/local/share/nvm
-    default_nonroot: "${HOME}/.nvm"
-    dir_symlink: true
-    skip_export_path: true
-    symlink_description: |-
-      Root only. Creates a symlink from `$NVM_DIR` to `/usr/local/share/nvm`
-      when it resolves to a non-default path, and creates stable
-      `/usr/local/bin/` entrypoints for `node`, `npm`, `npx`, and `corepack`
-      pointing into `$NVM_DIR/current/bin/`. No-op when running as non-root.
-    _applies_when:
+    prefix:
+      root: /usr/local/share/nvm
+      nonroot: "${HOME}/.nvm"
+    symlink:
+      skip: true
+    exports:
+      skip: true
+    activation:
+      shells: [bash, zsh]
+      description: |-
+        Shells to write NVM initialisation to RC files for (only active when `method=nvm`).
+        Sources `$NVM_DIR/nvm.sh` and the shell completion script in interactive shells,
+        making `nvm`, `node`, and `npm` available on the command line.
+        Set to `''` to skip all activation writes.
+    applies_when:
       - method:
         - nvm
+    write_group:
+      default: nvm
+      owner_var: _NVM_USER

@@ -1,5 +1,5 @@
 #!/bin/bash
-# set_permissions=true (default): nvm group is created, NVM_DIR is group-owned
+# nvm_write_group=nvm (default): nvm group is created, NVM_DIR is group-owned
 # by nvm, and has group-write + setgid bits set.
 set -e
 

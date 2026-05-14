@@ -24,7 +24,7 @@ check ".condarc has expected content" grep -q 'auto_activate_base' /root/.condar
 # --- conda initialize block still in .bashrc ---
 check ".bashrc has conda initialize block" grep -q 'conda initialize' /root/.bashrc
 
-# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
+# --- PATH is reachable (exports permanently disabled; PATH comes from containerEnv) ---
 check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 reportResults

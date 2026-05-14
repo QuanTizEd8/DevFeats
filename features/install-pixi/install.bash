@@ -217,30 +217,17 @@ verify_installed_binary() {
   return 0
 }
 
-export_pixi_home_main() {
-  logging__fn_entry "export_pixi_home_main"
-  if [ -z "${HOME_DIR}" ]; then
-    logging__info "home_dir is empty; skipping PIXI_HOME export."
-    logging__fn_exit "export_pixi_home_main"
-    return 0
+prefix_activation_snippet() {
+  if [ -n "${HOME_DIR}" ]; then
+    printf 'export PIXI_HOME="%s"\n' "${HOME_DIR}"
+  else
+    printf 'export PIXI_HOME="${HOME}/.pixi"\n'
   fi
-  if [ "${#EXPORT_PIXI_HOME[@]}" -eq 0 ]; then
-    logging__info "export_pixi_home is empty; skipping PIXI_HOME export."
-    logging__fn_exit "export_pixi_home_main"
-    return 0
-  fi
-  shell__write_env_block \
-    --opt "$(printf '%s\n' "${EXPORT_PIXI_HOME[@]}")" \
-    --profile-d "${_EXPORT_PROFILE_D}" \
-    --marker "pixi PIXI_HOME (install-pixi)" \
-    --content "export PIXI_HOME=\"${HOME_DIR}\""
-  logging__fn_exit "export_pixi_home_main"
   return 0
 }
 
 _prefix_post_install() {
   _prefix_post_install__generated
-  export_pixi_home_main
 }
 
 install_completion() {

@@ -28,7 +28,7 @@ _REMOTE_URL="$(git -C "$_BREW_REPO" remote get-url origin 2> /dev/null ||
 echo "ℹ️  Using brew_git_remote: ${_REMOTE_URL}"
 
 _cleanup() {
-  block_cleanup_all "brew shellenv (install-homebrew)"
+  block_cleanup_all "prefix activation (install-homebrew)"
   block_cleanup_all "HOMEBREW_BREW_GIT_REMOTE (install-homebrew)"
 }
 trap _cleanup EXIT
@@ -53,9 +53,7 @@ check "BREW_GIT_REMOTE marker block absent from resolved bash login file after r
   bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" "$1" 2>/dev/null' -- "$_BASH_LOGIN_FILE"
 check "BREW_GIT_REMOTE block absent from ~/.bashrc after run" \
   bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.bashrc 2>/dev/null'
-check "BREW_GIT_REMOTE block absent from ~/.zprofile after run" \
-  bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.zprofile 2>/dev/null'
-check "BREW_GIT_REMOTE block absent from ~/.zshrc after run" \
-  bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.zshrc 2>/dev/null'
+check "BREW_GIT_REMOTE block absent from ~/.zshenv after run" \
+  bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.zshenv 2>/dev/null'
 
 reportResults

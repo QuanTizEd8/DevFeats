@@ -1,8 +1,8 @@
 #!/bin/bash
-# prefix=/root/myforge, symlink=true.
-# $prefix is under root's home directory (/root per /etc/passwd), so a
-# user-scoped directory symlink is created at $HOME/miniforge3 -> $prefix.
-# No system-wide /opt/conda symlink is created.
+# prefix=/root/myforge, prefix_discovery=symlink:
+# Miniforge is installed under root's home directory. Binary symlinks are
+# created in /usr/local/bin (root install, prefix_discovery=symlink).
+# No directory symlinks are created.
 set -e
 
 source dev-container-features-test-lib
@@ -10,13 +10,18 @@ source dev-container-features-test-lib
 # --- conda installed at user home prefix ---
 check "conda installed at /root/myforge" test -d /root/myforge
 check "/root/myforge/bin/conda exists" test -f /root/myforge/bin/conda
+check "conda wrapper in /root/myforge/condabin" test -f /root/myforge/condabin/conda
+check "mamba wrapper in /root/myforge/condabin" test -f /root/myforge/condabin/mamba
 
-# --- user-scoped symlink created (prefix is under /root per /etc/passwd) ---
-check "/root/miniforge3 symlink exists" test -L /root/miniforge3
-check "symlink target is /root/myforge" bash -c '[ "$(readlink /root/miniforge3)" = "/root/myforge" ]'
-check "conda reachable via symlink" test -f /root/miniforge3/bin/conda
+# --- binary symlinks created in /usr/local/bin ---
+echo "=== ls -la /usr/local/bin/conda /usr/local/bin/mamba ==="
+ls -la /usr/local/bin/conda /usr/local/bin/mamba 2>&1 || echo "(missing)"
+check "/usr/local/bin/conda symlink exists" test -L /usr/local/bin/conda
+check "/usr/local/bin/mamba symlink exists" test -L /usr/local/bin/mamba
+check "conda reachable via symlink" /usr/local/bin/conda --version
 
-# --- no system-wide symlink created ---
-check "no /opt/conda symlink" bash -c '! test -e /opt/conda'
+# --- no legacy directory-level symlink ---
+check "no /opt/conda directory symlink" bash -c '! test -L /opt/conda && ! test -e /opt/conda'
+check "no /root/miniforge3 directory symlink" bash -c '! test -L /root/miniforge3'
 
 reportResults

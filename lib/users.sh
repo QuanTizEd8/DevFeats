@@ -52,29 +52,49 @@ users__default_prefix() {
   fi
 }
 
-# @brief users__resolve_list — Print one deduplicated username per line from devcontainer user-config env vars.
+# @brief users__resolve_list — Print one deduplicated username per line.
 #
-# Root is excluded from auto-detected paths (SUDO_USER, _REMOTE_USER,
-# _CONTAINER_USER) when other non-root users exist, because the build process
-# running as root should not override a named container user. When the build
-# user IS root and no other users are found, root is included as a fallback
-# (e.g. plain container images, standalone macOS use). Root is always
-# accepted in ADD_USERS.
+# Root is excluded from auto-detected paths (_REMOTE_USER, _CONTAINER_USER,
+# SUDO_USER) when other non-root users are found; it is only added as a
+# fallback when no other user is resolved (e.g. plain container image or
+# standalone macOS install). Root is always accepted via --user.
 #
-# Env:
-#   ADD_CURRENT_USER    "true" to include SUDO_USER / whoami (default: true).
-#   ADD_REMOTE_USER     "true" to include _REMOTE_USER (default: true).
-#   ADD_CONTAINER_USER  "true" to include _CONTAINER_USER (default: true).
-#   ADD_USERS           Extra usernames (bash array, newline-delimited, or comma-separated); root allowed.
+# Args:
+#   [--current <bool>]    Include SUDO_USER / current user (default: true).
+#   [--remote <bool>]     Include _REMOTE_USER (default: true).
+#   [--container <bool>]  Include _CONTAINER_USER (default: true).
+#   [--user <name>]...    Extra explicit usernames; root allowed; repeatable.
 #
 # Stdout: one username per line.
 users__resolve_list() {
-  # Track seen names in a local space-separated string for dedup.
-  local _seen=""
-  local _out=""
-  local _raw_add_users="${ADD_USERS-}"
+  local _include_current="true"
+  local _include_remote="true"
+  local _include_container="true"
+  local -a _extra_users=()
 
-  logging__info "users__resolve_list: inputs ADD_CURRENT_USER='${ADD_CURRENT_USER:-true}' ADD_REMOTE_USER='${ADD_REMOTE_USER:-true}' ADD_CONTAINER_USER='${ADD_CONTAINER_USER:-true}' SUDO_USER='${SUDO_USER-}' _REMOTE_USER='${_REMOTE_USER-}' _CONTAINER_USER='${_CONTAINER_USER-}' _REMOTE_USER_HOME='${_REMOTE_USER_HOME-}' _CONTAINER_USER_HOME='${_CONTAINER_USER_HOME-}' ADD_USERS='${_raw_add_users}'"
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --current)
+        _include_current="$2"
+        shift 2
+        ;;
+      --remote)
+        _include_remote="$2"
+        shift 2
+        ;;
+      --container)
+        _include_container="$2"
+        shift 2
+        ;;
+      --user)
+        _extra_users+=("$2")
+        shift 2
+        ;;
+      *) shift ;;
+    esac
+  done
+
+  local _seen="" _out="" _root_queued=false
 
   _users_add() {
     local _name="$1"
@@ -87,34 +107,7 @@ users__resolve_list() {
     return 0
   }
 
-  # Accept both newline and comma separators in scalar values.
-  _users_add_from_text() {
-    local _raw="$1"
-    [ -z "$_raw" ] && return 0
-
-    local _normalized _old_ifs _extra
-    _normalized="$(printf '%s\n' "$_raw" | tr ',' '\n')"
-    _old_ifs="$IFS"
-    IFS='
-'
-    for _extra in $_normalized; do
-      # Trim leading/trailing spaces.
-      _extra="${_extra#"${_extra%%[! ]*}"}"
-      _extra="${_extra%"${_extra##*[! ]}"}"
-      _users_add "$_extra"
-    done
-    IFS="$_old_ifs"
-    return 0
-  }
-
-  # Auto-detected users: root is deferred — only added as a fallback when
-  # no other user is found.  In a devcontainer with a remoteUser/containerUser
-  # the build runs as root, but configuration should target the named user, not
-  # root.  When there is genuinely no other user (e.g. a plain container image
-  # with no remoteUser or a standalone macOS install), root is the intended
-  # target and should be included.
-  local _root_queued=false
-  if [ "${ADD_CURRENT_USER:-true}" = "true" ]; then
+  if [ "${_include_current}" = "true" ]; then
     local _cur
     _cur="$(users__get_current)"
     if [ "$_cur" != "root" ]; then
@@ -124,43 +117,29 @@ users__resolve_list() {
     fi
   fi
 
-  if [ "${ADD_REMOTE_USER:-true}" = "true" ] && [ -n "${_REMOTE_USER:-}" ]; then
+  if [ "${_include_remote}" = "true" ] && [ -n "${_REMOTE_USER:-}" ]; then
     [ "${_REMOTE_USER}" != "root" ] && _users_add "${_REMOTE_USER}"
   fi
 
-  if [ "${ADD_CONTAINER_USER:-true}" = "true" ] && [ -n "${_CONTAINER_USER:-}" ]; then
+  if [ "${_include_container}" = "true" ] && [ -n "${_CONTAINER_USER:-}" ]; then
     [ "${_CONTAINER_USER}" != "root" ] && _users_add "${_CONTAINER_USER}"
   fi
 
-  # ADD_USERS: explicit override list — root is allowed if deliberately
-  # specified (e.g. configuring Podman rootless for the root user).
-  # The generated argparse header provides arrays in bash; support that first,
-  # then fall back to scalar parsing for POSIX sh callers.
-  if [ -n "${ADD_USERS:-}" ]; then
-    if [ -n "${BASH_VERSION-}" ]; then
-      local _bash_items
-      # In bash, this safely serialises both scalar and array values.
-      _bash_items="$(eval 'printf "%s\n" "${ADD_USERS[@]}"' 2> /dev/null || true)"
-      _users_add_from_text "$_bash_items"
-    else
-      _users_add_from_text "${ADD_USERS}"
-    fi
-  fi
+  local _extra
+  for _extra in "${_extra_users[@]+"${_extra_users[@]}"}"; do
+    [ -n "$_extra" ] && _users_add "$_extra"
+  done
 
-  # Root fallback: if the build user was root and no other users were resolved,
-  # include root so the feature has a target to configure.
   if [ "$_root_queued" = "true" ] && [ -z "$_out" ]; then
     _users_add "root"
   fi
 
-  # Log final result (or explicit empty marker) to aid CI troubleshooting.
   if [ -n "$_out" ]; then
     logging__info "users__resolve_list: resolved users='${_out# }'"
   else
     logging__info "users__resolve_list: resolved users='(empty)'"
   fi
 
-  # Print one name per line (strip leading space from _out).
   local _name
   for _name in $_out; do
     printf '%s\n' "$_name"

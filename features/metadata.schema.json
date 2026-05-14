@@ -25,7 +25,7 @@
       "type": "array"
     },
     "options": {
-      "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container. The names `prefix`, `symlink`, `export_path`, and `runtime_path` — and any name matching `*_prefix`, `*_symlink`, or `*_export_path` — are permanently reserved for code generation via `_prefix_groups` and must never be defined manually here.",
+      "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container. The names `prefix`, `prefix_discovery`, `prefix_symlinks`, `prefix_exports`, `prefix_activations`, and `runtime_path` — and any name matching `*_prefix`, `*_prefix_discovery`, `*_prefix_symlinks`, `*_prefix_exports`, or `*_activations` — are permanently reserved for code generation via `_prefix_groups` and must never be defined manually here.",
       "propertyNames": {
         "description": "Option keys must start with an ASCII letter and then contain only ASCII letters, digits, underscores, or hyphens.",
         "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
@@ -35,8 +35,10 @@
       },
       "properties": {
         "prefix": false,
-        "symlink": false,
-        "export_path": false,
+        "prefix_discovery": false,
+        "prefix_symlinks": false,
+        "prefix_exports": false,
+        "prefix_activations": false,
         "runtime_path": false,
         "method": {
           "description": "Installation method option. Enum values must be drawn from the known set of installation method identifiers.",
@@ -58,8 +60,10 @@
       },
       "patternProperties": {
         "^[A-Za-z][A-Za-z0-9_]*_prefix$": false,
-        "^[A-Za-z][A-Za-z0-9_]*_symlink$": false,
-        "^[A-Za-z][A-Za-z0-9_]*_export_path$": false
+        "^[A-Za-z][A-Za-z0-9_]*_prefix_discovery$": false,
+        "^[A-Za-z][A-Za-z0-9_]*_prefix_symlinks$": false,
+        "^[A-Za-z][A-Za-z0-9_]*_prefix_exports$": false,
+        "^[A-Za-z][A-Za-z0-9_]*_activations$": false
       },
       "type": "object"
     },
@@ -67,6 +71,7 @@
       "description": "List of platforms where this Feature cannot be installed.",
       "type": "array",
       "items": {
+        "description": "A platform entry declaring where this Feature cannot be installed. Must specify `reason` plus at least one platform discriminator (`arch`, `kernel`, `id`, `id_like`, or `version_id`).",
         "type": "object",
         "additionalProperties": false,
         "minProperties": 2,
@@ -110,91 +115,155 @@
       "type": "boolean"
     },
     "_prefix_groups": {
-      "description": "Declares the installable-path groups that drive all of a feature's prefix, symlink, and PATH-export machinery.\n\n**Any feature that manages a user-configurable installation path must declare `_prefix_groups`.** The generator then emits all required user-facing options and bash helpers automatically. Manually defining `prefix`, `symlink`, or `export_path` options — or any variant matching `*_prefix`, `*_symlink`, or `*_export_path` — is always forbidden; those names are reserved exclusively for this system.\n\nFor each declared group the generator produces:\n- **Three user-facing options** (injected into `options` at build time): `{id}_prefix`, `{id}_symlink`, `{id}_export_path` (or the bare `prefix`, `symlink`, `export_path` for the unnamed group `\"\"`).\n- **Three bash helpers** (rendered from templates into `install.bash`): `resolve_{id}_prefix()`, `create_{id}_symlink()`, `export_{id}_path_main()`. All three are wired into `_prefix_post_install()` automatically.\n\n**Group key conventions:**\n- Use `\"\"` (empty string) as the key for a single, unnamed group. Generates the bare option names `prefix`, `symlink`, `export_path` and the bare function names `resolve_prefix()`, `create_symlink()`, `export_path_main()`.\n- Use a non-empty slug (e.g. `\"nvm\"`) for each additional named group. The slug becomes both the option-name prefix (`nvm_prefix`, `nvm_symlink`, `nvm_export_path`) and the function-name component (`resolve_nvm_dir()` if `option_name` overrides, otherwise `resolve_nvm_prefix()`, `create_nvm_symlink()`, `export_nvm_path_main()`).\n\nA feature may declare any number of groups.",
+      "description": "Declares the installable-path groups that drive all of a feature's prefix, symlink, PATH-export, and activation machinery.\n\n**Any feature that manages a user-configurable installation path must declare `_prefix_groups`.** The generator then emits all required user-facing options and bash helpers automatically. Manually defining `prefix`, `prefix_discovery`, `prefix_symlinks`, `prefix_exports`, `prefix_activations`, or `runtime_path` options — or any name matching `*_prefix`, `*_prefix_discovery`, `*_prefix_symlinks`, `*_prefix_exports`, or `*_activations` — is always forbidden; those names are reserved exclusively for this system.\n\nFor each declared group the generator produces:\n- **User-facing options** (injected into `options` at build time): `{stem}_prefix`, `{stem}_prefix_discovery`, `{stem}_prefix_symlinks`, `{stem}_prefix_exports` (omitted when `symlink.skip`/`exports.skip` are true), and `{stem}_activations` (when `activation` is present). The bare names (`prefix`, `prefix_discovery`, etc.) are used for the unnamed group `\"\"`.\n- **Bash helpers** (rendered from templates into `install.bash`): `resolve_{id}_prefix()`, `create_{id}_symlinks()`, `export_{id}_path_main()`, and a `{stem}_activation_snippet()` stub (when `activation` is present). All are wired into `_prefix_post_install__generated()` automatically.\n\n**Group key conventions:**\n- Use `\"\"` (empty string) as the key for a single, unnamed group.\n- Use a non-empty slug (e.g. `\"nvm\"`) for each additional named group. The slug becomes both the option-name prefix and the function-name component (`resolve_nvm_dir()` if `option_name` overrides, otherwise `resolve_nvm_prefix()`, `create_nvm_symlinks()`, `export_nvm_path_main()`).\n\nA feature may declare any number of groups.",
       "type": "object",
       "additionalProperties": {
         "description": "Configuration for one installable-path group. The group key (empty string for the default unnamed group, or a non-empty slug for named groups) determines the generated option names and bash function names.",
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "default_root": {
-            "type": "string",
-            "description": "Default prefix when running as root (uid=0).",
-            "default": "/usr/local"
-          },
-          "default_nonroot": {
-            "type": "string",
-            "description": "Default prefix when running as non-root.",
-            "default": "${HOME}/.local"
-          },
-          "bin": {
-            "type": "string",
-            "description": "Binary filename only (e.g. 'gh'). The path `${prefix}/bin/{name}` is implied. Required unless dir_symlink is true."
-          },
           "option_name": {
             "type": "string",
-            "description": "Override for the prefix option key name (e.g. 'texdir', 'nvm_dir'). Default: '{id}_prefix' or 'prefix' for the unnamed group."
+            "description": "Replaces the `{id}_prefix` stem for all generated options and bash helpers. Use only when the conventional name for the concept does not follow the `*_prefix` pattern. With `option_name: nvm_dir` on group `nvm`, the three generated options become `nvm_dir`, `nvm_dir_symlinks`, `nvm_dir_exports`, and the resolver is named `resolve_nvm_dir()`. Without this override, the group key `nvm` would produce `nvm_prefix`, `nvm_prefix_symlinks`, etc."
           },
-          "dir_symlink": {
-            "type": "boolean",
-            "description": "If true, symlink the PREFIX directory itself rather than a specific binary (e.g. for miniforge /opt/conda -> $PREFIX). Default: false."
+          "applies_when": {
+            "$ref": "#/$defs/appliesWhen",
+            "description": "Condition under which this group's generated options and bash helpers are active. When the condition does not match at install time, the helpers become no-ops."
           },
-          "skip_symlink": {
-            "type": "boolean",
-            "description": "If true, do not inject the symlink option; emit a no-op create_symlink() stub instead. Default: false."
-          },
-          "skip_export_path": {
-            "type": "boolean",
-            "description": "If true, do not inject the export_path option; emit a no-op export_path_main() stub instead. Default: false."
-          },
-          "export_path_default": {
-            "type": "string",
-            "description": "Override the default value for the injected export_path option. Default: 'auto'."
-          },
-          "prefix_description": {
-            "type": "string",
-            "description": "Override the auto-generated description for the injected prefix option."
-          },
-          "symlink_description": {
-            "type": "string",
-            "description": "Override the auto-generated description for the injected symlink option."
-          },
-          "export_path_description": {
-            "type": "string",
-            "description": "Override the auto-generated description for the injected export_path option."
-          },
-          "platform_overrides": {
-            "type": "array",
-            "description": "Platform-specific prefix defaults evaluated before the uid-based root/nonroot fallback. Entries are tested in order; the first matching `when` condition wins. Uses `os__match_spec` at runtime (same semantics as ospkg manifest `when` clauses, object form only). Supported keys: kernel, arch, id, id_like, codename.",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["when", "default"],
-              "properties": {
-                "when": {
+          "prefix": {
+            "description": "Installation prefix configuration for this group.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "root": {
+                "type": "string",
+                "default": "/usr/local",
+                "description": "Default prefix path when running as root (uid=0)."
+              },
+              "nonroot": {
+                "type": "string",
+                "default": "${HOME}/.local",
+                "description": "Default prefix path when running as non-root."
+              },
+              "bins": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string" },
+                "description": "Binary filenames to symlink and/or export (e.g. `[gh]`, `[conda, mamba]`). Each binary is resolved at `${prefix}/{bin_dir}/{name}` and symlinked into `{symlink.root}/{name}`. Required unless both `symlink.skip` and `exports.skip` are true."
+              },
+              "bin_dir": {
+                "type": "string",
+                "default": "bin",
+                "description": "Subdirectory of PREFIX where the target binaries live. Determines the symlink source path (`${prefix}/{bin_dir}/{name}`) and the directory added to PATH by the exports helper (`${prefix}/{bin_dir}`)."
+              },
+              "description": {
+                "type": "string",
+                "description": "Override the auto-generated description for the injected `{id}_prefix` option."
+              },
+              "platform_overrides": {
+                "type": "array",
+                "description": "Platform-specific prefix defaults evaluated before the uid-based root/nonroot fallback. Entries are tested in order; the first matching `when` condition wins. Uses `os__match_spec` at runtime. Supported keys: kernel, arch, id, id_like, codename.",
+                "items": {
+                  "description": "A single platform override entry. Specify `when` plus at least one of `default`, `root`, or `nonroot`.",
                   "type": "object",
-                  "description": "Condition object. All key=value pairs must match (AND logic). Case-insensitive. Supported keys: kernel, arch, id, id_like, codename.",
-                  "additionalProperties": {
-                    "type": "string"
+                  "additionalProperties": false,
+                  "required": ["when"],
+                  "properties": {
+                    "when": {
+                      "type": "object",
+                      "description": "Condition object. All key=value pairs must match (AND logic). Case-insensitive. Supported keys: kernel, arch, id, id_like, codename.",
+                      "additionalProperties": { "type": "string" }
+                    },
+                    "default": {
+                      "type": "string",
+                      "description": "Prefix to use when the condition matches, for both root and non-root. Overridden by `root` or `nonroot` when those are also specified."
+                    },
+                    "root": {
+                      "type": "string",
+                      "description": "Prefix to use when the condition matches and running as root (uid=0). Takes precedence over `default`."
+                    },
+                    "nonroot": {
+                      "type": "string",
+                      "description": "Prefix to use when the condition matches and running as non-root. Takes precedence over `default`."
+                    }
                   }
-                },
-                "default": {
-                  "type": "string",
-                  "description": "Prefix to use when the condition matches, for both root and non-root. Overridden by default_root or default_nonroot when those are also specified."
-                },
-                "default_root": {
-                  "type": "string",
-                  "description": "Prefix to use when the condition matches and running as root (uid=0). Takes precedence over default."
-                },
-                "default_nonroot": {
-                  "type": "string",
-                  "description": "Prefix to use when the condition matches and running as non-root. Takes precedence over default."
                 }
               }
             }
           },
-          "_applies_when": {
-            "$ref": "#/$defs/appliesWhen"
+          "symlink": {
+            "description": "Symlink creation configuration for this group. Controls the generated `{id}_prefix_symlinks` option and `create_{id}_symlinks()` helper.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "root": {
+                "type": "string",
+                "default": "/usr/local/bin",
+                "description": "Bin directory where symlinks are created when running as root. Each binary in `prefix.bins` lands at `{root}/{name}`, pointing to `${prefix}/{bin_dir}/{name}`. Decoupled from `prefix.root` — allows a non-standard install prefix to still expose binaries at a stable, well-known location."
+              },
+              "nonroot": {
+                "type": "string",
+                "default": "${HOME}/.local/bin",
+                "description": "Bin directory where symlinks are created when running as non-root. Each binary in `prefix.bins` lands at `{nonroot}/{name}`."
+              },
+              "skip": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, do not inject the `{id}_prefix_symlinks` option and emit a no-op `create_{id}_symlinks()` stub."
+              },
+              "description": {
+                "type": "string",
+                "description": "Override the auto-generated description for the injected `{id}_prefix_symlinks` option."
+              }
+            }
+          },
+          "exports": {
+            "description": "PATH-export configuration for this group. Controls the generated `{id}_prefix_exports` option and `export_{id}_path_main()` helper.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "skip": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, do not inject the `{id}_prefix_exports` option and emit a no-op `export_{id}_path_main()` stub."
+              },
+              "description": {
+                "type": "string",
+                "description": "Override the auto-generated description for the injected `{id}_prefix_exports` option."
+              }
+            }
+          },
+          "activation": {
+            "description": "Shell activation snippet configuration for this group. When present, generates a `{stem}_activations` option and a `{stem}_activation_snippet()` stub, and emits a call to `shell__write_activation_snippets()` in `_prefix_post_install__generated()`. Body code overrides `{stem}_activation_snippet <shell>` to return the snippet content (stdout) and signal scope via exit code (0 = all contexts; 1 = interactive-only).",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "shells": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Shell names to generate the `{stem}_activations` option for. Controls the option default."
+              },
+              "description": {
+                "type": "string",
+                "description": "Override the auto-generated description for the injected `{stem}_activations` option."
+              }
+            }
+          },
+          "write_group": {
+            "description": "Write-permission group configuration for this prefix group. When present, generates `write_group` and `write_users` options and emits a `users__set_write_permissions` call in `_prefix_post_install__generated()`.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "type": "string",
+                "description": "Default value for the injected `{stem}_write_group` option (the OS group name)."
+              },
+              "owner_var": {
+                "type": "string",
+                "description": "Bash variable name whose value is passed as the owner argument to `users__set_write_permissions`. When omitted, `$(id -nu)` is used."
+              }
+            },
+            "required": ["default"]
           }
         }
       }
@@ -209,7 +278,8 @@
           "type": "object",
           "properties": {
             "base": {
-              "description": "Runtime dependencies that are always required, regardless of input options. These are automatically installed in the autogenerated `install.bash` header."
+              "description": "Runtime dependencies that are always required, regardless of input options. These are automatically installed in the autogenerated `install.bash` header.",
+              "$ref": "../lib/ospkg-manifest.schema.json"
             }
           },
           "additionalProperties": {
@@ -222,7 +292,8 @@
           "type": "object",
           "properties": {
             "base": {
-              "description": "Install-time dependencies that are always required, regardless of input options. These are automatically installed in the autogenerated `install.bash` header."
+              "description": "Install-time dependencies that are always required, regardless of input options. These are automatically installed in the autogenerated `install.bash` header.",
+              "$ref": "../lib/ospkg-manifest.schema.json"
             }
           },
           "additionalProperties": {
@@ -407,7 +478,8 @@
           }
         },
         "_applies_when": {
-          "$ref": "#/$defs/appliesWhen"
+          "$ref": "#/$defs/appliesWhen",
+          "description": "Condition under which this option is shown/active in supporting tools and considered applicable by the generator. When the condition does not match, the option is hidden and its value is ignored."
         }
       },
       "required": [
@@ -588,7 +660,7 @@
       ]
     },
     "appliesWhen": {
-      "description": "Internal-use-only property for indicating when this option is applicable based on other option values. Several conditions can be provided in the array, where different conditions are OR-ed together.",
+      "description": "Internal-use-only predicate indicating when an option or prefix group is applicable, based on the values of other options. Multiple conditions may be provided; they are OR-ed together (any one match is sufficient). Within a single condition object, all key=value pairs are AND-ed together.",
       "type": "array",
       "items": {
         "description": "A condition for when this option is applicable. This is an object where keys are option names and values are the required values for those options. All conditions in a single object are AND-ed together.",

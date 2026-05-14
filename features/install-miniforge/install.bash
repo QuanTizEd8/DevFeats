@@ -1,74 +1,53 @@
-# _conda_init_snippet <shell>
-# Runs `conda init <shell>` into a tmpdir with a clean HOME and prints the
-# full content of the rc file conda wrote (including conda's own markers).
-# Returns empty string if conda init fails or writes nothing.
-_conda_init_snippet() {
+# shellcheck disable=SC2329,SC2317
+prefix_activation_snippet() {
   local _shell="$1"
-  local _tmpdir _f
+  local _tmpdir _f _snippet
   _tmpdir="$(mktemp -d)"
   HOME="$_tmpdir" "$CONDA_EXEC" init "$_shell" > /dev/null 2>&1 || true
   for _f in "$_tmpdir"/.bashrc "$_tmpdir"/.bash_profile \
     "$_tmpdir"/.zshrc "$_tmpdir"/.zprofile; do
     if [[ -f "$_f" && -s "$_f" ]]; then
-      cat "$_f"
+      _snippet="$(cat "$_f")"
       rm -rf "$_tmpdir"
-      return 0
+      printf '%s\n' "$_snippet"
+      return 1
     fi
   done
   rm -rf "$_tmpdir"
-  return 0
+  return 1
 }
 
-add_activation_to_rcfile() {
-  logging__fn_entry "add_activation_to_rcfile"
-  if [[ "${#SHELL_ACTIVATIONS[@]}" -eq 0 ]]; then
-    logging__info "shell_activations is empty; skipping conda init."
-    logging__fn_exit "add_activation_to_rcfile"
+setup_activate_env() {
+  logging__fn_entry "setup_activate_env"
+  [ -z "${ACTIVATE_ENV:-}" ] && {
+    logging__fn_exit "setup_activate_env"
     return 0
-  fi
-  local _shell
-  for _shell in "${SHELL_ACTIVATIONS[@]}"; do
-    local _target_file
-    case "$_shell" in
-      bash)
-        if [[ "$(id -u)" == "0" ]]; then
-          _target_file="$(shell__detect_bashrc)"
-        else
-          _target_file="${HOME}/.bashrc"
-        fi
-        ;;
-      zsh)
-        if [[ "$(id -u)" == "0" ]]; then
-          _target_file="$(shell__detect_zshdir)/zshrc"
-        else
-          local _zdotdir
-          _zdotdir="$(shell__detect_zdotdir --home "${HOME}")"
-          _target_file="${_zdotdir}/.zshrc"
-        fi
-        ;;
-      *)
-        logging__error "Unsupported shell for conda activation: '${_shell}' (supported: bash, zsh)"
-        exit 1
-        ;;
-    esac
-    logging__info "Capturing conda init snippet for ${_shell}..."
-    local _snippet
-    _snippet="$(_conda_init_snippet "$_shell")"
-    if [[ -z "$_snippet" ]]; then
-      logging__warn "conda init produced no output for '${_shell}'; skipping."
-      continue
+  }
+  local -a _ae_users=("$@")
+  local _marker="conda env activation (install-miniforge)"
+  local _u _user_home
+  for _u in "${_ae_users[@]}"; do
+    [[ -z "$_u" ]] && continue
+    _user_home="$(getent passwd "$_u" | cut -d: -f6)" || continue
+    [[ -z "$_user_home" ]] && continue
+    if [[ "$ACTIVATE_ENV" == "base" ]]; then
+      "$CONDA_EXEC" config --set auto_activate_base true --file "$_user_home/.condarc"
+    else
+      local _rc
+      for _rc in "$_user_home/.bashrc" "$_user_home/.zshrc"; do
+        [[ -f "$_rc" ]] || continue
+        shell__sync_block --files "$_rc" \
+          --marker "$_marker" \
+          --content "conda activate ${ACTIVATE_ENV}"
+      done
     fi
-    # Optionally append conda activate after the conda init block.
-    local _content="$_snippet"
-    if [[ -n "${ACTIVATE_ENV:-}" && "$ACTIVATE_ENV" != "base" ]]; then
-      _content="${_content}"$'\n'"conda activate ${ACTIVATE_ENV}"
-    fi
-    # Our marker is distinct from conda's "# >>> conda initialize >>>",
-    # so shell__write_block handles idempotency without touching conda's markers.
-    shell__write_block --file "$_target_file" --marker "conda init (install-miniforge)" \
-      --content "$_content"
   done
-  logging__fn_exit "add_activation_to_rcfile"
+  logging__fn_exit "setup_activate_env"
+}
+
+_prefix_post_install() {
+  _prefix_post_install__generated
+  setup_activate_env "${_write_users[@]}"
 }
 
 download_miniforge() {
@@ -435,14 +414,7 @@ fi
 
 set_executable_paths --verify
 
-if [[ "${#SHELL_ACTIVATIONS[@]}" -gt 0 ]]; then add_activation_to_rcfile; fi
 if [[ "$UPDATE_BASE" == true ]]; then
   logging__warn "Updating base conda environment."
   "$MAMBA_EXEC" update -n base --all -y
-fi
-
-if [[ -n "${WRITE_GROUP:-}" ]]; then
-  export ADD_CURRENT_USER ADD_REMOTE_USER ADD_CONTAINER_USER ADD_USERS
-  mapfile -t _write_users < <(users__resolve_list)
-  users__set_write_permissions "$PREFIX" "$(id -nu)" "$WRITE_GROUP" "${_write_users[@]}"
 fi

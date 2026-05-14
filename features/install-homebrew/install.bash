@@ -52,59 +52,10 @@ uninstall_brew() {
   return 0
 }
 
-export_shellenv_for_user() {
-  logging__fn_entry "export_shellenv_for_user"
-  local _user="$1"
-  local _brew_content="$2"
-  shell__sync_block \
-    --files "$(shell__user_init_files --home "$(shell__resolve_home "$_user")")" \
-    --marker "brew shellenv (install-homebrew)" \
-    --content "$_brew_content"
-  logging__fn_exit "export_shellenv_for_user"
+# shellcheck disable=SC2329,SC2317
+prefix_activation_snippet() {
+  echo "eval \"\$(\"${RESOLVED_PREFIX}/bin/brew\" shellenv)\""
   return 0
-}
-
-export_shellenv_main() {
-  logging__fn_entry "export_shellenv_main"
-  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    logging__info "export_path is empty; skipping shellenv export."
-    logging__fn_exit "export_shellenv_main"
-    return 0
-  fi
-  # shellcheck disable=SC2016
-  local _brew_content='eval "$('"${RESOLVED_PREFIX}/bin/brew"' shellenv)"'
-  local _marker="brew shellenv (install-homebrew)"
-  if [ "${EXPORT_PATH[*]}" != "auto" ]; then
-    shell__sync_block --files "$(printf '%s\n' "${EXPORT_PATH[@]}")" --marker "$_marker" --content "$_brew_content"
-    logging__fn_exit "export_shellenv_main"
-    return 0
-  fi
-  # auto mode
-  local _is_root=false
-  [ "$(id -u)" = "0" ] && _is_root=true
-  if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
-    logging__info "Case A: system-wide shellenv export (root + Linux)."
-    shell__sync_block \
-      --files "$(shell__system_path_files --profile_d "brew.sh")" \
-      --marker "$_marker" \
-      --content "$_brew_content"
-  else
-    logging__info "Case B: user-scoped shellenv export."
-    export_shellenv_for_user "$RESOLVED_INSTALL_USER" "$_brew_content"
-  fi
-  # Resolved additional users
-  local _u
-  while IFS= read -r _u; do
-    [[ -z "$_u" ]] && continue
-    logging__info "Exporting shellenv for resolved user '${_u}'."
-    export_shellenv_for_user "$_u" "$_brew_content"
-  done < <(users__resolve_list)
-  logging__fn_exit "export_shellenv_main"
-  return 0
-}
-
-export_path_main() {
-  export_shellenv_main
 }
 
 # ── Helper functions ──────────────────────────────────────────────────────────
@@ -172,8 +123,8 @@ enforce_options() {
 }
 
 # _sync_init_files <marker> [content]
-# Calls shell__sync_block for the relevant init files for RESOLVED_INSTALL_USER
-# (and any resolved users) plus system-wide files when running as root on Linux.
+# Calls shell__sync_block for the relevant init files: system-wide profile.d
+# when running as root on Linux, or RESOLVED_INSTALL_USER's home otherwise.
 # If content is given, writes/updates the block; if absent, removes it.
 _sync_init_files() {
   local _marker="$1"
@@ -194,17 +145,6 @@ _sync_init_files() {
   else
     shell__sync_block --files "$_files" --marker "$_marker"
   fi
-
-  local _u
-  while IFS= read -r _u; do
-    [[ -z "$_u" ]] && continue
-    _files="$(shell__user_init_files --home "$(shell__resolve_home "$_u")")"
-    if [ "$_has_content" = true ]; then
-      shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
-    else
-      shell__sync_block --files "$_files" --marker "$_marker"
-    fi
-  done < <(users__resolve_list)
   return 0
 }
 
@@ -267,7 +207,7 @@ resolve_install_user() {
   # here — the official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
   # and ignores HOMEBREW_PREFIX on Linux, so a remoteUser-derived prefix would
   # fail the installer's permission check. Shellenv export for _REMOTE_USER is
-  # handled separately by export_shellenv_main via add_remote_user.
+  # shellenv for _REMOTE_USER is written via the generated activation mechanism.
   if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
     logging__info "Linux root: using SUDO_USER='${SUDO_USER}' as install_user."
     echo "$SUDO_USER"
@@ -430,10 +370,3 @@ fi
 # ── Step 5: brew doctor (warn only) ──────────────────────────────────────────
 logging__info "Running 'brew doctor' (warnings only)."
 _brew_run_as_install_user "$_BREW_EXEC" doctor 2>&1 || true
-
-# ── Step 7: Write-permission group ───────────────────────────────────────────
-if [[ -n "${WRITE_GROUP:-}" ]] && [[ "$(os__kernel)" = "Linux" ]]; then
-  export ADD_CURRENT_USER ADD_REMOTE_USER ADD_CONTAINER_USER ADD_USERS
-  mapfile -t _write_users < <(users__resolve_list)
-  users__set_write_permissions "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER" "$WRITE_GROUP" "${_write_users[@]}"
-fi

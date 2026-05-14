@@ -1,15 +1,25 @@
 # shellcheck disable=SC2329,SC2317
 @@FUNC_NAME@@() {
   logging__fn_entry "@@FUNC_NAME@@"
-@@APPLIES_WHEN_GUARD@@  if [ "${@@SYMLINK_VAR@@}" != "true" ]; then
-    logging__info "@@SYMLINK_OPT@@=false; skipping symlink creation."
-    logging__fn_exit "@@FUNC_NAME@@"
-    return 0
+@@APPLIES_WHEN_GUARD@@  local _df_targets=()
+  if [ "${#@@SYMLINKS_VAR@@[@]}" -eq 0 ]; then
+    if [ "$(id -u)" = "0" ]; then
+      _df_targets=("@@SYMLINK_ROOT@@")
+    else
+      _df_targets=("@@SYMLINK_NONROOT@@")
+    fi
+  else
+    _df_targets=("${@@SYMLINKS_VAR@@[@]}")
   fi
-  shell__create_symlink \
-    --src "${@@PREFIX_VAR@@}/@@BIN@@" \
-    --system-target "@@DEFAULT_ROOT@@/@@BIN@@" \
-    --user-target "@@DEFAULT_NONROOT@@/@@BIN@@"
+  for _bin in @@BINS@@; do
+    [ -f "${@@PREFIX_VAR@@}/@@BIN_DIR@@/${_bin}" ] || continue
+    for _dir in "${_df_targets[@]}"; do
+      shell__create_symlink \
+        --src "${@@PREFIX_VAR@@}/@@BIN_DIR@@/${_bin}" \
+        --system-target "${_dir}/${_bin}" \
+        --user-target "${_dir}/${_bin}"
+    done
+  done
   logging__fn_exit "@@FUNC_NAME@@"
   return
 }

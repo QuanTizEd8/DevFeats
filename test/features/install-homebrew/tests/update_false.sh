@@ -17,7 +17,7 @@ check "brew --version succeeds" "$_BREW" --version
 check "brew --version reports Homebrew" bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
 
 # --- shellenv still exported (export_path=auto by default) ---
-check "profile.d/brew.sh written" test -f /etc/profile.d/brew.sh
-check "profile.d/brew.sh has marker" grep -qF '# >>> brew shellenv (install-homebrew) >>>' /etc/profile.d/brew.sh
+check "activation profile.d file written" test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "activation profile.d file has marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
 
 reportResults

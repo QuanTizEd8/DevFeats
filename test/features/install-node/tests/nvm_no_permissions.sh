@@ -1,5 +1,5 @@
 #!/bin/bash
-# set_permissions=false: node is installed but the nvm group is NOT created.
+# nvm_write_group="" (empty): node is installed but the nvm group is NOT created.
 set -e
 
 source dev-container-features-test-lib

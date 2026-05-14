@@ -1,0 +1,42 @@
+# -- discovery: @@STEM@@ --
+local _df_call_symlinks=false _df_call_exports=false _df_pfx_bin
+_df_pfx_bin="${@@PREFIX_VAR@@}/@@BIN_DIR@@"
+case "${@@DISCOVERY_VAR@@:-auto}" in
+  none) ;;
+  symlink) _df_call_symlinks=true ;;
+  shell) _df_call_exports=true ;;
+  all)
+    _df_call_symlinks=true
+    _df_call_exports=true
+    ;;
+  auto)
+    case ":${@@RUNTIME_PATH_VAR@@:-${PATH:-}}:" in
+      *":${_df_pfx_bin}:"*) ;;
+      *)
+        local _df_tgts=() _df_has_real=false _df_t
+        if [ "${#@@SYMLINKS_VAR@@[@]}" -eq 0 ]; then
+          if [ "$(id -u)" = "0" ]; then
+            _df_tgts=("@@SYMLINK_ROOT@@")
+          else
+            _df_tgts=("@@SYMLINK_NONROOT@@")
+          fi
+        else
+          _df_tgts=("${@@SYMLINKS_VAR@@[@]}")
+        fi
+        for _df_t in "${_df_tgts[@]}"; do
+          [ "${_df_t}" != "${_df_pfx_bin}" ] && {
+            _df_has_real=true
+            break
+          }
+        done
+        if "${_df_has_real}"; then
+          _df_call_symlinks=true
+        else
+          _df_call_exports=true
+        fi
+        ;;
+    esac
+    ;;
+esac
+"${_df_call_symlinks}" && @@FUNC_SYMLINKS@@
+"${_df_call_exports}" && @@FUNC_EXPORTS@@

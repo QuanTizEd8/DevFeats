@@ -3,7 +3,7 @@
 # Verifies conda and mamba are installed under /opt/conda, the base environment
 # is functional, and activation scripts are in place.  In devcontainer mode,
 # containerEnv puts /opt/conda/bin on $PATH before install.sh runs, so
-# export_path=auto correctly skips writing startup files.
+# prefix_discovery=auto skips creating symlinks when prefix is already on PATH.
 set -e
 
 source dev-container-features-test-lib
@@ -26,7 +26,7 @@ check "pip installed in base env" test -f /opt/conda/bin/pip
 check "conda activation script exists" test -f /opt/conda/etc/profile.d/conda.sh
 check "mamba activation script exists" test -f /opt/conda/etc/profile.d/mamba.sh
 
-# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
+# --- PATH is reachable (exports permanently disabled; PATH comes from containerEnv) ---
 check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 # --- conda functionality ---

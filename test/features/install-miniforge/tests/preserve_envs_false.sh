@@ -21,7 +21,7 @@ check "myenv directory removed" bash -c '[ ! -d /opt/conda/envs/myenv ]'
 # --- conda is functional ---
 check "conda --version succeeds" /opt/conda/bin/conda --version
 
-# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
+# --- PATH is reachable (exports permanently disabled; PATH comes from containerEnv) ---
 check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 reportResults

@@ -1,19 +1,11 @@
 # shellcheck disable=SC2329,SC2317
 @@FUNC_NAME@@() {
   logging__fn_entry "@@FUNC_NAME@@"
-@@APPLIES_WHEN_GUARD@@  if [ "${#@@EXPORT_VAR@@[@]}" -eq 0 ]; then
-    logging__info "@@EXPORT_OPT@@= is empty; skipping PATH export."
-    logging__fn_exit "@@FUNC_NAME@@"
-    return 0
-  fi
-  if [ "${@@EXPORT_VAR@@[*]}" = "auto" ]; then
-    case ":${@@RUNTIME_PATH_VAR@@:-${PATH:-}}:" in
-      *":${@@PREFIX_VAR@@}/@@BIN_DIR@@:"*)
-        logging__info "'${@@PREFIX_VAR@@}/@@BIN_DIR@@' is already on the runtime PATH; skipping PATH write."
-        logging__fn_exit "@@FUNC_NAME@@"
-        return 0
-        ;;
-    esac
+@@APPLIES_WHEN_GUARD@@  local _df_export_opt
+  if [ "${#@@EXPORT_VAR@@[@]}" -eq 0 ]; then
+    _df_export_opt="auto"
+  else
+    _df_export_opt="$(printf '%s\n' "${@@EXPORT_VAR@@[@]}")"
   fi
   local _df_path_dir="${@@PREFIX_VAR@@}/@@BIN_DIR@@"
   local _df_export_content
@@ -31,7 +23,7 @@ EOBLOCK
   _df_export_content="${_df_export_content}__df_prepend_path \"${_df_path_dir}\"
 unset -f __df_prepend_path"
   shell__write_env_block \
-    --opt "$(printf '%s\n' "${@@EXPORT_VAR@@[@]}")" \
+    --opt "${_df_export_opt}" \
     --profile-d "${_EXPORT_PROFILE_D}" \
     --marker "@@MARKER@@" \
     --content "${_df_export_content}"

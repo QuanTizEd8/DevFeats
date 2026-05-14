@@ -15,7 +15,7 @@
 # macOS block-cleanup helpers:
 #   block_cleanup "<marker>" "<file>"   — remove a named block from a file in-place
 #   block_cleanup_all "<marker>"        — remove from all standard shell init files
-#   shellenv_block_cleanup "<file>"     — remove install-homebrew shellenv block
+#   shellenv_block_cleanup "<file>"     — remove install-homebrew prefix activation block
 #
 # File server helpers (dist scenarios):
 #   start_file_server <dir> <port>      — start python3 HTTP server in background
@@ -146,9 +146,9 @@ log_install_homebrew_shell_init_diagnostics() {
       head -c 192 "$_cand" 2> /dev/null | od -An -tx1 || true
     done
     echo ""
-    echo "--- brew shellenv block lines inside resolved login file (awk) ---"
+    echo "--- prefix activation block lines inside resolved login file (awk) ---"
     if [[ -f "$_login" ]]; then
-      awk '/# >>> brew shellenv \(install-homebrew\) >>>/{in=1;next} /# <<< brew shellenv \(install-homebrew\) <<</{in=0} in{print}' "$_login" 2> /dev/null || true
+      awk '/# >>> prefix activation \(install-homebrew\) >>>/{in=1;next} /# <<< prefix activation \(install-homebrew\) <<</{in=0} in{print}' "$_login" 2> /dev/null || true
     else
       echo "(resolved login file missing)"
     fi
@@ -202,10 +202,10 @@ detect_bash_login_file() {
   return 0
 }
 
-# Remove the install-homebrew shellenv block from a file, in-place.
+# Remove the install-homebrew prefix activation block from a file, in-place.
 # No-op when the file does not exist or contains no block.
 shellenv_block_cleanup() {
-  block_cleanup "brew shellenv (install-homebrew)" "$1"
+  block_cleanup "prefix activation (install-homebrew)" "$1"
 }
 
 # ── File server helpers ───────────────────────────────────────────────────────

@@ -64,55 +64,16 @@ options:
       Run `conda update --all` to update the base conda environment after installation.
       Not recommended for images where environment reproducibility matters.
     type: boolean
-  shell_activations:
-    default: "bash\nzsh"
-    description: Shell names to write conda init blocks for. Set to `''` to skip all activation writes.
-    enum:
-    - value: bash
-      description: Write an idempotent conda init block to the system-wide (root) or user-scoped (non-root) Bash RC file.
-    - value: zsh
-      description: Write an idempotent conda init block to the system-wide (root) or user-scoped (non-root) Zsh RC file.
-    type: array
   activate_env:
     default: base
     description: |-
       Conda environment to activate at shell startup.
-      `base` sets `auto_activate_base=true` in `~/.condarc` (the conda-native mechanism).
-      Any other name appends a `conda activate <env>` line to the rc files.
+      `base` sets `auto_activate_base=true` in each resolved user's `.condarc`.
+      Any other name writes `conda activate <env>` to each resolved user's `.bashrc` and `.zshrc`.
       `''` (empty) skips activation setup entirely.
-      Only takes effect when `shell_activations` is non-empty.
+      Note: for activation to take effect, the conda shell hook must be initialized
+      (e.g. via `prefix_activations`, or manually via `conda init`).
     type: string
-  write_group:
-    default: conda
-    description: |-
-      OS group for shared write access to the conda prefix.
-      Non-empty — create this group (if absent), add all resolved users to it, and apply group-write bits on the prefix so group members can install packages.
-      `''` (empty) — skip group setup; only the install owner has write access.
-    type: string
-  add_current_user:
-    default: true
-    description: |-
-      Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user config writes and write-permission group membership.
-      Root is deferred: only included as a fallback when no other non-root user is resolved.
-    type: boolean
-  add_remote_user:
-    default: true
-    description: |-
-      Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user config writes and write-permission group membership.
-      Ignored when _REMOTE_USER is unset or empty. Root is excluded from this path.
-    type: boolean
-  add_container_user:
-    default: true
-    description: |-
-      Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user config writes and write-permission group membership.
-      Ignored when _CONTAINER_USER is unset or empty. Root is excluded from this path.
-    type: boolean
-  add_users:
-    default: ''
-    description: |-
-      Additional usernames to include in the resolved user list for per-user config writes and write-permission group membership.
-      Root is accepted here (unlike the auto-detected paths above).
-    type: array
   interactive:
     default: false
     description: Run the Miniforge installer in interactive mode, allowing it to prompt the user.
@@ -125,8 +86,6 @@ options:
     default: false
     description: Keep the Miniforge installer script and checksum after installation instead of removing them.
     type: boolean
-containerEnv:
-  PATH: ${HOME}/miniforge3/bin:/opt/conda/bin:${PATH}
 postStartCommand:
   install-miniforge-feature-welcome:
     command: conda info
@@ -142,7 +101,19 @@ _dependencies:
         - ca-certificates
 _prefix_groups:
   "":
-    default_root: /opt/conda
-    default_nonroot: "${HOME}/miniforge3"
-    bin: conda
-    dir_symlink: true
+    prefix:
+      root: /opt/conda
+      nonroot: "${HOME}/miniforge3"
+      bins: [conda, mamba]
+      bin_dir: condabin
+    exports:
+      skip: true
+    activation:
+      shells: [bash, zsh]
+      description: |-
+        Shells to write conda shell initialisation to RC files for.
+        Equivalent to `conda init <shell>` — enables `conda activate` and
+        environment auto-activation in interactive shells.
+        Set to `''` to skip all activation writes.
+    write_group:
+      default: conda

@@ -20,7 +20,7 @@ check "conda --version succeeds" /opt/conda/bin/conda --version
 check "conda version is still 24.7.1" bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" = "24.7.1" ]'
 check "conda info --base returns /opt/conda" bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
 
-# --- post-install steps ran (PATH is reachable via containerEnv; export_path=auto skips file writes) ---
+# --- post-install steps ran (PATH is reachable exports permanently disabled; PATH comes from containerEnv) ---
 check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
 reportResults

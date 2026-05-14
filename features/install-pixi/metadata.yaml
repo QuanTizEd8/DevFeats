@@ -69,8 +69,8 @@ options:
     description: |-
       Set `PIXI_HOME` — the directory where pixi stores global environments (`pixi global install`) and configuration.
       When empty (default), the upstream default (`$HOME/.pixi`) is used.
-      `PIXI_HOME` is a runtime variable read by pixi on every invocation; set `export_pixi_home=auto` (the default)
-      to have the installer write this to shell startup files so it is active in all future sessions.
+      `PIXI_HOME` is a runtime variable read by pixi on every invocation; the installer always
+      writes it to shell startup files (controlled by `prefix_activations`).
   download_url:
     type: string
     default: ''
@@ -96,18 +96,6 @@ options:
       description: Explicit path via `file://`.
     - value: https://internal.example.com/secrets/netrc
       description: HTTPS URL (use `fetch_headers` if the endpoint needs a bearer token).
-  export_pixi_home:
-    type: array
-    default: auto
-    description: |-
-      Controls which shell startup files receive `export PIXI_HOME=<home_dir>`.
-      Only active when `home_dir` is non-empty; a no-op otherwise.
-      - `auto` — writes to system-wide files (root) or user-scoped files (non-root).
-      - `''` (empty) — skips all `PIXI_HOME` writes.
-      - A list of absolute file paths — writes only to those files.
-      `PIXI_HOME` is a runtime variable read on every pixi invocation; if it is not set
-      in the environment, pixi will not find globally installed tools or config written
-      to a custom `home_dir`.
   shell_completions:
     type: array
     default: ''
@@ -135,8 +123,6 @@ mounts:
   target: ${containerWorkspaceFolder}/.pixi
   type: volume
 entrypoint: "@@_FEAT_SHARE_DIR@@/entrypoint.sh ${containerWorkspaceFolder}/.pixi"
-containerEnv:
-  PATH: ${HOME}/.pixi/bin:${PATH}
 # installsAfter: []
 customizations:
   vscode:
@@ -151,5 +137,13 @@ _dependencies:
         - sudo
 _prefix_groups:
   "":
-    default_nonroot: "${HOME}/.pixi"
-    bin: pixi
+    prefix:
+      bins: [pixi]
+    activation:
+      shells: [bash, zsh]
+      description: |-
+        Shells to write `export PIXI_HOME=<path>` to startup files for.
+        Uses `home_dir` when set, otherwise the upstream default (`$HOME/.pixi`).
+        Written to all-context files so the variable is available in both
+        interactive and non-interactive shells.
+        Set to `''` to skip all activation writes.

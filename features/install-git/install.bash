@@ -436,6 +436,12 @@ _git__write_user_gitconfig() {
   _current_user="$(users__get_current --no-sudo)"
   local _user _home _cfg
 
+  local -a _gu_args=()
+  [ "${ADD_CURRENT_USER:-true}" != "true" ] && _gu_args+=(--current false)
+  [ "${ADD_REMOTE_USER:-true}" != "true" ] && _gu_args+=(--remote false)
+  [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _gu_args+=(--container false)
+  for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gu_args+=(--user "$_u"); done
+
   while IFS= read -r _user; do
     [ -z "${_user}" ] && continue
     # Non-root: only write to the invoking user's config.
@@ -467,7 +473,7 @@ _git__write_user_gitconfig() {
       chown "${_user}:${_user}" "${_cfg}" 2> /dev/null || true
     fi
     logging__success "Wrote gitconfig for user '${_user}'."
-  done < <(users__resolve_list)
+  done < <(users__resolve_list "${_gu_args[@]}")
   return 0
 }
 
@@ -477,16 +483,18 @@ _export_git_manpath() {
     logging__fn_exit "_export_git_manpath"
     return 0
   fi
-  if [ "${#EXPORT_PATH[@]}" -eq 0 ]; then
-    logging__fn_exit "_export_git_manpath"
-    return 0
+  local _manpath_export_opt
+  if [ "${#PREFIX_EXPORTS[@]}" -eq 0 ]; then
+    _manpath_export_opt="auto"
+  else
+    _manpath_export_opt="$(printf '%s\n' "${PREFIX_EXPORTS[@]}")"
   fi
   if [ "${PREFIX}" = "/usr/local" ] || [ "${PREFIX}" = "${HOME}/.local" ]; then
     logging__fn_exit "_export_git_manpath"
     return 0
   fi
   shell__write_env_block \
-    --opt "$(printf '%s\n' "${EXPORT_PATH[@]}")" \
+    --opt "${_manpath_export_opt}" \
     --profile-d "${_EXPORT_PROFILE_D}" \
     --marker "git MANPATH (install-git)" \
     --content "export MANPATH=\"${PREFIX}/share/man:\${MANPATH}\""

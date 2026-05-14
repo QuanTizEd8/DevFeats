@@ -1,6 +1,7 @@
 version: 0.1.0
 name: Shim Setup
-description: Install lightweight command shims that delegate to real tools or provide container-friendly fallbacks.
+description: >-
+  Install lightweight command shims.
 keywords:
 - shim
 - wrapper
@@ -21,23 +22,33 @@ options:
   code:
     type: boolean
     default: true
-    description: Install a `code` shim that delegates to the real `code` CLI or falls back to `code-insiders`.
+    description: |
+      Install a `code` shim that delegates to the real `code` CLI
+      or falls back to `code-insiders`.
   devcontainer-info:
     type: boolean
     default: true
-    description: Install a `devcontainer-info` shim that queries dev container image metadata from meta.env files.
+    description: |
+      Install a `devcontainer-info` shim that queries dev container image metadata
+      from `meta.env` files.
   systemctl:
     type: boolean
     default: true
-    description: Install a `systemctl` shim that delegates to the real systemctl when systemd is running, or prints a helpful message suggesting the `service` command.
+    description: |
+      Install a `systemctl` shim that delegates to the real systemctl
+      when systemd is running,
+      or prints a helpful message suggesting the `service` command.
 _prefix_groups:
   "":
-    default_root: "@@_FEAT_SHARE_DIR@@"
-    default_nonroot: "@@_FEAT_SHARE_DIR@@"
-    skip_symlink: true
-    export_path_description: >-
-      Controls which shell startup files receive PATH export blocks for the shim directory
-      (`${prefix}/bin`).
-      - `auto` (default): root writes system-wide shell files; non-root writes user shell files.
-      - `''` (empty): skips PATH writes.
-      - A list of absolute file paths: writes only to those specific files.
+    prefix:
+      root: "@@_FEAT_SHARE_DIR@@"
+      nonroot: "@@_FEAT_SHARE_DIR@@"
+    symlink:
+      skip: true
+    exports:
+      description: >-
+        Controls which shell startup files receive PATH export blocks for the shim directory
+        (`${prefix}/bin`).
+        - `auto` (default): root writes system-wide shell files; non-root writes user shell files.
+        - `''` (empty): skips PATH writes.
+        - A list of absolute file paths: writes only to those specific files.

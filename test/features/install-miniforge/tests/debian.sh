@@ -18,7 +18,7 @@ check "pip installed in base env" test -f /opt/conda/bin/pip
 check "conda activation script exists" test -f /opt/conda/etc/profile.d/conda.sh
 check "mamba activation script exists" test -f /opt/conda/etc/profile.d/mamba.sh
 
-# --- PATH is reachable (via containerEnv; export_path=auto skips file writes) ---
+# --- PATH is reachable (exports permanently disabled; PATH comes from containerEnv) ---
 echo "=== conda --version ==="
 /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
 check "login PATH includes /opt/conda/bin" bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'

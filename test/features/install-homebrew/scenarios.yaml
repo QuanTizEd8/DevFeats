@@ -16,27 +16,20 @@ export_path_disabled:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
-    export_path: ""
+    prefix_activations: ""
   tests: [export_path_disabled.sh]
-
-export_path_custom_file:
-  envs: [ubuntu-latest]
-  modes: [devcontainer]
-  options:
-    export_path: /tmp/custom-brew.sh
-  tests: [export_path_custom_file.sh]
 
 export_path_idempotent:
   envs: [ubuntu-latest+homebrew-preinstalled]
   modes: [devcontainer]
   setup: |
     mkdir -p /etc/profile.d
-    printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' \
-        >> /etc/profile.d/brew.sh
-    printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' \
+    printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' \
+        >> /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' \
         >> /etc/bash.bashrc
     mkdir -p /etc/zsh
-    printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' \
+    printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' \
         >> /etc/zsh/zshenv
   tests: [export_path_idempotent.sh]
 
@@ -85,8 +78,6 @@ shellenv_remote_user:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   setup: useradd -m -s /bin/bash vscode
-  options:
-    add_remote_user: true
   devcontainer:
     remoteUser: vscode
   tests: [shellenv_remote_user.sh]
@@ -115,19 +106,13 @@ macos_if_exists_reinstall:
 macos_export_path_disabled:
   envs: [macos-latest]
   options:
-    export_path: ""
+    prefix_activations: ""
   tests: [macos_export_path_disabled.sh]
-
-macos_export_path_custom_file:
-  envs: [macos-latest]
-  options:
-    export_path: /tmp/test-brew-custom.sh
-  tests: [macos_export_path_custom_file.sh]
 
 macos_export_path_idempotent:
   envs: [macos-latest]
   setup: |
-    # One stale shellenv block per file (not two). `shell__write_block` updates
+    # One stale activation block per file (not two). `shell__write_block` updates
     # each marker span in place but does not collapse multiple duplicate blocks;
     # the old test used two installs (first write, second update). A single stale
     # block per file reproduces the "update in place" half of that story under
@@ -137,10 +122,10 @@ macos_export_path_idempotent:
     # newline; appending with >> would fuse the first marker onto the last line
     # (e.g. POWERSHELL_DISTRIBUTION_CHANNEL=...# >>> marker >>>), breaking awk
     # block updates. Ensure the file ends with \n before appending.
-    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zshenv"; do
       mkdir -p "$(dirname "$f")"
       if [[ -f "$f" && -s "$f" ]] && [[ "$(tail -c1 "$f")" != $'\n' ]]; then printf '\n' >> "$f"; fi
-      printf '# >>> brew shellenv (install-homebrew) >>>\neval "$(/__stale_prefix__/bin/brew shellenv)"\n# <<< brew shellenv (install-homebrew) <<<\n' >> "$f"
+      printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/__stale_prefix__/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' >> "$f"
     done
   tests: [macos_export_path_idempotent.sh]
 
@@ -155,7 +140,7 @@ macos_brew_git_remote:
     fi
     REMOTE_URL="$(git -C "$BREW_REPO" remote get-url origin 2> /dev/null || \
       echo "https://github.com/Homebrew/brew")"
-    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zshenv"; do
       mkdir -p "$(dirname "$f")"
       if [[ -f "$f" && -s "$f" ]] && [[ "$(tail -c1 "$f")" != $'\n' ]]; then printf '\n' >> "$f"; fi
       printf '# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>\nexport HOMEBREW_BREW_GIT_REMOTE="%s"\n# <<< HOMEBREW_BREW_GIT_REMOTE (install-homebrew) <<<\n' "$REMOTE_URL" >> "$f"
@@ -165,7 +150,7 @@ macos_brew_git_remote:
 macos_no_install_from_api:
   envs: [macos-latest]
   setup: |
-    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zshenv"; do
       mkdir -p "$(dirname "$f")"
       if [[ -f "$f" && -s "$f" ]] && [[ "$(tail -c1 "$f")" != $'\n' ]]; then printf '\n' >> "$f"; fi
       printf '# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>\nexport HOMEBREW_NO_INSTALL_FROM_API=1\n# <<< HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) <<<\n' >> "$f"

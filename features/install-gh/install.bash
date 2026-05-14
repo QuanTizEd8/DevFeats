@@ -338,7 +338,12 @@ _gh__install_completions() {
 _gh__configure_user() {
   logging__fn_entry "_gh__configure_user"
   local _users
-  _users="$(users__resolve_list)" || {
+  local -a _gh_uargs=()
+  [ "${ADD_CURRENT_USER:-true}" != "true" ] && _gh_uargs+=(--current false)
+  [ "${ADD_REMOTE_USER:-true}" != "true" ] && _gh_uargs+=(--remote false)
+  [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _gh_uargs+=(--container false)
+  for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gh_uargs+=(--user "$_u"); done
+  _users="$(users__resolve_list "${_gh_uargs[@]}")" || {
     logging__warn "users__resolve_list failed; skipping per-user configuration."
     logging__fn_exit "_gh__configure_user"
     return 0
@@ -426,7 +431,12 @@ EOF
 _gh__install_extensions() {
   logging__fn_entry "_gh__install_extensions"
   local _users
-  _users="$(users__resolve_list)" || {
+  local -a _gh_uargs=()
+  [ "${ADD_CURRENT_USER:-true}" != "true" ] && _gh_uargs+=(--current false)
+  [ "${ADD_REMOTE_USER:-true}" != "true" ] && _gh_uargs+=(--remote false)
+  [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _gh_uargs+=(--container false)
+  for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gh_uargs+=(--user "$_u"); done
+  _users="$(users__resolve_list "${_gh_uargs[@]}")" || {
     logging__warn "users__resolve_list failed; skipping extension install."
     logging__fn_exit "_gh__install_extensions"
     return 0
@@ -497,12 +507,6 @@ os__require_root
 
 # Resolve version (may call GitHub API).
 _resolved_version="$(_gh__resolve_version)"
-
-# Export user config env vars so users__resolve_list picks them up.
-export ADD_CURRENT_USER
-export ADD_REMOTE_USER
-export ADD_CONTAINER_USER
-export ADD_USERS
 
 # Check existing installation; may exit 0 or 1.
 _gh__check_existing "${_resolved_version}"
