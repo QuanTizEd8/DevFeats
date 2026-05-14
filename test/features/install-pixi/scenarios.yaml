@@ -24,7 +24,7 @@ custom_bin_dir:
   - devcontainer
   options:
     prefix: /opt/pixi
-    symlink: false
+    prefix_discovery: shell
   tests:
   - custom_bin_dir.sh
 custom_bin_dir_symlink:
@@ -34,7 +34,7 @@ custom_bin_dir_symlink:
   - devcontainer
   options:
     prefix: /opt/pixi
-    symlink: true
+    prefix_discovery: all
   tests:
   - custom_bin_dir_symlink.sh
 debian:
@@ -124,7 +124,7 @@ version_match_path_only_symlink:
   options:
     version: 0.41.0
     prefix: /opt/pixi
-    symlink: true
+    prefix_discovery: symlink
   tests:
   - version_match_path_only_symlink.sh
 keep_installer:
@@ -144,7 +144,7 @@ export_path_disabled:
   options:
     prefix: /opt/pixi
     export_path: ''
-    symlink: false
+    prefix_discovery: none
   tests:
   - export_path_disabled.sh
 shell_completion_bash:
@@ -191,7 +191,7 @@ custom_bin_dir_symlink_nonroot:
   setup: useradd -m -s /bin/bash vscode
   options:
     prefix: /opt/pixi
-    symlink: true
+    prefix_discovery: symlink
   devcontainer:
     remoteUser: vscode
   tests:
@@ -203,7 +203,7 @@ symlink_user_home_prefix:
   - devcontainer
   options:
     prefix: /root/pixi
-    symlink: true
+    prefix_discovery: symlink
   tests:
   - symlink_user_home_prefix.sh
 netrc_uri_file:

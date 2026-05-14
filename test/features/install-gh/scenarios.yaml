@@ -54,7 +54,7 @@ binary_custom_path:
   options:
     method: binary
     prefix: /opt/gh
-    symlink: true
+    prefix_discovery: symlink
   tests:
   - binary_custom_path.sh
 binary_no_symlink:
@@ -65,7 +65,7 @@ binary_no_symlink:
   options:
     method: binary
     prefix: /opt/gh
-    symlink: false
+    prefix_discovery: none
   tests:
   - binary_no_symlink.sh
 binary_no_completions:
@@ -228,7 +228,7 @@ binary_custom_path_nonroot:
   options:
     method: binary
     prefix: /opt/gh
-    symlink: true
+    prefix_discovery: symlink
   devcontainer:
     remoteUser: vscode
   tests:
@@ -299,7 +299,7 @@ binary_symlink_user_home_prefix:
   options:
     method: binary
     prefix: /root/gh
-    symlink: true
+    prefix_discovery: symlink
   tests:
   - binary_symlink_user_home_prefix.sh
 if_exists_fail_preinstalled:

@@ -29,7 +29,7 @@ binary_custom_prefix:
   options:
     method: binary
     prefix: /opt/yq-bin
-    symlink: true
+    prefix_discovery: symlink
     if_exists: reinstall
   tests:
   - binary_custom_prefix.sh
@@ -42,7 +42,7 @@ custom_prefix_no_symlink:
   options:
     method: binary
     prefix: /opt/yq-bin
-    symlink: false
+    prefix_discovery: none
   tests:
   - custom_prefix_no_symlink.sh
 package_install:

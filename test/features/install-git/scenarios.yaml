@@ -26,7 +26,7 @@ package_stable:
     version: stable
     prefix: /opt/git
     export_path: /tmp/install-git-path.sh
-    symlink: false
+    prefix_discovery: none
     shell_completions: ''
     keep_installer: true
   tests:
@@ -140,7 +140,7 @@ source_export_path_disabled:
     version: stable
     prefix: /opt/git
     export_path: ''
-    symlink: false
+    prefix_discovery: none
   tests:
   - source_export_path_disabled.sh
 source_no_flags_perl:
