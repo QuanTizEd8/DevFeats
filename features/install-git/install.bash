@@ -577,6 +577,6 @@ fi
 if [ -n "${DEFAULT_BRANCH}${SYSTEM_GITCONFIG}" ] || [ "${#SAFE_DIRECTORY[@]}" -gt 0 ]; then
   _git__write_system_gitconfig
 fi
-if { [ "${ADD_CURRENT_USER}" = "true" ] || [ "${ADD_REMOTE_USER}" = "true" ] || [ "${ADD_CONTAINER_USER}" = "true" ] || [ -n "${ADD_USERS}" ]; } && [ -n "${USER_NAME}${USER_EMAIL}${USER_GITCONFIG}" ]; then
+if { [ "${ADD_CURRENT_USER}" = "true" ] || [ "${ADD_REMOTE_USER}" = "true" ] || [ "${ADD_CONTAINER_USER}" = "true" ] || [ "${#ADD_USERS[@]}" -gt 0 ]; } && [ -n "${USER_NAME}${USER_EMAIL}${USER_GITCONFIG}" ]; then
   _git__write_user_gitconfig
 fi

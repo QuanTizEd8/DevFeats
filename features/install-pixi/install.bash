@@ -221,6 +221,7 @@ prefix_activation_snippet() {
   if [ -n "${HOME_DIR}" ]; then
     printf 'export PIXI_HOME="%s"\n' "${HOME_DIR}"
   else
+    # shellcheck disable=SC2016
     printf 'export PIXI_HOME="${HOME}/.pixi"\n'
   fi
   return 0

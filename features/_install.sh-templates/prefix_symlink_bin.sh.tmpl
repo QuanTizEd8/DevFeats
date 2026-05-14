@@ -11,6 +11,7 @@
   else
     _df_targets=("${@@SYMLINKS_VAR@@[@]}")
   fi
+  # shellcheck disable=SC2043
   for _bin in @@BINS@@; do
     [ -f "${@@PREFIX_VAR@@}/@@BIN_DIR@@/${_bin}" ] || continue
     for _dir in "${_df_targets[@]}"; do
