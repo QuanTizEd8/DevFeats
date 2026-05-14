@@ -162,12 +162,12 @@ users__set_write_permissions() {
   shift 3
   logging__info "Setting write permissions on '${_path}' (owner: '${_owner}', group: '${_group}')."
   if command -v dseditgroup > /dev/null 2>&1; then
-    dseditgroup -o read "$_group" > /dev/null 2>&1 || dseditgroup -o create -q "$_group"
+    dseditgroup -o read "$_group" > /dev/null 2>&1 || sudo dseditgroup -o create -q "$_group"
     local _u
     for _u in "$@"; do
       [ -z "$_u" ] && continue
       dseditgroup -o checkmember -m "$_u" "$_group" > /dev/null 2>&1 ||
-        dseditgroup -o edit -a "$_u" -t user "$_group"
+        sudo dseditgroup -o edit -a "$_u" -t user "$_group"
     done
   else
     if ospkg__run --manifest "$_USERS__SHADOW_UTILS_MANIFEST" --build-group "lib-users" --skip_installed; then
