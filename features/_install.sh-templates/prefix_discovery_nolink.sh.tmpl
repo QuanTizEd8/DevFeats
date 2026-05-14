@@ -10,4 +10,4 @@ case "${@@DISCOVERY_VAR@@:-auto}" in
     esac
     ;;
 esac
-"${_df_call_exports}" && @@FUNC_EXPORTS@@
+if "${_df_call_exports}"; then @@FUNC_EXPORTS@@; fi

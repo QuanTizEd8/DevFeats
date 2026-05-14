@@ -38,5 +38,5 @@ case "${@@DISCOVERY_VAR@@:-auto}" in
     esac
     ;;
 esac
-"${_df_call_symlinks}" && @@FUNC_SYMLINKS@@
-"${_df_call_exports}" && @@FUNC_EXPORTS@@
+if "${_df_call_symlinks}"; then @@FUNC_SYMLINKS@@; fi
+if "${_df_call_exports}"; then @@FUNC_EXPORTS@@; fi
