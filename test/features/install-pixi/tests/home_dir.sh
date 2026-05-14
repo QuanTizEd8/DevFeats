@@ -11,11 +11,11 @@ check "pixi binary installed" test -f /usr/local/bin/pixi
 check "pixi --version succeeds" /usr/local/bin/pixi --version
 
 # --- PIXI_HOME export written to system-wide profile.d ---
-echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2> /dev/null || echo "(missing)"
-check "profile.d export file written" test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "profile.d export file has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
-check "profile.d export file exports /var/pixi" grep -Fq '/var/pixi' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+echo "=== /etc/profile.d/${_ACTIVATION_PROFILE_D} ==="
+cat "/etc/profile.d/${_ACTIVATION_PROFILE_D}" 2> /dev/null || echo "(missing)"
+check "profile.d export file written" test -f "/etc/profile.d/${_ACTIVATION_PROFILE_D}"
+check "profile.d export file has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' "/etc/profile.d/${_ACTIVATION_PROFILE_D}"
+check "profile.d export file exports /var/pixi" grep -Fq '/var/pixi' "/etc/profile.d/${_ACTIVATION_PROFILE_D}"
 
 # --- PIXI_HOME export also written to the other startup files used by auto mode ---
 echo "=== /etc/environment ==="

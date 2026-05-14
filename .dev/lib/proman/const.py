@@ -25,6 +25,17 @@ def export_profile_d(feature_id: str, owner: str, repo: str) -> str:
     return f"{owner}-{repo}-{feature_id}-export-path.sh"
 
 
+def activation_profile_d(feature_id: str, owner: str, repo: str) -> str:
+    """Return the profile.d filename for a feature's default activation snippet.
+
+    Formula: ``<owner>-<repo>-<feature_id>-prefix-activation.sh``.
+
+    Covers the unnamed (stem="prefix") prefix group.  Used when generating the
+    ``_ACTIVATION_PROFILE_D`` test-runner variable.
+    """
+    return f"{owner}-{repo}-{feature_id}-prefix-activation.sh"
+
+
 LIFECYCLE_COMMAND_KEYS = (
     "onCreateCommand",
     "updateContentCommand",
