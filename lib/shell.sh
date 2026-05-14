@@ -755,8 +755,11 @@ shell__write_activation_snippets() {
   local _shell _snippet _everywhere _files
   for _shell in "$@"; do
     [ -z "$_shell" ] && continue
-    _snippet="$("$_snippet_func" "$_shell")"
-    _everywhere=$?
+    if _snippet="$("$_snippet_func" "$_shell")"; then
+      _everywhere=0
+    else
+      _everywhere=$?
+    fi
     [ -z "$_snippet" ] && continue
     if [ "$(id -u)" = "0" ]; then
       if [ "$_everywhere" -eq 0 ]; then
