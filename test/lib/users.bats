@@ -182,3 +182,112 @@ EOF
   assert_success
   assert_output "~___no_such_user_xyz___"
 }
+
+# ---------------------------------------------------------------------------
+# users__run_as
+# ---------------------------------------------------------------------------
+
+@test "users__run_as runs in-process when user matches" {
+  reload_lib os.sh
+  _me="$(id -un)"
+  run users__run_as "$_me" -- echo "ran"
+  assert_output "ran"
+  assert_success
+}
+
+@test "users__run_as same user: --cwd changes directory" {
+  reload_lib os.sh
+  _me="$(id -un)"
+  run users__run_as "$_me" --cwd "$BATS_TEST_TMPDIR" -- pwd
+  assert_success
+  assert_output "$BATS_TEST_TMPDIR"
+}
+
+@test "users__run_as same user: --cwd with spaces in path" {
+  reload_lib os.sh
+  _me="$(id -un)"
+  _dir="$BATS_TEST_TMPDIR/path with spaces"
+  mkdir -p "$_dir"
+  run users__run_as "$_me" --cwd "$_dir" -- pwd
+  assert_success
+  assert_output "$_dir"
+}
+
+@test "users__run_as returns failure when user argument is empty" {
+  reload_lib os.sh
+  run users__run_as "" -- echo "nope"
+  assert_failure
+}
+
+@test "users__run_as returns failure when no command given" {
+  reload_lib os.sh
+  _me="$(id -un)"
+  run users__run_as "$_me" --
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__run_as — different-user path (su stubbed with eval)
+# In these tests, `id` is faked to return "notme" so the current-user check
+# fails and execution proceeds to the su path.  `su` is overridden as a shell
+# function that eval's its 4th argument (the -c command string) so we can
+# verify the constructed command string is correctly quoted and executable.
+# ---------------------------------------------------------------------------
+
+@test "users__run_as different user: runs command via su" {
+  reload_lib os.sh
+  create_fake_bin "id" "notme"
+  prepend_fake_bin_path
+  su() { eval "$4"; }
+  export -f su
+  run users__run_as "otheruser" -- echo "via-su"
+  assert_success
+  assert_output "via-su"
+}
+
+@test "users__run_as different user: preserves args with spaces" {
+  reload_lib os.sh
+  create_fake_bin "id" "notme"
+  prepend_fake_bin_path
+  su() { eval "$4"; }
+  export -f su
+  run users__run_as "otheruser" -- echo "hello world"
+  assert_success
+  assert_output "hello world"
+}
+
+@test "users__run_as different user: --cwd with spaces in path" {
+  reload_lib os.sh
+  create_fake_bin "id" "notme"
+  prepend_fake_bin_path
+  _dir="$BATS_TEST_TMPDIR/path with spaces"
+  mkdir -p "$_dir"
+  su() { eval "$4"; }
+  export -f su
+  run users__run_as "otheruser" --cwd "$_dir" -- pwd
+  assert_success
+  assert_output "$_dir"
+}
+
+@test "users__run_as different user: --cwd with single quote in path" {
+  reload_lib os.sh
+  create_fake_bin "id" "notme"
+  prepend_fake_bin_path
+  _dir="$BATS_TEST_TMPDIR/user's dir"
+  mkdir -p "$_dir"
+  su() { eval "$4"; }
+  export -f su
+  run users__run_as "otheruser" --cwd "$_dir" -- pwd
+  assert_success
+  assert_output "$_dir"
+}
+
+@test "users__run_as fails with error when bash is not on PATH" {
+  reload_lib os.sh
+  create_fake_bin "id" "notme"
+  begin_path_isolation # only fake bin dir; bash not present
+  run users__run_as "otheruser" -- echo "nope"
+  end_path_isolation
+  assert_failure
+  assert_output --partial "bash is required"
+}
