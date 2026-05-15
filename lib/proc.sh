@@ -12,6 +12,8 @@ _PROC__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_PROC__LIB_DIR/json.sh"
 # shellcheck source=lib/logging.sh
 . "$_PROC__LIB_DIR/logging.sh"
+# shellcheck source=lib/users.sh
+. "$_PROC__LIB_DIR/users.sh"
 
 # @brief proc__run_parallel [--outdir <dir>] [--cwd <dir>] -- <label> <argv...> [-- <label> <argv>...] — Run labelled commands in parallel; stream output in label order when all finish.
 #
@@ -90,7 +92,7 @@ proc__run_parallel() {
 #
 # Args:
 #   --cwd <dir>    Working directory for the command (optional).
-#   --user <user>  Username to run as via os__run_as (requires os.sh; optional).
+#   --user <user>  Username to run as via users__run_as (requires os.sh; optional).
 proc__run_command_form() {
   local _cwd="" _user="" _json
   while [[ $# -gt 0 ]]; do
@@ -118,14 +120,14 @@ proc__run_command_form() {
 
   _rc() {
     if [[ -n "$_user" ]]; then
-      if ! command -v os__run_as > /dev/null 2>&1; then
-        logging__error "proc__run_command_form: --user requires os.sh (os__run_as)"
+      if ! command -v users__run_as > /dev/null 2>&1; then
+        logging__error "proc__run_command_form: --user requires os.sh (users__run_as)"
         return 1
       fi
       if [[ -n "$_cwd" ]]; then
-        os__run_as "$_user" --cwd "$_cwd" -- "$@"
+        users__run_as "$_user" --cwd "$_cwd" -- "$@"
       else
-        os__run_as "$_user" -- "$@"
+        users__run_as "$_user" -- "$@"
       fi
     elif [[ -n "$_cwd" ]]; then
       (cd "$_cwd" && "$@")

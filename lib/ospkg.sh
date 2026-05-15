@@ -345,7 +345,7 @@ _ospkg_install_repo_content() {
 #   Root in container  → run `brew` directly (Homebrew explicitly allows root
 #                        in containers via `HOMEBREW_ALLOW_INSTALL_FROM_API`).
 #   Root on bare metal → `su` to the owner of the Homebrew prefix and run
-#                        `brew` as that user via `os__run_as`.
+#                        `brew` as that user via `users__run_as`.
 #
 # Args:
 #   <args...>  Arguments forwarded verbatim to `brew`.
@@ -372,7 +372,7 @@ _ospkg_brew_run() {
     return
   fi
   logging__info "Running brew as user '${_owner}' (brew prefix owner)."
-  os__run_as "$_owner" -- brew "$@"
+  users__run_as "$_owner" -- brew "$@"
   return 0
 }
 
