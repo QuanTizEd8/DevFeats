@@ -1,3 +1,19 @@
+# shellcheck source=lib/shell.sh
+. "$_BASE_DIR/_lib/shell.sh"
+# shellcheck source=lib/github.sh
+. "$_BASE_DIR/_lib/github.sh"
+# shellcheck source=lib/json.sh
+. "$_BASE_DIR/_lib/json.sh"
+# shellcheck source=lib/verify.sh
+. "${_BASE_DIR}/_lib/verify.sh"
+# shellcheck source=lib/users.sh
+. "$_BASE_DIR/_lib/users.sh"
+
+# ── Constants ────────────────────────────────────────────────────────────────
+readonly _MINIFORGE_RELEASES_URL="https://github.com/conda-forge/miniforge/releases"
+readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
+readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
+
 # shellcheck disable=SC2329,SC2317
 prefix_activation_snippet() {
   local _shell="$1"
@@ -358,23 +374,6 @@ _cleanup_hook() {
   fi
   logging__fn_exit "_cleanup_hook"
 }
-
-readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
-readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
-
-# shellcheck source=lib/shell.sh
-. "$_BASE_DIR/_lib/shell.sh"
-# shellcheck source=lib/github.sh
-. "$_BASE_DIR/_lib/github.sh"
-# shellcheck source=lib/json.sh
-. "$_BASE_DIR/_lib/json.sh"
-# shellcheck source=lib/verify.sh
-. "${_BASE_DIR}/_lib/verify.sh"
-# shellcheck source=lib/users.sh
-. "$_BASE_DIR/_lib/users.sh"
-
-# ── Constants ────────────────────────────────────────────────────────────────
-_MINIFORGE_RELEASES_URL="https://github.com/conda-forge/miniforge/releases"
 
 check_root_requirement
 set_executable_paths

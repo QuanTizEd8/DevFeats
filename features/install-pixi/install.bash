@@ -1,3 +1,19 @@
+# shellcheck source=lib/os.sh
+. "${_BASE_DIR}/_lib/os.sh"
+# shellcheck source=lib/shell.sh
+. "${_BASE_DIR}/_lib/shell.sh"
+# shellcheck source=lib/github.sh
+. "${_BASE_DIR}/_lib/github.sh"
+# shellcheck source=lib/verify.sh
+. "${_BASE_DIR}/_lib/verify.sh"
+# shellcheck source=lib/uri.sh
+# shellcheck disable=SC1094
+. "${_BASE_DIR}/_lib/uri.sh"
+# shellcheck source=lib/file.sh
+. "${_BASE_DIR}/_lib/file.sh"
+# shellcheck source=lib/install/common.sh
+. "${_BASE_DIR}/_lib/install/common.sh"
+
 # ── Function definitions ──────────────────────────────────────────────────────
 # Functions are defined before library sourcing.  Bash does not evaluate
 # function bodies until they are called, so lib functions referenced here are
@@ -277,22 +293,6 @@ install_completion() {
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
-
-# shellcheck source=lib/os.sh
-. "${_BASE_DIR}/_lib/os.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/github.sh
-. "${_BASE_DIR}/_lib/github.sh"
-# shellcheck source=lib/verify.sh
-. "${_BASE_DIR}/_lib/verify.sh"
-# shellcheck source=lib/uri.sh
-# shellcheck disable=SC1094
-. "${_BASE_DIR}/_lib/uri.sh"
-# shellcheck source=lib/file.sh
-. "${_BASE_DIR}/_lib/file.sh"
-# shellcheck source=lib/install/common.sh
-. "${_BASE_DIR}/_lib/install/common.sh"
 
 declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
 [ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""

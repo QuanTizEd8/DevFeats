@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # shellcheck source=lib/install/oras.sh
 . "${_BASE_DIR}/_lib/install/oras.sh"
 # shellcheck source=lib/shell.sh

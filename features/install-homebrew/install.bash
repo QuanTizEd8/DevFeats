@@ -1,3 +1,8 @@
+# shellcheck source=lib/shell.sh
+. "$_BASE_DIR/_lib/shell.sh"
+# shellcheck source=lib/users.sh
+. "$_BASE_DIR/_lib/users.sh"
+
 # ── Constants ────────────────────────────────────────────────────────────────
 _BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD"
 _BREW_INSTALLER_URL="${_BREW_INSTALL_BASE_URL}/install.sh"
@@ -105,7 +110,7 @@ enforce_options() {
     if [ -d "${_core_repo}/.git" ]; then
       git -C "$_core_repo" remote set-url origin "$CORE_GIT_REMOTE"
     else
-      logging__info "homebrew-core tap not present at '${_core_repo}'; skipping git remote set."
+      logging__warn "homebrew-core tap not present at '${_core_repo}'; skipping git remote set."
     fi
   fi
   _sync_init_files "$_marker_core" ${CORE_GIT_REMOTE:+"export HOMEBREW_CORE_GIT_REMOTE=\"${CORE_GIT_REMOTE}\""}
@@ -301,11 +306,6 @@ prepare_prefix_if_needed() {
   logging__info "Remove or empty the directory first, or set a different prefix."
   exit 1
 }
-
-# shellcheck source=lib/shell.sh
-. "$_BASE_DIR/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "$_BASE_DIR/_lib/users.sh"
 
 # ── Resolve install user, then derive prefix from that user ──────────────────
 RESOLVED_INSTALL_USER="$(resolve_install_user)"

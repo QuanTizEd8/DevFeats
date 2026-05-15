@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # shellcheck source=lib/os.sh
 . "${_BASE_DIR}/_lib/os.sh"
 # shellcheck source=lib/net.sh

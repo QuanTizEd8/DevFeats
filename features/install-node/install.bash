@@ -1,3 +1,14 @@
+# shellcheck source=lib/github.sh
+. "${_BASE_DIR}/_lib/github.sh"
+# shellcheck source=lib/verify.sh
+. "${_BASE_DIR}/_lib/verify.sh"
+# shellcheck source=lib/shell.sh
+. "${_BASE_DIR}/_lib/shell.sh"
+# shellcheck source=lib/users.sh
+. "${_BASE_DIR}/_lib/users.sh"
+# shellcheck source=lib/file.sh
+. "${_BASE_DIR}/_lib/file.sh"
+
 _cleanup_hook() {
   logging__fn_entry "_cleanup_hook"
   # shellcheck disable=SC2015  # || true is intentional: cleanup must not abort on rm failure
@@ -478,17 +489,6 @@ _node_install_yarn() {
   logging__fn_exit "_node_install_yarn"
   return 0
 }
-
-# shellcheck source=lib/github.sh
-. "${_BASE_DIR}/_lib/github.sh"
-# shellcheck source=lib/verify.sh
-. "${_BASE_DIR}/_lib/verify.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "${_BASE_DIR}/_lib/users.sh"
-# shellcheck source=lib/file.sh
-. "${_BASE_DIR}/_lib/file.sh"
 
 os__require_root
 
