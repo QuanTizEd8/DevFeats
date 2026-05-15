@@ -18,15 +18,6 @@
 # shellcheck source=lib/users.sh
 . "${_BASE_DIR}/_lib/users.sh"
 
-_install__just_resolve_prefix() {
-  local _resolved_prefix="${1-}"
-  if [[ -z "$_resolved_prefix" ]]; then
-    users__default_prefix
-    return 0
-  fi
-  printf '%s\n' "$_resolved_prefix"
-}
-
 _install__just_resolve_version() {
   local _version="${1-}"
   if [[ -z "$_version" || "$_version" == "latest" ]]; then
@@ -268,7 +259,6 @@ install__just() {
     fi
   fi
 
-  _install_prefix="$(_install__just_resolve_prefix "$_install_prefix")" || return 1
   case "$_method" in
     binary)
       local _resolved_version _resolved_target
