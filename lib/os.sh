@@ -91,18 +91,30 @@ os__platform() {
   return 0
 }
 
-# @brief os__release_kernel — Print the kernel identifier used in release asset filenames (`linux` or `darwin`).
+# @brief os__release_kernel [<flavor>] — Print the kernel identifier used in release asset filenames.
 #
-# Maps the result of `os__kernel` to the lowercase token used by most GitHub
-# release naming conventions. Returns 1 with a logged error for unsupported
-# kernels so callers can abort cleanly rather than constructing a wrong URL.
+# Maps the result of `os__kernel` to the token used by release asset naming
+# conventions. Returns 1 with a logged error for unsupported kernels or flavors.
 #
-# Stdout: `linux` or `darwin`.
-# Returns: 0 on success, 1 if the kernel is unsupported.
+# Flavor `github` (default): `linux` or `darwin` — standard GitHub releases.
+# Flavor `gh`:               `linux` or `macOS`  — GitHub CLI asset naming.
+#
+# Stdout: kernel token string.
+# Returns: 0 on success, 1 if the kernel or flavor is unsupported.
 os__release_kernel() {
+  local _flavor="${1:-github}"
   case "$(os__kernel)" in
     Linux) printf 'linux\n' ;;
-    Darwin) printf 'darwin\n' ;;
+    Darwin)
+      case "$_flavor" in
+        github) printf 'darwin\n' ;;
+        gh) printf 'macOS\n' ;;
+        *)
+          logging__error "os__release_kernel: unknown flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
     *)
       logging__error "os__release_kernel: unsupported kernel '$(os__kernel)'."
       return 1
@@ -110,29 +122,106 @@ os__release_kernel() {
   esac
 }
 
-# @brief os__release_arch — Print the CPU architecture token used in release asset filenames.
+# @brief os__release_arch <raw-arch> [<flavor>] — Map a raw architecture string to a release asset token.
 #
-# Maps the result of `os__arch` to the canonical token used by most GitHub
-# release naming conventions. Covers all architectures present across the
-# install/ modules: amd64, arm64, armv7, i386, ppc64le, s390x, riscv64,
-# loong64. Callers that only support a subset should check the result with a
-# `case` statement and return an error for unsupported values.
+# Accepts raw `uname -m` output or already-normalised values. Always pass the
+# arch explicitly (use `os__arch` for the current system arch) so that callers
+# with a user-supplied override (e.g. the $ARCH option in install-node) work
+# correctly without cache side-effects.
 #
-# Stdout: one of `amd64`, `arm64`, `armv7`, `i386`, `ppc64le`, `s390x`,
-#         `riscv64`, `loong64`.
-# Returns: 0 on success, 1 if the architecture is unsupported.
+# Flavor `github` (default): amd64, arm64, armv7, i386, ppc64le, s390x, riscv64, loong64.
+# Flavor `node`:             x64,  arm64, armv7l, ppc64le, s390x.
+# Flavor `gh`:               amd64, arm64, armv6, 386.
+#
+# Returns: 0 on success, 1 if the arch/flavor combination is unsupported.
 os__release_arch() {
-  case "$(os__arch)" in
-    x86_64 | amd64 | x64) printf 'amd64\n' ;;
-    aarch64 | arm64) printf 'arm64\n' ;;
-    armv7l | armv7) printf 'armv7\n' ;;
-    i386 | i686) printf 'i386\n' ;;
-    ppc64le) printf 'ppc64le\n' ;;
-    s390x) printf 's390x\n' ;;
-    riscv64) printf 'riscv64\n' ;;
-    loong64 | loongarch64) printf 'loong64\n' ;;
+  local _raw="${1:-}" _flavor="${2:-github}"
+  case "$_raw" in
+    x86_64 | amd64 | x64)
+      case "$_flavor" in
+        github | gh) printf 'amd64\n' ;;
+        node) printf 'x64\n' ;;
+        *)
+          logging__error "os__release_arch: unknown flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
+    aarch64 | arm64)
+      printf 'arm64\n'
+      ;;
+    armv7l | armv7)
+      case "$_flavor" in
+        github) printf 'armv7\n' ;;
+        node) printf 'armv7l\n' ;;
+        gh) printf 'armv6\n' ;;
+        *)
+          logging__error "os__release_arch: unknown flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
+    armv6l)
+      case "$_flavor" in
+        gh) printf 'armv6\n' ;;
+        *)
+          logging__error "os__release_arch: architecture 'armv6l' is not supported for flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
+    i386 | i686)
+      case "$_flavor" in
+        github) printf 'i386\n' ;;
+        gh) printf '386\n' ;;
+        *)
+          logging__error "os__release_arch: architecture '${_raw}' is not supported for flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
+    ppc64le)
+      case "$_flavor" in
+        github | node) printf 'ppc64le\n' ;;
+        *)
+          logging__error "os__release_arch: architecture 'ppc64le' is not supported for flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
+    s390x)
+      case "$_flavor" in
+        github | node) printf 's390x\n' ;;
+        *)
+          logging__error "os__release_arch: architecture 's390x' is not supported for flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
+    riscv64)
+      case "$_flavor" in
+        github) printf 'riscv64\n' ;;
+        *)
+          logging__error "os__release_arch: architecture 'riscv64' is not supported for flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
+    loong64 | loongarch64)
+      case "$_flavor" in
+        github) printf 'loong64\n' ;;
+        *)
+          logging__error "os__release_arch: architecture 'loong64' is not supported for flavor '${_flavor}'."
+          return 1
+          ;;
+      esac
+      ;;
+    '')
+      logging__error "os__release_arch: empty architecture string."
+      return 1
+      ;;
     *)
-      logging__error "os__release_arch: unsupported architecture '$(os__arch)'."
+      logging__error "os__release_arch: unsupported architecture '${_raw}'."
       return 1
       ;;
   esac

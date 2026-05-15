@@ -182,32 +182,18 @@ _gh__install_binary() {
   local _version="${1}"
 
   # Determine asset name components.
-  local _kernel _asset_os _arch _asset_arch _ext _archive_name _archive_dir
-  _kernel="$(os__kernel)"
-  _arch="$(os__arch)"
-  case "${_kernel}" in
-    Linux)
-      _asset_os="linux"
-      _ext="tar.gz"
-      ;;
-    Darwin)
-      _asset_os="macOS"
-      _ext="zip"
-      ;;
-    *)
-      logging__error "Unsupported kernel '${_kernel}' for method=binary."
-      exit 1
-      ;;
-  esac
-  case "${_arch}" in
-    x86_64) _asset_arch="amd64" ;;
-    aarch64 | arm64) _asset_arch="arm64" ;;
-    i386 | i686) _asset_arch="386" ;;
-    armv6l | armv7l) _asset_arch="armv6" ;;
-    *)
-      logging__error "Unsupported architecture '${_arch}' for method=binary."
-      exit 1
-      ;;
+  local _asset_os _asset_arch _ext _archive_name _archive_dir
+  _asset_os="$(os__release_kernel gh)" || {
+    logging__error "Unsupported kernel '$(os__kernel)' for method=binary."
+    exit 1
+  }
+  _asset_arch="$(os__release_arch "$(os__arch)" gh)" || {
+    logging__error "Unsupported architecture '$(os__arch)' for method=binary."
+    exit 1
+  }
+  case "$_asset_os" in
+    linux) _ext="tar.gz" ;;
+    macOS) _ext="zip" ;;
   esac
   _archive_name="gh_${_version}_${_asset_os}_${_asset_arch}.${_ext}"
   _archive_dir="gh_${_version}_${_asset_os}_${_asset_arch}"

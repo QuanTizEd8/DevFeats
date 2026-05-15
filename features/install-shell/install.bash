@@ -170,22 +170,19 @@ install_fzf() {
   _version="${_tag#v}"
   logging__info "Installing fzf ${_version} to '${_bin_dir}'..."
 
-  local _kernel _arch _os _fzf_arch
-  _kernel="$(os__kernel)"
-  _arch="$(os__arch)"
-  case "$_kernel" in
-    Linux) _os="linux" ;;
-    Darwin) _os="darwin" ;;
+  local _os _fzf_arch
+  _os="$(os__release_kernel)" || {
+    logging__error "Unsupported kernel for fzf install: '$(os__kernel)'"
+    return 1
+  }
+  _fzf_arch="$(os__release_arch "$(os__arch)")" || {
+    logging__error "Unsupported arch for fzf install: '$(os__arch)'"
+    return 1
+  }
+  case "$_fzf_arch" in
+    amd64 | arm64) ;;
     *)
-      logging__error "Unsupported kernel for fzf install: '${_kernel}'"
-      return 1
-      ;;
-  esac
-  case "$_arch" in
-    x86_64) _fzf_arch="amd64" ;;
-    aarch64) _fzf_arch="arm64" ;;
-    *)
-      logging__error "Unsupported arch for fzf install: '${_arch}'"
+      logging__error "Unsupported arch for fzf install: '$(os__arch)'"
       return 1
       ;;
   esac

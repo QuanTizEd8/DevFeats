@@ -8,36 +8,24 @@ _cleanup_hook() {
   logging__fn_exit "_cleanup_hook"
 }
 
-# _node_build_platform_string
+# _node_build_platform_string <arch>
 # Outputs a nodejs.org platform string (e.g. linux-x64, darwin-arm64).
-# Arguments: kernel arch
+# Argument: raw arch string (uname -m output or user-supplied $ARCH override).
 _node_build_platform_string() {
   logging__fn_entry "_node_build_platform_string"
-  local _kernel="$1"
-  local _arch="$2"
-
-  # Normalise: Darwin aarch64 → arm64 (user-supplied override may use either form)
-  if [ "$_kernel" = "Darwin" ] && [ "$_arch" = "aarch64" ]; then
-    _arch="arm64"
-  fi
-
-  local _platform=""
-  case "${_kernel}:${_arch}" in
-    Linux:x86_64) _platform="linux-x64" ;;
-    Linux:aarch64) _platform="linux-arm64" ;;
-    Linux:arm64) _platform="linux-arm64" ;;
-    Linux:armv7l) _platform="linux-armv7l" ;;
-    Linux:ppc64le) _platform="linux-ppc64le" ;;
-    Linux:s390x) _platform="linux-s390x" ;;
-    Darwin:x86_64) _platform="darwin-x64" ;;
-    Darwin:arm64) _platform="darwin-arm64" ;;
-    *)
-      logging__error "Unsupported kernel/arch combination for Node.js binary: ${_kernel}/${_arch}"
-      logging__info "Use method=nvm for source-based installation on unsupported architectures."
-      return 1
-      ;;
-  esac
-  echo "$_platform"
+  local _arch="$1"
+  local _os _arch_token
+  _os="$(os__release_kernel)" || {
+    logging__error "Unsupported kernel for Node.js binary install: '$(os__kernel)'."
+    return 1
+  }
+  _arch_token="$(os__release_arch "$_arch" node)" || {
+    logging__error "Unsupported architecture for Node.js binary install: '${_arch}'."
+    logging__info "Use method=nvm for source-based installation on unsupported architectures."
+    return 1
+  }
+  local _platform="${_os}-${_arch_token}"
+  printf '%s\n' "$_platform"
   logging__fn_exit "_node_build_platform_string → ${_platform}"
   return 0
 }
@@ -321,14 +309,12 @@ _node_install_via_binary() {
   fi
 
   # Build platform string
-  local _arch_str="$ARCH"
-  if [ -z "$_arch_str" ]; then
-    _arch_str="$(os__arch)"
-  fi
-  local _kernel_str
-  _kernel_str="$(os__kernel)"
+  local _arch_str="${ARCH:-$(os__arch)}"
   local _platform
-  _platform="$(_node_build_platform_string "$_kernel_str" "$_arch_str")"
+  _platform="$(_node_build_platform_string "$_arch_str")" || {
+    logging__error "install-node: could not determine platform string for arch '${_arch_str}'."
+    return 1
+  }
 
   # Resolve install prefix
   local _install_prefix="$PREFIX"

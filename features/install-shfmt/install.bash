@@ -20,15 +20,24 @@ _shfmt__resolve_version() {
     _version="$(github__latest_tag "mvdan/sh" 2> /dev/null || true)"
   fi
   _version="${_version#v}"
-  [[ "$_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+  [[ "$_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+    logging__error "install-shfmt: resolved version '${_version}' does not match semver format."
+    return 1
+  }
   printf '%s\n' "$_version"
 }
 
 _shfmt__install_release() {
   local _version="${1-}"
   local _os _arch _asset _tmp _dest
-  _os="$(os__release_kernel)" || return 1
-  _arch="$(os__release_arch)" || return 1
+  _os="$(os__release_kernel)" || {
+    logging__error "install-shfmt: unsupported kernel '$(os__kernel)'."
+    return 1
+  }
+  _arch="$(os__release_arch "$(os__arch)")" || {
+    logging__error "install-shfmt: unsupported architecture '$(os__arch)'."
+    return 1
+  }
   case "$_arch" in
     amd64 | arm64) ;;
     *)
@@ -39,16 +48,25 @@ _shfmt__install_release() {
   _asset="shfmt_v${_version}_${_os}_${_arch}"
   _tmp="$(file__tmpdir "install/shfmt")"
 
-  github__fetch_release_asset_tarball "mvdan/sh" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
+  github__fetch_release_asset_tarball "mvdan/sh" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || {
+    logging__error "install-shfmt: failed to fetch release asset '${_asset}'."
+    return 1
+  }
 
   _dest="${PREFIX%/}/bin/shfmt"
-  install__copy_bin "${_tmp}/${_asset}" "$_dest" || return 1
+  install__copy_bin "${_tmp}/${_asset}" "$_dest" || {
+    logging__error "install-shfmt: failed to install binary to '${_dest}'."
+    return 1
+  }
   printf '%s\n' "$_dest"
 }
 
 _shfmt__install_repos() {
   local _repos_manifest="${1-}"
-  ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
+  ospkg__run --manifest "$_repos_manifest" --skip_installed || {
+    logging__error "install-shfmt: package install failed."
+    return 1
+  }
   command -v shfmt 2> /dev/null || {
     logging__error "install-shfmt: shfmt not found on PATH after package install."
     return 1
