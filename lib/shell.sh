@@ -936,7 +936,7 @@ unset -f __df_prepend_path"
 #   --no-symlinks         Disable symlink creation.
 #   --no-exports          Disable PATH export writing.
 shell__run_prefix_discovery() {
-  local _prefix="" _bin_dir="bin" _discovery="auto" _runtime_path="${PATH:-}"
+  local _disc_prefix="" _bin_dir="bin" _discovery="auto" _runtime_path="${PATH:-}"
   local _bins="" _symlinks_ref="" _exports_ref="" _marker="" _profile_d=""
   local _bin="" _cmd_var="" _no_symlinks=false _no_exports=false
   local _symlink_root="/usr/local/bin" _symlink_nonroot="${HOME}/.local/bin"
@@ -944,7 +944,7 @@ shell__run_prefix_discovery() {
     case $1 in
       --prefix)
         shift
-        _prefix="$1"
+        _disc_prefix="$1"
         shift
         ;;
       --bin-dir)
@@ -1018,7 +1018,7 @@ shell__run_prefix_discovery() {
       *) shift ;;
     esac
   done
-  local _pfx_bin_dir="${_prefix}/${_bin_dir}"
+  local _pfx_bin_dir="${_disc_prefix}/${_bin_dir}"
 
   # Resolve symlink targets.
   local -a _sl_targets=()
@@ -1029,7 +1029,7 @@ shell__run_prefix_discovery() {
     fi
     if [[ "${#_sl_targets[@]}" -eq 0 ]]; then
       if [[ "$(id -u)" = "0" ]]; then
-        case "${_prefix}" in
+        case "${_disc_prefix}" in
           "${HOME}/"*) _sl_targets=("${_symlink_nonroot}") ;;
           *) _sl_targets=("${_symlink_root}") ;;
         esac
