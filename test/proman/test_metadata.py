@@ -211,6 +211,7 @@ def test_feature_vars_delegates_to_const() -> None:
     assert vars_["PROJECT_OWNER"] == "myowner"
     assert vars_["PROJECT_NAME"] == "myrepo"
     assert vars_["PROJECT_NAMESPACE"] == "myowner/myrepo"
+    assert vars_["PROJECT_SLUG"] == "myowner-myrepo"
 
 
 def test_substitute_vars_string() -> None:
@@ -221,10 +222,10 @@ def test_substitute_vars_string() -> None:
 
 
 def test_substitute_vars_nested_dict_and_list() -> None:
-    """Substitution recurses into dict values and list items; keys are untouched."""
+    """Substitution recurses into dict keys, values, and list items."""
     vars_ = {"_FEAT_SHARE_DIR": "/share/o/r/f"}
     obj = {
-        "@@_FEAT_SHARE_DIR@@": "key-is-not-touched",
+        "@@_FEAT_SHARE_DIR@@": "key-was-expanded",
         "entrypoint": "@@_FEAT_SHARE_DIR@@/run.sh",
         "env": {"PATH": "@@_FEAT_SHARE_DIR@@/bin:$PATH"},
         "cmds": ["sh @@_FEAT_SHARE_DIR@@/a.sh", "echo done"],
@@ -232,7 +233,8 @@ def test_substitute_vars_nested_dict_and_list() -> None:
     }
     result = _substitute_vars(obj, vars_)
     assert isinstance(result, dict)
-    assert "@@_FEAT_SHARE_DIR@@" in result  # key unchanged
+    assert result["/share/o/r/f"] == "key-was-expanded"
+    assert "@@_FEAT_SHARE_DIR@@" not in result
     assert result["entrypoint"] == "/share/o/r/f/run.sh"
     assert result["env"]["PATH"] == "/share/o/r/f/bin:$PATH"
     assert result["cmds"][0] == "sh /share/o/r/f/a.sh"
@@ -253,7 +255,7 @@ def test_load_and_augment_substitutes_feature_vars(
     raw = {
         "version": "1.0.0",
         "name": "Bar",
-        "description": "Test.",
+        "description": "Test @@PROJECT_SLUG@@.",
         "keywords": [],
         "options": {},
         "entrypoint": "@@_FEAT_SHARE_DIR@@/entrypoint.sh ${containerWorkspaceFolder}",
@@ -275,4 +277,5 @@ def test_load_and_augment_substitutes_feature_vars(
     assert result["onCreateCommand"]["run"]["command"] == (
         f"sh {expected_share}/on-create.sh || true"
     )
+    assert result["description"] == "Test myowner-myrepo."
     assert result["documentationURL"] == "https://github.com/myowner/myrepo"

@@ -36,7 +36,7 @@ def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
     Augmentation steps performed (in order):
     1. Read ``metadata.yaml`` from disk.
     2. Substitute feature-scoped variables (e.g. ``@@_FEAT_SHARE_DIR@@``,
-       ``@@PROJECT_NAMESPACE@@``) in all string values.
+       ``@@PROJECT_NAMESPACE@@``) in all string dict keys and values.
        See :func:`_feature_vars` for the full variable table.
     3. Merge shared options from ``features/shared-options.yaml``.
     4. Set ``metadata["id"]`` and ``metadata["_oci_ref"]``.
@@ -522,7 +522,7 @@ def _feature_vars(feature_id: str, owner: str, repo: str) -> dict[str, str]:
     """Return the substitution table for feature-scoped template variables.
 
     The following ``@@VAR@@`` tokens are recognised in ``metadata.yaml`` string
-    values and expanded during :func:`load_and_augment`:
+    dict keys and values and expanded during :func:`load_and_augment`:
 
     ``@@_FEAT_SHARE_DIR@@``
         Canonical ``/usr/local/share/`` sub-directory for this feature's
@@ -541,6 +541,9 @@ def _feature_vars(feature_id: str, owner: str, repo: str) -> dict[str, str]:
 
     ``@@PROJECT_NAMESPACE@@``
         ``<owner>/<repo>`` string (not a filesystem path).
+
+    ``@@PROJECT_SLUG@@``
+        ``<owner>-<repo>`` string (hyphen separator).
     """
     return {
         "_FEAT_SHARE_DIR": feat_share_dir(feature_id, owner, repo),
@@ -548,21 +551,32 @@ def _feature_vars(feature_id: str, owner: str, repo: str) -> dict[str, str]:
         "PROJECT_OWNER": owner,
         "PROJECT_NAME": repo,
         "PROJECT_NAMESPACE": f"{owner}/{repo}",
+        "PROJECT_SLUG": f"{owner}-{repo}",
     }
 
 
-def _substitute_vars(obj: object, vars_: dict[str, str]) -> object:
-    """Recursively substitute ``@@VAR@@`` tokens in all string values of *obj*.
+def _substitute_var_tokens(s: str, vars_: dict[str, str]) -> str:
+    """Replace every ``@@NAME@@`` in *s* using *vars_* (non-recursive)."""
+    for name, value in vars_.items():
+        s = s.replace(f"@@{name}@@", value)
+    return s
 
-    Processes dicts (values only, not keys), lists, and plain strings.
-    Non-string scalars (int, bool, None, …) are returned unchanged.
+
+def _substitute_vars(obj: object, vars_: dict[str, str]) -> object:
+    """Recursively substitute ``@@VAR@@`` tokens in all string keys and values of *obj*.
+
+    Processes dicts (string keys and values), lists, and plain strings.
+    Non-string dict keys are preserved. Non-string scalars (int, bool, None, …)
+    are returned unchanged.
     """
     if isinstance(obj, str):
-        for name, value in vars_.items():
-            obj = obj.replace(f"@@{name}@@", value)
-        return obj
+        return _substitute_var_tokens(obj, vars_)
     if isinstance(obj, dict):
-        return {k: _substitute_vars(v, vars_) for k, v in obj.items()}
+        out: dict[object, object] = {}
+        for k, v in obj.items():
+            nk = _substitute_var_tokens(k, vars_) if isinstance(k, str) else k
+            out[nk] = _substitute_vars(v, vars_)
+        return out
     if isinstance(obj, list):
         return [_substitute_vars(item, vars_) for item in obj]
     return obj
