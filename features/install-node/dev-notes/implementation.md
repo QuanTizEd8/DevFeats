@@ -366,7 +366,7 @@ brew:
 
 ```
 install.bash
-  ├── Header: set -euo pipefail, _SELF_DIR, _BASE_DIR
+  ├── Header: set -euo pipefail, _BASE_DIR, _BASE_DIR
   ├── Source: ospkg.sh, logging.sh, github.sh, checksum.sh, shell.sh, users.sh
   ├── logging__setup + EXIT trap (includes: rm -rf "$INSTALLER_DIR"; for nvm also: cleanup nvm cache on error)
   ├── Script entry echo

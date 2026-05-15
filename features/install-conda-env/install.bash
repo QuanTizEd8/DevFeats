@@ -1,5 +1,5 @@
 # shellcheck source=lib/uri.sh
-. "$_SELF_DIR/_lib/uri.sh"
+. "$_BASE_DIR/_lib/uri.sh"
 
 _URI_TMP="$(mktemp -d)"
 _cleanup_hook() {

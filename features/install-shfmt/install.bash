@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # shellcheck source=lib/verify.sh
-. "${_SELF_DIR}/_lib/verify.sh"
+. "${_BASE_DIR}/_lib/verify.sh"
 # shellcheck source=lib/github.sh
-. "${_SELF_DIR}/_lib/github.sh"
+. "${_BASE_DIR}/_lib/github.sh"
 # shellcheck source=lib/net.sh
-. "${_SELF_DIR}/_lib/net.sh"
+. "${_BASE_DIR}/_lib/net.sh"
 # shellcheck source=lib/os.sh
-. "${_SELF_DIR}/_lib/os.sh"
+. "${_BASE_DIR}/_lib/os.sh"
 # shellcheck source=lib/shell.sh
-. "${_SELF_DIR}/_lib/shell.sh"
+. "${_BASE_DIR}/_lib/shell.sh"
 # shellcheck source=lib/users.sh
-. "${_SELF_DIR}/_lib/users.sh"
+. "${_BASE_DIR}/_lib/users.sh"
 
 _shfmt__resolve_version() {
   local _version="${1-}"

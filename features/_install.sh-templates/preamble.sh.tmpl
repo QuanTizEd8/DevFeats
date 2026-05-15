@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$_SELF_DIR"
+# Path to the feature's root directory.
+_BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Path to the feature's ``files/`` sub-directory.
+# Body scripts can reference bundled files without hard-coding a relative path.
+_FILES_DIR="${_BASE_DIR}/files"
 
 _SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::@@FEATURE_NAME@@}"
 export _SYSSET_BUILD_CONTEXT
 
 # shellcheck source=lib/ospkg.sh
-. "$_SELF_DIR/_lib/ospkg.sh"
+. "$_BASE_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
-. "$_SELF_DIR/_lib/logging.sh"
+. "$_BASE_DIR/_lib/logging.sh"
 logging__setup
 logging__entry "@@FEATURE_NAME@@"
 # Override _cleanup_hook in the hand-written section for feature-specific

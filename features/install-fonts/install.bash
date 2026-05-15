@@ -1,9 +1,9 @@
 # shellcheck source=lib/file.sh
-. "$_SELF_DIR/_lib/file.sh"
+. "$_BASE_DIR/_lib/file.sh"
 # shellcheck source=lib/net.sh
-. "$_SELF_DIR/_lib/net.sh"
+. "$_BASE_DIR/_lib/net.sh"
 # shellcheck source=lib/github.sh
-. "$_SELF_DIR/_lib/github.sh"
+. "$_BASE_DIR/_lib/github.sh"
 
 # Constants
 # ---------------------------------------------------------------------------

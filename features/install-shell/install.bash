@@ -1,19 +1,19 @@
 # shellcheck source=lib/shell.sh
-. "$_SELF_DIR/_lib/shell.sh"
+. "$_BASE_DIR/_lib/shell.sh"
 # shellcheck source=lib/str.sh
-. "$_SELF_DIR/_lib/str.sh"
+. "$_BASE_DIR/_lib/str.sh"
 # shellcheck source=lib/users.sh
-. "$_SELF_DIR/_lib/users.sh"
+. "$_BASE_DIR/_lib/users.sh"
 # shellcheck source=lib/git.sh
-. "$_SELF_DIR/_lib/git.sh"
+. "$_BASE_DIR/_lib/git.sh"
 # shellcheck source=lib/net.sh
-. "$_SELF_DIR/_lib/net.sh"
+. "$_BASE_DIR/_lib/net.sh"
 # shellcheck source=lib/github.sh
-. "$_SELF_DIR/_lib/github.sh"
+. "$_BASE_DIR/_lib/github.sh"
 # shellcheck source=lib/file.sh
-. "$_SELF_DIR/_lib/file.sh"
+. "$_BASE_DIR/_lib/file.sh"
 # shellcheck source=lib/verify.sh
-. "${_SELF_DIR}/_lib/verify.sh"
+. "${_BASE_DIR}/_lib/verify.sh"
 
 _GITHUB_BASE_URL="https://github.com"
 _ZSH_COMPLETIONS_REPO_URL="${_GITHUB_BASE_URL}/zsh-users/zsh-completions"

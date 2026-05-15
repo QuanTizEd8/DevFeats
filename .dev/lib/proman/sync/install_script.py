@@ -380,12 +380,7 @@ class InstallScriptGenerator:
     def _section_feature_vars(self, feature_id: str) -> str:
         """Emit feature-wide variables available to both the generated header and body.
 
-        Emits three read-only variables:
-
-        _FILES_DIR
-            Path to the ``files/`` sub-directory bundled alongside this script.
-            Formula: ``${_BASE_DIR}/files``.  Body scripts can reference bundled
-            shell scripts, config templates, etc. without hard-coding a relative path.
+        Emits read-only variables:
 
         _FEAT_SHARE_DIR
             Canonical location under ``/usr/local/share/`` where this feature writes
@@ -403,7 +398,6 @@ class InstallScriptGenerator:
         _owner, _repo = git_owner_repo()
         return "\n".join(
             [
-                '_FILES_DIR="${_BASE_DIR}/files"',
                 f'_FEAT_SHARE_DIR="{feat_share_dir(feature_id, _owner, _repo)}"',
                 f'_EXPORT_PROFILE_D="{export_profile_d(feature_id, _owner, _repo)}"',
             ]

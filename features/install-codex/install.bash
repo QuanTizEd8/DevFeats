@@ -1,5 +1,5 @@
 # shellcheck source=lib/os.sh
-. "${_SELF_DIR}/_lib/os.sh"
+. "${_BASE_DIR}/_lib/os.sh"
 
 if os__is_devcontainer_build; then
   _ON_CREATE_SCRIPT_NAME="lifecycle--on-create--symlink-codex-dir.sh"

@@ -1,7 +1,7 @@
 _SHIM_BIN="${PREFIX}/bin"
 
 # shellcheck source=lib/shell.sh
-. "$_SELF_DIR/_lib/shell.sh"
+. "$_BASE_DIR/_lib/shell.sh"
 
 # ---------------------------------------------------------------------------
 # Install shims

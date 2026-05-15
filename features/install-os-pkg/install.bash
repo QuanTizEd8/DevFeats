@@ -33,7 +33,7 @@ if [ ! -d "$_LIB_DIR" ]; then
   mkdir -p "$_LIB_DIR"
   cp "$0" "$_LIB_DIR/install.sh"
   chmod +x "$_LIB_DIR/install.sh"
-  cp -r "$_SELF_DIR/_lib" "$_LIB_DIR/"
+  cp -r "$_BASE_DIR/_lib" "$_LIB_DIR/"
 fi
 
 if [[ "$INSTALL_SELF" == true ]]; then

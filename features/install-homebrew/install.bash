@@ -303,9 +303,9 @@ prepare_prefix_if_needed() {
 }
 
 # shellcheck source=lib/shell.sh
-. "$_SELF_DIR/_lib/shell.sh"
+. "$_BASE_DIR/_lib/shell.sh"
 # shellcheck source=lib/users.sh
-. "$_SELF_DIR/_lib/users.sh"
+. "$_BASE_DIR/_lib/users.sh"
 
 # ── Resolve install user, then derive prefix from that user ──────────────────
 RESOLVED_INSTALL_USER="$(resolve_install_user)"

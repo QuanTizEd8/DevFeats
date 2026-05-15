@@ -21,23 +21,23 @@
 
 ### Library Sourcing
 
-Source the needed libraries from `$_SELF_DIR/_lib/` (the generated copy of `lib/`).
+Source the needed libraries from `$_BASE_DIR/_lib/` (the generated copy of `lib/`).
 
 ```bash
 # shellcheck source=_lib/github.sh
-. "$_SELF_DIR/_lib/github.sh"
+. "$_BASE_DIR/_lib/github.sh"
 # shellcheck source=_lib/checksum.sh
-. "$_SELF_DIR/_lib/checksum.sh"
+. "$_BASE_DIR/_lib/checksum.sh"
 # shellcheck source=_lib/users.sh
-. "$_SELF_DIR/_lib/users.sh"
+. "$_BASE_DIR/_lib/users.sh"
 # shellcheck source=_lib/shell.sh
-. "$_SELF_DIR/_lib/shell.sh"
+. "$_BASE_DIR/_lib/shell.sh"
 # shellcheck source=_lib/json.sh
-. "$_SELF_DIR/_lib/json.sh"
+. "$_BASE_DIR/_lib/json.sh"
 # shellcheck source=_lib/str.sh
-. "$_SELF_DIR/_lib/str.sh"
+. "$_BASE_DIR/_lib/str.sh"
 # shellcheck source=_lib/git.sh
-. "$_SELF_DIR/_lib/git.sh"
+. "$_BASE_DIR/_lib/git.sh"
 ```
 
 
@@ -47,8 +47,8 @@ Source the needed libraries from `$_SELF_DIR/_lib/` (the generated copy of `lib/
 #!/usr/bin/env bash
 set -euo pipefail
 
-_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"   # Feature root: src/<feature>/ (assembled by scripts/sync-src.sh)
+_BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+_BASE_DIR="$(cd "$_BASE_DIR/.." && pwd)"   # Feature root: src/<feature>/ (assembled by scripts/sync-src.sh)
 ```
 
 ```bash
@@ -188,7 +188,6 @@ logging__success "my-feature setup complete."
 Place static files under `features/<feature-id>/files/`. Reference them in `install.bash` via `_FILES_DIR`:
 
 ```bash
-_FILES_DIR="${_BASE_DIR}/files"
 cp "${_FILES_DIR}/my-config.conf" /etc/my-config.conf
 ```
 

@@ -1,11 +1,11 @@
 # shellcheck source=lib/os.sh
-. "$_SELF_DIR/_lib/os.sh"
+. "$_BASE_DIR/_lib/os.sh"
 # shellcheck source=lib/users.sh
-. "$_SELF_DIR/_lib/users.sh"
+. "$_BASE_DIR/_lib/users.sh"
 # shellcheck source=lib/shell.sh
-. "$_SELF_DIR/_lib/shell.sh"
+. "$_BASE_DIR/_lib/shell.sh"
 # shellcheck source=lib/file.sh
-. "$_SELF_DIR/_lib/file.sh"
+. "$_BASE_DIR/_lib/file.sh"
 
 # ---------------------------------------------------------------------------
 # 1. Devcontainer-context detection

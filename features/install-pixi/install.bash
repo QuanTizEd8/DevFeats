@@ -289,18 +289,18 @@ install_completion() {
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 # shellcheck source=lib/os.sh
-. "${_SELF_DIR}/_lib/os.sh"
+. "${_BASE_DIR}/_lib/os.sh"
 # shellcheck source=lib/shell.sh
-. "${_SELF_DIR}/_lib/shell.sh"
+. "${_BASE_DIR}/_lib/shell.sh"
 # shellcheck source=lib/github.sh
-. "${_SELF_DIR}/_lib/github.sh"
+. "${_BASE_DIR}/_lib/github.sh"
 # shellcheck source=lib/verify.sh
-. "${_SELF_DIR}/_lib/verify.sh"
+. "${_BASE_DIR}/_lib/verify.sh"
 # shellcheck source=lib/uri.sh
 # shellcheck disable=SC1094
-. "${_SELF_DIR}/_lib/uri.sh"
+. "${_BASE_DIR}/_lib/uri.sh"
 # shellcheck source=lib/file.sh
-. "${_SELF_DIR}/_lib/file.sh"
+. "${_BASE_DIR}/_lib/file.sh"
 
 declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
 [ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
