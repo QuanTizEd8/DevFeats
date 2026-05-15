@@ -326,57 +326,41 @@ github__release_tags() {
   done
 }
 
-# @brief github__resolve_version <owner/repo> [<version-spec>] [--prefix <str>] [--all] — Resolve a partial or full version spec to an exact release tag.
+# @brief github__resolve_version <owner/repo> [<version-spec>] — Resolve a version spec to an exact release, printing the full tag and bare version.
 #
-# Tag model: `<prefix><X.Y.Z>` (e.g. `v1.2.3`, `install-pixi/1.2.3`, `fzf-0.71.0`,
-# or bare `1.2.3` when prefix is empty). The caller decides the prefix; this
-# function knows nothing about "features" per se — composes cleanly with any
-# prefix scheme.
+# Version specs:
+#   "stable" / ""  Latest non-prerelease, non-draft release (/releases/latest fast path).
+#   "latest"       Most recently published release, including pre-releases.
+#   "X"            Latest stable release whose version starts with X.
+#   "X.Y"          Latest stable release whose version starts with X.Y.
+#   "X.Y.Z"        Latest stable release whose version starts with X.Y.Z
+#                  (resolves to X.Y.Z itself when no build suffix exists, or
+#                  the newest build e.g. X.Y.Z-1 when the repo uses them).
+#   "X.Y.Z-BUILD"  Prefix-matched: resolves to the newest X.Y.Z-BUILD* release.
 #
-# Version-spec forms (<prefix> is the --prefix value):
-#   ""  / "latest"
-#       prefix="v"   → fetch /releases/latest (GitHub's marked-as-latest; fast
-#                      single API call). Preserves today's behaviour.
-#       prefix!="v"  → fetch the release list (paginated if --all) and take
-#                      the first tag whose name starts with <prefix>. This is
-#                      the only correct behaviour once prefixes partition the
-#                      tag space: /releases/latest is prefix-unaware.
-#   "X.Y.Z"          → exact spec — return "<prefix>X.Y.Z" immediately (no
-#                      API call).
-#   "X" or "X.Y"     → partial spec — fetch release list (paginated if --all)
-#                      and return the newest tag matching
-#                      "^<prefix><spec>.".
+# Leading non-numeric characters are stripped from both the spec and each tag
+# before comparison, so "v1.2", "1.2", and "jq-1.2" are all equivalent specs.
+# Stable filtering uses GitHub's authoritative prerelease/draft fields (requires jq).
 #
-# Input normalisation (prefix="v" only): a leading "v" on <spec> is stripped
-# before analysis so "v1.2.3" and "1.2.3" are equivalent (legacy contract).
-# For non-"v" prefixes the spec is treated verbatim.
+# For partial specs, releases are fetched page by page (newest first) and the
+# first matching stable release is returned; pagination stops as soon as a match
+# is found, so only as many API calls as necessary are made.
 #
 # Args:
-#   <owner/repo>       GitHub repository in "owner/repo" format.
-#   [<version-spec>]   Version spec string (optional; defaults to latest).
-#   --prefix <str>     Literal tag prefix (default: "v"). Treated verbatim:
-#                      "<prefix><X.Y.Z>" is the full tag.
-#   --all              Paginate through every release when listing is needed
-#                      (default: first page only).
+#   <owner/repo>     GitHub repository in "owner/repo" format.
+#   [<version-spec>] Version spec string (default: "stable").
 #
-# Stdout: resolved tag name (e.g. `v1.2.3`, `install-pixi/1.2.3`).
+# Stdout (two lines):
+#   Line 1: full release tag as published on GitHub (e.g. "v1.2.3", "jq-1.7.1").
+#   Line 2: bare version with the tag prefix stripped (e.g. "1.2.3", "1.7.1").
 #
-# Returns: 0 on success, 1 if no match found.
+# Returns: 0 on success, 1 if no matching release is found or an API error occurs.
 github__resolve_version() {
   local _repo="$1"
   shift
-  local _spec="" _tag_prefix="v" _all=false _spec_set=false
+  local _spec="stable" _spec_set=false
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --prefix)
-        shift
-        _tag_prefix="$1"
-        shift
-        ;;
-      --all)
-        _all=true
-        shift
-        ;;
       --*)
         logging__error "github__resolve_version: unknown option: '$1'"
         return 1
@@ -394,66 +378,46 @@ github__resolve_version() {
     esac
   done
 
-  # ── "latest" / empty spec ─────────────────────────────────────────────
+  local _tag=""
+
   case "$_spec" in
-    "" | latest)
-      if [ "$_tag_prefix" = "v" ]; then
-        # Backward-compatible fast path via /releases/latest.
-        github__latest_tag "$_repo"
-        return $?
-      fi
-      # Non-"v" prefix: /releases/latest is prefix-unaware, so list+filter.
-      local _tags _matched=""
-      if [ "$_all" = "true" ]; then
-        _tags="$(github__release_tags "$_repo" --all)" || return 1
-      else
-        _tags="$(github__release_tags "$_repo")" || return 1
-      fi
-      _matched="$(printf '%s\n' "$_tags" | grep -m1 "^$(_github__escape_ere "$_tag_prefix")")" || _matched=""
-      if [ -n "$_matched" ]; then
-        printf '%s\n' "$_matched"
-        return 0
-      fi
-      logging__error "github__resolve_version: no release found with prefix '${_tag_prefix}' for '${_repo}'."
-      return 1
+    stable | "")
+      # /releases/latest always returns the most recent non-prerelease, non-draft release.
+      _tag="$(github__latest_tag "$_repo")" || {
+        logging__error "github__resolve_version: could not resolve stable release for '${_repo}'."
+        return 1
+      }
+      ;;
+    latest)
+      # Most recently published release including pre-releases; per_page=1 avoids
+      # fetching unnecessary data since we only need the first result.
+      local _releases
+      _releases="$(_github__api_list_field \
+        "https://api.github.com/repos/${_repo}/releases?per_page=1" \
+        "tag_name")" || {
+        logging__error "github__resolve_version: could not retrieve releases for '${_repo}'."
+        return 1
+      }
+      _tag="$(printf '%s\n' "$_releases" | head -1)"
+      ;;
+    *)
+      # Numeric spec: strip leading non-numerics, stream releases page by page
+      # until the first matching stable release is found.
+      local _norm
+      _norm="$(_github__strip_tag_prefix "$_spec")"
+      [ -n "$_norm" ] || {
+        logging__error "github__resolve_version: spec '${_spec}' contains no numeric version content."
+        return 1
+      }
+      _tag="$(_github__first_stable_tag_matching "$_repo" "$_norm")" || {
+        logging__error "github__resolve_version: no stable release matching '${_spec}' found for '${_repo}'."
+        return 1
+      }
       ;;
   esac
 
-  # ── Input normalisation ───────────────────────────────────────────────
-  # For prefix="v", preserve today's input-equivalence ("v1.2.3" == "1.2.3").
-  # For non-"v" prefixes, treat the spec verbatim.
-  local _stripped="$_spec"
-  if [ "$_tag_prefix" = "v" ]; then
-    _stripped="${_spec#v}"
-  fi
-
-  # ── Exact (3-part) spec ───────────────────────────────────────────────
-  local _dots
-  _dots="$(printf '%s' "$_stripped" | tr -cd '.' | wc -c | tr -d ' ')"
-  if [ "$_dots" -ge 2 ]; then
-    printf '%s%s\n' "$_tag_prefix" "$_stripped"
-    return 0
-  fi
-
-  # ── Partial spec — fetch release list and filter ──────────────────────
-  local _escaped_prefix _escaped_stripped _tags _matched=""
-  _escaped_prefix="$(_github__escape_ere "$_tag_prefix")"
-  _escaped_stripped="$(printf '%s' "$_stripped" | sed 's/\./\\./g')"
-  if [ "$_all" = "true" ]; then
-    _tags="$(github__release_tags "$_repo" --all)" || return 1
-  else
-    _tags="$(github__release_tags "$_repo")" || return 1
-  fi
-  _matched="$(printf '%s\n' "$_tags" |
-    grep -m1 "^${_escaped_prefix}${_escaped_stripped}\.")" || _matched=""
-
-  if [ -n "$_matched" ]; then
-    printf '%s\n' "$_matched"
-    return 0
-  fi
-
-  logging__error "github__resolve_version: no release found matching '${_spec}' (prefix: '${_tag_prefix}') for '${_repo}'."
-  return 1
+  printf '%s\n%s\n' "$_tag" "$(_github__strip_tag_prefix "$_tag")"
+  return 0
 }
 
 # @brief github__tags <owner/repo> [--per_page N] [--all] — Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release.
@@ -872,4 +836,60 @@ _github__api_get() {
   fi
   [ "$_xt" = "true" ] && { set -x; } 2> /dev/null
   return "$_ec"
+}
+
+# _github__strip_tag_prefix <tag>  (internal)
+#
+# Strip all leading non-numeric characters from a tag or version string.
+# "v1.2.3" → "1.2.3", "jq-1.7.1" → "1.7.1", "1.2.3" → "1.2.3".
+_github__strip_tag_prefix() {
+  printf '%s' "$1" | sed 's/^[^0-9]*//'
+}
+
+# _github__first_stable_tag_matching <repo> <norm_spec>  (internal)
+#
+# Fetches releases page by page (newest first), returning the full tag of the
+# first stable (non-prerelease, non-draft) release whose bare version matches
+# <norm_spec> as a prefix followed by ".", "-", or end-of-string.  Pagination
+# stops as soon as a match is found, so only as many API requests as necessary
+# are made.
+#
+# Args:
+#   <owner/repo>  GitHub repository in "owner/repo" format.
+#   <norm_spec>   Normalised (prefix-stripped) version spec to match against.
+#
+# Stdout: the matched full release tag.
+# Returns: 0 on match, 1 if no match found or on API error.
+_github__first_stable_tag_matching() {
+  local _repo="$1" _norm="$2"
+  _json__ensure_jq || return 1
+  local _per_page=100 _page=1 _json _tags _tag _count
+
+  while :; do
+    local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}&page=${_page}"
+    _json="$(_github__api_get "$_url")" || return 1
+
+    _tags="$(printf '%s\n' "$_json" |
+      json__query -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \
+        2> /dev/null)" || _tags=""
+
+    if [ -n "$_tags" ]; then
+      _tag="$(printf '%s\n' "$_tags" | awk -v s="$_norm" '
+        {
+          bare = $0; sub(/^[^0-9]*/, "", bare)
+          c = substr(bare, length(s) + 1, 1)
+          if (bare == s || (index(bare, s) == 1 && (c == "." || c == "-"))) { print; exit }
+        }')"
+      if [ -n "$_tag" ]; then
+        printf '%s\n' "$_tag"
+        return 0
+      fi
+    fi
+
+    _count="$(printf '%s\n' "$_json" | _github__count_top_level_array)" || _count=0
+    [ -z "$_count" ] && _count=0
+    [ "$_count" -lt "$_per_page" ] && return 1
+
+    _page=$((_page + 1))
+  done
 }

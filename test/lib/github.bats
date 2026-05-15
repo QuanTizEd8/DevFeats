@@ -693,185 +693,295 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
   export -f github__latest_tag
   run github__resolve_version "owner/repo" ""
   assert_success
-  assert_output "v3.0.1"
+  assert_output "v3.0.1
+3.0.1"
 }
 
-@test "github__resolve_version 'latest' delegates to github__latest_tag" {
+@test "github__resolve_version 'stable' spec delegates to github__latest_tag" {
   github__latest_tag() {
-    printf 'v3.0.1\n'
+    printf 'v2.5.0\n'
     return 0
   }
   export -f github__latest_tag
-  run github__resolve_version "owner/repo" "latest"
+  run github__resolve_version "owner/repo" "stable"
   assert_success
-  assert_output "v3.0.1"
+  assert_output "v2.5.0
+2.5.0"
 }
 
-@test "github__resolve_version exact three-part spec returns immediately without API call" {
-  github__latest_tag() { return 1; }
-  github__release_tags() { return 1; }
-  export -f github__latest_tag github__release_tags
-  run github__resolve_version "owner/repo" "1.2.3"
-  assert_success
-  assert_output "v1.2.3"
-}
-
-@test "github__resolve_version exact spec with leading v normalises correctly" {
-  github__latest_tag() { return 1; }
-  github__release_tags() { return 1; }
-  export -f github__latest_tag github__release_tags
-  run github__resolve_version "owner/repo" "v1.2.3"
-  assert_success
-  assert_output "v1.2.3"
-}
-
-@test "github__resolve_version MAJOR partial resolves to newest matching tag" {
-  github__release_tags() {
-    printf 'v3.1.0\nv2.9.1\nv2.9.0\nv1.0.0\n'
+@test "github__resolve_version omitted spec defaults to stable" {
+  github__latest_tag() {
+    printf 'v4.0.0\n'
     return 0
   }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "2"
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo"
   assert_success
-  assert_output "v2.9.1"
+  assert_output "v4.0.0
+4.0.0"
 }
 
-@test "github__resolve_version MAJOR.MINOR partial resolves to newest matching tag" {
-  github__release_tags() {
-    printf 'v2.10.0\nv2.9.1\nv2.9.0\n'
+@test "github__resolve_version non-v tag prefix is stripped in bare version" {
+  github__latest_tag() {
+    printf 'jq-1.7.1\n'
     return 0
   }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "2.9"
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo" "stable"
   assert_success
-  assert_output "v2.9.1"
+  assert_output "jq-1.7.1
+1.7.1"
 }
 
-@test "github__resolve_version partial spec with no match fails with error message" {
-  github__release_tags() {
-    printf 'v3.0.0\nv2.9.0\n'
-    return 0
-  }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "9"
-  assert_failure
-  assert_output --partial "no release found matching '9'"
-}
-
-@test "github__resolve_version fails when latest_tag fails" {
+@test "github__resolve_version stable failure propagates" {
   github__latest_tag() { return 1; }
   export -f github__latest_tag
   run github__resolve_version "owner/repo" ""
   assert_failure
+  assert_output --partial "could not resolve stable release"
 }
 
-# ---------------------------------------------------------------------------
-# github__resolve_version — --prefix option (generalized tag-prefix support)
-# ---------------------------------------------------------------------------
-
-@test "github__resolve_version --prefix 'install-pixi/' exact 3-part spec returns immediately" {
-  github__release_tags() { return 1; }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "1.2.3" --prefix "install-pixi/"
-  assert_success
-  assert_output "install-pixi/1.2.3"
-}
-
-@test "github__resolve_version --prefix 'install-pixi/' MAJOR partial resolves to newest matching tag" {
-  github__release_tags() {
-    printf 'install-pixi/1.3.0\ninstall-pixi/1.2.3\ninstall-shell/0.1.0\nv5.0.0\n'
-    return 0
-  }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "1" --prefix "install-pixi/"
-  assert_success
-  assert_output "install-pixi/1.3.0"
-}
-
-@test "github__resolve_version --prefix 'install-pixi/' MAJOR.MINOR partial resolves correctly" {
-  github__release_tags() {
-    printf 'install-pixi/1.3.0\ninstall-pixi/1.2.3\ninstall-pixi/1.2.2\n'
-    return 0
-  }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "1.2" --prefix "install-pixi/"
-  assert_success
-  assert_output "install-pixi/1.2.3"
-}
-
-@test "github__resolve_version --prefix 'install-pixi/' empty spec uses list+filter (skips /releases/latest)" {
-  # github__latest_tag must NOT be called for non-"v" prefixes — list+filter only.
+@test "github__resolve_version 'latest' uses list API, not github__latest_tag" {
   github__latest_tag() {
-    echo "⛔ unexpected /releases/latest call" >&2
+    echo "⛔ unexpected call to github__latest_tag" >&2
     return 1
   }
-  github__release_tags() {
-    printf 'install-pixi/1.3.0\ninstall-pixi/1.2.3\nv5.0.0\n'
+  _github__api_list_field() {
+    printf 'v5.0.0-beta.1\n'
     return 0
   }
-  export -f github__latest_tag github__release_tags
-  run github__resolve_version "owner/repo" "" --prefix "install-pixi/"
+  export -f github__latest_tag _github__api_list_field
+  run github__resolve_version "owner/repo" "latest"
   assert_success
-  assert_output "install-pixi/1.3.0"
+  assert_output "v5.0.0-beta.1
+5.0.0-beta.1"
 }
 
-@test "github__resolve_version --prefix 'install-pixi/' ignores foreign feature tags" {
-  github__release_tags() {
-    printf 'install-shell/0.1.0\nv5.0.0\ninstall-pixi/1.0.0\n'
-    return 0
-  }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "" --prefix "install-pixi/"
-  assert_success
-  assert_output "install-pixi/1.0.0"
-}
-
-@test "github__resolve_version --prefix 'install-pixi/' returns error when no tag matches" {
-  github__release_tags() {
-    printf 'install-shell/0.1.0\nv5.0.0\n'
-    return 0
-  }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "9" --prefix "install-pixi/"
+@test "github__resolve_version 'latest' failure propagates" {
+  _github__api_list_field() { return 1; }
+  export -f _github__api_list_field
+  run github__resolve_version "owner/repo" "latest"
   assert_failure
-  assert_output --partial "no release found matching '9'"
+  assert_output --partial "could not retrieve releases"
 }
 
-@test "github__resolve_version default prefix still hits /releases/latest on empty spec" {
-  github__latest_tag() {
-    printf 'v3.0.1\n'
+@test "github__resolve_version exact X.Y.Z spec resolves to matching stable tag" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.2.3","prerelease":false,"draft":false}]\n'
     return 0
   }
-  export -f github__latest_tag
-  run github__resolve_version "owner/repo" ""
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "1.2.3"
   assert_success
-  assert_output "v3.0.1"
+  assert_output "v1.2.3
+1.2.3"
 }
 
-@test "github__resolve_version default prefix MAJOR partial resolves unchanged" {
-  github__release_tags() {
-    printf 'v5.0.0\nv2.9.1\n'
+@test "github__resolve_version v-prefixed spec is equivalent to bare spec" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.2.3","prerelease":false,"draft":false}]\n'
     return 0
   }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "5"
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "v1.2.3"
   assert_success
-  assert_output "v5.0.0"
+  assert_output "v1.2.3
+1.2.3"
 }
 
-@test "github__resolve_version --prefix treats non-v prefix verbatim (no 'v' strip)" {
-  # With prefix="fzf-" and spec="1.2.3", output must be "fzf-1.2.3" not "fzf-v1.2.3".
-  github__release_tags() { return 1; }
-  export -f github__release_tags
-  run github__resolve_version "owner/repo" "1.2.3" --prefix "fzf-"
+@test "github__resolve_version MAJOR spec resolves to newest stable matching tag" {
+  _github__api_get() {
+    printf '[{"tag_name":"v3.0.0","prerelease":false,"draft":false},{"tag_name":"v2.9.1","prerelease":false,"draft":false},{"tag_name":"v2.9.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "2"
   assert_success
-  assert_output "fzf-1.2.3"
+  assert_output "v2.9.1
+2.9.1"
+}
+
+@test "github__resolve_version MAJOR.MINOR spec resolves to newest stable matching tag" {
+  _github__api_get() {
+    printf '[{"tag_name":"v2.10.0","prerelease":false,"draft":false},{"tag_name":"v2.9.1","prerelease":false,"draft":false},{"tag_name":"v2.9.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "2.9"
+  assert_success
+  assert_output "v2.9.1
+2.9.1"
+}
+
+@test "github__resolve_version spec '2' does not match tag 'v20.0.0'" {
+  _github__api_get() {
+    printf '[{"tag_name":"v20.0.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "2"
+  assert_failure
+  assert_output --partial "no stable release matching '2'"
+}
+
+@test "github__resolve_version spec '1.2' does not match tag 'v1.20.0'" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.20.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "1.2"
+  assert_failure
+  assert_output --partial "no stable release matching '1.2'"
+}
+
+@test "github__resolve_version pre-releases are skipped when resolving numeric spec" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.2.3-rc.1","prerelease":true,"draft":false},{"tag_name":"v1.2.2","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "1.2"
+  assert_success
+  assert_output "v1.2.2
+1.2.2"
+}
+
+@test "github__resolve_version draft releases are skipped when resolving numeric spec" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.2.3","prerelease":false,"draft":true},{"tag_name":"v1.2.2","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "1.2"
+  assert_success
+  assert_output "v1.2.2
+1.2.2"
+}
+
+@test "github__resolve_version spec 'X.Y.Z' matches build-suffix tag 'X.Y.Z-N'" {
+  _github__api_get() {
+    printf '[{"tag_name":"24.11.0-1","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "24.11.0"
+  assert_success
+  assert_output "24.11.0-1
+24.11.0-1"
+}
+
+@test "github__resolve_version jq-style prefixed spec matches tag with same prefix" {
+  _github__api_get() {
+    printf '[{"tag_name":"jq-1.7.1","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "jq-1.7.1"
+  assert_success
+  assert_output "jq-1.7.1
+1.7.1"
+}
+
+@test "github__resolve_version finds match on page 2 when page 1 has only pre-releases" {
+  _github__api_get() {
+    case "$1" in
+      *\&page=1)
+        local i
+        printf '['
+        for i in $(seq 1 100); do
+          [ "$i" -gt 1 ] && printf ','
+          printf '{"tag_name":"v2.%d.0-rc.1","prerelease":true,"draft":false}' "$i"
+        done
+        printf ']\n'
+        return 0
+        ;;
+      *\&page=2)
+        printf '[{"tag_name":"v2.0.0","prerelease":false,"draft":false}]\n'
+        return 0
+        ;;
+      *)
+        echo "⛔ unexpected page: $1" >&2
+        return 1
+        ;;
+    esac
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "2"
+  assert_success
+  assert_output "v2.0.0
+2.0.0"
+}
+
+@test "github__resolve_version stops pagination immediately after match is found" {
+  # Page 2 is a full page (100 items) — without early exit the function would
+  # request page 3; the catch-all arm fails to prove page 3 is never fetched.
+  _github__api_get() {
+    case "$1" in
+      *\&page=1)
+        local i
+        printf '['
+        for i in $(seq 1 100); do
+          [ "$i" -gt 1 ] && printf ','
+          printf '{"tag_name":"v0.%d.0","prerelease":true,"draft":false}' "$i"
+        done
+        printf ']\n'
+        return 0
+        ;;
+      *\&page=2)
+        local i
+        printf '[{"tag_name":"v1.0.0","prerelease":false,"draft":false}'
+        for i in $(seq 1 99); do
+          printf ',{"tag_name":"v0.%d.1","prerelease":true,"draft":false}' "$i"
+        done
+        printf ']\n'
+        return 0
+        ;;
+      *)
+        echo "⛔ unexpected page beyond page 2: $1" >&2
+        return 1
+        ;;
+    esac
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "1"
+  assert_success
+  assert_output "v1.0.0
+1.0.0"
+}
+
+@test "github__resolve_version fails when no stable release matches spec" {
+  _github__api_get() {
+    printf '[{"tag_name":"v3.0.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "9"
+  assert_failure
+  assert_output --partial "no stable release matching '9'"
+}
+
+@test "github__resolve_version spec with no numeric content fails immediately" {
+  _github__api_get() {
+    echo "⛔ unexpected API call" >&2
+    return 1
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "abc"
+  assert_failure
+  assert_output --partial "no numeric version content"
 }
 
 @test "github__resolve_version rejects unknown option" {
-  run github__resolve_version "owner/repo" "" --bogus
+  run github__resolve_version "owner/repo" "--bogus"
   assert_failure
   assert_output --partial "unknown option"
+}
+
+@test "github__resolve_version rejects extra positional argument" {
+  run github__resolve_version "owner/repo" "1.2.3" "extra"
+  assert_failure
+  assert_output --partial "unexpected positional"
 }
 
 # ---------------------------------------------------------------------------
