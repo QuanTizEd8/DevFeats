@@ -29,11 +29,13 @@ options:
         description: Install from the operating system package manager.
   version:
     type: string
-    default: latest
-    description: Version to install (`latest` or a concrete version like `3.10.0`).
+    default: stable
+    description: Version to install. `stable` for the latest stable release, `latest` for the most recently published (may include pre-releases), or a concrete version like `3.10.0`.
     proposals:
+      - value: stable
+        description: Resolve and install the latest stable (non-pre-release) release.
       - value: latest
-        description: Resolve and install the latest release.
+        description: Resolve and install the most recently published release, potentially including pre-releases.
       - value: 3.10.0
         description: Install shfmt v3.10.0.
   if_exists:

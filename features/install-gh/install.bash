@@ -12,20 +12,16 @@
 # _gh__resolve_version — prints the resolved semver (no "v" prefix) to stdout.
 _gh__resolve_version() {
   logging__fn_entry "_gh__resolve_version"
-  if [ "${VERSION}" = "latest" ]; then
-    local _tag
-    _tag="$(github__latest_tag "cli/cli")" || {
-      logging__error "Failed to fetch latest gh tag from GitHub."
-      exit 1
-    }
-    local _ver="${_tag#v}"
-    logging__info "Resolved 'latest' to version '${_ver}'"
-    echo "${_ver}"
-  else
-    echo "${VERSION#v}"
-  fi
+  local _spec="$VERSION"
+  local _out
+  _out="$(github__resolve_version "cli/cli" "$_spec")" || {
+    logging__error "Failed to resolve gh version from GitHub."
+    exit 1
+  }
+  local _ver="${_out#*$'\n'}"
+  logging__info "Resolved version '${_ver}'"
+  printf '%s\n' "$_ver"
   logging__fn_exit "_gh__resolve_version"
-  return 0
 }
 
 # _gh__check_existing — applies IF_EXISTS policy; exits or returns normally.
@@ -72,7 +68,7 @@ _gh__install_repos() {
   case "${_id}" in
     arch | manjaro)
       # github-cli is available from the official Arch repos; no extra repo setup needed.
-      if [ "${VERSION}" != "latest" ]; then
+      if [[ "${VERSION}" != "latest" && "${VERSION}" != "stable" ]]; then
         logging__warn "Version pinning is not supported for method=upstream-package on Arch. Installing latest available github-cli."
       fi
       ospkg__install_user github-cli
@@ -82,7 +78,7 @@ _gh__install_repos() {
   esac
   case "${_id_like}" in
     *arch*)
-      if [ "${VERSION}" != "latest" ]; then
+      if [[ "${VERSION}" != "latest" && "${VERSION}" != "stable" ]]; then
         logging__warn "Version pinning is not supported for method=upstream-package on Arch. Installing latest available github-cli."
       fi
       ospkg__install_user github-cli
@@ -99,7 +95,7 @@ _gh__install_repos() {
       # Set up GitHub CLI APT signing key and repo via the repos-debian manifest group,
       # which also triggers apt-get update. Then install gh (with optional version pin).
       _run_deps__install_repos_debian
-      if [ "${VERSION}" = "latest" ]; then
+      if [[ "${VERSION}" = "latest" || "${VERSION}" = "stable" ]]; then
         ospkg__install_user gh
       else
         ospkg__install_user "gh=${VERSION}"
@@ -126,7 +122,7 @@ _gh__install_repos() {
 # _gh__repos_rhel — add GitHub CLI rpm repo and install gh.
 _gh__repos_rhel() {
   logging__fn_entry "_gh__repos_rhel"
-  if [ "${VERSION}" != "latest" ]; then
+  if [[ "${VERSION}" != "latest" && "${VERSION}" != "stable" ]]; then
     logging__warn "Version pinning is not supported for method=upstream-package on RHEL-based systems. Installing latest available gh."
   fi
   if command -v zypper > /dev/null 2>&1; then
@@ -167,7 +163,7 @@ _gh__repos_rhel() {
 # _gh__repos_alpine — install github-cli via apk community package.
 _gh__repos_alpine() {
   logging__fn_entry "_gh__repos_alpine"
-  if [ "${VERSION}" != "latest" ]; then
+  if [[ "${VERSION}" != "latest" && "${VERSION}" != "stable" ]]; then
     logging__warn "Version pinning is not supported for method=upstream-package on Alpine. Installing latest available github-cli."
   fi
   ospkg__install_user github-cli
@@ -178,7 +174,7 @@ _gh__repos_alpine() {
 # _gh__repos_macos — install gh via Homebrew.
 _gh__repos_macos() {
   logging__fn_entry "_gh__repos_macos"
-  if [ "${VERSION}" != "latest" ]; then
+  if [[ "${VERSION}" != "latest" && "${VERSION}" != "stable" ]]; then
     logging__warn "Homebrew has no versioned formula for gh. Installing latest gh. Use method=binary for version pinning."
   fi
   ospkg__install_user gh
@@ -477,10 +473,10 @@ EOF
 # if_exists=skip or if_exists=fail. Avoids requiring root, installing base deps,
 # and hitting the GitHub API when no installation work is needed.
 # This must run before os__require_root so macOS non-root installs can skip cleanly.
-if [ "${VERSION}" = "latest" ] && command -v gh > /dev/null 2>&1; then
+if [[ "${VERSION}" = "latest" || "${VERSION}" = "stable" ]] && command -v gh > /dev/null 2>&1; then
   if [ "${IF_EXISTS}" = "skip" ]; then
     _existing="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _existing=""
-    logging__info "gh ${_existing} is already installed — skipping (if_exists=skip, version=latest)."
+    logging__info "gh ${_existing} is already installed — skipping (if_exists=skip, version=${VERSION})."
     exit 0
   elif [ "${IF_EXISTS}" = "fail" ]; then
     _existing="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _existing=""

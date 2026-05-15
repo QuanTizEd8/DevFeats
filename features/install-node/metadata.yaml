@@ -96,15 +96,16 @@ options:
     type: string
     _applies_when:
       - method: [nvm]
-    default: latest
+    default: stable
     description: |-
       Version of nvm to install.
-      An explicit tag (e.g. `0.40.4` or `v0.40.4`) pins nvm to that exact release;
-      the installer downloads `nvm install.sh` from the tagged commit URL.
-      `latest` resolves the newest tag via the GitHub Releases API.
+      `stable` resolves the latest stable nvm release, `latest` resolves the most recently published (may include pre-releases).
+      An explicit tag (e.g. `0.40.4` or `v0.40.4`) pins nvm to that exact release.
     proposals:
+    - value: stable
+      description: Resolve the latest stable nvm release tag via the GitHub Releases API at install time.
     - value: latest
-      description: Resolve the newest nvm release tag via the GitHub Releases API at install time.
+      description: Resolve the most recently published nvm release tag via the GitHub Releases API, which may include pre-releases.
     - value: 0.40.4
       description: nvm v0.40.4.
     - value: 0.40.3

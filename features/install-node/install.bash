@@ -195,13 +195,21 @@ _node_install_via_nvm() {
   local _nvm_tag
 
   # Resolve nvm tag
-  if [ "$NVM_VERSION" = "latest" ]; then
-    logging__info "Resolving latest nvm release tag..."
-    _nvm_tag="$(github__latest_tag nvm-sh/nvm)"
-    logging__info "Latest nvm tag: ${_nvm_tag}"
-  else
-    _nvm_tag="v${NVM_VERSION#v}"
-  fi
+  case "$NVM_VERSION" in
+    stable | latest)
+      logging__info "Resolving nvm release tag for spec '${NVM_VERSION}'..."
+      local _nvm_out
+      _nvm_out="$(github__resolve_version "nvm-sh/nvm" "$NVM_VERSION")" || {
+        logging__error "Failed to resolve nvm release from GitHub."
+        return 1
+      }
+      _nvm_tag="${_nvm_out%%$'\n'*}"
+      logging__info "Resolved nvm tag: ${_nvm_tag}"
+      ;;
+    *)
+      _nvm_tag="v${NVM_VERSION#v}"
+      ;;
+  esac
 
   logging__info "Installing nvm ${_nvm_tag}..."
 

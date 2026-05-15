@@ -221,39 +221,14 @@ set_installer_filename() {
 
 resolve_miniforge_version() {
   logging__fn_entry "resolve_miniforge_version"
-  local tag conda_ver
-  if [[ "$VERSION" == "latest" ]]; then
-    logging__info "Resolving latest Miniforge release tag from GitHub API."
-    tag="$(github__latest_tag conda-forge/miniforge)" || {
-      logging__error "Failed to resolve latest Miniforge version."
-      exit 1
-    }
-  else
-    logging__info "Resolving Miniforge release tag for conda version '${VERSION}' from GitHub API."
-    # --all: many Miniforge releases; older conda versions are not on the first page.
-    # --retries/--retry-delay: full replays for flakes (curl already retries HTTP).
-    local releases
-    releases="$(github__release_tags conda-forge/miniforge --all --retries 3 --retry-delay 4)" || {
-      logging__error "Failed to list Miniforge releases."
-      exit 1
-    }
-    [[ -z "$releases" ]] && {
-      logging__error "Received empty release list from GitHub API."
-      exit 1
-    }
-    # Find tags matching <version>-<build_number>, pick the highest build number.
-    tag="$(printf '%s\n' "$releases" |
-      grep -E "^${VERSION}-[0-9]+$" |
-      sort -t- -k2 -n | tail -1)"
-    [[ -z "$tag" ]] && {
-      logging__error "No Miniforge release found for conda version '${VERSION}'. Check available releases at ${_MINIFORGE_RELEASES_URL}"
-      exit 1
-    }
-  fi
-  MINIFORGE_VERSION="$tag"
-  # Extract conda version: the tag is "<version>-<build_number>"; strip the build suffix.
-  conda_ver="${tag%-*}"
-  RESOLVED_CONDA_VERSION="$conda_ver"
+  local _spec="$VERSION"
+  local _out
+  _out="$(github__resolve_version "conda-forge/miniforge" "$_spec")" || {
+    logging__error "Failed to resolve Miniforge version."
+    exit 1
+  }
+  MINIFORGE_VERSION="${_out%%$'\n'*}"
+  RESOLVED_CONDA_VERSION="${MINIFORGE_VERSION%-*}"
   logging__info "Resolved Miniforge tag: '${MINIFORGE_VERSION}' (conda version: '${RESOLVED_CONDA_VERSION}')."
   logging__fn_exit "resolve_miniforge_version"
 }

@@ -22,15 +22,13 @@ _INSTALL_ORAS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/verify.sh
 [[ -z "${_VERIFY__LIB_LOADED-}" ]] && . "${_INSTALL_ORAS_LIB_DIR}/../verify.sh"
 
-# @brief _install__oras_resolve_version <version|latest> — Resolve requested version to bare semver (no leading `v`).
+# @brief _install__oras_resolve_version <spec> — Resolve a version spec to bare semver (no leading `v`).
+# Accepts "stable" (default), "latest", "", or a semver / partial version string.
 _install__oras_resolve_version() {
-  local _version="${1-}"
-  if [[ -z "$_version" || "$_version" == "latest" ]]; then
-    _version="$(github__latest_tag "oras-project/oras" 2> /dev/null || true)"
-    _version="${_version#v}"
-  fi
-  [[ -n "$_version" ]] || return 1
-  printf '%s\n' "${_version#v}"
+  local _spec="${1-}"
+  local _out
+  _out="$(github__resolve_version "oras-project/oras" "$_spec")" || return 1
+  printf '%s\n' "${_out#*$'\n'}"
 }
 
 # @brief _install__oras_install_release <version> <prefix> <group> <context> <download_url> — Install ORAS from release artifact with mandatory checksum+GPG verification.
@@ -109,7 +107,7 @@ _install__oras_install_repos() {
     return 0
   fi
   local _manifest
-  if [[ -n "$_version" && "$_version" != "latest" ]]; then
+  if [[ -n "$_version" && "$_version" != "latest" && "$_version" != "stable" ]]; then
     read -r -d '' _manifest << EOF || true
 packages:
   - name: oras
@@ -137,9 +135,9 @@ EOF
   return 0
 }
 
-# @brief install__oras --context <internal|user> [--version <ver|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--download-url <url>] [--repos-manifest <path>] [--owner-group <id>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
+# @brief install__oras --context <internal|user> [--version <ver|stable|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--download-url <url>] [--repos-manifest <path>] [--owner-group <id>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
 install__oras() {
-  local _context="internal" _version="latest" _min_version="" _method="auto" _install_prefix="auto"
+  local _context="internal" _version="stable" _min_version="" _method="auto" _install_prefix="auto"
   local _if_exists="skip" _download_url="" _repos_manifest="" _owner_group="lib-oci-oras"
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -225,17 +223,18 @@ install__oras() {
       _install_prefix="${HOME}/.local"
     fi
   fi
-  _version="$(_install__oras_resolve_version "$_version")" || return 1
+  local _version_spec="$_version"
+  _version="$(_install__oras_resolve_version "$_version_spec")" || return 1
   case "$_method" in
     binary)
       _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_download_url"
       ;;
     package)
-      _install__oras_install_repos "$_version" "$_owner_group" "$_context" "$_repos_manifest"
+      _install__oras_install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     auto)
       _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_download_url" ||
-        _install__oras_install_repos "$_version" "$_owner_group" "$_context" "$_repos_manifest"
+        _install__oras_install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)
       logging__error "install__oras: invalid method '${_method}'."

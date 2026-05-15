@@ -7,7 +7,7 @@
 # BEFORE os__require_root. This validates:
 #   - the feature script succeeds (exits 0) on macOS without Docker and
 #     without root privileges
-#   - the early-exit path (VERSION=latest + gh in PATH + if_exists=skip)
+#   - the early-exit path (VERSION=stable + gh in PATH + if_exists=skip)
 #     works correctly end-to-end on macOS
 #   - CLI argument parsing works end-to-end
 set -e
@@ -19,7 +19,7 @@ source dev-container-features-test-lib
 check "gh pre-installed on runner" command -v gh
 check "gh --version succeeds" gh --version
 
-# --- run the feature (if_exists=skip default, version=latest default) ---
+# --- run the feature (if_exists=skip default, version=stable default) ---
 bash "${REPO_ROOT}/src/install-gh/install.sh" \
   --log_level trace
 

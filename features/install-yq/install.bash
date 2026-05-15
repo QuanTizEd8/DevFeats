@@ -10,21 +10,14 @@
 # Mutates the VERSION global. Exits 1 on API error or unrecognised format.
 _yq__resolve_version() {
   logging__fn_entry "_yq__resolve_version"
-  if [ "${VERSION}" = "latest" ]; then
-    local _tag
-    _tag="$(github__latest_tag "mikefarah/yq")" || {
-      logging__error "Failed to fetch latest yq tag from GitHub."
-      exit 1
-    }
-    VERSION="${_tag#v}"
-    logging__info "Resolved 'latest' to version '${VERSION}'"
-  else
-    VERSION="${VERSION#v}"
-    if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-      logging__error "Unrecognised version string '${VERSION}'. Expected X.Y.Z or vX.Y.Z."
-      exit 1
-    fi
-  fi
+  local _spec="$VERSION"
+  local _out
+  _out="$(github__resolve_version "mikefarah/yq" "$_spec")" || {
+    logging__error "Failed to resolve yq version from GitHub."
+    exit 1
+  }
+  VERSION="${_out#*$'\n'}"
+  logging__info "Resolved version '${VERSION}'"
   logging__fn_exit "_yq__resolve_version"
   return 0
 }

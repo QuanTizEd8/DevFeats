@@ -19,15 +19,10 @@
 . "${_BASE_DIR}/_lib/users.sh"
 
 _install__just_resolve_version() {
-  local _version="${1-}"
-  if [[ -z "$_version" || "$_version" == "latest" ]]; then
-    _version="$(github__latest_tag "casey/just" 2> /dev/null || true)"
-    _version="${_version#v}"
-  else
-    _version="${_version#v}"
-  fi
-  [[ "$_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-  printf '%s\n' "$_version"
+  local _spec="$1"
+  local _out
+  _out="$(github__resolve_version "casey/just" "$_spec")" || return 1
+  printf '%s\n' "${_out#*$'\n'}"
 }
 
 _install__just_resolve_target() {
@@ -83,7 +78,7 @@ _install__just_install_repos() {
   local _bin
   if [[ -n "$_manifest" ]]; then
     ospkg__run --manifest "$_manifest" --skip_installed || return 1
-  elif [[ -n "$_version" && "$_version" != "latest" ]]; then
+  elif [[ -n "$_version" && "$_version" != "latest" && "$_version" != "stable" ]]; then
     ospkg__detect || return 1
     if [[ "${_OSPKG_PKG_MNGR:-}" == "apt-get" ]]; then
       ospkg__run --manifest "$(printf 'packages:\n  - name: just\n    version: "%s"\n' "$_version")" || return 1
@@ -171,7 +166,7 @@ _install__just_install_cargo() {
 }
 
 install__just() {
-  local _context="internal" _method="auto" _version="latest" _install_prefix="" _if_exists="skip"
+  local _context="internal" _method="auto" _version="stable" _install_prefix="" _if_exists="skip"
   local _target="auto" _repos_manifest="" _script_force="false" _cargo_binstall="false"
   local _owner_group="install-just"
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # if_exists=update with pre-existing conda 24.7.1 and a named environment
-# "myenv": the feature resolves latest, sees a version mismatch, and runs
+# "myenv": the feature resolves stable, sees a version mismatch, and runs
 # conda install --name base to update conda in-place without touching named envs.
 # Asserts that conda is updated beyond 24.7.1 and myenv still exists.
 set -e

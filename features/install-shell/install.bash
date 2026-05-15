@@ -12,6 +12,8 @@
 . "$_BASE_DIR/_lib/github.sh"
 # shellcheck source=lib/file.sh
 . "$_BASE_DIR/_lib/file.sh"
+# shellcheck source=lib/install/common.sh
+. "$_BASE_DIR/_lib/install/common.sh"
 # shellcheck source=lib/verify.sh
 . "${_BASE_DIR}/_lib/verify.sh"
 
@@ -204,12 +206,10 @@ install_fzf() {
     verify__sha_sidecar "$_archive" "$_sidecar"
   fi
 
-  mkdir -p "$_bin_dir"
   local _extract_tmp="${_tmpdir}/_extract"
   mkdir -p "$_extract_tmp"
   file__extract_archive "$_archive" "$_extract_tmp"
-  mv "${_extract_tmp}/fzf" "${_bin_dir}/fzf"
-  chmod 755 "${_bin_dir}/fzf"
+  install__copy_bin "${_extract_tmp}/fzf" "${_bin_dir}/fzf"
 
   logging__success "fzf installed to '${_bin_dir}/fzf'."
   return 0

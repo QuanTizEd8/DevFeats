@@ -26,15 +26,16 @@ options:
     type: string
     _applies_when:
       - method: [auto, binary]
-    default: latest
+    default: stable
     description: |-
-      Version of yq to install. Accepts `latest` (resolved via the GitHub Releases API) or any
-      `X.Y.Z` or `vX.Y.Z` version string.
+      Version of yq to install. `stable` resolves the latest stable release, `latest` resolves the most recently published (may include pre-releases), or any `X.Y.Z` version string.
       If the installed yq version at the target prefix already matches the resolved version,
       the install is skipped silently regardless of the `if_exists` setting.
     proposals:
+      - value: stable
+        description: Resolve the latest stable (non-pre-release) release via the GitHub Releases API.
       - value: latest
-        description: Resolve the latest release via the GitHub Releases API.
+        description: Resolve the most recently published release via the GitHub Releases API, which may include pre-releases.
       - value: 4.44.3
         description: yq v4.44.3.
       - value: 4.44.2

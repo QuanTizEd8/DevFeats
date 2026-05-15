@@ -199,9 +199,9 @@ _install__jq_install_source() {
   return 0
 }
 
-# @brief install__jq --context <internal|user> [--method <auto|binary|package|source>] [--version <semver|latest>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] — Ensure jq is installed with context-aware ownership semantics.
+# @brief install__jq --context <internal|user> [--method <auto|binary|package|source>] [--version <semver|stable|latest>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] — Ensure jq is installed with context-aware ownership semantics.
 install__jq() {
-  local _context="internal" _version="latest" _method="auto" _install_prefix="auto"
+  local _context="internal" _version="stable" _method="auto" _install_prefix="auto"
   local _if_exists="skip" _repos_manifest="" _owner_group="feature::install-jq"
   while [[ $# -gt 0 ]]; do
     case "$1" in

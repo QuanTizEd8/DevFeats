@@ -58,22 +58,14 @@ check_root_requirement() {
 
 resolve_pixi_version() {
   logging__fn_entry "resolve_pixi_version"
-  if [ "${VERSION}" = "latest" ]; then
-    local _tag
-    _tag="$(github__latest_tag "prefix-dev/pixi")" || {
-      logging__error "Failed to fetch latest pixi tag from GitHub."
-      exit 1
-    }
-    VERSION="${_tag#v}"
-    logging__info "Resolved 'latest' to version '${VERSION}'"
-  else
-    VERSION="${VERSION#v}"
-    # Validate: must be strict semver — X.Y or X.Y.Z with only digits and dots.
-    if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-      logging__error "Unrecognised version string '${VERSION}'. Expected X.Y or X.Y.Z (with or without leading v)."
-      exit 1
-    fi
-  fi
+  local _spec="$VERSION"
+  local _out
+  _out="$(github__resolve_version "prefix-dev/pixi" "$_spec")" || {
+    logging__error "Failed to resolve pixi version from GitHub."
+    exit 1
+  }
+  VERSION="${_out#*$'\n'}"
+  logging__info "Resolved version '${VERSION}'"
   logging__fn_exit "resolve_pixi_version"
   return 0
 }

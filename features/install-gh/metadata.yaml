@@ -36,14 +36,19 @@ options:
         Linux distributions including Alpine/musl without a compatibility shim.
   version:
     type: string
-    default: latest
-    description: Version of `gh` to install. Either "latest" or a specific version string.
+    default: stable
+    description: Version of `gh` to install. `stable` or `latest` resolve via the GitHub Releases API; a specific version like `2.89.0` pins exactly.
     proposals:
+    - value: stable
+      description: |-
+        Resolve and install the latest stable (non-pre-release) release.
+        - When `method=upstream-package`, installs the current available version from the configured repository.
+        - When `method=binary`, queries the GitHub Releases API for the newest non-pre-release.
     - value: latest
       description: |-
-        Install the latest available version.
+        Resolve and install the most recently published release, potentially including pre-releases.
         - When `method=upstream-package`, installs the latest version from the configured repository.
-        - When `method=binary`, queries the GitHub Releases API for the newest release.
+        - When `method=binary`, queries the GitHub Releases API for the most recent release.
     - value: 2.89.0
       description: |-
         Install a specific version.

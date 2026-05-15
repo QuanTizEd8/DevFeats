@@ -138,10 +138,10 @@ prefix_discovery_symlink_nonroot:
     remoteUser: vscode
   tests: [prefix_discovery_symlink_nonroot.sh]
 
-latest_version:
+stable_version:
   envs: [ubuntu-latest]
   modes: [devcontainer]
-  tests: [latest_version.sh]
+  tests: [stable_version.sh]
 
 version_match_idempotency:
   envs: [ubuntu-latest+miniforge-base]

@@ -17,15 +17,17 @@ _long_description: >-
   specific users.
 options:
   version:
-    default: latest
+    default: stable
     description: |-
-      Conda version to install (e.g. `26.3.1`).
-      Accepts a conda version string, not a Miniforge release tag.
-      `latest` resolves to the current latest release via the GitHub API.
-      For a specific version, the script finds the highest Miniforge build number for that conda version
-      (e.g. `24.7.1` resolves to tag `24.7.1-2`).
+      Conda version to install. `stable` resolves the latest stable Miniforge release, `latest` resolves the most recently published release (may include pre-releases), or a conda version string like `26.3.1` to find the corresponding Miniforge tag.
+      For a specific version, the script finds the matching Miniforge tag (e.g. `26.3.1` resolves to a tag like `26.3.1-0`).
       If the already-installed conda version matches the resolved version, the install is
       skipped silently regardless of the `if_exists` setting.
+    proposals:
+    - value: stable
+      description: Resolve the latest stable (non-pre-release) Miniforge release via the GitHub Releases API.
+    - value: latest
+      description: Resolve the most recently published Miniforge release via the GitHub Releases API, which may include pre-releases.
     type: string
   if_exists:
     default: skip

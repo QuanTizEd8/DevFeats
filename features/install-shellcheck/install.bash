@@ -17,13 +17,10 @@
 . "${_BASE_DIR}/_lib/users.sh"
 
 _shellcheck__resolve_version() {
-  local _version="${1-}"
-  if [[ -z "$_version" || "$_version" == "latest" ]]; then
-    _version="$(github__latest_tag "koalaman/shellcheck" 2> /dev/null || true)"
-  fi
-  _version="${_version#v}"
-  [[ "$_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-  printf '%s\n' "$_version"
+  local _spec="$1"
+  local _out
+  _out="$(github__resolve_version "koalaman/shellcheck" "$_spec")" || return 1
+  printf '%s\n' "${_out#*$'\n'}"
 }
 
 _shellcheck__install_release() {

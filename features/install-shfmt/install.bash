@@ -15,16 +15,10 @@
 . "${_BASE_DIR}/_lib/users.sh"
 
 _shfmt__resolve_version() {
-  local _version="${1-}"
-  if [[ -z "$_version" || "$_version" == "latest" ]]; then
-    _version="$(github__latest_tag "mvdan/sh" 2> /dev/null || true)"
-  fi
-  _version="${_version#v}"
-  [[ "$_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
-    logging__error "install-shfmt: resolved version '${_version}' does not match semver format."
-    return 1
-  }
-  printf '%s\n' "$_version"
+  local _spec="$1"
+  local _out
+  _out="$(github__resolve_version "mvdan/sh" "$_spec")" || return 1
+  printf '%s\n' "${_out#*$'\n'}"
 }
 
 _shfmt__install_release() {
