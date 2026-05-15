@@ -21,15 +21,15 @@ echo "=== /etc/zsh/zshrc ==="
 cat /etc/zsh/zshrc 2> /dev/null || echo "(missing)"
 
 # --- our idempotency block markers are present in /etc/bash.bashrc ---
-check "miniforge begin marker in /etc/bash.bashrc" grep -Fq "# >>> conda init (install-miniforge) >>>" /etc/bash.bashrc
+check "miniforge begin marker in /etc/bash.bashrc" grep -Fq "# >>> prefix activation (install-miniforge) >>>" /etc/bash.bashrc
 check "conda initialize begin marker in /etc/bash.bashrc" grep -Fq "# >>> conda initialize >>>" /etc/bash.bashrc
 
 # --- our idempotency block markers are present in /etc/zsh/zshrc ---
-check "miniforge begin marker in /etc/zsh/zshrc" grep -Fq "# >>> conda init (install-miniforge) >>>" /etc/zsh/zshrc
+check "miniforge begin marker in /etc/zsh/zshrc" grep -Fq "# >>> prefix activation (install-miniforge) >>>" /etc/zsh/zshrc
 check "conda initialize begin marker in /etc/zsh/zshrc" grep -Fq "# >>> conda initialize >>>" /etc/zsh/zshrc
 
 # --- neither file has duplicated markers ---
-check "no dup miniforge marker in /etc/bash.bashrc" bash -c '[ "$(grep -Fc "# >>> conda init (install-miniforge) >>>" /etc/bash.bashrc)" -eq 1 ]'
-check "no dup miniforge marker in /etc/zsh/zshrc" bash -c '[ "$(grep -Fc "# >>> conda init (install-miniforge) >>>" /etc/zsh/zshrc)" -eq 1 ]'
+check "no dup miniforge marker in /etc/bash.bashrc" bash -c '[ "$(grep -Fc "# >>> prefix activation (install-miniforge) >>>" /etc/bash.bashrc)" -eq 1 ]'
+check "no dup miniforge marker in /etc/zsh/zshrc" bash -c '[ "$(grep -Fc "# >>> prefix activation (install-miniforge) >>>" /etc/zsh/zshrc)" -eq 1 ]'
 
 reportResults

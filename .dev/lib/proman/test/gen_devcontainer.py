@@ -9,7 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from proman.const import export_profile_d, feat_share_dir
+from proman.const import activation_profile_d, export_profile_d, feat_share_dir
 from proman.git import git_owner_repo
 
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
@@ -27,8 +27,10 @@ def _copy_test_script(
     insert_at = 1 if lines and lines[0].startswith("#!") else 0
     vars_block = (
         f"export _FEAT_SHARE_DIR={shlex.quote(feat_share_dir(feature, owner, repo))}\n"
-        f"export _EXPORT_PROFILE_D="
+        "export _EXPORT_PROFILE_D="
         f"{shlex.quote(export_profile_d(feature, owner, repo))}\n"
+        "export _ACTIVATION_PROFILE_D="
+        f"{shlex.quote(activation_profile_d(feature, owner, repo))}\n"
     )
     lines.insert(insert_at, vars_block)
     dst.write_text("".join(lines), encoding="utf-8")

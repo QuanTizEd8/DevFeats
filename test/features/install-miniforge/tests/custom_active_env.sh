@@ -16,7 +16,7 @@ echo "=== /etc/bash.bashrc ==="
 cat /etc/bash.bashrc 2> /dev/null || echo "(missing)"
 
 # --- our idempotency block is present ---
-check "miniforge begin marker in /etc/bash.bashrc" grep -Fq "# >>> conda init (install-miniforge) >>>" /etc/bash.bashrc
+check "miniforge begin marker in /etc/bash.bashrc" grep -Fq "# >>> prefix activation (install-miniforge) >>>" /etc/bash.bashrc
 check "conda initialize begin marker in /etc/bash.bashrc" grep -Fq "# >>> conda initialize >>>" /etc/bash.bashrc
 
 # --- custom activate line is inside our block ---

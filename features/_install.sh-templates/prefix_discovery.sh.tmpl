@@ -16,7 +16,10 @@ case "${@@DISCOVERY_VAR@@:-auto}" in
         local _df_tgts=() _df_has_real=false _df_t
         if [ "${#@@SYMLINKS_VAR@@[@]}" -eq 0 ]; then
           if [ "$(id -u)" = "0" ]; then
-            _df_tgts=("@@SYMLINK_ROOT@@")
+            case "${@@PREFIX_VAR@@}" in
+              "${HOME}/"*) _df_tgts=("@@SYMLINK_NONROOT@@") ;;
+              *) _df_tgts=("@@SYMLINK_ROOT@@") ;;
+            esac
           else
             _df_tgts=("@@SYMLINK_NONROOT@@")
           fi

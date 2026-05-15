@@ -128,6 +128,7 @@ source_custom_prefix:
     method: source
     version: stable
     prefix: /opt/git
+    prefix_discovery: all
   tests:
   - source_custom_prefix.sh
 source_export_path_disabled:

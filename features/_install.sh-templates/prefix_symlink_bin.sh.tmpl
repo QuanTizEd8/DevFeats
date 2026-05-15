@@ -4,7 +4,10 @@
 @@APPLIES_WHEN_GUARD@@  local _df_targets=()
   if [ "${#@@SYMLINKS_VAR@@[@]}" -eq 0 ]; then
     if [ "$(id -u)" = "0" ]; then
-      _df_targets=("@@SYMLINK_ROOT@@")
+      case "${@@PREFIX_VAR@@}" in
+        "${HOME}/"*) _df_targets=("@@SYMLINK_NONROOT@@") ;;
+        *) _df_targets=("@@SYMLINK_ROOT@@") ;;
+      esac
     else
       _df_targets=("@@SYMLINK_NONROOT@@")
     fi
