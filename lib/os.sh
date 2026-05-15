@@ -122,12 +122,11 @@ os__release_kernel() {
   esac
 }
 
-# @brief os__release_arch <raw-arch> [<flavor>] — Map a raw architecture string to a release asset token.
+# @brief os__release_arch [<raw-arch>] [--flavor <token>] — Map a raw architecture string to a release asset token.
 #
-# Accepts raw `uname -m` output or already-normalised values. Always pass the
-# arch explicitly (use `os__arch` for the current system arch) so that callers
-# with a user-supplied override (e.g. the $ARCH option in install-node) work
-# correctly without cache side-effects.
+# Accepts raw `uname -m` output or already-normalised values. Defaults to
+# `os__arch` when omitted. Pass an explicit value when a user-supplied arch
+# override is in play (e.g. the $ARCH option in install-node).
 #
 # Flavor `github` (default): amd64, arm64, armv7, i386, ppc64le, s390x, riscv64, loong64.
 # Flavor `node`:             x64,  arm64, armv7l, ppc64le, s390x.
@@ -135,7 +134,18 @@ os__release_kernel() {
 #
 # Returns: 0 on success, 1 if the arch/flavor combination is unsupported.
 os__release_arch() {
-  local _raw="${1:-}" _flavor="${2:-github}"
+  local _raw="" _flavor="github"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --flavor)
+        shift
+        _flavor="${1-}"
+        ;;
+      *) _raw="$1" ;;
+    esac
+    shift
+  done
+  [[ -n "$_raw" ]] || _raw="$(os__arch)"
   case "$_raw" in
     x86_64 | amd64 | x64)
       case "$_flavor" in
@@ -215,10 +225,6 @@ os__release_arch() {
           return 1
           ;;
       esac
-      ;;
-    '')
-      logging__error "os__release_arch: empty architecture string."
-      return 1
       ;;
     *)
       logging__error "os__release_arch: unsupported architecture '${_raw}'."

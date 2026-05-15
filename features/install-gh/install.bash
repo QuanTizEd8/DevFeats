@@ -194,7 +194,7 @@ _gh__install_binary() {
     logging__error "Unsupported kernel '$(os__kernel)' for method=binary."
     exit 1
   }
-  _asset_arch="$(os__release_arch "$(os__arch)" gh)" || {
+  _asset_arch="$(os__release_arch --flavor gh)" || {
     logging__error "Unsupported architecture '$(os__arch)' for method=binary."
     exit 1
   }

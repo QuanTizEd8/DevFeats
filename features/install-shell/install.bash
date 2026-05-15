@@ -177,7 +177,7 @@ install_fzf() {
     logging__error "Unsupported kernel for fzf install: '$(os__kernel)'"
     return 1
   }
-  _fzf_arch="$(os__release_arch "$(os__arch)")" || {
+  _fzf_arch="$(os__release_arch)" || {
     logging__error "Unsupported arch for fzf install: '$(os__arch)'"
     return 1
   }

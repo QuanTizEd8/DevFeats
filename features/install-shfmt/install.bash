@@ -28,7 +28,7 @@ _shfmt__install_release() {
     logging__error "install-shfmt: unsupported kernel '$(os__kernel)'."
     return 1
   }
-  _arch="$(os__release_arch "$(os__arch)")" || {
+  _arch="$(os__release_arch)" || {
     logging__error "install-shfmt: unsupported architecture '$(os__arch)'."
     return 1
   }

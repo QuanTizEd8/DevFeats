@@ -30,7 +30,7 @@ _node_build_platform_string() {
     logging__error "Unsupported kernel for Node.js binary install: '$(os__kernel)'."
     return 1
   }
-  _arch_token="$(os__release_arch "$_arch" node)" || {
+  _arch_token="$(os__release_arch "$_arch" --flavor node)" || {
     logging__error "Unsupported architecture for Node.js binary install: '${_arch}'."
     logging__info "Use method=nvm for source-based installation on unsupported architectures."
     return 1
