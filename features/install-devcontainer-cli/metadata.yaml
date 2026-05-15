@@ -63,6 +63,10 @@ options:
     type: boolean
     default: false
     description: Uninstall instead of install (supported for `method=script` and npm).
+onCreateCommand:
+  verification:
+    description: Verify `devcontainer` is installed and working by running `devcontainer --help`.
+    command: devcontainer --help
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 #   - ghcr.io/quantized8/devfeats/install-jq

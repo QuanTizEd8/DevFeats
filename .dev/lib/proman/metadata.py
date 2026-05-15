@@ -15,7 +15,13 @@ from typing import TYPE_CHECKING, Literal
 
 import yaml
 
-from proman.const import export_profile_d, feat_share_dir
+from proman.const import (
+    LIFECYCLE_COMMAND_KEYS,
+    export_profile_d,
+    feat_share_dir,
+    lifecycle_command_entry_prefix,
+    project_slug,
+)
 from proman.git import git_owner_repo
 
 if TYPE_CHECKING:
@@ -38,8 +44,11 @@ def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
     2. Substitute feature-scoped variables (e.g. ``@@_FEAT_SHARE_DIR@@``,
        ``@@PROJECT_NAMESPACE@@``) in all string dict keys and values.
        See :func:`_feature_vars` for the full variable table.
-    3. Merge shared options from ``features/shared-options.yaml``.
-    4. Set ``metadata["id"]`` and ``metadata["_oci_ref"]``.
+    3. Normalize lifecycle command map keys with
+       :func:`normalize_lifecycle_command_keys`
+       (``<owner>-<repo>--<feature_id>--…``).
+    4. Merge shared options from ``features/shared-options.yaml``.
+    5. Set ``metadata["id"]`` and ``metadata["_oci_ref"]``.
     """
     derived_options = load_derived_options(features_dirpath)
     metadata = read_metadata(feature_id, features_dirpath)
@@ -47,6 +56,7 @@ def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
         return None
     owner, repo_name = git_owner_repo()
     metadata = _substitute_vars(metadata, _feature_vars(feature_id, owner, repo_name))
+    normalize_lifecycle_command_keys(metadata, feature_id, owner, repo_name)
     if not augment_metadata(feature_id, metadata, derived_options):
         return None
     metadata["id"] = feature_id
@@ -551,8 +561,54 @@ def _feature_vars(feature_id: str, owner: str, repo: str) -> dict[str, str]:
         "PROJECT_OWNER": owner,
         "PROJECT_NAME": repo,
         "PROJECT_NAMESPACE": f"{owner}/{repo}",
-        "PROJECT_SLUG": f"{owner}-{repo}",
+        "PROJECT_SLUG": project_slug(owner, repo),
     }
+
+
+def _canonical_lifecycle_entry_id(entry_id: str, prefix: str, marker: str) -> str:
+    """Return the fully-qualified lifecycle command key for *entry_id*."""
+    if entry_id.startswith(prefix):
+        return entry_id
+    if marker in entry_id:
+        _before, _sep, suffix = entry_id.partition(marker)
+        if _sep:
+            return f"{prefix}{suffix}"
+    return f"{prefix}{entry_id}"
+
+
+def normalize_lifecycle_command_keys(
+    metadata: dict,
+    feature_id: str,
+    owner: str,
+    repo: str,
+) -> None:
+    """Rewrite lifecycle hook map keys to ``<owner>-<repo>--<feature_id>--<task>``.
+
+    *metadata* is updated in place. For each key in :data:`LIFECYCLE_COMMAND_KEYS`,
+    if the value is a mapping, every string key ``k`` becomes:
+
+    * ``prefix + suffix`` when ``k`` already contains the legacy segment
+      ``--<feature_id>--`` (any project slug before it is dropped), or
+    * ``prefix + k`` when there is no such segment (short task id in YAML).
+
+    where ``prefix`` is :func:`proman.const.lifecycle_command_entry_prefix`.
+
+    Keys that already start with *prefix* are left unchanged (idempotent).
+    """
+    prefix = lifecycle_command_entry_prefix(feature_id, owner, repo)
+    marker = f"--{feature_id}--"
+    for lc_key in LIFECYCLE_COMMAND_KEYS:
+        block = metadata.get(lc_key)
+        if not isinstance(block, dict) or not block:
+            continue
+        new_block: dict[object, object] = {}
+        for entry_id, entry in block.items():
+            if not isinstance(entry_id, str):
+                new_block[entry_id] = entry
+                continue
+            canon = _canonical_lifecycle_entry_id(entry_id, prefix, marker)
+            new_block[canon] = entry
+        metadata[lc_key] = new_block
 
 
 def _substitute_var_tokens(s: str, vars_: dict[str, str]) -> str:

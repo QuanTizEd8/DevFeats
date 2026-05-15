@@ -14,7 +14,7 @@ options:
     description: |-
       Placeholder
 onCreateCommand:
-  devfeats--install-codex--symlink-codex-dir:
+  symlink-codex-dir:
     description: Symlink the specified workspace `codex` directory to `~/.codex`.
     command: >-
       @@_FEAT_SHARE_DIR@@/lifecycle--on-create--symlink-codex-dir.sh ${containerWorkspaceFolder}

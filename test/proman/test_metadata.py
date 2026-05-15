@@ -14,6 +14,7 @@ from proman.metadata import (
     load_all,
     load_and_augment,
     load_derived_options,
+    normalize_lifecycle_command_keys,
     read_metadata,
 )
 
@@ -242,6 +243,50 @@ def test_substitute_vars_nested_dict_and_list() -> None:
     assert result["num"] == 42  # non-string scalar unchanged
 
 
+def test_normalize_lifecycle_short_keys() -> None:
+    """Short YAML keys are prefixed with owner-repo--feature--."""
+    md: dict = {
+        "onCreateCommand": {"run": {"command": "true", "description": "noop"}},
+    }
+    normalize_lifecycle_command_keys(md, "install-bar", "myowner", "myrepo")
+    assert list(md["onCreateCommand"].keys()) == ["myowner-myrepo--install-bar--run"]
+
+
+def test_normalize_lifecycle_strips_legacy_repo_slug() -> None:
+    """Keys that already embed --<feature-id>-- use PROJECT_SLUG instead."""
+    md: dict = {
+        "onCreateCommand": {
+            "devfeats--install-bar--task": {"command": "true", "description": "noop"},
+        },
+    }
+    normalize_lifecycle_command_keys(md, "install-bar", "quantized8", "devfeats")
+    assert list(md["onCreateCommand"].keys()) == [
+        "quantized8-devfeats--install-bar--task",
+    ]
+
+
+def test_normalize_lifecycle_idempotent() -> None:
+    """Keys that already use the canonical prefix are unchanged."""
+    key = "quantized8-devfeats--install-bar--task"
+    md: dict = {"onCreateCommand": {key: {"command": "true", "description": "noop"}}}
+    normalize_lifecycle_command_keys(md, "install-bar", "quantized8", "devfeats")
+    assert list(md["onCreateCommand"].keys()) == [key]
+
+
+def test_normalize_lifecycle_non_string_key_unchanged() -> None:
+    """Non-string mapping keys are passed through (YAML edge case)."""
+    md: dict = {"onCreateCommand": {123: {"command": "true", "description": "noop"}}}  # type: ignore[dict-item]
+    normalize_lifecycle_command_keys(md, "install-bar", "o", "r")
+    assert md["onCreateCommand"][123]["command"] == "true"  # type: ignore[index]
+
+
+def test_normalize_lifecycle_wrong_block_type() -> None:
+    """Non-dict lifecycle values are left as-is."""
+    md: dict = {"onCreateCommand": "not-a-mapping"}
+    normalize_lifecycle_command_keys(md, "install-bar", "o", "r")
+    assert md["onCreateCommand"] == "not-a-mapping"
+
+
 def test_load_and_augment_substitutes_feature_vars(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -274,7 +319,9 @@ def test_load_and_augment_substitutes_feature_vars(
         f"{expected_share}/entrypoint.sh ${{containerWorkspaceFolder}}"
     )
     assert result["containerEnv"]["PATH"] == f"{expected_share}/bin:$PATH"
-    assert result["onCreateCommand"]["run"]["command"] == (
+    expected_lc_key = "myowner-myrepo--install-bar--run"
+    assert list(result["onCreateCommand"].keys()) == [expected_lc_key]
+    assert result["onCreateCommand"][expected_lc_key]["command"] == (
         f"sh {expected_share}/on-create.sh || true"
     )
     assert result["description"] == "Test myowner-myrepo."

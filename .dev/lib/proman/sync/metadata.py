@@ -17,6 +17,7 @@ from proman.metadata import (  # noqa: F401
     load_all,
     load_and_augment,
     load_derived_options,
+    normalize_lifecycle_command_keys,
     read_metadata,
 )
 from proman.schema_bundle import build_metadata_validator as _build_metadata_validator

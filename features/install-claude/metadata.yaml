@@ -14,7 +14,7 @@ options:
     description: |-
       Placeholder
 onCreateCommand:
-  devfeats--install-claude--symlink-claude-dir:
+  symlink-claude-dir:
     description: Symlink the specified workspace `claude` directory to `~/.claude`.
     command: >-
       @@_FEAT_SHARE_DIR@@/lifecycle--on-create--symlink-claude-dir.sh ${containerWorkspaceFolder}

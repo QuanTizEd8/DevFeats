@@ -14,7 +14,7 @@ options:
     description: |-
       Placeholder
 onCreateCommand:
-  devfeats--install-cursor--symlink-cursor-user-dir:
+  symlink-cursor-user-dir:
     description: Symlink the specified workspace `cursor` directory to `~/.cursor-server/data/User`.
     command: >-
       @@_FEAT_SHARE_DIR@@/lifecycle--on-create--symlink-cursor-user-dir.sh ${containerWorkspaceFolder}

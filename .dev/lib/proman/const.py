@@ -1,6 +1,16 @@
 """Shared constants for the proman project management library."""
 
 
+def project_slug(owner: str, repo: str) -> str:
+    """Return ``<owner>-<repo>`` (same value as ``@@PROJECT_SLUG@@`` in metadata)."""
+    return f"{owner}-{repo}"
+
+
+def lifecycle_command_entry_prefix(feature_id: str, owner: str, repo: str) -> str:
+    """Return ``<owner>-<repo>--<feature_id>--`` for namespacing lifecycle hook IDs."""
+    return f"{project_slug(owner, repo)}--{feature_id}--"
+
+
 def feat_share_dir(feature_id: str, owner: str, repo: str) -> str:
     """Return the canonical ``/usr/local/share/`` path for a feature's artefacts.
 
@@ -22,7 +32,7 @@ def export_profile_d(feature_id: str, owner: str, repo: str) -> str:
     bash header (``_EXPORT_PROFILE_D`` variable) and when substituting
     ``@@_EXPORT_PROFILE_D@@`` tokens in ``metadata.yaml`` values.
     """
-    return f"{owner}-{repo}-{feature_id}-export-path.sh"
+    return f"{project_slug(owner, repo)}-{feature_id}-export-path.sh"
 
 
 def activation_profile_d(feature_id: str, owner: str, repo: str) -> str:
@@ -33,10 +43,10 @@ def activation_profile_d(feature_id: str, owner: str, repo: str) -> str:
     Covers the unnamed (stem="prefix") prefix group.  Used when generating the
     ``_ACTIVATION_PROFILE_D`` test-runner variable.
     """
-    return f"{owner}-{repo}-{feature_id}-prefix-activation.sh"
+    return f"{project_slug(owner, repo)}-{feature_id}-prefix-activation.sh"
 
 
-LIFECYCLE_COMMAND_KEYS = (
+LIFECYCLE_COMMAND_KEYS: tuple[str, ...] = (
     "onCreateCommand",
     "updateContentCommand",
     "postCreateCommand",

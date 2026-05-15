@@ -618,7 +618,7 @@
     },
     "LifecycleCommand": {
       "type": "object",
-      "description": "A set of commands to run at a specific lifecycle event. Each property is a unique ID for the command with format 'devfeats_<feature-id>_<task>', e.g. 'devfeats_install-os-pkg_install', and the value is the command to run. Each provided command will be run in parallel.",
+      "description": "A set of commands to run at a specific lifecycle event. Write short per-task keys (e.g. ``install``, ``hello-world``); tooling expands them to ``<owner>-<repo>--<feature-id>--<task>`` when generating ``devcontainer-feature.json``. Legacy keys that already contain ``--<feature-id>--`` are rewritten to the same canonical form.",
       "additionalProperties": {
         "description": "A command entry with an executable command and a human-readable description of its purpose.",
         "type": "object",

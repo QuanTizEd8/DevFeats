@@ -86,10 +86,10 @@ options:
     default: false
     description: Keep the Miniforge installer script and checksum after installation instead of removing them.
     type: boolean
-postStartCommand:
-  install-miniforge-feature-welcome:
+onCreateCommand:
+  verification:
+    description: Verify conda is installed and working by running `conda info`.
     command: conda info
-    description: Print conda installation info to confirm Miniforge is active after container start.
 # installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-shell
