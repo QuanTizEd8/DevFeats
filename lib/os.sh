@@ -227,6 +227,29 @@ os__release_arch() {
   esac
 }
 
+# @brief os__rust_triple [<raw-arch>] — Print the Rust target triple for the current kernel and architecture.
+#
+# Accepts an optional raw architecture string (uname -m output or a user-supplied
+# override). Defaults to os__arch. The Linux env suffix (musl/gnu) is
+# arch-determined: riscv64 must use gnu (no musl target exists); all others use musl.
+#
+# Stdout: Rust target triple (e.g. x86_64-unknown-linux-musl, aarch64-apple-darwin).
+# Returns: 0 on success, 1 if the kernel/arch combination is unsupported.
+os__rust_triple() {
+  local _raw="${1:-$(os__arch)}"
+  case "$(os__kernel):${_raw}" in
+    Linux:x86_64 | Linux:amd64) printf 'x86_64-unknown-linux-musl\n' ;;
+    Linux:aarch64 | Linux:arm64) printf 'aarch64-unknown-linux-musl\n' ;;
+    Linux:riscv64) printf 'riscv64gc-unknown-linux-gnu\n' ;;
+    Darwin:x86_64 | Darwin:amd64) printf 'x86_64-apple-darwin\n' ;;
+    Darwin:aarch64 | Darwin:arm64) printf 'aarch64-apple-darwin\n' ;;
+    *)
+      logging__error "os__rust_triple: unsupported kernel/arch '$(os__kernel)/${_raw}'."
+      return 1
+      ;;
+  esac
+}
+
 # @brief os__require_root — Exit 1 with an error message if the current user is not root.
 os__require_root() {
   if ! users__is_root; then

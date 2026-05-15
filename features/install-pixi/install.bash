@@ -64,20 +64,10 @@ resolve_pixi_version() {
 
 detect_triple() {
   logging__fn_entry "detect_triple"
-  local _kernel _arch
-  _kernel="$(os__kernel)"
-  _arch="${ARCH:-$(os__arch)}"
-  case "${_kernel}/${_arch}" in
-    Linux/x86_64) TRIPLE="x86_64-unknown-linux-musl" ;;
-    Linux/aarch64) TRIPLE="aarch64-unknown-linux-musl" ;;
-    Linux/riscv64) TRIPLE="riscv64gc-unknown-linux-gnu" ;;
-    Darwin/x86_64) TRIPLE="x86_64-apple-darwin" ;;
-    Darwin/aarch64) TRIPLE="aarch64-apple-darwin" ;;
-    *)
-      logging__error "Unsupported platform: kernel='${_kernel}' arch='${_arch}'"
-      exit 1
-      ;;
-  esac
+  TRIPLE="$(os__rust_triple "${ARCH:-$(os__arch)}")" || {
+    logging__error "install-pixi: unsupported platform for binary install: kernel='$(os__kernel)' arch='${ARCH:-$(os__arch)}'."
+    exit 1
+  }
   logging__info "Detected release triple: '${TRIPLE}'"
   logging__fn_exit "detect_triple"
   return 0

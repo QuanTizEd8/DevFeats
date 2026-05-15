@@ -45,17 +45,10 @@ _install__just_resolve_target() {
     printf '%s\n' "$_target"
     return 0
   fi
-
-  case "$(os__kernel):$(os__arch)" in
-    Linux:x86_64) printf '%s\n' "x86_64-unknown-linux-musl" ;;
-    Linux:aarch64 | Linux:arm64) printf '%s\n' "aarch64-unknown-linux-musl" ;;
-    Darwin:x86_64) printf '%s\n' "x86_64-apple-darwin" ;;
-    Darwin:aarch64 | Darwin:arm64) printf '%s\n' "aarch64-apple-darwin" ;;
-    *)
-      logging__error "install-just: unsupported kernel/arch for auto target: $(os__kernel)/$(os__arch)"
-      return 1
-      ;;
-  esac
+  os__rust_triple || {
+    logging__error "install-just: unsupported kernel/arch '$(os__kernel)/$(os__arch)' for binary target."
+    return 1
+  }
 }
 
 _install__just_install_release() {
