@@ -95,6 +95,7 @@ file__append_privileged() {
   if [ -w "$_file" ] || { [ ! -e "$_file" ] && [ -w "$(dirname "$_file")" ]; }; then
     cat >> "$_file"
   else
+    # shellcheck disable=SC2016
     users__run_privileged sh -c 'cat >> "$1"' _ "$_file"
   fi
 }
