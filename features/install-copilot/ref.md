@@ -1,0 +1,1 @@
+https://github.com/devcontainers/features/tree/main/src/copilot-cli

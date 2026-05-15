@@ -11,3 +11,5 @@
 - [Claude Code Docs – Dev Containers](https://code.claude.com/docs/en/devcontainer)
 - [Official Claude Code Devcontainer Feature](https://github.com/anthropics/devcontainer-features/tree/main/src/claude-code)
 - [Claude Dev Container Features](https://containers.dev/features?search=claude)
+
+- [Claude-mem: Persistent Context Across Sessions for Every Agent](https://github.com/thedotmack/claude-mem)
