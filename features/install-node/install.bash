@@ -216,7 +216,7 @@ _node_install_via_nvm() {
   mkdir -p "$NVM_DIR"
 
   # Set permissions so _NVM_USER can write NVM_DIR (before installer runs)
-  if [ -n "${NVM_WRITE_GROUP:-}" ] && [ "$(id -u)" = "0" ]; then
+  if [ -n "${NVM_WRITE_GROUP:-}" ] && users__is_root; then
     _nvm_wargs=()
     if [ "${#NVM_WRITE_USERS[@]}" -gt 0 ]; then
       _nvm_wargs=(--current false --remote false --container false)
@@ -389,7 +389,7 @@ create_nvm_symlinks() {
     logging__fn_exit "create_nvm_symlinks"
     return 0
   fi
-  if [ "$(id -u)" != "0" ]; then
+  if ! users__is_root; then
     logging__info "Non-root: NVM bridge symlink not applicable."
     logging__fn_exit "create_nvm_symlinks"
     return 0

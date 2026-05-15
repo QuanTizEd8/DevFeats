@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck source=lib/verify.sh
 . "${_BASE_DIR}/_lib/verify.sh"
+# shellcheck source=lib/install/common.sh
+. "${_BASE_DIR}/_lib/install/common.sh"
 # shellcheck source=lib/github.sh
 . "${_BASE_DIR}/_lib/github.sh"
 # shellcheck source=lib/net.sh
@@ -22,52 +24,35 @@ _shfmt__resolve_version() {
   printf '%s\n' "$_version"
 }
 
-_shfmt__platform_arch() {
-  local _os _arch
-  case "$(os__kernel)" in
-    Linux) _os="linux" ;;
-    Darwin) _os="darwin" ;;
-    *)
-      logging__error "install-shfmt: unsupported kernel '$(os__kernel)'."
-      return 1
-      ;;
-  esac
-  case "$(os__arch)" in
-    x86_64) _arch="amd64" ;;
-    aarch64 | arm64) _arch="arm64" ;;
-    *)
-      logging__error "install-shfmt: unsupported architecture '$(os__arch)'."
-      return 1
-      ;;
-  esac
-  printf '%s %s\n' "$_os" "$_arch"
-}
-
 _shfmt__install_release() {
   local _version="${1-}"
   local _os _arch _asset _tmp _dest
-  read -r _os _arch <<< "$(_shfmt__platform_arch)" || return 1
+  _os="$(os__release_kernel)" || return 1
+  _arch="$(os__release_arch)" || return 1
+  case "$_arch" in
+    amd64 | arm64) ;;
+    *)
+      logging__error "install-shfmt: unsupported architecture '${_arch}'."
+      return 1
+      ;;
+  esac
   _asset="shfmt_v${_version}_${_os}_${_arch}"
-  _tmp="$(logging__tmpdir "install/shfmt")"
+  _tmp="$(file__tmpdir "install/shfmt")"
 
   github__fetch_release_asset_tarball "mvdan/sh" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
-  chmod +x "${_tmp}/${_asset}" || return 1
 
   _dest="${PREFIX%/}/bin/shfmt"
-  mkdir -p "$(dirname "$_dest")" || return 1
-  if command -v install > /dev/null 2>&1; then
-    install -m 0755 "${_tmp}/${_asset}" "$_dest" || return 1
-  else
-    cp "${_tmp}/${_asset}" "$_dest" || return 1
-    chmod 0755 "$_dest" || return 1
-  fi
+  install__copy_bin "${_tmp}/${_asset}" "$_dest" || return 1
   printf '%s\n' "$_dest"
 }
 
 _shfmt__install_repos() {
   local _repos_manifest="${1-}"
   ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
-  command -v shfmt 2> /dev/null || return 1
+  command -v shfmt 2> /dev/null || {
+    logging__error "install-shfmt: shfmt not found on PATH after package install."
+    return 1
+  }
 }
 
 # Resolve an existing install: skip, fail, or continue to reinstall.

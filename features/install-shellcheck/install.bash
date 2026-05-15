@@ -3,6 +3,8 @@
 . "${_BASE_DIR}/_lib/verify.sh"
 # shellcheck source=lib/file.sh
 . "${_BASE_DIR}/_lib/file.sh"
+# shellcheck source=lib/install/common.sh
+. "${_BASE_DIR}/_lib/install/common.sh"
 # shellcheck source=lib/github.sh
 . "${_BASE_DIR}/_lib/github.sh"
 # shellcheck source=lib/net.sh
@@ -24,20 +26,13 @@ _shellcheck__resolve_version() {
   printf '%s\n' "$_version"
 }
 
-# @stdout "<os> <arch>" for the GitHub release asset name, or return 1 when no
-# release binary exists for the current platform (e.g. darwin/arm64).
-_shellcheck__platform_arch() {
-  local _os _arch
-  case "$(os__kernel)" in
-    Linux) _os="linux" ;;
-    Darwin) _os="darwin" ;;
-    *)
-      logging__error "install-shellcheck: unsupported kernel '$(os__kernel)'."
-      return 1
-      ;;
-  esac
-  case "$(os__arch)" in
-    x86_64) _arch="x86_64" ;;
+_shellcheck__install_release() {
+  local _version="${1-}"
+  local _os _arch _asset _tmp _extracted _dest
+  _os="$(os__release_kernel)" || return 1
+  _arch="$(os__arch)"
+  case "$_arch" in
+    x86_64) ;;
     aarch64 | arm64)
       if [[ "$_os" == "darwin" ]]; then
         logging__debug "install-shellcheck: no release binary for darwin/arm64; falling back to package."
@@ -46,41 +41,34 @@ _shellcheck__platform_arch() {
       _arch="aarch64"
       ;;
     *)
-      logging__error "install-shellcheck: unsupported architecture '$(os__arch)'."
+      logging__error "install-shellcheck: unsupported architecture '${_arch}'."
       return 1
       ;;
   esac
-  printf '%s %s\n' "$_os" "$_arch"
-}
-
-_shellcheck__install_release() {
-  local _version="${1-}"
-  local _os _arch _asset _tmp _extracted _dest
-  read -r _os _arch <<< "$(_shellcheck__platform_arch)" || return 1
   _asset="shellcheck-v${_version}.${_os}.${_arch}.tar.xz"
-  _tmp="$(logging__tmpdir "install/shellcheck")"
+  _tmp="$(file__tmpdir "install/shellcheck")"
 
   github__fetch_release_asset_tarball "koalaman/shellcheck" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
 
   file__extract_archive "${_tmp}/${_asset}" "$_tmp" || return 1
   _extracted="${_tmp}/shellcheck-v${_version}/shellcheck"
-  [[ -f "$_extracted" ]] || return 1
+  [[ -f "$_extracted" ]] || {
+    logging__error "install-shellcheck: extracted binary '${_extracted}' not found."
+    return 1
+  }
 
   _dest="${PREFIX%/}/bin/shellcheck"
-  mkdir -p "$(dirname "$_dest")" || return 1
-  if command -v install > /dev/null 2>&1; then
-    install -m 0755 "$_extracted" "$_dest" || return 1
-  else
-    cp "$_extracted" "$_dest" || return 1
-    chmod 0755 "$_dest" || return 1
-  fi
+  install__copy_bin "$_extracted" "$_dest" || return 1
   printf '%s\n' "$_dest"
 }
 
 _shellcheck__install_repos() {
   local _repos_manifest="${1-}"
   ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
-  command -v shellcheck 2> /dev/null || return 1
+  command -v shellcheck 2> /dev/null || {
+    logging__error "install-shellcheck: shellcheck not found on PATH after package install."
+    return 1
+  }
 }
 
 _shellcheck__handle_existing() {

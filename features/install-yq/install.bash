@@ -63,7 +63,7 @@ _yq__install_completions() {
     }
     case "${_shell}" in
       bash)
-        if [ "$(id -u)" = "0" ]; then
+        if users__is_root; then
           mkdir -p /etc/bash_completion.d
           printf '%s\n' "${_content}" > /etc/bash_completion.d/yq
           logging__success "Bash completion written to /etc/bash_completion.d/yq"
@@ -74,7 +74,7 @@ _yq__install_completions() {
         fi
         ;;
       zsh)
-        if [ "$(id -u)" = "0" ]; then
+        if users__is_root; then
           local _zshdir
           _zshdir="$(shell__detect_zshdir)"
           mkdir -p "${_zshdir}/completions"

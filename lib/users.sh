@@ -434,3 +434,36 @@ users__get_current() {
   logging__error "users__get_current: unable to determine current user"
   return 1
 }
+
+# @brief users__resolve_home <username> — Print the home directory for the given user.
+#
+# Resolution order:
+#   1. `getent passwd` when available (Linux, most distros including Debian,
+#      Alpine with shadow package, RHEL, and SUSE). This is the most reliable
+#      source as it queries NSS and handles LDAP / NIS users too.
+#   2. Direct scan of `/etc/passwd` — fallback for images without `getent`
+#      (e.g. minimal Alpine before the shadow package is installed, macOS
+#      where `getent` is absent).
+#   3. Tilde expansion via `eval echo "~<username>"` as a last resort. This
+#      works in most shells but may produce the literal `~user` string on
+#      systems where the user does not have a home entry recognised by the
+#      shell; callers should validate the result when exactness matters.
+#
+# Args:
+#   <username>  Username to look up.
+#
+# Stdout: absolute path to the home directory.
+# Returns: 0 always (tilde expansion is the final fallback and never fails).
+users__resolve_home() {
+  local _user="$1" _entry
+  if command -v getent > /dev/null 2>&1; then
+    _entry="$(getent passwd "$_user" 2> /dev/null)"
+  else
+    _entry="$(grep -m1 "^${_user}:" /etc/passwd 2> /dev/null)"
+  fi
+  if [ -n "$_entry" ]; then
+    printf '%s\n' "$(printf '%s\n' "$_entry" | cut -d: -f6)"
+    return 0
+  fi
+  eval echo "~${_user}"
+}

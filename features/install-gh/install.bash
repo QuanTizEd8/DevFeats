@@ -286,7 +286,7 @@ _gh__install_completions() {
           }
         fi
         if [ -n "${_bash_content}" ]; then
-          if [ "$(id -u)" = "0" ]; then
+          if users__is_root; then
             mkdir -p /etc/bash_completion.d
             printf '%s\n' "${_bash_content}" > /etc/bash_completion.d/gh
             logging__success "Bash completion written to /etc/bash_completion.d/gh"
@@ -311,7 +311,7 @@ _gh__install_completions() {
           }
         fi
         if [ -n "${_zsh_content}" ]; then
-          if [ "$(id -u)" = "0" ]; then
+          if users__is_root; then
             local _zshdir
             _zshdir="$(shell__detect_zshdir)"
             mkdir -p "${_zshdir}/completions"
@@ -357,14 +357,14 @@ _gh__configure_user() {
   local _user _home
   while IFS= read -r _user; do
     [ -z "${_user}" ] && continue
-    _home="$(shell__resolve_home "${_user}")"
+    _home="$(users__resolve_home "${_user}")"
 
     logging__info "Configuring gh/git for user '${_user}' (home: ${_home})..."
 
     # git_protocol: run gh config set as the target user.
     if [ -n "${GIT_PROTOCOL}" ]; then
       logging__info "Setting git_protocol=${GIT_PROTOCOL} for '${_user}'..."
-      if [ "$(id -u)" = "0" ] && [ "${_user}" != "root" ]; then
+      if users__is_root && [ "${_user}" != "root" ]; then
         su -l "${_user}" -c "gh config set git_protocol '${GIT_PROTOCOL}'"
       else
         GH_CONFIG_DIR="${_home}/.config/gh" gh config set git_protocol "${GIT_PROTOCOL}"
@@ -374,7 +374,7 @@ _gh__configure_user() {
     # setup_git: register gh as credential helper.
     if [ "${SETUP_GIT}" = "true" ]; then
       logging__info "Running gh auth setup-git for '${_user}' (hostname: ${GIT_HOSTNAME})..."
-      if [ "$(id -u)" = "0" ] && [ "${_user}" != "root" ]; then
+      if users__is_root && [ "${_user}" != "root" ]; then
         su -l "${_user}" -c "gh auth setup-git --force --hostname '${GIT_HOSTNAME}'"
       else
         GH_CONFIG_DIR="${_home}/.config/gh" HOME="${_home}" \
@@ -390,7 +390,7 @@ _gh__configure_user() {
     # sign_commits: set commit signing config via git config.
     if [ -n "${SIGN_COMMITS}" ]; then
       local _git_cfg_cmd_prefix=""
-      if [ "$(id -u)" = "0" ] && [ "${_user}" != "root" ]; then
+      if users__is_root && [ "${_user}" != "root" ]; then
         _git_cfg_cmd_prefix="su -l ${_user} -c"
       fi
       case "${SIGN_COMMITS}" in
@@ -450,12 +450,12 @@ _gh__install_extensions() {
   local _user _home _ext
   while IFS= read -r _user; do
     [ -z "${_user}" ] && continue
-    _home="$(shell__resolve_home "${_user}")"
+    _home="$(users__resolve_home "${_user}")"
     for _ext in "${EXTENSIONS[@]}"; do
       _ext="$(printf '%s' "${_ext}" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')"
       [ -z "${_ext}" ] && continue
       logging__install "Installing gh extension '${_ext}' for user '${_user}'..."
-      if [ "$(id -u)" = "0" ] && [ "${_user}" != "root" ]; then
+      if users__is_root && [ "${_user}" != "root" ]; then
         su -l "${_user}" -c "gh extension install '${_ext}'" || {
           logging__warn "Failed to install extension '${_ext}' for '${_user}' (non-fatal)."
         }

@@ -250,14 +250,14 @@ install_completion() {
     local _target_file
     case "${_shell}" in
       bash)
-        if [ "$(id -u)" = "0" ]; then
+        if users__is_root; then
           _target_file="$(shell__detect_bashrc)"
         else
           _target_file="${HOME}/.bashrc"
         fi
         ;;
       zsh)
-        if [ "$(id -u)" = "0" ]; then
+        if users__is_root; then
           _target_file="$(shell__detect_zshdir)/zshenv"
         else
           _target_file="${HOME}/.zshenv"

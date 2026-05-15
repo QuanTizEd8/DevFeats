@@ -152,3 +152,33 @@ EOF
   assert_success
   assert_output --partial "set to '/usr/bin/zsh'"
 }
+
+# ---------------------------------------------------------------------------
+# users__resolve_home
+# ---------------------------------------------------------------------------
+
+@test "users__resolve_home resolves home via getent" {
+  create_fake_bin "getent" "alice:x:1000:1000::/home/alice:/bin/bash"
+  prepend_fake_bin_path
+  run users__resolve_home "alice"
+  assert_success
+  assert_output "/home/alice"
+}
+
+@test "users__resolve_home falls back to /etc/passwd when getent is absent" {
+  begin_path_isolation grep
+  local _expected
+  _expected="$(eval echo '~root')"
+  run users__resolve_home "root"
+  end_path_isolation
+  assert_success
+  assert_output "$_expected"
+}
+
+@test "users__resolve_home uses tilde expansion when user not in /etc/passwd" {
+  begin_path_isolation grep
+  run users__resolve_home "___no_such_user_xyz___"
+  end_path_isolation
+  assert_success
+  assert_output "~___no_such_user_xyz___"
+}

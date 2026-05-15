@@ -15,9 +15,18 @@ _NET__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
 
-# _net__hdrs_with_default_ua <hdr_block> — Echo <hdr_block> unchanged if it
-# already contains a User-Agent line; otherwise prepend "User-Agent: devfeats".
-# GitHub and some CDNs return 403 for curl's default anonymous User-Agent.
+# @brief _net__hdrs_with_default_ua <hdr_block> — Return `<hdr_block>` unchanged when it already contains a `User-Agent` header; otherwise prepend `User-Agent: devfeats`.
+#
+# GitHub's raw-content CDN and some other hosts return HTTP 403 for requests
+# carrying curl's default `curl/<version>` User-Agent. This helper ensures a
+# recognisable User-Agent is always present without overriding a caller-supplied
+# one.
+#
+# Args:
+#   <hdr_block>  Newline-separated list of HTTP headers (may be empty).
+#
+# Stdout: the original block if a User-Agent header is present, or the block
+#         with `User-Agent: devfeats` prepended as the first line.
 _net__hdrs_with_default_ua() {
   local _net__ua_in="$1"
   if printf '%s\n' "$_net__ua_in" | grep -qi '^user-agent:'; then
@@ -238,9 +247,14 @@ _NET_HDR_EOF_
   fi
 }
 
-# _net__ensure_fetch_tool (internal)
-# Sets _NET_FETCH_TOOL to "curl" or "wget"; installs curl via ospkg__install
-# if neither is found.
+# @brief _net__ensure_fetch_tool — Detect `curl` or `wget` and set `_NET_FETCH_TOOL`; install `curl` via ospkg if neither is found.
+#
+# Runs `_net__ensure_ca_certs` after detection so every fetch that goes through
+# this helper also has a valid CA bundle. Idempotent: does nothing when
+# `_NET_FETCH_TOOL` is already set.
+#
+# Side effects: sets `_NET_FETCH_TOOL` to `curl` or `wget`.
+# Returns: 0 always (aborts the script via ospkg on install failure).
 _net__ensure_fetch_tool() {
   if [ -z "${_NET_FETCH_TOOL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
@@ -257,9 +271,16 @@ _net__ensure_fetch_tool() {
   return 0
 }
 
-# _net__ensure_ca_certs (internal)
-# Ensures /etc/ssl/certs/ca-certificates.crt exists; installs ca-certificates
-# via ospkg__install if not.
+# @brief _net__ensure_ca_certs — Ensure `/etc/ssl/certs/ca-certificates.crt` is present; install `ca-certificates` via ospkg if missing.
+#
+# macOS uses the system keychain natively (curl and wget pick it up without a
+# `.crt` bundle), so the check is skipped there. On Linux, an absent or empty
+# bundle causes TLS errors for all HTTPS fetches. Idempotent: sets
+# `_NET_CA_CERTS_OK` after the first successful check and returns immediately
+# on subsequent calls.
+#
+# Side effects: may install `ca-certificates` via the system package manager.
+# Returns: 0 always.
 _net__ensure_ca_certs() {
   [ -n "${_NET_CA_CERTS_OK:-}" ] && return 0
   # macOS uses its own keychain; curl/wget use it natively without a .crt file.

@@ -173,7 +173,7 @@ fi
 
 ---
 
-### 9. `shell__resolve_home` — **REUSED from `lib/shell.sh`**
+### 9. `users__resolve_home` — **REUSED from `lib/users.sh`**
 
 **Responsibility:** Returns the home directory for a given username via `eval echo "~${_user}"`. Used by `_git__write_user_gitconfig` to locate each user's `~/.gitconfig`.
 
@@ -658,7 +658,7 @@ fi
 
 **Per-user loop:**
 ```bash
-_home="$(shell__resolve_home "${_user}")"
+_home="$(users__resolve_home "${_user}")"
 _cfg="${_home}/.gitconfig"
 [ -n "${USER_NAME}" ]  && git config --file "${_cfg}" user.name  "${USER_NAME}"
 [ -n "${USER_EMAIL}" ] && git config --file "${_cfg}" user.email "${USER_EMAIL}"
@@ -667,7 +667,7 @@ _cfg="${_home}/.gitconfig"
 [ "$(id -u)" = "0" ] && chown "${_user}:${_user}" "${_cfg}" 2>/dev/null || true
 ```
 
-**Error handling:** If `shell__resolve_home` fails for a user (no home directory), log a warning and skip that user — do not exit.
+**Error handling:** If `users__resolve_home` fails for a user (no home directory), log a warning and skip that user — do not exit.
 
 ---
 

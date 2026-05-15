@@ -17,40 +17,55 @@ _INSTALL_YQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_INSTALL_YQ_LIB_DIR}/../users.sh"
 
 # @brief _install__yq_compatible <bin> — Return 0 when candidate binary is mikefarah/yq-compatible (`-o=json` supported).
+#
+# Tests whether `<bin>` accepts the `-o=json` flag, which is unique to
+# mikefarah/yq and absent from the unrelated `yq` Haskell tool sometimes
+# installed by package managers.
+#
+# Args:
+#   <bin>  Path to the binary to test.
+#
+# Returns: 0 if compatible, 1 if not or if <bin> is empty.
 _install__yq_compatible() {
   local _bin="${1-}"
   [[ -n "$_bin" ]] || return 1
   "$_bin" -o=json '.' /dev/null > /dev/null 2>&1
 }
 
-# @brief _install__yq_platform_arch — Print `<os> <arch>` tokens used by yq GitHub release assets.
-_install__yq_platform_arch() {
-  local _os _arch
-  _os="$(os__kernel | tr '[:upper:]' '[:lower:]')"
-  _arch="$(os__arch)"
+# @brief _install__yq_install_release <context> <group> <prefix> [version] — Install yq from GitHub release assets with checksum verification.
+#
+# Downloads the release binary and its checksum file, verifies SHA-256, then
+# installs to `<prefix>/bin/yq`. For `internal` context the binary is left in
+# the logging tmpdir and tracked for cleanup; for `user` context it is copied
+# to `<prefix>/bin/yq`.
+#
+# Args:
+#   <context>  `internal` or `user`.
+#   <group>    Resource-tracking group ID.
+#   <prefix>   Installation prefix (only used for `user` context).
+#   [version]  Bare semver (no `v`). Empty means latest.
+#
+# Stdout: absolute path to the installed binary on success.
+# Returns: 0 on success, 1 on any failure.
+_install__yq_install_release() {
+  local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}"
+  local _os _arch _base _dir _dest _expected_hash _final_dest
+  _os="$(os__release_kernel)" || return 1
+  _arch="$(os__release_arch)" || return 1
+  # yq only ships amd64 and arm64 assets
   case "$_arch" in
-    x86_64) _arch="amd64" ;;
-    aarch64 | arm64) _arch="arm64" ;;
+    amd64 | arm64) ;;
     *)
       logging__error "install__yq: unsupported architecture '${_arch}'."
       return 1
       ;;
   esac
-  printf '%s %s\n' "$_os" "$_arch"
-}
-
-# @brief _install__yq_install_release <context> <group> <prefix> [version] — Install yq from GitHub release assets with checksum verification.
-# version: bare semver (no "v" prefix). If empty, uses latest/download URL.
-_install__yq_install_release() {
-  local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}"
-  local _os _arch _base _dir _dest _expected_hash _final_dest
-  read -r _os _arch <<< "$(_install__yq_platform_arch)" || return 1
   if [[ -n "$_version" ]]; then
     _base="https://github.com/mikefarah/yq/releases/download/v${_version}"
   else
     _base="https://github.com/mikefarah/yq/releases/latest/download"
   fi
-  _dir="$(logging__tmpdir "install/yq")"
+  _dir="$(file__tmpdir "install/yq")"
   _dest="${_dir}/yq_${_os}_${_arch}"
   net__fetch_url_file "${_base}/yq_${_os}_${_arch}" "$_dest" || return 1
   net__fetch_url_file "${_base}/checksums" "${_dir}/checksums" || return 1
@@ -62,20 +77,17 @@ _install__yq_install_release() {
     return 1
   fi
   verify__sha "$_dest" "$_expected_hash" || return 1
-  chmod +x "$_dest" || return 1
+  chmod +x "$_dest" || {
+    logging__error "install__yq: chmod failed for '${_dest}'."
+    return 1
+  }
   _final_dest="$_dest"
   if [[ "$_context" == "user" ]]; then
     if [[ -z "$_install_prefix" || "$_install_prefix" == "auto" ]]; then
       _install_prefix="$(users__default_prefix)"
     fi
     _final_dest="${_install_prefix%/}/bin/yq"
-    mkdir -p "$(dirname "$_final_dest")" || return 1
-    if command -v install > /dev/null 2>&1; then
-      install -m 0755 "$_dest" "$_final_dest" || return 1
-    else
-      cp "$_dest" "$_final_dest" || return 1
-      chmod +x "$_final_dest" || return 1
-    fi
+    install__copy_bin "$_dest" "$_final_dest" || return 1
   fi
   if [[ "$_context" == "internal" ]]; then
     install__track_internal_path "$_group" "$_final_dest"
@@ -151,9 +163,7 @@ install__yq() {
   [[ "$_context" == "internal" || "$_context" == "user" ]] || return 1
   local _existing _state_ctx _state_path _state_group
   _existing="$(command -v yq 2> /dev/null || true)"
-  _state_ctx="$(install__state_context "yq" 2> /dev/null || true)"
-  _state_path="$(install__state_install_path "yq" 2> /dev/null || true)"
-  _state_group="$(install__state_owner_group "yq" 2> /dev/null || true)"
+  install__read_state "yq" _state_ctx _state_path _state_group
   if [[ -n "$_existing" ]] && _install__yq_compatible "$_existing"; then
     if [[ "$_if_exists" == "reinstall" ]]; then
       :

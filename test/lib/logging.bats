@@ -12,8 +12,9 @@ setup() {
   load 'helpers/common'
 }
 
-# Absolute path to logging.sh for use inside bash -c subshells.
+# Absolute paths to lib files for use inside bash -c subshells.
 _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
+_FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
 
 # ---------------------------------------------------------------------------
 # logging__setup / logging__cleanup — isolated subprocess tests
@@ -122,11 +123,11 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_output --partial "CLEARED"
 }
 
-@test "logging__tmpdir creates a subdirectory inside _SYSSET_TMPDIR" {
+@test "file__tmpdir creates a subdirectory inside _SYSSET_TMPDIR" {
   run bash -c "
-    source '${_LOGGING_LIB}'
+    source '${_FILE_LIB}'
     logging__setup
-    _sub=\"\$(logging__tmpdir 'mymod')\"
+    _sub=\"\$(file__tmpdir 'mymod')\"
     [[ -d \"\${_sub}\" ]] && echo SUBDIR_EXISTS
     [[ \"\${_sub}\" == \"\${_SYSSET_TMPDIR}/mymod\" ]] && echo PATH_CORRECT
     logging__cleanup
@@ -136,12 +137,12 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_output --partial "PATH_CORRECT"
 }
 
-@test "logging__tmpdir is idempotent" {
+@test "file__tmpdir is idempotent" {
   run bash -c "
-    source '${_LOGGING_LIB}'
+    source '${_FILE_LIB}'
     logging__setup
-    _p1=\"\$(logging__tmpdir 'x')\"
-    _p2=\"\$(logging__tmpdir 'x')\"
+    _p1=\"\$(file__tmpdir 'x')\"
+    _p2=\"\$(file__tmpdir 'x')\"
     [[ \"\${_p1}\" == \"\${_p2}\" ]] && echo SAME_PATH
     logging__cleanup
   "
@@ -149,10 +150,10 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_output --partial "SAME_PATH"
 }
 
-@test "logging__tmpdir lazy-inits _SYSSET_TMPDIR without logging__setup" {
+@test "file__tmpdir lazy-inits _SYSSET_TMPDIR without logging__setup" {
   run bash -c "
-    source '${_LOGGING_LIB}'
-    _sub=\"\$(logging__tmpdir 'lazy')\"
+    source '${_FILE_LIB}'
+    _sub=\"\$(file__tmpdir 'lazy')\"
     [[ -d \"\${_sub}\" ]] && echo LAZY_OK
   "
   assert_success
@@ -249,8 +250,8 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_output --partial "ℹ️ hello"
 }
 
-@test "logging__entry formats script entry line" {
-  run bash -c "source '${_LOGGING_LIB}'; logging__entry 'install-git'" 2>&1
+@test "logging__feature_entry formats script entry line" {
+  run bash -c "source '${_LOGGING_LIB}'; logging__feature_entry 'install-git'" 2>&1
   assert_success
   assert_output --partial "↪️ Script entry: install-git"
 }

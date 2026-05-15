@@ -11,6 +11,8 @@ _OS__LIB_LOADED=1
 _OS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/logging.sh
 . "$_OS__LIB_DIR/logging.sh"
+# shellcheck source=lib/users.sh
+[[ -z "${_USERS__LIB_LOADED-}" ]] && . "$_OS__LIB_DIR/users.sh"
 
 # ── Cached globals (populated lazily) ────────────────────────────────────────
 _OS__KERNEL=""
@@ -89,9 +91,56 @@ os__platform() {
   return 0
 }
 
+# @brief os__release_kernel — Print the kernel identifier used in release asset filenames (`linux` or `darwin`).
+#
+# Maps the result of `os__kernel` to the lowercase token used by most GitHub
+# release naming conventions. Returns 1 with a logged error for unsupported
+# kernels so callers can abort cleanly rather than constructing a wrong URL.
+#
+# Stdout: `linux` or `darwin`.
+# Returns: 0 on success, 1 if the kernel is unsupported.
+os__release_kernel() {
+  case "$(os__kernel)" in
+    Linux) printf 'linux\n' ;;
+    Darwin) printf 'darwin\n' ;;
+    *)
+      logging__error "os__release_kernel: unsupported kernel '$(os__kernel)'."
+      return 1
+      ;;
+  esac
+}
+
+# @brief os__release_arch — Print the CPU architecture token used in release asset filenames.
+#
+# Maps the result of `os__arch` to the canonical token used by most GitHub
+# release naming conventions. Covers all architectures present across the
+# install/ modules: amd64, arm64, armv7, i386, ppc64le, s390x, riscv64,
+# loong64. Callers that only support a subset should check the result with a
+# `case` statement and return an error for unsupported values.
+#
+# Stdout: one of `amd64`, `arm64`, `armv7`, `i386`, `ppc64le`, `s390x`,
+#         `riscv64`, `loong64`.
+# Returns: 0 on success, 1 if the architecture is unsupported.
+os__release_arch() {
+  case "$(os__arch)" in
+    x86_64 | amd64 | x64) printf 'amd64\n' ;;
+    aarch64 | arm64) printf 'arm64\n' ;;
+    armv7l | armv7) printf 'armv7\n' ;;
+    i386 | i686) printf 'i386\n' ;;
+    ppc64le) printf 'ppc64le\n' ;;
+    s390x) printf 's390x\n' ;;
+    riscv64) printf 'riscv64\n' ;;
+    loong64 | loongarch64) printf 'loong64\n' ;;
+    *)
+      logging__error "os__release_arch: unsupported architecture '$(os__arch)'."
+      return 1
+      ;;
+  esac
+}
+
 # @brief os__require_root — Exit 1 with an error message if the current user is not root.
 os__require_root() {
-  if [ "$(id -u)" -ne 0 ]; then
+  if ! users__is_root; then
     logging__error 'This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.'
     exit 1
   fi
@@ -102,7 +151,7 @@ os__require_root() {
 #
 # Stdout: `/usr/share/fonts` (root), `~/Library/Fonts` (macOS non-root), or `${XDG_DATA_HOME:-~/.local/share}/fonts` (Linux non-root).
 os__font_dir() {
-  if [ "$(id -u)" -eq 0 ]; then
+  if users__is_root; then
     echo "/usr/share/fonts"
   elif [ "$(os__kernel)" = "Darwin" ]; then
     echo "${HOME}/Library/Fonts"
@@ -157,9 +206,16 @@ os__is_container() {
   return 1
 }
 
-# _os__load_release (private)
-# Parses /etc/os-release once and caches ID, ID_LIKE, and VERSION_CODENAME.
-# Uses grep/sed rather than sourcing the file to avoid env pollution.
+# @brief _os__load_release — Parse `/etc/os-release` once and cache `ID`, `ID_LIKE`, and `VERSION_CODENAME` into module-private globals.
+#
+# Uses `grep`/`sed` rather than `source /etc/os-release` to avoid polluting
+# the environment with the full set of os-release variables. Idempotent: sets
+# `_OS__RELEASE_LOADED` after the first parse and returns immediately on
+# subsequent calls. Falls back to `UBUNTU_CODENAME` when `VERSION_CODENAME`
+# is absent (some Ubuntu 22.04 images omit it).
+#
+# Side effects: sets `_OS__ID`, `_OS__ID_LIKE`, `_OS__CODENAME`,
+#               and `_OS__RELEASE_LOADED`.
 _os__load_release() {
   [ -n "${_OS__RELEASE_LOADED-}" ] && return 0
   if [ -f /etc/os-release ]; then

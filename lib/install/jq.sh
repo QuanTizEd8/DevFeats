@@ -11,35 +11,14 @@ _INSTALL_JQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_INSTALL_JQ_LIB_DIR}/../verify.sh"
 # shellcheck source=lib/os.sh
 . "${_INSTALL_JQ_LIB_DIR}/../os.sh"
+# shellcheck source=lib/file.sh
+. "${_INSTALL_JQ_LIB_DIR}/../file.sh"
 # shellcheck source=lib/ospkg.sh
 . "${_INSTALL_JQ_LIB_DIR}/../ospkg.sh"
 # shellcheck source=lib/net.sh
 . "${_INSTALL_JQ_LIB_DIR}/../net.sh"
 # shellcheck source=lib/users.sh
 . "${_INSTALL_JQ_LIB_DIR}/../users.sh"
-
-# @brief _install__jq_platform_arch — Print `<os> <arch>` tokens used by jq GitHub release assets.
-_install__jq_platform_arch() {
-  local _os _arch
-  case "$(os__kernel)" in
-    Linux) _os="linux" ;;
-    Darwin) _os="macos" ;;
-    *)
-      logging__error "install__jq: unsupported kernel '$(os__kernel)'."
-      return 1
-      ;;
-  esac
-  case "$(os__arch)" in
-    x86_64 | amd64) _arch="amd64" ;;
-    aarch64 | arm64) _arch="arm64" ;;
-    i386 | i686) _arch="i386" ;;
-    *)
-      logging__error "install__jq: unsupported architecture '$(os__arch)'."
-      return 1
-      ;;
-  esac
-  printf '%s %s\n' "$_os" "$_arch"
-}
 
 # @brief _install__jq_asset_name <version> <os> <arch> — Print jq release asset filename.
 #
@@ -83,13 +62,37 @@ _install__jq_gpg_key_url() {
 }
 
 # @brief _install__jq_install_release <version> <prefix> <group> <context> — Install jq from a GitHub release binary with SHA-256 and GPG verification.
+#
+# Downloads the release binary, verifies its SHA-256 checksum (skipped for jq
+# ≤1.6 which ships no sha256sum.txt), then verifies the detached GPG signature.
+# The verified binary is installed to `<prefix>/bin/jq` with mode 0755.
+#
+# Args:
+#   <version>  Bare semver string (no leading `v`), e.g. `1.7.1`.
+#   <prefix>   Installation prefix; binary goes to `<prefix>/bin/jq`.
+#   <group>    Resource-tracking group ID.
+#   <context>  `internal` or `user`; controls cleanup tracking.
+#
+# Stdout: absolute path to the installed binary on success.
+# Returns: 0 on success, 1 on any failure.
 _install__jq_install_release() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
   local _os _arch _asset _base_url _dir _dest _final_dest _expected_hash _key_url _sig_url
-  read -r _os _arch <<< "$(_install__jq_platform_arch)" || return 1
+  _os="$(os__release_kernel)" || return 1
+  # jq uses "macos" not "darwin" in asset names
+  [[ "$_os" == "darwin" ]] && _os="macos"
+  _arch="$(os__release_arch)" || return 1
+  # jq only ships amd64, arm64, i386 assets
+  case "$_arch" in
+    amd64 | arm64 | i386) ;;
+    *)
+      logging__error "install__jq: unsupported architecture '${_arch}'."
+      return 1
+      ;;
+  esac
   _asset="$(_install__jq_asset_name "$_version" "$_os" "$_arch")" || return 1
   _base_url="https://github.com/jqlang/jq/releases/download/jq-${_version}"
-  _dir="$(logging__tmpdir "install/jq")"
+  _dir="$(file__tmpdir "install/jq")"
   _dest="${_dir}/${_asset}"
 
   net__fetch_url_file "${_base_url}/${_asset}" "$_dest" || return 1
@@ -121,13 +124,7 @@ _install__jq_install_release() {
 
   chmod +x "$_dest" || return 1
   _final_dest="${_install_prefix%/}/bin/jq"
-  mkdir -p "$(dirname "$_final_dest")" || return 1
-  if command -v install > /dev/null 2>&1; then
-    install -m 0755 "$_dest" "$_final_dest" || return 1
-  else
-    cp "$_dest" "$_final_dest" || return 1
-    chmod +x "$_final_dest" || return 1
-  fi
+  install__copy_bin "$_dest" "$_final_dest" || return 1
   if [[ "$_context" == "internal" ]]; then
     install__track_internal_path "$_group" "$_final_dest"
   fi
@@ -150,7 +147,10 @@ _install__jq_install_repos() {
   fi
   local _bin
   _bin="$(command -v jq 2> /dev/null || true)"
-  [[ -n "$_bin" ]] || return 1
+  [[ -n "$_bin" ]] || {
+    logging__error "install__jq: jq not found on PATH after package install."
+    return 1
+  }
   install__state_record "jq" "$_context" "package" "$_bin" "$_group" || true
   printf '%s\n' "$_bin"
   return 0
@@ -164,11 +164,11 @@ _install__jq_install_source() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
   local _tarball_url _dir _tarball _src_dir _jobs _final_dest
   _tarball_url="https://github.com/jqlang/jq/releases/download/jq-${_version}/jq-${_version}.tar.gz"
-  _dir="$(logging__tmpdir "install/jq-source")"
+  _dir="$(file__tmpdir "install/jq-source")"
   _tarball="${_dir}/jq-${_version}.tar.gz"
 
   net__fetch_url_file "$_tarball_url" "$_tarball" || return 1
-  tar -xzf "$_tarball" -C "$_dir" || {
+  file__extract_archive "$_tarball" "$_dir" || {
     logging__error "install__jq: failed to extract source tarball."
     return 1
   }
@@ -258,9 +258,7 @@ install__jq() {
   else
     _existing=""
   fi
-  _state_ctx="$(install__state_context "jq" 2> /dev/null || true)"
-  _state_path="$(install__state_install_path "jq" 2> /dev/null || true)"
-  _state_group="$(install__state_owner_group "jq" 2> /dev/null || true)"
+  install__read_state "jq" _state_ctx _state_path _state_group
 
   # For package: a jq that landed in PATH solely as a transient build-dep (e.g.
   # lib-json) has no state record.  Clear _existing so _install__jq_install_repos

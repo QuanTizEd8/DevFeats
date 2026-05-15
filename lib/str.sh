@@ -110,6 +110,23 @@ str__rsplit_once() {
   return 0
 }
 
+# @brief str__semver_ge <a> <b> — Return 0 if semantic version `a` is greater than or equal to `b`.
+#
+# Leading `v` is stripped from both arguments before comparison. Comparison
+# uses `sort -V` (GNU coreutils version sort), which handles multi-component
+# semver strings (e.g. `1.10.0` vs `1.9.0`) correctly.
+#
+# Args:
+#   <a>  First version string (e.g. `1.2.3` or `v1.2.3`).
+#   <b>  Second version string to compare against.
+#
+# Returns: 0 if a >= b, 1 if a < b.
+str__semver_ge() {
+  local _a="${1#v}" _b="${2#v}"
+  [[ "$_a" == "$_b" ]] && return 0
+  [[ "$(printf '%s\n' "$_a" "$_b" | sort -V | tail -n1)" == "$_a" ]]
+}
+
 # @brief str__extract_version_suffix <s> — Extract a semver suffix `vM.m.p` from the end of `<s>`; print the version number or empty string.
 #
 # Args:

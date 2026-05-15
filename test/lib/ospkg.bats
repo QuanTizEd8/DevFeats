@@ -31,7 +31,7 @@ _require_ospkg_jq() {
   create_fake_bin "uname" "Linux"
   prepend_fake_bin_path
   ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "apt" ]]
+  [[ "$_OSPKG_FAMILY" == "apt" ]]
   [[ "$_OSPKG_PKG_MNGR" == "apt-get" ]]
   [[ "$_OSPKG_DETECTED" == true ]]
 }
@@ -41,7 +41,7 @@ _require_ospkg_jq() {
   create_fake_bin "apk"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "apk" ]]
+  [[ "$_OSPKG_FAMILY" == "apk" ]]
   [[ "$_OSPKG_PKG_MNGR" == "apk" ]]
   [[ "$_OSPKG_DETECTED" == true ]]
 }
@@ -51,7 +51,7 @@ _require_ospkg_jq() {
   create_fake_bin "dnf"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "dnf" ]]
+  [[ "$_OSPKG_FAMILY" == "dnf" ]]
   [[ "$_OSPKG_PKG_MNGR" == "dnf" ]]
   [[ "$_OSPKG_DETECTED" == true ]]
 }
@@ -59,9 +59,9 @@ _require_ospkg_jq() {
 @test "ospkg__detect is idempotent when _OSPKG_DETECTED=true" {
   reload_lib ospkg.sh
   _OSPKG_DETECTED=true
-  _OSPKG_PREFIX="sentinel"
+  _OSPKG_FAMILY="sentinel"
   ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "sentinel" ]]
+  [[ "$_OSPKG_FAMILY" == "sentinel" ]]
 }
 
 @test "ospkg__detect fails when no package manager is found" {
@@ -77,7 +77,7 @@ _require_ospkg_jq() {
   create_fake_bin "zypper"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "zypper" ]]
+  [[ "$_OSPKG_FAMILY" == "zypper" ]]
   [[ "$_OSPKG_PKG_MNGR" == "zypper" ]]
   [[ "$_OSPKG_DETECTED" == true ]]
 }
@@ -87,7 +87,7 @@ _require_ospkg_jq() {
   create_fake_bin "microdnf"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "dnf" ]]
+  [[ "$_OSPKG_FAMILY" == "dnf" ]]
   [[ "$_OSPKG_PKG_MNGR" == "microdnf" ]]
   [[ "${#_OSPKG_UPDATE[@]}" -eq 0 ]]
 }
@@ -183,7 +183,7 @@ _seed_apt_context() {
   # 'sw_vers' must exist (macOS only command path).
   create_fake_bin "sw_vers" "14.0"
   ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "brew" ]]
+  [[ "$_OSPKG_FAMILY" == "brew" ]]
   [[ "$_OSPKG_PKG_MNGR" == "brew" ]]
   [[ "${_OSPKG_OS_RELEASE[id]}" == "macos" ]]
 }
@@ -196,7 +196,7 @@ _seed_apt_context() {
   prepend_fake_bin_path
   _OSPKG_PREFER_LINUXBREW=true
   ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "brew" ]]
+  [[ "$_OSPKG_FAMILY" == "brew" ]]
   [[ "$_OSPKG_PKG_MNGR" == "brew" ]]
 }
 
@@ -207,7 +207,7 @@ _seed_apt_context() {
   # Use restricted PATH so real brew is not found.
   _OSPKG_PREFER_LINUXBREW=true
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
-  [[ "$_OSPKG_PREFIX" == "apt" ]]
+  [[ "$_OSPKG_FAMILY" == "apt" ]]
   [[ "$_OSPKG_PKG_MNGR" == "apt-get" ]]
 }
 
@@ -411,7 +411,7 @@ _seed_apt_context_with_yq() {
     # Seed a minimal apt context without calling the real package manager.
     _OSPKG_DETECTED=true
     _OSPKG_PKG_MNGR='apt-get'
-    _OSPKG_PREFIX='apt'
+    _OSPKG_FAMILY='apt'
     _OSPKG_OS_RELEASE[pm]='apt'
     _OSPKG_OS_RELEASE[arch]='x86_64'
     _OSPKG_OS_RELEASE[id]='ubuntu'
@@ -441,7 +441,7 @@ _seed_apt_context_with_yq() {
 
     _OSPKG_DETECTED=true
     _OSPKG_PKG_MNGR='apt-get'
-    _OSPKG_PREFIX='apt'
+    _OSPKG_FAMILY='apt'
     _OSPKG_OS_RELEASE[pm]='apt'
     _OSPKG_OS_RELEASE[arch]='x86_64'
     _OSPKG_OS_RELEASE[id]='ubuntu'
@@ -757,7 +757,7 @@ _mock_snapshots() {
 
   logging__cleanup() { return 0; }
   ospkg__detect() {
-    _OSPKG_PREFIX="brew"
+    _OSPKG_FAMILY="brew"
     _OSPKG_PKG_MNGR="brew"
     _OSPKG_DETECTED=true
     _OSPKG_OS_RELEASE[pm]="brew"
@@ -820,7 +820,7 @@ _mock_snapshots() {
   # Force an unknown PM context directly to test the '*' case.
   _OSPKG_DETECTED=true
   _OSPKG_PKG_MNGR="unknown-pm"
-  _OSPKG_PREFIX="unknown"
+  _OSPKG_FAMILY="unknown"
 
   local _snap="${BATS_TEST_TMPDIR}/snap_unknown.txt"
   ospkg__take_initial_snapshot "$_snap"

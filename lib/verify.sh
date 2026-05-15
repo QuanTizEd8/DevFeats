@@ -165,22 +165,19 @@ verify__gpg_detached() {
   verify__gpg_ensure "$_group" || return 1
 
   local _ghome
-  _ghome="$(mktemp -d)"
+  _ghome="$(file__mktmpdir "verify-gpg")"
   chmod 0700 "$_ghome"
 
   if ! gpg --homedir "$_ghome" --import "$_key" > /dev/null 2>&1; then
     logging__error "verify__gpg_detached: failed to import key from '${_key}'."
-    rm -rf "$_ghome"
     return 1
   fi
 
   if ! gpg --homedir "$_ghome" --verify "$_sig" "$_file" > /dev/null 2>&1; then
     logging__error "verify__gpg_detached: signature verification failed for '$(basename "$_file")'."
-    rm -rf "$_ghome"
     return 1
   fi
 
-  rm -rf "$_ghome"
   logging__success "Signature verification passed for '$(basename "$_file")'."
   return 0
 }
@@ -224,20 +221,18 @@ verify__gpg_fetch_key_by_fingerprint() {
 
   # Fallback: gpg --recv-keys via HKP keyservers (isolated GNUPGHOME).
   local _ghome _ks
-  _ghome="$(mktemp -d)"
+  _ghome="$(file__mktmpdir "verify-gpg")"
   chmod 0700 "$_ghome"
   for _ks in "hkp://keyserver.ubuntu.com" "hkp://keyserver.pgp.com"; do
     logging__info "Trying keyserver ${_ks}..."
     if gpg --homedir "$_ghome" --recv-keys --keyserver "${_ks}" "${_fingerprint}" 2> /dev/null; then
       if gpg --homedir "$_ghome" --export "${_fingerprint}" | gpg --dearmor -o "${_dest}"; then
         chmod 0644 "${_dest}"
-        rm -rf "$_ghome"
         logging__success "GPG key installed via ${_ks} → ${_dest}"
         return 0
       fi
     fi
   done
-  rm -rf "$_ghome"
   logging__error "verify__gpg_fetch_key_by_fingerprint: failed to fetch key ${_fingerprint} from all keyservers."
   return 1
 }

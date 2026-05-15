@@ -91,7 +91,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
     echo "${_username}:$(users__next_subid_offset /etc/subgid):65536" >> /etc/subgid
   fi
 
-  _home=$(shell__resolve_home "$_username")
+  _home=$(users__resolve_home "$_username")
   _config_dir="${_home}/.config/containers"
   _group="$(id -gn "$_username")"
   # Always create Podman config dirs with correct ownership.

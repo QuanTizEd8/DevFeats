@@ -193,7 +193,7 @@ install_fzf() {
   local _filename="fzf-${_version}-${_os}_${_fzf_arch}.tar.gz"
   local _base_url="https://github.com/junegunn/fzf/releases/download/v${_version}"
   local _tmpdir
-  _tmpdir="$(logging__tmpdir "fzf")"
+  _tmpdir="$(file__tmpdir "fzf")"
   local _archive="${_tmpdir}/${_filename}"
   local _sidecar="${_archive}.sha256"
 
@@ -336,7 +336,7 @@ configure_user() {
 
   # Resolve user's home directory and group.
   local _cu_home
-  _cu_home="$(shell__resolve_home "$_cu_username")"
+  _cu_home="$(users__resolve_home "$_cu_username")"
   local _cu_group
   _cu_group="$(id -gn "$_cu_username" 2> /dev/null || echo "$_cu_username")"
 

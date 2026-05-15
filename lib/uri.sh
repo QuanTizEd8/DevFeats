@@ -154,10 +154,9 @@ _uri__resolve_oci_to() {
   fi
   oci__ensure_oras || return 1
   _oci__ensure_auth_for "$_ref_part" || return 1
-  _pull_dir="$(mktemp -d)"
+  _pull_dir="$(file__mktmpdir "uri-oci-pull")"
   if ! oras pull "$_ref_part" -o "$_pull_dir" > /dev/null 2>&1; then
     logging__error "uri__resolve: oras pull failed for '${_ref_part}'."
-    rm -rf "$_pull_dir"
     return 1
   fi
   local _picked=""
@@ -174,14 +173,12 @@ _uri__resolve_oci_to() {
   fi
   [[ -n "$_picked" && -f "$_picked" ]] || {
     logging__error "uri__resolve: could not pick a single file from OCI artefact '${_ref_part}'."
-    rm -rf "$_pull_dir"
     return 1
   }
   cp -f "$_picked" "$_dest" || {
-    rm -rf "$_pull_dir"
+    logging__error "uri__resolve: failed to copy OCI artifact '${_picked}' to '${_dest}'."
     return 1
   }
-  rm -rf "$_pull_dir"
   local _expect
   _expect="$(_uri__frag_sha256 "$_frag")"
   if [[ -n "$_expect" ]]; then
@@ -253,7 +250,10 @@ uri__resolve() {
       if [[ "$_base" -ef "$_dest" ]]; then
         :
       else
-        cp -f "$_base" "$_dest" || return 1
+        cp -f "$_base" "$_dest" || {
+          logging__error "uri__resolve: failed to copy '${_base}' to '${_dest}'."
+          return 1
+        }
       fi
       ;;
     file)
@@ -263,7 +263,10 @@ uri__resolve() {
         logging__error "uri__resolve: file:// target not found: '${_fp}'."
         return 1
       }
-      cp -f "$_fp" "$_dest" || return 1
+      cp -f "$_fp" "$_dest" || {
+        logging__error "uri__resolve: failed to copy '${_fp}' to '${_dest}'."
+        return 1
+      }
       ;;
     http)
       _uri__net_fetch "$_base" "$_dest" "${_args[@]}" || return 1

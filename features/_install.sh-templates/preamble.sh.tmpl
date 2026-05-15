@@ -22,7 +22,7 @@ export _SYSSET_BUILD_CONTEXT
 . "$_BASE_DIR/_lib/logging.sh"
 
 logging__setup
-logging__entry "$_FEAT_NAME v$_FEAT_VERSION"
+logging__feature_entry "$_FEAT_NAME v$_FEAT_VERSION"
 
 # Override _cleanup_hook in the hand-written section for feature-specific
 # cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
@@ -42,7 +42,7 @@ _on_exit() {
   _cleanup_hook
   [[ $_rc -eq 0 ]] && _prefix_post_install
   if [[ "${KEEP_CACHE:-true}" != true ]]; then
-    if [[ "$(id -u)" -eq 0 ]]; then
+    if users__is_root; then
       ospkg__clean
     else
       logging__info "Skipping package-manager cache cleanup (not root)."

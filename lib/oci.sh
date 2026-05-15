@@ -14,6 +14,8 @@ _OCI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OCI_LIB_DIR/install/oras.sh"
 # shellcheck source=lib/logging.sh
 . "$_OCI_LIB_DIR/logging.sh"
+# shellcheck source=lib/str.sh
+. "$_OCI_LIB_DIR/str.sh"
 # shellcheck source=lib/verify.sh
 . "$_OCI_LIB_DIR/verify.sh"
 # shellcheck source=lib/json.sh
@@ -25,6 +27,16 @@ declare -gA _OCI__AUTH_USER=()
 declare -gA _OCI__AUTH_TOKEN=()
 declare -gA _OCI__AUTH_DONE=()
 
+# @brief _oci__is_registry_host_like <host> — Return 0 when `<host>` looks like an OCI registry hostname.
+#
+# Accepts `localhost`, `localhost:<port>`, dotted hostnames (e.g. `ghcr.io`),
+# and IPv6 bracket addresses. Single-label names without dots (e.g. bare `myrepo`)
+# are rejected because they cannot be distinguished from a repository path component.
+#
+# Args:
+#   <host>  Hostname string to test (no scheme, no path).
+#
+# Returns: 0 if host-like, 1 otherwise.
 _oci__is_registry_host_like() {
   local _host="${1-}"
   [[ -n "$_host" ]] || return 1
@@ -34,6 +46,17 @@ _oci__is_registry_host_like() {
   return 1
 }
 
+# @brief _oci__registry_from_ref_or_repo <ref> — Extract the registry hostname from a full OCI reference or repository string.
+#
+# Strips `http://` and `https://` scheme prefixes before extraction. Returns
+# the first path component (everything before the first `/`). Returns 1 when
+# the input has no `/` and therefore cannot contain a registry component.
+#
+# Args:
+#   <ref>  Full OCI reference or repository string (e.g. `ghcr.io/owner/image:tag`).
+#
+# Stdout: registry hostname (e.g. `ghcr.io`).
+# Returns: 0 on success, 1 if no registry component is present.
 _oci__registry_from_ref_or_repo() {
   local _v="${1-}"
   case "$_v" in
@@ -44,6 +67,18 @@ _oci__registry_from_ref_or_repo() {
   printf '%s\n' "${_v%%/*}"
 }
 
+# @brief _oci__normalize_target <ref> — Strip scheme prefix, detect plain-HTTP flag, and print `<target>\t<plain>`.
+#
+# Converts an OCI reference that may carry an `http://` or `https://` scheme
+# into the scheme-free form expected by `oras`. Sets the plain-HTTP flag to 1
+# for `http://` URIs and for `localhost`/`127.0.0.1` targets (which oras
+# requires plain-HTTP mode for). The two-field output is designed for
+# `IFS=$'\t' read -r _target _plain <<< "$(…)"`.
+#
+# Args:
+#   <ref>  OCI reference possibly prefixed with `http://` or `https://`.
+#
+# Stdout: `<scheme-free-ref>\t<plain>` where `<plain>` is `0` or `1`.
 _oci__normalize_target() {
   local _in="${1-}" _plain=0 _host
   case "$_in" in
@@ -61,6 +96,21 @@ _oci__normalize_target() {
   printf '%s\t%s\n' "$_in" "$_plain"
 }
 
+# @brief _oci__oras_capture <target> <plain> [<prefix-args> -- <suffix-args>] — Run an oras command against `<target>`, retrying with plain-HTTP variants if `<plain>` is 1.
+#
+# Arguments before `--` are the command prefix (e.g. `oras repo tags`); arguments
+# after `--` are appended after `<target>`. When `<plain>` is `1`, tries three
+# strategies in order: `ORAS_PLAIN_HTTP=1`, `oras --plain-http <sub> <target>`,
+# then `<prefix> --plain-http <target>`. Stderr is suppressed in all cases.
+#
+# Args:
+#   <target>      Scheme-free OCI reference or repository (from _oci__normalize_target).
+#   <plain>       `0` for normal TLS; `1` to enable plain-HTTP fallbacks.
+#   <prefix-args> Command and sub-command components (e.g. `oras` `repo` `tags`).
+#   --            Separator between prefix and suffix args (optional).
+#   <suffix-args> Additional arguments appended after <target>.
+#
+# Returns: 0 on success, 1 if all variants fail.
 _oci__oras_capture() {
   local _target="${1-}" _plain="${2-}"
   shift 2
@@ -95,6 +145,14 @@ _oci__oras_capture() {
   "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null
 }
 
+# @brief _oci__load_auth_map — Parse `SYSSET_OCI_AUTH` (or `SYSSET_OCI_AUTH_FILE`) into `_OCI__AUTH_USER` and `_OCI__AUTH_TOKEN` maps. Idempotent.
+#
+# Expected format: comma-separated `registry|username|token` triples, e.g.:
+#   `ghcr.io|myuser|ghp_token,registry.example.com|robot|s3cr3t`
+# Fields with missing delimiters or empty components are silently skipped.
+# Called lazily by `_oci__ensure_auth_for`; subsequent calls are no-ops.
+#
+# Side effects: populates `_OCI__AUTH_USER[registry]` and `_OCI__AUTH_TOKEN[registry]`.
 _oci__load_auth_map() {
   [[ "$_OCI__AUTH_LOADED" -eq 1 ]] && return 0
   _OCI__AUTH_LOADED=1
@@ -117,6 +175,18 @@ _oci__load_auth_map() {
   return 0
 }
 
+# @brief _oci__ensure_auth_for <target> — Log in to the registry for `<target>` if credentials are available. Idempotent per registry.
+#
+# Extracts the registry from `<target>`, loads the auth map via
+# `_oci__load_auth_map`, and calls `oras login` with the stored credentials.
+# Registries without configured credentials are silently skipped (returns 0).
+# Once a registry has been attempted, it is marked done so subsequent calls
+# for the same registry are no-ops.
+#
+# Args:
+#   <target>  Scheme-free OCI reference (e.g. `ghcr.io/owner/repo:tag`).
+#
+# Returns: 0 on success or when no credentials are configured, 1 on login failure.
 _oci__ensure_auth_for() {
   local _target="${1-}" _reg _usr _tok _tmp
   _reg="$(_oci__registry_from_ref_or_repo "$_target" 2> /dev/null || true)"
@@ -155,12 +225,6 @@ oci__ghcr_image_ref() {
   printf 'ghcr.io/%s/%s:%s\n' "$_ns" "$_name" "$_tag"
 }
 
-_oci__version_ge() {
-  local _a="${1#v}" _b="${2#v}"
-  [[ "$_a" == "$_b" ]] && return 0
-  [[ "$(printf '%s\n' "$_a" "$_b" | sort -V | tail -n1)" == "$_a" ]]
-}
-
 # @brief oci__ensure_oras — Ensure `oras` is available and meets the minimum required version, auto-installing it if needed.
 #
 # Returns: 0 on success, 1 if oras cannot be installed or is below the minimum version.
@@ -193,7 +257,7 @@ oci__ensure_oras() {
     logging__warn "oci.sh: could not determine oras version; continuing."
     return 0
   }
-  _oci__version_ge "$_ver" "$_OCI__ORAS_MIN_VERSION" || {
+  str__semver_ge "$_ver" "$_OCI__ORAS_MIN_VERSION" || {
     logging__error "oci.sh: oras version ${_ver} is below required ${_OCI__ORAS_MIN_VERSION}."
     return 1
   }
@@ -215,6 +279,15 @@ oci__is_feature_ref_key() {
   return 0
 }
 
+# @brief _oci__repo_from_ref <ref> — Extract the repository portion of an OCI reference (everything before the tag or digest).
+#
+# Handles digest references (`repo@sha256:…`), tagged references (`repo:tag`),
+# and bare repositories. Input is lowercased before processing.
+#
+# Args:
+#   <ref>  Full OCI reference string.
+#
+# Stdout: repository portion without tag or digest.
 _oci__repo_from_ref() {
   local _ref="${1,,}"
   if [[ "$_ref" == *@sha256:* ]]; then
@@ -229,6 +302,13 @@ _oci__repo_from_ref() {
   fi
 }
 
+# @brief _oci__tag_from_ref <ref> — Extract the tag from an OCI reference. Returns 1 for digest references or untagged refs.
+#
+# Args:
+#   <ref>  Full OCI reference string (e.g. `ghcr.io/owner/repo:1.2.3`).
+#
+# Stdout: tag string (e.g. `1.2.3`).
+# Returns: 0 if a tag is present, 1 for digest refs (`@sha256:…`) or bare repos.
 _oci__tag_from_ref() {
   local _ref="${1-}" _tail
   [[ "$_ref" == *@sha256:* ]] && return 1
@@ -261,16 +341,45 @@ oci__list_tags() {
   printf '%s\n' "$_raw" | tr -d '\r' | sed '/^[[:space:]]*$/d'
 }
 
+# @brief _oci__semver_from_tag <tag> — Extract a bare semver string (`M.m.p[…]`) from an OCI tag. Returns 1 for non-semver tags.
+#
+# Strips a leading `v`, then validates the remainder against a `M.m.p` pattern
+# with optional pre-release or build metadata suffix. Tags that do not match
+# (e.g. `latest`, `edge`, `sha-abc123`) are rejected.
+#
+# Args:
+#   <tag>  OCI tag string (e.g. `v1.2.3` or `1.2.3-rc1`).
+#
+# Stdout: bare semver string without leading `v` (e.g. `1.2.3-rc1`).
+# Returns: 0 if the tag is semver, 1 otherwise.
 _oci__semver_from_tag() {
   local _t="${1-}" _s="${1#v}"
   [[ "$_s" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || return 1
   printf '%s\n' "$_s"
 }
 
+# @brief _oci__semver_is_prerelease <version> — Return 0 if the semver string has a pre-release component (contains `-`).
+#
+# Args:
+#   <version>  Bare semver string (e.g. `1.2.3-rc1`).
+#
+# Returns: 0 if pre-release, 1 if stable.
 _oci__semver_is_prerelease() {
   [[ "${1-}" == *-* ]]
 }
 
+# @brief _oci__highest_semver <tags> [<allow_pre>] — From a newline-separated list of OCI tags, print the highest stable (or pre-release) semver.
+#
+# Filters the list to semver-shaped tags, optionally including pre-releases,
+# then picks the highest version via `sort -V`. Tags that are not valid semver
+# (e.g. `latest`, `edge`) are silently ignored.
+#
+# Args:
+#   <tags>       Newline-separated tag list.
+#   [allow_pre]  `true` to include pre-release versions; default `false`.
+#
+# Stdout: highest matching semver string (no leading `v`).
+# Returns: 0 if at least one semver tag is found, 1 if the filtered list is empty.
 _oci__highest_semver() {
   local _tags="${1-}" _allow_pre="${2-false}" _t _sv _list=""
   while IFS= read -r _t; do
@@ -365,6 +474,17 @@ oci__resolve_version() {
   printf '%s' "$_cands" | sed '/^$/d' | sort -V | tail -n1
 }
 
+# @brief _oci__validate_feature_tgz <tgz> — Return 0 when `<tgz>` is a valid devcontainer feature artifact.
+#
+# A valid feature tarball must contain both `install.sh` and
+# `devcontainer-feature.json` at any depth. Strips leading path components and
+# dot-prefixed directory names to handle the various packing conventions used
+# by different OCI publishers.
+#
+# Args:
+#   <tgz>  Path to the `.tar.gz` feature artifact to validate.
+#
+# Returns: 0 if both required files are present, 1 otherwise.
 _oci__validate_feature_tgz() {
   local _tgz="${1-}" _list
   [[ -f "$_tgz" ]] || return 1
@@ -373,6 +493,18 @@ _oci__validate_feature_tgz() {
   printf '%s\n' "$_list" | grep -Eq '(^|/)\.?/?devcontainer-feature\.json$' || return 1
 }
 
+# @brief _oci__expected_layer_digest_for_ref <ref> — Fetch the OCI manifest for `<ref>` and return the digest of the first devcontainer layer.
+#
+# Fetches the manifest via `oras manifest fetch` and extracts the `digest`
+# field from the first layer whose `mediaType` matches one of the three
+# devcontainer layer media types. Returns 1 if the manifest cannot be fetched
+# or no matching layer is found.
+#
+# Args:
+#   <ref>  Full OCI reference (e.g. `ghcr.io/owner/repo:1.0.0`).
+#
+# Stdout: `sha256:<hex>` digest string.
+# Returns: 0 on success, 1 if the manifest is unavailable or has no matching layer.
 _oci__expected_layer_digest_for_ref() {
   local _ref="${1-}" _manifest _dig _target _plain
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_ref")"
@@ -416,11 +548,10 @@ oci__pull_feature_tgz() {
   _oci__ensure_auth_for "$_ref" || return 1
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_ref")"
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(file__mktmpdir "oci-pull")"
   local _expect_digest=""
   _expect_digest="$(_oci__expected_layer_digest_for_ref "$_ref" 2> /dev/null || true)"
   if ! _oci__oras_capture "$_target" "$_plain" oras pull -o "$_tmp" > /dev/null; then
-    rm -rf "$_tmp"
     logging__error "oci.sh: failed to pull '${_ref}'."
     return 1
   fi
@@ -430,12 +561,10 @@ oci__pull_feature_tgz() {
   done
   [[ "${_tgz:-}" == "$_tmp/*.tgz" ]] && _tgz=""
   [[ -n "$_tgz" ]] || {
-    rm -rf "$_tmp"
     logging__error "oci.sh: no .tgz layer materialized for '${_ref}'."
     return 1
   }
   if ! _oci__validate_feature_tgz "$_tgz"; then
-    rm -rf "$_tmp"
     logging__error "oci.sh: invalid feature artifact shape for '${_ref}'."
     return 1
   fi
@@ -443,15 +572,13 @@ oci__pull_feature_tgz() {
     local _got
     _got="sha256:$(verify__hash_file "$_tgz" 2> /dev/null || true)"
     if [[ "$_got" != "$_expect_digest" ]]; then
-      rm -rf "$_tmp"
       logging__error "oci.sh: pulled layer digest mismatch for '${_ref}'."
       return 1
     fi
   fi
   cp "$_tgz" "$_dest" || {
-    rm -rf "$_tmp"
+    logging__error "oci.sh: failed to copy tgz artifact to '${_dest}'."
     return 1
   }
-  rm -rf "$_tmp"
   return 0
 }

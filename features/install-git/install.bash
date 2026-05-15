@@ -297,7 +297,7 @@ _git__source_cleanup() {
 _git__source_register() {
   local _ver="$1"
   # Non-root installs cannot register packages via apt/dpkg.
-  if [ "$(id -u)" != "0" ]; then
+  if ! users__is_root; then
     logging__info "Non-root mode: skipping package manager registration for source-built git."
     return 0
   fi
@@ -361,7 +361,7 @@ _git__install_source() {
   # 4. Install build dependencies.
   # Non-root installs cannot invoke the OS package manager; assume deps were
   # preinstalled by the caller (e.g. Linux non-root test setup).
-  if [ "$(id -u)" = "0" ]; then
+  if users__is_root; then
     _build_deps__install_source_build
   else
     logging__info "Non-root mode: skipping build dependency installation; expecting required packages to be preinstalled."
@@ -395,7 +395,7 @@ _git__install_source() {
 # and any raw ini lines from $SYSTEM_GITCONFIG).
 _git__write_system_gitconfig() {
   local _cfg
-  if [ "$(id -u)" = "0" ]; then
+  if users__is_root; then
     _cfg="${SYSCONFDIR}/gitconfig"
   else
     _cfg="${HOME}/.config/git/config"
@@ -445,12 +445,12 @@ _git__write_user_gitconfig() {
   while IFS= read -r _user; do
     [ -z "${_user}" ] && continue
     # Non-root: only write to the invoking user's config.
-    if [ "$(id -u)" != "0" ] && [ "${_user}" != "${_current_user}" ]; then
+    if ! users__is_root && [ "${_user}" != "${_current_user}" ]; then
       logging__warn "Non-root: skipping gitconfig for '${_user}' (can only write for '${_current_user}')."
       continue
     fi
 
-    _home="$(shell__resolve_home "${_user}")" || {
+    _home="$(users__resolve_home "${_user}")" || {
       logging__warn "Could not resolve home directory for '${_user}' — skipping."
       continue
     }
@@ -469,7 +469,7 @@ _git__write_user_gitconfig() {
     [ -n "${USER_GITCONFIG}" ] && printf '%s\n' "${USER_GITCONFIG}" >> "${_cfg}"
 
     # Fix ownership when root writes to a non-root user's file.
-    if [ "$(id -u)" = "0" ]; then
+    if users__is_root; then
       chown "${_user}:${_user}" "${_cfg}" 2> /dev/null || true
     fi
     logging__success "Wrote gitconfig for user '${_user}'."
@@ -517,7 +517,7 @@ _prefix_post_install() {
 
 # 1. Resolve prefix/sysconfdir.
 if [ "${SYSCONFDIR}" = "auto" ]; then
-  [ "$(id -u)" = "0" ] && SYSCONFDIR="/etc" || SYSCONFDIR="${HOME}/.config"
+  users__is_root && SYSCONFDIR="/etc" || SYSCONFDIR="${HOME}/.config"
 fi
 
 # 2. Root check for method=package on Linux.
@@ -547,7 +547,7 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
     for _shell in "${SHELL_COMPLETIONS[@]}"; do
       case "${_shell}" in
         bash)
-          if [ "$(id -u)" = "0" ]; then
+          if users__is_root; then
             mkdir -p /etc/bash_completion.d
             cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
             logging__success "Bash completion written to /etc/bash_completion.d/git"
@@ -559,7 +559,7 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
           fi
           ;;
         zsh)
-          if [ "$(id -u)" = "0" ]; then
+          if users__is_root; then
             _zshdir="$(shell__detect_zshdir)"
             mkdir -p "${_zshdir}/completions"
             cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"

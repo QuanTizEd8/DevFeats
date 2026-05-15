@@ -63,7 +63,7 @@ _install__just_install_release() {
   local _base _asset _tmp _tar _sums _hash _dest
   _base="https://github.com/casey/just/releases/download/${_version}"
   _asset="just-${_version}-${_target}.tar.gz"
-  _tmp="$(logging__tmpdir "install/just")"
+  _tmp="$(file__tmpdir "install/just")"
   _tar="${_tmp}/${_asset}"
   _sums="${_tmp}/SHA256SUMS"
 
@@ -123,7 +123,7 @@ _install__just_install_repos() {
 _install__just_install_script() {
   local _version="${1-}" _install_prefix="${2-}" _target="${3-}" _force="${4-}" _context="${5-}" _group="${6-}"
   local _tmp _script _dest
-  _tmp="$(logging__tmpdir "install/just-script")"
+  _tmp="$(file__tmpdir "install/just-script")"
   _script="${_tmp}/install.sh"
   _dest="${_install_prefix%/}/bin/just"
   net__fetch_url_file "https://just.systems/install.sh" "$_script" || return 1

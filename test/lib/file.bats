@@ -66,7 +66,7 @@ setup() {
   # Seed a minimal apt context without invoking the real PM.
   _OSPKG_DETECTED=true
   _OSPKG_PKG_MNGR="apt-get"
-  _OSPKG_PREFIX="apt"
+  _OSPKG_FAMILY="apt"
   _OSPKG_OS_RELEASE[pm]="apt"
   _OSPKG_OS_RELEASE[arch]="x86_64"
   _OSPKG_OS_RELEASE[id]="ubuntu"

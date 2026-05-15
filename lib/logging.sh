@@ -93,8 +93,8 @@ logging__debug() {
   return 0
 }
 
-# @brief logging__entry <feature_name>... — LOG_LEVEL ≥ info. One line: ↪️ Script entry: …
-logging__entry() {
+# @brief logging__feature_entry <feature_name>... — LOG_LEVEL ≥ info. One line: ↪️ Script entry: …
+logging__feature_entry() {
   [[ "${_LOGGING_LEVEL}" -ge 3 ]] || return 0
   _logging__emit '↪️' "Script entry: $*"
   return 0
@@ -212,10 +212,14 @@ _logging__recompute_level || logging__warn "Unknown LOG_LEVEL '${LOG_LEVEL:-}'; 
 # Does NOT install an EXIT trap — the caller is responsible. Pair with:
 #   trap 'logging__cleanup' EXIT
 #
-# Cleanup deletes _SYSSET_TMPDIR and all logging__tmpdir subdirectories.
+# Cleanup deletes _SYSSET_TMPDIR and all file__tmpdir subdirectories.
 # Auto-registers GITHUB_TOKEN (if set) as a masked secret.
 logging__setup() {
-  [[ -z "${_SYSSET_TMPDIR:-}" ]] && _SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
+  if declare -f file__tmpdir > /dev/null 2>&1; then
+    _SYSSET_TMPDIR="$(file__tmpdir)"
+  else
+    [[ -z "${_SYSSET_TMPDIR:-}" ]] && _SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
+  fi
   _LOG_FILE_TMP="$(mktemp "${_SYSSET_TMPDIR}/log_XXXXXX")"
   exec 3>&1 4>&2
   exec > >(tee -a "$_LOG_FILE_TMP" >&3) 2>&1
@@ -234,27 +238,11 @@ logging__mask_secret() {
   return 0
 }
 
-# @brief logging__tmpdir <name> — Return (and create if needed) a named subdirectory of `_SYSSET_TMPDIR`. Lazy-initialises `_SYSSET_TMPDIR` if needed. Idempotent.
-#
-# Safe to call from library code that does not control the script entry
-# point, even if logging__setup has not yet been called.
-#
-# Args:
-#   <name>  Name of the subdirectory to create under _SYSSET_TMPDIR.
-#
-# Stdout: absolute path to the named subdirectory.
-logging__tmpdir() {
-  [[ -z "${_SYSSET_TMPDIR:-}" ]] && _SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
-  mkdir -p "${_SYSSET_TMPDIR}/${1}"
-  echo "${_SYSSET_TMPDIR}/${1}"
-  return 0
-}
-
 # @brief logging__cleanup — Restore original fds, flush the temp log to `$LOG_FILE` if set, and delete `_SYSSET_TMPDIR`.
 #
 # No-op if logging__setup was never called. If $LOG_FILE is set, appends the
 # captured output (with any registered secrets masked) to that file. Deletes
-# _SYSSET_TMPDIR (which contains _LOG_FILE_TMP and any logging__tmpdir
+# _SYSSET_TMPDIR (which contains _LOG_FILE_TMP and any file__tmpdir
 # subdirectories) and restores the original stdout (fd 3) and stderr (fd 4).
 logging__cleanup() {
   [[ "${_LIB_LOGGING_SETUP-}" == true ]] || return 0

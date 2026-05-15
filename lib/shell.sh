@@ -13,6 +13,8 @@ _SHELL__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_SHELL__LIB_DIR/logging.sh"
 # shellcheck source=lib/os.sh
 . "$_SHELL__LIB_DIR/os.sh"
+# shellcheck source=lib/users.sh
+. "$_SHELL__LIB_DIR/users.sh"
 
 # @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro. Uses binary probing, never file-existence checks.
 #
@@ -443,7 +445,7 @@ shell__write_env_block() {
   done
   local _target_files
   if [ "$_opt" = "auto" ]; then
-    if [ "$(id -u)" = "0" ]; then
+    if users__is_root; then
       logging__info "System-wide env block write (root)."
       _target_files="$(shell__system_path_files ${_profile_d:+--profile_d "$_profile_d"})"
     else
@@ -580,34 +582,6 @@ shell__resolve_omz_theme() {
   else
     echo "$_repo_name"
   fi
-  return 0
-}
-
-# @brief shell__resolve_home <username> — Print the home directory for the given user.
-#
-# Uses `getent passwd` when available, falling back to a direct scan of
-# `/etc/passwd`. Falls back to tilde expansion only as a last resort.
-# Avoids the fragility of `eval echo "~<username>"` for users with
-# non-standard home directories.
-#
-# Args:
-#   <username>  Username to resolve.
-#
-# Stdout: home directory path.
-shell__resolve_home() {
-  local _user="$1"
-  local _entry
-  if command -v getent > /dev/null 2>&1; then
-    _entry="$(getent passwd "$_user" 2> /dev/null)"
-  else
-    _entry="$(grep -m1 "^${_user}:" /etc/passwd 2> /dev/null)"
-  fi
-  if [ -n "$_entry" ]; then
-    printf '%s\n' "$(printf '%s\n' "$_entry" | cut -d: -f6)"
-    return 0
-  fi
-  # Last-resort fallback for environments without getent or /etc/passwd access.
-  eval echo "~${_user}"
   return 0
 }
 
@@ -761,7 +735,7 @@ shell__write_activation_snippets() {
       _everywhere=$?
     fi
     [ -z "$_snippet" ] && continue
-    if [ "$(id -u)" = "0" ]; then
+    if users__is_root; then
       if [ "$_everywhere" -eq 0 ]; then
         case "$_shell" in
           bash)
@@ -1028,7 +1002,7 @@ shell__run_prefix_discovery() {
       [[ "${#_rpd_sl[@]}" -gt 0 ]] && _sl_targets=("${_rpd_sl[@]}")
     fi
     if [[ "${#_sl_targets[@]}" -eq 0 ]]; then
-      if [[ "$(id -u)" = "0" ]]; then
+      if users__is_root; then
         case "${_disc_prefix}" in
           "${HOME}/"*) _sl_targets=("${_symlink_nonroot}") ;;
           *) _sl_targets=("${_symlink_root}") ;;
@@ -1105,7 +1079,7 @@ shell__run_prefix_discovery() {
             *) _expected_cmd="${_sl_first}/${_bin}" ;;
           esac
         elif "${_call_exports}"; then
-          if [[ "$(id -u)" = "0" ]]; then
+          if users__is_root; then
             _expected_cmd="${_bin}"
           else
             _expected_cmd="${_pfx_bin_dir}/${_bin}"

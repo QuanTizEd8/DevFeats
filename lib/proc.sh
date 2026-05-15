@@ -45,7 +45,10 @@ proc__run_parallel() {
     esac
   done
   [[ -n "$_od" ]] || _od="$(mktemp -d)"
-  mkdir -p "$_od" || return 1
+  mkdir -p "$_od" || {
+    logging__error "proc__run_parallel: failed to create output directory '${_od}'."
+    return 1
+  }
   local -a _rest=("$@") _argv=() _pids=() _labs=()
   local _lab _i _r _ec=0
   while ((${#_rest[@]} > 0)); do

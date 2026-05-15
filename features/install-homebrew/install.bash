@@ -132,13 +132,13 @@ _sync_init_files() {
   local _has_content=false
   [ $# -ge 2 ] && _has_content=true
   local _files _slug _is_root=false
-  [ "$(id -u)" = "0" ] && _is_root=true
+  users__is_root && _is_root=true
 
   if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
     _files="$(shell__system_path_files --profile_d "${_slug}.sh")"
   else
-    _files="$(shell__user_path_files --home "$(shell__resolve_home "$RESOLVED_INSTALL_USER")")"
+    _files="$(shell__user_path_files --home "$(users__resolve_home "$RESOLVED_INSTALL_USER")")"
   fi
   if [ "$_has_content" = true ]; then
     shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
@@ -154,7 +154,7 @@ _sync_init_files() {
 # needed for root) and sudo on macOS (runuser is absent there).
 _brew_run_as_install_user() {
   logging__fn_entry "_brew_run_as_install_user"
-  if [ "$(id -u)" != "0" ] || [ "${RESOLVED_INSTALL_USER}" = "root" ]; then
+  if ! users__is_root || [ "${RESOLVED_INSTALL_USER}" = "root" ]; then
     "$@"
   elif [ "$(os__kernel)" = "Darwin" ]; then
     sudo -n -u "${RESOLVED_INSTALL_USER}" "$@"
@@ -175,7 +175,7 @@ resolve_install_user() {
     return 0
   fi
   # 2. Non-root caller: always use self.
-  if [ "$(id -u)" != "0" ]; then
+  if ! users__is_root; then
     id -nu
     logging__fn_exit "resolve_install_user"
     return 0
@@ -223,7 +223,7 @@ validate_install_user() {
   logging__fn_entry "validate_install_user"
   local _user="$1"
   # Non-root caller cannot impersonate another user.
-  if [ "$(id -u)" != "0" ] && [ "$_user" != "$(id -nu)" ]; then
+  if ! users__is_root && [ "$_user" != "$(id -nu)" ]; then
     logging__error "install_user='${_user}' differs from the current user '$(id -nu)'."
     logging__info "Only root can install Homebrew for a different user."
     exit 1
@@ -313,7 +313,7 @@ logging__info "Install user: '${RESOLVED_INSTALL_USER}'."
 validate_install_user "$RESOLVED_INSTALL_USER"
 RESOLVED_PREFIX="${PREFIX}"
 logging__info "Prefix: '${RESOLVED_PREFIX}'."
-if [ "$(os__kernel)" != "Darwin" ] && [ "$(id -u)" = "0" ]; then
+if [ "$(os__kernel)" != "Darwin" ] && users__is_root; then
   prepare_prefix_if_needed "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER"
 fi
 
