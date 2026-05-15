@@ -3,6 +3,7 @@ name: Feature Reviewer
 description: "Use when auditing a feature implementation for bugs, edge cases, security issues, missing test coverage, and other discrepencies and issues, before considering the feature production-ready. Adversarial reviewer that tries to break feature installers. Subagent of feature-writer. Invoke after implementation is complete to find flaws and write targeted tests."
 tools: [read, edit, execute, search, web, todo, vscode, github/*]
 model: ["Claude Opus 4.6 (copilot)"]
+disable-model-invocation: true
 user-invocable: true
 agents: []
 ---

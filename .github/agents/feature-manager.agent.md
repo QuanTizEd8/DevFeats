@@ -3,6 +3,7 @@ name: Feature Manager
 description: "Use for end-to-end development of a feature. Handles the full lifecycle: research, API design, implementation planning, implementation, testing, and review."
 tools: [vscode, execute, read, agent, edit, search, web, browser, todo, 'github/*', 'microsoft/markitdown/*', 'playwright/*', 'oraios/serena/*', 'gitkraken/*']
 model: ["GPT-5.4 (copilot)"]
+disable-model-invocation: true
 agents: [Feature Researcher, Feature Designer, Feature Developer, Feature Reviewer]
 argument-hint: "Describe the feature work: e.g. 'create install-terraform feature' or 'audit install-pixi checksums'"
 ---

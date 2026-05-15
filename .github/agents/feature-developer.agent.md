@@ -3,6 +3,7 @@ name: Feature Developer
 description: "Use when developing, auditing, improving, or maintaining devcontainer features and standalone installers. Expert Linux/macOS system administrator specializing in shell scripting, system software setup, containerization, and DevOps. Handles the full lifecycle: research, API design, implementation, adversarial review, testing, and CI verification. Invoke for tasks involving features/*/install.bash, lib/, features/*/metadata.yaml, features/*/dev-notes/, test/, or anything related to feature development and distribution."
 tools: [execute, read, edit, search, web, agent, todo, vscode, github/*, microsoft/markitdown/*, oraios/serena/*]
 model: ["Claude Sonnet 4.6 (copilot)"]
+disable-model-invocation: true
 agents: [feature-researcher, adversarial-auditor, final-reviewer]
 argument-hint: "Describe the feature work: e.g. 'create install-terraform feature' or 'audit install-pixi checksums'"
 ---

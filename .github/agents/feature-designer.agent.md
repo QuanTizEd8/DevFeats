@@ -1,6 +1,7 @@
 ---
 name: Feature Designer
 model: ["Claude Sonnet 4.6 (copilot)"]
+disable-model-invocation: true
 tools: [vscode, execute, read, edit, search, web, browser, todo, 'github/*', 'microsoft/markitdown/*', 'playwright/*', 'oraios/serena/*', 'gitkraken/*']
 ---
 

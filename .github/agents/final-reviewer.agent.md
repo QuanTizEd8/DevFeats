@@ -2,6 +2,7 @@
 description: "Use for a final end-to-end consistency review after all implementation and testing is complete. Verifies sync state, doc/code/JSON alignment, formatting, linting, and test pass status. Subagent of feature-writer — not user-invocable. Invoke as the very last step before considering a task done."
 tools: [read, execute, search]
 model: ["GPT-5.3-Codex (copilot)"]
+disable-model-invocation: true
 user-invocable: false
 agents: []
 ---
