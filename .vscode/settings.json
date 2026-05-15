@@ -1,4 +1,9 @@
 {
+    // ── Python tooling ───────────────────────────────────────────────────────
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true
+    },
     // ── Shell script tooling ──────────────────────────────────────────────────
     "[shellscript]": {
         "editor.defaultFormatter": "mads-hartmann.bash-ide-vscode",
