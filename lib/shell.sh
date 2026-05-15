@@ -765,12 +765,10 @@ shell__write_activation_snippets() {
       if [ "$_everywhere" -eq 0 ]; then
         case "$_shell" in
           bash)
-            shell__sync_block --files "/etc/profile.d/$_profile_d_name" \
+            local _benv
+            _benv="$(shell__ensure_bashenv)"
+            shell__sync_block --files "/etc/profile.d/$_profile_d_name"$'\n'"$_benv" \
               --marker "$_marker" --content "$_snippet"
-            if [ -n "${BASH_ENV:-}" ] && [ -f "$BASH_ENV" ]; then
-              shell__sync_block --files "$BASH_ENV" \
-                --marker "$_marker" --content "$_snippet"
-            fi
             _files="$(shell__detect_bashrc)"
             ;;
           zsh) _files="$(shell__detect_zshdir)/zshenv" ;;
@@ -806,4 +804,317 @@ shell__write_activation_snippets() {
     [ -f "$_files" ] || touch "$_files"
     shell__sync_block --files "$_files" --marker "$_marker" --content "$_snippet"
   done
+}
+
+# @brief shell__prefix_link_bins — Create symlinks for a set of prefix bins into target directories.
+#
+# Args:
+#   --bin-dir <dir>   Source directory containing the binaries.
+#   --bins <names>    Space-separated binary names.
+#   --target <dir>    Target directory (may be repeated).
+shell__prefix_link_bins() {
+  local _bin_dir="" _bins=""
+  local -a _targets=()
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --bin-dir)
+        shift
+        _bin_dir="$1"
+        shift
+        ;;
+      --bins)
+        shift
+        _bins="$1"
+        shift
+        ;;
+      --target)
+        shift
+        _targets+=("$1")
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  local _bin_name _target
+  for _bin_name in ${_bins}; do
+    [[ -f "${_bin_dir}/${_bin_name}" ]] || continue
+    for _target in "${_targets[@]}"; do
+      shell__create_symlink \
+        --src "${_bin_dir}/${_bin_name}" \
+        --system-target "${_target}/${_bin_name}" \
+        --user-target "${_target}/${_bin_name}"
+    done
+  done
+}
+
+# @brief shell__prefix_export_path — Write a PATH-prepend export block for a prefix bin directory.
+#
+# Args:
+#   --bin-dir <dir>      Directory to prepend to PATH.
+#   --exports-ref <var>  Name of array variable with explicit export file paths (optional).
+#   --marker <id>        Idempotency marker.
+#   --profile-d <name>   /etc/profile.d basename for the root-wide drop-in.
+shell__prefix_export_path() {
+  local _bin_dir="" _exports_ref="" _marker="" _profile_d=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --bin-dir)
+        shift
+        _bin_dir="$1"
+        shift
+        ;;
+      --exports-ref)
+        shift
+        _exports_ref="$1"
+        shift
+        ;;
+      --marker)
+        shift
+        _marker="$1"
+        shift
+        ;;
+      --profile-d)
+        shift
+        _profile_d="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  local _export_opt
+  if [[ -n "$_exports_ref" ]]; then
+    declare -n _pep_ex="${_exports_ref}"
+    if [[ "${#_pep_ex[@]}" -eq 0 ]]; then
+      _export_opt="auto"
+    else
+      _export_opt="$(printf '%s\n' "${_pep_ex[@]}")"
+    fi
+  else
+    _export_opt="auto"
+  fi
+  local _content
+  # shellcheck disable=SC2162
+  IFS= read -r -d '' _content << 'EOBLOCK' || true
+__df_prepend_path() {
+  local _d="$1" _p="${PATH:-}" _r="" _e
+  while [ -n "$_p" ]; do
+    _e="${_p%%:*}"; [ "$_p" = "${_p#*:}" ] && _p="" || _p="${_p#*:}"
+    [ "$_e" = "$_d" ] || _r="${_r:+${_r}:}${_e}"
+  done
+  export PATH="${_d}${_r:+:${_r}}"
+}
+EOBLOCK
+  _content="${_content}__df_prepend_path \"${_bin_dir}\"
+unset -f __df_prepend_path"
+  shell__write_env_block \
+    --opt "${_export_opt}" \
+    --profile-d "${_profile_d}" \
+    --marker "${_marker}" \
+    --content "${_content}"
+}
+
+# @brief shell__run_prefix_discovery — Decide how to make prefix bins discoverable and record the expected verification command.
+#
+# Resolves symlink targets, applies the discovery decision (none|symlink|shell|all|auto),
+# delegates execution to shell__prefix_link_bins / shell__prefix_export_path, then stores
+# the expected verification command in the variable named by --cmd-var via printf -v.
+#
+# Args:
+#   --prefix <path>       Installation prefix.
+#   --bin-dir <subdir>    Subdirectory for binaries (default: bin).
+#   --discovery <value>   none|symlink|shell|all|auto (default: auto).
+#   --runtime-path <val>  Colon-separated PATH for the "already on PATH" and cmd checks.
+#   --bins <names>        Space-separated binary names to symlink.
+#   --symlinks-ref <var>  Name of array variable with explicit symlink target dirs.
+#   --exports-ref <var>   Name of array variable with explicit export file paths.
+#   --marker <id>         Idempotency marker for the PATH export block.
+#   --profile-d <name>    /etc/profile.d basename for the PATH export drop-in (root only).
+#   --bin <name>          Primary binary name for --cmd-var output.
+#   --cmd-var <varname>   Name of variable to set with the expected command string.
+#   --symlink-root <dir>  Fallback symlink target for root installs (default: /usr/local/bin).
+#   --symlink-nonroot <dir> Fallback symlink target for non-root installs (default: ${HOME}/.local/bin).
+#   --no-symlinks         Disable symlink creation.
+#   --no-exports          Disable PATH export writing.
+shell__run_prefix_discovery() {
+  local _prefix="" _bin_dir="bin" _discovery="auto" _runtime_path="${PATH:-}"
+  local _bins="" _symlinks_ref="" _exports_ref="" _marker="" _profile_d=""
+  local _bin="" _cmd_var="" _no_symlinks=false _no_exports=false
+  local _symlink_root="/usr/local/bin" _symlink_nonroot="${HOME}/.local/bin"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --prefix)
+        shift
+        _prefix="$1"
+        shift
+        ;;
+      --bin-dir)
+        shift
+        _bin_dir="$1"
+        shift
+        ;;
+      --discovery)
+        shift
+        _discovery="${1:-auto}"
+        shift
+        ;;
+      --runtime-path)
+        shift
+        _runtime_path="$1"
+        shift
+        ;;
+      --bins)
+        shift
+        _bins="$1"
+        shift
+        ;;
+      --symlinks-ref)
+        shift
+        _symlinks_ref="$1"
+        shift
+        ;;
+      --exports-ref)
+        shift
+        _exports_ref="$1"
+        shift
+        ;;
+      --marker)
+        shift
+        _marker="$1"
+        shift
+        ;;
+      --profile-d)
+        shift
+        _profile_d="$1"
+        shift
+        ;;
+      --bin)
+        shift
+        _bin="$1"
+        shift
+        ;;
+      --cmd-var)
+        shift
+        _cmd_var="$1"
+        shift
+        ;;
+      --symlink-root)
+        shift
+        _symlink_root="$1"
+        shift
+        ;;
+      --symlink-nonroot)
+        shift
+        _symlink_nonroot="$1"
+        shift
+        ;;
+      --no-symlinks)
+        _no_symlinks=true
+        shift
+        ;;
+      --no-exports)
+        _no_exports=true
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  local _pfx_bin_dir="${_prefix}/${_bin_dir}"
+
+  # Resolve symlink targets.
+  local -a _sl_targets=()
+  if [[ "$_no_symlinks" != true ]]; then
+    if [[ -n "$_symlinks_ref" ]]; then
+      declare -n _rpd_sl="${_symlinks_ref}"
+      [[ "${#_rpd_sl[@]}" -gt 0 ]] && _sl_targets=("${_rpd_sl[@]}")
+    fi
+    if [[ "${#_sl_targets[@]}" -eq 0 ]]; then
+      if [[ "$(id -u)" = "0" ]]; then
+        case "${_prefix}" in
+          "${HOME}/"*) _sl_targets=("${_symlink_nonroot}") ;;
+          *) _sl_targets=("${_symlink_root}") ;;
+        esac
+      else
+        _sl_targets=("${_symlink_nonroot}")
+      fi
+    fi
+  fi
+
+  # Discovery decision.
+  local _call_symlinks=false _call_exports=false
+  case "${_discovery}" in
+    none) ;;
+    symlink) [[ "$_no_symlinks" != true ]] && _call_symlinks=true ;;
+    shell) [[ "$_no_exports" != true ]] && _call_exports=true ;;
+    all)
+      [[ "$_no_symlinks" != true ]] && _call_symlinks=true
+      [[ "$_no_exports" != true ]] && _call_exports=true
+      ;;
+    auto)
+      case ":${_runtime_path}:" in
+        *":${_pfx_bin_dir}:"*) ;;
+        *)
+          if [[ "$_no_symlinks" != true ]]; then
+            local _has_real=false _t
+            for _t in "${_sl_targets[@]}"; do
+              [[ "$_t" != "$_pfx_bin_dir" ]] && {
+                _has_real=true
+                break
+              }
+            done
+            if "${_has_real}"; then
+              _call_symlinks=true
+            elif [[ "$_no_exports" != true ]]; then
+              # Symlinks not viable (all targets equal prefix/bin) — fall back to PATH export.
+              _call_exports=true
+            fi
+          elif [[ "$_no_exports" != true ]]; then
+            # Symlinks suppressed via --no-symlinks — fall back to PATH export.
+            _call_exports=true
+          fi
+          ;;
+      esac
+      ;;
+  esac
+
+  # Execute.
+  if "${_call_symlinks}"; then
+    local _sl_dir _sl_args=()
+    for _sl_dir in "${_sl_targets[@]}"; do _sl_args+=(--target "${_sl_dir}"); done
+    shell__prefix_link_bins --bin-dir "${_pfx_bin_dir}" --bins "${_bins}" "${_sl_args[@]}"
+  fi
+  if "${_call_exports}"; then
+    shell__prefix_export_path \
+      --bin-dir "${_pfx_bin_dir}" \
+      --exports-ref "${_exports_ref}" \
+      --marker "${_marker}" \
+      --profile-d "${_profile_d}"
+  fi
+
+  # Set expected verification command.
+  if [[ -n "$_cmd_var" && -n "$_bin" ]]; then
+    local _expected_cmd
+    case ":${_runtime_path}:" in
+      *":${_pfx_bin_dir}:"*)
+        _expected_cmd="${_bin}"
+        ;;
+      *)
+        if "${_call_symlinks}" && [[ "${#_sl_targets[@]}" -gt 0 ]]; then
+          local _sl_first="${_sl_targets[0]}"
+          case ":${_runtime_path}:" in
+            *":${_sl_first}:"*) _expected_cmd="${_bin}" ;;
+            *) _expected_cmd="${_sl_first}/${_bin}" ;;
+          esac
+        elif "${_call_exports}"; then
+          if [[ "$(id -u)" = "0" ]]; then
+            _expected_cmd="${_bin}"
+          else
+            _expected_cmd="${_pfx_bin_dir}/${_bin}"
+          fi
+        else
+          _expected_cmd="${_pfx_bin_dir}/${_bin}"
+        fi
+        ;;
+    esac
+    printf -v "${_cmd_var}" '%s' "${_expected_cmd}"
+  fi
 }

@@ -229,6 +229,11 @@ prefix_activation_snippet() {
 
 _prefix_post_install() {
   _prefix_post_install__generated
+  if os__is_devcontainer_build; then
+    printf '#!/bin/sh\n"%s" info --extended\n' "${_DF_EXPECTED_CMD}" \
+      > "${_FEAT_SHARE_DIR}/lifecycle--on-create--verification.sh"
+    chmod +x "${_FEAT_SHARE_DIR}/lifecycle--on-create--verification.sh"
+  fi
 }
 
 install_completion() {

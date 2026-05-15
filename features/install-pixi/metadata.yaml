@@ -126,7 +126,7 @@ entrypoint: "@@_FEAT_SHARE_DIR@@/entrypoint.sh ${containerWorkspaceFolder}/.pixi
 onCreateCommand:
   verification:
     description: Verify pixi is installed and working by running [`pixi info`](https://pixi.prefix.dev/latest/reference/cli/pixi/info/).
-    command: pixi info --extended
+    command: '@@_FEAT_SHARE_DIR@@/lifecycle--on-create--verification.sh'
 # installsAfter: []
 customizations:
   vscode:

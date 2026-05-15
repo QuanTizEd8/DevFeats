@@ -138,7 +138,7 @@ _sync_init_files() {
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
     _files="$(shell__system_path_files --profile_d "${_slug}.sh")"
   else
-    _files="$(shell__user_init_files --home "$(shell__resolve_home "$RESOLVED_INSTALL_USER")")"
+    _files="$(shell__user_path_files --home "$(shell__resolve_home "$RESOLVED_INSTALL_USER")")"
   fi
   if [ "$_has_content" = true ]; then
     shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"

@@ -31,10 +31,19 @@ setup_activate_env() {
     _user_home="$(getent passwd "$_u" | cut -d: -f6)" || continue
     [[ -z "$_user_home" ]] && continue
     if [[ "$ACTIVATE_ENV" == "base" ]]; then
+      [[ "${PRESERVE_CONFIG:-}" == "false" ]] && continue
       "$CONDA_EXEC" config --set auto_activate_base true --file "$_user_home/.condarc"
     else
+      local _bashrc _zshrc
+      if [[ "$_u" == "root" ]]; then
+        _bashrc="$(shell__detect_bashrc)"
+        _zshrc="$(shell__detect_zshdir)/zshrc"
+      else
+        _bashrc="$_user_home/.bashrc"
+        _zshrc="$_user_home/.zshrc"
+      fi
       local _rc
-      for _rc in "$_user_home/.bashrc" "$_user_home/.zshrc"; do
+      for _rc in "$_bashrc" "$_zshrc"; do
         [[ -f "$_rc" ]] || continue
         shell__sync_block --files "$_rc" \
           --marker "$_marker" \
@@ -48,6 +57,12 @@ setup_activate_env() {
 _prefix_post_install() {
   _prefix_post_install__generated
   setup_activate_env "${_write_users[@]}"
+  if os__is_devcontainer_build; then
+    mkdir -p "${_FEAT_SHARE_DIR}"
+    printf '#!/bin/sh\n"%s" info\n' "${_DF_EXPECTED_CMD}" \
+      > "${_FEAT_SHARE_DIR}/lifecycle--on-create--verification.sh"
+    chmod +x "${_FEAT_SHARE_DIR}/lifecycle--on-create--verification.sh"
+  fi
 }
 
 download_miniforge() {
