@@ -9,6 +9,8 @@ _FILE__LIB_LOADED=1
 _FILE__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_FILE__LIB_DIR/ospkg.sh"
+# shellcheck source=lib/users.sh
+. "$_FILE__LIB_DIR/users.sh"
 
 read -r -d '' _FILE__XZ_MANIFEST << 'EOF' || true
 packages:
@@ -75,6 +77,26 @@ _file__ensure_install_cmd() {
     return 1
   fi
   return 0
+}
+
+# @brief file__append_privileged <file> — Append stdin to <file>, escalating privilege only if needed.
+#
+# If <file> is writable by the current process (or does not yet exist but its
+# parent directory is writable), appends directly. Otherwise delegates to
+# `users__run_privileged` so the append runs as root. Writability is checked
+# before reading stdin so the stream is never consumed before the path is chosen.
+#
+# Args:
+#   <file>  Absolute path to the file to append to.
+#
+# Returns: 0 on success, non-zero on failure.
+file__append_privileged() {
+  local _file="$1"
+  if [ -w "$_file" ] || { [ ! -e "$_file" ] && [ -w "$(dirname "$_file")" ]; }; then
+    cat >> "$_file"
+  else
+    users__run_privileged sh -c 'cat >> "$1"' _ "$_file"
+  fi
 }
 
 # @brief file__install_dir [--owner <user>] [--group <group>] [--mode <mode>] <dir>... — Create one or more directories with specified ownership and permissions.

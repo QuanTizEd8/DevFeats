@@ -28,7 +28,7 @@ fix_pixi_volume_ownership() {
   if ! chown "${PIXI_VOLUME_USER}:" "$_pixi_dir" 2> /dev/null; then
     # Direct chown failed (entrypoint may not be running as root).
     # Try sudo for environments where the entrypoint user has passwordless sudo.
-    if ! sudo chown "${PIXI_VOLUME_USER}:" "$_pixi_dir" 2> /dev/null; then
+    if ! sudo -n chown "${PIXI_VOLUME_USER}:" "$_pixi_dir" 2> /dev/null; then
       warn "could not chown '${_pixi_dir}' to '${PIXI_VOLUME_USER}'; the container user may not be able to write to it"
     fi
   fi

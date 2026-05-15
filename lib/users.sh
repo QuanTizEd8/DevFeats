@@ -11,6 +11,8 @@ _USERS__LIB_LOADED=1
 _USERS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ospkg.sh
 . "$_USERS__LIB_DIR/ospkg.sh"
+# shellcheck source=lib/file.sh
+. "$_USERS__LIB_DIR/file.sh"
 
 read -r -d '' _USERS__SHADOW_UTILS_MANIFEST << 'EOF' || true
 packages:
@@ -39,6 +41,30 @@ EOF
 # Returns: 0 if uid is 0, 1 otherwise.
 users__is_root() {
   [ "$(id -u)" -eq 0 ]
+}
+
+# @brief users__run_privileged <cmd> [<args>...] — Run a command as root.
+#
+# If already root (uid 0), runs directly. Otherwise ensures sudo is installed
+# (via the system package manager) and delegates to sudo.
+#
+# Args:
+#   <cmd> [<args>...]  Command and arguments to execute.
+#
+# Returns: the exit code of <cmd>.
+users__run_privileged() {
+  if users__is_root; then
+    "$@"
+  else
+    if ! command -v sudo > /dev/null 2>&1; then
+      ospkg__run --manifest 'packages: [sudo]' --build-group "lib-users" --skip_installed
+    fi
+    if ! sudo -n true 2> /dev/null; then
+      logging__error "users__run_privileged: passwordless sudo required but not available (uid=$(id -u), user=$(id -un), cmd='${*}')"
+      return 1
+    fi
+    sudo -n "$@"
+  fi
 }
 
 # @brief users__default_prefix — Print the default binary installation prefix: `/usr/local` as root, `$HOME/.local` as non-root.
@@ -162,22 +188,22 @@ users__set_write_permissions() {
   shift 3
   logging__info "Setting write permissions on '${_path}' (owner: '${_owner}', group: '${_group}')."
   if command -v dseditgroup > /dev/null 2>&1; then
-    dseditgroup -o read "$_group" > /dev/null 2>&1 || sudo dseditgroup -o create -q "$_group"
+    dseditgroup -o read "$_group" > /dev/null 2>&1 || users__run_privileged dseditgroup -o create -q "$_group"
     local _u
     for _u in "$@"; do
       [ -z "$_u" ] && continue
       dseditgroup -o checkmember -m "$_u" "$_group" > /dev/null 2>&1 ||
-        sudo dseditgroup -o edit -a "$_u" -t user "$_group"
+        users__run_privileged dseditgroup -o edit -a "$_u" -t user "$_group"
     done
   else
     if ospkg__run --manifest "$_USERS__SHADOW_UTILS_MANIFEST" --build-group "lib-users" --skip_installed; then
-      getent group "$_group" > /dev/null 2>&1 || groupadd -r "$_group"
+      getent group "$_group" > /dev/null 2>&1 || users__run_privileged groupadd -r "$_group"
       local _u
       for _u in "$@"; do
         [ -z "$_u" ] && continue
         id -nG "$_u" 2> /dev/null | grep -qw "$_group" && continue
         if command -v usermod > /dev/null 2>&1; then
-          usermod -a -G "$_group" "$_u"
+          users__run_privileged usermod -a -G "$_group" "$_u"
         else
           logging__warn "usermod not found — cannot add '${_u}' to group '${_group}'."
         fi
@@ -186,9 +212,9 @@ users__set_write_permissions() {
       logging__warn "Neither dseditgroup nor groupadd found — skipping group setup."
     fi
   fi
-  chown -R "${_owner}:${_group}" "$_path"
-  chmod -R g+rwX "$_path"
-  find "$_path" -type d -print0 | xargs -0 chmod g+s
+  users__run_privileged chown -R "${_owner}:${_group}" "$_path"
+  users__run_privileged chmod -R g+rwX "$_path"
+  find "$_path" -type d -print0 | xargs -0 users__run_privileged chmod g+s
   return 0
 }
 
@@ -211,7 +237,7 @@ users__ensure_setuid() {
       logging__warn "users__ensure_setuid: '${_bin}' not found on PATH — skipping setuid"
       continue
     fi
-    if chmod u+s "$_path"; then
+    if users__run_privileged chmod u+s "$_path"; then
       logging__info "users__ensure_setuid: set setuid on '${_path}'"
     else
       logging__warn "users__ensure_setuid: chmod u+s '${_path}' failed"
@@ -280,7 +306,7 @@ users__set_login_shell() {
   local _shells_file=/etc/shells
   [ -f /usr/share/defaults/etc/shells ] && _shells_file=/usr/share/defaults/etc/shells
   if [ -f "$_shells_file" ] && ! grep -qx "$_shell" "$_shells_file" 2> /dev/null; then
-    echo "$_shell" >> "$_shells_file"
+    printf '%s\n' "$_shell" | file__append_privileged "$_shells_file"
     logging__info "Added '${_shell}' to '${_shells_file}'."
   fi
 
@@ -290,9 +316,9 @@ users__set_login_shell() {
     if ! grep -Eq '^auth[[:blank:]]+sufficient[[:blank:]]+pam_rootok\.so' /etc/pam.d/chsh 2> /dev/null; then
       if grep -Eq '^auth(.*)pam_rootok\.so' /etc/pam.d/chsh 2> /dev/null; then
         awk '/^auth(.*)pam_rootok\.so$/ { $2 = "sufficient" } { print }' \
-          /etc/pam.d/chsh > /tmp/_chsh.tmp && mv /tmp/_chsh.tmp /etc/pam.d/chsh
+          /etc/pam.d/chsh > /tmp/_chsh.tmp && users__run_privileged mv /tmp/_chsh.tmp /etc/pam.d/chsh
       else
-        printf 'auth sufficient pam_rootok.so\n' >> /etc/pam.d/chsh
+        printf 'auth sufficient pam_rootok.so\n' | file__append_privileged /etc/pam.d/chsh
       fi
       logging__info "Fixed pam_rootok.so in /etc/pam.d/chsh."
     fi
@@ -305,7 +331,7 @@ users__set_login_shell() {
       logging__info "Shell for '${_username}' already set to '${_shell}'."
       continue
     fi
-    if chsh -s "$_shell" "$_username" 2> /dev/null; then
+    if users__run_privileged chsh -s "$_shell" "$_username"; then
       logging__success "Shell for '${_username}' set to '${_shell}'."
     else
       logging__warn "chsh failed for '${_username}'."
@@ -354,7 +380,7 @@ users__create_system_user() {
   [ -n "$_home" ] && _cmd+=("--home-dir" "$_home")
   [ -n "$_shell" ] && _cmd+=("--shell" "$_shell")
   _cmd+=("$_username")
-  "${_cmd[@]}"
+  users__run_privileged "${_cmd[@]}"
   logging__success "Created system user '${_username}'."
   return 0
 }

@@ -21,6 +21,10 @@ _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OSPKG_LIB_DIR/install/yq.sh"
 # shellcheck source=lib/verify.sh
 [[ -z "${_VERIFY__LIB_LOADED-}" ]] && . "$_OSPKG_LIB_DIR/verify.sh"
+# shellcheck source=lib/users.sh
+. "$_OSPKG_LIB_DIR/users.sh"
+# shellcheck source=lib/file.sh
+. "$_OSPKG_LIB_DIR/file.sh"
 
 # ── Internal state ────────────────────────────────────────────────────────────
 _OSPKG_DETECTED=false
@@ -38,29 +42,29 @@ declare -A _OSPKG_OS_RELEASE=()
 
 # ── Private: clean functions ──────────────────────────────────────────────────
 _ospkg_clean_apk() {
-  rm -rf /var/cache/apk/*
+  users__run_privileged rm -rf /var/cache/apk/*
   return 0
 }
 _ospkg_clean_apt() {
-  apt-get clean
+  users__run_privileged apt-get clean
   # apt-get dist-clean is an APT 3.x command that removes /var/lib/apt/lists/*
   # while preserving the Release/InRelease files for security.
   # Docs: https://manpages.debian.org/unstable/apt/apt-get.8.en.html#distclean
   # Fall back to rm -rf on older APT (2.x and below) where the command does not exist.
-  apt-get dist-clean 2> /dev/null || rm -rf /var/lib/apt/lists/*
+  users__run_privileged apt-get dist-clean 2> /dev/null || users__run_privileged rm -rf /var/lib/apt/lists/*
   return 0
 }
 _ospkg_clean_dnf() {
-  "${_OSPKG_INSTALL[0]%% *}" clean all 2> /dev/null || "$_OSPKG_PKG_MNGR" clean all
-  rm -rf /var/cache/dnf/* /var/cache/yum/*
+  users__run_privileged "$_OSPKG_PKG_MNGR" clean all 2> /dev/null || true
+  users__run_privileged rm -rf /var/cache/dnf/* /var/cache/yum/*
   return 0
 }
 _ospkg_clean_pacman() {
-  pacman -Scc --noconfirm
+  users__run_privileged pacman -Scc --noconfirm
   return 0
 }
 _ospkg_clean_zypper() {
-  zypper clean --all
+  users__run_privileged zypper clean --all
   return 0
 }
 _ospkg_clean_brew() {
@@ -101,8 +105,8 @@ _ospkg_update_cmd() {
     'Hash Sum mismatch|Failed to fetch|Some index files failed to download' \
     "$_err_tmp" 2> /dev/null; then
     _rc=100
-    apt-get clean > /dev/null 2>&1 || true
-    apt-get dist-clean > /dev/null 2>&1 || rm -rf /var/lib/apt/lists/* 2> /dev/null || true
+    users__run_privileged apt-get clean > /dev/null 2>&1 || true
+    users__run_privileged apt-get dist-clean 2> /dev/null || users__run_privileged rm -rf /var/lib/apt/lists/* 2> /dev/null || true
   fi
   [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] &&
     [[ $_rc -eq 100 ]] && rm -f "$_err_tmp" && return 0
@@ -200,7 +204,7 @@ _ospkg_install_key_entry() {
       return 1
       ;;
   esac
-  chmod 0644 "${_target}"
+  users__run_privileged chmod 0644 "${_target}"
   return 0
 }
 
@@ -229,27 +233,27 @@ _ospkg_install_repo_content() {
   local _content
   _content="$(_ospkg_expand_content_vars "$1")"
   if [[ "$_OSPKG_PREFIX" = "apt" ]]; then
-    printf '%s' "$_content" >> /etc/apt/sources.list.d/syspkg-installer.list
+    printf '%s' "$_content" | file__append_privileged /etc/apt/sources.list.d/syspkg-installer.list
     logging__info "Appended to /etc/apt/sources.list.d/syspkg-installer.list"
   elif [[ "$_OSPKG_PREFIX" = "apk" ]]; then
     local _rline
     while IFS= read -r _rline; do
       [[ -z "${_rline:-}" || "${_rline}" =~ ^[[:space:]]*# ]] && continue
-      echo "$_rline" >> /etc/apk/repositories
+      printf '%s\n' "$_rline" | file__append_privileged /etc/apk/repositories
       _OSPKG_APK_ADDED_REPOS+=("$_rline")
       logging__info "Added APK repo: ${_rline}"
     done <<< "$_content"
   elif [[ "$_OSPKG_PREFIX" = "dnf" ]]; then
-    printf '%s' "$_content" >> /etc/yum.repos.d/syspkg-installer.repo
+    printf '%s' "$_content" | file__append_privileged /etc/yum.repos.d/syspkg-installer.repo
     logging__info "Appended to /etc/yum.repos.d/syspkg-installer.repo"
   elif [[ "$_OSPKG_PREFIX" = "zypper" ]]; then
-    printf '%s' "$_content" >> /etc/zypp/repos.d/syspkg-installer.repo
+    printf '%s' "$_content" | file__append_privileged /etc/zypp/repos.d/syspkg-installer.repo
     logging__info "Appended to /etc/zypp/repos.d/syspkg-installer.repo"
   elif [[ "$_OSPKG_PREFIX" = "pacman" ]]; then
-    mkdir -p /etc/pacman.d
-    printf '%s' "$_content" >> /etc/pacman.d/syspkg-installer.conf
+    users__run_privileged mkdir -p /etc/pacman.d
+    printf '%s' "$_content" | file__append_privileged /etc/pacman.d/syspkg-installer.conf
     grep -qxF 'Include = /etc/pacman.d/syspkg-installer.conf' /etc/pacman.conf ||
-      echo "Include = /etc/pacman.d/syspkg-installer.conf" >> /etc/pacman.conf
+      printf 'Include = /etc/pacman.d/syspkg-installer.conf\n' | file__append_privileged /etc/pacman.conf
     logging__info "Written to /etc/pacman.d/syspkg-installer.conf"
   fi
   return 0
@@ -329,8 +333,8 @@ _ospkg_set_apt() {
   logging__detect "Detected ecosystem: APT (tool: apt-get)"
   _OSPKG_PREFIX="apt"
   _OSPKG_PKG_MNGR="apt-get"
-  _OSPKG_UPDATE=(apt-get update)
-  _OSPKG_INSTALL=(apt-get -y install --no-install-recommends)
+  _OSPKG_UPDATE=(users__run_privileged apt-get update)
+  _OSPKG_INSTALL=(users__run_privileged apt-get -y install --no-install-recommends)
   _OSPKG_CLEAN=_ospkg_clean_apt
   _OSPKG_LISTS_PATH="/var/lib/apt/lists"
   _OSPKG_LISTS_PATTERN="*_Packages*"
@@ -343,8 +347,8 @@ _ospkg_set_apk() {
   logging__detect "Detected ecosystem: APK (tool: apk)"
   _OSPKG_PREFIX="apk"
   _OSPKG_PKG_MNGR="apk"
-  _OSPKG_UPDATE=(apk update)
-  _OSPKG_INSTALL=(apk add --no-cache)
+  _OSPKG_UPDATE=(users__run_privileged apk update)
+  _OSPKG_INSTALL=(users__run_privileged apk add --no-cache)
   _OSPKG_CLEAN=_ospkg_clean_apk
   _OSPKG_LISTS_PATH="/var/cache/apk"
   _OSPKG_LISTS_PATTERN="APKINDEX*"
@@ -356,8 +360,8 @@ _ospkg_set_dnf() {
   logging__detect "Detected ecosystem: DNF (tool: dnf)"
   _OSPKG_PREFIX="dnf"
   _OSPKG_PKG_MNGR="dnf"
-  _OSPKG_UPDATE=(dnf check-update)
-  _OSPKG_INSTALL=(dnf -y install)
+  _OSPKG_UPDATE=(users__run_privileged dnf check-update)
+  _OSPKG_INSTALL=(users__run_privileged dnf -y install)
   _OSPKG_CLEAN=_ospkg_clean_dnf
   _OSPKG_LISTS_PATH="/var/cache/dnf"
   _OSPKG_LISTS_PATTERN="*"
@@ -370,7 +374,7 @@ _ospkg_set_microdnf() {
   _OSPKG_PREFIX="dnf"
   _OSPKG_PKG_MNGR="microdnf"
   _OSPKG_UPDATE=()
-  _OSPKG_INSTALL=(microdnf -y install --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0)
+  _OSPKG_INSTALL=(users__run_privileged microdnf -y install --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0)
   _OSPKG_CLEAN=_ospkg_clean_dnf
   _OSPKG_LISTS_PATH=""
   _OSPKG_LISTS_PATTERN=""
@@ -382,8 +386,8 @@ _ospkg_set_yum() {
   logging__detect "Detected ecosystem: YUM (tool: yum)"
   _OSPKG_PREFIX="dnf"
   _OSPKG_PKG_MNGR="yum"
-  _OSPKG_UPDATE=(yum check-update)
-  _OSPKG_INSTALL=(yum -y install)
+  _OSPKG_UPDATE=(users__run_privileged yum check-update)
+  _OSPKG_INSTALL=(users__run_privileged yum -y install)
   _OSPKG_CLEAN=_ospkg_clean_dnf
   _OSPKG_LISTS_PATH="/var/cache/yum"
   _OSPKG_LISTS_PATTERN="*"
@@ -395,8 +399,8 @@ _ospkg_set_zypper() {
   logging__detect "Detected ecosystem: Zypper (tool: zypper)"
   _OSPKG_PREFIX="zypper"
   _OSPKG_PKG_MNGR="zypper"
-  _OSPKG_UPDATE=(zypper --non-interactive refresh)
-  _OSPKG_INSTALL=(zypper --non-interactive install)
+  _OSPKG_UPDATE=(users__run_privileged zypper --non-interactive refresh)
+  _OSPKG_INSTALL=(users__run_privileged zypper --non-interactive install)
   _OSPKG_CLEAN=_ospkg_clean_zypper
   _OSPKG_LISTS_PATH="/var/cache/zypp/raw"
   _OSPKG_LISTS_PATTERN="*"
@@ -408,8 +412,8 @@ _ospkg_set_pacman() {
   logging__detect "Detected ecosystem: Pacman (tool: pacman)"
   _OSPKG_PREFIX="pacman"
   _OSPKG_PKG_MNGR="pacman"
-  _OSPKG_UPDATE=(pacman -Sy --noconfirm)
-  _OSPKG_INSTALL=(pacman -S --noconfirm --needed)
+  _OSPKG_UPDATE=(users__run_privileged pacman -Sy --noconfirm)
+  _OSPKG_INSTALL=(users__run_privileged pacman -S --noconfirm --needed)
   _OSPKG_CLEAN=_ospkg_clean_pacman
   _OSPKG_LISTS_PATH="/var/lib/pacman/sync"
   _OSPKG_LISTS_PATTERN="*.db"
@@ -928,9 +932,9 @@ _ospkg_protect_user_pkgs() {
   ospkg__detect
   # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
   case "$_OSPKG_PKG_MNGR" in
-    apt-get) apt-mark manual "$@" > /dev/null 2>&1 || true ;;
-    dnf | yum) dnf mark user "$@" > /dev/null 2>&1 || true ;;
-    pacman) pacman -D --asexplicit "$@" > /dev/null 2>&1 || true ;;
+    apt-get) users__run_privileged apt-mark manual "$@" > /dev/null 2>&1 || true ;;
+    dnf | yum) users__run_privileged dnf mark user "$@" > /dev/null 2>&1 || true ;;
+    pacman) users__run_privileged pacman -D --asexplicit "$@" > /dev/null 2>&1 || true ;;
     *) ;;
   esac
   # Sidecar eviction: remove each package from every build-group sidecar so
@@ -1023,13 +1027,13 @@ _ospkg_mark_build_group() {
   # never appear here and their manual marks are therefore never disturbed.
   case "$_OSPKG_PKG_MNGR" in
     apt-get)
-      apt-mark auto "${_new_pkgs[@]}" >&2 || true
+      users__run_privileged apt-mark auto "${_new_pkgs[@]}" >&2 || true
       ;;
     dnf | yum)
-      dnf mark remove "${_new_pkgs[@]}" >&2 || true
+      users__run_privileged dnf mark remove "${_new_pkgs[@]}" >&2 || true
       ;;
     pacman)
-      pacman -D --asdeps "${_new_pkgs[@]}" >&2 || true
+      users__run_privileged pacman -D --asdeps "${_new_pkgs[@]}" >&2 || true
       ;;
     *) ;;
   esac
@@ -1057,20 +1061,20 @@ _ospkg_remove_build_group() {
   case "$_OSPKG_PKG_MNGR" in
     apt-get)
       # Packages were marked 'auto' at install time; autoremove handles transitive removal.
-      apt-get -y --purge autoremove >&2 || true
+      users__run_privileged apt-get -y --purge autoremove >&2 || true
       ;;
     apk)
-      apk del "${_pkgs[@]}" >&2 || true
+      users__run_privileged apk del "${_pkgs[@]}" >&2 || true
       ;;
     dnf | yum)
       # Packages were marked 'removable' at install time.
-      dnf autoremove -y >&2 || true
+      users__run_privileged dnf autoremove -y >&2 || true
       ;;
     microdnf)
-      microdnf remove "${_pkgs[@]}" >&2 || true
+      users__run_privileged microdnf remove "${_pkgs[@]}" >&2 || true
       ;;
     zypper)
-      zypper --non-interactive remove --clean-deps "${_pkgs[@]}" >&2 || true
+      users__run_privileged zypper --non-interactive remove --clean-deps "${_pkgs[@]}" >&2 || true
       ;;
     pacman)
       # Packages were marked asdeps at install time; remove orphans.
@@ -1699,7 +1703,7 @@ ospkg__run() {
             logging__inspect "[dry-run] ppa: would run: add-apt-repository -y '${_ppa}'"
           else
             logging__info "Adding PPA: ${_ppa}"
-            add-apt-repository -y "$_ppa"
+            users__run_privileged add-apt-repository -y "$_ppa"
             _yaml_repo_added=true
             logging__success "PPA added: ${_ppa}"
           fi
@@ -1756,7 +1760,7 @@ ospkg__run() {
               logging__inspect "[dry-run] copr: would run: ${_copr_dnf_bin} copr enable -y '${_copr}'"
             else
               logging__info "Enabling COPR: ${_copr}"
-              "$_copr_dnf_bin" copr enable -y "$_copr"
+              users__run_privileged "$_copr_dnf_bin" copr enable -y "$_copr"
               _yaml_repo_added=true
             fi
           done
@@ -1781,7 +1785,7 @@ ospkg__run() {
               logging__inspect "[dry-run] module: would run: ${_mod_dnf_bin} module enable -y '${_mod}'"
             else
               logging__info "Enabling module: ${_mod}"
-              "$_mod_dnf_bin" module enable -y "$_mod"
+              users__run_privileged "$_mod_dnf_bin" module enable -y "$_mod"
               logging__success "Module enabled: ${_mod}"
             fi
           done
@@ -1802,7 +1806,7 @@ ospkg__run() {
               logging__inspect "[dry-run] group: would run: ${_OSPKG_PKG_MNGR} group install -y '${_grp}'"
             else
               logging__install "Installing group '${_grp}' (dnf)."
-              "$_OSPKG_PKG_MNGR" group install -y "$_grp"
+              users__run_privileged "$_OSPKG_PKG_MNGR" group install -y "$_grp"
               logging__success "Group '${_grp}' installed."
             fi
             ;;
@@ -1811,7 +1815,7 @@ ospkg__run() {
               logging__inspect "[dry-run] group: would run: zypper --non-interactive install -t pattern '${_grp}'"
             else
               logging__install "Installing pattern '${_grp}' (zypper)."
-              zypper --non-interactive install -t pattern "$_grp"
+              users__run_privileged zypper --non-interactive install -t pattern "$_grp"
             fi
             ;;
           pacman)
@@ -1951,22 +1955,22 @@ ospkg__run() {
     if [[ "$_yaml_repo_added" == true && "$_keep_repos" == false ]]; then
       logging__remove "Removing added repositories."
       if [[ "$_OSPKG_PREFIX" = "apt" ]]; then
-        rm -f /etc/apt/sources.list.d/syspkg-installer.list
+        users__run_privileged rm -f /etc/apt/sources.list.d/syspkg-installer.list
         logging__remove "Removed /etc/apt/sources.list.d/syspkg-installer.list"
       elif [[ "$_OSPKG_PREFIX" = "apk" ]]; then
         local _rl
         for _rl in "${_OSPKG_APK_ADDED_REPOS[@]}"; do
-          sed -i "\\|^${_rl}$|d" /etc/apk/repositories
+          users__run_privileged sed -i "\\|^${_rl}$|d" /etc/apk/repositories
           logging__remove "Removed APK repo: ${_rl}"
         done
       elif [[ "$_OSPKG_PREFIX" = "dnf" ]]; then
-        rm -f /etc/yum.repos.d/syspkg-installer.repo
+        users__run_privileged rm -f /etc/yum.repos.d/syspkg-installer.repo
         logging__remove "Removed /etc/yum.repos.d/syspkg-installer.repo"
       elif [[ "$_OSPKG_PREFIX" = "zypper" ]]; then
-        rm -f /etc/zypp/repos.d/syspkg-installer.repo
+        users__run_privileged rm -f /etc/zypp/repos.d/syspkg-installer.repo
       elif [[ "$_OSPKG_PREFIX" = "pacman" ]]; then
-        rm -f /etc/pacman.d/syspkg-installer.conf
-        sed -i '/^Include = \/etc\/pacman.d\/syspkg-installer.conf$/d' /etc/pacman.conf
+        users__run_privileged rm -f /etc/pacman.d/syspkg-installer.conf
+        users__run_privileged sed -i '/^Include = \/etc\/pacman.d\/syspkg-installer.conf$/d' /etc/pacman.conf
       fi
     elif [[ "$_yaml_repo_added" == true ]]; then
       logging__info "Keeping added repositories (--keep_repos)."

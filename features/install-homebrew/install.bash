@@ -157,7 +157,7 @@ _brew_run_as_install_user() {
   if [ "$(id -u)" != "0" ] || [ "${RESOLVED_INSTALL_USER}" = "root" ]; then
     "$@"
   elif [ "$(os__kernel)" = "Darwin" ]; then
-    sudo -u "${RESOLVED_INSTALL_USER}" "$@"
+    sudo -n -u "${RESOLVED_INSTALL_USER}" "$@"
   else
     runuser -u "${RESOLVED_INSTALL_USER}" -- "$@"
   fi
