@@ -301,6 +301,8 @@ install_completion() {
 . "${_BASE_DIR}/_lib/uri.sh"
 # shellcheck source=lib/file.sh
 . "${_BASE_DIR}/_lib/file.sh"
+# shellcheck source=lib/install/common.sh
+. "${_BASE_DIR}/_lib/install/common.sh"
 
 declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
 [ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
@@ -366,9 +368,7 @@ install_completion
 # ---------------------------------------------------------------------------
 if os__is_devcontainer_build; then
   _ENTRYPOINT_DEST="${_FEAT_SHARE_DIR}/entrypoint.sh"
-  mkdir -p "${_FEAT_SHARE_DIR}"
-  cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
-  chmod +x "$_ENTRYPOINT_DEST"
+  install__copy_bin "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
   printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
     > "${_FEAT_SHARE_DIR}/entrypoint.sh.conf"
 fi
