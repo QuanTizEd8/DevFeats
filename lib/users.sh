@@ -462,7 +462,9 @@ users__resolve_home() {
     _entry="$(grep -m1 "^${_user}:" /etc/passwd 2> /dev/null)"
   fi
   if [ -n "$_entry" ]; then
-    printf '%s\n' "$(printf '%s\n' "$_entry" | cut -d: -f6)"
+    local _home
+    IFS=: read -r _ _ _ _ _ _home _ <<< "$_entry"
+    printf '%s\n' "$_home"
     return 0
   fi
   eval echo "~${_user}"
