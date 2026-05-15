@@ -483,6 +483,12 @@ _export_git_manpath() {
     logging__fn_exit "_export_git_manpath"
     return 0
   fi
+  case "${PREFIX_DISCOVERY:-auto}" in
+    none | symlink)
+      logging__fn_exit "_export_git_manpath"
+      return 0
+      ;;
+  esac
   local _manpath_export_opt
   if [ "${#PREFIX_EXPORTS[@]}" -eq 0 ]; then
     _manpath_export_opt="auto"
