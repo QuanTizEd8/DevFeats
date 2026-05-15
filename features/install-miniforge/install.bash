@@ -32,9 +32,13 @@ setup_activate_env() {
     [[ -z "$_user_home" ]] && continue
     if [[ "$ACTIVATE_ENV" == "base" ]]; then
       [[ "${PRESERVE_CONFIG:-}" == "false" ]] && continue
-      # Remove deprecated alias first to avoid MultipleKeysError in conda ≥26.3
-      "$CONDA_EXEC" config --remove-key auto_activate_base --file "$_user_home/.condarc" 2> /dev/null || true
-      "$CONDA_EXEC" config --set auto_activate true --file "$_user_home/.condarc"
+      if "$CONDA_EXEC" config --describe auto_activate &> /dev/null; then
+        # conda ≥26.3: auto_activate_base is a deprecated alias; remove it first to avoid MultipleKeysError
+        "$CONDA_EXEC" config --remove-key auto_activate_base --file "$_user_home/.condarc" 2> /dev/null || true
+        "$CONDA_EXEC" config --set auto_activate true --file "$_user_home/.condarc"
+      else
+        "$CONDA_EXEC" config --set auto_activate_base true --file "$_user_home/.condarc"
+      fi
     else
       local _bashrc _zshrc
       if [[ "$_u" == "root" ]]; then
