@@ -214,7 +214,9 @@ users__set_write_permissions() {
   fi
   users__run_privileged chown -R "${_owner}:${_group}" "$_path"
   users__run_privileged chmod -R g+rwX "$_path"
-  find "$_path" -type d -print0 | xargs -0 users__run_privileged chmod g+s
+  while IFS= read -r -d '' _dir; do
+    users__run_privileged chmod g+s "$_dir"
+  done < <(find "$_path" -type d -print0)
   return 0
 }
 
