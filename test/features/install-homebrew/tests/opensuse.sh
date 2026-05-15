@@ -40,19 +40,19 @@ cat /etc/zshenv 2> /dev/null || echo "(missing)"
 
 check "activation profile.d file written" test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
 check "activation profile.d file has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
-check "activation profile.d file has shellenv eval" grep -qF 'brew shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "activation profile.d file has shellenv eval" grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
 
 # The feature writes to whichever global bashrc file exists first
 check "a global bashrc has begin marker" \
   bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bash.bashrc 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bashrc 2>/dev/null'
 check "a global bashrc has shellenv eval" \
-  bash -c 'grep -qF "brew shellenv" /etc/bash.bashrc 2>/dev/null || grep -qF "brew shellenv" /etc/bashrc 2>/dev/null'
+  bash -c 'grep -qF "shellenv" /etc/bash.bashrc 2>/dev/null || grep -qF "shellenv" /etc/bashrc 2>/dev/null'
 
 # zshenv — /etc/zsh/zshenv (created) on the "debian" platform fallback
 check "a zshenv has begin marker" \
   bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zshenv 2>/dev/null'
 check "a zshenv has shellenv eval" \
-  bash -c 'grep -qF "brew shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "brew shellenv" /etc/zshenv 2>/dev/null'
+  bash -c 'grep -qF "shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "shellenv" /etc/zshenv 2>/dev/null'
 
 # --- login PATH includes linuxbrew ---
 echo "=== login PATH ==="

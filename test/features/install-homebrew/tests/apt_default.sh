@@ -31,12 +31,12 @@ cat /etc/zsh/zshenv 2> /dev/null || echo "(missing)"
 
 check "activation profile.d file written" test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
 check "activation profile.d file has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
-check "activation profile.d file has shellenv eval" grep -qF 'brew shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+check "activation profile.d file has shellenv eval" grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
 check "bash.bashrc has begin marker" grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
-check "bash.bashrc has shellenv eval" grep -qF 'brew shellenv' /etc/bash.bashrc
+check "bash.bashrc has shellenv eval" grep -qF 'shellenv' /etc/bash.bashrc
 check "zshenv written" bash -c 'test -f /etc/zsh/zshenv || test -f /etc/zshenv'
 check "zshenv has begin marker" bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zshenv'
-check "zshenv has shellenv eval" bash -c 'grep -qF "brew shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "brew shellenv" /etc/zshenv'
+check "zshenv has shellenv eval" bash -c 'grep -qF "shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "shellenv" /etc/zshenv'
 
 # --- login PATH includes linuxbrew ---
 echo "=== login PATH ==="

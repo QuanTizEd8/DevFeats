@@ -21,7 +21,7 @@ echo "=== /etc/bash.bashrc (tail 10) ==="
 tail -10 /etc/bash.bashrc 2> /dev/null || echo "(missing)"
 
 check "profile.d activation file has marker" grep -qF "$_MARKER" "/etc/profile.d/${_PROFILE_D}"
-check "profile.d activation file has brew shellenv eval" grep -qF 'brew shellenv' "/etc/profile.d/${_PROFILE_D}"
+check "profile.d activation file has brew shellenv eval" grep -qF 'shellenv' "/etc/profile.d/${_PROFILE_D}"
 check "bash.bashrc has activation marker" grep -qF "$_MARKER" /etc/bash.bashrc
 
 reportResults

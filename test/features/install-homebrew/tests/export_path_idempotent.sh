@@ -29,7 +29,7 @@ echo "=== /etc/zsh/zshenv ==="
 cat /etc/zsh/zshenv 2> /dev/null || echo "(missing)"
 
 check "profile.d file has exactly one begin marker" \
-  bash -c '[ "$(grep -cF "# >>> '"${_MARKER}"' >>>" "/etc/profile.d/${_PROFILE_D}")" -eq 1 ]'
+  bash -c '[ "$(grep -cF "# >>> '"${_MARKER}"' >>>" "/etc/profile.d/'"${_PROFILE_D}"'")" -eq 1 ]'
 check "bash.bashrc has exactly one begin marker" \
   bash -c '[ "$(grep -cF "# >>> '"${_MARKER}"' >>>" /etc/bash.bashrc)" -eq 1 ]'
 check "zshenv has exactly one begin marker" \
