@@ -35,8 +35,9 @@ def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
 
     Augmentation steps performed (in order):
     1. Read ``metadata.yaml`` from disk.
-    2. Substitute feature-scoped variables (e.g. ``@@_FEAT_SHARE_DIR@@``) in all
-       string values.  See :func:`_feature_vars` for the full variable table.
+    2. Substitute feature-scoped variables (e.g. ``@@_FEAT_SHARE_DIR@@``,
+       ``@@PROJECT_NAMESPACE@@``) in all string values.
+       See :func:`_feature_vars` for the full variable table.
     3. Merge shared options from ``features/shared-options.yaml``.
     4. Set ``metadata["id"]`` and ``metadata["_oci_ref"]``.
     """
@@ -531,10 +532,22 @@ def _feature_vars(feature_id: str, owner: str, repo: str) -> dict[str, str]:
     ``@@_EXPORT_PROFILE_D@@``
         Filename of the ``/etc/profile.d/`` drop-in for PATH export blocks.
         Formula: ``<owner>-<repo>-<feature_id>-export-path.sh``.
+
+    ``@@PROJECT_OWNER@@``
+        GitHub-style owner slug (same as the first component of ``_oci_ref``).
+
+    ``@@PROJECT_NAME@@``
+        Repository name slug (same as the second component of ``_oci_ref``).
+
+    ``@@PROJECT_NAMESPACE@@``
+        ``<owner>/<repo>`` string (not a filesystem path).
     """
     return {
         "_FEAT_SHARE_DIR": feat_share_dir(feature_id, owner, repo),
         "_EXPORT_PROFILE_D": export_profile_d(feature_id, owner, repo),
+        "PROJECT_OWNER": owner,
+        "PROJECT_NAME": repo,
+        "PROJECT_NAMESPACE": f"{owner}/{repo}",
     }
 
 

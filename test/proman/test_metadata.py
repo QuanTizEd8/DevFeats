@@ -208,6 +208,9 @@ def test_feature_vars_delegates_to_const() -> None:
     assert vars_["_EXPORT_PROFILE_D"] == export_profile_d(
         "install-foo", "myowner", "myrepo"
     )
+    assert vars_["PROJECT_OWNER"] == "myowner"
+    assert vars_["PROJECT_NAME"] == "myrepo"
+    assert vars_["PROJECT_NAMESPACE"] == "myowner/myrepo"
 
 
 def test_substitute_vars_string() -> None:
@@ -241,7 +244,7 @@ def test_load_and_augment_substitutes_feature_vars(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """@@_FEAT_SHARE_DIR@@ and @@_EXPORT_PROFILE_D@@ are expanded in metadata values."""
+    """@@_FEAT_SHARE_DIR@@, @@_EXPORT_PROFILE_D@@, and @@PROJECT_*@@ are expanded."""
     monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: ("myowner", "myrepo"))
     features = tmp_path / "features"
     feat_id = "install-bar"
@@ -255,6 +258,7 @@ def test_load_and_augment_substitutes_feature_vars(
         "options": {},
         "entrypoint": "@@_FEAT_SHARE_DIR@@/entrypoint.sh ${containerWorkspaceFolder}",
         "containerEnv": {"PATH": "@@_FEAT_SHARE_DIR@@/bin:$PATH"},
+        "documentationURL": "https://github.com/@@PROJECT_NAMESPACE@@",
         "onCreateCommand": {
             "run": {"command": "sh @@_FEAT_SHARE_DIR@@/on-create.sh || true"},
         },
@@ -271,3 +275,4 @@ def test_load_and_augment_substitutes_feature_vars(
     assert result["onCreateCommand"]["run"]["command"] == (
         f"sh {expected_share}/on-create.sh || true"
     )
+    assert result["documentationURL"] == "https://github.com/myowner/myrepo"
