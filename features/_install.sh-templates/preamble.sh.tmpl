@@ -15,18 +15,22 @@ export _SYSSET_BUILD_CONTEXT
 . "$_BASE_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_BASE_DIR/_lib/logging.sh"
+
 logging__setup
 logging__entry "@@FEATURE_NAME@@"
+
 # Override _cleanup_hook in the hand-written section for feature-specific
 # cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
 # _on_exit owns that call and guarantees it runs exactly once, last.
 # shellcheck disable=SC2329,SC2317
 _cleanup_hook() { return; }
+
 # Override _prefix_post_install to add supplemental post-install steps
 # (e.g. exporting additional env vars). The generated block replaces this
 # stub with the real implementation when _prefix_groups is declared.
 # shellcheck disable=SC2329,SC2317
 _prefix_post_install() { return; }
+
 # shellcheck disable=SC2329,SC2317
 _on_exit() {
   local _rc=$?

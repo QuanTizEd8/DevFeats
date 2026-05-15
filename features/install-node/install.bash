@@ -383,7 +383,6 @@ _node_install_via_binary() {
   return 0
 }
 
-# shellcheck disable=SC2329,SC2317
 create_nvm_symlinks() {
   logging__fn_entry "create_nvm_symlinks"
   if [ "${METHOD}" != "nvm" ]; then
@@ -409,6 +408,11 @@ create_nvm_symlinks() {
   done
   logging__fn_exit "create_nvm_symlinks"
   return
+}
+
+_prefix_post_install() {
+  _prefix_post_install__generated
+  create_nvm_symlinks
 }
 
 # shellcheck disable=SC2329,SC2317
