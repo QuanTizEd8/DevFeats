@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+_FEAT_ID="@@FEATURE_ID@@"
+_FEAT_VERSION="@@FEATURE_VERSION@@"
+_FEAT_NAME="@@FEATURE_NAME@@"
+_FEAT_SHARE_DIR="@@FEATURE_SHARE_DIR@@"
+_EXPORT_PROFILE_D="@@FEATURE_PROFILE_D_FILE@@"
+
 # Path to the feature's root directory.
 _BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Path to the feature's ``files/`` sub-directory.
-# Body scripts can reference bundled files without hard-coding a relative path.
 _FILES_DIR="${_BASE_DIR}/files"
 
-_SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::@@FEATURE_NAME@@}"
+_SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::$_FEAT_ID}"
 export _SYSSET_BUILD_CONTEXT
 
 # shellcheck source=lib/ospkg.sh
@@ -17,7 +22,7 @@ export _SYSSET_BUILD_CONTEXT
 . "$_BASE_DIR/_lib/logging.sh"
 
 logging__setup
-logging__entry "@@FEATURE_NAME@@"
+logging__entry "$_FEAT_NAME v$_FEAT_VERSION"
 
 # Override _cleanup_hook in the hand-written section for feature-specific
 # cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
@@ -45,9 +50,9 @@ _on_exit() {
   fi
   [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && ospkg__cleanup_all_build_groups
   if [[ $_rc -eq 0 ]]; then
-    logging__success "@@FEATURE_NAME@@ script finished successfully."
+    logging__success "$_FEAT_NAME script finished successfully."
   else
-    logging__fatal "@@FEATURE_NAME@@ script exited with error ${_rc}."
+    logging__fatal "$_FEAT_NAME script exited with error ${_rc}."
   fi
   logging__cleanup
   return

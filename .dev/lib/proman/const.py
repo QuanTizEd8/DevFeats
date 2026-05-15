@@ -12,13 +12,18 @@ def lifecycle_command_entry_prefix(feature_id: str, owner: str, repo: str) -> st
 
 
 def feat_share_dir(feature_id: str, owner: str, repo: str) -> str:
-    """Return the canonical ``/usr/local/share/`` path for a feature's artefacts.
+    """Return the canonical path for a feature's artefacts.
+
+    Canonical location under ``/usr/local/share/`` where this feature writes
+    persistent artefacts (entrypoints, lifecycle hooks, runtime config files).
 
     Formula: ``/usr/local/share/<owner>/<repo>/<feature_id>``.
 
     This is the single authoritative definition used both when generating the
     bash header (``_FEAT_SHARE_DIR`` variable) and when substituting
     ``@@_FEAT_SHARE_DIR@@`` tokens in ``metadata.yaml`` values.
+    All body code that creates files on the container
+    should use this variable instead of hard-coding a path.
     """
     return f"/usr/local/share/{owner}/{repo}/{feature_id}"
 
@@ -26,11 +31,16 @@ def feat_share_dir(feature_id: str, owner: str, repo: str) -> str:
 def export_profile_d(feature_id: str, owner: str, repo: str) -> str:
     """Return the canonical ``/etc/profile.d/`` drop-in filename for a feature.
 
+    Canonical ``/etc/profile.d/`` drop-in filename for environment-export
+    blocks.
+
     Formula: ``<owner>-<repo>-<feature_id>-export-path.sh``.
 
     This is the single authoritative definition used both when generating the
     bash header (``_EXPORT_PROFILE_D`` variable) and when substituting
     ``@@_EXPORT_PROFILE_D@@`` tokens in ``metadata.yaml`` values.
+    Every shell function that writes a profile.d drop-in should reference
+    this variable so the feature uses exactly one consistent filename.
     """
     return f"{project_slug(owner, repo)}-{feature_id}-export-path.sh"
 

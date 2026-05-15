@@ -80,18 +80,24 @@ class InstallScriptGenerator:
         prefix_groups: dict = metadata.get("_prefix_groups") or {}
 
         header = self._generate_block(
-            feature_name, options, dependencies, prefix_groups, metadata["id"]
+            feature_id=metadata["id"],
+            feature_version=metadata["version"],
+            feature_name=feature_name,
+            options=options,
+            dependencies=dependencies,
+            prefix_groups=prefix_groups,
         )
         full_script = self._shfmt_format(f"{header}\n\n{body}\n")
         return {target_file: full_script}
 
     def _generate_block(
         self,
+        feature_id: str,
+        feature_version: str,
         feature_name: str,
         options: dict,
-        dependencies: dict | None = None,
-        prefix_groups: dict | None = None,
-        feature_id: str = "",
+        dependencies: dict | None,
+        prefix_groups: dict | None,
     ) -> str:
         r"""Return the full generated content from shebang to END marker (inclusive).
 
@@ -102,12 +108,19 @@ class InstallScriptGenerator:
         """
         run_deps: dict = (dependencies or {}).get("run") or {}
         build_deps: dict = (dependencies or {}).get("build") or {}
+        _owner, _repo = git_owner_repo()
         parts = [
-            self._render_template("preamble", FEATURE_NAME=feature_name),
+            self._render_template(
+                "preamble",
+                FEATURE_ID=feature_id,
+                FEATURE_VERSION=feature_version,
+                FEATURE_NAME=feature_name,
+                FEATURE_SHARE_DIR=feat_share_dir(feature_id, _owner, _repo),
+                FEATURE_PROFILE_D_FILE=export_profile_d(feature_id, _owner, _repo),
+            ),
             self._section_usage(options),
             self._section_arg_parse(options),
             self._section_defaults(options),
-            self._section_feature_vars(feature_id),
             self._section_prefix_helpers(prefix_groups or {}, feature_id),
             self._section_validation(options),
             self._section_unexport(options),
@@ -375,32 +388,6 @@ class InstallScriptGenerator:
                 "# are not inherited by child processes.",
                 "declare +x " + " ".join(scalar_vars),
             ],
-        )
-
-    def _section_feature_vars(self, feature_id: str) -> str:
-        """Emit feature-wide variables available to both the generated header and body.
-
-        Emits read-only variables:
-
-        _FEAT_SHARE_DIR
-            Canonical location under ``/usr/local/share/`` where this feature writes
-            persistent artefacts (entrypoints, lifecycle hooks, runtime config files).
-            Formula: ``/usr/local/share/<owner>/<repo>/<feature_id>``.  All body
-            code that creates files on the container should use this variable instead
-            of hard-coding a path.
-
-        _EXPORT_PROFILE_D
-            Canonical ``/etc/profile.d/`` drop-in filename for environment-export
-            blocks.  Formula: ``<owner>-<repo>-<feature_id>-export-path.sh``.
-            Every shell function that writes a profile.d drop-in should reference
-            this variable so the feature uses exactly one consistent filename.
-        """
-        _owner, _repo = git_owner_repo()
-        return "\n".join(
-            [
-                f'_FEAT_SHARE_DIR="{feat_share_dir(feature_id, _owner, _repo)}"',
-                f'_EXPORT_PROFILE_D="{export_profile_d(feature_id, _owner, _repo)}"',
-            ]
         )
 
     def _section_prefix_helpers(self, prefix_groups: dict, feature_id: str) -> str:
