@@ -267,5 +267,8 @@ file__tmpdir() {
 #
 # Stdout: absolute path to the new unique directory.
 file__mktmpdir() {
-  mktemp -d "$(file__tmpdir)/${1:-tmp}.XXXXXX"
+  local _base
+  _base="$(file__tmpdir)/${1:-tmp}"
+  mkdir -p "${_base%/*}"
+  mktemp -d "${_base}.XXXXXX"
 }

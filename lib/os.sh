@@ -133,6 +133,7 @@ os__release_kernel() {
 # Flavor `gh`:               amd64, arm64, armv6, 386.
 #
 # Returns: 0 on success, 1 if the arch/flavor combination is unsupported.
+# shellcheck disable=SC2120
 os__release_arch() {
   local _raw="" _flavor="github"
   while [[ $# -gt 0 ]]; do
