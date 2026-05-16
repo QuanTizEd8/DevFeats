@@ -1,12 +1,12 @@
 <!--
 This is the template for the Feature Reference Document.
 It provides a structured format for documenting the underlying tool that a feature installs or sets up, including its installation methods, supported platforms and platform-specific notes, dependencies, configuration options, limitations, and other important information for implementers, auditors, and maintainers. This document serves as a comprehensive reference for developers, ensuring that they have all the necessary information to understand the tool's installation process and to implement the feature correctly.
-When writing the feature reference, be sure to provide clear and detailed information, including exact commands where applicable, and accurately cite all relevant references for the information provided. Make sure to stay faithful to the template structure; remove all comments and placeholder text, and replace them with the actual content.
+When writing the feature reference, be sure to provide clear and detailed information, including exact commands where applicable, and accurately cite all relevant references for the information provided (use footnotes to cite each piece of information). Make sure to stay faithful to the template structure; remove all comments and placeholder text, and replace them with the actual content.
 -->
 # Feature Reference
 
 <!--
-Write a summary about the underlying tool that this feature installs or sets up, including what it does, its main use cases, and any important context or background information.
+Write a summary (one or two paragraphs) about the underlying tool that this feature installs or sets up, including what it does, its main use cases, and any important context or background information.
 -->
 
 - **Homepage**: <!-- Link to the official homepage for the tool, if available. -->
@@ -14,17 +14,28 @@ Write a summary about the underlying tool that this feature installs or sets up,
 - **Documentation**: <!-- Link to the official documentation for the tool, if available. -->
 - **Latest Release**: <!-- The latest stable release version of the tool, and the date this information was last verified, in the format "X.Y.Z (as of YYYY-MM-DD)". -->
 
-## Available Installation Methods
+## Tool Architecture
 
 <!--
-Write a summary of the feature's availability, installation/setup methods, and other key installation information.
+Describe the architecture of the tool, including its main components, how they interact with each other, and any important architectural patterns or design principles it follows. This must include:
+- is it a single binary, a collection of individual binaries, a library, a set of scripts, etc.?
+- is it self-contained, or does it rely on external services, components, files, or tools to function?
+- does it have a client-server architecture, or is it a standalone tool?
+- does it rely on any specific runtime environments or frameworks (e.g. JVM, Node.js, Python, etc.)?
+- any other important architectural details that implementers, auditors, and maintainers should be aware of when working with this tool. This can include things like the programming language(s) it's written in, the build system it uses, and any other relevant technical details.
+-->
+
+## Installation Methods
+
+<!--
+Write a summary of the tool's availability, installation/setup methods, and other key installation information.
 -->
 
 <!--
 Add one subsection for each available installation/setup method, using the template below
 -->
 
-### <!-- Method Name (e.g. "OS Package Manager", "Binary Download", "Installer Script", "Pixi/Conda/UV/Nix Installation") -->
+### <!-- Method Name (e.g. "OS Package Manager", "Binary Download", "Installer Script", "Cargo/NPM/Pixi/Conda/UV/Nix Installation") -->
 
 #### Supported Platforms
 
@@ -49,7 +60,9 @@ List all dependencies and requirements for this installation method that are com
 ##### Platform-Specific Dependencies
 
 <!--
-List any additional dependencies or requirements that are specific to certain platforms.
+List any additional dependencies or requirements that are specific to certain platforms, categorized by platform, e.g.:
+- Linux: "glibc 2.28+", "systemd"
+- macOS: "Homebrew"
 -->
 
 #### Installation Steps
@@ -93,7 +106,7 @@ Describe any required privileges for this installation method, such as whether i
 ##### Tool-Specific Configurations
 
 <!--
-Describe ALL available configuration options for this installation method that are specific to the tool being installed, such as build options, tool-specific configuration files or persistent environment variables, etc., with details on how to set them (e.g. command-line flags, environment variables, configuration files).
+Describe ALL available configuration options for this installation method that are specific to the tool being installed, such as build options, tool-specific configuration files or persistent environment variables, etc., with details on how to set them (e.g. command-line flags, environment variables, configuration files) and exact references to the official documentation.
 -->
 
 #### Post-Installation Steps and Cleanup
@@ -154,16 +167,27 @@ Describe the behavior of the installation method if it is run multiple times, e.
 Add any additional notes, such as limitations, tips, best practices, or important information related to this installation method that implementers, auditors, and maintainers should be aware of. This can include things like common pitfalls to avoid, security considerations, performance implications, compatibility issues, etc.
 -->
 
+## Dev Container Setup
+
+<!--
+If there are any special considerations or steps for setting up this tool in a development container environment, such as a Dockerfile or `devcontainer.json`/`devcontainer-feature.json` configuration, add a section describing those steps and considerations here. This can include things like mounting volumes, required privileges, entrypoint scripts, lifecycle commands, additional dependencies that need to be installed in the container, configuration changes that need to be made for the tool to work correctly in a container environment, etc.
+-->
+
+## Plugins and Extensions
+
+<!--
+If the tool being installed supports plugins or extensions, including but not limited to VS Code extensions, add a section describing them, including how to find them, how to install them, and any important considerations related to them (e.g. compatibility with different versions of the main tool, security considerations, etc.)
+-->
+
 ## References
 
 <!--
-Cite all references for the above information, including official documentation and source code, and other well-established resources. For each reference, provide a brief description of what it is and why it's relevant. For example:
+Cite all references for the above information, including official documentation and source code, and other well-established resources. For each reference, provide a brief description of what it is and why it's relevant. Make sure all information in the document accurately cite (using footnotes) the corresponding reference. For example:
 
-- [Official Docs – Installation Methods](link)
-- [Official Docs – Dependencies](link)
-- [Official Github Repo – Configuration Options](link)
-- [Installer Source Code – Post-Installation Steps](link)
-- [Maintainer Blog Post – Installation Guide](link)
-- [Similar Feature in Popular Project – <Issue> Handling](link)
-
+[^docs-install]: [Official Docs – Installation Methods](link)
+[^docs-dependencies]: [Official Docs – Dependencies](link)
+[^repo-config]: [Official Github Repo – Configuration Options](link)
+[^src-installer]: [Installer Source Code – Post-Installation Steps](link)
+[^blog-install]: [Maintainer Blog Post – Installation Guide](link)
+[^ext-feature]: [Similar Feature in Popular Project – <Issue> Handling](link)
 -->
