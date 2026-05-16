@@ -2,9 +2,8 @@
 # GitHub Releases API: fetch JSON, resolve versions, select and download release assets.
 #
 # Fetches release metadata via the GitHub API, resolves version specs, selects
-# platform-appropriate assets using arch/platform heuristics, and downloads
-# them with optional SHA-256 verification.
-# Requires `net.sh`, `ospkg.sh`, and `json.sh` to be sourced first.
+# platform-appropriate assets using arch/platform heuristics, downloads and
+# verifies them, extracts archives, and installs binaries.
 # Respects `GITHUB_TOKEN` for all API calls.
 
 [ -n "${_GITHUB__LIB_LOADED-}" ] && return 0
@@ -15,6 +14,14 @@ _GITHUB__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_GITHUB__LIB_DIR/logging.sh"
 # shellcheck source=lib/json.sh
 . "$_GITHUB__LIB_DIR/json.sh"
+# shellcheck source=lib/net.sh
+. "$_GITHUB__LIB_DIR/net.sh"
+# shellcheck source=lib/verify.sh
+. "$_GITHUB__LIB_DIR/verify.sh"
+# shellcheck source=lib/file.sh
+. "$_GITHUB__LIB_DIR/file.sh"
+# shellcheck source=lib/install/common.sh
+. "$_GITHUB__LIB_DIR/install/common.sh"
 
 # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
 #
@@ -140,7 +147,8 @@ github__release_json_digest_for_asset() {
 #
 # The download URL is `${SYSSET_RELEASE_BASE:-https://github.com/<repo>/releases/download}/<tag>/<asset-name>`.
 # Respects the same GitHub API auth as `github__fetch_release_json`.
-# Requires `net.sh` to be sourced and `verify__sha` to be available.
+# Note: for new code prefer `github__install_release` which also handles
+# archive extraction and binary installation in addition to download+verify.
 #
 # Args:
 #   <owner/repo>   GitHub repository in "owner/repo" format.
@@ -188,6 +196,323 @@ github__fetch_release_asset_tarball() {
     logging__warn "No digest in release metadata for '${_asset}' — skipping verification."
   fi
   return 0
+}
+
+# @brief github__install_release OPTIONS — Unified download → verify → extract → install helper for GitHub release assets.
+#
+# Resolves and downloads a release asset from GitHub, verifies its integrity
+# (SHA-256 and/or GPG), auto-detects whether it is an archive or direct binary
+# via magic bytes, extracts if needed, and installs the binary to a destination
+# path using install__copy_bin.
+#
+# Required:
+#   --repo <owner/repo>    GitHub repository (e.g. "oras-project/oras")
+#   --tag  <tag>           Full release tag (e.g. "v1.2.3")
+#   --dest <path>          Absolute destination path for the installed binary
+#
+# Asset selection (all optional; when none given, full OS/arch heuristic selection is used):
+#   --asset <name>         Exact asset filename; skips API enumeration
+#   --asset-regex <ere>    ERE pre-filter, then apply github__pick_release_asset heuristics
+#
+# Binary extraction (optional):
+#   --binary-path <name>   Basename of binary inside archive.
+#                          When absent, magic bytes determine archive vs. direct binary;
+#                          archives are searched for basename($dest).
+#
+# SHA-256 verification (default: auto):
+#   --sha256 <spec>        Composable with '+'. Base modes:
+#                            auto      Try JSON digest; warn+continue if absent (default)
+#                            json      Require JSON digest; fail if absent
+#                            sidecar   Download --sidecar-url and verify
+#                            <64-hex>  Verify against caller-provided hash
+#                            none      Skip all SHA-256 (standalone only)
+#                          Combinations: auto+sidecar, json+sidecar
+#   --sidecar-url <url>    Required when --sha256 includes 'sidecar'
+#
+# GPG verification (optional, additive):
+#   --gpg-key-url <url>    Enables GPG; key downloaded from this URL
+#   --gpg-sig-url <url>    Signature URL; default: <asset-url>.asc
+#
+# Resource tracking (optional):
+#   --owner-group <id>     If set, calls install__track_internal_path after install
+#
+# Stdout: absolute path to installed binary.
+# Returns: 0 on success, 1 on any failure.
+github__install_release() {
+  local _repo="" _tag="" _dest="" _asset="" _asset_regex="" _binary_path=""
+  local _sha256_spec="auto" _sidecar_url="" _gpg_key_url="" _gpg_sig_url=""
+  local _owner_group=""
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --repo)
+        shift
+        _repo="$1"
+        shift
+        ;;
+      --tag)
+        shift
+        _tag="$1"
+        shift
+        ;;
+      --dest)
+        shift
+        _dest="$1"
+        shift
+        ;;
+      --asset)
+        shift
+        _asset="$1"
+        shift
+        ;;
+      --asset-regex)
+        shift
+        _asset_regex="$1"
+        shift
+        ;;
+      --binary-path)
+        shift
+        _binary_path="$1"
+        shift
+        ;;
+      --sha256)
+        shift
+        _sha256_spec="$1"
+        shift
+        ;;
+      --sidecar-url)
+        shift
+        _sidecar_url="$1"
+        shift
+        ;;
+      --gpg-key-url)
+        shift
+        _gpg_key_url="$1"
+        shift
+        ;;
+      --gpg-sig-url)
+        shift
+        _gpg_sig_url="$1"
+        shift
+        ;;
+      --owner-group)
+        shift
+        _owner_group="$1"
+        shift
+        ;;
+      *)
+        logging__error "github__install_release: unknown option: '$1'"
+        return 1
+        ;;
+    esac
+  done
+
+  # ── Validate required args ──────────────────────────────────────────────────
+  if [ -z "$_repo" ] || [ -z "$_tag" ] || [ -z "$_dest" ]; then
+    logging__error "github__install_release: --repo, --tag, and --dest are required."
+    return 1
+  fi
+  if [ -n "$_asset" ] && [ -n "$_asset_regex" ]; then
+    logging__error "github__install_release: --asset and --asset-regex are mutually exclusive."
+    return 1
+  fi
+
+  # ── Parse --sha256 spec (split on '+') ──────────────────────────────────────
+  local _sha256_do_json=false _sha256_require_json=false
+  local _sha256_do_sidecar=false _sha256_hex="" _sha256_none=false
+  local _part
+  while IFS= read -r _part; do
+    [ -z "$_part" ] && continue
+    case "$_part" in
+      auto) _sha256_do_json=true ;;
+      json)
+        _sha256_do_json=true
+        _sha256_require_json=true
+        ;;
+      sidecar) _sha256_do_sidecar=true ;;
+      none) _sha256_none=true ;;
+      *)
+        if [[ "$_part" =~ ^[0-9a-fA-F]+$ ]]; then
+          if [ "${#_part}" -ne 64 ]; then
+            logging__error "github__install_release: --sha256 hex must be 64 chars, got ${#_part}."
+            return 1
+          fi
+          _sha256_hex="$_part"
+        else
+          logging__error "github__install_release: invalid --sha256 token '${_part}'."
+          return 1
+        fi
+        ;;
+    esac
+  done < <(printf '%s\n' "$_sha256_spec" | tr '+' '\n')
+
+  if "$_sha256_none" && { "$_sha256_do_json" || "$_sha256_do_sidecar" || [ -n "$_sha256_hex" ]; }; then
+    logging__error "github__install_release: --sha256 none cannot be combined with other modes."
+    return 1
+  fi
+  if "$_sha256_do_sidecar" && [ -z "$_sidecar_url" ]; then
+    logging__error "github__install_release: --sidecar-url is required when --sha256 includes 'sidecar'."
+    return 1
+  fi
+
+  # ── Resolve asset name (exact → regex → full heuristics) ────────────────────
+  if [ -z "$_asset" ]; then
+    local _picked_url
+    if [ -n "$_asset_regex" ]; then
+      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag" --asset-regex "$_asset_regex")" || return 1
+    else
+      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag")" || return 1
+    fi
+    _asset="${_picked_url##*/}"
+  fi
+
+  # ── Build asset download URL ─────────────────────────────────────────────────
+  local _asset_url
+  if [ -n "${SYSSET_RELEASE_BASE-}" ]; then
+    _asset_url="${SYSSET_RELEASE_BASE}/${_tag}/${_asset}"
+  else
+    _asset_url="https://github.com/${_repo}/releases/download/${_tag}/${_asset}"
+  fi
+
+  # ── Create tmpdir and set archive path ──────────────────────────────────────
+  local _tmp _archive
+  _tmp="$(file__mktmpdir "github-install-release")"
+  _archive="${_tmp}/${_asset}"
+
+  # ── Pre-fetch release JSON for auto/json sha256 modes ───────────────────────
+  local _json_digest=""
+  if "$_sha256_do_json"; then
+    local _reljson="${_tmp}/_release.json"
+    if github__fetch_release_json "$_repo" --tag "$_tag" --dest "$_reljson" 2> /dev/null; then
+      _json_digest="$(github__release_json_digest_for_asset "$_reljson" "$_asset")" || _json_digest=""
+    fi
+    if "$_sha256_require_json" && [ -z "$_json_digest" ]; then
+      logging__error "github__install_release: --sha256 json: no digest in release JSON for '${_asset}'."
+      return 1
+    fi
+  fi
+
+  # ── Download the asset ───────────────────────────────────────────────────────
+  logging__download "Downloading '${_asset}' from '${_asset_url}'"
+  net__fetch_url_file "$_asset_url" "$_archive" || {
+    logging__error "github__install_release: failed to download '${_asset_url}'."
+    return 1
+  }
+
+  # ── SHA-256: JSON digest (soft — warn if absent) ─────────────────────────────
+  if "$_sha256_do_json" && [ -n "$_json_digest" ]; then
+    verify__sha "$_archive" "$_json_digest" || return 1
+  elif "$_sha256_do_json"; then
+    logging__warn "github__install_release: no JSON digest for '${_asset}' — skipping JSON SHA-256."
+  fi
+
+  # ── SHA-256: sidecar file ────────────────────────────────────────────────────
+  if "$_sha256_do_sidecar"; then
+    local _sidecar_file="${_tmp}/_sidecar"
+    logging__download "Downloading checksum sidecar from '${_sidecar_url}'"
+    net__fetch_url_file "$_sidecar_url" "$_sidecar_file" || {
+      logging__error "github__install_release: failed to download sidecar '${_sidecar_url}'."
+      return 1
+    }
+    # Handles standard sha256sum multi-entry format ("<hash>  <filename>") where $NF
+    # is the filename, and raw single-hash sidecar files (NR==1 fallback).
+    local _sidecar_hash
+    _sidecar_hash="$(awk -v a="${_asset}" '$NF==a{print $1;_f=1;exit} END{if(!_f && NR==1)print $1}' "$_sidecar_file")"
+    [ -n "$_sidecar_hash" ] || {
+      logging__error "github__install_release: could not extract hash for '${_asset}' from sidecar."
+      return 1
+    }
+    verify__sha "$_archive" "$_sidecar_hash" || return 1
+  fi
+
+  # ── SHA-256: explicit hex ────────────────────────────────────────────────────
+  if [ -n "$_sha256_hex" ]; then
+    verify__sha "$_archive" "$_sha256_hex" || return 1
+  fi
+
+  # ── SHA-256: none ────────────────────────────────────────────────────────────
+  if "$_sha256_none"; then
+    logging__warn "github__install_release: SHA-256 verification skipped (--sha256 none)."
+  fi
+
+  # ── GPG verification ─────────────────────────────────────────────────────────
+  if [ -n "$_gpg_key_url" ]; then
+    local _sig_url="${_gpg_sig_url:-${_asset_url}.asc}"
+    local _sig_file="${_tmp}/_asset.asc" _key_file="${_tmp}/_release.key"
+    logging__download "Downloading GPG signature from '${_sig_url}'"
+    net__fetch_url_file "$_sig_url" "$_sig_file" || {
+      logging__error "github__install_release: failed to download GPG sig '${_sig_url}'."
+      return 1
+    }
+    logging__download "Downloading GPG key from '${_gpg_key_url}'"
+    net__fetch_url_file "$_gpg_key_url" "$_key_file" || {
+      logging__error "github__install_release: failed to download GPG key '${_gpg_key_url}'."
+      return 1
+    }
+    verify__gpg_detached "$_archive" "$_sig_file" "$_key_file" "${_owner_group:-lib-github}" || return 1
+  fi
+
+  # ── Detect file type and decide whether to extract ──────────────────────────
+  local _bin_src _filetype _filetype_is_archive
+  _filetype="$(file__detect_type "$_archive")"
+
+  if [ -n "$_binary_path" ]; then
+    # Caller explicitly says this is an archive with a named binary inside.
+    _filetype_is_archive=true
+  else
+    case "$_filetype" in
+      gzip | xz | bzip2 | zip) _filetype_is_archive=true ;;
+      *) _filetype_is_archive=false ;;
+    esac
+  fi
+
+  if "$_filetype_is_archive"; then
+    local _extract_dir="${_tmp}/_extract"
+    mkdir -p "$_extract_dir"
+    logging__install "Extracting '${_asset}'..."
+    # Map detected type to a synthetic filename so file__extract_archive
+    # dispatches by extension correctly (handles extensionless downloaded paths).
+    local _extract_name
+    case "$_filetype" in
+      gzip) _extract_name="asset.tar.gz" ;;
+      xz) _extract_name="asset.tar.xz" ;;
+      bzip2) _extract_name="asset.tar.bz2" ;;
+      zip) _extract_name="asset.zip" ;;
+      *) _extract_name="$_asset" ;;
+    esac
+    file__extract_archive "$_archive" "$_extract_dir" "$_extract_name" || {
+      logging__error "github__install_release: extraction of '${_asset}' failed."
+      return 1
+    }
+    # Find binary by basename anywhere in the extracted tree (handles any nesting depth).
+    local _bin_name
+    if [ -n "$_binary_path" ]; then
+      _bin_name="$(basename "$_binary_path")"
+    else
+      _bin_name="$(basename "$_dest")"
+    fi
+    _bin_src="$(find "$_extract_dir" -name "$_bin_name" -type f | head -1)"
+    [ -n "$_bin_src" ] || {
+      logging__error "github__install_release: binary '${_bin_name}' not found in extracted '${_asset}'."
+      return 1
+    }
+  else
+    _bin_src="$_archive"
+  fi
+
+  chmod +x "$_bin_src" 2> /dev/null || true
+
+  # ── Install binary ───────────────────────────────────────────────────────────
+  logging__install "Installing '$(basename "$_dest")' to '${_dest}'"
+  install__copy_bin "$_bin_src" "$_dest" || return 1
+
+  # ── Track resource ───────────────────────────────────────────────────────────
+  if [ -n "$_owner_group" ]; then
+    install__track_internal_path "$_owner_group" "$_dest"
+  fi
+
+  logging__success "Installed '$(basename "$_dest")' → '${_dest}'"
+  printf '%s\n' "$_dest"
 }
 
 # @brief github__latest_tag <owner/repo> — Print the latest release tag name.

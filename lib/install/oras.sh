@@ -31,27 +31,19 @@ _install__oras_resolve_version() {
   printf '%s\n' "${_out#*$'\n'}"
 }
 
-# @brief _install__oras_install_release <version> <prefix> <group> <context> <download_url> — Install ORAS from release artifact with mandatory checksum+GPG verification.
-#
-# Downloads the release tarball and its detached GPG signature from GitHub,
-# verifies both before extracting, then installs the `oras` binary to
-# `<prefix>/bin/oras`. The `--download-url` parameter is intentionally rejected
-# because bypassing GitHub releases would skip the mandatory GPG verification.
-# Temporary files are managed by `file__tmpdir` and cleaned up automatically
-# by `logging__cleanup` at script exit.
+# @brief _install__oras_install_release <version> <prefix> <group> <context> — Install ORAS from release artifact with mandatory checksum+GPG verification.
 #
 # Args:
-#   <version>       Bare semver string (no leading `v`), e.g. `1.2.3`.
-#   <prefix>        Installation prefix; binary goes to `<prefix>/bin/oras`.
-#   <group>         Resource-tracking group ID (e.g. `lib-oci-oras`).
-#   <context>       `internal` or `user`; controls cleanup tracking.
-#   <download_url>  Must be empty — supplying a value causes an immediate error.
+#   <version>   Bare semver string (no leading `v`), e.g. `1.2.3`.
+#   <prefix>    Installation prefix; binary goes to `<prefix>/bin/oras`.
+#   <group>     Resource-tracking group ID (e.g. `lib-oci-oras`).
+#   <context>   `internal` or `user`; controls cleanup tracking.
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
 _install__oras_install_release() {
-  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _download_url="${5-}"
-  local _platform _arch _asset _tmp _bin_src _bin_dest _tag
+  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
+  local _platform _arch _asset _tag _bin_dest
   _platform="$(os__release_kernel)" || return 1
   _arch="$(os__release_arch)" || return 1
   case "$_arch" in
@@ -63,32 +55,16 @@ _install__oras_install_release() {
   esac
   _tag="v${_version#v}"
   _asset="oras_${_version#v}_${_platform}_${_arch}.tar.gz"
-  _tmp="$(file__tmpdir "install/oras")"
-  if [[ -n "$_download_url" ]]; then
-    logging__error "install__oras: --download-url is not supported because checksum+GPG verification is mandatory."
-    return 1
-  fi
-  github__fetch_release_asset_tarball "oras-project/oras" "$_tag" "$_asset" "${_tmp}/${_asset}" || return 1
-  net__fetch_url_file "https://github.com/oras-project/oras/releases/download/${_tag}/${_asset}.asc" "${_tmp}/${_asset}.asc" || return 1
-  net__fetch_url_file "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" "${_tmp}/KEYS" || return 1
-  verify__gpg_detached "${_tmp}/${_asset}" "${_tmp}/${_asset}.asc" "${_tmp}/KEYS" "$_group" || {
-    logging__error "install__oras: signature verification failed for ${_asset}."
-    return 1
-  }
-  file__extract_archive "${_tmp}/${_asset}" "$_tmp" || return 1
-  _bin_src="${_tmp}/oras"
-  [[ -x "$_bin_src" ]] || {
-    logging__error "install__oras: extracted binary '${_bin_src}' not found or not executable."
-    return 1
-  }
   _bin_dest="${_install_prefix%/}/bin/oras"
-  install__copy_bin "$_bin_src" "$_bin_dest" || return 1
-  if [[ "$_context" == "internal" ]]; then
-    install__track_internal_path "$_group" "$_bin_dest"
-  fi
+  local -a _owner_group_arg=()
+  [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
+  github__install_release \
+    --repo "oras-project/oras" --tag "$_tag" \
+    --asset "$_asset" --dest "$_bin_dest" \
+    --gpg-key-url "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" \
+    "${_owner_group_arg[@]}" \
+    || return 1
   install__state_record "oras" "$_context" "binary" "$_bin_dest" "$_group" || true
-  printf '%s\n' "$_bin_dest"
-  return 0
 }
 
 # @brief _install__oras_install_repos <version> <group> <context> [repos-manifest] — Install ORAS via system package manager.
@@ -223,13 +199,13 @@ install__oras() {
   _version="$(_install__oras_resolve_version "$_version_spec")" || return 1
   case "$_method" in
     binary)
-      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_download_url"
+      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context"
       ;;
     package)
       _install__oras_install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     auto)
-      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_download_url" ||
+      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" ||
         _install__oras_install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)

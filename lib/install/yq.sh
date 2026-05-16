@@ -15,6 +15,10 @@ _INSTALL_YQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_INSTALL_YQ_LIB_DIR}/../ospkg.sh"
 # shellcheck source=lib/users.sh
 . "${_INSTALL_YQ_LIB_DIR}/../users.sh"
+# shellcheck source=lib/net.sh
+. "${_INSTALL_YQ_LIB_DIR}/../net.sh"
+# shellcheck source=lib/github.sh
+. "${_INSTALL_YQ_LIB_DIR}/../github.sh"
 
 # @brief _install__yq_compatible <bin> — Return 0 when candidate binary is mikefarah/yq-compatible (`-o=json` supported).
 #
@@ -34,11 +38,6 @@ _install__yq_compatible() {
 
 # @brief _install__yq_install_release <context> <group> <prefix> [version] — Install yq from GitHub release assets with checksum verification.
 #
-# Downloads the release binary and its checksum file, verifies SHA-256, then
-# installs to `<prefix>/bin/yq`. For `internal` context the binary is left in
-# the logging tmpdir and tracked for cleanup; for `user` context it is copied
-# to `<prefix>/bin/yq`.
-#
 # Args:
 #   <context>  `internal` or `user`.
 #   <group>    Resource-tracking group ID.
@@ -49,10 +48,9 @@ _install__yq_compatible() {
 # Returns: 0 on success, 1 on any failure.
 _install__yq_install_release() {
   local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}"
-  local _os _arch _base _dir _dest _expected_hash _final_dest
+  local _os _arch _base _final_dest _expected_hash _hdir _f
   _os="$(os__release_kernel)" || return 1
   _arch="$(os__release_arch)" || return 1
-  # yq only ships amd64 and arm64 assets
   case "$_arch" in
     amd64 | arm64) ;;
     *)
@@ -60,41 +58,44 @@ _install__yq_install_release() {
       return 1
       ;;
   esac
-  if [[ -n "$_version" ]]; then
-    _base="https://github.com/mikefarah/yq/releases/download/v${_version}"
-  else
-    _base="https://github.com/mikefarah/yq/releases/latest/download"
+
+  # Resolve latest version when none given.
+  if [[ -z "$_version" ]]; then
+    local _resolved
+    _resolved="$(github__resolve_version "mikefarah/yq")" || return 1
+    _version="${_resolved#*$'\n'}"
   fi
-  _dir="$(file__tmpdir "install/yq")"
-  _dest="${_dir}/yq_${_os}_${_arch}"
-  net__fetch_url_file "${_base}/yq_${_os}_${_arch}" "$_dest" || return 1
-  net__fetch_url_file "${_base}/checksums" "${_dir}/checksums" || return 1
-  net__fetch_url_file "${_base}/checksums_hashes_order" "${_dir}/checksums_hashes_order" || return 1
-  net__fetch_url_file "${_base}/extract-checksum.sh" "${_dir}/extract-checksum.sh" || return 1
-  _expected_hash="$(cd "${_dir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
-  if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
-    logging__error "install__yq: extracted checksum is invalid for yq_${_os}_${_arch}."
-    return 1
-  fi
-  verify__sha "$_dest" "$_expected_hash" || return 1
-  chmod +x "$_dest" || {
-    logging__error "install__yq: chmod failed for '${_dest}'."
-    return 1
-  }
-  _final_dest="$_dest"
+  _base="https://github.com/mikefarah/yq/releases/download/v${_version}"
+
+  # Determine install destination.
   if [[ "$_context" == "user" ]]; then
-    if [[ -z "$_install_prefix" || "$_install_prefix" == "auto" ]]; then
-      _install_prefix="$(users__default_prefix)"
-    fi
+    [[ -z "$_install_prefix" || "$_install_prefix" == "auto" ]] && _install_prefix="$(users__default_prefix)"
     _final_dest="${_install_prefix%/}/bin/yq"
-    install__copy_bin "$_dest" "$_final_dest" || return 1
+  else
+    _final_dest="$(file__mktmpdir "install/yq")/yq"
   fi
-  if [[ "$_context" == "internal" ]]; then
-    install__track_internal_path "$_group" "$_final_dest"
+
+  # Compute hash via yq's custom checksum extraction script.
+  _hdir="$(file__mktmpdir "install/yq-checksums")"
+  for _f in checksums checksums_hashes_order extract-checksum.sh; do
+    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}" || return 1
+  done
+  _expected_hash="$(cd "${_hdir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
+  if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
+    logging__error "install__yq: invalid extracted hash for yq_${_os}_${_arch}."
+    return 1
   fi
+
+  local -a _owner_group_arg=()
+  [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
+
+  github__install_release \
+    --repo "mikefarah/yq" --tag "v${_version}" \
+    --asset "yq_${_os}_${_arch}" --dest "$_final_dest" \
+    --sha256 "$_expected_hash" \
+    "${_owner_group_arg[@]}" ||
+    return 1
   install__state_record "yq" "$_context" "binary" "$_final_dest" "$_group" || true
-  printf '%s\n' "$_final_dest"
-  return 0
 }
 
 # @brief _install__yq_install_repos <context> <group> [repos-manifest] — Install yq via package manager with context-aware tracking.

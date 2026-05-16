@@ -19,6 +19,8 @@ _INSTALL_JQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_INSTALL_JQ_LIB_DIR}/../net.sh"
 # shellcheck source=lib/users.sh
 . "${_INSTALL_JQ_LIB_DIR}/../users.sh"
+# shellcheck source=lib/github.sh
+. "${_INSTALL_JQ_LIB_DIR}/../github.sh"
 
 # @brief _install__jq_asset_name <version> <os> <arch> — Print jq release asset filename.
 #
@@ -63,10 +65,6 @@ _install__jq_gpg_key_url() {
 
 # @brief _install__jq_install_release <version> <prefix> <group> <context> — Install jq from a GitHub release binary with SHA-256 and GPG verification.
 #
-# Downloads the release binary, verifies its SHA-256 checksum (skipped for jq
-# ≤1.6 which ships no sha256sum.txt), then verifies the detached GPG signature.
-# The verified binary is installed to `<prefix>/bin/jq` with mode 0755.
-#
 # Args:
 #   <version>  Bare semver string (no leading `v`), e.g. `1.7.1`.
 #   <prefix>   Installation prefix; binary goes to `<prefix>/bin/jq`.
@@ -77,12 +75,10 @@ _install__jq_gpg_key_url() {
 # Returns: 0 on success, 1 on any failure.
 _install__jq_install_release() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
-  local _os _arch _asset _base_url _dir _dest _final_dest _expected_hash _key_url _sig_url
+  local _os _arch _asset _base_url _final_dest _key_url _major _minor
   _os="$(os__release_kernel)" || return 1
-  # jq uses "macos" not "darwin" in asset names
   [[ "$_os" == "darwin" ]] && _os="macos"
   _arch="$(os__release_arch)" || return 1
-  # jq only ships amd64, arm64, i386 assets
   case "$_arch" in
     amd64 | arm64 | i386) ;;
     *)
@@ -92,45 +88,34 @@ _install__jq_install_release() {
   esac
   _asset="$(_install__jq_asset_name "$_version" "$_os" "$_arch")" || return 1
   _base_url="https://github.com/jqlang/jq/releases/download/jq-${_version}"
-  _dir="$(file__tmpdir "install/jq")"
-  _dest="${_dir}/${_asset}"
-
-  net__fetch_url_file "${_base_url}/${_asset}" "$_dest" || return 1
-
-  # jq 1.6 and older releases have no sha256sum.txt — skip SHA verification.
-  if net__fetch_url_file "${_base_url}/sha256sum.txt" "${_dir}/sha256sum.txt" 2> /dev/null; then
-    _expected_hash="$(grep " ${_asset}$" "${_dir}/sha256sum.txt" | awk '{print $1}')"
-    if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
-      logging__error "install__jq: could not extract valid SHA-256 for '${_asset}' from sha256sum.txt."
-      return 1
-    fi
-    verify__sha "$_dest" "$_expected_hash" || return 1
-  else
-    logging__info "No sha256sum.txt for jq ${_version} — skipping SHA verification (GPG still checked)."
-  fi
-
-  # Verify GPG detached signature.
-  _key_url="$(_install__jq_gpg_key_url "$_version")"
-  _sig_url="https://raw.githubusercontent.com/jqlang/jq/master/sig/v${_version}/${_asset}.asc"
-  net__fetch_url_file "${_sig_url}" "${_dir}/${_asset}.asc" || {
-    logging__error "install__jq: failed to download GPG signature for '${_asset}'."
-    return 1
-  }
-  net__fetch_url_file "${_key_url}" "${_dir}/jq-release.key" || {
-    logging__error "install__jq: failed to download jq release signing key."
-    return 1
-  }
-  verify__gpg_detached "$_dest" "${_dir}/${_asset}.asc" "${_dir}/jq-release.key" "$_group" || return 1
-
-  chmod +x "$_dest" || return 1
   _final_dest="${_install_prefix%/}/bin/jq"
-  install__copy_bin "$_dest" "$_final_dest" || return 1
-  if [[ "$_context" == "internal" ]]; then
-    install__track_internal_path "$_group" "$_final_dest"
+  _key_url="$(_install__jq_gpg_key_url "$_version")"
+
+  _major="${_version%%.*}"
+  _minor="${_version#*.}"
+  _minor="${_minor%%.*}"
+  # jq ≤1.6 has no sha256sum.txt; use auto (JSON integrity only) for those versions.
+  local _sha256_spec _sha256_extra_args=()
+  if [[ "$_major" -eq 1 && "$_minor" -le 6 ]]; then
+    _sha256_spec="auto"
+  else
+    _sha256_spec="auto+sidecar"
+    _sha256_extra_args=(--sidecar-url "${_base_url}/sha256sum.txt")
   fi
+
+  local -a _owner_group_arg=()
+  [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
+
+  github__install_release \
+    --repo "jqlang/jq" --tag "jq-${_version}" \
+    --asset "$_asset" --dest "$_final_dest" \
+    --sha256 "$_sha256_spec" \
+    "${_sha256_extra_args[@]}" \
+    --gpg-key-url "$_key_url" \
+    --gpg-sig-url "https://raw.githubusercontent.com/jqlang/jq/master/sig/v${_version}/${_asset}.asc" \
+    "${_owner_group_arg[@]}" ||
+    return 1
   install__state_record "jq" "$_context" "binary" "$_final_dest" "$_group" || true
-  printf '%s\n' "$_final_dest"
-  return 0
 }
 
 # @brief _install__jq_install_repos <group> <context> [repos-manifest] — Install jq via the OS package manager.

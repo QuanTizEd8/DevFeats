@@ -156,20 +156,12 @@ install_fzf() {
     return 0
   fi
 
-  local _reljson _tag _version
-  _reljson="$(mktemp)"
-  # shellcheck disable=SC2064
-  trap "rm -f '${_reljson}'" RETURN
-
-  if ! github__fetch_release_json "junegunn/fzf" --dest "$_reljson"; then
-    logging__error "Failed to fetch fzf release metadata from GitHub."
-    return 1
-  fi
-  _tag="$(github__release_json_tag_name "$_reljson")" || {
-    logging__error "Failed to parse fzf release tag from GitHub JSON."
+  local _out _version
+  _out="$(github__resolve_version "junegunn/fzf" "")" || {
+    logging__error "Failed to resolve fzf version from GitHub."
     return 1
   }
-  _version="${_tag#v}"
+  _version="${_out#*$'\n'}"
   logging__info "Installing fzf ${_version} to '${_bin_dir}'..."
 
   local _os _fzf_arch
@@ -191,25 +183,12 @@ install_fzf() {
 
   local _filename="fzf-${_version}-${_os}_${_fzf_arch}.tar.gz"
   local _base_url="https://github.com/junegunn/fzf/releases/download/v${_version}"
-  local _tmpdir
-  _tmpdir="$(file__tmpdir "fzf")"
-  local _archive="${_tmpdir}/${_filename}"
-  local _sidecar="${_archive}.sha256"
 
-  net__fetch_url_file "${_base_url}/${_filename}" "$_archive"
-
-  local _expect_sha=""
-  if _expect_sha="$(github__release_json_digest_for_asset "$_reljson" "$_filename")"; then
-    verify__sha "$_archive" "$_expect_sha"
-  else
-    net__fetch_url_file "${_base_url}/${_filename}.sha256" "$_sidecar"
-    verify__sha_sidecar "$_archive" "$_sidecar"
-  fi
-
-  local _extract_tmp="${_tmpdir}/_extract"
-  mkdir -p "$_extract_tmp"
-  file__extract_archive "$_archive" "$_extract_tmp"
-  install__copy_bin "${_extract_tmp}/fzf" "${_bin_dir}/fzf"
+  github__install_release \
+    --repo "junegunn/fzf" --tag "v${_version}" \
+    --asset "$_filename" --dest "${_bin_dir}/fzf" \
+    --sha256 auto+sidecar --sidecar-url "${_base_url}/${_filename}.sha256" \
+    || return 1
 
   logging__success "fzf installed to '${_bin_dir}/fzf'."
   return 0

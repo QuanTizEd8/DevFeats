@@ -39,38 +39,21 @@ _install__just_resolve_target() {
 
 _install__just_install_release() {
   local _version="${1-}" _install_prefix="${2-}" _target="${3-}" _context="${4-}" _group="${5-}"
-  local _base _asset _tmp _tar _sums _hash _dest
+  local _base _asset _dest
   _base="https://github.com/casey/just/releases/download/${_version}"
   _asset="just-${_version}-${_target}.tar.gz"
-  _tmp="$(file__tmpdir "install/just")"
-  _tar="${_tmp}/${_asset}"
-  _sums="${_tmp}/SHA256SUMS"
-
-  net__fetch_url_file "${_base}/${_asset}" "$_tar" || return 1
-  net__fetch_url_file "${_base}/SHA256SUMS" "$_sums" || return 1
-  _hash="$(awk -v f="${_asset}" '$2 == f { print $1; exit }' "$_sums")"
-  if [[ ! "${_hash:-}" =~ ^[0-9a-fA-F]{64}$ ]]; then
-    logging__error "install-just: could not resolve checksum for ${_asset}."
-    return 1
-  fi
-  verify__sha "$_tar" "$_hash" || return 1
-
-  file__extract_archive "$_tar" "$_tmp" || return 1
-  [[ -f "${_tmp}/just" ]] || return 1
   _dest="${_install_prefix%/}/bin/just"
-  mkdir -p "$(dirname "$_dest")" || return 1
-  if command -v install > /dev/null 2>&1; then
-    install -m 0755 "${_tmp}/just" "$_dest" || return 1
-  else
-    cp "${_tmp}/just" "$_dest" || return 1
-    chmod 0755 "$_dest" || return 1
-  fi
 
-  if [[ "$_context" == "internal" ]]; then
-    install__track_internal_path "$_group" "$_dest"
-  fi
+  local -a _owner_group_arg=()
+  [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
+
+  github__install_release \
+    --repo "casey/just" --tag "${_version}" \
+    --asset "$_asset" --dest "$_dest" \
+    --sha256 auto+sidecar --sidecar-url "${_base}/SHA256SUMS" \
+    "${_owner_group_arg[@]}" \
+    || return 1
   install__state_record "just" "$_context" "binary" "$_dest" "$_group" || true
-  printf '%s\n' "$_dest"
 }
 
 _install__just_install_repos() {

@@ -26,7 +26,7 @@ EOF
 
 # _file__ensure_extract_tool <ext> (internal)
 # Ensures the extraction tool for <ext> is available; installs it via ospkg when possible.
-# <ext>: "zip" (installs unzip), "xz" (installs xz-utils/xz), "gz" (installs gzip), "tar" (installs tar).
+# <ext>: "zip" (installs unzip), "xz" (installs xz-utils/xz), "bz2" (installs bzip2), "gz" (installs gzip), "tar" (installs tar).
 _file__ensure_extract_tool() {
   local _ext="$1"
   case "$_ext" in
@@ -42,6 +42,13 @@ _file__ensure_extract_tool() {
       ospkg__run --manifest "$_FILE__XZ_MANIFEST" --build-group "lib-file" --skip_installed || true
       command -v xz > /dev/null 2>&1 && return 0
       logging__error "file.sh: xz is required to extract .tar.xz archives but could not be installed."
+      return 1
+      ;;
+    bz2)
+      command -v bzip2 > /dev/null 2>&1 && return 0
+      ospkg__install_tracked "lib-file" bzip2 || true
+      command -v bzip2 > /dev/null 2>&1 && return 0
+      logging__error "file.sh: bzip2 is required to extract .tar.bz2 archives but could not be installed."
       return 1
       ;;
     gz)
@@ -147,7 +154,29 @@ file__install_dir() {
   "${_cmd[@]}" "${_dirs[@]}"
 }
 
-# @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] [--strip N] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, or `.zip` archive to `<dest_dir>`.
+# @brief file__detect_type <file> — Detect file type from magic bytes.
+#
+# Reads the first 6 bytes of <file> to identify its format, independent of
+# filename or extension.
+#
+# Stdout: one of: gzip | xz | bzip2 | zip | elf | macho | script | unknown
+# Returns: 0 always (unknown is a valid result, not an error).
+file__detect_type() {
+  local _file="$1" _hex
+  _hex="$(od -An -tx1 -N 6 "$_file" 2> /dev/null | tr -d ' \n')"
+  case "${_hex}" in
+    1f8b*) printf 'gzip' ;;
+    fd377a585a00*) printf 'xz' ;;
+    425a68*) printf 'bzip2' ;;
+    504b0304*) printf 'zip' ;;
+    7f454c46*) printf 'elf' ;;
+    cafebabe* | cefaedfe* | cffaedfe*) printf 'macho' ;;
+    2321*) printf 'script' ;;
+    *) printf 'unknown' ;;
+  esac
+}
+
+# @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] [--strip N] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, `.tar.bz2`, or `.zip` archive to `<dest_dir>`.
 #
 # `<original_name>` is used for format detection when `<archive_file>` is a temp
 # path with no meaningful extension (e.g. a mktemp output). When omitted,
@@ -185,6 +214,11 @@ file__extract_archive() {
       _file__ensure_extract_tool tar || return 1
       _file__ensure_extract_tool gz || return 1
       tar -xzf "$_arc" -C "$_dest" "${_strip_arg[@]}"
+      ;;
+    *.tar.bz2)
+      _file__ensure_extract_tool tar || return 1
+      _file__ensure_extract_tool bz2 || return 1
+      tar -xjf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.zip)
       _file__ensure_extract_tool zip || return 1

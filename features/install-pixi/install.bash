@@ -330,9 +330,17 @@ fi
 if [ "${_SKIP_INSTALL}" != "true" ]; then
   detect_triple
   resolve_installer_paths
-  download_pixi
-  verify_pixi
-  install_pixi_binary
+  if [ -n "${DOWNLOAD_URL}" ]; then
+    download_pixi
+    verify_pixi
+    install_pixi_binary
+  else
+    github__install_release \
+      --repo "prefix-dev/pixi" --tag "v${VERSION}" \
+      --asset "pixi-${TRIPLE}.tar.gz" --dest "${PREFIX}/bin/pixi" \
+      --sha256 sidecar --sidecar-url "${SIDECAR_URL}" \
+      || exit 1
+  fi
 fi
 
 verify_installed_binary

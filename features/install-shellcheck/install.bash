@@ -25,7 +25,7 @@ _shellcheck__resolve_version() {
 
 _shellcheck__install_release() {
   local _version="${1-}"
-  local _os _arch _asset _tmp _extracted _dest
+  local _os _arch _asset
   _os="$(os__release_kernel)" || return 1
   _arch="$(os__arch)"
   case "$_arch" in
@@ -43,20 +43,10 @@ _shellcheck__install_release() {
       ;;
   esac
   _asset="shellcheck-v${_version}.${_os}.${_arch}.tar.xz"
-  _tmp="$(file__tmpdir "install/shellcheck")"
-
-  github__fetch_release_asset_tarball "koalaman/shellcheck" "v${_version}" "${_asset}" "${_tmp}/${_asset}" || return 1
-
-  file__extract_archive "${_tmp}/${_asset}" "$_tmp" || return 1
-  _extracted="${_tmp}/shellcheck-v${_version}/shellcheck"
-  [[ -f "$_extracted" ]] || {
-    logging__error "install-shellcheck: extracted binary '${_extracted}' not found."
+  github__install_release \
+    --repo "koalaman/shellcheck" --tag "v${_version}" \
+    --asset "$_asset" --dest "${PREFIX%/}/bin/shellcheck" ||
     return 1
-  }
-
-  _dest="${PREFIX%/}/bin/shellcheck"
-  install__copy_bin "$_extracted" "$_dest" || return 1
-  printf '%s\n' "$_dest"
 }
 
 _shellcheck__install_repos() {

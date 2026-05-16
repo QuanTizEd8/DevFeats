@@ -188,8 +188,7 @@ _gh__install_binary() {
   logging__fn_entry "_gh__install_binary"
   local _version="${1}"
 
-  # Determine asset name components.
-  local _asset_os _asset_arch _ext _archive_name _archive_dir
+  local _asset_os _asset_arch _ext _archive_name
   _asset_os="$(os__release_kernel gh)" || {
     logging__error "Unsupported kernel '$(os__kernel)' for method=binary."
     exit 1
@@ -203,56 +202,24 @@ _gh__install_binary() {
     macOS) _ext="zip" ;;
   esac
   _archive_name="gh_${_version}_${_asset_os}_${_asset_arch}.${_ext}"
-  _archive_dir="gh_${_version}_${_asset_os}_${_asset_arch}"
-
-  # Download archive + checksums.
-  mkdir -p "${INSTALLER_DIR}"
   local _url_base="https://github.com/cli/cli/releases/download/v${_version}"
-  logging__download "Downloading ${_archive_name} from GitHub Releases..."
-  net__fetch_url_file "${_url_base}/${_archive_name}" "${INSTALLER_DIR}/${_archive_name}"
-  logging__download "Downloading checksums file..."
-  net__fetch_url_file "${_url_base}/gh_${_version}_checksums.txt" "${INSTALLER_DIR}/checksums.txt"
 
-  # Verify checksum.
-  logging__inspect "Verifying SHA-256 checksum..."
-  local _expected
-  _expected="$(grep "${_archive_name}" "${INSTALLER_DIR}/checksums.txt" | awk '{print $1}')"
-  if [ -z "${_expected}" ]; then
-    logging__error "Could not find checksum for '${_archive_name}' in checksums.txt."
-    exit 1
-  fi
-  verify__sha "${INSTALLER_DIR}/${_archive_name}" "${_expected}"
-  logging__success "Checksum verified."
+  github__install_release \
+    --repo "cli/cli" --tag "v${_version}" \
+    --asset "$_archive_name" --dest "${PREFIX}/bin/gh" \
+    --sha256 sidecar --sidecar-url "${_url_base}/gh_${_version}_checksums.txt" \
+    || exit 1
 
-  # Extract archive.
-  logging__install "Extracting archive..."
-  file__extract_archive "${INSTALLER_DIR}/${_archive_name}" "${INSTALLER_DIR}" "${_archive_name}"
-
-  # Install binary.
-  mkdir -p "${PREFIX}/bin"
-  install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${PREFIX}/bin/gh"
-  logging__success "gh binary installed to '${PREFIX}/bin/gh'"
-
-  # Install completions from archive (if requested).
   if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
-    _gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"
+    _gh__install_completions
   fi
 
-  # Cleanup (unless keep_installer=true).
-  if [ "${KEEP_INSTALLER}" != "true" ]; then
-    logging__remove "Cleaning up installer directory '${INSTALLER_DIR}'..."
-    rm -rf "${INSTALLER_DIR}"
-  fi
-
-  # Verify.
   "${PREFIX}/bin/gh" --version > /dev/null
   logging__fn_exit "_gh__install_binary"
   return 0
 }
 
 # _gh__install_completions — install completions for shells listed in SHELL_COMPLETIONS.
-# Usage: _gh__install_completions --from-archive <dir>
-#        _gh__install_completions --from-command
 _gh__install_completions() {
   logging__fn_entry "_gh__install_completions"
   if [ "${#SHELL_COMPLETIONS[@]}" -eq 0 ]; then
@@ -260,24 +227,15 @@ _gh__install_completions() {
     logging__fn_exit "_gh__install_completions"
     return 0
   fi
-  local _mode="$1"
-  local _archive_dir="${2:-}"
   local _shell
   for _shell in "${SHELL_COMPLETIONS[@]}"; do
     case "${_shell}" in
       bash)
         local _bash_content
-        if [ "${_mode}" = "--from-archive" ]; then
-          _bash_content="$(cat "${_archive_dir}/share/bash-completion/completions/gh" 2> /dev/null)" || {
-            logging__warn "bash completion file not found in archive; skipping bash completion."
-            _bash_content=""
-          }
-        else
-          _bash_content="$(gh completion -s bash 2> /dev/null)" || {
-            logging__warn "gh completion -s bash failed; skipping bash completion."
-            _bash_content=""
-          }
-        fi
+        _bash_content="$(gh completion -s bash 2> /dev/null)" || {
+          logging__warn "gh completion -s bash failed; skipping bash completion."
+          _bash_content=""
+        }
         if [ -n "${_bash_content}" ]; then
           if users__is_root; then
             mkdir -p /etc/bash_completion.d
@@ -292,17 +250,10 @@ _gh__install_completions() {
         ;;
       zsh)
         local _zsh_content
-        if [ "${_mode}" = "--from-archive" ]; then
-          _zsh_content="$(cat "${_archive_dir}/share/zsh/site-functions/_gh" 2> /dev/null)" || {
-            logging__warn "zsh completion file not found in archive; skipping zsh completion."
-            _zsh_content=""
-          }
-        else
-          _zsh_content="$(gh completion -s zsh 2> /dev/null)" || {
-            logging__warn "gh completion -s zsh failed; skipping zsh completion."
-            _zsh_content=""
-          }
-        fi
+        _zsh_content="$(gh completion -s zsh 2> /dev/null)" || {
+          logging__warn "gh completion -s zsh failed; skipping zsh completion."
+          _zsh_content=""
+        }
         if [ -n "${_zsh_content}" ]; then
           if users__is_root; then
             local _zshdir
@@ -502,7 +453,7 @@ fi
 
 # Install completions for upstream-package method (binary method handles them internally).
 if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ] && [ "${METHOD}" = "upstream-package" ]; then
-  _gh__install_completions --from-command
+  _gh__install_completions
 fi
 
 # Per-user configuration (git_protocol, setup_git, sign_commits).

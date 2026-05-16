@@ -198,6 +198,66 @@ setup() {
   assert_output --partial "gzip is required"
 }
 
+# ---------------------------------------------------------------------------
+# file__detect_type — magic byte detection
+# ---------------------------------------------------------------------------
+
+@test "file__detect_type: gzip magic bytes → gzip" {
+  local _f="${BATS_TEST_TMPDIR}/test.bin"
+  printf '\x1f\x8b\x00\x00\x00\x00' > "$_f"
+  run file__detect_type "$_f"
+  assert_success
+  assert_output "gzip"
+}
+
+@test "file__detect_type: xz magic bytes → xz" {
+  local _f="${BATS_TEST_TMPDIR}/test.bin"
+  printf '\xfd\x37\x7a\x58\x5a\x00' > "$_f"
+  run file__detect_type "$_f"
+  assert_success
+  assert_output "xz"
+}
+
+@test "file__detect_type: zip magic bytes → zip" {
+  local _f="${BATS_TEST_TMPDIR}/test.bin"
+  printf '\x50\x4b\x03\x04\x00\x00' > "$_f"
+  run file__detect_type "$_f"
+  assert_success
+  assert_output "zip"
+}
+
+@test "file__detect_type: ELF magic bytes → elf" {
+  local _f="${BATS_TEST_TMPDIR}/test.bin"
+  printf '\x7f\x45\x4c\x46\x00\x00' > "$_f"
+  run file__detect_type "$_f"
+  assert_success
+  assert_output "elf"
+}
+
+@test "file__detect_type: shebang → script" {
+  local _f="${BATS_TEST_TMPDIR}/test.sh"
+  printf '#!/usr/bin/env bash\n' > "$_f"
+  run file__detect_type "$_f"
+  assert_success
+  assert_output "script"
+}
+
+@test "file__detect_type: bzip2 magic bytes → bzip2" {
+  local _f="${BATS_TEST_TMPDIR}/test.bin"
+  printf '\x42\x5a\x68\x00\x00\x00' > "$_f"
+  run file__detect_type "$_f"
+  assert_success
+  assert_output "bzip2"
+}
+
+@test "file__detect_type: unknown bytes → unknown" {
+  local _f="${BATS_TEST_TMPDIR}/test.bin"
+  printf '\x00\x01\x02\x03\x04\x05' > "$_f"
+  run file__detect_type "$_f"
+  assert_success
+  assert_output "unknown"
+}
+
 @test "file__extract_archive: fails when tar is absent and format is .tar.gz" {
   # Create test artifacts and pass-through bins for system tools BEFORE restricting PATH.
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
