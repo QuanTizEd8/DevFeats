@@ -56,16 +56,3 @@ EOF
   assert_failure
   [[ "$output" == *"unknown option '--verify'"* ]]
 }
-
-@test "install__oras rejects --download-url because verification is mandatory" {
-  reload_lib install/oras.sh
-  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
-  run install__oras \
-    --context internal \
-    --method binary \
-    --version 1.3.2 \
-    --if-exists reinstall \
-    --download-url "https://example.com/oras.tar.gz"
-  assert_failure
-  [[ "$output" == *"--download-url is not supported because checksum+GPG verification is mandatory."* ]]
-}

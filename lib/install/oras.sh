@@ -135,10 +135,10 @@ EOF
   return 0
 }
 
-# @brief install__oras --context <internal|user> [--version <ver|stable|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--download-url <url>] [--repos-manifest <path>] [--owner-group <id>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
+# @brief install__oras --context <internal|user> [--version <ver|stable|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
 install__oras() {
   local _context="internal" _version="stable" _min_version="" _method="auto" _install_prefix="auto"
-  local _if_exists="skip" _download_url="" _repos_manifest="" _owner_group="lib-oci-oras"
+  local _if_exists="skip" _repos_manifest="" _owner_group="lib-oci-oras"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context)
@@ -164,10 +164,6 @@ install__oras() {
       --if-exists)
         shift
         _if_exists="${1-}"
-        ;;
-      --download-url)
-        shift
-        _download_url="${1-}"
         ;;
       --repos-manifest)
         shift
