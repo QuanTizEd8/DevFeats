@@ -1000,6 +1000,7 @@ ospkg__install_tracked() {
   local _bd_dir _before_snapshot
   _bd_dir="$(_ospkg_build_deps_dir)"
   _before_snapshot="${_bd_dir}/${_group_id//\//\_}.before"
+  ospkg__detect || return 1
   _ospkg_snapshot_packages "$_before_snapshot"
   ospkg__install "$@" || return 1
   _ospkg_mark_build_group "$_group_id" "$_before_snapshot"

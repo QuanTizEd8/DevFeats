@@ -570,6 +570,36 @@ _mock_snapshots() {
   [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]]
 }
 
+@test "ospkg__install_tracked: ospkg__detect called before before-snapshot — PM set correctly" {
+  # Regression: without the ospkg__detect call at the top of ospkg__install_tracked,
+  # _OSPKG_PKG_MNGR is empty when the before-snapshot runs (hitting the '*' case that
+  # writes an empty file). ospkg__install then calls ospkg__detect internally, setting
+  # the PM. The after-snapshot then captures every installed package. The diff
+  # (empty before vs full after) = all packages tracked for removal — a destructive bug.
+  _seed_apt_build_context
+  # Reset detection state to simulate a fresh call where ospkg__detect has not yet run.
+  _OSPKG_DETECTED=false
+  _OSPKG_PKG_MNGR=""
+
+  local _pm_log="${BATS_TEST_TMPDIR}/pm_at_snapshot.log"
+  local _snap_call=0
+  _ospkg_snapshot_packages() {
+    _snap_call=$((_snap_call + 1))
+    if [[ $_snap_call -eq 1 ]]; then
+      # Record _OSPKG_PKG_MNGR on the before-snapshot call.
+      printf '%s\n' "${_OSPKG_PKG_MNGR:-EMPTY}" > "$_pm_log"
+    fi
+    : > "$1"
+  }
+
+  ospkg__install_tracked "test-group" pkg
+
+  # The fix: _OSPKG_PKG_MNGR must be set (not empty) when the before-snapshot runs.
+  assert_file_exists "$_pm_log"
+  run cat "$_pm_log"
+  refute_output "EMPTY"
+}
+
 @test "ospkg__install_tracked: snapshot safety — pre-existing package never auto-marked" {
   # Core correctness guarantee: a package already present before this call (e.g.
   # a run.base package installed by the generated header) appears in the
