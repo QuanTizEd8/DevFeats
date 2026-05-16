@@ -108,6 +108,11 @@ _seed_apt_context() {
   _OSPKG_OS_RELEASE[id_like]="debian"
   _OSPKG_OS_RELEASE[version_id]="22.04"
   _OSPKG_OS_RELEASE[version_codename]="jammy"
+  # Bypass sudo: sudo resets PATH to its secure_path, ignoring user PATH entirely.
+  # Without this stub, users__run_privileged would find the real apt-get via sudo
+  # instead of the fake one above, allowing destructive operations on the host.
+  users__run_privileged() { "$@"; }
+  export -f users__run_privileged
 }
 
 # ---------------------------------------------------------------------------
@@ -473,10 +478,11 @@ YQ
 # ---------------------------------------------------------------------------
 
 # _seed_apt_build_context — seeds apt context + stubs needed for build-dep tests:
-#   · _SYSSET_TMPDIR  → BATS_TEST_TMPDIR (sidecars at a predictable path)
-#   · fake apt-get    (exit 0, no-op — real install skipped)
-#   · fake dpkg       (exit 1 — "not installed" so ospkg__install always proceeds)
-#   · fake apt-mark   (logs every invocation to ${BATS_TEST_TMPDIR}/apt-mark.log)
+#   · _SYSSET_TMPDIR        → BATS_TEST_TMPDIR (sidecars at a predictable path)
+#   · fake apt-get          (exit 0, no-op — real install skipped)
+#   · fake dpkg             (exit 1 — "not installed" so ospkg__install always proceeds)
+#   · fake apt-mark         (logs every invocation to ${BATS_TEST_TMPDIR}/apt-mark.log)
+#   · users__run_privileged → "$@" directly (inherited from _seed_apt_context)
 #   · net__fetch_with_retry → passthrough so the fake apt-get is actually invoked
 # After this, call _mock_snapshots to control the before/after package lists.
 _seed_apt_build_context() {
@@ -662,7 +668,7 @@ _mock_snapshots() {
   [[ ! -f "$_apt_log" ]]
 }
 
-@test "_ospkg_remove_build_group: apt — calls autoremove and deletes the sidecar" {
+@test "_ospkg_remove_build_group: apt — calls remove with exact sidecar packages and deletes sidecar" {
   _seed_apt_context
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
@@ -676,7 +682,12 @@ _mock_snapshots() {
 
   _ospkg_remove_build_group "test-group"
 
-  grep -q "autoremove" "$_apt_log"
+  # Must use explicit 'remove <pkgs>' (not 'autoremove' or 'remove --auto-remove')
+  # so removal is scoped exactly to the sidecar list, not a global auto-mark scan.
+  grep -q -- "remove" "$_apt_log"
+  grep -q "curl" "$_apt_log"
+  grep -q "newpkg" "$_apt_log"
+  ! grep -q "autoremove" "$_apt_log"
   [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group" ]]
 }
 
@@ -707,7 +718,7 @@ _mock_snapshots() {
   assert_file_exists "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.after"
 }
 
-@test "ospkg__cleanup_all_build_groups: one group sidecar triggers apt autoremove and is deleted" {
+@test "ospkg__cleanup_all_build_groups: one group sidecar triggers exact remove of tracked packages and is deleted" {
   _seed_apt_context
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
@@ -721,7 +732,9 @@ _mock_snapshots() {
 
   ospkg__cleanup_all_build_groups
 
-  grep -q "autoremove" "$_apt_log"
+  grep -q -- "remove" "$_apt_log"
+  grep -q "curl" "$_apt_log"
+  ! grep -q "autoremove" "$_apt_log"
   [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group" ]]
 }
 

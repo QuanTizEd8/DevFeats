@@ -815,7 +815,7 @@ _ospkg_protect_user_pkgs() {
   # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
   case "$_OSPKG_PKG_MNGR" in
     apt-get) users__run_privileged apt-mark manual "$@" > /dev/null 2>&1 || true ;;
-    dnf | yum) users__run_privileged dnf mark user "$@" > /dev/null 2>&1 || true ;;
+    dnf | yum) users__run_privileged dnf mark install "$@" > /dev/null 2>&1 || true ;;
     pacman) users__run_privileged pacman -D --asexplicit "$@" > /dev/null 2>&1 || true ;;
     *) ;;
   esac
@@ -942,15 +942,20 @@ _ospkg_remove_build_group() {
   logging__remove "Build group '${_group_id}': removing ${#_pkgs[@]} package(s): ${_pkgs[*]}"
   case "$_OSPKG_PKG_MNGR" in
     apt-get)
-      # Packages were marked 'auto' at install time; autoremove handles transitive removal.
-      users__run_privileged apt-get -y --purge autoremove >&2 || true
+      # Remove exactly the tracked packages. The sidecar contains the complete
+      # before/after diff (all newly installed packages including transitive deps),
+      # so explicit removal is sufficient and precisely scoped. '--auto-remove'
+      # is intentionally omitted: it performs a global scan and would remove
+      # pre-existing auto-marked orphaned packages unrelated to our install.
+      users__run_privileged apt-get -y --purge remove "${_pkgs[@]}" >&2 || true
       ;;
     apk)
       users__run_privileged apk del "${_pkgs[@]}" >&2 || true
       ;;
     dnf | yum)
-      # Packages were marked 'removable' at install time.
-      users__run_privileged dnf autoremove -y >&2 || true
+      # Packages were marked removable at install time; remove explicitly so only
+      # tracked packages and their orphaned deps are cleaned — not all dnf orphans.
+      users__run_privileged dnf -y remove "${_pkgs[@]}" >&2 || true
       ;;
     microdnf)
       users__run_privileged microdnf remove "${_pkgs[@]}" >&2 || true
@@ -959,12 +964,8 @@ _ospkg_remove_build_group() {
       users__run_privileged zypper --non-interactive remove --clean-deps "${_pkgs[@]}" >&2 || true
       ;;
     pacman)
-      # Packages were marked asdeps at install time; remove orphans.
-      local _orphans
-      _orphans="$(pacman -Qdtq 2> /dev/null)" || _orphans=""
-      if [[ -n "$_orphans" ]]; then
-        echo "$_orphans" | xargs pacman -Rs --noconfirm >&2 || true
-      fi
+      # Remove tracked packages explicitly; let pacman handle deps marked asdeps.
+      users__run_privileged pacman -Rs --noconfirm "${_pkgs[@]}" >&2 || true
       ;;
     brew)
       local _pkg
