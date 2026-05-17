@@ -2,7 +2,7 @@
 
 Claude Code (often referred to as the Claude CLI) is Anthropic's terminal-first coding assistant. It combines conversational prompting with direct tooling, including file reads/edits, shell command execution, git workflows, and integrations through MCP servers and IDE extensions.[^docs-setup][^repo-readme]
 
-Operationally, Claude Code is distributed as platform-specific native binaries (macOS, Linux, Windows, x64/ARM64, including musl variants) and can be installed through multiple channels: Anthropic's native bootstrap installers, package managers (Homebrew, WinGet, apt/dnf/apk), and npm global installation. The same CLI state and settings live under the Claude config directory (`~/.claude` by default) across these channels.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd][^docs-env]
+Operationally, Claude Code is distributed as platform-specific native binaries (macOS, Linux, Windows, x64/ARM64, including musl variants). Official docs enumerate native bootstrap, package-manager, and npm installation paths; additionally, the same release-channel artifacts can be consumed manually because the bootstrap scripts download from `https://downloads.claude.ai/claude-code-releases`.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd][^docs-env]
 
 - **Homepage**: https://code.claude.com
 - **Source Code**: https://github.com/anthropics/claude-code
@@ -19,7 +19,7 @@ Configuration and state are file-based. By default, Claude Code stores credentia
 
 ## Installation Methods
 
-Claude Code supports three primary installation families relevant to this feature: native bootstrap installers, OS package-manager installs, and npm global install. Anthropic currently recommends native installers as the default path in project docs.[^docs-setup][^repo-readme]
+Claude Code has three documented end-user installation families: native bootstrap installers, OS package-manager installs, and npm global install. This reference also includes an operator-managed manual workflow using the release-channel artifact bucket consumed by the bootstrap scripts.[^docs-setup][^repo-readme][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
 
 ### Native Bootstrap Installer (`install.sh`, `install.ps1`, `install.cmd`)
 
@@ -63,7 +63,7 @@ curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del in
 2. Bootstraps accept one optional target, detect platform/arch, resolve the installer version from the `latest` endpoint, fetch `manifest.json`, extract `platforms.<platform>.checksum`, download the platform installer into the Claude downloads directory, verify SHA256, run `claude install [target]`, and delete the downloaded installer binary.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
    - POSIX platform mapping includes `darwin-x64`/`darwin-arm64`, `linux-x64`/`linux-arm64`, and `linux-*-musl` when musl is detected.[^src-bootstrap-sh]
    - Windows platform mapping includes `win32-x64` and `win32-arm64` based on processor architecture environment variables.[^src-bootstrap-ps1][^src-bootstrap-cmd]
-  - Target validation differs by bootstrap implementation: POSIX and PowerShell use strict full-pattern validation (`stable|latest|X.Y.Z[-suffix]`), while CMD validates `stable/latest` explicitly and otherwise applies a looser semver-prefix check before invoking `claude install`.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+    - Target validation differs by bootstrap implementation: POSIX and PowerShell use strict full-pattern validation (`stable|latest|X.Y.Z[-suffix]`), while CMD validates `stable/latest` explicitly and otherwise applies a looser semver-prefix check before invoking `claude install`.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
    - CMD bootstrap includes a short delay before deletion to avoid file-lock races on Windows.[^src-bootstrap-cmd]
 3. Launch Claude Code from the terminal in your project directory with `claude` and complete authentication.[^docs-setup]
 
@@ -296,6 +296,157 @@ Remove-Item -Path ".mcp.json" -Force
 
 - Prefer signed-manifest verification for manual binary trust checks, especially in controlled or air-gapped deployments.[^docs-setup]
 - On Alpine/musl, install required libs and disable builtin ripgrep fallback mismatch issues with `USE_BUILTIN_RIPGREP=0`.[^docs-setup]
+
+### Direct Release Channel Artifact Installation (`downloads.claude.ai/claude-code-releases`)
+
+This method installs from the same release-channel artifact source used by the native bootstrap scripts, but executes the download/verification/install flow manually.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+
+#### Supported Platforms
+
+- Platform targets in this channel include `darwin-x64`, `darwin-arm64`, `linux-x64`, `linux-arm64`, `linux-x64-musl`, `linux-arm64-musl`, `win32-x64`, and `win32-arm64`.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+- WSL uses Linux platform targets.[^docs-setup]
+
+#### Dependencies
+
+##### Common Dependencies
+
+- Network access to release endpoints under `https://downloads.claude.ai/claude-code-releases` and signing key endpoint `https://downloads.claude.ai/keys/claude-code.asc`.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+- `curl` or `wget` for release artifact and metadata downloads.[^src-bootstrap-sh][^src-bootstrap-cmd]
+- `gpg` for signing-key import/fingerprint validation and manifest signature checks.[^docs-setup]
+- `jq` (or equivalent JSON parsing) for extracting platform checksum values from `manifest.json` in POSIX automation flows.[^src-bootstrap-sh]
+
+##### Platform-Specific Dependencies
+
+- Linux: `sha256sum` for checksum calculation.[^docs-setup]
+- macOS: `shasum -a 256` for checksum calculation.[^docs-setup]
+- Windows: `Invoke-WebRequest` and `Get-FileHash` in PowerShell; run `gpg` signature commands in Git Bash or WSL.[^docs-setup]
+
+#### Installation Steps
+
+1. Resolve installer artifact version from the `latest` marker (matching native bootstrap behavior), then choose an install target (`latest`, `stable`, or explicit version) for `claude install`:[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd][^docs-setup]
+
+```bash
+REPO=https://downloads.claude.ai/claude-code-releases
+VERSION=$(curl -fsSL "$REPO/latest")
+INSTALL_TARGET=latest  # or stable or 2.1.89
+```
+
+2. Verify release signing key and manifest signature before trusting checksums:[^docs-setup]
+
+```bash
+curl -fsSL https://downloads.claude.ai/keys/claude-code.asc | gpg --import
+gpg --fingerprint security@anthropic.com
+curl -fsSLO "$REPO/$VERSION/manifest.json"
+curl -fsSLO "$REPO/$VERSION/manifest.json.sig"
+gpg --verify manifest.json.sig manifest.json
+```
+
+Expected key fingerprint:
+
+```text
+31DD DE24 DDFA B679 F42D  7BD2 BAA9 29FF 1A7E CACE
+```
+
+3. Download platform artifact, verify checksum against `manifest.json`, and run installer command:
+
+POSIX example (`linux-x64`):[^docs-setup][^src-bootstrap-sh]
+
+```bash
+PLATFORM=linux-x64
+curl -fsSLO "$REPO/$VERSION/$PLATFORM/claude"
+EXPECTED=$(jq -r ".platforms[\"$PLATFORM\"].checksum" manifest.json)
+ACTUAL=$(sha256sum claude | awk '{print $1}')
+test "$ACTUAL" = "$EXPECTED"
+chmod +x ./claude
+./claude install "$INSTALL_TARGET"
+rm -f ./claude
+```
+
+PowerShell example (`win32-x64`):[^docs-setup][^src-bootstrap-ps1]
+
+```powershell
+$REPO = "https://downloads.claude.ai/claude-code-releases"
+$VERSION = (Invoke-WebRequest -Uri "$REPO/latest" -UseBasicParsing).Content.Trim()
+# or pin explicitly: $VERSION = "2.1.89"
+$InstallTarget = "latest" # or "stable" or "2.1.89"
+$platform = "win32-x64"
+Invoke-WebRequest -Uri "$REPO/$VERSION/manifest.json" -OutFile ".\manifest.json"
+Invoke-WebRequest -Uri "$REPO/$VERSION/$platform/claude.exe" -OutFile ".\claude.exe"
+$manifest = Get-Content .\manifest.json | ConvertFrom-Json
+$expected = $manifest.platforms.$platform.checksum.ToLower()
+$actual = (Get-FileHash .\claude.exe -Algorithm SHA256).Hash.ToLower()
+$actual -eq $expected
+.\claude.exe install $InstallTarget
+Remove-Item .\claude.exe -Force
+```
+
+#### Installation Verification
+
+- Verify command availability with `claude --version` and run diagnostics with `claude doctor`.[^docs-setup]
+- Require both manifest-signature success and checksum match before executing `claude install`.[^docs-setup]
+
+#### Configuration Options
+
+##### Version Selection
+
+- Artifact version selection uses release-channel paths (`$REPO/$VERSION/...`) with `VERSION` from `latest` endpoint or explicit pin.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+- Install channel/target is set by the `claude install` argument (`latest`, `stable`, or explicit version), matching native installer behavior.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+
+##### Installation Path
+
+- Installed launcher/runtime paths follow native install layout after `claude install` (for example `~/.local/bin` and `~/.local/share/claude` on POSIX).[^docs-setup]
+
+##### User Targeting
+
+- Standard workflow is user-local when executed as non-root user, matching native install behavior.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+
+##### Required Privileges
+
+- User-local installs do not require elevated privileges; native Windows setup docs explicitly state Administrator is not required.[^docs-setup]
+
+##### Tool-Specific Configurations
+
+- Same runtime controls as native installs apply after install: `autoUpdatesChannel`, `minimumVersion`, `DISABLE_AUTOUPDATER`, `DISABLE_UPDATES`, `CLAUDE_CONFIG_DIR`, and Windows shell-path/tool variables where applicable.[^docs-setup][^docs-settings][^docs-env]
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+
+- `claude install` performs launcher/shell integration.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+
+##### Configuration Files
+
+- Runtime settings/state use standard Claude paths (`~/.claude`, project `.claude/`, `.mcp.json`).[^docs-setup][^docs-settings]
+
+##### Environment Variables
+
+- Environment variables can be exported or set in `settings.json` `env` exactly as with native install flows.[^docs-env][^docs-settings]
+
+##### Activation Scripts
+
+- No additional activation script is required beyond `claude install` integration.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+
+##### Cleanup
+
+- Manual integrity-verification commands download `manifest.json` and `manifest.json.sig` into the working directory; bootstrap scripts remove their temporary downloaded binary after `claude install`. Apply equivalent cleanup in manual workflows per local policy.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+- Re-run artifact workflow with a different `VERSION` and/or different `claude install` target, or use `claude update` post-install.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+
+##### Uninstallation
+
+- Use native-install uninstall commands (launcher/runtime removal plus optional config cleanup).[^docs-setup]
+
+##### Idempotency
+
+- Repeatable but not a no-op: each run re-downloads metadata/artifacts, re-verifies trust, and re-runs `claude install`.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+
+#### Notes and Best Practices
+
+- Anthropic's documented recommendation is native bootstrap installation by default; treat manual release-artifact workflows as advanced operator-managed flows rather than a documented default path.[^docs-setup][^repo-readme]
 
 ### OS Package Manager Installation (Homebrew, WinGet, apt, dnf, apk)
 
