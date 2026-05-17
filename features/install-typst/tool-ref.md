@@ -41,6 +41,7 @@ Typst publishes installation guidance for release binaries, package managers, Ca
 
 - Ability to download release assets from GitHub Releases.[^typst-readme][^typst-release-latest]
 - Archive extraction tooling (`tar` for `.tar.xz`, ZIP extraction tooling for `.zip`).[^typst-cli-update][^typst-release-workflow]
+- Optional checksum-verification tooling for the documented API-digest workflow example (`curl`, `jq`, `sed`, `sha256sum`) or equivalent tools (host-tooling assumption).
 
 ##### Platform-Specific Dependencies
 
@@ -321,7 +322,7 @@ sudo snap remove typst
 
 ##### Platform-Specific Dependencies
 
-- Platform-specific C/C++ linker/toolchain dependencies implied by Rust crate builds.[^cargo-install]
+- Additional native toolchain requirements beyond Rust/Cargo are host- and dependency-graph-specific (implementation-time assumption; not explicitly enumerated by Typst README).
 
 #### Installation Steps
 
@@ -408,7 +409,9 @@ typst --version
 
 ##### Idempotency
 
-- Re-running `cargo build --release` in same source tree is incremental and deterministic for unchanged inputs; replacing installed binary with same build output is effectively idempotent.[^typst-readme][^cargo-install]
+- Cargo reuses build artifacts in `target`/build cache based on dependency/input tracking, so repeated builds with unchanged inputs can be substantially no-op.[^cargo-build-cache]
+- In Cargo's default `release` profile, `incremental = false`; repeated-build behavior in this mode should not be described as release-profile incremental compilation.[^cargo-profiles]
+- Replacing an installed binary with the same built artifact is effectively idempotent at deployment step.
 
 #### Notes and Best Practices
 
@@ -782,25 +785,97 @@ Tinymist is a community-maintained integrated language service for Typst with a 
 - **Source Code**: https://github.com/Myriad-Dreamin/tinymist
 - **Documentation**: https://myriad-dreamin.github.io/tinymist/
 
-#### Architecture (Tinymist)
+#### Supported Platforms
+
+- Tinymist documentation lists editor integrations for VS Code/VSCodium, Neovim, Emacs, Sublime Text, Helix, and Zed.[^tinymist-docs]
+
+#### Dependencies
+
+##### Common Dependencies
+
+- Typst CLI available in development environment for compile/preview workflows.[^typst-readme][^tinymist-docs]
+- Supported editor and its extension/plugin management mechanism.[^tinymist-docs]
+
+##### Platform-Specific Dependencies
+
+- Editor-specific runtime requirements and packaging channels vary by integration (editor-host assumption; see integration docs).[^tinymist-docs]
+
+#### Installation Steps
+
+1. Select target editor integration from Tinymist docs.[^tinymist-docs]
+2. Install Tinymist extension/plugin through editor-native package manager or documented release/manual path.[^tinymist-docs]
+3. Ensure Typst CLI is available to the editor environment (`typst --version` succeeds in editor-integrated terminal or host shell).[^typst-readme]
+
+#### Installation Verification
+
+- Open a `.typ` file and confirm language-server features (diagnostics, navigation, completion/commands, preview/export workflow according to integration capabilities) are active.[^tinymist-docs]
+
+#### Configuration Options
+
+##### Version Selection
+
+- Tinymist documents Semantic Versioning and a release model including regular and nightly-style release channels.[^tinymist-docs]
+
+##### Installation Path
+
+- Extension/plugin install location is editor-managed (editor-host assumption).
+
+##### User Targeting
+
+- Integrations are typically installed in user editor profile scope unless editor policy is centrally managed (editor-host assumption).
+
+##### Required Privileges
+
+- Usually no elevation is needed for user-scope editor plugin installs; system-managed editor deployments may differ (host-policy assumption).
+
+##### Tool-Specific Configurations
+
+- Tinymist documents editor-side settings and features around language intelligence, formatting/linting, preview, and export behavior.[^tinymist-docs]
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+
+- Ensure editor process can resolve `typst` binary in `PATH` (or equivalent integration-specific executable path setting where provided).[^typst-readme][^tinymist-docs]
+
+##### Configuration Files
+
+- Configure editor/workspace settings using each integration's documented configuration surface.[^tinymist-docs]
+
+##### Environment Variables
+
+- Inherit or set Typst-related environment variables only when required by project workflow (`TYPST_*` variables remain CLI-defined).[^typst-cli-info][^typst-cli-args]
+
+##### Activation Scripts
+
+- None required by Tinymist itself.
+
+##### Cleanup
+
+- Remove Tinymist plugin/extension via editor-native uninstallation flow (editor-host assumption).
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+- Use editor-native extension/plugin update controls or documented manual release selection where available.[^tinymist-docs]
+
+##### Uninstallation
+
+- Remove Tinymist through editor package manager or integration-specific uninstall mechanism.[^tinymist-docs]
+
+##### Idempotency
+
+- Re-applying the same extension version through editor-native managers is typically a no-op from the manager perspective (editor-manager assumption).
+
+#### Notes and Best Practices
 
 - Tinymist documentation describes:
    - an analyzing/query library,
    - a CLI,
    - a language server,
    - and editor frontends/extensions.[^tinymist-docs]
-
-#### Installation Methods (Tinymist)
-
-- Editor integrations are documented for VS Code/VSCodium, Neovim, Emacs, Sublime Text, Helix, and Zed.[^tinymist-docs]
-- GitHub release/manual installation paths are also documented by the project.[^tinymist-docs]
-
-#### Configuration and Versioning (Tinymist)
-
-- Tinymist documents Semantic Versioning and a release model distinguishing regular and nightly-style releases.
-- Tinymist also documents editor-side feature/configuration behavior (language features, preview/export, formatting, linting) in its own manuals.[^tinymist-docs]
-
-For development environments using Typst CLI, Tinymist is a widely used community integration path.[^typst-readme][^tinymist-docs]
+- Keep Tinymist integration and Typst CLI lifecycle compatible by tracking release notes from both projects in editor tooling baselines.[^typst-readme][^tinymist-docs]
 
 ## References
 
@@ -821,6 +896,8 @@ For development environments using Typst CLI, Tinymist is a widely used communit
 [^winget-uninstall]: [WinGet uninstall command](https://learn.microsoft.com/en-us/windows/package-manager/winget/uninstall) - Official uninstall syntax, options, and source/scope controls.
 [^cargo-install]: [Cargo install command reference](https://doc.rust-lang.org/cargo/commands/cargo-install.html) - Official install semantics, version/source selection, path/root precedence, and idempotency rules.
 [^cargo-uninstall]: [Cargo uninstall command reference](https://doc.rust-lang.org/cargo/commands/cargo-uninstall.html) - Official uninstall semantics and root targeting.
+[^cargo-profiles]: [Cargo profiles reference](https://doc.rust-lang.org/cargo/reference/profiles.html) - Default profile settings, including `release` profile `incremental = false`.
+[^cargo-build-cache]: [Cargo build cache reference](https://doc.rust-lang.org/cargo/reference/build-cache.html) - Artifact/cache behavior in `target` and dependency/input tracking context.
 [^nix-run]: [nix run command reference](https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-run) - Official execution semantics for flake/installable-based invocation.
 [^nix-profile-install]: [nix profile install command reference](https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-profile-install) - Official persistent profile installation semantics.
 [^nix-profile-list]: [nix profile list command reference](https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-profile-list) - Official profile element inventory and index semantics for remove/upgrade targeting.
