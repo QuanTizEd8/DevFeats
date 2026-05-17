@@ -3,7 +3,6 @@ name: Feature Research Reviewer
 description: "Use when critically reviewing a Feature Reference document created by the feature-researcher agent. Verifies all cited references, cross-checks facts against official sources, flags discrepancies, and finds missing information. Subagent of feature-researcher — not user-invocable. Invoke after research phase to catch errors before API design and implementation begin."
 tools: [read, search, web, todo, vscode, github/*, microsoft/markitdown/*]
 model: ["GPT-5.4 mini (copilot)"]
-disable-model-invocation: true
 user-invocable: false
 agents: []
 ---

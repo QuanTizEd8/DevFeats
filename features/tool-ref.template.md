@@ -176,7 +176,7 @@ If there are any special considerations or steps for setting up this tool in a d
 ## Plugins and Extensions
 
 <!--
-If the tool being installed supports plugins or extensions, including but not limited to VS Code extensions, add a section describing them, including how to find them, how to install them, and any important considerations related to them (e.g. compatibility with different versions of the main tool, security considerations, etc.)
+If the tool being installed supports plugins or extensions, including but not limited to VS Code extensions, add a section describing them, including how to find them, how to install them, and any important considerations related to them (e.g. compatibility with different versions of the main tool, security considerations, etc.). For each well-established plugins/extensions, write a subsection with the same structure as this document, with summary, links to homepage/source/docs, architecture, installation methods, configuration options, etc.
 -->
 
 ## References
