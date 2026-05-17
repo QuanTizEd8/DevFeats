@@ -5,9 +5,9 @@ Cursor CLI (invoked primarily as `agent`) is Cursor's terminal-native interface 
 From an implementation perspective, Cursor CLI is distributed as prebuilt binaries downloaded by official installer scripts rather than by a documented public source repository or package-manager-first flow. The official installers are lightweight bootstrap scripts (Bash for macOS/Linux/WSL and PowerShell for native Windows) that install user-local binaries, set PATH guidance (or PATH entries on Windows), and rely on runtime configuration in `~/.cursor` and project-local `.cursor` files.[^cli-installation][^install-script-unix][^install-script-win][^cli-config]
 
 - **Homepage**: https://cursor.com/cli[^cli-homepage]
-- **Source Code**: Proprietary distribution (no official public Cursor CLI source repository is linked from CLI docs); public installer script sources are available at https://cursor.com/install and https://cursor.com/install?win32=true.[^cli-overview][^cli-installation][^install-script-unix][^install-script-win]
+- **Source Code**: No public Cursor CLI source repository is linked from official CLI docs as of 2026-05-17; publicly inspectable installer scripts are available at https://cursor.com/install and https://cursor.com/install?win32=true.[^cli-overview][^cli-installation][^install-script-unix][^install-script-win]
 - **Documentation**: https://cursor.com/docs/cli/overview[^cli-overview]
-- **Latest Release**: `2026.05.16-0338208` (installer package build identifier embedded in both official installers, as of 2026-05-17).[^install-script-unix][^install-script-win]
+- **Latest Release**: Installer-pinned build identifier `2026.05.16-0338208` (as of 2026-05-17).[^install-script-unix][^install-script-win]
 
 ## Tool Architecture
 
@@ -47,6 +47,7 @@ The official installation surface is installer-script-based, with one documented
 ##### Platform-Specific Dependencies
 
 - Linux/macOS/WSL: none beyond the shell tooling above is called out by official docs for this path.[^cli-installation][^install-script-unix]
+- libc-family compatibility boundaries (for example glibc vs musl package variants) are not documented in Cursor's installer/docs for this path; upstream script gates only on OS/architecture.[^cli-installation][^install-script-unix]
 
 #### Installation Steps
 
@@ -357,6 +358,16 @@ Recommended container-oriented setup pattern:
 
 For CI/headless flows inside containers, use print mode and machine-readable output formats (`--output-format json` or `--output-format stream-json`) with explicit permission strategy (`--force` where intended, or policy-backed allow/deny config) to avoid interactive prompts.[^cli-headless][^cli-output-format][^cli-params][^cli-permissions]
 
+### Ecosystem Comparison (Reference Dev Container Feature Projects)
+
+The devcontainer collection index snapshot used in this research explicitly includes a `Claude Code Feature` entry that points to `ghcr.io/anthropics/devcontainer-features/claude-code`, making it a useful comparator for agent-CLI feature design patterns.[^collection-index]
+
+In `devcontainers-extra/features`, the `claude-code` feature is implemented as a thin wrapper around an upstream bootstrap installer and additionally copies the installed user-local launcher into `/usr/local/bin` for global command discoverability in containers.[^devcontainers-extra-claude-install]
+
+That upstream `claude-code` bootstrap performs manifest-driven SHA256 verification before executing install, and supports explicit target/version semantics in its argument contract.[^devcontainers-extra-claude-bootstrap]
+
+Compared to that pattern, Cursor's official installers are similarly script-driven and user-local, but currently do not expose checksum verification logic in-script and do not document an installer-time version selection flag. For a robust `install-cursor` feature, this makes checksum enforcement and explicit version-handling policy in feature code especially important.[^install-script-unix][^install-script-win][^devcontainers-extra-claude-bootstrap][^devcontainers-extra-claude-feature-json]
+
 ## Plugins and Extensions
 
 Cursor CLI supports the same broader Cursor ecosystem for plugins/rules/skills/agents/hooks/MCP integrations, with two primary operational paths for CLI users:[^plugins-docs][^mcp-docs][^cli-using][^cli-params]
@@ -383,8 +394,6 @@ Cursor CLI supports the same broader Cursor ecosystem for plugins/rules/skills/a
 [^cli-auth]: [Cursor Docs — CLI Authentication](https://cursor.com/docs/cli/reference/authentication) — login/API key flows and auth troubleshooting.
 [^cli-config]: [Cursor Docs — CLI Configuration](https://cursor.com/docs/cli/reference/configuration) — config file locations/schema and environment overrides.
 [^cli-permissions]: [Cursor Docs — CLI Permissions](https://cursor.com/docs/cli/reference/permissions) — policy token model and allow/deny semantics.
-[^cli-terminal-setup]: [Cursor Docs — Terminal Setup](https://cursor.com/docs/cli/reference/terminal-setup) — terminal behavior, keybinding setup, and Vim mode configuration.
-[^cli-shell-mode]: [Cursor Docs — Shell Mode](https://cursor.com/docs/cli/shell-mode) — shell execution constraints and timeout semantics.
 [^cli-headless]: [Cursor Docs — Headless CLI](https://cursor.com/docs/cli/headless) — non-interactive script/automation guidance.
 [^cli-github-actions]: [Cursor Docs — GitHub Actions](https://cursor.com/docs/cli/github-actions) — CI integration patterns and secret usage.
 [^cli-output-format]: [Cursor Docs — Output Format](https://cursor.com/docs/cli/reference/output-format) — machine-readable print output contracts.
@@ -397,6 +406,3 @@ Cursor CLI supports the same broader Cursor ecosystem for plugins/rules/skills/a
 [^devcontainers-extra-claude-bootstrap]: [devcontainers-extra/features — claude-code bootstrap.sh](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/claude-code/bootstrap.sh) — analogous installer with checksum validation and platform detection logic.
 [^devcontainers-extra-claude-feature-json]: [devcontainers-extra/features — claude-code devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/claude-code/devcontainer-feature.json) — comparable feature options/customizations surface.
 [^collection-index]: [devcontainers collection index](https://raw.githubusercontent.com/devcontainers/devcontainers.github.io/refs/heads/gh-pages/_data/collection-index.yml) — catalog used to identify related AI-agent devcontainer feature ecosystems.
-[^dc-features-search-cursor]: [GitHub code search — devcontainers/features for "cursor"](https://github.com/devcontainers/features/search?q=cursor&type=code) — reference search for comparable first-party feature implementations.
-[^dc-extra-search-cursor]: [GitHub code search — devcontainers-extra/features for "cursor"](https://github.com/devcontainers-extra/features/search?q=cursor&type=code) — reference search in major community feature collection.
-[^dc-community-search-cursor]: [GitHub code search — devcontainer-community/devcontainer-features for "cursor"](https://github.com/devcontainer-community/devcontainer-features/search?q=cursor&type=code) — reference search in community collection.
