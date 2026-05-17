@@ -187,8 +187,8 @@ install_fzf() {
   github__install_release \
     --repo "junegunn/fzf" --tag "v${_version}" \
     --asset "$_filename" --dest "${_bin_dir}/fzf" \
-    --sha256 auto+sidecar --sidecar-url "${_base_url}/${_filename}.sha256" \
-    || return 1
+    --sha256 auto+sidecar --sidecar-url "${_base_url}/${_filename}.sha256" ||
+    return 1
 
   logging__success "fzf installed to '${_bin_dir}/fzf'."
   return 0

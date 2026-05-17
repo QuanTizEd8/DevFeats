@@ -207,8 +207,8 @@ _gh__install_binary() {
   github__install_release \
     --repo "cli/cli" --tag "v${_version}" \
     --asset "$_archive_name" --dest "${PREFIX}/bin/gh" \
-    --sha256 sidecar --sidecar-url "${_url_base}/gh_${_version}_checksums.txt" \
-    || exit 1
+    --sha256 sidecar --sidecar-url "${_url_base}/gh_${_version}_checksums.txt" ||
+    exit 1
 
   if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
     _gh__install_completions

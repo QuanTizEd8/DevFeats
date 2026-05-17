@@ -51,8 +51,8 @@ _install__just_install_release() {
     --repo "casey/just" --tag "${_version}" \
     --asset "$_asset" --dest "$_dest" \
     --sha256 auto+sidecar --sidecar-url "${_base}/SHA256SUMS" \
-    "${_owner_group_arg[@]}" \
-    || return 1
+    "${_owner_group_arg[@]}" ||
+    return 1
   install__state_record "just" "$_context" "binary" "$_dest" "$_group" || true
 }
 

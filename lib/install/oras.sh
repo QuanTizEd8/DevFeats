@@ -62,8 +62,8 @@ _install__oras_install_release() {
     --repo "oras-project/oras" --tag "$_tag" \
     --asset "$_asset" --dest "$_bin_dest" \
     --gpg-key-url "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" \
-    "${_owner_group_arg[@]}" \
-    || return 1
+    "${_owner_group_arg[@]}" ||
+    return 1
   install__state_record "oras" "$_context" "binary" "$_bin_dest" "$_group" || true
 }
 
