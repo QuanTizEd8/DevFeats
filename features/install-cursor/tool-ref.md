@@ -115,6 +115,7 @@ The official installation surface is installer-script-based, with one documented
   - Browser login flow: `agent login`.
   - API key methods: `CURSOR_API_KEY` env var or `--api-key` flag.[^cli-auth][^cli-params]
   - ACP/custom-client pre-authentication: `--auth-token` flag or `CURSOR_AUTH_TOKEN` env var for `agent acp` and other custom integrations.[^cli-acp]
+  - For custom endpoints or development TLS flows, ACP/custom-client setups can also use `--endpoint` and `--insecure`; documented ACP examples include `agent -e https://api2.cursor.sh acp` and `agent -k acp`.[^cli-acp][^cli-auth]
 - CLI configuration file:
   - Global: `~/.cursor/cli-config.json`
   - Project: `<project>/.cursor/cli.json` (permissions-only at project scope)
@@ -219,6 +220,7 @@ The official installation surface is installer-script-based, with one documented
   - `Expand-Archive`
   - `Get-WmiObject`
   - environment variable mutation APIs (`[Environment]::SetEnvironmentVariable`).[^install-script-win]
+- Windows PowerShell 5.1 is the documented reference surface for `Get-WmiObject`; treat that as the baseline PowerShell version for this installer path.[^ps51-get-wmiobject][^install-script-win]
 - Writable `%LOCALAPPDATA%` location for user-level installation.[^install-script-win]
 
 ##### Platform-Specific Dependencies
@@ -286,6 +288,7 @@ The official installation surface is installer-script-based, with one documented
 - Same runtime configuration/authentication model as other platforms:
   - `agent login`, `CURSOR_API_KEY`, `--api-key`
   - `--auth-token`, `CURSOR_AUTH_TOKEN` for ACP/custom-client pre-authentication[^cli-acp]
+  - `--endpoint`, `--insecure`, and documented ACP examples such as `agent -e https://api2.cursor.sh acp` and `agent -k acp` for ACP/custom-client endpoint/TLS tuning[^cli-acp][^cli-auth]
   - `%USERPROFILE%\.cursor\cli-config.json` global config
   - `<project>/.cursor/cli.json` project-level permissions
   - MCP configuration and approvals via `.cursor/mcp.json` and CLI commands.[^cli-auth][^cli-config][^cli-permissions][^mcp-docs][^cli-params]
@@ -404,6 +407,7 @@ Cursor CLI supports the same broader Cursor ecosystem for plugins/rules/skills/a
 [^mcp-docs]: [Cursor Docs — MCP](https://cursor.com/docs/mcp) — MCP configuration, transport modes, auth, and usage model.
 [^install-script-unix]: [Cursor official Unix installer script](https://cursor.com/install) — source of OS/arch checks, download URL, install paths, symlink behavior, and cleanup logic.
 [^install-script-win]: [Cursor official Windows installer script](https://cursor.com/install?win32=true) — source of Windows download/install paths, PATH mutation, alias file generation, and idempotency behavior.
+[^ps51-get-wmiobject]: [Microsoft Learn — Get-WmiObject](https://learn.microsoft.com/powershell/module/microsoft.powershell.management/get-wmiobject?view=powershell-5.1) — Microsoft’s Windows PowerShell 5.1 reference surface for the cmdlet used by the Windows installer.
 [^devcontainers-extra-claude-install]: [devcontainers-extra/features — claude-code install.sh](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/claude-code/install.sh) — similar feature implementation using upstream installer and global launcher copy.
 [^devcontainers-extra-claude-bootstrap]: [devcontainers-extra/features — claude-code bootstrap.sh](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/claude-code/bootstrap.sh) — analogous installer with checksum validation and platform detection logic.
 [^devcontainers-extra-claude-feature-json]: [devcontainers-extra/features — claude-code devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/claude-code/devcontainer-feature.json) — comparable feature options/customizations surface.
