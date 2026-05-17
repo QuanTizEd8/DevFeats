@@ -82,6 +82,7 @@ This verifies end-to-end auth/model access, not just local binary presence. For 
 
 These commands are documented by GitHub for Copilot CLI and align with npm global install behavior.[^install-docs][^npm-global][^npm-install]
 
+
 #### Installation Verification
 
 - Verify command availability and version:
@@ -211,6 +212,7 @@ Global uninstall behavior is documented by npm.[^npm-uninstall]
 
 3. For unattended installs, WinGet supports flags such as `--accept-source-agreements`, `--accept-package-agreements`, and `--silent`.[^winget-install]
 
+
 #### Installation Verification
 
 - Verify executable:
@@ -298,7 +300,7 @@ Using `--source winget` avoids Microsoft Store agreement prompts in mixed-source
 
 #### Supported Platforms
 
-- macOS and Linux through Homebrew formulae.[^install-docs]
+- macOS and Linux through Homebrew casks.[^install-docs][^brew-cask-copilot]
 
 #### Dependencies
 
@@ -309,21 +311,24 @@ Using `--source winget` avoids Microsoft Store agreement prompts in mixed-source
 
 ##### Platform-Specific Dependencies
 
-- None beyond Homebrew-supported host constraints for each OS.[^brew-man]
+- On macOS, cask metadata requires macOS Ventura (13) or newer.[^brew-cask-copilot][^brew-cask-copilot-prerelease][^brew-cask-code-stable][^brew-cask-code-prerelease]
+- Linux support is currently published for 64-bit architectures (x86_64 and arm64).[^brew-cask-copilot][^brew-cask-copilot-prerelease][^brew-cask-code-stable][^brew-cask-code-prerelease]
 
 #### Installation Steps
 
 1. Stable:
 
    ```bash
-   brew install copilot-cli
+   brew install --cask copilot-cli
    ```
 
 2. Prerelease:
 
    ```bash
-   brew install copilot-cli@prerelease
+   brew install --cask copilot-cli@prerelease
    ```
+
+Homebrew currently publishes both channels as casks.[^brew-cask-copilot][^brew-cask-copilot-prerelease]
 
 #### Installation Verification
 
@@ -333,21 +338,23 @@ Using `--source winget` avoids Microsoft Store agreement prompts in mixed-source
   copilot version
   ```
 
-- Verify Homebrew package state:
+- Verify Homebrew package state for the installed channel:[^brew-cask-copilot][^brew-cask-copilot-prerelease]
 
   ```bash
-  brew list --versions copilot-cli
+  brew list --cask copilot-cli
+  # or, if prerelease channel is installed
+  brew list --cask copilot-cli@prerelease
   ```
 
 #### Configuration Options
 
 ##### Version Selection
 
-- GitHub docs explicitly define stable and prerelease formula options via distinct formula names.[^install-docs]
+- GitHub docs define stable and prerelease Homebrew options, and Homebrew cask pages expose these as `copilot-cli` and `copilot-cli@prerelease` casks.[^install-docs][^brew-cask-copilot][^brew-cask-copilot-prerelease]
 
 ##### Installation Path
 
-- Installed into Homebrew prefix and linked into Homebrew bin path.[^brew-man]
+- Installed as a Homebrew cask with artifacts managed under Homebrew cask locations (for example Caskroom/prefix-managed links).[^brew-man][^brew-cask-copilot]
 
 ##### User Targeting
 
@@ -355,7 +362,7 @@ Using `--source winget` avoids Microsoft Store agreement prompts in mixed-source
 
 ##### Required Privileges
 
-- Homebrew is designed to avoid mandatory `sudo` for normal formula operations in properly configured installations.[^brew-man]
+- Homebrew is designed to avoid mandatory `sudo` for normal cask operations in properly configured installations.[^brew-man]
 
 ##### Tool-Specific Configurations
 
@@ -377,7 +384,7 @@ Using `--source winget` avoids Microsoft Store agreement prompts in mixed-source
 
 ##### Activation Scripts
 
-- Optional `copilot completion` setup for shell tab completion.[^cmd-ref]
+- `copilot completion SHELL` can be enabled for the current session (for example `source <(copilot completion bash)`) or persisted by writing shell-specific completion files (for example Bash `/etc/bash_completion.d/copilot`, Zsh `_copilot` in an `fpath` directory, Fish `~/.config/fish/completions/copilot.fish`).[^cmd-ref]
 
 ##### Cleanup
 
@@ -387,29 +394,39 @@ Using `--source winget` avoids Microsoft Store agreement prompts in mixed-source
 
 ##### Upgrading/Downgrading
 
-- Upgrade Homebrew formula:
+- Upgrade Homebrew cask:
 
   ```bash
-  brew upgrade copilot-cli
+  brew upgrade --cask copilot-cli
   ```
 
-- Switch channel by uninstalling one formula and installing the other (`copilot-cli` vs `copilot-cli@prerelease`).[^install-docs][^brew-man]
+- Switch channel by uninstalling one cask and installing the other (`copilot-cli` vs `copilot-cli@prerelease`).[^install-docs][^brew-cask-copilot][^brew-cask-copilot-prerelease]
 
 ##### Uninstallation
 
+- Remove installed cask:
+
 ```bash
-brew uninstall copilot-cli
+brew uninstall --cask copilot-cli
 # or
-brew uninstall copilot-cli@prerelease
+brew uninstall --cask copilot-cli@prerelease
+```
+
+- To also remove managed app data (`~/.copilot`), use Homebrew zap cleanup:[^brew-man][^brew-cask-code-stable][^brew-cask-code-prerelease]
+
+```bash
+brew uninstall --cask --zap copilot-cli
+# or
+brew uninstall --cask --zap copilot-cli@prerelease
 ```
 
 ##### Idempotency
 
-- `brew install` on existing formula follows Homebrew install semantics (including upgrade behavior when outdated unless configured otherwise).[^brew-man]
+- `brew install --cask` on an existing cask follows Homebrew install semantics (including upgrade-related behavior controlled by Homebrew settings and cask metadata).[^brew-man]
 
 #### Notes and Best Practices
 
-- Pin formula/channel explicitly in automation when reproducibility matters.[^brew-man][^install-docs]
+- Pin cask/channel explicitly in automation when reproducibility matters.[^brew-man][^install-docs]
 
 ### Install Script (macOS/Linux Primary, Winget Fallback on Windows)
 
@@ -462,6 +479,7 @@ Behavior from source code:
 - Verifies tarball readability (`tar -tzf`).
 - Extracts `copilot` into `$PREFIX/bin` and marks executable.
 - Prompts interactively to append PATH export to shell profile when needed.[^repo-install-script][^install-docs]
+
 
 #### Installation Verification
 
@@ -581,6 +599,7 @@ Behavior from source code:
 ##### Platform-Specific Dependencies
 
 - OS-native installer/archive tooling varies by selected asset format (for example MSI on Windows).[^release-latest]
+- Windows usage requires PowerShell v6 or higher per official Copilot CLI prerequisites.[^install-docs]
 
 #### Installation Steps
 
@@ -589,6 +608,7 @@ Behavior from source code:
 3. Extract/install asset and place `copilot` executable on PATH.
 
 GitHub docs explicitly support this method as "Download from GitHub.com".[^install-docs][^releases-page]
+
 
 #### Installation Verification
 
@@ -793,6 +813,10 @@ These semantics matter for enterprise policy, reproducibility, and debugging whe
 [^winget-upgrade]: [Microsoft Learn - winget upgrade](https://learn.microsoft.com/en-us/windows/package-manager/winget/upgrade) - WinGet upgrade/version targeting semantics.
 [^winget-uninstall]: [Microsoft Learn - winget uninstall](https://learn.microsoft.com/en-us/windows/package-manager/winget/uninstall) - WinGet uninstall semantics and source-scoping note.
 [^brew-man]: [Homebrew Documentation - brew(1) manpage](https://docs.brew.sh/Manpage) - Homebrew install/upgrade/uninstall and prefix/path behaviors.
+[^brew-cask-copilot]: [Homebrew Formulae - copilot-cli cask](https://formulae.brew.sh/cask/copilot-cli) - Authoritative cask type and install command for stable Copilot CLI on Homebrew.
+[^brew-cask-copilot-prerelease]: [Homebrew Formulae - copilot-cli@prerelease cask](https://formulae.brew.sh/cask/copilot-cli@prerelease) - Authoritative cask type and install command for prerelease Copilot CLI on Homebrew.
+[^brew-cask-code-stable]: [Homebrew Cask source - copilot-cli.rb](https://raw.githubusercontent.com/Homebrew/homebrew-cask/master/Casks/c/copilot-cli.rb) - Stable cask source for macOS requirement, Linux arch assets, completion generation, and zap cleanup behavior.
+[^brew-cask-code-prerelease]: [Homebrew Cask source - copilot-cli@prerelease.rb](https://raw.githubusercontent.com/Homebrew/homebrew-cask/master/Casks/c/copilot-cli@prerelease.rb) - Prerelease cask source for macOS requirement, Linux arch assets, completion generation, and zap cleanup behavior.
 [^devcontainers-install]: [devcontainers/features - copilot-cli install.sh](https://raw.githubusercontent.com/devcontainers/features/main/src/copilot-cli/install.sh) - Reference devcontainer installation implementation.
 [^devcontainers-feature-json]: [devcontainers/features - copilot-cli devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers/features/main/src/copilot-cli/devcontainer-feature.json) - Feature options, postStartCommand, and install ordering metadata.
 [^devcontainers-readme]: [devcontainers/features - copilot-cli README](https://raw.githubusercontent.com/devcontainers/features/main/src/copilot-cli/README.md) - Usage example and platform support notes for the reference feature.
