@@ -38,6 +38,9 @@ _OSPKG_LISTS_PATH=
 _OSPKG_LISTS_PATTERN=
 _OSPKG_PREFER_LINUXBREW=false
 _OSPKG_YQ_BIN=
+# DNF mark subcommand names; overridden to "user"/"dependency" for DNF5.
+_OSPKG_DNF_MARK_USER="install"
+_OSPKG_DNF_MARK_DEP="remove"
 declare -A _OSPKG_OS_RELEASE=()
 
 # ── Private: clean functions ──────────────────────────────────────────────────
@@ -459,6 +462,14 @@ _ospkg_set_dnf() {
   _OSPKG_LISTS_PATH="/var/cache/dnf"
   _OSPKG_LISTS_PATTERN="*"
   _OSPKG_OS_RELEASE[pm]="dnf"
+  # DNF5 (Fedora 41+) renamed mark subcommands: install→user, remove→dependency.
+  if dnf --version 2>/dev/null | head -1 | grep -q '^5\.'; then
+    _OSPKG_DNF_MARK_USER="user"
+    _OSPKG_DNF_MARK_DEP="dependency"
+  else
+    _OSPKG_DNF_MARK_USER="install"
+    _OSPKG_DNF_MARK_DEP="remove"
+  fi
   return 0
 }
 
@@ -485,6 +496,8 @@ _ospkg_set_yum() {
   _OSPKG_LISTS_PATH="/var/cache/yum"
   _OSPKG_LISTS_PATTERN="*"
   _OSPKG_OS_RELEASE[pm]="yum"
+  _OSPKG_DNF_MARK_USER="install"
+  _OSPKG_DNF_MARK_DEP="remove"
   return 0
 }
 
@@ -815,7 +828,7 @@ _ospkg_protect_user_pkgs() {
   # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
   case "$_OSPKG_PKG_MNGR" in
     apt-get) users__run_privileged apt-mark manual "$@" > /dev/null 2>&1 || true ;;
-    dnf | yum) users__run_privileged "$_OSPKG_PKG_MNGR" mark install "$@" > /dev/null 2>&1 || true ;;
+    dnf | yum) users__run_privileged "$_OSPKG_PKG_MNGR" mark "${_OSPKG_DNF_MARK_USER}" "$@" > /dev/null 2>&1 || true ;;
     pacman) users__run_privileged pacman -D --asexplicit "$@" > /dev/null 2>&1 || true ;;
     *) ;;
   esac
@@ -897,7 +910,7 @@ _ospkg_ensure_global_auto_snapshot() {
       local -a _dep_pkgs=()
       mapfile -t _dep_pkgs < "$_snap"
       [[ ${#_dep_pkgs[@]} -gt 0 ]] &&
-        users__run_privileged "$_OSPKG_PKG_MNGR" mark install "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
+        users__run_privileged "$_OSPKG_PKG_MNGR" mark "${_OSPKG_DNF_MARK_USER}" "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
       ;;
     pacman)
       # Snapshot all asdeps packages and temporarily mark them asexplicit so
@@ -944,7 +957,7 @@ _ospkg_restore_global_auto_state() {
         <(printf '%s\n' "${_pkgs[@]}") \
         <(rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort))
       [[ ${#_still_installed[@]} -gt 0 ]] &&
-        users__run_privileged "$_OSPKG_PKG_MNGR" mark remove "${_still_installed[@]}" > /dev/null 2>&1 || true
+        users__run_privileged "$_OSPKG_PKG_MNGR" mark "${_OSPKG_DNF_MARK_DEP}" "${_still_installed[@]}" > /dev/null 2>&1 || true
       ;;
     pacman)
       mapfile -t _still_installed < <(comm -12 \
@@ -1026,7 +1039,7 @@ _ospkg_mark_build_group() {
       users__run_privileged apt-mark auto "${_new_pkgs[@]}" >&2 || true
       ;;
     dnf | yum)
-      users__run_privileged "$_OSPKG_PKG_MNGR" mark remove "${_new_pkgs[@]}" >&2 || true
+      users__run_privileged "$_OSPKG_PKG_MNGR" mark "${_OSPKG_DNF_MARK_DEP}" "${_new_pkgs[@]}" >&2 || true
       ;;
     pacman)
       users__run_privileged pacman -D --asdeps "${_new_pkgs[@]}" >&2 || true
