@@ -7,7 +7,7 @@ For feature implementation, the important operational context is that Typst is d
 - **Homepage**: https://typst.app/
 - **Source Code**: https://github.com/typst/typst
 - **Documentation**: https://typst.app/docs/
-- **Latest Release**: v0.14.2 (as of 2026-05-17)[^typst-release-latest]
+- **Latest Release**: v0.14.2 (as of 2026-05-17)[^typst-release-latest][^typst-release-v0142]
 
 ## Tool Architecture
 
@@ -642,13 +642,13 @@ Element can be removed by profile element index, attribute path, or store path.[
 
 ##### Idempotency
 
-- `nix profile install` adds installables as profile elements; repeated installs can add additional entries unless elements are managed explicitly.[^nix-profile-install][^nix-profile-list]
+- `nix profile install` adds installables as profile elements; repeated installs can add additional entries unless elements are managed explicitly (inference from install/list semantics; verify in deployed Nix version).[^nix-profile-install][^nix-profile-list]
 - Stable convergence requires explicit profile-element management (`list`/`remove`/`upgrade`).[^nix-profile-list][^nix-profile-remove][^nix-profile-upgrade]
 
 #### Notes and Best Practices
 
 - Use explicit flake revisions in CI for deterministic reproducibility.
-- Keep in mind the Nix `nix` command family is marked experimental in referenced manual pages.[^nix-run][^nix-profile-install][^nix-profile-remove]
+- Keep in mind the Nix `nix` command family is marked experimental in referenced manual pages, and this document's command semantics are sourced from Nix manual version `2.18`.[^nix-run][^nix-profile-install][^nix-profile-remove]
 
 ### Docker Image Execution
 
@@ -784,6 +784,7 @@ Tinymist is a community-maintained integrated language service for Typst with a 
 - **Homepage**: https://myriad-dreamin.github.io/tinymist/
 - **Source Code**: https://github.com/Myriad-Dreamin/tinymist
 - **Documentation**: https://myriad-dreamin.github.io/tinymist/
+- **Latest Release**: https://github.com/Myriad-Dreamin/tinymist/releases[^tinymist-frontend-vscode]
 
 #### Supported Platforms
 
@@ -793,8 +794,9 @@ Tinymist is a community-maintained integrated language service for Typst with a 
 
 ##### Common Dependencies
 
-- Typst CLI available in development environment for compile/preview workflows.[^typst-readme][^tinymist-docs]
+- Tinymist executable available, either bundled by editor extension or provided as a local binary (`tinymist.serverPath` can point to local executable in VS Code integration).[^tinymist-config-vscode][^tinymist-frontend-vscode]
 - Supported editor and its extension/plugin management mechanism.[^tinymist-docs]
+- Typst CLI is complementary for commands Tinymist does not mirror (for example `typst query`/`typst watch` remain in Typst CLI per Tinymist CLI docs).[^tinymist-cli][^typst-readme]
 
 ##### Platform-Specific Dependencies
 
@@ -802,9 +804,17 @@ Tinymist is a community-maintained integrated language service for Typst with a 
 
 #### Installation Steps
 
-1. Select target editor integration from Tinymist docs.[^tinymist-docs]
-2. Install Tinymist extension/plugin through editor-native package manager or documented release/manual path.[^tinymist-docs]
-3. Ensure Typst CLI is available to the editor environment (`typst --version` succeeds in editor-integrated terminal or host shell).[^typst-readme]
+1. Select target editor integration from Tinymist frontend docs.[^tinymist-docs]
+2. For VS Code/VSCodium, install extension ID `myriad-dreamin.tinymist` from Visual Studio Marketplace/Open VSX.[^tinymist-frontend-vscode]
+3. For Neovim, Tinymist docs provide a `mason.nvim` install path (`ensure_installed = { "tinymist" }`) or manual binary install path.[^tinymist-frontend-neovim]
+4. For Helix, configure `language-server.tinymist` with `command = "tinymist"` after installing the Tinymist binary.[^tinymist-frontend-helix]
+5. If manual binary installation is needed, Tinymist frontend docs provide Cargo installation command:
+
+```bash
+cargo install --git https://github.com/Myriad-Dreamin/tinymist --locked tinymist-cli
+```
+
+[^tinymist-frontend-neovim][^tinymist-frontend-helix][^tinymist-frontend-emacs]
 
 #### Installation Verification
 
@@ -836,7 +846,8 @@ Tinymist is a community-maintained integrated language service for Typst with a 
 
 ##### PATH Setup
 
-- Ensure editor process can resolve `typst` binary in `PATH` (or equivalent integration-specific executable path setting where provided).[^typst-readme][^tinymist-docs]
+- Ensure editor process can resolve `tinymist` executable in `PATH`, or configure integration-specific executable path (for example `tinymist.serverPath` in VS Code).[^tinymist-config-vscode][^tinymist-docs]
+- Ensure `typst` CLI is also available when workflows rely on Typst-only commands outside Tinymist CLI coverage.[^tinymist-cli][^typst-readme]
 
 ##### Configuration Files
 
@@ -881,7 +892,8 @@ Tinymist is a community-maintained integrated language service for Typst with a 
 
 [^typst-open-source]: [Typst Open Source Page](https://typst.app/open-source/) - Official overview of the open-source compiler, install options, and context vs the web app.
 [^typst-readme]: [typst/typst README (v0.14.2)](https://raw.githubusercontent.com/typst/typst/v0.14.2/README.md) - Canonical installation, usage, and ecosystem links published by the Typst project.
-[^typst-release-latest]: [GitHub API - typst/typst latest release](https://api.github.com/repos/typst/typst/releases/latest) - Authoritative latest stable version, publish date, release assets, and checksums/digests.
+[^typst-release-latest]: [GitHub API - typst/typst latest release](https://api.github.com/repos/typst/typst/releases/latest) - Time-sensitive endpoint used to determine latest stable release at authoring time.
+[^typst-release-v0142]: [GitHub API - typst/typst release tag v0.14.2](https://api.github.com/repos/typst/typst/releases/tags/v0.14.2) - Tag-pinned release snapshot used for reproducible asset/digest examples.
 [^typst-arch]: [Typst Compiler Architecture](https://raw.githubusercontent.com/typst/typst/v0.14.2/docs/dev/architecture.md) - Official architectural overview of Typst compiler crates and compilation phases.
 [^typst-cli-args]: [typst-cli args.rs (v0.14.2)](https://raw.githubusercontent.com/typst/typst/v0.14.2/crates/typst-cli/src/args.rs) - Source of CLI subcommands, flags, and environment-variable bindings.
 [^typst-cli-main]: [typst-cli main.rs (v0.14.2)](https://raw.githubusercontent.com/typst/typst/v0.14.2/crates/typst-cli/src/main.rs) - Entry-point dispatch and behavior when self-update feature is unavailable.
@@ -907,8 +919,14 @@ Tinymist is a community-maintained integrated language service for Typst with a 
 [^snap-typst-ubuntu]: [Snap Store - Install Typst on Ubuntu](https://snapcraft.io/install/typst/ubuntu) - Concrete snapd enablement and `sudo snap install typst` instructions.
 [^snap-remove]: [snap(8) man page (Ubuntu)](https://manpages.ubuntu.com/manpages/jammy/en/man8/snap.8.html) - Authoritative `snap remove` command semantics and snap lifecycle operations.
 [^typst-dockerfile]: [Typst Dockerfile (v0.14.2)](https://raw.githubusercontent.com/typst/typst/v0.14.2/Dockerfile) - Official container image entrypoint, user, and image construction details.
-[^devextra-feature-json]: [devcontainers-extra Typst feature manifest](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/typst/devcontainer-feature.json) - Community feature metadata, version option, and dependency relationship.
-[^devextra-feature-install]: [devcontainers-extra Typst feature install.sh](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/typst/install.sh) - Actual installer logic showing release-based install delegation.
-[^devextra-feature-readme]: [devcontainers-extra Typst feature README](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/typst/README.md) - Usage example and option summary for the community devcontainer feature.
+[^devextra-feature-json]: [devcontainers-extra Typst feature manifest (pinned)](https://raw.githubusercontent.com/devcontainers-extra/features/7afd88a111537e3396b1ce1e9dfb7aa98ee76e34/src/typst/devcontainer-feature.json) - Community feature metadata, version option, and dependency relationship at pinned commit snapshot.
+[^devextra-feature-install]: [devcontainers-extra Typst feature install.sh (pinned)](https://raw.githubusercontent.com/devcontainers-extra/features/7afd88a111537e3396b1ce1e9dfb7aa98ee76e34/src/typst/install.sh) - Installer logic showing release-based install delegation at pinned commit snapshot.
+[^devextra-feature-readme]: [devcontainers-extra Typst feature README (pinned)](https://raw.githubusercontent.com/devcontainers-extra/features/7afd88a111537e3396b1ce1e9dfb7aa98ee76e34/src/typst/README.md) - Usage example and option summary at pinned commit snapshot.
 [^typst-packages-repo]: [Typst Packages Repository](https://github.com/typst/packages/) - Canonical package repository for Typst ecosystem packages/templates.
 [^tinymist-docs]: [Tinymist Documentation](https://myriad-dreamin.github.io/tinymist/) - Established third-party LSP/editor integration documentation for Typst.
+[^tinymist-cli]: [Tinymist CLI documentation](https://myriad-dreamin.github.io/tinymist/feature/cli.html) - CLI command surface and differences versus Typst CLI.
+[^tinymist-config-vscode]: [Tinymist VS Code configuration](https://myriad-dreamin.github.io/tinymist/config/vscode.html) - VS Code settings including `tinymist.serverPath` and runtime options.
+[^tinymist-frontend-vscode]: [Tinymist VS Code frontend docs](https://myriad-dreamin.github.io/tinymist/frontend/vscode.html) - Extension identity (`myriad-dreamin.tinymist`) and marketplace distribution links.
+[^tinymist-frontend-neovim]: [Tinymist Neovim frontend docs](https://myriad-dreamin.github.io/tinymist/frontend/neovim.html) - Mason/manual install guidance and integration configuration.
+[^tinymist-frontend-helix]: [Tinymist Helix frontend docs](https://myriad-dreamin.github.io/tinymist/frontend/helix.html) - Binary discovery and `languages.toml` server configuration guidance.
+[^tinymist-frontend-emacs]: [Tinymist Emacs frontend docs](https://myriad-dreamin.github.io/tinymist/frontend/emacs.html) - Binary discovery and Eglot setup guidance.
