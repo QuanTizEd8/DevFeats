@@ -60,20 +60,141 @@ irm https://claude.ai/install.ps1 | iex
 curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd
 ```
 
-2. Bootstrap validates target parameter (`stable`, `latest`, or semver), detects platform/arch, downloads latest installer metadata, verifies checksum, runs `claude install`, and removes temporary downloaded installer binary.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+2. Bootstraps accept one optional target, detect platform/arch, resolve the installer version from the `latest` endpoint, fetch `manifest.json`, extract `platforms.<platform>.checksum`, download the platform installer into the Claude downloads directory, verify SHA256, run `claude install [target]`, and delete the downloaded installer binary.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+   - POSIX platform mapping includes `darwin-x64`/`darwin-arm64`, `linux-x64`/`linux-arm64`, and `linux-*-musl` when musl is detected.[^src-bootstrap-sh]
+   - Windows platform mapping includes `win32-x64` and `win32-arm64` based on processor architecture environment variables.[^src-bootstrap-ps1][^src-bootstrap-cmd]
+  - Target validation differs by bootstrap implementation: POSIX and PowerShell use strict full-pattern validation (`stable|latest|X.Y.Z[-suffix]`), while CMD validates `stable/latest` explicitly and otherwise applies a looser semver-prefix check before invoking `claude install`.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+   - CMD bootstrap includes a short delay before deletion to avoid file-lock races on Windows.[^src-bootstrap-cmd]
 3. Launch Claude Code from the terminal in your project directory with `claude` and complete authentication.[^docs-setup]
 
 #### Installation Verification
 
 - Basic verification: `claude --version`.[^docs-setup]
 - Diagnostic verification: `claude doctor`.[^docs-setup]
-- Supply-chain verification guidance includes signed manifest validation (available from release `2.1.89` onward), signing-key fingerprint checks, and platform code-signature verification guidance for macOS and Windows.[^docs-setup]
+- Verify release-signing key fingerprint before trusting downloaded release metadata:[^docs-setup]
+
+```bash
+curl -fsSL https://downloads.claude.ai/keys/claude-code.asc | gpg --import
+gpg --fingerprint security@anthropic.com
+```
+
+Expected fingerprint:
+
+```text
+31DD DE24 DDFA B679 F42D  7BD2 BAA9 29FF 1A7E CACE
+```
+
+- Verify detached manifest signature and then verify the binary checksum against `platforms.<platform>.checksum`:[^docs-setup]
+
+Windows caveat: signature-verification steps that use `gpg` + `curl` must run in a POSIX shell (Git Bash or WSL), even when the target binary is Windows.[^docs-setup]
+
+```bash
+REPO=https://downloads.claude.ai/claude-code-releases
+VERSION=2.1.89
+curl -fsSLO "$REPO/$VERSION/manifest.json"
+curl -fsSLO "$REPO/$VERSION/manifest.json.sig"
+gpg --verify manifest.json.sig manifest.json
+```
+
+Expected `gpg --verify` success indicator:
+
+```text
+Good signature from "Anthropic Claude Code Release Signing <security@anthropic.com>"
+```
+
+Explicit checksum comparison workflow (example `linux-x64` target):[^docs-setup]
+
+```bash
+PLATFORM=linux-x64
+curl -fsSLO "$REPO/$VERSION/$PLATFORM/claude"
+EXPECTED=$(jq -r ".platforms[\"$PLATFORM\"].checksum" manifest.json)
+ACTUAL=$(sha256sum claude | awk '{print $1}')
+test "$ACTUAL" = "$EXPECTED"
+```
+
+PowerShell comparison example (`win32-x64` target):[^docs-setup]
+
+```powershell
+$REPO = "https://downloads.claude.ai/claude-code-releases"
+$VERSION = "2.1.89"
+$platform = "win32-x64"
+Invoke-WebRequest -Uri "$REPO/$VERSION/manifest.json" -OutFile ".\manifest.json"
+Invoke-WebRequest -Uri "$REPO/$VERSION/$platform/claude.exe" -OutFile ".\claude.exe"
+$manifest = Get-Content .\manifest.json | ConvertFrom-Json
+$expected = $manifest.platforms.$platform.checksum.ToLower()
+$actual = (Get-FileHash .\claude.exe -Algorithm SHA256).Hash.ToLower()
+$actual -eq $expected
+```
+
+Hash command equivalents by platform:[^docs-setup]
+
+```bash
+sha256sum claude
+```
+
+```bash
+shasum -a 256 claude
+```
+
+```powershell
+(Get-FileHash claude.exe -Algorithm SHA256).Hash.ToLower()
+```
+
+- Manifest signatures are published for `2.1.89+`; earlier releases provide checksums in `manifest.json` without detached signatures.[^docs-setup]
+- Platform code-signature checks:[^docs-setup]
+  - macOS: `codesign --verify --verbose ./claude`, signer `Anthropic PBC`, notarized by Apple.
+  - Windows: `Get-AuthenticodeSignature .\claude.exe`, signer `Anthropic, PBC`.
+  - Linux: no per-binary code signature; integrity is via signed manifest (native) or package-manager repository signature checks.
 
 #### Configuration Options
 
 ##### Version Selection
 
-- Native installer accepts `latest` (default), `stable`, or explicit version argument for all bootstrap variants.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+- Default latest channel:[^docs-setup]
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+```powershell
+irm https://claude.ai/install.ps1 | iex
+```
+
+```bat
+curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd
+```
+
+- Stable channel:[^docs-setup]
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash -s stable
+```
+
+```powershell
+& ([scriptblock]::Create((irm https://claude.ai/install.ps1))) stable
+```
+
+```bat
+curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd stable && del install.cmd
+```
+
+- Explicit version pin:[^docs-setup]
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash -s 2.1.89
+```
+
+```powershell
+& ([scriptblock]::Create((irm https://claude.ai/install.ps1))) 2.1.89
+```
+
+```bat
+curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd 2.1.89 && del install.cmd
+```
+
+- Target validation details by bootstrap implementation:[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+  - POSIX + PowerShell: strict full-pattern validation for `stable`, `latest`, or semver-like target with optional suffix.
+  - CMD: explicit `stable/latest` check plus semver-prefix pattern check before forwarding the value.
 
 ##### Installation Path
 
@@ -86,15 +207,19 @@ curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del in
 
 ##### Required Privileges
 
-- Native Windows path does not require Administrator privileges in normal flow.[^docs-setup]
-- POSIX native install path does not document `sudo` as required for standard user-local installation.[^docs-setup]
+- Native Windows setup explicitly states Administrator privileges are not required.[^docs-setup]
+- POSIX native setup runs as a regular user in documented flows (no `sudo` in official commands), staging under `$HOME/.claude/downloads` and installing user-local launcher/runtime paths.[^docs-setup][^src-bootstrap-sh]
 
 ##### Tool-Specific Configurations
 
-- Update behavior controls: `autoUpdatesChannel`, `minimumVersion`, `DISABLE_AUTOUPDATER`, `DISABLE_UPDATES`.[^docs-setup][^docs-settings][^docs-env]
-- Windows shell controls: `CLAUDE_CODE_GIT_BASH_PATH`, `CLAUDE_CODE_USE_POWERSHELL_TOOL`.[^docs-setup][^docs-env]
-- Config root relocation: `CLAUDE_CONFIG_DIR`.[^docs-env][^docs-setup]
-- Privacy/network control for enterprise setups includes `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and related env settings.[^docs-env][^docs-devcontainer]
+- `autoUpdatesChannel`: `latest` (default) or `stable` (delayed channel that skips major-regression releases).[^docs-setup][^docs-settings]
+- `minimumVersion`: version floor; background updates and `claude update` refuse to install versions below this value.[^docs-setup][^docs-settings]
+- `DISABLE_AUTOUPDATER=1`: disables background update checks only; manual `claude update` and `claude install` still work.[^docs-setup][^docs-env]
+- `DISABLE_UPDATES=1`: blocks all update paths, including manual update commands.[^docs-setup][^docs-env]
+- `CLAUDE_CODE_GIT_BASH_PATH`: Windows path override for `bash.exe` when Git Bash is installed but not discoverable.[^docs-setup][^docs-env]
+- `CLAUDE_CODE_USE_POWERSHELL_TOOL`: controls native PowerShell tool availability (`1` opt-in / force-enable context-dependent, `0` opt-out/disable).[^docs-setup][^docs-env]
+- `CLAUDE_CONFIG_DIR`: relocates the Claude state/config root (default `~/.claude`).[^docs-env][^docs-setup]
+- `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`: shorthand equivalent to disabling auto-updater, feedback command, error reporting, and telemetry.[^docs-env][^docs-devcontainer]
 
 #### Post-Installation Steps and Cleanup
 
@@ -108,7 +233,8 @@ curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del in
 
 ##### Environment Variables
 
-- Claude Code supports extensive environment-variable configuration (`env-vars` reference), including auth, updater, networking, telemetry, and path behavior.[^docs-env]
+- Environment variables can be exported in the shell or set persistently in `settings.json` under `env`.[^docs-env][^docs-settings]
+- Install/upgrade behavior variables directly relevant to this feature: `DISABLE_AUTOUPDATER`, `DISABLE_UPDATES`, `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_GIT_BASH_PATH`, `CLAUDE_CODE_USE_POWERSHELL_TOOL`, `USE_BUILTIN_RIPGREP`.[^docs-env][^docs-setup]
 
 ##### Activation Scripts
 
@@ -123,16 +249,48 @@ curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del in
 ##### Upgrading/Downgrading
 
 - Upgrade in place with `claude update`.[^docs-setup]
-- Change release channel via `autoUpdatesChannel` (`latest`/`stable`) and optionally pin `minimumVersion` floor.[^docs-setup][^docs-settings]
+- Change release channel via `autoUpdatesChannel`: `latest` tracks newest releases; `stable` tracks a delayed channel (typically about one week behind) that skips releases with major regressions. Use `minimumVersion` to enforce a non-downgrade floor when moving channels.[^docs-setup][^docs-settings]
 - Re-run bootstrap with target argument (`stable` or explicit version) to install a different target build.[^docs-setup]
 
 ##### Uninstallation
 
-- Native uninstall commands remove installed binaries/state paths; additional commands remove `~/.claude`, `.claude`, and `.mcp.json` data if full cleanup is desired.[^docs-setup]
+- Remove native installer binaries/runtime (POSIX):[^docs-setup]
+
+```bash
+rm -f ~/.local/bin/claude
+rm -rf ~/.local/share/claude
+```
+
+- Remove native installer binaries/runtime (Windows PowerShell):[^docs-setup]
+
+```powershell
+Remove-Item -Path "$env:USERPROFILE\.local\bin\claude.exe" -Force
+Remove-Item -Path "$env:USERPROFILE\.local\share\claude" -Recurse -Force
+```
+
+- Optional full config/state cleanup (POSIX):[^docs-setup]
+
+```bash
+rm -rf ~/.claude
+rm ~/.claude.json
+rm -rf .claude
+rm -f .mcp.json
+```
+
+- Optional full config/state cleanup (Windows PowerShell):[^docs-setup]
+
+```powershell
+Remove-Item -Path "$env:USERPROFILE\.claude" -Recurse -Force
+Remove-Item -Path "$env:USERPROFILE\.claude.json" -Force
+Remove-Item -Path ".claude" -Recurse -Force
+Remove-Item -Path ".mcp.json" -Force
+```
+
+- Full removal caveat: if the VS Code extension, JetBrains plugin, or Desktop app remains installed, `~/.claude` may be recreated on next run; uninstall those components first for permanent directory removal.[^docs-setup]
 
 ##### Idempotency
 
-- Re-running bootstrap is effectively idempotent at workflow level: it re-resolves installer version, verifies checksums, invokes `claude install`, and removes temp downloads without requiring manual pre-clean.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
+- Native bootstrap is repeatable but not a no-op: each run re-resolves version metadata, re-downloads installer artifacts, re-verifies checksums, executes `claude install`, and removes temporary artifacts.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
 
 #### Notes and Best Practices
 
@@ -151,8 +309,8 @@ curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del in
 
 ##### Common Dependencies
 
-- Appropriate package manager installed and configured for host OS.[^docs-setup]
-- Network access to package and key repositories.[^docs-setup]
+- Corresponding package manager command available on target host (`brew`, `winget`, `apt`, `dnf`, or `apk`).[^docs-setup]
+- Network access to Anthropic repository endpoints and signing-key endpoints under `downloads.claude.ai`.[^docs-setup]
 
 ##### Platform-Specific Dependencies
 
@@ -204,41 +362,73 @@ echo "https://downloads.claude.ai/claude-code/apk/stable" >> /etc/apk/repositori
 apk add claude-code
 ```
 
+Rolling channel (`latest`) selection for Linux repositories is done by replacing `stable` in repository URLs/suite names:
+- apt: replace both `stable` occurrences in the `deb` line (URL path and suite).
+- dnf: use `baseurl=https://downloads.claude.ai/claude-code/rpm/latest`.
+- apk: use `https://downloads.claude.ai/claude-code/apk/latest` in `/etc/apk/repositories`.[^docs-setup]
+
 #### Installation Verification
 
 - Run `claude --version` and optionally `claude doctor`.[^docs-setup]
-- Follow package-manager key verification guidance before trusting repository configuration (including the explicit apt fingerprint check documented by Anthropic).[^docs-setup]
+- Verify Linux repository signing material before trusting package installation:[^docs-setup]
+  - apt key fingerprint:
+
+```bash
+gpg --show-keys /etc/apt/keyrings/claude-code.asc
+```
+
+Expected fingerprint:
+
+```text
+31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE
+```
+
+  - dnf first-install fingerprint prompt: confirm it matches `31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE` before accepting key import.
+  - apk key file checksum:
+
+```sh
+sha256sum /etc/apk/keys/claude-code.rsa.pub
+```
+
+Expected checksum:
+
+```text
+395759c1f7449ef4cdef305a42e820f3c766d6090d142634ebdb049f113168b6
+```
 
 #### Configuration Options
 
 ##### Version Selection
 
-- Homebrew channel selection is cask-based: `claude-code` (stable) vs `claude-code@latest` (latest).[^docs-setup]
+- Homebrew channel selection is cask-based: `claude-code` tracks stable (delayed channel that skips major-regression releases) and `claude-code@latest` tracks latest.[^docs-setup]
 - Linux repo channel selection uses repository path/suite (`stable` vs `latest`).[^docs-setup]
 
 ##### Installation Path
 
-- Binary/install paths are package-manager managed and generally system-standard for each manager.[^docs-setup]
+- Repository/key configuration paths are explicit in official commands: `apt` uses `/etc/apt/keyrings/claude-code.asc` and `/etc/apt/sources.list.d/claude-code.list`; `dnf` uses `/etc/yum.repos.d/claude-code.repo`; `apk` uses `/etc/apk/keys/claude-code.rsa.pub` and `/etc/apk/repositories`.[^docs-setup]
+- Installed launcher path is package-manager controlled; verify effective runtime path with `command -v claude` after install.[^docs-setup]
 
 ##### User Targeting
 
-- apt/dnf/apk flows are system-package installations, while Homebrew and WinGet are typically run in user-context package-manager workflows.[^docs-setup]
+- apt/dnf/apk procedures are system-level package installations that modify system repository configuration under `/etc`.[^docs-setup]
+- Homebrew and WinGet installation commands are documented without `sudo`; execution context and scope are determined by local package-manager configuration/policy.[^docs-setup]
 
 ##### Required Privileges
 
-- apt and dnf commands require elevated privileges (`sudo` in documented examples).[^docs-setup]
-- apk repository/key writes and package install commands target system paths under `/etc`, so the documented flow assumes elevated/root context.[^docs-setup]
-- Homebrew and WinGet are typically run in user context, with privilege requirements dependent on local policy/configuration.[^docs-setup]
+- apt and dnf installation/upgrade/removal commands are documented with `sudo` and write system repository files.[^docs-setup]
+- apk flow writes under `/etc/apk` and installs/removes system packages, requiring root/elevated context.[^docs-setup]
+- Homebrew and WinGet commands are documented without explicit elevation flags.[^docs-setup]
 
 ##### Tool-Specific Configurations
 
 - `CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE=1` enables background package-manager auto-upgrade for Homebrew and WinGet only; apt/dnf/apk remain manual-update flows by design.[^docs-setup][^docs-env]
+- Background auto-upgrade via `CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE=1` targets only the Claude Code package (not unrelated packages). On WinGet, upgrades can fail while `claude` is running because Windows locks the executable; Claude then prints the manual upgrade command.[^docs-setup][^docs-env]
 
 #### Post-Installation Steps and Cleanup
 
 ##### PATH Setup
 
-- Package managers place launcher in standard executable locations; no extra PATH steps are documented in standard flows.[^docs-setup]
+- No extra PATH mutation is documented for package-manager installs; verify command resolution with `command -v claude` if invocation fails.[^docs-setup]
 
 ##### Configuration Files
 
@@ -246,7 +436,7 @@ apk add claude-code
 
 ##### Environment Variables
 
-- Same environment-variable controls as native install apply after package-manager install.[^docs-env]
+- Same runtime env controls apply as native install, including `CLAUDE_CONFIG_DIR`, `DISABLE_AUTOUPDATER`, `DISABLE_UPDATES`, and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`.[^docs-env]
 
 ##### Activation Scripts
 
@@ -268,16 +458,52 @@ apk add claude-code
 
 ##### Uninstallation
 
-- Homebrew, WinGet, apt, dnf, apk uninstall/remove commands are documented with repository cleanup steps for Linux package-manager methods.[^docs-setup]
+- Homebrew:[^docs-setup]
+
+```bash
+brew uninstall --cask claude-code
+```
+
+```bash
+brew uninstall --cask claude-code@latest
+```
+
+- WinGet:[^docs-setup]
+
+```powershell
+winget uninstall Anthropic.ClaudeCode
+```
+
+- apt:[^docs-setup]
+
+```bash
+sudo apt remove claude-code
+sudo rm /etc/apt/sources.list.d/claude-code.list /etc/apt/keyrings/claude-code.asc
+```
+
+- dnf:[^docs-setup]
+
+```bash
+sudo dnf remove claude-code
+sudo rm /etc/yum.repos.d/claude-code.repo
+```
+
+- apk:[^docs-setup]
+
+```sh
+apk del claude-code
+sed -i '\|downloads.claude.ai/claude-code/apk|d' /etc/apk/repositories
+rm /etc/apk/keys/claude-code.rsa.pub
+```
 
 ##### Idempotency
 
-- Package managers are transaction/state-aware and handle repeated install/upgrade commands without requiring manual cleanup of previous state.[^docs-setup]
+- Claude docs define install/upgrade/remove commands but do not provide a package-manager-idempotency contract; repeated runs follow the underlying package manager's state model for installed version, channel, and repository metadata.[^docs-setup]
 
 #### Notes and Best Practices
 
 - For reproducibility, be explicit about channel selection (`stable` vs `latest`) and key verification in provisioning scripts.[^docs-setup]
-- Expect occasional lag between upstream release notification and package-manager availability (known issue noted in official docs).[^docs-setup]
+- Known issue from official docs: update notifications can appear before the new package version reaches Homebrew/WinGet/apt/dnf/apk repositories; if upgrade fails, retry after repository propagation catches up.[^docs-setup]
 
 ### npm Global Installation (`@anthropic-ai/claude-code`)
 
@@ -317,7 +543,7 @@ The npm package's postinstall step links the native executable into place; runti
 
 ##### Installation Path
 
-- Install location follows npm global prefix/bin conventions for the current user/environment.[^docs-setup][^npm-latest]
+- Install location follows npm global prefix conventions for the executing environment; verify with `npm prefix -g` and `command -v claude` when wiring PATH-sensitive automation.[^docs-setup][^npm-latest]
 
 ##### User Targeting
 
@@ -370,7 +596,7 @@ npm uninstall -g @anthropic-ai/claude-code
 
 ##### Idempotency
 
-- Re-running npm install updates package state in place according to requested version/specifier and npm semantics.[^docs-setup][^npm-latest]
+- Re-running `npm install -g @anthropic-ai/claude-code[@specifier]` delegates reconciliation to npm's package state; resulting version depends on the requested specifier and currently installed state. Official docs recommend explicit `@latest` or pinned-version reinstalls instead of `npm update -g` for deterministic upgrades.[^docs-setup][^npm-latest]
 
 #### Notes and Best Practices
 
@@ -392,11 +618,34 @@ The official Dev Container integration path is Anthropic's feature image referen
 
 Key implementation and operational notes:
 
-- Feature tag pins the feature installer implementation, not the Claude Code CLI version; by default, feature install resolves latest CLI and normal CLI auto-update behavior still applies.[^docs-devcontainer]
-- For reproducible CLI pinning, docs recommend installing pinned npm version in Dockerfile (`npm install -g @anthropic-ai/claude-code@X.Y.Z`) and setting `DISABLE_AUTOUPDATER`.[^docs-devcontainer]
-- Persist `~/.claude` using named volume mounts and optionally set `CLAUDE_CONFIG_DIR` if using non-default mount paths.[^docs-devcontainer]
-- Use `containerEnv` for policy-related env settings (for example, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`, `DISABLE_AUTOUPDATER`).[^docs-devcontainer]
-- Running with `--dangerously-skip-permissions` in containers still requires strict trust/network controls; docs strongly warn against assuming complete isolation.[^docs-devcontainer]
+- Feature tag (for example `:1.0`) pins the feature install script, not the CLI release version; the feature installs latest Claude Code and CLI auto-update remains enabled unless explicitly disabled.[^docs-devcontainer]
+- Reproducible pinning path in official docs: do not use the feature for pinning; install explicit CLI version in Dockerfile and disable auto-updater:[^docs-devcontainer]
+
+```dockerfile
+RUN npm install -g @anthropic-ai/claude-code@X.Y.Z
+```
+
+```json
+{
+  "containerEnv": {
+    "DISABLE_AUTOUPDATER": "1"
+  }
+}
+```
+
+- Persistence across rebuilds requires volume-mounting Claude state directory (example for `remoteUser` `node`):[^docs-devcontainer]
+
+```json
+{
+  "mounts": [
+    "source=claude-code-config,target=/home/node/.claude,type=volume"
+  ]
+}
+```
+
+- If mount target is not `~/.claude`, set `CLAUDE_CONFIG_DIR` to that mounted path so tokens/settings/history persist correctly.[^docs-devcontainer][^docs-env]
+- Organization policy inside container can be set via `/etc/claude-code/managed-settings.json`, but repository writers can still alter Dockerfile steps; non-bypassable policy requires server-managed settings or MDM.[^docs-devcontainer][^docs-settings]
+- `--dangerously-skip-permissions` is only accepted when running as non-root (`remoteUser` must not be root). Even in containers, bypass mode still permits modification of bind-mounted workspace files and access to allowed network destinations; docs explicitly warn devcontainers are not complete isolation.[^docs-devcontainer]
 
 Comparison with established feature implementations:
 
@@ -418,8 +667,10 @@ The VS Code extension is the recommended IDE experience for Claude Code in VS Co
 
 Claude Code supports plugins and marketplaces controlled through settings and `/plugin` workflows (`enabledPlugins`, `extraKnownMarketplaces`, and managed restrictions such as `strictKnownMarketplaces`).[^docs-settings][^repo-readme]
 
-- Plugin operations are available from both CLI and IDE-connected workflows (with shared underlying configuration state).[^docs-vscode][^docs-settings]
-- For managed/enterprise usage, plugin marketplace and plugin enablement can be policy-controlled through managed settings precedence.[^docs-settings]
+- `enabledPlugins` is a map of `plugin@marketplace` to boolean enablement state; scope precedence is Managed > CLI args > Local > Project > User, so local can disable project-enabled plugins, while managed force-enable/disable cannot be overridden.[^docs-settings]
+- `extraKnownMarketplaces` pre-registers named marketplace sources (for example GitHub/git/url/npm/file/directory/settings) and prompts collaborators to trust/install when repository settings include them.[^docs-settings]
+- `strictKnownMarketplaces` is managed-settings-only allowlist enforcement applied before network/filesystem operations; `undefined` means unrestricted, `[]` is full lockdown, and explicit source objects allow only exact matches (except regex-based `hostPattern`/`pathPattern`).[^docs-settings]
+- Plugin operations (browse/install/enable/disable/update marketplace) are available through `/plugin` and apply across CLI/IDE sessions because both use the same underlying Claude configuration state.[^docs-vscode][^docs-settings]
 
 ## References
 
