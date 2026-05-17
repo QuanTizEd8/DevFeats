@@ -127,15 +127,15 @@ version_match_path_only_symlink:
     prefix_discovery: symlink
   tests:
   - version_match_path_only_symlink.sh
-keep_installer:
+installer_dir:
   envs:
   - ubuntu-latest
   modes:
   - devcontainer
   options:
-    keep_installer: true
+    installer_dir: /tmp/pixi-trace
   tests:
-  - keep_installer.sh
+  - installer_dir.sh
 export_path_disabled:
   envs:
   - ubuntu-latest

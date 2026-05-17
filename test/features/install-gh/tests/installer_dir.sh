@@ -1,6 +1,6 @@
 #!/bin/bash
-# method=binary, keep_installer=true, installer_dir=/tmp/gh-trace:
-# The downloaded archive and checksums file must remain in /tmp/gh-trace after install.
+# installer_dir=/tmp/gh-trace: the downloaded archive and checksums file must
+# remain in installer_dir after installation completes.
 set -e
 
 source dev-container-features-test-lib
@@ -18,8 +18,8 @@ check "installer_dir exists" test -d /tmp/gh-trace
 check "gh archive preserved in installer_dir" bash -c \
   'ls /tmp/gh-trace/gh_*.tar.gz 2>/dev/null | grep -q .'
 
-# --- checksums file preserved ---
+# --- checksums file preserved (named after original URL basename) ---
 check "checksums file preserved in installer_dir" bash -c \
-  'test -f /tmp/gh-trace/checksums.txt'
+  'ls /tmp/gh-trace/gh_*_checksums.txt 2>/dev/null | grep -q .'
 
 reportResults

@@ -54,6 +54,15 @@ options:
         description: Exit with an error when `shellcheck` already exists.
       - value: reinstall
         description: Reinstall using the selected method.
+  installer_dir:
+    type: string
+    _applies_when:
+      - method: [binary]
+    default: ''
+    description: |-
+      Working directory for download and archive extraction when `method=binary`.
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
 customizations:
   vscode:
     extensions:

@@ -39,21 +39,23 @@ _install__just_resolve_target() {
 
 _install__just_install_release() {
   local _version="${1-}" _install_prefix="${2-}" _target="${3-}" _context="${4-}" _group="${5-}"
-  local _base _asset _dest
+  local _base _asset
   _base="https://github.com/casey/just/releases/download/${_version}"
   _asset="just-${_version}-${_target}.tar.gz"
-  _dest="${_install_prefix%/}/bin/just"
 
   local -a _owner_group_arg=()
   [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
+  local -a _idir_arg=()
+  [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
 
   github__install_release \
     --repo "casey/just" --tag "${_version}" \
-    --asset "$_asset" --dest "$_dest" \
-    --sha256 auto+sidecar --sidecar-url "${_base}/SHA256SUMS" \
+    --asset "$_asset" --binary-src just --binary-dest "${_install_prefix%/}/bin" \
+    --sidecar-url "${_base}/SHA256SUMS" \
+    "${_idir_arg[@]}" \
     "${_owner_group_arg[@]}" ||
     return 1
-  install__state_record "just" "$_context" "binary" "$_dest" "$_group" || true
+  install__state_record "just" "$_context" "binary" "${_install_prefix%/}/bin/just" "$_group" || true
 }
 
 _install__just_install_repos() {

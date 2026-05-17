@@ -199,17 +199,16 @@ version_match_idempotency:
     if_exists: fail
   tests:
   - version_match_idempotency.sh
-keep_installer:
+installer_dir:
   envs:
   - ubuntu-latest
   modes:
   - devcontainer
   options:
     method: binary
-    keep_installer: true
     installer_dir: /tmp/gh-trace
   tests:
-  - keep_installer.sh
+  - installer_dir.sh
 log_file:
   envs:
   - ubuntu-latest

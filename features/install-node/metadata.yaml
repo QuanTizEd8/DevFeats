@@ -122,10 +122,11 @@ options:
       Useful for cross-arch scenarios or forced emulation.
   installer_dir:
     type: string
-    default: /tmp/node-installer
+    default: ''
     description: |-
-      Temporary directory for downloading the Node.js tarball and checksum sidecar (method=binary) or the nvm install script (method=nvm).
-      All downloaded files are removed after a successful install.
+      Working directory for downloading the Node.js tarball and checksum sidecar (method=binary) or the nvm install script (method=nvm).
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
   if_exists:
     type: string
     default: skip

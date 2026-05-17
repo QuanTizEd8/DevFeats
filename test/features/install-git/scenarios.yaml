@@ -28,7 +28,6 @@ package_stable:
     export_path: /tmp/install-git-path.sh
     prefix_discovery: none
     shell_completions: ''
-    keep_installer: true
   tests:
   - package_stable.sh
 package_alpine:
@@ -108,7 +107,7 @@ source_pinned:
     version: 2.47.2
   tests:
   - source_pinned.sh
-source_keep_installer:
+source_installer_dir:
   envs:
   - ubuntu-24.04
   modes:
@@ -116,9 +115,9 @@ source_keep_installer:
   options:
     method: source
     version: stable
-    keep_installer: true
+    installer_dir: /tmp/git-build-trace
   tests:
-  - source_keep_installer.sh
+  - source_installer_dir.sh
 source_custom_prefix:
   envs:
   - ubuntu-24.04

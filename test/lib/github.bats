@@ -1143,11 +1143,15 @@ only-2"
 # ---------------------------------------------------------------------------
 
 # Configure stubs for a minimal happy-path run:
-#   ELF direct binary, no JSON digest, no GPG, sha256=auto.
+#   ELF direct binary, no JSON digest, no GPG; sidecar probes all fail.
 _stub_install_release_common() {
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
 
   net__fetch_url_file() {
+    # Fail sidecar probe candidates so auto-detection is a no-op by default.
+    case "$1" in
+      *.sha256 | */SHA256SUMS | */sha256sum.txt) return 1 ;;
+    esac
     printf '\x7fELF\x00\x00' > "$2"
     return 0
   }
@@ -1207,63 +1211,107 @@ _stub_install_release_common() {
 # --- Argument validation ---
 
 @test "github__install_release: fails when --repo is missing" {
-  run github__install_release --tag "v1.0" --dest "/tmp/bin" --asset "b"
+  run github__install_release --tag "v1.0" --binary-dest "/tmp" --asset "b"
   assert_failure
   assert_output --partial "required"
 }
 
 @test "github__install_release: fails when --tag is missing" {
-  run github__install_release --repo "o/r" --dest "/tmp/bin" --asset "b"
+  run github__install_release --repo "o/r" --binary-dest "/tmp" --asset "b"
   assert_failure
   assert_output --partial "required"
 }
 
-@test "github__install_release: fails when --dest is missing" {
+@test "github__install_release: fails when neither --binary-dest nor --installer-dir given" {
   run github__install_release --repo "o/r" --tag "v1.0" --asset "b"
   assert_failure
   assert_output --partial "required"
 }
 
+@test "github__install_release: --installer-dir without --binary-dest is accepted" {
+  _stub_install_release_common
+  local _idir="${BATS_TEST_TMPDIR}/idir"
+  mkdir -p "$_idir"
+  # Should succeed with no binary-dest (installer-dir only mode — files go to _idir, no install)
+  run --separate-stderr github__install_release \
+    --repo "o/r" --tag "v1.0" --asset "mybin" --sha256 none \
+    --installer-dir "$_idir"
+  assert_success
+  # Stdout empty since no --binary-dest (logging goes to stderr)
+  assert_output ""
+  # Downloaded asset must be present in installer_dir
+  [[ -f "${_idir}/mybin" ]]
+}
+
 @test "github__install_release: --asset and --asset-regex are mutually exclusive" {
-  run github__install_release --repo "o/r" --tag "v1.0" --dest "/tmp/b" \
+  run github__install_release --repo "o/r" --tag "v1.0" --binary-dest "/tmp" \
     --asset "a.tar.gz" --asset-regex "linux"
   assert_failure
   assert_output --partial "mutually exclusive"
 }
 
-# --- SHA-256 spec validation ---
-
-@test "github__install_release: --sha256 sidecar requires --sidecar-url" {
-  run github__install_release --repo "o/r" --tag "v1.0" --dest "/tmp/b" \
-    --asset "a" --sha256 sidecar
+@test "github__install_release: mismatched multi-binary count fails" {
+  run github__install_release --repo "o/r" --tag "v1.0" \
+    --binary-src a --binary-src b \
+    --binary-dest "/tmp/d1" --binary-dest "/tmp/d2" --binary-dest "/tmp/d3" \
+    --asset "mybin"
   assert_failure
-  assert_output --partial "sidecar-url"
+  assert_output --partial "2 --binary-src"
 }
 
-@test "github__install_release: --sha256 none cannot be combined with other modes" {
-  run github__install_release --repo "o/r" --tag "v1.0" --dest "/tmp/b" \
-    --asset "a" --sha256 "none+auto"
+@test "github__install_release: N binary-src + 1 binary-dest fan-out installs all binaries" {
+  _stub_install_release_common
+  file__detect_type() { printf 'gzip'; }
+  export -f file__detect_type
+  file__extract_archive() {
+    mkdir -p "$2"
+    touch "$2/tool-a" "$2/tool-b"
+    chmod +x "$2/tool-a" "$2/tool-b"
+    return 0
+  }
+  export -f file__extract_archive
+
+  local _dest="${BATS_TEST_TMPDIR}/bin"
+  mkdir -p "$_dest"
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" \
+    --binary-src tool-a --binary-src tool-b --binary-dest "$_dest" \
+    --asset "tools.tar.gz" --sha256 none
+  assert_success
+  # Both binaries must appear in stdout
+  assert_output --partial "tool-a"
+  assert_output --partial "tool-b"
+  # Both binaries must be installed to the shared dest directory
+  [[ -f "${_dest}/tool-a" ]]
+  [[ -f "${_dest}/tool-b" ]]
+}
+
+# --- SHA-256 spec validation ---
+
+@test "github__install_release: --sha256 none with --sidecar-url is a validation error" {
+  run github__install_release --repo "o/r" --tag "v1.0" --binary-dest "/tmp" \
+    --asset "a" --sha256 none --sidecar-url "https://dl.invalid/sums.txt"
   assert_failure
-  assert_output --partial "none cannot be combined"
+  assert_output --partial "cannot be combined with --sidecar-url"
 }
 
 @test "github__install_release: --sha256 unknown token fails" {
-  run github__install_release --repo "o/r" --tag "v1.0" --dest "/tmp/b" \
+  run github__install_release --repo "o/r" --tag "v1.0" --binary-dest "/tmp" \
     --asset "a" --sha256 "bogusmode"
   assert_failure
-  assert_output --partial "invalid --sha256 token"
+  assert_output --partial "--sha256 accepts"
 }
 
 @test "github__install_release: --sha256 hex of wrong length fails" {
-  run github__install_release --repo "o/r" --tag "v1.0" --dest "/tmp/b" \
+  run github__install_release --repo "o/r" --tag "v1.0" --binary-dest "/tmp" \
     --asset "a" --sha256 "abcdef"
   assert_failure
   assert_output --partial "64 chars"
 }
 
-# --- SHA-256 behavior ---
+# --- SHA-256: JSON digest (default behavior) ---
 
-@test "github__install_release: --sha256 auto with JSON digest calls verify__sha" {
+@test "github__install_release: JSON digest verified by default (no --sha256 flag)" {
   local _digest="abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
   _stub_install_release_common
   _DIGEST="$_digest"
@@ -1275,45 +1323,99 @@ _stub_install_release_common() {
   export -f github__release_json_digest_for_asset
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 auto
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
   assert_success
   run grep -qF "$_digest" "$_VERIFY_SHA_CALLS"
   assert_success
 }
 
-@test "github__install_release: --sha256 auto with no JSON digest warns and skips verify__sha" {
+@test "github__install_release: JSON digest absent warns and continues" {
   _stub_install_release_common
 
   run --separate-stderr github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 auto
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
   assert_success
   [[ ! -f "$_VERIFY_SHA_CALLS" ]]
   assert_stderr --partial "skipping JSON SHA-256"
 }
 
-@test "github__install_release: --sha256 json fails when no JSON digest" {
+# --- SHA-256: retry on JSON digest mismatch ---
+
+@test "github__install_release: JSON digest mismatch retries — 2 corrupt downloads then success" {
+  local _digest="1111111111111111111111111111111111111111111111111111111111111111"
   _stub_install_release_common
+  _DIGEST="$_digest"
+  _SHA_FAIL_UNTIL="${BATS_TEST_TMPDIR}/_fail_until"
+  printf '2\n' > "$_SHA_FAIL_UNTIL"
+  export _DIGEST _SHA_FAIL_UNTIL _VERIFY_SHA_CALLS
+  github__release_json_digest_for_asset() {
+    printf '%s\n' "$_DIGEST"
+    return 0
+  }
+  export -f github__release_json_digest_for_asset
+  verify__sha() {
+    printf '%s %s\n' "$1" "$2" >> "$_VERIFY_SHA_CALLS"
+    local _c
+    _c="$(wc -l < "$_VERIFY_SHA_CALLS")"
+    _c="${_c// /}"
+    local _fail
+    _fail="$(cat "$_SHA_FAIL_UNTIL" 2> /dev/null || printf '0')"
+    [ "$_c" -le "$_fail" ] && return 1
+    return 0
+  }
+  export -f verify__sha
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 json
-  assert_failure
-  assert_output --partial "no digest"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_success
+  local _call_count
+  _call_count="$(wc -l < "$_VERIFY_SHA_CALLS")"
+  _call_count="${_call_count// /}"
+  [ "$_call_count" -eq 3 ]
 }
 
-@test "github__install_release: --sha256 sidecar parses multi-entry sha256sum format" {
+@test "github__install_release: JSON digest mismatch hard-fails after 3 attempts" {
+  local _digest="2222222222222222222222222222222222222222222222222222222222222222"
   _stub_install_release_common
-  local _hash="deadbeef01234567890123456789012345678901234567890123456789abcdef"
+  _DIGEST="$_digest"
+  export _DIGEST _VERIFY_SHA_CALLS
+  github__release_json_digest_for_asset() {
+    printf '%s\n' "$_DIGEST"
+    return 0
+  }
+  export -f github__release_json_digest_for_asset
+  verify__sha() {
+    printf '%s %s\n' "$1" "$2" >> "$_VERIFY_SHA_CALLS"
+    return 1
+  }
+  export -f verify__sha
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_failure
+  assert_output --partial "3 download attempts"
+  local _call_count
+  _call_count="$(wc -l < "$_VERIFY_SHA_CALLS")"
+  _call_count="${_call_count// /}"
+  [ "$_call_count" -eq 3 ]
+}
+
+# --- SHA-256: sidecar (explicit --sidecar-url) ---
+
+@test "github__install_release: --sidecar-url alone triggers sidecar verification" {
+  _stub_install_release_common
+  local _hash="aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd"
   local _sidecar_url="https://dl.invalid/sums.txt"
   _SIDECAR_URL="$_sidecar_url"
   _SIDECAR_HASH="$_hash"
   export _SIDECAR_URL _SIDECAR_HASH
   net__fetch_url_file() {
     if [ "$1" = "$_SIDECAR_URL" ]; then
-      printf '%s  %s\n' "$_SIDECAR_HASH" "mybin" > "$2"
-      printf 'otherhash  otherfile\n' >> "$2"
+      printf '%s  mybin\n' "$_SIDECAR_HASH" > "$2"
     else
       printf '\x7fELF\x00\x00' > "$2"
     fi
@@ -1322,68 +1424,14 @@ _stub_install_release_common() {
   export -f net__fetch_url_file
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 sidecar --sidecar-url "$_sidecar_url"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
   assert_success
   run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
   assert_success
 }
 
-@test "github__install_release: --sha256 sidecar parses raw single-hash file" {
-  _stub_install_release_common
-  local _hash="1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-  local _sidecar_url="https://dl.invalid/tool.sha256"
-  _SIDECAR_URL="$_sidecar_url"
-  _SIDECAR_HASH="$_hash"
-  export _SIDECAR_URL _SIDECAR_HASH
-  net__fetch_url_file() {
-    if [ "$1" = "$_SIDECAR_URL" ]; then
-      printf '%s\n' "$_SIDECAR_HASH" > "$2"
-    else
-      printf '\x7fELF\x00\x00' > "$2"
-    fi
-    return 0
-  }
-  export -f net__fetch_url_file
-
-  run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 sidecar --sidecar-url "$_sidecar_url"
-  assert_success
-  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
-  assert_success
-}
-
-@test "github__install_release: --sha256 sidecar parses single-line sha256sum sidecar (hash + filename)" {
-  # Regression: single-line 'hash  filename' sidecars (fzf, pixi) previously triggered an
-  # awk double-print — exit in the matched rule + END{NR==1} both printed $1, producing a
-  # doubled hash that failed verify__sha's strict string comparison.
-  _stub_install_release_common
-  local _hash="fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
-  local _sidecar_url="https://dl.invalid/mybin.sha256"
-  _SIDECAR_URL="$_sidecar_url"
-  _SIDECAR_HASH="$_hash"
-  export _SIDECAR_URL _SIDECAR_HASH
-  net__fetch_url_file() {
-    if [ "$1" = "$_SIDECAR_URL" ]; then
-      printf '%s  %s\n' "$_SIDECAR_HASH" "mybin" > "$2"
-    else
-      printf '\x7fELF\x00\x00' > "$2"
-    fi
-    return 0
-  }
-  export -f net__fetch_url_file
-
-  run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 sidecar --sidecar-url "$_sidecar_url"
-  assert_success
-  # verify__sha must be called exactly once with the correct (undoubled) hash
-  run grep -cF "$_hash" "$_VERIFY_SHA_CALLS"
-  assert_output "1"
-}
-
-@test "github__install_release: --sha256 auto+sidecar performs both JSON and sidecar checks" {
+@test "github__install_release: JSON digest and explicit sidecar both verified" {
   local _json_hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00"
   local _sidecar_hash="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00"
   local _sidecar_url="https://dl.invalid/sums.txt"
@@ -1408,8 +1456,8 @@ _stub_install_release_common() {
   export -f net__fetch_url_file
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 "auto+sidecar" --sidecar-url "$_sidecar_url"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
   assert_success
   run grep -qF "$_json_hash" "$_VERIFY_SHA_CALLS"
   assert_success
@@ -1417,35 +1465,269 @@ _stub_install_release_common() {
   assert_success
 }
 
-@test "github__install_release: --sha256 json+sidecar fails when JSON digest absent" {
+@test "github__install_release: sidecar parses multi-entry sha256sum format" {
   _stub_install_release_common
+  local _hash="deadbeef01234567890123456789012345678901234567890123456789abcdef"
   local _sidecar_url="https://dl.invalid/sums.txt"
+  _SIDECAR_URL="$_sidecar_url"
+  _SIDECAR_HASH="$_hash"
+  export _SIDECAR_URL _SIDECAR_HASH
+  net__fetch_url_file() {
+    if [ "$1" = "$_SIDECAR_URL" ]; then
+      printf '%s  %s\n' "$_SIDECAR_HASH" "mybin" > "$2"
+      printf 'otherhash  otherfile\n' >> "$2"
+    else
+      printf '\x7fELF\x00\x00' > "$2"
+    fi
+    return 0
+  }
+  export -f net__fetch_url_file
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 "json+sidecar" --sidecar-url "$_sidecar_url"
-  assert_failure
-  assert_output --partial "no digest"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
+  assert_success
+  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
+  assert_success
 }
+
+@test "github__install_release: sidecar parses raw single-hash file" {
+  _stub_install_release_common
+  local _hash="1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+  local _sidecar_url="https://dl.invalid/tool.sha256"
+  _SIDECAR_URL="$_sidecar_url"
+  _SIDECAR_HASH="$_hash"
+  export _SIDECAR_URL _SIDECAR_HASH
+  net__fetch_url_file() {
+    if [ "$1" = "$_SIDECAR_URL" ]; then
+      printf '%s\n' "$_SIDECAR_HASH" > "$2"
+    else
+      printf '\x7fELF\x00\x00' > "$2"
+    fi
+    return 0
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
+  assert_success
+  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
+  assert_success
+}
+
+@test "github__install_release: sidecar double-print regression — single-line sha256sum file" {
+  # Regression: single-line 'hash  filename' sidecars (fzf, pixi) previously triggered an
+  # awk double-print — exit in the matched rule + END{NR==1} both printed $1, producing a
+  # doubled hash that failed verify__sha's strict string comparison.
+  _stub_install_release_common
+  local _hash="fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+  local _sidecar_url="https://dl.invalid/mybin.sha256"
+  _SIDECAR_URL="$_sidecar_url"
+  _SIDECAR_HASH="$_hash"
+  export _SIDECAR_URL _SIDECAR_HASH
+  net__fetch_url_file() {
+    if [ "$1" = "$_SIDECAR_URL" ]; then
+      printf '%s  %s\n' "$_SIDECAR_HASH" "mybin" > "$2"
+    else
+      printf '\x7fELF\x00\x00' > "$2"
+    fi
+    return 0
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
+  assert_success
+  # verify__sha must be called exactly once with the correct (undoubled) hash
+  run grep -cF "$_hash" "$_VERIFY_SHA_CALLS"
+  assert_output "1"
+}
+
+@test "github__install_release: explicit --sidecar-url hard-fails when unreachable" {
+  _stub_install_release_common
+  local _sidecar_url="https://dl.invalid/sums.txt"
+  export _sidecar_url
+  net__fetch_url_file() {
+    if [ "$1" = "$_sidecar_url" ]; then return 1; fi
+    printf '\x7fELF\x00\x00' > "$2"
+    return 0
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
+  assert_failure
+  assert_output --partial "failed to download sidecar"
+}
+
+# --- SHA-256: sidecar auto-detection ---
+
+@test "github__install_release: auto-detect finds {asset_url}.sha256" {
+  _stub_install_release_common
+  local _hash="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  _SIDECAR_HASH="$_hash"
+  export _SIDECAR_HASH
+  net__fetch_url_file() {
+    case "$1" in
+      *.sha256)
+        printf '%s  mybin\n' "$_SIDECAR_HASH" > "$2"
+        return 0
+        ;;
+      */SHA256SUMS | */sha256sum.txt)
+        return 1
+        ;;
+      *)
+        printf '\x7fELF\x00\x00' > "$2"
+        return 0
+        ;;
+    esac
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_success
+  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
+  assert_success
+}
+
+@test "github__install_release: auto-detect finds SHA256SUMS when .sha256 fails" {
+  _stub_install_release_common
+  local _hash="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  _SIDECAR_HASH="$_hash"
+  export _SIDECAR_HASH
+  net__fetch_url_file() {
+    case "$1" in
+      *.sha256)
+        return 1
+        ;;
+      */SHA256SUMS)
+        printf '%s  mybin\n' "$_SIDECAR_HASH" > "$2"
+        return 0
+        ;;
+      */sha256sum.txt)
+        return 1
+        ;;
+      *)
+        printf '\x7fELF\x00\x00' > "$2"
+        return 0
+        ;;
+    esac
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_success
+  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
+  assert_success
+}
+
+@test "github__install_release: auto-detect finds sha256sum.txt when first two fail" {
+  _stub_install_release_common
+  local _hash="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  _SIDECAR_HASH="$_hash"
+  export _SIDECAR_HASH
+  net__fetch_url_file() {
+    case "$1" in
+      *.sha256 | */SHA256SUMS)
+        return 1
+        ;;
+      */sha256sum.txt)
+        printf '%s  mybin\n' "$_SIDECAR_HASH" > "$2"
+        return 0
+        ;;
+      *)
+        printf '\x7fELF\x00\x00' > "$2"
+        return 0
+        ;;
+    esac
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_success
+  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
+  assert_success
+}
+
+@test "github__install_release: auto-detect all candidates miss — warns and continues" {
+  _stub_install_release_common
+  # Default stub already fails all three sidecar candidate patterns.
+
+  run --separate-stderr github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_success
+  [[ ! -f "$_VERIFY_SHA_CALLS" ]]
+  assert_stderr --partial "no sidecar found"
+}
+
+@test "github__install_release: auto-detect candidate has no entry for asset — tries next" {
+  _stub_install_release_common
+  local _hash="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  _SIDECAR_HASH="$_hash"
+  export _SIDECAR_HASH
+  net__fetch_url_file() {
+    case "$1" in
+      *.sha256)
+        # Multi-line file with no entry for mybin — awk NR==1 fallback won't fire.
+        printf 'aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000  otherfile1\n' > "$2"
+        printf 'bbbb1111bbbb1111bbbb1111bbbb1111bbbb1111bbbb1111bbbb1111bbbb1111  otherfile2\n' >> "$2"
+        return 0
+        ;;
+      */SHA256SUMS)
+        printf '%s  mybin\n' "$_SIDECAR_HASH" > "$2"
+        return 0
+        ;;
+      */sha256sum.txt)
+        return 1
+        ;;
+      *)
+        printf '\x7fELF\x00\x00' > "$2"
+        return 0
+        ;;
+    esac
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_success
+  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
+  assert_success
+}
+
+# --- SHA-256: explicit hex ---
 
 @test "github__install_release: --sha256 <hex> calls verify__sha with exact hash" {
   local _hex="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   _stub_install_release_common
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 "$_hex"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sha256 "$_hex"
   assert_success
   run grep -qF "$_hex" "$_VERIFY_SHA_CALLS"
   assert_success
 }
 
+# --- SHA-256: none ---
+
 @test "github__install_release: --sha256 none skips verification and warns" {
   _stub_install_release_common
 
   run --separate-stderr github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 none
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sha256 none
   assert_success
   [[ ! -f "$_VERIFY_SHA_CALLS" ]]
   assert_stderr --partial "skipped"
@@ -1467,8 +1749,8 @@ _stub_install_release_common() {
   export -f net__fetch_url_file
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 none --gpg-key-url "$_key_url"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sha256 none --gpg-key-url "$_key_url"
   assert_success
   run grep -qF "mybin.asc" "$_DOWNLOAD_URLS"
   assert_success
@@ -1491,8 +1773,8 @@ _stub_install_release_common() {
   export -f net__fetch_url_file
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 none \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sha256 none \
     --gpg-key-url "$_key_url" --gpg-sig-url "$_sig_url"
   assert_success
   run grep -qF "$_sig_url" "$_DOWNLOAD_URLS"
@@ -1516,11 +1798,31 @@ _stub_install_release_common() {
   export -f install__copy_bin
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
   assert_success
   # install__copy_bin should have been called with the archive path directly.
   run grep -q "mybin" "$_COPY_SRC"
+  assert_success
+}
+
+@test "github__install_release: ELF asset renamed via --binary-src (e.g. jq-linux-amd64 → jq)" {
+  _stub_install_release_common
+  _COPY_DEST="${BATS_TEST_TMPDIR}/_copy_dest"
+  export _COPY_DEST
+  install__copy_bin() {
+    printf '%s\n' "$2" > "$_COPY_DEST"
+    touch "$2"
+    chmod +x "$2"
+    return 0
+  }
+  export -f install__copy_bin
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src jq --asset "jq-linux-amd64"
+  assert_success
+  run grep -qF "/jq" "$_COPY_DEST"
   assert_success
 }
 
@@ -1539,48 +1841,262 @@ _stub_install_release_common() {
   export -f file__extract_archive
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin.tar.gz"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin.tar.gz"
   assert_success
 }
 
-@test "github__install_release: binary found at nested depth in extracted tree" {
+@test "github__install_release: strict suffix-path matching rejects non-matching suffix" {
   _stub_install_release_common
   file__detect_type() { printf 'gzip'; }
   export -f file__detect_type
-  _BIN_NAME="mybin"
-  export _BIN_NAME
   file__extract_archive() {
     mkdir -p "$2/subdir/nested"
-    touch "$2/subdir/nested/${_BIN_NAME}"
-    chmod +x "$2/subdir/nested/${_BIN_NAME}"
+    touch "$2/subdir/nested/mybin"
+    chmod +x "$2/subdir/nested/mybin"
     return 0
   }
   export -f file__extract_archive
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin.tar.gz"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src "bin/mybin" --asset "mybin.tar.gz"
+  assert_failure # bin/mybin not at that path in extracted tree
+}
+
+@test "github__install_release: suffix-path matching finds bin/gh inside archive" {
+  _stub_install_release_common
+  file__detect_type() { printf 'gzip'; }
+  export -f file__detect_type
+  file__extract_archive() {
+    mkdir -p "$2/gh_2.0/bin"
+    touch "$2/gh_2.0/bin/gh"
+    chmod +x "$2/gh_2.0/bin/gh"
+    return 0
+  }
+  export -f file__extract_archive
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src "bin/gh" --asset "gh.tar.gz"
   assert_success
 }
 
-@test "github__install_release: --binary-path forces extraction even for ELF magic bytes" {
+@test "github__install_release: auto-discovers all executables when no --binary-src" {
   _stub_install_release_common
-  # file__detect_type returns elf (direct binary) but --binary-path overrides extraction
-  _BIN_NAME="customname"
-  export _BIN_NAME
+  file__detect_type() { printf 'gzip'; }
+  export -f file__detect_type
   file__extract_archive() {
-    mkdir -p "$2"
-    touch "$2/${_BIN_NAME}"
-    chmod +x "$2/${_BIN_NAME}"
+    mkdir -p "$2/tool-1.0"
+    touch "$2/tool-1.0/mytool"
+    chmod +x "$2/tool-1.0/mytool"
+    touch "$2/tool-1.0/README"
     return 0
   }
   export -f file__extract_archive
 
-  run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/dest" \
-    --asset "mybin" --binary-path "customname"
+  run --separate-stderr github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --asset "tool.tar.gz" --sha256 none
   assert_success
+  # Stdout should contain the installed binary path
+  assert_output --partial "mytool"
+  refute_output --partial "README"
+}
+
+@test "github__install_release: auto-discover fallback — marks non-executable files and installs them" {
+  # When no files have the executable bit set, the fallback chmod+x path fires.
+  # All regular files should be collected; symlinks and directories excluded.
+  _stub_install_release_common
+  file__detect_type() { printf 'gzip'; }
+  export -f file__detect_type
+  file__extract_archive() {
+    mkdir -p "$2/pkg"
+    # Intentionally NOT chmod +x — triggers the fallback path
+    touch "$2/pkg/mytool"
+    touch "$2/pkg/README"
+    return 0
+  }
+  export -f file__extract_archive
+
+  run --separate-stderr github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --asset "pkg.tar.gz" --sha256 none
+  assert_success
+  # Both files are installed via the fallback (no executable filter)
+  assert_output --partial "mytool"
+  assert_output --partial "README"
+}
+
+# --- installer-dir ---
+
+@test "github__install_release: --installer-dir uses that directory for download" {
+  _stub_install_release_common
+  local _idir="${BATS_TEST_TMPDIR}/idir"
+  _DOWNLOAD_PATHS="${BATS_TEST_TMPDIR}/_dl_paths"
+  export _DOWNLOAD_PATHS
+  net__fetch_url_file() {
+    printf '%s\n' "$2" >> "$_DOWNLOAD_PATHS"
+    printf '\x7fELF\x00\x00' > "$2"
+    return 0
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sha256 none \
+    --installer-dir "$_idir"
+  assert_success
+  run grep -qF "$_idir" "$_DOWNLOAD_PATHS"
+  assert_success
+}
+
+# --- Direct binary without --binary-src ---
+
+@test "github__install_release: ELF asset without --binary-src installs using asset filename" {
+  _stub_install_release_common
+  _COPY_DEST="${BATS_TEST_TMPDIR}/_copy_dest"
+  export _COPY_DEST
+  install__copy_bin() {
+    printf '%s\n' "$2" > "$_COPY_DEST"
+    touch "$2"
+    chmod +x "$2"
+    return 0
+  }
+  export -f install__copy_bin
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --asset "mybin" --sha256 none
+  assert_success
+  # Installed path must use the asset name, not some other basename
+  run grep -qF "/mybin" "$_COPY_DEST"
+  assert_success
+}
+
+# --- --sha256 none skips JSON fetch ---
+
+@test "github__install_release: --sha256 none does not call github__fetch_release_json" {
+  _stub_install_release_common
+  _JSON_FETCH_CALLS="${BATS_TEST_TMPDIR}/_json_fetch_calls"
+  export _JSON_FETCH_CALLS
+  github__fetch_release_json() {
+    printf 'called\n' >> "$_JSON_FETCH_CALLS"
+    return 1
+  }
+  export -f github__fetch_release_json
+
+  run --separate-stderr github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sha256 none
+  assert_success
+  [[ ! -f "$_JSON_FETCH_CALLS" ]]
+}
+
+# --- N+N paired binary-src / binary-dest ---
+
+@test "github__install_release: N+N paired binary-src/dest installs each src to its own dest" {
+  _stub_install_release_common
+  file__detect_type() { printf 'gzip'; }
+  export -f file__detect_type
+  file__extract_archive() {
+    mkdir -p "$2"
+    touch "$2/tool-a" "$2/tool-b"
+    chmod +x "$2/tool-a" "$2/tool-b"
+    return 0
+  }
+  export -f file__extract_archive
+
+  local _dest1="${BATS_TEST_TMPDIR}/bin1"
+  local _dest2="${BATS_TEST_TMPDIR}/bin2"
+  mkdir -p "$_dest1" "$_dest2"
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" \
+    --binary-src tool-a --binary-dest "$_dest1" \
+    --binary-src tool-b --binary-dest "$_dest2" \
+    --asset "tools.tar.gz" --sha256 none
+  assert_success
+  # tool-a must go to _dest1, tool-b to _dest2 (not cross-installed)
+  [[ -f "${_dest1}/tool-a" ]]
+  [[ -f "${_dest2}/tool-b" ]]
+  [[ ! -f "${_dest1}/tool-b" ]]
+  [[ ! -f "${_dest2}/tool-a" ]]
+}
+
+# --- Sidecar auto-detect with SYSSET_RELEASE_BASE ---
+
+@test "github__install_release: auto-detect sidecar URLs honour SYSSET_RELEASE_BASE" {
+  _stub_install_release_common
+  local _hash="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  _SIDECAR_HASH="$_hash"
+  export _SIDECAR_HASH
+  net__fetch_url_file() {
+    case "$1" in
+      */SHA256SUMS)
+        # Only succeed when the URL uses the mirror base, not github.com
+        if printf '%s\n' "$1" | grep -q "mirror.invalid"; then
+          printf '%s  mybin\n' "$_SIDECAR_HASH" > "$2"
+          return 0
+        fi
+        return 1
+        ;;
+      *.sha256 | */sha256sum.txt)
+        return 1
+        ;;
+      *)
+        printf '\x7fELF\x00\x00' > "$2"
+        return 0
+        ;;
+    esac
+  }
+  export -f net__fetch_url_file
+
+  SYSSET_RELEASE_BASE="https://mirror.invalid/releases" run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_success
+  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
+  assert_success
+}
+
+# --- Retry re-downloads the asset each attempt ---
+
+@test "github__install_release: retry loop re-downloads the asset on each failed JSON digest attempt" {
+  local _digest="3333333333333333333333333333333333333333333333333333333333333333"
+  _stub_install_release_common
+  _DIGEST="$_digest"
+  _ASSET_DL_COUNT="${BATS_TEST_TMPDIR}/_asset_dl_count"
+  export _DIGEST _ASSET_DL_COUNT _VERIFY_SHA_CALLS
+  github__release_json_digest_for_asset() {
+    printf '%s\n' "$_DIGEST"
+    return 0
+  }
+  export -f github__release_json_digest_for_asset
+  net__fetch_url_file() {
+    # Count downloads of the asset URL (not sidecar candidates)
+    case "$1" in
+      *.sha256 | */SHA256SUMS | */sha256sum.txt) return 1 ;;
+    esac
+    printf 'x\n' >> "$_ASSET_DL_COUNT"
+    printf '\x7fELF\x00\x00' > "$2"
+    return 0
+  }
+  export -f net__fetch_url_file
+  verify__sha() {
+    printf '%s %s\n' "$1" "$2" >> "$_VERIFY_SHA_CALLS"
+    return 1  # always fail → triggers retry
+  }
+  export -f verify__sha
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
+  assert_failure
+  # Must have attempted exactly 3 downloads
+  local _dl_count
+  _dl_count="$(wc -l < "$_ASSET_DL_COUNT")"
+  _dl_count="${_dl_count// /}"
+  [ "$_dl_count" -eq 3 ]
 }
 
 # --- Asset selection ---
@@ -1597,7 +2113,7 @@ _stub_install_release_common() {
   export -f github__pick_release_asset
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}"
   assert_success
   [[ -f "$_PICK_CALLED" ]]
 }
@@ -1614,7 +2130,7 @@ _stub_install_release_common() {
   export -f github__pick_release_asset
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
     --asset-regex "linux-amd64"
   assert_success
   run grep -q "\-\-asset-regex" "$_PICK_ARGS"
@@ -1637,7 +2153,8 @@ _stub_install_release_common() {
   export -f net__fetch_url_file
 
   SYSSET_RELEASE_BASE="https://mirror.invalid/releases" run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" --asset "mybin"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin"
   assert_success
   run grep -q "mirror.invalid/releases/v1.0/mybin" "$_DOWNLOAD_URLS"
   assert_success
@@ -1647,8 +2164,8 @@ _stub_install_release_common() {
   _stub_install_release_common
 
   run github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --owner-group "mygroup"
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --owner-group "mygroup"
   assert_success
   run grep -q "mygroup" "$_TRACKED_PATHS"
   assert_success
@@ -1658,8 +2175,8 @@ _stub_install_release_common() {
   _stub_install_release_common
 
   run --separate-stderr github__install_release \
-    --repo "o/r" --tag "v1.0" --dest "${BATS_TEST_TMPDIR}/mybin" \
-    --asset "mybin" --sha256 none
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sha256 none
   assert_success
   assert_output "${BATS_TEST_TMPDIR}/mybin"
 }

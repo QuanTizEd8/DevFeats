@@ -221,8 +221,7 @@ Keep the `.tar.gz` and `.tar.gz.sha256` sidecar in `installer_dir` after install
 {
   "features": {
     "ghcr.io/quantized8/devfeats/install-pixi:1": {
-      "installer_dir": "/tmp/pixi-installer",
-      "keep_installer": true
+      "installer_dir": "/tmp/pixi-installer"
     }
   }
 }

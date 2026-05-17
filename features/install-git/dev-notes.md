@@ -467,7 +467,7 @@ Steps:
 6. Extract: `tar -xzf`
 7. Call `_git__source_build` → make + make install
 8. Call `_git__source_register` → register with package manager on Debian/Ubuntu (equivs dummy .deb)
-9. Call `_git__source_cleanup` → remove build dir unless `keep_installer=true`
+9. Call `_git__source_cleanup` → remove build dir unless `installer_dir` is set to a non-empty path
 10. Verify: `"${PREFIX}/bin/git" --version`
 
 ---
@@ -572,11 +572,11 @@ make -s ${_MAKE_FLAGS} ${MAKE_FLAGS} install
 
 ### `_git__source_cleanup`
 
-Removes the build directory unless `KEEP_INSTALLER=true`.
+Removes the build directory unless `INSTALLER_DIR` is set to a non-empty path.
 
 ```bash
-if [ "${KEEP_INSTALLER}" != true ]; then
-  rm -rf "${INSTALLER_DIR}"
+if [ -z "${INSTALLER_DIR:-}" ]; then
+  rm -rf "${_build_dir}"
 fi
 ```
 

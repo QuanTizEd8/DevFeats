@@ -82,8 +82,7 @@ checksums, shell config writes, OS packages, and logging.
 - **Notes:** Must stay in sync with the dual-mode argument-parsing block.
 
 ### `__cleanup__`
-- **Responsibility:** EXIT trap. Removes the `.tar.gz` archive and `.tar.gz.sha256` sidecar from `INSTALLER_DIR` (unless `KEEP_INSTALLER=true`). Removes `INSTALLER_DIR` if it becomes empty. Always calls `logging__cleanup`.
-- **Inputs (globals):** `KEEP_INSTALLER`, `ARCHIVE` (path), `SIDECAR` (path), `INSTALLER_DIR`.
+- **Responsibility:** EXIT trap. Always calls `logging__cleanup`. Installer file cleanup is delegated to `github__install_release`, which auto-cleans its work directory when `installer_dir` is empty (default) and retains it when `installer_dir` is set to a non-empty path.
 
 ### `resolve_bin_dir`
 - **Responsibility:** Resolves `PREFIX` from `"auto"` to a concrete path, storing the result back in `PREFIX`.
@@ -362,10 +361,11 @@ is needed when the binary is already in the right location.
 
 ### Cleanup Safety
 
-The `__cleanup__` EXIT trap always runs `logging__cleanup`. The installer files
-(`ARCHIVE`, `SIDECAR`) are removed only when `KEEP_INSTALLER=false`. The
-`INSTALLER_DIR` is removed only when empty after file deletion. This ensures that if
-`keep_installer=true`, the directory and its contents are preserved correctly.
+The `__cleanup__` EXIT trap always runs `logging__cleanup`. Installer file cleanup is
+handled inside `github__install_release`: when `installer_dir` is empty (default), a
+private tmpdir is created via `file__mktmpdir` and auto-cleaned at exit; when
+`installer_dir` is set to a non-empty path, that directory and all its contents
+(archive, sidecar, etc.) are preserved after installation completes.
 
 ---
 

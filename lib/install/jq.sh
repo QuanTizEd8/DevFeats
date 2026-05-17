@@ -75,7 +75,7 @@ _install__jq_gpg_key_url() {
 # Returns: 0 on success, 1 on any failure.
 _install__jq_install_release() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
-  local _os _arch _asset _base_url _final_dest _key_url _major _minor
+  local _os _arch _asset _base_url _key_url _major _minor
   _os="$(os__release_kernel)" || return 1
   [[ "$_os" == "darwin" ]] && _os="macos"
   _arch="$(os__release_arch)" || return 1
@@ -88,19 +88,15 @@ _install__jq_install_release() {
   esac
   _asset="$(_install__jq_asset_name "$_version" "$_os" "$_arch")" || return 1
   _base_url="https://github.com/jqlang/jq/releases/download/jq-${_version}"
-  _final_dest="${_install_prefix%/}/bin/jq"
   _key_url="$(_install__jq_gpg_key_url "$_version")"
 
   _major="${_version%%.*}"
   _minor="${_version#*.}"
   _minor="${_minor%%.*}"
-  # jq ≤1.6 has no sha256sum.txt; use auto (JSON integrity only) for those versions.
-  local _sha256_spec _sha256_extra_args=()
-  if [[ "$_major" -eq 1 && "$_minor" -le 6 ]]; then
-    _sha256_spec="auto"
-  else
-    _sha256_spec="auto+sidecar"
-    _sha256_extra_args=(--sidecar-url "${_base_url}/sha256sum.txt")
+  # jq ≤1.6 has no sha256sum.txt; for newer versions add explicit sidecar URL.
+  local -a _sidecar_args=()
+  if ! [[ "$_major" -eq 1 && "$_minor" -le 6 ]]; then
+    _sidecar_args=(--sidecar-url "${_base_url}/sha256sum.txt")
   fi
 
   local -a _owner_group_arg=()
@@ -108,14 +104,13 @@ _install__jq_install_release() {
 
   github__install_release \
     --repo "jqlang/jq" --tag "jq-${_version}" \
-    --asset "$_asset" --dest "$_final_dest" \
-    --sha256 "$_sha256_spec" \
-    "${_sha256_extra_args[@]}" \
+    --asset "$_asset" --binary-src jq --binary-dest "${_install_prefix%/}/bin" \
+    "${_sidecar_args[@]}" \
     --gpg-key-url "$_key_url" \
     --gpg-sig-url "https://raw.githubusercontent.com/jqlang/jq/master/sig/v${_version}/${_asset}.asc" \
     "${_owner_group_arg[@]}" ||
     return 1
-  install__state_record "jq" "$_context" "binary" "$_final_dest" "$_group" || true
+  install__state_record "jq" "$_context" "binary" "${_install_prefix%/}/bin/jq" "$_group" || true
 }
 
 # @brief _install__jq_install_repos <group> <context> [repos-manifest] — Install jq via the OS package manager.

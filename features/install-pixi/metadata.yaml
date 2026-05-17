@@ -52,10 +52,11 @@ options:
         Only works for installer-managed pixi (not Homebrew/conda/mamba).
   installer_dir:
     type: string
-    default: /tmp/pixi-installer
+    default: ''
     description: |-
-      Directory to download the pixi `.tar.gz` archive and its `.tar.gz.sha256` sidecar to.
-      Both files are removed after installation unless `keep_installer=true`.
+      Working directory for download and archive extraction.
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
   arch:
     type: string
     default: ''
@@ -113,12 +114,6 @@ options:
       description: Write an idempotent `eval "$(pixi completion --shell nushell)"` block to the Nushell RC file.
     - value: elvish
       description: Write an idempotent `eval "$(pixi completion --shell elvish)"` block to the Elvish RC file.
-  keep_installer:
-    type: boolean
-    default: false
-    description: |-
-      Keep the downloaded `.tar.gz` archive and `.tar.gz.sha256` sidecar file after installation.
-      By default both files are removed from `installer_dir` on exit.
 mounts:
 - source: ${localWorkspaceFolderBasename}-pixi
   target: ${containerWorkspaceFolder}/.pixi

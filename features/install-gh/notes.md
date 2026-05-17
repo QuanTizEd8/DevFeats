@@ -187,7 +187,6 @@ Install the binary to a non-default location with a symlink at `/usr/local/bin/g
 "features": {
   "ghcr.io/quantized8/devfeats/install-gh:0": {
     "method": "binary",
-    "keep_installer": true,
     "installer_dir": "/tmp/gh-trace"
   }
 }

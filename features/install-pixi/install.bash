@@ -21,20 +21,6 @@
 
 _cleanup_hook() {
   logging__fn_entry "_cleanup_hook"
-  if [ "${KEEP_INSTALLER:-false}" != "true" ]; then
-    [ -f "${ARCHIVE:-}" ] && {
-      logging__remove "Removing archive '${ARCHIVE}'"
-      rm -f "${ARCHIVE}"
-    }
-    [ -f "${SIDECAR:-}" ] && {
-      logging__remove "Removing sidecar '${SIDECAR}'"
-      rm -f "${SIDECAR}"
-    }
-    [ -d "${INSTALLER_DIR:-}" ] && [ -z "$(ls -A "${INSTALLER_DIR:-}")" ] && {
-      logging__remove "Removing empty installer directory '${INSTALLER_DIR}'"
-      rmdir "${INSTALLER_DIR}"
-    }
-  fi
   if [[ -n "${_pixi_netrc_tmp:-}" && -f "${_pixi_netrc_tmp}" ]]; then
     logging__remove "Removing temporary netrc '${_pixi_netrc_tmp}'"
     rm -f "${_pixi_netrc_tmp}"
@@ -83,6 +69,7 @@ detect_triple() {
 
 resolve_installer_paths() {
   logging__fn_entry "resolve_installer_paths"
+  [ -z "${INSTALLER_DIR:-}" ] && INSTALLER_DIR="$(file__mktmpdir "pixi-installer")"
   if [ -n "${DOWNLOAD_URL}" ]; then
     ARCHIVE_URL="${DOWNLOAD_URL}"
     SIDECAR_URL=""
@@ -335,10 +322,13 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
     verify_pixi
     install_pixi_binary
   else
+    _idir_arg=()
+    [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
     github__install_release \
       --repo "prefix-dev/pixi" --tag "v${VERSION}" \
-      --asset "pixi-${TRIPLE}.tar.gz" --dest "${PREFIX}/bin/pixi" \
-      --sha256 sidecar --sidecar-url "${SIDECAR_URL}" ||
+      --asset "pixi-${TRIPLE}.tar.gz" --binary-src pixi --binary-dest "${PREFIX}/bin" \
+      --sidecar-url "${SIDECAR_URL}" \
+      "${_idir_arg[@]}" ||
       exit 1
   fi
 fi

@@ -313,11 +313,11 @@ The old prefix is derived as `dirname(dirname(command -v git))` — e.g. `/usr/l
 
 ### Source-Only Options
 
-`prefix`, `sysconfdir`, `installer_dir`, `keep_installer`, `no_flags`, `make_flags`, `shell_completions`, and `export_path` are silently ignored when `method=package`. `symlink` is also ignored for `method=package` (git lands in `/usr/bin` which is universally on PATH).
+`prefix`, `sysconfdir`, `installer_dir`, `no_flags`, `make_flags`, `shell_completions`, and `export_path` are silently ignored when `method=package`. `symlink` is also ignored for `method=package` (git lands in `/usr/bin` which is universally on PATH).
 
 - `prefix="auto"` — resolves to `/usr/local` (root) or `$HOME/.local` (non-root). Explicit paths are validated for writeability; the script exits with a clear error if the path cannot be created.
 - `sysconfdir="auto"` — resolves to `/etc` (root) or `$HOME/.config` (non-root). Controls where git reads its system-level `gitconfig`.
-- `installer_dir` — cleaned after a successful build; set `keep_installer=true` to preserve for troubleshooting.
+- `installer_dir` — when empty (default), a private tmpdir is created and auto-cleaned at exit. Set to a non-empty path to retain the build directory for troubleshooting.
 
 ### Non-root Source Builds
 
@@ -445,7 +445,3 @@ For a typical devcontainer with `remoteUser: "vscode"` that needs all repositori
 | Alpine | apk | apk | kernel.org tarball |
 | macOS | Homebrew (latest) | Homebrew | kernel.org tarball + Xcode CLT |
 | Arch / Manjaro | pacman (rolling) | pacman | kernel.org tarball |
-
-
-
-

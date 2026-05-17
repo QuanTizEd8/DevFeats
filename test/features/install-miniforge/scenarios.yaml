@@ -57,12 +57,12 @@ log_file:
     log_file: /tmp/miniforge.log
   tests: [log_file.sh]
 
-keep_installer:
+installer_dir:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
-    keep_installer: true
-  tests: [keep_installer.sh]
+    installer_dir: /tmp/miniforge-trace
+  tests: [installer_dir.sh]
 
 if_exists_reinstall:
   envs: [ubuntu-latest+miniforge-base]

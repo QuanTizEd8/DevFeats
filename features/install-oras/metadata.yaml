@@ -56,13 +56,15 @@ options:
         description: Exit with an error if `oras` already exists.
       - value: reinstall
         description: Reinstall ORAS using the selected method.
-  download_url:
+  installer_dir:
     type: string
+    _applies_when:
+      - method: [binary]
     default: ''
     description: |-
-      Optional custom URL to an ORAS release tarball (used with `method=binary`).
-      This is currently unsupported because checksum + GPG verification is mandatory.
-      Leave empty to use official ORAS release artifacts.
+      Working directory for download and archive extraction when `method=binary`.
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
 _dependencies:
   run:
     base:

@@ -48,7 +48,7 @@ _install__yq_compatible() {
 # Returns: 0 on success, 1 on any failure.
 _install__yq_install_release() {
   local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}"
-  local _os _arch _base _final_dest _expected_hash _hdir _f
+  local _os _arch _base _install_bin_dir _expected_hash _hdir _f
   _os="$(os__release_kernel)" || return 1
   _arch="$(os__release_arch)" || return 1
   case "$_arch" in
@@ -67,12 +67,12 @@ _install__yq_install_release() {
   fi
   _base="https://github.com/mikefarah/yq/releases/download/v${_version}"
 
-  # Determine install destination.
+  # Determine install destination directory.
   if [[ "$_context" == "user" ]]; then
     [[ -z "$_install_prefix" || "$_install_prefix" == "auto" ]] && _install_prefix="$(users__default_prefix)"
-    _final_dest="${_install_prefix%/}/bin/yq"
+    _install_bin_dir="${_install_prefix%/}/bin"
   else
-    _final_dest="$(file__mktmpdir "install/yq")/yq"
+    _install_bin_dir="$(file__mktmpdir "install/yq")"
   fi
 
   # Compute hash via yq's custom checksum extraction script.
@@ -91,11 +91,11 @@ _install__yq_install_release() {
 
   github__install_release \
     --repo "mikefarah/yq" --tag "v${_version}" \
-    --asset "yq_${_os}_${_arch}" --dest "$_final_dest" \
+    --asset "yq_${_os}_${_arch}" --binary-src yq --binary-dest "$_install_bin_dir" \
     --sha256 "$_expected_hash" \
     "${_owner_group_arg[@]}" ||
     return 1
-  install__state_record "yq" "$_context" "binary" "$_final_dest" "$_group" || true
+  install__state_record "yq" "$_context" "binary" "${_install_bin_dir%/}/yq" "$_group" || true
 }
 
 # @brief _install__yq_install_repos <context> <group> [repos-manifest] — Install yq via package manager with context-aware tracking.

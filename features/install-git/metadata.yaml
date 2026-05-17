@@ -62,18 +62,11 @@ options:
     type: string
     _applies_when:
       - method: [source]
-    default: /tmp/git-build
+    default: ''
     description: |-
       Working directory for the source build: tarball download, extraction, and compilation happen here.
-      Removed after a successful build unless `keep_installer=true`.
-  keep_installer:
-    type: boolean
-    _applies_when:
-      - method: [source]
-    default: false
-    description: |-
-      Keep the source build directory (`installer_dir`) after a successful install.
-      Useful for troubleshooting build failures or inspecting the compiled binaries.
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
   no_flags:
     type: array
     _applies_when:

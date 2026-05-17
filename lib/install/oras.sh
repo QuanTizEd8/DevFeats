@@ -31,18 +31,19 @@ _install__oras_resolve_version() {
   printf '%s\n' "${_out#*$'\n'}"
 }
 
-# @brief _install__oras_install_release <version> <prefix> <group> <context> — Install ORAS from release artifact with mandatory checksum+GPG verification.
+# @brief _install__oras_install_release <version> <prefix> <group> <context> [installer-dir] — Install ORAS from release artifact with mandatory checksum+GPG verification.
 #
 # Args:
-#   <version>   Bare semver string (no leading `v`), e.g. `1.2.3`.
-#   <prefix>    Installation prefix; binary goes to `<prefix>/bin/oras`.
-#   <group>     Resource-tracking group ID (e.g. `lib-oci-oras`).
-#   <context>   `internal` or `user`; controls cleanup tracking.
+#   <version>        Bare semver string (no leading `v`), e.g. `1.2.3`.
+#   <prefix>         Installation prefix; binary goes to `<prefix>/bin/oras`.
+#   <group>          Resource-tracking group ID (e.g. `lib-oci-oras`).
+#   <context>        `internal` or `user`; controls cleanup tracking.
+#   [installer-dir]  Optional persistent work directory (passed to github__install_release).
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
 _install__oras_install_release() {
-  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
+  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}"
   local _platform _arch _asset _tag _bin_dest
   _platform="$(os__release_kernel)" || return 1
   _arch="$(os__release_arch)" || return 1
@@ -55,16 +56,18 @@ _install__oras_install_release() {
   esac
   _tag="v${_version#v}"
   _asset="oras_${_version#v}_${_platform}_${_arch}.tar.gz"
-  _bin_dest="${_install_prefix%/}/bin/oras"
-  local -a _owner_group_arg=()
+  _bin_dest="${_install_prefix%/}/bin"
+  local -a _owner_group_arg=() _idir_arg=()
   [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
+  [ -n "$_installer_dir" ] && _idir_arg=(--installer-dir "$_installer_dir")
   github__install_release \
     --repo "oras-project/oras" --tag "$_tag" \
-    --asset "$_asset" --dest "$_bin_dest" \
+    --asset "$_asset" --binary-src oras --binary-dest "$_bin_dest" \
     --gpg-key-url "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" \
+    "${_idir_arg[@]}" \
     "${_owner_group_arg[@]}" ||
     return 1
-  install__state_record "oras" "$_context" "binary" "$_bin_dest" "$_group" || true
+  install__state_record "oras" "$_context" "binary" "${_bin_dest}/oras" "$_group" || true
 }
 
 # @brief _install__oras_install_repos <version> <group> <context> [repos-manifest] — Install ORAS via system package manager.
@@ -111,10 +114,10 @@ EOF
   return 0
 }
 
-# @brief install__oras --context <internal|user> [--version <ver|stable|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
+# @brief install__oras --context <internal|user> [--version <ver|stable|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] [--installer-dir <dir>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
 install__oras() {
   local _context="internal" _version="stable" _min_version="" _method="auto" _install_prefix="auto"
-  local _if_exists="skip" _repos_manifest="" _owner_group="lib-oci-oras"
+  local _if_exists="skip" _repos_manifest="" _owner_group="lib-oci-oras" _installer_dir=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context)
@@ -148,6 +151,10 @@ install__oras() {
       --owner-group)
         shift
         _owner_group="${1-}"
+        ;;
+      --installer-dir)
+        shift
+        _installer_dir="${1-}"
         ;;
       *)
         logging__error "install__oras: unknown option '$1'"
@@ -199,13 +206,13 @@ install__oras() {
   _version="$(_install__oras_resolve_version "$_version_spec")" || return 1
   case "$_method" in
     binary)
-      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context"
+      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir"
       ;;
     package)
       _install__oras_install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     auto)
-      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" ||
+      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" ||
         _install__oras_install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)

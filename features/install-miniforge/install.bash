@@ -8,6 +8,8 @@
 . "${_BASE_DIR}/_lib/verify.sh"
 # shellcheck source=lib/users.sh
 . "$_BASE_DIR/_lib/users.sh"
+# shellcheck source=lib/file.sh
+. "$_BASE_DIR/_lib/file.sh"
 
 # ── Constants ────────────────────────────────────────────────────────────────
 readonly _MINIFORGE_RELEASES_URL="https://github.com/conda-forge/miniforge/releases"
@@ -85,17 +87,6 @@ _prefix_post_install() {
       > "${_FEAT_SHARE_DIR}/lifecycle--on-create--verification.sh"
     chmod +x "${_FEAT_SHARE_DIR}/lifecycle--on-create--verification.sh"
   fi
-}
-
-download_miniforge() {
-  logging__fn_entry "download_miniforge"
-  local installer_url="${_MINIFORGE_RELEASES_URL}/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}"
-  local checksum_url="${installer_url}.sha256"
-  mkdir -p "$INSTALLER_DIR"
-  logging__download "Downloading installer from $installer_url"
-  net__fetch_url_file "$installer_url" "$INSTALLER"
-  net__fetch_url_file "$checksum_url" "$CHECKSUM"
-  logging__fn_exit "download_miniforge"
 }
 
 check_root_requirement() {
@@ -209,16 +200,6 @@ set_executable_paths() {
   logging__fn_exit "set_executable_paths"
 }
 
-set_installer_filename() {
-  logging__fn_entry "set_installer_filename"
-  local installer_platform
-  installer_platform="$(os__kernel)-$(os__arch)"
-  INSTALLER_FILENAME="Miniforge3-${MINIFORGE_VERSION}-${installer_platform}.sh"
-  INSTALLER="${INSTALLER_DIR}/${INSTALLER_FILENAME}"
-  CHECKSUM="${INSTALLER}.sha256"
-  logging__fn_exit "set_installer_filename"
-}
-
 resolve_miniforge_version() {
   logging__fn_entry "resolve_miniforge_version"
   local _spec="$VERSION"
@@ -319,29 +300,8 @@ uninstall_miniforge() {
   logging__fn_exit "uninstall_miniforge"
 }
 
-verify_miniforge() {
-  logging__fn_entry "verify_miniforge"
-  logging__install "Verifying installer checksum"
-  verify__sha_sidecar "$INSTALLER" "$CHECKSUM"
-  logging__fn_exit "verify_miniforge"
-}
-
 _cleanup_hook() {
   logging__fn_entry "_cleanup_hook"
-  if [[ "${KEEP_INSTALLER-}" != "true" ]]; then
-    [ -f "${INSTALLER-}" ] && {
-      logging__remove "Removing installer script at '$INSTALLER'"
-      rm -f "$INSTALLER"
-    }
-    [ -f "${CHECKSUM-}" ] && {
-      logging__remove "Removing checksum file at '$CHECKSUM'"
-      rm -f "$CHECKSUM"
-    }
-    [ -d "${INSTALLER_DIR-}" ] && [ -z "$(ls -A "$INSTALLER_DIR")" ] && {
-      logging__remove "Removing installation directory at '$INSTALLER_DIR'"
-      rmdir "$INSTALLER_DIR"
-    }
-  fi
   if [ -n "${PREFIX-}" ] && [ -d "$PREFIX" ]; then
     find "$PREFIX" -follow -type f -name '*.a' -delete 2> /dev/null || true
     find "$PREFIX" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
@@ -354,13 +314,15 @@ check_root_requirement
 set_executable_paths
 
 resolve_miniforge_version
-set_installer_filename
-download_miniforge
-if [[ -f "$CHECKSUM" ]]; then
-  verify_miniforge
-else
-  logging__warn "Checksum file not found. Skipping verification."
-fi
+[ -z "${INSTALLER_DIR:-}" ] && INSTALLER_DIR="$(file__mktmpdir "miniforge-installer")"
+_installer_filename="Miniforge3-${MINIFORGE_VERSION}-$(os__kernel)-$(os__arch).sh"
+github__install_release \
+  --repo "conda-forge/miniforge" \
+  --tag "${MINIFORGE_VERSION}" \
+  --asset "${_installer_filename}" \
+  --sidecar-url "${_MINIFORGE_RELEASES_URL}/download/${MINIFORGE_VERSION}/${_installer_filename}.sha256" \
+  --installer-dir "${INSTALLER_DIR}" || exit 1
+INSTALLER="${INSTALLER_DIR}/${_installer_filename}"
 
 if [[ -f "${PREFIX}/bin/conda" ]] || command -v conda > /dev/null 2>&1; then
   logging__warn "Conda installation found at '$PREFIX'."

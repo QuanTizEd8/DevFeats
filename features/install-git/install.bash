@@ -281,15 +281,6 @@ _git__source_build() {
   return 0
 }
 
-# _git__source_cleanup
-# Removes the build directory unless KEEP_INSTALLER=true.
-_git__source_cleanup() {
-  if [ "${KEEP_INSTALLER}" != "true" ]; then
-    rm -rf "${INSTALLER_DIR}"
-  fi
-  return 0
-}
-
 # _git__source_register
 # Registers the source-built git with apt on Debian/Ubuntu via an equivs dummy
 # package so dependency resolution sees git as satisfied.  Non-fatal.
@@ -349,7 +340,10 @@ _git__install_source() {
   local _resolved_ver
   _resolved_ver="$(_git__source_resolve_version)"
 
-  # 3. Check Xcode CLT on macOS.
+  # 3. Materialize installer dir (empty default → auto-cleaned tmpdir).
+  [ -z "${INSTALLER_DIR:-}" ] && INSTALLER_DIR="$(file__mktmpdir "git-build")"
+
+  # 4. Check Xcode CLT on macOS.
   if [ "$(os__kernel)" = "Darwin" ]; then
     xcode-select --print-path > /dev/null 2>&1 || {
       logging__error "Xcode Command Line Tools are required for source builds on macOS."
@@ -358,7 +352,7 @@ _git__install_source() {
     }
   fi
 
-  # 4. Install build dependencies.
+  # 5. Install build dependencies.
   # Non-root installs cannot invoke the OS package manager; assume deps were
   # preinstalled by the caller (e.g. Linux non-root test setup).
   if users__is_root; then
@@ -367,22 +361,19 @@ _git__install_source() {
     logging__info "Non-root mode: skipping build dependency installation; expecting required packages to be preinstalled."
   fi
 
-  # 5. Download and verify tarball.
+  # 6. Download and verify tarball.
   _git__source_fetch_verify "${_resolved_ver}"
 
-  # 6. Extract.
+  # 7. Extract.
   logging__install "Extracting git-${_resolved_ver}.tar.gz..."
   file__extract_archive "${INSTALLER_DIR}/git-${_resolved_ver}.tar.gz" "${INSTALLER_DIR}"
 
-  # 7. Build and install.
+  # 8. Build and install.
   logging__build "Building git ${_resolved_ver}..."
   _git__source_build "${_resolved_ver}"
 
-  # 8. Register with package manager (Debian/Ubuntu only, non-fatal).
+  # 9. Register with package manager (Debian/Ubuntu only, non-fatal).
   _git__source_register "${_resolved_ver}"
-
-  # 9. Clean up build directory.
-  _git__source_cleanup
 
   # 10. Verify.
   "${PREFIX}/bin/git" --version

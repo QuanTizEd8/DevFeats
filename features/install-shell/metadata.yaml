@@ -200,6 +200,15 @@ options:
     description: |-
       Install [fzf](https://github.com/junegunn/fzf) (fuzzy finder) from GitHub Releases.
       Shell key-bindings and completion are injected per-user.
+  installer_dir:
+    type: string
+    _applies_when:
+      - install_fzf: ['true']
+    default: ''
+    description: |-
+      Working directory for download and archive extraction when installing fzf from GitHub Releases.
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 _dependencies:

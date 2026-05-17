@@ -37,7 +37,9 @@ check "conda env list shows base" /opt/conda/bin/conda env list
 check "conda info --base returns /opt/conda" bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
 check "conda list for base env succeeds" /opt/conda/bin/conda list -n base
 
-# --- no stray installer artifacts (keep_installer=false by default) ---
-check "installer dir cleaned up" bash -c '! test -f /tmp/miniforge-installer/*.sh 2>/dev/null'
+# --- no stray installer artifacts (auto-tmpdir default) ---
+# When installer_dir is empty (default), a private tmpdir is used and auto-cleaned
+# at exit via file__mktmpdir. Verify the old hardcoded path is never created.
+check "old hardcoded installer path not created" bash -c '! test -d /tmp/miniforge-installer 2>/dev/null'
 
 reportResults

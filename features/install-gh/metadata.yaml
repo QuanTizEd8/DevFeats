@@ -176,18 +176,11 @@ options:
     type: string
     _applies_when:
       - method: [binary]
-    default: /tmp/gh-install
+    default: ''
     description: |-
-      Working directory used to download and extract the binary archive and checksums file.
-      Removed automatically after a successful install unless keep_installer=true.
-  keep_installer:
-    type: boolean
-    _applies_when:
-      - method: [binary]
-    default: false
-    description: |-
-      Keep the installer_dir after a successful install.
-      Useful for troubleshooting or inspecting the extracted archive.
+      Working directory for download and archive extraction when `method=binary`.
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
 customizations:
   vscode:
     extensions:

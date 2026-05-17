@@ -204,10 +204,13 @@ _gh__install_binary() {
   _archive_name="gh_${_version}_${_asset_os}_${_asset_arch}.${_ext}"
   local _url_base="https://github.com/cli/cli/releases/download/v${_version}"
 
+  local -a _idir_arg=()
+  [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
   github__install_release \
     --repo "cli/cli" --tag "v${_version}" \
-    --asset "$_archive_name" --dest "${PREFIX}/bin/gh" \
-    --sha256 sidecar --sidecar-url "${_url_base}/gh_${_version}_checksums.txt" ||
+    --asset "$_archive_name" --binary-src gh --binary-dest "${PREFIX}/bin" \
+    --sidecar-url "${_url_base}/gh_${_version}_checksums.txt" \
+    "${_idir_arg[@]}" ||
     exit 1
 
   if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then

@@ -11,8 +11,6 @@
 
 _cleanup_hook() {
   logging__fn_entry "_cleanup_hook"
-  # shellcheck disable=SC2015  # || true is intentional: cleanup must not abort on rm failure
-  [ -n "${INSTALLER_DIR-}" ] && rm -rf "$INSTALLER_DIR" 2> /dev/null || true
   if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${NVM_DIR-}" ] && [ -f "${NVM_DIR}/nvm.sh" ] && [ -n "${_NVM_USER-}" ]; then
     su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
   fi
@@ -509,6 +507,8 @@ _NVM_USER="$(_resolve_nvm_install_user)"
 # =============================================================================
 # Resolve auto values
 # =============================================================================
+
+[ -z "${INSTALLER_DIR:-}" ] && INSTALLER_DIR="$(file__mktmpdir "node-installer")"
 
 # =============================================================================
 # Pre-install check

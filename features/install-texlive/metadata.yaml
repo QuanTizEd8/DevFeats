@@ -128,7 +128,7 @@ options:
       `tlpdbopt_autobackup`, `tlpdbopt_backupdir`) are ignored — the profile controls these
       settings completely. Non-profile options (`scheme`, `repository`, `verify_downloads`,
       `packages`, `tlmgr_update`, `tlmgr_verify_repo`, `year`, `if_exists`,
-      `installer_dir`, `keep_installer`) remain active.
+      `installer_dir`) remain active.
 
       A profile is a plain-text file with `key value` pairs, one per line. Unknown keys cause the
       installer to abort. If any `collection-*` key is present, the installer installs only the
@@ -250,22 +250,13 @@ options:
     type: string
     _applies_when:
       - method: [script]
-    default: /tmp/texlive-installer
+    default: ''
     description: |-
-      Temporary directory for downloading and extracting the TeX Live installer archive
+      Working directory for downloading and extracting the TeX Live installer archive
       (`install-tl-unx.tar.gz`) and its extracted contents.
-      All files are removed after a successful installation unless `keep_installer=true`.
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
 
-  keep_installer:
-    type: boolean
-    _applies_when:
-      - method: [script]
-    default: false
-    description: |-
-      Keep the installer directory and all downloaded files after a successful installation.
-      By default the installer archive and extracted tree are removed to reduce image layer size.
-      Set to true for debugging or to inspect the generated `texlive.profile` written to
-      `installer_dir/texlive.profile`.
 
   # ── script profile options ───────────────────────────────────────────────
   # The following options map directly to keys in the texlive.profile file that

@@ -78,6 +78,15 @@ options:
     type: boolean
     default: false
     description: Use `cargo binstall` for `method=cargo` when available.
+  installer_dir:
+    type: string
+    _applies_when:
+      - method: [binary]
+    default: ''
+    description: |-
+      Working directory for download and archive extraction when `method=binary`.
+      When empty (default), a private temporary directory is used and removed automatically on exit.
+      When set, the directory and its contents are retained after installation.
 customizations:
   vscode:
     extensions:
