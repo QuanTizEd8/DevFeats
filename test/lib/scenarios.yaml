@@ -26,3 +26,19 @@ ubuntu-24.04-integration:
       - integration/*.bats
   env_vars:
     SYSSET_RUN_INTEGRATION_DEPS: "1"
+
+alpine-3.20-integration:
+  env: alpine-3.20+bash
+  tests:
+    includes:
+      - integration/*.bats
+  env_vars:
+    SYSSET_RUN_INTEGRATION_DEPS: "1"
+
+fedora-latest-integration:
+  env: fedora-latest+bash
+  tests:
+    includes:
+      - integration/*.bats
+  env_vars:
+    SYSSET_RUN_INTEGRATION_DEPS: "1"

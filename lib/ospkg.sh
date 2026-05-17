@@ -815,7 +815,7 @@ _ospkg_protect_user_pkgs() {
   # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
   case "$_OSPKG_PKG_MNGR" in
     apt-get) users__run_privileged apt-mark manual "$@" > /dev/null 2>&1 || true ;;
-    dnf | yum) users__run_privileged dnf mark install "$@" > /dev/null 2>&1 || true ;;
+    dnf | yum) users__run_privileged "$_OSPKG_PKG_MNGR" mark install "$@" > /dev/null 2>&1 || true ;;
     pacman) users__run_privileged pacman -D --asexplicit "$@" > /dev/null 2>&1 || true ;;
     *) ;;
   esac
@@ -828,7 +828,7 @@ _ospkg_protect_user_pkgs() {
     [[ -f "$_sidecar" ]] || continue
     _sidecar_name="$(basename "$_sidecar")"
     # Skip temporary snapshot files used during build-dep tracking.
-    [[ "$_sidecar_name" == *.before || "$_sidecar_name" == *.after ]] && continue
+    [[ "$_sidecar_name" == *.before || "$_sidecar_name" == *.after || "$_sidecar_name" == *.apkvirts || "$_sidecar_name" == .global_auto_before ]] && continue
     for _pkg in "$@"; do
       if grep -qxF "$_pkg" "$_sidecar" 2> /dev/null; then
         _tmp="${_sidecar}.protect_tmp"
@@ -859,6 +859,117 @@ ospkg__take_initial_snapshot() {
   _ospkg_snapshot_packages "$_dest"
   logging__info "Initial package snapshot written to ${_dest}."
   return 0
+}
+
+# ── Private: global auto-state snapshot/restore ──────────────────────────────
+
+# _ospkg_global_auto_snapshot_file — print the path for the global pre-install
+# auto-state snapshot stored alongside build-dep sidecars.
+_ospkg_global_auto_snapshot_file() {
+  printf '%s/.global_auto_before' "$(_ospkg_build_deps_dir)"
+}
+
+# _ospkg_ensure_global_auto_snapshot — idempotent; called before the first
+# ospkg__install_tracked install. Snapshots the current auto/dep-marked packages
+# and temporarily pins them as manual so PM-native autoremove during cleanup
+# cannot touch packages that pre-existed our build.
+_ospkg_ensure_global_auto_snapshot() {
+  local _snap
+  _snap="$(_ospkg_global_auto_snapshot_file)"
+  [[ -f "$_snap" ]] && return 0
+  case "$_OSPKG_PKG_MNGR" in
+    apt-get)
+      apt-mark showauto 2> /dev/null | sort > "$_snap"
+      local -a _auto_pkgs=()
+      mapfile -t _auto_pkgs < "$_snap"
+      [[ ${#_auto_pkgs[@]} -gt 0 ]] &&
+        users__run_privileged apt-mark manual "${_auto_pkgs[@]}" > /dev/null 2>&1 || true
+      ;;
+    dnf | yum)
+      # comm -23: packages not in userinstalled = dep-installed; pin those as
+      # user-installed so autoremove won't touch them during our cleanup.
+      comm -23 \
+        <(rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort) \
+        <("$_OSPKG_PKG_MNGR" history userinstalled 2> /dev/null | sort) > "$_snap"
+      local -a _dep_pkgs=()
+      mapfile -t _dep_pkgs < "$_snap"
+      [[ ${#_dep_pkgs[@]} -gt 0 ]] &&
+        users__run_privileged "$_OSPKG_PKG_MNGR" mark install "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
+      ;;
+    pacman)
+      # Snapshot all asdeps packages and temporarily mark them asexplicit so
+      # 'pacman -Qdtq' only surfaces packages we newly installed.
+      pacman -Qq --deps 2> /dev/null | sort > "$_snap"
+      local -a _dep_pkgs=()
+      mapfile -t _dep_pkgs < "$_snap"
+      [[ ${#_dep_pkgs[@]} -gt 0 ]] &&
+        users__run_privileged pacman -D --asexplicit "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
+      ;;
+    *)
+      # apk uses virtual groups; zypper/microdnf/brew use per-package safe removal.
+      # Create an empty sentinel so subsequent calls skip this work.
+      : > "$_snap"
+      ;;
+  esac
+  return 0
+}
+
+# _ospkg_restore_global_auto_state — called after all build groups are cleaned.
+# Restores pre-existing auto-marked packages back to their original state and
+# removes the snapshot file. Idempotent (no-op if no snapshot was taken).
+_ospkg_restore_global_auto_state() {
+  local _snap
+  _snap="$(_ospkg_global_auto_snapshot_file)"
+  [[ -f "$_snap" ]] || return 0
+  local -a _pkgs=()
+  mapfile -t _pkgs < "$_snap"
+  rm -f "$_snap"
+  [[ ${#_pkgs[@]} -eq 0 ]] && return 0
+  # Intersect snapshot with currently installed packages in one batch query.
+  # Some packages may have been removed as build deps and no longer exist.
+  local -a _still_installed=()
+  case "$_OSPKG_PKG_MNGR" in
+    apt-get)
+      mapfile -t _still_installed < <(comm -12 \
+        <(printf '%s\n' "${_pkgs[@]}") \
+        <(dpkg-query -W -f='${Package}\n' 2> /dev/null | sort))
+      [[ ${#_still_installed[@]} -gt 0 ]] &&
+        users__run_privileged apt-mark auto "${_still_installed[@]}" > /dev/null 2>&1 || true
+      ;;
+    dnf | yum)
+      mapfile -t _still_installed < <(comm -12 \
+        <(printf '%s\n' "${_pkgs[@]}") \
+        <(rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort))
+      [[ ${#_still_installed[@]} -gt 0 ]] &&
+        users__run_privileged "$_OSPKG_PKG_MNGR" mark remove "${_still_installed[@]}" > /dev/null 2>&1 || true
+      ;;
+    pacman)
+      mapfile -t _still_installed < <(comm -12 \
+        <(printf '%s\n' "${_pkgs[@]}") \
+        <(pacman -Qq 2> /dev/null | sort))
+      [[ ${#_still_installed[@]} -gt 0 ]] &&
+        users__run_privileged pacman -D --asdeps "${_still_installed[@]}" > /dev/null 2>&1 || true
+      ;;
+    *) ;;
+  esac
+  return 0
+}
+
+# ── Private: apk virtual-group helpers ───────────────────────────────────────
+
+# _ospkg_apk_virtual_name <group_id> — emit a valid APK virtual package name
+# derived from <group_id>. Format: .df-<sanitized> (dot prefix, lowercase alnum
+# and hyphens). Dot prefix prevents conflicts with real package names.
+_ospkg_apk_virtual_name() {
+  local _name="${1//[^a-zA-Z0-9_-]/-}"
+  _name="${_name,,}"
+  printf '.df-%s' "$_name"
+}
+
+# _ospkg_apk_virts_file <sidecar_path> — print the path for the auxiliary file
+# that stores the list of APK virtual package names created for a build group.
+_ospkg_apk_virts_file() {
+  printf '%s.apkvirts' "$1"
 }
 
 # _ospkg_snapshot_packages <dest-file> — writes a sorted list of installed
@@ -912,7 +1023,7 @@ _ospkg_mark_build_group() {
       users__run_privileged apt-mark auto "${_new_pkgs[@]}" >&2 || true
       ;;
     dnf | yum)
-      users__run_privileged dnf mark remove "${_new_pkgs[@]}" >&2 || true
+      users__run_privileged "$_OSPKG_PKG_MNGR" mark remove "${_new_pkgs[@]}" >&2 || true
       ;;
     pacman)
       users__run_privileged pacman -D --asdeps "${_new_pkgs[@]}" >&2 || true
@@ -940,35 +1051,63 @@ _ospkg_remove_build_group() {
     return 0
   fi
   logging__remove "Build group '${_group_id}': removing ${#_pkgs[@]} package(s): ${_pkgs[*]}"
+  local _pkg
   case "$_OSPKG_PKG_MNGR" in
     apt-get)
-      # Remove exactly the tracked packages. The sidecar contains the complete
-      # before/after diff (all newly installed packages including transitive deps),
-      # so explicit removal is sufficient and precisely scoped. '--auto-remove'
-      # is intentionally omitted: it performs a global scan and would remove
-      # pre-existing auto-marked orphaned packages unrelated to our install.
-      users__run_privileged apt-get -y --purge remove "${_pkgs[@]}" >&2 || true
+      # Pre-existing auto-marked packages were pinned manual by
+      # _ospkg_ensure_global_auto_snapshot, so autoremove only removes build
+      # deps installed in this session. Explicit list removal is avoided because
+      # it cascades to reverse-dependencies regardless of manual marks.
+      users__run_privileged apt-get -y --purge autoremove >&2 || true
       ;;
     apk)
-      users__run_privileged apk del "${_pkgs[@]}" >&2 || true
+      # Remove the APK virtual groups created during ospkg__install_tracked.
+      # apk del VIRT removes each virtual's packages unless still needed by world.
+      local _virts_file _virt_name
+      _virts_file="$(_ospkg_apk_virts_file "$_sidecar")"
+      if [[ -f "$_virts_file" ]]; then
+        while IFS= read -r _virt_name; do
+          [[ -z "$_virt_name" ]] && continue
+          users__run_privileged apk del "$_virt_name" >&2 || true
+        done < "$_virts_file"
+        rm -f "$_virts_file"
+      else
+        # Fallback for sidecars written before virtual tracking was added.
+        for _pkg in "${_pkgs[@]}"; do
+          users__run_privileged apk del "$_pkg" >&2 || true
+        done
+      fi
       ;;
     dnf | yum)
-      # Packages were marked removable at install time; remove explicitly so only
-      # tracked packages and their orphaned deps are cleaned — not all dnf orphans.
-      users__run_privileged dnf -y remove "${_pkgs[@]}" >&2 || true
+      # Pre-existing dep-marked packages were pinned user-installed by
+      # _ospkg_ensure_global_auto_snapshot, so only our build deps are eligible.
+      users__run_privileged "$_OSPKG_PKG_MNGR" -y autoremove >&2 || true
       ;;
     microdnf)
-      users__run_privileged microdnf remove "${_pkgs[@]}" >&2 || true
+      # microdnf has no mark or autoremove; remove per-package so a single
+      # blocked removal does not prevent the rest from being cleaned.
+      for _pkg in "${_pkgs[@]}"; do
+        users__run_privileged microdnf remove "$_pkg" >&2 || true
+      done
       ;;
     zypper)
-      users__run_privileged zypper --non-interactive remove --clean-deps "${_pkgs[@]}" >&2 || true
+      # zypper has no native autoremove. Remove one package at a time so that a
+      # package still required by a user install blocks only itself, not the
+      # whole transaction.
+      for _pkg in "${_pkgs[@]}"; do
+        users__run_privileged zypper --non-interactive remove --clean-deps "$_pkg" >&2 || true
+      done
       ;;
     pacman)
-      # Remove tracked packages explicitly; let pacman handle deps marked asdeps.
-      users__run_privileged pacman -Rs --noconfirm "${_pkgs[@]}" >&2 || true
+      # Pre-existing asdeps packages were pinned asexplicit by
+      # _ospkg_ensure_global_auto_snapshot, so pacman -Qdtq lists only orphaned
+      # build deps we introduced. -Rns removes each orphan and its now-unneeded deps.
+      local -a _orphans=()
+      mapfile -t _orphans < <(pacman -Qdtq 2> /dev/null)
+      [[ ${#_orphans[@]} -gt 0 ]] &&
+        users__run_privileged pacman -Rns --noconfirm "${_orphans[@]}" >&2 || true
       ;;
     brew)
-      local _pkg
       for _pkg in "${_pkgs[@]}"; do
         if [[ -z "$(brew uses --installed "$_pkg" 2> /dev/null)" ]]; then
           _ospkg_brew_run remove "$_pkg" >&2 || true
@@ -1001,10 +1140,29 @@ ospkg__install_tracked() {
   _bd_dir="$(_ospkg_build_deps_dir)"
   _before_snapshot="${_bd_dir}/${_group_id//\//\_}.before"
   ospkg__detect || return 1
-  _ospkg_snapshot_packages "$_before_snapshot"
-  ospkg__install "$@" || return 1
-  _ospkg_mark_build_group "$_group_id" "$_before_snapshot"
-  rm -f "$_before_snapshot"
+  _ospkg_ensure_global_auto_snapshot
+
+  if [[ "$_OSPKG_PKG_MNGR" == "apk" ]]; then
+    # APK: create a named virtual group so 'apk del VIRT' at cleanup removes
+    # exactly our packages — and only those no longer needed by world.
+    local _sidecar _virts_file _virt_name _count _existing_virts=()
+    _sidecar="${_bd_dir}/${_group_id//\//_}"
+    _virts_file="$(_ospkg_apk_virts_file "$_sidecar")"
+    [[ -f "$_virts_file" ]] && mapfile -t _existing_virts < "$_virts_file"
+    _count="${#_existing_virts[@]}"
+    _virt_name="$(_ospkg_apk_virtual_name "$_group_id")-${_count}"
+    users__run_privileged apk add --no-cache --virtual "$_virt_name" "$@" >&2 || return 1
+    printf '%s\n' "$_virt_name" >> "$_virts_file"
+    # Keep a human-readable sidecar for logging and session tracking.
+    printf '%s\n' "$@" >> "$_sidecar"
+    sort -u "$_sidecar" -o "$_sidecar"
+  else
+    _ospkg_snapshot_packages "$_before_snapshot"
+    ospkg__install "$@" || return 1
+    _ospkg_mark_build_group "$_group_id" "$_before_snapshot"
+    rm -f "$_before_snapshot"
+  fi
+
   # Session co-ownership tracking (manifest mode only).
   # Register all requested packages not present in the initial snapshot so that
   # the install.bash coordinator can apply keep-wins policy across all co-owners.
@@ -1034,10 +1192,11 @@ ospkg__cleanup_all_build_groups() {
   for _sidecar in "$_deps_dir"/*; do
     [[ -f "$_sidecar" ]] || continue
     _group_id="$(basename "$_sidecar")"
-    # Skip temporary snapshot files used during the tracking process.
-    [[ "$_group_id" == *.before || "$_group_id" == *.after ]] && continue
+    # Skip temporary snapshot files and apk virtual-group auxiliary files.
+    [[ "$_group_id" == *.before || "$_group_id" == *.after || "$_group_id" == *.apkvirts || "$_group_id" == .global_auto_before ]] && continue
     _ospkg_remove_build_group "$_group_id"
   done
+  _ospkg_restore_global_auto_state
   return 0
 }
 
@@ -1096,17 +1255,50 @@ ospkg__cleanup_session_build_groups() {
   done
 
   if [[ ${#_to_remove[@]} -gt 0 ]]; then
+    # Protect packages that should be kept: mark them manual so autoremove-based
+    # cleanup (apt, dnf, pacman) doesn't remove them as orphaned build deps.
+    local -a _to_keep=()
+    for _pkg in "${!_session_pkg_keep[@]}"; do
+      [[ "${_session_pkg_keep[$_pkg]}" == "true" ]] && _to_keep+=("$_pkg")
+    done
+    [[ ${#_to_keep[@]} -gt 0 ]] && _ospkg_protect_user_pkgs "${_to_keep[@]}"
+
     logging__remove "Session cleanup: removing ${#_to_remove[@]} build-dep package(s): ${_to_remove[*]}"
     local _synth_dir _synth_sidecar
     _synth_dir="$(_ospkg_build_deps_dir)"
     _synth_sidecar="${_synth_dir}/__session_cleanup__"
     printf '%s\n' "${_to_remove[@]}" | sort > "$_synth_sidecar"
+    # APK: synthetic sidecars have no .apkvirts file; apk del <package> fails for
+    # packages owned by a virtual group. Collect the virtual names from groups
+    # whose packages are all being removed, so _ospkg_remove_build_group uses the
+    # correct apk del path rather than falling back to per-package deletion.
+    if [[ "$_OSPKG_PKG_MNGR" == "apk" ]]; then
+      local _grp_sidecar _grp_virts_path _grp_pkg _grp_has_keep
+      for _grp_sidecar in "$_synth_dir"/*; do
+        [[ -f "$_grp_sidecar" ]] || continue
+        local _gname
+        _gname="$(basename "$_grp_sidecar")"
+        [[ "$_gname" == __session_cleanup__ || "$_gname" == *.before || "$_gname" == *.after || "$_gname" == *.apkvirts || "$_gname" == .global_auto_before ]] && continue
+        _grp_virts_path="$(_ospkg_apk_virts_file "$_grp_sidecar")"
+        [[ -f "$_grp_virts_path" ]] || continue
+        _grp_has_keep=false
+        while IFS= read -r _grp_pkg; do
+          [[ -z "$_grp_pkg" ]] && continue
+          if [[ "${_session_pkg_keep[$_grp_pkg]:-false}" == "true" ]]; then
+            _grp_has_keep=true
+            break
+          fi
+        done < "$_grp_sidecar"
+        [[ "$_grp_has_keep" == false ]] && cat "$_grp_virts_path" >> "${_synth_sidecar}.apkvirts"
+      done
+    fi
     _ospkg_remove_build_group "__session_cleanup__" || true
   else
     logging__info "Session cleanup: no packages to remove (all kept or nothing installed)."
   fi
 
   rm -rf "$_SYSSET_SESSION_TRACK_DIR"
+  _ospkg_restore_global_auto_state
   return 0
 }
 
@@ -1364,6 +1556,7 @@ ospkg__run() {
       return 0
     fi
     _ospkg_remove_build_group "$_remove_build_group"
+    _ospkg_restore_global_auto_state
     return 0
   fi
 
@@ -1418,6 +1611,7 @@ ospkg__run() {
     _bd_dir="$(_ospkg_build_deps_dir)"
     _before_snapshot_file="${_bd_dir}/${_build_group//\//_}.before"
     logging__info "Build group '${_build_group}': recording pre-install package snapshot."
+    _ospkg_ensure_global_auto_snapshot
     _ospkg_snapshot_packages "$_before_snapshot_file"
   fi
 

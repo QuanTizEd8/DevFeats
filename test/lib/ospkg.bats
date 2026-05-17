@@ -698,7 +698,7 @@ _mock_snapshots() {
   [[ ! -f "$_apt_log" ]]
 }
 
-@test "_ospkg_remove_build_group: apt — calls remove with exact sidecar packages and deletes sidecar" {
+@test "_ospkg_remove_build_group: apt — calls autoremove (not per-package remove) and deletes sidecar" {
   _seed_apt_context
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
@@ -712,12 +712,14 @@ _mock_snapshots() {
 
   _ospkg_remove_build_group "test-group"
 
-  # Must use explicit 'remove <pkgs>' (not 'autoremove' or 'remove --auto-remove')
-  # so removal is scoped exactly to the sidecar list, not a global auto-mark scan.
-  grep -q -- "remove" "$_apt_log"
-  grep -q "curl" "$_apt_log"
-  grep -q "newpkg" "$_apt_log"
-  ! grep -q "autoremove" "$_apt_log"
+  # Pre-existing auto packages are protected by _ospkg_ensure_global_auto_snapshot,
+  # so cleanup uses apt-get autoremove (not explicit per-package removal) — this
+  # avoids removing reverse-dependencies of manually-marked packages.
+  grep -q "autoremove" "$_apt_log"
+  grep -q -- "--purge" "$_apt_log"
+  # Individual package names must NOT be passed to autoremove.
+  run grep -q "curl\|newpkg" "$_apt_log"
+  assert_failure
   [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group" ]]
 }
 
@@ -748,7 +750,7 @@ _mock_snapshots() {
   assert_file_exists "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.after"
 }
 
-@test "ospkg__cleanup_all_build_groups: one group sidecar triggers exact remove of tracked packages and is deleted" {
+@test "ospkg__cleanup_all_build_groups: one group sidecar triggers autoremove and sidecar is deleted" {
   _seed_apt_context
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
@@ -762,9 +764,8 @@ _mock_snapshots() {
 
   ospkg__cleanup_all_build_groups
 
-  grep -q -- "remove" "$_apt_log"
-  grep -q "curl" "$_apt_log"
-  ! grep -q "autoremove" "$_apt_log"
+  grep -q "autoremove" "$_apt_log"
+  grep -q -- "--purge" "$_apt_log"
   [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group" ]]
 }
 
@@ -1209,3 +1210,980 @@ _seed_session_cleanup_context() {
   run ospkg__cleanup_resources
   assert_success
 }
+
+# ===========================================================================
+# Additional context helpers (non-APT package managers)
+# ===========================================================================
+
+# _seed_pacman_context — pacman build context with fully-detected state.
+_seed_pacman_context() {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  _OSPKG_DETECTED=true
+  _OSPKG_PKG_MNGR="pacman"
+  _OSPKG_FAMILY="pacman"
+  _OSPKG_INSTALL=(pacman -S --noconfirm)
+  _OSPKG_UPDATE=(pacman -Sy)
+  _OSPKG_CLEAN="_ospkg_clean_pacman"
+  _OSPKG_OS_RELEASE[pm]="pacman"
+  _OSPKG_OS_RELEASE[arch]="x86_64"
+  _OSPKG_OS_RELEASE[id]="arch"
+  users__run_privileged() { "$@"; }
+  export -f users__run_privileged
+}
+
+# _seed_apk_context — Alpine APK build context with fully-detected state.
+_seed_apk_context() {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  _OSPKG_DETECTED=true
+  _OSPKG_PKG_MNGR="apk"
+  _OSPKG_FAMILY="apk"
+  _OSPKG_INSTALL=(apk add --no-cache)
+  _OSPKG_UPDATE=()
+  _OSPKG_CLEAN="_ospkg_clean_apk"
+  _OSPKG_OS_RELEASE[pm]="apk"
+  _OSPKG_OS_RELEASE[arch]="x86_64"
+  _OSPKG_OS_RELEASE[id]="alpine"
+  users__run_privileged() { "$@"; }
+  export -f users__run_privileged
+}
+
+# _seed_yum_context — yum (not dnf) build context; tests the dnf→$PM fix.
+_seed_yum_context() {
+  reload_lib ospkg.sh
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  _OSPKG_DETECTED=true
+  _OSPKG_PKG_MNGR="yum"
+  _OSPKG_FAMILY="dnf"
+  _OSPKG_INSTALL=(yum -y install)
+  _OSPKG_UPDATE=(yum check-update)
+  _OSPKG_CLEAN="_ospkg_clean_dnf"
+  _OSPKG_OS_RELEASE[pm]="dnf"
+  _OSPKG_OS_RELEASE[arch]="x86_64"
+  _OSPKG_OS_RELEASE[id]="rhel"
+  users__run_privileged() { "$@"; }
+  export -f users__run_privileged
+}
+
+# _seed_apk_build_context — APK context + tracked apk fake.
+_seed_apk_build_context() {
+  _seed_apk_context
+  export _SYSSET_BUILD_CONTEXT="ctx"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\necho "$@" >> "%s/apk.log"\n' \
+    "${BATS_TEST_TMPDIR}" > "${BATS_TEST_TMPDIR}/bin/apk"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
+  prepend_fake_bin_path
+}
+
+# _seed_pacman_build_context — Pacman context + smart pacman fake.
+# Fake pacman behaviour is controlled by env files:
+#   ${BATS_TEST_TMPDIR}/pacman-asdeps.txt   — output of pacman -Qq --deps
+#   ${BATS_TEST_TMPDIR}/pacman-installed.txt — output of pacman -Qq
+#   ${BATS_TEST_TMPDIR}/pacman-orphans.txt  — output of pacman -Qdtq
+# All other invocations log to ${BATS_TEST_TMPDIR}/pacman.log.
+_seed_pacman_build_context() {
+  _seed_pacman_context
+  export _SYSSET_BUILD_CONTEXT="ctx"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  local _asdeps="${BATS_TEST_TMPDIR}/pacman-asdeps.txt"
+  local _installed="${BATS_TEST_TMPDIR}/pacman-installed.txt"
+  local _orphans="${BATS_TEST_TMPDIR}/pacman-orphans.txt"
+  local _log="${BATS_TEST_TMPDIR}/pacman.log"
+  # Use if/elif chain so arg-order doesn't matter.
+  printf '#!/bin/bash\n' > "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf 'args="$*"\n' >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf 'if [[ "$args" == *"-Qq --deps"* ]] || [[ "$args" == *"--deps"* && "$args" == *"-Qq"* ]]; then\n' >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf '  cat "%s" 2>/dev/null\n' "$_asdeps" >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf 'elif [[ "$args" == *"-Qdtq"* ]]; then\n' >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf '  cat "%s" 2>/dev/null\n' "$_orphans" >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf 'elif [[ "$args" == *"-Qq"* ]]; then\n' >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf '  cat "%s" 2>/dev/null\n' "$_installed" >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf 'else\n' >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf '  echo "$args" >> "%s"\n' "$_log" >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  printf 'fi\n' >> "${BATS_TEST_TMPDIR}/bin/pacman"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pacman"
+  prepend_fake_bin_path
+}
+
+# _create_smart_apt_mark — replaces the simple logging apt-mark with one that:
+#   'showauto' → reads lines from ${BATS_TEST_TMPDIR}/apt-showauto.txt
+#   anything else → logs "subcommand arg1..." to apt-mark.log
+_create_smart_apt_mark() {
+  local _showauto="${BATS_TEST_TMPDIR}/apt-showauto.txt"
+  local _log="${BATS_TEST_TMPDIR}/apt-mark.log"
+  printf '#!/bin/bash\n[[ "$1" == "showauto" ]] && { cat "%s" 2>/dev/null; exit 0; }\necho "$*" >> "%s"\n' \
+    "$_showauto" "$_log" > "${BATS_TEST_TMPDIR}/bin/apt-mark"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-mark"
+}
+
+# _create_smart_rpm — fake rpm -qa that reads from ${BATS_TEST_TMPDIR}/rpm-installed.txt.
+_create_smart_rpm() {
+  local _installed="${BATS_TEST_TMPDIR}/rpm-installed.txt"
+  printf '#!/bin/bash\ncat "%s" 2>/dev/null\n' "$_installed" \
+    > "${BATS_TEST_TMPDIR}/bin/rpm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/rpm"
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_apk_virtual_name / _ospkg_apk_virts_file
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_apk_virtual_name: sanitizes slashes and colons to hyphens, lowercases, prefixes .df-" {
+  reload_lib ospkg.sh
+  local _result
+  _result="$(_ospkg_apk_virtual_name "Ctx::Group/Sub")"
+  # Uppercase → lowercase, :: → --, / → -
+  [[ "$_result" == ".df-"* ]]
+  [[ "$_result" == *"ctx"* ]]
+  [[ ! "$_result" == *":"* ]]
+  [[ ! "$_result" == *"/"* ]]
+}
+
+@test "_ospkg_apk_virtual_name: preserves valid chars (alphanumeric and hyphen)" {
+  reload_lib ospkg.sh
+  local _result
+  _result="$(_ospkg_apk_virtual_name "my-group-123")"
+  [[ "$_result" == ".df-my-group-123" ]]
+}
+
+@test "_ospkg_apk_virtual_name: spaces and special chars become hyphens" {
+  reload_lib ospkg.sh
+  local _result
+  _result="$(_ospkg_apk_virtual_name "my group@pkg")"
+  [[ ! "$_result" == *" "* ]]
+  [[ ! "$_result" == *"@"* ]]
+}
+
+@test "_ospkg_apk_virts_file: appends .apkvirts suffix to sidecar path" {
+  reload_lib ospkg.sh
+  local _result
+  _result="$(_ospkg_apk_virts_file "/tmp/build-deps/my-group")"
+  [[ "$_result" == "/tmp/build-deps/my-group.apkvirts" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_ensure_global_auto_snapshot
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_ensure_global_auto_snapshot: APT — creates .global_auto_before with sorted auto packages" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # apt-mark showauto returns 'wget libz1' (unsorted)
+  printf 'wget\nlibz1\n' > "${BATS_TEST_TMPDIR}/apt-showauto.txt"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  _ospkg_ensure_global_auto_snapshot
+
+  local _snap
+  _snap="${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  assert_file_exists "$_snap"
+  grep -q "^libz1$" "$_snap"
+  grep -q "^wget$" "$_snap"
+}
+
+@test "_ospkg_ensure_global_auto_snapshot: APT — calls apt-mark manual for all snapshotted packages" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf 'libz1\nwget\n' > "${BATS_TEST_TMPDIR}/apt-showauto.txt"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  _ospkg_ensure_global_auto_snapshot
+
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "manual" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "libz1" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "wget" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+@test "_ospkg_ensure_global_auto_snapshot: APT — idempotent; second call is a no-op if snapshot exists" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf 'wget\n' > "${BATS_TEST_TMPDIR}/apt-showauto.txt"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  _ospkg_ensure_global_auto_snapshot
+  # Remove the log so we can check the second call doesn't log again.
+  rm -f "${BATS_TEST_TMPDIR}/apt-mark.log"
+
+  _ospkg_ensure_global_auto_snapshot
+
+  # No apt-mark calls on second invocation.
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]]
+}
+
+@test "_ospkg_ensure_global_auto_snapshot: APT — empty auto list creates empty sentinel; no apt-mark manual call" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # showauto returns nothing
+  : > "${BATS_TEST_TMPDIR}/apt-showauto.txt"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  _ospkg_ensure_global_auto_snapshot
+
+  local _snap="${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  assert_file_exists "$_snap"
+  [[ ! -s "$_snap" ]]
+  # No 'manual' call for empty list.
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]] ||
+    ! grep -q "manual" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+@test "_ospkg_ensure_global_auto_snapshot: APK — creates empty sentinel (no virtual tracking needed)" {
+  _seed_apk_build_context
+
+  _ospkg_ensure_global_auto_snapshot
+
+  local _snap="${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  assert_file_exists "$_snap"
+  [[ ! -s "$_snap" ]]
+}
+
+@test "_ospkg_ensure_global_auto_snapshot: pacman — snapshots asdeps packages and marks them asexplicit" {
+  _seed_pacman_build_context
+  printf 'makedep1\nmakedep2\n' > "${BATS_TEST_TMPDIR}/pacman-asdeps.txt"
+
+  _ospkg_ensure_global_auto_snapshot
+
+  local _snap="${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  assert_file_exists "$_snap"
+  grep -q "^makedep1$" "$_snap"
+  grep -q "^makedep2$" "$_snap"
+  # pacman -D --asexplicit should have been called
+  assert_file_exists "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "\-\-asexplicit" "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "makedep1" "${BATS_TEST_TMPDIR}/pacman.log"
+}
+
+@test "_ospkg_ensure_global_auto_snapshot: pacman — empty asdeps creates empty sentinel; no pacman -D call" {
+  _seed_pacman_build_context
+  : > "${BATS_TEST_TMPDIR}/pacman-asdeps.txt"
+
+  _ospkg_ensure_global_auto_snapshot
+
+  local _snap="${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  assert_file_exists "$_snap"
+  [[ ! -s "$_snap" ]]
+  [[ ! -f "${BATS_TEST_TMPDIR}/pacman.log" ]]
+}
+
+@test "_ospkg_ensure_global_auto_snapshot: yum — uses yum (not dnf) for userinstalled query" {
+  _seed_yum_context
+  export _SYSSET_BUILD_CONTEXT="ctx"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # rpm returns two packages; yum history userinstalled returns one → comm -23 yields the dep.
+  _create_smart_rpm
+  printf 'basepkg\ndepdpkg\n' | sort > "${BATS_TEST_TMPDIR}/rpm-installed.txt"
+  local _yum_log="${BATS_TEST_TMPDIR}/yum.log"
+  # fake yum: userinstalled → print basepkg; mark → log
+  printf '#!/bin/bash\nif [[ "$*" == *"userinstalled"* ]]; then printf "basepkg\n"; else echo "$*" >> "%s"; fi\n' \
+    "$_yum_log" > "${BATS_TEST_TMPDIR}/bin/yum"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yum"
+  prepend_fake_bin_path
+
+  _ospkg_ensure_global_auto_snapshot
+
+  local _snap="${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  assert_file_exists "$_snap"
+  # depdpkg is in rpm but not in userinstalled → should be in snap
+  grep -q "^depdpkg$" "$_snap"
+  # yum (not dnf!) must be used for mark install
+  assert_file_exists "$_yum_log"
+  grep -q "mark install" "$_yum_log"
+  grep -q "depdpkg" "$_yum_log"
+  # dnf must NOT appear in the log (would indicate wrong binary was called)
+  run grep -q "^dnf " "$_yum_log"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_restore_global_auto_state
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_restore_global_auto_state: no-op when snapshot file does not exist" {
+  _seed_apt_build_context
+  # Ensure no snapshot file exists
+  rm -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+
+  run _ospkg_restore_global_auto_state
+  assert_success
+  # No apt-mark log should exist
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]]
+}
+
+@test "_ospkg_restore_global_auto_state: APT — marks still-installed packages as auto and deletes snapshot" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # Snapshot: libz1 and wget were auto before
+  printf 'libz1\nwget\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  # dpkg-query: both are still installed
+  printf '#!/bin/bash\nprintf "libz1\nwget\n"\n' > "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  _ospkg_restore_global_auto_state
+
+  # Snapshot file must be deleted
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before" ]]
+  # apt-mark auto called with both packages
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "auto" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "libz1" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "wget" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+@test "_ospkg_restore_global_auto_state: APT — packages removed during build are excluded (intersection)" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # Snapshot: libz1 and wget; after build wget was removed as a build dep
+  printf 'libz1\nwget\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  # dpkg-query: only libz1 remains installed (wget was cleaned up)
+  printf '#!/bin/bash\nprintf "libz1\n"\n' > "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  _ospkg_restore_global_auto_state
+
+  # Only libz1 should be in the apt-mark auto call, not wget
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "libz1" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  run grep -q "wget" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  assert_failure
+}
+
+@test "_ospkg_restore_global_auto_state: APT — empty snapshot deletes file but calls no apt-mark" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # Empty snapshot (was created by unsupported PM sentinel path)
+  : > "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  _ospkg_restore_global_auto_state
+
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before" ]]
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]]
+}
+
+@test "_ospkg_restore_global_auto_state: pacman — marks still-installed packages as --asdeps and deletes snapshot" {
+  _seed_pacman_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'makedep1\nmakedep2\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  # pacman -Qq returns both still installed
+  printf 'makedep1\nmakedep2\nuserpkg\n' > "${BATS_TEST_TMPDIR}/pacman-installed.txt"
+
+  _ospkg_restore_global_auto_state
+
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before" ]]
+  assert_file_exists "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "\-\-asdeps" "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "makedep1" "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "makedep2" "${BATS_TEST_TMPDIR}/pacman.log"
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_protect_user_pkgs  (includes yum fix verification)
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_protect_user_pkgs: APT — calls apt-mark manual for each package" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  _ospkg_protect_user_pkgs curl git
+
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "manual" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "curl" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "git" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+@test "_ospkg_protect_user_pkgs: yum — uses yum (not hardcoded dnf) for mark install" {
+  _seed_yum_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  local _yum_log="${BATS_TEST_TMPDIR}/yum.log"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_yum_log" \
+    > "${BATS_TEST_TMPDIR}/bin/yum"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yum"
+  # Ensure dnf is NOT present (would mask the bug)
+  rm -f "${BATS_TEST_TMPDIR}/bin/dnf"
+  prepend_fake_bin_path
+
+  _ospkg_protect_user_pkgs mypkg
+
+  assert_file_exists "$_yum_log"
+  grep -q "mark install" "$_yum_log"
+  grep -q "mypkg" "$_yum_log"
+}
+
+@test "_ospkg_protect_user_pkgs: pacman — calls pacman -D --asexplicit" {
+  _seed_pacman_build_context
+
+  _ospkg_protect_user_pkgs mypkg
+
+  assert_file_exists "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "\-D.*\-\-asexplicit\|--asexplicit.*-D" "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "mypkg" "${BATS_TEST_TMPDIR}/pacman.log"
+}
+
+@test "_ospkg_protect_user_pkgs: evicts package from build-group sidecar" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+  # Pre-existing sidecar contains curl and git
+  printf 'curl\ngit\nnewpkg\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::my-group"
+
+  _ospkg_protect_user_pkgs curl
+
+  # curl must be removed from sidecar, git and newpkg must remain
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::my-group"
+  run grep "^curl$" "$_sidecar"
+  assert_failure
+  grep -q "^git$" "$_sidecar"
+  grep -q "^newpkg$" "$_sidecar"
+}
+
+@test "_ospkg_protect_user_pkgs: skips .before, .after, .apkvirts, .global_auto_before files in sidecar scan" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+  # Create the special files that must be skipped
+  printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.before"
+  printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.after"
+  printf '.df-ctx-group-0\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.apkvirts"
+  printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  printf 'curl\nnewpkg\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/real-group"
+
+  _ospkg_protect_user_pkgs curl
+
+  # Special files must be untouched (content unchanged)
+  grep -q "^curl$" "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.before"
+  grep -q "^curl$" "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.after"
+  grep -q "^curl$" "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  # curl only evicted from the real sidecar
+  run grep "^curl$" "${BATS_TEST_TMPDIR}/ospkg/build-deps/real-group"
+  assert_failure
+  grep -q "^newpkg$" "${BATS_TEST_TMPDIR}/ospkg/build-deps/real-group"
+}
+
+@test "_ospkg_protect_user_pkgs: no-op when no build-deps directory exists" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+  # No ospkg/build-deps dir exists at all.
+
+  run _ospkg_protect_user_pkgs curl
+  assert_success
+}
+
+@test "_ospkg_protect_user_pkgs: no-op when called with no arguments" {
+  _seed_apt_build_context
+  run _ospkg_protect_user_pkgs
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_mark_build_group — yum uses $_OSPKG_PKG_MNGR (not hardcoded dnf)
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_mark_build_group: yum — uses yum (not hardcoded dnf) for mark remove" {
+  _seed_yum_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  _create_smart_rpm
+  printf 'basepkg\n' | sort > "${BATS_TEST_TMPDIR}/rpm-installed.txt"
+  local _yum_log="${BATS_TEST_TMPDIR}/yum.log"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_yum_log" \
+    > "${BATS_TEST_TMPDIR}/bin/yum"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yum"
+  rm -f "${BATS_TEST_TMPDIR}/bin/dnf"
+  prepend_fake_bin_path
+
+  # Simulate before-snapshot with basepkg; after-snapshot adds newpkg.
+  local _before="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group.before"
+  printf 'basepkg\n' > "$_before"
+  # Snapshot after: basepkg + newpkg
+  printf 'basepkg\nnewpkg\n' | sort > "${BATS_TEST_TMPDIR}/rpm-installed.txt"
+  _ospkg_snapshot_packages() {
+    local _dest="$1"
+    printf 'basepkg\nnewpkg\n' | sort > "$_dest"
+  }
+
+  _ospkg_mark_build_group "test-group" "$_before"
+
+  # yum mark remove must have been called (not dnf)
+  assert_file_exists "$_yum_log"
+  grep -q "mark remove" "$_yum_log"
+  grep -q "newpkg" "$_yum_log"
+  # dnf must not appear as the command (would indicate hardcoded-dnf bug)
+  run grep "^dnf " "$_yum_log"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_remove_build_group — APK virtual-group removal
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_remove_build_group: apk — reads .apkvirts and calls apk del for each virtual" {
+  _seed_apk_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # Sidecar with bare package names (human-readable)
+  printf 'cmake\nninja\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  # .apkvirts file with the virtual group names created at install time
+  printf '.df-ctx-test-group-0\n.df-ctx-test-group-1\n' \
+    > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group.apkvirts"
+
+  _ospkg_remove_build_group "test-group"
+
+  # apk del must have been called for each virtual (not for the bare package names)
+  assert_file_exists "${BATS_TEST_TMPDIR}/apk.log"
+  grep -q "del.*\.df-ctx-test-group-0" "${BATS_TEST_TMPDIR}/apk.log"
+  grep -q "del.*\.df-ctx-test-group-1" "${BATS_TEST_TMPDIR}/apk.log"
+}
+
+@test "_ospkg_remove_build_group: apk — deletes .apkvirts file after removal" {
+  _seed_apk_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  printf '.df-ctx-test-group-0\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group.apkvirts"
+
+  _ospkg_remove_build_group "test-group"
+
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group.apkvirts" ]]
+}
+
+@test "_ospkg_remove_build_group: apk — fallback to per-package del when no .apkvirts file exists" {
+  _seed_apk_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'cmake\nninja\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  # No .apkvirts file — simulate older sidecar from before virtual tracking
+
+  _ospkg_remove_build_group "test-group"
+
+  assert_file_exists "${BATS_TEST_TMPDIR}/apk.log"
+  grep -q "del.*cmake" "${BATS_TEST_TMPDIR}/apk.log"
+  grep -q "del.*ninja" "${BATS_TEST_TMPDIR}/apk.log"
+}
+
+@test "_ospkg_remove_build_group: apk — no .apkvirts del calls without actual virtual names" {
+  # Ensure the virtual-path never passes bare package names to apk del
+  # (it would fail since bare pkgs are owned by a virtual).
+  _seed_apk_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  printf '.df-ctx-test-group-0\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group.apkvirts"
+
+  _ospkg_remove_build_group "test-group"
+
+  # 'cmake' must NOT appear in the apk del call — only the virtual name should.
+  run grep "del.*cmake" "${BATS_TEST_TMPDIR}/apk.log"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_remove_build_group — Pacman orphan-based removal
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_remove_build_group: pacman — calls pacman -Qdtq and then -Rns for orphans" {
+  _seed_pacman_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'cmake\nninja\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  # pacman -Qdtq returns cmake and ninja as orphaned
+  printf 'cmake\nninja\n' > "${BATS_TEST_TMPDIR}/pacman-orphans.txt"
+
+  _ospkg_remove_build_group "test-group"
+
+  assert_file_exists "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "\-Rns\|\-\-noconfirm" "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "cmake" "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "ninja" "${BATS_TEST_TMPDIR}/pacman.log"
+}
+
+@test "_ospkg_remove_build_group: pacman — no-op when pacman -Qdtq returns no orphans" {
+  _seed_pacman_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  # No orphans (user package depends on cmake)
+  : > "${BATS_TEST_TMPDIR}/pacman-orphans.txt"
+
+  _ospkg_remove_build_group "test-group"
+
+  # No -Rns call should have been made
+  [[ ! -f "${BATS_TEST_TMPDIR}/pacman.log" ]] ||
+    ! grep -q "\-Rns" "${BATS_TEST_TMPDIR}/pacman.log"
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_remove_build_group — DNF/YUM autoremove uses $_OSPKG_PKG_MNGR
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_remove_build_group: yum — calls yum -y autoremove (not hardcoded dnf)" {
+  _seed_yum_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  local _yum_log="${BATS_TEST_TMPDIR}/yum.log"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_yum_log" \
+    > "${BATS_TEST_TMPDIR}/bin/yum"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yum"
+  rm -f "${BATS_TEST_TMPDIR}/bin/dnf"
+  prepend_fake_bin_path
+
+  _ospkg_remove_build_group "test-group"
+
+  assert_file_exists "$_yum_log"
+  grep -q "autoremove" "$_yum_log"
+  run grep "^dnf" "$_yum_log"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# ospkg__cleanup_all_build_groups — skip filter additions
+# ---------------------------------------------------------------------------
+
+@test "ospkg__cleanup_all_build_groups: .apkvirts files are skipped" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # A real sidecar and an .apkvirts auxiliary file
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group"
+  printf '.df-ctx-my-group-0\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group.apkvirts"
+  create_fake_bin "apt-get" ""
+  prepend_fake_bin_path
+
+  ospkg__cleanup_all_build_groups
+
+  # The .apkvirts file must not have been processed as a group sidecar (it should
+  # remain if the group sidecar was deleted by normal processing).
+  # The real sidecar must be gone.
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group" ]]
+}
+
+@test "ospkg__cleanup_all_build_groups: .global_auto_before (dotfile) is not processed as a group" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # Create the global auto snapshot file
+  printf 'libz1\nwget\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  # Also create a real sidecar to ensure cleanup still runs
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/real-group"
+  create_fake_bin "apt-get" ""
+  # Need apt-mark for restore: use simple no-op fake
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  create_fake_bin "apt-mark" ""
+  printf '#!/bin/bash\nprintf "libz1\nwget\n"\n' > "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  prepend_fake_bin_path
+
+  ospkg__cleanup_all_build_groups
+
+  # .global_auto_before should be deleted by _ospkg_restore_global_auto_state (called at end)
+  # but must NOT be processed as a build group sidecar.
+  # The real group sidecar must be gone.
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/real-group" ]]
+}
+
+@test "ospkg__cleanup_all_build_groups: calls _ospkg_restore_global_auto_state after all groups" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # Place a global snapshot file to verify restore is called (it will be deleted)
+  printf 'libz1\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/real-group"
+  # apt-get for autoremove
+  printf '#!/bin/bash\nexit 0\n' > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  # dpkg-query for restore intersection
+  printf '#!/bin/bash\nprintf "libz1\n"\n' > "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  ospkg__cleanup_all_build_groups
+
+  # Snapshot file must be gone (deleted by _ospkg_restore_global_auto_state)
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before" ]]
+  # apt-mark auto must have been called to restore libz1
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "auto" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "libz1" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+# ---------------------------------------------------------------------------
+# ospkg__install_tracked — APK virtual-group path
+# ---------------------------------------------------------------------------
+
+@test "ospkg__install_tracked: apk — creates virtual group with .df- prefixed name" {
+  _seed_apk_build_context
+
+  ospkg__install_tracked "lib-build" cmake ninja
+
+  # apk add --virtual .df-ctx-lib-build-0 cmake ninja
+  assert_file_exists "${BATS_TEST_TMPDIR}/apk.log"
+  grep -q "add.*--virtual.*\.df-.*lib-build" "${BATS_TEST_TMPDIR}/apk.log"
+  grep -q "cmake" "${BATS_TEST_TMPDIR}/apk.log"
+  grep -q "ninja" "${BATS_TEST_TMPDIR}/apk.log"
+}
+
+@test "ospkg__install_tracked: apk — writes virtual name to .apkvirts file" {
+  _seed_apk_build_context
+
+  ospkg__install_tracked "lib-build" cmake
+
+  local _bd="${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  local _virts="${_bd}/ctx::lib-build.apkvirts"
+  assert_file_exists "$_virts"
+  grep -q "\.df-" "$_virts"
+}
+
+@test "ospkg__install_tracked: apk — writes bare package names to sidecar for session tracking" {
+  _seed_apk_build_context
+
+  ospkg__install_tracked "lib-build" cmake ninja
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::lib-build"
+  assert_file_exists "$_sidecar"
+  grep -q "^cmake$" "$_sidecar"
+  grep -q "^ninja$" "$_sidecar"
+}
+
+@test "ospkg__install_tracked: apk — second call with same group increments virtual counter" {
+  _seed_apk_build_context
+
+  ospkg__install_tracked "lib-build" cmake
+  ospkg__install_tracked "lib-build" ninja
+
+  local _virts="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::lib-build.apkvirts"
+  assert_file_exists "$_virts"
+  # Two distinct virtual names must exist (-0 and -1)
+  local _count
+  _count="$(wc -l < "$_virts")"
+  [[ "$_count" -eq 2 ]]
+  grep -q "\-0$" "$_virts"
+  grep -q "\-1$" "$_virts"
+}
+
+@test "ospkg__install_tracked: apk — returns 1 when apk add fails" {
+  _seed_apk_build_context
+  # Replace fake apk with one that exits 1
+  printf '#!/bin/bash\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/apk"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
+
+  run ospkg__install_tracked "lib-build" cmake
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# ospkg__cleanup_session_build_groups — APK virtual-group collection
+# ---------------------------------------------------------------------------
+
+@test "ospkg__cleanup_session_build_groups: apk — collects .apkvirts from keep=false groups into synthetic sidecar" {
+  _seed_apk_build_context
+  _SESSION_DIR="$(mktemp -d "${BATS_TEST_TMPDIR}/session_XXXXXX")"
+  export _SYSSET_SESSION_TRACK_DIR="$_SESSION_DIR"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # Group A: keep=false; contributes cmake; has a .apkvirts file
+  printf 'cmake\n' > "${_SESSION_DIR}/feature::install-a::lib-build"
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/feature::install-a::lib-build"
+  printf '.df-feature--install-a--lib-build-0\n' \
+    > "${BATS_TEST_TMPDIR}/ospkg/build-deps/feature::install-a::lib-build.apkvirts"
+
+  ospkg__cleanup_session_build_groups "false"
+
+  # The synthetic sidecar's .apkvirts must contain the virtual name
+  assert_file_exists "${BATS_TEST_TMPDIR}/apk.log"
+  grep -q "del.*\.df-" "${BATS_TEST_TMPDIR}/apk.log"
+}
+
+@test "ospkg__cleanup_session_build_groups: apk — skips .apkvirts from groups where any package is kept" {
+  _seed_apk_build_context
+  _SESSION_DIR="$(mktemp -d "${BATS_TEST_TMPDIR}/session_XXXXXX")"
+  export _SYSSET_SESSION_TRACK_DIR="$_SESSION_DIR"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  # Group B: cmake is kept by feature b
+  printf 'cmake\n' > "${_SESSION_DIR}/feature::install-a::lib-build"
+  printf 'cmake\n' > "${_SESSION_DIR}/feature::install-b::lib-build"
+  printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/feature::install-a::lib-build"
+  printf '.df-feature--install-a--lib-build-0\n' \
+    > "${BATS_TEST_TMPDIR}/ospkg/build-deps/feature::install-a::lib-build.apkvirts"
+
+  declare -gA _OPT_OF=(
+    ["install-a"]='{"keep_build_deps": false}'
+    ["install-b"]='{"keep_build_deps": true}'
+  )
+
+  ospkg__cleanup_session_build_groups "false"
+
+  # No apk del calls — cmake is kept by install-b.
+  [[ ! -f "${BATS_TEST_TMPDIR}/apk.log" ]] ||
+    ! grep -q "del" "${BATS_TEST_TMPDIR}/apk.log"
+}
+
+# ---------------------------------------------------------------------------
+# ospkg__install_user
+# ---------------------------------------------------------------------------
+
+@test "ospkg__install_user: APT — installs package and marks it manual (protection)" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  ospkg__install_user curl
+
+  # apt-mark manual must have been called for curl
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "manual" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "curl" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+@test "ospkg__install_user: APT — strips =version suffix before protecting" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  ospkg__install_user "curl=7.88.0-1"
+
+  # Protection must be for bare name 'curl', not 'curl=7.88.0-1'
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "^manual curl$" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  run grep "7.88" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  assert_failure
+}
+
+@test "ospkg__install_user: APT — evicts package from any existing build-group sidecar" {
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+  # curl was tracked as a build dep by an earlier call
+  printf 'curl\nwget\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::my-group"
+
+  ospkg__install_user curl
+
+  # curl must be removed from the sidecar; wget must remain
+  run grep "^curl$" "${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::my-group"
+  assert_failure
+  grep -q "^wget$" "${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::my-group"
+}
+
+@test "ospkg__install_user: pacman — strips =version suffix and calls pacman -D --asexplicit" {
+  _seed_pacman_build_context
+
+  ospkg__install_user "git=2.44.0"
+
+  assert_file_exists "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "\-\-asexplicit" "${BATS_TEST_TMPDIR}/pacman.log"
+  grep -q "^-D --asexplicit git$" "${BATS_TEST_TMPDIR}/pacman.log"
+}
+
+# ---------------------------------------------------------------------------
+# Integration: full APT build-dep lifecycle
+# Verifies the complete snapshot → install → autoremove → restore cycle.
+# ---------------------------------------------------------------------------
+
+@test "integration: APT build-dep lifecycle — pre-existing auto pkg survives; build dep is removed" {
+  # This test exercises the full snapshot/mark/autoremove/restore cycle for APT.
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+
+  # apt-mark showauto returns libz1 (pre-existing auto package from OS base).
+  printf 'libz1\n' > "${BATS_TEST_TMPDIR}/apt-showauto.txt"
+  local _apt_mark_log="${BATS_TEST_TMPDIR}/apt-mark.log"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  # Step 1: Snapshot global auto state (pin libz1 as manual so autoremove won't touch it).
+  _ospkg_ensure_global_auto_snapshot
+
+  # libz1 must be pinned manual.
+  assert_file_exists "$_apt_mark_log"
+  grep -q "^manual.*libz1" "$_apt_mark_log"
+
+  # Step 2: Install a build dep (cmake) — tracked in a sidecar.
+  _mock_snapshots "libz1" "cmake libz1"
+  ospkg__install_tracked "build" cmake
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::build"
+  assert_file_exists "$_sidecar"
+  grep -q "^cmake$" "$_sidecar"
+
+  # Step 3: Remove the build group — apt-get autoremove runs.
+  # cmake is now auto-marked (by _ospkg_mark_build_group); libz1 is manual.
+  # autoremove removes cmake but NOT libz1.
+  printf '#!/bin/bash\necho "$@" >> "%s/apt-get.log"\n' \
+    "${BATS_TEST_TMPDIR}" > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+
+  # Reset log so we capture only the autoremove call.
+  rm -f "$_apt_mark_log"
+
+  _ospkg_remove_build_group "ctx::build"
+
+  # autoremove must be called.
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-get.log"
+  grep -q "autoremove" "${BATS_TEST_TMPDIR}/apt-get.log"
+
+  # Step 4: Restore — libz1 must be marked back as auto.
+  printf '#!/bin/bash\nprintf "libz1\n"\n' > "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+
+  _ospkg_restore_global_auto_state
+
+  assert_file_exists "$_apt_mark_log"
+  grep -q "^auto.*libz1" "$_apt_mark_log"
+  # Snapshot file must be gone.
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before" ]]
+}
+
+@test "integration: APT user package survives build-dep cleanup via ospkg__install_user" {
+  # Installs curl as a user package (manual mark + sidecar eviction), then
+  # installs a build dep (cmake), then cleans up — curl must not be removed.
+  _seed_apt_build_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+
+  # User installs curl.
+  ospkg__install_user curl
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "^manual curl$" "${BATS_TEST_TMPDIR}/apt-mark.log"
+
+  # Build dep: cmake tracked separately.
+  _mock_snapshots "curl" "cmake curl"
+  ospkg__install_tracked "build" cmake
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::build"
+  # curl must NOT be in the build-dep sidecar.
+  run grep "^curl$" "$_sidecar"
+  assert_failure
+  grep -q "^cmake$" "$_sidecar"
+}
+
+@test "integration: session keep-wins prevents removal of package needed by any feature" {
+  _seed_session_cleanup_context
+
+  # Two features co-own 'cmake': one keeps (install-a), one doesn't (install-b).
+  printf 'cmake\n' > "${_SESSION_DIR}/feature::install-a::lib-build"
+  printf 'cmake\n' > "${_SESSION_DIR}/feature::install-b::lib-build"
+
+  declare -gA _OPT_OF=(
+    ["install-a"]='{"keep_build_deps": true}'
+    ["install-b"]='{"keep_build_deps": false}'
+  )
+
+  ospkg__cleanup_session_build_groups "false"
+
+  # cmake must not be in the autoremove call — keep wins.
+  [[ ! -f "$_APT_LOG" ]] || ! grep -q "cmake" "$_APT_LOG"
+}
+
