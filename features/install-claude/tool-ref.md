@@ -226,7 +226,8 @@ apk add claude-code
 
 ##### Required Privileges
 
-- apt and dnf commands require elevated privileges (`sudo`).[^docs-setup]
+- apt and dnf commands require elevated privileges (`sudo` in documented examples).[^docs-setup]
+- apk repository/key writes and package install commands target system paths under `/etc`, so the documented flow assumes elevated/root context.[^docs-setup]
 - Homebrew and WinGet are typically run in user context, with privilege requirements dependent on local policy/configuration.[^docs-setup]
 
 ##### Tool-Specific Configurations
