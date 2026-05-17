@@ -81,7 +81,16 @@ The Typst documentation and README describe this as the canonical archive-based 
 typst --version
 ```
 
-- Optionally validate downloaded archive checksums against release asset digests exposed by the GitHub Releases API (`digest` field, SHA-256 format).[^typst-release-latest]
+- Validate archive checksum against the release asset `digest` value (SHA-256) from the GitHub Releases API. Example:
+
+```bash
+expected=$(curl -sL https://api.github.com/repos/typst/typst/releases/tags/v0.14.2 \
+   | jq -r '.assets[] | select(.name=="typst-x86_64-unknown-linux-musl.tar.xz") | .digest' \
+   | sed 's/^sha256://')
+echo "$expected  typst-x86_64-unknown-linux-musl.tar.xz" | sha256sum -c -
+```
+
+[^typst-release-latest]
 
 #### Configuration Options
 
@@ -101,8 +110,7 @@ typst --version
 
 ##### Required Privileges
 
-- User-local installs require no elevation.
-- System path writes require elevated privileges according to OS policy.
+- Filesystem write permissions for chosen install paths follow host OS policy (general OS behavior assumption, not Typst-specific).
 
 ##### Tool-Specific Configurations
 
@@ -159,13 +167,14 @@ The `typst` CLI supports tool-specific runtime configuration via flags and envir
 - Verify architecture-target alignment before installation to avoid runtime incompatibilities.[^typst-release-latest][^typst-release-workflow]
 - Avoid mixing package-manager ownership with manual replacement on the same path.
 
-### OS Package Managers (Homebrew, WinGet, Linux Package Channels)
+### OS Package Managers (Homebrew, WinGet, Snap)
 
 #### Supported Platforms
 
 - macOS: Homebrew (`brew install typst`).[^typst-readme][^typst-open-source]
 - Windows: WinGet (`winget install --id Typst.Typst`).[^typst-readme]
-- Linux: distribution channels listed via Repology and Snap listing.[^typst-readme]
+- Linux: Snap package is published (`typst`) and installable through snapd.[^typst-readme][^snap-typst-ubuntu]
+- Linux distro package availability can be discovered via Repology, but exact commands and package naming are distribution-specific and not standardized by Typst upstream docs.[^typst-readme]
 
 #### Dependencies
 
@@ -177,7 +186,7 @@ The `typst` CLI supports tool-specific runtime configuration via flags and envir
 
 - macOS/Linux (Homebrew path): Homebrew CLI available and configured.[^brew-man]
 - Windows: WinGet client available.[^winget-install]
-- Linux distro-specific paths: distro package manager or Snap tooling depending on chosen channel.[^typst-readme]
+- Linux Snap path: snapd available and enabled.[^snap-typst-ubuntu]
 
 #### Installation Steps
 
@@ -193,9 +202,13 @@ brew install typst
 winget install --id Typst.Typst
 ```
 
-- Linux distro channels:
-  - Locate distro package channel via Repology, then use distro-native package commands.
-  - Or use the Snap package listing and install through Snap tooling if applicable.[^typst-readme]
+- Snap (Linux):
+
+```bash
+sudo snap install typst
+```
+
+[^typst-readme][^snap-typst-ubuntu]
 
 #### Installation Verification
 
@@ -203,27 +216,27 @@ winget install --id Typst.Typst
 typst --version
 ```
 
-And optionally inspect package-manager state (`brew list`, `winget list`, distro equivalent).[^brew-man][^winget-install]
+And optionally inspect package-manager state (`brew list`, `winget list`, `snap list typst`).[^brew-man][^winget-install][^snap-typst]
 
 #### Configuration Options
 
 ##### Version Selection
 
-- Homebrew and distro channels use package-manager version semantics.
+- Homebrew and Snap use package-manager version semantics and release cadence.
 - WinGet supports explicit `--version` for install/upgrade flows.[^winget-install][^winget-upgrade]
 
 ##### Installation Path
 
-- Package-manager managed; location and links are controlled by manager conventions.[^brew-man][^winget-install]
+- Package-manager managed; location and links are controlled by manager conventions.[^brew-man][^winget-install][^snap-typst]
 
 ##### User Targeting
 
 - WinGet supports scope targeting (`--scope user|machine`).[^winget-install][^winget-uninstall]
-- Homebrew and Linux package managers follow their own user/system ownership models.[^brew-man]
+- Homebrew and Snap use their own host-level ownership and install-location rules.[^brew-man][^snap-typst-ubuntu]
 
 ##### Required Privileges
 
-- Depends on manager and selected scope. Machine/system installs usually require elevated rights.
+- Privilege requirements depend on manager and selected scope/policy (general package-manager behavior assumption, not Typst-specific).
 
 ##### Tool-Specific Configurations
 
@@ -233,7 +246,7 @@ And optionally inspect package-manager state (`brew list`, `winget list`, distro
 
 ##### PATH Setup
 
-- PATH updates are typically handled by the package manager installation model; verify shell environment if command is not immediately discoverable.[^brew-man][^winget-install]
+- PATH updates are typically handled by the package manager installation model; verify shell environment if command is not immediately discoverable.[^brew-man][^winget-install][^snap-typst-ubuntu]
 
 ##### Configuration Files
 
@@ -249,7 +262,7 @@ And optionally inspect package-manager state (`brew list`, `winget list`, distro
 
 ##### Cleanup
 
-- Use manager cleanup mechanisms (for example Homebrew cleanup or WinGet logs handling) as needed.[^brew-man][^winget-uninstall]
+- Use manager cleanup mechanisms (for example Homebrew cleanup or WinGet/Snap diagnostics) as needed.[^brew-man][^winget-uninstall][^snap-typst]
 
 #### Changing Versions and Uninstallation
 
@@ -257,7 +270,7 @@ And optionally inspect package-manager state (`brew list`, `winget list`, distro
 
 - Homebrew: `brew upgrade typst`.[^brew-man]
 - WinGet: `winget upgrade --id Typst.Typst` and optional `--version` selection.[^winget-upgrade]
-- Linux distro managers: use distro-native upgrade and version pinning workflows.
+- Snap packages are managed by snapd update behavior; use Snap channel/policy controls as needed.[^snap-typst-ubuntu]
 
 ##### Uninstallation
 
@@ -273,16 +286,134 @@ brew uninstall typst
 winget uninstall --id Typst.Typst --source winget
 ```
 
-- Linux distro channels: use distro-native uninstall command.[^brew-man][^winget-uninstall]
+- Snap:
+
+```bash
+sudo snap remove typst
+```
+
+[^brew-man][^winget-uninstall][^snap-remove]
 
 ##### Idempotency
 
-- Package-manager installs are idempotent in the manager sense (re-running converges on requested package state/version).[^brew-man][^winget-install]
+- Package-manager behavior is command-specific rather than universally convergent:
+   - Homebrew `install` may upgrade an already installed outdated formula unless disabled by Homebrew settings.[^brew-man]
+   - WinGet `install` supports `--no-upgrade` to skip upgrade when already installed.[^winget-install]
+   - Snap installations are managed by snapd and update policy/channel behavior.[^snap-typst-ubuntu]
 
 #### Notes and Best Practices
 
 - The Typst project explicitly notes package-manager versions may lag behind latest release; use release archives when immediate latest is required.[^typst-readme]
 - Prefer manager-native upgrade/uninstall over `typst update` for package-manager-owned binaries.
+
+### Building from Source (Git + Cargo)
+
+#### Supported Platforms
+
+- Platforms supported by Rust/Cargo toolchain and Typst's Rust build requirements.[^typst-readme][^cargo-install]
+
+#### Dependencies
+
+##### Common Dependencies
+
+- Git.[^typst-readme]
+- Latest stable Rust toolchain and Cargo.[^typst-readme]
+
+##### Platform-Specific Dependencies
+
+- Platform-specific C/C++ linker/toolchain dependencies implied by Rust crate builds.[^cargo-install]
+
+#### Installation Steps
+
+Typst README source-build flow:
+
+```bash
+git clone https://github.com/typst/typst
+cd typst
+cargo build --release
+```
+
+The resulting optimized binary is written to `target/release/`.[^typst-readme]
+
+For CLI-focused builds, it is common to build `typst-cli` specifically via Cargo package selection and then copy/install the resulting binary into a `PATH` directory.[^typst-cli-cargo][^cargo-install]
+
+#### Installation Verification
+
+```bash
+./target/release/typst --version
+```
+
+If moved into `PATH`, verify with:
+
+```bash
+typst --version
+```
+
+#### Configuration Options
+
+##### Version Selection
+
+- Select source revision by checking out a tag/commit before build.
+
+##### Installation Path
+
+- Build output defaults to Cargo `target` directory under repository root; final install path is operator-selected when copying/linking binary.[^typst-readme][^cargo-install]
+
+##### User Targeting
+
+- User-local target when copying to user-owned `PATH` location.
+- System-level target when copying to shared system paths.
+
+##### Required Privileges
+
+- Build and final binary placement privilege requirements follow host filesystem policy (general OS behavior assumption, not Typst-specific).
+
+##### Tool-Specific Configurations
+
+- Compile-time feature selection is controlled in `typst-cli` Cargo features (`embed-fonts`, `http-server`, optional `self-update`, optional `vendor-openssl`).[^typst-cli-cargo]
+- Runtime Typst flags/env vars remain the same as other methods.[^typst-cli-args][^typst-cli-info]
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+
+- Ensure chosen installation directory for resulting binary is on `PATH`.
+
+##### Configuration Files
+
+- No mandatory Typst config file required.
+
+##### Environment Variables
+
+- Persist only required Typst variables for your workflow.[^typst-cli-info]
+
+##### Activation Scripts
+
+- None required.
+
+##### Cleanup
+
+- Optional `cargo clean` and repository cleanup after installation.
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+- Checkout desired revision/tag and rebuild.
+- Replace installed binary in target path.
+
+##### Uninstallation
+
+- Remove installed `typst` binary from its destination.
+
+##### Idempotency
+
+- Re-running `cargo build --release` in same source tree is incremental and deterministic for unchanged inputs; replacing installed binary with same build output is effectively idempotent.[^typst-readme][^cargo-install]
+
+#### Notes and Best Practices
+
+- Prefer pinned git tags/commits for reproducible builds.
+- If you need `typst update`, ensure `self-update` feature is included in the built binary.[^typst-cli-cargo][^typst-cli-main]
 
 ### Cargo Installation (`typst-cli`)
 
@@ -493,8 +624,10 @@ nix run nixpkgs#typst -- --version
 
 ##### Upgrading/Downgrading
 
-- Change installable reference and re-run `nix profile install`.
-- For ad-hoc execution, `nix run` can target a specific flake revision/reference directly.[^nix-profile-install][^nix-run]
+- Use `nix profile upgrade <element>` (or `nix profile upgrade '.*'`) to upgrade elements installed from unlocked flake references.[^nix-profile-upgrade]
+- Use `nix profile list` to identify exact element indices/attributes for targeted upgrades.[^nix-profile-list]
+- For explicit downgrade/pinning to a specific locked reference, remove the existing element and install the desired locked reference with `nix profile install`.[^nix-profile-install][^nix-profile-remove][^nix-profile-list]
+- For ad-hoc execution, `nix run` can target a specific flake revision/reference directly.[^nix-run]
 
 ##### Uninstallation
 
@@ -506,7 +639,8 @@ Element can be removed by profile element index, attribute path, or store path.[
 
 ##### Idempotency
 
-- Nix profile operations are declarative/profile-element based and converge on selected installables.[^nix-profile-install][^nix-profile-remove]
+- `nix profile install` adds installables as profile elements; repeated installs can add additional entries unless elements are managed explicitly.[^nix-profile-install][^nix-profile-list]
+- Stable convergence requires explicit profile-element management (`list`/`remove`/`upgrade`).[^nix-profile-list][^nix-profile-remove][^nix-profile-upgrade]
 
 #### Notes and Best Practices
 
@@ -567,7 +701,7 @@ docker run --rm ghcr.io/typst/typst:latest --version
 
 ##### Required Privileges
 
-- Requires permission to run Docker containers on the host.
+- Requires host permission to run Docker containers (general Docker host policy assumption).
 
 ##### Tool-Specific Configurations
 
@@ -642,10 +776,31 @@ Typst itself does not expose a traditional plugin-manager CLI command comparable
 
 ### Tinymist Language Server and Editor Integrations
 
-- Typst README identifies Tinymist as a community language server integrated into multiple editor extensions.[^typst-readme]
-- Tinymist documentation lists integrations for VS Code/VSCodium, Neovim, Emacs, Sublime Text, Helix, and Zed, and describes LSP-centric features such as diagnostics, code actions, formatting, symbol/navigation support, and preview/export tooling.[^tinymist-docs]
+Tinymist is a community-maintained integrated language service for Typst with a CLI, language-server functionality, and editor frontends.[^tinymist-docs][^typst-readme]
 
-For feature implementation in development environments, Tinymist is the most established editor-side integration to pair with the Typst CLI compiler.
+- **Homepage**: https://myriad-dreamin.github.io/tinymist/
+- **Source Code**: https://github.com/Myriad-Dreamin/tinymist
+- **Documentation**: https://myriad-dreamin.github.io/tinymist/
+
+#### Architecture (Tinymist)
+
+- Tinymist documentation describes:
+   - an analyzing/query library,
+   - a CLI,
+   - a language server,
+   - and editor frontends/extensions.[^tinymist-docs]
+
+#### Installation Methods (Tinymist)
+
+- Editor integrations are documented for VS Code/VSCodium, Neovim, Emacs, Sublime Text, Helix, and Zed.[^tinymist-docs]
+- GitHub release/manual installation paths are also documented by the project.[^tinymist-docs]
+
+#### Configuration and Versioning (Tinymist)
+
+- Tinymist documents Semantic Versioning and a release model distinguishing regular and nightly-style releases.
+- Tinymist also documents editor-side feature/configuration behavior (language features, preview/export, formatting, linting) in its own manuals.[^tinymist-docs]
+
+For development environments using Typst CLI, Tinymist is a widely used community integration path.[^typst-readme][^tinymist-docs]
 
 ## References
 
@@ -668,7 +823,12 @@ For feature implementation in development environments, Tinymist is the most est
 [^cargo-uninstall]: [Cargo uninstall command reference](https://doc.rust-lang.org/cargo/commands/cargo-uninstall.html) - Official uninstall semantics and root targeting.
 [^nix-run]: [nix run command reference](https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-run) - Official execution semantics for flake/installable-based invocation.
 [^nix-profile-install]: [nix profile install command reference](https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-profile-install) - Official persistent profile installation semantics.
+[^nix-profile-list]: [nix profile list command reference](https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-profile-list) - Official profile element inventory and index semantics for remove/upgrade targeting.
 [^nix-profile-remove]: [nix profile remove command reference](https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-profile-remove) - Official profile removal semantics.
+[^nix-profile-upgrade]: [nix profile upgrade command reference](https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-profile-upgrade) - Official profile upgrade semantics and unlocked-vs-locked flake behavior.
+[^snap-typst]: [Snap Store - Typst](https://snapcraft.io/typst) - Typst snap package metadata, channels, and listing.
+[^snap-typst-ubuntu]: [Snap Store - Install Typst on Ubuntu](https://snapcraft.io/install/typst/ubuntu) - Concrete snapd enablement and `sudo snap install typst` instructions.
+[^snap-remove]: [snap(8) man page (Ubuntu)](https://manpages.ubuntu.com/manpages/jammy/en/man8/snap.8.html) - Authoritative `snap remove` command semantics and snap lifecycle operations.
 [^typst-dockerfile]: [Typst Dockerfile (v0.14.2)](https://raw.githubusercontent.com/typst/typst/v0.14.2/Dockerfile) - Official container image entrypoint, user, and image construction details.
 [^devextra-feature-json]: [devcontainers-extra Typst feature manifest](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/typst/devcontainer-feature.json) - Community feature metadata, version option, and dependency relationship.
 [^devextra-feature-install]: [devcontainers-extra Typst feature install.sh](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/typst/install.sh) - Actual installer logic showing release-based install delegation.
