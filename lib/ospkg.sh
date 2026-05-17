@@ -828,7 +828,7 @@ _ospkg_protect_user_pkgs() {
   # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
   case "$_OSPKG_PKG_MNGR" in
     apt-get) users__run_privileged apt-mark manual "$@" > /dev/null 2>&1 || true ;;
-    dnf | yum) users__run_privileged "$_OSPKG_PKG_MNGR" mark "${_OSPKG_DNF_MARK_USER}" "$@" > /dev/null 2>&1 || true ;;
+    dnf | yum) users__run_privileged "$_OSPKG_PKG_MNGR" -y mark "${_OSPKG_DNF_MARK_USER}" "$@" > /dev/null 2>&1 || true ;;
     pacman) users__run_privileged pacman -D --asexplicit "$@" > /dev/null 2>&1 || true ;;
     *) ;;
   esac
@@ -910,7 +910,7 @@ _ospkg_ensure_global_auto_snapshot() {
       local -a _dep_pkgs=()
       mapfile -t _dep_pkgs < "$_snap"
       [[ ${#_dep_pkgs[@]} -gt 0 ]] &&
-        users__run_privileged "$_OSPKG_PKG_MNGR" mark "${_OSPKG_DNF_MARK_USER}" "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
+        users__run_privileged "$_OSPKG_PKG_MNGR" -y mark "${_OSPKG_DNF_MARK_USER}" "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
       ;;
     pacman)
       # Snapshot all asdeps packages and temporarily mark them asexplicit so
@@ -957,7 +957,7 @@ _ospkg_restore_global_auto_state() {
         <(printf '%s\n' "${_pkgs[@]}") \
         <(rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort))
       [[ ${#_still_installed[@]} -gt 0 ]] &&
-        users__run_privileged "$_OSPKG_PKG_MNGR" mark "${_OSPKG_DNF_MARK_DEP}" "${_still_installed[@]}" > /dev/null 2>&1 || true
+        users__run_privileged "$_OSPKG_PKG_MNGR" -y mark "${_OSPKG_DNF_MARK_DEP}" "${_still_installed[@]}" > /dev/null 2>&1 || true
       ;;
     pacman)
       mapfile -t _still_installed < <(comm -12 \
@@ -1039,7 +1039,7 @@ _ospkg_mark_build_group() {
       users__run_privileged apt-mark auto "${_new_pkgs[@]}" >&2 || true
       ;;
     dnf | yum)
-      users__run_privileged "$_OSPKG_PKG_MNGR" mark "${_OSPKG_DNF_MARK_DEP}" "${_new_pkgs[@]}" >&2 || true
+      users__run_privileged "$_OSPKG_PKG_MNGR" -y mark "${_OSPKG_DNF_MARK_DEP}" "${_new_pkgs[@]}" >&2 || true
       ;;
     pacman)
       users__run_privileged pacman -D --asdeps "${_new_pkgs[@]}" >&2 || true
