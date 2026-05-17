@@ -99,7 +99,7 @@ teardown() {
   assert_success
 
   run _pkg_is_installed "$_OSPKG_INT_PKG"
-  assert_failure  # package must be gone
+  assert_failure # package must be gone
 }
 
 # ── Snapshot protection ───────────────────────────────────────────────────────
