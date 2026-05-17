@@ -338,8 +338,8 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
     github__install_release \
       --repo "prefix-dev/pixi" --tag "v${VERSION}" \
       --asset "pixi-${TRIPLE}.tar.gz" --dest "${PREFIX}/bin/pixi" \
-      --sha256 sidecar --sidecar-url "${SIDECAR_URL}" \
-      || exit 1
+      --sha256 sidecar --sidecar-url "${SIDECAR_URL}" ||
+      exit 1
   fi
 fi
 

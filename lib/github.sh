@@ -417,7 +417,7 @@ github__install_release() {
     # Handles standard sha256sum multi-entry format ("<hash>  <filename>") where $NF
     # is the filename, and raw single-hash sidecar files (NR==1 fallback).
     local _sidecar_hash
-    _sidecar_hash="$(awk -v a="${_asset}" '$NF==a{print $1;_f=1;exit} END{if(!_f && NR==1)print $1}' "$_sidecar_file")"
+    _sidecar_hash="$(awk -v a="${_asset}" '{fn=$NF; sub(/^\*/, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1)print $1}' "$_sidecar_file")"
     [ -n "$_sidecar_hash" ] || {
       logging__error "github__install_release: could not extract hash for '${_asset}' from sidecar."
       return 1
