@@ -441,7 +441,7 @@ The cask defines `zap` cleanup for `~/.codex` directory removal semantics in Hom
 
 ##### Common Dependencies
 
-- Ability to download release asset and metadata.
+- Ability to download release asset and metadata.[^openai-readme][^openai-release-latest]
 - Archive extraction tooling and executable placement on PATH.[^openai-readme][^openai-release-latest]
 
 ##### Platform-Specific Dependencies
@@ -459,9 +459,18 @@ The cask defines `zap` cleanup for `~/.codex` directory removal semantics in Hom
 
 #### Installation Verification
 
-```bash
-codex --version
-```
+Recommended verification flow:
+
+1. Fetch the release metadata and capture the expected digest for the exact asset.
+2. Verify the downloaded archive digest matches release metadata (`digest` field), mirroring the official installer strategy.
+3. Run:
+
+  ```bash
+  codex --version
+  codex --help
+  ```
+
+  and confirm the version output matches the selected release version and the help command returns successfully.[^openai-install-sh-src][^openai-install-ps1-src][^openai-release-latest][^openai-readme]
 
 #### Configuration Options
 
@@ -475,11 +484,11 @@ codex --version
 
 ##### User Targeting
 
-- User-local or system-wide based on chosen destination path and permissions.
+- User-local or system-wide based on chosen destination path and permissions; this method is fully operator-managed (no dedicated installer policy layer).[^openai-readme][^openai-release-assets]
 
 ##### Required Privileges
 
-- Depends entirely on destination directory permissions.
+- Depends entirely on destination directory permissions because manual install is file placement into a PATH directory chosen by the operator.[^openai-readme]
 
 ##### Tool-Specific Configurations
 
@@ -489,7 +498,7 @@ codex --version
 
 ##### PATH Setup
 
-- Ensure chosen binary destination is in PATH.
+- Ensure chosen binary destination is in PATH.[^openai-readme]
 
 ##### Configuration Files
 
@@ -501,25 +510,25 @@ codex --version
 
 ##### Activation Scripts
 
-- None, except shell profile updates for PATH where needed.
+- No Codex-specific activation script is documented for manual binary installs; only shell/profile PATH updates may be needed.[^openai-readme]
 
 ##### Cleanup
 
-- Remove downloaded archives/extraction directory after placement.
+- Remove downloaded archives/extraction directory after placement; lifecycle cleanup is operator-managed in this method.[^openai-readme]
 
 #### Changing Versions and Uninstallation
 
 ##### Upgrading/Downgrading
 
-- Replace binary with another release asset version.
+- Replace the installed binary with another release asset version selected by tag/platform.[^openai-release-assets]
 
 ##### Uninstallation
 
-- Remove binary from PATH destination and optional local Codex state directory.
+- Remove binary from PATH destination and optional local Codex state directory.[^openai-readme][^openai-config-advanced]
 
 ##### Idempotency
 
-- Manual process behavior is operator-defined; no built-in transactional guardrails.
+- Manual process behavior is operator-defined; unlike official installer scripts, this method has no built-in lock/transaction safeguards.[^openai-install-sh-src][^openai-install-ps1-src]
 
 #### Notes and Best Practices
 
@@ -562,23 +571,23 @@ codex --version
 
 ##### Version Selection
 
-- Controlled by Git ref checkout and Rust build state.
+- Controlled by Git ref checkout and Rust build state (the documented source workflow starts from a repository clone and local Cargo commands).[^openai-install-doc]
 
 ##### Installation Path
 
-- Build artifacts under workspace target directories unless custom cargo target dirs are configured.
+- The documented source workflow runs from the cloned repository; generated artifacts default to `target/` in the workspace root unless `--target-dir`/`CARGO_TARGET_DIR` is set.[^openai-install-doc][^cargo-build-doc]
 
 ##### User Targeting
 
-- User-local development workflow.
+- User-local development workflow as documented (`rustup`, `cargo`, `just` commands in user shell context).[^openai-install-doc]
 
 ##### Required Privileges
 
-- No root required in normal Rust user setup.
+- No root is documented as required in the upstream source build workflow.[^openai-install-doc]
 
 ##### Tool-Specific Configurations
 
-- TUI logging defaults and `RUST_LOG` behavior are documented in install/build doc.
+- TUI logging defaults and `RUST_LOG` behavior are documented in install/build doc.[^openai-install-doc]
 - Log directory can be overridden with CLI config key `log_dir` and one-off `-c` override.[^openai-install-doc][^openai-config-basic]
 
 #### Post-Installation Steps and Cleanup
@@ -593,7 +602,7 @@ codex --version
 
 ##### Environment Variables
 
-- `RUST_LOG` for logging verbosity.
+- `RUST_LOG` for logging verbosity.[^openai-install-doc]
 - Optional Codex env vars (`CODEX_HOME`, custom CA variables) remain applicable.[^openai-install-doc][^openai-auth]
 
 ##### Activation Scripts
@@ -608,15 +617,15 @@ codex --version
 
 ##### Upgrading/Downgrading
 
-- Checkout a different repository tag/commit and rebuild.
+- Checkout a different repository tag/commit and rebuild with Cargo in the same workflow pattern.[^openai-install-doc]
 
 ##### Uninstallation
 
-- Remove workspace checkout and any manually installed helper binaries if no longer needed.
+- Remove the workspace checkout and optional helper tools; `cargo clean` can remove generated artifacts before removal if desired.[^openai-install-doc][^cargo-clean-doc]
 
 ##### Idempotency
 
-- Re-running `cargo build` is incremental and safe.
+- Re-running `cargo build` reuses previously generated `target` artifacts unless cleaned, so repeated builds are convergent and typically faster.[^cargo-build-doc][^cargo-clean-doc]
 
 #### Notes and Best Practices
 
@@ -628,49 +637,49 @@ For devcontainer-based usage, npm global installation is the most straightforwar
 
 Security and sandboxing considerations in containers:
 
-- Codex Linux sandbox relies on OS primitives (`bwrap` + `seccomp`); some container runtimes/capability sets can block required operations.
-- OpenAI documents a secure devcontainer reference and notes that if the container itself is your intended isolation boundary, running with full-access mode inside the container may be appropriate.
+- Codex Linux sandbox relies on OS primitives (`bwrap` + `seccomp`); some container runtimes/capability sets can block required operations.[^openai-security]
+- OpenAI documents a secure devcontainer reference and notes that if the container itself is your intended isolation boundary, running with full-access mode inside the container may be appropriate.[^openai-security]
 - This tradeoff must be treated as elevated risk and used only for trusted codebases.[^openai-security]
 
 Recommended container practices:
 
-1. Persist `CODEX_HOME` (`~/.codex`) on a volume if you want stable auth/config/history between rebuilds.
-2. Decide explicitly whether Codex inner sandbox or container boundary is authoritative.
+1. Persist `CODEX_HOME` (`~/.codex`) on a volume if you want stable auth/config/history between rebuilds.[^openai-config-advanced]
+2. Decide explicitly whether Codex inner sandbox or container boundary is authoritative.[^openai-security]
 3. Keep approval policies restrictive by default in shared team containers.[^openai-config-advanced][^openai-security]
 
 Comparable devcontainer feature patterns from established projects:
 
-- `devcontainers/features` `github-cli` feature exposes version selection and release-based install controls.
-- Anthropic's `claude-code` feature demonstrates npm-global install flows and dependency bootstrap patterns.
-- The devcontainers collection index confirms these as recognized ecosystem feature sources.[^devcontainers-ghcli-feature][^devcontainers-ghcli-install][^anthropic-claude-feature][^devcontainers-collection-index]
+- `devcontainers/features` `github-cli` feature exposes version selection and release-based install controls.[^devcontainers-ghcli-feature][^devcontainers-ghcli-install]
+- Anthropic's `claude-code` feature demonstrates npm-global install flows and dependency bootstrap patterns.[^anthropic-claude-feature]
+- The devcontainers collection index confirms these as recognized ecosystem feature sources.[^devcontainers-collection-index]
 
 ## Plugins and Extensions
 
-Codex supports multiple extension surfaces beyond the CLI binary itself.
+Codex supports multiple extension surfaces beyond the CLI binary itself.[^openai-ide][^openai-config-reference]
 
 ### IDE Extensions
 
-- Official Codex IDE extension is distributed through VS Code Marketplace (`openai.chatgpt`) and supports VS Code, Cursor, Windsurf, and JetBrains integrations.
+- Official Codex IDE extension is distributed through VS Code Marketplace (`openai.chatgpt`) and supports VS Code, Cursor, Windsurf, and JetBrains integrations.[^openai-ide]
 - It shares sign-in methods (ChatGPT or API key) and follows platform-specific guidance for Windows native vs WSL2 workflows.[^openai-ide][^openai-auth][^openai-windows]
 
 ### MCP Servers and Provider Extensions
 
-- Codex supports MCP server integrations and custom model providers through `config.toml` (`mcp_servers.*`, `model_providers.*`).
+- Codex supports MCP server integrations and custom model providers through `config.toml` (`mcp_servers.*`, `model_providers.*`).[^openai-config-reference]
 - This is the primary "plugin-like" extensibility mechanism for tool/action expansion and alternate inference backends in enterprise or local proxy environments.[^openai-config-basic][^openai-config-advanced][^openai-config-reference]
 
 ## References
 
 [^openai-overview]: [OpenAI Developers - Codex Overview](https://developers.openai.com/codex) - Product overview, high-level capabilities, and positioning.
-[^openai-readme]: [openai/codex README](https://github.com/openai/codex/blob/main/README.md) - Canonical CLI install methods (`npm`, Homebrew, release binary hints) and quickstart context.
-[^openai-install-doc]: [openai/codex docs/install.md](https://github.com/openai/codex/blob/main/docs/install.md) - Source build system requirements, build/test workflow, and logging behavior.
-[^openai-codex-js]: [openai/codex codex-cli/bin/codex.js](https://github.com/openai/codex/blob/main/codex-cli/bin/codex.js) - Launcher target mapping, platform package resolution, environment setup, and process forwarding.
-[^openai-build-npm]: [openai/codex codex-cli/scripts/build_npm_package.py](https://github.com/openai/codex/blob/main/codex-cli/scripts/build_npm_package.py) - npm packaging model, optional dependency aliasing, and per-platform native component composition.
-[^openai-install-native-deps]: [openai/codex codex-cli/scripts/install_native_deps.py](https://github.com/openai/codex/blob/main/codex-cli/scripts/install_native_deps.py) - Native component acquisition/install details (`codex`, `rg`, `bwrap`, Windows helpers).
-[^openai-install-sh-src]: [openai/codex scripts/install/install.sh](https://github.com/openai/codex/blob/main/scripts/install/install.sh) - Unix standalone installer logic, paths, digest verification, lock/idempotency, PATH/profile management, and conflict handling.
-[^openai-install-ps1-src]: [openai/codex scripts/install/install.ps1](https://github.com/openai/codex/blob/main/scripts/install/install.ps1) - Windows standalone installer logic, digest verification, junction handling, PATH updates, and conflict handling.
-[^openai-release-latest]: [GitHub Releases API - openai/codex latest](https://api.github.com/repos/openai/codex/releases/latest) - Authoritative latest release version, publish date, and release asset digest metadata.
+[^openai-readme]: [openai/codex README (rust-v0.130.0)](https://github.com/openai/codex/blob/rust-v0.130.0/README.md) - Canonical CLI install methods (`npm`, Homebrew, release binary hints) and quickstart context.
+[^openai-install-doc]: [openai/codex docs/install.md (rust-v0.130.0)](https://github.com/openai/codex/blob/rust-v0.130.0/docs/install.md) - Source build system requirements, build/test workflow, and logging behavior.
+[^openai-codex-js]: [openai/codex codex-cli/bin/codex.js (rust-v0.130.0)](https://github.com/openai/codex/blob/rust-v0.130.0/codex-cli/bin/codex.js) - Launcher target mapping, platform package resolution, environment setup, and process forwarding.
+[^openai-build-npm]: [openai/codex codex-cli/scripts/build_npm_package.py (rust-v0.130.0)](https://github.com/openai/codex/blob/rust-v0.130.0/codex-cli/scripts/build_npm_package.py) - npm packaging model, optional dependency aliasing, and per-platform native component composition.
+[^openai-install-native-deps]: [openai/codex codex-cli/scripts/install_native_deps.py (rust-v0.130.0)](https://github.com/openai/codex/blob/rust-v0.130.0/codex-cli/scripts/install_native_deps.py) - Native component acquisition/install details (`codex`, `rg`, `bwrap`, Windows helpers).
+[^openai-install-sh-src]: [openai/codex scripts/install/install.sh (rust-v0.130.0)](https://github.com/openai/codex/blob/rust-v0.130.0/scripts/install/install.sh) - Unix standalone installer logic, paths, digest verification, lock/idempotency, PATH/profile management, and conflict handling.
+[^openai-install-ps1-src]: [openai/codex scripts/install/install.ps1 (rust-v0.130.0)](https://github.com/openai/codex/blob/rust-v0.130.0/scripts/install/install.ps1) - Windows standalone installer logic, digest verification, junction handling, PATH updates, and conflict handling.
+[^openai-release-latest]: [GitHub Releases API - openai/codex latest](https://api.github.com/repos/openai/codex/releases/latest) - Dynamic freshness endpoint used to verify current latest release metadata (retrieved 2026-05-17).
 [^openai-release-assets]: [openai/codex release assets listing (tag rust-v0.130.0)](https://github.com/openai/codex/releases/tag/rust-v0.130.0) - Platform asset matrix including tarballs/zips/executables and installer scripts.
-[^openai-npm-latest]: [npm Registry - @openai/codex latest package metadata](https://registry.npmjs.org/@openai/codex/latest) - Latest npm-published version and publish timestamp.
+[^openai-npm-latest]: [npm Registry - @openai/codex latest package metadata](https://registry.npmjs.org/@openai/codex/latest) - Dynamic freshness endpoint for latest npm-published version and publish timestamp (retrieved 2026-05-17).
 [^openai-npm-0130-metadata]: [npm Registry - @openai/codex version 0.130.0](https://registry.npmjs.org/@openai/codex/0.130.0) - Node engine constraint, binary entry point, and optional platform dependency mapping.
 [^npm-global-install]: [npm Docs - Downloading and installing packages globally](https://docs.npmjs.com/downloading-and-installing-packages-globally) - Canonical global install command and EACCES guidance link.
 [^npm-eacces]: [npm Docs - Resolving EACCES permissions errors when installing packages globally](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally) - Recommended non-sudo remediation and user-prefix PATH setup.
@@ -680,7 +689,7 @@ Codex supports multiple extension surfaces beyond the CLI binary itself.
 [^npm-folders]: [npm CLI Docs - Folders](https://docs.npmjs.com/cli/v11/configuring-npm/folders) - Global prefix defaults and package/bin directory layouts.
 [^brew-manpage]: [Homebrew Manpage](https://docs.brew.sh/Manpage) - Command semantics (`install`, `upgrade`, `uninstall`, `shellenv`, `--prefix`, cask behavior).
 [^brew-faq]: [Homebrew FAQ](https://docs.brew.sh/FAQ) - Sudo/permissions model, default prefixes, pinning behavior, and cleanup/uninstall notes.
-[^homebrew-cask-codex]: [Homebrew Cask Definition - codex.rb](https://github.com/Homebrew/homebrew-cask/blob/master/Casks/c/codex.rb) - Cask URL template, checksums, dependency on `ripgrep`, completion generation, and zap behavior.
+[^homebrew-cask-codex]: [Homebrew Cask Definition - codex.rb (pinned commit)](https://github.com/Homebrew/homebrew-cask/blob/2a42f5a56910cedf2b4cadbb7bd3087f97bad80f/Casks/c/codex.rb) - Cask URL template, checksums, dependency on `ripgrep`, completion generation, and zap behavior.
 [^formulae-codex]: [Formulae Homebrew - codex cask page](https://formulae.brew.sh/cask/codex) - Installation command and cask metadata surface.
 [^openai-auth]: [OpenAI Developers - Codex Authentication](https://developers.openai.com/codex/auth) - ChatGPT/API-key auth modes, credential caching/storage options, enterprise token and CA-bundle settings.
 [^openai-config-basic]: [OpenAI Developers - Codex Config Basics](https://developers.openai.com/codex/config-basic) - Config layer locations, precedence, and common key patterns.
@@ -689,7 +698,9 @@ Codex supports multiple extension surfaces beyond the CLI binary itself.
 [^openai-security]: [OpenAI Developers - Agent approvals and security](https://developers.openai.com/codex/agent-approvals-security) - Sandbox architecture, network/approval defaults, and container operation guidance.
 [^openai-windows]: [OpenAI Developers - Codex on Windows](https://developers.openai.com/codex/windows) - Native Windows sandbox modes, version matrix, and WSL2 guidance.
 [^openai-ide]: [OpenAI Developers - Codex IDE extension](https://developers.openai.com/codex/ide) - IDE integration surfaces, marketplace distribution, and supported editors.
-[^devcontainers-ghcli-feature]: [devcontainers/features github-cli feature metadata](https://github.com/devcontainers/features/blob/main/src/github-cli/devcontainer-feature.json) - Comparative feature API/options pattern.
-[^devcontainers-ghcli-install]: [devcontainers/features github-cli install.sh](https://github.com/devcontainers/features/blob/main/src/github-cli/install.sh) - Comparative installer pattern (version resolution, package manager handling, release fallback).
-[^anthropic-claude-feature]: [anthropics/devcontainer-features claude-code install.sh](https://github.com/anthropics/devcontainer-features/blob/main/src/claude-code/install.sh) - Comparative npm-global feature installation and dependency bootstrap pattern.
+[^devcontainers-ghcli-feature]: [devcontainers/features github-cli feature metadata (pinned commit)](https://github.com/devcontainers/features/blob/15a91e43dc81dafdf7a1161d84a7e819e3bdfcdd/src/github-cli/devcontainer-feature.json) - Comparative feature API/options pattern.
+[^devcontainers-ghcli-install]: [devcontainers/features github-cli install.sh (pinned commit)](https://github.com/devcontainers/features/blob/e3eaba0c3c2b3b682c82037f35a9999520b2db8d/src/github-cli/install.sh) - Comparative installer pattern (version resolution, package manager handling, release fallback).
+[^anthropic-claude-feature]: [anthropics/devcontainer-features claude-code install.sh (pinned commit)](https://github.com/anthropics/devcontainer-features/blob/b115c9e6c8e80f78404c2bbdc5c4a0f4eedf1853/src/claude-code/install.sh) - Comparative npm-global feature installation and dependency bootstrap pattern.
 [^devcontainers-collection-index]: [Dev Container collection index](https://raw.githubusercontent.com/devcontainers/devcontainers.github.io/refs/heads/gh-pages/_data/collection-index.yml) - Registry of well-established devcontainer feature collections.
+[^cargo-build-doc]: [Cargo Book - cargo build](https://doc.rust-lang.org/cargo/commands/cargo-build.html) - Build command behavior, default `target/` output location, and `--target-dir` override semantics.
+[^cargo-clean-doc]: [Cargo Book - cargo clean](https://doc.rust-lang.org/cargo/commands/cargo-clean.html) - Artifact cleanup semantics for generated `target` outputs.
