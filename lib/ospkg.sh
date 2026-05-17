@@ -463,7 +463,7 @@ _ospkg_set_dnf() {
   _OSPKG_LISTS_PATTERN="*"
   _OSPKG_OS_RELEASE[pm]="dnf"
   # DNF5 (Fedora 41+) renamed mark subcommands: install→user, remove→dependency.
-  if dnf --version 2>/dev/null | head -1 | grep -q '^5\.'; then
+  if dnf --version 2>/dev/null | grep -qE '(^5\.| 5\.[0-9])'; then
     _OSPKG_DNF_MARK_USER="user"
     _OSPKG_DNF_MARK_DEP="dependency"
   else
