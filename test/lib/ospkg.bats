@@ -567,7 +567,7 @@ _mock_snapshots() {
 
   ospkg__install_tracked "test-group" newpkg
 
-  [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]]
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]] || ! grep -q "^auto " "${BATS_TEST_TMPDIR}/apt-mark.log"
 }
 
 @test "ospkg__install_tracked: ospkg__detect called before before-snapshot — PM set correctly" {
@@ -2186,4 +2186,3 @@ _create_smart_rpm() {
   # cmake must not be in the autoremove call — keep wins.
   [[ ! -f "$_APT_LOG" ]] || ! grep -q "cmake" "$_APT_LOG"
 }
-

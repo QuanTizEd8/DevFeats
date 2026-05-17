@@ -13,11 +13,11 @@ _OSPKG_INT_PKG=bc
 # _pkg_is_installed <name> — return 0 when <name> is installed, 1 otherwise.
 _pkg_is_installed() {
   case "$_OSPKG_PKG_MNGR" in
-    apt-get)              dpkg -s "$1" > /dev/null 2>&1 ;;
-    apk)                  apk info -e "$1" > /dev/null 2>&1 ;;
+    apt-get) dpkg -s "$1" > /dev/null 2>&1 ;;
+    apk) apk info -e "$1" > /dev/null 2>&1 ;;
     dnf | yum | microdnf) rpm -q "$1" > /dev/null 2>&1 ;;
-    zypper)               rpm -q "$1" > /dev/null 2>&1 ;;
-    pacman)               pacman -Q "$1" > /dev/null 2>&1 ;;
+    zypper) rpm -q "$1" > /dev/null 2>&1 ;;
+    pacman) pacman -Q "$1" > /dev/null 2>&1 ;;
     *) return 1 ;;
   esac
 }
@@ -25,13 +25,13 @@ _pkg_is_installed() {
 # _pkg_force_remove <name> — unconditionally remove <name>; errors are ignored.
 _pkg_force_remove() {
   case "$_OSPKG_PKG_MNGR" in
-    apt-get)  DEBIAN_FRONTEND=noninteractive apt-get -y --purge remove "$1" > /dev/null 2>&1 || true ;;
-    apk)      apk del "$1" > /dev/null 2>&1 || true ;;
-    dnf)      dnf -y remove "$1" > /dev/null 2>&1 || true ;;
-    yum)      yum -y remove "$1" > /dev/null 2>&1 || true ;;
+    apt-get) DEBIAN_FRONTEND=noninteractive apt-get -y --purge remove "$1" > /dev/null 2>&1 || true ;;
+    apk) apk del "$1" > /dev/null 2>&1 || true ;;
+    dnf) dnf -y remove "$1" > /dev/null 2>&1 || true ;;
+    yum) yum -y remove "$1" > /dev/null 2>&1 || true ;;
     microdnf) microdnf remove "$1" > /dev/null 2>&1 || true ;;
-    zypper)   zypper --non-interactive remove "$1" > /dev/null 2>&1 || true ;;
-    pacman)   pacman -R --noconfirm "$1" > /dev/null 2>&1 || true ;;
+    zypper) zypper --non-interactive remove "$1" > /dev/null 2>&1 || true ;;
+    pacman) pacman -R --noconfirm "$1" > /dev/null 2>&1 || true ;;
   esac
 }
 
@@ -93,7 +93,7 @@ teardown() {
 
 @test "ospkg__cleanup_all_build_groups removes the tracked package" {
   ospkg__install_tracked "ospkg-inttest" "$_OSPKG_INT_PKG"
-  _pkg_is_installed "$_OSPKG_INT_PKG"  # sanity: confirm installed before cleanup
+  _pkg_is_installed "$_OSPKG_INT_PKG" # sanity: confirm installed before cleanup
 
   run ospkg__cleanup_all_build_groups
   assert_success
@@ -138,5 +138,5 @@ teardown() {
   run ospkg__cleanup_all_build_groups
   assert_success
 
-  _pkg_is_installed "$_OSPKG_INT_PKG"  # must survive
+  _pkg_is_installed "$_OSPKG_INT_PKG" # must survive
 }
