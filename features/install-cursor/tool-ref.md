@@ -114,6 +114,7 @@ The official installation surface is installer-script-based, with one documented
 - Authentication:
   - Browser login flow: `agent login`.
   - API key methods: `CURSOR_API_KEY` env var or `--api-key` flag.[^cli-auth][^cli-params]
+  - ACP/custom-client pre-authentication: `--auth-token` flag or `CURSOR_AUTH_TOKEN` env var for `agent acp` and other custom integrations.[^cli-acp]
 - CLI configuration file:
   - Global: `~/.cursor/cli-config.json`
   - Project: `<project>/.cursor/cli.json` (permissions-only at project scope)
@@ -284,6 +285,7 @@ The official installation surface is installer-script-based, with one documented
 
 - Same runtime configuration/authentication model as other platforms:
   - `agent login`, `CURSOR_API_KEY`, `--api-key`
+  - `--auth-token`, `CURSOR_AUTH_TOKEN` for ACP/custom-client pre-authentication[^cli-acp]
   - `%USERPROFILE%\.cursor\cli-config.json` global config
   - `<project>/.cursor/cli.json` project-level permissions
   - MCP configuration and approvals via `.cursor/mcp.json` and CLI commands.[^cli-auth][^cli-config][^cli-permissions][^mcp-docs][^cli-params]
