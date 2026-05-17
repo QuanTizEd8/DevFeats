@@ -384,7 +384,8 @@ Homebrew currently publishes both channels as casks.[^brew-cask-copilot][^brew-c
 
 ##### Activation Scripts
 
-- `copilot completion SHELL` can be enabled for the current session (for example `source <(copilot completion bash)`) or persisted by writing shell-specific completion files (for example Bash `/etc/bash_completion.d/copilot`, Zsh `_copilot` in an `fpath` directory, Fish `~/.config/fish/completions/copilot.fish`).[^cmd-ref]
+- Homebrew casks generate shell completions from the `copilot` executable during installation.[^brew-cask-code-stable][^brew-cask-code-prerelease]
+- `copilot completion SHELL` can also be enabled for the current session (for example `source <(copilot completion bash)`) or persisted by writing shell-specific completion files (for example Bash `/etc/bash_completion.d/copilot`, Zsh `_copilot` in an `fpath` directory, Fish `~/.config/fish/completions/copilot.fish`).[^cmd-ref]
 
 ##### Cleanup
 
@@ -433,7 +434,7 @@ brew uninstall --cask --zap copilot-cli@prerelease
 #### Supported Platforms
 
 - Official docs position this method for macOS and Linux.[^install-docs]
-- Installer source detects `Darwin`/`Linux` directly; on other platforms it attempts `winget install GitHub.Copilot` when `winget` is present.[^repo-install-script]
+- Installer source detects `Darwin`/`Linux` directly; on other platforms it runs `winget install GitHub.Copilot` when `winget` is present, then exits that fallback path.[^repo-install-script]
 - Architecture support in script for tarball flow is `x64` and `arm64` only.[^repo-install-script]
 
 #### Dependencies
@@ -446,6 +447,7 @@ brew uninstall --cask --zap copilot-cli@prerelease
 
 ##### Platform-Specific Dependencies
 
+- Windows fallback path requires `winget` availability on host.[^repo-install-script][^winget-install]
 - `git` is required when `VERSION=prerelease` is requested.[^repo-install-script]
 - `sha256sum` or `shasum` is used for checksum validation when available (optional but recommended).[^repo-install-script]
 
@@ -473,6 +475,7 @@ brew uninstall --cask --zap copilot-cli@prerelease
 
 Behavior from source code:
 
+- Non-Darwin/Linux fallback path invokes `winget install GitHub.Copilot` and then exits; the tarball flow below applies to Darwin/Linux path.[^repo-install-script]
 - Builds platform+arch tarball URL.
 - Downloads tarball and `SHA256SUMS.txt`.
 - Validates checksum when checksum utility exists.
@@ -502,6 +505,7 @@ Behavior from source code:
   - unset or `latest` -> latest release download URL
   - `prerelease` -> resolves highest remote tag via `git ls-remote --tags --sort version:refname | tail -1`
   - explicit version (auto-prefixed with `v` if needed)
+- Windows winget fallback path does not use script `VERSION`; channel/version selection follows WinGet package resolution behavior.[^repo-install-script][^winget-install]
 
 [^repo-install-script][^install-docs]
 
@@ -511,6 +515,7 @@ Behavior from source code:
 - Defaults:
   - root: `/usr/local`
   - non-root: `$HOME/.local`
+- Windows winget fallback path is managed by WinGet installation locations rather than script `PREFIX`.
 
 [^repo-install-script][^install-docs]
 
@@ -518,6 +523,7 @@ Behavior from source code:
 
 - Non-root installs to user-local prefix by default.
 - Root installs to system-like prefix by default.
+- Windows fallback path uses WinGet-managed package targeting semantics.
 
 [^repo-install-script]
 
@@ -528,14 +534,14 @@ Behavior from source code:
 
 ##### Tool-Specific Configurations
 
-- Installer uses `GITHUB_TOKEN` for authenticated GitHub API/download and tag lookup paths when present.[^repo-install-script]
+- Installer uses `GITHUB_TOKEN` for authenticated release downloads and prerelease tag lookup paths when present.[^repo-install-script]
 - Runtime auth and config vars after install include `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`, `COPILOT_HOME`, and `COPILOT_CACHE_HOME`.[^cmd-ref][^config-dir]
 
 #### Post-Installation Steps and Cleanup
 
 ##### PATH Setup
 
-- If install directory is not already on PATH, installer proposes shell-specific updates:
+- For Darwin/Linux tarball path, if install directory is not already on PATH, installer proposes shell-specific updates:
   - zsh: `~/.zprofile`
   - bash: `~/.bash_profile`/`~/.bash_login`/`~/.profile`
   - fish: `~/.config/fish/conf.d/copilot.fish`
@@ -571,6 +577,7 @@ Behavior from source code:
 ##### Uninstallation
 
 - No dedicated uninstall command is documented for this method; remove installed binary (`$PREFIX/bin/copilot`) and any PATH lines added to shell profile.[^install-docs][^cmd-ref][^repo-install-script]
+- On Windows fallback installs, use WinGet package removal workflow (`winget uninstall GitHub.Copilot`).[^repo-install-script][^winget-uninstall]
 
 ##### Idempotency
 
