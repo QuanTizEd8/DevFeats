@@ -17,7 +17,7 @@ The runtime is extensible through plugin packages and configuration files. Plugi
 
 Distribution architecture is mixed:
 
-- GitHub publishes platform binaries and installers in release assets (for example Linux/macOS tarballs and Windows MSI/ZIP). The latest release metadata also includes `github-copilot-<version>-<platform>.tgz` npm tarball assets.[^release-latest][^releases-page]
+- GitHub publishes platform binaries and installers in release assets (for example Linux/macOS tarballs and Windows MSI/ZIP).[^release-latest][^releases-page]
 - The public `github/copilot-cli` repository root listing currently exposes support artifacts such as `README.md`, `changelog.md`, and `install.sh`, plus metadata directories (for example `.github`).[^repo-contents]
 
 Authentication is supported via OAuth login flow (`copilot login`) and environment token precedence (`COPILOT_GITHUB_TOKEN`, then `GH_TOKEN`, then `GITHUB_TOKEN`). The CLI stores state/config in the config directory (default `~/.copilot`, overridable by `COPILOT_HOME`), with a separate cache directory (`COPILOT_CACHE_HOME` override available).[^cmd-ref][^config-dir]
@@ -135,7 +135,9 @@ These commands are documented by GitHub for Copilot CLI and align with npm globa
 
 ##### Environment Variables
 
-- Common persistent vars: `COPILOT_GITHUB_TOKEN`, `COPILOT_HOME`, `COPILOT_CACHE_HOME`, optional model/provider vars.[^cmd-ref][^about-cli]
+- Common persistent vars: `COPILOT_GITHUB_TOKEN`, `COPILOT_HOME`, `COPILOT_CACHE_HOME`, and model/provider configuration variables `COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_TYPE`, `COPILOT_PROVIDER_API_KEY`, and `COPILOT_MODEL`.[^cmd-ref][^about-cli]
+
+- If you use a custom provider, it must support tool calling and streaming; the CLI notes a recommended context window of at least 128k tokens for best results.[^about-cli]
 
 ##### Activation Scripts
 
@@ -732,7 +734,7 @@ Command patterns above are documented in plugin how-to and plugin reference.[^pl
 #### Source and Manifest
 
 - Marketplace repository: `github/awesome-copilot`.
-- Marketplace manifest: `.github/plugin/marketplace.json` with extensive plugin entries and metadata fields (`name`, `source`, `description`, `version`, optional repository/author fields).[^marketplace-awesome-copilot][^plugin-ref]
+- Marketplace manifest: `.github/plugin/marketplace.json` with extensive plugin entries and metadata fields (`name`, `source`, `description`, `version`, optional repository/author fields). The manifest sets `metadata.pluginRoot` to `./plugins`, so relative plugin `source` entries resolve from that directory.[^marketplace-awesome-copilot][^plugin-ref]
 
 #### Installation and Management
 
