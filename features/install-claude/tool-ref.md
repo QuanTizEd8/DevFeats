@@ -26,6 +26,7 @@ Claude Code supports three primary installation families relevant to this featur
 #### Supported Platforms
 
 - macOS, Linux, and WSL via `curl -fsSL https://claude.ai/install.sh | bash`.[^docs-setup]
+- WSL support is specifically documented for WSL 2; WSL 1 is marked unsupported.[^docs-setup]
 - Windows PowerShell via `irm https://claude.ai/install.ps1 | iex` and Windows CMD via `install.cmd` bootstrap.[^docs-setup]
 - System requirements include macOS 13+, Windows 10 1809+/Server 2019+, Ubuntu 20.04+, Debian 10+, Alpine 3.19+, x64/ARM64, and 4 GB+ RAM.[^docs-setup]
 - POSIX bootstrap script itself explicitly rejects Windows and performs Darwin/Linux detection; Windows support is provided by PowerShell/CMD bootstraps.[^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd]
@@ -66,7 +67,7 @@ curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del in
 
 - Basic verification: `claude --version`.[^docs-setup]
 - Diagnostic verification: `claude doctor`.[^docs-setup]
-- Supply-chain verification is documented through signed manifest validation (`manifest.json.sig`) and fingerprint checks before trusting keys/checksums.[^docs-setup]
+- Supply-chain verification guidance includes signed manifest validation (available from release `2.1.89` onward), signing-key fingerprint checks, and platform code-signature verification guidance for macOS and Windows.[^docs-setup]
 
 #### Configuration Options
 
@@ -155,7 +156,7 @@ curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del in
 
 ##### Platform-Specific Dependencies
 
-- Linux package repositories require importing/trusting Anthropic signing keys and validating fingerprints/checksums as documented.[^docs-setup]
+- Linux package-manager setup requires adding Anthropic repository signing keys (`claude-code.asc` for apt/dnf, `claude-code.rsa.pub` for apk).[^docs-setup]
 
 #### Installation Steps
 
@@ -206,7 +207,7 @@ apk add claude-code
 #### Installation Verification
 
 - Run `claude --version` and optionally `claude doctor`.[^docs-setup]
-- Verify apt/dnf key fingerprints and apk key checksum as documented before trusting repository keys.[^docs-setup]
+- Follow package-manager key verification guidance before trusting repository configuration (including the explicit apt fingerprint check documented by Anthropic).[^docs-setup]
 
 #### Configuration Options
 
@@ -221,7 +222,7 @@ apk add claude-code
 
 ##### User Targeting
 
-- Package-manager installs are generally system-wide rather than per-user local bootstrap install.[^docs-setup]
+- apt/dnf/apk flows are system-package installations, while Homebrew and WinGet are typically run in user-context package-manager workflows.[^docs-setup]
 
 ##### Required Privileges
 
@@ -345,11 +346,11 @@ The npm package's postinstall step links the native executable into place; runti
 
 ##### Activation Scripts
 
-- No dedicated activation script is required by this installation method.[^docs-setup]
+- No additional activation step is documented for npm installs beyond verifying `claude --version` and running `claude`.[^docs-setup]
 
 ##### Cleanup
 
-- Package artifacts are managed by npm cache/package lifecycle; no Claude-specific extra cleanup is required beyond uninstall.[^docs-setup]
+- npm cleanup/removal is documented through `npm uninstall -g @anthropic-ai/claude-code`, with optional broader Claude config cleanup covered in the uninstall section.[^docs-setup]
 
 #### Changing Versions and Uninstallation
 
@@ -399,7 +400,7 @@ Key implementation and operational notes:
 Comparison with established feature implementations:
 
 - Anthropic official feature (`anthropics/devcontainer-features`) exposes no custom options, installs after Node feature, adds VS Code extension customization, and install script can bootstrap Node via apt/apk/dnf/yum when absent before `npm install -g @anthropic-ai/claude-code`.[^anth-feature-json][^anth-feature-install]
-- devcontainers-extra feature exposes a `version` option, uses a vendored bootstrap script and then copies installed `claude` from `$HOME/.local/bin` into `/usr/local/bin`, assuming root-like context in common base images.[^extra-feature-json][^extra-feature-install][^extra-bootstrap]
+- devcontainers-extra feature exposes a `version` option, uses a vendored bootstrap script, and then copies installed `claude` from `$HOME/.local/bin` into `/usr/local/bin` in its install script.[^extra-feature-json][^extra-feature-install][^extra-bootstrap]
 - The containers.dev collection index includes Anthropic's dedicated Claude Code Feature entry, confirming ecosystem visibility of this install channel.[^collection-index]
 
 ## Plugins and Extensions
