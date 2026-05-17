@@ -82,6 +82,8 @@ Perform thorough research to gather all relevant information about the feature/t
 - Finding and reading the installer's source code in its entirety, when available.
 - Looking for similar features in well-established projects (cf. [Available Dev Container Features](https://containers.dev/features) and [Devcontainer Features](https://github.com/devcontainers/features)) and analyzing how they handle installation and configuration.
 - Comparing all findings against the document to identify any missing installation methods, platform-specific behaviors, configuration options, dependencies, post-installation steps, or any other important details that should be included in the document but are not.
+- Make sure the document contains ALL INFORMATION necessary to use it as a single source of truth for full implementation of the feature, without needing to consult any other sources.
+- Make sure the document is unambiguous and does not contain any information gaps, soft language, or areas that require further research to clarify.
 
 ### Step 5 — Verify Document Structure and Format
 
