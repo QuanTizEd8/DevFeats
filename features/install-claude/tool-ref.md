@@ -4,7 +4,7 @@ Claude Code (often referred to as the Claude CLI) is Anthropic's terminal-first 
 
 Operationally, Claude Code is distributed as platform-specific native binaries (macOS, Linux, Windows, x64/ARM64, including musl variants) and can be installed through multiple channels: Anthropic's native bootstrap installers, package managers (Homebrew, WinGet, apt/dnf/apk), and npm global installation. The same CLI state and settings live under the Claude config directory (`~/.claude` by default) across these channels.[^docs-setup][^src-bootstrap-sh][^src-bootstrap-ps1][^src-bootstrap-cmd][^docs-env]
 
-- **Homepage**: https://claude.ai/claude-code
+- **Homepage**: https://code.claude.com
 - **Source Code**: https://github.com/anthropics/claude-code
 - **Documentation**: https://code.claude.com/docs/en/overview
 - **Latest Release**: 2.1.143 (as of 2026-05-17)[^release-latest][^npm-latest]
