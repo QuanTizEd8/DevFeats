@@ -23,6 +23,8 @@ At runtime, behavior is controlled by configuration files and environment variab
 
 The CLI also supports plugin and MCP extensibility, including marketplace plugins, local plugin directories, and MCP server registrations.[^cli-config][^cli-permissions][^mcp-docs][^plugins-docs][^cli-params]
 
+ACP mode has an additional architectural boundary: team-level MCP servers configured from the Cursor dashboard are not supported when running `agent acp`; ACP uses project/global `.cursor/mcp.json` definitions instead.[^cli-acp]
+
 ## Installation Methods
 
 The official installation surface is installer-script-based, with one documented script path for Unix-like systems (including WSL) and one for native Windows PowerShell. Both scripts download architecture-specific prebuilt packages from `downloads.cursor.com` and install user-local executables.[^cli-installation][^install-script-unix][^install-script-win]
@@ -361,7 +363,7 @@ Recommended container-oriented setup pattern:
 3. Provide authentication through environment/secret management (`CURSOR_API_KEY`) or interactive login in trusted environments.
 4. Use project-level permissions (`.cursor/cli.json`) and MCP configs (`.cursor/mcp.json`) to enforce deterministic behavior in CI and shared dev environments.[^cli-installation][^cli-auth][^cli-config][^cli-permissions][^mcp-docs][^cli-headless][^cli-github-actions]
 
-For CI/headless flows inside containers, use print mode and machine-readable output formats (`--output-format json` or `--output-format stream-json`) with explicit permission strategy (`--force` where intended, or policy-backed allow/deny config) to avoid interactive prompts.[^cli-headless][^cli-output-format][^cli-params][^cli-permissions]
+For CI/headless flows inside containers, use print mode and machine-readable output formats (`--output-format json` or `--output-format stream-json`) with explicit permission strategy (`--force` where intended, or policy-backed allow/deny config) to avoid interactive prompts. For fully non-interactive runs, include headless-oriented controls such as `--trust` (skip workspace trust prompt in headless mode) and `--approve-mcps` where appropriate for your policy model.[^cli-headless][^cli-output-format][^cli-params][^cli-permissions]
 
 ### Ecosystem Comparison (Reference Dev Container Feature Projects)
 
@@ -408,7 +410,7 @@ Cursor CLI supports the same broader Cursor ecosystem for plugins/rules/skills/a
 [^install-script-unix]: [Cursor official Unix installer script](https://cursor.com/install) — source of OS/arch checks, download URL, install paths, symlink behavior, and cleanup logic.
 [^install-script-win]: [Cursor official Windows installer script](https://cursor.com/install?win32=true) — source of Windows download/install paths, PATH mutation, alias file generation, and idempotency behavior.
 [^ps51-get-wmiobject]: [Microsoft Learn — Get-WmiObject](https://learn.microsoft.com/powershell/module/microsoft.powershell.management/get-wmiobject?view=powershell-5.1) — Microsoft’s Windows PowerShell 5.1 reference surface for the cmdlet used by the Windows installer.
-[^devcontainers-extra-claude-install]: [devcontainers-extra/features — claude-code install.sh](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/claude-code/install.sh) — similar feature implementation using upstream installer and global launcher copy.
-[^devcontainers-extra-claude-bootstrap]: [devcontainers-extra/features — claude-code bootstrap.sh](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/claude-code/bootstrap.sh) — analogous installer with checksum validation and platform detection logic.
-[^devcontainers-extra-claude-feature-json]: [devcontainers-extra/features — claude-code devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/claude-code/devcontainer-feature.json) — comparable feature options/customizations surface.
-[^collection-index]: [devcontainers collection index](https://raw.githubusercontent.com/devcontainers/devcontainers.github.io/refs/heads/gh-pages/_data/collection-index.yml) — catalog used to identify related AI-agent devcontainer feature ecosystems.
+[^devcontainers-extra-claude-install]: [devcontainers-extra/features — claude-code install.sh (commit 7afd88a111537e3396b1ce1e9dfb7aa98ee76e34)](https://github.com/devcontainers-extra/features/blob/7afd88a111537e3396b1ce1e9dfb7aa98ee76e34/src/claude-code/install.sh) — similar feature implementation using upstream installer and global launcher copy.
+[^devcontainers-extra-claude-bootstrap]: [devcontainers-extra/features — claude-code bootstrap.sh (commit 7afd88a111537e3396b1ce1e9dfb7aa98ee76e34)](https://github.com/devcontainers-extra/features/blob/7afd88a111537e3396b1ce1e9dfb7aa98ee76e34/src/claude-code/bootstrap.sh) — analogous installer with checksum validation and platform detection logic.
+[^devcontainers-extra-claude-feature-json]: [devcontainers-extra/features — claude-code devcontainer-feature.json (commit 7afd88a111537e3396b1ce1e9dfb7aa98ee76e34)](https://github.com/devcontainers-extra/features/blob/7afd88a111537e3396b1ce1e9dfb7aa98ee76e34/src/claude-code/devcontainer-feature.json) — comparable feature options/customizations surface.
+[^collection-index]: [devcontainers collection index (commit 7abf25d964cc731eecf8adfe03571d3bb045236b)](https://github.com/devcontainers/devcontainers.github.io/blob/7abf25d964cc731eecf8adfe03571d3bb045236b/_data/collection-index.yml) — catalog used to identify related AI-agent devcontainer feature ecosystems.
