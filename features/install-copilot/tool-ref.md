@@ -5,7 +5,7 @@ GitHub Copilot CLI provides an agentic command-line interface (`copilot`) for wo
 For feature implementers, the key practical point is that Copilot CLI is distributed through multiple channels (npm, WinGet, Homebrew, install script, and direct release assets), while runtime behavior is configured through files and environment variables under a per-user configuration directory (default `~/.copilot`) plus optional repository-local settings. Plugin and MCP/LSP extensibility are first-class and affect how a feature should treat installation, updates, and policy controls.[^install-docs][^config-dir][^plugin-ref]
 
 - **Homepage**: https://github.com/features/copilot
-- **Source Code**: https://github.com/github/copilot-cli
+- **Source Code**: https://github.com/github/copilot-cli[^repo-source]
 - **Documentation**: https://docs.github.com/en/copilot/how-tos/copilot-cli
 - **Latest Release**: v1.0.48 (as of 2026-05-17)[^release-latest]
 
@@ -17,14 +17,29 @@ The runtime is extensible through plugin packages and configuration files. Plugi
 
 Distribution architecture is mixed:
 
-- GitHub publishes platform binaries and installers in release assets (for example Linux/macOS tarballs and Windows MSI/ZIP), plus npm artifacts.[^release-latest][^releases-page]
-- The public `github/copilot-cli` repository contains release/support assets (README, changelog, installer script), while the CLI runtime itself is consumed as release artifacts rather than built from visible source files in that repository root.[^repo-contents]
+- GitHub publishes platform binaries and installers in release assets (for example Linux/macOS tarballs and Windows MSI/ZIP). The latest release metadata also includes `github-copilot-<version>-<platform>.tgz` npm tarball assets.[^release-latest][^releases-page]
+- The public `github/copilot-cli` repository root listing currently exposes support artifacts such as `README.md`, `changelog.md`, and `install.sh`, plus metadata directories (for example `.github`).[^repo-contents]
 
 Authentication is supported via OAuth login flow (`copilot login`) and environment token precedence (`COPILOT_GITHUB_TOKEN`, then `GH_TOKEN`, then `GITHUB_TOKEN`). The CLI stores state/config in the config directory (default `~/.copilot`, overridable by `COPILOT_HOME`), with a separate cache directory (`COPILOT_CACHE_HOME` override available).[^cmd-ref][^config-dir]
 
 ## Installation Methods
 
 Copilot CLI is officially installable via npm, WinGet, Homebrew, a shell installer, and direct release downloads from GitHub. Method choice primarily affects dependency surface, privilege model, and update/uninstall mechanics.[^install-docs]
+
+### Common Post-Install Validation (Authentication and First Run)
+
+After any installation method, complete an authentication-capable sanity check before treating the install as production-ready:
+
+1. Authenticate using either:
+  - `copilot login`, or
+  - one of the supported token environment variables (`COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`).[^install-docs][^cmd-ref]
+2. Run a minimal prompt-mode invocation:
+
+  ```bash
+  copilot -p "Reply with OK" -s
+  ```
+
+This verifies end-to-end auth/model access, not just local binary presence. For organization-managed users, confirm Copilot CLI policy is enabled if authentication fails despite valid credentials.[^about-cli][^install-docs][^cmd-ref]
 
 ### npm (All Platforms)
 
@@ -143,7 +158,7 @@ with shell-specific install patterns from command reference.[^cmd-ref]
 ##### Upgrading/Downgrading
 
 - Upgrade/switch versions by reinstalling desired npm package spec (for example `@latest`, `@prerelease`, or explicit version).[^npm-install][^install-docs]
-- CLI also provides `copilot update` to install latest version, independent of package manager semantics.[^cmd-ref]
+- CLI also provides `copilot update`, but for npm-managed installs prefer npm-based upgrades to keep package-manager state aligned.[^cmd-ref][^npm-install]
 
 ##### Uninstallation
 
@@ -406,6 +421,7 @@ brew uninstall copilot-cli@prerelease
 
 ##### Common Dependencies
 
+- `bash` interpreter (official invocation pipes installer content to `bash`, and installer source uses bash shebang/features).[^install-docs][^repo-install-script]
 - `curl` or `wget` for downloads.[^repo-install-script][^install-docs]
 - `tar` for extraction.[^repo-install-script]
 
@@ -674,39 +690,94 @@ For this repository's feature design, the most relevant takeaways are channel pi
 
 Copilot CLI has built-in plugin management (`copilot plugin ...`) and supports plugin marketplaces.[^cmd-ref][^plugin-ref][^plugin-about]
 
-Plugin capabilities include packaging of:
+Plugin capabilities include packaging of custom agents, skills, hooks, MCP server definitions, and LSP server definitions.[^plugin-about][^plugin-ref]
 
-- Custom agents
-- Skills
-- Hooks
-- MCP server definitions
-- LSP server definitions
+### Marketplace Extension: copilot-plugins
 
-[^plugin-about][^plugin-ref]
+#### Summary
 
-Installation sources for plugins include marketplace specs, GitHub repositories, Git URLs, and local paths. Core management commands include install/uninstall/list/update plus marketplace add/list/browse/remove.[^plugin-ref]
+`copilot-plugins` is one of the two marketplaces registered by default in Copilot CLI. It provides a curated plugin catalog that includes GitHub-owned entries and externally sourced plugin definitions.[^plugin-find-install][^marketplace-copilot-plugins]
 
-Important operational details for implementers:
+#### Source and Manifest
 
-- Installed plugin filesystem locations are under `~/.copilot/installed-plugins/...` with direct installs under `_direct`.[^plugin-ref][^config-dir]
-- Name collision/precedence rules differ by component type:
-  - Agents and skills: first-found-wins
-  - MCP servers: last-wins
+- Marketplace repository: `github/copilot-plugins`.
+- Marketplace manifest: `.github/plugin/marketplace.json` with top-level metadata and a `plugins` array (for example entries such as `workiq`, `spark`, and `advanced-security`).[^marketplace-copilot-plugins]
+
+#### Installation and Management
+
+Use CLI plugin commands:
+
+```bash
+copilot plugin marketplace list
+copilot plugin marketplace browse copilot-plugins
+copilot plugin install PLUGIN-NAME@copilot-plugins
+copilot plugin list
+copilot plugin update PLUGIN-NAME
+copilot plugin uninstall PLUGIN-NAME
+```
+
+Command patterns above are documented in plugin how-to and plugin reference.[^plugin-find-install][^plugin-ref]
+
+#### Notes
+
+- Plugin files install under `~/.copilot/installed-plugins/<marketplace>/<plugin>/`.[^plugin-ref][^config-dir]
+- Marketplace removal fails if plugins from that marketplace remain installed unless forced (`--force`).[^plugin-find-install]
+
+### Marketplace Extension: awesome-copilot
+
+#### Summary
+
+`awesome-copilot` is also registered by default and is positioned as a community-driven catalog of plugins, agents, prompts, and skills.[^plugin-find-install][^marketplace-awesome-copilot]
+
+#### Source and Manifest
+
+- Marketplace repository: `github/awesome-copilot`.
+- Marketplace manifest: `.github/plugin/marketplace.json` with extensive plugin entries and metadata fields (`name`, `source`, `description`, `version`, optional repository/author fields).[^marketplace-awesome-copilot][^plugin-ref]
+
+#### Installation and Management
+
+```bash
+copilot plugin marketplace browse awesome-copilot
+copilot plugin install PLUGIN-NAME@awesome-copilot
+copilot plugin list
+```
+
+Example from docs:
+
+```bash
+copilot plugin install database-data-management@awesome-copilot
+```
+
+[^plugin-find-install]
+
+#### Notes
+
+- For deterministic environments, pin plugin names/versions and record marketplace source in infra docs.[^plugin-ref][^plugin-find-install]
+
+### Cross-Marketplace Behavior and Safety
+
+Installation sources include marketplace specs, GitHub repositories, Git URLs, and local paths; additional marketplaces can be registered with `copilot plugin marketplace add`.[^plugin-ref][^plugin-find-install][^plugin-marketplace]
+
+Operational precedence and storage details that affect implementation:
+
+- Installed plugin filesystem roots are under `~/.copilot/installed-plugins/...` (direct installs under `_direct`).[^plugin-ref][^config-dir]
+- Name collision behavior differs by component type:
+  - Agents/skills: first-found-wins.
+  - MCP servers: last-wins.
 
 [^plugin-ref]
 
-- Default marketplaces include `copilot-plugins` and `awesome-copilot`, and additional marketplaces can be registered.[^plugin-about][^plugin-marketplace]
-
-These plugin semantics affect enterprise policy, reproducibility, and support posture for any feature that wants to preconfigure Copilot CLI environments.[^plugin-ref][^config-dir]
+These semantics matter for enterprise policy, reproducibility, and debugging when features preconfigure plugin stacks.[^plugin-ref][^config-dir]
 
 ## References
 
 [^about-cli]: [GitHub Docs - About GitHub Copilot CLI](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli) - Primary conceptual reference for CLI purpose, modes, security model, and supported OS.
-[^install-docs]: [GitHub Docs - Installing GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli) - Official installation channels, prerequisites, and install commands.
+[^install-docs]: [GitHub Docs - Installing GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli) - Official installation channels, prerequisites, and install commands.
 [^cmd-ref]: [GitHub Docs - GitHub Copilot CLI command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference) - Authoritative command, option, environment variable, and completion reference.
 [^config-dir]: [GitHub Docs - GitHub Copilot CLI configuration directory](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference) - Config/state layout, cascading settings, and path overrides.
 [^plugin-about]: [GitHub Docs - About plugins for GitHub Copilot CLI](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-cli-plugins) - Plugin architecture and use-cases.
 [^plugin-ref]: [GitHub Docs - GitHub Copilot CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference) - Plugin commands, manifests, paths, and precedence details.
+[^plugin-find-install]: [GitHub Docs - Finding and installing plugins for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing) - Default marketplaces and install/update/remove workflows.
 [^plugin-marketplace]: [GitHub Docs - Creating a plugin marketplace for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace) - Marketplace structure and registration flow.
 [^repo-source]: [GitHub Repository - github/copilot-cli](https://github.com/github/copilot-cli) - Upstream project repository.
 [^repo-contents]: [GitHub API - Repository root contents for github/copilot-cli](https://api.github.com/repos/github/copilot-cli/contents) - Confirms public root layout and installer/support artifacts.
@@ -723,3 +794,5 @@ These plugin semantics affect enterprise policy, reproducibility, and support po
 [^devcontainers-install]: [devcontainers/features - copilot-cli install.sh](https://raw.githubusercontent.com/devcontainers/features/main/src/copilot-cli/install.sh) - Reference devcontainer installation implementation.
 [^devcontainers-feature-json]: [devcontainers/features - copilot-cli devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers/features/main/src/copilot-cli/devcontainer-feature.json) - Feature options, postStartCommand, and install ordering metadata.
 [^devcontainers-readme]: [devcontainers/features - copilot-cli README](https://raw.githubusercontent.com/devcontainers/features/main/src/copilot-cli/README.md) - Usage example and platform support notes for the reference feature.
+[^marketplace-copilot-plugins]: [copilot-plugins marketplace manifest](https://raw.githubusercontent.com/github/copilot-plugins/main/.github/plugin/marketplace.json) - Default marketplace manifest schema and representative plugin entries.
+[^marketplace-awesome-copilot]: [awesome-copilot marketplace manifest](https://raw.githubusercontent.com/github/awesome-copilot/main/.github/plugin/marketplace.json) - Community marketplace manifest and representative plugin catalog entries.
