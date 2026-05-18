@@ -85,10 +85,8 @@ def _yaml_str(value: str, indent: int = 0) -> str:
     if "\n" not in value.rstrip("\n"):
         # Single-line: emit as a plain or double-quoted scalar.
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        if any(
-            c in value
-            for c in ('"', "'", ":", "{", "}", "[", "]", "#", "&", "*", "!", "|", ">", "?", "-")
-        ):
+        yaml_special = '"\':{}[]#&*!|>?-'
+        if any(c in value for c in yaml_special):
             return f'"{escaped}"'
         return value
     # Multi-line: use literal block scalar (|).
@@ -120,8 +118,7 @@ def _emit_group(test_id: str, group: dict) -> str:
         cmd = item["cmd"]
         if isinstance(cmd, list):
             lines.append("      cmd:")
-            for c in cmd:
-                lines.append(f"        - {_yaml_str(c)}")
+            lines.extend(f"        - {_yaml_str(c)}" for c in cmd)
         else:
             lines.append(f"      cmd: {_yaml_str(cmd, indent=6)}")
         if item.get("debug"):
@@ -140,7 +137,7 @@ def _emit_group(test_id: str, group: dict) -> str:
 
 
 def _collect_statement(lines: list[str], start: int) -> tuple[str, int, bool]:
-    """Collect a potentially backslash-continued statement into a single string.
+    r"""Collect a potentially backslash-continued statement into a single string.
 
     Returns (joined_text, next_index, is_multiline).  The returned text has the
     backslashes removed and lines joined with ``\\n``.  *is_multiline* is True
@@ -199,8 +196,10 @@ def _collect_function_body(lines: list[str], start: int) -> tuple[str, int]:
 # check-call parser
 # ---------------------------------------------------------------------------
 
-_TITLE_DQ_RE = re.compile(r'^(check|fail_check|checkMultiple)\s+"((?:[^"\\]|\\.)*)"(.*)', re.DOTALL)
-_TITLE_SQ_RE = re.compile(r"^(check|fail_check|checkMultiple)\s+'([^']*)'\s*(.*)", re.DOTALL)
+_TITLE_DQ_PAT = r'^(check|fail_check|checkMultiple)\s+"((?:[^"\\]|\\.)*)"(.*)'
+_TITLE_DQ_RE = re.compile(_TITLE_DQ_PAT, re.DOTALL)
+_TITLE_SQ_PAT = r"^(check|fail_check|checkMultiple)\s+'([^']*)'\s*(.*)"
+_TITLE_SQ_RE = re.compile(_TITLE_SQ_PAT, re.DOTALL)
 
 
 def _parse_check_call(stmt: str) -> dict | None:
@@ -279,7 +278,8 @@ def _parse_sh(path: Path) -> dict:
         stripped = line.strip()
 
         # Skip boilerplate that can appear after description.
-        if _SETE_RE.match(stripped) or _SOURCE_RE.match(stripped) or _REPORT_RE.match(stripped):
+        boilerplate = _SETE_RE, _SOURCE_RE, _REPORT_RE
+        if any(r.match(stripped) for r in boilerplate):
             i += 1
             continue
         if _TRAP_RE.match(stripped):
@@ -391,6 +391,7 @@ def _parse_sh(path: Path) -> dict:
 
 
 def main() -> None:
+    """Migrate feature test .sh files to checks.yaml format."""
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -445,7 +446,9 @@ def main() -> None:
             print(f"⚠  {sh_path.name}: parse error — {exc}", file=sys.stderr)
             group = {
                 "description": f"# TODO: parse failed — {exc}",
-                "checks": [{"title": "# TODO: parse failed", "cmd": "true", "_todo": True}],
+                "checks": [
+                    {"title": "# TODO: parse failed", "cmd": "true", "_todo": True},
+                ],
             }
 
         # Serialise before stripping _todo so _emit_group can emit comments.

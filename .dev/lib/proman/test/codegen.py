@@ -141,7 +141,7 @@ def _render_group(test_id: str, group: dict[str, Any]) -> str:  # noqa: ARG001
 
 
 def generate_tests(
-    feature: str,
+    _feature: str,
     checks_path: Path,
     out_dir: Path,
 ) -> None:
@@ -149,7 +149,7 @@ def generate_tests(
 
     Parameters
     ----------
-    feature:
+    _feature:
         Feature name (reserved for future feature-specific logic).
     checks_path:
         Path to the checks.yaml file.
