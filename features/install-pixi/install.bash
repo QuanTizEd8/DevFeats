@@ -322,13 +322,11 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
     verify_pixi
     install_pixi_binary
   else
-    _idir_arg=()
-    [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
     github__install_release \
       --repo "prefix-dev/pixi" --tag "v${VERSION}" \
       --asset "pixi-${TRIPLE}.tar.gz" --binary-src pixi --binary-dest "${PREFIX}/bin" \
       --sidecar-url "${SIDECAR_URL}" \
-      "${_idir_arg[@]}" ||
+      --installer-dir "${INSTALLER_DIR}" ||
       exit 1
   fi
 fi
