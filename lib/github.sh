@@ -438,8 +438,9 @@ github__install_release() {
 
   # ── SHA-256: sidecar (explicit URL or auto-detected) ─────────────────────────
   # Handles standard sha256sum multi-entry format ("<hash>  <filename>") where $NF
-  # is the filename, and raw single-hash sidecar files (NF==1 NR==1 fallback — a
-  # file with exactly one line containing only a hash and no filename field).
+  # is the filename (path prefixes like "./" are stripped to compare bare basenames),
+  # and raw single-hash sidecar files (NF==1 NR==1 fallback — a file with exactly
+  # one line containing only a hash and no filename field).
   # Sidecar files are saved under their original URL basename so that a retained
   # --installer-dir contains human-readable filenames (e.g. checksums.txt, SHA256SUMS).
   local _sidecar_file="" _sidecar_hash=""
@@ -450,7 +451,7 @@ github__install_release() {
       logging__error "github__install_release: failed to download sidecar '${_sidecar_url}'."
       return 1
     }
-    _sidecar_hash="$(awk -v a="${_asset}" '{fn=$NF; sub(/^\*/, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1 && NF==1)print $1}' "$_sidecar_file")"
+    _sidecar_hash="$(awk -v a="${_asset}" '{fn=$NF; sub(/^\*/, "", fn); sub(/.*\//, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1 && NF==1)print $1}' "$_sidecar_file")"
     [ -n "$_sidecar_hash" ] || {
       logging__error "github__install_release: could not extract hash for '${_asset}' from sidecar."
       return 1
@@ -463,7 +464,7 @@ github__install_release() {
       "${_release_base}/sha256sum.txt"; do
       _sidecar_file="${_work_dir}/$(basename "$_sidecar_candidate")"
       if net__fetch_url_file "$_sidecar_candidate" "$_sidecar_file" 2> /dev/null; then
-        _sidecar_hash="$(awk -v a="${_asset}" '{fn=$NF; sub(/^\*/, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1 && NF==1)print $1}' "$_sidecar_file")"
+        _sidecar_hash="$(awk -v a="${_asset}" '{fn=$NF; sub(/^\*/, "", fn); sub(/.*\//, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1 && NF==1)print $1}' "$_sidecar_file")"
         if [ -n "$_sidecar_hash" ]; then
           logging__info "github__install_release: auto-detected sidecar at '${_sidecar_candidate}'"
           break

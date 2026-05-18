@@ -1632,6 +1632,31 @@ _stub_install_release_common() {
   assert_output --partial "could not extract hash"
 }
 
+@test "github__install_release: explicit --sidecar-url with ./ path prefix in filename field succeeds" {
+  # Miniforge-style sidecar: hash followed by './filename' — the ./ prefix must
+  # be stripped before comparing against the asset name.
+  _stub_install_release_common
+  local _hash="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  local _sidecar_url="https://dl.invalid/mybin.sha256"
+  export _hash _sidecar_url
+  net__fetch_url_file() {
+    if [ "$1" = "$_sidecar_url" ]; then
+      printf '%s  ./mybin\n' "$_hash" > "$2"
+      return 0
+    fi
+    printf '\x7fELF\x00\x00' > "$2"
+    return 0
+  }
+  export -f net__fetch_url_file
+  verify__sha256() { return 0; }; export -f verify__sha256
+  file__detect_type() { printf 'elf'; }; export -f file__detect_type
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
+  assert_success
+}
+
 # --- SHA-256: sidecar auto-detection ---
 
 @test "github__install_release: auto-detect finds {asset_url}.sha256" {
