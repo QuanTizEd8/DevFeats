@@ -344,20 +344,62 @@ uri__fetch_asset() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --url) _url="$2"; shift 2 ;;
-      --dest) _dest="$2"; shift 2 ;;
-      --installer-dir) _installer_dir="$2"; shift 2 ;;
-      --header) _headers+=("$2"); shift 2 ;;
-      --netrc-file) _netrc="$2"; shift 2 ;;
-      --sha256) _sha256_spec="$2"; shift 2 ;;
-      --sidecar-url) _sidecar_url="$2"; shift 2 ;;
-      --gpg-key-url) _gpg_key_url="$2"; shift 2 ;;
-      --gpg-sig-url) _gpg_sig_url="$2"; shift 2 ;;
-      --filename) _filename="$2"; shift 2 ;;
-      --binary-src) _binary_src+=("$2"); shift 2 ;;
-      --binary-dest) _binary_dest+=("$2"); shift 2 ;;
-      --owner-group) _owner_group="$2"; shift 2 ;;
-      --chmod-exec) _chmod_exec=true; shift ;;
+      --url)
+        _url="$2"
+        shift 2
+        ;;
+      --dest)
+        _dest="$2"
+        shift 2
+        ;;
+      --installer-dir)
+        _installer_dir="$2"
+        shift 2
+        ;;
+      --header)
+        _headers+=("$2")
+        shift 2
+        ;;
+      --netrc-file)
+        _netrc="$2"
+        shift 2
+        ;;
+      --sha256)
+        _sha256_spec="$2"
+        shift 2
+        ;;
+      --sidecar-url)
+        _sidecar_url="$2"
+        shift 2
+        ;;
+      --gpg-key-url)
+        _gpg_key_url="$2"
+        shift 2
+        ;;
+      --gpg-sig-url)
+        _gpg_sig_url="$2"
+        shift 2
+        ;;
+      --filename)
+        _filename="$2"
+        shift 2
+        ;;
+      --binary-src)
+        _binary_src+=("$2")
+        shift 2
+        ;;
+      --binary-dest)
+        _binary_dest+=("$2")
+        shift 2
+        ;;
+      --owner-group)
+        _owner_group="$2"
+        shift 2
+        ;;
+      --chmod-exec)
+        _chmod_exec=true
+        shift
+        ;;
       *)
         logging__error "uri__fetch_asset: unknown option '$1'."
         return 1
@@ -437,7 +479,7 @@ uri__fetch_asset() {
     _frag="$(printf '%s\n' "$_split" | tail -n1)"
     _frag_sha="$(_uri__frag_sha256 "$_frag")"
     local _cls
-    _cls="$(uri__classify "$_url" 2>/dev/null)" || true
+    _cls="$(uri__classify "$_url" 2> /dev/null)" || true
     if [[ -n "$_frag_sha" && "$_cls" != "oci" ]]; then
       verify__sha "$_dl_path" "$_frag_sha" || return 1
     fi
@@ -510,11 +552,11 @@ uri__fetch_asset() {
     logging__install "Extracting '${_asset_name}'..."
     local _extract_name
     case "$_filetype" in
-      gzip)  _extract_name="asset.tar.gz" ;;
-      xz)    _extract_name="asset.tar.xz" ;;
+      gzip) _extract_name="asset.tar.gz" ;;
+      xz) _extract_name="asset.tar.xz" ;;
       bzip2) _extract_name="asset.tar.bz2" ;;
-      zip)   _extract_name="asset.zip" ;;
-      *)     _extract_name="$_asset_name" ;;
+      zip) _extract_name="asset.zip" ;;
+      *) _extract_name="$_asset_name" ;;
     esac
     file__extract_archive "$_dl_path" "$_content_dir" "$_extract_name" || {
       logging__error "uri__fetch_asset: extraction of '${_asset_name}' failed."
@@ -550,11 +592,11 @@ uri__fetch_asset() {
     done
   elif "$_is_archive"; then
     local _discovered
-    _discovered="$(find "$_content_dir" -type f -perm -u+x 2>/dev/null || true)"
+    _discovered="$(find "$_content_dir" -type f -perm -u+x 2> /dev/null || true)"
     if [[ -z "$_discovered" ]]; then
-      while IFS= read -r _f; do chmod +x "$_f" 2>/dev/null || true; done \
+      while IFS= read -r _f; do chmod +x "$_f" 2> /dev/null || true; done \
         < <(find "$_content_dir" -type f)
-      _discovered="$(find "$_content_dir" -type f 2>/dev/null || true)"
+      _discovered="$(find "$_content_dir" -type f 2> /dev/null || true)"
     fi
     while IFS= read -r _f; do
       [[ -n "$_f" ]] || continue
@@ -582,7 +624,7 @@ uri__fetch_asset() {
       _dest_dir="${_binary_dest[0]}"
     fi
     local _dest_path="${_dest_dir%/}/${_name}"
-    chmod +x "$_src" 2>/dev/null || true
+    chmod +x "$_src" 2> /dev/null || true
     logging__install "Installing '${_name}' to '${_dest_path}'"
     install__copy_bin "$_src" "$_dest_path" || return 1
     if [[ -n "$_owner_group" ]]; then

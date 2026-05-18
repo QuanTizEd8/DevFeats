@@ -13,7 +13,6 @@ from typing import Any
 
 import yaml
 
-
 # ---------------------------------------------------------------------------
 # Internal rendering helpers
 # ---------------------------------------------------------------------------
@@ -141,7 +140,7 @@ def _render_group(test_id: str, group: dict[str, Any]) -> str:  # noqa: ARG001
 # ---------------------------------------------------------------------------
 
 
-def generate_tests(  # noqa: ARG001
+def generate_tests(
     feature: str,
     checks_path: Path,
     out_dir: Path,

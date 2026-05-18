@@ -6,9 +6,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from proman.test.codegen import _render_group, generate_tests
-
 
 # ---------------------------------------------------------------------------
 # Helpers

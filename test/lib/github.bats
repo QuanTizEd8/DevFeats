@@ -1648,8 +1648,10 @@ _stub_install_release_common() {
     return 0
   }
   export -f net__fetch_url_file
-  verify__sha256() { return 0; }; export -f verify__sha256
-  file__detect_type() { printf 'elf'; }; export -f file__detect_type
+  verify__sha256() { return 0; }
+  export -f verify__sha256
+  file__detect_type() { printf 'elf'; }
+  export -f file__detect_type
 
   run github__install_release \
     --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
@@ -2200,7 +2202,7 @@ _stub_install_release_common() {
   export -f net__fetch_url_file
   verify__sha() {
     printf '%s %s\n' "$1" "$2" >> "$_VERIFY_SHA_CALLS"
-    return 1  # always fail → triggers retry
+    return 1 # always fail → triggers retry
   }
   export -f verify__sha
 
