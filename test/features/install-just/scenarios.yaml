@@ -44,3 +44,14 @@ if_exists_fail:
     skip_install: false
   options:
     if_exists: fail
+installer_dir:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: binary
+    installer_dir: /tmp/just-trace
+  tests:
+  - installer_dir.sh

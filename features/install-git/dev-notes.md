@@ -467,7 +467,7 @@ Steps:
 6. Extract: `tar -xzf`
 7. Call `_git__source_build` → make + make install
 8. Call `_git__source_register` → register with package manager on Debian/Ubuntu (equivs dummy .deb)
-9. Call `_git__source_cleanup` → remove build dir unless `installer_dir` is set to a non-empty path
+9. Build dir cleanup is handled automatically: when `INSTALLER_DIR` is empty `file__mktmpdir` registers the dir for exit-trap removal; when non-empty the caller's directory is retained as-is
 10. Verify: `"${PREFIX}/bin/git" --version`
 
 ---
@@ -566,18 +566,6 @@ cd "${INSTALLER_DIR}/git-${_RESOLVED_VERSION}"
 make -s -j"$_NCPUS" ${_MAKE_FLAGS} ${MAKE_FLAGS} all
 # shellcheck disable=SC2086
 make -s ${_MAKE_FLAGS} ${MAKE_FLAGS} install
-```
-
----
-
-### `_git__source_cleanup`
-
-Removes the build directory unless `INSTALLER_DIR` is set to a non-empty path.
-
-```bash
-if [ -z "${INSTALLER_DIR:-}" ]; then
-  rm -rf "${_build_dir}"
-fi
 ```
 
 ---

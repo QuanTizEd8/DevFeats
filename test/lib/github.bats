@@ -1243,6 +1243,30 @@ _stub_install_release_common() {
   [[ -f "${_idir}/mybin" ]]
 }
 
+@test "github__install_release: --installer-dir only mode verifies JSON digest" {
+  local _digest="deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  _stub_install_release_common
+  _DIGEST="$_digest"
+  export _DIGEST _VERIFY_SHA_CALLS
+  github__release_json_digest_for_asset() {
+    printf '%s\n' "$_DIGEST"
+    return 0
+  }
+  export -f github__release_json_digest_for_asset
+
+  local _idir="${BATS_TEST_TMPDIR}/idir"
+  mkdir -p "$_idir"
+  run --separate-stderr github__install_release \
+    --repo "o/r" --tag "v1.0" --asset "mybin" \
+    --installer-dir "$_idir"
+  assert_success
+  # JSON digest must have been verified
+  run grep -qF "$_digest" "$_VERIFY_SHA_CALLS"
+  assert_success
+  # Asset file must be present
+  [[ -f "${_idir}/mybin" ]]
+}
+
 @test "github__install_release: --asset and --asset-regex are mutually exclusive" {
   run github__install_release --repo "o/r" --tag "v1.0" --binary-dest "/tmp" \
     --asset "a.tar.gz" --asset-regex "linux"
@@ -1563,6 +1587,51 @@ _stub_install_release_common() {
   assert_output --partial "failed to download sidecar"
 }
 
+@test "github__install_release: explicit --sidecar-url hard-fails when asset not found in multi-entry file" {
+  _stub_install_release_common
+  local _sidecar_url="https://dl.invalid/sums.txt"
+  export _sidecar_url
+  net__fetch_url_file() {
+    if [ "$1" = "$_sidecar_url" ]; then
+      # Multi-entry file that does NOT contain an entry for "mybin"
+      printf 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  othertool\n' > "$2"
+      printf 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  anothertool\n' >> "$2"
+      return 0
+    fi
+    printf '\x7fELF\x00\x00' > "$2"
+    return 0
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
+  assert_failure
+  assert_output --partial "could not extract hash"
+}
+
+@test "github__install_release: explicit --sidecar-url wrong-asset single-entry file hard-fails (not NR==1 false-positive)" {
+  _stub_install_release_common
+  local _sidecar_url="https://dl.invalid/othertool.sha256"
+  export _sidecar_url
+  net__fetch_url_file() {
+    if [ "$1" = "$_sidecar_url" ]; then
+      # Single-line sha256sum-style entry for a different file — must NOT match via NR==1 fallback
+      printf 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc  othertool\n' > "$2"
+      return 0
+    fi
+    printf '\x7fELF\x00\x00' > "$2"
+    return 0
+  }
+  export -f net__fetch_url_file
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mybin --asset "mybin" --sidecar-url "$_sidecar_url"
+  assert_failure
+  assert_output --partial "could not extract hash"
+}
+
 # --- SHA-256: sidecar auto-detection ---
 
 @test "github__install_release: auto-detect finds {asset_url}.sha256" {
@@ -1880,6 +1949,28 @@ _stub_install_release_common() {
     --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
     --binary-src "bin/gh" --asset "gh.tar.gz"
   assert_success
+}
+
+@test "github__install_release: ambiguous --binary-src fails when multiple archive entries match" {
+  _stub_install_release_common
+  file__detect_type() { printf 'gzip'; }
+  export -f file__detect_type
+  file__extract_archive() {
+    mkdir -p "$2/pkg/bin" "$2/pkg/extra"
+    touch "$2/pkg/bin/mytool"
+    chmod +x "$2/pkg/bin/mytool"
+    touch "$2/pkg/extra/mytool"
+    chmod +x "$2/pkg/extra/mytool"
+    return 0
+  }
+  export -f file__extract_archive
+
+  run github__install_release \
+    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}" \
+    --binary-src mytool --asset "pkg.tar.gz"
+  assert_failure
+  assert_output --partial "ambiguous"
+  assert_output --partial "mytool"
 }
 
 @test "github__install_release: auto-discovers all executables when no --binary-src" {

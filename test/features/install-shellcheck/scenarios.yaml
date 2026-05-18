@@ -51,3 +51,14 @@ if_exists_fail:
   - if_exists_fail.sh
   standalone:
     skip_install: false
+installer_dir:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: binary
+    installer_dir: /tmp/shellcheck-trace
+  tests:
+  - installer_dir.sh

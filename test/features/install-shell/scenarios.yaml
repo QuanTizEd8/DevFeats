@@ -201,3 +201,16 @@ apt_fzf:
     install_ohmybash: false
     install_starship: false
   tests: [apt_fzf.sh]
+
+installer_dir:
+  envs: [ubuntu-latest]
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    install_fzf: true
+    install_ohmyzsh: false
+    install_ohmybash: false
+    install_starship: false
+    installer_dir: /tmp/shell-trace
+  tests: [installer_dir.sh]

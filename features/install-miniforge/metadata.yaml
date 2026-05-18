@@ -12,7 +12,7 @@ _long_description: >-
   [Mamba](https://github.com/mamba-org/mamba) distribution from
   [conda-forge](https://conda-forge.org/), preconfigured to source all base-environment
   packages exclusively from the conda-forge channel. The official Miniforge installer is
-  downloaded, optionally verified against a SHA-256 checksum, and run non-interactively.
+  downloaded, verified against its SHA-256 checksum sidecar (hard-fail on mismatch or missing sidecar), and run non-interactively.
   Shell activation is written to the appropriate startup files and can be scoped to
   specific users.
 options:
