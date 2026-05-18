@@ -171,6 +171,22 @@ sync-docs-check:
     pixi run sync-docs-check
 
 
+[
+  group('sync'),
+  doc('Regenerate git-ignored tests/*.sh from checks.yaml; pass a feature name to limit scope.')
+]
+sync-tests feat="":
+    pixi run --environment test sync-tests {{ feat }}
+
+
+[
+  group('sync'),
+  doc('Exit non-zero if any generated test .sh is stale; pass a feature name to limit scope.')
+]
+sync-tests-check feat="":
+    pixi run --environment test sync-tests-check {{ feat }}
+
+
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 [

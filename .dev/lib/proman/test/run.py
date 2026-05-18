@@ -16,6 +16,7 @@ from pathlib import Path
 from proman.const import activation_profile_d, export_profile_d, feat_share_dir
 from proman.git import git_owner_repo
 
+from .codegen import generate_tests
 from .environments import is_macos, resolve
 from .environments import load as load_envs
 from .gen_devcontainer import generate
@@ -199,7 +200,8 @@ def _run_standalone(
         _export_pd = export_profile_d(feature, _owner, _repo)
         _activation_pd = activation_profile_d(feature, _owner, _repo)
         for ts in test_scripts:
-            ts_path = f"/repo/test/features/{feature}/tests/{ts}"
+            ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
+            ts_path = f"/repo/test/features/{feature}/tests/{ts_name}"
             if user:
                 test_cmd_lines.append(
                     f"su {user} -c '"
@@ -376,8 +378,9 @@ def _run_macos(
 
             test_scripts = scenario.get("tests", [])
             for ts in test_scripts:
+                ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
                 ts_path = str(
-                    repo_root / "test" / "features" / feature / "tests" / ts,
+                    repo_root / "test" / "features" / feature / "tests" / ts_name,
                 )
                 _owner, _repo = git_owner_repo()
                 test_env = {
@@ -451,6 +454,10 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+    checks_path = tests_dir / "checks.yaml"
+    if checks_path.exists():
+        generate_tests(args.feature, checks_path, tests_dir)
 
     envs_path = repo_root / "test" / "environments.yaml"
     envs = load_envs(envs_path)

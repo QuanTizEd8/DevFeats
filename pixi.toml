@@ -28,6 +28,8 @@ proman = { path = ".dev/lib", editable = true }
 _sync-docs-data = "proman-gen-docs-data"
 sync-src = "proman-sync"
 sync-src-check = "proman-sync --check"
+sync-tests = "proman-test-sync-tests"
+sync-tests-check = "proman-test-sync-tests --check"
 sync-docs = "proman-gen-docs"
 sync-docs-check = "proman-gen-docs --check"
 show-feats = "proman-show-feats"

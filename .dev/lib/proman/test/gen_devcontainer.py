@@ -150,8 +150,10 @@ def generate(
 
             tests = scenario.get("tests", [])
             if tests:
+                ts0 = tests[0]
+                ts0_name = ts0 if ts0.endswith(".sh") else f"{ts0}.sh"
                 _copy_test_script(
-                    tests_src_dir / tests[0],
+                    tests_src_dir / ts0_name,
                     scenarios_dir / f"{key}.sh",
                     feature,
                     owner,
