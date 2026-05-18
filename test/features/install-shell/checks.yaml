@@ -1,0 +1,765 @@
+apt_add_users:
+  description: Verifies that add_users with an explicit username configures that user.
+  pre: |
+    _HOME=/home/devuser
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: devuser .zshenv exists
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: devuser ZDOTDIR/.zshrc exists
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: devuser .bashrc exists
+      cmd: test -f "${_HOME}/.bashrc"
+    - title: devuser zshtheme file written
+      cmd: test -f "${_ZDOTDIR}/zshtheme"
+    - title: .zshenv sets ZDOTDIR
+      cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
+    - title: devuser HOME owned by devuser
+      cmd: bash -c '[ "$(stat -c %U /home/devuser)" = "devuser" ]'
+    - title: root ZDOTDIR/.zshrc NOT configured
+      cmd: bash -c '! test -f /root/.config/zsh/.zshrc'
+
+apt_augment_mode:
+  description: |
+    Verifies that user_config_mode=augment does not overwrite files that already
+    exist, but still injects framework blocks and creates missing resources.
+    The scenario Dockerfile pre-creates a custom .zshrc / .bashrc so we can
+    confirm their content is preserved.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: pre-existing ZDOTDIR/.zshrc preserved
+      cmd: grep -qF 'MY_CUSTOM_LINE' "${_ZDOTDIR}/.zshrc"
+    - title: zshtheme written in augment mode
+      cmd: test -f "${_ZDOTDIR}/zshtheme"
+    - title: bashtheme written in augment mode
+      cmd: test -f "${_HOME}/.config/bash/bashtheme"
+    - title: ZDOTDIR block injected into .zshenv
+      cmd: grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
+    - title: per-user OMZ custom dir created
+      cmd: test -d "${_ZDOTDIR}/custom"
+    - title: per-user OMB custom dir created
+      cmd: test -d "${_HOME}/.config/bash/custom"
+
+apt_container_user:
+  description: |
+    Verifies that add_container_user=true configures the user identified by
+    the containerUser field (injected as _CONTAINER_USER by the devcontainer CLI).
+
+  pre: |
+    _HOME=/home/vscode
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: vscode .zshenv exists
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: vscode ZDOTDIR/.zshrc exists
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: vscode .bashrc exists
+      cmd: test -f "${_HOME}/.bashrc"
+    - title: vscode zshtheme file written
+      cmd: test -f "${_ZDOTDIR}/zshtheme"
+    - title: .zshenv sets ZDOTDIR
+      cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
+    - title: vscode HOME owned by vscode
+      cmd: bash -c '[ "$(stat -c %U /home/vscode)" = "vscode" ]'
+    - title: root ZDOTDIR/.zshrc NOT configured
+      cmd: bash -c '! test -f /root/.config/zsh/.zshrc'
+
+apt_custom_dir_per_user:
+  description: |
+    Verifies that an explicit ~-prefixed ohmyzsh_custom_dir is expanded per-user
+    and that installer-managed plugins are symlinked (not copied) from the system
+    install into the per-user dir.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+    _USER_CUSTOM="${_HOME}/.zsh-custom"
+    _OMZ=/usr/local/share/oh-my-zsh
+    _SYS_CUSTOM="${_OMZ}/custom"
+
+  checks:
+    - title: per-user custom dir exists
+      cmd: test -d "$_USER_CUSTOM"
+    - title: per-user custom themes dir exists
+      cmd: test -d "${_USER_CUSTOM}/themes"
+    - title: per-user custom plugins dir exists
+      cmd: test -d "${_USER_CUSTOM}/plugins"
+    - title: ZSH_CUSTOM set to per-user path
+      cmd: grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" "${_ZDOTDIR}/zshtheme"
+    - title: plugin symlink created in per-user dir
+      cmd: test -L "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting"
+    - title: plugin symlink points to system custom
+      cmd: bash -c "readlink '${_USER_CUSTOM}/plugins/zsh-syntax-highlighting' | grep -qF '${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting'"
+    - title: system plugin dir still exists at target
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+    - title: plugin NOT directly cloned in per-user dir
+      cmd: bash -c '! test -d "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting/.git"'
+
+apt_custom_dir_system:
+  description: |
+    Verifies that an explicit system-path ohmyzsh_custom_dir causes themes and
+    plugins to be cloned there (not into <install_dir>/custom), ZSH_CUSTOM in
+    the user's .zshrc points to that path, and no per-user symlinks are created.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+    _SYS_CUSTOM="/opt/zsh-custom"
+    _OMZ=/usr/local/share/oh-my-zsh
+
+  checks:
+    - title: explicit system custom dir exists
+      cmd: test -d "$_SYS_CUSTOM"
+    - title: explicit system custom themes dir
+      cmd: test -d "${_SYS_CUSTOM}/themes"
+    - title: explicit system custom plugins dir
+      cmd: test -d "${_SYS_CUSTOM}/plugins"
+    - title: default plugin cloned at explicit path
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+    - title: default plugin NOT cloned at install_dir/custom
+      cmd: bash -c '! test -d "${_OMZ}/custom/plugins/zsh-syntax-highlighting"'
+    - title: ZSH_CUSTOM set to explicit system path
+      cmd: grep -qF "ZSH_CUSTOM=\"${_SYS_CUSTOM}\"" "${_ZDOTDIR}/zshtheme"
+    - title: no per-user custom dir under ZDOTDIR
+      cmd: bash -c '! test -d "${_ZDOTDIR}/custom"'
+
+apt_custom_dirs:
+  description: |
+    Verifies that custom install directories are respected for both Oh My Zsh
+    and Oh My Bash, and that the default paths are NOT populated.
+
+  pre: |
+    _OMZ=/opt/oh-my-zsh
+    _OMB=/opt/oh-my-bash
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+    _OMZ_CUSTOM="${_ZDOTDIR}/custom"
+    _SYS_CUSTOM="${_OMZ}/custom"
+    _ZSHTHEME="${_ZDOTDIR}/zshtheme"
+
+  checks:
+    - title: oh-my-zsh at custom path
+      cmd: test -d "$_OMZ"
+    - title: oh-my-zsh main script at custom path
+      cmd: test -f "${_OMZ}/oh-my-zsh.sh"
+    - title: oh-my-bash at custom path
+      cmd: test -d "$_OMB"
+    - title: oh-my-bash main script at custom path
+      cmd: test -f "${_OMB}/oh-my-bash.sh"
+    - title: omz not at default path
+      cmd: bash -c '! test -d /usr/local/share/oh-my-zsh'
+    - title: omb not at default path
+      cmd: bash -c '! test -d /usr/local/share/oh-my-bash'
+    - title: oh-my-zsh.remote git config set at custom path
+      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.remote)" = "origin"'
+    - title: system custom themes dir at custom OMZ path
+      cmd: test -d "${_SYS_CUSTOM}/themes"
+    - title: system custom plugins dir at custom OMZ path
+      cmd: test -d "${_SYS_CUSTOM}/plugins"
+    - title: default plugin cloned at custom OMZ path
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+    - title: root .zshenv exists
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: root ZDOTDIR/.zshrc exists
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: root .bashrc exists
+      cmd: test -f "${_HOME}/.bashrc"
+    - title: .zshenv sets ZDOTDIR
+      cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
+    - title: zshtheme file written
+      cmd: test -f "$_ZSHTHEME"
+    - title: .zshrc sets ZSH to custom path
+      cmd: grep -qF "export ZSH=\"${_OMZ}\"" "$_ZSHTHEME"
+    - title: per-user OMZ custom dir exists
+      cmd: test -d "${_OMZ_CUSTOM}"
+    - title: ZSH_CUSTOM points to custom ZDOTDIR/custom
+      cmd: grep -qF "ZSH_CUSTOM=\"${_OMZ_CUSTOM}\"" "$_ZSHTHEME"
+
+apt_default:
+  description: |
+    Verifies the default installation: zsh, Oh My Zsh with default plugin,
+    Oh My Bash, Starship, system config files, and BASH_ENV.
+
+  pre: |
+    _OMZ=/usr/local/share/oh-my-zsh
+    _OMB=/usr/local/share/oh-my-bash
+
+  checks:
+    - title: zsh is installed
+      cmd: command -v zsh
+    - title: bash is installed
+      cmd: command -v bash
+    - title: git is installed
+      cmd: command -v git
+    - title: oh-my-zsh install dir exists
+      cmd: test -d "$_OMZ"
+    - title: oh-my-zsh main script exists
+      cmd: test -f "${_OMZ}/oh-my-zsh.sh"
+    - title: oh-my-zsh.remote git config set
+      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.remote)" = "origin"'
+    - title: oh-my-zsh.branch git config set
+      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.branch)" = "master"'
+    - title: ZSH_CUSTOM themes dir scaffolded
+      cmd: test -d "${_OMZ}/custom/themes"
+    - title: ZSH_CUSTOM plugins dir scaffolded
+      cmd: test -d "${_OMZ}/custom/plugins"
+    - title: zsh-syntax-highlighting plugin cloned
+      cmd: test -d "${_OMZ}/custom/plugins/zsh-syntax-highlighting/.git"
+    - title: oh-my-bash install dir exists
+      cmd: test -d "$_OMB"
+    - title: oh-my-bash main script exists
+      cmd: test -f "${_OMB}/oh-my-bash.sh"
+    - title: starship binary installed
+      cmd: command -v starship
+    - title: /etc/profile exists
+      cmd: test -f /etc/profile
+    - title: /etc/bash.bashrc or equivalent exists
+      cmd: bash -c 'test -f /etc/bash.bashrc || test -f /etc/bashrc || test -f /etc/bash/bashrc'
+    - title: /etc/shellenv exists
+      cmd: test -f /etc/shellenv
+    - title: /etc/shellrc exists
+      cmd: test -f /etc/shellrc
+    - title: BASH_ENV set in /etc/environment
+      cmd: grep -q '^BASH_ENV=' /etc/environment
+    - title: zsh system zshenv exists
+      cmd: bash -c 'test -f /etc/zsh/zshenv || test -f /etc/zshenv'
+    - title: zsh system zshrc exists
+      cmd: bash -c 'test -f /etc/zsh/zshrc || test -f /etc/zshrc'
+    - title: zsh system zprofile exists
+      cmd: bash -c 'test -f /etc/zsh/zprofile || test -f /etc/zprofile'
+    - title: zsh zprofile sources /etc/profile
+      cmd: bash -c 'grep -q "/etc/profile" /etc/zsh/zprofile 2>/dev/null || grep -q "/etc/profile" /etc/zprofile 2>/dev/null'
+
+apt_direnv:
+  description: "Verifies direnv is installed and shell hooks are injected into per-user config."
+  pre: |
+    _ZSHTHEME="/root/.config/zsh/zshtheme"
+    _BASHTHEME="/root/.config/bash/bashtheme"
+
+  checks:
+    - title: direnv on PATH
+      cmd: command -v direnv
+    - title: direnv responds to --version
+      cmd: direnv --version
+    - title: zshtheme written
+      cmd: test -f "$_ZSHTHEME"
+    - title: direnv hook in zshtheme
+      cmd: grep -qF 'direnv hook zsh' "$_ZSHTHEME"
+    - title: bashtheme written
+      cmd: test -f "$_BASHTHEME"
+    - title: direnv hook in bashtheme
+      cmd: grep -qF 'direnv hook bash' "$_BASHTHEME"
+
+apt_fzf:
+  description: |
+    Verifies fzf is installed from GitHub Releases and shell hooks are injected
+    into per-user config.
+
+  pre: |
+    _ZSHTHEME="/root/.config/zsh/zshtheme"
+    _BASHTHEME="/root/.config/bash/bashtheme"
+
+  checks:
+    - title: fzf binary installed at prefix
+      cmd: test -x /usr/local/bin/fzf
+    - title: fzf on PATH
+      cmd: command -v fzf
+    - title: fzf responds to --version
+      cmd: fzf --version
+    - title: zshtheme written
+      cmd: test -f "$_ZSHTHEME"
+    - title: fzf hook in zshtheme
+      cmd: grep -qF 'fzf --zsh' "$_ZSHTHEME"
+    - title: bashtheme written
+      cmd: test -f "$_BASHTHEME"
+    - title: fzf hook in bashtheme
+      cmd: grep -qF 'fzf --bash' "$_BASHTHEME"
+
+apt_multi_plugins:
+  description: |
+    Verifies that multiple plugin slugs (scenario: newline-delimited array) are cloned into the
+    system ZSH_CUSTOM dir, and symlinked into the per-user custom dir.
+
+  pre: |
+    _OMZ=/usr/local/share/oh-my-zsh
+    _SYS_CUSTOM="${_OMZ}/custom"
+    _HOME=/root
+    _USER_CUSTOM="${_HOME}/.config/zsh/custom"
+    _CUR_CUSTOM="/home/vscode/.config/zsh/custom"
+
+  checks:
+    - title: zsh-autosuggestions cloned in system custom
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-autosuggestions/.git"
+    - title: zsh-syntax-highlighting cloned in system custom
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+    - title: per-user zsh-autosuggestions symlink exists
+      cmd: test -L "${_CUR_CUSTOM}/plugins/zsh-autosuggestions"
+    - title: per-user zsh-syntax-highlighting symlink exists
+      cmd: test -L "${_CUR_CUSTOM}/plugins/zsh-syntax-highlighting"
+
+apt_no_fonts:
+  description: |
+    Verifies that install_ohmyzsh=false, install_ohmybash=false, install_starship=false
+    results in a plain zsh install with no framework components.
+
+  checks:
+    - title: zsh is installed
+      cmd: command -v zsh
+    - title: bash is installed
+      cmd: command -v bash
+    - title: oh-my-zsh not installed
+      cmd: bash -c '! test -d /usr/local/share/oh-my-zsh'
+    - title: oh-my-bash not installed
+      cmd: bash -c '! test -d /usr/local/share/oh-my-bash'
+    - title: starship not installed
+      cmd: bash -c '! command -v starship'
+
+apt_no_git:
+  description: |
+    Verifies that the feature auto-installs git and ca-certificates when they are
+    not pre-installed, then installs all default components successfully.
+
+  checks:
+    - title: git is installed
+      cmd: command -v git
+    - title: ca-certificates installed
+      cmd: test -s /etc/ssl/certs/ca-certificates.crt
+    - title: zsh is installed
+      cmd: command -v zsh
+    - title: oh-my-zsh installed
+      cmd: test -d /usr/local/share/oh-my-zsh
+    - title: oh-my-zsh main script exists
+      cmd: test -f /usr/local/share/oh-my-zsh/oh-my-zsh.sh
+    - title: oh-my-bash installed
+      cmd: test -d /usr/local/share/oh-my-bash
+    - title: starship installed
+      cmd: command -v starship
+
+apt_no_shell_tools:
+  description: |
+    Verifies that bash-completion and zsh-completions can be individually disabled.
+
+  checks:
+    - title: bash-completion not installed
+      cmd: bash -c '! dpkg -s bash-completion >/dev/null 2>&1'
+    - title: zsh-completions tree absent
+      cmd: bash -c '! test -d /usr/local/share/zsh-completions'
+    - title: zsh-completions fpath not wired in system zshrc
+      cmd: bash -c '! grep -qF "/usr/local/share/zsh-completions/src" /etc/zsh/zshrc'
+
+apt_omb_user_config:
+  description: |
+    Verifies Oh My Bash per-user configuration:
+    - OSH_CUSTOM defaults to ~/.config/bash/custom
+    - Default plugins are symlinked into per-user OSH_CUSTOM
+    - .bashrc has the OMB block with the correct OSH_CUSTOM value
+
+  pre: |
+    _HOME=/root
+    _OMB=/usr/local/share/oh-my-bash
+    _SYS_CUSTOM="${_OMB}/custom"
+    _USER_CUSTOM="${_HOME}/.config/bash/custom"
+    _BASHTHEME="${_HOME}/.config/bash/bashtheme"
+
+  checks:
+    - title: per-user OMB custom dir exists
+      cmd: test -d "$_USER_CUSTOM"
+    - title: per-user OMB themes dir exists
+      cmd: test -d "${_USER_CUSTOM}/themes"
+    - title: per-user OMB plugins dir exists
+      cmd: test -d "${_USER_CUSTOM}/plugins"
+    - title: bashtheme file written
+      cmd: test -f "$_BASHTHEME"
+    - title: .bashrc sets OSH_CUSTOM to per-user path
+      cmd: grep -qF "OSH_CUSTOM=\"${_USER_CUSTOM}\"" "$_BASHTHEME"
+    - title: .bashrc exports OSH
+      cmd: grep -q 'export OSH=' "$_BASHTHEME"
+    - title: .bashrc sources oh-my-bash.sh
+      cmd: grep -q 'oh-my-bash.sh' "$_BASHTHEME"
+
+apt_omz_p10k:
+  description: |
+    Verifies that setting ohmyzsh_theme=romkatv/powerlevel10k installs the p10k
+    theme and configures root's ZDOTDIR/.zshrc with the p10k guarded block and
+    correct ZSH_CUSTOM. Font installation is tested separately in install-fonts.
+
+  pre: |
+    _OMZ=/usr/local/share/oh-my-zsh
+    _CUSTOM="${_OMZ}/custom"
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+    _USER_CUSTOM="${_ZDOTDIR}/custom"
+    _ZSHTHEME="${_ZDOTDIR}/zshtheme"
+
+  checks:
+    - title: powerlevel10k theme cloned
+      cmd: test -d "${_CUSTOM}/themes/powerlevel10k/.git"
+    - title: powerlevel10k.zsh-theme file present
+      cmd: test -f "${_CUSTOM}/themes/powerlevel10k/powerlevel10k.zsh-theme"
+    - title: ZDOTDIR/.zshrc exists
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: zshtheme file written
+      cmd: test -f "$_ZSHTHEME"
+    - title: zshtheme sets ZSH_THEME to p10k
+      cmd: grep -q 'ZSH_THEME=.*powerlevel10k' "$_ZSHTHEME"
+    - title: zshtheme disables p10k wizard
+      cmd: grep -qF 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' "$_ZSHTHEME"
+    - title: 'zshtheme: wizard flag appears before source oh-my-zsh.sh'
+      cmd: bash -c 'awk "/POWERLEVEL9K_DISABLE/{w=NR} /source.*oh-my-zsh/{s=NR} END{exit !(w>0 && s>0 && w<s)}" '"$_ZSHTHEME"''
+    - title: zshtheme sources oh-my-zsh.sh
+      cmd: grep -q 'oh-my-zsh.sh' "$_ZSHTHEME"
+    - title: zshtheme sources .p10k.zsh
+      cmd: grep -q 'p10k.zsh' "$_ZSHTHEME"
+    - title: zshtheme sets ZSH_CUSTOM to per-user path
+      cmd: grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" "$_ZSHTHEME"
+    - title: p10k symlink in user custom themes
+      cmd: test -L "${_USER_CUSTOM}/themes/powerlevel10k"
+    - title: p10k symlink target is system custom
+      cmd: bash -c "readlink '${_USER_CUSTOM}/themes/powerlevel10k' | grep -qF \"${_CUSTOM}/themes/powerlevel10k\""
+    - title: root .p10k.zsh exists
+      cmd: test -f "${_HOME}/.p10k.zsh"
+
+apt_remote_user:
+  description: |
+    Verifies that add_remote_user=true configures the user identified by
+    the remoteUser field (injected as _REMOTE_USER by the devcontainer CLI).
+
+  pre: |
+    _HOME=/home/vscode
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: vscode .zshenv exists
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: vscode ZDOTDIR/.zshrc exists
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: vscode .bashrc exists
+      cmd: test -f "${_HOME}/.bashrc"
+    - title: vscode zshtheme file written
+      cmd: test -f "${_ZDOTDIR}/zshtheme"
+    - title: .zshenv sets ZDOTDIR
+      cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
+    - title: vscode HOME owned by vscode
+      cmd: bash -c '[ "$(stat -c %U /home/vscode)" = "vscode" ]'
+    - title: root ZDOTDIR/.zshrc NOT configured
+      cmd: bash -c '! test -f /root/.config/zsh/.zshrc'
+
+apt_set_shell_zsh:
+  description: |
+    Verifies that set_user_shells=zsh changes the default login shell and that
+    zsh is registered in /etc/shells.
+
+  pre: "_ZSH_PATH=\"$(command -v zsh)\""
+  checks:
+    - title: zsh is installed
+      cmd: test -n "$_ZSH_PATH"
+    - title: zsh listed in /etc/shells
+      cmd: grep -qx "$_ZSH_PATH" /etc/shells
+    - title: root default shell is zsh
+      cmd: |-
+        bash -c '[ "$(getent passwd root | cut -d: -f7)" = '"$_ZSH_PATH"' ]'
+
+apt_shell_tools:
+  description: |
+    Verifies bash-completion and zsh-completions are installed by default,
+    and that direnv and fzf are not installed (default: false).
+
+  checks:
+    - title: bash-completion package installed
+      cmd: bash -c 'dpkg -s bash-completion >/dev/null 2>&1'
+    - title: bash-completion main script exists
+      cmd: test -f /usr/share/bash-completion/bash_completion
+    - title: zsh-completions src tree present
+      cmd: bash -c 'test -d /usr/local/share/zsh-completions/src && compgen -G "/usr/local/share/zsh-completions/src/_*" >/dev/null'
+    - title: zsh-completions fpath wired in system zshrc
+      cmd: bash -c 'grep -qF "/usr/local/share/zsh-completions/src" /etc/zsh/zshrc'
+    - title: direnv not installed by default
+      cmd: bash -c '! command -v direnv'
+    - title: fzf not installed by default
+      cmd: bash -c '! command -v fzf'
+
+apt_skel_placement:
+  description: |
+    Verifies that the default installation correctly deploys skel files:
+    - .zshenv goes to HOME (so zsh finds it before ZDOTDIR is known)
+    - .zshrc, .zprofile, .zlogin go to ZDOTDIR
+    - .shellenv, .shellrc, .bash_profile, .bashrc go to HOME
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: .zshenv in HOME
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: .shellenv in HOME
+      cmd: test -f "${_HOME}/.shellenv"
+    - title: .shellrc in HOME
+      cmd: test -f "${_HOME}/.shellrc"
+    - title: .bash_profile in HOME
+      cmd: test -f "${_HOME}/.bash_profile"
+    - title: .bashrc in HOME
+      cmd: test -f "${_HOME}/.bashrc"
+    - title: .zshrc in ZDOTDIR
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: .zshrc NOT in HOME
+      cmd: bash -c "! test -f '${_HOME}/.zshrc'"
+    - title: .zprofile in ZDOTDIR
+      cmd: test -f "${_ZDOTDIR}/.zprofile"
+    - title: .zprofile NOT in HOME
+      cmd: bash -c "! test -f '${_HOME}/.zprofile'"
+    - title: .zlogin in ZDOTDIR
+      cmd: test -f "${_ZDOTDIR}/.zlogin"
+    - title: .zlogin NOT in HOME
+      cmd: bash -c "! test -f '${_HOME}/.zlogin'"
+    - title: .zshenv NOT in ZDOTDIR
+      cmd: bash -c "! test -f '${_ZDOTDIR}/.zshenv'"
+
+apt_starship_only:
+  description: |
+    Verifies that installing only Starship (no OMZ/OMB/fonts) works and that the
+    starship binary is functional.
+
+  checks:
+    - title: starship binary installed
+      cmd: command -v starship
+    - title: starship responds to --version
+      cmd: starship --version
+    - title: oh-my-zsh not installed
+      cmd: bash -c '! test -d /usr/local/share/oh-my-zsh'
+    - title: oh-my-bash not installed
+      cmd: bash -c '! test -d /usr/local/share/oh-my-bash'
+
+apt_user_config:
+  description: |
+    Verifies that per-user configuration is applied correctly for the root user:
+    skel dotfiles are copied to the right locations (ZDOTDIR for zsh files,
+    HOME for others), Oh My Zsh guarded block is injected into ZDOTDIR/.zshrc,
+    Oh My Bash guarded block is injected into .bashrc, ZDOTDIR is set in
+    .zshenv, and per-user custom directories are created with symlinks.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+    _OMZ_CUSTOM="${_ZDOTDIR}/custom"
+    _OMB_CUSTOM="${_HOME}/.config/bash/custom"
+    _OMZ=/usr/local/share/oh-my-zsh
+    _ZSHTHEME="${_ZDOTDIR}/zshtheme"
+    _BASHTHEME="${_HOME}/.config/bash/bashtheme"
+
+  checks:
+    - title: root .zshenv exists in HOME
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: root .zshrc exists in ZDOTDIR
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: root .zprofile exists in ZDOTDIR
+      cmd: test -f "${_ZDOTDIR}/.zprofile"
+    - title: root .zlogin exists in ZDOTDIR
+      cmd: test -f "${_ZDOTDIR}/.zlogin"
+    - title: root .bashrc exists
+      cmd: test -f "${_HOME}/.bashrc"
+    - title: root .shellenv exists
+      cmd: test -f "${_HOME}/.shellenv"
+    - title: root .shellrc exists
+      cmd: test -f "${_HOME}/.shellrc"
+    - title: .zshenv has ZDOTDIR block
+      cmd: grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
+    - title: .zshenv sets ZDOTDIR
+      cmd: grep -q 'ZDOTDIR=' "${_HOME}/.zshenv"
+    - title: .zshenv ZDOTDIR points to .config/zsh
+      cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
+    - title: zshtheme file written
+      cmd: test -f "$_ZSHTHEME"
+    - title: zshtheme exports ZSH
+      cmd: grep -q 'export ZSH=' "$_ZSHTHEME"
+    - title: zshtheme sets ZSH_CACHE_DIR
+      cmd: grep -qF 'ZSH_CACHE_DIR=' "$_ZSHTHEME"
+    - title: zshtheme sets ZSH_COMPDUMP
+      cmd: grep -qF 'ZSH_COMPDUMP=' "$_ZSHTHEME"
+    - title: zshtheme sets ZSH_CUSTOM to per-user path
+      cmd: grep -qF "ZSH_CUSTOM=\"${_OMZ_CUSTOM}\"" "$_ZSHTHEME"
+    - title: zshtheme disables omz update
+      cmd: grep -qF "zstyle ':omz:update' mode disabled" "$_ZSHTHEME"
+    - title: zshtheme sources oh-my-zsh.sh
+      cmd: grep -q 'oh-my-zsh.sh' "$_ZSHTHEME"
+    - title: .zshrc sources .shellrc
+      cmd: grep -q '\.shellrc' "${_ZDOTDIR}/.zshrc"
+    - title: bashtheme file written
+      cmd: test -f "$_BASHTHEME"
+    - title: bashtheme sources oh-my-bash.sh
+      cmd: grep -q 'oh-my-bash.sh' "$_BASHTHEME"
+    - title: bashtheme sets OSH_CUSTOM to per-user path
+      cmd: grep -qF "OSH_CUSTOM=\"${_OMB_CUSTOM}\"" "$_BASHTHEME"
+    - title: ZDOTDIR dir exists
+      cmd: test -d "$_ZDOTDIR"
+    - title: per-user OMZ custom dir exists
+      cmd: test -d "$_OMZ_CUSTOM"
+    - title: per-user OMZ custom themes dir
+      cmd: test -d "${_OMZ_CUSTOM}/themes"
+    - title: per-user OMZ custom plugins dir
+      cmd: test -d "${_OMZ_CUSTOM}/plugins"
+    - title: zsh-syntax-highlighting symlinked into user custom
+      cmd: test -L "${_OMZ_CUSTOM}/plugins/zsh-syntax-highlighting"
+    - title: plugin symlink points to system custom
+      cmd: bash -c "readlink '${_OMZ_CUSTOM}/plugins/zsh-syntax-highlighting' | grep -q '${_OMZ}/custom/plugins/zsh-syntax-highlighting'"
+    - title: per-user OMB custom dir exists
+      cmd: test -d "$_OMB_CUSTOM"
+    - title: per-user OMB custom themes dir
+      cmd: test -d "${_OMB_CUSTOM}/themes"
+    - title: per-user OMB custom plugins dir
+      cmd: test -d "${_OMB_CUSTOM}/plugins"
+    - title: HOME owned by root
+      cmd: bash -c '[ "$(stat -c %U /root)" = "root" ]'
+    - title: .zshrc owned by root
+      cmd: bash -c "[ \"\$(stat -c %U '${_ZDOTDIR}/.zshrc')\" = 'root' ]"
+    - title: ZDOTDIR owned by root
+      cmd: bash -c "[ \"\$(stat -c %U '${_ZDOTDIR}')\" = 'root' ]"
+    - title: /etc/profile exists
+      cmd: test -f /etc/profile
+    - title: system bashrc exists
+      cmd: bash -c 'test -f /etc/bash.bashrc || test -f /etc/bashrc || test -f /etc/bash/bashrc'
+
+apt_user_config_skip:
+  description: |
+    Verifies that user_config_mode=skip does not write any per-user dotfiles
+    while the system-wide install (OMZ, OMB, system config files) still succeeds.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: oh-my-zsh installed
+      cmd: test -d /usr/local/share/oh-my-zsh
+    - title: oh-my-bash installed
+      cmd: test -d /usr/local/share/oh-my-bash
+    - title: root zshtheme not written
+      cmd: bash -c '! test -f "${_ZDOTDIR}/zshtheme"'
+    - title: root bashtheme not written
+      cmd: bash -c '! test -f "/root/.config/bash/bashtheme"'
+    - title: no per-user OMZ custom dir
+      cmd: bash -c '! test -d "${_ZDOTDIR}/custom"'
+    - title: no per-user OMB custom dir
+      cmd: bash -c '! test -d "${_HOME}/.config/bash/custom"'
+    - title: /etc/profile exists
+      cmd: test -f /etc/profile
+    - title: system bashrc exists
+      cmd: bash -c 'test -f /etc/bash.bashrc || test -f /etc/bashrc || test -f /etc/bash/bashrc'
+
+apt_zdotdir_custom:
+  description: |
+    Verifies that an explicit zdotdir option is honoured: zsh config files land
+    in the specified directory rather than the default ~/.config/zsh.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.zsh"
+
+  checks:
+    - title: .zshenv exists in HOME
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: .zshrc NOT in HOME
+      cmd: bash -c '! test -f "${_HOME}/.zshrc"'
+    - title: .zshenv sets ZDOTDIR to custom path
+      cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
+    - title: custom ZDOTDIR exists
+      cmd: test -d "$_ZDOTDIR"
+    - title: custom ZDOTDIR/.zshrc exists
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: custom ZDOTDIR/.zprofile exists
+      cmd: test -f "${_ZDOTDIR}/.zprofile"
+    - title: default .config/zsh/.zshrc NOT present
+      cmd: bash -c '! test -f "${_HOME}/.config/zsh/.zshrc"'
+    - title: OMZ custom dir under custom ZDOTDIR
+      cmd: test -d "${_ZDOTDIR}/custom"
+    - title: ZSH_CUSTOM points to custom ZDOTDIR/custom
+      cmd: grep -qF "ZSH_CUSTOM=\"${_ZDOTDIR}/custom\"" "${_ZDOTDIR}/zshtheme"
+
+apt_zdotdir_default:
+  description: |
+    Verifies the default ZDOTDIR behaviour: zsh config files land in
+    ~/.config/zsh, .zshenv in HOME sets ZDOTDIR, and the OMZ block is
+    injected into $ZDOTDIR/.zshrc (not $HOME/.zshrc).
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+    _ZSHTHEME="${_ZDOTDIR}/zshtheme"
+
+  checks:
+    - title: .zshenv exists in HOME
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: .zshrc NOT in HOME
+      cmd: bash -c '! test -f "${_HOME}/.zshrc"'
+    - title: .zprofile NOT in HOME
+      cmd: bash -c '! test -f "${_HOME}/.zprofile"'
+    - title: .zlogin NOT in HOME
+      cmd: bash -c '! test -f "${_HOME}/.zlogin"'
+    - title: .zshenv has ZDOTDIR block
+      cmd: grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
+    - title: .zshenv ZDOTDIR value is .config/zsh
+      cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
+    - title: ZDOTDIR exists
+      cmd: test -d "$_ZDOTDIR"
+    - title: ZDOTDIR/.zshrc exists
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: ZDOTDIR/.zprofile exists
+      cmd: test -f "${_ZDOTDIR}/.zprofile"
+    - title: ZDOTDIR/.zlogin exists
+      cmd: test -f "${_ZDOTDIR}/.zlogin"
+    - title: zshtheme file written to ZDOTDIR
+      cmd: test -f "$_ZSHTHEME"
+    - title: zshtheme sets ZSH_CUSTOM to per-user path
+      cmd: grep -qF "ZSH_CUSTOM=\"${_ZDOTDIR}/custom\"" "$_ZSHTHEME"
+    - title: ZDOTDIR/custom exists
+      cmd: test -d "${_ZDOTDIR}/custom"
+    - title: ZDOTDIR/custom/themes exists
+      cmd: test -d "${_ZDOTDIR}/custom/themes"
+    - title: ZDOTDIR/custom/plugins exists
+      cmd: test -d "${_ZDOTDIR}/custom/plugins"
+    - title: HOME owned by user
+      cmd: bash -c '[ "$(stat -c %U '"$_HOME"')" = "root" ]'
+    - title: ZDOTDIR owned by user
+      cmd: bash -c '[ "$(stat -c %U '"$_ZDOTDIR"')" = "root" ]'
+
+apt_zsh_only:
+  description: Verifies that installing only zsh (no frameworks) works correctly.
+  checks:
+    - title: zsh is installed
+      cmd: command -v zsh
+    - title: oh-my-zsh not installed
+      cmd: bash -c '! test -d /usr/local/share/oh-my-zsh'
+    - title: oh-my-bash not installed
+      cmd: bash -c '! test -d /usr/local/share/oh-my-bash'
+    - title: starship not installed
+      cmd: bash -c '! command -v starship'
+    - title: /etc/profile exists
+      cmd: test -f /etc/profile
+    - title: system bashrc exists
+      cmd: bash -c 'test -f /etc/bash.bashrc || test -f /etc/bashrc || test -f /etc/bash/bashrc'
+
+installer_dir:
+  description: |
+    installer_dir=/tmp/shell-trace: the downloaded fzf archive and checksums file
+    must remain in installer_dir after installation completes.
+
+  checks:
+    - title: fzf binary installed
+      cmd: test -f /usr/local/bin/fzf
+    - title: fzf --version succeeds
+      cmd: fzf --version
+    - title: installer_dir exists
+      cmd: test -d /tmp/shell-trace
+      debug: |
+        echo "=== /tmp/shell-trace/ contents ==="
+        ls -la /tmp/shell-trace/ 2>/dev/null || echo "(directory missing)"
+    - title: fzf archive preserved in installer_dir
+      cmd: bash -c 'ls /tmp/shell-trace/fzf-*.tar.gz 2>/dev/null | grep -q .'
+    - title: fzf checksums file preserved in installer_dir
+      cmd: bash -c 'ls /tmp/shell-trace/fzf_*_checksums.txt 2>/dev/null | grep -q .'

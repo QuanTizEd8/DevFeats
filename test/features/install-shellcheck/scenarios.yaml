@@ -8,7 +8,7 @@ default_install:
   - devcontainer
   - standalone
   tests:
-  - default_install.sh
+  - default_install
 binary_custom_prefix:
   envs:
   - ubuntu-latest
@@ -20,7 +20,7 @@ binary_custom_prefix:
     prefix: /opt/shellcheck-bin
     if_exists: reinstall
   tests:
-  - binary_custom_prefix.sh
+  - binary_custom_prefix
 package_install:
   envs:
   - debian-latest
@@ -30,7 +30,7 @@ package_install:
   options:
     method: package
   tests:
-  - package_install.sh
+  - package_install
 if_exists_fail:
   expect_install_failure: true
   envs:
@@ -48,7 +48,7 @@ if_exists_fail:
     method: auto
     if_exists: fail
   tests:
-  - if_exists_fail.sh
+  - if_exists_fail
   standalone:
     skip_install: false
 installer_dir:
@@ -61,4 +61,4 @@ installer_dir:
     method: binary
     installer_dir: /tmp/shellcheck-trace
   tests:
-  - installer_dir.sh
+  - installer_dir

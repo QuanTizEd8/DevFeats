@@ -1,0 +1,62 @@
+code_only:
+  description: Only the code shim is enabled; devcontainer-info and systemctl are disabled.
+  pre: |
+    _SHIM_BIN="${_FEAT_SHARE_DIR}/bin"
+  checks:
+    - title: code shim exists
+      cmd: test -f "${_SHIM_BIN}/code"
+    - title: code shim is executable
+      cmd: test -x "${_SHIM_BIN}/code"
+    - title: devcontainer-info shim NOT present
+      cmd: bash -c "! test -f ${_SHIM_BIN}/devcontainer-info"
+    - title: systemctl shim NOT present
+      cmd: bash -c "! test -f ${_SHIM_BIN}/systemctl"
+
+default:
+  description: |
+    Default options: all three shims enabled.
+    Verifies each shim is installed, executable, and on PATH at the expected
+    location.  Also checks that the shim directory is first in PATH.
+  pre: |
+    _SHIM_BIN="${_FEAT_SHARE_DIR}/bin"
+    # PATH checks use bash -lc so /etc/profile sources profile.d (where export_path writes).
+    # Plain bash -c does not load login startup files, so PATH would miss the shim dir.
+  checks:
+    - title: shim bin directory exists
+      cmd: test -d "${_SHIM_BIN}"
+    - title: shim bin is in PATH
+      cmd: bash -lc "echo \"\$PATH\" | tr ':' '\\n' | grep -qxF \"${_SHIM_BIN}\""
+    - title: shim bin is first in PATH
+      cmd: 'bash -lc "[ \"\$(echo \"\$PATH\" | cut -d: -f1)\" = \"${_SHIM_BIN}\" ]"'
+    - title: code shim exists
+      cmd: test -f "${_SHIM_BIN}/code"
+    - title: code shim is executable
+      cmd: test -x "${_SHIM_BIN}/code"
+    - title: which code resolves to shim
+      cmd: bash -lc "[ \"\$(which code)\" = \"${_SHIM_BIN}/code\" ]"
+    - title: devcontainer-info shim exists
+      cmd: test -f "${_SHIM_BIN}/devcontainer-info"
+    - title: devcontainer-info shim is executable
+      cmd: test -x "${_SHIM_BIN}/devcontainer-info"
+    - title: which devcontainer-info resolves to shim
+      cmd: bash -lc "[ \"\$(which devcontainer-info)\" = \"${_SHIM_BIN}/devcontainer-info\" ]"
+    - title: systemctl shim exists
+      cmd: test -f "${_SHIM_BIN}/systemctl"
+    - title: systemctl shim is executable
+      cmd: test -x "${_SHIM_BIN}/systemctl"
+
+none_enabled:
+  description: |
+    All shims disabled.  The shim directory should exist (created by install.sh)
+    but contain no shim scripts.
+  pre: |
+    _SHIM_BIN="${_FEAT_SHARE_DIR}/bin"
+  checks:
+    - title: shim bin directory exists
+      cmd: test -d "${_SHIM_BIN}"
+    - title: code shim NOT present
+      cmd: bash -c "! test -f ${_SHIM_BIN}/code"
+    - title: devcontainer-info shim NOT present
+      cmd: bash -c "! test -f ${_SHIM_BIN}/devcontainer-info"
+    - title: systemctl shim NOT present
+      cmd: bash -c "! test -f ${_SHIM_BIN}/systemctl"

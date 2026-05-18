@@ -5,14 +5,14 @@ defaults:
 default:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
-  tests: [default.sh]
+  tests: [default]
 
 no_sudo:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
   options:
     sudo_access: false
-  tests: [no_sudo.sh]
+  tests: [no_sudo]
 
 custom_user:
   envs: [ubuntu-latest]
@@ -22,21 +22,21 @@ custom_user:
     user_id: "2000"
     group_id: "2000"
     group_name: devgroup
-  tests: [custom_user.sh]
+  tests: [custom_user]
 
 custom_home:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
   options:
     home_dir: /workspaces/myapp
-  tests: [custom_home.sh]
+  tests: [custom_home]
 
 custom_shell:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
   options:
     user_shell: /bin/sh
-  tests: [custom_shell.sh]
+  tests: [custom_shell]
 
 extra_groups:
   envs: [ubuntu-latest]
@@ -46,7 +46,7 @@ extra_groups:
     groupadd testers
   options:
     extra_groups: "builders\ntesters"
-  tests: [extra_groups.sh]
+  tests: [extra_groups]
 
 replace_existing:
   envs: [ubuntu-latest]
@@ -55,7 +55,7 @@ replace_existing:
     userdel ubuntu 2>/dev/null || true
     groupdel ubuntu 2>/dev/null || true
     useradd --uid 1000 --user-group --no-create-home --shell /bin/sh old_user
-  tests: [replace_existing.sh]
+  tests: [replace_existing]
 
 already_configured:
   envs: [ubuntu-latest]
@@ -72,16 +72,16 @@ already_configured:
   options:
     replace_existing: false
     sudo_access: false
-  tests: [already_configured.sh]
+  tests: [already_configured]
 
 alpine:
   envs: [alpine-latest]
   modes: [devcontainer, standalone]
-  tests: [alpine.sh]
+  tests: [alpine]
 
 log_file:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
   options:
     log_file: /tmp/setup-user.log
-  tests: [log_file.sh]
+  tests: [log_file]

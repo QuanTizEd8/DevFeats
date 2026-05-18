@@ -5,7 +5,7 @@ defaults:
 apt_default:
   envs: [debian-latest]
   modes: [devcontainer]
-  tests: [apt_default.sh]
+  tests: [apt_default]
 
 apt_zsh_only:
   envs: [debian-latest]
@@ -14,7 +14,7 @@ apt_zsh_only:
     install_ohmyzsh: false
     install_ohmybash: false
     install_starship: false
-  tests: [apt_zsh_only.sh]
+  tests: [apt_zsh_only]
 
 apt_no_fonts:
   envs: [debian-latest]
@@ -23,7 +23,7 @@ apt_no_fonts:
     install_ohmyzsh: false
     install_ohmybash: false
     install_starship: false
-  tests: [apt_no_fonts.sh]
+  tests: [apt_no_fonts]
 
 apt_multi_plugins:
   envs: [debian-latest]
@@ -34,7 +34,7 @@ apt_multi_plugins:
     add_current_user: true
   devcontainer:
     remoteUser: vscode
-  tests: [apt_multi_plugins.sh]
+  tests: [apt_multi_plugins]
 
 apt_set_shell_zsh:
   envs: [debian-latest]
@@ -42,7 +42,7 @@ apt_set_shell_zsh:
   options:
     set_user_shells: zsh
     add_users: root
-  tests: [apt_set_shell_zsh.sh]
+  tests: [apt_set_shell_zsh]
 
 apt_omz_p10k:
   envs: [debian-latest]
@@ -51,7 +51,7 @@ apt_omz_p10k:
     ohmyzsh_theme: romkatv/powerlevel10k
     starship_shells: ""
     add_users: root
-  tests: [apt_omz_p10k.sh]
+  tests: [apt_omz_p10k]
 
 apt_starship_only:
   envs: [debian-latest]
@@ -60,7 +60,7 @@ apt_starship_only:
     install_ohmyzsh: false
     install_ohmybash: false
     install_starship: true
-  tests: [apt_starship_only.sh]
+  tests: [apt_starship_only]
 
 apt_custom_dirs:
   envs: [debian-latest]
@@ -68,50 +68,50 @@ apt_custom_dirs:
   options:
     ohmyzsh_install_dir: /opt/oh-my-zsh
     ohmybash_install_dir: /opt/oh-my-bash
-  tests: [apt_custom_dirs.sh]
+  tests: [apt_custom_dirs]
 
 apt_no_git:
   envs: [debian-latest]
   modes: [devcontainer]
-  tests: [apt_no_git.sh]
+  tests: [apt_no_git]
 
 apt_user_config:
   envs: [debian-latest]
   modes: [devcontainer]
-  tests: [apt_user_config.sh]
+  tests: [apt_user_config]
 
 apt_user_config_skip:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
     user_config_mode: skip
-  tests: [apt_user_config_skip.sh]
+  tests: [apt_user_config_skip]
 
 apt_zdotdir_default:
   envs: [debian-latest]
   modes: [devcontainer]
-  tests: [apt_zdotdir_default.sh]
+  tests: [apt_zdotdir_default]
 
 apt_zdotdir_custom:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
     zdotdir: "~/.zsh"
-  tests: [apt_zdotdir_custom.sh]
+  tests: [apt_zdotdir_custom]
 
 apt_custom_dir_system:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
     ohmyzsh_custom_dir: /opt/zsh-custom
-  tests: [apt_custom_dir_system.sh]
+  tests: [apt_custom_dir_system]
 
 apt_custom_dir_per_user:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
     ohmyzsh_custom_dir: "~/.zsh-custom"
-  tests: [apt_custom_dir_per_user.sh]
+  tests: [apt_custom_dir_per_user]
 
 apt_augment_mode:
   envs: [debian-latest]
@@ -122,17 +122,17 @@ apt_augment_mode:
     echo '# MY_CUSTOM_BASHRC' > /root/.bashrc
   options:
     user_config_mode: augment
-  tests: [apt_augment_mode.sh]
+  tests: [apt_augment_mode]
 
 apt_skel_placement:
   envs: [debian-latest]
   modes: [devcontainer]
-  tests: [apt_skel_placement.sh]
+  tests: [apt_skel_placement]
 
 apt_omb_user_config:
   envs: [debian-latest]
   modes: [devcontainer]
-  tests: [apt_omb_user_config.sh]
+  tests: [apt_omb_user_config]
 
 apt_remote_user:
   envs: [devcontainers-base-debian]
@@ -141,7 +141,7 @@ apt_remote_user:
     add_remote_user: true
   devcontainer:
     remoteUser: vscode
-  tests: [apt_remote_user.sh]
+  tests: [apt_remote_user]
 
 apt_container_user:
   envs: [devcontainers-base-debian]
@@ -150,7 +150,7 @@ apt_container_user:
     add_container_user: true
   devcontainer:
     containerUser: vscode
-  tests: [apt_container_user.sh]
+  tests: [apt_container_user]
 
 apt_add_users:
   envs: [debian-latest]
@@ -160,7 +160,7 @@ apt_add_users:
     add_users: devuser
     add_container_user: false
     add_remote_user: false
-  tests: [apt_add_users.sh]
+  tests: [apt_add_users]
 
 apt_shell_tools:
   envs: [debian-latest]
@@ -169,7 +169,7 @@ apt_shell_tools:
     install_ohmyzsh: false
     install_ohmybash: false
     install_starship: false
-  tests: [apt_shell_tools.sh]
+  tests: [apt_shell_tools]
 
 apt_no_shell_tools:
   envs: [debian-latest]
@@ -180,7 +180,7 @@ apt_no_shell_tools:
     install_ohmyzsh: false
     install_ohmybash: false
     install_starship: false
-  tests: [apt_no_shell_tools.sh]
+  tests: [apt_no_shell_tools]
 
 apt_direnv:
   envs: [debian-latest]
@@ -190,7 +190,7 @@ apt_direnv:
     install_ohmyzsh: false
     install_ohmybash: false
     install_starship: false
-  tests: [apt_direnv.sh]
+  tests: [apt_direnv]
 
 apt_fzf:
   envs: [debian-latest]
@@ -200,7 +200,7 @@ apt_fzf:
     install_ohmyzsh: false
     install_ohmybash: false
     install_starship: false
-  tests: [apt_fzf.sh]
+  tests: [apt_fzf]
 
 installer_dir:
   envs: [ubuntu-latest]
@@ -213,4 +213,4 @@ installer_dir:
     install_ohmybash: false
     install_starship: false
     installer_dir: /tmp/shell-trace
-  tests: [installer_dir.sh]
+  tests: [installer_dir]

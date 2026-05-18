@@ -1,0 +1,278 @@
+channels:
+  description: |
+    channels="conda-forge :: defaults", env_name=chanenv, packages=numpy:
+    both channels are added to the conda config before the environment is
+    created. Verifies that channels appear in the active conda configuration.
+  checks:
+    - title: chanenv environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q chanenv'
+    - title: chanenv directory exists
+      cmd: test -d /opt/conda/envs/chanenv
+    - title: numpy importable in chanenv
+      cmd: /opt/conda/envs/chanenv/bin/python -c 'import numpy'
+    - title: conda-forge channel in conda config
+      cmd: bash -c '/opt/conda/bin/conda config --show channels | grep -q conda-forge'
+    - title: defaults channel in conda config
+      cmd: bash -c '/opt/conda/bin/conda config --show channels | grep -q defaults'
+
+env_dirs:
+  description: |
+    env_dirs=/tmp/test-envs: all YAML files discovered in the directory are
+    processed. The Dockerfile places two YAMLs (direnv1, direnv2) so both
+    environments should be created.
+  checks:
+    - title: direnv1.yml exists
+      cmd: test -f /tmp/test-envs/direnv1.yml
+    - title: direnv2.yml exists
+      cmd: test -f /tmp/test-envs/direnv2.yml
+    - title: direnv1 environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q direnv1'
+    - title: direnv2 environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q direnv2'
+    - title: direnv1 directory exists
+      cmd: test -d /opt/conda/envs/direnv1
+    - title: direnv2 directory exists
+      cmd: test -d /opt/conda/envs/direnv2
+    - title: numpy importable in direnv1
+      cmd: /opt/conda/envs/direnv1/bin/python -c 'import numpy'
+    - title: pandas importable in direnv2
+      cmd: /opt/conda/envs/direnv2/bin/python -c 'import pandas'
+
+env_files:
+  description: |
+    env_files=/tmp/test-envs/simple.yml: environment is created from a YAML file
+    placed in the image by the Dockerfile. Verifies the named env exists and
+    that the package declared in the YAML is importable.
+  checks:
+    - title: YAML file exists
+      cmd: test -f /tmp/test-envs/simple.yml
+    - title: simple environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q simple'
+    - title: simple environment directory exists
+      cmd: test -d /opt/conda/envs/simple
+    - title: python binary exists in simple
+      cmd: test -f /opt/conda/envs/simple/bin/python
+    - title: numpy importable in simple
+      cmd: /opt/conda/envs/simple/bin/python -c 'import numpy'
+
+env_files_uri:
+  description: |
+    env_files=file:///tmp/test-envs/simple.yml — same as env_files but exercises
+    the file:// URI resolver.
+  checks:
+    - title: YAML file exists
+      cmd: test -f /tmp/test-envs/simple.yml
+    - title: simple environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q simple'
+    - title: simple environment directory exists
+      cmd: test -d /opt/conda/envs/simple
+    - title: python binary exists in simple
+      cmd: test -f /opt/conda/envs/simple/bin/python
+    - title: numpy importable in simple
+      cmd: /opt/conda/envs/simple/bin/python -c 'import numpy'
+
+http_uri_resolve_stubbed:
+  description: "Stub net__fetch_url_file and verify uri__resolve handles http:// for conda env YAML."
+  pre: |
+    source "${REPO_ROOT}/lib/uri.sh"
+
+    # Stub the uri-layer fetch seam (after sourcing uri.sh) so net.sh loading cannot overwrite it.
+    _uri__net_fetch() {
+      printf 'name: from-http-stub\ndependencies:\n  - numpy\n' > "$2"
+    }
+    export -f _uri__net_fetch
+
+    _dest="$(mktemp "${TMPDIR:-/tmp}/conda-uri.XXXXXX")"
+    uri__resolve "http://stub.example/env.yml" "$_dest"
+  checks:
+    - title: stubbed http YAML has expected name
+      cmd: grep -q 'from-http-stub' "$_dest"
+
+inline_env:
+  description: |
+    env_name=myenv, packages="numpy pandas": an inline named environment is
+    created from package names without a YAML file. Verifies the environment
+    exists, the requested packages are importable, and the base env is untouched.
+  checks:
+    - title: myenv environment is listed
+      cmd: /opt/conda/bin/conda env list
+    - title: myenv directory exists
+      cmd: test -d /opt/conda/envs/myenv
+    - title: myenv python binary exists
+      cmd: test -f /opt/conda/envs/myenv/bin/python
+    - title: myenv pip binary exists
+      cmd: test -f /opt/conda/envs/myenv/bin/pip
+    - title: numpy importable in myenv
+      cmd: /opt/conda/envs/myenv/bin/python -c 'import numpy'
+    - title: pandas importable in myenv
+      cmd: /opt/conda/envs/myenv/bin/python -c 'import pandas'
+    - title: base env still exists
+      cmd: test -d /opt/conda
+    - title: conda pkgs cache is small after clean
+      cmd: bash -c 'du -sh /opt/conda/pkgs 2>/dev/null; true'
+
+keep_cache:
+  description: |
+    keep_cache=true: 'conda clean' is skipped after environment setup.
+    The packages cache directory should still be populated (not emptied).
+  checks:
+    - title: cleanenv environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q cleanenv'
+    - title: cleanenv directory exists
+      cmd: test -d /opt/conda/envs/cleanenv
+    - title: numpy importable in cleanenv
+      cmd: /opt/conda/envs/cleanenv/bin/python -c 'import numpy'
+    - title: conda pkgs directory exists
+      cmd: test -d /opt/conda/pkgs
+    - title: pkgs dir is non-empty after keep_cache
+      cmd: bash -c 'find /opt/conda/pkgs -maxdepth 1 -name "*.conda" -o -name "*.tar.bz2" | grep -q .'
+
+log_file:
+  description: |
+    log_file=/tmp/conda-env.log: all script output is captured to the log file.
+    Verifies the file is created, is non-empty, and contains expected markers.
+  checks:
+    - title: logenv environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q logenv'
+    - title: logenv directory exists
+      cmd: test -d /opt/conda/envs/logenv
+    - title: log_file was created
+      cmd: test -f /tmp/conda-env.log
+    - title: log_file is non-empty
+      cmd: test -s /tmp/conda-env.log
+    - title: log_file contains env name
+      cmd: grep -q "logenv" /tmp/conda-env.log
+    - title: log_file contains success marker
+      cmd: grep -q "Conda Environment Installation script finished successfully" /tmp/conda-env.log
+
+multi_env_files:
+  description: |
+    env_files="envA.yml :: envB.yml": two YAML files passed as a ' :: '-separated
+    string are both processed. Verifies the array parsing fix correctly produces
+    exactly two paths with no empty elements.
+  checks:
+    - title: envA.yml exists
+      cmd: test -f /tmp/test-envs/envA.yml
+    - title: envB.yml exists
+      cmd: test -f /tmp/test-envs/envB.yml
+    - title: envA environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q envA'
+    - title: envB environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q envB'
+    - title: envA directory exists
+      cmd: test -d /opt/conda/envs/envA
+    - title: envB directory exists
+      cmd: test -d /opt/conda/envs/envB
+    - title: numpy importable in envA
+      cmd: /opt/conda/envs/envA/bin/python -c 'import numpy'
+    - title: pandas importable in envB
+      cmd: /opt/conda/envs/envB/bin/python -c 'import pandas'
+
+pip_env_override:
+  description: |
+    env_name=pipenv, packages=pip, pip_requirements_files=/tmp/requirements.txt,
+    pip_env=pipenv: explicit pip_env override that equals the only env — validates
+    that pip_env is honoured and the package still arrives in the right place.
+  checks:
+    - title: pipenv environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q pipenv'
+    - title: pipenv directory exists
+      cmd: test -d /opt/conda/envs/pipenv
+    - title: pip binary installed in pipenv
+      cmd: test -f /opt/conda/envs/pipenv/bin/pip
+    - title: tomli importable in pipenv
+      cmd: /opt/conda/envs/pipenv/bin/python -c 'import tomli'
+
+pip_requirements:
+  description: |
+    env_name=pipenv, packages=pip, pip_requirements_files=/tmp/requirements.txt:
+    after the conda env is created, pip installs packages from the requirements
+    file. The Dockerfile writes 'tomli' as the sole requirement.
+  checks:
+    - title: pipenv environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q pipenv'
+    - title: pipenv directory exists
+      cmd: test -d /opt/conda/envs/pipenv
+    - title: pip binary installed in pipenv
+      cmd: test -f /opt/conda/envs/pipenv/bin/pip
+    - title: tomli importable in pipenv
+      cmd: /opt/conda/envs/pipenv/bin/python -c 'import tomli'
+
+post_env_script:
+  description: |
+    post_env_script=/tmp/post-env.sh, env_name=scriptenv: the post-env script
+    receives the environment name as $1 and writes it to /tmp/post-env-ran.
+    Verifies the script was actually called with the correct argument.
+  checks:
+    - title: scriptenv environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q scriptenv'
+    - title: scriptenv directory exists
+      cmd: test -d /opt/conda/envs/scriptenv
+    - title: numpy importable in scriptenv
+      cmd: /opt/conda/envs/scriptenv/bin/python -c 'import numpy'
+    - title: post-env sentinel file exists
+      cmd: test -f /tmp/post-env-ran
+    - title: post-env script received env name
+      cmd: bash -c '[ "$(cat /tmp/post-env-ran)" = "scriptenv" ]'
+
+python_version:
+  description: |
+    env_name=py311, python_version=3.11: an inline environment is created with a
+    pinned Python version but no explicit packages (verifies the relaxed
+    validation — python_version alone is enough to justify creating the env).
+  checks:
+    - title: py311 environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q py311'
+    - title: py311 directory exists
+      cmd: test -d /opt/conda/envs/py311
+    - title: py311 python binary exists
+      cmd: test -f /opt/conda/envs/py311/bin/python
+    - title: Python 3.11 is installed in py311
+      cmd: bash -c '/opt/conda/envs/py311/bin/python --version 2>&1 | grep -q "^Python 3\.11\."'
+
+solver_conda:
+  description: |
+    solver=conda: forces the conda solver (bypasses mamba even though mamba is
+    present in the Miniforge image). The environment must still be created
+    correctly; this test verifies behaviour is identical to the default path.
+  checks:
+    - title: solverenv environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q solverenv'
+    - title: solverenv directory exists
+      cmd: test -d /opt/conda/envs/solverenv
+    - title: python binary in solverenv
+      cmd: test -f /opt/conda/envs/solverenv/bin/python
+    - title: numpy importable in solverenv
+      cmd: /opt/conda/envs/solverenv/bin/python -c 'import numpy'
+
+strict_channel_priority:
+  description: |
+    strict_channel_priority=true, channels=conda-forge: channel_priority is set
+    to 'strict' in the conda config in addition to adding the channel.
+  checks:
+    - title: strictenv environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q strictenv'
+    - title: strictenv directory exists
+      cmd: test -d /opt/conda/envs/strictenv
+    - title: numpy importable in strictenv
+      cmd: /opt/conda/envs/strictenv/bin/python -c 'import numpy'
+    - title: conda-forge channel in conda config
+      cmd: bash -c '/opt/conda/bin/conda config --show channels | grep -q conda-forge'
+    - title: channel_priority is strict
+      cmd: bash -c '/opt/conda/bin/conda config --show channel_priority | grep -q strict'
+
+update_existing:
+  description: |
+    env_files pointing to an already-existing environment: the feature detects the
+    existing env directory and runs 'env update' instead of 'env create'.
+    The Dockerfile pre-creates 'simple' with numpy only; the YAML was then updated
+    to also include pandas, so after the feature runs pandas should be importable.
+  checks:
+    - title: simple environment is listed
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q simple'
+    - title: simple directory exists
+      cmd: test -d /opt/conda/envs/simple
+    - title: numpy importable after update
+      cmd: /opt/conda/envs/simple/bin/python -c 'import numpy'
+    - title: pandas importable after update
+      cmd: /opt/conda/envs/simple/bin/python -c 'import pandas'

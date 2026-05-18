@@ -8,7 +8,7 @@ inline_env:
   options:
     env_name: myenv
     packages: "numpy pandas"
-  tests: [inline_env.sh]
+  tests: [inline_env]
 
 python_version:
   envs: [condaforge-miniforge3]
@@ -16,7 +16,7 @@ python_version:
   options:
     env_name: py311
     python_version: "3.11"
-  tests: [python_version.sh]
+  tests: [python_version]
 
 env_files:
   envs: [condaforge-miniforge3]
@@ -26,7 +26,7 @@ env_files:
     printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml
   options:
     env_files: /tmp/test-envs/simple.yml
-  tests: [env_files.sh]
+  tests: [env_files]
 
 env_dirs:
   envs: [condaforge-miniforge3]
@@ -37,7 +37,7 @@ env_dirs:
     printf 'name: direnv2\ndependencies:\n  - pandas\n' > /tmp/test-envs/direnv2.yml
   options:
     env_dirs: /tmp/test-envs
-  tests: [env_dirs.sh]
+  tests: [env_dirs]
 
 multi_env_files:
   envs: [condaforge-miniforge3]
@@ -48,7 +48,7 @@ multi_env_files:
     printf 'name: envB\ndependencies:\n  - pandas\n' > /tmp/test-envs/envB.yml
   options:
     env_files: "/tmp/test-envs/envA.yml\n/tmp/test-envs/envB.yml"
-  tests: [multi_env_files.sh]
+  tests: [multi_env_files]
 
 update_existing:
   envs: [condaforge-miniforge3]
@@ -60,7 +60,7 @@ update_existing:
     printf 'name: simple\ndependencies:\n  - numpy\n  - pandas\n' > /tmp/test-envs/simple.yml
   options:
     env_files: /tmp/test-envs/simple.yml
-  tests: [update_existing.sh]
+  tests: [update_existing]
 
 channels:
   envs: [condaforge-miniforge3]
@@ -69,7 +69,7 @@ channels:
     env_name: chanenv
     packages: numpy
     channels: "conda-forge\ndefaults"
-  tests: [channels.sh]
+  tests: [channels]
 
 strict_channel_priority:
   envs: [condaforge-miniforge3]
@@ -79,7 +79,7 @@ strict_channel_priority:
     packages: numpy
     channels: conda-forge
     strict_channel_priority: true
-  tests: [strict_channel_priority.sh]
+  tests: [strict_channel_priority]
 
 solver_conda:
   envs: [condaforge-miniforge3]
@@ -88,7 +88,7 @@ solver_conda:
     env_name: solverenv
     packages: numpy
     solver: conda
-  tests: [solver_conda.sh]
+  tests: [solver_conda]
 
 pip_requirements:
   envs: [condaforge-miniforge3]
@@ -98,7 +98,7 @@ pip_requirements:
     env_name: pipenv
     packages: pip
     pip_requirements_files: /tmp/requirements.txt
-  tests: [pip_requirements.sh]
+  tests: [pip_requirements]
 
 pip_env_override:
   envs: [condaforge-miniforge3]
@@ -109,7 +109,7 @@ pip_env_override:
     packages: pip
     pip_requirements_files: /tmp/requirements.txt
     pip_env: pipenv
-  tests: [pip_env_override.sh]
+  tests: [pip_env_override]
 
 post_env_script:
   envs: [condaforge-miniforge3]
@@ -121,7 +121,7 @@ post_env_script:
     env_name: scriptenv
     packages: numpy
     post_env_script: /tmp/post-env.sh
-  tests: [post_env_script.sh]
+  tests: [post_env_script]
 
 log_file:
   envs: [condaforge-miniforge3]
@@ -130,7 +130,7 @@ log_file:
     env_name: logenv
     packages: numpy
     log_file: /tmp/conda-env.log
-  tests: [log_file.sh]
+  tests: [log_file]
 
 keep_cache:
   envs: [condaforge-miniforge3]
@@ -139,7 +139,7 @@ keep_cache:
     env_name: cleanenv
     packages: numpy
     keep_cache: true
-  tests: [keep_cache.sh]
+  tests: [keep_cache]
 
 env_files_uri:
   envs: [condaforge-miniforge3]
@@ -149,11 +149,11 @@ env_files_uri:
     printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml
   options:
     env_files: "file:///tmp/test-envs/simple.yml"
-  tests: [env_files_uri.sh]
+  tests: [env_files_uri]
 
 http_uri_resolve_stubbed:
   envs: [condaforge-miniforge3]
   modes: [standalone]
   standalone:
     skip_install: true
-  tests: [http_uri_resolve_stubbed.sh]
+  tests: [http_uri_resolve_stubbed]

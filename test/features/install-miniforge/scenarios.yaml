@@ -5,42 +5,42 @@ defaults:
 download_and_install:
   envs: [ubuntu-latest]
   modes: [devcontainer]
-  tests: [download_and_install.sh]
+  tests: [download_and_install]
 
 custom_bin_dir:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     prefix: /opt/myforge
-  tests: [custom_bin_dir.sh]
+  tests: [custom_bin_dir]
 
 specific_version:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     version: "24.7.1"
-  tests: [specific_version.sh]
+  tests: [specific_version]
 
 set_permission:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     write_group: conda
-  tests: [set_permission.sh]
+  tests: [set_permission]
 
 activate_bashrc:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     shell_activations: bash
-  tests: [activate_bashrc.sh]
+  tests: [activate_bashrc]
 
 activate_multi:
   envs: [ubuntu-latest+zsh]
   modes: [devcontainer]
   options:
     shell_activations: "bash\nzsh"
-  tests: [activate_multi.sh]
+  tests: [activate_multi]
 
 custom_active_env:
   envs: [ubuntu-latest]
@@ -48,21 +48,21 @@ custom_active_env:
   options:
     shell_activations: bash
     activate_env: myenv
-  tests: [custom_active_env.sh]
+  tests: [custom_active_env]
 
 log_file:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     log_file: /tmp/miniforge.log
-  tests: [log_file.sh]
+  tests: [log_file]
 
 installer_dir:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     installer_dir: /tmp/miniforge-trace
-  tests: [installer_dir.sh]
+  tests: [installer_dir]
 
 if_exists_reinstall:
   envs: [ubuntu-latest+miniforge-base]
@@ -72,7 +72,7 @@ if_exists_reinstall:
     MINIFORGE_FILENAME: Miniforge3-Linux
   options:
     if_exists: reinstall
-  tests: [if_exists_reinstall.sh]
+  tests: [if_exists_reinstall]
 
 if_exists_skip:
   envs: [ubuntu-latest+miniforge-base]
@@ -82,26 +82,26 @@ if_exists_skip:
     MINIFORGE_FILENAME: Miniforge3-Linux
   options:
     if_exists: skip
-  tests: [if_exists_skip.sh]
+  tests: [if_exists_skip]
 
 if_exists_fail:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     if_exists: fail
-  tests: [if_exists_fail.sh]
+  tests: [if_exists_fail]
 
 if_exists_update:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
     if_exists: update
-  tests: [if_exists_update.sh]
+  tests: [if_exists_update]
 
 debian:
   envs: [debian-latest]
   modes: [devcontainer]
-  tests: [debian.sh]
+  tests: [debian]
 
 multi_user_permissions:
   envs: [ubuntu-latest]
@@ -112,12 +112,12 @@ multi_user_permissions:
   options:
     write_group: conda
     write_users: "testuser1\ntestuser2"
-  tests: [multi_user_permissions.sh]
+  tests: [multi_user_permissions]
 
 export_path_default:
   envs: [ubuntu-latest]
   modes: [devcontainer]
-  tests: [export_path_default.sh]
+  tests: [export_path_default]
 
 prefix_discovery_symlink:
   envs: [ubuntu-latest]
@@ -125,7 +125,7 @@ prefix_discovery_symlink:
   options:
     prefix: /opt/myforge
     prefix_discovery: symlink
-  tests: [prefix_discovery_symlink.sh]
+  tests: [prefix_discovery_symlink]
 
 prefix_discovery_symlink_nonroot:
   envs: [ubuntu-latest]
@@ -136,12 +136,12 @@ prefix_discovery_symlink_nonroot:
     prefix_discovery: symlink
   devcontainer:
     remoteUser: vscode
-  tests: [prefix_discovery_symlink_nonroot.sh]
+  tests: [prefix_discovery_symlink_nonroot]
 
 stable_version:
   envs: [ubuntu-latest]
   modes: [devcontainer]
-  tests: [stable_version.sh]
+  tests: [stable_version]
 
 version_match_idempotency:
   envs: [ubuntu-latest+miniforge-base]
@@ -152,7 +152,7 @@ version_match_idempotency:
   options:
     version: "24.7.1"
     if_exists: reinstall
-  tests: [version_match_idempotency.sh]
+  tests: [version_match_idempotency]
 
 preserve_envs_true:
   envs: [ubuntu-latest+miniforge-base]
@@ -164,7 +164,7 @@ preserve_envs_true:
   options:
     if_exists: reinstall
     preserve_envs: true
-  tests: [preserve_envs_true.sh]
+  tests: [preserve_envs_true]
 
 preserve_envs_false:
   envs: [ubuntu-latest+miniforge-base]
@@ -176,7 +176,7 @@ preserve_envs_false:
   options:
     if_exists: reinstall
     preserve_envs: false
-  tests: [preserve_envs_false.sh]
+  tests: [preserve_envs_false]
 
 preserve_config_true:
   envs: [ubuntu-latest+miniforge-base]
@@ -190,7 +190,7 @@ preserve_config_true:
   options:
     if_exists: reinstall
     preserve_config: true
-  tests: [preserve_config_true.sh]
+  tests: [preserve_config_true]
 
 preserve_config_false:
   envs: [ubuntu-latest+miniforge-base]
@@ -204,7 +204,7 @@ preserve_config_false:
   options:
     if_exists: reinstall
     preserve_config: false
-  tests: [preserve_config_false.sh]
+  tests: [preserve_config_false]
 
 if_exists_update_preinstall:
   envs: [ubuntu-latest+miniforge-base]
@@ -215,7 +215,7 @@ if_exists_update_preinstall:
   setup: /opt/conda/bin/conda create -n myenv --yes
   options:
     if_exists: update
-  tests: [if_exists_update_preinstall.sh]
+  tests: [if_exists_update_preinstall]
 
 symlink_user_home_prefix:
   envs: [ubuntu-latest]
@@ -223,7 +223,7 @@ symlink_user_home_prefix:
   options:
     prefix: /root/myforge
     prefix_discovery: symlink
-  tests: [symlink_user_home_prefix.sh]
+  tests: [symlink_user_home_prefix]
 
 github_api_unreachable_network_isolated:
   expect_install_failure: true
@@ -232,7 +232,7 @@ github_api_unreachable_network_isolated:
   standalone:
     network: none
     skip_install: false
-  tests: [github_api_unreachable_network_isolated.sh]
+  tests: [github_api_unreachable_network_isolated]
 
 invalid_version:
   expect_install_failure: true
@@ -242,4 +242,4 @@ invalid_version:
     version: "0.0.0"
   standalone:
     skip_install: false
-  tests: [invalid_version.sh]
+  tests: [invalid_version]

@@ -5,7 +5,7 @@ defaults:
 default:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
-  tests: [default.sh]
+  tests: [default]
 
 code_only:
   envs: [ubuntu-latest]
@@ -14,7 +14,7 @@ code_only:
     code: true
     devcontainer-info: false
     systemctl: false
-  tests: [code_only.sh]
+  tests: [code_only]
 
 none_enabled:
   envs: [ubuntu-latest]
@@ -23,4 +23,4 @@ none_enabled:
     code: false
     devcontainer-info: false
     systemctl: false
-  tests: [none_enabled.sh]
+  tests: [none_enabled]

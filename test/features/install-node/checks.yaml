@@ -1,0 +1,101 @@
+nvm_add_users:
+  description: |
+    nvm_write_group=nvm, nvm_write_users=testuser:
+    testuser is added to the nvm group; NVM_DIR has group-write + setgid bits
+    set; and the nvm init snippet is written to the system-wide bash.bashrc.
+  pre: |
+    _NVM_DIR=/usr/local/share/nvm
+  checks:
+    - title: node on PATH
+      cmd: command -v node
+    - title: nvm.sh exists
+      cmd: test -f "${_NVM_DIR}/nvm.sh"
+    - title: nvm group exists
+      cmd: bash -c 'getent group nvm >/dev/null 2>&1'
+      debug: |
+        echo "=== getent group nvm ==="
+        getent group nvm 2>&1 || echo "(not found)"
+        echo "=== id testuser ==="
+        id testuser 2>&1 || echo "(not found)"
+        echo "=== stat ${_NVM_DIR} ==="
+        stat -c "user=%U group=%G mode=%A" "${_NVM_DIR}" 2>&1 || echo "(failed)"
+    - title: testuser is in nvm group
+      cmd: bash -c 'id -nG testuser | grep -qw nvm'
+    - title: NVM_DIR group-owned by nvm
+      cmd: bash -c '[ "$(stat -c "%G" /usr/local/share/nvm)" = "nvm" ]'
+    - title: NVM_DIR is group-writable
+      cmd: bash -c '[ "$(stat -c "%A" /usr/local/share/nvm | cut -c6)" = "w" ]'
+    - title: NVM_DIR has setgid bit
+      cmd: bash -c 'stat -c "%A" /usr/local/share/nvm | grep -qE "^d.....(s|S)"'
+    - title: /etc/bash.bashrc contains nvm.sh source
+      cmd: bash -c 'grep -Fq "nvm.sh" /etc/bash.bashrc 2>/dev/null'
+      debug: |
+        echo "=== /etc/bash.bashrc (nvm lines) ==="
+        grep "nvm" /etc/bash.bashrc 2> /dev/null || echo "(no nvm lines)"
+
+nvm_no_permissions:
+  description: "nvm_write_group=\"\" (empty): node is installed but the nvm group is NOT created."
+  pre: |
+    _NVM_DIR=/usr/local/share/nvm
+  checks:
+    - title: node on PATH
+      cmd: command -v node
+    - title: nvm.sh exists
+      cmd: test -f "${_NVM_DIR}/nvm.sh"
+    - title: nvm group does not exist
+      cmd: bash -c '! getent group nvm >/dev/null 2>&1'
+      debug: |
+        echo "=== getent group nvm (should be absent) ==="
+        getent group nvm 2>&1 || echo "(not found — expected)"
+
+nvm_remote_user:
+  description: |
+    nvm_write_group=nvm with remoteUser="vscode" (injected as _REMOTE_USER by
+    the devcontainer CLI): vscode is added to the nvm group and the nvm init
+    snippet is written to the system-wide /etc/bash.bashrc.
+  pre: |
+    _NVM_DIR=/usr/local/share/nvm
+  checks:
+    - title: node on PATH
+      cmd: command -v node
+    - title: nvm.sh exists
+      cmd: test -f "${_NVM_DIR}/nvm.sh"
+    - title: nvm group exists
+      cmd: bash -c 'getent group nvm >/dev/null 2>&1'
+      debug: |
+        echo "=== getent group nvm ==="
+        getent group nvm 2>&1 || echo "(not found)"
+        echo "=== id vscode ==="
+        id vscode 2>&1 || echo "(not found)"
+    - title: vscode is in nvm group
+      cmd: bash -c 'id -nG vscode | grep -qw nvm'
+    - title: /etc/bash.bashrc contains nvm.sh source
+      cmd: bash -c 'grep -Fq "nvm.sh" /etc/bash.bashrc 2>/dev/null'
+      debug: |
+        echo "=== /etc/bash.bashrc (nvm lines) ==="
+        grep "nvm" /etc/bash.bashrc 2> /dev/null || echo "(no nvm lines)"
+
+nvm_set_permissions:
+  description: |
+    nvm_write_group=nvm (default): nvm group is created, NVM_DIR is group-owned
+    by nvm, and has group-write + setgid bits set.
+  pre: |
+    _NVM_DIR=/usr/local/share/nvm
+  checks:
+    - title: node on PATH
+      cmd: command -v node
+    - title: nvm.sh exists
+      cmd: test -f "${_NVM_DIR}/nvm.sh"
+    - title: nvm group exists
+      cmd: bash -c 'getent group nvm >/dev/null 2>&1'
+      debug: |
+        echo "=== getent group nvm ==="
+        getent group nvm 2>&1 || echo "(not found)"
+        echo "=== stat ${_NVM_DIR} ==="
+        stat -c "user=%U group=%G mode=%A" "${_NVM_DIR}" 2>&1 || echo "(failed)"
+    - title: NVM_DIR group-owned by nvm
+      cmd: bash -c '[ "$(stat -c "%G" /usr/local/share/nvm)" = "nvm" ]'
+    - title: NVM_DIR is group-writable
+      cmd: bash -c '[ "$(stat -c "%A" /usr/local/share/nvm | cut -c6)" = "w" ]'
+    - title: NVM_DIR has setgid bit
+      cmd: bash -c 'stat -c "%A" /usr/local/share/nvm | grep -qE "^d.....(s|S)"'

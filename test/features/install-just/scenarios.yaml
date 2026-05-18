@@ -8,7 +8,7 @@ default_install:
   - devcontainer
   - standalone
   tests:
-  - default_install.sh
+  - default_install
 binary_custom_prefix:
   envs:
   - ubuntu-latest
@@ -20,7 +20,7 @@ binary_custom_prefix:
     prefix: /opt/just-bin
     if_exists: reinstall
   tests:
-  - binary_custom_prefix.sh
+  - binary_custom_prefix
 package_install:
   envs:
   - debian-latest
@@ -31,7 +31,7 @@ package_install:
     method: package
     if_exists: reinstall
   tests:
-  - package_install.sh
+  - package_install
 if_exists_fail:
   expect_install_failure: true
   envs:
@@ -39,7 +39,7 @@ if_exists_fail:
   modes:
   - standalone
   tests:
-  - if_exists_fail.sh
+  - if_exists_fail
   standalone:
     skip_install: false
   options:
@@ -54,4 +54,4 @@ installer_dir:
     method: binary
     installer_dir: /tmp/just-trace
   tests:
-  - installer_dir.sh
+  - installer_dir

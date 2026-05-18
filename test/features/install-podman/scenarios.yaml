@@ -11,7 +11,7 @@ apt_default:
     truncate -s 0 /etc/subuid /etc/subgid
   devcontainer:
     remoteUser: vscode
-  tests: [apt_default.sh]
+  tests: [apt_default]
 
 apt_remote_user:
   envs: [ubuntu-latest]
@@ -26,7 +26,7 @@ apt_remote_user:
     add_current_user: false
   devcontainer:
     remoteUser: vscode
-  tests: [apt_remote_user.sh]
+  tests: [apt_remote_user]
 
 apt_container_user:
   envs: [ubuntu-latest]
@@ -41,7 +41,7 @@ apt_container_user:
     add_current_user: false
   devcontainer:
     containerUser: vscode
-  tests: [apt_container_user.sh]
+  tests: [apt_container_user]
 
 apt_root_user_config:
   envs: [ubuntu-latest]
@@ -51,7 +51,7 @@ apt_root_user_config:
     truncate -s 0 /etc/subuid /etc/subgid
   options:
     add_users: root
-  tests: [apt_root_user_config.sh]
+  tests: [apt_root_user_config]
 
 apt_explicit_user:
   envs: [ubuntu-latest]
@@ -65,7 +65,7 @@ apt_explicit_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_explicit_user.sh]
+  tests: [apt_explicit_user]
 
 apt_multi_user:
   envs: [ubuntu-latest]
@@ -80,7 +80,7 @@ apt_multi_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_multi_user.sh]
+  tests: [apt_multi_user]
 
 apt_no_users:
   envs: [ubuntu-latest]
@@ -92,7 +92,7 @@ apt_no_users:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_no_users.sh]
+  tests: [apt_no_users]
 
 apt_nonexistent_user:
   envs: [ubuntu-latest]
@@ -105,7 +105,7 @@ apt_nonexistent_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_nonexistent_user.sh]
+  tests: [apt_nonexistent_user]
 
 # ---------------------------------------------------------------------------
 # Functional (podman run) scenarios
@@ -124,7 +124,7 @@ apt_podman_run:
     truncate -s 0 /etc/subuid /etc/subgid
   devcontainer:
     remoteUser: vscode
-  tests: [apt_podman_run.sh]
+  tests: [apt_podman_run]
 
 apt_podman_run_explicit_user:
   envs: [ubuntu-latest]
@@ -138,7 +138,7 @@ apt_podman_run_explicit_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_podman_run_explicit_user.sh]
+  tests: [apt_podman_run_explicit_user]
 
 # ---------------------------------------------------------------------------
 # Standalone scenarios
@@ -156,7 +156,7 @@ apt_standalone_default:
   options:
     add_remote_user: false
     add_container_user: false
-  tests: [apt_standalone_default.sh]
+  tests: [apt_standalone_default]
 
 apt_standalone_user:
   envs: [ubuntu-latest]
@@ -170,4 +170,4 @@ apt_standalone_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_standalone_user.sh]
+  tests: [apt_standalone_user]

@@ -1,0 +1,189 @@
+alpine:
+  description: |
+    Alpine base image: verifies base dependencies (bash, shadow) are installed
+    by the bootstrap and that the full user-creation flow works on Alpine/musl.
+  checks:
+    - title: bash is available
+      cmd: bash -c 'command -v bash'
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: vscode has UID 1000
+      cmd: bash -c '[ "$(id -u vscode)" = "1000" ]'
+    - title: vscode has GID 1000
+      cmd: bash -c '[ "$(id -g vscode)" = "1000" ]'
+    - title: vscode primary group is vscode
+      cmd: bash -c '[ "$(id -gn vscode)" = "vscode" ]'
+    - title: home directory /home/vscode exists
+      cmd: test -d /home/vscode
+    - title: home directory owned by uid 1000
+      cmd: bash -c '[ "$(stat -c "%u" /home/vscode)" = "1000" ]'
+    - title: home directory group-owned by gid 1000
+      cmd: bash -c '[ "$(stat -c "%g" /home/vscode)" = "1000" ]'
+    - title: sudo binary is installed
+      cmd: bash -c 'command -v sudo'
+    - title: sudoers file exists
+      cmd: test -f /etc/sudoers.d/vscode
+    - title: sudoers grants NOPASSWD:ALL
+      cmd: grep -q "vscode ALL=(ALL) NOPASSWD:ALL" /etc/sudoers.d/vscode
+
+already_configured:
+  description: |
+    replace_existing=false with the user already correctly configured: the
+    feature should recognise the existing account and pass through without error.
+  checks:
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: vscode has UID 1000
+      cmd: bash -c '[ "$(id -u vscode)" = "1000" ]'
+    - title: vscode has GID 1000
+      cmd: bash -c '[ "$(id -g vscode)" = "1000" ]'
+    - title: vscode primary group is vscode
+      cmd: bash -c '[ "$(id -gn vscode)" = "vscode" ]'
+    - title: home directory /home/vscode exists
+      cmd: test -d /home/vscode
+    - title: home directory owned by vscode
+      cmd: bash -c '[ "$(stat -c "%U" /home/vscode)" = "vscode" ]'
+
+custom_home:
+  description: |
+    home_dir=/workspaces/myapp: home directory is created at the specified path.
+  checks:
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: custom home /workspaces/myapp exists
+      cmd: test -d /workspaces/myapp
+    - title: custom home owned by vscode
+      cmd: bash -c '[ "$(stat -c "%U" /workspaces/myapp)" = "vscode" ]'
+    - title: custom home group-owned by vscode
+      cmd: bash -c '[ "$(stat -c "%G" /workspaces/myapp)" = "vscode" ]'
+    - title: passwd home matches custom path
+      cmd: |-
+        bash -c '[ "$(awk -F: ''\''$1=="vscode"{print $6}''\'' /etc/passwd)" = "/workspaces/myapp" ]'
+    - title: /home/vscode was NOT created
+      cmd: bash -c '! test -d /home/vscode'
+
+custom_shell:
+  description: |
+    user_shell=/bin/sh: login shell is set to /bin/sh instead of the default /bin/bash.
+  checks:
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: login shell is /bin/sh
+      cmd: |-
+        bash -c '[ "$(awk -F: ''\''$1=="vscode"{print $7}''\'' /etc/passwd)" = "/bin/sh" ]'
+
+custom_user:
+  description: |
+    Custom username/user_id/group_id/group_name: username=devuser, user_id=2000,
+    group_id=2000, group_name=devgroup. Verifies all custom values are applied.
+  checks:
+    - title: devuser user exists
+      cmd: bash -c 'id devuser > /dev/null 2>&1'
+    - title: devuser has UID 2000
+      cmd: bash -c '[ "$(id -u devuser)" = "2000" ]'
+    - title: devuser has GID 2000
+      cmd: bash -c '[ "$(id -g devuser)" = "2000" ]'
+    - title: devuser primary group is devgroup
+      cmd: bash -c '[ "$(id -gn devuser)" = "devgroup" ]'
+    - title: devgroup group exists
+      cmd: bash -c 'getent group devgroup > /dev/null 2>&1'
+    - title: devgroup has GID 2000
+      cmd: |-
+        bash -c '[ "$(getent group devgroup | cut -d: -f3)" = "2000" ]'
+    - title: home directory /home/devuser exists
+      cmd: test -d /home/devuser
+    - title: home directory owned by devuser
+      cmd: bash -c '[ "$(stat -c "%U" /home/devuser)" = "devuser" ]'
+    - title: user vscode was NOT created
+      cmd: bash -c '! id vscode > /dev/null 2>&1'
+
+default:
+  description: |
+    Default options: username=vscode, user_id=1000, group_id=1000, sudo_access=true,
+    user_shell=/bin/bash. Verifies the full happy-path of user creation.
+  checks:
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: vscode has UID 1000
+      cmd: bash -c '[ "$(id -u vscode)" = "1000" ]'
+    - title: vscode has GID 1000
+      cmd: bash -c '[ "$(id -g vscode)" = "1000" ]'
+    - title: vscode primary group is vscode
+      cmd: bash -c '[ "$(id -gn vscode)" = "vscode" ]'
+    - title: home directory /home/vscode exists
+      cmd: test -d /home/vscode
+    - title: home directory owned by vscode
+      cmd: bash -c '[ "$(stat -c "%U" /home/vscode)" = "vscode" ]'
+    - title: home directory group-owned by vscode
+      cmd: bash -c '[ "$(stat -c "%G" /home/vscode)" = "vscode" ]'
+    - title: login shell is /bin/bash
+      cmd: |-
+        bash -c '[ "$(awk -F: ''\''$1=="vscode"{print $7}''\'' /etc/passwd)" = "/bin/bash" ]'
+    - title: sudo binary is installed
+      cmd: bash -c 'command -v sudo'
+    - title: sudoers file exists
+      cmd: test -f /etc/sudoers.d/vscode
+    - title: sudoers file has correct perms
+      cmd: bash -c '[ "$(stat -c "%a" /etc/sudoers.d/vscode)" = "440" ]'
+    - title: sudoers grants NOPASSWD:ALL
+      cmd: grep -q "vscode ALL=(ALL) NOPASSWD:ALL" /etc/sudoers.d/vscode
+
+extra_groups:
+  description: |
+    extra_groups=builders,testers: vscode is added to both supplementary groups
+    (pre-created in the Dockerfile).
+  checks:
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: vscode is in group builders
+      cmd: bash -c 'groups vscode | tr " " "\n" | grep -qx "builders"'
+    - title: vscode is in group testers
+      cmd: bash -c 'groups vscode | tr " " "\n" | grep -qx "testers"'
+
+log_file:
+  description: |
+    log_file=/tmp/setup-user.log: all script output is captured to the log file.
+  checks:
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: log_file was created
+      cmd: test -f /tmp/setup-user.log
+    - title: log_file is non-empty
+      cmd: test -s /tmp/setup-user.log
+    - title: log_file mentions vscode
+      cmd: grep -q "vscode" /tmp/setup-user.log
+
+no_sudo:
+  description: |
+    sudo_access=false: user is created but no sudo is configured.
+  checks:
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: vscode has UID 1000
+      cmd: bash -c '[ "$(id -u vscode)" = "1000" ]'
+    - title: vscode has GID 1000
+      cmd: bash -c '[ "$(id -g vscode)" = "1000" ]'
+    - title: home directory /home/vscode exists
+      cmd: test -d /home/vscode
+    - title: home directory owned by vscode
+      cmd: bash -c '[ "$(stat -c "%U" /home/vscode)" = "vscode" ]'
+    - title: no sudoers file for vscode
+      cmd: bash -c '! test -f /etc/sudoers.d/vscode'
+
+replace_existing:
+  description: |
+    replace_existing=true (default): the Dockerfile pre-creates old_user at
+    UID 1000. The feature should evict old_user and create vscode correctly.
+  checks:
+    - title: vscode user exists
+      cmd: bash -c 'id vscode > /dev/null 2>&1'
+    - title: vscode has UID 1000
+      cmd: bash -c '[ "$(id -u vscode)" = "1000" ]'
+    - title: vscode has GID 1000
+      cmd: bash -c '[ "$(id -g vscode)" = "1000" ]'
+    - title: home directory /home/vscode exists
+      cmd: test -d /home/vscode
+    - title: home directory owned by vscode
+      cmd: bash -c '[ "$(stat -c "%U" /home/vscode)" = "vscode" ]'
+    - title: old_user was evicted
+      cmd: bash -c '! id old_user > /dev/null 2>&1'

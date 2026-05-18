@@ -3,6 +3,8 @@
 
 /src/
 
+/test/features/*/tests/*.sh
+
 /docs/source/features/**
 /docs/source/dev/features/reference/
 /docs/source/library/

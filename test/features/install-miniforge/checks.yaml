@@ -1,0 +1,830 @@
+activate_bashrc:
+  description: |
+    shell_activations=bash: conda init block is written to the system-wide
+    bash rc file exactly once using our own idempotency markers.
+
+  checks:
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: /etc/bash.bashrc exists
+      cmd: test -f /etc/bash.bashrc
+    - title: miniforge begin marker in /etc/bash.bashrc
+      cmd: grep -Fq "# >>> prefix activation (install-miniforge) >>>" /etc/bash.bashrc
+      debug: |
+        echo "=== /etc/bash.bashrc ==="
+        cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+    - title: miniforge end marker in /etc/bash.bashrc
+      cmd: grep -Fq "# <<< prefix activation (install-miniforge) <<<" /etc/bash.bashrc
+    - title: conda initialize begin marker in /etc/bash.bashrc
+      cmd: grep -Fq "# >>> conda initialize >>>" /etc/bash.bashrc
+    - title: conda initialize end marker in /etc/bash.bashrc
+      cmd: grep -Fq "# <<< conda initialize <<<" /etc/bash.bashrc
+    - title: conda activate base NOT in /etc/bash.bashrc
+      cmd: bash -c '! grep -Fq "conda activate base" /etc/bash.bashrc'
+    - title: miniforge begin marker not duplicated
+      cmd: bash -c '[ "$(grep -Fc "# >>> prefix activation (install-miniforge) >>>" /etc/bash.bashrc)" -eq 1 ]'
+
+activate_multi:
+  description: |
+    shell_activations="bash zsh": conda init blocks are written to both the
+    system-wide bash rc file and the system-wide zsh rc file (running as root).
+
+  checks:
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: /etc/bash.bashrc exists
+      cmd: test -f /etc/bash.bashrc
+    - title: /etc/zsh/zshrc exists
+      cmd: test -f /etc/zsh/zshrc
+      debug: |
+        echo "=== /etc/bash.bashrc ==="
+        cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+    - title: miniforge begin marker in /etc/bash.bashrc
+      cmd: grep -Fq "# >>> prefix activation (install-miniforge) >>>" /etc/bash.bashrc
+      debug: |
+        echo "=== /etc/zsh/zshrc ==="
+        cat /etc/zsh/zshrc 2>/dev/null || echo "(missing)"
+    - title: conda initialize begin marker in /etc/bash.bashrc
+      cmd: grep -Fq "# >>> conda initialize >>>" /etc/bash.bashrc
+    - title: miniforge begin marker in /etc/zsh/zshrc
+      cmd: grep -Fq "# >>> prefix activation (install-miniforge) >>>" /etc/zsh/zshrc
+    - title: conda initialize begin marker in /etc/zsh/zshrc
+      cmd: grep -Fq "# >>> conda initialize >>>" /etc/zsh/zshrc
+    - title: no dup miniforge marker in /etc/bash.bashrc
+      cmd: bash -c '[ "$(grep -Fc "# >>> prefix activation (install-miniforge) >>>" /etc/bash.bashrc)" -eq 1 ]'
+    - title: no dup miniforge marker in /etc/zsh/zshrc
+      cmd: bash -c '[ "$(grep -Fc "# >>> prefix activation (install-miniforge) >>>" /etc/zsh/zshrc)" -eq 1 ]'
+
+custom_active_env:
+  description: |
+    shell_activations=bash, activate_env=myenv:
+    'conda activate myenv' is written inside our idempotency block after the
+    conda init block; 'conda activate base' must not appear.
+
+  checks:
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: /etc/bash.bashrc exists
+      cmd: test -f /etc/bash.bashrc
+    - title: miniforge begin marker in /etc/bash.bashrc
+      cmd: grep -Fq "# >>> prefix activation (install-miniforge) >>>" /etc/bash.bashrc
+      debug: |
+        echo "=== /etc/bash.bashrc ==="
+        cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+    - title: conda initialize begin marker in /etc/bash.bashrc
+      cmd: grep -Fq "# >>> conda initialize >>>" /etc/bash.bashrc
+    - title: conda activate myenv in /etc/bash.bashrc
+      cmd: grep -Fq "conda activate myenv" /etc/bash.bashrc
+    - title: conda activate base NOT in /etc/bash.bashrc
+      cmd: bash -c '! grep -Fq "conda activate base" /etc/bash.bashrc'
+
+custom_bin_dir:
+  description: |
+    prefix=/opt/myforge (custom prefix, default prefix_discovery=auto):
+    Miniforge is installed to a custom directory. In auto mode with a custom
+    prefix, symlinks are created in /usr/local/bin so conda/mamba are reachable.
+    No PATH export blocks are written (exports always disabled for miniforge).
+
+  checks:
+    - title: conda installed at /opt/myforge
+      cmd: test -d /opt/myforge
+    - title: conda binary at custom dir
+      cmd: test -f /opt/myforge/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/myforge/bin/conda
+    - title: mamba binary at custom dir
+      cmd: test -f /opt/myforge/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/myforge/bin/mamba
+    - title: conda wrapper in condabin
+      cmd: test -f /opt/myforge/condabin/conda
+    - title: mamba wrapper in condabin
+      cmd: test -f /opt/myforge/condabin/mamba
+    - title: python installed in custom base env
+      cmd: test -f /opt/myforge/bin/python
+    - title: conda activation script at custom dir
+      cmd: test -f /opt/myforge/etc/profile.d/conda.sh
+    - title: mamba activation script at custom dir
+      cmd: test -f /opt/myforge/etc/profile.d/mamba.sh
+    - title: default /opt/conda NOT created
+      cmd: bash -c '! test -e /opt/conda'
+    - title: /usr/local/bin/conda symlink exists
+      cmd: test -L /usr/local/bin/conda
+      debug: |
+        echo "=== ls -la /usr/local/bin/conda /usr/local/bin/mamba ==="
+        ls -la /usr/local/bin/conda /usr/local/bin/mamba 2>&1 || echo "(missing)"
+    - title: /usr/local/bin/mamba symlink exists
+      cmd: test -L /usr/local/bin/mamba
+    - title: conda symlink points into /opt/myforge
+      cmd: bash -c '[ "$(readlink /usr/local/bin/conda)" = "/opt/myforge/condabin/conda" ]'
+    - title: mamba symlink points into /opt/myforge
+      cmd: bash -c '[ "$(readlink /usr/local/bin/mamba)" = "/opt/myforge/condabin/mamba" ]'
+    - title: profile.d export script NOT written
+      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      debug: |
+        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} (should be missing) ==="
+        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing — expected)"
+    - title: conda --version via symlink
+      cmd: /usr/local/bin/conda --version
+    - title: mamba --version via symlink
+      cmd: /usr/local/bin/mamba --version
+    - title: conda info --base returns /opt/myforge
+      cmd: bash -c '[ "$(/opt/myforge/bin/conda info --base 2>/dev/null)" = "/opt/myforge" ]'
+
+debian:
+  description: |
+    debian:latest: verifies the full installation
+    path works on Debian (glibc, apt) to complement the Ubuntu-based scenarios.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary installed
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: python installed in base env
+      cmd: test -f /opt/conda/bin/python
+    - title: pip installed in base env
+      cmd: test -f /opt/conda/bin/pip
+    - title: conda activation script exists
+      cmd: test -f /opt/conda/etc/profile.d/conda.sh
+    - title: mamba activation script exists
+      cmd: test -f /opt/conda/etc/profile.d/mamba.sh
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: mamba --version succeeds
+      cmd: /opt/conda/bin/mamba --version
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+    - title: base environment accessible
+      cmd: /opt/conda/bin/conda env list
+
+download_and_install:
+  description: |
+    All defaults: full Miniforge installation.
+    Verifies conda and mamba are installed under /opt/conda, the base environment
+    is functional, and activation scripts are in place.  In devcontainer mode,
+    containerEnv puts /opt/conda/bin on $PATH before install.sh runs, so
+    prefix_discovery=auto skips creating symlinks when prefix is already on PATH.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda/bin directory exists
+      cmd: test -d /opt/conda/bin
+    - title: conda/envs directory exists
+      cmd: test -d /opt/conda/envs
+    - title: conda/pkgs directory exists
+      cmd: test -d /opt/conda/pkgs
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary installed
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: python installed in base env
+      cmd: test -f /opt/conda/bin/python
+    - title: pip installed in base env
+      cmd: test -f /opt/conda/bin/pip
+    - title: conda activation script exists
+      cmd: test -f /opt/conda/etc/profile.d/conda.sh
+    - title: mamba activation script exists
+      cmd: test -f /opt/conda/etc/profile.d/mamba.sh
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: mamba --version succeeds
+      cmd: /opt/conda/bin/mamba --version
+    - title: conda info exits zero
+      cmd: /opt/conda/bin/conda info
+    - title: conda env list shows base
+      cmd: /opt/conda/bin/conda env list
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+    - title: conda list for base env succeeds
+      cmd: /opt/conda/bin/conda list -n base
+    - title: old hardcoded installer path not created
+      cmd: bash -c '! test -d /tmp/miniforge-installer 2>/dev/null'
+
+export_path_default:
+  description: |
+    Default options (prefix=/opt/conda, prefix_discovery=auto):
+    In devcontainer mode, containerEnv puts /opt/conda/bin on $PATH before install.sh
+    runs, so prefix_discovery=auto correctly skips creating symlinks. PATH exports
+    are always disabled for miniforge (exports.skip=true).  Verifies that
+    /opt/conda/bin is reachable via login PATH (set by the container ENV directive).
+
+  pre: |
+    echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+    cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
+    echo "=== login PATH ==="
+    bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
+
+  checks:
+    - title: /opt/conda is a real directory not a symlink
+      cmd: bash -c '[ -d /opt/conda ] && [ ! -L /opt/conda ]'
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+github_api_unreachable_network_isolated:
+  description: |
+    Verify that Miniforge installation fails when the network is blocked (version
+    resolution requires the GitHub Releases API).
+    The base image (built by run-linux.sh) pre-installs feature dependencies.
+
+  checks:
+    - title: test script passes (installer failure checked at build time)
+      cmd: 'true'
+
+if_exists_fail:
+  description: |
+    if_exists=fail, no pre-existing conda (ubuntu:latest): with no existing
+    conda installation the if_exists check is not triggered and Miniforge installs
+    normally.  This verifies the option is accepted and does not break a fresh
+    install.  Testing the actual failure path (pre-existing conda + if_exists=fail)
+    is not supported by the devcontainer test framework because a non-zero feature
+    exit causes the image build to fail before the test script can run.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary installed
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+    - title: mamba --version succeeds
+      cmd: /opt/conda/bin/mamba --version
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+
+if_exists_reinstall:
+  description: |
+    if_exists=reinstall: conda is pre-installed in the image (see Dockerfile).
+    The feature detects the existing installation, uninstalls it, and installs a
+    fresh copy.  Verifies the reinstalled conda is functional.
+
+  checks:
+    - title: conda directory exists after reinstall
+      cmd: test -d /opt/conda
+    - title: conda binary installed after reinstall
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary installed after reinstall
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: conda --version succeeds after reinstall
+      cmd: /opt/conda/bin/conda --version
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+        echo "=== conda env list ==="
+        /opt/conda/bin/conda env list 2>&1 || echo "(failed)"
+        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
+    - title: mamba --version succeeds after reinstall
+      cmd: /opt/conda/bin/mamba --version
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+    - title: base environment accessible
+      cmd: /opt/conda/bin/conda env list
+    - title: conda activation script exists
+      cmd: test -f /opt/conda/etc/profile.d/conda.sh
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+if_exists_skip:
+  description: |
+    if_exists=skip: conda is pre-installed in the image (see Dockerfile).
+    The feature detects the existing installation and skips reinstalling,
+    continuing to post-install steps (PATH export, symlink, etc.).
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary present
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary present
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
+        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
+    - title: mamba --version succeeds
+      cmd: /opt/conda/bin/mamba --version
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+if_exists_update:
+  description: |
+    if_exists=update, no pre-existing conda (ubuntu:latest): with no existing
+    conda installation the if_exists check is not triggered and Miniforge installs
+    normally.  This verifies the option is accepted and does not break a fresh
+    install.  See if_exists_update_preinstall for the actual update path test
+    (pre-existing conda + if_exists=update → conda updated in-place).
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary installed
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+    - title: mamba --version succeeds
+      cmd: /opt/conda/bin/mamba --version
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+
+if_exists_update_preinstall:
+  description: |
+    if_exists=update with pre-existing conda 24.7.1 and a named environment
+    "myenv": the feature resolves stable, sees a version mismatch, and runs
+    conda install --name base to update conda in-place without touching named envs.
+    Asserts that conda is updated beyond 24.7.1 and myenv still exists.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+        echo "=== conda env list ==="
+        /opt/conda/bin/conda env list 2>&1 || echo "(failed)"
+    - title: conda version is not 24.7.1
+      cmd: bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" != "24.7.1" ]'
+    - title: myenv directory exists
+      cmd: test -d /opt/conda/envs/myenv
+    - title: conda env list includes myenv
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q myenv'
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+installer_dir:
+  description: |
+    installer_dir=/tmp/miniforge-trace: the Miniforge installer script and its
+    .sha256 sidecar must remain in installer_dir after installation completes.
+
+  checks:
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: installer directory preserved
+      cmd: test -d /tmp/miniforge-trace
+      debug: |
+        echo "=== ls /tmp/miniforge-trace/ ==="
+        ls -la /tmp/miniforge-trace/ 2>/dev/null || echo "(missing or empty)"
+    - title: installer .sh file preserved
+      cmd: bash -c 'ls /tmp/miniforge-trace/Miniforge3-*.sh 2>/dev/null | grep -q .'
+    - title: installer sidecar preserved
+      cmd: bash -c 'ls /tmp/miniforge-trace/Miniforge3-*.sh.sha256 2>/dev/null | grep -q .'
+
+invalid_version:
+  description: |
+    Verify that requesting a nonexistent Miniforge version (0.0.0) fails because
+    the GitHub Releases API returns no matching tag.
+
+  checks:
+    - title: test script passes (installer failure checked at build time)
+      cmd: 'true'
+
+log_file:
+  description: |
+    log_file=/tmp/miniforge.log: all output is
+    captured to the specified log file in addition to stdout/stderr.
+
+  checks:
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: log_file was created
+      cmd: test -f /tmp/miniforge.log
+    - title: log_file is non-empty
+      cmd: test -s /tmp/miniforge.log
+    - title: log_file contains install marker
+      cmd: grep -q "Miniforge" /tmp/miniforge.log
+      debug: |
+        echo "===== /tmp/miniforge.log contents =====" && cat /tmp/miniforge.log && echo "===== end of log =====" || echo "(log_file missing)"
+    - title: log_file contains success marker
+      cmd: grep -q "Miniforge Installation script finished successfully" /tmp/miniforge.log
+    - title: log_file contains bin_dir path
+      cmd: grep -q "/opt/conda" /tmp/miniforge.log
+    - title: log_file records conda info output
+      cmd: grep -q "platform :" /tmp/miniforge.log
+
+multi_user_permissions:
+  description: |
+    write_group="conda", write_users="testuser1\ntestuser2":
+    both named users are added to the conda group; the conda directory is
+    group-owned and has group-write and setgid bits set.
+
+  checks:
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: conda group exists
+      cmd: bash -c 'getent group conda >/dev/null 2>&1'
+      debug: |
+        echo "=== getent group conda ==="
+        getent group conda 2>&1 || echo "(not found)"
+        echo "=== id testuser1 ==="
+        id testuser1 2>&1 || echo "(not found)"
+        echo "=== id testuser2 ==="
+        id testuser2 2>&1 || echo "(not found)"
+        echo "=== stat /opt/conda ==="
+        stat -c "user=%U group=%G mode=%A" /opt/conda 2>&1 || echo "(failed)"
+    - title: testuser1 is in conda group
+      cmd: bash -c 'id -nG testuser1 | grep -qw conda'
+    - title: testuser2 is in conda group
+      cmd: bash -c 'id -nG testuser2 | grep -qw conda'
+    - title: /opt/conda group-owned by conda
+      cmd: bash -c '[ "$(stat -c "%G" /opt/conda)" = "conda" ]'
+    - title: /opt/conda is group-writable
+      cmd: bash -c '[ "$(stat -c "%A" /opt/conda | cut -c6)" = "w" ]'
+    - title: /opt/conda has setgid bit
+      cmd: bash -c 'stat -c "%A" /opt/conda | grep -qE "^d.....(s|S)"'
+
+prefix_discovery_symlink:
+  description: |
+    prefix=/opt/myforge, prefix_discovery=symlink:
+    Binary symlinks must be created in /usr/local/bin pointing into condabin.
+    No directory symlinks (behavior removed). No PATH export blocks.
+
+  checks:
+    - title: conda installed at /opt/myforge
+      cmd: test -d /opt/myforge
+    - title: conda binary at custom dir
+      cmd: test -f /opt/myforge/bin/conda
+    - title: mamba binary at custom dir
+      cmd: test -f /opt/myforge/bin/mamba
+    - title: conda wrapper in condabin
+      cmd: test -f /opt/myforge/condabin/conda
+    - title: mamba wrapper in condabin
+      cmd: test -f /opt/myforge/condabin/mamba
+    - title: /usr/local/bin/conda symlink exists
+      cmd: test -L /usr/local/bin/conda
+      debug: |
+        echo "=== ls -la /usr/local/bin/conda /usr/local/bin/mamba ==="
+        ls -la /usr/local/bin/conda /usr/local/bin/mamba 2>&1 || echo "(missing)"
+    - title: /usr/local/bin/mamba symlink exists
+      cmd: test -L /usr/local/bin/mamba
+    - title: conda symlink points into /opt/myforge/condabin
+      cmd: bash -c '[ "$(readlink /usr/local/bin/conda)" = "/opt/myforge/condabin/conda" ]'
+    - title: mamba symlink points into /opt/myforge/condabin
+      cmd: bash -c '[ "$(readlink /usr/local/bin/mamba)" = "/opt/myforge/condabin/mamba" ]'
+    - title: conda reachable via symlink
+      cmd: /usr/local/bin/conda --version
+    - title: no /opt/conda directory symlink
+      cmd: bash -c '! test -e /opt/conda'
+    - title: profile.d export script NOT written
+      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+
+prefix_discovery_symlink_nonroot:
+  description: |
+    prefix=/opt/myforge, prefix_discovery=symlink, remoteUser=vscode:
+    When the install runs as root but remoteUser=vscode, binary symlinks are
+    created in /usr/local/bin (root target). vscode's home is not touched.
+
+  checks:
+    - title: conda binary at /opt/myforge/bin/conda
+      cmd: test -f /opt/myforge/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/myforge/bin/conda
+    - title: conda wrapper in condabin
+      cmd: test -f /opt/myforge/condabin/conda
+    - title: mamba wrapper in condabin
+      cmd: test -f /opt/myforge/condabin/mamba
+    - title: /usr/local/bin/conda symlink exists
+      cmd: test -L /usr/local/bin/conda
+      debug: |
+        echo "=== ls -la /usr/local/bin/conda /usr/local/bin/mamba ==="
+        ls -la /usr/local/bin/conda /usr/local/bin/mamba 2>&1 || echo "(missing)"
+    - title: /usr/local/bin/mamba symlink exists
+      cmd: test -L /usr/local/bin/mamba
+    - title: conda reachable via symlink
+      cmd: /usr/local/bin/conda --version
+    - title: no /opt/conda directory symlink
+      cmd: bash -c '! test -e /opt/conda'
+    - title: no \$HOME/miniforge3 symlink for vscode
+      cmd: bash -c '! test -e /home/vscode/miniforge3'
+
+preserve_config_false:
+  description: |
+    preserve_config=false + if_exists=reinstall with pre-existing conda 24.7.1,
+    a /root/.condarc, and a conda initialize block in /root/.bashrc:
+    the feature runs conda init --reverse and deletes .condarc/.conda,
+    so neither survives after uninstall + reinstall.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: .condarc removed
+      cmd: bash -c '[ ! -f /root/.condarc ]'
+      debug: |
+        echo "=== /root/.condarc ==="
+        cat /root/.condarc 2>/dev/null || echo "(not present)"
+        echo "=== /root/.bashrc (conda initialize block) ==="
+        grep -A3 'conda initialize' /root/.bashrc 2>/dev/null || echo "(no conda initialize block)"
+    - title: .bashrc has no conda initialize block
+      cmd: bash -c '! grep -q "conda initialize" /root/.bashrc'
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+preserve_config_true:
+  description: |
+    preserve_config=true + if_exists=reinstall with pre-existing conda 24.7.1,
+    a /root/.condarc, and a conda initialize block in /root/.bashrc:
+    the feature skips conda init --reverse and skips .condarc/.conda deletion,
+    so both survive after uninstall + reinstall.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: .condarc still exists
+      cmd: test -f /root/.condarc
+      debug: |
+        echo "=== /root/.condarc ==="
+        cat /root/.condarc 2>/dev/null || echo "(not present)"
+        echo "=== /root/.bashrc (conda initialize block) ==="
+        grep -A3 'conda initialize' /root/.bashrc 2>/dev/null || echo "(no conda initialize block)"
+    - title: .condarc has expected content
+      cmd: grep -qE 'auto_activate(_base)?:' /root/.condarc
+    - title: .bashrc has conda initialize block
+      cmd: grep -q 'conda initialize' /root/.bashrc
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+preserve_envs_false:
+  description: |
+    preserve_envs=false + if_exists=reinstall with pre-existing conda 24.7.1 and
+    a named environment "myenv": the feature resolves stable, sees a version
+    mismatch, skips env export, uninstalls, then reinstalls fresh conda without
+    recreating any environments.
+    Asserts that myenv does NOT exist after the cycle.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: myenv directory removed
+      cmd: bash -c '[ ! -d /opt/conda/envs/myenv ]'
+      debug: |
+        echo "=== conda env list ==="
+        /opt/conda/bin/conda env list 2>&1 || echo "(failed)"
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+preserve_envs_true:
+  description: |
+    preserve_envs=true + if_exists=reinstall with pre-existing conda 24.7.1 and
+    a named environment "myenv": the feature resolves stable, sees a version
+    mismatch, exports myenv before uninstalling, reinstalls fresh conda, then
+    recreates myenv from the exported YAML.
+    Asserts that myenv exists after the full cycle.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: myenv directory exists
+      cmd: test -d /opt/conda/envs/myenv
+      debug: |
+        echo "=== conda env list ==="
+        /opt/conda/bin/conda env list 2>&1 || echo "(failed)"
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: conda env list includes myenv
+      cmd: bash -c '/opt/conda/bin/conda env list | grep -q myenv'
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+set_permission:
+  description: |
+    write_group="conda" (default): after installation the
+    'conda' group is created, the running user is added to it, and the conda
+    directory is group-owned with group-write and setgid bits.
+
+  checks:
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+    - title: conda group exists
+      cmd: bash -c 'getent group conda >/dev/null 2>&1'
+      debug: |
+        echo "=== getent group conda ==="
+        getent group conda 2>&1 || echo "(not found)"
+        echo "=== id (current user) ==="
+        id 2>&1 || echo "(failed)"
+        echo "=== stat /opt/conda ==="
+        stat -c "user=%U group=%G mode=%A" /opt/conda 2>&1 || echo "(failed)"
+    - title: current user is in conda group
+      cmd: bash -c 'id -nG | grep -qw conda'
+    - title: /opt/conda group-owned by conda
+      cmd: bash -c '[ "$(stat -c "%G" /opt/conda)" = "conda" ]'
+    - title: /opt/conda is group-writable
+      cmd: bash -c '[ "$(stat -c "%A" /opt/conda | cut -c6)" = "w" ]'
+    - title: /opt/conda has setgid bit
+      cmd: bash -c 'stat -c "%A" /opt/conda | grep -qE "^d.....(s|S)"'
+
+specific_version:
+  description: |
+    version=24.7.1: Miniforge is installed from a pinned release resolved
+    via the GitHub API (conda 24.7.1 -> tag 24.7.1-2).
+    Verifies the versioned download and install path works end-to-end and that
+    the installed conda version matches the requested version string exactly.
+    Update version in scenarios.json when the pinned release is retired.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary installed
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+    - title: conda version is 24.7.1
+      cmd: bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" = "24.7.1" ]'
+    - title: mamba --version succeeds
+      cmd: /opt/conda/bin/mamba --version
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+    - title: base environment is accessible
+      cmd: /opt/conda/bin/conda env list
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+stable_version:
+  description: |
+    version=stable (default): the script calls the GitHub API to resolve
+    the current latest stable Miniforge release tag and installs from that tag.
+    Verifies that installation succeeds and the resolved version is non-empty.
+
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda binary installed
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary installed
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+    - title: conda version is non-empty
+      cmd: bash -c '[ -n "$(/opt/conda/bin/conda --version 2>/dev/null)" ]'
+    - title: mamba --version succeeds
+      cmd: /opt/conda/bin/mamba --version
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+    - title: base environment is accessible
+      cmd: /opt/conda/bin/conda env list
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+symlink_user_home_prefix:
+  description: |
+    prefix=/root/myforge, prefix_discovery=symlink:
+    Miniforge is installed under root's home directory. Because the prefix falls
+    under ${HOME}/, binary symlinks are created in ${HOME}/.local/bin (same
+    target as for non-root users). No directory symlinks are created.
+
+  checks:
+    - title: conda installed at /root/myforge
+      cmd: test -d /root/myforge
+    - title: /root/myforge/bin/conda exists
+      cmd: test -f /root/myforge/bin/conda
+    - title: conda wrapper in /root/myforge/condabin
+      cmd: test -f /root/myforge/condabin/conda
+    - title: mamba wrapper in /root/myforge/condabin
+      cmd: test -f /root/myforge/condabin/mamba
+    - title: /root/.local/bin/conda symlink exists
+      cmd: test -L /root/.local/bin/conda
+      debug: |
+        echo "=== ls -la /root/.local/bin/conda /root/.local/bin/mamba ==="
+        ls -la /root/.local/bin/conda /root/.local/bin/mamba 2>&1 || echo "(missing)"
+    - title: /root/.local/bin/mamba symlink exists
+      cmd: test -L /root/.local/bin/mamba
+    - title: conda reachable via symlink
+      cmd: /root/.local/bin/conda --version
+    - title: no /opt/conda directory symlink
+      cmd: bash -c '! test -L /opt/conda && ! test -e /opt/conda'
+    - title: no /root/miniforge3 directory symlink
+      cmd: bash -c '! test -L /root/miniforge3'
+
+version_match_idempotency:
+  description: |
+    version=24.7.1 + if_exists=reinstall, with conda 24.7.1 pre-installed:
+    The version-match check (installed == resolved) fires before if_exists dispatch,
+    so reinstall is never triggered.  Post-install steps (PATH export) still run.
+
+  checks:
+    - title: conda directory still exists
+      cmd: test -d /opt/conda
+    - title: conda binary still present
+      cmd: test -f /opt/conda/bin/conda
+    - title: conda binary is executable
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary still present
+      cmd: test -f /opt/conda/bin/mamba
+    - title: mamba binary is executable
+      cmd: test -x /opt/conda/bin/mamba
+    - title: conda --version succeeds
+      cmd: /opt/conda/bin/conda --version
+      debug: |
+        echo "=== conda --version ==="
+        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+    - title: conda version is still 24.7.1
+      cmd: bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" = "24.7.1" ]'
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'

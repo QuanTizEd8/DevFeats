@@ -1,0 +1,107 @@
+apt_custom_font_dir:
+  description: |
+    Verifies that a custom font_dir places fonts at the specified path instead
+    of the default /usr/share/fonts.
+  pre: _FONT_DIR=/opt/fonts
+  checks:
+    - title: custom font directory exists
+      cmd: test -d "$_FONT_DIR"
+    - title: at least one font file at custom path
+      cmd: bash -c 'find '"$_FONT_DIR"' -name "*.ttf" -o -name "*.otf" | head -1 | grep -q .'
+    - title: no fonts at default path
+      cmd: bash -c '! find /usr/share/fonts -path "*/devfeats-install-fonts-*" 2>/dev/null | grep -q .'
+
+apt_default:
+  description: |
+    Verifies the default installation: Meslo and JetBrainsMono Nerd Fonts
+    installed to /usr/share/fonts under the namespaced timestamped directory.
+  pre: _FONTS=/usr/share/fonts
+  checks:
+    - title: font directory exists
+      cmd: test -d "$_FONTS"
+    - title: at least one font file installed
+      cmd: bash -c 'find '"$_FONTS"' -name "*.ttf" -o -name "*.otf" | head -1 | grep -q .'
+    - title: Meslo fonts installed
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/nerd/Meslo/*.ttf" | grep -q .'
+    - title: JetBrainsMono fonts installed
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/nerd/JetBrainsMono/*.ttf" | grep -q .'
+    - title: font cache refreshed
+      cmd: bash -c 'fc-list | grep -qi "meslo\|jetbrains"'
+
+apt_empty_nerd_fonts:
+  description: |
+    Verifies that nerd_fonts="" skips all Nerd Font downloads without error.
+    The script should complete successfully and leave no font files behind.
+  checks:
+    - title: no Meslo directory
+      cmd: bash -c '! test -d /usr/share/fonts/Meslo'
+    - title: no JetBrainsMono directory
+      cmd: bash -c '! test -d /usr/share/fonts/JetBrainsMono'
+
+apt_font_urls:
+  description: |
+    Verifies that font_urls installs a font archive from a direct URL under a
+    namespaced devfeats-install-fonts-*/url/<host>/<path>/ subdirectory.
+  pre: _FONTS=/usr/share/fonts
+  checks:
+    - title: font files installed from url
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/url/*" -name "*.ttf" | grep -q .'
+    - title: fonts under url namespace
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/url/*" | grep -q .'
+    - title: no default Meslo directory
+      cmd: bash -c '! test -d /usr/share/fonts/Meslo'
+
+apt_font_urls_file:
+  description: |
+    Verifies that font_urls with a direct .ttf URL installs the file under a
+    namespaced devfeats-install-fonts-*/url/<host>/<path>/ directory,
+    exercising the individual-file branch.
+  pre: _FONTS=/usr/share/fonts
+  checks:
+    - title: font file installed
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/url/*" -name "JetBrainsMono-Regular.ttf" | grep -q .'
+    - title: no default Meslo directory
+      cmd: bash -c '! test -d /usr/share/fonts/Meslo'
+
+apt_gh_release_fonts:
+  description: |
+    Verifies that gh_release_fonts downloads and installs all font/archive assets
+    from a GitHub release. Uses JetBrains/JetBrainsMono (latest release).
+    Fonts are installed under devfeats-install-fonts-*/gh/JetBrains/JetBrainsMono/<tag>/<id>/.
+  pre: _FONTS=/usr/share/fonts
+  checks:
+    - title: font files installed from gh
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/gh/JetBrains/JetBrainsMono/*" -name "*.ttf" | grep -q .'
+    - title: no default Meslo directory
+      cmd: bash -c '! test -d /usr/share/fonts/Meslo'
+
+apt_gh_release_fonts_tag:
+  description: |
+    Verifies that gh_release_fonts with an explicit @tag slug hits the
+    /releases/tags/<tag> API endpoint and installs fonts under
+    devfeats-install-fonts-*/gh/<owner>/<repo>/<tag>/<id>/.
+  pre: _FONTS=/usr/share/fonts
+  checks:
+    - title: font files installed from gh tag
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/gh/JetBrains/JetBrainsMono/*" -name "*.ttf" | grep -q .'
+    - title: no default Meslo directory
+      cmd: bash -c '! test -d /usr/share/fonts/Meslo'
+
+apt_p10k_fonts:
+  description: |
+    Verifies that p10k_fonts=true installs the four MesloLGS NF fonts from
+    romkatv/powerlevel10k-media in addition to the default Nerd Fonts.
+  pre: _FONTS=/usr/share/fonts
+  checks:
+    - title: default Nerd Fonts installed
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/nerd/*" -name "*.ttf" | head -1 | grep -q .'
+    - title: MesloLGS-NF directory exists
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/p10k/MesloLGS-NF" -type d | grep -q .'
+    - title: MesloLGS NF Regular installed
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/p10k/MesloLGS-NF/MesloLGS NF Regular.ttf" | grep -q .'
+    - title: MesloLGS NF Bold installed
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/p10k/MesloLGS-NF/MesloLGS NF Bold.ttf" | grep -q .'
+    - title: MesloLGS NF Italic installed
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/p10k/MesloLGS-NF/MesloLGS NF Italic.ttf" | grep -q .'
+    - title: MesloLGS NF Bold Italic installed
+      cmd: bash -c 'find '"$_FONTS"' -path "*/devfeats-install-fonts-*/p10k/MesloLGS-NF/MesloLGS NF Bold Italic.ttf" | grep -q .'

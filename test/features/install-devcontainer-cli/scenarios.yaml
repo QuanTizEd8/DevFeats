@@ -7,7 +7,7 @@ defaults:
 default_install:
   envs: [ubuntu-latest]
   modes: [devcontainer, standalone]
-  tests: [default_install.sh]
+  tests: [default_install]
 
 if_exists_fail:
   expect_install_failure: true
@@ -19,6 +19,6 @@ if_exists_fail:
   options:
     method: script
     if_exists: fail
-  tests: [if_exists_fail.sh]
+  tests: [if_exists_fail]
   standalone:
     skip_install: false

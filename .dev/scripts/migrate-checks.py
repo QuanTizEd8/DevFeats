@@ -68,7 +68,7 @@ _CHECK_START_RE = re.compile(r"^(check|fail_check|checkMultiple)\s+")
 
 # Lines treated as diagnostic output (debug field).
 _DIAG_LINE_RE = re.compile(
-    r"^(echo|cat|ls|stat|printf|getent)\b|"
+    r"^(echo|cat|ls|stat|printf|getent|id|grep)\b|"
     r"^\"\$[A-Z_]+\"\s+--version\b|"  # e.g. "$_BREW" --version
     r"^\"?\$\w+\"\s+",                 # variable invocations used for diagnostics
 )
@@ -101,7 +101,7 @@ def _emit_group(test_id: str, group: dict) -> str:
     lines: list[str] = [f"{test_id}:"]
 
     if group.get("description"):
-        lines.append(f"  description: {_yaml_str(group['description'])}")
+        lines.append(f"  description: {_yaml_str(group['description'], indent=2)}")
 
     for key in ("pre", "post", "on_failure"):
         if group.get(key):

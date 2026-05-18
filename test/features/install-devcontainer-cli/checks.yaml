@@ -1,0 +1,12 @@
+default_install:
+  checks:
+    - title: devcontainer command is available
+      cmd: bash -lc "command -v devcontainer"
+    - title: devcontainer --version succeeds
+      cmd: bash -lc "devcontainer --version"
+
+if_exists_fail:
+  description: Ensures if_exists=fail exits non-zero when devcontainer already exists.
+  checks:
+    - title: preinstalled devcontainer remains available
+      cmd: command -v devcontainer

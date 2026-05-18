@@ -1,0 +1,845 @@
+apt_default:
+  description: |
+    apt_default: all defaults on Ubuntu.
+    Verifies that Homebrew is installed under /home/linuxbrew/.linuxbrew,
+    brew is executable and reports its version, and shellenv blocks are
+    written to all three system-wide startup files (Case A: root + Linux).
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: linuxbrew prefix directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew
+    - title: linuxbrew bin directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew/bin
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: activation profile.d file written
+      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      debug: |
+        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bash.bashrc (tail) ==="
+        tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+        echo "=== /etc/zsh/zshenv ==="
+        cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
+    - title: activation profile.d file has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: activation profile.d file has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: bash.bashrc has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+    - title: bash.bashrc has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/bash.bashrc
+    - title: zshenv written
+      cmd: bash -c 'test -f /etc/zsh/zshenv || test -f /etc/zshenv'
+    - title: zshenv has begin marker
+      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zshenv'
+    - title: zshenv has shellenv eval
+      cmd: bash -c 'grep -qF "shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "shellenv" /etc/zshenv'
+    - title: login PATH includes linuxbrew/bin
+      cmd: bash -lc 'echo "$PATH"' | grep -q '/home/linuxbrew/.linuxbrew/bin'
+      debug: |
+        echo "=== login PATH ==="
+        bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
+
+arch:
+  description: |
+    arch: all defaults on Arch Linux (Pacman).
+    Verifies that Homebrew installs under /home/linuxbrew/.linuxbrew, brew is
+    functional, and shellenv blocks are written to the appropriate system-wide
+    startup files (Case A: root + Linux).
+
+    Platform detection: ID=arch, ID_LIKE not set → no case matches →
+    falls back to "debian" default.
+    bashrc: /etc/bash.bashrc (created when absent)
+    zshenv: /etc/zsh/zshenv (created when absent)
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: linuxbrew prefix directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew
+    - title: linuxbrew bin directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew/bin
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: activation profile.d file written
+      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      debug: |
+        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bash.bashrc (tail) ==="
+        tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+        echo "=== /etc/zsh/zshenv ==="
+        cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
+    - title: activation profile.d file has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: activation profile.d file has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: bash.bashrc written
+      cmd: test -f /etc/bash.bashrc
+    - title: bash.bashrc has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+    - title: bash.bashrc has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/bash.bashrc
+    - title: zsh/zshenv written
+      cmd: test -f /etc/zsh/zshenv
+    - title: zsh/zshenv has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/zsh/zshenv
+    - title: zsh/zshenv has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/zsh/zshenv
+    - title: login PATH includes linuxbrew/bin
+      cmd: bash -lc 'echo "$PATH"' | grep -q '/home/linuxbrew/.linuxbrew/bin'
+      debug: |
+        echo "=== login PATH ==="
+        bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
+
+debian:
+  description: |
+    debian: all defaults on Debian.
+    Verifies brew installs successfully on Debian (apt+dpkg package manager)
+    and that the brew binary is functional.
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: linuxbrew prefix directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: activation profile.d file written
+      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: activation profile.d file has marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+
+export_path_disabled:
+  description: |
+    export_path_disabled: prefix_activations="" skips all activation snippet writes.
+    Verifies that brew installs successfully but no activation blocks are
+    written to any shell startup file.
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+    _MARKER='prefix activation (install-homebrew)'
+    _PROFILE_D="QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh"
+  checks:
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: profile.d activation file NOT written
+      cmd: bash -c '! test -f "/etc/profile.d/${_PROFILE_D}"'
+      debug: |
+        echo "=== /etc/profile.d/${_PROFILE_D} ==="
+        cat "/etc/profile.d/${_PROFILE_D}" 2>/dev/null || echo "(missing — expected)"
+        echo "=== /etc/bash.bashrc (tail) ==="
+        tail -5 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+        echo "=== /etc/zsh/zshenv ==="
+        cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
+    - title: bash.bashrc has NO activation marker
+      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" /etc/bash.bashrc 2>/dev/null'
+    - title: zshenv has NO activation marker
+      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" /etc/zsh/zshenv 2>/dev/null && ! grep -qF "prefix activation (install-homebrew)" /etc/zshenv 2>/dev/null'
+
+export_path_idempotent:
+  description: |
+    export_path_idempotent: activation blocks are pre-written in the image
+    (see scenario setup). The feature re-runs with default options (if_exists=skip)
+    and must UPDATE each block in-place — the begin marker must appear exactly
+    once per file (no duplicate appends).
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+    _MARKER='prefix activation (install-homebrew)'
+    _PROFILE_D="QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh"
+  checks:
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: profile.d file has begin marker
+      cmd: grep -qF "# >>> ${_MARKER} >>>" "/etc/profile.d/${_PROFILE_D}"
+    - title: bash.bashrc has begin marker
+      cmd: grep -qF "# >>> ${_MARKER} >>>" /etc/bash.bashrc
+    - title: zshenv has begin marker
+      cmd: grep -qF "# >>> ${_MARKER} >>>" /etc/zsh/zshenv
+    - title: profile.d file has exactly one begin marker
+      cmd: bash -c '[ "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" "/etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh")" -eq 1 ]'
+      debug: |
+        echo "=== /etc/profile.d/${_PROFILE_D} ==="
+        cat "/etc/profile.d/${_PROFILE_D}" 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bash.bashrc (tail) ==="
+        tail -15 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+        echo "=== /etc/zsh/zshenv ==="
+        cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
+    - title: bash.bashrc has exactly one begin marker
+      cmd: bash -c '[ "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" /etc/bash.bashrc)" -eq 1 ]'
+    - title: zshenv has exactly one begin marker
+      cmd: bash -c '[ "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv)" -eq 1 ]'
+    - title: profile.d block references correct brew prefix
+      cmd: grep -qF '/home/linuxbrew/.linuxbrew/bin/brew' "/etc/profile.d/${_PROFILE_D}"
+    - title: bash.bashrc block references correct brew prefix
+      cmd: grep -qF '/home/linuxbrew/.linuxbrew/bin/brew' /etc/bash.bashrc
+    - title: zshenv block references correct brew prefix
+      cmd: grep -qF '/home/linuxbrew/.linuxbrew/bin/brew' /etc/zsh/zshenv
+
+fedora:
+  description: |
+    fedora: all defaults on Fedora (DNF).
+    Verifies that Homebrew installs under /home/linuxbrew/.linuxbrew, brew is
+    functional, and shellenv blocks are written to the Fedora-specific system-wide
+    startup files (Case A: root + Linux).
+
+    Platform detection: ID=fedora → platform="rhel"
+    bashrc: /etc/bashrc  (existing file, preferred over platform default)
+    zshenv: /etc/zshenv  (_platform_zshenv "rhel")
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: linuxbrew prefix directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew
+    - title: linuxbrew bin directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew/bin
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: activation profile.d file written
+      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      debug: |
+        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bashrc (tail) ==="
+        tail -10 /etc/bashrc 2>/dev/null || echo "(missing)"
+        echo "=== /etc/zshenv ==="
+        cat /etc/zshenv 2>/dev/null || echo "(missing)"
+    - title: activation profile.d file has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: activation profile.d file has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: bashrc has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bashrc
+    - title: bashrc has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/bashrc
+    - title: zshenv written
+      cmd: test -f /etc/zshenv
+    - title: zshenv has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/zshenv
+    - title: zshenv has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/zshenv
+    - title: login PATH includes linuxbrew/bin
+      cmd: bash -lc 'echo "$PATH"' | grep -q '/home/linuxbrew/.linuxbrew/bin'
+      debug: |
+        echo "=== login PATH ==="
+        bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
+
+if_exists_reinstall:
+  description: |
+    if_exists_reinstall: Homebrew is pre-installed in the image (see Dockerfile).
+    The feature is configured with if_exists=reinstall, which uninstalls and then
+    reinstalls Homebrew fresh, then runs post-install steps (shellenv export).
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: linuxbrew prefix directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: activation profile.d file written
+      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      debug: |
+        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bash.bashrc (tail) ==="
+        tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+    - title: activation profile.d file has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: bash.bashrc has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+
+if_exists_skip:
+  description: |
+    if_exists_skip: Homebrew is pre-installed in the image (see Dockerfile).
+    The feature detects the existing installation, skips the installer, and
+    proceeds to post-install steps (shellenv export).
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: linuxbrew prefix directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: activation profile.d file written
+      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      debug: |
+        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bash.bashrc (tail) ==="
+        tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+    - title: activation profile.d file has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: bash.bashrc has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+
+log_file:
+  description: |
+    log_file=/tmp/brew.log: all installer output is mirrored to the specified
+    log file in addition to stdout/stderr.
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: log_file was created
+      cmd: test -f /tmp/brew.log
+      debug: |
+        echo "===== /tmp/brew.log (last 20 lines) ====="
+        tail -20 /tmp/brew.log 2>/dev/null || echo "(log_file missing)"
+    - title: log_file is non-empty
+      cmd: test -s /tmp/brew.log
+    - title: log_file contains install-homebrew header
+      cmd: grep -q 'install-homebrew' /tmp/brew.log
+    - title: log_file contains success marker
+      cmd: grep -q 'Homebrew Installation script finished successfully' /tmp/brew.log
+    - title: log_file contains brew prefix path
+      cmd: grep -q '/home/linuxbrew/.linuxbrew' /tmp/brew.log
+
+macos_brew_git_remote:
+  description: |
+    brew_git_remote: with a pre-seeded HOMEBREW_BREW_GIT_REMOTE block in user
+    dotfiles, a default run (brew_git_remote unset) must remove that block.
+
+    Brew is pre-installed (if_exists=skip), and setup pre-seeds the block so this
+    scenario validates the cleanup path equivalent to the old second run.
+  pre: |
+    _HOME="$HOME"
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+    _BASH_LOGIN_FILE="$(detect_bash_login_file)"
+
+    if [[ "$(uname -m)" == "arm64" ]]; then
+      _BREW_REPO="$_BREW_PREFIX"
+    else
+      _BREW_REPO="${_BREW_PREFIX}/Homebrew"
+    fi
+
+    _REMOTE_URL="$(git -C "$_BREW_REPO" remote get-url origin 2>/dev/null || echo "https://github.com/Homebrew/brew")"
+    echo "ℹ️  Using brew_git_remote: ${_REMOTE_URL}"
+  post: |
+    block_cleanup_all "prefix activation (install-homebrew)"
+    block_cleanup_all "HOMEBREW_BREW_GIT_REMOTE (install-homebrew)"
+  on_failure: |
+    log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
+    echo "" >&2
+    echo "--- lines mentioning HOMEBREW_BREW_GIT_REMOTE in resolved login file ---" >&2
+    grep -nF 'HOMEBREW_BREW_GIT_REMOTE' "${_BASH_LOGIN_FILE}" 2>/dev/null || echo "(no matches)" >&2
+  checks:
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: brew git origin URL unchanged
+      cmd: bash -c 'git -C "$1" remote get-url origin | grep -qF "$2"' -- "$_BREW_REPO" "$_REMOTE_URL"
+    - title: BREW_GIT_REMOTE marker block absent from resolved bash login file after run
+      cmd: bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" "$1" 2>/dev/null' -- "$_BASH_LOGIN_FILE"
+    - title: BREW_GIT_REMOTE block absent from ~/.bashrc after run
+      cmd: bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.bashrc 2>/dev/null'
+    - title: BREW_GIT_REMOTE block absent from ~/.zshenv after run
+      cmd: bash -c '! grep -qF "# >>> HOMEBREW_BREW_GIT_REMOTE (install-homebrew) >>>" ~/.zshenv 2>/dev/null'
+
+macos_default:
+  description: |
+    default: all options at their defaults.
+
+    macOS runners have Homebrew pre-installed → if_exists=skip (default) applies.
+    The runner is non-root → activation snippets are written to the install
+    user's personal dotfiles: login bash file, ~/.bashrc, and ~/.zshenv.
+  pre: |
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+    _HOME="$HOME"
+
+    echo "=== brew --version ==="
+    "$_BREW" --version 2>&1 || echo "(failed)"
+  post: |
+    for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
+      "${_HOME}/.bashrc" "${_HOME}/.zshenv"; do
+      shellenv_block_cleanup "$f"
+    done
+  checks:
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: a login bash file has begin marker
+      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null'
+    - title: a login bash file has shellenv eval
+      cmd: bash -c 'grep -qF "shellenv" ~/.bash_profile 2>/dev/null || grep -qF "shellenv" ~/.bash_login 2>/dev/null || grep -qF "shellenv" ~/.profile 2>/dev/null'
+    - title: ~/.bashrc has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.bashrc"
+    - title: ~/.bashrc has shellenv eval
+      cmd: grep -qF 'shellenv' "${_HOME}/.bashrc"
+    - title: ~/.zshenv has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.zshenv"
+    - title: ~/.zshenv has shellenv eval
+      cmd: grep -qF 'shellenv' "${_HOME}/.zshenv"
+    - title: system activation profile.d NOT written
+      cmd: bash -c '! test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh'
+
+macos_export_path_disabled:
+  description: |
+    export_path_disabled: prefix_activations="" skips all activation writes.
+    Verifies that brew is intact (if_exists=skip) and that no activation blocks
+    are written to any user dotfiles.
+  pre: |
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+
+    echo "=== brew --version ==="
+    "$_BREW" --version 2>&1 || echo "(failed)"
+  checks:
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: ~/.bash_profile has NO activation marker
+      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.bash_profile 2>/dev/null'
+    - title: ~/.bashrc has NO activation marker
+      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.bashrc 2>/dev/null'
+    - title: ~/.zshenv has NO activation marker
+      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.zshenv 2>/dev/null'
+
+macos_export_path_idempotent:
+  description: |
+    export_path_idempotent: setup pre-seeds one stale activation block per dotfile;
+    a single feature run with default options must update that block in place
+    (exactly one begin marker per file; inner line matches resolved brew prefix).
+  pre: |
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+    _HOME="$HOME"
+    _MARKER='prefix activation (install-homebrew)'
+    _BASH_LOGIN_FILE="$(detect_bash_login_file)"
+  post: |
+    for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
+      "${_HOME}/.bashrc" "${_HOME}/.zshenv"; do
+      shellenv_block_cleanup "$f"
+    done
+  on_failure: |
+    log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
+    printf 'Expected brew path fragment: %s\n' "${_BREW_PREFIX}/bin/brew" >&2
+    local f
+    for f in "${_HOME}/.bashrc" "${_HOME}/.zshenv"; do
+      echo "" >&2
+      printf -- '--- %s (cat -v) ---\n' "$f" >&2
+      if [[ -f "$f" ]]; then
+        cat -v "$f" >&2
+      else
+        echo "(missing)" >&2
+      fi
+    done
+  checks:
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: resolved bash login file has exactly one begin marker
+      cmd: bash -c '[[ "$({ grep -cF "# >>> prefix activation (install-homebrew) >>>" "$1" 2>/dev/null || echo 0; })" -eq 1 ]]' -- "$_BASH_LOGIN_FILE"
+    - title: ~/.bashrc has exactly one begin marker
+      cmd: bash -c '[[ "$({ grep -cF "# >>> prefix activation (install-homebrew) >>>" ~/.bashrc 2>/dev/null || echo 0; })" -eq 1 ]]'
+    - title: ~/.zshenv has exactly one begin marker
+      cmd: bash -c '[[ "$({ grep -cF "# >>> prefix activation (install-homebrew) >>>" ~/.zshenv 2>/dev/null || echo 0; })" -eq 1 ]]'
+    - title: resolved bash login file block references resolved brew binary
+      cmd: bash -c 'grep -qF "$2" "$1"' -- "$_BASH_LOGIN_FILE" "${_BREW_PREFIX}/bin/brew"
+    - title: ~/.bashrc block references resolved brew binary
+      cmd: bash -c 'grep -qF "$1/bin/brew" ~/.bashrc' -- "$_BREW_PREFIX"
+    - title: ~/.zshenv block references resolved brew binary
+      cmd: bash -c 'grep -qF "$1/bin/brew" ~/.zshenv' -- "$_BREW_PREFIX"
+    - title: resolved bash login file has no stale placeholder
+      cmd: bash -c 'awk '"'"'/# >>> prefix activation \(install-homebrew\) >>>/{in_block=1;next} /# <<< prefix activation \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' "$1" | grep -qv "__stale_prefix__"' -- "$_BASH_LOGIN_FILE"
+    - title: ~/.bashrc has no stale placeholder
+      cmd: bash -c 'awk '"'"'/# >>> prefix activation \(install-homebrew\) >>>/{in_block=1;next} /# <<< prefix activation \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.bashrc | grep -qv "__stale_prefix__"'
+    - title: ~/.zshenv has no stale placeholder
+      cmd: bash -c 'awk '"'"'/# >>> prefix activation \(install-homebrew\) >>>/{in_block=1;next} /# <<< prefix activation \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.zshenv | grep -qv "__stale_prefix__"'
+      debug: |
+        echo "=== ~/.zshenv ==="
+        cat "${_HOME}/.zshenv" 2>/dev/null || echo "(missing)"
+
+macos_fresh_install:
+  description: |
+    fresh_install: env macos-latest-fresh-install bootstraps with the official
+    Homebrew uninstall (see test/environments.yaml), then the feature install runs —
+    full macOS path (fetch, official install script, Case B shellenv). Assert post-install
+    only; use "${_BREW_PREFIX}/bin/brew" — bare brew is not on PATH (no path_prepend).
+
+    DESTRUCTIVE for the job: env bootstrap removes Homebrew; the feature reinstalls it.
+  pre: |
+    _HOME="$HOME"
+
+    if [[ "$(uname -m)" == "arm64" ]]; then
+      _BREW_PREFIX="/opt/homebrew"
+    else
+      _BREW_PREFIX="/usr/local"
+    fi
+    _BREW="${_BREW_PREFIX}/bin/brew"
+
+    echo "=== brew --version ==="
+    "$_BREW" --version 2>&1 || echo "(failed)"
+    echo "=== ~/.zshenv ==="
+    cat "${_HOME}/.zshenv" 2>/dev/null || echo "(missing)"
+
+    _ACTUAL_PREFIX="$("${_BREW}" --prefix 2>/dev/null || true)"
+    echo "=== brew --prefix: ${_ACTUAL_PREFIX} ==="
+  post: "block_cleanup_all \"prefix activation (install-homebrew)\""
+  checks:
+    - title: brew prefix directory exists
+      cmd: test -d "$_BREW_PREFIX"
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: a login bash file has shellenv marker
+      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null'
+    - title: ~/.bashrc has shellenv marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.bashrc"
+    - title: ~/.zshenv has shellenv marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.zshenv"
+    - title: shellenv block references correct brew prefix
+      cmd: bash -c 'grep -qF "$1/bin/brew" ~/.zshenv 2>/dev/null || grep -qF "$1/bin/brew" ~/.bash_profile 2>/dev/null' -- "$_BREW_PREFIX"
+    - title: brew --prefix returns expected prefix
+      cmd: test "$_ACTUAL_PREFIX" = "$_BREW_PREFIX"
+
+macos_if_exists_fail:
+  description: |
+    if_exists_fail: if_exists=fail when brew is pre-installed must exit non-zero.
+    No dotfiles are touched (the installer exits before export_shellenv_main).
+  pre: |
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+  checks:
+    - title: brew is present (pre-condition)
+      cmd: test -f "$_BREW"
+    - title: brew binary still present after fail
+      cmd: test -f "$_BREW"
+    - title: brew --version still succeeds after fail
+      cmd: '"$_BREW" --version'
+    - title: ~/.zshenv has NO brew marker
+      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.zshenv 2>/dev/null'
+
+macos_if_exists_reinstall:
+  description: |
+    if_exists_reinstall: Homebrew is already installed (by the runner or the
+    preceding fresh_install scenario). Running the feature with if_exists=reinstall
+    must uninstall then reinstall Homebrew from scratch and then run post-install
+    steps (shellenv export).
+  pre: |
+    _HOME="$HOME"
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+
+    echo "=== brew --version ==="
+    "$_BREW" --version 2>&1 || echo "(failed)"
+    echo "=== ~/.zshenv ==="
+    cat "${_HOME}/.zshenv" 2>/dev/null || echo "(missing)"
+  post: "block_cleanup_all \"prefix activation (install-homebrew)\""
+  checks:
+    - title: brew present before reinstall (pre-condition)
+      cmd: test -f "$_BREW"
+    - title: brew prefix directory exists after reinstall
+      cmd: test -d "$_BREW_PREFIX"
+    - title: brew binary present after reinstall
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable after reinstall
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds after reinstall
+      cmd: '"$_BREW" --version'
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: a login bash file has shellenv marker
+      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null'
+    - title: ~/.bashrc has shellenv marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.bashrc"
+    - title: ~/.zshenv has shellenv marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.zshenv"
+
+macos_logfile:
+  description: |
+    log_file: log_file=/tmp/brew-macos-test.log — installer output is mirrored to
+    the specified file in addition to stdout/stderr.
+  pre: |
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+    _HOME="$HOME"
+    _LOG_FILE="/tmp/brew-macos-test.log"
+
+    echo "=== brew --version ==="
+    "$_BREW" --version 2>&1 || echo "(failed)"
+  post: |
+    rm -f "$_LOG_FILE"
+    for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
+      "${_HOME}/.bashrc" "${_HOME}/.zshenv"; do
+      shellenv_block_cleanup "$f"
+    done
+  checks:
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: log_file was created
+      cmd: test -f "$_LOG_FILE"
+      debug: |
+        echo "===== ${_LOG_FILE} (last 20 lines) ====="
+        tail -20 "$_LOG_FILE" 2>/dev/null || echo "(missing)"
+    - title: log_file is non-empty
+      cmd: test -s "$_LOG_FILE"
+    - title: log_file contains install-homebrew header
+      cmd: grep -q 'install-homebrew' "$_LOG_FILE"
+    - title: log_file contains success marker
+      cmd: grep -q 'Homebrew Installation script finished successfully' "$_LOG_FILE"
+    - title: log_file contains brew prefix path
+      cmd: grep -qF "$_BREW_PREFIX" "$_LOG_FILE"
+
+macos_no_install_from_api:
+  description: |
+    no_install_from_api: with a pre-seeded HOMEBREW_NO_INSTALL_FROM_API=1 block
+    in user dotfiles, a default run (no_install_from_api=false) must remove it.
+
+    Brew is pre-installed (if_exists=skip).
+  pre: |
+    _HOME="$HOME"
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+    _BASH_LOGIN_FILE="$(detect_bash_login_file)"
+  post: |
+    block_cleanup_all "prefix activation (install-homebrew)"
+    block_cleanup_all "HOMEBREW_NO_INSTALL_FROM_API (install-homebrew)"
+  on_failure: |
+    log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
+    echo "" >&2
+    echo "--- lines mentioning HOMEBREW_NO_INSTALL_FROM_API in resolved login file ---" >&2
+    grep -nF 'HOMEBREW_NO_INSTALL_FROM_API' "${_BASH_LOGIN_FILE}" 2>/dev/null || echo "(no matches)" >&2
+  checks:
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: NO_INSTALL_FROM_API marker block absent from resolved bash login file after run
+      cmd: bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" "$1" 2>/dev/null' -- "$_BASH_LOGIN_FILE"
+    - title: NO_INSTALL_FROM_API block absent from ~/.bashrc after run
+      cmd: bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.bashrc 2>/dev/null'
+    - title: NO_INSTALL_FROM_API block absent from ~/.zshenv after run
+      cmd: bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" ~/.zshenv 2>/dev/null'
+
+macos_update_false:
+  description: |
+    update_false: update=false must skip the 'brew update' step while still
+    installing brew (if_exists=skip, since brew is pre-installed) and exporting
+    shellenv.
+
+    The log_file option is used to capture installer output so the absence of
+    'brew update' can be verified.
+  pre: |
+    _HOME="$HOME"
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
+    _BREW="${_BREW_PREFIX}/bin/brew"
+    _LOG_FILE="/tmp/brew-update-false-test.log"
+
+    echo "=== brew --version ==="
+    "$_BREW" --version 2>&1 || echo "(failed)"
+  post: |
+    rm -f "$_LOG_FILE"
+    block_cleanup_all "prefix activation (install-homebrew)"
+  checks:
+    - title: brew binary present
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: a user dotfile has shellenv marker
+      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bashrc 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.zshenv 2>/dev/null'
+    - title: log_file was created
+      cmd: test -f "$_LOG_FILE"
+      debug: |
+        echo "===== ${_LOG_FILE} (last 30 lines) ====="
+        tail -30 "$_LOG_FILE" 2>/dev/null || echo "(missing)"
+    - title: log_file is non-empty
+      cmd: test -s "$_LOG_FILE"
+    - title: brew update NOT run
+      cmd: bash -c '! grep -q "brew update completed" "$1"' -- "$_LOG_FILE"
+    - title: install completed successfully
+      cmd: grep -q 'Homebrew Installation script finished successfully' "$_LOG_FILE"
+
+opensuse:
+  description: |
+    opensuse: all defaults on openSUSE Leap (Zypper).
+    Verifies that Homebrew installs under /home/linuxbrew/.linuxbrew, brew is
+    functional, and shellenv blocks are written to the appropriate system-wide
+    startup files (Case A: root + Linux).
+
+    Platform detection: ID=opensuse-leap, ID_LIKE=suse → no case matches →
+    falls back to "debian" default.
+    bashrc: uses first of /etc/bash.bashrc, /etc/bashrc that exists
+    zshenv: /etc/zsh/zshenv (created when absent)
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: linuxbrew prefix directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew
+    - title: linuxbrew bin directory exists
+      cmd: test -d /home/linuxbrew/.linuxbrew/bin
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: activation profile.d file written
+      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      debug: |
+        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
+        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bash.bashrc (tail) ==="
+        tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bashrc (tail) ==="
+        tail -10 /etc/bashrc 2>/dev/null || echo "(missing)"
+        echo "=== /etc/zsh/zshenv ==="
+        cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
+        echo "=== /etc/zshenv ==="
+        cat /etc/zshenv 2>/dev/null || echo "(missing)"
+    - title: activation profile.d file has begin marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: activation profile.d file has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: a global bashrc has begin marker
+      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bash.bashrc 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bashrc 2>/dev/null'
+    - title: a global bashrc has shellenv eval
+      cmd: bash -c 'grep -qF "shellenv" /etc/bash.bashrc 2>/dev/null || grep -qF "shellenv" /etc/bashrc 2>/dev/null'
+    - title: a zshenv has begin marker
+      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zshenv 2>/dev/null'
+    - title: a zshenv has shellenv eval
+      cmd: bash -c 'grep -qF "shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "shellenv" /etc/zshenv 2>/dev/null'
+    - title: login PATH includes linuxbrew/bin
+      cmd: bash -lc 'echo "$PATH"' | grep -q '/home/linuxbrew/.linuxbrew/bin'
+      debug: |
+        echo "=== login PATH ==="
+        bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
+
+shellenv_remote_user:
+  description: |
+    shellenv_remote_user: remoteUser="vscode" with default options.
+    Root process installs as linuxbrew; activation is written system-wide
+    (profile.d + bash.bashrc + zshenv). No per-user files are written.
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+    _MARKER='prefix activation (install-homebrew)'
+    _PROFILE_D="QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh"
+  checks:
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+    - title: profile.d activation file has marker
+      cmd: grep -qF "$_MARKER" "/etc/profile.d/${_PROFILE_D}"
+      debug: |
+        echo "=== /etc/profile.d/${_PROFILE_D} ==="
+        cat "/etc/profile.d/${_PROFILE_D}" 2>/dev/null || echo "(missing)"
+        echo "=== /etc/bash.bashrc (tail 10) ==="
+        tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+    - title: profile.d activation file has brew shellenv eval
+      cmd: grep -qF 'shellenv' "/etc/profile.d/${_PROFILE_D}"
+    - title: bash.bashrc has activation marker
+      cmd: grep -qF "$_MARKER" /etc/bash.bashrc
+
+update_false:
+  description: |
+    update_false: update=false disables the post-install 'brew update' run.
+    Verifies that Homebrew still installs and is functional even without the
+    index update step.
+  pre: |
+    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
+  checks:
+    - title: brew binary installed
+      cmd: test -f "$_BREW"
+    - title: brew binary is executable
+      cmd: test -x "$_BREW"
+    - title: brew --version succeeds
+      cmd: '"$_BREW" --version'
+      debug: |
+        echo "=== brew --version ==="
+        "$_BREW" --version 2>&1 || echo "(failed)"
+    - title: brew --version reports Homebrew
+      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+    - title: activation profile.d file written
+      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+    - title: activation profile.d file has marker
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh

@@ -1,0 +1,486 @@
+apk_installs_packages:
+  description: |
+    Verifies that the feature installs packages listed in an apk-pkg file
+    on an Alpine (APK) system.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+
+apk_manifest_file:
+  description: |
+    Verifies that manifest file works on Alpine (apk):
+    - apt: block is filtered out
+    - apk: block → tree installed
+
+  checks:
+    - title: tree is installed (apk manifest section)
+      cmd: command -v tree
+    - title: apt-only package was not installed
+      cmd: bash -c "! command -v not-a-real-package"
+
+apk_update_false:
+  description: |
+    Verifies that the feature can install packages on Alpine when update=false,
+    relying on the package index refreshed in the base image layer.
+
+  checks:
+    - title: tree is installed without re-running apk update
+      cmd: command -v tree
+
+apt_dry_run:
+  description: |
+    Verifies that dry_run=true (as a feature option) causes no packages to be
+    installed.  The manifest lists 'tree' but since dry_run is enabled the
+    package should not be present in the resulting image.
+
+  checks:
+    - title: tree was NOT installed (dry_run=true)
+      cmd: bash -c "! command -v tree"
+
+apt_empty_dir:
+  description: |
+    Verifies that when the manifest contains no packages the feature exits
+    cleanly (build succeeds) without installing anything.
+
+  checks:
+    - title: feature exited cleanly with empty manifest
+      cmd: 'true'
+    - title: no packages were installed
+      cmd: bash -c "! command -v tree"
+
+apt_installs_packages:
+  description: |
+    Verifies that the feature installs packages listed in an apt-pkg file
+    on a Debian (APT) system.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+
+apt_keep_cache:
+  description: |
+    Verifies that when keep_cache=true the feature skips cache cleanup, leaving
+    /var/lib/apt/lists/ populated after the run.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+    - title: apt package lists are preserved
+      cmd: bash -c "ls /var/lib/apt/lists/ | grep -q ."
+
+apt_keep_repos:
+  description: |
+    Verifies that when keep_repos=true, the APT sources drop-in file written
+    during installation is NOT removed after the run.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+    - title: syspkg-installer.list kept
+      cmd: test -f /etc/apt/sources.list.d/syspkg-installer.list
+
+apt_key_dearmor:
+  description: |
+    Verifies the full key+repo+package lifecycle with a dearmored (.gpg) key:
+    ASCII-armored nginx key fetched and converted to binary GPG format, repo
+    added, nginx installed from the third-party repo, key and repo cleaned up.
+
+  checks:
+    - title: nginx is installed
+      cmd: command -v nginx
+    - title: key file was cleaned up
+      cmd: bash -c '! test -f /usr/share/keyrings/nginx-archive-keyring.gpg'
+    - title: repo file was cleaned up
+      cmd: bash -c '! test -f /etc/apt/sources.list.d/syspkg-installer.list'
+
+apt_key_raw:
+  description: |
+    Verifies the full key+repo+package lifecycle with a raw (ASCII-armored) key:
+    nginx key fetched without dearmoring, repo added, nginx installed from the
+    third-party repo, key and repo cleaned up after install.
+
+  checks:
+    - title: nginx is installed
+      cmd: command -v nginx
+    - title: key file was cleaned up
+      cmd: bash -c '! test -f /usr/share/keyrings/nginx-signing.key'
+    - title: repo file was cleaned up
+      cmd: bash -c '! test -f /etc/apt/sources.list.d/syspkg-installer.list'
+
+apt_lifecycle_hook_oncreate:
+  description: |
+    Verifies that when lifecycle_hook=onCreate is set, the feature writes an
+    on-create.sh hook script and defers package installation to that hook.
+
+  checks:
+    - title: on-create.sh exists
+      cmd: test -f "${_FEAT_SHARE_DIR}/on-create.sh"
+    - title: on-create.sh is executable
+      cmd: test -x "${_FEAT_SHARE_DIR}/on-create.sh"
+    - title: on-create.sh references manifest
+      cmd: grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/on-create.sh"
+    - title: post-create.sh not written
+      cmd: test ! -f "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: update-content.sh not written
+      cmd: test ! -f "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: tree installed by onCreate hook
+      cmd: command -v tree
+
+apt_lifecycle_hook_postcreate:
+  description: |
+    Verifies that when lifecycle_hook=postCreate is set, the feature writes a
+    post-create.sh hook script instead of installing packages at build time.
+
+  checks:
+    - title: post-create.sh exists
+      cmd: test -f "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: post-create.sh is executable
+      cmd: test -x "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: post-create.sh references manifest
+      cmd: grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: on-create.sh not written
+      cmd: test ! -f "${_FEAT_SHARE_DIR}/on-create.sh"
+    - title: update-content.sh not written
+      cmd: test ! -f "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: tree installed by postCreate hook
+      cmd: command -v tree
+
+apt_lifecycle_hook_postcreate_trace:
+  description: |
+    Same assertions as apt_lifecycle_hook_postcreate but with log_level=trace,
+    so the build log will show the exact LIFECYCLE_HOOK env var value.
+
+  checks:
+    - title: post-create.sh exists
+      cmd: test -f "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: post-create.sh is executable
+      cmd: test -x "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: post-create.sh references manifest
+      cmd: grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: on-create.sh not written
+      cmd: test ! -f "${_FEAT_SHARE_DIR}/on-create.sh"
+    - title: update-content.sh not written
+      cmd: test ! -f "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: tree installed by postCreate hook
+      cmd: command -v tree
+
+apt_lifecycle_hook_updatecontent:
+  description: |
+    Verifies that when lifecycle_hook=updateContent is set, the feature writes an
+    update-content.sh hook script and defers package installation to that hook.
+
+  checks:
+    - title: update-content.sh exists
+      cmd: test -f "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: update-content.sh is executable
+      cmd: test -x "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: update-content.sh references manifest
+      cmd: grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: on-create.sh not written
+      cmd: test ! -f "${_FEAT_SHARE_DIR}/on-create.sh"
+    - title: post-create.sh not written
+      cmd: test ! -f "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: tree installed by updateContent hook
+      cmd: command -v tree
+
+apt_lists_max_age_zero:
+  description: |
+    Verifies that lists_max_age=0 forces a package list update (never skips) and
+    that packages are successfully installed afterwards.  The Dockerfile
+    intentionally does NOT run apt-get update in advance, so the feature must
+    update before installing.
+
+  checks:
+    - title: tree is installed (lists_max_age=0 forced update)
+      cmd: command -v tree
+
+apt_log_file:
+  description: |
+    Verifies that when the log_file option is set, a log file is created at the
+    specified path and contains installation output.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+    - title: log_file was created
+      cmd: test -f /tmp/install-os-pkg.log
+    - title: log_file contains installation output
+      cmd: grep -q "OS Package Installation script finished successfully." /tmp/install-os-pkg.log
+
+apt_manifest_all_sections:
+  description: |
+    Verifies that all four manifest section types are executed:
+    prescript  → runs before install (creates /tmp/prescript-ran)
+    pkg        → installs tree
+    script     → runs after install (creates /tmp/script-ran)
+
+  checks:
+    - title: prescript ran
+      cmd: test -f /tmp/prescript-ran
+    - title: tree is installed (pkg section)
+      cmd: command -v tree
+    - title: script ran
+      cmd: test -f /tmp/script-ran
+
+apt_manifest_file:
+  description: |
+    Verifies that packages in the implicit leading pkg block of a manifest file
+    are installed when the 'manifest' option is set to a file path.
+
+  checks:
+    - title: tree is installed (manifest file)
+      cmd: command -v tree
+    - title: curl is installed (manifest file)
+      cmd: command -v curl
+
+apt_manifest_file_trace:
+  description: |
+    Same checks as apt_manifest_file but run with log_level:"trace".
+    The set -x trace in the build log shows exactly which code path executed,
+    making it easy to diagnose manifest parsing issues in CI.
+
+  checks:
+    - title: tree is installed (manifest file, trace mode)
+      cmd: command -v tree
+    - title: curl is installed (manifest file, trace mode)
+      cmd: command -v curl
+
+apt_manifest_inline:
+  description: |
+    Verifies that an inline manifest (MANIFEST env var contains a newline) installs
+    packages from the implicit leading pkg block.
+
+  checks:
+    - title: tree is installed (inline manifest)
+      cmd: command -v tree
+    - title: curl is installed (inline manifest)
+      cmd: command -v curl
+
+apt_manifest_scripts:
+  description: |
+    Verifies that manifest prescript runs before package install and script
+    runs after, by checking the order of entries written to /tmp/order.log.
+
+  checks:
+    - title: order log has two entries
+      cmd: bash -c "[ \$(wc -l < /tmp/order.log) -eq 2 ]"
+    - title: first entry is 'pre'
+      cmd: bash -c "[ \"\$(sed -n '1p' /tmp/order.log)\" = 'pre' ]"
+    - title: second entry is 'post'
+      cmd: bash -c "[ \"\$(sed -n '2p' /tmp/order.log)\" = 'post' ]"
+    - title: tree is installed
+      cmd: command -v tree
+
+apt_manifest_section_selector:
+  description: |
+    Verifies that PM-specific blocks work on Debian (apt):
+    - apt: block → tree and curl installed
+    - apk: block → not-a-real-package filtered out (build would fail if attempted)
+
+  checks:
+    - title: tree is installed (apt section selector)
+      cmd: command -v tree
+    - title: curl is installed (apt section selector)
+      cmd: command -v curl
+    - title: apk-only package was not installed
+      cmd: bash -c "! command -v not-a-real-package"
+
+apt_manifest_uri_file:
+  description: "manifest=file:///tmp/manifest.yaml — same checks as apt_installs_packages using a file:// URI."
+
+  checks:
+    - title: tree is installed (manifest file URI)
+      cmd: command -v tree
+    - title: curl is installed (manifest file URI)
+      cmd: command -v curl
+
+apt_pkg_selectors:
+  description: |
+    Verifies that PM and OS when clauses work on Debian (apt):
+    - tree (when: {pm: apt}) and curl (when: {pm: apt, id: debian}) are installed
+    - not-a-real-package (when: {pm: apk}) is filtered out (build would fail if attempted)
+
+  checks:
+    - title: 'tree is installed (when: {pm: apt})'
+      cmd: command -v tree
+    - title: 'curl is installed (when: {pm: apt, id: debian})'
+      cmd: command -v curl
+    - title: apk-only package was not installed
+      cmd: bash -c "! command -v not-a-real-package"
+
+apt_repo_cleanup:
+  description: |
+    Verifies that when keep_repos is not set (default false), the APT sources
+    drop-in file written during installation is removed after the run.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+    - title: syspkg-installer.list removed
+      cmd: test ! -f /etc/apt/sources.list.d/syspkg-installer.list
+
+apt_scripts:
+  description: |
+    Verifies that manifest prescript runs before package install and script runs
+    after, each leaving a marker file, and that the target package is installed.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+    - title: prescript was executed
+      cmd: test -f /tmp/markers/prescript-ran
+    - title: postscript was executed
+      cmd: test -f /tmp/markers/script-ran
+
+apt_skip_installed:
+  description: |
+    Verifies that skip_installed=true skips packages whose binary is already
+    present in PATH, even if they were not installed via the package manager.
+
+    The Dockerfile places a fake 'mytool' binary at /usr/local/bin/mytool.
+    'mytool' is not a real apt package: if the feature tried to install it the
+    build would fail.  The fact that the build succeeds proves the skip worked.
+
+    'tree' is a real package absent from the base image and must still be
+    installed, proving that skip_installed only skips what is already in PATH.
+
+  checks:
+    - title: build succeeded (mytool was skipped, not passed to apt)
+      cmd: 'true'
+    - title: mytool is the original fake binary (not overwritten)
+      cmd: bash -c "mytool | grep -q mytool-ok"
+    - title: tree was installed (not in PATH before the feature ran)
+      cmd: command -v tree
+
+apt_system_command:
+  description: |
+    Verifies that running the feature installs /usr/local/bin/install-os-pkg
+    as a callable system command, and that the backing library script is present.
+
+  checks:
+    - title: system command exists
+      cmd: test -x /usr/local/bin/install-os-pkg
+    - title: library script exists
+      cmd: test -f /usr/local/lib/install-os-pkg/install.sh
+    - title: command is in PATH
+      cmd: command -v install-os-pkg
+    - title: command accepts --help flag
+      cmd: bash -c "install-os-pkg --no_such_flag 2>&1 | grep -q 'Unknown option' || true"
+    - title: tree is installed (initial dir install)
+      cmd: command -v tree
+    - title: system command can install packages
+      cmd: bash -c "install-os-pkg --manifest $'packages:\n  - curl\n' && command -v curl"
+
+apt_update_false:
+  description: |
+    Verifies that the feature can install packages when update=false, relying
+    on package lists that were already refreshed in the base image layer.
+
+  checks:
+    - title: tree is installed without re-running apt-get update
+      cmd: command -v tree
+
+apt_version_selector:
+  description: |
+    Verifies that version_id= selectors work correctly.
+
+    Base image: debian:bookworm (id=debian, version_id=12)
+
+    tree            → no selector, always installed
+    bc              → [version_id=12]             → installed
+    less            → [id=debian, version_id=12]  → installed
+    mlocate         → [version_id=22.04]          → NOT installed (Ubuntu version)
+
+  checks:
+    - title: tree installed (no selector)
+      cmd: command -v tree
+    - title: bc installed (version_id=12)
+      cmd: command -v bc
+    - title: less installed (id=debian and version_id=12)
+      cmd: command -v less
+    - title: mlocate not installed (version_id=22.04 — no match on debian 12)
+      cmd: bash -c "! command -v mlocate"
+
+dnf_installs_packages:
+  description: |
+    Verifies that the feature installs packages listed in a dnf-pkg file
+    on a Fedora (DNF) system.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+
+http_uri_resolve_stubbed:
+  description: |
+    Stub net fetch; verify uri__resolve materializes an http:// manifest for install-os-pkg-style YAML.
+
+  pre: |
+    source "${REPO_ROOT}/lib/uri.sh"
+
+    # Stub the uri-layer fetch seam (after sourcing uri.sh) so net.sh loading cannot overwrite it.
+    _uri__net_fetch() {
+      printf '%s\n' 'packages:' '  - tree' > "$2"
+    }
+    export -f _uri__net_fetch
+
+    _dest="$(mktemp "${TMPDIR:-/tmp}/ospkg-uri.XXXXXX")"
+    uri__resolve "https://stub.internal/manifest.yaml" "$_dest"
+
+  checks:
+    - title: stub manifest lists a package
+      cmd: grep -q '^  - tree' "$_dest"
+
+install_self_false:
+  description: |
+    Verifies that when install_self=false the system command wrapper is NOT
+    installed, while packages and the backing library are still set up normally.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+    - title: system command wrapper is absent
+      cmd: bash -c "! test -x /usr/local/bin/install-os-pkg"
+    - title: library script is present (always installed)
+      cmd: test -f /usr/local/lib/install-os-pkg/install.sh
+
+install_self_only:
+  description: |
+    Verifies that when no manifest is given but install_self=true is explicitly
+    set, the feature exits cleanly and installs the system command without error.
+
+  checks:
+    - title: system command exists
+      cmd: test -x /usr/local/bin/install-os-pkg
+    - title: library script exists
+      cmd: test -f /usr/local/lib/install-os-pkg/install.sh
+
+no_matching_files:
+  description: |
+    Verifies that when the manifest contains only sections for a non-matching
+    ecosystem (apk-specific packages on a Debian/APT host) the feature exits cleanly without
+    installing anything.
+
+  checks:
+    - title: feature exited cleanly with no matching manifest sections
+      cmd: 'true'
+    - title: no packages were installed
+      cmd: bash -c "! command -v tree"
+
+pacman_installs_packages:
+  description: |
+    Verifies that the feature installs packages listed in a pacman-pkg file
+    on an Arch Linux (Pacman) system.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree
+
+zypper_installs_packages:
+  description: |
+    Verifies that the feature installs packages listed in a zypper-pkg file
+    on an openSUSE (Zypper) system.
+
+  checks:
+    - title: tree is installed
+      cmd: command -v tree

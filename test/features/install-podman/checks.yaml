@@ -1,0 +1,390 @@
+apt_container_user:
+  description: |
+    Verifies that add_container_user=true configures the user injected via
+    _CONTAINER_USER (set by the devcontainer CLI from the containerUser field).
+    add_remote_user and add_current_user are both off so only
+    the containerUser path is exercised.
+  checks:
+    - title: vscode in /etc/subuid
+      cmd: grep -q "^vscode:" /etc/subuid
+    - title: vscode in /etc/subgid
+      cmd: grep -q "^vscode:" /etc/subgid
+    - title: vscode storage.conf exists
+      cmd: test -f /home/vscode/.config/containers/storage.conf
+    - title: vscode storage.conf overlay driver
+      cmd: grep -q 'driver = "overlay"' /home/vscode/.config/containers/storage.conf
+    - title: root NOT in /etc/subuid
+      cmd: bash -c '! grep -q "^root:" /etc/subuid'
+    - title: root storage.conf NOT written
+      cmd: bash -c '! test -f /root/.config/containers/storage.conf'
+
+apt_default:
+  description: |
+    Default options with remoteUser="vscode".
+    Verifies packages, setuid binaries, vscode user configuration,
+    system containers.conf, and the startup entrypoint.
+    Root should NOT be configured (add_users does not include root by default).
+  pre: |
+    _GRAPH_ROOT="/var/lib/containers/storage/users/vscode"
+    _VSCODE_HOME="/home/vscode"
+    _VSCODE_STORAGE_CONF="${_VSCODE_HOME}/.config/containers/storage.conf"
+  checks:
+    - title: podman is installed
+      cmd: command -v podman
+    - title: slirp4netns is installed
+      cmd: command -v slirp4netns
+    - title: passt is installed
+      cmd: command -v passt
+    - title: newuidmap is installed
+      cmd: command -v newuidmap
+    - title: newgidmap is installed
+      cmd: command -v newgidmap
+    - title: newuidmap is setuid root
+      cmd: bash -c 'test -u "$(command -v newuidmap)"'
+    - title: newgidmap is setuid root
+      cmd: bash -c 'test -u "$(command -v newgidmap)"'
+    - title: vscode in /etc/subuid
+      cmd: grep -q "^vscode:" /etc/subuid
+    - title: vscode in /etc/subgid
+      cmd: grep -q "^vscode:" /etc/subgid
+    - title: vscode subuid offset is 100000
+      cmd: |-
+        bash -c 'grep "^vscode:" /etc/subuid | cut -d: -f2 | grep -qx 100000'
+    - title: vscode subuid count is 65536
+      cmd: |-
+        bash -c 'grep "^vscode:" /etc/subuid | cut -d: -f3 | grep -qx 65536'
+    - title: vscode storage.conf exists
+      cmd: test -f "${_VSCODE_STORAGE_CONF}"
+    - title: vscode storage.conf sets overlay driver
+      cmd: grep -q 'driver = "overlay"' "${_VSCODE_STORAGE_CONF}"
+    - title: vscode storage.conf sets correct graphRoot
+      cmd: grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" "${_VSCODE_STORAGE_CONF}"
+    - title: vscode home owned by vscode
+      cmd: bash -c '[ "$(stat -c %U /home/vscode)" = "vscode" ]'
+    - title: vscode .config/containers owned by vscode
+      cmd: bash -c '[ "$(stat -c %U /home/vscode/.config/containers)" = "vscode" ]'
+    - title: vscode .config/cni exists
+      cmd: test -d /home/vscode/.config/cni
+    - title: vscode .config/cni owned by vscode
+      cmd: bash -c '[ "$(stat -c %U /home/vscode/.config/cni)" = "vscode" ]'
+    - title: system containers.conf exists
+      cmd: test -f /etc/containers/containers.conf
+    - title: containers.conf sets cgroupfs manager
+      cmd: grep -q 'cgroup_manager = "cgroupfs"' /etc/containers/containers.conf
+    - title: containers.conf sets file events logger
+      cmd: grep -q 'events_logger = "file"' /etc/containers/containers.conf
+    - title: entrypoint script exists
+      cmd: test -f "${_FEAT_SHARE_DIR}/entrypoint.sh"
+    - title: entrypoint is executable
+      cmd: test -x "${_FEAT_SHARE_DIR}/entrypoint.sh"
+    - title: entrypoint runs make-rshared
+      cmd: grep -q 'mount --make-rshared /' "${_FEAT_SHARE_DIR}/entrypoint.sh"
+    - title: entrypoint sets up cgroup v2 nesting
+      cmd: grep -q 'cgroup.subtree_control' "${_FEAT_SHARE_DIR}/entrypoint.sh"
+    - title: root NOT in /etc/subuid
+      cmd: bash -c '! grep -q "^root:" /etc/subuid'
+    - title: root storage.conf NOT written
+      cmd: bash -c '! test -f /root/.config/containers/storage.conf'
+
+apt_explicit_user:
+  description: |
+    Verifies that add_users with an explicit username configures exactly
+    that user. All devcontainer-injected user options are off so only the
+    explicit list path is exercised.
+  pre: |
+    _GRAPH_ROOT="/var/lib/containers/storage/users/devuser"
+    _DEVUSER_HOME="/home/devuser"
+  checks:
+    - title: devuser in /etc/subuid
+      cmd: grep -q "^devuser:" /etc/subuid
+    - title: devuser in /etc/subgid
+      cmd: grep -q "^devuser:" /etc/subgid
+    - title: devuser storage.conf exists
+      cmd: test -f "${_DEVUSER_HOME}/.config/containers/storage.conf"
+    - title: devuser storage.conf overlay driver
+      cmd: grep -q 'driver = "overlay"' "${_DEVUSER_HOME}/.config/containers/storage.conf"
+    - title: devuser storage.conf graphRoot correct
+      cmd: grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" "${_DEVUSER_HOME}/.config/containers/storage.conf"
+    - title: devuser home owned by devuser
+      cmd: bash -c '[ "$(stat -c %U /home/devuser)" = "devuser" ]'
+    - title: devuser .config/containers owned by devuser
+      cmd: bash -c '[ "$(stat -c %U /home/devuser/.config/containers)" = "devuser" ]'
+    - title: devuser .config/cni exists
+      cmd: test -d /home/devuser/.config/cni
+    - title: devuser .config/cni owned by devuser
+      cmd: bash -c '[ "$(stat -c %U /home/devuser/.config/cni)" = "devuser" ]'
+    - title: root NOT in /etc/subuid
+      cmd: bash -c '! grep -q "^root:" /etc/subuid'
+    - title: root storage.conf NOT written
+      cmd: bash -c '! test -f /root/.config/containers/storage.conf'
+
+apt_multi_user:
+  description: |
+    Verifies that multiple users given via add_users are each configured
+    with their own subuid/subgid entry and storage.conf, and that their subuid
+    ranges are non-overlapping.
+  pre: |
+    _GRAPH_ROOT_BASE="/var/lib/containers/storage/users"
+  checks:
+    - title: alice in /etc/subuid
+      cmd: grep -q "^alice:" /etc/subuid
+    - title: alice in /etc/subgid
+      cmd: grep -q "^alice:" /etc/subgid
+    - title: alice storage.conf exists
+      cmd: test -f /home/alice/.config/containers/storage.conf
+    - title: alice storage.conf overlay driver
+      cmd: grep -q 'driver = "overlay"' /home/alice/.config/containers/storage.conf
+    - title: alice storage.conf graphRoot correct
+      cmd: grep -qF "graphRoot = \"${_GRAPH_ROOT_BASE}/alice\"" /home/alice/.config/containers/storage.conf
+    - title: alice home owned by alice
+      cmd: bash -c '[ "$(stat -c %U /home/alice)" = "alice" ]'
+    - title: alice .config/containers owned by alice
+      cmd: bash -c '[ "$(stat -c %U /home/alice/.config/containers)" = "alice" ]'
+    - title: alice .config/cni exists
+      cmd: test -d /home/alice/.config/cni
+    - title: alice .config/cni owned by alice
+      cmd: bash -c '[ "$(stat -c %U /home/alice/.config/cni)" = "alice" ]'
+    - title: bob in /etc/subuid
+      cmd: grep -q "^bob:" /etc/subuid
+    - title: bob in /etc/subgid
+      cmd: grep -q "^bob:" /etc/subgid
+    - title: bob storage.conf exists
+      cmd: test -f /home/bob/.config/containers/storage.conf
+    - title: bob storage.conf overlay driver
+      cmd: grep -q 'driver = "overlay"' /home/bob/.config/containers/storage.conf
+    - title: bob storage.conf graphRoot correct
+      cmd: grep -qF "graphRoot = \"${_GRAPH_ROOT_BASE}/bob\"" /home/bob/.config/containers/storage.conf
+    - title: bob home owned by bob
+      cmd: bash -c '[ "$(stat -c %U /home/bob)" = "bob" ]'
+    - title: bob .config/containers owned by bob
+      cmd: bash -c '[ "$(stat -c %U /home/bob/.config/containers)" = "bob" ]'
+    - title: bob .config/cni exists
+      cmd: test -d /home/bob/.config/cni
+    - title: bob .config/cni owned by bob
+      cmd: bash -c '[ "$(stat -c %U /home/bob/.config/cni)" = "bob" ]'
+    - title: alice subuid count is 65536
+      cmd: |-
+        bash -c 'grep "^alice:" /etc/subuid | cut -d: -f3 | grep -qx 65536'
+    - title: bob subuid count is 65536
+      cmd: |-
+        bash -c 'grep "^bob:" /etc/subuid | cut -d: -f3 | grep -qx 65536'
+    - title: alice subuid start >= 100000
+      cmd: |-
+        bash -c 'a=$(grep "^alice:" /etc/subuid | cut -d: -f2); test "${a}" -ge 100000'
+    - title: bob subuid start >= 100000
+      cmd: |-
+        bash -c 'b=$(grep "^bob:" /etc/subuid | cut -d: -f2); test "${b}" -ge 100000'
+    - title: subuid ranges do not overlap
+      cmd: |-
+        bash -c 'a=$(grep "^alice:" /etc/subuid | cut -d: -f2); b=$(grep "^bob:" /etc/subuid | cut -d: -f2); d=$((a > b ? a - b : b - a)); test "${d}" -ge 65536'
+    - title: alice subgid count is 65536
+      cmd: |-
+        bash -c 'grep "^alice:" /etc/subgid | cut -d: -f3 | grep -qx 65536'
+    - title: bob subgid count is 65536
+      cmd: |-
+        bash -c 'grep "^bob:" /etc/subgid | cut -d: -f3 | grep -qx 65536'
+    - title: alice subgid start >= 100000
+      cmd: |-
+        bash -c 'a=$(grep "^alice:" /etc/subgid | cut -d: -f2); test "${a}" -ge 100000'
+    - title: bob subgid start >= 100000
+      cmd: |-
+        bash -c 'b=$(grep "^bob:" /etc/subgid | cut -d: -f2); test "${b}" -ge 100000'
+    - title: subgid ranges do not overlap
+      cmd: |-
+        bash -c 'a=$(grep "^alice:" /etc/subgid | cut -d: -f2); b=$(grep "^bob:" /etc/subgid | cut -d: -f2); d=$((a > b ? a - b : b - a)); test "${d}" -ge 65536'
+
+apt_no_users:
+  description: |
+    Verifies that when all per-user config options are disabled, install.sh
+    succeeds and installs the shared infrastructure (packages, containers.conf,
+    entrypoint, graphRoot), but writes no subuid/subgid entries and no
+    per-user storage.conf files.
+  checks:
+    - title: podman is installed
+      cmd: command -v podman
+    - title: newuidmap is installed
+      cmd: command -v newuidmap
+    - title: system containers.conf exists
+      cmd: test -f /etc/containers/containers.conf
+    - title: containers.conf cgroupfs manager
+      cmd: grep -q 'cgroup_manager = "cgroupfs"' /etc/containers/containers.conf
+    - title: containers.conf file events logger
+      cmd: grep -q 'events_logger = "file"' /etc/containers/containers.conf
+    - title: entrypoint exists
+      cmd: test -f "${_FEAT_SHARE_DIR}/entrypoint.sh"
+    - title: entrypoint is executable
+      cmd: test -x "${_FEAT_SHARE_DIR}/entrypoint.sh"
+    - title: entrypoint sets up cgroup v2 nesting
+      cmd: grep -q 'cgroup.subtree_control' "${_FEAT_SHARE_DIR}/entrypoint.sh"
+    - title: root NOT in /etc/subuid
+      cmd: bash -c '! grep -q "^root:" /etc/subuid 2>/dev/null'
+    - title: root storage.conf NOT written
+      cmd: bash -c '! test -f /root/.config/containers/storage.conf'
+
+apt_nonexistent_user:
+  description: |
+    Verifies that install.sh does not abort when add_users names a user
+    that does not exist. The script should skip that user with a warning and
+    still successfully install the shared infrastructure.
+  checks:
+    - title: podman is installed
+      cmd: command -v podman
+    - title: entrypoint exists
+      cmd: test -f "${_FEAT_SHARE_DIR}/entrypoint.sh"
+    - title: containers.conf exists
+      cmd: test -f /etc/containers/containers.conf
+    - title: ghost NOT in /etc/subuid
+      cmd: bash -c '! grep -q "^ghost:" /etc/subuid 2>/dev/null'
+    - title: ghost config dir NOT written
+      cmd: bash -c '! test -d /home/ghost'
+
+apt_podman_run:
+  description: |
+    Verifies that rootless Podman is fully functional for the vscode user:
+    storage driver, per-user graphRoot on the named volume, and end-to-end
+    container execution.
+
+    This script runs as vscode (devcontainer.remoteUser: vscode).
+    The feature entrypoint (postStartCommand) has already run before this
+    script executes, so rshared mount and cgroup delegation are in place.
+    The container must be privileged (metadata.yaml: privileged: true).
+  checks:
+    - title: 'podman info: overlay storage driver'
+      cmd: bash -c "podman info --format '{{.Store.GraphDriverName}}' | grep -Fx overlay"
+    - title: 'podman info: graphRoot on named volume'
+      cmd: bash -c "podman info --format '{{.Store.GraphRoot}}' | grep -Fq '/var/lib/containers/storage/users/vscode'"
+    - title: podman run hello-world succeeds
+      cmd: podman run --rm docker.io/library/hello-world
+
+apt_podman_run_explicit_user:
+  description: |
+    Verifies that rootless Podman is fully functional for a user configured
+    via the add_users option.
+
+    This script runs as root (no remoteUser set); it uses runuser to switch
+    to devuser for Podman invocations.
+    The feature entrypoint (postStartCommand) has already run before this
+    script executes, so rshared mount and cgroup delegation are in place.
+    The container must be privileged (metadata.yaml: privileged: true).
+  checks:
+    - title: 'podman info: overlay storage driver for devuser'
+      cmd: runuser -l devuser -c "podman info --format '{{.Store.GraphDriverName}}' | grep -Fx overlay"
+    - title: 'podman info: graphRoot on named volume for devuser'
+      cmd: runuser -l devuser -c "podman info --format '{{.Store.GraphRoot}}' | grep -Fq '/var/lib/containers/storage/users/devuser'"
+    - title: podman run hello-world as devuser
+      cmd: runuser -l devuser -c "podman run --rm docker.io/library/hello-world"
+
+apt_remote_user:
+  description: |
+    Verifies that add_remote_user=true configures the user injected via
+    _REMOTE_USER (set by the devcontainer CLI from the remoteUser field).
+    add_container_user and add_current_user are both off so only
+    the remoteUser path is exercised.
+  checks:
+    - title: vscode in /etc/subuid
+      cmd: grep -q "^vscode:" /etc/subuid
+    - title: vscode in /etc/subgid
+      cmd: grep -q "^vscode:" /etc/subgid
+    - title: vscode storage.conf exists
+      cmd: test -f /home/vscode/.config/containers/storage.conf
+    - title: vscode storage.conf overlay driver
+      cmd: grep -q 'driver = "overlay"' /home/vscode/.config/containers/storage.conf
+    - title: root NOT in /etc/subuid
+      cmd: bash -c '! grep -q "^root:" /etc/subuid'
+    - title: root storage.conf NOT written
+      cmd: bash -c '! test -f /root/.config/containers/storage.conf'
+
+apt_root_user_config:
+  description: |
+    Verifies that add_users="root" causes root to receive a subuid/subgid
+    entry and a per-user storage.conf.
+  pre: |
+    _GRAPH_ROOT="/var/lib/containers/storage/users/root"
+
+    # No remoteUser is set so this test runs as root, allowing access to /root/.
+    # With add_users="root" and all other user options at their defaults
+    # (add_current_user skips root, _REMOTE_USER/_CONTAINER_USER unset),
+    # only root should be configured.
+  checks:
+    - title: root in /etc/subuid
+      cmd: grep -q "^root:" /etc/subuid
+    - title: root in /etc/subgid
+      cmd: grep -q "^root:" /etc/subgid
+    - title: root subuid offset is 100000
+      cmd: |-
+        bash -c 'grep "^root:" /etc/subuid | cut -d: -f2 | grep -qx 100000'
+    - title: root subuid count is 65536
+      cmd: |-
+        bash -c 'grep "^root:" /etc/subuid | cut -d: -f3 | grep -qx 65536'
+    - title: root storage.conf exists
+      cmd: test -f /root/.config/containers/storage.conf
+    - title: root storage.conf sets overlay driver
+      cmd: grep -q 'driver = "overlay"' /root/.config/containers/storage.conf
+    - title: root storage.conf graphRoot correct
+      cmd: grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" /root/.config/containers/storage.conf
+    - title: vscode NOT in /etc/subuid
+      cmd: bash -c '! grep -q "^vscode:" /etc/subuid 2>/dev/null'
+
+apt_standalone_default:
+  description: |
+    Standalone install with default options; no devcontainer CLI context.
+    The install script is invoked directly (no _REMOTE_USER injection).
+    Root is the configured user via the add_current_user fallback:
+    no non-root users exist, so root is included as the last resort.
+    Verifies that packages and per-user infra are installed correctly,
+    and that devcontainer-specific artifacts are NOT written.
+  checks:
+    - title: podman is installed
+      cmd: command -v podman
+    - title: slirp4netns is installed
+      cmd: command -v slirp4netns
+    - title: newuidmap is installed
+      cmd: command -v newuidmap
+    - title: newgidmap is installed
+      cmd: command -v newgidmap
+    - title: newuidmap is setuid root
+      cmd: bash -c 'test -u "$(command -v newuidmap)"'
+    - title: newgidmap is setuid root
+      cmd: bash -c 'test -u "$(command -v newgidmap)"'
+    - title: root in /etc/subuid
+      cmd: grep -q "^root:" /etc/subuid
+    - title: root in /etc/subgid
+      cmd: grep -q "^root:" /etc/subgid
+    - title: root .config/containers exists
+      cmd: test -d /root/.config/containers
+    - title: root .config/cni exists
+      cmd: test -d /root/.config/cni
+    - title: containers.conf NOT written
+      cmd: bash -c '! test -f /etc/containers/containers.conf'
+    - title: root storage.conf NOT written
+      cmd: bash -c '! test -f /root/.config/containers/storage.conf'
+    - title: entrypoint NOT installed
+      cmd: bash -c "! test -f '${_FEAT_SHARE_DIR}/entrypoint.sh'"
+
+apt_standalone_user:
+  description: |
+    Standalone install with an explicit add_users target (devuser).
+    Invoked directly — no _REMOTE_USER. Verifies per-user Podman config dirs
+    are created with correct ownership and that devcontainer-specific artifacts
+    (containers.conf override, graphRoot redirect, entrypoint) are NOT written.
+  checks:
+    - title: podman is installed
+      cmd: command -v podman
+    - title: devuser in /etc/subuid
+      cmd: grep -q "^devuser:" /etc/subuid
+    - title: devuser in /etc/subgid
+      cmd: grep -q "^devuser:" /etc/subgid
+    - title: devuser .config/containers exists
+      cmd: test -d /home/devuser/.config/containers
+    - title: devuser .config/cni exists
+      cmd: test -d /home/devuser/.config/cni
+    - title: devuser .config/containers owned by devuser
+      cmd: bash -c '[ "$(stat -c %U /home/devuser/.config/containers)" = "devuser" ]'
+    - title: devuser .config/cni owned by devuser
+      cmd: bash -c '[ "$(stat -c %U /home/devuser/.config/cni)" = "devuser" ]'
+    - title: containers.conf NOT written
+      cmd: bash -c '! test -f /etc/containers/containers.conf'
+    - title: devuser storage.conf NOT written
+      cmd: bash -c '! test -f /home/devuser/.config/containers/storage.conf'
+    - title: entrypoint NOT installed
+      cmd: bash -c "! test -f '${_FEAT_SHARE_DIR}/entrypoint.sh'"

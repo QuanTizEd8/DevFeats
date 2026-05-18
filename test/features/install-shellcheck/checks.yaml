@@ -1,0 +1,50 @@
+binary_custom_prefix:
+  description: Verifies method=binary installs shellcheck under a custom prefix.
+  checks:
+    - title: shellcheck binary exists under custom prefix
+      cmd: test -x /opt/shellcheck-bin/bin/shellcheck
+    - title: shellcheck resolves from PATH to custom prefix
+      cmd: bash -c 'resolved=$(command -v shellcheck); test -n "$resolved" && test -x "$resolved" && test "$(readlink -f "$resolved" 2>/dev/null || echo "$resolved")" = "$(readlink -f /opt/shellcheck-bin/bin/shellcheck 2>/dev/null || echo /opt/shellcheck-bin/bin/shellcheck)"'
+    - title: custom-prefix shellcheck lints a valid script
+      cmd: bash -c 'printf "#!/bin/sh\necho hi\n" | /opt/shellcheck-bin/bin/shellcheck -'
+
+default_install:
+  description: Verifies default install installs a working shellcheck.
+  checks:
+    - title: shellcheck command is available
+      cmd: command -v shellcheck
+    - title: shellcheck reports a version
+      cmd: bash -c 'shellcheck --version | grep -Eq "version:[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+"'
+    - title: shellcheck lints a valid script
+      cmd: bash -c 'printf "#!/bin/sh\necho hi\n" | shellcheck -'
+
+if_exists_fail:
+  description: "Ensures if_exists=fail exits non-zero when shellcheck already exists."
+  checks:
+    - title: preinstalled shellcheck remains available
+      cmd: command -v shellcheck
+
+installer_dir:
+  description: |
+    installer_dir=/tmp/shellcheck-trace: the downloaded archive must remain in
+    installer_dir after installation completes.
+  checks:
+    - title: shellcheck binary installed
+      cmd: test -f /usr/local/bin/shellcheck
+    - title: shellcheck --version succeeds
+      cmd: shellcheck --version
+    - title: installer_dir exists
+      cmd: test -d /tmp/shellcheck-trace
+      debug: |
+        echo "=== /tmp/shellcheck-trace/ contents ==="
+        ls -la /tmp/shellcheck-trace/ 2>/dev/null || echo "(directory missing)"
+    - title: shellcheck archive preserved in installer_dir
+      cmd: bash -c 'ls /tmp/shellcheck-trace/shellcheck-v*.tar.xz 2>/dev/null | grep -q .'
+
+package_install:
+  description: Verifies method=package installs a working shellcheck.
+  checks:
+    - title: shellcheck command is available
+      cmd: command -v shellcheck
+    - title: shellcheck lints a valid script
+      cmd: bash -c 'printf "#!/bin/sh\necho hi\n" | shellcheck -'

@@ -8,7 +8,7 @@ default_install:
   - devcontainer
   - standalone
   tests:
-  - default_install.sh
+  - default_install
 specific_version:
   envs:
   - ubuntu-latest
@@ -19,7 +19,7 @@ specific_version:
     version: 4.44.2
     method: binary
   tests:
-  - specific_version.sh
+  - specific_version
 binary_custom_prefix:
   envs:
   - ubuntu-latest
@@ -32,7 +32,7 @@ binary_custom_prefix:
     prefix_discovery: symlink
     if_exists: reinstall
   tests:
-  - binary_custom_prefix.sh
+  - binary_custom_prefix
 custom_prefix_no_symlink:
   envs:
   - ubuntu-latest
@@ -44,7 +44,7 @@ custom_prefix_no_symlink:
     prefix: /opt/yq-bin
     prefix_discovery: none
   tests:
-  - custom_prefix_no_symlink.sh
+  - custom_prefix_no_symlink
 package_install:
   envs:
   - debian-latest
@@ -55,7 +55,7 @@ package_install:
     method: auto
     if_exists: reinstall
   tests:
-  - package_install.sh
+  - package_install
 version_match_idempotency:
   envs:
   - ubuntu-latest+yq-4.44.2
@@ -66,7 +66,7 @@ version_match_idempotency:
     version: 4.44.2
     if_exists: fail
   tests:
-  - version_match_idempotency.sh
+  - version_match_idempotency
 shell_completion_bash:
   envs:
   - ubuntu-latest
@@ -76,7 +76,7 @@ shell_completion_bash:
   options:
     shell_completions: bash
   tests:
-  - shell_completion_bash.sh
+  - shell_completion_bash
 shell_completion_zsh:
   envs:
   - ubuntu-latest
@@ -86,7 +86,7 @@ shell_completion_zsh:
   options:
     shell_completions: zsh
   tests:
-  - shell_completion_zsh.sh
+  - shell_completion_zsh
 if_exists_fail:
   expect_install_failure: true
   envs:
@@ -104,6 +104,6 @@ if_exists_fail:
     method: auto
     if_exists: fail
   tests:
-  - if_exists_fail.sh
+  - if_exists_fail
   standalone:
     skip_install: false

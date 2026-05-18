@@ -5,28 +5,28 @@ defaults:
 apt_default:
   envs: [debian-latest]
   modes: [devcontainer]
-  tests: [apt_default.sh]
+  tests: [apt_default]
 
 apt_p10k_fonts:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
     p10k_fonts: true
-  tests: [apt_p10k_fonts.sh]
+  tests: [apt_p10k_fonts]
 
 apt_custom_font_dir:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
     font_dir: /opt/fonts
-  tests: [apt_custom_font_dir.sh]
+  tests: [apt_custom_font_dir]
 
 apt_empty_nerd_fonts:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
     nerd_fonts: ""
-  tests: [apt_empty_nerd_fonts.sh]
+  tests: [apt_empty_nerd_fonts]
 
 apt_font_urls:
   envs: [debian-latest]
@@ -34,7 +34,7 @@ apt_font_urls:
   options:
     nerd_fonts: ""
     font_urls: "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.tar.xz"
-  tests: [apt_font_urls.sh]
+  tests: [apt_font_urls]
 
 apt_font_urls_file:
   envs: [debian-latest]
@@ -42,7 +42,7 @@ apt_font_urls_file:
   options:
     nerd_fonts: ""
     font_urls: "https://github.com/JetBrains/JetBrainsMono/raw/v2.304/fonts/ttf/JetBrainsMono-Regular.ttf"
-  tests: [apt_font_urls_file.sh]
+  tests: [apt_font_urls_file]
 
 apt_gh_release_fonts:
   envs: [debian-latest]
@@ -50,7 +50,7 @@ apt_gh_release_fonts:
   options:
     nerd_fonts: ""
     gh_release_fonts: JetBrains/JetBrainsMono
-  tests: [apt_gh_release_fonts.sh]
+  tests: [apt_gh_release_fonts]
 
 apt_gh_release_fonts_tag:
   envs: [debian-latest]
@@ -58,4 +58,4 @@ apt_gh_release_fonts_tag:
   options:
     nerd_fonts: ""
     gh_release_fonts: "JetBrains/JetBrainsMono@v2.304"
-  tests: [apt_gh_release_fonts_tag.sh]
+  tests: [apt_gh_release_fonts_tag]
