@@ -1588,12 +1588,13 @@ ospkg__run() {
   local _ospkg_uri_tmp=''
 
   if [[ -n "$_manifest" ]]; then
+    # shellcheck source=lib/uri.sh
+    # shellcheck disable=SC1094
+    . "$_OSPKG_LIB_DIR/uri.sh"
     if [[ "$_manifest" == *$'\n'* ]]; then
       _manifest_content="$_manifest"
-    elif [[ "$_manifest" == http://* || "$_manifest" == https://* || "$_manifest" == file://* || "$_manifest" == oci://* || "$_manifest" == gh://* ]]; then
-      # shellcheck source=lib/uri.sh
-      # shellcheck disable=SC1094
-      . "$_OSPKG_LIB_DIR/uri.sh"
+    elif uri__classify "$_manifest" > /dev/null 2>&1 && \
+         [[ "$(uri__classify "$_manifest" 2>/dev/null)" != "local" ]]; then
       _ospkg_uri_tmp="$(mktemp "${TMPDIR:-/tmp}/ospkg-manifest-uri.XXXXXX")"
       _ospkg_uri_args=()
       if [[ -n "${_fetch_netrc_file:-}" ]]; then

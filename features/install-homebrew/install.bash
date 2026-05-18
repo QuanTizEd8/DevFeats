@@ -2,6 +2,8 @@
 . "$_BASE_DIR/_lib/shell.sh"
 # shellcheck source=lib/users.sh
 . "$_BASE_DIR/_lib/users.sh"
+# shellcheck source=lib/uri.sh
+. "$_BASE_DIR/_lib/uri.sh"
 
 # ── Constants ────────────────────────────────────────────────────────────────
 _BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD"
@@ -31,7 +33,7 @@ run_brew_installer() {
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
   logging__download "Downloading Homebrew installer to '${_tmpfile}'."
-  net__fetch_url_file "$_BREW_INSTALLER_URL" "$_tmpfile"
+  uri__fetch_asset --url "$_BREW_INSTALLER_URL" --dest "$_tmpfile"
   chmod a+r "$_tmpfile"
   logging__info "Installing as '${RESOLVED_INSTALL_USER}'."
   _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_tmpfile"
@@ -47,7 +49,7 @@ uninstall_brew() {
   _tmpfile="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
-  net__fetch_url_file "$_BREW_UNINSTALLER_URL" "$_tmpfile"
+  uri__fetch_asset --url "$_BREW_UNINSTALLER_URL" --dest "$_tmpfile"
   chmod a+r "$_tmpfile"
   # Run as the current process (root when called from root) so it can remove
   # files in a root-provisioned prefix regardless of who owns them.

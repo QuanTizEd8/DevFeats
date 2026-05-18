@@ -87,34 +87,6 @@ resolve_installer_paths() {
   return 0
 }
 
-download_pixi() {
-  logging__fn_entry "download_pixi"
-  mkdir -p "${INSTALLER_DIR}"
-  logging__download "Downloading pixi archive from '${ARCHIVE_URL}'"
-  local _netrc_args=()
-  [[ -n "${NETRC:-}" ]] && _netrc_args+=(--netrc-file "${NETRC}")
-  net__fetch_url_file "${ARCHIVE_URL}" "${ARCHIVE}" "${_netrc_args[@]}"
-  if [ -n "${SIDECAR_URL:-}" ]; then
-    logging__download "Downloading checksum sidecar from '${SIDECAR_URL}'"
-    net__fetch_url_file "${SIDECAR_URL}" "${SIDECAR}" "${_netrc_args[@]}"
-  fi
-  logging__fn_exit "download_pixi"
-}
-
-verify_pixi() {
-  logging__fn_entry "verify_pixi"
-  if [ -z "${SIDECAR_URL:-}" ]; then
-    logging__warn "Checksum verification skipped (custom download_url set; ensure your source is trusted)."
-    logging__fn_exit "verify_pixi"
-    return 0
-  fi
-  logging__inspect "Verifying SHA-256 checksum..."
-  verify__sha_sidecar "${ARCHIVE}" "${SIDECAR}"
-  logging__success "Checksum verified."
-  logging__fn_exit "verify_pixi"
-  return 0
-}
-
 # get_installed_version — prints bare semver (no v prefix) to stdout, or empty string.
 get_installed_version() {
   local _bin="${PREFIX}/bin/pixi"
@@ -318,8 +290,10 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
   detect_triple
   resolve_installer_paths
   if [ -n "${DOWNLOAD_URL}" ]; then
-    download_pixi
-    verify_pixi
+    _pixi_fa=(--url "${ARCHIVE_URL}" --installer-dir "${INSTALLER_DIR}")
+    [[ -n "${NETRC:-}" ]] && _pixi_fa+=(--netrc-file "${NETRC}")
+    for _ph in "${FETCH_HEADERS[@]:-}"; do [[ -n "${_ph:-}" ]] && _pixi_fa+=(--header "$_ph"); done
+    uri__fetch_asset "${_pixi_fa[@]}" || exit 1
     install_pixi_binary
   else
     github__install_release \

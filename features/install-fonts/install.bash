@@ -4,6 +4,8 @@
 . "$_BASE_DIR/_lib/net.sh"
 # shellcheck source=lib/github.sh
 . "$_BASE_DIR/_lib/github.sh"
+# shellcheck source=lib/uri.sh
+. "$_BASE_DIR/_lib/uri.sh"
 
 # Constants
 # ---------------------------------------------------------------------------
@@ -213,7 +215,7 @@ if [[ "$P10K_FONTS" == true ]]; then
   for _FONT in "${_P10K_FONT_FILES[@]}"; do
     _LOCAL_NAME="$(printf '%b' "${_FONT//%/\\x}")"
     _TMPFILE="$(mktemp)"
-    if net__fetch_url_file "${_P10K_BASE_URL}/${_FONT}" "$_TMPFILE"; then
+    if uri__fetch_asset --url "${_P10K_BASE_URL}/${_FONT}" --dest "$_TMPFILE"; then
       install_font_file "$_TMPFILE" "p10k/MesloLGS-NF/${_LOCAL_NAME}"
     else
       logging__warn "Could not download '${_LOCAL_NAME}' — skipping."
@@ -233,7 +235,7 @@ if [[ "${#NERD_FONTS[@]}" -gt 0 ]]; then
     logging__info "Downloading Nerd Font '${_font_name}'..."
     _ARCHIVE="$(mktemp)"
     _TMPDIR="$(mktemp -d)"
-    if net__fetch_url_file "${_NF_BASE_URL}/${_font_name}.tar.xz" "$_ARCHIVE"; then
+    if uri__fetch_asset --url "${_NF_BASE_URL}/${_font_name}.tar.xz" --dest "$_ARCHIVE"; then
       if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "${_font_name}.tar.xz"; then
         install_archive_contents "$_TMPDIR" "nerd/${_font_name}"
         logging__success "Nerd Font '${_font_name}' processed."
@@ -310,7 +312,7 @@ if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
       _asset_basename="${_asset_url##*/}"
       logging__info "Downloading '${_asset_basename}' from '${_slug}' release..."
       _ARCHIVE="$(mktemp)"
-      if ! net__fetch_url_file "$_asset_url" "$_ARCHIVE"; then
+      if ! uri__fetch_asset --url "$_asset_url" --dest "$_ARCHIVE"; then
         logging__warn "Could not download '${_asset_basename}' — skipping."
         rm -f "$_ARCHIVE"
         continue
@@ -351,7 +353,7 @@ if [[ "${#FONT_URLS[@]}" -gt 0 ]]; then
         logging__info "Downloading font archive '${_basename}'..."
         _ARCHIVE="$(mktemp)"
         _TMPDIR="$(mktemp -d)"
-        if net__fetch_url_file "$_url" "$_ARCHIVE"; then
+        if uri__fetch_asset --url "$_url" --dest "$_ARCHIVE"; then
           if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "$_basename"; then
             install_archive_contents "$_TMPDIR" "$_NS"
             logging__success "Font archive '${_basename}' processed."
@@ -365,7 +367,7 @@ if [[ "${#FONT_URLS[@]}" -gt 0 ]]; then
       *.ttf | *.otf | *.woff | *.woff2)
         logging__info "Downloading font file '${_basename}'..."
         _TMPFILE="$(mktemp)"
-        if net__fetch_url_file "$_url" "$_TMPFILE"; then
+        if uri__fetch_asset --url "$_url" --dest "$_TMPFILE"; then
           install_font_file "$_TMPFILE" "${_NS}/${_basename}"
           logging__success "Font file '${_basename}' processed."
         else

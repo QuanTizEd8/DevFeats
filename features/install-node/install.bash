@@ -1,5 +1,7 @@
 # shellcheck source=lib/github.sh
 . "${_BASE_DIR}/_lib/github.sh"
+# shellcheck source=lib/uri.sh
+. "${_BASE_DIR}/_lib/uri.sh"
 # shellcheck source=lib/verify.sh
 . "${_BASE_DIR}/_lib/verify.sh"
 # shellcheck source=lib/shell.sh
@@ -213,9 +215,9 @@ _node_install_via_nvm() {
 
   # Download nvm install script
   mkdir -p "$INSTALLER_DIR"
-  net__fetch_url_file \
-    "https://raw.githubusercontent.com/nvm-sh/nvm/${_nvm_tag}/install.sh" \
-    "${INSTALLER_DIR}/nvm-install.sh"
+  uri__fetch_asset \
+    --url "https://raw.githubusercontent.com/nvm-sh/nvm/${_nvm_tag}/install.sh" \
+    --dest "${INSTALLER_DIR}/nvm-install.sh"
 
   # Create NVM_DIR before write_group permissions (which chowns it)
   mkdir -p "$NVM_DIR"
@@ -345,9 +347,9 @@ _node_install_via_binary() {
   mkdir -p "$INSTALLER_DIR"
   if [ -z "${_NODE_VERSION:-}" ]; then
     logging__info "Downloading Node.js release index..."
-    net__fetch_url_file \
-      "https://nodejs.org/dist/index.json" \
-      "${INSTALLER_DIR}/index.json"
+    uri__fetch_asset \
+      --url "https://nodejs.org/dist/index.json" \
+      --dest "${INSTALLER_DIR}/index.json"
     _NODE_VERSION="$(_node_resolve_binary_version "$VERSION" "${INSTALLER_DIR}/index.json")"
   fi
 
@@ -355,26 +357,10 @@ _node_install_via_binary() {
 
   local _tarball="node-${_NODE_VERSION}-${_platform}.tar.xz"
 
-  # Download tarball
-  net__fetch_url_file \
-    "https://nodejs.org/dist/${_NODE_VERSION}/${_tarball}" \
-    "${INSTALLER_DIR}/${_tarball}"
-
-  # Download checksums
-  net__fetch_url_file \
-    "https://nodejs.org/dist/${_NODE_VERSION}/SHASUMS256.txt" \
-    "${INSTALLER_DIR}/SHASUMS256.txt"
-
-  # Extract expected hash (two-space separator between hash and filename)
-  local _hash
-  _hash="$(grep "  ${_tarball}$" "${INSTALLER_DIR}/SHASUMS256.txt" | awk '{print $1}')"
-  if [ -z "$_hash" ]; then
-    logging__error "Could not find checksum for '${_tarball}' in SHASUMS256.txt."
-    return 1
-  fi
-
-  # Verify checksum
-  verify__sha "${INSTALLER_DIR}/${_tarball}" "$_hash"
+  uri__fetch_asset \
+    --url "https://nodejs.org/dist/${_NODE_VERSION}/${_tarball}" \
+    --sidecar-url "https://nodejs.org/dist/${_NODE_VERSION}/SHASUMS256.txt" \
+    --dest "${INSTALLER_DIR}/${_tarball}"
 
   # Extract to install prefix
   mkdir -p "$_install_prefix"

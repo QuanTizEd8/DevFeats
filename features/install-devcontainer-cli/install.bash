@@ -2,6 +2,8 @@
 . "${_BASE_DIR}/_lib/os.sh"
 # shellcheck source=lib/net.sh
 . "${_BASE_DIR}/_lib/net.sh"
+# shellcheck source=lib/uri.sh
+. "${_BASE_DIR}/_lib/uri.sh"
 # shellcheck source=lib/ospkg.sh
 . "${_BASE_DIR}/_lib/ospkg.sh"
 # shellcheck source=lib/shell.sh
@@ -19,13 +21,13 @@ _devcontainer_cli__install_script() {
   local _tmp_dir _script
   _tmp_dir="$(mktemp -d)"
   _script="${_tmp_dir}/install.sh"
-  net__fetch_url_file \
-    "https://raw.githubusercontent.com/devcontainers/cli/main/scripts/install.sh" \
-    "${_script}" || {
+  uri__fetch_asset \
+    --url "https://raw.githubusercontent.com/devcontainers/cli/main/scripts/install.sh" \
+    --dest "${_script}" \
+    --chmod-exec || {
     rm -rf "${_tmp_dir}"
     return 1
   }
-  chmod +x "${_script}" || true
 
   local -a _args
   _args=(--prefix "${_install_prefix}" --node-version "${_node_version}")

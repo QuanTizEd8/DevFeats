@@ -16,6 +16,8 @@
 . "$_BASE_DIR/_lib/install/common.sh"
 # shellcheck source=lib/verify.sh
 . "${_BASE_DIR}/_lib/verify.sh"
+# shellcheck source=lib/uri.sh
+. "${_BASE_DIR}/_lib/uri.sh"
 
 _GITHUB_BASE_URL="https://github.com"
 _ZSH_COMPLETIONS_REPO_URL="${_GITHUB_BASE_URL}/zsh-users/zsh-completions"
@@ -236,8 +238,10 @@ install_starship() {
   # shellcheck disable=SC2064
   trap "rm -f '${_installer_script}'" RETURN
 
-  net__fetch_url_file "$_STARSHIP_INSTALLER_URL" "$_installer_script"
-  chmod +x "$_installer_script"
+  uri__fetch_asset \
+    --url "$_STARSHIP_INSTALLER_URL" \
+    --dest "$_installer_script" \
+    --chmod-exec
   sh "$_installer_script" --yes --bin-dir "$_bin_dir" >&2
 
   if [ -x "${_bin_dir}/starship" ]; then

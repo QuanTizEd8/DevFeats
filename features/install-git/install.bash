@@ -8,6 +8,8 @@
 . "$_BASE_DIR/_lib/shell.sh"
 # shellcheck source=lib/file.sh
 . "$_BASE_DIR/_lib/file.sh"
+# shellcheck source=lib/uri.sh
+. "$_BASE_DIR/_lib/uri.sh"
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
@@ -211,20 +213,12 @@ _git__source_fetch_verify() {
   local _tar_url="https://www.kernel.org/pub/software/scm/git/git-${_ver}.tar.gz"
   local _sum_url="https://www.kernel.org/pub/software/scm/git/sha256sums.asc"
   local _tarfile="${INSTALLER_DIR}/git-${_ver}.tar.gz"
-  local _sumfile="${INSTALLER_DIR}/sha256sums.asc"
 
   mkdir -p "${INSTALLER_DIR}"
-  logging__download "Downloading git-${_ver}.tar.gz..."
-  net__fetch_url_file "${_tar_url}" "${_tarfile}"
-  net__fetch_url_file "${_sum_url}" "${_sumfile}"
-
-  local _expected
-  _expected="$(grep "git-${_ver}.tar.gz" "${_sumfile}" | awk '{print $1}')"
-  if [ -z "${_expected}" ]; then
-    logging__error "No checksum found for git-${_ver}.tar.gz in sha256sums.asc."
-    return 1
-  fi
-  verify__sha "${_tarfile}" "${_expected}"
+  uri__fetch_asset \
+    --url "${_tar_url}" \
+    --sidecar-url "${_sum_url}" \
+    --dest "${_tarfile}"
 }
 
 # _git__source_build
