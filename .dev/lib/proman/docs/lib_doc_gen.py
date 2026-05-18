@@ -27,13 +27,16 @@ _SECTION_HEADINGS = {
 }
 
 
-def generate(module: LibModule) -> str:
+def generate(module: LibModule, *, include_private: bool = False) -> str:
     """Generate API reference Markdown for a lib/*.sh module.
 
     Parameters
     ----------
     module : LibModule
         Parsed module returned by ``parse_lib_module``.
+    include_private : bool
+        When False (default), functions whose name starts with ``_`` are
+        omitted from the output.
 
     Returns
     -------
@@ -45,7 +48,8 @@ def generate(module: LibModule) -> str:
         parts.append(module.summary)
     if module.description:
         parts.append(module.description)
-    parts.extend(_render_function(func) for func in module.functions)
+    funcs = module.functions if include_private else [f for f in module.functions if not f.name.startswith("_")]
+    parts.extend(_render_function(func) for func in funcs)
     return "\n\n".join(parts) + "\n"
 
 

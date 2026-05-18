@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 
@@ -16,6 +17,15 @@ _FEATURES_NOTES_FILENAME = "NOTES.md"
 
 def main() -> int:
     """Generate docs_build_context.json and per-feature/library Markdown files."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--include-private",
+        action="store_true",
+        default=False,
+        help="Include private functions (names starting with _) in library docs.",
+    )
+    args = parser.parse_args()
+
     repo = git_repo_root()
     features_dir = repo / "features"
     lib_dir = repo / "lib"
@@ -70,9 +80,7 @@ def main() -> int:
     lib_doc_dir.mkdir(parents=True, exist_ok=True)
     for sh_path in sorted(lib_dir.glob("*.sh")):
         module = parse_lib_module(sh_path)
-        if not module.summary:
-            continue
-        doc_content = lib_doc_gen.generate(module)
+        doc_content = lib_doc_gen.generate(module, include_private=args.include_private)
         doc_path = lib_doc_dir / f"{module.name}.md"
         sync_file(doc_path, doc_content)
 
