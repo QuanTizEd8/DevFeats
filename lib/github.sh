@@ -586,7 +586,7 @@ github__install_release() {
   elif "$_filetype_is_archive"; then
     # No --binary-src: auto-discover all executables in extracted tree.
     local _discovered
-    _discovered="$(find "$_content_dir" -type f -executable 2> /dev/null || true)"
+    _discovered="$(find "$_content_dir" -type f -perm -u+x 2>/dev/null || true)"
     if [ -z "$_discovered" ]; then
       # Fallback: mark all regular files executable and collect.
       while IFS= read -r _f; do
