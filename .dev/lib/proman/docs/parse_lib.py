@@ -138,6 +138,28 @@ def _strip_comment_prefix(raw: str) -> str | None:
     return None
 
 
+def _group_section_items(lines: list[str]) -> list[str]:
+    """Group continuation lines with their preceding item.
+
+    Lines with a 2-space indent base (third character is not a space) start a
+    new item. Lines indented by 3 or more spaces are continuations of the
+    preceding item and are joined to it with a newline.
+    """
+    items: list[str] = []
+    current_parts: list[str] = []
+    for ln in lines:
+        if ln.startswith("   "):  # 3+ spaces → continuation of current item
+            if current_parts:
+                current_parts.append(ln.lstrip())
+        else:  # 2-space base → new item
+            if current_parts:
+                items.append("\n".join(current_parts))
+            current_parts = [ln.lstrip()]
+    if current_parts:
+        items.append("\n".join(current_parts))
+    return items
+
+
 def _classify_block(lines: list[str]) -> ParagraphBlock | SectionBlock:
     """Classify a non-empty list of stripped comment lines.
 
@@ -149,12 +171,12 @@ def _classify_block(lines: list[str]) -> ParagraphBlock | SectionBlock:
     """
     first = lines[0]
 
-    # Rule 1: "Args:" header + indented items.
+    # Rule 1: "Args:" header + indented items (with optional continuation lines).
     m = _SECTION_HEADER_RE.match(first)
     if m and len(lines) > 1 and all(ln[:2] == "  " for ln in lines[1:]):
         return SectionBlock(
             title=m.group(1),
-            items=[ln.lstrip() for ln in lines[1:]],
+            items=_group_section_items(lines[1:]),
         )
 
     # Rule 2: "Stdout: text" / "Returns: text" inline label.

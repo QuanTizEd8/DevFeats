@@ -48,7 +48,11 @@ def generate(module: LibModule, *, include_private: bool = False) -> str:
         parts.append(module.summary)
     if module.description:
         parts.append(module.description)
-    funcs = module.functions if include_private else [f for f in module.functions if not f.name.startswith("_")]
+    funcs = (
+        module.functions
+        if include_private
+        else [f for f in module.functions if not f.name.startswith("_")]
+    )
     parts.extend(_render_function(func) for func in funcs)
     return "\n\n".join(parts) + "\n"
 
@@ -81,14 +85,27 @@ def _render_section(block: SectionBlock) -> str:
 
     if block.title in _DEFLIST_SECTIONS:
         for item in block.items:
-            # Split param name from description on 2+ consecutive spaces.
-            parts = re.split(r"  +", item, maxsplit=1)
+            # Items may span multiple lines (joined by \n from _group_section_items).
+            # Split the header line on 2+ consecutive spaces to get name + first desc line;
+            # remaining lines are continuation lines indented under the definition.
+            item_lines = item.split("\n")
+            header = item_lines[0]
+            continuations = item_lines[1:]
+            parts = re.split(r"  +", header, maxsplit=1)
             if len(parts) == 2:
-                name, desc = parts
+                name, first_desc = parts
                 lines.append(f"`{name.strip()}`")
-                lines.append(f": {desc.strip()}")
+                if continuations:
+                    desc = (
+                        first_desc.strip()
+                        + "\n"
+                        + "\n".join(f"  {c}" for c in continuations)
+                    )
+                    lines.append(f": {desc}")
+                else:
+                    lines.append(f": {first_desc.strip()}")
             else:
-                lines.append(f"`{item.strip()}`")
+                lines.append(f"`{item_lines[0].strip()}`")
             lines.append("")
     else:
         lines.extend(block.items)
