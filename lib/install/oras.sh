@@ -62,8 +62,8 @@ _install__oras_install_release() {
   [ -n "$_installer_dir" ] && _idir_arg=(--installer-dir "$_installer_dir")
   github__install_release \
     --repo "oras-project/oras" --tag "$_tag" \
-    --asset "$_asset" --binary-src oras --binary-dest "$_bin_dest" \
-    --gpg-key-url "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" \
+    --asset "$_asset" --binary-src oras --binary-dest "${_bin_dest}/" \
+    --gpg-key "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" \
     "${_idir_arg[@]}" \
     "${_owner_group_arg[@]}" ||
     return 1

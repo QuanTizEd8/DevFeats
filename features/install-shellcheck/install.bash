@@ -47,7 +47,7 @@ _shellcheck__install_release() {
   [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
   github__install_release \
     --repo "koalaman/shellcheck" --tag "v${_version}" \
-    --asset "$_asset" --binary-src shellcheck --binary-dest "${PREFIX%/}/bin" \
+    --asset "$_asset" --binary-src shellcheck --binary-dest "${PREFIX%/}/bin/" \
     "${_idir_arg[@]}" ||
     return 1
 }

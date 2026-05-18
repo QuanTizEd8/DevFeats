@@ -96,7 +96,7 @@ _install__jq_install_release() {
   # jq ≤1.6 has no sha256sum.txt; for newer versions add explicit sidecar URL.
   local -a _sidecar_args=()
   if ! [[ "$_major" -eq 1 && "$_minor" -le 6 ]]; then
-    _sidecar_args=(--sidecar-url "${_base_url}/sha256sum.txt")
+    _sidecar_args=(--sidecar "${_base_url}/sha256sum.txt")
   fi
 
   local -a _owner_group_arg=()
@@ -104,10 +104,10 @@ _install__jq_install_release() {
 
   github__install_release \
     --repo "jqlang/jq" --tag "jq-${_version}" \
-    --asset "$_asset" --binary-src jq --binary-dest "${_install_prefix%/}/bin" \
+    --asset "$_asset" --binary-dest "${_install_prefix%/}/bin/jq" \
     "${_sidecar_args[@]}" \
-    --gpg-key-url "$_key_url" \
-    --gpg-sig-url "https://raw.githubusercontent.com/jqlang/jq/master/sig/v${_version}/${_asset}.asc" \
+    --gpg-key "$_key_url" \
+    --gpg-sig "https://raw.githubusercontent.com/jqlang/jq/master/sig/v${_version}/${_asset}.asc" \
     "${_owner_group_arg[@]}" ||
     return 1
   install__state_record "jq" "$_context" "binary" "${_install_prefix%/}/bin/jq" "$_group" || true

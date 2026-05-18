@@ -73,14 +73,10 @@ resolve_installer_paths() {
   if [ -n "${DOWNLOAD_URL}" ]; then
     ARCHIVE_URL="${DOWNLOAD_URL}"
     SIDECAR_URL=""
-    ARCHIVE="${INSTALLER_DIR}/pixi-custom.tar.gz"
-    SIDECAR=""
     logging__info "Using custom download URL; checksum verification will be skipped."
   else
     ARCHIVE_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz"
     SIDECAR_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256"
-    ARCHIVE="${INSTALLER_DIR}/pixi-${TRIPLE}.tar.gz"
-    SIDECAR="${INSTALLER_DIR}/pixi-${TRIPLE}.tar.gz.sha256"
   fi
   logging__info "Archive URL: '${ARCHIVE_URL}'"
   logging__fn_exit "resolve_installer_paths"
@@ -141,20 +137,6 @@ update_pixi() {
   logging__info "Updating pixi via self-update to version '${VERSION}'..."
   "${_pixi_bin}" self-update --version "${VERSION}"
   logging__fn_exit "update_pixi"
-  return 0
-}
-
-install_pixi_binary() {
-  logging__fn_entry "install_pixi_binary"
-  local _tmpdir="${INSTALLER_DIR}/_extract"
-  mkdir -p "${PREFIX}/bin" "${_tmpdir}"
-  logging__install "Extracting archive to '${PREFIX}/bin/pixi'..."
-  file__extract_archive "${ARCHIVE}" "${_tmpdir}"
-  mv "${_tmpdir}/pixi" "${PREFIX}/bin/pixi"
-  chmod 0755 "${PREFIX}/bin/pixi"
-  rm -rf "${_tmpdir}"
-  logging__success "pixi binary installed to '${PREFIX}/bin/pixi'"
-  logging__fn_exit "install_pixi_binary"
   return 0
 }
 
@@ -290,16 +272,15 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
   detect_triple
   resolve_installer_paths
   if [ -n "${DOWNLOAD_URL}" ]; then
-    _pixi_fa=(--url "${ARCHIVE_URL}" --installer-dir "${INSTALLER_DIR}")
+    _pixi_fa=("${ARCHIVE_URL}" --installer-dir "${INSTALLER_DIR}" --binary-src pixi --binary-dest "${PREFIX}/bin/")
     [[ -n "${NETRC:-}" ]] && _pixi_fa+=(--netrc-file "${NETRC}")
     for _ph in "${FETCH_HEADERS[@]:-}"; do [[ -n "${_ph:-}" ]] && _pixi_fa+=(--header "$_ph"); done
     uri__fetch_asset "${_pixi_fa[@]}" || exit 1
-    install_pixi_binary
   else
     github__install_release \
       --repo "prefix-dev/pixi" --tag "v${VERSION}" \
-      --asset "pixi-${TRIPLE}.tar.gz" --binary-src pixi --binary-dest "${PREFIX}/bin" \
-      --sidecar-url "${SIDECAR_URL}" \
+      --asset "pixi-${TRIPLE}.tar.gz" --binary-src pixi --binary-dest "${PREFIX}/bin/" \
+      --sidecar "${SIDECAR_URL}" \
       --installer-dir "${INSTALLER_DIR}" ||
       exit 1
   fi

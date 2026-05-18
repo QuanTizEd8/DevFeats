@@ -190,8 +190,8 @@ install_fzf() {
   [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
   github__install_release \
     --repo "junegunn/fzf" --tag "v${_version}" \
-    --asset "$_filename" --binary-src fzf --binary-dest "${_bin_dir}" \
-    --sidecar-url "${_base_url}/fzf_${_version}_checksums.txt" \
+    --asset "$_filename" --binary-src fzf --binary-dest "${_bin_dir}/" \
+    --sidecar "${_base_url}/fzf_${_version}_checksums.txt" \
     "${_idir_arg[@]}" ||
     return 1
 
@@ -233,16 +233,9 @@ install_starship() {
   fi
 
   logging__info "Installing Starship to '${_bin_dir}'..."
-  local _installer_script
-  _installer_script="$(mktemp)"
-  # shellcheck disable=SC2064
-  trap "rm -f '${_installer_script}'" RETURN
-
-  uri__fetch_asset \
-    --url "$_STARSHIP_INSTALLER_URL" \
-    --dest "$_installer_script" \
-    --chmod-exec
-  sh "$_installer_script" --yes --bin-dir "$_bin_dir" >&2
+  local _asset_dir
+  _asset_dir="$(uri__fetch_asset "$_STARSHIP_INSTALLER_URL" --chmod-exec install.sh)"
+  sh "${_asset_dir}/install.sh" --yes --bin-dir "$_bin_dir" >&2
 
   if [ -x "${_bin_dir}/starship" ]; then
     logging__success "Starship installed to '${_bin_dir}/starship'."

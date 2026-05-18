@@ -18,16 +18,10 @@ _devcontainer_cli__detect_version() {
 
 _devcontainer_cli__install_script() {
   local _version="${1-}" _install_prefix="${2-}" _node_version="${3-}" _update="${4-}" _uninstall="${5-}"
-  local _tmp_dir _script
-  _tmp_dir="$(mktemp -d)"
-  _script="${_tmp_dir}/install.sh"
-  uri__fetch_asset \
-    --url "https://raw.githubusercontent.com/devcontainers/cli/main/scripts/install.sh" \
-    --dest "${_script}" \
-    --chmod-exec || {
-    rm -rf "${_tmp_dir}"
-    return 1
-  }
+  local _asset_dir
+  _asset_dir="$(uri__fetch_asset \
+    "https://raw.githubusercontent.com/devcontainers/cli/main/scripts/install.sh" \
+    --chmod-exec install.sh)" || return 1
 
   local -a _args
   _args=(--prefix "${_install_prefix}" --node-version "${_node_version}")
@@ -35,12 +29,7 @@ _devcontainer_cli__install_script() {
   [[ "${_update}" == "true" ]] && _args+=(--update)
   [[ "${_uninstall}" == "true" ]] && _args+=(--uninstall)
 
-  sh "${_script}" "${_args[@]}" || {
-    rm -rf "${_tmp_dir}"
-    return 1
-  }
-  rm -rf "${_tmp_dir}"
-  return 0
+  sh "${_asset_dir}/install.sh" "${_args[@]}"
 }
 
 _devcontainer_cli__ensure_npm() {

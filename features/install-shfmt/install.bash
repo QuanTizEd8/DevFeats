@@ -42,7 +42,7 @@ _shfmt__install_release() {
   _asset="shfmt_v${_version}_${_os}_${_arch}"
   github__install_release \
     --repo "mvdan/sh" --tag "v${_version}" \
-    --asset "$_asset" --binary-src shfmt --binary-dest "${PREFIX%/}/bin" ||
+    --asset "$_asset" --binary-dest "${PREFIX%/}/bin/shfmt" ||
     return 1
 }
 

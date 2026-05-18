@@ -50,8 +50,8 @@ _install__just_install_release() {
 
   github__install_release \
     --repo "casey/just" --tag "${_version}" \
-    --asset "$_asset" --binary-src just --binary-dest "${_install_prefix%/}/bin" \
-    --sidecar-url "${_base}/SHA256SUMS" \
+    --asset "$_asset" --binary-src just --binary-dest "${_install_prefix%/}/bin/" \
+    --sidecar "${_base}/SHA256SUMS" \
     "${_idir_arg[@]}" \
     "${_owner_group_arg[@]}" ||
     return 1

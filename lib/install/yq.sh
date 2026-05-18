@@ -91,7 +91,7 @@ _install__yq_install_release() {
 
   github__install_release \
     --repo "mikefarah/yq" --tag "v${_version}" \
-    --asset "yq_${_os}_${_arch}" --binary-src yq --binary-dest "$_install_bin_dir" \
+    --asset "yq_${_os}_${_arch}" --binary-dest "${_install_bin_dir%/}/yq" \
     --sha256 "$_expected_hash" \
     "${_owner_group_arg[@]}" ||
     return 1

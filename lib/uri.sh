@@ -203,7 +203,7 @@ _uri__resolve_oci_to() {
 _uri__sidecar_hash() {
   local _name="$1" _file="$2"
   awk -v a="$_name" \
-    '{fn=$NF; sub(/^\*/, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1 && NF==1)print $1}' \
+    '{fn=$NF; sub(/^\*/, "", fn); sub(/.*\//, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1 && NF==1)print $1}' \
     "$_file"
 }
 
@@ -289,99 +289,124 @@ _uri__download_to() {
   return 0
 }
 
-# @brief uri__fetch_asset OPTIONS — Unified download → verify → extract → install pipeline.
+# @brief uri__fetch_asset <uri> [OPTIONS] — Download, verify, extract, and optionally install one or more files from a single asset.
 #
-# Downloads a file from any supported URI, optionally verifies integrity (sha256 fragment,
-# sidecar checksum file, explicit hex, GPG signature), optionally extracts archives, and
-# optionally installs binaries to a destination directory.
+# Downloads a file from any supported URI, verifies integrity, extracts archives,
+# and installs files. Regardless of which flags are provided, the same layout is
+# always built inside a work directory:
 #
-# Source:
-#   --url <uri>              Required. Supported schemes:
-#                              https://, http://, ftp://, ftps://, sftp://
-#                              file://, gh://owner/repo@ref:path, oci://ref[?path=pat]
-#                              local paths (absolute or relative)
-#                            A #sha256=<hex> URI fragment is verified automatically.
+# ```
+# work_dir/
+#   archive/<basename>      Raw downloaded file (archives only); <basename> is
+#                           the basename of <uri>, or --filename if set.
+#   asset/                  Archive extracted verbatim (no path stripping): the
+#                           archive's internal tree is reproduced exactly under
+#                           asset/. For non-archives: the downloaded file as
+#                           <basename>.
+#   sidecar/<basename>      Basename of --sidecar URI (only when --sidecar given).
+#   gpg-sig/<basename>      Basename of --gpg-sig URI (only when --gpg-key given).
+#   gpg-key/<basename>      Basename of --gpg-key URI (only when --gpg-key given).
+# ```
 #
-# Output destination (at least one required):
-#   --dest <file>            Write materialized file to this exact path.
-#                            Equivalent to uri__resolve's second positional arg.
-#   --installer-dir <dir>    Work dir for download/extraction; caller owns cleanup.
-#                            When absent and no --dest, an auto-cleaned tmpdir is used.
-#   --binary-dest <dir>      Install binary/binaries here; repeatable. Triggers archive
-#                            detection and extraction pipeline.
+# `work_dir` is `--installer-dir` when provided, otherwise an auto-cleaned tmpdir
+# (removed on script exit). When `--installer-dir` is provided, the five managed
+# subdirectories are removed and recreated on each invocation (idempotency).
 #
-# Authentication:
-#   --header <H>             HTTP/FTP request header; repeatable.
-#   --netrc-file <path>      netrc file for auth (HTTP Basic, FTP, SFTP via curl).
+# Pairing rules apply independently to the binary pair (`--binary-src` /
+# `--binary-dest`) and the file pair (`--file-src` / `--file-dest`). Within each
+# pair, a trailing `/` on the dest treats it as a directory (installed file keeps
+# its basename); without a trailing `/` the dest is the exact output path,
+# enabling renaming. For N src and M dest values within one pair:
 #
-# Integrity verification (all optional; additive; independent):
-#   --sha256 <hex|none>      64-hex: verify against this hash. 'none': suppress ALL sha256
-#                            checks (fragment, sidecar, hex). GPG is not affected.
-#   --sidecar-url <uri>      Checksum file URI (same auth args apply). sha256sum multi-entry
-#                            format or raw single-hash. Hard-fail on mismatch or missing entry.
-#                            Cannot be combined with --sha256 none.
-#   --gpg-key-url <uri>      GPG public key URI; enables GPG verification.
-#   --gpg-sig-url <uri>      Detached GPG signature URI (default: <url>.asc).
+# - N=M → 1-to-1 paired in order.
+# - N>1, M=1-dir → all matched files fan out into the directory.
+# - Otherwise → error.
 #
-# Binary extraction and installation:
-#   --filename <name>        Override URL basename used for sidecar hash matching.
-#   --binary-src <spec>      Archive: suffix-path inside extracted tree. Direct binary:
-#                            desired install name (enables renaming). Repeatable.
-#                            When absent with an archive: auto-discovers all executables.
-#   --binary-dest <dir>      Install directory; repeatable. N+N paired or N+1 fan-out.
-#   --owner-group <id>       install__track_internal_path for each installed binary.
-#   --chmod-exec             chmod +x the downloaded file (for installer scripts).
+# When N=0 (no `--binary-src` or `--file-src` given):
 #
-# Stdout: installed binary paths (one per line) when --binary-dest is set;
-#         materialized file path otherwise.
-# Returns: 0 on success, 1 on any failure.
+# - Binary, archive: auto-discover all executables in `asset/`. With M=1-file
+#   dest, error if not exactly one executable found.
+# - Binary, non-archive: install `asset/<basename>` directly.
+# - File, archive: error — no auto-discovery for non-binary files.
+# - File, non-archive: install `asset/<basename>` directly.
+#
+# Args:
+#   <uri>                   Asset URI. Supported schemes: `https://`, `http://`,
+#                           `ftp://`, `ftps://`, `sftp://`, `file://<abs-path>`,
+#                           `gh://owner/repo@ref:path`, `oci://ref[?path=glob]`,
+#                           and bare local paths. A `#sha256=<hex>` fragment is
+#                           verified automatically after download (unless
+#                           `--sha256 none`).
+#   --installer-dir <dir>   Use `<dir>` as `work_dir` (persistent; caller owns
+#                           cleanup). Orthogonal to all output flags.
+#   --binary-src <spec>     Suffix-path match inside `asset/` (whole-component
+#                           boundary; ambiguous match → error). Repeatable. For
+#                           non-archives, `asset/` contains one file (`<basename>`);
+#                           omit to install it directly, or give a matching spec.
+#                           Requires `--binary-dest`.
+#   --binary-dest <path>    Install matched or auto-discovered binary/binaries via
+#                           `install__copy_bin` (sets executable bit). Repeatable.
+#   --file-src <spec>       Suffix-path match inside `asset/` (whole-component
+#                           boundary; ambiguous match → error). Repeatable. Required
+#                           for archives (no auto-discovery). For non-archives,
+#                           omit to install `asset/<basename>` directly.
+#                           Requires `--file-dest`.
+#   --file-dest <path>      Install matched file(s) via plain copy. Repeatable.
+#   --chmod-exec <spec>     Suffix-path match inside `asset/`; sets exec bit in
+#                           place without copying. Repeatable. Useful for running
+#                           a tool from `work_dir` during installation (tmpdir
+#                           persists until script exit).
+#   --header <H>            HTTP/FTP request header; repeatable.
+#   --netrc-file <path>     netrc file for HTTP Basic / FTP / SFTP auth.
+#   --sha256 <hex|none>     64-char hex: verify the downloaded asset against this
+#                           hash. `none`: suppress all sha256 checks (URI fragment,
+#                           sidecar, and explicit hex). GPG is unaffected.
+#   --sidecar <uri>         URI of a checksum file containing the asset's sha256.
+#                           Same `--header` and `--netrc` args apply. Formats:
+#                           `sha256sum` multi-entry (`<hex>  <filename>` or
+#                           `<hex> *<filename>`) matched by asset name, or raw
+#                           single-hash (one line, one field). Hard-fails on
+#                           mismatch or missing entry. Cannot be combined with
+#                           `--sha256 none`.
+#   --gpg-key <uri>         URI of the GPG public key; enables GPG verification.
+#   --gpg-sig <uri>         URI of the detached GPG signature.
+#                           Default: the asset `<uri>` with `.asc` appended.
+#   --filename <name>       Override the URI basename for `archive/` placement
+#                           and sidecar hash lookup. Does not affect the extracted
+#                           tree layout under `asset/`.
+#   --owner-group <id>      Call `install__track_internal_path` for each installed
+#                           path (binary and file installs only).
+#   --retry <n>             Re-download and re-verify up to `<n>` times on any
+#                           sha256 mismatch (URI fragment, `--sha256`, or
+#                           `--sidecar`). Does not retry GPG failures. Default: `3`.
+#
+# `--binary-src` requires `--binary-dest`; `--file-src` requires `--file-dest`.
+#
+# Stdout:
+#   - `--binary-dest` given: one absolute installed binary path per line, in
+#     `--binary-src` order (or auto-discovery order when N=0).
+#   - `--file-dest` given: one absolute installed file path per line, in
+#     `--file-src` order.
+#   - Both given: binary paths first, then file paths.
+#   - Neither given: the `work_dir/asset` directory path (one line).
+#
+# Returns: 0 on success, 1 on any failure (bad args, download, hash mismatch, GPG, extract, install).
 uri__fetch_asset() {
-  local _url="" _dest="" _installer_dir=""
-  local _sha256_spec="" _sidecar_url="" _gpg_key_url="" _gpg_sig_url=""
-  local _filename="" _owner_group="" _netrc=""
-  local _chmod_exec=false _sha256_none=false _sha256_hex=""
-  local -a _headers=() _binary_src=() _binary_dest=()
+  local _uri=""
+  local _installer_dir="" _filename="" _owner_group="" _netrc_file=""
+  local _sha256_spec="" _sidecar_uri="" _gpg_key_uri="" _gpg_sig_uri=""
+  local _retry=3
+  local -a _headers=() _binary_src=() _binary_dest=() _file_src=() _file_dest=() _chmod_exec_specs=()
+
+  if [[ $# -gt 0 && "$1" != --* ]]; then
+    _uri="$1"
+    shift
+  fi
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --url)
-        _url="$2"
-        shift 2
-        ;;
-      --dest)
-        _dest="$2"
-        shift 2
-        ;;
       --installer-dir)
         _installer_dir="$2"
-        shift 2
-        ;;
-      --header)
-        _headers+=("$2")
-        shift 2
-        ;;
-      --netrc-file)
-        _netrc="$2"
-        shift 2
-        ;;
-      --sha256)
-        _sha256_spec="$2"
-        shift 2
-        ;;
-      --sidecar-url)
-        _sidecar_url="$2"
-        shift 2
-        ;;
-      --gpg-key-url)
-        _gpg_key_url="$2"
-        shift 2
-        ;;
-      --gpg-sig-url)
-        _gpg_sig_url="$2"
-        shift 2
-        ;;
-      --filename)
-        _filename="$2"
         shift 2
         ;;
       --binary-src)
@@ -392,13 +417,53 @@ uri__fetch_asset() {
         _binary_dest+=("$2")
         shift 2
         ;;
+      --file-src)
+        _file_src+=("$2")
+        shift 2
+        ;;
+      --file-dest)
+        _file_dest+=("$2")
+        shift 2
+        ;;
+      --chmod-exec)
+        _chmod_exec_specs+=("$2")
+        shift 2
+        ;;
+      --header)
+        _headers+=("$2")
+        shift 2
+        ;;
+      --netrc-file)
+        _netrc_file="$2"
+        shift 2
+        ;;
+      --sha256)
+        _sha256_spec="$2"
+        shift 2
+        ;;
+      --sidecar)
+        _sidecar_uri="$2"
+        shift 2
+        ;;
+      --gpg-key)
+        _gpg_key_uri="$2"
+        shift 2
+        ;;
+      --gpg-sig)
+        _gpg_sig_uri="$2"
+        shift 2
+        ;;
+      --filename)
+        _filename="$2"
+        shift 2
+        ;;
       --owner-group)
         _owner_group="$2"
         shift 2
         ;;
-      --chmod-exec)
-        _chmod_exec=true
-        shift
+      --retry)
+        _retry="$2"
+        shift 2
         ;;
       *)
         logging__error "uri__fetch_asset: unknown option '$1'."
@@ -407,17 +472,13 @@ uri__fetch_asset() {
     esac
   done
 
-  # ── Validate required args ────────────────────────────────────────────────
-  [[ -z "$_url" ]] && {
-    logging__error "uri__fetch_asset: --url is required."
+  # ── Validate ──────────────────────────────────────────────────────────────
+  [[ -n "$_uri" ]] || {
+    logging__error "uri__fetch_asset: URI is required."
     return 1
   }
-  if [[ ${#_binary_dest[@]} -eq 0 && -z "$_dest" && -z "$_installer_dir" ]]; then
-    logging__error "uri__fetch_asset: at least one of --dest, --installer-dir, or --binary-dest is required."
-    return 1
-  fi
 
-  # ── Parse --sha256 spec ──────────────────────────────────────────────────
+  local _sha256_none=false _sha256_hex=""
   case "$_sha256_spec" in
     "") ;;
     none) _sha256_none=true ;;
@@ -430,125 +491,152 @@ uri__fetch_asset() {
       fi
       ;;
   esac
-  if "$_sha256_none" && [[ -n "$_sidecar_url" ]]; then
-    logging__error "uri__fetch_asset: --sha256 none cannot be combined with --sidecar-url."
+  "$_sha256_none" && [[ -n "$_sidecar_uri" ]] && {
+    logging__error "uri__fetch_asset: --sha256 none cannot be combined with --sidecar."
     return 1
-  fi
+  }
 
-  # ── Multi-binary pairing validation ──────────────────────────────────────
-  local _nsrc="${#_binary_src[@]}" _ndest="${#_binary_dest[@]}"
-  if [[ "$_nsrc" -gt 1 && "$_ndest" -gt 1 && "$_nsrc" -ne "$_ndest" ]]; then
-    logging__error "uri__fetch_asset: ${_nsrc} --binary-src but ${_ndest} --binary-dest (must be equal or use 1 --binary-dest for all)."
+  local _nbsrc="${#_binary_src[@]}" _nbdest="${#_binary_dest[@]}"
+  local _nfsrc="${#_file_src[@]}" _nfdest="${#_file_dest[@]}"
+  [[ "$_nbsrc" -gt 0 && "$_nbdest" -gt 1 && "$_nbsrc" -ne "$_nbdest" ]] && {
+    logging__error "uri__fetch_asset: ${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
     return 1
-  fi
+  }
+  [[ "$_nfsrc" -gt 0 && "$_nfdest" -gt 1 && "$_nfsrc" -ne "$_nfdest" ]] && {
+    logging__error "uri__fetch_asset: ${_nfsrc} --file-src but ${_nfdest} --file-dest (must be equal or use 1 --file-dest for all)."
+    return 1
+  }
+  [[ "$_nbsrc" -gt 0 && "$_nbdest" -eq 0 ]] && {
+    logging__error "uri__fetch_asset: --binary-src requires --binary-dest."
+    return 1
+  }
+  [[ "$_nfsrc" -gt 0 && "$_nfdest" -eq 0 ]] && {
+    logging__error "uri__fetch_asset: --file-src requires --file-dest."
+    return 1
+  }
 
-  # ── Build auth args ───────────────────────────────────────────────────────
+  # ── Auth args ─────────────────────────────────────────────────────────────
   local -a _auth_args=()
   local _h
   for _h in "${_headers[@]}"; do _auth_args+=(--header "$_h"); done
-  [[ -n "$_netrc" ]] && _auth_args+=(--netrc-file "$_netrc")
+  [[ -n "$_netrc_file" ]] && _auth_args+=(--netrc-file "$_netrc_file")
 
-  # ── Determine work dir and download path ──────────────────────────────────
-  local _split _base_url
-  _split="$(_uri__split_frag "$_url")"
-  _base_url="$(printf '%s\n' "$_split" | head -n1)"
-  local _asset_name="${_filename:-$(_uri__safe_basename "$_base_url")}"
-  local _work_dir _dl_path
+  # ── Work dir and asset name ───────────────────────────────────────────────
+  local _split _base_uri _frag
+  _split="$(_uri__split_frag "$_uri")"
+  _base_uri="$(printf '%s\n' "$_split" | head -n1)"
+  _frag="$(printf '%s\n' "$_split" | tail -n1)"
+  local _asset_name="${_filename:-$(_uri__safe_basename "$_base_uri")}"
 
-  if [[ -n "$_dest" ]]; then
-    _work_dir="$(dirname "$_dest")"
-    mkdir -p "$_work_dir"
-    _dl_path="$_dest"
-  elif [[ -n "$_installer_dir" ]]; then
+  local _work_dir
+  if [[ -n "$_installer_dir" ]]; then
     _work_dir="$_installer_dir"
     mkdir -p "$_work_dir"
-    _dl_path="${_work_dir}/${_asset_name}"
+    local _sd
+    for _sd in archive asset sidecar gpg-sig gpg-key; do
+      rm -rf "${_work_dir}/${_sd}"
+    done
   else
     _work_dir="$(file__mktmpdir "uri-fetch-asset")"
-    _dl_path="${_work_dir}/${_asset_name}"
   fi
 
-  # ── Download ──────────────────────────────────────────────────────────────
-  logging__download "Fetching '${_asset_name}' from '${_base_url}'"
-  _uri__download_to "$_url" "$_dl_path" "${_auth_args[@]}" || return 1
+  local _archive_dir="${_work_dir}/archive"
+  local _asset_dir="${_work_dir}/asset"
+  mkdir -p "$_archive_dir" "$_asset_dir"
+  local _dl_path="${_archive_dir}/${_asset_name}"
 
-  # ── sha256 fragment verification ──────────────────────────────────────────
-  # OCI URIs verify their own fragment internally in _uri__resolve_oci_to.
-  if ! "$_sha256_none"; then
-    local _frag _frag_sha
-    _frag="$(printf '%s\n' "$_split" | tail -n1)"
-    _frag_sha="$(_uri__frag_sha256 "$_frag")"
-    local _cls
-    _cls="$(uri__classify "$_url" 2> /dev/null)" || true
-    if [[ -n "$_frag_sha" && "$_cls" != "oci" ]]; then
-      verify__sha "$_dl_path" "$_frag_sha" || return 1
-    fi
-  fi
-
-  # ── Sidecar verification ──────────────────────────────────────────────────
-  if [[ -n "$_sidecar_url" ]]; then
-    local _sc_tmp _sc_base _sc_name _sc_file
-    _sc_tmp="$(file__mktmpdir "uri-sidecar")"
-    _sc_base="$(_uri__split_frag "$_sidecar_url")"
-    _sc_base="$(printf '%s\n' "$_sc_base" | head -n1)"
+  # ── Download sidecar once before retry loop ───────────────────────────────
+  local _sidecar_hash=""
+  if [[ -n "$_sidecar_uri" ]] && ! "$_sha256_none"; then
+    local _sidecar_dir="${_work_dir}/sidecar"
+    mkdir -p "$_sidecar_dir"
+    local _sc_base _sc_name _sidecar_file
+    _sc_base="$(printf '%s\n' "$(_uri__split_frag "$_sidecar_uri")" | head -n1)"
     _sc_name="$(_uri__safe_basename "$_sc_base")"
-    _sc_file="${_sc_tmp}/${_sc_name}"
+    _sidecar_file="${_sidecar_dir}/${_sc_name}"
     logging__download "Fetching checksum sidecar from '${_sc_base}'"
-    _uri__download_to "$_sidecar_url" "$_sc_file" "${_auth_args[@]}" || return 1
-    local _sc_hash
-    _sc_hash="$(_uri__sidecar_hash "$_asset_name" "$_sc_file")"
-    [[ -n "$_sc_hash" ]] || {
+    _uri__download_to "$_sidecar_uri" "$_sidecar_file" "${_auth_args[@]}" || {
+      logging__error "uri__fetch_asset: failed to download sidecar from '${_sc_base}'."
+      return 1
+    }
+    _sidecar_hash="$(_uri__sidecar_hash "$_asset_name" "$_sidecar_file")"
+    [[ -n "$_sidecar_hash" ]] || {
       logging__error "uri__fetch_asset: could not extract hash for '${_asset_name}' from sidecar '${_sc_base}'."
       return 1
     }
-    verify__sha "$_dl_path" "$_sc_hash" || return 1
   fi
 
-  # ── Explicit hex sha256 ───────────────────────────────────────────────────
-  [[ -n "$_sha256_hex" ]] && { verify__sha "$_dl_path" "$_sha256_hex" || return 1; }
+  local _frag_sha=""
+  ! "$_sha256_none" && _frag_sha="$(_uri__frag_sha256 "$_frag")"
+  local _cls
+  _cls="$(uri__classify "$_uri" 2> /dev/null)" || true
 
-  # ── No-verification notice ────────────────────────────────────────────────
-  if ! "$_sha256_none" && [[ -z "$_sha256_hex" && -z "$_sidecar_url" && -z "$_gpg_key_url" ]]; then
-    local _frag _frag_sha
-    _frag="$(printf '%s\n' "$_split" | tail -n1)"
-    _frag_sha="$(_uri__frag_sha256 "$_frag")"
-    [[ -z "$_frag_sha" ]] && logging__debug "uri__fetch_asset: no integrity verification configured for '${_asset_name}'."
+  # ── Retry loop: re-download on sha256 mismatch ────────────────────────────
+  if "$_sha256_none"; then
+    logging__warn "uri__fetch_asset: sha256 verification skipped for '${_asset_name}'."
+  elif [[ -z "$_frag_sha" && -z "$_sha256_hex" && -z "$_sidecar_hash" && -z "$_gpg_key_uri" ]]; then
+    logging__debug "uri__fetch_asset: no integrity verification configured for '${_asset_name}'."
   fi
+
+  local _attempt=0
+  while true; do
+    _attempt=$((_attempt + 1))
+    logging__download "Fetching '${_asset_name}' from '${_base_uri}'"
+    _uri__download_to "$_uri" "$_dl_path" "${_auth_args[@]}" || return 1
+
+    if "$_sha256_none"; then break; fi
+
+    local _mismatch=false
+    if [[ -n "$_frag_sha" && "$_cls" != "oci" ]]; then
+      verify__sha "$_dl_path" "$_frag_sha" 2> /dev/null || _mismatch=true
+    fi
+    if ! "$_mismatch" && [[ -n "$_sha256_hex" ]]; then
+      verify__sha "$_dl_path" "$_sha256_hex" 2> /dev/null || _mismatch=true
+    fi
+    if ! "$_mismatch" && [[ -n "$_sidecar_hash" ]]; then
+      verify__sha "$_dl_path" "$_sidecar_hash" 2> /dev/null || _mismatch=true
+    fi
+    if ! "$_mismatch"; then break; fi
+
+    if [[ "$_attempt" -ge "$_retry" ]]; then
+      # Emit full verify output for the final failure to surface the mismatch details.
+      [[ -n "$_frag_sha" && "$_cls" != "oci" ]] && verify__sha "$_dl_path" "$_frag_sha" 2>&1 || true
+      [[ -n "$_sha256_hex" ]] && verify__sha "$_dl_path" "$_sha256_hex" 2>&1 || true
+      [[ -n "$_sidecar_hash" ]] && verify__sha "$_dl_path" "$_sidecar_hash" 2>&1 || true
+      logging__error "uri__fetch_asset: sha256 mismatch for '${_asset_name}' after ${_retry} attempt(s)."
+      return 1
+    fi
+    logging__warn "uri__fetch_asset: sha256 mismatch on attempt ${_attempt}/${_retry} — re-downloading '${_asset_name}'..."
+    rm -f "$_dl_path"
+  done
 
   # ── GPG verification ──────────────────────────────────────────────────────
-  if [[ -n "$_gpg_key_url" ]]; then
-    local _sig_url="${_gpg_sig_url:-${_base_url}.asc}"
-    local _gpg_tmp _sig_file _key_file
-    _gpg_tmp="$(file__mktmpdir "uri-gpg")"
-    _sig_file="${_gpg_tmp}/_asset.asc"
-    _key_file="${_gpg_tmp}/_release.key"
-    logging__download "Fetching GPG signature from '${_sig_url}'"
-    _uri__download_to "$_sig_url" "$_sig_file" "${_auth_args[@]}" || return 1
-    logging__download "Fetching GPG key from '${_gpg_key_url}'"
-    _uri__download_to "$_gpg_key_url" "$_key_file" "${_auth_args[@]}" || return 1
+  if [[ -n "$_gpg_key_uri" ]]; then
+    local _gpg_sig_dir="${_work_dir}/gpg-sig"
+    local _gpg_key_dir="${_work_dir}/gpg-key"
+    mkdir -p "$_gpg_sig_dir" "$_gpg_key_dir"
+    local _sig_uri="${_gpg_sig_uri:-${_base_uri}.asc}"
+    local _sig_base _sig_file
+    _sig_base="$(printf '%s\n' "$(_uri__split_frag "$_sig_uri")" | head -n1)"
+    _sig_file="${_gpg_sig_dir}/$(_uri__safe_basename "$_sig_base")"
+    local _key_base _key_file
+    _key_base="$(printf '%s\n' "$(_uri__split_frag "$_gpg_key_uri")" | head -n1)"
+    _key_file="${_gpg_key_dir}/$(_uri__safe_basename "$_key_base")"
+    logging__download "Fetching GPG signature from '${_sig_base}'"
+    _uri__download_to "$_sig_uri" "$_sig_file" "${_auth_args[@]}" || return 1
+    logging__download "Fetching GPG key from '${_key_base}'"
+    _uri__download_to "$_gpg_key_uri" "$_key_file" "${_auth_args[@]}" || return 1
     verify__gpg_detached "$_dl_path" "$_sig_file" "$_key_file" || return 1
   fi
 
-  # ── chmod-exec ────────────────────────────────────────────────────────────
-  [[ "$_chmod_exec" == true ]] && chmod +x "$_dl_path"
-
-  # ── No binary installation → return file path ─────────────────────────────
-  if [[ ${#_binary_dest[@]} -eq 0 ]]; then
-    printf '%s\n' "$_dl_path"
-    return 0
-  fi
-
-  # ── Archive detection and extraction ─────────────────────────────────────
+  # ── Archive detection and extraction ──────────────────────────────────────
   local _filetype _is_archive=false
   _filetype="$(file__detect_type "$_dl_path")"
   case "$_filetype" in
     gzip | xz | bzip2 | zip) _is_archive=true ;;
   esac
 
-  local _content_dir=""
   if "$_is_archive"; then
-    _content_dir="${_work_dir}/_extract"
-    mkdir -p "$_content_dir"
     logging__install "Extracting '${_asset_name}'..."
     local _extract_name
     case "$_filetype" in
@@ -558,81 +646,156 @@ uri__fetch_asset() {
       zip) _extract_name="asset.zip" ;;
       *) _extract_name="$_asset_name" ;;
     esac
-    file__extract_archive "$_dl_path" "$_content_dir" "$_extract_name" || {
+    file__extract_archive "$_dl_path" "$_asset_dir" "$_extract_name" || {
       logging__error "uri__fetch_asset: extraction of '${_asset_name}' failed."
       return 1
     }
+  else
+    mv -f "$_dl_path" "${_asset_dir}/${_asset_name}" || return 1
   fi
 
-  # ── Collect (src_file, install_name) pairs ───────────────────────────────
-  local -a _found_srcs=() _install_names=()
-  local _i
+  # ── chmod-exec specs ──────────────────────────────────────────────────────
+  if [[ "${#_chmod_exec_specs[@]}" -gt 0 ]]; then
+    local _cspec _cmatches _cm
+    for _cspec in "${_chmod_exec_specs[@]}"; do
+      _cmatches="$(_uri__match_binary_src "$_cspec" "$_asset_dir")"
+      [[ -n "$_cmatches" ]] || {
+        logging__error "uri__fetch_asset: --chmod-exec '${_cspec}': no match in asset directory."
+        return 1
+      }
+      while IFS= read -r _cm; do
+        [[ -n "$_cm" ]] && chmod +x "$_cm"
+      done <<< "$_cmatches"
+    done
+  fi
 
-  if [[ "$_nsrc" -gt 0 ]]; then
-    for _i in "${!_binary_src[@]}"; do
-      local _spec="${_binary_src[$_i]}"
-      local _found_src=""
-      if "$_is_archive"; then
-        _found_src="$(_uri__match_binary_src "$_spec" "$_content_dir")"
-        local _mc
+  # ── Binary installation ───────────────────────────────────────────────────
+  if [[ "$_nbdest" -gt 0 ]]; then
+    local -a _found_srcs=() _install_names=()
+    if [[ "$_nbsrc" -gt 0 ]]; then
+      local _i
+      for _i in "${!_binary_src[@]}"; do
+        local _spec="${_binary_src[$_i]}" _found_src _mc
+        _found_src="$(_uri__match_binary_src "$_spec" "$_asset_dir")"
         _mc="$(printf '%s\n' "$_found_src" | grep -c . || true)"
-        if [[ "$_mc" -gt 1 ]]; then
+        [[ "$_mc" -gt 1 ]] && {
           logging__error "uri__fetch_asset: ambiguous --binary-src '${_spec}': ${_mc} matches in '${_asset_name}'."
           return 1
-        fi
+        }
         [[ -z "$_found_src" ]] && {
-          logging__error "uri__fetch_asset: --binary-src '${_spec}' not found in extracted '${_asset_name}'."
+          logging__error "uri__fetch_asset: --binary-src '${_spec}' not found in '${_asset_name}'."
           return 1
         }
-      else
-        _found_src="$_dl_path"
+        _found_srcs+=("$_found_src")
+        _install_names+=("$(basename "$_spec")")
+      done
+    elif "$_is_archive"; then
+      local _discovered
+      _discovered="$(find "$_asset_dir" -type f -perm -u+x 2> /dev/null || true)"
+      if [[ -z "$_discovered" ]]; then
+        while IFS= read -r _f; do chmod +x "$_f" 2> /dev/null || true; done \
+          < <(find "$_asset_dir" -type f)
+        _discovered="$(find "$_asset_dir" -type f 2> /dev/null || true)"
       fi
-      _found_srcs+=("$_found_src")
-      _install_names+=("$(basename "$_spec")")
-    done
-  elif "$_is_archive"; then
-    local _discovered
-    _discovered="$(find "$_content_dir" -type f -perm -u+x 2> /dev/null || true)"
-    if [[ -z "$_discovered" ]]; then
-      while IFS= read -r _f; do chmod +x "$_f" 2> /dev/null || true; done \
-        < <(find "$_content_dir" -type f)
-      _discovered="$(find "$_content_dir" -type f 2> /dev/null || true)"
+      if [[ "$_nbdest" -eq 1 && "${_binary_dest[0]}" != */ ]]; then
+        local _disc_count
+        _disc_count="$(printf '%s\n' "$_discovered" | grep -c . || true)"
+        [[ "$_disc_count" -ne 1 ]] && {
+          logging__error "uri__fetch_asset: auto-discovery found ${_disc_count} executables but --binary-dest is an exact path (not a directory)."
+          return 1
+        }
+      fi
+      while IFS= read -r _f; do
+        [[ -n "$_f" ]] || continue
+        _found_srcs+=("$_f")
+        _install_names+=("$(basename "$_f")")
+      done <<< "$_discovered"
+      [[ "${#_found_srcs[@]}" -eq 0 ]] && {
+        logging__error "uri__fetch_asset: no executables found in extracted '${_asset_name}'."
+        return 1
+      }
+    else
+      _found_srcs+=("${_asset_dir}/${_asset_name}")
+      _install_names+=("$_asset_name")
     fi
-    while IFS= read -r _f; do
-      [[ -n "$_f" ]] || continue
-      _found_srcs+=("$_f")
-      _install_names+=("$(basename "$_f")")
-    done <<< "$_discovered"
-    [[ ${#_found_srcs[@]} -eq 0 ]] && {
-      logging__error "uri__fetch_asset: no executables found in extracted '${_asset_name}'."
-      return 1
-    }
-  else
-    _found_srcs+=("$_dl_path")
-    _install_names+=("$_asset_name")
+
+    local _j
+    for _j in "${!_found_srcs[@]}"; do
+      local _src="${_found_srcs[$_j]}" _name="${_install_names[$_j]}" _dest_spec _dest_path
+      if [[ "$_nbdest" -gt 1 && "$_j" -lt "$_nbdest" ]]; then
+        _dest_spec="${_binary_dest[$_j]}"
+      else
+        _dest_spec="${_binary_dest[0]}"
+      fi
+      if [[ "$_dest_spec" == */ ]]; then
+        _dest_path="${_dest_spec%/}/${_name}"
+      else
+        _dest_path="$_dest_spec"
+      fi
+      mkdir -p "$(dirname "$_dest_path")"
+      chmod +x "$_src" 2> /dev/null || true
+      logging__install "Installing '${_name}' to '${_dest_path}'"
+      install__copy_bin "$_src" "$_dest_path" || return 1
+      [[ -n "$_owner_group" ]] && install__track_internal_path "$_owner_group" "$_dest_path"
+      logging__success "Installed '${_name}' → '${_dest_path}'"
+      printf '%s\n' "$_dest_path"
+    done
   fi
 
-  # ── Install each binary ───────────────────────────────────────────────────
-  local _j
-  for _j in "${!_found_srcs[@]}"; do
-    local _src="${_found_srcs[$_j]}"
-    local _name="${_install_names[$_j]}"
-    local _dest_dir
-    if [[ "$_ndest" -gt 1 && "$_j" -lt "$_ndest" ]]; then
-      _dest_dir="${_binary_dest[$_j]}"
+  # ── File installation ─────────────────────────────────────────────────────
+  if [[ "$_nfdest" -gt 0 ]]; then
+    local -a _fnd_srcs=() _fnd_names=()
+    if [[ "$_nfsrc" -gt 0 ]]; then
+      local _i
+      for _i in "${!_file_src[@]}"; do
+        local _spec="${_file_src[$_i]}" _found_src _mc
+        _found_src="$(_uri__match_binary_src "$_spec" "$_asset_dir")"
+        _mc="$(printf '%s\n' "$_found_src" | grep -c . || true)"
+        [[ "$_mc" -gt 1 ]] && {
+          logging__error "uri__fetch_asset: ambiguous --file-src '${_spec}': ${_mc} matches in '${_asset_name}'."
+          return 1
+        }
+        [[ -z "$_found_src" ]] && {
+          logging__error "uri__fetch_asset: --file-src '${_spec}' not found in '${_asset_name}'."
+          return 1
+        }
+        _fnd_srcs+=("$_found_src")
+        _fnd_names+=("$(basename "$_spec")")
+      done
+    elif "$_is_archive"; then
+      logging__error "uri__fetch_asset: --file-dest requires --file-src for archive assets."
+      return 1
     else
-      _dest_dir="${_binary_dest[0]}"
+      _fnd_srcs+=("${_asset_dir}/${_asset_name}")
+      _fnd_names+=("$_asset_name")
     fi
-    local _dest_path="${_dest_dir%/}/${_name}"
-    chmod +x "$_src" 2> /dev/null || true
-    logging__install "Installing '${_name}' to '${_dest_path}'"
-    install__copy_bin "$_src" "$_dest_path" || return 1
-    if [[ -n "$_owner_group" ]]; then
-      install__track_internal_path "$_owner_group" "$_dest_path"
-    fi
-    logging__success "Installed '${_name}' → '${_dest_path}'"
-    printf '%s\n' "$_dest_path"
-  done
+
+    local _k
+    for _k in "${!_fnd_srcs[@]}"; do
+      local _src="${_fnd_srcs[$_k]}" _name="${_fnd_names[$_k]}" _dest_spec _dest_path
+      if [[ "$_nfdest" -gt 1 && "$_k" -lt "$_nfdest" ]]; then
+        _dest_spec="${_file_dest[$_k]}"
+      else
+        _dest_spec="${_file_dest[0]}"
+      fi
+      if [[ "$_dest_spec" == */ ]]; then
+        _dest_path="${_dest_spec%/}/${_name}"
+      else
+        _dest_path="$_dest_spec"
+      fi
+      mkdir -p "$(dirname "$_dest_path")"
+      logging__install "Installing '${_name}' to '${_dest_path}'"
+      cp -f "$_src" "$_dest_path" || return 1
+      [[ -n "$_owner_group" ]] && install__track_internal_path "$_owner_group" "$_dest_path"
+      logging__success "Installed '${_name}' → '${_dest_path}'"
+      printf '%s\n' "$_dest_path"
+    done
+  fi
+
+  # ── No install flags: print asset dir ────────────────────────────────────
+  if [[ "$_nbdest" -eq 0 && "$_nfdest" -eq 0 ]]; then
+    printf '%s\n' "$_asset_dir"
+  fi
   return 0
 }
 
@@ -673,8 +836,11 @@ uri__resolve() {
         ;;
     esac
   done
-  [[ "$_chmod_exec" == true ]] && _fa_args+=(--chmod-exec)
-  uri__fetch_asset --url "$_input" --dest "$_dest" "${_fa_args[@]}"
+  if [[ "$_chmod_exec" == true ]]; then
+    uri__fetch_asset "$_input" --binary-dest "$_dest" "${_fa_args[@]}"
+  else
+    uri__fetch_asset "$_input" --file-dest "$_dest" "${_fa_args[@]}"
+  fi
 }
 
 # @brief uri__resolve_line <input> <materialize-dir> [--header <H>]... [--netrc-file <path>] — For local inputs, print the original path. For remote inputs, materialize under `<materialize-dir>` and print the resulting path.
@@ -709,7 +875,8 @@ uri__resolve_line() {
       mkdir -p "$_mdir"
       local _dest
       _dest="$(_uri__dest_for_uri "$_mdir" "$_input")"
-      uri__fetch_asset --url "$_input" --dest "$_dest" "$@" || return 1
+      uri__fetch_asset "$_input" --file-dest "$_dest" "$@" > /dev/null || return 1
+      printf '%s\n' "$_dest"
       ;;
     *)
       return 1

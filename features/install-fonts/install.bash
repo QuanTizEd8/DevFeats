@@ -215,7 +215,7 @@ if [[ "$P10K_FONTS" == true ]]; then
   for _FONT in "${_P10K_FONT_FILES[@]}"; do
     _LOCAL_NAME="$(printf '%b' "${_FONT//%/\\x}")"
     _TMPFILE="$(mktemp)"
-    if uri__fetch_asset --url "${_P10K_BASE_URL}/${_FONT}" --dest "$_TMPFILE"; then
+    if uri__fetch_asset "${_P10K_BASE_URL}/${_FONT}" --file-dest "$_TMPFILE" > /dev/null; then
       install_font_file "$_TMPFILE" "p10k/MesloLGS-NF/${_LOCAL_NAME}"
     else
       logging__warn "Could not download '${_LOCAL_NAME}' — skipping."
@@ -233,18 +233,12 @@ if [[ "${#NERD_FONTS[@]}" -gt 0 ]]; then
     [[ -z "$_font_name" ]] && continue
 
     logging__info "Downloading Nerd Font '${_font_name}'..."
-    _ARCHIVE="$(mktemp)"
-    _TMPDIR="$(mktemp -d)"
-    if uri__fetch_asset --url "${_NF_BASE_URL}/${_font_name}.tar.xz" --dest "$_ARCHIVE"; then
-      if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "${_font_name}.tar.xz"; then
-        install_archive_contents "$_TMPDIR" "nerd/${_font_name}"
-        logging__success "Nerd Font '${_font_name}' processed."
-      fi
+    if _asset_dir="$(uri__fetch_asset "${_NF_BASE_URL}/${_font_name}.tar.xz")"; then
+      install_archive_contents "$_asset_dir" "nerd/${_font_name}"
+      logging__success "Nerd Font '${_font_name}' processed."
     else
       logging__warn "Could not download '${_font_name}' from nerd-fonts releases — skipping."
     fi
-    rm -f "$_ARCHIVE"
-    rm -rf "$_TMPDIR"
   done
 fi
 
@@ -311,25 +305,24 @@ if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
     for _asset_url in "${_DOWNLOAD_URLS[@]}"; do
       _asset_basename="${_asset_url##*/}"
       logging__info "Downloading '${_asset_basename}' from '${_slug}' release..."
-      _ARCHIVE="$(mktemp)"
-      if ! uri__fetch_asset --url "$_asset_url" --dest "$_ARCHIVE"; then
-        logging__warn "Could not download '${_asset_basename}' — skipping."
-        rm -f "$_ARCHIVE"
-        continue
-      fi
       case "$_asset_basename" in
         *.tar.xz | *.tar.gz | *.tgz | *.zip)
-          _TMPDIR="$(mktemp -d)"
-          if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "$_asset_basename"; then
-            install_archive_contents "$_TMPDIR" "$_NS"
+          if _asset_dir="$(uri__fetch_asset "$_asset_url")"; then
+            install_archive_contents "$_asset_dir" "$_NS"
+          else
+            logging__warn "Could not download '${_asset_basename}' — skipping."
           fi
-          rm -rf "$_TMPDIR"
           ;;
         *)
-          install_font_file "$_ARCHIVE" "${_NS}/${_asset_basename}"
+          _tmpfile="$(mktemp)"
+          if uri__fetch_asset "$_asset_url" --file-dest "$_tmpfile" > /dev/null; then
+            install_font_file "$_tmpfile" "${_NS}/${_asset_basename}"
+          else
+            logging__warn "Could not download '${_asset_basename}' — skipping."
+          fi
+          rm -f "$_tmpfile"
           ;;
       esac
-      rm -f "$_ARCHIVE"
     done
     logging__success "GitHub release '${_slug}' processed."
   done
@@ -351,23 +344,17 @@ if [[ "${#FONT_URLS[@]}" -gt 0 ]]; then
     case "$_basename" in
       *.tar.xz | *.tar.gz | *.tgz | *.zip)
         logging__info "Downloading font archive '${_basename}'..."
-        _ARCHIVE="$(mktemp)"
-        _TMPDIR="$(mktemp -d)"
-        if uri__fetch_asset --url "$_url" --dest "$_ARCHIVE"; then
-          if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "$_basename"; then
-            install_archive_contents "$_TMPDIR" "$_NS"
-            logging__success "Font archive '${_basename}' processed."
-          fi
+        if _asset_dir="$(uri__fetch_asset "$_url")"; then
+          install_archive_contents "$_asset_dir" "$_NS"
+          logging__success "Font archive '${_basename}' processed."
         else
           logging__warn "Could not download '${_basename}' — skipping."
         fi
-        rm -f "$_ARCHIVE"
-        rm -rf "$_TMPDIR"
         ;;
       *.ttf | *.otf | *.woff | *.woff2)
         logging__info "Downloading font file '${_basename}'..."
         _TMPFILE="$(mktemp)"
-        if uri__fetch_asset --url "$_url" --dest "$_TMPFILE"; then
+        if uri__fetch_asset "$_url" --file-dest "$_TMPFILE" > /dev/null; then
           install_font_file "$_TMPFILE" "${_NS}/${_basename}"
           logging__success "Font file '${_basename}' processed."
         else

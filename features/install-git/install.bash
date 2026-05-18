@@ -212,13 +212,11 @@ _git__source_fetch_verify() {
   local _ver="$1"
   local _tar_url="https://www.kernel.org/pub/software/scm/git/git-${_ver}.tar.gz"
   local _sum_url="https://www.kernel.org/pub/software/scm/git/sha256sums.asc"
-  local _tarfile="${INSTALLER_DIR}/git-${_ver}.tar.gz"
 
   mkdir -p "${INSTALLER_DIR}"
-  uri__fetch_asset \
-    --url "${_tar_url}" \
-    --sidecar-url "${_sum_url}" \
-    --dest "${_tarfile}"
+  uri__fetch_asset "${_tar_url}" \
+    --sidecar "${_sum_url}" \
+    --installer-dir "${INSTALLER_DIR}"
 }
 
 # _git__source_build
@@ -255,7 +253,7 @@ _git__source_build() {
   local _ncpus
   _ncpus="$(nproc 2> /dev/null || sysctl -n hw.ncpu 2> /dev/null || echo 1)"
 
-  cd "${INSTALLER_DIR}/git-${_ver}"
+  cd "${INSTALLER_DIR}/asset/git-${_ver}"
   # shellcheck disable=SC2086
   make -s -j"${_ncpus}" ${_make_flags} ${MAKE_FLAGS} all
   # shellcheck disable=SC2086
@@ -263,7 +261,7 @@ _git__source_build() {
 
   # `make install` does not install contrib/completion scripts. Copy them
   # from the source tree to the prefix now, before the build dir is cleaned.
-  local _comp_src_dir="${INSTALLER_DIR}/git-${_ver}/contrib/completion"
+  local _comp_src_dir="${INSTALLER_DIR}/asset/git-${_ver}/contrib/completion"
   local _comp_dst_dir="${PREFIX}/share/git-core/contrib/completion"
   if [ -d "${_comp_src_dir}" ]; then
     mkdir -p "${_comp_dst_dir}"
@@ -355,14 +353,10 @@ _git__install_source() {
     logging__info "Non-root mode: skipping build dependency installation; expecting required packages to be preinstalled."
   fi
 
-  # 6. Download and verify tarball.
+  # 6. Download, verify, and extract tarball.
   _git__source_fetch_verify "${_resolved_ver}"
 
-  # 7. Extract.
-  logging__install "Extracting git-${_resolved_ver}.tar.gz..."
-  file__extract_archive "${INSTALLER_DIR}/git-${_resolved_ver}.tar.gz" "${INSTALLER_DIR}"
-
-  # 8. Build and install.
+  # 7. Build and install.
   logging__build "Building git ${_resolved_ver}..."
   _git__source_build "${_resolved_ver}"
 

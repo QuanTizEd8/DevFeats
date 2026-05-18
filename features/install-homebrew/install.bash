@@ -33,7 +33,7 @@ run_brew_installer() {
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
   logging__download "Downloading Homebrew installer to '${_tmpfile}'."
-  uri__fetch_asset --url "$_BREW_INSTALLER_URL" --dest "$_tmpfile"
+  uri__fetch_asset "$_BREW_INSTALLER_URL" --file-dest "$_tmpfile" > /dev/null
   chmod a+r "$_tmpfile"
   logging__info "Installing as '${RESOLVED_INSTALL_USER}'."
   _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_tmpfile"
@@ -49,7 +49,7 @@ uninstall_brew() {
   _tmpfile="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
-  uri__fetch_asset --url "$_BREW_UNINSTALLER_URL" --dest "$_tmpfile"
+  uri__fetch_asset "$_BREW_UNINSTALLER_URL" --file-dest "$_tmpfile" > /dev/null
   chmod a+r "$_tmpfile"
   # Run as the current process (root when called from root) so it can remove
   # files in a root-provisioned prefix regardless of who owns them.

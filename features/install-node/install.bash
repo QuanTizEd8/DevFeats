@@ -216,8 +216,8 @@ _node_install_via_nvm() {
   # Download nvm install script
   mkdir -p "$INSTALLER_DIR"
   uri__fetch_asset \
-    --url "https://raw.githubusercontent.com/nvm-sh/nvm/${_nvm_tag}/install.sh" \
-    --dest "${INSTALLER_DIR}/nvm-install.sh"
+    "https://raw.githubusercontent.com/nvm-sh/nvm/${_nvm_tag}/install.sh" \
+    --file-dest "${INSTALLER_DIR}/nvm-install.sh" > /dev/null
 
   # Create NVM_DIR before write_group permissions (which chowns it)
   mkdir -p "$NVM_DIR"
@@ -348,23 +348,24 @@ _node_install_via_binary() {
   if [ -z "${_NODE_VERSION:-}" ]; then
     logging__info "Downloading Node.js release index..."
     uri__fetch_asset \
-      --url "https://nodejs.org/dist/index.json" \
-      --dest "${INSTALLER_DIR}/index.json"
+      "https://nodejs.org/dist/index.json" \
+      --file-dest "${INSTALLER_DIR}/index.json" > /dev/null
     _NODE_VERSION="$(_node_resolve_binary_version "$VERSION" "${INSTALLER_DIR}/index.json")"
   fi
 
   logging__info "Installing Node.js ${_NODE_VERSION} (${_platform}) to ${_install_prefix}..."
 
   local _tarball="node-${_NODE_VERSION}-${_platform}.tar.xz"
+  local _node_dist_dir="node-${_NODE_VERSION}-${_platform}"
 
   uri__fetch_asset \
-    --url "https://nodejs.org/dist/${_NODE_VERSION}/${_tarball}" \
-    --sidecar-url "https://nodejs.org/dist/${_NODE_VERSION}/SHASUMS256.txt" \
-    --dest "${INSTALLER_DIR}/${_tarball}"
+    "https://nodejs.org/dist/${_NODE_VERSION}/${_tarball}" \
+    --sidecar "https://nodejs.org/dist/${_NODE_VERSION}/SHASUMS256.txt" \
+    --installer-dir "${INSTALLER_DIR}" > /dev/null
 
-  # Extract to install prefix
+  # Strip top-level directory (equivalent to --strip 1) by copying contents.
   mkdir -p "$_install_prefix"
-  file__extract_archive "${INSTALLER_DIR}/${_tarball}" "$_install_prefix" "" --strip 1
+  cp -a "${INSTALLER_DIR}/asset/${_node_dist_dir}/." "$_install_prefix/"
 
   # Update PREFIX with resolved value for use by caller
   PREFIX="$_install_prefix"

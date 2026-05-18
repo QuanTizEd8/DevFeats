@@ -320,9 +320,9 @@ github__install_release \
   --repo "conda-forge/miniforge" \
   --tag "${MINIFORGE_VERSION}" \
   --asset "${_installer_filename}" \
-  --sidecar-url "${_MINIFORGE_RELEASES_URL}/download/${MINIFORGE_VERSION}/${_installer_filename}.sha256" \
+  --sidecar "${_MINIFORGE_RELEASES_URL}/download/${MINIFORGE_VERSION}/${_installer_filename}.sha256" \
   --installer-dir "${INSTALLER_DIR}" || exit 1
-INSTALLER="${INSTALLER_DIR}/${_installer_filename}"
+INSTALLER="${INSTALLER_DIR}/asset/${_installer_filename}"
 
 if [[ -f "${PREFIX}/bin/conda" ]] || command -v conda > /dev/null 2>&1; then
   logging__warn "Conda installation found at '$PREFIX'."

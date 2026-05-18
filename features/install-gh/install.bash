@@ -208,8 +208,8 @@ _gh__install_binary() {
   [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
   github__install_release \
     --repo "cli/cli" --tag "v${_version}" \
-    --asset "$_archive_name" --binary-src gh --binary-dest "${PREFIX}/bin" \
-    --sidecar-url "${_url_base}/gh_${_version}_checksums.txt" \
+    --asset "$_archive_name" --binary-src gh --binary-dest "${PREFIX}/bin/" \
+    --sidecar "${_url_base}/gh_${_version}_checksums.txt" \
     "${_idir_arg[@]}" ||
     exit 1
 
