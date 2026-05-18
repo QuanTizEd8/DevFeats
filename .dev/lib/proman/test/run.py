@@ -448,16 +448,16 @@ def main() -> None:
     os.environ.setdefault("REPO_ROOT", str(repo_root))
 
     tests_dir = repo_root / "test" / "features" / args.feature / "tests"
+    checks_path = repo_root / "test" / "features" / args.feature / "checks.yaml"
+    if checks_path.exists():
+        generate_tests(args.feature, checks_path, tests_dir)
+
     if not tests_dir.is_dir():
         print(
             f"⛔ tests/ directory not found for feature {args.feature}: {tests_dir}",
             file=sys.stderr,
         )
         sys.exit(1)
-
-    checks_path = tests_dir / "checks.yaml"
-    if checks_path.exists():
-        generate_tests(args.feature, checks_path, tests_dir)
 
     envs_path = repo_root / "test" / "environments.yaml"
     envs = load_envs(envs_path)
