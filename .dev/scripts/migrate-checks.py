@@ -70,7 +70,7 @@ _CHECK_START_RE = re.compile(r"^(check|fail_check|checkMultiple)\s+")
 _DIAG_LINE_RE = re.compile(
     r"^(echo|cat|ls|stat|printf|getent|id|grep)\b|"
     r"^\"\$[A-Z_]+\"\s+--version\b|"  # e.g. "$_BREW" --version
-    r"^\"?\$\w+\"\s+",                 # variable invocations used for diagnostics
+    r"^\"?\$\w+\"\s+",  # variable invocations used for diagnostics
 )
 
 
@@ -85,7 +85,7 @@ def _yaml_str(value: str, indent: int = 0) -> str:
     if "\n" not in value.rstrip("\n"):
         # Single-line: emit as a plain or double-quoted scalar.
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        yaml_special = '"\':{}[]#&*!|>?-'
+        yaml_special = "\"':{}[]#&*!|>?-"
         if any(c in value for c in yaml_special):
             return f'"{escaped}"'
         return value

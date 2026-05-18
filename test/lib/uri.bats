@@ -153,12 +153,18 @@ _stub_fa_common() {
 
   _VERIFY_SHA_CALLS="${BATS_TEST_TMPDIR}/_sha_calls"
   export _VERIFY_SHA_CALLS
-  verify__sha() { printf '%s %s\n' "$1" "$2" >> "$_VERIFY_SHA_CALLS"; return 0; }
+  verify__sha() {
+    printf '%s %s\n' "$1" "$2" >> "$_VERIFY_SHA_CALLS"
+    return 0
+  }
   export -f verify__sha
 
   _VERIFY_GPG_CALLS="${BATS_TEST_TMPDIR}/_gpg_calls"
   export _VERIFY_GPG_CALLS
-  verify__gpg_detached() { printf '%s\n' "$@" >> "$_VERIFY_GPG_CALLS"; return 0; }
+  verify__gpg_detached() {
+    printf '%s\n' "$@" >> "$_VERIFY_GPG_CALLS"
+    return 0
+  }
   export -f verify__gpg_detached
 
   file__detect_type() { printf 'elf'; }
@@ -208,7 +214,10 @@ _stub_fa_common() {
 @test "uri__fetch_asset: ftp:// URL routes through net__fetch_url_file" {
   _FETCH_LOG="${BATS_TEST_TMPDIR}/_ftp_log"
   export _FETCH_LOG
-  net__fetch_url_file() { printf '%s\n' "$1" > "$_FETCH_LOG"; printf 'content\n' > "$2"; }
+  net__fetch_url_file() {
+    printf '%s\n' "$1" > "$_FETCH_LOG"
+    printf 'content\n' > "$2"
+  }
   export -f net__fetch_url_file
 
   local _dst="${BATS_TEST_TMPDIR}/ftp.out"
@@ -297,7 +306,10 @@ _stub_fa_common() {
 @test "uri__fetch_asset: --header and --netrc-file forwarded to net__fetch_url_file" {
   _FETCH_LOG="${BATS_TEST_TMPDIR}/_fetch_log"
   export _FETCH_LOG
-  net__fetch_url_file() { printf '%s\n' "$@" > "$_FETCH_LOG"; printf 'ok\n' > "$2"; }
+  net__fetch_url_file() {
+    printf '%s\n' "$@" > "$_FETCH_LOG"
+    printf 'ok\n' > "$2"
+  }
   export -f net__fetch_url_file
 
   local _dst="${BATS_TEST_TMPDIR}/out"

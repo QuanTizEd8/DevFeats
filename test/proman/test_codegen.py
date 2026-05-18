@@ -113,8 +113,7 @@ class TestCheckItem:
     def test_kind_check_explicit(self) -> None:
         """Explicit kind=check still emits check."""
         _, g = _load_group(
-            "t:\n  checks:\n"
-            "    - title: 'ok'\n      cmd: 'true'\n      kind: check\n"
+            "t:\n  checks:\n    - title: 'ok'\n      cmd: 'true'\n      kind: check\n"
         )
         out = _render_group("t", g)
         assert 'check "ok" true\n' in out
@@ -122,7 +121,7 @@ class TestCheckItem:
     def test_title_with_double_quotes_escaped(self) -> None:
         """Double quotes in a title are escaped."""
         _, g = _load_group(
-            'T:\n  checks:\n    - title: \'a "quoted" title\'\n      cmd: true\n'
+            "T:\n  checks:\n    - title: 'a \"quoted\" title'\n      cmd: true\n"
         )
         out = _render_group("T", g)
         assert 'check "a \\"quoted\\" title" true\n' in out
@@ -255,9 +254,7 @@ class TestGroupFields:
     def test_post_generates_cleanup(self) -> None:
         """Post field generates a _cleanup() function and trap."""
         yaml_text = (
-            "t:\n"
-            "  post: 'rm -f /tmp/x'\n"
-            "  checks:\n    - title: t\n      cmd: true\n"
+            "t:\n  post: 'rm -f /tmp/x'\n  checks:\n    - title: t\n      cmd: true\n"
         )
         _, g = _load_group(yaml_text)
         out = _render_group("t", g)
@@ -304,11 +301,7 @@ class TestGroupFields:
 
     def test_pre_appears_before_checks(self) -> None:
         """Pre content appears before any check calls in the output."""
-        yaml_text = (
-            "t:\n"
-            "  pre: '_X=1'\n"
-            "  checks:\n    - title: t\n      cmd: true\n"
-        )
+        yaml_text = "t:\n  pre: '_X=1'\n  checks:\n    - title: t\n      cmd: true\n"
         _, g = _load_group(yaml_text)
         out = _render_group("t", g)
         pre_pos = out.index("_X=1")
@@ -355,9 +348,7 @@ class TestGenerateTests:
         """Generated .sh file has valid structure and contains the check call."""
         checks_yaml = tmp_path / "checks.yaml"
         checks_yaml.write_text(
-            "my_test:\n"
-            "  checks:\n"
-            "    - title: 'pass'\n      cmd: 'true'\n",
+            "my_test:\n  checks:\n    - title: 'pass'\n      cmd: 'true'\n",
             encoding="utf-8",
         )
         out_dir = tmp_path / "tests"
@@ -405,10 +396,7 @@ class TestEdgeCases:
 
     def test_empty_debug_field_omitted(self) -> None:
         """Empty debug field does not emit extra output before the check."""
-        yaml_text = (
-            "t:\n  checks:\n"
-            "    - title: t\n      cmd: true\n      debug: ''\n"
-        )
+        yaml_text = "t:\n  checks:\n    - title: t\n      cmd: true\n      debug: ''\n"
         _, g = _load_group(yaml_text)
         out = _render_group("t", g)
         # Empty debug must not emit a bare newline before the check
@@ -419,8 +407,7 @@ class TestEdgeCases:
     def test_empty_on_fail_field_omitted(self) -> None:
         """Empty on_fail field does not emit a snapshot variable or guard."""
         yaml_text = (
-            "t:\n  checks:\n"
-            "    - title: t\n      cmd: true\n      on_fail: ''\n"
+            "t:\n  checks:\n    - title: t\n      cmd: true\n      on_fail: ''\n"
         )
         _, g = _load_group(yaml_text)
         out = _render_group("t", g)
