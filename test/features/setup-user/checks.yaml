@@ -57,7 +57,8 @@ custom_home:
     - title: custom home group-owned by vscode
       cmd: bash -c '[ "$(stat -c "%G" /workspaces/myapp)" = "vscode" ]'
     - title: passwd home matches custom path
-      cmd: bash -c '[ "$(awk -F: '\''$1=="vscode"{print $6}'\'' /etc/passwd)" = "/workspaces/myapp" ]'
+      cmd: |-
+        bash -c '[ "$(awk -F: '\''$1=="vscode"{print $6}'\'' /etc/passwd)" = "/workspaces/myapp" ]'
     - title: /home/vscode was NOT created
       cmd: bash -c '! test -d /home/vscode'
 
@@ -68,7 +69,8 @@ custom_shell:
     - title: vscode user exists
       cmd: bash -c 'id vscode > /dev/null 2>&1'
     - title: login shell is /bin/sh
-      cmd: bash -c '[ "$(awk -F: '\''$1=="vscode"{print $7}'\'' /etc/passwd)" = "/bin/sh" ]'
+      cmd: |-
+        bash -c '[ "$(awk -F: '\''$1=="vscode"{print $7}'\'' /etc/passwd)" = "/bin/sh" ]'
 
 custom_user:
   description: |
@@ -115,7 +117,8 @@ default:
     - title: home directory group-owned by vscode
       cmd: bash -c '[ "$(stat -c "%G" /home/vscode)" = "vscode" ]'
     - title: login shell is /bin/bash
-      cmd: bash -c '[ "$(awk -F: '\''$1=="vscode"{print $7}'\'' /etc/passwd)" = "/bin/bash" ]'
+      cmd: |-
+        bash -c '[ "$(awk -F: '\''$1=="vscode"{print $7}'\'' /etc/passwd)" = "/bin/bash" ]'
     - title: sudo binary is installed
       cmd: bash -c 'command -v sudo'
     - title: sudoers file exists
