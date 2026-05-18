@@ -234,10 +234,12 @@ _node_install_via_nvm() {
   # Mark nvm cleanup as active now that NVM_DIR is initialised
   _NVM_CLEANUP_ENABLED="true"
 
-  # Run nvm installer as target user
+  # Run nvm installer as target user; pipe via stdin so _NVM_USER never needs
+  # filesystem access to the tmpdir (which is root-owned 0700).
   logging__info "Running nvm installer as user '${_NVM_USER}'..."
   su "$_NVM_USER" -c \
-    "umask 0002 && PROFILE=/dev/null NVM_SYMLINK_CURRENT=true NVM_DIR='${NVM_DIR}' bash '${INSTALLER_DIR}/nvm-install.sh'"
+    "umask 0002 && PROFILE=/dev/null NVM_SYMLINK_CURRENT=true NVM_DIR='${NVM_DIR}' bash -s" \
+    < "${INSTALLER_DIR}/nvm-install.sh"
 
   # Verify nvm loaded (in root shell)
   # shellcheck disable=SC1091
