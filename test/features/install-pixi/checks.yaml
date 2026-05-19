@@ -296,9 +296,9 @@ installer_dir:
         echo "=== /tmp/pixi-trace/ contents ==="
         ls -la /tmp/pixi-trace/ 2>/dev/null || echo "(directory missing)"
     - title: pixi archive preserved
-      cmd: bash -c 'ls /tmp/pixi-trace/pixi-*.tar.gz 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/pixi-trace/archive/pixi-*.tar.gz 2>/dev/null | grep -q .'
     - title: pixi sidecar preserved
-      cmd: bash -c 'ls /tmp/pixi-trace/pixi-*.tar.gz.sha256 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/pixi-trace/sidecar/pixi-*.tar.gz.sha256 2>/dev/null | grep -q .'
 
 invalid_version_string:
   description: |

@@ -428,9 +428,9 @@ installer_dir:
         echo "=== ls /tmp/miniforge-trace/ ==="
         ls -la /tmp/miniforge-trace/ 2>/dev/null || echo "(missing or empty)"
     - title: installer .sh file preserved
-      cmd: bash -c 'ls /tmp/miniforge-trace/Miniforge3-*.sh 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/miniforge-trace/asset/Miniforge3-*.sh 2>/dev/null | grep -q .'
     - title: installer sidecar preserved
-      cmd: bash -c 'ls /tmp/miniforge-trace/Miniforge3-*.sh.sha256 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/miniforge-trace/sidecar/Miniforge3-*.sh.sha256 2>/dev/null | grep -q .'
 
 invalid_version:
   description: |

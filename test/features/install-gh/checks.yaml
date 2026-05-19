@@ -297,9 +297,9 @@ installer_dir:
         echo "=== /tmp/gh-trace/ contents ==="
         ls -la /tmp/gh-trace/ 2>/dev/null || echo "(directory missing)"
     - title: gh archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/gh-trace/gh_*.tar.gz 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/gh-trace/archive/gh_*.tar.gz 2>/dev/null | grep -q .'
     - title: checksums file preserved in installer_dir
-      cmd: bash -c 'ls /tmp/gh-trace/gh_*_checksums.txt 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/gh-trace/sidecar/gh_*_checksums.txt 2>/dev/null | grep -q .'
 
 invalid_if_exists:
   description: |

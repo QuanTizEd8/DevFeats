@@ -459,11 +459,11 @@ source_installer_dir:
         echo "=== /tmp/git-build-trace contents ==="
         ls /tmp/git-build-trace 2>/dev/null || echo "(missing)"
     - title: tarball preserved in dir
-      cmd: bash -c 'find /tmp/git-build-trace -maxdepth 1 -name "git-*.tar.gz" | grep -q .'
+      cmd: bash -c 'ls /tmp/git-build-trace/archive/git-*.tar.gz 2>/dev/null | grep -q .'
     - title: checksum file preserved in dir
-      cmd: test -f /tmp/git-build-trace/sha256sums.asc
+      cmd: test -f /tmp/git-build-trace/sidecar/sha256sums.asc
     - title: source tree preserved in dir
-      cmd: bash -c 'find /tmp/git-build-trace -maxdepth 1 -type d -name "git-*" | grep -q .'
+      cmd: bash -c 'find /tmp/git-build-trace/asset -maxdepth 1 -type d -name "git-*" | grep -q .'
 
 source_no_flags_perl:
   description: |

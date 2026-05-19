@@ -35,9 +35,9 @@ installer_dir:
         echo "=== /tmp/just-trace/ contents ==="
         ls -la /tmp/just-trace/ 2>/dev/null || echo "(directory missing)"
     - title: just archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/just-trace/just-*.tar.gz 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/just-trace/archive/just-*.tar.gz 2>/dev/null | grep -q .'
     - title: SHA256SUMS preserved in installer_dir
-      cmd: bash -c 'ls /tmp/just-trace/SHA256SUMS 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/just-trace/sidecar/SHA256SUMS 2>/dev/null | grep -q .'
 
 package_install:
   description: "Verifies repository-based installation."

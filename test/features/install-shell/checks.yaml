@@ -760,6 +760,6 @@ installer_dir:
         echo "=== /tmp/shell-trace/ contents ==="
         ls -la /tmp/shell-trace/ 2>/dev/null || echo "(directory missing)"
     - title: fzf archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/shell-trace/fzf-*.tar.gz 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/shell-trace/archive/fzf-*.tar.gz 2>/dev/null | grep -q .'
     - title: fzf checksums file preserved in installer_dir
-      cmd: bash -c 'ls /tmp/shell-trace/fzf_*_checksums.txt 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/shell-trace/sidecar/fzf_*_checksums.txt 2>/dev/null | grep -q .'

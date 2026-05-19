@@ -39,7 +39,7 @@ installer_dir:
         echo "=== /tmp/shellcheck-trace/ contents ==="
         ls -la /tmp/shellcheck-trace/ 2>/dev/null || echo "(directory missing)"
     - title: shellcheck archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/shellcheck-trace/shellcheck-v*.tar.xz 2>/dev/null | grep -q .'
+      cmd: bash -c 'ls /tmp/shellcheck-trace/archive/shellcheck-v*.tar.xz 2>/dev/null | grep -q .'
 
 package_install:
   description: Verifies method=package installs a working shellcheck.
