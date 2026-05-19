@@ -100,6 +100,7 @@ class InstallScriptGenerator:
         options: dict,
         dependencies: dict | None,
         prefix_groups: dict | None,
+        *,
         installer_dir_flag: bool = False,
     ) -> str:
         r"""Return the full generated content from shebang to END marker (inclusive).
@@ -124,7 +125,9 @@ class InstallScriptGenerator:
             self._section_usage(options),
             self._section_arg_parse(options),
             self._section_defaults(options),
-            self._section_installer_dir_init(installer_dir_flag, feature_id),
+            self._section_installer_dir_init(
+                installer_dir_flag=installer_dir_flag, feature_id=feature_id
+            ),
             self._section_prefix_helpers(prefix_groups or {}, feature_id),
             self._section_validation(options),
             self._section_unexport(options),
@@ -134,13 +137,17 @@ class InstallScriptGenerator:
         ]
         return "\n\n".join(p for p in parts if p)
 
-    def _section_installer_dir_init(self, installer_dir_flag: bool, feature_id: str) -> str:
+    def _section_installer_dir_init(
+        self, *, installer_dir_flag: bool, feature_id: str
+    ) -> str:
         """Emit INSTALLER_DIR auto-init snippet when _installer_dir is true."""
         if not installer_dir_flag:
             return ""
         return (
-            "# Auto-initialize INSTALLER_DIR to a private temporary directory when not set.\n"
-            f'[ -z "${{INSTALLER_DIR:-}}" ] && INSTALLER_DIR="$(file__mktmpdir "install-{feature_id}")"'
+            "# Auto-initialize INSTALLER_DIR to a private temporary directory"
+            " when not set.\n"
+            f'[ -z "${{INSTALLER_DIR:-}}" ] && '
+            f'INSTALLER_DIR="$(file__mktmpdir "install-{feature_id}")"'
         )
 
     def _section_usage(self, options: dict) -> str:

@@ -49,9 +49,9 @@ _file__ensure_extract_tool() {
       return 1
       ;;
     bz2) _file__ensure_tool bzip2 bzip2 "to extract .tar.bz2 archives" ;;
-    gz)  _file__ensure_tool gzip gzip "to extract .tar.gz archives" ;;
+    gz) _file__ensure_tool gzip gzip "to extract .tar.gz archives" ;;
     tar) _file__ensure_tool tar tar "" ;;
-    *)   return 0 ;;
+    *) return 0 ;;
   esac
 }
 

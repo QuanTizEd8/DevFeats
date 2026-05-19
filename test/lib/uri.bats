@@ -474,7 +474,8 @@ _stub_fa_common() {
   local _attempt_file="${BATS_TEST_TMPDIR}/attempts"
   printf '0' > "$_attempt_file"
   net__fetch_url_file() {
-    local _n; _n="$(cat "$_attempt_file")"
+    local _n
+    _n="$(cat "$_attempt_file")"
     _n=$((_n + 1))
     printf '%d' "$_n" > "$_attempt_file"
     printf 'wrong content\n' > "$2"
@@ -495,7 +496,8 @@ _stub_fa_common() {
     --sha256 "$_good_hex" --file-dest "$_dst" --retry 2
   assert_failure
   assert_output --partial "after 2 attempt(s)"
-  local _n; _n="$(cat "$_attempt_file")"
+  local _n
+  _n="$(cat "$_attempt_file")"
   [[ "$_n" -eq 2 ]]
 }
 
@@ -510,7 +512,8 @@ _stub_fa_common() {
   export _attempt_file _src _good_hex
 
   net__fetch_url_file() {
-    local _n; _n="$(cat "$_attempt_file")"
+    local _n
+    _n="$(cat "$_attempt_file")"
     _n=$((_n + 1))
     printf '%d' "$_n" > "$_attempt_file"
     if [[ "$_n" -eq 1 ]]; then
@@ -531,7 +534,8 @@ _stub_fa_common() {
   run --separate-stderr uri__fetch_asset "https://example.com/real.bin" \
     --sha256 "$_good_hex" --file-dest "$_dst" --retry 3
   assert_success
-  local _n; _n="$(cat "$_attempt_file")"
+  local _n
+  _n="$(cat "$_attempt_file")"
   [[ "$_n" -eq 2 ]]
 }
 

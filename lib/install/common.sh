@@ -153,14 +153,38 @@ install__parse_common_opts() {
   shift 10
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --context)        shift; printf -v "$_pctx"    '%s' "${1-}" ;;
-      --version)        shift; printf -v "$_pver"    '%s' "${1-}" ;;
-      --method)         shift; printf -v "$_pmethod" '%s' "${1-}" ;;
-      --prefix)         shift; printf -v "$_pprefix" '%s' "${1-}" ;;
-      --if-exists)      shift; printf -v "$_pife"    '%s' "${1-}" ;;
-      --repos-manifest) shift; printf -v "$_prepos"  '%s' "${1-}" ;;
-      --owner-group)    shift; printf -v "$_pgroup"  '%s' "${1-}" ;;
-      --installer-dir)  shift; printf -v "$_pidir"   '%s' "${1-}" ;;
+      --context)
+        shift
+        printf -v "$_pctx" '%s' "${1-}"
+        ;;
+      --version)
+        shift
+        printf -v "$_pver" '%s' "${1-}"
+        ;;
+      --method)
+        shift
+        printf -v "$_pmethod" '%s' "${1-}"
+        ;;
+      --prefix)
+        shift
+        printf -v "$_pprefix" '%s' "${1-}"
+        ;;
+      --if-exists)
+        shift
+        printf -v "$_pife" '%s' "${1-}"
+        ;;
+      --repos-manifest)
+        shift
+        printf -v "$_prepos" '%s' "${1-}"
+        ;;
+      --owner-group)
+        shift
+        printf -v "$_pgroup" '%s' "${1-}"
+        ;;
+      --installer-dir)
+        shift
+        printf -v "$_pidir" '%s' "${1-}"
+        ;;
       *)
         if [[ -n "$_pextra" ]]; then
           eval "${_pextra}+=($(printf '%q' "$1"))"

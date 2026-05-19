@@ -2447,17 +2447,28 @@ _stub_install_release_common() {
   github__fetch_release_json() {
     local _d=""
     while [ $# -gt 0 ]; do
-      case "$1" in --dest) shift; _d="$1"; shift ;; *) shift ;; esac
+      case "$1" in --dest)
+        shift
+        _d="$1"
+        shift
+        ;;
+      *) shift ;; esac
     done
     [ -n "$_d" ] && printf '{"assets":[{"name":"asset.tar.gz","digest":"sha256:%s"}]}\n' "$_DIGEST" > "$_d"
     return 0
   }
   export -f github__fetch_release_json
 
-  github__release_json_digest_for_asset() { printf '%s\n' "$_DIGEST"; return 0; }
+  github__release_json_digest_for_asset() {
+    printf '%s\n' "$_DIGEST"
+    return 0
+  }
   export -f github__release_json_digest_for_asset
 
-  net__fetch_url_file() { printf 'data' > "$2"; return 0; }
+  net__fetch_url_file() {
+    printf 'data' > "$2"
+    return 0
+  }
   export -f net__fetch_url_file
 
   verify__sha() {
@@ -2478,7 +2489,12 @@ _stub_install_release_common() {
   github__fetch_release_json() {
     local _d=""
     while [ $# -gt 0 ]; do
-      case "$1" in --dest) shift; _d="$1"; shift ;; *) shift ;; esac
+      case "$1" in --dest)
+        shift
+        _d="$1"
+        shift
+        ;;
+      *) shift ;; esac
     done
     [ -n "$_d" ] && printf '{"assets":[]}\n' > "$_d"
     return 0
@@ -2488,7 +2504,10 @@ _stub_install_release_common() {
   github__release_json_digest_for_asset() { return 1; }
   export -f github__release_json_digest_for_asset
 
-  net__fetch_url_file() { printf 'data' > "$2"; return 0; }
+  net__fetch_url_file() {
+    printf 'data' > "$2"
+    return 0
+  }
   export -f net__fetch_url_file
 
   local _dest="${BATS_TEST_TMPDIR}/out.tar.gz"
@@ -2502,7 +2521,12 @@ _stub_install_release_common() {
   github__fetch_release_json() {
     local _d=""
     while [ $# -gt 0 ]; do
-      case "$1" in --dest) shift; _d="$1"; shift ;; *) shift ;; esac
+      case "$1" in --dest)
+        shift
+        _d="$1"
+        shift
+        ;;
+      *) shift ;; esac
     done
     [ -n "$_d" ] && printf '{"assets":[]}\n' > "$_d"
     return 0
@@ -2527,17 +2551,28 @@ _stub_install_release_common() {
   github__fetch_release_json() {
     local _d=""
     while [ $# -gt 0 ]; do
-      case "$1" in --dest) shift; _d="$1"; shift ;; *) shift ;; esac
+      case "$1" in --dest)
+        shift
+        _d="$1"
+        shift
+        ;;
+      *) shift ;; esac
     done
     [ -n "$_d" ] && printf '{"assets":[]}\n' > "$_d"
     return 0
   }
   export -f github__fetch_release_json
 
-  github__release_json_digest_for_asset() { printf '%s\n' "$_DIGEST"; return 0; }
+  github__release_json_digest_for_asset() {
+    printf '%s\n' "$_DIGEST"
+    return 0
+  }
   export -f github__release_json_digest_for_asset
 
-  net__fetch_url_file() { printf 'data' > "$2"; return 0; }
+  net__fetch_url_file() {
+    printf 'data' > "$2"
+    return 0
+  }
   export -f net__fetch_url_file
 
   verify__sha() { return 1; }
@@ -2554,7 +2589,12 @@ _stub_install_release_common() {
   github__fetch_release_json() {
     local _d=""
     while [ $# -gt 0 ]; do
-      case "$1" in --dest) shift; _d="$1"; shift ;; *) shift ;; esac
+      case "$1" in --dest)
+        shift
+        _d="$1"
+        shift
+        ;;
+      *) shift ;; esac
     done
     [ -n "$_d" ] && printf '{"assets":[]}\n' > "$_d"
     return 0
@@ -2585,7 +2625,10 @@ _stub_install_release_common() {
   github__release_json_digest_for_asset() { return 1; }
   export -f github__release_json_digest_for_asset
 
-  net__fetch_url_file() { printf 'data' > "$2"; return 0; }
+  net__fetch_url_file() {
+    printf 'data' > "$2"
+    return 0
+  }
   export -f net__fetch_url_file
 
   local _dest="${BATS_TEST_TMPDIR}/out.tar.gz"

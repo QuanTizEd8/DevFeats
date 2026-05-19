@@ -534,7 +534,7 @@ uri__fetch_asset() {
     mkdir -p "$_work_dir"
     local _sd
     for _sd in archive asset sidecar gpg-sig gpg-key; do
-      rm -rf "${_work_dir}/${_sd}"
+      rm -rf "${_work_dir:?}/${_sd}"
     done
   else
     _work_dir="$(file__mktmpdir "uri-fetch-asset")"

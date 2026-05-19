@@ -124,8 +124,14 @@ install__oras() {
   local _i=0
   while [[ $_i -lt ${#_extra[@]} ]]; do
     case "${_extra[$_i]}" in
-      --min-version) ((_i++)); _min_version="${_extra[$_i]-}" ;;
-      *) logging__error "install__oras: unknown option '${_extra[$_i]}'"; return 1 ;;
+      --min-version)
+        ((_i++))
+        _min_version="${_extra[$_i]-}"
+        ;;
+      *)
+        logging__error "install__oras: unknown option '${_extra[$_i]}'"
+        return 1
+        ;;
     esac
     ((_i++))
   done

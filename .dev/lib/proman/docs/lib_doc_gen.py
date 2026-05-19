@@ -86,7 +86,8 @@ def _render_section(block: SectionBlock) -> str:
     if block.title in _DEFLIST_SECTIONS:
         for item in block.items:
             # Items may span multiple lines (joined by \n from _group_section_items).
-            # Split the header line on 2+ consecutive spaces to get name + first desc line;
+            # Split the header line on 2+ consecutive spaces
+            # to get name + first desc line;
             # remaining lines are continuation lines indented under the definition.
             item_lines = item.split("\n")
             header = item_lines[0]
