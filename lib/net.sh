@@ -91,102 +91,12 @@ net__fetch_with_retry() {
   return 1
 }
 
-# @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
+# @brief _net__fetch <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Internal: download URL via curl or wget.
 #
-# curl uses --retry (transient errors only: 5xx, 408, 429, connection
-# failures); wget falls back to net__fetch_with_retry. Calls
-# _net__ensure_fetch_tool automatically if not already initialised.
-#
-# Args:
-#   <url>                URL to download.
-#   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
-#   --delay N            Seconds between failures (default: 5).
-#   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
-#   --netrc-file <path>  Optional netrc file for HTTP authentication.
-#
-# Stdout: downloaded content.
-#
-# Returns: 0 on success, non-zero on HTTP error or timeout.
-net__fetch_url_stdout() {
-  local _url="$1"
-  shift
-  local _max=60 _delay=5 _hdrs='' _netrc=''
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --retries)
-        _max="$2"
-        shift 2
-        ;;
-      --delay)
-        _delay="$2"
-        shift 2
-        ;;
-      --header)
-        _hdrs="${_hdrs}${2}
-"
-        shift 2
-        ;;
-      --netrc-file)
-        _netrc="$2"
-        shift 2
-        ;;
-      *)
-        logging__error "net__fetch_url_stdout: unknown option: '$1'"
-        return 1
-        ;;
-    esac
-  done
-  _hdrs="$(_net__hdrs_with_default_ua "$_hdrs")"
-  _net__ensure_fetch_tool
-  if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
-    [ -n "$_netrc" ] && set -- "$@" --netrc-file "$_netrc"
-    while IFS= read -r _h; do
-      [ -z "$_h" ] && continue
-      set -- "$@" -H "$_h"
-    done << _NET_HDR_EOF_
-$_hdrs
-_NET_HDR_EOF_
-    curl "$@" "$_url"
-    local _rc=$?
-    [ "${_rc}" -eq 0 ] && return 0
-    logging__error "net__fetch_url_stdout: failed to fetch '${_url}' with curl (exit ${_rc})."
-    return "${_rc}"
-  else
-    set -- -O-
-    [ -n "$_netrc" ] && set -- "$@" "--netrc-file=${_netrc}"
-    while IFS= read -r _h; do
-      [ -z "$_h" ] && continue
-      set -- "$@" "--header=${_h}"
-    done << _NET_HDR_EOF_
-$_hdrs
-_NET_HDR_EOF_
-    net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
-    local _rc=$?
-    [ "${_rc}" -eq 0 ] && return 0
-    logging__error "net__fetch_url_stdout: failed to fetch '${_url}' with wget (exit ${_rc})."
-    return "${_rc}"
-  fi
-}
-
-# @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
-#
-# curl uses --retry (transient errors only: 5xx, 408, 429, connection
-# failures); wget falls back to net__fetch_with_retry. Calls
-# _net__ensure_fetch_tool automatically if not already initialised.
-#
-# Args:
-#   <url>                URL to download.
-#   <dest>               Destination file path.
-#   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
-#   --delay N            Seconds between failures (default: 5).
-#   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
-#   --netrc-file <path>  Optional netrc file for HTTP authentication.
-#
-# Returns: 0 on success, non-zero on HTTP error or timeout.
-net__fetch_url_file() {
-  local _url="$1"
-  local _dest="$2"
+# <dest> is the output file path, or empty string for stdout output.
+# curl uses --retry (transient errors only); wget falls back to net__fetch_with_retry.
+_net__fetch() {
+  local _url="$1" _dest="$2"
   shift 2
   local _max=60 _delay=5 _hdrs='' _netrc=''
   while [ $# -gt 0 ]; do
@@ -209,7 +119,7 @@ net__fetch_url_file() {
         shift 2
         ;;
       *)
-        logging__error "net__fetch_url_file: unknown option: '$1'"
+        logging__error "_net__fetch: unknown option: '$1'"
         return 1
         ;;
     esac
@@ -225,13 +135,25 @@ net__fetch_url_file() {
     done << _NET_HDR_EOF_
 $_hdrs
 _NET_HDR_EOF_
-    curl "$@" -o "$_dest" "$_url"
+    if [ -n "$_dest" ]; then
+      curl "$@" -o "$_dest" "$_url"
+    else
+      curl "$@" "$_url"
+    fi
     local _rc=$?
     [ "${_rc}" -eq 0 ] && return 0
-    logging__error "net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with curl (exit ${_rc})."
+    if [ -n "$_dest" ]; then
+      logging__error "net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with curl (exit ${_rc})."
+    else
+      logging__error "net__fetch_url_stdout: failed to fetch '${_url}' with curl (exit ${_rc})."
+    fi
     return "${_rc}"
   else
-    set -- -O "$_dest"
+    if [ -n "$_dest" ]; then
+      set -- -O "$_dest"
+    else
+      set -- -O-
+    fi
     [ -n "$_netrc" ] && set -- "$@" "--netrc-file=${_netrc}"
     while IFS= read -r _h; do
       [ -z "$_h" ] && continue
@@ -242,9 +164,56 @@ _NET_HDR_EOF_
     net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
     local _rc=$?
     [ "${_rc}" -eq 0 ] && return 0
-    logging__error "net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with wget (exit ${_rc})."
+    if [ -n "$_dest" ]; then
+      logging__error "net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with wget (exit ${_rc})."
+    else
+      logging__error "net__fetch_url_stdout: failed to fetch '${_url}' with wget (exit ${_rc})."
+    fi
     return "${_rc}"
   fi
+}
+
+# @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
+#
+# curl uses --retry (transient errors only: 5xx, 408, 429, connection
+# failures); wget falls back to net__fetch_with_retry. Calls
+# _net__ensure_fetch_tool automatically if not already initialised.
+#
+# Args:
+#   <url>                URL to download.
+#   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
+#   --delay N            Seconds between failures (default: 5).
+#   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
+#   --netrc-file <path>  Optional netrc file for HTTP authentication.
+#
+# Stdout: downloaded content.
+#
+# Returns: 0 on success, non-zero on HTTP error or timeout.
+net__fetch_url_stdout() {
+  local _url="$1"
+  shift
+  _net__fetch "$_url" "" "$@"
+}
+
+# @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
+#
+# curl uses --retry (transient errors only: 5xx, 408, 429, connection
+# failures); wget falls back to net__fetch_with_retry. Calls
+# _net__ensure_fetch_tool automatically if not already initialised.
+#
+# Args:
+#   <url>                URL to download.
+#   <dest>               Destination file path.
+#   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
+#   --delay N            Seconds between failures (default: 5).
+#   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
+#   --netrc-file <path>  Optional netrc file for HTTP authentication.
+#
+# Returns: 0 on success, non-zero on HTTP error or timeout.
+net__fetch_url_file() {
+  local _url="$1" _dest="$2"
+  shift 2
+  _net__fetch "$_url" "$_dest" "$@"
 }
 
 # @brief _net__ensure_fetch_tool — Detect `curl` or `wget` and set `_NET_FETCH_TOOL`; install `curl` via ospkg if neither is found.

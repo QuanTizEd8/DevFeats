@@ -100,9 +100,8 @@ _install__jq_install_release() {
     _sidecar_args=(--sidecar "${_base_url}/sha256sum.txt")
   fi
 
-  local -a _owner_group_arg=() _idir_arg=()
-  [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
-  [ -n "$_installer_dir" ] && _idir_arg=(--installer-dir "$_installer_dir")
+  local -a _owner_group_arg _idir_arg
+  install__build_release_args "$_context" "$_group" "$_installer_dir" _owner_group_arg _idir_arg
 
   github__install_release \
     --repo "jqlang/jq" --tag "jq-${_version}" \
@@ -186,47 +185,9 @@ _install__jq_install_source() {
 install__jq() {
   local _context="internal" _version="stable" _method="auto" _install_prefix="auto"
   local _if_exists="skip" _repos_manifest="" _owner_group="feature::install-jq" _installer_dir=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --context)
-        shift
-        _context="${1-}"
-        ;;
-      --version)
-        shift
-        _version="${1-}"
-        ;;
-      --method)
-        shift
-        _method="${1-}"
-        ;;
-      --prefix)
-        shift
-        _install_prefix="${1-}"
-        ;;
-      --if-exists)
-        shift
-        _if_exists="${1-}"
-        ;;
-      --repos-manifest)
-        shift
-        _repos_manifest="${1-}"
-        ;;
-      --owner-group)
-        shift
-        _owner_group="${1-}"
-        ;;
-      --installer-dir)
-        shift
-        _installer_dir="${1-}"
-        ;;
-      *)
-        logging__error "install__jq: unknown option '$1'"
-        return 1
-        ;;
-    esac
-    shift
-  done
+  install__parse_common_opts "install__jq" \
+    _context _version _method _install_prefix _if_exists _repos_manifest _owner_group _installer_dir \
+    "" "$@" || return 1
   [[ "$_context" == "internal" || "$_context" == "user" ]] || return 1
   [[ -n "$_owner_group" ]] || _owner_group="install-jq"
 
@@ -254,11 +215,8 @@ install__jq() {
     _existing=""
   fi
 
-  if [[ -n "$_existing" && "$_context" == "user" && "$_state_ctx" == "internal" ]]; then
-    install__promote_path_to_user "${_state_group:-$_owner_group}" "$_state_path"
-    install__state_record "jq" "user" "${_method}" "${_existing}" "$_owner_group" || true
-    _state_ctx="user"
-  fi
+  install__maybe_promote_to_user "jq" "$_context" "$_method" "$_owner_group" \
+    "$_existing" _state_ctx _state_path _state_group
 
   if [[ -n "$_existing" ]]; then
     if [[ "$_context" == "internal" && "$_state_ctx" == "user" ]]; then

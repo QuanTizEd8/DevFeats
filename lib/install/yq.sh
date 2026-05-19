@@ -20,6 +20,15 @@ _INSTALL_YQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/github.sh
 . "${_INSTALL_YQ_LIB_DIR}/../github.sh"
 
+# @brief _install__yq_resolve_version <spec> — Resolve a version spec to bare semver (no leading `v`).
+# Accepts "stable" (default), "latest", "", or a semver / partial version string.
+_install__yq_resolve_version() {
+  local _spec="${1-}"
+  local _out
+  _out="$(github__resolve_version "mikefarah/yq" "$_spec")" || return 1
+  printf '%s\n' "${_out#*$'\n'}"
+}
+
 # @brief _install__yq_compatible <bin> — Return 0 when candidate binary is mikefarah/yq-compatible (`-o=json` supported).
 #
 # Tests whether `<bin>` accepts the `-o=json` flag, which is unique to
@@ -62,9 +71,7 @@ _install__yq_install_release() {
 
   # Resolve latest version when none given.
   if [[ -z "$_version" ]]; then
-    local _resolved
-    _resolved="$(github__resolve_version "mikefarah/yq")" || return 1
-    _version="${_resolved#*$'\n'}"
+    _version="$(_install__yq_resolve_version)" || return 1
   fi
   _base="https://github.com/mikefarah/yq/releases/download/v${_version}"
 
@@ -87,9 +94,8 @@ _install__yq_install_release() {
     return 1
   fi
 
-  local -a _owner_group_arg=() _idir_arg=()
-  [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
-  [ -n "$_installer_dir" ] && _idir_arg=(--installer-dir "$_installer_dir")
+  local -a _owner_group_arg _idir_arg
+  install__build_release_args "$_context" "$_group" "$_installer_dir" _owner_group_arg _idir_arg
 
   github__install_release \
     --repo "mikefarah/yq" --tag "v${_version}" \
@@ -126,69 +132,27 @@ _install__yq_install_repos() {
 
 # @brief install__yq --context <internal|user> [--method <auto|binary|package>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--version <semver|''>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
 install__yq() {
-  local _context="internal" _method="auto" _owner_group="devfeats-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest="" _version="" _installer_dir=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --context)
-        shift
-        _context="${1-}"
-        ;;
-      --method)
-        shift
-        _method="${1-}"
-        ;;
-      --owner-group)
-        shift
-        _owner_group="${1-}"
-        ;;
-      --if-exists)
-        shift
-        _if_exists="${1-}"
-        ;;
-      --prefix)
-        shift
-        _install_prefix="${1-}"
-        ;;
-      --repos-manifest)
-        shift
-        _repos_manifest="${1-}"
-        ;;
-      --version)
-        shift
-        _version="${1-}"
-        ;;
-      --installer-dir)
-        shift
-        _installer_dir="${1-}"
-        ;;
-      *)
-        logging__error "install__yq: unknown option '$1'"
-        return 1
-        ;;
-    esac
-    shift
-  done
+  local _context="internal" _method="auto" _owner_group="devfeats-ospkg-internals" _if_exists="skip"
+  local _install_prefix="auto" _repos_manifest="" _version="" _installer_dir=""
+  install__parse_common_opts "install__yq" \
+    _context _version _method _install_prefix _if_exists _repos_manifest _owner_group _installer_dir \
+    "" "$@" || return 1
   [[ "$_context" == "internal" || "$_context" == "user" ]] || return 1
   local _existing _state_ctx _state_path _state_group
   _existing="$(command -v yq 2> /dev/null || true)"
   install__read_state "yq" _state_ctx _state_path _state_group
   if [[ -n "$_existing" ]] && _install__yq_compatible "$_existing"; then
     if [[ "$_if_exists" == "reinstall" ]]; then
-      :
+      install__maybe_promote_to_user "yq" "$_context" "$_method" "$_owner_group" \
+        "$_existing" _state_ctx _state_path _state_group
     elif [[ "$_if_exists" == "fail" ]]; then
       logging__error "install__yq: yq already installed at $_existing."
       return 1
     else
-      if [[ "$_context" == "user" && "$_state_ctx" == "internal" ]]; then
-        install__promote_path_to_user "${_state_group:-$_owner_group}" "$_state_path"
-        install__state_record "yq" "user" "${_method}" "$_existing" "$_owner_group" || true
-      fi
+      install__maybe_promote_to_user "yq" "$_context" "$_method" "$_owner_group" \
+        "$_existing" _state_ctx _state_path _state_group
       printf '%s\n' "$_existing"
       return 0
-    fi
-    if [[ "$_context" == "user" && "$_state_ctx" == "internal" ]]; then
-      install__promote_path_to_user "${_state_group:-$_owner_group}" "$_state_path"
-      install__state_record "yq" "user" "${_method}" "$_existing" "$_owner_group" || true
     fi
   fi
   case "$_method" in

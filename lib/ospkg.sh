@@ -425,43 +425,35 @@ _ospkg_ensure_yq() {
 # Each _ospkg_set_* function configures the internal state for one PM family.
 # Called only from ospkg__detect().
 
+# _ospkg_configure_pm <label> <family> <pm> <pm_key> <clean_fn> <lists_path> <lists_pattern>
+# Sets all scalar PM globals; callers assign _OSPKG_UPDATE and _OSPKG_INSTALL arrays themselves.
+_ospkg_configure_pm() {
+  logging__detect "Detected ecosystem: $1"
+  _OSPKG_FAMILY="$2"
+  _OSPKG_PKG_MNGR="$3"
+  _OSPKG_OS_RELEASE[pm]="$4"
+  _OSPKG_CLEAN="$5"
+  _OSPKG_LISTS_PATH="$6"
+  _OSPKG_LISTS_PATTERN="$7"
+}
+
 _ospkg_set_apt() {
-  logging__detect "Detected ecosystem: APT (tool: apt-get)"
-  _OSPKG_FAMILY="apt"
-  _OSPKG_PKG_MNGR="apt-get"
+  _ospkg_configure_pm "APT (tool: apt-get)" apt apt-get apt _ospkg_clean_apt "/var/lib/apt/lists" "*_Packages*"
   _OSPKG_UPDATE=(users__run_privileged apt-get update)
   _OSPKG_INSTALL=(users__run_privileged apt-get -y install --no-install-recommends)
-  _OSPKG_CLEAN=_ospkg_clean_apt
-  _OSPKG_LISTS_PATH="/var/lib/apt/lists"
-  _OSPKG_LISTS_PATTERN="*_Packages*"
-  _OSPKG_OS_RELEASE[pm]="apt"
   _OSPKG_OS_RELEASE[deb_arch]="$(dpkg --print-architecture 2> /dev/null || uname -m)"
-  return 0
 }
 
 _ospkg_set_apk() {
-  logging__detect "Detected ecosystem: APK (tool: apk)"
-  _OSPKG_FAMILY="apk"
-  _OSPKG_PKG_MNGR="apk"
+  _ospkg_configure_pm "APK (tool: apk)" apk apk apk _ospkg_clean_apk "/var/cache/apk" "APKINDEX*"
   _OSPKG_UPDATE=(users__run_privileged apk update)
   _OSPKG_INSTALL=(users__run_privileged apk add --no-cache)
-  _OSPKG_CLEAN=_ospkg_clean_apk
-  _OSPKG_LISTS_PATH="/var/cache/apk"
-  _OSPKG_LISTS_PATTERN="APKINDEX*"
-  _OSPKG_OS_RELEASE[pm]="apk"
-  return 0
 }
 
 _ospkg_set_dnf() {
-  logging__detect "Detected ecosystem: DNF (tool: dnf)"
-  _OSPKG_FAMILY="dnf"
-  _OSPKG_PKG_MNGR="dnf"
+  _ospkg_configure_pm "DNF (tool: dnf)" dnf dnf dnf _ospkg_clean_dnf "/var/cache/dnf" "*"
   _OSPKG_UPDATE=(users__run_privileged dnf check-update)
   _OSPKG_INSTALL=(users__run_privileged dnf -y install)
-  _OSPKG_CLEAN=_ospkg_clean_dnf
-  _OSPKG_LISTS_PATH="/var/cache/dnf"
-  _OSPKG_LISTS_PATTERN="*"
-  _OSPKG_OS_RELEASE[pm]="dnf"
   # DNF5 (Fedora 41+) renamed mark subcommands: install→user, remove→dependency.
   if dnf --version 2> /dev/null | grep -qE '(^5\.| 5\.[0-9])'; then
     _OSPKG_DNF_MARK_USER="user"
@@ -470,75 +462,39 @@ _ospkg_set_dnf() {
     _OSPKG_DNF_MARK_USER="install"
     _OSPKG_DNF_MARK_DEP="remove"
   fi
-  return 0
 }
 
 _ospkg_set_microdnf() {
-  logging__detect "Detected ecosystem: DNF (tool: microdnf)"
-  _OSPKG_FAMILY="dnf"
-  _OSPKG_PKG_MNGR="microdnf"
+  _ospkg_configure_pm "DNF (tool: microdnf)" dnf microdnf dnf _ospkg_clean_dnf "" ""
   _OSPKG_UPDATE=()
   _OSPKG_INSTALL=(users__run_privileged microdnf -y install --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0)
-  _OSPKG_CLEAN=_ospkg_clean_dnf
-  _OSPKG_LISTS_PATH=""
-  _OSPKG_LISTS_PATTERN=""
-  _OSPKG_OS_RELEASE[pm]="dnf"
-  return 0
 }
 
 _ospkg_set_yum() {
-  logging__detect "Detected ecosystem: YUM (tool: yum)"
-  _OSPKG_FAMILY="dnf"
-  _OSPKG_PKG_MNGR="yum"
+  _ospkg_configure_pm "YUM (tool: yum)" dnf yum yum _ospkg_clean_dnf "/var/cache/yum" "*"
   _OSPKG_UPDATE=(users__run_privileged yum check-update)
   _OSPKG_INSTALL=(users__run_privileged yum -y install)
-  _OSPKG_CLEAN=_ospkg_clean_dnf
-  _OSPKG_LISTS_PATH="/var/cache/yum"
-  _OSPKG_LISTS_PATTERN="*"
-  _OSPKG_OS_RELEASE[pm]="yum"
   _OSPKG_DNF_MARK_USER="install"
   _OSPKG_DNF_MARK_DEP="remove"
-  return 0
 }
 
 _ospkg_set_zypper() {
-  logging__detect "Detected ecosystem: Zypper (tool: zypper)"
-  _OSPKG_FAMILY="zypper"
-  _OSPKG_PKG_MNGR="zypper"
+  _ospkg_configure_pm "Zypper (tool: zypper)" zypper zypper zypper _ospkg_clean_zypper "/var/cache/zypp/raw" "*"
   _OSPKG_UPDATE=(users__run_privileged zypper --non-interactive refresh)
   _OSPKG_INSTALL=(users__run_privileged zypper --non-interactive install)
-  _OSPKG_CLEAN=_ospkg_clean_zypper
-  _OSPKG_LISTS_PATH="/var/cache/zypp/raw"
-  _OSPKG_LISTS_PATTERN="*"
-  _OSPKG_OS_RELEASE[pm]="zypper"
-  return 0
 }
 
 _ospkg_set_pacman() {
-  logging__detect "Detected ecosystem: Pacman (tool: pacman)"
-  _OSPKG_FAMILY="pacman"
-  _OSPKG_PKG_MNGR="pacman"
+  _ospkg_configure_pm "Pacman (tool: pacman)" pacman pacman pacman _ospkg_clean_pacman "/var/lib/pacman/sync" "*.db"
   _OSPKG_UPDATE=(users__run_privileged pacman -Sy --noconfirm)
   _OSPKG_INSTALL=(users__run_privileged pacman -S --noconfirm --needed)
-  _OSPKG_CLEAN=_ospkg_clean_pacman
-  _OSPKG_LISTS_PATH="/var/lib/pacman/sync"
-  _OSPKG_LISTS_PATTERN="*.db"
-  _OSPKG_OS_RELEASE[pm]="pacman"
-  return 0
 }
 
 _ospkg_set_brew() {
   local _label="${1:-Linux}"
-  logging__detect "Detected ecosystem: Homebrew (tool: brew) [${_label}]"
-  _OSPKG_FAMILY="brew"
-  _OSPKG_PKG_MNGR="brew"
+  _ospkg_configure_pm "Homebrew (tool: brew) [${_label}]" brew brew brew _ospkg_clean_brew "" ""
   _OSPKG_UPDATE=(_ospkg_brew_run update)
   _OSPKG_INSTALL=(_ospkg_brew_run install)
-  _OSPKG_CLEAN=_ospkg_clean_brew
-  _OSPKG_LISTS_PATH=""
-  _OSPKG_LISTS_PATTERN=""
-  _OSPKG_OS_RELEASE[pm]="brew"
-  return 0
 }
 
 # _ospkg_load_linux_release

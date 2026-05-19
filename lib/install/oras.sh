@@ -57,9 +57,8 @@ _install__oras_install_release() {
   _tag="v${_version#v}"
   _asset="oras_${_version#v}_${_platform}_${_arch}.tar.gz"
   _bin_dest="${_install_prefix%/}/bin"
-  local -a _owner_group_arg=() _idir_arg=()
-  [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
-  [ -n "$_installer_dir" ] && _idir_arg=(--installer-dir "$_installer_dir")
+  local -a _owner_group_arg _idir_arg
+  install__build_release_args "$_context" "$_group" "$_installer_dir" _owner_group_arg _idir_arg
   github__install_release \
     --repo "oras-project/oras" --tag "$_tag" \
     --asset "$_asset" --binary-src oras --binary-dest "${_bin_dest}/" \
@@ -118,50 +117,17 @@ EOF
 install__oras() {
   local _context="internal" _version="stable" _min_version="" _method="auto" _install_prefix="auto"
   local _if_exists="skip" _repos_manifest="" _owner_group="lib-oci-oras" _installer_dir=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --context)
-        shift
-        _context="${1-}"
-        ;;
-      --version)
-        shift
-        _version="${1-}"
-        ;;
-      --min-version)
-        shift
-        _min_version="${1-}"
-        ;;
-      --method)
-        shift
-        _method="${1-}"
-        ;;
-      --prefix)
-        shift
-        _install_prefix="${1-}"
-        ;;
-      --if-exists)
-        shift
-        _if_exists="${1-}"
-        ;;
-      --repos-manifest)
-        shift
-        _repos_manifest="${1-}"
-        ;;
-      --owner-group)
-        shift
-        _owner_group="${1-}"
-        ;;
-      --installer-dir)
-        shift
-        _installer_dir="${1-}"
-        ;;
-      *)
-        logging__error "install__oras: unknown option '$1'"
-        return 1
-        ;;
+  local -a _extra=()
+  install__parse_common_opts "install__oras" \
+    _context _version _method _install_prefix _if_exists _repos_manifest _owner_group _installer_dir \
+    _extra "$@" || return 1
+  local _i=0
+  while [[ $_i -lt ${#_extra[@]} ]]; do
+    case "${_extra[$_i]}" in
+      --min-version) ((_i++)); _min_version="${_extra[$_i]-}" ;;
+      *) logging__error "install__oras: unknown option '${_extra[$_i]}'"; return 1 ;;
     esac
-    shift
+    ((_i++))
   done
   [[ "$_context" == "internal" || "$_context" == "user" ]] || return 1
   [[ -n "$_owner_group" ]] || _owner_group="install-oras"
@@ -169,11 +135,8 @@ install__oras() {
   local _existing _existing_ver _state_ctx _state_path _state_group
   _existing="$(command -v oras 2> /dev/null || true)"
   install__read_state "oras" _state_ctx _state_path _state_group
-  if [[ -n "$_existing" && "$_context" == "user" && "$_state_ctx" == "internal" ]]; then
-    install__promote_path_to_user "${_state_group:-$_owner_group}" "$_state_path"
-    install__state_record "oras" "user" "${_method}" "${_existing}" "$_owner_group" || true
-    _state_ctx="user"
-  fi
+  install__maybe_promote_to_user "oras" "$_context" "$_method" "$_owner_group" \
+    "$_existing" _state_ctx _state_path _state_group
   if [[ -n "$_existing" ]]; then
     _existing_ver="$("$_existing" version 2> /dev/null | sed -n 's/^Version:[[:space:]]*//p' | head -n1)"
     [[ -z "$_existing_ver" ]] && _existing_ver="$("$_existing" version 2> /dev/null | head -n1 | sed 's/.*version[[:space:]]\+//I')"
@@ -196,11 +159,7 @@ install__oras() {
   fi
 
   if [[ "$_install_prefix" == "auto" || -z "$_install_prefix" ]]; then
-    if users__is_root; then
-      _install_prefix="/usr/local"
-    else
-      _install_prefix="${HOME}/.local"
-    fi
+    _install_prefix="$(users__default_prefix)"
   fi
   local _version_spec="$_version"
   _version="$(_install__oras_resolve_version "$_version_spec")" || return 1

@@ -16,6 +16,19 @@ _SHELL__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/users.sh
 . "$_SHELL__LIB_DIR/users.sh"
 
+# Shared awk helpers used by shell__write_block and shell__sync_block.
+# norm() strips BOM, leading/trailing whitespace, and CR; is_blank_line() tests for empty.
+_SHELL__AWK_NORM='
+  function norm(l) {
+    if (length(l) >= 3 && substr(l, 1, 3) == "\357\273\277") l = substr(l, 4)
+    sub(/^[[:space:]]+/, "", l)
+    sub(/\r$/, "", l)
+    sub(/[[:space:]]+$/, "", l)
+    return l
+  }
+  function is_blank_line(l) { return norm(l) == "" }
+'
+
 # @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro. Uses binary probing, never file-existence checks.
 #
 # Detection order: (1) strings-probe the bash binary (most accurate — bash
@@ -121,17 +134,7 @@ shell__write_block() {
     #
     # Formatting: one blank line above the block when it is not the first line
     # in the file (unless a blank line is already there); one blank line below.
-    awk -v begin="$_begin" -v end="$_end" -v content="$_content" '
-      function norm(l) {
-        if (length(l) >= 3 && substr(l, 1, 3) == "\357\273\277") l = substr(l, 4)
-        sub(/^[[:space:]]+/, "", l)
-        sub(/\r$/, "", l)
-        sub(/[[:space:]]+$/, "", l)
-        return l
-      }
-      function is_blank_line(l) {
-        return norm(l) == ""
-      }
+    awk -v begin="$_begin" -v end="$_end" -v content="$_content" "$_SHELL__AWK_NORM"'
       BEGIN { last_blank = 1 }
       norm($0) == begin {
         if (NR > 1 && !last_blank) print ""
@@ -210,14 +213,7 @@ shell__sync_block() {
     else
       [ -f "$_f" ] || continue
       grep -qF "$_begin" "$_f" || continue
-      awk -v begin="$_begin" -v end="$_end" '
-        function norm(l) {
-          if (length(l) >= 3 && substr(l, 1, 3) == "\357\273\277") l = substr(l, 4)
-          sub(/^[[:space:]]+/, "", l)
-          sub(/\r$/, "", l)
-          sub(/[[:space:]]+$/, "", l)
-          return l
-        }
+      awk -v begin="$_begin" -v end="$_end" "$_SHELL__AWK_NORM"'
         norm($0) == begin { found=1; next }
         found && norm($0) == end { found=0; next }
         found { next }

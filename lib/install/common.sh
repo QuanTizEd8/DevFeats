@@ -120,6 +120,106 @@ install__read_state() {
   printf -v "$_group_var" '%s' "$(install__state_owner_group "$_tool" 2> /dev/null || true)"
 }
 
+# @brief install__parse_common_opts <caller> <ctx_v> <ver_v> <method_v> <prefix_v> <ife_v> <repos_v> <group_v> <idir_v> <extra_arr_v> "$@" — Parse standard install-module flags into caller-named variables.
+#
+# Recognised flags (each takes one value argument):
+#   --context, --version, --method, --prefix, --if-exists,
+#   --repos-manifest, --owner-group, --installer-dir
+#
+# Unknown flags are appended (with their following value token) to the array
+# variable named by <extra_arr_v>.  Pass "" for <extra_arr_v> to make unknown
+# flags a fatal error (logged under <caller>).
+#
+# Callers must initialise variables to their defaults before calling this
+# function; only flags that are present on the command line are written.
+#
+# Args:
+#   <caller>       Function name used in error messages.
+#   <ctx_v>        Variable name for --context.
+#   <ver_v>        Variable name for --version.
+#   <method_v>     Variable name for --method.
+#   <prefix_v>     Variable name for --prefix.
+#   <ife_v>        Variable name for --if-exists.
+#   <repos_v>      Variable name for --repos-manifest.
+#   <group_v>      Variable name for --owner-group.
+#   <idir_v>       Variable name for --installer-dir.
+#   <extra_arr_v>  Array variable name for unrecognised flags (or "" to error).
+#   "$@"           Remaining positional args from the caller.
+#
+# Returns: 0 on success, 1 on unrecognised flag when <extra_arr_v> is "".
+install__parse_common_opts() {
+  local _caller="$1" _pctx="$2" _pver="$3" _pmethod="$4" _pprefix="$5"
+  local _pife="$6" _prepos="$7" _pgroup="$8" _pidir="$9" _pextra="${10-}"
+  shift 10
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --context)        shift; printf -v "$_pctx"    '%s' "${1-}" ;;
+      --version)        shift; printf -v "$_pver"    '%s' "${1-}" ;;
+      --method)         shift; printf -v "$_pmethod" '%s' "${1-}" ;;
+      --prefix)         shift; printf -v "$_pprefix" '%s' "${1-}" ;;
+      --if-exists)      shift; printf -v "$_pife"    '%s' "${1-}" ;;
+      --repos-manifest) shift; printf -v "$_prepos"  '%s' "${1-}" ;;
+      --owner-group)    shift; printf -v "$_pgroup"  '%s' "${1-}" ;;
+      --installer-dir)  shift; printf -v "$_pidir"   '%s' "${1-}" ;;
+      *)
+        if [[ -n "$_pextra" ]]; then
+          eval "${_pextra}+=($(printf '%q' "$1"))"
+        else
+          logging__error "${_caller}: unknown option '$1'"
+          return 1
+        fi
+        ;;
+    esac
+    shift
+  done
+}
+
+# @brief install__build_release_args <context> <group> <installer_dir> <out_owner_group_arr> <out_idir_arr> — Build the `--owner-group` and `--installer-dir` argument arrays for `github__install_release`.
+#
+# Populates the array variables named by <out_owner_group_arr> and <out_idir_arr>:
+#   --owner-group <group>      added when context == "internal"
+#   --installer-dir <dir>      added when installer_dir is non-empty
+#
+# Args:
+#   <context>           "internal" or "user".
+#   <group>             Resource-tracking group ID.
+#   <installer_dir>     Optional persistent work directory (may be empty).
+#   <out_owner_group_arr>  Name of the caller's array variable for --owner-group args.
+#   <out_idir_arr>         Name of the caller's array variable for --installer-dir args.
+install__build_release_args() {
+  local _context="$1" _group="$2" _installer_dir="$3"
+  local -n _bra_og="$4" _bra_id="$5"
+  _bra_og=()
+  _bra_id=()
+  [[ "$_context" == "internal" ]] && _bra_og=(--owner-group "$_group")
+  [[ -n "$_installer_dir" ]] && _bra_id=(--installer-dir "$_installer_dir")
+}
+
+# @brief install__maybe_promote_to_user <tool> <context> <method> <owner_group> <existing> <state_ctx_var> <state_path_var> <state_group_var> — Promote an internal install to user-owned when context==user and recorded state==internal.
+#
+# If the conditions are met: untracks the artifact from cleanup, re-records it
+# as user-owned, and sets the caller's state_ctx variable to "user".  A no-op
+# when the conditions are not met.
+#
+# Args:
+#   <tool>            Tool name key (e.g. "jq").
+#   <context>         Caller's requested context ("internal" or "user").
+#   <method>          Install method string recorded in the state file.
+#   <owner_group>     Fallback owner-group when the state file has none.
+#   <existing>        Path to the existing binary (empty → always a no-op).
+#   <state_ctx_var>   Name of caller's variable holding the recorded context.
+#   <state_path_var>  Name of caller's variable holding the recorded install path.
+#   <state_group_var> Name of caller's variable holding the recorded owner group.
+install__maybe_promote_to_user() {
+  local _tool="$1" _context="$2" _method="$3" _owner_group="$4" _existing="$5"
+  local _ctx_var="$6" _path_var="$7" _group_var="$8"
+  local _state_ctx="${!_ctx_var}" _state_path="${!_path_var}" _state_group="${!_group_var}"
+  [[ -n "$_existing" && "$_context" == "user" && "$_state_ctx" == "internal" ]] || return 0
+  install__promote_path_to_user "${_state_group:-$_owner_group}" "$_state_path"
+  install__state_record "$_tool" "user" "${_method}" "${_existing}" "$_owner_group" || true
+  printf -v "$_ctx_var" '%s' "user"
+}
+
 # @brief install__track_internal_path <group-id> <path> — Register internal non-PM artifact path for cleanup via ospkg resource tracking.
 install__track_internal_path() {
   local _group="${1-}" _path="${2-}"

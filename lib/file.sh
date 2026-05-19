@@ -24,19 +24,23 @@ packages:
     packages: [coreutils]
 EOF
 
+# _file__ensure_tool <cmd> <pkg> [context] (internal) — Ensure <cmd> is on PATH; install <pkg> via ospkg if absent.
+# [context] is an optional phrase inserted as "is required <context> but could not be installed".
+_file__ensure_tool() {
+  command -v "$1" > /dev/null 2>&1 && return 0
+  ospkg__install_tracked "lib-file" "$2" || true
+  command -v "$1" > /dev/null 2>&1 && return 0
+  logging__error "file.sh: $1 is required${3:+ $3} but could not be installed."
+  return 1
+}
+
 # _file__ensure_extract_tool <ext> (internal)
 # Ensures the extraction tool for <ext> is available; installs it via ospkg when possible.
 # <ext>: "zip" (installs unzip), "xz" (installs xz-utils/xz), "bz2" (installs bzip2), "gz" (installs gzip), "tar" (installs tar).
 _file__ensure_extract_tool() {
   local _ext="$1"
   case "$_ext" in
-    zip)
-      command -v unzip > /dev/null 2>&1 && return 0
-      ospkg__install_tracked "lib-file" unzip || true
-      command -v unzip > /dev/null 2>&1 && return 0
-      logging__error "file.sh: unzip is required to extract .zip archives but could not be installed."
-      return 1
-      ;;
+    zip) _file__ensure_tool unzip unzip "to extract .zip archives" ;;
     xz)
       command -v xz > /dev/null 2>&1 && return 0
       ospkg__run --manifest "$_FILE__XZ_MANIFEST" --build-group "lib-file" --skip_installed || true
@@ -44,30 +48,10 @@ _file__ensure_extract_tool() {
       logging__error "file.sh: xz is required to extract .tar.xz archives but could not be installed."
       return 1
       ;;
-    bz2)
-      command -v bzip2 > /dev/null 2>&1 && return 0
-      ospkg__install_tracked "lib-file" bzip2 || true
-      command -v bzip2 > /dev/null 2>&1 && return 0
-      logging__error "file.sh: bzip2 is required to extract .tar.bz2 archives but could not be installed."
-      return 1
-      ;;
-    gz)
-      command -v gzip > /dev/null 2>&1 && return 0
-      ospkg__install_tracked "lib-file" gzip || true
-      command -v gzip > /dev/null 2>&1 && return 0
-      logging__error "file.sh: gzip is required to extract .tar.gz archives but could not be installed."
-      return 1
-      ;;
-    tar)
-      command -v tar > /dev/null 2>&1 && return 0
-      ospkg__install_tracked "lib-file" tar || true
-      command -v tar > /dev/null 2>&1 && return 0
-      logging__error "file.sh: tar is required but could not be installed."
-      return 1
-      ;;
-    *)
-      return 0
-      ;;
+    bz2) _file__ensure_tool bzip2 bzip2 "to extract .tar.bz2 archives" ;;
+    gz)  _file__ensure_tool gzip gzip "to extract .tar.gz archives" ;;
+    tar) _file__ensure_tool tar tar "" ;;
+    *)   return 0 ;;
   esac
 }
 
