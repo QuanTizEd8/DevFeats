@@ -17,10 +17,6 @@ _long_description: |-
   with `auto` mode preferring upstream release binaries for compatibility and falling back to
   repository installation only when compatible packages are declared. On Debian/Ubuntu apt, `method=package`
   is intentionally unsupported because distro `yq` is the Python jq-wrapper implementation.
-
-  Use `method=package` when you want distro-managed packages, or `method=binary` when you need a
-  portable upstream binary path. The install is idempotent by default and can be configured with
-  `if_exists` behavior.
 _installer_dir: true
 options:
   version:
@@ -55,17 +51,6 @@ options:
           Install from the operating system package manager when it provides Mike Farah's yq.
       - value: binary
         description: Install from upstream GitHub release artifacts.
-  if_exists:
-    type: string
-    default: skip
-    description: Behavior when a yq binary is already present at the target prefix.
-    enum:
-      - value: skip
-        description: Reuse existing install and exit successfully.
-      - value: fail
-        description: Exit with an error when yq already exists.
-      - value: reinstall
-        description: Remove the existing binary then reinstall.
   shell_completions:
     type: array
     default: ''

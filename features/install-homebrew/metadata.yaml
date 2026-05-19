@@ -31,17 +31,6 @@ options:
       Note: `_REMOTE_USER` is not used for install ownership because the official
       Homebrew installer hardcodes `/home/linuxbrew/.linuxbrew` on Linux and ignores
       `HOMEBREW_PREFIX`. Shellenv for remoteUser is written by `add_remote_user` instead.
-  if_exists:
-    type: string
-    default: skip
-    description: What to do when Homebrew is already installed at the resolved prefix.
-    enum:
-    - value: skip
-      description: Continue to post-install steps without re-running the installer (idempotent).
-    - value: fail
-      description: Print an error and exit non-zero.
-    - value: reinstall
-      description: Uninstall the existing installation then install fresh.
   update:
     type: boolean
     default: true

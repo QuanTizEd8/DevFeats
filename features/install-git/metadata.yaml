@@ -104,28 +104,6 @@ options:
       description: Install Bash completion to `/etc/bash_completion.d/git` (root) or `~/.local/share/bash-completion/completions/git` (non-root).
     - value: zsh
       description: Install Zsh completion to `<zshdir>/completions/_git` (root) or `~/.zfunc/_git` (non-root).
-  if_exists:
-    type: string
-    default: update
-    description: |-
-      What to do when git is already present in PATH before installation begins.
-      If the installed version already matches the resolved target version,
-      installation is always skipped silently regardless of this setting.
-    enum:
-    - value: skip
-      description: Log a notice and exit successfully without making any changes (idempotent).
-    - value: fail
-      description: Print an error and exit non-zero.
-    - value: reinstall
-      description: |-
-        Detect and uninstall the existing git (via dpkg/apk/rpm/brew), then install fresh.
-        - If the existing git is package-managed, it is removed via the package manager.
-        - If source-installed, all files under `prefix` and the equivs dummy package (Debian/Ubuntu only) are removed before reinstalling.
-    - value: update
-      description: |-
-        Upgrade to the resolved target version.
-        Same-method updates proceed in place: the package manager re-runs natively for `method=package`; for `method=source`, binaries are overwritten if the prefix matches, or the old prefix is removed first if it differs.
-        Method-switch updates behave identically to `reinstall`.
   default_branch:
     type: string
     default: main

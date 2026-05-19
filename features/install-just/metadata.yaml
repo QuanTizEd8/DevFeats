@@ -10,11 +10,6 @@ _long_description: |-
   Installs the `just` command runner with configurable installation methods:
   GitHub release assets, distro package repositories, the official installer script,
   and Cargo-based installation.
-
-  `method=auto` prefers release assets for deterministic binaries, then falls back
-  to distro repositories, official script, and Cargo. Use `version` to pin an exact
-  release, `prefix` to control installation destination for non-repository methods,
-  and `if_exists` to control behavior when `just` is already available.
 _installer_dir: true
 options:
   method:
@@ -43,17 +38,6 @@ options:
         description: Resolve and install the most recently published release, potentially including pre-releases.
       - value: 1.50.0
         description: Install just v1.50.0.
-  if_exists:
-    type: string
-    default: skip
-    description: Behavior when `just` already exists in PATH.
-    enum:
-      - value: skip
-        description: Reuse the existing install and exit successfully.
-      - value: fail
-        description: Exit with an error when `just` already exists.
-      - value: reinstall
-        description: Reinstall using the selected method.
   target:
     type: string
     default: auto

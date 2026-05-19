@@ -30,19 +30,6 @@ options:
     - value: latest
       description: Resolve the most recently published Miniforge release via the GitHub Releases API, which may include pre-releases.
     type: string
-  if_exists:
-    default: skip
-    description: What to do when conda is already installed at `prefix`.
-    enum:
-    - value: skip
-      description: Warn and continue to post-install steps (idempotent).
-    - value: fail
-      description: Print an error and exit non-zero.
-    - value: reinstall
-      description: Uninstall the existing installation then install fresh.
-    - value: update
-      description: Update the base conda environment to the resolved version.
-    type: string
   preserve_envs:
     default: true
     _applies_when:

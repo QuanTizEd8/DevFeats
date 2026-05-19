@@ -230,23 +230,6 @@ options:
       - value: all
         description: Require valid signatures from all repositories including third-party ones.
 
-  if_exists:
-    type: string
-    default: skip
-    description: |-
-      What to do when a TeX Live installation is already detected before installation begins.
-      Detection checks for a `latex` binary in PATH or at the resolved `texdir`.
-    enum:
-      - value: skip
-        description: Log a notice and exit successfully without making any changes (idempotent).
-      - value: fail
-        description: Print an error and exit non-zero.
-      - value: reinstall
-        description: |-
-          Remove the existing TeX Live installation tree and reinstall from scratch.
-          For `method=script`, removes `texdir` before re-running the installer.
-          All `tlmgr`-installed packages are lost; `packages` will re-add them.
-
   # ── script profile options ───────────────────────────────────────────────
   # The following options map directly to keys in the texlive.profile file that
   # drives the install-tl (TeX Live Unix installer) script. They are all ignored when `profile` is set.

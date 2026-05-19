@@ -12,6 +12,35 @@
 #   condition:  exists | not_exists | equals | not_equals
 #   value:      required for equals / not_equals — the value to compare against
 
+if_exists:
+  type: string
+  default: skip
+  description: >-
+    Behaviour when the tool is already present before installation begins.
+  enum:
+    - value: skip
+      description: >-
+        Tool present in PATH — skip and exit successfully.
+        Tool absent — proceed with installation.
+    - value: fail
+      description: >-
+        Tool present in PATH — exit with an error.
+        Tool absent — proceed with installation.
+    - value: reinstall
+      description: >-
+        Tool present — uninstall (method-aware) and reinstall at target prefix.
+        Tool absent — proceed with installation.
+    - value: update
+      description: >-
+        Tool present — update to the target version at the target prefix and method;
+        no-op if version, location, and method already match.
+        Uses the tool's own update command when available; falls back to reinstall.
+        Tool absent — proceed with fresh installation.
+    - value: uninstall
+      description: >-
+        Tool present — remove (method-aware) and exit without installing.
+        Tool absent — exit successfully (no install performed).
+
 keep_build_deps:
   type: boolean
   default: false

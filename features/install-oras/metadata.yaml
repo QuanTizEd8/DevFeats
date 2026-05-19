@@ -16,10 +16,6 @@ _long_description: |-
   build scripts, CI tasks, and interactive shell sessions. By default, the latest stable ORAS version is
   installed, or you can pin a specific release. The installer supports release-based installation
   and package-manager installation, with `auto` preferring the release path first.
-
-  For release installs, artifact integrity is enforced with checksum and GPG signature validation.
-  If ORAS is already present, `if_exists` controls whether the install is reused, failed, or
-  reinstalled.
 _installer_dir: true
 options:
   version:
@@ -46,17 +42,6 @@ options:
         description: |-
           Install from the operating system package manager.
           Package selection and platform support are controlled by `_dependencies.run.os-pkg`.
-  if_exists:
-    type: string
-    default: skip
-    description: Behavior when `oras` already exists.
-    enum:
-      - value: skip
-        description: Reuse existing install when compatible.
-      - value: fail
-        description: Exit with an error if `oras` already exists.
-      - value: reinstall
-        description: Reinstall ORAS using the selected method.
 _dependencies:
   run:
     base:

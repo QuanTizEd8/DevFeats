@@ -10,10 +10,6 @@ keywords:
 _long_description: |-
   Installs the Dev Container CLI (`devcontainer`) using either the upstream standalone
   installer script (bundled Node.js runtime) or npm (`@devcontainers/cli`).
-
-  The default `method=auto` selects the upstream script on supported Linux/macOS
-  architectures and falls back to npm otherwise. `if_exists` controls idempotency
-  behavior when `devcontainer` is already present.
 _installer_dir: true
 options:
   method:
@@ -36,17 +32,6 @@ options:
         description: Install the latest available version.
       - value: 0.86.1
         description: Install a specific version.
-  if_exists:
-    type: string
-    default: skip
-    description: Behavior when `devcontainer` already exists in PATH.
-    enum:
-      - value: skip
-        description: Reuse existing install and exit successfully.
-      - value: fail
-        description: Exit non-zero when an existing install is detected.
-      - value: reinstall
-        description: Reinstall using the selected method.
   node_version:
     type: string
     default: "20"
@@ -56,14 +41,6 @@ options:
         description: Node.js 20 LTS line.
       - value: "22"
         description: Node.js 22 LTS line.
-  update:
-    type: boolean
-    default: false
-    description: Run the updater mode when supported (`method=script`).
-  uninstall:
-    type: boolean
-    default: false
-    description: Uninstall instead of install (supported for `method=script` and npm).
 onCreateCommand:
   verification:
     description: Verify `devcontainer` is installed and working by running `devcontainer --help`.

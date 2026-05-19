@@ -10,13 +10,6 @@ _long_description: |-
   Installs `jq`, the lightweight command-line JSON processor written in portable C.
   Widely used for filtering, transforming, and validating JSON in shell pipelines,
   CI/CD scripts, and configuration tooling.
-
-  `method=auto` prefers a verified upstream release binary for reproducible version
-  pinning and falls back to the OS package manager. Use `version` to pin an exact
-  release, `prefix` to control the installation destination for the binary or source
-  method, and `if_exists` to control behaviour when `jq` is already available.
-  Use `method=source` when package or binary methods do not satisfy constraints
-  (e.g. uncommon architectures or patching requirements).
 _installer_dir: true
 options:
   method:
@@ -60,17 +53,6 @@ options:
         description: jq v1.7.1.
       - value: '1.6'
         description: jq v1.6 (uses legacy release asset naming).
-  if_exists:
-    type: string
-    default: skip
-    description: Behavior when `jq` already exists in PATH.
-    enum:
-      - value: skip
-        description: Reuse the existing install and exit successfully.
-      - value: fail
-        description: Exit with an error when `jq` already exists.
-      - value: reinstall
-        description: Reinstall using the selected method.
 _dependencies:
   run:
     base:

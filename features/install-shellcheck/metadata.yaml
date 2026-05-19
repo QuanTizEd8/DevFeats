@@ -11,12 +11,6 @@ keywords:
 _long_description: |-
   Installs ShellCheck, the static analysis tool for shell scripts.
 
-  `method=auto` prefers a verified upstream release archive and falls back to
-  the OS package manager. Use `version` to pin
-  an exact release, `prefix` to control the installation destination for the
-  binary method, and `if_exists` to control behaviour when `shellcheck` is
-  already available.
-
   Note: upstream releases do not provide an ARM64 macOS binary; on Apple
   Silicon `method=binary` is unavailable and `method=auto` falls back to
   the package manager automatically.
@@ -44,17 +38,6 @@ options:
         description: Resolve and install the most recently published release, potentially including pre-releases.
       - value: 0.10.0
         description: Install shellcheck v0.10.0.
-  if_exists:
-    type: string
-    default: skip
-    description: Behavior when `shellcheck` already exists in PATH.
-    enum:
-      - value: skip
-        description: Reuse the existing install and exit successfully.
-      - value: fail
-        description: Exit with an error when `shellcheck` already exists.
-      - value: reinstall
-        description: Reinstall using the selected method.
 customizations:
   vscode:
     extensions:

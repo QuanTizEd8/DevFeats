@@ -121,22 +121,6 @@ options:
       Accepted values: 'x86_64', 'aarch64' (mapped to linux-x64 / linux-arm64 for Linux; darwin-arm64 for macOS).
       When empty (default), the architecture is detected automatically from uname -m.
       Useful for cross-arch scenarios or forced emulation.
-  if_exists:
-    type: string
-    default: skip
-    description: |-
-      What to do when a `node` binary is already found in PATH before installation begins.
-      If the installed version already matches the resolved target version, installation is always skipped silently regardless of this setting.
-    enum:
-    - value: skip
-      description: Log a notice and exit successfully without making any changes (idempotent).
-    - value: fail
-      description: Print an error and exit non-zero.
-    - value: reinstall
-      description: |-
-        Remove the existing Node.js installation and install fresh using the selected method.
-        With `method=nvm`, runs `nvm uninstall <version>` then reinstalls.
-        With `method=binary`, overwrites the extracted files.
   install_user:
     type: string
     default: ''
