@@ -212,6 +212,7 @@ install__parse_common_opts() {
 #   <out_idir_arr>         Name of the caller's array variable for --installer-dir args.
 install__build_release_args() {
   local _context="$1" _group="$2" _installer_dir="$3"
+  # shellcheck disable=SC2178
   local -n _bra_og="$4" _bra_id="$5"
   _bra_og=()
   _bra_id=()
