@@ -1,5 +1,4 @@
-
-# Lib Unit Tests (bats)
+# Library Tests
 
 Unit tests for `lib/` live under `test/lib/`. Each `.bats` file covers one module.
 
