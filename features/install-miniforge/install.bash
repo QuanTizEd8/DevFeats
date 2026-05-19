@@ -104,15 +104,6 @@ check_root_requirement() {
   logging__fn_exit "check_root_requirement"
 }
 
-get_script_dir() {
-  logging__fn_entry "get_script_dir"
-  local script_dir
-  script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-  logging__info "Write output 'script_dir': '${script_dir}'"
-  echo "${script_dir}"
-  logging__fn_exit "get_script_dir"
-}
-
 install_miniforge() {
   logging__fn_entry "install_miniforge"
   logging__install "Installing Miniforge to $PREFIX"
@@ -134,14 +125,6 @@ install_miniforge() {
 
 set_executable_paths() {
   logging__fn_entry "set_executable_paths"
-  __usage__() {
-    logging__info "Usage:"
-    logging__info "  --verify (boolean): This is useful before running the post-installation steps
-  (especially when the installation steps were skipped)
-  to ensure that the executables are available.
-  "
-    exit 0
-  }
   local verify=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -150,7 +133,6 @@ set_executable_paths() {
         verify=true
         logging__read "Read argument 'verify': '${verify}'"
         ;;
-      --help | -h) __usage__ ;;
       --*)
         logging__error "Unknown option: '${1}'"
         exit 1
