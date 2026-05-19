@@ -21,7 +21,8 @@ _devcontainer_cli__install_script() {
   local _asset_dir
   _asset_dir="$(uri__fetch_asset \
     "https://raw.githubusercontent.com/devcontainers/cli/main/scripts/install.sh" \
-    --chmod-exec install.sh)" || return 1
+    --chmod-exec install.sh \
+    --installer-dir "${INSTALLER_DIR}")" || return 1
 
   local -a _args
   _args=(--prefix "${_install_prefix}" --node-version "${_node_version}")

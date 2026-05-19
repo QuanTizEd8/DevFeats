@@ -14,6 +14,7 @@ _long_description: |-
   The default `method=auto` selects the upstream script on supported Linux/macOS
   architectures and falls back to npm otherwise. `if_exists` controls idempotency
   behavior when `devcontainer` is already present.
+_installer_dir: true
 options:
   method:
     type: string

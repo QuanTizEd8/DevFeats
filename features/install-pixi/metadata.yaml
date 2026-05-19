@@ -14,6 +14,7 @@ _long_description: >-
   the official Pixi release channel, with optional version pinning and checksum
   verification. Shell activation is configured for the specified users after installation.
 _user_file_fetch: true
+_installer_dir: true
 options:
   version:
     type: string
@@ -50,13 +51,6 @@ options:
       description: |-
         Run `pixi self-update --version <resolved>` to update in-place.
         Only works for installer-managed pixi (not Homebrew/conda/mamba).
-  installer_dir:
-    type: string
-    default: ''
-    description: |-
-      Working directory for download and archive extraction.
-      When empty (default), a private temporary directory is used and removed automatically on exit.
-      When set, the directory and its contents are retained after installation.
   arch:
     type: string
     default: ''

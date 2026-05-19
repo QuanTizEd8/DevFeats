@@ -13,6 +13,7 @@ _long_description: >-
   binary from GitHub Releases with SHA-256 verification. After installation the feature
   can configure shell completions, a per-user Git credential helper, Git protocol, and
   commit signing for all resolved users. Extensions can be pre-installed during setup.
+_installer_dir: true
 options:
   method:
     type: string
@@ -172,15 +173,6 @@ options:
     description: |-
       The hostname to configure as the git credential helper target.
       Defaults to 'github.com'. Set to your GitHub Enterprise Server hostname (e.g. 'git.corp.example.com') when using GHES.
-  installer_dir:
-    type: string
-    _applies_when:
-      - method: [binary]
-    default: ''
-    description: |-
-      Working directory for download and archive extraction when `method=binary`.
-      When empty (default), a private temporary directory is used and removed automatically on exit.
-      When set, the directory and its contents are retained after installation.
 customizations:
   vscode:
     extensions:

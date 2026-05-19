@@ -19,6 +19,7 @@ _long_description: |-
 
   Version aliases such as lts/*, --lts, or a major version number are supported alongside
   exact semver strings; the default installs the latest Active LTS release.
+_installer_dir: true
 options:
   method:
     type: string
@@ -120,13 +121,6 @@ options:
       Accepted values: 'x86_64', 'aarch64' (mapped to linux-x64 / linux-arm64 for Linux; darwin-arm64 for macOS).
       When empty (default), the architecture is detected automatically from uname -m.
       Useful for cross-arch scenarios or forced emulation.
-  installer_dir:
-    type: string
-    default: ''
-    description: |-
-      Working directory for downloading the Node.js tarball and checksum sidecar (method=binary) or the nvm install script (method=nvm).
-      When empty (default), a private temporary directory is used and removed automatically on exit.
-      When set, the directory and its contents are retained after installation.
   if_exists:
     type: string
     default: skip

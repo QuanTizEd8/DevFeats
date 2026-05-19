@@ -45,14 +45,12 @@ _install__just_install_release() {
 
   local -a _owner_group_arg=()
   [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
-  local -a _idir_arg=()
-  [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
 
   github__install_release \
     --repo "casey/just" --tag "${_version}" \
     --asset "$_asset" --binary-src just --binary-dest "${_install_prefix%/}/bin/" \
     --sidecar "${_base}/SHA256SUMS" \
-    "${_idir_arg[@]}" \
+    --installer-dir "${INSTALLER_DIR}" \
     "${_owner_group_arg[@]}" ||
     return 1
   install__state_record "just" "$_context" "binary" "${_install_prefix%/}/bin/just" "$_group" || true

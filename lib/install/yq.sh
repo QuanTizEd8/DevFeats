@@ -36,18 +36,19 @@ _install__yq_compatible() {
   "$_bin" -o=json '.' /dev/null > /dev/null 2>&1
 }
 
-# @brief _install__yq_install_release <context> <group> <prefix> [version] — Install yq from GitHub release assets with checksum verification.
+# @brief _install__yq_install_release <context> <group> <prefix> [version] [installer-dir] — Install yq from GitHub release assets with checksum verification.
 #
 # Args:
-#   <context>  `internal` or `user`.
-#   <group>    Resource-tracking group ID.
-#   <prefix>   Installation prefix (only used for `user` context).
-#   [version]  Bare semver (no `v`). Empty means latest.
+#   <context>        `internal` or `user`.
+#   <group>          Resource-tracking group ID.
+#   <prefix>         Installation prefix (only used for `user` context).
+#   [version]        Bare semver (no `v`). Empty means latest.
+#   [installer-dir]  Optional persistent work directory (passed to github__install_release).
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
 _install__yq_install_release() {
-  local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}"
+  local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}" _installer_dir="${5-}"
   local _os _arch _base _install_bin_dir _expected_hash _hdir _f
   _os="$(os__release_kernel)" || return 1
   _arch="$(os__release_arch)" || return 1
@@ -86,13 +87,15 @@ _install__yq_install_release() {
     return 1
   fi
 
-  local -a _owner_group_arg=()
+  local -a _owner_group_arg=() _idir_arg=()
   [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
+  [ -n "$_installer_dir" ] && _idir_arg=(--installer-dir "$_installer_dir")
 
   github__install_release \
     --repo "mikefarah/yq" --tag "v${_version}" \
     --asset "yq_${_os}_${_arch}" --binary-dest "${_install_bin_dir%/}/yq" \
     --sha256 "$_expected_hash" \
+    "${_idir_arg[@]}" \
     "${_owner_group_arg[@]}" ||
     return 1
   install__state_record "yq" "$_context" "binary" "${_install_bin_dir%/}/yq" "$_group" || true
@@ -123,7 +126,7 @@ _install__yq_install_repos() {
 
 # @brief install__yq --context <internal|user> [--method <auto|binary|package>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--version <semver|''>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
 install__yq() {
-  local _context="internal" _method="auto" _owner_group="devfeats-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest="" _version=""
+  local _context="internal" _method="auto" _owner_group="devfeats-ospkg-internals" _if_exists="skip" _install_prefix="auto" _repos_manifest="" _version="" _installer_dir=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context)
@@ -153,6 +156,10 @@ install__yq() {
       --version)
         shift
         _version="${1-}"
+        ;;
+      --installer-dir)
+        shift
+        _installer_dir="${1-}"
         ;;
       *)
         logging__error "install__yq: unknown option '$1'"
@@ -185,9 +192,9 @@ install__yq() {
     fi
   fi
   case "$_method" in
-    binary) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" ;;
+    binary) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" ;;
     package) _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
-    auto) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
+    auto) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     *)
       logging__error "install__yq: invalid method '${_method}'."
       return 1

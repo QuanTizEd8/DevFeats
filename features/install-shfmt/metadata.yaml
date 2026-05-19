@@ -15,6 +15,7 @@ _long_description: |-
   the OS package manager. Use `version` to pin an exact release, `prefix` to
   control the installation destination for the binary method, and `if_exists`
   to control behaviour when `shfmt` is already available.
+_installer_dir: true
 options:
   method:
     type: string

@@ -314,7 +314,6 @@ check_root_requirement
 set_executable_paths
 
 resolve_miniforge_version
-[ -z "${INSTALLER_DIR:-}" ] && INSTALLER_DIR="$(file__mktmpdir "miniforge-installer")"
 _installer_filename="Miniforge3-${MINIFORGE_VERSION}-$(os__kernel)-$(os__arch).sh"
 github__install_release \
   --repo "conda-forge/miniforge" \

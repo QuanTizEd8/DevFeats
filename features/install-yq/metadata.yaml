@@ -21,6 +21,7 @@ _long_description: |-
   Use `method=package` when you want distro-managed packages, or `method=binary` when you need a
   portable upstream binary path. The install is idempotent by default and can be configured with
   `if_exists` behavior.
+_installer_dir: true
 options:
   version:
     type: string

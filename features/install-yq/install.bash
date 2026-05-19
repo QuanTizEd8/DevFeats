@@ -134,7 +134,8 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
     --if-exists "${IF_EXISTS}" \
     --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" \
     --prefix "${PREFIX}" \
-    --version "${VERSION}" > /dev/null
+    --version "${VERSION}" \
+    --installer-dir "${INSTALLER_DIR}" > /dev/null
 fi
 if [ "${METHOD}" = "auto" ]; then
   if [ -x "${PREFIX}/bin/yq" ]; then

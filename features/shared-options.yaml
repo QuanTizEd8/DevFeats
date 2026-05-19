@@ -54,6 +54,18 @@ fetch_netrc:
     Does not replace feature-specific credential options (e.g. install-pixi `netrc`
     for the pixi binary download); use together when both apply.
 
+installer_dir:
+  _apply_when:
+    jsonpath: $._installer_dir
+    condition: equals
+    value: true
+  type: string
+  default: ''
+  description: >-
+    Working directory for download and archive extraction.
+    When empty (default), a private temporary directory is used and removed automatically on exit.
+    When set, the directory and its contents are retained after installation.
+
 log_level:
   type: string
   default: info

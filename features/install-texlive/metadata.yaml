@@ -32,6 +32,7 @@ _long_description: |-
     option influences the package set selected where the distro offers multiple granularity levels.
     Version is controlled by the distribution's package policy.
 
+_installer_dir: true
 options:
   method:
     type: string
@@ -245,18 +246,6 @@ options:
           Remove the existing TeX Live installation tree and reinstall from scratch.
           For `method=script`, removes `texdir` before re-running the installer.
           All `tlmgr`-installed packages are lost; `packages` will re-add them.
-
-  installer_dir:
-    type: string
-    _applies_when:
-      - method: [script]
-    default: ''
-    description: |-
-      Working directory for downloading and extracting the TeX Live installer archive
-      (`install-tl-unx.tar.gz`) and its extracted contents.
-      When empty (default), a private temporary directory is used and removed automatically on exit.
-      When set, the directory and its contents are retained after installation.
-
 
   # ── script profile options ───────────────────────────────────────────────
   # The following options map directly to keys in the texlive.profile file that

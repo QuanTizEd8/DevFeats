@@ -15,6 +15,7 @@ _long_description: >-
   downloaded, verified against its SHA-256 checksum sidecar (hard-fail on mismatch or missing sidecar), and run non-interactively.
   Shell activation is written to the appropriate startup files and can be scoped to
   specific users.
+_installer_dir: true
 options:
   version:
     default: stable
@@ -80,13 +81,6 @@ options:
     default: false
     description: Run the Miniforge installer in interactive mode, allowing it to prompt the user.
     type: boolean
-  installer_dir:
-    default: ''
-    description: |-
-      Working directory for downloading the Miniforge installer script and checksum sidecar.
-      When empty (default), a private temporary directory is used and removed automatically on exit.
-      When set, the directory and its contents are retained after installation.
-    type: string
 onCreateCommand:
   verification:
     description: Verify conda is installed and working by running `conda info`.

@@ -13,6 +13,7 @@ _long_description: >-
   supporting every Linux distribution and macOS. After installation, system-level Git
   configuration and per-user identity settings are written for all resolved users. Shell
   completions are installed following source builds.
+_installer_dir: true
 options:
   method:
     type: string
@@ -58,15 +59,6 @@ options:
       System configuration directory for source builds (passed as `sysconfdir=` to `make`). Git reads `<sysconfdir>/gitconfig` as its system-level config file.
       `auto` (default) — resolves to `/etc` when running as root, or `$HOME/.config` when running as non-root.
       An explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.
-  installer_dir:
-    type: string
-    _applies_when:
-      - method: [source]
-    default: ''
-    description: |-
-      Working directory for the source build: tarball download, extraction, and compilation happen here.
-      When empty (default), a private temporary directory is used and removed automatically on exit.
-      When set, the directory and its contents are retained after installation.
   no_flags:
     type: array
     _applies_when:

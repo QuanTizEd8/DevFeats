@@ -20,6 +20,7 @@ _long_description: |-
   For release installs, artifact integrity is enforced with checksum and GPG signature validation.
   If ORAS is already present, `if_exists` controls whether the install is reused, failed, or
   reinstalled.
+_installer_dir: true
 options:
   version:
     type: string
@@ -56,15 +57,6 @@ options:
         description: Exit with an error if `oras` already exists.
       - value: reinstall
         description: Reinstall ORAS using the selected method.
-  installer_dir:
-    type: string
-    _applies_when:
-      - method: [binary]
-    default: ''
-    description: |-
-      Working directory for download and archive extraction when `method=binary`.
-      When empty (default), a private temporary directory is used and removed automatically on exit.
-      When set, the directory and its contents are retained after installation.
 _dependencies:
   run:
     base:

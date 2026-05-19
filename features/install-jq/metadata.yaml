@@ -17,6 +17,7 @@ _long_description: |-
   method, and `if_exists` to control behaviour when `jq` is already available.
   Use `method=source` when package or binary methods do not satisfy constraints
   (e.g. uncommon architectures or patching requirements).
+_installer_dir: true
 options:
   method:
     type: string

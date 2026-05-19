@@ -69,7 +69,6 @@ detect_triple() {
 
 resolve_installer_paths() {
   logging__fn_entry "resolve_installer_paths"
-  [ -z "${INSTALLER_DIR:-}" ] && INSTALLER_DIR="$(file__mktmpdir "pixi-installer")"
   if [ -n "${DOWNLOAD_URL}" ]; then
     ARCHIVE_URL="${DOWNLOAD_URL}"
     SIDECAR_URL=""

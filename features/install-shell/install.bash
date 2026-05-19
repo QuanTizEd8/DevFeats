@@ -186,13 +186,11 @@ install_fzf() {
   local _filename="fzf-${_version}-${_os}_${_fzf_arch}.tar.gz"
   local _base_url="https://github.com/junegunn/fzf/releases/download/v${_version}"
 
-  local -a _idir_arg=()
-  [ -n "${INSTALLER_DIR:-}" ] && _idir_arg=(--installer-dir "${INSTALLER_DIR}")
   github__install_release \
     --repo "junegunn/fzf" --tag "v${_version}" \
     --asset "$_filename" --binary-src fzf --binary-dest "${_bin_dir}/" \
     --sidecar "${_base_url}/fzf_${_version}_checksums.txt" \
-    "${_idir_arg[@]}" ||
+    --installer-dir "${INSTALLER_DIR}" ||
     return 1
 
   logging__success "fzf installed to '${_bin_dir}/fzf'."

@@ -332,9 +332,6 @@ _git__install_source() {
   local _resolved_ver
   _resolved_ver="$(_git__source_resolve_version)"
 
-  # 3. Materialize installer dir (empty default → auto-cleaned tmpdir).
-  [ -z "${INSTALLER_DIR:-}" ] && INSTALLER_DIR="$(file__mktmpdir "git-build")"
-
   # 4. Check Xcode CLT on macOS.
   if [ "$(os__kernel)" = "Darwin" ]; then
     xcode-select --print-path > /dev/null 2>&1 || {

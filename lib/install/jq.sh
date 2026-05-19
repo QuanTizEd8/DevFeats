@@ -63,18 +63,19 @@ _install__jq_gpg_key_url() {
   fi
 }
 
-# @brief _install__jq_install_release <version> <prefix> <group> <context> — Install jq from a GitHub release binary with SHA-256 and GPG verification.
+# @brief _install__jq_install_release <version> <prefix> <group> <context> [installer-dir] — Install jq from a GitHub release binary with SHA-256 and GPG verification.
 #
 # Args:
-#   <version>  Bare semver string (no leading `v`), e.g. `1.7.1`.
-#   <prefix>   Installation prefix; binary goes to `<prefix>/bin/jq`.
-#   <group>    Resource-tracking group ID.
-#   <context>  `internal` or `user`; controls cleanup tracking.
+#   <version>        Bare semver string (no leading `v`), e.g. `1.7.1`.
+#   <prefix>         Installation prefix; binary goes to `<prefix>/bin/jq`.
+#   <group>          Resource-tracking group ID.
+#   <context>        `internal` or `user`; controls cleanup tracking.
+#   [installer-dir]  Optional persistent work directory (passed to github__install_release).
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
 _install__jq_install_release() {
-  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
+  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}"
   local _os _arch _asset _base_url _key_url _major _minor
   _os="$(os__release_kernel)" || return 1
   [[ "$_os" == "darwin" ]] && _os="macos"
@@ -99,8 +100,9 @@ _install__jq_install_release() {
     _sidecar_args=(--sidecar "${_base_url}/sha256sum.txt")
   fi
 
-  local -a _owner_group_arg=()
+  local -a _owner_group_arg=() _idir_arg=()
   [[ "$_context" == "internal" ]] && _owner_group_arg=(--owner-group "$_group")
+  [ -n "$_installer_dir" ] && _idir_arg=(--installer-dir "$_installer_dir")
 
   github__install_release \
     --repo "jqlang/jq" --tag "jq-${_version}" \
@@ -108,6 +110,7 @@ _install__jq_install_release() {
     "${_sidecar_args[@]}" \
     --gpg-key "$_key_url" \
     --gpg-sig "https://raw.githubusercontent.com/jqlang/jq/master/sig/v${_version}/${_asset}.asc" \
+    "${_idir_arg[@]}" \
     "${_owner_group_arg[@]}" ||
     return 1
   install__state_record "jq" "$_context" "binary" "${_install_prefix%/}/bin/jq" "$_group" || true
@@ -182,7 +185,7 @@ _install__jq_install_source() {
 # @brief install__jq --context <internal|user> [--method <auto|binary|package|source>] [--version <semver|stable|latest>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] — Ensure jq is installed with context-aware ownership semantics.
 install__jq() {
   local _context="internal" _version="stable" _method="auto" _install_prefix="auto"
-  local _if_exists="skip" _repos_manifest="" _owner_group="feature::install-jq"
+  local _if_exists="skip" _repos_manifest="" _owner_group="feature::install-jq" _installer_dir=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context)
@@ -212,6 +215,10 @@ install__jq() {
       --owner-group)
         shift
         _owner_group="${1-}"
+        ;;
+      --installer-dir)
+        shift
+        _installer_dir="${1-}"
         ;;
       *)
         logging__error "install__jq: unknown option '$1'"
@@ -273,7 +280,7 @@ install__jq() {
 
   case "$_method" in
     binary)
-      _install__jq_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context"
+      _install__jq_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir"
       ;;
     package)
       _install__jq_install_repos "$_owner_group" "$_context" "$_repos_manifest"
@@ -282,7 +289,7 @@ install__jq() {
       _install__jq_install_source "$_version" "$_install_prefix" "$_owner_group" "$_context"
       ;;
     auto)
-      _install__jq_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" ||
+      _install__jq_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" ||
         _install__jq_install_repos "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)
