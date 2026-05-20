@@ -118,31 +118,3 @@ zsh-syntax-highlighting"
   assert_success
 }
 
-# ---------------------------------------------------------------------------
-# str__extract_version_suffix
-# ---------------------------------------------------------------------------
-
-@test "str__extract_version_suffix reads trailing 'v<X.Y.Z>' after whitespace" {
-  run str__extract_version_suffix "Name v1.2.3"
-  assert_output "1.2.3"
-  assert_success
-}
-
-@test "str__extract_version_suffix returns empty when the tail is not a semver" {
-  run str__extract_version_suffix "no version here"
-  assert_output ""
-  assert_success
-}
-
-@test "str__extract_version_suffix does not match without the leading 'v'" {
-  run str__extract_version_suffix "Name 1.2.3"
-  assert_output ""
-  assert_success
-}
-
-@test "str__extract_version_suffix requires v to be at the start or after whitespace" {
-  # 'uv1.2.3' should NOT match because 'v' is preceded by a non-space letter.
-  run str__extract_version_suffix "uv1.2.3"
-  assert_output ""
-  assert_success
-}

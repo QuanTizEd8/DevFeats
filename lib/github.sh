@@ -24,6 +24,8 @@ _GITHUB__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_GITHUB__LIB_DIR/install/common.sh"
 # shellcheck source=lib/uri.sh
 [[ -z "${_URI__LIB_LOADED-}" ]] && . "$_GITHUB__LIB_DIR/uri.sh"
+# shellcheck source=lib/ver.sh
+[[ -z "${_VER__LIB_LOADED-}" ]] && . "$_GITHUB__LIB_DIR/ver.sh"
 
 # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
 #
@@ -591,10 +593,12 @@ github__resolve_version() {
       _tag="$(printf '%s\n' "$_releases" | head -1)"
       ;;
     *)
-      # Numeric spec: strip leading non-numerics, stream releases page by page
-      # until the first matching stable release is found.
+      # Numeric spec: strip any leading non-numeric prefix (e.g. "v", "jq-")
+      # while preserving pre-release markers, then stream releases until the
+      # first matching stable tag is found.  Major-only specs like "1" are
+      # supported via the single-digit fallback in ver__extract_version.
       local _norm
-      _norm="$(_github__strip_tag_prefix "$_spec")"
+      _norm="$(ver__extract_version --keep-suffix "$_spec")"
       [ -n "$_norm" ] || {
         logging__error "github__resolve_version: spec '${_spec}' contains no numeric version content."
         return 1
@@ -606,7 +610,7 @@ github__resolve_version() {
       ;;
   esac
 
-  printf '%s\n%s\n' "$_tag" "$(_github__strip_tag_prefix "$_tag")"
+  printf '%s\n%s\n' "$_tag" "$(ver__extract_version --keep-suffix "$_tag")"
   return 0
 }
 
@@ -1026,14 +1030,6 @@ _github__api_get() {
   fi
   [ "$_xt" = "true" ] && { set -x; } 2> /dev/null
   return "$_ec"
-}
-
-# _github__strip_tag_prefix <tag>  (internal)
-#
-# Strip all leading non-numeric characters from a tag or version string.
-# "v1.2.3" → "1.2.3", "jq-1.7.1" → "1.7.1", "1.2.3" → "1.2.3".
-_github__strip_tag_prefix() {
-  printf '%s' "$1" | sed 's/^[^0-9]*//'
 }
 
 # _github__first_stable_tag_matching <repo> <norm_spec>  (internal)

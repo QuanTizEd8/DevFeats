@@ -19,6 +19,8 @@ _INSTALL_JQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_INSTALL_JQ_LIB_DIR}/../net.sh"
 # shellcheck source=lib/users.sh
 . "${_INSTALL_JQ_LIB_DIR}/../users.sh"
+# shellcheck source=lib/ver.sh
+. "${_INSTALL_JQ_LIB_DIR}/../ver.sh"
 # shellcheck source=lib/github.sh
 . "${_INSTALL_JQ_LIB_DIR}/../github.sh"
 
@@ -28,11 +30,7 @@ _INSTALL_JQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # jq 1.6 and older use legacy naming: jq-linux64, jq-linux32, jq-osx-amd64.
 _install__jq_asset_name() {
   local _version="$1" _os="$2" _arch="$3"
-  local _major _minor
-  _major="${_version%%.*}"
-  _minor="${_version#*.}"
-  _minor="${_minor%%.*}"
-  if [[ "$_major" -eq 1 && "$_minor" -le 6 ]]; then
+  if ! ver__semver_ge "$_version" "1.7"; then
     # Legacy asset naming for jq 1.6 and older.
     case "${_os}-${_arch}" in
       linux-amd64) printf 'jq-linux64\n' ;;
@@ -52,11 +50,8 @@ _install__jq_asset_name() {
 #
 # jq 1.7+ is signed with jq-release-new.key; 1.6 and older with jq-release-old.key.
 _install__jq_gpg_key_url() {
-  local _version="$1" _major _minor
-  _major="${_version%%.*}"
-  _minor="${_version#*.}"
-  _minor="${_minor%%.*}"
-  if [[ "$_major" -eq 1 && "$_minor" -le 6 ]]; then
+  local _version="$1"
+  if ! ver__semver_ge "$_version" "1.7"; then
     printf 'https://raw.githubusercontent.com/jqlang/jq/master/sig/jq-release-old.key\n'
   else
     printf 'https://raw.githubusercontent.com/jqlang/jq/master/sig/jq-release-new.key\n'
@@ -76,7 +71,7 @@ _install__jq_gpg_key_url() {
 # Returns: 0 on success, 1 on any failure.
 _install__jq_install_release() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}"
-  local _os _arch _asset _base_url _key_url _major _minor
+  local _os _arch _asset _base_url _key_url
   _os="$(os__release_kernel)" || return 1
   [[ "$_os" == "darwin" ]] && _os="macos"
   _arch="$(os__release_arch)" || return 1
@@ -91,12 +86,9 @@ _install__jq_install_release() {
   _base_url="https://github.com/jqlang/jq/releases/download/jq-${_version}"
   _key_url="$(_install__jq_gpg_key_url "$_version")"
 
-  _major="${_version%%.*}"
-  _minor="${_version#*.}"
-  _minor="${_minor%%.*}"
   # jq ≤1.6 has no sha256sum.txt; for newer versions add explicit sidecar URL.
   local -a _sidecar_args=()
-  if ! [[ "$_major" -eq 1 && "$_minor" -le 6 ]]; then
+  if ver__semver_ge "$_version" "1.7"; then
     _sidecar_args=(--sidecar "${_base_url}/sha256sum.txt")
   fi
 

@@ -14,8 +14,8 @@ _OCI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OCI_LIB_DIR/install/oras.sh"
 # shellcheck source=lib/logging.sh
 . "$_OCI_LIB_DIR/logging.sh"
-# shellcheck source=lib/str.sh
-. "$_OCI_LIB_DIR/str.sh"
+# shellcheck source=lib/ver.sh
+. "$_OCI_LIB_DIR/ver.sh"
 # shellcheck source=lib/verify.sh
 . "$_OCI_LIB_DIR/verify.sh"
 # shellcheck source=lib/json.sh
@@ -251,13 +251,12 @@ oci__ensure_oras() {
   }
 
   local _ver
-  _ver="$("$_bin" version 2> /dev/null | sed -n 's/^Version:[[:space:]]*//p' | head -n1)"
-  [[ -z "$_ver" ]] && _ver="$("$_bin" version 2> /dev/null | head -n1 | sed 's/.*version[[:space:]]\+//I')"
+  _ver="$(ver__extract_version "$("$_bin" version 2> /dev/null | head -n1)")"
   [[ -n "$_ver" ]] || {
     logging__warn "oci.sh: could not determine oras version; continuing."
     return 0
   }
-  str__semver_ge "$_ver" "$_OCI__ORAS_MIN_VERSION" || {
+  ver__semver_ge "$_ver" "$_OCI__ORAS_MIN_VERSION" || {
     logging__error "oci.sh: oras version ${_ver} is below required ${_OCI__ORAS_MIN_VERSION}."
     return 1
   }
@@ -341,33 +340,6 @@ oci__list_tags() {
   printf '%s\n' "$_raw" | tr -d '\r' | sed '/^[[:space:]]*$/d'
 }
 
-# @brief _oci__semver_from_tag <tag> — Extract a bare semver string (`M.m.p[…]`) from an OCI tag. Returns 1 for non-semver tags.
-#
-# Strips a leading `v`, then validates the remainder against a `M.m.p` pattern
-# with optional pre-release or build metadata suffix. Tags that do not match
-# (e.g. `latest`, `edge`, `sha-abc123`) are rejected.
-#
-# Args:
-#   <tag>  OCI tag string (e.g. `v1.2.3` or `1.2.3-rc1`).
-#
-# Stdout: bare semver string without leading `v` (e.g. `1.2.3-rc1`).
-# Returns: 0 if the tag is semver, 1 otherwise.
-_oci__semver_from_tag() {
-  local _t="${1-}" _s="${1#v}"
-  [[ "$_s" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || return 1
-  printf '%s\n' "$_s"
-}
-
-# @brief _oci__semver_is_prerelease <version> — Return 0 if the semver string has a pre-release component (contains `-`).
-#
-# Args:
-#   <version>  Bare semver string (e.g. `1.2.3-rc1`).
-#
-# Returns: 0 if pre-release, 1 if stable.
-_oci__semver_is_prerelease() {
-  [[ "${1-}" == *-* ]]
-}
-
 # @brief _oci__highest_semver <tags> [<allow_pre>] — From a newline-separated list of OCI tags, print the highest stable (or pre-release) semver.
 #
 # Filters the list to semver-shaped tags, optionally including pre-releases,
@@ -384,9 +356,9 @@ _oci__highest_semver() {
   local _tags="${1-}" _allow_pre="${2-false}" _t _sv _list=""
   while IFS= read -r _t; do
     [[ -z "$_t" ]] && continue
-    _sv="$(_oci__semver_from_tag "$_t" 2> /dev/null || true)"
+    _sv="$(ver__extract_version --full-match --keep-suffix "$_t")"
     [[ -n "$_sv" ]] || continue
-    if [[ "$_allow_pre" != true ]] && _oci__semver_is_prerelease "$_sv"; then
+    if [[ "$_allow_pre" != true ]] && ! ver__semver_is_final "$_sv"; then
       continue
     fi
     _list="${_list}${_sv}"$'\n'
@@ -430,7 +402,7 @@ oci__resolve_version() {
   esac
 
   local _norm="${_spec#v}" _allow_pre=false
-  [[ "$_norm" == *-* ]] && _allow_pre=true
+  ! ver__semver_is_final "$_norm" && _allow_pre=true
   if [[ "$_norm" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
     if printf '%s\n' "$_tags" | sed '/^$/d' | grep -qx "$_norm"; then
       printf '%s\n' "$_norm"
@@ -453,7 +425,7 @@ oci__resolve_version() {
 
   local _cands="" _t _sv
   while IFS= read -r _t; do
-    _sv="$(_oci__semver_from_tag "$_t" 2> /dev/null || true)"
+    _sv="$(ver__extract_version --full-match --keep-suffix "$_t")"
     [[ -n "$_sv" ]] || continue
     if [[ "$_norm" =~ ^[0-9]+$ ]]; then
       [[ "$_sv" == "${_norm}."* ]] || continue
@@ -462,7 +434,7 @@ oci__resolve_version() {
     else
       continue
     fi
-    if [[ "$_allow_pre" != true ]] && _oci__semver_is_prerelease "$_sv"; then
+    if [[ "$_allow_pre" != true ]] && ! ver__semver_is_final "$_sv"; then
       continue
     fi
     _cands="${_cands}${_sv}"$'\n'

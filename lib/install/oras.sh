@@ -9,8 +9,8 @@ _INSTALL_ORAS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${_INSTALL_ORAS_LIB_DIR}/common.sh"
 # shellcheck source=lib/os.sh
 . "${_INSTALL_ORAS_LIB_DIR}/../os.sh"
-# shellcheck source=lib/str.sh
-. "${_INSTALL_ORAS_LIB_DIR}/../str.sh"
+# shellcheck source=lib/ver.sh
+. "${_INSTALL_ORAS_LIB_DIR}/../ver.sh"
 # shellcheck source=lib/file.sh
 . "${_INSTALL_ORAS_LIB_DIR}/../file.sh"
 # shellcheck source=lib/ospkg.sh
@@ -144,9 +144,8 @@ install__oras() {
   install__maybe_promote_to_user "oras" "$_context" "$_method" "$_owner_group" \
     "$_existing" _state_ctx _state_path _state_group
   if [[ -n "$_existing" ]]; then
-    _existing_ver="$("$_existing" version 2> /dev/null | sed -n 's/^Version:[[:space:]]*//p' | head -n1)"
-    [[ -z "$_existing_ver" ]] && _existing_ver="$("$_existing" version 2> /dev/null | head -n1 | sed 's/.*version[[:space:]]\+//I')"
-    if [[ -n "$_min_version" ]] && str__semver_ge "${_existing_ver:-0}" "$_min_version"; then
+    _existing_ver="$(ver__extract_version "$("$_existing" version 2> /dev/null | head -n1)")"
+    if [[ -n "$_min_version" ]] && ver__semver_ge "${_existing_ver:-0}" "$_min_version"; then
       printf '%s\n' "$_existing"
       return 0
     fi
