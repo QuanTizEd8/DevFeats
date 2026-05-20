@@ -184,6 +184,8 @@ http_uri_resolve_stubbed:
   description: "NETRC fetched via uri__resolve from http:// (stubbed net__fetch_url_file)."
 
   pre: |
+    source "${REPO_ROOT}/lib/logging.sh"
+    source "${REPO_ROOT}/lib/file.sh"
     source "${REPO_ROOT}/lib/uri.sh"
 
     # Stub the uri-layer fetch seam (after sourcing uri.sh) so net.sh loading cannot overwrite it.

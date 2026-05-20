@@ -74,6 +74,8 @@ env_files_uri:
 http_uri_resolve_stubbed:
   description: "Stub net__fetch_url_file and verify uri__resolve handles http:// for conda env YAML."
   pre: |
+    source "${REPO_ROOT}/lib/logging.sh"
+    source "${REPO_ROOT}/lib/file.sh"
     source "${REPO_ROOT}/lib/uri.sh"
 
     # Stub the uri-layer fetch seam (after sourcing uri.sh) so net.sh loading cannot overwrite it.
