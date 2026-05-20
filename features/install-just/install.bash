@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # shellcheck source=lib/install/common.sh
 . "${_BASE_DIR}/_lib/install/common.sh"
 # shellcheck source=lib/os.sh

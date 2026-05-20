@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # shellcheck source=lib/verify.sh
 . "${_BASE_DIR}/_lib/verify.sh"
 # shellcheck source=lib/file.sh

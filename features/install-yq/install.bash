@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # shellcheck source=lib/install/yq.sh
 . "${_BASE_DIR}/_lib/install/yq.sh"
 # shellcheck source=lib/shell.sh
