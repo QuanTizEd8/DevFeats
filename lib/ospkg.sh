@@ -521,7 +521,6 @@ _ospkg__load_linux_release() {
   return 0
 }
 
-# ── Public: ospkg__detect ────────────────────────────────────────────────────
 # @brief ospkg__detect — Detect the package manager and populate internal state. Idempotent; called automatically by all other `ospkg__*` functions.
 #
 # Respects `_OSPKG__PREFER_LINUXBREW`: when true, brew is checked before the
@@ -588,7 +587,6 @@ ospkg__detect() {
   return 0
 }
 
-# ── Public: ospkg__update ────────────────────────────────────────────────────
 # @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
 #
 # Args:
@@ -660,7 +658,6 @@ ospkg__update() {
   return 0
 }
 
-# ── Public: ospkg__install ───────────────────────────────────────────────────
 # @brief ospkg__install <pkg>... — Install one or more packages. Skips if all are already installed (APT, DNF/YUM, Homebrew).
 #
 # Args:
@@ -709,7 +706,6 @@ ospkg__install() {
   fi
 }
 
-# ── Public: ospkg__clean ─────────────────────────────────────────────────────
 # @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
 #
 # Returns: 0 on success.
@@ -720,7 +716,6 @@ ospkg__clean() {
   return 0
 }
 
-# ── Public: ospkg__parse_manifest_yaml ───────────────────────────────────────
 # @brief ospkg__parse_manifest_yaml <json-file> — Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout.
 #
 # Requires jq in PATH and _OSPKG__OS_RELEASE populated by ospkg__detect.
@@ -769,7 +764,6 @@ ospkg__parse_manifest_yaml() {
   return 0
 }
 
-# ── Private: build-dep tracking ──────────────────────────────────────────────
 # _ospkg__build_deps_dir — returns the directory used for build-dep sidecar files.
 _ospkg__build_deps_dir() {
   printf '%s' "$(file__tmpdir "ospkg/build-deps")"
@@ -817,7 +811,6 @@ _ospkg__protect_user_pkgs() {
   return 0
 }
 
-# ── Public: ospkg__take_initial_snapshot ─────────────────────────────────────
 # @brief ospkg__take_initial_snapshot <file> — Snapshot the current installed-package list to `<file>` as a session baseline.
 #
 # Called once by install.bash before any installs in manifest mode. Used by
@@ -1096,7 +1089,6 @@ _ospkg__remove_build_group() {
   return 0
 }
 
-# ── Public: ospkg__install_tracked ────────────────────────────────────────────
 # @brief ospkg__install_tracked <sub-id> <pkg>... — Install packages and register them as build-only under `<sub-id>` for later cleanup. Idempotent.
 #
 # The full group-id is `"${_SYSSET_BUILD_CONTEXT:-uncontexted}::<sub-id>"`. When
