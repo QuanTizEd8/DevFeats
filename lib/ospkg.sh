@@ -619,6 +619,19 @@ ospkg__is_managed() {
   esac
 }
 
+# @brief ospkg__os_release_match <key> <value> — Return 0 if the detected OS context has the given key=value. Case-insensitive.
+#
+# Calls `ospkg__detect` (idempotent). Does not spawn a subshell; suitable for
+# use directly in conditionals and loops.
+# Supported keys: kernel, arch, id, id_like, pm, version_id, version_codename,
+# and any /etc/os-release field.
+#
+# Returns: 0 if the key matches the value, 1 otherwise.
+ospkg__os_release_match() {
+  ospkg__detect
+  [[ "${_OSPKG__OS_RELEASE[$1],,}" == "${2,,}" ]]
+}
+
 # @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
 #
 # Args:

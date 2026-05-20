@@ -182,8 +182,7 @@ install_fzf() {
 # into ${_ZSH_COMPLETIONS_PREFIX} (no apt/deb package exists for this tree).
 # ---------------------------------------------------------------------------
 install_zsh_completions() {
-  ospkg__detect
-  if [[ "$_OSPKG__PKG_MNGR" == "brew" ]]; then
+  if ospkg__os_release_match pm brew; then
     ospkg__install_user zsh-completions
     return 0
   fi
@@ -629,7 +628,6 @@ os__require_root
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
     logging__info "Zsh already installed — skipping."
-    _ospkg__protect_user_pkgs zsh
   else
     logging__install "Installing Zsh..."
     ospkg__install_user zsh
