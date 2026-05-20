@@ -219,6 +219,7 @@ file__extract_archive() {
 #             returns `_LOGGING__SYSSET_TMPDIR` itself (ensuring it is initialised).
 #
 # Stdout: absolute path to the named subdirectory (or `_LOGGING__SYSSET_TMPDIR` when called with no args).
+# shellcheck disable=SC2120  # callers in other sourced files are invisible to shellcheck
 file__tmpdir() {
   [[ -z "${_LOGGING__SYSSET_TMPDIR:-}" ]] && _LOGGING__SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
   if [[ -n "${1:-}" ]]; then
@@ -243,6 +244,7 @@ file__tmpdir() {
 # Stdout: absolute path to the new unique directory.
 file__mktmpdir() {
   local _base
+  # shellcheck disable=SC2119  # intentionally called without args to get the base dir
   _base="$(file__tmpdir)/${1:-tmp}"
   mkdir -p "${_base%/*}"
   mktemp -d "${_base}.XXXXXX"
