@@ -20,15 +20,6 @@ _INSTALL_YQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/github.sh
 . "${_INSTALL_YQ_LIB_DIR}/../github.sh"
 
-# @brief _install__yq_resolve_version <spec> — Resolve a version spec to bare semver (no leading `v`).
-# Accepts "stable" (default), "latest", "", or a semver / partial version string.
-_install__yq_resolve_version() {
-  local _spec="${1-}"
-  local _out
-  _out="$(github__resolve_version "mikefarah/yq" "$_spec")" || return 1
-  printf '%s\n' "${_out#*$'\n'}"
-}
-
 # @brief _install__yq_compatible <bin> — Return 0 when candidate binary is mikefarah/yq-compatible (`-o=json` supported).
 #
 # Tests whether `<bin>` accepts the `-o=json` flag, which is unique to
@@ -71,7 +62,7 @@ _install__yq_install_release() {
 
   # Resolve latest version when none given.
   if [[ -z "$_version" ]]; then
-    _version="$(_install__yq_resolve_version)" || return 1
+    _version="$(github__resolve_version "mikefarah/yq" --version)" || return 1
   fi
   _base="https://github.com/mikefarah/yq/releases/download/v${_version}"
 
