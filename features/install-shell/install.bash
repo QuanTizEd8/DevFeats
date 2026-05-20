@@ -183,7 +183,7 @@ install_fzf() {
 # ---------------------------------------------------------------------------
 install_zsh_completions() {
   ospkg__detect
-  if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
+  if [[ "$_OSPKG__PKG_MNGR" == "brew" ]]; then
     ospkg__install_user zsh-completions
     return 0
   fi
@@ -629,7 +629,7 @@ os__require_root
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
     logging__info "Zsh already installed — skipping."
-    _ospkg_protect_user_pkgs zsh
+    _ospkg__protect_user_pkgs zsh
   else
     logging__install "Installing Zsh..."
     ospkg__install_user zsh
