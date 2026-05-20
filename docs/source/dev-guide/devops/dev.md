@@ -103,8 +103,6 @@ All task names follow `<type>-<domain>[-<modifier>]`.
 |-----------------|-----------|----------------|
 | `sync-src` | `sync-src` | `proman-sync` |
 | `sync-src-check` | `sync-src-check` | `proman-sync --check` |
-| `sync-docs` | `sync-docs` | `proman-gen-docs` |
-| `sync-docs-check` | `sync-docs-check` | `proman-gen-docs --check` |
 | `build-feats` | `build-feats` | `proman-build-feats` |
 | `build-docs` | `build-docs` | Sphinx (depends on `_sync-docs-data`) |
 | `build-docs-live` | `build-docs-live` | `sphinx-autobuild` |

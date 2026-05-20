@@ -51,14 +51,6 @@
             "presentation": {"reveal": "always", "panel": "shared"}
         },
         {
-            "label": "gen-docs",
-            "detail": "Inject auto-generated content into docs",
-            "type": "shell",
-            "command": "just gen-docs",
-            "group": "build",
-            "presentation": {"reveal": "always", "panel": "shared"}
-        },
-        {
             "label": "build-website-live",
             "detail": "Live-preview the docs with auto-rebuild",
             "type": "shell",

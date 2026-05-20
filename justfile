@@ -157,22 +157,6 @@ sync-src-check:
 
 [
   group('sync'),
-  doc('Regenerate injected doc markers (lib API tables in writing-features and lib.instructions).')
-]
-sync-docs:
-    pixi run sync-docs
-
-
-[
-  group('sync'),
-  doc('CI: exit non-zero if sync-docs would modify tracked files.')
-]
-sync-docs-check:
-    pixi run sync-docs-check
-
-
-[
-  group('sync'),
   doc('Regenerate git-ignored tests/*.sh from checks.yaml; pass a feature name to limit scope.')
 ]
 sync-tests feat="":
