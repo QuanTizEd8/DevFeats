@@ -61,18 +61,18 @@ setup() {
   # Simulate ospkg loaded but unzip absent; ospkg stubs install a fake unzip.
   reload_lib ospkg.sh
   reload_lib file.sh
-  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
 
   # Seed a minimal apt context without invoking the real PM.
-  _OSPKG_DETECTED=true
-  _OSPKG_PKG_MNGR="apt-get"
-  _OSPKG_FAMILY="apt"
-  _OSPKG_OS_RELEASE[pm]="apt"
-  _OSPKG_OS_RELEASE[arch]="x86_64"
-  _OSPKG_OS_RELEASE[id]="ubuntu"
-  _OSPKG_OS_RELEASE[id_like]="debian"
-  _OSPKG_OS_RELEASE[version_id]="22.04"
-  _OSPKG_OS_RELEASE[version_codename]="jammy"
+  _OSPKG__DETECTED=true
+  _OSPKG__PKG_MNGR="apt-get"
+  _OSPKG__FAMILY="apt"
+  _OSPKG__OS_RELEASE[pm]="apt"
+  _OSPKG__OS_RELEASE[arch]="x86_64"
+  _OSPKG__OS_RELEASE[id]="ubuntu"
+  _OSPKG__OS_RELEASE[id_like]="debian"
+  _OSPKG__OS_RELEASE[version_id]="22.04"
+  _OSPKG__OS_RELEASE[version_codename]="jammy"
 
   # Stub ospkg__update and ospkg__install_tracked; the latter creates a fake unzip.
   ospkg__update() { return 0; }

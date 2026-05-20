@@ -8,7 +8,7 @@ setup() {
 
 @test "install__oras promotes internal ownership to user and untracks resource" {
   reload_lib install/oras.sh
-  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   local _bin_dir="${BATS_TEST_TMPDIR}/bin"
   mkdir -p "$_bin_dir"
   cat > "${_bin_dir}/oras" << 'EOF'
@@ -38,7 +38,7 @@ EOF
 
 @test "ospkg__untrack_resource removes tracked paths from sidecar" {
   reload_lib ospkg.sh
-  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   ospkg__track_resource "abc" "/tmp/one" "/tmp/two"
 
   run ospkg__untrack_resource "abc" "/tmp/one"
@@ -51,7 +51,7 @@ EOF
 
 @test "install__oras rejects removed --verify option" {
   reload_lib install/oras.sh
-  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   run install__oras --context internal --method package --verify strict
   assert_failure
   [[ "$output" == *"unknown option '--verify'"* ]]

@@ -1,16 +1,16 @@
 # shellcheck shell=bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
-# @brief _install__oras_resolve_version <spec> — Resolve a version spec to bare semver (no leading `v`).
+# @brief _install_oras__resolve_version <spec> — Resolve a version spec to bare semver (no leading `v`).
 # Accepts "stable" (default), "latest", "", or a semver / partial version string.
-_install__oras_resolve_version() {
+_install_oras__resolve_version() {
   local _spec="${1-}"
   local _out
   _out="$(github__resolve_version "oras-project/oras" "$_spec")" || return 1
   printf '%s\n' "${_out#*$'\n'}"
 }
 
-# @brief _install__oras_install_release <version> <prefix> <group> <context> [installer-dir] — Install ORAS from release artifact with mandatory checksum+GPG verification.
+# @brief _install_oras__install_release <version> <prefix> <group> <context> [installer-dir] — Install ORAS from release artifact with mandatory checksum+GPG verification.
 #
 # Args:
 #   <version>        Bare semver string (no leading `v`), e.g. `1.2.3`.
@@ -21,7 +21,7 @@ _install__oras_resolve_version() {
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
-_install__oras_install_release() {
+_install_oras__install_release() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}"
   local _platform _arch _asset _tag _bin_dest
   _platform="$(os__release_kernel)" || return 1
@@ -48,8 +48,8 @@ _install__oras_install_release() {
   install__state_record "oras" "$_context" "binary" "${_bin_dest}/oras" "$_group" || true
 }
 
-# @brief _install__oras_install_repos <version> <group> <context> [repos-manifest] — Install ORAS via system package manager.
-_install__oras_install_repos() {
+# @brief _install_oras__install_repos <version> <group> <context> [repos-manifest] — Install ORAS via system package manager.
+_install_oras__install_repos() {
   local _version="${1-}" _group="${2-}" _context="${3-}" _repos_manifest="${4-}"
   if [[ -n "$_repos_manifest" && "$_context" == "user" ]]; then
     ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
@@ -146,17 +146,17 @@ install__oras() {
     _install_prefix="$(users__default_prefix)"
   fi
   local _version_spec="$_version"
-  _version="$(_install__oras_resolve_version "$_version_spec")" || return 1
+  _version="$(_install_oras__resolve_version "$_version_spec")" || return 1
   case "$_method" in
     binary)
-      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir"
+      _install_oras__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir"
       ;;
     package)
-      _install__oras_install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
+      _install_oras__install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     auto)
-      _install__oras_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" ||
-        _install__oras_install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
+      _install_oras__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" ||
+        _install_oras__install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)
       logging__error "install__oras: invalid method '${_method}'."

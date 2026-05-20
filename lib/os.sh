@@ -358,7 +358,7 @@ os__codename() {
 
 # @brief os__match_spec <key=value> [...] — Return 0 if the current OS context matches all given key=value conditions.
 #
-# Reads from _OSPKG_OS_RELEASE (populated by ospkg__detect). Calls ospkg__detect automatically
+# Reads from _OSPKG__OS_RELEASE (populated by ospkg__detect). Calls ospkg__detect automatically
 # if the array is empty. AND logic: all key=value pairs must match. Case-insensitive.
 # Supported keys: kernel, arch, id, id_like, pm, version_id, version_codename, and any
 # /etc/os-release field.
@@ -366,12 +366,12 @@ os__codename() {
 # Returns: 0 if all conditions match, 1 otherwise.
 os__match_spec() {
   [ $# -eq 0 ] && return 0
-  [ "${#_OSPKG_OS_RELEASE[@]}" -eq 0 ] && ospkg__detect
+  [ "${#_OSPKG__OS_RELEASE[@]}" -eq 0 ] && ospkg__detect
   local _pair _k _v
   for _pair in "$@"; do
     _k="${_pair%%=*}"
     _v="${_pair#*=}"
-    [[ "${_OSPKG_OS_RELEASE[$_k],,}" == "${_v,,}" ]] || return 1
+    [[ "${_OSPKG__OS_RELEASE[$_k],,}" == "${_v,,}" ]] || return 1
   done
   return 0
 }

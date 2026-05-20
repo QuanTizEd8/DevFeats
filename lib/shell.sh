@@ -854,7 +854,7 @@ shell__prefix_export_path() {
   local _content
   # shellcheck disable=SC2162
   IFS= read -r -d '' _content << 'EOBLOCK' || true
-__df_prepend_path() {
+_shell__df_prepend_path() {
   local _d="$1" _p="${PATH:-}" _r="" _e
   while [ -n "$_p" ]; do
     _e="${_p%%:*}"; [ "$_p" = "${_p#*:}" ] && _p="" || _p="${_p#*:}"
@@ -863,8 +863,8 @@ __df_prepend_path() {
   export PATH="${_d}${_r:+:${_r}}"
 }
 EOBLOCK
-  _content="${_content}__df_prepend_path \"${_bin_dir}\"
-unset -f __df_prepend_path"
+  _content="${_content}_shell__df_prepend_path \"${_bin_dir}\"
+unset -f _shell__df_prepend_path"
   shell__write_env_block \
     --opt "${_export_opt}" \
     --profile-d "${_profile_d}" \

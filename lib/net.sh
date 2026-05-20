@@ -5,8 +5,8 @@
 # functions support configurable retries, delay between attempts, and custom
 # HTTP headers.
 
-_NET_FETCH_TOOL=
-_NET_CA_CERTS_OK=
+_NET__FETCH_TOOL=
+_NET__CA_CERTS_OK=
 
 # @brief _net__hdrs_with_default_ua <hdr_block> — Return `<hdr_block>` unchanged when it already contains a `User-Agent` header; otherwise prepend `User-Agent: devfeats`.
 #
@@ -119,7 +119,7 @@ _net__fetch() {
   done
   _hdrs="$(_net__hdrs_with_default_ua "$_hdrs")"
   _net__ensure_fetch_tool
-  if [ "$_NET_FETCH_TOOL" = "curl" ]; then
+  if [ "$_NET__FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
     [ -n "$_netrc" ] && set -- "$@" --netrc-file "$_netrc"
     while IFS= read -r _h; do
@@ -209,24 +209,24 @@ net__fetch_url_file() {
   _net__fetch "$_url" "$_dest" "$@"
 }
 
-# @brief _net__ensure_fetch_tool — Detect `curl` or `wget` and set `_NET_FETCH_TOOL`; install `curl` via ospkg if neither is found.
+# @brief _net__ensure_fetch_tool — Detect `curl` or `wget` and set `_NET__FETCH_TOOL`; install `curl` via ospkg if neither is found.
 #
 # Runs `_net__ensure_ca_certs` after detection so every fetch that goes through
 # this helper also has a valid CA bundle. Idempotent: does nothing when
-# `_NET_FETCH_TOOL` is already set.
+# `_NET__FETCH_TOOL` is already set.
 #
-# Side effects: sets `_NET_FETCH_TOOL` to `curl` or `wget`.
+# Side effects: sets `_NET__FETCH_TOOL` to `curl` or `wget`.
 # Returns: 0 always (aborts the script via ospkg on install failure).
 _net__ensure_fetch_tool() {
-  if [ -z "${_NET_FETCH_TOOL:-}" ]; then
+  if [ -z "${_NET__FETCH_TOOL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
-      _NET_FETCH_TOOL=curl
+      _NET__FETCH_TOOL=curl
     elif command -v wget > /dev/null 2>&1; then
-      _NET_FETCH_TOOL=wget
+      _NET__FETCH_TOOL=wget
     else
       logging__info "Neither curl nor wget found — installing curl."
       ospkg__install_tracked "lib-net" curl
-      _NET_FETCH_TOOL=curl
+      _NET__FETCH_TOOL=curl
     fi
   fi
   _net__ensure_ca_certs
@@ -238,22 +238,22 @@ _net__ensure_fetch_tool() {
 # macOS uses the system keychain natively (curl and wget pick it up without a
 # `.crt` bundle), so the check is skipped there. On Linux, an absent or empty
 # bundle causes TLS errors for all HTTPS fetches. Idempotent: sets
-# `_NET_CA_CERTS_OK` after the first successful check and returns immediately
+# `_NET__CA_CERTS_OK` after the first successful check and returns immediately
 # on subsequent calls.
 #
 # Side effects: may install `ca-certificates` via the system package manager.
 # Returns: 0 always.
 _net__ensure_ca_certs() {
-  [ -n "${_NET_CA_CERTS_OK:-}" ] && return 0
+  [ -n "${_NET__CA_CERTS_OK:-}" ] && return 0
   # macOS uses its own keychain; curl/wget use it natively without a .crt file.
   [ "$(uname -s)" = "Darwin" ] && {
-    _NET_CA_CERTS_OK=true
+    _NET__CA_CERTS_OK=true
     return 0
   }
   if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
     logging__info "CA certificate bundle missing — installing ca-certificates."
     ospkg__install_tracked "lib-net" ca-certificates
   fi
-  _NET_CA_CERTS_OK=true
+  _NET__CA_CERTS_OK=true
   return 0
 }

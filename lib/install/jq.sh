@@ -1,11 +1,11 @@
 # shellcheck shell=bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
-# @brief _install__jq_asset_name <version> <os> <arch> — Print jq release asset filename.
+# @brief _install_jq__asset_name <version> <os> <arch> — Print jq release asset filename.
 #
 # jq 1.7+ uses modern naming: jq-{os}-{arch} (e.g. jq-linux-amd64).
 # jq 1.6 and older use legacy naming: jq-linux64, jq-linux32, jq-osx-amd64.
-_install__jq_asset_name() {
+_install_jq__asset_name() {
   local _version="$1" _os="$2" _arch="$3"
   if ! ver__semver_ge "$_version" "1.7"; then
     # Legacy asset naming for jq 1.6 and older.
@@ -23,10 +23,10 @@ _install__jq_asset_name() {
   fi
 }
 
-# @brief _install__jq_gpg_key_url <version> — Print the URL for the jq release signing key.
+# @brief _install_jq__gpg_key_url <version> — Print the URL for the jq release signing key.
 #
 # jq 1.7+ is signed with jq-release-new.key; 1.6 and older with jq-release-old.key.
-_install__jq_gpg_key_url() {
+_install_jq__gpg_key_url() {
   local _version="$1"
   if ! ver__semver_ge "$_version" "1.7"; then
     printf 'https://raw.githubusercontent.com/jqlang/jq/master/sig/jq-release-old.key\n'
@@ -35,7 +35,7 @@ _install__jq_gpg_key_url() {
   fi
 }
 
-# @brief _install__jq_install_release <version> <prefix> <group> <context> [installer-dir] — Install jq from a GitHub release binary with SHA-256 and GPG verification.
+# @brief _install_jq__install_release <version> <prefix> <group> <context> [installer-dir] — Install jq from a GitHub release binary with SHA-256 and GPG verification.
 #
 # Args:
 #   <version>        Bare semver string (no leading `v`), e.g. `1.7.1`.
@@ -46,7 +46,7 @@ _install__jq_gpg_key_url() {
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
-_install__jq_install_release() {
+_install_jq__install_release() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}"
   local _os _arch _asset _base_url _key_url
   _os="$(os__release_kernel)" || return 1
@@ -59,9 +59,9 @@ _install__jq_install_release() {
       return 1
       ;;
   esac
-  _asset="$(_install__jq_asset_name "$_version" "$_os" "$_arch")" || return 1
+  _asset="$(_install_jq__asset_name "$_version" "$_os" "$_arch")" || return 1
   _base_url="https://github.com/jqlang/jq/releases/download/jq-${_version}"
-  _key_url="$(_install__jq_gpg_key_url "$_version")"
+  _key_url="$(_install_jq__gpg_key_url "$_version")"
 
   # jq ≤1.6 has no sha256sum.txt; for newer versions add explicit sidecar URL.
   local -a _sidecar_args=()
@@ -84,8 +84,8 @@ _install__jq_install_release() {
   install__state_record "jq" "$_context" "binary" "${_install_prefix%/}/bin/jq" "$_group" || true
 }
 
-# @brief _install__jq_install_repos <group> <context> [repos-manifest] — Install jq via the OS package manager.
-_install__jq_install_repos() {
+# @brief _install_jq__install_repos <group> <context> [repos-manifest] — Install jq via the OS package manager.
+_install_jq__install_repos() {
   local _group="${1-}" _context="${2-}" _repos_manifest="${3-}"
   if [[ -n "$_repos_manifest" ]]; then
     ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
@@ -107,11 +107,11 @@ _install__jq_install_repos() {
   return 0
 }
 
-# @brief _install__jq_install_source <version> <prefix> <group> <context> — Build and install jq from the release tarball.
+# @brief _install_jq__install_source <version> <prefix> <group> <context> — Build and install jq from the release tarball.
 #
 # Runs ./configure --with-oniguruma=builtin, make, make check, make install.
 # Build tools must be installed by the caller before this function is invoked.
-_install__jq_install_source() {
+_install_jq__install_source() {
   local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
   local _tarball_url _dir _tarball _src_dir _jobs _final_dest
   _tarball_url="https://github.com/jqlang/jq/releases/download/jq-${_version}/jq-${_version}.tar.gz"
@@ -178,7 +178,7 @@ install__jq() {
   install__read_state "jq" _state_ctx _state_path _state_group
 
   # For package: a jq that landed in PATH solely as a transient build-dep (e.g.
-  # lib-json) has no state record.  Clear _existing so _install__jq_install_repos
+  # lib-json) has no state record.  Clear _existing so _install_jq__install_repos
   # always runs and marks the package permanent via the package manager.
   if [[ "$_method" == "package" && -n "$_existing" && -z "$_state_ctx" ]]; then
     _existing=""
@@ -207,17 +207,17 @@ install__jq() {
 
   case "$_method" in
     binary)
-      _install__jq_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir"
+      _install_jq__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir"
       ;;
     package)
-      _install__jq_install_repos "$_owner_group" "$_context" "$_repos_manifest"
+      _install_jq__install_repos "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     source)
-      _install__jq_install_source "$_version" "$_install_prefix" "$_owner_group" "$_context"
+      _install_jq__install_source "$_version" "$_install_prefix" "$_owner_group" "$_context"
       ;;
     auto)
-      _install__jq_install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" ||
-        _install__jq_install_repos "$_owner_group" "$_context" "$_repos_manifest"
+      _install_jq__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" ||
+        _install_jq__install_repos "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)
       logging__error "install__jq: invalid method '${_method}'."

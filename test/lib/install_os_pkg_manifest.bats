@@ -9,7 +9,7 @@
 # opensuse-leap, arch). A case with a missing <platform>.expected file is
 # skipped; a case with an empty file asserts zero packages are resolved.
 #
-# yq is auto-installed by ospkg via _ospkg_ensure_yq. setup_file() runs it
+# yq is auto-installed by ospkg via _ospkg__ensure_yq. setup_file() runs it
 # once and caches the binary, so individual tests do not re-download. Tests
 # skip when yq cannot be installed (no network / not root).
 
@@ -40,8 +40,8 @@ setup_file() {
       bash -c '
         source "$1/ospkg.sh" 2>/dev/null || exit 1
         ospkg__detect 2>/dev/null || exit 1
-        _ospkg_ensure_yq 2>/dev/null || exit 1
-        printf "%s" "${_OSPKG_YQ_BIN}"
+        _ospkg__ensure_yq 2>/dev/null || exit 1
+        printf "%s" "${_OSPKG__YQ_BIN}"
       ' _ "${LIB_ROOT}" 2> /dev/null
     )" || true
     if [[ -n "${_yq_path}" && -x "${_yq_path}" ]]; then
@@ -74,9 +74,9 @@ _require_manifest_prereqs() {
 #
 # Reloads ospkg.sh, fakes the PM binary using a restricted PATH so
 # ospkg__detect picks exactly the right PM, then restores the real PATH with
-# the fake dir prepended.  Manually overrides _OSPKG_OS_RELEASE fields for
+# the fake dir prepended.  Manually overrides _OSPKG__OS_RELEASE fields for
 # cross-platform testing from any distro container.  Overrides
-# _ospkg_ensure_yq to use the pre-installed yq binary cached in setup_file().
+# _ospkg__ensure_yq to use the pre-installed yq binary cached in setup_file().
 _seed_context() {
   local _pm="$1" _id="$2" _id_like="${3:-}" _version_id="${4:-}"
 
@@ -101,18 +101,18 @@ _seed_context() {
   prepend_fake_bin_path
 
   # Override OS release fields to simulate the target platform.
-  _OSPKG_OS_RELEASE[id]="${_id}"
-  _OSPKG_OS_RELEASE[id_like]="${_id_like}"
-  _OSPKG_OS_RELEASE[version_id]="${_version_id}"
+  _OSPKG__OS_RELEASE[id]="${_id}"
+  _OSPKG__OS_RELEASE[id_like]="${_id_like}"
+  _OSPKG__OS_RELEASE[version_id]="${_version_id}"
 
-  # Point _ospkg_ensure_yq at the pre-installed binary to avoid re-downloading
+  # Point _ospkg__ensure_yq at the pre-installed binary to avoid re-downloading
   # yq on every test.  Mirrors the early-return guard in the real function.
   # MANIFEST_TESTS_YQ_BIN is exported by setup_file() and accessible here.
-  _ospkg_ensure_yq() {
-    [[ -n "${_OSPKG_YQ_BIN:-}" ]] && return 0
-    _OSPKG_YQ_BIN="${MANIFEST_TESTS_YQ_BIN}"
+  _ospkg__ensure_yq() {
+    [[ -n "${_OSPKG__YQ_BIN:-}" ]] && return 0
+    _OSPKG__YQ_BIN="${MANIFEST_TESTS_YQ_BIN}"
   }
-  export -f _ospkg_ensure_yq
+  export -f _ospkg__ensure_yq
 }
 
 # _assert_manifest_pkgs <case_name> <platform>

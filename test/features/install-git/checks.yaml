@@ -388,7 +388,7 @@ source_custom_prefix:
         echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
         cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
     - title: profile.d prepends /opt/git/bin to PATH
-      cmd: grep -Fq '__df_prepend_path "/opt/git/bin"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: grep -Fq '_shell__df_prepend_path "/opt/git/bin"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
     - title: profile.d exports /opt/git/share/man
       cmd: grep -Fq 'export MANPATH="/opt/git/share/man:${MANPATH}"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
 

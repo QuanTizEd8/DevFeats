@@ -70,19 +70,19 @@ EOF
 # _net__ensure_fetch_tool  (tool detection and caching)
 # ---------------------------------------------------------------------------
 
-@test "_net__ensure_fetch_tool detects curl and sets _NET_FETCH_TOOL" {
+@test "_net__ensure_fetch_tool detects curl and sets _NET__FETCH_TOOL" {
   reload_lib net.sh
   # Provide a fake curl; _net__ensure_ca_certs needs to be stubbed as well.
   create_fake_bin "curl" ""
   prepend_fake_bin_path
   # Stub _net__ensure_ca_certs to avoid ospkg dependency.
   _net__ensure_ca_certs() {
-    _NET_CA_CERTS_OK=true
+    _NET__CA_CERTS_OK=true
     return 0
   }
   export -f _net__ensure_ca_certs
   _net__ensure_fetch_tool
-  [[ "$_NET_FETCH_TOOL" == "curl" ]]
+  [[ "$_NET__FETCH_TOOL" == "curl" ]]
 }
 
 @test "_net__ensure_fetch_tool detects wget when curl is absent" {
@@ -92,24 +92,24 @@ EOF
   # is not found.
   begin_path_isolation
   _net__ensure_ca_certs() {
-    _NET_CA_CERTS_OK=true
+    _NET__CA_CERTS_OK=true
     return 0
   }
   export -f _net__ensure_ca_certs
   _net__ensure_fetch_tool
-  local _result="$_NET_FETCH_TOOL"
+  local _result="$_NET__FETCH_TOOL"
   end_path_isolation
   [[ "$_result" == "wget" ]]
 }
 
-@test "_net__ensure_fetch_tool is idempotent when _NET_FETCH_TOOL is set" {
+@test "_net__ensure_fetch_tool is idempotent when _NET__FETCH_TOOL is set" {
   reload_lib net.sh
-  _NET_FETCH_TOOL="curl"
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL="curl"
+  _NET__CA_CERTS_OK=true
   _net__ensure_ca_certs() { return 0; }
   export -f _net__ensure_ca_certs
   _net__ensure_fetch_tool
-  [[ "$_NET_FETCH_TOOL" == "curl" ]]
+  [[ "$_NET__FETCH_TOOL" == "curl" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -118,7 +118,7 @@ EOF
 
 @test "_net__ensure_ca_certs is a no-op when already cached" {
   reload_lib net.sh
-  _NET_CA_CERTS_OK=true
+  _NET__CA_CERTS_OK=true
   # If idempotency guard works, the function must return 0 immediately
   # without touching any file paths or calling ospkg.
   run _net__ensure_ca_certs
@@ -131,14 +131,14 @@ EOF
   export -f uname
   run _net__ensure_ca_certs
   assert_success
-  # Verify that _NET_CA_CERTS_OK was set inside the call by re-running in a
+  # Verify that _NET__CA_CERTS_OK was set inside the call by re-running in a
   # subshell that checks the flag after the call returns.
   run bash -c "
     source '${BATS_TEST_DIRNAME}/../../lib/net.sh'
     uname() { echo 'Darwin'; }
     export -f uname
     _net__ensure_ca_certs
-    [[ \"\${_NET_CA_CERTS_OK}\" == 'true' ]] && echo 'CACHED'
+    [[ \"\${_NET__CA_CERTS_OK}\" == 'true' ]] && echo 'CACHED'
   "
   assert_output --partial "CACHED"
 }
@@ -147,10 +147,10 @@ EOF
 # net__fetch_url_stdout  /  net__fetch_url_file  (routing tests)
 # ---------------------------------------------------------------------------
 
-@test "net__fetch_url_stdout routes to curl when _NET_FETCH_TOOL=curl" {
+@test "net__fetch_url_stdout routes to curl when _NET__FETCH_TOOL=curl" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     echo "curl $*"
     return 0
@@ -163,10 +163,10 @@ EOF
   assert_output --partial "User-Agent: devfeats"
 }
 
-@test "net__fetch_url_stdout routes to wget when _NET_FETCH_TOOL=wget" {
+@test "net__fetch_url_stdout routes to wget when _NET__FETCH_TOOL=wget" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     local _r _d
     while [ $# -gt 0 ]; do
@@ -192,10 +192,10 @@ EOF
   assert_output --partial "delay=5"
 }
 
-@test "net__fetch_url_file routes to curl when _NET_FETCH_TOOL=curl" {
+@test "net__fetch_url_file routes to curl when _NET__FETCH_TOOL=curl" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     echo "curl $*"
     return 0
@@ -210,8 +210,8 @@ EOF
 
 @test "net__fetch_url_stdout returns failure when curl fails" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     return 22
   }
@@ -224,8 +224,8 @@ EOF
 
 @test "net__fetch_url_file returns failure when curl fails" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     return 22
   }
@@ -238,8 +238,8 @@ EOF
 
 @test "net__fetch_url_stdout does not override an explicit User-Agent header" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     printf '%s\n' "$@"
     return 0
@@ -250,10 +250,10 @@ EOF
   refute_output --partial "User-Agent: devfeats"
 }
 
-@test "net__fetch_url_file routes to wget when _NET_FETCH_TOOL=wget" {
+@test "net__fetch_url_file routes to wget when _NET__FETCH_TOOL=wget" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     local _r _d
     while [ $# -gt 0 ]; do
@@ -281,8 +281,8 @@ EOF
 
 @test "net__fetch_url_stdout returns failure when wget retry helper fails" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     return 1
   }
@@ -295,8 +295,8 @@ EOF
 
 @test "net__fetch_url_stdout passes --retries to curl" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     echo "curl $*"
     return 0
@@ -308,8 +308,8 @@ EOF
 
 @test "net__fetch_url_stdout passes --retries to wget" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     local _r _d
     while [ $# -gt 0 ]; do
@@ -335,8 +335,8 @@ EOF
 
 @test "net__fetch_url_file passes --retries to curl" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     echo "curl $*"
     return 0
@@ -348,8 +348,8 @@ EOF
 
 @test "net__fetch_url_file passes --retries to wget" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     local _r _d
     while [ $# -gt 0 ]; do
@@ -375,8 +375,8 @@ EOF
 
 @test "net__fetch_url_file returns failure when wget retry helper fails" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     return 1
   }
@@ -389,8 +389,8 @@ EOF
 
 @test "net__fetch_url_stdout passes --delay to curl" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     echo "curl $*"
     return 0
@@ -402,8 +402,8 @@ EOF
 
 @test "net__fetch_url_stdout passes --delay to wget" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     local _r _d
     while [ $# -gt 0 ]; do
@@ -429,8 +429,8 @@ EOF
 
 @test "net__fetch_url_file passes --delay to curl" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     echo "curl $*"
     return 0
@@ -442,8 +442,8 @@ EOF
 
 @test "net__fetch_url_file passes --delay to wget" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     local _r _d
     while [ $# -gt 0 ]; do
@@ -469,8 +469,8 @@ EOF
 
 @test "net__fetch_url_stdout passes --header to curl as -H pairs" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     printf '%s\n' "$@"
     return 0
@@ -486,8 +486,8 @@ EOF
 
 @test "net__fetch_url_stdout passes --header to wget as --header=K: V" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     printf '%s\n' "$@"
     return 0
@@ -502,8 +502,8 @@ EOF
 
 @test "net__fetch_url_file passes --header to curl as -H pairs" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   curl() {
     printf '%s\n' "$@"
     return 0
@@ -519,8 +519,8 @@ EOF
 
 @test "net__fetch_url_file passes --header to wget as --header=K: V" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=wget
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
   net__fetch_with_retry() {
     printf '%s\n' "$@"
     return 0
@@ -535,8 +535,8 @@ EOF
 
 @test "net__fetch_url_stdout rejects unknown option" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   run net__fetch_url_stdout "https://example.com" --bogus foo
   assert_failure
   assert_output --partial "unknown option"
@@ -544,8 +544,8 @@ EOF
 
 @test "net__fetch_url_file rejects unknown option" {
   reload_lib net.sh
-  _NET_FETCH_TOOL=curl
-  _NET_CA_CERTS_OK=true
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
   run net__fetch_url_file "https://example.com" "/tmp/out" --bogus foo
   assert_failure
   assert_output --partial "unknown option"

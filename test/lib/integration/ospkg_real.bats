@@ -12,7 +12,7 @@ _OSPKG_INT_PKG=bc
 
 # _pkg_is_installed <name> — return 0 when <name> is installed, 1 otherwise.
 _pkg_is_installed() {
-  case "$_OSPKG_PKG_MNGR" in
+  case "$_OSPKG__PKG_MNGR" in
     apt-get) dpkg -s "$1" > /dev/null 2>&1 ;;
     apk) apk info -e "$1" > /dev/null 2>&1 ;;
     dnf | yum | microdnf) rpm -q "$1" > /dev/null 2>&1 ;;
@@ -24,7 +24,7 @@ _pkg_is_installed() {
 
 # _pkg_force_remove <name> — unconditionally remove <name>; errors are ignored.
 _pkg_force_remove() {
-  case "$_OSPKG_PKG_MNGR" in
+  case "$_OSPKG__PKG_MNGR" in
     apt-get) DEBIAN_FRONTEND=noninteractive apt-get -y --purge remove "$1" > /dev/null 2>&1 || true ;;
     apk) apk del "$1" > /dev/null 2>&1 || true ;;
     dnf) dnf -y remove "$1" > /dev/null 2>&1 || true ;;
@@ -43,7 +43,7 @@ setup() {
   fi
   ospkg__detect || skip "no supported package manager detected"
   # Isolate sidecar / snapshot files in the per-test tmpdir so tests do not share state.
-  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   # Skip when the canary is already installed — we cannot safely use it as a marker.
   if _pkg_is_installed "$_OSPKG_INT_PKG"; then
     skip "'${_OSPKG_INT_PKG}' is already installed on this system; cannot use it as a canary"
@@ -51,7 +51,7 @@ setup() {
 }
 
 teardown() {
-  if [[ -n "${_OSPKG_PKG_MNGR:-}" ]]; then
+  if [[ -n "${_OSPKG__PKG_MNGR:-}" ]]; then
     ospkg__cleanup_all_build_groups 2> /dev/null || true
     _pkg_is_installed "$_OSPKG_INT_PKG" && _pkg_force_remove "$_OSPKG_INT_PKG" || true
   fi
@@ -60,10 +60,10 @@ teardown() {
 # ── PM detection ─────────────────────────────────────────────────────────────
 
 @test "ospkg__detect identifies a known package manager" {
-  [[ -n "$_OSPKG_PKG_MNGR" ]]
-  case "$_OSPKG_PKG_MNGR" in
+  [[ -n "$_OSPKG__PKG_MNGR" ]]
+  case "$_OSPKG__PKG_MNGR" in
     apt-get | apk | dnf | yum | microdnf | zypper | pacman | brew) ;;
-    *) fail "unexpected package manager: '${_OSPKG_PKG_MNGR}'" ;;
+    *) fail "unexpected package manager: '${_OSPKG__PKG_MNGR}'" ;;
   esac
 }
 
@@ -107,7 +107,7 @@ teardown() {
 @test "cleanup does not remove pre-existing packages (snapshot protection)" {
   # Record every package installed before the test touches anything.
   local _snapshot="${BATS_TEST_TMPDIR}/pretest_pkgs.txt"
-  _ospkg_snapshot_packages "$_snapshot"
+  _ospkg__snapshot_packages "$_snapshot"
 
   ospkg__install_tracked "ospkg-inttest" "$_OSPKG_INT_PKG"
   ospkg__cleanup_all_build_groups

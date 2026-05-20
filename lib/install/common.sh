@@ -10,7 +10,7 @@ _install__sanitize_key() {
   printf '%s\n' "$_raw"
 }
 
-# @brief install__state_dir — Print installer state directory path under `_SYSSET_TMPDIR` (creates it if missing).
+# @brief install__state_dir — Print installer state directory path under `_LOGGING__SYSSET_TMPDIR` (creates it if missing).
 install__state_dir() {
   file__tmpdir "install-state"
 }

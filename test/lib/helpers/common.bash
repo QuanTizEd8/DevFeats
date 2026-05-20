@@ -21,11 +21,11 @@ bats_load_library bats-file
 # Pre-declare global associative/indexed arrays before sourcing modules.
 # 'declare -A' without -g inside a function chain creates a local variable that
 # disappears when the chain returns; '-g' ensures the global is created.
-declare -gA _OSPKG_OS_RELEASE=()
+declare -gA _OSPKG__OS_RELEASE=()
 declare -gA _OCI__AUTH_USER=()
 declare -gA _OCI__AUTH_TOKEN=()
 declare -gA _OCI__AUTH_DONE=()
-declare -ga _SYSSET_MASKED_VALUES=()
+declare -ga _LOGGING__SYSSET_MASKED_VALUES=()
 
 # Source all lib modules once at test-process startup (in topological order so
 # no module tries to call a function from a not-yet-defined module, even though
@@ -50,19 +50,19 @@ reload_lib() {
   unset _OS__KERNEL _OS__ARCH _OS__ID _OS__ID_LIKE _OS__CODENAME _OS__PLATFORM _OS__RELEASE_LOADED
 
   # Reset net.sh cached state.
-  unset _NET_FETCH_TOOL _NET_CA_CERTS_OK
+  unset _NET__FETCH_TOOL _NET__CA_CERTS_OK
 
   # Reset ospkg.sh detection flag.
-  _OSPKG_DETECTED=false
+  _OSPKG__DETECTED=false
 
   # Reset logging state flags.
-  _LIB_LOGGING_SETUP=false
-  _SYSSET_TMPDIR=
-  declare -ga _SYSSET_MASKED_VALUES=()
+  _LOGGING__LIB_SETUP=false
+  _LOGGING__SYSSET_TMPDIR=
+  declare -ga _LOGGING__SYSSET_MASKED_VALUES=()
 
   # Re-declare global associative arrays so prior test runs don't leave stale
   # entries (also guards against any code path that might 'unset' them).
-  declare -gA _OSPKG_OS_RELEASE=()
+  declare -gA _OSPKG__OS_RELEASE=()
   declare -gA _OCI__AUTH_USER=()
   declare -gA _OCI__AUTH_TOKEN=()
   declare -gA _OCI__AUTH_DONE=()

@@ -5,42 +5,42 @@
 # automatically. Supports grouping packages into build-time and run-time
 # dependency groups for later cleanup.
 
-_OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_OSPKG__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Internal state ────────────────────────────────────────────────────────────
-_OSPKG_DETECTED=false
-_OSPKG_UPDATED=false
-_OSPKG_PKG_MNGR=
-_OSPKG_FAMILY=
-_OSPKG_INSTALL=()
-_OSPKG_REMOVE=()
-_OSPKG_REMOVE_FORCE=()
-_OSPKG_UPDATE=()
-_OSPKG_CLEAN=
-_OSPKG_LISTS_PATH=
-_OSPKG_LISTS_PATTERN=
-_OSPKG_PREFER_LINUXBREW=false
-_OSPKG_YQ_BIN=
+_OSPKG__DETECTED=false
+_OSPKG__UPDATED=false
+_OSPKG__PKG_MNGR=
+_OSPKG__FAMILY=
+_OSPKG__INSTALL=()
+_OSPKG__REMOVE=()
+_OSPKG__REMOVE_FORCE=()
+_OSPKG__UPDATE=()
+_OSPKG__CLEAN=
+_OSPKG__LISTS_PATH=
+_OSPKG__LISTS_PATTERN=
+_OSPKG__PREFER_LINUXBREW=false
+_OSPKG__YQ_BIN=
 # DNF mark subcommand names; overridden to "user"/"dependency" for DNF5.
-_OSPKG_DNF_MARK_USER="install"
-_OSPKG_DNF_MARK_DEP="remove"
-declare -gA _OSPKG_OS_RELEASE=()
+_OSPKG__DNF_MARK_USER="install"
+_OSPKG__DNF_MARK_DEP="remove"
+declare -gA _OSPKG__OS_RELEASE=()
 
 # ── Private: clean functions ──────────────────────────────────────────────────
 
-# @brief _ospkg_clean_apk — Remove the Alpine APK package cache (`/var/cache/apk/*`).
-_ospkg_clean_apk() {
+# @brief _ospkg__clean_apk — Remove the Alpine APK package cache (`/var/cache/apk/*`).
+_ospkg__clean_apk() {
   users__run_privileged rm -rf /var/cache/apk/*
   return 0
 }
 
-# @brief _ospkg_clean_apt — Clean the APT package cache and remove downloaded index files.
+# @brief _ospkg__clean_apt — Clean the APT package cache and remove downloaded index files.
 #
 # Runs `apt-get clean` (removes cached `.deb` files) then `apt-get dist-clean`
 # (APT 3.x; removes `/var/lib/apt/lists/*` while preserving Release files).
 # Falls back to a direct `rm -rf /var/lib/apt/lists/*` on APT 2.x and below
 # where `dist-clean` does not exist.
-_ospkg_clean_apt() {
+_ospkg__clean_apt() {
   users__run_privileged apt-get clean
   # apt-get dist-clean is an APT 3.x command that removes /var/lib/apt/lists/*
   # while preserving the Release/InRelease files for security.
@@ -50,34 +50,34 @@ _ospkg_clean_apt() {
   return 0
 }
 
-# @brief _ospkg_clean_dnf — Clean the dnf/yum package cache and remove cached metadata.
-_ospkg_clean_dnf() {
-  users__run_privileged "$_OSPKG_PKG_MNGR" clean all 2> /dev/null || true
+# @brief _ospkg__clean_dnf — Clean the dnf/yum package cache and remove cached metadata.
+_ospkg__clean_dnf() {
+  users__run_privileged "$_OSPKG__PKG_MNGR" clean all 2> /dev/null || true
   users__run_privileged rm -rf /var/cache/dnf/* /var/cache/yum/*
   return 0
 }
 
-# @brief _ospkg_clean_pacman — Remove all cached pacman packages and unused sync databases.
-_ospkg_clean_pacman() {
+# @brief _ospkg__clean_pacman — Remove all cached pacman packages and unused sync databases.
+_ospkg__clean_pacman() {
   users__run_privileged pacman -Scc --noconfirm
   return 0
 }
 
-# @brief _ospkg_clean_zypper — Clean all zypper repository caches.
-_ospkg_clean_zypper() {
+# @brief _ospkg__clean_zypper — Clean all zypper repository caches.
+_ospkg__clean_zypper() {
   users__run_privileged zypper clean --all
   return 0
 }
 
-# @brief _ospkg_clean_brew — Run `brew cleanup --prune=all` to remove stale Homebrew downloads.
-_ospkg_clean_brew() {
-  _ospkg_brew_run cleanup --prune=all 2> /dev/null || true
+# @brief _ospkg__clean_brew — Run `brew cleanup --prune=all` to remove stale Homebrew downloads.
+_ospkg__clean_brew() {
+  _ospkg__brew_run cleanup --prune=all 2> /dev/null || true
   return 0
 }
 
-# @brief _ospkg_update_cmd — Run the package-manager index update command (`_OSPKG_UPDATE`), normalising non-fatal exit codes to 0.
+# @brief _ospkg__update_cmd — Run the package-manager index update command (`_OSPKG__UPDATE`), normalising non-fatal exit codes to 0.
 #
-# Wraps `_OSPKG_UPDATE` for use with `net__fetch_with_retry`. Non-fatal PM
+# Wraps `_OSPKG__UPDATE` for use with `net__fetch_with_retry`. Non-fatal PM
 # codes normalised to 0:
 #   - dnf/yum exit 100  — "updates available" (informational, not a failure).
 #   - zypper exit 6     — `ZYPPER_EXIT_INF_REPOS_SKIPPED`: at least one repo
@@ -88,8 +88,8 @@ _ospkg_clean_brew() {
 # Returns: 0 on success; 2 for non-transient configuration errors (malformed
 # source lists, parse errors) so `net__fetch_with_retry --bail-on 2` skips
 # pointless retries; other non-zero codes pass through unchanged for retry.
-_ospkg_update_cmd() {
-  [[ ${#_OSPKG_UPDATE[@]} -eq 0 ]] && return 0
+_ospkg__update_cmd() {
+  [[ ${#_OSPKG__UPDATE[@]} -eq 0 ]] && return 0
   local _rc=0 _err_tmp
   _err_tmp="$(mktemp)"
   # Keep interactive mode possible on TTY, but prevent PMs from draining
@@ -98,25 +98,25 @@ _ospkg_update_cmd() {
   # normalise non-fatal exit codes (e.g. dnf check-update exits 100 when
   # updates are available; zypper refresh exits 6 for skipped repos).
   if [[ -t 0 ]]; then
-    "${_OSPKG_UPDATE[@]}" 2> "$_err_tmp" || _rc=$?
-  elif [[ "$_OSPKG_PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
-    DEBIAN_FRONTEND=noninteractive "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
+    "${_OSPKG__UPDATE[@]}" 2> "$_err_tmp" || _rc=$?
+  elif [[ "$_OSPKG__PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
+    DEBIAN_FRONTEND=noninteractive "${_OSPKG__UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
   else
-    "${_OSPKG_UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
+    "${_OSPKG__UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
   fi
   cat "$_err_tmp" >&2
   # APT can occasionally report index corruption/partial fetch failures while
   # still exiting successfully; force retry when those signatures appear.
-  if [[ "$_OSPKG_PKG_MNGR" == "apt-get" ]] && grep -qiE \
+  if [[ "$_OSPKG__PKG_MNGR" == "apt-get" ]] && grep -qiE \
     'Hash Sum mismatch|Failed to fetch|Some index files failed to download' \
     "$_err_tmp" 2> /dev/null; then
     _rc=100
     users__run_privileged apt-get clean > /dev/null 2>&1 || true
     users__run_privileged apt-get dist-clean 2> /dev/null || users__run_privileged rm -rf /var/lib/apt/lists/* 2> /dev/null || true
   fi
-  [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] &&
+  [[ "$_OSPKG__PKG_MNGR" == "dnf" || "$_OSPKG__PKG_MNGR" == "yum" ]] &&
     [[ $_rc -eq 100 ]] && rm -f "$_err_tmp" && return 0
-  [[ "$_OSPKG_PKG_MNGR" == "zypper" ]] && [[ $_rc -eq 6 ]] && rm -f "$_err_tmp" && return 0
+  [[ "$_OSPKG__PKG_MNGR" == "zypper" ]] && [[ $_rc -eq 6 ]] && rm -f "$_err_tmp" && return 0
   if [[ $_rc -ne 0 ]]; then
     # Detect non-transient configuration errors — retrying will never fix these.
     if grep -qiE 'Malformed line|source list could not be read|parse error|invalid source' \
@@ -130,7 +130,7 @@ _ospkg_update_cmd() {
   return "$_rc"
 }
 
-# @brief _ospkg_dnf_bin — Print the name of a full-featured `dnf`-compatible binary (`dnf` or `yum`), or return 1.
+# @brief _ospkg__dnf_bin — Print the name of a full-featured `dnf`-compatible binary (`dnf` or `yum`), or return 1.
 #
 # `microdnf` does not implement the `copr` or `module` subcommands. This
 # helper resolves a usable binary for those operations using the following
@@ -143,22 +143,22 @@ _ospkg_update_cmd() {
 #
 # Stdout: `dnf` or `yum`.
 # Returns: 0 on success, 1 if no suitable binary is found.
-_ospkg_dnf_bin() {
+_ospkg__dnf_bin() {
   if command -v dnf > /dev/null 2>&1; then
     echo "dnf"
     return 0
   fi
-  if [[ "$_OSPKG_PKG_MNGR" == "yum" ]]; then
+  if [[ "$_OSPKG__PKG_MNGR" == "yum" ]]; then
     echo "yum"
     return 0
   fi
-  logging__error "'${_OSPKG_PKG_MNGR}' does not support copr/module subcommands; install full dnf first."
+  logging__error "'${_OSPKG__PKG_MNGR}' does not support copr/module subcommands; install full dnf first."
   return 1
 }
 
 # ── Private: key / repo helpers ──────────────────────────────────────────────
 
-# @brief _ospkg_key_effective_path <dest> <dearmor> — Print the filesystem path the key will actually be written to, accounting for dearmor mode.
+# @brief _ospkg__key_effective_path <dest> <dearmor> — Print the filesystem path the key will actually be written to, accounting for dearmor mode.
 #
 # When `dearmor` is `false` and `<dest>` ends in `.gpg`, the key is stored as
 # a raw `.key` file (the `.gpg` extension is reserved for dearmored binaries
@@ -169,7 +169,7 @@ _ospkg_dnf_bin() {
 #   <dearmor>  `true`, `false`, or `auto` (empty/`null` treated as `auto`).
 #
 # Stdout: effective file path.
-_ospkg_key_effective_path() {
+_ospkg__key_effective_path() {
   local _dest="$1" _dearmor="${2:-auto}"
   [[ -z "${_dearmor}" || "${_dearmor}" == "null" ]] && _dearmor=auto
   if [[ "${_dearmor}" == "false" && "${_dest}" == *.gpg ]]; then
@@ -179,7 +179,7 @@ _ospkg_key_effective_path() {
   fi
 }
 
-# @brief _ospkg_install_key_entry <url> <dest> [<dearmor>] [<fingerprint>] — Download and install a GPG signing key for a package repository.
+# @brief _ospkg__install_key_entry <url> <dest> [<dearmor>] [<fingerprint>] — Download and install a GPG signing key for a package repository.
 #
 # Supports three dearmoring modes:
 #   `true`  — always pipe through `gpg --dearmor` regardless of `<dest>` extension.
@@ -195,22 +195,22 @@ _ospkg_key_effective_path() {
 #   [fingerprint]  40-char hex GPG fingerprint (used when URL is absent).
 #
 # Returns: 0 on success, 1 on error.
-_ospkg_install_key_entry() {
+_ospkg__install_key_entry() {
   local _url="$1" _dest="$2" _dearmor="${3:-auto}" _fingerprint="${4:-}"
   [[ -z "${_dearmor}" || "${_dearmor}" == "null" ]] && _dearmor=auto
   [[ -z "${_fingerprint}" || "${_fingerprint}" == "null" ]] && _fingerprint=""
   local _target
-  _target="$(_ospkg_key_effective_path "$_dest" "$_dearmor")"
+  _target="$(_ospkg__key_effective_path "$_dest" "$_dearmor")"
   mkdir -p "$(dirname "$_dest")"
 
   # Fingerprint-only: no URL, fetch from keyserver.
   if [[ -z "${_url}" || "${_url}" == "null" ]]; then
     if [[ -n "${_fingerprint}" ]]; then
       logging__info "Installing key by fingerprint ${_fingerprint} → ${_target}"
-      _ospkg_install_key_by_fingerprint "${_fingerprint}" "${_target}"
+      _ospkg__install_key_by_fingerprint "${_fingerprint}" "${_target}"
       return $?
     fi
-    logging__error "_ospkg_install_key_entry: neither url nor fingerprint provided."
+    logging__error "_ospkg__install_key_entry: neither url nor fingerprint provided."
     return 1
   fi
 
@@ -233,7 +233,7 @@ _ospkg_install_key_entry() {
       fi
       ;;
     *)
-      logging__error "_ospkg_install_key_entry: invalid dearmor (use true, false, or auto): '${_dearmor}'"
+      logging__error "_ospkg__install_key_entry: invalid dearmor (use true, false, or auto): '${_dearmor}'"
       return 1
       ;;
   esac
@@ -241,7 +241,7 @@ _ospkg_install_key_entry() {
   return 0
 }
 
-# @brief _ospkg_install_key_by_fingerprint <fingerprint> <dest> — Fetch a GPG signing key by fingerprint and install it to `<dest>`.
+# @brief _ospkg__install_key_by_fingerprint <fingerprint> <dest> — Fetch a GPG signing key by fingerprint and install it to `<dest>`.
 #
 # Delegates to `verify__gpg_fetch_key_by_fingerprint` with the
 # `devfeats-ospkg-internals` tracking group.
@@ -251,14 +251,14 @@ _ospkg_install_key_entry() {
 #   <dest>         Destination path for the dearmored binary keyring.
 #
 # Returns: 0 on success, 1 if the key cannot be fetched from any keyserver.
-_ospkg_install_key_by_fingerprint() {
+_ospkg__install_key_by_fingerprint() {
   local _fingerprint="$1" _dest="$2"
   verify__gpg_fetch_key_by_fingerprint "$_fingerprint" "$_dest" "devfeats-ospkg-internals"
 }
 
-# @brief _ospkg_expand_content_vars <content> — Substitute `${KEY}` tokens in `<content>` using values from `_OSPKG_OS_RELEASE`.
+# @brief _ospkg__expand_content_vars <content> — Substitute `${KEY}` tokens in `<content>` using values from `_OSPKG__OS_RELEASE`.
 #
-# Iterates over all keys in the `_OSPKG_OS_RELEASE` associative array and
+# Iterates over all keys in the `_OSPKG__OS_RELEASE` associative array and
 # replaces `${KEY}` occurrences in `<content>`. Unknown tokens (keys not
 # present in the array) are left unchanged. Prints the result without a
 # trailing newline.
@@ -267,19 +267,19 @@ _ospkg_install_key_by_fingerprint() {
 #   <content>  String containing zero or more `${KEY}` placeholder tokens.
 #
 # Stdout: expanded string without trailing newline.
-_ospkg_expand_content_vars() {
+_ospkg__expand_content_vars() {
   local _content="$1" _k
-  for _k in "${!_OSPKG_OS_RELEASE[@]}"; do
-    _content="${_content//\$\{${_k}\}/${_OSPKG_OS_RELEASE[$_k]}}"
+  for _k in "${!_OSPKG__OS_RELEASE[@]}"; do
+    _content="${_content//\$\{${_k}\}/${_OSPKG__OS_RELEASE[$_k]}}"
   done
   printf '%s' "$_content"
   return 0
 }
 
-# @brief _ospkg_install_repo_content <content> — Append expanded repository configuration `<content>` to the appropriate PM config file for the current OS.
+# @brief _ospkg__install_repo_content <content> — Append expanded repository configuration `<content>` to the appropriate PM config file for the current OS.
 #
-# Calls `_ospkg_expand_content_vars` to substitute `${KEY}` tokens before
-# writing. Routes to the correct file based on `_OSPKG_FAMILY`:
+# Calls `_ospkg__expand_content_vars` to substitute `${KEY}` tokens before
+# writing. Routes to the correct file based on `_OSPKG__FAMILY`:
 #   apt     → `/etc/apt/sources.list.d/syspkg-installer.list`
 #   apk     → `/etc/apk/repositories` (one repo URL per non-blank line)
 #   dnf/yum → `/etc/yum.repos.d/syspkg-installer.repo`
@@ -292,27 +292,27 @@ _ospkg_expand_content_vars() {
 #   <content>  Repository config content, possibly containing `${KEY}` tokens.
 #
 # Returns: 0 always.
-_ospkg_install_repo_content() {
+_ospkg__install_repo_content() {
   local _content
-  _content="$(_ospkg_expand_content_vars "$1")"
-  if [[ "$_OSPKG_FAMILY" = "apt" ]]; then
+  _content="$(_ospkg__expand_content_vars "$1")"
+  if [[ "$_OSPKG__FAMILY" = "apt" ]]; then
     printf '%s' "$_content" | file__append_privileged /etc/apt/sources.list.d/syspkg-installer.list
     logging__info "Appended to /etc/apt/sources.list.d/syspkg-installer.list"
-  elif [[ "$_OSPKG_FAMILY" = "apk" ]]; then
+  elif [[ "$_OSPKG__FAMILY" = "apk" ]]; then
     local _rline
     while IFS= read -r _rline; do
       [[ -z "${_rline:-}" || "${_rline}" =~ ^[[:space:]]*# ]] && continue
       printf '%s\n' "$_rline" | file__append_privileged /etc/apk/repositories
-      _OSPKG_APK_ADDED_REPOS+=("$_rline")
+      _OSPKG__APK_ADDED_REPOS+=("$_rline")
       logging__info "Added APK repo: ${_rline}"
     done <<< "$_content"
-  elif [[ "$_OSPKG_FAMILY" = "dnf" ]]; then
+  elif [[ "$_OSPKG__FAMILY" = "dnf" ]]; then
     printf '%s' "$_content" | file__append_privileged /etc/yum.repos.d/syspkg-installer.repo
     logging__info "Appended to /etc/yum.repos.d/syspkg-installer.repo"
-  elif [[ "$_OSPKG_FAMILY" = "zypper" ]]; then
+  elif [[ "$_OSPKG__FAMILY" = "zypper" ]]; then
     printf '%s' "$_content" | file__append_privileged /etc/zypp/repos.d/syspkg-installer.repo
     logging__info "Appended to /etc/zypp/repos.d/syspkg-installer.repo"
-  elif [[ "$_OSPKG_FAMILY" = "pacman" ]]; then
+  elif [[ "$_OSPKG__FAMILY" = "pacman" ]]; then
     users__run_privileged mkdir -p /etc/pacman.d
     printf '%s' "$_content" | file__append_privileged /etc/pacman.d/syspkg-installer.conf
     grep -qxF 'Include = /etc/pacman.d/syspkg-installer.conf' /etc/pacman.conf ||
@@ -324,7 +324,7 @@ _ospkg_install_repo_content() {
 
 # ── Private: brew user/root handling ─────────────────────────────────────────
 
-# @brief _ospkg_brew_run <args...> — Run `brew` with the correct user context, working around Homebrew's root restriction.
+# @brief _ospkg__brew_run <args...> — Run `brew` with the correct user context, working around Homebrew's root restriction.
 #
 # Homebrew refuses to run as root on bare-metal macOS. Three cases are handled:
 #   Non-root           → run `brew` directly.
@@ -337,7 +337,7 @@ _ospkg_install_repo_content() {
 #   <args...>  Arguments forwarded verbatim to `brew`.
 #
 # Returns: exit code of `brew`.
-_ospkg_brew_run() {
+_ospkg__brew_run() {
   if ! users__is_root; then
     brew "$@"
     return
@@ -364,21 +364,21 @@ _ospkg_brew_run() {
 
 # ── Private: yq auto-installer ────────────────────────────────────────────────
 
-# @brief _ospkg_ensure_yq — Ensure `yq` (mikefarah/yq) is available, installing it if needed. Caches the binary path in `_OSPKG_YQ_BIN`.
+# @brief _ospkg__ensure_yq — Ensure `yq` (mikefarah/yq) is available, installing it if needed. Caches the binary path in `_OSPKG__YQ_BIN`.
 #
-# Fast path: `_OSPKG_YQ_BIN` is already set and the binary passes the
-# mikefarah compatibility check (`_install__yq_compatible`). Slow path:
+# Fast path: `_OSPKG__YQ_BIN` is already set and the binary passes the
+# mikefarah compatibility check (`_install_yq__compatible`). Slow path:
 # delegates to `install__yq --context internal` and caches the result.
 #
-# Side effects: sets `_OSPKG_YQ_BIN` to the absolute path of the installed binary.
+# Side effects: sets `_OSPKG__YQ_BIN` to the absolute path of the installed binary.
 # Returns: 0 on success, 1 if yq cannot be installed.
-_ospkg_ensure_yq() {
+_ospkg__ensure_yq() {
   # Fast path: already cached and still compatible.
-  if [[ -n "${_OSPKG_YQ_BIN:-}" ]] && [[ -x "${_OSPKG_YQ_BIN}" ]] && _install__yq_compatible "${_OSPKG_YQ_BIN}"; then
+  if [[ -n "${_OSPKG__YQ_BIN:-}" ]] && [[ -x "${_OSPKG__YQ_BIN}" ]] && _install_yq__compatible "${_OSPKG__YQ_BIN}"; then
     return 0
   fi
   local _yq_out_dir _yq_out_file
-  _OSPKG_YQ_BIN=""
+  _OSPKG__YQ_BIN=""
   _yq_out_dir="$(file__tmpdir "ospkg/yq")"
   _yq_out_file="$(mktemp "${_yq_out_dir}/install_yq_XXXXXX")" || {
     logging__error "yq could not be installed."
@@ -392,12 +392,12 @@ _ospkg_ensure_yq() {
     logging__error "yq could not be installed."
     return 1
   }
-  _OSPKG_YQ_BIN="$(awk 'NF{last=$0} END{print last}' "${_yq_out_file}")"
-  [[ -n "${_OSPKG_YQ_BIN}" && -x "${_OSPKG_YQ_BIN}" ]] || {
+  _OSPKG__YQ_BIN="$(awk 'NF{last=$0} END{print last}' "${_yq_out_file}")"
+  [[ -n "${_OSPKG__YQ_BIN}" && -x "${_OSPKG__YQ_BIN}" ]] || {
     logging__error "install__yq did not return a usable yq path."
     return 1
   }
-  _install__yq_compatible "${_OSPKG_YQ_BIN}" || {
+  _install_yq__compatible "${_OSPKG__YQ_BIN}" || {
     logging__error "yq could not be installed (or installed binary is incompatible)."
     return 1
   }
@@ -405,104 +405,104 @@ _ospkg_ensure_yq() {
 }
 
 # ── Private: PM configuration helpers ────────────────────────────────────────
-# Each _ospkg_set_* function configures the internal state for one PM family.
+# Each _ospkg__set_* function configures the internal state for one PM family.
 # Called only from ospkg__detect().
 
-# _ospkg_configure_pm <label> <family> <pm> <pm_key> <clean_fn> <lists_path> <lists_pattern>
-# Sets all scalar PM globals; callers assign _OSPKG_UPDATE and _OSPKG_INSTALL arrays themselves.
-_ospkg_configure_pm() {
+# _ospkg__configure_pm <label> <family> <pm> <pm_key> <clean_fn> <lists_path> <lists_pattern>
+# Sets all scalar PM globals; callers assign _OSPKG__UPDATE and _OSPKG__INSTALL arrays themselves.
+_ospkg__configure_pm() {
   logging__detect "Detected ecosystem: $1"
-  _OSPKG_FAMILY="$2"
-  _OSPKG_PKG_MNGR="$3"
-  _OSPKG_OS_RELEASE[pm]="$4"
-  _OSPKG_CLEAN="$5"
-  _OSPKG_LISTS_PATH="$6"
-  _OSPKG_LISTS_PATTERN="$7"
+  _OSPKG__FAMILY="$2"
+  _OSPKG__PKG_MNGR="$3"
+  _OSPKG__OS_RELEASE[pm]="$4"
+  _OSPKG__CLEAN="$5"
+  _OSPKG__LISTS_PATH="$6"
+  _OSPKG__LISTS_PATTERN="$7"
 }
 
-_ospkg_set_apt() {
-  _ospkg_configure_pm "APT (tool: apt-get)" apt apt-get apt _ospkg_clean_apt "/var/lib/apt/lists" "*_Packages*"
-  _OSPKG_UPDATE=(users__run_privileged apt-get update)
-  _OSPKG_INSTALL=(users__run_privileged apt-get -y install --no-install-recommends)
-  _OSPKG_REMOVE=(users__run_privileged apt-get -y --purge remove)
+_ospkg__set_apt() {
+  _ospkg__configure_pm "APT (tool: apt-get)" apt apt-get apt _ospkg__clean_apt "/var/lib/apt/lists" "*_Packages*"
+  _OSPKG__UPDATE=(users__run_privileged apt-get update)
+  _OSPKG__INSTALL=(users__run_privileged apt-get -y install --no-install-recommends)
+  _OSPKG__REMOVE=(users__run_privileged apt-get -y --purge remove)
   # dpkg --force-depends removes the package without cascade-removing reverse-dependents.
   # Use for binary-replacement: dependents stay installed with a temporarily broken dep.
-  _OSPKG_REMOVE_FORCE=(users__run_privileged dpkg --purge --force-depends)
-  _OSPKG_OS_RELEASE[deb_arch]="$(dpkg --print-architecture 2> /dev/null || uname -m)"
+  _OSPKG__REMOVE_FORCE=(users__run_privileged dpkg --purge --force-depends)
+  _OSPKG__OS_RELEASE[deb_arch]="$(dpkg --print-architecture 2> /dev/null || uname -m)"
 }
 
-_ospkg_set_apk() {
-  _ospkg_configure_pm "APK (tool: apk)" apk apk apk _ospkg_clean_apk "/var/cache/apk" "APKINDEX*"
-  _OSPKG_UPDATE=(users__run_privileged apk update)
-  _OSPKG_INSTALL=(users__run_privileged apk add --no-cache)
-  _OSPKG_REMOVE=(users__run_privileged apk del)
-  _OSPKG_REMOVE_FORCE=(users__run_privileged apk del --force-broken-world)
+_ospkg__set_apk() {
+  _ospkg__configure_pm "APK (tool: apk)" apk apk apk _ospkg__clean_apk "/var/cache/apk" "APKINDEX*"
+  _OSPKG__UPDATE=(users__run_privileged apk update)
+  _OSPKG__INSTALL=(users__run_privileged apk add --no-cache)
+  _OSPKG__REMOVE=(users__run_privileged apk del)
+  _OSPKG__REMOVE_FORCE=(users__run_privileged apk del --force-broken-world)
 }
 
-_ospkg_set_dnf() {
-  _ospkg_configure_pm "DNF (tool: dnf)" dnf dnf dnf _ospkg_clean_dnf "/var/cache/dnf" "*"
-  _OSPKG_UPDATE=(users__run_privileged dnf check-update)
-  _OSPKG_INSTALL=(users__run_privileged dnf -y install)
-  _OSPKG_REMOVE=(users__run_privileged dnf -y remove)
+_ospkg__set_dnf() {
+  _ospkg__configure_pm "DNF (tool: dnf)" dnf dnf dnf _ospkg__clean_dnf "/var/cache/dnf" "*"
+  _OSPKG__UPDATE=(users__run_privileged dnf check-update)
+  _OSPKG__INSTALL=(users__run_privileged dnf -y install)
+  _OSPKG__REMOVE=(users__run_privileged dnf -y remove)
   # rpm -e --nodeps removes the package without cascade-removing reverse-dependents.
-  _OSPKG_REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
+  _OSPKG__REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
   # DNF5 (Fedora 41+) renamed mark subcommands: install→user, remove→dependency.
   if dnf --version 2> /dev/null | grep -qE '(^5\.| 5\.[0-9])'; then
-    _OSPKG_DNF_MARK_USER="user"
-    _OSPKG_DNF_MARK_DEP="dependency"
+    _OSPKG__DNF_MARK_USER="user"
+    _OSPKG__DNF_MARK_DEP="dependency"
   else
-    _OSPKG_DNF_MARK_USER="install"
-    _OSPKG_DNF_MARK_DEP="remove"
+    _OSPKG__DNF_MARK_USER="install"
+    _OSPKG__DNF_MARK_DEP="remove"
   fi
 }
 
-_ospkg_set_microdnf() {
-  _ospkg_configure_pm "DNF (tool: microdnf)" dnf microdnf dnf _ospkg_clean_dnf "" ""
-  _OSPKG_UPDATE=()
-  _OSPKG_INSTALL=(users__run_privileged microdnf -y install --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0)
-  _OSPKG_REMOVE=(users__run_privileged microdnf -y remove)
-  _OSPKG_REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
+_ospkg__set_microdnf() {
+  _ospkg__configure_pm "DNF (tool: microdnf)" dnf microdnf dnf _ospkg__clean_dnf "" ""
+  _OSPKG__UPDATE=()
+  _OSPKG__INSTALL=(users__run_privileged microdnf -y install --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0)
+  _OSPKG__REMOVE=(users__run_privileged microdnf -y remove)
+  _OSPKG__REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
 }
 
-_ospkg_set_yum() {
-  _ospkg_configure_pm "YUM (tool: yum)" dnf yum yum _ospkg_clean_dnf "/var/cache/yum" "*"
-  _OSPKG_UPDATE=(users__run_privileged yum check-update)
-  _OSPKG_INSTALL=(users__run_privileged yum -y install)
-  _OSPKG_REMOVE=(users__run_privileged yum -y remove)
-  _OSPKG_REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
-  _OSPKG_DNF_MARK_USER="install"
-  _OSPKG_DNF_MARK_DEP="remove"
+_ospkg__set_yum() {
+  _ospkg__configure_pm "YUM (tool: yum)" dnf yum yum _ospkg__clean_dnf "/var/cache/yum" "*"
+  _OSPKG__UPDATE=(users__run_privileged yum check-update)
+  _OSPKG__INSTALL=(users__run_privileged yum -y install)
+  _OSPKG__REMOVE=(users__run_privileged yum -y remove)
+  _OSPKG__REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
+  _OSPKG__DNF_MARK_USER="install"
+  _OSPKG__DNF_MARK_DEP="remove"
 }
 
-_ospkg_set_zypper() {
-  _ospkg_configure_pm "Zypper (tool: zypper)" zypper zypper zypper _ospkg_clean_zypper "/var/cache/zypp/raw" "*"
-  _OSPKG_UPDATE=(users__run_privileged zypper --non-interactive refresh)
-  _OSPKG_INSTALL=(users__run_privileged zypper --non-interactive install)
-  _OSPKG_REMOVE=(users__run_privileged zypper --non-interactive remove --clean-deps)
-  _OSPKG_REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
+_ospkg__set_zypper() {
+  _ospkg__configure_pm "Zypper (tool: zypper)" zypper zypper zypper _ospkg__clean_zypper "/var/cache/zypp/raw" "*"
+  _OSPKG__UPDATE=(users__run_privileged zypper --non-interactive refresh)
+  _OSPKG__INSTALL=(users__run_privileged zypper --non-interactive install)
+  _OSPKG__REMOVE=(users__run_privileged zypper --non-interactive remove --clean-deps)
+  _OSPKG__REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
 }
 
-_ospkg_set_pacman() {
-  _ospkg_configure_pm "Pacman (tool: pacman)" pacman pacman pacman _ospkg_clean_pacman "/var/lib/pacman/sync" "*.db"
-  _OSPKG_UPDATE=(users__run_privileged pacman -Sy --noconfirm)
-  _OSPKG_INSTALL=(users__run_privileged pacman -S --noconfirm --needed)
-  _OSPKG_REMOVE=(users__run_privileged pacman -Rs --noconfirm)
+_ospkg__set_pacman() {
+  _ospkg__configure_pm "Pacman (tool: pacman)" pacman pacman pacman _ospkg__clean_pacman "/var/lib/pacman/sync" "*.db"
+  _OSPKG__UPDATE=(users__run_privileged pacman -Sy --noconfirm)
+  _OSPKG__INSTALL=(users__run_privileged pacman -S --noconfirm --needed)
+  _OSPKG__REMOVE=(users__run_privileged pacman -Rs --noconfirm)
   # -Rdd skips all dependency version checks; removes without cascade.
-  _OSPKG_REMOVE_FORCE=(users__run_privileged pacman -Rdd --noconfirm)
+  _OSPKG__REMOVE_FORCE=(users__run_privileged pacman -Rdd --noconfirm)
 }
 
-_ospkg_set_brew() {
+_ospkg__set_brew() {
   local _label="${1:-Linux}"
-  _ospkg_configure_pm "Homebrew (tool: brew) [${_label}]" brew brew brew _ospkg_clean_brew "" ""
-  _OSPKG_UPDATE=(_ospkg_brew_run update)
-  _OSPKG_INSTALL=(_ospkg_brew_run install)
-  _OSPKG_REMOVE=(_ospkg_brew_run uninstall)
-  _OSPKG_REMOVE_FORCE=(_ospkg_brew_run uninstall --ignore-dependencies)
+  _ospkg__configure_pm "Homebrew (tool: brew) [${_label}]" brew brew brew _ospkg__clean_brew "" ""
+  _OSPKG__UPDATE=(_ospkg__brew_run update)
+  _OSPKG__INSTALL=(_ospkg__brew_run install)
+  _OSPKG__REMOVE=(_ospkg__brew_run uninstall)
+  _OSPKG__REMOVE_FORCE=(_ospkg__brew_run uninstall --ignore-dependencies)
 }
 
-# _ospkg_load_linux_release
-# Parses /etc/os-release into _OSPKG_OS_RELEASE (merges; does not overwrite pm).
-_ospkg_load_linux_release() {
+# _ospkg__load_linux_release
+# Parses /etc/os-release into _OSPKG__OS_RELEASE (merges; does not overwrite pm).
+_ospkg__load_linux_release() {
   if [[ -f /etc/os-release ]]; then
     local _key _val
     while IFS='=' read -r _key _val; do
@@ -512,24 +512,24 @@ _ospkg_load_linux_release() {
       _val="${_val#\'}"
       _val="${_val%\'}"
       [[ "$_key" == "pm" ]] && continue # never overwrite pm
-      _OSPKG_OS_RELEASE["${_key,,}"]="$_val"
+      _OSPKG__OS_RELEASE["${_key,,}"]="$_val"
     done < /etc/os-release
   fi
-  _OSPKG_OS_RELEASE[kernel]="linux"
-  _OSPKG_OS_RELEASE[arch]="$(uname -m)"
-  logging__inspect "OS context: pm=${_OSPKG_OS_RELEASE[pm]-} arch=${_OSPKG_OS_RELEASE[arch]-} id=${_OSPKG_OS_RELEASE[id]-} id_like=${_OSPKG_OS_RELEASE[id_like]-} version_id=${_OSPKG_OS_RELEASE[version_id]-} version_codename=${_OSPKG_OS_RELEASE[version_codename]-}"
+  _OSPKG__OS_RELEASE[kernel]="linux"
+  _OSPKG__OS_RELEASE[arch]="$(uname -m)"
+  logging__inspect "OS context: pm=${_OSPKG__OS_RELEASE[pm]-} arch=${_OSPKG__OS_RELEASE[arch]-} id=${_OSPKG__OS_RELEASE[id]-} id_like=${_OSPKG__OS_RELEASE[id_like]-} version_id=${_OSPKG__OS_RELEASE[version_id]-} version_codename=${_OSPKG__OS_RELEASE[version_codename]-}"
   return 0
 }
 
 # ── Public: ospkg__detect ────────────────────────────────────────────────────
 # @brief ospkg__detect — Detect the package manager and populate internal state. Idempotent; called automatically by all other `ospkg__*` functions.
 #
-# Respects `_OSPKG_PREFER_LINUXBREW`: when true, brew is checked before the
+# Respects `_OSPKG__PREFER_LINUXBREW`: when true, brew is checked before the
 # native Linux PM chain (no effect on macOS where brew is always used).
 #
 # Returns: 0 on success, 1 if no supported package manager is found.
 ospkg__detect() {
-  [[ "$_OSPKG_DETECTED" == true ]] && return 0
+  [[ "$_OSPKG__DETECTED" == true ]] && return 0
 
   local _kernel
   _kernel="$(uname -s)"
@@ -542,49 +542,49 @@ ospkg__detect() {
       logging__error "Or add the 'install-homebrew' devcontainer feature."
       return 1
     fi
-    _ospkg_set_brew "macOS"
-    _OSPKG_OS_RELEASE[kernel]="darwin"
-    _OSPKG_OS_RELEASE[id]="macos"
-    _OSPKG_OS_RELEASE[id_like]="macos"
-    _OSPKG_OS_RELEASE[version_id]="$(sw_vers -productVersion 2> /dev/null || echo "")"
-    _OSPKG_OS_RELEASE[arch]="$(uname -m)"
-    logging__inspect "OS context: pm=brew arch=${_OSPKG_OS_RELEASE[arch]-} id=macos version_id=${_OSPKG_OS_RELEASE[version_id]-}"
-    _OSPKG_DETECTED=true
+    _ospkg__set_brew "macOS"
+    _OSPKG__OS_RELEASE[kernel]="darwin"
+    _OSPKG__OS_RELEASE[id]="macos"
+    _OSPKG__OS_RELEASE[id_like]="macos"
+    _OSPKG__OS_RELEASE[version_id]="$(sw_vers -productVersion 2> /dev/null || echo "")"
+    _OSPKG__OS_RELEASE[arch]="$(uname -m)"
+    logging__inspect "OS context: pm=brew arch=${_OSPKG__OS_RELEASE[arch]-} id=macos version_id=${_OSPKG__OS_RELEASE[version_id]-}"
+    _OSPKG__DETECTED=true
     return 0
   fi
 
   # Linux: optionally prefer Linuxbrew before the native PM chain.
-  if [[ "${_OSPKG_PREFER_LINUXBREW:-false}" == "true" ]] && type brew > /dev/null 2>&1; then
-    _ospkg_set_brew "Linux/Linuxbrew"
-    _ospkg_load_linux_release
-    _OSPKG_DETECTED=true
+  if [[ "${_OSPKG__PREFER_LINUXBREW:-false}" == "true" ]] && type brew > /dev/null 2>&1; then
+    _ospkg__set_brew "Linux/Linuxbrew"
+    _ospkg__load_linux_release
+    _OSPKG__DETECTED=true
     return 0
   fi
 
   # Linux: standard native PM detection chain.
   if type apt-get > /dev/null 2>&1; then
-    _ospkg_set_apt
+    _ospkg__set_apt
   elif type apk > /dev/null 2>&1; then
-    _ospkg_set_apk
+    _ospkg__set_apk
   elif type dnf > /dev/null 2>&1; then
-    _ospkg_set_dnf
+    _ospkg__set_dnf
   elif type microdnf > /dev/null 2>&1; then
-    _ospkg_set_microdnf
+    _ospkg__set_microdnf
   elif type yum > /dev/null 2>&1; then
-    _ospkg_set_yum
+    _ospkg__set_yum
   elif type zypper > /dev/null 2>&1; then
-    _ospkg_set_zypper
+    _ospkg__set_zypper
   elif type pacman > /dev/null 2>&1; then
-    _ospkg_set_pacman
+    _ospkg__set_pacman
   elif type brew > /dev/null 2>&1; then
-    _ospkg_set_brew "Linux/Linuxbrew"
+    _ospkg__set_brew "Linux/Linuxbrew"
   else
     logging__error "No supported package manager found."
     return 1
   fi
 
-  _ospkg_load_linux_release
-  _OSPKG_DETECTED=true
+  _ospkg__load_linux_release
+  _OSPKG__DETECTED=true
   return 0
 }
 
@@ -622,27 +622,27 @@ ospkg__update() {
     esac
   done
 
-  if [[ ${#_OSPKG_UPDATE[@]} -eq 0 ]]; then
+  if [[ ${#_OSPKG__UPDATE[@]} -eq 0 ]]; then
     # microdnf bakes --refresh into every install call; no separate update step is needed.
-    logging__info "Package list update handled per-install by '${_OSPKG_PKG_MNGR}' (--refresh) — skipping explicit update."
+    logging__info "Package list update handled per-install by '${_OSPKG__PKG_MNGR}' (--refresh) — skipping explicit update."
     return 0
   fi
 
   local _skip=false
   if [[ "$_force" == true || "$_repo_added" == true ]]; then
     _skip=false
-  elif [[ "$_OSPKG_UPDATED" == true ]]; then
+  elif [[ "$_OSPKG__UPDATED" == true ]]; then
     # Already ran an update in this process — skip unless force/repo_added.
     logging__info "Package lists already updated in this process — skipping."
     _skip=true
-  elif [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
+  elif [[ "$_OSPKG__PKG_MNGR" == "brew" ]]; then
     # brew: no simple lists age check — always update unless forced off.
     _skip=false
-  elif [[ -n "${_OSPKG_LISTS_PATH:-}" && -d "$_OSPKG_LISTS_PATH" ]]; then
-    if [[ -n "$(find "$_OSPKG_LISTS_PATH" -mindepth 1 -maxdepth 2 -name "${_OSPKG_LISTS_PATTERN:-*}" 2> /dev/null | head -1)" ]]; then
+  elif [[ -n "${_OSPKG__LISTS_PATH:-}" && -d "$_OSPKG__LISTS_PATH" ]]; then
+    if [[ -n "$(find "$_OSPKG__LISTS_PATH" -mindepth 1 -maxdepth 2 -name "${_OSPKG__LISTS_PATTERN:-*}" 2> /dev/null | head -1)" ]]; then
       local _mtime _age
       # stat -c (Linux) or stat -f (macOS)
-      _mtime=$(stat -c %Y "$_OSPKG_LISTS_PATH" 2> /dev/null || stat -f %m "$_OSPKG_LISTS_PATH" 2> /dev/null || echo 0)
+      _mtime=$(stat -c %Y "$_OSPKG__LISTS_PATH" 2> /dev/null || stat -f %m "$_OSPKG__LISTS_PATH" 2> /dev/null || echo 0)
       _age=$(($(date +%s) - _mtime))
       if [[ $_age -lt $_max_age ]]; then
         _skip=true
@@ -653,8 +653,8 @@ ospkg__update() {
 
   if [[ "$_skip" == false ]]; then
     logging__info "Updating package lists."
-    net__fetch_with_retry --bail-on 2 --retries 10 _ospkg_update_cmd
-    _OSPKG_UPDATED=true
+    net__fetch_with_retry --bail-on 2 --retries 10 _ospkg__update_cmd
+    _OSPKG__UPDATED=true
     logging__success "Package lists updated."
   fi
   return 0
@@ -669,7 +669,7 @@ ospkg__update() {
 # Returns: 0 on success.
 ospkg__install() {
   ospkg__detect || return 1
-  if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
+  if [[ "$_OSPKG__PKG_MNGR" == "brew" ]]; then
     local _pkg _all_installed=true
     for _pkg in "$@"; do
       brew list --formula "$_pkg" > /dev/null 2>&1 || {
@@ -681,15 +681,15 @@ ospkg__install() {
       logging__info "Packages already installed: $*"
       return 0
     }
-  elif [[ "$_OSPKG_PKG_MNGR" = "apt-get" ]]; then
+  elif [[ "$_OSPKG__PKG_MNGR" = "apt-get" ]]; then
     if dpkg -s "$@" > /dev/null 2>&1; then
       logging__info "Packages already installed: $*"
       return 0
     fi
-  elif [[ "$_OSPKG_PKG_MNGR" = "dnf" || "$_OSPKG_PKG_MNGR" = "yum" ]]; then
+  elif [[ "$_OSPKG__PKG_MNGR" = "dnf" || "$_OSPKG__PKG_MNGR" = "yum" ]]; then
     local _num_pkgs=$#
     local _num_installed
-    _num_installed=$("$_OSPKG_PKG_MNGR" -C list installed "$@" 2> /dev/null | sed '1,/^Installed/d' | wc -l) || _num_installed=0
+    _num_installed=$("$_OSPKG__PKG_MNGR" -C list installed "$@" 2> /dev/null | sed '1,/^Installed/d' | wc -l) || _num_installed=0
     if [[ $_num_pkgs -eq $_num_installed ]]; then
       logging__info "Packages already installed: $*"
       return 0
@@ -701,11 +701,11 @@ ospkg__install() {
   # Keep interactive mode possible on TTY, but prevent PMs from draining
   # caller-provided stdin in piped/non-interactive contexts.
   if [[ -t 0 ]]; then
-    net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" >&2
-  elif [[ "$_OSPKG_PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
-    DEBIAN_FRONTEND=noninteractive net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" < /dev/null >&2
+    net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" >&2
+  elif [[ "$_OSPKG__PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
+    DEBIAN_FRONTEND=noninteractive net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2
   else
-    net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" < /dev/null >&2
+    net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2
   fi
 }
 
@@ -716,14 +716,14 @@ ospkg__install() {
 ospkg__clean() {
   ospkg__detect
   logging__clean "Cleaning package manager cache."
-  "$_OSPKG_CLEAN"
+  "$_OSPKG__CLEAN"
   return 0
 }
 
 # ── Public: ospkg__parse_manifest_yaml ───────────────────────────────────────
 # @brief ospkg__parse_manifest_yaml <json-file> — Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout.
 #
-# Requires jq in PATH and _OSPKG_OS_RELEASE populated by ospkg__detect.
+# Requires jq in PATH and _OSPKG__OS_RELEASE populated by ospkg__detect.
 # Each record is a compact JSON object with a "kind" field.
 #
 # Output record kinds:
@@ -748,53 +748,53 @@ ospkg__clean() {
 ospkg__parse_manifest_yaml() {
   local _json_file="$1"
 
-  # Build a full JSON context object from _OSPKG_OS_RELEASE so that every
+  # Build a full JSON context object from _OSPKG__OS_RELEASE so that every
   # /etc/os-release key (including version_codename, pretty_name, etc.) plus
   # the synthetic keys (pm, arch, kernel) is available in `when` clauses.
   local _ctx_json _k
   # shellcheck disable=SC2016
   _ctx_json="$(
-    for _k in "${!_OSPKG_OS_RELEASE[@]}"; do
-      printf '%s\n' "$_k" "${_OSPKG_OS_RELEASE[$_k]}"
+    for _k in "${!_OSPKG__OS_RELEASE[@]}"; do
+      printf '%s\n' "$_k" "${_OSPKG__OS_RELEASE[$_k]}"
     done | json__query -Rn '[inputs] | [range(0; length; 2) as $i | {key: .[$i], value: .[$i + 1]}] | from_entries'
   )"
 
-  local _pm="${_OSPKG_OS_RELEASE[pm]:-${_OSPKG_FAMILY}}"
+  local _pm="${_OSPKG__OS_RELEASE[pm]:-${_OSPKG__FAMILY}}"
 
   json__query -c \
     --argjson ctx "$_ctx_json" \
     --arg pm "$_pm" \
-    -f "${_OSPKG_LIB_DIR}/ospkg-manifest.jq" \
+    -f "${_OSPKG__LIB_DIR}/ospkg-manifest.jq" \
     "$_json_file"
   return 0
 }
 
 # ── Private: build-dep tracking ──────────────────────────────────────────────
-# _ospkg_build_deps_dir — returns the directory used for build-dep sidecar files.
-_ospkg_build_deps_dir() {
+# _ospkg__build_deps_dir — returns the directory used for build-dep sidecar files.
+_ospkg__build_deps_dir() {
   printf '%s' "$(file__tmpdir "ospkg/build-deps")"
   return
 }
 
-# _ospkg_protect_user_pkgs <pkg-name>... — mark packages as user-requested so
+# _ospkg__protect_user_pkgs <pkg-name>... — mark packages as user-requested so
 # build-group cleanup cannot remove them. Accepts bare package names only (no
 # version suffixes). Applies PM-native marking for marking-capable PMs and
 # evicts each package from every build-group sidecar (covers explicit-list PMs:
 # apk, zypper, microdnf, brew). All operations are non-fatal.
-_ospkg_protect_user_pkgs() {
+_ospkg__protect_user_pkgs() {
   [[ $# -eq 0 ]] && return 0
   ospkg__detect
   # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
-  case "$_OSPKG_PKG_MNGR" in
+  case "$_OSPKG__PKG_MNGR" in
     apt-get) users__run_privileged apt-mark manual "$@" > /dev/null 2>&1 || true ;;
-    dnf | yum) users__run_privileged "$_OSPKG_PKG_MNGR" -y mark "${_OSPKG_DNF_MARK_USER}" "$@" > /dev/null 2>&1 || true ;;
+    dnf | yum) users__run_privileged "$_OSPKG__PKG_MNGR" -y mark "${_OSPKG__DNF_MARK_USER}" "$@" > /dev/null 2>&1 || true ;;
     pacman) users__run_privileged pacman -D --asexplicit "$@" > /dev/null 2>&1 || true ;;
     *) ;;
   esac
   # Sidecar eviction: remove each package from every build-group sidecar so
   # explicit-list PMs do not delete them during build-group cleanup.
   local _bd_dir _sidecar _sidecar_name _pkg _tmp
-  _bd_dir="$(_ospkg_build_deps_dir)"
+  _bd_dir="$(_ospkg__build_deps_dir)"
   [[ -d "$_bd_dir" ]] || return 0
   for _sidecar in "$_bd_dir"/*; do
     [[ -f "$_sidecar" ]] || continue
@@ -831,28 +831,28 @@ _ospkg_protect_user_pkgs() {
 ospkg__take_initial_snapshot() {
   local _dest="$1"
   ospkg__detect
-  _ospkg_snapshot_packages "$_dest"
+  _ospkg__snapshot_packages "$_dest"
   logging__info "Initial package snapshot written to ${_dest}."
   return 0
 }
 
 # ── Private: global auto-state snapshot/restore ──────────────────────────────
 
-# _ospkg_global_auto_snapshot_file — print the path for the global pre-install
+# _ospkg__global_auto_snapshot_file — print the path for the global pre-install
 # auto-state snapshot stored alongside build-dep sidecars.
-_ospkg_global_auto_snapshot_file() {
-  printf '%s/.global_auto_before' "$(_ospkg_build_deps_dir)"
+_ospkg__global_auto_snapshot_file() {
+  printf '%s/.global_auto_before' "$(_ospkg__build_deps_dir)"
 }
 
-# _ospkg_ensure_global_auto_snapshot — idempotent; called before the first
+# _ospkg__ensure_global_auto_snapshot — idempotent; called before the first
 # ospkg__install_tracked install. Snapshots the current auto/dep-marked packages
 # and temporarily pins them as manual so PM-native autoremove during cleanup
 # cannot touch packages that pre-existed our build.
-_ospkg_ensure_global_auto_snapshot() {
+_ospkg__ensure_global_auto_snapshot() {
   local _snap
-  _snap="$(_ospkg_global_auto_snapshot_file)"
+  _snap="$(_ospkg__global_auto_snapshot_file)"
   [[ -f "$_snap" ]] && return 0
-  case "$_OSPKG_PKG_MNGR" in
+  case "$_OSPKG__PKG_MNGR" in
     apt-get)
       apt-mark showauto 2> /dev/null | sort > "$_snap"
       local -a _auto_pkgs=()
@@ -865,11 +865,11 @@ _ospkg_ensure_global_auto_snapshot() {
       # user-installed so autoremove won't touch them during our cleanup.
       comm -23 \
         <(rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort) \
-        <("$_OSPKG_PKG_MNGR" history userinstalled 2> /dev/null | sort) > "$_snap"
+        <("$_OSPKG__PKG_MNGR" history userinstalled 2> /dev/null | sort) > "$_snap"
       local -a _dep_pkgs=()
       mapfile -t _dep_pkgs < "$_snap"
       [[ ${#_dep_pkgs[@]} -gt 0 ]] &&
-        users__run_privileged "$_OSPKG_PKG_MNGR" -y mark "${_OSPKG_DNF_MARK_USER}" "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
+        users__run_privileged "$_OSPKG__PKG_MNGR" -y mark "${_OSPKG__DNF_MARK_USER}" "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
       ;;
     pacman)
       # Snapshot all asdeps packages and temporarily mark them asexplicit so
@@ -889,12 +889,12 @@ _ospkg_ensure_global_auto_snapshot() {
   return 0
 }
 
-# _ospkg_restore_global_auto_state — called after all build groups are cleaned.
+# _ospkg__restore_global_auto_state — called after all build groups are cleaned.
 # Restores pre-existing auto-marked packages back to their original state and
 # removes the snapshot file. Idempotent (no-op if no snapshot was taken).
-_ospkg_restore_global_auto_state() {
+_ospkg__restore_global_auto_state() {
   local _snap
-  _snap="$(_ospkg_global_auto_snapshot_file)"
+  _snap="$(_ospkg__global_auto_snapshot_file)"
   [[ -f "$_snap" ]] || return 0
   local -a _pkgs=()
   mapfile -t _pkgs < "$_snap"
@@ -903,7 +903,7 @@ _ospkg_restore_global_auto_state() {
   # Intersect snapshot with currently installed packages in one batch query.
   # Some packages may have been removed as build deps and no longer exist.
   local -a _still_installed=()
-  case "$_OSPKG_PKG_MNGR" in
+  case "$_OSPKG__PKG_MNGR" in
     apt-get)
       mapfile -t _still_installed < <(comm -12 \
         <(printf '%s\n' "${_pkgs[@]}") \
@@ -916,7 +916,7 @@ _ospkg_restore_global_auto_state() {
         <(printf '%s\n' "${_pkgs[@]}") \
         <(rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort))
       [[ ${#_still_installed[@]} -gt 0 ]] &&
-        users__run_privileged "$_OSPKG_PKG_MNGR" -y mark "${_OSPKG_DNF_MARK_DEP}" "${_still_installed[@]}" > /dev/null 2>&1 || true
+        users__run_privileged "$_OSPKG__PKG_MNGR" -y mark "${_OSPKG__DNF_MARK_DEP}" "${_still_installed[@]}" > /dev/null 2>&1 || true
       ;;
     pacman)
       mapfile -t _still_installed < <(comm -12 \
@@ -932,26 +932,26 @@ _ospkg_restore_global_auto_state() {
 
 # ── Private: apk virtual-group helpers ───────────────────────────────────────
 
-# _ospkg_apk_virtual_name <group_id> — emit a valid APK virtual package name
+# _ospkg__apk_virtual_name <group_id> — emit a valid APK virtual package name
 # derived from <group_id>. Format: .df-<sanitized> (dot prefix, lowercase alnum
 # and hyphens). Dot prefix prevents conflicts with real package names.
-_ospkg_apk_virtual_name() {
+_ospkg__apk_virtual_name() {
   local _name="${1//[^a-zA-Z0-9_-]/-}"
   _name="${_name,,}"
   printf '.df-%s' "$_name"
 }
 
-# _ospkg_apk_virts_file <sidecar_path> — print the path for the auxiliary file
+# _ospkg__apk_virts_file <sidecar_path> — print the path for the auxiliary file
 # that stores the list of APK virtual package names created for a build group.
-_ospkg_apk_virts_file() {
+_ospkg__apk_virts_file() {
   printf '%s.apkvirts' "$1"
 }
 
-# _ospkg_snapshot_packages <dest-file> — writes a sorted list of installed
+# _ospkg__snapshot_packages <dest-file> — writes a sorted list of installed
 # package names (one per line) to <dest-file>.
-_ospkg_snapshot_packages() {
+_ospkg__snapshot_packages() {
   local _dest="$1"
-  case "$_OSPKG_PKG_MNGR" in
+  case "$_OSPKG__PKG_MNGR" in
     apt-get) dpkg-query -W -f='${Package}\n' 2> /dev/null | sort > "$_dest" ;;
     apk) apk info 2> /dev/null | sort > "$_dest" ;;
     dnf | yum | microdnf) rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort > "$_dest" ;;
@@ -963,16 +963,16 @@ _ospkg_snapshot_packages() {
   return 0
 }
 
-# _ospkg_mark_build_group <group-id> <before-file> — diff current state against
+# _ospkg__mark_build_group <group-id> <before-file> — diff current state against
 # <before-file>, apply PM-native removable marking to newly-installed packages,
 # and write the sidecar tracking file.
-_ospkg_mark_build_group() {
+_ospkg__mark_build_group() {
   local _group_id="$1" _before_file="$2"
   local _deps_dir _after_file _sidecar
-  _deps_dir="$(_ospkg_build_deps_dir)"
+  _deps_dir="$(_ospkg__build_deps_dir)"
   _after_file="${_deps_dir}/${_group_id//\//_}.after"
   _sidecar="${_deps_dir}/${_group_id//\//_}"
-  _ospkg_snapshot_packages "$_after_file"
+  _ospkg__snapshot_packages "$_after_file"
   local -a _new_pkgs=()
   mapfile -t _new_pkgs < <(comm -13 "$_before_file" "$_after_file" 2> /dev/null)
   rm -f "$_after_file"
@@ -993,12 +993,12 @@ _ospkg_mark_build_group() {
   # ospkg__install_tracked, so it only contains packages that were absent before
   # this call. Packages already installed (e.g. from run.base in the header)
   # never appear here and their manual marks are therefore never disturbed.
-  case "$_OSPKG_PKG_MNGR" in
+  case "$_OSPKG__PKG_MNGR" in
     apt-get)
       users__run_privileged apt-mark auto "${_new_pkgs[@]}" >&2 || true
       ;;
     dnf | yum)
-      users__run_privileged "$_OSPKG_PKG_MNGR" -y mark "${_OSPKG_DNF_MARK_DEP}" "${_new_pkgs[@]}" >&2 || true
+      users__run_privileged "$_OSPKG__PKG_MNGR" -y mark "${_OSPKG__DNF_MARK_DEP}" "${_new_pkgs[@]}" >&2 || true
       ;;
     pacman)
       users__run_privileged pacman -D --asdeps "${_new_pkgs[@]}" >&2 || true
@@ -1008,12 +1008,12 @@ _ospkg_mark_build_group() {
   return 0
 }
 
-# _ospkg_remove_build_group <group-id> — remove previously-installed build-only
+# _ospkg__remove_build_group <group-id> — remove previously-installed build-only
 # packages using PM-native mechanisms based on the sidecar tracking file.
-_ospkg_remove_build_group() {
+_ospkg__remove_build_group() {
   local _group_id="$1"
   local _deps_dir _sidecar
-  _deps_dir="$(_ospkg_build_deps_dir)"
+  _deps_dir="$(_ospkg__build_deps_dir)"
   _sidecar="${_deps_dir}/${_group_id//\//_}"
   if [[ ! -f "$_sidecar" ]]; then
     logging__info "Build group '${_group_id}': sidecar not found — nothing to remove."
@@ -1027,10 +1027,10 @@ _ospkg_remove_build_group() {
   fi
   logging__remove "Build group '${_group_id}': removing ${#_pkgs[@]} package(s): ${_pkgs[*]}"
   local _pkg
-  case "$_OSPKG_PKG_MNGR" in
+  case "$_OSPKG__PKG_MNGR" in
     apt-get)
       # Pre-existing auto-marked packages were pinned manual by
-      # _ospkg_ensure_global_auto_snapshot, so autoremove only removes build
+      # _ospkg__ensure_global_auto_snapshot, so autoremove only removes build
       # deps installed in this session. Explicit list removal is avoided because
       # it cascades to reverse-dependencies regardless of manual marks.
       users__run_privileged apt-get -y --purge autoremove >&2 || true
@@ -1039,7 +1039,7 @@ _ospkg_remove_build_group() {
       # Remove the APK virtual groups created during ospkg__install_tracked.
       # apk del VIRT removes each virtual's packages unless still needed by world.
       local _virts_file _virt_name
-      _virts_file="$(_ospkg_apk_virts_file "$_sidecar")"
+      _virts_file="$(_ospkg__apk_virts_file "$_sidecar")"
       if [[ -f "$_virts_file" ]]; then
         while IFS= read -r _virt_name; do
           [[ -z "$_virt_name" ]] && continue
@@ -1055,8 +1055,8 @@ _ospkg_remove_build_group() {
       ;;
     dnf | yum)
       # Pre-existing dep-marked packages were pinned user-installed by
-      # _ospkg_ensure_global_auto_snapshot, so only our build deps are eligible.
-      users__run_privileged "$_OSPKG_PKG_MNGR" -y autoremove >&2 || true
+      # _ospkg__ensure_global_auto_snapshot, so only our build deps are eligible.
+      users__run_privileged "$_OSPKG__PKG_MNGR" -y autoremove >&2 || true
       ;;
     microdnf)
       # microdnf has no mark or autoremove; remove per-package so a single
@@ -1075,7 +1075,7 @@ _ospkg_remove_build_group() {
       ;;
     pacman)
       # Pre-existing asdeps packages were pinned asexplicit by
-      # _ospkg_ensure_global_auto_snapshot, so pacman -Qdtq lists only orphaned
+      # _ospkg__ensure_global_auto_snapshot, so pacman -Qdtq lists only orphaned
       # build deps we introduced. -Rns removes each orphan and its now-unneeded deps.
       local -a _orphans=()
       mapfile -t _orphans < <(pacman -Qdtq 2> /dev/null)
@@ -1085,7 +1085,7 @@ _ospkg_remove_build_group() {
     brew)
       for _pkg in "${_pkgs[@]}"; do
         if [[ -z "$(brew uses --installed "$_pkg" 2> /dev/null)" ]]; then
-          _ospkg_brew_run remove "$_pkg" >&2 || true
+          _ospkg__brew_run remove "$_pkg" >&2 || true
         else
           logging__info "brew: keeping '$_pkg' (still in use)."
         fi
@@ -1112,29 +1112,29 @@ ospkg__install_tracked() {
   local _group_id="${_SYSSET_BUILD_CONTEXT:-uncontexted}::$1"
   shift
   local _bd_dir _before_snapshot
-  _bd_dir="$(_ospkg_build_deps_dir)"
+  _bd_dir="$(_ospkg__build_deps_dir)"
   _before_snapshot="${_bd_dir}/${_group_id//\//\_}.before"
   ospkg__detect || return 1
-  _ospkg_ensure_global_auto_snapshot
+  _ospkg__ensure_global_auto_snapshot
 
-  if [[ "$_OSPKG_PKG_MNGR" == "apk" ]]; then
+  if [[ "$_OSPKG__PKG_MNGR" == "apk" ]]; then
     # APK: create a named virtual group so 'apk del VIRT' at cleanup removes
     # exactly our packages — and only those no longer needed by world.
     local _sidecar _virts_file _virt_name _count _existing_virts=()
     _sidecar="${_bd_dir}/${_group_id//\//_}"
-    _virts_file="$(_ospkg_apk_virts_file "$_sidecar")"
+    _virts_file="$(_ospkg__apk_virts_file "$_sidecar")"
     [[ -f "$_virts_file" ]] && mapfile -t _existing_virts < "$_virts_file"
     _count="${#_existing_virts[@]}"
-    _virt_name="$(_ospkg_apk_virtual_name "$_group_id")-${_count}"
+    _virt_name="$(_ospkg__apk_virtual_name "$_group_id")-${_count}"
     users__run_privileged apk add --no-cache --virtual "$_virt_name" "$@" >&2 || return 1
     printf '%s\n' "$_virt_name" >> "$_virts_file"
     # Keep a human-readable sidecar for logging and session tracking.
     printf '%s\n' "$@" >> "$_sidecar"
     sort -u "$_sidecar" -o "$_sidecar"
   else
-    _ospkg_snapshot_packages "$_before_snapshot"
+    _ospkg__snapshot_packages "$_before_snapshot"
     ospkg__install "$@" || return 1
-    _ospkg_mark_build_group "$_group_id" "$_before_snapshot"
+    _ospkg__mark_build_group "$_group_id" "$_before_snapshot"
     rm -f "$_before_snapshot"
   fi
 
@@ -1156,12 +1156,12 @@ ospkg__install_tracked() {
   return 0
 }
 
-# @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep group. Scans the sidecar directory and calls `_ospkg_remove_build_group` for each entry.
+# @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep group. Scans the sidecar directory and calls `_ospkg__remove_build_group` for each entry.
 #
 # Returns: 0 on success.
 ospkg__cleanup_all_build_groups() {
   local _deps_dir
-  _deps_dir="$(_ospkg_build_deps_dir)"
+  _deps_dir="$(_ospkg__build_deps_dir)"
   [[ -d "$_deps_dir" ]] || return 0
   local _sidecar _group_id
   for _sidecar in "$_deps_dir"/*; do
@@ -1169,9 +1169,9 @@ ospkg__cleanup_all_build_groups() {
     _group_id="$(basename "$_sidecar")"
     # Skip temporary snapshot files and apk virtual-group auxiliary files.
     [[ "$_group_id" == *.before || "$_group_id" == *.after || "$_group_id" == *.apkvirts || "$_group_id" == .global_auto_before ]] && continue
-    _ospkg_remove_build_group "$_group_id"
+    _ospkg__remove_build_group "$_group_id"
   done
-  _ospkg_restore_global_auto_state
+  _ospkg__restore_global_auto_state
   return 0
 }
 
@@ -1236,25 +1236,25 @@ ospkg__cleanup_session_build_groups() {
     for _pkg in "${!_session_pkg_keep[@]}"; do
       [[ "${_session_pkg_keep[$_pkg]}" == "true" ]] && _to_keep+=("$_pkg")
     done
-    [[ ${#_to_keep[@]} -gt 0 ]] && _ospkg_protect_user_pkgs "${_to_keep[@]}"
+    [[ ${#_to_keep[@]} -gt 0 ]] && _ospkg__protect_user_pkgs "${_to_keep[@]}"
 
     logging__remove "Session cleanup: removing ${#_to_remove[@]} build-dep package(s): ${_to_remove[*]}"
     local _synth_dir _synth_sidecar
-    _synth_dir="$(_ospkg_build_deps_dir)"
+    _synth_dir="$(_ospkg__build_deps_dir)"
     _synth_sidecar="${_synth_dir}/__session_cleanup__"
     printf '%s\n' "${_to_remove[@]}" | sort > "$_synth_sidecar"
     # APK: synthetic sidecars have no .apkvirts file; apk del <package> fails for
     # packages owned by a virtual group. Collect the virtual names from groups
-    # whose packages are all being removed, so _ospkg_remove_build_group uses the
+    # whose packages are all being removed, so _ospkg__remove_build_group uses the
     # correct apk del path rather than falling back to per-package deletion.
-    if [[ "$_OSPKG_PKG_MNGR" == "apk" ]]; then
+    if [[ "$_OSPKG__PKG_MNGR" == "apk" ]]; then
       local _grp_sidecar _grp_virts_path _grp_pkg _grp_has_keep
       for _grp_sidecar in "$_synth_dir"/*; do
         [[ -f "$_grp_sidecar" ]] || continue
         local _gname
         _gname="$(basename "$_grp_sidecar")"
         [[ "$_gname" == __session_cleanup__ || "$_gname" == *.before || "$_gname" == *.after || "$_gname" == *.apkvirts || "$_gname" == .global_auto_before ]] && continue
-        _grp_virts_path="$(_ospkg_apk_virts_file "$_grp_sidecar")"
+        _grp_virts_path="$(_ospkg__apk_virts_file "$_grp_sidecar")"
         [[ -f "$_grp_virts_path" ]] || continue
         _grp_has_keep=false
         while IFS= read -r _grp_pkg; do
@@ -1267,13 +1267,13 @@ ospkg__cleanup_session_build_groups() {
         [[ "$_grp_has_keep" == false ]] && cat "$_grp_virts_path" >> "${_synth_sidecar}.apkvirts"
       done
     fi
-    _ospkg_remove_build_group "__session_cleanup__" || true
+    _ospkg__remove_build_group "__session_cleanup__" || true
   else
     logging__info "Session cleanup: no packages to remove (all kept or nothing installed)."
   fi
 
   rm -rf "$_SYSSET_SESSION_TRACK_DIR"
-  _ospkg_restore_global_auto_state
+  _ospkg__restore_global_auto_state
   return 0
 }
 
@@ -1348,7 +1348,7 @@ ospkg__untrack_resource() {
   return 0
 }
 
-# @brief ospkg__cleanup_resources — Remove all files registered via `ospkg__track_resource`. Reads sidecars from `_SYSSET_TMPDIR/ospkg/resources/` and `rm -f`s each listed path.
+# @brief ospkg__cleanup_resources — Remove all files registered via `ospkg__track_resource`. Reads sidecars from `_LOGGING__SYSSET_TMPDIR/ospkg/resources/` and `rm -f`s each listed path.
 #
 # Returns: 0 (always; removal failures emit a warning and continue).
 ospkg__cleanup_resources() {
@@ -1373,7 +1373,7 @@ ospkg__cleanup_resources() {
 # @brief ospkg__install_user <pkg>... — Install packages and protect them from build-group cleanup. Prefer over `ospkg__install` for all user-facing installs.
 #
 # Version suffixes are stripped per PM convention before calling
-# `_ospkg_protect_user_pkgs`, so packages will not be removed by
+# `_ospkg__protect_user_pkgs`, so packages will not be removed by
 # `ospkg__cleanup_all_build_groups` even if a prior build-group install had
 # marked them.
 #
@@ -1388,14 +1388,14 @@ ospkg__install_user() {
   local -a _bare_names=()
   local _p
   for _p in "$@"; do
-    case "$_OSPKG_PKG_MNGR" in
+    case "$_OSPKG__PKG_MNGR" in
       apt-get | apk | pacman | zypper) _bare_names+=("${_p%%=*}") ;;
       dnf | yum) _bare_names+=("${_p%%-[0-9]*}") ;;
       brew) _bare_names+=("${_p%%@*}") ;;
       *) _bare_names+=("$_p") ;;
     esac
   done
-  _ospkg_protect_user_pkgs "${_bare_names[@]}"
+  _ospkg__protect_user_pkgs "${_bare_names[@]}"
   return 0
 }
 
@@ -1434,14 +1434,14 @@ ospkg__remove_user() {
   logging__info "ospkg__remove_user: removing package(s): $*"
   local -a _cmd
   if [[ "$_ignore_deps" == true ]]; then
-    _cmd=("${_OSPKG_REMOVE_FORCE[@]}")
+    _cmd=("${_OSPKG__REMOVE_FORCE[@]}")
   else
-    _cmd=("${_OSPKG_REMOVE[@]}")
+    _cmd=("${_OSPKG__REMOVE[@]}")
   fi
   local _rc=0
   if [[ -t 0 ]]; then
     "${_cmd[@]}" "$@" >&2 || _rc=$?
-  elif [[ "$_OSPKG_PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
+  elif [[ "$_OSPKG__PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
     DEBIAN_FRONTEND=noninteractive "${_cmd[@]}" "$@" < /dev/null >&2 || _rc=$?
   else
     "${_cmd[@]}" "$@" < /dev/null >&2 || _rc=$?
@@ -1566,12 +1566,12 @@ ospkg__run() {
   [[ "$_dry_run" == true ]] && logging__inspect "Dry-run mode enabled — no changes will be made."
 
   # Set prefer_linuxbrew early so detect() picks it up.
-  _OSPKG_PREFER_LINUXBREW="$_prefer_linuxbrew"
+  _OSPKG__PREFER_LINUXBREW="$_prefer_linuxbrew"
 
   ospkg__detect || return 1
 
-  # Root check: brew is exempt (it manages its own user/root logic via _ospkg_brew_run).
-  if [[ "$_dry_run" == false && "$_OSPKG_PKG_MNGR" != "brew" ]]; then
+  # Root check: brew is exempt (it manages its own user/root logic via _ospkg__brew_run).
+  if [[ "$_dry_run" == false && "$_OSPKG__PKG_MNGR" != "brew" ]]; then
     os__require_root
   fi
 
@@ -1581,12 +1581,12 @@ ospkg__run() {
       logging__inspect "[dry-run] remove-build-group '${_remove_build_group}' — would remove build-only packages."
       return 0
     fi
-    _ospkg_remove_build_group "$_remove_build_group"
-    _ospkg_restore_global_auto_state
+    _ospkg__remove_build_group "$_remove_build_group"
+    _ospkg__restore_global_auto_state
     return 0
   fi
 
-  if [[ "$_OSPKG_PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
+  if [[ "$_OSPKG__PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
     logging__info "Setting APT to non-interactive mode."
     export DEBIAN_FRONTEND=noninteractive
   fi
@@ -1594,32 +1594,32 @@ ospkg__run() {
   # Resolve manifest content.
   local _manifest_content=
   local _hl=''
-  local -a _ospkg_uri_args=()
-  local _ospkg_uri_tmp=''
+  local -a _ospkg__uri_args=()
+  local _ospkg__uri_tmp=''
 
   if [[ -n "$_manifest" ]]; then
     if [[ "$_manifest" == *$'\n'* ]]; then
       _manifest_content="$_manifest"
     elif uri__classify "$_manifest" > /dev/null 2>&1 &&
       [[ "$(uri__classify "$_manifest" 2> /dev/null)" != "local" ]]; then
-      _ospkg_uri_tmp="$(mktemp "${TMPDIR:-/tmp}/ospkg-manifest-uri.XXXXXX")"
-      _ospkg_uri_args=()
+      _ospkg__uri_tmp="$(mktemp "${TMPDIR:-/tmp}/ospkg-manifest-uri.XXXXXX")"
+      _ospkg__uri_args=()
       if [[ -n "${_fetch_netrc_file:-}" ]]; then
-        _ospkg_uri_args+=(--netrc-file "$_fetch_netrc_file")
+        _ospkg__uri_args+=(--netrc-file "$_fetch_netrc_file")
       fi
       for _hl in "${_fetch_headers[@]}"; do
         [[ -z "${_hl//[[:space:]]/}" ]] && continue
-        _ospkg_uri_args+=(--header "$_hl")
+        _ospkg__uri_args+=(--header "$_hl")
       done
-      if ! uri__resolve "$_manifest" "$_ospkg_uri_tmp" "${_ospkg_uri_args[@]}"; then
-        rm -f "$_ospkg_uri_tmp"
+      if ! uri__resolve "$_manifest" "$_ospkg__uri_tmp" "${_ospkg__uri_args[@]}"; then
+        rm -f "$_ospkg__uri_tmp"
         return 1
       fi
-      if ! _manifest_content="$(< "$_ospkg_uri_tmp")"; then
-        rm -f "$_ospkg_uri_tmp"
+      if ! _manifest_content="$(< "$_ospkg__uri_tmp")"; then
+        rm -f "$_ospkg__uri_tmp"
         return 1
       fi
-      rm -f "$_ospkg_uri_tmp"
+      rm -f "$_ospkg__uri_tmp"
     elif [[ -f "$_manifest" ]]; then
       _manifest_content="$(< "$_manifest")"
     else
@@ -1632,38 +1632,38 @@ ospkg__run() {
   local _before_snapshot_file=''
   if [[ -n "$_build_group" && "$_dry_run" == false ]]; then
     local _bd_dir
-    _bd_dir="$(_ospkg_build_deps_dir)"
+    _bd_dir="$(_ospkg__build_deps_dir)"
     _before_snapshot_file="${_bd_dir}/${_build_group//\//_}.before"
     logging__info "Build group '${_build_group}': recording pre-install package snapshot."
-    _ospkg_ensure_global_auto_snapshot
-    _ospkg_snapshot_packages "$_before_snapshot_file"
+    _ospkg__ensure_global_auto_snapshot
+    _ospkg__snapshot_packages "$_before_snapshot_file"
   fi
 
   # ── YAML / JSON manifest path ──────────────────────────────────────────────
   if [[ -n "$_manifest_content" ]]; then
 
     # yq is required to convert YAML to JSON.
-    if ! _ospkg_ensure_yq; then
+    if ! _ospkg__ensure_yq; then
       logging__error "yq is required for YAML manifests but could not be obtained."
       return 1
     fi
 
     # Convert YAML (or JSON) to JSON via yq, then parse into phase arrays.
-    # Temp files live inside _SYSSET_TMPDIR so logging__cleanup removes them
+    # Temp files live inside _LOGGING__SYSSET_TMPDIR so logging__cleanup removes them
     # automatically on exit, even on unexpected failure.
-    local _ospkg_dir _json_tmp
-    _ospkg_dir="$(file__tmpdir "ospkg")"
-    _json_tmp="$(mktemp "${_ospkg_dir}/yaml_XXXXXX")"
+    local _ospkg__dir _json_tmp
+    _ospkg__dir="$(file__tmpdir "ospkg")"
+    _json_tmp="$(mktemp "${_ospkg__dir}/yaml_XXXXXX")"
 
     local -a _Y_PRESCRIPTS=() _Y_KEYS=() _Y_REPOS=() _Y_PPAS=() _Y_TAPS=() _Y_COPR=()
     local -a _Y_MODULES=() _Y_GROUPS=() _Y_PACKAGES=() _Y_CASKS=() _Y_SCRIPTS=()
 
     logging__info "Converting manifest to JSON via yq."
     if [[ "$_manifest_content" == *$'\n'* ]]; then
-      printf '%s' "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
+      printf '%s' "$_manifest_content" | "$_OSPKG__YQ_BIN" -o=json '.' - > "$_json_tmp"
     else
-      "$_OSPKG_YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
-        echo "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
+      "$_OSPKG__YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
+        echo "$_manifest_content" | "$_OSPKG__YQ_BIN" -o=json '.' - > "$_json_tmp"
     fi
 
     local _item _kind
@@ -1705,7 +1705,7 @@ ospkg__run() {
     _run_script() {
       local _label="$1" _content="$2"
       local _stmp
-      _stmp="$(mktemp "${_ospkg_dir}/script_XXXXXX")"
+      _stmp="$(mktemp "${_ospkg__dir}/script_XXXXXX")"
       printf '%s\n' "$_content" > "$_stmp"
       chmod +x "$_stmp"
       logging__launch "Running ${_label}."
@@ -1751,9 +1751,9 @@ ospkg__run() {
         _kdearmor="$(printf '%s' "$_kitem" | json__query -r 'if .dearmor == true then "true" elif .dearmor == false then "false" else "auto" end')"
         _kfp="$(printf '%s' "$_kitem" | json__query -r '.fingerprint // empty')"
         # Expand ${token} substitutions in url and dest.
-        _kurl="$(_ospkg_expand_content_vars "${_kurl}")"
-        _kdest="$(_ospkg_expand_content_vars "${_kdest}")"
-        _keff="$(_ospkg_key_effective_path "$_kdest" "$_kdearmor")"
+        _kurl="$(_ospkg__expand_content_vars "${_kurl}")"
+        _kdest="$(_ospkg__expand_content_vars "${_kdest}")"
+        _keff="$(_ospkg__key_effective_path "$_kdest" "$_kdearmor")"
         if [[ "$_dry_run" == true ]]; then
           if [[ -n "${_kfp:-}" && -z "${_kurl:-}" ]]; then
             logging__inspect "[dry-run] key: fingerprint=${_kfp} → ${_keff}"
@@ -1763,7 +1763,7 @@ ospkg__run() {
             logging__inspect "[dry-run] key: ${_kurl} → ${_keff} (dearmor=${_kdearmor})"
           fi
         else
-          _ospkg_install_key_entry "$_kurl" "$_kdest" "$_kdearmor" "$_kfp"
+          _ospkg__install_key_entry "$_kurl" "$_kdest" "$_kdearmor" "$_kfp"
           _yaml_keys_written+=("$_keff")
           _yaml_key_added=true
         fi
@@ -1779,7 +1779,7 @@ ospkg__run() {
 
     # Phase: REPOS.
     local _yaml_repo_added=false
-    local _OSPKG_APK_ADDED_REPOS=()
+    local _OSPKG__APK_ADDED_REPOS=()
     if [[ ${#_Y_REPOS[@]} -gt 0 ]]; then
       logging__info "Adding ${#_Y_REPOS[@]} repository entry/entries."
       local _ritem _rcontent
@@ -1788,7 +1788,7 @@ ospkg__run() {
         if [[ "$_dry_run" == true ]]; then
           logging__inspect "[dry-run] repo: would add: ${_rcontent}"
         else
-          _ospkg_install_repo_content "${_rcontent}"$'\n'
+          _ospkg__install_repo_content "${_rcontent}"$'\n'
           _yaml_repo_added=true
         fi
       done
@@ -1798,7 +1798,7 @@ ospkg__run() {
 
     # Phase: PPAs (APT only).
     if [[ ${#_Y_PPAS[@]} -gt 0 ]]; then
-      if [[ "$_OSPKG_FAMILY" == "apt" ]]; then
+      if [[ "$_OSPKG__FAMILY" == "apt" ]]; then
         logging__info "Adding ${#_Y_PPAS[@]} PPA(s)."
         if ! command -v add-apt-repository > /dev/null 2>&1; then
           logging__info "add-apt-repository not found — installing software-properties-common."
@@ -1817,13 +1817,13 @@ ospkg__run() {
           fi
         done
       else
-        logging__warn "PPAs are only supported on APT — ignoring (current PM: ${_OSPKG_PKG_MNGR})."
+        logging__warn "PPAs are only supported on APT — ignoring (current PM: ${_OSPKG__PKG_MNGR})."
       fi
     fi
 
     # Phase: TAPS (brew only).
     if [[ ${#_Y_TAPS[@]} -gt 0 ]]; then
-      if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
+      if [[ "$_OSPKG__PKG_MNGR" == "brew" ]]; then
         logging__info "Adding ${#_Y_TAPS[@]} Homebrew tap(s)."
         local _titem _tap_val _tap_name _tap_url
         for _titem in "${_Y_TAPS[@]}"; do
@@ -1841,9 +1841,9 @@ ospkg__run() {
           else
             logging__info "Tapping: ${_tap_name}"
             if [[ -n "${_tap_url:-}" ]]; then
-              _ospkg_brew_run tap "$_tap_name" "$_tap_url"
+              _ospkg__brew_run tap "$_tap_name" "$_tap_url"
             else
-              _ospkg_brew_run tap "$_tap_name"
+              _ospkg__brew_run tap "$_tap_name"
             fi
             logging__success "Tap added: ${_tap_name}"
           fi
@@ -1855,10 +1855,10 @@ ospkg__run() {
 
     # Phase: COPR (DNF only).
     if [[ ${#_Y_COPR[@]} -gt 0 ]]; then
-      if [[ "$_OSPKG_FAMILY" == "dnf" ]]; then
+      if [[ "$_OSPKG__FAMILY" == "dnf" ]]; then
         local _copr_dnf_bin
-        if ! _copr_dnf_bin="$(_ospkg_dnf_bin)"; then
-          logging__warn "COPR repos require full dnf — '${_OSPKG_PKG_MNGR}' does not support 'copr enable'; skipping."
+        if ! _copr_dnf_bin="$(_ospkg__dnf_bin)"; then
+          logging__warn "COPR repos require full dnf — '${_OSPKG__PKG_MNGR}' does not support 'copr enable'; skipping."
         else
           logging__info "Enabling ${#_Y_COPR[@]} COPR repo(s)."
           local _copritem _copr
@@ -1874,16 +1874,16 @@ ospkg__run() {
           done
         fi
       else
-        logging__warn "COPR repos are only supported on DNF — ignoring (current PM: ${_OSPKG_PKG_MNGR})."
+        logging__warn "COPR repos are only supported on DNF — ignoring (current PM: ${_OSPKG__PKG_MNGR})."
       fi
     fi
 
     # Phase: MODULES (DNF only).
     if [[ ${#_Y_MODULES[@]} -gt 0 ]]; then
-      if [[ "$_OSPKG_FAMILY" == "dnf" ]]; then
+      if [[ "$_OSPKG__FAMILY" == "dnf" ]]; then
         local _mod_dnf_bin
-        if ! _mod_dnf_bin="$(_ospkg_dnf_bin)"; then
-          logging__warn "DNF module streams require full dnf — '${_OSPKG_PKG_MNGR}' does not support 'module enable'; skipping."
+        if ! _mod_dnf_bin="$(_ospkg__dnf_bin)"; then
+          logging__warn "DNF module streams require full dnf — '${_OSPKG__PKG_MNGR}' does not support 'module enable'; skipping."
         else
           logging__info "Enabling ${#_Y_MODULES[@]} DNF module stream(s)."
           local _moditem _mod
@@ -1899,7 +1899,7 @@ ospkg__run() {
           done
         fi
       else
-        logging__warn "DNF modules are only supported on DNF — ignoring (current PM: ${_OSPKG_PKG_MNGR})."
+        logging__warn "DNF modules are only supported on DNF — ignoring (current PM: ${_OSPKG__PKG_MNGR})."
       fi
     fi
 
@@ -1908,13 +1908,13 @@ ospkg__run() {
       local _grpitem _grp
       for _grpitem in "${_Y_GROUPS[@]}"; do
         _grp="$(printf '%s' "$_grpitem" | json__query -r '.group')"
-        case "$_OSPKG_FAMILY" in
+        case "$_OSPKG__FAMILY" in
           dnf)
             if [[ "$_dry_run" == true ]]; then
-              logging__inspect "[dry-run] group: would run: ${_OSPKG_PKG_MNGR} group install -y '${_grp}'"
+              logging__inspect "[dry-run] group: would run: ${_OSPKG__PKG_MNGR} group install -y '${_grp}'"
             else
               logging__install "Installing group '${_grp}' (dnf)."
-              users__run_privileged "$_OSPKG_PKG_MNGR" group install -y "$_grp"
+              users__run_privileged "$_OSPKG__PKG_MNGR" group install -y "$_grp"
               logging__success "Group '${_grp}' installed."
             fi
             ;;
@@ -1928,19 +1928,19 @@ ospkg__run() {
             ;;
           pacman)
             if [[ "$_dry_run" == true ]]; then
-              logging__inspect "[dry-run] group: would run: ${_OSPKG_INSTALL[*]} '${_grp}'"
+              logging__inspect "[dry-run] group: would run: ${_OSPKG__INSTALL[*]} '${_grp}'"
             else
               logging__install "Installing group '${_grp}' (pacman)."
               ospkg__install "$_grp"
               if [[ -z "${_build_group:-}" ]]; then
                 local -a _grp_members=()
                 mapfile -t _grp_members < <(pacman -Sg "$_grp" 2> /dev/null | awk '{print $2}')
-                [[ ${#_grp_members[@]} -gt 0 ]] && _ospkg_protect_user_pkgs "${_grp_members[@]}"
+                [[ ${#_grp_members[@]} -gt 0 ]] && _ospkg__protect_user_pkgs "${_grp_members[@]}"
               fi
             fi
             ;;
           *)
-            logging__warn "Group '${_grp}' — groups not supported on '${_OSPKG_PKG_MNGR}'; skipping."
+            logging__warn "Group '${_grp}' — groups not supported on '${_OSPKG__PKG_MNGR}'; skipping."
             ;;
         esac
       done
@@ -1951,10 +1951,10 @@ ospkg__run() {
       local _update_args=(--lists_max_age "$_lists_max_age")
       [[ "$_yaml_repo_added" == true ]] && _update_args+=(--repo_added)
       if [[ "$_dry_run" == true ]]; then
-        if [[ ${#_OSPKG_UPDATE[@]} -gt 0 ]]; then
-          logging__inspect "[dry-run] update: would run: ${_OSPKG_UPDATE[*]}"
+        if [[ ${#_OSPKG__UPDATE[@]} -gt 0 ]]; then
+          logging__inspect "[dry-run] update: would run: ${_OSPKG__UPDATE[*]}"
         else
-          logging__info "Package list update not supported by '${_OSPKG_PKG_MNGR}' — skipping."
+          logging__info "Package list update not supported by '${_OSPKG__PKG_MNGR}' — skipping."
         fi
       else
         ospkg__update "${_update_args[@]}"
@@ -1963,7 +1963,7 @@ ospkg__run() {
       logging__info "Package list update skipped (no packages and no repos in manifest)."
     else
       logging__info "Package list update skipped (update=false)."
-      _OSPKG_UPDATED=true
+      _OSPKG__UPDATED=true
       if [[ "$_yaml_repo_added" == true ]]; then
         logging__warn "A repository was added but update=false — packages may not be found."
       fi
@@ -1980,7 +1980,7 @@ ospkg__run() {
 
       # Apply version constraint (PM-native syntax).
       if [[ -n "${_pkgversion:-}" ]]; then
-        case "$_OSPKG_FAMILY" in
+        case "$_OSPKG__FAMILY" in
           apt | apk | pacman | zypper) _pkginstall="${_pkgname}=${_pkgversion}" ;;
           dnf | yum) _pkginstall="${_pkgname}-${_pkgversion}" ;;
           brew) _pkginstall="${_pkgname}@${_pkgversion}" ;;
@@ -1992,19 +1992,19 @@ ospkg__run() {
 
       if [[ "$_skip_installed" == true ]] && command -v "$_pkgname" > /dev/null 2>&1; then
         logging__info "'${_pkgname}' already available in PATH — skipping."
-        [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "$_pkgname"
+        [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         continue
       fi
 
       # For PMs that support per-package flags, build the install command.
       if [[ -n "${_pkgflags:-}" ]]; then
         if [[ "$_dry_run" == true ]]; then
-          logging__inspect "[dry-run] package: ${_OSPKG_INSTALL[*]} ${_pkgflags} ${_pkginstall}"
+          logging__inspect "[dry-run] package: ${_OSPKG__INSTALL[*]} ${_pkgflags} ${_pkginstall}"
         else
           logging__info "Installing: ${_pkginstall} (flags: ${_pkgflags})"
           # shellcheck disable=SC2086
-          "${_OSPKG_INSTALL[@]}" $_pkgflags "$_pkginstall"
-          [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "$_pkgname"
+          "${_OSPKG__INSTALL[@]}" $_pkgflags "$_pkginstall"
+          [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         fi
       else
         _pkgs_to_install+=("$_pkginstall")
@@ -2018,7 +2018,7 @@ ospkg__run() {
         logging__inspect "[dry-run] packages: ${_pkgs_to_install[*]}"
       else
         ospkg__install "${_pkgs_to_install[@]}"
-        [[ -z "${_build_group:-}" ]] && _ospkg_protect_user_pkgs "${_pkg_base_names[@]}"
+        [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "${_pkg_base_names[@]}"
       fi
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then
       logging__info "No packages to install — skipping."
@@ -2026,7 +2026,7 @@ ospkg__run() {
 
     # Phase: CASKS (brew/macOS only).
     if [[ ${#_Y_CASKS[@]} -gt 0 ]]; then
-      if [[ "$_OSPKG_PKG_MNGR" == "brew" && "$(uname -s)" == "Darwin" ]]; then
+      if [[ "$_OSPKG__PKG_MNGR" == "brew" && "$(uname -s)" == "Darwin" ]]; then
         logging__info "Installing ${#_Y_CASKS[@]} Homebrew cask(s)."
         local _caskitem _cask
         for _caskitem in "${_Y_CASKS[@]}"; do
@@ -2035,7 +2035,7 @@ ospkg__run() {
             logging__inspect "[dry-run] cask: would run: brew install --cask '${_cask}'"
           else
             logging__info "Installing cask: ${_cask}"
-            _ospkg_brew_run install --cask "$_cask"
+            _ospkg__brew_run install --cask "$_cask"
             logging__success "Cask installed: ${_cask}"
           fi
         done
@@ -2062,21 +2062,21 @@ ospkg__run() {
     # Other repos: remove unless --keep_repos.
     if [[ "$_yaml_repo_added" == true && "$_keep_repos" == false ]]; then
       logging__remove "Removing added repositories."
-      if [[ "$_OSPKG_FAMILY" = "apt" ]]; then
+      if [[ "$_OSPKG__FAMILY" = "apt" ]]; then
         users__run_privileged rm -f /etc/apt/sources.list.d/syspkg-installer.list
         logging__remove "Removed /etc/apt/sources.list.d/syspkg-installer.list"
-      elif [[ "$_OSPKG_FAMILY" = "apk" ]]; then
+      elif [[ "$_OSPKG__FAMILY" = "apk" ]]; then
         local _rl
-        for _rl in "${_OSPKG_APK_ADDED_REPOS[@]}"; do
+        for _rl in "${_OSPKG__APK_ADDED_REPOS[@]}"; do
           users__run_privileged sed -i "\\|^${_rl}$|d" /etc/apk/repositories
           logging__remove "Removed APK repo: ${_rl}"
         done
-      elif [[ "$_OSPKG_FAMILY" = "dnf" ]]; then
+      elif [[ "$_OSPKG__FAMILY" = "dnf" ]]; then
         users__run_privileged rm -f /etc/yum.repos.d/syspkg-installer.repo
         logging__remove "Removed /etc/yum.repos.d/syspkg-installer.repo"
-      elif [[ "$_OSPKG_FAMILY" = "zypper" ]]; then
+      elif [[ "$_OSPKG__FAMILY" = "zypper" ]]; then
         users__run_privileged rm -f /etc/zypp/repos.d/syspkg-installer.repo
-      elif [[ "$_OSPKG_FAMILY" = "pacman" ]]; then
+      elif [[ "$_OSPKG__FAMILY" = "pacman" ]]; then
         users__run_privileged rm -f /etc/pacman.d/syspkg-installer.conf
         users__run_privileged sed -i '/^Include = \/etc\/pacman.d\/syspkg-installer.conf$/d' /etc/pacman.conf
       fi
@@ -2099,7 +2099,7 @@ ospkg__run() {
 
     # Apply build-group tracking: diff against pre-install snapshot, mark new packages.
     if [[ -n "$_build_group" && -n "$_before_snapshot_file" ]]; then
-      _ospkg_mark_build_group "$_build_group" "$_before_snapshot_file"
+      _ospkg__mark_build_group "$_build_group" "$_before_snapshot_file"
       rm -f "$_before_snapshot_file"
     fi
 

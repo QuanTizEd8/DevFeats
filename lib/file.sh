@@ -206,36 +206,36 @@ file__extract_archive() {
   esac
 }
 
-# @brief file__tmpdir [<name>] — Return (and create if needed) a named subdirectory of the process-lifetime temp directory `_SYSSET_TMPDIR`. Idempotent.
+# @brief file__tmpdir [<name>] — Return (and create if needed) a named subdirectory of the process-lifetime temp directory `_LOGGING__SYSSET_TMPDIR`. Idempotent.
 #
 # Safe to call from library code that does not control the script entry
-# point, even if `logging__setup` has not yet been called. `_SYSSET_TMPDIR`
+# point, even if `logging__setup` has not yet been called. `_LOGGING__SYSSET_TMPDIR`
 # is lazy-initialised on first call. The entire tree is deleted by
 # `logging__cleanup` at script exit.
 #
 # Args:
-#   [<name>]  Path of the subdirectory to create under `_SYSSET_TMPDIR` (may
+#   [<name>]  Path of the subdirectory to create under `_LOGGING__SYSSET_TMPDIR` (may
 #             contain `/` for nested paths, e.g. `install/jq`). When omitted,
-#             returns `_SYSSET_TMPDIR` itself (ensuring it is initialised).
+#             returns `_LOGGING__SYSSET_TMPDIR` itself (ensuring it is initialised).
 #
-# Stdout: absolute path to the named subdirectory (or `_SYSSET_TMPDIR` when called with no args).
+# Stdout: absolute path to the named subdirectory (or `_LOGGING__SYSSET_TMPDIR` when called with no args).
 file__tmpdir() {
-  [[ -z "${_SYSSET_TMPDIR:-}" ]] && _SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
+  [[ -z "${_LOGGING__SYSSET_TMPDIR:-}" ]] && _LOGGING__SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
   if [[ -n "${1:-}" ]]; then
-    mkdir -p "${_SYSSET_TMPDIR}/${1}"
-    printf '%s\n' "${_SYSSET_TMPDIR}/${1}"
+    mkdir -p "${_LOGGING__SYSSET_TMPDIR}/${1}"
+    printf '%s\n' "${_LOGGING__SYSSET_TMPDIR}/${1}"
   else
-    printf '%s\n' "${_SYSSET_TMPDIR}"
+    printf '%s\n' "${_LOGGING__SYSSET_TMPDIR}"
   fi
   return 0
 }
 
-# @brief file__mktmpdir <label> — Create and return a new unique directory under `_SYSSET_TMPDIR`.
+# @brief file__mktmpdir <label> — Create and return a new unique directory under `_LOGGING__SYSSET_TMPDIR`.
 #
 # Unlike `file__tmpdir`, each call creates a distinct directory via `mktemp`.
 # Use when per-call isolation is required (e.g. GPG homedirs, OCI pull dirs
 # that may be called multiple times with different artifacts). The directory
-# is cleaned up automatically when `logging__cleanup` removes `_SYSSET_TMPDIR`.
+# is cleaned up automatically when `logging__cleanup` removes `_LOGGING__SYSSET_TMPDIR`.
 #
 # Args:
 #   <label>  Short label used as a prefix in the directory name.

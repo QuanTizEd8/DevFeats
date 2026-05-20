@@ -13,12 +13,12 @@ setup() {
   reload_lib github.sh
   # Stub out the network-layer helpers so no real connections are made.
   net__ensure_fetch_tool() {
-    _NET_FETCH_TOOL=curl
-    _NET_CA_CERTS_OK=true
+    _NET__FETCH_TOOL=curl
+    _NET__CA_CERTS_OK=true
     return 0
   }
   net__ensure_ca_certs() {
-    _NET_CA_CERTS_OK=true
+    _NET__CA_CERTS_OK=true
     return 0
   }
   export -f net__ensure_fetch_tool net__ensure_ca_certs
@@ -1145,7 +1145,7 @@ only-2"
 # Configure stubs for a minimal happy-path run:
 #   ELF direct binary, no JSON digest, no GPG; sidecar probes all fail.
 _stub_install_release_common() {
-  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
 
   net__fetch_url_file() {
     # Fail sidecar probe candidates so auto-detection is a no-op by default.

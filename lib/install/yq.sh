@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
-# @brief _install__yq_compatible <bin> — Return 0 when candidate binary is mikefarah/yq-compatible (`-o=json` supported).
+# @brief _install_yq__compatible <bin> — Return 0 when candidate binary is mikefarah/yq-compatible (`-o=json` supported).
 #
 # Tests whether `<bin>` accepts the `-o=json` flag, which is unique to
 # mikefarah/yq and absent from the unrelated `yq` Haskell tool sometimes
@@ -11,13 +11,13 @@
 #   <bin>  Path to the binary to test.
 #
 # Returns: 0 if compatible, 1 if not or if <bin> is empty.
-_install__yq_compatible() {
+_install_yq__compatible() {
   local _bin="${1-}"
   [[ -n "$_bin" ]] || return 1
   "$_bin" -o=json '.' /dev/null > /dev/null 2>&1
 }
 
-# @brief _install__yq_install_release <context> <group> <prefix> [version] [installer-dir] — Install yq from GitHub release assets with checksum verification.
+# @brief _install_yq__install_release <context> <group> <prefix> [version] [installer-dir] — Install yq from GitHub release assets with checksum verification.
 #
 # Args:
 #   <context>        `internal` or `user`.
@@ -28,7 +28,7 @@ _install__yq_compatible() {
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
-_install__yq_install_release() {
+_install_yq__install_release() {
   local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}" _installer_dir="${5-}"
   local _os _arch _base _install_bin_dir _expected_hash _hdir _f
   _os="$(os__release_kernel)" || return 1
@@ -79,8 +79,8 @@ _install__yq_install_release() {
   install__state_record "yq" "$_context" "binary" "${_install_bin_dir%/}/yq" "$_group" || true
 }
 
-# @brief _install__yq_install_repos <context> <group> [repos-manifest] — Install yq via package manager with context-aware tracking.
-_install__yq_install_repos() {
+# @brief _install_yq__install_repos <context> <group> [repos-manifest] — Install yq via package manager with context-aware tracking.
+_install_yq__install_repos() {
   local _context="${1-}" _group="${2-}" _repos_manifest="${3-}" _bin
   if [[ -n "$_repos_manifest" ]]; then
     ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
@@ -93,7 +93,7 @@ _install__yq_install_repos() {
     fi
   fi
   _bin="$(command -v yq 2> /dev/null || true)"
-  if ! _install__yq_compatible "${_bin}"; then
+  if ! _install_yq__compatible "${_bin}"; then
     logging__error "install__yq: method=package did not yield a mikefarah/yq-compatible binary."
     return 1
   fi
@@ -113,7 +113,7 @@ install__yq() {
   local _existing _state_ctx _state_path _state_group
   _existing="$(command -v yq 2> /dev/null || true)"
   install__read_state "yq" _state_ctx _state_path _state_group
-  if [[ -n "$_existing" ]] && _install__yq_compatible "$_existing"; then
+  if [[ -n "$_existing" ]] && _install_yq__compatible "$_existing"; then
     if [[ "$_if_exists" == "reinstall" ]]; then
       install__maybe_promote_to_user "yq" "$_context" "$_method" "$_owner_group" \
         "$_existing" _state_ctx _state_path _state_group
@@ -128,9 +128,9 @@ install__yq() {
     fi
   fi
   case "$_method" in
-    binary) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" ;;
-    package) _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
-    auto) _install__yq_install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" || _install__yq_install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
+    binary) _install_yq__install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" ;;
+    package) _install_yq__install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
+    auto) _install_yq__install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" || _install_yq__install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     *)
       logging__error "install__yq: invalid method '${_method}'."
       return 1

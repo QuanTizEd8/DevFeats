@@ -24,30 +24,30 @@ _FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
-    [[ -f \"\${_LOG_FILE_TMP}\" ]] && echo TMPFILE_EXISTS
+    [[ -f \"\${_LOGGING__LOG_FILE_TMP}\" ]] && echo TMPFILE_EXISTS
     logging__cleanup
   "
   assert_success
   assert_output --partial "TMPFILE_EXISTS"
 }
 
-@test "logging__setup sets _LIB_LOGGING_SETUP to true" {
+@test "logging__setup sets _LOGGING__LIB_SETUP to true" {
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
-    [[ \"\${_LIB_LOGGING_SETUP}\" == true ]] && echo SETUP_TRUE
+    [[ \"\${_LOGGING__LIB_SETUP}\" == true ]] && echo SETUP_TRUE
     logging__cleanup
   "
   assert_success
   assert_output --partial "SETUP_TRUE"
 }
 
-@test "logging__cleanup resets _LIB_LOGGING_SETUP to false" {
+@test "logging__cleanup resets _LOGGING__LIB_SETUP to false" {
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
     logging__cleanup
-    [[ \"\${_LIB_LOGGING_SETUP}\" == false ]] && echo CLEANED
+    [[ \"\${_LOGGING__LIB_SETUP}\" == false ]] && echo CLEANED
   "
   assert_success
   assert_output --partial "CLEANED"
@@ -57,7 +57,7 @@ _FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
-    _tmp=\"\${_LOG_FILE_TMP}\"
+    _tmp=\"\${_LOGGING__LOG_FILE_TMP}\"
     logging__cleanup
     [[ ! -f \"\${_tmp}\" ]] && echo FILE_GONE
   "
@@ -83,28 +83,28 @@ _FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__cleanup
-    [[ \"\${_LIB_LOGGING_SETUP}\" == false ]] && echo NOOP_OK
+    [[ \"\${_LOGGING__LIB_SETUP}\" == false ]] && echo NOOP_OK
   "
   assert_success
   assert_output --partial "NOOP_OK"
 }
 
-@test "logging__setup creates _SYSSET_TMPDIR" {
+@test "logging__setup creates _LOGGING__SYSSET_TMPDIR" {
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
-    [[ -d \"\${_SYSSET_TMPDIR}\" ]] && echo DIR_EXISTS
+    [[ -d \"\${_LOGGING__SYSSET_TMPDIR}\" ]] && echo DIR_EXISTS
     logging__cleanup
   "
   assert_success
   assert_output --partial "DIR_EXISTS"
 }
 
-@test "logging__cleanup removes _SYSSET_TMPDIR" {
+@test "logging__cleanup removes _LOGGING__SYSSET_TMPDIR" {
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
-    _dir=\"\${_SYSSET_TMPDIR}\"
+    _dir=\"\${_LOGGING__SYSSET_TMPDIR}\"
     logging__cleanup
     [[ ! -d \"\${_dir}\" ]] && echo DIR_GONE
   "
@@ -112,25 +112,25 @@ _FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
   assert_output --partial "DIR_GONE"
 }
 
-@test "logging__cleanup resets _SYSSET_TMPDIR to empty" {
+@test "logging__cleanup resets _LOGGING__SYSSET_TMPDIR to empty" {
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
     logging__cleanup
-    [[ -z \"\${_SYSSET_TMPDIR}\" ]] && echo CLEARED
+    [[ -z \"\${_LOGGING__SYSSET_TMPDIR}\" ]] && echo CLEARED
   "
   assert_success
   assert_output --partial "CLEARED"
 }
 
-@test "file__tmpdir creates a subdirectory inside _SYSSET_TMPDIR" {
+@test "file__tmpdir creates a subdirectory inside _LOGGING__SYSSET_TMPDIR" {
   run bash -c "
     source '${_LOGGING_LIB}'
     source '${_FILE_LIB}'
     logging__setup
     _sub=\"\$(file__tmpdir 'mymod')\"
     [[ -d \"\${_sub}\" ]] && echo SUBDIR_EXISTS
-    [[ \"\${_sub}\" == \"\${_SYSSET_TMPDIR}/mymod\" ]] && echo PATH_CORRECT
+    [[ \"\${_sub}\" == \"\${_LOGGING__SYSSET_TMPDIR}/mymod\" ]] && echo PATH_CORRECT
     logging__cleanup
   "
   assert_success
@@ -152,7 +152,7 @@ _FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
   assert_output --partial "SAME_PATH"
 }
 
-@test "file__tmpdir lazy-inits _SYSSET_TMPDIR without logging__setup" {
+@test "file__tmpdir lazy-inits _LOGGING__SYSSET_TMPDIR without logging__setup" {
   run bash -c "
     source '${_FILE_LIB}'
     _sub=\"\$(file__tmpdir 'lazy')\"
@@ -230,13 +230,13 @@ _FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
   assert_failure # must NOT appear literally
 }
 
-@test "logging__cleanup resets _SYSSET_MASKED_VALUES to empty" {
+@test "logging__cleanup resets _LOGGING__SYSSET_MASKED_VALUES to empty" {
   run bash -c "
     source '${_LOGGING_LIB}'
     logging__setup
     logging__mask_secret 'some-secret'
     logging__cleanup
-    [[ \${#_SYSSET_MASKED_VALUES[@]} -eq 0 ]] && echo EMPTY
+    [[ \${#_LOGGING__SYSSET_MASKED_VALUES[@]} -eq 0 ]] && echo EMPTY
   "
   assert_success
   assert_output --partial "EMPTY"
