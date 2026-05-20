@@ -1,17 +1,9 @@
+# shellcheck shell=bash
 # OS and hardware detection: cached accessors for kernel, arch, distro ID, and platform tag.
 #
 # Results for `os__kernel` and `os__arch` are cached for the lifetime of the
 # script. `os__platform` maps OS IDs to a canonical tag (`debian`, `alpine`,
 # `rhel`, `suse`, `macos`).
-
-[ -n "${_OS__LIB_LOADED-}" ] && return 0
-_OS__LIB_LOADED=1
-
-_OS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/logging.sh
-. "$_OS__LIB_DIR/logging.sh"
-# shellcheck source=lib/users.sh
-[[ -z "${_USERS__LIB_LOADED-}" ]] && . "$_OS__LIB_DIR/users.sh"
 
 # ── Cached globals (populated lazily) ────────────────────────────────────────
 _OS__KERNEL=""

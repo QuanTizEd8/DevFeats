@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # URI resolution: materialize local paths and remote URIs to files for feature installers.
 #
 # Provides a unified download pipeline via uri__fetch_asset, which handles scheme routing
@@ -5,21 +6,6 @@
 # verification (sha256 fragment, explicit hex, sidecar checksum file, GPG detached signature),
 # archive extraction, and binary installation. uri__resolve and related functions are thin
 # backward-compatible wrappers around uri__fetch_asset.
-
-[[ -n "${_URI__LIB_LOADED-}" ]] && return 0
-_URI__LIB_LOADED=1
-
-_URI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/net.sh
-[[ -z "${_NET__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/net.sh"
-# shellcheck source=lib/verify.sh
-[[ -z "${_VERIFY__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/verify.sh"
-# shellcheck source=lib/oci.sh
-[[ -z "${_OCI__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/oci.sh"
-# shellcheck source=lib/file.sh
-[[ -z "${_FILE__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/file.sh"
-# shellcheck source=lib/install/common.sh
-[[ -z "${_INSTALL_COMMON__LIB_LOADED-}" ]] && . "$_URI_LIB_DIR/install/common.sh"
 
 # _uri__split_frag <full-uri> — prints base-uri on first line, fragment part on second (may be empty).
 _uri__split_frag() {

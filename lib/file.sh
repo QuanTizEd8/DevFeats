@@ -1,15 +1,7 @@
+# shellcheck shell=bash
 # File and archive helpers: extract `.tar.xz`, `.tar.gz`, `.tgz`, and `.zip` archives.
 #
 # Returns 1 on unrecognized format or missing extraction tool.
-
-[ -n "${_FILE__LIB_LOADED-}" ] && return 0
-_FILE__LIB_LOADED=1
-
-_FILE__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/ospkg.sh
-. "$_FILE__LIB_DIR/ospkg.sh"
-# shellcheck source=lib/users.sh
-. "$_FILE__LIB_DIR/users.sh"
 
 read -r -d '' _FILE__XZ_MANIFEST << 'EOF' || true
 packages:

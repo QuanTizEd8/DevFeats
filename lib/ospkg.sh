@@ -1,29 +1,11 @@
+# shellcheck shell=bash
 # Cross-distro package manager abstraction: install, update, clean, and track dependencies.
 #
 # Detects the host package manager (`apt`, `apk`, `brew`, `dnf`/`yum`, `zypper`)
 # automatically. Supports grouping packages into build-time and run-time
 # dependency groups for later cleanup.
 
-[[ -n "${_OSPKG__LIB_LOADED-}" ]] && return 0
-_OSPKG__LIB_LOADED=1
-
 _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/os.sh
-. "$_OSPKG_LIB_DIR/os.sh"
-# shellcheck source=lib/net.sh
-. "$_OSPKG_LIB_DIR/net.sh"
-# shellcheck source=lib/logging.sh
-. "$_OSPKG_LIB_DIR/logging.sh"
-# shellcheck source=lib/json.sh
-. "$_OSPKG_LIB_DIR/json.sh"
-# shellcheck source=lib/install/yq.sh
-. "$_OSPKG_LIB_DIR/install/yq.sh"
-# shellcheck source=lib/verify.sh
-[[ -z "${_VERIFY__LIB_LOADED-}" ]] && . "$_OSPKG_LIB_DIR/verify.sh"
-# shellcheck source=lib/users.sh
-. "$_OSPKG_LIB_DIR/users.sh"
-# shellcheck source=lib/file.sh
-. "$_OSPKG_LIB_DIR/file.sh"
 
 # ── Internal state ────────────────────────────────────────────────────────────
 _OSPKG_DETECTED=false
@@ -42,7 +24,7 @@ _OSPKG_YQ_BIN=
 # DNF mark subcommand names; overridden to "user"/"dependency" for DNF5.
 _OSPKG_DNF_MARK_USER="install"
 _OSPKG_DNF_MARK_DEP="remove"
-declare -A _OSPKG_OS_RELEASE=()
+declare -gA _OSPKG_OS_RELEASE=()
 
 # ── Private: clean functions ──────────────────────────────────────────────────
 
@@ -1440,7 +1422,10 @@ ospkg__remove_user() {
   local _ignore_deps=false
   while [[ $# -gt 0 && "$1" == --* ]]; do
     case "$1" in
-      --ignore-deps) _ignore_deps=true; shift ;;
+      --ignore-deps)
+        _ignore_deps=true
+        shift
+        ;;
       *) break ;;
     esac
   done
@@ -1613,9 +1598,6 @@ ospkg__run() {
   local _ospkg_uri_tmp=''
 
   if [[ -n "$_manifest" ]]; then
-    # shellcheck source=lib/uri.sh
-    # shellcheck disable=SC1094
-    . "$_OSPKG_LIB_DIR/uri.sh"
     if [[ "$_manifest" == *$'\n'* ]]; then
       _manifest_content="$_manifest"
     elif uri__classify "$_manifest" > /dev/null 2>&1 &&

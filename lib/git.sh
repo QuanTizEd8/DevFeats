@@ -1,14 +1,8 @@
+# shellcheck shell=bash
 # Git helpers: shallow clone and other repository operations.
 #
 # `git__clone` performs a `--depth=1` clone and is idempotent: it skips the
 # clone if the target directory already contains a `.git` directory.
-
-[[ -n "${_GIT__LIB_LOADED-}" ]] && return 0
-_GIT__LIB_LOADED=1
-
-_GIT__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/ospkg.sh
-. "$_GIT__LIB_DIR/ospkg.sh"
 
 # @brief git__clone --url <url> --dir <dir> [--branch <branch>] — Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists.
 #

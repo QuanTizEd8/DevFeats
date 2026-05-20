@@ -1,17 +1,9 @@
+# shellcheck shell=bash
 # User management: resolve users, set login shells, manage installation prefixes.
 #
 # Provides helpers for detecting root, resolving the remote user list from
 # devcontainer env vars, managing file permissions, and setting the login shell
 # for one or more users. Works on Alpine (patching PAM), Debian-based, and macOS.
-
-[ -n "${_USERS__LIB_LOADED-}" ] && return 0
-_USERS__LIB_LOADED=1
-
-_USERS__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/ospkg.sh
-. "$_USERS__LIB_DIR/ospkg.sh"
-# shellcheck source=lib/file.sh
-. "$_USERS__LIB_DIR/file.sh"
 
 read -r -d '' _USERS__SHADOW_UTILS_MANIFEST << 'EOF' || true
 packages:
@@ -72,8 +64,7 @@ users__run_as() {
   if [ $# -eq 0 ]; then
     return 1
   fi
-  # shellcheck source=lib/users.sh
-  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/users.sh"
+
   if [ "$(users__get_current --no-sudo)" = "$_or_u" ]; then
     if [ -n "$_or_cd" ]; then
       (cd "$_or_cd" && "$@")

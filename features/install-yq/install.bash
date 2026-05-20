@@ -1,10 +1,3 @@
-# shellcheck source=lib/install/yq.sh
-. "${_BASE_DIR}/_lib/install/yq.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/github.sh
-. "${_BASE_DIR}/_lib/github.sh"
-
 # _yq__resolve_version — resolve VERSION to a bare semver string (no "v" prefix).
 # Mutates the VERSION global. Exits 1 on API error or unrecognised format.
 _yq__resolve_version() {

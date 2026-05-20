@@ -1,13 +1,8 @@
+# shellcheck shell=bash
 # Round-based dependency ordering for parallel devcontainer feature installation.
 #
 # Accepts hard and soft dependency edges and emits features in installation
 # rounds, where all features within a round can be installed in parallel.
-[[ -n "${_GRAPH__LIB_LOADED-}" ]] && return 0
-_GRAPH__LIB_LOADED=1
-
-_GRAPH__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/logging.sh
-. "$_GRAPH__LIB_DIR/logging.sh"
 
 # @brief graph__round_order [--hard-edges-file F] [--soft-edges-file F] [--priority-file F] [--compare CMD] -- <id>... — Emit node ids in dependency-ordered rounds; all nodes in a round have no unresolved predecessors.
 #

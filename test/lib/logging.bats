@@ -125,6 +125,7 @@ _FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
 
 @test "file__tmpdir creates a subdirectory inside _SYSSET_TMPDIR" {
   run bash -c "
+    source '${_LOGGING_LIB}'
     source '${_FILE_LIB}'
     logging__setup
     _sub=\"\$(file__tmpdir 'mymod')\"
@@ -139,6 +140,7 @@ _FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
 
 @test "file__tmpdir is idempotent" {
   run bash -c "
+    source '${_LOGGING_LIB}'
     source '${_FILE_LIB}'
     logging__setup
     _p1=\"\$(file__tmpdir 'x')\"

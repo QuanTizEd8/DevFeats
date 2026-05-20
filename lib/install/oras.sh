@@ -1,25 +1,5 @@
+# shellcheck shell=bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
-
-[[ -n "${_INSTALL_ORAS__LIB_LOADED-}" ]] && return 0
-_INSTALL_ORAS__LIB_LOADED=1
-
-_INSTALL_ORAS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/install/common.sh
-. "${_INSTALL_ORAS_LIB_DIR}/common.sh"
-# shellcheck source=lib/os.sh
-. "${_INSTALL_ORAS_LIB_DIR}/../os.sh"
-# shellcheck source=lib/ver.sh
-. "${_INSTALL_ORAS_LIB_DIR}/../ver.sh"
-# shellcheck source=lib/file.sh
-. "${_INSTALL_ORAS_LIB_DIR}/../file.sh"
-# shellcheck source=lib/ospkg.sh
-. "${_INSTALL_ORAS_LIB_DIR}/../ospkg.sh"
-# shellcheck source=lib/github.sh
-. "${_INSTALL_ORAS_LIB_DIR}/../github.sh"
-# shellcheck source=lib/net.sh
-. "${_INSTALL_ORAS_LIB_DIR}/../net.sh"
-# shellcheck source=lib/verify.sh
-[[ -z "${_VERIFY__LIB_LOADED-}" ]] && . "${_INSTALL_ORAS_LIB_DIR}/../verify.sh"
 
 # @brief _install__oras_resolve_version <spec> — Resolve a version spec to bare semver (no leading `v`).
 # Accepts "stable" (default), "latest", "", or a semver / partial version string.

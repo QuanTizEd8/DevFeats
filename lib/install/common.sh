@@ -1,13 +1,5 @@
+# shellcheck shell=bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
-
-[[ -n "${_INSTALL_COMMON__LIB_LOADED-}" ]] && return 0
-_INSTALL_COMMON__LIB_LOADED=1
-
-_INSTALL_COMMON_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/logging.sh
-. "${_INSTALL_COMMON_LIB_DIR}/../logging.sh"
-# shellcheck source=lib/file.sh
-. "${_INSTALL_COMMON_LIB_DIR}/../file.sh"
 
 # @brief _install__sanitize_key <raw> — Convert arbitrary tool/group identifiers to safe lowercase key fragments.
 _install__sanitize_key() {

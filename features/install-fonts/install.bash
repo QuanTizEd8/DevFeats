@@ -1,12 +1,3 @@
-# shellcheck source=lib/file.sh
-. "$_BASE_DIR/_lib/file.sh"
-# shellcheck source=lib/net.sh
-. "$_BASE_DIR/_lib/net.sh"
-# shellcheck source=lib/github.sh
-. "$_BASE_DIR/_lib/github.sh"
-# shellcheck source=lib/uri.sh
-. "$_BASE_DIR/_lib/uri.sh"
-
 # Constants
 # ---------------------------------------------------------------------------
 _P10K_BASE_URL="https://github.com/romkatv/powerlevel10k-media/raw/master"

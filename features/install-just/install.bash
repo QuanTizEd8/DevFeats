@@ -1,21 +1,3 @@
-# shellcheck source=lib/install/common.sh
-. "${_BASE_DIR}/_lib/install/common.sh"
-# shellcheck source=lib/os.sh
-. "${_BASE_DIR}/_lib/os.sh"
-# shellcheck source=lib/ospkg.sh
-. "${_BASE_DIR}/_lib/ospkg.sh"
-# shellcheck source=lib/net.sh
-. "${_BASE_DIR}/_lib/net.sh"
-# shellcheck source=lib/verify.sh
-. "${_BASE_DIR}/_lib/verify.sh"
-# shellcheck source=lib/github.sh
-. "${_BASE_DIR}/_lib/github.sh"
-# shellcheck source=lib/file.sh
-. "${_BASE_DIR}/_lib/file.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "${_BASE_DIR}/_lib/users.sh"
 
 _install__just_resolve_version() {
   local _spec="$1"

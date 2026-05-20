@@ -1,6 +1,3 @@
-# shellcheck source=lib/shell.sh
-. "$_BASE_DIR/_lib/shell.sh"
-
 _SHIM_BIN="${PREFIX}/bin"
 
 # ---------------------------------------------------------------------------

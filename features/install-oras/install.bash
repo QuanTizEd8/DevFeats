@@ -1,9 +1,3 @@
-# shellcheck source=lib/install/oras.sh
-. "${_BASE_DIR}/_lib/install/oras.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "${_BASE_DIR}/_lib/users.sh"
 
 install__oras \
   --context user \

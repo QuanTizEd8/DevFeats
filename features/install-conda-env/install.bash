@@ -1,6 +1,3 @@
-# shellcheck source=lib/uri.sh
-. "$_BASE_DIR/_lib/uri.sh"
-
 _URI_TMP="$(mktemp -d)"
 _cleanup_hook() {
   rm -rf "${_URI_TMP:-}"

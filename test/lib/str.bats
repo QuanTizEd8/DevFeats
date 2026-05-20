@@ -117,4 +117,3 @@ zsh-syntax-highlighting"
   assert_line -n 1 "baz"
   assert_success
 }
-

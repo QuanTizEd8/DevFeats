@@ -1,30 +1,10 @@
+# shellcheck shell=bash
 # GitHub Releases API: fetch JSON, resolve versions, select and download release assets.
 #
 # Fetches release metadata via the GitHub API, resolves version specs, selects
 # platform-appropriate assets using arch/platform heuristics, downloads and
 # verifies them, extracts archives, and installs binaries.
 # Respects `GITHUB_TOKEN` for all API calls.
-
-[ -n "${_GITHUB__LIB_LOADED-}" ] && return 0
-_GITHUB__LIB_LOADED=1
-
-_GITHUB__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/logging.sh
-. "$_GITHUB__LIB_DIR/logging.sh"
-# shellcheck source=lib/json.sh
-. "$_GITHUB__LIB_DIR/json.sh"
-# shellcheck source=lib/net.sh
-. "$_GITHUB__LIB_DIR/net.sh"
-# shellcheck source=lib/verify.sh
-. "$_GITHUB__LIB_DIR/verify.sh"
-# shellcheck source=lib/file.sh
-. "$_GITHUB__LIB_DIR/file.sh"
-# shellcheck source=lib/install/common.sh
-. "$_GITHUB__LIB_DIR/install/common.sh"
-# shellcheck source=lib/uri.sh
-[[ -z "${_URI__LIB_LOADED-}" ]] && . "$_GITHUB__LIB_DIR/uri.sh"
-# shellcheck source=lib/ver.sh
-[[ -z "${_VER__LIB_LOADED-}" ]] && . "$_GITHUB__LIB_DIR/ver.sh"
 
 # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
 #

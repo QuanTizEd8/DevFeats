@@ -1,13 +1,7 @@
+# shellcheck shell=bash
 # JSON query and manipulation helpers using jq (auto-installed via ospkg if absent).
 #
 # Functions read from stdin and write to stdout.
-
-[ -n "${_JSON__LIB_LOADED-}" ] && return 0
-_JSON__LIB_LOADED=1
-
-_JSON__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/ospkg.sh
-. "${_JSON__LIB_DIR}/ospkg.sh"
 
 # _json__ensure_json_lib_dir (internal) — kept for backward compat; _JSON__LIB_DIR is always set at load time.
 _json__ensure_json_lib_dir() {

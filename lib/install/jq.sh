@@ -1,27 +1,5 @@
+# shellcheck shell=bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
-
-[[ -n "${_INSTALL_JQ__LIB_LOADED-}" ]] && return 0
-_INSTALL_JQ__LIB_LOADED=1
-
-_INSTALL_JQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/install/common.sh
-. "${_INSTALL_JQ_LIB_DIR}/common.sh"
-# shellcheck source=lib/verify.sh
-. "${_INSTALL_JQ_LIB_DIR}/../verify.sh"
-# shellcheck source=lib/os.sh
-. "${_INSTALL_JQ_LIB_DIR}/../os.sh"
-# shellcheck source=lib/file.sh
-. "${_INSTALL_JQ_LIB_DIR}/../file.sh"
-# shellcheck source=lib/ospkg.sh
-. "${_INSTALL_JQ_LIB_DIR}/../ospkg.sh"
-# shellcheck source=lib/net.sh
-. "${_INSTALL_JQ_LIB_DIR}/../net.sh"
-# shellcheck source=lib/users.sh
-. "${_INSTALL_JQ_LIB_DIR}/../users.sh"
-# shellcheck source=lib/ver.sh
-. "${_INSTALL_JQ_LIB_DIR}/../ver.sh"
-# shellcheck source=lib/github.sh
-. "${_INSTALL_JQ_LIB_DIR}/../github.sh"
 
 # @brief _install__jq_asset_name <version> <os> <arch> — Print jq release asset filename.
 #

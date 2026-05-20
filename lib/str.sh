@@ -1,11 +1,9 @@
+# shellcheck shell=bash
 # String and path utilities: safe identifiers, prefix operations, version extraction.
 #
 # Provides helpers for safe identifier conversion, basename extraction, prefix
 # stripping, and version suffix parsing. All functions write results to stdout,
 # one item per line.
-
-[[ -n "${_STR__LIB_LOADED-}" ]] && return 0
-_STR__LIB_LOADED=1
 
 # @brief str__basename_each [<path-token>...] — For each argument, strip spaces and print basename on its own line.
 #
@@ -108,5 +106,3 @@ str__rsplit_once() {
   printf '%s\n' "$_rest"
   return 0
 }
-
-

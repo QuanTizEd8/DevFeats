@@ -1,13 +1,3 @@
-# shellcheck source=lib/github.sh
-. "${_BASE_DIR}/_lib/github.sh"
-# shellcheck source=lib/verify.sh
-. "${_BASE_DIR}/_lib/verify.sh"
-# shellcheck source=lib/file.sh
-. "${_BASE_DIR}/_lib/file.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "${_BASE_DIR}/_lib/users.sh"
 
 # _gh__resolve_version — prints the resolved semver (no "v" prefix) to stdout.
 _gh__resolve_version() {

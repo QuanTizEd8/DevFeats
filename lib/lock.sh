@@ -1,13 +1,8 @@
+# shellcheck shell=bash
 # Advisory file locking: serialize concurrent writers around a lockfile.
 #
 # Wraps `flock` to ensure only one writer holds the lockfile at a time. Use
 # when multiple parallel feature installers may write to the same resource.
-[[ -n "${_LOCK__LIB_LOADED-}" ]] && return 0
-_LOCK__LIB_LOADED=1
-
-_LOCK__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/logging.sh
-. "$_LOCK__LIB_DIR/logging.sh"
 
 # @brief lock__run_with_lockfile <lockfile> <command-string> — Run eval on command-string while holding an exclusive lock.
 #

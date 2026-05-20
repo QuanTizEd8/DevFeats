@@ -1,14 +1,8 @@
+# shellcheck shell=bash
 # Artifact integrity verification: SHA-256 hash checking and GPG signature verification.
 #
 # Returns non-zero on mismatch, logging expected and actual values. Designed
 # for use with downloaded release artifacts.
-
-[ -n "${_VERIFY__LIB_LOADED-}" ] && return 0
-_VERIFY__LIB_LOADED=1
-
-_VERIFY__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/ospkg.sh
-. "$_VERIFY__LIB_DIR/ospkg.sh"
 
 read -r -d '' _VERIFY__GPG_MANIFEST << 'EOF' || true
 packages:
@@ -16,8 +10,6 @@ packages:
     dnf: gnupg2
     yum: gnupg2
 EOF
-# shellcheck source=lib/net.sh
-[[ -z "${_NET__LIB_LOADED-}" ]] && . "$_VERIFY__LIB_DIR/net.sh"
 
 # ── SHA hash verification ─────────────────────────────────────────────────────
 

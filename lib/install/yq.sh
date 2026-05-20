@@ -1,23 +1,5 @@
+# shellcheck shell=bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
-
-[[ -n "${_INSTALL_YQ__LIB_LOADED-}" ]] && return 0
-_INSTALL_YQ__LIB_LOADED=1
-
-_INSTALL_YQ__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/install/common.sh
-. "${_INSTALL_YQ__LIB_DIR}/common.sh"
-# shellcheck source=lib/verify.sh
-. "${_INSTALL_YQ__LIB_DIR}/../verify.sh"
-# shellcheck source=lib/os.sh
-. "${_INSTALL_YQ__LIB_DIR}/../os.sh"
-# shellcheck source=lib/ospkg.sh
-. "${_INSTALL_YQ__LIB_DIR}/../ospkg.sh"
-# shellcheck source=lib/users.sh
-. "${_INSTALL_YQ__LIB_DIR}/../users.sh"
-# shellcheck source=lib/net.sh
-. "${_INSTALL_YQ__LIB_DIR}/../net.sh"
-# shellcheck source=lib/github.sh
-. "${_INSTALL_YQ__LIB_DIR}/../github.sh"
 
 # @brief _install__yq_compatible <bin> — Return 0 when candidate binary is mikefarah/yq-compatible (`-o=json` supported).
 #

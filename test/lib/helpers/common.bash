@@ -18,53 +18,52 @@ bats_load_library bats-support
 bats_load_library bats-assert
 bats_load_library bats-file
 
-# reload_lib <module.sh>
+# Pre-declare global associative/indexed arrays before sourcing modules.
+# 'declare -A' without -g inside a function chain creates a local variable that
+# disappears when the chain returns; '-g' ensures the global is created.
+declare -gA _OSPKG_OS_RELEASE=()
+declare -gA _OCI__AUTH_USER=()
+declare -gA _OCI__AUTH_TOKEN=()
+declare -gA _OCI__AUTH_DONE=()
+declare -ga _SYSSET_MASKED_VALUES=()
+
+# Source all lib modules once at test-process startup (in topological order so
+# no module tries to call a function from a not-yet-defined module, even though
+# cross-module sourcing has been removed).
+for _devfeats_lib_mod in \
+  logging.sh os.sh str.sh ver.sh json.sh net.sh file.sh verify.sh \
+  lock.sh git.sh users.sh proc.sh graph.sh shell.sh \
+  install/common.sh install/jq.sh install/yq.sh install/oras.sh \
+  ospkg.sh github.sh oci.sh uri.sh; do
+  # shellcheck source=/dev/null
+  source "${LIB_ROOT}/${_devfeats_lib_mod}"
+done
+unset _devfeats_lib_mod
+
+# reload_lib [<module.sh>]
 #
-# Clears all lib load-guards and cached globals so a test can inject stubs
-# before sourcing the library for the first time in that test's subprocess.
+# Resets all cached globals so a test can inject stubs and observe fresh
+# behaviour. The module argument is accepted for backward compatibility but
+# ignored: all modules are already loaded at process startup.
 reload_lib() {
-  local _mod="$1"
-
-  # Clear all lib load guards.
-  unset _OS__LIB_LOADED _SHELL__LIB_LOADED _STR__LIB_LOADED _VER__LIB_LOADED _OSPKG__LIB_LOADED \
-    _NET__LIB_LOADED _GIT__LIB_LOADED _LOGGING__LIB_LOADED \
-    _VERIFY__LIB_LOADED _JSON__LIB_LOADED _GITHUB__LIB_LOADED _USERS__LIB_LOADED \
-    _GRAPH__LIB_LOADED _PROC__LIB_LOADED _DEVCONTAINER__LIB_LOADED _FILE__LIB_LOADED \
-    _OCI__LIB_LOADED _LOCK__LIB_LOADED _URI__LIB_LOADED \
-    _INSTALL_COMMON__LIB_LOADED _INSTALL_ORAS__LIB_LOADED _INSTALL_YQ__LIB_LOADED
-
   # Reset os.sh lazy-cached globals.
   unset _OS__KERNEL _OS__ARCH _OS__ID _OS__ID_LIKE _OS__CODENAME _OS__PLATFORM _OS__RELEASE_LOADED
 
   # Reset net.sh cached state.
   unset _NET_FETCH_TOOL _NET_CA_CERTS_OK
 
-  # Reset json.sh (parse tool selection removed; nothing to reset).
-
-  # Reset ospkg.sh detection flag (sourcing ospkg.sh re-declares it as false).
+  # Reset ospkg.sh detection flag.
   _OSPKG_DETECTED=false
 
   # Reset logging state flags.
   _LIB_LOGGING_SETUP=false
   _SYSSET_TMPDIR=
-  # Pre-declare _SYSSET_MASKED_VALUES as a global indexed array BEFORE sourcing;
-  # 'declare' without -g inside a function creates a local, which would
-  # disappear when reload_lib returns and leave the global unset.
   declare -ga _SYSSET_MASKED_VALUES=()
 
-  # Pre-declare global associative arrays BEFORE sourcing to work around a bash
-  # scoping rule: 'declare -A' without -g in a file sourced from within a
-  # function creates a LOCAL variable (goes away when the function returns).
-  #
-  # This must be done even when sourcing modules that load ospkg.sh indirectly
-  # (e.g. devcontainer.sh -> json.sh -> ospkg.sh), otherwise _OSPKG_OS_RELEASE
-  # can degrade to an indexed array after reload_lib returns and string-key
-  # lookups collapse onto index 0.
+  # Re-declare global associative arrays so prior test runs don't leave stale
+  # entries (also guards against any code path that might 'unset' them).
   declare -gA _OSPKG_OS_RELEASE=()
   declare -gA _OCI__AUTH_USER=()
   declare -gA _OCI__AUTH_TOKEN=()
   declare -gA _OCI__AUTH_DONE=()
-
-  # shellcheck source=/dev/null
-  source "${LIB_ROOT}/${_mod}"
 }

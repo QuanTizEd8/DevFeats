@@ -1,24 +1,3 @@
-# shellcheck source=lib/shell.sh
-. "$_BASE_DIR/_lib/shell.sh"
-# shellcheck source=lib/str.sh
-. "$_BASE_DIR/_lib/str.sh"
-# shellcheck source=lib/users.sh
-. "$_BASE_DIR/_lib/users.sh"
-# shellcheck source=lib/git.sh
-. "$_BASE_DIR/_lib/git.sh"
-# shellcheck source=lib/net.sh
-. "$_BASE_DIR/_lib/net.sh"
-# shellcheck source=lib/github.sh
-. "$_BASE_DIR/_lib/github.sh"
-# shellcheck source=lib/file.sh
-. "$_BASE_DIR/_lib/file.sh"
-# shellcheck source=lib/install/common.sh
-. "$_BASE_DIR/_lib/install/common.sh"
-# shellcheck source=lib/verify.sh
-. "${_BASE_DIR}/_lib/verify.sh"
-# shellcheck source=lib/uri.sh
-. "${_BASE_DIR}/_lib/uri.sh"
-
 _GITHUB_BASE_URL="https://github.com"
 _ZSH_COMPLETIONS_REPO_URL="${_GITHUB_BASE_URL}/zsh-users/zsh-completions"
 # Shallow-clone the repo here when not using Homebrew. Completion functions live

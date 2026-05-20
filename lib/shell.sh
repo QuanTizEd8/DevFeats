@@ -1,19 +1,9 @@
+# shellcheck shell=bash
 # Shell startup file helpers: detect, read, and write login shell configuration.
 #
 # Provides helpers for detecting system-wide and per-user startup files,
 # writing idempotent named config blocks, and resolving `ZDOTDIR` for zsh.
 # Supports bash, zsh, and login-shell path configuration.
-
-[[ -n "${_SHELL__LIB_LOADED-}" ]] && return 0
-_SHELL__LIB_LOADED=1
-
-_SHELL__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/logging.sh
-. "$_SHELL__LIB_DIR/logging.sh"
-# shellcheck source=lib/os.sh
-. "$_SHELL__LIB_DIR/os.sh"
-# shellcheck source=lib/users.sh
-. "$_SHELL__LIB_DIR/users.sh"
 
 # Shared awk helpers used by shell__write_block and shell__sync_block.
 # norm() strips BOM, leading/trailing whitespace, and CR; is_blank_line() tests for empty.

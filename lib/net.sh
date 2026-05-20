@@ -1,15 +1,9 @@
+# shellcheck shell=bash
 # HTTP fetch helpers with retry support using curl or wget.
 #
 # Auto-detects `curl` or `wget` (installs via `ospkg` if absent). All fetch
 # functions support configurable retries, delay between attempts, and custom
 # HTTP headers.
-
-[ -n "${_NET__LIB_LOADED-}" ] && return 0
-_NET__LIB_LOADED=1
-
-_NET__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/ospkg.sh
-. "$_NET__LIB_DIR/ospkg.sh"
 
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=

@@ -1,18 +1,9 @@
+# shellcheck shell=bash
 # Parallel process execution following devcontainer command-value conventions.
 #
 # Supports devcontainer-style command values: a string (shell command) or an
 # array of strings (direct exec). Requires `json.sh` for array command parsing
 # and `os.sh` when using the `--user` option.
-[[ -n "${_PROC__LIB_LOADED-}" ]] && return 0
-_PROC__LIB_LOADED=1
-
-_PROC__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/json.sh
-. "$_PROC__LIB_DIR/json.sh"
-# shellcheck source=lib/logging.sh
-. "$_PROC__LIB_DIR/logging.sh"
-# shellcheck source=lib/users.sh
-. "$_PROC__LIB_DIR/users.sh"
 
 # @brief proc__run_parallel [--outdir <dir>] [--cwd <dir>] -- <label> <argv...> [-- <label> <argv>...] — Run labelled commands in parallel; stream output in label order when all finish.
 #

@@ -1,10 +1,3 @@
-# shellcheck source=lib/shell.sh
-. "$_BASE_DIR/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "$_BASE_DIR/_lib/users.sh"
-# shellcheck source=lib/uri.sh
-. "$_BASE_DIR/_lib/uri.sh"
-
 # ── Constants ────────────────────────────────────────────────────────────────
 _BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD"
 _BREW_INSTALLER_URL="${_BREW_INSTALL_BASE_URL}/install.sh"

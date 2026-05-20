@@ -1,16 +1,3 @@
-# shellcheck source=lib/os.sh
-. "${_BASE_DIR}/_lib/os.sh"
-# shellcheck source=lib/net.sh
-. "${_BASE_DIR}/_lib/net.sh"
-# shellcheck source=lib/uri.sh
-. "${_BASE_DIR}/_lib/uri.sh"
-# shellcheck source=lib/ospkg.sh
-. "${_BASE_DIR}/_lib/ospkg.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "${_BASE_DIR}/_lib/users.sh"
-
 _devcontainer_cli__detect_version() {
   command -v devcontainer > /dev/null 2>&1 || return 1
   devcontainer --version 2> /dev/null | head -n 1

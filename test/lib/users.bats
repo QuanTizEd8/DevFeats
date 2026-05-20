@@ -125,6 +125,7 @@ carol"
 
 @test "users__set_login_shell skips user whose shell is already set" {
   reload_lib users.sh
+  ospkg__run() { return 0; }  # chsh already on PATH; skip package install
   create_fake_bin "chsh" ""
   # fake getent returns a passwd line where the shell is already /usr/bin/zsh
   cat > "${BATS_TEST_TMPDIR}/bin/getent" << 'EOF'
@@ -140,6 +141,8 @@ EOF
 
 @test "users__set_login_shell changes the shell when it differs" {
   reload_lib users.sh
+  ospkg__run() { return 0; }          # chsh already on PATH; skip package install
+  users__run_privileged() { "$@"; }  # run directly (no sudo) so fake PATH is used
   create_fake_bin "chsh" ""
   # fake getent returns a passwd line with a different shell
   cat > "${BATS_TEST_TMPDIR}/bin/getent" << 'EOF'

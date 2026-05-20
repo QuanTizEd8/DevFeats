@@ -1,12 +1,10 @@
+# shellcheck shell=bash
 # Structured logging with emoji prefixes and configurable verbosity levels.
 #
 # Log level is controlled via the `LOG_LEVEL` environment variable
 # (`silent` | `error` | `warn` | `info` | `debug` | `trace`; defaults to `info`).
 # Call `logging__setup` at script start and `logging__cleanup` at the end to
 # capture all output to a log file.
-
-[[ -n "${_LOGGING__LIB_LOADED-}" ]] && return 0
-_LOGGING__LIB_LOADED=1
 
 _LIB_LOGGING_SETUP=false
 _SYSSET_TMPDIR=

@@ -407,11 +407,15 @@ _seed_apt_context_with_yq() {
   # Fix: block is plain sequential code; a failing yq exits the function under
   # set -e.
   _require_ospkg_jq
-  local _ospkg_lib="${BATS_TEST_DIRNAME}/../../lib/ospkg.sh"
 
   run bash -c "
+    for _m in logging.sh os.sh str.sh ver.sh json.sh net.sh file.sh verify.sh \
+               lock.sh git.sh users.sh proc.sh graph.sh shell.sh \
+               install/common.sh install/jq.sh install/yq.sh install/oras.sh \
+               ospkg.sh github.sh oci.sh uri.sh; do
+      source \"${LIB_ROOT}/\$_m\"
+    done
     set -euo pipefail
-    source '${_ospkg_lib}'
 
     # Seed a minimal apt context without calling the real package manager.
     _OSPKG_DETECTED=true
@@ -438,11 +442,15 @@ _seed_apt_context_with_yq() {
 
 @test "ospkg__run fails when manifest parser returns non-zero" {
   _require_ospkg_jq
-  local _ospkg_lib="${BATS_TEST_DIRNAME}/../../lib/ospkg.sh"
 
   run bash -c "
+    for _m in logging.sh os.sh str.sh ver.sh json.sh net.sh file.sh verify.sh \
+               lock.sh git.sh users.sh proc.sh graph.sh shell.sh \
+               install/common.sh install/jq.sh install/yq.sh install/oras.sh \
+               ospkg.sh github.sh oci.sh uri.sh; do
+      source \"${LIB_ROOT}/\$_m\"
+    done
     set -euo pipefail
-    source '${_ospkg_lib}'
 
     _OSPKG_DETECTED=true
     _OSPKG_PKG_MNGR='apt-get'

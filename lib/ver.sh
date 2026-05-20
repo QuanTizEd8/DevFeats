@@ -1,11 +1,9 @@
+# shellcheck shell=bash
 # Version utilities: version string extraction, comparison, and semver validation.
 #
 # Provides helpers for extracting version numbers from strings, comparing
 # semantic versions, and validating version tags. All functions write results
 # to stdout, one item per line.
-
-[[ -n "${_VER__LIB_LOADED-}" ]] && return 0
-_VER__LIB_LOADED=1
 
 # @brief ver__semver_ge <a> <b> — Return 0 if semantic version `a` is greater than or equal to `b`.
 #

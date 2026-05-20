@@ -1,16 +1,3 @@
-# shellcheck source=lib/github.sh
-. "${_BASE_DIR}/_lib/github.sh"
-# shellcheck source=lib/uri.sh
-. "${_BASE_DIR}/_lib/uri.sh"
-# shellcheck source=lib/verify.sh
-. "${_BASE_DIR}/_lib/verify.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "${_BASE_DIR}/_lib/users.sh"
-# shellcheck source=lib/file.sh
-. "${_BASE_DIR}/_lib/file.sh"
-
 _cleanup_hook() {
   logging__fn_entry "_cleanup_hook"
   if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${NVM_DIR-}" ] && [ -f "${NVM_DIR}/nvm.sh" ] && [ -n "${_NVM_USER-}" ]; then

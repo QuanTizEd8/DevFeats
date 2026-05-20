@@ -1,24 +1,9 @@
+# shellcheck shell=bash
 # OCI and GHCR container registry helpers: resolve tags, pull feature artifacts.
 #
 # Provides helpers for constructing `ghcr.io` image references, listing tags,
 # pulling feature artifacts, and resolving version specs from OCI tag lists.
 # Requires `oras` to be available; `oci__ensure_oras` installs it if absent.
-[[ -n "${_OCI__LIB_LOADED-}" ]] && return 0
-_OCI__LIB_LOADED=1
-
-_OCI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/ospkg.sh
-. "$_OCI_LIB_DIR/ospkg.sh"
-# shellcheck source=lib/install/oras.sh
-. "$_OCI_LIB_DIR/install/oras.sh"
-# shellcheck source=lib/logging.sh
-. "$_OCI_LIB_DIR/logging.sh"
-# shellcheck source=lib/ver.sh
-. "$_OCI_LIB_DIR/ver.sh"
-# shellcheck source=lib/verify.sh
-. "$_OCI_LIB_DIR/verify.sh"
-# shellcheck source=lib/json.sh
-. "$_OCI_LIB_DIR/json.sh"
 
 _OCI__ORAS_MIN_VERSION="${_OCI__ORAS_MIN_VERSION:-1.2.0}"
 _OCI__AUTH_LOADED=0

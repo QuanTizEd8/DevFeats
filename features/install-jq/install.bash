@@ -1,12 +1,3 @@
-# shellcheck source=lib/install/jq.sh
-. "${_BASE_DIR}/_lib/install/jq.sh"
-# shellcheck source=lib/shell.sh
-. "${_BASE_DIR}/_lib/shell.sh"
-# shellcheck source=lib/github.sh
-. "${_BASE_DIR}/_lib/github.sh"
-# shellcheck source=lib/users.sh
-. "${_BASE_DIR}/_lib/users.sh"
-
 # _jq__resolve_version — resolve VERSION global to a bare semver string (no prefix).
 # jq release tags use "jq-X.Y.Z" format rather than "vX.Y.Z".
 _jq__resolve_version() {
