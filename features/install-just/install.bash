@@ -1,4 +1,3 @@
-
 _install__just_resolve_version() {
   local _out
   _out="$(github__resolve_version "casey/just" "$VERSION")" || return 1

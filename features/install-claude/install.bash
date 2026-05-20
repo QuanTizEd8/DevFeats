@@ -1,4 +1,3 @@
-
 if os__is_devcontainer_build; then
   _ON_CREATE_SCRIPT_NAME="lifecycle--on-create--symlink-claude-dir.sh"
   _ON_CREATE_SCRIPT_DEST="${_FEAT_SHARE_DIR}/${_ON_CREATE_SCRIPT_NAME}"

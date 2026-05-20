@@ -1,4 +1,3 @@
-
 # _gh__resolve_version — prints the resolved semver (no "v" prefix) to stdout.
 _gh__resolve_version() {
   logging__fn_entry "_gh__resolve_version"

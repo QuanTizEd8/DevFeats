@@ -1,4 +1,3 @@
-
 install__oras \
   --context user \
   --owner-group "feature::install-oras" \

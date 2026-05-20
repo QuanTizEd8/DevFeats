@@ -1,4 +1,3 @@
-
 _shfmt__resolve_version() {
   local _spec="$1"
   local _out
