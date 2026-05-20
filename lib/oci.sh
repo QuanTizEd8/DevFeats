@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # OCI and GHCR container registry helpers: resolve tags, pull feature artifacts.
 #
 # Provides helpers for constructing `ghcr.io` image references, listing tags,

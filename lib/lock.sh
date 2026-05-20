@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Advisory file locking: serialize concurrent writers around a lockfile.
 #
 # Wraps `flock` to ensure only one writer holds the lockfile at a time. Use

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Version utilities: version string extraction, comparison, and semver validation.
 #
 # Provides helpers for extracting version numbers from strings, comparing

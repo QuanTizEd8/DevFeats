@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Parallel process execution following devcontainer command-value conventions.
 #
 # Supports devcontainer-style command values: a string (shell command) or an

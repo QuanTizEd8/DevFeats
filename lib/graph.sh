@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Round-based dependency ordering for parallel devcontainer feature installation.
 #
 # Accepts hard and soft dependency edges and emits features in installation

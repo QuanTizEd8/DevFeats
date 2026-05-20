@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Shell startup file helpers: detect, read, and write login shell configuration.
 #
 # Provides helpers for detecting system-wide and per-user startup files,

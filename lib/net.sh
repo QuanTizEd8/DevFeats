@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # HTTP fetch helpers with retry support using curl or wget.
 #
 # Auto-detects `curl` or `wget` (installs via `ospkg` if absent). All fetch

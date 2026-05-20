@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Cross-distro package manager abstraction: install, update, clean, and track dependencies.
 #
 # Detects the host package manager (`apt`, `apk`, `brew`, `dnf`/`yum`, `zypper`)

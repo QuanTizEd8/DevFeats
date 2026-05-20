@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # File and archive helpers: extract `.tar.xz`, `.tar.gz`, `.tgz`, and `.zip` archives.
 #
 # Returns 1 on unrecognized format or missing extraction tool.

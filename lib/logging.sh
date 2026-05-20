@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Structured logging with emoji prefixes and configurable verbosity levels.
 #
 # Log level is controlled via the `LOG_LEVEL` environment variable

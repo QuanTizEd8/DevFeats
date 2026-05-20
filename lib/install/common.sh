@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
 [[ -n "${_INSTALL_COMMON__LIB_LOADED-}" ]] && return 0

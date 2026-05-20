@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # String and path utilities: safe identifiers, prefix operations, version extraction.
 #
 # Provides helpers for safe identifier conversion, basename extraction, prefix

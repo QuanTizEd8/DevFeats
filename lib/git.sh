@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Git helpers: shallow clone and other repository operations.
 #
 # `git__clone` performs a `--depth=1` clone and is idempotent: it skips the

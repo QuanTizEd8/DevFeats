@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # User management: resolve users, set login shells, manage installation prefixes.
 #
 # Provides helpers for detecting root, resolving the remote user list from

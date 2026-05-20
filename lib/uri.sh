@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # URI resolution: materialize local paths and remote URIs to files for feature installers.
 #
 # Provides a unified download pipeline via uri__fetch_asset, which handles scheme routing

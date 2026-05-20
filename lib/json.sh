@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # JSON query and manipulation helpers using jq (auto-installed via ospkg if absent).
 #
 # Functions read from stdin and write to stdout.

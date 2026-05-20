@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # GitHub Releases API: fetch JSON, resolve versions, select and download release assets.
 #
 # Fetches release metadata via the GitHub API, resolves version specs, selects

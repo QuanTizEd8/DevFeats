@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # OS and hardware detection: cached accessors for kernel, arch, distro ID, and platform tag.
 #
 # Results for `os__kernel` and `os__arch` are cached for the lifetime of the

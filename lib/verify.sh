@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Artifact integrity verification: SHA-256 hash checking and GPG signature verification.
 #
 # Returns non-zero on mismatch, logging expected and actual values. Designed
