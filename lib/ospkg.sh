@@ -32,6 +32,8 @@ _OSPKG_UPDATED=false
 _OSPKG_PKG_MNGR=
 _OSPKG_FAMILY=
 _OSPKG_INSTALL=()
+_OSPKG_REMOVE=()
+_OSPKG_REMOVE_FORCE=()
 _OSPKG_UPDATE=()
 _OSPKG_CLEAN=
 _OSPKG_LISTS_PATH=
@@ -441,6 +443,10 @@ _ospkg_set_apt() {
   _ospkg_configure_pm "APT (tool: apt-get)" apt apt-get apt _ospkg_clean_apt "/var/lib/apt/lists" "*_Packages*"
   _OSPKG_UPDATE=(users__run_privileged apt-get update)
   _OSPKG_INSTALL=(users__run_privileged apt-get -y install --no-install-recommends)
+  _OSPKG_REMOVE=(users__run_privileged apt-get -y --purge remove)
+  # dpkg --force-depends removes the package without cascade-removing reverse-dependents.
+  # Use for binary-replacement: dependents stay installed with a temporarily broken dep.
+  _OSPKG_REMOVE_FORCE=(users__run_privileged dpkg --purge --force-depends)
   _OSPKG_OS_RELEASE[deb_arch]="$(dpkg --print-architecture 2> /dev/null || uname -m)"
 }
 
@@ -448,12 +454,17 @@ _ospkg_set_apk() {
   _ospkg_configure_pm "APK (tool: apk)" apk apk apk _ospkg_clean_apk "/var/cache/apk" "APKINDEX*"
   _OSPKG_UPDATE=(users__run_privileged apk update)
   _OSPKG_INSTALL=(users__run_privileged apk add --no-cache)
+  _OSPKG_REMOVE=(users__run_privileged apk del)
+  _OSPKG_REMOVE_FORCE=(users__run_privileged apk del --force-broken-world)
 }
 
 _ospkg_set_dnf() {
   _ospkg_configure_pm "DNF (tool: dnf)" dnf dnf dnf _ospkg_clean_dnf "/var/cache/dnf" "*"
   _OSPKG_UPDATE=(users__run_privileged dnf check-update)
   _OSPKG_INSTALL=(users__run_privileged dnf -y install)
+  _OSPKG_REMOVE=(users__run_privileged dnf -y remove)
+  # rpm -e --nodeps removes the package without cascade-removing reverse-dependents.
+  _OSPKG_REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
   # DNF5 (Fedora 41+) renamed mark subcommands: install→user, remove→dependency.
   if dnf --version 2> /dev/null | grep -qE '(^5\.| 5\.[0-9])'; then
     _OSPKG_DNF_MARK_USER="user"
@@ -468,12 +479,16 @@ _ospkg_set_microdnf() {
   _ospkg_configure_pm "DNF (tool: microdnf)" dnf microdnf dnf _ospkg_clean_dnf "" ""
   _OSPKG_UPDATE=()
   _OSPKG_INSTALL=(users__run_privileged microdnf -y install --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0)
+  _OSPKG_REMOVE=(users__run_privileged microdnf -y remove)
+  _OSPKG_REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
 }
 
 _ospkg_set_yum() {
   _ospkg_configure_pm "YUM (tool: yum)" dnf yum yum _ospkg_clean_dnf "/var/cache/yum" "*"
   _OSPKG_UPDATE=(users__run_privileged yum check-update)
   _OSPKG_INSTALL=(users__run_privileged yum -y install)
+  _OSPKG_REMOVE=(users__run_privileged yum -y remove)
+  _OSPKG_REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
   _OSPKG_DNF_MARK_USER="install"
   _OSPKG_DNF_MARK_DEP="remove"
 }
@@ -482,12 +497,17 @@ _ospkg_set_zypper() {
   _ospkg_configure_pm "Zypper (tool: zypper)" zypper zypper zypper _ospkg_clean_zypper "/var/cache/zypp/raw" "*"
   _OSPKG_UPDATE=(users__run_privileged zypper --non-interactive refresh)
   _OSPKG_INSTALL=(users__run_privileged zypper --non-interactive install)
+  _OSPKG_REMOVE=(users__run_privileged zypper --non-interactive remove --clean-deps)
+  _OSPKG_REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
 }
 
 _ospkg_set_pacman() {
   _ospkg_configure_pm "Pacman (tool: pacman)" pacman pacman pacman _ospkg_clean_pacman "/var/lib/pacman/sync" "*.db"
   _OSPKG_UPDATE=(users__run_privileged pacman -Sy --noconfirm)
   _OSPKG_INSTALL=(users__run_privileged pacman -S --noconfirm --needed)
+  _OSPKG_REMOVE=(users__run_privileged pacman -Rs --noconfirm)
+  # -Rdd skips all dependency version checks; removes without cascade.
+  _OSPKG_REMOVE_FORCE=(users__run_privileged pacman -Rdd --noconfirm)
 }
 
 _ospkg_set_brew() {
@@ -495,6 +515,8 @@ _ospkg_set_brew() {
   _ospkg_configure_pm "Homebrew (tool: brew) [${_label}]" brew brew brew _ospkg_clean_brew "" ""
   _OSPKG_UPDATE=(_ospkg_brew_run update)
   _OSPKG_INSTALL=(_ospkg_brew_run install)
+  _OSPKG_REMOVE=(_ospkg_brew_run uninstall)
+  _OSPKG_REMOVE_FORCE=(_ospkg_brew_run uninstall --ignore-dependencies)
 }
 
 # _ospkg_load_linux_release
@@ -1393,6 +1415,54 @@ ospkg__install_user() {
     esac
   done
   _ospkg_protect_user_pkgs "${_bare_names[@]}"
+  return 0
+}
+
+# @brief ospkg__remove_user [--ignore-deps] <pkg>... — Remove one or more user-installed packages via the OS package manager.
+#
+# Uses the platform-native removal command for each supported package manager.
+# Continues on best-effort basis: non-zero exit from the package manager is
+# logged as a warning but does not fail the function.
+#
+# When --ignore-deps is given, uses low-level force-remove commands that bypass
+# dependency checks and drop the package files without cascade-removing or
+# refusing due to reverse-dependents (dpkg --force-depends, rpm --nodeps,
+# pacman -Rdd, apk --force-broken-world, brew --ignore-dependencies). Use this
+# when replacing a PM-installed package with a non-PM-managed binary: the
+# reverse-dependent packages remain installed with a temporarily unsatisfied
+# declared dependency that resolves once the replacement is in place.
+#
+# Args:
+#   --ignore-deps  Bypass dependency checks; do not cascade-remove reverse-dependents.
+#   <pkg>...       One or more bare package names (no version suffixes).
+#
+# Returns: 0 on success (including best-effort partial removal).
+ospkg__remove_user() {
+  local _ignore_deps=false
+  while [[ $# -gt 0 && "$1" == --* ]]; do
+    case "$1" in
+      --ignore-deps) _ignore_deps=true; shift ;;
+      *) break ;;
+    esac
+  done
+  [[ $# -gt 0 ]] || return 0
+  ospkg__detect || return 1
+  logging__info "ospkg__remove_user: removing package(s): $*"
+  local -a _cmd
+  if [[ "$_ignore_deps" == true ]]; then
+    _cmd=("${_OSPKG_REMOVE_FORCE[@]}")
+  else
+    _cmd=("${_OSPKG_REMOVE[@]}")
+  fi
+  local _rc=0
+  if [[ -t 0 ]]; then
+    "${_cmd[@]}" "$@" >&2 || _rc=$?
+  elif [[ "$_OSPKG_PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
+    DEBIAN_FRONTEND=noninteractive "${_cmd[@]}" "$@" < /dev/null >&2 || _rc=$?
+  else
+    "${_cmd[@]}" "$@" < /dev/null >&2 || _rc=$?
+  fi
+  [[ $_rc -ne 0 ]] && logging__warn "ospkg__remove_user: package removal failed for: $*"
   return 0
 }
 
