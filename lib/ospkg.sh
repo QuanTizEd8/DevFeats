@@ -587,6 +587,38 @@ ospkg__detect() {
   return 0
 }
 
+# @brief ospkg__is_managed <bin_path> — Return 0 if <bin_path> is owned by the OS package manager, 1 otherwise.
+#
+# Calls `ospkg__detect` (idempotent) and dispatches on `_OSPKG__FAMILY`, so
+# the correct tool is used even when Linuxbrew is active or on Arch Linux
+# (where `os__platform` has no mapping).
+#
+# Args:
+#   <bin_path>  Absolute path to the binary to check (may be empty).
+#
+# Returns: 0 if owned by the package manager, 1 otherwise (including empty or
+#          nonexistent paths, or when no supported package manager is found).
+ospkg__is_managed() {
+  local _bin="${1-}"
+  [[ -n "$_bin" && -e "$_bin" ]] || return 1
+  ospkg__detect || return 1
+  case "$_OSPKG__FAMILY" in
+    apt) dpkg -S "$_bin" > /dev/null 2>&1 ;;
+    apk) apk info --who-owns "$_bin" > /dev/null 2>&1 ;;
+    dnf) rpm -qf "$_bin" > /dev/null 2>&1 ;;
+    zypper) rpm -qf "$_bin" > /dev/null 2>&1 ;;
+    pacman) pacman -Qo "$_bin" > /dev/null 2>&1 ;;
+    brew)
+      local _prefix _real
+      _prefix="$(brew --prefix 2> /dev/null)" || return 1
+      _real="$(readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+      [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
+      [[ "$_real" == "${_prefix}/Cellar/"* || "$_real" == "${_prefix}/opt/"* ]]
+      ;;
+    *) return 1 ;;
+  esac
+}
+
 # @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
 #
 # Args:

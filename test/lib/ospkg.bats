@@ -796,6 +796,189 @@ _mock_snapshots() {
 }
 
 # ---------------------------------------------------------------------------
+# ospkg__is_managed
+# ---------------------------------------------------------------------------
+
+# _seed_managed_context <family> — pre-seeds detection state so ospkg__is_managed
+# skips ospkg__detect and dispatches on the given family directly.
+_seed_managed_context() {
+  reload_lib ospkg.sh
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="${1}"
+  _OSPKG__PKG_MNGR="${1}"
+}
+
+@test "ospkg__is_managed: empty path returns 1" {
+  _seed_managed_context apt
+  run ospkg__is_managed ""
+  assert_failure
+}
+
+@test "ospkg__is_managed: nonexistent path returns 1" {
+  _seed_managed_context apt
+  run ospkg__is_managed "/nonexistent/path/does-not-exist"
+  assert_failure
+}
+
+@test "ospkg__is_managed: apt — dpkg -S succeeds → returns 0" {
+  _seed_managed_context apt
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  create_fake_bin "dpkg" ""
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_success
+}
+
+@test "ospkg__is_managed: apt — dpkg -S fails → returns 1" {
+  _seed_managed_context apt
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_failure
+}
+
+@test "ospkg__is_managed: apk — apk info --who-owns succeeds → returns 0" {
+  _seed_managed_context apk
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  create_fake_bin "apk" ""
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_success
+}
+
+@test "ospkg__is_managed: apk — apk info --who-owns fails → returns 1" {
+  _seed_managed_context apk
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/apk"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_failure
+}
+
+@test "ospkg__is_managed: dnf — rpm -qf succeeds → returns 0" {
+  _seed_managed_context dnf
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  create_fake_bin "rpm" ""
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_success
+}
+
+@test "ospkg__is_managed: dnf — rpm -qf fails → returns 1" {
+  _seed_managed_context dnf
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/rpm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/rpm"
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_failure
+}
+
+@test "ospkg__is_managed: zypper — rpm -qf succeeds → returns 0" {
+  _seed_managed_context zypper
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  create_fake_bin "rpm" ""
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_success
+}
+
+@test "ospkg__is_managed: pacman — pacman -Qo succeeds → returns 0" {
+  _seed_managed_context pacman
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  create_fake_bin "pacman" ""
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_success
+}
+
+@test "ospkg__is_managed: pacman — pacman -Qo fails → returns 1" {
+  _seed_managed_context pacman
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/pacman"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pacman"
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_failure
+}
+
+@test "ospkg__is_managed: brew — symlink resolves into prefix/opt/ → returns 0" {
+  _seed_managed_context brew
+  local _prefix="${BATS_TEST_TMPDIR}/homebrew"
+  local _target="${_prefix}/opt/mytool/bin/mytool"
+  mkdir -p "$(dirname "$_target")"
+  touch "$_target"
+  local _bin="${_prefix}/bin/mytool"
+  mkdir -p "$(dirname "$_bin")"
+  ln -sf "$_target" "$_bin"
+  create_fake_bin "brew" "$_prefix"
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_success
+}
+
+@test "ospkg__is_managed: brew — symlink resolves into prefix/Cellar/ → returns 0" {
+  _seed_managed_context brew
+  local _prefix="${BATS_TEST_TMPDIR}/homebrew"
+  local _target="${_prefix}/Cellar/mytool/1.0.0/bin/mytool"
+  mkdir -p "$(dirname "$_target")"
+  touch "$_target"
+  local _bin="${_prefix}/bin/mytool"
+  mkdir -p "$(dirname "$_bin")"
+  ln -sf "$_target" "$_bin"
+  create_fake_bin "brew" "$_prefix"
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_success
+}
+
+@test "ospkg__is_managed: brew — non-symlink outside prefix → returns 1" {
+  _seed_managed_context brew
+  local _prefix="${BATS_TEST_TMPDIR}/homebrew"
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/external-tool-XXXXXX")"
+  create_fake_bin "brew" "$_prefix"
+  prepend_fake_bin_path
+  run ospkg__is_managed "$_bin"
+  assert_failure
+}
+
+@test "ospkg__is_managed: unknown family → returns 1" {
+  _seed_managed_context unknown-pm
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  run ospkg__is_managed "$_bin"
+  assert_failure
+}
+
+@test "ospkg__is_managed: ospkg__detect failure → returns 1" {
+  reload_lib ospkg.sh
+  local _bin
+  _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
+  # Isolate PATH to a dir with no package managers; uname stays available.
+  begin_path_isolation uname
+  run ospkg__is_managed "$_bin"
+  end_path_isolation
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
 @test "ospkg__run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
   _require_ospkg_jq
