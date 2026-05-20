@@ -541,18 +541,29 @@ github__release_tags() {
 # Args:
 #   <owner/repo>     GitHub repository in "owner/repo" format.
 #   [<version-spec>] Version spec string (default: "stable").
+#   --tag            Print only the full release tag (line 1).
+#   --version        Print only the bare version (line 2).
 #
-# Stdout (two lines):
-#   Line 1: full release tag as published on GitHub (e.g. "v1.2.3", "jq-1.7.1").
-#   Line 2: bare version with the tag prefix stripped (e.g. "1.2.3", "1.7.1").
+# Stdout:
+#   By default (neither or both flags given): two lines — full tag then bare version.
+#   --tag only:     one line — full release tag (e.g. "v1.2.3", "jq-1.7.1").
+#   --version only: one line — bare version with tag prefix stripped (e.g. "1.2.3", "1.7.1").
 #
 # Returns: 0 on success, 1 if no matching release is found or an API error occurs.
 github__resolve_version() {
   local _repo="$1"
   shift
-  local _spec="stable" _spec_set=false
+  local _spec="stable" _spec_set=false _want_tag=false _want_version=false
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --tag)
+        _want_tag=true
+        shift
+        ;;
+      --version)
+        _want_version=true
+        shift
+        ;;
       --*)
         logging__error "github__resolve_version: unknown option: '$1'"
         return 1
@@ -610,7 +621,13 @@ github__resolve_version() {
       ;;
   esac
 
-  printf '%s\n%s\n' "$_tag" "$(ver__extract_version --keep-suffix "$_tag")"
+  if [ "$_want_tag" = "true" ] && [ "$_want_version" = "false" ]; then
+    printf '%s\n' "$_tag"
+  elif [ "$_want_version" = "true" ] && [ "$_want_tag" = "false" ]; then
+    printf '%s\n' "$(ver__extract_version --keep-suffix "$_tag")"
+  else
+    printf '%s\n%s\n' "$_tag" "$(ver__extract_version --keep-suffix "$_tag")"
+  fi
   return 0
 }
 
