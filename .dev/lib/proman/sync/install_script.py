@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from proman.const import (
+    INSTALL_BASH_HEADER_END_MARKER,
     export_profile_d,
     feat_share_dir,
-    INSTALL_BASH_HEADER_END_MARKER,
 )
 from proman.git import git_owner_repo
 
