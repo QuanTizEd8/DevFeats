@@ -132,7 +132,7 @@ _sync_init_files() {
   local _has_content=false
   [ $# -ge 2 ] && _has_content=true
   local _files _slug _is_root=false
-  users__is_root && _is_root=true
+  os__is_system_path "${RESOLVED_PREFIX}" && _is_root=true
 
   if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
@@ -263,14 +263,14 @@ prepare_prefix_if_needed() {
     users__create_system_user linuxbrew --home /home/linuxbrew --shell /bin/bash
     # Ubuntu 22.04+ creates home directories with mode 750; make the home
     # world-traversable so other users can reach the brew binary.
-    chmod 755 /home/linuxbrew
+    file__chmod 755 /home/linuxbrew
   fi
   # Create the prefix directory if it does not exist yet.
   if [ ! -e "$_install_prefix" ]; then
     logging__info "Creating prefix directory '${_install_prefix}' owned by '${_user}'."
-    mkdir -p "$_install_prefix"
-    chmod 755 "$(dirname "$_install_prefix")" 2> /dev/null || true
-    chown "$_user" "$_install_prefix"
+    file__mkdir "$_install_prefix"
+    file__chmod 755 "$(dirname "$_install_prefix")" 2> /dev/null || true
+    file__chown "$_user" "$_install_prefix"
     logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
@@ -292,7 +292,7 @@ prepare_prefix_if_needed() {
   # Empty directory: safe to re-own.
   if [ -z "$(ls -A "$_install_prefix" 2> /dev/null)" ]; then
     logging__info "Re-owning empty prefix '${_install_prefix}' to '${_user}'."
-    chown "$_user" "$_install_prefix"
+    file__chown "$_user" "$_install_prefix"
     logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
@@ -308,7 +308,7 @@ logging__info "Install user: '${RESOLVED_INSTALL_USER}'."
 validate_install_user "$RESOLVED_INSTALL_USER"
 RESOLVED_PREFIX="${PREFIX}"
 logging__info "Prefix: '${RESOLVED_PREFIX}'."
-if [ "$(os__kernel)" != "Darwin" ] && users__is_root; then
+if [ "$(os__kernel)" != "Darwin" ] && os__is_system_path "${RESOLVED_PREFIX}"; then
   prepare_prefix_if_needed "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER"
 fi
 

@@ -526,6 +526,7 @@ class InstallScriptGenerator:
                     PROFILE_D_NAME=activation_profile_d,
                     SNIPPET_FUNC=fn_activation_snippet,
                     ACTIVATIONS_VAR=var_activations,
+                    PREFIX_VAR=var_prefix,
                 )
                 post_install_blocks.append(
                     _wrap_applies_when(applies_when, activation_block)

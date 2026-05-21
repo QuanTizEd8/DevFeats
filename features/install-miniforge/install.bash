@@ -76,21 +76,6 @@ _prefix_post_install() {
   fi
 }
 
-check_root_requirement() {
-  logging__fn_entry "check_root_requirement"
-  local _require
-  case "$PREFIX" in
-    /opt/* | /usr/* | /var/* | /srv/* | /snap/*) _require=true ;;
-    *) _require=false ;;
-  esac
-  if [[ "$_require" == true ]]; then
-    os__require_root
-  else
-    logging__info "Root not required for prefix '$PREFIX'. Skipping root check."
-  fi
-  logging__fn_exit "check_root_requirement"
-}
-
 install_miniforge() {
   logging__fn_entry "install_miniforge"
   logging__install "Installing Miniforge to $PREFIX"
@@ -279,7 +264,6 @@ _cleanup_hook() {
   logging__fn_exit "_cleanup_hook"
 }
 
-check_root_requirement
 set_executable_paths
 
 resolve_miniforge_version

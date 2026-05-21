@@ -108,10 +108,10 @@ _git__reinstall() {
   if [ "${_existing_method}" = "package" ]; then
     logging__remove "Removing package-managed git..."
     case "$(os__platform)" in
-      debian) apt-get remove -y git ;;
-      alpine) apk del git ;;
-      rhel) dnf remove -y git 2> /dev/null || yum remove -y git ;;
-      suse) zypper remove -y git ;;
+      debian) users__run_privileged apt-get remove -y git ;;
+      alpine) users__run_privileged apk del git ;;
+      rhel) users__run_privileged dnf remove -y git 2> /dev/null || users__run_privileged yum remove -y git ;;
+      suse) users__run_privileged zypper remove -y git ;;
       macos) brew remove git ;;
     esac
   else
@@ -126,7 +126,7 @@ _git__reinstall() {
     case "$(os__platform)" in
       debian)
         if dpkg -s git 2> /dev/null | grep -q 'Status: install ok installed'; then
-          apt-get purge -y git || true
+          users__run_privileged apt-get purge -y git || true
         fi
         ;;
     esac
@@ -251,7 +251,7 @@ _git__source_build() {
   local _comp_src_dir="${INSTALLER_DIR}/asset/git-${_ver}/contrib/completion"
   local _comp_dst_dir="${PREFIX}/share/git-core/contrib/completion"
   if [ -d "${_comp_src_dir}" ]; then
-    mkdir -p "${_comp_dst_dir}"
+    file__mkdir "${_comp_dst_dir}"
     cp "${_comp_src_dir}/"*.bash "${_comp_dst_dir}/" 2> /dev/null || true
     cp "${_comp_src_dir}/"*.zsh "${_comp_dst_dir}/" 2> /dev/null || true
   fi
@@ -266,9 +266,9 @@ _git__source_build() {
 # $1 = resolved version string
 _git__source_register() {
   local _ver="$1"
-  # Non-root installs cannot register packages via apt/dpkg.
-  if ! users__is_root; then
-    logging__info "Non-root mode: skipping package manager registration for source-built git."
+  # User-local installs cannot register packages via apt/dpkg.
+  if ! os__is_system_path "${PREFIX}"; then
+    logging__info "User-local mode: skipping package manager registration for source-built git."
     return 0
   fi
   case "$(os__platform)" in
@@ -292,8 +292,8 @@ EOF
 
   (
     cd "${_tmpdir}"
-    equivs-build ./git.control
-    dpkg -i ./git_*.deb
+    users__run_privileged equivs-build ./git.control
+    users__run_privileged dpkg -i ./git_*.deb
   ) || {
     logging__warn "equivs dummy package installation failed — skipping registration."
     rm -rf "${_tmpdir}"
@@ -309,8 +309,8 @@ EOF
 # Main source-build orchestrator (10 steps).
 _git__install_source() {
   # 1. Validate prefix writeability.
-  mkdir -p "${PREFIX}" 2> /dev/null || true
-  if [ ! -w "${PREFIX}" ]; then
+  file__mkdir "${PREFIX}" 2> /dev/null || true
+  if ! os__is_system_path "${PREFIX}" && [ ! -w "${PREFIX}" ]; then
     logging__error "PREFIX '${PREFIX}' is not writable."
     return 1
   fi
@@ -329,12 +329,12 @@ _git__install_source() {
   fi
 
   # 5. Install build dependencies.
-  # Non-root installs cannot invoke the OS package manager; assume deps were
+  # User-local installs cannot invoke the OS package manager; assume deps were
   # preinstalled by the caller (e.g. Linux non-root test setup).
-  if users__is_root; then
+  if os__is_system_path "${PREFIX}"; then
     _build_deps__install_source_build
   else
-    logging__info "Non-root mode: skipping build dependency installation; expecting required packages to be preinstalled."
+    logging__info "User-local mode: skipping build dependency installation; expecting required packages to be preinstalled."
   fi
 
   # 6. Download, verify, and extract tarball.
@@ -358,12 +358,12 @@ _git__install_source() {
 # and any raw ini lines from $SYSTEM_GITCONFIG).
 _git__write_system_gitconfig() {
   local _cfg
-  if users__is_root; then
+  if os__is_system_path "${PREFIX}"; then
     _cfg="${SYSCONFDIR}/gitconfig"
   else
-    _cfg="${HOME}/.config/git/config"
+    _cfg="$(users__home_of_path_owner "${PREFIX}")/.config/git/config"
   fi
-  mkdir -p "$(dirname "${_cfg}")"
+  file__mkdir "$(dirname "${_cfg}")"
 
   # Prefer the installed binary (handles source builds at non-standard prefixes
   # where ${PREFIX}/bin is not yet on PATH); fall back to the system git.
@@ -374,19 +374,26 @@ _git__write_system_gitconfig() {
     _git="git"
   fi
 
+  local _run_cfg
+  if os__is_system_path "${PREFIX}"; then
+    _run_cfg() { users__run_privileged "$@"; }
+  else
+    _run_cfg() { "$@"; }
+  fi
+
   if [ -n "${DEFAULT_BRANCH}" ]; then
-    "${_git}" config --file "${_cfg}" init.defaultBranch "${DEFAULT_BRANCH}"
+    _run_cfg "${_git}" config --file "${_cfg}" init.defaultBranch "${DEFAULT_BRANCH}"
   fi
 
   if [ "${#SAFE_DIRECTORY[@]}" -gt 0 ]; then
     local _entry
     for _entry in "${SAFE_DIRECTORY[@]}"; do
-      "${_git}" config --file "${_cfg}" --add safe.directory "${_entry}"
+      _run_cfg "${_git}" config --file "${_cfg}" --add safe.directory "${_entry}"
     done
   fi
 
   if [ -n "${SYSTEM_GITCONFIG}" ]; then
-    printf '%s\n' "${SYSTEM_GITCONFIG}" >> "${_cfg}"
+    printf '%s\n' "${SYSTEM_GITCONFIG}" | file__tee --append "${_cfg}"
   fi
   return 0
 }
@@ -407,9 +414,9 @@ _git__write_user_gitconfig() {
 
   while IFS= read -r _user; do
     [ -z "${_user}" ] && continue
-    # Non-root: only write to the invoking user's config.
-    if ! users__is_root && [ "${_user}" != "${_current_user}" ]; then
-      logging__warn "Non-root: skipping gitconfig for '${_user}' (can only write for '${_current_user}')."
+    # User-local scope: only write to the invoking user's config.
+    if ! os__is_system_path "${PREFIX}" && [ "${_user}" != "${_current_user}" ]; then
+      logging__warn "User-local mode: skipping gitconfig for '${_user}' (can only write for '${_current_user}')."
       continue
     fi
 
@@ -427,14 +434,17 @@ _git__write_user_gitconfig() {
       _git="git"
     fi
 
-    [ -n "${USER_NAME}" ] && "${_git}" config --file "${_cfg}" user.name "${USER_NAME}"
-    [ -n "${USER_EMAIL}" ] && "${_git}" config --file "${_cfg}" user.email "${USER_EMAIL}"
-    [ -n "${USER_GITCONFIG}" ] && printf '%s\n' "${USER_GITCONFIG}" >> "${_cfg}"
-
-    # Fix ownership when root writes to a non-root user's file.
-    if users__is_root; then
-      chown "${_user}:${_user}" "${_cfg}" 2> /dev/null || true
+    if [ "${_user}" = "$(id -un)" ]; then
+      [ -n "${USER_NAME}" ] && "${_git}" config --file "${_cfg}" user.name "${USER_NAME}"
+      [ -n "${USER_EMAIL}" ] && "${_git}" config --file "${_cfg}" user.email "${USER_EMAIL}"
+    else
+      [ -n "${USER_NAME}" ] && users__run_privileged "${_git}" config --file "${_cfg}" user.name "${USER_NAME}"
+      [ -n "${USER_EMAIL}" ] && users__run_privileged "${_git}" config --file "${_cfg}" user.email "${USER_EMAIL}"
     fi
+    [ -n "${USER_GITCONFIG}" ] && printf '%s\n' "${USER_GITCONFIG}" | file__tee --append "${_cfg}"
+
+    # Fix ownership when writing to another user's file.
+    file__chown "${_user}:${_user}" "${_cfg}" 2> /dev/null || true
     logging__success "Wrote gitconfig for user '${_user}'."
   done < <(users__resolve_list "${_gu_args[@]}")
   return 0
@@ -463,6 +473,8 @@ _export_git_manpath() {
     return 0
   fi
   shell__write_env_block \
+    --scope "$(os__is_system_path "${PREFIX}" && printf system || printf user)" \
+    --home "$(users__home_of_path_owner "${PREFIX}")" \
     --opt "${_manpath_export_opt}" \
     --profile-d "${_EXPORT_PROFILE_D}" \
     --marker "git MANPATH (install-git)" \
@@ -480,15 +492,10 @@ _prefix_post_install() {
 
 # 1. Resolve prefix/sysconfdir.
 if [ "${SYSCONFDIR}" = "auto" ]; then
-  users__is_root && SYSCONFDIR="/etc" || SYSCONFDIR="${HOME}/.config"
+  os__is_system_path "${PREFIX}" && SYSCONFDIR="/etc" || SYSCONFDIR="$(users__home_of_path_owner "${PREFIX}")/.config"
 fi
 
-# 2. Root check for method=package on Linux.
-if [ "${METHOD}" = "package" ] && [ "$(os__kernel)" != "Darwin" ]; then
-  os__require_root
-fi
-
-# 3. if_exists gate.
+# 2. if_exists gate.
 _git__check_exists
 
 # 4. Install.
@@ -510,27 +517,29 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
     for _shell in "${SHELL_COMPLETIONS[@]}"; do
       case "${_shell}" in
         bash)
-          if users__is_root; then
-            mkdir -p /etc/bash_completion.d
-            cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
+          if os__is_system_path "${PREFIX}"; then
+            file__mkdir /etc/bash_completion.d
+            file__cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
             logging__success "Bash completion written to /etc/bash_completion.d/git"
           else
-            mkdir -p "${HOME}/.local/share/bash-completion/completions"
+            _uhome="$(users__home_of_path_owner "${PREFIX}")"
+            file__mkdir "${_uhome}/.local/share/bash-completion/completions"
             cp "${_comp_src}/git-completion.bash" \
-              "${HOME}/.local/share/bash-completion/completions/git"
-            logging__success "Bash completion written to ${HOME}/.local/share/bash-completion/completions/git"
+              "${_uhome}/.local/share/bash-completion/completions/git"
+            logging__success "Bash completion written to ${_uhome}/.local/share/bash-completion/completions/git"
           fi
           ;;
         zsh)
-          if users__is_root; then
+          if os__is_system_path "${PREFIX}"; then
             _zshdir="$(shell__detect_zshdir)"
-            mkdir -p "${_zshdir}/completions"
-            cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"
+            file__mkdir "${_zshdir}/completions"
+            file__cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"
             logging__success "Zsh completion written to ${_zshdir}/completions/_git"
           else
-            mkdir -p "${HOME}/.zfunc"
-            cp "${_comp_src}/git-completion.zsh" "${HOME}/.zfunc/_git"
-            logging__success "Zsh completion written to ${HOME}/.zfunc/_git"
+            _uhome="$(users__home_of_path_owner "${PREFIX}")"
+            file__mkdir "${_uhome}/.zfunc"
+            cp "${_comp_src}/git-completion.zsh" "${_uhome}/.zfunc/_git"
+            logging__success "Zsh completion written to ${_uhome}/.zfunc/_git"
           fi
           ;;
         *)

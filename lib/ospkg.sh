@@ -1607,11 +1607,6 @@ ospkg__run() {
 
   ospkg__detect || return 1
 
-  # Root check: brew is exempt (it manages its own user/root logic via _ospkg__brew_run).
-  if [[ "$_dry_run" == false && "$_OSPKG__PKG_MNGR" != "brew" ]]; then
-    os__require_root
-  fi
-
   # --remove-build-group: cleanup build-only packages and return immediately.
   if [[ -n "$_remove_build_group" ]]; then
     if [[ "$_dry_run" == true ]]; then

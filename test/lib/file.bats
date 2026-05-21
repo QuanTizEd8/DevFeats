@@ -273,3 +273,31 @@ setup() {
   assert_failure
   assert_output --partial "tar is required"
 }
+
+# ---------------------------------------------------------------------------
+# file__nearest_existing
+# ---------------------------------------------------------------------------
+
+@test "file__nearest_existing: existing path is returned unchanged" {
+  run file__nearest_existing "$BATS_TEST_TMPDIR"
+  assert_success
+  assert_output "$BATS_TEST_TMPDIR"
+}
+
+@test "file__nearest_existing: non-existent child returns parent" {
+  run file__nearest_existing "$BATS_TEST_TMPDIR/does-not-exist"
+  assert_success
+  assert_output "$BATS_TEST_TMPDIR"
+}
+
+@test "file__nearest_existing: deeply nested non-existent path returns nearest existing ancestor" {
+  run file__nearest_existing "$BATS_TEST_TMPDIR/a/b/c/d"
+  assert_success
+  assert_output "$BATS_TEST_TMPDIR"
+}
+
+@test "file__nearest_existing: returns / when no ancestor above root exists" {
+  run file__nearest_existing "/_devfeats_nonexistent_xyz/bin/foo"
+  assert_success
+  assert_output "/"
+}

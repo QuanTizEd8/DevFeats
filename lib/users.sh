@@ -82,9 +82,9 @@ users__run_as() {
   _or_c="${_or_c# }" # strip the single leading space; $(...) already strips the trailing newline
   if [ -n "$_or_cd" ]; then
     _or_cd_q="$(bash -c 'printf "%q" "$1"' bash "$_or_cd")"
-    su -l "$_or_u" -c "cd ${_or_cd_q} && ${_or_c}"
+    users__run_privileged su -l "$_or_u" -c "cd ${_or_cd_q} && ${_or_c}"
   else
-    su -l "$_or_u" -c "$_or_c"
+    users__run_privileged su -l "$_or_u" -c "$_or_c"
   fi
   return $?
 }
@@ -103,7 +103,13 @@ users__run_privileged() {
     "$@"
   else
     if ! command -v sudo > /dev/null 2>&1; then
-      ospkg__run --manifest 'packages: [sudo]' --build-group "lib-users" --skip_installed
+      if [[ "${_USERS_PRIVILEGED_SUDO_INSTALL:-}" == "1" ]]; then
+        # Guard against infinite recursion: ospkg__run itself calls
+        # users__run_privileged, so we must not re-enter here.
+        logging__error "users__run_privileged: sudo is not installed and cannot be installed without privilege (cmd='${*}')"
+        return 1
+      fi
+      _USERS_PRIVILEGED_SUDO_INSTALL=1 ospkg__run --manifest 'packages: [sudo]' --build-group "lib-users" --skip_installed
     fi
     if ! sudo -n true 2> /dev/null; then
       logging__error "users__run_privileged: passwordless sudo required but not available (uid=$(id -u), user=$(id -un), cmd='${*}')"
@@ -122,6 +128,56 @@ users__default_prefix() {
   else
     printf '%s\n' "${HOME}/.local"
   fi
+}
+
+# @brief users__uid_of_path_owner <path> — Print the numeric owner UID of the given path.
+#
+# Portable: tries `stat -f '%u'` (macOS) first, then `stat -c '%u'` (Linux).
+#
+# Args:
+#   <path>  Absolute path to query (must exist).
+#
+# Stdout: owner UID as a decimal string.
+users__uid_of_path_owner() {
+  stat -c '%u' "$1" 2> /dev/null || stat -f '%u' "$1" 2> /dev/null
+}
+
+# @brief users__home_of_path_owner <path> — Print the home directory of the user who owns the nearest existing ancestor of <path>.
+#
+# When root is installing into a regular user's prefix (e.g. `/home/vscode/.local`),
+# shell config files must be written to the *owning* user's home (`/home/vscode`),
+# not to root's home. This function resolves that home via `getent passwd <uid>`
+# (falling back to `/etc/passwd` on systems without `getent`, e.g. macOS).
+#
+# Falls back to `${HOME:-/root}` when the path is already under `$HOME`, the
+# owner UID is a system account (< 1000 or ≥ 65534), the UID has no passwd
+# entry, or the calling process is not root.
+#
+# Args:
+#   <path>  Absolute path whose owning user's home to resolve (need not exist).
+#
+# Stdout: absolute path to the relevant home directory.
+users__home_of_path_owner() {
+  local _p="$1"
+  # Fast path: already under the current user's home.
+  [[ -n "${HOME:-}" && "$_p" == "${HOME}/"* ]] && {
+    printf '%s\n' "$HOME"
+    return 0
+  }
+  if users__is_root; then
+    local _existing _uid _home
+    _existing="$(file__nearest_existing "$_p")"
+    _uid="$(users__uid_of_path_owner "$_existing")"
+    if [[ "$_uid" =~ ^[0-9]+$ ]] && ((_uid >= 1000 && _uid < 65534)); then
+      _home="$(getent passwd "$_uid" 2> /dev/null | cut -d: -f6)"
+      [[ -z "$_home" ]] && _home="$(awk -F: -v u="$_uid" '$3==u{print $6;exit}' /etc/passwd 2> /dev/null)"
+      [[ -n "$_home" ]] && {
+        printf '%s\n' "$_home"
+        return 0
+      }
+    fi
+  fi
+  printf '%s\n' "${HOME:-/root}"
 }
 
 # @brief users__resolve_list — Print one deduplicated username per line.

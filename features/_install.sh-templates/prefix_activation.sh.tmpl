@@ -1,4 +1,6 @@
 # -- activation: @@STEM@@ --
 shell__write_activation_snippets \
+  --scope "$(os__is_system_path "${@@PREFIX_VAR@@}" && printf system || printf user)" \
+  --home "$(users__home_of_path_owner "${@@PREFIX_VAR@@}")" \
   "@@MARKER@@" "@@PROFILE_D_NAME@@" "@@SNIPPET_FUNC@@" \
   "${@@ACTIVATIONS_VAR@@[@]}"

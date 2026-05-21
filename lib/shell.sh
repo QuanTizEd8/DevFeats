@@ -113,8 +113,10 @@ shell__write_block() {
   done
   local _begin="# >>> ${_marker} >>>"
   local _end="# <<< ${_marker} <<<"
-  mkdir -p "$(dirname "$_file")"
-  [ -f "$_file" ] || touch "$_file"
+  file__mkdir "$(dirname "$_file")"
+  if [[ ! -f "$_file" ]]; then
+    printf '' | file__tee "$_file"
+  fi
   if grep -qF "$_begin" "$_file"; then
     # Normalize marker lines before comparing: hosted macOS ~/.bash_profile often
     # uses CRLF; some images also add a UTF-8 BOM and/or leading whitespace on
@@ -123,6 +125,8 @@ shell__write_block() {
     #
     # Formatting: one blank line above the block when it is not the first line
     # in the file (unless a blank line is already there); one blank line below.
+    local _tmp
+    _tmp="$(mktemp)"
     awk -v begin="$_begin" -v end="$_end" -v content="$_content" "$_SHELL__AWK_NORM"'
       BEGIN { last_blank = 1 }
       norm($0) == begin {
@@ -141,7 +145,9 @@ shell__write_block() {
       }
       found { next }
       { print; last_blank = is_blank_line($0) }
-    ' "$_file" > "${_file}.tmp" && mv "${_file}.tmp" "$_file"
+    ' "$_file" > "$_tmp"
+    file__cp "$_tmp" "$_file"
+    rm -f "$_tmp"
     logging__info "Updated shell block '${_marker}' in '${_file}'."
   else
     # Begin marker starts on its own line. Surround with blank lines: none above
@@ -149,10 +155,12 @@ shell__write_block() {
     # ensuring the file ends with a newline) and one empty line below.
     if [ -f "$_file" ] && [ -s "$_file" ]; then
       _lb="$(tail -c1 "$_file" 2> /dev/null || printf '')"
-      [ "$_lb" != "$(printf '\n')" ] && printf '\n' >> "$_file"
-      printf '\n%s\n%s\n%s\n\n' "$_begin" "$_content" "$_end" >> "$_file"
+      if [ "$_lb" != "$(printf '\n')" ]; then
+        printf '\n' | file__tee --append "$_file"
+      fi
+      printf '\n%s\n%s\n%s\n\n' "$_begin" "$_content" "$_end" | file__tee --append "$_file"
     else
-      printf '%s\n%s\n%s\n\n' "$_begin" "$_content" "$_end" >> "$_file"
+      printf '%s\n%s\n%s\n\n' "$_begin" "$_content" "$_end" | file__tee --append "$_file"
     fi
     logging__success "Appended shell block '${_marker}' to '${_file}'."
   fi
@@ -382,27 +390,31 @@ shell__user_path_files() {
   return 0
 }
 
-# @brief shell__write_env_block --opt <value> --profile-d <name> --marker <id> --content <c> — Resolve shell startup file targets and write an idempotent env-export block.
+# @brief shell__write_env_block --opt <value> --profile-d <name> --marker <id> --content <c> [--scope system|user] [--home <dir>] — Resolve shell startup file targets and write an idempotent env-export block.
 #
 # Centralises the "auto vs. explicit file list" routing that every export-path
-# handler needs: pick system-wide files when root, user-scoped files when
-# non-root, or write directly to the caller-supplied list.
+# handler needs: pick system-wide files when in system scope, user-scoped files
+# when in user scope, or write directly to the caller-supplied list.
 #
 # Args:
-#   --opt <value>   "auto" to target the standard system/user startup files, or
-#                   a newline-separated list of absolute paths to target directly
-#                   (pass via `$(printf '%s\n' "${ARRAY[@]}")`).
-#   --profile-d <n> Base filename for an /etc/profile.d/ drop-in; only used when
-#                   --opt is "auto" and running as root (optional).
-#   --marker <id>   Block identifier passed to shell__sync_block.
-#   --content <c>   Shell code to write inside the idempotency block.
+#   --opt <value>          "auto" to target the standard system/user startup files, or
+#                          a newline-separated list of absolute paths to target directly
+#                          (pass via `$(printf '%s\n' "${ARRAY[@]}")`).
+#   --profile-d <n>        Base filename for an /etc/profile.d/ drop-in; only used when
+#                          --opt is "auto" and scope is system (optional).
+#   --marker <id>          Block identifier passed to shell__sync_block.
+#   --content <c>          Shell code to write inside the idempotency block.
+#   --scope system|user    Explicit scope override. When omitted, falls back to
+#                          users__is_root (system if root, user otherwise).
+#   --home <dir>           Home directory for user-scoped writes; passed to
+#                          shell__user_path_files (default: $HOME).
 #
 # When --opt is "auto":
-#   root  → shell__system_path_files (--profile_d <n> when --profile-d given)
-#   !root → shell__user_path_files
+#   system scope (--scope system, or root when --scope omitted) → shell__system_path_files
+#   user scope   (--scope user,   or non-root when --scope omitted) → shell__user_path_files
 # When --opt is an explicit newline-separated list: writes to those paths only.
 shell__write_env_block() {
-  local _opt="" _profile_d="" _marker="" _content=""
+  local _opt="" _profile_d="" _marker="" _content="" _scope="" _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
       --opt)
@@ -425,18 +437,27 @@ shell__write_env_block() {
         _content="$1"
         shift
         ;;
+      --scope)
+        shift
+        _scope="$1"
+        shift
+        ;;
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
       *) shift ;;
     esac
   done
   local _target_files
   if [ "$_opt" = "auto" ]; then
-    if users__is_root; then
-      logging__info "System-wide env block write (root)."
+    if [[ "$_scope" = "system" ]] || { [[ -z "$_scope" ]] && users__is_root; }; then
+      logging__info "System-wide env block write (system scope)."
       _target_files="$(shell__system_path_files ${_profile_d:+--profile_d "$_profile_d"})"
     else
-      logging__info "User-scoped env block write (non-root)."
-      # shellcheck disable=SC2119
-      _target_files="$(shell__user_path_files)"
+      logging__info "User-scoped env block write (user scope)."
+      _target_files="$(shell__user_path_files --home "$_home")"
     fi
   else
     _target_files="$_opt"
@@ -697,21 +718,52 @@ shell__create_symlink() {
   return 0
 }
 
-# @brief shell__write_activation_snippets <marker> <profile_d_name> <snippet_func> [<shell>...] — Write activation snippets for each shell to the appropriate init files.
+# @brief shell__write_activation_snippets [--scope system|user] [--home <dir>] <marker> <profile_d_name> <snippet_func> [<shell>...] — Write activation snippets for each shell to the appropriate init files.
 #
-# Routes snippets based on current user (root vs non-root), shell, and the
-# snippet function's exit code (0 = all contexts; 1 = interactive-only).
+# Routes snippets based on scope (system vs user), shell, and the snippet
+# function's exit code (0 = all contexts; 1 = interactive-only).
 #
 # Args:
-#   <marker>         Idempotency marker passed to shell__sync_block.
-#   <profile_d_name> Basename for the /etc/profile.d/ file (root+bash+everywhere only).
-#   <snippet_func>   Name of the function to call as `"$snippet_func" "$shell"`.
-#                    stdout: snippet content; exit 0 = all contexts; exit 1 = interactive-only.
-#   [<shell>...]     Shell names to iterate over (bash, zsh, ...).
+#   --scope system|user  Explicit scope override. When omitted, falls back to
+#                        users__is_root (system if root, user otherwise).
+#   --home <dir>         Home directory for user-scoped writes (default: $HOME).
+#   <marker>             Idempotency marker passed to shell__sync_block.
+#   <profile_d_name>     Basename for the /etc/profile.d/ file (system+bash+everywhere only).
+#   <snippet_func>       Name of the function to call as `"$snippet_func" "$shell"`.
+#                        stdout: snippet content; exit 0 = all contexts; exit 1 = interactive-only.
+#   [<shell>...]         Shell names to iterate over (bash, zsh, ...).
 shell__write_activation_snippets() {
+  local _scope="" _home="${HOME:-}"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --scope)
+        shift
+        _scope="$1"
+        shift
+        ;;
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      --*)
+        shift
+        shift
+        ;;
+      *) break ;;
+    esac
+  done
   local _marker="$1" _profile_d_name="$2" _snippet_func="$3"
   shift 3
   local _shell _snippet _everywhere _files
+  local _is_system=false
+  if [[ "$_scope" = "system" ]] || { [[ -z "$_scope" ]] && users__is_root; }; then
+    _is_system=true
+  fi
   for _shell in "$@"; do
     [ -z "$_shell" ] && continue
     if _snippet="$("$_snippet_func" "$_shell")"; then
@@ -720,7 +772,7 @@ shell__write_activation_snippets() {
       _everywhere=$?
     fi
     [ -z "$_snippet" ] && continue
-    if users__is_root; then
+    if "$_is_system"; then
       if [ "$_everywhere" -eq 0 ]; then
         case "$_shell" in
           bash)
@@ -744,23 +796,25 @@ shell__write_activation_snippets() {
       if [ "$_everywhere" -eq 0 ]; then
         case "$_shell" in
           bash)
-            shell__sync_block --files "$(shell__user_login_file)" \
+            shell__sync_block --files "$(shell__user_login_file --home "$_home")" \
               --marker "$_marker" --content "$_snippet"
-            _files="${HOME}/.bashrc"
+            _files="${_home}/.bashrc"
             ;;
-          zsh) _files="$(shell__detect_zdotdir)/.zshenv" ;;
+          zsh) _files="$(shell__detect_zdotdir --home "$_home")/.zshenv" ;;
           *) continue ;;
         esac
       else
         case "$_shell" in
-          bash) _files="${HOME}/.bashrc" ;;
-          zsh) _files="$(shell__detect_zdotdir)/.zshrc" ;;
+          bash) _files="${_home}/.bashrc" ;;
+          zsh) _files="$(shell__detect_zdotdir --home "$_home")/.zshrc" ;;
           *) continue ;;
         esac
       fi
     fi
-    mkdir -p "$(dirname "$_files")"
-    [ -f "$_files" ] || touch "$_files"
+    file__mkdir "$(dirname "$_files")"
+    if [[ ! -f "$_files" ]]; then
+      printf '' | file__tee "$_files"
+    fi
     shell__sync_block --files "$_files" --marker "$_marker" --content "$_snippet"
   done
 }
@@ -812,9 +866,11 @@ shell__prefix_link_bins() {
 #   --bin-dir <dir>      Directory to prepend to PATH.
 #   --exports-ref <var>  Name of array variable with explicit export file paths (optional).
 #   --marker <id>        Idempotency marker.
-#   --profile-d <name>   /etc/profile.d basename for the root-wide drop-in.
+#   --profile-d <name>   /etc/profile.d basename for the system-wide drop-in.
+#   --scope system|user  Passed through to shell__write_env_block (optional).
+#   --home <dir>         Home directory for user-scoped writes (default: $HOME).
 shell__prefix_export_path() {
-  local _bin_dir="" _exports_ref="" _marker="" _profile_d=""
+  local _bin_dir="" _exports_ref="" _marker="" _profile_d="" _scope="" _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
       --bin-dir)
@@ -835,6 +891,16 @@ shell__prefix_export_path() {
       --profile-d)
         shift
         _profile_d="$1"
+        shift
+        ;;
+      --scope)
+        shift
+        _scope="$1"
+        shift
+        ;;
+      --home)
+        shift
+        _home="$1"
         shift
         ;;
       *) shift ;;
@@ -869,7 +935,9 @@ unset -f _shell__df_prepend_path"
     --opt "${_export_opt}" \
     --profile-d "${_profile_d}" \
     --marker "${_marker}" \
-    --content "${_content}"
+    --content "${_content}" \
+    ${_scope:+--scope "${_scope}"} \
+    --home "${_home}"
 }
 
 # @brief shell__run_prefix_discovery — Decide how to make prefix bins discoverable and record the expected verification command.
@@ -979,6 +1047,16 @@ shell__run_prefix_discovery() {
   done
   local _pfx_bin_dir="${_disc_prefix}/${_bin_dir}"
 
+  # Determine system vs. user scope from the prefix path rather than the caller's UID.
+  local _disc_scope _disc_home
+  if os__is_system_path "${_disc_prefix}"; then
+    _disc_scope="system"
+    _disc_home=""
+  else
+    _disc_scope="user"
+    _disc_home="$(users__home_of_path_owner "${_disc_prefix}")"
+  fi
+
   # Resolve symlink targets.
   local -a _sl_targets=()
   if [[ "$_no_symlinks" != true ]]; then
@@ -987,11 +1065,8 @@ shell__run_prefix_discovery() {
       [[ "${#_rpd_sl[@]}" -gt 0 ]] && _sl_targets=("${_rpd_sl[@]}")
     fi
     if [[ "${#_sl_targets[@]}" -eq 0 ]]; then
-      if users__is_root; then
-        case "${_disc_prefix}" in
-          "${HOME}/"*) _sl_targets=("${_symlink_nonroot}") ;;
-          *) _sl_targets=("${_symlink_root}") ;;
-        esac
+      if [[ "$_disc_scope" = "system" ]]; then
+        _sl_targets=("${_symlink_root}")
       else
         _sl_targets=("${_symlink_nonroot}")
       fi
@@ -1046,7 +1121,9 @@ shell__run_prefix_discovery() {
       --bin-dir "${_pfx_bin_dir}" \
       --exports-ref "${_exports_ref}" \
       --marker "${_marker}" \
-      --profile-d "${_profile_d}"
+      --profile-d "${_profile_d}" \
+      --scope "${_disc_scope}" \
+      ${_disc_home:+--home "${_disc_home}"}
   fi
 
   # Set expected verification command.
@@ -1064,7 +1141,7 @@ shell__run_prefix_discovery() {
             *) _expected_cmd="${_sl_first}/${_bin}" ;;
           esac
         elif "${_call_exports}"; then
-          if users__is_root; then
+          if [[ "$_disc_scope" = "system" ]]; then
             _expected_cmd="${_bin}"
           else
             _expected_cmd="${_pfx_bin_dir}/${_bin}"

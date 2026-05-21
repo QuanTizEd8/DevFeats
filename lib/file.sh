@@ -126,7 +126,224 @@ file__install_dir() {
   local -a _cmd=(install -d -m "$_mode")
   [[ -n "$_owner" ]] && _cmd+=(-o "$_owner")
   [[ -n "$_group" ]] && _cmd+=(-g "$_group")
-  "${_cmd[@]}" "${_dirs[@]}"
+  # Escalate when setting ownership to another user, or when any target dir
+  # (or its nearest existing ancestor) is not writable by the current process.
+  local _needs_priv=false
+  if [[ -n "$_owner" && "$_owner" != "$(id -un)" ]]; then
+    _needs_priv=true
+  else
+    local _d _existing
+    for _d in "${_dirs[@]}"; do
+      _existing="$(file__nearest_existing "$_d")"
+      [[ ! -w "$_existing" ]] && {
+        _needs_priv=true
+        break
+      }
+    done
+  fi
+  if $_needs_priv; then
+    users__run_privileged "${_cmd[@]}" "${_dirs[@]}"
+  else
+    "${_cmd[@]}" "${_dirs[@]}"
+  fi
+}
+
+# @brief file__mkdir <dir>... — Create directories (mkdir -p), escalating privilege only if needed.
+#
+# Uses `mkdir -p` for each path. Escalates to `users__run_privileged` if the
+# nearest existing ancestor of any target directory is not writable by the
+# current process.
+#
+# Args:
+#   <dir>...  One or more directory paths to create.
+#
+# Returns: 0 on success, non-zero on failure.
+file__mkdir() {
+  local _needs_priv=false _d
+  for _d in "$@"; do
+    [[ ! -w "$(file__nearest_existing "$_d")" ]] && {
+      _needs_priv=true
+      break
+    }
+  done
+  if $_needs_priv; then
+    users__run_privileged mkdir -p "$@"
+  else
+    mkdir -p "$@"
+  fi
+}
+
+# @brief file__cp <arg>... — Copy files or directories (cp), escalating privilege only if needed.
+#
+# Forwards all arguments to `cp`. The destination is the last argument.
+# Escalates to `users__run_privileged` if the destination (or its nearest
+# existing ancestor) is not writable by the current process.
+#
+# Args:
+#   <arg>...  Any combination of `cp` flags, source paths, and destination (last arg).
+#
+# Returns: 0 on success, non-zero on failure.
+file__cp() {
+  local _dest="${!#}"
+  local _needs_priv=false
+  if [[ -e "$_dest" && ! -w "$_dest" ]]; then
+    _needs_priv=true
+  elif [[ ! -e "$_dest" && ! -w "$(file__nearest_existing "$(dirname "$_dest")")" ]]; then
+    _needs_priv=true
+  fi
+  if $_needs_priv; then
+    users__run_privileged cp "$@"
+  else
+    cp "$@"
+  fi
+}
+
+# @brief file__chmod [flags] <mode> <path>... — chmod, escalating privilege only if needed.
+#
+# Parses leading flags (e.g. `-R`), then the mode, then one or more paths.
+# Escalates to `users__run_privileged` if any path (or its nearest existing
+# ancestor) is not writable by the current process.
+#
+# Args:
+#   [flags]   Optional chmod flags (e.g. -R). Must appear before <mode>.
+#   <mode>    Permission mode (e.g. 644, +x, g+rw).
+#   <path>... One or more target paths.
+#
+# Returns: 0 on success, non-zero on failure.
+file__chmod() {
+  local -a _flags=() _paths=()
+  local _mode=""
+  while [[ $# -gt 0 ]]; do
+    if [[ -z "$_mode" && "$1" == -* ]]; then
+      _flags+=("$1")
+      shift
+    elif [[ -z "$_mode" ]]; then
+      _mode="$1"
+      shift
+    else
+      _paths+=("$1")
+      shift
+    fi
+  done
+  local _needs_priv=false _p
+  for _p in "${_paths[@]}"; do
+    if [[ -e "$_p" && ! -w "$_p" ]]; then
+      _needs_priv=true
+      break
+    elif [[ ! -e "$_p" && ! -w "$(file__nearest_existing "$_p")" ]]; then
+      _needs_priv=true
+      break
+    fi
+  done
+  if $_needs_priv; then
+    users__run_privileged chmod "${_flags[@]+"${_flags[@]}"}" "$_mode" "${_paths[@]}"
+  else
+    chmod "${_flags[@]+"${_flags[@]}"}" "$_mode" "${_paths[@]}"
+  fi
+}
+
+# @brief file__chown [flags] <spec> <path>... — chown, escalating privilege only if needed.
+#
+# Parses leading flags (e.g. `-R`), then the owner spec, then one or more
+# paths. Escalates to `users__run_privileged` if the spec references a
+# different user than the current one, or if any path (or its nearest existing
+# ancestor) is not writable by the current process.
+#
+# Args:
+#   [flags]   Optional chown flags (e.g. -R). Must appear before <spec>.
+#   <spec>    Owner spec (e.g. user, user:group).
+#   <path>... One or more target paths.
+#
+# Returns: 0 on success, non-zero on failure.
+file__chown() {
+  local -a _flags=() _paths=()
+  local _spec=""
+  while [[ $# -gt 0 ]]; do
+    if [[ -z "$_spec" && "$1" == -* ]]; then
+      _flags+=("$1")
+      shift
+    elif [[ -z "$_spec" ]]; then
+      _spec="$1"
+      shift
+    else
+      _paths+=("$1")
+      shift
+    fi
+  done
+  # Privilege is needed when the spec names a different user, or when any
+  # target path is not writable by the current process.
+  local _spec_user="${_spec%%:*}"
+  local _needs_priv=false _p
+  if [[ -n "$_spec_user" && "$_spec_user" != "$(id -un)" ]]; then
+    _needs_priv=true
+  else
+    for _p in "${_paths[@]}"; do
+      if [[ -e "$_p" && ! -w "$_p" ]]; then
+        _needs_priv=true
+        break
+      elif [[ ! -e "$_p" && ! -w "$(file__nearest_existing "$_p")" ]]; then
+        _needs_priv=true
+        break
+      fi
+    done
+  fi
+  if $_needs_priv; then
+    users__run_privileged chown "${_flags[@]+"${_flags[@]}"}" "$_spec" "${_paths[@]}"
+  else
+    chown "${_flags[@]+"${_flags[@]}"}" "$_spec" "${_paths[@]}"
+  fi
+}
+
+# @brief file__tee [--append] <file> — Write stdin to <file>, escalating privilege only if needed.
+#
+# If <file> is writable by the current process (or does not yet exist but its
+# parent directory is writable), writes directly via `cat`. Otherwise delegates
+# to `users__run_privileged`. stdout is always suppressed.
+#
+# Args:
+#   --append  Append to <file> rather than overwrite. Alias: -a.
+#   <file>    Destination path.
+#
+# Returns: 0 on success, non-zero on failure.
+file__tee() {
+  local _append=false _file=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --append | -a)
+        _append=true
+        shift
+        ;;
+      *)
+        _file="$1"
+        shift
+        ;;
+    esac
+  done
+  if [[ -z "$_file" ]]; then
+    logging__error "file__tee: no file specified"
+    return 1
+  fi
+  local _needs_priv=false
+  if [[ -f "$_file" && ! -w "$_file" ]]; then
+    _needs_priv=true
+  elif [[ ! -f "$_file" && ! -w "$(file__nearest_existing "$(dirname "$_file")")" ]]; then
+    _needs_priv=true
+  fi
+  if $_needs_priv; then
+    if $_append; then
+      # shellcheck disable=SC2016
+      users__run_privileged sh -c 'cat >> "$1"' _ "$_file"
+    else
+      # shellcheck disable=SC2016
+      users__run_privileged sh -c 'cat > "$1"' _ "$_file"
+    fi
+  else
+    if $_append; then
+      cat >> "$_file"
+    else
+      cat > "$_file"
+    fi
+  fi
 }
 
 # @brief file__detect_type <file> — Detect file type from magic bytes.
@@ -204,6 +421,21 @@ file__extract_archive() {
       return 1
       ;;
   esac
+}
+
+# @brief file__nearest_existing <path> — Walk up dirname until an existing path component is found.
+#
+# Useful for resolving ownership or write permission of a path that may not yet
+# exist by examining the nearest ancestor that does.
+#
+# Args:
+#   <path>  Absolute path to examine (need not exist).
+#
+# Stdout: nearest existing ancestor path (or `/` when nothing above root exists).
+file__nearest_existing() {
+  local _p="$1"
+  while [[ "$_p" != "/" && ! -e "$_p" ]]; do _p="$(dirname "$_p")"; done
+  printf '%s\n' "$_p"
 }
 
 # @brief file__tmpdir [<name>] — Return (and create if needed) a named subdirectory of the process-lifetime temp directory `_LOGGING__SYSSET_TMPDIR`. Idempotent.

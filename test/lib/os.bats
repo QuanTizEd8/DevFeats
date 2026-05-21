@@ -320,42 +320,48 @@ setup() {
 # os__font_dir
 # ---------------------------------------------------------------------------
 
-@test "os__font_dir returns /usr/share/fonts for root" {
+@test "os__font_dir returns /usr/share/fonts for system-scope prefix" {
   reload_lib os.sh
-  create_fake_bin "id" "0"
-  prepend_fake_bin_path
+  users__is_root() { return 0; }
+  export -f users__is_root
   run os__font_dir
   assert_output "/usr/share/fonts"
 }
 
 @test "os__font_dir returns ~/Library/Fonts for macOS non-root" {
   reload_lib os.sh
-  create_fake_bin "id" "1001"
-  prepend_fake_bin_path
+  users__is_root() { return 1; }
   uname() { echo "Darwin"; }
-  export -f uname
+  export -f users__is_root uname
   HOME="/home/testuser" run os__font_dir
   assert_output "/home/testuser/Library/Fonts"
 }
 
 @test "os__font_dir returns XDG_DATA_HOME path for Linux non-root" {
   reload_lib os.sh
-  create_fake_bin "id" "1001"
-  prepend_fake_bin_path
+  users__is_root() { return 1; }
   uname() { echo "Linux"; }
-  export -f uname
+  export -f users__is_root uname
   HOME="/home/testuser" XDG_DATA_HOME="/custom/data" run os__font_dir
   assert_output "/custom/data/fonts"
 }
 
 @test "os__font_dir returns default XDG path when XDG_DATA_HOME not set" {
   reload_lib os.sh
-  create_fake_bin "id" "1001"
-  prepend_fake_bin_path
+  users__is_root() { return 1; }
   uname() { echo "Linux"; }
-  export -f uname
+  export -f users__is_root uname
   HOME="/home/testuser" XDG_DATA_HOME="" run os__font_dir
   assert_output "/home/testuser/.local/share/fonts"
+}
+
+@test "os__font_dir returns user-local XDG path for non-root" {
+  reload_lib os.sh
+  users__is_root() { return 1; }
+  uname() { echo "Linux"; }
+  export -f users__is_root uname
+  HOME="/home/vscode" XDG_DATA_HOME="" run os__font_dir
+  assert_output "/home/vscode/.local/share/fonts"
 }
 
 # ---------------------------------------------------------------------------
@@ -398,4 +404,87 @@ setup() {
     os__is_container
   "
   assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# os__is_system_path — non-root scenarios
+# ---------------------------------------------------------------------------
+
+@test "os__is_system_path: non-root, writable path is user-local" {
+  (($(id -u) != 0)) || skip "requires non-root"
+  reload_lib os.sh
+  run os__is_system_path "$BATS_TEST_TMPDIR"
+  assert_failure
+}
+
+@test "os__is_system_path: non-root, non-existent path under writable parent is user-local" {
+  (($(id -u) != 0)) || skip "requires non-root"
+  reload_lib os.sh
+  run os__is_system_path "$BATS_TEST_TMPDIR/does-not-exist/bin"
+  assert_failure
+}
+
+@test "os__is_system_path: non-root, path under non-writable root ancestor is system" {
+  (($(id -u) != 0)) || skip "requires non-root"
+  reload_lib os.sh
+  # _os__nearest_existing walks up to / which is not writable by non-root.
+  run os__is_system_path "/_devfeats_test_nonexistent_xyz/bin"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# os__is_system_path — root scenarios (users__is_root and stat stubbed)
+# ---------------------------------------------------------------------------
+
+@test "os__is_system_path: root, path directly under HOME is user-local" {
+  reload_lib os.sh
+  users__is_root() { return 0; }
+  export -f users__is_root
+  HOME="/root" run os__is_system_path "/root/.local/bin"
+  assert_failure
+}
+
+@test "os__is_system_path: root, path owned by regular user (UID 1000) is user-local" {
+  reload_lib os.sh
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '1000\n'; }
+  export -f users__is_root users__uid_of_path_owner
+  HOME="/root" run os__is_system_path "/home/vscode/.local/bin"
+  assert_failure
+}
+
+@test "os__is_system_path: root, path owned by UID 65533 (upper boundary) is user-local" {
+  reload_lib os.sh
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '65533\n'; }
+  export -f users__is_root users__uid_of_path_owner
+  HOME="/root" run os__is_system_path "/home/highuid/.local"
+  assert_failure
+}
+
+@test "os__is_system_path: root, path owned by root (UID 0) is system" {
+  reload_lib os.sh
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '0\n'; }
+  export -f users__is_root users__uid_of_path_owner
+  HOME="/root" run os__is_system_path "/usr/local/bin"
+  assert_success
+}
+
+@test "os__is_system_path: root, path owned by system user (UID 999) is system" {
+  reload_lib os.sh
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '999\n'; }
+  export -f users__is_root users__uid_of_path_owner
+  HOME="/root" run os__is_system_path "/home/linuxbrew/.linuxbrew"
+  assert_success
+}
+
+@test "os__is_system_path: root, path owned by nobody (UID 65534) is system" {
+  reload_lib os.sh
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '65534\n'; }
+  export -f users__is_root users__uid_of_path_owner
+  HOME="/root" run os__is_system_path "/srv/data"
+  assert_success
 }

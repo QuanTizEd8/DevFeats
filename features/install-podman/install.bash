@@ -49,9 +49,9 @@ fi
 # On a host/standalone, systemd manages cgroups; overriding would break
 # root Podman, so we leave containers.conf to Podman's own defaults.
 if os__is_devcontainer_build; then
-  mkdir -p /etc/containers
-  printf '[engine]\ncgroup_manager = "cgroupfs"\nevents_logger = "file"\n' \
-    > /etc/containers/containers.conf
+  file__mkdir /etc/containers
+  printf '[engine]\ncgroup_manager = "cgroupfs"\nevents_logger = "file"\n' |
+    file__tee /etc/containers/containers.conf
 fi
 
 # Devcontainer-only: create the shared graphRoot parent directory on the
@@ -61,8 +61,8 @@ fi
 if os__is_devcontainer_build; then
   _STORAGE_BASE="/var/lib/containers/storage"
   _USERS_DIR="${_STORAGE_BASE}/users"
-  mkdir -p "${_USERS_DIR}"
-  chmod 1777 "${_USERS_DIR}"
+  file__mkdir "${_USERS_DIR}"
+  file__chmod 1777 "${_USERS_DIR}"
 fi
 
 for _username in "${_RESOLVED_USERS[@]}"; do
@@ -76,10 +76,12 @@ for _username in "${_RESOLVED_USERS[@]}"; do
   # appending so the new range never collides with entries already present
   # in the base image or written by a prior iteration of this loop.
   if ! grep -q "^${_username}:" /etc/subuid 2> /dev/null; then
-    echo "${_username}:$(users__next_subid_offset /etc/subuid):65536" >> /etc/subuid
+    printf '%s:%s:65536\n' "${_username}" "$(users__next_subid_offset /etc/subuid)" |
+      file__tee --append /etc/subuid
   fi
   if ! grep -q "^${_username}:" /etc/subgid 2> /dev/null; then
-    echo "${_username}:$(users__next_subid_offset /etc/subgid):65536" >> /etc/subgid
+    printf '%s:%s:65536\n' "${_username}" "$(users__next_subid_offset /etc/subgid)" |
+      file__tee --append /etc/subgid
   fi
 
   _home=$(users__resolve_home "$_username")
@@ -99,12 +101,9 @@ for _username in "${_RESOLVED_USERS[@]}"; do
   # is correct — no storage.conf is written.
   if os__is_devcontainer_build; then
     _user_graph_root="${_USERS_DIR}/${_username}"
-    cat > "${_config_dir}/storage.conf" << EOF
-[storage]
-driver = "overlay"
-graphRoot = "${_user_graph_root}"
-EOF
-    chown "${_username}:${_group}" "${_config_dir}/storage.conf"
+    printf '[storage]\ndriver = "overlay"\ngraphRoot = "%s"\n' "${_user_graph_root}" |
+      file__tee "${_config_dir}/storage.conf"
+    file__chown "${_username}:${_group}" "${_config_dir}/storage.conf"
   fi
 done
 
@@ -126,7 +125,7 @@ done
 # ---------------------------------------------------------------------------
 if os__is_devcontainer_build; then
   _ENTRYPOINT_DEST="${_FEAT_SHARE_DIR}/entrypoint.sh"
-  mkdir -p "${_FEAT_SHARE_DIR}"
-  cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
-  chmod +x "$_ENTRYPOINT_DEST"
+  file__mkdir "${_FEAT_SHARE_DIR}"
+  file__cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
+  file__chmod +x "$_ENTRYPOINT_DEST"
 fi

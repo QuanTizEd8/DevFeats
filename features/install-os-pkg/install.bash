@@ -30,17 +30,17 @@ fi
 # and only written when install_self=true.
 _LIB_DIR="/usr/local/lib/install-os-pkg"
 if [ ! -d "$_LIB_DIR" ]; then
-  mkdir -p "$_LIB_DIR"
-  cp "$0" "$_LIB_DIR/install.sh"
-  chmod +x "$_LIB_DIR/install.sh"
-  cp -r "$_BASE_DIR/_lib" "$_LIB_DIR/"
+  file__mkdir "$_LIB_DIR"
+  file__cp "$0" "$_LIB_DIR/install.sh"
+  file__chmod +x "$_LIB_DIR/install.sh"
+  file__cp -r "$_BASE_DIR/_lib" "$_LIB_DIR/"
 fi
 
 if [[ "$INSTALL_SELF" == true ]]; then
   _BIN="/usr/local/bin/install-os-pkg"
   if [ ! -x "$_BIN" ]; then
-    printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" > "$_BIN"
-    chmod +x "$_BIN"
+    printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" | file__tee "$_BIN"
+    file__chmod +x "$_BIN"
     logging__success "Installed system command: $_BIN"
   fi
 else
@@ -50,10 +50,10 @@ fi
 # When lifecycle_hook is set, write a hook script and exit without installing.
 if [[ -n "$LIFECYCLE_HOOK" ]]; then
   _HOOK_DIR="${_FEAT_SHARE_DIR}"
-  mkdir -p "$_HOOK_DIR"
+  file__mkdir "$_HOOK_DIR"
   _MANIFEST_ARG="$MANIFEST"
   if [[ "$MANIFEST" == *$'\n'* ]]; then
-    printf '%s' "$MANIFEST" > "$_HOOK_DIR/manifest.yaml"
+    printf '%s' "$MANIFEST" | file__tee "$_HOOK_DIR/manifest.yaml"
     _MANIFEST_ARG="$_HOOK_DIR/manifest.yaml"
     logging__info "Saved inline manifest to '$_MANIFEST_ARG'."
   fi
@@ -80,8 +80,8 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
     postCreate) _HOOK_FILE="$_HOOK_DIR/post-create.sh" ;;
   esac
   printf '#!/bin/sh\nset -e\nexec bash "%s" %s\n' \
-    "/usr/local/lib/install-os-pkg/install.sh" "$_HOOK_OPTS" > "$_HOOK_FILE"
-  chmod +x "$_HOOK_FILE"
+    "/usr/local/lib/install-os-pkg/install.sh" "$_HOOK_OPTS" | file__tee "$_HOOK_FILE"
+  file__chmod +x "$_HOOK_FILE"
   logging__success "Registered lifecycle hook '$LIFECYCLE_HOOK': $_HOOK_FILE"
   exit 0
 fi

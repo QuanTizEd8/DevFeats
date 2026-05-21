@@ -1,7 +1,15 @@
+_nvm_run() {
+  if [ "${_NVM_USER}" = "$(id -un)" ]; then
+    bash -c "$1"
+  else
+    users__run_privileged su "$_NVM_USER" -c "$1"
+  fi
+}
+
 _cleanup_hook() {
   logging__fn_entry "_cleanup_hook"
   if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${NVM_DIR-}" ] && [ -f "${NVM_DIR}/nvm.sh" ] && [ -n "${_NVM_USER-}" ]; then
-    su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
+    _nvm_run ". '${NVM_DIR}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
   fi
   logging__fn_exit "_cleanup_hook"
 }
@@ -207,10 +215,10 @@ _node_install_via_nvm() {
     --file-dest "${INSTALLER_DIR}/nvm-install.sh" > /dev/null
 
   # Create NVM_DIR before write_group permissions (which chowns it)
-  mkdir -p "$NVM_DIR"
+  file__mkdir "$NVM_DIR"
 
   # Set permissions so _NVM_USER can write NVM_DIR (before installer runs)
-  if [ -n "${NVM_WRITE_GROUP:-}" ] && users__is_root; then
+  if [ -n "${NVM_WRITE_GROUP:-}" ] && os__is_system_path "${NVM_DIR}"; then
     _nvm_wargs=()
     if [ "${#NVM_WRITE_USERS[@]}" -gt 0 ]; then
       _nvm_wargs=(--current false --remote false --container false)
@@ -226,7 +234,7 @@ _node_install_via_nvm() {
   # Run nvm installer as target user; pipe via stdin so _NVM_USER never needs
   # filesystem access to the tmpdir (which is root-owned 0700).
   logging__info "Running nvm installer as user '${_NVM_USER}'..."
-  su "$_NVM_USER" -c \
+  _nvm_run \
     "umask 0002 && PROFILE=/dev/null NVM_SYMLINK_CURRENT=true NVM_DIR='${NVM_DIR}' bash -s" \
     < "${INSTALLER_DIR}/nvm-install.sh"
 
@@ -254,7 +262,7 @@ _node_install_via_nvm() {
         _add_ver="${_add_ver%% }"
         [ -z "$_add_ver" ] && continue
         logging__info "Installing additional Node.js version: ${_add_ver}"
-        su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
+        _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
       done
     fi
     logging__fn_exit "_node_install_via_nvm (version=none)"
@@ -265,24 +273,24 @@ _node_install_via_nvm() {
   logging__info "Installing Node.js '${_node_ver_spec}' via nvm..."
   if [ "$(os__platform)" = "alpine" ]; then
     logging__info "Alpine detected — compiling Node.js from source (nvm install -s)."
-    su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install -s '${_node_ver_spec}'"
+    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install -s '${_node_ver_spec}'"
   else
-    su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_node_ver_spec}'"
+    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_node_ver_spec}'"
   fi
 
   # Set default alias
-  su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm alias default '${_node_ver_spec}'"
+  _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm alias default '${_node_ver_spec}'"
 
   # Restore primary version as active
-  su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm use default"
+  _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm use default"
 
   # Capture exact version
-  _NODE_VERSION="$(su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm version '${_node_ver_spec}'")"
+  _NODE_VERSION="$(_nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm version '${_node_ver_spec}'")"
   logging__info "Installed Node.js version: ${_NODE_VERSION}"
 
   # Fix version directory permissions (tarballs extracted by nvm may lack group-write)
   if [ -d "${NVM_DIR}/versions" ]; then
-    chmod -R g+rw "${NVM_DIR}/versions"
+    file__chmod -R g+rw "${NVM_DIR}/versions"
   fi
 
   # Install additional versions
@@ -294,10 +302,10 @@ _node_install_via_nvm() {
       _add_ver="${_add_ver%% }"
       [ -z "$_add_ver" ] && continue
       logging__info "Installing additional Node.js version: ${_add_ver}"
-      su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
+      _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm install '${_add_ver}'"
     done
     # Restore default after additional installs
-    su "$_NVM_USER" -c "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm use default"
+    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && nvm use default"
   fi
 
   logging__success "Node.js ${_NODE_VERSION} installed via nvm."
@@ -351,8 +359,8 @@ _node_install_via_binary() {
     --installer-dir "${INSTALLER_DIR}" > /dev/null
 
   # Strip top-level directory (equivalent to --strip 1) by copying contents.
-  mkdir -p "$_install_prefix"
-  cp -a "${INSTALLER_DIR}/asset/${_node_dist_dir}/." "$_install_prefix/"
+  file__mkdir "$_install_prefix"
+  file__cp -a "${INSTALLER_DIR}/asset/${_node_dist_dir}/." "$_install_prefix/"
 
   # Update PREFIX with resolved value for use by caller
   PREFIX="$_install_prefix"
@@ -368,22 +376,19 @@ create_nvm_symlinks() {
     logging__fn_exit "create_nvm_symlinks"
     return 0
   fi
-  if ! users__is_root; then
-    logging__info "Non-root: NVM bridge symlink not applicable."
+  if ! os__is_system_path "${NVM_DIR}"; then
+    logging__info "User-local NVM_DIR: NVM bridge symlinks not applicable."
     logging__fn_exit "create_nvm_symlinks"
     return 0
   fi
-  shell__create_symlink \
-    --src "${NVM_DIR}" \
-    --system-target "/usr/local/share/nvm" \
-    --user-target "${HOME}/.nvm"
+  users__run_privileged ln -sf "${NVM_DIR}" "/usr/local/share/nvm"
   # Create stable executable entrypoints for non-interactive contexts
   # that may not source shell init files.
   for _bin in node npm npx corepack; do
     local _src="${NVM_DIR}/current/bin/${_bin}"
     [ -f "$_src" ] || continue
     logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
-    ln -sf "$_src" "/usr/local/bin/${_bin}"
+    users__run_privileged ln -sf "$_src" "/usr/local/bin/${_bin}"
   done
   logging__fn_exit "create_nvm_symlinks"
   return
@@ -422,7 +427,7 @@ _node_install_pnpm() {
 
   logging__info "Installing pnpm@${PNPM_VERSION}..."
   if [ "$METHOD" = "nvm" ]; then
-    su "$_NVM_USER" -c "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && npm install -g 'pnpm@${PNPM_VERSION}'"
+    _nvm_run "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && npm install -g 'pnpm@${PNPM_VERSION}'"
   else
     npm install -g "pnpm@${PNPM_VERSION}"
   fi
@@ -461,7 +466,7 @@ _node_install_yarn() {
   fi
 
   if [ "$METHOD" = "nvm" ]; then
-    su "$_NVM_USER" -c "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && ${_install_cmd}"
+    _nvm_run "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && ${_install_cmd}"
   else
     eval "$_install_cmd"
   fi
@@ -471,8 +476,6 @@ _node_install_yarn() {
   logging__fn_exit "_node_install_yarn"
   return 0
 }
-
-os__require_root
 
 # =============================================================================
 # Resolve nvm install user
@@ -562,7 +565,7 @@ fi
 if [ "$VERSION" != "none" ] && [ -n "${_NODE_VERSION:-}" ]; then
   logging__info "Verifying Node.js installation..."
   if [ "$METHOD" = "nvm" ]; then
-    su "$_NVM_USER" -c "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && node --version && npm --version"
+    _nvm_run "export NVM_SYMLINK_CURRENT=true && . '${NVM_DIR}/nvm.sh' && node --version && npm --version"
   else
     node --version
     npm --version

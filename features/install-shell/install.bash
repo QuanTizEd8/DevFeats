@@ -294,8 +294,8 @@ configure_user() {
 
   if [ ! -d "$_cu_home" ]; then
     logging__warn "Home directory '${_cu_home}' does not exist for user '${_cu_username}' — creating."
-    mkdir -p "$_cu_home"
-    chown "${_cu_username}:${_cu_group}" "$_cu_home"
+    file__mkdir "$_cu_home"
+    file__chown "${_cu_username}:${_cu_group}" "$_cu_home"
   fi
 
   logging__info "Configuring user '${_cu_username}' (home: ${_cu_home}, mode: ${USER_CONFIG_MODE})..."
@@ -615,15 +615,13 @@ configure_user() {
   fi
 
   # Fix ownership — give the user full ownership of their entire home directory.
-  chown -R "${_cu_username}:${_cu_group}" "$_cu_home"
+  file__chown -R "${_cu_username}:${_cu_group}" "$_cu_home"
 
   logging__success "User '${_cu_username}' configuration complete."
   return 0
 }
 
 _SKEL_DIR="${_FILES_DIR}/skel"
-
-os__require_root
 
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
@@ -694,6 +692,8 @@ fi
 # ===================================================================
 # Step 5: Deploy system-wide shell configuration files
 # ===================================================================
+# install-shell has no single PREFIX; step 5 always targets /etc/ paths.
+# file__ helpers escalate privileges automatically as needed.
 logging__info "Deploying system-wide shell configuration files..."
 
 # --- Shared (shell-agnostic) files ---
@@ -701,8 +701,8 @@ for _name in shellenv shellrc shellaliases; do
   _src="${_FILES_DIR}/shell/${_name}"
   _dest="/etc/${_name}"
   if [ -f "$_src" ]; then
-    cp -f "$_src" "$_dest"
-    chmod 644 "$_dest"
+    file__cp -f "$_src" "$_dest"
+    file__chmod 644 "$_dest"
     logging__success "  ${_dest}"
   fi
 done
@@ -710,8 +710,8 @@ done
 # --- /etc/profile ---
 _src="${_FILES_DIR}/profile"
 if [ -f "$_src" ]; then
-  cp -f "$_src" "/etc/profile"
-  chmod 644 "/etc/profile"
+  file__cp -f "$_src" "/etc/profile"
+  file__chmod 644 "/etc/profile"
   logging__success "  /etc/profile"
 fi
 
@@ -719,9 +719,9 @@ fi
 _SYS_BASHRC="$(shell__detect_bashrc)"
 _src="${_FILES_DIR}/bash/bashrc"
 if [ -f "$_src" ]; then
-  mkdir -p "$(dirname "$_SYS_BASHRC")"
-  cp -f "$_src" "$_SYS_BASHRC"
-  chmod 644 "$_SYS_BASHRC"
+  file__mkdir "$(dirname "$_SYS_BASHRC")"
+  file__cp -f "$_src" "$_SYS_BASHRC"
+  file__chmod 644 "$_SYS_BASHRC"
   logging__success "  ${_SYS_BASHRC}"
 fi
 
@@ -733,16 +733,16 @@ if [ -f "$_src" ]; then
   # If bashrc is at /etc/bashrc or /etc/bash.bashrc, put bashenv at /etc/bashenv.
   [[ "$_SYS_BASHRC" == "/etc/bash.bashrc" ]] && _bashenv_dest="/etc/bashenv"
   [[ "$_SYS_BASHRC" == "/etc/bashrc" ]] && _bashenv_dest="/etc/bashenv"
-  cp -f "$_src" "$_bashenv_dest"
-  chmod 644 "$_bashenv_dest"
+  file__cp -f "$_src" "$_bashenv_dest"
+  file__chmod 644 "$_bashenv_dest"
   logging__success "  ${_bashenv_dest}"
 
   # Ensure BASH_ENV is set system-wide so non-interactive non-login bash
   # sessions (VS Code tasks, devcontainer exec, CI runners) source it.
   if ! grep -qxF "BASH_ENV=${_bashenv_dest}" /etc/environment 2> /dev/null; then
     # Remove any stale BASH_ENV line first, then append the correct one.
-    sed -i '/^BASH_ENV=/d' /etc/environment 2> /dev/null || true
-    echo "BASH_ENV=${_bashenv_dest}" >> /etc/environment
+    users__run_privileged sed -i '/^BASH_ENV=/d' /etc/environment 2> /dev/null || true
+    printf 'BASH_ENV=%s\n' "${_bashenv_dest}" | file__tee --append /etc/environment
     logging__success "  BASH_ENV=${_bashenv_dest} → /etc/environment"
   fi
 fi
@@ -750,14 +750,14 @@ fi
 # --- Zsh system-wide files ---
 if command -v zsh > /dev/null 2>&1; then
   _ZSH_ETC="$(shell__detect_zshdir)"
-  mkdir -p "$_ZSH_ETC"
+  file__mkdir "$_ZSH_ETC"
 
   for _name in zshenv zprofile zshrc; do
     _src="${_FILES_DIR}/zsh/${_name}"
     _dest="${_ZSH_ETC}/${_name}"
     if [ -f "$_src" ]; then
-      cp -f "$_src" "$_dest"
-      chmod 644 "$_dest"
+      file__cp -f "$_src" "$_dest"
+      file__chmod 644 "$_dest"
       logging__success "  ${_dest}"
     fi
   done

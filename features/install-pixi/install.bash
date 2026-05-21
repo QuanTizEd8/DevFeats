@@ -12,20 +12,6 @@ _cleanup_hook() {
   logging__fn_exit "_cleanup_hook"
 }
 
-check_root_requirement() {
-  logging__fn_entry "check_root_requirement"
-  case "${PREFIX}" in
-    /opt/* | /usr/* | /var/* | /srv/* | /snap/*)
-      os__require_root
-      ;;
-    *)
-      logging__info "Root not required for prefix '${PREFIX}'."
-      ;;
-  esac
-  logging__fn_exit "check_root_requirement"
-  return 0
-}
-
 resolve_pixi_version() {
   logging__fn_entry "resolve_pixi_version"
   local _spec="$VERSION"
@@ -166,41 +152,52 @@ install_completion() {
     return 0
   fi
   local _marker="pixi completion (install-pixi)"
+  # For system-scope installs, fish/nushell/elvish completions (which have no
+  # system-wide target) go to the current user's home ($HOME).  For user-local
+  # installs the PREFIX owner is the target user, so use their home instead.
+  local _home
+  if os__is_system_path "${PREFIX}"; then
+    _home="${HOME}"
+  else
+    _home="$(users__home_of_path_owner "${PREFIX}")"
+  fi
   local _shell
   for _shell in "${SHELL_COMPLETIONS[@]}"; do
     local _content="eval \"\$(pixi completion --shell ${_shell})\""
     local _target_file
     case "${_shell}" in
       bash)
-        if users__is_root; then
+        if os__is_system_path "${PREFIX}"; then
           _target_file="$(shell__detect_bashrc)"
         else
-          _target_file="${HOME}/.bashrc"
+          _target_file="${_home}/.bashrc"
         fi
         ;;
       zsh)
-        if users__is_root; then
+        if os__is_system_path "${PREFIX}"; then
           _target_file="$(shell__detect_zshdir)/zshenv"
         else
-          _target_file="${HOME}/.zshenv"
+          _target_file="${_home}/.zshenv"
         fi
         ;;
       fish)
-        _target_file="${HOME}/.config/fish/config.fish"
+        _target_file="${_home}/.config/fish/config.fish"
         ;;
       nushell)
-        _target_file="${HOME}/.config/nushell/config.nu"
+        _target_file="${_home}/.config/nushell/config.nu"
         ;;
       elvish)
-        _target_file="${HOME}/.config/elvish/rc.elv"
+        _target_file="${_home}/.config/elvish/rc.elv"
         ;;
       *)
         logging__error "Unsupported shell: '${_shell}' (expected: bash, zsh, fish, nushell, elvish)"
         exit 1
         ;;
     esac
-    mkdir -p "$(dirname "${_target_file}")"
-    [ -f "${_target_file}" ] || touch "${_target_file}"
+    file__mkdir "$(dirname "${_target_file}")"
+    if [[ ! -f "${_target_file}" ]]; then
+      printf '' | file__tee "${_target_file}"
+    fi
     shell__write_block --file "${_target_file}" --marker "${_marker}" --content "${_content}"
     logging__success "Shell completion for '${_shell}' written to '${_target_file}'"
   done
@@ -232,7 +229,6 @@ if [[ -n "${NETRC:-}" ]]; then
   esac
 fi
 
-check_root_requirement
 resolve_pixi_version
 
 # Version-match idempotency check: only compare against the requested install

@@ -111,36 +111,43 @@ _gh__install_repos() {
 # _gh__repos_rhel — add GitHub CLI rpm repo and install gh.
 _gh__repos_rhel() {
   logging__fn_entry "_gh__repos_rhel"
+  local _tmp_repo
   if [[ "${VERSION}" != "latest" && "${VERSION}" != "stable" ]]; then
     logging__warn "Version pinning is not supported for method=upstream-package on RHEL-based systems. Installing latest available gh."
   fi
   if command -v zypper > /dev/null 2>&1; then
-    mkdir -p /etc/zypp/repos.d
-    # Drop the .repo file directly so zypper parses baseurl from it.
-    # 'zypper addrepo <URL>' treats the URL as the baseurl directly; when the
-    # URL ends in .repo the fetched metadata path becomes wrong (.repo/repodata/).
+    file__mkdir /etc/zypp/repos.d
+    _tmp_repo="$(mktemp)"
     net__fetch_url_file \
       "https://cli.github.com/packages/rpm/gh-cli.repo" \
-      "/etc/zypp/repos.d/gh-cli.repo"
-    zypper --gpg-auto-import-keys ref gh-cli
+      "${_tmp_repo}"
+    file__cp "${_tmp_repo}" "/etc/zypp/repos.d/gh-cli.repo"
+    rm -f "${_tmp_repo}"
+    users__run_privileged zypper --gpg-auto-import-keys ref gh-cli
     # zypper exits 6 ("INFO_REPOS_SKIPPED") when system update repos have stale
     # metadata in containers. Treat exit 6 as success — gh is still installed.
-    zypper install -y gh || {
+    users__run_privileged zypper install -y gh || {
       _rc=$?
       [ "${_rc}" -eq 6 ] || exit "${_rc}"
     }
   elif command -v dnf > /dev/null 2>&1; then
-    mkdir -p /etc/yum.repos.d
+    file__mkdir /etc/yum.repos.d
+    _tmp_repo="$(mktemp)"
     net__fetch_url_file \
       "https://cli.github.com/packages/rpm/gh-cli.repo" \
-      "/etc/yum.repos.d/gh-cli.repo"
-    dnf install -y gh
+      "${_tmp_repo}"
+    file__cp "${_tmp_repo}" "/etc/yum.repos.d/gh-cli.repo"
+    rm -f "${_tmp_repo}"
+    users__run_privileged dnf install -y gh
   elif command -v yum > /dev/null 2>&1; then
-    mkdir -p /etc/yum.repos.d
+    file__mkdir /etc/yum.repos.d
+    _tmp_repo="$(mktemp)"
     net__fetch_url_file \
       "https://cli.github.com/packages/rpm/gh-cli.repo" \
-      "/etc/yum.repos.d/gh-cli.repo"
-    yum install -y gh
+      "${_tmp_repo}"
+    file__cp "${_tmp_repo}" "/etc/yum.repos.d/gh-cli.repo"
+    rm -f "${_tmp_repo}"
+    users__run_privileged yum install -y gh
   else
     logging__error "No supported package manager found for RHEL-based system."
     exit 1
@@ -227,14 +234,16 @@ _gh__install_completions() {
           _bash_content=""
         }
         if [ -n "${_bash_content}" ]; then
-          if users__is_root; then
-            mkdir -p /etc/bash_completion.d
-            printf '%s\n' "${_bash_content}" > /etc/bash_completion.d/gh
+          if os__is_system_path "${PREFIX}"; then
+            file__mkdir /etc/bash_completion.d
+            printf '%s\n' "${_bash_content}" | file__tee /etc/bash_completion.d/gh
             logging__success "Bash completion written to /etc/bash_completion.d/gh"
           else
-            mkdir -p "${HOME}/.local/share/bash-completion/completions"
-            printf '%s\n' "${_bash_content}" > "${HOME}/.local/share/bash-completion/completions/gh"
-            logging__success "Bash completion written to ${HOME}/.local/share/bash-completion/completions/gh"
+            local _uhome
+            _uhome="$(users__home_of_path_owner "${PREFIX}")"
+            file__mkdir "${_uhome}/.local/share/bash-completion/completions"
+            printf '%s\n' "${_bash_content}" | file__tee "${_uhome}/.local/share/bash-completion/completions/gh"
+            logging__success "Bash completion written to ${_uhome}/.local/share/bash-completion/completions/gh"
           fi
         fi
         ;;
@@ -245,16 +254,18 @@ _gh__install_completions() {
           _zsh_content=""
         }
         if [ -n "${_zsh_content}" ]; then
-          if users__is_root; then
+          if os__is_system_path "${PREFIX}"; then
             local _zshdir
             _zshdir="$(shell__detect_zshdir)"
-            mkdir -p "${_zshdir}/completions"
-            printf '%s\n' "${_zsh_content}" > "${_zshdir}/completions/_gh"
+            file__mkdir "${_zshdir}/completions"
+            printf '%s\n' "${_zsh_content}" | file__tee "${_zshdir}/completions/_gh"
             logging__success "Zsh completion written to ${_zshdir}/completions/_gh"
           else
-            mkdir -p "${HOME}/.zfunc"
-            printf '%s\n' "${_zsh_content}" > "${HOME}/.zfunc/_gh"
-            logging__success "Zsh completion written to ${HOME}/.zfunc/_gh"
+            local _uhome
+            _uhome="$(users__home_of_path_owner "${PREFIX}")"
+            file__mkdir "${_uhome}/.zfunc"
+            printf '%s\n' "${_zsh_content}" | file__tee "${_uhome}/.zfunc/_gh"
+            logging__success "Zsh completion written to ${_uhome}/.zfunc/_gh"
           fi
         fi
         ;;
@@ -298,8 +309,8 @@ _gh__configure_user() {
     # git_protocol: run gh config set as the target user.
     if [ -n "${GIT_PROTOCOL}" ]; then
       logging__info "Setting git_protocol=${GIT_PROTOCOL} for '${_user}'..."
-      if users__is_root && [ "${_user}" != "root" ]; then
-        su -l "${_user}" -c "gh config set git_protocol '${GIT_PROTOCOL}'"
+      if [ "${_user}" != "$(id -un)" ]; then
+        users__run_as "${_user}" -- bash -c "gh config set git_protocol '${GIT_PROTOCOL}'"
       else
         GH_CONFIG_DIR="${_home}/.config/gh" gh config set git_protocol "${GIT_PROTOCOL}"
       fi
@@ -308,31 +319,26 @@ _gh__configure_user() {
     # setup_git: register gh as credential helper.
     if [ "${SETUP_GIT}" = "true" ]; then
       logging__info "Running gh auth setup-git for '${_user}' (hostname: ${GIT_HOSTNAME})..."
-      if users__is_root && [ "${_user}" != "root" ]; then
-        su -l "${_user}" -c "gh auth setup-git --force --hostname '${GIT_HOSTNAME}'"
+      if [ "${_user}" != "$(id -un)" ]; then
+        users__run_as "${_user}" -- bash -c "gh auth setup-git --force --hostname '${GIT_HOSTNAME}'"
       else
         GH_CONFIG_DIR="${_home}/.config/gh" HOME="${_home}" \
           gh auth setup-git --force --hostname "${GIT_HOSTNAME}"
       fi
-      # Ensure .gitconfig is owned by the user (su -l may create it as root
-      # if the home dir is owned by root in some images).
+      # Ensure .gitconfig is owned by the user.
       if [ -f "${_home}/.gitconfig" ]; then
-        chown "${_user}:${_user}" "${_home}/.gitconfig" 2> /dev/null || true
+        file__chown "${_user}:${_user}" "${_home}/.gitconfig" 2> /dev/null || true
       fi
     fi
 
     # sign_commits: set commit signing config via git config.
     if [ -n "${SIGN_COMMITS}" ]; then
-      local _git_cfg_cmd_prefix=""
-      if users__is_root && [ "${_user}" != "root" ]; then
-        _git_cfg_cmd_prefix="su -l ${_user} -c"
-      fi
       case "${SIGN_COMMITS}" in
         ssh)
           logging__info "Configuring SSH commit signing for '${_user}'..."
-          if [ -n "${_git_cfg_cmd_prefix}" ]; then
-            ${_git_cfg_cmd_prefix} "git config --global gpg.format ssh"
-            ${_git_cfg_cmd_prefix} "git config --global commit.gpgsign true"
+          if [ "${_user}" != "$(id -un)" ]; then
+            users__run_as "${_user}" -- bash -c "git config --global gpg.format ssh"
+            users__run_as "${_user}" -- bash -c "git config --global commit.gpgsign true"
           else
             GIT_CONFIG_GLOBAL="${_home}/.gitconfig" git config --global gpg.format ssh
             GIT_CONFIG_GLOBAL="${_home}/.gitconfig" git config --global commit.gpgsign true
@@ -340,10 +346,10 @@ _gh__configure_user() {
           ;;
         gpg)
           logging__info "Configuring GPG commit signing for '${_user}'..."
-          if [ -n "${_git_cfg_cmd_prefix}" ]; then
+          if [ "${_user}" != "$(id -un)" ]; then
             # Exit code 5 when key is absent — suppress with || true under set -e.
-            ${_git_cfg_cmd_prefix} "git config --global --unset-all gpg.format || true"
-            ${_git_cfg_cmd_prefix} "git config --global commit.gpgsign true"
+            users__run_as "${_user}" -- bash -c "git config --global --unset-all gpg.format || true"
+            users__run_as "${_user}" -- bash -c "git config --global commit.gpgsign true"
           else
             GIT_CONFIG_GLOBAL="${_home}/.gitconfig" git config --global --unset-all gpg.format || true
             GIT_CONFIG_GLOBAL="${_home}/.gitconfig" git config --global commit.gpgsign true
@@ -351,7 +357,7 @@ _gh__configure_user() {
           ;;
       esac
       if [ -f "${_home}/.gitconfig" ]; then
-        chown "${_user}:${_user}" "${_home}/.gitconfig" 2> /dev/null || true
+        file__chown "${_user}:${_user}" "${_home}/.gitconfig" 2> /dev/null || true
       fi
     fi
   done << EOF
@@ -389,8 +395,8 @@ _gh__install_extensions() {
       _ext="$(printf '%s' "${_ext}" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')"
       [ -z "${_ext}" ] && continue
       logging__install "Installing gh extension '${_ext}' for user '${_user}'..."
-      if users__is_root && [ "${_user}" != "root" ]; then
-        su -l "${_user}" -c "gh extension install '${_ext}'" || {
+      if [ "${_user}" != "$(id -un)" ]; then
+        users__run_as "${_user}" -- bash -c "gh extension install '${_ext}'" || {
           logging__warn "Failed to install extension '${_ext}' for '${_user}' (non-fatal)."
         }
       else
@@ -413,7 +419,7 @@ EOF
 # Early-exit if gh is already installed and version is 'latest' with
 # if_exists=skip or if_exists=fail. Avoids requiring root, installing base deps,
 # and hitting the GitHub API when no installation work is needed.
-# This must run before os__require_root so macOS non-root installs can skip cleanly.
+# This must run before base deps and the GitHub API call to skip early when possible.
 if [[ "${VERSION}" = "latest" || "${VERSION}" = "stable" ]] && command -v gh > /dev/null 2>&1; then
   if [ "${IF_EXISTS}" = "skip" ]; then
     _existing="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _existing=""
@@ -425,8 +431,6 @@ if [[ "${VERSION}" = "latest" || "${VERSION}" = "stable" ]] && command -v gh > /
     exit 1
   fi
 fi
-
-os__require_root
 
 # Resolve version (may call GitHub API).
 _resolved_version="$(_gh__resolve_version)"

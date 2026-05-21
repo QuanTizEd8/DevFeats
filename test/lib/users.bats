@@ -242,7 +242,8 @@ EOF
   create_fake_bin "id" "notme"
   prepend_fake_bin_path
   su() { eval "$4"; }
-  export -f su
+  users__run_privileged() { "$@"; }
+  export -f su users__run_privileged
   run users__run_as "otheruser" -- echo "via-su"
   assert_success
   assert_output "via-su"
@@ -253,7 +254,8 @@ EOF
   create_fake_bin "id" "notme"
   prepend_fake_bin_path
   su() { eval "$4"; }
-  export -f su
+  users__run_privileged() { "$@"; }
+  export -f su users__run_privileged
   run users__run_as "otheruser" -- echo "hello world"
   assert_success
   assert_output "hello world"
@@ -266,7 +268,8 @@ EOF
   _dir="$BATS_TEST_TMPDIR/path with spaces"
   mkdir -p "$_dir"
   su() { eval "$4"; }
-  export -f su
+  users__run_privileged() { "$@"; }
+  export -f su users__run_privileged
   run users__run_as "otheruser" --cwd "$_dir" -- pwd
   assert_success
   assert_output "$_dir"
@@ -279,7 +282,8 @@ EOF
   _dir="$BATS_TEST_TMPDIR/user's dir"
   mkdir -p "$_dir"
   su() { eval "$4"; }
-  export -f su
+  users__run_privileged() { "$@"; }
+  export -f su users__run_privileged
   run users__run_as "otheruser" --cwd "$_dir" -- pwd
   assert_success
   assert_output "$_dir"
@@ -293,4 +297,116 @@ EOF
   end_path_isolation
   assert_failure
   assert_output --partial "bash is required"
+}
+
+# ---------------------------------------------------------------------------
+# users__uid_of_path_owner
+# ---------------------------------------------------------------------------
+
+@test "users__uid_of_path_owner: returns numeric UID for an existing directory" {
+  run users__uid_of_path_owner "$BATS_TEST_TMPDIR"
+  assert_success
+  [[ "$output" =~ ^[0-9]+$ ]]
+}
+
+@test "users__uid_of_path_owner: returns numeric UID for an existing file" {
+  local _f="$BATS_TEST_TMPDIR/testfile"
+  touch "$_f"
+  run users__uid_of_path_owner "$_f"
+  assert_success
+  [[ "$output" =~ ^[0-9]+$ ]]
+}
+
+# ---------------------------------------------------------------------------
+# users__home_of_path_owner
+# ---------------------------------------------------------------------------
+
+@test "users__home_of_path_owner: path under HOME returns HOME immediately" {
+  HOME="/home/alice" run users__home_of_path_owner "/home/alice/.local/bin"
+  assert_output "/home/alice"
+  assert_success
+}
+
+@test "users__home_of_path_owner: non-root, path outside HOME returns HOME fallback" {
+  HOME="/home/alice" run users__home_of_path_owner "/usr/local/bin"
+  assert_output "/home/alice"
+  assert_success
+}
+
+@test "users__home_of_path_owner: root, path under HOME returns HOME via fast path" {
+  users__is_root() { return 0; }
+  export -f users__is_root
+  HOME="/root" run users__home_of_path_owner "/root/.local/bin"
+  assert_output "/root"
+  assert_success
+}
+
+@test "users__home_of_path_owner: root, getent returns entry for regular user" {
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '1001\n'; }
+  getent() { printf 'vscode:x:1001:1001::/home/vscode:/bin/bash\n'; }
+  export -f users__is_root users__uid_of_path_owner getent
+  HOME="/root" run users__home_of_path_owner "/home/vscode/.local/bin"
+  assert_output "/home/vscode"
+  assert_success
+}
+
+@test "users__home_of_path_owner: root, getent returns nothing and awk fallback finds entry" {
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '1001\n'; }
+  getent() { :; } # no output (e.g. macOS where getent is absent)
+  awk() { printf '/home/vscode\n'; }
+  export -f users__is_root users__uid_of_path_owner getent awk
+  HOME="/root" run users__home_of_path_owner "/home/vscode/.local/bin"
+  assert_output "/home/vscode"
+  assert_success
+}
+
+@test "users__home_of_path_owner: root, orphaned UID returns HOME fallback" {
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '58392\n'; }
+  getent() { :; }
+  export -f users__is_root users__uid_of_path_owner getent
+  HOME="/root" run users__home_of_path_owner "/home/gone/.config"
+  assert_output "/root"
+  assert_success
+}
+
+@test "users__home_of_path_owner: root, path owned by root (UID 0) returns HOME fallback" {
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '0\n'; }
+  export -f users__is_root users__uid_of_path_owner
+  HOME="/root" run users__home_of_path_owner "/usr/local/bin"
+  assert_output "/root"
+  assert_success
+}
+
+@test "users__home_of_path_owner: root, path owned by system user (UID 999) returns HOME fallback" {
+  users__is_root() { return 0; }
+  users__uid_of_path_owner() { printf '999\n'; }
+  export -f users__is_root users__uid_of_path_owner
+  HOME="/root" run users__home_of_path_owner "/home/linuxbrew/.linuxbrew"
+  assert_output "/root"
+  assert_success
+}
+
+@test "users__home_of_path_owner: path under HOME matching prefix prefix is returned directly" {
+  HOME="/home/alice" run users__home_of_path_owner "/home/alice/.local"
+  assert_output "/home/alice"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# users__run_privileged — recursion guard
+# ---------------------------------------------------------------------------
+
+@test "users__run_privileged: exits with error when sudo absent and install guard is set" {
+  users__is_root() { return 1; }
+  export -f users__is_root
+  begin_path_isolation # sudo not in isolated PATH
+  _USERS_PRIVILEGED_SUDO_INSTALL=1
+  run users__run_privileged echo "should not run"
+  end_path_isolation
+  assert_failure
+  assert_output --partial "cannot be installed without privilege"
 }

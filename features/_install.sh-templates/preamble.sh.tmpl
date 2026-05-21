@@ -82,11 +82,7 @@ _on_exit() {
   _cleanup_hook
   [[ $_rc -eq 0 ]] && _prefix_post_install
   if [[ "${KEEP_CACHE:-true}" != true ]]; then
-    if users__is_root; then
-      ospkg__clean
-    else
-      logging__info "Skipping package-manager cache cleanup (not root)."
-    fi
+    ospkg__clean
   fi
   [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && ospkg__cleanup_all_build_groups
   if [[ $_rc -eq 0 ]]; then
