@@ -10,7 +10,6 @@ Augmented keys added by this module (prefixed with ``_`` for internal use):
 
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING, Literal
 
 import yaml
@@ -23,17 +22,10 @@ from proman.const import (
     project_slug,
 )
 from proman.git import git_owner_repo
+from proman.helpers import log
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def log(msg: str) -> None:
-    """Write a diagnostic message to stderr."""
-    print(msg, file=sys.stderr)
-
-
-# ── Public API ────────────────────────────────────────────────────────────────
 
 
 def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:

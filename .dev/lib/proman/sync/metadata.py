@@ -8,8 +8,9 @@ so that existing import paths remain valid.
 from __future__ import annotations
 
 import re
-import sys
 from typing import TYPE_CHECKING
+
+from proman.helpers import log
 
 # Re-export shared metadata API so existing callers don't break.
 from proman.metadata import (  # noqa: F401
@@ -26,11 +27,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from jsonschema import Draft202012Validator
-
-
-def log(msg: str) -> None:
-    """Write a diagnostic message to stderr."""
-    print(msg, file=sys.stderr)
 
 
 # Schema Validation
