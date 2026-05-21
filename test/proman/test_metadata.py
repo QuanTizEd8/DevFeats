@@ -12,8 +12,8 @@ from proman.metadata import (
     _substitute_vars,
     augment_metadata,
     load_all,
-    load_and_augment,
     load_derived_options,
+    load_one,
     normalize_lifecycle_command_keys,
     read_metadata,
 )
@@ -137,25 +137,25 @@ def test_augment_metadata_rejects_override(tmp_path: Path) -> None:
     assert ok is False
 
 
-# ── load_and_augment ──────────────────────────────────────────────────────────
+# ── load_one ──────────────────────────────────────────────────────────
 
 
-def test_load_and_augment_sets_id_and_oci_ref(
+def test_load_one_sets_id_and_oci_ref(
     features_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """load_and_augment sets ``id`` and ``_oci_ref`` on the returned dict."""
+    """load_one sets ``id`` and ``_oci_ref`` on the returned dict."""
     monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
     candidates = sorted(features_dir.glob("*/metadata.yaml"))
     assert candidates, "No real features found — check features/ directory."
     feat_id = candidates[0].parent.name
-    result = load_and_augment(feat_id, features_dir)
-    assert result is not None, f"load_and_augment failed for '{feat_id}'"
+    result = load_one(feat_id, features_dir)
+    assert result is not None, f"load_one failed for '{feat_id}'"
     assert result["id"] == feat_id
     assert result["_oci_ref"] == f"ghcr.io/testowner/testrepo/{feat_id}"
 
 
-def test_load_and_augment_missing_feature(
+def test_load_one_missing_feature(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -164,7 +164,7 @@ def test_load_and_augment_missing_feature(
     features = tmp_path / "features"
     (features / "ghost").mkdir(parents=True)
     (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
-    result = load_and_augment("ghost", features)
+    result = load_one("ghost", features)
     assert result is None
 
 
@@ -287,7 +287,7 @@ def test_normalize_lifecycle_wrong_block_type() -> None:
     assert md["onCreateCommand"] == "not-a-mapping"
 
 
-def test_load_and_augment_substitutes_feature_vars(
+def test_load_one_substitutes_feature_vars(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -312,7 +312,7 @@ def test_load_and_augment_substitutes_feature_vars(
     }
     (feat_dir / "metadata.yaml").write_text(yaml.dump(raw), encoding="utf-8")
     (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
-    result = load_and_augment(feat_id, features)
+    result = load_one(feat_id, features)
     assert result is not None
     expected_share = "/usr/local/share/myowner/myrepo/install-bar"
     assert result["entrypoint"] == (

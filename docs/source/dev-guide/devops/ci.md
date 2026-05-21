@@ -1,5 +1,6 @@
 # Continuous Software Development (CI/CD)
 
+The repository devcontainer image is built by `devcontainer.yaml` and used as the CI execution environment for `lint` and `validate` jobs. It is a multi-arch (amd64/arm64) image published to GHCR.
 
 ## Continuous Integration
 

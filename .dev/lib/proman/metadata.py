@@ -28,7 +28,29 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
+def load_all(features_dirpath: Path) -> dict[str, dict]:
+    """Load and augment metadata for all features found in *features_dirpath*.
+
+    Features whose ``metadata.yaml`` is missing or fails augmentation are
+    skipped with a warning and omitted from the result.
+
+    Returns
+    -------
+    dict[str, dict]
+        Mapping of ``feature_id`` → fully augmented metadata dict.
+    """
+    all_metadata: dict[str, dict] = {}
+    for meta_path in sorted(features_dirpath.glob("*/metadata.yaml")):
+        feat_id = meta_path.parent.name
+        metadata = load_one(feat_id, features_dirpath)
+        if metadata is None:
+            log(f"⚠️  load_all: skipping {feat_id} (metadata load/augment failed)")
+            continue
+        all_metadata[feat_id] = metadata
+    return all_metadata
+
+
+def load_one(feature_id: str, features_dirpath: Path) -> dict | None:
     """Read and fully augment metadata for a single feature; return None on failure.
 
     Augmentation steps performed (in order):
@@ -54,28 +76,6 @@ def load_and_augment(feature_id: str, features_dirpath: Path) -> dict | None:
     metadata["id"] = feature_id
     metadata["_oci_ref"] = f"ghcr.io/{owner}/{repo_name}/{feature_id}"
     return metadata
-
-
-def load_all(features_dirpath: Path) -> dict[str, dict]:
-    """Load and augment metadata for all features found in *features_dirpath*.
-
-    Features whose ``metadata.yaml`` is missing or fails augmentation are
-    skipped with a warning and omitted from the result.
-
-    Returns
-    -------
-    dict[str, dict]
-        Mapping of ``feature_id`` → fully augmented metadata dict.
-    """
-    all_metadata: dict[str, dict] = {}
-    for meta_path in sorted(features_dirpath.glob("*/metadata.yaml")):
-        feat_id = meta_path.parent.name
-        metadata = load_and_augment(feat_id, features_dirpath)
-        if metadata is None:
-            log(f"⚠️  load_all: skipping {feat_id} (metadata load/augment failed)")
-            continue
-        all_metadata[feat_id] = metadata
-    return all_metadata
 
 
 # ── Metadata Reading ──────────────────────────────────────────────────────────
@@ -524,7 +524,7 @@ def _feature_vars(feature_id: str, owner: str, repo: str) -> dict[str, str]:
     """Return the substitution table for feature-scoped template variables.
 
     The following ``@@VAR@@`` tokens are recognised in ``metadata.yaml`` string
-    dict keys and values and expanded during :func:`load_and_augment`:
+    dict keys and values and expanded during :func:`load_one`:
 
     ``@@_FEAT_SHARE_DIR@@``
         Canonical ``/usr/local/share/`` sub-directory for this feature's

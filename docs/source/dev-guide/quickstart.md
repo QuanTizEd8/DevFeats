@@ -6,19 +6,6 @@ The project ships a ready-to-use Dev Container at `.devcontainer/.dev/`, which e
 
 
 
-The repository devcontainer image is built by `devcontainer.yaml` and used as the CI execution environment for `lint` and `validate` jobs. It is a multi-arch (amd64/arm64) image published to GHCR.
-
-
-
-To set up, clone the repository including its submodules:
-
-```bash
-git clone --recurse-submodules https://github.com/QuanTizEd8/DevFeats.git
-# or, if already cloned:
-git submodule update --init --recursive
-```
-
-
 ### Git Hooks
 
 The project uses [Lefthook](https://github.com/evilmartians/lefthook) to manage Git hooks.

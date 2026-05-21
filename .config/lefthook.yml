@@ -1,11 +1,5 @@
-env:
-  PATH: "/opt/homebrew/bin:/usr/local/bin:$PATH"
-
 pre-commit:
   commands:
-    sync:
-      glob: "{lib/**/*,features/**/*}"
-      run: just sync-src
     format-sh:
       glob: "**/*.{sh,bash,bats}"
       run: just format-sh {staged_files} && git add {staged_files}

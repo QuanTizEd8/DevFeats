@@ -70,7 +70,8 @@
   // "postCreateCommand": "lefthook install",
   "postStartCommand": {
     "initialize_bats_submodules": "git submodule update --init --recursive",
-    "pixi_install": "pixi install --all"
+    "pixi_install": "pixi install --all",
+    "sync_src": "just sync-src"
   },
   "customizations": {
     "vscode": {
