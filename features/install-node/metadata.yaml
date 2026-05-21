@@ -233,13 +233,16 @@ customizations:
 # - ghcr.io/devcontainers/features/common-utils
 _prefix_groups:
   "":
-    prefix:
-      bins: [node, npm, npx, corepack]
-    symlink: {}
     applies_when:
       - method:
         - binary
+    prefix:
+      bins: [node, npm, npx, corepack]
+    symlink: {}
   nvm:
+    applies_when:
+      - method:
+        - nvm
     option_name: nvm_dir
     prefix:
       root: /usr/local/share/nvm
@@ -255,9 +258,6 @@ _prefix_groups:
         Sources `$NVM_DIR/nvm.sh` and the shell completion script in interactive shells,
         making `nvm`, `node`, and `npm` available on the command line.
         Set to `''` to skip all activation writes.
-    applies_when:
-      - method:
-        - nvm
     write_group:
       default: nvm
       owner_var: _NVM_USER
