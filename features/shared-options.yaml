@@ -94,6 +94,21 @@ installer_dir:
     Working directory for download and archive extraction.
     When empty (default), a private temporary directory is used and removed automatically on exit.
     When set, the directory and its contents are retained after installation.
+    The work directory has the following layout:
+    ```
+    work_dir/
+      archive/<basename>      Raw downloaded file (archives only); <basename> is
+                              the basename of <uri>, or --filename if set.
+      asset/                  Archive extracted verbatim (no path stripping): the
+                              archive's internal tree is reproduced exactly under
+                              asset/. For non-archives: the downloaded file as
+                              <basename>.
+      sidecar/<basename>      Basename of --sidecar URI (only when --sidecar given).
+      gpg-sig/<basename>      Basename of --gpg-sig URI (only when --gpg-key given).
+      gpg-key/<basename>      Basename of --gpg-key URI (only when --gpg-key given).
+    ```
+    When provided, the five managed subdirectories are
+    removed and recreated on each invocation (idempotency).
 
 log_level:
   type: string
