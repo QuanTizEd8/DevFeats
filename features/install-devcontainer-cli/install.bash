@@ -1,9 +1,9 @@
-_devcontainer_cli__detect_version() {
+_detect_version() {
   command -v devcontainer > /dev/null 2>&1 || return 1
   devcontainer --version 2> /dev/null | head -n 1
 }
 
-_devcontainer_cli__install_script() {
+_install_script() {
   local _version="${1-}" _install_prefix="${2-}" _node_version="${3-}" _update="${4-}" _uninstall="${5-}"
   local _asset_dir
   _asset_dir="$(uri__fetch_asset \
@@ -20,15 +20,15 @@ _devcontainer_cli__install_script() {
   sh "${_asset_dir}/install.sh" "${_args[@]}"
 }
 
-_devcontainer_cli__ensure_npm() {
+_ensure_npm() {
   command -v npm > /dev/null 2>&1 && return 0
   ospkg__install_user nodejs npm || ospkg__install_user nodejs || return 1
   command -v npm > /dev/null 2>&1
 }
 
-_devcontainer_cli__install_npm() {
+_install_npm() {
   local _version="${1-}" _install_prefix="${2-}" _uninstall="${3-}"
-  _devcontainer_cli__ensure_npm || {
+  _ensure_npm || {
     logging__error "install-devcontainer-cli: npm is required for method=npm."
     return 1
   }
@@ -48,7 +48,7 @@ _devcontainer_cli__install_npm() {
   fi
 }
 
-_devcontainer_cli__auto_method() {
+_resolve_auto_method() {
   local _kernel _arch
   _kernel="$(os__kernel)"
   _arch="$(os__arch)"
@@ -62,45 +62,49 @@ _devcontainer_cli__auto_method() {
   esac
 }
 
-_resolved_method="${METHOD}"
-if [[ "${_resolved_method}" == "auto" ]]; then
-  _resolved_method="$(_devcontainer_cli__auto_method)"
-fi
-
-_existing_ver="$(_devcontainer_cli__detect_version 2> /dev/null || true)"
-if [[ -n "${_existing_ver}" && "${UNINSTALL}" != "true" ]]; then
-  if [[ "${IF_EXISTS}" == "fail" ]]; then
-    logging__error "install-devcontainer-cli: devcontainer already present (${_existing_ver})."
-    exit 1
+_run() {
+  _resolved_method="${METHOD}"
+  if [[ "${_resolved_method}" == "auto" ]]; then
+    _resolved_method="$(_resolve_auto_method)"
   fi
-  if [[ "${IF_EXISTS}" == "skip" && "${UPDATE}" != "true" ]]; then
-    logging__info "install-devcontainer-cli: existing devcontainer detected, skipping."
+
+  _existing_ver="$(_detect_version 2> /dev/null || true)"
+  if [[ -n "${_existing_ver}" && "${UNINSTALL}" != "true" ]]; then
+    if [[ "${IF_EXISTS}" == "fail" ]]; then
+      logging__error "install-devcontainer-cli: devcontainer already present (${_existing_ver})."
+      exit 1
+    fi
+    if [[ "${IF_EXISTS}" == "skip" && "${UPDATE}" != "true" ]]; then
+      logging__info "install-devcontainer-cli: existing devcontainer detected, skipping."
+      exit 0
+    fi
+  fi
+
+  case "${_resolved_method}" in
+    script)
+      _build_deps__install_download || exit 1
+      _install_script "${VERSION}" "${PREFIX}" "${NODE_VERSION}" "${UPDATE}" "${UNINSTALL}" || exit 1
+      ;;
+    npm)
+      _install_npm "${VERSION}" "${PREFIX}" "${UNINSTALL}" || exit 1
+      ;;
+    *)
+      logging__error "install-devcontainer-cli: unsupported method '${_resolved_method}'."
+      exit 1
+      ;;
+  esac
+
+  if [[ "${UNINSTALL}" == "true" ]]; then
+    logging__success "install-devcontainer-cli: uninstall complete."
     exit 0
   fi
-fi
 
-case "${_resolved_method}" in
-  script)
-    _build_deps__install_download || exit 1
-    _devcontainer_cli__install_script "${VERSION}" "${PREFIX}" "${NODE_VERSION}" "${UPDATE}" "${UNINSTALL}" || exit 1
-    ;;
-  npm)
-    _devcontainer_cli__install_npm "${VERSION}" "${PREFIX}" "${UNINSTALL}" || exit 1
-    ;;
-  *)
-    logging__error "install-devcontainer-cli: unsupported method '${_resolved_method}'."
+  if [[ ! -x "${PREFIX}/bin/devcontainer" ]]; then
+    logging__error "install-devcontainer-cli: devcontainer not found at ${PREFIX}/bin/devcontainer after install."
     exit 1
-    ;;
-esac
+  fi
 
-if [[ "${UNINSTALL}" == "true" ]]; then
-  logging__success "install-devcontainer-cli: uninstall complete."
-  exit 0
-fi
+  logging__success "install-devcontainer-cli: installed $("${PREFIX}/bin/devcontainer" --version 2> /dev/null | head -n 1)"
+}
 
-if [[ ! -x "${PREFIX}/bin/devcontainer" ]]; then
-  logging__error "install-devcontainer-cli: devcontainer not found at ${PREFIX}/bin/devcontainer after install."
-  exit 1
-fi
-
-logging__success "install-devcontainer-cli: installed $("${PREFIX}/bin/devcontainer" --version 2> /dev/null | head -n 1)"
+_run
