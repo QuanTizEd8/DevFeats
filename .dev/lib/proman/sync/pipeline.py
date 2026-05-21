@@ -16,15 +16,15 @@ from proman.metadata import (
     _feature_vars,
     _inject_prefix_options,
     _substitute_vars,
+    augment_metadata,
+    load_derived_options,
     normalize_lifecycle_command_keys,
+    read_metadata,
 )
 from proman.sync.file_sync import SyncStatus, remove_file, sync_file
 from proman.sync.install_script import InstallScriptGenerator
 from proman.sync.metadata import (
-    augment_metadata,
     build_metadata_validator,
-    load_derived_options,
-    read_metadata,
     sanitize_markdown,
     validate_metadata_schema,
 )
