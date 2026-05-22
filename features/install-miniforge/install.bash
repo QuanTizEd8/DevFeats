@@ -33,7 +33,7 @@ setup_activate_env() {
   local _u _user_home
   for _u in "${_ae_users[@]}"; do
     [[ -z "$_u" ]] && continue
-    _user_home="$(getent passwd "$_u" | cut -d: -f6)" || continue
+    _user_home="$(users__resolve_home "$_u")" || continue
     [[ -z "$_user_home" ]] && continue
     if [[ "$ACTIVATE_ENV" == "base" ]]; then
       [[ "${PRESERVE_CONFIG:-}" == "false" ]] && continue
@@ -241,14 +241,19 @@ uninstall_miniforge() {
   fi
   rm -rf "$("$CONDA_EXEC" info --base)"
   if [[ "$PRESERVE_CONFIG" != "true" ]]; then
-    rm -f "$HOME/.condarc"
-    rm -rf "$HOME/.conda"
-    mapfile -t _uninstall_users < <(users__resolve_list)
+    local -a _wargs=()
+    if [[ "${#WRITE_USERS[@]}" -gt 0 ]]; then
+      _wargs=(--current false --remote false --container false)
+      for _u in "${WRITE_USERS[@]}"; do _wargs+=(--user "$_u"); done
+    fi
+    mapfile -t _uninstall_users < <(users__resolve_list "${_wargs[@]}")
     for _u in "${_uninstall_users[@]}"; do
       [[ -z "$_u" ]] && continue
-      user_home=$(getent passwd "$_u" | cut -d: -f6)
-      rm -rf "$user_home/.condarc"
-      rm -rf "$user_home/.conda"
+      local _user_home
+      _user_home="$(users__resolve_home "$_u")" || continue
+      [[ -z "$_user_home" ]] && continue
+      rm -f "$_user_home/.condarc"
+      rm -rf "$_user_home/.conda"
     done
   fi
   logging__fn_exit "uninstall_miniforge"
