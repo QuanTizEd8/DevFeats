@@ -57,6 +57,7 @@ options:
 _dependencies:
   run:
     base:
+      when: {kernel: linux}
       # Runtime tools required by Homebrew on Linux.
       # ref: https://docs.brew.sh/Homebrew-on-Linux#requirements
       #
