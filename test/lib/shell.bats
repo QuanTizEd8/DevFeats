@@ -9,6 +9,24 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# _shell__ensure_strings bootstrap
+# ---------------------------------------------------------------------------
+
+@test "_shell__ensure_strings: returns 0 when strings is present" {
+  run _shell__ensure_strings
+  assert_success
+}
+
+@test "_shell__ensure_strings: returns 1 when strings is absent and install fails" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  begin_path_isolation
+  run _shell__ensure_strings
+  end_path_isolation
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
 # shell__detect_bashrc  (strings-probe path, then os__platform fallback)
 # ---------------------------------------------------------------------------
 

@@ -252,8 +252,8 @@ _git__source_build() {
   local _comp_dst_dir="${PREFIX}/share/git-core/contrib/completion"
   if [ -d "${_comp_src_dir}" ]; then
     file__mkdir "${_comp_dst_dir}"
-    cp "${_comp_src_dir}/"*.bash "${_comp_dst_dir}/" 2> /dev/null || true
-    cp "${_comp_src_dir}/"*.zsh "${_comp_dst_dir}/" 2> /dev/null || true
+    file__cp "${_comp_src_dir}/"*.bash "${_comp_dst_dir}/" 2> /dev/null || true
+    file__cp "${_comp_src_dir}/"*.zsh "${_comp_dst_dir}/" 2> /dev/null || true
   fi
 
   cd /
@@ -267,7 +267,7 @@ _git__source_build() {
 _git__source_register() {
   local _ver="$1"
   # User-local installs cannot register packages via apt/dpkg.
-  if ! os__is_system_path "${PREFIX}"; then
+  if users__is_user_path "${PREFIX}"; then
     logging__info "User-local mode: skipping package manager registration for source-built git."
     return 0
   fi
@@ -309,8 +309,11 @@ EOF
 # Main source-build orchestrator (10 steps).
 _git__install_source() {
   # 1. Validate prefix writeability.
-  file__mkdir "${PREFIX}" 2> /dev/null || true
-  if ! os__is_system_path "${PREFIX}" && [ ! -w "${PREFIX}" ]; then
+  file__mkdir "${PREFIX}" || {
+    logging__error "PREFIX '${PREFIX}' could not be created (check privilege)."
+    return 1
+  }
+  if users__is_user_path "${PREFIX}" && [ ! -w "${PREFIX}" ]; then
     logging__error "PREFIX '${PREFIX}' is not writable."
     return 1
   fi
@@ -331,7 +334,7 @@ _git__install_source() {
   # 5. Install build dependencies.
   # User-local installs cannot invoke the OS package manager; assume deps were
   # preinstalled by the caller (e.g. Linux non-root test setup).
-  if os__is_system_path "${PREFIX}"; then
+  if ! users__is_user_path "${PREFIX}"; then
     _build_deps__install_source_build
   else
     logging__info "User-local mode: skipping build dependency installation; expecting required packages to be preinstalled."
@@ -358,7 +361,7 @@ _git__install_source() {
 # and any raw ini lines from $SYSTEM_GITCONFIG).
 _git__write_system_gitconfig() {
   local _cfg
-  if os__is_system_path "${PREFIX}"; then
+  if ! users__is_user_path "${PREFIX}"; then
     _cfg="${SYSCONFDIR}/gitconfig"
   else
     _cfg="$(users__home_of_path_owner "${PREFIX}")/.config/git/config"
@@ -374,8 +377,7 @@ _git__write_system_gitconfig() {
     _git="git"
   fi
 
-  local _run_cfg
-  if os__is_system_path "${PREFIX}"; then
+  if ! users__is_user_path "${PREFIX}"; then
     _run_cfg() { users__run_privileged "$@"; }
   else
     _run_cfg() { "$@"; }
@@ -415,7 +417,7 @@ _git__write_user_gitconfig() {
   while IFS= read -r _user; do
     [ -z "${_user}" ] && continue
     # User-local scope: only write to the invoking user's config.
-    if ! os__is_system_path "${PREFIX}" && [ "${_user}" != "${_current_user}" ]; then
+    if users__is_user_path "${PREFIX}" && [ "${_user}" != "${_current_user}" ]; then
       logging__warn "User-local mode: skipping gitconfig for '${_user}' (can only write for '${_current_user}')."
       continue
     fi
@@ -434,7 +436,7 @@ _git__write_user_gitconfig() {
       _git="git"
     fi
 
-    if [ "${_user}" = "$(id -un)" ]; then
+    if [ "${_user}" = "$(users__get_current --no-sudo)" ]; then
       [ -n "${USER_NAME}" ] && "${_git}" config --file "${_cfg}" user.name "${USER_NAME}"
       [ -n "${USER_EMAIL}" ] && "${_git}" config --file "${_cfg}" user.email "${USER_EMAIL}"
     else
@@ -473,7 +475,7 @@ _export_git_manpath() {
     return 0
   fi
   shell__write_env_block \
-    --scope "$(os__is_system_path "${PREFIX}" && printf system || printf user)" \
+    --scope "$(users__is_user_path "${PREFIX}" && printf user || printf system)" \
     --home "$(users__home_of_path_owner "${PREFIX}")" \
     --opt "${_manpath_export_opt}" \
     --profile-d "${_EXPORT_PROFILE_D}" \
@@ -492,7 +494,7 @@ _prefix_post_install() {
 
 # 1. Resolve prefix/sysconfdir.
 if [ "${SYSCONFDIR}" = "auto" ]; then
-  os__is_system_path "${PREFIX}" && SYSCONFDIR="/etc" || SYSCONFDIR="$(users__home_of_path_owner "${PREFIX}")/.config"
+  users__is_user_path "${PREFIX}" && SYSCONFDIR="$(users__home_of_path_owner "${PREFIX}")/.config" || SYSCONFDIR="/etc"
 fi
 
 # 2. if_exists gate.
@@ -517,7 +519,7 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
     for _shell in "${SHELL_COMPLETIONS[@]}"; do
       case "${_shell}" in
         bash)
-          if os__is_system_path "${PREFIX}"; then
+          if ! users__is_user_path "${PREFIX}"; then
             file__mkdir /etc/bash_completion.d
             file__cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
             logging__success "Bash completion written to /etc/bash_completion.d/git"
@@ -530,7 +532,7 @@ if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
           fi
           ;;
         zsh)
-          if os__is_system_path "${PREFIX}"; then
+          if ! users__is_user_path "${PREFIX}"; then
             _zshdir="$(shell__detect_zshdir)"
             file__mkdir "${_zshdir}/completions"
             file__cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"

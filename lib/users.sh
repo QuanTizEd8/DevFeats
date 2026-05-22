@@ -27,11 +27,58 @@ packages:
     packages: [util-linux]
 EOF
 
+read -r -d '' _USERS__COREUTILS_MANIFEST << 'EOF' || true
+packages:
+  - when: {kernel: linux}
+    packages: [coreutils]
+EOF
+
+read -r -d '' _USERS__GETENT_MANIFEST << 'EOF' || true
+packages:
+  - when: {pm: apt}
+    packages: [libc-bin]
+  - when: {pm: apk}
+    packages: [musl-utils]
+  - when: {pm: [dnf, yum]}
+    packages: [glibc-common]
+  - when: {pm: [zypper, pacman]}
+    packages: [glibc]
+EOF
+
+# _users__ensure_coreutils (internal) — Ensure id, stat, and whoami are available; install coreutils via ospkg if absent.
+_users__ensure_coreutils() {
+  command -v id > /dev/null 2>&1 && return 0
+  ospkg__run --manifest "$_USERS__COREUTILS_MANIFEST" --build-group "lib-users" --skip_installed || true
+  command -v id > /dev/null 2>&1 && return 0
+  logging__error "users.sh: 'id' is required but could not be installed."
+  return 1
+}
+
+# _users__ensure_getent (internal) — Ensure getent is available; install the platform libc package via ospkg if absent.
+# Returns 0 when getent is on PATH; 1 otherwise. Non-fatal: macOS does not have getent; callers fall back to dscl.
+_users__ensure_getent() {
+  command -v getent > /dev/null 2>&1 && return 0
+  ospkg__run --manifest "$_USERS__GETENT_MANIFEST" --build-group "lib-users" --skip_installed || true
+  command -v getent > /dev/null 2>&1 && return 0
+  logging__info "users.sh: 'getent' not available; falling back to dscl or /etc/passwd for home resolution."
+  return 1
+}
+
 # @brief users__is_root — Return 0 when the current process runs as root (uid 0), 1 otherwise.
+#
+# Checks via `id -u` when available; falls back to bash's $EUID when id is
+# not yet installed (e.g. during the coreutils bootstrap). Returns 1 when
+# neither source is available.
 #
 # Returns: 0 if uid is 0, 1 otherwise.
 users__is_root() {
-  [ "$(id -u)" -eq 0 ]
+  if command -v id > /dev/null 2>&1; then
+    [ "$(id -u)" -eq 0 ]
+  elif [[ -n "${EUID+x}" ]]; then
+    [[ ${EUID} -eq 0 ]]
+  else
+    return 1
+  fi
 }
 
 # @brief users__is_privileged — Return 0 when the current process can run privileged commands.
@@ -137,72 +184,96 @@ users__run_privileged() {
       return 1
     fi
     if ! sudo -n true 2> /dev/null; then
-      logging__error "users__run_privileged: passwordless sudo required but not available (uid=$(id -u), user=$(id -un), cmd='${*}')"
+      logging__error "users__run_privileged: passwordless sudo required but not available (uid=${EUID}, user=$(id -un 2> /dev/null || printf '%s' "${USER:-?}"), cmd='${*}')"
       return 1
     fi
     sudo -n "$@"
   fi
 }
 
-# @brief users__default_prefix — Print the default binary installation prefix: `/usr/local` as root, `$HOME/.local` as non-root.
+# @brief users__default_prefix — Print the default binary installation prefix.
 #
-# Stdout: `/usr/local` when root, `$HOME/.local` otherwise.
+# Returns `/usr/local` when the calling process can write there (directly or
+# via passwordless sudo). Otherwise resolves the current user's home via
+# `users__resolve_home` and returns `<home>/.local`.
+#
+# Stdout: absolute prefix path.
 users__default_prefix() {
-  if users__is_root; then
+  if users__can_write "/usr/local"; then
     printf '%s\n' "/usr/local"
-  else
-    printf '%s\n' "${HOME}/.local"
+    return 0
   fi
+  local _home
+  _home="$(users__resolve_home)"
+  if [[ -z "$_home" ]]; then
+    logging__error "users__default_prefix: cannot resolve home directory for current user."
+    return 1
+  fi
+  printf '%s\n' "${_home}/.local"
+}
+
+# @brief users__primary_group_of <username> — Print the primary group name of the given user.
+#
+# Args:
+#   <username>  Username to query.
+#
+# Stdout: group name string.
+users__primary_group_of() {
+  _users__ensure_coreutils || return 1
+  id -gn "$1"
+}
+
+# @brief users__uid_of_user <username> — Print the numeric UID of the given user.
+#
+# Args:
+#   <username>  Username to query.
+#
+# Stdout: UID as a decimal string.
+users__uid_of_user() {
+  _users__ensure_coreutils || return 1
+  id -u "$1"
+}
+
+# @brief users__username_of_uid <uid> — Print the username for the given numeric UID.
+#
+# Args:
+#   <uid>  Numeric UID to query.
+#
+# Stdout: username string.
+users__username_of_uid() {
+  _users__ensure_coreutils || return 1
+  id -un "$1"
 }
 
 # @brief users__uid_of_path_owner <path> — Print the numeric owner UID of the given path.
 #
-# Portable: tries `stat -f '%u'` (macOS) first, then `stat -c '%u'` (Linux).
+# Branches on os__kernel: stat -f '%u' on Darwin, stat -c '%u' on Linux.
 #
 # Args:
 #   <path>  Absolute path to query (must exist).
 #
 # Stdout: owner UID as a decimal string.
 users__uid_of_path_owner() {
-  stat -c '%u' "$1" 2> /dev/null || stat -f '%u' "$1" 2> /dev/null
+  _users__ensure_coreutils || return 1
+  if [[ "$(os__kernel)" == "Darwin" ]]; then
+    stat -f '%u' "$1"
+  else
+    stat -c '%u' "$1"
+  fi
 }
 
 # @brief users__home_of_path_owner <path> — Print the home directory of the user who owns the nearest existing ancestor of <path>.
 #
-# When root is installing into a regular user's prefix (e.g. `/home/vscode/.local`),
-# shell config files must be written to the *owning* user's home (`/home/vscode`),
-# not to root's home. This function resolves that home via `getent passwd <uid>`
-# (falling back to `/etc/passwd` on systems without `getent`, e.g. macOS).
-#
-# Falls back to `${HOME:-/root}` when the path is already under `$HOME`, the
-# owner UID is a system account (< 1000 or ≥ 65534), the UID has no passwd
-# entry, or the calling process is not root.
-#
 # Args:
-#   <path>  Absolute path whose owning user's home to resolve (need not exist).
+#   <path>  Absolute path (need not exist).
 #
-# Stdout: absolute path to the relevant home directory.
+# Stdout: absolute home directory path; empty when the owner has no resolvable home.
 users__home_of_path_owner() {
   local _p="$1"
-  # Fast path: already under the current user's home.
-  [[ -n "${HOME:-}" && "$_p" == "${HOME}/"* ]] && {
-    printf '%s\n' "$HOME"
-    return 0
-  }
-  if users__is_root; then
-    local _existing _uid _home
-    _existing="$(file__nearest_existing "$_p")"
-    _uid="$(users__uid_of_path_owner "$_existing")"
-    if [[ "$_uid" =~ ^[0-9]+$ ]] && ((_uid >= 1000 && _uid < 65534)); then
-      _home="$(getent passwd "$_uid" 2> /dev/null | cut -d: -f6)"
-      [[ -z "$_home" ]] && _home="$(awk -F: -v u="$_uid" '$3==u{print $6;exit}' /etc/passwd 2> /dev/null)"
-      [[ -n "$_home" ]] && {
-        printf '%s\n' "$_home"
-        return 0
-      }
-    fi
-  fi
-  printf '%s\n' "${HOME:-/root}"
+  local _existing _uid
+  _existing="$(file__nearest_existing "$_p")"
+  _uid="$(users__uid_of_path_owner "$_existing")"
+  users__resolve_home --uid "$_uid"
 }
 
 # @brief users__resolve_list — Print one deduplicated username per line.
@@ -249,7 +320,7 @@ users__resolve_list() {
 
   local _seen="" _out="" _root_queued=false
 
-  _users_add() {
+  __users__add() {
     local _name="$1"
     [ -z "$_name" ] && return 0
     case " ${_seen} " in
@@ -264,27 +335,27 @@ users__resolve_list() {
     local _cur
     _cur="$(users__get_current)"
     if [ "$_cur" != "root" ]; then
-      _users_add "$_cur"
+      __users__add "$_cur"
     else
       _root_queued=true
     fi
   fi
 
   if [ "${_include_remote}" = "true" ] && [ -n "${_REMOTE_USER:-}" ]; then
-    [ "${_REMOTE_USER}" != "root" ] && _users_add "${_REMOTE_USER}"
+    [ "${_REMOTE_USER}" != "root" ] && __users__add "${_REMOTE_USER}"
   fi
 
   if [ "${_include_container}" = "true" ] && [ -n "${_CONTAINER_USER:-}" ]; then
-    [ "${_CONTAINER_USER}" != "root" ] && _users_add "${_CONTAINER_USER}"
+    [ "${_CONTAINER_USER}" != "root" ] && __users__add "${_CONTAINER_USER}"
   fi
 
   local _extra
   for _extra in "${_extra_users[@]+"${_extra_users[@]}"}"; do
-    [ -n "$_extra" ] && _users_add "$_extra"
+    [ -n "$_extra" ] && __users__add "$_extra"
   done
 
   if [ "$_root_queued" = "true" ] && [ -z "$_out" ]; then
-    _users_add "root"
+    __users__add "root"
   fi
 
   if [ -n "$_out" ]; then
@@ -311,6 +382,7 @@ users__resolve_list() {
 #   <group>      OS group name to create (if absent) and use.
 #   [<user>...]  Additional users to add to the group.
 users__set_write_permissions() {
+  _users__ensure_coreutils || return 1
   local _path="$1" _owner="$2" _group="$3"
   shift 3
   logging__info "Setting write permissions on '${_path}' (owner: '${_owner}', group: '${_group}')."
@@ -481,6 +553,7 @@ users__set_login_shell() {
 #
 # Returns: 0 on success or if user already exists, 1 if useradd cannot be installed.
 users__create_system_user() {
+  _users__ensure_coreutils || return 1
   local _username="$1"
   shift
   local _home="" _shell=""
@@ -514,85 +587,174 @@ users__create_system_user() {
   return 0
 }
 
-# @brief users__get_current [--no-sudo] — Print the current username using a robust fallback chain.
+# @brief users__get_current [--no-sudo] — Print the current username.
 #
-# Resolution order (default):
-# SUDO_USER (when running via sudo) → whoami → id -un → /etc/passwd scan → USER → LOGNAME.
+# Resolution order (default): SUDO_USER → devcontainer _REMOTE_USER (non-root) /
+# _CONTAINER_USER → id -un. coreutils is bootstrapped via ospkg when id is absent.
 #
 # Args:
-#   [--no-sudo]  Skip SUDO_USER and always return the effective user (the process owner).
+#   [--no-sudo]  Skip SUDO_USER / devcontainer vars and return the effective process owner.
 #
 # Stdout: username string.
 #
-# Returns: 0 on success, 1 if no username can be determined.
+# Returns: 0 on success, 1 if id cannot be made available.
 users__get_current() {
-  if [ "${1:-}" != "--no-sudo" ] && [ -n "${SUDO_USER:-}" ]; then
-    printf '%s\n' "${SUDO_USER}"
-    return 0
-  fi
-
-  if command -v whoami > /dev/null 2>&1; then
-    printf '%s\n' "$(whoami 2> /dev/null || true)"
-    return 0
-  fi
-
-  if command -v id > /dev/null 2>&1; then
-    _uc_cur="$(id -un 2> /dev/null || true)"
-    if [ -z "${_uc_cur}" ] && [ -r /etc/passwd ]; then
-      _uc_uid="$(id -u 2> /dev/null || true)"
-      [ -n "${_uc_uid}" ] && _uc_cur="$(awk -F: -v uid="${_uc_uid}" '$3==uid {print $1; exit}' /etc/passwd 2> /dev/null || true)"
+  if [ "${1:-}" != "--no-sudo" ] && users__is_root; then
+    if [ -n "${SUDO_USER:-}" ]; then
+      printf '%s\n' "${SUDO_USER}"
+      return 0
     fi
-    if [ -n "${_uc_cur}" ]; then
-      printf '%s\n' "${_uc_cur}"
+    if os__is_devcontainer_build; then
+      if [ -n "${_REMOTE_USER:-}" ] && [ "${_REMOTE_USER}" != "root" ]; then
+        printf '%s\n' "${_REMOTE_USER}"
+        return 0
+      fi
+      [ -n "${_CONTAINER_USER:-}" ] && {
+        printf '%s\n' "${_CONTAINER_USER}"
+        return 0
+      }
+    fi
+  fi
+  _users__ensure_coreutils || return 1
+  id -un
+}
+
+# @brief users__resolve_home [--uid] [<username-or-uid>] — Print the home directory for the given user.
+#
+# Resolution order:
+#   1. `getent passwd` (bootstrapped if absent) — works for both usernames and
+#      UIDs; also queries NSS (LDAP, NIS).
+#   2. `dscl` on macOS (always available) — for Directory Services users absent from getent.
+#      For a UID: resolves the username via `dscl . -search` first.
+#   3. Direct `/etc/passwd` scan — last resort when the getent bootstrap failed
+#      Returns empty string when the user has no entry.
+#   4. Devcontainer env vars (`_REMOTE_USER_HOME` / `_CONTAINER_USER_HOME`) —
+#      used when all other methods return empty; in UID mode the UID is first
+#      resolved to a username via `users__username_of_uid`.
+#
+# When called with no positional argument, resolves the home of the current
+# user via `users__get_current`.
+#
+# Args:
+#   [--uid]   Treat the argument as a numeric UID rather than a username.
+#   [<value>] Username or numeric UID. Defaults to the current user (username).
+#
+# Stdout: absolute path to the home directory, or empty when no entry is found.
+# Returns: 0 on success, 1 if the no-arg form cannot determine the current user.
+users__resolve_home() {
+  local _by_uid=false
+  if [[ "${1:-}" == "--uid" ]]; then
+    _by_uid=true
+    shift
+  fi
+  local _user="${1:-}" _entry="" _home
+  if [[ -z "$_user" ]]; then
+    _user="$(users__get_current)" || return 1
+  fi
+  # getent handles both username and UID, and queries NSS (LDAP, NIS).
+  if _users__ensure_getent; then
+    _entry="$(getent passwd "$_user" 2> /dev/null)"
+    if [ -n "$_entry" ]; then
+      IFS=: read -r _ _ _ _ _ _home _ <<< "$_entry"
+      printf '%s\n' "$_home"
       return 0
     fi
   fi
-
-  if [ -n "${USER:-}" ]; then
-    printf '%s\n' "${USER}"
-    return 0
+  # macOS: users in Directory Services are absent from getent/passwd.
+  if [[ "$(os__kernel)" == "Darwin" ]]; then
+    local _uname="$_user"
+    if [[ "$_by_uid" == true ]]; then
+      _uname="$(dscl . -search /Users UniqueID "$_user" 2> /dev/null | awk 'NR==1{print $1}')"
+    fi
+    if [ -n "$_uname" ]; then
+      _home="$(dscl . -read "/Users/${_uname}" NFSHomeDirectory 2> /dev/null | awk '{print $2}')"
+      [ -n "$_home" ] && {
+        printf '%s\n' "$_home"
+        return 0
+      }
+    fi
   fi
-
-  if [ -n "${LOGNAME:-}" ]; then
-    printf '%s\n' "${LOGNAME}"
-    return 0
+  # Last resort: direct /etc/passwd scan when getent bootstrap failed (or dscl found nothing on macOS).
+  [[ "$_by_uid" == true ]] && _home="$(awk -F: -v u="$_user" '$3==u{print $6;exit}' /etc/passwd 2> /dev/null)" ||
+    _home="$(awk -F: -v u="$_user" '$1==u{print $6;exit}' /etc/passwd 2> /dev/null)"
+  # Devcontainer: use the injected home env vars when all other lookups failed.
+  if [ -z "$_home" ] && os__is_devcontainer_build; then
+    local _uname="$_user"
+    [[ "$_by_uid" == true ]] && _uname="$(users__username_of_uid "$_user" 2> /dev/null || true)"
+    [ -n "$_uname" ] && [ "${_uname}" = "${_REMOTE_USER}" ] && _home="${_REMOTE_USER_HOME}"
+    [ -z "$_home" ] && [ -n "$_uname" ] && [ "${_uname}" = "${_CONTAINER_USER}" ] && _home="${_CONTAINER_USER_HOME}"
   fi
-
-  logging__error "users__get_current: unable to determine current user"
-  return 1
+  [[ "$_by_uid" == true ]] && printf '%s\n' "${_home:-}" || printf '%s\n' "${_home:-~${_user}}"
 }
 
-# @brief users__resolve_home <username> — Print the home directory for the given user.
+# @brief users__is_user_path [--uid] [<username-or-uid>] <path> — Return 0 if <path> is user-local, 1 if it is system (requires privilege).
 #
-# Resolution order:
-#   1. `getent passwd` when available (Linux, most distros including Debian,
-#      Alpine with shadow package, RHEL, and SUSE). This is the most reliable
-#      source as it queries NSS and handles LDAP / NIS users too.
-#   2. Direct scan of `/etc/passwd` — fallback for images without `getent`
-#      (e.g. minimal Alpine before the shadow package is installed, macOS
-#      where `getent` is absent).
-#   3. Tilde expansion via `eval echo "~<username>"` as a last resort. This
-#      works in most shells but may produce the literal `~user` string on
-#      systems where the user does not have a home entry recognised by the
-#      shell; callers should validate the result when exactness matters.
+# "User-local" means writable by a regular user without elevated privileges.
+# Regular-user UID range is OS-specific: ≥1000 on Linux, ≥500 on macOS
+# (Apple reserves 0–499 for system accounts).
+# Uses the nearest existing ancestor of <path>, so the path itself need not exist yet.
+#
+# Without a user argument:
+#   - Non-root: user-local iff the current user can write without sudo.
+#   - Root: user-local iff under root's home or owned by a regular user.
+#
+# With a user argument, the check is against that specific user regardless of
+# who is running the script:
+#   - User-local iff the path is under that user's home directory, or the
+#     nearest existing ancestor is owned by that user.
 #
 # Args:
-#   <username>  Username to look up.
+#   [--uid]              Treat <username-or-uid> as a numeric UID rather than a username.
+#   [<username-or-uid>]  User to check against. Defaults to the current user.
+#   <path>               Absolute path to classify (need not exist).
 #
-# Stdout: absolute path to the home directory.
-# Returns: 0 always (tilde expansion is the final fallback and never fails).
-users__resolve_home() {
-  local _user="$1" _entry
-  if command -v getent > /dev/null 2>&1; then
-    _entry="$(getent passwd "$_user" 2> /dev/null)"
+# Returns: 0 (user-local/unprivileged), 1 (system/privileged).
+users__is_user_path() {
+  local _by_uid=false
+  if [[ "${1:-}" == "--uid" ]]; then
+    _by_uid=true
+    shift
+  fi
+  local _p _user=""
+  if [[ $# -ge 2 ]]; then
+    _user="$1"
+    shift
+  fi
+  _p="$1"
+  local _existing
+  _existing="$(file__nearest_existing "$_p")"
+  if [[ -z "$_user" ]]; then
+    # No user: runtime writability check (current user / root heuristic).
+    if ! users__is_root; then
+      [ -w "$_existing" ] && return 0
+      return 1
+    fi
+    # Root: user-local iff under root's home or owned by a regular user.
+    local _root_home
+    _root_home="$(users__resolve_home)"
+    [[ -n "$_root_home" && "$_p" == "${_root_home}/"* ]] && return 0
+    local _uid _min_uid
+    _uid="$(users__uid_of_path_owner "$_existing")" || return 1
+    [[ "$(os__kernel)" == "Darwin" ]] && _min_uid=500 || _min_uid=1000
+    ((_uid >= _min_uid && _uid < 65534)) && return 0
+    return 1
+  fi
+  # Specific user: deterministic identity-based check.
+  local _home="" _target_uid=""
+  if [[ "$_by_uid" == true ]]; then
+    _target_uid="$_user"
+    _home="$(users__resolve_home --uid "$_user")"
   else
-    _entry="$(grep -m1 "^${_user}:" /etc/passwd 2> /dev/null)"
+    _home="$(users__resolve_home "$_user")"
+    _target_uid="$(users__uid_of_user "$_user" 2> /dev/null)" || true
   fi
-  if [ -n "$_entry" ]; then
-    local _home
-    IFS=: read -r _ _ _ _ _ _home _ <<< "$_entry"
-    printf '%s\n' "$_home"
-    return 0
+  # Under user's home directory.
+  [[ -n "$_home" && "$_p" == "${_home}/"* ]] && return 0
+  # Nearest existing ancestor owned by the user.
+  if [[ -n "$_target_uid" ]]; then
+    local _owner_uid
+    _owner_uid="$(users__uid_of_path_owner "$_existing")" || return 1
+    [[ "$_owner_uid" == "$_target_uid" ]] && return 0
   fi
-  eval echo "~${_user}"
+  return 1
 }

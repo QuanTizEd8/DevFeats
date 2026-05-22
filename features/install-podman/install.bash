@@ -86,7 +86,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
 
   _home=$(users__resolve_home "$_username")
   _config_dir="${_home}/.config/containers"
-  _group="$(id -gn "$_username")"
+  _group="$(users__primary_group_of "$_username")"
   # Always create Podman config dirs with correct ownership.
   # `install -d -o/-g` creates missing directories and sets ownership/mode in
   # one step — no separate chown pass needed.

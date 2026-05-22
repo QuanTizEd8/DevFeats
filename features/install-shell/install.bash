@@ -290,7 +290,7 @@ configure_user() {
   local _cu_home
   _cu_home="$(users__resolve_home "$_cu_username")"
   local _cu_group
-  _cu_group="$(id -gn "$_cu_username" 2> /dev/null || echo "$_cu_username")"
+  _cu_group="$(users__primary_group_of "$_cu_username" 2> /dev/null || echo "$_cu_username")"
 
   if [ ! -d "$_cu_home" ]; then
     logging__warn "Home directory '${_cu_home}' does not exist for user '${_cu_username}' — creating."

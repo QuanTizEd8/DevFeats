@@ -606,6 +606,16 @@ YQ
   assert_failure
 }
 
+@test "ospkg__run dry_run succeeds without root when package manager is present" {
+  # Documents that the removed os__require_root gate was intentional:
+  # non-root callers can use ospkg__run in dry-run mode without privilege.
+  _seed_apt_context_with_yq
+  users__is_root() { return 1; }
+  export -f users__is_root
+  run ospkg__run --manifest $'packages:\n  - curl\n' --dry_run
+  assert_success
+}
+
 # ---------------------------------------------------------------------------
 # Build-dep tracking: ospkg__install_tracked / _ospkg__remove_build_group /
 #                     ospkg__cleanup_all_build_groups

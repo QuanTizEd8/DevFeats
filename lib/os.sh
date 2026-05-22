@@ -257,33 +257,6 @@ os__require_root() {
   return 0
 }
 
-# @brief os__is_system_path <path> — Return 0 if <path> requires privilege to write to, 1 if it is user-local.
-#
-# "System" means: not writable by the current user without sudo, and not owned
-# by a regular user (UID 1000–65533). Uses the nearest existing ancestor of
-# `<path>`, so the path itself need not exist yet.
-#
-# Args:
-#   <path>  Absolute path to classify (need not exist).
-#
-# Returns: 0 (system/privileged), 1 (user-local/unprivileged).
-os__is_system_path() {
-  local _p="$1"
-  local _existing
-  _existing="$(file__nearest_existing "$_p")"
-  if ! users__is_root; then
-    # Non-root: user-local iff the current user can write without sudo.
-    [ -w "$_existing" ] && return 1
-    return 0
-  fi
-  # Root: user-local iff under $HOME, or owned by a regular user (UID 1000–65533).
-  [[ -n "${HOME:-}" && "$_p" == "${HOME}/"* ]] && return 1
-  local _uid
-  _uid="$(users__uid_of_path_owner "$_existing")" || return 0
-  [[ "$_uid" =~ ^[0-9]+$ ]] && ((_uid >= 1000 && _uid < 65534)) && return 1
-  return 0
-}
-
 # @brief os__font_dir — Print the platform-appropriate font directory for the current installation scope.
 #
 # Stdout: `/usr/share/fonts` (root/system), `~/Library/Fonts` (macOS non-root), or `${XDG_DATA_HOME:-~/.local/share}/fonts` (Linux non-root).

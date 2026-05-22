@@ -1,5 +1,5 @@
 _nvm_run() {
-  if [ "${_NVM_USER}" = "$(id -un)" ]; then
+  if [ "${_NVM_USER}" = "$(users__get_current --no-sudo)" ]; then
     bash -c "$1"
   else
     users__run_privileged su "$_NVM_USER" -c "$1"
@@ -180,7 +180,7 @@ _resolve_nvm_install_user() {
     printf '%s\n' "${_REMOTE_USER}"
     return 0
   fi
-  printf '%s\n' "$(id -nu)"
+  users__get_current --no-sudo
 }
 
 # _node_install_via_nvm
@@ -218,7 +218,7 @@ _node_install_via_nvm() {
   file__mkdir "$NVM_DIR"
 
   # Set permissions so _NVM_USER can write NVM_DIR (before installer runs)
-  if [ -n "${NVM_WRITE_GROUP:-}" ] && os__is_system_path "${NVM_DIR}"; then
+  if [ -n "${NVM_WRITE_GROUP:-}" ] && ! users__is_user_path "${NVM_DIR}"; then
     _nvm_wargs=()
     if [ "${#NVM_WRITE_USERS[@]}" -gt 0 ]; then
       _nvm_wargs=(--current false --remote false --container false)
@@ -376,7 +376,7 @@ create_nvm_symlinks() {
     logging__fn_exit "create_nvm_symlinks"
     return 0
   fi
-  if ! os__is_system_path "${NVM_DIR}"; then
+  if users__is_user_path "${NVM_DIR}"; then
     logging__info "User-local NVM_DIR: NVM bridge symlinks not applicable."
     logging__fn_exit "create_nvm_symlinks"
     return 0

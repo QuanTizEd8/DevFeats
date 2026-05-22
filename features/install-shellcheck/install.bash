@@ -42,21 +42,21 @@ _shellcheck__install_repos() {
 }
 
 _shellcheck__handle_existing() {
-  local _existing="${1-}" _if_exists="${2-}"
-  [[ -n "$_existing" ]] || return 0
+  local _shellcheck_path="${1-}" _if_exists="${2-}"
+  [[ -n "$_shellcheck_path" ]] || return 0
   case "$_if_exists" in
     fail)
-      logging__error "install-shellcheck: shellcheck already exists at $_existing."
+      logging__error "install-shellcheck: shellcheck already exists at $_shellcheck_path."
       return 1
       ;;
     skip)
-      logging__info "install-shellcheck: shellcheck already installed at $_existing — skipping."
+      logging__info "install-shellcheck: shellcheck already installed at $_shellcheck_path — skipping."
       exit 0
       ;;
   esac
 }
-_existing="$(command -v shellcheck 2> /dev/null || true)"
-_shellcheck__handle_existing "$_existing" "$IF_EXISTS"
+_shellcheck_path="$(command -v shellcheck 2> /dev/null || true)"
+_shellcheck__handle_existing "$_shellcheck_path" "$IF_EXISTS"
 
 case "$METHOD" in
   binary)

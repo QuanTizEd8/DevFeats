@@ -1,6 +1,15 @@
 # -- activation: @@STEM@@ --
+_act_scope=""
+_act_home_arg=""
+if ! users__is_user_path "${@@PREFIX_VAR@@}"; then
+  _act_scope="system"
+else
+  _act_scope="user"
+  _act_home_arg="$(users__home_of_path_owner "${@@PREFIX_VAR@@}")"
+fi
 shell__write_activation_snippets \
-  --scope "$(os__is_system_path "${@@PREFIX_VAR@@}" && printf system || printf user)" \
-  --home "$(users__home_of_path_owner "${@@PREFIX_VAR@@}")" \
+  --scope "${_act_scope}" \
+  ${_act_home_arg:+--home "${_act_home_arg}"} \
   "@@MARKER@@" "@@PROFILE_D_NAME@@" "@@SNIPPET_FUNC@@" \
   "${@@ACTIVATIONS_VAR@@[@]}"
+unset _act_scope _act_home_arg

@@ -5,6 +5,7 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   load 'helpers/common'
+  load 'helpers/stubs'
   reload_lib uri.sh
 }
 
@@ -58,6 +59,32 @@ setup() {
 
 @test "uri__classify rejects unknown scheme" {
   run uri__classify "s3://bucket/key"
+  assert_failure
+}
+
+# ── _uri__ensure_sha256sum bootstrap ─────────────────────────────────────────
+
+@test "_uri__ensure_sha256sum: returns 0 when sha256sum is present" {
+  run _uri__ensure_sha256sum
+  assert_success
+}
+
+@test "_uri__ensure_sha256sum: returns 0 when only shasum is available" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  create_fake_bin "shasum" "abc123"
+  begin_path_isolation
+  run _uri__ensure_sha256sum
+  end_path_isolation
+  assert_success
+}
+
+@test "_uri__ensure_sha256sum: returns 1 when no sha256 tool available and install fails" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  begin_path_isolation
+  run _uri__ensure_sha256sum
+  end_path_isolation
   assert_failure
 }
 

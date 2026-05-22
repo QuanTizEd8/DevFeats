@@ -18,6 +18,22 @@ _SHELL__AWK_NORM='
   function is_blank_line(l) { return norm(l) == "" }
 '
 
+read -r -d '' _SHELL__BINUTILS_MANIFEST << 'EOF' || true
+packages:
+  - when: {kernel: linux}
+    packages: [binutils]
+EOF
+
+# _shell__ensure_strings (internal) — Attempt to install binutils so strings is available.
+# Returns 0 when strings is on PATH (before or after install), 1 otherwise (non-fatal).
+_shell__ensure_strings() {
+  command -v strings > /dev/null 2>&1 && return 0
+  ospkg__run --manifest "$_SHELL__BINUTILS_MANIFEST" --build-group "lib-shell" --skip_installed || true
+  command -v strings > /dev/null 2>&1 && return 0
+  logging__warn "shell.sh: 'strings' not available; falling back to os-release detection."
+  return 1
+}
+
 # @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro. Uses binary probing, never file-existence checks.
 #
 # Detection order: (1) strings-probe the bash binary (most accurate — bash
@@ -29,6 +45,7 @@ _SHELL__AWK_NORM='
 shell__detect_bashrc() {
   # Ask bash which RC file it was compiled with — most accurate.
   local _compiled
+  _shell__ensure_strings || true
   _compiled="$(strings "$(command -v bash 2> /dev/null)" 2> /dev/null |
     grep -m1 -E '^/etc/(bash\.bashrc|bashrc|bash/bashrc)$' || true)"
   if [ -n "$_compiled" ]; then
@@ -61,6 +78,7 @@ shell__detect_bashrc() {
 shell__detect_zshdir() {
   # Ask zsh which global zshenv path it was compiled with.
   local _compiled
+  _shell__ensure_strings || true
   _compiled="$(strings "$(command -v zsh 2> /dev/null)" 2> /dev/null |
     grep -m1 -E '^/etc/(zsh/)?zshenv$' || true)"
   if [ -n "$_compiled" ]; then
@@ -145,8 +163,7 @@ shell__write_block() {
       }
       found { next }
       { print; last_blank = is_blank_line($0) }
-    ' "$_file" > "$_tmp"
-    file__cp "$_tmp" "$_file"
+    ' "$_file" > "$_tmp" && file__cp "$_tmp" "$_file"
     rm -f "$_tmp"
     logging__info "Updated shell block '${_marker}' in '${_file}'."
   else
@@ -1049,7 +1066,7 @@ shell__run_prefix_discovery() {
 
   # Determine system vs. user scope from the prefix path rather than the caller's UID.
   local _disc_scope _disc_home
-  if os__is_system_path "${_disc_prefix}"; then
+  if ! users__is_user_path "${_disc_prefix}"; then
     _disc_scope="system"
     _disc_home=""
   else

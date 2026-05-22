@@ -77,9 +77,7 @@ format-check: format-sh-check format-py-check
   doc('Shellcheck tracked shell and assembled src/*/install.bash; pass paths to limit scope.')
 ]
 lint-sh-check *files:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    exec just capture lint-sh-check -- bash .dev/scripts/lint/sh-check.sh "$@"
+    just capture lint-sh-check -- bash .dev/scripts/lint/sh-check.sh "$@"
 
 
 [
@@ -202,7 +200,7 @@ test-lib:
   doc('Run unit tests for one lib module e.g. just test-lib-mod ospkg.')
 ]
 test-lib-mod module:
-    bash .dev/scripts/test/run-unit.sh --module {{module}}
+    just capture test-lib-mod -- bash .dev/scripts/test/run-unit.sh --module {{module}}
 
 
 [
@@ -210,7 +208,7 @@ test-lib-mod module:
   doc('Run lib/ unit tests in one container environment e.g. just test-lib-env alpine-3.20.')
 ]
 test-lib-env env *args:
-    pixi run --environment test test-lib-env {{env}} {{args}}
+    just capture test-lib-env -- pixi run --environment test test-lib-env {{env}} {{args}}
 
 
 [
@@ -218,7 +216,7 @@ test-lib-env env *args:
   doc('Run lib/ unit tests in all container environments (requires docker).')
 ]
 test-lib-envs *args:
-    pixi run --environment test test-lib-envs {{args}}
+    just capture test-lib-envs -- pixi run --environment test test-lib-envs {{args}}
 
 
 [

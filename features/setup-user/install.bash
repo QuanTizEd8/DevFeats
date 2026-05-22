@@ -64,7 +64,7 @@ fi
 # ---------------------------------------------------------------------------
 _user_already_ok=false
 _user_by_uid=$(awk -F: -v uid="$USER_ID" '$3 == uid {print $1}' /etc/passwd || true)
-_uid_of_name=$(id -u "$USERNAME" 2> /dev/null || true)
+_uid_of_name=$(users__uid_of_user "$USERNAME" 2> /dev/null || true)
 
 if [ -n "$_uid_of_name" ] && [ "$_uid_of_name" = "$USER_ID" ]; then
   # User already correctly configured

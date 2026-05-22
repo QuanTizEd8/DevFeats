@@ -14,6 +14,8 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "users__resolve_list includes SUDO_USER when --current true" {
+  users__is_root() { return 0; }
+  export -f users__is_root
   SUDO_USER=alice \
     run --separate-stderr users__resolve_list --current true --remote false --container false
   assert_output "alice"
@@ -48,6 +50,8 @@ bob"
 }
 
 @test "users__resolve_list combines --current and --user" {
+  users__is_root() { return 0; }
+  export -f users__is_root
   SUDO_USER=alice \
     run --separate-stderr users__resolve_list \
     --current true --remote false --container false \
@@ -60,6 +64,8 @@ bob"
   # When the build user is root and no other non-root users are auto-detected,
   # root is included so the feature has a target to configure (e.g. plain
   # container images or standalone macOS use with no remoteUser).
+  users__is_root() { return 0; }
+  export -f users__is_root
   SUDO_USER=root \
     run --separate-stderr users__resolve_list --current true --remote false --container false
   assert_output "root"
@@ -69,6 +75,8 @@ bob"
 @test "users__resolve_list excludes root when a non-root user is also detected" {
   # Root must not be added when a non-root remoteUser / containerUser is present;
   # the build runs as root but the target for configuration is the named user.
+  users__is_root() { return 0; }
+  export -f users__is_root
   SUDO_USER=root \
     _REMOTE_USER=alice \
     run --separate-stderr users__resolve_list --current true --remote true --container false
@@ -93,6 +101,8 @@ alice"
 }
 
 @test "users__resolve_list auto-discovers all sources when called with no args" {
+  users__is_root() { return 0; }
+  export -f users__is_root
   SUDO_USER=alice \
     _REMOTE_USER=bob \
     _CONTAINER_USER=carol \
@@ -168,22 +178,34 @@ EOF
   assert_output "/home/alice"
 }
 
-@test "users__resolve_home falls back to /etc/passwd when getent is absent" {
-  begin_path_isolation grep
-  local _expected
-  _expected="$(eval echo '~root')"
-  run users__resolve_home "root"
+@test "users__resolve_home falls back to /etc/passwd awk scan when getent is absent" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  begin_path_isolation awk mktemp
+  run --separate-stderr users__resolve_home "root"
   end_path_isolation
   assert_success
-  assert_output "$_expected"
+  assert_output "/root"
 }
 
-@test "users__resolve_home uses tilde expansion when user not in /etc/passwd" {
-  begin_path_isolation grep
-  run users__resolve_home "___no_such_user_xyz___"
+@test "users__resolve_home returns unexpanded tilde when user is absent from all sources" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  begin_path_isolation awk mktemp
+  run --separate-stderr users__resolve_home "___no_such_user_xyz___"
   end_path_isolation
   assert_success
   assert_output "~___no_such_user_xyz___"
+}
+
+@test "users__resolve_home with no args resolves home of current user" {
+  create_fake_bin "getent" "alice:x:1000:1000::/home/alice:/bin/bash"
+  prepend_fake_bin_path
+  users__get_current() { printf 'alice\n'; }
+  export -f users__get_current
+  run users__resolve_home
+  assert_success
+  assert_output "/home/alice"
 }
 
 # ---------------------------------------------------------------------------
@@ -321,78 +343,24 @@ EOF
 # users__home_of_path_owner
 # ---------------------------------------------------------------------------
 
-@test "users__home_of_path_owner: path under HOME returns HOME immediately" {
-  HOME="/home/alice" run users__home_of_path_owner "/home/alice/.local/bin"
-  assert_output "/home/alice"
-  assert_success
-}
-
-@test "users__home_of_path_owner: non-root, path outside HOME returns HOME fallback" {
-  HOME="/home/alice" run users__home_of_path_owner "/usr/local/bin"
-  assert_output "/home/alice"
-  assert_success
-}
-
-@test "users__home_of_path_owner: root, path under HOME returns HOME via fast path" {
-  users__is_root() { return 0; }
-  export -f users__is_root
-  HOME="/root" run users__home_of_path_owner "/root/.local/bin"
-  assert_output "/root"
-  assert_success
-}
-
-@test "users__home_of_path_owner: root, getent returns entry for regular user" {
-  users__is_root() { return 0; }
+@test "users__home_of_path_owner: returns home of the path's owning UID" {
   users__uid_of_path_owner() { printf '1001\n'; }
-  getent() { printf 'vscode:x:1001:1001::/home/vscode:/bin/bash\n'; }
-  export -f users__is_root users__uid_of_path_owner getent
-  HOME="/root" run users__home_of_path_owner "/home/vscode/.local/bin"
+  users__resolve_home() {
+    [[ "${1:-}" == "--uid" && "${2:-}" == "1001" ]] && printf '/home/vscode\n'
+  }
+  export -f users__uid_of_path_owner users__resolve_home
+  run users__home_of_path_owner "/home/vscode/.local/bin"
   assert_output "/home/vscode"
   assert_success
 }
 
-@test "users__home_of_path_owner: root, getent returns nothing and awk fallback finds entry" {
-  users__is_root() { return 0; }
-  users__uid_of_path_owner() { printf '1001\n'; }
-  getent() { :; } # no output (e.g. macOS where getent is absent)
-  awk() { printf '/home/vscode\n'; }
-  export -f users__is_root users__uid_of_path_owner getent awk
-  HOME="/root" run users__home_of_path_owner "/home/vscode/.local/bin"
-  assert_output "/home/vscode"
-  assert_success
-}
-
-@test "users__home_of_path_owner: root, orphaned UID returns HOME fallback" {
-  users__is_root() { return 0; }
+@test "users__home_of_path_owner: returns empty when owner has no resolvable home" {
   users__uid_of_path_owner() { printf '58392\n'; }
-  getent() { :; }
-  export -f users__is_root users__uid_of_path_owner getent
-  HOME="/root" run users__home_of_path_owner "/home/gone/.config"
-  assert_output "/root"
-  assert_success
-}
-
-@test "users__home_of_path_owner: root, path owned by root (UID 0) returns HOME fallback" {
-  users__is_root() { return 0; }
-  users__uid_of_path_owner() { printf '0\n'; }
-  export -f users__is_root users__uid_of_path_owner
-  HOME="/root" run users__home_of_path_owner "/usr/local/bin"
-  assert_output "/root"
-  assert_success
-}
-
-@test "users__home_of_path_owner: root, path owned by system user (UID 999) returns HOME fallback" {
-  users__is_root() { return 0; }
-  users__uid_of_path_owner() { printf '999\n'; }
-  export -f users__is_root users__uid_of_path_owner
-  HOME="/root" run users__home_of_path_owner "/home/linuxbrew/.linuxbrew"
-  assert_output "/root"
-  assert_success
-}
-
-@test "users__home_of_path_owner: path under HOME matching prefix prefix is returned directly" {
-  HOME="/home/alice" run users__home_of_path_owner "/home/alice/.local"
-  assert_output "/home/alice"
+  users__resolve_home() { :; }
+  export -f users__uid_of_path_owner users__resolve_home
+  HOME="/home/alice"
+  run users__home_of_path_owner "/home/gone/.config"
+  assert_output ""
   assert_success
 }
 
@@ -480,4 +448,338 @@ EOF
   export -f file__nearest_existing users__is_privileged
   run users__can_write "/some/path"
   assert_success
+}
+
+# ---------------------------------------------------------------------------
+# users__default_prefix
+# ---------------------------------------------------------------------------
+
+@test "users__default_prefix: returns /usr/local when writable" {
+  users__can_write() { return 0; }
+  export -f users__can_write
+  run users__default_prefix
+  assert_output "/usr/local"
+  assert_success
+}
+
+@test "users__default_prefix: returns home/.local when /usr/local is not writable" {
+  users__can_write() { return 1; }
+  users__resolve_home() { printf '/home/alice\n'; }
+  export -f users__can_write users__resolve_home
+  run users__default_prefix
+  assert_output "/home/alice/.local"
+  assert_success
+}
+
+@test "users__default_prefix: fails when /usr/local not writable and home unresolvable" {
+  users__can_write() { return 1; }
+  users__resolve_home() { :; }
+  export -f users__can_write users__resolve_home
+  run users__default_prefix
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# _users__ensure_getent
+# ---------------------------------------------------------------------------
+
+@test "_users__ensure_getent: returns 0 when getent is present" {
+  run _users__ensure_getent
+  assert_success
+}
+
+@test "_users__ensure_getent: returns 1 when getent is absent and install fails" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  begin_path_isolation mktemp
+  run --separate-stderr _users__ensure_getent
+  end_path_isolation
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__primary_group_of
+# ---------------------------------------------------------------------------
+
+@test "users__primary_group_of: returns primary group name of current user" {
+  local _expected
+  _expected="$(id -gn)"
+  run users__primary_group_of "$(id -un)"
+  assert_success
+  assert_output "$_expected"
+}
+
+# ---------------------------------------------------------------------------
+# users__uid_of_user
+# ---------------------------------------------------------------------------
+
+@test "users__uid_of_user: returns numeric UID for the current user" {
+  local _expected
+  _expected="$(id -u)"
+  run users__uid_of_user "$(id -un)"
+  assert_success
+  assert_output "$_expected"
+}
+
+# ---------------------------------------------------------------------------
+# users__username_of_uid
+# ---------------------------------------------------------------------------
+
+@test "users__username_of_uid: round-trips with users__uid_of_user" {
+  local _me _uid
+  _me="$(id -un)"
+  _uid="$(id -u)"
+  run users__username_of_uid "$_uid"
+  assert_success
+  assert_output "$_me"
+}
+
+# ---------------------------------------------------------------------------
+# users__get_current — devcontainer paths
+# ---------------------------------------------------------------------------
+
+@test "users__get_current: returns _REMOTE_USER in devcontainer build" {
+  users__is_root() { return 0; }
+  export -f users__is_root
+  _REMOTE_USER=alice _CONTAINER_USER=bob \
+    _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
+    run --separate-stderr users__get_current
+  assert_success
+  assert_output "alice"
+}
+
+@test "users__get_current: skips root _REMOTE_USER and returns _CONTAINER_USER" {
+  users__is_root() { return 0; }
+  export -f users__is_root
+  _REMOTE_USER=root _CONTAINER_USER=bob \
+    _REMOTE_USER_HOME=/root _CONTAINER_USER_HOME=/home/bob \
+    run --separate-stderr users__get_current
+  assert_success
+  assert_output "bob"
+}
+
+@test "users__get_current: SUDO_USER takes priority over devcontainer vars" {
+  users__is_root() { return 0; }
+  export -f users__is_root
+  SUDO_USER=carol _REMOTE_USER=alice _CONTAINER_USER=bob \
+    _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
+    run --separate-stderr users__get_current
+  assert_success
+  assert_output "carol"
+}
+
+@test "users__get_current: --no-sudo bypasses both SUDO_USER and devcontainer vars" {
+  local _me
+  _me="$(id -un)"
+  SUDO_USER=carol _REMOTE_USER=alice _CONTAINER_USER=bob \
+    _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
+    run --separate-stderr users__get_current --no-sudo
+  assert_success
+  assert_output "$_me"
+}
+
+# ---------------------------------------------------------------------------
+# users__resolve_home — devcontainer fallback
+# ---------------------------------------------------------------------------
+
+@test "users__resolve_home: returns _REMOTE_USER_HOME from devcontainer vars" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  _REMOTE_USER=alice _CONTAINER_USER=bob \
+    _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
+    run --separate-stderr users__resolve_home "alice"
+  assert_success
+  assert_output "/home/alice"
+}
+
+@test "users__resolve_home: returns _CONTAINER_USER_HOME from devcontainer vars" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  _REMOTE_USER=alice _CONTAINER_USER=bob \
+    _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
+    run --separate-stderr users__resolve_home "bob"
+  assert_success
+  assert_output "/home/bob"
+}
+
+@test "users__resolve_home: devcontainer UID fallback resolves via users__username_of_uid" {
+  _users__ensure_getent() { return 1; }
+  users__username_of_uid() { printf 'alice\n'; }
+  export -f _users__ensure_getent users__username_of_uid
+  _REMOTE_USER=alice _CONTAINER_USER=bob \
+    _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
+    run --separate-stderr users__resolve_home --uid 1001
+  assert_success
+  assert_output "/home/alice"
+}
+
+# ---------------------------------------------------------------------------
+# users__is_user_path — no-user-arg, non-root scenarios
+# ---------------------------------------------------------------------------
+
+@test "users__is_user_path: non-root, writable path is user-local" {
+  (($(id -u) != 0)) || skip "requires non-root"
+  reload_lib users.sh
+  run users__is_user_path "$BATS_TEST_TMPDIR"
+  assert_success
+}
+
+@test "users__is_user_path: non-root, non-existent path under writable parent is user-local" {
+  (($(id -u) != 0)) || skip "requires non-root"
+  reload_lib users.sh
+  run users__is_user_path "$BATS_TEST_TMPDIR/does-not-exist/bin"
+  assert_success
+}
+
+@test "users__is_user_path: non-root, path under non-writable root ancestor is system" {
+  (($(id -u) != 0)) || skip "requires non-root"
+  reload_lib users.sh
+  run users__is_user_path "/_devfeats_test_nonexistent_xyz/bin"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__is_user_path — no-user-arg, root scenarios (stubs)
+# ---------------------------------------------------------------------------
+
+@test "users__is_user_path: root, path under root's resolved home is user-local" {
+  reload_lib users.sh
+  users__is_root() { return 0; }
+  users__resolve_home() { printf '/root\n'; }
+  export -f users__is_root users__resolve_home
+  run users__is_user_path "/root/.local/bin"
+  assert_success
+}
+
+@test "users__is_user_path: root, path owned by regular user (UID 1000) is user-local" {
+  reload_lib users.sh
+  users__is_root() { return 0; }
+  users__resolve_home() { :; }
+  users__uid_of_path_owner() { printf '1000\n'; }
+  export -f users__is_root users__resolve_home users__uid_of_path_owner
+  run users__is_user_path "/home/vscode/.local/bin"
+  assert_success
+}
+
+@test "users__is_user_path: root, path owned by UID 65533 (upper boundary) is user-local" {
+  reload_lib users.sh
+  users__is_root() { return 0; }
+  users__resolve_home() { :; }
+  users__uid_of_path_owner() { printf '65533\n'; }
+  export -f users__is_root users__resolve_home users__uid_of_path_owner
+  run users__is_user_path "/home/highuid/.local"
+  assert_success
+}
+
+@test "users__is_user_path: root, path owned by root (UID 0) is system" {
+  reload_lib users.sh
+  users__is_root() { return 0; }
+  users__resolve_home() { printf '/root\n'; }
+  users__uid_of_path_owner() { printf '0\n'; }
+  export -f users__is_root users__resolve_home users__uid_of_path_owner
+  run users__is_user_path "/usr/local/bin"
+  assert_failure
+}
+
+@test "users__is_user_path: root, path owned by system user (UID 999) is system" {
+  reload_lib users.sh
+  users__is_root() { return 0; }
+  users__resolve_home() { :; }
+  users__uid_of_path_owner() { printf '999\n'; }
+  export -f users__is_root users__resolve_home users__uid_of_path_owner
+  run users__is_user_path "/home/linuxbrew/.linuxbrew"
+  assert_failure
+}
+
+@test "users__is_user_path: root, path owned by nobody (UID 65534) is system" {
+  reload_lib users.sh
+  users__is_root() { return 0; }
+  users__resolve_home() { :; }
+  users__uid_of_path_owner() { printf '65534\n'; }
+  export -f users__is_root users__resolve_home users__uid_of_path_owner
+  run users__is_user_path "/srv/data"
+  assert_failure
+}
+
+@test "users__is_user_path: root, macOS user (UID 501) is user-local" {
+  reload_lib users.sh
+  users__is_root() { return 0; }
+  users__resolve_home() { :; }
+  users__uid_of_path_owner() { printf '501\n'; }
+  os__kernel() { printf 'Darwin\n'; }
+  export -f users__is_root users__resolve_home users__uid_of_path_owner os__kernel
+  run users__is_user_path "/Users/alice/.local"
+  assert_success
+}
+
+@test "users__is_user_path: root, macOS system account (UID 499) is system" {
+  reload_lib users.sh
+  users__is_root() { return 0; }
+  users__resolve_home() { :; }
+  users__uid_of_path_owner() { printf '499\n'; }
+  os__kernel() { printf 'Darwin\n'; }
+  export -f users__is_root users__resolve_home users__uid_of_path_owner os__kernel
+  run users__is_user_path "/var/lib/something"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__is_user_path — specific user argument
+# ---------------------------------------------------------------------------
+
+@test "users__is_user_path: specific user, path under user's home is user-local" {
+  reload_lib users.sh
+  users__resolve_home() { printf '/home/alice\n'; }
+  users__uid_of_user() { printf '1001\n'; }
+  export -f users__resolve_home users__uid_of_user
+  run users__is_user_path alice /home/alice/.local/bin
+  assert_success
+}
+
+@test "users__is_user_path: specific user, path not under home but owned by user is user-local" {
+  reload_lib users.sh
+  users__resolve_home() { printf '/home/alice\n'; }
+  users__uid_of_user() { printf '1001\n'; }
+  users__uid_of_path_owner() { printf '1001\n'; }
+  export -f users__resolve_home users__uid_of_user users__uid_of_path_owner
+  run users__is_user_path alice /opt/alice-tools/bin
+  assert_success
+}
+
+@test "users__is_user_path: specific user, system path not owned by user is system" {
+  reload_lib users.sh
+  users__resolve_home() { printf '/home/alice\n'; }
+  users__uid_of_user() { printf '1001\n'; }
+  users__uid_of_path_owner() { printf '0\n'; }
+  export -f users__resolve_home users__uid_of_user users__uid_of_path_owner
+  run users__is_user_path alice /usr/local/bin
+  assert_failure
+}
+
+@test "users__is_user_path: specific user via --uid, path under user's home is user-local" {
+  reload_lib users.sh
+  users__resolve_home() { printf '/home/alice\n'; }
+  export -f users__resolve_home
+  run users__is_user_path --uid 1001 /home/alice/.config/nvim
+  assert_success
+}
+
+@test "users__is_user_path: specific user via --uid, path owned by uid is user-local" {
+  reload_lib users.sh
+  users__resolve_home() { printf '/home/alice\n'; }
+  users__uid_of_path_owner() { printf '1001\n'; }
+  export -f users__resolve_home users__uid_of_path_owner
+  run users__is_user_path --uid 1001 /opt/myapp
+  assert_success
+}
+
+@test "users__is_user_path: specific user, exact home dir itself is system (no trailing-slash match)" {
+  reload_lib users.sh
+  users__resolve_home() { printf '/home/alice\n'; }
+  users__uid_of_user() { printf '1001\n'; }
+  users__uid_of_path_owner() { printf '0\n'; }
+  export -f users__resolve_home users__uid_of_user users__uid_of_path_owner
+  # /home/alice does not start with /home/alice/ so falls through to owner check → system
+  run users__is_user_path alice /home/alice
+  assert_failure
 }

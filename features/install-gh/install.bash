@@ -116,6 +116,9 @@ _gh__repos_rhel() {
     logging__warn "Version pinning is not supported for method=upstream-package on RHEL-based systems. Installing latest available gh."
   fi
   if command -v zypper > /dev/null 2>&1; then
+    # Drop the .repo file directly so zypper parses baseurl from it.
+    # 'zypper addrepo <URL>' treats the URL as the baseurl directly; when the
+    # URL ends in .repo the fetched metadata path becomes wrong (.repo/repodata/).
     file__mkdir /etc/zypp/repos.d
     _tmp_repo="$(mktemp)"
     net__fetch_url_file \
@@ -234,7 +237,7 @@ _gh__install_completions() {
           _bash_content=""
         }
         if [ -n "${_bash_content}" ]; then
-          if os__is_system_path "${PREFIX}"; then
+          if ! users__is_user_path "${PREFIX}"; then
             file__mkdir /etc/bash_completion.d
             printf '%s\n' "${_bash_content}" | file__tee /etc/bash_completion.d/gh
             logging__success "Bash completion written to /etc/bash_completion.d/gh"
@@ -254,7 +257,7 @@ _gh__install_completions() {
           _zsh_content=""
         }
         if [ -n "${_zsh_content}" ]; then
-          if os__is_system_path "${PREFIX}"; then
+          if ! users__is_user_path "${PREFIX}"; then
             local _zshdir
             _zshdir="$(shell__detect_zshdir)"
             file__mkdir "${_zshdir}/completions"
@@ -309,7 +312,7 @@ _gh__configure_user() {
     # git_protocol: run gh config set as the target user.
     if [ -n "${GIT_PROTOCOL}" ]; then
       logging__info "Setting git_protocol=${GIT_PROTOCOL} for '${_user}'..."
-      if [ "${_user}" != "$(id -un)" ]; then
+      if [ "${_user}" != "$(users__get_current --no-sudo)" ]; then
         users__run_as "${_user}" -- bash -c "gh config set git_protocol '${GIT_PROTOCOL}'"
       else
         GH_CONFIG_DIR="${_home}/.config/gh" gh config set git_protocol "${GIT_PROTOCOL}"
@@ -319,7 +322,7 @@ _gh__configure_user() {
     # setup_git: register gh as credential helper.
     if [ "${SETUP_GIT}" = "true" ]; then
       logging__info "Running gh auth setup-git for '${_user}' (hostname: ${GIT_HOSTNAME})..."
-      if [ "${_user}" != "$(id -un)" ]; then
+      if [ "${_user}" != "$(users__get_current --no-sudo)" ]; then
         users__run_as "${_user}" -- bash -c "gh auth setup-git --force --hostname '${GIT_HOSTNAME}'"
       else
         GH_CONFIG_DIR="${_home}/.config/gh" HOME="${_home}" \
@@ -336,7 +339,7 @@ _gh__configure_user() {
       case "${SIGN_COMMITS}" in
         ssh)
           logging__info "Configuring SSH commit signing for '${_user}'..."
-          if [ "${_user}" != "$(id -un)" ]; then
+          if [ "${_user}" != "$(users__get_current --no-sudo)" ]; then
             users__run_as "${_user}" -- bash -c "git config --global gpg.format ssh"
             users__run_as "${_user}" -- bash -c "git config --global commit.gpgsign true"
           else
@@ -346,7 +349,7 @@ _gh__configure_user() {
           ;;
         gpg)
           logging__info "Configuring GPG commit signing for '${_user}'..."
-          if [ "${_user}" != "$(id -un)" ]; then
+          if [ "${_user}" != "$(users__get_current --no-sudo)" ]; then
             # Exit code 5 when key is absent — suppress with || true under set -e.
             users__run_as "${_user}" -- bash -c "git config --global --unset-all gpg.format || true"
             users__run_as "${_user}" -- bash -c "git config --global commit.gpgsign true"
@@ -395,7 +398,7 @@ _gh__install_extensions() {
       _ext="$(printf '%s' "${_ext}" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')"
       [ -z "${_ext}" ] && continue
       logging__install "Installing gh extension '${_ext}' for user '${_user}'..."
-      if [ "${_user}" != "$(id -un)" ]; then
+      if [ "${_user}" != "$(users__get_current --no-sudo)" ]; then
         users__run_as "${_user}" -- bash -c "gh extension install '${_ext}'" || {
           logging__warn "Failed to install extension '${_ext}' for '${_user}' (non-fatal)."
         }
@@ -422,12 +425,12 @@ EOF
 # This must run before base deps and the GitHub API call to skip early when possible.
 if [[ "${VERSION}" = "latest" || "${VERSION}" = "stable" ]] && command -v gh > /dev/null 2>&1; then
   if [ "${IF_EXISTS}" = "skip" ]; then
-    _existing="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _existing=""
-    logging__info "gh ${_existing} is already installed — skipping (if_exists=skip, version=${VERSION})."
+    _installed_ver="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _installed_ver=""
+    logging__info "gh ${_installed_ver} is already installed — skipping (if_exists=skip, version=${VERSION})."
     exit 0
   elif [ "${IF_EXISTS}" = "fail" ]; then
-    _existing="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _existing=""
-    logging__error "gh is already installed (${_existing}) and if_exists=fail."
+    _installed_ver="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _installed_ver=""
+    logging__error "gh is already installed (${_installed_ver}) and if_exists=fail."
     exit 1
   fi
 fi

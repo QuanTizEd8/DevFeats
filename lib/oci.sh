@@ -173,6 +173,7 @@ _oci__load_auth_map() {
 # Returns: 0 on success or when no credentials are configured, 1 on login failure.
 _oci__ensure_auth_for() {
   local _target="${1-}" _reg _usr _tok _tmp
+  oci__ensure_oras || return 1
   _reg="$(_oci__registry_from_ref_or_repo "$_target" 2> /dev/null || true)"
   [[ -n "$_reg" ]] || return 0
   [[ -n "${_OCI__AUTH_DONE[$_reg]+x}" ]] && return 0

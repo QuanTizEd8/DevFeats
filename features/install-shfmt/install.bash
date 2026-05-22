@@ -45,21 +45,21 @@ _shfmt__install_repos() {
 
 # Resolve an existing install: skip, fail, or continue to reinstall.
 _shfmt__handle_existing() {
-  local _existing="${1-}" _if_exists="${2-}"
-  [[ -n "$_existing" ]] || return 0
+  local _shfmt_path="${1-}" _if_exists="${2-}"
+  [[ -n "$_shfmt_path" ]] || return 0
   case "$_if_exists" in
     fail)
-      logging__error "install-shfmt: shfmt already exists at $_existing."
+      logging__error "install-shfmt: shfmt already exists at $_shfmt_path."
       return 1
       ;;
     skip)
-      logging__info "install-shfmt: shfmt already installed at $_existing — skipping."
+      logging__info "install-shfmt: shfmt already installed at $_shfmt_path — skipping."
       exit 0
       ;;
   esac
 }
-_existing="$(command -v shfmt 2> /dev/null || true)"
-_shfmt__handle_existing "$_existing" "$IF_EXISTS"
+_shfmt_path="$(command -v shfmt 2> /dev/null || true)"
+_shfmt__handle_existing "$_shfmt_path" "$IF_EXISTS"
 
 case "$METHOD" in
   binary)

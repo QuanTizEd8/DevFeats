@@ -132,7 +132,7 @@ _sync_init_files() {
   local _has_content=false
   [ $# -ge 2 ] && _has_content=true
   local _files _slug _is_root=false
-  os__is_system_path "${RESOLVED_PREFIX}" && _is_root=true
+  ! users__is_user_path "${RESOLVED_PREFIX}" && _is_root=true
 
   if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
@@ -176,7 +176,7 @@ resolve_install_user() {
   fi
   # 2. Non-root caller: always use self.
   if ! users__is_root; then
-    id -nu
+    users__get_current --no-sudo
     logging__fn_exit "resolve_install_user"
     return 0
   fi
@@ -223,8 +223,10 @@ validate_install_user() {
   logging__fn_entry "validate_install_user"
   local _user="$1"
   # Non-root caller cannot impersonate another user.
-  if ! users__is_root && [ "$_user" != "$(id -nu)" ]; then
-    logging__error "install_user='${_user}' differs from the current user '$(id -nu)'."
+  local _cur
+  _cur="$(users__get_current --no-sudo)"
+  if ! users__is_root && [ "$_user" != "$_cur" ]; then
+    logging__error "install_user='${_user}' differs from the current user '${_cur}'."
     logging__info "Only root can install Homebrew for a different user."
     exit 1
   fi
@@ -308,7 +310,7 @@ logging__info "Install user: '${RESOLVED_INSTALL_USER}'."
 validate_install_user "$RESOLVED_INSTALL_USER"
 RESOLVED_PREFIX="${PREFIX}"
 logging__info "Prefix: '${RESOLVED_PREFIX}'."
-if [ "$(os__kernel)" != "Darwin" ] && os__is_system_path "${RESOLVED_PREFIX}"; then
+if [ "$(os__kernel)" != "Darwin" ] && ! users__is_user_path "${RESOLVED_PREFIX}"; then
   prepare_prefix_if_needed "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER"
 fi
 

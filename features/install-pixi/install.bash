@@ -156,7 +156,7 @@ install_completion() {
   # system-wide target) go to the current user's home ($HOME).  For user-local
   # installs the PREFIX owner is the target user, so use their home instead.
   local _home
-  if os__is_system_path "${PREFIX}"; then
+  if ! users__is_user_path "${PREFIX}"; then
     _home="${HOME}"
   else
     _home="$(users__home_of_path_owner "${PREFIX}")"
@@ -167,14 +167,14 @@ install_completion() {
     local _target_file
     case "${_shell}" in
       bash)
-        if os__is_system_path "${PREFIX}"; then
+        if ! users__is_user_path "${PREFIX}"; then
           _target_file="$(shell__detect_bashrc)"
         else
           _target_file="${_home}/.bashrc"
         fi
         ;;
       zsh)
-        if os__is_system_path "${PREFIX}"; then
+        if ! users__is_user_path "${PREFIX}"; then
           _target_file="$(shell__detect_zshdir)/zshenv"
         else
           _target_file="${_home}/.zshenv"

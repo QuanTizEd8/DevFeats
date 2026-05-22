@@ -11,7 +11,7 @@ EOF
 
 read -r -d '' _FILE__COREUTILS_MANIFEST << 'EOF' || true
 packages:
-  - when: {pm: [apt, apk, dnf, yum, zypper, pacman]}
+  - when: {kernel: linux}
     packages: [coreutils]
 EOF
 
@@ -129,7 +129,7 @@ file__install_dir() {
   # Escalate when setting ownership to another user, or when any target dir
   # (or its nearest existing ancestor) is not writable by the current process.
   local _needs_priv=false
-  if [[ -n "$_owner" && "$_owner" != "$(id -un)" ]]; then
+  if [[ -n "$_owner" && "$_owner" != "$(users__get_current --no-sudo)" ]]; then
     _needs_priv=true
   else
     local _d _existing
@@ -274,7 +274,7 @@ file__chown() {
   # target path is not writable by the current process.
   local _spec_user="${_spec%%:*}"
   local _needs_priv=false _p
-  if [[ -n "$_spec_user" && "$_spec_user" != "$(id -un)" ]]; then
+  if [[ -n "$_spec_user" && "$_spec_user" != "$(users__get_current --no-sudo)" ]]; then
     _needs_priv=true
   else
     for _p in "${_paths[@]}"; do
@@ -429,11 +429,16 @@ file__extract_archive() {
 # exist by examining the nearest ancestor that does.
 #
 # Args:
-#   <path>  Absolute path to examine (need not exist).
+#   <path>  Absolute path to examine (need not exist). Must be absolute; relative
+#           paths cause dirname to loop on "." indefinitely.
 #
 # Stdout: nearest existing ancestor path (or `/` when nothing above root exists).
 file__nearest_existing() {
   local _p="$1"
+  [[ "$_p" = /* ]] || {
+    logging__error "file__nearest_existing: path must be absolute: '${_p}'"
+    return 1
+  }
   while [[ "$_p" != "/" && ! -e "$_p" ]]; do _p="$(dirname "$_p")"; done
   printf '%s\n' "$_p"
 }
