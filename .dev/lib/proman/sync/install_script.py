@@ -791,7 +791,11 @@ def _make_resolution_block(
         tmpl = (
             _TMPL_RESOLUTION_SINGLE if root_val == nonroot_val else _TMPL_RESOLUTION_TWO
         )
-        subs: dict[str, str] = dict(INDENT=inner_indent, KEYWORD="if", VAR=var_prefix)
+        subs: dict[str, str] = {
+            "INDENT": inner_indent,
+            "KEYWORD": "if",
+            "VAR": var_prefix,
+        }
         if root_val == nonroot_val:
             subs["VAL"] = root_val
         else:
