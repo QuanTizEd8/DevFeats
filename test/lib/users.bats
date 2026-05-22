@@ -451,3 +451,33 @@ EOF
   run users__is_privileged
   assert_failure
 }
+
+# ---------------------------------------------------------------------------
+# users__can_write
+# ---------------------------------------------------------------------------
+
+@test "users__can_write: returns 0 for a writable existing directory" {
+  run users__can_write "$BATS_TEST_TMPDIR"
+  assert_success
+}
+
+@test "users__can_write: returns 0 for a nonexistent path under a writable directory" {
+  run users__can_write "$BATS_TEST_TMPDIR/new/subdir"
+  assert_success
+}
+
+@test "users__can_write: returns 1 when nearest ancestor is not writable and sudo is unavailable" {
+  file__nearest_existing() { printf '/__devfeats_nonexistent__\n'; }
+  users__is_privileged() { return 1; }
+  export -f file__nearest_existing users__is_privileged
+  run users__can_write "/some/path"
+  assert_failure
+}
+
+@test "users__can_write: returns 0 when nearest ancestor is not writable but sudo is available" {
+  file__nearest_existing() { printf '/__devfeats_nonexistent__\n'; }
+  users__is_privileged() { return 0; }
+  export -f file__nearest_existing users__is_privileged
+  run users__can_write "/some/path"
+  assert_success
+}

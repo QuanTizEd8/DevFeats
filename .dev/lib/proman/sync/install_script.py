@@ -727,6 +727,38 @@ class InstallScriptGenerator:
 
 # ── Pure utilities ────────────────────────────────────────────────────────────
 
+# Templates for the users__can_write if/elif/else blocks emitted inside the
+# prefix resolver's case "" arm.  @@INDENT@@ is the base indentation for the
+# whole block; @@KEYWORD@@ is "if" or "elif" for the opening line.
+_TMPL_RESOLUTION_SINGLE = (
+    '@@INDENT@@@@KEYWORD@@ users__can_write "@@VAL@@"; then\n'
+    '@@INDENT@@  @@VAR@@="@@VAL@@"\n'
+    "@@INDENT@@else\n"
+    '@@INDENT@@  logging__error "Prefix auto-resolution failed:'
+    ' \\"@@VAL@@\\" is not writable."\n'
+    "@@INDENT@@  exit 1\n"
+    "@@INDENT@@fi"
+)
+
+_TMPL_RESOLUTION_TWO = (
+    '@@INDENT@@@@KEYWORD@@ users__can_write "@@ROOT@@"; then\n'
+    '@@INDENT@@  @@VAR@@="@@ROOT@@"\n'
+    '@@INDENT@@elif users__can_write "@@NONROOT@@"; then\n'
+    '@@INDENT@@  @@VAR@@="@@NONROOT@@"\n'
+    "@@INDENT@@else\n"
+    '@@INDENT@@  logging__error "Prefix auto-resolution failed:'
+    ' no writable path found (tried \\"@@ROOT@@\\" and \\"@@NONROOT@@\\")."\n'
+    "@@INDENT@@  exit 1\n"
+    "@@INDENT@@fi"
+)
+
+
+def _fill_resolution_tmpl(tmpl: str, **subs: str) -> str:
+    """Substitute @@KEY@@ placeholders in a resolution block template."""
+    for key, val in subs.items():
+        tmpl = tmpl.replace(f"@@{key}@@", val)
+    return tmpl
+
 
 def _make_resolution_block(
     var_prefix: str,
@@ -736,14 +768,16 @@ def _make_resolution_block(
 ) -> str:
     """Build the shell if/elif/else resolution block for a prefix resolver.
 
-    Without platform_overrides, emits a simple uid-based if/else.
-    With overrides, prepends `os__match_spec` branches before the uid fallback.
+    Without platform_overrides, emits a users__can_write-based if/elif/else.
+    With overrides, prepends `os__match_spec` branches before the fallback.
     Each override dict must have ``when`` (mapping of key→value) and ``default``.
     ``default_root`` / ``default_nonroot`` within an override override ``default``
     per uid, mirroring the top-level default_root / default_nonroot semantics.
+    All resolved paths are validated for writability; the script exits with an
+    error if no writable candidate is found.
     """
     indent = "      "  # 6 spaces — inside case "")
-    lines: list[str] = []
+    parts: list[str] = []
     first = True
     for override in platform_overrides:
         when: dict = override.get("when", {})
@@ -752,23 +786,30 @@ def _make_resolution_block(
         nonroot_val: str = override.get("nonroot", default)
         when_args = " ".join(f"{k}={v}" for k, v in when.items())
         keyword = "if" if first else "elif"
-        lines.append(f"{indent}{keyword} os__match_spec {when_args}; then")
+        parts.append(f"{indent}{keyword} os__match_spec {when_args}; then")
+        inner_indent = indent + "  "
+        tmpl = (
+            _TMPL_RESOLUTION_SINGLE if root_val == nonroot_val else _TMPL_RESOLUTION_TWO
+        )
+        subs: dict[str, str] = dict(INDENT=inner_indent, KEYWORD="if", VAR=var_prefix)
         if root_val == nonroot_val:
-            lines.append(f'{indent}  {var_prefix}="{root_val}"')
+            subs["VAL"] = root_val
         else:
-            lines.append(f'{indent}  if [ "$(id -u)" = "0" ]; then')
-            lines.append(f'{indent}    {var_prefix}="{root_val}"')
-            lines.append(f"{indent}  else")
-            lines.append(f'{indent}    {var_prefix}="{nonroot_val}"')
-            lines.append(f"{indent}  fi")
+            subs.update(ROOT=root_val, NONROOT=nonroot_val)
+        parts.append(_fill_resolution_tmpl(tmpl, **subs))
         first = False
     uid_keyword = "elif" if platform_overrides else "if"
-    lines.append(f'{indent}{uid_keyword} [ "$(id -u)" = "0" ]; then')
-    lines.append(f'{indent}  {var_prefix}="{default_root}"')
-    lines.append(f"{indent}else")
-    lines.append(f'{indent}  {var_prefix}="{default_nonroot}"')
-    lines.append(f"{indent}fi")
-    return "\n".join(lines)
+    parts.append(
+        _fill_resolution_tmpl(
+            _TMPL_RESOLUTION_TWO,
+            INDENT=indent,
+            KEYWORD=uid_keyword,
+            VAR=var_prefix,
+            ROOT=default_root,
+            NONROOT=default_nonroot,
+        )
+    )
+    return "\n".join(parts)
 
 
 def _first_sentence(text: str) -> str:

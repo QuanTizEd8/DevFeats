@@ -5,7 +5,12 @@
     "")
 @@RESOLUTION_BLOCK@@
       ;;
-    *) ;; # explicit value: use as-is
+    *) # explicit value: validate writability
+      if ! users__can_write "${@@PREFIX_VAR@@}"; then
+        logging__error "Argument '@@OPTNAME@@': '${@@PREFIX_VAR@@}' is not writable and passwordless sudo is not available."
+        exit 1
+      fi
+      ;;
   esac
   logging__info "Argument '@@OPTNAME@@' resolved to '${@@PREFIX_VAR@@}'."
   logging__fn_exit "@@FUNC_NAME@@"

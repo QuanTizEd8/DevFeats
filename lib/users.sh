@@ -47,6 +47,23 @@ users__is_privileged() {
   command -v sudo > /dev/null 2>&1 && sudo -n true 2> /dev/null
 }
 
+# @brief users__can_write <path> — Return 0 if the calling process can write to <path> (or create it if nonexistent).
+#
+# A path is considered writable when:
+#   1. The path itself (or its nearest existing ancestor) is writable by the current process, OR
+#   2. Passwordless sudo is available (users__is_privileged returns 0).
+#
+# Args:
+#   <path>  Absolute path to check (need not exist).
+#
+# Returns: 0 if writable or privileged, 1 otherwise.
+users__can_write() {
+  local _path="$1" _existing
+  _existing="$(file__nearest_existing "$_path")"
+  [ -w "$_existing" ] && return 0
+  users__is_privileged
+}
+
 # @brief users__run_as <user> [--cwd <dir>] -- <command> [args] — Run a command as `<user>`: in-process if already that user, otherwise via `su -l` with bash-quoted argv.
 #
 # Requires `bash` on PATH for the non-self path.
