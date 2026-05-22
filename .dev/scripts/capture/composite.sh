@@ -84,7 +84,7 @@ run_step() {
   local step_rc=0
 
   set +e
-  bash "$single_sh" "$step" -- "$@" 2>"$stderr_cap"
+  bash "$single_sh" "$step" -- "$@" 2> "$stderr_cap"
   step_rc=$?
   set -e
 
@@ -140,7 +140,7 @@ overall_status=Pass
   printf '%s\n' "- Time: ${summary_time}"
   printf '%s\n' "- Status: ${overall_status}"
   printf '%s' "$summary_body"
-} >"$summary_file"
+} > "$summary_file"
 
 printf '\n--- Results ---\n' >&2
 for line in "${result_lines[@]}"; do

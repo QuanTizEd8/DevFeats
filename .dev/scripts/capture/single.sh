@@ -35,7 +35,7 @@ interactive=false
 [[ -t 1 || -t 2 ]] && interactive=true
 
 use_pty=false
-if [[ "$interactive" == true ]] && command -v script >/dev/null 2>&1; then
+if [[ "$interactive" == true ]] && command -v script > /dev/null 2>&1; then
   use_pty=true
 fi
 
@@ -52,7 +52,7 @@ run_logged() {
   fi
 
   if [[ "$use_pty" == true ]]; then
-    if script --version 2>/dev/null | grep -qi util-linux; then
+    if script --version 2> /dev/null | grep -qi util-linux; then
       local qcmd
       printf -v qcmd '%q ' "$@"
       qcmd=${qcmd% }
@@ -79,7 +79,7 @@ strip_ansi() {
 }
 
 set +e
-run_logged "$@" 2>&1 | tee >(strip_ansi >"$logfile")
+run_logged "$@" 2>&1 | tee >(strip_ansi > "$logfile")
 _rc=${PIPESTATUS[0]}
 set -e
 
