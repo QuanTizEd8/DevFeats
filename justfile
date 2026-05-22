@@ -26,35 +26,23 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 [
   group('format'),
-  doc('Format shell files with shfmt (whole tree or pass paths; respects .editorconfig ignores).')
+  doc('Format shell files with shfmt; pass paths to limit scope.')
 ]
 format-sh *files:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [[ $# -gt 0 ]]; then
-      shfmt --write "$@"
-    else
-      shfmt --write --apply-ignore .
-    fi
+    bash .dev/scripts/format/shfmt.sh {{files}}
 
 
 [
   group('format'),
-  doc('Check shell files formatting without writing (CI-style); pass paths to limit scope.')
+  doc('Check shell file formatting with shfmt without writing (CI-only); pass paths to limit scope.')
 ]
 format-sh-check *files:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [[ $# -gt 0 ]]; then
-      shfmt --diff "$@"
-    else
-      shfmt --diff --apply-ignore .
-    fi
+    bash .dev/scripts/format/shfmt.sh --check {{files}}
 
 
 [
   group('format'),
-  doc('Format Python files with ruff.')
+  doc('Format Python files with ruff; pass paths to limit scope.')
 ]
 format-py *files:
     pixi run --environment lint format-py {{ if files != "" { '"' + files + '"' } else { "" } }}
@@ -86,32 +74,12 @@ format-check: format-sh-check format-py-check
 
 [
   group('lint'),
-  doc('Shellcheck tracked shell and assembled src/*/install.bash; no args runs sync-src if src/ missing; pass paths to limit.')
+  doc('Shellcheck tracked shell and assembled src/*/install.bash; pass paths to limit scope.')
 ]
 lint-sh-check *files:
     #!/usr/bin/env bash
     set -euo pipefail
-    ncpu=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
-    # shellcheck with external-sources can be memory-heavy on large files.
-    # Use conservative parallelism by default to avoid OOM kills (exit 137)
-    # in CI and local runs; allow override when needed.
-    jobs="${LINT_JOBS:-2}"
-    if [[ ! "$jobs" =~ ^[0-9]+$ || "$jobs" -lt 1 ]]; then
-      jobs=2
-    fi
-    ((jobs > ncpu)) && jobs="$ncpu"
-    batch="${LINT_BATCH:-2}"
-    if [[ ! "$batch" =~ ^[0-9]+$ || "$batch" -lt 1 ]]; then
-      batch=2
-    fi
-    if [[ $# -gt 0 ]]; then
-      echo "$@" | xargs -P"${jobs}" -n"${batch}" shellcheck
-    else
-      [[ -d src ]] || just sync-src
-      { git ls-files -- '*.sh' '*.bash' | grep -v '^features/[^/]*/install\.bash$'
-        find src -maxdepth 2 -name 'install.bash' 2>/dev/null
-      } | sort -u | xargs -P"${jobs}" -n"${batch}" shellcheck
-    fi
+    exec just capture lint-sh-check -- bash .dev/scripts/lint/sh-check.sh "$@"
 
 
 [
@@ -119,7 +87,7 @@ lint-sh-check *files:
   doc('Check Python files with ruff (no fixes).')
 ]
 lint-py-check:
-    pixi run --environment lint lint-py-check
+    just capture lint-py-check -- pixi run --environment lint lint-py-check
 
 
 [
@@ -127,14 +95,28 @@ lint-py-check:
   doc('Lint and fix Python files with ruff.')
 ]
 lint-py *files:
-    pixi run --environment lint lint-py {{ if files != "" { '"' + files + '"' } else { "" } }}
+    just capture lint-py -- pixi run --environment lint lint-py {{ if files != "" { '"' + files + '"' } else { "" } }}
 
 
 [
   group('lint'),
   doc('Run all linters: shell + Python (check only, no writes).')
 ]
-lint: lint-sh-check lint-py-check
+lint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    exec bash .dev/scripts/capture/composite.sh lint -- \
+      lint-sh-check -- bash .dev/scripts/lint/sh-check.sh \
+      lint-py-check -- pixi run --environment lint lint-py-check
+
+
+# ── Work ──────────────────────────────────────────────────────────────────────
+
+[
+  doc('Format, lint, sync-src, and test for changed files; per-step reports under .local/reports/work/.')
+]
+work:
+    bash .dev/scripts/work/work.sh
 
 
 # ── Sync ──────────────────────────────────────────────────────────────────────
@@ -212,7 +194,7 @@ build-docs-pkg: build-docs
   doc('Run all bats unit tests for lib/ (git submodule init for test/lib/bats required).')
 ]
 test-lib:
-    bash .dev/scripts/test/run-unit.sh
+    just capture test-lib -- bash .dev/scripts/test/run-unit.sh
 
 
 [
@@ -244,7 +226,7 @@ test-lib-envs *args:
   doc('Run Python unit tests for proman/ (pytest).')
 ]
 test-py:
-    pixi run --environment test test-py
+    just capture test-py -- pixi run --environment test test-py
 
 
 [
@@ -252,7 +234,7 @@ test-py:
   doc('Run scenario and fail tests for one feature e.g. just test-feats install-pixi.')
 ]
 test-feats feat *args:
-    pixi run --environment test test-feats {{feat}} {{args}}
+    just capture test-feats -- pixi run --environment test test-feats {{feat}} {{args}}
 
 
 [
@@ -260,21 +242,23 @@ test-feats feat *args:
   doc('Run macOS scenarios for a feature natively e.g. just test-feats-macos install-pixi.')
 ]
 test-feats-macos feat *args:
-    pixi run --environment test test-feats {{feat}} --mode macos {{args}}
+    just capture test-feats-macos -- pixi run --environment test test-feats {{feat}} --mode macos {{args}}
 
 
 [
   group('test'),
-  doc('Run all local test suites: lib (native) + Python + features. Requires docker.')
+  doc('Run local test suites: lib + Python; pass a feature id to also run test-feats. Requires docker for feature tests.')
 ]
-test:
+test feat="":
     #!/usr/bin/env bash
     set -euo pipefail
-    _rc=0
-    just test-lib  || _rc=1
-    just test-py   || _rc=1
-    just test-feats || _rc=1
-    exit "$_rc"
+    feat='{{feat}}'
+    steps=(test-lib -- bash .dev/scripts/test/run-unit.sh)
+    steps+=(test-py -- pixi run --environment test test-py)
+    if [[ -n "$feat" ]]; then
+      steps+=(test-feats -- pixi run --environment test test-feats "$feat")
+    fi
+    exec bash .dev/scripts/capture/composite.sh test -- "${steps[@]}"
 
 
 # ── Release ───────────────────────────────────────────────────────────────────
@@ -324,6 +308,13 @@ fetch-gha *args:
 
 
 # ── Internal ──────────────────────────────────────────────────────────────────
+
+[
+  private,
+  doc('Run a command with live output and a timestamped log under .local/reports/<name>/.')
+]
+capture name +command:
+    bash .dev/scripts/capture/single.sh {{name}} -- {{command}}
 
 [
   private,

@@ -10,8 +10,7 @@ You must always follow these rules and constraints when working on the project:
 
 - Never edit files under `src/`, `.devcontainer/.src/`, `.devcontainer/try-*/`, `.devcontainer/test-*/`, `docs/source/features/`, `docs/source/library/`, and `test/lib/bats/`; they are auto-generated artifacts, symlinks, or dependency submodules.
 - For CI failures, run `just fetch-gha --commit <sha>` or `just fetch-gha --run <workflow-run-id>` (**always in background**; see `justfile`). Logs land under `.local/logs/gha/` by default.
-- Always run `just sync-src` before local feature scenario tests so `src/` exists and matches `features/` + `lib/`.
-- Lint and test commands take a long time to run; always run once, save their entire output to a file in `.local/logs/copilot/`, and review from there.
+- After finishing a change, run `just work` to automatically format, lint, sync, and test only the files changed in the working tree.
 - Never push changes unless explicitly asked to.
 
 ## Guidelines
