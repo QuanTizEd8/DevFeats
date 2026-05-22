@@ -397,16 +397,57 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# users__run_privileged — recursion guard
+# users__run_privileged — sudo absent
 # ---------------------------------------------------------------------------
 
-@test "users__run_privileged: exits with error when sudo absent and install guard is set" {
+@test "users__run_privileged: exits with error when sudo is not installed" {
   users__is_root() { return 1; }
   export -f users__is_root
   begin_path_isolation # sudo not in isolated PATH
-  _USERS_PRIVILEGED_SUDO_INSTALL=1
   run users__run_privileged echo "should not run"
   end_path_isolation
   assert_failure
-  assert_output --partial "cannot be installed without privilege"
+  assert_output --partial "sudo is not installed"
+}
+
+# ---------------------------------------------------------------------------
+# users__is_privileged
+# ---------------------------------------------------------------------------
+
+@test "users__is_privileged: returns 0 when running as root" {
+  users__is_root() { return 0; }
+  export -f users__is_root
+  run users__is_privileged
+  assert_success
+}
+
+@test "users__is_privileged: returns 0 when non-root and sudo is passwordless" {
+  users__is_root() { return 1; }
+  export -f users__is_root
+  create_fake_bin "sudo" ""
+  prepend_fake_bin_path
+  run users__is_privileged
+  assert_success
+}
+
+@test "users__is_privileged: returns 1 when non-root and sudo is not installed" {
+  users__is_root() { return 1; }
+  export -f users__is_root
+  begin_path_isolation
+  run users__is_privileged
+  end_path_isolation
+  assert_failure
+}
+
+@test "users__is_privileged: returns 1 when non-root and sudo requires a password" {
+  users__is_root() { return 1; }
+  export -f users__is_root
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # Fake sudo: exists in PATH but 'sudo -n ...' exits 1 (simulates interactive password prompt).
+  printf '#!/bin/bash\n[[ "$1" == "-n" ]] && exit 1 || exit 0\n' \
+    > "${BATS_TEST_TMPDIR}/bin/sudo"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/sudo"
+  prepend_fake_bin_path
+  run users__is_privileged
+  assert_failure
 }

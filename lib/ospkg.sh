@@ -632,6 +632,21 @@ ospkg__os_release_match() {
   [[ "${_OSPKG__OS_RELEASE[$1],,}" == "${2,,}" ]]
 }
 
+# @brief _ospkg__assert_privilege — Fail fast when the current PM requires root or sudo but neither is available.
+#
+# brew never needs privilege; all other PMs do.
+# Must be called after ospkg__detect so _OSPKG__PKG_MNGR is set.
+#
+# Returns: 0 if privilege is available or not needed; 1 with an error message otherwise.
+_ospkg__assert_privilege() {
+  [[ "$_OSPKG__PKG_MNGR" == "brew" ]] && return 0
+  if users__is_privileged; then
+    return 0
+  fi
+  logging__error "Package manager operations require root or passwordless sudo."
+  return 1
+}
+
 # @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
 #
 # Args:
@@ -695,6 +710,7 @@ ospkg__update() {
   fi
 
   if [[ "$_skip" == false ]]; then
+    _ospkg__assert_privilege || return 1
     logging__info "Updating package lists."
     net__fetch_with_retry --bail-on 2 --retries 10 _ospkg__update_cmd
     _OSPKG__UPDATED=true
@@ -703,40 +719,76 @@ ospkg__update() {
   return 0
 }
 
-# @brief ospkg__install <pkg>... — Install one or more packages. Skips if all are already installed (APT, DNF/YUM, Homebrew).
+# @brief ospkg__install [--update] <pkg>... — Install one or more packages, skipping already-installed ones.
+#
+# Without --update each package is checked via PM-native query; only missing
+# packages are passed to the package manager. With --update already-installed
+# packages are also upgraded (brew uses `brew upgrade`; all other PMs upgrade
+# in place via their install command).
 #
 # Args:
-#   <pkg>...  One or more package names to install.
+#   --update  Also upgrade already-installed packages.
+#   <pkg>...  One or more package names. PM-native version suffixes accepted
+#             (e.g. gh=2.40.0 for apt); the suffix is stripped for the
+#             existence check before calling ospkg__is_installed.
 #
 # Returns: 0 on success.
 ospkg__install() {
   ospkg__detect || return 1
-  if [[ "$_OSPKG__PKG_MNGR" == "brew" ]]; then
-    local _pkg _all_installed=true
-    for _pkg in "$@"; do
-      brew list --formula "$_pkg" > /dev/null 2>&1 || {
-        _all_installed=false
-        break
-      }
-    done
-    [[ "$_all_installed" == true ]] && {
-      logging__info "Packages already installed: $*"
-      return 0
-    }
-  elif [[ "$_OSPKG__PKG_MNGR" = "apt-get" ]]; then
-    if dpkg -s "$@" > /dev/null 2>&1; then
-      logging__info "Packages already installed: $*"
-      return 0
-    fi
-  elif [[ "$_OSPKG__PKG_MNGR" = "dnf" || "$_OSPKG__PKG_MNGR" = "yum" ]]; then
-    local _num_pkgs=$#
-    local _num_installed
-    _num_installed=$("$_OSPKG__PKG_MNGR" -C list installed "$@" 2> /dev/null | sed '1,/^Installed/d' | wc -l) || _num_installed=0
-    if [[ $_num_pkgs -eq $_num_installed ]]; then
-      logging__info "Packages already installed: $*"
-      return 0
-    fi
+  local _do_update=false
+  if [[ "${1:-}" == "--update" ]]; then
+    _do_update=true
+    shift
   fi
+
+  if [[ "$_do_update" == false ]]; then
+    # Filter: collect only packages not yet installed.
+    local -a _to_install=()
+    local _pkg _bare
+    for _pkg in "$@"; do
+      # Strip PM-native version suffix for the existence check.
+      case "$_OSPKG__PKG_MNGR" in
+        apt-get | apk | pacman | zypper) _bare="${_pkg%%=*}" ;;
+        dnf | yum | microdnf) _bare="${_pkg%-[0-9]*}" ;;
+        brew) _bare="${_pkg%%@*}" ;;
+        *) _bare="$_pkg" ;;
+      esac
+      ospkg__is_installed "$_bare" || _to_install+=("$_pkg")
+    done
+    if [[ ${#_to_install[@]} -eq 0 ]]; then
+      logging__info "Packages already installed: $*"
+      return 0
+    fi
+    set -- "${_to_install[@]}"
+  fi
+
+  # brew --update: split into install (new) vs upgrade (existing).
+  if [[ "$_do_update" == true && "$_OSPKG__PKG_MNGR" == "brew" ]]; then
+    local -a _new=() _existing=()
+    local _pkg _bare
+    for _pkg in "$@"; do
+      _bare="${_pkg%%@*}"
+      if ospkg__is_installed "$_bare"; then
+        _existing+=("$_pkg")
+      else
+        _new+=("$_pkg")
+      fi
+    done
+    ospkg__update || true
+    if [[ ${#_new[@]} -gt 0 ]]; then
+      logging__info "Installing packages:"
+      printf '  - %s\n' "${_new[@]}" >&2
+      _ospkg__brew_run install "${_new[@]}" >&2
+    fi
+    if [[ ${#_existing[@]} -gt 0 ]]; then
+      logging__info "Upgrading packages:"
+      printf '  - %s\n' "${_existing[@]}" >&2
+      _ospkg__brew_run upgrade "${_existing[@]}" >&2
+    fi
+    return 0
+  fi
+
+  _ospkg__assert_privilege || return 1
   ospkg__update || true
   logging__info "Installing packages:"
   printf '  - %s\n' "$@" >&2
@@ -985,6 +1037,31 @@ _ospkg__apk_virts_file() {
   printf '%s.apkvirts' "$1"
 }
 
+# @brief ospkg__is_installed <pkg>... — Return 0 if all listed packages are installed.
+#
+# Uses PM-native point queries; no subshell, no file I/O. Calls `ospkg__detect`
+# automatically. Accepts bare package names only (no version suffixes).
+#
+# Args:
+#   <pkg>...  One or more bare package names.
+#
+# Returns: 0 if all packages are installed, 1 if any is missing or PM unknown.
+ospkg__is_installed() {
+  ospkg__detect || return 1
+  local _pkg
+  for _pkg in "$@"; do
+    case "$_OSPKG__PKG_MNGR" in
+      apt-get) dpkg -s "$_pkg" > /dev/null 2>&1 ;;
+      apk) apk info -e "$_pkg" > /dev/null 2>&1 ;;
+      dnf | yum | microdnf) rpm -q "$_pkg" > /dev/null 2>&1 ;;
+      zypper) rpm -q "$_pkg" > /dev/null 2>&1 ;;
+      pacman) pacman -Qq "$_pkg" > /dev/null 2>&1 ;;
+      brew) brew list --formula "$_pkg" > /dev/null 2>&1 ;;
+      *) return 1 ;;
+    esac || return 1
+  done
+}
+
 # _ospkg__snapshot_packages <dest-file> — writes a sorted list of installed
 # package names (one per line) to <dest-file>.
 _ospkg__snapshot_packages() {
@@ -1157,17 +1234,28 @@ ospkg__install_tracked() {
   if [[ "$_OSPKG__PKG_MNGR" == "apk" ]]; then
     # APK: create a named virtual group so 'apk del VIRT' at cleanup removes
     # exactly our packages — and only those no longer needed by world.
-    local _sidecar _virts_file _virt_name _count _existing_virts=()
-    _sidecar="${_bd_dir}/${_group_id//\//_}"
-    _virts_file="$(_ospkg__apk_virts_file "$_sidecar")"
-    [[ -f "$_virts_file" ]] && mapfile -t _existing_virts < "$_virts_file"
-    _count="${#_existing_virts[@]}"
-    _virt_name="$(_ospkg__apk_virtual_name "$_group_id")-${_count}"
-    users__run_privileged apk add --no-cache --virtual "$_virt_name" "$@" >&2 || return 1
-    printf '%s\n' "$_virt_name" >> "$_virts_file"
-    # Keep a human-readable sidecar for logging and session tracking.
-    printf '%s\n' "$@" >> "$_sidecar"
-    sort -u "$_sidecar" -o "$_sidecar"
+    # Filter to only packages not already installed: pre-existing packages must
+    # not be tracked in the virtual group or they would be removed at cleanup.
+    local -a _apk_to_install=()
+    local _pkg
+    for _pkg in "$@"; do
+      ospkg__is_installed "$_pkg" || _apk_to_install+=("$_pkg")
+    done
+    if [[ ${#_apk_to_install[@]} -gt 0 ]]; then
+      local _sidecar _virts_file _virt_name _count _existing_virts=()
+      _sidecar="${_bd_dir}/${_group_id//\//_}"
+      _virts_file="$(_ospkg__apk_virts_file "$_sidecar")"
+      [[ -f "$_virts_file" ]] && mapfile -t _existing_virts < "$_virts_file"
+      _count="${#_existing_virts[@]}"
+      _virt_name="$(_ospkg__apk_virtual_name "$_group_id")-${_count}"
+      users__run_privileged apk add --no-cache --virtual "$_virt_name" "${_apk_to_install[@]}" >&2 || return 1
+      printf '%s\n' "$_virt_name" >> "$_virts_file"
+      # Keep a human-readable sidecar for logging and session tracking.
+      printf '%s\n' "${_apk_to_install[@]}" >> "$_sidecar"
+      sort -u "$_sidecar" -o "$_sidecar"
+    else
+      logging__info "Packages already installed: $*"
+    fi
   else
     _ospkg__snapshot_packages "$_before_snapshot"
     ospkg__install "$@" || return 1
@@ -1978,10 +2066,23 @@ ospkg__run() {
       done
     fi
 
-    # Phase: PACKAGE LIST UPDATE.
-    if [[ (${#_Y_PACKAGES[@]} -gt 0 || "$_yaml_repo_added" == true) && "$_update" == true ]]; then
-      local _update_args=(--lists_max_age "$_lists_max_age")
-      [[ "$_yaml_repo_added" == true ]] && _update_args+=(--repo_added)
+    # Phase: INSTALL PACKAGES.
+    # Package list update is deferred: called lazily only when a package
+    # actually needs installing (or a repo was added but no packages ran).
+    # This avoids running privileged ospkg__update when --skip_installed
+    # causes all packages to be skipped.
+    local -a _update_args=(--lists_max_age "$_lists_max_age")
+    [[ "$_yaml_repo_added" == true ]] && _update_args+=(--repo_added)
+    local _pkg_update_done=false
+    _ensure_pkg_update() {
+      [[ "$_pkg_update_done" == true ]] && return 0
+      _pkg_update_done=true
+      if [[ "$_update" == false ]]; then
+        logging__info "Package list update skipped (update=false)."
+        _OSPKG__UPDATED=true
+        [[ "$_yaml_repo_added" == true ]] && logging__warn "A repository was added but update=false — packages may not be found."
+        return 0
+      fi
       if [[ "$_dry_run" == true ]]; then
         if [[ ${#_OSPKG__UPDATE[@]} -gt 0 ]]; then
           logging__inspect "[dry-run] update: would run: ${_OSPKG__UPDATE[*]}"
@@ -1991,17 +2092,7 @@ ospkg__run() {
       else
         ospkg__update "${_update_args[@]}"
       fi
-    elif [[ ${#_Y_PACKAGES[@]} -eq 0 && "$_yaml_repo_added" == false ]]; then
-      logging__info "Package list update skipped (no packages and no repos in manifest)."
-    else
-      logging__info "Package list update skipped (update=false)."
-      _OSPKG__UPDATED=true
-      if [[ "$_yaml_repo_added" == true ]]; then
-        logging__warn "A repository was added but update=false — packages may not be found."
-      fi
-    fi
-
-    # Phase: INSTALL PACKAGES.
+    }
     local -a _pkgs_to_install=() _pkg_base_names=()
     local _pkgitem _pkgname _pkgflags _pkgversion _pkginstall
     for _pkgitem in "${_Y_PACKAGES[@]}"; do
@@ -2022,14 +2113,15 @@ ospkg__run() {
         _pkginstall="${_pkgname}"
       fi
 
-      if [[ "$_skip_installed" == true ]] && command -v "$_pkgname" > /dev/null 2>&1; then
-        logging__info "'${_pkgname}' already available in PATH — skipping."
+      if [[ "$_skip_installed" == true ]] && ospkg__is_installed "$_pkgname"; then
+        logging__info "'${_pkgname}' already installed — skipping."
         [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         continue
       fi
 
       # For PMs that support per-package flags, build the install command.
       if [[ -n "${_pkgflags:-}" ]]; then
+        _ensure_pkg_update || return 1
         if [[ "$_dry_run" == true ]]; then
           logging__inspect "[dry-run] package: ${_OSPKG__INSTALL[*]} ${_pkgflags} ${_pkginstall}"
         else
@@ -2045,6 +2137,7 @@ ospkg__run() {
     done
 
     if [[ ${#_pkgs_to_install[@]} -gt 0 ]]; then
+      _ensure_pkg_update || return 1
       logging__install "Installing ${#_pkgs_to_install[@]} package(s)."
       if [[ "$_dry_run" == true ]]; then
         logging__inspect "[dry-run] packages: ${_pkgs_to_install[*]}"
@@ -2054,6 +2147,12 @@ ospkg__run() {
       fi
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then
       logging__info "No packages to install — skipping."
+    fi
+
+    # If a repo was added but no packages needed installing, still refresh so
+    # the newly configured repo is usable by subsequent code.
+    if [[ "$_yaml_repo_added" == true && "$_pkg_update_done" == false ]]; then
+      _ensure_pkg_update || return 1
     fi
 
     # Phase: CASKS (brew/macOS only).

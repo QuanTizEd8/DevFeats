@@ -145,6 +145,74 @@ _seed_apt_context() {
 }
 
 # ---------------------------------------------------------------------------
+# _ospkg__assert_privilege
+# ---------------------------------------------------------------------------
+
+@test "_ospkg__assert_privilege: returns 0 for brew (no privilege required)" {
+  reload_lib ospkg.sh
+  _OSPKG__DETECTED=true
+  _OSPKG__PKG_MNGR="brew"
+  run _ospkg__assert_privilege
+  assert_success
+}
+
+@test "_ospkg__assert_privilege: returns 0 when running as root" {
+  _seed_apt_context
+  users__is_root() { return 0; }
+  export -f users__is_root
+  run _ospkg__assert_privilege
+  assert_success
+}
+
+@test "_ospkg__assert_privilege: returns 0 when sudo is available and passwordless (non-root)" {
+  _seed_apt_context
+  users__is_root() { return 1; }
+  export -f users__is_root
+  create_fake_bin "sudo" ""
+  prepend_fake_bin_path
+  run _ospkg__assert_privilege
+  assert_success
+}
+
+@test "_ospkg__assert_privilege: returns 1 with error when sudo requires a password" {
+  _seed_apt_context
+  users__is_root() { return 1; }
+  export -f users__is_root
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # sudo exists in PATH but 'sudo -n true' fails (simulates a password-protected sudo).
+  printf '#!/bin/bash\n[[ "$1" == "-n" ]] && exit 1 || exit 0\n' \
+    > "${BATS_TEST_TMPDIR}/bin/sudo"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/sudo"
+  prepend_fake_bin_path
+  run _ospkg__assert_privilege
+  assert_failure
+  assert_output --partial "passwordless sudo"
+}
+
+@test "_ospkg__assert_privilege: returns 1 with error when non-root and no sudo" {
+  _seed_apt_context
+  users__is_root() { return 1; }
+  export -f users__is_root
+  begin_path_isolation
+  run _ospkg__assert_privilege
+  end_path_isolation
+  assert_failure
+  assert_output --partial "passwordless sudo"
+}
+
+@test "ospkg__update: fails immediately when non-root and sudo absent (no retry)" {
+  _seed_apt_context
+  users__is_root() { return 1; }
+  export -f users__is_root
+  begin_path_isolation
+  run ospkg__update --force
+  end_path_isolation
+  assert_failure
+  assert_output --partial "passwordless sudo"
+  refute_output --partial "retrying"
+}
+
+# ---------------------------------------------------------------------------
 # ospkg__install
 # ---------------------------------------------------------------------------
 
@@ -162,6 +230,64 @@ _seed_apt_context() {
   run ospkg__install curl
   assert_success
   assert_output --partial "already installed"
+}
+
+@test "ospkg__install: fails immediately when non-root and sudo absent (no retry)" {
+  _seed_apt_context
+  users__is_root() { return 1; }
+  export -f users__is_root
+  # Fake dpkg exits 1: package appears not installed, so install is attempted.
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  begin_path_isolation
+  run ospkg__install curl
+  end_path_isolation
+  assert_failure
+  assert_output --partial "passwordless sudo"
+  refute_output --partial "retrying"
+}
+
+@test "ospkg__install: installs only missing packages when some are already installed" {
+  _seed_apt_context
+  users__is_root() { return 0; }
+  export -f users__is_root
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # dpkg: returns 0 (installed) for curl, 1 (not installed) for wget.
+  printf '#!/bin/bash\n[[  "$2" == "curl" ]] && exit 0 || exit 1\n' \
+    > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  # Logging apt-get: records its arguments so we can inspect them.
+  local _log="${BATS_TEST_TMPDIR}/apt-get.log"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_log" \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  prepend_fake_bin_path
+  run ospkg__install curl wget
+  assert_success
+  grep -q "wget" "$_log"
+  ! grep -q "curl" "$_log"
+}
+
+@test "ospkg__install --update: passes all packages including already-installed ones" {
+  _seed_apt_context
+  users__is_root() { return 0; }
+  export -f users__is_root
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # dpkg: returns 0 (installed) for curl, 1 (not installed) for wget.
+  printf '#!/bin/bash\n[[ "$2" == "curl" ]] && exit 0 || exit 1\n' \
+    > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  # Logging apt-get: records its arguments so we can inspect them.
+  local _log="${BATS_TEST_TMPDIR}/apt-get.log"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_log" \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  prepend_fake_bin_path
+  run ospkg__install --update curl wget
+  assert_success
+  grep -q "curl" "$_log"
+  grep -q "wget" "$_log"
 }
 
 # ---------------------------------------------------------------------------
@@ -979,6 +1105,138 @@ _seed_managed_context() {
 }
 
 # ---------------------------------------------------------------------------
+# ospkg__is_installed
+# ---------------------------------------------------------------------------
+
+@test "ospkg__is_installed: apt — returns 0 when dpkg reports package installed" {
+  _seed_apt_context
+  create_fake_bin "dpkg" ""
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_success
+}
+
+@test "ospkg__is_installed: apt — returns 1 when dpkg reports package not installed" {
+  _seed_apt_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_failure
+}
+
+@test "ospkg__is_installed: apk — returns 0 when apk info -e succeeds" {
+  _seed_apk_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 0\n' > "${BATS_TEST_TMPDIR}/bin/apk"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_success
+}
+
+@test "ospkg__is_installed: apk — returns 1 when apk info -e fails" {
+  _seed_apk_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/apk"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_failure
+}
+
+@test "ospkg__is_installed: dnf — returns 0 when rpm -q succeeds" {
+  reload_lib ospkg.sh
+  _OSPKG__DETECTED=true
+  _OSPKG__PKG_MNGR="dnf"
+  create_fake_bin "rpm" ""
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_success
+}
+
+@test "ospkg__is_installed: dnf — returns 1 when rpm -q fails" {
+  reload_lib ospkg.sh
+  _OSPKG__DETECTED=true
+  _OSPKG__PKG_MNGR="dnf"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/rpm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/rpm"
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_failure
+}
+
+@test "ospkg__is_installed: pacman — returns 0 when pacman -Qq succeeds" {
+  _seed_pacman_context
+  create_fake_bin "pacman" ""
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_success
+}
+
+@test "ospkg__is_installed: pacman — returns 1 when pacman -Qq fails" {
+  _seed_pacman_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/pacman"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pacman"
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_failure
+}
+
+@test "ospkg__is_installed: brew — returns 0 when brew list --formula succeeds" {
+  reload_lib ospkg.sh
+  _OSPKG__DETECTED=true
+  _OSPKG__PKG_MNGR="brew"
+  create_fake_bin "brew" ""
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_success
+}
+
+@test "ospkg__is_installed: brew — returns 1 when brew list --formula fails" {
+  reload_lib ospkg.sh
+  _OSPKG__DETECTED=true
+  _OSPKG__PKG_MNGR="brew"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/brew"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/brew"
+  prepend_fake_bin_path
+  run ospkg__is_installed curl
+  assert_failure
+}
+
+@test "ospkg__is_installed: multiple packages — returns 0 when all installed" {
+  _seed_apt_context
+  create_fake_bin "dpkg" ""
+  prepend_fake_bin_path
+  run ospkg__is_installed curl wget git
+  assert_success
+}
+
+@test "ospkg__is_installed: multiple packages — returns 1 when one package is not installed" {
+  _seed_apt_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # dpkg returns 0 for curl and wget, but 1 for git.
+  printf '#!/bin/bash\n[[  "$2" == "git" ]] && exit 1 || exit 0\n' \
+    > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  prepend_fake_bin_path
+  run ospkg__is_installed curl wget git
+  assert_failure
+}
+
+@test "ospkg__is_installed: returns 1 when ospkg__detect fails" {
+  reload_lib ospkg.sh
+  begin_path_isolation uname
+  run ospkg__is_installed curl
+  end_path_isolation
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
 @test "ospkg__run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
   _require_ospkg_jq
@@ -1458,12 +1716,23 @@ _seed_yum_context() {
 }
 
 # _seed_apk_build_context — APK context + tracked apk fake.
+# The fake apk handles:
+#   info -e <pkg>  — returns 0 if <pkg> is listed in apk-installed.txt, else 1.
+#   anything else  — logs args to apk.log and returns 0.
+# Seed pre-installed packages by writing one package per line to
+#   "${BATS_TEST_TMPDIR}/apk-installed.txt" before calling the function.
 _seed_apk_build_context() {
   _seed_apk_context
   export _SYSSET_BUILD_CONTEXT="ctx"
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
-  printf '#!/bin/bash\necho "$@" >> "%s/apk.log"\n' \
-    "${BATS_TEST_TMPDIR}" > "${BATS_TEST_TMPDIR}/bin/apk"
+  local _installed="${BATS_TEST_TMPDIR}/apk-installed.txt"
+  local _log="${BATS_TEST_TMPDIR}/apk.log"
+  printf '#!/bin/bash\n' > "${BATS_TEST_TMPDIR}/bin/apk"
+  printf 'if [[ "$1" == "info" && "$2" == "-e" ]]; then\n' >> "${BATS_TEST_TMPDIR}/bin/apk"
+  printf '  [[ -f "%s" ]] && grep -qxF "$3" "%s"\n' "$_installed" "$_installed" >> "${BATS_TEST_TMPDIR}/bin/apk"
+  printf 'else\n' >> "${BATS_TEST_TMPDIR}/bin/apk"
+  printf '  echo "$@" >> "%s"\n' "$_log" >> "${BATS_TEST_TMPDIR}/bin/apk"
+  printf 'fi\n' >> "${BATS_TEST_TMPDIR}/bin/apk"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
   prepend_fake_bin_path
 }
@@ -2170,6 +2439,19 @@ _create_smart_rpm() {
 
   run ospkg__install_tracked "lib-build" cmake
   assert_failure
+}
+
+@test "ospkg__install_tracked: apk — skips apk add when all packages already installed" {
+  printf 'cmake\nninja\n' > "${BATS_TEST_TMPDIR}/apk-installed.txt"
+  _seed_apk_build_context
+
+  ospkg__install_tracked "lib-build" cmake ninja
+
+  # apk add must NOT have been called — no .apkvirts, no sidecar, no apk.log
+  local _bd="${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  [[ ! -f "${_bd}/ctx::lib-build.apkvirts" ]]
+  [[ ! -f "${_bd}/ctx::lib-build" ]]
+  [[ ! -f "${BATS_TEST_TMPDIR}/apk.log" ]] || ! grep -q "add" "${BATS_TEST_TMPDIR}/apk.log"
 }
 
 # ---------------------------------------------------------------------------

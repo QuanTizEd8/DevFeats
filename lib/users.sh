@@ -34,6 +34,19 @@ users__is_root() {
   [ "$(id -u)" -eq 0 ]
 }
 
+# @brief users__is_privileged — Return 0 when the current process can run privileged commands.
+#
+# A process is considered privileged when it is root (uid 0), or when `sudo`
+# is installed and configured for passwordless operation.
+#
+# No output is produced; intended as a boolean predicate.
+#
+# Returns: 0 if privileged, 1 otherwise.
+users__is_privileged() {
+  users__is_root && return 0
+  command -v sudo > /dev/null 2>&1 && sudo -n true 2> /dev/null
+}
+
 # @brief users__run_as <user> [--cwd <dir>] -- <command> [args] — Run a command as `<user>`: in-process if already that user, otherwise via `su -l` with bash-quoted argv.
 #
 # Requires `bash` on PATH for the non-self path.
@@ -91,8 +104,8 @@ users__run_as() {
 
 # @brief users__run_privileged <cmd> [<args>...] — Run a command as root.
 #
-# If already root (uid 0), runs directly. Otherwise ensures sudo is installed
-# (via the system package manager) and delegates to sudo.
+# If already root (uid 0), runs directly. Otherwise requires sudo to be
+# pre-installed and configured for passwordless operation.
 #
 # Args:
 #   <cmd> [<args>...]  Command and arguments to execute.
@@ -103,13 +116,8 @@ users__run_privileged() {
     "$@"
   else
     if ! command -v sudo > /dev/null 2>&1; then
-      if [[ "${_USERS_PRIVILEGED_SUDO_INSTALL:-}" == "1" ]]; then
-        # Guard against infinite recursion: ospkg__run itself calls
-        # users__run_privileged, so we must not re-enter here.
-        logging__error "users__run_privileged: sudo is not installed and cannot be installed without privilege (cmd='${*}')"
-        return 1
-      fi
-      _USERS_PRIVILEGED_SUDO_INSTALL=1 ospkg__run --manifest 'packages: [sudo]' --build-group "lib-users" --skip_installed
+      logging__error "users__run_privileged: sudo is not installed (cmd='${*}')"
+      return 1
     fi
     if ! sudo -n true 2> /dev/null; then
       logging__error "users__run_privileged: passwordless sudo required but not available (uid=$(id -u), user=$(id -un), cmd='${*}')"
