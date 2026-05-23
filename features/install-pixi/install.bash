@@ -280,7 +280,7 @@ install_completion
 # ---------------------------------------------------------------------------
 if os__is_devcontainer_build; then
   _ENTRYPOINT_DEST="${_LIFECYCLE_SCRIPT_DIR}/entrypoint.sh"
-  install__copy_bin "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
+  install__copy_bin "${_FEAT_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
   printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
     > "${_LIFECYCLE_SCRIPT_DIR}/entrypoint.sh.conf"
 fi

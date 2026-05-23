@@ -141,7 +141,7 @@ _git__install_package() {
     # On Ubuntu + apt, install git from ppa:git-core/ppa (latest upstream git).
     # The ppa manifest group has when: {id: ubuntu, pm: apt}, so it is a no-op
     # on any other platform that might reach this branch.
-    _run_deps__install_ppa
+    _dep_install_runtime_ppa
     return 0
   fi
 
@@ -150,7 +150,7 @@ _git__install_package() {
     # shellcheck disable=SC2059
     ospkg__run --manifest "$(printf 'packages:\n  - name: git\n    version: "%s"\n' "${VERSION}")"
   else
-    _run_deps__install_os_pkg
+    _dep_install_runtime_os_pkg
   fi
   return 0
 }
@@ -335,7 +335,7 @@ _git__install_source() {
   # User-local installs cannot invoke the OS package manager; assume deps were
   # preinstalled by the caller (e.g. Linux non-root test setup).
   if ! users__is_user_path "${PREFIX}"; then
-    _build_deps__install_source_build
+    _dep_install_buildtime_source_build
   else
     logging__info "User-local mode: skipping build dependency installation; expecting required packages to be preinstalled."
   fi

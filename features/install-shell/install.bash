@@ -621,7 +621,7 @@ configure_user() {
   return 0
 }
 
-_SKEL_DIR="${_FILES_DIR}/skel"
+_SKEL_DIR="${_FEAT_FILES_DIR}/skel"
 
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
@@ -698,7 +698,7 @@ logging__info "Deploying system-wide shell configuration files..."
 
 # --- Shared (shell-agnostic) files ---
 for _name in shellenv shellrc shellaliases; do
-  _src="${_FILES_DIR}/shell/${_name}"
+  _src="${_FEAT_FILES_DIR}/shell/${_name}"
   _dest="/etc/${_name}"
   if [ -f "$_src" ]; then
     file__cp -f "$_src" "$_dest"
@@ -708,7 +708,7 @@ for _name in shellenv shellrc shellaliases; do
 done
 
 # --- /etc/profile ---
-_src="${_FILES_DIR}/profile"
+_src="${_FEAT_FILES_DIR}/profile"
 if [ -f "$_src" ]; then
   file__cp -f "$_src" "/etc/profile"
   file__chmod 644 "/etc/profile"
@@ -717,7 +717,7 @@ fi
 
 # --- Bash system-wide bashrc ---
 _SYS_BASHRC="$(shell__detect_bashrc)"
-_src="${_FILES_DIR}/bash/bashrc"
+_src="${_FEAT_FILES_DIR}/bash/bashrc"
 if [ -f "$_src" ]; then
   file__mkdir "$(dirname "$_SYS_BASHRC")"
   file__cp -f "$_src" "$_SYS_BASHRC"
@@ -726,7 +726,7 @@ if [ -f "$_src" ]; then
 fi
 
 # --- Bash bashenv (if present in files/) ---
-_src="${_FILES_DIR}/bash/bashenv"
+_src="${_FEAT_FILES_DIR}/bash/bashenv"
 if [ -f "$_src" ]; then
   # Place bashenv next to bashrc: /etc/bash/bashenv, /etc/bashenv, etc.
   _bashenv_dest="$(dirname "$_SYS_BASHRC")/bashenv"
@@ -753,7 +753,7 @@ if command -v zsh > /dev/null 2>&1; then
   file__mkdir "$_ZSH_ETC"
 
   for _name in zshenv zprofile zshrc; do
-    _src="${_FILES_DIR}/zsh/${_name}"
+    _src="${_FEAT_FILES_DIR}/zsh/${_name}"
     _dest="${_ZSH_ETC}/${_name}"
     if [ -f "$_src" ]; then
       file__cp -f "$_src" "$_dest"

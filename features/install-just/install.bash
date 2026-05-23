@@ -29,7 +29,7 @@ _install__just_install_release() {
 }
 
 _install__just_install_repos() {
-  _run_deps__install_os_pkg
+  _dep_install_runtime_os_pkg
 }
 
 _install__just_install_script() {

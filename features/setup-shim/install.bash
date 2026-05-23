@@ -6,7 +6,7 @@ _SHIM_BIN="${PREFIX}/bin"
 mkdir -p "${_SHIM_BIN}"
 
 install_shim() {
-  _src="${_FILES_DIR}/$1"
+  _src="${_FEAT_FILES_DIR}/$1"
   _dst="${_SHIM_BIN}/$1"
   if [ ! -f "$_src" ]; then
     logging__error "setup-shim: source file not found: ${_src}"

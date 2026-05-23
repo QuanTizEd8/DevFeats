@@ -126,6 +126,6 @@ done
 if os__is_devcontainer_build; then
   _ENTRYPOINT_DEST="${_LIFECYCLE_SCRIPT_DIR}/entrypoint.sh"
   file__mkdir "${_LIFECYCLE_SCRIPT_DIR}"
-  file__cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
+  file__cp "${_FEAT_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
   file__chmod +x "$_ENTRYPOINT_DEST"
 fi
