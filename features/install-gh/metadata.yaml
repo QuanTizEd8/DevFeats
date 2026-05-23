@@ -13,7 +13,6 @@ _long_description: >-
   binary from GitHub Releases with SHA-256 verification. After installation the feature
   can configure shell completions, a per-user Git credential helper, Git protocol, and
   commit signing for all resolved users. Extensions can be pre-installed during setup.
-_installer_dir: true
 options:
   method:
     type: string

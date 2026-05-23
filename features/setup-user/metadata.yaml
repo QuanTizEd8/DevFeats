@@ -12,6 +12,8 @@ _long_description: >-
   /etc/skel, and a configurable login shell. Passwordless sudo access and supplementary
   group membership can be granted. Compatible with Debian/Ubuntu, Alpine, Fedora/RHEL,
   and any image providing the standard POSIX user management utilities.
+_options:
+  installer_dir: false
 options:
   username:
     default: vscode

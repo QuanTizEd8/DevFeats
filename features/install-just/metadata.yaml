@@ -10,7 +10,6 @@ _long_description: |-
   Installs the `just` command runner with configurable installation methods:
   GitHub release assets, distro package repositories, the official installer script,
   and Cargo-based installation.
-_installer_dir: true
 options:
   method:
     type: string

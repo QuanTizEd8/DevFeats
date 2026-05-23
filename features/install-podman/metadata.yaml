@@ -37,6 +37,8 @@ mounts:
 # per-user graphRoot parent directory (/var/lib/containers/storage/users/)
 # has correct sticky-world-writable permissions.
 entrypoint: "${{ _env_vars.devcontainer_lifecycle_hook_path }}$/entrypoint.sh"
+_options:
+  installer_dir: false
 options:
   add_current_user:
     type: boolean

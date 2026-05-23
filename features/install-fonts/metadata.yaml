@@ -14,7 +14,6 @@ _long_description: >-
   from individual font files and archives at arbitrary URLs — all in a single feature
   invocation. Archives are extracted automatically, and font caches are refreshed after
   installation.
-_installer_dir: true
 options:
   nerd_fonts:
     default: "Meslo\nJetBrainsMono"

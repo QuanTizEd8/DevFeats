@@ -15,7 +15,6 @@ _long_description: >-
   downloaded, verified against its SHA-256 checksum sidecar (hard-fail on mismatch or missing sidecar), and run non-interactively.
   Shell activation is written to the appropriate startup files and can be scoped to
   specific users.
-_installer_dir: true
 options:
   version:
     default: stable

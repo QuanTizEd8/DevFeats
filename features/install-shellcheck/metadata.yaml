@@ -14,7 +14,6 @@ _long_description: |-
   Note: upstream releases do not provide an ARM64 macOS binary; on Apple
   Silicon `method=binary` is unavailable and `method=auto` falls back to
   the package manager automatically.
-_installer_dir: true
 options:
   method:
     type: string

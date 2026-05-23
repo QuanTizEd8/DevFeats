@@ -16,6 +16,8 @@ _long_description: >-
   devcontainer-info shim reads dev container metadata from the standard environment
   files and displays or returns specific fields on request. Each shim can be individually
   enabled or disabled.
+_options:
+  installer_dir: false
 containerEnv:
   PATH: "${{ _env_vars.share_dir_root }}$/bin:$PATH"
 options:

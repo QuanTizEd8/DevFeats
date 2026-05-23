@@ -16,7 +16,6 @@ _long_description: |-
   build scripts, CI tasks, and interactive shell sessions. By default, the latest stable ORAS version is
   installed, or you can pin a specific release. The installer supports release-based installation
   and package-manager installation, with `auto` preferring the release path first.
-_installer_dir: true
 options:
   version:
     type: string

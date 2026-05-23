@@ -32,7 +32,6 @@ _long_description: |-
     option influences the package set selected where the distro offers multiple granularity levels.
     Version is controlled by the distribution's package policy.
 
-_installer_dir: true
 options:
   method:
     type: string

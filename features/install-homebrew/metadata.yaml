@@ -15,7 +15,6 @@ _long_description: |-
   After installation the feature writes an `eval "$(brew shellenv)"` block to
   the appropriate shell startup files so that `brew` and any tools it installs
   are on `PATH` in subsequent shell sessions.
-_installer_dir: true
 options:
   install_user:
     type: string

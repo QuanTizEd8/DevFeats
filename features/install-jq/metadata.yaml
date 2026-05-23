@@ -10,7 +10,6 @@ _long_description: |-
   Installs `jq`, the lightweight command-line JSON processor written in portable C.
   Widely used for filtering, transforming, and validating JSON in shell pipelines,
   CI/CD scripts, and configuration tooling.
-_installer_dir: true
 options:
   method:
     type: string

@@ -10,7 +10,6 @@ keywords:
 _long_description: |-
   Installs `shfmt`, the shell script formatter from the mvdan/sh project.
   Supports formatting sh, bash, and mksh scripts.
-_installer_dir: true
 options:
   method:
     type: string

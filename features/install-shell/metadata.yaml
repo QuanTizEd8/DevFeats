@@ -14,7 +14,6 @@ _long_description: >-
   Both Zsh and Bash can be extended with their respective framework ecosystems (themes,
   plugins, completions), and [Starship](https://starship.rs/) provides a fast,
   context-aware prompt that works across all configured shells.
-_installer_dir: true
 options:
   install_zsh:
     type: boolean

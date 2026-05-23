@@ -14,7 +14,6 @@ _long_description: >-
   the official Pixi release channel, with optional version pinning and checksum
   verification. Shell activation is configured for the specified users after installation.
 _user_file_fetch: true
-_installer_dir: true
 options:
   version:
     type: string

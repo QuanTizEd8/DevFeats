@@ -19,7 +19,6 @@ _long_description: |-
 
   Version aliases such as lts/*, --lts, or a major version number are supported alongside
   exact semver strings; the default installs the latest Active LTS release.
-_installer_dir: true
 options:
   method:
     type: string

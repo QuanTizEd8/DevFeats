@@ -13,7 +13,6 @@ _long_description: >-
   supporting every Linux distribution and macOS. After installation, system-level Git
   configuration and per-user identity settings are written for all resolved users. Shell
   completions are installed following source builds.
-_installer_dir: true
 options:
   method:
     type: string

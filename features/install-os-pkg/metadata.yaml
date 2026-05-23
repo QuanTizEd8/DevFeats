@@ -23,6 +23,8 @@ _long_description: >-
   with environment selectors, repository configuration,
   key import, and pre/post install hooks.
 _user_file_fetch: true
+_options:
+  installer_dir: false
 options:
   manifest:
     default: ''

@@ -14,6 +14,8 @@ _long_description: >-
   Conda must already be available on the system; pair with the install-miniforge feature
   to provide it.
 _user_file_fetch: true
+_options:
+  installer_dir: false
 options:
   conda_dir:
     default: ''

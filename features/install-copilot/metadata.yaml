@@ -7,6 +7,8 @@ keywords:
 - llm
 _long_description: >-
   Placeholder
+_options:
+  installer_dir: false
 options:
   vscode_user_dir:
     type: string
