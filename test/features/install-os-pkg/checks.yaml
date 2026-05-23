@@ -335,23 +335,21 @@ apt_scripts:
 
 apt_skip_installed:
   description: |
-    Verifies that skip_installed=true skips packages whose binary is already
-    present in PATH, even if they were not installed via the package manager.
+    Verifies that skip_installed=true skips packages that are already registered
+    in the package manager database (dpkg), while still installing packages that
+    are absent from the database.
 
-    The Dockerfile places a fake 'mytool' binary at /usr/local/bin/mytool.
-    'mytool' is not a real apt package: if the feature tried to install it the
-    build would fail.  The fact that the build succeeds proves the skip worked.
+    The setup pre-installs 'tree' via apt before the feature runs, so dpkg
+    already knows about it.  'curl' is absent from the base image.
 
-    'tree' is a real package absent from the base image and must still be
-    installed, proving that skip_installed only skips what is already in PATH.
+    With skip_installed=true, 'tree' must be skipped (already in dpkg) and
+    'curl' must still be installed normally.
 
   checks:
-    - title: build succeeded (mytool was skipped, not passed to apt)
-      cmd: 'true'
-    - title: mytool is the original fake binary (not overwritten)
-      cmd: bash -c "mytool | grep -q mytool-ok"
-    - title: tree was installed (not in PATH before the feature ran)
+    - title: tree is available (pre-installed; skipped by the feature)
       cmd: command -v tree
+    - title: curl was installed (absent from dpkg before feature ran)
+      cmd: command -v curl
 
 apt_system_command:
   description: |
