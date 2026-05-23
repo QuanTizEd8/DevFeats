@@ -181,11 +181,11 @@ EOF
 @test "users__resolve_home falls back to /etc/passwd awk scan when getent is absent" {
   ospkg__run() { return 1; }
   export -f ospkg__run
-  begin_path_isolation awk mktemp
+  begin_path_isolation awk mktemp uname
   run --separate-stderr users__resolve_home "root"
   end_path_isolation
   assert_success
-  assert_output "/root"
+  assert_output "$(eval echo '~root')"
 }
 
 @test "users__resolve_home returns unexpanded tilde when user is absent from all sources" {
@@ -484,6 +484,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "_users__ensure_getent: returns 0 when getent is present" {
+  [[ "$(uname)" != "Darwin" ]] || skip "getent is unavailable on macOS"
   run _users__ensure_getent
   assert_success
 }
@@ -686,7 +687,8 @@ EOF
   users__is_root() { return 0; }
   users__resolve_home() { :; }
   users__uid_of_path_owner() { printf '999\n'; }
-  export -f users__is_root users__resolve_home users__uid_of_path_owner
+  os__kernel() { printf 'Linux\n'; }
+  export -f users__is_root users__resolve_home users__uid_of_path_owner os__kernel
   run users__is_user_path "/home/linuxbrew/.linuxbrew"
   assert_failure
 }

@@ -451,6 +451,20 @@ class InstallScriptGenerator:
             optname_disp = option_name or opt_prefix
 
             # Resolver function
+            # Scope snapshot is only needed when the feature has activation —
+            # it consumes @@PREFIX_VAR@@_SCOPE in _prefix_post_install__generated.
+            if activation_cfg:
+                _scope_block = (
+                    "\n"
+                    "  # Activation scope snapshot: captured before write_group\n"
+                    "  # chown can alter path ownership. Consumed by\n"
+                    "  # _prefix_post_install__generated.\n"
+                    "  # shellcheck disable=SC2034\n"
+                    f'  {var_prefix}_SCOPE="$(users__is_user_path'
+                    f' "${{{var_prefix}}}" && printf user || printf system)"'
+                )
+            else:
+                _scope_block = ""
             fn_blocks.append(
                 self._render_template(
                     "prefix_resolver",
@@ -463,6 +477,7 @@ class InstallScriptGenerator:
                         default_nonroot,
                         prefix_cfg.get("platform_overrides", []),
                     ),
+                    SCOPE_BLOCK=_scope_block,
                 )
             )
 

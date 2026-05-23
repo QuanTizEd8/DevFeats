@@ -25,6 +25,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "_lock__ensure_flock: returns 0 when flock is present" {
+  [[ "$(uname)" != "Darwin" ]] || skip "flock is unavailable on macOS"
   run _lock__ensure_flock
   assert_success
 }

@@ -58,8 +58,11 @@ _users__ensure_coreutils() {
 # Returns 0 when getent is on PATH; 1 otherwise. Non-fatal: macOS does not have getent; callers fall back to dscl.
 _users__ensure_getent() {
   command -v getent > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_USERS__GETENT_MANIFEST" --build-group "lib-users" --skip_installed || true
-  command -v getent > /dev/null 2>&1 && return 0
+  # getent is a Linux glibc utility; no macOS equivalent exists — skip install attempt entirely.
+  if [[ "$(os__kernel)" != "Darwin" ]]; then
+    ospkg__run --manifest "$_USERS__GETENT_MANIFEST" --build-group "lib-users" --skip_installed || true
+    command -v getent > /dev/null 2>&1 && return 0
+  fi
   logging__info "users.sh: 'getent' not available; falling back to dscl or /etc/passwd for home resolution."
   return 1
 }
@@ -242,7 +245,19 @@ users__uid_of_user() {
 # Stdout: username string.
 users__username_of_uid() {
   _users__ensure_coreutils || return 1
-  id -un "$1"
+  local _uname
+  _uname="$(id -un "$1" 2> /dev/null)" && {
+    printf '%s\n' "$_uname"
+    return 0
+  }
+  # busybox id(1) does not accept numeric UID arguments; fall back to passwd db.
+  _uname="$(getent passwd "$1" 2> /dev/null | cut -d: -f1)"
+  [[ -z "$_uname" ]] && _uname="$(awk -F: -v u="$1" '$3==u{print $1;exit}' /etc/passwd 2> /dev/null)"
+  [[ -n "$_uname" ]] && {
+    printf '%s\n' "$_uname"
+    return 0
+  }
+  return 1
 }
 
 # @brief users__uid_of_path_owner <path> — Print the numeric owner UID of the given path.

@@ -272,7 +272,7 @@ ${_home}/.zshrc"
   reload_lib shell.sh
   local _expected
   _expected="$(eval echo "~$(whoami)")"
-  run users__resolve_home "$(whoami)"
+  run --separate-stderr users__resolve_home "$(whoami)"
   assert_output "$_expected"
   assert_success
 }
@@ -282,14 +282,14 @@ ${_home}/.zshrc"
   # Use eval to get the platform-actual home (e.g. /root on Linux, /var/root on macOS).
   local _root_home
   _root_home="$(eval echo '~root')"
-  run users__resolve_home "root"
+  run --separate-stderr users__resolve_home "root"
   assert_output "$_root_home"
   assert_success
 }
 
 @test "users__resolve_home returns unexpanded tilde for unknown user" {
   reload_lib shell.sh
-  run users__resolve_home "___no_such_user_xyz___"
+  run --separate-stderr users__resolve_home "___no_such_user_xyz___"
   assert_output "~___no_such_user_xyz___"
   assert_success
 }

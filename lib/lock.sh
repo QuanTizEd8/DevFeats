@@ -14,8 +14,11 @@ EOF
 # Returns 0 when flock is on PATH; 1 otherwise. Non-fatal: caller falls back to spin-lock.
 _lock__ensure_flock() {
   command -v flock > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_LOCK__FLOCK_MANIFEST" --build-group "lib-lock" --skip_installed || true
-  command -v flock > /dev/null 2>&1 && return 0
+  # flock is a Linux kernel utility; no macOS equivalent exists — skip install attempt entirely.
+  if [[ "$(os__kernel)" != "Darwin" ]]; then
+    ospkg__run --manifest "$_LOCK__FLOCK_MANIFEST" --build-group "lib-lock" --skip_installed || true
+    command -v flock > /dev/null 2>&1 && return 0
+  fi
   logging__info "lock.sh: 'flock' not available; using spin-lock fallback."
   return 1
 }
