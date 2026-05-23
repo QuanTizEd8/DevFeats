@@ -1,76 +1,11 @@
-"""Feature sync metadata helpers: validate and sanitize metadata for src/ generation.
-
-Shared read/augmentation logic lives in :mod:`proman.metadata`; this module
-re-exports the public symbols that callers import from ``proman.sync.metadata``
-so that existing import paths remain valid.
-"""
+"""Utilities for processing markdown."""
 
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
-
-from proman.helpers import log
-from proman.schema_bundle import build_metadata_validator as _build_metadata_validator
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from jsonschema import Draft202012Validator
 
 
-# Schema Validation
-# -----------------
-
-
-def validate_metadata_schema(
-    feature_id: str,
-    metadata: dict,
-    validator: Draft202012Validator,
-) -> bool:
-    """Validate metadata against the JSON schema.
-
-    Logs all validation errors and returns False on failure.
-    """
-    errs = sorted(
-        validator.iter_errors(metadata),
-        key=lambda e: list(e.absolute_path),
-    )
-    if errs:
-        for err in errs:
-            path = (
-                " → ".join(str(p) for p in err.absolute_path)
-                if err.absolute_path
-                else "(root)"
-            )
-            log(f"❌ {feature_id}: {path}: {err.message}")
-        return False
-
-    return True
-
-
-def build_metadata_validator(
-    features_dirpath: Path,
-    lib_dirpath: Path,
-) -> Draft202012Validator:
-    """Build and return a JSON schema validator for feature metadata."""
-    return _build_metadata_validator(features_dirpath, lib_dirpath)
-
-
-# Markdown Sanitation
-# -------------------
-
-
-def sanitize_markdown(metadata: dict) -> None:
-    """Recursively process a value, stripping markdown from description fields."""
-    metadata["description"] = _normalize_description(metadata["description"])
-
-    if "options" in metadata:
-        for option in metadata["options"].values():
-            option["description"] = _normalize_description(option["description"])
-
-
-def _normalize_description(text: str) -> str:
+def sanitize(text: str) -> str:
     """Strip markdown and normalize whitespace for JSON output.
 
     Strips leading/trailing whitespace and collapses multiple consecutive

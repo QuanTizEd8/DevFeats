@@ -7,6 +7,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from jsonschema import Draft202012Validator
 import yaml
 
 from proman.const import LIFECYCLE_COMMAND_KEYS
@@ -21,13 +22,10 @@ from proman.metadata import (
     normalize_lifecycle_command_keys,
     read_metadata,
 )
+from proman.schema_bundle import build_metadata_validator
 from proman.sync.file_sync import SyncStatus, remove_file, sync_file
 from proman.sync.install_script import InstallScriptGenerator
-from proman.sync.metadata import (
-    build_metadata_validator,
-    sanitize_markdown,
-    validate_metadata_schema,
-)
+from proman.utils import markdown
 
 
 def run(*, check_only: bool = False) -> int:
@@ -163,6 +161,42 @@ def run(*, check_only: bool = False) -> int:
 
     log(f"✅ All {n_features} features passed.")
     return 0
+
+
+def validate_metadata_schema(
+    feature_id: str,
+    metadata: dict,
+    validator: Draft202012Validator,
+) -> bool:
+    """Validate metadata against the JSON schema.
+
+    Logs all validation errors and returns False on failure.
+    """
+    errs = sorted(
+        validator.iter_errors(metadata),
+        key=lambda e: list(e.absolute_path),
+    )
+    if errs:
+        for err in errs:
+            path = (
+                " → ".join(str(p) for p in err.absolute_path)
+                if err.absolute_path
+                else "(root)"
+            )
+            log(f"❌ {feature_id}: {path}: {err.message}")
+        return False
+
+    return True
+
+
+def sanitize_markdown(metadata: dict) -> None:
+    """Recursively process a value, stripping markdown from description fields."""
+    metadata["description"] = markdown.sanitize(metadata["description"])
+
+    if "options" in metadata:
+        for option in metadata["options"].values():
+            option["description"] = markdown.sanitize(option["description"])
+    return
 
 
 # ── Output generation ─────────────────────────────────────────────────────────
