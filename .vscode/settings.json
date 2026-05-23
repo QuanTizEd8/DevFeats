@@ -33,6 +33,16 @@
     "python-envs.defaultEnvManager": "renan-r-santos.pixi-code:pixi",
     "python-envs.defaultPackageManager": "renan-r-santos.pixi-code:pixi",
     "python.defaultInterpreterPath": "${workspaceFolder}/.pixi/envs/default/bin/python",
+    "python.analysis.exclude": [
+      "**/node_modules",
+      "**/__pycache__",
+      "**/.*",
+      ".claude/**",
+      ".codex/**",
+      ".copilot/**",
+      ".cursor/**",
+      ".windsurf/**",
+    ],
     // ── YAML schemas ─────────────────────────────────────────────────────────
     "yaml.schemas": {
         "./features/metadata.schema.json": "features/*/metadata.yaml"
