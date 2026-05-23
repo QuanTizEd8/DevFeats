@@ -65,8 +65,8 @@ if [[ ${#_sh_lib[@]} -gt 0 ]]; then
 fi
 
 if [[ ${#_py[@]} -gt 0 ]]; then
-  add_step lint-py pixi run --environment lint lint-py -- "${_py[@]}"
-  add_step format-py pixi run --environment lint format-py -- "${_py[@]}"
+  add_step lint-py pixi run --environment lint lint-py "${_py[@]}"
+  add_step format-py pixi run --environment lint format-py "${_py[@]}"
 fi
 
 add_step sync-src pixi run sync-src
