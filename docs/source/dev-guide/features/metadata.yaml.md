@@ -70,13 +70,13 @@ version:
 ```
 
 Always include a `"log_file"` option (string, default `""`). The shared
-`"log_level"` option is auto-injected from `features/shared-options.yaml`,
+`"log_level"` option is auto-injected from `features/metadata.shared.yaml`,
 so it does not need to be repeated in each feature metadata file.
 
 
-### Shared Options
+### Shared Metadata
 
-The `features/shared-options.yaml` file defines shared options that are injected into each feature at sync time. This is useful for options that are common across many features, such as `log_level` and `log_file`, so they are not repeated in every metadata file.
+The `features/metadata.shared.yaml` file defines shared options that are injected into each feature at sync time. This is useful for options that are common across many features, such as `log_level` and `log_file`, so they are not repeated in every metadata file.
 
 
 
