@@ -10,9 +10,9 @@ path:
   library: lib
   src: src
   devcontainer: .devcontainer
-  install_script_templates: ${{ path.features }}$/_install_script_templates
   shared_metadata: ${{ path.features }}$/metadata.shared.yaml
   metadata_schema: ${{ path.features }}$/metadata.schema.json
+  install_script_template: ${{ path.features }}$/install.tmpl.bash
 filename:
   feature_metadata: metadata.yaml
   feature_script: install.bash
