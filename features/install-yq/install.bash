@@ -4,7 +4,7 @@ _yq__resolve_version() {
   logging__fn_entry "_yq__resolve_version"
   local _spec="$VERSION"
   local _out
-  _out="$(github__resolve_version "mikefarah/yq" "$_spec")" || {
+  _out="$(github__resolve_version "${GH_REPO}" "$_spec")" || {
     logging__error "Failed to resolve yq version from GitHub."
     exit 1
   }
@@ -127,7 +127,8 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
     --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" \
     --prefix "${PREFIX}" \
     --version "${VERSION}" \
-    --installer-dir "${INSTALLER_DIR}" > /dev/null
+    --installer-dir "${INSTALLER_DIR}" \
+    --gh-repo "${GH_REPO}" > /dev/null
 fi
 if [ "${METHOD}" = "auto" ]; then
   if [ -x "${PREFIX}/bin/yq" ]; then

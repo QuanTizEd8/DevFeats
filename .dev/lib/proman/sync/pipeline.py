@@ -5,13 +5,13 @@ from __future__ import annotations
 import fnmatch
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 import yaml
 
 from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.git import git_owner_repo, git_repo_root
+from proman.helpers import log
 from proman.metadata import (
     _feature_vars,
     _inject_prefix_options,
@@ -152,16 +152,16 @@ def run(*, check_only: bool = False) -> int:
         if not (feature_in_sync and devcontainers_in_sync):
             n_failures["sync"] += 1
 
-    _log("\nFinal results:")
+    log("\nFinal results:")
     if any(n_failures.values()):
         n_failures_total = sum(n_failures.values())
-        _log(f"\n{n_failures_total}/{n_features} feature(s) failed validation.")
+        log(f"\n{n_failures_total}/{n_features} feature(s) failed validation.")
         for stage, count in n_failures.items():
             if count:
-                _log(f"- {count} failed at {stage} stage")
+                log(f"- {count} failed at {stage} stage")
         return 1
 
-    _log(f"✅ All {n_features} features passed.")
+    log(f"✅ All {n_features} features passed.")
     return 0
 
 
@@ -389,7 +389,3 @@ def _sync_source_files(
         for old_filepath in sorted(old_filepaths - new_files.keys())
     )
     return all(status.is_in_sync for status in statuses)
-
-
-def _log(msg: str) -> None:
-    print(msg, file=sys.stderr)

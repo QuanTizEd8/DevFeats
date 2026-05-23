@@ -17,7 +17,7 @@ _install_yq__compatible() {
   "$_bin" -o=json '.' /dev/null > /dev/null 2>&1
 }
 
-# @brief _install_yq__install_release <context> <group> <prefix> [version] [installer-dir] — Install yq from GitHub release assets with checksum verification.
+# @brief _install_yq__install_release <context> <group> <prefix> [version] [installer-dir] [gh-repo] — Install yq from GitHub release assets with checksum verification.
 #
 # Args:
 #   <context>        `internal` or `user`.
@@ -25,11 +25,12 @@ _install_yq__compatible() {
 #   <prefix>         Installation prefix (only used for `user` context).
 #   [version]        Bare semver (no `v`). Empty means latest.
 #   [installer-dir]  Optional persistent work directory (passed to github__install_release).
+#   [gh-repo]        GitHub repository slug (default: mikefarah/yq).
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
 _install_yq__install_release() {
-  local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}" _installer_dir="${5-}"
+  local _context="${1-}" _group="${2-}" _install_prefix="${3-}" _version="${4-}" _installer_dir="${5-}" _gh_repo="${6-}"
   local _os _arch _base _install_bin_dir _expected_hash _hdir _f
   _os="$(os__release_kernel)" || return 1
   _arch="$(os__release_arch)" || return 1
@@ -43,9 +44,9 @@ _install_yq__install_release() {
 
   # Resolve latest version when none given.
   if [[ -z "$_version" ]]; then
-    _version="$(github__resolve_version "mikefarah/yq" --version)" || return 1
+    _version="$(github__resolve_version "${_gh_repo}" --version)" || return 1
   fi
-  _base="https://github.com/mikefarah/yq/releases/download/v${_version}"
+  _base="https://github.com/${_gh_repo}/releases/download/v${_version}"
 
   # Determine install destination directory.
   if [[ "$_context" == "user" ]]; then
@@ -70,7 +71,7 @@ _install_yq__install_release() {
   install__build_release_args "$_context" "$_group" "$_installer_dir" _owner_group_arg _idir_arg
 
   github__install_release \
-    --repo "mikefarah/yq" --tag "v${_version}" \
+    --repo "${_gh_repo}" --tag "v${_version}" \
     --asset "yq_${_os}_${_arch}" --binary-dest "${_install_bin_dir%/}/yq" \
     --sha256 "$_expected_hash" \
     "${_idir_arg[@]}" \
@@ -102,13 +103,14 @@ _install_yq__install_repos() {
   return 0
 }
 
-# @brief install__yq --context <internal|user> [--method <auto|binary|package>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--version <semver|''>] [--prefix <path|auto>] [--repos-manifest <path>] — Ensure yq is installed with context-aware ownership semantics.
+# @brief install__yq --context <internal|user> [--method <auto|binary|package>] [--owner-group <id>] [--if-exists <skip|fail|reinstall>] [--version <semver|''>] [--prefix <path|auto>] [--repos-manifest <path>] [--gh-repo <owner/repo>] — Ensure yq is installed with context-aware ownership semantics.
 install__yq() {
   local _context="internal" _method="auto" _owner_group="devfeats-ospkg-internals" _if_exists="skip"
   local _install_prefix="auto" _repos_manifest="" _version="" _installer_dir=""
+  local _gh_repo="mikefarah/yq"
   install__parse_common_opts "install__yq" \
     _context _version _method _install_prefix _if_exists _repos_manifest _owner_group _installer_dir \
-    "" "$@" || return 1
+    _gh_repo "" "$@" || return 1
   [[ "$_context" == "internal" || "$_context" == "user" ]] || return 1
   local _existing _state_ctx _state_path _state_group
   _existing="$(command -v yq 2> /dev/null || true)"
@@ -128,9 +130,9 @@ install__yq() {
     fi
   fi
   case "$_method" in
-    binary) _install_yq__install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" ;;
+    binary) _install_yq__install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" "$_gh_repo" ;;
     package) _install_yq__install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
-    auto) _install_yq__install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" || _install_yq__install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
+    auto) _install_yq__install_release "$_context" "$_owner_group" "$_install_prefix" "$_version" "$_installer_dir" "$_gh_repo" || _install_yq__install_repos "$_context" "$_owner_group" "$_repos_manifest" ;;
     *)
       logging__error "install__yq: invalid method '${_method}'."
       return 1

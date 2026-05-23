@@ -6,7 +6,8 @@ install__oras \
   --prefix "${PREFIX}" \
   --if-exists "${IF_EXISTS}" \
   --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" \
-  --installer-dir "${INSTALLER_DIR}" > /dev/null
+  --installer-dir "${INSTALLER_DIR}" \
+  --gh-repo "${GH_REPO}" > /dev/null
 if [[ "${METHOD}" == "auto" ]]; then
   if [[ -x "${PREFIX}/bin/oras" ]]; then
     METHOD=binary

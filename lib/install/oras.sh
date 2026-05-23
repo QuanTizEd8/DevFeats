@@ -1,16 +1,16 @@
 # shellcheck shell=bash
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
-# @brief _install_oras__resolve_version <spec> — Resolve a version spec to bare semver (no leading `v`).
+# @brief _install_oras__resolve_version <spec> <gh_repo> — Resolve a version spec to bare semver (no leading `v`).
 # Accepts "stable" (default), "latest", "", or a semver / partial version string.
 _install_oras__resolve_version() {
-  local _spec="${1-}"
+  local _spec="${1-}" _gh_repo="${2-}"
   local _out
-  _out="$(github__resolve_version "oras-project/oras" "$_spec")" || return 1
+  _out="$(github__resolve_version "${_gh_repo}" "$_spec")" || return 1
   printf '%s\n' "${_out#*$'\n'}"
 }
 
-# @brief _install_oras__install_release <version> <prefix> <group> <context> [installer-dir] — Install ORAS from release artifact with mandatory checksum+GPG verification.
+# @brief _install_oras__install_release <version> <prefix> <group> <context> [installer-dir] [gh-repo] — Install ORAS from release artifact with mandatory checksum+GPG verification.
 #
 # Args:
 #   <version>        Bare semver string (no leading `v`), e.g. `1.2.3`.
@@ -18,11 +18,12 @@ _install_oras__resolve_version() {
 #   <group>          Resource-tracking group ID (e.g. `lib-oci-oras`).
 #   <context>        `internal` or `user`; controls cleanup tracking.
 #   [installer-dir]  Optional persistent work directory (passed to github__install_release).
+#   [gh-repo]        GitHub repository slug (default: oras-project/oras).
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
 _install_oras__install_release() {
-  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}"
+  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}" _gh_repo="${6-}"
   local _platform _arch _asset _tag _bin_dest
   _platform="$(os__release_kernel)" || return 1
   _arch="$(os__release_arch)" || return 1
@@ -39,9 +40,9 @@ _install_oras__install_release() {
   local -a _owner_group_arg _idir_arg
   install__build_release_args "$_context" "$_group" "$_installer_dir" _owner_group_arg _idir_arg
   github__install_release \
-    --repo "oras-project/oras" --tag "$_tag" \
+    --repo "${_gh_repo}" --tag "$_tag" \
     --asset "$_asset" --binary-src oras --binary-dest "${_bin_dest}/" \
-    --gpg-key "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" \
+    --gpg-key "https://raw.githubusercontent.com/${_gh_repo}/refs/heads/main/KEYS" \
     "${_idir_arg[@]}" \
     "${_owner_group_arg[@]}" ||
     return 1
@@ -92,14 +93,15 @@ EOF
   return 0
 }
 
-# @brief install__oras --context <internal|user> [--version <ver|stable|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] [--installer-dir <dir>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
+# @brief install__oras --context <internal|user> [--version <ver|stable|latest>] [--min-version <ver>] [--method <auto|binary|package>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] [--installer-dir <dir>] [--gh-repo <owner/repo>] — Ensure ORAS is installed with context-aware ownership semantics and mandatory checksum+GPG verification for release artifacts.
 install__oras() {
   local _context="internal" _version="stable" _min_version="" _method="auto" _install_prefix="auto"
   local _if_exists="skip" _repos_manifest="" _owner_group="lib-oci-oras" _installer_dir=""
+  local _gh_repo="oras-project/oras"
   local -a _extra=()
   install__parse_common_opts "install__oras" \
     _context _version _method _install_prefix _if_exists _repos_manifest _owner_group _installer_dir \
-    _extra "$@" || return 1
+    _gh_repo _extra "$@" || return 1
   local _i=0
   while [[ $_i -lt ${#_extra[@]} ]]; do
     case "${_extra[$_i]}" in
@@ -146,16 +148,16 @@ install__oras() {
     _install_prefix="$(users__default_prefix)"
   fi
   local _version_spec="$_version"
-  _version="$(_install_oras__resolve_version "$_version_spec")" || return 1
+  _version="$(_install_oras__resolve_version "$_version_spec" "$_gh_repo")" || return 1
   case "$_method" in
     binary)
-      _install_oras__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir"
+      _install_oras__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" "$_gh_repo"
       ;;
     package)
       _install_oras__install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     auto)
-      _install_oras__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" ||
+      _install_oras__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" "$_gh_repo" ||
         _install_oras__install_repos "$_version_spec" "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)

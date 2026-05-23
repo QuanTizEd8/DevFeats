@@ -1,7 +1,7 @@
 _shfmt__resolve_version() {
   local _spec="$1"
   local _out
-  _out="$(github__resolve_version "mvdan/sh" "$_spec")" || return 1
+  _out="$(github__resolve_version "${GH_REPO}" "$_spec")" || return 1
   printf '%s\n' "${_out#*$'\n'}"
 }
 
@@ -25,7 +25,7 @@ _shfmt__install_release() {
   esac
   _asset="shfmt_v${_version}_${_os}_${_arch}"
   github__install_release \
-    --repo "mvdan/sh" --tag "v${_version}" \
+    --repo "${GH_REPO}" --tag "v${_version}" \
     --asset "$_asset" --binary-dest "${PREFIX%/}/bin/shfmt" \
     --installer-dir "${INSTALLER_DIR}" ||
     return 1

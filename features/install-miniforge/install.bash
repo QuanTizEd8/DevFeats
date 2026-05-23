@@ -1,5 +1,5 @@
 # ── Constants ────────────────────────────────────────────────────────────────
-readonly _MINIFORGE_RELEASES_URL="https://github.com/conda-forge/miniforge/releases"
+readonly _MINIFORGE_RELEASES_URL="https://github.com/${GH_REPO}/releases"
 readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
 readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 
@@ -158,7 +158,7 @@ resolve_miniforge_version() {
   logging__fn_entry "resolve_miniforge_version"
   local _spec="$VERSION"
   local _out
-  _out="$(github__resolve_version "conda-forge/miniforge" "$_spec")" || {
+  _out="$(github__resolve_version "${GH_REPO}" "$_spec")" || {
     logging__error "Failed to resolve Miniforge version."
     exit 1
   }
@@ -274,7 +274,7 @@ set_executable_paths
 resolve_miniforge_version
 _installer_filename="Miniforge3-${MINIFORGE_VERSION}-$(os__kernel)-$(os__arch).sh"
 github__install_release \
-  --repo "conda-forge/miniforge" \
+  --repo "${GH_REPO}" \
   --tag "${MINIFORGE_VERSION}" \
   --asset "${_installer_filename}" \
   --sidecar "${_MINIFORGE_RELEASES_URL}/download/${MINIFORGE_VERSION}/${_installer_filename}.sha256" \

@@ -16,7 +16,7 @@ resolve_pixi_version() {
   logging__fn_entry "resolve_pixi_version"
   local _spec="$VERSION"
   local _out
-  _out="$(github__resolve_version "prefix-dev/pixi" "$_spec")" || {
+  _out="$(github__resolve_version "${GH_REPO}" "$_spec")" || {
     logging__error "Failed to resolve pixi version from GitHub."
     exit 1
   }
@@ -44,8 +44,8 @@ resolve_installer_paths() {
     SIDECAR_URL=""
     logging__info "Using custom download URL; checksum verification will be skipped."
   else
-    ARCHIVE_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz"
-    SIDECAR_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256"
+    ARCHIVE_URL="https://github.com/${GH_REPO}/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz"
+    SIDECAR_URL="https://github.com/${GH_REPO}/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256"
   fi
   logging__info "Archive URL: '${ARCHIVE_URL}'"
   logging__fn_exit "resolve_installer_paths"
@@ -257,7 +257,7 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
     uri__fetch_asset "${_pixi_fa[@]}" || exit 1
   else
     github__install_release \
-      --repo "prefix-dev/pixi" --tag "v${VERSION}" \
+      --repo "${GH_REPO}" --tag "v${VERSION}" \
       --asset "pixi-${TRIPLE}.tar.gz" --binary-src pixi --binary-dest "${PREFIX}/bin/" \
       --sidecar "${SIDECAR_URL}" \
       --installer-dir "${INSTALLER_DIR}" ||

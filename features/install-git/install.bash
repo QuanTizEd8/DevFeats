@@ -161,7 +161,7 @@ _git__install_package() {
 _git__source_resolve_version() {
   local _tags _tag
   if [ "${VERSION}" = "latest" ]; then
-    _tags="$(github__tags "git/git")" || {
+    _tags="$(github__tags "${GH_REPO}")" || {
       logging__error "Failed to fetch git tags from GitHub."
       return 1
     }
@@ -171,7 +171,7 @@ _git__source_resolve_version() {
       sort -t. -k1,1n -k2,2n -k3,3n |
       tail -1)"
   elif [ "${VERSION}" = "stable" ]; then
-    _tags="$(github__tags "git/git")" || {
+    _tags="$(github__tags "${GH_REPO}")" || {
       logging__error "Failed to fetch git tags from GitHub."
       return 1
     }

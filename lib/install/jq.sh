@@ -23,19 +23,19 @@ _install_jq__asset_name() {
   fi
 }
 
-# @brief _install_jq__gpg_key_url <version> — Print the URL for the jq release signing key.
+# @brief _install_jq__gpg_key_url <version> <gh_repo> — Print the URL for the jq release signing key.
 #
 # jq 1.7+ is signed with jq-release-new.key; 1.6 and older with jq-release-old.key.
 _install_jq__gpg_key_url() {
-  local _version="$1"
+  local _version="$1" _gh_repo="${2-}"
   if ! ver__semver_ge "$_version" "1.7"; then
-    printf 'https://raw.githubusercontent.com/jqlang/jq/master/sig/jq-release-old.key\n'
+    printf 'https://raw.githubusercontent.com/%s/master/sig/jq-release-old.key\n' "$_gh_repo"
   else
-    printf 'https://raw.githubusercontent.com/jqlang/jq/master/sig/jq-release-new.key\n'
+    printf 'https://raw.githubusercontent.com/%s/master/sig/jq-release-new.key\n' "$_gh_repo"
   fi
 }
 
-# @brief _install_jq__install_release <version> <prefix> <group> <context> [installer-dir] — Install jq from a GitHub release binary with SHA-256 and GPG verification.
+# @brief _install_jq__install_release <version> <prefix> <group> <context> [installer-dir] [gh-repo] — Install jq from a GitHub release binary with SHA-256 and GPG verification.
 #
 # Args:
 #   <version>        Bare semver string (no leading `v`), e.g. `1.7.1`.
@@ -43,11 +43,12 @@ _install_jq__gpg_key_url() {
 #   <group>          Resource-tracking group ID.
 #   <context>        `internal` or `user`; controls cleanup tracking.
 #   [installer-dir]  Optional persistent work directory (passed to github__install_release).
+#   [gh-repo]        GitHub repository slug (default: jqlang/jq).
 #
 # Stdout: absolute path to the installed binary on success.
 # Returns: 0 on success, 1 on any failure.
 _install_jq__install_release() {
-  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}"
+  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _installer_dir="${5-}" _gh_repo="${6-}"
   local _os _arch _asset _base_url _key_url
   _os="$(os__release_kernel)" || return 1
   [[ "$_os" == "darwin" ]] && _os="macos"
@@ -60,8 +61,8 @@ _install_jq__install_release() {
       ;;
   esac
   _asset="$(_install_jq__asset_name "$_version" "$_os" "$_arch")" || return 1
-  _base_url="https://github.com/jqlang/jq/releases/download/jq-${_version}"
-  _key_url="$(_install_jq__gpg_key_url "$_version")"
+  _base_url="https://github.com/${_gh_repo}/releases/download/jq-${_version}"
+  _key_url="$(_install_jq__gpg_key_url "$_version" "$_gh_repo")"
 
   # jq ≤1.6 has no sha256sum.txt; for newer versions add explicit sidecar URL.
   local -a _sidecar_args=()
@@ -73,11 +74,11 @@ _install_jq__install_release() {
   install__build_release_args "$_context" "$_group" "$_installer_dir" _owner_group_arg _idir_arg
 
   github__install_release \
-    --repo "jqlang/jq" --tag "jq-${_version}" \
+    --repo "${_gh_repo}" --tag "jq-${_version}" \
     --asset "$_asset" --binary-dest "${_install_prefix%/}/bin/jq" \
     "${_sidecar_args[@]}" \
     --gpg-key "$_key_url" \
-    --gpg-sig "https://raw.githubusercontent.com/jqlang/jq/master/sig/v${_version}/${_asset}.asc" \
+    --gpg-sig "https://raw.githubusercontent.com/${_gh_repo}/master/sig/v${_version}/${_asset}.asc" \
     "${_idir_arg[@]}" \
     "${_owner_group_arg[@]}" ||
     return 1
@@ -107,14 +108,14 @@ _install_jq__install_repos() {
   return 0
 }
 
-# @brief _install_jq__install_source <version> <prefix> <group> <context> — Build and install jq from the release tarball.
+# @brief _install_jq__install_source <version> <prefix> <group> <context> [gh-repo] — Build and install jq from the release tarball.
 #
 # Runs ./configure --with-oniguruma=builtin, make, make check, make install.
 # Build tools must be installed by the caller before this function is invoked.
 _install_jq__install_source() {
-  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}"
+  local _version="${1-}" _install_prefix="${2-}" _group="${3-}" _context="${4-}" _gh_repo="${5-}"
   local _tarball_url _dir _tarball _src_dir _jobs _final_dest
-  _tarball_url="https://github.com/jqlang/jq/releases/download/jq-${_version}/jq-${_version}.tar.gz"
+  _tarball_url="https://github.com/${_gh_repo}/releases/download/jq-${_version}/jq-${_version}.tar.gz"
   _dir="$(file__tmpdir "install/jq-source")"
   _tarball="${_dir}/jq-${_version}.tar.gz"
 
@@ -150,13 +151,14 @@ _install_jq__install_source() {
   return 0
 }
 
-# @brief install__jq --context <internal|user> [--method <auto|binary|package|source>] [--version <semver|stable|latest>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] — Ensure jq is installed with context-aware ownership semantics.
+# @brief install__jq --context <internal|user> [--method <auto|binary|package|source>] [--version <semver|stable|latest>] [--prefix <path|auto>] [--if-exists <skip|fail|reinstall>] [--repos-manifest <path>] [--owner-group <id>] [--gh-repo <owner/repo>] — Ensure jq is installed with context-aware ownership semantics.
 install__jq() {
   local _context="internal" _version="stable" _method="auto" _install_prefix="auto"
   local _if_exists="skip" _repos_manifest="" _owner_group="feature::install-jq" _installer_dir=""
+  local _gh_repo="jqlang/jq"
   install__parse_common_opts "install__jq" \
     _context _version _method _install_prefix _if_exists _repos_manifest _owner_group _installer_dir \
-    "" "$@" || return 1
+    _gh_repo "" "$@" || return 1
   [[ "$_context" == "internal" || "$_context" == "user" ]] || return 1
   [[ -n "$_owner_group" ]] || _owner_group="install-jq"
 
@@ -207,16 +209,16 @@ install__jq() {
 
   case "$_method" in
     binary)
-      _install_jq__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir"
+      _install_jq__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" "$_gh_repo"
       ;;
     package)
       _install_jq__install_repos "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     source)
-      _install_jq__install_source "$_version" "$_install_prefix" "$_owner_group" "$_context"
+      _install_jq__install_source "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_gh_repo"
       ;;
     auto)
-      _install_jq__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" ||
+      _install_jq__install_release "$_version" "$_install_prefix" "$_owner_group" "$_context" "$_installer_dir" "$_gh_repo" ||
         _install_jq__install_repos "$_owner_group" "$_context" "$_repos_manifest"
       ;;
     *)

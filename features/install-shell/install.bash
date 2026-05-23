@@ -1,12 +1,12 @@
 _GITHUB_BASE_URL="https://github.com"
-_ZSH_COMPLETIONS_REPO_URL="${_GITHUB_BASE_URL}/zsh-users/zsh-completions"
+_ZSH_COMPLETIONS_REPO_URL="${_GITHUB_BASE_URL}/${ZSH_COMPLETIONS_GH_REPO}"
 # Shallow-clone the repo here when not using Homebrew. Completion functions live
 # under src/ (see upstream README). Debian/Ubuntu .deb builds exist via OBS,
 # but default apt archives do not ship this package.
 _ZSH_COMPLETIONS_PREFIX="/usr/local/share/zsh-completions"
 _ZSH_COMPLETIONS_SRC="${_ZSH_COMPLETIONS_PREFIX}/src"
-_OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/ohmyzsh/ohmyzsh"
-_OHMYBASH_REPO_URL="${_GITHUB_BASE_URL}/ohmybash/oh-my-bash"
+_OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/${OHMYZSH_GH_REPO}"
+_OHMYBASH_REPO_URL="${_GITHUB_BASE_URL}/${OHMYBASH_GH_REPO}"
 _STARSHIP_INSTALLER_URL="https://starship.rs/install.sh"
 
 # ---------------------------------------------------------------------------
@@ -138,7 +138,7 @@ install_fzf() {
   fi
 
   local _out _version
-  _out="$(github__resolve_version "junegunn/fzf" "")" || {
+  _out="$(github__resolve_version "${FZF_GH_REPO}" "")" || {
     logging__error "Failed to resolve fzf version from GitHub."
     return 1
   }
@@ -163,10 +163,10 @@ install_fzf() {
   esac
 
   local _filename="fzf-${_version}-${_os}_${_fzf_arch}.tar.gz"
-  local _base_url="https://github.com/junegunn/fzf/releases/download/v${_version}"
+  local _base_url="${_GITHUB_BASE_URL}/${FZF_GH_REPO}/releases/download/v${_version}"
 
   github__install_release \
-    --repo "junegunn/fzf" --tag "v${_version}" \
+    --repo "${FZF_GH_REPO}" --tag "v${_version}" \
     --asset "$_filename" --binary-src fzf --binary-dest "${_bin_dir}/" \
     --sidecar "${_base_url}/fzf_${_version}_checksums.txt" \
     --installer-dir "${INSTALLER_DIR}" ||

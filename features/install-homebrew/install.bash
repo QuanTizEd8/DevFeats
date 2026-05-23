@@ -1,5 +1,5 @@
 # ── Constants ────────────────────────────────────────────────────────────────
-_BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD"
+_BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/${GH_REPO}/HEAD"
 _BREW_INSTALLER_URL="${_BREW_INSTALL_BASE_URL}/install.sh"
 _BREW_UNINSTALLER_URL="${_BREW_INSTALL_BASE_URL}/uninstall.sh"
 

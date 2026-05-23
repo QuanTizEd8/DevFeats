@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal
 
 import yaml
+import pyserials
 
 from proman.const import (
     LIFECYCLE_COMMAND_KEYS,
@@ -42,7 +43,12 @@ def load_all(features_dirpath: Path) -> dict[str, dict]:
     all_metadata: dict[str, dict] = {}
     for meta_path in sorted(features_dirpath.glob("*/metadata.yaml")):
         feat_id = meta_path.parent.name
-        metadata = load_one(feat_id, features_dirpath)
+        try:
+            metadata = load_one(feat_id, features_dirpath)
+        except Exception as e:
+            raise ValueError(
+                f"Error loading metadata for feature '{feat_id}': {e}"
+            ) from e
         if metadata is None:
             log(f"⚠️  load_all: skipping {feat_id} (metadata load/augment failed)")
             continue
@@ -146,9 +152,19 @@ def augment_metadata(feature_id: str, metadata: dict, derived_options: dict) -> 
             else True
         )
         if should_apply:
-            options[option_id] = {
+            sanitized_option_dict = {
                 k: v for k, v in option_def.items() if not k.startswith("_")
             }
+            try:
+                filled_option_dict = pyserials.update.TemplateFiller().fill(
+                    data=metadata,
+                    template=sanitized_option_dict,
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"Error processing shared option '{option_id}' for feature '{feature_id}': {e}"
+                ) from e
+            options[option_id] = filled_option_dict
     metadata["options"] = options
     return True
 
@@ -498,8 +514,7 @@ def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
     """Resolve a simple JSONPath expression against the feature metadata dict.
 
     Supported JSONPath syntax:
-    - Root object: ``$``
-    - Dot notation for object properties: ``$.property``
+    - Dot notation for object properties: ``options.runtime_path`` → ``data["options"]["runtime_path"]``
 
     Returns
     -------
@@ -508,10 +523,7 @@ def _resolve_jsonpath(jsonpath: str, data: dict) -> tuple[bool, object]:
     value
         The value at the path if it exists, or ``None`` if it does not.
     """
-    if not jsonpath.startswith("$."):
-        msg = f"Unsupported JSONPath expression: {jsonpath}"
-        raise ValueError(msg)
-    path_parts = jsonpath[2:].split(".")
+    path_parts = jsonpath.split(".")
     current = data
     for part in path_parts:
         if not isinstance(current, dict) or part not in current:

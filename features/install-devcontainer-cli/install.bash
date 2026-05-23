@@ -7,7 +7,7 @@ _install_script() {
   local _version="${1-}" _install_prefix="${2-}" _node_version="${3-}" _update="${4-}" _uninstall="${5-}"
   local _asset_dir
   _asset_dir="$(uri__fetch_asset \
-    "https://raw.githubusercontent.com/devcontainers/cli/main/scripts/install.sh" \
+    "https://raw.githubusercontent.com/${GH_REPO}/main/scripts/install.sh" \
     --chmod-exec install.sh \
     --installer-dir "${INSTALLER_DIR}")" || return 1
 

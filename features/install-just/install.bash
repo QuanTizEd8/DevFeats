@@ -1,6 +1,6 @@
 _install__just_resolve_version() {
   local _out
-  _out="$(github__resolve_version "casey/just" "$VERSION")" || return 1
+  _out="$(github__resolve_version "${GH_REPO}" "$VERSION")" || return 1
   _resolved_version="${_out#*$'\n'}"
 }
 
@@ -17,11 +17,11 @@ _install__just_resolve_target() {
 
 _install__just_install_release() {
   local _base _asset
-  _base="https://github.com/casey/just/releases/download/${_resolved_version}"
+  _base="https://github.com/${GH_REPO}/releases/download/${_resolved_version}"
   _asset="just-${_resolved_version}-${_resolved_target}.tar.gz"
 
   github__install_release \
-    --repo "casey/just" --tag "${_resolved_version}" \
+    --repo "${GH_REPO}" --tag "${_resolved_version}" \
     --asset "$_asset" --binary-src just --binary-dest "${PREFIX%/}/bin/" \
     --sidecar "${_base}/SHA256SUMS" \
     --installer-dir "${INSTALLER_DIR}" ||

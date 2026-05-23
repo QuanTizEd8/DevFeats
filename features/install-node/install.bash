@@ -194,7 +194,7 @@ _node_install_via_nvm() {
     stable | latest)
       logging__info "Resolving nvm release tag for spec '${NVM_VERSION}'..."
       local _nvm_out
-      _nvm_out="$(github__resolve_version "nvm-sh/nvm" "$NVM_VERSION")" || {
+      _nvm_out="$(github__resolve_version "${GH_REPO}" "$NVM_VERSION")" || {
         logging__error "Failed to resolve nvm release from GitHub."
         return 1
       }
@@ -211,7 +211,7 @@ _node_install_via_nvm() {
   # Download nvm install script
   mkdir -p "$INSTALLER_DIR"
   uri__fetch_asset \
-    "https://raw.githubusercontent.com/nvm-sh/nvm/${_nvm_tag}/install.sh" \
+    "https://raw.githubusercontent.com/${GH_REPO}/${_nvm_tag}/install.sh" \
     --file-dest "${INSTALLER_DIR}/nvm-install.sh" > /dev/null
 
   # Create NVM_DIR before write_group permissions (which chowns it)

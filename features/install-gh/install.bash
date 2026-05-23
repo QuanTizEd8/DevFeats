@@ -3,7 +3,7 @@ _gh__resolve_version() {
   logging__fn_entry "_gh__resolve_version"
   local _spec="$VERSION"
   local _out
-  _out="$(github__resolve_version "cli/cli" "$_spec")" || {
+  _out="$(github__resolve_version "${GH_REPO}" "$_spec")" || {
     logging__error "Failed to resolve gh version from GitHub."
     exit 1
   }
@@ -201,10 +201,10 @@ _gh__install_binary() {
     macOS) _ext="zip" ;;
   esac
   _archive_name="gh_${_version}_${_asset_os}_${_asset_arch}.${_ext}"
-  local _url_base="https://github.com/cli/cli/releases/download/v${_version}"
+  local _url_base="https://github.com/${GH_REPO}/releases/download/v${_version}"
 
   github__install_release \
-    --repo "cli/cli" --tag "v${_version}" \
+    --repo "${GH_REPO}" --tag "v${_version}" \
     --asset "$_archive_name" --binary-src gh --binary-dest "${PREFIX}/bin/" \
     --sidecar "${_url_base}/gh_${_version}_checksums.txt" \
     --installer-dir "${INSTALLER_DIR}" ||

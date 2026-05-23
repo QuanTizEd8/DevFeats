@@ -1,7 +1,7 @@
 _shellcheck__resolve_version() {
   local _spec="$1"
   local _out
-  _out="$(github__resolve_version "koalaman/shellcheck" "$_spec")" || return 1
+  _out="$(github__resolve_version "${GH_REPO}" "$_spec")" || return 1
   printf '%s\n' "${_out#*$'\n'}"
 }
 
@@ -26,7 +26,7 @@ _shellcheck__install_release() {
   esac
   _asset="shellcheck-v${_version}.${_os}.${_arch}.tar.xz"
   github__install_release \
-    --repo "koalaman/shellcheck" --tag "v${_version}" \
+    --repo "${GH_REPO}" --tag "v${_version}" \
     --asset "$_asset" --binary-src shellcheck --binary-dest "${PREFIX%/}/bin/" \
     --installer-dir "${INSTALLER_DIR}" ||
     return 1

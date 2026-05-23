@@ -111,11 +111,11 @@ install__read_state() {
   printf -v "$_group_var" '%s' "$(install__state_owner_group "$_tool" 2> /dev/null || true)"
 }
 
-# @brief install__parse_common_opts <caller> <ctx_v> <ver_v> <method_v> <prefix_v> <ife_v> <repos_v> <group_v> <idir_v> <extra_arr_v> "$@" — Parse standard install-module flags into caller-named variables.
+# @brief install__parse_common_opts <caller> <ctx_v> <ver_v> <method_v> <prefix_v> <ife_v> <repos_v> <group_v> <idir_v> <ghrepo_v> <extra_arr_v> "$@" — Parse standard install-module flags into caller-named variables.
 #
 # Recognised flags (each takes one value argument):
 #   --context, --version, --method, --prefix, --if-exists,
-#   --repos-manifest, --owner-group, --installer-dir
+#   --repos-manifest, --owner-group, --installer-dir, --gh-repo
 #
 # Unknown flags are appended (with their following value token) to the array
 # variable named by <extra_arr_v>.  Pass "" for <extra_arr_v> to make unknown
@@ -134,14 +134,15 @@ install__read_state() {
 #   <repos_v>      Variable name for --repos-manifest.
 #   <group_v>      Variable name for --owner-group.
 #   <idir_v>       Variable name for --installer-dir.
+#   <ghrepo_v>     Variable name for --gh-repo.
 #   <extra_arr_v>  Array variable name for unrecognised flags (or "" to error).
 #   "$@"           Remaining positional args from the caller.
 #
 # Returns: 0 on success, 1 on unrecognised flag when <extra_arr_v> is "".
 install__parse_common_opts() {
   local _caller="$1" _pctx="$2" _pver="$3" _pmethod="$4" _pprefix="$5"
-  local _pife="$6" _prepos="$7" _pgroup="$8" _pidir="$9" _pextra="${10-}"
-  shift 10
+  local _pife="$6" _prepos="$7" _pgroup="$8" _pidir="$9" _pghrepo="${10-}" _pextra="${11-}"
+  shift 11
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --context)
@@ -175,6 +176,10 @@ install__parse_common_opts() {
       --installer-dir)
         shift
         printf -v "$_pidir" '%s' "${1-}"
+        ;;
+      --gh-repo)
+        shift
+        [[ -n "$_pghrepo" ]] && printf -v "$_pghrepo" '%s' "${1-}"
         ;;
       *)
         if [[ -n "$_pextra" ]]; then
