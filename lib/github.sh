@@ -225,6 +225,7 @@ github__install_release() {
   local _repo="" _tag="" _asset="" _asset_regex=""
   local _caller_sha256="" _caller_sha256_set=false
   local _caller_sidecar_set=false
+  local _nbsrc=0 _nbdest=0
   local -a _passthrough=()
 
   while [[ $# -gt 0 ]]; do
@@ -256,7 +257,17 @@ github__install_release() {
         _passthrough+=(--sidecar "$2")
         shift 2
         ;;
-      --binary-src | --binary-dest | --file-src | --file-dest | \
+      --binary-src)
+        _nbsrc=$((_nbsrc + 1))
+        _passthrough+=("$1" "$2")
+        shift 2
+        ;;
+      --binary-dest)
+        _nbdest=$((_nbdest + 1))
+        _passthrough+=("$1" "$2")
+        shift 2
+        ;;
+      --file-src | --file-dest | \
         --header | --netrc-file | --filename | --owner-group | \
         --installer-dir | --gpg-key | --gpg-sig | --retry)
         _passthrough+=("$1" "$2")
@@ -279,6 +290,18 @@ github__install_release() {
   }
   [[ -z "$_asset" || -z "$_asset_regex" ]] || {
     logging__error "github__install_release: --asset and --asset-regex are mutually exclusive."
+    return 1
+  }
+
+  # Early-exit validations before any network I/O.
+  if "$_caller_sha256_set" && [[ "$_caller_sha256" != "none" ]]; then
+    [[ "$_caller_sha256" =~ ^[0-9a-fA-F]{64}$ ]] || {
+      logging__error "github__install_release: --sha256 accepts a 64-char hex or 'none', got '${_caller_sha256}'."
+      return 1
+    }
+  fi
+  [[ "$_nbsrc" -gt 0 && "$_nbdest" -gt 1 && "$_nbsrc" -ne "$_nbdest" ]] && {
+    logging__error "github__install_release: ${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
     return 1
   }
 
