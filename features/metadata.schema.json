@@ -67,6 +67,53 @@
       },
       "type": "object"
     },
+    "_options": {
+      "description": "Internal-use-only metadata for auto-generated options. The generator uses these metadata to dynamically generate the corresponding options in the `options` field and the associated installation script code.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "user_file_fetch": {
+          "description": "Internal capability flag: feature accepts user-provided file/URI inputs and should receive shared fetch options.",
+          "type": "boolean"
+        },
+        "installer_dir": {
+          "description": "When true, exposes installer_dir as a shared option and emits an INSTALLER_DIR auto-init snippet in the generated header.",
+          "type": "boolean"
+        },
+        "gh_repo": {
+          "description": "The GitHub repository (or repositories) that this Feature installs. A plain `owner/repo` string for single-repo features; a named map for features that use multiple repositories, where each entry has a `tool_name` (display name) and a `slug` (`owner/repo`).",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Single GitHub repository slug (`owner/repo`)."
+            },
+            {
+              "type": "object",
+              "description": "Named map of GitHub repositories used by this Feature.",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["tool_name", "slug"],
+                "additionalProperties": false,
+                "properties": {
+                  "tool_name": {
+                    "type": "string",
+                    "description": "Human-friendly name of the tool hosted in this repository."
+                  },
+                  "slug": {
+                    "type": "string",
+                    "description": "GitHub repository slug (`owner/repo`)."
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "_tool_name": {
+        "description": "The human-friendly name of the underlying tool or project that this Feature installs, used for display purposes in documentation and supporting tools.",
+        "type": "string"
+    },
     "_unsupported_platforms": {
       "description": "List of platforms where this Feature cannot be installed.",
       "type": "array",
@@ -109,14 +156,6 @@
     "_long_description": {
       "description": "Long description of the Feature.",
       "type": "string"
-    },
-    "_user_file_fetch": {
-      "description": "Internal capability flag: feature accepts user-provided file/URI inputs and should receive shared fetch options.",
-      "type": "boolean"
-    },
-    "_installer_dir": {
-      "description": "When true, exposes installer_dir as a shared option and emits an INSTALLER_DIR auto-init snippet in the generated header.",
-      "type": "boolean"
     },
     "_prefix_groups": {
       "description": "Declares the installable-path groups that drive all of a feature's prefix, symlink, PATH-export, and activation machinery.\n\n**Any feature that manages a user-configurable installation path must declare `_prefix_groups`.** The generator then emits all required user-facing options and bash helpers automatically. Manually defining `prefix`, `prefix_discovery`, `prefix_symlinks`, `prefix_exports`, `prefix_activations`, or `runtime_path` options — or any name matching `*_prefix`, `*_prefix_discovery`, `*_prefix_symlinks`, `*_prefix_exports`, or `*_activations` — is always forbidden; those names are reserved exclusively for this system.\n\nFor each declared group the generator produces:\n- **User-facing options** (injected into `options` at build time): `{stem}_prefix`, `{stem}_prefix_discovery`, `{stem}_prefix_symlinks`, `{stem}_prefix_exports` (omitted when `symlink.skip`/`exports.skip` are true), and `{stem}_activations` (when `activation` is present). The bare names (`prefix`, `prefix_discovery`, etc.) are used for the unnamed group `\"\"`.\n- **Bash helpers** (rendered from templates into `install.bash`): `resolve_{id}_prefix()`, `create_{id}_symlinks()`, `export_{id}_path_main()`, and a `{stem}_activation_snippet()` stub (when `activation` is present). All are wired into `_prefix_post_install__generated()` automatically.\n\n**Group key conventions:**\n- Use `\"\"` (empty string) as the key for a single, unnamed group.\n- Use a non-empty slug (e.g. `\"nvm\"`) for each additional named group. The slug becomes both the option-name prefix and the function-name component (`resolve_nvm_dir()` if `option_name` overrides, otherwise `resolve_nvm_prefix()`, `create_nvm_symlinks()`, `export_nvm_path_main()`).\n\nA feature may declare any number of groups.",
