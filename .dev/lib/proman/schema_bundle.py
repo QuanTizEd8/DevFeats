@@ -6,28 +6,49 @@ import json
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
-import yaml
 from jsonschema import Draft202012Validator
 from referencing import Registry
 from referencing.jsonschema import DRAFT202012
 
-from proman.git import git_owner_repo
+from proman.config import load as load_config
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def load_docs_yaml(repo: Path) -> dict[str, Any]:
-    """Return the full ``.config/docs.yaml`` mapping."""
-    return yaml.safe_load(
-        (repo / ".config" / "docs.yaml").read_text(encoding="utf-8"),
+_validator: Draft202012Validator | None = None
+
+
+def get_validator() -> Draft202012Validator:
+    """Return a Draft 2020-12 validator for ``metadata.yaml`` with local schema URIs."""
+    global _validator
+    if _validator is not None:
+        return _validator
+
+    config = load_config()
+    schema_path = config.absolute_path("path.metadata_schema")
+    lib_dirpath = config.absolute_path("path.library")
+    meta_data = json.loads(schema_path.read_text())
+    meta_uri = schema_path.as_uri()
+    stem_to_uri = lib_schema_stem_to_uri(lib_dirpath)
+    # metadata.schema.json uses $ref paths relative to features/ (e.g.
+    # ../lib/ospkg-manifest.schema.json) so IDE yaml.schemas can load them;
+    # jsonschema resolves those against meta_uri once $id is set below.
+    _set_root_id(meta_data, meta_uri)
+    registry = Registry().with_resource(
+        meta_uri, DRAFT202012.create_resource(meta_data)
     )
-
-
-def default_website_base_url() -> str:
-    """GitHub Pages URL for this repo (same rule as Sphinx ``ogp_site_url``)."""
-    owner, name = git_owner_repo()
-    return f"https://{owner.lower()}.github.io/{name.lower()}/"
+    for stem, uri in stem_to_uri.items():
+        path = lib_dirpath / f"{stem}.schema.json"
+        if not path.is_file():
+            continue
+        doc = deepcopy(json.loads(path.read_text(encoding="utf-8")))
+        _walk_replace_bare_stem_refs(doc, stem_to_uri)
+        _set_root_id(doc, uri)
+        registry = registry.with_resource(uri, DRAFT202012.create_resource(doc))
+    Draft202012Validator.check_schema(meta_data)
+    _validator = Draft202012Validator(meta_data, registry=registry)
+    return _validator
 
 
 def schema_stem_from_path(schema_path: Path) -> str:
@@ -103,17 +124,18 @@ def publish_website_schemas(
     base_url: str | None = None,
 ) -> None:
     """Write rewritten schemas under ``build_dir / "schema"`` for static hosting."""
-    root_cfg = load_docs_yaml(repo_root)
-    pub = root_cfg.get("json_schemas_publish")
+    config = load_config()
+    docs_config = config["docs"]
+    pub = docs_config.get("json_schemas_publish")
     if not pub:
         return
     override = base_url
     if override is None:
-        override = root_cfg.get("website_base_url")
+        override = docs_config.get("website_base_url")
     if isinstance(override, str) and override.strip():
         base = override.rstrip("/") + "/"
     else:
-        base = default_website_base_url()
+        base = docs_config["website_base_url"]
     materialized = build_materialized_schemas_for_website(
         repo_root=repo_root,
         base_url=base,
@@ -135,31 +157,3 @@ def lib_schema_stem_to_uri(lib_dirpath: Path) -> dict[str, str]:
         schema_stem_from_path(p): p.resolve().as_uri()
         for p in sorted(lib_dirpath.glob("*.schema.json"))
     }
-
-
-def build_metadata_validator(
-    features_dirpath: Path,
-    lib_dirpath: Path,
-) -> Draft202012Validator:
-    """Return a Draft 2020-12 validator for ``metadata.yaml`` with local schema URIs."""
-    meta_path = (features_dirpath / "metadata.schema.json").resolve()
-    meta_data = deepcopy(json.loads(meta_path.read_text(encoding="utf-8")))
-    meta_uri = meta_path.as_uri()
-    stem_to_uri = lib_schema_stem_to_uri(lib_dirpath)
-    # metadata.schema.json uses $ref paths relative to features/ (e.g.
-    # ../lib/ospkg-manifest.schema.json) so IDE yaml.schemas can load them;
-    # jsonschema resolves those against meta_uri once $id is set below.
-    _set_root_id(meta_data, meta_uri)
-    registry = Registry().with_resource(
-        meta_uri, DRAFT202012.create_resource(meta_data)
-    )
-    for stem, uri in stem_to_uri.items():
-        path = lib_dirpath / f"{stem}.schema.json"
-        if not path.is_file():
-            continue
-        doc = deepcopy(json.loads(path.read_text(encoding="utf-8")))
-        _walk_replace_bare_stem_refs(doc, stem_to_uri)
-        _set_root_id(doc, uri)
-        registry = registry.with_resource(uri, DRAFT202012.create_resource(doc))
-    Draft202012Validator.check_schema(meta_data)
-    return Draft202012Validator(meta_data, registry=registry)
