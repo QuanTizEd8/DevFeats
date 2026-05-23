@@ -17,7 +17,7 @@ _long_description: >-
   files and displays or returns specific fields on request. Each shim can be individually
   enabled or disabled.
 containerEnv:
-  PATH: "@@_FEAT_SHARE_DIR@@/bin:$PATH"
+  PATH: "${{ _env_vars.share_dir_root }}$/bin:$PATH"
 options:
   code:
     type: boolean
@@ -41,8 +41,8 @@ options:
 _prefix_groups:
   "":
     prefix:
-      root: "@@_FEAT_SHARE_DIR@@"
-      nonroot: "@@_FEAT_SHARE_DIR@@"
+      root: "${{ _env_vars.share_dir_root }}$"
+      nonroot: "${{ _env_vars.share_dir_nonroot }}$"
     symlink:
       skip: true
     exports:

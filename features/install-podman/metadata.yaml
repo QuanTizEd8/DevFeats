@@ -36,7 +36,7 @@ mounts:
 # sets up cgroup v2 controller delegation (DinD nesting), and ensures the
 # per-user graphRoot parent directory (/var/lib/containers/storage/users/)
 # has correct sticky-world-writable permissions.
-entrypoint: "@@_FEAT_SHARE_DIR@@/entrypoint.sh"
+entrypoint: "${{ _env_vars.devcontainer_lifecycle_hook_path }}$/entrypoint.sh"
 options:
   add_current_user:
     type: boolean

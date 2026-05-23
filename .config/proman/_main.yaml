@@ -1,0 +1,26 @@
+name: DevFeats
+name_slug: '#{{ get("name").lower() }}#'
+owner: Quantized8
+owner_slug: '#{{ get("owner").lower() }}#'
+namespace: ${{ owner_slug }}$/${{ name_slug }}$
+repo_url: https://github.com/${{ owner_slug }}$/${{ name_slug }}$
+oci_base: ghcr.io/${{ owner_slug }}$/${{ name_slug }}$
+path:
+  features: features
+  library: lib
+  src: src
+  devcontainer: .devcontainer
+  install_script_templates: ${{ path.features }}$/_install_script_templates
+  shared_metadata: ${{ path.features }}$/metadata.shared.yaml
+  metadata_schema: ${{ path.features }}$/metadata.schema.json
+filename:
+  feature_metadata: metadata.yaml
+  feature_script: install.bash
+
+features:
+  lifecycle_hook_keys:
+    - onCreateCommand
+    - updateContentCommand
+    - postCreateCommand
+    - postStartCommand
+    - postAttachCommand

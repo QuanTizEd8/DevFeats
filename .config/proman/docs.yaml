@@ -1,8 +1,6 @@
-version: 1
-
 # Optional override for published JSON Schema $id / $ref URLs (GitHub Pages).
 # When null or omitted, the URL matches Sphinx ``ogp_site_url`` (owner/repo from git).
-website_base_url: null
+website_base_url: https://${{ owner_slug }}$.github.io/${{ name_slug }}$
 
 # Repo-relative paths to JSON Schemas published under ``/schema/<stem>.json``
 # on the docs site (see ``proman-publish-docs-schemas`` / ``build-docs-pkg``).

@@ -71,7 +71,7 @@ options:
 onCreateCommand:
   verification:
     description: Verify conda is installed and working by running `conda info`.
-    command: '@@_FEAT_SHARE_DIR@@/lifecycle--on-create--verification.sh'
+    command: '${{ _env_vars.devcontainer_lifecycle_hook_path }}$/on-create--verification.sh'
 # installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-shell

@@ -1,5 +1,3 @@
-version: 1
-
 image:
   suffix: "-devcontainer"
   config_dir: ".devcontainer/.dev"
@@ -16,10 +14,10 @@ image:
 artifacts:
   retention_days: 7
   src:
-    name: devfeats-src
+    name: ${{ slug }}$-src
     path: src/
   dist:
-    name: devfeats-dist
+    name: ${{ slug }}$-dist
     path: dist/
   pages:
     name: github-pages
