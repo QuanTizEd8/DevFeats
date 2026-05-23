@@ -6,11 +6,7 @@
 #
 # _apply_when: optional condition evaluated against the feature's raw metadata to
 #              decide whether to inject this option. If absent, always injected.
-#
-#   jsonpath:   JSONPath expression resolved against the full feature metadata dict.
-#               Supported syntax: root ($) and dot-notation ($.key.subkey).
-#   condition:  exists | not_exists | equals | not_equals
-#   value:      required for equals / not_equals — the value to compare against
+
 
 documentationURL: ${{ _project.docs.website_base_url }}$/features/${{ id }}$
 licenseURL: ${{ _project.repo_url }}$/blob/main/LICENSE
@@ -71,10 +67,8 @@ options:
       Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers.
 
   fetch_headers:
-    _apply_when:
-      jsonpath: _user_file_fetch
-      condition: equals
-      value: true
+    _apply_when: |
+      #{{ return get("_user_file_fetch") }}#
     type: array
     default: ''
     description: >-
@@ -84,10 +78,8 @@ options:
       raw URLs, OCI registries, or internal mirrors.
 
   fetch_netrc:
-    _apply_when:
-      jsonpath: _user_file_fetch
-      condition: equals
-      value: true
+    _apply_when: |
+      #{{ return get("_user_file_fetch") }}#
     type: string
     default: ''
     description: >-
@@ -97,10 +89,8 @@ options:
       for the pixi binary download); use together when both apply.
 
   installer_dir:
-    _apply_when:
-      jsonpath: _installer_dir
-      condition: equals
-      value: true
+    _apply_when: |
+      #{{ return get("_options.installer_dir", True) }}#
     type: string
     default: ''
     description: >-
@@ -155,9 +145,8 @@ options:
     enum: *log_levels
 
   gh_repo:
-    _apply_when:
-      jsonpath: _options.gh_repo
-      condition: exists
+    _apply_when: |
+      #{{ return get("_gh_repo") }}#
     type: string
     default: ${{ _options.gh_repo }}$
     description: >-
@@ -166,5 +155,26 @@ options:
       installation scripts, or source code,
       depending on the installation method.
       Set to a fork or alternate repository to use a custom source.
+
+  runtime_path:
+    _apply_when: |
+      #{{
+        prefix_groups = get("_prefix_groups", {})
+        return any(
+            not (
+                g.get("symlink", {}).get("skip", False)
+                and g.get("exports", {}).get("skip", False)
+            )
+            for g in prefix_groups.values()
+        )
+      }}#
+    type: string
+    default: ""
+    description: |
+      Colon-separated directories guaranteed to be on PATH at runtime
+      (e.g. `/usr/local/bin:/usr/bin:/bin`).
+      When set, the discovery step uses this value to decide whether
+      the installation directory is already reachable.
+      Leave empty (default) to check `$PATH` at install time instead.
 
 _lifecycle_key_prefix: ${{ _project.owner_slug }}$-${{ _project.name_slug }}$--
