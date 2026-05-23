@@ -68,7 +68,7 @@ options:
 
   fetch_headers:
     _apply_when: |
-      #{{ return get("_user_file_fetch") }}#
+      #{{ return get("_options.user_file_fetch") }}#
     type: array
     default: ''
     description: >-
@@ -79,7 +79,7 @@ options:
 
   fetch_netrc:
     _apply_when: |
-      #{{ return get("_user_file_fetch") }}#
+      #{{ return get("_options.user_file_fetch") }}#
     type: string
     default: ''
     description: >-
