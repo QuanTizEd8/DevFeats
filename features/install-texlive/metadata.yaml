@@ -31,7 +31,8 @@ _long_description: |-
   - **`package`** — Install distro-packaged TeX Live from the system package manager. The `scheme`
     option influences the package set selected where the distro offers multiple granularity levels.
     Version is controlled by the distribution's package policy.
-
+_options:
+  user_file_fetch: true
 options:
   method:
     type: string
@@ -563,9 +564,6 @@ options:
         description: Installer default (`TEXDIR/tlpkg/backups`).
       - value: /var/cache/texlive/backups
         description: Custom backup directory outside the TeX Live tree.
-
-_user_file_fetch: true
-
 customizations:
   vscode:
     extensions:

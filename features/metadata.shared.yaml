@@ -16,7 +16,7 @@ _oci_ref: ${{ _project.oci_base }}$/${{ id }}$
 _env_vars:
   share_dir_root: /usr/local/share/${{ _project.namespace }}$/${{ id }}$
   share_dir_nonroot: ${HOME}/.local/share/${{ _project.namespace }}$/${{ id }}$
-  devcontainer_lifecycle_hook_path: ${{ _env_vars.share_dir_root }}$/lifecycle-hooks
+  lifecycle_script_dir: ${{ _env_vars.share_dir_root }}$/lifecycle-hooks
   shell_profile_d_filename: 99-${{ _project.owner_slug }}$--${{ _project.name_slug }}$--${{ id }}$.sh
 
 options:

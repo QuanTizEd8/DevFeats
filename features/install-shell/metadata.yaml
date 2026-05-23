@@ -200,6 +200,20 @@ options:
     description: |-
       Install [fzf](https://github.com/junegunn/fzf) (fuzzy finder) from GitHub Releases.
       Shell key-bindings and completion are injected per-user.
+_options:
+  gh_repo:
+    fzf:
+      tool_name: fzf
+      slug: junegunn/fzf
+    ohmyzsh:
+      tool_name: Oh My Zsh
+      slug: ohmyzsh/ohmyzsh
+    ohmybash:
+      tool_name: Oh My Bash
+      slug: ohmybash/oh-my-bash
+    zsh_completions:
+      tool_name: zsh-completions
+      slug: zsh-users/zsh-completions
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 _dependencies:

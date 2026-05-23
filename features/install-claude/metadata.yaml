@@ -19,7 +19,7 @@ onCreateCommand:
   symlink-claude-dir:
     description: Symlink the specified workspace `claude` directory to `~/.claude`.
     command: >-
-      ${{ _env_vars.devcontainer_lifecycle_hook_path }}$/on-create--symlink-claude-dir.sh ${containerWorkspaceFolder}
+      ${{ _env_vars.lifecycle_script_dir }}$/on-create--symlink-claude-dir.sh ${containerWorkspaceFolder}
 customizations:
   vscode:
     extensions:

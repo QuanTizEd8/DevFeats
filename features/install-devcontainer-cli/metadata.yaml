@@ -10,6 +10,8 @@ keywords:
 _long_description: |-
   Installs the Dev Container CLI (`devcontainer`) using either the upstream standalone
   installer script (bundled Node.js runtime) or npm (`@devcontainers/cli`).
+_options:
+  gh_repo: devcontainers/cli
 options:
   method:
     type: string

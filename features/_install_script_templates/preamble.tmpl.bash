@@ -8,7 +8,7 @@ _FEAT_SHARE_DIR="@@FEATURE_SHARE_DIR@@"
 _EXPORT_PROFILE_D="@@FEATURE_PROFILE_D_FILE@@"
 
 # Path to the feature's root directory.
-_BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+_FEAT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Path to the feature's ``files/`` sub-directory.
 _FILES_DIR="${_BASE_DIR}/files"

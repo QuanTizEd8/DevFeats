@@ -10,6 +10,7 @@ keywords:
 _long_description: |-
   Installs `shfmt`, the shell script formatter from the mvdan/sh project.
   Supports formatting sh, bash, and mksh scripts.
+_tool_name: shfmt
 options:
   method:
     type: string
@@ -33,6 +34,8 @@ options:
         description: Resolve and install the most recently published release, potentially including pre-releases.
       - value: 3.10.0
         description: Install shfmt v3.10.0.
+_options:
+  gh_repo: mvdan/sh
 customizations:
   vscode:
     extensions:

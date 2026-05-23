@@ -124,8 +124,8 @@ done
 # delegation; the entrypoint is not installed (nothing would call it).
 # ---------------------------------------------------------------------------
 if os__is_devcontainer_build; then
-  _ENTRYPOINT_DEST="${_FEAT_SHARE_DIR}/entrypoint.sh"
-  file__mkdir "${_FEAT_SHARE_DIR}"
+  _ENTRYPOINT_DEST="${_LIFECYCLE_SCRIPT_DIR}/entrypoint.sh"
+  file__mkdir "${_LIFECYCLE_SCRIPT_DIR}"
   file__cp "${_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
   file__chmod +x "$_ENTRYPOINT_DEST"
 fi

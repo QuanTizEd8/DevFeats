@@ -19,6 +19,7 @@ _long_description: |-
 
   Version aliases such as lts/*, --lts, or a major version number are supported alongside
   exact semver strings; the default installs the latest Active LTS release.
+_tool_name: Node.js
 options:
   method:
     type: string
@@ -221,6 +222,8 @@ containerEnv:
   NVM_DIR: /usr/local/share/nvm
   NVM_SYMLINK_CURRENT: 'true'
   PATH: /usr/local/share/nvm/current/bin:${PATH}
+_options:
+  gh_repo: nvm-sh/nvm
 customizations:
   vscode:
     extensions:

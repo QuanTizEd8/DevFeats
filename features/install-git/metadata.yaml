@@ -168,6 +168,8 @@ options:
     type: string
     default: ''
     description: Freeform content to append to the per-user gitconfig (`~/.gitconfig`) for all resolved users. Accepts standard gitconfig format. Written after `user_name` and `user_email` settings. Set to `''` to skip.
+_options:
+  gh_repo: git/git
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 #   - ghcr.io/quantized8/devfeats/install-jq

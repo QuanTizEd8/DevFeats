@@ -70,7 +70,9 @@ options:
 onCreateCommand:
   verification:
     description: Verify conda is installed and working by running `conda info`.
-    command: '${{ _env_vars.devcontainer_lifecycle_hook_path }}$/on-create--verification.sh'
+    command: '${{ _env_vars.lifecycle_script_dir }}$/on-create--verification.sh'
+_options:
+  gh_repo: conda-forge/miniforge
 # installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-shell

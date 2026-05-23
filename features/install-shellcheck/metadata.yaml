@@ -14,6 +14,7 @@ _long_description: |-
   Note: upstream releases do not provide an ARM64 macOS binary; on Apple
   Silicon `method=binary` is unavailable and `method=auto` falls back to
   the package manager automatically.
+_tool_name: ShellCheck
 options:
   method:
     type: string
@@ -37,6 +38,8 @@ options:
         description: Resolve and install the most recently published release, potentially including pre-releases.
       - value: 0.10.0
         description: Install shellcheck v0.10.0.
+_options:
+  gh_repo: koalaman/shellcheck
 customizations:
   vscode:
     extensions:

@@ -22,9 +22,9 @@ _long_description: >-
   Packages are declared in a single JSON or YAML manifest
   with environment selectors, repository configuration,
   key import, and pre/post install hooks.
-_user_file_fetch: true
 _options:
   installer_dir: false
+  user_file_fetch: true
 options:
   manifest:
     default: ''
@@ -130,13 +130,13 @@ _dependencies: {}
 #   - ghcr.io/quantized8/devfeats/install-homebrew
 onCreateCommand:
   install:
-    command: '[ -f ${{ _env_vars.devcontainer_lifecycle_hook_path }}$/on-create.sh ] && sh ${{ _env_vars.devcontainer_lifecycle_hook_path }}$/on-create.sh || true'
+    command: '[ -f ${{ _env_vars.lifecycle_script_dir }}$/on-create.sh ] && sh ${{ _env_vars.lifecycle_script_dir }}$/on-create.sh || true'
     description: When `lifecycle_hook` is set to `onCreate`, install OS packages at container creation time.
 updateContentCommand:
   install:
-    command: '[ -f ${{ _env_vars.devcontainer_lifecycle_hook_path }}$/update-content.sh ] && sh ${{ _env_vars.devcontainer_lifecycle_hook_path }}$/update-content.sh || true'
+    command: '[ -f ${{ _env_vars.lifecycle_script_dir }}$/update-content.sh ] && sh ${{ _env_vars.lifecycle_script_dir }}$/update-content.sh || true'
     description: When `lifecycle_hook` is set to `updateContent`, reinstall OS packages when workspace content changes.
 postCreateCommand:
   install:
-    command: '[ -f ${{ _env_vars.devcontainer_lifecycle_hook_path }}$/post-create.sh ] && sh ${{ _env_vars.devcontainer_lifecycle_hook_path }}$/post-create.sh || true'
+    command: '[ -f ${{ _env_vars.lifecycle_script_dir }}$/post-create.sh ] && sh ${{ _env_vars.lifecycle_script_dir }}$/post-create.sh || true'
     description: When `lifecycle_hook` is set to `postCreate`, install OS packages after the container is fully created.

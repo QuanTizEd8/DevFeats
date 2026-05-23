@@ -16,6 +16,7 @@ _long_description: |-
   build scripts, CI tasks, and interactive shell sessions. By default, the latest stable ORAS version is
   installed, or you can pin a specific release. The installer supports release-based installation
   and package-manager installation, with `auto` preferring the release path first.
+_tool_name: ORAS
 options:
   version:
     type: string
@@ -41,6 +42,8 @@ options:
         description: |-
           Install from the operating system package manager.
           Package selection and platform support are controlled by `_dependencies.run.os-pkg`.
+_options:
+  gh_repo: oras-project/oras
 _dependencies:
   run:
     base:

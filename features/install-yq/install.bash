@@ -124,7 +124,7 @@ if [ "${_SKIP_INSTALL}" != "true" ]; then
     --owner-group "feature::install-yq" \
     --method "${METHOD}" \
     --if-exists "${IF_EXISTS}" \
-    --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" \
+    --repos-manifest "${_FEAT_DIR}/dependencies/run/os-pkg.yaml" \
     --prefix "${PREFIX}" \
     --version "${VERSION}" \
     --installer-dir "${INSTALLER_DIR}" \

@@ -478,7 +478,7 @@ _export_git_manpath() {
     --scope "$(users__is_user_path "${PREFIX}" && printf user || printf system)" \
     --home "$(users__home_of_path_owner "${PREFIX}")" \
     --opt "${_manpath_export_opt}" \
-    --profile-d "${_EXPORT_PROFILE_D}" \
+    --profile-d "${_SHELL_PROFILE_D_FILENAME}" \
     --marker "git MANPATH (install-git)" \
     --content "export MANPATH=\"${PREFIX}/share/man:\${MANPATH}\""
   logging__fn_exit "_export_git_manpath"

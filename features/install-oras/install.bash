@@ -5,7 +5,7 @@ install__oras \
   --method "${METHOD}" \
   --prefix "${PREFIX}" \
   --if-exists "${IF_EXISTS}" \
-  --repos-manifest "${_BASE_DIR}/dependencies/run/os-pkg.yaml" \
+  --repos-manifest "${_FEAT_DIR}/dependencies/run/os-pkg.yaml" \
   --installer-dir "${INSTALLER_DIR}" \
   --gh-repo "${GH_REPO}" > /dev/null
 if [[ "${METHOD}" == "auto" ]]; then

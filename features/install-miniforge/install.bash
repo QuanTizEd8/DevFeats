@@ -69,10 +69,10 @@ _prefix_post_install() {
   _prefix_post_install__generated
   setup_activate_env "${_write_users[@]}"
   if os__is_devcontainer_build; then
-    mkdir -p "${_FEAT_SHARE_DIR}"
+    mkdir -p "${_LIFECYCLE_SCRIPT_DIR}"
     printf '#!/bin/sh\n"%s" info\n' "${_DF_EXPECTED_CMD}" \
-      > "${_FEAT_SHARE_DIR}/lifecycle--on-create--verification.sh"
-    chmod +x "${_FEAT_SHARE_DIR}/lifecycle--on-create--verification.sh"
+      > "${_LIFECYCLE_SCRIPT_DIR}/lifecycle--on-create--verification.sh"
+    chmod +x "${_LIFECYCLE_SCRIPT_DIR}/lifecycle--on-create--verification.sh"
   fi
 }
 

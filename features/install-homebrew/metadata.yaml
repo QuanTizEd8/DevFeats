@@ -53,6 +53,8 @@ options:
       Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation.
       Forces `homebrew-core` to be cloned as a full git repository rather than relying on the JSON API.
       Slower but useful in environments where the API endpoint is blocked.
+_options:
+  gh_repo: Homebrew/install
 _dependencies:
   run:
     base:

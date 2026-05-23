@@ -67,14 +67,14 @@ case "$METHOD" in
     _shellcheck__install_release "$_resolved"
     ;;
   package)
-    _shellcheck__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
+    _shellcheck__install_repos "${_FEAT_DIR}/dependencies/run/os-pkg.yaml"
     ;;
   auto)
     _resolved="$(_shellcheck__resolve_version "$VERSION" 2> /dev/null || true)"
     if [[ -n "$_resolved" ]] && _shellcheck__install_release "$_resolved" 2> /dev/null; then
       METHOD=binary
     else
-      _shellcheck__install_repos "${_BASE_DIR}/dependencies/run/os-pkg.yaml"
+      _shellcheck__install_repos "${_FEAT_DIR}/dependencies/run/os-pkg.yaml"
       METHOD=package
     fi
     ;;

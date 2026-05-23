@@ -149,5 +149,5 @@ _BASH4=$(_find_bash4) || {
   exit 1
 }
 
-_BASE_DIR="$(dirname "$0")"
-exec "$_BASH4" "$_BASE_DIR/install.bash" "$@"
+_FEAT_DIR="$(dirname "$0")"
+exec "$_BASH4" "$_FEAT_DIR/install.bash" "$@"

@@ -17,6 +17,7 @@ _long_description: |-
   with `auto` mode preferring upstream release binaries for compatibility and falling back to
   repository installation only when compatible packages are declared. On Debian/Ubuntu apt, `method=package`
   is intentionally unsupported because distro `yq` is the Python jq-wrapper implementation.
+_tool_name: yq
 options:
   version:
     type: string
@@ -69,6 +70,8 @@ options:
           - As non-root: writes to `$HOME/.zfunc/_yq`.
       - value: fish
         description: Write yq fish completions to `$HOME/.config/fish/completions/yq.fish`.
+_options:
+  gh_repo: mikefarah/yq
 _dependencies:
   run:
     base:

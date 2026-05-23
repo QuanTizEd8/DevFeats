@@ -52,6 +52,8 @@ options:
         description: jq v1.7.1.
       - value: '1.6'
         description: jq v1.6 (uses legacy release asset naming).
+_options:
+  gh_repo: jqlang/jq
 _dependencies:
   run:
     base:

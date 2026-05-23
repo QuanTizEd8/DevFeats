@@ -62,6 +62,8 @@ options:
     type: boolean
     default: false
     description: Use `cargo binstall` for `method=cargo` when available.
+_options:
+  gh_repo: casey/just
 customizations:
   vscode:
     extensions:

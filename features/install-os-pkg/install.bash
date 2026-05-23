@@ -33,7 +33,7 @@ if [ ! -d "$_LIB_DIR" ]; then
   file__mkdir "$_LIB_DIR"
   file__cp "$0" "$_LIB_DIR/install.sh"
   file__chmod +x "$_LIB_DIR/install.sh"
-  file__cp -r "$_BASE_DIR/_lib" "$_LIB_DIR/"
+  file__cp -r "$_FEAT_DIR/_lib" "$_LIB_DIR/"
 fi
 
 if [[ "$INSTALL_SELF" == true ]]; then
@@ -49,7 +49,7 @@ fi
 
 # When lifecycle_hook is set, write a hook script and exit without installing.
 if [[ -n "$LIFECYCLE_HOOK" ]]; then
-  _HOOK_DIR="${_FEAT_SHARE_DIR}"
+  _HOOK_DIR="${_LIFECYCLE_SCRIPT_DIR}"
   file__mkdir "$_HOOK_DIR"
   _MANIFEST_ARG="$MANIFEST"
   if [[ "$MANIFEST" == *$'\n'* ]]; then

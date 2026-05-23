@@ -13,7 +13,10 @@ _long_description: >-
   R, and any language distributed via conda channels. The installer is downloaded from
   the official Pixi release channel, with optional version pinning and checksum
   verification. Shell activation is configured for the specified users after installation.
-_user_file_fetch: true
+_tool_name: Pixi
+_options:
+  gh_repo: prefix-dev/pixi
+  user_file_fetch: true
 options:
   version:
     type: string
@@ -94,11 +97,11 @@ mounts:
 - source: ${localWorkspaceFolderBasename}-pixi
   target: ${containerWorkspaceFolder}/.pixi
   type: volume
-entrypoint: "${{ _env_vars.devcontainer_lifecycle_hook_path }}$/entrypoint.sh ${containerWorkspaceFolder}/.pixi"
+entrypoint: "${{ _env_vars.lifecycle_script_dir }}$/entrypoint.sh ${containerWorkspaceFolder}/.pixi"
 onCreateCommand:
   verification:
     description: Verify pixi is installed and working by running [`pixi info`](https://pixi.prefix.dev/latest/reference/cli/pixi/info/).
-    command: '${{ _env_vars.devcontainer_lifecycle_hook_path }}$/on-create--verification.sh'
+    command: '${{ _env_vars.lifecycle_script_dir }}$/on-create--verification.sh'
 # installsAfter: []
 customizations:
   vscode:

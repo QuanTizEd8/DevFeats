@@ -161,6 +161,8 @@ options:
     description: |-
       The hostname to configure as the git credential helper target.
       Defaults to 'github.com'. Set to your GitHub Enterprise Server hostname (e.g. 'git.corp.example.com') when using GHES.
+_options:
+  gh_repo: cli/cli
 customizations:
   vscode:
     extensions:

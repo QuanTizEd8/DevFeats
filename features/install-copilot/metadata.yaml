@@ -19,7 +19,7 @@ onCreateCommand:
   symlink-vscode-user-dir:
     description: Symlink the specified workspace `copilot` directory to `~/.vscode-server/data/User`.
     command: >-
-      ${{ _env_vars.devcontainer_lifecycle_hook_path }}$/on-create--symlink-vscode-user-dir.sh ${containerWorkspaceFolder}
+      ${{ _env_vars.lifecycle_script_dir }}$/on-create--symlink-vscode-user-dir.sh ${containerWorkspaceFolder}
 customizations:
   vscode:
     extensions:
