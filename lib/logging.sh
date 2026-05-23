@@ -97,6 +97,13 @@ logging__feature_entry() {
   return 0
 }
 
+# @brief logging__feature_exit <feature_name>... — LOG_LEVEL ≥ info. One line: ↩️ Script exit: …
+logging__feature_exit() {
+  [[ "${_LOGGING__LEVEL}" -ge 3 ]] || return 0
+  _logging__emit '↩️' "Script exit: $*"
+  return 0
+}
+
 # @brief logging__detect <line>... — LOG_LEVEL ≥ info. Prefix: 🛠️
 logging__detect() {
   [[ "${_LOGGING__LEVEL}" -ge 3 ]] || return 0
