@@ -1,0 +1,22 @@
+# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
+# Feature: install-fzf
+# Add version/name/description/dependencies in the semantic phase.
+
+options:
+  install_fzf:
+    type: boolean
+    default: false
+    description: |-
+      Install [fzf](https://github.com/junegunn/fzf) (fuzzy finder) from GitHub Releases.
+      Shell key-bindings and completion are injected per-user.
+_options:
+  gh_repo:
+    fzf:
+      tool_name: fzf
+      slug: junegunn/fzf
+_prefix_groups:
+  fzf:
+    prefix:
+      bins: [fzf]
+    applies_when:
+      - install_fzf: ['true']

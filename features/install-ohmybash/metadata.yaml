@@ -1,0 +1,45 @@
+# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
+# Feature: install-ohmybash
+# Add version/name/description/dependencies in the semantic phase.
+
+options:
+  install_ohmybash:
+    type: boolean
+    default: true
+    description: Install [Oh My Bash](https://ohmybash.nntoan.com/).
+  ohmybash_plugins:
+    default: git
+    description: |-
+      Oh My Bash plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
+      Custom plugins are cloned into `<ohmybash_install_dir>/custom/plugins/<repo>`.
+      Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Bash plugins and are not cloned.
+      Set to `''` to install no custom plugins.
+      Ignored if Oh My Bash is not available or being installed.
+    type: array
+  ohmybash_theme:
+    default: ''
+    description: |-
+      Oh My Bash custom theme to install, as an `owner/repo` GitHub slug.
+      The repository is cloned into `<ohmybash_install_dir>/custom/themes/<repo>`.
+      Ignored if Oh My Bash is not available or being installed.
+    type: string
+  ohmybash_install_dir:
+    default: /usr/local/share/oh-my-bash
+    description: Path to the Oh My Bash installation directory.
+    type: string
+  ohmybash_branch:
+    default: master
+    description: Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone.
+    type: string
+  ohmybash_custom_dir:
+    default: ''
+    description: |-
+      OSH_CUSTOM directory for Oh My Bash.
+      Leave empty to use `${XDG_CONFIG_HOME}/bash/custom` (i.e. `~/.config/bash/custom`) — per-user, themes and plugins are symlinked there from the system install.
+      Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
+    type: string
+_options:
+  gh_repo:
+    ohmybash:
+      tool_name: Oh My Bash
+      slug: ohmybash/oh-my-bash

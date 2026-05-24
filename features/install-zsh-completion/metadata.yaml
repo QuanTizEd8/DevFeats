@@ -1,0 +1,22 @@
+# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
+# Feature: install-zsh-completion
+# Add version/name/description/dependencies in the semantic phase.
+
+options:
+  install_zsh_completions:
+    type: boolean
+    default: true
+    description: |-
+      Install [zsh-completions](https://github.com/zsh-users/zsh-completions).
+      Adds extra completion definitions not yet in the zsh core.
+      With Homebrew this uses the `zsh-completions` formula. Otherwise the
+      repository is shallow-cloned to `/usr/local/share/zsh-completions` and
+      `fpath` includes its `src/` tree (matching upstream manual install).
+      Debian and Ubuntu packages are published via the project's
+      [Open Build Service repository](https://software.opensuse.org/download.html?project=shells%3Azsh-users%3Azsh-completions&package=zsh-completions),
+      which is not the same as default `apt` archives; this feature does not add that repo.
+_options:
+  gh_repo:
+    zsh_completions:
+      tool_name: zsh-completions
+      slug: zsh-users/zsh-completions

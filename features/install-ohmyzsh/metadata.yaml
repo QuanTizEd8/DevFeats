@@ -1,0 +1,56 @@
+# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
+# Feature: install-ohmyzsh
+# Add version/name/description/dependencies in the semantic phase.
+
+options:
+  install_ohmyzsh:
+    type: boolean
+    default: true
+    description: Install Oh My Zsh when installing Zsh. Ignored if Zsh is not available or being installed.
+  ohmyzsh_plugins:
+    type: array
+    default: "git\nzsh-users/zsh-syntax-highlighting"
+    description: |-
+      Oh My Zsh plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
+      Custom plugins are cloned into `<ohmyzsh_custom_dir>/plugins/<repo>`.
+      Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Zsh plugins and are not cloned.
+      Set to `''` to install no custom plugins.
+      Ignored if Oh My Zsh is not available or being installed.
+  ohmyzsh_theme:
+    default: ''
+    description: |-
+      Oh My Zsh custom theme to install, as an `owner/repo` GitHub slug.
+      The repository is cloned into `<ohmyzsh_custom_dir>/themes/<repo>`.
+      Set to `''` to install no custom theme.
+      Ignored if Oh My Zsh is not available or being installed.
+    type: string
+    proposals:
+      - value: romkatv/powerlevel10k
+        description: >-
+          [Powerlevel10k](https://github.com/romkatv/powerlevel10k) theme
+          (see the [install-fonts](#features/install-fonts) feature
+          for installation of the recommended Powerlevel10k-compatible Nerd Font).
+  ohmyzsh_install_dir:
+    default: /usr/local/share/oh-my-zsh
+    description: |-
+      Path to the Oh My Zsh installation directory.
+      Corresponds to the [`ZSH`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh) config variable.
+    type: string
+  ohmyzsh_branch:
+    default: master
+    description: |-
+      Git branch/tag of [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to clone.
+      Also recorded as `oh-my-zsh.branch` in the git config so `omz update` works correctly.
+    type: string
+  ohmyzsh_custom_dir:
+    default: ''
+    description: |-
+      ZSH_CUSTOM directory for Oh My Zsh.
+      Leave empty to use `${ZDOTDIR}/custom` (i.e. `~/.config/zsh/custom`) — per-user, themes and plugins are symlinked there from the system install.
+      Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
+    type: string
+_options:
+  gh_repo:
+    ohmyzsh:
+      tool_name: Oh My Zsh
+      slug: ohmyzsh/ohmyzsh

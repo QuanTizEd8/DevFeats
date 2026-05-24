@@ -1,0 +1,29 @@
+# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
+# Feature: install-starship
+# Add version/name/description/dependencies in the semantic phase.
+
+options:
+  install_starship:
+    type: boolean
+    default: true
+    description: Install the [Starship](https://starship.rs/) prompt binary.
+  starship_shells:
+    type: array
+    default: zsh
+    description: |-
+      Shells to activate the Starship prompt in. Leave empty to install the binary without activating it.
+      Ignored if `install_starship=false` and `starship` is not already on PATH.
+      When a shell's framework theme (`ohmyzsh_theme` / `ohmybash_theme`) is also set, the
+      framework still loads but Starship owns the prompt (`ZSH_THEME` / `OSH_THEME` is forced
+      to empty with a warning).
+    enum:
+    - value: bash
+      description: Activate Starship in Bash by appending `eval "$(starship init bash)"` to the Bash RC.
+    - value: zsh
+      description: Activate Starship in Zsh by appending `eval "$(starship init zsh)"` to the Zsh RC.
+_prefix_groups:
+  starship:
+    prefix:
+      bins: [starship]
+    applies_when:
+      - install_starship: ['true']

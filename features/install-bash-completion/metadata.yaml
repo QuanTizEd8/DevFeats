@@ -1,0 +1,11 @@
+# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
+# Feature: install-bash-completion
+# Add version/name/description/dependencies in the semantic phase.
+
+options:
+  install_bash_completion:
+    type: boolean
+    default: true
+    description: |-
+      Install [bash-completion](https://github.com/scop/bash-completion) (v2).
+      Provides programmable tab-completion for Bash commands and arguments.
