@@ -10,30 +10,25 @@ _long_description: >-
   Clones [Oh My Zsh](https://ohmyz.sh/) to a shared system directory, optionally
   clones a custom theme (e.g. [Powerlevel10k](https://github.com/romkatv/powerlevel10k))
   and custom plugins from GitHub, and wires up per-user Zsh configuration by injecting
-  a guarded block into each user's `$ZDOTDIR/zshtheme` file. When a per-user
-  `ZSH_CUSTOM` directory is used, themes and plugins are symlinked there from the
-  shared system install so updates stay consistent.
+  a guarded block via `shell__write_block()` into each user's `zshtheme` file (when
+  present) or directly into `.zshrc`. When a per-user `ZSH_CUSTOM` directory is used,
+  themes and plugins are symlinked there from the shared system install so updates stay
+  consistent.
 options:
-  install_ohmyzsh:
-    type: boolean
-    default: true
-    description: Install Oh My Zsh when installing Zsh. Ignored if Zsh is not available or being installed.
-  ohmyzsh_plugins:
+  plugins:
     type: array
     default: "git\nzsh-users/zsh-syntax-highlighting"
     description: |-
-      Oh My Zsh plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
-      Custom plugins are cloned into `<ohmyzsh_custom_dir>/plugins/<repo>`.
+      Oh My Zsh plugins to activate, each as an `owner/repo` GitHub slug or a plain built-in name.
+      Custom plugins (slugs containing `/`) are cloned into `<install_dir>/custom/plugins/<repo>`.
       Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Zsh plugins and are not cloned.
-      Set to `''` to install no custom plugins.
-      Ignored if Oh My Zsh is not available or being installed.
-  ohmyzsh_theme:
+      Set to `''` to activate no plugins.
+  theme:
     default: ''
     description: |-
       Oh My Zsh custom theme to install, as an `owner/repo` GitHub slug.
-      The repository is cloned into `<ohmyzsh_custom_dir>/themes/<repo>`.
-      Set to `''` to install no custom theme.
-      Ignored if Oh My Zsh is not available or being installed.
+      The repository is cloned into `<install_dir>/custom/themes/<repo>`.
+      Set to `''` to use no custom theme.
     type: string
     proposals:
       - value: romkatv/powerlevel10k
@@ -41,24 +36,47 @@ options:
           [Powerlevel10k](https://github.com/romkatv/powerlevel10k) theme
           (see the [install-fonts](#features/install-fonts) feature
           for installation of the recommended Powerlevel10k-compatible Nerd Font).
-  ohmyzsh_install_dir:
+  install_dir:
     default: /usr/local/share/oh-my-zsh
     description: |-
       Path to the Oh My Zsh installation directory.
       Corresponds to the [`ZSH`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh) config variable.
     type: string
-  ohmyzsh_branch:
+  branch:
     default: master
     description: |-
       Git branch/tag of [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to clone.
       Also recorded as `oh-my-zsh.branch` in the git config so `omz update` works correctly.
     type: string
-  ohmyzsh_custom_dir:
+  custom_dir:
     default: ''
     description: |-
-      ZSH_CUSTOM directory for Oh My Zsh.
-      Leave empty to use `${ZDOTDIR}/custom` (i.e. `~/.config/zsh/custom`) — per-user, themes and plugins are symlinked there from the system install.
+      `ZSH_CUSTOM` directory for Oh My Zsh.
+      Leave empty to use `${ZDOTDIR:-$HOME}/custom` — per-user, themes and plugins are symlinked
+      there from the system install.
       Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
+    type: string
+  rcfile:
+    default: ''
+    description: |-
+      Full path to the per-user Zsh theme file that Oh My Zsh configuration is injected into.
+      Leave empty to resolve automatically: runs `zsh` as each user to read `ZDOTDIR` from the
+      shell's startup chain, falling back to `$HOME` (zsh's native default when `ZDOTDIR` is
+      unset). The injection target is then chosen as: `$ZDOTDIR/zshtheme` if it exists; otherwise
+      `$ZDOTDIR/zshtheme` (created, with a source line injected into `.zshrc`) if `.zshrc` exists;
+      otherwise `.zshrc` directly.
+      Accepts paths prefixed with `~` or `$HOME` (expanded per user).
+    type: string
+  user_config_mode:
+    default: overwrite
+    description: Whether to overwrite the `p10k.zsh` file if it already exists.
+    enum:
+    - value: overwrite
+      description: Always copy `p10k.zsh` from the feature's skel/ directory.
+    - value: augment
+      description: Copy `p10k.zsh` only if it does not already exist.
+    - value: skip
+      description: Do not copy `p10k.zsh`.
     type: string
 _options:
   gh_repo:
