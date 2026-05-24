@@ -4,34 +4,38 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    import pytest
+import pytest
 
 import proman.config as cfg
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def _patch_loaders(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    project_yaml: str,
-    ci_yaml: str,
-) -> None:
-    """Write YAML files to tmp_path and redirect loaders to read them."""
-    (tmp_path / ".config").mkdir(parents=True)
-    (tmp_path / ".config/project.yaml").write_text(project_yaml, encoding="utf-8")
-    (tmp_path / ".config/ci.yaml").write_text(ci_yaml, encoding="utf-8")
-    monkeypatch.setattr(cfg, "git_repo_root", lambda: tmp_path)
-    # Clear caches so the patched root is used.
-    cfg.load_project.cache_clear()
-    cfg.load_ci.cache_clear()
-
-
-_MINIMAL_PROJECT = "version: 1\nname: testproject\n"
+_MINIMAL_MAIN = """\
+name: TestProject
+name_slug: testproject
+owner: testowner
+owner_slug: testowner
+namespace: testowner/testproject
+repo_url: https://github.com/testowner/testproject
+oci_base: ghcr.io/testowner/testproject
+path:
+  features: features
+  library: lib
+  src: src
+  devcontainer: .devcontainer
+  shared_metadata: features/metadata.shared.yaml
+  metadata_schema: features/metadata.schema.json
+  install_script_template: features/install.tmpl.bash
+filename:
+  feature_metadata: metadata.yaml
+  feature_script: install.bash
+features:
+  lifecycle_hook_keys:
+    - onCreateCommand
+"""
 
 _MINIMAL_CI = """\
-version: 1
 image:
   suffix: "-devcontainer"
   config_dir: ".devcontainer/.dev"
@@ -44,10 +48,10 @@ image:
 artifacts:
   retention_days: 7
   src:
-    name: devfeats-src
+    name: testproject-src
     path: src/
   dist:
-    name: devfeats-dist
+    name: testproject-dist
     path: dist/
   pages:
     name: github-pages
@@ -80,24 +84,46 @@ triggers:
 """
 
 
-def test_load_project_returns_name(
+@pytest.fixture(autouse=True)
+def _reset_config_singleton() -> None:
+    """Ensure isolated tests do not leave a patched config singleton."""
+    yield
+    cfg._config = None
+
+
+def _patch_loaders(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    main_yaml: str = _MINIMAL_MAIN,
+    ci_yaml: str = _MINIMAL_CI,
+) -> None:
+    """Write proman YAML files to tmp_path and redirect loaders to read them."""
+    proman_dir = tmp_path / ".config" / "proman"
+    proman_dir.mkdir(parents=True)
+    (proman_dir / "_main.yaml").write_text(main_yaml, encoding="utf-8")
+    (proman_dir / "ci.yaml").write_text(ci_yaml, encoding="utf-8")
+    monkeypatch.setattr(cfg, "git_repo_root", lambda: tmp_path)
+    cfg._config = None
+
+
+def test_load_returns_project_name(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Verify load_project returns the project name and version from YAML."""
-    _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
-    proj = cfg.load_project()
-    assert proj["name"] == "testproject"
-    assert proj["version"] == 1
+    """Verify load() exposes project name from _main.yaml."""
+    _patch_loaders(monkeypatch, tmp_path)
+    config = cfg.load()
+    assert config["name"] == "TestProject"
+    assert config["name_slug"] == "testproject"
 
 
 def test_load_ci_image_section(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Verify load_ci parses the image section correctly."""
-    _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
-    ci = cfg.load_ci()
+    """Verify ci.yaml image section is merged into config."""
+    _patch_loaders(monkeypatch, tmp_path)
+    ci = cfg.load()["ci"]
     assert ci["image"]["suffix"] == "-devcontainer"
     assert ci["image"]["config_dir"] == ".devcontainer/.dev"
     assert isinstance(ci["image"]["build_matrix"], list)
@@ -108,11 +134,11 @@ def test_load_ci_artifacts_section(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Verify load_ci parses the artifacts section correctly."""
-    _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
-    ci = cfg.load_ci()
+    """Verify ci.yaml artifacts section is merged into config."""
+    _patch_loaders(monkeypatch, tmp_path)
+    ci = cfg.load()["ci"]
     assert ci["artifacts"]["retention_days"] == 7
-    assert ci["artifacts"]["src"]["name"] == "devfeats-src"
+    assert ci["artifacts"]["src"]["name"] == "testproject-src"
     assert ci["artifacts"]["dist"]["path"] == "dist/"
     assert ci["artifacts"]["pages"]["name"] == "github-pages"
     assert ci["artifacts"]["pages"]["path"] == ".local/build/docs/website.tar"
@@ -122,9 +148,9 @@ def test_load_ci_publish_section(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Verify load_ci parses the publish section correctly."""
-    _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
-    ci = cfg.load_ci()
+    """Verify ci.yaml publish section is merged into config."""
+    _patch_loaders(monkeypatch, tmp_path)
+    ci = cfg.load()["ci"]
     assert ci["publish"]["registry"] == "ghcr.io"
     assert ci["publish"]["git_bot"]["name"] == "github-actions[bot]"
     assert ci["publish"]["pages_environment"] == "github-pages"
@@ -134,9 +160,9 @@ def test_load_ci_triggers_section(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Verify load_ci parses the triggers section correctly."""
-    _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
-    ci = cfg.load_ci()
+    """Verify ci.yaml triggers section is merged into config."""
+    _patch_loaders(monkeypatch, tmp_path)
+    ci = cfg.load()["ci"]
     assert "lint" in ci["triggers"]
     assert "**/*.sh" in ci["triggers"]["lint"]
     assert "python_test" in ci["triggers"]
@@ -146,27 +172,28 @@ def test_load_ci_runner_free_disk_space(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Verify load_ci parses the runner free_disk_space flags correctly."""
-    _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
-    ci = cfg.load_ci()
+    """Verify ci.yaml runner free_disk_space flags are merged into config."""
+    _patch_loaders(monkeypatch, tmp_path)
+    ci = cfg.load()["ci"]
     fds = ci["runner"]["free_disk_space"]
     assert fds["tool_cache"] is True
     assert fds["large_packages"] is True
 
 
-def test_load_project_is_cached(
+def test_load_is_cached(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Verify load_project returns the same object on repeated calls."""
-    _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
-    assert cfg.load_project() is cfg.load_project()
+    """Verify load() returns the same Config instance on repeated calls."""
+    _patch_loaders(monkeypatch, tmp_path)
+    assert cfg.load() is cfg.load()
 
 
-def test_load_ci_is_cached(
+def test_absolute_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Verify load_ci returns the same object on repeated calls."""
-    _patch_loaders(monkeypatch, tmp_path, _MINIMAL_PROJECT, _MINIMAL_CI)
-    assert cfg.load_ci() is cfg.load_ci()
+    """Verify absolute_path resolves paths relative to the repo root."""
+    _patch_loaders(monkeypatch, tmp_path)
+    config = cfg.load()
+    assert config.absolute_path("path.features") == tmp_path / "features"

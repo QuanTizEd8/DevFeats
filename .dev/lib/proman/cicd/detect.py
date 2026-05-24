@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 import yaml
 
-from proman.config import load_ci
+from proman.config import load as load_config
 from proman.git import git_repo_root
 from proman.release.detect import detect_releasable
 from proman.test.scenarios import expand_envs, merge_defaults
@@ -605,7 +605,7 @@ def ghcr_tags(env: Env) -> list[str]:
         raise RuntimeError(msg)
     if not package_scope:
         return []
-    image_suffix = load_ci()["image"]["suffix"]
+    image_suffix = load_config()["ci"]["image"]["suffix"]
     try:
         out = sh(
             [
@@ -730,7 +730,7 @@ def build_config(  # noqa: PLR0913
     unit_macos_matrix: list[dict[str, str]],
 ) -> dict:
     """Assemble the single ``config`` dict written to GITHUB_OUTPUT."""
-    ci = load_ci()
+    ci = load_config()["ci"]
     img = ci["image"]
     art = ci["artifacts"]
     pub = ci["publish"]
@@ -861,7 +861,7 @@ def main() -> None:
         env.base_ref,
     )
 
-    groups = load_ci()["triggers"]
+    groups = load_config()["ci"]["triggers"]
     LOG.info("groups: loaded decision groups: %s", ", ".join(sorted(groups.keys())))
 
     changed = changed_files(env)
@@ -1072,7 +1072,7 @@ def main() -> None:
     )
 
     # ── Assemble and emit single config output ────────────────────────────────
-    ci_cfg = load_ci()
+    ci_cfg = load_config()["ci"]
     image_name = (
         f"{ci_cfg['publish']['registry']}/{env.repository.lower()}"
         f"{ci_cfg['image']['suffix']}"

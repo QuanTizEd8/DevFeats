@@ -134,7 +134,7 @@ Sphinx loads `.local/data_transfer/docs_build_context.json` (repo owner/name, fe
 
 HTML output and the packaged Pages tarball are written under **`.local/build/docs/`** (`website.tar` next to the site). That directory is gitignored with the rest of `/.local/`.
 
-JSON Schemas listed in **`.config/docs.yaml`** under `json_schemas_publish` are rewritten with stable `$id` / `$ref` URLs and copied to **`.local/build/docs/schema/`** (for example **`/schema/ospkg-manifest.json`** on the published site). Add paths there when introducing new public schemas. In schemas under **`features/`**, use **`$ref` paths relative to that directory** (e.g. **`../lib/ospkg-manifest.schema.json`**) so editor YAML language servers can load referenced files; proman still registers the same targets by **`file://`** URI when validating.
+JSON Schemas listed in **`.config/proman/docs.yaml`** under `json_schemas_publish` are rewritten with stable `$id` / `$ref` URLs and copied to **`.local/build/docs/schema/`** (for example **`/schema/ospkg-manifest.json`** on the published site). Add paths there when introducing new public schemas. In schemas under **`features/`**, use **`$ref` paths relative to that directory** (e.g. **`../lib/ospkg-manifest.schema.json`**) so editor YAML language servers can load referenced files; proman still registers the same targets by **`file://`** URI when validating.
 
 ### pixi tasks called directly by CI
 
@@ -151,7 +151,7 @@ The remaining pixi tasks are only ever called by justfile recipes and may be ren
 | Script | Purpose | Called from |
 |--------|---------|-------------|
 | `git_helpers.sh` | Reusable git functions (sourced library) | Other scripts |
-| `show/config.sh` | Print a field from `.config/*.yaml` via yq | `just show-config` |
+| `show/config.sh` | Print a field from `.config/proman/*.yaml` via yq | `just show-config` |
 | `ci/gha-dind.sh` | Docker-in-Docker setup for GHA | `just run-gha-dind` |
 | `fetch/gha.sh` | Poll GHA workflow runs, stream logs | `just fetch-gha` |
 | `test/run-unit.sh` | Execute bats unit tests for `lib/` | `just test-lib`, `just test-lib-mod` |

@@ -6,21 +6,64 @@ from pathlib import Path
 
 import pytest
 import yaml
-from proman.const import export_profile_d, feat_share_dir
-from proman.metadata import (
-    _feature_vars,
-    _substitute_vars,
-    augment_metadata,
-    load_all,
-    load_derived_options,
-    load_one,
-    normalize_lifecycle_command_keys,
-    read_metadata,
-)
+import proman.config as cfg
+from proman.metadata import MetadataLoader
 
-_FAKE_OWNER_REPO = ("testowner", "testrepo")
+_MINIMAL_SHARED = """\
+_lifecycle_key_prefix: myowner-test--
+_env_vars:
+  share_dir_root: /usr/local/share/myowner/test/${{ id }}$
+options:
+  shared_opt:
+    type: string
+    default: hello
+    description: Injected shared option.
+  locked_opt:
+    type: string
+    default: from-shared
+    description: Shared option that must not be overridden.
+"""
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+def _minimal_feature_metadata(**overrides) -> dict:
+    """Return metadata.yaml content that passes schema validation."""
+    base = {
+        "version": "1.0.0",
+        "name": "Test Feature",
+        "description": "Short description.",
+        "_long_description": "Longer description for docs.",
+        "keywords": ["test"],
+        "options": {},
+    }
+    base.update(overrides)
+    return base
+
+
+@pytest.fixture(autouse=True)
+def _reset_config_singleton() -> None:
+    """Ensure isolated tests do not leave a patched config pointing at tmp_path."""
+    yield
+    cfg._config = None
+
+
+_MINIMAL_MAIN = """\
+name: Test
+name_slug: test
+owner: myowner
+owner_slug: myowner
+namespace: myowner/test
+repo_url: https://github.com/myowner/test
+oci_base: ghcr.io/myowner/test
+path:
+  features: features
+  library: lib
+  shared_metadata: features/metadata.shared.yaml
+  metadata_schema: features/metadata.schema.json
+filename:
+  feature_metadata: metadata.yaml
+features:
+  lifecycle_hook_keys:
+    - onCreateCommand
+"""
 
 
 @pytest.fixture
@@ -35,294 +78,173 @@ def features_dir(repo_root: Path) -> Path:
     return repo_root / "features"
 
 
-@pytest.fixture
-def minimal_feature(tmp_path: Path) -> tuple[Path, str]:
-    """Create a minimal valid features/ directory with one feature."""
-    features = tmp_path / "features"
-    feat_id = "test-feature"
-    feat_dir = features / feat_id
-    feat_dir.mkdir(parents=True)
+def _write_test_repo(
+    tmp_path: Path,
+    *,
+    feature_metadata: dict | None = None,
+    shared_yaml: str = _MINIMAL_SHARED,
+) -> Path:
+    """Create a minimal repo layout under *tmp_path* for MetadataLoader tests."""
+    proman_dir = tmp_path / ".config" / "proman"
+    proman_dir.mkdir(parents=True)
+    (proman_dir / "_main.yaml").write_text(_MINIMAL_MAIN, encoding="utf-8")
 
-    metadata = {
-        "version": "1.0.0",
-        "name": "Test Feature",
-        "description": "A minimal test feature.",
-        "_long_description": "Longer text.",
-        "keywords": ["test"],
-        "options": {},
-    }
-    (feat_dir / "metadata.yaml").write_text(
-        yaml.dump(metadata),
-        encoding="utf-8",
-    )
-    # Empty shared-options.yaml
-    (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
-    return features, feat_id
-
-
-# ── read_metadata ─────────────────────────────────────────────────────────────
-
-
-def test_read_metadata_missing_file(tmp_path: Path) -> None:
-    """Returns 0 (skip sentinel) when metadata.yaml is absent."""
     features = tmp_path / "features"
     features.mkdir()
-    (features / "no-meta").mkdir()
-    result = read_metadata("no-meta", features)
-    assert result == 0
+    (features / "metadata.shared.yaml").write_text(shared_yaml, encoding="utf-8")
 
-
-def test_read_metadata_invalid_yaml(tmp_path: Path) -> None:
-    """Returns 1 (error sentinel) when YAML is malformed."""
-    features = tmp_path / "features"
-    feat_dir = features / "bad-yaml"
-    feat_dir.mkdir(parents=True)
-    (feat_dir / "metadata.yaml").write_text(
-        "key: [\n  invalid yaml",
+    schema_src = Path(__file__).resolve().parents[2] / "features" / "metadata.schema.json"
+    (features / "metadata.schema.json").write_text(
+        schema_src.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
-    result = read_metadata("bad-yaml", features)
-    assert result == 1
+
+    if feature_metadata is not None:
+        feat_dir = features / "test-feature"
+        feat_dir.mkdir()
+        (feat_dir / "metadata.yaml").write_text(
+            yaml.dump(feature_metadata),
+            encoding="utf-8",
+        )
+    return tmp_path
 
 
-def test_read_metadata_not_a_mapping(tmp_path: Path) -> None:
-    """Returns 1 when YAML parses to something other than a dict."""
-    features = tmp_path / "features"
-    feat_dir = features / "bad-type"
-    feat_dir.mkdir(parents=True)
-    (feat_dir / "metadata.yaml").write_text("- item1\n- item2\n", encoding="utf-8")
-    result = read_metadata("bad-type", features)
-    assert result == 1
+def _loader_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MetadataLoader:
+    monkeypatch.setattr("proman.config.git_repo_root", lambda: tmp_path)
+    cfg._config = None
+    return MetadataLoader()
 
 
-def test_read_metadata_valid(minimal_feature: tuple[Path, str]) -> None:
-    """Returns the parsed dict for a valid metadata.yaml."""
-    features, feat_id = minimal_feature
-    result = read_metadata(feat_id, features)
-    assert isinstance(result, dict)
-    assert result["name"] == "Test Feature"
+# ── load (integration against real repo) ─────────────────────────────────────
 
 
-# ── augment_metadata ──────────────────────────────────────────────────────────
-
-
-def test_augment_metadata_adds_shared_options(tmp_path: Path) -> None:
-    """Shared options are merged into the feature's options dict."""
-    features = tmp_path / "features"
-    features.mkdir()
-    shared = {"shared_opt": {"type": "string", "default": "hello", "description": "x"}}
-    (features / "shared-options.yaml").write_text(
-        yaml.dump(shared),
-        encoding="utf-8",
-    )
-    metadata: dict = {"options": {}}
-    derived = load_derived_options(features)
-    ok = augment_metadata("feat", metadata, derived)
-    assert ok is True
-    assert "shared_opt" in metadata["options"]
-
-
-def test_augment_metadata_rejects_override(tmp_path: Path) -> None:
-    """Returns False when a feature manually defines a derived option."""
-    features = tmp_path / "features"
-    features.mkdir()
-    shared = {"locked_opt": {"type": "string", "default": "", "description": "x"}}
-    (features / "shared-options.yaml").write_text(
-        yaml.dump(shared),
-        encoding="utf-8",
-    )
-    metadata: dict = {"options": {"locked_opt": {"type": "string", "default": "oops"}}}
-    derived = load_derived_options(features)
-    ok = augment_metadata("feat", metadata, derived)
-    assert ok is False
-
-
-# ── load_one ──────────────────────────────────────────────────────────
-
-
-def test_load_one_sets_id_and_oci_ref(
-    features_dir: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """load_one sets ``id`` and ``_oci_ref`` on the returned dict."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
+def test_load_sets_id_and_oci_ref(features_dir: Path) -> None:
+    """MetadataLoader sets ``id`` and ``_oci_ref`` on loaded features."""
     candidates = sorted(features_dir.glob("*/metadata.yaml"))
     assert candidates, "No real features found — check features/ directory."
     feat_id = candidates[0].parent.name
-    result = load_one(feat_id, features_dir)
-    assert result is not None, f"load_one failed for '{feat_id}'"
+    result = MetadataLoader().load(feat_id)[feat_id]
     assert result["id"] == feat_id
-    assert result["_oci_ref"] == f"ghcr.io/testowner/testrepo/{feat_id}"
+    assert result["_oci_ref"].startswith("ghcr.io/")
+    assert feat_id in result["_oci_ref"]
 
 
-def test_load_one_missing_feature(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Returns None when the feature directory has no metadata.yaml."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
-    features = tmp_path / "features"
-    (features / "ghost").mkdir(parents=True)
-    (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
-    result = load_one("ghost", features)
-    assert result is None
-
-
-# ── load_all ─────────────────────────────────────────────────────────────────
-
-
-def test_load_all_returns_all_valid_features(
-    features_dir: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """load_all returns a non-empty dict keyed by feature IDs."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
-    all_meta = load_all(features_dir)
+def test_load_returns_all_valid_features(features_dir: Path) -> None:
+    """MetadataLoader.load() returns a non-empty dict keyed by feature IDs."""
+    all_meta = MetadataLoader().load()
     assert len(all_meta) > 0
     for feat_id, meta in all_meta.items():
         assert meta["id"] == feat_id
         assert "_oci_ref" in meta
 
 
-def test_load_all_empty_features_dir(
+def test_load_injects_shared_options(repo_root: Path) -> None:
+    """Shared options from metadata.shared.yaml appear in feature options."""
+    meta = MetadataLoader().load("install-git")["install-git"]
+    assert "log_level" in meta["options"]
+
+
+# ── load (isolated tmp_path repo) ─────────────────────────────────────────────
+
+
+def test_load_missing_metadata_raises(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """load_all returns an empty dict when no metadata.yaml files exist."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: _FAKE_OWNER_REPO)
-    features = tmp_path / "features"
-    features.mkdir()
-    (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
-    result = load_all(features)
-    assert result == {}
+    """Missing metadata.yaml raises ValueError."""
+    _write_test_repo(tmp_path)
+    loader = _loader_for(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="Metadata file not found"):
+        loader.load("ghost")
 
 
-# ── _feature_vars / _substitute_vars ─────────────────────────────────────────
-
-
-def test_feature_vars_delegates_to_const() -> None:
-    """_feature_vars returns values produced by the canonical const formulas."""
-    vars_ = _feature_vars("install-foo", "myowner", "myrepo")
-    assert vars_["_FEAT_SHARE_DIR"] == feat_share_dir(
-        "install-foo", "myowner", "myrepo"
-    )
-    assert vars_["_EXPORT_PROFILE_D"] == export_profile_d(
-        "install-foo", "myowner", "myrepo"
-    )
-    assert vars_["PROJECT_OWNER"] == "myowner"
-    assert vars_["PROJECT_NAME"] == "myrepo"
-    assert vars_["PROJECT_NAMESPACE"] == "myowner/myrepo"
-    assert vars_["PROJECT_SLUG"] == "myowner-myrepo"
-
-
-def test_substitute_vars_string() -> None:
-    """@@VAR@@ tokens in plain strings are replaced."""
-    vars_ = {"_FEAT_SHARE_DIR": "/usr/local/share/o/r/feat"}
-    result = _substitute_vars("@@_FEAT_SHARE_DIR@@/entrypoint.sh", vars_)
-    assert result == "/usr/local/share/o/r/feat/entrypoint.sh"
-
-
-def test_substitute_vars_nested_dict_and_list() -> None:
-    """Substitution recurses into dict keys, values, and list items."""
-    vars_ = {"_FEAT_SHARE_DIR": "/share/o/r/f"}
-    obj = {
-        "@@_FEAT_SHARE_DIR@@": "key-was-expanded",
-        "entrypoint": "@@_FEAT_SHARE_DIR@@/run.sh",
-        "env": {"PATH": "@@_FEAT_SHARE_DIR@@/bin:$PATH"},
-        "cmds": ["sh @@_FEAT_SHARE_DIR@@/a.sh", "echo done"],
-        "num": 42,
-    }
-    result = _substitute_vars(obj, vars_)
-    assert isinstance(result, dict)
-    assert result["/share/o/r/f"] == "key-was-expanded"
-    assert "@@_FEAT_SHARE_DIR@@" not in result
-    assert result["entrypoint"] == "/share/o/r/f/run.sh"
-    assert result["env"]["PATH"] == "/share/o/r/f/bin:$PATH"
-    assert result["cmds"][0] == "sh /share/o/r/f/a.sh"
-    assert result["cmds"][1] == "echo done"
-    assert result["num"] == 42  # non-string scalar unchanged
-
-
-def test_normalize_lifecycle_short_keys() -> None:
-    """Short YAML keys are prefixed with owner-repo--feature--."""
-    md: dict = {
-        "onCreateCommand": {"run": {"command": "true", "description": "noop"}},
-    }
-    normalize_lifecycle_command_keys(md, "install-bar", "myowner", "myrepo")
-    assert list(md["onCreateCommand"].keys()) == ["myowner-myrepo--install-bar--run"]
-
-
-def test_normalize_lifecycle_strips_legacy_repo_slug() -> None:
-    """Keys that already embed --<feature-id>-- use PROJECT_SLUG instead."""
-    md: dict = {
-        "onCreateCommand": {
-            "devfeats--install-bar--task": {"command": "true", "description": "noop"},
-        },
-    }
-    normalize_lifecycle_command_keys(md, "install-bar", "quantized8", "devfeats")
-    assert list(md["onCreateCommand"].keys()) == [
-        "quantized8-devfeats--install-bar--task",
-    ]
-
-
-def test_normalize_lifecycle_idempotent() -> None:
-    """Keys that already use the canonical prefix are unchanged."""
-    key = "quantized8-devfeats--install-bar--task"
-    md: dict = {"onCreateCommand": {key: {"command": "true", "description": "noop"}}}
-    normalize_lifecycle_command_keys(md, "install-bar", "quantized8", "devfeats")
-    assert list(md["onCreateCommand"].keys()) == [key]
-
-
-def test_normalize_lifecycle_non_string_key_unchanged() -> None:
-    """Non-string mapping keys are passed through (YAML edge case)."""
-    md: dict = {"onCreateCommand": {123: {"command": "true", "description": "noop"}}}  # type: ignore[dict-item]
-    normalize_lifecycle_command_keys(md, "install-bar", "o", "r")
-    assert md["onCreateCommand"][123]["command"] == "true"  # type: ignore[index]
-
-
-def test_normalize_lifecycle_wrong_block_type() -> None:
-    """Non-dict lifecycle values are left as-is."""
-    md: dict = {"onCreateCommand": "not-a-mapping"}
-    normalize_lifecycle_command_keys(md, "install-bar", "o", "r")
-    assert md["onCreateCommand"] == "not-a-mapping"
-
-
-def test_load_one_substitutes_feature_vars(
+def test_load_invalid_yaml_raises(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """@@_FEAT_SHARE_DIR@@, @@_EXPORT_PROFILE_D@@, and @@PROJECT_*@@ are expanded."""
-    monkeypatch.setattr("proman.metadata.git_owner_repo", lambda: ("myowner", "myrepo"))
-    features = tmp_path / "features"
-    feat_id = "install-bar"
-    feat_dir = features / feat_id
-    feat_dir.mkdir(parents=True)
-    raw = {
-        "version": "1.0.0",
-        "name": "Bar",
-        "description": "Test @@PROJECT_SLUG@@.",
-        "keywords": [],
-        "options": {},
-        "entrypoint": "@@_FEAT_SHARE_DIR@@/entrypoint.sh ${containerWorkspaceFolder}",
-        "containerEnv": {"PATH": "@@_FEAT_SHARE_DIR@@/bin:$PATH"},
-        "documentationURL": "https://github.com/@@PROJECT_NAMESPACE@@",
-        "onCreateCommand": {
-            "run": {"command": "sh @@_FEAT_SHARE_DIR@@/on-create.sh || true"},
+    """Malformed YAML raises ValueError."""
+    root = _write_test_repo(tmp_path)
+    feat_dir = root / "features" / "bad-yaml"
+    feat_dir.mkdir()
+    (feat_dir / "metadata.yaml").write_text("key: [\n  invalid", encoding="utf-8")
+    loader = _loader_for(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="Error reading metadata"):
+        loader.load("bad-yaml")
+
+
+def test_load_not_a_mapping_raises(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """YAML that parses to a non-dict raises ValueError."""
+    root = _write_test_repo(
+        tmp_path,
+        feature_metadata=["not", "a", "dict"],  # type: ignore[arg-type]
+    )
+    loader = _loader_for(root, monkeypatch)
+    with pytest.raises(ValueError, match="not a YAML mapping"):
+        loader.load("test-feature")
+
+
+def test_load_merges_shared_options(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Shared options are merged into the feature's options dict."""
+    root = _write_test_repo(tmp_path, feature_metadata=_minimal_feature_metadata())
+    result = _loader_for(root, monkeypatch).load("test-feature")["test-feature"]
+    assert "shared_opt" in result["options"]
+
+
+def test_load_feature_options_override_shared(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Feature-defined options take precedence over shared metadata defaults."""
+    metadata = _minimal_feature_metadata(
+        options={
+            "locked_opt": {"type": "string", "default": "oops", "description": "x"},
         },
-    }
-    (feat_dir / "metadata.yaml").write_text(yaml.dump(raw), encoding="utf-8")
-    (features / "shared-options.yaml").write_text("{}", encoding="utf-8")
-    result = load_one(feat_id, features)
-    assert result is not None
-    expected_share = "/usr/local/share/myowner/myrepo/install-bar"
+    )
+    root = _write_test_repo(tmp_path, feature_metadata=metadata)
+    result = _loader_for(root, monkeypatch).load("test-feature")["test-feature"]
+    assert result["options"]["locked_opt"]["default"] == "oops"
+
+
+def test_load_applies_shared_option_conditions() -> None:
+    """Shared options with ``_apply_when`` are injected only when the condition holds."""
+    with_fetch = MetadataLoader().load("install-pixi")["install-pixi"]
+    without_fetch = MetadataLoader().load("install-git")["install-git"]
+    assert "fetch_headers" in with_fetch["options"]
+    assert "fetch_headers" not in without_fetch["options"]
+
+
+def test_load_substitutes_template_variables(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """${{ _project }} and ${{ _env_vars }} templates are expanded."""
+    metadata = _minimal_feature_metadata(
+        description="Test ${{ _project.name_slug }}$.",
+        entrypoint=(
+            "${{ _env_vars.share_dir_root }}$/entrypoint.sh ${containerWorkspaceFolder}"
+        ),
+        onCreateCommand={
+            "run": {
+                "command": "sh ${{ _env_vars.share_dir_root }}$/on-create.sh || true",
+                "description": "Run on-create hook.",
+            },
+        },
+    )
+    root = _write_test_repo(tmp_path, feature_metadata=metadata)
+    result = _loader_for(root, monkeypatch).load("test-feature")["test-feature"]
+    expected_share = "/usr/local/share/myowner/test/test-feature"
     assert result["entrypoint"] == (
         f"{expected_share}/entrypoint.sh ${{containerWorkspaceFolder}}"
     )
-    assert result["containerEnv"]["PATH"] == f"{expected_share}/bin:$PATH"
-    expected_lc_key = "myowner-myrepo--install-bar--run"
+    expected_lc_key = "myowner-test--run"
     assert list(result["onCreateCommand"].keys()) == [expected_lc_key]
     assert result["onCreateCommand"][expected_lc_key]["command"] == (
         f"sh {expected_share}/on-create.sh || true"
     )
-    assert result["description"] == "Test myowner-myrepo."
-    assert result["documentationURL"] == "https://github.com/myowner/myrepo"
+    assert result["description"] == "Test test."

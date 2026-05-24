@@ -289,7 +289,7 @@ show-feat-opts:
 
 [
   group('show'),
-  doc('Print one value from .config/<file>.yaml (yq path). Example: just show-config ci image.suffix')
+  doc('Print one value from .config/proman/<file>.yaml (yq path). Example: just show-config ci image.suffix')
 ]
 show-config file key:
     bash .dev/scripts/show/config.sh {{file}} {{key}}

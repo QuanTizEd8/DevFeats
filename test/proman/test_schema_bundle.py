@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from proman.schema_bundle import (
     build_materialized_schemas_for_website,
-    build_metadata_validator,
+    get_validator,
     published_schema_basename,
     schema_stem_from_path,
 )
@@ -43,13 +43,7 @@ def test_build_materialized_for_website(tmp_path: Path) -> None:
     assert doc["$id"] == "https://example.org/myrepo/schema/ospkg-manifest.json"
 
 
-def test_build_metadata_validator_smoke(repo_root: Path) -> None:
+def test_get_validator_smoke() -> None:
     """Ensure the real repo schemas load into a Draft 2020-12 validator."""
-    v = build_metadata_validator(repo_root / "features", repo_root / "lib")
+    v = get_validator()
     assert type(v).__name__ == "Draft202012Validator"
-
-
-@pytest.fixture
-def repo_root() -> Path:
-    """Return the repository root path."""
-    return Path(__file__).resolve().parents[2]

@@ -61,12 +61,10 @@ class MetadataLoader:
 
         Augmentation steps performed (in order):
         1. Read ``metadata.yaml`` from disk.
-        2. Substitute feature-scoped variables (e.g. ``@@_FEAT_SHARE_DIR@@``,
-        ``@@PROJECT_NAMESPACE@@``) in all string dict keys and values.
-        See :func:`_feature_vars` for the full variable table.
-        3. Normalize lifecycle command map keys with
-        :func:`normalize_lifecycle_command_keys`
-        (``<owner>-<repo>--<feature_id>--…``).
+        2. Substitute ``${{ … }}$`` template variables (project paths, env vars, …)
+        in all string dict keys and values via :class:`pyserials.update.TemplateFiller`.
+        3. Normalize lifecycle command map keys to
+        ``<owner_slug>-<name_slug>--<feature_id>--<task>``.
         4. Merge shared metadata.
         5. Set ``metadata["id"]`` and ``metadata["_oci_ref"]``.
         """
@@ -113,7 +111,9 @@ class MetadataLoader:
 
         prefix_groups = metadata.get("_prefix_groups", {})
         for group_id, group_cfg in prefix_groups.items():
-            _inject_prefix_group_options(group_id, group_cfg, metadata["options"])
+            _inject_prefix_group_options(
+                feature_id, group_id, group_cfg, metadata["options"]
+            )
 
         return metadata
 
@@ -176,18 +176,11 @@ class MetadataLoader:
         raise ValueError("\n".join(lines))
 
     def _normalize_lifecycle_keys(self, metadata: dict) -> None:
-        """Rewrite lifecycle hook map keys to ``<owner>-<repo>--<feature_id>--<task>``.
+        """Rewrite lifecycle hook map keys to ``<prefix><task>``.
 
-        *metadata* is updated in place. For each key in :data:`LIFECYCLE_COMMAND_KEYS`,
-        if the value is a mapping, every string key ``k`` becomes:
-
-        * ``prefix + suffix`` when ``k`` already contains the legacy segment
-        ``--<feature_id>--`` (any project slug before it is dropped), or
-        * ``prefix + k`` when there is no such segment (short task id in YAML).
-
-        where ``prefix`` is :func:`proman.const.lifecycle_command_entry_prefix`.
-
-        Keys that already start with *prefix* are left unchanged (idempotent).
+        *metadata* is updated in place. ``prefix`` comes from shared metadata
+        (``_lifecycle_key_prefix``, e.g. ``quantized8-devfeats--``). Short YAML
+        keys such as ``run`` become ``quantized8-devfeats--run``.
         """
         lifecycle_keys: list[str] = self._config["features.lifecycle_hook_keys"]
         key_prefix = metadata["_lifecycle_key_prefix"]
@@ -213,6 +206,7 @@ def _schema_error_path(err) -> str:
 
 
 def _inject_prefix_group_options(  # noqa: PLR0911
+    feature_id: str,
     group_id: str,
     group_cfg: dict,
     options: dict,

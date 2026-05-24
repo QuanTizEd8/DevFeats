@@ -7,7 +7,8 @@
 # Direct invocation (same arguments):
 #   bash .dev/scripts/show/config.sh <file> <key>
 #
-#   file — basename without .yaml (e.g. ci, project)
+#   file — basename without .yaml under .config/proman/ (e.g. ci, docs, main)
+#          Aliases: project → _main.yaml, main → _main.yaml
 #   key  — yq path (e.g. image.suffix)
 
 set -euo pipefail
@@ -15,7 +16,7 @@ set -euo pipefail
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   printf '%s\n' \
     "Usage: just show-config <file> <key>" \
-    "  file — .config/<file>.yaml (without extension)" \
+    "  file — .config/proman/<file>.yaml (without extension; project/main → _main.yaml)" \
     "  key  — yq expression path (e.g. image.suffix)" \
     "Example: just show-config ci image.suffix" >&2
   exit 0
@@ -29,6 +30,10 @@ fi
 _file="${1:?}"
 _key="${2:?}"
 
+case "$_file" in
+  project | main) _file="_main" ;;
+esac
+
 _script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -n "${REPO_ROOT:-}" ]]; then
   _repo_root="$REPO_ROOT"
@@ -36,7 +41,7 @@ else
   _repo_root="$(git -C "$_script_dir" rev-parse --show-toplevel)"
 fi
 
-_yaml="${_repo_root}/.config/${_file}.yaml"
+_yaml="${_repo_root}/.config/proman/${_file}.yaml"
 if [[ ! -f "$_yaml" ]]; then
   printf '⛔ No such config file: %s\n' "$_yaml" >&2
   exit 1

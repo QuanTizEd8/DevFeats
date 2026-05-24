@@ -34,7 +34,7 @@ Lint (shfmt + shellcheck) runs as part of the reusable **`ci.yaml`** workflow wh
 The workspace is a git repository with the following key files and directories:
 
 :`.config/`:
-    Project configuration files: `project.yaml` and `ci.yaml` (read by proman), `docs.yaml` (Sphinx), plus `ruff.toml` and `pytest.ini` for Python tooling.
+    Project configuration files under `.config/proman/` (`_main.yaml`, `ci.yaml`, `docs.yaml`, read by proman), plus `ruff.toml` and `pytest.ini` for Python tooling.
 
 :`.dev/`:
     [Development workflows](/dev-guide/devops/dev) — local libraries and scripts for build, sync, validation, and other development routines.

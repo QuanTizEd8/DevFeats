@@ -13,7 +13,7 @@ def main() -> None:
     """Write rewritten JSON schemas into the Sphinx output tree for GitHub Pages."""
     parser = argparse.ArgumentParser(
         description=(
-            "Materialize JSON Schemas listed in .config/docs.yaml "
+            "Materialize JSON Schemas listed in .config/proman/docs.yaml "
             "(json_schemas_publish) into <outdir>/schema/ with $id / $ref URLs "
             "for the published site."
         ),
@@ -29,7 +29,7 @@ def main() -> None:
         type=str,
         default=None,
         help="Override website base URL (must match GitHub Pages); "
-        "default: website_base_url in .config/docs.yaml or git-derived Pages URL",
+        "default: website_base_url in .config/proman/docs.yaml or git-derived Pages URL",
     )
     args = parser.parse_args()
     repo = git_repo_root()
