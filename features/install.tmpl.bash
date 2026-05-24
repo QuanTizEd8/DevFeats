@@ -58,12 +58,6 @@ __argparse__() {
   declare +x ${{ _script.argparse.unexports }}$
 }
 
-# Override _cleanup_hook in the hand-written section for feature-specific
-# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
-# _on_exit owns that call and guarantees it runs exactly once, last.
-# shellcheck disable=SC2329,SC2317
-_cleanup_hook() { return; }
-
 # shellcheck disable=SC2329,SC2317
 _on_exit() {
   local _rc=$?
@@ -74,7 +68,9 @@ _on_exit() {
     logging__fatal "$_FEAT_NAME script exited with error ${_rc}."
   fi
 
-  _cleanup_hook
+  # Define _cleanup_hook in the hand-written section
+  # for feature-specific cleanup (e.g. removing temp files).
+  if declare -f _cleanup_hook > /dev/null; then _cleanup_hook; fi
 
   [[ $_rc -eq 0 ]] && _prefix_post_install
 
@@ -126,12 +122,9 @@ ${{ _script.dependency_install_calls }}$
 ${{ _script.prefix_resolver_functions }}$
 
 # shellcheck disable=SC2329,SC2317
-_prefix_post_install_hook() { return; }
-
-# shellcheck disable=SC2329,SC2317
 _prefix_post_install() {
-${{ _script.prefix_post_install_body }}$
-_prefix_post_install_hook
-return
+  ${{ _script.prefix_post_install_body }}$
+  if declare -f _prefix_post_install_hook > /dev/null; then _prefix_post_install_hook; fi
+  return
 }
 ${{ _script.prefix_resolver_calls }}$
