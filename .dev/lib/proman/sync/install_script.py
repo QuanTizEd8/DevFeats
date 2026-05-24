@@ -678,13 +678,6 @@ class InstallScriptGenerator:
 # ── Pure utilities ────────────────────────────────────────────────────────────
 
 
-def _fill_resolution_tmpl(tmpl: str, **subs: str) -> str:
-    """Substitute @@KEY@@ placeholders in a resolution block template."""
-    for key, val in subs.items():
-        tmpl = tmpl.replace(f"@@{key}@@", val)
-    return tmpl
-
-
 def _make_resolution_block(
     var_prefix: str,
     default_root: str,
@@ -701,7 +694,7 @@ def _make_resolution_block(
     All resolved paths are validated for writability; the script exits with an
     error if no writable candidate is found.
     """
-    indent = "      "  # 6 spaces — inside case "")
+    indent = 6  # inside case "")
     parts: list[str] = []
     first = True
     for override in platform_overrides:
@@ -711,31 +704,28 @@ def _make_resolution_block(
         nonroot_val: str = override.get("nonroot", default)
         when_args = " ".join(f"{k}={v}" for k, v in when.items())
         keyword = "if" if first else "elif"
-        parts.append(f"{indent}{keyword} os__match_spec {when_args}; then")
-        inner_indent = indent + "  "
+        parts.append(f"{' ' * indent}{keyword} os__match_spec {when_args}; then")
         tmpl = (
             _TMPL_RESOLUTION_SINGLE if root_val == nonroot_val else _TMPL_RESOLUTION_TWO
         )
-        subs: dict[str, str] = {
-            "INDENT": inner_indent,
-            "KEYWORD": "if",
-            "VAR": var_prefix,
-        }
+        subs: dict[str, str] = {"keyword": "if", "var": var_prefix}
         if root_val == nonroot_val:
-            subs["VAL"] = root_val
+            subs["val"] = root_val
         else:
-            subs.update(ROOT=root_val, NONROOT=nonroot_val)
-        parts.append(_fill_resolution_tmpl(tmpl, **subs))
+            subs.update(root=root_val, nonroot=nonroot_val)
+        parts.append(
+            InstallScriptGenerator._render_inline_template(tmpl, indent + 2, **subs)
+        )
         first = False
     uid_keyword = "elif" if platform_overrides else "if"
     parts.append(
-        _fill_resolution_tmpl(
+        InstallScriptGenerator._render_inline_template(
             _TMPL_RESOLUTION_TWO,
-            INDENT=indent,
-            KEYWORD=uid_keyword,
-            VAR=var_prefix,
-            ROOT=default_root,
-            NONROOT=default_nonroot,
+            indent,
+            keyword=uid_keyword,
+            var=var_prefix,
+            root=default_root,
+            nonroot=default_nonroot,
         )
     )
     return "\n".join(parts)
@@ -927,29 +917,24 @@ fi
 """
 
 # Templates for the users__can_write if/elif/else blocks emitted inside the
-# prefix resolver's case "" arm.  @@INDENT@@ is the base indentation for the
-# whole block; @@KEYWORD@@ is "if" or "elif" for the opening line.
-_TMPL_RESOLUTION_SINGLE = (
-    '@@INDENT@@@@KEYWORD@@ users__can_write "@@VAL@@"; then\n'
-    '@@INDENT@@  @@VAR@@="@@VAL@@"\n'
-    "@@INDENT@@else\n"
-    '@@INDENT@@  logging__error "Prefix auto-resolution failed:'
-    ' \\"@@VAL@@\\" is not writable."\n'
-    "@@INDENT@@  exit 1\n"
-    "@@INDENT@@fi"
-)
+# prefix resolver's case "" arm.  {keyword} is "if" or "elif" for the opening line.
+_TMPL_RESOLUTION_SINGLE = """
+{keyword} users__can_write "{val}"; then
+  {var}="{val}"
+else
+  logging__error "Prefix auto-resolution failed: '{val}' is not writable."
+  exit 1
+fi"""
 
-_TMPL_RESOLUTION_TWO = (
-    '@@INDENT@@@@KEYWORD@@ users__can_write "@@ROOT@@"; then\n'
-    '@@INDENT@@  @@VAR@@="@@ROOT@@"\n'
-    '@@INDENT@@elif users__can_write "@@NONROOT@@"; then\n'
-    '@@INDENT@@  @@VAR@@="@@NONROOT@@"\n'
-    "@@INDENT@@else\n"
-    '@@INDENT@@  logging__error "Prefix auto-resolution failed:'
-    ' no writable path found (tried \\"@@ROOT@@\\" and \\"@@NONROOT@@\\")."\n'
-    "@@INDENT@@  exit 1\n"
-    "@@INDENT@@fi"
-)
+_TMPL_RESOLUTION_TWO = """
+{keyword} users__can_write "{root}"; then
+  {var}="{root}"
+elif users__can_write "{nonroot}"; then
+  {var}="{nonroot}"
+else
+  logging__error "Prefix auto-resolution failed: no writable path found (tried '{root}' and '{nonroot}')."
+  exit 1
+fi"""
 
 _TMPL_PREFIX_RESOLVER = """
 # shellcheck disable=SC2329,SC2317
