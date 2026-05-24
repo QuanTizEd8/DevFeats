@@ -14,10 +14,10 @@ image:
 artifacts:
   retention_days: 7
   src:
-    name: ${{ slug }}$-src
+    name: ${{ name_slug }}$-src
     path: src/
   dist:
-    name: ${{ slug }}$-dist
+    name: ${{ name_slug }}$-dist
     path: dist/
   pages:
     name: github-pages
