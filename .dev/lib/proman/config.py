@@ -32,6 +32,11 @@ class Config:
         """Root path of the project (git repo root)."""
         return self._root_path
 
+    @property
+    def asdict(self) -> dict:
+        """Config as a regular dict."""
+        return self._config()
+
     def absolute_path(self, config_path: str) -> Path:
         """Convert a path relative to the project root into an absolute Path."""
         rel_path = self._config[config_path]
