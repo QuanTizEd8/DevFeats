@@ -110,6 +110,12 @@
         }
       }
     },
+    "_env_vars": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "_tool_name": {
         "description": "The human-friendly name of the underlying tool or project that this Feature installs, used for display purposes in documentation and supporting tools.",
         "type": "string"
@@ -440,6 +446,22 @@
     "postAttachCommand": {
       "description": "A command to run when attaching to the container. This command is run after \"postStartCommand\". Each provided command will be run in parallel.",
       "$ref": "#/$defs/LifecycleCommand"
+    },
+    "documentationURL": {
+      "description": "URL to documentation for the Feature.",
+      "type": "string"
+    },
+    "licenseURL": {
+      "description": "URL to the license for the Feature.",
+      "type": "string"
+    },
+    "_oci_ref": {
+      "description": "Internal-use-only OCI reference for this Feature",
+      "type": "string"
+    },
+    "_lifecycle_key_prefix": {
+      "description": "Internal-use-only prefix for lifecycle command keys. With this prefix, the generator rewrites lifecycle command keys from `install` to `<prefix>--install`, etc. This allows multiple features to declare lifecycle commands without risk of key collisions, since each feature gets its own unique prefix.",
+      "type": "string"
     }
   },
   "required": [
