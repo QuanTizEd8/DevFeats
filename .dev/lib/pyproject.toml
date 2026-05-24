@@ -8,6 +8,8 @@ dependencies = [
     "gittidy>=0.3.1,<0.4",
     "pylinks>=0.1.0,<0.2",
     "mdit>=0.1.1,<0.2",
+    "jsonpath-ng<1.8.0",
+    "pyserials",
 ]
 
 [project.scripts]

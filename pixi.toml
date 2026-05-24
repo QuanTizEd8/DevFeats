@@ -23,7 +23,6 @@ test = { features = ["proman", "test"] }
 
 [feature.proman.pypi-dependencies]
 proman = { path = ".dev/lib", editable = true }
-jsonpath-ng = "<1.8.0"
 
 [feature.proman.tasks]
 _sync-docs-data = "proman-gen-docs-data"
