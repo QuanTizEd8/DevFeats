@@ -7,11 +7,9 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from proman.const import (
-    INSTALL_BASH_HEADER_END_MARKER,
-    export_profile_d,
-    feat_share_dir,
-)
+import pyserials
+
+from proman.config import load as load_config
 from proman.git import git_owner_repo
 
 
@@ -37,15 +35,14 @@ class _DiscoveryParams:
 class InstallScriptGenerator:
     """Generate install.bash header blocks from feature metadata."""
 
-    def __init__(
-        self,
-        features_dirpath: Path,
-        templates_dirpath: Path,
-        repo_dirpath: Path,
-    ) -> None:
-        self._features_dirpath = features_dirpath
-        self._templates = self._load_templates(templates_dirpath)
-        self._repo_dirpath = repo_dirpath
+    def __init__(self) -> None:
+        self._config = load_config()
+        self._features_dirpath = self._config.absolute_path("path.features")
+        self._template = self._config.absolute_path(
+            "path.install_script_template"
+        ).read_text()
+        self._repo_dirpath = self._config.root_path
+        return
 
     def generate(self, metadata: dict) -> dict[Path, str]:
         """Generate the full install.bash content for a feature.
@@ -70,10 +67,6 @@ class InstallScriptGenerator:
         """
         target_file = Path("install.bash")
         body_path = self._features_dirpath / metadata["id"] / target_file
-
-        if not body_path.exists():
-            return {}
-
         body = body_path.read_text(encoding="utf-8").strip("\n")
         header = self._generate_block(metadata=metadata)
         full_script = self._shfmt_format(f"{header}\n\n{body}\n")
@@ -91,49 +84,33 @@ class InstallScriptGenerator:
         options: dict = metadata["options"]
         dependencies: dict = metadata.get("_dependencies", {})
         prefix_groups: dict = metadata.get("_prefix_groups", {})
-        installer_dir_flag: bool = bool(metadata.get("_installer_dir", False))
+
         run_deps: dict = dependencies.get("run", {})
         build_deps: dict = dependencies.get("build", {})
-        _owner, _repo = git_owner_repo()
-        parts = [
-            self._render_template(
-                "preamble",
-                FEATURE_ID=feature_id,
-                FEATURE_VERSION=metadata["version"],
-                FEATURE_NAME=metadata["name"],
-                FEATURE_SHARE_DIR=feat_share_dir(feature_id, _owner, _repo),
-                FEATURE_PROFILE_D_FILE=export_profile_d(feature_id, _owner, _repo),
-            ),
-            self._section_usage(options),
-            self._section_arg_parse(options),
-            self._section_defaults(options),
-            self._section_installer_dir_init(
-                installer_dir_flag=installer_dir_flag,
-                feature_id=feature_id,
-            ),
-            self._section_prefix_helpers(prefix_groups, feature_id),
-            self._section_validation(options),
-            self._section_unexport(options),
-            self._section_dep_helpers(run_deps, build_deps),
-            self._section_base_deps_call(run_deps, build_deps),
-            INSTALL_BASH_HEADER_END_MARKER,
-        ]
-        return "\n\n".join(p for p in parts if p)
 
-    def _section_installer_dir_init(
-        self, *, installer_dir_flag: bool, feature_id: str
-    ) -> str:
-        """Emit INSTALLER_DIR auto-init snippet when _installer_dir is true."""
-        if not installer_dir_flag:
-            return ""
-        return (
-            "# Auto-initialize INSTALLER_DIR to a private temporary directory"
-            " when not set.\n"
-            f'[ -z "${{INSTALLER_DIR:-}}" ] && '
-            f'INSTALLER_DIR="$(file__mktmpdir "install-{feature_id}")"'
-        )
+        script_parts: dict[str, object] = {
+            "usage_options": self._generate_usage_options(options),
+            "argparse": self._generate_argparse(options),
+            "dependency_install_functions": self._generate_dependency_install_functions(
+                run_deps, build_deps
+            ),
+            "dependency_install_calls": self._generate_dependency_install_calls(
+                run_deps, build_deps
+            ),
+            "prefix_functions": self._section_prefix_helpers(prefix_groups, feature_id),
+        }
+        template_data = metadata | {"_script": script_parts}
+        try:
+            script: str = pyserials.update.TemplateFiller().fill(
+                data=template_data,
+                template=self._template,
+            )
+        except Exception as e:
+            raise ValueError(f"Error rendering template: {e}") from e
 
-    def _section_usage(self, options: dict) -> str:
+        return script
+
+    def _generate_usage_options(self, options: dict) -> str:
         """Emit the __usage__() shell function."""
         entries: list[tuple[str, str, str, bool]] = []
         for key, opt in options.items():
@@ -152,18 +129,10 @@ class InstallScriptGenerator:
                 )
             desc = _first_sentence(opt.get("description", ""))
             entries.append((flag_str, desc, disp_default, is_required))
+        entries.append(("  -h, --help", "Show this help and exit.", "", False))
 
-        help_flag = "  -h, --help"
-        col_width = max((len(f) for f, *_ in entries), default=len(help_flag))
-        col_width = max(col_width, len(help_flag))
-
-        lines = [
-            "__usage__() {",
-            "  cat << 'EOF'",
-            "Usage: install.bash [OPTIONS]",
-            "",
-            "Options:",
-        ]
+        col_width = max((len(f) for f, *_ in entries))
+        lines = []
         for (flag_str, desc, disp_default, is_required), _ in zip(
             entries,
             options.items(),
@@ -177,16 +146,17 @@ class InstallScriptGenerator:
             else:
                 desc_field = desc
             lines.append(f"{flag_str}{padding}{desc_field}")
-        help_padding = " " * (col_width - len(help_flag) + 2)
-        lines.append(f"{help_flag}{help_padding}Show this help")
-        lines.extend(["EOF", "  return", "}"])
+
         return "\n".join(lines)
 
-    def _section_arg_parse(self, options: dict) -> str:
+    def _generate_argparse(self, options: dict) -> dict[str, str]:
         """Emit the if/else/fi CLI-vs-env-var argument parsing block."""
         cli_inits: list[str] = []
         case_arms: list[str] = []
         env_reads: list[str] = []
+
+        case_arm_indent = 8
+        env_read_indent = 4
 
         for key, opt in options.items():
             vname = _opt_to_var(key)
@@ -197,78 +167,60 @@ class InstallScriptGenerator:
             # default check.
             if typ != "array":
                 if "default" not in opt:
-                    cli_inits.append(f'  {vname}=""')
+                    cli_inits.append(f'    {vname}=""')
                 else:
-                    cli_inits.append(f"  {vname}={_shell_val(opt['default'], typ)}")
+                    cli_inits.append(f"    {vname}={_shell_val(opt['default'], typ)}")
             if typ == "array":
                 case_arms.append(
-                    self._render_template(
-                        "case_arm_array",
-                        FLAG=flag,
-                        VAR=vname,
-                        KEY=key,
+                    self._render_inline_template(
+                        _ARGPARSE_CASE_ARM_ARRAY,
+                        case_arm_indent,
+                        flag=flag,
+                        var=vname,
+                        key=key,
                     ),
                 )
                 env_reads.append(
-                    self._render_template(
-                        "env_read_array",
-                        VAR=vname,
-                        KEY=key,
+                    self._render_inline_template(
+                        _ARGPARSE_ENV_READ_ARRAY,
+                        env_read_indent,
+                        var=vname,
+                        key=key,
                     ),
                 )
             else:
                 case_arms.append(
-                    self._render_template(
-                        "case_arm_scalar",
-                        FLAG=flag,
-                        VAR=vname,
-                        KEY=key,
+                    self._render_inline_template(
+                        _ARGPARSE_CASE_ARM_SCALAR,
+                        case_arm_indent,
+                        flag=flag,
+                        var=vname,
+                        key=key,
                     ),
                 )
                 env_reads.append(
-                    self._render_template(
-                        "env_read_scalar",
-                        VAR=vname,
-                        KEY=key,
+                    self._render_inline_template(
+                        _ARGPARSE_ENV_READ_SCALAR,
+                        env_read_indent,
+                        var=vname,
+                        key=key,
                     ),
                 )
 
-        lines = [
-            'if [ "$#" -gt 0 ]; then',
-            '  logging__info "Script called with arguments: $*"',
-        ]
-        lines.extend(cli_inits)
-        lines.extend(['  while [ "$#" -gt 0 ]; do', "    case $1 in"])
-        lines.extend(case_arms)
-        lines.extend(
-            [
-                "      -h | --help)",
-                "        __usage__",
-                "        exit 0",
-                "        ;;",
-                "      --*)",
-                "        logging__error \"Unknown option: '${1}'\"",
-                "        exit 1",
-                "        ;;",
-                "      *)",
-                "        logging__error \"Unexpected argument: '${1}'\"",
-                "        exit 1",
-                "        ;;",
-                "    esac",
-                "  done",
-                "else",
-                '  logging__info "Script called with no arguments.'
-                ' Read environment variables."',
-            ],
-        )
-        lines.extend(env_reads)
-        lines.append("fi")
-        lines.append("logging__set_level")
-        return "\n".join(lines)
+        out = {
+            "cli_inits": "\n".join(cli_inits),
+            "case_arms": "\n".join(case_arms),
+            "env_reads": "\n".join(env_reads),
+            "defaults": self._generate_argparse_defaults(options),
+            "validations": self._generate_argparse_validations(options),
+            "unexports": self._generate_argparse_unexports(options),
+        }
+        return out
 
-    def _section_defaults(self, options: dict) -> str:
+    def _generate_argparse_defaults(self, options: dict) -> str:
         """Emit the '# Apply defaults.' block."""
-        blocks = ["# Apply defaults."]
+        blocks = []
+        indent = 2
         for key, opt in options.items():
             vname = _opt_to_var(key)
             typ = opt.get("type", "string")
@@ -278,10 +230,11 @@ class InstallScriptGenerator:
                 raw_default = opt["default"]
                 if raw_default == "" or raw_default is None:
                     blocks.append(
-                        self._render_template(
-                            "default_array_empty",
-                            VAR=vname,
-                            KEY=key,
+                        self._render_inline_template(
+                            _ARGPARSE_DEFAULT_ARRAY_EMPTY,
+                            indent,
+                            var=vname,
+                            key=key,
                         ),
                     )
                 else:
@@ -296,12 +249,13 @@ class InstallScriptGenerator:
                     )
                     disp = ", ".join(str(raw_default).splitlines())
                     blocks.append(
-                        self._render_template(
-                            "default_array_value",
-                            VAR=vname,
-                            ESCAPED=escaped,
-                            KEY=key,
-                            DISP=disp,
+                        self._render_inline_template(
+                            _ARGPARSE_DEFAULT_ARRAY_VALUE,
+                            indent,
+                            var=vname,
+                            escaped=escaped,
+                            key=key,
+                            disp=disp,
                         ),
                     )
             else:
@@ -313,85 +267,61 @@ class InstallScriptGenerator:
                 else:
                     disp = str(opt["default"])
                 blocks.append(
-                    self._render_template(
-                        "default_scalar",
-                        VAR=vname,
-                        RHS=rhs,
-                        KEY=key,
-                        DISP=disp,
+                    self._render_inline_template(
+                        _ARGPARSE_DEFAULT_SCALAR,
+                        indent,
+                        var=vname,
+                        rhs=rhs,
+                        key=key,
+                        disp=disp,
                     ),
                 )
+
         return "\n".join(blocks)
 
-    def _section_validation(self, options: dict) -> str:
+    def _generate_argparse_validations(self, options: dict) -> str:
         """Emit required-argument checks and enum validation.
 
         Returns '' if neither applies.
         """
-        required_opts = [(k, v) for k, v in options.items() if "default" not in v]
+        indent = 2
         enum_opts = [(k, v) for k, v in options.items() if v.get("enum")]
-        if not required_opts and not enum_opts:
-            return ""
 
-        parts: list[str] = []
-        if required_opts:
-            checks: list[str] = []
-            for key, opt in required_opts:
-                vname = _opt_to_var(key)
-                tpl = (
-                    "validation_required_array"
-                    if opt.get("type", "string") == "array"
-                    else "validation_required_scalar"
-                )
-                checks.append(self._render_template(tpl, VAR=vname, KEY=key))
-            parts.append("# Check required arguments.\n" + "\n".join(checks))
+        validations: list[str] = []
+        for key, opt in enum_opts:
+            vname = _opt_to_var(key)
+            typ = opt.get("type", "string")
+            values = [
+                item["value"] if isinstance(item, dict) else str(item)
+                for item in opt["enum"]
+            ]
+            expected = ", ".join(repr(v) if v == "" else v for v in values)
+            pattern = " | ".join("''" if v == "" else v for v in values)
+            tpl = (
+                _ARGPARSE_VALIDATION_ENUM_ARRAY
+                if typ == "array"
+                else _ARGPARSE_VALIDATION_ENUM_SCALAR
+            )
+            validations.append(
+                self._render_inline_template(
+                    tpl,
+                    indent,
+                    var=vname,
+                    key=key,
+                    pattern=pattern,
+                    expected=expected,
+                ),
+            )
+        return "\n".join(validations)
 
-        if enum_opts:
-            validations: list[str] = []
-            for key, opt in enum_opts:
-                vname = _opt_to_var(key)
-                typ = opt.get("type", "string")
-                values = [
-                    item["value"] if isinstance(item, dict) else str(item)
-                    for item in opt["enum"]
-                ]
-                expected = ", ".join(repr(v) if v == "" else v for v in values)
-                pattern = " | ".join("''" if v == "" else v for v in values)
-                tpl = (
-                    "validation_enum_array"
-                    if typ == "array"
-                    else "validation_enum_scalar"
-                )
-                validations.append(
-                    self._render_template(
-                        tpl,
-                        VAR=vname,
-                        KEY=key,
-                        PATTERN=pattern,
-                        EXPECTED=expected,
-                    ),
-                )
-            parts.append("# Validate enum options.\n" + "\n".join(validations))
-
-        return "\n\n".join(parts)
-
-    def _section_unexport(self, options: dict) -> str:
+    def _generate_argparse_unexports(self, options: dict) -> str:
         """Emit the 'declare +x' unexport line for all scalar option variables."""
         scalar_vars = [
             _opt_to_var(k)
             for k, v in options.items()
             if v.get("type", "string") != "array"
         ]
-        if not scalar_vars:
-            return ""
-        return "\n".join(
-            [
-                "# Unexport option variables — values remain accessible in this"
-                " script but",
-                "# are not inherited by child processes.",
-                "declare +x " + " ".join(scalar_vars),
-            ],
-        )
+        return " ".join(scalar_vars)
 
     def _section_prefix_helpers(self, prefix_groups: dict, feature_id: str) -> str:
         """Emit prefix resolver, symlinks, and exports bash functions."""
@@ -466,18 +396,19 @@ class InstallScriptGenerator:
             else:
                 _scope_block = ""
             fn_blocks.append(
-                self._render_template(
-                    "prefix_resolver",
-                    FUNC_NAME=fn_resolve,
-                    PREFIX_VAR=var_prefix,
-                    OPTNAME=optname_disp,
-                    RESOLUTION_BLOCK=_make_resolution_block(
+                self._render_inline_template(
+                    _TMPL_PREFIX_RESOLVER,
+                    0,
+                    func_name=fn_resolve,
+                    prefix_var=var_prefix,
+                    opt_name=optname_disp,
+                    resolution_block=_make_resolution_block(
                         var_prefix,
                         default_root,
                         default_nonroot,
                         prefix_cfg.get("platform_overrides", []),
                     ),
-                    SCOPE_BLOCK=_scope_block,
+                    scope_block=_scope_block,
                 )
             )
 
@@ -534,14 +465,15 @@ class InstallScriptGenerator:
 
             # Activation block for _prefix_post_install__generated()
             if activation_cfg:
-                activation_block = self._render_template(
-                    "prefix_activation",
-                    STEM=stem,
-                    MARKER=activation_marker,
-                    PROFILE_D_NAME=activation_profile_d,
-                    SNIPPET_FUNC=fn_activation_snippet,
-                    ACTIVATIONS_VAR=var_activations,
-                    PREFIX_VAR=var_prefix,
+                activation_block = self._render_inline_template(
+                    _TMPL_PREFIX_ACTIVATION,
+                    0,
+                    stem=stem,
+                    marker=activation_marker,
+                    profile_d_name=activation_profile_d,
+                    snippet_func=fn_activation_snippet,
+                    activations_var=var_activations,
+                    prefix_var=var_prefix,
                 )
                 post_install_blocks.append(
                     _wrap_applies_when(applies_when, activation_block)
@@ -615,40 +547,50 @@ class InstallScriptGenerator:
         # Inline resolver calls (run after defaults are applied)
         return "\n\n".join(fn_blocks) + "\n\n" + "\n".join(resolver_calls)
 
-    def _section_dep_helpers(self, run_deps: dict, build_deps: dict) -> str:
+    def _generate_dependency_install_functions(
+        self, run_deps: dict, build_deps: dict
+    ) -> str:
         """Emit _<group>_deps__install() / _<group>_deps__cleanup() helper functions."""
         if not run_deps and not build_deps:
             return ""
         blocks = [
-            "# ── dep-group helpers (generated)"
-            " ──────────────────────────────────────────────",
+            "# Dependency install helper functions",
         ]
         blocks.extend(
-            self._render_template(
-                "dep_helper_run",
-                SAFE=gn.replace("-", "_"),
-                GROUP=gn,
+            self._render_inline_template(
+                _DEPENDENCY_INSTALL_FN_RUN,
+                0,
+                group_slug=gn.replace("-", "_"),
+                group=gn,
             )
             for gn in run_deps
         )
         blocks.extend(
-            self._render_template(
-                "dep_helper_build",
-                SAFE=gn.replace("-", "_"),
-                GROUP=gn,
+            self._render_inline_template(
+                _DEPENDENCY_INSTALL_FN_BUILD,
+                0,
+                group_slug=gn.replace("-", "_"),
+                group=gn,
             )
             for gn in build_deps
         )
         return "\n".join(blocks)
 
-    def _section_base_deps_call(self, run_deps: dict, build_deps: dict) -> str:
+    def _generate_dependency_install_calls(
+        self, run_deps: dict, build_deps: dict
+    ) -> str:
         """Emit root-guarded _base_deps__install() calls: build first, then run."""
         parts = []
         if "base" in build_deps:
-            parts.append(self._render_template("build_base_deps_call"))
+            parts.append("_dep_install_buildtime_base")
         if "base" in run_deps:
-            parts.append(self._render_template("base_deps_call"))
-        return "\n\n".join(parts)
+            parts.append("_dep_install_runtime_base")
+        if not parts:
+            return ""
+
+        return self._render_inline_template(
+            _DEPENDENCY_INSTALL_BASE_CALL, 0, calls=" && ".join(parts)
+        )
 
     def _shfmt_format(self, text: str) -> str:
         """Format a bash script fragment through shfmt, respecting .editorconfig.
@@ -680,12 +622,15 @@ class InstallScriptGenerator:
         finally:
             tmp_path.unlink(missing_ok=True)
 
-    def _render_template(self, name: str, **subs: str) -> str:
-        """Load a shell snippet template and substitute @@KEY@@ placeholders."""
-        template = self._templates[name]
-        for key, val in subs.items():
-            template = template.replace(f"@@{key}@@", val)
-        return template
+    @staticmethod
+    def _render_inline_template(template: str, indent: int, **subs: str) -> str:
+        """Substitute @@KEY@@ placeholders in a template, indenting all lines."""
+        filled = template.format(**subs)
+        indentation = " " * indent
+        return "\n".join(
+            f"{indentation}{line}" if line.strip() else line
+            for line in filled.splitlines()
+        ).strip()
 
     @staticmethod
     def _build_discovery_block(p: _DiscoveryParams) -> str:
@@ -729,43 +674,8 @@ class InstallScriptGenerator:
         lines.append(f'logging__fn_exit "{fn_name}"')
         return "\n".join(lines)
 
-    @staticmethod
-    def _load_templates(templates_dirpath: Path) -> dict[str, str]:
-        templates = {}
-        for template_path in templates_dirpath.glob("*.tmpl"):
-            template_name = template_path.name.removesuffix(".sh.tmpl")
-            templates[template_name] = template_path.read_text(encoding="utf-8").rstrip(
-                "\n",
-            )
-        return templates
-
 
 # ── Pure utilities ────────────────────────────────────────────────────────────
-
-# Templates for the users__can_write if/elif/else blocks emitted inside the
-# prefix resolver's case "" arm.  @@INDENT@@ is the base indentation for the
-# whole block; @@KEYWORD@@ is "if" or "elif" for the opening line.
-_TMPL_RESOLUTION_SINGLE = (
-    '@@INDENT@@@@KEYWORD@@ users__can_write "@@VAL@@"; then\n'
-    '@@INDENT@@  @@VAR@@="@@VAL@@"\n'
-    "@@INDENT@@else\n"
-    '@@INDENT@@  logging__error "Prefix auto-resolution failed:'
-    ' \\"@@VAL@@\\" is not writable."\n'
-    "@@INDENT@@  exit 1\n"
-    "@@INDENT@@fi"
-)
-
-_TMPL_RESOLUTION_TWO = (
-    '@@INDENT@@@@KEYWORD@@ users__can_write "@@ROOT@@"; then\n'
-    '@@INDENT@@  @@VAR@@="@@ROOT@@"\n'
-    '@@INDENT@@elif users__can_write "@@NONROOT@@"; then\n'
-    '@@INDENT@@  @@VAR@@="@@NONROOT@@"\n'
-    "@@INDENT@@else\n"
-    '@@INDENT@@  logging__error "Prefix auto-resolution failed:'
-    ' no writable path found (tried \\"@@ROOT@@\\" and \\"@@NONROOT@@\\")."\n'
-    "@@INDENT@@  exit 1\n"
-    "@@INDENT@@fi"
-)
 
 
 def _fill_resolution_tmpl(tmpl: str, **subs: str) -> str:
@@ -902,3 +812,177 @@ def _usage_type_hint(opt: dict) -> str:
     if enum_values:
         return "{" + "|".join(enum_values) + "}"
     return "<value>"
+
+
+_ARGPARSE_CASE_ARM_ARRAY = """
+{flag})
+shift
+{var}+=("$1")
+logging__read "Argument '{key}': '$1'"
+shift
+;;
+"""
+
+_ARGPARSE_CASE_ARM_SCALAR = """
+{flag})
+shift
+{var}="$1"
+logging__read "Argument '{key}': '$1'"
+shift
+;;
+"""
+
+_ARGPARSE_ENV_READ_ARRAY = """
+if [ "${{{var}+defined}}" ]; then
+  if [ -n "${{{var}-}}" ]; then
+    mapfile -t {var} < <(printf '%s\n' "${{{var}}}" | grep -v '^$')
+    for _item in "${{{var}[@]}}"; do
+    logging__read "Argument '{key}': '$_item'"
+    done
+  else
+    {var}=()
+  fi
+fi
+"""
+
+_ARGPARSE_ENV_READ_SCALAR = """
+[ "${{{var}+defined}" ] && logging__read "Argument '{key}': '${{{var}}}'"
+"""
+
+_ARGPARSE_DEFAULT_ARRAY_EMPTY = """
+declare -p {var} &> /dev/null || {
+  {var}=()
+  logging__info "Argument '{key}' set to default value '(empty)'."
+}
+"""
+
+_ARGPARSE_DEFAULT_ARRAY_VALUE = """
+declare -p {var} &> /dev/null || {
+  mapfile -t {var} < <(printf '%s' $'{escaped}' | grep -v '^$')
+  logging__info "Argument '{key}' set to default value '{disp}'."
+}
+"""
+
+_ARGPARSE_DEFAULT_SCALAR = """
+[ "${{{var}+defined}}" ] || {
+  {var}={rhs}
+  logging__info "Argument '{key}' set to default value '{disp}'."
+}
+"""
+
+_ARGPARSE_DEFAULT_INSTALLER_DIR = """
+[ -z "${{INSTALLER_DIR:-}}" ] && INSTALLER_DIR="$(file__mktmpdir "$_FEAT_ID")"
+"""
+
+_ARGPARSE_VALIDATION_ENUM_ARRAY = """
+for _item in "${{{var}[@]}}"; do
+  case "$_item" in
+    {pattern}) ;;
+    *)
+      logging__error "Invalid value for '{key}': '$_item' (expected: {expected})"
+      exit 1
+      ;;
+  esac
+done
+"""
+
+_ARGPARSE_VALIDATION_ENUM_SCALAR = """
+case "${{{var}}}" in
+  {pattern}) ;;
+  *)
+    logging__error "Invalid value for '{key}': '${{{var}}}' (expected: {expected})"
+    exit 1
+    ;;
+esac
+"""
+
+_DEPENDENCY_INSTALL_FN_RUN = """
+# shellcheck disable=SC2329,SC2317
+_dep_install_runtime_{group_slug}() {
+  ospkg__run \
+    --manifest "${{_FEAT_DEPS_DIR}}/run/{group}.yaml" \
+    --skip_installed
+  return
+}
+"""
+
+_DEPENDENCY_INSTALL_FN_BUILD = """
+# shellcheck disable=SC2329,SC2317
+_dep_install_buildtime_{group_slug}() {
+  ospkg__run \
+    --manifest "${{_FEAT_DEPS_DIR}}/build/{group}.yaml" \
+    --skip_installed \
+    --build-group "${{_SYSSET_BUILD_CONTEXT}}::{group}"
+  return
+}
+"""
+
+_DEPENDENCY_INSTALL_BASE_CALL = """
+# Install base dependencies.
+if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
+  {calls}
+else
+  logging__info "Skipping base dependency installation (no privilege available); ensure dependencies are pre-installed."
+fi
+"""
+
+# Templates for the users__can_write if/elif/else blocks emitted inside the
+# prefix resolver's case "" arm.  @@INDENT@@ is the base indentation for the
+# whole block; @@KEYWORD@@ is "if" or "elif" for the opening line.
+_TMPL_RESOLUTION_SINGLE = (
+    '@@INDENT@@@@KEYWORD@@ users__can_write "@@VAL@@"; then\n'
+    '@@INDENT@@  @@VAR@@="@@VAL@@"\n'
+    "@@INDENT@@else\n"
+    '@@INDENT@@  logging__error "Prefix auto-resolution failed:'
+    ' \\"@@VAL@@\\" is not writable."\n'
+    "@@INDENT@@  exit 1\n"
+    "@@INDENT@@fi"
+)
+
+_TMPL_RESOLUTION_TWO = (
+    '@@INDENT@@@@KEYWORD@@ users__can_write "@@ROOT@@"; then\n'
+    '@@INDENT@@  @@VAR@@="@@ROOT@@"\n'
+    '@@INDENT@@elif users__can_write "@@NONROOT@@"; then\n'
+    '@@INDENT@@  @@VAR@@="@@NONROOT@@"\n'
+    "@@INDENT@@else\n"
+    '@@INDENT@@  logging__error "Prefix auto-resolution failed:'
+    ' no writable path found (tried \\"@@ROOT@@\\" and \\"@@NONROOT@@\\")."\n'
+    "@@INDENT@@  exit 1\n"
+    "@@INDENT@@fi"
+)
+
+_TMPL_PREFIX_RESOLVER = """
+# shellcheck disable=SC2329,SC2317
+{func_name}() {
+  logging__fn_entry "{func_name}"
+  case "${{{prefix_var}}}" in
+    "")
+{resolution_block}
+      ;;
+    *) # explicit value: validate writability
+      if ! users__can_write "${{{prefix_var}}}"; then
+        logging__error "Argument '{opt_name}': '${{{prefix_var}}}' is not writable and passwordless sudo is not available."
+        exit 1
+      fi
+      ;;
+  esac
+  logging__info "Argument '{opt_name}' resolved to '${{{prefix_var}}}'."
+  {scope_block}
+  logging__fn_exit "{func_name}"
+  return
+}
+"""
+
+_TMPL_PREFIX_ACTIVATION = """
+# -- activation: {stem} --
+_act_home_arg=""
+if [ "${{{PREFIX_VAR}_SCOPE}}" = "user" ]; then
+  _act_home_arg="$(users__home_of_path_owner "${{{prefix_var}}}")"
+fi
+shell__write_activation_snippets \
+  --scope "${{{PREFIX_VAR}_SCOPE}}" \
+  ${_act_home_arg:+--home "${{_act_home_arg}}"} \
+  "{marker}" "{profile_d_name}" "{snippet_func}" \
+  "${{{activations_var}[@]}}"
+unset _act_home_arg
+"""
