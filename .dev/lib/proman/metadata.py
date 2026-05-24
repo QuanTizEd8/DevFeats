@@ -148,7 +148,7 @@ class MetadataLoader:
                 ) from e
 
             if should_apply:
-                final_options[option_id] = option_def
+                final_options[option_id] = {k: v for k, v in option_def.items() if k != "_apply_when"}
 
         return final_options
 
