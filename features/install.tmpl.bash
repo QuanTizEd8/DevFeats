@@ -64,12 +64,6 @@ __argparse__() {
 # shellcheck disable=SC2329,SC2317
 _cleanup_hook() { return; }
 
-# Override _prefix_post_install to add supplemental post-install steps
-# (e.g. exporting additional env vars). The generated block replaces this
-# stub with the real implementation when _prefix_groups is declared.
-# shellcheck disable=SC2329,SC2317
-_prefix_post_install() { return; }
-
 # shellcheck disable=SC2329,SC2317
 _on_exit() {
   local _rc=$?
@@ -128,4 +122,14 @@ __argparse__ "$@"
 
 ${{ _script.dependency_install_calls }}$
 
-${{ _script.prefix_functions }}$
+# ── prefix-group helpers (generated) ──────────────────────────────────────────
+${{ _script.prefix_resolver_functions }}$
+
+# shellcheck disable=SC2329,SC2317
+_prefix_post_install__generated() {
+${{ _script.prefix_post_install_body }}$
+return
+}
+
+_prefix_post_install() { _prefix_post_install__generated; return; }
+${{ _script.prefix_resolver_calls }}$

@@ -17,6 +17,88 @@ _env_vars:
   lifecycle_script_dir: ${{ _env_vars.share_dir_root }}$/lifecycle-hooks
   shell_profile_d_filename: 99-${{ _project.owner_slug }}$--${{ _project.name_slug }}$--${{ id }}$.sh
 
+_prefix_option_templates:
+
+  prefix:
+    type: string
+    default: ""
+    description: >-
+      Installation prefix. Resolved automatically when left empty:
+      `{default_root}` (root) or `{default_nonroot}` (non-root).{bin_note}
+
+  discovery:
+    type: string
+    default: auto
+    description: >-
+      {disc_intro}
+      `auto` (default): if the install directory is already on PATH, does nothing;
+      otherwise creates symlinks when viable, or writes a PATH export block.
+      `symlink`: create symlinks only (suppresses PATH export).
+      `shell`: write PATH export only (suppresses symlinks).
+      `all`: both symlinks and PATH export unconditionally.
+      `none`: skip everything.
+    enum:
+      - value: auto
+        description: >-
+          Smart detection: skip if already on PATH; otherwise use symlinks when viable,
+          PATH export as fallback.
+      - value: symlink
+        description: Create symlinks only; suppress PATH export.
+      - value: shell
+        description: Write PATH export to shell startup files only; suppress symlinks.
+      - value: all
+        description: Create symlinks and write PATH export unconditionally.
+      - value: none
+        description: Skip both symlinks and PATH export.
+
+  symlinks:
+    type: array
+    default: ""
+    description: >-
+      {symlink_subject}
+      Defaults to `{symlink_root}` (root) or `{symlink_nonroot}` (non-root).
+      Provide explicit target directories one per line to override.
+      Use `{discovery_key}=none` to skip symlink creation entirely.
+
+  exports:
+    type: array
+    default: ""
+    description: >-
+      Shell startup files to write a PATH export block
+      (`export PATH="{prefix_var_ref}/{bin_dir}:$PATH"`) to.
+      Leave empty (default) to write to standard profiles
+      (system-wide as root, user-scoped otherwise),
+      or provide explicit file path(s) one per line.
+      Use `{discovery_key}=none` to skip PATH export entirely.
+
+  activations:
+    type: array
+    description: >-
+      Shell names to write activation snippets for (e.g. `bash`, `zsh`).
+      Leave empty to skip all activation writes.
+    enum:
+      - value: bash
+        description: Write activation snippet for bash.
+      - value: zsh
+        description: Write activation snippet for zsh.
+
+  write_group:
+    type: string
+    description: >-
+      OS group for shared write access to the installation prefix.
+      Non-empty: create this group (if absent), add all resolved users to it,
+      and apply group-write bits so group members can install packages.
+      Empty: skip group setup.
+
+  write_users:
+    type: array
+    default: ""
+    description: >-
+      Users to add to the write-permission group.
+      Empty (default): auto-discover (current user, remoteUser, containerUser).
+      Non-empty: use exactly these users; auto-discovery is skipped.
+
+
 options:
 
   if_exists:

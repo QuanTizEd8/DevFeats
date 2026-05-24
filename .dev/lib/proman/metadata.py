@@ -106,13 +106,14 @@ class MetadataLoader:
                 f"Error substituting variables in metadata for feature '{feature_id}': {e}"
             ) from e
         metadata.pop("_project")
+        prefix_option_templates = metadata.pop("_prefix_option_templates", {})
 
         self._validate_schema(metadata)
 
         prefix_groups = metadata.get("_prefix_groups", {})
         for group_id, group_cfg in prefix_groups.items():
             _inject_prefix_group_options(
-                feature_id, group_id, group_cfg, metadata["options"]
+                feature_id, group_id, group_cfg, metadata["options"], prefix_option_templates
             )
 
         return metadata
@@ -205,11 +206,33 @@ def _schema_error_path(err) -> str:
     return "(root)"
 
 
-def _inject_prefix_group_options(  # noqa: PLR0911
+def _inject_one_option(
+    feature_id: str,
+    kind: str,
+    key: str,
+    opt: dict,
+    options: dict,
+    applies_when: list | None,
+) -> bool:
+    """Check for a key collision, apply applies_when, and inject into options."""
+    if key in options:
+        log(
+            f"⛔ {feature_id}: option '{key}' is a derived {kind} option"
+            " and cannot be manually defined in metadata.yaml",
+        )
+        return False
+    if applies_when:
+        opt = {**opt, "_applies_when": applies_when}
+    options[key] = opt
+    return True
+
+
+def _inject_prefix_group_options(
     feature_id: str,
     group_id: str,
     group_cfg: dict,
     options: dict,
+    prefix_option_templates: dict,
 ) -> bool:
     """Inject generated options for a single ``_prefix_groups`` entry."""
     _default_root = "/usr/local"
@@ -244,185 +267,101 @@ def _inject_prefix_group_options(  # noqa: PLR0911
     exports_key = f"{stem}_exports"
     activations_key = f"{stem}_activations"
 
-    # Inject prefix option
-    if prefix_key in options:
-        raise ValueError(
-            f"⛔ Option '{prefix_key}' is a derived prefix option and"
-            " cannot be manually defined in metadata.yaml",
-        )
-
+    # Substitution values for description templates.
     if bins:
         bin_list = ", ".join(f"`{b}`" for b in bins)
         bin_note = (
             f" Binaries ({bin_list}) are placed at"
             f" `${{{prefix_key.upper()}}}/{bin_dir}/`."
         )
+        bins_label = "/".join(f"`{b}`" for b in bins)
+        disc_intro = f"Controls how {bins_label} is made discoverable on PATH."
+        symlink_subject = (
+            f"Target directory for the `{bins[0]}` symlink."
+            if len(bins) == 1
+            else f"Target directory for {bin_list} symlinks."
+        )
     else:
         bin_note = ""
-    opt_prefix: dict = {
-        "type": "string",
-        "default": "",
-        "description": prefix_description
-        or (
-            "Installation prefix."
-            " Resolved automatically when left empty:"
-            f" `{default_root}` (root) or `{default_nonroot}` (non-root).{bin_note}"
-        ),
+        disc_intro = "Controls PATH discoverability for this installation."
+        symlink_subject = "Target directory for binary symlinks."
+    subs = {
+        "default_root": default_root,
+        "default_nonroot": default_nonroot,
+        "bin_note": bin_note,
+        "disc_intro": disc_intro,
+        "symlink_subject": symlink_subject,
+        "symlink_root": symlink_root,
+        "symlink_nonroot": symlink_nonroot,
+        "discovery_key": discovery_key,
+        "prefix_var_ref": f"${{{prefix_key.upper()}}}",
+        "bin_dir": bin_dir,
     }
+
+    # Inject prefix option (raises ValueError on collision — schema violation).
+    if prefix_key in options:
+        raise ValueError(
+            f"⛔ Option '{prefix_key}' is a derived prefix option and"
+            " cannot be manually defined in metadata.yaml",
+        )
+    opt_prefix = dict(prefix_option_templates["prefix"])
+    opt_prefix["description"] = (
+        prefix_description or opt_prefix["description"].format_map(subs)
+    )
     if applies_when:
         opt_prefix["_applies_when"] = applies_when
     options[prefix_key] = opt_prefix
 
-    # Inject discovery option (when at least one of symlinks/exports is active)
+    # Inject discovery option (when at least one of symlinks/exports is active).
     if not (skip_symlink and skip_exports):
-        if discovery_key in options:
-            log(
-                f"⛔ {feature_id}: option '{discovery_key}' is a derived"
-                " discovery option and cannot be manually defined in metadata.yaml",
-            )
+        opt_disc = dict(prefix_option_templates["discovery"])
+        opt_disc["description"] = opt_disc["description"].format_map(subs)
+        if not _inject_one_option(
+            feature_id, "discovery", discovery_key, opt_disc, options, applies_when
+        ):
             return False
-        if bins:
-            bins_label = "/".join(f"`{b}`" for b in bins)
-            disc_intro = f"Controls how {bins_label} is made discoverable on PATH."
-        else:
-            disc_intro = "Controls PATH discoverability for this installation."
-        opt_disc: dict = {
-            "type": "string",
-            "default": "auto",
-            "description": (
-                f"{disc_intro}"
-                " `auto` (default): if the install directory is already on PATH,"
-                " does nothing; otherwise creates symlinks when viable, or writes"
-                " a PATH export block."
-                " `symlink`: create symlinks only (suppresses PATH export)."
-                " `shell`: write PATH export only (suppresses symlinks)."
-                " `all`: both symlinks and PATH export unconditionally."
-                " `none`: skip everything."
-            ),
-            "enum": [
-                {
-                    "value": "auto",
-                    "description": (
-                        "Smart detection: skip if already on PATH; otherwise"
-                        " use symlinks when viable, PATH export as fallback."
-                    ),
-                },
-                {
-                    "value": "symlink",
-                    "description": "Create symlinks only; suppress PATH export.",
-                },
-                {
-                    "value": "shell",
-                    "description": "Write PATH export to shell startup files only;"
-                    " suppress symlinks.",
-                },
-                {
-                    "value": "all",
-                    "description": "Create symlinks and write PATH export"
-                    " unconditionally.",
-                },
-                {
-                    "value": "none",
-                    "description": "Skip both symlinks and PATH export.",
-                },
-            ],
-        }
-        if applies_when:
-            opt_disc["_applies_when"] = applies_when
-        options[discovery_key] = opt_disc
 
-    # Inject symlinks option (unless skip_symlink)
+    # Inject symlinks option (unless skip_symlink).
     if not skip_symlink:
-        if symlinks_key in options:
-            log(
-                f"⛔ {feature_id}: option '{symlinks_key}' is a derived"
-                " symlinks option and cannot be manually defined in metadata.yaml",
-            )
+        opt_symlinks = dict(prefix_option_templates["symlinks"])
+        opt_symlinks["description"] = (
+            symlink_description or opt_symlinks["description"].format_map(subs)
+        )
+        if not _inject_one_option(
+            feature_id, "symlinks", symlinks_key, opt_symlinks, options, applies_when
+        ):
             return False
-        _dflt = (
-            f" Defaults to `{symlink_root}` (root) or `{symlink_nonroot}` (non-root)."
-        )
-        _hint = (
-            " Provide explicit target directories one per line to override."
-            f" Use `{discovery_key}=none` to skip symlink creation entirely."
-        )
-        if bins:
-            if len(bins) == 1:
-                symlink_desc = (
-                    f"Target directory for the `{bins[0]}` symlink." + _dflt + _hint
-                )
-            else:
-                bin_list = ", ".join(f"`{b}`" for b in bins)
-                symlink_desc = (
-                    f"Target directory for {bin_list} symlinks." + _dflt + _hint
-                )
-        else:
-            symlink_desc = "Target directory for binary symlinks." + _dflt + _hint
-        opt: dict = {
-            "type": "array",
-            "default": "",
-            "description": symlink_description or symlink_desc,
-        }
-        if applies_when:
-            opt["_applies_when"] = applies_when
-        options[symlinks_key] = opt
 
-    # Inject exports option (unless skip_exports)
+    # Inject exports option (unless skip_exports).
     if not skip_exports:
-        if exports_key in options:
-            log(
-                f"⛔ {feature_id}: option '{exports_key}' is a derived"
-                " exports option and cannot be manually"
-                " defined in metadata.yaml",
-            )
+        opt_exports = dict(prefix_option_templates["exports"])
+        opt_exports["description"] = (
+            exports_description or opt_exports["description"].format_map(subs)
+        )
+        if not _inject_one_option(
+            feature_id, "exports", exports_key, opt_exports, options, applies_when
+        ):
             return False
-        opt = {
-            "type": "array",
-            "default": "",
-            "description": exports_description
-            or (
-                "Shell startup files to write a PATH export block"
-                f' (`export PATH="${{{prefix_key.upper()}}}/{bin_dir}:$PATH"`) to.'
-                " Leave empty (default) to write to standard profiles"
-                " (system-wide as root, user-scoped otherwise),"
-                " or provide explicit file path(s) one per line."
-                f" Use `{discovery_key}=none` to skip PATH export entirely."
-            ),
-        }
-        if applies_when:
-            opt["_applies_when"] = applies_when
-        options[exports_key] = opt
 
-    # Inject activations option (when activation: is present)
+    # Inject activations option (when activation: is present).
     if activation_cfg:
         shells: list[str] = activation_cfg.get("shells", [])
         act_description: str | None = activation_cfg.get("description")
-        if activations_key in options:
-            log(
-                f"⛔ {feature_id}: option '{activations_key}' is a derived"
-                " activations option and cannot be manually defined"
-                " in metadata.yaml",
-            )
+        opt_activations = dict(prefix_option_templates["activations"])
+        opt_activations["default"] = "\n".join(shells)
+        if act_description:
+            opt_activations["description"] = act_description
+        if not _inject_one_option(
+            feature_id,
+            "activations",
+            activations_key,
+            opt_activations,
+            options,
+            applies_when,
+        ):
             return False
-        opt = {
-            "type": "array",
-            "default": "\n".join(shells),
-            "description": act_description
-            or (
-                "Shell names to write activation snippets for"
-                " (e.g. `bash`, `zsh`)."
-                " Leave empty to skip all activation writes."
-            ),
-            "enum": [
-                {"value": s, "description": f"Write activation snippet for {s}."}
-                for s in ["bash", "zsh"]
-            ],
-        }
-        if applies_when:
-            opt["_applies_when"] = applies_when
-        options[activations_key] = opt
 
-    # Inject write_group and write_users options (when write_group: is present)
+    # Inject write_group and write_users options (when write_group: is present).
     write_group_cfg: dict | None = group_cfg.get("write_group")
     if write_group_cfg is not None:
         wg_default: str = write_group_cfg.get("default", "")
@@ -432,43 +371,16 @@ def _inject_prefix_group_options(  # noqa: PLR0911
         else:
             wg_key = "write_group"
             wu_key = "write_users"
-        if wg_key in options:
-            log(
-                f"⛔ {feature_id}: option '{wg_key}' is a derived write_group"
-                " option and cannot be manually defined in metadata.yaml",
-            )
+        opt_wg = dict(prefix_option_templates["write_group"])
+        opt_wg["default"] = wg_default
+        if not _inject_one_option(
+            feature_id, "write_group", wg_key, opt_wg, options, applies_when
+        ):
             return False
-        if wu_key in options:
-            log(
-                f"⛔ {feature_id}: option '{wu_key}' is a derived write_users"
-                " option and cannot be manually defined in metadata.yaml",
-            )
+        opt_wu = dict(prefix_option_templates["write_users"])
+        if not _inject_one_option(
+            feature_id, "write_users", wu_key, opt_wu, options, applies_when
+        ):
             return False
-        opt_wg: dict = {
-            "type": "string",
-            "default": wg_default,
-            "description": (
-                "OS group for shared write access to the installation prefix."
-                " Non-empty: create this group (if absent), add all resolved"
-                " users to it, and apply group-write bits so group members can"
-                " install packages. Empty: skip group setup."
-            ),
-        }
-        if applies_when:
-            opt_wg["_applies_when"] = applies_when
-        options[wg_key] = opt_wg
-        opt_wu: dict = {
-            "type": "array",
-            "default": "",
-            "description": (
-                "Users to add to the write-permission group."
-                " Empty (default): auto-discover (current user, remoteUser,"
-                " containerUser). Non-empty: use exactly these users;"
-                " auto-discovery is skipped."
-            ),
-        }
-        if applies_when:
-            opt_wu["_applies_when"] = applies_when
-        options[wu_key] = opt_wu
 
     return True

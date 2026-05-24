@@ -100,7 +100,13 @@ class InstallScriptGenerator:
             "dependency_install_calls": self._generate_dependency_install_calls(
                 run_deps, build_deps
             ),
-            "prefix_functions": self._section_prefix_helpers(prefix_groups, feature_id),
+            "prefix_resolver_functions": self._generate_prefix_resolver_functions(
+                prefix_groups, feature_id
+            ),
+            "prefix_post_install_body": self._generate_prefix_post_install_body(
+                prefix_groups, feature_id
+            ),
+            "prefix_resolver_calls": self._generate_prefix_resolver_calls(prefix_groups),
         }
         template_data = metadata | {"_script": script_parts}
         try:
@@ -351,48 +357,26 @@ class InstallScriptGenerator:
         ]
         return " ".join(scalar_vars)
 
-    def _section_prefix_helpers(self, prefix_groups: dict, feature_id: str) -> str:
-        """Emit prefix resolver, symlinks, and exports bash functions."""
+    def _generate_prefix_resolver_functions(
+        self, prefix_groups: dict, feature_id: str
+    ) -> str:
+        """Emit per-group resolver functions and activation stubs."""
         if not prefix_groups:
             return ""
 
-        _owner, _repo = git_owner_repo()
-        fn_blocks: list[str] = [
-            "# ── prefix-group helpers (generated)"
-            " ──────────────────────────────────────────────",
-        ]
-        post_install_blocks: list[str] = []
-        resolver_calls: list[str] = []
-        # cmd_var → first_bin; needs bare-binary fallback when guarded.
-        guarded_cmd_vars: dict[str, str] = {}
+        fn_blocks: list[str] = []
 
         for group_id, group_cfg in prefix_groups.items():
             prefix_cfg: dict = group_cfg.get("prefix", {})
-            symlink_cfg: dict = group_cfg.get("symlink", {})
-            exports_cfg: dict = group_cfg.get("exports", {})
-
-            option_name: str | None = group_cfg.get("option_name")
-            skip_symlink: bool = symlink_cfg.get("skip", False)
-            skip_exports: bool = exports_cfg.get("skip", False)
-            default_root: str = prefix_cfg.get("root", "/usr/local")
-            default_nonroot: str = prefix_cfg.get("nonroot", "${HOME}/.local")
-            symlink_root: str = symlink_cfg.get("root", "/usr/local/bin")
-            symlink_nonroot: str = symlink_cfg.get("nonroot", "${HOME}/.local/bin")
-            bins: list[str] = prefix_cfg.get("bins", [])
-            bin_dir: str = prefix_cfg.get("bin_dir", "bin")
-            applies_when: list | None = group_cfg.get("applies_when")
             activation_cfg: dict | None = group_cfg.get("activation")
 
-            stem = option_name or (f"{group_id}_prefix" if group_id else "prefix")
-            opt_prefix = stem
-            opt_symlinks = f"{stem}_symlinks"
-            opt_exports = f"{stem}_exports"
-            opt_discovery = f"{stem}_discovery"
+            option_name: str | None = group_cfg.get("option_name")
+            default_root: str = prefix_cfg.get("root", "/usr/local")
+            default_nonroot: str = prefix_cfg.get("nonroot", "${HOME}/.local")
 
-            var_prefix = _opt_to_var(opt_prefix)
-            var_symlinks = _opt_to_var(opt_symlinks)
-            var_exports = _opt_to_var(opt_exports)
-            var_discovery = _opt_to_var(opt_discovery)
+            stem = option_name or (f"{group_id}_prefix" if group_id else "prefix")
+            var_prefix = _opt_to_var(stem)
+            optname_disp = option_name or stem
 
             safe_id = group_id.replace("-", "_")
             if option_name:
@@ -402,27 +386,13 @@ class InstallScriptGenerator:
             else:
                 fn_resolve = "resolve_prefix"
             fn_activation_snippet = f"{stem}_activation_snippet"
-            var_activations = _opt_to_var(f"{stem}_activations")
-            activation_marker = f"{stem} activation ({feature_id})"
-            activation_profile_d = f"{_owner}-{_repo}-{feature_id}-{stem}-activation.sh"
 
-            optname_disp = option_name or opt_prefix
+            _scope_block = (
+                _TMPL_SCOPE_SNAPSHOT.format(var_prefix=var_prefix)
+                if activation_cfg
+                else ""
+            )
 
-            # Resolver function
-            # Scope snapshot is only needed when the feature has activation —
-            # it consumes ${PREFIX_VAR}_SCOPE in _prefix_post_install__generated.
-            if activation_cfg:
-                _scope_block = (
-                    "\n"
-                    "  # Activation scope snapshot: captured before write_group\n"
-                    "  # chown can alter path ownership. Consumed by\n"
-                    "  # _prefix_post_install__generated.\n"
-                    "  # shellcheck disable=SC2034\n"
-                    f'  {var_prefix}_SCOPE="$(users__is_user_path'
-                    f' "${{{var_prefix}}}" && printf user || printf system)"'
-                )
-            else:
-                _scope_block = ""
             fn_blocks.append(
                 self._render_inline_template(
                     _TMPL_PREFIX_RESOLVER,
@@ -440,14 +410,58 @@ class InstallScriptGenerator:
                 )
             )
 
-            # Activation snippet stub (body overrides to provide content and exit code)
             if activation_cfg:
                 fn_blocks.append(
-                    f"# shellcheck disable=SC2329,SC2317\n"
-                    f"{fn_activation_snippet}() {{ return 1; }}"
+                    self._render_inline_template(
+                        _TMPL_ACTIVATION_STUB, 0, func_name=fn_activation_snippet
+                    )
                 )
 
-            # Discovery params for shell__run_prefix_discovery call.
+        return "\n\n".join(fn_blocks)
+
+    def _generate_prefix_post_install_body(
+        self, prefix_groups: dict, feature_id: str
+    ) -> str:
+        """Emit the body of _prefix_post_install__generated()."""
+        if not prefix_groups:
+            return ""
+
+        _owner, _repo = git_owner_repo()
+        post_install_blocks: list[str] = []
+        # cmd_var → first_bin; needs bare-binary fallback when guarded.
+        guarded_cmd_vars: dict[str, str] = {}
+
+        for group_id, group_cfg in prefix_groups.items():
+            prefix_cfg: dict = group_cfg.get("prefix", {})
+            symlink_cfg: dict = group_cfg.get("symlink", {})
+            exports_cfg: dict = group_cfg.get("exports", {})
+            activation_cfg: dict | None = group_cfg.get("activation")
+
+            option_name: str | None = group_cfg.get("option_name")
+            skip_symlink: bool = symlink_cfg.get("skip", False)
+            skip_exports: bool = exports_cfg.get("skip", False)
+            symlink_root: str = symlink_cfg.get("root", "/usr/local/bin")
+            symlink_nonroot: str = symlink_cfg.get("nonroot", "${HOME}/.local/bin")
+            bins: list[str] = prefix_cfg.get("bins", [])
+            bin_dir: str = prefix_cfg.get("bin_dir", "bin")
+            applies_when: list | None = group_cfg.get("applies_when")
+
+            stem = option_name or (f"{group_id}_prefix" if group_id else "prefix")
+            opt_prefix = stem
+            opt_symlinks = f"{stem}_symlinks"
+            opt_exports = f"{stem}_exports"
+            opt_discovery = f"{stem}_discovery"
+
+            var_prefix = _opt_to_var(opt_prefix)
+            var_symlinks = _opt_to_var(opt_symlinks)
+            var_exports = _opt_to_var(opt_exports)
+            var_discovery = _opt_to_var(opt_discovery)
+
+            fn_activation_snippet = f"{stem}_activation_snippet"
+            var_activations = _opt_to_var(f"{stem}_activations")
+            activation_marker = f"{stem} activation ({feature_id})"
+            activation_profile_d = f"{_owner}-{_repo}-{feature_id}-{stem}-activation.sh"
+
             first_bin = bins[0] if bins else ""
             bins_str = " ".join(bins) if bins else ""
             marker = (
@@ -460,7 +474,7 @@ class InstallScriptGenerator:
             else:
                 cmd_var = "_DF_EXPECTED_CMD"
 
-            # Discovery block for _prefix_post_install__generated()
+            # Discovery block
             # Skip entirely when both symlinks and exports are disabled — the call
             # would be a no-op side-effect-wise, and the computed cmd path
             # (prefix/bin/name) would be wrong for installs like nvm that don't
@@ -491,7 +505,6 @@ class InstallScriptGenerator:
                 if applies_when and first_bin and cmd_var not in guarded_cmd_vars:
                     guarded_cmd_vars[cmd_var] = first_bin
 
-            # Activation block for _prefix_post_install__generated()
             if activation_cfg:
                 activation_block = self._render_inline_template(
                     _TMPL_PREFIX_ACTIVATION,
@@ -507,7 +520,6 @@ class InstallScriptGenerator:
                     _wrap_applies_when(applies_when, activation_block)
                 )
 
-            # Write-group block for _prefix_post_install__generated()
             write_group_cfg: dict | None = group_cfg.get("write_group")
             if write_group_cfg is not None:
                 if group_id:
@@ -519,61 +531,47 @@ class InstallScriptGenerator:
                 wg_var = _opt_to_var(wg_key)
                 wu_var = _opt_to_var(wu_key)
                 owner_var_name: str = write_group_cfg.get("owner_var", "")
-                if owner_var_name:
-                    owner_expr = f'"${{{owner_var_name}}}"'
-                else:
-                    owner_expr = '"$(id -nu)"'
-                _set_perms = (
-                    f"  users__set_write_permissions"
-                    f' "${{{var_prefix}}}"'
-                    f" {owner_expr}"
-                    f' "${{{wg_var}}}"'
-                    f' "${{_write_users[@]}}"'
+                owner_expr = (
+                    f'"${{{owner_var_name}}}"' if owner_var_name else '"$(id -nu)"'
                 )
-                write_group_block = (
-                    f"_wargs=()\n"
-                    f'if [[ "${{#{wu_var}[@]}}" -gt 0 ]]; then\n'
-                    f"  _wargs=(--current false"
-                    f" --remote false --container false)\n"
-                    f'  for _u in "${{{wu_var}[@]}}"'
-                    f'; do _wargs+=(--user "$_u"); done\n'
-                    f"fi\n"
-                    f"mapfile -t _write_users"
-                    f' < <(users__resolve_list "${{_wargs[@]}}")\n'
-                    f'if [[ -n "${{{wg_var}:-}}" ]]; then\n'
-                    f"{_set_perms}\n"
-                    f"fi"
+                write_group_block = self._render_inline_template(
+                    _TMPL_WRITE_GROUP,
+                    0,
+                    wu_var=wu_var,
+                    wg_var=wg_var,
+                    var_prefix=var_prefix,
+                    owner_expr=owner_expr,
                 )
                 post_install_blocks.append(
                     _wrap_applies_when(applies_when, write_group_block)
                 )
 
-            resolver_calls.append(fn_resolve)
-
         # Bare-binary fallbacks ensure cmd-vars are always set even when an
-        # applies_when guard prevented the discovery block from running (inactive
-        # install method, or a non-prefix method with no prefix_group at all).
+        # applies_when guard prevented the discovery block from running.
         # The := operator makes each line a no-op when discovery already set the var.
         for _cv, _fb in guarded_cmd_vars.items():
             post_install_blocks.append(f': "${{{_cv}:={_fb}}}"')
 
-        # _prefix_post_install__generated() aggregating all per-group discovery blocks
-        post_install_body = "\n\n".join(post_install_blocks)
-        fn_blocks.append(
-            "# shellcheck disable=SC2329,SC2317\n"
-            "_prefix_post_install__generated() {\n"
-            f"{post_install_body}\n"
-            "return\n"
-            "}"
-        )
+        return "\n\n".join(post_install_blocks)
 
-        # _prefix_post_install() shadows the preamble no-op stub
-        fn_blocks.append(
-            "_prefix_post_install() {\n  _prefix_post_install__generated\n  return\n}"
-        )
+    def _generate_prefix_resolver_calls(self, prefix_groups: dict) -> str:
+        """Emit the inline resolver call lines."""
+        if not prefix_groups:
+            return ""
 
-        # Inline resolver calls (run after defaults are applied)
-        return "\n\n".join(fn_blocks) + "\n\n" + "\n".join(resolver_calls)
+        resolver_calls: list[str] = []
+        for group_id, group_cfg in prefix_groups.items():
+            option_name: str | None = group_cfg.get("option_name")
+            safe_id = group_id.replace("-", "_")
+            if option_name:
+                fn_resolve = f"resolve_{option_name}"
+            elif group_id:
+                fn_resolve = f"resolve_{safe_id}_prefix"
+            else:
+                fn_resolve = "resolve_prefix"
+            resolver_calls.append(fn_resolve)
+
+        return "\n".join(resolver_calls)
 
     def _generate_dependency_install_functions(
         self, run_deps: dict, build_deps: dict
@@ -692,15 +690,18 @@ class InstallScriptGenerator:
         if p.skip_exports:
             args.append("--no-exports")
         fn_name = f"{p.stem}_discovery"
-        lines = [
-            f"# -- discovery: {p.stem}{comment_suffix} --",
-            f'logging__fn_entry "{fn_name}"',
-            "shell__run_prefix_discovery \\",
-        ]
-        for i, arg in enumerate(args):
-            lines.append(f"  {arg} \\" if i < len(args) - 1 else f"  {arg}")
-        lines.append(f'logging__fn_exit "{fn_name}"')
-        return "\n".join(lines)
+        args_lines = "\n".join(
+            f"  {arg} \\" if i < len(args) - 1 else f"  {arg}"
+            for i, arg in enumerate(args)
+        )
+        return InstallScriptGenerator._render_inline_template(
+            _TMPL_DISCOVERY_BLOCK,
+            0,
+            stem=p.stem,
+            comment_suffix=comment_suffix,
+            fn_name=fn_name,
+            args_lines=args_lines,
+        )
 
 
 # ── Pure utilities ────────────────────────────────────────────────────────────
@@ -942,6 +943,41 @@ if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
 else
   logging__info "Skipping base dependency installation (no privilege available); ensure dependencies are pre-installed."
 fi
+"""
+
+_TMPL_ACTIVATION_STUB = """
+# shellcheck disable=SC2329,SC2317
+{func_name}() {{ return 1; }}
+"""
+
+_TMPL_SCOPE_SNAPSHOT = (
+    "\n"
+    "  # Activation scope snapshot: captured before write_group\n"
+    "  # chown can alter path ownership. Consumed by\n"
+    "  # _prefix_post_install__generated.\n"
+    "  # shellcheck disable=SC2034\n"
+    '  {var_prefix}_SCOPE="$(users__is_user_path'
+    ' "${{{var_prefix}}}" && printf user || printf system)"'
+)
+
+_TMPL_WRITE_GROUP = """
+_wargs=()
+if [[ "${{#{wu_var}[@]}}" -gt 0 ]]; then
+  _wargs=(--current false --remote false --container false)
+  for _u in "${{{wu_var}[@]}}"; do _wargs+=(--user "$_u"); done
+fi
+mapfile -t _write_users < <(users__resolve_list "${{_wargs[@]}}")
+if [[ -n "${{{wg_var}:-}}" ]]; then
+  users__set_write_permissions "${{{var_prefix}}}" {owner_expr} "${{{wg_var}}}" "${{_write_users[@]}}"
+fi
+"""
+
+_TMPL_DISCOVERY_BLOCK = """
+# -- discovery: {stem}{comment_suffix} --
+logging__fn_entry "{fn_name}"
+shell__run_prefix_discovery \\
+{args_lines}
+logging__fn_exit "{fn_name}"
 """
 
 # Templates for the users__can_write if/elif/else blocks emitted inside the
