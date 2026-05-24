@@ -230,7 +230,7 @@ options:
     type: string
     default: ${{ _options.gh_repo }}$
     description: >-
-      GitHub repository of ${{ _tool_name }}$ in the format `owner/repo`.
+      GitHub repository in the format `owner/repo`.
       Used for version resolution and downloading binaries,
       installation scripts, or source code,
       depending on the installation method.
