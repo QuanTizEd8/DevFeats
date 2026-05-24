@@ -34,12 +34,6 @@
         "$ref": "#/$defs/FeatureOption"
       },
       "properties": {
-        "prefix": false,
-        "prefix_discovery": false,
-        "prefix_symlinks": false,
-        "prefix_exports": false,
-        "prefix_activations": false,
-        "runtime_path": false,
         "method": {
           "description": "Installation method option. Enum values must be drawn from the known set of installation method identifiers.",
           "allOf": [
@@ -57,13 +51,6 @@
             }
           ]
         }
-      },
-      "patternProperties": {
-        "^[A-Za-z][A-Za-z0-9_]*_prefix$": false,
-        "^[A-Za-z][A-Za-z0-9_]*_prefix_discovery$": false,
-        "^[A-Za-z][A-Za-z0-9_]*_prefix_symlinks$": false,
-        "^[A-Za-z][A-Za-z0-9_]*_prefix_exports$": false,
-        "^[A-Za-z][A-Za-z0-9_]*_activations$": false
       },
       "type": "object"
     },
