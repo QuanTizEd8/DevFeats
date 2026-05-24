@@ -91,6 +91,9 @@ class InstallScriptGenerator:
         script_parts: dict[str, object] = {
             "usage_options": self._generate_usage_options(options),
             "argparse": self._generate_argparse(options),
+            "env_var_assignments": self._generate_env_var_assignments(
+                metadata.get("_env_vars", {})
+            ),
             "dependency_install_functions": self._generate_dependency_install_functions(
                 run_deps, build_deps
             ),
@@ -109,6 +112,31 @@ class InstallScriptGenerator:
             raise ValueError(f"Error rendering template: {e}") from e
 
         return script
+
+    @staticmethod
+    def _generate_env_var_assignments(env_vars: dict) -> str:
+        """Emit one ``_KEY="value"`` line per entry in metadata ``_env_vars``.
+
+        Each snake_case key ``foo_bar`` becomes bash variable ``_FOO_BAR``.
+        Values are double-quoted so ``${HOME}`` and similar expansions still
+        work at runtime.
+        """
+        if not isinstance(env_vars, dict) or not env_vars:
+            return ""
+
+        lines: list[str] = []
+        for key in sorted(env_vars):
+            value = env_vars[key]
+            if not isinstance(value, str):
+                msg = (
+                    f"_env_vars['{key}'] must be a string after metadata fill"
+                    f" (got {type(value).__name__})"
+                )
+                raise TypeError(msg)
+            var_name = f"_{key.upper()}"
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{var_name}="{escaped}"')
+        return "\n".join(lines)
 
     def _generate_usage_options(self, options: dict) -> str:
         """Emit the __usage__() shell function."""
@@ -382,7 +410,7 @@ class InstallScriptGenerator:
 
             # Resolver function
             # Scope snapshot is only needed when the feature has activation —
-            # it consumes @@PREFIX_VAR@@_SCOPE in _prefix_post_install__generated.
+            # it consumes ${PREFIX_VAR}_SCOPE in _prefix_post_install__generated.
             if activation_cfg:
                 _scope_block = (
                     "\n"
@@ -656,7 +684,7 @@ class InstallScriptGenerator:
             args += [
                 f'--exports-ref "{p.var_exports}"',
                 f'--marker "{p.marker}"',
-                '--profile-d "${_EXPORT_PROFILE_D}"',
+                '--profile-d "${_SHELL_PROFILE_D_FILENAME}"',
             ]
         args += [f'--bin "{p.first_bin}"', f'--cmd-var "{p.cmd_var}"']
         if p.skip_symlink:

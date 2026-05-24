@@ -9,6 +9,8 @@ licenseURL: ${{ _project.repo_url }}$/blob/main/LICENSE
 _oci_ref: ${{ _project.oci_base }}$/${{ id }}$
 _lifecycle_key_prefix: ${{ _project.owner_slug }}$-${{ _project.name_slug }}$--
 
+# Canonical path/filename values merged into every feature. install_script.py
+# emits one bash assignment per key: snake_case `foo_bar` → `_FOO_BAR`.
 _env_vars:
   share_dir_root: /usr/local/share/${{ _project.namespace }}$/${{ id }}$
   share_dir_nonroot: ${HOME}/.local/share/${{ _project.namespace }}$/${{ id }}$

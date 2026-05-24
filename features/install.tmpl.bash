@@ -113,6 +113,8 @@ _FEAT_NAME="${{ name }}$"
 _FEAT_FILES_DIR="${_FEAT_DIR}/files"
 _FEAT_DEPS_DIR="${_FEAT_DIR}/dependencies"
 
+${{ _script.env_var_assignments }}$
+
 _SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::$_FEAT_ID}"
 export _SYSSET_BUILD_CONTEXT
 
