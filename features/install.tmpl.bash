@@ -89,7 +89,18 @@ _on_exit() {
   return
 }
 
+# shellcheck disable=SC2329,SC2317
+_prefix_post_install() {
+  ${{ _script.prefix_post_install_body }}$
+  if declare -f _prefix_post_install_hook > /dev/null; then _prefix_post_install_hook; fi
+  return
+}
+
 ${{ _script.dependency_install_functions }}$
+
+# Prefix group helpers (generated)
+${{ _script.prefix_resolver_functions }}$
+
 
 # Path to the feature's root directory.
 _FEAT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -118,13 +129,4 @@ __argparse__ "$@"
 
 ${{ _script.dependency_install_calls }}$
 
-# ── prefix-group helpers (generated) ──────────────────────────────────────────
-${{ _script.prefix_resolver_functions }}$
-
-# shellcheck disable=SC2329,SC2317
-_prefix_post_install() {
-  ${{ _script.prefix_post_install_body }}$
-  if declare -f _prefix_post_install_hook > /dev/null; then _prefix_post_install_hook; fi
-  return
-}
 ${{ _script.prefix_resolver_calls }}$
