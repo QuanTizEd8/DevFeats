@@ -91,6 +91,7 @@ class MetadataLoader:
             )
 
         metadata["id"] = feature_id
+        metadata["_project"] = self._config.asdict
 
         pyserials.update.recursive_update(
             source=metadata,
@@ -100,7 +101,6 @@ class MetadataLoader:
         self._normalize_lifecycle_keys(metadata)
         metadata["options"] = self._filter_options(metadata)
 
-        metadata["_project"] = self._config.asdict
         try:
             metadata = pyserials.update.TemplateFiller().fill(metadata)
         except Exception as e:
@@ -148,7 +148,9 @@ class MetadataLoader:
                 ) from e
 
             if should_apply:
-                final_options[option_id] = {k: v for k, v in option_def.items() if k != "_apply_when"}
+                final_options[option_id] = {
+                    k: v for k, v in option_def.items() if k != "_apply_when"
+                }
 
         return final_options
 
