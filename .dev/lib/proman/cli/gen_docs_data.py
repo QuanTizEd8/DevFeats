@@ -6,10 +6,11 @@ import argparse
 import json
 import sys
 
+from proman.config import load as load_config
 from proman.docs import feat_doc_gen, lib_doc_gen
 from proman.docs.parse_lib import parse_lib_module
 from proman.git import git_owner_repo, git_repo_root
-from proman.metadata import load_all
+from proman.metadata import MetadataLoader
 from proman.sync import sync_file
 
 _FEATURES_NOTES_FILENAME = "NOTES.md"
@@ -25,6 +26,7 @@ def main() -> int:
         help="Include private functions (names starting with _) in library docs.",
     )
     args = parser.parse_args()
+    config = load_config()
 
     repo = git_repo_root()
     features_dir = repo / "features"
@@ -36,7 +38,7 @@ def main() -> int:
 
     # ── Feature metadata ──────────────────────────────────────────────────────
 
-    all_metadata = load_all(features_dir)
+    all_metadata = MetadataLoader().load()
 
     # ── Library module metadata ───────────────────────────────────────────────
 
