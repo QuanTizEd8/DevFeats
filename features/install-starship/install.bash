@@ -1,12 +1,7 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/install.bash
-# Feature: install-starship
-# Not yet functional. Wired up in this feature's own semantic phase.
 # shellcheck shell=bash
 
-# --- _STARSHIP_INSTALLER_URL global var (original lines 10–10) ---
 _STARSHIP_INSTALLER_URL="https://starship.rs/install.sh"
 
-# --- install_starship() + blank (original lines 200–225) ---
 # ---------------------------------------------------------------------------
 # install_starship — Download and run the official Starship installer.
 # ---------------------------------------------------------------------------
@@ -29,42 +24,112 @@ install_starship() {
     logging__error "Starship installation failed."
     return 1
   fi
-  return 0
 }
 
 # ---------------------------------------------------------------------------
+# _configure_user_starship <username>
+# Injects guarded starship init hooks into the appropriate rc files.
+# Zsh rcfile resolution (when zsh is in STARSHIP_SHELLS):
+#   1. Run zsh as the user to read ZDOTDIR from the shell's startup chain.
+#   2. _zsh_rcdir = ${ZDOTDIR:-${HOME}}
+#   3. zshtheme exists → write there; .zshrc exists → create zshtheme + inject
+#      source; else → write directly to .zshrc.
+# Bash rcfile resolution (when bash is in STARSHIP_SHELLS):
+#   Same pattern using XDG_CONFIG_HOME/bash/bashtheme and .bashrc.
+# ---------------------------------------------------------------------------
+_configure_user_starship() {
+  local _username="$1"
+  local _home
+  _home="$(users__resolve_home "$_username")"
+  local _group
+  _group="$(users__primary_group_of "$_username" 2> /dev/null || echo "$_username")"
 
-# --- Step 4: Install Starship + blank (original lines 685–691) ---
-# ===================================================================
-# Step 4: Install Starship
-# ===================================================================
-if [[ "$INSTALL_STARSHIP" == true ]]; then
-  install_starship
-fi
+  logging__info "Configuring Starship for user '${_username}' (home: ${_home})..."
 
-# --- configure_user preamble: vars used by the Starship blocks (from configure_user()) ---
-# STARSHIP_SHELLS: keep space-joined for *zsh* / *bash* substring checks below.
-local _cu_starship_shells="${STARSHIP_SHELLS[*]}"
-local _cu_bin_dir="${STARSHIP_PREFIX}/bin"
-local _cu_zshtheme_content=""
-local _cu_bashtheme_content=""
+  local _shells="${STARSHIP_SHELLS[*]}"
 
-# --- configure_user: Starship zsh hook + trailing blank (original lines 474–482) ---
-# Append Starship integration for zsh.
-if [[ "$_cu_starship_shells" == *zsh* ]]; then
-  if ! command -v starship > /dev/null 2>&1 && [ ! -x "${_cu_bin_dir}/starship" ]; then
-    logging__warn "starship_shells includes 'zsh' but starship is not on PATH — integration injected anyway."
+  # --- Zsh hook ---
+  if [[ "$_shells" == *zsh* ]]; then
+    if ! command -v starship > /dev/null 2>&1 && [ ! -x "${STARSHIP_PREFIX}/bin/starship" ]; then
+      logging__warn "starship_shells includes 'zsh' but starship is not on PATH — integration injected anyway."
+    fi
+
+    local _zsh_rcfile _zsh_rcdir
+    local _zdotdir=""
+    if command -v zsh > /dev/null 2>&1; then
+      _zdotdir="$(users__run_as "$_username" -- zsh -c 'printf "%s" "$ZDOTDIR"' \
+        2> /dev/null || true)"
+    fi
+    _zsh_rcdir="${_zdotdir:-${_home}}"
+
+    if [ -f "${_zsh_rcdir}/zshtheme" ]; then
+      _zsh_rcfile="${_zsh_rcdir}/zshtheme"
+    elif [ -f "${_zsh_rcdir}/.zshrc" ]; then
+      _zsh_rcfile="${_zsh_rcdir}/zshtheme"
+      # shellcheck disable=SC2016
+      shell__write_block --file "${_zsh_rcdir}/.zshrc" --marker "install-starship-zsh-source" \
+        --content '[ -f "${ZDOTDIR:-$HOME}/zshtheme" ] && source "${ZDOTDIR:-$HOME}/zshtheme"'
+    else
+      _zsh_rcfile="${_zsh_rcdir}/.zshrc"
+    fi
+
+    mkdir -p "$_zsh_rcdir"
+    # shellcheck disable=SC2016
+    shell__write_block --file "$_zsh_rcfile" --marker "install-starship-zsh" \
+      --content 'command -v starship > /dev/null 2>&1 && eval "$(starship init zsh)"'
   fi
-  # shellcheck disable=SC2016
-  _cu_zshtheme_content+='command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"'$'\n'
-fi
 
-# --- configure_user: Starship bash hook + trailing blank (original lines 591–599) ---
-# Append Starship integration for bash.
-if [[ "$_cu_starship_shells" == *bash* ]]; then
-  if ! command -v starship > /dev/null 2>&1 && [ ! -x "${_cu_bin_dir}/starship" ]; then
-    logging__warn "starship_shells includes 'bash' but starship is not on PATH — integration injected anyway."
+  # --- Bash hook ---
+  if [[ "$_shells" == *bash* ]]; then
+    if ! command -v starship > /dev/null 2>&1 && [ ! -x "${STARSHIP_PREFIX}/bin/starship" ]; then
+      logging__warn "starship_shells includes 'bash' but starship is not on PATH — integration injected anyway."
+    fi
+
+    local _bash_rcfile _bash_rcdir
+    local _xdg_config_home=""
+    _xdg_config_home="$(users__run_as "$_username" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
+      2> /dev/null || true)"
+    _bash_rcdir="${_xdg_config_home:-${_home}/.config}/bash"
+
+    if [ -f "${_bash_rcdir}/bashtheme" ]; then
+      _bash_rcfile="${_bash_rcdir}/bashtheme"
+    elif [ -f "${_home}/.bashrc" ]; then
+      _bash_rcfile="${_bash_rcdir}/bashtheme"
+      # shellcheck disable=SC2016
+      shell__write_block --file "${_home}/.bashrc" --marker "install-starship-bash-source" \
+        --content '[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme"'
+    else
+      _bash_rcfile="${_home}/.bashrc"
+    fi
+
+    mkdir -p "$_bash_rcdir"
+    # shellcheck disable=SC2016
+    shell__write_block --file "$_bash_rcfile" --marker "install-starship-bash" \
+      --content 'command -v starship > /dev/null 2>&1 && eval "$(starship init bash)"'
   fi
-  # shellcheck disable=SC2016
-  _cu_bashtheme_content+='command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"'$'\n'
+
+  file__chown -R "${_username}:${_group}" "$_home"
+  logging__success "User '${_username}' Starship configuration complete."
+}
+
+# ===================================================================
+# Install Starship
+# ===================================================================
+install_starship
+
+# ===================================================================
+# Per-user configuration
+# ===================================================================
+_STARSHIP_SHELLS="${STARSHIP_SHELLS[*]}"
+if [ -n "$_STARSHIP_SHELLS" ]; then
+  mapfile -t _STARSHIP_USERS < <(users__resolve_list)
+  for _username in "${_STARSHIP_USERS[@]}"; do
+    if ! id "$_username" > /dev/null 2>&1; then
+      logging__warn "User '${_username}' does not exist — skipping."
+      continue
+    fi
+    _configure_user_starship "$_username"
+  done
+else
+  logging__info "starship_shells is empty — skipping per-user configuration."
 fi

@@ -8,35 +8,27 @@ keywords:
 _long_description: >-
   Downloads and installs the [Starship](https://starship.rs/) prompt binary using
   the official installer script and wires up per-user shell activation by injecting
-  a guarded `eval "$(starship init <shell>)"` block into each user's
-  `$ZDOTDIR/zshtheme` and/or `~/.config/bash/bashtheme`. When Starship is active
-  for a shell, its framework theme (`ZSH_THEME` / `OSH_THEME`) is forced to empty
-  so Starship owns the prompt exclusively.
+  a guarded `eval "$(starship init <shell>)"` block into each user's `zshtheme`
+  and/or `bashtheme` file (or directly into the shell rc file when no theme file is
+  present). Starship's init hook overrides the shell's prompt function, taking
+  precedence over any framework theme set by install-ohmyzsh or install-ohmybash.
 options:
-  install_starship:
-    type: boolean
-    default: true
-    description: Install the [Starship](https://starship.rs/) prompt binary.
   starship_shells:
     type: array
     default: zsh
     description: |-
       Shells to activate the Starship prompt in. Leave empty to install the binary without activating it.
-      Ignored if `install_starship=false` and `starship` is not already on PATH.
-      When a shell's framework theme (`ohmyzsh_theme` / `ohmybash_theme`) is also set, the
-      framework still loads but Starship owns the prompt (`ZSH_THEME` / `OSH_THEME` is forced
-      to empty with a warning).
+      Starship's init hook overrides the shell's prompt function, so it takes precedence over any
+      Oh My Zsh or Oh My Bash theme without requiring those features to be disabled.
     enum:
     - value: bash
-      description: Activate Starship in Bash by appending `eval "$(starship init bash)"` to the Bash RC.
+      description: Activate Starship in Bash by injecting `eval "$(starship init bash)"` into the Bash theme file.
     - value: zsh
-      description: Activate Starship in Zsh by appending `eval "$(starship init zsh)"` to the Zsh RC.
+      description: Activate Starship in Zsh by injecting `eval "$(starship init zsh)"` into the Zsh theme file.
 _prefix_groups:
   starship:
     prefix:
       bins: [starship]
-    applies_when:
-      - install_starship: ['true']
 installsAfter:
   - ghcr.io/quantized8/devfeats/install-ohmyzsh
   - ghcr.io/quantized8/devfeats/install-ohmybash
