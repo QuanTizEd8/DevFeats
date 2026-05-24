@@ -624,7 +624,7 @@ class InstallScriptGenerator:
 
     @staticmethod
     def _render_inline_template(template: str, indent: int, **subs: str) -> str:
-        """Substitute @@KEY@@ placeholders in a template, indenting all lines."""
+        """Substitute {key} placeholders in a template, indenting all lines."""
         filled = template.format(**subs)
         indentation = " " * indent
         return "\n".join(
@@ -846,28 +846,28 @@ fi
 """
 
 _ARGPARSE_ENV_READ_SCALAR = """
-[ "${{{var}+defined}" ] && logging__read "Argument '{key}': '${{{var}}}'"
+[ "${{{var}+defined}}" ] && logging__read "Argument '{key}': '${{{var}}}'"
 """
 
 _ARGPARSE_DEFAULT_ARRAY_EMPTY = """
-declare -p {var} &> /dev/null || {
+declare -p {var} &> /dev/null || {{
   {var}=()
   logging__info "Argument '{key}' set to default value '(empty)'."
-}
+}}
 """
 
 _ARGPARSE_DEFAULT_ARRAY_VALUE = """
-declare -p {var} &> /dev/null || {
+declare -p {var} &> /dev/null || {{
   mapfile -t {var} < <(printf '%s' $'{escaped}' | grep -v '^$')
   logging__info "Argument '{key}' set to default value '{disp}'."
-}
+}}
 """
 
 _ARGPARSE_DEFAULT_SCALAR = """
-[ "${{{var}+defined}}" ] || {
+[ "${{{var}+defined}}" ] || {{
   {var}={rhs}
   logging__info "Argument '{key}' set to default value '{disp}'."
-}
+}}
 """
 
 _ARGPARSE_DEFAULT_INSTALLER_DIR = """
@@ -898,23 +898,23 @@ esac
 
 _DEPENDENCY_INSTALL_FN_RUN = """
 # shellcheck disable=SC2329,SC2317
-_dep_install_runtime_{group_slug}() {
+_dep_install_runtime_{group_slug}() {{
   ospkg__run \
     --manifest "${{_FEAT_DEPS_DIR}}/run/{group}.yaml" \
     --skip_installed
   return
-}
+}}
 """
 
 _DEPENDENCY_INSTALL_FN_BUILD = """
 # shellcheck disable=SC2329,SC2317
-_dep_install_buildtime_{group_slug}() {
+_dep_install_buildtime_{group_slug}() {{
   ospkg__run \
     --manifest "${{_FEAT_DEPS_DIR}}/build/{group}.yaml" \
     --skip_installed \
     --build-group "${{_SYSSET_BUILD_CONTEXT}}::{group}"
   return
-}
+}}
 """
 
 _DEPENDENCY_INSTALL_BASE_CALL = """
@@ -953,7 +953,7 @@ _TMPL_RESOLUTION_TWO = (
 
 _TMPL_PREFIX_RESOLVER = """
 # shellcheck disable=SC2329,SC2317
-{func_name}() {
+{func_name}() {{
   logging__fn_entry "{func_name}"
   case "${{{prefix_var}}}" in
     "")
@@ -970,18 +970,18 @@ _TMPL_PREFIX_RESOLVER = """
   {scope_block}
   logging__fn_exit "{func_name}"
   return
-}
+}}
 """
 
 _TMPL_PREFIX_ACTIVATION = """
 # -- activation: {stem} --
 _act_home_arg=""
-if [ "${{{PREFIX_VAR}_SCOPE}}" = "user" ]; then
+if [ "${{{prefix_var}_SCOPE}}" = "user" ]; then
   _act_home_arg="$(users__home_of_path_owner "${{{prefix_var}}}")"
 fi
 shell__write_activation_snippets \
-  --scope "${{{PREFIX_VAR}_SCOPE}}" \
-  ${_act_home_arg:+--home "${{_act_home_arg}}"} \
+  --scope "${{{prefix_var}_SCOPE}}" \
+  ${{_act_home_arg:+--home "${{_act_home_arg}}"}} \
   "{marker}" "{profile_d_name}" "{snippet_func}" \
   "${{{activations_var}[@]}}"
 unset _act_home_arg
