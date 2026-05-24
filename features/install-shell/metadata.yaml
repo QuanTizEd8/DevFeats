@@ -1,24 +1,24 @@
 version: 0.1.0
 name: Shell Installation
-description: Install and configure [Zsh](https://www.zsh.org/) and Bash with [Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/), and the [Starship](https://starship.rs/) prompt.
+description: Install Bash and [Zsh](https://www.zsh.org/) and configure shell environment files.
 keywords:
 - shell
 - zsh
 - bash
-- oh-my-zsh
-- starship
 _long_description: >-
-  A layered set of system-wide and per-user configuration files is deployed to ensure
+  Deploys a layered set of system-wide and per-user configuration files to ensure
   correct shell behavior across all invocation modes — login, interactive,
   non-interactive, scripts, cron, devcontainer exec, CI runners, and VS Code tasks.
-  Both Zsh and Bash can be extended with their respective framework ecosystems (themes,
-  plugins, completions), and [Starship](https://starship.rs/) provides a fast,
-  context-aware prompt that works across all configured shells.
+  Installs Bash and Zsh, deploys shared shell files (`/etc/shellenv`, `/etc/shellrc`,
+  `/etc/shellaliases`, `/etc/profile`) and shell-specific system configs (bashrc,
+  bashenv, zshenv, zprofile, zshrc), copies per-user dotfiles from a skeleton
+  directory, and injects `ZDOTDIR` into each user's `~/.zshenv`. Optionally sets
+  the default login shell for all resolved users via `chsh`.
 options:
   install_zsh:
     type: boolean
     default: true
-    description: Install Zsh. Bash is always installed.
+    description: Install Zsh. Bash is always available.
   add_current_user:
     default: true
     description: Whether to add configuration for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root.
@@ -64,21 +64,18 @@ options:
     description: How to handle existing user dotfiles when configuring users.
     enum:
     - value: overwrite
-      description: Replace all dotfiles from skel and re-inject framework blocks.
+      description: Overwrite skel dotfiles from templates; always re-inject ZDOTDIR block.
     - value: augment
-      description: Copy skel files only if they do not already exist; always refresh framework blocks.
+      description: Copy skel files only if absent; always re-inject ZDOTDIR block.
     - value: skip
-      description: Do nothing if dotfiles already exist.
+      description: Skip all user configuration if dotfiles already exist.
     type: string
-_options:
-  gh_repo:
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 _dependencies:
   run:
     base:
       packages:
-        - git
         - ca-certificates
         - when: {pm: apt}
           packages: [locales]
@@ -96,4 +93,3 @@ _dependencies:
           sed -i 's/^# \(en_US\.UTF-8\)/\1/' /etc/locale.gen
           locale-gen
         fi
-_prefix_groups:

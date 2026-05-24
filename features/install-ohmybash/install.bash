@@ -74,6 +74,13 @@ if [[ "$INSTALL_OHMYBASH" == true ]]; then
   _OMB_INSTALLED=true
 fi
 
+# --- configure_user preamble: vars used by the OMB block (from configure_user()) ---
+# STARSHIP_SHELLS: keep space-joined for *bash* substring check below.
+local _cu_starship_shells="${STARSHIP_SHELLS[*]}"
+local _cu_omb_custom_dir="${OHMYBASH_CUSTOM_DIR:-}"
+[ -z "$_cu_omb_custom_dir" ] && _cu_omb_custom_dir="${_cu_xdg_config_home}/bash/custom"
+local _cu_bashtheme_content=""
+
 # --- configure_user: OMB bash block + trailing blank (original lines 519–578) ---
 if [[ "$_OMB_INSTALLED" == true ]]; then
   local _cu_omb_effective_custom_dir

@@ -9,6 +9,10 @@ if [[ "$INSTALL_DIRENV" == true ]]; then
   ospkg__install_user direnv
 fi
 
+# --- configure_user preamble: vars used by the direnv blocks (from configure_user()) ---
+local _cu_zshtheme_content=""
+local _cu_bashtheme_content=""
+
 # --- configure_user: direnv zsh hook + trailing blank (original lines 462–467) ---
 # Append direnv hook for zsh.
 if [[ "$INSTALL_DIRENV" == true ]]; then

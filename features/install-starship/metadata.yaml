@@ -1,7 +1,17 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
-# Feature: install-starship
-# Add version/name/description/dependencies in the semantic phase.
-
+version: 0.1.0
+name: Starship
+description: Install the [Starship](https://starship.rs/) prompt and activate it in Zsh and/or Bash.
+keywords:
+- shell
+- prompt
+- starship
+_long_description: >-
+  Downloads and installs the [Starship](https://starship.rs/) prompt binary using
+  the official installer script and wires up per-user shell activation by injecting
+  a guarded `eval "$(starship init <shell>)"` block into each user's
+  `$ZDOTDIR/zshtheme` and/or `~/.config/bash/bashtheme`. When Starship is active
+  for a shell, its framework theme (`ZSH_THEME` / `OSH_THEME`) is forced to empty
+  so Starship owns the prompt exclusively.
 options:
   install_starship:
     type: boolean
@@ -27,3 +37,11 @@ _prefix_groups:
       bins: [starship]
     applies_when:
       - install_starship: ['true']
+installsAfter:
+  - ghcr.io/quantized8/devfeats/install-ohmyzsh
+  - ghcr.io/quantized8/devfeats/install-ohmybash
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates

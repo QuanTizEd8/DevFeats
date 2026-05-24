@@ -12,6 +12,9 @@ if [[ "$INSTALL_BASH_COMPLETION" == true ]]; then
   ospkg__run --manifest $'packages:\n  - name: bash-completion\n    brew: bash-completion@2'
 fi
 
+# --- configure_user preamble: vars used by the bash-completion block (from configure_user()) ---
+local _cu_bashtheme_content=""
+
 # --- configure_user: bash-completion Homebrew hook + trailing blank (original lines 506–518) ---
 # Source bash-completion entry point for Homebrew.
 # On Linux, the package installs to /etc/profile.d/ which is auto-sourced;

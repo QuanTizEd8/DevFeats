@@ -42,6 +42,13 @@ if [[ "$INSTALL_STARSHIP" == true ]]; then
   install_starship
 fi
 
+# --- configure_user preamble: vars used by the Starship blocks (from configure_user()) ---
+# STARSHIP_SHELLS: keep space-joined for *zsh* / *bash* substring checks below.
+local _cu_starship_shells="${STARSHIP_SHELLS[*]}"
+local _cu_bin_dir="${STARSHIP_PREFIX}/bin"
+local _cu_zshtheme_content=""
+local _cu_bashtheme_content=""
+
 # --- configure_user: Starship zsh hook + trailing blank (original lines 474–482) ---
 # Append Starship integration for zsh.
 if [[ "$_cu_starship_shells" == *zsh* ]]; then

@@ -1,15 +1,9 @@
-_GITHUB_BASE_URL="https://github.com"
-
 # ---------------------------------------------------------------------------
 # configure_user <username>
-# Set up per-user shell configuration files.
-# Reads OMZ, OMB, Starship, and other settings from outer-scope variables.
+# Set up per-user shell configuration files (skel copy, ZDOTDIR injection).
 # ---------------------------------------------------------------------------
 configure_user() {
   local _cu_username="$1"
-  # STARSHIP_SHELLS: keep space-joined for *zsh* / *bash* substring checks below.
-  local _cu_starship_shells="${STARSHIP_SHELLS[*]}"
-  local _cu_bin_dir="${STARSHIP_PREFIX}/bin"
 
   # Resolve user's home directory and group.
   local _cu_home
@@ -40,12 +34,6 @@ configure_user() {
     _cu_zdotdir="$ZDOTDIR"
   fi
 
-  # Apply defaults for custom dirs if not explicitly provided.
-  local _cu_omz_custom_dir="${OHMYZSH_CUSTOM_DIR:-}"
-  [ -z "$_cu_omz_custom_dir" ] && _cu_omz_custom_dir="${_cu_zdotdir}/custom"
-  local _cu_omb_custom_dir="${OHMYBASH_CUSTOM_DIR:-}"
-  [ -z "$_cu_omb_custom_dir" ] && _cu_omb_custom_dir="${_cu_xdg_config_home}/bash/custom"
-
   # Mode: skip — bail out if any dotfile already exists.
   if [[ "$USER_CONFIG_MODE" == "skip" ]]; then
     if [ -f "${_cu_zdotdir}/.zshrc" ] || [ -f "${_cu_home}/.bashrc" ]; then
@@ -59,7 +47,6 @@ configure_user() {
     local _cu_skel_file _cu_rel _cu_dest
     while IFS= read -r -d '' _cu_skel_file; do
       _cu_rel="${_cu_skel_file#"${_SKEL_DIR}"/}"
-      [[ "$_cu_rel" == "p10k.zsh" ]] && continue
       # .zshenv always lives in HOME so zsh finds it before ZDOTDIR is set.
       # All other zsh config files go into ZDOTDIR.
       case "$_cu_rel" in
@@ -87,51 +74,17 @@ configure_user() {
   mkdir -p "$_cu_zdotdir"
   shell__write_block --file "$_cu_zshenv" --marker "install-shell-zdotdir" --content "ZDOTDIR=\"${_cu_zdotdir}\""
 
-  # ---------------------------------------------------------------------------
-  # Zsh theme file ($ZDOTDIR/zshtheme)
-  # ---------------------------------------------------------------------------
+  # Create empty per-user theme files if not already present.
+  # Downstream features (install-ohmyzsh, install-starship, etc.) append guarded
+  # blocks to these via shell__write_block(). The skel .zshrc/.bashrc source them
+  # conditionally, so they must exist before the first interactive session.
   local _cu_zshtheme="${_cu_zdotdir}/zshtheme"
-  local _cu_zshtheme_content=""
+  [ -f "${_cu_zshtheme}" ] || touch "${_cu_zshtheme}"
 
-  # Write zshtheme file.
-  if [ -n "$_cu_zshtheme_content" ]; then
-    mkdir -p "$_cu_zdotdir"
-    case "$USER_CONFIG_MODE" in
-      overwrite)
-        printf '%s' "$_cu_zshtheme_content" > "$_cu_zshtheme"
-        logging__info "Written zsh theme file '${_cu_zshtheme}'."
-        ;;
-      augment)
-        if [ ! -f "$_cu_zshtheme" ]; then
-          printf '%s' "$_cu_zshtheme_content" > "$_cu_zshtheme"
-          logging__info "Written zsh theme file '${_cu_zshtheme}'."
-        fi
-        ;;
-    esac
-  fi
-
-  # ---------------------------------------------------------------------------
-  # Bash theme file (~/.config/bash/bashtheme)
-  # ---------------------------------------------------------------------------
-  local _cu_bashtheme="${_cu_xdg_config_home}/bash/bashtheme"
-  local _cu_bashtheme_content=""
-
-  # Write bashtheme file.
-  if [ -n "$_cu_bashtheme_content" ]; then
-    mkdir -p "${_cu_xdg_config_home}/bash"
-    case "$USER_CONFIG_MODE" in
-      overwrite)
-        printf '%s' "$_cu_bashtheme_content" > "$_cu_bashtheme"
-        logging__info "Written bash theme file '${_cu_bashtheme}'."
-        ;;
-      augment)
-        if [ ! -f "$_cu_bashtheme" ]; then
-          printf '%s' "$_cu_bashtheme_content" > "$_cu_bashtheme"
-          logging__info "Written bash theme file '${_cu_bashtheme}'."
-        fi
-        ;;
-    esac
-  fi
+  local _cu_bashdir="${_cu_xdg_config_home}/bash"
+  mkdir -p "${_cu_bashdir}"
+  local _cu_bashtheme="${_cu_bashdir}/bashtheme"
+  [ -f "${_cu_bashtheme}" ] || touch "${_cu_bashtheme}"
 
   # Fix ownership — give the user full ownership of their entire home directory.
   file__chown -R "${_cu_username}:${_cu_group}" "$_cu_home"
@@ -151,14 +104,8 @@ if [[ "$INSTALL_ZSH" == true ]]; then
   fi
 fi
 
-# Verify prerequisites are available.
-if ! command -v git > /dev/null 2>&1; then
-  logging__error "Required command 'git' not found. Install it first."
-  exit 1
-fi
-
 # ===================================================================
-# Step 5: Deploy system-wide shell configuration files
+# Deploy system-wide shell configuration files
 # ===================================================================
 # install-shell has no single PREFIX; step 5 always targets /etc/ paths.
 # file__ helpers escalate privileges automatically as needed.
@@ -233,7 +180,7 @@ if command -v zsh > /dev/null 2>&1; then
 fi
 
 # ===================================================================
-# Step 6: Resolve user list
+# Resolve user list
 # ===================================================================
 mapfile -t _RESOLVED_USERS < <(
   _uargs=()
@@ -251,7 +198,7 @@ else
 fi
 
 # ===================================================================
-# Step 7: Per-user configuration
+# Per-user configuration
 # ===================================================================
 for _username in "${_RESOLVED_USERS[@]}"; do
   # Verify the user exists.
@@ -264,7 +211,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
 done
 
 # ===================================================================
-# Step 8: Set default shells
+# Set default shells
 # ===================================================================
 if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
   _TARGET_SHELL=""

@@ -1,7 +1,18 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
-# Feature: install-ohmybash
-# Add version/name/description/dependencies in the semantic phase.
-
+version: 0.1.0
+name: Oh My Bash
+description: Install [Oh My Bash](https://ohmybash.nntoan.com/) with custom themes and plugins and configure per-user Bash.
+keywords:
+- bash
+- oh-my-bash
+- shell
+- prompt
+_long_description: >-
+  Clones [Oh My Bash](https://ohmybash.nntoan.com/) to a shared system directory,
+  optionally clones a custom theme and custom plugins from GitHub, and wires up
+  per-user Bash configuration by injecting a guarded block into each user's
+  `~/.config/bash/bashtheme` file. When a per-user `OSH_CUSTOM` directory is used,
+  themes and plugins are symlinked there from the shared system install so updates
+  stay consistent.
 options:
   install_ohmybash:
     type: boolean
@@ -43,3 +54,11 @@ _options:
     ohmybash:
       tool_name: Oh My Bash
       slug: ohmybash/oh-my-bash
+installsAfter:
+  - ghcr.io/quantized8/devfeats/install-shell
+_dependencies:
+  run:
+    base:
+      packages:
+        - git
+        - ca-certificates

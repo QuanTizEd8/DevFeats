@@ -133,6 +133,13 @@ if [[ "$INSTALL_OHMYZSH" == true ]]; then
   fi
 fi
 
+# --- configure_user preamble: vars used by the OMZ block (from configure_user()) ---
+# STARSHIP_SHELLS: keep space-joined for *zsh* substring check below.
+local _cu_starship_shells="${STARSHIP_SHELLS[*]}"
+local _cu_omz_custom_dir="${OHMYZSH_CUSTOM_DIR:-}"
+[ -z "$_cu_omz_custom_dir" ] && _cu_omz_custom_dir="${_cu_zdotdir}/custom"
+local _cu_zshtheme_content=""
+
 # --- configure_user: OMZ zsh block + trailing blank (original lines 371–461) ---
 if [[ "$_OMZ_INSTALLED" == true ]]; then
   local _cu_omz_effective_custom_dir

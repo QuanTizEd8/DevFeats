@@ -1,7 +1,18 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
-# Feature: install-ohmyzsh
-# Add version/name/description/dependencies in the semantic phase.
-
+version: 0.1.0
+name: Oh My Zsh
+description: Install [Oh My Zsh](https://ohmyz.sh/) with custom themes and plugins and configure per-user Zsh.
+keywords:
+- zsh
+- oh-my-zsh
+- shell
+- prompt
+_long_description: >-
+  Clones [Oh My Zsh](https://ohmyz.sh/) to a shared system directory, optionally
+  clones a custom theme (e.g. [Powerlevel10k](https://github.com/romkatv/powerlevel10k))
+  and custom plugins from GitHub, and wires up per-user Zsh configuration by injecting
+  a guarded block into each user's `$ZDOTDIR/zshtheme` file. When a per-user
+  `ZSH_CUSTOM` directory is used, themes and plugins are symlinked there from the
+  shared system install so updates stay consistent.
 options:
   install_ohmyzsh:
     type: boolean
@@ -54,3 +65,11 @@ _options:
     ohmyzsh:
       tool_name: Oh My Zsh
       slug: ohmyzsh/ohmyzsh
+installsAfter:
+  - ghcr.io/quantized8/devfeats/install-shell
+_dependencies:
+  run:
+    base:
+      packages:
+        - git
+        - ca-certificates
