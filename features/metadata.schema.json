@@ -462,6 +462,10 @@
     "_lifecycle_key_prefix": {
       "description": "Internal-use-only prefix for lifecycle command keys. With this prefix, the generator rewrites lifecycle command keys from `install` to `<prefix>--install`, etc. This allows multiple features to declare lifecycle commands without risk of key collisions, since each feature gets its own unique prefix.",
       "type": "string"
+    },
+    "id": {
+      "description": "ID of the Feature. The id should be unique in the context of the repository/published package where the feature exists and must match the name of the directory where the devcontainer-feature.json resides.",
+      "type": "string"
     }
   },
   "required": [
@@ -545,6 +549,9 @@
         "_applies_when": {
           "$ref": "#/$defs/appliesWhen",
           "description": "Condition under which this option is shown/active in supporting tools and considered applicable by the generator. When the condition does not match, the option is hidden and its value is ignored."
+        },
+        "_apply_when": {
+          "type": "boolean"
         }
       },
       "required": [
