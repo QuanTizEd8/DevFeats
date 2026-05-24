@@ -8,10 +8,10 @@ keywords:
 - uid
 - gid
 _long_description: >-
-  The user is created with the specified UID and GID, a home directory seeded from
-  /etc/skel, and a configurable login shell. Passwordless sudo access and supplementary
-  group membership can be granted. Compatible with Debian/Ubuntu, Alpine, Fedora/RHEL,
-  and any image providing the standard POSIX user management utilities.
+  The user is created with the specified UID and GID,
+  a home directory seeded from /etc/skel,
+  and a configurable login shell.
+  Passwordless sudo access and supplementary group membership can be granted.
 _options:
   installer_dir: false
 options:
