@@ -146,7 +146,7 @@ options:
 
   gh_repo:
     _apply_when: |
-      #{{ return get("_gh_repo") }}#
+      #{{ return bool(get("_gh_repo")) }}#
     type: string
     default: ${{ _options.gh_repo }}$
     description: >-
