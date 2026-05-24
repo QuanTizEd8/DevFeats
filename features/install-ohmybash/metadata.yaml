@@ -9,45 +9,67 @@ keywords:
 _long_description: >-
   Clones [Oh My Bash](https://ohmybash.nntoan.com/) to a shared system directory,
   optionally clones a custom theme and custom plugins from GitHub, and wires up
-  per-user Bash configuration by injecting a guarded block into each user's
-  `~/.config/bash/bashtheme` file. When a per-user `OSH_CUSTOM` directory is used,
-  themes and plugins are symlinked there from the shared system install so updates
-  stay consistent.
+  per-user Bash configuration by injecting a guarded block via `shell__write_block()`
+  into each user's `bashtheme` file (when present) or directly into `.bashrc`. When
+  a per-user `OSH_CUSTOM` directory is used, themes and plugins are symlinked there
+  from the shared system install so updates stay consistent.
 options:
-  install_ohmybash:
-    type: boolean
-    default: true
-    description: Install [Oh My Bash](https://ohmybash.nntoan.com/).
-  ohmybash_plugins:
-    default: git
-    description: |-
-      Oh My Bash plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
-      Custom plugins are cloned into `<ohmybash_install_dir>/custom/plugins/<repo>`.
-      Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Bash plugins and are not cloned.
-      Set to `''` to install no custom plugins.
-      Ignored if Oh My Bash is not available or being installed.
+  plugins:
     type: array
-  ohmybash_theme:
+    default: "git"
+    description: |-
+      Oh My Bash plugins to activate, each as an `owner/repo` GitHub slug or a plain built-in name.
+      Custom plugins (slugs containing `/`) are cloned into `<install_dir>/custom/plugins/<repo>`.
+      Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Bash plugins and are not cloned.
+      Set to `''` to activate no plugins.
+  theme:
     default: ''
     description: |-
       Oh My Bash custom theme to install, as an `owner/repo` GitHub slug.
-      The repository is cloned into `<ohmybash_install_dir>/custom/themes/<repo>`.
-      Ignored if Oh My Bash is not available or being installed.
+      The repository is cloned into `<install_dir>/custom/themes/<repo>`.
+      Set to `''` to use no custom theme.
     type: string
-  ohmybash_install_dir:
+  install_dir:
     default: /usr/local/share/oh-my-bash
-    description: Path to the Oh My Bash installation directory.
+    description: |-
+      Path to the Oh My Bash installation directory.
+      Corresponds to the [`OSH`](https://github.com/ohmybash/oh-my-bash/wiki/Basic-Installation) config variable.
     type: string
-  ohmybash_branch:
+  branch:
     default: master
-    description: Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone.
+    description: |-
+      Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone.
+      Also recorded as `oh-my-bash.branch` in the git config so `omb update` works correctly.
     type: string
-  ohmybash_custom_dir:
+  custom_dir:
     default: ''
     description: |-
-      OSH_CUSTOM directory for Oh My Bash.
-      Leave empty to use `${XDG_CONFIG_HOME}/bash/custom` (i.e. `~/.config/bash/custom`) — per-user, themes and plugins are symlinked there from the system install.
+      `OSH_CUSTOM` directory for Oh My Bash.
+      Leave empty to use `${XDG_CONFIG_HOME:-$HOME/.config}/bash/custom` — per-user, themes and
+      plugins are symlinked there from the system install.
       Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
+    type: string
+  rcfile:
+    default: ''
+    description: |-
+      Full path to the per-user Bash theme file that Oh My Bash configuration is injected into.
+      Leave empty to resolve automatically: runs `bash` as each user to read `XDG_CONFIG_HOME` from
+      the shell's startup chain, falling back to `$HOME/.config`. The injection target is then chosen
+      as: `$XDG_CONFIG_HOME/bash/bashtheme` if it exists; otherwise `$XDG_CONFIG_HOME/bash/bashtheme`
+      (created, with a source line injected into `.bashrc`) if `.bashrc` exists; otherwise `.bashrc`
+      directly.
+      Accepts paths prefixed with `~` or `$HOME` (expanded per user).
+    type: string
+  user_config_mode:
+    default: overwrite
+    description: Whether to overwrite existing custom-dir symlinks for cloned themes and plugins.
+    enum:
+    - value: overwrite
+      description: Replace existing symlinks for cloned themes and plugins in the per-user custom directory.
+    - value: augment
+      description: Create symlinks only for items not already present in the per-user custom directory.
+    - value: skip
+      description: Do not create any symlinks in the per-user custom directory.
     type: string
 _options:
   gh_repo:

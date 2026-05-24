@@ -1,27 +1,22 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/install.bash
-# Feature: install-ohmybash
-# Not yet functional. Wired up in this feature's own semantic phase.
 # shellcheck shell=bash
 
-# --- _OHMYBASH_REPO_URL global var (original lines 9–9) ---
+_GITHUB_BASE_URL="${_GITHUB_BASE_URL:-https://github.com}"
 _OHMYBASH_REPO_URL="${_GITHUB_BASE_URL}/${OHMYBASH_GH_REPO}"
 
-# --- install_ohmybash() + blank (original lines 71–127) ---
 # ---------------------------------------------------------------------------
-# install_ohmybash — Clone OMB, scaffold OSH_CUSTOM, clone custom theme/plugins.
-# Uses: OHMYBASH_INSTALL_DIR, OHMYBASH_BRANCH, OHMYBASH_THEME, OHMYBASH_CUSTOM_DIR,
-#       OHMYBASH_PLUGINS (array).
+# install_ohmybash — Clone OMB to INSTALL_DIR, scaffold OSH_CUSTOM,
+#                    clone custom theme/plugins.
 # ---------------------------------------------------------------------------
 install_ohmybash() {
-  local _install_dir="$OHMYBASH_INSTALL_DIR"
-  local _branch="$OHMYBASH_BRANCH"
-  local _theme="$OHMYBASH_THEME"
+  local _install_dir="$INSTALL_DIR"
+  local _branch="$BRANCH"
+  local _theme="$THEME"
   local _custom_dir
   # shellcheck disable=SC2016
-  if [ -n "$OHMYBASH_CUSTOM_DIR" ] &&
-    [[ "$OHMYBASH_CUSTOM_DIR" != '~'* ]] &&
-    [[ "$OHMYBASH_CUSTOM_DIR" != '$HOME'* ]]; then
-    _custom_dir="$OHMYBASH_CUSTOM_DIR"
+  if [ -n "$CUSTOM_DIR" ] &&
+    [[ "$CUSTOM_DIR" != '~'* ]] &&
+    [[ "$CUSTOM_DIR" != '$HOME'* ]]; then
+    _custom_dir="$CUSTOM_DIR"
   else
     _custom_dir="${_install_dir}/custom"
   fi
@@ -47,7 +42,7 @@ install_ohmybash() {
   fi
 
   local _slug
-  for _slug in "${OHMYBASH_PLUGINS[@]}"; do
+  for _slug in "${PLUGINS[@]}"; do
     _slug="${_slug// /}"
     [ -z "$_slug" ] && continue
     if [[ "$_slug" != */* ]]; then
@@ -61,83 +56,187 @@ install_ohmybash() {
   done
 
   logging__success "Oh My Bash installation complete."
-  return 0
 }
 
-# --- Step 3: Install Oh My Bash + blank (original lines 676–684) ---
-# ===================================================================
-# Step 3: Install Oh My Bash
-# ===================================================================
-_OMB_INSTALLED=false
-if [[ "$INSTALL_OHMYBASH" == true ]]; then
-  install_ohmybash
-  _OMB_INSTALLED=true
-fi
-
-# --- configure_user preamble: vars used by the OMB block (from configure_user()) ---
-# STARSHIP_SHELLS: keep space-joined for *bash* substring check below.
-local _cu_starship_shells="${STARSHIP_SHELLS[*]}"
-local _cu_omb_custom_dir="${OHMYBASH_CUSTOM_DIR:-}"
-[ -z "$_cu_omb_custom_dir" ] && _cu_omb_custom_dir="${_cu_xdg_config_home}/bash/custom"
-local _cu_bashtheme_content=""
-
-# --- configure_user: OMB bash block + trailing blank (original lines 519–578) ---
-if [[ "$_OMB_INSTALLED" == true ]]; then
-  local _cu_omb_effective_custom_dir
-  _cu_omb_effective_custom_dir="$(_resolve_custom_dir "$_cu_omb_custom_dir" "$_cu_home")"
-  local _cu_omb_is_per_user=false
-  [[ "$_cu_omb_effective_custom_dir" == "$_cu_home"* ]] && _cu_omb_is_per_user=true
-
-  local _cu_omb_theme_value=""
-  if [ -n "$OHMYBASH_THEME" ]; then
-    _cu_omb_theme_value="$(basename "$OHMYBASH_THEME")"
+# ---------------------------------------------------------------------------
+# _resolve_custom_dir <raw_value> <user_home>
+# Expands ~- and $HOME-prefixed paths; passes absolute paths through unchanged.
+# ---------------------------------------------------------------------------
+_resolve_custom_dir() {
+  local _raw="$1" _home="$2"
+  # shellcheck disable=SC2016
+  if [[ "$_raw" == '~'* ]]; then
+    printf '%s%s' "$_home" "${_raw#\~}"
+  elif [[ "$_raw" == '$HOME'* ]]; then
+    printf '%s%s' "$_home" "${_raw#'$HOME'}"
+  else
+    printf '%s' "$_raw"
   fi
+}
 
-  local _cu_omb_plugin_names=""
-  if ((${#OHMYBASH_PLUGINS[@]})); then
-    _cu_omb_plugin_names="$(str__basename_each "${OHMYBASH_PLUGINS[@]}" | tr '\n' ' ')"
-    _cu_omb_plugin_names="${_cu_omb_plugin_names% }"
+# ---------------------------------------------------------------------------
+# _link_custom_items <src_custom_dir> <dest_custom_dir> <theme_slug> <mode> [<plugin_slug>...]
+# Creates symlinks in dest for exactly the named items declared in theme_slug + plugin slugs.
+#   overwrite: removes existing symlink for that name, creates fresh one (skips real dirs)
+#   augment:   creates symlink only if name not already present (symlink or real dir)
+# User-added real dirs (non-symlinks) are never removed.
+_link_custom_items() {
+  local _src="$1" _dest="$2" _theme_slug="$3" _mode="$4"
+  shift 4
+  mkdir -p "${_dest}/themes" "${_dest}/plugins"
+
+  local -a _items=()
+  if [ -n "$_theme_slug" ]; then
+    _items+=("themes/$(basename "$_theme_slug")")
   fi
+  local _slug
+  for _slug in "$@"; do
+    _slug="${_slug// /}"
+    [ -z "$_slug" ] && continue
+    [[ "$_slug" != */* ]] && continue # built-in plugin, no clone
+    _items+=("plugins/$(basename "$_slug")")
+  done
 
-  local _cu_bash_use_starship=false
-  if [[ "$_cu_starship_shells" == *bash* ]]; then
-    _cu_bash_use_starship=true
-    if [ -n "$OHMYBASH_THEME" ]; then
-      logging__warn "ohmybash_theme='${OHMYBASH_THEME}' is set but starship_shells includes 'bash' — theme ignored, Starship will own the prompt."
+  local _item _src_path _dest_path
+  for _item in "${_items[@]}"; do
+    _src_path="${_src}/${_item}"
+    _dest_path="${_dest}/${_item}"
+    [ -d "$_src_path" ] || continue # not cloned, skip
+    if [[ "$_mode" == "overwrite" ]]; then
+      [ -L "$_dest_path" ] && rm "$_dest_path"
+      [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
+    else
+      [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
+    fi
+  done
+}
+
+# ---------------------------------------------------------------------------
+# _configure_user_ohmybash <username>
+# Injects a guarded OMB setup block into the appropriate rc file for the user.
+# Rcfile resolution (when RCFILE option is empty):
+#   1. Run bash as the user to read XDG_CONFIG_HOME from the shell's startup chain.
+#   2. _rcdir = ${XDG_CONFIG_HOME:-${HOME}/.config}/bash
+#   3. If ${_rcdir}/bashtheme exists  → write there (install-shell integration).
+#   4. Else if ${_home}/.bashrc exists → create bashtheme + inject source line.
+#   5. Else → write OMB block directly into .bashrc.
+# ---------------------------------------------------------------------------
+_configure_user_ohmybash() {
+  local _username="$1"
+  local _home
+  _home="$(users__resolve_home "$_username")"
+  local _group
+  _group="$(users__primary_group_of "$_username" 2> /dev/null || echo "$_username")"
+
+  logging__info "Configuring Oh My Bash for user '${_username}' (home: ${_home})..."
+
+  local _rcfile _rcdir _inject_source=false
+  if [ -n "$RCFILE" ]; then
+    # shellcheck disable=SC2016
+    if [[ "$RCFILE" == '~'* ]]; then
+      _rcfile="${_home}${RCFILE#\~}"
+    elif [[ "$RCFILE" == '$HOME'* ]]; then
+      _rcfile="${_home}${RCFILE#'$HOME'}"
+    else
+      _rcfile="$RCFILE"
+    fi
+    _rcdir="$(dirname "$_rcfile")"
+  else
+    local _xdg_config_home=""
+    _xdg_config_home="$(users__run_as "$_username" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
+      2> /dev/null || true)"
+    _rcdir="${_xdg_config_home:-${_home}/.config}/bash"
+    if [ -f "${_rcdir}/bashtheme" ]; then
+      _rcfile="${_rcdir}/bashtheme"
+    elif [ -f "${_home}/.bashrc" ]; then
+      _rcfile="${_rcdir}/bashtheme"
+      _inject_source=true
+    else
+      _rcfile="${_home}/.bashrc"
     fi
   fi
 
-  _cu_bashtheme_content+="export OSH=\"${OHMYBASH_INSTALL_DIR}\""$'\n'
-  # shellcheck disable=SC2016
-  _cu_bashtheme_content+='OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"'$'\n'
-  # shellcheck disable=SC2016
-  _cu_bashtheme_content+='[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"'$'\n'
-  _cu_bashtheme_content+="OSH_CUSTOM=\"${_cu_omb_effective_custom_dir}\""$'\n'
+  local _custom_dir_raw="${CUSTOM_DIR:-}"
+  [ -z "$_custom_dir_raw" ] && _custom_dir_raw="${_rcdir}/custom"
+  local _effective_custom_dir
+  _effective_custom_dir="$(_resolve_custom_dir "$_custom_dir_raw" "$_home")"
 
-  if [[ "$_cu_bash_use_starship" == true ]]; then
-    _cu_bashtheme_content+='OSH_THEME=""'$'\n'
-  elif [ -n "$_cu_omb_theme_value" ]; then
-    _cu_bashtheme_content+="OSH_THEME=\"${_cu_omb_theme_value}\""$'\n'
-  else
-    _cu_bashtheme_content+='OSH_THEME=""'$'\n'
-  fi
+  local _is_per_user=false
+  [[ "$_effective_custom_dir" == "${_home}"* ]] && _is_per_user=true
 
-  if [ -n "$_cu_omb_plugin_names" ]; then
-    _cu_bashtheme_content+="plugins=(${_cu_omb_plugin_names})"$'\n'
-  else
-    _cu_bashtheme_content+='plugins=()'$'\n'
+  local _theme_value=""
+  [ -n "$THEME" ] && _theme_value="$(basename "$THEME")"
+
+  local _plugin_names=""
+  if ((${#PLUGINS[@]})); then
+    _plugin_names="$(str__basename_each "${PLUGINS[@]}" | tr '\n' ' ')"
+    _plugin_names="${_plugin_names% }"
   fi
 
   # shellcheck disable=SC2016
-  _cu_bashtheme_content+='[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"'$'\n'
+  local _content
+  _content="export OSH=\"${INSTALL_DIR}\""$'\n'
+  # shellcheck disable=SC2016
+  _content+='OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"'$'\n'
+  # shellcheck disable=SC2016
+  _content+='[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"'$'\n'
+  _content+="OSH_CUSTOM=\"${_effective_custom_dir}\""$'\n'
 
-  mkdir -p "${_cu_omb_effective_custom_dir}/themes" "${_cu_omb_effective_custom_dir}/plugins"
-  if [[ "$_cu_omb_is_per_user" == true ]]; then
+  if [ -n "$_theme_value" ]; then
+    _content+="OSH_THEME=\"${_theme_value}\""$'\n'
+  else
+    _content+='OSH_THEME=""'$'\n'
+  fi
+
+  if [ -n "$_plugin_names" ]; then
+    _content+="plugins=(${_plugin_names})"$'\n'
+  else
+    _content+='plugins=()'$'\n'
+  fi
+
+  # shellcheck disable=SC2016
+  _content+='[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"'$'\n'
+
+  mkdir -p "$_rcdir"
+  shell__write_block --file "$_rcfile" --marker "install-ohmybash" --content "$_content"
+
+  # Case 4: .bashrc existed but bashtheme didn't — wire up the source line.
+  if [[ "$_inject_source" == true ]]; then
+    # shellcheck disable=SC2016
+    shell__write_block --file "${_home}/.bashrc" --marker "install-ohmybash-source" \
+      --content '[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme"'
+  fi
+
+  if [[ "$_is_per_user" == true ]] && [[ "$USER_CONFIG_MODE" != "skip" ]]; then
     _link_custom_items \
-      "${OHMYBASH_INSTALL_DIR}/custom" \
-      "$_cu_omb_effective_custom_dir" \
-      "$OHMYBASH_THEME" \
+      "${INSTALL_DIR}/custom" \
+      "$_effective_custom_dir" \
+      "$THEME" \
       "$USER_CONFIG_MODE" \
-      "${OHMYBASH_PLUGINS[@]}"
+      "${PLUGINS[@]}"
   fi
+
+  file__chown -R "${_username}:${_group}" "$_home"
+  logging__success "User '${_username}' Oh My Bash configuration complete."
+}
+
+# ===================================================================
+# Install Oh My Bash
+# ===================================================================
+if ! command -v bash > /dev/null 2>&1; then
+  logging__warn "Bash not available — skipping Oh My Bash installation."
+else
+  install_ohmybash
 fi
+
+# ===================================================================
+# Per-user configuration
+# ===================================================================
+mapfile -t _OMB_USERS < <(users__resolve_list)
+for _username in "${_OMB_USERS[@]}"; do
+  if ! id "$_username" > /dev/null 2>&1; then
+    logging__warn "User '${_username}' does not exist — skipping."
+    continue
+  fi
+  _configure_user_ohmybash "$_username"
+done
