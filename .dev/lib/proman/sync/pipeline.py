@@ -7,22 +7,12 @@ import json
 import subprocess
 from pathlib import Path
 
-from jsonschema import Draft202012Validator
 import yaml
 
 from proman.const import LIFECYCLE_COMMAND_KEYS
-from proman.git import git_owner_repo, git_repo_root
+from proman.config import load as load_config
 from proman.helpers import log
-from proman.metadata import (
-    _feature_vars,
-    _inject_prefix_options,
-    _substitute_vars,
-    augment_metadata,
-    load_derived_options,
-    normalize_lifecycle_command_keys,
-    read_metadata,
-)
-from proman.schema_bundle import build_metadata_validator
+from proman.metadata import MetadataLoader
 from proman.sync.file_sync import SyncStatus, remove_file, sync_file
 from proman.sync.install_script import InstallScriptGenerator
 from proman.utils import markdown
@@ -41,90 +31,53 @@ def run(*, check_only: bool = False) -> int:
     int
         0 on success, 1 if any feature failed validation or sync.
     """
-    repo_dirpath = git_repo_root()
-    repo_owner, repo_name = git_owner_repo()
+    config = load_config()
 
-    lib_dirpath = repo_dirpath / "lib"
-    features_dirpath = repo_dirpath / "features"
-    src_dirpath = repo_dirpath / "src"
-    devcontainer_dirpath = repo_dirpath / ".devcontainer"
+    lib_dirpath = config.absolute_path("path.library")
+    features_dirpath = config.absolute_path("path.features")
+    src_dirpath = config.absolute_path("path.src")
+    devcontainer_dirpath = config.absolute_path("path.devcontainer")
 
-    license_url = f"https://github.com/{repo_owner}/{repo_name}/blob/main/LICENSE"
-    doc_url_template = (
-        f"https://{repo_owner}.github.io/{repo_name}/features/{{feature_id}}"
-    )
-    oci_ref_template = f"ghcr.io/{repo_owner}/{repo_name}/{{feature_id}}"
-
-    derived_options = load_derived_options(features_dirpath)
-    validator = build_metadata_validator(features_dirpath, lib_dirpath)
-    generator = InstallScriptGenerator(
-        features_dirpath=features_dirpath,
-        templates_dirpath=features_dirpath / "_install.sh-templates",
-        repo_dirpath=repo_dirpath,
-    )
+    metadata_loader = MetadataLoader()
+    script_generator = InstallScriptGenerator()
     lib_files = _gather_lib_files(lib_dirpath)
     bootstrap_file = _gather_bootstrap(features_dirpath)
-    gitignore_patterns = _gitignore_basename_patterns(repo_dirpath)
+    gitignore_patterns = _gitignore_basename_patterns(config.root_path)
 
     n_features: int = 0
-    n_failures: dict[str, int] = {
-        "read": 0,
-        "augmentation": 0,
-        "schema validation": 0,
-        "sync": 0,
-    }
+    n_failures = 0
+
+    all_metadata = metadata_loader.load()
 
     for feature_dirpath in sorted(features_dirpath.iterdir()):
         if not feature_dirpath.is_dir() or feature_dirpath.name[0] in (".", "_"):
             continue
 
         feature_id = feature_dirpath.name
-        metadata = read_metadata(feature_id, features_dirpath)
+        metadata = all_metadata.get(feature_id)
 
-        if metadata == 0:
+        if not metadata:
             # No metadata.yaml found; skip without counting as a failure
             # (allows draft features to be added).
             continue
 
-        if metadata == 1:
-            n_failures["read"] += 1
+        feature_script_path = feature_dirpath / str(config["filename.feature_script"])
+        if not feature_script_path.is_file():
+            log(
+                f"Warning: Skipping feature '{feature_id}' due to missing "
+                f"{config['filename.feature_script']} file at {feature_script_path}"
+            )
             continue
 
         n_features += 1
         output_files: dict[Path, str] = {}
 
-        metadata = _substitute_vars(
-            metadata, _feature_vars(feature_id, repo_owner, repo_name)
-        )
-        normalize_lifecycle_command_keys(metadata, feature_id, repo_owner, repo_name)
-
-        if not augment_metadata(feature_id, metadata, derived_options):
-            n_failures["augmentation"] += 1
-            continue
-
-        if not validate_metadata_schema(feature_id, metadata, validator):
-            n_failures["schema validation"] += 1
-            continue
-
-        if not _inject_prefix_options(feature_id, metadata):
-            n_failures["augmentation"] += 1
-            continue
-
-        metadata["id"] = feature_id
-        metadata["_oci_ref"] = oci_ref_template.format(feature_id=feature_id)
-
         output_files.update(_generate_dependency_manifests(metadata))
 
         sanitize_markdown(metadata)
 
-        output_files.update(
-            _generate_metadata_json(
-                metadata=metadata,
-                license_url=license_url,
-                doc_url_template=doc_url_template,
-            ),
-        )
-        output_files.update(generator.generate(metadata))
+        output_files.update(_generate_metadata_json(metadata=metadata))
+        output_files.update(script_generator.generate(metadata))
         output_files.update(lib_files)
         output_files.update(bootstrap_file)
         output_files.update(_gather_feature_files(feature_id, features_dirpath))
@@ -148,45 +101,15 @@ def run(*, check_only: bool = False) -> int:
                 devcontainers_in_sync = False
 
         if not (feature_in_sync and devcontainers_in_sync):
-            n_failures["sync"] += 1
+            n_failures += 1
 
     log("\nFinal results:")
-    if any(n_failures.values()):
-        n_failures_total = sum(n_failures.values())
-        log(f"\n{n_failures_total}/{n_features} feature(s) failed validation.")
-        for stage, count in n_failures.items():
-            if count:
-                log(f"- {count} failed at {stage} stage")
+    if n_failures:
+        log(f"\n{n_failures}/{n_features} feature(s) failed validation.")
         return 1
 
     log(f"✅ All {n_features} features passed.")
     return 0
-
-
-def validate_metadata_schema(
-    feature_id: str,
-    metadata: dict,
-    validator: Draft202012Validator,
-) -> bool:
-    """Validate metadata against the JSON schema.
-
-    Logs all validation errors and returns False on failure.
-    """
-    errs = sorted(
-        validator.iter_errors(metadata),
-        key=lambda e: list(e.absolute_path),
-    )
-    if errs:
-        for err in errs:
-            path = (
-                " → ".join(str(p) for p in err.absolute_path)
-                if err.absolute_path
-                else "(root)"
-            )
-            log(f"❌ {feature_id}: {path}: {err.message}")
-        return False
-
-    return True
 
 
 def sanitize_markdown(metadata: dict) -> None:
@@ -224,49 +147,43 @@ def _generate_dependency_manifests(metadata: dict) -> dict[Path, str]:
     return manifests
 
 
-def _generate_metadata_json(
-    metadata: dict,
-    license_url: str,
-    doc_url_template: str,
-) -> dict[Path, str]:
+def _generate_metadata_json(metadata: dict) -> dict[Path, str]:
     """Generate devcontainer-feature.json content from parsed YAML data."""
-    metadata_json_dict: dict = {
-        "documentationURL": doc_url_template.format(feature_id=metadata["id"]),
-        "licenseURL": license_url,
-    }
+    metadata_json_dict: dict = {}
 
     for key, value in metadata.items():
-        if key.startswith("_"):
-            continue
-        if key != "options":
-            if key in LIFECYCLE_COMMAND_KEYS:
-                metadata_json_dict[key] = {
-                    entry_id: entry["command"] for entry_id, entry in value.items()
-                }
-            else:
-                metadata_json_dict[key] = value
-            continue
+        # Options
+        if key == "options":
+            options = {}
+            for option_id, option_raw in value.items():
+                option = {}
+                for k, v in option_raw.items():
+                    if k.startswith("_"):
+                        continue
+                    if k == "type" and v == "array":
+                        option[k] = "string"
+                    elif k in ("enum", "proposals"):
+                        option[k] = [item["value"] for item in v]
+                    else:
+                        option[k] = v
+                options[option_id] = option
+            metadata_json_dict[key] = options
 
-        options = {}
-        for option_id, option_raw in value.items():
-            option = {}
-            for k, v in option_raw.items():
-                if k.startswith("_"):
-                    continue
-                if k == "type" and v == "array":
-                    option[k] = "string"
-                elif k in ("enum", "proposals"):
-                    option[k] = [item["value"] for item in v]
-                else:
-                    option[k] = v
-            options[option_id] = option
-        metadata_json_dict[key] = options
+        # Lifecycle commands
+        elif key in LIFECYCLE_COMMAND_KEYS:
+            metadata_json_dict[key] = {
+                entry_id: entry["command"] for entry_id, entry in value.items()
+            }
 
-    metadata_json = (
-        json.dumps(metadata_json_dict, sort_keys=True, indent=3, ensure_ascii=False)
-        + "\n"
+        # All other public keys
+        elif not key.startswith("_"):
+            metadata_json_dict[key] = value
+
+    metadata_json = json.dumps(
+        metadata_json_dict, sort_keys=True, indent=3, ensure_ascii=False
     )
-    return {Path("devcontainer-feature.json"): metadata_json}
+
+    return {Path("devcontainer-feature.json"): f"{metadata_json.strip()}\n"}
 
 
 def _generate_feature_devcontainer_json(metadata: dict, *, local: bool) -> str:
@@ -313,13 +230,14 @@ def _generate_feature_devcontainer_json(metadata: dict, *, local: bool) -> str:
 
 
 def _gather_lib_files(lib_dirpath: Path) -> dict[Path, str]:
-    """Read all files from lib/ and return them keyed by their _lib/-relative paths."""
+    """Read all files from /lib/ and return them keyed by their lib/-relative paths."""
     files: dict[Path, str] = {}
     for src_path in sorted(lib_dirpath.rglob("*")):
         if not src_path.is_file():
             continue
-        rel = src_path.relative_to(lib_dirpath)
-        files[Path("_lib") / rel] = src_path.read_text(encoding="utf-8")
+        src_path_rel_lib = src_path.relative_to(lib_dirpath)
+        src_path_rel_feat = Path("lib") / src_path_rel_lib
+        files[src_path_rel_feat] = src_path.read_text(encoding="utf-8")
     return files
 
 
