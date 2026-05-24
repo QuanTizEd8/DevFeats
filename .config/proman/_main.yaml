@@ -1,7 +1,7 @@
 name: DevFeats
-name_slug: '#{{ get("name").lower() }}#'
+name_slug: '#{{ return get("name").lower() }}#'
 owner: Quantized8
-owner_slug: '#{{ get("owner").lower() }}#'
+owner_slug: '#{{ return get("owner").lower() }}#'
 namespace: ${{ owner_slug }}$/${{ name_slug }}$
 repo_url: https://github.com/${{ owner_slug }}$/${{ name_slug }}$
 oci_base: ghcr.io/${{ owner_slug }}$/${{ name_slug }}$
