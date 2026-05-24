@@ -37,8 +37,8 @@ class MetadataLoader:
         """
         feat_ids = feat_ids or [
             metadata_path.parent.name
-            for metadata_path in self._feat_dirpath.glob(
-                f"*/{self._feat_metadata_filename}"
+            for metadata_path in sorted(
+                self._feat_dirpath.glob(f"*/{self._feat_metadata_filename}")
             )
         ]
 
@@ -91,7 +91,7 @@ class MetadataLoader:
             )
 
         metadata["id"] = feature_id
-        metadata["_project"] = self._config
+        metadata["_project"] = self._config.asdict
 
         pyserials.update.recursive_update(
             source=metadata,
