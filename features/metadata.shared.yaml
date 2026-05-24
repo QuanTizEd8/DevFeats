@@ -1,17 +1,13 @@
 # Shared Feature Metadata
 #
-# Canonical definitions for options that are auto-injected
-# into every feature's generated code and devcontainer-feature.json.
-# These keys must NOT be declared manually in any metadata.yaml file.
-#
-# _apply_when: optional condition evaluated against the feature's raw metadata to
-#              decide whether to inject this option. If absent, always injected.
+# These are merged into each feature's metadata.yaml at build time.
 
 
 documentationURL: ${{ _project.docs.website_base_url }}$/features/${{ id }}$
 licenseURL: ${{ _project.repo_url }}$/blob/main/LICENSE
 
 _oci_ref: ${{ _project.oci_base }}$/${{ id }}$
+_lifecycle_key_prefix: ${{ _project.owner_slug }}$-${{ _project.name_slug }}$--
 
 _env_vars:
   share_dir_root: /usr/local/share/${{ _project.namespace }}$/${{ id }}$
@@ -176,5 +172,3 @@ options:
       When set, the discovery step uses this value to decide whether
       the installation directory is already reachable.
       Leave empty (default) to check `$PATH` at install time instead.
-
-_lifecycle_key_prefix: ${{ _project.owner_slug }}$-${{ _project.name_slug }}$--
