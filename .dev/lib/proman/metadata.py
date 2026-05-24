@@ -91,7 +91,6 @@ class MetadataLoader:
             )
 
         metadata["id"] = feature_id
-        metadata["_project"] = self._config.asdict
 
         pyserials.update.recursive_update(
             source=metadata,
@@ -101,20 +100,20 @@ class MetadataLoader:
         self._normalize_lifecycle_keys(metadata)
         metadata["options"] = self._filter_options(metadata)
 
+        metadata["_project"] = self._config.asdict
         try:
             metadata = pyserials.update.TemplateFiller().fill(metadata)
         except Exception as e:
             raise ValueError(
                 f"Error substituting variables in metadata for feature '{feature_id}': {e}"
             ) from e
+        metadata.pop("_project")
 
         self._validate_schema(metadata)
 
         prefix_groups = metadata.get("_prefix_groups", {})
         for group_id, group_cfg in prefix_groups.items():
             _inject_prefix_group_options(group_id, group_cfg, metadata["options"])
-
-        metadata.pop("_project")
 
         return metadata
 
@@ -156,26 +155,23 @@ class MetadataLoader:
     def _validate_schema(self, metadata: dict) -> None:
         """Validate metadata against the JSON schema.
 
-        Logs all validation errors and returns False on failure.
+        Raises :class:`ValueError` with all validation errors on failure.
         """
         errs = sorted(
             self._schema_validator.iter_errors(metadata),
-            key=lambda e: list(e.absolute_path),
+            key=lambda e: (list(e.absolute_path), e.message),
         )
-        if errs:
-            error_paths = []
-            for err in errs:
-                path = (
-                    " → ".join(str(p) for p in err.absolute_path)
-                    if err.absolute_path
-                    else "(root)"
-                )
-                error_paths.append(path)
-            raise ValueError(
-                f"Metadata validation failed with {len(errs)} error(s) at paths: "
-                + ", ".join(error_paths)
-            )
-        return
+        if not errs:
+            return
+
+        lines = [f"Metadata validation failed with {len(errs)} error(s):"]
+        for err in errs:
+            lines.append(f"  • {_schema_error_path(err)}: {err.message}")
+            for sub in sorted(
+                err.context, key=lambda e: (list(e.absolute_path), e.message)
+            ):
+                lines.append(f"    ↳ {_schema_error_path(sub)}: {sub.message}")
+        raise ValueError("\n".join(lines))
 
     def _normalize_lifecycle_keys(self, metadata: dict) -> None:
         """Rewrite lifecycle hook map keys to ``<owner>-<repo>--<feature_id>--<task>``.
@@ -203,6 +199,15 @@ class MetadataLoader:
                 new_block[full_key] = entry
             metadata[lifecycle_key] = new_block
         return
+
+
+def _schema_error_path(err) -> str:
+    """Return a human-readable instance path for a jsonschema validation error."""
+    if err.json_path and err.json_path != "$":
+        return err.json_path
+    if err.absolute_path:
+        return " → ".join(str(part) for part in err.absolute_path)
+    return "(root)"
 
 
 def _inject_prefix_group_options(  # noqa: PLR0911
