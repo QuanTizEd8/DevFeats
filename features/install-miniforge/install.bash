@@ -65,8 +65,7 @@ setup_activate_env() {
   logging__fn_exit "setup_activate_env"
 }
 
-_prefix_post_install() {
-  _prefix_post_install__generated
+_prefix_post_install_hook() {
   setup_activate_env "${_write_users[@]}"
   if os__is_devcontainer_build; then
     mkdir -p "${_LIFECYCLE_SCRIPT_DIR}"

@@ -135,8 +135,7 @@ prefix_activation_snippet() {
   return 0
 }
 
-_prefix_post_install() {
-  _prefix_post_install__generated
+_prefix_post_install_hook() {
   if os__is_devcontainer_build; then
     printf '#!/bin/sh\n"%s" info --extended\n' "${_DF_EXPECTED_CMD}" \
       > "${_LIFECYCLE_SCRIPT_DIR}/lifecycle--on-create--verification.sh"

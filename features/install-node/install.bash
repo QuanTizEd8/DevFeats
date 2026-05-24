@@ -394,8 +394,7 @@ create_nvm_symlinks() {
   return
 }
 
-_prefix_post_install() {
-  _prefix_post_install__generated
+_prefix_post_install_hook() {
   create_nvm_symlinks
 }
 

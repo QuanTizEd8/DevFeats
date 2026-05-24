@@ -126,10 +126,12 @@ ${{ _script.dependency_install_calls }}$
 ${{ _script.prefix_resolver_functions }}$
 
 # shellcheck disable=SC2329,SC2317
-_prefix_post_install__generated() {
+_prefix_post_install_hook() { return; }
+
+# shellcheck disable=SC2329,SC2317
+_prefix_post_install() {
 ${{ _script.prefix_post_install_body }}$
+_prefix_post_install_hook
 return
 }
-
-_prefix_post_install() { _prefix_post_install__generated; return; }
 ${{ _script.prefix_resolver_calls }}$

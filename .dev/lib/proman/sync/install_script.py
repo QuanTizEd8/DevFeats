@@ -954,7 +954,7 @@ _TMPL_SCOPE_SNAPSHOT = (
     "\n"
     "  # Activation scope snapshot: captured before write_group\n"
     "  # chown can alter path ownership. Consumed by\n"
-    "  # _prefix_post_install__generated.\n"
+    "  # _prefix_post_install.\n"
     "  # shellcheck disable=SC2034\n"
     '  {var_prefix}_SCOPE="$(users__is_user_path'
     ' "${{{var_prefix}}}" && printf user || printf system)"'

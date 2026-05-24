@@ -485,8 +485,7 @@ _export_git_manpath() {
   return
 }
 
-_prefix_post_install() {
-  _prefix_post_install__generated
+_prefix_post_install_hook() {
   _export_git_manpath
 }
 
