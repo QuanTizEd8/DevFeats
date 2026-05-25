@@ -67,6 +67,15 @@ _users__ensure_getent() {
   return 1
 }
 
+# _users__ensure_shadowutils (internal) — Ensure useradd, groupadd, and usermod are available; install shadow-utils via ospkg if absent.
+_users__ensure_shadowutils() {
+  command -v groupadd > /dev/null 2>&1 && return 0
+  ospkg__run --manifest "$_USERS__SHADOW_UTILS_MANIFEST" --build-group "lib-users" --skip_installed || true
+  command -v groupadd > /dev/null 2>&1 && return 0
+  logging__warn "users.sh: shadow-utils (useradd, groupadd, usermod) is required but could not be installed."
+  return 1
+}
+
 # @brief users__is_root — Return 0 when the current process runs as root (uid 0), 1 otherwise.
 #
 # Checks via `id -u` when available; falls back to bash's $EUID when id is
@@ -226,6 +235,42 @@ users__primary_group_of() {
   id -gn "$1"
 }
 
+# @brief users__gid_of_group <groupname> — Print the numeric GID for the given group name.
+#
+# Args:
+#   <groupname>  Group name to query.
+#
+# Stdout: GID as a decimal string.
+# Returns: 0 on success, 1 when the group is not found.
+users__gid_of_group() {
+  local _gid
+  if _users__ensure_getent; then
+    _gid="$(getent group "$1" 2> /dev/null | cut -d: -f3)"
+    [[ -n "$_gid" ]] && { printf '%s\n' "$_gid"; return 0; }
+  fi
+  _gid="$(awk -F: -v g="$1" '$1==g{print $3;exit}' /etc/group 2> /dev/null)"
+  [[ -n "$_gid" ]] && { printf '%s\n' "$_gid"; return 0; }
+  return 1
+}
+
+# @brief users__group_of_gid <gid> — Print the group name for the given numeric GID.
+#
+# Args:
+#   <gid>  Numeric GID to query.
+#
+# Stdout: group name string.
+# Returns: 0 on success, 1 when no group with that GID is found.
+users__group_of_gid() {
+  local _gname
+  if _users__ensure_getent; then
+    _gname="$(getent group "$1" 2> /dev/null | cut -d: -f1)"
+    [[ -n "$_gname" ]] && { printf '%s\n' "$_gname"; return 0; }
+  fi
+  _gname="$(awk -F: -v gid="$1" '$3==gid{print $1;exit}' /etc/group 2> /dev/null)"
+  [[ -n "$_gname" ]] && { printf '%s\n' "$_gname"; return 0; }
+  return 1
+}
+
 # @brief users__uid_of_user <username> — Print the numeric UID of the given user.
 #
 # Args:
@@ -258,6 +303,30 @@ users__username_of_uid() {
     return 0
   }
   return 1
+}
+
+# @brief users__users_by_primary_gid <gid> — Print all usernames whose primary GID matches <gid>, one per line.
+#
+# Args:
+#   <gid>  Numeric GID to query.
+#
+# Stdout: one username per line; empty when no matches are found.
+users__users_by_primary_gid() {
+  awk -F: -v gid="$1" '$4==gid{print $1}' /etc/passwd
+}
+
+# @brief users__group_exists <name-or-gid> — Return 0 if a group with the given name or numeric GID exists.
+#
+# Args:
+#   <name-or-gid>  Group name or numeric GID to check.
+#
+# Returns: 0 if found, 1 otherwise.
+users__group_exists() {
+  if _users__ensure_getent; then
+    getent group "$1" > /dev/null 2>&1
+    return
+  fi
+  awk -F: -v g="$1" '$1==g || $3==g {found=1; exit} END{exit (found ? 0 : 1)}' /etc/group 2> /dev/null
 }
 
 # @brief users__uid_of_path_owner <path> — Print the numeric owner UID of the given path.
@@ -416,11 +485,7 @@ users__set_write_permissions() {
       for _u in "$@"; do
         [ -z "$_u" ] && continue
         id -nG "$_u" 2> /dev/null | grep -qw "$_group" && continue
-        if command -v usermod > /dev/null 2>&1; then
-          users__run_privileged usermod -a -G "$_group" "$_u"
-        else
-          logging__warn "usermod not found — cannot add '${_u}' to group '${_group}'."
-        fi
+        users__add_to_group "$_u" "$_group"
       done
     else
       logging__warn "Neither dseditgroup nor groupadd found — skipping group setup."
@@ -556,6 +621,104 @@ users__set_login_shell() {
   return 0
 }
 
+# @brief users__create_group <name> [--gid <gid>] — Create a group, optionally with a specific GID.
+#
+# Args:
+#   <name>     Group name.
+#   --gid <n>  Numeric GID to assign (optional).
+#
+# Returns: 0 on success, 1 if groupadd cannot be installed.
+users__create_group() {
+  local _name="$1"
+  shift
+  local _gid=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --gid) _gid="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  _users__ensure_shadowutils || return 1
+  local -a _cmd=("groupadd")
+  [ -n "$_gid" ] && _cmd+=("--gid" "$_gid")
+  _cmd+=("$_name")
+  users__run_privileged "${_cmd[@]}"
+}
+
+# @brief users__delete_group <name> — Delete a group by name.
+#
+# Args:
+#   <name>  Group name to delete.
+#
+# Returns: 0 on success, 1 on failure (warning logged).
+users__delete_group() {
+  _users__ensure_shadowutils || return 1
+  users__run_privileged groupdel "$1" 2> /dev/null || { logging__error "Failed to delete group '${1}'."; return 1; }
+}
+
+# @brief users__delete_user <name> — Delete a user account.
+#
+# Args:
+#   <name>  Username to delete.
+#
+# Returns: 0 on success, 1 on failure (warning logged).
+users__delete_user() {
+  _users__ensure_shadowutils || return 1
+  users__run_privileged userdel "$1" 2> /dev/null || { logging__error "Failed to delete user '${1}'."; return 1; }
+}
+
+# @brief users__create_user <name> [--uid <uid>] [--gid <gid>] [--home <path>] [--shell <shell>] [--no-create-home] — Create a regular user account.
+#
+# Unlike users__create_system_user, this creates a non-system user and does not
+# skip existing users — conflict resolution is left to the caller.
+#
+# Args:
+#   <name>            Login name.
+#   --uid <n>         Numeric UID (optional).
+#   --gid <n>         Numeric primary GID (optional).
+#   --home <path>     Home directory path (optional).
+#   --shell <shell>   Login shell (optional).
+#   --no-create-home  Do not create the home directory.
+#
+# Returns: 0 on success, 1 if useradd cannot be installed.
+users__create_user() {
+  local _name="$1"
+  shift
+  local _uid="" _gid="" _home="" _shell="" _no_create_home=false
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --uid)            _uid="$2";   shift 2 ;;
+      --gid)            _gid="$2";   shift 2 ;;
+      --home)           _home="$2";  shift 2 ;;
+      --shell)          _shell="$2"; shift 2 ;;
+      --no-create-home) _no_create_home=true; shift ;;
+      *) shift ;;
+    esac
+  done
+  _users__ensure_shadowutils || return 1
+  local -a _cmd=("useradd")
+  [[ "$_no_create_home" == "true" ]] && _cmd+=("--no-create-home")
+  [ -n "$_home" ]  && _cmd+=("--home-dir" "$_home")
+  [ -n "$_gid" ]   && _cmd+=("--gid" "$_gid")
+  [ -n "$_shell" ] && _cmd+=("--shell" "$_shell")
+  [ -n "$_uid" ]   && _cmd+=("--uid" "$_uid")
+  _cmd+=("$_name")
+  users__run_privileged "${_cmd[@]}"
+}
+
+# @brief users__add_to_group <user> <group> — Add <user> to supplementary group <group>.
+#
+# Args:
+#   <user>   Username to modify.
+#   <group>  Group name to add the user to.
+#
+# Returns: 0 on success, 1 if usermod cannot be installed.
+users__add_to_group() {
+  local _user="$1" _group="$2"
+  _users__ensure_shadowutils || return 1
+  users__run_privileged usermod -aG "$_group" "$_user" || { logging__warn "Failed to add '${_user}' to group '${_group}'."; return 1; }
+}
+
 # @brief users__create_system_user <username> [--home <path>] [--shell <shell>] — Create a system user if it does not already exist.
 #
 # Ensures useradd is available, installing the appropriate shadow package if needed.
@@ -589,10 +752,7 @@ users__create_system_user() {
     logging__info "User '${_username}' already exists — skipping."
     return 0
   fi
-  if ! ospkg__run --manifest "$_USERS__SHADOW_UTILS_MANIFEST" --build-group "lib-users" --skip_installed; then
-    logging__warn "useradd not found — cannot create user '${_username}'."
-    return 1
-  fi
+  _users__ensure_shadowutils || return 1
   local -a _cmd=("useradd" "--system" "--create-home")
   [ -n "$_home" ] && _cmd+=("--home-dir" "$_home")
   [ -n "$_shell" ] && _cmd+=("--shell" "$_shell")

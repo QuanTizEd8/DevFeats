@@ -785,3 +785,364 @@ EOF
   run users__is_user_path alice /home/alice
   assert_failure
 }
+
+# ---------------------------------------------------------------------------
+# _users__ensure_shadowutils
+# ---------------------------------------------------------------------------
+
+@test "_users__ensure_shadowutils: returns 0 immediately when groupadd is already on PATH" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  create_fake_bin "groupadd"
+  prepend_fake_bin_path
+  run --separate-stderr _users__ensure_shadowutils
+  assert_success
+}
+
+@test "_users__ensure_shadowutils: installs shadow-utils and returns 0 when groupadd is absent then installed" {
+  ospkg__run() {
+    printf '#!/bin/sh\n' > "${BATS_TEST_TMPDIR}/bin/groupadd"
+    chmod +x "${BATS_TEST_TMPDIR}/bin/groupadd"
+  }
+  export -f ospkg__run
+  begin_path_isolation mktemp chmod
+  run --separate-stderr _users__ensure_shadowutils
+  end_path_isolation
+  assert_success
+}
+
+@test "_users__ensure_shadowutils: logs warning and returns 1 when groupadd remains absent after install attempt" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  begin_path_isolation mktemp
+  run _users__ensure_shadowutils
+  end_path_isolation
+  assert_failure
+  assert_output --partial "shadow-utils"
+}
+
+# ---------------------------------------------------------------------------
+# users__gid_of_group
+# ---------------------------------------------------------------------------
+
+@test "users__gid_of_group: returns GID via getent" {
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/getent" << 'EOF'
+#!/bin/sh
+printf 'testgroup:x:4567:\n'
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/getent"
+  prepend_fake_bin_path
+  run users__gid_of_group "testgroup"
+  assert_success
+  assert_output "4567"
+}
+
+@test "users__gid_of_group: falls back to /etc/group awk scan when getent is absent" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  _real_group="$(id -gn)"
+  _real_gid="$(id -g)"
+  run users__gid_of_group "$_real_group"
+  assert_success
+  assert_output "$_real_gid"
+}
+
+@test "users__gid_of_group: returns 1 for non-existent group" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  run users__gid_of_group "___no_such_group_xyz___"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__group_of_gid
+# ---------------------------------------------------------------------------
+
+@test "users__group_of_gid: returns group name via getent" {
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/getent" << 'EOF'
+#!/bin/sh
+printf 'mygroup:x:9876:\n'
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/getent"
+  prepend_fake_bin_path
+  run users__group_of_gid "9876"
+  assert_success
+  assert_output "mygroup"
+}
+
+@test "users__group_of_gid: falls back to /etc/group awk scan when getent is absent" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  _real_gid="$(id -g)"
+  _real_group="$(id -gn)"
+  run users__group_of_gid "$_real_gid"
+  assert_success
+  assert_output "$_real_group"
+}
+
+@test "users__group_of_gid: returns 1 for non-existent GID" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  run users__group_of_gid "99999999"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__users_by_primary_gid
+# ---------------------------------------------------------------------------
+
+@test "users__users_by_primary_gid: lists current user when queried by their primary GID" {
+  _cur_user="$(id -un)"
+  _cur_gid="$(id -g)"
+  run users__users_by_primary_gid "$_cur_gid"
+  assert_success
+  assert_output --partial "$_cur_user"
+}
+
+@test "users__users_by_primary_gid: produces empty output for a non-existent GID" {
+  run users__users_by_primary_gid "99999999"
+  assert_success
+  assert_output ""
+}
+
+# ---------------------------------------------------------------------------
+# users__group_exists
+# ---------------------------------------------------------------------------
+
+@test "users__group_exists: returns 0 when group is found via getent" {
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/getent" << 'EOF'
+#!/bin/sh
+exit 0
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/getent"
+  prepend_fake_bin_path
+  run users__group_exists "anygroup"
+  assert_success
+}
+
+@test "users__group_exists: returns 1 when group is not found via getent" {
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/getent" << 'EOF'
+#!/bin/sh
+exit 1
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/getent"
+  prepend_fake_bin_path
+  run users__group_exists "___no_such_group_xyz___"
+  assert_failure
+}
+
+@test "users__group_exists: awk fallback — returns 0 for real group name on this host" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  _real_group="$(id -gn)"
+  run users__group_exists "$_real_group"
+  assert_success
+}
+
+@test "users__group_exists: awk fallback — returns 0 for real GID on this host" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  _real_gid="$(id -g)"
+  run users__group_exists "$_real_gid"
+  assert_success
+}
+
+@test "users__group_exists: awk fallback — returns 1 for non-existent group" {
+  _users__ensure_getent() { return 1; }
+  export -f _users__ensure_getent
+  run users__group_exists "___no_such_group_xyz___"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__create_group
+# ---------------------------------------------------------------------------
+
+@test "users__create_group: invokes groupadd with --gid when specified" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__create_group "devs" --gid "1234"
+  assert_success
+  assert_output "groupadd
+--gid
+1234
+devs"
+}
+
+@test "users__create_group: invokes groupadd without --gid when omitted" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__create_group "devs"
+  assert_success
+  assert_output "groupadd
+devs"
+}
+
+@test "users__create_group: returns 1 when shadow-utils cannot be installed" {
+  _users__ensure_shadowutils() { return 1; }
+  export -f _users__ensure_shadowutils
+  run users__create_group "devs" --gid "1234"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__delete_group
+# ---------------------------------------------------------------------------
+
+@test "users__delete_group: invokes groupdel with the given group name" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__delete_group "oldgroup"
+  assert_success
+  assert_output "groupdel
+oldgroup"
+}
+
+@test "users__delete_group: logs error and returns 1 when groupdel fails" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { return 1; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__delete_group "badgroup"
+  assert_failure
+  assert_output --partial "Failed to delete group 'badgroup'"
+}
+
+@test "users__delete_group: returns 1 when shadow-utils cannot be installed" {
+  _users__ensure_shadowutils() { return 1; }
+  export -f _users__ensure_shadowutils
+  run users__delete_group "oldgroup"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__delete_user
+# ---------------------------------------------------------------------------
+
+@test "users__delete_user: invokes userdel with the given username" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__delete_user "alice"
+  assert_success
+  assert_output "userdel
+alice"
+}
+
+@test "users__delete_user: logs error and returns 1 when userdel fails" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { return 1; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__delete_user "alice"
+  assert_failure
+  assert_output --partial "Failed to delete user 'alice'"
+}
+
+@test "users__delete_user: returns 1 when shadow-utils cannot be installed" {
+  _users__ensure_shadowutils() { return 1; }
+  export -f _users__ensure_shadowutils
+  run users__delete_user "alice"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__create_user
+# ---------------------------------------------------------------------------
+
+@test "users__create_user: invokes useradd with all flags in correct order" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__create_user "alice" --no-create-home --home "/home/alice" --gid "1000" --shell "/bin/bash" --uid "1001"
+  assert_success
+  assert_output "useradd
+--no-create-home
+--home-dir
+/home/alice
+--gid
+1000
+--shell
+/bin/bash
+--uid
+1001
+alice"
+}
+
+@test "users__create_user: maps --home flag to --home-dir in the useradd command" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__create_user "bob" --home "/home/bob"
+  assert_success
+  assert_output "useradd
+--home-dir
+/home/bob
+bob"
+}
+
+@test "users__create_user: invokes useradd with name only when no flags are given" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__create_user "charlie"
+  assert_success
+  assert_output "useradd
+charlie"
+}
+
+@test "users__create_user: omits --no-create-home from useradd when flag is not given" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__create_user "charlie" --uid "500"
+  assert_success
+  assert_output "useradd
+--uid
+500
+charlie"
+}
+
+@test "users__create_user: returns 1 when shadow-utils cannot be installed" {
+  _users__ensure_shadowutils() { return 1; }
+  export -f _users__ensure_shadowutils
+  run users__create_user "alice" --uid "1001"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# users__add_to_group
+# ---------------------------------------------------------------------------
+
+@test "users__add_to_group: invokes usermod -aG with group before user" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__add_to_group "alice" "devs"
+  assert_success
+  assert_output "usermod
+-aG
+devs
+alice"
+}
+
+@test "users__add_to_group: logs warning and returns 1 when usermod fails" {
+  _users__ensure_shadowutils() { return 0; }
+  users__run_privileged() { return 1; }
+  export -f _users__ensure_shadowutils users__run_privileged
+  run users__add_to_group "alice" "devs"
+  assert_failure
+  assert_output --partial "Failed to add 'alice' to group 'devs'"
+}
+
+@test "users__add_to_group: returns 1 when shadow-utils cannot be installed" {
+  _users__ensure_shadowutils() { return 1; }
+  export -f _users__ensure_shadowutils
+  run users__add_to_group "alice" "devs"
+  assert_failure
+}
