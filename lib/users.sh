@@ -45,6 +45,11 @@ packages:
     packages: [glibc]
 EOF
 
+read -r -d '' _USERS__SUDO_MANIFEST << 'EOF' || true
+packages:
+  - sudo
+EOF
+
 # _users__ensure_coreutils (internal) — Ensure id, stat, and whoami are available; install coreutils via ospkg if absent.
 _users__ensure_coreutils() {
   command -v id > /dev/null 2>&1 && return 0
@@ -64,6 +69,15 @@ _users__ensure_getent() {
     command -v getent > /dev/null 2>&1 && return 0
   fi
   logging__info "users.sh: 'getent' not available; falling back to dscl or /etc/passwd for home resolution."
+  return 1
+}
+
+# _users__ensure_sudo (internal) — Ensure sudo (visudo) is available; install via ospkg if absent.
+_users__ensure_sudo() {
+  command -v visudo > /dev/null 2>&1 && return 0
+  ospkg__run --manifest "$_USERS__SUDO_MANIFEST" --build-group "lib-users" --skip_installed || true
+  command -v visudo > /dev/null 2>&1 && return 0
+  logging__error "users.sh: 'sudo' (visudo) is required but could not be installed."
   return 1
 }
 
@@ -932,4 +946,41 @@ users__is_user_path() {
     [[ "$_owner_uid" == "$_target_uid" ]] && return 0
   fi
   return 1
+}
+
+# @brief users__add_sudoer <username> [--sudoers-dir <dir>] — Grant passwordless sudo to <username>.
+#
+# Writes "<username> ALL=(ALL) NOPASSWD:ALL" as a drop-in sudoers file.
+# Validates the file with visudo before moving it into place; on validation
+# failure the temporary file is removed and the function returns 1 without
+# touching the sudoers directory. Installs sudo via ospkg if absent.
+#
+# Args:
+#   <username>           User to grant passwordless sudo access.
+#   --sudoers-dir <dir>  Drop-in directory (default: /etc/sudoers.d).
+#
+# Returns: 0 on success, 1 on failure.
+users__add_sudoer() {
+  local _username="${1:?users__add_sudoer: username is required}"
+  local _sudoers_dir="/etc/sudoers.d"
+  shift
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --sudoers-dir) _sudoers_dir="${2:?--sudoers-dir requires a value}"; shift 2 ;;
+      *) logging__error "users__add_sudoer: unknown option: '$1'"; return 1 ;;
+    esac
+  done
+  _users__ensure_sudo || return 1
+  local _target="${_sudoers_dir}/${_username}" _tmp _visudo_out
+  _tmp="$(mktemp)" || { logging__error "users__add_sudoer: mktemp failed."; return 1; }
+  printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$_username" > "$_tmp"
+  chmod 0440 "$_tmp"
+  _visudo_out="$(users__run_privileged visudo -c -f "$_tmp" 2>&1)" || {
+    rm -f "$_tmp"
+    logging__error "users__add_sudoer: sudoers validation failed${_visudo_out:+: ${_visudo_out}}"
+    return 1
+  }
+  users__run_privileged mkdir -p "$_sudoers_dir"
+  users__run_privileged mv "$_tmp" "$_target"
+  logging__success "Granted passwordless sudo to '${_username}'."
 }

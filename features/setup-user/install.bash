@@ -108,17 +108,7 @@ fi
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
   _dep_install_runtime_sudo
-  mkdir -p "$SUDOERS_DIR"
-  echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
-  chmod 0440 "${SUDOERS_DIR}/${USERNAME}"
-  if command -v visudo > /dev/null 2>&1; then
-    visudo -c -f "${SUDOERS_DIR}/${USERNAME}" || {
-      logging__error "sudoers file validation failed."
-      rm -f "${SUDOERS_DIR}/${USERNAME}"
-      exit 1
-    }
-  fi
-  logging__success "Granted passwordless sudo to '${USERNAME}'."
+  users__add_sudoer "$USERNAME" --sudoers-dir "$SUDOERS_DIR"
 fi
 
 # ---------------------------------------------------------------------------
