@@ -1495,7 +1495,12 @@ ospkg__cleanup_resources() {
 }
 
 # ── Public: ospkg__install_user ──────────────────────────────────────────────
-# @brief ospkg__install_user <pkg>... — Install packages and protect them from build-group cleanup. Prefer over `ospkg__install` for all user-facing installs.
+# @brief ospkg__install_user [--update] <pkg>... — Install packages and protect them from build-group cleanup. Prefer over `ospkg__install` for all user-facing installs.
+#
+# Without --update each package is checked via PM-native query; only missing
+# packages are passed to the package manager. With --update already-installed
+# packages are also upgraded (brew uses `brew upgrade`; all other PMs upgrade
+# in place via their install command).
 #
 # Version suffixes are stripped per PM convention before calling
 # `_ospkg__protect_user_pkgs`, so packages will not be removed by
@@ -1503,11 +1508,21 @@ ospkg__cleanup_resources() {
 # marked them.
 #
 # Args:
+#   --update  Also upgrade already-installed packages.
 #   <pkg>...  One or more package specs (versioned forms like `gh=2.40.0` accepted).
 #
 # Returns: 0 on success.
 ospkg__install_user() {
-  ospkg__install "$@"
+  local _do_update=false
+  if [[ "${1:-}" == "--update" ]]; then
+    _do_update=true
+    shift
+  fi
+  if [[ "$_do_update" == true ]]; then
+    ospkg__install --update "$@"
+  else
+    ospkg__install "$@"
+  fi
   ospkg__detect
   # Strip PM-native version suffixes to get bare package names for marking.
   local -a _bare_names=()
@@ -1576,7 +1591,7 @@ ospkg__remove_user() {
 }
 
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
-# @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>] — Run the full installation pipeline from a manifest.
+# @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update] [--update-index <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>] — Run the full installation pipeline from a manifest.
 #
 # Full pipeline: detect → root check → parse manifest → prescript → keys →
 # repos → PM setup → update → install → casks → script.
@@ -1591,10 +1606,14 @@ ospkg__remove_user() {
 #                           resolving a URI manifest.
 #   --fetch-header <H>      Additional HTTP header passed to URI fetches when
 #                           resolving a URI manifest. Repeatable.
-#   --update <bool>         Run package index update before installing (default: true).
+#   --update                Also upgrade already-installed packages (brew uses `brew upgrade`;
+#                           all other PMs upgrade in place via their install command).
+#                           Overrides --skip_installed for already-installed packages.
+#   --update-index <bool>   Refresh the package index before installing (default: true).
 #   --keep_repos            Do not remove added third-party repo files after installation.
 #   --dry_run               Print what would be installed without doing it.
-#   --skip_installed        Skip packages that are already installed.
+#   --skip_installed        Skip packages that are already installed. Ignored for packages
+#                           that would be upgraded when --update is also given.
 #   --interactive           Preserve TTY for interactive package prompts.
 #   --build-group <id>      Mark all newly-installed packages as build-only and record
 #                           them in a sidecar file for later cleanup. Requires --manifest.
@@ -1603,9 +1622,10 @@ ospkg__remove_user() {
 #
 # Returns: 0 on success, 1 on invalid arguments or manifest parse failure.
 ospkg__run() {
-  local _manifest='' _update=true _keep_repos=false
+  local _manifest='' _update_index=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false
   local _prefer_linuxbrew=false _build_group='' _remove_build_group=''
+  local _do_pkg_update=false
   local _fetch_netrc_file=''
   local -a _fetch_headers=()
 
@@ -1628,7 +1648,11 @@ ospkg__run() {
         ;;
       --update)
         shift
-        _update="$1"
+        _do_pkg_update=true
+        ;;
+      --update-index)
+        shift
+        _update_index="$1"
         shift
         ;;
       --keep_repos)
@@ -2077,10 +2101,10 @@ ospkg__run() {
     _ensure_pkg_update() {
       [[ "$_pkg_update_done" == true ]] && return 0
       _pkg_update_done=true
-      if [[ "$_update" == false ]]; then
-        logging__info "Package list update skipped (update=false)."
+      if [[ "$_update_index" == false ]]; then
+        logging__info "Package list update skipped (update-index=false)."
         _OSPKG__UPDATED=true
-        [[ "$_yaml_repo_added" == true ]] && logging__warn "A repository was added but update=false — packages may not be found."
+        [[ "$_yaml_repo_added" == true ]] && logging__warn "A repository was added but update-index=false — packages may not be found."
         return 0
       fi
       if [[ "$_dry_run" == true ]]; then
@@ -2113,7 +2137,7 @@ ospkg__run() {
         _pkginstall="${_pkgname}"
       fi
 
-      if [[ "$_skip_installed" == true ]] && ospkg__is_installed "$_pkgname"; then
+      if [[ "$_skip_installed" == true && "$_do_pkg_update" == false ]] && ospkg__is_installed "$_pkgname"; then
         logging__info "'${_pkgname}' already installed — skipping."
         [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         continue
@@ -2142,7 +2166,11 @@ ospkg__run() {
       if [[ "$_dry_run" == true ]]; then
         logging__inspect "[dry-run] packages: ${_pkgs_to_install[*]}"
       else
-        ospkg__install "${_pkgs_to_install[@]}"
+        if [[ "$_do_pkg_update" == true ]]; then
+          ospkg__install --update "${_pkgs_to_install[@]}"
+        else
+          ospkg__install "${_pkgs_to_install[@]}"
+        fi
         [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "${_pkg_base_names[@]}"
       fi
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then

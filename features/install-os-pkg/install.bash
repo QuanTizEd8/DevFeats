@@ -68,7 +68,7 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive true"
   [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos true"
   [[ -n "$LOG_FILE" ]] && _HOOK_OPTS+=" --log_file $(printf '%q' "$LOG_FILE")"
-  [[ "$UPDATE" == false ]] && _HOOK_OPTS+=" --update false"
+  [[ "$UPDATE" == false ]] && _HOOK_OPTS+=" --update-index false"
   _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
   [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run true"
   [[ "$SKIP_INSTALLED" == true ]] && _HOOK_OPTS+=" --skip_installed true"
@@ -94,7 +94,7 @@ if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
     [[ -n "${_osh}" ]] && _OSPKG_ARGS+=(--fetch-header "$_osh")
   done
 fi
-[[ "$UPDATE" == false ]] && _OSPKG_ARGS+=(--update false)
+[[ "$UPDATE" == false ]] && _OSPKG_ARGS+=(--update-index false)
 
 [[ "$KEEP_REPOS" == true ]] && _OSPKG_ARGS+=(--keep_repos)
 _OSPKG_ARGS+=(--lists_max_age "$LISTS_MAX_AGE")
