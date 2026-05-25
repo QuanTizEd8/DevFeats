@@ -27,12 +27,12 @@ options:
     default: '1000'
     description: UID to assign to the user. Must be a non-negative integer.
     type: integer
-    minimum: 0
+    _minimum: 0
   group_id:
     default: '1000'
     description: GID to assign to the user's primary group. Must be a non-negative integer.
     type: integer
-    minimum: 0
+    _minimum: 0
   group_name:
     default: ''
     _default: $USERNAME
