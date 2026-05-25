@@ -351,6 +351,37 @@ class InstallScriptGenerator:
                         expected="true, false",
                     ),
                 )
+            elif typ == "integer":
+                validations.append(
+                    self._render_inline_template(
+                        _ARGPARSE_VALIDATION_INTEGER,
+                        indent,
+                        var=vname,
+                        key=key,
+                    ),
+                )
+                minimum = opt.get("_minimum")
+                if minimum is not None:
+                    validations.append(
+                        self._render_inline_template(
+                            _ARGPARSE_VALIDATION_INTEGER_MIN,
+                            indent,
+                            var=vname,
+                            key=key,
+                            minimum=str(minimum),
+                        ),
+                    )
+                maximum = opt.get("_maximum")
+                if maximum is not None:
+                    validations.append(
+                        self._render_inline_template(
+                            _ARGPARSE_VALIDATION_INTEGER_MAX,
+                            indent,
+                            var=vname,
+                            key=key,
+                            maximum=str(maximum),
+                        ),
+                    )
             elif opt.get("enum"):
                 values = [
                     item["value"] if isinstance(item, dict) else str(item)
@@ -908,6 +939,14 @@ def _usage_type_hint(opt: dict) -> str:
     ]
     if typ == "boolean":
         return "{true,false}"
+    if typ == "integer":
+        minimum = opt.get("_minimum")
+        maximum = opt.get("_maximum")
+        if minimum is not None or maximum is not None:
+            lo = str(minimum) if minimum is not None else ""
+            hi = str(maximum) if maximum is not None else ""
+            return f"<integer {lo}..{hi}>"
+        return "<integer>"
     if typ == "array":
         if enum_values:
             return "{" + "|".join(enum_values) + "}  (repeatable)"
@@ -1000,6 +1039,27 @@ case "${{{var}}}" in
     exit 1
     ;;
 esac
+"""
+
+_ARGPARSE_VALIDATION_INTEGER = """
+if [[ ! "${{{var}}}" =~ ^-?[0-9]+$ ]]; then
+  logging__error "Invalid value for '{key}': '${{{var}}}' is not a valid integer."
+  exit 1
+fi
+"""
+
+_ARGPARSE_VALIDATION_INTEGER_MIN = """
+if (( {var} < {minimum} )); then
+  logging__error "Invalid value for '{key}': '${{{var}}}' must be >= {minimum}."
+  exit 1
+fi
+"""
+
+_ARGPARSE_VALIDATION_INTEGER_MAX = """
+if (( {var} > {maximum} )); then
+  logging__error "Invalid value for '{key}': '${{{var}}}' must be <= {maximum}."
+  exit 1
+fi
 """
 
 _DEPENDENCY_INSTALL_FN_RUN = """

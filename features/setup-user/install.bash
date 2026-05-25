@@ -1,13 +1,3 @@
-if [[ ! "$USER_ID" =~ ^[0-9]+$ ]]; then
-  logging__error "user_id must be a non-negative integer, got: '${USER_ID}'"
-  exit 1
-fi
-
-if [[ ! "$GROUP_ID" =~ ^[0-9]+$ ]]; then
-  logging__error "group_id must be a non-negative integer, got: '${GROUP_ID}'"
-  exit 1
-fi
-
 if [ ! -x "$USER_SHELL" ]; then
   logging__error "Shell '${USER_SHELL}' does not exist or is not executable on this image."
   exit 1

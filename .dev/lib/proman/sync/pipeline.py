@@ -160,7 +160,7 @@ def _generate_metadata_json(metadata: dict) -> dict[Path, str]:
                 for k, v in option_raw.items():
                     if k.startswith("_"):
                         continue
-                    if k == "type" and v == "array":
+                    if k == "type" and v in ("array", "integer"):
                         option[k] = "string"
                     elif k in ("enum", "proposals"):
                         option[k] = [item["value"] for item in v]

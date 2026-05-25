@@ -463,7 +463,8 @@
           "enum": [
             "boolean",
             "string",
-            "array"
+            "array",
+            "integer"
           ]
         },
         "default": {
@@ -596,6 +597,30 @@
               "enum"
             ]
           }
+        },
+        {
+          "description": "Integer value.",
+          "is_internal": true,
+          "properties": {
+            "type": {
+              "const": "integer"
+            },
+            "default": {
+              "type": ["string", "integer"]
+            },
+            "_minimum": {
+              "description": "Minimum allowed value (inclusive) for options of type 'integer'.",
+              "type": "integer"
+            },
+            "_maximum": {
+              "description": "Maximum allowed value (inclusive) for options of type 'integer'.",
+              "type": "integer"
+            }
+          },
+          "allOf": [
+            {"not": {"required": ["enum"]}},
+            {"not": {"required": ["proposals"]}}
+          ]
         },
         {
           "description": "Array of enum values.",
