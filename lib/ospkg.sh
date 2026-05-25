@@ -1591,7 +1591,7 @@ ospkg__remove_user() {
 }
 
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
-# @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update] [--update-index <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>] — Run the full installation pipeline from a manifest.
+# @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update] [--update-index <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] — Run the full installation pipeline from a manifest.
 #
 # Full pipeline: detect → root check → parse manifest → prescript → keys →
 # repos → PM setup → update → install → casks → script.
@@ -1617,14 +1617,12 @@ ospkg__remove_user() {
 #   --interactive           Preserve TTY for interactive package prompts.
 #   --build-group <id>      Mark all newly-installed packages as build-only and record
 #                           them in a sidecar file for later cleanup. Requires --manifest.
-#   --remove-build-group <id>  Remove previously-installed build-only packages using
-#                              PM-native mechanisms. Does not require --manifest.
 #
 # Returns: 0 on success, 1 on invalid arguments or manifest parse failure.
 ospkg__run() {
   local _manifest='' _update_index=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false
-  local _prefer_linuxbrew=false _build_group='' _remove_build_group=''
+  local _prefer_linuxbrew=false _build_group=''
   local _do_pkg_update=false
   local _fetch_netrc_file=''
   local -a _fetch_headers=()
@@ -1685,11 +1683,7 @@ ospkg__run() {
         _build_group="$1"
         shift
         ;;
-      --remove-build-group)
-        shift
-        _remove_build_group="$1"
-        shift
-        ;;
+
       *)
         logging__error "ospkg__run: unknown option: $1"
         return 1
@@ -1707,11 +1701,6 @@ ospkg__run() {
     return 1
   fi
 
-  if [[ -n "$_remove_build_group" && (-n "$_build_group" || -n "$_manifest") ]]; then
-    logging__error "ospkg__run: --remove-build-group must be used alone (no --manifest or --build-group)."
-    return 1
-  fi
-
   [[ "$_dry_run" == true ]] && logging__inspect "Dry-run mode enabled — no changes will be made."
 
   # Set prefer_linuxbrew early so detect() picks it up.
@@ -1719,16 +1708,6 @@ ospkg__run() {
 
   ospkg__detect || return 1
 
-  # --remove-build-group: cleanup build-only packages and return immediately.
-  if [[ -n "$_remove_build_group" ]]; then
-    if [[ "$_dry_run" == true ]]; then
-      logging__inspect "[dry-run] remove-build-group '${_remove_build_group}' — would remove build-only packages."
-      return 0
-    fi
-    _ospkg__remove_build_group "$_remove_build_group"
-    _ospkg__restore_global_auto_state
-    return 0
-  fi
 
   if [[ "$_OSPKG__PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
     logging__info "Setting APT to non-interactive mode."
