@@ -92,14 +92,6 @@ options:
       step is skipped automatically (unless a new repository was added by the manifest).
       Set to `0` to always update.
     type: string
-  skip_installed:
-    default: false
-    description: |-
-      Skip packages that are already available in PATH.
-      When true, each package name is checked with `command -v` before installation.
-      Packages whose binary is already present in PATH are skipped regardless of
-      whether they were installed via the system package manager.
-    type: boolean
   keep_repos:
     default: false
     description: |-

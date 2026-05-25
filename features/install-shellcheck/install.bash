@@ -34,7 +34,7 @@ install_binary() {
 
 install_package() {
   local _repos_manifest="${1-}"
-  ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
+  ospkg__run --manifest "$_repos_manifest" || return 1
   command -v shellcheck 2> /dev/null || {
     logging__error "install-shellcheck: shellcheck not found on PATH after package install."
     return 1

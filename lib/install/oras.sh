@@ -53,7 +53,7 @@ _install_oras__install_release() {
 _install_oras__install_repos() {
   local _version="${1-}" _group="${2-}" _context="${3-}" _repos_manifest="${4-}"
   if [[ -n "$_repos_manifest" && "$_context" == "user" ]]; then
-    ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
+    ospkg__run --manifest "$_repos_manifest" || return 1
     local _bin_from_manifest
     _bin_from_manifest="$(command -v oras 2> /dev/null || true)"
     [[ -n "$_bin_from_manifest" ]] || {
@@ -78,9 +78,9 @@ packages:
 EOF
   fi
   if [[ "$_context" == "user" ]]; then
-    ospkg__run --manifest "$_manifest" --skip_installed || return 1
+    ospkg__run --manifest "$_manifest" || return 1
   else
-    ospkg__run --manifest "$_manifest" --build-group "$_group" --skip_installed || return 1
+    ospkg__run --manifest "$_manifest" --build-group "$_group" || return 1
   fi
   local _bin
   _bin="$(command -v oras 2> /dev/null || true)"

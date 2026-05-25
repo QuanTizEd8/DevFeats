@@ -335,15 +335,14 @@ apt_scripts:
 
 apt_skip_installed:
   description: |
-    Verifies that skip_installed=true skips packages that are already registered
-    in the package manager database (dpkg), while still installing packages that
-    are absent from the database.
+    Verifies that already-installed packages are skipped (default behaviour)
+    while packages absent from the database are still installed normally.
 
     The setup pre-installs 'tree' via apt before the feature runs, so dpkg
     already knows about it.  'curl' is absent from the base image.
 
-    With skip_installed=true, 'tree' must be skipped (already in dpkg) and
-    'curl' must still be installed normally.
+    'tree' must be skipped (already in dpkg) and 'curl' must still be
+    installed normally.
 
   checks:
     - title: tree is available (pre-installed; skipped by the feature)

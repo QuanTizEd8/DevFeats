@@ -33,7 +33,7 @@ install_binary() {
 
 install_package() {
   local _repos_manifest="${1-}"
-  ospkg__run --manifest "$_repos_manifest" --skip_installed || {
+  ospkg__run --manifest "$_repos_manifest" || {
     logging__error "install-shfmt: package install failed."
     return 1
   }

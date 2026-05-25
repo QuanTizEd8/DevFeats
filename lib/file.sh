@@ -34,7 +34,7 @@ _file__ensure_extract_tool() {
     zip) _file__ensure_tool unzip unzip "to extract .zip archives" ;;
     xz)
       command -v xz > /dev/null 2>&1 && return 0
-      ospkg__run --manifest "$_FILE__XZ_MANIFEST" --build-group "lib-file" --skip_installed || true
+      ospkg__run --manifest "$_FILE__XZ_MANIFEST" --build-group "lib-file" || true
       command -v xz > /dev/null 2>&1 && return 0
       logging__error "file.sh: xz is required to extract .tar.xz archives but could not be installed."
       return 1
@@ -53,7 +53,7 @@ _file__ensure_extract_tool() {
 _file__ensure_install_cmd() {
   command -v install > /dev/null 2>&1 && return 0
   logging__info "file.sh: 'install' command not found; installing coreutils."
-  ospkg__run --manifest "$_FILE__COREUTILS_MANIFEST" --build-group "lib-file" --skip_installed || true
+  ospkg__run --manifest "$_FILE__COREUTILS_MANIFEST" --build-group "lib-file" || true
   if ! command -v install > /dev/null 2>&1; then
     logging__error "file.sh: 'install' is required but could not be installed."
     return 1

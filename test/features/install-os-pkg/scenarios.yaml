@@ -409,7 +409,6 @@ apt_skip_installed:
     printf '%s\n' 'packages:' '  - tree' '  - curl' > /tmp/manifest.yaml
   options:
     manifest: /tmp/manifest.yaml
-    skip_installed: true
   tests: [apt_skip_installed]
 
 apt_manifest_uri_file:

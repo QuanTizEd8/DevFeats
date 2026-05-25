@@ -18,7 +18,7 @@ EOF
 _uri__ensure_sha256sum() {
   command -v sha256sum > /dev/null 2>&1 && return 0
   command -v shasum > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_URI__COREUTILS_MANIFEST" --build-group "lib-uri" --skip_installed || true
+  ospkg__run --manifest "$_URI__COREUTILS_MANIFEST" --build-group "lib-uri" || true
   command -v sha256sum > /dev/null 2>&1 && return 0
   command -v shasum > /dev/null 2>&1 && return 0
   logging__warn "uri.sh: neither 'sha256sum' nor 'shasum' available; falling back to cksum for URI hashing."

@@ -71,7 +71,6 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   [[ "$UPDATE" == false ]] && _HOOK_OPTS+=" --update-index false"
   _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
   [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run true"
-  [[ "$SKIP_INSTALLED" == true ]] && _HOOK_OPTS+=" --skip_installed true"
   [[ "$PREFER_LINUXBREW" == true ]] && _HOOK_OPTS+=" --prefer_linuxbrew true"
   _HOOK_OPTS+=" --keep_cache $KEEP_CACHE"
   case "$LIFECYCLE_HOOK" in
@@ -99,7 +98,6 @@ fi
 [[ "$KEEP_REPOS" == true ]] && _OSPKG_ARGS+=(--keep_repos)
 _OSPKG_ARGS+=(--lists_max_age "$LISTS_MAX_AGE")
 [[ "$DRY_RUN" == true ]] && _OSPKG_ARGS+=(--dry_run)
-[[ "$SKIP_INSTALLED" == true ]] && _OSPKG_ARGS+=(--skip_installed)
 [[ "$PREFER_LINUXBREW" == true ]] && _OSPKG_ARGS+=(--prefer_linuxbrew)
 [[ "$INTERACTIVE" == true ]] && _OSPKG_ARGS+=(--interactive)
 ospkg__run "${_OSPKG_ARGS[@]}"

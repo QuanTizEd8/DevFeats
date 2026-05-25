@@ -28,7 +28,7 @@ EOF
 # Returns 0 when strings is on PATH (before or after install), 1 otherwise (non-fatal).
 _shell__ensure_strings() {
   command -v strings > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_SHELL__BINUTILS_MANIFEST" --build-group "lib-shell" --skip_installed || true
+  ospkg__run --manifest "$_SHELL__BINUTILS_MANIFEST" --build-group "lib-shell" || true
   command -v strings > /dev/null 2>&1 && return 0
   logging__warn "shell.sh: 'strings' not available; falling back to os-release detection."
   return 1

@@ -89,7 +89,7 @@ _install_jq__install_release() {
 _install_jq__install_repos() {
   local _group="${1-}" _context="${2-}" _repos_manifest="${3-}"
   if [[ -n "$_repos_manifest" ]]; then
-    ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
+    ospkg__run --manifest "$_repos_manifest" || return 1
   else
     if [[ "$_context" == "user" ]]; then
       ospkg__install_user jq || return 1

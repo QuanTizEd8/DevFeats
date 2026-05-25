@@ -84,7 +84,7 @@ _install_yq__install_release() {
 _install_yq__install_repos() {
   local _context="${1-}" _group="${2-}" _repos_manifest="${3-}" _bin
   if [[ -n "$_repos_manifest" ]]; then
-    ospkg__run --manifest "$_repos_manifest" --skip_installed || return 1
+    ospkg__run --manifest "$_repos_manifest" || return 1
   else
     logging__warn "install__yq: no repos manifest provided; attempting package 'yq'."
     if [[ "$_context" == "user" ]]; then

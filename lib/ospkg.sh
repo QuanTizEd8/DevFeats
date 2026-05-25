@@ -1591,7 +1591,7 @@ ospkg__remove_user() {
 }
 
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
-# @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update] [--update-index <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] — Run the full installation pipeline from a manifest.
+# @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update] [--update-index <bool>] [--keep_repos] [--dry_run] [--interactive] [--build-group <id>] — Run the full installation pipeline from a manifest.
 #
 # Full pipeline: detect → root check → parse manifest → prescript → keys →
 # repos → PM setup → update → install → casks → script.
@@ -1608,12 +1608,9 @@ ospkg__remove_user() {
 #                           resolving a URI manifest. Repeatable.
 #   --update                Also upgrade already-installed packages (brew uses `brew upgrade`;
 #                           all other PMs upgrade in place via their install command).
-#                           Overrides --skip_installed for already-installed packages.
 #   --update-index <bool>   Refresh the package index before installing (default: true).
 #   --keep_repos            Do not remove added third-party repo files after installation.
 #   --dry_run               Print what would be installed without doing it.
-#   --skip_installed        Skip packages that are already installed. Ignored for packages
-#                           that would be upgraded when --update is also given.
 #   --interactive           Preserve TTY for interactive package prompts.
 #   --build-group <id>      Mark all newly-installed packages as build-only and record
 #                           them in a sidecar file for later cleanup. Requires --manifest.
@@ -1621,7 +1618,7 @@ ospkg__remove_user() {
 # Returns: 0 on success, 1 on invalid arguments or manifest parse failure.
 ospkg__run() {
   local _manifest='' _update_index=true _keep_repos=false
-  local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false
+  local _lists_max_age=300 _dry_run=false _interactive=false
   local _prefer_linuxbrew=false _build_group=''
   local _do_pkg_update=false
   local _fetch_netrc_file=''
@@ -1666,10 +1663,7 @@ ospkg__run() {
         shift
         _dry_run=true
         ;;
-      --skip_installed)
-        shift
-        _skip_installed=true
-        ;;
+
       --interactive)
         shift
         _interactive=true
@@ -2072,8 +2066,8 @@ ospkg__run() {
     # Phase: INSTALL PACKAGES.
     # Package list update is deferred: called lazily only when a package
     # actually needs installing (or a repo was added but no packages ran).
-    # This avoids running privileged ospkg__update when --skip_installed
-    # causes all packages to be skipped.
+    # This avoids running privileged ospkg__update when all packages are
+    # already installed.
     local -a _update_args=(--lists_max_age "$_lists_max_age")
     [[ "$_yaml_repo_added" == true ]] && _update_args+=(--repo_added)
     local _pkg_update_done=false
@@ -2116,8 +2110,7 @@ ospkg__run() {
         _pkginstall="${_pkgname}"
       fi
 
-      if [[ "$_skip_installed" == true && "$_do_pkg_update" == false ]] && ospkg__is_installed "$_pkgname"; then
-        logging__info "'${_pkgname}' already installed — skipping."
+      if [[ "$_do_pkg_update" == false ]] && ospkg__is_installed "$_pkgname"; then
         [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         continue
       fi
