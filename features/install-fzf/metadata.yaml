@@ -1,7 +1,16 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
-# Feature: install-fzf
-# Add version/name/description/dependencies in the semantic phase.
-
+name: fzf Installation
+version: 0.1.0
+description: Install [fzf](https://github.com/junegunn/fzf) (fuzzy finder) and activate it in Zsh and Bash.
+keywords:
+- fzf
+- shell
+- fuzzy-finder
+_long_description: >-
+  Downloads and installs [fzf](https://github.com/junegunn/fzf) from GitHub Releases
+  and wires up per-user shell integration by injecting a guarded `eval "$(fzf --<shell>)"`
+  block into each user's `zshtheme` and Bash theme file. fzf provides fuzzy-finding
+  key bindings (`Ctrl-R` for history, `Ctrl-T` for files, `Alt-C` for directories)
+  and shell completion.
 options:
   install_fzf:
     type: boolean
@@ -20,3 +29,11 @@ _prefix_groups:
       bins: [fzf]
     applies_when:
       - install_fzf: ['true']
+# installsAfter:
+#   - ghcr.io/quantized8/devfeats/install-ohmyzsh
+#   - ghcr.io/quantized8/devfeats/install-ohmybash
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates

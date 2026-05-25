@@ -1,7 +1,17 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
-# Feature: install-bash-completion
-# Add version/name/description/dependencies in the semantic phase.
-
+name: Bash Completion Installation
+version: 0.1.0
+description: Install [bash-completion](https://github.com/scop/bash-completion) v2 and activate it for Bash.
+keywords:
+- bash
+- completion
+- shell
+_long_description: >-
+  Installs [bash-completion](https://github.com/scop/bash-completion) v2 via the
+  system package manager. On Linux, bash-completion is loaded automatically via
+  `/etc/profile.d/`; on macOS with Homebrew, a guarded source line is injected into
+  each user's Bash theme file so the entry point at
+  `${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh` is activated in interactive
+  sessions.
 options:
   install_bash_completion:
     type: boolean
@@ -9,3 +19,5 @@ options:
     description: |-
       Install [bash-completion](https://github.com/scop/bash-completion) (v2).
       Provides programmable tab-completion for Bash commands and arguments.
+# installsAfter:
+#   - ghcr.io/quantized8/devfeats/install-shell

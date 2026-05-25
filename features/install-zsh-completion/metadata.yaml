@@ -1,7 +1,16 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
-# Feature: install-zsh-completion
-# Add version/name/description/dependencies in the semantic phase.
-
+name: Zsh Completions Installation
+version: 0.1.0
+description: Install [zsh-completions](https://github.com/zsh-users/zsh-completions) and wire up the completion `fpath`.
+keywords:
+- zsh
+- completion
+- shell
+_long_description: >-
+  Installs [zsh-completions](https://github.com/zsh-users/zsh-completions), which
+  provides extra completion definitions not yet in the Zsh core. On Homebrew, uses
+  the `zsh-completions` formula; otherwise shallow-clones the repository into
+  `/usr/local/share/zsh-completions`. The completion sources directory is prepended
+  to `fpath` in the system-wide Zsh config so completions are available to all users.
 options:
   install_zsh_completions:
     type: boolean
@@ -20,3 +29,11 @@ _options:
     zsh_completions:
       tool_name: zsh-completions
       slug: zsh-users/zsh-completions
+# installsAfter:
+#   - ghcr.io/quantized8/devfeats/install-shell
+_dependencies:
+  run:
+    base:
+      packages:
+        - git
+        - ca-certificates

@@ -1,7 +1,16 @@
-# Phase 1 skeleton — mechanically extracted from install-shell/metadata.yaml
-# Feature: install-direnv
-# Add version/name/description/dependencies in the semantic phase.
-
+name: direnv Installation
+version: 0.1.0
+description: Install [direnv](https://direnv.net/) and activate it in Zsh and Bash.
+keywords:
+- direnv
+- shell
+- environment
+_long_description: >-
+  Installs [direnv](https://direnv.net/) via the system package manager and wires up
+  per-user shell hooks by injecting a guarded `eval "$(direnv hook <shell>)"` block
+  into each user's `zshtheme` and Bash theme file. direnv automatically loads and
+  unloads environment variables declared in `.envrc` files when entering or leaving a
+  directory.
 options:
   install_direnv:
     type: boolean
@@ -10,3 +19,6 @@ options:
       Install [direnv](https://direnv.net/).
       Automatically loads and unloads environment variables when entering a directory.
       Shell hooks are injected per-user.
+# installsAfter:
+#   - ghcr.io/quantized8/devfeats/install-ohmyzsh
+#   - ghcr.io/quantized8/devfeats/install-ohmybash
