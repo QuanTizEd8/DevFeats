@@ -47,9 +47,6 @@ __argparse__() {
   # Apply defaults.
   ${{ _script.argparse.defaults }}$
 
-  # Auto-initialize INSTALLER_DIR to a private temporary directory when not set.
-  [ -z "${INSTALLER_DIR:-}" ] && INSTALLER_DIR="$(file__mktmpdir "$_FEAT_ID")"
-
   # Validate input options.
   ${{ _script.argparse.validations }}$
 

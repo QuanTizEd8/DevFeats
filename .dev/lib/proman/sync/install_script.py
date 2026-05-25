@@ -779,8 +779,8 @@ class InstallScriptGenerator:
         args: list[str] = [
             f'--prefix "${{{p.var_prefix}}}"',
             f'--bin-dir "{p.bin_dir}"',
-            f'--discovery "${{{p.var_discovery}:-auto}}"',
-            f'--runtime-path "${{{p.var_runtime_path}:-${{PATH:-}}}}"',
+            f'--discovery "${{{p.var_discovery}}}"',
+            f'--runtime-path "${{{p.var_runtime_path}}}"',
         ]
         if not p.skip_symlink:
             args += [f'--bins "{p.bins_str}"', f'--symlinks-ref "{p.var_symlinks}"']
