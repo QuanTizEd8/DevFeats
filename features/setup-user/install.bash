@@ -107,7 +107,7 @@ fi
 # Sudo access
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
-  _dep_install_runtime_sudo
+  __install_dependencies run sudo
   users__add_sudoer "$USERNAME" --sudoers-dir "$SUDOERS_DIR"
 fi
 

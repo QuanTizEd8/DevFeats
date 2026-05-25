@@ -29,7 +29,7 @@ install_binary() {
 }
 
 install_package() {
-  _dep_install_runtime_os_pkg
+  __install_dependencies run os-pkg
 }
 
 install_script() {

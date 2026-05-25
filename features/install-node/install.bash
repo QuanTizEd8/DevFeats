@@ -511,9 +511,9 @@ _node_check_if_exists
 
 if [ "$METHOD" = "nvm" ]; then
   logging__info "Installing nvm runtime dependencies..."
-  _dep_install_runtime_nvm_runtime
+  __install_dependencies run nvm-runtime
   logging__info "Installing nvm build dependencies..."
-  _dep_install_buildtime_nvm
+  __install_dependencies build nvm
 fi
 
 if [ "$NODE_GYP_DEPS" = "true" ]; then
@@ -522,7 +522,7 @@ if [ "$NODE_GYP_DEPS" = "true" ]; then
     logging__info "Alpine+nvm detected — node-gyp build tools already provided by nvm.yaml; skipping node-gyp.yaml."
   else
     logging__info "Installing node-gyp build dependencies..."
-    _dep_install_runtime_node_gyp
+    __install_dependencies run node-gyp
     if [ "$(os__platform)" = "macos" ]; then
       logging__info "node-gyp build dependencies on macOS require Xcode Command Line Tools."
       logging__info "Install them with: xcode-select --install"

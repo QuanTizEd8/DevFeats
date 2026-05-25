@@ -131,7 +131,26 @@ _prefix_post_install() {
   return
 }
 
-${{ _script.dependency_install_functions }}$
+__install_dependencies() {
+  local _dep_type="$1"
+  local _dep_group="$2"
+  shift 2
+
+  if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
+    local -a _args=(--manifest "$_FEAT_DEPS_DIR/$_dep_type/$_dep_group.yaml")
+    [[ "$_dep_type" == "build" ]] && _args+=(--build-group "${_SYSSET_BUILD_CONTEXT}::${_dep_group}")
+    ospkg__run "${_args[@]}" "$@"
+  else
+    logging__warn "Skipping '$_dep_group' group $_dep_type dependency installation (no privilege available); ensure dependencies are pre-installed."
+  fi
+  return
+}
+
+__install_base_dependencies__() {
+  [[ -f "$_FEAT_DEPS_DIR/build/base.yaml" ]] && __install_dependencies build base "$@"
+  [[ -f "$_FEAT_DEPS_DIR/run/base.yaml" ]] && __install_dependencies run base "$@"
+  return
+}
 
 # Prefix group helpers (generated)
 ${{ _script.prefix_resolver_functions }}$
@@ -143,6 +162,7 @@ __setup_script__
 __verify_system_requirements__
 __parse_args__ "$@"
 
-${{ _script.dependency_install_calls }}$
+# Install base dependencies.
+__install_base_dependencies__
 
 ${{ _script.prefix_resolver_calls }}$

@@ -82,22 +82,12 @@ class InstallScriptGenerator:
         """
         feature_id: str = metadata["id"]
         options: dict = metadata["options"]
-        dependencies: dict = metadata.get("_dependencies", {})
         prefix_groups: dict = metadata.get("_prefix_groups", {})
-
-        run_deps: dict = dependencies.get("run", {})
-        build_deps: dict = dependencies.get("build", {})
 
         script_parts: dict[str, object] = {
             "usage_options": self._generate_usage_options(options),
             "argparse": self._generate_argparse(options),
             "env_vars": self._generate_env_vars(metadata.get("_env_vars", {})),
-            "dependency_install_functions": self._generate_dependency_install_functions(
-                run_deps, build_deps
-            ),
-            "dependency_install_calls": self._generate_dependency_install_calls(
-                run_deps, build_deps
-            ),
             "prefix_resolver_functions": self._generate_prefix_resolver_functions(
                 prefix_groups, feature_id
             ),
@@ -649,51 +639,6 @@ class InstallScriptGenerator:
 
         return "\n".join(resolver_calls)
 
-    def _generate_dependency_install_functions(
-        self, run_deps: dict, build_deps: dict
-    ) -> str:
-        """Emit _<group>_deps__install() / _<group>_deps__cleanup() helper functions."""
-        if not run_deps and not build_deps:
-            return ""
-        blocks = [
-            "# Dependency install helper functions",
-        ]
-        blocks.extend(
-            self._render_inline_template(
-                _DEPENDENCY_INSTALL_FN_RUN,
-                0,
-                group_slug=gn.replace("-", "_"),
-                group=gn,
-            )
-            for gn in run_deps
-        )
-        blocks.extend(
-            self._render_inline_template(
-                _DEPENDENCY_INSTALL_FN_BUILD,
-                0,
-                group_slug=gn.replace("-", "_"),
-                group=gn,
-            )
-            for gn in build_deps
-        )
-        return "\n".join(blocks)
-
-    def _generate_dependency_install_calls(
-        self, run_deps: dict, build_deps: dict
-    ) -> str:
-        """Emit root-guarded _base_deps__install() calls: build first, then run."""
-        parts = []
-        if "base" in build_deps:
-            parts.append("_dep_install_buildtime_base")
-        if "base" in run_deps:
-            parts.append("_dep_install_runtime_base")
-        if not parts:
-            return ""
-
-        return self._render_inline_template(
-            _DEPENDENCY_INSTALL_BASE_CALL, 0, calls=" && ".join(parts)
-        )
-
     def _generate_system_requirements_guard(self, sys_req: dict) -> str:
         """Emit platform and root-privilege guards from _system_requirements."""
         if not sys_req:
@@ -1092,36 +1037,6 @@ _ARGPARSE_VALIDATION_INTEGER_MAX = """
 if (( {var} > {maximum} )); then
   logging__error "Invalid value for '{key}': '${{{var}}}' must be <= {maximum}."
   exit 1
-fi
-"""
-
-_DEPENDENCY_INSTALL_FN_RUN = """
-# shellcheck disable=SC2329,SC2317
-_dep_install_runtime_{group_slug}() {{
-  ospkg__run \
-    --manifest "${{_FEAT_DEPS_DIR}}/run/{group}.yaml" \
-    --skip_installed
-  return
-}}
-"""
-
-_DEPENDENCY_INSTALL_FN_BUILD = """
-# shellcheck disable=SC2329,SC2317
-_dep_install_buildtime_{group_slug}() {{
-  ospkg__run \
-    --manifest "${{_FEAT_DEPS_DIR}}/build/{group}.yaml" \
-    --skip_installed \
-    --build-group "${{_SYSSET_BUILD_CONTEXT}}::{group}"
-  return
-}}
-"""
-
-_DEPENDENCY_INSTALL_BASE_CALL = """
-# Install base dependencies.
-if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
-  {calls}
-else
-  logging__info "Skipping base dependency installation (no privilege available); ensure dependencies are pre-installed."
 fi
 """
 
