@@ -1,10 +1,10 @@
-_install__just_resolve_version() {
+resolve_input_version() {
   local _out
   _out="$(github__resolve_version "${GH_REPO}" "$VERSION")" || return 1
   _resolved_version="${_out#*$'\n'}"
 }
 
-_install__just_resolve_target() {
+resolve_input_target() {
   if [[ -n "$TARGET" && "$TARGET" != "auto" ]]; then
     _resolved_target="$TARGET"
     return 0
@@ -15,7 +15,7 @@ _install__just_resolve_target() {
   }
 }
 
-_install__just_install_release() {
+install_binary() {
   local _base _asset
   _base="https://github.com/${GH_REPO}/releases/download/${_resolved_version}"
   _asset="just-${_resolved_version}-${_resolved_target}.tar.gz"
@@ -28,11 +28,11 @@ _install__just_install_release() {
     return 1
 }
 
-_install__just_install_repos() {
+install_package() {
   _dep_install_runtime_os_pkg
 }
 
-_install__just_install_script() {
+install_script() {
   local _tmp _script _dest
   _tmp="$(file__tmpdir "install/just-script")"
   _script="${_tmp}/install.sh"
@@ -56,7 +56,7 @@ _install__just_install_script() {
   [[ -x "$_dest" ]] || return 1
 }
 
-_install__just_install_cargo() {
+install_cargo() {
   local _dest
   command -v cargo > /dev/null 2>&1 || {
     logging__error "install-just: method=cargo requires cargo in PATH."
@@ -83,7 +83,7 @@ _install__just_install_cargo() {
   [[ -x "$_dest" ]] || return 1
 }
 
-install__just() {
+install() {
   [[ "$IF_EXISTS" == "skip" || "$IF_EXISTS" == "fail" || "$IF_EXISTS" == "reinstall" ]] || return 1
 
   local _existing
@@ -106,36 +106,36 @@ install__just() {
   case "$METHOD" in
     binary)
       local _resolved_version _resolved_target
-      _install__just_resolve_version || return 1
-      _install__just_resolve_target || return 1
-      _install__just_install_release
+      resolve_input_version || return 1
+      resolve_input_target || return 1
+      install_binary
       ;;
     package)
-      _install__just_install_repos
+      install_package
       ;;
     script)
       local _resolved_version="" _resolved_target
-      _install__just_resolve_version 2> /dev/null || true
+      resolve_input_version 2> /dev/null || true
       [[ -z "$_resolved_version" ]] && _resolved_version="latest"
-      _install__just_resolve_target || return 1
-      _install__just_install_script
+      resolve_input_target || return 1
+      install_script
       ;;
     cargo)
       local _resolved_version=""
-      _install__just_resolve_version 2> /dev/null || true
+      resolve_input_version 2> /dev/null || true
       [[ -z "$_resolved_version" ]] && _resolved_version="latest"
-      _install__just_install_cargo
+      install_cargo
       ;;
     auto)
       local _resolved_version="" _resolved_target=""
-      _install__just_resolve_version 2> /dev/null || true
-      _install__just_resolve_target 2> /dev/null || true
+      resolve_input_version 2> /dev/null || true
+      resolve_input_target 2> /dev/null || true
       if [[ -n "$_resolved_version" && -n "$_resolved_target" ]]; then
-        _install__just_install_release && return 0
+        install_binary && return 0
       fi
-      _install__just_install_repos && return 0
-      _install__just_install_script && return 0
-      _install__just_install_cargo
+      install_package && return 0
+      install_script && return 0
+      install_cargo
       ;;
     *)
       logging__error "install-just: invalid method '${METHOD}'."
@@ -144,7 +144,7 @@ install__just() {
   esac
 }
 
-install__just
+install
 
 if [[ "${METHOD}" == "auto" ]]; then
   if [[ -x "${PREFIX}/bin/just" ]]; then

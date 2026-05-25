@@ -1,11 +1,11 @@
-_shfmt__resolve_version() {
+resolve_input_version() {
   local _spec="$1"
   local _out
   _out="$(github__resolve_version "${GH_REPO}" "$_spec")" || return 1
   printf '%s\n' "${_out#*$'\n'}"
 }
 
-_shfmt__install_release() {
+install_binary() {
   local _version="${1-}"
   local _os _arch _asset
   _os="$(os__release_kernel)" || {
@@ -31,7 +31,7 @@ _shfmt__install_release() {
     return 1
 }
 
-_shfmt__install_repos() {
+install_package() {
   local _repos_manifest="${1-}"
   ospkg__run --manifest "$_repos_manifest" --skip_installed || {
     logging__error "install-shfmt: package install failed."
@@ -63,21 +63,21 @@ _shfmt__handle_existing "$_shfmt_path" "$IF_EXISTS"
 
 case "$METHOD" in
   binary)
-    _resolved="$(_shfmt__resolve_version "$VERSION")" || {
+    _resolved="$(resolve_input_version "$VERSION")" || {
       logging__error "install-shfmt: could not resolve version '${VERSION}'."
       exit 1
     }
-    _shfmt__install_release "$_resolved"
+    install_binary "$_resolved"
     ;;
   package)
-    _shfmt__install_repos "${_FEAT_DIR}/dependencies/run/os-pkg.yaml"
+    install_package "${_FEAT_DIR}/dependencies/run/os-pkg.yaml"
     ;;
   auto)
-    _resolved="$(_shfmt__resolve_version "$VERSION" 2> /dev/null || true)"
-    if [[ -n "$_resolved" ]] && _shfmt__install_release "$_resolved" 2> /dev/null; then
+    _resolved="$(resolve_input_version "$VERSION" 2> /dev/null || true)"
+    if [[ -n "$_resolved" ]] && install_binary "$_resolved" 2> /dev/null; then
       METHOD=binary
     else
-      _shfmt__install_repos "${_FEAT_DIR}/dependencies/run/os-pkg.yaml"
+      install_package "${_FEAT_DIR}/dependencies/run/os-pkg.yaml"
       METHOD=package
     fi
     ;;
