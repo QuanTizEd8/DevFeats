@@ -56,7 +56,7 @@ __argparse__() {
 }
 
 # shellcheck disable=SC2329,SC2317
-_on_exit() {
+__exit__() {
   local _rc=$?
 
   if [[ $_rc -eq 0 ]]; then
@@ -119,7 +119,7 @@ export _SYSSET_BUILD_CONTEXT
 # Set up logging and exit trap.
 logging__setup
 logging__feature_entry "$_FEAT_NAME v$_FEAT_VERSION"
-trap '_on_exit' EXIT
+trap '__exit__' EXIT
 
 ${{ _script.system_requirements_guard }}$
 

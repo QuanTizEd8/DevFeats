@@ -1582,7 +1582,7 @@ ospkg__remove_user() {
 # repos → PM setup → update → install → casks → script.
 #
 # Cache cleanup is NOT performed by this function. Call ospkg__clean explicitly
-# (e.g. via the _on_exit trap) when you want to purge the package manager cache.
+# (e.g. via an exit trap) when you want to purge the package manager cache.
 #
 # Args:
 #   --manifest <f>          Path to the YAML manifest file, inline YAML/JSON (with
