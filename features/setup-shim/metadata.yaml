@@ -1,5 +1,5 @@
+name: Command Shim Setup
 version: 0.1.0
-name: Shim Setup
 description: >-
   Install lightweight command shims.
 keywords:

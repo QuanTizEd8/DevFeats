@@ -1,5 +1,5 @@
+name: Oh My Zsh Installation
 version: 0.1.0
-name: Oh My Zsh
 description: Install [Oh My Zsh](https://ohmyz.sh/) with custom themes and plugins and configure per-user Zsh.
 keywords:
 - zsh

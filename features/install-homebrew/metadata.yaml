@@ -1,5 +1,5 @@
-version: 0.1.0
 name: Homebrew Installation
+version: 0.1.0
 description: Install the [Homebrew](https://brew.sh/) package manager.
 keywords:
 - homebrew

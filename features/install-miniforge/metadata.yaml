@@ -1,5 +1,5 @@
-version: 0.1.0
 name: Miniforge Installation
+version: 0.1.0
 description: Install [Conda](https://conda.io/) and [Mamba](https://github.com/mamba-org/mamba) from [Miniforge](https://github.com/conda-forge/miniforge).
 keywords:
 - conda

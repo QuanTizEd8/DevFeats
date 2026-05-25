@@ -1,5 +1,5 @@
-version: 0.1.0
 name: Podman Installation
+version: 0.1.0
 description: Install the [Podman](https://podman.io/) container engine for rootless container execution.
 _long_description: >-
   [Podman](https://podman.io/) is a daemonless, rootless container engine implementing

@@ -1,5 +1,5 @@
+name: Oh My Bash Installation
 version: 0.1.0
-name: Oh My Bash
 description: Install [Oh My Bash](https://ohmybash.nntoan.com/) with custom themes and plugins and configure per-user Bash.
 keywords:
 - bash
