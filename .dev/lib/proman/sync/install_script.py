@@ -331,38 +331,48 @@ class InstallScriptGenerator:
         return "\n".join(blocks + dynamic_blocks)
 
     def _generate_argparse_validations(self, options: dict) -> str:
-        """Emit required-argument checks and enum validation.
+        """Emit enum and boolean validation blocks.
 
         Returns '' if neither applies.
         """
         indent = 2
-        enum_opts = [(k, v) for k, v in options.items() if v.get("enum")]
-
         validations: list[str] = []
-        for key, opt in enum_opts:
+        for key, opt in options.items():
             vname = _opt_to_var(key)
             typ = opt.get("type", "string")
-            values = [
-                item["value"] if isinstance(item, dict) else str(item)
-                for item in opt["enum"]
-            ]
-            expected = ", ".join(repr(v) if v == "" else v for v in values)
-            pattern = " | ".join("''" if v == "" else v for v in values)
-            tpl = (
-                _ARGPARSE_VALIDATION_ENUM_ARRAY
-                if typ == "array"
-                else _ARGPARSE_VALIDATION_ENUM_SCALAR
-            )
-            validations.append(
-                self._render_inline_template(
-                    tpl,
-                    indent,
-                    var=vname,
-                    key=key,
-                    pattern=pattern,
-                    expected=expected,
-                ),
-            )
+            if typ == "boolean":
+                validations.append(
+                    self._render_inline_template(
+                        _ARGPARSE_VALIDATION_ENUM_SCALAR,
+                        indent,
+                        var=vname,
+                        key=key,
+                        pattern="true | false",
+                        expected="true, false",
+                    ),
+                )
+            elif opt.get("enum"):
+                values = [
+                    item["value"] if isinstance(item, dict) else str(item)
+                    for item in opt["enum"]
+                ]
+                expected = ", ".join(repr(v) if v == "" else v for v in values)
+                pattern = " | ".join("''" if v == "" else v for v in values)
+                tpl = (
+                    _ARGPARSE_VALIDATION_ENUM_ARRAY
+                    if typ == "array"
+                    else _ARGPARSE_VALIDATION_ENUM_SCALAR
+                )
+                validations.append(
+                    self._render_inline_template(
+                        tpl,
+                        indent,
+                        var=vname,
+                        key=key,
+                        pattern=pattern,
+                        expected=expected,
+                    ),
+                )
         return "\n".join(validations)
 
     def _generate_argparse_unexports(self, options: dict) -> str:
