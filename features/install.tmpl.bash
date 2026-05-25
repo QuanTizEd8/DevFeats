@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-__usage__() {
+__print_docs__() {
   cat << 'EOF'
 ${{ name }}$ v${{ version }}$
 
@@ -13,7 +13,38 @@ EOF
   return
 }
 
-__argparse__() {
+# Set internal environment variables.
+__setup_env__() {
+  # Path to the feature's root directory.
+  _FEAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  _FEAT_ID="${{ id }}$"
+  _FEAT_VERSION="${{ version }}$"
+  _FEAT_NAME="${{ name }}$"
+  _FEAT_FILES_DIR="${_FEAT_DIR}/files"
+  _FEAT_DEPS_DIR="${_FEAT_DIR}/dependencies"
+  ${{ _script.env_var_assignments }}$
+
+  _SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::$_FEAT_ID}"
+  export _SYSSET_BUILD_CONTEXT
+}
+
+__import_lib__() {
+  # shellcheck source=lib/__init__.bash
+  . "$_FEAT_DIR/lib/__init__.bash"
+}
+
+# Set up logging and exit trap.
+__setup_script__() {
+  logging__setup
+  logging__feature_entry "$_FEAT_NAME v$_FEAT_VERSION"
+  trap '__exit__' EXIT
+}
+
+__verify_system_requirements__() {
+  ${{ _script.system_requirements_guard }}$
+}
+
+__parse_args__() {
   if [ "$#" -gt 0 ]; then
     logging__info "Script called with arguments: $*"
 
@@ -23,7 +54,7 @@ __argparse__() {
       case $1 in
         ${{ _script.argparse.case_arms }}$
         -h | --help)
-          __usage__
+          __print_docs__
           exit 0
           ;;
         --*)
@@ -99,32 +130,11 @@ ${{ _script.dependency_install_functions }}$
 ${{ _script.prefix_resolver_functions }}$
 
 
-# Path to the feature's root directory.
-_FEAT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-# shellcheck source=lib/__init__.bash
-. "$_FEAT_DIR/lib/__init__.bash"
-
-_FEAT_ID="${{ id }}$"
-_FEAT_VERSION="${{ version }}$"
-_FEAT_NAME="${{ name }}$"
-_FEAT_FILES_DIR="${_FEAT_DIR}/files"
-_FEAT_DEPS_DIR="${_FEAT_DIR}/dependencies"
-
-${{ _script.env_var_assignments }}$
-
-_SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::$_FEAT_ID}"
-export _SYSSET_BUILD_CONTEXT
-
-# Set up logging and exit trap.
-logging__setup
-logging__feature_entry "$_FEAT_NAME v$_FEAT_VERSION"
-trap '__exit__' EXIT
-
-${{ _script.system_requirements_guard }}$
-
-# Parse and validate input options and set environment variables.
-__argparse__ "$@"
+__setup_env__
+__import_lib__
+__setup_script__
+__verify_system_requirements__
+__parse_args__ "$@"
 
 ${{ _script.dependency_install_calls }}$
 

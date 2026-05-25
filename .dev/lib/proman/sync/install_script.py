@@ -693,7 +693,7 @@ class InstallScriptGenerator:
     def _generate_system_requirements_guard(self, sys_req: dict) -> str:
         """Emit platform and root-privilege guards from _system_requirements."""
         if not sys_req:
-            return ""
+            return "return 0  # No system requirements."
 
         platforms: list[dict] | None = sys_req.get("platforms")
         root = sys_req.get("root", False)
