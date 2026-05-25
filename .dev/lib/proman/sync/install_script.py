@@ -91,9 +91,7 @@ class InstallScriptGenerator:
         script_parts: dict[str, object] = {
             "usage_options": self._generate_usage_options(options),
             "argparse": self._generate_argparse(options),
-            "env_var_assignments": self._generate_env_var_assignments(
-                metadata.get("_env_vars", {})
-            ),
+            "env_vars": self._generate_env_vars(metadata.get("_env_vars", {})),
             "dependency_install_functions": self._generate_dependency_install_functions(
                 run_deps, build_deps
             ),
@@ -125,7 +123,7 @@ class InstallScriptGenerator:
         return script
 
     @staticmethod
-    def _generate_env_var_assignments(env_vars: dict) -> str:
+    def _generate_env_vars(env_vars: dict) -> dict[str, str]:
         """Emit one ``_KEY="value"`` line per entry in metadata ``_env_vars``.
 
         Each snake_case key ``foo_bar`` becomes bash variable ``_FOO_BAR``.
@@ -133,9 +131,10 @@ class InstallScriptGenerator:
         work at runtime.
         """
         if not isinstance(env_vars, dict) or not env_vars:
-            return ""
+            return {"assignments": "", "unexports": ""}
 
         lines: list[str] = []
+        var_names: list[str] = []
         for key in sorted(env_vars):
             value = env_vars[key]
             if not isinstance(value, str):
@@ -147,7 +146,12 @@ class InstallScriptGenerator:
             var_name = f"_{key.upper()}"
             escaped = value.replace("\\", "\\\\").replace('"', '\\"')
             lines.append(f'{var_name}="{escaped}"')
-        return "\n".join(lines)
+            var_names.append(var_name)
+        out = {
+            "assignments": "\n".join(lines),
+            "unexports": " ".join(var_names),
+        }
+        return out
 
     def _generate_usage_options(self, options: dict) -> str:
         """Emit the __usage__() shell function."""
