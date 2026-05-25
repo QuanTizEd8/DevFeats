@@ -331,9 +331,9 @@ class InstallScriptGenerator:
         return "\n".join(blocks + dynamic_blocks)
 
     def _generate_argparse_validations(self, options: dict) -> str:
-        """Emit enum and boolean validation blocks.
+        """Emit boolean, integer, enum, and path validation blocks.
 
-        Returns '' if neither applies.
+        Returns '' if none apply.
         """
         indent = 2
         validations: list[str] = []
@@ -404,6 +404,20 @@ class InstallScriptGenerator:
                         expected=expected,
                     ),
                 )
+            path_spec = opt.get("_path")
+            if path_spec is not None and typ != "array":
+                ops = [path_spec] if isinstance(path_spec, str) else path_spec
+                for op in ops:
+                    validations.append(
+                        self._render_inline_template(
+                            _ARGPARSE_VALIDATION_PATH,
+                            indent,
+                            var=vname,
+                            key=key,
+                            test=_negate_path_test(op),
+                            op=op,
+                        ),
+                    )
         return "\n".join(validations)
 
     def _generate_argparse_unexports(self, options: dict) -> str:
@@ -856,6 +870,14 @@ def _make_resolution_block(
     return "\n".join(parts)
 
 
+def _negate_path_test(op: str) -> str:
+    """Return the bash test expression that is true when path test `op` FAILS."""
+    op = op.strip()
+    if op.startswith("! "):
+        return op[2:]
+    return f"! {op}"
+
+
 def _make_match_spec_check(specs: list[dict]) -> str:
     """Build a shell expression returning true if any MatchSpec matches (OR logic)."""
     checks = [
@@ -1039,6 +1061,13 @@ case "${{{var}}}" in
     exit 1
     ;;
 esac
+"""
+
+_ARGPARSE_VALIDATION_PATH = """
+if [ -n "${{{var}}}" ] && [ {test} "${{{var}}}" ]; then
+  logging__error "Invalid value for '{key}': '${{{var}}}' failed path test '{op}'."
+  exit 1
+fi
 """
 
 _ARGPARSE_VALIDATION_INTEGER = """

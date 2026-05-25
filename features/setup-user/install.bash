@@ -1,8 +1,3 @@
-if [ ! -x "$USER_SHELL" ]; then
-  logging__error "Shell '${USER_SHELL}' does not exist or is not executable on this image."
-  exit 1
-fi
-
 # ---------------------------------------------------------------------------
 # Resolve conflicts for the primary group
 # ---------------------------------------------------------------------------

@@ -47,6 +47,7 @@ options:
     default: /bin/bash
     description: Login shell for the user. The path must exist and be executable on the image.
     type: string
+    _path: [-x]
   sudo_access:
     default: true
     description: Grant the user passwordless `sudo` access. Installs `sudo` if not already present.

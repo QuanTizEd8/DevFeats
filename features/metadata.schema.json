@@ -528,6 +528,13 @@
         },
         "_apply_when": {
           "type": "boolean"
+        },
+        "_path": {
+          "description": "Bash file-test(s) the option value must satisfy. A single operator string or an array of operators; each is checked independently. Standard operators: '-e' (exists), '-f' (regular file), '-d' (directory), '-r' (readable), '-w' (writable), '-x' (executable). Prefix with '! ' to invert. Validation is skipped when the value is empty.",
+          "oneOf": [
+            {"type": "string"},
+            {"type": "array", "items": {"type": "string"}, "minItems": 1}
+          ]
         }
       },
       "required": [
