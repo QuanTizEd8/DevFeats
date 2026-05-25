@@ -106,7 +106,9 @@ class InstallScriptGenerator:
             "prefix_post_install_body": self._generate_prefix_post_install_body(
                 prefix_groups, feature_id
             ),
-            "prefix_resolver_calls": self._generate_prefix_resolver_calls(prefix_groups),
+            "prefix_resolver_calls": self._generate_prefix_resolver_calls(
+                prefix_groups
+            ),
             "system_requirements_guard": self._generate_system_requirements_guard(
                 metadata.get("_system_requirements", {})
             ),
@@ -257,6 +259,7 @@ class InstallScriptGenerator:
     def _generate_argparse_defaults(self, options: dict) -> str:
         """Emit the '# Apply defaults.' block."""
         blocks = []
+        dynamic_blocks = []
         indent = 2
         for key, opt in options.items():
             vname = _opt_to_var(key)
@@ -313,8 +316,19 @@ class InstallScriptGenerator:
                         disp=disp,
                     ),
                 )
+                dynamic_default = opt.get("_default")
+                if dynamic_default is not None:
+                    dynamic_blocks.append(
+                        self._render_inline_template(
+                            _ARGPARSE_DEFAULT_DYNAMIC,
+                            indent,
+                            var=vname,
+                            rhs=f'"{dynamic_default}"',
+                            key=key,
+                        ),
+                    )
 
-        return "\n".join(blocks)
+        return "\n".join(blocks + dynamic_blocks)
 
     def _generate_argparse_validations(self, options: dict) -> str:
         """Emit required-argument checks and enum validation.
@@ -815,8 +829,7 @@ def _make_match_spec_check(specs: list[dict]) -> str:
 def _match_specs_desc(specs: list[dict]) -> str:
     """Human-readable description of a list of MatchSpecs."""
     parts = [
-        "(" + ", ".join(f"{k}={v}" for k, v in spec.items()) + ")"
-        for spec in specs
+        "(" + ", ".join(f"{k}={v}" for k, v in spec.items()) + ")" for spec in specs
     ]
     return " OR ".join(parts)
 
@@ -950,8 +963,11 @@ _ARGPARSE_DEFAULT_SCALAR = """
 }}
 """
 
-_ARGPARSE_DEFAULT_INSTALLER_DIR = """
-[ -z "${{INSTALLER_DIR:-}}" ] && INSTALLER_DIR="$(file__mktmpdir "$_FEAT_ID")"
+_ARGPARSE_DEFAULT_DYNAMIC = """
+[ -n "${{{var}}}" ] || {{
+  {var}={rhs}
+  logging__info "Argument '{key}' dynamic default resolved to '${{{var}}}'."
+}}
 """
 
 _ARGPARSE_VALIDATION_ENUM_ARRAY = """

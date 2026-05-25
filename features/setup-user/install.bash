@@ -13,10 +13,6 @@ if [ ! -x "$USER_SHELL" ]; then
   exit 1
 fi
 
-# Values derived from USERNAME
-[ -z "$GROUP_NAME" ] && GROUP_NAME="$USERNAME"
-[ -z "$HOME_DIR" ] && HOME_DIR="/home/${USERNAME}"
-
 # ---------------------------------------------------------------------------
 # Resolve conflicts for the primary group
 # ---------------------------------------------------------------------------

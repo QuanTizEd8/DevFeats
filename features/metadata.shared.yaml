@@ -173,6 +173,7 @@ options:
       #{{ return get("_options.installer_dir", True) }}#
     type: string
     default: ''
+    _default: $(file__mktmpdir "$_FEAT_ID")
     description: >-
       Working directory for download and archive extraction.
       When empty (default), a private temporary directory is used and removed automatically on exit.

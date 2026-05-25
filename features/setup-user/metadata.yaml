@@ -33,10 +33,12 @@ options:
     type: string
   group_name:
     default: ''
+    _default: $USERNAME
     description: Name for the user's primary group. Defaults to `username` when left empty.
     type: string
   home_dir:
     default: ''
+    _default: /home/$USERNAME
     description: Home directory for the user. Defaults to `/home/<username>` when left empty.
     type: string
   user_shell:

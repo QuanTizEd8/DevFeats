@@ -473,6 +473,10 @@
             "string"
           ]
         },
+        "_default": {
+          "description": "Internal-use-only default value for when the user-facing default must be dynamic (i.e. `default: ''`). The generator will use this value instead of `default` when generating the installation script.",
+          "type": "string"
+        },
         "enum": {
           "description": "Allowed values for this option. Unlike 'proposals', the user cannot provide a custom value not included in the 'enum' array.",
           "type": "array",
