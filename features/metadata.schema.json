@@ -108,43 +108,26 @@
         "description": "The human-friendly name of the underlying tool or project that this Feature installs, used for display purposes in documentation and supporting tools.",
         "type": "string"
     },
-    "_unsupported_platforms": {
-      "description": "List of platforms where this Feature cannot be installed.",
-      "type": "array",
-      "items": {
-        "description": "A platform entry declaring where this Feature cannot be installed. Must specify `reason` plus at least one platform discriminator (`arch`, `kernel`, `id`, `id_like`, or `version_id`).",
-        "type": "object",
-        "additionalProperties": false,
-        "minProperties": 2,
-        "properties": {
-          "arch": {
-            "type": "string",
-            "description": "CPU architecture from uname -m: x86_64, aarch64, armv7l, i686, etc."
-          },
-          "kernel": {
-            "type": "string",
-            "description": "OS kernel: linux, darwin."
-          },
-          "id": {
-            "type": "string",
-            "description": "OS ID from /etc/os-release (or 'macos' on macOS): ubuntu, debian, alpine, fedora, arch, rhel, opensuse-leap, macos, etc."
-          },
-          "id_like": {
-            "type": "string",
-            "description": "OS ID_LIKE from /etc/os-release (or 'macos' on macOS): debian, rhel, arch, suse, etc."
-          },
-          "version_id": {
-            "type": "string",
-            "description": "OS VERSION_ID from /etc/os-release: 22.04, 39, 3.19, 15.6, etc."
-          },
-          "reason": {
-            "description": "Reason why the platform is unsupported, for display in supporting tools.",
-            "type": "string"
+    "_system_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "platforms": {
+          "description": "List of supported platforms. If omitted, the Feature is assumed to support all platforms. Otherwise, every platform not matching at least one entry in this list is considered unsupported.",
+          "type": "array",
+          "items": {
+            "description": "A platform match specification.",
+            "$ref": "#/$defs/MatchSpec"
           }
         },
-        "required": [
-          "reason"
-        ]
+        "root": {
+          "description": "Whether the Feature requires root permissions to install. This can be either a boolean value (unconditional) or a list of platform match specifications that determine when root is required.",
+          "default": false,
+          "oneOf": [
+            {"type": "boolean"},
+            {"type": "array", "items": {"$ref": "#/$defs/MatchSpec"}}
+          ]
+        }
       }
     },
     "_long_description": {
@@ -737,6 +720,33 @@
           }
         }
       }
-    }
+    },
+    "MatchSpec": {
+        "description": "A platform specification for matching against the target system at runtime. A spec is a match when ALL variables match the target system (AND logic). Supports all variables from `/etc/os-release` (e.g., `NAME`, `VERSION_ID`, `VERSION`, `VERSION_CODENAME`, `ID`, `ID_LIKE`, etc.) plus `ARCH` (`uname -m`), `KERNEL` ('darwin', 'linux'), and `PM` ('apt', 'apk, 'dnf', 'pacman', 'zypper', 'brew', 'yum').",
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "arch": {
+            "type": "string",
+            "description": "CPU architecture from `uname -m`: x86_64, aarch64, armv7l, i686, etc."
+          },
+          "kernel": {
+            "type": "string",
+            "description": "OS kernel: linux, darwin."
+          },
+          "id": {
+            "type": "string",
+            "description": "OS ID from `/etc/os-release` (or 'macos' on macOS): ubuntu, debian, alpine, fedora, arch, rhel, opensuse-leap, macos, etc."
+          },
+          "id_like": {
+            "type": "string",
+            "description": "OS ID_LIKE from `/etc/os-release` (or 'macos' on macOS): debian, rhel, arch, suse, etc."
+          },
+          "version_id": {
+            "type": "string",
+            "description": "OS VERSION_ID from `/etc/os-release`: 22.04, 39, 3.19, 15.6, etc."
+          }
+        }
+      }
   }
 }

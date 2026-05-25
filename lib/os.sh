@@ -248,15 +248,6 @@ os__rust_triple() {
   esac
 }
 
-# @brief os__require_root — Exit 1 with an error message if the current user is not root.
-os__require_root() {
-  if ! users__is_root; then
-    logging__error 'This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.'
-    exit 1
-  fi
-  return 0
-}
-
 # @brief os__font_dir — Print the platform-appropriate font directory for the current installation scope.
 #
 # Stdout: `/usr/share/fonts` (root/system), `~/Library/Fonts` (macOS non-root), or `${XDG_DATA_HOME:-~/.local/share}/fonts` (Linux non-root).

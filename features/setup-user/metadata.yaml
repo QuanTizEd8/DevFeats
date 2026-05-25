@@ -14,6 +14,10 @@ _long_description: >-
   Passwordless sudo access and supplementary group membership can be granted.
 _options:
   installer_dir: false
+_system_requirements:
+  platforms:
+    - kernel: linux
+  root: true
 options:
   username:
     default: vscode

@@ -124,6 +124,8 @@ logging__setup
 logging__feature_entry "$_FEAT_NAME v$_FEAT_VERSION"
 trap '_on_exit' EXIT
 
+${{ _script.system_requirements_guard }}$
+
 # Parse and validate input options and set environment variables.
 __argparse__ "$@"
 

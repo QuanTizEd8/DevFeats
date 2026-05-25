@@ -107,6 +107,9 @@ class InstallScriptGenerator:
                 prefix_groups, feature_id
             ),
             "prefix_resolver_calls": self._generate_prefix_resolver_calls(prefix_groups),
+            "system_requirements_guard": self._generate_system_requirements_guard(
+                metadata.get("_system_requirements", {})
+            ),
         }
         template_data = metadata | {"_script": script_parts}
         try:
@@ -618,6 +621,44 @@ class InstallScriptGenerator:
             _DEPENDENCY_INSTALL_BASE_CALL, 0, calls=" && ".join(parts)
         )
 
+    def _generate_system_requirements_guard(self, sys_req: dict) -> str:
+        """Emit platform and root-privilege guards from _system_requirements."""
+        if not sys_req:
+            return ""
+
+        platforms: list[dict] | None = sys_req.get("platforms")
+        root = sys_req.get("root", False)
+
+        blocks: list[str] = []
+
+        if platforms:
+            platform_check = _make_match_spec_check(platforms)
+            platforms_desc = _match_specs_desc(platforms)
+            blocks.append(
+                self._render_inline_template(
+                    _TMPL_SYS_REQ_PLATFORM_GUARD,
+                    0,
+                    platform_check=platform_check,
+                    platforms_desc=platforms_desc,
+                )
+            )
+
+        if root is True:
+            blocks.append(
+                self._render_inline_template(_TMPL_SYS_REQ_ROOT_GUARD_UNCONDITIONAL, 0)
+            )
+        elif isinstance(root, list) and root:
+            platform_check = _make_match_spec_check(root)
+            blocks.append(
+                self._render_inline_template(
+                    _TMPL_SYS_REQ_ROOT_GUARD_CONDITIONAL,
+                    0,
+                    platform_check=platform_check,
+                )
+            )
+
+        return "\n\n".join(blocks)
+
     def _shfmt_format(self, text: str) -> str:
         """Format a bash script fragment through shfmt, respecting .editorconfig.
 
@@ -758,6 +799,26 @@ def _make_resolution_block(
         )
     )
     return "\n".join(parts)
+
+
+def _make_match_spec_check(specs: list[dict]) -> str:
+    """Build a shell expression returning true if any MatchSpec matches (OR logic)."""
+    checks = [
+        "os__match_spec " + " ".join(f"{k}={v}" for k, v in spec.items())
+        for spec in specs
+    ]
+    if len(checks) == 1:
+        return checks[0]
+    return "{ " + " || ".join(checks) + "; }"
+
+
+def _match_specs_desc(specs: list[dict]) -> str:
+    """Human-readable description of a list of MatchSpecs."""
+    parts = [
+        "(" + ", ".join(f"{k}={v}" for k, v in spec.items()) + ")"
+        for spec in specs
+    ]
+    return " OR ".join(parts)
 
 
 def _first_sentence(text: str) -> str:
@@ -1035,3 +1096,24 @@ shell__write_activation_snippets \
   "${{{activations_var}[@]}}"
 unset _act_home_arg
 """
+
+_TMPL_SYS_REQ_PLATFORM_GUARD = """
+# -- system requirements: platform --
+if ! {platform_check}; then
+  logging__fatal "Unsupported platform. This feature requires: {platforms_desc}"
+  exit 1
+fi"""
+
+_TMPL_SYS_REQ_ROOT_GUARD_UNCONDITIONAL = """
+# -- system requirements: root --
+if ! users__is_privileged; then
+  logging__fatal "This feature must be run as root (or with passwordless sudo)."
+  exit 1
+fi"""
+
+_TMPL_SYS_REQ_ROOT_GUARD_CONDITIONAL = """
+# -- system requirements: root (conditional) --
+if {platform_check} && ! users__is_privileged; then
+  logging__fatal "This feature must be run as root (or with passwordless sudo) on the current platform."
+  exit 1
+fi"""

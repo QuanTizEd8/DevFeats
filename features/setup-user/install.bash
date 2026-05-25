@@ -1,5 +1,3 @@
-os__require_root
-
 if [[ ! "$USER_ID" =~ ^[0-9]+$ ]]; then
   logging__error "user_id must be a non-negative integer, got: '${USER_ID}'"
   exit 1

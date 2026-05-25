@@ -296,27 +296,6 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# os__require_root
-# ---------------------------------------------------------------------------
-
-@test "os__require_root succeeds when id -u returns 0" {
-  reload_lib os.sh
-  create_fake_bin "id" "0"
-  prepend_fake_bin_path
-  run os__require_root
-  assert_success
-}
-
-@test "os__require_root fails with message when id -u returns non-zero" {
-  reload_lib os.sh
-  create_fake_bin "id" "1001"
-  prepend_fake_bin_path
-  run os__require_root
-  assert_failure
-  assert_output --partial "must be run as root"
-}
-
-# ---------------------------------------------------------------------------
 # os__font_dir
 # ---------------------------------------------------------------------------
 

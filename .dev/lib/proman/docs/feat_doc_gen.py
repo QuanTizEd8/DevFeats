@@ -63,12 +63,9 @@ def _generate_spec_summary(metadata: dict[str, Any]) -> str:
         f":**Feature ID**: `{feat_id}`\n"
         f":**OCI Reference**: `{ghcr}`"
     )
-    if "_unsupported_platforms" in metadata:
-        badges = [
-            f"{{bdg-danger}}`{plat}`" for plat in metadata["_unsupported_platforms"]
-        ]
-        badges_str = " ".join(badges)
-        summary += f"\n:**Unsupported Platforms**: {badges_str}"
+    sys_req = metadata.get("_system_requirements", {})
+    if sys_req:
+        summary += _render_system_requirements(sys_req)
     return summary
 
 
@@ -250,6 +247,29 @@ def _generate_installs_after(metadata: dict) -> str:
 
 
 # ── helpers ──────────────────────────────────────────────────────────
+
+
+def _render_system_requirements(sys_req: dict) -> str:
+    lines = []
+    platforms: list[dict] | None = sys_req.get("platforms")
+    if platforms:
+        badges = " ".join(
+            f"{{bdg-success}}`{_render_match_spec_str(spec)}`" for spec in platforms
+        )
+        lines.append(f"\n:**Supported Platforms**: {badges}")
+    root = sys_req.get("root", False)
+    if root is True:
+        lines.append("\n:**Requires Root**: Yes")
+    elif isinstance(root, list) and root:
+        badges = " ".join(
+            f"{{bdg-warning}}`{_render_match_spec_str(spec)}`" for spec in root
+        )
+        lines.append(f"\n:**Requires Root On**: {badges}")
+    return "".join(lines)
+
+
+def _render_match_spec_str(spec: dict) -> str:
+    return " ".join(f"{k}={v}" for k, v in spec.items())
 
 
 def _render_option_condition(condition: dict) -> str:
