@@ -79,10 +79,7 @@ options:
       description: Do not copy `p10k.zsh`.
     type: string
 _options:
-  gh_repo:
-    ohmyzsh:
-      tool_name: Oh My Zsh
-      slug: ohmyzsh/ohmyzsh
+  gh_repo: ohmyzsh/ohmyzsh
 installsAfter:
   - ghcr.io/quantized8/devfeats/install-shell
 _dependencies:

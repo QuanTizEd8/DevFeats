@@ -72,10 +72,7 @@ options:
       description: Do not create any symlinks in the per-user custom directory.
     type: string
 _options:
-  gh_repo:
-    ohmybash:
-      tool_name: Oh My Bash
-      slug: ohmybash/oh-my-bash
+  gh_repo: ohmybash/oh-my-bash
 installsAfter:
   - ghcr.io/quantized8/devfeats/install-shell
 _dependencies:

@@ -25,10 +25,7 @@ options:
       [Open Build Service repository](https://software.opensuse.org/download.html?project=shells%3Azsh-users%3Azsh-completions&package=zsh-completions),
       which is not the same as default `apt` archives; this feature does not add that repo.
 _options:
-  gh_repo:
-    zsh_completions:
-      tool_name: zsh-completions
-      slug: zsh-users/zsh-completions
+  gh_repo: zsh-users/zsh-completions
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-shell
 _dependencies:
