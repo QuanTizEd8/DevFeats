@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import proman.config as cfg
 import pytest
 import yaml
-import proman.config as cfg
 from proman.metadata import MetadataLoader
 
 _MINIMAL_SHARED = """\

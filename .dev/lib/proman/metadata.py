@@ -22,7 +22,6 @@ class MetadataLoader:
             self._config.absolute_path("path.shared_metadata")
         )
         self._schema_validator = get_validator()
-        return
 
     def load(self, *feat_ids) -> dict[str, dict]:
         """Load and augment metadata for all features found in *features_dirpath*.
@@ -194,7 +193,6 @@ class MetadataLoader:
                 full_key = f"{key_prefix}{entry_id}"
                 new_block[full_key] = entry
             metadata[lifecycle_key] = new_block
-        return
 
 
 def _schema_error_path(err) -> str:

@@ -25,7 +25,6 @@ class Config:
         config = pyserials.NestedDict(config_dict)
         config.fill()
         self._config = config
-        return
 
     @property
     def root_path(self) -> Path:

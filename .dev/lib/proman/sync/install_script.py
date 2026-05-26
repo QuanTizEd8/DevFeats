@@ -43,7 +43,6 @@ class InstallScriptGenerator:
             "path.install_script_template"
         ).read_text()
         self._repo_dirpath = self._config.root_path
-        return
 
     def generate(self, metadata: dict) -> dict[Path, str]:
         """Generate the full install.bash content for a feature.

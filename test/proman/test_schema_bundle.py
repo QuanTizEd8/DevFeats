@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from proman.schema_bundle import (
     build_materialized_schemas_for_website,
     get_validator,

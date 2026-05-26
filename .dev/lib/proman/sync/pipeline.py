@@ -9,8 +9,8 @@ from pathlib import Path
 
 import yaml
 
-from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.config import load as load_config
+from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.helpers import log
 from proman.metadata import MetadataLoader
 from proman.sync.file_sync import SyncStatus, remove_file, sync_file
@@ -120,7 +120,6 @@ def sanitize_markdown(metadata: dict) -> None:
     if "options" in metadata:
         for option in metadata["options"].values():
             option["description"] = markdown.sanitize(option["description"])
-    return
 
 
 # ── Output generation ─────────────────────────────────────────────────────────
