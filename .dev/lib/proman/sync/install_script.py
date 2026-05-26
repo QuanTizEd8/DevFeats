@@ -355,7 +355,7 @@ class InstallScriptGenerator:
         return "\n".join(validations)
 
     def _generate_argparse_unexports(self, options: dict) -> str:
-        """Emit the 'declare +x' unexport line for all scalar option variables."""
+        """Emit the 'declare -g +x' unexport line for all scalar option variables."""
         scalar_vars = [
             _opt_to_var(k)
             for k, v in options.items()

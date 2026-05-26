@@ -29,7 +29,7 @@ __setup_env__() {
 
   # Unexport variables — values remain accessible in this script,
   # but are not inherited by child processes.
-  declare +x _FEAT_DIR _FEAT_ID _FEAT_VERSION _FEAT_NAME _FEAT_FILES_DIR _FEAT_DEPS_DIR ${{ _script.env_vars.unexports }}$
+  declare -g +x _FEAT_DIR _FEAT_ID _FEAT_VERSION _FEAT_NAME _FEAT_FILES_DIR _FEAT_DEPS_DIR ${{ _script.env_vars.unexports }}$
 
   _SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::$_FEAT_ID}"
   export _SYSSET_BUILD_CONTEXT
@@ -90,7 +90,7 @@ __parse_args__() {
 
   # Unexport option variables — values remain accessible in this script,
   # but are not inherited by child processes.
-  declare +x ${{ _script.argparse.unexports }}$
+  declare -g +x ${{ _script.argparse.unexports }}$
 }
 
 # shellcheck disable=SC2329,SC2317
