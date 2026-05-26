@@ -102,7 +102,7 @@ setup() {
   run --separate-stderr argparse__validate_enum_array MY_ARR alpha beta gamma
   assert_failure
   [[ "${stderr}" =~ "bad" ]]
-  [[ "${stderr}" =~ "MY_ARR" ]]
+  [[ "${stderr}" =~ "my_arr" ]]
 }
 
 @test "argparse__validate_enum_array: reports first invalid element" {
@@ -247,6 +247,46 @@ setup() {
   assert_failure
 }
 
+@test "argparse__validate_path: rejects http URI as not-a-path" {
+  export MY_VAR="https://example.com/env.yml"
+  run argparse__validate_path MY_VAR -f
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# argparse__validate_path_array
+# ---------------------------------------------------------------------------
+
+@test "argparse__validate_path_array: accepts existing directories" {
+  MY_ARR=("$BATS_TEST_TMPDIR")
+  run argparse__validate_path_array MY_ARR -d
+  assert_success
+}
+
+@test "argparse__validate_path_array: rejects missing directory" {
+  MY_ARR=("/no/such/directory")
+  run --separate-stderr argparse__validate_path_array MY_ARR -d
+  assert_failure
+  [[ "${stderr}" =~ "my_arr" ]]
+}
+
+@test "argparse__validate_path_array: rejects remote URI elements" {
+  MY_ARR=("https://example.com/env.yml")
+  run argparse__validate_path_array MY_ARR -f
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# argparse__split_lines
+# ---------------------------------------------------------------------------
+
+@test "argparse__split_lines: trims and drops blank lines" {
+  unset MY_ARR
+  argparse__split_lines MY_ARR $'/tmp/test-envs\n    \n'
+  assert [ "${#MY_ARR[@]}" -eq 1 ]
+  assert [ "${MY_ARR[0]}" = "/tmp/test-envs" ]
+}
+
 # ---------------------------------------------------------------------------
 # argparse__default
 # ---------------------------------------------------------------------------
@@ -326,4 +366,86 @@ setup() {
   assert [ "${#MY_ARR[@]}" -eq 2 ]
   assert [ "${MY_ARR[0]}" = "a" ]
   assert [ "${MY_ARR[1]}" = "b" ]
+}
+
+@test "argparse__default_array_value: skips whitespace-only lines" {
+  unset MY_ARR
+  argparse__default_array_value MY_ARR $'/tmp/test-envs\n    \n'
+  assert [ "${#MY_ARR[@]}" -eq 1 ]
+  assert [ "${MY_ARR[0]}" = "/tmp/test-envs" ]
+}
+
+@test "argparse__normalize_array: trims and drops whitespace-only elements" {
+  MY_ARR=("  /tmp/a  " "    " "/tmp/b")
+  argparse__normalize_array MY_ARR
+  assert [ "${#MY_ARR[@]}" -eq 2 ]
+  assert [ "${MY_ARR[0]}" = "/tmp/a" ]
+  assert [ "${MY_ARR[1]}" = "/tmp/b" ]
+}
+
+# ---------------------------------------------------------------------------
+# argparse__resolve_uri_options
+# ---------------------------------------------------------------------------
+
+@test "argparse__resolve_uri_options: scalar remote URI materializes and chmod applies" {
+  _uri__net_fetch() { printf '#!/bin/sh\necho ok\n' > "$2"; }
+  export -f _uri__net_fetch
+
+  unset INSTALLER_DIR
+  export _FEAT_ID="tfeat"
+  export SCRIPT="http://stub.example/x.sh"
+
+  argparse__resolve_uri_options $'script\tSCRIPT\tstring\t+x'
+  [[ -f "$SCRIPT" ]]
+  [[ -x "$SCRIPT" ]]
+}
+
+@test "argparse__resolve_uri_options: array remote URIs resolve to local paths" {
+  _uri__net_fetch() { printf 'data\n' > "$2"; }
+  export -f _uri__net_fetch
+
+  unset INSTALLER_DIR
+  export _FEAT_ID="tfeat"
+  MY_ARR=("http://stub.example/a" "http://stub.example/b")
+
+  argparse__resolve_uri_options $'arr\tMY_ARR\tarray\t'
+  [[ -f "${MY_ARR[0]}" ]] || { echo "missing file: ${MY_ARR[0]}"; return 1; }
+  [[ -f "${MY_ARR[1]}" ]] || { echo "missing file: ${MY_ARR[1]}"; return 1; }
+}
+
+@test "argparse__resolve_uri_options: uses INSTALLER_DIR when set" {
+  _uri__net_fetch() { printf 'data\n' > "$2"; }
+  export -f _uri__net_fetch
+
+  export _FEAT_ID="tfeat"
+  INSTALLER_DIR="${BATS_TEST_TMPDIR}/idir"
+  export INSTALLER_DIR
+  export ONE="http://stub.example/one"
+
+  argparse__resolve_uri_options $'one\tONE\tstring\t'
+  [[ "$ONE" == "${INSTALLER_DIR}/uri/one/"* ]] || { echo "ONE=$ONE"; return 1; }
+  [[ -f "$ONE" ]]
+}
+
+@test "argparse__resolve_uri_options: multi-record spec resolves all entries" {
+  _uri__net_fetch() {
+    case "$1" in
+      *"/a") printf 'a\n' > "$2" ;;
+      *"/b") printf 'b\n' > "$2" ;;
+      *"/s.sh") printf '#!/bin/sh\necho ok\n' > "$2" ;;
+      *) printf 'x\n' > "$2" ;;
+    esac
+  }
+  export -f _uri__net_fetch
+
+  unset INSTALLER_DIR
+  export _FEAT_ID="tfeat"
+  MY_ARR=("http://stub.example/a" "http://stub.example/b")
+  export SCRIPT="http://stub.example/s.sh"
+
+  argparse__resolve_uri_options $'arr\tMY_ARR\tarray\t\nscript\tSCRIPT\tstring\t+x'
+  [[ -f "${MY_ARR[0]}" ]]
+  [[ -f "${MY_ARR[1]}" ]]
+  [[ -f "${SCRIPT}" ]]
+  [[ -x "${SCRIPT}" ]]
 }

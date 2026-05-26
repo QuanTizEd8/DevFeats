@@ -85,6 +85,12 @@ __parse_args__() {
   # Apply defaults.
   ${{ _script.argparse.defaults }}$
 
+  # Normalize array options (trim elements; drop blank/whitespace-only lines).
+  ${{ _script.argparse.normalize_arrays }}$
+
+  # Resolve URI-capable option values to local filesystem paths (INSTALLER_DIR or a private temp dir).
+  ${{ _script.argparse.uri_resolution }}$
+
   # Validate input options.
   ${{ _script.argparse.validations }}$
 

@@ -110,6 +110,14 @@ _uri__dest_for_uri() {
   printf '%s/%s-%s\n' "$_dir" "$_id" "$_base"
 }
 
+# @brief uri__dest_for_uri <dest_dir> <full-uri> — public wrapper for stable materialization paths.
+#
+# This is a supported API for callers outside uri.sh (e.g. lib/argparse.sh) that need
+# deterministic destination paths for materialized remote content.
+uri__dest_for_uri() {
+  _uri__dest_for_uri "$@"
+}
+
 # @brief uri__classify <input> — Print the URI class: `local` | `file` | `http` | `ftp` | `oci` | `gh`. Returns non-zero for unsupported schemes.
 #
 # Args:
@@ -808,26 +816,28 @@ uri__fetch_asset() {
   return 0
 }
 
-# @brief uri__resolve <input> <dest-file> [--header <H>]... [--netrc-file <path>] [--chmod-exec] — Materialize `<input>` to `<dest-file>`. Thin wrapper around uri__fetch_asset.
+# @brief uri__resolve <input> <dest-file> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — Materialize `<input>` to `<dest-file>`. Thin wrapper around uri__fetch_asset.
 #
 # Supports `http(s)://`, `ftp://`, `ftps://`, `sftp://`, `file://`, `gh://`, `oci://`, and
 # local paths. An optional `#sha256=<hex>` fragment in `<input>` is verified after fetch.
-# `--chmod-exec` runs `chmod +x` on `<dest-file>` after a successful resolve.
+# `--chmod <mode>` runs `file__chmod <mode> <dest-file>` after a successful resolve (octal e.g.
+# `600`, or symbolic e.g. `+x`). `--chmod-exec` is equivalent to `--chmod +x`.
 #
 # Args:
 #   <input>              URI, local path, or `gh://owner/repo@ref:path` shorthand.
 #   <dest-file>          Destination file path.
 #   --header <H>         HTTP request header; repeatable.
 #   --netrc-file <path>  Optional netrc file for authentication.
-#   --chmod-exec         chmod +x on dest after successful resolve.
+#   --chmod <mode>       chmod mode applied to dest after successful resolve.
+#   --chmod-exec         Deprecated alias for `--chmod +x`.
 #
-# Stdout: the resolved `<dest-file>` path.
+# Stdout: install paths printed by uri__fetch_asset (typically `<dest-file>`).
 #
 # Returns: 0 on success, 1 on fetch or verification failure.
 uri__resolve() {
   local _input="$1" _dest="$2"
   shift 2
-  local _chmod_exec=false
+  local _chmod_mode=""
   local -a _fa_args=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -835,8 +845,12 @@ uri__resolve() {
         _fa_args+=("$1" "$2")
         shift 2
         ;;
+      --chmod)
+        _chmod_mode="$2"
+        shift 2
+        ;;
       --chmod-exec)
-        _chmod_exec=true
+        _chmod_mode="+x"
         shift
         ;;
       *)
@@ -845,25 +859,71 @@ uri__resolve() {
         ;;
     esac
   done
-  if [[ "$_chmod_exec" == true ]]; then
-    uri__fetch_asset "$_input" --binary-dest "$_dest" "${_fa_args[@]}"
-  else
-    uri__fetch_asset "$_input" --file-dest "$_dest" "${_fa_args[@]}"
+  # Back-compat: historically `--chmod-exec` used `--binary-dest`, enabling archive
+  # auto-discovery of executables. Preserve that behavior for modes that imply an
+  # executable output.
+  local _exec_mode=false
+  if [[ "$_chmod_mode" == *x* || "$_chmod_mode" == *X* ]]; then
+    _exec_mode=true
+  elif [[ "$_chmod_mode" =~ ^0?[0-7]{3,4}$ ]]; then
+    # Any execute bit set in octal (1/3/5/7) → treat as exec mode.
+    local _m="${_chmod_mode#0}"
+    local _u="${_m: -3:1}" _g="${_m: -2:1}" _o="${_m: -1:1}"
+    case "$_u$_g$_o" in
+      *1* | *3* | *5* | *7*) _exec_mode=true ;;
+    esac
   fi
+
+  if [[ "$_exec_mode" == true ]]; then
+    uri__fetch_asset "$_input" --binary-dest "$_dest" "${_fa_args[@]}" > /dev/null || return 1
+  else
+    uri__fetch_asset "$_input" --file-dest "$_dest" "${_fa_args[@]}" > /dev/null || return 1
+  fi
+  if [[ -n "$_chmod_mode" && -e "$_dest" ]]; then
+    file__chmod "$_chmod_mode" "$_dest" || {
+      logging__error "uri__resolve: file__chmod '${_chmod_mode}' failed on '${_dest}'."
+      return 1
+    }
+  fi
+  return 0
 }
 
-# @brief uri__resolve_line <input> <materialize-dir> [--header <H>]... [--netrc-file <path>] — For local inputs, print the original path. For remote inputs, materialize under `<materialize-dir>` and print the resulting path.
+# @brief uri__resolve_line <input> <materialize-dir> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — For local inputs, print the original path. For remote inputs, materialize under `<materialize-dir>` and print the resulting path.
 #
 # Args:
 #   <input>              URI or local path.
 #   <materialize-dir>    Directory used to store downloaded files for remote URIs.
 #   --header <H>         HTTP request header; repeatable.
 #   --netrc-file <path>  Optional netrc file for authentication.
+#   --chmod <mode>       chmod mode applied after a remote fetch (not local/file:// passthrough).
+#   --chmod-exec         Deprecated alias for `--chmod +x`.
 #
 # Stdout: resolved local file path.
 uri__resolve_line() {
   local _input="$1" _mdir="$2"
   shift 2
+  local _chmod_mode=""
+  local -a _fetch_args=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --header | --netrc-file)
+        _fetch_args+=("$1" "$2")
+        shift 2
+        ;;
+      --chmod)
+        _chmod_mode="$2"
+        shift 2
+        ;;
+      --chmod-exec)
+        _chmod_mode="+x"
+        shift
+        ;;
+      *)
+        logging__error "uri__resolve_line: unknown option '$1'"
+        return 1
+        ;;
+    esac
+  done
   local _cls
   _cls="$(uri__classify "$_input")" || return 1
   case "$_cls" in
@@ -884,7 +944,13 @@ uri__resolve_line() {
       mkdir -p "$_mdir"
       local _dest
       _dest="$(_uri__dest_for_uri "$_mdir" "$_input")"
-      uri__fetch_asset "$_input" --file-dest "$_dest" "$@" > /dev/null || return 1
+      uri__fetch_asset "$_input" --file-dest "$_dest" "${_fetch_args[@]}" > /dev/null || return 1
+      if [[ -n "$_chmod_mode" && -e "$_dest" ]]; then
+        file__chmod "$_chmod_mode" "$_dest" || {
+          logging__error "uri__resolve_line: file__chmod '${_chmod_mode}' failed on '${_dest}'."
+          return 1
+        }
+      fi
       printf '%s\n' "$_dest"
       ;;
     *)
@@ -894,13 +960,15 @@ uri__resolve_line() {
   return 0
 }
 
-# @brief uri__resolve_list <newline-separated-list> <materialize-dir> [--header <H>]... [--netrc-file <path>] — Resolve each non-empty line of `<newline-separated-list>` and print one output path per line.
+# @brief uri__resolve_list <newline-separated-list> <materialize-dir> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — Resolve each non-empty line of `<newline-separated-list>` and print one output path per line.
 #
 # Args:
 #   <newline-separated-list>  Newline-separated list of URIs or local paths.
 #   <materialize-dir>         Directory used to store downloaded files for remote URIs.
 #   --header <H>              HTTP request header; repeatable.
 #   --netrc-file <path>       Optional netrc file for authentication.
+#   --chmod <mode>            chmod mode applied after each remote fetch (see uri__resolve_line).
+#   --chmod-exec              Deprecated alias for `--chmod +x`.
 #
 # Stdout: one resolved local file path per non-empty input line.
 uri__resolve_list() {

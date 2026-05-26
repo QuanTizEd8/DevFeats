@@ -206,28 +206,6 @@ install_completion() {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
-[ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
-
-_pixi_uri_fetch_args=()
-if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
-  for _ph in "${FETCH_HEADERS[@]}"; do
-    [[ -n "${_ph}" ]] && _pixi_uri_fetch_args+=(--header "$_ph")
-  done
-fi
-[[ -n "${FETCH_NETRC:-}" ]] && _pixi_uri_fetch_args+=(--netrc-file "${FETCH_NETRC}")
-
-if [[ -n "${NETRC:-}" ]]; then
-  case "${NETRC}" in
-    http://* | https://* | file://* | oci://* | gh://*)
-      _pixi_netrc_tmp="$(mktemp "${TMPDIR:-/tmp}/devfeats-netrc.XXXXXX")"
-      chmod 600 "${_pixi_netrc_tmp}" || true
-      NETRC="$(uri__resolve "${NETRC}" "${_pixi_netrc_tmp}" "${_pixi_uri_fetch_args[@]}")"
-      chmod 600 "${NETRC}"
-      ;;
-  esac
-fi
-
 resolve_pixi_version
 
 # Version-match idempotency check: only compare against the requested install

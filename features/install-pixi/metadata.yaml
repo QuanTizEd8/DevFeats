@@ -63,6 +63,8 @@ options:
   netrc:
     type: string
     default: ''
+    _uri:
+      chmod: "600"
     description: |-
       Path to a `.netrc` file for authenticating the download request.
       Passed to `curl` / `wget` via `--netrc-file`.

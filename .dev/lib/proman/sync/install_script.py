@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shlex
 import subprocess
 import tempfile
@@ -12,6 +13,42 @@ import pyserials
 
 from proman.config import load as load_config
 from proman.feature_env import activation_profile_d_filename
+
+# printf '%s' with an accidental real newline before the closing quote (db42a06b bug).
+_SPLIT_PRINTF_PERCENT_S_RE = re.compile(r"printf '%s\r?\n\s+'", re.MULTILINE)
+
+# Octal (600, 0644) or symbolic (+x, u+x) modes for _uri.chmod in metadata.
+_URI_CHMOD_MODE_RE = re.compile(
+    r"^([0-7]{3,4}|\+[rwxXstugo]+|[ugoa]*[-=+][rwxXstugo]+)$"
+)
+
+
+def _uri_chmod_mode(uri_cfg: bool | dict) -> str | None:
+    """Return a chmod mode string from metadata ``_uri``, or None."""
+    if not isinstance(uri_cfg, dict):
+        return None
+    if "chmod" in uri_cfg:
+        mode = str(uri_cfg["chmod"])
+        if not _URI_CHMOD_MODE_RE.match(mode):
+            msg = (
+                f"_uri.chmod must be octal (e.g. '600') or symbolic (e.g. '+x'); "
+                f"got {mode!r}"
+            )
+            raise ValueError(msg)
+        return mode
+    if uri_cfg.get("chmod_exec"):
+        return "+x"
+    return None
+
+
+def validate_generated_install_script(script: str) -> None:
+    """Reject generated install.bash with broken bash escape sequences."""
+    if _SPLIT_PRINTF_PERCENT_S_RE.search(script):
+        msg = (
+            "generated install.bash contains printf '%s' with a literal line break "
+            "before the closing quote; fix Python codegen escaping (use '\\\\n')."
+        )
+        raise ValueError(msg)
 
 
 @dataclass
@@ -124,6 +161,7 @@ class InstallScriptGenerator:
         except Exception as e:
             raise ValueError(f"Error rendering template: {e}") from e
 
+        validate_generated_install_script(script)
         return script
 
     @staticmethod
@@ -261,10 +299,55 @@ class InstallScriptGenerator:
             "case_arms": "\n".join(case_arms),
             "env_reads": "\n".join(env_reads),
             "defaults": self._generate_argparse_defaults(options, prefix_var_names),
+            "normalize_arrays": self._generate_argparse_normalize_arrays(
+                options, prefix_var_names
+            ),
+            "uri_resolution": self._generate_argparse_uri_resolution(
+                options, prefix_var_names
+            ),
             "validations": self._generate_argparse_validations(options),
             "unexports": self._generate_argparse_unexports(options),
         }
         return out
+
+    def _generate_argparse_uri_resolution(
+        self, options: dict, prefix_var_names: frozenset[str] = frozenset()
+    ) -> str:
+        """Emit URI resolution calls for options marked with `_uri`.
+
+        Best practice: keep runtime logic in shell library functions. The
+        generator emits only a compact, data-driven spec string consumed by
+        `argparse__resolve_uri_options`.
+        """
+        spec_lines: list[str] = []
+        for key, opt in options.items():
+            vname = _opt_to_var(key)
+            if vname in prefix_var_names:
+                continue
+            uri_cfg = opt.get("_uri", False)
+            if not uri_cfg:
+                continue
+            typ = opt.get("type", "string")
+            chmod_mode = _uri_chmod_mode(uri_cfg) if isinstance(uri_cfg, dict) else ""
+            spec_lines.append(f"{key}\t{vname}\t{typ}\t{chmod_mode}")
+
+        if not spec_lines:
+            return ""
+
+        def _escape_ansi_c(s: str) -> str:
+            # Escape content for embedding inside bash ANSI-C $'...' strings.
+            # Note: we intentionally do NOT escape the "\\n" record separators here;
+            # we escape each line first, then join with "\\n" so separators remain
+            # a bash newline escape (not a literal backslash-n).
+            return s.replace("\\", "\\\\").replace("'", "\\'")
+
+        spec_literal = "\\n".join(_escape_ansi_c(line) for line in spec_lines)
+        blocks = [
+            f"_DF_URI_SPECS=$'{spec_literal}'",
+            'argparse__resolve_uri_options "${_DF_URI_SPECS}"',
+            "unset _DF_URI_SPECS",
+        ]
+        return "\n".join(blocks).strip()
 
     def _generate_argparse_defaults(
         self, options: dict, prefix_var_names: frozenset[str] = frozenset()
@@ -311,6 +394,20 @@ class InstallScriptGenerator:
 
         return "\n".join(blocks + dynamic_blocks)
 
+    def _generate_argparse_normalize_arrays(
+        self, options: dict, prefix_var_names: frozenset[str] = frozenset()
+    ) -> str:
+        """Emit trim/filter calls for every array option after defaults are applied."""
+        blocks: list[str] = []
+        for key, opt in options.items():
+            if opt.get("type") != "array":
+                continue
+            vname = _opt_to_var(key)
+            if vname in prefix_var_names:
+                continue
+            blocks.append(f"argparse__normalize_array {vname}")
+        return "\n".join(blocks)
+
     def _generate_argparse_validations(self, options: dict) -> str:
         """Emit boolean, integer, enum, and path validation blocks.
 
@@ -347,8 +444,15 @@ class InstallScriptGenerator:
                 values_str = " ".join(shlex.quote(v) for v in values)
                 validations.append(f"{fn} {vname} {values_str}")
             path_spec = opt.get("_path")
-            if path_spec is not None and typ != "array":
-                ops = [path_spec] if isinstance(path_spec, str) else path_spec
+            if path_spec is None:
+                continue
+            ops = [path_spec] if isinstance(path_spec, str) else path_spec
+            if typ == "array":
+                for op in ops:
+                    validations.append(
+                        f'argparse__validate_path_array {vname} "{op}"'
+                    )
+            else:
                 for op in ops:
                     validations.append(f'argparse__validate_path {vname} "{op}"')
         return "\n".join(validations)
@@ -841,7 +945,7 @@ shift
 _ARGPARSE_ENV_READ_ARRAY = """
 if [ "${{{var}+defined}}" ]; then
   if [ -n "${{{var}-}}" ]; then
-    mapfile -t {var} < <(printf '%s\n' "${{{var}}}" | grep -v '^$')
+    argparse__split_lines {var} "${{{var}}}"
     for _item in "${{{var}[@]}}"; do
     logging__read "Argument '{key}': '$_item'"
     done

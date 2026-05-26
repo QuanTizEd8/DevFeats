@@ -535,6 +535,27 @@
             {"type": "string"},
             {"type": "array", "items": {"type": "string"}, "minItems": 1}
           ]
+        },
+        "_uri": {
+          "description": "If true (or an object), the option value may be a URI (http(s)://, gh://, oci://, file://, or local path with optional #sha256 fragment). The generated install-script header will resolve it to a local filesystem path before running validations (including _path): under ${INSTALLER_DIR}/uri/<option>/ when installer_dir is enabled, otherwise under a private file__mktmpdir directory. For array options, each element is resolved. When object form is used, additional controls may be specified.",
+          "oneOf": [
+            {"type": "boolean"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "chmod": {
+                  "type": "string",
+                  "pattern": "^([0-7]{3,4}|\\+[rwxXstugo]+|[ugoa]*[-=+][rwxXstugo]+)$",
+                  "description": "chmod mode applied after materializing fetched content (e.g. \"600\" for secret files, \"+x\" for scripts). Not applied when the value is passed through as an existing local path."
+                },
+                "chmod_exec": {
+                  "type": "boolean",
+                  "description": "Deprecated: use chmod: \"+x\" instead. When true, resolved file(s) are made executable after fetch."
+                }
+              }
+            }
+          ]
         }
       },
       "required": [

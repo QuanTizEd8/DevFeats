@@ -252,13 +252,62 @@ setup() {
   printf '#!/bin/sh\necho ok\n' > "$_src"
   chmod 0644 "$_src"
 
-  install__copy_bin() { cp "$1" "$2" && chmod +x "$2"; }
-  export -f install__copy_bin
-
   local _dst="${BATS_TEST_TMPDIR}/out.sh"
   run uri__resolve "$_src" "$_dst" --chmod-exec
   assert_success
   [[ -x "$_dst" ]]
+}
+
+_uri__file_mode_octal() {
+  if stat -c '%a' "$1" &> /dev/null; then
+    stat -c '%a' "$1"
+  else
+    stat -f '%OLp' "$1"
+  fi
+}
+
+@test "uri__resolve --chmod 600 restricts permissions on fetched file" {
+  _uri__net_fetch() {
+    printf 'machine example.com login u password p\n' > "$2"
+  }
+  export -f _uri__net_fetch
+
+  local _dst="${BATS_TEST_TMPDIR}/netrc"
+  run uri__resolve "http://stub.example/netrc" "$_dst" --chmod 600
+  assert_success
+  [[ "$(_uri__file_mode_octal "$_dst")" == "600" ]]
+}
+
+@test "uri__resolve --chmod +x makes copied script executable" {
+  local _src="${BATS_TEST_TMPDIR}/script.sh"
+  printf '#!/bin/sh\necho ok\n' > "$_src"
+  chmod 0644 "$_src"
+
+  local _dst="${BATS_TEST_TMPDIR}/out.sh"
+  run uri__resolve "$_src" "$_dst" --chmod +x
+  assert_success
+  [[ -x "$_dst" ]]
+}
+
+@test "uri__resolve_line --chmod 600 applies only after remote fetch" {
+  _uri__net_fetch() {
+    printf 'secret\n' > "$2"
+  }
+  export -f _uri__net_fetch
+
+  local _mdir="${BATS_TEST_TMPDIR}/mat"
+  local _out
+  _out="$(uri__resolve_line "http://stub.example/secret" "$_mdir" --chmod 600)"
+  [[ "$(_uri__file_mode_octal "$_out")" == "600" ]]
+
+  local _local="${BATS_TEST_TMPDIR}/local.txt"
+  printf 'x\n' > "$_local"
+  local _mode_before
+  _mode_before="$(_uri__file_mode_octal "$_local")"
+  run uri__resolve_line "$_local" "$_mdir" --chmod 600
+  assert_success
+  assert_output "$_local"
+  [[ "$(_uri__file_mode_octal "$_local")" == "$_mode_before" ]]
 }
 
 @test "uri__resolve OCI path is bypassed via stub (_uri__resolve_oci_to)" {

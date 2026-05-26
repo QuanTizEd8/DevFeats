@@ -73,6 +73,17 @@ Always include a `"log_file"` option (string, default `""`). The shared
 `"log_level"` option is auto-injected from `features/metadata.shared.yaml`,
 so it does not need to be repeated in each feature metadata file.
 
+### Internal option keys
+
+Some internal keys extend the upstream devcontainer option schema to support code generation.
+
+- **`_path`**: File-test validation(s) (e.g. `-f`, `-d`, `-x`) generated into the install-script header. Validation is skipped when the option is empty.
+- **`_uri`**: Mark an option as “URI-capable”. The generated install-script header will resolve the option value to a **local filesystem path** before validations run (under `${INSTALLER_DIR}/uri/<option>/` when the feature exposes `installer_dir`, otherwise under a private `file__mktmpdir` directory). This allows `_path` to describe the *post-resolution* file test (e.g. `_path: -f` for an option that accepts `https://…` but becomes a local file after fetch).
+  - Boolean form: `_uri: true`
+  - Object form: `_uri: { chmod: \"+x\" }` for fetched scripts that must be executable, or `_uri: { chmod: \"600\" }` for credential files (e.g. `.netrc`). Legacy `chmod_exec: true` is equivalent to `chmod: \"+x\"`.
+
+For `type: array` options, generated scripts normalize array values (trim each element; drop empty/whitespace-only entries) before URI resolution and validations.
+
 
 ### Shared Metadata
 

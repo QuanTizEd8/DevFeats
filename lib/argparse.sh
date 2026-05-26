@@ -97,16 +97,13 @@ argparse__validate_integer_max() {
   fi
 }
 
-# @brief argparse__validate_path VAR OP — Exits 1 if the path in $VAR fails test OP.
-#
-# OP is a bash unary test operator (e.g. -d, -f, -e).
-# Validation fails when the test does NOT hold.  An empty value is skipped.
-argparse__validate_path() {
-  local _label _val="${!1}"
-  _label="$(_argparse__label "$1")"
+# @brief _argparse__validate_path_value VAR VALUE OP — Test one path string; VAR is for error labels only.
+_argparse__validate_path_value() {
+  local _var="$1" _val="$2" _op="$3" _label
+  _label="$(_argparse__label "$_var")"
   [[ -z "$_val" ]] && return 0
   local _ok=false
-  case "$2" in
+  case "$_op" in
     -d) [[ -d "$_val" ]] && _ok=true ;;
     -f) [[ -f "$_val" ]] && _ok=true ;;
     -e) [[ -e "$_val" ]] && _ok=true ;;
@@ -115,17 +112,42 @@ argparse__validate_path() {
     -s) [[ -s "$_val" ]] && _ok=true ;;
     -w) [[ -w "$_val" ]] && _ok=true ;;
     "! -"[dferswx])
-      ! test "${2#! }" "$_val" && _ok=true
+      ! test "${_op#! }" "$_val" && _ok=true
       ;;
     *)
-      logging__error "argparse__validate_path: unsupported path test '${2}'."
+      logging__error "argparse__validate_path: unsupported path test '${_op}'."
       exit 1
       ;;
   esac
   if [[ "$_ok" != true ]]; then
-    logging__error "Invalid value for '${_label}': '${_val}' failed path test '${2}'."
+    logging__error "Invalid value for '${_label}': '${_val}' failed path test '${_op}'."
     exit 1
   fi
+}
+
+# @brief argparse__validate_path VAR OP — Exits 1 if the path in $VAR fails test OP.
+#
+# OP is a bash unary test operator (e.g. -d, -f, -e).
+# Validation fails when the test does NOT hold.  An empty value is skipped.
+argparse__validate_path() {
+  local _val="${!1}"
+  _argparse__validate_path_value "$1" "$_val" "$2"
+}
+
+# @brief argparse__validate_path_array VAR OP [OP...] — Exits 1 if any array element fails test OP.
+#
+# Empty elements are skipped.
+argparse__validate_path_array() {
+  local _var="$1"
+  shift
+  local -n _arr="$_var"
+  local _elem _op
+  for _op in "$@"; do
+    for _elem in "${_arr[@]}"; do
+      [[ -z "$_elem" ]] && continue
+      _argparse__validate_path_value "$_var" "$_elem" "$_op"
+    done
+  done
 }
 
 # @brief argparse__default VAR DEFAULT — Sets $VAR to DEFAULT if not already set.
@@ -144,6 +166,26 @@ argparse__default_array() {
   logging__info "Argument '${1}' set to default value '(empty)'."
 }
 
+# @brief argparse__split_lines VAR TEXT — Split newline-delimited TEXT into array VAR; trim; drop blanks.
+argparse__split_lines() {
+  mapfile -t "$1" < <(
+    printf '%s\n' "$2" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -v '^$'
+  )
+}
+
+# @brief argparse__normalize_array VAR — Trim elements; drop empty/whitespace-only entries (in place).
+argparse__normalize_array() {
+  local _var="$1" _elem _stripped
+  local -n _arr="$_var"
+  local _out=()
+  for _elem in "${_arr[@]}"; do
+    _stripped="${_elem#"${_elem%%[![:space:]]*}"}"
+    _stripped="${_stripped%"${_stripped##*[![:space:]]}"}"
+    [[ -n "$_stripped" ]] && _out+=("$_stripped")
+  done
+  _arr=("${_out[@]}")
+}
+
 # @brief argparse__default_array_value VAR VALUE — Sets array $VAR from multi-line VALUE if not already declared.
 #
 # VALUE is the (already shell-expanded) multi-line string; use $'...' at the call site
@@ -151,7 +193,95 @@ argparse__default_array() {
 argparse__default_array_value() {
   declare -p "$1" &> /dev/null && return 0
   local -n _dav_ref="$1"
-  mapfile -t _dav_ref < <(printf '%s' "$2" | grep -v '^$')
+  argparse__split_lines _dav_ref "$2"
   local _disp="${2//$'\n'/, }"
   logging__info "Argument '${1}' set to default value \"${_disp}\"."
+}
+
+# ---------------------------------------------------------------------------
+# URI resolution for options marked with metadata `_uri`
+# ---------------------------------------------------------------------------
+
+# @brief argparse__resolve_uri_options <spec>
+#
+# Resolve a newline-delimited URI spec list, rewriting option variables in place.
+#
+# Each non-empty spec line is TAB-delimited:
+#   <key> <TAB> <VAR> <TAB> <type:string|array> <TAB> <chmod_mode_or_empty>
+#
+# Resolution order:
+#   - Build fetch args from shared `FETCH_HEADERS` and `FETCH_NETRC`.
+#   - Choose a materialization root:
+#       - `INSTALLER_DIR` when defined and non-empty,
+#       - else `file__mktmpdir "${_FEAT_ID}-uri"`.
+#   - For each spec:
+#       - `array`: resolve elements via `uri__resolve_list` into `${matdir}/uri/<key>/`.
+#       - `string` with chmod: resolve via `uri__resolve` into a stable dest under `${matdir}/uri/<key>/`.
+#       - `string` without chmod: resolve via `uri__resolve_line` into `${matdir}/uri/<key>/` (remote only).
+#
+# Notes:
+#   - This function requires `lib/uri.sh` to be loaded.
+#   - It is safe under `set -u`: does not reference INSTALLER_DIR unless defined.
+#
+# Returns: 0 on success, non-zero on any failure.
+argparse__resolve_uri_options() {
+  local _spec="${1:-}"
+  [[ -n "${_spec//[[:space:]]/}" ]] || return 0
+
+  declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
+  [ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
+
+  local -a _fetch_args=()
+  local _h
+  if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+    for _h in "${FETCH_HEADERS[@]}"; do
+      [[ -n "${_h}" ]] && _fetch_args+=(--header "${_h}")
+    done
+  fi
+  [[ -n "${FETCH_NETRC:-}" ]] && _fetch_args+=(--netrc-file "${FETCH_NETRC}")
+
+  local _matdir
+  if [[ "${INSTALLER_DIR+defined}" == "defined" && -n "${INSTALLER_DIR:-}" ]]; then
+    _matdir="${INSTALLER_DIR}"
+  else
+    _matdir="$(file__mktmpdir "${_FEAT_ID}-uri")"
+  fi
+
+  local _line _key _var _typ _chmod _mdir _list _dest
+  while IFS= read -r _line || [[ -n "${_line}" ]]; do
+    [[ -z "${_line//[[:space:]]/}" ]] && continue
+    IFS=$'\t' read -r _key _var _typ _chmod <<< "${_line}"
+    [[ -n "${_key:-}" && -n "${_var:-}" && -n "${_typ:-}" ]] || {
+      logging__error "argparse__resolve_uri_options: invalid spec line: '${_line}'"
+      return 1
+    }
+    _mdir="${_matdir}/uri/${_key}"
+    case "${_typ}" in
+      array)
+        local -n _arr="$_var"
+        [[ ${#_arr[@]} -gt 0 ]] || continue
+        _list="$(printf '%s\n' "${_arr[@]}")"
+        mapfile -t _arr < <(uri__resolve_list "$_list" "$_mdir" "${_fetch_args[@]}" ${_chmod:+--chmod "$_chmod"}) ||
+          return 1
+        ;;
+      string)
+        local _val="${!_var:-}"
+        [[ -n "${_val}" ]] || continue
+        mkdir -p "$_mdir"
+        if [[ -n "${_chmod:-}" ]]; then
+          _dest="$(uri__dest_for_uri "$_mdir" "$_val")" || return 1
+          uri__resolve "$_val" "$_dest" "${_fetch_args[@]}" --chmod "$_chmod" > /dev/null || return 1
+          printf -v "$_var" '%s' "$_dest"
+        else
+          printf -v "$_var" '%s' "$(uri__resolve_line "$_val" "$_mdir" "${_fetch_args[@]}")" || return 1
+        fi
+        ;;
+      *)
+        logging__error "argparse__resolve_uri_options: unknown type '${_typ}' in spec for '${_key}'."
+        return 1
+        ;;
+    esac
+  done <<< "$(printf '%s\n' "$_spec")"
+
+  return 0
 }
