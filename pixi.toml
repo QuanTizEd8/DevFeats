@@ -48,8 +48,7 @@ lint-py-check = "ruff check --config .config/ruff.toml ."
 format-py-check = "ruff format --check --config .config/ruff.toml ."
 
 [feature.lint.tasks.lint-py]
-cmd = "ruff check --fix --config .config/ruff.toml {{ paths }}"
-args = [{ arg = "paths", default = "." }]
+cmd = "ruff check --fix --config .config/ruff.toml"
 
 [feature.lint.tasks.format-py]
 cmd = "ruff format --config .config/ruff.toml {{ paths }}"

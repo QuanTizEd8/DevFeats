@@ -93,7 +93,7 @@ lint-py-check:
   doc('Lint and fix Python files with ruff.')
 ]
 lint-py *files:
-    just capture lint-py -- pixi run --environment lint lint-py {{ if files != "" { '"' + files + '"' } else { "" } }}
+    just capture lint-py -- pixi run --environment lint lint-py {{ if files != "" { "-- " + files } else { "" } }}
 
 
 [
