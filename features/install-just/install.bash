@@ -83,7 +83,7 @@ install_cargo() {
   [[ -x "$_dest" ]] || return 1
 }
 
-install() {
+__install() {
   [[ "$IF_EXISTS" == "skip" || "$IF_EXISTS" == "fail" || "$IF_EXISTS" == "reinstall" ]] || return 1
 
   local _existing
@@ -144,7 +144,7 @@ install() {
   esac
 }
 
-install
+__install
 
 if [[ "${METHOD}" == "auto" ]]; then
   if [[ -x "${PREFIX}/bin/just" ]]; then
