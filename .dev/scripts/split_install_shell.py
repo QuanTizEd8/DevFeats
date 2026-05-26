@@ -4,6 +4,7 @@ Phase 1 mechanical split for install-shell refactoring.
 Run from repo root. All line numbers are 1-indexed, inclusive.
 No line appears in more than one feature's cut.
 """
+
 import shutil
 from pathlib import Path
 
@@ -73,39 +74,39 @@ BASH_CUTS = {
 # ---------------------------------------------------------------------------
 YAML_CUTS = {
     "install-ohmyzsh": {
-        "options":       [(22,25),(48,56),(66,79),(87,92),(97,102),(147,153)],
-        "gh_repo":       [(208,210)],
+        "options": [(22, 25), (48, 56), (66, 79), (87, 92), (97, 102), (147, 153)],
+        "gh_repo": [(208, 210)],
         "prefix_groups": [],
     },
     "install-ohmybash": {
-        "options":       [(26,29),(57,65),(80,86),(93,96),(103,106),(154,160)],
-        "gh_repo":       [(211,213)],
+        "options": [(26, 29), (57, 65), (80, 86), (93, 96), (103, 106), (154, 160)],
+        "gh_repo": [(211, 213)],
         "prefix_groups": [],
     },
     "install-starship": {
-        "options":       [(30,33),(34,47)],
-        "gh_repo":       [],
-        "prefix_groups": [(242,246)],
+        "options": [(30, 33), (34, 47)],
+        "gh_repo": [],
+        "prefix_groups": [(242, 246)],
     },
     "install-bash-completion": {
-        "options":       [(172,177)],
-        "gh_repo":       [],
+        "options": [(172, 177)],
+        "gh_repo": [],
         "prefix_groups": [],
     },
     "install-zsh-completion": {
-        "options":       [(178,189)],
-        "gh_repo":       [(214,216)],
+        "options": [(178, 189)],
+        "gh_repo": [(214, 216)],
         "prefix_groups": [],
     },
     "install-direnv": {
-        "options":       [(190,196)],
-        "gh_repo":       [],
+        "options": [(190, 196)],
+        "gh_repo": [],
         "prefix_groups": [],
     },
     "install-fzf": {
-        "options":       [(197,202)],
-        "gh_repo":       [(205,207)],
-        "prefix_groups": [(247,251)],
+        "options": [(197, 202)],
+        "gh_repo": [(205, 207)],
+        "prefix_groups": [(247, 251)],
     },
 }
 
@@ -150,8 +151,8 @@ def write_yaml(feature, sections, src_lines):
         "# Add version/name/description/dependencies in the semantic phase.\n\n",
     ]
     opts = sections.get("options", [])
-    ghr  = sections.get("gh_repo", [])
-    pfx  = sections.get("prefix_groups", [])
+    ghr = sections.get("gh_repo", [])
+    pfx = sections.get("prefix_groups", [])
     if opts:
         out.append("options:\n")
         out.extend(get_lines(src_lines, opts))
@@ -170,8 +171,12 @@ def main():
     yaml_src = (SRC / "metadata.yaml").read_text().splitlines(keepends=True)
 
     # Sanity check: verify expected source file sizes
-    assert len(bash_src) == 849, f"install.bash: expected 849 lines, got {len(bash_src)}"
-    assert len(yaml_src) == 251, f"metadata.yaml: expected 251 lines, got {len(yaml_src)}"
+    assert len(bash_src) == 849, (
+        f"install.bash: expected 849 lines, got {len(bash_src)}"
+    )
+    assert len(yaml_src) == 251, (
+        f"metadata.yaml: expected 251 lines, got {len(yaml_src)}"
+    )
 
     # Sanity check: no line appears in more than one feature's bash cut
     bash_seen = {}
@@ -179,7 +184,9 @@ def main():
         for _, s, e in cuts:
             for n in range(s, e + 1):
                 if n in bash_seen:
-                    raise ValueError(f"Line {n} of install.bash assigned to both {bash_seen[n]} and {feat}")
+                    raise ValueError(
+                        f"Line {n} of install.bash assigned to both {bash_seen[n]} and {feat}"
+                    )
                 bash_seen[n] = feat
 
     # Sanity check: no line appears in more than one feature's yaml cut
@@ -189,7 +196,9 @@ def main():
             for s, e in secs.get(k, []):
                 for n in range(s, e + 1):
                     if n in yaml_seen:
-                        raise ValueError(f"Line {n} of metadata.yaml assigned to both {yaml_seen[n]} and {feat}")
+                        raise ValueError(
+                            f"Line {n} of metadata.yaml assigned to both {yaml_seen[n]} and {feat}"
+                        )
                     yaml_seen[n] = feat
 
     print("=== install.bash ===")

@@ -24,6 +24,7 @@ options:
     description: Shared option that must not be overridden.
 """
 
+
 def _minimal_feature_metadata(**overrides) -> dict:
     """Return metadata.yaml content that passes schema validation."""
     base = {
@@ -93,7 +94,9 @@ def _write_test_repo(
     features.mkdir()
     (features / "metadata.shared.yaml").write_text(shared_yaml, encoding="utf-8")
 
-    schema_src = Path(__file__).resolve().parents[2] / "features" / "metadata.schema.json"
+    schema_src = (
+        Path(__file__).resolve().parents[2] / "features" / "metadata.schema.json"
+    )
     (features / "metadata.schema.json").write_text(
         schema_src.read_text(encoding="utf-8"),
         encoding="utf-8",

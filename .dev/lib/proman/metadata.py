@@ -112,7 +112,11 @@ class MetadataLoader:
         prefix_groups = metadata.get("_prefix_groups", {})
         for group_id, group_cfg in prefix_groups.items():
             _inject_prefix_group_options(
-                feature_id, group_id, group_cfg, metadata["options"], prefix_option_templates
+                feature_id,
+                group_id,
+                group_cfg,
+                metadata["options"],
+                prefix_option_templates,
             )
 
         return metadata
@@ -303,9 +307,9 @@ def _inject_prefix_group_options(
             " cannot be manually defined in metadata.yaml",
         )
     opt_prefix = dict(prefix_option_templates["prefix"])
-    opt_prefix["description"] = (
-        prefix_description or opt_prefix["description"].format_map(subs)
-    )
+    opt_prefix["description"] = prefix_description or opt_prefix[
+        "description"
+    ].format_map(subs)
     if applies_when:
         opt_prefix["_applies_when"] = applies_when
     options[prefix_key] = opt_prefix
@@ -322,9 +326,9 @@ def _inject_prefix_group_options(
     # Inject symlinks option (unless skip_symlink).
     if not skip_symlink:
         opt_symlinks = dict(prefix_option_templates["symlinks"])
-        opt_symlinks["description"] = (
-            symlink_description or opt_symlinks["description"].format_map(subs)
-        )
+        opt_symlinks["description"] = symlink_description or opt_symlinks[
+            "description"
+        ].format_map(subs)
         if not _inject_one_option(
             feature_id, "symlinks", symlinks_key, opt_symlinks, options, applies_when
         ):
@@ -333,9 +337,9 @@ def _inject_prefix_group_options(
     # Inject exports option (unless skip_exports).
     if not skip_exports:
         opt_exports = dict(prefix_option_templates["exports"])
-        opt_exports["description"] = (
-            exports_description or opt_exports["description"].format_map(subs)
-        )
+        opt_exports["description"] = exports_description or opt_exports[
+            "description"
+        ].format_map(subs)
         if not _inject_one_option(
             feature_id, "exports", exports_key, opt_exports, options, applies_when
         ):
