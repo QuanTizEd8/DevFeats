@@ -11,7 +11,7 @@ from pathlib import Path
 import pyserials
 
 from proman.config import load as load_config
-from proman.git import git_owner_repo
+from proman.feature_env import activation_profile_d_filename
 
 
 @dataclass
@@ -443,7 +443,6 @@ class InstallScriptGenerator:
         if not prefix_groups:
             return ""
 
-        _owner, _repo = git_owner_repo()
         post_install_blocks: list[str] = []
         # cmd_var → first_bin; needs bare-binary fallback when guarded.
         guarded_cmd_vars: dict[str, str] = {}
@@ -477,7 +476,7 @@ class InstallScriptGenerator:
             fn_activation_snippet = f"{stem}_activation_snippet"
             var_activations = _opt_to_var(f"{stem}_activations")
             activation_marker = f"{stem} activation ({feature_id})"
-            activation_profile_d = f"{_owner}-{_repo}-{feature_id}-{stem}-activation.sh"
+            activation_profile_d = activation_profile_d_filename(feature_id, stem)
 
             first_bin = bins[0] if bins else ""
             bins_str = " ".join(bins) if bins else ""

@@ -9,8 +9,11 @@ import shutil
 import sys
 from pathlib import Path
 
-from proman.const import activation_profile_d, export_profile_d, feat_share_dir
-from proman.git import git_owner_repo
+from proman.feature_env import (
+    activation_profile_d_filename,
+    share_dir_root,
+    shell_profile_d_filename,
+)
 
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
 from .environments import load as load_envs
@@ -18,19 +21,17 @@ from .scenarios import expand_envs, merge_defaults
 from .scenarios import load as load_scenarios
 
 
-def _copy_test_script(
-    src: Path, dst: Path, feature: str, owner: str, repo: str
-) -> None:
-    """Copy a test script, prepending share-dir and export-profile env definitions."""
+def _copy_test_script(src: Path, dst: Path, feature: str) -> None:
+    """Copy a test script, prepending path/filename env definitions from metadata."""
     content = src.read_text(encoding="utf-8")
     lines = content.splitlines(keepends=True)
     insert_at = 1 if lines and lines[0].startswith("#!") else 0
     vars_block = (
-        f"export _FEAT_SHARE_DIR={shlex.quote(feat_share_dir(feature, owner, repo))}\n"
+        f"export _FEAT_SHARE_DIR={shlex.quote(share_dir_root(feature))}\n"
         "export _EXPORT_PROFILE_D="
-        f"{shlex.quote(export_profile_d(feature, owner, repo))}\n"
+        f"{shlex.quote(shell_profile_d_filename(feature))}\n"
         "export _ACTIVATION_PROFILE_D="
-        f"{shlex.quote(activation_profile_d(feature, owner, repo))}\n"
+        f"{shlex.quote(activation_profile_d_filename(feature))}\n"
     )
     lines.insert(insert_at, vars_block)
     dst.write_text("".join(lines), encoding="utf-8")
@@ -116,8 +117,6 @@ def generate(
     defaults, scenarios = load_scenarios(scenarios_path)
     envs = load_envs(envs_path)
     envs_dir = envs_path.parent / "envs"
-    owner, repo = git_owner_repo()
-
     scenarios_dir = out_dir / "test" / feature
     scenarios_dir.mkdir(parents=True, exist_ok=True)
 
@@ -156,8 +155,6 @@ def generate(
                     tests_src_dir / ts0_name,
                     scenarios_dir / f"{key}.sh",
                     feature,
-                    owner,
-                    repo,
                 )
 
     _inject_github_token(output)

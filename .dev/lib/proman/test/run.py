@@ -13,9 +13,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-from proman.const import activation_profile_d, export_profile_d, feat_share_dir
-from proman.git import git_owner_repo
-
+from proman.feature_env import (
+    activation_profile_d_filename,
+    share_dir_root,
+    shell_profile_d_filename,
+)
 from .checks import install_failure_patterns, load_checks
 from .codegen import generate_tests
 from .environments import is_macos, resolve
@@ -272,10 +274,9 @@ def _run_standalone(
         )
 
         test_cmd_lines = []
-        _owner, _repo = git_owner_repo()
-        _feat_share = feat_share_dir(feature, _owner, _repo)
-        _export_pd = export_profile_d(feature, _owner, _repo)
-        _activation_pd = activation_profile_d(feature, _owner, _repo)
+        _feat_share = share_dir_root(feature)
+        _export_pd = shell_profile_d_filename(feature)
+        _activation_pd = activation_profile_d_filename(feature)
         for ts in test_scripts:
             ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
             ts_path = f"/repo/test/features/{feature}/tests/{ts_name}"
@@ -469,16 +470,13 @@ def _run_macos(
                 ts_path = str(
                     repo_root / "test" / "features" / feature / "tests" / ts_name,
                 )
-                _owner, _repo = git_owner_repo()
                 test_env = {
                     **run_env,
                     "PATH": f"{shim_dir}:{run_env['PATH']}",
                     "FEATURE_INSTALL_RC": str(install_rc),
-                    "_FEAT_SHARE_DIR": feat_share_dir(feature, _owner, _repo),
-                    "_EXPORT_PROFILE_D": export_profile_d(feature, _owner, _repo),
-                    "_ACTIVATION_PROFILE_D": activation_profile_d(
-                        feature, _owner, _repo
-                    ),
+                    "_FEAT_SHARE_DIR": share_dir_root(feature),
+                    "_EXPORT_PROFILE_D": shell_profile_d_filename(feature),
+                    "_ACTIVATION_PROFILE_D": activation_profile_d_filename(feature),
                 }
                 if user:
                     path_q = shlex.quote(test_env["PATH"])
