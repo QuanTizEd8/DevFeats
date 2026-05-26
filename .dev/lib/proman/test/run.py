@@ -16,6 +16,7 @@ from pathlib import Path
 from proman.const import activation_profile_d, export_profile_d, feat_share_dir
 from proman.git import git_owner_repo
 
+from .checks import install_failure_patterns, load_checks
 from .codegen import generate_tests
 from .environments import is_macos, resolve
 from .environments import load as load_envs
@@ -59,6 +60,68 @@ _MACOS_ENV_PASSTHROUGH = frozenset(
         "XPC_SERVICE_NAME",
     },
 )
+
+
+def _standalone_install_block(
+    feature: str,
+    scenario_key: str,
+    *,
+    expect_install_failure: bool,
+    failure_patterns: list[str],
+) -> str:
+    """Shell fragment: run install once, capture output, validate exit and messages."""
+    lines = [
+        '_FEATURE_INSTALL_LOG="$(mktemp)"',
+        f'sh /repo/src/{feature}/install.sh >"${{_FEATURE_INSTALL_LOG}}" 2>&1',
+        "FEATURE_INSTALL_RC=$?",
+    ]
+    if expect_install_failure:
+        lines.append(
+            'if [ "${FEATURE_INSTALL_RC}" -eq 0 ]; then '
+            f'echo "⛔ standalone scenario {scenario_key}: install unexpectedly succeeded '
+            '(expect_install_failure=true)." >&2; '
+            'echo "--- install output ---" >&2; cat "${_FEATURE_INSTALL_LOG}" >&2; exit 1; fi'
+        )
+        for pattern in failure_patterns:
+            qpat = shlex.quote(pattern)
+            lines.append(
+                f'if ! grep -Fq {qpat} "${{_FEATURE_INSTALL_LOG}}"; then '
+                f'echo "⛔ standalone scenario {scenario_key}: install output missing '
+                f"expected message: {pattern!r}" >&2; '
+                'echo "--- install output ---" >&2; cat "${_FEATURE_INSTALL_LOG}" >&2; exit 1; fi'
+            )
+    else:
+        lines.append(
+            'if [ "${FEATURE_INSTALL_RC}" -ne 0 ]; then '
+            f'echo "⛔ standalone scenario {scenario_key}: install failed with exit code '
+            '${FEATURE_INSTALL_RC}." >&2; '
+            'echo "--- install output ---" >&2; cat "${_FEATURE_INSTALL_LOG}" >&2; '
+            "exit ${FEATURE_INSTALL_RC}; fi"
+        )
+    lines.append('rm -f "${_FEATURE_INSTALL_LOG}"')
+    return "\n".join(lines)
+
+
+def _validate_install_failure_output(
+    scenario_key: str,
+    *,
+    returncode: int,
+    output: str,
+    failure_patterns: list[str],
+) -> str | None:
+    """Return an error message when an expected install failure is not satisfied."""
+    if returncode == 0:
+        return (
+            f"macos scenario {scenario_key}: install unexpectedly succeeded "
+            "(expect_install_failure=true)."
+        )
+    for pattern in failure_patterns:
+        if pattern not in output:
+            return (
+                f"macos scenario {scenario_key}: install output missing expected "
+                f"message: {pattern!r}"
+            )
+    return None
 
 
 def _options_exports(options: dict) -> str:
@@ -160,6 +223,9 @@ def _run_standalone(
     filter_prefix: str,
     envs: dict,
 ) -> bool:
+    checks_path = repo_root / "test" / "features" / feature / "checks.yaml"
+    checks_data = load_checks(checks_path) if checks_path.exists() else {}
+
     success = True
     for entry in entries:
         key = entry["key"]
@@ -181,6 +247,17 @@ def _run_standalone(
         network = standalone_cfg.get("network", "")
         skip_install = standalone_cfg.get("skip_install", False)
         expect_install_failure = bool(scenario.get("expect_install_failure", False))
+        test_scripts = scenario.get("tests", [])
+        failure_patterns = install_failure_patterns(checks_data, test_scripts)
+        if expect_install_failure and not failure_patterns:
+            print(
+                f"⛔ standalone scenario {key}: expect_install_failure=true but no "
+                "install_failure pattern in checks.yaml for tests "
+                f"{test_scripts!r}.",
+                file=sys.stderr,
+            )
+            success = False
+            continue
         options = scenario.get("options", {})
         sc_args = scenario.get("args") or {}
         sc_env_vars = scenario.get("env_vars") or {}
@@ -193,7 +270,6 @@ def _run_standalone(
             scenario_env_vars=sc_env_vars or None,
         )
 
-        test_scripts = scenario.get("tests", [])
         test_cmd_lines = []
         _owner, _repo = git_owner_repo()
         _feat_share = feat_share_dir(feature, _owner, _repo)
@@ -228,25 +304,14 @@ def _run_standalone(
             _options_exports(options),
         ]
         if not skip_install:
-            parts.append(f"sh /repo/src/{feature}/install.sh")
-            parts.append("FEATURE_INSTALL_RC=$?")
-            if expect_install_failure:
-                parts.append(
-                    'if [ "${FEATURE_INSTALL_RC}" -eq 0 ]; then '
-                    'echo "⛔ standalone scenario '
-                    + key
-                    + ": install unexpectedly succeeded "
-                    '(expect_install_failure=true)." >&2; '
-                    "exit 1; fi",
-                )
-            else:
-                parts.append(
-                    'if [ "${FEATURE_INSTALL_RC}" -ne 0 ]; then '
-                    'echo "⛔ standalone scenario '
-                    + key
-                    + ': install failed with exit code ${FEATURE_INSTALL_RC}." >&2; '
-                    "exit ${FEATURE_INSTALL_RC}; fi",
-                )
+            parts.append(
+                _standalone_install_block(
+                    feature,
+                    key,
+                    expect_install_failure=expect_install_failure,
+                    failure_patterns=failure_patterns,
+                ),
+            )
         else:
             parts.append("FEATURE_INSTALL_RC=0")
             if expect_install_failure:
@@ -291,6 +356,9 @@ def _run_macos(
     filter_prefix: str,
     envs: dict,
 ) -> bool:
+    checks_path = repo_root / "test" / "features" / feature / "checks.yaml"
+    checks_data = load_checks(checks_path) if checks_path.exists() else {}
+
     shim_dir = tempfile.mkdtemp()
     try:
         shim_path = Path(shim_dir) / "dev-container-features-test-lib"
@@ -313,6 +381,17 @@ def _run_macos(
             user = standalone_cfg.get("user", "")
             skip_install = standalone_cfg.get("skip_install", False)
             expect_install_failure = bool(scenario.get("expect_install_failure", False))
+            test_scripts = scenario.get("tests", [])
+            failure_patterns = install_failure_patterns(checks_data, test_scripts)
+            if expect_install_failure and not failure_patterns:
+                print(
+                    f"⛔ macos scenario {key}: expect_install_failure=true but no "
+                    "install_failure pattern in checks.yaml for tests "
+                    f"{test_scripts!r}.",
+                    file=sys.stderr,
+                )
+                success = False
+                continue
             options = scenario.get("options", {})
 
             # base_env: clean or full runner env, no feature options yet.
@@ -347,15 +426,23 @@ def _run_macos(
                     ["/bin/sh", str(install_script)],
                     check=False,
                     env=run_env,
+                    capture_output=True,
+                    text=True,
                 )
                 install_rc = install_result.returncode
+                install_output = install_result.stdout + install_result.stderr
                 if expect_install_failure:
-                    if install_rc == 0:
-                        print(
-                            f"⛔ macos scenario {key}: install unexpectedly succeeded "
-                            "(expect_install_failure=true).",
-                            file=sys.stderr,
-                        )
+                    err = _validate_install_failure_output(
+                        key,
+                        returncode=install_rc,
+                        output=install_output,
+                        failure_patterns=failure_patterns,
+                    )
+                    if err:
+                        print(f"⛔ {err}", file=sys.stderr)
+                        if install_output:
+                            print("--- install output ---", file=sys.stderr)
+                            print(install_output, file=sys.stderr)
                         success = False
                 elif install_rc != 0:
                     print(
@@ -376,7 +463,6 @@ def _run_macos(
                 success = False
                 continue
 
-            test_scripts = scenario.get("tests", [])
             for ts in test_scripts:
                 ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
                 ts_path = str(

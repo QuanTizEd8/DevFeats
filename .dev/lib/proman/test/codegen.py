@@ -40,7 +40,7 @@ def _render_item(item: dict[str, Any], idx: int) -> str:
     """Render a single check_item to one or more bash lines (ending with newline)."""
     kind = item.get("kind", "check")
     title = item["title"]
-    raw_cmd = item["cmd"]
+    raw_cmd = item.get("cmd")
     debug = (item.get("debug") or "").strip()
     on_fail = (item.get("on_fail") or "").strip()
 
@@ -64,7 +64,14 @@ def _render_item(item: dict[str, Any], idx: int) -> str:
             suffix = " \\" if i < len(cmds) - 1 else ""
             lines.append(f'  "{c}"{suffix}')
         parts.append("\n".join(lines) + "\n")
+    elif kind == "install_failure":
+        # Validated by the test runner on the single install attempt; not emitted
+        # into generated .sh scripts.
+        return ""
     else:
+        if raw_cmd is None:
+            msg = f"check item {title!r} (kind={kind!r}) requires 'cmd'"
+            raise KeyError(msg)
         fn = "fail_check" if kind == "fail" else "check"
         if isinstance(raw_cmd, str) and "\n" in raw_cmd.rstrip("\n"):
             cmd_indented = _indent_body(raw_cmd)

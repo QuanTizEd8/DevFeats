@@ -587,6 +587,9 @@ macos_if_exists_fail:
       cmd: test -f "$_BREW"
     - title: brew --version still succeeds after fail
       cmd: '"$_BREW" --version'
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: "if_exists=fail: Homebrew already installed"
     - title: ~/.zshenv has NO brew marker
       cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.zshenv 2>/dev/null'
 

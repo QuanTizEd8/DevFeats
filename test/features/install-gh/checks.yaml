@@ -235,6 +235,9 @@ if_exists_fail_preinstalled:
       cmd: command -v gh
     - title: gh stub reports a version
       cmd: bash -c 'gh --version | grep -qE "gh version [0-9]"'
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: gh is already installed
 
 if_exists_fail_preinstalled_network_isolated:
   description: |
@@ -245,6 +248,9 @@ if_exists_fail_preinstalled_network_isolated:
   checks:
     - title: gh stub pre-installed by setup
       cmd: command -v gh
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error when network is blocked
+      pattern: gh is already installed
 
 if_exists_skip:
   description: |
@@ -305,19 +311,28 @@ invalid_if_exists:
   description: |
     Verify that passing an unknown if_exists value causes the installer to exit non-zero.
 
-  checks: []
+  checks:
+    - kind: install_failure
+      title: invalid if_exists rejected by installer
+      pattern: "Invalid value for 'if_exists'"
 
 invalid_method:
   description: |
     Verify that passing an unknown method value causes the installer to exit non-zero.
 
-  checks: []
+  checks:
+    - kind: install_failure
+      title: invalid method rejected by installer
+      pattern: "Invalid value for 'method'"
 
 invalid_sign_commits:
   description: |
     Verify that passing an invalid sign_commits value causes the installer to exit non-zero.
 
-  checks: []
+  checks:
+    - kind: install_failure
+      title: invalid sign_commits rejected by installer
+      pattern: "Invalid value for 'sign_commits'"
 
 log_file:
   description: |
@@ -362,7 +377,10 @@ network_isolated_version_resolution:
     resolution requires the GitHub Releases API).
     The base image (built by run-linux.sh) pre-installs feature dependencies.
 
-  checks: []
+  checks:
+    - kind: install_failure
+      title: network-isolated install fails during GitHub version resolution
+      pattern: Failed to resolve gh version from GitHub
 
 setup_git:
   description: |

@@ -23,6 +23,9 @@ if_exists_fail:
   checks:
     - title: preinstalled shfmt remains available
       cmd: command -v shfmt
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: shfmt already exists at
 
 package_install:
   description: Verifies method=package installs a working shfmt.

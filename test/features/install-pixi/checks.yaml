@@ -133,12 +133,11 @@ github_api_unreachable_network_isolated:
   description: |
     Verify that pixi installation fails when the network is blocked (version
     resolution requires the GitHub Releases API).
-    The base image (built by run-linux.sh) pre-installs feature dependencies.
-    No test assertions — installer failure is checked at build time.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: network-isolated install fails during GitHub version resolution
+      pattern: Failed to resolve pixi version from GitHub
 
 home_dir:
   description: |
@@ -210,6 +209,9 @@ if_exists_fail_preinstalled:
   checks:
     - title: pixi stub pre-installed by setup
       cmd: command -v pixi
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: pixi already installed
 
 if_exists_reinstall:
   description: |
@@ -305,21 +307,21 @@ installer_dir:
 invalid_version_string:
   description: |
     Verify that a clearly invalid version string (not a numeric spec) fails resolution.
-    No test assertions — installer failure is checked at build time.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: non-numeric version string rejected during resolution
+      pattern: contains no numeric version content
 
 invalid_version_suffix:
   description: |
     Verify that a version string with an invalid suffix (e.g. "1.2beta") is rejected
-    by github__resolve_version — no stable release will match the spec.
-    No test assertions — installer failure is checked at build time.
+    by github__resolve_version.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: invalid version suffix rejected during resolution
+      pattern: no stable release matching
 
 log_file:
   description: |

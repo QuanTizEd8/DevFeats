@@ -79,6 +79,9 @@ if_exists_fail_preinstalled:
   checks:
     - title: git pre-installed by setup
       cmd: command -v git
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: git is already installed
 
 if_exists_reinstall_source:
   description: |
@@ -145,21 +148,21 @@ if_exists_update_package:
 
 invalid_if_exists:
   description: |
-    Verify that passing an unknown if_exists value causes the installer to exit
-    non-zero. No test assertions — installer failure is checked at build time.
+    Verify that passing an unknown if_exists value causes the installer to exit non-zero.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: invalid if_exists rejected by installer
+      pattern: "Invalid value for 'if_exists'"
 
 invalid_method:
   description: |
-    Verify that passing an unknown method value causes the installer to exit
-    non-zero. No test assertions — installer failure is checked at build time.
+    Verify that passing an unknown method value causes the installer to exit non-zero.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: invalid method rejected by installer
+      pattern: "Invalid value for 'method'"
 
 log_file:
   description: |
@@ -337,24 +340,20 @@ source_build_network_isolated:
   description: |
     Verify that a source build fails when the network is blocked (version resolution
     requires network access to query the GitHub Releases API).
-    The base image (built by run-linux.sh) pre-installs feature dependencies so
-    apt-get is not needed inside the isolated container.
-    No test assertions — installer failure is checked at build time.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: network-isolated source build fails during version resolution
+      pattern: Could not resolve a git version from tags
 
 source_build_nonexistent_version:
   description: |
     Verify that requesting a nonexistent version (0.0.0) fails the source build.
-    ospkg__run installs build deps (including curl) before the download attempt,
-    so no SETUP_CMD is needed — the feature handles its own dep installation.
-    No test assertions — installer failure is checked at build time.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: nonexistent git version rejected by source build
+      pattern: Could not resolve a git version from tags
 
 source_custom_prefix:
   description: |

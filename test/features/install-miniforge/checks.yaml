@@ -249,11 +249,11 @@ github_api_unreachable_network_isolated:
   description: |
     Verify that Miniforge installation fails when the network is blocked (version
     resolution requires the GitHub Releases API).
-    The base image (built by run-linux.sh) pre-installs feature dependencies.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: network-isolated install fails during version resolution
+      pattern: Failed to resolve Miniforge version
 
 if_exists_fail:
   description: |
@@ -438,8 +438,9 @@ invalid_version:
     the GitHub Releases API returns no matching tag.
 
   checks:
-    - title: test script passes (installer failure checked at build time)
-      cmd: 'true'
+    - kind: install_failure
+      title: nonexistent Miniforge version rejected during resolution
+      pattern: Failed to resolve Miniforge version
 
 log_file:
   description: |

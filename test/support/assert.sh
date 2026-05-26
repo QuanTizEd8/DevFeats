@@ -5,6 +5,9 @@
 #   check "label" <cmd> [args...]                   — passes if <cmd> exits 0
 #   fail_check "label" <cmd> [args...]              — passes if <cmd> exits non-zero
 #   checkMultiple "label" <min> "cmd1" ["cmd2"...]  — passes if ≥ <min> cmds exit 0
+#
+# Install-failure scenarios (expect_install_failure in scenarios.yaml) validate
+# exit code and output substrings in the test runner — not here.
 #   reportResults                                   — print summary; exit 1 if any failed
 #
 # On failure, check/fail_check print the quoted command and captured output.

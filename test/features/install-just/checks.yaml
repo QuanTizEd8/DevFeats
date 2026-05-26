@@ -19,6 +19,9 @@ if_exists_fail:
   checks:
     - title: preinstalled just remains available
       cmd: command -v just
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: just already exists at
 
 installer_dir:
   description: |
