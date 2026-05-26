@@ -1702,7 +1702,6 @@ ospkg__run() {
 
   ospkg__detect || return 1
 
-
   if [[ "$_OSPKG__PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
     logging__info "Setting APT to non-interactive mode."
     export DEBIAN_FRONTEND=noninteractive

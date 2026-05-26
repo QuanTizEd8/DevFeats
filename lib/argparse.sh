@@ -42,7 +42,10 @@ argparse__validate_enum_array() {
   for _val in "${_ave_ref[@]}"; do
     _matched=false
     for _v in "$@"; do
-      [[ "$_val" == "$_v" ]] && { _matched=true; break; }
+      [[ "$_val" == "$_v" ]] && {
+        _matched=true
+        break
+      }
     done
     if [[ "$_matched" != true ]]; then
       local _expected="" _ev
@@ -65,7 +68,7 @@ argparse__validate_integer() {
 
 # @brief argparse__validate_integer_min VAR MIN — Exits 1 if $VAR < MIN.
 argparse__validate_integer_min() {
-  if (( ${!1} < ${2} )); then
+  if ((${!1} < ${2})); then
     logging__error "Invalid value for '${1}': '${!1}' must be >= ${2}."
     exit 1
   fi
@@ -73,7 +76,7 @@ argparse__validate_integer_min() {
 
 # @brief argparse__validate_integer_max VAR MAX — Exits 1 if $VAR > MAX.
 argparse__validate_integer_max() {
-  if (( ${!1} > ${2} )); then
+  if ((${!1} > ${2})); then
     logging__error "Invalid value for '${1}': '${!1}' must be <= ${2}."
     exit 1
   fi
@@ -96,10 +99,12 @@ argparse__validate_path() {
     -s) [[ -s "$_val" ]] && _ok=true ;;
     -w) [[ -w "$_val" ]] && _ok=true ;;
     "! -"[dferswx])
-      ! test "${2#! }" "$_val" && _ok=true ;;
+      ! test "${2#! }" "$_val" && _ok=true
+      ;;
     *)
       logging__error "argparse__validate_path: unsupported path test '${2}'."
-      exit 1 ;;
+      exit 1
+      ;;
   esac
   if [[ "$_ok" != true ]]; then
     logging__error "Invalid value for '${1}': '${_val}' failed path test '${2}'."

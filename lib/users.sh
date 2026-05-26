@@ -260,10 +260,16 @@ users__gid_of_group() {
   local _gid
   if _users__ensure_getent; then
     _gid="$(getent group "$1" 2> /dev/null | cut -d: -f3)"
-    [[ -n "$_gid" ]] && { printf '%s\n' "$_gid"; return 0; }
+    [[ -n "$_gid" ]] && {
+      printf '%s\n' "$_gid"
+      return 0
+    }
   fi
   _gid="$(awk -F: -v g="$1" '$1==g{print $3;exit}' /etc/group 2> /dev/null)"
-  [[ -n "$_gid" ]] && { printf '%s\n' "$_gid"; return 0; }
+  [[ -n "$_gid" ]] && {
+    printf '%s\n' "$_gid"
+    return 0
+  }
   return 1
 }
 
@@ -278,10 +284,16 @@ users__group_of_gid() {
   local _gname
   if _users__ensure_getent; then
     _gname="$(getent group "$1" 2> /dev/null | cut -d: -f1)"
-    [[ -n "$_gname" ]] && { printf '%s\n' "$_gname"; return 0; }
+    [[ -n "$_gname" ]] && {
+      printf '%s\n' "$_gname"
+      return 0
+    }
   fi
   _gname="$(awk -F: -v gid="$1" '$3==gid{print $1;exit}' /etc/group 2> /dev/null)"
-  [[ -n "$_gname" ]] && { printf '%s\n' "$_gname"; return 0; }
+  [[ -n "$_gname" ]] && {
+    printf '%s\n' "$_gname"
+    return 0
+  }
   return 1
 }
 
@@ -657,7 +669,10 @@ users__create_group() {
   local _gid=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --gid) _gid="$2"; shift 2 ;;
+      --gid)
+        _gid="$2"
+        shift 2
+        ;;
       *) shift ;;
     esac
   done
@@ -676,7 +691,10 @@ users__create_group() {
 # Returns: 0 on success, 1 on failure (warning logged).
 users__delete_group() {
   _users__ensure_shadowutils || return 1
-  users__run_privileged groupdel "$1" 2> /dev/null || { logging__error "Failed to delete group '${1}'."; return 1; }
+  users__run_privileged groupdel "$1" 2> /dev/null || {
+    logging__error "Failed to delete group '${1}'."
+    return 1
+  }
 }
 
 # @brief users__delete_user <name> — Delete a user account.
@@ -687,7 +705,10 @@ users__delete_group() {
 # Returns: 0 on success, 1 on failure (warning logged).
 users__delete_user() {
   _users__ensure_shadowutils || return 1
-  users__run_privileged userdel "$1" 2> /dev/null || { logging__error "Failed to delete user '${1}'."; return 1; }
+  users__run_privileged userdel "$1" 2> /dev/null || {
+    logging__error "Failed to delete user '${1}'."
+    return 1
+  }
 }
 
 # @brief users__create_user <name> [--uid <uid>] [--gid <gid>] [--home <path>] [--shell <shell>] [--no-create-home] — Create a regular user account.
@@ -710,21 +731,36 @@ users__create_user() {
   local _uid="" _gid="" _home="" _shell="" _no_create_home=false
   while [ "$#" -gt 0 ]; do
     case "$1" in
-      --uid)            _uid="$2";   shift 2 ;;
-      --gid)            _gid="$2";   shift 2 ;;
-      --home)           _home="$2";  shift 2 ;;
-      --shell)          _shell="$2"; shift 2 ;;
-      --no-create-home) _no_create_home=true; shift ;;
+      --uid)
+        _uid="$2"
+        shift 2
+        ;;
+      --gid)
+        _gid="$2"
+        shift 2
+        ;;
+      --home)
+        _home="$2"
+        shift 2
+        ;;
+      --shell)
+        _shell="$2"
+        shift 2
+        ;;
+      --no-create-home)
+        _no_create_home=true
+        shift
+        ;;
       *) shift ;;
     esac
   done
   _users__ensure_shadowutils || return 1
   local -a _cmd=("useradd")
   [[ "$_no_create_home" == "true" ]] && _cmd+=("--no-create-home")
-  [ -n "$_home" ]  && _cmd+=("--home-dir" "$_home")
-  [ -n "$_gid" ]   && _cmd+=("--gid" "$_gid")
+  [ -n "$_home" ] && _cmd+=("--home-dir" "$_home")
+  [ -n "$_gid" ] && _cmd+=("--gid" "$_gid")
   [ -n "$_shell" ] && _cmd+=("--shell" "$_shell")
-  [ -n "$_uid" ]   && _cmd+=("--uid" "$_uid")
+  [ -n "$_uid" ] && _cmd+=("--uid" "$_uid")
   _cmd+=("$_name")
   users__run_privileged "${_cmd[@]}"
 }
@@ -739,7 +775,10 @@ users__create_user() {
 users__add_to_group() {
   local _user="$1" _group="$2"
   _users__ensure_shadowutils || return 1
-  users__run_privileged usermod -aG "$_group" "$_user" || { logging__warn "Failed to add '${_user}' to group '${_group}'."; return 1; }
+  users__run_privileged usermod -aG "$_group" "$_user" || {
+    logging__warn "Failed to add '${_user}' to group '${_group}'."
+    return 1
+  }
 }
 
 # @brief users__create_system_user <username> [--home <path>] [--shell <shell>] — Create a system user if it does not already exist.
@@ -975,13 +1014,22 @@ users__add_sudoer() {
   shift
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --sudoers-dir) _sudoers_dir="${2:?--sudoers-dir requires a value}"; shift 2 ;;
-      *) logging__error "users__add_sudoer: unknown option: '$1'"; return 1 ;;
+      --sudoers-dir)
+        _sudoers_dir="${2:?--sudoers-dir requires a value}"
+        shift 2
+        ;;
+      *)
+        logging__error "users__add_sudoer: unknown option: '$1'"
+        return 1
+        ;;
     esac
   done
   _users__ensure_sudo || return 1
   local _target="${_sudoers_dir}/${_username}" _tmp _visudo_out
-  _tmp="$(mktemp)" || { logging__error "users__add_sudoer: mktemp failed."; return 1; }
+  _tmp="$(mktemp)" || {
+    logging__error "users__add_sudoer: mktemp failed."
+    return 1
+  }
   printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$_username" > "$_tmp"
   chmod 0440 "$_tmp"
   _visudo_out="$(users__run_privileged visudo -c -f "$_tmp" 2>&1)" || {
@@ -1011,7 +1059,10 @@ users__add_sudoer() {
 users__first_writeable_path() {
   local -a _when _paths
   while [[ $# -gt 0 ]]; do
-    [[ "$1" != "--" ]] && { shift; continue; }
+    [[ "$1" != "--" ]] && {
+      shift
+      continue
+    }
     shift
     _when=()
     _paths=()
