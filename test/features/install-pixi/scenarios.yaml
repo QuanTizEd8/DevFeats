@@ -251,15 +251,6 @@ if_exists_fail_preinstalled:
     skip_install: false
   tests:
   - if_exists_fail_preinstalled.sh
-http_uri_resolve_stubbed:
-  envs:
-  - ubuntu-latest
-  modes:
-  - standalone
-  standalone:
-    skip_install: true
-  tests:
-  - http_uri_resolve_stubbed.sh
 invalid_version_string:
   expect_install_failure: true
   envs:

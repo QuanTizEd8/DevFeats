@@ -57,10 +57,10 @@ if_exists_fail:
       pattern: jq already installed at
 
 if_exists_skip:
-  description: "Ensures if_exists=skip succeeds when jq already exists and leaves it untouched."
+  description: |
+    Ensures if_exists=skip succeeds when jq already exists and leaves it untouched.
+    The runner installs via install.sh with scenario options (method=auto, if_exists=skip).
   checks:
-    - title: if_exists=skip exits zero when jq exists
-      cmd: bash "${REPO_ROOT}/src/install-jq/install.bash" --method auto --if_exists skip
     - title: jq remains available after skip
       cmd: command -v jq
     - title: existing jq version unchanged (skip did not reinstall)

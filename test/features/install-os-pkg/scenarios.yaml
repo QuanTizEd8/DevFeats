@@ -418,10 +418,3 @@ apt_manifest_uri_file:
   options:
     manifest: "file:///tmp/manifest.yaml"
   tests: [apt_manifest_uri_file]
-
-http_uri_resolve_stubbed:
-  envs: [ubuntu-latest]
-  modes: [standalone]
-  standalone:
-    skip_install: true
-  tests: [http_uri_resolve_stubbed]

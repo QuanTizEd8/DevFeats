@@ -71,25 +71,6 @@ env_files_uri:
     - title: numpy importable in simple
       cmd: /opt/conda/envs/simple/bin/python -c 'import numpy'
 
-http_uri_resolve_stubbed:
-  description: "Stub net__fetch_url_file and verify uri__resolve handles http:// for conda env YAML."
-  pre: |
-    source "${REPO_ROOT}/lib/logging.sh"
-    source "${REPO_ROOT}/lib/file.sh"
-    source "${REPO_ROOT}/lib/uri.sh"
-
-    # Stub the uri-layer fetch seam (after sourcing uri.sh) so net.sh loading cannot overwrite it.
-    _uri__net_fetch() {
-      printf 'name: from-http-stub\ndependencies:\n  - numpy\n' > "$2"
-    }
-    export -f _uri__net_fetch
-
-    _dest="$(mktemp "${TMPDIR:-/tmp}/conda-uri.XXXXXX")"
-    uri__resolve "http://stub.example/env.yml" "$_dest"
-  checks:
-    - title: stubbed http YAML has expected name
-      cmd: grep -q 'from-http-stub' "$_dest"
-
 inline_env:
   description: |
     env_name=myenv, packages="numpy pandas": an inline named environment is

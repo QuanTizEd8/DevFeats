@@ -150,10 +150,3 @@ env_files_uri:
   options:
     env_files: "file:///tmp/test-envs/simple.yml"
   tests: [env_files_uri]
-
-http_uri_resolve_stubbed:
-  envs: [condaforge-miniforge3]
-  modes: [standalone]
-  standalone:
-    skip_install: true
-  tests: [http_uri_resolve_stubbed]

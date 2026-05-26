@@ -179,28 +179,6 @@ home_dir:
     - title: no pixi PATH block in export file
       cmd: bash -c '! grep -Fq "pixi PATH (install-pixi)" "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null'
 
-http_uri_resolve_stubbed:
-  description: "NETRC fetched via uri__resolve from http:// (stubbed net__fetch_url_file)."
-
-  pre: |
-    source "${REPO_ROOT}/lib/logging.sh"
-    source "${REPO_ROOT}/lib/file.sh"
-    source "${REPO_ROOT}/lib/uri.sh"
-
-    # Stub the uri-layer fetch seam (after sourcing uri.sh) so net.sh loading cannot overwrite it.
-    _uri__net_fetch() {
-      printf 'machine github.com login x password y\n' > "$2"
-    }
-    export -f _uri__net_fetch
-
-    _dest="$(mktemp "${TMPDIR:-/tmp}/pixi-netrc-uri.XXXXXX")"
-    chmod 600 "$_dest"
-    uri__resolve "http://stub.example/netrc" "$_dest"
-
-  checks:
-    - title: resolved netrc mentions machine
-      cmd: grep -q '^machine github.com' "$_dest"
-
 if_exists_fail_preinstalled:
   description: |
     Verify that if_exists=fail exits non-zero when pixi is already installed.

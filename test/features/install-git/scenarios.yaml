@@ -235,6 +235,7 @@ source_custom_prefix_nonroot:
     '
   standalone:
     user: vscode
+    # Install must run as vscode (see checks pre); runner install is always root.
     skip_install: true
   tests:
   - source_custom_prefix_nonroot.sh

@@ -81,7 +81,8 @@ See [Testing](testing.md) for the full guide.
 |---|---|
 | New or changed `lib/` function | Test in `test/lib/<module>.bats` |
 | New feature behaviour (Linux devcontainer) | Scenario in `test/features/<feature>/scenarios.yaml` with `modes: [devcontainer]` |
-| Feature install should exit non-zero | Standalone scenario with `standalone.skip_install: true`; use `fail_check` in the test script |
+| Feature install should exit non-zero | `expect_install_failure: true` + `kind: install_failure` / `pattern` in `checks.yaml` (runner validates one install) |
+| URI/helper logic in `lib/` only | `test/lib/<module>.bats` — not a feature scenario |
 | Non-root or network-isolated code path | Standalone scenario with `standalone.user`/`standalone.network: none` |
 | Feature behaviour that requires real macOS | Scenario in `scenarios.yaml` referencing a `macos-*` environment |
 | Manifest selector or package resolution change | Case under `test/features/install-os-pkg/unit/cases/<case>/` |

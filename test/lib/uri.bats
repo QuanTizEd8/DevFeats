@@ -195,6 +195,45 @@ setup() {
   assert_output "got"
 }
 
+@test "uri__resolve http:// uses _uri__net_fetch seam when stubbed (netrc content)" {
+  _uri__net_fetch() {
+    printf 'machine github.com login x password y\n' > "$2"
+  }
+  export -f _uri__net_fetch
+
+  local _dst="${BATS_TEST_TMPDIR}/netrc"
+  run uri__resolve "http://stub.example/netrc" "$_dst"
+  assert_success
+  run grep -q '^machine github.com' "$_dst"
+  assert_success
+}
+
+@test "uri__resolve http:// uses _uri__net_fetch seam when stubbed (conda env YAML)" {
+  _uri__net_fetch() {
+    printf 'name: from-http-stub\ndependencies:\n  - numpy\n' > "$2"
+  }
+  export -f _uri__net_fetch
+
+  local _dst="${BATS_TEST_TMPDIR}/env.yml"
+  run uri__resolve "http://stub.example/env.yml" "$_dst"
+  assert_success
+  run grep -q 'from-http-stub' "$_dst"
+  assert_success
+}
+
+@test "uri__resolve https:// uses _uri__net_fetch seam when stubbed (os-pkg manifest)" {
+  _uri__net_fetch() {
+    printf '%s\n' 'packages:' '  - tree' > "$2"
+  }
+  export -f _uri__net_fetch
+
+  local _dst="${BATS_TEST_TMPDIR}/manifest.yaml"
+  run uri__resolve "https://stub.internal/manifest.yaml" "$_dst"
+  assert_success
+  run grep -q '^  - tree' "$_dst"
+  assert_success
+}
+
 @test "uri__resolve verifies #sha256 for local file" {
   local _src="${BATS_TEST_TMPDIR}/data"
   printf 'payload\n' > "$_src"

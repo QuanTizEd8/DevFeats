@@ -99,7 +99,56 @@ macos_default:
   - `user` — run tests (and optionally install) as this user
   - `sudo` — `false` disables sudo for `user` (default `true`)
   - `network: none` — run container with `--network none`
-  - `skip_install: true` — don't call `install.bash`; test script calls it directly
+  - `skip_install: true` — don't call `install.sh` before the test script (see **When to use `skip_install`** below)
+- `expect_install_failure: true` — standalone/macos runner requires a non-zero `install.sh` exit and output matching each `kind: install_failure` pattern in `checks.yaml` for the scenario's `tests` list (single install, no re-run in the test script)
+
+## Feature tests vs unit tests
+
+| Layer | Location | What it proves |
+|-------|----------|----------------|
+| Library | `test/lib/*.bats` | Functions in `lib/` in isolation (stubs, PATH fakes, `reload_lib`) |
+| Feature | `test/features/<id>/` | End-to-end `install.sh` / assembled `install.bash` behaviour in real containers |
+
+**Do not put library-only scenarios in `test/features/`.** If a scenario never runs `install.sh` (or only sources `lib/*.sh` and calls helpers), it belongs in `test/lib/` — for example HTTP URI resolution via a stubbed `_uri__net_fetch` lives in `test/lib/uri.bats`.
+
+Feature scenarios should either:
+
+1. Let the runner call `install.sh` once with `options` from `scenarios.yaml` (default), then assert post-install state in the test script, or
+2. Use `expect_install_failure: true` when the install must fail (see below), or
+3. Use `skip_install: true` only when the runner cannot perform the install you need (see below).
+
+### When to use `skip_install`
+
+Use `standalone.skip_install: true` only when the test script must invoke the installer under conditions the runner does not support:
+
+- **Non-root install** — standalone install always runs as root; use `standalone.user` for tests and run `install.bash` in the test script `pre` block as that user (see `install-git` / `source_custom_prefix_nonroot`).
+- **Custom CLI** — rare cases where options cannot be expressed via `scenarios.yaml` `options` (prefer exporting options instead).
+
+Do **not** use `skip_install` to skip a feature install and only test `lib/` helpers.
+
+### When to use `expect_install_failure`
+
+For scenarios where `install.sh` must exit non-zero:
+
+```yaml
+invalid_method:
+  expect_install_failure: true
+  options:
+    method: invalid
+  tests: [invalid_method]
+```
+
+In `checks.yaml`, declare the expected log line (runner validates exit code and substring on the single install output):
+
+```yaml
+invalid_method:
+  checks:
+    - kind: install_failure
+      title: invalid method rejected
+      pattern: "Invalid value for 'method'"
+```
+
+`kind: install_failure` items are **not** emitted into generated `.sh` files; the runner enforces them. Post-install checks in the same test group still run in the script when install failure is expected (for example verifying a stub is still present).
 
 ## `test/environments.yaml` Format
 
@@ -153,20 +202,7 @@ reportResults
 - `REPO_ROOT` is always set by the runner — use it for paths to repo files.
 - `reportResults` — required at the end; exits non-zero if any check failed.
 
-**For negative assertions (feature must exit non-zero):**
-
-```bash
-#!/usr/bin/env bash
-set -e
-source dev-container-features-test-lib
-
-fail_check "invalid option exits non-zero" \
-  bash "${REPO_ROOT}/src/<feature>/install.bash" --method invalid
-
-reportResults
-```
-
-Use `standalone.skip_install: true` in the scenario so the runner doesn't call `install.bash` before the test script does.
+**For negative assertions (feature must exit non-zero):** use `expect_install_failure: true` in `scenarios.yaml` and `kind: install_failure` with a `pattern` in `checks.yaml` (see **When to use `expect_install_failure`** above). Do not use `check true` or an empty test script — the runner must see the expected error message in install output.
 
 ## Common Assertion Patterns
 
