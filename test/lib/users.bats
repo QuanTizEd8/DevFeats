@@ -896,13 +896,13 @@ EOF
 @test "users__users_by_primary_gid: lists current user when queried by their primary GID" {
   _cur_user="$(id -un)"
   _cur_gid="$(id -g)"
-  run users__users_by_primary_gid "$_cur_gid"
+  run --separate-stderr users__users_by_primary_gid "$_cur_gid"
   assert_success
   assert_output --partial "$_cur_user"
 }
 
 @test "users__users_by_primary_gid: produces empty output for a non-existent GID" {
-  run users__users_by_primary_gid "99999999"
+  run --separate-stderr users__users_by_primary_gid "99999999"
   assert_success
   assert_output ""
 }
