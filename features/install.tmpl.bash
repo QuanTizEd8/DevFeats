@@ -147,9 +147,13 @@ __install_dependencies() {
 }
 
 __install_base_dependencies__() {
-  [[ -f "$_FEAT_DEPS_DIR/build/base.yaml" ]] && __install_dependencies build base "$@"
-  [[ -f "$_FEAT_DEPS_DIR/run/base.yaml" ]] && __install_dependencies run base "$@"
-  return
+  if [[ -f "$_FEAT_DEPS_DIR/build/base.yaml" ]]; then
+    __install_dependencies build base "$@"
+  fi
+  if [[ -f "$_FEAT_DEPS_DIR/run/base.yaml" ]]; then
+    __install_dependencies run base "$@"
+  fi
+  return 0
 }
 
 # Prefix group helpers (generated)
