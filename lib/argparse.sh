@@ -6,12 +6,19 @@
 # references (${!VAR} / nameref) so callers pass the variable *name*, not its
 # value.
 
+# User-facing option label: bash vars are UPPER_SNAKE; metadata/CLI use lower_snake.
+_argparse__label() {
+  printf '%s' "${1,,}"
+}
+
 # @brief argparse__validate_bool VAR — Exits 1 if $VAR is not "true" or "false".
 argparse__validate_bool() {
+  local _label
+  _label="$(_argparse__label "$1")"
   case "${!1}" in
     true | false) ;;
     *)
-      logging__error "Invalid value for '${1}': '${!1}' (expected: true, false)"
+      logging__error "Invalid value for '${_label}': '${!1}' (expected: true, false)"
       exit 1
       ;;
   esac
@@ -19,7 +26,8 @@ argparse__validate_bool() {
 
 # @brief argparse__validate_enum VAR [valid...] — Exits 1 if $VAR is not among the valid values.
 argparse__validate_enum() {
-  local _var="$1"
+  local _var="$1" _label
+  _label="$(_argparse__label "$_var")"
   shift
   local _val="${!_var}" _v
   for _v in "$@"; do
@@ -29,13 +37,14 @@ argparse__validate_enum() {
   for _ev in "$@"; do
     [[ -z "$_ev" ]] && _expected+="'', " || _expected+="${_ev}, "
   done
-  logging__error "Invalid value for '${_var}': '${_val}' (expected: ${_expected%, })"
+  logging__error "Invalid value for '${_label}': '${_val}' (expected: ${_expected%, })"
   exit 1
 }
 
 # @brief argparse__validate_enum_array VAR [valid...] — Exits 1 if any element of array $VAR is not among the valid values.
 argparse__validate_enum_array() {
-  local _var="$1"
+  local _var="$1" _label
+  _label="$(_argparse__label "$_var")"
   shift
   local -n _ave_ref="$_var"
   local _val _v _matched
@@ -52,7 +61,7 @@ argparse__validate_enum_array() {
       for _ev in "$@"; do
         [[ -z "$_ev" ]] && _expected+="'', " || _expected+="${_ev}, "
       done
-      logging__error "Invalid value for '${_var}': '${_val}' (expected: ${_expected%, })"
+      logging__error "Invalid value for '${_label}': '${_val}' (expected: ${_expected%, })"
       exit 1
     fi
   done
@@ -60,24 +69,30 @@ argparse__validate_enum_array() {
 
 # @brief argparse__validate_integer VAR — Exits 1 if $VAR is not a valid integer.
 argparse__validate_integer() {
+  local _label
+  _label="$(_argparse__label "$1")"
   if [[ ! "${!1}" =~ ^-?[0-9]+$ ]]; then
-    logging__error "Invalid value for '${1}': '${!1}' is not a valid integer."
+    logging__error "Invalid value for '${_label}': '${!1}' is not a valid integer."
     exit 1
   fi
 }
 
 # @brief argparse__validate_integer_min VAR MIN — Exits 1 if $VAR < MIN.
 argparse__validate_integer_min() {
+  local _label
+  _label="$(_argparse__label "$1")"
   if ((${!1} < ${2})); then
-    logging__error "Invalid value for '${1}': '${!1}' must be >= ${2}."
+    logging__error "Invalid value for '${_label}': '${!1}' must be >= ${2}."
     exit 1
   fi
 }
 
 # @brief argparse__validate_integer_max VAR MAX — Exits 1 if $VAR > MAX.
 argparse__validate_integer_max() {
+  local _label
+  _label="$(_argparse__label "$1")"
   if ((${!1} > ${2})); then
-    logging__error "Invalid value for '${1}': '${!1}' must be <= ${2}."
+    logging__error "Invalid value for '${_label}': '${!1}' must be <= ${2}."
     exit 1
   fi
 }
@@ -87,7 +102,8 @@ argparse__validate_integer_max() {
 # OP is a bash unary test operator (e.g. -d, -f, -e).
 # Validation fails when the test does NOT hold.  An empty value is skipped.
 argparse__validate_path() {
-  local _val="${!1}"
+  local _label _val="${!1}"
+  _label="$(_argparse__label "$1")"
   [[ -z "$_val" ]] && return 0
   local _ok=false
   case "$2" in
@@ -107,7 +123,7 @@ argparse__validate_path() {
       ;;
   esac
   if [[ "$_ok" != true ]]; then
-    logging__error "Invalid value for '${1}': '${_val}' failed path test '${2}'."
+    logging__error "Invalid value for '${_label}': '${_val}' failed path test '${2}'."
     exit 1
   fi
 }

@@ -28,7 +28,7 @@ setup() {
   export MY_VAR=yes
   run --separate-stderr argparse__validate_bool MY_VAR
   assert_failure
-  [[ "${stderr}" =~ "MY_VAR" ]]
+  [[ "${stderr}" =~ "my_var" ]]
   [[ "${stderr}" =~ "expected: true, false" ]]
 }
 
@@ -58,7 +58,7 @@ setup() {
   export MY_VAR=delta
   run --separate-stderr argparse__validate_enum MY_VAR alpha beta gamma
   assert_failure
-  [[ "${stderr}" =~ "MY_VAR" ]]
+  [[ "${stderr}" =~ "my_var" ]]
   [[ "${stderr}" =~ "delta" ]]
   [[ "${stderr}" =~ "alpha" ]]
 }
@@ -139,7 +139,7 @@ setup() {
   export MY_VAR=abc
   run --separate-stderr argparse__validate_integer MY_VAR
   assert_failure
-  [[ "${stderr}" =~ "MY_VAR" ]]
+  [[ "${stderr}" =~ "my_var" ]]
 }
 
 @test "argparse__validate_integer: rejects float" {
@@ -174,7 +174,7 @@ setup() {
   export MY_VAR=4
   run --separate-stderr argparse__validate_integer_min MY_VAR 5
   assert_failure
-  [[ "${stderr}" =~ "MY_VAR" ]]
+  [[ "${stderr}" =~ "my_var" ]]
   [[ "${stderr}" =~ ">= 5" ]]
 }
 
@@ -198,7 +198,7 @@ setup() {
   export MY_VAR=11
   run --separate-stderr argparse__validate_integer_max MY_VAR 10
   assert_failure
-  [[ "${stderr}" =~ "MY_VAR" ]]
+  [[ "${stderr}" =~ "my_var" ]]
   [[ "${stderr}" =~ "<= 10" ]]
 }
 
@@ -222,7 +222,7 @@ setup() {
   export MY_VAR="/no/such/directory"
   run --separate-stderr argparse__validate_path MY_VAR -d
   assert_failure
-  [[ "${stderr}" =~ "MY_VAR" ]]
+  [[ "${stderr}" =~ "my_var" ]]
   [[ "${stderr}" =~ "-d" ]]
 }
 
