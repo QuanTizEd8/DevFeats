@@ -87,8 +87,9 @@ def _standalone_install_block(
             lines.append(
                 f'if ! grep -Fq {qpat} "${{_FEATURE_INSTALL_LOG}}"; then '
                 f'echo "⛔ standalone scenario {scenario_key}: install output missing '
-                f"expected message: {pattern!r}" >&2; '
-                'echo "--- install output ---" >&2; cat "${_FEATURE_INSTALL_LOG}" >&2; exit 1; fi'
+                f'expected message: {pattern!r}" >&2; '
+                'echo "--- install output ---" >&2; '
+                'cat "${_FEATURE_INSTALL_LOG}" >&2; exit 1; fi'
             )
     else:
         lines.append(
