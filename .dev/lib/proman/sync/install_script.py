@@ -858,7 +858,7 @@ _ARGPARSE_ENV_READ_SCALAR = """
 """
 
 _ARGPARSE_DEFAULT_DYNAMIC = """
-[ -n "${{{var}}}" ] || {{
+[ -n "${{{var}-}}" ] || {{
   {var}={rhs}
   logging__info "Argument '{key}' dynamic default resolved to '${{{var}}}'."
 }}
