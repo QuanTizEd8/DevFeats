@@ -5,10 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from proman.sync.install_script import (
-    InstallScriptGenerator,
     _SPLIT_PRINTF_PERCENT_S_RE,
+    InstallScriptGenerator,
     _uri_chmod_mode,
     validate_generated_install_script,
 )

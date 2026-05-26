@@ -74,13 +74,13 @@ apt_default:
     - title: containers.conf sets file events logger
       cmd: grep -q 'events_logger = "file"' /etc/containers/containers.conf
     - title: entrypoint script exists
-      cmd: test -f "${_FEAT_SHARE_DIR}/entrypoint.sh"
+      cmd: test -f "${_FEAT_ENTRYPOINT_PATH}"
     - title: entrypoint is executable
-      cmd: test -x "${_FEAT_SHARE_DIR}/entrypoint.sh"
+      cmd: test -x "${_FEAT_ENTRYPOINT_PATH}"
     - title: entrypoint runs make-rshared
-      cmd: grep -q 'mount --make-rshared /' "${_FEAT_SHARE_DIR}/entrypoint.sh"
+      cmd: grep -q 'mount --make-rshared /' "${_FEAT_ENTRYPOINT_PATH}"
     - title: entrypoint sets up cgroup v2 nesting
-      cmd: grep -q 'cgroup.subtree_control' "${_FEAT_SHARE_DIR}/entrypoint.sh"
+      cmd: grep -q 'cgroup.subtree_control' "${_FEAT_ENTRYPOINT_PATH}"
     - title: root NOT in /etc/subuid
       cmd: bash -c '! grep -q "^root:" /etc/subuid'
     - title: root storage.conf NOT written
@@ -211,11 +211,11 @@ apt_no_users:
     - title: containers.conf file events logger
       cmd: grep -q 'events_logger = "file"' /etc/containers/containers.conf
     - title: entrypoint exists
-      cmd: test -f "${_FEAT_SHARE_DIR}/entrypoint.sh"
+      cmd: test -f "${_FEAT_ENTRYPOINT_PATH}"
     - title: entrypoint is executable
-      cmd: test -x "${_FEAT_SHARE_DIR}/entrypoint.sh"
+      cmd: test -x "${_FEAT_ENTRYPOINT_PATH}"
     - title: entrypoint sets up cgroup v2 nesting
-      cmd: grep -q 'cgroup.subtree_control' "${_FEAT_SHARE_DIR}/entrypoint.sh"
+      cmd: grep -q 'cgroup.subtree_control' "${_FEAT_ENTRYPOINT_PATH}"
     - title: root NOT in /etc/subuid
       cmd: bash -c '! grep -q "^root:" /etc/subuid 2>/dev/null'
     - title: root storage.conf NOT written
@@ -230,7 +230,7 @@ apt_nonexistent_user:
     - title: podman is installed
       cmd: command -v podman
     - title: entrypoint exists
-      cmd: test -f "${_FEAT_SHARE_DIR}/entrypoint.sh"
+      cmd: test -f "${_FEAT_ENTRYPOINT_PATH}"
     - title: containers.conf exists
       cmd: test -f /etc/containers/containers.conf
     - title: ghost NOT in /etc/subuid
@@ -359,7 +359,7 @@ apt_standalone_default:
     - title: root storage.conf NOT written
       cmd: bash -c '! test -f /root/.config/containers/storage.conf'
     - title: entrypoint NOT installed
-      cmd: bash -c "! test -f '${_FEAT_SHARE_DIR}/entrypoint.sh'"
+      cmd: bash -c "! test -f '${_FEAT_ENTRYPOINT_PATH}'"
 
 apt_standalone_user:
   description: |
@@ -387,4 +387,4 @@ apt_standalone_user:
     - title: devuser storage.conf NOT written
       cmd: bash -c '! test -f /home/devuser/.config/containers/storage.conf'
     - title: entrypoint NOT installed
-      cmd: bash -c "! test -f '${_FEAT_SHARE_DIR}/entrypoint.sh'"
+      cmd: bash -c "! test -f '${_FEAT_ENTRYPOINT_PATH}'"

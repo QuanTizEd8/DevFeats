@@ -13,11 +13,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-from proman.feature_env import (
-    activation_profile_d_filename,
-    share_dir_root,
-    shell_profile_d_filename,
-)
+from proman.feature_env import resolved_env_vars
+
 from .checks import install_failure_patterns, load_checks
 from .codegen import generate_tests
 from .environments import is_macos, resolve
@@ -274,27 +271,23 @@ def _run_standalone(
         )
 
         test_cmd_lines = []
-        _feat_share = share_dir_root(feature)
-        _export_pd = shell_profile_d_filename(feature)
-        _activation_pd = activation_profile_d_filename(feature)
+        _feat_env_str = " ".join(
+            f"{k}={shlex.quote(v)}" for k, v in resolved_env_vars(feature).items()
+        )
         for ts in test_scripts:
             ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
             ts_path = f"/repo/test/features/{feature}/tests/{ts_name}"
             if user:
                 test_cmd_lines.append(
                     f"su {user} -c '"
-                    f"_FEAT_SHARE_DIR={shlex.quote(_feat_share)}"
-                    f" _EXPORT_PROFILE_D={shlex.quote(_export_pd)}"
-                    f" _ACTIVATION_PROFILE_D={shlex.quote(_activation_pd)}"
+                    f"{_feat_env_str}"
                     f" PATH=/tmp/_testlib:$PATH"
                     f" REPO_ROOT=/repo FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC"
                     f" bash {ts_path}'",
                 )
             else:
                 test_cmd_lines.append(
-                    f"_FEAT_SHARE_DIR={shlex.quote(_feat_share)}"
-                    f" _EXPORT_PROFILE_D={shlex.quote(_export_pd)}"
-                    f" _ACTIVATION_PROFILE_D={shlex.quote(_activation_pd)}"
+                    f"{_feat_env_str}"
                     f" PATH=/tmp/_testlib:$PATH REPO_ROOT=/repo"
                     f" FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC bash {ts_path}",
                 )
@@ -474,9 +467,7 @@ def _run_macos(
                     **run_env,
                     "PATH": f"{shim_dir}:{run_env['PATH']}",
                     "FEATURE_INSTALL_RC": str(install_rc),
-                    "_FEAT_SHARE_DIR": share_dir_root(feature),
-                    "_EXPORT_PROFILE_D": shell_profile_d_filename(feature),
-                    "_ACTIVATION_PROFILE_D": activation_profile_d_filename(feature),
+                    **resolved_env_vars(feature),
                 }
                 if user:
                     path_q = shlex.quote(test_env["PATH"])

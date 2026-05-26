@@ -166,9 +166,9 @@ class InstallScriptGenerator:
 
     @staticmethod
     def _generate_env_vars(env_vars: dict) -> dict[str, str]:
-        """Emit one ``_KEY="value"`` line per entry in metadata ``_env_vars``.
+        """Emit one ``KEY="value"`` line per entry in metadata ``_env_vars``.
 
-        Each snake_case key ``foo_bar`` becomes bash variable ``_FOO_BAR``.
+        Keys are emitted verbatim as bash variable names (they ARE the final names).
         Values are double-quoted so ``${HOME}`` and similar expansions still
         work at runtime.
         """
@@ -185,10 +185,9 @@ class InstallScriptGenerator:
                     f" (got {type(value).__name__})"
                 )
                 raise TypeError(msg)
-            var_name = f"_{key.upper()}"
             escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-            lines.append(f'{var_name}="{escaped}"')
-            var_names.append(var_name)
+            lines.append(f'{key}="{escaped}"')
+            var_names.append(key)
         out = {
             "assignments": "\n".join(lines),
             "unexports": " ".join(var_names),
@@ -779,7 +778,7 @@ class InstallScriptGenerator:
             args += [
                 f'--exports-ref "{p.var_exports}"',
                 f'--marker "{p.marker}"',
-                '--profile-d "${_SHELL_PROFILE_D_FILENAME}"',
+                '--profile-d "${_FEAT_PROFILE_D_FILE}"',
             ]
         args += [f'--bin "{p.first_bin}"', f'--cmd-var "{p.cmd_var}"']
         if p.skip_symlink:

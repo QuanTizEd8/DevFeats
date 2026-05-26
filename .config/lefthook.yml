@@ -2,6 +2,7 @@ pre-commit:
   commands:
     format-sh:
       glob: "**/*.{sh,bash,bats}"
+      exclude: "**/*.tmpl.*"
       run: just format-sh {staged_files} && git add {staged_files}
     lint-format-py:
       glob: "**/*.py"

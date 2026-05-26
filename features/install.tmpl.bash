@@ -16,20 +16,17 @@ EOF
 # Set internal environment variables.
 __setup_env__() {
 
-  # Common variables available in all features:
-  _FEAT_DIR="$(cd "$(dirname "$0")" && pwd)" # Path to the feature's root directory.
-  _FEAT_ID="${{ id }}$"
-  _FEAT_VERSION="${{ version }}$"
-  _FEAT_NAME="${{ name }}$"
+  # Runtime-computed variables (not in metadata; depend on script location):
+  _FEAT_DIR="$(cd "$(dirname "$0")" && pwd)"
   _FEAT_FILES_DIR="${_FEAT_DIR}/files"
   _FEAT_DEPS_DIR="${_FEAT_DIR}/dependencies"
 
-  # Custom environment variables defined in the feature's metadata:
+  # Metadata-derived variables (canonical source: metadata.shared.yaml _env_vars):
   ${{ _script.env_vars.assignments }}$
 
   # Unexport variables — values remain accessible in this script,
   # but are not inherited by child processes.
-  declare -g +x _FEAT_DIR _FEAT_ID _FEAT_VERSION _FEAT_NAME _FEAT_FILES_DIR _FEAT_DEPS_DIR ${{ _script.env_vars.unexports }}$
+  declare -g +x _FEAT_DIR _FEAT_FILES_DIR _FEAT_DEPS_DIR ${{ _script.env_vars.unexports }}$
 
   _SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::$_FEAT_ID}"
   export _SYSSET_BUILD_CONTEXT

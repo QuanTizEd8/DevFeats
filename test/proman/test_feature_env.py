@@ -11,18 +11,20 @@ from proman.feature_env import (
     activation_profile_d_filename,
     clear_caches,
     resolved_env_vars,
-    share_dir_root,
-    shell_profile_d_filename,
 )
 from proman.metadata import MetadataLoader
 
 _MINIMAL_SHARED = """\
 _lifecycle_key_prefix: myowner-test--
 _env_vars:
-  share_dir_root: /usr/local/share/myowner/test/${{ id }}$
-  share_dir_nonroot: ${HOME}/.local/share/myowner/test/${{ id }}$
-  lifecycle_script_dir: /usr/local/share/myowner/test/${{ id }}$/lifecycle-hooks
-  shell_profile_d_filename: 99-myowner--test--${{ id }}$.sh
+  _FEAT_ID:                        ${{ id }}$
+  _FEAT_VERSION:                   ${{ version }}$
+  _FEAT_NAME:                      ${{ name }}$
+  _FEAT_SHARE_DIR_ROOT:            /usr/local/share/myowner/test/${{ id }}$
+  _FEAT_SHARE_DIR_NONROOT:         ${HOME}/.local/share/myowner/test/${{ id }}$
+  _FEAT_LIFECYCLE_DIR:             ${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/lifecycle-hooks
+  _FEAT_PROFILE_D_FILE:            99-myowner--test--${{ id }}$.sh
+  _FEAT_ACTIVATION_PROFILE_D_FILE: myowner-test-${{ id }}$-prefix-activation.sh
 options:
   shared_opt:
     type: string
@@ -90,7 +92,6 @@ def _write_test_repo(tmp_path: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def _reset_caches() -> None:
-    yield
     cfg._config = None
     clear_caches()
 
@@ -98,17 +99,23 @@ def _reset_caches() -> None:
 def test_resolved_env_vars_from_shared_metadata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """share_dir_root and shell_profile_d_filename match filled _env_vars."""
+    """All _env_vars keys are resolved to their final values."""
     _write_test_repo(tmp_path)
     monkeypatch.setattr("proman.config.git_repo_root", lambda: tmp_path)
     cfg._config = None
     clear_caches()
 
     env = resolved_env_vars("install-foo")
-    assert env["share_dir_root"] == "/usr/local/share/myowner/test/install-foo"
-    assert env["shell_profile_d_filename"] == "99-myowner--test--install-foo.sh"
-    assert share_dir_root("install-foo") == env["share_dir_root"]
-    assert shell_profile_d_filename("install-foo") == env["shell_profile_d_filename"]
+    assert env["_FEAT_ID"] == "install-foo"
+    assert env["_FEAT_VERSION"] == "1.0.0"
+    assert env["_FEAT_SHARE_DIR_ROOT"] == "/usr/local/share/myowner/test/install-foo"
+    assert env["_FEAT_LIFECYCLE_DIR"] == (
+        "/usr/local/share/myowner/test/install-foo/lifecycle-hooks"
+    )
+    assert env["_FEAT_PROFILE_D_FILE"] == "99-myowner--test--install-foo.sh"
+    assert env["_FEAT_ACTIVATION_PROFILE_D_FILE"] == (
+        "myowner-test-install-foo-prefix-activation.sh"
+    )
 
 
 def test_activation_profile_d_uses_config_slugs(
@@ -124,7 +131,13 @@ def test_activation_profile_d_uses_config_slugs(
 
 
 def test_setup_shim_matches_repo_config() -> None:
-    """Sanity check against the real devfeats tree (no path drift)."""
+    """Sanity check: setup-shim _env_vars are fully resolved against the real repo."""
+    env = resolved_env_vars("setup-shim")
+    assert env["_FEAT_ID"] == "setup-shim"
+    assert env["_FEAT_SHARE_DIR_ROOT"].endswith("/setup-shim")
+    assert env["_FEAT_LIFECYCLE_DIR"] == env["_FEAT_SHARE_DIR_ROOT"] + "/lifecycle-hooks"
+    assert env["_FEAT_PROFILE_D_FILE"].endswith(".sh")
+    # Verify MetadataLoader and resolved_env_vars agree
     meta = MetadataLoader().load("setup-shim")["setup-shim"]["_env_vars"]
-    assert share_dir_root("setup-shim") == meta["share_dir_root"]
-    assert shell_profile_d_filename("setup-shim") == meta["shell_profile_d_filename"]
+    assert env["_FEAT_SHARE_DIR_ROOT"] == meta["_FEAT_SHARE_DIR_ROOT"]
+    assert env["_FEAT_PROFILE_D_FILE"] == meta["_FEAT_PROFILE_D_FILE"]

@@ -126,10 +126,10 @@ custom_bin_dir:
     - title: mamba symlink points into /opt/myforge
       cmd: bash -c '[ "$(readlink /usr/local/bin/mamba)" = "/opt/myforge/condabin/mamba" ]'
     - title: profile.d export script NOT written
-      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
       debug: |
-        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} (should be missing) ==="
-        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing — expected)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} (should be missing) ==="
+        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing — expected)"
     - title: conda --version via symlink
       cmd: /usr/local/bin/conda --version
     - title: mamba --version via symlink
@@ -234,8 +234,8 @@ export_path_default:
     /opt/conda/bin is reachable via login PATH (set by the container ENV directive).
 
   pre: |
-    echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-    cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
+    echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+    cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing)"
     echo "=== login PATH ==="
     bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
 
@@ -309,8 +309,8 @@ if_exists_reinstall:
         /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
         echo "=== conda env list ==="
         /opt/conda/bin/conda env list 2>&1 || echo "(failed)"
-        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing)"
     - title: mamba --version succeeds after reinstall
       cmd: /opt/conda/bin/mamba --version
     - title: conda info --base returns /opt/conda
@@ -344,8 +344,8 @@ if_exists_skip:
       debug: |
         echo "=== conda --version ==="
         /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
-        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing)"
     - title: mamba --version succeeds
       cmd: /opt/conda/bin/mamba --version
     - title: conda info --base returns /opt/conda
@@ -533,7 +533,7 @@ prefix_discovery_symlink:
     - title: no /opt/conda directory symlink
       cmd: bash -c '! test -e /opt/conda'
     - title: profile.d export script NOT written
-      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
 
 prefix_discovery_symlink_nonroot:
   description: |

@@ -1,7 +1,7 @@
 code_only:
   description: Only the code shim is enabled; devcontainer-info and systemctl are disabled.
   pre: |
-    _SHIM_BIN="${_FEAT_SHARE_DIR}/bin"
+    _SHIM_BIN="${_FEAT_SHARE_DIR_ROOT}/bin"
   checks:
     - title: code shim exists
       cmd: test -f "${_SHIM_BIN}/code"
@@ -18,7 +18,7 @@ default:
     Verifies each shim is installed, executable, and on PATH at the expected
     location.  Also checks that the shim directory is first in PATH.
   pre: |
-    _SHIM_BIN="${_FEAT_SHARE_DIR}/bin"
+    _SHIM_BIN="${_FEAT_SHARE_DIR_ROOT}/bin"
     # PATH checks use bash -lc so /etc/profile sources profile.d (where export_path writes).
     # Plain bash -c does not load login startup files, so PATH would miss the shim dir.
   checks:
@@ -50,7 +50,7 @@ none_enabled:
     All shims disabled.  The shim directory should exist (created by install.sh)
     but contain no shim scripts.
   pre: |
-    _SHIM_BIN="${_FEAT_SHARE_DIR}/bin"
+    _SHIM_BIN="${_FEAT_SHARE_DIR_ROOT}/bin"
   checks:
     - title: shim bin directory exists
       cmd: test -d "${_SHIM_BIN}"

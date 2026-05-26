@@ -12,7 +12,7 @@ from proman.metadata import MetadataLoader
 _MINIMAL_SHARED = """\
 _lifecycle_key_prefix: myowner-test--
 _env_vars:
-  share_dir_root: /usr/local/share/myowner/test/${{ id }}$
+  _FEAT_SHARE_DIR_ROOT: /usr/local/share/myowner/test/${{ id }}$
 options:
   shared_opt:
     type: string
@@ -230,11 +230,11 @@ def test_load_substitutes_template_variables(
     metadata = _minimal_feature_metadata(
         description="Test ${{ _project.name_slug }}$.",
         entrypoint=(
-            "${{ _env_vars.share_dir_root }}$/entrypoint.sh ${containerWorkspaceFolder}"
+            "${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/entrypoint.sh ${containerWorkspaceFolder}"
         ),
         onCreateCommand={
             "run": {
-                "command": "sh ${{ _env_vars.share_dir_root }}$/on-create.sh || true",
+                "command": "sh ${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/on-create.sh || true",
                 "description": "Run on-create hook.",
             },
         },

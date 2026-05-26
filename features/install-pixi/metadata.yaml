@@ -14,6 +14,7 @@ _long_description: >-
   the official Pixi release channel, with optional version pinning and checksum
   verification. Shell activation is configured for the specified users after installation.
 _tool_name: Pixi
+
 _options:
   gh_repo: prefix-dev/pixi
   user_file_fetch: true
@@ -99,11 +100,11 @@ mounts:
 - source: ${localWorkspaceFolderBasename}-pixi
   target: ${containerWorkspaceFolder}/.pixi
   type: volume
-entrypoint: "${{ _env_vars.lifecycle_script_dir }}$/entrypoint.sh ${containerWorkspaceFolder}/.pixi"
+entrypoint: "${{ _env_vars._FEAT_ENTRYPOINT_PATH }}$ ${containerWorkspaceFolder}/.pixi"
 onCreateCommand:
   verification:
     description: Verify pixi is installed and working by running [`pixi info`](https://pixi.prefix.dev/latest/reference/cli/pixi/info/).
-    command: '${{ _env_vars.lifecycle_script_dir }}$/on-create--verification.sh'
+    command: '${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$verification.sh'
 # installsAfter: []
 customizations:
   vscode:

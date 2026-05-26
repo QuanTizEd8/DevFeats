@@ -49,7 +49,7 @@ fi
 
 # When lifecycle_hook is set, write a hook script and exit without installing.
 if [[ -n "$LIFECYCLE_HOOK" ]]; then
-  _HOOK_DIR="${_LIFECYCLE_SCRIPT_DIR}"
+  _HOOK_DIR="${_FEAT_LIFECYCLE_DIR}"
   file__mkdir "$_HOOK_DIR"
   _MANIFEST_ARG="$MANIFEST"
   if [[ "$MANIFEST" == *$'\n'* ]]; then
@@ -74,9 +74,9 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   [[ "$PREFER_LINUXBREW" == true ]] && _HOOK_OPTS+=" --prefer_linuxbrew true"
   _HOOK_OPTS+=" --keep_cache $KEEP_CACHE"
   case "$LIFECYCLE_HOOK" in
-    onCreate) _HOOK_FILE="$_HOOK_DIR/on-create.sh" ;;
-    updateContent) _HOOK_FILE="$_HOOK_DIR/update-content.sh" ;;
-    postCreate) _HOOK_FILE="$_HOOK_DIR/post-create.sh" ;;
+    onCreate) _HOOK_FILE="${_FEAT_LIFECYCLE_ON_CREATE}install.sh" ;;
+    updateContent) _HOOK_FILE="${_FEAT_LIFECYCLE_UPDATE_CONTENT}install.sh" ;;
+    postCreate) _HOOK_FILE="${_FEAT_LIFECYCLE_POST_CREATE}install.sh" ;;
   esac
   printf '#!/bin/sh\nset -e\nexec bash "%s" %s\n' \
     "/usr/local/lib/install-os-pkg/install.sh" "$_HOOK_OPTS" | file__tee "$_HOOK_FILE"

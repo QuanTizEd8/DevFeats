@@ -19,4 +19,4 @@ onCreateCommand:
   symlink-cursor-user-dir:
     description: Symlink the specified workspace `cursor` directory to `~/.cursor-server/data/User`.
     command: >-
-      ${{ _env_vars.lifecycle_script_dir }}$/on-create--symlink-cursor-user-dir.sh ${containerWorkspaceFolder}
+      ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$symlink-cursor-user-dir.sh ${containerWorkspaceFolder}

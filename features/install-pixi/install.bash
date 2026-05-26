@@ -138,8 +138,8 @@ prefix_activation_snippet() {
 _prefix_post_install_hook() {
   if os__is_devcontainer_build; then
     printf '#!/bin/sh\n"%s" info --extended\n' "${_DF_EXPECTED_CMD}" \
-      > "${_LIFECYCLE_SCRIPT_DIR}/lifecycle--on-create--verification.sh"
-    chmod +x "${_LIFECYCLE_SCRIPT_DIR}/lifecycle--on-create--verification.sh"
+      > "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
+    chmod +x "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
   fi
 }
 
@@ -256,8 +256,7 @@ install_completion
 # caller, so this section is skipped.
 # ---------------------------------------------------------------------------
 if os__is_devcontainer_build; then
-  _ENTRYPOINT_DEST="${_LIFECYCLE_SCRIPT_DIR}/entrypoint.sh"
-  install__copy_bin "${_FEAT_FILES_DIR}/entrypoint.sh" "$_ENTRYPOINT_DEST"
+  install__copy_bin "${_FEAT_FILES_DIR}/entrypoint.sh" "${_FEAT_ENTRYPOINT_PATH}"
   printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
-    > "${_LIFECYCLE_SCRIPT_DIR}/entrypoint.sh.conf"
+    > "${_FEAT_LIFECYCLE_DIR}/entrypoint.sh.conf"
 fi

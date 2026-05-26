@@ -19,7 +19,7 @@ onCreateCommand:
   symlink-codex-dir:
     description: Symlink the specified workspace `codex` directory to `~/.codex`.
     command: >-
-      ${{ _env_vars.lifecycle_script_dir }}$/on-create--symlink-codex-dir.sh ${containerWorkspaceFolder}
+      ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$symlink-codex-dir.sh ${containerWorkspaceFolder}
 customizations:
   vscode:
     extensions:

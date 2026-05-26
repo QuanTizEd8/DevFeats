@@ -111,38 +111,38 @@ apt_key_raw:
 apt_lifecycle_hook_oncreate:
   description: |
     Verifies that when lifecycle_hook=onCreate is set, the feature writes an
-    on-create.sh hook script and defers package installation to that hook.
+    on-create--install.sh hook script and defers package installation to that hook.
 
   checks:
-    - title: on-create.sh exists
-      cmd: test -f "${_FEAT_SHARE_DIR}/on-create.sh"
-    - title: on-create.sh is executable
-      cmd: test -x "${_FEAT_SHARE_DIR}/on-create.sh"
-    - title: on-create.sh references manifest
-      cmd: grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/on-create.sh"
-    - title: post-create.sh not written
-      cmd: test ! -f "${_FEAT_SHARE_DIR}/post-create.sh"
-    - title: update-content.sh not written
-      cmd: test ! -f "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: on-create--install.sh exists
+      cmd: test -f "${_FEAT_LIFECYCLE_ON_CREATE}install.sh"
+    - title: on-create--install.sh is executable
+      cmd: test -x "${_FEAT_LIFECYCLE_ON_CREATE}install.sh"
+    - title: on-create--install.sh references manifest
+      cmd: grep -q -- '--manifest' "${_FEAT_LIFECYCLE_ON_CREATE}install.sh"
+    - title: post-create--install.sh not written
+      cmd: test ! -f "${_FEAT_LIFECYCLE_POST_CREATE}install.sh"
+    - title: update-content--install.sh not written
+      cmd: test ! -f "${_FEAT_LIFECYCLE_UPDATE_CONTENT}install.sh"
     - title: tree installed by onCreate hook
       cmd: command -v tree
 
 apt_lifecycle_hook_postcreate:
   description: |
     Verifies that when lifecycle_hook=postCreate is set, the feature writes a
-    post-create.sh hook script instead of installing packages at build time.
+    post-create--install.sh hook script instead of installing packages at build time.
 
   checks:
-    - title: post-create.sh exists
-      cmd: test -f "${_FEAT_SHARE_DIR}/post-create.sh"
-    - title: post-create.sh is executable
-      cmd: test -x "${_FEAT_SHARE_DIR}/post-create.sh"
-    - title: post-create.sh references manifest
-      cmd: grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/post-create.sh"
-    - title: on-create.sh not written
-      cmd: test ! -f "${_FEAT_SHARE_DIR}/on-create.sh"
-    - title: update-content.sh not written
-      cmd: test ! -f "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: post-create--install.sh exists
+      cmd: test -f "${_FEAT_LIFECYCLE_POST_CREATE}install.sh"
+    - title: post-create--install.sh is executable
+      cmd: test -x "${_FEAT_LIFECYCLE_POST_CREATE}install.sh"
+    - title: post-create--install.sh references manifest
+      cmd: grep -q -- '--manifest' "${_FEAT_LIFECYCLE_POST_CREATE}install.sh"
+    - title: on-create--install.sh not written
+      cmd: test ! -f "${_FEAT_LIFECYCLE_ON_CREATE}install.sh"
+    - title: update-content--install.sh not written
+      cmd: test ! -f "${_FEAT_LIFECYCLE_UPDATE_CONTENT}install.sh"
     - title: tree installed by postCreate hook
       cmd: command -v tree
 
@@ -152,35 +152,35 @@ apt_lifecycle_hook_postcreate_trace:
     so the build log will show the exact LIFECYCLE_HOOK env var value.
 
   checks:
-    - title: post-create.sh exists
-      cmd: test -f "${_FEAT_SHARE_DIR}/post-create.sh"
-    - title: post-create.sh is executable
-      cmd: test -x "${_FEAT_SHARE_DIR}/post-create.sh"
-    - title: post-create.sh references manifest
-      cmd: grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/post-create.sh"
-    - title: on-create.sh not written
-      cmd: test ! -f "${_FEAT_SHARE_DIR}/on-create.sh"
-    - title: update-content.sh not written
-      cmd: test ! -f "${_FEAT_SHARE_DIR}/update-content.sh"
+    - title: post-create--install.sh exists
+      cmd: test -f "${_FEAT_LIFECYCLE_POST_CREATE}install.sh"
+    - title: post-create--install.sh is executable
+      cmd: test -x "${_FEAT_LIFECYCLE_POST_CREATE}install.sh"
+    - title: post-create--install.sh references manifest
+      cmd: grep -q -- '--manifest' "${_FEAT_LIFECYCLE_POST_CREATE}install.sh"
+    - title: on-create--install.sh not written
+      cmd: test ! -f "${_FEAT_LIFECYCLE_ON_CREATE}install.sh"
+    - title: update-content--install.sh not written
+      cmd: test ! -f "${_FEAT_LIFECYCLE_UPDATE_CONTENT}install.sh"
     - title: tree installed by postCreate hook
       cmd: command -v tree
 
 apt_lifecycle_hook_updatecontent:
   description: |
     Verifies that when lifecycle_hook=updateContent is set, the feature writes an
-    update-content.sh hook script and defers package installation to that hook.
+    update-content--install.sh hook script and defers package installation to that hook.
 
   checks:
-    - title: update-content.sh exists
-      cmd: test -f "${_FEAT_SHARE_DIR}/update-content.sh"
-    - title: update-content.sh is executable
-      cmd: test -x "${_FEAT_SHARE_DIR}/update-content.sh"
-    - title: update-content.sh references manifest
-      cmd: grep -q -- '--manifest' "${_FEAT_SHARE_DIR}/update-content.sh"
-    - title: on-create.sh not written
-      cmd: test ! -f "${_FEAT_SHARE_DIR}/on-create.sh"
-    - title: post-create.sh not written
-      cmd: test ! -f "${_FEAT_SHARE_DIR}/post-create.sh"
+    - title: update-content--install.sh exists
+      cmd: test -f "${_FEAT_LIFECYCLE_UPDATE_CONTENT}install.sh"
+    - title: update-content--install.sh is executable
+      cmd: test -x "${_FEAT_LIFECYCLE_UPDATE_CONTENT}install.sh"
+    - title: update-content--install.sh references manifest
+      cmd: grep -q -- '--manifest' "${_FEAT_LIFECYCLE_UPDATE_CONTENT}install.sh"
+    - title: on-create--install.sh not written
+      cmd: test ! -f "${_FEAT_LIFECYCLE_ON_CREATE}install.sh"
+    - title: post-create--install.sh not written
+      cmd: test ! -f "${_FEAT_LIFECYCLE_POST_CREATE}install.sh"
     - title: tree installed by updateContent hook
       cmd: command -v tree
 

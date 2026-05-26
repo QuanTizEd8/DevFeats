@@ -19,7 +19,7 @@ _long_description: >-
 _options:
   installer_dir: false
 containerEnv:
-  PATH: "${{ _env_vars.share_dir_root }}$/bin:$PATH"
+  PATH: "${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/bin:$PATH"
 options:
   code:
     type: boolean
@@ -43,8 +43,8 @@ options:
 _prefix_groups:
   "":
     prefix:
-      root: "${{ _env_vars.share_dir_root }}$"
-      nonroot: "${{ _env_vars.share_dir_nonroot }}$"
+      root: "${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$"
+      nonroot: "${{ _env_vars._FEAT_SHARE_DIR_NONROOT }}$"
     symlink:
       skip: true
     exports:

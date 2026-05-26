@@ -126,7 +126,7 @@ if_exists_skip:
     - title: skip did not write /etc/gitconfig
       cmd: bash -c '! test -e /etc/gitconfig'
     - title: skip did not write profile.d export file
-      cmd: bash -c '! test -e "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -e "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
 
 if_exists_update_package:
   description: |
@@ -382,14 +382,14 @@ source_custom_prefix:
     - title: git canonically resolves to /opt/git/bin/git
       cmd: bash -c '[ "$(readlink -f "$(command -v git)")" = "/opt/git/bin/git" ]'
     - title: profile.d script written
-      cmd: test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
       debug: |
-        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing)"
     - title: profile.d prepends /opt/git/bin to PATH
-      cmd: grep -Fq '_shell__df_prepend_path "/opt/git/bin"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: grep -Fq '_shell__df_prepend_path "/opt/git/bin"' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
     - title: profile.d exports /opt/git/share/man
-      cmd: grep -Fq 'export MANPATH="/opt/git/share/man:${MANPATH}"' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: grep -Fq 'export MANPATH="/opt/git/share/man:${MANPATH}"' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
 
 source_custom_prefix_nonroot:
   description: |
@@ -436,7 +436,7 @@ source_export_path_disabled:
     - title: symlink was not created
       cmd: bash -c '! test -e /usr/local/bin/git'
     - title: profile.d export file not written
-      cmd: bash -c '! test -e "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -e "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
     - title: bashrc has no install-git PATH marker
       cmd: bash -c '! grep -Fq "git PATH (install-git)" /etc/bash.bashrc 2>/dev/null'
     - title: zshenv has no install-git PATH marker
@@ -530,10 +530,10 @@ source_stable:
     - title: init.defaultBranch is main
       cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
     - title: profile.d script NOT written (default prefix already on PATH)
-      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
       debug: |
-        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing — expected)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing — expected)"
     - title: bashrc PATH block NOT written
       cmd: bash -c '! grep -Fq "git PATH (install-git)" /etc/bash.bashrc 2>/dev/null'
     - title: zshenv PATH block NOT written

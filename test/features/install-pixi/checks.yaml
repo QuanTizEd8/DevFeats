@@ -16,14 +16,14 @@ custom_bin_dir:
         echo "=== /opt/pixi/bin/pixi --version ==="
         /opt/pixi/bin/pixi --version 2>&1 || echo "(failed)"
     - title: profile.d export file written
-      cmd: test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
       debug: |
-        echo "=== /etc/profile.d/${_EXPORT_PROFILE_D} ==="
-        cat "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing)"
     - title: profile.d script has pixi PATH marker
-      cmd: grep -Fq 'pixi PATH (install-pixi)' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: grep -Fq 'pixi PATH (install-pixi)' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
     - title: profile.d script exports /opt/pixi/bin
-      cmd: grep -Fq '/opt/pixi/bin' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: grep -Fq '/opt/pixi/bin' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
     - title: no symlink at /usr/local/bin/pixi
       cmd: bash -c '! test -L /usr/local/bin/pixi'
 
@@ -45,9 +45,9 @@ custom_bin_dir_symlink:
     - title: symlink is callable
       cmd: /usr/local/bin/pixi --version
     - title: profile.d export file written
-      cmd: test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
     - title: profile.d script exports /opt/pixi/bin
-      cmd: grep -Fq '/opt/pixi/bin' "/etc/profile.d/${_EXPORT_PROFILE_D}"
+      cmd: grep -Fq '/opt/pixi/bin' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
 
 custom_bin_dir_symlink_nonroot:
   description: |
@@ -85,7 +85,7 @@ debian:
         echo "=== pixi --version ==="
         /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
     - title: no profile.d export file written
-      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
 
 default_install:
   description: |
@@ -104,9 +104,9 @@ default_install:
         echo "=== pixi --version ==="
         /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
     - title: no profile.d export file written
-      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
     - title: no profile.d PIXI_HOME block written
-      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
     - title: installer dir cleaned up
       cmd: bash -c '! test -f /tmp/pixi-installer/pixi-*.tar.gz 2>/dev/null'
 
@@ -123,7 +123,7 @@ export_path_disabled:
     - title: /opt/pixi/bin/pixi --version succeeds
       cmd: /opt/pixi/bin/pixi --version
     - title: no profile.d export file written
-      cmd: bash -c '! test -f "/etc/profile.d/${_EXPORT_PROFILE_D}"'
+      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
     - title: no pixi PATH marker in bash.bashrc
       cmd: bash -c '! grep -Fq "pixi PATH (install-pixi)" /etc/bash.bashrc 2>/dev/null'
     - title: no pixi PATH marker in zshenv
@@ -151,14 +151,14 @@ home_dir:
     - title: pixi --version succeeds
       cmd: /usr/local/bin/pixi --version
     - title: profile.d export file written
-      cmd: test -f "/etc/profile.d/${_ACTIVATION_PROFILE_D}"
+      cmd: test -f "/etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}"
       debug: |
-        echo "=== /etc/profile.d/${_ACTIVATION_PROFILE_D} ==="
-        cat "/etc/profile.d/${_ACTIVATION_PROFILE_D}" 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
+        cat "/etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}" 2>/dev/null || echo "(missing)"
     - title: profile.d export file has PIXI_HOME marker
-      cmd: grep -Fq 'prefix activation (install-pixi)' "/etc/profile.d/${_ACTIVATION_PROFILE_D}"
+      cmd: grep -Fq 'prefix activation (install-pixi)' "/etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}"
     - title: profile.d export file exports /var/pixi
-      cmd: grep -Fq '/var/pixi' "/etc/profile.d/${_ACTIVATION_PROFILE_D}"
+      cmd: grep -Fq '/var/pixi' "/etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}"
     - title: BASH_ENV registered in /etc/environment
       cmd: grep -Fq 'BASH_ENV=' /etc/environment
       debug: |
@@ -177,7 +177,7 @@ home_dir:
     - title: /etc/zsh/zshenv has PIXI_HOME marker
       cmd: grep -Fq 'prefix activation (install-pixi)' /etc/zsh/zshenv
     - title: no pixi PATH block in export file
-      cmd: bash -c '! grep -Fq "pixi PATH (install-pixi)" "/etc/profile.d/${_EXPORT_PROFILE_D}" 2>/dev/null'
+      cmd: bash -c '! grep -Fq "pixi PATH (install-pixi)" "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null'
 
 if_exists_fail_preinstalled:
   description: |

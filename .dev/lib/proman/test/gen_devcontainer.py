@@ -9,11 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from proman.feature_env import (
-    activation_profile_d_filename,
-    share_dir_root,
-    shell_profile_d_filename,
-)
+from proman.feature_env import resolved_env_vars
 
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
 from .environments import load as load_envs
@@ -22,16 +18,13 @@ from .scenarios import load as load_scenarios
 
 
 def _copy_test_script(src: Path, dst: Path, feature: str) -> None:
-    """Copy a test script, prepending path/filename env definitions from metadata."""
+    """Copy a test script, prepending metadata-derived env var definitions."""
     content = src.read_text(encoding="utf-8")
     lines = content.splitlines(keepends=True)
     insert_at = 1 if lines and lines[0].startswith("#!") else 0
-    vars_block = (
-        f"export _FEAT_SHARE_DIR={shlex.quote(share_dir_root(feature))}\n"
-        "export _EXPORT_PROFILE_D="
-        f"{shlex.quote(shell_profile_d_filename(feature))}\n"
-        "export _ACTIVATION_PROFILE_D="
-        f"{shlex.quote(activation_profile_d_filename(feature))}\n"
+    vars_block = "".join(
+        f"export {k}={shlex.quote(v)}\n"
+        for k, v in resolved_env_vars(feature).items()
     )
     lines.insert(insert_at, vars_block)
     dst.write_text("".join(lines), encoding="utf-8")

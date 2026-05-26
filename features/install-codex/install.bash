@@ -1,7 +1,6 @@
 if os__is_devcontainer_build; then
-  _ON_CREATE_SCRIPT_NAME="lifecycle--on-create--symlink-codex-dir.sh"
-  _ON_CREATE_SCRIPT_DEST="${_LIFECYCLE_SCRIPT_DIR}/${_ON_CREATE_SCRIPT_NAME}"
-  install__copy_bin "${_FEAT_FILES_DIR}/${_ON_CREATE_SCRIPT_NAME}" "$_ON_CREATE_SCRIPT_DEST"
+  install__copy_bin "${_FEAT_FILES_DIR}/on-create--symlink-codex-dir.sh" \
+    "${_FEAT_LIFECYCLE_ON_CREATE}symlink-codex-dir.sh"
   printf 'CODEX_HOME="%s"\n' "${CODEX_HOME}" \
-    > "${_LIFECYCLE_SCRIPT_DIR}/${_ON_CREATE_SCRIPT_NAME}.conf"
+    > "${_FEAT_LIFECYCLE_ON_CREATE}symlink-codex-dir.sh.conf"
 fi
