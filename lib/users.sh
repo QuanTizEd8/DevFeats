@@ -326,7 +326,16 @@ users__username_of_uid() {
 #
 # Stdout: one username per line; empty when no matches are found.
 users__users_by_primary_gid() {
-  awk -F: -v gid="$1" '$4==gid{print $1}' /etc/passwd
+  local _gid="$1"
+  if _users__ensure_getent; then
+    getent passwd | awk -F: -v gid="$_gid" '$4==gid{print $1}'
+    return
+  fi
+  if [[ "$(os__kernel)" == "Darwin" ]]; then
+    dscl . -list /Users PrimaryGroupID 2> /dev/null | awk -v gid="$_gid" '$2==gid{print $1}'
+    return
+  fi
+  awk -F: -v gid="$_gid" '$4==gid{print $1}' /etc/passwd
 }
 
 # @brief users__group_exists <name-or-gid> — Return 0 if a group with the given name or numeric GID exists.
