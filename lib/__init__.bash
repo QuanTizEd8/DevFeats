@@ -1,6 +1,6 @@
 # Bash Library
 
-_LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=lib/file.sh
 . "$_LIB_DIR/file.sh"
