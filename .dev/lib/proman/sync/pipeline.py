@@ -34,13 +34,14 @@ def run(*, check_only: bool = False) -> int:
     config = load_config()
 
     lib_dirpath = config.absolute_path("path.library")
+    feature_lib_dir = Path(str(config["path.feature_library"]))
     features_dirpath = config.absolute_path("path.features")
     src_dirpath = config.absolute_path("path.src")
     devcontainer_dirpath = config.absolute_path("path.devcontainer")
 
     metadata_loader = MetadataLoader()
     script_generator = InstallScriptGenerator()
-    lib_files = _gather_lib_files(lib_dirpath)
+    lib_files = _gather_lib_files(lib_dirpath, feature_lib_dir)
     bootstrap_file = _gather_bootstrap(features_dirpath)
     gitignore_patterns = _gitignore_basename_patterns(config.root_path)
 
@@ -229,14 +230,17 @@ def _generate_feature_devcontainer_json(metadata: dict, *, local: bool) -> str:
 # ── File gathering ────────────────────────────────────────────────────────────
 
 
-def _gather_lib_files(lib_dirpath: Path) -> dict[Path, str]:
-    """Read all files from /lib/ and return them keyed by their lib/-relative paths."""
+def _gather_lib_files(
+    lib_dirpath: Path,
+    feature_lib_dir: Path,
+) -> dict[Path, str]:
+    """Read repo library files keyed by their paths under the feature library dir."""
     files: dict[Path, str] = {}
     for src_path in sorted(lib_dirpath.rglob("*")):
         if not src_path.is_file():
             continue
         src_path_rel_lib = src_path.relative_to(lib_dirpath)
-        src_path_rel_feat = Path("lib") / src_path_rel_lib
+        src_path_rel_feat = feature_lib_dir / src_path_rel_lib
         files[src_path_rel_feat] = src_path.read_text(encoding="utf-8")
     return files
 

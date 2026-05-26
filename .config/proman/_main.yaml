@@ -8,6 +8,7 @@ oci_base: ghcr.io/${{ owner_slug }}$/${{ name_slug }}$
 path:
   features: features
   library: lib
+  feature_library: ${{ path.library }}$
   src: src
   devcontainer: .devcontainer
   shared_metadata: ${{ path.features }}$/metadata.shared.yaml

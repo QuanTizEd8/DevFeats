@@ -22,6 +22,7 @@ oci_base: ghcr.io/testowner/testproject
 path:
   features: features
   library: lib
+  feature_library: ${{ path.library }}$
   src: src
   devcontainer: .devcontainer
   shared_metadata: features/metadata.shared.yaml
@@ -115,6 +116,8 @@ def test_load_returns_project_name(
     config = cfg.load()
     assert config["name"] == "TestProject"
     assert config["name_slug"] == "testproject"
+    assert config["path.library"] == "lib"
+    assert config["path.feature_library"] == "lib"
 
 
 def test_load_ci_image_section(

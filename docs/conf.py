@@ -22,7 +22,7 @@ _DOCS_BUILD_CONTEXT_PATH = (
 )
 
 _docs_cfg: dict = yaml.safe_load(
-    (_REPO_ROOT / ".config" / "docs.yaml").read_text(encoding="utf-8"),
+    (_REPO_ROOT / ".config" / "proman" / "docs.yaml").read_text(encoding="utf-8"),
 )["sphinx"]
 globals().update(_docs_cfg)
 

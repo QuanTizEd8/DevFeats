@@ -6,21 +6,30 @@ import argparse
 import shutil
 import sys
 import tarfile
+from pathlib import Path
 
-from proman.git import git_repo_root
+from proman.config import load as load_config
 
 
 def _build(tag: str) -> int:
-    repo = git_repo_root()
-    dist_dir = repo / "dist"
-    src_dir = repo / "src"
-    features_dir = repo / "features"
+    config = load_config()
+    dist_dir = config.absolute_path("ci.artifacts.dist.path")
+    src_dir = config.absolute_path("path.src")
+    features_dir = config.absolute_path("path.features")
+    feature_script = str(config["filename.feature_script"])
+    feature_lib_dir = Path(str(config["path.feature_library"]))
+    name_slug = str(config["name_slug"])
+    src_rel = str(config["path.src"])
+    dist_rel = str(config["ci.artifacts.dist.path"])
 
     print(f"Building artifacts for tag: '{tag}'", file=sys.stderr)
 
-    check = list(src_dir.glob("*/install.bash"))
+    check = list(src_dir.glob(f"*/{feature_script}"))
     if not check:
-        print("src/ is not populated. Run 'just sync-src' first.", file=sys.stderr)
+        print(
+            f"{src_rel}/ is not populated. Run 'just sync-src' first.",
+            file=sys.stderr,
+        )
         return 1
 
     if dist_dir.exists():
@@ -28,14 +37,14 @@ def _build(tag: str) -> int:
     dist_dir.mkdir(parents=True)
 
     feature_dirs = []
-    for install_bash in sorted(features_dir.glob("*/install.bash")):
+    for install_bash in sorted(features_dir.glob(f"*/{feature_script}")):
         name = install_bash.parent.name
         src_feat = src_dir / name
-        if (src_feat / "install.bash").exists():
+        if (src_feat / feature_script).exists():
             feature_dirs.append(src_feat)
 
     if not feature_dirs:
-        print("No features with an install.bash found.", file=sys.stderr)
+        print(f"No features with a {feature_script} found.", file=sys.stderr)
         return 1
 
     print(f"Found {len(feature_dirs)} features.", file=sys.stderr)
@@ -44,13 +53,15 @@ def _build(tag: str) -> int:
     for feat_dir in feature_dirs:
         name = feat_dir.name
         staging = tmp_dir / name
-        tarball = dist_dir / f"devfeats-{name}.tar.gz"
+        tarball = dist_dir / f"{name_slug}-{name}.tar.gz"
 
         staging.mkdir(parents=True)
 
         shutil.copy2(feat_dir / "install.sh", staging / "install.sh")
-        shutil.copy2(feat_dir / "install.bash", staging / "install.bash")
-        shutil.copytree(feat_dir / "_lib", staging / "_lib")
+        shutil.copy2(feat_dir / feature_script, staging / feature_script)
+        lib_src = feat_dir / feature_lib_dir
+        if lib_src.is_dir():
+            shutil.copytree(lib_src, staging / feature_lib_dir)
 
         json_src = feat_dir / "devcontainer-feature.json"
         if json_src.exists():
@@ -67,19 +78,19 @@ def _build(tag: str) -> int:
         with tarfile.open(tarball, "w:gz") as tf:
             tf.add(staging, arcname=".")
         shutil.rmtree(staging)
-        print(f"{name}: built devfeats-{name}.tar.gz", file=sys.stderr)
+        print(f"{name}: built {name_slug}-{name}.tar.gz", file=sys.stderr)
 
     shutil.rmtree(tmp_dir, ignore_errors=True)
-    print(f"\nBuild complete. Artifacts in {dist_dir}:", file=sys.stderr)
+    print(f"\nBuild complete. Artifacts in {dist_rel}:", file=sys.stderr)
     for f in sorted(dist_dir.iterdir()):
         print(f"  {f.name}  ({f.stat().st_size // 1024} KB)", file=sys.stderr)
     return 0
 
 
 def main() -> None:
-    """Build distribution tarballs from assembled src/ into dist/."""
+    """Build distribution tarballs from assembled src into the dist artifact path."""
     parser = argparse.ArgumentParser(
-        description="Assemble standalone distribution artifacts into dist/.",
+        description="Assemble standalone distribution artifacts.",
     )
     parser.add_argument(
         "tag",
