@@ -13,7 +13,7 @@ if [[ "$INSTALL_BASH_COMPLETION" == true ]]; then
 fi
 
 # --- configure_user preamble: vars used by the bash-completion block (from configure_user()) ---
-local _cu_bashtheme_content=""
+_cu_bashtheme_content=""
 
 # --- configure_user: bash-completion Homebrew hook + trailing blank (original lines 506–518) ---
 # Source bash-completion entry point for Homebrew.

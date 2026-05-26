@@ -61,8 +61,8 @@ if [[ "$INSTALL_FZF" == true ]]; then
 fi
 
 # --- configure_user preamble: vars used by the fzf blocks (from configure_user()) ---
-local _cu_zshtheme_content=""
-local _cu_bashtheme_content=""
+_cu_zshtheme_content=""
+_cu_bashtheme_content=""
 
 # --- configure_user: fzf zsh hook + trailing blank (original lines 468–473) ---
 # Append fzf key-bindings and completion for zsh.
