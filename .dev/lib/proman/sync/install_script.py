@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -84,13 +85,27 @@ class InstallScriptGenerator:
         options: dict = metadata["options"]
         prefix_groups: dict = metadata.get("_prefix_groups", {})
 
+        prefix_resolver = self._generate_prefix_resolver_functions(
+            prefix_groups, feature_id
+        )
+        prefix_var_names: frozenset[str] = frozenset(
+            _opt_to_var(
+                group_cfg.get("option_name")
+                or (f"{group_id}_prefix" if group_id else "prefix")
+            )
+            for group_id, group_cfg in prefix_groups.items()
+        )
+        argparse = self._generate_argparse(options, prefix_var_names)
+        if prefix_resolver["defaults"]:
+            existing = argparse["defaults"]
+            separator = "\n" if existing else ""
+            argparse["defaults"] = existing + separator + prefix_resolver["defaults"]
+
         script_parts: dict[str, object] = {
             "usage_options": self._generate_usage_options(options),
-            "argparse": self._generate_argparse(options),
+            "argparse": argparse,
             "env_vars": self._generate_env_vars(metadata.get("_env_vars", {})),
-            "prefix_resolver_functions": self._generate_prefix_resolver_functions(
-                prefix_groups, feature_id
-            ),
+            "prefix_resolver_functions": prefix_resolver["functions"],
             "prefix_post_install_body": self._generate_prefix_post_install_body(
                 prefix_groups, feature_id
             ),
@@ -182,7 +197,9 @@ class InstallScriptGenerator:
 
         return "\n".join(lines)
 
-    def _generate_argparse(self, options: dict) -> dict[str, str]:
+    def _generate_argparse(
+        self, options: dict, prefix_var_names: frozenset[str] = frozenset()
+    ) -> dict[str, str]:
         """Emit the if/else/fi CLI-vs-env-var argument parsing block."""
         cli_inits: list[str] = []
         case_arms: list[str] = []
@@ -244,33 +261,29 @@ class InstallScriptGenerator:
             "cli_inits": "\n".join(cli_inits),
             "case_arms": "\n".join(case_arms),
             "env_reads": "\n".join(env_reads),
-            "defaults": self._generate_argparse_defaults(options),
+            "defaults": self._generate_argparse_defaults(options, prefix_var_names),
             "validations": self._generate_argparse_validations(options),
             "unexports": self._generate_argparse_unexports(options),
         }
         return out
 
-    def _generate_argparse_defaults(self, options: dict) -> str:
+    def _generate_argparse_defaults(
+        self, options: dict, prefix_var_names: frozenset[str] = frozenset()
+    ) -> str:
         """Emit the '# Apply defaults.' block."""
         blocks = []
         dynamic_blocks = []
-        indent = 2
         for key, opt in options.items():
             vname = _opt_to_var(key)
+            if vname in prefix_var_names:
+                continue
             typ = opt.get("type", "string")
             if "default" not in opt:
                 continue
             if typ == "array":
                 raw_default = opt["default"]
                 if raw_default == "" or raw_default is None:
-                    blocks.append(
-                        self._render_inline_template(
-                            _ARGPARSE_DEFAULT_ARRAY_EMPTY,
-                            indent,
-                            var=vname,
-                            key=key,
-                        ),
-                    )
+                    blocks.append(f"argparse__default_array {vname}")
                 else:
                     # Embed the default as an ANSI-C quoted string so newlines
                     # are preserved.
@@ -281,41 +294,16 @@ class InstallScriptGenerator:
                         .replace("\n", "\\n")
                         .replace("\r", "\\r")
                     )
-                    disp = ", ".join(str(raw_default).splitlines())
-                    blocks.append(
-                        self._render_inline_template(
-                            _ARGPARSE_DEFAULT_ARRAY_VALUE,
-                            indent,
-                            var=vname,
-                            escaped=escaped,
-                            key=key,
-                            disp=disp,
-                        ),
-                    )
+                    blocks.append(f"argparse__default_array_value {vname} $'{escaped}'")
             else:
                 rhs = _shell_val(opt["default"], typ)
-                if typ == "boolean":
-                    disp = "true" if opt["default"] else "false"
-                elif opt["default"] == "" or opt["default"] is None:
-                    disp = ""
-                else:
-                    disp = str(opt["default"])
-                blocks.append(
-                    self._render_inline_template(
-                        _ARGPARSE_DEFAULT_SCALAR,
-                        indent,
-                        var=vname,
-                        rhs=rhs,
-                        key=key,
-                        disp=disp,
-                    ),
-                )
+                blocks.append(f"argparse__default {vname} {rhs}")
                 dynamic_default = opt.get("_default")
                 if dynamic_default is not None:
                     dynamic_blocks.append(
                         self._render_inline_template(
                             _ARGPARSE_DEFAULT_DYNAMIC,
-                            indent,
+                            2,
                             var=vname,
                             rhs=f'"{dynamic_default}"',
                             key=key,
@@ -329,89 +317,41 @@ class InstallScriptGenerator:
 
         Returns '' if none apply.
         """
-        indent = 2
         validations: list[str] = []
         for key, opt in options.items():
             vname = _opt_to_var(key)
             typ = opt.get("type", "string")
             if typ == "boolean":
-                validations.append(
-                    self._render_inline_template(
-                        _ARGPARSE_VALIDATION_ENUM_SCALAR,
-                        indent,
-                        var=vname,
-                        key=key,
-                        pattern="true | false",
-                        expected="true, false",
-                    ),
-                )
+                validations.append(f"argparse__validate_bool {vname}")
             elif typ == "integer":
-                validations.append(
-                    self._render_inline_template(
-                        _ARGPARSE_VALIDATION_INTEGER,
-                        indent,
-                        var=vname,
-                        key=key,
-                    ),
-                )
+                validations.append(f"argparse__validate_integer {vname}")
                 minimum = opt.get("_minimum")
                 if minimum is not None:
                     validations.append(
-                        self._render_inline_template(
-                            _ARGPARSE_VALIDATION_INTEGER_MIN,
-                            indent,
-                            var=vname,
-                            key=key,
-                            minimum=str(minimum),
-                        ),
+                        f"argparse__validate_integer_min {vname} {minimum}"
                     )
                 maximum = opt.get("_maximum")
                 if maximum is not None:
                     validations.append(
-                        self._render_inline_template(
-                            _ARGPARSE_VALIDATION_INTEGER_MAX,
-                            indent,
-                            var=vname,
-                            key=key,
-                            maximum=str(maximum),
-                        ),
+                        f"argparse__validate_integer_max {vname} {maximum}"
                     )
             elif opt.get("enum"):
                 values = [
                     item["value"] if isinstance(item, dict) else str(item)
                     for item in opt["enum"]
                 ]
-                expected = ", ".join(repr(v) if v == "" else v for v in values)
-                pattern = " | ".join("''" if v == "" else v for v in values)
-                tpl = (
-                    _ARGPARSE_VALIDATION_ENUM_ARRAY
+                fn = (
+                    "argparse__validate_enum_array"
                     if typ == "array"
-                    else _ARGPARSE_VALIDATION_ENUM_SCALAR
+                    else "argparse__validate_enum"
                 )
-                validations.append(
-                    self._render_inline_template(
-                        tpl,
-                        indent,
-                        var=vname,
-                        key=key,
-                        pattern=pattern,
-                        expected=expected,
-                    ),
-                )
+                values_str = " ".join(shlex.quote(v) for v in values)
+                validations.append(f"{fn} {vname} {values_str}")
             path_spec = opt.get("_path")
             if path_spec is not None and typ != "array":
                 ops = [path_spec] if isinstance(path_spec, str) else path_spec
                 for op in ops:
-                    validations.append(
-                        self._render_inline_template(
-                            _ARGPARSE_VALIDATION_PATH,
-                            indent,
-                            var=vname,
-                            key=key,
-                            test=_negate_path_test(op),
-                            op=op,
-                        ),
-                    )
+                    validations.append(f'argparse__validate_path {vname} "{op}"')
         return "\n".join(validations)
 
     def _generate_argparse_unexports(self, options: dict) -> str:
@@ -425,12 +365,13 @@ class InstallScriptGenerator:
 
     def _generate_prefix_resolver_functions(
         self, prefix_groups: dict, feature_id: str
-    ) -> str:
-        """Emit per-group resolver functions and activation stubs."""
+    ) -> dict[str, str]:
+        """Emit per-group resolver functions, activation stubs, and argparse dynamic defaults."""
         if not prefix_groups:
-            return ""
+            return {"functions": "", "defaults": ""}
 
         fn_blocks: list[str] = []
+        default_blocks: list[str] = []
 
         for group_id, group_cfg in prefix_groups.items():
             prefix_cfg: dict = group_cfg.get("prefix", {})
@@ -442,7 +383,6 @@ class InstallScriptGenerator:
 
             stem = option_name or (f"{group_id}_prefix" if group_id else "prefix")
             var_prefix = _opt_to_var(stem)
-            optname_disp = option_name or stem
 
             safe_id = group_id.replace("-", "_")
             if option_name:
@@ -459,20 +399,29 @@ class InstallScriptGenerator:
                 else ""
             )
 
+            groups_args = _make_resolver_groups(
+                prefix_cfg.get("platform_overrides", []),
+                default_root,
+                default_nonroot,
+            )
             fn_blocks.append(
                 self._render_inline_template(
-                    _TMPL_PREFIX_RESOLVER,
+                    _TMPL_PREFIX_RESOLVER_SIMPLE,
                     0,
                     func_name=fn_resolve,
                     prefix_var=var_prefix,
-                    opt_name=optname_disp,
-                    resolution_block=_make_resolution_block(
-                        var_prefix,
-                        default_root,
-                        default_nonroot,
-                        prefix_cfg.get("platform_overrides", []),
-                    ),
+                    opt_name=stem,
                     scope_block=_scope_block,
+                )
+            )
+
+            default_blocks.append(
+                self._render_inline_template(
+                    _ARGPARSE_DEFAULT_DYNAMIC,
+                    2,
+                    var=var_prefix,
+                    rhs=f'"$(users__first_writeable_path \\\n  {groups_args})" || exit 1',
+                    key=stem,
                 )
             )
 
@@ -483,7 +432,10 @@ class InstallScriptGenerator:
                     )
                 )
 
-        return "\n\n".join(fn_blocks)
+        return {
+            "functions": "\n\n".join(fn_blocks),
+            "defaults": "\n".join(default_blocks),
+        }
 
     def _generate_prefix_post_install_body(
         self, prefix_groups: dict, feature_id: str
@@ -650,30 +602,14 @@ class InstallScriptGenerator:
         blocks: list[str] = []
 
         if platforms:
-            platform_check = _make_match_spec_check(platforms)
-            platforms_desc = _match_specs_desc(platforms)
-            blocks.append(
-                self._render_inline_template(
-                    _TMPL_SYS_REQ_PLATFORM_GUARD,
-                    0,
-                    platform_check=platform_check,
-                    platforms_desc=platforms_desc,
-                )
-            )
+            spec_args = _match_specs_to_args(platforms)
+            blocks.append(f"sys_req__require_platform {spec_args}")
 
         if root is True:
-            blocks.append(
-                self._render_inline_template(_TMPL_SYS_REQ_ROOT_GUARD_UNCONDITIONAL, 0)
-            )
+            blocks.append("sys_req__require_root")
         elif isinstance(root, list) and root:
-            platform_check = _make_match_spec_check(root)
-            blocks.append(
-                self._render_inline_template(
-                    _TMPL_SYS_REQ_ROOT_GUARD_CONDITIONAL,
-                    0,
-                    platform_check=platform_check,
-                )
-            )
+            spec_args = _match_specs_to_args(root)
+            blocks.append(f"sys_req__require_root {spec_args}")
 
         return "\n\n".join(blocks)
 
@@ -766,84 +702,43 @@ class InstallScriptGenerator:
 # ── Pure utilities ────────────────────────────────────────────────────────────
 
 
-def _make_resolution_block(
-    var_prefix: str,
+def _match_specs_to_args(specs: list[dict]) -> str:
+    """Build the shell arg list for sys_req__require_* functions (leading -- per group)."""
+    parts: list[str] = []
+    for spec in specs:
+        parts.append("--")
+        parts.extend(f"{k}={v}" for k, v in spec.items())
+    return " ".join(parts)
+
+
+def _make_resolver_groups(
+    platform_overrides: list[dict],
     default_root: str,
     default_nonroot: str,
-    platform_overrides: list[dict],
 ) -> str:
-    """Build the shell if/elif/else resolution block for a prefix resolver.
+    """Build the '--'-separated group arg string for users__resolve_prefix.
 
-    Without platform_overrides, emits a users__can_write-based if/elif/else.
-    With overrides, prepends `os__match_spec` branches before the fallback.
-    Each override dict must have ``when`` (mapping of key→value) and ``default``.
-    ``default_root`` / ``default_nonroot`` within an override override ``default``
-    per uid, mirroring the top-level default_root / default_nonroot semantics.
-    All resolved paths are validated for writability; the script exits with an
-    error if no writable candidate is found.
+    Each platform_overrides entry becomes '-- key=val... root [nonroot]'.
+    The unconditional fallback ('-- root nonroot') is always appended last.
+    When root == nonroot within an entry, only one path is emitted (single candidate).
     """
-    indent = 6  # inside case "")
-    parts: list[str] = []
-    first = True
+    groups: list[str] = []
     for override in platform_overrides:
-        when: dict = override.get("when", {})
+        when_args = " ".join(f"{k}={v}" for k, v in override.get("when", {}).items())
         default: str = override["default"]
         root_val: str = override.get("root", default)
         nonroot_val: str = override.get("nonroot", default)
-        when_args = " ".join(f"{k}={v}" for k, v in when.items())
-        keyword = "if" if first else "elif"
-        parts.append(f"{' ' * indent}{keyword} os__match_spec {when_args}; then")
-        tmpl = (
-            _TMPL_RESOLUTION_SINGLE if root_val == nonroot_val else _TMPL_RESOLUTION_TWO
+        paths = (
+            f'"{root_val}"'
+            if root_val == nonroot_val
+            else f'"{root_val}" "{nonroot_val}"'
         )
-        subs: dict[str, str] = {"keyword": "if", "var": var_prefix}
-        if root_val == nonroot_val:
-            subs["val"] = root_val
-        else:
-            subs.update(root=root_val, nonroot=nonroot_val)
-        parts.append(
-            InstallScriptGenerator._render_inline_template(tmpl, indent + 2, **subs)
-        )
-        first = False
-    uid_keyword = "elif" if platform_overrides else "if"
-    parts.append(
-        InstallScriptGenerator._render_inline_template(
-            _TMPL_RESOLUTION_TWO,
-            indent,
-            keyword=uid_keyword,
-            var=var_prefix,
-            root=default_root,
-            nonroot=default_nonroot,
-        )
-    )
-    return "\n".join(parts)
-
-
-def _negate_path_test(op: str) -> str:
-    """Return the bash test expression that is true when path test `op` FAILS."""
-    op = op.strip()
-    if op.startswith("! "):
-        return op[2:]
-    return f"! {op}"
-
-
-def _make_match_spec_check(specs: list[dict]) -> str:
-    """Build a shell expression returning true if any MatchSpec matches (OR logic)."""
-    checks = [
-        "os__match_spec " + " ".join(f"{k}={v}" for k, v in spec.items())
-        for spec in specs
-    ]
-    if len(checks) == 1:
-        return checks[0]
-    return "{ " + " || ".join(checks) + "; }"
-
-
-def _match_specs_desc(specs: list[dict]) -> str:
-    """Human-readable description of a list of MatchSpecs."""
-    parts = [
-        "(" + ", ".join(f"{k}={v}" for k, v in spec.items()) + ")" for spec in specs
-    ]
-    return " OR ".join(parts)
+        groups.append(f"-- {when_args} {paths}" if when_args else f"-- {paths}")
+    fallback = f'"{default_root}"'
+    if default_root != default_nonroot:
+        fallback += f' "{default_nonroot}"'
+    groups.append(f"-- {fallback}")
+    return " \\\n  ".join(groups)
 
 
 def _first_sentence(text: str) -> str:
@@ -962,27 +857,6 @@ _ARGPARSE_ENV_READ_SCALAR = """
 [ "${{{var}+defined}}" ] && logging__read "Argument '{key}': '${{{var}}}'"
 """
 
-_ARGPARSE_DEFAULT_ARRAY_EMPTY = """
-declare -p {var} &> /dev/null || {{
-  {var}=()
-  logging__info "Argument '{key}' set to default value '(empty)'."
-}}
-"""
-
-_ARGPARSE_DEFAULT_ARRAY_VALUE = """
-declare -p {var} &> /dev/null || {{
-  mapfile -t {var} < <(printf '%s' $'{escaped}' | grep -v '^$')
-  logging__info "Argument '{key}' set to default value '{disp}'."
-}}
-"""
-
-_ARGPARSE_DEFAULT_SCALAR = """
-[ "${{{var}+defined}}" ] || {{
-  {var}={rhs}
-  logging__info "Argument '{key}' set to default value '{disp}'."
-}}
-"""
-
 _ARGPARSE_DEFAULT_DYNAMIC = """
 [ -n "${{{var}}}" ] || {{
   {var}={rhs}
@@ -990,54 +864,18 @@ _ARGPARSE_DEFAULT_DYNAMIC = """
 }}
 """
 
-_ARGPARSE_VALIDATION_ENUM_ARRAY = """
-for _item in "${{{var}[@]}}"; do
-  case "$_item" in
-    {pattern}) ;;
-    *)
-      logging__error "Invalid value for '{key}': '$_item' (expected: {expected})"
-      exit 1
-      ;;
-  esac
-done
-"""
-
-_ARGPARSE_VALIDATION_ENUM_SCALAR = """
-case "${{{var}}}" in
-  {pattern}) ;;
-  *)
-    logging__error "Invalid value for '{key}': '${{{var}}}' (expected: {expected})"
+_TMPL_PREFIX_RESOLVER_SIMPLE = """
+# shellcheck disable=SC2329,SC2317
+{func_name}() {{
+  logging__fn_entry "{func_name}"
+  users__can_write "${{{prefix_var}}}" || {{
+    logging__error "Option '{opt_name}': '${{{prefix_var}}}' is not writable."
     exit 1
-    ;;
-esac
-"""
-
-_ARGPARSE_VALIDATION_PATH = """
-if [ -n "${{{var}}}" ] && [ {test} "${{{var}}}" ]; then
-  logging__error "Invalid value for '{key}': '${{{var}}}' failed path test '{op}'."
-  exit 1
-fi
-"""
-
-_ARGPARSE_VALIDATION_INTEGER = """
-if [[ ! "${{{var}}}" =~ ^-?[0-9]+$ ]]; then
-  logging__error "Invalid value for '{key}': '${{{var}}}' is not a valid integer."
-  exit 1
-fi
-"""
-
-_ARGPARSE_VALIDATION_INTEGER_MIN = """
-if (( {var} < {minimum} )); then
-  logging__error "Invalid value for '{key}': '${{{var}}}' must be >= {minimum}."
-  exit 1
-fi
-"""
-
-_ARGPARSE_VALIDATION_INTEGER_MAX = """
-if (( {var} > {maximum} )); then
-  logging__error "Invalid value for '{key}': '${{{var}}}' must be <= {maximum}."
-  exit 1
-fi
+  }}
+  logging__info "Option '{opt_name}' resolved to '${{{prefix_var}}}'."{scope_block}
+  logging__fn_exit "{func_name}"
+  return
+}}
 """
 
 _TMPL_ACTIVATION_STUB = """
@@ -1075,47 +913,6 @@ shell__run_prefix_discovery \\
 logging__fn_exit "{fn_name}"
 """
 
-# Templates for the users__can_write if/elif/else blocks emitted inside the
-# prefix resolver's case "" arm.  {keyword} is "if" or "elif" for the opening line.
-_TMPL_RESOLUTION_SINGLE = """
-{keyword} users__can_write "{val}"; then
-  {var}="{val}"
-else
-  logging__error "Prefix auto-resolution failed: '{val}' is not writable."
-  exit 1
-fi"""
-
-_TMPL_RESOLUTION_TWO = """
-{keyword} users__can_write "{root}"; then
-  {var}="{root}"
-elif users__can_write "{nonroot}"; then
-  {var}="{nonroot}"
-else
-  logging__error "Prefix auto-resolution failed: no writable path found (tried '{root}' and '{nonroot}')."
-  exit 1
-fi"""
-
-_TMPL_PREFIX_RESOLVER = """
-# shellcheck disable=SC2329,SC2317
-{func_name}() {{
-  logging__fn_entry "{func_name}"
-  case "${{{prefix_var}}}" in
-    "")
-{resolution_block}
-      ;;
-    *) # explicit value: validate writability
-      if ! users__can_write "${{{prefix_var}}}"; then
-        logging__error "Argument '{opt_name}': '${{{prefix_var}}}' is not writable and passwordless sudo is not available."
-        exit 1
-      fi
-      ;;
-  esac
-  logging__info "Argument '{opt_name}' resolved to '${{{prefix_var}}}'."
-  {scope_block}
-  logging__fn_exit "{func_name}"
-  return
-}}
-"""
 
 _TMPL_PREFIX_ACTIVATION = """
 # -- activation: {stem} --
@@ -1130,24 +927,3 @@ shell__write_activation_snippets \
   "${{{activations_var}[@]}}"
 unset _act_home_arg
 """
-
-_TMPL_SYS_REQ_PLATFORM_GUARD = """
-# -- system requirements: platform --
-if ! {platform_check}; then
-  logging__fatal "Unsupported platform. This feature requires: {platforms_desc}"
-  exit 1
-fi"""
-
-_TMPL_SYS_REQ_ROOT_GUARD_UNCONDITIONAL = """
-# -- system requirements: root --
-if ! users__is_privileged; then
-  logging__fatal "This feature must be run as root (or with passwordless sudo)."
-  exit 1
-fi"""
-
-_TMPL_SYS_REQ_ROOT_GUARD_CONDITIONAL = """
-# -- system requirements: root (conditional) --
-if {platform_check} && ! users__is_privileged; then
-  logging__fatal "This feature must be run as root (or with passwordless sudo) on the current platform."
-  exit 1
-fi"""

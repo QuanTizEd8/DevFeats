@@ -1146,3 +1146,56 @@ alice"
   run users__add_to_group "alice" "devs"
   assert_failure
 }
+
+# ---------------------------------------------------------------------------
+# users__first_writeable_path
+# ---------------------------------------------------------------------------
+
+@test "users__first_writeable_path: returns first path when writable" {
+  users__can_write() { [[ "$1" == "/usr/local" ]]; }
+  result="$(users__first_writeable_path -- "/usr/local" "${HOME}/.local")"
+  assert [ "${result}" = "/usr/local" ]
+}
+
+@test "users__first_writeable_path: falls back to second path when first is not writable" {
+  users__can_write() { [[ "$1" != "/usr/local" ]]; }
+  result="$(users__first_writeable_path -- "/usr/local" "${HOME}/.local")"
+  assert [ "${result}" = "${HOME}/.local" ]
+}
+
+@test "users__first_writeable_path: fails when no path in group is writable" {
+  users__can_write() { return 1; }
+  export -f users__can_write
+  run --separate-stderr users__first_writeable_path -- "/usr/local" "${HOME}/.local"
+  assert_failure
+  output="${stderr}"; assert_output --partial "no writable path found"
+}
+
+@test "users__first_writeable_path: uses platform-matching group over fallback" {
+  os__match_spec() { [[ "$1" == "kernel=Darwin" ]]; }
+  users__can_write() { return 0; }
+  result="$(users__first_writeable_path -- kernel=Darwin "/opt/homebrew" -- "/usr/local" "${HOME}/.local")"
+  assert [ "${result}" = "/opt/homebrew" ]
+}
+
+@test "users__first_writeable_path: skips non-matching group and uses fallback" {
+  os__match_spec() { return 1; }
+  users__can_write() { return 0; }
+  result="$(users__first_writeable_path -- kernel=Darwin "/opt/homebrew" -- "/usr/local" "${HOME}/.local")"
+  assert [ "${result}" = "/usr/local" ]
+}
+
+@test "users__first_writeable_path: fails when no group's platform condition matches" {
+  os__match_spec() { return 1; }
+  users__can_write() { return 0; }
+  export -f os__match_spec users__can_write
+  run --separate-stderr users__first_writeable_path -- kernel=Darwin "/opt/homebrew"
+  assert_failure
+  output="${stderr}"; assert_output --partial "no platform group matched"
+}
+
+@test "users__first_writeable_path: resolves single path from unconditional group" {
+  users__can_write() { return 0; }
+  result="$(users__first_writeable_path -- "/usr/local")"
+  assert [ "${result}" = "/usr/local" ]
+}

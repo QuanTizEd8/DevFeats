@@ -984,3 +984,43 @@ users__add_sudoer() {
   users__run_privileged mv "$_tmp" "$_target"
   logging__success "Granted passwordless sudo to '${_username}'."
 }
+
+# @brief users__first_writeable_path [-- [key=val ...] path ...] ... — Find first writable path from platform-conditional groups.
+#
+# Accepts one or more "--"-separated groups. Within each group, key=val args are
+# passed to os__match_spec (the platform condition); remaining args are candidate
+# paths tried in order. A group without key=val args is unconditional.
+# Groups are tried in order; the first whose platform condition matches is used.
+# Within a matching group, paths are tried with users__can_write in order; the
+# first writable path is printed to stdout. Exits 1 if a matching group has no
+# writable candidate, or if no group matches.
+#
+# Args:
+#   --      Separator before each candidate group (required before first group).
+#   key=val Zero or more os__match_spec conditions for the following group.
+#   path    One or more candidate paths within the group (tried in order).
+users__first_writeable_path() {
+  local -a _when _paths
+  while [[ $# -gt 0 ]]; do
+    [[ "$1" != "--" ]] && { shift; continue; }
+    shift
+    _when=()
+    _paths=()
+    while [[ $# -gt 0 && "$1" != "--" ]]; do
+      [[ "$1" != /* && "$1" == *=* ]] && _when+=("$1") || _paths+=("$1")
+      shift
+    done
+    [[ "${#_when[@]}" -gt 0 ]] && ! os__match_spec "${_when[@]}" && continue
+    local _p
+    for _p in "${_paths[@]}"; do
+      if users__can_write "$_p"; then
+        printf '%s\n' "$_p"
+        return 0
+      fi
+    done
+    logging__error "Prefix auto-resolution failed: no writable path found (tried: ${_paths[*]})."
+    return 1
+  done
+  logging__error "Prefix auto-resolution failed: no platform group matched."
+  return 1
+}

@@ -28,6 +28,10 @@ _LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_LIB_DIR/proc.sh"
 # shellcheck source=lib/graph.sh
 . "$_LIB_DIR/graph.sh"
+# shellcheck source=lib/argparse.sh
+. "$_LIB_DIR/argparse.sh"
+# shellcheck source=lib/sys_req.sh
+. "$_LIB_DIR/sys_req.sh"
 # shellcheck source=lib/shell.sh
 . "$_LIB_DIR/shell.sh"
 # shellcheck source=lib/install/common.sh
