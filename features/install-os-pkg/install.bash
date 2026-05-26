@@ -33,7 +33,7 @@ if [ ! -d "$_LIB_DIR" ]; then
   file__mkdir "$_LIB_DIR"
   file__cp "$0" "$_LIB_DIR/install.sh"
   file__chmod +x "$_LIB_DIR/install.sh"
-  file__cp -r "$_FEAT_DIR/_lib" "$_LIB_DIR/"
+  file__cp -r "$_FEAT_DIR/lib" "$_LIB_DIR/"
 fi
 
 if [[ "$INSTALL_SELF" == true ]]; then

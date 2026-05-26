@@ -23,18 +23,18 @@ apt_default:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
-        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/zsh/zshenv ==="
         cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
     - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: activation profile.d file has shellenv eval
-      cmd: grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: bash.bashrc has begin marker
       cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
     - title: bash.bashrc has shellenv eval
@@ -81,18 +81,18 @@ arch:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
-        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/zsh/zshenv ==="
         cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
     - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: activation profile.d file has shellenv eval
-      cmd: grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: bash.bashrc written
       cmd: test -f /etc/bash.bashrc
     - title: bash.bashrc has begin marker
@@ -133,9 +133,9 @@ debian:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: activation profile.d file has marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
 
 export_path_disabled:
   description: |
@@ -145,7 +145,7 @@ export_path_disabled:
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
     _MARKER='prefix activation (install-homebrew)'
-    _PROFILE_D="QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh"
+    _PROFILE_D="${_FEAT_ACTIVATION_PROFILE_D_FILE}"
   checks:
     - title: brew binary installed
       cmd: test -f "$_BREW"
@@ -179,7 +179,7 @@ export_path_idempotent:
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
     _MARKER='prefix activation (install-homebrew)'
-    _PROFILE_D="QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh"
+    _PROFILE_D="${_FEAT_ACTIVATION_PROFILE_D_FILE}"
   checks:
     - title: brew binary installed
       cmd: test -f "$_BREW"
@@ -192,7 +192,7 @@ export_path_idempotent:
     - title: zshenv has begin marker
       cmd: grep -qF "# >>> ${_MARKER} >>>" /etc/zsh/zshenv
     - title: profile.d file has exactly one begin marker
-      cmd: bash -c '[ "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" "/etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh")" -eq 1 ]'
+      cmd: bash -c '[ "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" "/etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}")" -eq 1 ]'
       debug: |
         echo "=== /etc/profile.d/${_PROFILE_D} ==="
         cat "/etc/profile.d/${_PROFILE_D}" 2>/dev/null || echo "(missing)"
@@ -240,18 +240,18 @@ fedora:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
-        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bashrc (tail) ==="
         tail -10 /etc/bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/zshenv ==="
         cat /etc/zshenv 2>/dev/null || echo "(missing)"
     - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: activation profile.d file has shellenv eval
-      cmd: grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: bashrc has begin marker
       cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bashrc
     - title: bashrc has shellenv eval
@@ -290,14 +290,14 @@ if_exists_reinstall:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
-        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
     - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: bash.bashrc has begin marker
       cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
 
@@ -323,14 +323,14 @@ if_exists_skip:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
-        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
     - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: bash.bashrc has begin marker
       cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
 
@@ -444,7 +444,7 @@ macos_default:
     - title: ~/.zshenv has shellenv eval
       cmd: grep -qF 'shellenv' "${_HOME}/.zshenv"
     - title: system activation profile.d NOT written
-      cmd: bash -c '! test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh'
+      cmd: bash -c '! test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}'
 
 macos_export_path_disabled:
   description: |
@@ -767,10 +767,10 @@ opensuse:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh ==="
-        cat /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/bashrc (tail) ==="
@@ -780,9 +780,9 @@ opensuse:
         echo "=== /etc/zshenv ==="
         cat /etc/zshenv 2>/dev/null || echo "(missing)"
     - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: activation profile.d file has shellenv eval
-      cmd: grep -qF 'shellenv' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: a global bashrc has begin marker
       cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bash.bashrc 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bashrc 2>/dev/null'
     - title: a global bashrc has shellenv eval
@@ -805,7 +805,7 @@ shellenv_remote_user:
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
     _MARKER='prefix activation (install-homebrew)'
-    _PROFILE_D="QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh"
+    _PROFILE_D="${_FEAT_ACTIVATION_PROFILE_D_FILE}"
   checks:
     - title: brew binary installed
       cmd: test -f "$_BREW"
@@ -843,6 +843,6 @@ update_false:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
     - title: activation profile.d file has marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
