@@ -242,10 +242,10 @@ options:
     default: ${{ _options.gh_repo }}$
     description: >-
       GitHub repository in the format `owner/repo`.
-      Used for version resolution and downloading binaries,
-      installation scripts, or source code,
+      Used for version resolution
+      and downloading release assets or source code,
       depending on the installation method.
-      Set to a fork or alternate repository to use a custom source.
+      Set to a fork or mirror repository to use a custom source.
 
   runtime_path:
     _apply_when: |
