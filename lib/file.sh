@@ -198,6 +198,74 @@ file__cp() {
   fi
 }
 
+# @brief file__rm [flags] <path>... — Remove files or directories (rm), escalating privilege only if needed.
+#
+# Forwards all arguments to `rm`. Escalates to `users__run_privileged` if the
+# parent directory of any existing target path is not writable by the current
+# process.
+#
+# Args:
+#   [flags]   Optional rm flags (e.g. -rf, -r, -f). Must appear before paths.
+#   <path>... One or more target paths to remove.
+#
+# Returns: 0 on success, non-zero on failure.
+file__rm() {
+  local -a _flags=() _paths=()
+  local _done_flags=false
+  while [[ $# -gt 0 ]]; do
+    if ! $_done_flags && [[ "$1" == -* ]]; then
+      _flags+=("$1")
+      shift
+    else
+      _done_flags=true
+      _paths+=("$1")
+      shift
+    fi
+  done
+  local _needs_priv=false _p
+  for _p in "${_paths[@]}"; do
+    if [[ -e "$_p" || -L "$_p" ]]; then
+      [[ ! -w "$(dirname "$_p")" ]] && {
+        _needs_priv=true
+        break
+      }
+    fi
+  done
+  if $_needs_priv; then
+    users__run_privileged rm "${_flags[@]+"${_flags[@]}"}" "${_paths[@]}"
+  else
+    rm "${_flags[@]+"${_flags[@]}"}" "${_paths[@]}"
+  fi
+}
+
+# @brief file__ln [flags] <target> <link_name> — Create a symlink (ln), escalating privilege only if needed.
+#
+# Forwards all arguments to `ln`. Escalates to `users__run_privileged` if the
+# directory containing <link_name> is not writable by the current process.
+#
+# Args:
+#   [flags]      Optional ln flags (e.g. -s, -f, -n, -sfn).
+#   <target>     The target the symlink points to.
+#   <link_name>  Path where the symlink is created (last argument).
+#
+# Returns: 0 on success, non-zero on failure.
+file__ln() {
+  local _link_name="${!#}"
+  local _needs_priv=false
+  local _parent
+  _parent="$(dirname "$_link_name")"
+  if [[ -e "$_link_name" || -L "$_link_name" ]]; then
+    [[ ! -w "$_parent" ]] && _needs_priv=true
+  elif [[ ! -w "$(file__nearest_existing "$_parent")" ]]; then
+    _needs_priv=true
+  fi
+  if $_needs_priv; then
+    users__run_privileged ln "$@"
+  else
+    ln "$@"
+  fi
+}
+
 # @brief file__chmod [flags] <mode> <path>... — chmod, escalating privilege only if needed.
 #
 # Parses leading flags (e.g. `-R`), then the mode, then one or more paths.
