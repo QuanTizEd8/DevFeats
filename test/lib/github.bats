@@ -736,9 +736,9 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
 @test "github__resolve_version stable failure propagates" {
   github__latest_tag() { return 1; }
   export -f github__latest_tag
-  run github__resolve_version "owner/repo" ""
+  run github__resolve_version "owner/repo" "" --endpoint release
   assert_failure
-  assert_output --partial "could not resolve stable release"
+  assert_output --partial "no release matching"
 }
 
 @test "github__resolve_version 'latest' uses list API, not github__latest_tag" {
@@ -760,9 +760,9 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
 @test "github__resolve_version 'latest' failure propagates" {
   _github__api_list_field() { return 1; }
   export -f _github__api_list_field
-  run github__resolve_version "owner/repo" "latest"
+  run github__resolve_version "owner/repo" "latest" --endpoint release
   assert_failure
-  assert_output --partial "could not retrieve releases"
+  assert_output --partial "no release matching"
 }
 
 @test "github__resolve_version exact X.Y.Z spec resolves to matching stable tag" {
@@ -819,9 +819,9 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
     return 0
   }
   export -f _github__api_get
-  run github__resolve_version "owner/repo" "2"
+  run github__resolve_version "owner/repo" "2" --endpoint release
   assert_failure
-  assert_output --partial "no stable release matching '2'"
+  assert_output --partial "no release matching '2'"
 }
 
 @test "github__resolve_version spec '1.2' does not match tag 'v1.20.0'" {
@@ -830,9 +830,9 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
     return 0
   }
   export -f _github__api_get
-  run github__resolve_version "owner/repo" "1.2"
+  run github__resolve_version "owner/repo" "1.2" --endpoint release
   assert_failure
-  assert_output --partial "no stable release matching '1.2'"
+  assert_output --partial "no release matching '1.2'"
 }
 
 @test "github__resolve_version pre-releases are skipped when resolving numeric spec" {
@@ -956,9 +956,9 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
     return 0
   }
   export -f _github__api_get
-  run github__resolve_version "owner/repo" "9"
+  run github__resolve_version "owner/repo" "9" --endpoint release
   assert_failure
-  assert_output --partial "no stable release matching '9'"
+  assert_output --partial "no release matching '9'"
 }
 
 @test "github__resolve_version spec with no numeric content fails immediately" {
@@ -982,6 +982,129 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
   run github__resolve_version "owner/repo" "1.2.3" "extra"
   assert_failure
   assert_output --partial "unexpected positional"
+}
+
+# --- --endpoint flag --------------------------------------------------------
+
+@test "github__resolve_version --endpoint with invalid value fails" {
+  run github__resolve_version "owner/repo" --endpoint bogus
+  assert_failure
+  assert_output --partial "must be 'release', 'tag', or 'auto'"
+}
+
+@test "github__resolve_version --endpoint release uses releases API and succeeds" {
+  github__latest_tag() {
+    printf 'v9.1.0\n'
+    return 0
+  }
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo" "stable" --endpoint release
+  assert_success
+  assert_output "v9.1.0
+9.1.0"
+}
+
+@test "github__resolve_version --endpoint release failure gives 'no release matching' error" {
+  github__latest_tag() { return 1; }
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo" "stable" --endpoint release
+  assert_failure
+  assert_output --partial "no release matching"
+  refute_output --partial "no tag matching"
+  refute_output --partial "no release or tag"
+}
+
+@test "github__resolve_version --endpoint tag stable finds newest non-prerelease tag" {
+  github__tags() {
+    printf 'v2.0.0-rc1\nv1.5.0\nv1.4.2\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "stable" --endpoint tag
+  assert_success
+  assert_output "v1.5.0
+1.5.0"
+}
+
+@test "github__resolve_version --endpoint tag stable skips tags with pre-release suffix" {
+  # All tags contain a hyphen in the bare version — none are considered stable.
+  github__tags() {
+    printf 'v1.0.0-rc2\nv0.9.0-beta\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "stable" --endpoint tag
+  assert_failure
+  assert_output --partial "no tag matching"
+}
+
+@test "github__resolve_version --endpoint tag latest returns first tag" {
+  github__tags() {
+    printf 'v3.0.0-beta\nv2.9.1\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "latest" --endpoint tag
+  assert_success
+  assert_output "v3.0.0-beta
+3.0.0-beta"
+}
+
+@test "github__resolve_version --endpoint tag numeric spec finds matching tag" {
+  github__tags() {
+    printf 'v2.1.0\nv1.3.5\nv1.2.1\nv1.1.0\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "1.2" --endpoint tag
+  assert_success
+  assert_output "v1.2.1
+1.2.1"
+}
+
+@test "github__resolve_version --endpoint tag failure gives 'no tag matching' error" {
+  github__tags() { return 1; }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "stable" --endpoint tag
+  assert_failure
+  assert_output --partial "no tag matching"
+  refute_output --partial "no release matching"
+  refute_output --partial "no release or tag"
+}
+
+@test "github__resolve_version auto falls back to tags when releases return empty (stable)" {
+  github__latest_tag() { return 1; }
+  github__tags() {
+    printf 'v4.2.0\n'
+    return 0
+  }
+  export -f github__latest_tag github__tags
+  run github__resolve_version "owner/repo" "stable"
+  assert_success
+  assert_output "v4.2.0
+4.2.0"
+}
+
+@test "github__resolve_version auto falls back to tags when releases return empty (numeric spec)" {
+  _github__first_stable_tag_matching() { return 1; }
+  github__tags() {
+    printf 'v1.9.0\nv1.8.3\n'
+    return 0
+  }
+  export -f _github__first_stable_tag_matching github__tags
+  run github__resolve_version "owner/repo" "1.8"
+  assert_success
+  assert_output "v1.8.3
+1.8.3"
+}
+
+@test "github__resolve_version auto gives combined error when both APIs return nothing" {
+  github__latest_tag() { return 1; }
+  github__tags() { return 1; }
+  export -f github__latest_tag github__tags
+  run github__resolve_version "owner/repo" "stable"
+  assert_failure
+  assert_output --partial "no release or tag matching"
 }
 
 # ---------------------------------------------------------------------------

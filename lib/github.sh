@@ -520,42 +520,47 @@ github__release_tags() {
   done
 }
 
-# @brief github__resolve_version <owner/repo> [<version-spec>] — Resolve a version spec to an exact release, printing the full tag and bare version.
+# @brief github__resolve_version <owner/repo> [<version-spec>] — Resolve a version spec to a release or tag, printing the full tag and bare version.
 #
 # Version specs:
-#   "stable" / ""  Latest non-prerelease, non-draft release (/releases/latest fast path).
-#   "latest"       Most recently published release, including pre-releases.
-#   "X"            Latest stable release whose version starts with X.
-#   "X.Y"          Latest stable release whose version starts with X.Y.
-#   "X.Y.Z"        Latest stable release whose version starts with X.Y.Z
+#   "stable" / ""  Latest non-prerelease release (releases API) or the newest tag
+#                  without a pre-release suffix (tags API fallback / --endpoint tag).
+#   "latest"       Most recently published release or tag, including pre-releases.
+#   "X"            Latest stable release/tag whose version starts with X.
+#   "X.Y"          Latest stable release/tag whose version starts with X.Y.
+#   "X.Y.Z"        Latest stable release/tag whose version starts with X.Y.Z
 #                  (resolves to X.Y.Z itself when no build suffix exists, or
 #                  the newest build e.g. X.Y.Z-1 when the repo uses them).
-#   "X.Y.Z-BUILD"  Prefix-matched: resolves to the newest X.Y.Z-BUILD* release.
+#   "X.Y.Z-BUILD"  Prefix-matched: resolves to the newest X.Y.Z-BUILD* release/tag.
 #
 # Leading non-numeric characters are stripped from both the spec and each tag
 # before comparison, so "v1.2", "1.2", and "jq-1.2" are all equivalent specs.
-# Stable filtering uses GitHub's authoritative prerelease/draft fields (requires jq).
+# Stable filtering for releases uses GitHub's authoritative prerelease/draft fields.
+# Stable filtering for tags uses a heuristic: tags whose bare version contains a
+# hyphen (e.g. "1.2.3-rc1") are treated as pre-releases.
 #
-# For partial specs, releases are fetched page by page (newest first) and the
-# first matching stable release is returned; pagination stops as soon as a match
+# For partial specs, items are fetched page by page (newest first) and the
+# first matching result is returned; pagination stops as soon as a match
 # is found, so only as many API calls as necessary are made.
 #
 # Args:
 #   <owner/repo>     GitHub repository in "owner/repo" format.
 #   [<version-spec>] Version spec string (default: "stable").
-#   --tag            Print only the full release tag (line 1).
+#   --tag            Print only the full tag (line 1).
 #   --version        Print only the bare version (line 2).
+#   --endpoint E     API to query: "release" (releases only), "tag" (tags only),
+#                    or "auto" (try releases first, fall back to tags; default).
 #
 # Stdout:
 #   By default (neither or both flags given): two lines — full tag then bare version.
-#   --tag only:     one line — full release tag (e.g. "v1.2.3", "jq-1.7.1").
-#   --version only: one line — bare version with tag prefix stripped (e.g. "1.2.3", "1.7.1").
+#   --tag only:     one line — full tag (e.g. "v1.2.3", "jq-1.7.1").
+#   --version only: one line — bare version with tag prefix stripped (e.g. "1.2.3").
 #
-# Returns: 0 on success, 1 if no matching release is found or an API error occurs.
+# Returns: 0 on success, 1 if no matching release or tag is found, or on API error.
 github__resolve_version() {
   local _repo="$1"
   shift
-  local _spec="stable" _spec_set=false _want_tag=false _want_version=false
+  local _spec="stable" _spec_set=false _want_tag=false _want_version=false _endpoint="auto"
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --tag)
@@ -564,6 +569,17 @@ github__resolve_version() {
         ;;
       --version)
         _want_version=true
+        shift
+        ;;
+      --endpoint)
+        shift
+        case "$1" in
+          release | tag | auto) _endpoint="$1" ;;
+          *)
+            logging__error "github__resolve_version: --endpoint must be 'release', 'tag', or 'auto'"
+            return 1
+            ;;
+        esac
         shift
         ;;
       --*)
@@ -583,45 +599,80 @@ github__resolve_version() {
     esac
   done
 
-  local _tag=""
-
+  # Pre-compute the normalised spec once; only numeric specs use it.
+  local _norm=""
   case "$_spec" in
-    stable | "")
-      # /releases/latest always returns the most recent non-prerelease, non-draft release.
-      _tag="$(github__latest_tag "$_repo")" || {
-        logging__error "github__resolve_version: could not resolve stable release for '${_repo}'."
-        return 1
-      }
-      ;;
-    latest)
-      # Most recently published release including pre-releases; per_page=1 avoids
-      # fetching unnecessary data since we only need the first result.
-      local _releases
-      _releases="$(_github__api_list_field \
-        "https://api.github.com/repos/${_repo}/releases?per_page=1" \
-        "tag_name")" || {
-        logging__error "github__resolve_version: could not retrieve releases for '${_repo}'."
-        return 1
-      }
-      _tag="$(printf '%s\n' "$_releases" | head -1)"
-      ;;
+    stable | "" | latest) ;;
     *)
-      # Numeric spec: strip any leading non-numeric prefix (e.g. "v", "jq-")
-      # while preserving pre-release markers, then stream releases until the
-      # first matching stable tag is found.  Major-only specs like "1" are
-      # supported via the single-digit fallback in ver__extract_version.
-      local _norm
       _norm="$(ver__extract_version --keep-suffix "$_spec")"
       [ -n "$_norm" ] || {
         logging__error "github__resolve_version: spec '${_spec}' contains no numeric version content."
         return 1
       }
-      _tag="$(_github__first_stable_tag_matching "$_repo" "$_norm")" || {
-        logging__error "github__resolve_version: no stable release matching '${_spec}' found for '${_repo}'."
-        return 1
-      }
       ;;
   esac
+
+  local _tag=""
+
+  # ── Releases API ────────────────────────────────────────────────────────────
+  if [ "$_endpoint" = "auto" ] || [ "$_endpoint" = "release" ]; then
+    case "$_spec" in
+      stable | "")
+        # /releases/latest always returns the most recent non-prerelease, non-draft release.
+        _tag="$(github__latest_tag "$_repo")" || _tag=""
+        ;;
+      latest)
+        # Most recently published release including pre-releases; per_page=1 avoids
+        # fetching unnecessary data since we only need the first result.
+        local _releases
+        _releases="$(_github__api_list_field \
+          "https://api.github.com/repos/${_repo}/releases?per_page=1" \
+          "tag_name")" || _releases=""
+        _tag="$(printf '%s\n' "$_releases" | head -1)"
+        ;;
+      *)
+        # Numeric spec: stream releases page by page until the first matching
+        # stable tag is found. Pagination stops as soon as a match is found.
+        _tag="$(_github__first_stable_tag_matching "$_repo" "$_norm")" || _tag=""
+        ;;
+    esac
+  fi
+
+  # ── Tags API (fallback for auto when releases returned nothing, or forced) ──
+  if [ -z "$_tag" ] && { [ "$_endpoint" = "auto" ] || [ "$_endpoint" = "tag" ]; }; then
+    case "$_spec" in
+      stable | "")
+        # Walk tags newest-first; the first tag whose bare version carries no
+        # pre-release suffix ("-rc1", "-beta", etc.) is considered stable.
+        _tag="$(github__tags "$_repo" --all | while IFS= read -r _t; do
+          _bare="$(ver__extract_version --keep-suffix "$_t" 2> /dev/null || true)"
+          case "$_bare" in
+            "" | *-*) continue ;;
+            *)
+              printf '%s\n' "$_t"
+              break
+              ;;
+          esac
+        done)" || _tag=""
+        ;;
+      latest)
+        # Tags are returned newest-first by GitHub; take the first one.
+        _tag="$(github__tags "$_repo" | head -1)" || _tag=""
+        ;;
+      *)
+        _tag="$(github__tags "$_repo" --all | ver__first_matching_prefix "$_norm")" || _tag=""
+        ;;
+    esac
+  fi
+
+  [ -n "$_tag" ] || {
+    case "$_endpoint" in
+      release) logging__error "github__resolve_version: no release matching '${_spec}' found for '${_repo}'." ;;
+      tag) logging__error "github__resolve_version: no tag matching '${_spec}' found for '${_repo}'." ;;
+      *) logging__error "github__resolve_version: no release or tag matching '${_spec}' found for '${_repo}'." ;;
+    esac
+    return 1
+  }
 
   if [ "$_want_tag" = "true" ] && [ "$_want_version" = "false" ]; then
     printf '%s\n' "$_tag"
