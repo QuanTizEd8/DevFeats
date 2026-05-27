@@ -2,9 +2,8 @@
 
 # Run shfmt.
 #
-# When no paths are provided, runs shfmt
-# on tracked .sh/.bash files (except features/*/install.bash)
-# plus src/*/install.bash.
+# When no paths are provided, runs shfmt on all tracked .sh/.bash files.
+# Respects .editorconfig ignore rules (e.g. *.tmpl.bash, generated paths).
 # With paths, runs shfmt on those paths alone.
 #
 # Usage:
@@ -22,9 +21,9 @@ if [[ "${1:-}" == "--check" ]]; then
 fi
 
 if "$check"; then
-  cmd=(shfmt --diff)
+  cmd=(shfmt --apply-ignore --diff)
 else
-  cmd=(shfmt --write)
+  cmd=(shfmt --apply-ignore --write)
 fi
 
 if [[ $# -gt 0 ]]; then

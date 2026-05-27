@@ -43,5 +43,9 @@ indent_size = 2
 [*.zsh]
 ignore = true
 
+# Jinja-style template placeholders; not valid bash until sync expands them.
+[*.tmpl.bash]
+ignore = true
+
 [{.claude,.codex,.copilot,.cursor,.local,.pixi,test/lib/bats}/**]
 ignore = true
