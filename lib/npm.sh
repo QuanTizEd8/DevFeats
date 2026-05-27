@@ -269,21 +269,20 @@ npm__resolve_version() {
   return 0
 }
 
-# @brief npm__install_package OPTIONS — Ensure npm is available, then install or uninstall a package globally.
+# @brief npm__install_package OPTIONS — Ensure npm is available, then install a package globally.
 #
-# Installs or uninstalls an npm package globally (or under a given prefix).
-# Ensures the npm CLI is available before proceeding, installing Node.js +
-# npm via the OS package manager if necessary.
+# Installs an npm package globally (or under a given prefix). Ensures the npm
+# CLI is available before proceeding, installing Node.js + npm via the OS
+# package manager if necessary.
 #
 # Args:
-#   --package <name>   Package name to install or uninstall (required).
+#   --package <name>   Package name to install (required).
 #   --version <ver>    Exact version to install (optional; omit for npm's default).
 #   --prefix <dir>     Pass `--prefix <dir>` to npm (optional).
-#   --uninstall        Uninstall the package instead of installing.
 #
 # Returns: 0 on success, 1 on failure.
 npm__install_package() {
-  local _package="" _version="" _prefix="" _uninstall=false
+  local _package="" _version="" _prefix=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --package)
@@ -299,10 +298,6 @@ npm__install_package() {
       --prefix)
         shift
         _prefix="$1"
-        shift
-        ;;
-      --uninstall)
-        _uninstall=true
         shift
         ;;
       *)
@@ -324,15 +319,55 @@ npm__install_package() {
 
   local -a _args=(-g)
   [ -n "$_prefix" ] && _args+=(--prefix "$_prefix")
-
-  if [ "$_uninstall" = "true" ]; then
-    npm "${_args[@]}" uninstall "$_package"
-    return $?
-  fi
-
   local _pkg_spec="$_package"
   [ -n "$_version" ] && _pkg_spec="${_package}@${_version}"
   npm "${_args[@]}" install "$_pkg_spec"
+}
+
+# @brief npm__uninstall_package OPTIONS — Uninstall a globally installed npm package.
+#
+# Ensures npm is available, then removes the named package from the global
+# (or prefixed) npm install tree.
+#
+# Args:
+#   --package <name>   Package name to uninstall (required).
+#   --prefix <dir>     Pass `--prefix <dir>` to npm (optional).
+#
+# Returns: 0 on success, 1 on failure.
+npm__uninstall_package() {
+  local _package="" _prefix=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --package)
+        shift
+        _package="$1"
+        shift
+        ;;
+      --prefix)
+        shift
+        _prefix="$1"
+        shift
+        ;;
+      *)
+        logging__error "npm__uninstall_package: unknown option: '$1'"
+        return 1
+        ;;
+    esac
+  done
+
+  [ -n "$_package" ] || {
+    logging__error "npm__uninstall_package: --package is required."
+    return 1
+  }
+
+  _npm__ensure_npm || {
+    logging__error "npm__uninstall_package: npm is required but could not be found or installed."
+    return 1
+  }
+
+  local -a _args=(-g)
+  [ -n "$_prefix" ] && _args+=(--prefix "$_prefix")
+  npm "${_args[@]}" uninstall "$_package"
 }
 
 # @brief npm__is_managed <bin_path> — Return 0 if <bin_path> is owned by npm's global package manager.
@@ -661,11 +696,10 @@ _npm__bundled__entry_point() {
 #                            version is already installed; always regenerates the wrapper. Prunes
 #                            the previous version directory (node/<old> and pkg/<old>) when the
 #                            version changes.
-#   --uninstall              Remove the entire prefix directory. Mutually exclusive with --update.
 #
 # Returns: 0 on success, 1 on failure.
 npm__install_bundled() {
-  local _package="" _version="" _cmd="" _prefix="" _node_spec="lts" _uninstall=false _update=false
+  local _package="" _version="" _cmd="" _prefix="" _node_spec="lts" _update=false
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --package)
@@ -693,10 +727,6 @@ npm__install_bundled() {
         _node_spec="$1"
         shift
         ;;
-      --uninstall)
-        _uninstall=true
-        shift
-        ;;
       --update)
         _update=true
         shift
@@ -721,23 +751,6 @@ npm__install_bundled() {
 
   # Default prefix
   [ -n "$_prefix" ] || _prefix="${HOME}/.local/share/${_cmd}"
-
-  # --uninstall and --update are mutually exclusive
-  if [ "$_uninstall" = "true" ] && [ "$_update" = "true" ]; then
-    logging__error "npm__install_bundled: --uninstall and --update are mutually exclusive."
-    return 1
-  fi
-
-  # Handle uninstall
-  if [ "$_uninstall" = "true" ]; then
-    if [ -d "$_prefix" ]; then
-      rm -rf "$_prefix"
-      logging__success "npm__install_bundled: removed '${_prefix}'."
-    else
-      logging__info "npm__install_bundled: nothing to uninstall at '${_prefix}'."
-    fi
-    return 0
-  fi
 
   # Guard: --update requires an existing installation
   if [ "$_update" = "true" ]; then
@@ -826,7 +839,7 @@ npm__install_bundled() {
   fi
 
   # Update current symlink for Node.js
-  ln -sfn "${_node_version}" "${_node_dir}/current"
+  file__ln -sfn "${_node_version}" "${_node_dir}/current"
 
   # Download + extract package tarball if not already present
   if [ ! -d "${_pkg_version_dir}/package" ]; then
@@ -853,7 +866,7 @@ npm__install_bundled() {
   fi
 
   # Update current symlink for package
-  ln -sfn "${_version}" "${_pkg_dir}/current"
+  file__ln -sfn "${_version}" "${_pkg_dir}/current"
 
   # Validate entry point exists (wrapper resolves it at runtime; this is a fail-fast check)
   _npm__bundled__entry_point "${_pkg_version_dir}" "$_cmd" > /dev/null || {
@@ -898,14 +911,14 @@ WRAPPER_EOF
     if [ -n "${_current_version:-}" ] && [ "$_current_version" != "$_version" ]; then
       local _old_pkg_dir="${_pkg_dir}/${_current_version}"
       [ -d "$_old_pkg_dir" ] && {
-        rm -rf "$_old_pkg_dir"
+        file__rm -rf "$_old_pkg_dir"
         logging__info "Pruned old ${_package} version: ${_current_version}."
       }
     fi
     if [ -n "${_current_node:-}" ] && [ "$_current_node" != "$_node_version" ]; then
       local _old_node_dir="${_node_dir}/${_current_node}"
       [ -d "$_old_node_dir" ] && {
-        rm -rf "$_old_node_dir"
+        file__rm -rf "$_old_node_dir"
         logging__info "Pruned old Node.js version: ${_current_node}."
       }
     fi
@@ -913,4 +926,101 @@ WRAPPER_EOF
 
   logging__success "${_cmd} installed at '${_wrapper}'."
   logging__info "Add '${_bin_dir}' to PATH to use '${_cmd}'."
+}
+
+# @brief npm__uninstall_bundled OPTIONS — Remove a bundled npm package installation.
+#
+# Removes the entire prefix directory created by `npm__install_bundled`.
+# Succeeds silently (no-op) when the prefix does not exist. Errors if the
+# resolved prefix does not carry the expected bundled layout markers
+# (node/current/bin/node, pkg/current/, .metadata/installed-version) to
+# prevent accidental removal of unrelated directories.
+#
+# Args:
+#   --bin <path>       Path to the installed wrapper binary. The prefix is
+#                      derived automatically via `npm__is_bundled` (use instead
+#                      of --prefix when you have the binary path).
+#   --package <name>   npm package name; used to derive the default prefix when
+#                      neither --bin nor --prefix is given (optional).
+#   --cmd <name>       Wrapper command name; overrides the default derived from
+#                      `--package` when computing the prefix (optional).
+#   --prefix <dir>     Installation prefix to remove. If omitted, derived from
+#                      `--cmd` or `--package` as `${HOME}/.local/share/<cmd>`.
+#
+# Returns: 0 on success, 1 on error.
+npm__uninstall_bundled() {
+  local _package="" _cmd="" _prefix="" _bin=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --bin)
+        shift
+        _bin="$1"
+        shift
+        ;;
+      --package)
+        shift
+        _package="$1"
+        shift
+        ;;
+      --cmd)
+        shift
+        _cmd="$1"
+        shift
+        ;;
+      --prefix)
+        shift
+        _prefix="$1"
+        shift
+        ;;
+      *)
+        logging__error "npm__uninstall_bundled: unknown option: '$1'"
+        return 1
+        ;;
+    esac
+  done
+
+  # Derive prefix from --bin (also validates the layout via npm__is_bundled)
+  if [ -n "$_bin" ]; then
+    npm__is_bundled "$_bin" || {
+      logging__error "npm__uninstall_bundled: '${_bin}' is not a bundled npm installation."
+      return 1
+    }
+    local _real
+    _real="$(readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+    case "$_real" in
+      /*) : ;;
+      *) _real="$(dirname "$_bin")/${_real}" ;;
+    esac
+    _prefix="$(cd "$(dirname "$_real")/.." && pwd)" || {
+      logging__error "npm__uninstall_bundled: could not resolve prefix from '${_bin}'."
+      return 1
+    }
+  fi
+
+  # Derive cmd and prefix (mirrors npm__install_bundled defaults)
+  if [ -z "$_cmd" ] && [ -n "$_package" ]; then
+    _cmd="${_package##*/}"
+    _cmd="${_cmd##@}"
+  fi
+  if [ -z "$_prefix" ]; then
+    [ -n "$_cmd" ] || {
+      logging__error "npm__uninstall_bundled: --prefix, --bin, --package, or --cmd is required."
+      return 1
+    }
+    _prefix="${HOME}/.local/share/${_cmd}"
+  fi
+
+  if [ -d "$_prefix" ]; then
+    # Guard against removing an unrelated directory
+    if [ ! -x "${_prefix}/node/current/bin/node" ] ||
+      [ ! -d "${_prefix}/pkg/current" ] ||
+      [ ! -f "${_prefix}/.metadata/installed-version" ]; then
+      logging__error "npm__uninstall_bundled: '${_prefix}' does not look like a bundled npm installation; refusing to remove."
+      return 1
+    fi
+    file__rm -rf "$_prefix"
+    logging__success "npm__uninstall_bundled: removed '${_prefix}'."
+  else
+    logging__info "npm__uninstall_bundled: nothing to uninstall at '${_prefix}'."
+  fi
 }

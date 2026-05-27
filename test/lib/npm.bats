@@ -339,20 +339,6 @@ setup() {
   assert_output --partial "--prefix /usr/local"
 }
 
-@test "npm__install_package --uninstall calls npm uninstall" {
-  _npm__ensure_npm() { return 0; }
-  export -f _npm__ensure_npm
-  npm() {
-    printf '%s\n' "$*"
-    return 0
-  }
-  export -f npm
-  run npm__install_package --package "typescript" --uninstall
-  assert_success
-  assert_output --partial "uninstall typescript"
-  refute_output --partial "npm install"
-}
-
 @test "npm__install_package fails when --package is missing" {
   run npm__install_package --version "5.4.5"
   assert_failure
@@ -369,6 +355,47 @@ setup() {
 
 @test "npm__install_package rejects unknown option" {
   run npm__install_package --bogus
+  assert_failure
+  assert_output --partial "unknown option"
+}
+
+# ---------------------------------------------------------------------------
+# npm__uninstall_package
+# ---------------------------------------------------------------------------
+
+@test "npm__uninstall_package calls npm uninstall globally" {
+  _npm__ensure_npm() { return 0; }
+  export -f _npm__ensure_npm
+  npm() {
+    printf 'npm %s\n' "$*"
+  }
+  export -f npm
+  run npm__uninstall_package --package "typescript"
+  assert_success
+  assert_output --partial "uninstall typescript"
+}
+
+@test "npm__uninstall_package passes --prefix to npm" {
+  _npm__ensure_npm() { return 0; }
+  export -f _npm__ensure_npm
+  npm() {
+    printf 'npm %s\n' "$*"
+  }
+  export -f npm
+  run npm__uninstall_package --package "typescript" --prefix "/usr/local"
+  assert_success
+  assert_output --partial "--prefix /usr/local"
+  assert_output --partial "uninstall typescript"
+}
+
+@test "npm__uninstall_package fails when --package is missing" {
+  run npm__uninstall_package
+  assert_failure
+  assert_output --partial "--package is required"
+}
+
+@test "npm__uninstall_package rejects unknown option" {
+  run npm__uninstall_package --bogus
   assert_failure
   assert_output --partial "unknown option"
 }
@@ -675,19 +702,6 @@ setup() {
   assert_output --partial "unknown option"
 }
 
-@test "npm__install_bundled --uninstall removes prefix dir" {
-  local _prefix="${BATS_TEST_TMPDIR}/myapp-prefix"
-  mkdir -p "$_prefix"
-  run npm__install_bundled --package "myapp" --prefix "$_prefix" --uninstall
-  assert_success
-  [ ! -d "$_prefix" ]
-}
-
-@test "npm__install_bundled --uninstall is no-op when prefix absent" {
-  run npm__install_bundled --package "myapp" --prefix "${BATS_TEST_TMPDIR}/no-such-dir" --uninstall
-  assert_success
-}
-
 @test "npm__install_bundled installs package with bundled node" {
   # Set up fake pkg tarball dir in a tmpdir
   local _index_file="${BATS_TEST_TMPDIR}/index.json"
@@ -841,16 +855,6 @@ setup() {
   assert_output --partial "v22.0.0"
 }
 
-@test "npm__install_bundled --uninstall and --update are mutually exclusive" {
-  run npm__install_bundled \
-    --package "myapp" \
-    --prefix "${BATS_TEST_TMPDIR}/any" \
-    --uninstall \
-    --update
-  assert_failure
-  assert_output --partial "mutually exclusive"
-}
-
 @test "npm__install_bundled --update prunes old version directories" {
   npm__resolve_version() { printf '2.0.0\n'; }
   npm__resolve_node_version() { printf 'v22.0.0\n'; }
@@ -890,4 +894,88 @@ setup() {
   # New version dirs should remain
   [ -d "${_prefix}/pkg/2.0.0" ]
   [ -d "${_prefix}/node/v22.0.0" ]
+}
+
+# ---------------------------------------------------------------------------
+# npm__uninstall_bundled
+# ---------------------------------------------------------------------------
+
+# Create a minimal bundled npm layout under <prefix>.
+_npm_test__make_bundled_prefix() {
+  local _prefix="$1"
+  mkdir -p "${_prefix}/node/current/bin" "${_prefix}/pkg/current" "${_prefix}/.metadata"
+  printf '#!/bin/sh\n' > "${_prefix}/node/current/bin/node"
+  chmod +x "${_prefix}/node/current/bin/node"
+  printf '1.0.0\n' > "${_prefix}/.metadata/installed-version"
+}
+
+@test "npm__uninstall_bundled removes prefix dir" {
+  local _prefix="${BATS_TEST_TMPDIR}/bundled-uninstall-prefix"
+  _npm_test__make_bundled_prefix "$_prefix"
+  run npm__uninstall_bundled --prefix "$_prefix"
+  assert_success
+  [ ! -d "$_prefix" ]
+}
+
+@test "npm__uninstall_bundled is no-op when prefix absent" {
+  run npm__uninstall_bundled --prefix "${BATS_TEST_TMPDIR}/no-such-dir"
+  assert_success
+}
+
+@test "npm__uninstall_bundled derives prefix from --package" {
+  local _cmd="myapp"
+  local _prefix="${HOME}/.local/share/${_cmd}"
+  _npm_test__make_bundled_prefix "$_prefix"
+  run npm__uninstall_bundled --package "$_cmd"
+  assert_success
+  [ ! -d "$_prefix" ]
+}
+
+@test "npm__uninstall_bundled derives prefix from --cmd" {
+  local _cmd="mycli"
+  local _prefix="${HOME}/.local/share/${_cmd}"
+  _npm_test__make_bundled_prefix "$_prefix"
+  run npm__uninstall_bundled --cmd "$_cmd"
+  assert_success
+  [ ! -d "$_prefix" ]
+}
+
+@test "npm__uninstall_bundled from --bin derives prefix and removes" {
+  local _prefix="${BATS_TEST_TMPDIR}/bin-derived-prefix"
+  _npm_test__make_bundled_prefix "$_prefix"
+  mkdir -p "${_prefix}/bin"
+  printf '#!/bin/sh\n' > "${_prefix}/bin/myapp"
+  chmod +x "${_prefix}/bin/myapp"
+  run npm__uninstall_bundled --bin "${_prefix}/bin/myapp"
+  assert_success
+  [ ! -d "$_prefix" ]
+}
+
+@test "npm__uninstall_bundled with --bin fails when not a bundled install" {
+  local _bin="${BATS_TEST_TMPDIR}/some-random-binary"
+  printf '#!/bin/sh\n' > "$_bin"
+  chmod +x "$_bin"
+  run npm__uninstall_bundled --bin "$_bin"
+  assert_failure
+  assert_output --partial "is not a bundled npm installation"
+}
+
+@test "npm__uninstall_bundled refuses non-bundled prefix dir" {
+  local _prefix="${BATS_TEST_TMPDIR}/not-a-bundled-prefix"
+  mkdir -p "$_prefix"
+  run npm__uninstall_bundled --prefix "$_prefix"
+  assert_failure
+  assert_output --partial "does not look like a bundled npm installation"
+}
+
+@test "npm__uninstall_bundled fails when neither --prefix nor --package given" {
+  run npm__uninstall_bundled
+  assert_failure
+  assert_output --partial "--prefix, --bin, --package, or --cmd is required"
+}
+
+@test "npm__uninstall_bundled rejects unknown option" {
+  run npm__uninstall_bundled --bogus
+  assert_failure
+  assert_output --partial "unknown option"
 }
