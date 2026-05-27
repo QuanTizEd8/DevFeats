@@ -27,18 +27,9 @@ declare -gA _OCI__AUTH_TOKEN=()
 declare -gA _OCI__AUTH_DONE=()
 declare -ga _LOGGING__SYSSET_MASKED_VALUES=()
 
-# Source all lib modules once at test-process startup (in topological order so
-# no module tries to call a function from a not-yet-defined module, even though
-# cross-module sourcing has been removed).
-for _devfeats_lib_mod in \
-  logging.sh os.sh str.sh ver.sh json.sh net.sh file.sh verify.sh \
-  lock.sh git.sh users.sh proc.sh graph.sh argparse.sh sys_req.sh shell.sh \
-  install/common.sh install/jq.sh install/yq.sh install/oras.sh \
-  ospkg.sh github.sh oci.sh uri.sh; do
-  # shellcheck source=/dev/null
-  source "${LIB_ROOT}/${_devfeats_lib_mod}"
-done
-unset _devfeats_lib_mod
+# Source lib once at test-process startup.
+# shellcheck source=/dev/null
+source "${LIB_ROOT}/__init__.bash"
 
 # reload_lib [<module.sh>]
 #
