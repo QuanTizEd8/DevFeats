@@ -41,9 +41,7 @@ class Config:
         rel_path = self._config[config_path]
         if not isinstance(rel_path, str):
             msg = f"Config path {config_path} does not point to a string path."
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
         return self._root_path / rel_path
 
     def __getitem__(self, dotted_path: str):

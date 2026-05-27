@@ -447,9 +447,7 @@ class InstallScriptGenerator:
             ops = [path_spec] if isinstance(path_spec, str) else path_spec
             if typ == "array":
                 for op in ops:
-                    validations.append(
-                        f'argparse__validate_path_array {vname} "{op}"'
-                    )
+                    validations.append(f'argparse__validate_path_array {vname} "{op}"')
             else:
                 for op in ops:
                     validations.append(f'argparse__validate_path {vname} "{op}"')

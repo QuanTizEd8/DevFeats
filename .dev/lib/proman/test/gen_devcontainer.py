@@ -23,8 +23,7 @@ def _copy_test_script(src: Path, dst: Path, feature: str) -> None:
     lines = content.splitlines(keepends=True)
     insert_at = 1 if lines and lines[0].startswith("#!") else 0
     vars_block = "".join(
-        f"export {k}={shlex.quote(v)}\n"
-        for k, v in resolved_env_vars(feature).items()
+        f"export {k}={shlex.quote(v)}\n" for k, v in resolved_env_vars(feature).items()
     )
     lines.insert(insert_at, vars_block)
     dst.write_text("".join(lines), encoding="utf-8")

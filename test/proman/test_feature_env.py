@@ -135,7 +135,9 @@ def test_setup_shim_matches_repo_config() -> None:
     env = resolved_env_vars("setup-shim")
     assert env["_FEAT_ID"] == "setup-shim"
     assert env["_FEAT_SHARE_DIR_ROOT"].endswith("/setup-shim")
-    assert env["_FEAT_LIFECYCLE_DIR"] == env["_FEAT_SHARE_DIR_ROOT"] + "/lifecycle-hooks"
+    assert (
+        env["_FEAT_LIFECYCLE_DIR"] == env["_FEAT_SHARE_DIR_ROOT"] + "/lifecycle-hooks"
+    )
     assert env["_FEAT_PROFILE_D_FILE"].endswith(".sh")
     # Verify MetadataLoader and resolved_env_vars agree
     meta = MetadataLoader().load("setup-shim")["setup-shim"]["_env_vars"]

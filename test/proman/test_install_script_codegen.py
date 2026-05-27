@@ -21,10 +21,7 @@ def test_bash_embed_templates_have_no_split_printf_percent_s() -> None:
     from proman.sync import install_script as mod
 
     for name, value in vars(mod).items():
-        if not (
-            isinstance(value, str)
-            and (name.startswith(("_ARGPARSE_", "_TMPL_")))
-        ):
+        if not (isinstance(value, str) and (name.startswith(("_ARGPARSE_", "_TMPL_")))):
             continue
         assert not _SPLIT_PRINTF_PERCENT_S_RE.search(value), name
 

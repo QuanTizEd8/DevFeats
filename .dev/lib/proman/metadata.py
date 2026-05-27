@@ -48,9 +48,7 @@ class MetadataLoader:
                 metadata = self._load_one(feat_id)
             except Exception as e:
                 msg = f"Error loading metadata for feature '{feat_id}': {e}"
-                raise ValueError(
-                    msg
-                ) from e
+                raise ValueError(msg) from e
 
             all_metadata[feat_id] = metadata
 
@@ -73,23 +71,17 @@ class MetadataLoader:
         )
         if not metadata_filepath.is_file():
             msg = f"Metadata file not found for feature '{feature_id}': {metadata_filepath}"
-            raise FileNotFoundError(
-                msg
-            )
+            raise FileNotFoundError(msg)
 
         try:
             metadata: dict = pyserials.read.yaml_from_file(metadata_filepath)
         except Exception as e:
             msg = f"Error reading metadata.yaml for feature '{feature_id}': {e}"
-            raise ValueError(
-                msg
-            ) from e
+            raise ValueError(msg) from e
 
         if not isinstance(metadata, dict):
             msg = f"Metadata for feature '{feature_id}' is not a YAML mapping (dict)."
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         metadata["id"] = feature_id
         metadata["_project"] = self._config.asdict
@@ -106,9 +98,7 @@ class MetadataLoader:
             metadata = pyserials.update.TemplateFiller().fill(metadata)
         except Exception as e:
             msg = f"Error substituting variables in metadata for feature '{feature_id}': {e}"
-            raise ValueError(
-                msg
-            ) from e
+            raise ValueError(msg) from e
         metadata.pop("_project")
         prefix_option_templates = metadata.pop("_prefix_option_templates", {})
 
@@ -153,9 +143,7 @@ class MetadataLoader:
                 )
             except Exception as e:
                 msg = f"Error substituting variables in _apply_when condition for option '{option_id}': {e}"
-                raise ValueError(
-                    msg
-                ) from e
+                raise ValueError(msg) from e
 
             if should_apply:
                 final_options[option_id] = {

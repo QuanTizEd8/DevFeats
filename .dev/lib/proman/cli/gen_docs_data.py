@@ -60,7 +60,9 @@ def main() -> int:
         "features": all_metadata,
         "lib_modules": lib_modules,
     }
-    docs_build_context_path = data_transfer_dir / str(config["filename.docs_build_context"])
+    docs_build_context_path = data_transfer_dir / str(
+        config["filename.docs_build_context"]
+    )
     docs_build_context_content = json.dumps(docs_data, indent=2, ensure_ascii=False)
     sync_file(docs_build_context_path, docs_build_context_content)
 
