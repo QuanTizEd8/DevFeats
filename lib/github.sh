@@ -1068,7 +1068,7 @@ _github__api_get() {
 _github__first_stable_tag_matching() {
   local _repo="$1" _norm="$2"
   _json__ensure_jq || return 1
-  local _per_page=100 _page=1 _json _tags _tag _count
+  local _per_page=100 _page=1 _json _tags _count
 
   while :; do
     local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}&page=${_page}"
@@ -1079,13 +1079,7 @@ _github__first_stable_tag_matching() {
         2> /dev/null)" || _tags=""
 
     if [ -n "$_tags" ]; then
-      _tag="$(printf '%s\n' "$_tags" | awk -v s="$_norm" '
-        {
-          bare = $0; sub(/^[^0-9]*/, "", bare)
-          c = substr(bare, length(s) + 1, 1)
-          if (bare == s || (index(bare, s) == 1 && (c == "." || c == "-"))) { print; exit }
-        }')"
-      if [ -n "$_tag" ]; then
+      if _tag="$(printf '%s\n' "$_tags" | ver__first_matching_prefix "$_norm")"; then
         printf '%s\n' "$_tag"
         return 0
       fi

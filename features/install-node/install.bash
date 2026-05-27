@@ -14,84 +14,6 @@ _cleanup_hook() {
   logging__fn_exit "_cleanup_hook"
 }
 
-# _node_build_platform_string <arch>
-# Outputs a nodejs.org platform string (e.g. linux-x64, darwin-arm64).
-# Argument: raw arch string (uname -m output or user-supplied $ARCH override).
-_node_build_platform_string() {
-  logging__fn_entry "_node_build_platform_string"
-  local _arch="$1"
-  local _os _arch_token
-  _os="$(os__release_kernel)" || {
-    logging__error "Unsupported kernel for Node.js binary install: '$(os__kernel)'."
-    return 1
-  }
-  _arch_token="$(os__release_arch "$_arch" --flavor node)" || {
-    logging__error "Unsupported architecture for Node.js binary install: '${_arch}'."
-    logging__info "Use method=nvm for source-based installation on unsupported architectures."
-    return 1
-  }
-  local _platform="${_os}-${_arch_token}"
-  printf '%s\n' "$_platform"
-  logging__fn_exit "_node_build_platform_string → ${_platform}"
-  return 0
-}
-
-# _node_resolve_binary_version
-# Resolves a version spec to an exact vX.Y.Z string using a downloaded index.json.
-# Arguments: version_spec index_json_path
-_node_resolve_binary_version() {
-  logging__fn_entry "_node_resolve_binary_version"
-  local _spec="$1"
-  local _index="$2"
-
-  # Normalise "lts" alias → "lts/*"
-  [ "$_spec" = "lts" ] && _spec="lts/*"
-
-  local _resolved=""
-  case "$_spec" in
-    "lts/*")
-      _resolved="$(json__nodejs_index_version_stdin lts-first < "$_index")" || _resolved=""
-      ;;
-    "latest" | "node")
-      _resolved="$(json__nodejs_index_version_stdin head < "$_index")" || _resolved=""
-      ;;
-    [0-9]*)
-      _resolved="$(json__nodejs_index_version_stdin major "$_spec" < "$_index")" || _resolved=""
-      ;;
-    v[0-9]*\.*\.[0-9]*)
-      # Exact semver with leading v
-      _resolved="$_spec"
-      if ! json__nodejs_index_version_stdin exact "$_spec" < "$_index" > /dev/null; then
-        logging__error "Node.js version '${_spec}' was not found in nodejs.org/dist/index.json."
-        return 1
-      fi
-      ;;
-    [0-9]*\.*\.[0-9]*)
-      # Exact semver without leading v
-      _resolved="v${_spec}"
-      if ! json__nodejs_index_version_stdin exact "v${_spec}" < "$_index" > /dev/null; then
-        logging__error "Node.js version '${_spec}' was not found in nodejs.org/dist/index.json."
-        return 1
-      fi
-      ;;
-    *)
-      logging__error "Version spec '${_spec}' is not supported by method=binary."
-      logging__info "Supported formats: lts/*, latest, a major number (e.g. 22), or an exact semver."
-      logging__info "nvm-style named LTS aliases (e.g. 'lts/iron') are not supported; use method=nvm instead."
-      return 1
-      ;;
-  esac
-
-  if [ -z "$_resolved" ]; then
-    logging__error "Could not resolve Node.js version '${_spec}' from index.json."
-    return 1
-  fi
-
-  echo "$_resolved"
-  logging__fn_exit "_node_resolve_binary_version → ${_resolved}"
-  return 0
-}
-
 # _node_check_if_exists
 # Pre-install check: handles if_exists option for an existing node binary.
 _node_check_if_exists() {
@@ -327,7 +249,7 @@ _node_install_via_binary() {
   # Build platform string
   local _arch_str="${ARCH:-$(os__arch)}"
   local _platform
-  _platform="$(_node_build_platform_string "$_arch_str")" || {
+  _platform="$(npm__node_platform "$_arch_str")" || {
     logging__error "install-node: could not determine platform string for arch '${_arch_str}'."
     return 1
   }
@@ -345,7 +267,7 @@ _node_install_via_binary() {
     uri__fetch_asset \
       "https://nodejs.org/dist/index.json" \
       --file-dest "${INSTALLER_DIR}/index.json" > /dev/null
-    _NODE_VERSION="$(_node_resolve_binary_version "$VERSION" "${INSTALLER_DIR}/index.json")"
+    _NODE_VERSION="$(npm__resolve_node_version "$VERSION" --index-file "${INSTALLER_DIR}/index.json")"
   fi
 
   logging__info "Installing Node.js ${_NODE_VERSION} (${_platform}) to ${_install_prefix}..."
@@ -499,7 +421,7 @@ if [ "$METHOD" = "binary" ] && [ "$VERSION" != "none" ]; then
   net__fetch_url_file \
     "https://nodejs.org/dist/index.json" \
     "${INSTALLER_DIR}/index.json"
-  _NODE_VERSION="$(_node_resolve_binary_version "$VERSION" "${INSTALLER_DIR}/index.json")"
+  _NODE_VERSION="$(npm__resolve_node_version "$VERSION" --index-file "${INSTALLER_DIR}/index.json")"
   logging__info "Resolved Node.js version: ${_NODE_VERSION}"
 fi
 

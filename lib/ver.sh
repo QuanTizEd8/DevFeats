@@ -130,3 +130,33 @@ ver__extract_version() {
   fi
   [[ -n "$_v" ]] && printf '%s\n' "$_v" || true
 }
+
+# @brief ver__first_matching_prefix <spec> — Print the first line from stdin whose bare version matches <spec> as a prefix.
+#
+# Reads newline-separated version strings from stdin (one per line). Strips
+# any leading non-numeric characters from each line before comparing, so
+# tagged versions like `v1.2.3` or `jq-1.7.1` are handled transparently.
+# A line matches when its bare numeric part equals `<spec>` exactly, or when
+# it starts with `<spec>` followed immediately by `.` or `-` (e.g. spec
+# `1.2` matches `1.2.3` and `1.2.0-rc1` but not `1.20.0`).
+#
+# Args:
+#   <spec>  Normalised version prefix to match (e.g. `1`, `1.2`, `1.2.3`).
+#           Must contain only digits and dots (no leading non-numeric prefix).
+#
+# Stdin:  Newline-separated list of version strings to scan (newest first).
+# Stdout: First matching line from stdin, unchanged.
+#
+# Returns: 0 on match, 1 if no line matches.
+ver__first_matching_prefix() {
+  local _spec="$1"
+  local _result
+  _result="$(awk -v s="$_spec" '
+    {
+      bare = $0; sub(/^[^0-9]*/, "", bare)
+      c = substr(bare, length(s) + 1, 1)
+      if (bare == s || (index(bare, s) == 1 && (c == "." || c == "-"))) { print; exit }
+    }')" || true
+  [ -n "$_result" ] || return 1
+  printf '%s\n' "$_result"
+}

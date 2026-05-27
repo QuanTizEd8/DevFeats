@@ -286,3 +286,53 @@ setup() {
   run ver__semver_is_final "1.2.3-rc1+build"
   assert_failure
 }
+
+# ---------------------------------------------------------------------------
+# ver__first_matching_prefix
+# ---------------------------------------------------------------------------
+
+@test "ver__first_matching_prefix matches exact version" {
+  run ver__first_matching_prefix "1.2.3" <<< "1.2.3"
+  assert_output "1.2.3"
+  assert_success
+}
+
+@test "ver__first_matching_prefix matches prefix followed by dot" {
+  run ver__first_matching_prefix "1.2" <<< "$(printf '%s\n' "1.3.0" "1.2.5" "1.2.0" "1.1.0")"
+  assert_output "1.2.5"
+  assert_success
+}
+
+@test "ver__first_matching_prefix matches prefix followed by dash" {
+  run ver__first_matching_prefix "1.2.0" <<< "$(printf '%s\n' "1.2.0-rc1" "1.1.0")"
+  assert_output "1.2.0-rc1"
+  assert_success
+}
+
+@test "ver__first_matching_prefix returns first match from list" {
+  run ver__first_matching_prefix "1.2" <<< "$(printf '%s\n' "2.0.0" "1.2.5" "1.2.3" "1.2.0")"
+  assert_output "1.2.5"
+  assert_success
+}
+
+@test "ver__first_matching_prefix strips leading non-numeric prefix from input lines" {
+  run ver__first_matching_prefix "1.2" <<< "$(printf '%s\n' "v2.0.0" "v1.2.5" "v1.1.0")"
+  assert_output "v1.2.5"
+  assert_success
+}
+
+@test "ver__first_matching_prefix does not match longer prefix" {
+  run ver__first_matching_prefix "1.2" <<< "$(printf '%s\n' "1.20.0" "1.21.0")"
+  assert_failure
+}
+
+@test "ver__first_matching_prefix returns failure when no match" {
+  run ver__first_matching_prefix "1.2" <<< "$(printf '%s\n' "2.0.0" "3.1.0")"
+  assert_failure
+}
+
+@test "ver__first_matching_prefix matches major-only spec" {
+  run ver__first_matching_prefix "1" <<< "$(printf '%s\n' "2.1.0" "1.9.0" "1.8.0")"
+  assert_output "1.9.0"
+  assert_success
+}

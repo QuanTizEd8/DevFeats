@@ -46,6 +46,8 @@ _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_LIB_DIR/ospkg.sh"
 # shellcheck source=lib/github.sh
 . "$_LIB_DIR/github.sh"
+# shellcheck source=lib/npm.sh
+. "$_LIB_DIR/npm.sh"
 # shellcheck source=lib/oci.sh
 . "$_LIB_DIR/oci.sh"
 # shellcheck source=lib/uri.sh
