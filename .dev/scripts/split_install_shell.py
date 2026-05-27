@@ -125,7 +125,7 @@ def remove_lines(all_lines, flat_ranges):
     return [ln for i, ln in enumerate(all_lines, 1) if i not in to_remove]
 
 
-def write_bash(feature, cuts, src_lines):
+def write_bash(feature, cuts, src_lines) -> None:
     dest = FEATURES_DIR / feature
     dest.mkdir(parents=True, exist_ok=True)
     out = [
@@ -142,7 +142,7 @@ def write_bash(feature, cuts, src_lines):
     print(f"  wrote {dest}/install.bash")
 
 
-def write_yaml(feature, sections, src_lines):
+def write_yaml(feature, sections, src_lines) -> None:
     dest = FEATURES_DIR / feature
     dest.mkdir(parents=True, exist_ok=True)
     out = [
@@ -166,7 +166,7 @@ def write_yaml(feature, sections, src_lines):
     print(f"  wrote {dest}/metadata.yaml")
 
 
-def main():
+def main() -> None:
     bash_src = (SRC / "install.bash").read_text().splitlines(keepends=True)
     yaml_src = (SRC / "metadata.yaml").read_text().splitlines(keepends=True)
 
@@ -184,8 +184,9 @@ def main():
         for _, s, e in cuts:
             for n in range(s, e + 1):
                 if n in bash_seen:
+                    msg = f"Line {n} of install.bash assigned to both {bash_seen[n]} and {feat}"
                     raise ValueError(
-                        f"Line {n} of install.bash assigned to both {bash_seen[n]} and {feat}"
+                        msg
                     )
                 bash_seen[n] = feat
 
@@ -196,8 +197,9 @@ def main():
             for s, e in secs.get(k, []):
                 for n in range(s, e + 1):
                     if n in yaml_seen:
+                        msg = f"Line {n} of metadata.yaml assigned to both {yaml_seen[n]} and {feat}"
                         raise ValueError(
-                            f"Line {n} of metadata.yaml assigned to both {yaml_seen[n]} and {feat}"
+                            msg
                         )
                     yaml_seen[n] = feat
 

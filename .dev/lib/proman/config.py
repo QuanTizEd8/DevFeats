@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class Config:
-    def __init__(self):
+    def __init__(self) -> None:
         self._root_path = git_repo_root()
         config_dict = {}
         for file in self._root_path.glob(".config/proman/*.yaml"):
@@ -40,8 +40,9 @@ class Config:
         """Convert a path relative to the project root into an absolute Path."""
         rel_path = self._config[config_path]
         if not isinstance(rel_path, str):
+            msg = f"Config path {config_path} does not point to a string path."
             raise ValueError(
-                f"Config path {config_path} does not point to a string path."
+                msg
             )
         return self._root_path / rel_path
 

@@ -159,7 +159,8 @@ class InstallScriptGenerator:
                 template=self._template,
             )
         except Exception as e:
-            raise ValueError(f"Error rendering template: {e}") from e
+            msg = f"Error rendering template: {e}"
+            raise ValueError(msg) from e
 
         validate_generated_install_script(script)
         return script
@@ -188,11 +189,10 @@ class InstallScriptGenerator:
             escaped = value.replace("\\", "\\\\").replace('"', '\\"')
             lines.append(f'{key}="{escaped}"')
             var_names.append(key)
-        out = {
+        return {
             "assignments": "\n".join(lines),
             "unexports": " ".join(var_names),
         }
-        return out
 
     def _generate_usage_options(self, options: dict) -> str:
         """Emit the __usage__() shell function."""
@@ -293,7 +293,7 @@ class InstallScriptGenerator:
                     ),
                 )
 
-        out = {
+        return {
             "cli_inits": "\n".join(cli_inits),
             "case_arms": "\n".join(case_arms),
             "env_reads": "\n".join(env_reads),
@@ -307,7 +307,6 @@ class InstallScriptGenerator:
             "validations": self._generate_argparse_validations(options),
             "unexports": self._generate_argparse_unexports(options),
         }
-        return out
 
     def _generate_argparse_uri_resolution(
         self, options: dict, prefix_var_names: frozenset[str] = frozenset()

@@ -17,13 +17,13 @@ _INSTALL_CONDA_ENV = _REPO_ROOT / "src" / "install-conda-env" / "install.bash"
 
 
 def test_bash_embed_templates_have_no_split_printf_percent_s() -> None:
-    """Module-level _ARGPARSE_* / _TMPL_* strings must not use bare \\n inside quotes."""
+    r"""Module-level _ARGPARSE_* / _TMPL_* strings must not use bare \\n inside quotes."""
     from proman.sync import install_script as mod
 
     for name, value in vars(mod).items():
         if not (
             isinstance(value, str)
-            and (name.startswith("_ARGPARSE_") or name.startswith("_TMPL_"))
+            and (name.startswith(("_ARGPARSE_", "_TMPL_")))
         ):
             continue
         assert not _SPLIT_PRINTF_PERCENT_S_RE.search(value), name
@@ -73,7 +73,7 @@ def test_uri_resolution_without_installer_dir_uses_matdir_fallback() -> None:
     reason="run 'pixi run proman-sync' to populate src/install-conda-env/install.bash",
 )
 def test_synced_install_conda_env_passes_escape_validation() -> None:
-    """Regression: db42a06b broke printf '%s\\n' into a literal line break in output."""
+    r"""Regression: db42a06b broke printf '%s\\n' into a literal line break in output."""
     script = _INSTALL_CONDA_ENV.read_text(encoding="utf-8")
     validate_generated_install_script(script)
     # URI resolution must run before path validations.

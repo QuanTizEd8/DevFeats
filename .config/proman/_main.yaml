@@ -11,12 +11,18 @@ path:
   feature_library: ${{ path.library }}$
   src: src
   devcontainer: .devcontainer
+  docs_source: docs/source
+  docs_source_features: ${{ path.docs_source }}$/features
+  docs_source_library: ${{ path.docs_source }}$/library
+  data_transfer: .local/data_transfer
   shared_metadata: ${{ path.features }}$/metadata.shared.yaml
   metadata_schema: ${{ path.features }}$/metadata.schema.json
   install_script_template: ${{ path.features }}$/install.tmpl.bash
 filename:
   feature_metadata: metadata.yaml
   feature_script: install.bash
+  feature_notes: NOTES.md
+  docs_build_context: docs_build_context.json
 
 features:
   lifecycle_hook_keys:

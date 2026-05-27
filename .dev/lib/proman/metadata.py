@@ -14,7 +14,7 @@ from proman.schema_bundle import get_validator
 class MetadataLoader:
     """Feature metadata loader."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._config = load_config()
         self._feat_dirpath = self._config.absolute_path("path.features")
         self._feat_metadata_filename = str(self._config["filename.feature_metadata"])
@@ -47,8 +47,9 @@ class MetadataLoader:
             try:
                 metadata = self._load_one(feat_id)
             except Exception as e:
+                msg = f"Error loading metadata for feature '{feat_id}': {e}"
                 raise ValueError(
-                    f"Error loading metadata for feature '{feat_id}': {e}"
+                    msg
                 ) from e
 
             all_metadata[feat_id] = metadata
@@ -71,20 +72,23 @@ class MetadataLoader:
             self._feat_dirpath / feature_id / self._feat_metadata_filename
         )
         if not metadata_filepath.is_file():
+            msg = f"Metadata file not found for feature '{feature_id}': {metadata_filepath}"
             raise FileNotFoundError(
-                f"Metadata file not found for feature '{feature_id}': {metadata_filepath}"
+                msg
             )
 
         try:
             metadata: dict = pyserials.read.yaml_from_file(metadata_filepath)
         except Exception as e:
+            msg = f"Error reading metadata.yaml for feature '{feature_id}': {e}"
             raise ValueError(
-                f"Error reading metadata.yaml for feature '{feature_id}': {e}"
+                msg
             ) from e
 
         if not isinstance(metadata, dict):
+            msg = f"Metadata for feature '{feature_id}' is not a YAML mapping (dict)."
             raise ValueError(
-                f"Metadata for feature '{feature_id}' is not a YAML mapping (dict)."
+                msg
             )
 
         metadata["id"] = feature_id
@@ -101,8 +105,9 @@ class MetadataLoader:
         try:
             metadata = pyserials.update.TemplateFiller().fill(metadata)
         except Exception as e:
+            msg = f"Error substituting variables in metadata for feature '{feature_id}': {e}"
             raise ValueError(
-                f"Error substituting variables in metadata for feature '{feature_id}': {e}"
+                msg
             ) from e
         metadata.pop("_project")
         prefix_option_templates = metadata.pop("_prefix_option_templates", {})
@@ -147,8 +152,9 @@ class MetadataLoader:
                     condition,
                 )
             except Exception as e:
+                msg = f"Error substituting variables in _apply_when condition for option '{option_id}': {e}"
                 raise ValueError(
-                    f"Error substituting variables in _apply_when condition for option '{option_id}': {e}"
+                    msg
                 ) from e
 
             if should_apply:
@@ -302,9 +308,12 @@ def _inject_prefix_group_options(
 
     # Inject prefix option (raises ValueError on collision — schema violation).
     if prefix_key in options:
-        raise ValueError(
+        msg = (
             f"⛔ Option '{prefix_key}' is a derived prefix option and"
-            " cannot be manually defined in metadata.yaml",
+            " cannot be manually defined in metadata.yaml"
+        )
+        raise ValueError(
+            msg,
         )
     opt_prefix = dict(prefix_option_templates["prefix"])
     opt_prefix["description"] = prefix_description or opt_prefix[
