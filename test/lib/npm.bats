@@ -374,6 +374,162 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# npm__is_managed
+# ---------------------------------------------------------------------------
+
+@test "npm__is_managed returns false for empty path" {
+  run npm__is_managed ""
+  assert_failure
+}
+
+@test "npm__is_managed returns false for nonexistent path" {
+  run npm__is_managed "/no/such/binary"
+  assert_failure
+}
+
+@test "npm__is_managed returns false when npm is not available" {
+  local _bin="${BATS_TEST_TMPDIR}/mybin"
+  touch "$_bin"
+  npm() { return 1; }
+  export -f npm
+  run npm__is_managed "$_bin"
+  assert_failure
+}
+
+@test "npm__is_managed returns true for binary in npm global bin dir" {
+  export _NPM_TEST_PREFIX="${BATS_TEST_TMPDIR}/npm-prefix"
+  mkdir -p "${_NPM_TEST_PREFIX}/bin" "${_NPM_TEST_PREFIX}/lib/node_modules"
+  local _bin="${_NPM_TEST_PREFIX}/bin/mybin"
+  touch "$_bin"
+
+  npm() {
+    case "$*" in
+      "prefix -g") printf '%s\n' "${_NPM_TEST_PREFIX}" ;;
+      "root -g") printf '%s\n' "${_NPM_TEST_PREFIX}/lib/node_modules" ;;
+    esac
+  }
+  export -f npm
+  run npm__is_managed "$_bin"
+  assert_success
+}
+
+@test "npm__is_managed returns true for symlink resolving into node_modules" {
+  export _NPM_TEST_PREFIX="${BATS_TEST_TMPDIR}/npm-prefix2"
+  mkdir -p "${_NPM_TEST_PREFIX}/bin" "${_NPM_TEST_PREFIX}/lib/node_modules/myapp/bin"
+  local _target="${_NPM_TEST_PREFIX}/lib/node_modules/myapp/bin/myapp"
+  touch "$_target"
+  local _bin="${BATS_TEST_TMPDIR}/myapp-link"
+  ln -sf "$_target" "$_bin"
+
+  npm() {
+    case "$*" in
+      "prefix -g") printf '%s\n' "${_NPM_TEST_PREFIX}" ;;
+      "root -g") printf '%s\n' "${_NPM_TEST_PREFIX}/lib/node_modules" ;;
+    esac
+  }
+  export -f npm
+  run npm__is_managed "$_bin"
+  assert_success
+}
+
+@test "npm__is_managed returns false for binary outside npm prefix" {
+  export _NPM_TEST_PREFIX="${BATS_TEST_TMPDIR}/npm-prefix3"
+  mkdir -p "${_NPM_TEST_PREFIX}/bin" "${_NPM_TEST_PREFIX}/lib/node_modules"
+  local _bin="${BATS_TEST_TMPDIR}/unmanaged-bin"
+  touch "$_bin"
+
+  npm() {
+    case "$*" in
+      "prefix -g") printf '%s\n' "${_NPM_TEST_PREFIX}" ;;
+      "root -g") printf '%s\n' "${_NPM_TEST_PREFIX}/lib/node_modules" ;;
+    esac
+  }
+  export -f npm
+  run npm__is_managed "$_bin"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# npm__is_bundled
+# ---------------------------------------------------------------------------
+
+@test "npm__is_bundled returns false for empty path" {
+  run npm__is_bundled ""
+  assert_failure
+}
+
+@test "npm__is_bundled returns false for nonexistent path" {
+  run npm__is_bundled "/no/such/binary"
+  assert_failure
+}
+
+@test "npm__is_bundled returns true for wrapper with all layout markers present" {
+  local _prefix="${BATS_TEST_TMPDIR}/bundled-prefix"
+  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current" "${_prefix}/.metadata"
+  local _bin="${_prefix}/bin/mycli"
+  printf '#!/bin/sh\nexec node "$@"\n' > "$_bin"
+  chmod +x "$_bin"
+  printf '5.4.5\n' > "${_prefix}/.metadata/installed-version"
+  printf '#!/bin/sh\nprintf "v20.0.0\\n"\n' > "${_prefix}/node/current/bin/node"
+  chmod +x "${_prefix}/node/current/bin/node"
+
+  run npm__is_bundled "$_bin"
+  assert_success
+}
+
+@test "npm__is_bundled returns false when node marker is missing" {
+  local _prefix="${BATS_TEST_TMPDIR}/bundled-no-node"
+  mkdir -p "${_prefix}/bin" "${_prefix}/pkg/current" "${_prefix}/.metadata"
+  local _bin="${_prefix}/bin/mycli"
+  touch "$_bin"
+  printf '5.4.5\n' > "${_prefix}/.metadata/installed-version"
+
+  run npm__is_bundled "$_bin"
+  assert_failure
+}
+
+@test "npm__is_bundled returns false when pkg/current is missing" {
+  local _prefix="${BATS_TEST_TMPDIR}/bundled-no-pkg"
+  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/.metadata"
+  local _bin="${_prefix}/bin/mycli"
+  touch "$_bin"
+  printf '#!/bin/sh\nprintf "v20.0.0\\n"\n' > "${_prefix}/node/current/bin/node"
+  chmod +x "${_prefix}/node/current/bin/node"
+  printf '5.4.5\n' > "${_prefix}/.metadata/installed-version"
+
+  run npm__is_bundled "$_bin"
+  assert_failure
+}
+
+@test "npm__is_bundled returns false when .metadata/installed-version is missing" {
+  local _prefix="${BATS_TEST_TMPDIR}/bundled-no-meta"
+  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current"
+  local _bin="${_prefix}/bin/mycli"
+  touch "$_bin"
+  printf '#!/bin/sh\nprintf "v20.0.0\\n"\n' > "${_prefix}/node/current/bin/node"
+  chmod +x "${_prefix}/node/current/bin/node"
+
+  run npm__is_bundled "$_bin"
+  assert_failure
+}
+
+@test "npm__is_bundled returns true for a symlink pointing to a wrapper" {
+  local _prefix="${BATS_TEST_TMPDIR}/bundled-symlink"
+  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current" "${_prefix}/.metadata"
+  local _wrapper="${_prefix}/bin/mycli"
+  printf '#!/bin/sh\nexec node "$@"\n' > "$_wrapper"
+  chmod +x "$_wrapper"
+  printf '5.4.5\n' > "${_prefix}/.metadata/installed-version"
+  printf '#!/bin/sh\nprintf "v20.0.0\\n"\n' > "${_prefix}/node/current/bin/node"
+  chmod +x "${_prefix}/node/current/bin/node"
+  local _link="${BATS_TEST_TMPDIR}/mycli-link"
+  ln -sf "$_wrapper" "$_link"
+
+  run npm__is_bundled "$_link"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
 # npm__node_platform
 # ---------------------------------------------------------------------------
 

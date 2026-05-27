@@ -335,6 +335,76 @@ npm__install_package() {
   npm "${_args[@]}" install "$_pkg_spec"
 }
 
+# @brief npm__is_managed <bin_path> — Return 0 if <bin_path> is owned by npm's global package manager.
+#
+# Gets the global npm prefix (`npm prefix -g`) and the global modules root
+# (`npm root -g`), then checks whether <bin_path> or its resolved symlink target
+# resides under either npm's global `bin/` directory or its global
+# `node_modules/` tree.
+#
+# Note: this detects packages installed by `npm install -g` (or
+# `npm__install_package`). Packages installed by `npm__install_bundled` use a
+# separate prefix and are NOT reported as npm-managed by this function.
+#
+# Args:
+#   <bin_path>  Absolute path to the binary to check (may be empty).
+#
+# Returns: 0 if managed by npm global install, 1 otherwise (including empty or
+#          nonexistent paths, or when npm is not available).
+npm__is_managed() {
+  local _bin="${1-}"
+  [[ -n "$_bin" && -e "$_bin" ]] || return 1
+  command -v npm > /dev/null 2>&1 || return 1
+
+  local _npm_prefix _npm_root
+  _npm_prefix="$(npm prefix -g 2> /dev/null)" || return 1
+  _npm_root="$(npm root -g 2> /dev/null)" || return 1
+  [[ -n "$_npm_prefix" && -n "$_npm_root" ]] || return 1
+
+  local _real
+  _real="$(readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+  [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
+
+  # Binary lives in npm's global bin dir, or its target is inside the node_modules tree
+  [[ "$_bin" == "${_npm_prefix}/bin/"* ]] ||
+    [[ "$_real" == "${_npm_prefix}/bin/"* ]] ||
+    [[ "$_real" == "${_npm_root}/"* ]]
+}
+
+# @brief npm__is_bundled <bin_path> — Return 0 if <bin_path> is a wrapper installed by npm__install_bundled.
+#
+# Resolves <bin_path> (following symlinks), then walks up one level to the
+# parent of the `bin/` directory. Checks for the three layout markers written
+# by `npm__install_bundled`:
+#   node/current/bin/node   — bundled Node.js runtime
+#   pkg/current/            — bundled package tree
+#   .metadata/installed-version — version record
+#
+# This does NOT detect packages installed by `npm install -g` or
+# `npm__install_package`; use `npm__is_managed` for those.
+#
+# Args:
+#   <bin_path>  Absolute path to the binary to check (may be empty).
+#
+# Returns: 0 if installed by npm__install_bundled, 1 otherwise (including empty
+#          or nonexistent paths).
+npm__is_bundled() {
+  local _bin="${1-}"
+  [[ -n "$_bin" && -e "$_bin" ]] || return 1
+
+  local _real
+  _real="$(readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+  [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
+
+  # The wrapper lives at <prefix>/bin/<cmd>; walk up two levels to get the prefix.
+  local _prefix
+  _prefix="$(cd "$(dirname "$_real")/.." 2> /dev/null && pwd)" || return 1
+
+  [[ -x "${_prefix}/node/current/bin/node" ]] &&
+    [[ -d "${_prefix}/pkg/current" ]] &&
+    [[ -f "${_prefix}/.metadata/installed-version" ]]
+}
+
 # @brief npm__node_platform [<arch>] — Print the nodejs.org platform string for the current (or given) architecture.
 #
 # Maps the kernel + architecture to the platform token used in nodejs.org
