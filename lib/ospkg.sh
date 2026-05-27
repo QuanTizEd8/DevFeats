@@ -1614,13 +1614,17 @@ ospkg__remove_user() {
 #   --interactive           Preserve TTY for interactive package prompts.
 #   --build-group <id>      Mark all newly-installed packages as build-only and record
 #                           them in a sidecar file for later cleanup. Requires --manifest.
+#   --remove                Remove mode: parse the manifest and uninstall the listed
+#                           packages/casks via ospkg__remove_user. Keys, repos,
+#                           prescripts, scripts, modules, and groups are skipped.
+#                           Mutually exclusive with --build-group and --update.
 #
 # Returns: 0 on success, 1 on invalid arguments or manifest parse failure.
 ospkg__run() {
   local _manifest='' _update_index=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _interactive=false
   local _prefer_linuxbrew=false _build_group=''
-  local _do_pkg_update=false
+  local _do_pkg_update=false _do_remove=false
   local _fetch_netrc_file=''
   local -a _fetch_headers=()
 
@@ -1676,6 +1680,10 @@ ospkg__run() {
         shift
         _build_group="$1"
         shift
+        ;;
+      --remove)
+        shift
+        _do_remove=true
         ;;
 
       *)
@@ -1816,6 +1824,33 @@ ospkg__run() {
     done <<< "$_parsed_records"
     rm -f "$_json_tmp"
     logging__info "YAML manifest parsed: ${#_Y_PRESCRIPTS[@]} prescript(s), ${#_Y_KEYS[@]} key(s), ${#_Y_REPOS[@]} repo(s), ${#_Y_PPAS[@]} ppa(s), ${#_Y_TAPS[@]} tap(s), ${#_Y_COPR[@]} copr(s), ${#_Y_MODULES[@]} module(s), ${#_Y_GROUPS[@]} group(s), ${#_Y_PACKAGES[@]} package(s), ${#_Y_CASKS[@]} cask(s), ${#_Y_SCRIPTS[@]} script(s)."
+
+    # Remove path: uninstall packages/casks from the manifest, then return.
+    # Keys, repos, prescripts, scripts, modules, and groups are skipped —
+    # only the installed packages and casks are removed.
+    if [[ "$_do_remove" == true ]]; then
+      local -a _pkgs_to_remove=()
+      local _rpkgitem _rpkgname
+      for _rpkgitem in "${_Y_PACKAGES[@]}"; do
+        _rpkgname="$(printf '%s' "$_rpkgitem" | json__query -r '.name')"
+        [[ -z "${_rpkgname:-}" ]] && continue
+        _pkgs_to_remove+=("$_rpkgname")
+      done
+      if [[ ${#_pkgs_to_remove[@]} -gt 0 ]]; then
+        logging__info "Removing ${#_pkgs_to_remove[@]} package(s) from manifest."
+        ospkg__remove_user "${_pkgs_to_remove[@]}"
+      fi
+      if [[ ${#_Y_CASKS[@]} -gt 0 && "$_OSPKG__PKG_MNGR" == "brew" && "$(uname -s)" == "Darwin" ]]; then
+        local _rcaskitem _rcask
+        for _rcaskitem in "${_Y_CASKS[@]}"; do
+          _rcask="$(printf '%s' "$_rcaskitem" | json__query -r '.cask')"
+          logging__remove "Removing cask: ${_rcask}"
+          _ospkg__brew_run uninstall --cask "$_rcask"
+          logging__success "Cask removed: ${_rcask}"
+        done
+      fi
+      return 0
+    fi
 
     # Helper: run a shell script with dry-run support.
     _run_script() {
