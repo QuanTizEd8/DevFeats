@@ -51,8 +51,7 @@ format-py-check = "ruff format --check --config .config/ruff.toml ."
 cmd = "ruff check --fix --config .config/ruff.toml"
 
 [feature.lint.tasks.format-py]
-cmd = "ruff format --config .config/ruff.toml {{ paths }}"
-args = [{ arg = "paths", default = "." }]
+cmd = "ruff format --config .config/ruff.toml"
 
 
 # ── Test Feature ─────────────────────────────────────────────────────────────
