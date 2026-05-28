@@ -31,7 +31,7 @@ fi
 
 # Install build dependencies before attempting a source build.
 if [[ "${METHOD}" == "source" ]]; then
-  __install_dependencies build source
+  __dep_install__ build source
 fi
 
 # Version-match idempotency: skip reinstall when the binary at the target

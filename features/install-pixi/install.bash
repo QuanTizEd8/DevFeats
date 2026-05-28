@@ -3,13 +3,13 @@
 # function bodies until they are called, so lib functions referenced here are
 # resolved at call-time, not at definition-time.
 
-_cleanup_hook() {
-  logging__fn_entry "_cleanup_hook"
+__exit_pre() {
+  logging__fn_entry "__exit_pre"
   if [[ -n "${_pixi_netrc_tmp:-}" && -f "${_pixi_netrc_tmp}" ]]; then
     logging__remove "Removing temporary netrc '${_pixi_netrc_tmp}'"
     rm -f "${_pixi_netrc_tmp}"
   fi
-  logging__fn_exit "_cleanup_hook"
+  logging__fn_exit "__exit_pre"
 }
 
 resolve_pixi_version() {
@@ -135,7 +135,7 @@ prefix_activation_snippet() {
   return 0
 }
 
-_prefix_post_install_hook() {
+__install_finish_post() {
   if os__is_devcontainer_build; then
     printf '#!/bin/sh\n"%s" info --extended\n' "${_DF_EXPECTED_CMD}" \
       > "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"

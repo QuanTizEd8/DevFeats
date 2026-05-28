@@ -82,7 +82,7 @@ _run() {
 
   case "${_resolved_method}" in
     script)
-      __install_dependencies build download || exit 1
+      __dep_install__ build download || exit 1
       _install_script "${VERSION}" "${PREFIX}" "${NODE_VERSION}" "${UPDATE}" "${UNINSTALL}" || exit 1
       ;;
     npm)

@@ -6,12 +6,12 @@ _nvm_run() {
   fi
 }
 
-_cleanup_hook() {
-  logging__fn_entry "_cleanup_hook"
+__exit_pre() {
+  logging__fn_entry "__exit_pre"
   if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${NVM_DIR-}" ] && [ -f "${NVM_DIR}/nvm.sh" ] && [ -n "${_NVM_USER-}" ]; then
     _nvm_run ". '${NVM_DIR}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
   fi
-  logging__fn_exit "_cleanup_hook"
+  logging__fn_exit "__exit_pre"
 }
 
 # _node_check_if_exists
@@ -316,7 +316,7 @@ create_nvm_symlinks() {
   return
 }
 
-_prefix_post_install_hook() {
+__install_finish_post() {
   create_nvm_symlinks
 }
 
@@ -433,9 +433,9 @@ _node_check_if_exists
 
 if [ "$METHOD" = "nvm" ]; then
   logging__info "Installing nvm runtime dependencies..."
-  __install_dependencies run nvm-runtime
+  __dep_install__ run nvm-runtime
   logging__info "Installing nvm build dependencies..."
-  __install_dependencies build nvm
+  __dep_install__ build nvm
 fi
 
 if [ "$NODE_GYP_DEPS" = "true" ]; then
@@ -444,7 +444,7 @@ if [ "$NODE_GYP_DEPS" = "true" ]; then
     logging__info "Alpine+nvm detected — node-gyp build tools already provided by nvm.yaml; skipping node-gyp.yaml."
   else
     logging__info "Installing node-gyp build dependencies..."
-    __install_dependencies run node-gyp
+    __dep_install__ run node-gyp
     if [ "$(os__platform)" = "macos" ]; then
       logging__info "node-gyp build dependencies on macOS require Xcode Command Line Tools."
       logging__info "Install them with: xcode-select --install"

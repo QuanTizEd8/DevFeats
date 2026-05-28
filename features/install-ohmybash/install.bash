@@ -220,14 +220,7 @@ _configure_user_ohmybash() {
   logging__success "User '${_username}' Oh My Bash configuration complete."
 }
 
-# ===================================================================
-# Install Oh My Bash
-# ===================================================================
-if ! command -v bash > /dev/null 2>&1; then
-  logging__warn "Bash not available — skipping Oh My Bash installation."
-else
-  install_ohmybash
-fi
+install_ohmybash
 
 # ===================================================================
 # Per-user configuration

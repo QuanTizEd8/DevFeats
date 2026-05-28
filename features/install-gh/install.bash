@@ -83,7 +83,7 @@ _gh__install_repos() {
     debian)
       # Set up GitHub CLI APT signing key and repo via the repos-debian manifest group,
       # which also triggers apt-get update. Then install gh (with optional version pin).
-      __install_dependencies run repos-debian
+      __dep_install__ run repos-debian
       if [[ "${VERSION}" = "latest" || "${VERSION}" = "stable" ]]; then
         ospkg__install_user gh
       else

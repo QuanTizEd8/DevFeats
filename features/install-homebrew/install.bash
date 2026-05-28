@@ -8,7 +8,7 @@ _BREW_UNINSTALLER_URL="${_BREW_INSTALL_BASE_URL}/uninstall.sh"
 install_linux_deps() {
   logging__fn_entry "install_linux_deps"
   logging__install "Installing Homebrew build dependencies."
-  __install_dependencies build linux-build
+  __dep_install__ build linux-build
   logging__fn_exit "install_linux_deps"
   return 0
 }
