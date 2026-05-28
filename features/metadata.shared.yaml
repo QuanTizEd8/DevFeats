@@ -7,7 +7,7 @@ documentationURL: ${{ _project.docs.website_base_url }}$/features/${{ id }}$
 licenseURL: ${{ _project.repo_url }}$/blob/main/LICENSE
 
 _oci_ref: ${{ _project.oci_base }}$/${{ id }}$
-_lifecycle_key_prefix: ${{ _project.owner_slug }}$-${{ _project.name_slug }}$--
+_lifecycle_key_prefix: ${{ _project.owner_slug }}$-${{ _project.name_slug }}$--${{ id }}$--
 
 # Canonical env vars merged into every feature. Keys ARE the final bash variable names;
 # install_script.py emits them verbatim and test runners inject them verbatim.
@@ -24,8 +24,8 @@ _env_vars:
   _FEAT_LIFECYCLE_POST_START:      ${{ _env_vars._FEAT_LIFECYCLE_DIR }}$/post-start--
   _FEAT_LIFECYCLE_POST_ATTACH:     ${{ _env_vars._FEAT_LIFECYCLE_DIR }}$/post-attach--
   _FEAT_ENTRYPOINT_PATH:           ${{ _env_vars._FEAT_LIFECYCLE_DIR }}$/entrypoint.sh
-  _FEAT_PROFILE_D_FILE:            99-${{ _project.owner_slug }}$--${{ _project.name_slug }}$--${{ id }}$.sh
-  _FEAT_ACTIVATION_PROFILE_D_FILE: ${{ _project.owner_slug }}$-${{ _project.name_slug }}$-${{ id }}$-prefix-activation.sh
+  _FEAT_PROFILE_D_FILE:            98-${{ _project.owner_slug }}$--${{ _project.name_slug }}$--${{ id }}$.sh
+  _FEAT_ACTIVATION_PROFILE_D_FILE: 99-${{ _project.owner_slug }}$-${{ _project.name_slug }}$--${{ id }}$--prefix-activation.sh
 
 _prefix_option_templates:
 
