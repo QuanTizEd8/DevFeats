@@ -43,11 +43,12 @@ github__fetch_release_json() {
     esac
   done
 
-  local _url
+  local _base _url
+  _base="$(_github__api_base_url "$_repo")"
   if [ -n "$_tag" ]; then
-    _url="https://api.github.com/repos/${_repo}/releases/tags/${_tag}"
+    _url="${_base}/releases/tags/${_tag}"
   else
-    _url="https://api.github.com/repos/${_repo}/releases/latest"
+    _url="${_base}/releases/latest"
   fi
 
   _github__api_get "$_url" "$_dest"
@@ -128,7 +129,7 @@ github__release_json_digest_for_asset() {
 
 # @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset and verify its SHA-256 if a digest is available in the API.
 #
-# The download URL is `${SYSSET_RELEASE_BASE:-https://github.com/<repo>/releases/download}/<tag>/<asset-name>`.
+# The download URL is `https://github.com/<repo>/releases/download/<tag>/<asset-name>`.
 # Respects the same GitHub API auth as `github__fetch_release_json`.
 # Note: for new code prefer `github__install_release` which also handles
 # archive extraction and binary installation in addition to download+verify.
@@ -157,11 +158,7 @@ github__fetch_release_asset_tarball() {
   fi
   rm -f "$_rel"
 
-  if [ -n "${SYSSET_RELEASE_BASE-}" ]; then
-    _url="${SYSSET_RELEASE_BASE}/${_tag}/${_asset}"
-  else
-    _url="https://github.com/${_repo}/releases/download/${_tag}/${_asset}"
-  fi
+  _url="https://github.com/${_repo}/releases/download/${_tag}/${_asset}"
 
   if ! net__fetch_url_file "$_url" "$_dest"; then
     return 1
@@ -269,11 +266,7 @@ github__install_release() {
         ;;
       --file-src | --file-dest | \
         --header | --netrc-file | --filename | --owner-group | \
-        --installer-dir | --gpg-key | --gpg-sig | --retry)
-        _passthrough+=("$1" "$2")
-        shift 2
-        ;;
-      --chmod-exec)
+        --installer-dir | --gpg-key | --gpg-sig | --retry | --chmod-exec)
         _passthrough+=("$1" "$2")
         shift 2
         ;;
@@ -305,22 +298,9 @@ github__install_release() {
     return 1
   }
 
-  # ── Resolve asset URL ─────────────────────────────────────────────────────
-  local _release_base
-  if [[ -n "${SYSSET_RELEASE_BASE-}" ]]; then
-    _release_base="${SYSSET_RELEASE_BASE}/${_tag}"
-  else
-    _release_base="https://github.com/${_repo}/releases/download/${_tag}"
-  fi
+  local _release_base="https://github.com/${_repo}/releases/download/${_tag}"
 
-  if "$_caller_sidecar_set"; then
-    if [[ "${_caller_sidecar}" != *://* ]]; then
-      _passthrough+=(--sidecar "${_release_base}/${_caller_sidecar}")
-    else
-      _passthrough+=(--sidecar "${_caller_sidecar}")
-    fi
-  fi
-
+  # Resolve asset: explicit name, regex selection, or heuristic selection.
   if [[ -z "$_asset" ]]; then
     local _picked_url
     if [[ -n "$_asset_regex" ]]; then
@@ -330,65 +310,15 @@ github__install_release() {
     fi
     _asset="${_picked_url##*/}"
   fi
-  local _asset_url="${_release_base}/${_asset}"
 
-  # ── JSON digest (skip if caller already passed --sha256 in any form) ──────
-  local -a _sha256_arg=()
-  if ! "$_caller_sha256_set"; then
-    local _reljson _json_digest=""
-    _reljson="$(mktemp)"
-    if github__fetch_release_json "$_repo" --tag "$_tag" --dest "$_reljson" 2> /dev/null; then
-      _json_digest="$(github__release_json_digest_for_asset "$_reljson" "$_asset")" || _json_digest=""
-    fi
-    rm -f "$_reljson"
-    if [[ -n "$_json_digest" ]]; then
-      _sha256_arg=(--sha256 "$_json_digest")
-    else
-      logging__warn "github__install_release: no JSON digest for '${_asset}' — skipping JSON SHA-256."
-    fi
+  # Pass sidecar through (relative name → install__release_asset resolves via release base).
+  if "$_caller_sidecar_set"; then
+    _passthrough+=(--sidecar "${_caller_sidecar}")
   fi
 
-  # ── Sidecar auto-probe (skip if caller passed --sidecar or --sha256 none) ─
-  # Auth args are extracted from _passthrough so private-repo sidecars work too.
-  local -a _sidecar_arg=() _probe_auth=()
-  local _i=0
-  while [[ "$_i" -lt "${#_passthrough[@]}" ]]; do
-    case "${_passthrough[$_i]}" in
-      --header | --netrc-file)
-        _probe_auth+=("${_passthrough[$_i]}" "${_passthrough[$((_i + 1))]}")
-        _i=$((_i + 2))
-        ;;
-      *) _i=$((_i + 1)) ;;
-    esac
-  done
-
-  if ! "$_caller_sidecar_set" && [[ "$_caller_sha256" != "none" ]]; then
-    local _sc_tmp _sc_file _sc_hash _sc_candidate
-    _sc_tmp="$(file__mktmpdir "github-sidecar-probe")"
-    for _sc_candidate in \
-      "${_asset_url}.sha256" \
-      "${_release_base}/SHA256SUMS" \
-      "${_release_base}/sha256sum.txt"; do
-      _sc_file="${_sc_tmp}/$(basename "$_sc_candidate")"
-      if net__fetch_url_file "$_sc_candidate" "$_sc_file" "${_probe_auth[@]}" 2> /dev/null; then
-        _sc_hash="$(_uri__sidecar_hash "$_asset" "$_sc_file")"
-        if [[ -n "$_sc_hash" ]]; then
-          logging__info "github__install_release: auto-detected sidecar at '${_sc_candidate}'"
-          # Pass the already-downloaded file as file:// to avoid a second download.
-          _sidecar_arg=(--sidecar "file://${_sc_file}")
-          break
-        fi
-      fi
-    done
-    if [[ "${#_sidecar_arg[@]}" -eq 0 ]]; then
-      logging__info "github__install_release: no sidecar found for '${_asset}' — skipping sidecar SHA-256."
-    fi
-  fi
-
-  # ── Delegate to uri__fetch_asset ──────────────────────────────────────────
-  uri__fetch_asset "$_asset_url" \
-    "${_sha256_arg[@]}" \
-    "${_sidecar_arg[@]}" \
+  install__release_asset \
+    --asset-uri "${_release_base}/${_asset}" \
+    --release-json-uri "https://api.github.com/repos/${_repo}/releases/tags/${_tag}" \
     "${_passthrough[@]}"
 }
 
@@ -420,15 +350,20 @@ github__latest_tag() {
   fi
 
   # Fallback: resolve tag via the /releases/latest redirect on github.com.
-  # This avoids unauthenticated GitHub API rate limits / 403 responses.
-  #
-  # Use the net module for curl/wget abstraction.
-  local _fallback_tag=""
-  _fallback_tag="$(
-    net__fetch_url_stdout "https://github.com/${_repo}/releases/latest" |
-      sed -n 's|.*href="/'"${_repo}"'/releases/tag/\([^"?#]*\)".*|\1|p' |
-      head -1 || true
-  )"
+  # Only applicable when _repo is an owner/repo slug (not a full API URL).
+  local _fallback_tag="" _slug
+  if [[ "$_repo" == https://* || "$_repo" == http://* ]]; then
+    _slug="${_repo##*/repos/}"
+  else
+    _slug="$_repo"
+  fi
+  if [[ "$_slug" != *://* ]]; then
+    _fallback_tag="$(
+      net__fetch_url_stdout "https://github.com/${_slug}/releases/latest" |
+        sed -n 's|.*href="/'"${_slug}"'/releases/tag/\([^"?#]*\)".*|\1|p' |
+        head -1 || true
+    )"
+  fi
 
   if [ -n "$_fallback_tag" ]; then
     echo "$_fallback_tag"
@@ -503,16 +438,18 @@ github__release_tags() {
     ;;
   esac
 
+  local _base
+  _base="$(_github__api_base_url "$_repo")"
   local _attempt=1
   while [ "$_attempt" -le "$_retries" ]; do
     if [ "$_all" = "false" ]; then
-      local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}"
+      local _url="${_base}/releases?per_page=${_per_page}"
       if _github__api_list_field "$_url" "tag_name"; then
         return 0
       fi
     else
       if _github__paginate_list_field \
-        "https://api.github.com/repos/${_repo}/releases" \
+        "${_base}/releases" \
         "tag_name" "$_per_page"; then
         return 0
       fi
@@ -620,28 +557,29 @@ github__resolve_version() {
       ;;
   esac
 
-  local _tag=""
+  local _api_base _tag=""
+  _api_base="$(_github__api_base_url "$_repo")"
 
   # ── Releases API ────────────────────────────────────────────────────────────
   if [ "$_endpoint" = "auto" ] || [ "$_endpoint" = "release" ]; then
     case "$_spec" in
       stable | "")
         # /releases/latest always returns the most recent non-prerelease, non-draft release.
-        _tag="$(github__latest_tag "$_repo")" || _tag=""
+        _tag="$(github__latest_tag "$_api_base")" || _tag=""
         ;;
       latest)
         # Most recently published release including pre-releases; per_page=1 avoids
         # fetching unnecessary data since we only need the first result.
         local _releases
         _releases="$(_github__api_list_field \
-          "https://api.github.com/repos/${_repo}/releases?per_page=1" \
+          "${_api_base}/releases?per_page=1" \
           "tag_name")" || _releases=""
         _tag="$(printf '%s\n' "$_releases" | head -1)"
         ;;
       *)
         # Numeric spec: stream releases page by page until the first matching
         # stable tag is found. Pagination stops as soon as a match is found.
-        _tag="$(_github__first_stable_tag_matching "$_repo" "$_norm")" || _tag=""
+        _tag="$(_github__first_stable_tag_matching "$_api_base" "$_norm")" || _tag=""
         ;;
     esac
   fi
@@ -652,7 +590,7 @@ github__resolve_version() {
       stable | "")
         # Walk tags newest-first; the first tag whose bare version carries no
         # pre-release suffix ("-rc1", "-beta", etc.) is considered stable.
-        _tag="$(github__tags "$_repo" --all | while IFS= read -r _t; do
+        _tag="$(github__tags "$_api_base" --all | while IFS= read -r _t; do
           _bare="$(ver__extract_version --keep-suffix "$_t" 2> /dev/null || true)"
           case "$_bare" in
             "" | *-*) continue ;;
@@ -665,10 +603,10 @@ github__resolve_version() {
         ;;
       latest)
         # Tags are returned newest-first by GitHub; take the first one.
-        _tag="$(github__tags "$_repo" | head -1)" || _tag=""
+        _tag="$(github__tags "$_api_base" | head -1)" || _tag=""
         ;;
       *)
-        _tag="$(github__tags "$_repo" --all | ver__first_matching_prefix "$_norm")" || _tag=""
+        _tag="$(github__tags "$_api_base" --all | ver__first_matching_prefix "$_norm")" || _tag=""
         ;;
     esac
   fi
@@ -726,8 +664,11 @@ github__tags() {
     esac
   done
 
+  local _base
+  _base="$(_github__api_base_url "$_repo")"
+
   if [ "$_all" = "false" ]; then
-    local _url="https://api.github.com/repos/${_repo}/tags?per_page=${_per_page}"
+    local _url="${_base}/tags?per_page=${_per_page}"
     _github__api_list_field "$_url" "name" || {
       logging__error "github__tags: failed to reach GitHub API for '${_repo}'."
       return 1
@@ -736,7 +677,7 @@ github__tags() {
   fi
 
   _github__paginate_list_field \
-    "https://api.github.com/repos/${_repo}/tags" \
+    "${_base}/tags" \
     "name" "$_per_page" || {
     logging__error "github__tags: failed to reach GitHub API for '${_repo}'."
     return 1
@@ -1080,6 +1021,21 @@ _github__escape_ere() {
   printf '%s' "$1" | sed 's/[][\\.^$*+?(){}|]/\\&/g'
 }
 
+# _github__api_base_url <repo-or-url>  (internal)
+#
+# Normalises the first argument to a full GitHub API base URL.
+# If the argument already starts with http:// or https://, it is returned as-is.
+# Otherwise it is treated as an `owner/repo` slug and expanded to
+# `https://api.github.com/repos/<owner/repo>`.
+_github__api_base_url() {
+  local _in="$1"
+  if [[ "$_in" == https://* || "$_in" == http://* ]]; then
+    printf '%s' "$_in"
+  else
+    printf 'https://api.github.com/repos/%s' "$_in"
+  fi
+}
+
 # _github__api_get <url> [<dest_file>]  (internal)
 #
 # Performs a GitHub API GET with standard Accept/version headers and an
@@ -1110,7 +1066,7 @@ _github__api_get() {
   return "$_ec"
 }
 
-# _github__first_stable_tag_matching <repo> <norm_spec>  (internal)
+# _github__first_stable_tag_matching <api_base> <norm_spec>  (internal)
 #
 # Fetches releases page by page (newest first), returning the full tag of the
 # first stable (non-prerelease, non-draft) release whose bare version matches
@@ -1119,18 +1075,18 @@ _github__api_get() {
 # are made.
 #
 # Args:
-#   <owner/repo>  GitHub repository in "owner/repo" format.
-#   <norm_spec>   Normalised (prefix-stripped) version spec to match against.
+#   <api_base>   Full GitHub API base URL (e.g. https://api.github.com/repos/owner/repo).
+#   <norm_spec>  Normalised (prefix-stripped) version spec to match against.
 #
 # Stdout: the matched full release tag.
 # Returns: 0 on match, 1 if no match found or on API error.
 _github__first_stable_tag_matching() {
-  local _repo="$1" _norm="$2"
+  local _api_base="$1" _norm="$2"
   _json__ensure_jq || return 1
   local _per_page=100 _page=1 _json _tags _count
 
   while :; do
-    local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}&page=${_page}"
+    local _url="${_api_base}/releases?per_page=${_per_page}&page=${_page}"
     _json="$(_github__api_get "$_url")" || return 1
 
     _tags="$(printf '%s\n' "$_json" |

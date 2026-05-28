@@ -258,3 +258,197 @@ install__promote_path_to_user() {
   ospkg__untrack_resource "$_group" "$_path" || true
   return 0
 }
+
+# @brief install__release_asset OPTIONS — Download and install a release asset from any URI.
+#
+# Generalised release-asset installer. Accepts a fully expanded asset URI plus
+# optional release JSON metadata for digest extraction and sidecar auto-probe.
+# All download, verification, extraction, and installation are delegated to
+# `uri__fetch_asset`.
+#
+# Two automatic behaviours (when applicable):
+#   - **JSON digest**: when `--release-json-uri` is given, the SHA-256 from the
+#     GitHub Releases API JSON is extracted and passed as `--sha256`, unless the
+#     caller already supplies `--sha256` in any form.
+#   - **Sidecar auto-probe**: when `--sidecar` is not given and `--sha256 none`
+#     is not set, three candidate URLs are probed in order:
+#     `<asset-uri>.sha256`, `<release-base>/SHA256SUMS`,
+#     `<release-base>/sha256sum.txt` (where release-base is the asset URI with
+#     the basename stripped).
+#
+# Args:
+#   --asset-uri <uri>          Full asset URI; runtime patterns already expanded.
+#                              Required.
+#   --release-json-uri <url>   Full GitHub Releases API JSON URL for digest
+#                              extraction. Optional.
+#   --asset-name <name>        Explicit asset basename override (default: basename
+#                              of --asset-uri with query parameters stripped).
+#   --sidecar <uri>            Explicit sidecar URI (skips auto-probe). A bare
+#                              name (no ://) is prepended with the release base.
+#   --sha256 <hash|none>       Expected SHA-256 hex or 'none' to suppress all
+#                              digest checks.
+#   --binary-src <path>        Repeatable; passed to uri__fetch_asset.
+#   --binary-dest <path>       Repeatable; passed to uri__fetch_asset.
+#   --file-src <path>          Repeatable; passed to uri__fetch_asset.
+#   --file-dest <path>         Repeatable; passed to uri__fetch_asset.
+#   --header <h>               Repeatable; passed to uri__fetch_asset.
+#   --netrc-file <path>        Passed to uri__fetch_asset.
+#   --filename <name>          Passed to uri__fetch_asset.
+#   --owner-group <group>      Passed to uri__fetch_asset.
+#   --installer-dir <dir>      Passed to uri__fetch_asset.
+#   --gpg-key <uri>            Passed to uri__fetch_asset.
+#   --gpg-sig <uri>            Passed to uri__fetch_asset.
+#   --retry <n>                Passed to uri__fetch_asset.
+#   --chmod-exec <spec>        Passed to uri__fetch_asset.
+#
+# Returns: 0 on success, 1 on failure.
+install__release_asset() {
+  local _asset_uri="" _release_json_uri="" _asset_name_override=""
+  local _caller_sha256="" _caller_sha256_set=false
+  local _caller_sidecar="" _caller_sidecar_set=false
+  local _nbsrc=0 _nbdest=0
+  local -a _passthrough=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --asset-uri)
+        _asset_uri="$2"
+        shift 2
+        ;;
+      --release-json-uri)
+        _release_json_uri="$2"
+        shift 2
+        ;;
+      --asset-name)
+        _asset_name_override="$2"
+        shift 2
+        ;;
+      --sha256)
+        _caller_sha256="$2"
+        _caller_sha256_set=true
+        _passthrough+=(--sha256 "$2")
+        shift 2
+        ;;
+      --sidecar)
+        _caller_sidecar_set=true
+        _caller_sidecar="$2"
+        shift 2
+        ;;
+      --binary-src)
+        _nbsrc=$((_nbsrc + 1))
+        _passthrough+=("$1" "$2")
+        shift 2
+        ;;
+      --binary-dest)
+        _nbdest=$((_nbdest + 1))
+        _passthrough+=("$1" "$2")
+        shift 2
+        ;;
+      --file-src | --file-dest | \
+        --header | --netrc-file | --filename | --owner-group | \
+        --installer-dir | --gpg-key | --gpg-sig | --retry | --chmod-exec)
+        _passthrough+=("$1" "$2")
+        shift 2
+        ;;
+      *)
+        logging__error "install__release_asset: unknown option: '$1'"
+        return 1
+        ;;
+    esac
+  done
+
+  [[ -n "$_asset_uri" ]] || {
+    logging__error "install__release_asset: --asset-uri is required."
+    return 1
+  }
+
+  if "$_caller_sha256_set" && [[ "$_caller_sha256" != "none" ]]; then
+    [[ "$_caller_sha256" =~ ^[0-9a-fA-F]{64}$ ]] || {
+      logging__error "install__release_asset: --sha256 accepts a 64-char hex or 'none', got '${_caller_sha256}'."
+      return 1
+    }
+  fi
+  [[ "$_nbsrc" -gt 0 && "$_nbdest" -gt 1 && "$_nbsrc" -ne "$_nbdest" ]] && {
+    logging__error "install__release_asset: ${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
+    return 1
+  }
+
+  # Derive asset name (basename of URI with query params stripped).
+  local _asset_name
+  if [[ -n "$_asset_name_override" ]]; then
+    _asset_name="$_asset_name_override"
+  else
+    local _uri_stripped="${_asset_uri%%\?*}"
+    _asset_name="${_uri_stripped##*/}"
+  fi
+
+  # Derive release base for sidecar auto-probe (asset URI with basename stripped).
+  local _uri_no_query="${_asset_uri%%\?*}"
+  local _release_base="${_uri_no_query%/*}"
+
+  # Resolve explicit sidecar (relative name → prepend release base).
+  if "$_caller_sidecar_set"; then
+    if [[ "${_caller_sidecar}" != *://* ]]; then
+      _passthrough+=(--sidecar "${_release_base}/${_caller_sidecar}")
+    else
+      _passthrough+=(--sidecar "${_caller_sidecar}")
+    fi
+  fi
+
+  # ── JSON digest (skip if caller already passed --sha256 in any form) ────────
+  local -a _sha256_arg=()
+  if ! "$_caller_sha256_set" && [[ -n "$_release_json_uri" ]]; then
+    local _reljson _json_digest=""
+    _reljson="$(mktemp)"
+    if _github__api_get "$_release_json_uri" "$_reljson" 2> /dev/null; then
+      _json_digest="$(github__release_json_digest_for_asset "$_reljson" "$_asset_name")" || _json_digest=""
+    fi
+    rm -f "$_reljson"
+    if [[ -n "$_json_digest" ]]; then
+      _sha256_arg=(--sha256 "$_json_digest")
+    else
+      logging__warn "install__release_asset: no JSON digest for '${_asset_name}' — skipping JSON SHA-256."
+    fi
+  fi
+
+  # ── Sidecar auto-probe (skip if caller passed --sidecar or --sha256 none) ───
+  local -a _sidecar_arg=() _probe_auth=()
+  local _i=0
+  while [[ "$_i" -lt "${#_passthrough[@]}" ]]; do
+    case "${_passthrough[$_i]}" in
+      --header | --netrc-file)
+        _probe_auth+=("${_passthrough[$_i]}" "${_passthrough[$((_i + 1))]}")
+        _i=$((_i + 2))
+        ;;
+      *) _i=$((_i + 1)) ;;
+    esac
+  done
+
+  if ! "$_caller_sidecar_set" && [[ "$_caller_sha256" != "none" ]]; then
+    local _sc_tmp _sc_file _sc_hash _sc_candidate
+    _sc_tmp="$(file__mktmpdir "release-sidecar-probe")"
+    for _sc_candidate in \
+      "${_asset_uri}.sha256" \
+      "${_release_base}/SHA256SUMS" \
+      "${_release_base}/sha256sum.txt"; do
+      _sc_file="${_sc_tmp}/$(basename "$_sc_candidate")"
+      if net__fetch_url_file "$_sc_candidate" "$_sc_file" "${_probe_auth[@]}" 2> /dev/null; then
+        _sc_hash="$(_uri__sidecar_hash "$_asset_name" "$_sc_file")"
+        if [[ -n "$_sc_hash" ]]; then
+          logging__info "install__release_asset: auto-detected sidecar at '${_sc_candidate}'"
+          _sidecar_arg=(--sidecar "file://${_sc_file}")
+          break
+        fi
+      fi
+    done
+    if [[ "${#_sidecar_arg[@]}" -eq 0 ]]; then
+      logging__info "install__release_asset: no sidecar found for '${_asset_name}' — skipping sidecar SHA-256."
+    fi
+  fi
+
+  # ── Delegate to uri__fetch_asset ────────────────────────────────────────────
+  uri__fetch_asset "$_asset_uri" \
+    "${_sha256_arg[@]}" \
+    "${_sidecar_arg[@]}" \
+    "${_passthrough[@]}"
+}

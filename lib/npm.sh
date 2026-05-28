@@ -6,19 +6,20 @@
 # packages via the npm CLI.
 # Respects `NPM_TOKEN` (falls back to `NODE_AUTH_TOKEN`) for all registry calls.
 
-# @brief npm__fetch_package_json <package> [--version <ver>] [--dest <file>] — Fetch npm registry JSON for a package.
+# @brief npm__fetch_package_json <package> [--version <ver>] [--registry <base>] [--dest <file>] — Fetch npm registry JSON for a package.
 #
 # Without `--version`: fetches the full package document from
-# `https://registry.npmjs.org/<package>` (includes all versions and dist-tags).
+# `<registry>/<package>` (includes all versions and dist-tags).
 # With `--version`: fetches the version-specific document from
-# `https://registry.npmjs.org/<package>/<version>`.
+# `<registry>/<package>/<version>`.
 # Respects `NPM_TOKEN` or `NODE_AUTH_TOKEN` (sets `Authorization: Bearer`
 # automatically).
 #
 # Args:
-#   <package>        npm package name (e.g. `typescript`, `@devcontainers/cli`).
-#   --version <ver>  Specific version to fetch (optional; fetches full doc by default).
-#   --dest <file>    Write JSON to this file instead of stdout (optional).
+#   <package>            npm package name (e.g. `typescript`, `@devcontainers/cli`).
+#   --version <ver>      Specific version to fetch (optional; fetches full doc by default).
+#   --registry <base>    Registry base URL (default: https://registry.npmjs.org).
+#   --dest <file>        Write JSON to this file instead of stdout (optional).
 #
 # Stdout: package JSON (suppressed when `--dest` is given).
 #
@@ -26,12 +27,17 @@
 npm__fetch_package_json() {
   local _package="$1"
   shift
-  local _version="" _dest=""
+  local _version="" _dest="" _registry=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --version)
         shift
         _version="$1"
+        shift
+        ;;
+      --registry)
+        shift
+        _registry="$1"
         shift
         ;;
       --dest)
@@ -46,33 +52,51 @@ npm__fetch_package_json() {
     esac
   done
 
+  local _base="${_registry:-https://registry.npmjs.org}"
   local _url
   if [ -n "$_version" ]; then
-    _url="https://registry.npmjs.org/${_package}/${_version}"
+    _url="${_base}/${_package}/${_version}"
   else
-    _url="https://registry.npmjs.org/${_package}"
+    _url="${_base}/${_package}"
   fi
 
   _npm__registry_get "$_url" "$_dest"
   return $?
 }
 
-# @brief npm__dist_tags <package> — Print dist-tags for an npm package, one per line.
+# @brief npm__dist_tags <package> [--registry <base>] — Print dist-tags for an npm package, one per line.
 #
-# Fetches `https://registry.npmjs.org/-/package/<package>/dist-tags` and
-# prints each tag as `name=version` (e.g. `latest=1.2.3`, `next=2.0.0-beta.1`).
+# Fetches `<registry>/-/package/<package>/dist-tags` and prints each tag as
+# `name=version` (e.g. `latest=1.2.3`, `next=2.0.0-beta.1`).
 # Prefers jq; falls back to grep for environments without jq.
 #
 # Args:
-#   <package>  npm package name.
+#   <package>          npm package name.
+#   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
 #
 # Stdout: one `name=version` pair per line.
 #
 # Returns: 0 on success, 1 on network or parse error.
 npm__dist_tags() {
   local _package="$1"
+  shift
+  local _registry=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --registry)
+        shift
+        _registry="$1"
+        shift
+        ;;
+      *)
+        logging__error "npm__dist_tags: unknown option: '$1'"
+        return 1
+        ;;
+    esac
+  done
+  local _base="${_registry:-https://registry.npmjs.org}"
   local _json
-  _json="$(_npm__registry_get "https://registry.npmjs.org/-/package/${_package}/dist-tags")" || return 1
+  _json="$(_npm__registry_get "${_base}/-/package/${_package}/dist-tags")" || return 1
   [ -n "$_json" ] || return 1
 
   local _out=""
@@ -90,20 +114,38 @@ npm__dist_tags() {
   printf '%s\n' "$_out"
 }
 
-# @brief npm__latest_version <package> — Print the version pointed to by the `latest` dist-tag.
+# @brief npm__latest_version <package> [--registry <base>] — Print the version pointed to by the `latest` dist-tag.
 #
 # Uses the lightweight dist-tags endpoint; does not fetch the full package document.
 #
 # Args:
-#   <package>  npm package name.
+#   <package>          npm package name.
+#   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
 #
 # Stdout: bare version string (e.g. `1.2.3`).
 #
 # Returns: 0 on success, 1 on network or parse error.
 npm__latest_version() {
   local _package="$1"
+  shift
+  local _registry=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --registry)
+        shift
+        _registry="$1"
+        shift
+        ;;
+      *)
+        logging__error "npm__latest_version: unknown option: '$1'"
+        return 1
+        ;;
+    esac
+  done
+  local -a _args=("$_package")
+  [ -n "$_registry" ] && _args+=(--registry "$_registry")
   local _tags _ver
-  _tags="$(npm__dist_tags "$_package")" || {
+  _tags="$(npm__dist_tags "${_args[@]}")" || {
     logging__error "npm__latest_version: could not fetch dist-tags for '${_package}'."
     return 1
   }
@@ -115,7 +157,7 @@ npm__latest_version() {
   printf '%s\n' "$_ver"
 }
 
-# @brief npm__versions <package> [--all] — Print published versions newest-first.
+# @brief npm__versions <package> [--all] [--registry <base>] — Print published versions newest-first.
 #
 # Fetches the full package document and extracts version strings from the
 # `versions` object. Requires jq.
@@ -123,8 +165,9 @@ npm__latest_version() {
 # With `--all`: all published versions are included.
 #
 # Args:
-#   <package>  npm package name.
-#   --all      Include prerelease versions (default: stable only).
+#   <package>          npm package name.
+#   --all              Include prerelease versions (default: stable only).
+#   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
 #
 # Stdout: one version string per line, sorted newest-first.
 #
@@ -132,11 +175,16 @@ npm__latest_version() {
 npm__versions() {
   local _package="$1"
   shift
-  local _all=false
+  local _all=false _registry=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --all)
         _all=true
+        shift
+        ;;
+      --registry)
+        shift
+        _registry="$1"
         shift
         ;;
       *)
@@ -146,8 +194,9 @@ npm__versions() {
     esac
   done
 
+  local _base="${_registry:-https://registry.npmjs.org}"
   local _json
-  _json="$(_npm__registry_get "https://registry.npmjs.org/${_package}")" || return 1
+  _json="$(_npm__registry_get "${_base}/${_package}")" || return 1
   [ -n "$_json" ] || return 1
 
   _json__ensure_jq || {
@@ -174,14 +223,15 @@ npm__versions() {
   fi
 }
 
-# @brief npm__resolve_version <package> [<version-spec>] — Resolve a version spec to an exact published version.
+# @brief npm__resolve_version_uri <uri> [<spec>] — Resolve a version spec using the full package document at <uri>.
 #
-# npm CLI enforces that dist-tag names cannot be valid semver ranges, so
-# numeric and symbolic specs occupy mutually exclusive namespaces — no
-# ambiguity or fallback chaining is required.
+# Fetches the full npm package document JSON from <uri> (any URI scheme
+# supported by net__fetch_url_stdout; typically the package root endpoint
+# https://registry.npmjs.org/<package> or an equivalent for a custom registry).
+# Applies all resolution logic without any path construction.
 #
 # Version specs:
-#   "stable" / ""  Latest stable version (the `latest` dist-tag; fast path).
+#   "stable" / ""  Latest stable version (the `latest` dist-tag).
 #   "latest"       Most recently published version, including pre-releases.
 #   starts with a digit (e.g. "1", "1.2", "1.2.3", "1.2.3-rc1")
 #                  Newest stable published version whose version matches the
@@ -190,8 +240,125 @@ npm__versions() {
 #                  Interpreted as a dist-tag name; resolved to its version.
 #
 # Args:
-#   <package>        npm package name.
-#   [<version-spec>] Version spec string (default: "stable").
+#   <uri>    Full URI of the npm package document (required).
+#   [<spec>] Version spec string (default: "stable").
+#
+# Stdout: exact bare version string (e.g. `1.2.3`).
+#
+# Returns: 0 on success, 1 if no matching version found or on API error.
+npm__resolve_version_uri() {
+  local _uri="$1"
+  local _spec="${2:-stable}"
+
+  [ -n "$_uri" ] || {
+    logging__error "npm__resolve_version_uri: uri is required."
+    return 1
+  }
+
+  local _json
+  _json="$(_npm__registry_get "$_uri")" || {
+    logging__error "npm__resolve_version_uri: failed to fetch package document from '${_uri}'."
+    return 1
+  }
+  [ -n "$_json" ] || {
+    logging__error "npm__resolve_version_uri: empty response from '${_uri}'."
+    return 1
+  }
+
+  local _version=""
+
+  case "$_spec" in
+    stable | "")
+      # Fast path: the `latest` dist-tag is the authoritative stable pointer.
+      if _json__ensure_jq 2> /dev/null; then
+        _version="$(printf '%s\n' "$_json" | json__query -r '.["dist-tags"].latest // empty' 2> /dev/null)" || _version=""
+        [ "$_version" = "null" ] && _version=""
+      fi
+      if [ -z "$_version" ]; then
+        _version="$(printf '%s\n' "$_json" |
+          grep -oE '"latest"[[:space:]]*:[[:space:]]*"[^"]+"' |
+          head -1 | sed 's/^"latest"[^"]*"//; s/"$//')" || _version=""
+      fi
+      [ -n "$_version" ] || {
+        logging__error "npm__resolve_version_uri: no 'latest' dist-tag found at '${_uri}'."
+        return 1
+      }
+      ;;
+    latest)
+      # Most recently published, including pre-releases.
+      _json__ensure_jq || {
+        logging__error "npm__resolve_version_uri: jq is required to resolve 'latest' spec."
+        return 1
+      }
+      local _all_vers
+      _all_vers="$(printf '%s\n' "$_json" | json__object_keys_stdin versions)" || _all_vers=""
+      [ -n "$_all_vers" ] || {
+        logging__error "npm__resolve_version_uri: no 'versions' field in package document at '${_uri}'."
+        return 1
+      }
+      _version="$(printf '%s\n' "$_all_vers" | sort -rV | head -1)"
+      ;;
+    [0-9]*)
+      # Numeric prefix: find newest stable published version matching the prefix.
+      _json__ensure_jq || {
+        logging__error "npm__resolve_version_uri: jq is required to resolve numeric spec '${_spec}'."
+        return 1
+      }
+      local _norm
+      _norm="$(ver__extract_version --keep-suffix "$_spec")"
+      [ -n "$_norm" ] || {
+        logging__error "npm__resolve_version_uri: spec '${_spec}' contains no numeric version content."
+        return 1
+      }
+      local _stable_vers
+      _stable_vers="$(printf '%s\n' "$_json" | json__object_keys_stdin versions |
+        sort -rV | while IFS= read -r _v; do
+        ver__semver_is_final "$_v" && printf '%s\n' "$_v"
+      done)" || _stable_vers=""
+      [ -n "$_stable_vers" ] || {
+        logging__error "npm__resolve_version_uri: no stable versions found at '${_uri}'."
+        return 1
+      }
+      _version="$(printf '%s\n' "$_stable_vers" | ver__first_matching_prefix "$_norm")" || _version=""
+      [ -n "$_version" ] || {
+        logging__error "npm__resolve_version_uri: no stable version matching '${_spec}' at '${_uri}'."
+        return 1
+      }
+      ;;
+    *)
+      # Symbolic dist-tag name (e.g. "next", "beta", "canary").
+      if _json__ensure_jq 2> /dev/null; then
+        # shellcheck disable=SC2016  # $t is a jq variable, not a shell variable
+        _version="$(printf '%s\n' "$_json" | json__query -r --arg t "$_spec" '.["dist-tags"][$t] // empty' 2> /dev/null)" || _version=""
+        [ "$_version" = "null" ] && _version=""
+      fi
+      if [ -z "$_version" ]; then
+        _version="$(printf '%s\n' "$_json" |
+          grep -oE "\"${_spec}\"[[:space:]]*:[[:space:]]*\"[^\"]+\"" |
+          head -1 | sed 's/^"[^"]*"[^"]*"//; s/"$//')" || _version=""
+      fi
+      [ -n "$_version" ] || {
+        logging__error "npm__resolve_version_uri: dist-tag '${_spec}' not found at '${_uri}'."
+        return 1
+      }
+      ;;
+  esac
+
+  printf '%s\n' "$_version"
+  return 0
+}
+
+# @brief npm__resolve_version <package> [<version-spec>] [--registry <base>] — Resolve a version spec to an exact published version.
+#
+# Thin wrapper around npm__resolve_version_uri. Constructs the full package
+# document URI from <package> and optional registry base, then delegates.
+#
+# Version specs: same as npm__resolve_version_uri.
+#
+# Args:
+#   <package>            npm package name.
+#   [<version-spec>]     Version spec string (default: "stable").
+#   --registry <base>    Registry base URL (default: https://registry.npmjs.org).
 #
 # Stdout: exact bare version string (e.g. `1.2.3`).
 #
@@ -199,9 +366,14 @@ npm__versions() {
 npm__resolve_version() {
   local _package="$1"
   shift
-  local _spec="stable" _spec_set=false
+  local _spec="stable" _spec_set=false _registry=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --registry)
+        shift
+        _registry="$1"
+        shift
+        ;;
       --*)
         logging__error "npm__resolve_version: unknown option: '$1'"
         return 1
@@ -219,54 +391,8 @@ npm__resolve_version() {
     esac
   done
 
-  local _version=""
-
-  case "$_spec" in
-    stable | "")
-      # Fast path: the `latest` dist-tag is the authoritative stable pointer.
-      _version="$(npm__latest_version "$_package")" || {
-        logging__error "npm__resolve_version: could not resolve stable version for '${_package}'."
-        return 1
-      }
-      ;;
-    latest)
-      # Most recently published, including pre-releases.
-      _version="$(npm__versions "$_package" --all | head -1)" || {
-        logging__error "npm__resolve_version: could not retrieve versions for '${_package}'."
-        return 1
-      }
-      ;;
-    [0-9]*)
-      # Numeric prefix: find newest stable published version matching the prefix.
-      local _norm
-      _norm="$(ver__extract_version --keep-suffix "$_spec")"
-      [ -n "$_norm" ] || {
-        logging__error "npm__resolve_version: spec '${_spec}' contains no numeric version content."
-        return 1
-      }
-      _version="$(npm__versions "$_package" | ver__first_matching_prefix "$_norm")" || {
-        logging__error "npm__resolve_version: no stable version matching '${_spec}' found for '${_package}'."
-        return 1
-      }
-      ;;
-    *)
-      # Symbolic dist-tag name (e.g. "next", "beta", "canary").
-      local _line
-      while IFS= read -r _line; do
-        [[ "${_line%%=*}" == "$_spec" ]] && {
-          _version="${_line#*=}"
-          break
-        }
-      done <<< "$(npm__dist_tags "$_package")"
-      [ -n "$_version" ] || {
-        logging__error "npm__resolve_version: dist-tag '${_spec}' not found for '${_package}'."
-        return 1
-      }
-      ;;
-  esac
-
-  printf '%s\n' "$_version"
-  return 0
+  local _base="${_registry:-https://registry.npmjs.org}"
+  npm__resolve_version_uri "${_base}/${_package}" "$_spec"
 }
 
 # @brief npm__install_package OPTIONS — Ensure npm is available, then install a package globally.
@@ -618,16 +744,18 @@ _npm__ensure_npm() {
 # Bundled-Node.js npm package installer — private helpers
 # ---------------------------------------------------------------------------
 
-# _npm__bundled__pkg_tarball_url <package> <version>  (internal)
+# _npm__bundled__pkg_tarball_url <package> <version> [<registry>]  (internal)
 #
 # Fetches the version-specific registry document and extracts `dist.tarball`.
+# <registry> defaults to https://registry.npmjs.org.
 #
 # Returns: 0 and prints URL on success, 1 on failure.
 _npm__bundled__pkg_tarball_url() {
   local _package="$1"
   local _version="$2"
+  local _registry="${3:-https://registry.npmjs.org}"
   local _json _url
-  _json="$(_npm__registry_get "https://registry.npmjs.org/${_package}/${_version}")" || return 1
+  _json="$(_npm__registry_get "${_registry}/${_package}/${_version}")" || return 1
   [ -n "$_json" ] || return 1
   _url="$(printf '%s\n' "$_json" | json__query -r '.dist.tarball // empty' 2> /dev/null)" || return 1
   [ -n "$_url" ] && [ "$_url" != "null" ] || return 1
@@ -699,7 +827,7 @@ _npm__bundled__entry_point() {
 #
 # Returns: 0 on success, 1 on failure.
 npm__install_bundled() {
-  local _package="" _version="" _cmd="" _prefix="" _node_spec="lts" _update=false
+  local _package="" _version="" _cmd="" _prefix="" _node_spec="lts" _update=false _registry=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --package)
@@ -725,6 +853,11 @@ npm__install_bundled() {
       --node-version)
         shift
         _node_spec="$1"
+        shift
+        ;;
+      --registry)
+        shift
+        _registry="$1"
         shift
         ;;
       --update)
@@ -763,7 +896,7 @@ npm__install_bundled() {
   # Resolve package version
   if [ -z "$_version" ] || [ "$_version" = "stable" ] || [ "$_version" = "latest" ]; then
     logging__info "Resolving ${_package} version..."
-    _version="$(npm__resolve_version "$_package" "${_version:-stable}")" || {
+    _version="$(npm__resolve_version "$_package" "${_version:-stable}" ${_registry:+--registry "$_registry"})" || {
       logging__error "npm__install_bundled: could not resolve version for '${_package}'."
       return 1
     }
@@ -845,7 +978,7 @@ npm__install_bundled() {
   if [ ! -d "${_pkg_version_dir}/package" ]; then
     logging__info "Downloading ${_package}@${_version}..."
     local _pkg_tarball_url
-    _pkg_tarball_url="$(_npm__bundled__pkg_tarball_url "$_package" "$_version")" || {
+    _pkg_tarball_url="$(_npm__bundled__pkg_tarball_url "$_package" "$_version" "${_registry:-}")" || {
       logging__error "npm__install_bundled: could not get tarball URL for '${_package}@${_version}'."
       return 1
     }

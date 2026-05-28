@@ -1254,7 +1254,7 @@ only-2"
     return 0
   }
   export -f github__fetch_release_json net__fetch_url_file
-  SYSSET_RELEASE_BASE="https://dl.invalid/r" run github__fetch_release_asset_tarball "o/r" "t1" "a.tgz" "$_dest"
+  run github__fetch_release_asset_tarball "o/r" "t1" "a.tgz" "$_dest"
   assert_success
   run cat "$_dest"
   assert_output "tar-bytes"
@@ -2280,42 +2280,6 @@ _stub_install_release_common() {
   [[ ! -f "${_dest2}/tool-a" ]]
 }
 
-# --- Sidecar auto-detect with SYSSET_RELEASE_BASE ---
-
-@test "github__install_release: auto-detect sidecar URLs honour SYSSET_RELEASE_BASE" {
-  _stub_install_release_common
-  local _hash="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-  _SIDECAR_HASH="$_hash"
-  export _SIDECAR_HASH
-  net__fetch_url_file() {
-    case "$1" in
-      */SHA256SUMS)
-        # Only succeed when the URL uses the mirror base, not github.com
-        if printf '%s\n' "$1" | grep -q "mirror.invalid"; then
-          printf '%s  mybin\n' "$_SIDECAR_HASH" > "$2"
-          return 0
-        fi
-        return 1
-        ;;
-      *.sha256 | */sha256sum.txt)
-        return 1
-        ;;
-      *)
-        printf '\x7fELF\x00\x00' > "$2"
-        return 0
-        ;;
-    esac
-  }
-  export -f net__fetch_url_file
-
-  SYSSET_RELEASE_BASE="https://mirror.invalid/releases" run github__install_release \
-    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}/" \
-    --binary-src mybin --asset "mybin"
-  assert_success
-  run grep -qF "$_hash" "$_VERIFY_SHA_CALLS"
-  assert_success
-}
-
 # --- Retry re-downloads the asset each attempt ---
 
 @test "github__install_release: retry loop re-downloads the asset on each failed JSON digest attempt" {
@@ -2397,25 +2361,6 @@ _stub_install_release_common() {
 }
 
 # --- Misc ---
-
-@test "github__install_release: SYSSET_RELEASE_BASE overrides asset download URL" {
-  _stub_install_release_common
-  _DOWNLOAD_URLS="${BATS_TEST_TMPDIR}/_dl_urls"
-  export _DOWNLOAD_URLS
-  net__fetch_url_file() {
-    printf '%s\n' "$1" >> "$_DOWNLOAD_URLS"
-    printf '\x7fELF\x00\x00' > "$2"
-    return 0
-  }
-  export -f net__fetch_url_file
-
-  SYSSET_RELEASE_BASE="https://mirror.invalid/releases" run github__install_release \
-    --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}/" \
-    --binary-src mybin --asset "mybin"
-  assert_success
-  run grep -q "mirror.invalid/releases/v1.0/mybin" "$_DOWNLOAD_URLS"
-  assert_success
-}
 
 @test "github__install_release: --owner-group triggers install__track_internal_path" {
   _stub_install_release_common
@@ -2703,42 +2648,6 @@ _stub_install_release_common() {
 
   run github__fetch_release_asset_tarball "o/r" "v1.0" "asset.tar.gz" "${BATS_TEST_TMPDIR}/out.tar.gz"
   assert_failure
-}
-
-@test "github__fetch_release_asset_tarball: SYSSET_RELEASE_BASE overrides download URL" {
-  _DL_URL="${BATS_TEST_TMPDIR}/_dl_url"
-  export _DL_URL
-
-  github__fetch_release_json() {
-    local _d=""
-    while [ $# -gt 0 ]; do
-      case "$1" in --dest)
-        shift
-        _d="$1"
-        shift
-        ;;
-      *) shift ;; esac
-    done
-    [ -n "$_d" ] && printf '{"assets":[]}\n' > "$_d"
-    return 0
-  }
-  export -f github__fetch_release_json
-
-  github__release_json_digest_for_asset() { return 1; }
-  export -f github__release_json_digest_for_asset
-
-  net__fetch_url_file() {
-    printf '%s\n' "$1" > "$_DL_URL"
-    printf 'data' > "$2"
-    return 0
-  }
-  export -f net__fetch_url_file
-
-  SYSSET_RELEASE_BASE="https://mirror.invalid/releases" \
-    run github__fetch_release_asset_tarball "o/r" "v1.0" "asset.tar.gz" "${BATS_TEST_TMPDIR}/out.tar.gz"
-  assert_success
-  run grep -q "mirror.invalid/releases/v1.0/asset.tar.gz" "$_DL_URL"
-  assert_success
 }
 
 @test "github__fetch_release_asset_tarball: API failure falls back to download without digest" {

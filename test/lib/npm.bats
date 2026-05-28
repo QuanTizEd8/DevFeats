@@ -189,100 +189,100 @@ setup() {
 # npm__resolve_version
 # ---------------------------------------------------------------------------
 
-@test "npm__resolve_version stable / empty resolves via npm__latest_version" {
-  npm__latest_version() {
-    printf '5.4.5\n'
+@test "npm__resolve_version stable / empty resolves dist-tags.latest" {
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5"},"versions":{"5.4.5":{},"5.4.4":{}}}\n'
     return 0
   }
-  export -f npm__latest_version
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" "stable"
   assert_output "5.4.5"
   assert_success
 }
 
 @test "npm__resolve_version empty spec resolves as stable" {
-  npm__latest_version() {
-    printf '5.4.5\n'
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5"},"versions":{"5.4.5":{},"5.4.4":{}}}\n'
     return 0
   }
-  export -f npm__latest_version
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" ""
   assert_output "5.4.5"
   assert_success
 }
 
 @test "npm__resolve_version latest returns newest including prereleases" {
-  npm__versions() {
-    printf '5.5.0-beta.1\n5.4.5\n5.4.4\n'
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5"},"versions":{"5.5.0-beta.1":{},"5.4.5":{},"5.4.4":{}}}\n'
     return 0
   }
-  export -f npm__versions
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" "latest"
   assert_output "5.5.0-beta.1"
   assert_success
 }
 
 @test "npm__resolve_version numeric prefix finds newest stable match" {
-  npm__versions() {
-    printf '5.4.5\n5.4.4\n5.4.0\n5.3.3\n4.9.5\n'
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5"},"versions":{"5.4.5":{},"5.4.4":{},"5.4.0":{},"5.3.3":{},"4.9.5":{}}}\n'
     return 0
   }
-  export -f npm__versions
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" "5.4"
   assert_output "5.4.5"
   assert_success
 }
 
 @test "npm__resolve_version exact version matches" {
-  npm__versions() {
-    printf '5.4.5\n5.4.4\n5.3.0\n'
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5"},"versions":{"5.4.5":{},"5.4.4":{},"5.3.0":{}}}\n'
     return 0
   }
-  export -f npm__versions
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" "5.4.4"
   assert_output "5.4.4"
   assert_success
 }
 
 @test "npm__resolve_version major-only spec finds newest stable match" {
-  npm__versions() {
-    printf '5.4.5\n5.3.0\n4.9.5\n'
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5"},"versions":{"5.4.5":{},"5.3.0":{},"4.9.5":{}}}\n'
     return 0
   }
-  export -f npm__versions
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" "5"
   assert_output "5.4.5"
   assert_success
 }
 
 @test "npm__resolve_version symbolic dist-tag resolves to its version" {
-  npm__dist_tags() {
-    printf 'latest=5.4.5\nnext=5.5.0-beta.1\n'
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5","next":"5.5.0-beta.1"},"versions":{"5.5.0-beta.1":{},"5.4.5":{}}}\n'
     return 0
   }
-  export -f npm__dist_tags
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" "next"
   assert_output "5.5.0-beta.1"
   assert_success
 }
 
 @test "npm__resolve_version fails for unknown dist-tag" {
-  npm__dist_tags() {
-    printf 'latest=5.4.5\n'
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5"},"versions":{"5.4.5":{}}}\n'
     return 0
   }
-  export -f npm__dist_tags
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" "nosuchcanary"
   assert_failure
   assert_output --partial "dist-tag 'nosuchcanary' not found"
 }
 
 @test "npm__resolve_version fails for numeric spec with no matching version" {
-  npm__versions() {
-    printf '5.4.5\n5.3.0\n'
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"5.4.5"},"versions":{"5.4.5":{},"5.3.0":{}}}\n'
     return 0
   }
-  export -f npm__versions
+  export -f _npm__registry_get
   run npm__resolve_version "typescript" "4.9"
   assert_failure
   assert_output --partial "no stable version matching"
