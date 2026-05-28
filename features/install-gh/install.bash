@@ -201,12 +201,10 @@ _gh__install_binary() {
     macOS) _ext="zip" ;;
   esac
   _archive_name="gh_${_version}_${_asset_os}_${_asset_arch}.${_ext}"
-  local _url_base="https://github.com/${GH_REPO}/releases/download/v${_version}"
-
   github__install_release \
     --repo "${GH_REPO}" --tag "v${_version}" \
     --asset "$_archive_name" --binary-src gh --binary-dest "${PREFIX}/bin/" \
-    --sidecar "${_url_base}/gh_${_version}_checksums.txt" \
+    --sidecar "gh_${_version}_checksums.txt" \
     --installer-dir "${INSTALLER_DIR}" ||
     exit 1
 

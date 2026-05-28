@@ -42,12 +42,10 @@ install_fzf() {
   esac
 
   local _filename="fzf-${_version}-${_os}_${_fzf_arch}.tar.gz"
-  local _base_url="${_GITHUB_BASE_URL}/${FZF_GH_REPO}/releases/download/v${_version}"
-
   github__install_release \
     --repo "${FZF_GH_REPO}" --tag "v${_version}" \
     --asset "$_filename" --binary-src fzf --binary-dest "${_bin_dir}/" \
-    --sidecar "${_base_url}/fzf_${_version}_checksums.txt" \
+    --sidecar "fzf_${_version}_checksums.txt" \
     --installer-dir "${INSTALLER_DIR}" ||
     return 1
 

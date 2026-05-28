@@ -224,7 +224,7 @@ github__fetch_release_asset_tarball() {
 github__install_release() {
   local _repo="" _tag="" _asset="" _asset_regex=""
   local _caller_sha256="" _caller_sha256_set=false
-  local _caller_sidecar_set=false
+  local _caller_sidecar="" _caller_sidecar_set=false
   local _nbsrc=0 _nbdest=0
   local -a _passthrough=()
 
@@ -254,7 +254,7 @@ github__install_release() {
         ;;
       --sidecar)
         _caller_sidecar_set=true
-        _passthrough+=(--sidecar "$2")
+        _caller_sidecar="$2"
         shift 2
         ;;
       --binary-src)
@@ -311,6 +311,14 @@ github__install_release() {
     _release_base="${SYSSET_RELEASE_BASE}/${_tag}"
   else
     _release_base="https://github.com/${_repo}/releases/download/${_tag}"
+  fi
+
+  if "$_caller_sidecar_set"; then
+    if [[ "${_caller_sidecar}" != *://* ]]; then
+      _passthrough+=(--sidecar "${_release_base}/${_caller_sidecar}")
+    else
+      _passthrough+=(--sidecar "${_caller_sidecar}")
+    fi
   fi
 
   if [[ -z "$_asset" ]]; then

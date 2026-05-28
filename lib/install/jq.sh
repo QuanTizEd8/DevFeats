@@ -61,13 +61,12 @@ _install_jq__install_release() {
       ;;
   esac
   _asset="$(_install_jq__asset_name "$_version" "$_os" "$_arch")" || return 1
-  _base_url="https://github.com/${_gh_repo}/releases/download/jq-${_version}"
   _key_url="$(_install_jq__gpg_key_url "$_version" "$_gh_repo")"
 
-  # jq ≤1.6 has no sha256sum.txt; for newer versions add explicit sidecar URL.
+  # jq ≤1.6 has no sha256sum.txt; for newer versions add explicit sidecar.
   local -a _sidecar_args=()
   if ver__semver_ge "$_version" "1.7"; then
-    _sidecar_args=(--sidecar "${_base_url}/sha256sum.txt")
+    _sidecar_args=(--sidecar "sha256sum.txt")
   fi
 
   local -a _owner_group_arg _idir_arg

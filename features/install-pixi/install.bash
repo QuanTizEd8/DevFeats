@@ -45,7 +45,7 @@ resolve_installer_paths() {
     logging__info "Using custom download URL; checksum verification will be skipped."
   else
     ARCHIVE_URL="https://github.com/${GH_REPO}/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz"
-    SIDECAR_URL="https://github.com/${GH_REPO}/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256"
+    SIDECAR_URL="pixi-${TRIPLE}.tar.gz.sha256"
   fi
   logging__info "Archive URL: '${ARCHIVE_URL}'"
   logging__fn_exit "resolve_installer_paths"
