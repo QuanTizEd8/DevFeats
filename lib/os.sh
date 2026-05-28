@@ -365,3 +365,22 @@ os__match_spec() {
   done
   return 0
 }
+
+# @brief os__expand_release_pattern <pattern> <version> <tag> — Expand a GitHub release
+# asset filename pattern, substituting {VERSION}, {TAG}, and all platform/arch tokens.
+#
+# Tokens: {VERSION}, {TAG}, {OS}, {KERNEL}, {ARCH}, {OS_ARCH}, {OS_ID}, {PLATFORM}, {RUST_TRIPLE}.
+# <version> and <tag> may be empty strings.
+os__expand_release_pattern() {
+  local _pat="${1}" _ver="${2:-}" _tag="${3:-}"
+  _pat="${_pat//\{VERSION\}/${_ver}}"
+  _pat="${_pat//\{TAG\}/${_tag}}"
+  _pat="${_pat//\{OS\}/$(os__release_kernel)}"
+  _pat="${_pat//\{KERNEL\}/$(os__kernel)}"
+  _pat="${_pat//\{ARCH\}/$(os__release_arch)}"
+  _pat="${_pat//\{OS_ARCH\}/$(os__arch)}"
+  _pat="${_pat//\{OS_ID\}/$(os__id)}"
+  _pat="${_pat//\{PLATFORM\}/$(os__platform)}"
+  _pat="${_pat//\{RUST_TRIPLE\}/$(os__rust_triple)}"
+  printf '%s\n' "${_pat}"
+}
