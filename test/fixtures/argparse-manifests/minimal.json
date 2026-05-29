@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "script": {
+    "name": "my-tool",
+    "version": "1.0.0",
+    "summary": "Does something useful."
+  },
+  "input": {
+    "mode": "cli_exclusive_else_env"
+  },
+  "options": [
+    {
+      "name": "verbose",
+      "type": "boolean",
+      "default": false,
+      "description": "Enable verbose output."
+    }
+  ]
+}

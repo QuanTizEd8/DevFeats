@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "full-options-fixture",
+  "script": {
+    "name": "demo",
+    "version": "0.1.0",
+    "summary": "Demonstrates all option shapes.",
+    "description": "Extended description before the options list."
+  },
+  "input": {
+    "mode": "env_exclusive_else_cli",
+    "env_trigger": "listed",
+    "env_trigger_vars": ["CONFIG_FILE"]
+  },
+  "pipeline": {
+    "set_log_level": true,
+    "defaults": true,
+    "normalize_arrays": true,
+    "resolve_uri": true,
+    "validate": true,
+    "unexport_options": true
+  },
+  "options": [
+    {
+      "name": "log_level",
+      "type": "string",
+      "default": "info",
+      "enum": ["silent", "error", "warn", "info", "debug", "trace"],
+      "description": "Minimum log level emitted to console."
+    },
+    {
+      "name": "retries",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Number of retry attempts."
+    },
+    {
+      "name": "config_file",
+      "type": "string",
+      "default": "",
+      "uri": {
+        "chmod": "600"
+      },
+      "path_tests": ["-f"],
+      "description": "Path to a configuration file.",
+      "input": {
+        "mode": "env_only"
+      }
+    },
+    {
+      "name": "env_files",
+      "type": "array",
+      "default": "",
+      "uri": true,
+      "path_tests": ["-f"],
+      "enum": ["alpha", "beta"],
+      "proposals": [
+        {
+          "value": "https://example.com/env.yaml",
+          "description": "Remote environment file."
+        }
+      ],
+      "description": "Environment files to load (repeatable)."
+    },
+    {
+      "name": "prefix",
+      "type": "string",
+      "default": "",
+      "skip_static_default": true,
+      "description": "Installation prefix (dynamic default applied externally)."
+    }
+  ]
+}

@@ -1,0 +1,492 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bash argparse manifest",
+  "description": "Declarative YAML/JSON manifest for generic bash argument parsing, validation, URI resolution, and --help generation. Consumed by argparse__parse_args() in lib/argparse.sh.\n\nUsage text is never stored in the manifest; the runtime library generates --help from script.* and options[]. The Usage line is derived as '<script.name> [OPTIONS]' (or the script basename from $0 when more accurate).\n\nFor each option, var and flag are optional. When omitted, the runtime derives them from name: var = UPPER(name) with hyphens mapped to underscores; flag = '--' + name.\n\nInput resolution modes control whether values come from CLI flags, environment variables, or a combination. Global input.mode applies to all options unless overridden per option via options[].input.mode.\n\nPost-parse pipeline order (when enabled): set log level → static defaults → dynamic defaults → normalize arrays → resolve URIs → validate → unexport option variables.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["script", "input", "options"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Manifest format version. Bump when breaking runtime or jq filter contracts."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional manifest identifier for logging and debugging."
+    },
+    "script": {
+      "type": "object",
+      "description": "Program identity and help text shown above the Options section. The runtime never stores a pre-rendered Usage line; it builds --help from these fields plus options[].",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Program or script display name (first line of --help)."
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Version string appended to the display name in --help."
+        },
+        "summary": {
+          "type": "string",
+          "description": "One-line summary printed under the title."
+        },
+        "description": {
+          "type": "string",
+          "description": "Longer description printed before the Options section."
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "description": "Global CLI/environment input policy. Applies to every option unless an option declares its own input.mode override.",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/inputMode",
+          "description": "Default input resolution mode for all options."
+        },
+        "env_trigger": {
+          "type": "string",
+          "enum": ["any_option", "all_options", "listed"],
+          "default": "any_option",
+          "description": "Used only when mode is env_exclusive_else_cli. Selects when the runtime takes the environment branch instead of parsing CLI flags.\n\nany_option: at least one tracked option variable is set (${VAR+defined}).\n\nall_options: every tracked option variable is set.\n\nlisted: at least one variable named in env_trigger_vars is set."
+        },
+        "env_trigger_vars": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Bash variable names consulted when env_trigger is listed. Required in that case.",
+          "items": {
+            "$ref": "#/$defs/bashVarName"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "description": "When env_trigger is listed, env_trigger_vars must name at least one variable.",
+          "if": {
+            "properties": {
+              "env_trigger": {
+                "const": "listed"
+              }
+            },
+            "required": ["env_trigger"]
+          },
+          "then": {
+            "required": ["env_trigger_vars"]
+          }
+        }
+      ]
+    },
+    "pipeline": {
+      "type": "object",
+      "description": "Post-parse processing toggles. Omitted keys use the documented defaults. Steps run in fixed order when enabled: set log level → static defaults → dynamic defaults → normalize arrays → resolve URIs → validate → unexport option variables.",
+      "additionalProperties": false,
+      "properties": {
+        "set_log_level": {
+          "type": "boolean",
+          "default": true,
+          "description": "After parsing, call logging__set_level when a LOG_LEVEL (or equivalent) option is present."
+        },
+        "defaults": {
+          "type": "boolean",
+          "default": true,
+          "description": "Apply static default and default_dynamic expressions for options that declare them."
+        },
+        "normalize_arrays": {
+          "type": "boolean",
+          "default": true,
+          "description": "Trim array elements and drop blank entries before validation."
+        },
+        "resolve_uri": {
+          "type": "boolean",
+          "default": true,
+          "description": "Resolve uri-marked option values to local filesystem paths."
+        },
+        "validate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run type, enum, integer range, and path_tests validations."
+        },
+        "unexport_options": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mark all option variables (scalars and arrays) non-exported (declare -g +x) so parsed values are not inherited by child processes. Especially important for env-sourced array options, which can become exported during newline splitting."
+        }
+      }
+    },
+    "options": {
+      "type": "array",
+      "description": "Ordered list of CLI/environment options. Order determines --help column order and stable parse iteration. Each options[].name must be unique; each options[].var must be unique when explicitly set or after default derivation.",
+      "items": {
+        "$ref": "#/$defs/optionEntry"
+      }
+    }
+  },
+  "$defs": {
+    "inputMode": {
+      "type": "string",
+      "enum": [
+        "cli_exclusive_else_env",
+        "env_exclusive_else_cli",
+        "cli_only",
+        "env_only",
+        "cli_then_env",
+        "env_then_cli"
+      ],
+      "description": "How option values are read from CLI flags and/or environment variables.\n\ncli_exclusive_else_env: if argv is non-empty, parse CLI only; otherwise read env only.\n\nenv_exclusive_else_cli: if env_trigger matches, read env only; otherwise parse CLI only.\n\ncli_only: ignore env for option values.\n\nenv_only: ignore CLI except -h|--help.\n\ncli_then_env: parse CLI, then fill unset options from env.\n\nenv_then_cli: read env, then let CLI override per option."
+    },
+    "bashVarName": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "Bash environment variable name in UPPER_SNAKE_CASE. When omitted on an option, the runtime derives it from name by uppercasing and mapping hyphens to underscores."
+    },
+    "optionEntry": {
+      "type": "object",
+      "description": "One option declaration. Defines how the runtime exposes a value on the CLI (--flag), in the environment (var), and in generated --help text. Type-specific properties and default shapes are constrained by the conditional rules in allOf.",
+      "additionalProperties": false,
+      "required": ["name", "type", "description"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+          "description": "Canonical option identifier (lower_snake or kebab-case). Drives default var and flag when those are omitted."
+        },
+        "var": {
+          "$ref": "#/$defs/bashVarName",
+          "description": "Optional override for the bash variable name. Default: derived from name."
+        },
+        "flag": {
+          "type": "string",
+          "pattern": "^--[A-Za-z][A-Za-z0-9_-]*$",
+          "description": "Optional override for the long-only CLI flag. Default: '--' + name."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "integer", "boolean", "array"],
+          "description": "Value type for parsing, validation, and --help formatting. Determines which companion properties are allowed."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full option description. Runtime --help uses the first sentence; the remainder may appear in extended help."
+        },
+        "input": {
+          "type": "object",
+          "description": "Optional per-option override of the manifest-level input.mode. Omit this property entirely to inherit input.mode from the manifest root.",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": {
+              "$ref": "#/$defs/inputMode",
+              "description": "Input resolution mode for this option only."
+            }
+          }
+        },
+        "skip_static_default": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, skip static default and default_dynamic application for this option. Use when an external codegen step or resolver must supply the value instead."
+        },
+        "default": {
+          "description": "Static default applied when the user omits the option. Omitted property means no static default: scalars initialize to empty string during CLI parsing; arrays stay unset until env/CLI provides a value. The allowed JSON type depends on options[].type (see allOf rules)."
+        },
+        "default_dynamic": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Shell expression used as the assignment right-hand side when the variable is still empty after static default application. Evaluated by the runtime defaults pipeline step."
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Allowed values enforced at validation time. Empty string is a valid enum member.",
+          "items": {
+            "type": "string",
+            "description": "One allowed string value."
+          }
+        },
+        "proposals": {
+          "type": "array",
+          "description": "Suggested values shown in --help only; not validated at runtime.",
+          "items": {
+            "type": "object",
+            "description": "One suggested value with explanatory text for --help.",
+            "additionalProperties": false,
+            "required": ["value", "description"],
+            "properties": {
+              "value": {
+                "type": "string",
+                "description": "Suggested literal or example value."
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Short explanation shown next to the suggestion in --help."
+              }
+            }
+          }
+        },
+        "minimum": {
+          "type": "integer",
+          "description": "Inclusive lower bound for integer options. May appear together with maximum."
+        },
+        "maximum": {
+          "type": "integer",
+          "description": "Inclusive upper bound for integer options. Should be greater than or equal to minimum (also enforced by runtime tests)."
+        },
+        "path_tests": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Bash unary path tests applied after URI resolution. Each test is checked independently; empty option values skip validation.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Bash unary test operator passed to argparse__validate_path or argparse__validate_path_array. Examples: -f, -d, ! -e.",
+            "anyOf": [
+              {
+                "enum": ["-d", "-f", "-e", "-x", "-r", "-s", "-w"]
+              },
+              {
+                "pattern": "^! -[dferswx]$"
+              }
+            ]
+          }
+        },
+        "uri": {
+          "description": "When present, the option value may be a URI that the runtime resolves to a local path before path_tests run. Use true for default behavior or an object for fetch-time chmod settings.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "const": true,
+              "description": "Enable URI resolution with default materialization behavior."
+            },
+            {
+              "type": "object",
+              "description": "URI resolution with optional post-fetch file mode.",
+              "additionalProperties": false,
+              "properties": {
+                "chmod": {
+                  "type": "string",
+                  "pattern": "^([0-7]{3,4}|\\+[rwxXstugo]+|[ugoa]*[-=+][rwxXstugo]+)$",
+                  "description": "chmod mode applied after materializing fetched content (for example 600 or +x). Not applied when the value already refers to an existing local path."
+                }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "boolean options may only use boolean defaults and must not declare enum, integer bounds, path_tests, or uri.",
+          "if": {
+            "properties": {
+              "type": {
+                "const": "boolean"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "allOf": [
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": ["enum"]
+                    },
+                    {
+                      "required": ["minimum"]
+                    },
+                    {
+                      "required": ["maximum"]
+                    },
+                    {
+                      "required": ["path_tests"]
+                    },
+                    {
+                      "required": ["uri"]
+                    }
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "required": ["default"]
+                },
+                "then": {
+                  "properties": {
+                    "default": {
+                      "type": "boolean",
+                      "description": "Default boolean value when the flag is omitted."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "description": "integer options may use integer defaults and optional minimum/maximum bounds; enum, path_tests, and uri are not allowed.",
+          "if": {
+            "properties": {
+              "type": {
+                "const": "integer"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "allOf": [
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": ["enum"]
+                    },
+                    {
+                      "required": ["path_tests"]
+                    },
+                    {
+                      "required": ["uri"]
+                    }
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "required": ["default"]
+                },
+                "then": {
+                  "properties": {
+                    "default": {
+                      "description": "Default integer value as a JSON number or decimal string.",
+                      "oneOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^-?[0-9]+$"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "description": "When minimum and maximum are both set on an integer option, both must be integers. Runtime and codegen additionally require maximum >= minimum.",
+          "if": {
+            "properties": {
+              "type": {
+                "const": "integer"
+              }
+            },
+            "required": ["type", "minimum", "maximum"]
+          },
+          "then": {
+            "properties": {
+              "minimum": {
+                "type": "integer"
+              },
+              "maximum": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        {
+          "description": "string options may use string defaults and optional enum, path_tests, and uri; integer bounds are not allowed.",
+          "if": {
+            "properties": {
+              "type": {
+                "const": "string"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "allOf": [
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": ["minimum"]
+                    },
+                    {
+                      "required": ["maximum"]
+                    }
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "required": ["default"]
+                },
+                "then": {
+                  "properties": {
+                    "default": {
+                      "type": "string",
+                      "description": "Default string value when the option is omitted."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "description": "array options accept repeatable CLI flags and env values; default is a string (empty means empty array, otherwise newline-delimited elements). Integer bounds are not allowed.",
+          "if": {
+            "properties": {
+              "type": {
+                "const": "array"
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "allOf": [
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": ["minimum"]
+                    },
+                    {
+                      "required": ["maximum"]
+                    }
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "required": ["default"]
+                },
+                "then": {
+                  "properties": {
+                    "default": {
+                      "type": "string",
+                      "description": "Empty string means an empty array. A non-empty string is treated as newline-delimited default elements."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
