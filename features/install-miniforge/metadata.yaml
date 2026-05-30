@@ -16,19 +16,6 @@ _long_description: >-
   Shell activation is written to the appropriate startup files and can be scoped to
   specific users.
 options:
-  version:
-    default: stable
-    description: |-
-      Conda version to install. `stable` resolves the latest stable Miniforge release, `latest` resolves the most recently published release (may include pre-releases), or a conda version string like `26.3.1` to find the corresponding Miniforge tag.
-      For a specific version, the script finds the matching Miniforge tag (e.g. `26.3.1` resolves to a tag like `26.3.1-0`).
-      If the already-installed conda version matches the resolved version, the install is
-      skipped silently regardless of the `if_exists` setting.
-    proposals:
-    - value: stable
-      description: Resolve the latest stable (non-pre-release) Miniforge release via the GitHub Releases API.
-    - value: latest
-      description: Resolve the most recently published Miniforge release via the GitHub Releases API, which may include pre-releases.
-    type: string
   preserve_envs:
     default: true
     _applies_when:
@@ -73,6 +60,31 @@ onCreateCommand:
     command: '${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$verification.sh'
 _options:
   gh_repo: conda-forge/miniforge
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest]
+    proposals:
+      - value: "26.3.1"
+        description: "Conda 26.3.1. Pass any conda version string; the script finds the matching Miniforge tag (e.g. 26.3.1 → 26.3.1-0)."
+  method:
+    script:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/Miniforge3-{TAG}-{KERNEL}-{OS_ARCH}.sh"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/Miniforge3-{TAG}-{KERNEL}-{OS_ARCH}.sh.sha256"
+  prefix:
+    root: /opt/conda
+    nonroot: "${HOME}/miniforge3"
+    bins: [conda, mamba]
+    bin_dir: condabin
+    exports:
+      skip: true
+    activation:
+      shells: [bash, zsh]
+      description: >-
+        The activation snippet runs `conda init <shell>`, enabling `conda activate`
+        and environment auto-activation in interactive shells.
+    write_group:
+      default: conda
 # installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-shell
@@ -82,21 +94,3 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-_prefix_groups:
-  "":
-    prefix:
-      root: /opt/conda
-      nonroot: "${HOME}/miniforge3"
-      bins: [conda, mamba]
-      bin_dir: condabin
-    exports:
-      skip: true
-    activation:
-      shells: [bash, zsh]
-      description: |-
-        Shells to write conda shell initialisation to RC files for.
-        Equivalent to `conda init <shell>` — enables `conda activate` and
-        environment auto-activation in interactive shells.
-        Set to `''` to skip all activation writes.
-    write_group:
-      default: conda

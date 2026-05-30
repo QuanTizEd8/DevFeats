@@ -11,31 +11,23 @@ _long_description: |-
   Installs `shfmt`, the shell script formatter from the mvdan/sh project.
   Supports formatting sh, bash, and mksh scripts.
 _tool_name: shfmt
-options:
-  method:
-    type: string
-    default: auto
-    description: Installation method to use.
-    enum:
-      - value: auto
-        description: Prefer release binary, then fall back to package manager.
-      - value: binary
-        description: Install from GitHub release binaries with SHA-256 verification.
-      - value: package
-        description: Install from the operating system package manager.
-  version:
-    type: string
-    default: stable
-    description: Version to install. `stable` for the latest stable release, `latest` for the most recently published (may include pre-releases), or a concrete version like `3.10.0`.
-    proposals:
-      - value: stable
-        description: Resolve and install the latest stable (non-pre-release) release.
-      - value: latest
-        description: Resolve and install the most recently published release, potentially including pre-releases.
-      - value: 3.10.0
-        description: Install shfmt v3.10.0.
 _options:
   gh_repo: mvdan/sh
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: 3.10.0
+        description: Install shfmt v3.10.0.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/shfmt_v{VERSION}_{OS}_{ARCH}"
+    package: {}
+  prefix:
+    bins: [shfmt]
+    applies_when:
+      - method: [binary]
 customizations:
   vscode:
     extensions:
@@ -46,9 +38,3 @@ _dependencies:
       packages:
         - shfmt
 # installsAfter: []
-_prefix_groups:
-  "":
-    prefix:
-      bins: [shfmt]
-    applies_when:
-      - method: [binary]

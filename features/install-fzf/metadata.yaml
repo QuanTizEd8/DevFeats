@@ -20,10 +20,8 @@ options:
       Shell key-bindings and completion are injected per-user.
 _options:
   gh_repo: junegunn/fzf
-_prefix_groups:
-  fzf:
-    prefix:
-      bins: [fzf]
+  prefix:
+    bins: [fzf]
     applies_when:
       - install_fzf: ['true']
 # installsAfter:

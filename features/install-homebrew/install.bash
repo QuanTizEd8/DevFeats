@@ -1,7 +1,4 @@
-# ── Constants ────────────────────────────────────────────────────────────────
-_BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/${GH_REPO}/HEAD"
-_BREW_INSTALLER_URL="${_BREW_INSTALL_BASE_URL}/install.sh"
-_BREW_UNINSTALLER_URL="${_BREW_INSTALL_BASE_URL}/uninstall.sh"
+# shellcheck shell=bash
 
 # ── High-level steps ──────────────────────────────────────────────────────────
 
@@ -13,40 +10,47 @@ install_linux_deps() {
   return 0
 }
 
-run_brew_installer() {
-  logging__fn_entry "run_brew_installer"
-  logging__install "Running Homebrew installer as user '${RESOLVED_INSTALL_USER}'."
-  local -a _env_vars=("NONINTERACTIVE=1")
+__install_run_script_pre() {
+  logging__fn_entry "__install_run_script_pre"
+  if [ "$(os__kernel)" != "Darwin" ]; then
+    install_linux_deps
+  fi
+  logging__fn_exit "__install_run_script_pre"
+  return 0
+}
+
+__install_run_script_run() {
+  logging__fn_entry "__install_run_script_run"
+  local _installer="$1"
+  chmod a+r "$_installer"
+  local -a _env_vars=("NONINTERACTIVE=1" "HOMEBREW_PREFIX=${PREFIX}")
   [ -n "${BREW_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_BREW_GIT_REMOTE=${BREW_GIT_REMOTE}")
   [ -n "${CORE_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_CORE_GIT_REMOTE=${CORE_GIT_REMOTE}")
   [[ "${NO_INSTALL_FROM_API}" == true ]] && _env_vars+=("HOMEBREW_NO_INSTALL_FROM_API=1")
-  _env_vars+=("HOMEBREW_PREFIX=${RESOLVED_PREFIX}")
-  local _tmpfile
-  _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
-  # shellcheck disable=SC2064
-  trap "rm -f '${_tmpfile}'" RETURN
-  logging__download "Downloading Homebrew installer to '${_tmpfile}'."
-  uri__fetch_asset "$_BREW_INSTALLER_URL" --file-dest "$_tmpfile" --installer-dir "${INSTALLER_DIR}" > /dev/null
-  chmod a+r "$_tmpfile"
-  logging__info "Installing as '${RESOLVED_INSTALL_USER}'."
-  _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_tmpfile"
-  logging__success "Homebrew installer completed."
-  logging__fn_exit "run_brew_installer"
+  logging__install "Running Homebrew installer as user '${INSTALL_USER}'."
+  _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_installer"
+  if [ ! -f "${PREFIX}/bin/brew" ]; then
+    logging__error "Homebrew executable not found at '${PREFIX}/bin/brew' after installation."
+    return 1
+  fi
+  logging__success "Homebrew $("${PREFIX}/bin/brew" --version | head -1) is available at '${PREFIX}/bin/brew'."
+  logging__fn_exit "__install_run_script_run"
   return 0
 }
 
 uninstall_brew() {
   logging__fn_entry "uninstall_brew"
-  logging__remove "Uninstalling Homebrew at '${RESOLVED_PREFIX}'."
+  logging__remove "Uninstalling Homebrew at '${PREFIX}'."
+  local _url="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
   local _tmpfile
   _tmpfile="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
-  uri__fetch_asset "$_BREW_UNINSTALLER_URL" --file-dest "$_tmpfile" --installer-dir "${INSTALLER_DIR}" > /dev/null
+  uri__fetch_asset "$_url" --file-dest "$_tmpfile" --installer-dir "${INSTALLER_DIR}" > /dev/null
   chmod a+r "$_tmpfile"
   # Run as the current process (root when called from root) so it can remove
   # files in a root-provisioned prefix regardless of who owns them.
-  env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$RESOLVED_PREFIX"
+  env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$PREFIX"
   logging__success "Homebrew uninstalled."
   logging__fn_exit "uninstall_brew"
   return 0
@@ -54,7 +58,7 @@ uninstall_brew() {
 
 # shellcheck disable=SC2329,SC2317
 prefix_activation_snippet() {
-  echo "eval \"\$(\"${RESOLVED_PREFIX}/bin/brew\" shellenv)\""
+  echo "eval \"\$(\"${PREFIX}/bin/brew\" shellenv)\""
   return 0
 }
 
@@ -65,9 +69,9 @@ prefix_activation_snippet() {
 detect_brew_repository() {
   logging__fn_entry "detect_brew_repository"
   if [ "$(os__kernel)" = "Darwin" ] && [ "$(os__arch)" = "arm64" ]; then
-    echo "${RESOLVED_PREFIX}"
+    echo "${PREFIX}"
   else
-    echo "${RESOLVED_PREFIX}/Homebrew"
+    echo "${PREFIX}/Homebrew"
   fi
   logging__fn_exit "detect_brew_repository"
   return 0
@@ -124,7 +128,7 @@ enforce_options() {
 
 # _sync_init_files <marker> [content]
 # Calls shell__sync_block for the relevant init files: system-wide profile.d
-# when running as root on Linux, or RESOLVED_INSTALL_USER's home otherwise.
+# when running as root on Linux, or INSTALL_USER's home otherwise.
 # If content is given, writes/updates the block; if absent, removes it.
 _sync_init_files() {
   local _marker="$1"
@@ -132,13 +136,13 @@ _sync_init_files() {
   local _has_content=false
   [ $# -ge 2 ] && _has_content=true
   local _files _slug _is_root=false
-  ! users__is_user_path "${RESOLVED_PREFIX}" && _is_root=true
+  ! users__is_user_path "${PREFIX}" && _is_root=true
 
   if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
     _files="$(shell__system_path_files --profile_d "${_slug}.sh")"
   else
-    _files="$(shell__user_path_files --home "$(users__resolve_home "$RESOLVED_INSTALL_USER")")"
+    _files="$(shell__user_path_files --home "$(users__resolve_home "$INSTALL_USER")")"
   fi
   if [ "$_has_content" = true ]; then
     shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
@@ -149,74 +153,54 @@ _sync_init_files() {
 }
 
 # _brew_run_as_install_user <cmd> [args...]
-# Run a command as RESOLVED_INSTALL_USER when the current process is root and
+# Run a command as INSTALL_USER when the current process is root and
 # the install user is not root. Uses runuser(1) on Linux (no sudo config
 # needed for root) and sudo on macOS (runuser is absent there).
 _brew_run_as_install_user() {
   logging__fn_entry "_brew_run_as_install_user"
-  if ! users__is_root || [ "${RESOLVED_INSTALL_USER}" = "root" ]; then
+  if ! users__is_root || [ "${INSTALL_USER}" = "root" ]; then
     "$@"
   elif [ "$(os__kernel)" = "Darwin" ]; then
-    sudo -n -u "${RESOLVED_INSTALL_USER}" "$@"
+    sudo -n -u "${INSTALL_USER}" "$@"
   else
-    runuser -u "${RESOLVED_INSTALL_USER}" -- "$@"
+    runuser -u "${INSTALL_USER}" -- "$@"
   fi
   logging__fn_exit "_brew_run_as_install_user"
   return 0
 }
 
-resolve_install_user() {
-  logging__fn_entry "resolve_install_user"
-  # 1. Explicit option always wins (validation happens separately).
-  if [ -n "${INSTALL_USER-}" ]; then
-    logging__info "Using specified install_user: '${INSTALL_USER}'."
-    echo "$INSTALL_USER"
-    logging__fn_exit "resolve_install_user"
-    return 0
-  fi
-  # 2. Non-root caller: always use self.
-  if ! users__is_root; then
-    users__get_current --no-sudo
-    logging__fn_exit "resolve_install_user"
-    return 0
-  fi
-  # 3. Root on macOS: must find a non-root user; root installs are forbidden.
-  if [ "$(os__kernel)" = "Darwin" ]; then
-    if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
-      logging__info "macOS root: using SUDO_USER='${SUDO_USER}' as install_user."
-      echo "$SUDO_USER"
-    else
+__init_args_post() {
+  # Common trunk: explicit option → SUDO_USER → _REMOTE_USER → _CONTAINER_USER → id -un.
+  [ -n "${INSTALL_USER:-}" ] || INSTALL_USER="$(users__get_current)"
+  # Homebrew cannot run as root. Apply platform-specific fallbacks when the
+  # common resolution still yields root (no sudo/remote-user context).
+  if [ "$INSTALL_USER" = "root" ]; then
+    if [ "$(os__kernel)" = "Darwin" ]; then
+      # macOS: find the first non-system user via dscl.
       local _u
       _u="$(dscl . list /Users 2> /dev/null |
         grep -v -E '^(_|daemon|nobody|root|Guest)' |
         head -1)" || true
       if [ -n "$_u" ]; then
         logging__info "macOS root: using first non-system user '${_u}' as install_user."
-        echo "$_u"
+        INSTALL_USER="$_u"
       else
         logging__error "Running as root on macOS but no non-root user found."
         logging__info "Set the 'install_user' option to a non-root user account."
-        exit 1
+        return 1
       fi
+    else
+      # Linux: fall back to the conventional linuxbrew system account.
+      # The official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
+      # and ignores HOMEBREW_PREFIX on Linux. When there is no real user
+      # context (no SUDO_USER, _REMOTE_USER, or _CONTAINER_USER), the
+      # linuxbrew system account is the conventional sole owner of that path.
+      # prepare_prefix_if_needed creates the user and its home if absent.
+      logging__info "Linux root: falling back to 'linuxbrew' as install_user."
+      INSTALL_USER="linuxbrew"
     fi
-    logging__fn_exit "resolve_install_user"
-    return 0
   fi
-  # 4. Root on Linux: use SUDO_USER when set (bare-metal sudo invocation),
-  # otherwise fall back to 'linuxbrew'. _REMOTE_USER is intentionally NOT used
-  # here — the official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
-  # and ignores HOMEBREW_PREFIX on Linux, so a remoteUser-derived prefix would
-  # fail the installer's permission check. Shellenv export for _REMOTE_USER is
-  # shellenv for _REMOTE_USER is written via the generated activation mechanism.
-  if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
-    logging__info "Linux root: using SUDO_USER='${SUDO_USER}' as install_user."
-    echo "$SUDO_USER"
-  else
-    logging__info "Linux root: falling back to 'linuxbrew' as install_user."
-    echo "linuxbrew"
-  fi
-  logging__fn_exit "resolve_install_user"
-  return 0
+  logging__info "Install user: '${INSTALL_USER}'."
 }
 
 validate_install_user() {
@@ -228,13 +212,13 @@ validate_install_user() {
   if ! users__is_root && [ "$_user" != "$_cur" ]; then
     logging__error "install_user='${_user}' differs from the current user '${_cur}'."
     logging__info "Only root can install Homebrew for a different user."
-    exit 1
+    return 1
   fi
   # macOS: root is never a valid Homebrew owner.
   if [ "$(os__kernel)" = "Darwin" ] && [ "$_user" = "root" ]; then
     logging__error "The Homebrew installer refuses to run as root on macOS."
     logging__info "Set 'install_user' to a non-root user account."
-    exit 1
+    return 1
   fi
   # Linux: root is allowed only when explicitly requested; warn about reliability.
   if [ "$(os__kernel)" != "Darwin" ] && [ "$_user" = "root" ]; then
@@ -245,7 +229,7 @@ validate_install_user() {
   # Target user must already exist (except 'linuxbrew', created later if needed).
   if [ "$_user" != "linuxbrew" ] && [ "$_user" != "root" ] && ! id "$_user" &> /dev/null; then
     logging__error "install_user='${_user}' does not exist on this system."
-    exit 1
+    return 1
   fi
   logging__fn_exit "validate_install_user"
   return 0
@@ -301,69 +285,32 @@ prepare_prefix_if_needed() {
   # Non-empty directory owned by someone else with no brew binary — conflict.
   logging__error "Prefix '${_install_prefix}' is non-empty and owned by '${_owner}' (not '${_user}')."
   logging__info "Remove or empty the directory first, or set a different prefix."
-  exit 1
+  return 1
 }
 
-# ── Resolve install user, then derive prefix from that user ──────────────────
-RESOLVED_INSTALL_USER="$(resolve_install_user)"
-logging__info "Install user: '${RESOLVED_INSTALL_USER}'."
-validate_install_user "$RESOLVED_INSTALL_USER"
-RESOLVED_PREFIX="${PREFIX}"
-logging__info "Prefix: '${RESOLVED_PREFIX}'."
-if [ "$(os__kernel)" != "Darwin" ] && ! users__is_user_path "${RESOLVED_PREFIX}"; then
-  prepare_prefix_if_needed "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER"
-fi
+# ── Template hook implementations ─────────────────────────────────────────────
 
-# ── Step 1: Linux build dependencies ─────────────────────────────────────────
-if [ "$(os__kernel)" != "Darwin" ]; then
-  install_linux_deps
-fi
+__verify_system_requirements_post() {
+  validate_install_user "$INSTALL_USER"
+}
 
-# ── Step 2: Install / skip / reinstall Homebrew ───────────────────────────────
-_BREW_EXEC="${RESOLVED_PREFIX}/bin/brew"
-if [ -f "$_BREW_EXEC" ]; then
-  logging__warn "Homebrew found at '${_BREW_EXEC}'."
-  case "$IF_EXISTS" in
-    skip)
-      logging__info "if_exists=skip: existing Homebrew detected; skipping installer and continuing to post-install steps."
-      ;;
-    fail)
-      logging__error "if_exists=fail: Homebrew already installed at '${RESOLVED_PREFIX}'."
-      logging__info "Remove it first or set if_exists=skip or if_exists=reinstall."
-      exit 1
-      ;;
-    reinstall)
-      logging__info "if_exists=reinstall: uninstalling then reinstalling Homebrew."
-      uninstall_brew
-      run_brew_installer
-      ;;
-    *)
-      logging__error "Invalid value for 'if_exists': '${IF_EXISTS}'. Use 'skip', 'fail', or 'reinstall'."
-      exit 1
-      ;;
-  esac
-else
-  run_brew_installer
-fi
+__resolve_input_prefixes_post() {
+  if [ "$(os__kernel)" != "Darwin" ] && ! users__is_user_path "${PREFIX}"; then
+    prepare_prefix_if_needed "$PREFIX" "$INSTALL_USER"
+  fi
+}
 
-# ── Step 3: Verify brew executable ───────────────────────────────────────────
-if [ ! -f "$_BREW_EXEC" ]; then
-  logging__error "Homebrew executable not found at '${_BREW_EXEC}' after installation."
-  exit 1
-fi
-logging__success "Homebrew $("$_BREW_EXEC" --version | head -1) is available at '${_BREW_EXEC}'."
+__uninstall_run__() {
+  uninstall_brew
+}
 
-# ── Step 3.5: Enforce options (git remotes, NO_INSTALL_FROM_API) ──────────────
-# Runs unconditionally so options are applied even when if_exists=skip.
-enforce_options
-
-# ── Step 4: brew update ───────────────────────────────────────────────────────
-if [[ "$UPDATE" == true ]]; then
-  logging__info "Running 'brew update'."
-  _brew_run_as_install_user "$_BREW_EXEC" update
-  logging__success "brew update completed."
-fi
-
-# ── Step 5: brew doctor (warn only) ──────────────────────────────────────────
-logging__info "Running 'brew doctor' (warnings only)."
-_brew_run_as_install_user "$_BREW_EXEC" doctor 2>&1 || true
+__install_finish_post() {
+  enforce_options
+  if [[ "$UPDATE" == true ]]; then
+    logging__info "Running 'brew update'."
+    _brew_run_as_install_user "${PREFIX}/bin/brew" update
+    logging__success "brew update completed."
+  fi
+  logging__info "Running 'brew doctor' (warnings only)."
+  _brew_run_as_install_user "${PREFIX}/bin/brew" doctor 2>&1 || true
+}

@@ -1,75 +1,83 @@
-# ---------------------------------------------------------------------------
-# 1. Devcontainer-context detection
-#
-# os__is_devcontainer_build() (lib/os.sh) returns 0 when this script is
-# invoked by the devcontainer CLI.  When true:
-#   - containers.conf is forced to cgroupfs/file (no systemd inside Docker).
-#   - The per-user graphRoot is redirected to the named volume.
-#   - The startup entrypoint script is installed.
-# When false (standalone / host / SysSet):
-#   - containers.conf is left to Podman's defaults (correct for systemd).
-#   - The per-user graphRoot stays at ~/.local/share/containers/storage.
-#   - No entrypoint is installed (nothing calls it outside a devcontainer).
-# ---------------------------------------------------------------------------
+# shellcheck shell=bash
 
-# ---------------------------------------------------------------------------
-# 2. Ensure newuidmap / newgidmap have setuid bit
-#
-# The uidmap package ships these as setuid-root on Debian/Ubuntu.  Verify
-# the bit is set — it is essential for rootless user-namespace creation.
-# At runtime, privileged mode ensures nosuid is not applied.
-# Use command -v to locate the binaries: on Fedora/RHEL/Alpine they may
-# live in /usr/sbin or /sbin rather than /usr/bin.
-# ---------------------------------------------------------------------------
-users__ensure_setuid newuidmap newgidmap
+_USERS_DIR="/var/lib/containers/storage/users"
 
-# ---------------------------------------------------------------------------
-# 3. Resolve user list
-# ---------------------------------------------------------------------------
-mapfile -t _RESOLVED_USERS < <(
-  _uargs=()
-  [ "${ADD_CURRENT_USER:-true}" != "true" ] && _uargs+=(--current false)
-  [ "${ADD_REMOTE_USER:-true}" != "true" ] && _uargs+=(--remote false)
-  [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _uargs+=(--container false)
-  for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _uargs+=(--user "$_u"); done
-  users__resolve_list "${_uargs[@]}"
-)
+__install_run__() {
+  # ---------------------------------------------------------------------------
+  # 1. Devcontainer-context detection
+  #
+  # os__is_devcontainer_build() (lib/os.sh) returns 0 when this script is
+  # invoked by the devcontainer CLI.  When true:
+  #   - containers.conf is forced to cgroupfs/file (no systemd inside Docker).
+  #   - The per-user graphRoot is redirected to the named volume.
+  #   - The startup entrypoint script is installed.
+  # When false (standalone / host / SysSet):
+  #   - containers.conf is left to Podman's defaults (correct for systemd).
+  #   - The per-user graphRoot stays at ~/.local/share/containers/storage.
+  #   - No entrypoint is installed (nothing calls it outside a devcontainer).
+  # ---------------------------------------------------------------------------
 
-if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
-  logging__info "install-podman: No users to configure."
-fi
+  # ---------------------------------------------------------------------------
+  # 2. Ensure newuidmap / newgidmap have setuid bit
+  #
+  # The uidmap package ships these as setuid-root on Debian/Ubuntu.  Verify
+  # the bit is set — it is essential for rootless user-namespace creation.
+  # At runtime, privileged mode ensures nosuid is not applied.
+  # Use command -v to locate the binaries: on Fedora/RHEL/Alpine they may
+  # live in /usr/sbin or /sbin rather than /usr/bin.
+  # ---------------------------------------------------------------------------
+  users__ensure_setuid newuidmap newgidmap
 
-# ---------------------------------------------------------------------------
-# 4. Write Podman configuration
-# ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # 4. Write Podman configuration
+  # ---------------------------------------------------------------------------
 
-# Devcontainer-only: force cgroupfs/file in system containers.conf.
-# Rootless Podman already defaults to these, but root Podman defaults to
-# the systemd cgroup manager and journald — neither available in Docker.
-# On a host/standalone, systemd manages cgroups; overriding would break
-# root Podman, so we leave containers.conf to Podman's own defaults.
-if os__is_devcontainer_build; then
-  file__mkdir /etc/containers
-  printf '[engine]\ncgroup_manager = "cgroupfs"\nevents_logger = "file"\n' |
-    file__tee /etc/containers/containers.conf
-fi
-
-# Devcontainer-only: create the shared graphRoot parent directory on the
-# image layer so it lands on the named volume with the correct permissions.
-# The entrypoint re-creates it at startup (the volume shadows the image layer).
-# On standalone, Podman uses ~/.local/share/containers/storage by default.
-if os__is_devcontainer_build; then
-  _STORAGE_BASE="/var/lib/containers/storage"
-  _USERS_DIR="${_STORAGE_BASE}/users"
-  file__mkdir "${_USERS_DIR}"
-  file__chmod 1777 "${_USERS_DIR}"
-fi
-
-for _username in "${_RESOLVED_USERS[@]}"; do
-  if ! id "$_username" > /dev/null 2>&1; then
-    logging__info "install-podman: User '${_username}' does not exist — skipping."
-    continue
+  # Devcontainer-only: force cgroupfs/file in system containers.conf.
+  # Rootless Podman already defaults to these, but root Podman defaults to
+  # the systemd cgroup manager and journald — neither available in Docker.
+  # On a host/standalone, systemd manages cgroups; overriding would break
+  # root Podman, so we leave containers.conf to Podman's own defaults.
+  if os__is_devcontainer_build; then
+    file__mkdir /etc/containers
+    printf '[engine]\ncgroup_manager = "cgroupfs"\nevents_logger = "file"\n' |
+      file__tee /etc/containers/containers.conf
   fi
+
+  # Devcontainer-only: create the shared graphRoot parent directory on the
+  # image layer so it lands on the named volume with the correct permissions.
+  # The entrypoint re-creates it at startup (the volume shadows the image layer).
+  # On standalone, Podman uses ~/.local/share/containers/storage by default.
+  if os__is_devcontainer_build; then
+    file__mkdir "${_USERS_DIR}"
+    file__chmod 1777 "${_USERS_DIR}"
+  fi
+
+  # ---------------------------------------------------------------------------
+  # 5. Install entrypoint (devcontainer-only).
+  #    a) Mark "/" as rshared so bind-mount propagation works inside
+  #       rootless Podman's user namespace.
+  #    b) On cgroup v2, enable controller delegation so root Podman can
+  #       create and manage its libpod_parent cgroup hierarchy.  Docker
+  #       places container processes in the root cgroup; the kernel's
+  #       "no internal process" rule then blocks writes to subtree_control
+  #       (EBUSY).  Moving processes to /sys/fs/cgroup/init/ makes the
+  #       root cgroup process-free, allowing all available controllers to
+  #       be enabled.  Mirrors the Moby docker-in-docker entrypoint:
+  #       https://github.com/moby/moby/blob/master/hack/dind
+  #
+  # On standalone/host, systemd handles mount propagation and cgroup
+  # delegation; the entrypoint is not installed (nothing would call it).
+  # ---------------------------------------------------------------------------
+  if os__is_devcontainer_build; then
+    file__mkdir "${_FEAT_LIFECYCLE_DIR}"
+    file__cp "${_FEAT_FILES_DIR}/entrypoint.sh" "${_FEAT_ENTRYPOINT_PATH}"
+    file__chmod +x "${_FEAT_ENTRYPOINT_PATH}"
+  fi
+}
+
+__configure_user() {
+  local _username="$1"
+  local _home _config_dir _group
 
   # Register subuid/subgid ranges (non-overlapping).
   # Probe the current high-water mark of each file immediately before
@@ -100,31 +108,13 @@ for _username in "${_RESOLVED_USERS[@]}"; do
   # On standalone/host, Podman's default (~/.local/share/containers/storage)
   # is correct — no storage.conf is written.
   if os__is_devcontainer_build; then
-    _user_graph_root="${_USERS_DIR}/${_username}"
+    local _user_graph_root="${_USERS_DIR}/${_username}"
     printf '[storage]\ndriver = "overlay"\ngraphRoot = "%s"\n' "${_user_graph_root}" |
       file__tee "${_config_dir}/storage.conf"
     file__chown "${_username}:${_group}" "${_config_dir}/storage.conf"
   fi
-done
+}
 
-# ---------------------------------------------------------------------------
-# 5. Install entrypoint (devcontainer-only).
-#    a) Mark "/" as rshared so bind-mount propagation works inside
-#       rootless Podman's user namespace.
-#    b) On cgroup v2, enable controller delegation so root Podman can
-#       create and manage its libpod_parent cgroup hierarchy.  Docker
-#       places container processes in the root cgroup; the kernel's
-#       "no internal process" rule then blocks writes to subtree_control
-#       (EBUSY).  Moving processes to /sys/fs/cgroup/init/ makes the
-#       root cgroup process-free, allowing all available controllers to
-#       be enabled.  Mirrors the Moby docker-in-docker entrypoint:
-#       https://github.com/moby/moby/blob/master/hack/dind
-#
-# On standalone/host, systemd handles mount propagation and cgroup
-# delegation; the entrypoint is not installed (nothing would call it).
-# ---------------------------------------------------------------------------
-if os__is_devcontainer_build; then
-  file__mkdir "${_FEAT_LIFECYCLE_DIR}"
-  file__cp "${_FEAT_FILES_DIR}/entrypoint.sh" "${_FEAT_ENTRYPOINT_PATH}"
-  file__chmod +x "${_FEAT_ENTRYPOINT_PATH}"
-fi
+__install_finish_post() {
+  __feat_do_configure_users__
+}

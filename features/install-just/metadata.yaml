@@ -11,59 +11,33 @@ _long_description: |-
   GitHub release assets, distro package repositories, the official installer script,
   and Cargo-based installation.
 options:
-  method:
-    type: string
-    default: auto
-    description: Installation method to use.
-    enum:
-      - value: auto
-        description: Prefer release assets, then repositories, script, then Cargo.
-      - value: binary
-        description: Install from GitHub release tarballs with SHA-256 verification.
-      - value: package
-        description: Install from the operating system package manager.
-      - value: script
-        description: Install via https://just.systems/install.sh.
-      - value: cargo
-        description: Install using Cargo (`cargo install` or `cargo binstall`).
-  version:
-    type: string
-    default: stable
-    description: Version to install. `stable` for the latest stable release, `latest` for the most recently published (may include pre-releases), or a concrete version like `1.50.0`.
-    proposals:
-      - value: stable
-        description: Resolve and install the latest stable (non-pre-release) release.
-      - value: latest
-        description: Resolve and install the most recently published release, potentially including pre-releases.
-      - value: 1.50.0
-        description: Install just v1.50.0.
-  target:
-    type: string
-    default: auto
-    description: |-
-      Release/script target triple override.
-      `auto` resolves from host kernel and architecture.
-    proposals:
-      - value: auto
-        description: Detect target automatically.
-      - value: x86_64-unknown-linux-musl
-        description: Linux x86_64 static binary.
-      - value: aarch64-unknown-linux-musl
-        description: Linux arm64 static binary.
-      - value: x86_64-apple-darwin
-        description: macOS Intel binary.
-      - value: aarch64-apple-darwin
-        description: macOS Apple Silicon binary.
   script_force:
     type: boolean
     default: false
     description: Add `--force` when running the official installer script.
-  cargo_binstall:
-    type: boolean
-    default: false
-    description: Use `cargo binstall` for `method=cargo` when available.
 _options:
   gh_repo: casey/just
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: "1.50.0"
+        description: Install just v1.50.0.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/just-{VERSION}-{RUST_TRIPLE}.tar.gz"
+      binary_src: just
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/SHA256SUMS"
+    package: {}
+    script:
+      asset_uri: "https://just.systems/install.sh"
+    cargo:
+      crate: just
+  prefix:
+    bins: [just]
+    applies_when:
+      - method: [binary, script, cargo]
 customizations:
   vscode:
     extensions:
@@ -77,9 +51,3 @@ _dependencies:
       packages:
         - just
 # installsAfter: []
-_prefix_groups:
-  "":
-    prefix:
-      bins: [just]
-    applies_when:
-      - method: [binary, script, cargo]

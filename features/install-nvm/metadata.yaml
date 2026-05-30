@@ -1,0 +1,147 @@
+version: 0.1.0
+name: nvm (Node Version Manager) Installation
+description: Install [nvm](https://github.com/nvm-sh/nvm) and optionally a default Node.js version.
+keywords:
+  - nvm
+  - node
+  - nodejs
+  - npm
+  - javascript
+_long_description: |-
+  nvm (Node Version Manager) is the Node.js project's recommended installation tool.
+  It manages multiple Node.js versions under a single NVM_DIR directory and provides
+  the `nvm` shell function for version switching.
+
+  A default Node.js version is installed unless `node_versions` is left empty.
+  On Alpine Linux, Node.js is compiled from source automatically.
+_tool_name: nvm
+options:
+  node_versions:
+    type: array
+    default: 'lts/*'
+    description: |-
+      Node.js versions to install via nvm.
+      The first entry becomes the nvm `default` alias; any additional entries are
+      installed alongside it without changing the default.
+      Accepts nvm-style version specs: a major number (e.g. `24`), exact semver
+      (e.g. `24.11.1`), or an LTS alias (`lts/*`, `lts`).
+      Leave empty to install nvm without any Node.js version.
+    proposals:
+      - value: 'lts/*'
+        description: Install the latest Active LTS release as the sole default version.
+      - value: lts
+        description: Alias for `lts/*`; normalized internally.
+      - value: ''
+        description: Install nvm itself without any Node.js version.
+      - value: '24'
+        description: Install the latest Node.js 24.x release as the sole default.
+      - value: '22'
+        description: Install the latest Node.js 22.x release as the sole default.
+      - value: '20'
+        description: Install the latest Node.js 20.x release as the sole default.
+      - value: '18'
+        description: Install the latest Node.js 18.x release as the sole default.
+      - value: 24.11.1
+        description: Install an exact version as the sole default.
+      - value: "lts/*\n22"
+        description: Install lts/* as default; also install Node.js 22.x.
+      - value: "lts/*\n22\n20"
+        description: Install lts/* as default; also install Node.js 22 and 20.
+  node_gyp_deps:
+    type: boolean
+    default: true
+    description: |-
+      Install OS build dependencies required to compile native Node.js modules via node-gyp:
+      `make`, `gcc`/`g++`, and `python3`.
+      On Alpine Linux, these tools are already provided by the nvm source-build toolchain
+      and this option is a no-op.
+      Set to `false` to skip if you do not need to compile native modules.
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    nvm-runtime:
+      # Runtime dependencies required by Node.js and nvm on Alpine Linux.
+      # bash is sourced in every shell session by nvm.sh; libgcc/ncurses/openssl
+      # are shared libraries linked by the nvm-compiled Node.js binary.
+      apk:
+        packages:
+          - bash
+          - libgcc
+          - ncurses
+          - openssl
+    node-gyp:
+      # Build tools for compiling native Node.js add-ons via node-gyp.
+      # On Alpine with nvm, make/gcc/g++/python3 are already provided
+      # by the nvm build toolchain and this manifest is skipped.
+      packages:
+        - make
+        - when: {pm: [apt, dnf, yum, zypper, pacman]}
+          packages: [gcc]
+        - when: {pm: apt}
+          packages: [g++, python3-minimal]
+        - when: {pm: [dnf, yum, zypper]}
+          packages: [gcc-c++, python3]
+        - when: {pm: pacman}
+          packages: [python]
+  build:
+    nvm:
+      # nvm build prerequisites on Alpine Linux.
+      # Installs the full build toolchain required by nvm to compile Node.js
+      # from source (nvm install -s). Runtime libs are in run.nvm-runtime.
+      apk:
+        packages:
+          - binutils
+          - coreutils
+          - findutils
+          - g++
+          - gcc
+          - grep
+          - linux-headers
+          - make
+          - python3
+          - util-linux
+containerEnv:
+  NVM_DIR: /usr/local/share/nvm
+  NVM_SYMLINK_CURRENT: 'true'
+  PATH: /usr/local/share/nvm/current/bin:${PATH}
+_options:
+  gh_repo: nvm-sh/nvm
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: stable
+        description: Resolve the latest stable nvm release via the GitHub Releases API.
+      - value: latest
+        description: Resolve the most recently published nvm release (may include pre-releases).
+      - value: 0.40.1
+        description: nvm v0.40.1.
+      - value: 0.39.7
+        description: nvm v0.39.7.
+  method:
+    script:
+      asset_uri: "https://raw.githubusercontent.com/nvm-sh/nvm/{TAG}/install.sh"
+  prefix:
+    root: /usr/local/share/nvm
+    nonroot: "${HOME}/.nvm"
+    symlink:
+      skip: true
+    exports:
+      skip: true
+    activation:
+      shells: [bash, zsh]
+      description: |-
+        The activation snippet sources `$NVM_DIR/nvm.sh` and the shell completion
+        script, making `nvm`, `node`, and `npm` available in interactive shells.
+    write_group:
+      default: nvm
+customizations:
+  vscode:
+    extensions:
+      - dbaeumer.vscode-eslint
+    settings:
+      github.copilot.chat.codeGeneration.instructions:
+        - text: This dev container includes 'node' and 'npm' installed via nvm and available on the PATH.

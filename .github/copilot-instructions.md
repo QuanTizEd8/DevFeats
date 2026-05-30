@@ -10,7 +10,7 @@ You must always follow these rules and constraints when working on the project:
 
 - Never edit files under `src/`, `.devcontainer/.src/`, `.devcontainer/try-*/`, `.devcontainer/test-*/`, `docs/source/features/`, `docs/source/library/`, and `test/lib/bats/`; they are auto-generated artifacts, symlinks, or dependency submodules.
 - For CI failures, run `just fetch-gha --commit <sha>` or `just fetch-gha --run <workflow-run-id>` (**always in background**; see `justfile`). Logs land under `.local/logs/gha/` by default.
-- After finishing a change, run `just work` to automatically format, lint, sync, and test only the files changed in the working tree.
+- After finishing a change, run `just work 2>&1 | tail -n 10` to automatically format, lint, sync, and test only the files changed in the working tree. The command outputs the path to a log file with the full output of all steps as its last line.
 - Never push changes unless explicitly asked to.
 
 ## Guidelines

@@ -17,33 +17,25 @@ _long_description: |-
   installed, or you can pin a specific release. The installer supports release-based installation
   and package-manager installation, with `auto` preferring the release path first.
 _tool_name: ORAS
-options:
-  version:
-    type: string
-    default: stable
-    description: Version of ORAS to install. `stable` or `latest` resolve via the GitHub Releases API; a specific version like `1.2.3` pins exactly.
-    proposals:
-      - value: stable
-        description: Resolve and install the latest stable (non-pre-release) release via the GitHub Releases API.
-      - value: latest
-        description: Resolve the most recently published release via the GitHub Releases API, which may include pre-releases.
-      - value: 1.3.2
-        description: Install ORAS v1.3.2.
-  method:
-    type: string
-    default: auto
-    description: Installation method to use.
-    enum:
-      - value: auto
-        description: Prefer verified release artifacts, then fallback to package manager.
-      - value: binary
-        description: Install from official ORAS GitHub release artifacts.
-      - value: package
-        description: |-
-          Install from the operating system package manager.
-          Package selection and platform support are controlled by `_dependencies.run.os-pkg`.
 _options:
   gh_repo: oras-project/oras
+  version:
+    resolution: github_release
+    default: stable
+    flag: --version
+    proposals:
+      - value: 1.3.2
+        description: ORAS v1.3.2.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/oras_{VERSION}_{OS}_{ARCH}.tar.gz"
+      binary_src: oras
+      gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/refs/heads/main/KEYS"
+    package: {}
+  prefix:
+    bins: [oras]
+    applies_when:
+      - method: [binary]
 _dependencies:
   run:
     base:
@@ -96,9 +88,3 @@ _dependencies:
           logging__error "install-oras: method=package is unsupported on pacman because ORAS is not available in official Arch repositories."
           return 1
 # installsAfter: []
-_prefix_groups:
-  "":
-    prefix:
-      bins: [oras]
-    applies_when:
-      - method: [binary]

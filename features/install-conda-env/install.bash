@@ -1,65 +1,56 @@
-if [[ -n "$ENV_NAME" ]] && [[ -z "$PACKAGES" ]] && [[ -z "$PYTHON_VERSION" ]]; then
-  logging__error "'env_name' requires at least one of 'packages' or 'python_version' to be set."
-  exit 1
-fi
-
-discover_conda() {
-  logging__fn_entry "discover_conda"
-  CONDA_EXEC="${CONDA_DIR}/bin/conda"
-  MAMBA_EXEC="${CONDA_DIR}/bin/mamba"
-  if [[ -n "$CONDA_DIR" ]] && [[ -f "$CONDA_EXEC" ]]; then
-    logging__info "Conda executable located at '$CONDA_EXEC'."
-  elif [[ -n "$CONDA_DIR" ]]; then
-    logging__error "conda_dir was set to '$CONDA_DIR' but conda executable not found at '$CONDA_EXEC'."
-    exit 1
-  elif command -v conda > /dev/null 2>&1; then
-    CONDA_DIR="$(conda info --base)"
-    CONDA_EXEC="${CONDA_DIR}/bin/conda"
-    MAMBA_EXEC="${CONDA_DIR}/bin/mamba"
-    logging__inspect "Auto-detected conda at '$CONDA_EXEC' (base: $CONDA_DIR)."
-  else
-    logging__error "Conda not found. Set 'conda_dir' or ensure conda is on PATH."
-    logging__info "Install conda first, e.g. with the install-miniforge feature."
-    exit 1
-  fi
-  if [[ ! -f "$MAMBA_EXEC" ]]; then
-    logging__info "Mamba executable not found at '$MAMBA_EXEC'. Will use conda as fallback."
-    MAMBA_EXEC=""
-  else
-    logging__info "Mamba executable located at '$MAMBA_EXEC'."
-  fi
-  logging__fn_exit "discover_conda"
-}
-
 resolve_solver() {
   logging__fn_entry "resolve_solver"
-  case "$SOLVER" in
-    mamba)
-      if [[ -z "$MAMBA_EXEC" ]]; then
-        logging__warn "Solver 'mamba' requested but mamba not found. Falling back to conda."
-        SOLVER_EXEC="$CONDA_EXEC"
-      else
-        SOLVER_EXEC="$MAMBA_EXEC"
+  local _solver="${SOLVER:-}"
+  SOLVER_EXEC=""
+
+  if [[ -z "${_solver}" ]]; then
+    # Auto-detect: mamba then conda; install-time PATH then RUNTIME_PATH.
+    local _cmd _candidate
+    for _cmd in mamba conda; do
+      _candidate="$(command -v "${_cmd}" 2> /dev/null || true)"
+      if [[ -n "${_candidate}" ]]; then
+        SOLVER_EXEC="${_candidate}"
+        break
       fi
-      ;;
-    conda)
-      SOLVER_EXEC="$CONDA_EXEC"
-      ;;
-    auto)
-      if [[ -n "$MAMBA_EXEC" ]]; then
-        SOLVER_EXEC="$MAMBA_EXEC"
-        logging__info "Solver 'auto': using mamba."
-      else
-        SOLVER_EXEC="$CONDA_EXEC"
-        logging__info "Solver 'auto': using conda (mamba not available)."
+      if [[ -v RUNTIME_PATH && -n "${RUNTIME_PATH}" ]]; then
+        _candidate="$(PATH="${RUNTIME_PATH}" command -v "${_cmd}" 2> /dev/null || true)"
+        if [[ -n "${_candidate}" ]]; then
+          SOLVER_EXEC="${_candidate}"
+          break
+        fi
       fi
-      ;;
-    *)
-      logging__error "Invalid value for 'solver': '$SOLVER'. Use 'auto', 'mamba', or 'conda'."
+    done
+    if [[ -z "${SOLVER_EXEC}" ]]; then
+      logging__error "Neither mamba nor conda found on PATH or RUNTIME_PATH."
+      logging__info "Install a conda distribution first, e.g. with the install-miniforge feature."
       exit 1
-      ;;
-  esac
-  logging__info "Solver executable: '$SOLVER_EXEC'."
+    fi
+  elif [[ "${_solver}" == */* ]]; then
+    # Full path: must be an executable file.
+    if [[ ! -x "${_solver}" ]]; then
+      logging__error "solver='${_solver}': not an executable file."
+      exit 1
+    fi
+    SOLVER_EXEC="${_solver}"
+  else
+    # Named command: search install-time PATH then RUNTIME_PATH.
+    SOLVER_EXEC="$(command -v "${_solver}" 2> /dev/null || true)"
+    if [[ -z "${SOLVER_EXEC}" ]] && [[ -v RUNTIME_PATH && -n "${RUNTIME_PATH}" ]]; then
+      SOLVER_EXEC="$(PATH="${RUNTIME_PATH}" command -v "${_solver}" 2> /dev/null || true)"
+    fi
+    if [[ -z "${SOLVER_EXEC}" ]]; then
+      logging__error "solver='${_solver}': command not found on PATH or RUNTIME_PATH."
+      exit 1
+    fi
+  fi
+
+  logging__info "Solver: '${SOLVER_EXEC}'."
+  CONDA_DIR="$("${SOLVER_EXEC}" info --base)"
+  if [[ -z "${CONDA_DIR}" ]]; then
+    logging__error "'${SOLVER_EXEC} info --base' returned empty; cannot determine conda base directory."
+    exit 1
+  fi
+  logging__info "Conda base: '${CONDA_DIR}'."
   logging__fn_exit "resolve_solver"
 }
 
@@ -72,11 +63,11 @@ apply_channels() {
   fi
   for channel in "${CHANNELS[@]}"; do
     logging__info "Adding channel: $channel"
-    "$CONDA_EXEC" config --add channels "$channel"
+    "${SOLVER_EXEC}" config --add channels "$channel"
   done
   if [[ "$STRICT_CHANNEL_PRIORITY" == true ]]; then
     logging__info "Setting channel_priority to strict."
-    "$CONDA_EXEC" config --set channel_priority strict
+    "${SOLVER_EXEC}" config --set channel_priority strict
   fi
   logging__fn_exit "apply_channels"
 }
@@ -260,12 +251,26 @@ setup_environment() {
   logging__fn_exit "setup_environment"
 }
 
-discover_conda
-resolve_solver
-apply_channels
-if [[ -n "$ENV_NAME" ]]; then setup_inline_env; fi
-if [[ ${#ENV_FILES[@]} -gt 0 || ${#ENV_DIRS[@]} -gt 0 ]]; then setup_environment; fi
-if [[ "$KEEP_CACHE" == false ]]; then
+__init_args_post() {
+  if [[ -n "$ENV_NAME" ]] && [[ -z "$PACKAGES" ]] && [[ -z "$PYTHON_VERSION" ]]; then
+    logging__error "'env_name' requires at least one of 'packages' or 'python_version' to be set."
+    exit 1
+  fi
+}
+
+__verify_system_requirements_post() {
+  resolve_solver
+}
+
+# shellcheck disable=SC2329,SC2317
+__install_run__() {
+  apply_channels
+  [[ -n "$ENV_NAME" ]] && setup_inline_env
+  [[ ${#ENV_FILES[@]} -gt 0 || ${#ENV_DIRS[@]} -gt 0 ]] && setup_environment
+}
+
+__install_finish_post() {
+  [[ "${KEEP_CACHE}" != true ]] || return 0
   logging__clean "Cleaning up conda cache."
-  "$SOLVER_EXEC" clean --all --yes
-fi
+  "${SOLVER_EXEC}" clean --all --yes
+}

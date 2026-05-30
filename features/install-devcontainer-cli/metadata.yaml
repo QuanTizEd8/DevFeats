@@ -8,50 +8,29 @@ keywords:
   - containers
   - tooling
 _long_description: |-
-  Installs the Dev Container CLI (`devcontainer`) using either the upstream standalone
-  installer script (bundled Node.js runtime) or npm (`@devcontainers/cli`).
+  Installs the Dev Container CLI (`devcontainer`) using either a self-contained
+  bundled Node.js runtime (`method=npm-bundled`, default on supported platforms)
+  or a globally installed npm package (`method=npm`, fallback or explicit choice).
 _options:
   gh_repo: devcontainers/cli
-options:
-  method:
-    type: string
-    default: auto
-    description: Installation method.
-    enum:
-      - value: auto
-        description: Prefer upstream install script on supported platforms; fallback to npm.
-      - value: script
-        description: Use upstream `scripts/install.sh` (bundled Node.js).
-      - value: npm
-        description: Install via `npm install -g @devcontainers/cli`.
   version:
-    type: string
+    resolution: npm
     default: latest
-    description: Version to install.
-    proposals:
-      - value: latest
-        description: Install the latest available version.
-      - value: 0.86.1
-        description: Install a specific version.
-  node_version:
-    type: string
-    default: "20"
-    description: Node.js major version passed to upstream install script (`method=script`).
-    proposals:
-      - value: "20"
-        description: Node.js 20 LTS line.
-      - value: "22"
-        description: Node.js 22 LTS line.
+  method:
+    npm-bundled:
+      package: "@devcontainers/cli"
+      cmd: devcontainer
+      node_version: "20"
+    npm:
+      package: "@devcontainers/cli"
+  prefix:
+    root: /opt/devcontainers
+    nonroot: "${HOME}/.devcontainers"
+    bins: [devcontainer]
 onCreateCommand:
   verification:
-    description: Verify `devcontainer` is installed and working by running `devcontainer --help`.
+    description: Verify `devcontainer` is installed and working.
     command: devcontainer --help
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/setup-user
-#   - ghcr.io/quantized8/devfeats/install-jq
-#   - ghcr.io/quantized8/devfeats/install-yq
-#   - ghcr.io/quantized8/devfeats/install-shell
-#   - ghcr.io/quantized8/devfeats/install-node
 customizations:
   vscode:
     extensions:
@@ -66,9 +45,3 @@ _dependencies:
       packages:
         - name: xz
           apt: xz-utils
-_prefix_groups:
-  "":
-    prefix:
-      root: /opt/devcontainers
-      nonroot: "${HOME}/.devcontainers"
-      bins: [devcontainer]

@@ -10,50 +10,39 @@ _long_description: |-
   Installs `jq`, the lightweight command-line JSON processor written in portable C.
   Widely used for filtering, transforming, and validating JSON in shell pipelines,
   CI/CD scripts, and configuration tooling.
-options:
-  method:
-    type: string
-    default: auto
-    description: Installation method to use.
-    enum:
-      - value: auto
-        description: Prefer release binary with SHA-256 verification, then fall back to package manager.
-      - value: binary
-        description: |-
-          Install from GitHub release binaries with SHA-256 checksum verification.
-          Official release assets exist for Linux amd64, arm64, and i386, and macOS amd64 and arm64.
-          `method=auto` falls back to `package` automatically when no matching asset is available.
-      - value: package
-        description: Install from the operating system package manager.
-      - value: source
-        description: |-
-          Build and install from source (release tarball or git clone).
-          Requires a C toolchain, libtool, automake, and autoconf.
-          Use when package or binary methods do not satisfy constraints.
+_options:
+  gh_repo: jqlang/jq
   version:
-    type: string
-    _applies_when:
-      - method: [auto, binary, source]
+    resolution: github_release
     default: stable
-    description: |-
-      Version of jq to install. `stable` resolves the latest stable release, `latest` resolves the most recently published (may include pre-releases), or any `X.Y.Z` version string.
-      If the installed jq version at the target prefix already matches the resolved version,
-      the install is skipped silently regardless of the `if_exists` setting.
-      Note: jq 1.6 and older use a different release asset naming convention; version-specific
-      asset name mapping is applied automatically.
+    flag: --version
     proposals:
-      - value: stable
-        description: Resolve the latest stable (non-pre-release) release via the GitHub Releases API.
-      - value: latest
-        description: Resolve the most recently published release via the GitHub Releases API, which may include pre-releases.
       - value: 1.8.1
         description: jq v1.8.1.
       - value: 1.7.1
         description: jq v1.7.1.
       - value: '1.6'
         description: jq v1.6 (uses legacy release asset naming).
-_options:
-  gh_repo: jqlang/jq
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/{VERSION>=1.7?jq-{OS:macos}-{ARCH}:{OS:osx==linux?jq-linux{ARCH:bitness}:jq-osx-amd64}}"
+      binary_src: jq
+      gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/master/sig/jq-release-{VERSION>=1.7?new:old}.key"
+      gpg_sig_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/master/sig/v{VERSION}/{VERSION>=1.7?jq-{OS:macos}-{ARCH}:{OS:osx==linux?jq-linux{ARCH:bitness}:jq-osx-amd64}}.asc"
+    package: {}
+    source:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/jq-{VERSION}.tar.gz"
+      build_system: autotools
+      configure_args:
+        - "--with-oniguruma=builtin"
+      make_targets:
+        - "all"
+        - "check"
+        - "install"
+  prefix:
+    bins: [jq]
+    applies_when:
+      - method: [binary, source]
 _dependencies:
   run:
     base:
@@ -73,9 +62,3 @@ _dependencies:
           apt: build-essential
           apk: build-base
 # installsAfter: []
-_prefix_groups:
-  "":
-    prefix:
-      bins: [jq]
-    applies_when:
-      - method: [binary, source]

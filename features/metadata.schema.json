@@ -25,7 +25,7 @@
       "type": "array"
     },
     "options": {
-      "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container. The names `prefix`, `prefix_discovery`, `prefix_symlinks`, `prefix_exports`, `prefix_activations`, and `runtime_path` — and any name matching `*_prefix`, `*_prefix_discovery`, `*_prefix_symlinks`, `*_prefix_exports`, or `*_activations` — are permanently reserved for code generation via `_prefix_groups` and must never be defined manually here.",
+      "description": "Possible user-configurable options for this Feature. The selected options will be passed as environment variables when installing the Feature into the container. The names `prefix`, `prefix_discovery`, `prefix_symlinks`, `prefix_exports`, `prefix_activations`, and `runtime_path` — and any name matching `*_prefix`, `*_prefix_discovery`, `*_prefix_symlinks`, `*_prefix_exports`, or `*_activations` — are permanently reserved for code generation via `_options.prefix` and must never be defined manually here.",
       "propertyNames": {
         "description": "Option keys must start with an ASCII letter and then contain only ASCII letters, digits, underscores, or hyphens.",
         "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
@@ -94,6 +94,371 @@
               }
             }
           ]
+        },
+        "version": {
+          "description": "Internal contract data for the auto-generated `options.version` option and version-related orchestration. When present, the generator injects a `version` option and `_FEAT_CONTRACT_VERSION_*` bash variables into the install script header.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "resolution": {
+              "description": "Version resolution strategy used by the auto-impl of `_feat_resolve_version`.",
+              "type": "string",
+              "enum": ["github_release", "github_tag", "npm", "cargo", "none"]
+            },
+            "default": {
+              "description": "Default value for the generated `options.version` option.",
+              "type": "string"
+            },
+            "inputs": {
+              "description": "Accepted input types; each entry auto-generates a standard proposal in `options.version.proposals`.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["stable", "latest", "semver", "major", "minor", "npm_tag", "nvm_alias"]
+              }
+            },
+            "proposals": {
+              "description": "Additional `{value, description}` proposals not covered by `inputs` (e.g. specific pinned versions for docs).",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["value", "description"],
+                "additionalProperties": false,
+                "properties": {
+                  "value": {"type": "string"},
+                  "description": {"type": "string"}
+                }
+              }
+            },
+            "flag": {
+              "description": "CLI flag for installed-version query, used by the auto-impl of `_feat_installed_version`. Defaults to `--version`.",
+              "type": "string"
+            }
+          }
+        },
+        "method": {
+          "description": "Internal contract data for the auto-generated `options.method` option and install orchestration. When present, the generator injects a `method` option and `_FEAT_CONTRACT_*` bash variables into the install script header.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "default": {
+              "description": "Default value for the auto-generated `options.method` option. Defaults to `auto` when omitted.",
+              "type": "string"
+            },
+            "binary": {
+              "description": "Auto-impl data for `METHOD=binary` installation from a release asset. Enables auto-implementation of `_feat_install_binary` using `install__release_asset`.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "asset_uri": {
+                  "description": "Full asset URI supporting `{VERSION}`, `{TAG}`, `{OS}`, `{KERNEL}`, `{ARCH}`, `{OS_ARCH}`, `{OS_ID}`, `{PLATFORM}`, and `{RUST_TRIPLE}` runtime substitutions (expanded by `os__expand_release_pattern` at install time). When omitted, the feature must set `BINARY_ASSET_URI` dynamically (e.g. via `__install_run_binary_pre`).",
+                  "type": "string"
+                },
+                "sidecar_uri": {
+                  "description": "Full sidecar checksum URI. Supports the same runtime substitutions as `asset_uri`. When omitted, sidecar auto-probe is performed.",
+                  "type": "string"
+                },
+                "binary_src": {
+                  "description": "Source binary path within the extracted archive (suffix-match passed to `--binary-src`).",
+                  "type": "string"
+                },
+                "gpg_key_uri": {
+                  "description": "URI of the GPG public key used to verify the binary release asset signature. Generates the `binary_gpg_key_uri` user option.",
+                  "type": "string"
+                },
+                "gpg_sig_uri": {
+                  "description": "URI of the detached GPG signature for the binary release asset. Supports the same runtime substitutions as `asset_uri`. Generates the `binary_gpg_sig_uri` user option.",
+                  "type": "string"
+                }
+              }
+            },
+            "package": {
+              "description": "Auto-impl marker for `METHOD=package` installation via OS package manager. Enables auto-implementation of `_feat_install_package` using `__dep_install__`.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "manifest": {
+                  "description": "Dependency manifest key to install from (file at `dependencies/run/<manifest>.yaml`). Defaults to `os-pkg`.",
+                  "type": "string"
+                },
+                "registers_as": {
+                  "description": "OS package name that other non-PM install methods should register as via `ospkg__register_dummy`. When set, any installation via a method other than `package` or `upstream-package` (binary, source, cargo, npm, etc.) automatically registers a dummy Debian package under this name so that downstream `Depends:` constraints are satisfied. Debian/Ubuntu (apt) only; no-op on other platforms. The registered version equals the resolved `VERSION` at install time.",
+                  "type": "string"
+                }
+              }
+            },
+            "upstream-package": {
+              "description": "Auto-impl marker for `METHOD=upstream-package` installation from the tool vendor's own OS package repository. Uses the manifest at `dependencies/run/upstream-package.yaml`. Enables `__install_run_upstream_package__`, `__update_run_upstream_package__`, and `__uninstall_run_upstream_package__`.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "registers_as": {
+                  "description": "OS package name that other non-PM install methods should register as via `ospkg__register_dummy`. When set, any installation via a method other than `package` or `upstream-package` (binary, source, cargo, npm, etc.) automatically registers a dummy Debian package under this name so that downstream `Depends:` constraints are satisfied. Debian/Ubuntu (apt) only; no-op on other platforms. The registered version equals the resolved `VERSION` at install time.",
+                  "type": "string"
+                }
+              }
+            },
+            "script": {
+              "description": "Auto-impl data for `METHOD=script` installation via an upstream installer script.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["asset_uri"],
+              "properties": {
+                "asset_uri": {
+                  "description": "Full URI of the installer script to fetch. Supports `{VERSION}`, `{TAG}`, `{OS}`, `{KERNEL}`, `{ARCH}`, `{OS_ARCH}`, `{OS_ID}`, `{PLATFORM}`, and `{RUST_TRIPLE}` runtime substitutions.",
+                  "type": "string"
+                },
+                "sidecar_uri": {
+                  "description": "Full sidecar checksum URI for the installer script. Supports the same runtime substitutions as `asset_uri`. When omitted, sidecar auto-probe is performed.",
+                  "type": "string"
+                },
+                "args": {
+                  "description": "Static arguments to pass to the installer script (used when `_feat_run_installer_script` is not defined). For dynamic args, set `_FEAT_INSTALL_SCRIPT_ARGS` in a `__install_run_script_pre` hook.",
+                  "type": "array",
+                  "items": {"type": "string"}
+                }
+              }
+            },
+            "cargo": {
+              "description": "Auto-impl data for `METHOD=cargo` installation via `cargo install`. Enables auto-implementation of `_feat_install_cargo`.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["crate"],
+              "properties": {
+                "crate": {
+                  "description": "Cargo crate name to install.",
+                  "type": "string"
+                }
+              }
+            },
+            "npm": {
+              "description": "Auto-impl data for `METHOD=npm` installation via `npm install -g`. Enables auto-implementation of `__install_run_npm__`.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["package"],
+              "properties": {
+                "package": {
+                  "description": "npm package name to install globally.",
+                  "type": "string"
+                },
+                "args": {
+                  "description": "Default arguments passed to `npm install` when `method=npm`. One entry per element; becomes the default for the auto-generated `npm_install_args` option.",
+                  "type": "array",
+                  "items": {"type": "string"}
+                }
+              }
+            },
+            "npm-bundled": {
+              "description": "Auto-impl data for `METHOD=npm-bundled` installation using a self-contained bundled Node.js runtime. Enables `__install_run_npm_bundled__`, detection via `npm__is_bundled`, and uninstall via `npm__uninstall_bundled`.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["package"],
+              "properties": {
+                "package": {
+                  "description": "npm package name to install with a bundled Node.js runtime (e.g. `@devcontainers/cli`).",
+                  "type": "string"
+                },
+                "cmd": {
+                  "description": "Binary name created by the package (e.g. `devcontainer`). Passed as `--cmd` to `npm__install_bundled`. Defaults to the last path segment of `package` with any leading `@` stripped — must be set explicitly when the binary name differs from that default (e.g. `@devcontainers/cli` → binary is `devcontainer`, not `cli`).",
+                  "type": "string"
+                },
+                "node_version": {
+                  "description": "Default Node.js major version for the bundled runtime (e.g. `20`, `22`) or `lts`. Becomes the default for the auto-generated `node_version` option. Defaults to `lts`.",
+                  "type": "string"
+                }
+              }
+            },
+            "source": {
+              "description": "Marker indicating `METHOD=source` is a valid method for this feature. The framework auto-impl handles download and extraction; define `__install_run_source_build` for custom build logic, or declare `build_system` for fully declarative builds.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "asset_uri": {
+                  "description": "URI pattern for the source tarball. Supports the same `{VERSION}`, `{OS}`, `{ARCH}`, etc. substitutions as `binary_asset_uri`. Sets the default for the auto-generated `source_asset_uri` option.",
+                  "type": "string"
+                },
+                "sidecar_uri": {
+                  "description": "URI of the checksum or signature sidecar file for the source tarball. Sets the default for the auto-generated `source_sidecar_uri` option.",
+                  "type": "string"
+                },
+                "build_system": {
+                  "description": "Build system for the auto-impl of `__install_run_source_auto_build__`. `autotools` = `./configure` then `make`. `make` = `make` only (no `./configure`). Omit when providing a `__install_run_source_build` hook.",
+                  "type": "string",
+                  "enum": ["autotools", "make"]
+                },
+                "configure_args": {
+                  "description": "Arguments passed to `./configure` when `build_system=autotools`. `--prefix=<PREFIX>` is always appended automatically. Sets the default for the auto-generated `source_configure_args` option.",
+                  "type": "array",
+                  "items": {"type": "string"}
+                },
+                "make_flags": {
+                  "description": "Make variable assignments included in every `make` invocation (e.g. `[\"USE_LIBPCRE2=YesPlease\"]`). Sets the default for the auto-generated `source_make_flags` option.",
+                  "type": "array",
+                  "items": {"type": "string"}
+                },
+                "make_targets": {
+                  "description": "Make targets invoked in sequence. When empty the build-system default is used (`autotools` and `make` both default to `[\"all\", \"install\"]`). Sets the default for the auto-generated `source_make_targets` option.",
+                  "type": "array",
+                  "items": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "completions": {
+          "description": "Internal contract data for the auto-generated `options.shell_completions`, `options.shell_completions_cmd`, and `options.shell_completions_files` options and shell completion installation. When present, the generator emits these options and the template auto-implements `__install_shell_completions__` for bash, zsh, fish, nushell, and elvish.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "subcmd": {
+              "description": "CLI subcommand (with any static flags) that generates completion output for a given shell when appended with the shell name. Example: `\"completion --shell\"` produces `<bin> completion --shell bash`. Sets the default for the auto-generated `shell_completions_cmd` option. Mutually exclusive with `source_files`.",
+              "type": "string"
+            },
+            "shells": {
+              "description": "Default shells to install completions for. Becomes the default value of the auto-generated `shell_completions` option.",
+              "type": "array",
+              "items": {"type": "string", "enum": ["bash", "zsh", "fish", "nushell", "elvish"]}
+            },
+            "source_files": {
+              "description": "Map of shell name to completion file path relative to PREFIX. Used when completions are pre-built files installed under PREFIX (e.g. from a source build) rather than generated by the binary at install time. Sets the default for the auto-generated `shell_completions_files` option. Mutually exclusive with `subcmd`.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "bash":    {"type": "string"},
+                "zsh":     {"type": "string"},
+                "fish":    {"type": "string"},
+                "nushell": {"type": "string"},
+                "elvish":  {"type": "string"}
+              }
+            }
+          }
+        },
+        "prefix": {
+          "description": "Declares the installable-path machinery for this feature: prefix resolution, symlinks, PATH-export, shell activation, and write-group permissions. When present, the generator emits the `prefix`, `prefix_discovery`, `prefix_symlinks`, `prefix_exports`, `prefix_activations`, `prefix_bins`, `prefix_bin_dir`, `prefix_symlink_root`, `prefix_symlink_nonroot`, `write_group`, `write_users`, and `install_user` user-facing options, and wires the static `resolve_prefix()` and `_prefix_post_install__generated()` helpers in `install.bash`.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "root": {
+              "type": "string",
+              "default": "/usr/local",
+              "description": "Default prefix path when running as root (uid=0)."
+            },
+            "nonroot": {
+              "type": "string",
+              "default": "${HOME}/.local",
+              "description": "Default prefix path when running as non-root."
+            },
+            "bins": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" },
+              "description": "Binary filenames to symlink and/or export (e.g. `[gh]`, `[conda, mamba]`). Each binary is resolved at `${PREFIX}/{bin_dir}/{name}`. Required unless both `symlink.skip` and `exports.skip` are true."
+            },
+            "bin_dir": {
+              "type": "string",
+              "default": "bin",
+              "description": "Subdirectory of PREFIX where the target binaries live. Determines the symlink source path (`${PREFIX}/{bin_dir}/{name}`) and the directory added to PATH (`${PREFIX}/{bin_dir}`)."
+            },
+            "platform_overrides": {
+              "type": "array",
+              "description": "Platform-specific prefix defaults evaluated before the uid-based root/nonroot fallback. Entries are tested in order; the first matching `when` condition wins.",
+              "items": {
+                "description": "A single platform override entry. Specify `when` plus at least one of `default`, `root`, or `nonroot`.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["when"],
+                "properties": {
+                  "when": {
+                    "type": "object",
+                    "description": "Condition object. All key=value pairs must match (AND logic). Case-insensitive. Supported keys: kernel, arch, id, id_like, codename.",
+                    "additionalProperties": { "type": "string" }
+                  },
+                  "default": {
+                    "type": "string",
+                    "description": "Prefix to use when the condition matches, for both root and non-root."
+                  },
+                  "root": {
+                    "type": "string",
+                    "description": "Prefix to use when the condition matches and running as root (uid=0)."
+                  },
+                  "nonroot": {
+                    "type": "string",
+                    "description": "Prefix to use when the condition matches and running as non-root."
+                  }
+                }
+              }
+            },
+            "symlink": {
+              "description": "Symlink creation configuration. When absent, symlinks are enabled with default paths. Set `skip: true` to disable the `prefix_symlinks` option entirely.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "root": {
+                  "type": "string",
+                  "default": "/usr/local/bin",
+                  "description": "Bin directory where symlinks are created when running as root."
+                },
+                "nonroot": {
+                  "type": "string",
+                  "default": "${HOME}/.local/bin",
+                  "description": "Bin directory where symlinks are created when running as non-root."
+                },
+                "skip": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If true, omit the `prefix_symlinks`, `prefix_symlink_root`, and `prefix_symlink_nonroot` options."
+                }
+              }
+            },
+            "exports": {
+              "description": "PATH-export configuration. When absent, exports are enabled. Set `skip: true` to disable the `prefix_exports` option entirely.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If true, omit the `prefix_exports` option."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Text appended to the default user-facing description for the `prefix_exports` option."
+                }
+              }
+            },
+            "activation": {
+              "description": "Shell activation snippet configuration. When present, the `prefix_activations` option is generated and `prefix_activation_snippet()` is called during post-install.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "shells": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "Default shell names for the `prefix_activations` option (e.g. `[bash, zsh]`)."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Text appended to the default user-facing description for the `prefix_activations` option."
+                }
+              }
+            },
+            "write_group": {
+              "description": "Write-permission group configuration. When present, the `write_group`, `write_users`, and `install_user` options are generated and `users__set_write_permissions` is called during post-install.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["default"],
+              "properties": {
+                "default": {
+                  "type": "string",
+                  "description": "Default value for the `write_group` option (the OS group name)."
+                }
+              }
+            },
+            "applies_when": {
+              "$ref": "#/$defs/appliesWhen",
+              "description": "Condition under which the prefix machinery is active at install time. When the condition does not match, `resolve_prefix()` and `_prefix_post_install__generated()` become no-ops."
+            }
+          }
         }
       }
     },
@@ -133,160 +498,6 @@
     "_long_description": {
       "description": "Long description of the Feature.",
       "type": "string"
-    },
-    "_prefix_groups": {
-      "description": "Declares the installable-path groups that drive all of a feature's prefix, symlink, PATH-export, and activation machinery.\n\n**Any feature that manages a user-configurable installation path must declare `_prefix_groups`.** The generator then emits all required user-facing options and bash helpers automatically. Manually defining `prefix`, `prefix_discovery`, `prefix_symlinks`, `prefix_exports`, `prefix_activations`, or `runtime_path` options — or any name matching `*_prefix`, `*_prefix_discovery`, `*_prefix_symlinks`, `*_prefix_exports`, or `*_activations` — is always forbidden; those names are reserved exclusively for this system.\n\nFor each declared group the generator produces:\n- **User-facing options** (injected into `options` at build time): `{stem}_prefix`, `{stem}_prefix_discovery`, `{stem}_prefix_symlinks`, `{stem}_prefix_exports` (omitted when `symlink.skip`/`exports.skip` are true), and `{stem}_activations` (when `activation` is present). The bare names (`prefix`, `prefix_discovery`, etc.) are used for the unnamed group `\"\"`.\n- **Bash helpers** (rendered from templates into `install.bash`): `resolve_{id}_prefix()`, `create_{id}_symlinks()`, `export_{id}_path_main()`, and a `{stem}_activation_snippet()` stub (when `activation` is present). All are wired into `_prefix_post_install__generated()` automatically.\n\n**Group key conventions:**\n- Use `\"\"` (empty string) as the key for a single, unnamed group.\n- Use a non-empty slug (e.g. `\"nvm\"`) for each additional named group. The slug becomes both the option-name prefix and the function-name component (`resolve_nvm_dir()` if `option_name` overrides, otherwise `resolve_nvm_prefix()`, `create_nvm_symlinks()`, `export_nvm_path_main()`).\n\nA feature may declare any number of groups.",
-      "type": "object",
-      "additionalProperties": {
-        "description": "Configuration for one installable-path group. The group key (empty string for the default unnamed group, or a non-empty slug for named groups) determines the generated option names and bash function names.",
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "option_name": {
-            "type": "string",
-            "description": "Replaces the `{id}_prefix` stem for all generated options and bash helpers. Use only when the conventional name for the concept does not follow the `*_prefix` pattern. With `option_name: nvm_dir` on group `nvm`, the three generated options become `nvm_dir`, `nvm_dir_symlinks`, `nvm_dir_exports`, and the resolver is named `resolve_nvm_dir()`. Without this override, the group key `nvm` would produce `nvm_prefix`, `nvm_prefix_symlinks`, etc."
-          },
-          "applies_when": {
-            "$ref": "#/$defs/appliesWhen",
-            "description": "Condition under which this group's generated options and bash helpers are active. When the condition does not match at install time, the helpers become no-ops."
-          },
-          "prefix": {
-            "description": "Installation prefix configuration for this group.",
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "root": {
-                "type": "string",
-                "default": "/usr/local",
-                "description": "Default prefix path when running as root (uid=0)."
-              },
-              "nonroot": {
-                "type": "string",
-                "default": "${HOME}/.local",
-                "description": "Default prefix path when running as non-root."
-              },
-              "bins": {
-                "type": "array",
-                "minItems": 1,
-                "items": { "type": "string" },
-                "description": "Binary filenames to symlink and/or export (e.g. `[gh]`, `[conda, mamba]`). Each binary is resolved at `${prefix}/{bin_dir}/{name}` and symlinked into `{symlink.root}/{name}`. Required unless both `symlink.skip` and `exports.skip` are true."
-              },
-              "bin_dir": {
-                "type": "string",
-                "default": "bin",
-                "description": "Subdirectory of PREFIX where the target binaries live. Determines the symlink source path (`${prefix}/{bin_dir}/{name}`) and the directory added to PATH by the exports helper (`${prefix}/{bin_dir}`)."
-              },
-              "description": {
-                "type": "string",
-                "description": "Override the auto-generated description for the injected `{id}_prefix` option."
-              },
-              "platform_overrides": {
-                "type": "array",
-                "description": "Platform-specific prefix defaults evaluated before the uid-based root/nonroot fallback. Entries are tested in order; the first matching `when` condition wins. Uses `os__match_spec` at runtime. Supported keys: kernel, arch, id, id_like, codename.",
-                "items": {
-                  "description": "A single platform override entry. Specify `when` plus at least one of `default`, `root`, or `nonroot`.",
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": ["when"],
-                  "properties": {
-                    "when": {
-                      "type": "object",
-                      "description": "Condition object. All key=value pairs must match (AND logic). Case-insensitive. Supported keys: kernel, arch, id, id_like, codename.",
-                      "additionalProperties": { "type": "string" }
-                    },
-                    "default": {
-                      "type": "string",
-                      "description": "Prefix to use when the condition matches, for both root and non-root. Overridden by `root` or `nonroot` when those are also specified."
-                    },
-                    "root": {
-                      "type": "string",
-                      "description": "Prefix to use when the condition matches and running as root (uid=0). Takes precedence over `default`."
-                    },
-                    "nonroot": {
-                      "type": "string",
-                      "description": "Prefix to use when the condition matches and running as non-root. Takes precedence over `default`."
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "symlink": {
-            "description": "Symlink creation configuration for this group. Controls the generated `{id}_prefix_symlinks` option and `create_{id}_symlinks()` helper.",
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "root": {
-                "type": "string",
-                "default": "/usr/local/bin",
-                "description": "Bin directory where symlinks are created when running as root. Each binary in `prefix.bins` lands at `{root}/{name}`, pointing to `${prefix}/{bin_dir}/{name}`. Decoupled from `prefix.root` — allows a non-standard install prefix to still expose binaries at a stable, well-known location."
-              },
-              "nonroot": {
-                "type": "string",
-                "default": "${HOME}/.local/bin",
-                "description": "Bin directory where symlinks are created when running as non-root. Each binary in `prefix.bins` lands at `{nonroot}/{name}`."
-              },
-              "skip": {
-                "type": "boolean",
-                "default": false,
-                "description": "If true, do not inject the `{id}_prefix_symlinks` option and emit a no-op `create_{id}_symlinks()` stub."
-              },
-              "description": {
-                "type": "string",
-                "description": "Override the auto-generated description for the injected `{id}_prefix_symlinks` option."
-              }
-            }
-          },
-          "exports": {
-            "description": "PATH-export configuration for this group. Controls the generated `{id}_prefix_exports` option and `export_{id}_path_main()` helper.",
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "skip": {
-                "type": "boolean",
-                "default": false,
-                "description": "If true, do not inject the `{id}_prefix_exports` option and emit a no-op `export_{id}_path_main()` stub."
-              },
-              "description": {
-                "type": "string",
-                "description": "Override the auto-generated description for the injected `{id}_prefix_exports` option."
-              }
-            }
-          },
-          "activation": {
-            "description": "Shell activation snippet configuration for this group. When present, generates a `{stem}_activations` option and a `{stem}_activation_snippet()` stub, and emits a call to `shell__write_activation_snippets()` in `_prefix_post_install__generated()`. Body code overrides `{stem}_activation_snippet <shell>` to return the snippet content (stdout) and signal scope via exit code (0 = all contexts; 1 = interactive-only).",
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "shells": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Shell names to generate the `{stem}_activations` option for. Controls the option default."
-              },
-              "description": {
-                "type": "string",
-                "description": "Override the auto-generated description for the injected `{stem}_activations` option."
-              }
-            }
-          },
-          "write_group": {
-            "description": "Write-permission group configuration for this prefix group. When present, generates `write_group` and `write_users` options and emits a `users__set_write_permissions` call in `_prefix_post_install__generated()`.",
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "default": {
-                "type": "string",
-                "description": "Default value for the injected `{stem}_write_group` option (the OS group name)."
-              },
-              "owner_var": {
-                "type": "string",
-                "description": "Bash variable name whose value is passed as the owner argument to `users__set_write_permissions`. When omitted, `$(id -nu)` is used."
-              }
-            },
-            "required": ["default"]
-          }
-        }
-      }
     },
     "_dependencies": {
       "description": "Build and runtime dependency manifests for the feature.",
@@ -752,6 +963,7 @@
         "binary",
         "cargo",
         "npm",
+        "npm-bundled",
         "nvm",
         "package",
         "script",

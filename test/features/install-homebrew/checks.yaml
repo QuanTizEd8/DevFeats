@@ -304,8 +304,8 @@ if_exists_reinstall:
 if_exists_skip:
   description: |
     if_exists_skip: Homebrew is pre-installed in the image (see Dockerfile).
-    The feature detects the existing installation, skips the installer, and
-    proceeds to post-install steps (shellenv export).
+    The feature detects the existing installation and exits successfully without
+    running the installer or any post-install steps.
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
   checks:
@@ -322,17 +322,6 @@ if_exists_skip:
         "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
-      debug: |
-        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
-        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
-        echo "=== /etc/bash.bashrc (tail) ==="
-        tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
-    - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
-    - title: bash.bashrc has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
 
 log_file:
   description: |

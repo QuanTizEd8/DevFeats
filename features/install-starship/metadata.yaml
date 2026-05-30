@@ -25,10 +25,9 @@ options:
       description: Activate Starship in Bash by injecting `eval "$(starship init bash)"` into the Bash theme file.
     - value: zsh
       description: Activate Starship in Zsh by injecting `eval "$(starship init zsh)"` into the Zsh theme file.
-_prefix_groups:
-  starship:
-    prefix:
-      bins: [starship]
+_options:
+  prefix:
+    bins: [starship]
 installsAfter:
   - ghcr.io/quantized8/devfeats/install-ohmyzsh
   - ghcr.io/quantized8/devfeats/install-ohmybash

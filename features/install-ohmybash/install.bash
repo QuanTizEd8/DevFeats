@@ -1,13 +1,13 @@
 # shellcheck shell=bash
 
-_GITHUB_BASE_URL="${_GITHUB_BASE_URL:-https://github.com}"
-_OHMYBASH_REPO_URL="${_GITHUB_BASE_URL}/${OHMYBASH_GH_REPO}"
-
 # ---------------------------------------------------------------------------
 # install_ohmybash — Clone OMB to INSTALL_DIR, scaffold OSH_CUSTOM,
 #                    clone custom theme/plugins.
 # ---------------------------------------------------------------------------
-install_ohmybash() {
+__install_run__() {
+  local _GITHUB_BASE_URL="${_GITHUB_BASE_URL:-https://github.com}"
+  local _OHMYBASH_REPO_URL="${_GITHUB_BASE_URL}/ohmybash/oh-my-bash"
+
   local _install_dir="$INSTALL_DIR"
   local _branch="$BRANCH"
   local _theme="$THEME"
@@ -121,7 +121,7 @@ _link_custom_items() {
 #   4. Else if ${_home}/.bashrc exists → create bashtheme + inject source line.
 #   5. Else → write OMB block directly into .bashrc.
 # ---------------------------------------------------------------------------
-_configure_user_ohmybash() {
+__configure_user() {
   local _username="$1"
   local _home
   _home="$(users__resolve_home "$_username")"
@@ -143,6 +143,7 @@ _configure_user_ohmybash() {
     _rcdir="$(dirname "$_rcfile")"
   else
     local _xdg_config_home=""
+    # shellcheck disable=SC2016  # ${XDG_CONFIG_HOME:-} is a bash variable for the target user's shell
     _xdg_config_home="$(users__run_as "$_username" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
       2> /dev/null || true)"
     _rcdir="${_xdg_config_home:-${_home}/.config}/bash"
@@ -220,16 +221,6 @@ _configure_user_ohmybash() {
   logging__success "User '${_username}' Oh My Bash configuration complete."
 }
 
-install_ohmybash
-
-# ===================================================================
-# Per-user configuration
-# ===================================================================
-mapfile -t _OMB_USERS < <(users__resolve_list)
-for _username in "${_OMB_USERS[@]}"; do
-  if ! id "$_username" > /dev/null 2>&1; then
-    logging__warn "User '${_username}' does not exist — skipping."
-    continue
-  fi
-  _configure_user_ohmybash "$_username"
-done
+__install_finish_post() {
+  __feat_do_configure_users__
+}

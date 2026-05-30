@@ -1,9 +1,12 @@
+# shellcheck shell=bash
+
 # ---------------------------------------------------------------------------
 # configure_user <username>
 # Set up per-user shell configuration files (skel copy, ZDOTDIR injection).
 # ---------------------------------------------------------------------------
-configure_user() {
+__configure_user() {
   local _cu_username="$1"
+  local _SKEL_DIR="${_FEAT_FILES_DIR}/skel"
 
   # Resolve user's home directory and group.
   local _cu_home
@@ -93,83 +96,28 @@ configure_user() {
   return 0
 }
 
-_SKEL_DIR="${_FEAT_FILES_DIR}/skel"
-
-if [[ "$INSTALL_ZSH" == true ]]; then
-  if command -v zsh > /dev/null 2>&1; then
-    logging__info "Zsh already installed — skipping."
-  else
-    logging__install "Installing Zsh..."
-    ospkg__install_user zsh
+__install_run__() {
+  if [[ "$INSTALL_ZSH" == true ]]; then
+    if command -v zsh > /dev/null 2>&1; then
+      logging__info "Zsh already installed — skipping."
+    else
+      logging__install "Installing Zsh..."
+      ospkg__install_user zsh
+    fi
   fi
-fi
 
-# ===================================================================
-# Deploy system-wide shell configuration files
-# ===================================================================
-# install-shell has no single PREFIX; step 5 always targets /etc/ paths.
-# file__ helpers escalate privileges automatically as needed.
-logging__info "Deploying system-wide shell configuration files..."
+  # ===================================================================
+  # Deploy system-wide shell configuration files
+  # ===================================================================
+  # install-shell has no single PREFIX; step 5 always targets /etc/ paths.
+  # file__ helpers escalate privileges automatically as needed.
+  logging__info "Deploying system-wide shell configuration files..."
 
-# --- Shared (shell-agnostic) files ---
-for _name in shellenv shellrc shellaliases; do
-  _src="${_FEAT_FILES_DIR}/shell/${_name}"
-  _dest="/etc/${_name}"
-  if [ -f "$_src" ]; then
-    file__cp -f "$_src" "$_dest"
-    file__chmod 644 "$_dest"
-    logging__success "  ${_dest}"
-  fi
-done
-
-# --- /etc/profile ---
-_src="${_FEAT_FILES_DIR}/profile"
-if [ -f "$_src" ]; then
-  file__cp -f "$_src" "/etc/profile"
-  file__chmod 644 "/etc/profile"
-  logging__success "  /etc/profile"
-fi
-
-# --- Bash system-wide bashrc ---
-_SYS_BASHRC="$(shell__detect_bashrc)"
-_src="${_FEAT_FILES_DIR}/bash/bashrc"
-if [ -f "$_src" ]; then
-  file__mkdir "$(dirname "$_SYS_BASHRC")"
-  file__cp -f "$_src" "$_SYS_BASHRC"
-  file__chmod 644 "$_SYS_BASHRC"
-  logging__success "  ${_SYS_BASHRC}"
-fi
-
-# --- Bash bashenv (if present in files/) ---
-_src="${_FEAT_FILES_DIR}/bash/bashenv"
-if [ -f "$_src" ]; then
-  # Place bashenv next to bashrc: /etc/bash/bashenv, /etc/bashenv, etc.
-  _bashenv_dest="$(dirname "$_SYS_BASHRC")/bashenv"
-  # If bashrc is at /etc/bashrc or /etc/bash.bashrc, put bashenv at /etc/bashenv.
-  [[ "$_SYS_BASHRC" == "/etc/bash.bashrc" ]] && _bashenv_dest="/etc/bashenv"
-  [[ "$_SYS_BASHRC" == "/etc/bashrc" ]] && _bashenv_dest="/etc/bashenv"
-  file__cp -f "$_src" "$_bashenv_dest"
-  file__chmod 644 "$_bashenv_dest"
-  logging__success "  ${_bashenv_dest}"
-
-  # Ensure BASH_ENV is set system-wide so non-interactive non-login bash
-  # sessions (VS Code tasks, devcontainer exec, CI runners) source it.
-  if ! grep -qxF "BASH_ENV=${_bashenv_dest}" /etc/environment 2> /dev/null; then
-    # Remove any stale BASH_ENV line first, then append the correct one.
-    users__run_privileged sed -i '/^BASH_ENV=/d' /etc/environment 2> /dev/null || true
-    printf 'BASH_ENV=%s\n' "${_bashenv_dest}" | file__tee --append /etc/environment
-    logging__success "  BASH_ENV=${_bashenv_dest} → /etc/environment"
-  fi
-fi
-
-# --- Zsh system-wide files ---
-if command -v zsh > /dev/null 2>&1; then
-  _ZSH_ETC="$(shell__detect_zshdir)"
-  file__mkdir "$_ZSH_ETC"
-
-  for _name in zshenv zprofile zshrc; do
-    _src="${_FEAT_FILES_DIR}/zsh/${_name}"
-    _dest="${_ZSH_ETC}/${_name}"
+  # --- Shared (shell-agnostic) files ---
+  local _name _src _dest
+  for _name in shellenv shellrc shellaliases; do
+    _src="${_FEAT_FILES_DIR}/shell/${_name}"
+    _dest="/etc/${_name}"
     if [ -f "$_src" ]; then
       file__cp -f "$_src" "$_dest"
       file__chmod 644 "$_dest"
@@ -177,64 +125,96 @@ if command -v zsh > /dev/null 2>&1; then
     fi
   done
 
-fi
-
-# ===================================================================
-# Resolve user list
-# ===================================================================
-mapfile -t _RESOLVED_USERS < <(
-  _uargs=()
-  [ "${ADD_CURRENT_USER:-true}" != "true" ] && _uargs+=(--current false)
-  [ "${ADD_REMOTE_USER:-true}" != "true" ] && _uargs+=(--remote false)
-  [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _uargs+=(--container false)
-  for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _uargs+=(--user "$_u"); done
-  users__resolve_list "${_uargs[@]}"
-)
-
-if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
-  logging__info "No users to configure."
-else
-  logging__info "Users to configure: ${_RESOLVED_USERS[*]}"
-fi
-
-# ===================================================================
-# Per-user configuration
-# ===================================================================
-for _username in "${_RESOLVED_USERS[@]}"; do
-  # Verify the user exists.
-  if ! id "$_username" > /dev/null 2>&1; then
-    logging__warn "User '${_username}' does not exist — skipping."
-    continue
+  # --- /etc/profile ---
+  _src="${_FEAT_FILES_DIR}/profile"
+  if [ -f "$_src" ]; then
+    file__cp -f "$_src" "/etc/profile"
+    file__chmod 644 "/etc/profile"
+    logging__success "  /etc/profile"
   fi
 
-  configure_user "$_username"
-done
+  # --- Bash system-wide bashrc ---
+  local _SYS_BASHRC
+  _SYS_BASHRC="$(shell__detect_bashrc)"
+  _src="${_FEAT_FILES_DIR}/bash/bashrc"
+  if [ -f "$_src" ]; then
+    file__mkdir "$(dirname "$_SYS_BASHRC")"
+    file__cp -f "$_src" "$_SYS_BASHRC"
+    file__chmod 644 "$_SYS_BASHRC"
+    logging__success "  ${_SYS_BASHRC}"
+  fi
 
-# ===================================================================
-# Set default shells
-# ===================================================================
-if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
-  _TARGET_SHELL=""
-  case "$SET_USER_SHELLS" in
-    zsh)
-      _TARGET_SHELL="$(command -v zsh 2> /dev/null || true)"
-      if [ -z "$_TARGET_SHELL" ]; then
-        logging__error "set_user_shells=zsh but zsh is not installed."
-        exit 1
-      fi
-      ;;
-    bash)
-      _TARGET_SHELL="$(command -v bash 2> /dev/null || true)"
-      if [ -z "$_TARGET_SHELL" ]; then
-        logging__error "set_user_shells=bash but bash is not installed."
-        exit 1
-      fi
-      ;;
-    *)
-      logging__error "Invalid set_user_shells value: '${SET_USER_SHELLS}' (expected: zsh, bash, none)."
-      exit 1
-      ;;
-  esac
+  # --- Bash bashenv (if present in files/) ---
+  _src="${_FEAT_FILES_DIR}/bash/bashenv"
+  if [ -f "$_src" ]; then
+    # Place bashenv next to bashrc: /etc/bash/bashenv, /etc/bashenv, etc.
+    local _bashenv_dest
+    _bashenv_dest="$(dirname "$_SYS_BASHRC")/bashenv"
+    # If bashrc is at /etc/bashrc or /etc/bash.bashrc, put bashenv at /etc/bashenv.
+    [[ "$_SYS_BASHRC" == "/etc/bash.bashrc" ]] && _bashenv_dest="/etc/bashenv"
+    [[ "$_SYS_BASHRC" == "/etc/bashrc" ]] && _bashenv_dest="/etc/bashenv"
+    file__cp -f "$_src" "$_bashenv_dest"
+    file__chmod 644 "$_bashenv_dest"
+    logging__success "  ${_bashenv_dest}"
 
-  users__set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
-fi
+    # Ensure BASH_ENV is set system-wide so non-interactive non-login bash
+    # sessions (VS Code tasks, devcontainer exec, CI runners) source it.
+    if ! grep -qxF "BASH_ENV=${_bashenv_dest}" /etc/environment 2> /dev/null; then
+      # Remove any stale BASH_ENV line first, then append the correct one.
+      users__run_privileged sed -i '/^BASH_ENV=/d' /etc/environment 2> /dev/null || true
+      printf 'BASH_ENV=%s\n' "${_bashenv_dest}" | file__tee --append /etc/environment
+      logging__success "  BASH_ENV=${_bashenv_dest} → /etc/environment"
+    fi
+  fi
+
+  # --- Zsh system-wide files ---
+  if command -v zsh > /dev/null 2>&1; then
+    local _ZSH_ETC
+    _ZSH_ETC="$(shell__detect_zshdir)"
+    file__mkdir "$_ZSH_ETC"
+
+    for _name in zshenv zprofile zshrc; do
+      _src="${_FEAT_FILES_DIR}/zsh/${_name}"
+      _dest="${_ZSH_ETC}/${_name}"
+      if [ -f "$_src" ]; then
+        file__cp -f "$_src" "$_dest"
+        file__chmod 644 "$_dest"
+        logging__success "  ${_dest}"
+      fi
+    done
+
+  fi
+}
+
+__install_finish_post() {
+  __feat_do_configure_users__
+
+  # ===================================================================
+  # Set default shells
+  # ===================================================================
+  if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_FEAT_CONFIGURE_USERS[@]} -gt 0 ]; then
+    local _TARGET_SHELL=""
+    case "$SET_USER_SHELLS" in
+      zsh)
+        _TARGET_SHELL="$(command -v zsh 2> /dev/null || true)"
+        if [ -z "$_TARGET_SHELL" ]; then
+          logging__error "set_user_shells=zsh but zsh is not installed."
+          return 1
+        fi
+        ;;
+      bash)
+        _TARGET_SHELL="$(command -v bash 2> /dev/null || true)"
+        if [ -z "$_TARGET_SHELL" ]; then
+          logging__error "set_user_shells=bash but bash is not installed."
+          return 1
+        fi
+        ;;
+      *)
+        logging__error "Invalid set_user_shells value: '${SET_USER_SHELLS}' (expected: zsh, bash, none)."
+        return 1
+        ;;
+    esac
+
+    users__set_login_shell "$_TARGET_SHELL" "${_FEAT_CONFIGURE_USERS[@]}"
+  fi
+}

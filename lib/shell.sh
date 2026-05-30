@@ -651,6 +651,87 @@ shell__ensure_bashenv() {
   return 0
 }
 
+# @brief shell__install_completion [--system] [--home <dir>] <shell> <name> <content> — Write a shell completion script to the appropriate completion directory.
+#
+# Selects the install path based on scope (system vs user) and shell:
+#   bash    system: /etc/bash_completion.d/<name>
+#           user:   <home>/.local/share/bash-completion/completions/<name>
+#   zsh     system: <shell__detect_zshdir>/completions/_<name>
+#           user:   <home>/.zfunc/_<name>
+#   fish    system: /usr/share/fish/vendor_completions.d/<name>.fish
+#           user:   <home>/.config/fish/completions/<name>.fish
+#   nushell (no system path): <home>/.config/nushell/autoload/<name>.nu
+#   elvish  (no system path): named block in <home>/.config/elvish/rc.elv
+#
+# Args:
+#   --system      Use system-wide paths (root behaviour). When omitted, user paths are used.
+#                 Ignored for nushell and elvish (no standard system paths exist).
+#   --home <dir>  Home directory for user-scoped paths. Defaults to $HOME.
+#   <shell>       Target shell: bash, zsh, fish, nushell, or elvish.
+#   <name>        Completion file base name (tool name, e.g. "yq").
+#   <content>     Completion script text to write.
+#
+# Returns: 0 on success, 1 for unsupported shells or write errors.
+shell__install_completion() {
+  local _system=false _home="${HOME:-}"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --system)
+        _system=true
+        shift
+        ;;
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
+      *) break ;;
+    esac
+  done
+  local _shell="$1" _name="$2" _content="$3"
+  local _dest
+  case "${_shell}" in
+    bash)
+      if "${_system}"; then
+        _dest="/etc/bash_completion.d/${_name}"
+      else
+        _dest="${_home}/.local/share/bash-completion/completions/${_name}"
+      fi
+      ;;
+    zsh)
+      if "${_system}"; then
+        _dest="$(shell__detect_zshdir)/completions/_${_name}"
+      else
+        _dest="${_home}/.zfunc/_${_name}"
+      fi
+      ;;
+    fish)
+      if "${_system}"; then
+        _dest="/usr/share/fish/vendor_completions.d/${_name}.fish"
+      else
+        _dest="${_home}/.config/fish/completions/${_name}.fish"
+      fi
+      ;;
+    nushell)
+      _dest="${_home}/.config/nushell/autoload/${_name}.nu"
+      ;;
+    elvish)
+      local _rc="${_home}/.config/elvish/rc.elv"
+      file__mkdir "$(dirname "${_rc}")"
+      shell__write_block --file "${_rc}" --marker "${_name} completion" --content "${_content}"
+      logging__success "Shell completion for '${_shell}' written to '${_rc}'."
+      return 0
+      ;;
+    *)
+      logging__error "shell__install_completion: unsupported shell '${_shell}' (expected: bash, zsh, fish, nushell, elvish)."
+      return 1
+      ;;
+  esac
+  file__mkdir "$(dirname "${_dest}")"
+  printf '%s\n' "${_content}" | file__tee "${_dest}"
+  logging__success "Shell completion for '${_shell}' written to '${_dest}'."
+}
+
 # @brief shell__create_symlink --src <s> --system-target <t> --user-target <t> — Create a symlink, choosing system-wide or user-scoped location based on write access.
 #
 # Places the symlink at <system-target> if the system target's parent directory

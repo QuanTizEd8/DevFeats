@@ -127,6 +127,35 @@ github__release_json_digest_for_asset() {
   return 0
 }
 
+# @brief github__release_json_digest_from_uri <release-json-uri> <asset_name> — Fetch GitHub release JSON and print the asset SHA-256 digest.
+#
+# Fetches the release document at <release-json-uri> (typically
+# `https://api.github.com/repos/<owner>/<repo>/releases/tags/<tag>`) via the
+# GitHub API (respects `GITHUB_TOKEN`), then extracts the `digest` field for the
+# asset whose `name` equals <asset_name>.  Callers pass the result to
+# `install__release_asset` as `--sha256 <hex>`.
+#
+# Args:
+#   <release-json-uri>  Full GitHub Releases API URL for a single release.
+#   <asset_name>        Exact release asset filename.
+#
+# Stdout: 64-character lowercase hex digest.
+#
+# Returns: 0 on success, 1 if the fetch fails, the asset is not found, or digest is absent.
+github__release_json_digest_from_uri() {
+  local _uri="$1" _name="$2"
+  local _reljson _digest=""
+  [ -n "$_uri" ] && [ -n "$_name" ] || return 1
+  _reljson="$(mktemp)"
+  if _github__api_get "$_uri" "$_reljson" 2> /dev/null; then
+    _digest="$(github__release_json_digest_for_asset "$_reljson" "$_name")" || _digest=""
+  fi
+  rm -f "$_reljson"
+  [ -n "$_digest" ] || return 1
+  printf '%s\n' "$_digest"
+  return 0
+}
+
 # @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset and verify its SHA-256 if a digest is available in the API.
 #
 # The download URL is `https://github.com/<repo>/releases/download/<tag>/<asset-name>`.
@@ -176,16 +205,18 @@ github__fetch_release_asset_tarball() {
 
 # @brief github__install_release OPTIONS — Resolve a GitHub release asset and install via uri__fetch_asset.
 #
-# Resolves a release asset from the GitHub API, then delegates all download,
-# verification, extraction, and installation to `uri__fetch_asset`. When neither
+# Resolves a release asset from the GitHub API, then delegates download,
+# verification, extraction, and installation to `install__release_asset`. When neither
 # `--asset` nor `--asset-regex` is given, `github__pick_release_asset` heuristics
 # select the best-matching asset for the current OS and architecture.
 #
 # Two automatic behaviors are applied before delegation:
 #
 # - **JSON digest**: the SHA-256 from the GitHub release API is passed as
-#   `--sha256` unless the caller already passes `--sha256 none` (which suppresses
-#   it) or `--sha256 <hex>` (which is applied as a second independent check).
+#   `--sha256` unless the caller already passes `--sha256` (any value). When
+#   `--sha256 none` is given, JSON lookup and digest verification are both
+#   skipped. When `--sha256 <hex>` is given, only that hash is used (no JSON
+#   fetch).
 # - **Sidecar auto-probe**: when `--sidecar` is not given, the following
 #   candidate URLs are probed in order: `<asset-url>.sha256`,
 #   `<release-base>/SHA256SUMS`, `<release-base>/sha256sum.txt`. A found
@@ -316,9 +347,21 @@ github__install_release() {
     _passthrough+=(--sidecar "${_caller_sidecar}")
   fi
 
+  local -a _sha256_args=()
+  if ! "$_caller_sha256_set"; then
+    local _json_digest=""
+    _json_digest="$(github__release_json_digest_from_uri \
+      "https://api.github.com/repos/${_repo}/releases/tags/${_tag}" "$_asset")" || _json_digest=""
+    if [[ -n "$_json_digest" ]]; then
+      _sha256_args=(--sha256 "$_json_digest")
+    else
+      logging__warn "github__install_release: no JSON digest for '${_asset}' — skipping JSON SHA-256."
+    fi
+  fi
+
   install__release_asset \
     --asset-uri "${_release_base}/${_asset}" \
-    --release-json-uri "https://api.github.com/repos/${_repo}/releases/tags/${_tag}" \
+    "${_sha256_args[@]}" \
     "${_passthrough[@]}"
 }
 

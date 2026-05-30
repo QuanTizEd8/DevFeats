@@ -17,12 +17,6 @@ _options:
   installer_dir: false
   user_file_fetch: true
 options:
-  conda_dir:
-    default: ''
-    description: |-
-      Path to the conda installation directory.
-      Leave empty to auto-detect via `conda` in PATH.
-    type: string
   env_files:
     default: ''
     _uri: true
@@ -124,15 +118,14 @@ options:
       description: Arbitrary HTTPS URL.
     type: string
   solver:
-    default: auto
-    description: Conda solver to use.
-    enum:
-    - value: auto
-      description: Prefer mamba if available, fall back to conda.
-    - value: mamba
-      description: Force the mamba solver (requires mamba to be installed).
-    - value: conda
-      description: Force the conda solver.
+    default: ''
+    description: |-
+      Conda/mamba executable to use for solving and installing packages.
+      Leave empty to auto-detect: mamba is tried first, then conda, searching
+      the install-time PATH and RUNTIME_PATH in order.
+      Accepts a command name (e.g. `mamba`, `conda`) or a full path
+      (e.g. `/opt/conda/bin/mamba`). The conda base directory is derived
+      automatically via `<solver> info --base`.
     type: string
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user

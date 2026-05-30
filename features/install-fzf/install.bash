@@ -6,10 +6,10 @@
 # --- install_fzf() + blank (original lines 128–178) ---
 # ---------------------------------------------------------------------------
 # install_fzf — Download fzf from GitHub Releases, verify checksum, install.
-# Uses: FZF_PREFIX.
+# Uses: PREFIX.
 # ---------------------------------------------------------------------------
 install_fzf() {
-  local _bin_dir="${FZF_PREFIX}/bin"
+  local _bin_dir="${PREFIX}/bin"
 
   if [ -x "${_bin_dir}/fzf" ]; then
     logging__info "fzf already installed at '${_bin_dir}/fzf' — skipping."

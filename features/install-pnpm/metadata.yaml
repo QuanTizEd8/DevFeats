@@ -1,0 +1,31 @@
+version: 0.1.0
+name: pnpm Installation
+description: Install [pnpm](https://pnpm.io/) globally via npm.
+keywords:
+  - pnpm
+  - npm
+  - node
+  - javascript
+  - package-manager
+_long_description: |-
+  Installs pnpm globally using `npm install -g pnpm[@VERSION]`.
+  Requires Node.js to be installed first (via install-node or install-nvm).
+_tool_name: pnpm
+installsAfter:
+  - ghcr.io/quantized8/devfeats/install-node
+  - ghcr.io/quantized8/devfeats/install-nvm
+_options:
+  version:
+    resolution: npm
+    default: latest
+    inputs: [latest, semver]
+    proposals:
+      - value: 9.15.0
+        description: pnpm v9.15.0.
+      - value: 8.15.9
+        description: pnpm v8.15.9.
+  method:
+    npm:
+      package: pnpm
+  prefix:
+    bins: [pnpm]

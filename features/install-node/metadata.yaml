@@ -1,196 +1,34 @@
 version: 0.1.0
 name: Node.js Installation
-description: Install [Node.js](https://nodejs.org/) via [nvm](https://github.com/nvm-sh/nvm) or from a prebuilt binary tarball.
+description: Install [Node.js](https://nodejs.org/) from an official prebuilt binary tarball.
 keywords:
-- node
-- nodejs
-- npm
-- nvm
-- javascript
+  - node
+  - nodejs
+  - npm
+  - javascript
 _long_description: |-
-  Node.js can be installed via nvm (Node Version Manager) or from an official prebuilt
-  tarball. The nvm method supports Linux (glibc and musl/Alpine), macOS, and any POSIX
-  platform; on Alpine Linux, Node.js is compiled from source when needed, with build
-  dependencies resolved automatically.
+  Downloads the official prebuilt Node.js tarball from nodejs.org and verifies
+  its integrity against the official SHASUMS256.txt file.
+  Supports Linux glibc (x64, arm64, armv7l) and macOS (x64, arm64).
+  Not compatible with Alpine Linux (musl); use install-nvm for Alpine.
 
-  The binary method downloads the official prebuilt tarball from nodejs.org and verifies
-  its integrity against the official SHASUMS256.txt file. It supports Linux glibc (x64,
-  arm64, armv7l) and macOS (x64, arm64), but is not compatible with Alpine Linux (musl).
-
-  Version aliases such as lts/*, --lts, or a major version number are supported alongside
-  exact semver strings; the default installs the latest Active LTS release.
+  Version aliases such as `lts/*` or a major version number are resolved against
+  the nodejs.org release index before install.
 _tool_name: Node.js
 options:
-  method:
-    type: string
-    default: nvm
-    description: Installation method to use.
-    enum:
-    - value: nvm
-      description: |-
-        Install via nvm (Node Version Manager). Installs nvm itself to `nvm_dir`,
-        then uses it to install the requested Node.js version. Supports all platforms
-        including Alpine (via source compilation with `nvm install -s`).
-        The nvm shell function is available after sourcing `$nvm_dir/nvm.sh`;
-        node/npm/npx binaries are symlinked to `/usr/local/bin` when running as root and `symlink=true`.
-    - value: binary
-      description: |-
-        Download and extract the official prebuilt Node.js tarball from nodejs.org/dist
-        to `prefix`. Fast and dependency-free. Does NOT support Alpine Linux
-        (glibc-only binaries). Exits with a clear error on Alpine; use `method=nvm` instead.
-  version:
-    type: string
-    default: lts/*
-    description: |-
-      Version of Node.js to install.
-      Accepts nvm-style aliases (`lts/*`, major number) and exact semver strings
-      (e.g. `24.11.1` or `v24.11.1`) for both `method=nvm` and `method=binary`.
-    proposals:
-    - value: lts/*
-      description: |-
-        Latest Active LTS release (nvm alias; resolved from nodejs.org/dist/index.json for method=binary).
-        With `method=nvm`, the shell form `lts/*` is passed to `nvm install` (always quoted internally to prevent glob expansion).
-    - value: lts
-      description: Alias for `lts/*`; normalized internally.
-    - value: latest
-      description: Very latest release (may be a non-LTS Current release). `node` is a nvm alias for the same thing.
-    - value: none
-      description: |-
-        Install nvm itself but do not install any Node.js version (method=nvm only).
-        Useful when a `.nvmrc` or lifecycle script manages node version selection.
-    - value: '24'
-      description: Latest stable release in the Node.js 24.x line.
-    - value: '22'
-      description: Latest stable release in the Node.js 22.x line.
-    - value: '20'
-      description: Latest stable release in the Node.js 20.x line.
-    - value: '18'
-      description: Latest stable release in the Node.js 18.x line.
-    - value: 24.11.1
-      description: |-
-        An exact semver string — installs that specific version.
-        Also accepts the `v`-prefixed form (e.g. `v24.11.1`).
-        With `method=nvm`, passes the version directly to `nvm install`.
-        With `method=binary`, fetches exactly that release from nodejs.org/dist.
-  additional_versions:
-    type: array
-    _applies_when:
-      - method: [nvm]
-    default: ''
-    description: |-
-      Additional Node.js versions to install via nvm alongside the primary `version`,
-      without setting them as the nvm default.
-      Uses the same version syntax as `version` (major number, exact semver, or LTS alias).
-      Useful for testing across multiple Node.js versions in a single container or satisfying `.nvmrc` lookups for sub-projects.
-    proposals:
-    - value: ''
-      description: Install no additional versions.
-    - value: '20'
-      description: Also install Node.js 20.x.
-    - value: '18'
-      description: Also install Node.js 18.x.
-    - value: "22\n20"
-      description: Also install Node.js 22 and 20.
-    - value: "22\n20\n18"
-      description: Also install Node.js 22, 20, and 18.
-  nvm_version:
-    type: string
-    _applies_when:
-      - method: [nvm]
-    default: stable
-    description: |-
-      Version of nvm to install.
-      `stable` resolves the latest stable nvm release, `latest` resolves the most recently published (may include pre-releases).
-      An explicit tag (e.g. `0.40.4` or `v0.40.4`) pins nvm to that exact release.
-    proposals:
-    - value: stable
-      description: Resolve the latest stable nvm release tag via the GitHub Releases API at install time.
-    - value: latest
-      description: Resolve the most recently published nvm release tag via the GitHub Releases API, which may include pre-releases.
-    - value: 0.40.4
-      description: nvm v0.40.4.
-    - value: 0.40.3
-      description: nvm v0.40.3.
-  arch:
-    type: string
-    _applies_when:
-      - method: [binary]
-    default: ''
-    description: |-
-      Override the CPU architecture when selecting a prebuilt binary.
-      Accepted values: 'x86_64', 'aarch64' (mapped to linux-x64 / linux-arm64 for Linux; darwin-arm64 for macOS).
-      When empty (default), the architecture is detected automatically from uname -m.
-      Useful for cross-arch scenarios or forced emulation.
-  install_user:
-    type: string
-    default: ''
-    _applies_when:
-      - method: [nvm]
-    description: |-
-      User to run the nvm installer and Node.js operations as (method=nvm only).
-      Non-root callers cannot set this to a different user.
-      When empty (default), the install user is resolved as:
-        `SUDO_USER` (if set and non-root) → `_REMOTE_USER` (if set and non-root) → current effective user.
   node_gyp_deps:
     type: boolean
     default: true
     description: |-
-      Install OS build dependencies required to compile native Node.js modules via node-gyp: 'make', 'gcc'/'g++', and 'python3'.
-      On Alpine Linux with method=nvm, these tools are already provided by the nvm source-build toolchain (nvm.yaml manifest) and this option is a no-op.
-      Set to false to skip installation of build tools if you do not need to compile native modules and prefer a smaller image.
-  pnpm_version:
-    type: string
-    default: none
-    description: |-
-      Version of pnpm to install globally after Node.js is installed.
-      Explicit versions (e.g. `9.15.0`) are installed via `npm install -g pnpm@VERSION`.
-    proposals:
-    - value: none
-      description: Skip pnpm installation.
-    - value: latest
-      description: Install the latest pnpm release via `npm install -g pnpm@latest`.
-    - value: 9.15.0
-      description: pnpm v9.15.0.
-    - value: 8.15.9
-      description: pnpm v8.15.9.
-  yarn_version:
-    type: string
-    default: none
-    description: |-
-      Version of Yarn to install globally after Node.js is installed.
-      Explicit version strings (e.g. `1.22.22`) are installed via `npm install -g yarn@VERSION`.
-    proposals:
-    - value: none
-      description: Skip Yarn installation.
-    - value: latest
-      description: |-
-        Enable Yarn via `corepack enable` (ships with Node.js 16+);
-        falls back to `npm install -g yarn` if corepack is unavailable.
-    - value: 1.22.22
-      description: |-
-        Yarn v1.22.22 (Classic), installed via `npm install -g yarn@1.22.22`.
+      Install OS build dependencies required to compile native Node.js modules via node-gyp:
+      `make`, `gcc`/`g++`, and `python3`.
+      Set to `false` to skip if you do not need to compile native modules.
 _dependencies:
   run:
     base:
       packages:
         - ca-certificates
-    nvm-runtime:
-      # Runtime dependencies required by Node.js and nvm on Alpine Linux.
-      # bash is sourced in every shell session by nvm.sh; libgcc/ncurses/openssl
-      # are shared libraries linked by the nvm-compiled Node.js binary.
-      # These must not be removed as build-only packages.
-      apk:
-        packages:
-          - bash
-          - libgcc
-          - ncurses
-          - openssl
     node-gyp:
-      # Build tools for compiling native Node.js add-ons via node-gyp.
-      # On Alpine with method=nvm, make/gcc/g++/python3 are already provided
-      # by the nvm manifest and this manifest is skipped.
-      # These are runtime dependencies: needed whenever a user runs
-      # 'npm install' with native modules inside the container.
       packages:
         - make
         - when: {pm: [apt, dnf, yum, zypper, pacman]}
@@ -201,65 +39,36 @@ _dependencies:
           packages: [gcc-c++, python3]
         - when: {pm: pacman}
           packages: [python]
-  build:
-    nvm:
-      # nvm build prerequisites on Alpine Linux.
-      # Installs the full build toolchain required by nvm to compile Node.js
-      # from source (nvm install -s). Runtime libs are in run.nvm-runtime.
-      apk:
-        packages:
-          - binutils
-          - coreutils
-          - findutils
-          - g++
-          - gcc
-          - grep
-          - linux-headers
-          - make
-          - python3
-          - util-linux
-containerEnv:
-  NVM_DIR: /usr/local/share/nvm
-  NVM_SYMLINK_CURRENT: 'true'
-  PATH: /usr/local/share/nvm/current/bin:${PATH}
 _options:
-  gh_repo: nvm-sh/nvm
+  version:
+    resolution: none
+    default: lts/*
+    inputs: [major, semver]
+    proposals:
+      - value: lts/*
+        description: Latest Active LTS release (resolved from nodejs.org/dist/index.json).
+      - value: '24'
+        description: Latest stable release in the Node.js 24.x line.
+      - value: '22'
+        description: Latest stable release in the Node.js 22.x line.
+      - value: '20'
+        description: Latest stable release in the Node.js 20.x line.
+      - value: '18'
+        description: Latest stable release in the Node.js 18.x line.
+      - value: 24.11.1
+        description: An exact semver string — installs that specific version.
+  method:
+    binary:
+      asset_uri: "https://nodejs.org/dist/{VERSION}/node-{VERSION}-{OS}-{ARCH:node}.tar.xz"
+      sidecar_uri: "https://nodejs.org/dist/{VERSION}/SHASUMS256.txt"
+      binary_src: bin/node
+  prefix:
+    bins: [node, npm, npx, corepack]
+    symlink: {}
 customizations:
   vscode:
     extensions:
-    - dbaeumer.vscode-eslint
+      - dbaeumer.vscode-eslint
     settings:
       github.copilot.chat.codeGeneration.instructions:
-      - text: This dev container includes 'node', 'npm', and optionally 'pnpm'/'yarn' pre-installed and available on the PATH for Node.js development.
-# installsAfter:
-# - ghcr.io/devcontainers/features/common-utils
-_prefix_groups:
-  "":
-    applies_when:
-      - method:
-        - binary
-    prefix:
-      bins: [node, npm, npx, corepack]
-    symlink: {}
-  nvm:
-    applies_when:
-      - method:
-        - nvm
-    option_name: nvm_dir
-    prefix:
-      root: /usr/local/share/nvm
-      nonroot: "${HOME}/.nvm"
-    symlink:
-      skip: true
-    exports:
-      skip: true
-    activation:
-      shells: [bash, zsh]
-      description: |-
-        Shells to write NVM initialisation to RC files for (only active when `method=nvm`).
-        Sources `$NVM_DIR/nvm.sh` and the shell completion script in interactive shells,
-        making `nvm`, `node`, and `npm` available on the command line.
-        Set to `''` to skip all activation writes.
-    write_group:
-      default: nvm
-      owner_var: _NVM_USER
+        - text: This dev container includes 'node' and 'npm' pre-installed and available on the PATH for Node.js development.

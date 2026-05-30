@@ -261,15 +261,12 @@ install__promote_path_to_user() {
 
 # @brief install__release_asset OPTIONS — Download and install a release asset from any URI.
 #
-# Generalised release-asset installer. Accepts a fully expanded asset URI plus
-# optional release JSON metadata for digest extraction and sidecar auto-probe.
-# All download, verification, extraction, and installation are delegated to
-# `uri__fetch_asset`.
+# Generalised release-asset installer. Accepts a fully expanded asset URI and
+# delegates download, verification, extraction, and installation to
+# `uri__fetch_asset`.  GitHub Releases API digest lookup is the caller's
+# responsibility (see `github__release_json_digest_from_uri`).
 #
-# Two automatic behaviours (when applicable):
-#   - **JSON digest**: when `--release-json-uri` is given, the SHA-256 from the
-#     GitHub Releases API JSON is extracted and passed as `--sha256`, unless the
-#     caller already supplies `--sha256` in any form.
+# Automatic behaviour (when applicable):
 #   - **Sidecar auto-probe**: when `--sidecar` is not given and `--sha256 none`
 #     is not set, three candidate URLs are probed in order:
 #     `<asset-uri>.sha256`, `<release-base>/SHA256SUMS`,
@@ -279,8 +276,6 @@ install__promote_path_to_user() {
 # Args:
 #   --asset-uri <uri>          Full asset URI; runtime patterns already expanded.
 #                              Required.
-#   --release-json-uri <url>   Full GitHub Releases API JSON URL for digest
-#                              extraction. Optional.
 #   --asset-name <name>        Explicit asset basename override (default: basename
 #                              of --asset-uri with query parameters stripped).
 #   --sidecar <uri>            Explicit sidecar URI (skips auto-probe). A bare
@@ -303,7 +298,7 @@ install__promote_path_to_user() {
 #
 # Returns: 0 on success, 1 on failure.
 install__release_asset() {
-  local _asset_uri="" _release_json_uri="" _asset_name_override=""
+  local _asset_uri="" _asset_name_override=""
   local _caller_sha256="" _caller_sha256_set=false
   local _caller_sidecar="" _caller_sidecar_set=false
   local _nbsrc=0 _nbdest=0
@@ -313,10 +308,6 @@ install__release_asset() {
     case "$1" in
       --asset-uri)
         _asset_uri="$2"
-        shift 2
-        ;;
-      --release-json-uri)
-        _release_json_uri="$2"
         shift 2
         ;;
       --asset-name)
@@ -395,22 +386,6 @@ install__release_asset() {
     fi
   fi
 
-  # ── JSON digest (skip if caller already passed --sha256 in any form) ────────
-  local -a _sha256_arg=()
-  if ! "$_caller_sha256_set" && [[ -n "$_release_json_uri" ]]; then
-    local _reljson _json_digest=""
-    _reljson="$(mktemp)"
-    if _github__api_get "$_release_json_uri" "$_reljson" 2> /dev/null; then
-      _json_digest="$(github__release_json_digest_for_asset "$_reljson" "$_asset_name")" || _json_digest=""
-    fi
-    rm -f "$_reljson"
-    if [[ -n "$_json_digest" ]]; then
-      _sha256_arg=(--sha256 "$_json_digest")
-    else
-      logging__warn "install__release_asset: no JSON digest for '${_asset_name}' — skipping JSON SHA-256."
-    fi
-  fi
-
   # ── Sidecar auto-probe (skip if caller passed --sidecar or --sha256 none) ───
   local -a _sidecar_arg=() _probe_auth=()
   local _i=0
@@ -448,7 +423,6 @@ install__release_asset() {
 
   # ── Delegate to uri__fetch_asset ────────────────────────────────────────────
   uri__fetch_asset "$_asset_uri" \
-    "${_sha256_arg[@]}" \
     "${_sidecar_arg[@]}" \
     "${_passthrough[@]}"
 }

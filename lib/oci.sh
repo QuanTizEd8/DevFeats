@@ -218,12 +218,7 @@ oci__ensure_oras() {
   _bin="$(command -v oras 2> /dev/null || true)"
   if [[ -z "$_bin" ]]; then
     logging__info "oras not found — installing."
-    _bin="$(install__oras \
-      --context internal \
-      --owner-group "lib-oci-oras" \
-      --version "${SYSSET_ORAS_VERSION:-latest}" \
-      --method auto \
-      --if-exists skip 2> /dev/null || true)"
+    _bin="$(bootstrap__oras "${SYSSET_ORAS_VERSION:-latest}" 2> /dev/null || true)"
     [[ -n "$_bin" ]] || _bin="$(command -v oras 2> /dev/null || true)"
   fi
   if [[ -z "$_bin" ]]; then

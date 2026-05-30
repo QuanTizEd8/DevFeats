@@ -1,8 +1,3 @@
-# Constants
-# ---------------------------------------------------------------------------
-_P10K_BASE_URL="https://github.com/romkatv/powerlevel10k-media/raw/master"
-_NF_BASE_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
-
 # Helper: ensure the timestamped install directory exists (lazy)
 # ---------------------------------------------------------------------------
 _ensure_install_dir() {
@@ -159,10 +154,24 @@ install_archive_contents() {
   done
 }
 
-# Auto-detect font directory when not explicitly set.
-if [[ -z "$FONT_DIR" ]]; then
-  FONT_DIR="$(os__font_dir)"
-fi
+# ── Template hook implementations ─────────────────────────────────────────────
+
+__init_args_post() {
+  [[ -n "${FONT_DIR}" ]] || FONT_DIR="$(os__font_dir)"
+}
+
+__install_init_post() {
+  declare -g -A _SEEN_NAMES=()
+  declare -g _INSTALL_DIR=""
+  # Populate _SEEN_NAMES from all .ttf/.otf already present in FONT_DIR.
+  # WOFF/WOFF2 are excluded — fc-query does not handle them.
+  [[ -d "${FONT_DIR}" ]] || return 0
+  local _psname
+  while IFS= read -r _psname; do
+    [[ -n "${_psname}" ]] && _SEEN_NAMES["${_psname}"]=1
+  done < <(find "${FONT_DIR}" -type f \( -name '*.ttf' -o -name '*.otf' \) -print0 |
+    xargs -0 -r fc-query --format='%{postscriptname}\n' 2> /dev/null || true)
+}
 
 # Sources are processed in priority order: p10k → nerd → gh → url.
 # Fonts are deduplicated by PostScript name. Archives are extracted to a temp
@@ -175,202 +184,189 @@ fi
 #     nerd/<FontName>/
 #     gh/<owner>/<repo>/<tag_name>/<release_id>/
 #     url/<host>/<path>/
+# shellcheck disable=SC2329,SC2317
+__install_run__() {
+  local _P10K_BASE_URL="https://github.com/romkatv/powerlevel10k-media/raw/master"
+  local _NF_BASE_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
 
-# ---------------------------------------------------------------------------
-# State: seen PostScript names + lazy install directory
-# ---------------------------------------------------------------------------
-declare -A _SEEN_NAMES=()
-_INSTALL_DIR=""
+  # ---------------------------------------------------------------------------
+  # Step 1 — Powerlevel10k MesloLGS NF fonts (highest priority)
+  # ---------------------------------------------------------------------------
 
-# Populate _SEEN_NAMES from all .ttf/.otf already present in FONT_DIR.
-# WOFF/WOFF2 are excluded — fc-query does not handle them.
-if [[ -d "$FONT_DIR" ]]; then
-  while IFS= read -r _psname; do
-    [[ -n "$_psname" ]] && _SEEN_NAMES["$_psname"]=1
-  done < <(find "$FONT_DIR" -type f \( -name '*.ttf' -o -name '*.otf' \) -print0 |
-    xargs -0 -r fc-query --format='%{postscriptname}\n' 2> /dev/null || true)
-fi
-
-# ---------------------------------------------------------------------------
-# Step 1 — Powerlevel10k MesloLGS NF fonts (highest priority)
-# ---------------------------------------------------------------------------
-
-if [[ "$P10K_FONTS" == true ]]; then
-  logging__info "Installing Powerlevel10k MesloLGS NF fonts..."
-  _P10K_FONT_FILES=(
-    "MesloLGS%20NF%20Regular.ttf"
-    "MesloLGS%20NF%20Bold.ttf"
-    "MesloLGS%20NF%20Italic.ttf"
-    "MesloLGS%20NF%20Bold%20Italic.ttf"
-  )
-  for _FONT in "${_P10K_FONT_FILES[@]}"; do
-    _LOCAL_NAME="$(printf '%b' "${_FONT//%/\\x}")"
-    _TMPFILE="$(mktemp)"
-    if uri__fetch_asset "${_P10K_BASE_URL}/${_FONT}" --file-dest "$_TMPFILE" --installer-dir "${INSTALLER_DIR}" > /dev/null; then
-      install_font_file "$_TMPFILE" "p10k/MesloLGS-NF/${_LOCAL_NAME}"
-    else
-      logging__warn "Could not download '${_LOCAL_NAME}' — skipping."
-    fi
-    rm -f "$_TMPFILE"
-  done
-  logging__success "Powerlevel10k MesloLGS NF fonts processed."
-fi
-
-# ---------------------------------------------------------------------------
-# Step 2 — Nerd Fonts from official releases
-# ---------------------------------------------------------------------------
-if [[ "${#NERD_FONTS[@]}" -gt 0 ]]; then
-  for _font_name in "${NERD_FONTS[@]}"; do
-    [[ -z "$_font_name" ]] && continue
-
-    logging__info "Downloading Nerd Font '${_font_name}'..."
-    if _asset_dir="$(uri__fetch_asset "${_NF_BASE_URL}/${_font_name}.tar.xz" --installer-dir "${INSTALLER_DIR}")"; then
-      install_archive_contents "$_asset_dir" "nerd/${_font_name}"
-      logging__success "Nerd Font '${_font_name}' processed."
-    else
-      logging__warn "Could not download '${_font_name}' from nerd-fonts releases — skipping."
-    fi
-  done
-fi
-
-# ---------------------------------------------------------------------------
-# Step 3 — GitHub release fonts
-# ---------------------------------------------------------------------------
-if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
-  for _slug in "${GH_RELEASE_FONTS[@]}"; do
-    [[ -z "$_slug" ]] && continue
-
-    _repo_path="${_slug%@*}"
-    _tag=""
-    [[ "$_slug" == *@* ]] && _tag="${_slug#*@}"
-    _owner="${_repo_path%%/*}"
-    _repo_name="${_repo_path##*/}"
-
-    logging__info "Querying release assets for '${_slug}'..."
-    _API_RESPONSE="$(mktemp)"
-    _fetch_args=()
-    [[ -n "$_tag" ]] && _fetch_args+=(--tag "$_tag")
-    if ! github__fetch_release_json "$_repo_path" "${_fetch_args[@]}" --dest "$_API_RESPONSE"; then
-      logging__warn "Could not query GitHub release for '${_slug}' — skipping."
-      rm -f "$_API_RESPONSE"
-      continue
-    fi
-
-    # Extract tag_name and release id for namespace (minified JSON-safe).
-    _tag_name="$(github__release_json_tag_name "$_API_RESPONSE")" || _tag_name=""
-    _release_id="$(github__release_json_id "$_API_RESPONSE")" || _release_id=""
-    if [[ -z "$_tag_name" || -z "$_release_id" ]]; then
-      logging__warn "Could not parse tag_name or release id from GitHub response for '${_slug}' — setting to 0."
-      _tag_name="0"
-      _release_id="0"
-    fi
-    _NS="gh/${_owner}/${_repo_name}/${_tag_name}/${_release_id}"
-
-    # Extract all font/archive asset URLs.
-    mapfile -t _ALL_ASSET_URLS < <(
-      json__object_array_field_lines_stdin assets browser_download_url < "$_API_RESPONSE" |
-        grep -iE '\.(ttf|otf|woff2?|tar\.xz|tar\.gz|tgz|zip)$' || true
+  if [[ "$P10K_FONTS" == true ]]; then
+    logging__info "Installing Powerlevel10k MesloLGS NF fonts..."
+    _P10K_FONT_FILES=(
+      "MesloLGS%20NF%20Regular.ttf"
+      "MesloLGS%20NF%20Bold.ttf"
+      "MesloLGS%20NF%20Italic.ttf"
+      "MesloLGS%20NF%20Bold%20Italic.ttf"
     )
-    rm -f "$_API_RESPONSE"
-
-    if [[ ${#_ALL_ASSET_URLS[@]} -eq 0 ]]; then
-      logging__warn "No font or archive assets found in '${_slug}' release — skipping."
-      continue
-    fi
-
-    # Prefer archives; fall back to individual font files if no archives exist.
-    _ARCHIVE_URLS=()
-    _FONTFILE_URLS=()
-    for _asset_url in "${_ALL_ASSET_URLS[@]}"; do
-      case "${_asset_url##*/}" in
-        *.tar.xz | *.tar.gz | *.tgz | *.zip) _ARCHIVE_URLS+=("$_asset_url") ;;
-        *) _FONTFILE_URLS+=("$_asset_url") ;;
-      esac
+    for _FONT in "${_P10K_FONT_FILES[@]}"; do
+      _LOCAL_NAME="$(printf '%b' "${_FONT//%/\\x}")"
+      _TMPFILE="$(mktemp)"
+      if uri__fetch_asset "${_P10K_BASE_URL}/${_FONT}" --file-dest "$_TMPFILE" --installer-dir "${INSTALLER_DIR}" > /dev/null; then
+        install_font_file "$_TMPFILE" "p10k/MesloLGS-NF/${_LOCAL_NAME}"
+      else
+        logging__warn "Could not download '${_LOCAL_NAME}' — skipping."
+      fi
+      rm -f "$_TMPFILE"
     done
-    if [[ ${#_ARCHIVE_URLS[@]} -gt 0 ]]; then
-      _DOWNLOAD_URLS=("${_ARCHIVE_URLS[@]}")
-    else
-      _DOWNLOAD_URLS=("${_FONTFILE_URLS[@]}")
-    fi
+    logging__success "Powerlevel10k MesloLGS NF fonts processed."
+  fi
 
-    for _asset_url in "${_DOWNLOAD_URLS[@]}"; do
-      _asset_basename="${_asset_url##*/}"
-      logging__info "Downloading '${_asset_basename}' from '${_slug}' release..."
-      case "$_asset_basename" in
+  # ---------------------------------------------------------------------------
+  # Step 2 — Nerd Fonts from official releases
+  # ---------------------------------------------------------------------------
+  if [[ "${#NERD_FONTS[@]}" -gt 0 ]]; then
+    for _font_name in "${NERD_FONTS[@]}"; do
+      [[ -z "$_font_name" ]] && continue
+
+      logging__info "Downloading Nerd Font '${_font_name}'..."
+      if _asset_dir="$(uri__fetch_asset "${_NF_BASE_URL}/${_font_name}.tar.xz" --installer-dir "${INSTALLER_DIR}")"; then
+        install_archive_contents "$_asset_dir" "nerd/${_font_name}"
+        logging__success "Nerd Font '${_font_name}' processed."
+      else
+        logging__warn "Could not download '${_font_name}' from nerd-fonts releases — skipping."
+      fi
+    done
+  fi
+
+  # ---------------------------------------------------------------------------
+  # Step 3 — GitHub release fonts
+  # ---------------------------------------------------------------------------
+  if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
+    for _slug in "${GH_RELEASE_FONTS[@]}"; do
+      [[ -z "$_slug" ]] && continue
+
+      _repo_path="${_slug%@*}"
+      _tag=""
+      [[ "$_slug" == *@* ]] && _tag="${_slug#*@}"
+      _owner="${_repo_path%%/*}"
+      _repo_name="${_repo_path##*/}"
+
+      logging__info "Querying release assets for '${_slug}'..."
+      _API_RESPONSE="$(mktemp)"
+      _fetch_args=()
+      [[ -n "$_tag" ]] && _fetch_args+=(--tag "$_tag")
+      if ! github__fetch_release_json "$_repo_path" "${_fetch_args[@]}" --dest "$_API_RESPONSE"; then
+        logging__warn "Could not query GitHub release for '${_slug}' — skipping."
+        rm -f "$_API_RESPONSE"
+        continue
+      fi
+
+      # Extract tag_name and release id for namespace (minified JSON-safe).
+      _tag_name="$(github__release_json_tag_name "$_API_RESPONSE")" || _tag_name=""
+      _release_id="$(github__release_json_id "$_API_RESPONSE")" || _release_id=""
+      if [[ -z "$_tag_name" || -z "$_release_id" ]]; then
+        logging__warn "Could not parse tag_name or release id from GitHub response for '${_slug}' — setting to 0."
+        _tag_name="0"
+        _release_id="0"
+      fi
+      _NS="gh/${_owner}/${_repo_name}/${_tag_name}/${_release_id}"
+
+      # Extract all font/archive asset URLs.
+      mapfile -t _ALL_ASSET_URLS < <(
+        json__object_array_field_lines_stdin assets browser_download_url < "$_API_RESPONSE" |
+          grep -iE '\.(ttf|otf|woff2?|tar\.xz|tar\.gz|tgz|zip)$' || true
+      )
+      rm -f "$_API_RESPONSE"
+
+      if [[ ${#_ALL_ASSET_URLS[@]} -eq 0 ]]; then
+        logging__warn "No font or archive assets found in '${_slug}' release — skipping."
+        continue
+      fi
+
+      # Prefer archives; fall back to individual font files if no archives exist.
+      _ARCHIVE_URLS=()
+      _FONTFILE_URLS=()
+      for _asset_url in "${_ALL_ASSET_URLS[@]}"; do
+        case "${_asset_url##*/}" in
+          *.tar.xz | *.tar.gz | *.tgz | *.zip) _ARCHIVE_URLS+=("$_asset_url") ;;
+          *) _FONTFILE_URLS+=("$_asset_url") ;;
+        esac
+      done
+      if [[ ${#_ARCHIVE_URLS[@]} -gt 0 ]]; then
+        _DOWNLOAD_URLS=("${_ARCHIVE_URLS[@]}")
+      else
+        _DOWNLOAD_URLS=("${_FONTFILE_URLS[@]}")
+      fi
+
+      for _asset_url in "${_DOWNLOAD_URLS[@]}"; do
+        _asset_basename="${_asset_url##*/}"
+        logging__info "Downloading '${_asset_basename}' from '${_slug}' release..."
+        case "$_asset_basename" in
+          *.tar.xz | *.tar.gz | *.tgz | *.zip)
+            if _asset_dir="$(uri__fetch_asset "$_asset_url" --installer-dir "${INSTALLER_DIR}")"; then
+              install_archive_contents "$_asset_dir" "$_NS"
+            else
+              logging__warn "Could not download '${_asset_basename}' — skipping."
+            fi
+            ;;
+          *)
+            _tmpfile="$(mktemp)"
+            if uri__fetch_asset "$_asset_url" --file-dest "$_tmpfile" --installer-dir "${INSTALLER_DIR}" > /dev/null; then
+              install_font_file "$_tmpfile" "${_NS}/${_asset_basename}"
+            else
+              logging__warn "Could not download '${_asset_basename}' — skipping."
+            fi
+            rm -f "$_tmpfile"
+            ;;
+        esac
+      done
+      logging__success "GitHub release '${_slug}' processed."
+    done
+  fi
+
+  # ---------------------------------------------------------------------------
+  # Step 4 — Direct URL fonts
+  # ---------------------------------------------------------------------------
+  if [[ "${#FONT_URLS[@]}" -gt 0 ]]; then
+    for _url in "${FONT_URLS[@]}"; do
+      [[ -z "$_url" ]] && continue
+
+      _NS="$(url_to_namespace "$_url")"
+
+      # Derive basename from URL (strip query string first).
+      _basename="${_url%%\?*}"
+      _basename="${_basename##*/}"
+
+      case "$_basename" in
         *.tar.xz | *.tar.gz | *.tgz | *.zip)
-          if _asset_dir="$(uri__fetch_asset "$_asset_url" --installer-dir "${INSTALLER_DIR}")"; then
+          logging__info "Downloading font archive '${_basename}'..."
+          if _asset_dir="$(uri__fetch_asset "$_url" --installer-dir "${INSTALLER_DIR}")"; then
             install_archive_contents "$_asset_dir" "$_NS"
+            logging__success "Font archive '${_basename}' processed."
           else
-            logging__warn "Could not download '${_asset_basename}' — skipping."
+            logging__warn "Could not download '${_basename}' — skipping."
           fi
+          ;;
+        *.ttf | *.otf | *.woff | *.woff2)
+          logging__info "Downloading font file '${_basename}'..."
+          _TMPFILE="$(mktemp)"
+          if uri__fetch_asset "$_url" --file-dest "$_TMPFILE" --installer-dir "${INSTALLER_DIR}" > /dev/null; then
+            install_font_file "$_TMPFILE" "${_NS}/${_basename}"
+            logging__success "Font file '${_basename}' processed."
+          else
+            logging__warn "Could not download '${_basename}' — skipping."
+          fi
+          rm -f "$_TMPFILE"
           ;;
         *)
-          _tmpfile="$(mktemp)"
-          if uri__fetch_asset "$_asset_url" --file-dest "$_tmpfile" --installer-dir "${INSTALLER_DIR}" > /dev/null; then
-            install_font_file "$_tmpfile" "${_NS}/${_asset_basename}"
-          else
-            logging__warn "Could not download '${_asset_basename}' — skipping."
-          fi
-          rm -f "$_tmpfile"
+          logging__warn "Unrecognized extension in URL '${_url}' — skipping."
           ;;
       esac
     done
-    logging__success "GitHub release '${_slug}' processed."
-  done
-fi
+  fi
+}
 
-# ---------------------------------------------------------------------------
-# Step 4 — Direct URL fonts
-# ---------------------------------------------------------------------------
-if [[ "${#FONT_URLS[@]}" -gt 0 ]]; then
-  for _url in "${FONT_URLS[@]}"; do
-    [[ -z "$_url" ]] && continue
-
-    _NS="$(url_to_namespace "$_url")"
-
-    # Derive basename from URL (strip query string first).
-    _basename="${_url%%\?*}"
-    _basename="${_basename##*/}"
-
-    case "$_basename" in
-      *.tar.xz | *.tar.gz | *.tgz | *.zip)
-        logging__info "Downloading font archive '${_basename}'..."
-        if _asset_dir="$(uri__fetch_asset "$_url" --installer-dir "${INSTALLER_DIR}")"; then
-          install_archive_contents "$_asset_dir" "$_NS"
-          logging__success "Font archive '${_basename}' processed."
-        else
-          logging__warn "Could not download '${_basename}' — skipping."
-        fi
-        ;;
-      *.ttf | *.otf | *.woff | *.woff2)
-        logging__info "Downloading font file '${_basename}'..."
-        _TMPFILE="$(mktemp)"
-        if uri__fetch_asset "$_url" --file-dest "$_TMPFILE" --installer-dir "${INSTALLER_DIR}" > /dev/null; then
-          install_font_file "$_TMPFILE" "${_NS}/${_basename}"
-          logging__success "Font file '${_basename}' processed."
-        else
-          logging__warn "Could not download '${_basename}' — skipping."
-        fi
-        rm -f "$_TMPFILE"
-        ;;
-      *)
-        logging__warn "Unrecognized extension in URL '${_url}' — skipping."
-        ;;
-    esac
-  done
-fi
-
-# ---------------------------------------------------------------------------
-# Post-install: fix directory permissions and refresh font cache
-# ---------------------------------------------------------------------------
-if [[ -n "$_INSTALL_DIR" ]]; then
-  find "$_INSTALL_DIR" -type d -exec chmod 755 {} +
-  logging__success "Font installation complete. Fonts installed to '${_INSTALL_DIR}'."
-else
-  logging__info "No new fonts to install — all requested fonts already registered."
-fi
-
-if command -v fc-cache > /dev/null 2>&1; then
+__install_finish_post() {
+  if [[ -n "${_INSTALL_DIR}" ]]; then
+    find "${_INSTALL_DIR}" -type d -exec chmod 755 {} +
+    logging__success "Font installation complete. Fonts installed to '${_INSTALL_DIR}'."
+  else
+    logging__info "No new fonts to install — all requested fonts already registered."
+  fi
+  command -v fc-cache > /dev/null 2>&1 || return 0
   logging__info "Refreshing font cache..."
-  fc-cache -f "$FONT_DIR" 2> /dev/null || true
-fi
+  fc-cache -f "${FONT_DIR}" 2> /dev/null || true
+}

@@ -271,6 +271,27 @@ v2.0.0"
   assert_failure
 }
 
+@test "github__release_json_digest_from_uri fetches JSON and extracts digest" {
+  _fixture="${BATS_TEST_TMPDIR}/release-uri-digest.json"
+  printf '%s' '{"assets":[{"name":"tool.tar.gz","digest":"sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"}]}' > "$_fixture"
+  _github__api_get() {
+    cp "$_fixture" "$2"
+    return 0
+  }
+  export -f _github__api_get
+  export _fixture
+  run github__release_json_digest_from_uri "https://api.github.com/repos/o/r/releases/tags/v1.0" "tool.tar.gz"
+  assert_success
+  assert_output "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+}
+
+@test "github__release_json_digest_from_uri fails when API fetch fails" {
+  _github__api_get() { return 1; }
+  export -f _github__api_get
+  run github__release_json_digest_from_uri "https://api.github.com/repos/o/r/releases/tags/v1.0" "tool.tar.gz"
+  assert_failure
+}
+
 @test "github__release_json_tag_name fails for missing file" {
   run github__release_json_tag_name "${BATS_TEST_TMPDIR}/does-not-exist.json"
   assert_failure
@@ -1542,6 +1563,10 @@ _stub_install_release_common() {
   net__fetch_url_file() {
     case "$1" in
       *.sha256 | */SHA256SUMS | */sha256sum.txt) return 1 ;;
+      */api.github.com/*)
+        printf '{}' > "$2"
+        return 0
+        ;;
     esac
     printf 'x\n' >> "$_ASSET_DL_COUNT"
     printf '\x7fELF\x00\x00' > "$2"
@@ -1939,9 +1964,16 @@ _stub_install_release_common() {
 
 # --- SHA-256: explicit hex ---
 
-@test "github__install_release: --sha256 <hex> calls verify__sha with exact hash" {
+@test "github__install_release: --sha256 <hex> calls verify__sha with exact hash and skips JSON API" {
   local _hex="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   _stub_install_release_common
+  _API_GET_CALLS="${BATS_TEST_TMPDIR}/_api_get_calls"
+  export _API_GET_CALLS
+  _github__api_get() {
+    printf '%s\n' "$1" >> "$_API_GET_CALLS"
+    return 0
+  }
+  export -f _github__api_get
 
   run github__install_release \
     --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}/" \
@@ -1949,6 +1981,7 @@ _stub_install_release_common() {
   assert_success
   run grep -qF "$_hex" "$_VERIFY_SHA_CALLS"
   assert_success
+  [[ ! -f "$_API_GET_CALLS" ]]
 }
 
 # --- SHA-256: none ---
@@ -2233,21 +2266,21 @@ _stub_install_release_common() {
 
 # --- --sha256 none skips JSON fetch ---
 
-@test "github__install_release: --sha256 none does not call github__fetch_release_json" {
+@test "github__install_release: --sha256 none does not call GitHub API for JSON digest" {
   _stub_install_release_common
-  _JSON_FETCH_CALLS="${BATS_TEST_TMPDIR}/_json_fetch_calls"
-  export _JSON_FETCH_CALLS
-  github__fetch_release_json() {
-    printf 'called\n' >> "$_JSON_FETCH_CALLS"
-    return 1
+  _API_GET_CALLS="${BATS_TEST_TMPDIR}/_api_get_calls"
+  export _API_GET_CALLS
+  _github__api_get() {
+    printf '%s\n' "$1" >> "$_API_GET_CALLS"
+    return 0
   }
-  export -f github__fetch_release_json
+  export -f _github__api_get
 
   run --separate-stderr github__install_release \
     --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}/" \
     --binary-src mybin --asset "mybin" --sha256 none
   assert_success
-  [[ ! -f "$_JSON_FETCH_CALLS" ]]
+  [[ ! -f "$_API_GET_CALLS" ]]
 }
 
 # --- N+N paired binary-src / binary-dest ---
@@ -2294,9 +2327,13 @@ _stub_install_release_common() {
   }
   export -f github__release_json_digest_for_asset
   net__fetch_url_file() {
-    # Count downloads of the asset URL (not sidecar candidates)
+    # Count downloads of the asset URL (not sidecar candidates or API calls)
     case "$1" in
       *.sha256 | */SHA256SUMS | */sha256sum.txt) return 1 ;;
+      */api.github.com/*)
+        printf '{}' > "$2"
+        return 0
+        ;;
     esac
     printf 'x\n' >> "$_ASSET_DL_COUNT"
     printf '\x7fELF\x00\x00' > "$2"

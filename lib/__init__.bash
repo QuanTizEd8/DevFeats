@@ -36,12 +36,8 @@ _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_LIB_DIR/shell.sh"
 # shellcheck source=lib/install/common.sh
 . "$_LIB_DIR/install/common.sh"
-# shellcheck source=lib/install/jq.sh
-. "$_LIB_DIR/install/jq.sh"
-# shellcheck source=lib/install/yq.sh
-. "$_LIB_DIR/install/yq.sh"
-# shellcheck source=lib/install/oras.sh
-. "$_LIB_DIR/install/oras.sh"
+# shellcheck source=lib/bootstrap.sh
+. "$_LIB_DIR/bootstrap.sh"
 # shellcheck source=lib/ospkg.sh
 . "$_LIB_DIR/ospkg.sh"
 # shellcheck source=lib/github.sh

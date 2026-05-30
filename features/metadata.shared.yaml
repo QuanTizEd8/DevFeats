@@ -27,89 +27,87 @@ _env_vars:
   _FEAT_PROFILE_D_FILE:            98-${{ _project.owner_slug }}$--${{ _project.name_slug }}$--${{ id }}$.sh
   _FEAT_ACTIVATION_PROFILE_D_FILE: 99-${{ _project.owner_slug }}$-${{ _project.name_slug }}$--${{ id }}$--prefix-activation.sh
 
-_prefix_option_templates:
+options:
 
-  prefix:
+  version:
+    _apply_when: |
+      #{{ return bool(get("_options.version")) }}#
     type: string
-    default: ""
-    description: >-
-      Installation prefix. Resolved automatically when left empty:
-      `{default_root}` (root) or `{default_nonroot}` (non-root).{bin_note}
+    default: |
+      #{{ return get("_options.version.default", "stable") }}#
+    description: |
+      Version to install.
+    proposals:
+      - value: latest
+        description: Latest release (including pre-releases).
+      - value: stable
+        description: Latest final release (excluding pre-releases).
+      - value: '1'
+        description: Latest final release matching major version 1 (e.g. 1.2.3).
+      - value: '1.2'
+        description: Latest final release matching major.minor version 1.2 (e.g. 1.2.3).
+      - value: '1.2.3'
+        description: Specific version 1.2.3.
+      - value: lts
+        description: Latest LTS release (if applicable; e.g. Node.js).
+      - value: next
+        description: Latest pre-release (if applicable; e.g. Node.js).
 
-  discovery:
+  method:
+    _apply_when: |
+      #{{
+        m = get("_options.method") or {}
+        known = ["binary", "package", "upstream-package", "script", "cargo", "npm", "npm-bundled", "source"]
+        return len([k for k in known if k in m]) > 1
+      }}#
     type: string
     default: auto
-    description: >-
-      {disc_intro}
-      `auto` (default): if the install directory is already on PATH, does nothing;
-      otherwise creates symlinks when viable, or writes a PATH export block.
-      `symlink`: create symlinks only (suppresses PATH export).
-      `shell`: write PATH export only (suppresses symlinks).
-      `all`: both symlinks and PATH export unconditionally.
-      `none`: skip everything.
+    description: Installation method to use.
     enum:
       - value: auto
         description: >-
-          Smart detection: skip if already on PATH; otherwise use symlinks when viable,
-          PATH export as fallback.
-      - value: symlink
-        description: Create symlinks only; suppress PATH export.
-      - value: shell
-        description: Write PATH export to shell startup files only; suppress symlinks.
-      - value: all
-        description: Create symlinks and write PATH export unconditionally.
-      - value: none
-        description: Skip both symlinks and PATH export.
-
-  symlinks:
-    type: array
-    default: ""
-    description: >-
-      {symlink_subject}
-      Defaults to `{symlink_root}` (root) or `{symlink_nonroot}` (non-root).
-      Provide explicit target directories one per line to override.
-      Use `{discovery_key}=none` to skip symlink creation entirely.
-
-  exports:
-    type: array
-    default: ""
-    description: >-
-      Shell startup files to write a PATH export block
-      (`export PATH="{prefix_var_ref}/{bin_dir}:$PATH"`) to.
-      Leave empty (default) to write to standard profiles
-      (system-wide as root, user-scoped otherwise),
-      or provide explicit file path(s) one per line.
-      Use `{discovery_key}=none` to skip PATH export entirely.
-
-  activations:
-    type: array
-    description: >-
-      Shell names to write activation snippets for (e.g. `bash`, `zsh`).
-      Leave empty to skip all activation writes.
-    enum:
-      - value: bash
-        description: Write activation snippet for bash.
-      - value: zsh
-        description: Write activation snippet for zsh.
-
-  write_group:
-    type: string
-    description: >-
-      OS group for shared write access to the installation prefix.
-      Non-empty: create this group (if absent), add all resolved users to it,
-      and apply group-write bits so group members can install packages.
-      Empty: skip group setup.
-
-  write_users:
-    type: array
-    default: ""
-    description: >-
-      Users to add to the write-permission group.
-      Empty (default): auto-discover (current user, remoteUser, containerUser).
-      Non-empty: use exactly these users; auto-discovery is skipped.
-
-
-options:
+          Determine the best installation method at runtime.
+          Requires a `__resolve_method` hook in the feature.
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "binary", "description": "Install from GitHub release binary with checksum verification."}] if "binary" in m else []
+        }}# }}*
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "script", "description": "Install via the official upstream installer script."}] if "script" in m else []
+        }}# }}*
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "package", "description": "Install from the OS package manager."}] if "package" in m else []
+        }}# }}*
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "upstream-package", "description": "Install from the tool vendor's own OS package repository (adds the upstream repo and signing key)."}] if "upstream-package" in m else []
+        }}# }}*
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "cargo", "description": "Install via Cargo (cargo install)."}] if "cargo" in m else []
+        }}# }}*
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "npm-bundled", "description": "Install via a self-contained bundled Node.js runtime (no system Node.js required)."}] if "npm-bundled" in m else []
+        }}# }}*
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "npm", "description": "Install via npm global install (npm install -g)."}] if "npm" in m else []
+        }}# }}*
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "source", "description": "Build and install from source."}] if "source" in m else []
+        }}# }}*
 
   if_exists:
     type: string
@@ -235,28 +233,659 @@ options:
       Minimum log level to capture in the log file specified by `log_file`.
     enum: *log_levels
 
-  gh_repo:
+  version_uri:
     _apply_when: |
-      #{{ return bool(get("_options.gh_repo")) }}#
+      #{{
+        res = get("_options.version.resolution", "")
+        return res in ("github_release", "github_tag", "npm", "cargo")
+      }}#
     type: string
-    default: ${{ _options.gh_repo }}$
+    default: |
+      #{{
+        res = get("_options.version.resolution", "")
+        if res in ("github_release", "github_tag"):
+            return "https://api.github.com/repos/" + str(get("_options.gh_repo", ""))
+        elif res == "npm":
+            pkg = (
+                get("_options.method.npm.package", "")
+                or get("_options.method.npm-bundled.package", "")
+            )
+            return "https://registry.npmjs.org/" + pkg
+        elif res == "cargo":
+            return "https://crates.io/api/v1/crates/" + get("_options.method.cargo.crate", "")
+        return ""
+      }}#
     description: >-
-      GitHub repository in the format `owner/repo`.
-      Used for version resolution
-      and downloading release assets or source code,
-      depending on the installation method.
-      Set to a fork or mirror repository to use a custom source.
+      Metadata endpoint URI used for version resolution.
+      Override to use a mirror, proxy, or private registry.
+
+  version_resolution:
+    _apply_when: |
+      #{{ return bool(get("_options.version")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.version.resolution", "") }}#
+    description: >-
+      Version resolution strategy. Determines how the `version` option is resolved
+      to an exact published version.
+
+  version_flag:
+    _apply_when: |
+      #{{ return bool(get("_options.version")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.version.flag", "--version") }}#
+    description: >-
+      CLI flag used to query the installed version (e.g. `--version`).
+      Used by the installed-version idempotency check.
+
+  binary_asset_uri:
+    _apply_when: |
+      #{{ return get("_options.method.binary") is not None }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.binary.asset_uri", "") }}#
+    description: |-
+      Full URI of the binary release asset to download when `method=binary`.
+      When empty (default for features with dynamic asset URIs), the URI is
+      computed automatically by the feature's `__install_run_binary_pre` hook.
+      Override to select a specific mirror or prebuilt variant.
+
+      Runtime substitutions (expanded by `os__expand_release_pattern` at install time):
+
+      - `{VERSION}` — resolved bare version string (e.g. `1.7.1`).
+      - `{TAG}` — full upstream release tag (e.g. `v1.7.1`, `jq-1.7.1`).
+      - `{OS}` — kernel identifier for GitHub-style release names (`os__release_kernel`).
+        Values: `linux`, `darwin`.
+      - `{KERNEL}` — raw `uname -s` output (`os__kernel`).
+        Values: `Linux`, `Darwin`.
+      - `{ARCH}` — normalized architecture for GitHub-style release names (`os__release_arch`).
+        Values: `amd64`, `arm64`, `armv7`, `i386`, `ppc64le`, `s390x`, `riscv64`, `loong64`.
+      - `{OS_ARCH}` — raw `uname -m` output (`os__arch`).
+        Values: `x86_64`, `aarch64`, `armv7l`, `i686`, `ppc64le`, `s390x`, `riscv64`, `loongarch64`.
+      - `{OS_ID}` — Linux distro `ID` from `/etc/os-release` (`os__id`).
+        Examples: `ubuntu`, `debian`, `alpine`, `fedora`, `arch`. Empty on macOS.
+      - `{PLATFORM}` — canonical distro family (`os__platform`).
+        Values: `debian`, `alpine`, `rhel`, `suse`, `macos`.
+      - `{RUST_TRIPLE}` — Rust target triple (`os__rust_triple`).
+        Values: `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`,
+        `riscv64gc-unknown-linux-gnu`, `x86_64-apple-darwin`, `aarch64-apple-darwin`.
+
+  binary_sidecar_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.binary.sidecar_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.binary.sidecar_uri", "") }}#
+    description: >-
+      Full URI of the sidecar checksum file for binary installation.
+      Supports the same runtime substitutions as `binary_asset_uri`.
+      When omitted, sidecar auto-probe is performed.
+
+  binary_src:
+    _apply_when: |
+      #{{ return bool(get("_options.method.binary.binary_src")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.binary.binary_src", "") }}#
+    description: >-
+      Source binary path within the extracted archive (suffix-match).
+      Override to select a different binary from the archive.
+
+  binary_netrc:
+    _apply_when: |
+      #{{ return bool(get("_options.method.binary")) }}#
+    type: string
+    default: ''
+    description: >-
+      Path to a `.netrc` file for HTTP authentication on binary asset downloads.
+      Ignored when empty.
+
+  binary_gpg_key_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.binary.gpg_key_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.binary.gpg_key_uri", "") }}#
+    description: >-
+      URI of the GPG public key used to verify the binary release asset signature.
+      When set, passed to `--gpg-key` during `install__release_asset`.
+
+  binary_gpg_sig_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.binary.gpg_sig_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.binary.gpg_sig_uri", "") }}#
+    description: >-
+      URI of the detached GPG signature for the binary release asset.
+      Supports the same runtime substitutions as `binary_asset_uri`.
+      When set, passed to `--gpg-sig` during `install__release_asset`.
+
+  script_asset_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.script")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.script.asset_uri", "") }}#
+    description: >-
+      Full URI of the installer script to fetch and execute when `method=script`.
+      Supports the same runtime substitutions as `binary_asset_uri`.
+      Override to use a mirror or a pinned URL.
+
+  script_sidecar_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.script.sidecar_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.script.sidecar_uri", "") }}#
+    description: >-
+      Full URI of the sidecar checksum file for the installer script.
+      Supports the same runtime substitutions as `script_asset_uri`.
+      When omitted, sidecar auto-probe is performed.
+
+  source_asset_uri:
+    _apply_when: |
+      #{{ return get("_options.method.source") is not None }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.source.asset_uri", "") }}#
+    description: |-
+      URI pattern for the source tarball when `method=source`.
+      When empty (default for features that compute the URI dynamically), the URI must
+      be constructed in `__install_run_source__`.
+      Supports the same runtime substitutions as `binary_asset_uri`:
+      `{VERSION}`, `{TAG}`, `{OS}`, `{ARCH}`, `{OS_ARCH}`, `{OS_ID}`, `{PLATFORM}`, `{RUST_TRIPLE}`.
+
+  source_sidecar_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.source.sidecar_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.source.sidecar_uri", "") }}#
+    description: >-
+      URI of the checksum or signature sidecar file for the source tarball.
+      Supports the same runtime substitutions as `binary_asset_uri`.
+      When omitted, sidecar verification is skipped.
+
+  source_build_system:
+    _apply_when: |
+      #{{ return get("_options.method.source") is not None }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.source.build_system", "") }}#
+    description: >-
+      Build system used by the framework auto-impl for `method=source`.
+      `autotools`: runs `./configure` (with `source_configure_args`) then `make`.
+      `make`: runs `make` directly (no `./configure`).
+      Leave empty when providing a `__install_run_source_build` hook.
+
+  source_configure_args:
+    _apply_when: |
+      #{{ return get("_options.method.source") is not None }}#
+    type: array
+    default: |
+      #{{
+        args = get("_options.method.source.configure_args") or []
+        return "\n".join(args) if args else ""
+      }}#
+    description: >-
+      Arguments passed to `./configure` when `source_build_system=autotools`.
+      `--prefix=<PREFIX>` is always appended automatically.
+      Provide one argument per line to override or extend the defaults.
+
+  source_make_flags:
+    _apply_when: |
+      #{{ return get("_options.method.source") is not None }}#
+    type: array
+    default: |
+      #{{
+        flags = get("_options.method.source.make_flags") or []
+        return "\n".join(flags) if flags else ""
+      }}#
+    description: >-
+      Make variable assignments appended to every `make` invocation for source builds
+      (e.g. `USE_LIBPCRE2=YesPlease`).
+      Provide one assignment per line.
+
+  source_make_targets:
+    _apply_when: |
+      #{{ return get("_options.method.source") is not None }}#
+    type: array
+    default: |
+      #{{
+        targets = get("_options.method.source.make_targets") or []
+        return "\n".join(targets) if targets else ""
+      }}#
+    description: >-
+      Make targets invoked in sequence for source builds.
+      When empty, the build system default is used: `all` then `install`.
+      Provide one target per line to override.
+
+  shell_completions:
+    _apply_when: |
+      #{{ return get("_options.completions") is not None }}#
+    type: array
+    default: |
+      #{{
+        shells = get("_options.completions.shells") or []
+        return "\n".join(shells) if shells else ""
+      }}#
+    description: >-
+      Shell names to install completions for after installation.
+      Set to `''` to skip all completions.
+    enum:
+      - value: bash
+        description: >-
+          Install bash completions.
+          As root: writes to `/etc/bash_completion.d/<name>`.
+          As non-root: writes to `~/.local/share/bash-completion/completions/<name>`.
+      - value: zsh
+        description: >-
+          Install zsh completions.
+          As root: writes to `<zshdir>/completions/_<name>`.
+          As non-root: writes to `~/.zfunc/_<name>`.
+      - value: fish
+        description: >-
+          Install fish completions.
+          As root: writes to `/usr/share/fish/vendor_completions.d/<name>.fish`.
+          As non-root: writes to `~/.config/fish/completions/<name>.fish`.
+      - value: nushell
+        description: >-
+          Install nushell completions.
+          Writes to `~/.config/nushell/autoload/<name>.nu` (auto-loaded by nushell at startup).
+      - value: elvish
+        description: >-
+          Install elvish completions.
+          Writes a named block to `~/.config/elvish/rc.elv`.
+
+  shell_completions_cmd:
+    _apply_when: |
+      #{{ return get("_options.completions") is not None }}#
+    type: string
+    default: |
+      #{{ return get("_options.completions.subcmd", "") }}#
+    description: >-
+      CLI subcommand (with static flags) invoked as `<binary> <cmd> <shell>` to
+      generate completion output for a given shell.
+      Example: `completion --shell` produces `<binary> completion --shell bash`.
+      Leave empty when using pre-built completion files (`shell_completions_files`).
+
+  shell_completions_files:
+    _apply_when: |
+      #{{ return get("_options.completions") is not None }}#
+    type: array
+    default: |
+      #{{
+        files = get("_options.completions.source_files") or {}
+        return "\n".join(f"{k}={v}" for k, v in files.items()) if files else ""
+      }}#
+    description: >-
+      Pre-built completion file paths relative to PREFIX, as `shell=path` pairs
+      (one per line). Used when completions are installed as static files under
+      PREFIX rather than generated by the binary.
+      Example: `bash=share/git-core/contrib/completion/git-completion.bash`.
+      Leave empty when using a completion subcommand (`shell_completions_cmd`).
+
+  script_args:
+    _apply_when: |
+      #{{ return bool(get("_options.method.script")) }}#
+    type: array
+    default: |
+      #{{
+        args = get("_options.method.script.args") or []
+        return "\n".join(args) if args else ""
+      }}#
+    description: >-
+      Arguments to pass to the installer script.
+      Provide one argument per line to override or extend the default arguments.
+
+  script_netrc:
+    _apply_when: |
+      #{{ return bool(get("_options.method.script")) }}#
+    type: string
+    default: ''
+    description: >-
+      Path to a `.netrc` file for HTTP authentication on installer script downloads.
+      Ignored when empty.
+
+  package_manifest:
+    _apply_when: |
+      #{{ return bool(get("_options.method.package")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.package.manifest", "os-pkg") }}#
+    description: >-
+      Dependency manifest key to install from (file at `dependencies/run/<manifest>.yaml`).
+      Override to use an alternative package manifest.
+
+  cargo_crate:
+    _apply_when: |
+      #{{ return bool(get("_options.method.cargo")) }}#
+    type: string
+    default: ${{ _options.method.cargo.crate }}$
+    description: >-
+      Cargo crate name to install when `method=cargo`.
+      Override to install a fork or a crate with a different registry name.
+
+  npm_package:
+    _apply_when: |
+      #{{ return bool(get("_options.method.npm") or get("_options.method.npm-bundled")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.npm.package") or get("_options.method.npm-bundled.package") or "" }}#
+    description: >-
+      npm package name to install when `method=npm` or `method=npm-bundled`.
+      Override to install a fork or a differently-named scoped package.
+
+  npm_cmd:
+    _apply_when: |
+      #{{ return bool(get("_options.method.npm-bundled.cmd")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.npm-bundled.cmd", "") }}#
+    description: >-
+      Command/binary name created by the npm-bundled install (the `--cmd` argument
+      to `npm__install_bundled`). Override when the binary name differs from the
+      package's last path segment with any leading `@` stripped.
+
+  node_version:
+    _apply_when: |
+      #{{ return bool(get("_options.method.npm-bundled")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.npm-bundled.node_version", "lts") }}#
+    description: >-
+      Node.js major version to bundle when `method=npm-bundled`.
+      Accepts a major version number (e.g. `20`, `22`) or `lts` for the
+      current active LTS release line.
+    proposals:
+      - {value: lts,   description: Latest active LTS release.}
+      - {value: "20",  description: Node.js 20 LTS line.}
+      - {value: "22",  description: Node.js 22 LTS line.}
+
+  npm_registry:
+    _apply_when: |
+      #{{ return bool(get("_options.method.npm") or get("_options.method.npm-bundled")) }}#
+    type: string
+    default: ""
+    description: >-
+      npm registry base URL for package installation and version resolution.
+      Override to use a private or mirror registry.
+      When empty, defaults to `https://registry.npmjs.org`.
+
+  npm_install_args:
+    _apply_when: |
+      #{{ return bool(get("_options.method.npm")) }}#
+    type: array
+    default: |
+      #{{ args = get("_options.method.npm.args") or []; return "\n".join(args) if args else "" }}#
+    description: >-
+      Additional arguments to pass to `npm install` when `method=npm`.
+      Provide one argument per line to extend or override the default arguments.
+
+  prefix:
+    _apply_when: |
+      #{{ return get("_options.prefix") is not None }}#
+    type: string
+    default: ""
+    _default: |
+      #{{
+        prefix = get("_options.prefix", {})
+        root = prefix.get("root", "/usr/local")
+        nonroot = prefix.get("nonroot", "${HOME}/.local")
+        overrides = prefix.get("platform_overrides", [])
+        groups = []
+        for override in overrides:
+            when = override.get("when", {})
+            when_args = " ".join(k + "=" + v for k, v in when.items())
+            default_path = override.get("default", root)
+            root_val = override.get("root", default_path)
+            nonroot_val = override.get("nonroot", default_path)
+            if root_val == nonroot_val:
+                paths = '"' + root_val + '"'
+            else:
+                paths = '"' + root_val + '" "' + nonroot_val + '"'
+            groups.append(("-- " + when_args + " " + paths) if when_args else ("-- " + paths))
+        fallback = ('"' + root + '"') if root == nonroot else ('"' + root + '" "' + nonroot + '"')
+        groups.append("-- " + fallback)
+        return "$(users__first_writeable_path \\\n  " + " \\\n  ".join(groups) + ")"
+      }}#
+    description: |
+      #{{
+        prefix = get("_options.prefix", {})
+        root = prefix.get("root", "/usr/local")
+        nonroot = prefix.get("nonroot", "${HOME}/.local")
+        bins = prefix.get("bins", [])
+        bin_dir = prefix.get("bin_dir", "bin")
+        if bins:
+            bins_str = "`, `".join(bins)
+            bin_note = " Contains `" + bins_str + "` at `${PREFIX}/" + bin_dir + "/`."
+        else:
+            bin_note = ""
+        return "Installation prefix." + bin_note + " Leave empty to resolve automatically: `" + root + "` (root) or `" + nonroot + "` (non-root)."
+      }}#
+
+  prefix_discovery:
+    _apply_when: |
+      #{{
+        prefix = get("_options.prefix")
+        if not prefix: return False
+        return not (prefix.get("symlink", {}).get("skip", False) and prefix.get("exports", {}).get("skip", False))
+      }}#
+    type: string
+    default: auto
+    description: |
+      #{{
+        prefix = get("_options.prefix", {})
+        bins = prefix.get("bins", [])
+        bin_dir = prefix.get("bin_dir", "bin")
+        if bins:
+            bin_paths = ", ".join("`${PREFIX}/" + bin_dir + "/" + b + "`" for b in bins)
+            disc_intro = "Discovery mode for " + bin_paths + "."
+        else:
+            disc_intro = "Discovery mode for the installation prefix."
+        return (
+            disc_intro + "\n"
+            "`auto` (default): if the install directory is already on PATH, does nothing;\n"
+            "otherwise creates symlinks when viable, or writes a PATH export block.\n"
+            "`symlink`: create symlinks only (suppresses PATH export).\n"
+            "`shell`: write PATH export only (suppresses symlinks).\n"
+            "`all`: both symlinks and PATH export unconditionally.\n"
+            "`none`: skip everything."
+        )
+      }}#
+    enum:
+      - value: auto
+        description: >-
+          Smart detection: skip if already on PATH; otherwise use symlinks when viable,
+          PATH export as fallback.
+      - value: symlink
+        description: Create symlinks only; suppress PATH export.
+      - value: shell
+        description: Write PATH export to shell startup files only; suppress symlinks.
+      - value: all
+        description: Create symlinks and write PATH export unconditionally.
+      - value: none
+        description: Skip both symlinks and PATH export.
+
+  prefix_symlinks:
+    _apply_when: |
+      #{{
+        prefix = get("_options.prefix")
+        if not prefix: return False
+        return not prefix.get("symlink", {}).get("skip", False)
+      }}#
+    type: array
+    default: ""
+    description: |
+      #{{
+        prefix = get("_options.prefix", {})
+        bins = prefix.get("bins", [])
+        symlink = prefix.get("symlink", {})
+        root_symlink = symlink.get("root", "/usr/local/bin")
+        nonroot_symlink = symlink.get("nonroot", "${HOME}/.local/bin")
+        if bins:
+            bins_str = "`, `".join(bins)
+            subject = "Directories where symlinks to `" + bins_str + "` are created."
+        else:
+            subject = "Directories where symlinks are created."
+        return (
+            subject + "\n"
+            "Defaults to `" + root_symlink + "` (root) or `" + nonroot_symlink + "` (non-root).\n"
+            "Provide explicit target directories one per line to override.\n"
+            "Use `prefix_discovery=none` to skip symlink creation entirely."
+        )
+      }}#
+
+  prefix_exports:
+    _apply_when: |
+      #{{
+        prefix = get("_options.prefix")
+        if not prefix: return False
+        return not prefix.get("exports", {}).get("skip", False)
+      }}#
+    type: array
+    default: ""
+    description: |
+      #{{
+        prefix = get("_options.prefix", {})
+        bin_dir = prefix.get("bin_dir", "bin")
+        desc = (
+            "Shell startup files to write `export PATH=\"${PREFIX}/" + bin_dir + ":$PATH\"` to.\n"
+            "Leave empty (default) to write to standard profiles\n"
+            "(system-wide as root, user-scoped otherwise),\n"
+            "or provide explicit file path(s) one per line.\n"
+            "Use `prefix_discovery=none` to skip PATH export entirely."
+        )
+        extra = get("_options.prefix.exports.description", "")
+        if extra:
+            desc += "\n" + extra
+        return desc
+      }}#
+
+  prefix_activations:
+    _apply_when: |
+      #{{ return bool(get("_options.prefix.activation")) }}#
+    type: array
+    default: |
+      #{{ return "\n".join(get("_options.prefix.activation.shells") or []) }}#
+    description: |
+      #{{
+        desc = (
+            "Shell names to write activation snippets to startup files for"
+            " (e.g. `bash`, `zsh`).\n"
+            "Leave empty to skip all activation writes."
+        )
+        extra = get("_options.prefix.activation.description", "")
+        if extra:
+            desc += "\n" + extra
+        return desc
+      }}#
+    enum:
+      - value: bash
+        description: Write activation snippet for bash.
+      - value: zsh
+        description: Write activation snippet for zsh.
+
+  prefix_bins:
+    _apply_when: |
+      #{{
+        prefix = get("_options.prefix")
+        if not prefix: return False
+        return not (prefix.get("symlink", {}).get("skip", False) and prefix.get("exports", {}).get("skip", False))
+      }}#
+    type: array
+    default: |
+      #{{ return "\n".join(get("_options.prefix.bins") or []) }}#
+    description: >-
+      Binary filenames exposed from the installation prefix (used for symlink and PATH-export).
+      One name per line. Override to add or remove binaries from discovery.
+
+  prefix_bin_dir:
+    _apply_when: |
+      #{{
+        prefix = get("_options.prefix")
+        if not prefix: return False
+        return not (prefix.get("symlink", {}).get("skip", False) and prefix.get("exports", {}).get("skip", False))
+      }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix.bin_dir", "bin") }}#
+    description: >-
+      Subdirectory of PREFIX where binaries live (e.g. `bin`).
+      Determines the symlink source (`${PREFIX}/${prefix_bin_dir}/<name>`)
+      and the PATH export directory (`${PREFIX}/${prefix_bin_dir}`).
+
+  prefix_symlink_root:
+    _apply_when: |
+      #{{
+        prefix = get("_options.prefix")
+        if not prefix: return False
+        return not prefix.get("symlink", {}).get("skip", False)
+      }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix", {}).get("symlink", {}).get("root", "/usr/local/bin") }}#
+    description: >-
+      Directory where symlinks are created when running as root.
+      Override to place symlinks at a custom system-wide location.
+
+  prefix_symlink_nonroot:
+    _apply_when: |
+      #{{
+        prefix = get("_options.prefix")
+        if not prefix: return False
+        return not prefix.get("symlink", {}).get("skip", False)
+      }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix", {}).get("symlink", {}).get("nonroot", "${HOME}/.local/bin") }}#
+    description: >-
+      Directory where symlinks are created when running as non-root.
+      Override to place symlinks at a custom user-local location.
+
+  write_group:
+    _apply_when: |
+      #{{ return get("_options.prefix.write_group") is not None }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix", {}).get("write_group", {}).get("default", "") }}#
+    description: >-
+      OS group for shared write access to the installation prefix.
+      Non-empty: create this group (if absent), add all resolved users to it,
+      and apply group-write bits so group members can install packages.
+      Empty: skip group setup.
+
+  write_users:
+    _apply_when: |
+      #{{ return get("_options.prefix.write_group") is not None }}#
+    type: array
+    default: ""
+    description: >-
+      Users to add to the write-permission group.
+      Empty (default): auto-discover (current user, remoteUser, containerUser).
+      Non-empty: use exactly these users; auto-discovery is skipped.
+
+  install_user:
+    _apply_when: |
+      #{{ return get("_options.prefix.write_group") is not None }}#
+    type: string
+    default: ""
+    description: >-
+      User to record as the owner of the installation prefix.
+      Empty (default): auto-discover (current user or remoteUser).
+      Override when the user performing the install differs from the owner.
 
   runtime_path:
     _apply_when: |
       #{{
-        prefix_groups = get("_prefix_groups", {})
-        return any(
-            not (
-                g.get("symlink", {}).get("skip", False)
-                and g.get("exports", {}).get("skip", False)
-            )
-            for g in prefix_groups.values()
+        prefix = get("_options.prefix")
+        if not prefix:
+            return False
+        return not (
+            prefix.get("symlink", {}).get("skip", False)
+            and prefix.get("exports", {}).get("skip", False)
         )
       }}#
     type: string

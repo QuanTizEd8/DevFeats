@@ -14,43 +14,9 @@ _long_description: >-
   configuration and per-user identity settings are written for all resolved users. Shell
   completions are installed following source builds.
 options:
-  method:
-    type: string
-    default: package
-    description: Installation method to use.
-    enum:
-    - value: package
-      description: >-
-        Install via the OS package manager. On Ubuntu with `version=latest`,
-        activates the git-core PPA (`ppa:git-core/ppa`) for the newest upstream
-        stable release; all other platforms use their native package manager directly.
-        On macOS, delegates to Homebrew.
-    - value: source
-      description: >-
-        Build from a kernel.org source tarball. Requires a C toolchain and build
-        dependencies (installed automatically). Version is controlled by the `version`
-        option. Works on all supported Linux distributions and macOS (requires Xcode CLT).
-  version:
-    type: string
-    default: latest
-    description: |-
-      Version of git to install. Either "latest", "stable", or a specific version string.
-    proposals:
-    - value: latest
-      description: |-
-        Install the latest available version.
-        - When `method=package`, activates the git-core PPA on Ubuntu for the newest upstream stable release, and uses the default package manager's version on all other platforms (including Homebrew on macOS, which already tracks the latest).
-        - When `method=source`, queries the GitHub Tags API for the newest tag (including release candidates).
-    - value: stable
-      description: |-
-        Install the latest stable version.
-        - When `method=package`, uses the default package manager's version.
-        - When `method=source`, builds the newest stable release (no release candidates).
-    - value: 2.54.0
-      description: |-
-        Install a specific version.
-        - When `method=package`, passes the version to the package manager (user is responsible for availability).
-        - When `method=source`, builds exactly that version from the kernel.org tarball.
+  shell_completions:
+    _applies_when:
+      - method: [source]
   sysconfdir:
     type: string
     default: auto
@@ -80,29 +46,6 @@ options:
         Disable i18n/translation support; git output is English-only and the
         gettext/libintl build dependency is removed.
         On Alpine Linux gettext is always disabled regardless of this setting.
-  make_flags:
-    type: string
-    _applies_when:
-      - method: [source]
-    default: ''
-    description: |-
-      Additional flags to append verbatim to the `make` invocation for source builds (space-separated `KEY=VALUE` pairs, e.g. `NO_CURL=YesPlease OPENSSL_SHA256=YesPlease`).
-      Appended after all computed flags including `no_flags`, so last-position values take effect.
-      No validation — unknown flags are silently ignored by `make`.
-  shell_completions:
-    type: array
-    _applies_when:
-      - method: [source]
-    default: "bash\nzsh"
-    description: |-
-      Shell names to install completion scripts for after a source build.
-      The source files are taken from `$PREFIX/share/git-core/contrib/completion/` which is populated by make install.
-      Set to `''` to skip all completions.
-    enum:
-    - value: bash
-      description: Install Bash completion to `/etc/bash_completion.d/git` (root) or `~/.local/share/bash-completion/completions/git` (non-root).
-    - value: zsh
-      description: Install Zsh completion to `<zshdir>/completions/_git` (root) or `~/.zfunc/_git` (non-root).
   default_branch:
     type: string
     default: main
@@ -170,6 +113,34 @@ options:
     description: Freeform content to append to the per-user gitconfig (`~/.gitconfig`) for all resolved users. Accepts standard gitconfig format. Written after `user_name` and `user_email` settings. Set to `''` to skip.
 _options:
   gh_repo: git/git
+  version:
+    resolution: github_tag
+    default: latest
+    flag: --version
+    proposals:
+      - value: "2.49.0"
+        description: "Git 2.49.0 (Mar 2025)."
+  completions:
+    shells: [bash, zsh]
+    source_files:
+      bash: "share/git-core/contrib/completion/git-completion.bash"
+      zsh: "share/git-core/contrib/completion/git-completion.zsh"
+  method:
+    default: auto
+    package:
+      registers_as: git
+    upstream-package: {}
+    source:
+      asset_uri: "https://www.kernel.org/pub/software/scm/git/git-{VERSION}.tar.gz"
+      sidecar_uri: "https://www.kernel.org/pub/software/scm/git/sha256sums.asc"
+  prefix:
+    bins: [git]
+    exports:
+      description: >-
+        Also writes `export MANPATH="${PREFIX}/share/man:${MANPATH}"` to the same startup files.
+    applies_when:
+      - method:
+        - source
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-user
 #   - ghcr.io/quantized8/devfeats/install-jq
@@ -182,8 +153,9 @@ _dependencies:
         - ca-certificates
     os-pkg:
       packages:
-        - git
-    ppa:
+        - name: git
+          version: "${VERSION}"
+    upstream-package:
       when:
         id: ubuntu
         pm: apt
@@ -268,18 +240,3 @@ _dependencies:
           - expat
           - openssl
           - zlib
-_prefix_groups:
-  "":
-    prefix:
-      bins: [git]
-    exports:
-      description: |-
-        Write `export PATH="${PREFIX}/bin:$PATH"` and
-        `export MANPATH="${PREFIX}/share/man:${MANPATH}"` blocks to shell
-        startup files. Leave empty (default) to write to standard profiles
-        (system-wide as root, user-scoped otherwise), or provide explicit
-        file path(s) one per line. To skip all PATH/MANPATH writes,
-        set `prefix_discovery=none`.
-    applies_when:
-      - method:
-        - source

@@ -3,7 +3,7 @@
 # Run shellcheck.
 #
 # When no paths are provided, runs shellcheck
-# on tracked .sh/.bash files (except features/*/install.bash)
+# on tracked .sh/.bash files (except features/*/install.bash, *.tmpl.*)
 # plus src/*/install.bash.
 # With args, runs shellcheck on those paths alone.
 #
@@ -36,8 +36,9 @@ if [[ $# -gt 0 ]]; then
   echo "$@" | xargs -P"${jobs}" -n"${batch}" shellcheck
 else
   {
-    # All tracked .sh/.bash files except features/*/install.bash
-    git ls-files -- '*.sh' '*.bash' | grep -v '^features/[^/]*/install\.bash$'
+    # All tracked .sh/.bash files except features/*/install.bash and *.tmpl.*
+    git ls-files -- '*.sh' '*.bash' |
+      grep -vE '^features/[^/]*/install\.bash$|\.tmpl\.(bash|sh)$'
     # Plus all src/*/install.bash files
     find src -maxdepth 2 -name 'install.bash' 2> /dev/null
   } | sort -u | xargs -P"${jobs}" -n"${batch}" shellcheck

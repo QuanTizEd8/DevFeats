@@ -1,6 +1,6 @@
 nvm_add_users:
   description: |
-    nvm_write_group=nvm, nvm_write_users=testuser:
+    write_group=nvm, write_users=testuser:
     testuser is added to the nvm group; NVM_DIR has group-write + setgid bits
     set; and the nvm init snippet is written to the system-wide bash.bashrc.
   pre: |
@@ -34,7 +34,7 @@ nvm_add_users:
         grep "nvm" /etc/bash.bashrc 2> /dev/null || echo "(no nvm lines)"
 
 nvm_no_permissions:
-  description: "nvm_write_group=\"\" (empty): node is installed but the nvm group is NOT created."
+  description: "write_group=\"\" (empty): node is installed but the nvm group is NOT created."
   pre: |
     _NVM_DIR=/usr/local/share/nvm
   checks:
@@ -50,7 +50,7 @@ nvm_no_permissions:
 
 nvm_remote_user:
   description: |
-    nvm_write_group=nvm with remoteUser="vscode" (injected as _REMOTE_USER by
+    write_group=nvm with remoteUser="vscode" (injected as _REMOTE_USER by
     the devcontainer CLI): vscode is added to the nvm group and the nvm init
     snippet is written to the system-wide /etc/bash.bashrc.
   pre: |
@@ -77,7 +77,7 @@ nvm_remote_user:
 
 nvm_set_permissions:
   description: |
-    nvm_write_group=nvm (default): nvm group is created, NVM_DIR is group-owned
+    write_group=nvm (default): nvm group is created, NVM_DIR is group-owned
     by nvm, and has group-write + setgid bits set.
   pre: |
     _NVM_DIR=/usr/local/share/nvm

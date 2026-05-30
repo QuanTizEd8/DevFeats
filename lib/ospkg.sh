@@ -25,6 +25,7 @@ _OSPKG__YQ_BIN=
 _OSPKG__DNF_MARK_USER="install"
 _OSPKG__DNF_MARK_DEP="remove"
 declare -gA _OSPKG__OS_RELEASE=()
+declare -gA _OSPKG__EXTRA_VARS=()
 
 # ── Private: clean functions ──────────────────────────────────────────────────
 
@@ -272,6 +273,9 @@ _ospkg__expand_content_vars() {
   for _k in "${!_OSPKG__OS_RELEASE[@]}"; do
     _content="${_content//\$\{${_k}\}/${_OSPKG__OS_RELEASE[$_k]}}"
   done
+  for _k in "${!_OSPKG__EXTRA_VARS[@]}"; do
+    _content="${_content//\$\{${_k}\}/${_OSPKG__EXTRA_VARS[$_k]}}"
+  done
   printf '%s' "$_content"
   return 0
 }
@@ -373,34 +377,21 @@ _ospkg__brew_run() {
 # Side effects: sets `_OSPKG__YQ_BIN` to the absolute path of the installed binary.
 # Returns: 0 on success, 1 if yq cannot be installed.
 _ospkg__ensure_yq() {
-  # Fast path: already cached and still compatible.
-  if [[ -n "${_OSPKG__YQ_BIN:-}" ]] && [[ -x "${_OSPKG__YQ_BIN}" ]] && _install_yq__compatible "${_OSPKG__YQ_BIN}"; then
+  # Fast path: already cached.
+  if [[ -n "${_OSPKG__YQ_BIN:-}" ]] && [[ -x "${_OSPKG__YQ_BIN}" ]]; then
     return 0
   fi
-  local _yq_out_dir _yq_out_file
   _OSPKG__YQ_BIN=""
-  _yq_out_dir="$(file__tmpdir "ospkg/yq")"
-  _yq_out_file="$(mktemp "${_yq_out_dir}/install_yq_XXXXXX")" || {
+  local _bin
+  _bin="$(bootstrap__yq)" || {
     logging__error "yq could not be installed."
     return 1
   }
-  install__yq \
-    --context internal \
-    --owner-group devfeats-ospkg-internals \
-    --method binary \
-    --if-exists skip > "${_yq_out_file}" || {
-    logging__error "yq could not be installed."
+  [[ -n "${_bin}" && -x "${_bin}" ]] || {
+    logging__error "bootstrap__yq did not return a usable yq path."
     return 1
   }
-  _OSPKG__YQ_BIN="$(awk 'NF{last=$0} END{print last}' "${_yq_out_file}")"
-  [[ -n "${_OSPKG__YQ_BIN}" && -x "${_OSPKG__YQ_BIN}" ]] || {
-    logging__error "install__yq did not return a usable yq path."
-    return 1
-  }
-  _install_yq__compatible "${_OSPKG__YQ_BIN}" || {
-    logging__error "yq could not be installed (or installed binary is incompatible)."
-    return 1
-  }
+  _OSPKG__YQ_BIN="${_bin}"
   return 0
 }
 
@@ -476,7 +467,7 @@ _ospkg__set_yum() {
 
 _ospkg__set_zypper() {
   _ospkg__configure_pm "Zypper (tool: zypper)" zypper zypper zypper _ospkg__clean_zypper "/var/cache/zypp/raw" "*"
-  _OSPKG__UPDATE=(users__run_privileged zypper --non-interactive refresh)
+  _OSPKG__UPDATE=(users__run_privileged zypper --gpg-auto-import-keys --non-interactive refresh)
   _OSPKG__INSTALL=(users__run_privileged zypper --non-interactive install)
   _OSPKG__REMOVE=(users__run_privileged zypper --non-interactive remove --clean-deps)
   _OSPKG__REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
@@ -794,13 +785,25 @@ ospkg__install() {
   printf '  - %s\n' "$@" >&2
   # Keep interactive mode possible on TTY, but prevent PMs from draining
   # caller-provided stdin in piped/non-interactive contexts.
-  if [[ -t 0 ]]; then
-    net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" >&2
+  # zypper exits 6 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when packages are installed
+  # successfully but some repos had stale metadata — stop retrying immediately
+  # (--bail-on 6) and treat as success. Consistent with _ospkg__update_index.
+  local _rc=0
+  if [[ "$_OSPKG__PKG_MNGR" == "zypper" ]]; then
+    if [[ -t 0 ]]; then
+      net__fetch_with_retry --bail-on 6 "${_OSPKG__INSTALL[@]}" "$@" >&2 || _rc=$?
+    else
+      net__fetch_with_retry --bail-on 6 "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2 || _rc=$?
+    fi
+    [[ "$_rc" -eq 6 ]] && return 0
+  elif [[ -t 0 ]]; then
+    net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" >&2 || _rc=$?
   elif [[ "$_OSPKG__PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
-    DEBIAN_FRONTEND=noninteractive net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2
+    DEBIAN_FRONTEND=noninteractive net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2 || _rc=$?
   else
-    net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2
+    net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2 || _rc=$?
   fi
+  return "$_rc"
 }
 
 # @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
@@ -1590,6 +1593,190 @@ ospkg__remove_user() {
   return 0
 }
 
+# ── Public: dummy package registration ───────────────────────────────────────
+
+# @brief ospkg__register_dummy <pkg> <version> [--provides <name>...] [--description <text>] — Install a dummy Debian package to register a non-PM tool with the package manager.
+#
+# Creates and installs a minimal equivs-generated .deb that satisfies
+# `Depends:` constraints for a tool installed by non-PM means (binary, source,
+# script, cargo, npm, etc.). The package is tagged with `XB-Devfeats-Dummy: true`
+# so `ospkg__unregister_dummy` can identify and remove it without risk of
+# removing a real package with the same name.
+#
+# Debian/Ubuntu (apt family) only. No-op on all other platforms.
+# Non-fatal: emits a warning on failure and returns 0.
+# Requires privilege (root or sudo); emits a warning and skips when absent.
+#
+# Args:
+#   <pkg>              Package name to register (e.g., `git`).
+#   <version>          Exact version string — bare, no PM suffix (e.g., `2.47.2`).
+#   --provides <name>  Additional package names this dummy Provides. Repeatable.
+#                      The primary <pkg> is always included.
+#   --description <t>  Package description. Defaults to a devfeats sentinel string.
+#
+# Returns: 0 always (non-fatal).
+ospkg__register_dummy() {
+  ospkg__detect || return 0
+  [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
+
+  if [[ $# -lt 2 ]]; then
+    logging__warn "ospkg__register_dummy: usage: ospkg__register_dummy <pkg> <version> [--provides <name>...] [--description <text>]"
+    return 0
+  fi
+
+  local _pkg="$1" _version="$2"
+  shift 2
+
+  if [[ -z "${_pkg:-}" || -z "${_version:-}" ]]; then
+    logging__warn "ospkg__register_dummy: <pkg> and <version> must be non-empty."
+    return 0
+  fi
+
+  local -a _provides=()
+  local _description="devfeats: non-PM installation of ${_pkg} (${_version})"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --provides)
+        shift
+        [[ $# -gt 0 ]] && {
+          _provides+=("$1")
+          shift
+        }
+        ;;
+      --description)
+        shift
+        [[ $# -gt 0 ]] && {
+          _description="$1"
+          shift
+        }
+        ;;
+      *)
+        logging__warn "ospkg__register_dummy: ignoring unknown argument: '$1'"
+        shift
+        ;;
+    esac
+  done
+
+  if ! users__is_privileged; then
+    logging__warn "ospkg__register_dummy: skipping dummy registration for '${_pkg}' (no privilege)."
+    return 0
+  fi
+
+  # Ensure equivs is available.
+  if ! command -v equivs-build > /dev/null 2>&1; then
+    logging__info "ospkg__register_dummy: equivs not found — installing."
+    ospkg__install_tracked "devfeats-ospkg-internals" equivs 2> /dev/null || {
+      logging__warn "ospkg__register_dummy: could not install equivs; skipping dummy registration for '${_pkg}'."
+      return 0
+    }
+  fi
+
+  local _work_dir
+  _work_dir="$(file__mktmpdir "ospkg-dummy")"
+
+  # Provides line always includes the primary package name.
+  local _provides_line="${_pkg}"
+  local _p
+  for _p in "${_provides[@]}"; do
+    [[ "$_p" != "$_pkg" ]] && _provides_line+=", ${_p}"
+  done
+
+  # equivs control file — use XB- prefix so the field is recorded in the
+  # binary package and queryable via dpkg-query for reliable identification.
+  printf 'Package: %s\nVersion: %s\nArchitecture: all\nMaintainer: devfeats <devfeats@local>\nDescription: %s\nXB-Devfeats-Dummy: true\nProvides: %s\n' \
+    "$_pkg" "$_version" "$_description" "$_provides_line" > "${_work_dir}/${_pkg}.ctrl"
+
+  # equivs-build writes the .deb to CWD.
+  local _rc=0
+  (
+    cd "$_work_dir"
+    equivs-build "${_work_dir}/${_pkg}.ctrl"
+  ) > /dev/null 2>&1 || _rc=$?
+
+  if [[ $_rc -ne 0 ]]; then
+    logging__warn "ospkg__register_dummy: equivs-build failed for '${_pkg}' — skipping."
+    rm -rf "$_work_dir"
+    return 0
+  fi
+
+  local _deb
+  _deb="$(find "$_work_dir" -maxdepth 1 -name '*.deb' | head -1)"
+  if [[ -z "${_deb:-}" ]]; then
+    logging__warn "ospkg__register_dummy: no .deb produced by equivs-build for '${_pkg}' — skipping."
+    rm -rf "$_work_dir"
+    return 0
+  fi
+
+  # --force-depends prevents failure when equivs generates a trivial
+  # ${misc:Depends} that isn't present in all images.
+  local _dpkg_rc=0
+  users__run_privileged dpkg --force-depends -i "$_deb" > /dev/null 2>&1 || _dpkg_rc=$?
+  rm -rf "$_work_dir"
+
+  if [[ $_dpkg_rc -ne 0 ]]; then
+    logging__warn "ospkg__register_dummy: dpkg install failed for '${_pkg}' dummy — skipping."
+    return 0
+  fi
+
+  logging__success "Registered dummy package '${_pkg}' (${_version})."
+  return 0
+}
+
+# @brief ospkg__unregister_dummy <pkg> — Remove a devfeats dummy package if installed.
+#
+# Queries the dpkg database for the `XB-Devfeats-Dummy` custom field and only
+# removes the package when the field equals `true`. This prevents accidental
+# removal of a real package with the same name installed by other means.
+#
+# Debian/Ubuntu (apt family) only. No-op on all other platforms.
+# Non-fatal: emits a warning on failure and returns 0.
+# Requires privilege (root or sudo); emits a warning and skips when absent.
+#
+# Args:
+#   <pkg>  Package name to unregister.
+#
+# Returns: 0 always (non-fatal).
+ospkg__unregister_dummy() {
+  ospkg__detect || return 0
+  [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
+
+  local _pkg="${1:-}"
+  if [[ -z "${_pkg:-}" ]]; then
+    logging__warn "ospkg__unregister_dummy: <pkg> must be non-empty."
+    return 0
+  fi
+
+  # Only remove when we installed the dummy (identified by custom dpkg field).
+  local _dummy_field
+  _dummy_field="$(dpkg-query -f '${XB-Devfeats-Dummy}' -W "$_pkg" 2> /dev/null)" || true
+
+  if [[ "${_dummy_field:-}" != "true" ]]; then
+    logging__info "ospkg__unregister_dummy: '${_pkg}' is not a devfeats dummy — skipping."
+    return 0
+  fi
+
+  if ! users__is_privileged; then
+    logging__warn "ospkg__unregister_dummy: skipping removal of dummy '${_pkg}' (no privilege)."
+    return 0
+  fi
+
+  logging__remove "Removing devfeats dummy package '${_pkg}'."
+  local _rc=0
+  if [[ -t 0 ]]; then
+    users__run_privileged apt-get -y remove "$_pkg" > /dev/null 2>&1 || _rc=$?
+  else
+    DEBIAN_FRONTEND=noninteractive users__run_privileged apt-get -y remove "$_pkg" < /dev/null > /dev/null 2>&1 || _rc=$?
+  fi
+
+  if [[ $_rc -ne 0 ]]; then
+    logging__warn "ospkg__unregister_dummy: removal of dummy '${_pkg}' failed."
+    return 0
+  fi
+
+  logging__success "Removed dummy package '${_pkg}'."
+  return 0
+}
+
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
 # @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update] [--update-index <bool>] [--keep_repos] [--dry_run] [--interactive] [--build-group <id>] — Run the full installation pipeline from a manifest.
 #
@@ -1627,6 +1814,7 @@ ospkg__run() {
   local _do_pkg_update=false _do_remove=false
   local _fetch_netrc_file=''
   local -a _fetch_headers=()
+  _OSPKG__EXTRA_VARS=()
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -1684,6 +1872,12 @@ ospkg__run() {
       --remove)
         shift
         _do_remove=true
+        ;;
+      --extra-var)
+        shift
+        local _ev_key="${1%%=*}" _ev_val="${1#*=}"
+        _OSPKG__EXTRA_VARS["${_ev_key}"]="${_ev_val}"
+        shift
         ;;
 
       *)
@@ -2130,6 +2324,7 @@ ospkg__run() {
       _pkgname="$(printf '%s' "$_pkgitem" | json__query -r '.name')"
       _pkgflags="$(printf '%s' "$_pkgitem" | json__query -r '.flags // empty')"
       _pkgversion="$(printf '%s' "$_pkgitem" | json__query -r '.version // empty')"
+      _pkgversion="$(_ospkg__expand_content_vars "${_pkgversion}")"
       [[ -z "${_pkgname:-}" ]] && continue
 
       # Apply version constraint (PM-native syntax).

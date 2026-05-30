@@ -294,6 +294,86 @@ setup() {
   assert_output --partial "unknown option"
 }
 
+@test "npm__resolve_version --registry strips trailing slash from base URL" {
+  local _url_file="${BATS_TEST_TMPDIR}/registry-url.txt"
+  _npm__registry_get() {
+    printf '%s\n' "$1" > "${_url_file}"
+    printf '{"dist-tags":{"latest":"1.0.0"},"versions":{"1.0.0":{}}}\n'
+    return 0
+  }
+  export -f _npm__registry_get
+  run npm__resolve_version "@scope/pkg" "stable" --registry "https://example.com/"
+  assert_success
+  assert_output "1.0.0"
+  run cat "${_url_file}"
+  assert_output "https://example.com/@scope/pkg"
+}
+
+@test "npm__resolve_version --registry passes custom base to package document URL" {
+  local _url_file="${BATS_TEST_TMPDIR}/registry-url.txt"
+  _npm__registry_get() {
+    printf '%s\n' "$1" > "${_url_file}"
+    printf '{"dist-tags":{"latest":"2.3.4"},"versions":{"2.3.4":{}}}\n'
+    return 0
+  }
+  export -f _npm__registry_get
+  run npm__resolve_version "my-pkg" "stable" --registry "https://registry.example.com"
+  assert_success
+  assert_output "2.3.4"
+  run cat "${_url_file}"
+  assert_output "https://registry.example.com/my-pkg"
+}
+
+# ---------------------------------------------------------------------------
+# npm__resolve_version_uri
+# ---------------------------------------------------------------------------
+
+@test "npm__resolve_version_uri stable resolves latest dist-tag from full URI" {
+  local _uri_file="${BATS_TEST_TMPDIR}/resolve-uri.txt"
+  _npm__registry_get() {
+    printf '%s\n' "$1" > "${_uri_file}"
+    printf '{"dist-tags":{"latest":"9.9.9"},"versions":{"9.9.9":{}}}\n'
+    return 0
+  }
+  export -f _npm__registry_get
+  run npm__resolve_version_uri "https://registry.example.com/acme-widget" "stable"
+  assert_success
+  assert_output "9.9.9"
+  run cat "${_uri_file}"
+  assert_output "https://registry.example.com/acme-widget"
+}
+
+@test "npm__resolve_version_uri fails when uri is empty" {
+  run npm__resolve_version_uri ""
+  assert_failure
+  assert_output --partial "uri is required"
+}
+
+@test "npm__resolve_version_uri symbolic dist-tag resolves without path construction" {
+  _npm__registry_get() {
+    printf '{"dist-tags":{"latest":"1.0.0","canary":"1.1.0-rc.1"},"versions":{"1.1.0-rc.1":{},"1.0.0":{}}}\n'
+    return 0
+  }
+  export -f _npm__registry_get
+  run npm__resolve_version_uri "https://registry.npmjs.org/pkg" "canary"
+  assert_success
+  assert_output "1.1.0-rc.1"
+}
+
+@test "npm__fetch_package_json --registry strips trailing slash from URL" {
+  local _url_file="${BATS_TEST_TMPDIR}/fetch-url.txt"
+  _npm__registry_get() {
+    printf '%s\n' "$1" > "${_url_file}"
+    printf '{"name":"pkg"}\n'
+    return 0
+  }
+  export -f _npm__registry_get
+  run npm__fetch_package_json "@scope/pkg" --registry "https://example.com/"
+  assert_success
+  run cat "${_url_file}"
+  assert_output "https://example.com/@scope/pkg"
+}
+
 # ---------------------------------------------------------------------------
 # npm__install_package
 # ---------------------------------------------------------------------------

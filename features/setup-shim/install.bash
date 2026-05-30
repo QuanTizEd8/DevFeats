@@ -1,33 +1,21 @@
-_SHIM_BIN="${PREFIX}/bin"
+# shellcheck shell=bash
 
-# ---------------------------------------------------------------------------
-# Install shims
-# ---------------------------------------------------------------------------
-mkdir -p "${_SHIM_BIN}"
+__install_run__() {
+  local _bin="${PREFIX}/bin"
+  file__mkdir "${_bin}"
 
-install_shim() {
-  _src="${_FEAT_FILES_DIR}/$1"
-  _dst="${_SHIM_BIN}/$1"
-  if [ ! -f "$_src" ]; then
-    logging__error "setup-shim: source file not found: ${_src}"
-    exit 1
-  fi
-  cp "$_src" "$_dst"
-  chmod +rx "$_dst"
-  logging__success "  $1 → ${_dst}"
-  return
+  _install_shim() {
+    local _src="${_FEAT_FILES_DIR}/$1" _dst="${_bin}/$1"
+    [[ -f "${_src}" ]] || {
+      logging__error "setup-shim: source file not found: ${_src}"
+      return 1
+    }
+    file__cp "${_src}" "${_dst}"
+    file__chmod +rx "${_dst}"
+    logging__success "  $1 → ${_dst}"
+  }
+
+  [[ "${CODE}" == "true" ]] && _install_shim "code"
+  [[ "${DEVCONTAINER_INFO}" == "true" ]] && _install_shim "devcontainer-info"
+  [[ "${SYSTEMCTL}" == "true" ]] && _install_shim "systemctl"
 }
-
-if [ "${CODE:-true}" = "true" ]; then
-  install_shim "code"
-fi
-
-if [ "${DEVCONTAINER_INFO:-true}" = "true" ]; then
-  install_shim "devcontainer-info"
-fi
-
-if [ "${SYSTEMCTL:-true}" = "true" ]; then
-  install_shim "systemctl"
-fi
-
-exit 0

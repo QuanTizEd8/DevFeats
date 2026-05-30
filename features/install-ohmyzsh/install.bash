@@ -1,13 +1,16 @@
 # shellcheck shell=bash
 
-_GITHUB_BASE_URL="${_GITHUB_BASE_URL:-https://github.com}"
-_OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/${OHMYZSH_GH_REPO}"
-
 # ---------------------------------------------------------------------------
 # install_ohmyzsh — Clone OMZ to INSTALL_DIR, scaffold ZSH_CUSTOM,
 #                   clone custom theme/plugins.
 # ---------------------------------------------------------------------------
-install_ohmyzsh() {
+__install_run__() {
+  if ! command -v zsh > /dev/null 2>&1; then
+    logging__warn "Zsh not available — skipping Oh My Zsh installation."
+    return 0
+  fi
+  local _GITHUB_BASE_URL="${_GITHUB_BASE_URL:-https://github.com}"
+  local _OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/ohmyzsh/ohmyzsh"
   local _install_dir="$INSTALL_DIR"
   local _branch="$BRANCH"
   local _theme="$THEME"
@@ -123,7 +126,7 @@ _link_custom_items() {
 #   4. Else if ${_rcdir}/.zshrc exists → create zshtheme + inject source line.
 #   5. Else → create .zshrc and write the OMZ block directly there.
 # ---------------------------------------------------------------------------
-_configure_user_ohmyzsh() {
+__configure_user() {
   local _username="$1"
   local _home
   _home="$(users__resolve_home "$_username")"
@@ -147,6 +150,7 @@ _configure_user_ohmyzsh() {
   else
     local _zdotdir=""
     if command -v zsh > /dev/null 2>&1; then
+      # shellcheck disable=SC2016  # $ZDOTDIR is a zsh variable, not a shell variable
       _zdotdir="$(users__run_as "$_username" -- zsh -c 'printf "%s" "$ZDOTDIR"' \
         2> /dev/null || true)"
     fi
@@ -253,23 +257,6 @@ _configure_user_ohmyzsh() {
   logging__success "User '${_username}' Oh My Zsh configuration complete."
 }
 
-# ===================================================================
-# Install Oh My Zsh
-# ===================================================================
-if ! command -v zsh > /dev/null 2>&1; then
-  logging__warn "Zsh not available — skipping Oh My Zsh installation."
-else
-  install_ohmyzsh
-fi
-
-# ===================================================================
-# Per-user configuration
-# ===================================================================
-mapfile -t _OMZ_USERS < <(users__resolve_list)
-for _username in "${_OMZ_USERS[@]}"; do
-  if ! id "$_username" > /dev/null 2>&1; then
-    logging__warn "User '${_username}' does not exist — skipping."
-    continue
-  fi
-  _configure_user_ohmyzsh "$_username"
-done
+__install_finish_post() {
+  __feat_do_configure_users__
+}

@@ -6,7 +6,7 @@ _STARSHIP_INSTALLER_URL="https://starship.rs/install.sh"
 # install_starship — Download and run the official Starship installer.
 # ---------------------------------------------------------------------------
 install_starship() {
-  local _bin_dir="${STARSHIP_PREFIX}/bin"
+  local _bin_dir="${PREFIX}/bin"
 
   if [ -x "${_bin_dir}/starship" ]; then
     logging__info "Starship already installed at '${_bin_dir}/starship' — skipping."
@@ -50,13 +50,14 @@ _configure_user_starship() {
 
   # --- Zsh hook ---
   if [[ "$_shells" == *zsh* ]]; then
-    if ! command -v starship > /dev/null 2>&1 && [ ! -x "${STARSHIP_PREFIX}/bin/starship" ]; then
+    if ! command -v starship > /dev/null 2>&1 && [ ! -x "${PREFIX}/bin/starship" ]; then
       logging__warn "starship_shells includes 'zsh' but starship is not on PATH — integration injected anyway."
     fi
 
     local _zsh_rcfile _zsh_rcdir
     local _zdotdir=""
     if command -v zsh > /dev/null 2>&1; then
+      # shellcheck disable=SC2016  # $ZDOTDIR is a zsh variable, not a shell variable
       _zdotdir="$(users__run_as "$_username" -- zsh -c 'printf "%s" "$ZDOTDIR"' \
         2> /dev/null || true)"
     fi
@@ -81,12 +82,13 @@ _configure_user_starship() {
 
   # --- Bash hook ---
   if [[ "$_shells" == *bash* ]]; then
-    if ! command -v starship > /dev/null 2>&1 && [ ! -x "${STARSHIP_PREFIX}/bin/starship" ]; then
+    if ! command -v starship > /dev/null 2>&1 && [ ! -x "${PREFIX}/bin/starship" ]; then
       logging__warn "starship_shells includes 'bash' but starship is not on PATH — integration injected anyway."
     fi
 
     local _bash_rcfile _bash_rcdir
     local _xdg_config_home=""
+    # shellcheck disable=SC2016  # ${XDG_CONFIG_HOME:-} is a bash variable for the target user's shell
     _xdg_config_home="$(users__run_as "$_username" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
       2> /dev/null || true)"
     _bash_rcdir="${_xdg_config_home:-${_home}/.config}/bash"

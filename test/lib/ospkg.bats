@@ -617,6 +617,94 @@ YQ
 }
 
 # ---------------------------------------------------------------------------
+# _ospkg__expand_content_vars — extra vars
+# ---------------------------------------------------------------------------
+
+@test "_ospkg__expand_content_vars expands extra vars" {
+  reload_lib ospkg.sh
+  _OSPKG__EXTRA_VARS[VERSION]="2.89.0"
+  _OSPKG__EXTRA_VARS[CODENAME]="stable"
+
+  local _result
+  _result="$(_ospkg__expand_content_vars 'gh-${VERSION}-${CODENAME}')"
+  [[ "${_result}" == "gh-2.89.0-stable" ]]
+}
+
+@test "_ospkg__expand_content_vars: extra var with empty value collapses placeholder" {
+  reload_lib ospkg.sh
+  _OSPKG__EXTRA_VARS[VERSION]=""
+
+  local _result
+  _result="$(_ospkg__expand_content_vars 'gh=${VERSION}')"
+  [[ "${_result}" == "gh=" ]]
+}
+
+@test "_ospkg__expand_content_vars: extra vars expand alongside OS-release vars" {
+  reload_lib ospkg.sh
+  _OSPKG__OS_RELEASE[id]="ubuntu"
+  _OSPKG__EXTRA_VARS[VERSION]="2.89.0"
+
+  local _result
+  _result="$(_ospkg__expand_content_vars '${id}-${VERSION}')"
+  [[ "${_result}" == "ubuntu-2.89.0" ]]
+}
+
+@test "_ospkg__expand_content_vars: unknown placeholder left unchanged" {
+  reload_lib ospkg.sh
+
+  local _result
+  _result="$(_ospkg__expand_content_vars '${UNKNOWN_VAR}')"
+  [[ "${_result}" == '${UNKNOWN_VAR}' ]]
+}
+
+@test "ospkg__run --extra-var: _OSPKG__EXTRA_VARS reset between calls" {
+  _seed_apt_context_with_yq
+
+  ospkg__run \
+    --manifest $'packages:\n  - curl\n' \
+    --extra-var "VERSION=first" \
+    --dry_run
+
+  # Second call without --extra-var: the array must be empty afterward.
+  ospkg__run \
+    --manifest $'packages:\n  - curl\n' \
+    --dry_run
+
+  [[ "${#_OSPKG__EXTRA_VARS[@]}" -eq 0 ]]
+}
+
+@test "ospkg__run --extra-var: multiple vars are all available during execution" {
+  _seed_apt_context_with_yq
+  local _log="${BATS_TEST_TMPDIR}/extra-vars.log"
+  export _EXTRA_VARS_LOG="${_log}"
+
+  _ospkg__expand_content_vars() {
+    printf '%s=%s\n' \
+      "VERSION" "${_OSPKG__EXTRA_VARS[VERSION]:-}" \
+      "CODENAME" "${_OSPKG__EXTRA_VARS[CODENAME]:-}" \
+      >> "${_EXTRA_VARS_LOG}"
+    printf '%s' "$1"
+  }
+  export -f _ospkg__expand_content_vars
+
+  ospkg__run \
+    --manifest $'packages:\n  - curl\n' \
+    --extra-var "VERSION=2.89.0" \
+    --extra-var "CODENAME=stable" \
+    --dry_run
+
+  grep -qx "VERSION=2.89.0" "${_log}"
+  grep -qx "CODENAME=stable" "${_log}"
+}
+
+@test "ospkg__run rejects unknown option" {
+  _seed_apt_context_with_yq
+  run ospkg__run --manifest $'packages:\n  - curl\n' --bogus-flag
+  assert_failure
+  assert_output --partial "unknown option"
+}
+
+# ---------------------------------------------------------------------------
 # Build-dep tracking: ospkg__install_tracked / _ospkg__remove_build_group /
 #                     ospkg__cleanup_all_build_groups
 # ---------------------------------------------------------------------------

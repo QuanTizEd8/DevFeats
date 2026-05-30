@@ -16,20 +16,6 @@ _long_description: |-
   the appropriate shell startup files so that `brew` and any tools it installs
   are on `PATH` in subsequent shell sessions.
 options:
-  install_user:
-    type: string
-    default: ''
-    description: |-
-      User to own the Homebrew installation.
-      Non-root callers cannot set this to a different user.
-      On macOS, root is never permitted; the install user is resolved as:
-        `SUDO_USER` (if set and non-root) → first non-system user from `dscl` → error.
-      On Linux, root is allowed only when explicitly set here (a warning is emitted);
-      the install user is resolved as:
-        `SUDO_USER` (if set and non-root) → `linuxbrew` (created if absent).
-      Note: `_REMOTE_USER` is not used for install ownership because the official
-      Homebrew installer hardcodes `/home/linuxbrew/.linuxbrew` on Linux and ignores
-      `HOMEBREW_PREFIX`. Shellenv for remoteUser is written by `add_remote_user` instead.
   update:
     type: boolean
     default: true
@@ -55,6 +41,27 @@ options:
       Slower but useful in environments where the API endpoint is blocked.
 _options:
   gh_repo: Homebrew/install
+  method:
+    script:
+      asset_uri: "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+  prefix:
+    root: /home/linuxbrew/.linuxbrew
+    nonroot: "${HOME}/.linuxbrew"
+    bins: [brew]
+    platform_overrides:
+      - when: {kernel: Darwin, arch: arm64}
+        default: /opt/homebrew
+      - when: {kernel: Darwin}
+        default: /usr/local
+    activation:
+      shells: [bash, zsh]
+      description: |-
+        The activation snippet runs `eval "$(brew shellenv)"`, which sets up PATH,
+        MANPATH, INFOPATH, and other Homebrew environment variables. Written to
+        all-context files so Homebrew tools are available in both interactive and
+        non-interactive shells.
+    write_group:
+      default: brew
 _dependencies:
   run:
     base:
@@ -116,25 +123,3 @@ _dependencies:
         - name: base-devel
           when: {pm: pacman}
 
-_prefix_groups:
-  "":
-    prefix:
-      root: /home/linuxbrew/.linuxbrew
-      nonroot: "${HOME}/.linuxbrew"
-      bins: [brew]
-      platform_overrides:
-        - when: {kernel: Darwin, arch: arm64}
-          default: /opt/homebrew
-        - when: {kernel: Darwin}
-          default: /usr/local
-    activation:
-      shells: [bash, zsh]
-      description: |-
-        Shells to write `eval "$(brew shellenv)"` to startup files for.
-        This sets up PATH, MANPATH, INFOPATH, and other Homebrew environment
-        variables. Written to all-context files (profile.d / login files) so
-        Homebrew tools are available in both interactive and non-interactive shells.
-        Set to `''` to skip all activation writes.
-    write_group:
-      default: brew
-      owner_var: RESOLVED_INSTALL_USER

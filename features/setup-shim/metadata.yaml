@@ -18,6 +18,11 @@ _long_description: >-
   enabled or disabled.
 _options:
   installer_dir: false
+  prefix:
+    root: "${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$"
+    nonroot: "${{ _env_vars._FEAT_SHARE_DIR_NONROOT }}$"
+    symlink:
+      skip: true
 containerEnv:
   PATH: "${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/bin:$PATH"
 options:
@@ -40,17 +45,3 @@ options:
       Install a `systemctl` shim that delegates to the real systemctl
       when systemd is running,
       or prints a helpful message suggesting the `service` command.
-_prefix_groups:
-  "":
-    prefix:
-      root: "${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$"
-      nonroot: "${{ _env_vars._FEAT_SHARE_DIR_NONROOT }}$"
-    symlink:
-      skip: true
-    exports:
-      description: >-
-        Controls which shell startup files receive PATH export blocks for the shim directory
-        (`${prefix}/bin`).
-        - `auto` (default): root writes system-wide shell files; non-root writes user shell files.
-        - `''` (empty): skips PATH writes.
-        - A list of absolute file paths: writes only to those specific files.

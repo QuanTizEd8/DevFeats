@@ -55,9 +55,9 @@ npm__fetch_package_json() {
   local _base="${_registry:-https://registry.npmjs.org}"
   local _url
   if [ -n "$_version" ]; then
-    _url="${_base}/${_package}/${_version}"
+    _url="$(_npm__registry_url "$_base" "$_package" "$_version")"
   else
-    _url="${_base}/${_package}"
+    _url="$(_npm__registry_url "$_base" "$_package")"
   fi
 
   _npm__registry_get "$_url" "$_dest"
@@ -96,7 +96,7 @@ npm__dist_tags() {
   done
   local _base="${_registry:-https://registry.npmjs.org}"
   local _json
-  _json="$(_npm__registry_get "${_base}/-/package/${_package}/dist-tags")" || return 1
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "-/package" "$_package" "dist-tags")")" || return 1
   [ -n "$_json" ] || return 1
 
   local _out=""
@@ -196,7 +196,7 @@ npm__versions() {
 
   local _base="${_registry:-https://registry.npmjs.org}"
   local _json
-  _json="$(_npm__registry_get "${_base}/${_package}")" || return 1
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "$_package")")" || return 1
   [ -n "$_json" ] || return 1
 
   _json__ensure_jq || {
@@ -392,7 +392,7 @@ npm__resolve_version() {
   done
 
   local _base="${_registry:-https://registry.npmjs.org}"
-  npm__resolve_version_uri "${_base}/${_package}" "$_spec"
+  npm__resolve_version_uri "$(_npm__registry_url "$_base" "$_package")" "$_spec"
 }
 
 # @brief npm__install_package OPTIONS — Ensure npm is available, then install a package globally.
@@ -700,6 +700,25 @@ npm__resolve_node_version() {
 # Private helpers
 # ---------------------------------------------------------------------------
 
+# _npm__registry_url <base> <segment> [<segment> ...]  (internal)
+#
+# Joins a registry base URL with path segments. Strips trailing slashes from
+# <base> and leading slashes from each segment so callers may pass
+# `https://example.com/` without producing `//` in the result.
+_npm__registry_url() {
+  local _base="$1"
+  shift
+  while [[ "$_base" == */ ]]; do
+    _base="${_base%/}"
+  done
+  local _url="$_base" _seg
+  for _seg in "$@"; do
+    _seg="${_seg#/}"
+    _url="${_url}/${_seg}"
+  done
+  printf '%s\n' "$_url"
+}
+
 # _npm__registry_get <url> [<dest_file>]  (internal)
 #
 # Performs an npm registry GET with optional Authorization header from
@@ -755,7 +774,7 @@ _npm__bundled__pkg_tarball_url() {
   local _version="$2"
   local _registry="${3:-https://registry.npmjs.org}"
   local _json _url
-  _json="$(_npm__registry_get "${_registry}/${_package}/${_version}")" || return 1
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_registry" "$_package" "$_version")")" || return 1
   [ -n "$_json" ] || return 1
   _url="$(printf '%s\n' "$_json" | json__query -r '.dist.tarball // empty' 2> /dev/null)" || return 1
   [ -n "$_url" ] && [ "$_url" != "null" ] || return 1

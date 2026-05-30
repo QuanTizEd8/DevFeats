@@ -15,31 +15,24 @@ _long_description: |-
   Silicon `method=binary` is unavailable and `method=auto` falls back to
   the package manager automatically.
 _tool_name: ShellCheck
-options:
-  method:
-    type: string
-    default: auto
-    description: Installation method to use.
-    enum:
-      - value: auto
-        description: Prefer release binary, then fall back to package manager.
-      - value: binary
-        description: Install from GitHub release archives with checksum verification.
-      - value: package
-        description: Install from the operating system package manager.
-  version:
-    type: string
-    default: stable
-    description: Version to install. `stable` for the latest stable release, `latest` for the most recently published (may include pre-releases), or a concrete version like `0.10.0`.
-    proposals:
-      - value: stable
-        description: Resolve and install the latest stable (non-pre-release) release.
-      - value: latest
-        description: Resolve and install the most recently published release, potentially including pre-releases.
-      - value: 0.10.0
-        description: Install shellcheck v0.10.0.
 _options:
   gh_repo: koalaman/shellcheck
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: 0.10.0
+        description: Install shellcheck v0.10.0.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/shellcheck-v{VERSION}.{OS}.{OS_ARCH}.tar.xz"
+      binary_src: shellcheck
+    package: {}
+  prefix:
+    bins: [shellcheck]
+    applies_when:
+      - method: [binary]
 customizations:
   vscode:
     extensions:
@@ -51,9 +44,3 @@ _dependencies:
       packages:
         - shellcheck
 # installsAfter: []
-_prefix_groups:
-  "":
-    prefix:
-      bins: [shellcheck]
-    applies_when:
-      - method: [binary]

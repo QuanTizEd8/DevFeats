@@ -6,6 +6,7 @@ website_base_url: https://${{ owner_slug }}$.github.io/${{ name_slug }}$
 # on the docs site (see ``proman-publish-docs-schemas`` / ``build-docs-pkg``).
 json_schemas_publish:
   - lib/ospkg-manifest.schema.json
+  - lib/argparse-manifest.schema.json
 
 # All values under `sphinx` map directly to Sphinx configuration variable names
 # and are loaded via globals().update() in conf.py.

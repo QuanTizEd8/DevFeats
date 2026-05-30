@@ -1,130 +1,22 @@
-# ── Function definitions ──────────────────────────────────────────────────────
+# shellcheck shell=bash
 # Functions are defined before library sourcing.  Bash does not evaluate
 # function bodies until they are called, so lib functions referenced here are
 # resolved at call-time, not at definition-time.
 
-__exit_pre() {
-  logging__fn_entry "__exit_pre"
-  if [[ -n "${_pixi_netrc_tmp:-}" && -f "${_pixi_netrc_tmp}" ]]; then
-    logging__remove "Removing temporary netrc '${_pixi_netrc_tmp}'"
-    rm -f "${_pixi_netrc_tmp}"
-  fi
-  logging__fn_exit "__exit_pre"
+# pixi supports only the binary install method.
+# shellcheck disable=SC2329,SC2317
+__resolve_method() { printf 'binary\n'; }
+
+# Override: use pixi's native self-update command for updates.
+# shellcheck disable=SC2329,SC2317
+__update_run__() {
+  if __feat_check_version_match__; then return 0; fi
+  logging__info "Updating pixi to version '${VERSION}' via self-update."
+  "${_FEAT_EXISTING_PATH}" self-update --version "${VERSION}"
 }
 
-resolve_pixi_version() {
-  logging__fn_entry "resolve_pixi_version"
-  local _spec="$VERSION"
-  local _out
-  _out="$(github__resolve_version "${GH_REPO}" "$_spec")" || {
-    logging__error "Failed to resolve pixi version from GitHub."
-    exit 1
-  }
-  VERSION="${_out#*$'\n'}"
-  logging__info "Resolved version '${VERSION}'"
-  logging__fn_exit "resolve_pixi_version"
-  return 0
-}
-
-detect_triple() {
-  logging__fn_entry "detect_triple"
-  TRIPLE="$(os__rust_triple "${ARCH:-$(os__arch)}")" || {
-    logging__error "install-pixi: unsupported platform for binary install: kernel='$(os__kernel)' arch='${ARCH:-$(os__arch)}'."
-    exit 1
-  }
-  logging__info "Detected release triple: '${TRIPLE}'"
-  logging__fn_exit "detect_triple"
-  return 0
-}
-
-resolve_installer_paths() {
-  logging__fn_entry "resolve_installer_paths"
-  if [ -n "${DOWNLOAD_URL}" ]; then
-    ARCHIVE_URL="${DOWNLOAD_URL}"
-    SIDECAR_URL=""
-    logging__info "Using custom download URL; checksum verification will be skipped."
-  else
-    ARCHIVE_URL="https://github.com/${GH_REPO}/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz"
-    SIDECAR_URL="pixi-${TRIPLE}.tar.gz.sha256"
-  fi
-  logging__info "Archive URL: '${ARCHIVE_URL}'"
-  logging__fn_exit "resolve_installer_paths"
-  return 0
-}
-
-# get_installed_version — prints bare semver (no v prefix) to stdout, or empty string.
-get_installed_version() {
-  local _bin="${PREFIX}/bin/pixi"
-  if [ -x "${_bin}" ]; then
-    "${_bin}" --version 2> /dev/null | awk '{print $NF}' | sed 's/^v//' || true
-    return 0
-  fi
-  if command -v pixi > /dev/null 2>&1; then
-    pixi --version 2> /dev/null | awk '{print $NF}' | sed 's/^v//' || true
-    return 0
-  fi
-  echo ""
-  return 0
-}
-
-handle_if_exists() {
-  logging__fn_entry "handle_if_exists"
-  case "${IF_EXISTS}" in
-    skip)
-      logging__info "pixi already installed — skipping install (if_exists=skip)."
-      _SKIP_INSTALL=true
-      ;;
-    fail)
-      logging__error "pixi already installed and if_exists=fail."
-      exit 1
-      ;;
-    reinstall)
-      logging__remove "Removing existing pixi binary at '${PREFIX}/bin/pixi'..."
-      rm -f "${PREFIX}/bin/pixi"
-      _SKIP_INSTALL=false
-      ;;
-    update)
-      update_pixi
-      _SKIP_INSTALL=true
-      ;;
-  esac
-  logging__fn_exit "handle_if_exists"
-  return 0
-}
-
-update_pixi() {
-  logging__fn_entry "update_pixi"
-  local _pixi_bin
-  if [ -x "${PREFIX}/bin/pixi" ]; then
-    _pixi_bin="${PREFIX}/bin/pixi"
-  elif command -v pixi > /dev/null 2>&1; then
-    _pixi_bin="$(command -v pixi)"
-  else
-    logging__error "Cannot find pixi binary for self-update."
-    exit 1
-  fi
-  logging__info "Updating pixi via self-update to version '${VERSION}'..."
-  "${_pixi_bin}" self-update --version "${VERSION}"
-  logging__fn_exit "update_pixi"
-  return 0
-}
-
-verify_installed_binary() {
-  logging__fn_entry "verify_installed_binary"
-  local _ver=""
-  if "${PREFIX}/bin/pixi" --version > /dev/null 2>&1; then
-    _ver="$("${PREFIX}/bin/pixi" --version 2> /dev/null)"
-  elif command -v pixi > /dev/null 2>&1; then
-    _ver="$(pixi --version 2> /dev/null)"
-  else
-    logging__error "pixi not found at '${PREFIX}/bin/pixi' and not on PATH."
-    exit 1
-  fi
-  logging__info "Verified pixi: ${_ver}"
-  logging__fn_exit "verify_installed_binary"
-  return 0
-}
-
+# Invoked by the generated prefix activation system for each configured shell.
+# shellcheck disable=SC2329,SC2317
 prefix_activation_snippet() {
   if [ -n "${HOME_DIR}" ]; then
     printf 'export PIXI_HOME="%s"\n' "${HOME_DIR}"
@@ -136,127 +28,19 @@ prefix_activation_snippet() {
 }
 
 __install_finish_post() {
+  # In a devcontainer build, install a root-owned entrypoint that runs at
+  # container start to fix ownership of the .pixi named volume mount.
+  # Docker creates named volumes owned by root; the entrypoint chowns the
+  # directory to the configured remote user so they can write to it.
+  # On standalone/host installs there is no named volume and no entrypoint
+  # caller, so this section is skipped.
   if os__is_devcontainer_build; then
+    mkdir -p "${_FEAT_LIFECYCLE_DIR}"
     printf '#!/bin/sh\n"%s" info --extended\n' "${_DF_EXPECTED_CMD}" \
       > "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
     chmod +x "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
+    install__copy_bin "${_FEAT_FILES_DIR}/entrypoint.sh" "${_FEAT_ENTRYPOINT_PATH}"
+    printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
+      > "${_FEAT_LIFECYCLE_DIR}/entrypoint.sh.conf"
   fi
 }
-
-install_completion() {
-  logging__fn_entry "install_completion"
-  if [ "${#SHELL_COMPLETIONS[@]}" -eq 0 ]; then
-    logging__info "shell_completions is empty; skipping completion install."
-    logging__fn_exit "install_completion"
-    return 0
-  fi
-  local _marker="pixi completion (install-pixi)"
-  # For system-scope installs, fish/nushell/elvish completions (which have no
-  # system-wide target) go to the current user's home ($HOME).  For user-local
-  # installs the PREFIX owner is the target user, so use their home instead.
-  local _home
-  if ! users__is_user_path "${PREFIX}"; then
-    _home="${HOME}"
-  else
-    _home="$(users__home_of_path_owner "${PREFIX}")"
-  fi
-  local _shell
-  for _shell in "${SHELL_COMPLETIONS[@]}"; do
-    local _content="eval \"\$(pixi completion --shell ${_shell})\""
-    local _target_file
-    case "${_shell}" in
-      bash)
-        if ! users__is_user_path "${PREFIX}"; then
-          _target_file="$(shell__detect_bashrc)"
-        else
-          _target_file="${_home}/.bashrc"
-        fi
-        ;;
-      zsh)
-        if ! users__is_user_path "${PREFIX}"; then
-          _target_file="$(shell__detect_zshdir)/zshenv"
-        else
-          _target_file="${_home}/.zshenv"
-        fi
-        ;;
-      fish)
-        _target_file="${_home}/.config/fish/config.fish"
-        ;;
-      nushell)
-        _target_file="${_home}/.config/nushell/config.nu"
-        ;;
-      elvish)
-        _target_file="${_home}/.config/elvish/rc.elv"
-        ;;
-      *)
-        logging__error "Unsupported shell: '${_shell}' (expected: bash, zsh, fish, nushell, elvish)"
-        exit 1
-        ;;
-    esac
-    file__mkdir "$(dirname "${_target_file}")"
-    if [[ ! -f "${_target_file}" ]]; then
-      printf '' | file__tee "${_target_file}"
-    fi
-    shell__write_block --file "${_target_file}" --marker "${_marker}" --content "${_content}"
-    logging__success "Shell completion for '${_shell}' written to '${_target_file}'"
-  done
-  logging__fn_exit "install_completion"
-  return 0
-}
-
-# ── Main ──────────────────────────────────────────────────────────────────────
-
-resolve_pixi_version
-
-# Version-match idempotency check: only compare against the requested install
-# target (PREFIX/bin/pixi).  A pixi reachable only via PATH at a different location
-# does NOT satisfy the target — we still need to install there.
-_INSTALLED_VER=""
-if [ -x "${PREFIX}/bin/pixi" ]; then
-  _INSTALLED_VER="$(get_installed_version)"
-fi
-_SKIP_INSTALL=false
-if [ -n "${_INSTALLED_VER}" ] && [ "${_INSTALLED_VER}" = "${VERSION}" ]; then
-  logging__info "Installed pixi version '${_INSTALLED_VER}' matches '${VERSION}'. Skipping install."
-  _SKIP_INSTALL=true
-elif [ -x "${PREFIX}/bin/pixi" ]; then
-  # A different version is already at the requested install target: apply policy.
-  handle_if_exists
-fi
-
-if [ "${_SKIP_INSTALL}" != "true" ]; then
-  detect_triple
-  resolve_installer_paths
-  if [ -n "${DOWNLOAD_URL}" ]; then
-    _pixi_fa=("${ARCHIVE_URL}" --installer-dir "${INSTALLER_DIR}" --binary-src pixi --binary-dest "${PREFIX}/bin/")
-    [[ -n "${NETRC:-}" ]] && _pixi_fa+=(--netrc-file "${NETRC}")
-    for _ph in "${FETCH_HEADERS[@]:-}"; do [[ -n "${_ph:-}" ]] && _pixi_fa+=(--header "$_ph"); done
-    uri__fetch_asset "${_pixi_fa[@]}" || exit 1
-  else
-    github__install_release \
-      --repo "${GH_REPO}" --tag "v${VERSION}" \
-      --asset "pixi-${TRIPLE}.tar.gz" --binary-src pixi --binary-dest "${PREFIX}/bin/" \
-      --sidecar "${SIDECAR_URL}" \
-      --installer-dir "${INSTALLER_DIR}" ||
-      exit 1
-  fi
-fi
-
-verify_installed_binary
-install_completion
-
-# ---------------------------------------------------------------------------
-# Devcontainer entrypoint
-#
-# In a devcontainer build, install a root-owned entrypoint that runs at
-# container start to fix ownership of the .pixi named volume mount.
-# Docker creates named volumes owned by root; the entrypoint chowns the
-# directory to the configured remote user so they can write to it.
-# On standalone/host installs there is no named volume and no entrypoint
-# caller, so this section is skipped.
-# ---------------------------------------------------------------------------
-if os__is_devcontainer_build; then
-  install__copy_bin "${_FEAT_FILES_DIR}/entrypoint.sh" "${_FEAT_ENTRYPOINT_PATH}"
-  printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
-    > "${_FEAT_LIFECYCLE_DIR}/entrypoint.sh.conf"
-fi
