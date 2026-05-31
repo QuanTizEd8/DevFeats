@@ -1,0 +1,17 @@
+apt_default:
+  description: |
+    Verifies bash-completion is installed and the main entry point is present.
+
+  checks:
+    - title: bash-completion package installed
+      cmd: bash -c 'dpkg -s bash-completion >/dev/null 2>&1'
+    - title: bash-completion main script exists
+      cmd: test -f /usr/share/bash-completion/bash_completion
+
+apt_disabled:
+  description: |
+    Verifies that install_bash_completion=false skips installation.
+
+  checks:
+    - title: bash-completion not installed
+      cmd: bash -c '! dpkg -s bash-completion >/dev/null 2>&1'

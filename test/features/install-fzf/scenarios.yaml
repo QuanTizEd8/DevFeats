@@ -1,0 +1,20 @@
+defaults:
+  options:
+    log_level: trace
+
+apt_default:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_fzf: true
+  tests: [apt_default]
+
+apt_installer_dir:
+  envs: [ubuntu-latest]
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    install_fzf: true
+    installer_dir: /tmp/fzf-trace
+  tests: [apt_installer_dir]

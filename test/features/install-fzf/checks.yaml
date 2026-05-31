@@ -1,0 +1,41 @@
+apt_default:
+  description: |
+    Verifies fzf is installed from GitHub Releases and shell integration
+    hooks are injected into per-user Zsh and Bash rc files.
+
+  checks:
+    - title: fzf binary installed at prefix
+      cmd: test -x /usr/local/bin/fzf
+    - title: fzf on PATH
+      cmd: command -v fzf
+    - title: fzf responds to --version
+      cmd: fzf --version
+    - title: fzf hook in zsh rc
+      cmd: >-
+        bash -c 'grep -qF "fzf --zsh" /root/.zshrc 2>/dev/null
+        || grep -qF "fzf --zsh" /root/zshtheme 2>/dev/null
+        || grep -qF "fzf --zsh" /root/.config/zsh/zshtheme 2>/dev/null'
+    - title: fzf hook in bash rc
+      cmd: >-
+        bash -c 'grep -qF "fzf --bash" /root/.bashrc 2>/dev/null
+        || grep -qF "fzf --bash" /root/.config/bash/bashtheme 2>/dev/null'
+
+apt_installer_dir:
+  description: |
+    Verifies that installer_dir=<path> causes the fzf archive and checksums
+    file to be preserved in that directory after installation.
+
+  checks:
+    - title: fzf binary installed
+      cmd: test -f /usr/local/bin/fzf
+    - title: fzf --version succeeds
+      cmd: fzf --version
+    - title: installer_dir exists
+      cmd: test -d /tmp/fzf-trace
+      debug: |
+        echo "=== /tmp/fzf-trace/ contents ==="
+        ls -la /tmp/fzf-trace/ 2>/dev/null || echo "(directory missing)"
+    - title: fzf archive preserved in installer_dir
+      cmd: bash -c 'ls /tmp/fzf-trace/archive/fzf-*.tar.gz 2>/dev/null | grep -q .'
+    - title: fzf checksums file preserved in installer_dir
+      cmd: bash -c 'ls /tmp/fzf-trace/sidecar/fzf_*_checksums.txt 2>/dev/null | grep -q .'

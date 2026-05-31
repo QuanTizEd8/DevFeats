@@ -1,0 +1,50 @@
+apt_default:
+  description: |
+    Verifies that Starship is installed and the Zsh activation hook is
+    injected into root's Zsh rc file.
+
+  checks:
+    - title: starship binary installed
+      cmd: command -v starship
+    - title: starship responds to --version
+      cmd: starship --version
+    - title: zsh rc file has starship init block
+      cmd: >-
+        bash -c 'grep -qF "starship init zsh" /root/.zshrc 2>/dev/null
+        || grep -qF "starship init zsh" /root/zshtheme 2>/dev/null
+        || grep -qF "starship init zsh" /root/.config/zsh/zshtheme 2>/dev/null'
+
+apt_bash_only:
+  description: |
+    Verifies that starship_shells=bash activates Starship in Bash only.
+
+  checks:
+    - title: starship binary installed
+      cmd: command -v starship
+    - title: bash rc file has starship init block
+      cmd: >-
+        bash -c 'grep -qF "starship init bash" /root/.bashrc 2>/dev/null
+        || grep -qF "starship init bash" /root/.config/bash/bashtheme 2>/dev/null'
+    - title: zsh rc file does NOT have starship zsh init block
+      cmd: >-
+        bash -c '! grep -qF "starship init zsh" /root/.zshrc 2>/dev/null
+        && ! grep -qF "starship init zsh" /root/zshtheme 2>/dev/null
+        && ! grep -qF "starship init zsh" /root/.config/zsh/zshtheme 2>/dev/null'
+
+apt_binary_only:
+  description: |
+    Verifies that starship_shells='' installs the binary without activating
+    it in any shell.
+
+  checks:
+    - title: starship binary installed
+      cmd: command -v starship
+    - title: starship responds to --version
+      cmd: starship --version
+    - title: no starship init block in any rc file
+      cmd: >-
+        bash -c '! grep -qF "starship init" /root/.zshrc 2>/dev/null
+        && ! grep -qF "starship init" /root/.bashrc 2>/dev/null
+        && ! grep -qF "starship init" /root/zshtheme 2>/dev/null
+        && ! grep -qF "starship init" /root/.config/zsh/zshtheme 2>/dev/null
+        && ! grep -qF "starship init" /root/.config/bash/bashtheme 2>/dev/null'

@@ -1,0 +1,27 @@
+defaults:
+  options:
+    log_level: trace
+
+apt_default:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_default]
+
+apt_user_config:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_user_config]
+
+apt_install_dir:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_dir: /opt/oh-my-bash
+  tests: [apt_install_dir]
+
+apt_user_config_skip:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    user_config_mode: skip
+  tests: [apt_user_config_skip]

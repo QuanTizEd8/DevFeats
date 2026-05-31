@@ -1,0 +1,189 @@
+apt_default:
+  description: |
+    Verifies the default Oh My Zsh installation: cloned to the default path,
+    git metadata set, ZSH_CUSTOM structure scaffolded, default plugins cloned,
+    and per-user config injected into root's rc file.
+
+  pre: |
+    _OMZ=/usr/local/share/oh-my-zsh
+    _SYS_CUSTOM="${_OMZ}/custom"
+    _HOME=/root
+
+  checks:
+    - title: oh-my-zsh install dir exists
+      cmd: test -d "$_OMZ"
+    - title: oh-my-zsh main script exists
+      cmd: test -f "${_OMZ}/oh-my-zsh.sh"
+    - title: oh-my-zsh.remote git config set
+      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.remote)" = "origin"'
+    - title: oh-my-zsh.branch git config set
+      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.branch)" = "master"'
+    - title: ZSH_CUSTOM themes dir scaffolded
+      cmd: test -d "${_SYS_CUSTOM}/themes"
+    - title: ZSH_CUSTOM plugins dir scaffolded
+      cmd: test -d "${_SYS_CUSTOM}/plugins"
+    - title: zsh-syntax-highlighting plugin cloned
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+    - title: per-user rc file sources oh-my-zsh.sh
+      cmd: >-
+        bash -c 'grep -qF "oh-my-zsh.sh" /root/.zshrc 2>/dev/null
+        || grep -qF "oh-my-zsh.sh" /root/zshtheme 2>/dev/null
+        || grep -qF "oh-my-zsh.sh" /root/.config/zsh/zshtheme 2>/dev/null'
+    - title: per-user rc exports ZSH
+      cmd: >-
+        bash -c 'grep -qF "export ZSH=" /root/.zshrc 2>/dev/null
+        || grep -qF "export ZSH=" /root/zshtheme 2>/dev/null
+        || grep -qF "export ZSH=" /root/.config/zsh/zshtheme 2>/dev/null'
+
+apt_plugins:
+  description: |
+    Verifies that multiple plugin slugs (newline-delimited) are cloned into the
+    system ZSH_CUSTOM/plugins dir and symlinked into the per-user custom dir.
+
+  pre: |
+    _OMZ=/usr/local/share/oh-my-zsh
+    _SYS_CUSTOM="${_OMZ}/custom"
+    _HOME=/root
+    _USER_CUSTOM="${_HOME}/custom"
+
+  checks:
+    - title: zsh-autosuggestions cloned in system custom
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-autosuggestions/.git"
+    - title: zsh-syntax-highlighting cloned in system custom
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+    - title: per-user custom dir exists
+      cmd: test -d "$_USER_CUSTOM"
+    - title: per-user zsh-autosuggestions symlink exists
+      cmd: test -L "${_USER_CUSTOM}/plugins/zsh-autosuggestions"
+    - title: per-user zsh-syntax-highlighting symlink exists
+      cmd: test -L "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting"
+
+apt_theme_p10k:
+  description: |
+    Verifies that setting theme=romkatv/powerlevel10k installs the p10k theme
+    and configures root's rc file with the p10k guarded block.
+
+  pre: |
+    _OMZ=/usr/local/share/oh-my-zsh
+    _CUSTOM="${_OMZ}/custom"
+    _HOME=/root
+
+  checks:
+    - title: powerlevel10k theme cloned
+      cmd: test -d "${_CUSTOM}/themes/powerlevel10k/.git"
+    - title: powerlevel10k.zsh-theme file present
+      cmd: test -f "${_CUSTOM}/themes/powerlevel10k/powerlevel10k.zsh-theme"
+    - title: rc file sets ZSH_THEME to powerlevel10k
+      cmd: >-
+        bash -c 'grep -qF "powerlevel10k" /root/.zshrc 2>/dev/null
+        || grep -qF "powerlevel10k" /root/zshtheme 2>/dev/null
+        || grep -qF "powerlevel10k" /root/.config/zsh/zshtheme 2>/dev/null'
+    - title: rc file disables p10k wizard
+      cmd: >-
+        bash -c 'grep -qF "POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true" /root/.zshrc 2>/dev/null
+        || grep -qF "POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true" /root/zshtheme 2>/dev/null
+        || grep -qF "POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true" /root/.config/zsh/zshtheme 2>/dev/null'
+    - title: root .p10k.zsh exists
+      cmd: test -f "${_HOME}/.p10k.zsh"
+
+apt_install_dir:
+  description: |
+    Verifies that a custom install_dir is respected: Oh My Zsh is cloned
+    there and not at the default path.
+
+  pre: |
+    _OMZ=/opt/oh-my-zsh
+
+  checks:
+    - title: oh-my-zsh at custom path
+      cmd: test -d "$_OMZ"
+    - title: oh-my-zsh main script at custom path
+      cmd: test -f "${_OMZ}/oh-my-zsh.sh"
+    - title: oh-my-zsh.remote git config set at custom path
+      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.remote)" = "origin"'
+    - title: system custom themes dir at custom OMZ path
+      cmd: test -d "${_OMZ}/custom/themes"
+    - title: system custom plugins dir at custom OMZ path
+      cmd: test -d "${_OMZ}/custom/plugins"
+    - title: omz not at default path
+      cmd: bash -c '! test -d /usr/local/share/oh-my-zsh'
+
+apt_custom_dir_system:
+  description: |
+    Verifies that an explicit system-path custom_dir causes themes and plugins
+    to be cloned there, ZSH_CUSTOM in the user's rc file points to that path,
+    and no per-user symlinks are created under ZDOTDIR.
+
+  pre: |
+    _HOME=/root
+    _SYS_CUSTOM="/opt/zsh-custom"
+    _OMZ=/usr/local/share/oh-my-zsh
+
+  checks:
+    - title: explicit system custom dir exists
+      cmd: test -d "$_SYS_CUSTOM"
+    - title: explicit system custom themes dir
+      cmd: test -d "${_SYS_CUSTOM}/themes"
+    - title: explicit system custom plugins dir
+      cmd: test -d "${_SYS_CUSTOM}/plugins"
+    - title: default plugin cloned at explicit path
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+    - title: default plugin NOT cloned at install_dir/custom
+      cmd: bash -c '! test -d "${_OMZ}/custom/plugins/zsh-syntax-highlighting"'
+    - title: rc file sets ZSH_CUSTOM to explicit system path
+      cmd: >-
+        bash -c 'grep -qF "ZSH_CUSTOM=\"${_SYS_CUSTOM}\"" /root/.zshrc 2>/dev/null
+        || grep -qF "ZSH_CUSTOM=\"${_SYS_CUSTOM}\"" /root/zshtheme 2>/dev/null
+        || grep -qF "ZSH_CUSTOM=\"${_SYS_CUSTOM}\"" /root/.config/zsh/zshtheme 2>/dev/null'
+
+apt_custom_dir_per_user:
+  description: |
+    Verifies that a ~-prefixed custom_dir is expanded per-user and that
+    installer-managed plugins are symlinked (not copied) from the system
+    install into the per-user dir.
+
+  pre: |
+    _HOME=/root
+    _USER_CUSTOM="${_HOME}/.zsh-custom"
+    _OMZ=/usr/local/share/oh-my-zsh
+    _SYS_CUSTOM="${_OMZ}/custom"
+
+  checks:
+    - title: per-user custom dir exists
+      cmd: test -d "$_USER_CUSTOM"
+    - title: per-user custom themes dir exists
+      cmd: test -d "${_USER_CUSTOM}/themes"
+    - title: per-user custom plugins dir exists
+      cmd: test -d "${_USER_CUSTOM}/plugins"
+    - title: plugin symlink created in per-user dir
+      cmd: test -L "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting"
+    - title: plugin symlink points to system custom
+      cmd: bash -c "readlink '${_USER_CUSTOM}/plugins/zsh-syntax-highlighting' | grep -qF '${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting'"
+    - title: system plugin dir still exists at target
+      cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+    - title: plugin NOT directly cloned in per-user dir
+      cmd: bash -c '! test -d "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting/.git"'
+    - title: rc file sets ZSH_CUSTOM to per-user path
+      cmd: >-
+        bash -c 'grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" /root/.zshrc 2>/dev/null
+        || grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" /root/zshtheme 2>/dev/null
+        || grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" /root/.config/zsh/zshtheme 2>/dev/null'
+
+apt_user_config_skip:
+  description: |
+    Verifies that user_config_mode=skip installs Oh My Zsh system-wide but
+    does not inject any per-user configuration blocks.
+
+  pre: |
+    _OMZ=/usr/local/share/oh-my-zsh
+
+  checks:
+    - title: oh-my-zsh installed system-wide
+      cmd: test -d "$_OMZ"
+    - title: oh-my-zsh main script exists
+      cmd: test -f "${_OMZ}/oh-my-zsh.sh"
+    - title: root rc file has no OMZ block
+      cmd: >-
+        bash -c '! grep -qF "install-ohmyzsh" /root/.zshrc 2>/dev/null
+        && ! grep -qF "install-ohmyzsh" /root/zshtheme 2>/dev/null
+        && ! grep -qF "install-ohmyzsh" /root/.config/zsh/zshtheme 2>/dev/null'

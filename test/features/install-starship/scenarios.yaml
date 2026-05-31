@@ -1,0 +1,22 @@
+defaults:
+  options:
+    log_level: trace
+
+apt_default:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  tests: [apt_default]
+
+apt_bash_only:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    starship_shells: bash
+  tests: [apt_bash_only]
+
+apt_binary_only:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    starship_shells: ""
+  tests: [apt_binary_only]

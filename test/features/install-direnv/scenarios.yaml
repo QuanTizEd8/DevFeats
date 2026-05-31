@@ -1,0 +1,10 @@
+defaults:
+  options:
+    log_level: trace
+
+apt_default:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    install_direnv: true
+  tests: [apt_default]

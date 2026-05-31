@@ -1,0 +1,19 @@
+apt_default:
+  description: |
+    Verifies direnv is installed and shell hooks are injected into per-user
+    Zsh and Bash rc files.
+
+  checks:
+    - title: direnv on PATH
+      cmd: command -v direnv
+    - title: direnv responds to --version
+      cmd: direnv --version
+    - title: direnv hook in zsh rc
+      cmd: >-
+        bash -c 'grep -qF "direnv hook zsh" /root/.zshrc 2>/dev/null
+        || grep -qF "direnv hook zsh" /root/zshtheme 2>/dev/null
+        || grep -qF "direnv hook zsh" /root/.config/zsh/zshtheme 2>/dev/null'
+    - title: direnv hook in bash rc
+      cmd: >-
+        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /root/.config/bash/bashtheme 2>/dev/null'

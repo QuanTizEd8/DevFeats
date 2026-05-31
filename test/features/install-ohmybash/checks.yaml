@@ -1,0 +1,95 @@
+apt_default:
+  description: |
+    Verifies the default Oh My Bash installation: cloned to the default path,
+    git metadata set, OSH_CUSTOM structure scaffolded, default plugins available,
+    and per-user config injected into root's bashtheme (or .bashrc).
+
+  pre: |
+    _OMB=/usr/local/share/oh-my-bash
+    _SYS_CUSTOM="${_OMB}/custom"
+    _HOME=/root
+
+  checks:
+    - title: oh-my-bash install dir exists
+      cmd: test -d "$_OMB"
+    - title: oh-my-bash main script exists
+      cmd: test -f "${_OMB}/oh-my-bash.sh"
+    - title: oh-my-bash.remote git config set
+      cmd: bash -c 'test "$(git -C '"$_OMB"' config oh-my-bash.remote)" = "origin"'
+    - title: oh-my-bash.branch git config set
+      cmd: bash -c 'test "$(git -C '"$_OMB"' config oh-my-bash.branch)" = "master"'
+    - title: OSH_CUSTOM themes dir scaffolded
+      cmd: test -d "${_SYS_CUSTOM}/themes"
+    - title: OSH_CUSTOM plugins dir scaffolded
+      cmd: test -d "${_SYS_CUSTOM}/plugins"
+    - title: per-user rc sources oh-my-bash.sh
+      cmd: >-
+        bash -c 'grep -qF "oh-my-bash.sh" /root/.bashrc 2>/dev/null
+        || grep -qF "oh-my-bash.sh" /root/.config/bash/bashtheme 2>/dev/null'
+    - title: per-user rc exports OSH
+      cmd: >-
+        bash -c 'grep -qF "export OSH=" /root/.bashrc 2>/dev/null
+        || grep -qF "export OSH=" /root/.config/bash/bashtheme 2>/dev/null'
+
+apt_user_config:
+  description: |
+    Verifies Oh My Bash per-user configuration for root:
+    OSH_CUSTOM defaults to ~/.config/bash/custom, per-user custom dirs exist,
+    and the OMB block is written to the bashtheme file.
+
+  pre: |
+    _HOME=/root
+    _OMB=/usr/local/share/oh-my-bash
+    _SYS_CUSTOM="${_OMB}/custom"
+    _USER_CUSTOM="${_HOME}/.config/bash/custom"
+    _BASHTHEME="${_HOME}/.config/bash/bashtheme"
+
+  checks:
+    - title: per-user OMB custom dir exists
+      cmd: test -d "$_USER_CUSTOM"
+    - title: per-user OMB themes dir exists
+      cmd: test -d "${_USER_CUSTOM}/themes"
+    - title: per-user OMB plugins dir exists
+      cmd: test -d "${_USER_CUSTOM}/plugins"
+    - title: bashtheme file written
+      cmd: test -f "$_BASHTHEME"
+    - title: bashtheme sets OSH_CUSTOM to per-user path
+      cmd: grep -qF "OSH_CUSTOM=\"${_USER_CUSTOM}\"" "$_BASHTHEME"
+    - title: bashtheme exports OSH
+      cmd: grep -q 'export OSH=' "$_BASHTHEME"
+    - title: bashtheme sources oh-my-bash.sh
+      cmd: grep -q 'oh-my-bash.sh' "$_BASHTHEME"
+
+apt_install_dir:
+  description: |
+    Verifies that a custom install_dir is respected: Oh My Bash is cloned
+    there and not at the default path.
+
+  pre: |
+    _OMB=/opt/oh-my-bash
+
+  checks:
+    - title: oh-my-bash at custom path
+      cmd: test -d "$_OMB"
+    - title: oh-my-bash main script at custom path
+      cmd: test -f "${_OMB}/oh-my-bash.sh"
+    - title: omb not at default path
+      cmd: bash -c '! test -d /usr/local/share/oh-my-bash'
+
+apt_user_config_skip:
+  description: |
+    Verifies that user_config_mode=skip installs Oh My Bash system-wide but
+    does not inject any per-user configuration blocks.
+
+  pre: |
+    _OMB=/usr/local/share/oh-my-bash
+
+  checks:
+    - title: oh-my-bash installed system-wide
+      cmd: test -d "$_OMB"
+    - title: oh-my-bash main script exists
+      cmd: test -f "${_OMB}/oh-my-bash.sh"
+    - title: root bashtheme not written
+      cmd: bash -c '! test -f /root/.config/bash/bashtheme'
+    - title: root OMB custom dir not created
+      cmd: bash -c '! test -d /root/.config/bash/custom'

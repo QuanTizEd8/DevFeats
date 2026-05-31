@@ -1,0 +1,20 @@
+apt_default:
+  description: |
+    Verifies zsh-completions is installed, the src tree is present, and
+    the fpath entry is wired into the system Zsh config.
+
+  checks:
+    - title: zsh-completions src tree present
+      cmd: bash -c 'test -d /usr/local/share/zsh-completions/src && compgen -G "/usr/local/share/zsh-completions/src/_*" >/dev/null'
+    - title: zsh-completions fpath wired in system zshrc
+      cmd: bash -c 'grep -qF "/usr/local/share/zsh-completions/src" /etc/zsh/zshrc'
+
+apt_disabled:
+  description: |
+    Verifies that install_zsh_completions=false skips installation.
+
+  checks:
+    - title: zsh-completions tree absent
+      cmd: bash -c '! test -d /usr/local/share/zsh-completions'
+    - title: zsh-completions fpath not wired in system zshrc
+      cmd: bash -c '! grep -qF "/usr/local/share/zsh-completions/src" /etc/zsh/zshrc'
