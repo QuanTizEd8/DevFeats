@@ -173,7 +173,7 @@ export_path_disabled:
 export_path_idempotent:
   description: |
     export_path_idempotent: activation blocks are pre-written in the image
-    (see scenario setup). The feature re-runs with default options (if_exists=skip)
+    (see scenario setup). The feature re-runs with if_exists=update
     and must UPDATE each block in-place — the begin marker must appear exactly
     once per file (no duplicate appends).
   pre: |
@@ -354,10 +354,10 @@ log_file:
 macos_brew_git_remote:
   description: |
     brew_git_remote: with a pre-seeded HOMEBREW_BREW_GIT_REMOTE block in user
-    dotfiles, a default run (brew_git_remote unset) must remove that block.
+    dotfiles, a run with if_exists=update (brew_git_remote unset) must remove that block.
 
-    Brew is pre-installed (if_exists=skip), and setup pre-seeds the block so this
-    scenario validates the cleanup path equivalent to the old second run.
+    Brew is pre-installed. if_exists=update re-runs the installer and enforce_options,
+    which removes the stale block since brew_git_remote is unset.
   pre: |
     _HOME="$HOME"
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
@@ -399,8 +399,8 @@ macos_default:
     default: all options at their defaults.
 
     macOS runners have Homebrew pre-installed → if_exists=skip (default) applies.
-    The runner is non-root → activation snippets are written to the install
-    user's personal dotfiles: login bash file, ~/.bashrc, and ~/.zshenv.
+    Brew is already present; the script skips installation and does not modify any
+    shell files.
   pre: |
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
     _BREW="${_BREW_PREFIX}/bin/brew"
@@ -420,18 +420,6 @@ macos_default:
       cmd: test -x "$_BREW"
     - title: brew --version succeeds
       cmd: '"$_BREW" --version'
-    - title: a login bash file has begin marker
-      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null'
-    - title: a login bash file has shellenv eval
-      cmd: bash -c 'grep -qF "shellenv" ~/.bash_profile 2>/dev/null || grep -qF "shellenv" ~/.bash_login 2>/dev/null || grep -qF "shellenv" ~/.profile 2>/dev/null'
-    - title: ~/.bashrc has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.bashrc"
-    - title: ~/.bashrc has shellenv eval
-      cmd: grep -qF 'shellenv' "${_HOME}/.bashrc"
-    - title: ~/.zshenv has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.zshenv"
-    - title: ~/.zshenv has shellenv eval
-      cmd: grep -qF 'shellenv' "${_HOME}/.zshenv"
     - title: system activation profile.d NOT written
       cmd: bash -c '! test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}'
 
@@ -461,7 +449,7 @@ macos_export_path_disabled:
 macos_export_path_idempotent:
   description: |
     export_path_idempotent: setup pre-seeds one stale activation block per dotfile;
-    a single feature run with default options must update that block in place
+    a single feature run with if_exists=update must update that block in place
     (exactly one begin marker per file; inner line matches resolved brew prefix).
   pre: |
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
@@ -658,9 +646,10 @@ macos_logfile:
 macos_no_install_from_api:
   description: |
     no_install_from_api: with a pre-seeded HOMEBREW_NO_INSTALL_FROM_API=1 block
-    in user dotfiles, a default run (no_install_from_api=false) must remove it.
+    in user dotfiles, a run with if_exists=update (no_install_from_api=false) must remove it.
 
-    Brew is pre-installed (if_exists=skip).
+    Brew is pre-installed. if_exists=update re-runs the installer and enforce_options,
+    which removes the stale block since no_install_from_api is false (the default).
   pre: |
     _HOME="$HOME"
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
@@ -688,12 +677,10 @@ macos_no_install_from_api:
 
 macos_update_false:
   description: |
-    update_false: update=false must skip the 'brew update' step while still
-    installing brew (if_exists=skip, since brew is pre-installed) and exporting
-    shellenv.
+    update_false: update=false must skip the 'brew update' step.
 
-    The log_file option is used to capture installer output so the absence of
-    'brew update' can be verified.
+    Brew is pre-installed (if_exists=skip applies). The log_file option captures
+    installer output so the absence of 'brew update' can be verified.
   pre: |
     _HOME="$HOME"
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
@@ -712,8 +699,6 @@ macos_update_false:
       cmd: test -x "$_BREW"
     - title: brew --version succeeds
       cmd: '"$_BREW" --version'
-    - title: a user dotfile has shellenv marker
-      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bashrc 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.zshenv 2>/dev/null'
     - title: log_file was created
       cmd: test -f "$_LOG_FILE"
       debug: |

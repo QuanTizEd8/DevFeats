@@ -22,6 +22,9 @@ export_path_disabled:
 export_path_idempotent:
   envs: [ubuntu-latest+homebrew-preinstalled]
   modes: [devcontainer]
+  options:
+    if_exists: update
+    update: false
   setup: |
     mkdir -p /etc/profile.d
     printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' \
@@ -111,6 +114,9 @@ macos_export_path_disabled:
 
 macos_export_path_idempotent:
   envs: [macos-latest]
+  options:
+    if_exists: update
+    update: false
   setup: |
     # One stale activation block per file (not two). `shell__write_block` updates
     # each marker span in place but does not collapse multiple duplicate blocks;
@@ -131,6 +137,9 @@ macos_export_path_idempotent:
 
 macos_brew_git_remote:
   envs: [macos-latest]
+  options:
+    if_exists: update
+    update: false
   setup: |
     BREW_PREFIX="$(brew --prefix 2> /dev/null || true)"
     if [ "$(uname -m)" = "arm64" ]; then
@@ -149,6 +158,9 @@ macos_brew_git_remote:
 
 macos_no_install_from_api:
   envs: [macos-latest]
+  options:
+    if_exists: update
+    update: false
   setup: |
     for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zshenv"; do
       mkdir -p "$(dirname "$f")"
