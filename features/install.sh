@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Bootstrap devcontainer feature `install.sh` script
+# Feature entry point.
 #
 # Ensure bash >=4 is available, then hand off to the main install script.
 #
@@ -13,11 +13,13 @@
 
 set -e
 
-# _find_bash4 — print the path to the first bash >=4 found; return 1 if none.
-# Probes $PATH first, then well-known install prefixes so that a just-installed
-# bash (e.g. Homebrew's /opt/homebrew/bin/bash) is discovered even in a shell
-# session whose PATH has not yet been updated.
 _find_bash4() {
+  # Print the path to the first bash >=4 found; return 1 if none.
+  #
+  # Probes $PATH first, then well-known install prefixes so that a just-installed
+  # bash (e.g. Homebrew's /opt/homebrew/bin/bash) is discovered even in a shell
+  # session whose PATH has not yet been updated.
+
   for _c in bash \
     /usr/local/bin/bash \
     /opt/homebrew/bin/bash \
@@ -35,9 +37,11 @@ _find_bash4() {
   return 1
 }
 
-# _ensure_xcode_clt — headlessly install Xcode Command Line Tools on macOS.
-# Required before Homebrew can be installed.
 _ensure_xcode_clt() {
+  # Headlessly install Xcode Command Line Tools on macOS.
+  #
+  # Required before Homebrew can be installed.
+
   if xcode-select -p > /dev/null 2>&1; then
     echo "✅ Xcode Command Line Tools already installed at '$(xcode-select -p)'." >&2
     return 0
@@ -63,10 +67,12 @@ _ensure_xcode_clt() {
   return 0
 }
 
-# _install_homebrew_bare — install Homebrew non-interactively.
-# Respects HOMEBREW_PREFIX if set (the only install-time option that matters).
-# All other Homebrew configuration is applied by install.bash afterwards.
 _install_homebrew_bare() {
+  # Install Homebrew non-interactively.
+  #
+  # Respects HOMEBREW_PREFIX if set (the only install-time option that matters).
+  # All other Homebrew configuration is applied by install.bash afterwards.
+
   echo "🔍 Homebrew not found — installing Homebrew." >&2
   _ensure_xcode_clt
   _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
@@ -86,11 +92,13 @@ _install_homebrew_bare() {
   return 0
 }
 
-# _brew_bin_from_install_context — resolve brew path deterministically.
-# Uses HOMEBREW_PREFIX if provided; otherwise uses Homebrew's default prefix:
-# - arm64 macOS: /opt/homebrew
-# - non-arm64 macOS: /usr/local
 _brew_bin_from_install_context() {
+  # Resolve brew path deterministically.
+  #
+  # Uses HOMEBREW_PREFIX if provided; otherwise uses Homebrew's default prefix:
+  # - arm64 macOS: /opt/homebrew
+  # - non-arm64 macOS: /usr/local
+
   _prefix="${HOMEBREW_PREFIX:-}"
   if [ -z "$_prefix" ]; then
     if [ "$(uname -m)" = "arm64" ]; then
