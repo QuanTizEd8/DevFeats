@@ -80,8 +80,8 @@ options:
     type: string
 _options:
   gh_repo: ohmyzsh/ohmyzsh
-installsAfter:
-  - ghcr.io/quantized8/devfeats/install-shell
+# installsAfter:
+#   - ghcr.io/quantized8/devfeats/install-shell
 _dependencies:
   run:
     base:
