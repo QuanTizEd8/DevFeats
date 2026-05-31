@@ -522,8 +522,13 @@ npm__is_managed() {
   _npm_root="$(npm root -g 2> /dev/null)" || return 1
   [[ -n "$_npm_prefix" && -n "$_npm_root" ]] || return 1
 
+  # Canonicalize prefix/root so macOS /tmp → /private/tmp expansion is consistent
+  # with the file__canonical_path-resolved _real path used in the comparison below.
+  _npm_prefix="$(file__canonical_path "$_npm_prefix")"
+  _npm_root="$(file__canonical_path "$_npm_root")"
+
   local _real
-  _real="$(realpath "$_bin" 2> /dev/null || readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+  _real="$(file__canonical_path "$_bin")"
   [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
 
   # Binary lives in npm's global bin dir, or its target is inside the node_modules tree
@@ -554,7 +559,7 @@ npm__is_bundled() {
   [[ -n "$_bin" && -e "$_bin" ]] || return 1
 
   local _real
-  _real="$(realpath "$_bin" 2> /dev/null || readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+  _real="$(file__canonical_path "$_bin")"
   [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
 
   # The wrapper lives at <prefix>/bin/<cmd>; walk up two levels to get the prefix.
@@ -1138,7 +1143,7 @@ npm__uninstall_bundled() {
       return 1
     }
     local _real
-    _real="$(realpath "$_bin" 2> /dev/null || readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+    _real="$(file__canonical_path "$_bin")"
     case "$_real" in
       /*) : ;;
       *) _real="$(dirname "$_bin")/${_real}" ;;

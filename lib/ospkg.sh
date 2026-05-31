@@ -602,7 +602,7 @@ ospkg__is_managed() {
     brew)
       local _prefix _real
       _prefix="$(brew --prefix 2> /dev/null)" || return 1
-      _real="$(readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+      _real="$(file__canonical_path "$_bin")"
       [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
       [[ "$_real" == "${_prefix}/Cellar/"* || "$_real" == "${_prefix}/opt/"* ]]
       ;;

@@ -554,3 +554,28 @@ file__mktmpdir() {
   mkdir -p "${_base%/*}"
   mktemp -d "${_base}.XXXXXX"
 }
+
+# @brief file__canonical_path <path> — Resolve symlinks and return the canonical absolute path.
+#
+# Tries each resolver in order, stopping at the first that succeeds:
+#   1. `realpath`   (GNU coreutils; not available on stock macOS)
+#   2. `readlink -f` (GNU readlink; not available on stock macOS BSD readlink)
+#   3. `readlink`   (BSD/GNU; returns the immediate symlink target without canonicalising
+#                   ancestor directories — sufficient when the target is absolute)
+#   4. The original path unchanged (final fallback).
+#
+# On macOS, steps 1–2 fail unless coreutils is installed, so step 3 handles the
+# common case.  If `readlink` returns a relative path, the caller should prepend
+# `$(dirname <path>)` to make it absolute.
+#
+# Args:
+#   <path>  Path to canonicalise (need not exist when using steps 3–4).
+#
+# Stdout: canonical path string.
+file__canonical_path() {
+  local _p="$1"
+  realpath "$_p" 2> /dev/null ||
+    readlink -f "$_p" 2> /dev/null ||
+    readlink "$_p" 2> /dev/null ||
+    printf '%s' "$_p"
+}
