@@ -206,7 +206,7 @@ options:
     type: string
     default: info
     description: >-
-      Minimum log level emitted to console (stderr).
+      Minimum log level emitted live to console (stderr).
     enum: &log_levels
       - value: silent
         description: Only fatal (e.g. non-zero exit summary).
