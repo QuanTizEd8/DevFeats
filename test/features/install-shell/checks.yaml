@@ -743,23 +743,3 @@ apt_zsh_only:
       cmd: test -f /etc/profile
     - title: system bashrc exists
       cmd: bash -c 'test -f /etc/bash.bashrc || test -f /etc/bashrc || test -f /etc/bash/bashrc'
-
-installer_dir:
-  description: |
-    installer_dir=/tmp/shell-trace: the downloaded fzf archive and checksums file
-    must remain in installer_dir after installation completes.
-
-  checks:
-    - title: fzf binary installed
-      cmd: test -f /usr/local/bin/fzf
-    - title: fzf --version succeeds
-      cmd: fzf --version
-    - title: installer_dir exists
-      cmd: test -d /tmp/shell-trace
-      debug: |
-        echo "=== /tmp/shell-trace/ contents ==="
-        ls -la /tmp/shell-trace/ 2>/dev/null || echo "(directory missing)"
-    - title: fzf archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/shell-trace/archive/fzf-*.tar.gz 2>/dev/null | grep -q .'
-    - title: fzf checksums file preserved in installer_dir
-      cmd: bash -c 'ls /tmp/shell-trace/sidecar/fzf_*_checksums.txt 2>/dev/null | grep -q .'

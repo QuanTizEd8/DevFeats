@@ -633,23 +633,30 @@ github__resolve_version() {
       stable | "")
         # Walk tags newest-first; the first tag whose bare version carries no
         # pre-release suffix ("-rc1", "-beta", etc.) is considered stable.
-        _tag="$(github__tags "$_api_base" --all | while IFS= read -r _t; do
+        # Process substitution: break exits the while loop without sending SIGPIPE
+        # to github__tags (the child process substitution handles its own exit).
+        _tag=""
+        while IFS= read -r _t; do
           _bare="$(ver__extract_version --keep-suffix "$_t" 2> /dev/null || true)"
           case "$_bare" in
             "" | *-*) continue ;;
             *)
-              printf '%s\n' "$_t"
+              _tag="$_t"
               break
               ;;
           esac
-        done)" || _tag=""
+        done < <(github__tags "$_api_base" --all)
         ;;
       latest)
         # Tags are returned newest-first by GitHub; take the first one.
-        _tag="$(github__tags "$_api_base" | head -1)" || _tag=""
+        # Process substitution: github__tags child handles its own exit without
+        # sending SIGPIPE into this shell's pipefail context.
+        IFS= read -r _tag < <(github__tags "$_api_base") || _tag=""
         ;;
       *)
-        _tag="$(github__tags "$_api_base" --all | ver__first_matching_prefix "$_norm")" || _tag=""
+        # Process substitution: ver__first_matching_prefix exits early after a
+        # match; github__tags runs as a child and handles its own exit.
+        _tag="$(ver__first_matching_prefix "$_norm" < <(github__tags "$_api_base" --all))" || _tag=""
         ;;
     esac
   fi

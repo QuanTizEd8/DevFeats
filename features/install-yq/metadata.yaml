@@ -37,7 +37,6 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/yq_{OS}_{ARCH}"
-      binary_src: yq
     package: {}
   prefix:
     bins: [yq]

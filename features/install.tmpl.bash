@@ -650,7 +650,9 @@ __install_run_binary__() {
       __github_release_sha256_args__ "$_asset_name" _sha256_args
     fi
     if [[ -v BINARY_GPG_KEY_URI && -n "${BINARY_GPG_KEY_URI}" ]]; then
-      _gpg_key_arg=(--gpg-key "${BINARY_GPG_KEY_URI}")
+      local _gpg_key_uri
+      _gpg_key_uri="$(os__expand_release_pattern "${BINARY_GPG_KEY_URI}" "${VERSION}" "${_tag}")"
+      _gpg_key_arg=(--gpg-key "${_gpg_key_uri}")
     fi
     if [[ -v BINARY_GPG_SIG_URI && -n "${BINARY_GPG_SIG_URI}" ]]; then
       local _gpg_sig_uri
@@ -1088,61 +1090,64 @@ __install_finish__() {
     done
     return 1
   }
-  [[ -v PREFIX ]] && _feat_prefix_applies || return 0
 
-  # -- discovery --
-  [[ -v PREFIX_DISCOVERY ]] && {
-    local -a _disc_args=(
-      --prefix "${PREFIX}"
-      --bin-dir "${PREFIX_BIN_DIR}"
-      --discovery "${PREFIX_DISCOVERY}"
-      --runtime-path "${RUNTIME_PATH}"
-      --bin "${_FEAT_CONTRACT_PRIMARY_BIN}"
-      --cmd-var "_DF_EXPECTED_CMD"
-      --marker "${_FEAT_CONTRACT_PRIMARY_BIN:+${_FEAT_CONTRACT_PRIMARY_BIN} }PATH (${_FEAT_ID})"
-    )
-    [[ -v PREFIX_BINS ]] && _disc_args+=(--bins "${PREFIX_BINS}")
-    [[ -v PREFIX_SYMLINKS ]] && _disc_args+=(
-      --symlinks-ref "PREFIX_SYMLINKS"
-      --symlink-root "${PREFIX_SYMLINK_ROOT}"
-      --symlink-nonroot "${PREFIX_SYMLINK_NONROOT}"
-    )
-    [[ -v PREFIX_EXPORTS ]] && _disc_args+=(
-      --exports-ref "PREFIX_EXPORTS"
-      --profile-d "${_FEAT_PROFILE_D_FILE}"
-    )
-    [[ -v PREFIX_SYMLINKS ]] || _disc_args+=(--no-symlinks)
-    [[ -v PREFIX_EXPORTS ]] || _disc_args+=(--no-exports)
-    logging__fn_entry "prefix_discovery"
-    shell__run_prefix_discovery "${_disc_args[@]}"
-    logging__fn_exit "prefix_discovery"
-  }
-  : "${_DF_EXPECTED_CMD:=${_FEAT_CONTRACT_PRIMARY_BIN}}"
+  if [[ -v PREFIX ]] && _feat_prefix_applies; then
+    # -- discovery --
+    [[ -v PREFIX_DISCOVERY ]] && {
+      local -a _disc_args=(
+        --prefix "${PREFIX}"
+        --bin-dir "${PREFIX_BIN_DIR}"
+        --discovery "${PREFIX_DISCOVERY}"
+        --runtime-path "${RUNTIME_PATH}"
+        --bin "${_FEAT_CONTRACT_PRIMARY_BIN}"
+        --cmd-var "_DF_EXPECTED_CMD"
+        --marker "${_FEAT_CONTRACT_PRIMARY_BIN:+${_FEAT_CONTRACT_PRIMARY_BIN} }PATH (${_FEAT_ID})"
+      )
+      [[ -v PREFIX_BINS ]] && _disc_args+=(--bins "${PREFIX_BINS}")
+      # declare -p correctly detects declared-but-empty arrays; [[ -v arr ]] does not
+      # (it checks arr[0], returning false for empty arrays).
+      { declare -p PREFIX_SYMLINKS &>/dev/null; } && _disc_args+=(
+        --symlinks-ref "PREFIX_SYMLINKS"
+        --symlink-root "${PREFIX_SYMLINK_ROOT}"
+        --symlink-nonroot "${PREFIX_SYMLINK_NONROOT}"
+      )
+      { declare -p PREFIX_EXPORTS &>/dev/null; } && _disc_args+=(
+        --exports-ref "PREFIX_EXPORTS"
+        --profile-d "${_FEAT_PROFILE_D_FILE}"
+      )
+      { declare -p PREFIX_SYMLINKS &>/dev/null; } || _disc_args+=(--no-symlinks)
+      { declare -p PREFIX_EXPORTS &>/dev/null; } || _disc_args+=(--no-exports)
+      logging__fn_entry "prefix_discovery"
+      shell__run_prefix_discovery "${_disc_args[@]}"
+      logging__fn_exit "prefix_discovery"
+    }
+    : "${_DF_EXPECTED_CMD:=${_FEAT_CONTRACT_PRIMARY_BIN}}"
 
-  # -- activation --
-  [[ -v PREFIX_ACTIVATIONS ]] && {
-    local _act_home_arg=""
-    [ "${PREFIX_SCOPE}" = "user" ] && \
-      _act_home_arg="$(users__home_of_path_owner "${PREFIX}")"
-    shell__write_activation_snippets \
-      --scope "${PREFIX_SCOPE}" \
-      ${_act_home_arg:+--home "${_act_home_arg}"} \
-      "prefix activation (${_FEAT_ID})" "${_FEAT_ACTIVATION_PROFILE_D_FILE}" "prefix_activation_snippet" \
-      "${PREFIX_ACTIVATIONS[@]}"
-    unset _act_home_arg
-  }
+    # -- activation --
+    [[ -v PREFIX_ACTIVATIONS ]] && {
+      local _act_home_arg=""
+      [ "${PREFIX_SCOPE}" = "user" ] && \
+        _act_home_arg="$(users__home_of_path_owner "${PREFIX}")"
+      shell__write_activation_snippets \
+        --scope "${PREFIX_SCOPE}" \
+        ${_act_home_arg:+--home "${_act_home_arg}"} \
+        "prefix activation (${_FEAT_ID})" "${_FEAT_ACTIVATION_PROFILE_D_FILE}" "prefix_activation_snippet" \
+        "${PREFIX_ACTIVATIONS[@]}"
+      unset _act_home_arg
+    }
 
-  # -- write_group --
-  [[ -n "${WRITE_GROUP:-}" ]] && {
-    local _wargs=()
-    if [[ "${#WRITE_USERS[@]}" -gt 0 ]]; then
-      _wargs=(--current false --remote false --container false)
-      for _u in "${WRITE_USERS[@]}"; do _wargs+=(--user "$_u"); done
-    fi
-    mapfile -t _write_users < <(users__resolve_list "${_wargs[@]}")
-    users__set_write_permissions "${PREFIX}" \
-      "${INSTALL_USER:-$(id -nu)}" "${WRITE_GROUP}" "${_write_users[@]}"
-  }
+    # -- write_group --
+    [[ -n "${WRITE_GROUP:-}" ]] && {
+      local _wargs=()
+      if [[ "${#WRITE_USERS[@]}" -gt 0 ]]; then
+        _wargs=(--current false --remote false --container false)
+        for _u in "${WRITE_USERS[@]}"; do _wargs+=(--user "$_u"); done
+      fi
+      mapfile -t _write_users < <(users__resolve_list "${_wargs[@]}")
+      users__set_write_permissions "${PREFIX}" \
+        "${INSTALL_USER:-$(id -nu)}" "${WRITE_GROUP}" "${_write_users[@]}"
+    }
+  fi
 
   __install_register_dummy__
   ${{ _script.shell_completions_call }}$

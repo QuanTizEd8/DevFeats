@@ -22,7 +22,13 @@ __install_run_script_pre() {
 __install_run_script_run() {
   logging__fn_entry "__install_run_script_run"
   local _installer="$1"
-  chmod a+r "$_installer"
+  # Make the installer readable and all parent directories up to the tmpdir
+  # root traversable; runuser switches to the install user, which must be
+  # able to traverse the (mode-700) process temp tree.
+  local _work_dir
+  _work_dir="$(dirname "$(dirname "$_installer")")" # .../install-homebrew.XXXXX/
+  file__chmod -R a+rX "$_work_dir"
+  file__chmod a+x "$(dirname "$_work_dir")" # .../devfeats_XXXXX/
   local -a _env_vars=("NONINTERACTIVE=1" "HOMEBREW_PREFIX=${PREFIX}")
   [ -n "${BREW_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_BREW_GIT_REMOTE=${BREW_GIT_REMOTE}")
   [ -n "${CORE_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_CORE_GIT_REMOTE=${CORE_GIT_REMOTE}")
