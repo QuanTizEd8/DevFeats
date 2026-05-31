@@ -50,6 +50,7 @@ package_install:
   tests: [default]
 
 version_match_idempotency:
+  expect_install_failure: true
   envs: [ubuntu-24.04+jq-1.8.1]
   modes: [devcontainer, standalone]
   options:

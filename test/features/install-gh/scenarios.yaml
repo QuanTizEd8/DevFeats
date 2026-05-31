@@ -6,6 +6,8 @@ default_install:
   - ubuntu-latest
   modes:
   - devcontainer
+  options:
+    method: upstream-package
   tests:
   - default_install.sh
 specific_version_binary:
@@ -23,6 +25,8 @@ upstream_package_debian:
   - debian-12
   modes:
   - devcontainer
+  options:
+    method: upstream-package
   tests:
   - upstream_package_debian.sh
 upstream_package_alpine:
@@ -30,6 +34,8 @@ upstream_package_alpine:
   - alpine-3.20
   modes:
   - devcontainer
+  options:
+    method: upstream-package
   tests:
   - upstream_package_alpine.sh
 upstream_package_fedora:
@@ -37,6 +43,8 @@ upstream_package_fedora:
   - fedora-41
   modes:
   - devcontainer
+  options:
+    method: upstream-package
   tests:
   - upstream_package_fedora.sh
 upstream_package_opensuse:
@@ -44,6 +52,8 @@ upstream_package_opensuse:
   - opensuse-leap+bash
   modes:
   - devcontainer
+  options:
+    method: upstream-package
   tests:
   - upstream_package_opensuse.sh
 binary_custom_path:
@@ -84,6 +94,7 @@ upstream_package_no_completions:
   modes:
   - devcontainer
   options:
+    method: upstream-package
     shell_completions: ''
   tests:
   - upstream_package_no_completions.sh
@@ -98,6 +109,7 @@ git_protocol_https:
 
     '
   options:
+    method: upstream-package
     add_remote_user: true
     add_current_user: false
     add_container_user: false
@@ -117,6 +129,7 @@ setup_git:
 
     '
   options:
+    method: upstream-package
     add_remote_user: true
     add_current_user: false
     add_container_user: false
@@ -136,6 +149,7 @@ sign_commits_ssh:
 
     '
   options:
+    method: upstream-package
     add_remote_user: true
     add_current_user: false
     add_container_user: false
@@ -155,6 +169,7 @@ sign_commits_gpg:
 
     '
   options:
+    method: upstream-package
     add_remote_user: true
     add_current_user: false
     add_container_user: false
@@ -189,6 +204,7 @@ if_exists_skip_no_mutation:
   tests:
   - if_exists_skip_no_mutation.sh
 version_match_idempotency:
+  expect_install_failure: true
   envs:
   - ubuntu-latest+gh-2.67.0-preinstalled
   modes:
@@ -215,6 +231,7 @@ log_file:
   modes:
   - devcontainer
   options:
+    method: upstream-package
     log_file: /tmp/gh-install.log
   tests:
   - log_file.sh
@@ -243,6 +260,7 @@ ghes_hostname:
 
     '
   options:
+    method: upstream-package
     add_remote_user: true
     add_current_user: false
     add_container_user: false
@@ -263,6 +281,7 @@ add_users:
 
     '
   options:
+    method: upstream-package
     add_users: testuser
     add_current_user: false
     add_remote_user: false
@@ -281,6 +300,7 @@ extensions:
 
     '
   options:
+    method: upstream-package
     add_remote_user: true
     add_current_user: false
     add_container_user: false
@@ -349,6 +369,8 @@ network_isolated_version_resolution:
   standalone:
     network: none
     skip_install: false
+  options:
+    method: binary
   tests:
   - network_isolated_version_resolution.sh
 invalid_if_exists:

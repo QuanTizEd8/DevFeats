@@ -137,7 +137,7 @@ github_api_unreachable_network_isolated:
   checks:
     - kind: install_failure
       title: network-isolated install fails during GitHub version resolution
-      pattern: Failed to resolve pixi version from GitHub
+      pattern: failed to reach GitHub API
 
 home_dir:
   description: |
@@ -189,7 +189,7 @@ if_exists_fail_preinstalled:
       cmd: command -v pixi
     - kind: install_failure
       title: if_exists=fail exits with already-installed error
-      pattern: pixi already installed
+      pattern: failing (if_exists=fail)
 
 if_exists_reinstall:
   description: |

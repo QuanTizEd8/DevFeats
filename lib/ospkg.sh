@@ -42,37 +42,37 @@ _ospkg__clean_apk() {
 # Falls back to a direct `rm -rf /var/lib/apt/lists/*` on APT 2.x and below
 # where `dist-clean` does not exist.
 _ospkg__clean_apt() {
-  users__run_privileged apt-get clean
+  users__run_privileged apt-get clean >&2
   # apt-get dist-clean is an APT 3.x command that removes /var/lib/apt/lists/*
   # while preserving the Release/InRelease files for security.
   # Docs: https://manpages.debian.org/unstable/apt/apt-get.8.en.html#distclean
   # Fall back to rm -rf on older APT (2.x and below) where the command does not exist.
-  users__run_privileged apt-get dist-clean 2> /dev/null || users__run_privileged rm -rf /var/lib/apt/lists/*
+  users__run_privileged apt-get dist-clean >&2 2> /dev/null || users__run_privileged rm -rf /var/lib/apt/lists/*
   return 0
 }
 
 # @brief _ospkg__clean_dnf — Clean the dnf/yum package cache and remove cached metadata.
 _ospkg__clean_dnf() {
-  users__run_privileged "$_OSPKG__PKG_MNGR" clean all 2> /dev/null || true
+  users__run_privileged "$_OSPKG__PKG_MNGR" clean all >&2 2> /dev/null || true
   users__run_privileged rm -rf /var/cache/dnf/* /var/cache/yum/*
   return 0
 }
 
 # @brief _ospkg__clean_pacman — Remove all cached pacman packages and unused sync databases.
 _ospkg__clean_pacman() {
-  users__run_privileged pacman -Scc --noconfirm
+  users__run_privileged pacman -Scc --noconfirm >&2
   return 0
 }
 
 # @brief _ospkg__clean_zypper — Clean all zypper repository caches.
 _ospkg__clean_zypper() {
-  users__run_privileged zypper clean --all
+  users__run_privileged zypper clean --all >&2
   return 0
 }
 
 # @brief _ospkg__clean_brew — Run `brew cleanup --prune=all` to remove stale Homebrew downloads.
 _ospkg__clean_brew() {
-  _ospkg__brew_run cleanup --prune=all 2> /dev/null || true
+  _ospkg__brew_run cleanup --prune=all >&2 2> /dev/null || true
   return 0
 }
 
@@ -99,11 +99,11 @@ _ospkg__update_cmd() {
   # normalise non-fatal exit codes (e.g. dnf check-update exits 100 when
   # updates are available; zypper refresh exits 6 for skipped repos).
   if [[ -t 0 ]]; then
-    "${_OSPKG__UPDATE[@]}" 2> "$_err_tmp" || _rc=$?
+    "${_OSPKG__UPDATE[@]}" >&2 2> "$_err_tmp" || _rc=$?
   elif [[ "$_OSPKG__PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
-    DEBIAN_FRONTEND=noninteractive "${_OSPKG__UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
+    DEBIAN_FRONTEND=noninteractive "${_OSPKG__UPDATE[@]}" < /dev/null >&2 2> "$_err_tmp" || _rc=$?
   else
-    "${_OSPKG__UPDATE[@]}" < /dev/null 2> "$_err_tmp" || _rc=$?
+    "${_OSPKG__UPDATE[@]}" < /dev/null >&2 2> "$_err_tmp" || _rc=$?
   fi
   cat "$_err_tmp" >&2
   # APT can occasionally report index corruption/partial fetch failures while
@@ -2039,7 +2039,7 @@ ospkg__run() {
         for _rcaskitem in "${_Y_CASKS[@]}"; do
           _rcask="$(printf '%s' "$_rcaskitem" | json__query -r '.cask')"
           logging__remove "Removing cask: ${_rcask}"
-          _ospkg__brew_run uninstall --cask "$_rcask"
+          _ospkg__brew_run uninstall --cask "$_rcask" >&2
           logging__success "Cask removed: ${_rcask}"
         done
       fi
@@ -2156,7 +2156,7 @@ ospkg__run() {
             logging__inspect "[dry-run] ppa: would run: add-apt-repository -y '${_ppa}'"
           else
             logging__info "Adding PPA: ${_ppa}"
-            users__run_privileged add-apt-repository -y "$_ppa"
+            users__run_privileged add-apt-repository -y "$_ppa" >&2
             _yaml_repo_added=true
             logging__success "PPA added: ${_ppa}"
           fi
@@ -2186,9 +2186,9 @@ ospkg__run() {
           else
             logging__info "Tapping: ${_tap_name}"
             if [[ -n "${_tap_url:-}" ]]; then
-              _ospkg__brew_run tap "$_tap_name" "$_tap_url"
+              _ospkg__brew_run tap "$_tap_name" "$_tap_url" >&2
             else
-              _ospkg__brew_run tap "$_tap_name"
+              _ospkg__brew_run tap "$_tap_name" >&2
             fi
             logging__success "Tap added: ${_tap_name}"
           fi
@@ -2213,7 +2213,7 @@ ospkg__run() {
               logging__inspect "[dry-run] copr: would run: ${_copr_dnf_bin} copr enable -y '${_copr}'"
             else
               logging__info "Enabling COPR: ${_copr}"
-              users__run_privileged "$_copr_dnf_bin" copr enable -y "$_copr"
+              users__run_privileged "$_copr_dnf_bin" copr enable -y "$_copr" >&2
               _yaml_repo_added=true
             fi
           done
@@ -2238,7 +2238,7 @@ ospkg__run() {
               logging__inspect "[dry-run] module: would run: ${_mod_dnf_bin} module enable -y '${_mod}'"
             else
               logging__info "Enabling module: ${_mod}"
-              users__run_privileged "$_mod_dnf_bin" module enable -y "$_mod"
+              users__run_privileged "$_mod_dnf_bin" module enable -y "$_mod" >&2
               logging__success "Module enabled: ${_mod}"
             fi
           done
@@ -2259,7 +2259,7 @@ ospkg__run() {
               logging__inspect "[dry-run] group: would run: ${_OSPKG__PKG_MNGR} group install -y '${_grp}'"
             else
               logging__install "Installing group '${_grp}' (dnf)."
-              users__run_privileged "$_OSPKG__PKG_MNGR" group install -y "$_grp"
+              users__run_privileged "$_OSPKG__PKG_MNGR" group install -y "$_grp" >&2
               logging__success "Group '${_grp}' installed."
             fi
             ;;
@@ -2268,7 +2268,7 @@ ospkg__run() {
               logging__inspect "[dry-run] group: would run: zypper --non-interactive install -t pattern '${_grp}'"
             else
               logging__install "Installing pattern '${_grp}' (zypper)."
-              users__run_privileged zypper --non-interactive install -t pattern "$_grp"
+              users__run_privileged zypper --non-interactive install -t pattern "$_grp" >&2
             fi
             ;;
           pacman)
@@ -2352,7 +2352,7 @@ ospkg__run() {
         else
           logging__info "Installing: ${_pkginstall} (flags: ${_pkgflags})"
           # shellcheck disable=SC2086
-          "${_OSPKG__INSTALL[@]}" $_pkgflags "$_pkginstall"
+          "${_OSPKG__INSTALL[@]}" $_pkgflags "$_pkginstall" >&2
           [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         fi
       else
@@ -2395,7 +2395,7 @@ ospkg__run() {
             logging__inspect "[dry-run] cask: would run: brew install --cask '${_cask}'"
           else
             logging__info "Installing cask: ${_cask}"
-            _ospkg__brew_run install --cask "$_cask"
+            _ospkg__brew_run install --cask "$_cask" >&2
             logging__success "Cask installed: ${_cask}"
           fi
         done

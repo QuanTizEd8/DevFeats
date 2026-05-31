@@ -783,6 +783,7 @@ setup() {
 }
 
 @test "npm__install_bundled installs package with bundled node" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
   # Set up fake pkg tarball dir in a tmpdir
   local _index_file="${BATS_TEST_TMPDIR}/index.json"
   printf '[{"version":"v20.19.2","lts":"Iron"}]\n' > "$_index_file"
@@ -839,6 +840,7 @@ setup() {
 }
 
 @test "npm__install_bundled --update succeeds and updates metadata" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
   npm__resolve_version() { printf '2.0.0\n'; }
   npm__resolve_node_version() { printf 'v22.0.0\n'; }
   npm__node_platform() { printf 'linux-x64\n'; }
@@ -872,6 +874,7 @@ setup() {
 }
 
 @test "npm__install_bundled --update logs 'already at' when version unchanged" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
   npm__resolve_version() { printf '1.0.0\n'; }
   npm__resolve_node_version() { printf 'v20.19.2\n'; }
   npm__node_platform() { printf 'linux-x64\n'; }
@@ -903,6 +906,7 @@ setup() {
 }
 
 @test "npm__install_bundled --update logs transition when version changes" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
   npm__resolve_version() { printf '2.0.0\n'; }
   npm__resolve_node_version() { printf 'v22.0.0\n'; }
   npm__node_platform() { printf 'linux-x64\n'; }
@@ -936,6 +940,7 @@ setup() {
 }
 
 @test "npm__install_bundled --update prunes old version directories" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
   npm__resolve_version() { printf '2.0.0\n'; }
   npm__resolve_node_version() { printf 'v22.0.0\n'; }
   npm__node_platform() { printf 'linux-x64\n'; }

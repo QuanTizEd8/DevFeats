@@ -82,7 +82,6 @@ bootstrap__yq() {
     --binary-dest "${_install_dir}/yq" || return 1
 
   install__state_record "yq" "internal" "binary" "${_install_dir}/yq" "devfeats-bootstrap-yq" || true
-  printf '%s\n' "${_install_dir}/yq"
 }
 
 # @brief bootstrap__oras [<version-spec>] — Ensure oras is available and print its path.
@@ -142,5 +141,4 @@ bootstrap__oras() {
     --gpg-key "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" || return 1
 
   install__state_record "oras" "internal" "binary" "${_install_dir}/oras" "devfeats-bootstrap-oras" || true
-  printf '%s\n' "${_install_dir}/oras"
 }

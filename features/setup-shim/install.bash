@@ -18,4 +18,5 @@ __install_run__() {
   [[ "${CODE}" == "true" ]] && _install_shim "code"
   [[ "${DEVCONTAINER_INFO}" == "true" ]] && _install_shim "devcontainer-info"
   [[ "${SYSTEMCTL}" == "true" ]] && _install_shim "systemctl"
+  return 0
 }

@@ -81,7 +81,7 @@ if_exists_fail_preinstalled:
       cmd: command -v git
     - kind: install_failure
       title: if_exists=fail exits with already-installed error
-      pattern: git is already installed
+      pattern: failing (if_exists=fail)
 
 if_exists_reinstall_source:
   description: |
@@ -344,7 +344,7 @@ source_build_network_isolated:
   checks:
     - kind: install_failure
       title: network-isolated source build fails during version resolution
-      pattern: Could not resolve a git version from tags
+      pattern: failed to reach GitHub API
 
 source_build_nonexistent_version:
   description: |
@@ -353,7 +353,7 @@ source_build_nonexistent_version:
   checks:
     - kind: install_failure
       title: nonexistent git version rejected by source build
-      pattern: Could not resolve a git version from tags
+      pattern: "github__resolve_version: no tag matching"
 
 source_custom_prefix:
   description: |

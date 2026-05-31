@@ -25,4 +25,4 @@ if_exists_fail:
       cmd: command -v devcontainer
     - kind: install_failure
       title: if_exists=fail exits with already-installed error
-      pattern: devcontainer already present
+      pattern: failing (if_exists=fail)

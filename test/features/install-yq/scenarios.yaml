@@ -57,6 +57,7 @@ package_install:
   tests:
   - package_install
 version_match_idempotency:
+  expect_install_failure: true
   envs:
   - ubuntu-latest+yq-4.44.2
   modes:

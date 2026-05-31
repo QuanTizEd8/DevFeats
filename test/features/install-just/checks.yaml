@@ -21,7 +21,7 @@ if_exists_fail:
       cmd: command -v just
     - kind: install_failure
       title: if_exists=fail exits with already-installed error
-      pattern: just already exists at
+      pattern: failing (if_exists=fail)
 
 installer_dir:
   description: |

@@ -523,7 +523,7 @@ npm__is_managed() {
   [[ -n "$_npm_prefix" && -n "$_npm_root" ]] || return 1
 
   local _real
-  _real="$(readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+  _real="$(realpath "$_bin" 2> /dev/null || readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
   [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
 
   # Binary lives in npm's global bin dir, or its target is inside the node_modules tree
@@ -554,7 +554,7 @@ npm__is_bundled() {
   [[ -n "$_bin" && -e "$_bin" ]] || return 1
 
   local _real
-  _real="$(readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+  _real="$(realpath "$_bin" 2> /dev/null || readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
   [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
 
   # The wrapper lives at <prefix>/bin/<cmd>; walk up two levels to get the prefix.
@@ -1138,7 +1138,7 @@ npm__uninstall_bundled() {
       return 1
     }
     local _real
-    _real="$(readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
+    _real="$(realpath "$_bin" 2> /dev/null || readlink -f "$_bin" 2> /dev/null || readlink "$_bin" 2> /dev/null || printf '%s' "$_bin")"
     case "$_real" in
       /*) : ;;
       *) _real="$(dirname "$_bin")/${_real}" ;;

@@ -54,7 +54,7 @@ if_exists_fail:
       cmd: command -v yq
     - kind: install_failure
       title: if_exists=fail exits with already-installed error
-      pattern: yq already installed at
+      pattern: failing (if_exists=fail)
 
 package_install:
   description: Verifies auto mode yields a compatible yq on Linux.
@@ -122,10 +122,12 @@ specific_version:
 version_match_idempotency:
   description: |
     version=4.44.2 + if_exists=fail + yq 4.44.2 pre-installed (see version_match_idempotency/Dockerfile).
-    The version-match guard must fire BEFORE if_exists dispatch, so the feature exits 0
-    even though if_exists=fail would otherwise abort.
-    The binary must remain at 4.44.2 and be functional.
+    if_exists=fail always aborts when yq is already installed, regardless of version match.
+    The pre-installed binary must remain untouched at 4.44.2.
   checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
     - title: yq binary still present at /usr/local/bin/yq
       cmd: test -f /usr/local/bin/yq
     - title: yq binary is still executable

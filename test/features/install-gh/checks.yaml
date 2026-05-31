@@ -237,7 +237,7 @@ if_exists_fail_preinstalled:
       cmd: bash -c 'gh --version | grep -qE "gh version [0-9]"'
     - kind: install_failure
       title: if_exists=fail exits with already-installed error
-      pattern: gh is already installed
+      pattern: failing (if_exists=fail)
 
 if_exists_fail_preinstalled_network_isolated:
   description: |
@@ -250,7 +250,7 @@ if_exists_fail_preinstalled_network_isolated:
       cmd: command -v gh
     - kind: install_failure
       title: if_exists=fail exits with already-installed error when network is blocked
-      pattern: gh is already installed
+      pattern: failing (if_exists=fail)
 
 if_exists_skip:
   description: |
@@ -380,7 +380,7 @@ network_isolated_version_resolution:
   checks:
     - kind: install_failure
       title: network-isolated install fails during GitHub version resolution
-      pattern: Failed to resolve gh version from GitHub
+      pattern: failed to reach GitHub API
 
 setup_git:
   description: |
@@ -558,11 +558,12 @@ upstream_package_opensuse:
 version_match_idempotency:
   description: |
     version=2.67.0 + if_exists=fail + gh 2.67.0 pre-installed (see version_match_idempotency/Dockerfile).
-    The version-match guard must fire BEFORE if_exists dispatch, so the feature exits 0
-    even though if_exists=fail would otherwise abort.
-    The binary must remain at 2.67.0 and be functional.
-
+    if_exists=fail always aborts when gh is already installed, regardless of version match.
+    The pre-installed binary must remain untouched at 2.67.0.
   checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
     - title: gh binary still present at /usr/local/bin/gh
       cmd: test -f /usr/local/bin/gh
     - title: gh binary is still executable
