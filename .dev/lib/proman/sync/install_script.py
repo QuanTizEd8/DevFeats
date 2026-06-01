@@ -207,7 +207,7 @@ class InstallScriptGenerator:
         # (no user choice to make). Inject METHOD as a constant so the
         # template's method dispatch still resolves correctly.
         if len(method_meta) == 1:
-            scalar_lines.append(f'METHOD="{list(method_meta.keys())[0]}"')
+            scalar_lines.append(f'METHOD="{next(iter(method_meta.keys()))}"')
             scalar_var_names.append("METHOD")
 
         return {
@@ -465,7 +465,7 @@ class InstallScriptGenerator:
     def _generate_system_requirements_guard(self, sys_req: dict) -> str:
         """Emit platform and root-privilege guards from _system_requirements."""
         if not sys_req:
-            return "return 0  # No system requirements."
+            return ""
 
         platforms: list[dict] | None = sys_req.get("platforms")
         root = sys_req.get("root", False)
