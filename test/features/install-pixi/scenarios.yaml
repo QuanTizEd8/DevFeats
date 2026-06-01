@@ -48,7 +48,7 @@ if_exists_skip:
   envs:
   - ubuntu-latest+pixi-base
   modes:
-  - devcontainer
+  - standalone
   args:
     PIXI_REF: latest/download
     PIXI_INSTALL_DIR: /usr/local/bin

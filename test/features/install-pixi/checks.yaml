@@ -137,7 +137,7 @@ github_api_unreachable_network_isolated:
   checks:
     - kind: install_failure
       title: network-isolated install fails during GitHub version resolution
-      pattern: failed to reach GitHub API
+      pattern: GitHub API unreachable
 
 home_dir:
   description: |
@@ -299,7 +299,7 @@ invalid_version_suffix:
   checks:
     - kind: install_failure
       title: invalid version suffix rejected during resolution
-      pattern: no stable release matching
+      pattern: no release matching
 
 log_file:
   description: |
@@ -331,44 +331,43 @@ netrc_uri_file:
 shell_completion_bash:
   description: |
     shell_completions=bash (root):
-    Verifies pixi shell completion eval block is written to the system-wide bashrc.
-    Checks /etc/bash.bashrc (Debian/Ubuntu), /etc/bashrc (RHEL), /etc/bash/bashrc (Alpine).
+    Verifies pixi shell completion script is written to the system-wide bash
+    completion directory (/etc/bash_completion.d/pixi).
 
   checks:
     - title: pixi binary installed
       cmd: test -f /usr/local/bin/pixi
     - title: pixi --version succeeds
       cmd: /usr/local/bin/pixi --version
-    - title: completion marker in a system bashrc
-      cmd: bash -c 'grep -Fq "pixi completion (install-pixi)" /etc/bash.bashrc 2>/dev/null || grep -Fq "pixi completion (install-pixi)" /etc/bashrc 2>/dev/null || grep -Fq "pixi completion (install-pixi)" /etc/bash/bashrc 2>/dev/null'
+    - title: bash completion script exists
+      cmd: test -f /etc/bash_completion.d/pixi
       debug: |
-        echo "=== /etc/bash.bashrc ==="
-        cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
-        echo "=== /etc/bashrc ==="
-        cat /etc/bashrc 2>/dev/null || echo "(missing)"
-    - title: completion eval in a system bashrc
-      cmd: bash -c 'grep -Fq "pixi completion --shell bash" /etc/bash.bashrc 2>/dev/null || grep -Fq "pixi completion --shell bash" /etc/bashrc 2>/dev/null || grep -Fq "pixi completion --shell bash" /etc/bash/bashrc 2>/dev/null'
+        echo "=== /etc/bash_completion.d/pixi ==="
+        cat /etc/bash_completion.d/pixi 2>/dev/null | head -5 || echo "(missing)"
+    - title: bash completion script is non-empty
+      cmd: test -s /etc/bash_completion.d/pixi
 
 shell_completion_zsh:
   description: |
     shell_completions=zsh (root):
-    Verifies pixi shell completion eval block is written to the system-wide zshenv.
-    Checks both /etc/zsh/zshenv (Debian/Ubuntu default) and /etc/zshenv (RHEL/Alpine fallback).
+    Verifies pixi shell completion script is written to the system-wide zsh
+    completion directory (/etc/zsh/completions/_pixi on Debian/Ubuntu,
+    /etc/completions/_pixi on RHEL/SUSE/macOS).
 
   checks:
     - title: pixi binary installed
       cmd: test -f /usr/local/bin/pixi
     - title: pixi --version succeeds
       cmd: /usr/local/bin/pixi --version
-    - title: completion marker in a system zshenv
-      cmd: bash -c 'grep -Fq "pixi completion (install-pixi)" /etc/zsh/zshenv 2>/dev/null || grep -Fq "pixi completion (install-pixi)" /etc/zshenv 2>/dev/null'
+    - title: zsh completion script exists
+      cmd: bash -c 'test -f /etc/zsh/completions/_pixi 2>/dev/null || test -f /etc/completions/_pixi 2>/dev/null'
       debug: |
-        echo "=== /etc/zsh/zshenv ==="
-        cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
-        echo "=== /etc/zshenv ==="
-        cat /etc/zshenv 2>/dev/null || echo "(missing)"
-    - title: completion eval in a system zshenv
-      cmd: bash -c 'grep -Fq "pixi completion --shell zsh" /etc/zsh/zshenv 2>/dev/null || grep -Fq "pixi completion --shell zsh" /etc/zshenv 2>/dev/null'
+        echo "=== /etc/zsh/completions/_pixi ==="
+        cat /etc/zsh/completions/_pixi 2>/dev/null | head -5 || echo "(missing)"
+        echo "=== /etc/completions/_pixi ==="
+        cat /etc/completions/_pixi 2>/dev/null | head -5 || echo "(missing)"
+    - title: zsh completion script is non-empty
+      cmd: bash -c 'test -s /etc/zsh/completions/_pixi 2>/dev/null || test -s /etc/completions/_pixi 2>/dev/null'
 
 specific_version:
   description: |
