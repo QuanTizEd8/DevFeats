@@ -28,8 +28,11 @@ def main() -> None:
         "--base-url",
         type=str,
         default=None,
-        help="Override website base URL (must match GitHub Pages); "
-        "default: website_base_url in .config/proman/docs.yaml or git-derived Pages URL",
+        help=(
+            "Override website base URL (must match GitHub Pages); "
+            "default: website_base_url in .config/proman/docs.yaml "
+            "or git-derived Pages URL"
+        ),
     )
     args = parser.parse_args()
     repo = git_repo_root()
