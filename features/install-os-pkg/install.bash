@@ -49,6 +49,7 @@ __install_run__() {
 
   # When lifecycle_hook is set, write a hook script and exit without installing.
   if [[ -n "$LIFECYCLE_HOOK" ]]; then
+    local _HOOK_OPTS
     local _HOOK_DIR="${_FEAT_LIFECYCLE_DIR}"
     file__mkdir "$_HOOK_DIR"
     local _MANIFEST_ARG="$MANIFEST"
@@ -57,7 +58,7 @@ __install_run__() {
       _MANIFEST_ARG="$_HOOK_DIR/manifest.yaml"
       logging__info "Saved inline manifest to '$_MANIFEST_ARG'."
     fi
-    local _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"
+    _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"
     [[ -n "${FETCH_NETRC:-}" ]] && _HOOK_OPTS+=" --fetch-netrc-file $(printf '%q' "$FETCH_NETRC")"
     if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
       local _osh
