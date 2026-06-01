@@ -304,6 +304,13 @@ __resolve_input_prefixes_post() {
   if [ "$(os__kernel)" != "Darwin" ] && ! users__is_user_path "${PREFIX}"; then
     prepare_prefix_if_needed "$PREFIX" "$INSTALL_USER"
   fi
+  # On macOS the prefix (/opt/homebrew) is not under $HOME but is user-owned;
+  # force user scope so activation writes to INSTALL_USER's home, not /etc/*.
+  # On Linux a non-$HOME prefix (rare) is a genuine system install, so keep the
+  # auto-determined scope (system) there.
+  if [ "$(os__kernel)" = "Darwin" ]; then
+    PREFIX_SCOPE=user
+  fi
 }
 
 __uninstall_run__() {
