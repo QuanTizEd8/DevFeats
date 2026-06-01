@@ -23,7 +23,7 @@ __init_args_post() {
 }
 
 __detect_existing_path_post() {
-  [ -f "${PREFIX}/nvm.sh" ] && _FEAT_EXISTING_PATH="${PREFIX}/nvm.sh"
+  if [ -f "${PREFIX}/nvm.sh" ]; then _FEAT_EXISTING_PATH="${PREFIX}/nvm.sh"; fi
 }
 
 __install_run_script_pre() {
