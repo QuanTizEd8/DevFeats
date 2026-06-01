@@ -159,6 +159,9 @@ macos-latest-fresh-install:
   build:
     dockerfile: |
       set -eux
+      # Preserve bash 4+ at a static path before Homebrew is uninstalled, so
+      # install.sh can find it without needing to re-bootstrap Homebrew.
+      cp /opt/homebrew/bin/bash /usr/local/bin/bash 2>/dev/null || true
       _UNINSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
       _UNINSTALL_TMP="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
       curl -fsSL "$_UNINSTALL_URL" -o "$_UNINSTALL_TMP"
