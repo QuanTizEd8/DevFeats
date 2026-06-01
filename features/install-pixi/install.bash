@@ -27,20 +27,31 @@ prefix_activation_snippet() {
   return 0
 }
 
-__install_finish_post() {
+_write_lifecycle_hooks() {
   # In a devcontainer build, install a root-owned entrypoint that runs at
   # container start to fix ownership of the .pixi named volume mount.
   # Docker creates named volumes owned by root; the entrypoint chowns the
   # directory to the configured remote user so they can write to it.
   # On standalone/host installs there is no named volume and no entrypoint
   # caller, so this section is skipped.
-  if os__is_devcontainer_build; then
-    mkdir -p "${_FEAT_LIFECYCLE_DIR}"
-    printf '#!/bin/sh\n"%s" info --extended\n' "${_DF_EXPECTED_CMD}" \
-      > "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
-    chmod +x "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
-    install__copy_bin "${_FEAT_FILES_DIR}/entrypoint.sh" "${_FEAT_ENTRYPOINT_PATH}"
-    printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
-      > "${_FEAT_LIFECYCLE_DIR}/entrypoint.sh.conf"
-  fi
+  os__is_devcontainer_build || return 0
+  mkdir -p "${_FEAT_LIFECYCLE_DIR}"
+  printf '#!/bin/sh\n"%s" info --extended\n' "${_DF_EXPECTED_CMD}" \
+    > "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
+  chmod +x "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
+  install__copy_bin "${_FEAT_FILES_DIR}/entrypoint.sh" "${_FEAT_ENTRYPOINT_PATH}"
+  printf 'PIXI_VOLUME_USER="%s"\n' "${_REMOTE_USER}" \
+    > "${_FEAT_LIFECYCLE_DIR}/entrypoint.sh.conf"
+}
+
+__skip_post() {
+  _write_lifecycle_hooks
+}
+
+__update_finish_post() {
+  _write_lifecycle_hooks
+}
+
+__install_finish_post() {
+  _write_lifecycle_hooks
 }

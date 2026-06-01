@@ -26,6 +26,7 @@ __main__() {
 
   logging__info "Checking for existing installation"
   __detect_existing__
+  declare -g _DF_EXPECTED_CMD="${_FEAT_EXISTING_PATH:-${_FEAT_CONTRACT_PRIMARY_BIN}}"
 
   if [[ -z "${_FEAT_EXISTING_PATH}" ]]; then
     case "${IF_EXISTS}" in
@@ -43,6 +44,7 @@ __main__() {
     case "${IF_EXISTS}" in
       skip)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; skipping (if_exists=skip)."
+        if declare -f __skip_post > /dev/null; then __skip_post; fi
         exit 0
         ;;
       fail)
