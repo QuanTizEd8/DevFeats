@@ -43,7 +43,7 @@ def _minimal_feature_metadata(**overrides: object) -> dict:
 def _reset_config_singleton() -> None:
     """Ensure isolated tests do not leave a patched config pointing at tmp_path."""
     yield
-    cfg._config = None
+    cfg.clear_cache()
 
 
 _MINIMAL_MAIN = """\
@@ -114,7 +114,7 @@ def _write_test_repo(
 
 def _loader_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MetadataLoader:
     monkeypatch.setattr("proman.config.git_repo_root", lambda: tmp_path)
-    cfg._config = None
+    cfg.clear_cache()
     return MetadataLoader()
 
 

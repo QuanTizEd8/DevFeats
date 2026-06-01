@@ -88,7 +88,7 @@ triggers:
 def _reset_config_singleton() -> None:
     """Ensure isolated tests do not leave a patched config singleton."""
     yield
-    cfg._config = None
+    cfg.clear_cache()
 
 
 def _patch_loaders(
@@ -103,7 +103,7 @@ def _patch_loaders(
     (proman_dir / "_main.yaml").write_text(main_yaml, encoding="utf-8")
     (proman_dir / "ci.yaml").write_text(ci_yaml, encoding="utf-8")
     monkeypatch.setattr(cfg, "git_repo_root", lambda: tmp_path)
-    cfg._config = None
+    cfg.clear_cache()
 
 
 def test_load_returns_project_name(

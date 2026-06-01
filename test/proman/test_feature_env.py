@@ -92,7 +92,7 @@ def _write_test_repo(tmp_path: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def _reset_caches() -> None:
-    cfg._config = None
+    cfg.clear_cache()
     clear_caches()
 
 
@@ -102,7 +102,7 @@ def test_resolved_env_vars_from_shared_metadata(
     """All _env_vars keys are resolved to their final values."""
     _write_test_repo(tmp_path)
     monkeypatch.setattr("proman.config.git_repo_root", lambda: tmp_path)
-    cfg._config = None
+    cfg.clear_cache()
     clear_caches()
 
     env = resolved_env_vars("install-foo")
@@ -124,7 +124,7 @@ def test_activation_profile_d_uses_config_slugs(
     """Activation profile filename should use owner/name slugs from config."""
     _write_test_repo(tmp_path)
     monkeypatch.setattr("proman.config.git_repo_root", lambda: tmp_path)
-    cfg._config = None
+    cfg.clear_cache()
     clear_caches()
     assert activation_profile_d_filename("install-foo", "prefix") == (
         "myowner-test-install-foo-prefix-activation.sh"
