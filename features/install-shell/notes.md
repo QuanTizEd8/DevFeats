@@ -1,84 +1,5 @@
 ## Usage
 
-### As a Dev Container feature
-
-```jsonc
-// .devcontainer/devcontainer.json
-{
-  "features": {
-    "ghcr.io/quantized8/devfeats/install-shell:0": {}
-  }
-}
-```
-
-With the defaults above, the feature will:
-
-1. Install **Zsh** (Bash is always available)
-2. Install **Oh My Zsh** with the `zsh-syntax-highlighting` plugin
-3. Install **Oh My Bash** (no custom themes or plugins by default)
-4. Install the **Starship** prompt binary
-5. Deploy system-wide config files (`/etc/profile`, `/etc/shellenv`,
-   `/etc/shellrc`, etc.)
-6. Configure the current non-root user's dotfiles
-   (`~/.bashrc`, `$ZDOTDIR/.zshrc`, `~/.shellenv`, etc.)
-
-### Minimal example — Zsh only, no frameworks
-
-```jsonc
-{
-  "features": {
-    "ghcr.io/quantized8/devfeats/install-shell:0": {
-      "install_ohmyzsh": false,
-      "install_ohmybash": false,
-      "install_starship": false
-    }
-  }
-}
-```
-
-### Powerlevel10k with multi-user config
-
-```jsonc
-{
-  "features": {
-    "ghcr.io/quantized8/devfeats/install-shell:0": {
-      "ohmyzsh_theme": "romkatv/powerlevel10k",
-      "ohmyzsh_plugins": "zsh-users/zsh-syntax-highlighting,zsh-users/zsh-autosuggestions",
-      "set_user_shells": "zsh",
-      "add_users": "root",
-      "add_current_user": true
-    }
-  }
-}
-```
-
-### Custom installation paths
-
-```jsonc
-{
-  "features": {
-    "ghcr.io/quantized8/devfeats/install-shell:0": {
-      "ohmyzsh_install_dir": "/opt/oh-my-zsh",
-      "ohmybash_install_dir": "/opt/oh-my-bash"
-    }
-  }
-}
-```
-
-### Custom ZDOTDIR and per-user custom directories
-
-```jsonc
-{
-  "features": {
-    "ghcr.io/quantized8/devfeats/install-shell:0": {
-      "zdotdir": "~/.zsh",
-      "ohmyzsh_custom_dir": "~/.zsh/custom",
-      "ohmybash_custom_dir": "~/.config/bash/custom"
-    }
-  }
-}
-```
-
 With defaults, Zsh config files end up at `~/.config/zsh/` and the Oh My Zsh
 custom directory at `~/.config/zsh/custom/` (symlinked to the system install).
 
@@ -563,81 +484,37 @@ provide `PATH`, `XDG_*`, locale, and other environment variables.
 
 \* Exact path varies by distribution.
 
----
-
-## Dependencies
-
-This feature declares a dependency on
-[`install-os-pkg`](../install-os-pkg/README.md), which provides cross-distro
-package installation. The following packages are installed automatically via
-`base.yaml`:
-
-| Package | Purpose |
-|---|---|
-| `git` | Clone OMZ, OMB, themes, and plugins |
-| `curl` | Download Starship installer |
-| `zsh` | The Zsh shell itself |
-| `ca-certificates` | HTTPS certificate validation for git/curl |
-
----
 
 ## File tree
 
 ```
-src/install-shell/
-├── install.sh                     # POSIX sh bootstrap (ensures bash)
-├── devcontainer-feature.json      # Feature metadata and options
-├── base.yaml                      # OS package dependencies
+files/
+├── profile                    # → /etc/profile
 │
-├── scripts/
-│   └── install.sh                 # Main orchestrator (bash, 8-step flow)
+├── shell/
+│   ├── shellenv               # → /etc/shellenv
+│   ├── shellrc                # → /etc/shellrc
+│   └── shellaliases           # → /etc/shellaliases
 │
-├── scripts/
-│   ├── helpers.sh                 # Shared functions (git_clone, detect_*, etc.)
-│   ├── install_ohmyzsh.sh         # Oh My Zsh: clone + theme + plugins
-│   ├── install_ohmybash.sh        # Oh My Bash: clone + theme + plugins
-│   ├── install_starship.sh        # Starship binary download
-│   └── configure_user.sh          # Per-user dotfile copy + block injection
+├── bash/
+│   ├── bashrc                 # → /etc/bash.bashrc (or equivalent)
+│   └── bashenv                # → /etc/bash/bashenv (BASH_ENV target)
 │
-└── files/
-    ├── profile                    # → /etc/profile
-    │
-    ├── shell/
-    │   ├── shellenv               # → /etc/shellenv
-    │   ├── shellrc                # → /etc/shellrc
-    │   └── shellaliases           # → /etc/shellaliases
-    │
-    ├── bash/
-    │   ├── bashrc                 # → /etc/bash.bashrc (or equivalent)
-    │   └── bashenv                # → /etc/bash/bashenv (BASH_ENV target)
-    │
-    ├── zsh/
-    │   ├── zshenv                 # → /etc/zsh/zshenv (or /etc/zshenv)
-    │   ├── zprofile               # → /etc/zsh/zprofile
-    │   └── zshrc                  # → /etc/zsh/zshrc
-    │
-    └── skel/
-        ├── .shellenv              # → ~/
-        ├── .shellrc               # → ~/
-        ├── .bash_profile          # → ~/
-        ├── .bashrc                # → ~/
-        ├── .zshenv                # → ~/.zshenv  (always HOME; injects ZDOTDIR)
-        ├── .zprofile              # → $ZDOTDIR/
-        ├── .zshrc                 # → $ZDOTDIR/
-        ├── .zlogin                # → $ZDOTDIR/
-        └── p10k.zsh               # → ~/.p10k.zsh (when p10k theme)
+├── zsh/
+│   ├── zshenv                 # → /etc/zsh/zshenv (or /etc/zshenv)
+│   ├── zprofile               # → /etc/zsh/zprofile
+│   └── zshrc                  # → /etc/zsh/zshrc
+│
+└── skel/
+    ├── .shellenv              # → ~/
+    ├── .shellrc               # → ~/
+    ├── .bash_profile          # → ~/
+    ├── .bashrc                # → ~/
+    ├── .zshenv                # → ~/.zshenv  (always HOME; injects ZDOTDIR)
+    ├── .zprofile              # → $ZDOTDIR/
+    ├── .zshrc                 # → $ZDOTDIR/
+    ├── .zlogin                # → $ZDOTDIR/
+    └── p10k.zsh               # → ~/.p10k.zsh (when p10k theme)
 ```
 
 ---
-
-## Failure modes
-
-The script exits non-zero (and the image build fails) when:
-
-- It is not run as root.
-- `git` or `curl` is not available after Step 1.
-- A git clone fails (e.g. invalid theme/plugin slug, network failure).
-- `set_user_shells` is `zsh` but Zsh is not installed.
-- An unknown CLI flag is passed.
-- `chsh` is not available when `set_user_shells` is not `none` (warning
-  only — does not fail the build).
