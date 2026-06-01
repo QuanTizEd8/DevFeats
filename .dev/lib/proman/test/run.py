@@ -77,9 +77,12 @@ def _standalone_install_block(
     if expect_install_failure:
         lines.append(
             'if [ "${FEATURE_INSTALL_RC}" -eq 0 ]; then '
-            f'echo "⛔ standalone scenario {scenario_key}: install unexpectedly succeeded '
+            f'echo "⛔ standalone scenario {scenario_key}: '
+            "install unexpectedly succeeded "
             '(expect_install_failure=true)." >&2; '
-            'echo "--- install output ---" >&2; cat "${_FEATURE_INSTALL_LOG}" >&2; exit 1; fi'
+            'echo "--- install output ---" >&2; '
+            'cat "${_FEATURE_INSTALL_LOG}" >&2; '
+            "exit 1; fi"
         )
         for pattern in failure_patterns:
             qpat = shlex.quote(pattern)
@@ -93,9 +96,11 @@ def _standalone_install_block(
     else:
         lines.append(
             'if [ "${FEATURE_INSTALL_RC}" -ne 0 ]; then '
-            f'echo "⛔ standalone scenario {scenario_key}: install failed with exit code '
+            f'echo "⛔ standalone scenario {scenario_key}: '
+            "install failed with exit code "
             '${FEATURE_INSTALL_RC}." >&2; '
-            'echo "--- install output ---" >&2; cat "${_FEATURE_INSTALL_LOG}" >&2; '
+            'echo "--- install output ---" >&2; '
+            'cat "${_FEATURE_INSTALL_LOG}" >&2; '
             "exit ${FEATURE_INSTALL_RC}; fi"
         )
     lines.append('rm -f "${_FEATURE_INSTALL_LOG}"')
