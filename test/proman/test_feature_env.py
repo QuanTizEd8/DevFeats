@@ -17,13 +17,13 @@ from proman.metadata import MetadataLoader
 _MINIMAL_SHARED = """\
 _lifecycle_key_prefix: myowner-test--
 _env_vars:
-  _FEAT_ID:                        ${{ id }}$
-  _FEAT_VERSION:                   ${{ version }}$
-  _FEAT_NAME:                      ${{ name }}$
-  _FEAT_SHARE_DIR_ROOT:            /usr/local/share/myowner/test/${{ id }}$
-  _FEAT_SHARE_DIR_NONROOT:         ${HOME}/.local/share/myowner/test/${{ id }}$
-  _FEAT_LIFECYCLE_DIR:             ${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/lifecycle-hooks
-  _FEAT_PROFILE_D_FILE:            99-myowner--test--${{ id }}$.sh
+  _FEAT_ID: ${{ id }}$
+  _FEAT_VERSION: ${{ version }}$
+  _FEAT_NAME: ${{ name }}$
+  _FEAT_SHARE_DIR_ROOT: /usr/local/share/myowner/test/${{ id }}$
+  _FEAT_SHARE_DIR_NONROOT: ${HOME}/.local/share/myowner/test/${{ id }}$
+  _FEAT_LIFECYCLE_DIR: ${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/lifecycle-hooks
+  _FEAT_PROFILE_D_FILE: 99-myowner--test--${{ id }}$.sh
   _FEAT_ACTIVATION_PROFILE_D_FILE: myowner-test-${{ id }}$-prefix-activation.sh
 options:
   shared_opt:
@@ -121,6 +121,7 @@ def test_resolved_env_vars_from_shared_metadata(
 def test_activation_profile_d_uses_config_slugs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Activation profile filename should use owner/name slugs from config."""
     _write_test_repo(tmp_path)
     monkeypatch.setattr("proman.config.git_repo_root", lambda: tmp_path)
     cfg._config = None
