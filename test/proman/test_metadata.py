@@ -25,7 +25,7 @@ options:
 """
 
 
-def _minimal_feature_metadata(**overrides) -> dict:
+def _minimal_feature_metadata(**overrides: object) -> dict:
     """Return metadata.yaml content that passes schema validation."""
     base = {
         "version": "1.0.0",
@@ -132,7 +132,7 @@ def test_load_sets_id_and_oci_ref(features_dir: Path) -> None:
     assert feat_id in result["_oci_ref"]
 
 
-def test_load_returns_all_valid_features(features_dir: Path) -> None:
+def test_load_returns_all_valid_features() -> None:
     """MetadataLoader.load() returns a non-empty dict keyed by feature IDs."""
     all_meta = MetadataLoader().load()
     assert len(all_meta) > 0
@@ -141,7 +141,7 @@ def test_load_returns_all_valid_features(features_dir: Path) -> None:
         assert "_oci_ref" in meta
 
 
-def test_load_injects_shared_options(repo_root: Path) -> None:
+def test_load_injects_shared_options() -> None:
     """Shared options from metadata.shared.yaml appear in feature options."""
     meta = MetadataLoader().load("install-git")["install-git"]
     assert "log_level" in meta["options"]
@@ -215,7 +215,7 @@ def test_load_feature_options_override_shared(
 
 
 def test_load_applies_shared_option_conditions() -> None:
-    """Shared options with ``_apply_when`` are injected only when the condition holds."""
+    """Shared options with ``_apply_when`` are injected only when condition holds."""
     with_fetch = MetadataLoader().load("install-pixi")["install-pixi"]
     without_fetch = MetadataLoader().load("install-git")["install-git"]
     assert "fetch_headers" in with_fetch["options"]
@@ -229,12 +229,13 @@ def test_load_substitutes_template_variables(
     """${{ _project }} and ${{ _env_vars }} templates are expanded."""
     metadata = _minimal_feature_metadata(
         description="Test ${{ _project.name_slug }}$.",
-        entrypoint=(
-            "${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/entrypoint.sh ${containerWorkspaceFolder}"
-        ),
+        entrypoint="${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/entrypoint.sh "
+        "${containerWorkspaceFolder}",
         onCreateCommand={
             "run": {
-                "command": "sh ${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/on-create.sh || true",
+                "command": (
+                    "sh ${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/on-create.sh || true"
+                ),
                 "description": "Run on-create hook.",
             },
         },
