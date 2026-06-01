@@ -258,10 +258,10 @@ argparse__resolve_uri_options() {
     _mdir="${_matdir}/uri/${_key}"
     case "${_typ}" in
       array)
-        local -n _arr="$_var"
-        [[ ${#_arr[@]} -gt 0 ]] || continue
-        _list="$(printf '%s\n' "${_arr[@]}")"
-        mapfile -t _arr < <(uri__resolve_list "$_list" "$_mdir" "${_fetch_args[@]}" ${_chmod:+--chmod "$_chmod"}) ||
+        local -n _uri_arr_ref="$_var"
+        [[ ${#_uri_arr_ref[@]} -gt 0 ]] || continue
+        _list="$(printf '%s\n' "${_uri_arr_ref[@]}")"
+        mapfile -t _uri_arr_ref < <(uri__resolve_list "$_list" "$_mdir" "${_fetch_args[@]}" ${_chmod:+--chmod "$_chmod"}) ||
           return 1
         ;;
       string)
