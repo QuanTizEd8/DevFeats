@@ -25,7 +25,9 @@ def install_failure_patterns(
     for ts in test_scripts:
         test_id = ts.removesuffix(".sh") if ts.endswith(".sh") else ts
         group = checks_data.get(test_id, {})
-        for item in group.get("checks", []):
-            if item.get("kind") == "install_failure":
-                patterns.append(str(item["pattern"]))
+        patterns.extend(
+            str(item["pattern"])
+            for item in group.get("checks", [])
+            if item.get("kind") == "install_failure"
+        )
     return patterns
