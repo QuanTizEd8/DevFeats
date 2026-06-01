@@ -266,7 +266,7 @@ __verify_system_requirements_post() {
 __install_run__() {
   apply_channels
   [[ -n "$ENV_NAME" ]] && setup_inline_env
-  [[ ${#ENV_FILES[@]} -gt 0 || ${#ENV_DIRS[@]} -gt 0 ]] && setup_environment
+  if [[ ${#ENV_FILES[@]} -gt 0 || ${#ENV_DIRS[@]} -gt 0 ]]; then setup_environment; fi
 }
 
 __install_finish_post() {
