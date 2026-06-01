@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from jsonschema import Draft202012Validator
@@ -16,15 +17,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-_validator: Draft202012Validator | None = None
-
-
 def get_validator() -> Draft202012Validator:
     """Return a Draft 2020-12 validator for ``metadata.yaml`` with local schema URIs."""
-    global _validator
-    if _validator is not None:
-        return _validator
+    return _build_validator()
 
+
+@cache
+def _build_validator() -> Draft202012Validator:
+    """Build and cache the Draft 2020-12 validator with local schema URIs."""
     config = load_config()
     schema_path = config.absolute_path("path.metadata_schema")
     lib_dirpath = config.absolute_path("path.library")
@@ -47,8 +47,7 @@ def get_validator() -> Draft202012Validator:
         _set_root_id(doc, uri)
         registry = registry.with_resource(uri, DRAFT202012.create_resource(doc))
     Draft202012Validator.check_schema(meta_data)
-    _validator = Draft202012Validator(meta_data, registry=registry)
-    return _validator
+    return Draft202012Validator(meta_data, registry=registry)
 
 
 def schema_stem_from_path(schema_path: Path) -> str:
@@ -157,3 +156,8 @@ def lib_schema_stem_to_uri(lib_dirpath: Path) -> dict[str, str]:
         schema_stem_from_path(p): p.resolve().as_uri()
         for p in sorted(lib_dirpath.glob("*.schema.json"))
     }
+
+
+def clear_validator_cache() -> None:
+    """Clear the cached metadata schema validator."""
+    _build_validator.cache_clear()
