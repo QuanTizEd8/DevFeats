@@ -45,7 +45,7 @@ format-sh-check *files:
   doc('Format Python files with ruff; pass paths to limit scope.')
 ]
 format-py *files:
-    pixi run --environment lint format-py {{ if files != "" { '"' + files + '"' } else { "" } }}
+    pixi run --environment lint format-py {{ if files != "" { "-- " + files } else { "" } }}
 
 
 [
