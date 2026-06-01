@@ -157,6 +157,7 @@ __update_run__() {
 # config to the same users that received write-group permissions.
 __feat_do_configure_users_pre() {
   [[ "${#WRITE_USERS[@]}" -gt 0 ]] && ADD_USERS=("${WRITE_USERS[@]}")
+  return 0
 }
 
 __configure_user() {
