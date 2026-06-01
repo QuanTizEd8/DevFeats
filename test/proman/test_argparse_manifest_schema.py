@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = REPO_ROOT / "lib" / "argparse-manifest.schema.json"
@@ -15,6 +16,7 @@ FIXTURES_DIR = REPO_ROOT / "test" / "fixtures" / "argparse-manifests"
 
 @pytest.fixture(scope="module")
 def validator() -> Draft202012Validator:
+    """Return a validator for argparse-manifest.schema.json."""
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema)
@@ -28,6 +30,7 @@ def validator() -> Draft202012Validator:
     ],
 )
 def test_fixture_validates(validator: Draft202012Validator, fixture_name: str) -> None:
+    """Schema fixtures in test/fixtures/argparse-manifests must validate."""
     data = json.loads((FIXTURES_DIR / fixture_name).read_text(encoding="utf-8"))
     validator.validate(data)
 
@@ -35,6 +38,7 @@ def test_fixture_validates(validator: Draft202012Validator, fixture_name: str) -
 def test_allows_option_without_var_and_flag(
     validator: Draft202012Validator,
 ) -> None:
+    """Allow implicit var/flag names when only option name is provided."""
     data = {
         "schema_version": 1,
         "script": {"name": "x", "version": "1"},
@@ -54,6 +58,7 @@ def test_allows_option_without_var_and_flag(
 def test_allows_explicit_var_and_flag_overrides(
     validator: Draft202012Validator,
 ) -> None:
+    """Allow explicit var and flag overrides in option definitions."""
     data = {
         "schema_version": 1,
         "script": {"name": "x", "version": "1"},
@@ -73,6 +78,7 @@ def test_allows_explicit_var_and_flag_overrides(
 
 
 def test_rejects_boolean_with_enum(validator: Draft202012Validator) -> None:
+    """Reject enum constraints on boolean options."""
     invalid = {
         "schema_version": 1,
         "script": {"name": "x", "version": "1"},
@@ -87,11 +93,12 @@ def test_rejects_boolean_with_enum(validator: Draft202012Validator) -> None:
             }
         ],
     }
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         validator.validate(invalid)
 
 
 def test_rejects_integer_with_uri(validator: Draft202012Validator) -> None:
+    """Reject uri=true on integer options."""
     invalid = {
         "schema_version": 1,
         "script": {"name": "x", "version": "1"},
@@ -106,24 +113,26 @@ def test_rejects_integer_with_uri(validator: Draft202012Validator) -> None:
             }
         ],
     }
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         validator.validate(invalid)
 
 
 def test_rejects_listed_env_trigger_without_vars(
     validator: Draft202012Validator,
 ) -> None:
+    """Reject listed env triggers when no options are defined."""
     invalid = {
         "schema_version": 1,
         "script": {"name": "x", "version": "1"},
         "input": {"mode": "env_exclusive_else_cli", "env_trigger": "listed"},
         "options": [],
     }
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         validator.validate(invalid)
 
 
 def test_allows_array_with_uri(validator: Draft202012Validator) -> None:
+    """Allow uri=true on array options."""
     data = {
         "schema_version": 1,
         "script": {"name": "x", "version": "1"},
