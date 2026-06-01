@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for install__release_asset (lib/install/common.sh)
+# Unit tests for install__release_asset (lib/install.sh)
 
 bats_require_minimum_version 1.7.0
 

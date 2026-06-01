@@ -536,8 +536,7 @@ _seed_apt_context_with_yq() {
 
   run bash -c "
     for _m in logging.sh os.sh str.sh ver.sh json.sh net.sh file.sh verify.sh \
-               lock.sh git.sh users.sh proc.sh graph.sh shell.sh \
-               install/common.sh install/jq.sh install/yq.sh install/oras.sh \
+               lock.sh git.sh users.sh proc.sh graph.sh shell.sh install.sh \
                ospkg.sh github.sh oci.sh uri.sh; do
       source \"${LIB_ROOT}/\$_m\"
     done
@@ -571,8 +570,7 @@ _seed_apt_context_with_yq() {
 
   run bash -c "
     for _m in logging.sh os.sh str.sh ver.sh json.sh net.sh file.sh verify.sh \
-               lock.sh git.sh users.sh proc.sh graph.sh shell.sh \
-               install/common.sh install/jq.sh install/yq.sh install/oras.sh \
+               lock.sh git.sh users.sh proc.sh graph.sh shell.sh install.sh \
                ospkg.sh github.sh oci.sh uri.sh; do
       source \"${LIB_ROOT}/\$_m\"
     done

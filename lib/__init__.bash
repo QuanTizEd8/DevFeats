@@ -34,8 +34,8 @@ _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_LIB_DIR/sys_req.sh"
 # shellcheck source=lib/shell.sh
 . "$_LIB_DIR/shell.sh"
-# shellcheck source=lib/install/common.sh
-. "$_LIB_DIR/install/common.sh"
+# shellcheck source=lib/install.sh
+. "$_LIB_DIR/install.sh"
 # shellcheck source=lib/bootstrap.sh
 . "$_LIB_DIR/bootstrap.sh"
 # shellcheck source=lib/ospkg.sh
