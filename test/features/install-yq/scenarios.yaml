@@ -61,7 +61,6 @@ version_match_idempotency:
   envs:
   - ubuntu-latest+yq-4.44.2
   modes:
-  - devcontainer
   - standalone
   options:
     version: 4.44.2

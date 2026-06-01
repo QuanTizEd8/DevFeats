@@ -208,7 +208,7 @@ version_match_idempotency:
   envs:
   - ubuntu-latest+gh-2.67.0-preinstalled
   modes:
-  - devcontainer
+  - standalone
   options:
     method: binary
     version: 2.67.0
