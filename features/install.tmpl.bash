@@ -1103,7 +1103,7 @@ __install_finish__() {
         --cmd-var "_DF_EXPECTED_CMD"
         --marker "${_FEAT_CONTRACT_PRIMARY_BIN:+${_FEAT_CONTRACT_PRIMARY_BIN} }PATH (${_FEAT_ID})"
       )
-      [[ -v PREFIX_BINS ]] && _disc_args+=(--bins "${PREFIX_BINS}")
+      [[ -v PREFIX_BINS ]] && _disc_args+=(--bins "${PREFIX_BINS[*]}")
       # declare -p correctly detects declared-but-empty arrays; [[ -v arr ]] does not
       # (it checks arr[0], returning false for empty arrays).
       { declare -p PREFIX_SYMLINKS &>/dev/null; } && _disc_args+=(
