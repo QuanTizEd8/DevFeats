@@ -602,6 +602,9 @@ ospkg__is_managed() {
     brew)
       local _prefix _real
       _prefix="$(brew --prefix 2> /dev/null)" || return 1
+      # Canonicalize prefix so macOS /var → /private/var expansion is consistent
+      # with the file__canonical_path-resolved _real path used in the comparison below.
+      _prefix="$(file__canonical_path "$_prefix")"
       _real="$(file__canonical_path "$_bin")"
       [[ "$_real" == /* ]] || _real="$(dirname "$_bin")/${_real}"
       [[ "$_real" == "${_prefix}/Cellar/"* || "$_real" == "${_prefix}/opt/"* ]]
