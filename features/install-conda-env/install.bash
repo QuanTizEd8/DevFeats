@@ -45,7 +45,10 @@ resolve_solver() {
   fi
 
   logging__info "Solver: '${SOLVER_EXEC}'."
-  CONDA_DIR="$("${SOLVER_EXEC}" info --base)"
+  CONDA_DIR="$("${SOLVER_EXEC}" info --base 2> /dev/null |
+    grep -v '^[[:space:]]*$' |
+    head -1 |
+    sed 's/^[[:space:]]*//; s/^.*:[[:space:]]*//')"
   if [[ -z "${CONDA_DIR}" ]]; then
     logging__error "'${SOLVER_EXEC} info --base' returned empty; cannot determine conda base directory."
     exit 1
@@ -61,13 +64,15 @@ apply_channels() {
     logging__fn_exit "apply_channels"
     return
   fi
+  local _cfg_exec="${SOLVER_EXEC%/*}/conda"
+  [[ -x "${_cfg_exec}" ]] || _cfg_exec="${SOLVER_EXEC}"
   for channel in "${CHANNELS[@]}"; do
     logging__info "Adding channel: $channel"
-    "${SOLVER_EXEC}" config --add channels "$channel"
+    "${_cfg_exec}" config --add channels "$channel"
   done
   if [[ "$STRICT_CHANNEL_PRIORITY" == true ]]; then
     logging__info "Setting channel_priority to strict."
-    "${SOLVER_EXEC}" config --set channel_priority strict
+    "${_cfg_exec}" config --set channel_priority strict
   fi
   logging__fn_exit "apply_channels"
 }
