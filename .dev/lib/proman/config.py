@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import cache
 from typing import TYPE_CHECKING
 
 import pyserials
@@ -13,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class Config:
+    """Access and resolve project-level ProMan configuration values."""
+
     def __init__(self) -> None:
         self._root_path = git_repo_root()
         config_dict = {}
@@ -41,19 +44,24 @@ class Config:
         rel_path = self._config[config_path]
         if not isinstance(rel_path, str):
             msg = f"Config path {config_path} does not point to a string path."
-            raise ValueError(msg)
+            raise TypeError(msg)
         return self._root_path / rel_path
 
-    def __getitem__(self, dotted_path: str):
+    def __getitem__(self, dotted_path: str) -> object:
+        """Return a config value by dotted path."""
         return self._config[dotted_path]
 
 
 def load() -> Config:
     """Load all config from .config/proman/*.yaml."""
-    global _config
-    if _config is None:
-        _config = Config()
-    return _config
+    return _load_cached()
 
 
-_config: Config | None = None
+def clear_cache() -> None:
+    """Clear the cached Config instance used by ``load()``."""
+    _load_cached.cache_clear()
+
+
+@cache
+def _load_cached() -> Config:
+    return Config()
