@@ -142,3 +142,12 @@ bootstrap__oras() {
 
   install__state_record "oras" "internal" "binary" "${_install_dir}/oras" "devfeats-bootstrap-oras" || true
 }
+
+# @brief bootstrap__git — Ensure git is available via the OS package manager.
+# Returns: 0 on success, 1 on failure.
+bootstrap__git() {
+  ospkg__install_tracked "lib-git" git || {
+    logging__error "bootstrap__git: git could not be installed."
+    return 1
+  }
+}

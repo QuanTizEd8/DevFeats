@@ -88,7 +88,7 @@ apt_theme_p10k:
 
 apt_install_dir:
   description: |
-    Verifies that a custom install_dir is respected: Oh My Zsh is cloned
+    Verifies that a custom prefix is respected: Oh My Zsh is cloned
     there and not at the default path.
 
   pre: |
@@ -128,7 +128,7 @@ apt_custom_dir_system:
       cmd: test -d "${_SYS_CUSTOM}/plugins"
     - title: default plugin cloned at explicit path
       cmd: test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
-    - title: default plugin NOT cloned at install_dir/custom
+    - title: default plugin NOT cloned at prefix/custom
       cmd: bash -c '! test -d "${_OMZ}/custom/plugins/zsh-syntax-highlighting"'
     - title: rc file sets ZSH_CUSTOM to explicit system path
       cmd: >-
@@ -169,21 +169,48 @@ apt_custom_dir_per_user:
         || grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" /root/zshtheme 2>/dev/null
         || grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" /root/.config/zsh/zshtheme 2>/dev/null'
 
-apt_user_config_skip:
+apt_if_exists_skip:
   description: |
-    Verifies that user_config_mode=skip installs Oh My Zsh system-wide but
-    does not inject any per-user configuration blocks.
+    Verifies that if_exists=skip on a fresh container (nothing pre-existing) performs
+    a normal install, since there is nothing to skip.
 
   pre: |
     _OMZ=/usr/local/share/oh-my-zsh
+    _SYS_CUSTOM="${_OMZ}/custom"
+    _HOME=/root
 
   checks:
-    - title: oh-my-zsh installed system-wide
+    - title: oh-my-zsh install dir exists
       cmd: test -d "$_OMZ"
     - title: oh-my-zsh main script exists
       cmd: test -f "${_OMZ}/oh-my-zsh.sh"
-    - title: root rc file has no OMZ block
+    - title: ZSH_CUSTOM structure scaffolded
+      cmd: test -d "${_SYS_CUSTOM}/plugins"
+    - title: per-user rc file sources oh-my-zsh.sh
       cmd: >-
-        bash -c '! grep -qF "install-ohmyzsh" /root/.zshrc 2>/dev/null
-        && ! grep -qF "install-ohmyzsh" /root/zshtheme 2>/dev/null
-        && ! grep -qF "install-ohmyzsh" /root/.config/zsh/zshtheme 2>/dev/null'
+        bash -c 'grep -qF "oh-my-zsh.sh" /root/.zshrc 2>/dev/null
+        || grep -qF "oh-my-zsh.sh" /root/zshtheme 2>/dev/null
+        || grep -qF "oh-my-zsh.sh" /root/.config/zsh/zshtheme 2>/dev/null'
+
+apt_if_exists_update:
+  description: |
+    Verifies that if_exists=update on a fresh container (nothing pre-existing) performs
+    a normal install, and that the git repo and user config are correctly set up.
+
+  pre: |
+    _OMZ=/usr/local/share/oh-my-zsh
+    _SYS_CUSTOM="${_OMZ}/custom"
+    _HOME=/root
+
+  checks:
+    - title: oh-my-zsh install dir exists after update-mode install
+      cmd: test -d "$_OMZ"
+    - title: oh-my-zsh main script exists
+      cmd: test -f "${_OMZ}/oh-my-zsh.sh"
+    - title: oh-my-zsh.branch git config set
+      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.branch)" = "master"'
+    - title: per-user rc file sources oh-my-zsh.sh
+      cmd: >-
+        bash -c 'grep -qF "oh-my-zsh.sh" /root/.zshrc 2>/dev/null
+        || grep -qF "oh-my-zsh.sh" /root/zshtheme 2>/dev/null
+        || grep -qF "oh-my-zsh.sh" /root/.config/zsh/zshtheme 2>/dev/null'

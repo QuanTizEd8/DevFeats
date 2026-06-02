@@ -263,7 +263,15 @@ __detect_existing_path__() {
 
   declare -g _FEAT_EXISTING_PATH=""
 
-  if [[ -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]]; then
+  # git-clone: check PREFIX first — for git-clone features, PREFIX IS the installation root.
+  # Probing this before the binary search prevents a git-clone feature that also exposes a
+  # primary binary from being misclassified as a plain "prefix" (binary) installation.
+  if [[ -n "${GIT_CLONE_URI:-}" && -v PREFIX && -n "${PREFIX}" && -d "${PREFIX}/.git" ]]; then
+    _FEAT_EXISTING_PATH="${PREFIX}"
+  fi
+
+  # Binary detection only when not already found by the git-clone check.
+  if [[ -z "${_FEAT_EXISTING_PATH}" && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]]; then
     local _prefix_bin=""
     if [[ -v PREFIX ]]; then
       _prefix_bin="${PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
@@ -316,7 +324,15 @@ __detect_existing_method__() {
   declare -g _FEAT_EXISTING_METHOD=""
   [[ -n "${_FEAT_EXISTING_PATH}" ]] || return 0
 
-  if ospkg__is_managed "${_FEAT_EXISTING_PATH}" 2>/dev/null; then
+  # git-clone: probe first so that a git-clone feature is never misclassified as "prefix".
+  # _FEAT_EXISTING_PATH for git-clone features is always PREFIX (set by __detect_existing_path__),
+  # which is a directory — ospkg/npm probes against a directory path always return false, but
+  # the prefix check (PATH == PREFIX/*) would also not match (PATH == PREFIX, not PREFIX/something).
+  # Placing this first is both correct and defensive against future git-clone features that also
+  # expose a primary binary whose path would match the prefix check.
+  if [[ -n "${GIT_CLONE_URI:-}" && -d "${_FEAT_EXISTING_PATH}/.git" ]]; then
+    _FEAT_EXISTING_METHOD="git-clone"
+  elif ospkg__is_managed "${_FEAT_EXISTING_PATH}" 2>/dev/null; then
     if [[ -f "$(__dep_manifest_path__ run upstream-package)" ]]; then
       _FEAT_EXISTING_METHOD="upstream-package"
     else
@@ -417,6 +433,9 @@ __uninstall_run__() {
     upstream-package)
       __uninstall_run_upstream_package__
       ;;
+    git-clone)
+      __uninstall_run_git_clone__
+      ;;
     "")
       logging__error "Cannot auto-uninstall '${_FEAT_EXISTING_PATH}': installation method unknown. Override __uninstall_run__ or use __uninstall_run_pre to handle it."
       return 1
@@ -490,6 +509,20 @@ __uninstall_run_upstream_package__() {
   __dep_uninstall__ run upstream-package
   if declare -f __uninstall_run_upstream_package_post > /dev/null; then
     __uninstall_run_upstream_package_post
+  fi
+}
+
+__uninstall_run_git_clone__() {
+  if declare -f __uninstall_run_git_clone_pre > /dev/null; then
+    __uninstall_run_git_clone_pre
+  fi
+  if [[ -z "${_FEAT_EXISTING_PATH:-}" ]]; then
+    logging__warn "__uninstall_run_git_clone__: _FEAT_EXISTING_PATH empty; nothing to remove."
+    return 0
+  fi
+  file__rm -rf "${_FEAT_EXISTING_PATH}"
+  if declare -f __uninstall_run_git_clone_post > /dev/null; then
+    __uninstall_run_git_clone_post
   fi
 }
 
@@ -660,6 +693,9 @@ __install_run__() {
         ;;
       source)
         __install_run_source__
+        ;;
+      git-clone)
+        __install_run_git_clone__
         ;;
       *)
         logging__error "Unknown METHOD '${METHOD}': no auto-implementation exists. Override __install_run__."
@@ -1074,6 +1110,52 @@ __install_run_source_auto_build__() {
   esac
 }
 
+# Apply git config entries from GIT_CLONE_CONFIG after a git-clone install or update.
+# Each element of GIT_CLONE_CONFIG is a `key=value` pair; values support {VERSION} substitution.
+_git_clone_apply_config() {
+  local _dir="$1" _ver="$2"
+  [[ -v GIT_CLONE_CONFIG ]] || return 0
+  ((${#GIT_CLONE_CONFIG[@]} == 0)) && return 0
+  local -a _expanded=()
+  local _pair _val
+  for _pair in "${GIT_CLONE_CONFIG[@]}"; do
+    _val="${_pair#*=}"
+    _val="${_val//\{VERSION\}/${_ver}}"
+    [[ -n "${_val}" ]] || {
+      logging__warn "_git_clone_apply_config: skipping config key '${_pair%%=*}' — value is empty after VERSION substitution."
+      continue
+    }
+    _expanded+=("${_pair%%=*}=${_val}")
+  done
+  ((${#_expanded[@]} == 0)) && return 0
+  git__config "${_dir}" "${_expanded[@]}"
+}
+
+__install_run_git_clone__() {
+  if declare -f __install_run_git_clone_pre > /dev/null; then
+    __install_run_git_clone_pre
+  fi
+  if [[ -z "${GIT_CLONE_URI:-}" ]]; then
+    logging__error "METHOD=git-clone: GIT_CLONE_URI not set (missing _options.method.git-clone.uri in metadata?)."
+    return 1
+  fi
+  if [[ -z "${PREFIX:-}" ]]; then
+    logging__error "METHOD=git-clone: PREFIX is not set. Declare _options.prefix.root/nonroot in the feature's metadata.yaml."
+    return 1
+  fi
+  local _uri
+  _uri="$(os__expand_release_pattern "${GIT_CLONE_URI}" "${VERSION:-}" "${_FEAT_RESOLVED_TAG:-}")"
+  local _ref_arg=()
+  [[ -v VERSION && -n "${VERSION}" ]] && _ref_arg=(--ref "${VERSION}")
+  local _sha_arg=()
+  [[ -n "${_FEAT_RESOLVED_GIT_SHA:-}" ]] && _sha_arg=(--resolved-sha "${_FEAT_RESOLVED_GIT_SHA}")
+  git__clone --url "${_uri}" --dir "${PREFIX}" "${_ref_arg[@]+"${_ref_arg[@]}"}" "${_sha_arg[@]+"${_sha_arg[@]}"}"
+  _git_clone_apply_config "${PREFIX}" "${VERSION:-}"
+  if declare -f __install_run_git_clone_post > /dev/null; then
+    __install_run_git_clone_post
+  fi
+}
+
 __install_register_dummy__() {
   # Register a dummy OS package so downstream Depends: constraints are satisfied.
   # Only runs when REGISTER_PACKAGE_NAME is set and METHOD is a non-PM method.
@@ -1321,6 +1403,7 @@ __method_changed__() {
     upstream-package) [[ "${METHOD}" != "upstream-package" ]] ;;
     npm)              [[ "${METHOD}" != "npm" ]] ;;
     npm-bundled)      [[ "${METHOD}" != "npm-bundled" ]] ;;
+    git-clone)        [[ "${METHOD}" != "git-clone" ]] ;;
     prefix)
       case "${METHOD}" in
         package | upstream-package) return 0 ;;
@@ -1430,6 +1513,9 @@ __update_run__() {
     upstream-package)
       __update_run_upstream_package__
       ;;
+    git-clone)
+      __update_run_git_clone__
+      ;;
     *)
       # binary, cargo, npm, npm-bundled, script, source: install path overwrites / upgrades naturally.
       # __install_run_npm_bundled__ detects _FEAT_EXISTING_PATH → passes --update.
@@ -1472,6 +1558,21 @@ __update_run_upstream_package__() {
   __dep_install__ run upstream-package --update
   if declare -f __update_run_upstream_package_post > /dev/null; then
     __update_run_upstream_package_post
+  fi
+}
+
+__update_run_git_clone__() {
+  if declare -f __update_run_git_clone_pre > /dev/null; then
+    __update_run_git_clone_pre
+  fi
+  local _ref_args=()
+  [[ -v VERSION && -n "${VERSION}" ]] && _ref_args=(--ref "${VERSION}")
+  local _sha_args=()
+  [[ -n "${_FEAT_RESOLVED_GIT_SHA:-}" ]] && _sha_args=(--resolved-sha "${_FEAT_RESOLVED_GIT_SHA}")
+  git__update "${PREFIX}" "${_ref_args[@]+"${_ref_args[@]}"}" "${_sha_args[@]+"${_sha_args[@]}"}"
+  _git_clone_apply_config "${PREFIX}" "${VERSION:-}"
+  if declare -f __update_run_git_clone_post > /dev/null; then
+    __update_run_git_clone_post
   fi
 }
 
@@ -1544,7 +1645,10 @@ __feat_check_version_match__() {
     _FEAT_INSTALLED_VER="$("${_FEAT_EXISTING_PATH}" "${VERSION_FLAG}" 2>&1 \
       | ver__extract_version || true)"
   fi
-  [[ -n "${_FEAT_INSTALLED_VER}" && "${_FEAT_INSTALLED_VER}" == "${VERSION}" ]] || return 1
+  # For git_ref resolution, compare installed HEAD SHA against the remotely resolved SHA.
+  # For all other resolution types, _FEAT_RESOLVED_GIT_SHA is empty → falls back to VERSION.
+  local _target_ver="${_FEAT_RESOLVED_GIT_SHA:-${VERSION}}"
+  [[ -n "${_FEAT_INSTALLED_VER}" && "${_FEAT_INSTALLED_VER}" == "${_target_ver}" ]] || return 1
   logging__info "Already at version '${VERSION}'; skipping."
 }
 
@@ -1595,13 +1699,29 @@ __resolve_input_method__() {
   # Resolves METHOD=auto to a concrete value via __resolve_method hook.
   # No-op when METHOD is not set or already concrete. Error if METHOD=auto
   # but no hook is defined.
-  [[ -v METHOD && "${METHOD}" == "auto" ]] || return 0
+  [[ -v METHOD && "${METHOD}" == "auto" ]] || {
+    # Auto-register installed-version probe for git-clone when not overridden by the feature.
+    if [[ "${METHOD:-}" == "git-clone" ]] && ! declare -f __installed_version > /dev/null; then
+      __installed_version() {
+        local _p="${1:-${PREFIX}}"
+        [[ -d "${_p}/.git" ]] && git__head_sha "${_p}" 2>/dev/null || printf ''
+      }
+    fi
+    return 0
+  }
   if declare -f __resolve_method > /dev/null; then
     METHOD="$(__resolve_method)"
     logging__info "Resolved METHOD=auto → '${METHOD}'."
   else
     logging__error "METHOD=auto requires __resolve_method to be defined; none found."
     return 1
+  fi
+  # Auto-register installed-version probe for git-clone when resolved to git-clone.
+  if [[ "${METHOD:-}" == "git-clone" ]] && ! declare -f __installed_version > /dev/null; then
+    __installed_version() {
+      local _p="${1:-${PREFIX}}"
+      [[ -d "${_p}/.git" ]] && git__head_sha "${_p}" 2>/dev/null || printf ''
+    }
   fi
 }
 
@@ -1662,6 +1782,7 @@ __resolve_input_version__() {
   fi
 
   declare -g _FEAT_RESOLVED_TAG=""
+  declare -g _FEAT_RESOLVED_GIT_SHA=""
   if ! { [[ -v VERSION && -n "${VERSION}" ]] && [[ ! -v METHOD || "${METHOD}" != "package" ]]; }; then
     if declare -f __resolve_input_version_post > /dev/null; then
       __resolve_input_version_post
@@ -1691,6 +1812,26 @@ __resolve_input_version__() {
         fi
         VERSION="$(npm__resolve_version_uri "${VERSION_URI}" "${VERSION}")" || return 1
         ;;
+      git_ref)
+        # Resolve the named ref (branch/tag) to its current remote SHA via ls-remote.
+        # VERSION is intentionally left as the ref name (e.g. "master") so that {VERSION}
+        # substitutions in git config values (e.g. oh-my-zsh.branch: "{VERSION}") remain
+        # human-readable. The resolved SHA is stored separately for version comparison.
+        if [[ -z "${GIT_CLONE_URI:-}" ]]; then
+          logging__error "VERSION_RESOLUTION=git_ref requires GIT_CLONE_URI to be set."
+          return 1
+        fi
+        bootstrap__git || return 1
+        # Expand the URI first so the ls-remote target matches what git__clone will use.
+        local _git_ref_uri
+        _git_ref_uri="$(os__expand_release_pattern "${GIT_CLONE_URI}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")"
+        local _resolved
+        _resolved="$(git__resolve_ref "${_git_ref_uri}" "${VERSION}")"
+        _FEAT_RESOLVED_GIT_SHA="${_resolved}"
+        if [[ "${_resolved}" == "${VERSION}" ]]; then
+          logging__info "Ref '${VERSION}' not found as a named ref on remote; treating as SHA."
+        fi
+        ;;
       none | "")
         # Explicit 'none' or no resolution declared: VERSION is used as-is.
         ;;
@@ -1702,6 +1843,8 @@ __resolve_input_version__() {
   fi
   if [[ -n "${_FEAT_RESOLVED_TAG}" ]]; then
     logging__info "Resolved version: '${VERSION}' (tag: '${_FEAT_RESOLVED_TAG}')."
+  elif [[ -n "${_FEAT_RESOLVED_GIT_SHA}" ]]; then
+    logging__info "Resolved version: '${VERSION}' (SHA: '${_FEAT_RESOLVED_GIT_SHA}')."
   else
     logging__info "Resolved version: '${VERSION}'."
   fi

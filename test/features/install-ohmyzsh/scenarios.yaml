@@ -25,7 +25,7 @@ apt_install_dir:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
-    install_dir: /opt/oh-my-zsh
+    prefix: /opt/oh-my-zsh
   tests: [apt_install_dir]
 
 apt_custom_dir_system:
@@ -42,9 +42,16 @@ apt_custom_dir_per_user:
     custom_dir: "~/.zsh-custom"
   tests: [apt_custom_dir_per_user]
 
-apt_user_config_skip:
+apt_if_exists_skip:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
-    user_config_mode: skip
-  tests: [apt_user_config_skip]
+    if_exists: skip
+  tests: [apt_if_exists_skip]
+
+apt_if_exists_update:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    if_exists: update
+  tests: [apt_if_exists_update]

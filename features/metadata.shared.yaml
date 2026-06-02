@@ -57,7 +57,7 @@ options:
     _apply_when: |
       #{{
         m = get("_options.method") or {}
-        known = ["binary", "package", "upstream-package", "script", "cargo", "npm", "npm-bundled", "source"]
+        known = ["binary", "package", "upstream-package", "script", "cargo", "npm", "npm-bundled", "source", "git-clone"]
         return len([k for k in known if k in m]) > 1
       }}#
     type: string
@@ -107,6 +107,11 @@ options:
         *{{ #{{
           m = get("_options.method") or {}
           return [{"value": "source", "description": "Build and install from source."}] if "source" in m else []
+        }}# }}*
+      - |
+        *{{ #{{
+          m = get("_options.method") or {}
+          return [{"value": "git-clone", "description": "Clone a Git repository into a local directory."}] if "git-clone" in m else []
         }}# }}*
 
   if_exists:
@@ -461,6 +466,30 @@ options:
       Make targets invoked in sequence for source builds.
       When empty, the build system default is used: `all` then `install`.
       Provide one target per line to override.
+
+  git_clone_uri:
+    _apply_when: |
+      #{{ return get("_options.method.git-clone") is not None }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.git-clone.uri", "") }}#
+    description: >-
+      Repository URI to clone when `method=git-clone`.
+      Supports the same runtime substitutions as `binary_asset_uri`.
+      Override to use a mirror or fork.
+
+  git_clone_config:
+    _apply_when: |
+      #{{ return bool(get("_options.method.git-clone.config")) }}#
+    type: array
+    default: |
+      #{{
+        config = get("_options.method.git-clone.config", {})
+        return "\n".join(k + "=" + v for k, v in config.items())
+      }}#
+    description: >-
+      Array of `key=value` git config pairs to set after clone/update.
+      Values support `{VERSION}` substitution. Not normally overridden by users.
 
   shell_completions:
     _apply_when: |

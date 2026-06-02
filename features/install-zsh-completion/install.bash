@@ -24,11 +24,7 @@ install_zsh_completions() {
   fi
 
   logging__info "Installing zsh-completions (git) → '${_ZSH_COMPLETIONS_PREFIX}'..."
-  local _prev_umask
-  _prev_umask="$(umask)"
-  umask g-w,o-w
   git__clone --url "$_ZSH_COMPLETIONS_REPO_URL" --dir "$_ZSH_COMPLETIONS_PREFIX"
-  umask "$_prev_umask"
   logging__success "zsh-completions ready (fpath: '${_ZSH_COMPLETIONS_SRC}')."
   return 0
 }

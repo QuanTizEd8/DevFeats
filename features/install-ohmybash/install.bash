@@ -22,11 +22,7 @@ __install_run__() {
   fi
 
   logging__info "Installing Oh My Bash to '${_install_dir}' (branch: ${_branch})..."
-  local _prev_umask
-  _prev_umask="$(umask)"
-  umask g-w,o-w
-  git__clone --url "$_OHMYBASH_REPO_URL" --dir "$_install_dir" --branch "$_branch"
-  umask "$_prev_umask"
+  git__clone --url "$_OHMYBASH_REPO_URL" --dir "$_install_dir" --ref "$_branch"
 
   # Set update metadata so 'omb update' knows which remote/branch.
   git -C "$_install_dir" config oh-my-bash.remote origin

@@ -1,62 +1,74 @@
 # shellcheck shell=bash
 
 # ---------------------------------------------------------------------------
-# install_ohmyzsh — Clone OMZ to INSTALL_DIR, scaffold ZSH_CUSTOM,
-#                   clone custom theme/plugins.
+# __install_run_git_clone_post — OMZ-specific scaffolding after the clone.
+# Sets up the custom directory structure and clones any theme/plugin repos.
+# Theme and plugin values accept either a full git URI (https://...) or a
+# GitHub owner/repo slug (which gets https://github.com/ prepended).
 # ---------------------------------------------------------------------------
-__install_run__() {
-  local _GITHUB_BASE_URL="${_GITHUB_BASE_URL:-https://github.com}"
-  local _OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/ohmyzsh/ohmyzsh"
-  local _install_dir="$INSTALL_DIR"
-  local _branch="$BRANCH"
-  local _theme="$THEME"
-  # Use an explicit system-path custom dir if given; per-user paths (~/$HOME-prefixed)
-  # and the empty default are handled at configure-user time via symlinks.
+__install_run_git_clone_post() {
   local _custom_dir
   # shellcheck disable=SC2016
-  if [ -n "$CUSTOM_DIR" ] &&
-    [[ "$CUSTOM_DIR" != '~'* ]] &&
-    [[ "$CUSTOM_DIR" != '$HOME'* ]]; then
-    _custom_dir="$CUSTOM_DIR"
+  if [ -n "${CUSTOM_DIR:-}" ] &&
+    [[ "${CUSTOM_DIR}" != '~'* ]] &&
+    [[ "${CUSTOM_DIR}" != '$HOME'* ]]; then
+    _custom_dir="${CUSTOM_DIR}"
   else
-    _custom_dir="${_install_dir}/custom"
+    _custom_dir="${PREFIX}/custom"
   fi
-
-  logging__info "Installing Oh My Zsh to '${_install_dir}' (branch: ${_branch})..."
-  local _prev_umask
-  _prev_umask="$(umask)"
-  umask g-w,o-w
-  git__clone --url "$_OHMYZSH_REPO_URL" --dir "$_install_dir" --branch "$_branch"
-  umask "$_prev_umask"
-
-  # Set oh-my-zsh update metadata so 'omz update' knows which remote/branch.
-  git -C "$_install_dir" config oh-my-zsh.remote origin
-  git -C "$_install_dir" config oh-my-zsh.branch "$_branch"
-
   mkdir -p "${_custom_dir}/themes" "${_custom_dir}/plugins"
 
-  if [ -n "$_theme" ]; then
-    local _theme_repo_name
-    _theme_repo_name="$(basename "$_theme")"
-    git__clone --url "${_GITHUB_BASE_URL}/${_theme}" --dir "${_custom_dir}/themes/${_theme_repo_name}"
-    logging__info "Installed custom theme '${_theme}'."
+  if [ -n "${THEME:-}" ]; then
+    if [[ "${THEME}" != */* && "${THEME}" != *://* ]]; then
+      logging__info "'${THEME}' is a built-in theme — skipping clone."
+    else
+      local _theme_uri
+      [[ "${THEME}" == *://* ]] && _theme_uri="${THEME}" ||
+        _theme_uri="https://github.com/${THEME}"
+      git__clone --url "${_theme_uri}" --dir "${_custom_dir}/themes/$(basename "${THEME}")"
+      logging__info "Installed custom theme '${THEME}'."
+    fi
   fi
 
   local _slug
-  for _slug in "${PLUGINS[@]}"; do
+  for _slug in "${PLUGINS[@]+"${PLUGINS[@]}"}"; do
     _slug="${_slug// /}"
-    [ -z "$_slug" ] && continue
-    if [[ "$_slug" != */* ]]; then
+    [ -z "${_slug}" ] && continue
+    if [[ "${_slug}" != */* && "${_slug}" != *://* ]]; then
       logging__info "'${_slug}' is a built-in plugin — skipping clone."
       continue
     fi
-    local _plugin_name
-    _plugin_name="$(basename "$_slug")"
-    git__clone --url "${_GITHUB_BASE_URL}/${_slug}" --dir "${_custom_dir}/plugins/${_plugin_name}"
+    local _plugin_uri
+    [[ "${_slug}" == *://* ]] && _plugin_uri="${_slug}" ||
+      _plugin_uri="https://github.com/${_slug}"
+    git__clone --url "${_plugin_uri}" --dir "${_custom_dir}/plugins/$(basename "${_slug%/}")"
     logging__info "Installed custom plugin '${_slug}'."
   done
+  logging__success "Oh My Zsh repository scaffolding complete."
+}
 
-  logging__success "Oh My Zsh installation complete."
+# ---------------------------------------------------------------------------
+# __uninstall_finish_post — Strip OMZ config blocks from all users' rc files.
+# ---------------------------------------------------------------------------
+__uninstall_finish_post() {
+  local -a _users=()
+  mapfile -t _users < <(users__resolve_list)
+  local _user
+  for _user in "${_users[@]+"${_users[@]}"}"; do
+    id "${_user}" > /dev/null 2>&1 || continue
+    local _home
+    _home="$(users__resolve_home "${_user}")"
+    local _zdotdir
+    _zdotdir="$(shell__detect_zdotdir --home "${_home}")"
+    local _candidates
+    _candidates="${_home}/.zshrc"$'\n'"${_zdotdir}/zshtheme"
+    # Only add ${_zdotdir}/.zshrc when ZDOTDIR differs from HOME; when they are the same
+    # ${_home}/.zshrc is already listed and processing it twice would run awk twice on the
+    # same already-modified file.
+    [[ "${_zdotdir}" != "${_home}" ]] && _candidates+=$'\n'"${_zdotdir}/.zshrc"
+    shell__sync_block --files "${_candidates}" --marker "install-ohmyzsh"
+    shell__sync_block --files "${_candidates}" --marker "install-ohmyzsh-source"
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -88,13 +100,14 @@ _link_custom_items() {
 
   local -a _items=()
   if [ -n "$_theme_slug" ]; then
-    _items+=("themes/$(basename "$_theme_slug")")
+    [[ "$_theme_slug" == */* || "$_theme_slug" == *://* ]] &&
+      _items+=("themes/$(basename "$_theme_slug")")
   fi
   local _slug
   for _slug in "$@"; do
     _slug="${_slug// /}"
     [ -z "$_slug" ] && continue
-    [[ "$_slug" != */* ]] && continue # built-in plugin, no clone
+    [[ "$_slug" != */* && "$_slug" != *://* ]] && continue # built-in plugin, no clone
     _items+=("plugins/$(basename "$_slug")")
   done
 
@@ -113,10 +126,10 @@ _link_custom_items() {
 }
 
 # ---------------------------------------------------------------------------
-# _configure_user_ohmyzsh <username>
+# __configure_user <username>
 # Injects a guarded OMZ setup block into the appropriate rc file for the user.
 # Rcfile resolution (when RCFILE option is empty):
-#   1. Run zsh as the user to read ZDOTDIR from the shell's startup chain.
+#   1. Use ZDOTDIR option if set, or run zsh to read ZDOTDIR from startup chain.
 #   2. _rcdir = ${ZDOTDIR:-${HOME}} (zsh native default when ZDOTDIR unset).
 #   3. If ${_rcdir}/zshtheme exists  → write there (install-shell integration).
 #   4. Else if ${_rcdir}/.zshrc exists → create zshtheme + inject source line.
@@ -185,7 +198,7 @@ __configure_user() {
   if [ -n "$THEME" ]; then
     _theme_value="$(shell__resolve_omz_theme \
       --theme_slug "$THEME" \
-      --custom_dir "${INSTALL_DIR}/custom")"
+      --custom_dir "${PREFIX}/custom")"
   fi
 
   local _plugin_names=""
@@ -196,7 +209,7 @@ __configure_user() {
 
   # shellcheck disable=SC2016
   local _content
-  _content="export ZSH=\"${INSTALL_DIR}\""$'\n'
+  _content="export ZSH=\"${PREFIX}\""$'\n'
   # shellcheck disable=SC2016
   _content+='ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"'$'\n'
   # shellcheck disable=SC2016
@@ -241,20 +254,26 @@ __configure_user() {
       --content '[ -f "${ZDOTDIR:-$HOME}/zshtheme" ] && source "${ZDOTDIR:-$HOME}/zshtheme"'
   fi
 
+  # Derive symlink/copy mode from if_exists: update → augment; all others → overwrite.
   if [[ "$_is_per_user" == true ]]; then
+    local _link_mode
+    case "${IF_EXISTS:-}" in
+      update) _link_mode="augment" ;;
+      *) _link_mode="overwrite" ;;
+    esac
     _link_custom_items \
-      "${INSTALL_DIR}/custom" \
+      "${PREFIX}/custom" \
       "$_effective_custom_dir" \
       "$THEME" \
-      "$USER_CONFIG_MODE" \
+      "${_link_mode}" \
       "${PLUGINS[@]}"
   fi
 
   local _p10k_skel="${_FEAT_FILES_DIR}/skel/p10k.zsh"
   if [[ "$_is_p10k" == true ]] && [ -f "$_p10k_skel" ]; then
-    case "$USER_CONFIG_MODE" in
-      overwrite) cp -f "$_p10k_skel" "${_home}/.p10k.zsh" ;;
-      augment) [ ! -f "${_home}/.p10k.zsh" ] && cp "$_p10k_skel" "${_home}/.p10k.zsh" ;;
+    case "${IF_EXISTS:-}" in
+      update) [ ! -f "${_home}/.p10k.zsh" ] && cp "$_p10k_skel" "${_home}/.p10k.zsh" ;;
+      *) cp -f "$_p10k_skel" "${_home}/.p10k.zsh" ;;
     esac
   fi
 

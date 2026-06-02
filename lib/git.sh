@@ -4,24 +4,89 @@
 # `git__clone` performs a `--depth=1` clone and is idempotent: it skips the
 # clone if the target directory already contains a `.git` directory.
 
-# @brief git__clone --url <url> --dir <dir> [--branch <branch>] — Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists.
+# Client-side git config flags applied to all clone/fetch operations in this module.
+# core.eol/autocrlf: enforce LF in Linux containers.
+# fsck/fetch.fsck zeroPaddedFilemode: tolerate historical repos (e.g. ohmyzsh) with
+# zero-padded filemode entries. receive.fsck is a server-side setting and is
+# intentionally omitted — it has no effect on a git client doing clone or fetch.
+_GIT_CONF=(
+  -c core.eol=lf
+  -c core.autocrlf=false
+  -c fsck.zeroPaddedFilemode=ignore
+  -c fetch.fsck.zeroPaddedFilemode=ignore
+)
+
+# @brief git__resolve_ref <url> <ref> — Probe the remote and return the SHA for <ref>.
 #
-# On failure, the partially-created `<dir>` is removed so that a re-run does
-# not silently skip a broken clone.
+# If <ref> is advertised as a named ref (branch or tag), prints its remote SHA.
+# If not found, prints <ref> unchanged (caller treats it as a commit SHA).
 #
 # Args:
-#   --url <url>        Repository URL to clone.
-#   --dir <dir>        Local destination directory.
-#   --branch <branch>  Branch or tag to check out (optional; defaults to HEAD).
+#   <url>  Repository URL.
+#   <ref>  Branch name, tag name, or commit SHA.
+#
+# Returns: 0 always; network failure is treated as "not a named ref".
+git__resolve_ref() {
+  local _raw _remote_sha
+  _raw="$(git ls-remote "$1" "$2" 2> /dev/null || true)"
+  # Prefer the peeled (^{}) entry for annotated tags: it holds the commit SHA,
+  # which matches git__head_sha after checkout. Branches and lightweight tags
+  # produce no ^{} line, so the grep returns empty and we fall back to head -1.
+  _remote_sha="$(printf '%s\n' "${_raw}" | grep $'\t.*\^{}$' | cut -f1 | head -1 || true)"
+  if [[ -z "${_remote_sha}" ]]; then
+    _remote_sha="$(printf '%s\n' "${_raw}" | head -1 | cut -f1 || true)"
+  fi
+  printf '%s\n' "${_remote_sha:-$2}"
+}
+
+# _git__fetch_sha <dir> <sha> — Fetch a specific commit SHA into an existing repo.
+#
+# Tries a protocol-v2 shallow fetch first (works on GitHub and modern servers);
+# falls back to a full (non-shallow) fetch if the server rejects it.
+# The repo at <dir> must already have `origin` configured.
+#
+# Returns: 0 on success, 1 on failure.
+_git__fetch_sha() {
+  local _dir="$1" _sha="$2" _fetch_ok=false
+  git -C "${_dir}" "${_GIT_CONF[@]}" -c protocol.version=2 \
+    fetch --depth=1 origin "${_sha}" 2>&1 && _fetch_ok=true
+  if [[ "${_fetch_ok}" == false ]]; then
+    git -C "${_dir}" "${_GIT_CONF[@]}" fetch origin "${_sha}" 2>&1 || return 1
+  fi
+  git -C "${_dir}" checkout FETCH_HEAD 2>&1 || return 1
+}
+
+# @brief git__clone --url <url> --dir <dir> [--ref <ref>] [--resolved-sha <sha>] — Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists.
+#
+# On failure, any partially-created `<dir>` is removed so that a re-run does
+# not silently skip a broken clone.
+#
+# Ref handling:
+#   Named refs (branches/tags): probed via `git ls-remote` (or supplied via
+#                              --resolved-sha); cloned with `--branch`.
+#   Commit SHAs:               not found by ls-remote; cloned via `git init` +
+#                              `_git__fetch_sha` (protocol v2, with non-shallow
+#                              fallback).
+#
+# The umask is set to `g-w,o-w` during the clone so cloned files are not
+# group/world-writable. It is restored on every exit path.
+#
+# Args:
+#   --url <url>           Repository URL to clone.
+#   --dir <dir>           Local destination directory.
+#   --ref <ref>           Branch, tag, or commit SHA to check out (optional; defaults to HEAD).
+#   --resolved-sha <sha>  Pre-resolved SHA from git__resolve_ref (optional). When
+#                         provided the ls-remote probe is skipped; sha == ref means
+#                         SHA path, sha != ref means named-ref path.
 #
 # Returns: 0 on success or if already cloned, 1 on failure.
 git__clone() {
-  local branch="" dir="" url=""
+  local ref="" dir="" url="" resolved_sha=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --branch)
+      --ref)
         shift
-        branch="$1"
+        ref="$1"
         shift
         ;;
       --dir)
@@ -32,6 +97,11 @@ git__clone() {
       --url)
         shift
         url="$1"
+        shift
+        ;;
+      --resolved-sha)
+        shift
+        resolved_sha="$1"
         shift
         ;;
       --*)
@@ -59,24 +129,226 @@ git__clone() {
   fi
 
   # Auto-provision git if not yet available (idempotent if already installed).
-  ospkg__install_tracked "lib-git" git || {
-    logging__error "git could not be installed."
+  bootstrap__git || return 1
+
+  # Restrict permissions of all files created during the clone.
+  local _prev_umask
+  _prev_umask="$(umask)"
+  umask g-w,o-w
+
+  if [[ -n "${ref}" ]]; then
+    # Probe the remote: if the ref is advertised (branch or tag), use --branch.
+    # If not found as a named ref, treat it as a commit SHA.
+    # Use a pre-resolved SHA when provided by the caller (avoids a second ls-remote).
+    local _probed_sha
+    if [[ -n "${resolved_sha}" ]]; then
+      _probed_sha="${resolved_sha}"
+    else
+      _probed_sha="$(git__resolve_ref "${url}" "${ref}")"
+    fi
+
+    if [[ "${_probed_sha}" != "${ref}" ]]; then
+      # Named ref (branch or tag) — _probed_sha is its remote SHA.
+      if ! git clone --depth=1 "${_GIT_CONF[@]}" --branch "${ref}" "${url}" "${dir}" 2>&1; then
+        umask "${_prev_umask}"
+        rm -rf "${dir}" 2> /dev/null || true
+        logging__error "git clone of '${url}' (ref '${ref}') failed."
+        return 1
+      fi
+    else
+      # Not a named ref — treat as commit SHA.
+      # Use git init + protocol-v2 fetch, which allows fetching specific commits
+      # on GitHub (uploadpack.allowReachableSHA1InWant) and most modern servers.
+      mkdir -p "${dir}"
+      if ! git "${_GIT_CONF[@]}" init "${dir}" 2>&1; then
+        umask "${_prev_umask}"
+        rm -rf "${dir}" 2> /dev/null || true
+        logging__error "git init of '${dir}' failed."
+        return 1
+      fi
+      if ! git -C "${dir}" remote add origin "${url}" 2>&1; then
+        umask "${_prev_umask}"
+        rm -rf "${dir}" 2> /dev/null || true
+        logging__error "git remote add for '${url}' failed."
+        return 1
+      fi
+      if ! _git__fetch_sha "${dir}" "${ref}"; then
+        umask "${_prev_umask}"
+        rm -rf "${dir}" 2> /dev/null || true
+        logging__error "git fetch/checkout of SHA '${ref}' from '${url}' failed."
+        return 1
+      fi
+    fi
+  else
+    # No ref → clone the remote's default branch.
+    if ! git clone --depth=1 "${_GIT_CONF[@]}" "${url}" "${dir}" 2>&1; then
+      umask "${_prev_umask}"
+      rm -rf "${dir}" 2> /dev/null || true
+      logging__error "git clone of '${url}' failed."
+      return 1
+    fi
+  fi
+
+  umask "${_prev_umask}"
+  return 0
+}
+
+# @brief git__config <dir> <key>=<val> [<key>=<val> ...] — Set one or more git config entries in a repository.
+#
+# Args:
+#   <dir>          Path to the git repository.
+#   <key>=<val>    One or more key=value pairs. The key is everything before the first `=`.
+#
+# Returns: 0 on success, 1 on any failure.
+git__config() {
+  local _dir="$1"
+  shift
+  [ -z "${_dir}" ] && {
+    logging__error "git__config: missing directory argument"
+    return 1
+  }
+  [ "$#" -eq 0 ] && return 0
+
+  bootstrap__git || return 1
+
+  local _pair _key _val
+  for _pair in "$@"; do
+    _key="${_pair%%=*}"
+    _val="${_pair#*=}"
+    if ! git -C "${_dir}" config "${_key}" "${_val}" 2>&1; then
+      logging__error "git__config: failed to set '${_key}' in '${_dir}'."
+      return 1
+    fi
+  done
+  return 0
+}
+
+# @brief git__update <dir> [--ref <ref>] [--resolved-sha <sha>] — Fetch and update an existing git clone to the specified ref.
+#
+# Sequence for named refs (branches/tags):
+#   1. git fetch --depth=1 origin  (uses the repo's configured refspecs)
+#   2. git checkout <ref>
+#   3. If on a branch (not detached HEAD): git merge --ff-only
+#
+# Sequence for commit SHAs (ref not found as a named ref on the remote):
+#   1. _git__fetch_sha — protocol-v2 shallow fetch with non-shallow fallback
+#   2. git checkout FETCH_HEAD
+#
+# Args:
+#   <dir>                 Path to the git repository.
+#   --ref <ref>           Branch, tag, or SHA to check out (optional; defaults to refreshing the current branch).
+#   --resolved-sha <sha>  Pre-resolved SHA from git__resolve_ref (optional). When
+#                         provided the ls-remote probe is skipped; sha == ref means
+#                         SHA path, sha != ref means named-ref path.
+#
+# Returns: 0 on success, 1 on any failure.
+git__update() {
+  local _dir="$1"
+  shift
+  [ -z "${_dir}" ] && {
+    logging__error "git__update: missing directory argument"
     return 1
   }
 
-  mkdir -p "$dir"
-  local _clone_args=(--depth=1
-    -c core.eol=lf
-    -c core.autocrlf=false
-    -c fsck.zeroPaddedFilemode=ignore
-    -c fetch.fsck.zeroPaddedFilemode=ignore
-    -c receive.fsck.zeroPaddedFilemode=ignore)
-  [ -n "${branch}" ] && _clone_args+=(--branch "$branch")
+  bootstrap__git || return 1
 
-  if ! git clone "${_clone_args[@]}" "$url" "$dir" 2>&1; then
-    rm -rf "$dir" 2> /dev/null || true
-    logging__error "git clone of '${url}' failed."
-    return 1
+  local _ref="" resolved_sha=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --ref)
+        shift
+        _ref="$1"
+        shift
+        ;;
+      --resolved-sha)
+        shift
+        resolved_sha="$1"
+        shift
+        ;;
+      *)
+        logging__error "git__update: unknown argument '${1}'"
+        return 1
+        ;;
+    esac
+  done
+
+  if [[ -n "${_ref}" ]]; then
+    # Determine whether _ref is a named ref (branch/tag) or a commit SHA.
+    local _probed_sha
+    if [[ -n "${resolved_sha}" ]]; then
+      _probed_sha="${resolved_sha}"
+    else
+      local _origin_url
+      _origin_url="$(git -C "${_dir}" remote get-url origin 2> /dev/null || true)"
+      _probed_sha="$(git__resolve_ref "${_origin_url}" "${_ref}")"
+    fi
+
+    if [[ "${_probed_sha}" != "${_ref}" ]]; then
+      # Named ref — fetch via the repo's configured refspecs, checkout, merge.
+      if ! git -C "${_dir}" "${_GIT_CONF[@]}" fetch --depth=1 origin 2>&1; then
+        logging__error "git__update: fetch failed in '${_dir}'."
+        return 1
+      fi
+      if ! git -C "${_dir}" checkout "${_ref}" 2>&1; then
+        logging__error "git__update: checkout of '${_ref}' failed in '${_dir}'."
+        return 1
+      fi
+      if git__symbolic_ref "${_dir}" > /dev/null 2>&1; then
+        if ! git -C "${_dir}" merge --ff-only 2>&1; then
+          logging__error "git__update: fast-forward merge failed in '${_dir}'."
+          return 1
+        fi
+      fi
+    else
+      # Commit SHA — use the same protocol-v2 fetch helper as git__clone.
+      if ! _git__fetch_sha "${_dir}" "${_ref}"; then
+        logging__error "git__update: failed to fetch SHA '${_ref}' in '${_dir}'."
+        return 1
+      fi
+    fi
+  else
+    # No ref — refresh the current branch using the configured refspecs.
+    if ! git -C "${_dir}" "${_GIT_CONF[@]}" fetch --depth=1 origin 2>&1; then
+      logging__error "git__update: fetch failed in '${_dir}'."
+      return 1
+    fi
+    if git__symbolic_ref "${_dir}" > /dev/null 2>&1; then
+      if ! git -C "${_dir}" merge --ff-only 2>&1; then
+        logging__error "git__update: fast-forward merge failed in '${_dir}'."
+        return 1
+      fi
+    fi
   fi
+
   return 0
+}
+
+# @brief git__symbolic_ref <dir> — Check whether HEAD is a symbolic ref (i.e. on a branch).
+#
+# Args:
+#   <dir>  Path to the git repository.
+#
+# Returns: 0 if on a branch, 1 if in detached-HEAD state or on error.
+git__symbolic_ref() {
+  local _dir="$1"
+  [ -z "${_dir}" ] && {
+    logging__error "git__symbolic_ref: missing directory argument"
+    return 1
+  }
+  git -C "${_dir}" symbolic-ref --quiet HEAD > /dev/null
+}
+
+# @brief git__head_sha <dir> — Print the full SHA of HEAD.
+#
+# Args:
+#   <dir>  Path to the git repository.
+#
+# Returns: 0 on success, non-zero (typically 128) if not a git repository or on error.
+git__head_sha() {
+  local _dir="$1"
+  [ -z "${_dir}" ] && {
+    logging__error "git__head_sha: missing directory argument"
+    return 1
+  }
+  git -C "${_dir}" rev-parse HEAD 2> /dev/null
 }
