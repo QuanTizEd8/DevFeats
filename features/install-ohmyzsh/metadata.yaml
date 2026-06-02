@@ -56,15 +56,22 @@ options:
       there from the system install.
       Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
     type: string
+  zdotdir:
+    default: ''
+    description: |-
+      Directory where Zsh looks for per-user config files (`.zshrc`, `.zprofile`, `.zlogin`).
+      Leave empty to read `ZDOTDIR` from the user's running zsh at configure time; falls back
+      to `$HOME` if zsh is not available or `ZDOTDIR` is unset.
+      Accepts paths prefixed with `~` or `$HOME` (expanded per user).
+    type: string
   rcfile:
     default: ''
     description: |-
       Full path to the per-user Zsh theme file that Oh My Zsh configuration is injected into.
-      Leave empty to resolve automatically: runs `zsh` as each user to read `ZDOTDIR` from the
-      shell's startup chain, falling back to `$HOME` (zsh's native default when `ZDOTDIR` is
-      unset). The injection target is then chosen as: `$ZDOTDIR/zshtheme` if it exists; otherwise
-      `$ZDOTDIR/zshtheme` (created, with a source line injected into `.zshrc`) if `.zshrc` exists;
-      otherwise `.zshrc` directly.
+      Leave empty to resolve automatically: uses `zdotdir` (if set) or reads `ZDOTDIR` from the
+      user's running zsh, falling back to `$HOME`. The injection target is then chosen as:
+      `$ZDOTDIR/zshtheme` if it exists; otherwise `$ZDOTDIR/zshtheme` (created, with a source
+      line injected into `.zshrc`) if `.zshrc` exists; otherwise `.zshrc` directly.
       Accepts paths prefixed with `~` or `$HOME` (expanded per user).
     type: string
   user_config_mode:

@@ -5,10 +5,6 @@
 #                   clone custom theme/plugins.
 # ---------------------------------------------------------------------------
 __install_run__() {
-  if ! command -v zsh > /dev/null 2>&1; then
-    logging__warn "Zsh not available — skipping Oh My Zsh installation."
-    return 0
-  fi
   local _GITHUB_BASE_URL="${_GITHUB_BASE_URL:-https://github.com}"
   local _OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/ohmyzsh/ohmyzsh"
   local _install_dir="$INSTALL_DIR"
@@ -149,7 +145,16 @@ __configure_user() {
     _rcdir="$(dirname "$_rcfile")"
   else
     local _zdotdir=""
-    if command -v zsh > /dev/null 2>&1; then
+    if [ -n "${ZDOTDIR:-}" ]; then
+      # shellcheck disable=SC2016
+      if [[ "$ZDOTDIR" == '~'* ]]; then
+        _zdotdir="${_home}${ZDOTDIR#\~}"
+      elif [[ "$ZDOTDIR" == '$HOME'* ]]; then
+        _zdotdir="${_home}${ZDOTDIR#'$HOME'}"
+      else
+        _zdotdir="$ZDOTDIR"
+      fi
+    elif command -v zsh > /dev/null 2>&1; then
       # shellcheck disable=SC2016  # $ZDOTDIR is a zsh variable, not a shell variable
       _zdotdir="$(users__run_as "$_username" -- zsh -c 'printf "%s" "$ZDOTDIR"' \
         2> /dev/null || true)"
