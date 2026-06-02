@@ -68,20 +68,23 @@ def _standalone_install_block(
     expect_install_failure: bool,
     failure_patterns: list[str],
 ) -> str:
-    """Shell fragment: run install once, capture output, validate exit and messages."""
-    lines = [
-        '_FEATURE_INSTALL_LOG="$(mktemp)"',
-        f'sh /repo/src/{feature}/install.sh >"${{_FEATURE_INSTALL_LOG}}" 2>&1',
-        "FEATURE_INSTALL_RC=$?",
-    ]
+    """Shell fragment: run install once; tee only when validating failure output."""
+    install_cmd = f"sh /repo/src/{feature}/install.sh"
+    lines: list[str] = []
+
     if expect_install_failure:
+        lines.extend(
+            [
+                '_FEATURE_INSTALL_LOG="$(mktemp)"',
+                f'{install_cmd} 2>&1 | tee "${{_FEATURE_INSTALL_LOG}}"',
+                "FEATURE_INSTALL_RC=${PIPESTATUS[0]}",
+            ],
+        )
         lines.append(
             'if [ "${FEATURE_INSTALL_RC}" -eq 0 ]; then '
             f'echo "⛔ standalone scenario {scenario_key}: '
             "install unexpectedly succeeded "
             '(expect_install_failure=true)." >&2; '
-            'echo "--- install output ---" >&2; '
-            'cat "${_FEATURE_INSTALL_LOG}" >&2; '
             "exit 1; fi"
         )
         for pattern in failure_patterns:
@@ -90,21 +93,58 @@ def _standalone_install_block(
                 f'if ! grep -Fq {qpat} "${{_FEATURE_INSTALL_LOG}}"; then '
                 f'echo "⛔ standalone scenario {scenario_key}: install output missing '
                 f'expected message: {pattern!r}" >&2; '
-                'echo "--- install output ---" >&2; '
-                'cat "${_FEATURE_INSTALL_LOG}" >&2; exit 1; fi'
+                "exit 1; fi"
             )
+        lines.append('rm -f "${_FEATURE_INSTALL_LOG}"')
     else:
-        lines.append(
-            'if [ "${FEATURE_INSTALL_RC}" -ne 0 ]; then '
-            f'echo "⛔ standalone scenario {scenario_key}: '
-            "install failed with exit code "
-            '${FEATURE_INSTALL_RC}." >&2; '
-            'echo "--- install output ---" >&2; '
-            'cat "${_FEATURE_INSTALL_LOG}" >&2; '
-            "exit ${FEATURE_INSTALL_RC}; fi"
+        lines.extend(
+            [
+                install_cmd,
+                "FEATURE_INSTALL_RC=$?",
+                'if [ "${FEATURE_INSTALL_RC}" -ne 0 ]; then '
+                f'echo "⛔ standalone scenario {scenario_key}: '
+                "install failed with exit code "
+                '${FEATURE_INSTALL_RC}." >&2; '
+                "exit ${FEATURE_INSTALL_RC}; fi",
+            ],
         )
-    lines.append('rm -f "${_FEATURE_INSTALL_LOG}"')
+
     return "\n".join(lines)
+
+
+def _run_install_live(
+    install_script: Path,
+    env: dict[str, str],
+    *,
+    accumulate: bool,
+) -> tuple[int, str]:
+    """Run install.sh live; accumulate output only for failure-pattern validation."""
+    if not accumulate:
+        result = subprocess.run(
+            ["/bin/sh", str(install_script)],
+            check=False,
+            env=env,
+        )
+        return result.returncode, ""
+
+    proc = subprocess.Popen(
+        ["/bin/sh", str(install_script)],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    chunks: list[str] = []
+    stdout = proc.stdout
+    if stdout is None:
+        msg = "install subprocess did not capture stdout"
+        raise RuntimeError(msg)
+    for line in stdout:
+        sys.stdout.write(line)
+        sys.stdout.flush()
+        chunks.append(line)
+    return proc.wait(), "".join(chunks)
 
 
 def _validate_install_failure_output(
@@ -422,15 +462,11 @@ def _run_macos(
             install_rc = 0
             if not skip_install:
                 install_script = repo_root / "src" / feature / "install.sh"
-                install_result = subprocess.run(
-                    ["/bin/sh", str(install_script)],
-                    check=False,
-                    env=run_env,
-                    capture_output=True,
-                    text=True,
+                install_rc, install_output = _run_install_live(
+                    install_script,
+                    run_env,
+                    accumulate=expect_install_failure,
                 )
-                install_rc = install_result.returncode
-                install_output = install_result.stdout + install_result.stderr
                 if expect_install_failure:
                     err = _validate_install_failure_output(
                         key,
@@ -440,9 +476,6 @@ def _run_macos(
                     )
                     if err:
                         print(f"⛔ {err}", file=sys.stderr)
-                        if install_output:
-                            print("--- install output ---", file=sys.stderr)
-                            print(install_output, file=sys.stderr)
                         success = False
                 elif install_rc != 0:
                     print(
