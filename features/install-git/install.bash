@@ -168,36 +168,23 @@ _git__write_system_gitconfig() {
   else
     _cfg="$(users__home_of_path_owner "${PREFIX}")/.config/git/config"
   fi
-  file__mkdir "$(dirname "${_cfg}")"
 
-  # Prefer the installed binary (handles source builds at non-standard prefixes
-  # where ${PREFIX}/bin is not yet on PATH); fall back to the system git.
-  local _git
-  if command -v "${PREFIX}/bin/git" > /dev/null 2>&1; then
-    _git="${PREFIX}/bin/git"
-  else
-    _git="git"
-  fi
-
-  if ! users__is_user_path "${PREFIX}"; then
-    _run_cfg() { users__run_privileged "$@"; }
-  else
-    _run_cfg() { "$@"; }
-  fi
-
+  local _content=""
   if [[ -n "${DEFAULT_BRANCH}" ]]; then
-    _run_cfg "${_git}" config --file "${_cfg}" init.defaultBranch "${DEFAULT_BRANCH}"
+    _content+="[init]"$'\n\t'"defaultBranch = ${DEFAULT_BRANCH}"$'\n'
   fi
-
   if [[ "${#SAFE_DIRECTORY[@]}" -gt 0 ]]; then
+    _content+="[safe]"$'\n'
     local _entry
     for _entry in "${SAFE_DIRECTORY[@]}"; do
-      _run_cfg "${_git}" config --file "${_cfg}" --add safe.directory "${_entry}"
+      _content+=$'\t'"directory = ${_entry}"$'\n'
     done
   fi
-
   if [[ -n "${SYSTEM_GITCONFIG}" ]]; then
-    printf '%s\n' "${SYSTEM_GITCONFIG}" | file__tee --append "${_cfg}"
+    _content+="${SYSTEM_GITCONFIG}"$'\n'
+  fi
+  if [[ -n "${_content}" ]]; then
+    shell__sync_block --files "${_cfg}" --marker "system gitconfig (install-git)" --content "${_content}"
   fi
 }
 
@@ -219,7 +206,7 @@ _export_git_manpath() {
   else
     _manpath_export_opt="$(printf '%s\n' "${PREFIX_EXPORTS[@]}")"
   fi
-  if [[ "${PREFIX}" == "/usr/local" || "${PREFIX}" == "${HOME}/.local" ]]; then
+  if [[ "${PREFIX}" == "/usr/local" || "${PREFIX}" == "$(users__resolve_home)/.local" ]]; then
     logging__fn_exit "_export_git_manpath"
     return 0
   fi
@@ -252,23 +239,20 @@ __configure_user() {
   }
   _cfg="${_home}/.gitconfig"
 
-  local _git
-  if command -v "${PREFIX}/bin/git" > /dev/null 2>&1; then
-    _git="${PREFIX}/bin/git"
-  else
-    _git="git"
+  local _content=""
+  if [[ -n "${USER_NAME}" || -n "${USER_EMAIL}" ]]; then
+    _content+="[user]"$'\n'
+    [[ -n "${USER_NAME}" ]] && _content+=$'\t'"name = ${USER_NAME}"$'\n'
+    [[ -n "${USER_EMAIL}" ]] && _content+=$'\t'"email = ${USER_EMAIL}"$'\n'
   fi
-
-  if [[ "${_user}" == "${_current_user}" ]]; then
-    [[ -n "${USER_NAME}" ]] && "${_git}" config --file "${_cfg}" user.name "${USER_NAME}"
-    [[ -n "${USER_EMAIL}" ]] && "${_git}" config --file "${_cfg}" user.email "${USER_EMAIL}"
-  else
-    [[ -n "${USER_NAME}" ]] && users__run_privileged "${_git}" config --file "${_cfg}" user.name "${USER_NAME}"
-    [[ -n "${USER_EMAIL}" ]] && users__run_privileged "${_git}" config --file "${_cfg}" user.email "${USER_EMAIL}"
+  if [[ -n "${USER_GITCONFIG}" ]]; then
+    _content+="${USER_GITCONFIG}"$'\n'
   fi
-  [[ -n "${USER_GITCONFIG}" ]] && printf '%s\n' "${USER_GITCONFIG}" | file__tee --append "${_cfg}"
-  file__chown "${_user}:${_user}" "${_cfg}" 2> /dev/null || true
-  logging__success "Wrote gitconfig for user '${_user}'."
+  if [[ -n "${_content}" ]]; then
+    shell__sync_block --files "${_cfg}" --marker "user gitconfig (install-git)" --content "${_content}"
+    file__chown "${_user}:${_user}" "${_cfg}" 2> /dev/null || true
+    logging__success "Wrote gitconfig for user '${_user}'."
+  fi
 }
 
 __install_finish_post() {
@@ -279,4 +263,44 @@ __install_finish_post() {
   if [[ -n "${USER_NAME:-}${USER_EMAIL:-}${USER_GITCONFIG:-}" ]]; then
     __feat_do_configure_users__
   fi
+}
+
+# shellcheck disable=SC2329,SC2317
+__uninstall_finish_post() {
+  # 1. Remove MANPATH export block written by _export_git_manpath.
+  local _scope _export_files
+  _scope="$(users__is_user_path "${PREFIX}" && printf user || printf system)"
+  if [[ "${#PREFIX_EXPORTS[@]}" -gt 0 ]]; then
+    _export_files="$(printf '%s\n' "${PREFIX_EXPORTS[@]}")"
+  elif [[ "$_scope" = "system" ]]; then
+    _export_files="$(shell__system_path_files --profile_d "${_FEAT_PROFILE_D_FILE}")"
+  else
+    _export_files="$(shell__user_path_files --home "$(users__home_of_path_owner "${PREFIX}")")"
+  fi
+  shell__sync_block --files "${_export_files}" --marker "git MANPATH (install-git)"
+
+  # 2. Remove system gitconfig block written by _git__write_system_gitconfig.
+  local _cfg
+  if ! users__is_user_path "${PREFIX}"; then
+    _cfg="${SYSCONFDIR}/gitconfig"
+  else
+    _cfg="$(users__home_of_path_owner "${PREFIX}")/.config/git/config"
+  fi
+  shell__sync_block --files "${_cfg}" --marker "system gitconfig (install-git)"
+
+  # 3. Remove per-user gitconfig blocks written by __configure_user.
+  local -a _ul_args=()
+  [[ -v ADD_CURRENT_USER ]] && _ul_args+=(--current "${ADD_CURRENT_USER}")
+  [[ -v ADD_REMOTE_USER ]] && _ul_args+=(--remote "${ADD_REMOTE_USER}")
+  [[ -v ADD_CONTAINER_USER ]] && _ul_args+=(--container "${ADD_CONTAINER_USER}")
+  if [[ -v ADD_USERS ]]; then
+    for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do _ul_args+=(--user "${_u}"); done
+  fi
+  local -a _users=()
+  mapfile -t _users < <(users__resolve_list "${_ul_args[@]}")
+  local _user _uhome
+  for _user in "${_users[@]+"${_users[@]}"}"; do
+    _uhome="$(users__resolve_home "${_user}")" || continue
+    shell__sync_block --files "${_uhome}/.gitconfig" --marker "user gitconfig (install-git)"
+  done
 }

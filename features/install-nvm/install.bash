@@ -178,8 +178,18 @@ __install_finish_post() {
   create_nvm_symlinks
 }
 
+# Mirror of create_nvm_symlinks: removes exactly what it created.
 # shellcheck disable=SC2329,SC2317
-prefix_activation_snippet() {
+__uninstall_finish_post() {
+  users__is_user_path "${PREFIX}" && return 0
+  [ -L "/usr/local/share/nvm" ] && users__run_privileged rm -f "/usr/local/share/nvm" || true
+  for _bin in node npm npx corepack; do
+    [ -L "/usr/local/bin/${_bin}" ] && users__run_privileged rm -f "/usr/local/bin/${_bin}" || true
+  done
+}
+
+# shellcheck disable=SC2329,SC2317
+__prefix_activation_snippet() {
   cat << SNIPPET
 export NVM_SYMLINK_CURRENT=true
 export NVM_DIR="${PREFIX}"

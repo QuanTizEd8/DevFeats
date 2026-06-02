@@ -8,16 +8,17 @@
 __resolve_method() { printf 'binary\n'; }
 
 # Override: use pixi's native self-update command for updates.
+# Version and prefix checks are handled by __update_predispatch__; this hook
+# only runs when a version update is actually needed.
 # shellcheck disable=SC2329,SC2317
 __update_run__() {
-  if __feat_check_version_match__; then return 0; fi
   logging__info "Updating pixi to version '${VERSION}' via self-update."
   "${_FEAT_EXISTING_PATH}" self-update --version "${VERSION}"
 }
 
 # Invoked by the generated prefix activation system for each configured shell.
 # shellcheck disable=SC2329,SC2317
-prefix_activation_snippet() {
+__prefix_activation_snippet() {
   if [ -n "${HOME_DIR}" ]; then
     printf 'export PIXI_HOME="%s"\n' "${HOME_DIR}"
   else

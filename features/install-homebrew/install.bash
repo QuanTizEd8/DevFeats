@@ -63,7 +63,7 @@ uninstall_brew() {
 }
 
 # shellcheck disable=SC2329,SC2317
-prefix_activation_snippet() {
+__prefix_activation_snippet() {
   echo "eval \"\$(\"${PREFIX}/bin/brew\" shellenv)\""
   return 0
 }
@@ -326,4 +326,12 @@ __install_finish_post() {
   fi
   logging__info "Running 'brew doctor' (warnings only)."
   _brew_run_as_install_user "${PREFIX}/bin/brew" doctor 2>&1 || true
+}
+
+# Remove env-var export blocks written by enforce_options.
+# shellcheck disable=SC2329,SC2317
+__uninstall_finish_post() {
+  _sync_init_files "HOMEBREW_BREW_GIT_REMOTE (install-homebrew)"
+  _sync_init_files "HOMEBREW_CORE_GIT_REMOTE (install-homebrew)"
+  _sync_init_files "HOMEBREW_NO_INSTALL_FROM_API (install-homebrew)"
 }

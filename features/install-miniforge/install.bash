@@ -2,7 +2,7 @@
 
 # Invoked by the generated prefix activation system for each configured shell.
 # shellcheck disable=SC2329,SC2317
-prefix_activation_snippet() {
+__prefix_activation_snippet() {
   local _shell="$1"
   local _tmpdir _f _snippet
   _tmpdir="$(mktemp -d)"

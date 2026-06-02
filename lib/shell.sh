@@ -862,6 +862,10 @@ shell__write_activation_snippets() {
   if [[ "$_scope" = "system" ]] || { [[ -z "$_scope" ]] && users__is_root; }; then
     _is_system=true
   fi
+  if ! declare -f "$_snippet_func" > /dev/null; then
+    logging__error "shell__write_activation_snippets: snippet function '${_snippet_func}' is not defined."
+    return 1
+  fi
   for _shell in "$@"; do
     [ -z "$_shell" ] && continue
     if _snippet="$("$_snippet_func" "$_shell")"; then
@@ -954,6 +958,245 @@ shell__prefix_link_bins() {
         --src "${_bin_dir}/${_bin_name}" \
         --system-target "${_target}/${_bin_name}" \
         --user-target "${_target}/${_bin_name}"
+    done
+  done
+}
+
+# @brief shell__prefix_unlink_bins — Remove symlinks for a set of prefix bins from target directories.
+#
+# Args:
+#   --bin-dir <dir>   Source directory (only used as context; not accessed).
+#   --bins <names>    Space-separated binary names.
+#   --target <dir>    Target directory to remove symlinks from (may be repeated).
+shell__prefix_unlink_bins() {
+  local _bins=""
+  local -a _targets=()
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --bin-dir)
+        shift
+        shift
+        ;;
+      --bins)
+        shift
+        _bins="$1"
+        shift
+        ;;
+      --target)
+        shift
+        _targets+=("$1")
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  local _bin_name _target
+  for _bin_name in ${_bins}; do
+    for _target in "${_targets[@]}"; do
+      local _link="${_target}/${_bin_name}"
+      [ -L "${_link}" ] || continue
+      file__rm "${_link}"
+      logging__remove "Removed symlink '${_link}'."
+    done
+  done
+}
+
+# @brief shell__run_prefix_undiscovery — Remove prefix-discovery artifacts: downstream symlinks and PATH export blocks.
+#
+# Accepts the same arguments as shell__run_prefix_discovery. Always attempts removal of
+# both symlinks (from resolved target dirs) and PATH export block (from appropriate shell
+# files), regardless of the discovery mode. Each removal operation is a no-op when the
+# artifact does not exist (shell__sync_block skips missing markers; shell__prefix_unlink_bins
+# uses a [ -L ] guard).
+#
+# Args: same as shell__run_prefix_discovery (--cmd-var and --discovery are accepted but ignored).
+shell__run_prefix_undiscovery() {
+  local _disc_prefix="" _bin_dir="bin"
+  local _bins="" _symlinks_ref="" _exports_ref="" _marker="" _profile_d=""
+  local _symlink_root="/usr/local/bin" _symlink_nonroot="${HOME}/.local/bin"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --prefix)
+        shift
+        _disc_prefix="$1"
+        shift
+        ;;
+      --bin-dir)
+        shift
+        _bin_dir="$1"
+        shift
+        ;;
+      --bins)
+        shift
+        _bins="$1"
+        shift
+        ;;
+      --symlinks-ref)
+        shift
+        _symlinks_ref="$1"
+        shift
+        ;;
+      --exports-ref)
+        shift
+        _exports_ref="$1"
+        shift
+        ;;
+      --marker)
+        shift
+        _marker="$1"
+        shift
+        ;;
+      --profile-d)
+        shift
+        _profile_d="$1"
+        shift
+        ;;
+      --symlink-root)
+        shift
+        _symlink_root="$1"
+        shift
+        ;;
+      --symlink-nonroot)
+        shift
+        _symlink_nonroot="$1"
+        shift
+        ;;
+      *)
+        shift
+        [ $# -gt 0 ] && shift || true
+        ;;
+    esac
+  done
+  local _pfx_bin_dir="${_disc_prefix}/${_bin_dir}"
+
+  # Determine scope from prefix path.
+  local _disc_scope _disc_home
+  if ! users__is_user_path "${_disc_prefix}"; then
+    _disc_scope="system"
+    _disc_home=""
+  else
+    _disc_scope="user"
+    _disc_home="$(users__home_of_path_owner "${_disc_prefix}")"
+  fi
+
+  # Resolve symlink targets.
+  local -a _sl_targets=()
+  if [[ -n "$_symlinks_ref" ]]; then
+    declare -n _rpud_sl="${_symlinks_ref}"
+    [[ "${#_rpud_sl[@]}" -gt 0 ]] && _sl_targets=("${_rpud_sl[@]}")
+  fi
+  if [[ "${#_sl_targets[@]}" -eq 0 ]]; then
+    if [[ "$_disc_scope" = "system" ]]; then
+      _sl_targets=("${_symlink_root}")
+    else
+      _sl_targets=("${_symlink_nonroot}")
+    fi
+  fi
+
+  # Remove downstream symlinks from all resolved targets.
+  local -a _sl_args=()
+  for _sl_dir in "${_sl_targets[@]}"; do _sl_args+=(--target "${_sl_dir}"); done
+  shell__prefix_unlink_bins --bin-dir "${_pfx_bin_dir}" --bins "${_bins}" "${_sl_args[@]}"
+
+  # Remove PATH export block from all appropriate shell files.
+  [[ -n "${_marker}" ]] || return 0
+  local _export_files
+  if [[ -n "$_exports_ref" ]]; then
+    declare -n _rpud_ex="${_exports_ref}"
+    if [[ "${#_rpud_ex[@]}" -gt 0 ]]; then
+      _export_files="$(printf '%s\n' "${_rpud_ex[@]}")"
+      shell__sync_block --files "${_export_files}" --marker "${_marker}"
+      return 0
+    fi
+  fi
+  if [[ "$_disc_scope" = "system" ]]; then
+    _export_files="$(shell__system_path_files ${_profile_d:+--profile_d "${_profile_d}"})"
+  else
+    _export_files="$(shell__user_path_files ${_disc_home:+--home "${_disc_home}"})"
+  fi
+  shell__sync_block --files "${_export_files}" --marker "${_marker}"
+}
+
+# @brief shell__remove_activation_snippets — Remove activation blocks from all applicable shell init files.
+#
+# Mirror of shell__write_activation_snippets. Because the original snippet function is not
+# available at removal time, this function attempts removal from ALL possible file locations
+# for each shell (both "everywhere" paths and "rc-only" paths). shell__sync_block skips files
+# that don't contain the marker, so over-broad removal is safe.
+#
+# Args:
+#   --scope system|user   Scope (default: system when root, user otherwise).
+#   --home <dir>          Home directory for user-scoped removal.
+#   <marker>              Idempotency marker (positional, after options).
+#   <profile_d_name>      /etc/profile.d basename (positional).
+#   [<shell>...]          Shells to process (positional, remaining).
+shell__remove_activation_snippets() {
+  local _scope="" _home="${HOME:-}"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --scope)
+        shift
+        _scope="$1"
+        shift
+        ;;
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      --*)
+        shift
+        [ $# -gt 0 ] && shift || true
+        ;;
+      *) break ;;
+    esac
+  done
+  local _marker="$1" _profile_d_name="$2"
+  shift 2
+  local _shell _is_system=false
+  if [[ "$_scope" = "system" ]] || { [[ -z "$_scope" ]] && users__is_root; }; then
+    _is_system=true
+  fi
+  for _shell in "$@"; do
+    [ -z "$_shell" ] && continue
+    local -a _files_list=()
+    if "${_is_system}"; then
+      case "$_shell" in
+        bash)
+          _files_list+=("/etc/profile.d/$_profile_d_name")
+          local _benv
+          _benv="$(shell__ensure_bashenv 2> /dev/null || true)"
+          [ -n "$_benv" ] && _files_list+=("$_benv")
+          _files_list+=("$(shell__detect_bashrc)")
+          ;;
+        zsh)
+          _files_list+=("$(shell__detect_zshdir)/zshenv")
+          _files_list+=("$(shell__detect_zshdir)/zshrc")
+          ;;
+        *) continue ;;
+      esac
+    else
+      case "$_shell" in
+        bash)
+          _files_list+=("$(shell__user_login_file --home "$_home")")
+          _files_list+=("${_home}/.bashrc")
+          ;;
+        zsh)
+          local _zdotdir
+          _zdotdir="$(shell__detect_zdotdir --home "$_home")"
+          _files_list+=("${_zdotdir}/.zshenv")
+          _files_list+=("${_zdotdir}/.zshrc")
+          ;;
+        *) continue ;;
+      esac
+    fi
+    local _f
+    for _f in "${_files_list[@]}"; do
+      [ -n "$_f" ] && shell__sync_block --files "$_f" --marker "$_marker"
     done
   done
 }

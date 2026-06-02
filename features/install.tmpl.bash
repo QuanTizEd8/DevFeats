@@ -363,6 +363,8 @@ __uninstall_init__() {
   fi
 
   __verify_system_requirements__
+  __resolve_input_method__
+  __resolve_input_prefixes__
 
   if declare -f __uninstall_init_post > /dev/null; then
     __uninstall_init_post
@@ -491,27 +493,104 @@ __uninstall_run_upstream_package__() {
   fi
 }
 
+__uninstall_shell_completions__() {
+  [[ -v SHELL_COMPLETIONS ]] || return 0
+  local _name="${_FEAT_CONTRACT_PRIMARY_BIN:-}"
+  [[ -n "${_name}" ]] || return 0
+  local _is_system=false _home
+  if [[ "${PREFIX_SCOPE:-}" = "user" ]]; then
+    _home="$(users__home_of_path_owner "${PREFIX}")"
+  else
+    _is_system=true
+    _home="$(users__resolve_home)"
+  fi
+  local _shell
+  for _shell in "${SHELL_COMPLETIONS[@]}"; do
+    [ -z "$_shell" ] && continue
+    case "$_shell" in
+      bash)
+        if "${_is_system}"; then
+          file__rm "/etc/bash_completion.d/${_name}" 2>/dev/null || true
+        else
+          file__rm "${_home}/.local/share/bash-completion/completions/${_name}" 2>/dev/null || true
+        fi
+        ;;
+      zsh)
+        if "${_is_system}"; then
+          file__rm "$(shell__detect_zshdir)/completions/_${_name}" 2>/dev/null || true
+        else
+          file__rm "${_home}/.zfunc/_${_name}" 2>/dev/null || true
+        fi
+        ;;
+      fish)
+        if "${_is_system}"; then
+          file__rm "/usr/share/fish/vendor_completions.d/${_name}.fish" 2>/dev/null || true
+        else
+          file__rm "${_home}/.config/fish/completions/${_name}.fish" 2>/dev/null || true
+        fi
+        ;;
+      nushell)
+        file__rm "${_home}/.config/nushell/autoload/${_name}.nu" 2>/dev/null || true
+        ;;
+      elvish)
+        local _rc="${_home}/.config/elvish/rc.elv"
+        [ -f "$_rc" ] && shell__sync_block --files "$_rc" --marker "${_name} completion"
+        ;;
+    esac
+  done
+}
+
+__cleanup_install_artifacts__() {
+  if [[ -v PREFIX ]]; then
+    # 1. Remove downstream symlinks and PATH export blocks.
+    if [[ -v PREFIX_DISCOVERY ]]; then
+      local -a _disc_args=()
+      __feat_build_prefix_disc_args__ _disc_args
+      shell__run_prefix_undiscovery "${_disc_args[@]}"
+    fi
+    # 2. Remove activation blocks from all applicable shell init files.
+    if [[ -v PREFIX_ACTIVATIONS ]]; then
+      local _act_home_arg=""
+      [ "${PREFIX_SCOPE:-}" = "user" ] && \
+        _act_home_arg="$(users__home_of_path_owner "${PREFIX}")"
+      shell__remove_activation_snippets \
+        --scope "${PREFIX_SCOPE:-system}" \
+        ${_act_home_arg:+--home "${_act_home_arg}"} \
+        "prefix activation (${_FEAT_ID})" "${_FEAT_ACTIVATION_PROFILE_D_FILE}" \
+        "${PREFIX_ACTIVATIONS[@]}"
+    fi
+  fi
+  # 3. Remove shell completions.
+  __uninstall_shell_completions__
+  # 4. Unregister dummy PM package (no-op when not registered).
+  if [[ -v REGISTER_PACKAGE_NAME && -n "${REGISTER_PACKAGE_NAME}" ]]; then
+    ospkg__unregister_dummy "${REGISTER_PACKAGE_NAME}" 2>/dev/null || true
+  fi
+  # 5. Remove template-owned lifecycle and share directories.
+  if [[ -d "${_FEAT_LIFECYCLE_DIR:-}" ]]; then
+    file__rm -rf "${_FEAT_LIFECYCLE_DIR}"
+  fi
+  if [[ -d "${_FEAT_SHARE_DIR_ROOT:-}" ]]; then
+    file__rm -d "${_FEAT_SHARE_DIR_ROOT}" 2>/dev/null || true
+  fi
+  if [[ -d "${_FEAT_SHARE_DIR_NONROOT:-}" ]]; then
+    file__rm -d "${_FEAT_SHARE_DIR_NONROOT}" 2>/dev/null || true
+  fi
+  # 6. Feature-specific post-cleanup hook.
+  if declare -f __uninstall_finish_post > /dev/null; then __uninstall_finish_post; fi
+}
+
 __uninstall_finish__() {
 
   if declare -f __uninstall_finish_pre > /dev/null; then
     __uninstall_finish_pre
   fi
 
-  # Remove the dummy PM registration when the tool was installed via a non-PM method.
-  if [[ -v REGISTER_PACKAGE_NAME && -n "${REGISTER_PACKAGE_NAME}" ]]; then
-    case "${_FEAT_EXISTING_METHOD:-}" in
-      package | upstream-package | "") ;;
-      *) ospkg__unregister_dummy "${REGISTER_PACKAGE_NAME}" ;;
-    esac
-  fi
-
+  __cleanup_install_artifacts__
   _FEAT_EXISTING_PATH=""
   _FEAT_EXISTING_METHOD=""
   logging__success "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' uninstalled."
-
-  if declare -f __uninstall_finish_post > /dev/null; then
-    __uninstall_finish_post
-  fi
+  # NOTE: __uninstall_finish_post is called inside __cleanup_install_artifacts__ (step 6).
 }
 
 # Installation
@@ -1023,7 +1102,7 @@ __install_shell_completions__() {
   local _scope_flag="" _home
   if ! users__is_user_path "${PREFIX:-/usr/local}"; then
     _scope_flag="--system"
-    _home="${HOME:-}"
+    _home="$(users__resolve_home)"
   else
     _home="$(users__home_of_path_owner "${PREFIX}")"
   fi
@@ -1073,52 +1152,58 @@ __install_shell_completions__() {
   done
 }
 
+# Returns 0 when this installation method is covered by the prefix config.
+# When no guard var is configured (_FEAT_PREFIX_GUARD_VAR is empty) every method qualifies.
+__feat_prefix_applies__() {
+  [[ -z "${_FEAT_PREFIX_GUARD_VAR:-}" ]] && return 0
+  local _val="${!_FEAT_PREFIX_GUARD_VAR:-}"
+  local _v
+  for _v in ${_FEAT_PREFIX_GUARD_VALS}; do
+    [[ "${_val}" == "${_v}" ]] && return 0
+  done
+  return 1
+}
+
+# Populate the named array ref with the discovery args shared by __install_finish__ and
+# __cleanup_install_artifacts__. Requires PREFIX, PREFIX_DISCOVERY, and related vars to be set.
+__feat_build_prefix_disc_args__() {
+  declare -n _fpda_out="$1"
+  _fpda_out=(
+    --prefix "${PREFIX}"
+    --bin-dir "${PREFIX_BIN_DIR}"
+    --discovery "${PREFIX_DISCOVERY}"
+    --runtime-path "${RUNTIME_PATH}"
+    --bin "${_FEAT_CONTRACT_PRIMARY_BIN}"
+    --cmd-var "_DF_EXPECTED_CMD"
+    --marker "${_FEAT_CONTRACT_PRIMARY_BIN:+${_FEAT_CONTRACT_PRIMARY_BIN} }PATH (${_FEAT_ID})"
+  )
+  [[ -v PREFIX_BINS ]] && _fpda_out+=(--bins "${PREFIX_BINS[*]}")
+  # declare -p correctly detects declared-but-empty arrays; [[ -v arr ]] does not
+  # (it checks arr[0], returning false for empty arrays).
+  { declare -p PREFIX_SYMLINKS &>/dev/null; } && _fpda_out+=(
+    --symlinks-ref "PREFIX_SYMLINKS"
+    --symlink-root "${PREFIX_SYMLINK_ROOT}"
+    --symlink-nonroot "${PREFIX_SYMLINK_NONROOT}"
+  )
+  { declare -p PREFIX_EXPORTS &>/dev/null; } && _fpda_out+=(
+    --exports-ref "PREFIX_EXPORTS"
+    --profile-d "${_FEAT_PROFILE_D_FILE}"
+  )
+  { declare -p PREFIX_SYMLINKS &>/dev/null; } || _fpda_out+=(--no-symlinks)
+  { declare -p PREFIX_EXPORTS &>/dev/null; } || _fpda_out+=(--no-exports)
+}
+
 __install_finish__() {
 
   if declare -f __install_finish_pre > /dev/null; then
     __install_finish_pre
   fi
 
-  # shellcheck disable=SC2317
-  _feat_prefix_applies() {
-    # Returns 0 when this installation method is covered by the prefix config.
-    # When no guard var is configured (_FEAT_PREFIX_GUARD_VAR is empty) every
-    # method qualifies.
-    [[ -z "${_FEAT_PREFIX_GUARD_VAR:-}" ]] && return 0
-    local _val="${!_FEAT_PREFIX_GUARD_VAR:-}"
-    local _v
-    for _v in ${_FEAT_PREFIX_GUARD_VALS}; do
-      [[ "${_val}" == "${_v}" ]] && return 0
-    done
-    return 1
-  }
-
-  if [[ -v PREFIX ]] && _feat_prefix_applies; then
+  if [[ -v PREFIX ]] && __feat_prefix_applies__; then
     # -- discovery --
     [[ -v PREFIX_DISCOVERY ]] && {
-      local -a _disc_args=(
-        --prefix "${PREFIX}"
-        --bin-dir "${PREFIX_BIN_DIR}"
-        --discovery "${PREFIX_DISCOVERY}"
-        --runtime-path "${RUNTIME_PATH}"
-        --bin "${_FEAT_CONTRACT_PRIMARY_BIN}"
-        --cmd-var "_DF_EXPECTED_CMD"
-        --marker "${_FEAT_CONTRACT_PRIMARY_BIN:+${_FEAT_CONTRACT_PRIMARY_BIN} }PATH (${_FEAT_ID})"
-      )
-      [[ -v PREFIX_BINS ]] && _disc_args+=(--bins "${PREFIX_BINS[*]}")
-      # declare -p correctly detects declared-but-empty arrays; [[ -v arr ]] does not
-      # (it checks arr[0], returning false for empty arrays).
-      { declare -p PREFIX_SYMLINKS &>/dev/null; } && _disc_args+=(
-        --symlinks-ref "PREFIX_SYMLINKS"
-        --symlink-root "${PREFIX_SYMLINK_ROOT}"
-        --symlink-nonroot "${PREFIX_SYMLINK_NONROOT}"
-      )
-      { declare -p PREFIX_EXPORTS &>/dev/null; } && _disc_args+=(
-        --exports-ref "PREFIX_EXPORTS"
-        --profile-d "${_FEAT_PROFILE_D_FILE}"
-      )
-      { declare -p PREFIX_SYMLINKS &>/dev/null; } || _disc_args+=(--no-symlinks)
-      { declare -p PREFIX_EXPORTS &>/dev/null; } || _disc_args+=(--no-exports)
+      local -a _disc_args=()
+      __feat_build_prefix_disc_args__ _disc_args
       logging__fn_entry "prefix_discovery"
       shell__run_prefix_discovery "${_disc_args[@]}"
       logging__fn_exit "prefix_discovery"
@@ -1133,7 +1218,7 @@ __install_finish__() {
       shell__write_activation_snippets \
         --scope "${PREFIX_SCOPE}" \
         ${_act_home_arg:+--home "${_act_home_arg}"} \
-        "prefix activation (${_FEAT_ID})" "${_FEAT_ACTIVATION_PROFILE_D_FILE}" "prefix_activation_snippet" \
+        "prefix activation (${_FEAT_ID})" "${_FEAT_ACTIVATION_PROFILE_D_FILE}" "__prefix_activation_snippet" \
         "${PREFIX_ACTIVATIONS[@]}"
       unset _act_home_arg
     }
@@ -1227,6 +1312,56 @@ __reinstall_finish__() {
 
 # Update
 # ======
+
+# Returns 0 when the existing installation method requires a migrate-then-reinstall
+# before switching to the new METHOD value.
+__method_changed__() {
+  case "${_FEAT_EXISTING_METHOD:-}" in
+    package)          [[ "${METHOD}" != "package" ]] ;;
+    upstream-package) [[ "${METHOD}" != "upstream-package" ]] ;;
+    npm)              [[ "${METHOD}" != "npm" ]] ;;
+    npm-bundled)      [[ "${METHOD}" != "npm-bundled" ]] ;;
+    prefix)
+      case "${METHOD}" in
+        package | upstream-package) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+# Centralised routing step for __update__. Evaluates method, prefix, and version state
+# in that order and either handles the update fully (returns 0, caller must not call
+# __update_run__) or signals that __update_run__ should proceed (returns 1).
+__update_predispatch__() {
+  # 1. Method mismatch → migrate: uninstall old, install new.
+  if __method_changed__; then
+    __update_run_migrate__
+    return 0
+  fi
+
+  # 2. Prefix check: if a prefix binary is expected but absent, install fresh at the
+  #    configured prefix. __install_run__ only writes to ${PREFIX}; any unmanaged binary
+  #    at another path (e.g. /usr/bin) is left untouched.
+  if [[ -v PREFIX && -n "${PREFIX}" && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]] && __feat_prefix_applies__; then
+    local _pfx_bin="${PREFIX}/${PREFIX_BIN_DIR:-bin}/${_FEAT_CONTRACT_PRIMARY_BIN}"
+    if [[ ! -f "${_pfx_bin}" ]]; then
+      __install_run__
+      return 0
+    fi
+  fi
+
+  # 3. Version check: if version already matches, skip __update_run__ entirely.
+  #    __install_finish__ still runs to idempotently refresh all shell artifacts.
+  if __feat_check_version_match__; then
+    return 0
+  fi
+
+  # 4. Prefix ok, version mismatch → proceed to feature-specific __update_run__.
+  return 1
+}
+
 __update__() {
 
   if declare -f __update_pre > /dev/null; then
@@ -1234,7 +1369,7 @@ __update__() {
   fi
 
   __update_init__
-  __update_run__
+  __update_predispatch__ || __update_run__
   __install_finish__
   __update_finish__
 
@@ -1261,36 +1396,19 @@ __update_init__() {
 }
 
 __update_run__() {
-  # Apply an update to the existing installation. Called when if_exists=update.
-  # _FEAT_EXISTING_PATH is guaranteed non-empty.
-  #
-  # Requires __detect_existing_path__ (step 1) and __detect_existing_method__
-  # (step 1b) to have already run. Version and method have been resolved by
-  # steps 4–5.
-  #
-  # Auto-implementation:
-  #
-  # Method migration — when the detected existing install method is incompatible
-  # with the new METHOD, the old installation is cleaned up first before
-  # installing with the new method:
-  #   "package"          → METHOD≠package          PM owns the binary; must uninstall via PM.
-  #   "upstream-package" → METHOD≠upstream-package Vendor-repo binary; must uninstall via PM.
-  #   "npm"              → METHOD≠npm              npm owns the package; must npm-uninstall.
-  #   "npm-bundled"      → any METHOD              bundled installs are always distinct from
-  #                                                any METHOD value; always clean up first.
-  #   "prefix"           → METHOD∈{package,        Prefix binary is orphaned when PM installs
-  #                         upstream-package}       to /usr/bin; clean up before PM takes over.
-  # "" (unknown): overwrite is safe; no cleanup needed.
+  # Apply an in-place version update. Only called by __update__ when __update_predispatch__
+  # has already confirmed: method matches, prefix binary exists (if prefix is configured),
+  # and version is out of date. Method migration is handled by __update_predispatch__.
   #
   # Same/compatible method — dispatches on METHOD:
   #   package           ospkg__run --update (PM upgrade).
   #   upstream-package  ospkg__run --update against upstream-package.yaml.
-  #   binary       __install__ (download + overwrite).
-  #   cargo        __install__ (cargo install upgrades in place).
-  #   npm          __install__ (npm install -g upgrades).
+  #   binary       __install_run__ (download + overwrite).
+  #   cargo        __install_run__ (cargo install upgrades in place).
+  #   npm          __install_run__ (npm install -g upgrades).
   #   npm-bundled  __install_run__ (__install_run_npm_bundled__ detects _FEAT_EXISTING_PATH → passes --update).
-  #   script       __install__ (re-run upstream installer).
-  #   source       __install__ (compile + overwrite-in-place).
+  #   script       __install_run__ (re-run upstream installer).
+  #   source       __install_run__ (compile + overwrite-in-place).
   #   (none)       Error — no auto-implementation.
   #
   # For tools with their own update mechanism (e.g. pixi self-update, rustup
@@ -1305,25 +1423,6 @@ __update_run__() {
     exit 1
   fi
 
-  # Detect method migration.
-  local _needs_migration=false
-  case "${_FEAT_EXISTING_METHOD:-}" in
-    package)          [[ "${METHOD}" != "package" ]] && _needs_migration=true ;;
-    upstream-package) [[ "${METHOD}" != "upstream-package" ]] && _needs_migration=true ;;
-    npm)              [[ "${METHOD}" != "npm" ]] && _needs_migration=true ;;
-    npm-bundled)      [[ "${METHOD}" != "npm-bundled" ]] && _needs_migration=true ;;
-    prefix)
-      case "${METHOD}" in
-        package | upstream-package) _needs_migration=true ;;
-      esac
-      ;;
-  esac
-
-  if [[ "${_needs_migration}" == true ]]; then
-    __update_run_migrate__
-    return
-  fi
-
   case "${METHOD}" in
     package)
       __update_run_package__
@@ -1331,12 +1430,9 @@ __update_run__() {
     upstream-package)
       __update_run_upstream_package__
       ;;
-    npm-bundled)
-      # __install_run_npm_bundled__ detects _FEAT_EXISTING_PATH → passes --update.
-      __install_run__
-      ;;
     *)
-      # binary, cargo, npm, script, source: install path overwrites / upgrades naturally.
+      # binary, cargo, npm, npm-bundled, script, source: install path overwrites / upgrades naturally.
+      # __install_run_npm_bundled__ detects _FEAT_EXISTING_PATH → passes --update.
       __install_run__
       ;;
   esac
@@ -1619,7 +1715,7 @@ __resolve_input_prefixes__() {
   if declare -f __resolve_input_prefixes_pre > /dev/null; then
     __resolve_input_prefixes_pre
   fi
-  resolve_prefix
+  __resolve_prefix__
   if declare -f __resolve_input_prefixes_post > /dev/null; then
     __resolve_input_prefixes_post
   fi
@@ -1627,21 +1723,18 @@ __resolve_input_prefixes__() {
 }
 
 # shellcheck disable=SC2329,SC2317
-resolve_prefix() {
-  logging__fn_entry "resolve_prefix"
-  [[ -v PREFIX ]] || { logging__fn_exit "resolve_prefix"; return 0; }
+__resolve_prefix__() {
+  logging__fn_entry "__resolve_prefix__"
+  [[ -v PREFIX ]] || { logging__fn_exit "__resolve_prefix__"; return 0; }
   users__can_write "${PREFIX}" || {
     logging__error "Option 'prefix': '${PREFIX}' is not writable."
     exit 1
   }
-  [[ -v PREFIX_ACTIVATIONS ]] && \
-    PREFIX_SCOPE="$(users__is_user_path "${PREFIX}" && printf user || printf system)"
+  PREFIX_SCOPE="$(users__is_user_path "${PREFIX}" && printf user || printf system)"
   logging__info "Option 'prefix' resolved to '${PREFIX}'."
-  logging__fn_exit "resolve_prefix"
+  logging__fn_exit "__resolve_prefix__"
   return
 }
-# shellcheck disable=SC2329,SC2317
-prefix_activation_snippet() { return 1; }
 
 # Dependency Installation
 # =======================
