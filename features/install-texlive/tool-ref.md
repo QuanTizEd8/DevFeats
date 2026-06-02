@@ -598,3 +598,7 @@ Check package-manager metadata for installed package set as needed.
 - [prulloac Devcontainer LaTeX Additional Package Test](https://raw.githubusercontent.com/prulloac/devcontainer-features/main/test/latex/additional_packages.sh) - Practical validation patterns for latex/tlmgr/package checks.
 - [Island of TeX Base Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/raw/master/Dockerfile.base) - Production container dependency and cleanup patterns for TeX Live ecosystems.
 - [Sphinx latexpdf Dockerfile](https://raw.githubusercontent.com/sphinx-doc/sphinx-docker-images/master/latexpdf/Dockerfile) - Real-world distro-package composition for LaTeX build containers.
+- [TeX Live Installation Guide](https://www.tug.org/texlive/doc/texlive-en/texlive-en.html)
+- [github.com/xu-cheng/latex-docker](https://github.com/xu-cheng/latex-docker)
+- [github.com/scottkosty/install-tl-ubuntu](https://github.com/scottkosty/install-tl-ubuntu)
+- [texlive-batch-installation](https://github.com/maxnoe/texlive-batch-installation)
