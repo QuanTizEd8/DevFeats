@@ -163,14 +163,28 @@ macos-latest-fresh-install:
       # Preserve bash 4+ in a writable tmp directory before Homebrew is
       # uninstalled, so install.sh finds it via PATH without bootstrapping.
       mkdir -p /tmp/devfeats-bash-bin
-      # Find bash ≥4 via Homebrew; install it first if absent.
-      _BASH4="$(brew --prefix bash 2>/dev/null)/bin/bash"
-      if [ ! -x "$_BASH4" ]; then
-        brew install bash
-        _BASH4="$(brew --prefix bash)/bin/bash"
+      # Find Homebrew via its well-known prefix (ARM: /opt/homebrew, Intel:
+      # /usr/local). The build script runs under a clean PATH that excludes
+      # Homebrew, so we must add it explicitly before calling brew.
+      if [ -x /opt/homebrew/bin/brew ]; then
+        _BREW=/opt/homebrew/bin/brew
+      elif [ -x /usr/local/bin/brew ]; then
+        _BREW=/usr/local/bin/brew
+      else
+        echo "⛔ Homebrew not found at expected locations." >&2; exit 1
       fi
+      # Find bash ≥4 via Homebrew; install it first if absent.
+      # Note: brew --prefix bash returns an empty string (not a path) when bash
+      # is not installed, so we must check the prefix itself — not just the
+      # final path — to avoid falsely matching /bin/bash (macOS 3.x).
+      _BASH4_PREFIX="$("$_BREW" --prefix bash 2>/dev/null)"
+      if [ -z "$_BASH4_PREFIX" ] || [ ! -x "$_BASH4_PREFIX/bin/bash" ]; then
+        "$_BREW" install bash
+        _BASH4_PREFIX="$("$_BREW" --prefix bash)"
+      fi
+      _BASH4="$_BASH4_PREFIX/bin/bash"
       if [ ! -x "$_BASH4" ]; then
-        echo "⛔ No bash ≥4 found or installed." >&2; exit 1
+        echo "⛔ bash ≥4 not found at $_BASH4." >&2; exit 1
       fi
       cp "$_BASH4" /tmp/devfeats-bash-bin/bash
       _UNINSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
