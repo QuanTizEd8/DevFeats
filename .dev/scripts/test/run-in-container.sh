@@ -56,4 +56,4 @@ docker run --rm \
   -e REPO_ROOT=/repo \
   -e GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
   "$_IMAGE" \
-  sh -c "$_RUN_CMD"
+  bash -c "$_RUN_CMD"
