@@ -156,12 +156,14 @@ macos-latest:
 macos-latest-fresh-install:
   image: macos-latest
   clean_path: true
+  path_prepend: /tmp/devfeats-bash-bin
   build:
     dockerfile: |
       set -eux
-      # Preserve bash 4+ at a static path before Homebrew is uninstalled, so
-      # install.sh can find it without needing to re-bootstrap Homebrew.
-      cp /opt/homebrew/bin/bash /usr/local/bin/bash 2>/dev/null || true
+      # Preserve bash 4+ in a writable tmp directory before Homebrew is
+      # uninstalled, so install.sh finds it via PATH without bootstrapping.
+      mkdir -p /tmp/devfeats-bash-bin
+      cp /opt/homebrew/bin/bash /tmp/devfeats-bash-bin/bash
       _UNINSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
       _UNINSTALL_TMP="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
       curl -fsSL "$_UNINSTALL_URL" -o "$_UNINSTALL_TMP"
