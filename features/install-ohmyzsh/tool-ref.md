@@ -52,7 +52,7 @@ Upstream documents two practical installation paths:
 ##### Platform-Specific Dependencies
 
 - If default shell switching is enabled (`CHSH=yes`), `chsh` must exist and a valid `zsh` path must be accepted by shell configuration (for example `/etc/shells` checks in installer logic on non-Termux systems).[^omz-install]
-- On Termux, installer logic short-circuits `sudo`/`chsh` shell-switch behavior and uses `zsh` directly for shell targeting.[^omz-install]
+- On Termux, installer logic skips the `sudo` path and `/etc/shells` lookup, uses a bare `zsh` target, and still invokes `chsh` when shell switching is enabled.[^omz-install]
 - Cygwin users must use Cygwin Git; installer rejects Windows/MSYS Git in Cygwin context.[^omz-install]
 
 #### Installation Steps
@@ -134,12 +134,13 @@ Installer environment variables/options:
 Additional official runtime configuration knobs (template + README docs):
 
 - Theme selection and random-theme controls: `ZSH_THEME`, `ZSH_THEME_RANDOM_CANDIDATES`, `ZSH_THEME_RANDOM_IGNORED`.[^omz-zshrc-template][^omz-readme]
-- Completion behavior toggles: `CASE_SENSITIVE`, `HYPHEN_INSENSITIVE`, `COMPLETION_WAITING_DOTS`.[^omz-zshrc-template]
+- Completion behavior toggles: `CASE_SENSITIVE`, `HYPHEN_INSENSITIVE`, `COMPLETION_WAITING_DOTS` (README/template note caveat that waiting dots can cause multiline-prompt issues on Zsh versions older than 5.7.1).[^omz-zshrc-template][^omz-readme]
 - Shell UX toggles: `DISABLE_MAGIC_FUNCTIONS`, `DISABLE_LS_COLORS`, `DISABLE_AUTO_TITLE`, `ENABLE_CORRECTION`, `DISABLE_UNTRACKED_FILES_DIRTY`, `HIST_STAMPS`.[^omz-zshrc-template]
 - Update checks: `zstyle ':omz:update' mode|frequency|verbose ...` before loading Oh My Zsh.[^omz-readme][^omz-zshrc-template]
 - Custom content path override: `ZSH_CUSTOM=/path/to/custom`.[^omz-zshrc-template]
-- Alias loading controls via zstyle scopes (`:omz:*`, `:omz:lib:*`, `:omz:plugins:*`, etc.).[^omz-readme]
-- Async git prompt controls via `zstyle ':omz:alpha:lib:git' async-prompt no|force`.[^omz-readme]
+- GNU `ls` behavior switch for macOS/FreeBSD systems via `zstyle ':omz:lib:theme-and-appearance' gnu-ls yes`; documented as incompatible with `DISABLE_LS_COLORS=true`.[^omz-readme]
+- Alias loading controls via zstyle scopes (`:omz:*`, `:omz:lib:*`, `:omz:plugins:*`, etc.); upstream notes this capability is in testing phase, can change, is not compatible with some plugin managers (for example zpm/zinit), and does not cover aliases implemented as functions.[^omz-readme]
+- Async git prompt controls via `zstyle ':omz:alpha:lib:git' async-prompt no|force`; upstream marks this as experimental and advises disabling if prompt rendering causes issues.[^omz-readme]
 
 #### Post-Installation Steps and Cleanup
 
