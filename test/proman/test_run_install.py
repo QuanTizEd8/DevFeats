@@ -27,8 +27,10 @@ def test_standalone_install_failure_validation_tees_to_log() -> None:
         expect_install_failure=True,
         failure_patterns=["github__resolve_version: no release matching"],
     )
-    assert 'tee "${_FEATURE_INSTALL_LOG}"' in block
-    assert "FEATURE_INSTALL_RC=${PIPESTATUS[0]}" in block
+    assert 'tee "$_FEATURE_INSTALL_LOG"' in block
+    assert '_FEATURE_INSTALL_RC_FILE="$(mktemp)"' in block
+    assert 'FEATURE_INSTALL_RC="$(cat "$_FEATURE_INSTALL_RC_FILE")"' in block
+    assert 'rm -f "$_FEATURE_INSTALL_RC_FILE"' in block
     assert "grep -Fq 'github__resolve_version: no release matching'" in block
     assert 'rm -f "${_FEATURE_INSTALL_LOG}"' in block
     assert "--- install output ---" not in block
