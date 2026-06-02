@@ -38,7 +38,8 @@ Upstream documents two practical installation paths:
 #### Supported Platforms
 
 - Linux, macOS, FreeBSD, Android, and WSL2 are documented as supported compatibility targets.[^omz-readme]
-- Native Windows without WSL/Cygwin Zsh support is not supported for direct install.[^omz-faq]
+- Native Windows without a Unix-like environment is not supported for direct install.[^omz-faq]
+- FAQ guidance for Windows specifically points to Windows 10 (2004+) or Windows 11 with either Cygwin or WSL for Zsh-based usage.[^omz-faq]
 
 #### Dependencies
 
@@ -51,6 +52,7 @@ Upstream documents two practical installation paths:
 ##### Platform-Specific Dependencies
 
 - If default shell switching is enabled (`CHSH=yes`), `chsh` must exist and a valid `zsh` path must be accepted by shell configuration (for example `/etc/shells` checks in installer logic on non-Termux systems).[^omz-install]
+- On Termux, installer logic short-circuits `sudo`/`chsh` shell-switch behavior and uses `zsh` directly for shell targeting.[^omz-install]
 - Cygwin users must use Cygwin Git; installer rejects Windows/MSYS Git in Cygwin context.[^omz-install]
 
 #### Installation Steps
@@ -97,6 +99,11 @@ Notes:
 
 - Installer is user-scoped by default (`$HOME`, user `.zshrc`).[^omz-install]
 - Global/system-wide usage is documented separately in FAQ and requires manual multi-user layout decisions (`/usr/share/ohmyzsh` or `/opt/ohmyzsh`, per-user `.zshrc` references).[^omz-faq]
+- For global layouts, FAQ caveats are important:
+  - Automatic updates are effectively skipped when global install is not writable by the user or not managed as a writable git checkout.
+  - If global `$ZSH/cache` is not writable, cache use shifts to `$HOME/.cache/oh-my-zsh`.
+  - `ZSH_CUSTOM` remains `$ZSH/custom` unless explicitly overridden per user.
+  - Manual root-side update can be run as `zsh /path/to/ohmyzsh/tools/upgrade.sh`.[^omz-faq]
 
 ##### Required Privileges
 
@@ -123,6 +130,16 @@ Installer environment variables/options:
   - `--skip-chsh`
   - `--unattended` (sets `CHSH=no`, `RUNZSH=no`, and disables overwrite confirmation in non-interactive flow)
   - `--keep-zshrc`[^omz-install][^omz-readme]
+
+Additional official runtime configuration knobs (template + README docs):
+
+- Theme selection and random-theme controls: `ZSH_THEME`, `ZSH_THEME_RANDOM_CANDIDATES`, `ZSH_THEME_RANDOM_IGNORED`.[^omz-zshrc-template][^omz-readme]
+- Completion behavior toggles: `CASE_SENSITIVE`, `HYPHEN_INSENSITIVE`, `COMPLETION_WAITING_DOTS`.[^omz-zshrc-template]
+- Shell UX toggles: `DISABLE_MAGIC_FUNCTIONS`, `DISABLE_LS_COLORS`, `DISABLE_AUTO_TITLE`, `ENABLE_CORRECTION`, `DISABLE_UNTRACKED_FILES_DIRTY`, `HIST_STAMPS`.[^omz-zshrc-template]
+- Update checks: `zstyle ':omz:update' mode|frequency|verbose ...` before loading Oh My Zsh.[^omz-readme][^omz-zshrc-template]
+- Custom content path override: `ZSH_CUSTOM=/path/to/custom`.[^omz-zshrc-template]
+- Alias loading controls via zstyle scopes (`:omz:*`, `:omz:lib:*`, `:omz:plugins:*`, etc.).[^omz-readme]
+- Async git prompt controls via `zstyle ':omz:alpha:lib:git' async-prompt no|force`.[^omz-readme]
 
 #### Post-Installation Steps and Cleanup
 
@@ -174,6 +191,7 @@ Important persistent variables in config:
   - Remove `~/.oh-my-zsh`.
   - Rename current `.zshrc` to timestamped `.zshrc.omz-uninstalled-...`.
   - Restore `.zshrc.pre-oh-my-zsh` if present.[^omz-uninstall][^omz-faq]
+- First-party `tools/uninstall.sh` is default-path-oriented (`~/.oh-my-zsh`, `~/.zshrc`) and does not automatically honor custom `ZSH` or `ZDOTDIR` layouts; custom-path installs need manual cleanup of the real install root and dotfiles.[^omz-uninstall][^omz-install]
 - Manual fallback is possible: `rm -rf $ZSH`, edit shell config, and switch shell explicitly.[^omz-faq]
 
 ##### Idempotency
