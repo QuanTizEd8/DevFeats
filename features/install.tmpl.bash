@@ -534,7 +534,7 @@ __uninstall_shell_completions__() {
         ;;
       elvish)
         local _rc="${_home}/.config/elvish/rc.elv"
-        [ -f "$_rc" ] && shell__sync_block --files "$_rc" --marker "${_name} completion"
+        [ -f "$_rc" ] && shell__sync_block --files "$_rc" --marker "${_name} completion" || true
         ;;
     esac
   done
