@@ -76,8 +76,12 @@ def _standalone_install_block(
         lines.extend(
             [
                 '_FEATURE_INSTALL_LOG="$(mktemp)"',
-                f'{install_cmd} 2>&1 | tee "${{_FEATURE_INSTALL_LOG}}"',
-                "FEATURE_INSTALL_RC=${PIPESTATUS[0]}",
+                '_FEATURE_INSTALL_RC_FILE="$(mktemp)"',
+                f"{{ {install_cmd} 2>&1;"
+                ' echo $? >"$_FEATURE_INSTALL_RC_FILE"; }'
+                ' | tee "$_FEATURE_INSTALL_LOG"',
+                'FEATURE_INSTALL_RC="$(cat "$_FEATURE_INSTALL_RC_FILE")"',
+                'rm -f "$_FEATURE_INSTALL_RC_FILE"',
             ],
         )
         lines.append(

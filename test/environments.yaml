@@ -163,7 +163,16 @@ macos-latest-fresh-install:
       # Preserve bash 4+ in a writable tmp directory before Homebrew is
       # uninstalled, so install.sh finds it via PATH without bootstrapping.
       mkdir -p /tmp/devfeats-bash-bin
-      cp /opt/homebrew/bin/bash /tmp/devfeats-bash-bin/bash
+      # Find bash ≥4 via Homebrew; install it first if absent.
+      _BASH4="$(brew --prefix bash 2>/dev/null)/bin/bash"
+      if [ ! -x "$_BASH4" ]; then
+        brew install bash
+        _BASH4="$(brew --prefix bash)/bin/bash"
+      fi
+      if [ ! -x "$_BASH4" ]; then
+        echo "⛔ No bash ≥4 found or installed." >&2; exit 1
+      fi
+      cp "$_BASH4" /tmp/devfeats-bash-bin/bash
       _UNINSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
       _UNINSTALL_TMP="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
       curl -fsSL "$_UNINSTALL_URL" -o "$_UNINSTALL_TMP"
