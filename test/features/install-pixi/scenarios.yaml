@@ -122,6 +122,7 @@ version_match_path_only_symlink:
   env_vars:
     PATH: /usr/bin:${PATH}
   options:
+    if_exists: update
     version: 0.41.0
     prefix: /opt/pixi
     prefix_discovery: symlink

@@ -1235,6 +1235,7 @@ __update__() {
 
   __update_init__
   __update_run__
+  __install_finish__
   __update_finish__
 
   if declare -f __update_post > /dev/null; then
@@ -1333,12 +1334,10 @@ __update_run__() {
     npm-bundled)
       # __install_run_npm_bundled__ detects _FEAT_EXISTING_PATH → passes --update.
       __install_run__
-      __install_finish__
       ;;
     *)
       # binary, cargo, npm, script, source: install path overwrites / upgrades naturally.
       __install_run__
-      __install_finish__
       ;;
   esac
 
@@ -1355,7 +1354,6 @@ __update_run_migrate__() {
   __uninstall_run__
   __uninstall_finish__
   __install_run__
-  __install_finish__
   if declare -f __update_run_migrate_post > /dev/null; then
     __update_run_migrate_post
   fi

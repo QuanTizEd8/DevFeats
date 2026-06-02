@@ -214,14 +214,6 @@ __install_finish_post() {
   _write_lifecycle_hook
 }
 
-__update_finish_post() {
-  if [[ "${UPDATE_BASE:-}" == true ]]; then
-    logging__warn "Updating base conda environment."
-    "${PREFIX}/bin/mamba" update -n base --all -y
-  fi
-  _write_lifecycle_hook
-}
-
 __exit_pre() {
   if [ -n "${PREFIX-}" ] && [ -d "$PREFIX" ]; then
     find "$PREFIX" -follow -type f -name '*.a' -delete 2> /dev/null || true

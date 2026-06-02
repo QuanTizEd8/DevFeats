@@ -48,10 +48,6 @@ __skip_post() {
   _write_lifecycle_hooks
 }
 
-__update_finish_post() {
-  _write_lifecycle_hooks
-}
-
 __install_finish_post() {
   _write_lifecycle_hooks
 }
