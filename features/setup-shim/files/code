@@ -1,6 +1,12 @@
 #!/bin/sh
 set -eu
 get_next_in_path() {
+	# Get the full path to the next executable in PATH with the same name as current script.
+	#
+	# This function is useful in shim scripts that want to modify the behavior of an existing command.
+    # The shim script must be placed in a top priority PATH.
+    # It can then call this function to get the path to the actual executable it is shadowing.
+
 	local cmd next
 	cmd=$(basename "$0")
 	next=$(which -a "$cmd" | grep -A1 "^$0\$" | grep -v "^$0\$" || true)
