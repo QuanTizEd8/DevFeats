@@ -1,6 +1,22 @@
 # shellcheck shell=bash
 
 # ---------------------------------------------------------------------------
+# _clone_custom_dir — Print the physical directory used for theme/plugin clones.
+# User-relative CUSTOM_DIR (~/... or $HOME/...) is not used directly for clones;
+# those always land under ${PREFIX}/custom so they are shared across users.
+# ---------------------------------------------------------------------------
+_clone_custom_dir() {
+  # shellcheck disable=SC2016
+  if [ -n "${CUSTOM_DIR:-}" ] &&
+    [[ "${CUSTOM_DIR}" != '~'* ]] &&
+    [[ "${CUSTOM_DIR}" != '$HOME'* ]]; then
+    printf '%s' "${CUSTOM_DIR}"
+  else
+    printf '%s' "${PREFIX}/custom"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # __install_run_git_clone_post — OMZ-specific scaffolding after the clone.
 # Sets up the custom directory structure and clones any theme/plugin repos.
 # Theme and plugin values accept either a full git URI (https://...) or a
@@ -8,14 +24,7 @@
 # ---------------------------------------------------------------------------
 __install_run_git_clone_post() {
   local _custom_dir
-  # shellcheck disable=SC2016
-  if [ -n "${CUSTOM_DIR:-}" ] &&
-    [[ "${CUSTOM_DIR}" != '~'* ]] &&
-    [[ "${CUSTOM_DIR}" != '$HOME'* ]]; then
-    _custom_dir="${CUSTOM_DIR}"
-  else
-    _custom_dir="${PREFIX}/custom"
-  fi
+  _custom_dir="$(_clone_custom_dir)"
   mkdir -p "${_custom_dir}/themes" "${_custom_dir}/plugins"
 
   if [ -n "${THEME:-}" ]; then
@@ -69,22 +78,6 @@ __uninstall_finish_post() {
     shell__sync_block --files "${_candidates}" --marker "install-ohmyzsh"
     shell__sync_block --files "${_candidates}" --marker "install-ohmyzsh-source"
   done
-}
-
-# ---------------------------------------------------------------------------
-# _resolve_custom_dir <raw_value> <user_home>
-# Expands ~- and $HOME-prefixed paths; passes absolute paths through unchanged.
-# ---------------------------------------------------------------------------
-_resolve_custom_dir() {
-  local _raw="$1" _home="$2"
-  # shellcheck disable=SC2016
-  if [[ "$_raw" == '~'* ]]; then
-    printf '%s%s' "$_home" "${_raw#\~}"
-  elif [[ "$_raw" == '$HOME'* ]]; then
-    printf '%s%s' "$_home" "${_raw#'$HOME'}"
-  else
-    printf '%s' "$_raw"
-  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -147,26 +140,12 @@ __configure_user() {
   # Resolve rcfile and the directory used as ZDOTDIR for ZSH_CUSTOM default.
   local _rcfile _rcdir _inject_source=false
   if [ -n "$RCFILE" ]; then
-    # shellcheck disable=SC2016
-    if [[ "$RCFILE" == '~'* ]]; then
-      _rcfile="${_home}${RCFILE#\~}"
-    elif [[ "$RCFILE" == '$HOME'* ]]; then
-      _rcfile="${_home}${RCFILE#'$HOME'}"
-    else
-      _rcfile="$RCFILE"
-    fi
+    _rcfile="$(users__expand_path --user "$_username" "$RCFILE")"
     _rcdir="$(dirname "$_rcfile")"
   else
     local _zdotdir=""
     if [ -n "${ZDOTDIR:-}" ]; then
-      # shellcheck disable=SC2016
-      if [[ "$ZDOTDIR" == '~'* ]]; then
-        _zdotdir="${_home}${ZDOTDIR#\~}"
-      elif [[ "$ZDOTDIR" == '$HOME'* ]]; then
-        _zdotdir="${_home}${ZDOTDIR#'$HOME'}"
-      else
-        _zdotdir="$ZDOTDIR"
-      fi
+      _zdotdir="$(users__expand_path --user "$_username" "$ZDOTDIR")"
     elif command -v zsh > /dev/null 2>&1; then
       # shellcheck disable=SC2016  # $ZDOTDIR is a zsh variable, not a shell variable
       _zdotdir="$(users__run_as "$_username" -- zsh -c 'printf "%s" "$ZDOTDIR"' \
@@ -186,7 +165,7 @@ __configure_user() {
   local _custom_dir_raw="${CUSTOM_DIR:-}"
   [ -z "$_custom_dir_raw" ] && _custom_dir_raw="${_rcdir}/custom"
   local _effective_custom_dir
-  _effective_custom_dir="$(_resolve_custom_dir "$_custom_dir_raw" "$_home")"
+  _effective_custom_dir="$(users__expand_path --user "$_username" "$_custom_dir_raw")"
 
   local _is_per_user=false
   [[ "$_effective_custom_dir" == "${_home}"* ]] && _is_per_user=true
@@ -198,7 +177,7 @@ __configure_user() {
   if [ -n "$THEME" ]; then
     _theme_value="$(shell__resolve_omz_theme \
       --theme_slug "$THEME" \
-      --custom_dir "${PREFIX}/custom")"
+      --custom_dir "$(_clone_custom_dir)")"
   fi
 
   local _plugin_names=""
@@ -207,15 +186,12 @@ __configure_user() {
     _plugin_names="${_plugin_names% }"
   fi
 
-  # shellcheck disable=SC2016
   local _content
   _content="export ZSH=\"${PREFIX}\""$'\n'
-  # shellcheck disable=SC2016
-  _content+='ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"'$'\n'
+  _content+="ZSH_CACHE_DIR=\"${ZSH_CACHE_DIR}\""$'\n'
   # shellcheck disable=SC2016
   _content+='[ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"'$'\n'
-  # shellcheck disable=SC2016
-  _content+='ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"'$'\n'
+  _content+="ZSH_COMPDUMP=\"${ZSH_COMPDUMP}\""$'\n'
   _content+="ZSH_CUSTOM=\"${_effective_custom_dir}\""$'\n'
 
   if [ -n "$_theme_value" ]; then
@@ -230,7 +206,7 @@ __configure_user() {
     _content+='plugins=()'$'\n'
   fi
 
-  _content+="zstyle ':omz:update' mode disabled"$'\n'
+  _content+="zstyle ':omz:update' mode ${UPDATE_MODE}"$'\n'
 
   if [[ "$_is_p10k" == true ]]; then
     _content+='POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'$'\n'

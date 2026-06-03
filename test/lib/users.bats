@@ -1168,7 +1168,8 @@ alice"
   export -f users__can_write
   run --separate-stderr users__first_writeable_path -- "/usr/local" "${HOME}/.local"
   assert_failure
-  output="${stderr}"; assert_output --partial "no writable path found"
+  output="${stderr}"
+  assert_output --partial "no writable path found"
 }
 
 @test "users__first_writeable_path: uses platform-matching group over fallback" {
@@ -1191,11 +1192,110 @@ alice"
   export -f os__match_spec users__can_write
   run --separate-stderr users__first_writeable_path -- kernel=Darwin "/opt/homebrew"
   assert_failure
-  output="${stderr}"; assert_output --partial "no platform group matched"
+  output="${stderr}"
+  assert_output --partial "no platform group matched"
 }
 
 @test "users__first_writeable_path: resolves single path from unconditional group" {
   users__can_write() { return 0; }
   result="$(users__first_writeable_path -- "/usr/local")"
   assert [ "${result}" = "/usr/local" ]
+}
+
+# ---------------------------------------------------------------------------
+# users__expand_path
+# ---------------------------------------------------------------------------
+
+@test "users__expand_path: absolute path returned unchanged (fast path, no subprocess)" {
+  run users__expand_path "/usr/local/bin"
+  assert_success
+  assert_output "/usr/local/bin"
+}
+
+@test "users__expand_path: plain string without dollar or tilde returned unchanged" {
+  run users__expand_path "no-dollar-no-tilde"
+  assert_success
+  assert_output "no-dollar-no-tilde"
+}
+
+@test "users__expand_path: expands leading ~ to HOME" {
+  HOME="/home/testuser"
+  export HOME
+  run users__expand_path "~"
+  assert_success
+  assert_output "/home/testuser"
+}
+
+@test "users__expand_path: expands ~/subdir to HOME/subdir" {
+  HOME="/home/testuser"
+  export HOME
+  run users__expand_path "~/subdir"
+  assert_success
+  assert_output "/home/testuser/subdir"
+}
+
+@test "users__expand_path: expands \$HOME/subdir" {
+  HOME="/home/testuser"
+  export HOME
+  # shellcheck disable=SC2016
+  run users__expand_path '$HOME/subdir'
+  assert_success
+  assert_output "/home/testuser/subdir"
+}
+
+@test "users__expand_path: expands \${XDG_CONFIG_HOME:-\${HOME}/.config}/app when XDG unset" {
+  HOME="/home/testuser"
+  export HOME
+  unset XDG_CONFIG_HOME
+  # shellcheck disable=SC2016
+  run users__expand_path '${XDG_CONFIG_HOME:-${HOME}/.config}/myapp'
+  assert_success
+  assert_output "/home/testuser/.config/myapp"
+}
+
+@test "users__expand_path: expands \${XDG_CONFIG_HOME:-\${HOME}/.config}/app when XDG set" {
+  HOME="/home/testuser"
+  XDG_CONFIG_HOME="/custom/config"
+  export HOME XDG_CONFIG_HOME
+  # shellcheck disable=SC2016
+  run users__expand_path '${XDG_CONFIG_HOME:-${HOME}/.config}/myapp'
+  assert_success
+  assert_output "/custom/config/myapp"
+}
+
+@test "users__expand_path: --user with current user resolves correctly" {
+  HOME="/home/testuser"
+  export HOME
+  _me="$(id -un)"
+  # shellcheck disable=SC2016
+  run users__expand_path --user "$_me" '$HOME/foo'
+  assert_success
+  assert_output "/home/testuser/foo"
+}
+
+@test "users__expand_path: rejects expression containing \$() (command substitution)" {
+  # shellcheck disable=SC2016
+  run users__expand_path '$(echo /tmp)'
+  assert_failure
+  assert_output --partial "unsafe characters"
+}
+
+@test "users__expand_path: rejects expression containing backtick" {
+  run users__expand_path '`echo /tmp`'
+  assert_failure
+  assert_output --partial "unsafe characters"
+}
+
+@test "users__expand_path: rejects expression containing semicolon" {
+  # shellcheck disable=SC2016
+  run users__expand_path '$HOME;rm -rf /'
+  assert_failure
+  assert_output --partial "unsafe characters"
+}
+
+@test "users__expand_path: rejects expression containing pipe" {
+  # shellcheck disable=SC2016
+  run users__expand_path '$HOME|cat /etc/passwd'
+  assert_failure
+  assert_output --partial "unsafe characters"
 }

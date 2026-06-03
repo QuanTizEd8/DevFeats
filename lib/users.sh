@@ -924,6 +924,75 @@ users__resolve_home() {
   [[ "$_by_uid" == true ]] && printf '%s\n' "${_home:-}" || printf '%s\n' "${_home:-~${_user}}"
 }
 
+# @brief users__expand_path [--user <username>] <expr> — Expand tilde, $HOME, and env-var references in a path expression using the target user's login environment.
+#
+# Runs bash as the target user via users__run_as (su -l), giving access to the
+# user's full login environment: $HOME, $XDG_*, and any vars set in their profile.
+# All bash parameter expansion forms are supported: ${VAR}, ${VAR:-default}, etc.
+#
+# Fast path: expressions with no '$' and no leading '~' are returned as-is
+# without spawning a subprocess.
+#
+# Security: rejects expressions containing (, ), `, ;, &, |, newline, ", '
+# (prevents command substitution, process substitution, and command chaining).
+#
+# Args:
+#   --user <username>  User whose login environment to use. Defaults to the current user.
+#   <expr>             Path expression to expand (e.g. ~/foo, $HOME/bar, ${XDG_CONFIG_HOME:-${HOME}/.config}/baz).
+#
+# Stdout: expanded absolute path followed by a newline.
+# Returns: 0 on success, 1 on validation failure or expansion error.
+users__expand_path() {
+  local _user=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --user)
+        _user="$2"
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        logging__error "users__expand_path: unknown option: $1"
+        return 1
+        ;;
+      *) break ;;
+    esac
+  done
+  local _expr="${1-}"
+  [[ -z "$_user" ]] && _user="$(users__get_current)"
+
+  # Security: reject command-execution metacharacters while allowing all bash
+  # parameter expansion forms (${VAR}, ${VAR:-default}, ${VAR:+value}, etc.).
+  # This check must run before the fast path so that inputs like `cmd` (no '$'
+  # or leading '~') are still validated.
+  if [[ "$_expr" == *'('* || "$_expr" == *')'* || "$_expr" == *'`'* ||
+    "$_expr" == *';'* || "$_expr" == *'&'* || "$_expr" == *'|'* ||
+    "$_expr" == *'"'* || "$_expr" == *"'"* || "$_expr" == *$'\n'* ]]; then
+    logging__error "users__expand_path: expression contains unsafe characters: '${_expr}'"
+    return 1
+  fi
+
+  # Fast path: no '$' and no leading '~' — already an absolute path or plain string.
+  if [[ "$_expr" != *'$'* && "$_expr" != '~'* ]]; then
+    printf '%s\n' "$_expr"
+    return 0
+  fi
+
+  # Run as the target user to evaluate the expression in their full login environment.
+  # su -l sources /etc/profile and the user's ~/.profile / ~/.bash_profile, making
+  # $HOME, $XDG_*, and all user-configured env vars available.
+  # Tilde is pre-converted to $HOME because eval does not expand tilde in double-quoted strings.
+  # shellcheck disable=SC2016
+  users__run_as "$_user" -- bash -c '
+    _e="$1"
+    [[ "$_e" == "~"* ]] && _e="${HOME}${_e#\~}"
+    eval "printf \"%s\n\" \"${_e}\""
+  ' -- "$_expr"
+}
+
 # @brief users__is_user_path [--uid] [<username-or-uid>] <path> — Return 0 if <path> is user-local, 1 if it is system (requires privilege).
 #
 # "User-local" means writable by a regular user without elevated privileges.

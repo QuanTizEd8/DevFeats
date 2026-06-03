@@ -20,7 +20,14 @@ __update_run__() {
 # shellcheck disable=SC2329,SC2317
 __prefix_activation_snippet() {
   if [ -n "${HOME_DIR}" ]; then
-    printf 'export PIXI_HOME="%s"\n' "${HOME_DIR}"
+    # Normalize a leading ~ to ${HOME} so the expression expands correctly in
+    # double-quoted shell strings at runtime (bare tilde is not expanded there).
+    local _pixi_home="${HOME_DIR}"
+    # shellcheck disable=SC2088,SC2016
+    [[ "$_pixi_home" == '~/'* ]] && _pixi_home='${HOME}/'"${_pixi_home#\~/}"
+    # shellcheck disable=SC2016
+    [[ "$_pixi_home" == '~' ]] && _pixi_home='${HOME}'
+    printf 'export PIXI_HOME="%s"\n' "$_pixi_home"
   else
     # shellcheck disable=SC2016
     printf 'export PIXI_HOME="${HOME}/.pixi"\n'

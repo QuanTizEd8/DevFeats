@@ -158,6 +158,7 @@ install_archive_contents() {
 
 __init_args_post() {
   [[ -n "${FONT_DIR}" ]] || FONT_DIR="$(os__font_dir)"
+  FONT_DIR="$(users__expand_path "$FONT_DIR")"
 }
 
 __install_init_post() {

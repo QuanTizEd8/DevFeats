@@ -55,22 +55,6 @@ __install_run__() {
 }
 
 # ---------------------------------------------------------------------------
-# _resolve_custom_dir <raw_value> <user_home>
-# Expands ~- and $HOME-prefixed paths; passes absolute paths through unchanged.
-# ---------------------------------------------------------------------------
-_resolve_custom_dir() {
-  local _raw="$1" _home="$2"
-  # shellcheck disable=SC2016
-  if [[ "$_raw" == '~'* ]]; then
-    printf '%s%s' "$_home" "${_raw#\~}"
-  elif [[ "$_raw" == '$HOME'* ]]; then
-    printf '%s%s' "$_home" "${_raw#'$HOME'}"
-  else
-    printf '%s' "$_raw"
-  fi
-}
-
-# ---------------------------------------------------------------------------
 # _link_custom_items <src_custom_dir> <dest_custom_dir> <theme_slug> <mode> [<plugin_slug>...]
 # Creates symlinks in dest for exactly the named items declared in theme_slug + plugin slugs.
 #   overwrite: removes existing symlink for that name, creates fresh one (skips real dirs)
@@ -128,14 +112,7 @@ __configure_user() {
 
   local _rcfile _rcdir _inject_source=false
   if [ -n "$RCFILE" ]; then
-    # shellcheck disable=SC2016
-    if [[ "$RCFILE" == '~'* ]]; then
-      _rcfile="${_home}${RCFILE#\~}"
-    elif [[ "$RCFILE" == '$HOME'* ]]; then
-      _rcfile="${_home}${RCFILE#'$HOME'}"
-    else
-      _rcfile="$RCFILE"
-    fi
+    _rcfile="$(users__expand_path --user "$_username" "$RCFILE")"
     _rcdir="$(dirname "$_rcfile")"
   else
     local _xdg_config_home=""
@@ -156,7 +133,7 @@ __configure_user() {
   local _custom_dir_raw="${CUSTOM_DIR:-}"
   [ -z "$_custom_dir_raw" ] && _custom_dir_raw="${_rcdir}/custom"
   local _effective_custom_dir
-  _effective_custom_dir="$(_resolve_custom_dir "$_custom_dir_raw" "$_home")"
+  _effective_custom_dir="$(users__expand_path --user "$_username" "$_custom_dir_raw")"
 
   local _is_per_user=false
   [[ "$_effective_custom_dir" == "${_home}"* ]] && _is_per_user=true

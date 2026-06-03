@@ -26,15 +26,10 @@ __configure_user() {
   local _cu_xdg_config_home="${_cu_home}/.config"
   # Expand ZDOTDIR option (may be ~-prefixed, $HOME-prefixed, or absolute).
   local _cu_zdotdir
-  # shellcheck disable=SC2016
   if [ -z "${ZDOTDIR-}" ]; then
     _cu_zdotdir="${_cu_xdg_config_home}/zsh"
-  elif [[ "$ZDOTDIR" == '~'* ]]; then
-    _cu_zdotdir="${_cu_home}${ZDOTDIR#\~}"
-  elif [[ "$ZDOTDIR" == '$HOME'* ]]; then
-    _cu_zdotdir="${_cu_home}${ZDOTDIR#'$HOME'}"
   else
-    _cu_zdotdir="$ZDOTDIR"
+    _cu_zdotdir="$(users__expand_path --user "$_cu_username" "$ZDOTDIR")"
   fi
 
   # Mode: skip — bail out if any dotfile already exists.

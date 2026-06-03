@@ -1869,6 +1869,7 @@ __resolve_input_prefixes__() {
 __resolve_prefix__() {
   logging__fn_entry "__resolve_prefix__"
   [[ -v PREFIX ]] || { logging__fn_exit "__resolve_prefix__"; return 0; }
+  PREFIX="$(users__expand_path "$PREFIX")"
   users__can_write "${PREFIX}" || {
     logging__error "Option 'prefix': '${PREFIX}' is not writable."
     exit 1

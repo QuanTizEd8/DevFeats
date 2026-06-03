@@ -48,7 +48,8 @@ options:
       `ZSH_CUSTOM` directory for Oh My Zsh.
       Leave empty to use `${ZDOTDIR:-$HOME}/custom` — per-user, themes and plugins are symlinked
       there from the system install.
-      Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
+      Set to an explicit path to override; evaluated in each user's login environment at configure
+      time, so `~`, `$HOME`, and `${VAR:-default}` expressions are all supported.
     type: string
   zdotdir:
     default: ''
@@ -56,7 +57,8 @@ options:
       Directory where Zsh looks for per-user config files (`.zshrc`, `.zprofile`, `.zlogin`).
       Leave empty to read `ZDOTDIR` from the user's running zsh at configure time; falls back
       to `$HOME` if zsh is not available or `ZDOTDIR` is unset.
-      Accepts paths prefixed with `~` or `$HOME` (expanded per user).
+      Evaluated in each user's login environment at configure time, so `~`, `$HOME`, and
+      `${VAR:-default}` expressions are all supported.
     type: string
   rcfile:
     default: ''
@@ -66,8 +68,38 @@ options:
       user's running zsh, falling back to `$HOME`. The injection target is then chosen as:
       `$ZDOTDIR/zshtheme` if it exists; otherwise `$ZDOTDIR/zshtheme` (created, with a source
       line injected into `.zshrc`) if `.zshrc` exists; otherwise `.zshrc` directly.
-      Accepts paths prefixed with `~` or `$HOME` (expanded per user).
+      Evaluated in each user's login environment at configure time, so `~`, `$HOME`, and
+      `${VAR:-default}` expressions are all supported.
     type: string
+  zsh_cache_dir:
+    default: '${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh'
+    description: |-
+      Value written to `ZSH_CACHE_DIR` in the user's shell config block.
+      The default respects `$XDG_CACHE_HOME` at runtime. Override with any absolute path or
+      shell expression (written verbatim — not expanded at install time).
+    type: string
+  zsh_compdump:
+    default: '${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}'
+    description: |-
+      Value written to `ZSH_COMPDUMP` in the user's shell config block.
+      The default follows Oh My Zsh conventions and uses `$ZSH_CACHE_DIR` set by `zsh_cache_dir`.
+      Override with any absolute path or shell expression (written verbatim — not expanded at install time).
+    type: string
+  update_mode:
+    default: disabled
+    description: |-
+      Oh My Zsh auto-update mode, written as `zstyle ':omz:update' mode <value>`.
+      - `disabled` — never prompt or update automatically.
+      - `reminder` — print a reminder when updates are available but do not update.
+      - `auto` — update automatically without prompting.
+    type: string
+    enum:
+      - value: disabled
+        description: Never prompt or update automatically.
+      - value: reminder
+        description: Print a reminder when updates are available but do not update.
+      - value: auto
+        description: Update automatically without prompting.
 _options:
   gh_repo: ohmyzsh/ohmyzsh
   version:
