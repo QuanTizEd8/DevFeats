@@ -1,34 +1,52 @@
 name: fzf Installation
 version: 0.1.0
-description: Install [fzf](https://github.com/junegunn/fzf) (fuzzy finder) and activate it in Zsh and Bash.
+description: Install [fzf](https://github.com/junegunn/fzf) — the command-line fuzzy finder — and activate shell integration in Bash and Zsh.
 keywords:
-- fzf
-- shell
-- fuzzy-finder
+  - fzf
+  - shell
+  - fuzzy-finder
+  - cli
 _long_description: >-
   Downloads and installs [fzf](https://github.com/junegunn/fzf) from GitHub Releases
-  and wires up per-user shell integration by injecting a guarded `eval "$(fzf --<shell>)"`
-  block into each user's `zshtheme` and Bash theme file. fzf provides fuzzy-finding
-  key bindings (`Ctrl-R` for history, `Ctrl-T` for files, `Alt-C` for directories)
-  and shell completion.
-options:
-  install_fzf:
-    type: boolean
-    default: false
-    description: |-
-      Install [fzf](https://github.com/junegunn/fzf) (fuzzy finder) from GitHub Releases.
-      Shell key-bindings and completion are injected per-user.
+  and wires up per-user shell integration by injecting a guarded
+  `eval "$(fzf --bash)"` / `source <(fzf --zsh)` block into each user's `.bashrc`
+  and `.zshrc`. fzf provides fuzzy-finding key bindings (Ctrl-R for history,
+  Ctrl-T for files, Alt-C for directories) and fuzzy completion triggered by `**<TAB>`.
+_tool_name: fzf
 _options:
   gh_repo: junegunn/fzf
+  version:
+    resolution: github_release
+    default: stable
+    flag: --version
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: 0.73.1
+        description: fzf v0.73.1.
+      - value: 0.72.0
+        description: fzf v0.72.0.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/fzf-{VERSION}-{OS}_{ARCH}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/fzf_{VERSION}_checksums.txt"
+      binary_src: fzf
+    package: {}
   prefix:
     bins: [fzf]
     applies_when:
-      - install_fzf: ['true']
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-ohmyzsh
-#   - ghcr.io/quantized8/devfeats/install-ohmybash
+      - method: [binary]
+    activation:
+      shells: [bash, zsh]
+      description: |-
+        Injects `eval "$(fzf --bash)"` into `.bashrc` and `source <(fzf --zsh)` into `.zshrc`
+        (both guarded with `command -v fzf`), enabling key bindings (Ctrl-R, Ctrl-T, Alt-C)
+        and `**<TAB>` fuzzy completion in interactive shells.
+# installsAfter: []
 _dependencies:
   run:
     base:
       packages:
         - ca-certificates
+    os-pkg:
+      packages:
+        - fzf
