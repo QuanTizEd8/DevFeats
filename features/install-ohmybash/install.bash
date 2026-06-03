@@ -1,57 +1,81 @@
 # shellcheck shell=bash
 
 # ---------------------------------------------------------------------------
-# install_ohmybash — Clone OMB to INSTALL_DIR, scaffold OSH_CUSTOM,
-#                    clone custom theme/plugins.
+# _clone_custom_dir — Print the physical directory used for theme/plugin clones.
+# User-relative CUSTOM_DIR (~/... or $HOME/...) is not used directly for clones;
+# those always land under ${PREFIX}/custom so they are shared across users.
 # ---------------------------------------------------------------------------
-__install_run__() {
-  local _GITHUB_BASE_URL="${_GITHUB_BASE_URL:-https://github.com}"
-  local _OHMYBASH_REPO_URL="${_GITHUB_BASE_URL}/ohmybash/oh-my-bash"
-
-  local _install_dir="$INSTALL_DIR"
-  local _branch="$BRANCH"
-  local _theme="$THEME"
-  local _custom_dir
+_clone_custom_dir() {
   # shellcheck disable=SC2016
-  if [ -n "$CUSTOM_DIR" ] &&
-    [[ "$CUSTOM_DIR" != '~'* ]] &&
-    [[ "$CUSTOM_DIR" != '$HOME'* ]]; then
-    _custom_dir="$CUSTOM_DIR"
+  if [ -n "${CUSTOM_DIR:-}" ] &&
+    [[ "${CUSTOM_DIR}" != '~'* ]] &&
+    [[ "${CUSTOM_DIR}" != '$HOME'* ]]; then
+    printf '%s' "${CUSTOM_DIR}"
   else
-    _custom_dir="${_install_dir}/custom"
+    printf '%s' "${PREFIX}/custom"
   fi
+}
 
-  logging__info "Installing Oh My Bash to '${_install_dir}' (branch: ${_branch})..."
-  git__clone --url "$_OHMYBASH_REPO_URL" --dir "$_install_dir" --ref "$_branch"
-
-  # Set update metadata so 'omb update' knows which remote/branch.
-  git -C "$_install_dir" config oh-my-bash.remote origin
-  git -C "$_install_dir" config oh-my-bash.branch "$_branch"
-
+# ---------------------------------------------------------------------------
+# __install_run_git_clone_post — OMB-specific scaffolding after the clone.
+# Sets up the custom directory structure and clones any theme/plugin repos.
+# Theme and plugin values accept either a full git URI (https://...) or a
+# GitHub owner/repo slug (which gets https://github.com/ prepended).
+# ---------------------------------------------------------------------------
+__install_run_git_clone_post() {
+  local _custom_dir
+  _custom_dir="$(_clone_custom_dir)"
   mkdir -p "${_custom_dir}/themes" "${_custom_dir}/plugins"
 
-  if [ -n "$_theme" ]; then
-    local _theme_repo_name
-    _theme_repo_name="$(basename "$_theme")"
-    git__clone --url "${_GITHUB_BASE_URL}/${_theme}" --dir "${_custom_dir}/themes/${_theme_repo_name}"
-    logging__info "Installed custom theme '${_theme}'."
+  if [ -n "${THEME:-}" ]; then
+    if [[ "${THEME}" != */* && "${THEME}" != *://* ]]; then
+      logging__info "'${THEME}' is a built-in theme — skipping clone."
+    else
+      local _theme_uri
+      [[ "${THEME}" == *://* ]] && _theme_uri="${THEME}" ||
+        _theme_uri="https://github.com/${THEME}"
+      git__clone --url "${_theme_uri}" --dir "${_custom_dir}/themes/$(basename "${THEME}")"
+      logging__info "Installed custom theme '${THEME}'."
+    fi
   fi
 
   local _slug
-  for _slug in "${PLUGINS[@]}"; do
+  for _slug in "${PLUGINS[@]+"${PLUGINS[@]}"}"; do
     _slug="${_slug// /}"
-    [ -z "$_slug" ] && continue
-    if [[ "$_slug" != */* ]]; then
+    [ -z "${_slug}" ] && continue
+    if [[ "${_slug}" != */* && "${_slug}" != *://* ]]; then
       logging__info "'${_slug}' is a built-in plugin — skipping clone."
       continue
     fi
-    local _plugin_name
-    _plugin_name="$(basename "$_slug")"
-    git__clone --url "${_GITHUB_BASE_URL}/${_slug}" --dir "${_custom_dir}/plugins/${_plugin_name}"
+    local _plugin_uri
+    [[ "${_slug}" == *://* ]] && _plugin_uri="${_slug}" ||
+      _plugin_uri="https://github.com/${_slug}"
+    git__clone --url "${_plugin_uri}" --dir "${_custom_dir}/plugins/$(basename "${_slug%/}")"
     logging__info "Installed custom plugin '${_slug}'."
   done
+  logging__success "Oh My Bash repository scaffolding complete."
+}
 
-  logging__success "Oh My Bash installation complete."
+# ---------------------------------------------------------------------------
+# __uninstall_finish_post — Strip OMB config blocks from all users' rc files.
+# ---------------------------------------------------------------------------
+__uninstall_finish_post() {
+  local -a _users=()
+  mapfile -t _users < <(users__resolve_list)
+  local _user
+  for _user in "${_users[@]+"${_users[@]}"}"; do
+    id "${_user}" > /dev/null 2>&1 || continue
+    local _home
+    _home="$(users__resolve_home "${_user}")"
+    local _xdg_config_home
+    _xdg_config_home="$(users__run_as "${_user}" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
+      2> /dev/null || true)"
+    local _bash_config_dir="${_xdg_config_home:-${_home}/.config}/bash"
+    local _candidates
+    _candidates="${_home}/.bashrc"$'\n'"${_bash_config_dir}/bashtheme"
+    shell__sync_block --files "${_candidates}" --marker "install-ohmybash"
+    shell__sync_block --files "${_candidates}" --marker "install-ohmybash-source"
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -67,13 +91,14 @@ _link_custom_items() {
 
   local -a _items=()
   if [ -n "$_theme_slug" ]; then
-    _items+=("themes/$(basename "$_theme_slug")")
+    [[ "$_theme_slug" == */* || "$_theme_slug" == *://* ]] &&
+      _items+=("themes/$(basename "$_theme_slug")")
   fi
   local _slug
   for _slug in "$@"; do
     _slug="${_slug// /}"
     [ -z "$_slug" ] && continue
-    [[ "$_slug" != */* ]] && continue # built-in plugin, no clone
+    [[ "$_slug" != */* && "$_slug" != *://* ]] && continue # built-in plugin, no clone
     _items+=("plugins/$(basename "$_slug")")
   done
 
@@ -92,14 +117,13 @@ _link_custom_items() {
 }
 
 # ---------------------------------------------------------------------------
-# _configure_user_ohmybash <username>
+# __configure_user <username>
 # Injects a guarded OMB setup block into the appropriate rc file for the user.
 # Rcfile resolution (when RCFILE option is empty):
 #   1. Run bash as the user to read XDG_CONFIG_HOME from the shell's startup chain.
 #   2. _rcdir = ${XDG_CONFIG_HOME:-${HOME}/.config}/bash
 #   3. If ${_rcdir}/bashtheme exists  → write there (install-shell integration).
-#   4. Else if ${_home}/.bashrc exists → create bashtheme + inject source line.
-#   5. Else → write OMB block directly into .bashrc.
+#   4. Else → create bashtheme + inject source line into ${HOME}/.bashrc (creating it if absent).
 # ---------------------------------------------------------------------------
 __configure_user() {
   local _username="$1"
@@ -119,15 +143,14 @@ __configure_user() {
     # shellcheck disable=SC2016  # ${XDG_CONFIG_HOME:-} is a bash variable for the target user's shell
     _xdg_config_home="$(users__run_as "$_username" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
       2> /dev/null || true)"
-    _rcdir="${_xdg_config_home:-${_home}/.config}/bash"
-    if [ -f "${_rcdir}/bashtheme" ]; then
-      _rcfile="${_rcdir}/bashtheme"
-    elif [ -f "${_home}/.bashrc" ]; then
-      _rcfile="${_rcdir}/bashtheme"
+    local _xdg_bash_dir="${_xdg_config_home:-${_home}/.config}/bash"
+    _rcfile="${_xdg_bash_dir}/bashtheme" # same path in both cases; only _inject_source differs
+    _rcdir="${_xdg_bash_dir}"
+    if [ ! -f "${_xdg_bash_dir}/bashtheme" ]; then
+      # No bashtheme yet: create it at the XDG path and wire it into .bashrc.
       _inject_source=true
-    else
-      _rcfile="${_home}/.bashrc"
     fi
+    # else: install-shell scenario — bashtheme exists and is already sourced from .bashrc.
   fi
 
   local _custom_dir_raw="${CUSTOM_DIR:-}"
@@ -139,7 +162,7 @@ __configure_user() {
   [[ "$_effective_custom_dir" == "${_home}"* ]] && _is_per_user=true
 
   local _theme_value=""
-  [ -n "$THEME" ] && _theme_value="$(basename "$THEME")"
+  [ -n "${THEME:-}" ] && _theme_value="$(basename "$THEME")"
 
   local _plugin_names=""
   if ((${#PLUGINS[@]})); then
@@ -147,16 +170,14 @@ __configure_user() {
     _plugin_names="${_plugin_names% }"
   fi
 
-  # shellcheck disable=SC2016
   local _content
-  _content="export OSH=\"${INSTALL_DIR}\""$'\n'
-  # shellcheck disable=SC2016
-  _content+='OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"'$'\n'
+  _content="export OSH=\"${PREFIX}\""$'\n'
+  _content+="OSH_CACHE_DIR=\"${OSH_CACHE_DIR}\""$'\n'
   # shellcheck disable=SC2016
   _content+='[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"'$'\n'
   _content+="OSH_CUSTOM=\"${_effective_custom_dir}\""$'\n'
 
-  if [ -n "$_theme_value" ]; then
+  if [ -n "${THEME:-}" ]; then
     _content+="OSH_THEME=\"${_theme_value}\""$'\n'
   else
     _content+='OSH_THEME=""'$'\n'
@@ -168,26 +189,38 @@ __configure_user() {
     _content+='plugins=()'$'\n'
   fi
 
+  local _omb_disable_update
+  case "${UPDATE_MODE}" in
+    disabled) _omb_disable_update="true" ;;
+    *) _omb_disable_update="false" ;;
+  esac
+  _content+="DISABLE_AUTO_UPDATE=\"${_omb_disable_update}\""$'\n'
+
   # shellcheck disable=SC2016
   _content+='[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"'$'\n'
 
   mkdir -p "$_rcdir"
   shell__write_block --file "$_rcfile" --marker "install-ohmybash" --content "$_content"
 
-  # Case 4: .bashrc existed but bashtheme didn't — wire up the source line.
+  # Case 4: no bashtheme yet — wire up the source line into .bashrc.
   if [[ "$_inject_source" == true ]]; then
     # shellcheck disable=SC2016
     shell__write_block --file "${_home}/.bashrc" --marker "install-ohmybash-source" \
       --content '[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme"'
   fi
 
-  if [[ "$_is_per_user" == true ]] && [[ "$USER_CONFIG_MODE" != "skip" ]]; then
+  if [[ "$_is_per_user" == true ]]; then
+    local _link_mode
+    case "${IF_EXISTS:-}" in
+      update) _link_mode="augment" ;;
+      *) _link_mode="overwrite" ;;
+    esac
     _link_custom_items \
-      "${INSTALL_DIR}/custom" \
+      "$(_clone_custom_dir)" \
       "$_effective_custom_dir" \
       "$THEME" \
-      "$USER_CONFIG_MODE" \
-      "${PLUGINS[@]}"
+      "${_link_mode}" \
+      "${PLUGINS[@]+"${PLUGINS[@]}"}"
   fi
 
   file__chown -R "${_username}:${_group}" "$_home"

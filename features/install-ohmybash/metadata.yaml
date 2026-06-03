@@ -10,36 +10,31 @@ _long_description: >-
   Clones [Oh My Bash](https://ohmybash.nntoan.com/) to a shared system directory,
   optionally clones a custom theme and custom plugins from GitHub, and wires up
   per-user Bash configuration by injecting a guarded block via `shell__write_block()`
-  into each user's `bashtheme` file (when present) or directly into `.bashrc`. When
-  a per-user `OSH_CUSTOM` directory is used, themes and plugins are symlinked there
-  from the shared system install so updates stay consistent.
+  into each user's `bashtheme` file. When the file does not yet exist, it is created
+  and a source line is injected into `.bashrc`. When a per-user `OSH_CUSTOM` directory
+  is used, themes and plugins are symlinked there from the shared system install so
+  updates stay consistent.
 options:
   plugins:
     type: array
     default: "git"
     description: |-
-      Oh My Bash plugins to activate, each as an `owner/repo` GitHub slug or a plain built-in name.
-      Custom plugins (slugs containing `/`) are cloned into `<install_dir>/custom/plugins/<repo>`.
+      Oh My Bash plugins to activate, each as an `owner/repo` GitHub slug, a full git repository
+      URI (e.g. `https://github.com/owner/repo`), or a plain built-in plugin name.
+      Custom plugins (slugs or URIs) are cloned into the system custom directory
+      (`<prefix>/custom/plugins/<repo>` by default; `<custom_dir>/plugins/<repo>` when
+      `custom_dir` is set to an absolute system path).
       Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Bash plugins and are not cloned.
       Set to `''` to activate no plugins.
   theme:
     default: ''
     description: |-
-      Oh My Bash custom theme to install, as an `owner/repo` GitHub slug.
-      The repository is cloned into `<install_dir>/custom/themes/<repo>`.
-      Set to `''` to use no custom theme.
-    type: string
-  install_dir:
-    default: /usr/local/share/oh-my-bash
-    description: |-
-      Path to the Oh My Bash installation directory.
-      Corresponds to the [`OSH`](https://github.com/ohmybash/oh-my-bash/wiki/Basic-Installation) config variable.
-    type: string
-  branch:
-    default: master
-    description: |-
-      Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone.
-      Also recorded as `oh-my-bash.branch` in the git config so `omb update` works correctly.
+      Oh My Bash theme to use.
+      Use a plain name (e.g. `font`) to activate a built-in Oh My Bash theme without cloning.
+      Use an `owner/repo` GitHub slug or a full git repository URI to clone a custom theme into
+      the system custom directory (`<prefix>/custom/themes/<repo>` by default;
+      `<custom_dir>/themes/<repo>` when `custom_dir` is set to an absolute system path).
+      Set to `''` to disable theming (`OSH_THEME=""`).
     type: string
   custom_dir:
     default: ''
@@ -47,32 +42,57 @@ options:
       `OSH_CUSTOM` directory for Oh My Bash.
       Leave empty to use `${XDG_CONFIG_HOME:-$HOME/.config}/bash/custom` — per-user, themes and
       plugins are symlinked there from the system install.
-      Set to an explicit path to override; paths prefixed with `~` or `$HOME` are expanded per user.
+      Set to an explicit path to override; evaluated in each user's login environment at configure
+      time, so `~`, `$HOME`, and `${VAR:-default}` expressions are all supported.
     type: string
   rcfile:
     default: ''
     description: |-
       Full path to the per-user Bash theme file that Oh My Bash configuration is injected into.
       Leave empty to resolve automatically: runs `bash` as each user to read `XDG_CONFIG_HOME` from
-      the shell's startup chain, falling back to `$HOME/.config`. The injection target is then chosen
-      as: `$XDG_CONFIG_HOME/bash/bashtheme` if it exists; otherwise `$XDG_CONFIG_HOME/bash/bashtheme`
-      (created, with a source line injected into `.bashrc`) if `.bashrc` exists; otherwise `.bashrc`
-      directly.
-      Accepts paths prefixed with `~` or `$HOME` (expanded per user).
+      the shell's startup chain, falling back to `$HOME/.config`. The injection target is
+      `$XDG_CONFIG_HOME/bash/bashtheme` if it exists; otherwise `$XDG_CONFIG_HOME/bash/bashtheme`
+      is created and a source line is injected into `$HOME/.bashrc` (creating `.bashrc` if absent).
+      Evaluated in each user's login environment at configure time, so `~`, `$HOME`, and
+      `${VAR:-default}` expressions are all supported.
     type: string
-  user_config_mode:
-    default: overwrite
-    description: Whether to overwrite existing custom-dir symlinks for cloned themes and plugins.
+  osh_cache_dir:
+    default: '${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash'
+    description: |-
+      Value written to `OSH_CACHE_DIR` in the user's shell config block.
+      The default respects `$XDG_CACHE_HOME` at runtime. Override with any absolute path or
+      shell expression (written verbatim — not expanded at install time).
+    type: string
+  update_mode:
+    default: disabled
+    description: |-
+      Oh My Bash auto-update behavior, written as `DISABLE_AUTO_UPDATE` in the user's shell config block.
+      - `disabled` — never check for or apply updates automatically.
+      - `auto` — allow Oh My Bash to check for and apply updates.
+    type: string
     enum:
-    - value: overwrite
-      description: Replace existing symlinks for cloned themes and plugins in the per-user custom directory.
-    - value: augment
-      description: Create symlinks only for items not already present in the per-user custom directory.
-    - value: skip
-      description: Do not create any symlinks in the per-user custom directory.
-    type: string
+      - value: disabled
+        description: Disable automatic update checks.
+      - value: auto
+        description: Allow automatic update checks.
 _options:
   gh_repo: ohmybash/oh-my-bash
+  version:
+    resolution: git_ref
+    default: master
+  method:
+    git-clone:
+      uri: "https://github.com/ohmybash/oh-my-bash"
+      config:
+        oh-my-bash.remote: origin
+        oh-my-bash.branch: "{VERSION}"
+  prefix:
+    root: /usr/local/share/oh-my-bash
+    nonroot: "${HOME}/.oh-my-bash"
+    symlink:
+      skip: true
+    exports:
+      skip: true
 installsAfter:
   - ghcr.io/quantized8/devfeats/install-shell
 _dependencies:
