@@ -185,6 +185,7 @@ users__run_as() {
   _or_c="${_or_c# }" # strip the single leading space; $(...) already strips the trailing newline
   if [ -n "$_or_cd" ]; then
     _or_cd_q="$(bash -c 'printf "%q" "$1"' bash "$_or_cd")"
+    # shellcheck disable=SC2016  # $1 is intentionally single-quoted — evaluated by the subprocess bash
     users__run_privileged su -l "$_or_u" -c "cd ${_or_cd_q} && ${_or_c}"
   else
     users__run_privileged su -l "$_or_u" -c "$_or_c"

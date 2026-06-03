@@ -868,7 +868,8 @@ options:
         return not prefix.get("symlink", {}).get("skip", False)
       }}#
     type: string
-    default: |
+    default: ""
+    _default: |
       #{{ return get("_options.prefix", {}).get("symlink", {}).get("nonroot", "${HOME}/.local/bin") }}#
     description: >-
       Directory where symlinks are created when running as non-root.
