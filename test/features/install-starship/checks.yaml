@@ -1,50 +1,290 @@
 apt_default:
   description: |
-    Verifies that Starship is installed and the Zsh activation hook is
-    injected into root's Zsh rc file.
+    Verifies the default Starship installation (shells=bash+zsh): binary in place,
+    Zsh activation block injected into /root/zshtheme with source line in /root/.zshrc,
+    Bash activation block injected into /root/.config/bash/bashtheme with source line
+    in /root/.bashrc.
+
+  pre: |
+    _HOME=/root
+    _PREFIX=/usr/local
+    _ZSHTHEME="${_HOME}/zshtheme"
+    _BASHTHEME="${_HOME}/.config/bash/bashtheme"
+
+  checks:
+    - title: starship binary installed at /usr/local/bin/starship
+      cmd: test -f /usr/local/bin/starship
+    - title: starship binary is executable
+      cmd: test -x /usr/local/bin/starship
+    - title: starship is on PATH
+      cmd: command -v starship
+    - title: starship --version succeeds
+      cmd: starship --version
+    - title: starship reports a semver version
+      cmd: bash -c 'starship --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
+    - title: zshtheme has starship init zsh block
+      cmd: grep -qF "starship init zsh" "$_ZSHTHEME"
+    - title: .zshrc sources zshtheme
+      cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
+    - title: bashtheme has starship init bash block
+      cmd: grep -qF "starship init bash" "$_BASHTHEME"
+    - title: .bashrc sources bashtheme
+      cmd: grep -qF "bashtheme" "${_HOME}/.bashrc"
+
+apt_zsh_only:
+  description: |
+    Verifies that shells=zsh activates Starship in /root/zshtheme only, and that
+    no Bash activation block is written anywhere.
+
+  pre: |
+    _HOME=/root
+    _ZSHTHEME="${_HOME}/zshtheme"
 
   checks:
     - title: starship binary installed
       cmd: command -v starship
-    - title: starship responds to --version
-      cmd: starship --version
-    - title: zsh rc file has starship init block
-      cmd: >-
-        bash -c 'grep -qF "starship init zsh" /root/.zshrc 2>/dev/null
-        || grep -qF "starship init zsh" /root/zshtheme 2>/dev/null
-        || grep -qF "starship init zsh" /root/.config/zsh/zshtheme 2>/dev/null'
+    - title: zshtheme has starship init zsh block
+      cmd: grep -qF "starship init zsh" "$_ZSHTHEME"
+    - title: .zshrc sources zshtheme
+      cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
+    - title: bashtheme does NOT exist
+      cmd: bash -c '! test -f "${_HOME}/.config/bash/bashtheme"'
+    - title: .bashrc does NOT have starship bash init block
+      cmd: bash -c '! grep -qF "starship init bash" "${_HOME}/.bashrc" 2>/dev/null'
 
 apt_bash_only:
   description: |
-    Verifies that starship_shells=bash activates Starship in Bash only.
+    Verifies that shells=bash activates Starship in /root/.config/bash/bashtheme
+    only, and that no Zsh activation block is written anywhere.
+
+  pre: |
+    _HOME=/root
+    _BASHTHEME="${_HOME}/.config/bash/bashtheme"
 
   checks:
     - title: starship binary installed
       cmd: command -v starship
-    - title: bash rc file has starship init block
-      cmd: >-
-        bash -c 'grep -qF "starship init bash" /root/.bashrc 2>/dev/null
-        || grep -qF "starship init bash" /root/.config/bash/bashtheme 2>/dev/null'
-    - title: zsh rc file does NOT have starship zsh init block
-      cmd: >-
-        bash -c '! grep -qF "starship init zsh" /root/.zshrc 2>/dev/null
-        && ! grep -qF "starship init zsh" /root/zshtheme 2>/dev/null
-        && ! grep -qF "starship init zsh" /root/.config/zsh/zshtheme 2>/dev/null'
+    - title: bashtheme has starship init bash block
+      cmd: grep -qF "starship init bash" "$_BASHTHEME"
+    - title: .bashrc sources bashtheme
+      cmd: grep -qF "bashtheme" "${_HOME}/.bashrc"
+    - title: zshtheme does NOT exist
+      cmd: bash -c '! test -f "${_HOME}/zshtheme"'
+    - title: .zshrc does NOT have starship zsh init block
+      cmd: bash -c '! grep -qF "starship init zsh" "${_HOME}/.zshrc" 2>/dev/null'
 
 apt_binary_only:
   description: |
-    Verifies that starship_shells='' installs the binary without activating
-    it in any shell.
+    Verifies that shells='' installs the Starship binary without activating it
+    in any shell rc file.
+
+  pre: |
+    _HOME=/root
 
   checks:
     - title: starship binary installed
       cmd: command -v starship
-    - title: starship responds to --version
+    - title: starship --version succeeds
       cmd: starship --version
-    - title: no starship init block in any rc file
-      cmd: >-
-        bash -c '! grep -qF "starship init" /root/.zshrc 2>/dev/null
-        && ! grep -qF "starship init" /root/.bashrc 2>/dev/null
-        && ! grep -qF "starship init" /root/zshtheme 2>/dev/null
-        && ! grep -qF "starship init" /root/.config/zsh/zshtheme 2>/dev/null
-        && ! grep -qF "starship init" /root/.config/bash/bashtheme 2>/dev/null'
+    - title: zshtheme does NOT exist
+      cmd: bash -c '! test -f "${_HOME}/zshtheme"'
+    - title: .zshrc does NOT have starship zsh init block
+      cmd: bash -c '! grep -qF "starship init zsh" "${_HOME}/.zshrc" 2>/dev/null'
+    - title: bashtheme does NOT exist
+      cmd: bash -c '! test -f "${_HOME}/.config/bash/bashtheme"'
+    - title: .bashrc does NOT have starship bash init block
+      cmd: bash -c '! grep -qF "starship init bash" "${_HOME}/.bashrc" 2>/dev/null'
+
+apt_fish_hook:
+  description: |
+    With fish installed and shells=bash+zsh+fish, verifies that a Starship
+    activation block is injected into ~/.config/fish/config.fish, fish can
+    source the file without errors, and the bash and zsh blocks are also present.
+
+  pre: |
+    _HOME=/root
+    _ZSHTHEME="${_HOME}/zshtheme"
+    _BASHTHEME="${_HOME}/.config/bash/bashtheme"
+
+  checks:
+    - title: fish is available
+      cmd: command -v fish
+    - title: starship binary installed
+      cmd: command -v starship
+    - title: config.fish has starship init fish block
+      cmd: grep -qF "starship init fish" "${_HOME}/.config/fish/config.fish"
+    - title: config.fish is valid fish syntax
+      cmd: fish -c 'source /root/.config/fish/config.fish'
+    - title: starship init fish produces output
+      cmd: bash -c 'starship init fish | grep -q .'
+    - title: zshtheme also has starship init zsh block
+      cmd: grep -qF "starship init zsh" "$_ZSHTHEME"
+    - title: bashtheme also has starship init bash block
+      cmd: grep -qF "starship init bash" "$_BASHTHEME"
+
+specific_version:
+  description: |
+    version=1.25.1 + method=binary: installs a specific pinned release and
+    verifies the binary reports exactly that version.
+
+  checks:
+    - title: starship binary installed at /usr/local/bin/starship
+      cmd: test -f /usr/local/bin/starship
+    - title: starship binary is executable
+      cmd: test -x /usr/local/bin/starship
+    - title: starship --version succeeds
+      cmd: starship --version
+      debug: |
+        echo "=== starship --version ==="
+        starship --version 2>&1 || echo "(failed)"
+    - title: starship version is 1.25.1
+      cmd: bash -c 'starship --version 2>/dev/null | grep -q "1\.25\.1"'
+
+binary_custom_prefix:
+  description: |
+    method=binary, prefix=/opt/starship-bin, prefix_discovery=symlink:
+    Verifies Starship is installed at the custom prefix and a symlink is
+    created at /usr/local/bin/starship pointing to the custom-prefix binary.
+
+  pre: |
+    _HOME=/root
+    _BASHTHEME="${_HOME}/.config/bash/bashtheme"
+
+  checks:
+    - title: starship binary installed at /opt/starship-bin/bin/starship
+      cmd: test -f /opt/starship-bin/bin/starship
+    - title: starship binary at custom prefix is executable
+      cmd: test -x /opt/starship-bin/bin/starship
+    - title: /opt/starship-bin/bin/starship --version succeeds
+      cmd: /opt/starship-bin/bin/starship --version
+    - title: symlink exists at /usr/local/bin/starship
+      cmd: test -L /usr/local/bin/starship
+    - title: symlink resolves to /opt/starship-bin/bin/starship
+      cmd: bash -c '[ "$(readlink -f /usr/local/bin/starship)" = "/opt/starship-bin/bin/starship" ]'
+    - title: starship resolves from PATH
+      cmd: command -v starship
+    - title: bashtheme has starship init bash block
+      cmd: grep -qF "starship init bash" "$_BASHTHEME"
+
+custom_prefix_no_symlink:
+  description: |
+    method=binary, prefix=/opt/starship-bin, prefix_discovery=none:
+    Verifies Starship is installed at the custom prefix and no symlink is
+    created at the default PATH location.
+
+  checks:
+    - title: starship binary installed at /opt/starship-bin/bin/starship
+      cmd: test -f /opt/starship-bin/bin/starship
+    - title: starship binary at custom prefix is executable
+      cmd: test -x /opt/starship-bin/bin/starship
+    - title: /opt/starship-bin/bin/starship --version succeeds
+      cmd: /opt/starship-bin/bin/starship --version
+    - title: no file or symlink at /usr/local/bin/starship
+      cmd: bash -c '! test -L /usr/local/bin/starship && ! test -e /usr/local/bin/starship'
+
+package_install:
+  description: |
+    Verifies Starship is available when installed via the OS package manager
+    (method=package). Does not assert a specific binary path since the package
+    manager controls placement.
+
+  checks:
+    - title: starship is on PATH
+      cmd: command -v starship
+    - title: starship --version succeeds
+      cmd: starship --version
+    - title: starship reports a semver version
+      cmd: bash -c 'starship --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
+
+if_exists_fail:
+  description: |
+    if_exists=fail: ensures the installer exits non-zero when starship is already
+    present on PATH, leaving the pre-installed stub untouched.
+
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: "failing (if_exists=fail)"
+    - title: pre-installed starship stub still present
+      cmd: command -v starship
+    - title: stub version is unchanged
+      cmd: bash -c 'starship --version 2>/dev/null | grep -q "1\.99\.0"'
+
+if_exists_skip:
+  description: |
+    if_exists=skip: ensures the installer exits 0 when starship is already
+    present on PATH, leaving the pre-installed stub and its version untouched.
+
+  checks:
+    - title: starship remains available after skip
+      cmd: command -v starship
+    - title: stub version is unchanged (skip did not reinstall)
+      cmd: bash -c 'starship --version 2>/dev/null | grep -q "1\.99\.0"'
+
+reinstall:
+  description: |
+    if_exists=reinstall + method=binary + version=1.25.1 with a stub binary
+    pre-installed: verifies the installer replaces the stub and the new version
+    is reported correctly.
+
+  checks:
+    - title: starship binary present at /usr/local/bin/starship
+      cmd: test -f /usr/local/bin/starship
+    - title: starship binary is executable
+      cmd: test -x /usr/local/bin/starship
+    - title: starship --version succeeds
+      cmd: starship --version
+      debug: |
+        echo "=== starship --version ==="
+        starship --version 2>&1 || echo "(failed)"
+    - title: starship version is 1.25.1 (reinstalled)
+      cmd: bash -c 'starship --version 2>/dev/null | grep -q "1\.25\.1"'
+
+version_match_idempotency:
+  description: |
+    version=1.25.1 + if_exists=fail with a stub already claiming version 1.25.1:
+    if_exists=fail aborts whenever starship is found, regardless of version match.
+    The stub must remain untouched.
+
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: "failing (if_exists=fail)"
+    - title: starship stub still present
+      cmd: command -v starship
+    - title: stub version is still 1.25.1
+      cmd: bash -c 'starship --version 2>/dev/null | grep -q "1\.25\.1"'
+
+custom_zsh_rcfile:
+  description: |
+    zsh_rcfile=/root/.zshrc: verifies that the Starship Zsh activation block is
+    written directly to /root/.zshrc (not to /root/zshtheme) and that the theme
+    file is not created.
+
+  pre: |
+    _HOME=/root
+
+  checks:
+    - title: starship binary installed
+      cmd: command -v starship
+    - title: .zshrc has starship init zsh block
+      cmd: grep -qF "starship init zsh" "${_HOME}/.zshrc"
+    - title: zshtheme is NOT created
+      cmd: bash -c '! test -f "${_HOME}/zshtheme"'
+
+custom_bash_rcfile:
+  description: |
+    bash_rcfile=/root/.bashrc: verifies that the Starship Bash activation block is
+    written directly to /root/.bashrc (not to /root/.config/bash/bashtheme) and
+    that the theme file is not created.
+
+  pre: |
+    _HOME=/root
+
+  checks:
+    - title: starship binary installed
+      cmd: command -v starship
+    - title: .bashrc has starship init bash block
+      cmd: grep -qF "starship init bash" "${_HOME}/.bashrc"
+    - title: bashtheme is NOT created
+      cmd: bash -c '! test -f "${_HOME}/.config/bash/bashtheme"'

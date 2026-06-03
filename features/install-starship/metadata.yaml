@@ -1,33 +1,102 @@
 version: 0.1.0
-name: Starship
-description: Install the [Starship](https://starship.rs/) prompt and activate it in Zsh and/or Bash.
+name: Starship Installation
+description: Install [Starship](https://starship.rs/) — the minimal, blazing-fast, and infinitely customizable cross-shell prompt.
 keywords:
-- shell
-- prompt
-- starship
+  - starship
+  - shell
+  - prompt
+  - cli
 _long_description: >-
-  Downloads and installs the [Starship](https://starship.rs/) prompt binary using
-  the official installer script and wires up per-user shell activation by injecting
-  a guarded `eval "$(starship init <shell>)"` block into each user's `zshtheme`
-  and/or `bashtheme` file (or directly into the shell rc file when no theme file is
-  present). Starship's init hook overrides the shell's prompt function, taking
-  precedence over any framework theme set by install-ohmyzsh or install-ohmybash.
-options:
-  starship_shells:
-    type: array
-    default: zsh
-    description: |-
-      Shells to activate the Starship prompt in. Leave empty to install the binary without activating it.
-      Starship's init hook overrides the shell's prompt function, so it takes precedence over any
-      Oh My Zsh or Oh My Bash theme without requiring those features to be disabled.
-    enum:
-    - value: bash
-      description: Activate Starship in Bash by injecting `eval "$(starship init bash)"` into the Bash theme file.
-    - value: zsh
-      description: Activate Starship in Zsh by injecting `eval "$(starship init zsh)"` into the Zsh theme file.
+  Downloads and installs [Starship](https://starship.rs/) from GitHub Releases and wires up
+  per-user shell activation by injecting a guarded `eval "$(starship init <shell>)"` block
+  (or shell-equivalent) into each configured user's interactive shell startup files.
+  Starship's init hook overrides the shell prompt and takes precedence over any
+  framework-set theme (e.g. from install-ohmyzsh or install-ohmybash) without requiring
+  those features to be disabled.
+_tool_name: starship
 _options:
+  gh_repo: starship/starship
+  version:
+    resolution: github_release
+    default: stable
+    flag: --version
+    proposals:
+      - value: 1.25.1
+        description: Starship v1.25.1.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/starship-{RUST_TRIPLE}.tar.gz"
+      binary_src: starship
+    script:
+      asset_uri: "https://starship.rs/install.sh"
+    package: {}
+    cargo:
+      crate: starship
   prefix:
     bins: [starship]
+    applies_when:
+      - method: [binary, script, cargo]
+  completions:
+    subcmd: "completions"
+    shells: [bash, zsh, fish]
+options:
+  shells:
+    type: array
+    default: "bash\nzsh"
+    description: |-
+      Shells to activate Starship in. For each shell listed, a guarded init hook is
+      injected into each configured user's interactive shell startup file, enabling the
+      Starship prompt. Leave empty to install the binary without activating it in any shell.
+      Starship's hook overrides the shell's PS1/PROMPT function; it does not require disabling
+      other frameworks (e.g. Oh My Zsh) — since this feature installs after them, its block
+      is appended last and always takes precedence.
+    enum:
+      - value: bash
+        description: >-
+          Inject `eval "$(starship init bash)"` into the user's Bash theme file
+          (`$XDG_CONFIG_HOME/bash/bashtheme`, created with a source line in `~/.bashrc`
+          when not present).
+      - value: zsh
+        description: >-
+          Inject `eval "$(starship init zsh)"` into the user's Zsh theme file
+          (`$ZDOTDIR/zshtheme`, created with a source line in `$ZDOTDIR/.zshrc`
+          when not present).
+      - value: fish
+        description: >-
+          Inject `starship init fish | source` into `~/.config/fish/config.fish`.
+      - value: tcsh
+        description: >-
+          Inject `eval \`starship init tcsh\`` into `~/.tcshrc` (or `~/.cshrc`
+          when `.tcshrc` is absent).
+      - value: elvish
+        description: >-
+          Inject `eval (starship init elvish)` into `~/.config/elvish/rc.elv`.
+      - value: nushell
+        description: >-
+          Generate `~/.cache/starship/init.nu` via `starship init nu --print-full-init`
+          and inject `use ~/.cache/starship/init.nu` into `~/.config/nushell/env.nu`.
+          Re-run configure (e.g. with `if_exists=update`) after upgrading Starship to
+          refresh the cached init file.
+  zsh_rcfile:
+    default: ''
+    description: |-
+      Full path to the per-user Zsh theme file that Starship's activation block is
+      injected into. Leave empty to resolve automatically: detects ZDOTDIR from the
+      user's live Zsh environment (or parses zshenv files), then uses
+      `$ZDOTDIR/zshtheme` (creating it with a source line in `$ZDOTDIR/.zshrc` when
+      absent). Evaluated in each user's login environment at configure time, so `~`,
+      `$HOME`, and `${VAR:-default}` expressions are all supported.
+    type: string
+  bash_rcfile:
+    default: ''
+    description: |-
+      Full path to the per-user Bash theme file that Starship's activation block is
+      injected into. Leave empty to resolve automatically: detects XDG_CONFIG_HOME from
+      the user's live Bash environment, then uses `$XDG_CONFIG_HOME/bash/bashtheme`
+      (creating it with a source line in `~/.bashrc` when absent). Evaluated in each
+      user's login environment at configure time, so `~`, `$HOME`, and
+      `${VAR:-default}` expressions are all supported.
+    type: string
 installsAfter:
   - ghcr.io/quantized8/devfeats/install-ohmyzsh
   - ghcr.io/quantized8/devfeats/install-ohmybash
@@ -36,3 +105,6 @@ _dependencies:
     base:
       packages:
         - ca-certificates
+    os-pkg:
+      packages:
+        - starship

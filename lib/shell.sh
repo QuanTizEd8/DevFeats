@@ -300,22 +300,26 @@ shell__system_path_files() {
   return 0
 }
 
-# @brief shell__detect_zdotdir [--home <dir>] — Print the effective ZDOTDIR for a user. Probes the live environment, parses system and user zshenv, then falls back to `<home>`.
+# @brief shell__detect_zdotdir [--home <dir>] [--user <username>] — Print the effective ZDOTDIR for a user. Probes the live environment, parses system and user zshenv, then falls back to `<home>`.
 #
 # Detection order:
-#   1. If <home> matches $HOME and $ZDOTDIR is set → use $ZDOTDIR directly
-#      (we are the target user; the value is live in the environment).
-#   2. Parse ZDOTDIR= assignments from the system zshenv and <home>/.zshenv.
+#   1. If --user is given and is a different user and zsh is available:
+#      run `zsh` as that user to read ZDOTDIR from the live environment.
+#   2. If <home> matches $HOME and $ZDOTDIR is set → use $ZDOTDIR directly
+#      (we are the target user; the value is live in the current environment).
+#   3. Parse ZDOTDIR= assignments from the system zshenv and <home>/.zshenv.
 #      Substitutes $HOME, ${HOME}, ~, $XDG_CONFIG_HOME, ${XDG_CONFIG_HOME}.
-#      Falls back if the result still contains unresolvable variables.
-#   3. Falls back to <home>.
+#      Falls back to the next tier if the result still contains unresolvable variables.
+#   4. Falls back to <home>.
 #
 # Args:
-#   --home <dir>  User home directory (default: $HOME).
+#   --home <dir>      User home directory (default: $HOME).
+#   --user <username> Target username. When given and differs from the current
+#                     user, spawns zsh as that user to read the live ZDOTDIR.
 #
 # Stdout: absolute path to the effective ZDOTDIR.
 shell__detect_zdotdir() {
-  local _home="${HOME:-}"
+  local _home="${HOME:-}" _user=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --home)
@@ -323,17 +327,37 @@ shell__detect_zdotdir() {
         _home="$1"
         shift
         ;;
+      --user)
+        shift
+        _user="$1"
+        shift
+        ;;
       *) shift ;;
     esac
   done
 
-  # Tier 1: live environment — we ARE the target user.
+  # Tier 1: run zsh as the target user to get the live ZDOTDIR.
+  # Only when a username is given, it differs from the current user, and zsh
+  # is available.
+  if [[ -n "$_user" && "$_user" != "$(users__get_current --no-sudo 2> /dev/null)" ]] &&
+    command -v zsh > /dev/null 2>&1; then
+    local _live_zdotdir=""
+    # shellcheck disable=SC2016  # ZDOTDIR is a zsh variable, not a bash variable
+    _live_zdotdir="$(users__run_as "$_user" -- zsh -c 'printf "%s" "${ZDOTDIR:-}"' \
+      2> /dev/null || true)"
+    if [[ -n "$_live_zdotdir" ]]; then
+      echo "$_live_zdotdir"
+      return 0
+    fi
+  fi
+
+  # Tier 2: live environment — we ARE the target user.
   if [[ "$_home" == "${HOME:-}" && -n "${ZDOTDIR:-}" ]]; then
     echo "$ZDOTDIR"
     return 0
   fi
 
-  # Tier 2: parse ZDOTDIR= from zshenv files.
+  # Tier 3: parse ZDOTDIR= from zshenv files.
   local _zshenv_files=""
   local _sys_zshenv
   _sys_zshenv="$(shell__detect_zshdir)/zshenv"
@@ -370,8 +394,187 @@ shell__detect_zdotdir() {
     fi
   fi
 
-  # Tier 3: fallback.
+  # Tier 4: fallback.
   echo "$_home"
+  return 0
+}
+
+# @brief shell__detect_xdg_config_home [<username>] — Print the effective XDG_CONFIG_HOME for a user.
+#
+# Detection order:
+#   1. If a username is given and differs from the current user and bash is
+#      available: run `bash` as that user to read XDG_CONFIG_HOME from the
+#      live environment.
+#   2. If no username (or same as current user) and $XDG_CONFIG_HOME is set
+#      in the current environment → use it directly.
+#   3. Falls back to `<home>/.config`.
+#
+# Args:
+#   <username>  (optional positional) Target username. Home is resolved via
+#               users__resolve_home. Defaults to the current user.
+#
+# Stdout: absolute path to the effective XDG_CONFIG_HOME.
+shell__detect_xdg_config_home() {
+  local _user="${1:-}" _home
+  if [[ -n "$_user" ]]; then
+    _home="$(users__resolve_home "$_user")"
+  else
+    _home="${HOME:-}"
+  fi
+
+  # Tier 1: run bash as the target user to get the live XDG_CONFIG_HOME.
+  if [[ -n "$_user" && "$_user" != "$(users__get_current --no-sudo 2> /dev/null)" ]] &&
+    command -v bash > /dev/null 2>&1; then
+    local _live_xdg=""
+    # shellcheck disable=SC2016  # XDG_CONFIG_HOME is a variable for the target user's shell
+    _live_xdg="$(users__run_as "$_user" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
+      2> /dev/null || true)"
+    if [[ -n "$_live_xdg" ]]; then
+      echo "$_live_xdg"
+      return 0
+    fi
+  fi
+
+  # Tier 2: live environment — we ARE the target user.
+  if [[ -n "${XDG_CONFIG_HOME:-}" ]]; then
+    echo "$XDG_CONFIG_HOME"
+    return 0
+  fi
+
+  # Tier 3: fallback.
+  echo "${_home}/.config"
+  return 0
+}
+
+# @brief shell__resolve_zsh_theme_file [<username>] [--zdotdir <dir>] --source-marker <marker>
+#
+# Resolves the path of the per-user Zsh theme file (`zshtheme`) and ensures it
+# is wired into the user's `.zshrc` via a sourced block.
+#
+# Detects ZDOTDIR (via --zdotdir override or shell__detect_zdotdir) and returns
+# `$ZDOTDIR/zshtheme`. When the theme file does not already exist, a guarded
+# source block is injected into `$ZDOTDIR/.zshrc` (created if absent) using
+# --source-marker so that `.zshrc` sources the theme file on startup.
+#
+# Call this only when no user-provided path override is in effect; handle that
+# check at the call site before invoking this function.
+#
+# Args:
+#   <username>          (optional positional) Target username. Home resolved via
+#                       users__resolve_home. Defaults to current user.
+#   --zdotdir <dir>     ZDOTDIR override (skips live detection when given).
+#   --source-marker <m> Marker for the shell__write_block source-injection block.
+#
+# Stdout: absolute path to the theme file to write the feature block into.
+shell__resolve_zsh_theme_file() {
+  local _user="" _zdotdir_override="" _source_marker=""
+  # Consume the optional leading positional username only when the first arg is
+  # not a flag (does not start with '--').
+  if [[ $# -gt 0 && "$1" != --* ]]; then
+    _user="$1"
+    shift
+  fi
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --zdotdir)
+        shift
+        _zdotdir_override="$1"
+        shift
+        ;;
+      --source-marker)
+        shift
+        _source_marker="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+
+  local _home
+  if [[ -n "$_user" ]]; then
+    _home="$(users__resolve_home "$_user")"
+  else
+    _home="${HOME:-}"
+  fi
+
+  local _zdotdir
+  if [[ -n "$_zdotdir_override" ]]; then
+    _zdotdir="$_zdotdir_override"
+  else
+    _zdotdir="$(shell__detect_zdotdir --user "$_user" --home "$_home")"
+  fi
+
+  local _theme_file="${_zdotdir}/zshtheme"
+  if [[ ! -f "$_theme_file" ]]; then
+    # shellcheck disable=SC2016  # ZDOTDIR/$HOME are runtime shell variables, not bash variables
+    shell__write_block \
+      --file "${_zdotdir}/.zshrc" \
+      --marker "$_source_marker" \
+      --content '[ -f "${ZDOTDIR:-$HOME}/zshtheme" ] && source "${ZDOTDIR:-$HOME}/zshtheme"'
+  fi
+
+  echo "$_theme_file"
+  return 0
+}
+
+# @brief shell__resolve_bash_theme_file [<username>] --source-marker <marker>
+#
+# Resolves the path of the per-user Bash theme file (`bashtheme`) and ensures it
+# is wired into the user's `.bashrc` via a sourced block.
+#
+# Detects XDG_CONFIG_HOME (via shell__detect_xdg_config_home) and returns
+# `$XDG_CONFIG_HOME/bash/bashtheme`. When the theme file does not already exist,
+# a guarded source block is injected into `$HOME/.bashrc` (created if absent)
+# using --source-marker.
+#
+# Call this only when no user-provided path override is in effect; handle that
+# check at the call site before invoking this function.
+#
+# Args:
+#   <username>          (optional positional) Target username. Home resolved via
+#                       users__resolve_home. Defaults to current user.
+#   --source-marker <m> Marker for the shell__write_block source-injection block.
+#
+# Stdout: absolute path to the theme file to write the feature block into.
+shell__resolve_bash_theme_file() {
+  local _user="" _source_marker=""
+  # Consume the optional leading positional username only when the first arg is
+  # not a flag (does not start with '--').
+  if [[ $# -gt 0 && "$1" != --* ]]; then
+    _user="$1"
+    shift
+  fi
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --source-marker)
+        shift
+        _source_marker="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+
+  local _home
+  if [[ -n "$_user" ]]; then
+    _home="$(users__resolve_home "$_user")"
+  else
+    _home="${HOME:-}"
+  fi
+
+  local _xdg_config_home
+  _xdg_config_home="$(shell__detect_xdg_config_home "$_user")"
+
+  local _theme_file="${_xdg_config_home}/bash/bashtheme"
+  if [[ ! -f "$_theme_file" ]]; then
+    # shellcheck disable=SC2016  # XDG_CONFIG_HOME/$HOME are runtime shell variables, not bash variables
+    shell__write_block \
+      --file "${_home}/.bashrc" \
+      --marker "$_source_marker" \
+      --content '[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme"'
+  fi
+
+  echo "$_theme_file"
   return 0
 }
 

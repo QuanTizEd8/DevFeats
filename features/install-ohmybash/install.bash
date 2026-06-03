@@ -64,14 +64,12 @@ __uninstall_finish_post() {
   mapfile -t _users < <(users__resolve_list)
   local _user
   for _user in "${_users[@]+"${_users[@]}"}"; do
-    id "${_user}" > /dev/null 2>&1 || continue
+    users__uid_of_user "${_user}" > /dev/null 2>&1 || continue
     local _home
     _home="$(users__resolve_home "${_user}")"
     local _xdg_config_home
-    # shellcheck disable=SC2016  # ${XDG_CONFIG_HOME:-} is a bash variable for the target user's shell
-    _xdg_config_home="$(users__run_as "${_user}" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
-      2> /dev/null || true)"
-    local _bash_config_dir="${_xdg_config_home:-${_home}/.config}/bash"
+    _xdg_config_home="$(shell__detect_xdg_config_home "${_user}")"
+    local _bash_config_dir="${_xdg_config_home}/bash"
     local _candidates
     _candidates="${_home}/.bashrc"$'\n'"${_bash_config_dir}/bashtheme"
     shell__sync_block --files "${_candidates}" --marker "install-ohmybash"
@@ -119,12 +117,8 @@ _link_custom_items() {
 
 # ---------------------------------------------------------------------------
 # __configure_user <username>
-# Injects a guarded OMB setup block into the appropriate rc file for the user.
-# Rcfile resolution (when RCFILE option is empty):
-#   1. Run bash as the user to read XDG_CONFIG_HOME from the shell's startup chain.
-#   2. _rcdir = ${XDG_CONFIG_HOME:-${HOME}/.config}/bash
-#   3. If ${_rcdir}/bashtheme exists  → write there (install-shell integration).
-#   4. Else → create bashtheme + inject source line into ${HOME}/.bashrc (creating it if absent).
+# Injects a guarded OMB setup block into the appropriate Bash theme file.
+# Rcfile resolution is delegated to shell__resolve_bash_theme_file (see lib/shell.sh).
 # ---------------------------------------------------------------------------
 __configure_user() {
   local _username="$1"
@@ -135,24 +129,18 @@ __configure_user() {
 
   logging__info "Configuring Oh My Bash for user '${_username}' (home: ${_home})..."
 
-  local _rcfile _rcdir _inject_source=false
-  if [ -n "$RCFILE" ]; then
+  # Resolve the bash theme file for this user. shell__resolve_bash_theme_file
+  # detects XDG_CONFIG_HOME, always targets $XDG_CONFIG_HOME/bash/bashtheme,
+  # and injects a source line into .bashrc when the theme file does not yet exist.
+  local _rcfile
+  if [ -n "${RCFILE:-}" ]; then
     _rcfile="$(users__expand_path --user "$_username" "$RCFILE")"
-    _rcdir="$(dirname "$_rcfile")"
   else
-    local _xdg_config_home=""
-    # shellcheck disable=SC2016  # ${XDG_CONFIG_HOME:-} is a bash variable for the target user's shell
-    _xdg_config_home="$(users__run_as "$_username" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
-      2> /dev/null || true)"
-    local _xdg_bash_dir="${_xdg_config_home:-${_home}/.config}/bash"
-    _rcfile="${_xdg_bash_dir}/bashtheme" # same path in both cases; only _inject_source differs
-    _rcdir="${_xdg_bash_dir}"
-    if [ ! -f "${_xdg_bash_dir}/bashtheme" ]; then
-      # No bashtheme yet: create it at the XDG path and wire it into .bashrc.
-      _inject_source=true
-    fi
-    # else: install-shell scenario — bashtheme exists and is already sourced from .bashrc.
+    _rcfile="$(shell__resolve_bash_theme_file "$_username" \
+      --source-marker "install-ohmybash-source")"
   fi
+  local _rcdir
+  _rcdir="$(dirname "$_rcfile")"
 
   local _custom_dir_raw="${CUSTOM_DIR:-}"
   [ -z "$_custom_dir_raw" ] && _custom_dir_raw="${_rcdir}/custom"
@@ -202,13 +190,6 @@ __configure_user() {
 
   mkdir -p "$_rcdir"
   shell__write_block --file "$_rcfile" --marker "install-ohmybash" --content "$_content"
-
-  # Case 4: no bashtheme yet — wire up the source line into .bashrc.
-  if [[ "$_inject_source" == true ]]; then
-    # shellcheck disable=SC2016
-    shell__write_block --file "${_home}/.bashrc" --marker "install-ohmybash-source" \
-      --content '[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme"'
-  fi
 
   if [[ "$_is_per_user" == true ]]; then
     local _link_mode

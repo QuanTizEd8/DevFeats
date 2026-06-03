@@ -64,11 +64,11 @@ __uninstall_finish_post() {
   mapfile -t _users < <(users__resolve_list)
   local _user
   for _user in "${_users[@]+"${_users[@]}"}"; do
-    id "${_user}" > /dev/null 2>&1 || continue
+    users__uid_of_user "${_user}" > /dev/null 2>&1 || continue
     local _home
     _home="$(users__resolve_home "${_user}")"
     local _zdotdir
-    _zdotdir="$(shell__detect_zdotdir --home "${_home}")"
+    _zdotdir="$(shell__detect_zdotdir --user "${_user}" --home "${_home}")"
     local _candidates
     _candidates="${_home}/.zshrc"$'\n'"${_zdotdir}/zshtheme"
     # Only add ${_zdotdir}/.zshrc when ZDOTDIR differs from HOME; when they are the same
@@ -120,13 +120,10 @@ _link_custom_items() {
 
 # ---------------------------------------------------------------------------
 # __configure_user <username>
-# Injects a guarded OMZ setup block into the appropriate rc file for the user.
-# Rcfile resolution (when RCFILE option is empty):
-#   1. Use ZDOTDIR option if set, or run zsh to read ZDOTDIR from startup chain.
-#   2. _rcdir = ${ZDOTDIR:-${HOME}} (zsh native default when ZDOTDIR unset).
-#   3. If ${_rcdir}/zshtheme exists  → write there (install-shell integration).
-#   4. Else if ${_rcdir}/.zshrc exists → create zshtheme + inject source line.
-#   5. Else → create .zshrc and write the OMZ block directly there.
+# Injects a guarded OMZ setup block into the user's Zsh theme file.
+# Rcfile resolution is delegated to shell__resolve_zsh_theme_file (see lib/shell.sh):
+# always targets $ZDOTDIR/zshtheme, creating it with a source line in
+# $ZDOTDIR/.zshrc when absent.  The ZDOTDIR option overrides auto-detection.
 # ---------------------------------------------------------------------------
 __configure_user() {
   local _username="$1"
@@ -137,30 +134,22 @@ __configure_user() {
 
   logging__info "Configuring Oh My Zsh for user '${_username}' (home: ${_home})..."
 
-  # Resolve rcfile and the directory used as ZDOTDIR for ZSH_CUSTOM default.
-  local _rcfile _rcdir _inject_source=false
-  if [ -n "$RCFILE" ]; then
+  # Resolve the zsh theme file for this user. shell__resolve_zsh_theme_file
+  # detects ZDOTDIR (honouring the ZDOTDIR option when set), always targets
+  # $ZDOTDIR/zshtheme, and injects a source line into .zshrc when the theme
+  # file does not yet exist.
+  local _zdotdir_arg=""
+  [ -n "${ZDOTDIR:-}" ] && _zdotdir_arg="$(users__expand_path --user "$_username" "$ZDOTDIR")"
+  local _rcfile
+  if [ -n "${RCFILE:-}" ]; then
     _rcfile="$(users__expand_path --user "$_username" "$RCFILE")"
-    _rcdir="$(dirname "$_rcfile")"
   else
-    local _zdotdir=""
-    if [ -n "${ZDOTDIR:-}" ]; then
-      _zdotdir="$(users__expand_path --user "$_username" "$ZDOTDIR")"
-    elif command -v zsh > /dev/null 2>&1; then
-      # shellcheck disable=SC2016  # $ZDOTDIR is a zsh variable, not a shell variable
-      _zdotdir="$(users__run_as "$_username" -- zsh -c 'printf "%s" "$ZDOTDIR"' \
-        2> /dev/null || true)"
-    fi
-    _rcdir="${_zdotdir:-${_home}}"
-    if [ -f "${_rcdir}/zshtheme" ]; then
-      _rcfile="${_rcdir}/zshtheme"
-    elif [ -f "${_rcdir}/.zshrc" ]; then
-      _rcfile="${_rcdir}/zshtheme"
-      _inject_source=true
-    else
-      _rcfile="${_rcdir}/.zshrc"
-    fi
+    _rcfile="$(shell__resolve_zsh_theme_file "$_username" \
+      ${_zdotdir_arg:+--zdotdir "$_zdotdir_arg"} \
+      --source-marker "install-ohmyzsh-source")"
   fi
+  local _rcdir
+  _rcdir="$(dirname "$_rcfile")"
 
   local _custom_dir_raw="${CUSTOM_DIR:-}"
   [ -z "$_custom_dir_raw" ] && _custom_dir_raw="${_rcdir}/custom"
@@ -222,13 +211,6 @@ __configure_user() {
 
   mkdir -p "$_rcdir"
   shell__write_block --file "$_rcfile" --marker "install-ohmyzsh" --content "$_content"
-
-  # Case 4: .zshrc existed but zshtheme didn't — wire up the source line.
-  if [[ "$_inject_source" == true ]]; then
-    # shellcheck disable=SC2016
-    shell__write_block --file "${_rcdir}/.zshrc" --marker "install-ohmyzsh-source" \
-      --content '[ -f "${ZDOTDIR:-$HOME}/zshtheme" ] && source "${ZDOTDIR:-$HOME}/zshtheme"'
-  fi
 
   # Derive symlink/copy mode from if_exists: update → augment; all others → overwrite.
   if [[ "$_is_per_user" == true ]]; then

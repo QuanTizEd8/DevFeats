@@ -7,16 +7,141 @@ apt_default:
   modes: [devcontainer]
   tests: [apt_default]
 
+apt_zsh_only:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    shells: zsh
+  tests: [apt_zsh_only]
+
 apt_bash_only:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
-    starship_shells: bash
+    shells: bash
   tests: [apt_bash_only]
 
 apt_binary_only:
   envs: [debian-latest]
   modes: [devcontainer]
   options:
-    starship_shells: ""
+    shells: ""
   tests: [apt_binary_only]
+
+apt_fish_hook:
+  envs: [ubuntu-latest+fish]
+  modes: [devcontainer]
+  options:
+    shells: "bash\nzsh\nfish"
+  tests: [apt_fish_hook]
+
+specific_version:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    version: "1.25.1"
+    method: binary
+  tests: [specific_version]
+
+binary_custom_prefix:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    method: binary
+    prefix: /opt/starship-bin
+    prefix_discovery: symlink
+    if_exists: reinstall
+  tests: [binary_custom_prefix]
+
+custom_prefix_no_symlink:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    method: binary
+    prefix: /opt/starship-bin
+    prefix_discovery: none
+  tests: [custom_prefix_no_symlink]
+
+package_install:
+  envs:
+    - debian-bookworm+bash
+    - ubuntu-24.04
+    - fedora-latest+bash
+    - alpine-latest+bash
+    - arch+bash
+    - opensuse-leap+bash
+  modes: [devcontainer, standalone]
+  options:
+    method: package
+  tests: [package_install]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.99.0"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/starship
+    chmod +x /usr/local/bin/starship
+  options:
+    method: auto
+    if_exists: fail
+  tests: [if_exists_fail]
+  standalone:
+    skip_install: false
+
+if_exists_skip:
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.99.0"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/starship
+    chmod +x /usr/local/bin/starship
+  options:
+    method: auto
+    if_exists: skip
+  tests: [if_exists_skip]
+
+reinstall:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.0.0 (stub)"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/starship
+    chmod +x /usr/local/bin/starship
+  options:
+    version: "1.25.1"
+    method: binary
+    if_exists: reinstall
+  tests: [reinstall]
+
+version_match_idempotency:
+  expect_install_failure: true
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.25.1"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/starship
+    chmod +x /usr/local/bin/starship
+  options:
+    version: "1.25.1"
+    if_exists: fail
+  tests: [version_match_idempotency]
+  standalone:
+    skip_install: false
+
+custom_zsh_rcfile:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    shells: zsh
+    zsh_rcfile: /root/.zshrc
+  tests: [custom_zsh_rcfile]
+
+custom_bash_rcfile:
+  envs: [debian-latest]
+  modes: [devcontainer]
+  options:
+    shells: bash
+    bash_rcfile: /root/.bashrc
+  tests: [custom_bash_rcfile]
