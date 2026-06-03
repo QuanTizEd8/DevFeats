@@ -68,6 +68,7 @@ __uninstall_finish_post() {
     local _home
     _home="$(users__resolve_home "${_user}")"
     local _xdg_config_home
+    # shellcheck disable=SC2016  # ${XDG_CONFIG_HOME:-} is a bash variable for the target user's shell
     _xdg_config_home="$(users__run_as "${_user}" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
       2> /dev/null || true)"
     local _bash_config_dir="${_xdg_config_home:-${_home}/.config}/bash"
