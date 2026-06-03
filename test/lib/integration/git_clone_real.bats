@@ -24,10 +24,10 @@ setup_file() {
   command -v git > /dev/null 2>&1 || return 0
 
   local _src="${BATS_FILE_TMPDIR}/src.git"
-  git init --bare "${_src}" > /dev/null 2>&1
+  git -c init.defaultBranch=main init --bare "${_src}" > /dev/null 2>&1
 
   local _work="${BATS_FILE_TMPDIR}/work"
-  git clone "file://${_src}" "${_work}" > /dev/null 2>&1
+  git -c init.defaultBranch=main clone "file://${_src}" "${_work}" > /dev/null 2>&1
   git -C "${_work}" config user.email "test@test.com"
   git -C "${_work}" config user.name "Test"
 
