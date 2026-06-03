@@ -161,6 +161,13 @@ Describe how to uninstall the tool, and any important considerations for this pr
 Describe the behavior of the installation method if it is run multiple times, e.g. whether it will skip installation if the tool is already installed, whether it will overwrite the existing installation, etc.
 -->
 
+#### Details
+
+<!--
+For non-trivial installation methods, especially those that involve custom scripts, provide a detailed explanation of how the installation method works, what steps it performs, and how it achieves the installation of the tool. Include all relevant technical details, such as how it determines the version to install, how it handles dependencies, how it performs the installation, and any other important information required to fully replicate the installation method.
+!-->
+
+
 #### Notes and Best Practices
 
 <!--
