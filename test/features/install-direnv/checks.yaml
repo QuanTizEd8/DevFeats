@@ -1,19 +1,191 @@
-apt_default:
+default:
   description: |
-    Verifies direnv is installed and shell hooks are injected into per-user
-    Zsh and Bash rc files.
-
+    Verifies direnv is installed and all shell hooks are injected into the
+    appropriate per-user rc files (bash, zsh, fish, tcsh, elvish).
   checks:
+    - title: direnv binary installed at /usr/local/bin/direnv
+      cmd: test -f /usr/local/bin/direnv
+    - title: direnv binary is executable
+      cmd: test -x /usr/local/bin/direnv
     - title: direnv on PATH
       cmd: command -v direnv
-    - title: direnv responds to --version
+    - title: direnv --version succeeds
       cmd: direnv --version
-    - title: direnv hook in zsh rc
-      cmd: >-
-        bash -c 'grep -qF "direnv hook zsh" /root/.zshrc 2>/dev/null
-        || grep -qF "direnv hook zsh" /root/zshtheme 2>/dev/null
-        || grep -qF "direnv hook zsh" /root/.config/zsh/zshtheme 2>/dev/null'
-    - title: direnv hook in bash rc
+    - title: direnv reports a semver version
+      cmd: bash -c 'direnv --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
+    - title: direnv bash hook written to rc file
       cmd: >-
         bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
-        || grep -qF "direnv hook bash" /root/.config/bash/bashtheme 2>/dev/null'
+        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+    - title: direnv zsh hook written to rc file
+      cmd: >-
+        bash -c 'grep -qF "direnv hook zsh" /root/.zshrc 2>/dev/null
+        || grep -qF "direnv hook zsh" /root/.config/zsh/.zshrc 2>/dev/null'
+    - title: direnv fish hook written to config.fish
+      cmd: bash -c 'grep -qF "direnv hook fish" /root/.config/fish/config.fish'
+    - title: direnv tcsh hook written to cshrc
+      cmd: >-
+        bash -c 'grep -qF "direnv hook tcsh" /root/.tcshrc 2>/dev/null
+        || grep -qF "direnv hook tcsh" /root/.cshrc 2>/dev/null'
+    - title: direnv elvish hook written to rc.elv
+      cmd: bash -c 'grep -qF "direnv" /root/.config/elvish/rc.elv'
+
+specific_version:
+  description: |
+    version=2.35.0 + method=binary: installs a specific pinned release and
+    verifies the binary reports exactly that version.
+  checks:
+    - title: direnv binary installed at /usr/local/bin/direnv
+      cmd: test -f /usr/local/bin/direnv
+    - title: direnv binary is executable
+      cmd: test -x /usr/local/bin/direnv
+    - title: direnv --version succeeds
+      cmd: direnv --version
+      debug: |
+        echo "=== direnv --version ==="
+        direnv --version 2>&1 || echo "(failed)"
+    - title: direnv version is 2.35.0
+      cmd: bash -c '[ "$(direnv --version 2>/dev/null)" = "2.35.0" ]'
+    - title: direnv bash hook written to rc file
+      cmd: >-
+        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+
+binary_custom_prefix:
+  description: |
+    method=binary, prefix=/opt/direnv-bin, prefix_discovery=symlink:
+    Verifies direnv is installed at the custom prefix and a symlink is created
+    at /usr/local/bin/direnv pointing back to the custom-prefix binary.
+  checks:
+    - title: direnv binary installed at /opt/direnv-bin/bin/direnv
+      cmd: test -f /opt/direnv-bin/bin/direnv
+    - title: direnv binary at custom prefix is executable
+      cmd: test -x /opt/direnv-bin/bin/direnv
+    - title: /opt/direnv-bin/bin/direnv --version succeeds
+      cmd: /opt/direnv-bin/bin/direnv --version
+    - title: symlink exists at /usr/local/bin/direnv
+      cmd: test -L /usr/local/bin/direnv
+    - title: symlink resolves to /opt/direnv-bin/bin/direnv
+      cmd: bash -c '[ "$(readlink -f /usr/local/bin/direnv)" = "/opt/direnv-bin/bin/direnv" ]'
+    - title: direnv resolves from PATH
+      cmd: command -v direnv
+    - title: direnv bash hook written to rc file
+      cmd: >-
+        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+    - title: bash hook uses custom-prefix binary path
+      cmd: >-
+        bash -c 'grep -qF "/opt/direnv-bin/bin/direnv" /root/.bashrc 2>/dev/null
+        || grep -qF "/opt/direnv-bin/bin/direnv" /root/.config/bash/bashrc 2>/dev/null'
+
+custom_prefix_no_symlink:
+  description: |
+    method=binary, prefix=/opt/direnv-bin, prefix_discovery=none:
+    Verifies direnv is installed at the custom prefix and no symlink is created
+    at the default PATH location.
+  checks:
+    - title: direnv binary installed at /opt/direnv-bin/bin/direnv
+      cmd: test -f /opt/direnv-bin/bin/direnv
+    - title: direnv binary at custom prefix is executable
+      cmd: test -x /opt/direnv-bin/bin/direnv
+    - title: /opt/direnv-bin/bin/direnv --version succeeds
+      cmd: /opt/direnv-bin/bin/direnv --version
+    - title: no symlink at /usr/local/bin/direnv
+      cmd: bash -c '! test -L /usr/local/bin/direnv && ! test -e /usr/local/bin/direnv'
+
+source_build:
+  description: |
+    method=source + version=2.37.1: builds direnv from the GitHub source
+    archive using make and verifies the installed binary is functional and
+    reports the correct version.
+  checks:
+    - title: direnv binary installed at /usr/local/bin/direnv
+      cmd: test -f /usr/local/bin/direnv
+    - title: direnv binary is executable
+      cmd: test -x /usr/local/bin/direnv
+    - title: direnv --version succeeds
+      cmd: /usr/local/bin/direnv --version
+      debug: |
+        echo "=== direnv --version ==="
+        /usr/local/bin/direnv --version 2>&1 || echo "(failed)"
+    - title: direnv version is 2.37.1
+      cmd: bash -c '[ "$(/usr/local/bin/direnv --version 2>/dev/null)" = "2.37.1" ]'
+    - title: direnv bash hook written to rc file
+      cmd: >-
+        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+
+fish_hook:
+  description: |
+    With fish installed, verifies that the direnv hook is written to
+    ~/.config/fish/config.fish and that fish can source the file without errors.
+  checks:
+    - title: fish is available
+      cmd: command -v fish
+    - title: direnv binary installed
+      cmd: test -x /usr/local/bin/direnv
+    - title: direnv fish hook written to config.fish
+      cmd: bash -c 'grep -qF "direnv hook fish" /root/.config/fish/config.fish'
+    - title: config.fish is valid fish syntax
+      cmd: fish -c 'source /root/.config/fish/config.fish'
+    - title: direnv hook fish produces output
+      cmd: bash -c '/usr/local/bin/direnv hook fish | grep -q .'
+
+if_exists_fail:
+  description: |
+    if_exists=fail: ensures the installer exits non-zero when direnv is already
+    present on PATH, leaving the pre-installed stub untouched.
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
+    - title: pre-installed direnv stub still present
+      cmd: command -v direnv
+    - title: stub version is unchanged
+      cmd: bash -c '[ "$(direnv --version 2>/dev/null)" = "2.99.0" ]'
+
+if_exists_skip:
+  description: |
+    if_exists=skip: ensures the installer exits 0 when direnv is already present
+    on PATH, leaving the pre-installed stub and its version untouched.
+  checks:
+    - title: direnv remains available after skip
+      cmd: command -v direnv
+    - title: stub version is unchanged (skip did not reinstall)
+      cmd: bash -c '[ "$(direnv --version 2>/dev/null)" = "2.99.0" ]'
+
+reinstall:
+  description: |
+    if_exists=reinstall + method=binary + version=2.37.1 with direnv pre-installed
+    from the OS package manager: verifies the installer replaces the existing binary
+    and the new version is reported correctly.
+  checks:
+    - title: direnv binary present at /usr/local/bin/direnv
+      cmd: test -f /usr/local/bin/direnv
+    - title: direnv binary is executable
+      cmd: test -x /usr/local/bin/direnv
+    - title: direnv --version succeeds
+      cmd: direnv --version
+      debug: |
+        echo "=== direnv --version ==="
+        direnv --version 2>&1 || echo "(failed)"
+    - title: direnv version is 2.37.1 (reinstalled)
+      cmd: bash -c '[ "$(direnv --version 2>/dev/null)" = "2.37.1" ]'
+    - title: direnv bash hook written to rc file
+      cmd: >-
+        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+
+version_match_idempotency:
+  description: |
+    version=2.37.1 + if_exists=fail with a stub already claiming version 2.37.1:
+    if_exists=fail aborts whenever direnv is found, regardless of version match.
+    The stub must remain untouched.
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
+    - title: direnv stub still present
+      cmd: command -v direnv
+    - title: stub version is still 2.37.1
+      cmd: bash -c '[ "$(direnv --version 2>/dev/null)" = "2.37.1" ]'

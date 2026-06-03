@@ -1,24 +1,59 @@
-name: direnv Installation
 version: 0.1.0
-description: Install [direnv](https://direnv.net/) and activate it in Zsh and Bash.
+name: direnv Installation
+description: Install [direnv](https://direnv.net/) and configure shell hooks for Bash, Zsh, Fish, Tcsh, and Elvish.
 keywords:
-- direnv
-- shell
-- environment
+  - direnv
+  - shell
+  - environment
 _long_description: >-
-  Installs [direnv](https://direnv.net/) via the system package manager and wires up
-  per-user shell hooks by injecting a guarded `eval "$(direnv hook <shell>)"` block
-  into each user's `zshtheme` and Bash theme file. direnv automatically loads and
-  unloads environment variables declared in `.envrc` files when entering or leaving a
-  directory.
-options:
-  install_direnv:
-    type: boolean
-    default: false
-    description: |-
-      Install [direnv](https://direnv.net/).
-      Automatically loads and unloads environment variables when entering a directory.
-      Shell hooks are injected per-user.
+  Downloads and installs [direnv](https://direnv.net/) from GitHub Releases and wires up
+  per-user shell hooks by injecting a guarded hook expression into each user's startup
+  files for Bash, Zsh, Fish, Tcsh, and Elvish. direnv automatically loads and unloads
+  environment variables declared in `.envrc` files when entering or leaving a directory.
+_tool_name: direnv
+_options:
+  gh_repo: direnv/direnv
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: 2.37.1
+        description: Install direnv v2.37.1.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/direnv.{OS}-{ARCH}"
+    package: {}
+    source:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/archive/refs/tags/{TAG}.tar.gz"
+      build_system: make
+  prefix:
+    bins: [direnv]
+    activation:
+      shells: [bash, zsh, fish, tcsh, elvish, nushell]
+      description: |-
+        The activation snippet injects `eval "$(direnv hook <shell>)"` (or the
+        shell-equivalent) into interactive shell startup files, registering direnv's
+        prompt hook so `.envrc` files are loaded automatically when entering a directory.
+        bash and zsh are handled automatically by the framework; fish, tcsh, and elvish
+        are wired up via per-user configuration.
+options: {}
+customizations:
+  vscode:
+    extensions:
+      - mkhl.direnv
+_dependencies:
+  run:
+    os-pkg:
+      packages:
+        - direnv
+  build:
+    source:
+      packages:
+        - make
+        - name: go
+          apt: golang-go
+          dnf: golang
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-ohmyzsh
 #   - ghcr.io/quantized8/devfeats/install-ohmybash

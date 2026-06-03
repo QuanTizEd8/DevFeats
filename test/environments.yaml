@@ -74,8 +74,32 @@ debian-bookworm+jq-source-build-deps:
 ubuntu-latest:
   image: ubuntu:latest
 
+ubuntu-latest+fish:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update
+      apt-get install -y --no-install-recommends fish
+      rm -rf /var/lib/apt/lists/*
+
 debian-latest:
   image: debian:latest
+
+debian-latest+direnv-apt:
+  image: debian:latest
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends direnv
+      rm -rf /var/lib/apt/lists/*
+
+debian-bookworm+direnv-source-build-deps:
+  image: debian:bookworm
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends make golang-go curl ca-certificates
+      rm -rf /var/lib/apt/lists/*
 
 debian-12:
   image: debian:12
