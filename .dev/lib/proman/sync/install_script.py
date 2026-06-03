@@ -592,12 +592,19 @@ def _opt_to_flag(key: str) -> str:
 
 
 def _shell_val(default: object, typ: str) -> str:
-    """Format a YAML default value as a shell assignment RHS (non-array types only)."""
+    """Format a YAML default value as a shell assignment RHS (non-array types only).
+
+    Non-empty strings are single-quoted so they are stored verbatim without bash
+    expanding anything (e.g. '${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh' must
+    survive as a literal to be written into user config files and evaluated later
+    in the user's own shell).  Defaults that need bash expansion at install time
+    must use '_default:' (dynamic defaults) instead of 'default:'.
+    """
     if typ == "boolean":
         return "true" if default else "false"
     if default == "" or default is None:
         return '""'
-    return f'"{default}"'
+    return "'" + str(default).replace("'", "'\\''") + "'"
 
 
 def _usage_type_hint(opt: dict) -> str:

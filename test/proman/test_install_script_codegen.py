@@ -9,12 +9,49 @@ from proman.sync import install_script as install_script_mod
 from proman.sync.install_script import (
     _SPLIT_PRINTF_PERCENT_S_RE,
     InstallScriptGenerator,
+    _shell_val,
     _uri_chmod_mode,
     validate_generated_install_script,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _INSTALL_CONDA_ENV = _REPO_ROOT / "src" / "install-conda-env" / "install.bash"
+
+
+def test_shell_val_plain_string() -> None:
+    """Plain strings are single-quoted."""
+    assert _shell_val("master", "string") == "'master'"
+    assert _shell_val("disabled", "string") == "'disabled'"
+    assert _shell_val("/usr/local/bin", "string") == "'/usr/local/bin'"
+
+
+def test_shell_val_empty() -> None:
+    """Empty string and None both produce double empty quotes."""
+    assert _shell_val("", "string") == '""'
+    assert _shell_val(None, "string") == '""'
+
+
+def test_shell_val_boolean() -> None:
+    """Boolean type produces bare true/false without quotes."""
+    assert _shell_val(True, "boolean") == "true"  # noqa: FBT003
+    assert _shell_val(False, "boolean") == "false"  # noqa: FBT003
+
+
+def test_shell_val_shell_expression_single_quoted() -> None:
+    """Shell expression defaults are single-quoted to prevent bash expansion."""
+    # SHORT_HOST and ZSH_VERSION are zsh-specific — unbound in bash with set -u.
+    assert _shell_val("${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh", "string") == (
+        "'${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh'"
+    )
+    assert (
+        _shell_val("${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}", "string")
+        == "'${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}'"
+    )
+
+
+def test_shell_val_shell_expression_embedded_single_quote() -> None:
+    r"""Embedded single quotes are escaped via the '\\'' idiom."""
+    assert _shell_val("${HOME}/it's-here", "string") == "'${HOME}/it'\\''s-here'"
 
 
 def test_bash_embed_templates_have_no_split_printf_percent_s() -> None:
