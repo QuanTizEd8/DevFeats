@@ -25,14 +25,16 @@ __resolve_method() {
 # shellcheck disable=SC2329,SC2317
 __prefix_activation_snippet() {
   local _shell="$1"
+  local _bin="${PREFIX}/bin/fzf"
   case "$_shell" in
     bash)
-      # shellcheck disable=SC2016
-      printf 'command -v fzf >/dev/null 2>&1 && eval "$(fzf --bash)"\n'
+      printf "eval \"\$(\"%s\" --bash)\"\n" "$_bin"
       ;;
     zsh)
-      # shellcheck disable=SC2016
-      printf 'command -v fzf >/dev/null 2>&1 && source <(fzf --zsh)\n'
+      printf 'source <("%s" --zsh)\n' "$_bin"
+      ;;
+    fish)
+      printf '"%s" --fish | source\n' "$_bin"
       ;;
     *)
       return 1

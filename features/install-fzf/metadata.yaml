@@ -36,7 +36,7 @@ _options:
     applies_when:
       - method: [binary]
     activation:
-      shells: [bash, zsh]
+      shells: [bash, zsh, fish]
       description: |-
         Injects `eval "$(fzf --bash)"` into `.bashrc` and `source <(fzf --zsh)` into `.zshrc`
         (both guarded with `command -v fzf`), enabling key bindings (Ctrl-R, Ctrl-T, Alt-C)

@@ -1,30 +1,116 @@
-apt_default:
+default:
   description: |
-    Verifies fzf is installed from GitHub Releases and shell integration
-    hooks are injected into per-user Zsh and Bash rc files.
-
+    Verifies fzf is installed from GitHub Releases, responds correctly, and
+    shell integration hooks are injected for bash, zsh, and fish.
   checks:
-    - title: fzf binary installed at prefix
+    - title: fzf binary installed at /usr/local/bin/fzf
+      cmd: test -f /usr/local/bin/fzf
+    - title: fzf binary is executable
       cmd: test -x /usr/local/bin/fzf
     - title: fzf on PATH
       cmd: command -v fzf
-    - title: fzf responds to --version
+    - title: fzf --version succeeds
       cmd: fzf --version
-    - title: fzf hook in zsh rc
+    - title: fzf reports a semver version
+      cmd: bash -c 'fzf --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
+    - title: fzf filters input
+      cmd: bash -c 'printf "alpha\nbeta\ngamma\n" | fzf --filter=beta | grep -q beta'
+    - title: fzf bash hook written to rc file
       cmd: >-
-        bash -c 'grep -qF "fzf --zsh" /root/.zshrc 2>/dev/null
-        || grep -qF "fzf --zsh" /root/zshtheme 2>/dev/null
-        || grep -qF "fzf --zsh" /root/.config/zsh/zshtheme 2>/dev/null'
-    - title: fzf hook in bash rc
+        bash -c 'grep -q "fzf.*--bash" /root/.bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /root/.config/bash/bashrc 2>/dev/null'
+    - title: fzf zsh hook written to rc file
       cmd: >-
-        bash -c 'grep -qF "fzf --bash" /root/.bashrc 2>/dev/null
-        || grep -qF "fzf --bash" /root/.config/bash/bashtheme 2>/dev/null'
+        bash -c 'grep -q "fzf.*--zsh" /root/.zshrc 2>/dev/null
+        || grep -q "fzf.*--zsh" /root/.config/zsh/.zshrc 2>/dev/null'
+    - title: fzf fish hook written to config.fish
+      cmd: bash -c 'grep -q "fzf.*--fish" /root/.config/fish/config.fish'
 
-apt_installer_dir:
+specific_version:
   description: |
-    Verifies that installer_dir=<path> causes the fzf archive and checksums
-    file to be preserved in that directory after installation.
+    version=0.72.0 + method=binary: installs a specific pinned release and
+    verifies the binary reports exactly that version.
+  checks:
+    - title: fzf binary installed at /usr/local/bin/fzf
+      cmd: test -f /usr/local/bin/fzf
+    - title: fzf binary is executable
+      cmd: test -x /usr/local/bin/fzf
+    - title: fzf --version succeeds
+      cmd: fzf --version
+      debug: |
+        echo "=== fzf --version ==="
+        fzf --version 2>&1 || echo "(failed)"
+    - title: fzf version is 0.72.0
+      cmd: bash -c 'fzf --version 2>/dev/null | grep -q "^0\.72\.0"'
+    - title: fzf filters input
+      cmd: bash -c 'printf "alpha\nbeta\n" | fzf --filter=alpha | grep -q alpha'
+    - title: fzf bash hook written to rc file
+      cmd: >-
+        bash -c 'grep -q "fzf.*--bash" /root/.bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /root/.config/bash/bashrc 2>/dev/null'
 
+binary_custom_prefix:
+  description: |
+    method=binary, prefix=/opt/fzf-bin, prefix_discovery=symlink:
+    Verifies fzf is installed at the custom prefix and a symlink is created
+    at /usr/local/bin/fzf pointing back to the custom-prefix binary.
+  checks:
+    - title: fzf binary installed at /opt/fzf-bin/bin/fzf
+      cmd: test -f /opt/fzf-bin/bin/fzf
+    - title: fzf binary at custom prefix is executable
+      cmd: test -x /opt/fzf-bin/bin/fzf
+    - title: /opt/fzf-bin/bin/fzf --version succeeds
+      cmd: /opt/fzf-bin/bin/fzf --version
+    - title: symlink exists at /usr/local/bin/fzf
+      cmd: test -L /usr/local/bin/fzf
+    - title: symlink resolves to /opt/fzf-bin/bin/fzf
+      cmd: bash -c '[ "$(readlink -f /usr/local/bin/fzf)" = "/opt/fzf-bin/bin/fzf" ]'
+    - title: fzf resolves from PATH
+      cmd: command -v fzf
+    - title: fzf bash hook written to rc file
+      cmd: >-
+        bash -c 'grep -q "fzf.*--bash" /root/.bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /root/.config/bash/bashrc 2>/dev/null'
+    - title: bash hook uses custom-prefix binary path
+      cmd: >-
+        bash -c 'grep -qF "/opt/fzf-bin/bin/fzf" /root/.bashrc 2>/dev/null
+        || grep -qF "/opt/fzf-bin/bin/fzf" /root/.config/bash/bashrc 2>/dev/null'
+
+custom_prefix_no_symlink:
+  description: |
+    method=binary, prefix=/opt/fzf-bin, prefix_discovery=none:
+    Verifies fzf is installed at the custom prefix and no symlink is created
+    at the default PATH location.
+  checks:
+    - title: fzf binary installed at /opt/fzf-bin/bin/fzf
+      cmd: test -f /opt/fzf-bin/bin/fzf
+    - title: fzf binary at custom prefix is executable
+      cmd: test -x /opt/fzf-bin/bin/fzf
+    - title: /opt/fzf-bin/bin/fzf --version succeeds
+      cmd: /opt/fzf-bin/bin/fzf --version
+    - title: no symlink at /usr/local/bin/fzf
+      cmd: bash -c '! test -L /usr/local/bin/fzf && ! test -e /usr/local/bin/fzf'
+
+fish_hook:
+  description: |
+    With fish installed, verifies the fzf hook is written to
+    ~/.config/fish/config.fish and fish can source the file without errors.
+  checks:
+    - title: fish is available
+      cmd: command -v fish
+    - title: fzf binary installed
+      cmd: test -x /usr/local/bin/fzf
+    - title: fzf fish hook written to config.fish
+      cmd: bash -c 'grep -q "fzf.*--fish" /root/.config/fish/config.fish'
+    - title: config.fish is valid fish syntax
+      cmd: fish -c 'source /root/.config/fish/config.fish'
+    - title: fzf --fish produces output
+      cmd: bash -c '/usr/local/bin/fzf --fish | grep -q .'
+
+installer_dir:
+  description: |
+    installer_dir=/tmp/fzf-trace: verifies that the downloaded release archive
+    and its checksums file are preserved in the specified directory after install.
   checks:
     - title: fzf binary installed
       cmd: test -f /usr/local/bin/fzf
@@ -39,3 +125,60 @@ apt_installer_dir:
       cmd: bash -c 'ls /tmp/fzf-trace/archive/fzf-*.tar.gz 2>/dev/null | grep -q .'
     - title: fzf checksums file preserved in installer_dir
       cmd: bash -c 'ls /tmp/fzf-trace/sidecar/fzf_*_checksums.txt 2>/dev/null | grep -q .'
+
+if_exists_fail:
+  description: |
+    if_exists=fail: ensures the installer exits non-zero when fzf is already
+    present on PATH, leaving the pre-installed stub untouched.
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
+    - title: pre-installed fzf stub still present
+      cmd: command -v fzf
+    - title: stub version is unchanged
+      cmd: bash -c 'fzf --version 2>/dev/null | grep -q "^0\.99\.0"'
+
+if_exists_skip:
+  description: |
+    if_exists=skip: ensures the installer exits 0 when fzf is already present
+    on PATH, leaving the pre-installed stub and its version untouched.
+  checks:
+    - title: fzf remains available after skip
+      cmd: command -v fzf
+    - title: stub version is unchanged (skip did not reinstall)
+      cmd: bash -c 'fzf --version 2>/dev/null | grep -q "^0\.99\.0"'
+
+reinstall:
+  description: |
+    if_exists=reinstall + method=binary + version=0.72.0 with a stub binary
+    pre-installed: verifies the installer replaces the stub and the new version
+    is reported correctly.
+  checks:
+    - title: fzf binary present at /usr/local/bin/fzf
+      cmd: test -f /usr/local/bin/fzf
+    - title: fzf binary is executable
+      cmd: test -x /usr/local/bin/fzf
+    - title: fzf --version succeeds
+      cmd: fzf --version
+      debug: |
+        echo "=== fzf --version ==="
+        fzf --version 2>&1 || echo "(failed)"
+    - title: fzf version is 0.72.0 (reinstalled)
+      cmd: bash -c 'fzf --version 2>/dev/null | grep -q "^0\.72\.0"'
+    - title: fzf filters input
+      cmd: bash -c 'printf "alpha\nbeta\n" | fzf --filter=alpha | grep -q alpha'
+
+version_match_idempotency:
+  description: |
+    version=0.72.0 + if_exists=fail with a stub already claiming version 0.72.0:
+    if_exists=fail aborts whenever fzf is found, regardless of version match.
+    The stub must remain untouched.
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
+    - title: fzf stub still present
+      cmd: command -v fzf
+    - title: stub version is still 0.72.0
+      cmd: bash -c 'fzf --version 2>/dev/null | grep -q "^0\.72\.0"'

@@ -6,7 +6,7 @@ fzf ships as a single, statically-linked binary with no runtime dependencies, ma
 
 - **Homepage**: https://github.com/junegunn/fzf
 - **Source Code**: https://github.com/junegunn/fzf
-- **Documentation**: https://github.com/junegunn/fzf#readme
+- **Documentation**: https://junegunn.github.io/fzf/
 - **Latest Release**: 0.73.1 (as of 2026-06-03)[^release-latest]
 
 ## Tool Architecture
