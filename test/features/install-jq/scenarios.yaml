@@ -43,7 +43,7 @@ custom_prefix_no_symlink:
   tests: [custom_prefix_no_symlink]
 
 package_install:
-  envs: [debian-bookworm+bash, alpine-3.20+bash, fedora-latest+bash]
+  envs: [debian-bookworm+bash, alpine-3.21+bash, fedora-latest+bash]
   modes: [devcontainer, standalone]
   options:
     method: package

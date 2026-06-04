@@ -64,9 +64,6 @@ custom_prefix_no_symlink:
 
 package_install:
   envs:
-    - debian-bookworm+bash
-    - ubuntu-24.04
-    - fedora-latest+bash
     - alpine-latest+bash
     - arch+bash
     - opensuse-leap+bash

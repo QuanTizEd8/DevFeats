@@ -129,7 +129,7 @@ apt_custom_dir_system:
     - title: default plugin NOT cloned at prefix/custom
       cmd: bash -c '! test -d "${_OMZ}/custom/plugins/zsh-syntax-highlighting"'
     - title: zshtheme sets ZSH_CUSTOM to explicit system path
-      cmd: bash -c 'grep -qF "ZSH_CUSTOM=\"${_SYS_CUSTOM}\"" '"$_ZSHTHEME"
+      cmd: grep -qF "ZSH_CUSTOM=\"$_SYS_CUSTOM\"" "$_ZSHTHEME"
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 
@@ -162,7 +162,7 @@ apt_custom_dir_per_user:
     - title: plugin NOT directly cloned in per-user dir
       cmd: bash -c '! test -d "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting/.git"'
     - title: zshtheme sets ZSH_CUSTOM to per-user path
-      cmd: bash -c 'grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" '"$_ZSHTHEME"
+      cmd: grep -qF "ZSH_CUSTOM=\"$_USER_CUSTOM\"" "$_ZSHTHEME"
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 

@@ -31,7 +31,7 @@ upstream_package_debian:
   - upstream_package_debian.sh
 upstream_package_alpine:
   envs:
-  - alpine-3.20
+  - alpine-3.21
   modes:
   - devcontainer
   options:

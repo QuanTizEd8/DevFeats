@@ -1,7 +1,7 @@
 default:
   description: |
-    Verifies direnv is installed and all shell hooks are injected into the
-    appropriate per-user rc files (bash, zsh, fish, tcsh, elvish).
+    Verifies direnv is installed and all shell hooks are injected into
+    system-wide rc files (bash, zsh, fish, tcsh) and the per-user elvish rc.
   checks:
     - title: direnv binary installed at /usr/local/bin/direnv
       cmd: test -f /usr/local/bin/direnv
@@ -13,20 +13,21 @@ default:
       cmd: direnv --version
     - title: direnv reports a semver version
       cmd: bash -c 'direnv --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
-    - title: direnv bash hook written to rc file
+    - title: direnv bash hook written to system rc
       cmd: >-
-        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
-        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
-    - title: direnv zsh hook written to rc file
+        bash -c 'grep -qF "direnv hook bash" /etc/bash.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bash/bashrc 2>/dev/null'
+    - title: direnv zsh hook written to system rc
       cmd: >-
-        bash -c 'grep -qF "direnv hook zsh" /root/.zshrc 2>/dev/null
-        || grep -qF "direnv hook zsh" /root/.config/zsh/.zshrc 2>/dev/null'
-    - title: direnv fish hook written to config.fish
-      cmd: bash -c 'grep -qF "direnv hook fish" /root/.config/fish/config.fish'
-    - title: direnv tcsh hook written to cshrc
+        bash -c 'grep -qF "direnv hook zsh" /etc/zsh/zshrc 2>/dev/null
+        || grep -qF "direnv hook zsh" /etc/zshrc 2>/dev/null'
+    - title: direnv fish hook written to system conf.d
       cmd: >-
-        bash -c 'grep -qF "direnv hook tcsh" /root/.tcshrc 2>/dev/null
-        || grep -qF "direnv hook tcsh" /root/.cshrc 2>/dev/null'
+        grep -qF "direnv hook fish"
+        /etc/fish/conf.d/99-quantized8-devfeats--install-direnv--prefix-activation.fish
+    - title: direnv tcsh hook written to system cshrc
+      cmd: bash -c 'grep -qF "direnv hook tcsh" /etc/csh.cshrc 2>/dev/null'
     - title: direnv elvish hook written to rc.elv
       cmd: bash -c 'grep -qF "direnv" /root/.config/elvish/rc.elv'
 
@@ -46,10 +47,11 @@ specific_version:
         direnv --version 2>&1 || echo "(failed)"
     - title: direnv version is 2.35.0
       cmd: bash -c '[ "$(direnv --version 2>/dev/null)" = "2.35.0" ]'
-    - title: direnv bash hook written to rc file
+    - title: direnv bash hook written to system rc
       cmd: >-
-        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
-        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+        bash -c 'grep -qF "direnv hook bash" /etc/bash.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bash/bashrc 2>/dev/null'
 
 binary_custom_prefix:
   description: |
@@ -69,14 +71,16 @@ binary_custom_prefix:
       cmd: bash -c '[ "$(readlink -f /usr/local/bin/direnv)" = "/opt/direnv-bin/bin/direnv" ]'
     - title: direnv resolves from PATH
       cmd: command -v direnv
-    - title: direnv bash hook written to rc file
+    - title: direnv bash hook written to system rc
       cmd: >-
-        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
-        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+        bash -c 'grep -qF "direnv hook bash" /etc/bash.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bash/bashrc 2>/dev/null'
     - title: bash hook uses custom-prefix binary path
       cmd: >-
-        bash -c 'grep -qF "/opt/direnv-bin/bin/direnv" /root/.bashrc 2>/dev/null
-        || grep -qF "/opt/direnv-bin/bin/direnv" /root/.config/bash/bashrc 2>/dev/null'
+        bash -c 'grep -qF "/opt/direnv-bin/bin/direnv" /etc/bash.bashrc 2>/dev/null
+        || grep -qF "/opt/direnv-bin/bin/direnv" /etc/bashrc 2>/dev/null
+        || grep -qF "/opt/direnv-bin/bin/direnv" /etc/bash/bashrc 2>/dev/null'
 
 custom_prefix_no_symlink:
   description: |
@@ -110,24 +114,46 @@ source_build:
         /usr/local/bin/direnv --version 2>&1 || echo "(failed)"
     - title: direnv version is 2.37.1
       cmd: bash -c '[ "$(/usr/local/bin/direnv --version 2>/dev/null)" = "2.37.1" ]'
-    - title: direnv bash hook written to rc file
+    - title: direnv bash hook written to system rc
       cmd: >-
-        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
-        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+        bash -c 'grep -qF "direnv hook bash" /etc/bash.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bash/bashrc 2>/dev/null'
+
+package_install:
+  description: |
+    method=package: verifies direnv is installed via the OS package manager,
+    is functional, and shell hooks are written to system-wide rc files.
+  checks:
+    - title: direnv on PATH
+      cmd: command -v direnv
+    - title: direnv binary is executable
+      cmd: bash -c 'test -x "$(command -v direnv)"'
+    - title: direnv --version succeeds
+      cmd: direnv --version
+    - title: direnv reports a semver version
+      cmd: bash -c 'direnv --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
+    - title: direnv bash hook written to system rc
+      cmd: >-
+        bash -c 'grep -qF "direnv hook bash" /etc/bash.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bash/bashrc 2>/dev/null'
 
 fish_hook:
   description: |
-    With fish installed, verifies that the direnv hook is written to
-    ~/.config/fish/config.fish and that fish can source the file without errors.
+    With fish installed, verifies that the direnv hook is written to the
+    system fish conf.d directory and that fish can source the file without errors.
   checks:
     - title: fish is available
       cmd: command -v fish
     - title: direnv binary installed
       cmd: test -x /usr/local/bin/direnv
-    - title: direnv fish hook written to config.fish
-      cmd: bash -c 'grep -qF "direnv hook fish" /root/.config/fish/config.fish'
-    - title: config.fish is valid fish syntax
-      cmd: fish -c 'source /root/.config/fish/config.fish'
+    - title: direnv fish hook written to system conf.d
+      cmd: >-
+        grep -qF "direnv hook fish"
+        /etc/fish/conf.d/99-quantized8-devfeats--install-direnv--prefix-activation.fish
+    - title: fish conf.d file is valid fish syntax
+      cmd: fish -c 'source /etc/fish/conf.d/99-quantized8-devfeats--install-direnv--prefix-activation.fish'
     - title: direnv hook fish produces output
       cmd: bash -c '/usr/local/bin/direnv hook fish | grep -q .'
 
@@ -171,10 +197,11 @@ reinstall:
         direnv --version 2>&1 || echo "(failed)"
     - title: direnv version is 2.37.1 (reinstalled)
       cmd: bash -c '[ "$(direnv --version 2>/dev/null)" = "2.37.1" ]'
-    - title: direnv bash hook written to rc file
+    - title: direnv bash hook written to system rc
       cmd: >-
-        bash -c 'grep -qF "direnv hook bash" /root/.bashrc 2>/dev/null
-        || grep -qF "direnv hook bash" /root/.config/bash/bashrc 2>/dev/null'
+        bash -c 'grep -qF "direnv hook bash" /etc/bash.bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bashrc 2>/dev/null
+        || grep -qF "direnv hook bash" /etc/bash/bashrc 2>/dev/null'
 
 version_match_idempotency:
   description: |

@@ -10,8 +10,8 @@ fedora-latest:
 rocky-9:
   env: rocky-9+bash
 
-alpine-3.20:
-  env: alpine-3.20+bash
+alpine-3.21:
+  env: alpine-3.21+bash
 
 opensuse-leap:
   env: opensuse-leap+bash
@@ -27,8 +27,8 @@ ubuntu-24.04-integration:
   env_vars:
     SYSSET_RUN_INTEGRATION_DEPS: "1"
 
-alpine-3.20-integration:
-  env: alpine-3.20+bash
+alpine-3.21-integration:
+  env: alpine-3.21+bash
   tests:
     includes:
       - integration/*.bats

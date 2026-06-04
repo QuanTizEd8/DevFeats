@@ -32,7 +32,7 @@ package_stable:
   - package_stable.sh
 package_alpine:
   envs:
-  - alpine-3.20
+  - alpine-3.21
   modes:
   - devcontainer
   options:

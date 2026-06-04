@@ -6,11 +6,11 @@ ubuntu-24.04+bash+git:
   build:
     dockerfile: apt-get update -qq && apt-get install -y bash git
 
-alpine-3.20:
-  image: alpine:3.20
+alpine-3.21:
+  image: alpine:3.21
 
-alpine-3.20+bash:
-  image: alpine:3.20
+alpine-3.21+bash:
+  image: alpine:3.21
   build:
     dockerfile: apk add --no-cache bash
 
@@ -98,8 +98,20 @@ debian-bookworm+direnv-source-build-deps:
   build:
     dockerfile: |
       apt-get update -qq
-      apt-get install -y --no-install-recommends make golang-go curl ca-certificates
+      apt-get install -y --no-install-recommends make curl ca-certificates
       rm -rf /var/lib/apt/lists/*
+      ARCH="$(uname -m)"
+      case "${ARCH}" in
+        x86_64)  GO_ARCH="amd64" ;;
+        aarch64) GO_ARCH="arm64" ;;
+        *) echo "Unsupported arch: ${ARCH}" && exit 1 ;;
+      esac
+      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
+        -H 'User-Agent: devfeats' \
+        "https://go.dev/dl/go1.24.0.linux-${GO_ARCH}.tar.gz" \
+        | tar -xz -C /usr/local
+      ln -sf /usr/local/go/bin/go /usr/local/bin/go
+      ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
 
 debian-12:
   image: debian:12

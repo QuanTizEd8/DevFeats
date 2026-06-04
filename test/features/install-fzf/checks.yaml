@@ -1,7 +1,7 @@
 default:
   description: |
     Verifies fzf is installed from GitHub Releases, responds correctly, and
-    shell integration hooks are injected for bash, zsh, and fish.
+    shell integration hooks are injected into system-wide rc files.
   checks:
     - title: fzf binary installed at /usr/local/bin/fzf
       cmd: test -f /usr/local/bin/fzf
@@ -15,16 +15,19 @@ default:
       cmd: bash -c 'fzf --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
     - title: fzf filters input
       cmd: bash -c 'printf "alpha\nbeta\ngamma\n" | fzf --filter=beta | grep -q beta'
-    - title: fzf bash hook written to rc file
+    - title: fzf bash hook written to system rc
       cmd: >-
-        bash -c 'grep -q "fzf.*--bash" /root/.bashrc 2>/dev/null
-        || grep -q "fzf.*--bash" /root/.config/bash/bashrc 2>/dev/null'
-    - title: fzf zsh hook written to rc file
+        bash -c 'grep -q "fzf.*--bash" /etc/bash.bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /etc/bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /etc/bash/bashrc 2>/dev/null'
+    - title: fzf zsh hook written to system rc
       cmd: >-
-        bash -c 'grep -q "fzf.*--zsh" /root/.zshrc 2>/dev/null
-        || grep -q "fzf.*--zsh" /root/.config/zsh/.zshrc 2>/dev/null'
-    - title: fzf fish hook written to config.fish
-      cmd: bash -c 'grep -q "fzf.*--fish" /root/.config/fish/config.fish'
+        bash -c 'grep -q "fzf.*--zsh" /etc/zsh/zshrc 2>/dev/null
+        || grep -q "fzf.*--zsh" /etc/zshrc 2>/dev/null'
+    - title: fzf fish hook written to system conf.d
+      cmd: >-
+        grep -q "fzf.*--fish"
+        /etc/fish/conf.d/99-quantized8-devfeats--install-fzf--prefix-activation.fish
 
 specific_version:
   description: |
@@ -44,10 +47,11 @@ specific_version:
       cmd: bash -c 'fzf --version 2>/dev/null | grep -q "^0\.72\.0"'
     - title: fzf filters input
       cmd: bash -c 'printf "alpha\nbeta\n" | fzf --filter=alpha | grep -q alpha'
-    - title: fzf bash hook written to rc file
+    - title: fzf bash hook written to system rc
       cmd: >-
-        bash -c 'grep -q "fzf.*--bash" /root/.bashrc 2>/dev/null
-        || grep -q "fzf.*--bash" /root/.config/bash/bashrc 2>/dev/null'
+        bash -c 'grep -q "fzf.*--bash" /etc/bash.bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /etc/bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /etc/bash/bashrc 2>/dev/null'
 
 binary_custom_prefix:
   description: |
@@ -67,14 +71,16 @@ binary_custom_prefix:
       cmd: bash -c '[ "$(readlink -f /usr/local/bin/fzf)" = "/opt/fzf-bin/bin/fzf" ]'
     - title: fzf resolves from PATH
       cmd: command -v fzf
-    - title: fzf bash hook written to rc file
+    - title: fzf bash hook written to system rc
       cmd: >-
-        bash -c 'grep -q "fzf.*--bash" /root/.bashrc 2>/dev/null
-        || grep -q "fzf.*--bash" /root/.config/bash/bashrc 2>/dev/null'
+        bash -c 'grep -q "fzf.*--bash" /etc/bash.bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /etc/bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /etc/bash/bashrc 2>/dev/null'
     - title: bash hook uses custom-prefix binary path
       cmd: >-
-        bash -c 'grep -qF "/opt/fzf-bin/bin/fzf" /root/.bashrc 2>/dev/null
-        || grep -qF "/opt/fzf-bin/bin/fzf" /root/.config/bash/bashrc 2>/dev/null'
+        bash -c 'grep -qF "/opt/fzf-bin/bin/fzf" /etc/bash.bashrc 2>/dev/null
+        || grep -qF "/opt/fzf-bin/bin/fzf" /etc/bashrc 2>/dev/null
+        || grep -qF "/opt/fzf-bin/bin/fzf" /etc/bash/bashrc 2>/dev/null'
 
 custom_prefix_no_symlink:
   description: |
@@ -91,19 +97,42 @@ custom_prefix_no_symlink:
     - title: no symlink at /usr/local/bin/fzf
       cmd: bash -c '! test -L /usr/local/bin/fzf && ! test -e /usr/local/bin/fzf'
 
+package_install:
+  description: |
+    method=package: verifies fzf is installed via the OS package manager,
+    is functional, and shell hooks are written to system-wide rc files.
+  checks:
+    - title: fzf on PATH
+      cmd: command -v fzf
+    - title: fzf binary is executable
+      cmd: bash -c 'test -x "$(command -v fzf)"'
+    - title: fzf --version succeeds
+      cmd: fzf --version
+    - title: fzf reports a semver version
+      cmd: bash -c 'fzf --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
+    - title: fzf filters input
+      cmd: bash -c 'printf "alpha\nbeta\ngamma\n" | fzf --filter=beta | grep -q beta'
+    - title: fzf bash hook written to system rc
+      cmd: >-
+        bash -c 'grep -q "fzf.*--bash" /etc/bash.bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /etc/bashrc 2>/dev/null
+        || grep -q "fzf.*--bash" /etc/bash/bashrc 2>/dev/null'
+
 fish_hook:
   description: |
-    With fish installed, verifies the fzf hook is written to
-    ~/.config/fish/config.fish and fish can source the file without errors.
+    With fish installed, verifies the fzf hook is written to the system fish
+    conf.d directory and fish can source the file without errors.
   checks:
     - title: fish is available
       cmd: command -v fish
     - title: fzf binary installed
       cmd: test -x /usr/local/bin/fzf
-    - title: fzf fish hook written to config.fish
-      cmd: bash -c 'grep -q "fzf.*--fish" /root/.config/fish/config.fish'
-    - title: config.fish is valid fish syntax
-      cmd: fish -c 'source /root/.config/fish/config.fish'
+    - title: fzf fish hook written to system conf.d
+      cmd: >-
+        grep -q "fzf.*--fish"
+        /etc/fish/conf.d/99-quantized8-devfeats--install-fzf--prefix-activation.fish
+    - title: fish conf.d file is valid fish syntax
+      cmd: fish -c 'source /etc/fish/conf.d/99-quantized8-devfeats--install-fzf--prefix-activation.fish'
     - title: fzf --fish produces output
       cmd: bash -c '/usr/local/bin/fzf --fish | grep -q .'
 

@@ -45,7 +45,7 @@ package_install:
   modes: [devcontainer, standalone]
   options:
     method: package
-  tests: [default]
+  tests: [package_install]
 
 source_build:
   envs: [debian-bookworm+direnv-source-build-deps]
