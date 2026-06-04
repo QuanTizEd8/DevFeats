@@ -10,16 +10,16 @@ _long_description: >-
 _options:
   installer_dir: false
 options:
-  claude_config_dir:
+  config_dir:
     type: string
     default: .claude
     description: |-
       Placeholder
 onCreateCommand:
-  symlink-claude-dir:
+  symlink-config-dir:
     description: Symlink the specified workspace `claude` directory to `~/.claude`.
     command: >-
-      ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$symlink-claude-dir.sh ${containerWorkspaceFolder}
+      ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$symlink-config-dir.sh ${containerWorkspaceFolder}
 customizations:
   vscode:
     extensions:

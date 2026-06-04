@@ -12,15 +12,15 @@ _CONF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0").conf"
 # shellcheck source=/dev/null
 . "$_CONF"
 
-symlink_claude_config_dir() {
+symlink_config_dir() {
   # $1 is the containerWorkspaceFolder variable,
   # passed directly by the devcontainer CLI — see metadata.yaml.
   _container_workspace_folder="${1}"
-  _claude_config_dir_fullpath="${_container_workspace_folder}/${CLAUDE_CONFIG_DIR}"
+  _config_dir_fullpath="${_container_workspace_folder}/${CONFIG_DIR}"
 
   rm -rf ~/.claude
-  mkdir -p "$_claude_config_dir_fullpath"
-  ln -s "$_claude_config_dir_fullpath" ~/.claude
+  mkdir -p "$_config_dir_fullpath"
+  ln -s "$_config_dir_fullpath" ~/.claude
 }
 
-symlink_claude_config_dir "$1"
+symlink_config_dir "$1"
