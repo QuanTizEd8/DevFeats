@@ -525,21 +525,18 @@ ospkg__detect() {
   _kernel="$(uname -s)"
 
   if [[ "$_kernel" == "Darwin" ]]; then
-    # Populate OS fields first — these require only uname/sw_vers, not brew.
     _OSPKG__OS_RELEASE[kernel]="darwin"
     _OSPKG__OS_RELEASE[id]="macos"
     _OSPKG__OS_RELEASE[id_like]="macos"
     _OSPKG__OS_RELEASE[version_id]="$(sw_vers -productVersion 2> /dev/null || echo "")"
     _OSPKG__OS_RELEASE[arch]="$(uname -m)"
-    # macOS: Homebrew is the only supported package manager.
-    if ! type brew > /dev/null 2>&1; then
-      logging__error "Homebrew (brew) not found on macOS."
-      logging__error "Install Homebrew first: https://brew.sh"
-      logging__error "Or add the 'install-homebrew' devcontainer feature."
-      return 1
+    # macOS: Homebrew is the only supported package manager; configure it when
+    # available. Callers that need to install packages will discover brew is
+    # absent and fail at that point — not here during OS detection.
+    if type brew > /dev/null 2>&1; then
+      _ospkg__set_brew "macOS"
     fi
-    _ospkg__set_brew "macOS"
-    logging__inspect "OS context: pm=brew arch=${_OSPKG__OS_RELEASE[arch]-} id=macos version_id=${_OSPKG__OS_RELEASE[version_id]-}"
+    logging__inspect "OS context: pm=${_OSPKG__PKG_MNGR:-none} arch=${_OSPKG__OS_RELEASE[arch]-} id=macos version_id=${_OSPKG__OS_RELEASE[version_id]-}"
     _OSPKG__DETECTED=true
     return 0
   fi
@@ -737,6 +734,14 @@ ospkg__update() {
 # Returns: 0 on success.
 ospkg__install() {
   ospkg__detect || return 1
+  if [[ -z "$_OSPKG__PKG_MNGR" ]]; then
+    logging__error "No supported package manager found."
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      logging__error "Homebrew (brew) not found on macOS."
+      logging__error "Install Homebrew first: https://brew.sh"
+    fi
+    return 1
+  fi
   local _do_update=false
   if [[ "${1:-}" == "--update" ]]; then
     _do_update=true
