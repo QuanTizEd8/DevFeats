@@ -171,20 +171,20 @@ _install_bash_pkg() {
   _ipm="$1"
   echo "📦 Installing bash via ${_ipm}..." >&2
   case "$_ipm" in
-    apk) _run_privileged apk add --no-cache bash || return 1 ;;
+    apk) _run_privileged apk add --no-cache bash >&2 || return 1 ;;
     apt-get)
       export DEBIAN_FRONTEND=noninteractive
-      _run_privileged apt-get update || return 1
-      _run_privileged apt-get install -y --no-install-recommends bash || return 1
+      _run_privileged apt-get update >&2 || return 1
+      _run_privileged apt-get install -y --no-install-recommends bash >&2 || return 1
       ;;
-    dnf) _run_privileged dnf install -y bash || return 1 ;;
-    microdnf) _run_privileged microdnf install -y bash || return 1 ;;
-    yum) _run_privileged yum install -y bash || return 1 ;;
-    zypper) _run_privileged zypper --non-interactive install bash || return 1 ;;
-    pacman) _run_privileged pacman -S --noconfirm --needed bash || return 1 ;;
-    brew) brew install bash || return 1 ;;
-    nix-env) nix-env -iA nixpkgs.bash || return 1 ;;
-    port) _run_privileged port install bash || return 1 ;;
+    dnf) _run_privileged dnf install -y bash >&2 || return 1 ;;
+    microdnf) _run_privileged microdnf install -y bash >&2 || return 1 ;;
+    yum) _run_privileged yum install -y bash >&2 || return 1 ;;
+    zypper) _run_privileged zypper --non-interactive install bash >&2 || return 1 ;;
+    pacman) _run_privileged pacman -S --noconfirm --needed bash >&2 || return 1 ;;
+    brew) brew install bash >&2 || return 1 ;;
+    nix-env) nix-env -iA nixpkgs.bash >&2 || return 1 ;;
+    port) _run_privileged port install bash >&2 || return 1 ;;
     *)
       echo "⛔ Unknown package manager '${_ipm}'." >&2
       return 1
