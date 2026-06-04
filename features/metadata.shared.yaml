@@ -812,10 +812,19 @@ options:
         return desc
       }}#
     enum:
-      - value: bash
-        description: Write activation snippet for bash.
-      - value: zsh
-        description: Write activation snippet for zsh.
+      - |
+        *{{ #{{
+          shells = get("_options.prefix.activation.shells") or []
+          descriptions = {
+              "bash":    "Write activation snippet for bash.",
+              "zsh":     "Write activation snippet for zsh.",
+              "fish":    "Write activation snippet for fish.",
+              "tcsh":    "Write activation snippet for tcsh.",
+              "elvish":  "Write activation snippet for elvish.",
+              "nushell": "Write activation snippet for nushell.",
+          }
+          return [{"value": s, "description": descriptions.get(s, f"Write activation snippet for {s}.")} for s in shells]
+        }}# }}*
 
   prefix_bins:
     _apply_when: |
