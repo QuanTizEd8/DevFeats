@@ -1,16 +1,11 @@
 # Feature Notes
 
-The `NOTES.md` file is an optional markdown document allowing features to provide additional user-facing information and context that do not fit in the `metadata.yaml` file.
+The `notes.md` file is an optional markdown document allowing features to provide additional user-facing information and context that do not fit in the `metadata.yaml` file. Refrain from repeating information that is already covered in the metadata, such as general feature description, option descriptions, and examples that can be automatically generated. Instead, focus on providing additional context, details, limitations, and other important usage notes for users to understand and effectively use the feature, for example:
 
-This is the template for the Feature Notes document.
-It contains comprehensive usage instructions, details on settings and behavior, and any other relevant information that doesn't fit in the `metadata.yaml` file. Refrain from repeating information that is already covered in the metadata, such as general feature description, option descriptions, and examples that can be automatically generated. Instead, focus on providing additional context, details, limitations, and other important usage notes for users to understand and effectively use the feature, for example:
-
-- Schemas, contrac
+- Schemas and contracts
 - Important considerations for certain combinations of options.
 - Platform-specific behavior or limitations.
-- Best practices for using the API effectively.
 - Troubleshooting tips for common issues or misconfigurations.
-- Any other relevant information.
 
 Each file must only contain a collection of level-2 headings and their content (no H1) to ensure they integrate cleanly into the generated feature documentation. Each H2 should represent a distinct topic or aspect of the feature, and can be further organized with subheadings as needed. There are no strict requirements on the content of each section, since it depends on the specific feature; below are some common topics that are often covered in the notes, but feel free to include/exclude any sections as appropriate for the specific feature.
 

@@ -1,6 +1,5 @@
 # Operations
 
-
 ## Feature Discoverability
 
 By default, packages pushed to GHCR are **private**. Private packages incur
