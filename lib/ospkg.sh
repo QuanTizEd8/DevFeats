@@ -827,6 +827,7 @@ ospkg__install() {
 # Returns: 0 on success.
 ospkg__clean() {
   ospkg__detect
+  [[ -z "${_OSPKG__CLEAN:-}" ]] && return 0
   logging__clean "Cleaning package manager cache."
   "$_OSPKG__CLEAN"
   return 0

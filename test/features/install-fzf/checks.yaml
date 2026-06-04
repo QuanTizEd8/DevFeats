@@ -99,8 +99,9 @@ custom_prefix_no_symlink:
 
 package_install:
   description: |
-    method=package: verifies fzf is installed via the OS package manager,
-    is functional, and shell hooks are written to system-wide rc files.
+    method=package: verifies fzf is installed via the OS package manager
+    and is functional. Shell hook injection is guarded to method=binary only,
+    so no rc-file checks are performed here.
   checks:
     - title: fzf on PATH
       cmd: command -v fzf
@@ -112,11 +113,6 @@ package_install:
       cmd: bash -c 'fzf --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
     - title: fzf filters input
       cmd: bash -c 'printf "alpha\nbeta\ngamma\n" | fzf --filter=beta | grep -q beta'
-    - title: fzf bash hook written to system rc
-      cmd: >-
-        bash -c 'grep -q "fzf.*--bash" /etc/bash.bashrc 2>/dev/null
-        || grep -q "fzf.*--bash" /etc/bashrc 2>/dev/null
-        || grep -q "fzf.*--bash" /etc/bash/bashrc 2>/dev/null'
 
 fish_hook:
   description: |

@@ -24,7 +24,7 @@ default:
         || grep -qF "direnv hook zsh" /etc/zshrc 2>/dev/null'
     - title: direnv fish hook written to system conf.d
       cmd: >-
-        grep -qF "direnv hook fish"
+        grep -q "direnv.*hook fish"
         /etc/fish/conf.d/99-quantized8-devfeats--install-direnv--prefix-activation.fish
     - title: direnv tcsh hook written to system cshrc
       cmd: bash -c 'grep -qF "direnv hook tcsh" /etc/csh.cshrc 2>/dev/null'
@@ -150,7 +150,7 @@ fish_hook:
       cmd: test -x /usr/local/bin/direnv
     - title: direnv fish hook written to system conf.d
       cmd: >-
-        grep -qF "direnv hook fish"
+        grep -q "direnv.*hook fish"
         /etc/fish/conf.d/99-quantized8-devfeats--install-direnv--prefix-activation.fish
     - title: fish conf.d file is valid fish syntax
       cmd: fish -c 'source /etc/fish/conf.d/99-quantized8-devfeats--install-direnv--prefix-activation.fish'

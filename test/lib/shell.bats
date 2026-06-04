@@ -30,11 +30,11 @@ setup() {
 # shell__detect_bashrc  (strings-probe path, then os__platform fallback)
 # ---------------------------------------------------------------------------
 
-@test "shell__detect_bashrc returns path from strings probe" {
+@test "shell__detect_bashrc returns /etc/bash.bashrc for arch via default" {
   reload_lib shell.sh
-  # Fake strings to return the compiled-in bashrc path.
-  strings() { echo "/etc/bash.bashrc"; }
-  export -f strings
+  _OS__ID="arch"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run shell__detect_bashrc
   assert_output "/etc/bash.bashrc"
 }
@@ -336,8 +336,8 @@ ${_home}/.zshrc"
 
 @test "shell__system_path_files returns bashrc and zshenv paths" {
   reload_lib shell.sh
-  strings() { echo "/etc/bash.bashrc"; }
-  export -f strings
+  shell__detect_bashrc() { echo "/etc/bash.bashrc"; }
+  export -f shell__detect_bashrc
   BASH_ENV="/etc/bashenv"
   run shell__system_path_files
   # Output must contain the bashrc and zshenv paths.
@@ -348,8 +348,8 @@ ${_home}/.zshrc"
 
 @test "shell__system_path_files includes profile.d path when --profile_d is given" {
   reload_lib shell.sh
-  strings() { echo "/etc/bash.bashrc"; }
-  export -f strings
+  shell__detect_bashrc() { echo "/etc/bash.bashrc"; }
+  export -f shell__detect_bashrc
   BASH_ENV="/etc/bashenv"
   run shell__system_path_files --profile_d "myenv.sh"
   assert_output --partial "/etc/profile.d/myenv.sh"

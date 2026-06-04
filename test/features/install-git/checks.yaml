@@ -209,6 +209,7 @@ macos_package_default:
       cmd: bash -c '! test -e "${HOME}/.config/git/config"'
 
 package_alpine:
+  shell: sh
   description: |
     method=package, version=stable on Alpine.
     Verifies the Alpine package path and default gitconfig behavior.

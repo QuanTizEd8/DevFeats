@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck shell=sh disable=SC3043,SC3045
 # assert.sh — Shared assertion helpers for all test/ scenarios.
 #
 # POSIX sh compatible; usable from both #!/bin/bash and #!/bin/sh test scripts.

@@ -468,6 +468,7 @@ specific_version_binary:
       cmd: bash -c '[ "$(gh --version 2>/dev/null | head -1 | awk "{print \$3}")" = "2.67.0" ]'
 
 upstream_package_alpine:
+  shell: sh
   description: |
     repos install on Alpine 3.20: uses the community apk package (github-cli).
     Verifies gh is installed and callable.
