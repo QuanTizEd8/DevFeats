@@ -61,7 +61,7 @@ setup() {
   # Simulate ospkg loaded but unzip absent; ospkg stubs install a fake unzip.
   reload_lib ospkg.sh
   reload_lib file.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   # Seed a minimal apt context without invoking the real PM.
   _OSPKG__DETECTED=true
@@ -300,4 +300,141 @@ setup() {
   run file__nearest_existing "/_devfeats_nonexistent_xyz/bin/foo"
   assert_success
   assert_output "/"
+}
+
+# ---------------------------------------------------------------------------
+# file__session_* / file__tmpdir
+# ---------------------------------------------------------------------------
+
+@test "file__session_ensure creates _FILE__SESSION_ROOT" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    file__session_ensure
+    [[ -d \"\${_FILE__SESSION_ROOT}\" ]] && echo OK
+    file__session_cleanup
+  "
+  assert_success
+  assert_output "OK"
+}
+
+@test "file__session_root matches file__tmpdir with no args" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    file__session_ensure
+    _r=\"\${_FILE__SESSION_ROOT}\"
+    _t=\"\$(file__tmpdir)\"
+    [[ \"\${_r}\" == \"\${_t}\" ]] && echo SAME
+    file__session_cleanup
+  "
+  assert_success
+  assert_output "SAME"
+}
+
+@test "file__session_ensure is idempotent" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    file__session_ensure
+    _first=\"\${_FILE__SESSION_ROOT}\"
+    file__session_ensure
+    [[ \"\${_first}\" == \"\${_FILE__SESSION_ROOT}\" ]] && echo SAME_ROOT
+    file__session_cleanup
+  "
+  assert_success
+  assert_output --partial "SAME_ROOT"
+}
+
+@test "file__session_ensure sets _FILE__SESSION_OWNED" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    file__session_ensure
+    [[ \"\${_FILE__SESSION_OWNED}\" == true ]] && echo OWNED
+    file__session_cleanup
+  "
+  assert_success
+  assert_output "OWNED"
+}
+
+@test "file__session_ensure on pre-set root does not take ownership" {
+  local _pin="${BATS_TEST_TMPDIR}/injected-root"
+  mkdir -p "$_pin"
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    export _FILE__SESSION_ROOT='${_pin}'
+    file__session_ensure
+    [[ \"\${_FILE__SESSION_OWNED}\" != true ]] && echo NOT_OWNED
+    [[ \"\${_FILE__SESSION_ROOT}\" == '${_pin}' ]] && echo PATH_OK
+  "
+  assert_success
+  assert_output --partial "NOT_OWNED"
+  assert_output --partial "PATH_OK"
+}
+
+@test "file__session_cleanup is idempotent" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    file__session_ensure
+    file__session_cleanup
+    file__session_cleanup
+    [[ -z \"\${_FILE__SESSION_ROOT:-}\" ]] && echo CLEARED
+  "
+  assert_success
+  assert_output "CLEARED"
+}
+
+@test "file__tmpdir after parent ensure shares root via command substitution" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    file__session_ensure
+    _sub=\"\$(file__tmpdir 'nested/sub')\"
+    [[ \"\${_sub}\" == \"\${_FILE__SESSION_ROOT}/nested/sub\" ]] && echo UNDER_ROOT
+    file__session_cleanup
+  "
+  assert_success
+  assert_output --partial "UNDER_ROOT"
+}
+
+@test "file__tmpdir without parent ensure does not set parent _FILE__SESSION_ROOT" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    _sub=\"\$(file__tmpdir 'orphan-sub')\"
+    [[ -d \"\${_sub}\" ]] && [[ -z \"\${_FILE__SESSION_ROOT:-}\" ]] && echo PARENT_EMPTY
+  "
+  assert_success
+  assert_output --partial "PARENT_EMPTY"
+}
+
+@test "exported _FILE__SESSION_ROOT is visible in child shell" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    file__session_ensure
+    bash -c '[[ \"\${_FILE__SESSION_ROOT}\" == \"'\"\${_FILE__SESSION_ROOT}\"'\" ]] && echo CHILD_MATCH'
+    file__session_cleanup
+  "
+  assert_success
+  assert_output --partial "CHILD_MATCH"
+}
+
+@test "file__mktmpdir creates distinct directories under same root" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    file__session_ensure
+    _a=\"\$(file__mktmpdir 'label')\"
+    _b=\"\$(file__mktmpdir 'label')\"
+    [[ \"\${_a}\" != \"\${_b}\" ]] && [[ \"\${_a}\" == \"\${_FILE__SESSION_ROOT}\"/* ]] && echo DISTINCT
+    file__session_cleanup
+  "
+  assert_success
+  assert_output --partial "DISTINCT"
+}
+
+@test "logging__setup via logging.sh marks session as owned" {
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    logging__setup
+    [[ \"\${_FILE__SESSION_OWNED}\" == true ]] && echo OWNED >&3
+    logging__cleanup
+    file__session_cleanup
+  "
+  assert_success
+  assert_output --partial "OWNED"
 }

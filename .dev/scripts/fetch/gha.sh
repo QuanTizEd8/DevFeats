@@ -23,6 +23,10 @@
 #       timestamps stripped), and one line per failing step appended to
 #       failing.log in the format:
 #           <job-name> --- <step-name> --- <log-filename>
+#       When the job name matches a feature-test matrix job
+#       ("<scenario> (devcontainer|linux|macOS)"), also downloads the
+#       matching feat-log-* workflow artifact (trace-level install log) to
+#       <job-id>.trace.log beside the GHA log.
 #
 # All log files are written to:
 #   <log-base defaults to repo>/.local/logs/gha/<full-sha>/<run-id>/
@@ -59,7 +63,8 @@ Usage:
 
   Log layout (both modes):
     <log-base>/<full-40-char-sha>/<workflow-run-id>/
-      passing.log, failing.log, and per-job <job-id>.log files
+      passing.log, failing.log, per-job <job-id>.log (GHA log), and for
+      failed feature-test jobs <job-id>.trace.log (feat-log artifact)
 
   On success, prints one line per run directory (sorted).
 
@@ -209,6 +214,7 @@ PASSING_LOG=
 FAILING_LOG=
 
 declare -A _processed # job_id → 1 (tracks already-handled jobs)
+declare -A _run_artifacts_cache # run_id → JSON from .../runs/{id}/artifacts
 _stat_pass=0
 _stat_fail=0
 _any_failure=0
@@ -338,12 +344,79 @@ _download_log() {
 }
 
 # ---------------------------------------------------------------------------
-# _handle_job <job-json>
+# _run_artifacts_json <run_id> — cached GET .../actions/runs/{id}/artifacts
+# ---------------------------------------------------------------------------
+_run_artifacts_json() {
+  local run_id="$1"
+  if [[ -z "${_run_artifacts_cache[${run_id}]+_}" ]]; then
+    _run_artifacts_cache["${run_id}"]=$(_gh_api_json \
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/artifacts?per_page=100" \
+      || echo '{"artifacts":[]}')
+  fi
+  printf '%s' "${_run_artifacts_cache[${run_id}]}"
+}
+
+# ---------------------------------------------------------------------------
+# _download_trace_log <job_id> <job_name> <run_id>
+# For feature-test matrix jobs, download feat-log-* artifact to
+# ${LOGDIR}/<job_id>.trace.log (best-effort; warns on stderr when missing).
+# ---------------------------------------------------------------------------
+_download_trace_log() {
+  local job_id="$1"
+  local job_name="$2"
+  local run_id="$3"
+  local dest="${LOGDIR}/${job_id}.trace.log"
+  local scenario mode_lc suffix artifact_name tmpdir src
+
+  if [[ ! "${job_name}" =~ ^(.+)\ \((devcontainer|linux|macOS)\)$ ]]; then
+    return 0
+  fi
+  scenario="${BASH_REMATCH[1]}"
+  case "${BASH_REMATCH[2]}" in
+    macOS) mode_lc=macos ;;
+    *) mode_lc="${BASH_REMATCH[2]}" ;;
+  esac
+  suffix="${scenario}-${mode_lc}"
+
+  artifact_name=$(jq -r --arg suf "${suffix}" '
+    [.artifacts[]
+     | select(.name | startswith("feat-log-"))
+     | select(.name | endswith("-" + $suf))
+     | .name][0] // empty
+  ' <<< "$(_run_artifacts_json "${run_id}")")
+  if [[ -z "${artifact_name}" ]]; then
+    _ts "  (no feat-log artifact for ${suffix})"
+    return 0
+  fi
+
+  tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/gha-trace-log.XXXXXX")
+  if ! gh run download "${run_id}" -R "${REPO_SLUG}" -n "${artifact_name}" -D "${tmpdir}" \
+    > /dev/null 2>&1; then
+    _ts "  (feat-log download failed: ${artifact_name})"
+    rm -rf "${tmpdir}"
+    return 0
+  fi
+
+  src=$(find "${tmpdir}" -type f -name '*.log' -print -quit 2> /dev/null || true)
+  if [[ -z "${src}" || ! -f "${src}" ]]; then
+    _ts "  (feat-log artifact has no .log file: ${artifact_name})"
+    rm -rf "${tmpdir}"
+    return 0
+  fi
+
+  cp "${src}" "${dest}"
+  rm -rf "${tmpdir}"
+  _ts "  trace log → $(basename "${dest}")"
+}
+
+# ---------------------------------------------------------------------------
+# _handle_job <job-json> <run_id>
 # Processes one completed job. Updates passing.log / failing.log and sets
 # _any_failure=1 on non-success conclusions.
 # ---------------------------------------------------------------------------
 _handle_job() {
   local job="$1"
+  local run_id="$2"
   local job_id job_name conclusion
   job_id=$(jq -r '.id' <<< "${job}")
   job_name=$(jq -r '.name' <<< "${job}")
@@ -378,6 +451,7 @@ _handle_job() {
 
   local log_file
   log_file=$(_download_log "${job_id}")
+  _download_trace_log "${job_id}" "${job_name}" "${run_id}"
 
   if [[ -z "${failing_steps}" ]]; then
     echo "${job_name} --- (no failing step identified) --- ${log_file}" >> "${FAILING_LOG}"
@@ -434,7 +508,7 @@ _process_run_jobs() {
       [[ -z "${job}" ]] && continue
       job_status=$(jq -r '.status' <<< "${job}")
       if [[ "${job_status}" == "completed" ]]; then
-        _handle_job "${job}"
+        _handle_job "${job}" "${run_id}"
       elif [[ "${job_status}" == "in_progress" ]]; then
         _inprogress_ref+=("$(jq -r '.name' <<< "${job}")")
       fi

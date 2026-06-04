@@ -13,6 +13,8 @@ from pathlib import Path
 
 import yaml
 
+from proman.config import load as load_config
+
 _DOCKER_GITHUB_ARG_LINES = "ARG GITHUB_TOKEN\nENV GITHUB_TOKEN=${GITHUB_TOKEN}\n"
 
 
@@ -91,12 +93,10 @@ def _collect_layers(
 def resolve(
     env_name: str,
     envs: dict,
-    repo_root: Path | str,
     scenario_args: dict | None = None,
     scenario_env_vars: dict | None = None,
 ) -> str:
     """Resolve an environment name to a Docker image tag, building if needed."""
-    repo_root = Path(repo_root)
     env = envs.get(env_name)
     if env is None:
         print(f"⛔ Unknown environment: {env_name!r}", file=sys.stderr)
@@ -105,7 +105,7 @@ def resolve(
     if is_macos(env_name, envs):
         return env["image"]
 
-    envs_dir = repo_root / "test" / "envs"
+    envs_dir = load_config().absolute_path("path.test_envs")
     base_image, body, build_args = _collect_layers(
         env_name,
         envs,
@@ -197,19 +197,11 @@ def resolve_cli() -> None:
         )
         sys.exit(1)
 
-    repo_root_str = os.environ.get("REPO_ROOT")
-    if not repo_root_str:
-        print("⛔ REPO_ROOT is not set", file=sys.stderr)
-        sys.exit(1)
-
-    repo_root = Path(repo_root_str)
-    envs_path = repo_root / "test" / "environments.yaml"
-    envs = load(envs_path)
+    envs = load(load_config().absolute_path("path.test_environments"))
     print(
         resolve(
             env_name,
             envs,
-            repo_root,
             scenario_args=scenario_args or None,
             scenario_env_vars=scenario_env_vars or None,
         ),

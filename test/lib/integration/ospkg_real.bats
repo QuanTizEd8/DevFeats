@@ -43,7 +43,7 @@ setup() {
   fi
   ospkg__detect || skip "no supported package manager detected"
   # Isolate sidecar / snapshot files in the per-test tmpdir so tests do not share state.
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   # Skip when the canary is already installed — we cannot safely use it as a marker.
   if _pkg_is_installed "$_OSPKG_INT_PKG"; then
     skip "'${_OSPKG_INT_PKG}' is already installed on this system; cannot use it as a canary"

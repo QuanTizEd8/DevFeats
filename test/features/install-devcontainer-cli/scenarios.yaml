@@ -1,7 +1,6 @@
 defaults:
   options:
     if_exists: reinstall
-    log_level: trace
 
 npm_bundled:
   envs: [ubuntu-latest]

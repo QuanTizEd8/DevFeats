@@ -48,7 +48,8 @@ reload_lib() {
 
   # Reset logging state flags.
   _LOGGING__LIB_SETUP=false
-  _LOGGING__SYSSET_TMPDIR=
+  _FILE__SESSION_ROOT=
+  _FILE__SESSION_OWNED=false
   declare -ga _LOGGING__SYSSET_MASKED_VALUES=()
 
   # Re-declare global associative arrays so prior test runs don't leave stale

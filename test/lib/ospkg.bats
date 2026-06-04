@@ -464,8 +464,8 @@ _seed_apt_context_with_yq() {
   chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
   # Mock mirrors _ospkg__ensure_yq's real early-return guard so the second call
   # exercises the early-return code path with the already-set _OSPKG__YQ_BIN.
-  # Note: _OSPKG__YQ_BIN is assigned to a stable path (not inside _LOGGING__SYSSET_TMPDIR)
-  # to avoid command-substitution subshell scoping issues with _LOGGING__SYSSET_TMPDIR.
+  # Note: _OSPKG__YQ_BIN is assigned to a stable path (not inside _FILE__SESSION_ROOT)
+  # to avoid command-substitution subshell scoping issues with _FILE__SESSION_ROOT.
   _ospkg__ensure_yq() {
     [[ -n "${_OSPKG__YQ_BIN:-}" ]] && return 0
     _OSPKG__YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
@@ -476,7 +476,7 @@ _seed_apt_context_with_yq() {
 
 @test "ospkg__run regression: yq binary not deleted after call returns" {
   # Old code: rm -rf "$_OSPKG__YQ_TMPDIR"; _OSPKG__YQ_BIN= inside ospkg__run.
-  # Fix: yq dir lives in _LOGGING__SYSSET_TMPDIR for the process lifetime; ospkg__run
+  # Fix: yq dir lives in _FILE__SESSION_ROOT for the process lifetime; ospkg__run
   # never deletes it.
   _require_ospkg_jq
   _seed_apt_context_with_yq
@@ -708,7 +708,7 @@ YQ
 # ---------------------------------------------------------------------------
 
 # _seed_apt_build_context — seeds apt context + stubs needed for build-dep tests:
-#   · _LOGGING__SYSSET_TMPDIR        → BATS_TEST_TMPDIR (sidecars at a predictable path)
+#   · _FILE__SESSION_ROOT        → BATS_TEST_TMPDIR (sidecars at a predictable path)
 #   · fake apt-get          (exit 0, no-op — real install skipped)
 #   · fake dpkg             (exit 1 — "not installed" so ospkg__install always proceeds)
 #   · fake apt-mark         (logs every invocation to ${BATS_TEST_TMPDIR}/apt-mark.log)
@@ -718,7 +718,7 @@ YQ
 _seed_apt_build_context() {
   _seed_apt_context
   export _SYSSET_BUILD_CONTEXT="ctx"
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   printf '#!/bin/bash\nexit 0\n' \
     > "${BATS_TEST_TMPDIR}/bin/apt-get"
@@ -900,7 +900,7 @@ _mock_snapshots() {
 
 @test "_ospkg__remove_build_group: missing sidecar returns 0 with informational message" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   run _ospkg__remove_build_group "nonexistent-group"
 
@@ -910,7 +910,7 @@ _mock_snapshots() {
 
 @test "_ospkg__remove_build_group: empty sidecar returns 0 without invoking autoremove" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   : > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
 
@@ -930,7 +930,7 @@ _mock_snapshots() {
 
 @test "_ospkg__remove_build_group: apt — calls autoremove (not per-package remove) and deletes sidecar" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   printf 'curl\nnewpkg\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
 
@@ -957,7 +957,7 @@ _mock_snapshots() {
 
 @test "ospkg__cleanup_all_build_groups: missing build-deps directory returns 0" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}/no_such_dir_xyz"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}/no_such_dir_xyz"
 
   run ospkg__cleanup_all_build_groups
 
@@ -968,7 +968,7 @@ _mock_snapshots() {
   # Temp snapshot files left by an aborted run must not be treated as group
   # sidecars — they must remain untouched after cleanup.
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   : > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.before"
   : > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.after"
@@ -982,7 +982,7 @@ _mock_snapshots() {
 
 @test "ospkg__cleanup_all_build_groups: one group sidecar triggers autoremove and sidecar is deleted" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group"
 
@@ -1001,7 +1001,7 @@ _mock_snapshots() {
 
 @test "ospkg__cleanup_all_build_groups: multiple group sidecars are all removed" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-a"
   printf 'git\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-b"
@@ -1372,7 +1372,7 @@ _seed_managed_context() {
 
 @test "ospkg__take_initial_snapshot writes sorted package list to file" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   # Provide a fake dpkg-query that emits a known set of packages.
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   printf '#!/bin/bash\nprintf "wget\ncurl\ngit\n"\n' \
@@ -1392,7 +1392,7 @@ _seed_managed_context() {
 
 @test "ospkg__take_initial_snapshot prints informational message to stderr" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   create_fake_bin "dpkg-query" ""
   prepend_fake_bin_path
 
@@ -1405,7 +1405,7 @@ _seed_managed_context() {
 
 @test "ospkg__take_initial_snapshot creates empty file for unknown PM" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   # Force an unknown PM context directly to test the '*' case.
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="unknown-pm"
@@ -1512,7 +1512,7 @@ _seed_session_context() {
 # with sidecar files before calling ospkg__cleanup_session_build_groups.
 _seed_session_cleanup_context() {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   _SESSION_DIR="$(mktemp -d "${BATS_TEST_TMPDIR}/session_XXXXXX")"
   export _SYSSET_SESSION_TRACK_DIR="$_SESSION_DIR"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
@@ -1645,7 +1645,7 @@ _seed_session_cleanup_context() {
 
 @test "ospkg__track_resource: writes path to local resource sidecar" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   unset _SYSSET_SESSION_TRACK_DIR
 
   ospkg__track_resource "test-group" "/tmp/some_file_xyz"
@@ -1657,7 +1657,7 @@ _seed_session_cleanup_context() {
 
 @test "ospkg__track_resource: multiple paths written in order" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   unset _SYSSET_SESSION_TRACK_DIR
 
   ospkg__track_resource "test-group" "/a/path1" "/b/path2" "/c/path3"
@@ -1670,7 +1670,7 @@ _seed_session_cleanup_context() {
 
 @test "ospkg__track_resource: also mirrors to session resources dir when session dir set" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   local _session_dir
   _session_dir="$(mktemp -d "${BATS_TEST_TMPDIR}/session_XXXXXX")"
   export _SYSSET_SESSION_TRACK_DIR="$_session_dir"
@@ -1690,7 +1690,7 @@ _seed_session_cleanup_context() {
 
 @test "ospkg__track_resource: no session mirror when session dir does not exist" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   export _SYSSET_SESSION_TRACK_DIR="${BATS_TEST_TMPDIR}/no_such_session_xyz"
 
   # Must not fail even if session dir is missing.
@@ -1703,7 +1703,7 @@ _seed_session_cleanup_context() {
 
 @test "ospkg__cleanup_resources: removes tracked files" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   # Create real files to be removed.
   local _f1="${BATS_TEST_TMPDIR}/tracked_file_a"
@@ -1719,7 +1719,7 @@ _seed_session_cleanup_context() {
 
 @test "ospkg__cleanup_resources: sidecar is deleted after processing" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   local _f="${BATS_TEST_TMPDIR}/tracked_file_c"
   touch "$_f"
@@ -1735,7 +1735,7 @@ _seed_session_cleanup_context() {
 
 @test "ospkg__cleanup_resources: non-existent path does not cause failure" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   # Register a path that does not exist.
   local _res_dir="${BATS_TEST_TMPDIR}/ospkg/resources"
@@ -1748,9 +1748,9 @@ _seed_session_cleanup_context() {
 
 @test "ospkg__cleanup_resources: no-ops when resources dir is absent" {
   reload_lib ospkg.sh
-  # Point _LOGGING__SYSSET_TMPDIR to a dir with no ospkg/resources subdir.
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}/empty_root"
-  mkdir -p "$_LOGGING__SYSSET_TMPDIR"
+  # Point _FILE__SESSION_ROOT to a dir with no ospkg/resources subdir.
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}/empty_root"
+  mkdir -p "$_FILE__SESSION_ROOT"
 
   run ospkg__cleanup_resources
   assert_success
@@ -1763,7 +1763,7 @@ _seed_session_cleanup_context() {
 # _seed_pacman_context — pacman build context with fully-detected state.
 _seed_pacman_context() {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="pacman"
   _OSPKG__FAMILY="pacman"
@@ -1780,7 +1780,7 @@ _seed_pacman_context() {
 # _seed_apk_context — Alpine APK build context with fully-detected state.
 _seed_apk_context() {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="apk"
   _OSPKG__FAMILY="apk"
@@ -1797,7 +1797,7 @@ _seed_apk_context() {
 # _seed_yum_context — yum (not dnf) build context; tests the dnf→$PM fix.
 _seed_yum_context() {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="yum"
   _OSPKG__FAMILY="dnf"
@@ -2408,7 +2408,7 @@ _create_smart_rpm() {
 
 @test "ospkg__cleanup_all_build_groups: .apkvirts files are skipped" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   # A real sidecar and an .apkvirts auxiliary file
   printf 'cmake\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group"
@@ -2426,7 +2426,7 @@ _create_smart_rpm() {
 
 @test "ospkg__cleanup_all_build_groups: .global_auto_before (dotfile) is not processed as a group" {
   _seed_apt_context
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   # Create the global auto snapshot file
   printf 'libz1\nwget\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/.global_auto_before"

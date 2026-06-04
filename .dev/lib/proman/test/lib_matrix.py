@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from proman.config import load as load_config
+
 from .environments import load as load_envs
 from .environments import resolve
 from .scenarios import expand_test_files
@@ -16,18 +18,19 @@ from .scenarios import load as load_scenarios
 def _run_env(
     name: str,
     scenario: dict,
-    repo_root: Path,
     envs: dict,
     extra_args: list[str],
 ) -> bool:
     """Run unit tests for one environment; return True on success."""
     env_name = scenario["env"]
     env_vars = scenario.get("env_vars", {})
-    lib_dir = repo_root / "test" / "lib"
+    cfg = load_config()
+    root = cfg.root_path
+    lib_dir = cfg.absolute_path("path.test_lib")
     test_files = expand_test_files(scenario.get("tests"), lib_dir)
-    run_in_container = repo_root / ".dev" / "scripts" / "test" / "run-in-container.sh"
+    run_in_container = cfg.absolute_path("path.test_run_in_container")
 
-    image = resolve(env_name, envs, repo_root)
+    image = resolve(env_name, envs)
 
     print(f"\n══ {name} [{env_name}] ══", flush=True)
 
@@ -44,7 +47,7 @@ def _run_env(
 
     run_unit_parts: list[str] = ["bash", "/repo/.dev/scripts/test/run-unit.sh"]
     for tf in test_files:
-        rel = Path(tf).relative_to(repo_root)
+        rel = Path(tf).relative_to(root)
         run_unit_parts += ["--paths", f"/repo/{rel}"]
     run_unit_parts += extra_args
 
@@ -54,10 +57,11 @@ def _run_env(
     return result.returncode == 0
 
 
-def run(target_env: str | None, extra_args: list[str], repo_root: Path) -> int:
+def run(target_env: str | None, extra_args: list[str]) -> int:
     """Run lib unit tests for one or all environments; return exit code."""
-    _, scenarios = load_scenarios(repo_root / "test" / "lib" / "scenarios.yaml")
-    envs = load_envs(repo_root / "test" / "environments.yaml")
+    cfg = load_config()
+    _, scenarios = load_scenarios(cfg.absolute_path("path.test_lib_scenarios"))
+    envs = load_envs(cfg.absolute_path("path.test_environments"))
 
     if target_env is not None:
         if target_env not in scenarios:
@@ -66,7 +70,6 @@ def run(target_env: str | None, extra_args: list[str], repo_root: Path) -> int:
         ok = _run_env(
             target_env,
             scenarios[target_env],
-            repo_root,
             envs,
             extra_args,
         )
@@ -74,7 +77,7 @@ def run(target_env: str | None, extra_args: list[str], repo_root: Path) -> int:
 
     passed = failed = 0
     for name, scenario in scenarios.items():
-        if _run_env(name, scenario, repo_root, envs, extra_args):
+        if _run_env(name, scenario, envs, extra_args):
             passed += 1
         else:
             failed += 1

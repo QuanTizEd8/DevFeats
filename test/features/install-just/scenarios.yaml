@@ -1,6 +1,3 @@
-defaults:
-  options:
-    log_level: trace
 default_install:
   envs:
   - ubuntu-latest

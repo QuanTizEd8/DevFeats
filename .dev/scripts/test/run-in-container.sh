@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Usage: run-in-container.sh --image <image> --run <cmd>
 #                            [--name <label>]
+#                            [--log-bind-dir <host-dir>]
 #                            [--network-none]
 #                            [--env KEY=VAL] ...
 #
 # Mounts the repo read-only at /repo, sets REPO_ROOT=/repo, passes GITHUB_TOKEN.
+# With --log-bind-dir, mounts a host directory at /log-out (rw) for post-run log copy.
 set -euo pipefail
 
-_IMAGE="" _RUN_CMD="" _NAME="" _NET_ARGS=() _EXTRA_ENV=()
+_IMAGE="" _RUN_CMD="" _NAME="" _LOG_BIND_DIR="" _NET_ARGS=() _EXTRA_ENV=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -21,6 +23,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --name)
       _NAME="$2"
+      shift 2
+      ;;
+    --log-bind-dir)
+      _LOG_BIND_DIR="$2"
       shift 2
       ;;
     --network-none)
@@ -47,9 +53,16 @@ _HOST_REPO="${HOST_REPO_ROOT:-${REPO_ROOT:-$(git -C "$(cd "$(dirname "${BASH_SOU
 _NAME_ARGS=()
 [[ -n "$_NAME" ]] && _NAME_ARGS=("--name" "$_NAME")
 
+_LOG_VOL_ARGS=()
+if [[ -n "$_LOG_BIND_DIR" ]]; then
+  mkdir -p "$_LOG_BIND_DIR"
+  _LOG_VOL_ARGS=(-v "${_LOG_BIND_DIR}:/log-out:rw")
+fi
+
 docker run --rm \
   "${_NAME_ARGS[@]+"${_NAME_ARGS[@]}"}" \
   "${_NET_ARGS[@]+"${_NET_ARGS[@]}"}" \
+  "${_LOG_VOL_ARGS[@]+"${_LOG_VOL_ARGS[@]}"}" \
   "${_EXTRA_ENV[@]+"${_EXTRA_ENV[@]}"}" \
   -v "${_HOST_REPO}:/repo:ro" \
   -w /repo \

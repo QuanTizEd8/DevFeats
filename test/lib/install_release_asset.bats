@@ -6,7 +6,7 @@ bats_require_minimum_version 1.7.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   net__ensure_fetch_tool() {
     _NET__FETCH_TOOL=curl
@@ -139,7 +139,7 @@ _stub_release_asset_happy_path() {
 }
 
 @test "install__release_asset: auto-detected sidecar is forwarded to uri__fetch_asset" {
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   local _sidecar="${BATS_TEST_TMPDIR}/tool.sha256"
   printf '%s  tool\n' "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" > "$_sidecar"
 

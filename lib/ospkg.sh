@@ -1493,7 +1493,7 @@ ospkg__untrack_resource() {
   return 0
 }
 
-# @brief ospkg__cleanup_resources — Remove all files registered via `ospkg__track_resource`. Reads sidecars from `_LOGGING__SYSSET_TMPDIR/ospkg/resources/` and `rm -f`s each listed path.
+# @brief ospkg__cleanup_resources — Remove all files registered via `ospkg__track_resource`. Reads sidecars from `_FILE__SESSION_ROOT/ospkg/resources/` and `rm -f`s each listed path.
 #
 # Returns: 0 (always; removal failures emit a warning and continue).
 ospkg__cleanup_resources() {
@@ -2018,7 +2018,7 @@ ospkg__run() {
     fi
 
     # Convert YAML (or JSON) to JSON via yq, then parse into phase arrays.
-    # Temp files live inside _LOGGING__SYSSET_TMPDIR so logging__cleanup removes them
+    # Temp files live inside _FILE__SESSION_ROOT so file__session_cleanup removes them
     # automatically on exit, even on unexpected failure.
     local _ospkg__dir _json_tmp
     _ospkg__dir="$(file__tmpdir "ospkg")"

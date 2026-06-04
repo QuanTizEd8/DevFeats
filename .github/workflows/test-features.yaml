@@ -65,6 +65,14 @@ jobs:
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode devcontainer --filter "${{ matrix.scenario }}"
 
+      - name: Upload feature install log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: feat-log-${{ fromJSON(inputs.config).feature }}-${{ matrix.scenario }}-devcontainer
+          path: .local/logs/tests/features/${{ matrix.scenario }}.log
+          if-no-files-found: ignore
+
   test-features-linux:
     name: ${{ matrix.scenario }} (linux)
     if: fromJSON(inputs.config).linux.enabled == true
@@ -107,6 +115,14 @@ jobs:
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode standalone --filter "${{ matrix.scenario }}"
 
+      - name: Upload feature install log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: feat-log-${{ fromJSON(inputs.config).feature }}-${{ matrix.scenario }}-linux
+          path: .local/logs/tests/features/${{ matrix.scenario }}.log
+          if-no-files-found: ignore
+
   test-features-macos:
     name: ${{ matrix.sc.scenario }} (macOS)
     if: fromJSON(inputs.config).macos.enabled == true
@@ -132,3 +148,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: just test-feats-macos "${{ fromJSON(inputs.config).feature }}" --filter "${{ matrix.sc.scenario }}"
+
+      - name: Upload feature install log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: feat-log-${{ fromJSON(inputs.config).feature }}-${{ matrix.sc.scenario }}-macos
+          path: .local/logs/tests/features/${{ matrix.sc.scenario }}.log
+          if-no-files-found: ignore

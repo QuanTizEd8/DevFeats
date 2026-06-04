@@ -224,18 +224,23 @@ options:
       - value: debug
         description: Above plus debug (🐞).
       - value: trace
-        description: Above plus bash xtrace (`set -x`) for command-level tracing.
+        description: >-
+          Above plus bash xtrace (`set -x`) on this sink; subprocess output at debug tier.
 
   log_file:
     type: string
     default: ""
-    description: Log all output (stdout + stderr) to this file in addition to console.
+    description: >-
+      When non-empty, append the masked session journal to this path at exit.
+      Ignored when empty. Fatal lines are always included when capturing.
 
   log_file_level:
     type: string
     default: debug
     description: >-
-      Minimum log level to capture in the log file specified by `log_file`.
+      Minimum log level for the file sink when `log_file` is set (same levels as
+      `log_level`). Subprocess stdout/stderr use the debug tier; xtrace uses trace.
+      Ignored when `log_file` is empty.
     enum: *log_levels
 
   version_uri:

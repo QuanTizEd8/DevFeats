@@ -10,6 +10,19 @@ path:
   library: lib
   feature_library: ${{ path.library }}$
   src: src
+  test: test
+  test_features: ${{ path.test }}$/features
+  test_features_shared_defaults: ${{ path.test_features }}$/defaults.shared.yaml
+  test_environments: ${{ path.test }}$/environments.yaml
+  test_envs: ${{ path.test }}$/envs
+  test_support: ${{ path.test }}$/support
+  test_lib: ${{ path.test }}$/lib
+  test_lib_scenarios: ${{ path.test_lib }}$/scenarios.yaml
+  dev_scripts_test: .dev/scripts/test
+  test_run_in_container: ${{ path.dev_scripts_test }}$/run-in-container.sh
+  test_assert: ${{ path.test_support }}$/assert.sh
+  local_logs: .local/logs
+  local_logs_features: ${{ path.local_logs }}$/tests/features
   devcontainer: .devcontainer
   docs_source: docs/source
   docs_source_features: ${{ path.docs_source }}$/features
@@ -21,6 +34,10 @@ path:
 filename:
   feature_metadata: metadata.yaml
   feature_script: install.bash
+  feature_install_sh: install.sh
+  feature_scenarios: scenarios.yaml
+  feature_checks: checks.yaml
+  feature_tests: tests
   feature_notes: NOTES.md
   docs_build_context: docs_build_context.json
 

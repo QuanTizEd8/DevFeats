@@ -1,6 +1,3 @@
-defaults:
-  options:
-    log_level: trace
 package_default:
   envs:
   - ubuntu-24.04

@@ -1289,7 +1289,7 @@ only-2"
 # Configure stubs for a minimal happy-path run:
 #   ELF direct binary, no JSON digest, no GPG; sidecar probes all fail.
 _stub_install_release_common() {
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   net__fetch_url_file() {
     # Fail sidecar probe candidates so auto-detection is a no-op by default.

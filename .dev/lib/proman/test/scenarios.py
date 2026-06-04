@@ -7,6 +7,8 @@ from pathlib import Path
 
 import yaml
 
+from proman.config import load as load_config
+
 
 def load(path: Path | str) -> tuple[dict, dict]:
     """Load scenarios YAML and split off the defaults key."""
@@ -16,6 +18,16 @@ def load(path: Path | str) -> tuple[dict, dict]:
     return defaults, data
 
 
+def shared_defaults() -> dict:
+    """Load test/features/defaults.shared.yaml when present."""
+    path = load_config().absolute_path("path.test_features_shared_defaults")
+    if not path.is_file():
+        return {}
+    with path.open(encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return data if isinstance(data, dict) else {}
+
+
 def merge_defaults(scenario: dict, defaults: dict) -> dict:
     """Merge top-level defaults into a scenario dict."""
     merged = dict(scenario)
@@ -23,6 +35,26 @@ def merge_defaults(scenario: dict, defaults: dict) -> dict:
         if key in defaults:
             base = dict(defaults[key])
             base.update(scenario.get(key, {}))
+            merged[key] = base
+    return merged
+
+
+def merge_all_defaults(
+    scenario: dict,
+    feature_defaults: dict,
+    shared: dict | None = None,
+) -> dict:
+    """Merge shared, feature-level, then scenario-level defaults/options."""
+    merged = dict(scenario)
+    layers = [shared or {}, feature_defaults or {}]
+    for key in ("options", "args", "env_vars"):
+        base: dict = {}
+        for layer in layers:
+            if key in layer and isinstance(layer[key], dict):
+                base.update(layer[key])
+        if key in scenario and isinstance(scenario.get(key), dict):
+            base.update(scenario[key])
+        if base:
             merged[key] = base
     return merged
 

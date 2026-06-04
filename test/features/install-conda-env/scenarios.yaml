@@ -1,7 +1,3 @@
-defaults:
-  options:
-    log_level: trace
-
 inline_env:
   envs: [condaforge-miniforge3]
   modes: [devcontainer]

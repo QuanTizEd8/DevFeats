@@ -299,7 +299,7 @@ show-config file key:
 
 [
   group('fetch'),
-  doc('Fetch GHA workflow run logs; pass args through directly (e.g. just fetch-gha --run <id> or just fetch-gha --commit <sha>). Logs in .local/logs/gha/.')
+  doc('Fetch GHA workflow run logs; pass args through directly (e.g. just fetch-gha --run <id> or just fetch-gha --commit <sha>). Logs in .local/logs/gha/; failed feature-test jobs also get <job-id>.trace.log (feat-log artifact).')
 ]
 fetch-gha *args:
     bash .dev/scripts/fetch/gha.sh {{args}}

@@ -34,7 +34,7 @@ import yaml
 from proman.config import load as load_config
 from proman.git import git_repo_root
 from proman.release.detect import detect_releasable
-from proman.test.scenarios import expand_envs, merge_defaults
+from proman.test.scenarios import expand_envs, merge_all_defaults, shared_defaults
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -166,21 +166,24 @@ def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
         ``{"feature": str, "runner": str, "scenario": str}`` entries, one per
         macOS scenario, sorted by feature then scenario key.
     """
+    cfg = load_config()
     envs_data: dict = (
         yaml.safe_load(
-            (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
+            cfg.absolute_path("path.test_environments").read_text(encoding="utf-8"),
         )
         or {}
     )
+    shared = shared_defaults()
     result: list[dict[str, str]] = []
     for fid in sorted(feature_ids):
-        scenarios_file = git_repo_root() / "test" / "features" / fid / "scenarios.yaml"
+        feat = cfg.absolute_path("path.test_features") / fid
+        scenarios_file = feat / str(cfg["filename.feature_scenarios"])
         if not scenarios_file.exists():
             continue
         raw: dict = yaml.safe_load(scenarios_file.read_text(encoding="utf-8")) or {}
         defaults = raw.pop("defaults", {})
         for sc_name, sc in raw.items():
-            merged = merge_defaults(sc, defaults)
+            merged = merge_all_defaults(sc, defaults, shared)
             for key, env_name, _ in expand_envs(sc_name, merged):
                 env_def = envs_data.get(env_name)
                 if not isinstance(env_def, dict):
@@ -214,18 +217,21 @@ def compute_feature_matrix(
         "linux_scenarios": list[str], "macos_scenarios": list[dict]}``
         entries sorted by feature name.
     """
+    cfg = load_config()
     envs_data: dict = (
         yaml.safe_load(
-            (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
+            cfg.absolute_path("path.test_environments").read_text(encoding="utf-8"),
         )
         or {}
     )
+    shared = shared_defaults()
     linux_set = set(linux_ids)
     macos_set = set(macos_ids)
     all_ids = sorted(linux_set | macos_set)
     result = []
     for fid in all_ids:
-        scenarios_file = git_repo_root() / "test" / "features" / fid / "scenarios.yaml"
+        feat = cfg.absolute_path("path.test_features") / fid
+        scenarios_file = feat / str(cfg["filename.feature_scenarios"])
         if not scenarios_file.exists():
             continue
         raw: dict = yaml.safe_load(scenarios_file.read_text(encoding="utf-8")) or {}
@@ -234,7 +240,7 @@ def compute_feature_matrix(
         linux_scenarios: list[str] = []
         macos_scenarios: list[dict[str, str]] = []
         for sc_name, sc in raw.items():
-            merged = merge_defaults(sc, defaults)
+            merged = merge_all_defaults(sc, defaults, shared)
             modes = merged.get("modes", ["devcontainer", "standalone"])
             for key, env_name, _ in expand_envs(sc_name, merged):
                 env_def = envs_data.get(env_name)
@@ -312,9 +318,10 @@ def compute_unit_macos_matrix() -> list[dict]:
         ``test/environments.yaml`` where the image name starts with ``"macos"``,
         sorted by runner name.
     """
+    cfg = load_config()
     envs_data: dict = (
         yaml.safe_load(
-            (git_repo_root() / "test/environments.yaml").read_text(encoding="utf-8"),
+            cfg.absolute_path("path.test_environments").read_text(encoding="utf-8"),
         )
         or {}
     )
@@ -338,7 +345,9 @@ def compute_unit_env_matrix() -> list[dict[str, str]]:
     """
     data: dict = (
         yaml.safe_load(
-            (git_repo_root() / "test/lib/scenarios.yaml").read_text(encoding="utf-8"),
+            load_config().absolute_path("path.test_lib_scenarios").read_text(
+                encoding="utf-8",
+            ),
         )
         or {}
     )

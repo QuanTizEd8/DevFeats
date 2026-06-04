@@ -23,6 +23,13 @@ path:
   library: lib
   feature_library: ${{ path.library }}$
   src: src
+  test: test
+  test_features: ${{ path.test }}$/features
+  test_features_shared_defaults: ${{ path.test_features }}$/defaults.shared.yaml
+  test_environments: ${{ path.test }}$/environments.yaml
+  dev_scripts_test: .dev/scripts/test
+  test_run_in_container: ${{ path.dev_scripts_test }}$/run-in-container.sh
+  local_logs_features: .local/logs/tests/features
   devcontainer: .devcontainer
   shared_metadata: features/metadata.shared.yaml
   metadata_schema: features/metadata.schema.json
@@ -30,6 +37,7 @@ path:
 filename:
   feature_metadata: metadata.yaml
   feature_script: install.bash
+  feature_scenarios: scenarios.yaml
 features:
   lifecycle_hook_keys:
     - onCreateCommand
@@ -199,3 +207,14 @@ def test_absolute_path(
     _patch_loaders(monkeypatch, tmp_path)
     config = cfg.load()
     assert config.absolute_path("path.features") == tmp_path / "features"
+    assert config.absolute_path("path.test_features") == tmp_path / "test" / "features"
+    assert config.absolute_path("path.test_features_shared_defaults") == (
+        tmp_path / "test" / "features" / "defaults.shared.yaml"
+    )
+    assert config.absolute_path("path.local_logs_features") == (
+        tmp_path / ".local" / "logs" / "tests" / "features"
+    )
+    assert config.absolute_path("path.test_run_in_container") == (
+        tmp_path / ".dev" / "scripts" / "test" / "run-in-container.sh"
+    )
+    assert config["filename.feature_scenarios"] == "scenarios.yaml"

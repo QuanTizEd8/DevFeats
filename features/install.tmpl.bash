@@ -85,14 +85,15 @@ __init__() {
 
   __init_env__
   __init_lib__
+  file__session_ensure
   if [[ -n "${_BASH_INSTALLED_INTERNALLY:-}" ]] && [[ -n "${_BASH_BIN:-}" ]]; then
     install__track_internal_path "bash-bootstrap" "${_BASH_BIN}"
   fi
   unset _BASH_INSTALLED_INTERNALLY
   export -n _BASH_INSTALLED_BY_PM   # keep value in this process, don't leak to children
   export -n _BASH_BIN               # same: _BASH_BIN stays accessible for shell__bash()
-  __init_script__
   __init_args__ "$@"
+  __init_script__
 
   if declare -f __init_post > /dev/null; then
     __init_post
@@ -1645,8 +1646,9 @@ __exit__() {
     esac
   fi
 
-  logging__cleanup
   logging__feature_exit "$_FEAT_NAME v$_FEAT_VERSION"
+  logging__cleanup
+  file__session_cleanup
   return
 }
 

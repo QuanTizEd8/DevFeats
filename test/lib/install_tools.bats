@@ -139,7 +139,7 @@ setup() {
 
 @test "ospkg__untrack_resource removes tracked paths from sidecar" {
   reload_lib ospkg.sh
-  export _LOGGING__SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   ospkg__track_resource "abc" "/tmp/one" "/tmp/two"
 
   run ospkg__untrack_resource "abc" "/tmp/one"

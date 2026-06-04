@@ -1,4 +1,9 @@
-"""Run devcontainer feature tests in devcontainer, standalone, and macOS modes."""
+"""Run devcontainer feature tests in devcontainer, standalone, and macOS modes.
+
+Test layout paths come from ``proman.config.load()`` (``.config/proman/_main.yaml``).
+Install logs are written under ``path.local_logs_features`` — see
+``docs/source/dev-guide/tests/features.md``.
+"""
 
 from __future__ import annotations
 
@@ -13,14 +18,25 @@ import sys
 import tempfile
 from pathlib import Path
 
+from proman.config import load as load_config
 from proman.feature_env import resolved_env_vars
 
 from .checks import install_failure_patterns, load_checks
 from .codegen import generate_tests
 from .environments import is_macos, resolve
 from .environments import load as load_envs
+from .feature_logs import (
+    DEVFEATS_LOG_BIND_DIR_ENV,
+    append_bind_mount_copy_to_test_script,
+    container_log_path,
+    copy_log_to_bind_mount_fragment,
+    ensure_host_log_dir,
+    host_log_path,
+    patch_devcontainer_scenario_logging,
+    uses_bind_mount_log,
+)
 from .gen_devcontainer import generate
-from .scenarios import expand_envs, merge_defaults
+from .scenarios import expand_envs, merge_all_defaults, shared_defaults
 from .scenarios import load as load_scenarios
 
 _SHIM_SETUP = (
@@ -182,7 +198,7 @@ def _options_exports(options: dict) -> str:
     return "\n".join(lines)
 
 
-def _build_macos_base_env(env_name: str, envs: dict, repo_root: Path) -> dict:
+def _build_macos_base_env(env_name: str, envs: dict) -> dict:
     """Return the env dict used for all macOS subprocess calls in a scenario.
 
     When clean_path is set on the environment, starts from an allowlist of
@@ -193,22 +209,26 @@ def _build_macos_base_env(env_name: str, envs: dict, repo_root: Path) -> dict:
     env_def = envs.get(env_name, {})
     if not env_def.get("clean_path", False):
         base = dict(os.environ)
-        base["REPO_ROOT"] = str(repo_root)
+        base["REPO_ROOT"] = str(load_config().root_path)
         return base
     base = {k: v for k, v in os.environ.items() if k in _MACOS_ENV_PASSTHROUGH}
     prepend = env_def.get("path_prepend", "").strip()
     clean_base = _MACOS_CLEAN_BASE_PATH
     base["PATH"] = f"{prepend}:{clean_base}" if prepend else clean_base
-    base["REPO_ROOT"] = str(repo_root)
+    base["REPO_ROOT"] = str(load_config().root_path)
     return base
 
 
-def _load_entries(feature: str, repo_root: Path, envs: dict) -> list[dict]:
-    scenarios_path = repo_root / "test" / "features" / feature / "scenarios.yaml"
-    defaults, scenarios = load_scenarios(scenarios_path)
+def _load_entries(feature: str, envs: dict) -> list[dict]:
+    cfg = load_config()
+    feat = cfg.absolute_path("path.test_features") / feature
+    defaults, scenarios = load_scenarios(
+        feat / str(cfg["filename.feature_scenarios"]),
+    )
+    shared = shared_defaults()
     entries = []
     for name, sc in scenarios.items():
-        merged_sc = merge_defaults(sc, defaults)
+        merged_sc = merge_all_defaults(sc, defaults, shared)
         for key, env_name, scenario in expand_envs(name, merged_sc):
             entries.append(
                 {
@@ -221,58 +241,119 @@ def _load_entries(feature: str, repo_root: Path, envs: dict) -> list[dict]:
     return entries
 
 
+def _devcontainer_keys(
+    entries: list[dict],
+    filter_prefix: str,
+) -> list[str]:
+    keys: list[str] = []
+    for entry in entries:
+        if entry["env_is_macos"]:
+            continue
+        key = entry["key"]
+        if filter_prefix and not key.startswith(filter_prefix):
+            continue
+        modes = entry["scenario"].get("modes", ["devcontainer", "standalone"])
+        if modes == ["standalone"]:
+            continue
+        if "devcontainer" not in modes:
+            continue
+        keys.append(key)
+    return keys
+
+
 def _run_devcontainer(
     feature: str,
-    repo_root: Path,
     filter_prefix: str,
+    entries: list[dict],
 ) -> bool:
-    with tempfile.TemporaryDirectory() as tmpdir_str:
-        tmpdir = Path(tmpdir_str)
-        (tmpdir / "src").symlink_to(repo_root / "src")
+    ensure_host_log_dir()
+    keys = _devcontainer_keys(entries, filter_prefix)
+    if not keys:
+        return True
 
-        test_out_dir = tmpdir / "test" / feature
-        generate(
-            feature=feature,
-            scenarios_path=repo_root / "test" / "features" / feature / "scenarios.yaml",
-            envs_path=repo_root / "test" / "environments.yaml",
-            out_dir=tmpdir,
-        )
+    cfg = load_config()
+    log_bind_dir = ensure_host_log_dir()
+    success = True
+    for key in keys:
+        entry = next(e for e in entries if e["key"] == key)
+        options = entry["scenario"].get("options", {})
+        feat = cfg.absolute_path("path.test_features") / feature
 
-        if filter_prefix:
+        with tempfile.TemporaryDirectory() as tmpdir_str:
+            tmpdir = Path(tmpdir_str)
+            (tmpdir / "src").symlink_to(cfg.absolute_path("path.src"))
+
+            test_out_dir = tmpdir / "test" / feature
+            generate(
+                feature=feature,
+                scenarios_path=feat / str(cfg["filename.feature_scenarios"]),
+                envs_path=cfg.absolute_path("path.test_environments"),
+                out_dir=tmpdir,
+            )
+
             scenarios_json_path = test_out_dir / "scenarios.json"
-            with scenarios_json_path.open() as f:
+            with scenarios_json_path.open(encoding="utf-8") as f:
                 all_scenarios = json.load(f)
-            filtered = {
-                k: v for k, v in all_scenarios.items() if k.startswith(filter_prefix)
-            }
-            with scenarios_json_path.open("w") as f:
-                json.dump(filtered, f, indent=4)
+            if key not in all_scenarios:
+                print(
+                    f"⛔ devcontainer scenario {key}: missing from scenarios.json",
+                    file=sys.stderr,
+                )
+                success = False
+                continue
+            with scenarios_json_path.open("w", encoding="utf-8") as f:
+                json.dump({key: all_scenarios[key]}, f, indent=4)
                 f.write("\n")
 
-        result = subprocess.run(
-            [
-                "devcontainer",
-                "features",
-                "test",
-                "--skip-autogenerated",
-                "-f",
-                feature,
-                "--project-folder",
-                str(tmpdir),
-            ],
-            check=False,
-        )
-        return result.returncode == 0
+            patch_devcontainer_scenario_logging(
+                scenarios_json_path,
+                feature=feature,
+                scenario_key=key,
+                options=options,
+            )
+            test_script = test_out_dir / f"{key}.sh"
+            if test_script.is_file() and not uses_bind_mount_log(options):
+                append_bind_mount_copy_to_test_script(test_script, key)
+
+            print(f"\n══ devcontainer: {key} ══", flush=True)
+            run_env = os.environ.copy()
+            run_env[DEVFEATS_LOG_BIND_DIR_ENV] = str(log_bind_dir)
+            result = subprocess.run(
+                [
+                    "devcontainer",
+                    "features",
+                    "test",
+                    "--skip-autogenerated",
+                    "-f",
+                    feature,
+                    "--project-folder",
+                    str(tmpdir),
+                ],
+                check=False,
+                env=run_env,
+            )
+            log_out = host_log_path(key)
+            if not log_out.is_file():
+                print(
+                    f"⚠ devcontainer scenario {key}: install log not captured at "
+                    f"{log_out}",
+                    file=sys.stderr,
+                )
+            if result.returncode != 0:
+                success = False
+
+    return success
 
 
 def _run_standalone(
     feature: str,
-    repo_root: Path,
     entries: list[dict],
     filter_prefix: str,
     envs: dict,
 ) -> bool:
-    checks_path = repo_root / "test" / "features" / feature / "checks.yaml"
+    cfg = load_config()
+    feat = cfg.absolute_path("path.test_features") / feature
+    checks_path = feat / str(cfg["filename.feature_checks"])
     checks_data = load_checks(checks_path) if checks_path.exists() else {}
 
     success = True
@@ -314,7 +395,6 @@ def _run_standalone(
         image = resolve(
             env_name,
             envs,
-            repo_root,
             scenario_args=sc_args or None,
             scenario_env_vars=sc_env_vars or None,
         )
@@ -365,20 +445,21 @@ def _run_standalone(
                     "exit 1",
                 )
         parts.extend(test_cmd_lines)
+        parts.append(copy_log_to_bind_mount_fragment(key))
 
         run_cmd = "\n".join(p for p in parts if p)
 
+        log_bind_dir = ensure_host_log_dir()
         container_name = f"standalone-{feature}-{re.sub(r'[.+]', '-', key)}"
-        run_in_container = (
-            repo_root / ".dev" / "scripts" / "test" / "run-in-container.sh"
-        )
         container_cmd = [
             "bash",
-            str(run_in_container),
+            str(cfg.absolute_path("path.test_run_in_container")),
             "--image",
             image,
             "--name",
             container_name,
+            "--log-bind-dir",
+            str(log_bind_dir),
             "--run",
             run_cmd,
         ]
@@ -395,18 +476,19 @@ def _run_standalone(
 
 def _run_macos(
     feature: str,
-    repo_root: Path,
     entries: list[dict],
     filter_prefix: str,
     envs: dict,
 ) -> bool:
-    checks_path = repo_root / "test" / "features" / feature / "checks.yaml"
+    cfg = load_config()
+    feat = cfg.absolute_path("path.test_features") / feature
+    checks_path = feat / str(cfg["filename.feature_checks"])
     checks_data = load_checks(checks_path) if checks_path.exists() else {}
 
     shim_dir = tempfile.mkdtemp()
     try:
         shim_path = Path(shim_dir) / "dev-container-features-test-lib"
-        shutil.copy(repo_root / "test" / "support" / "assert.sh", shim_path)
+        shutil.copy(cfg.absolute_path("path.test_assert"), shim_path)
         shim_path.chmod(0o755)
 
         success = True
@@ -427,6 +509,7 @@ def _run_macos(
             expect_install_failure = bool(scenario.get("expect_install_failure", False))
             test_scripts = scenario.get("tests", [])
             failure_patterns = install_failure_patterns(checks_data, test_scripts)
+            options = dict(scenario.get("options", {}))
             if expect_install_failure and not failure_patterns:
                 print(
                     f"⛔ macos scenario {key}: expect_install_failure=true but no "
@@ -436,103 +519,124 @@ def _run_macos(
                 )
                 success = False
                 continue
-            options = scenario.get("options", {})
 
-            # base_env: clean or full runner env, no feature options yet.
-            # Mirrors Docker: env-level setup and scenario setup run before
-            # feature options are exported, matching standalone mode behaviour.
-            base_env = _build_macos_base_env(env_name, envs, repo_root)
+            try:
+                # base_env: clean or full runner env, no feature options yet.
+                # Mirrors Docker: env-level setup and scenario setup run before
+                # feature options are exported, matching standalone mode behaviour.
+                base_env = _build_macos_base_env(env_name, envs)
 
-            env_def = envs.get(env_name, {})
-            # macOS: `build.dockerfile` is env bootstrap shell (not Docker). Linux
-            # envs use it as Dockerfile RUN body via environments.resolve().
-            env_build = env_def.get("build", {}).get("dockerfile", "")
-            if env_build:
-                subprocess.run(["bash", "-c", env_build], check=True, env=base_env)
+                env_def = envs.get(env_name, {})
+                # macOS: `build.dockerfile` is env bootstrap shell (not Docker). Linux
+                # envs use it as Dockerfile RUN body via environments.resolve().
+                env_build = env_def.get("build", {}).get("dockerfile", "")
+                if env_build:
+                    subprocess.run(["bash", "-c", env_build], check=True, env=base_env)
 
-            scenario_setup = scenario.get("setup", "")
-            if scenario_setup:
-                subprocess.run(["bash", "-c", scenario_setup], check=True, env=base_env)
-
-            # run_env adds feature options on top of base_env for the install
-            # script and test scripts.
-            run_env = dict(base_env)
-            for k, v in options.items():
-                env_key = k.upper().replace("-", "_")
-                run_env[env_key] = str(v).lower() if isinstance(v, bool) else str(v)
-
-            print(f"\n══ macos: {key} ══", flush=True)
-
-            install_rc = 0
-            if not skip_install:
-                install_script = repo_root / "src" / feature / "install.sh"
-                install_rc, install_output = _run_install_live(
-                    install_script,
-                    run_env,
-                    accumulate=expect_install_failure,
-                )
-                if expect_install_failure:
-                    err = _validate_install_failure_output(
-                        key,
-                        returncode=install_rc,
-                        output=install_output,
-                        failure_patterns=failure_patterns,
+                scenario_setup = scenario.get("setup", "")
+                if scenario_setup:
+                    subprocess.run(
+                        ["bash", "-c", scenario_setup],
+                        check=True,
+                        env=base_env,
                     )
-                    if err:
-                        print(f"⛔ {err}", file=sys.stderr)
+
+                # run_env adds feature options on top of base_env for the install
+                # script and test scripts.
+                run_env = dict(base_env)
+                for k, v in options.items():
+                    env_key = k.upper().replace("-", "_")
+                    run_env[env_key] = str(v).lower() if isinstance(v, bool) else str(v)
+
+                print(f"\n══ macos: {key} ══", flush=True)
+
+                install_rc = 0
+                if not skip_install:
+                    install_script = (
+                        cfg.absolute_path("path.src")
+                        / feature
+                        / str(cfg["filename.feature_install_sh"])
+                    )
+                    install_rc, install_output = _run_install_live(
+                        install_script,
+                        run_env,
+                        accumulate=expect_install_failure,
+                    )
+                    if expect_install_failure:
+                        err = _validate_install_failure_output(
+                            key,
+                            returncode=install_rc,
+                            output=install_output,
+                            failure_patterns=failure_patterns,
+                        )
+                        if err:
+                            print(f"⛔ {err}", file=sys.stderr)
+                            success = False
+                    elif install_rc != 0:
+                        print(
+                            f"⛔ macos scenario {key}: install failed with "
+                            f"exit code {install_rc}.",
+                            file=sys.stderr,
+                        )
                         success = False
-                elif install_rc != 0:
+                        # Preserve previous semantics: when install unexpectedly
+                        # fails, skip scenario tests because setup state is not
+                        # guaranteed.
+                        continue
+                elif expect_install_failure:
                     print(
-                        f"⛔ macos scenario {key}: install failed with "
-                        f"exit code {install_rc}.",
+                        f"⛔ macos scenario {key}: invalid config "
+                        "(skip_install=true with expect_install_failure=true).",
                         file=sys.stderr,
                     )
                     success = False
-                    # Preserve previous semantics: when install unexpectedly fails,
-                    # skip scenario tests because setup state is not guaranteed.
                     continue
-            elif expect_install_failure:
-                print(
-                    f"⛔ macos scenario {key}: invalid config "
-                    "(skip_install=true with expect_install_failure=true).",
-                    file=sys.stderr,
-                )
-                success = False
-                continue
 
-            for ts in test_scripts:
-                ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
-                ts_path = str(
-                    repo_root / "test" / "features" / feature / "tests" / ts_name,
-                )
-                test_env = {
-                    **run_env,
-                    "PATH": f"{shim_dir}:{run_env['PATH']}",
-                    "FEATURE_INSTALL_RC": str(install_rc),
-                    **resolved_env_vars(feature),
-                }
-                if user:
-                    path_q = shlex.quote(test_env["PATH"])
-                    root_q = shlex.quote(str(repo_root))
-                    ts_q = shlex.quote(ts_path)
-                    cmd = f"PATH={path_q} REPO_ROOT={root_q} {ts_q}"
-                    result = subprocess.run(
-                        ["su", user, "-c", cmd],
-                        check=False,
-                        env=test_env,
+                for ts in test_scripts:
+                    ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
+                    ts_path = str(
+                        feat / str(cfg["filename.feature_tests"]) / ts_name,
                     )
-                else:
-                    result = subprocess.run(
-                        [ts_path],
-                        env=test_env,
-                        check=False,
-                    )
-                if result.returncode != 0:
-                    success = False
+                    test_env = {
+                        **run_env,
+                        "PATH": f"{shim_dir}:{run_env['PATH']}",
+                        "FEATURE_INSTALL_RC": str(install_rc),
+                        **resolved_env_vars(feature),
+                    }
+                    if user:
+                        path_q = shlex.quote(test_env["PATH"])
+                        root_q = shlex.quote(str(cfg.root_path))
+                        ts_q = shlex.quote(ts_path)
+                        cmd = f"PATH={path_q} REPO_ROOT={root_q} {ts_q}"
+                        result = subprocess.run(
+                            ["su", user, "-c", cmd],
+                            check=False,
+                            env=test_env,
+                        )
+                    else:
+                        result = subprocess.run(
+                            [ts_path],
+                            env=test_env,
+                            check=False,
+                        )
+                    if result.returncode != 0:
+                        success = False
+            finally:
+                _save_macos_feature_log(key, options)
 
         return success
     finally:
         shutil.rmtree(shim_dir)
+
+
+def _save_macos_feature_log(key: str, options: dict) -> None:
+    """Copy the scenario install log to `.local/logs/tests/features/<key>.log`."""
+    src = Path(container_log_path(options))
+    if not src.is_file():
+        return
+    dest = host_log_path(key)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dest)
 
 
 def main() -> None:
@@ -555,18 +659,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    repo_root_str = (
-        os.environ.get("REPO_ROOT")
-        or subprocess.check_output(
-            ["git", "rev-parse", "--show-toplevel"],
-            text=True,
-        ).strip()
-    )
-    repo_root = Path(repo_root_str)
-    os.environ.setdefault("REPO_ROOT", str(repo_root))
+    cfg = load_config()
+    os.environ.setdefault("REPO_ROOT", str(cfg.root_path))
 
-    tests_dir = repo_root / "test" / "features" / args.feature / "tests"
-    checks_path = repo_root / "test" / "features" / args.feature / "checks.yaml"
+    feat = cfg.absolute_path("path.test_features") / args.feature
+    tests_dir = feat / str(cfg["filename.feature_tests"])
+    checks_path = feat / str(cfg["filename.feature_checks"])
     if checks_path.exists():
         generate_tests(args.feature, checks_path, tests_dir)
 
@@ -577,36 +675,29 @@ def main() -> None:
         )
         sys.exit(1)
 
-    envs_path = repo_root / "test" / "environments.yaml"
-    envs = load_envs(envs_path)
-    entries = _load_entries(args.feature, repo_root, envs)
+    envs = load_envs(cfg.absolute_path("path.test_environments"))
+    entries = _load_entries(args.feature, envs)
 
     filter_prefix: str = args.filter
 
     if args.mode == "devcontainer":
-        ok = _run_devcontainer(args.feature, repo_root, filter_prefix)
+        ok = _run_devcontainer(args.feature, filter_prefix, entries)
         sys.exit(0 if ok else 1)
 
     if args.mode == "standalone":
-        ok = _run_standalone(args.feature, repo_root, entries, filter_prefix, envs)
+        ok = _run_standalone(args.feature, entries, filter_prefix, envs)
         sys.exit(0 if ok else 1)
 
     if args.mode == "macos":
-        ok = _run_macos(args.feature, repo_root, entries, filter_prefix, envs)
+        ok = _run_macos(args.feature, entries, filter_prefix, envs)
         sys.exit(0 if ok else 1)
 
     rc = 0
-    if not _run_devcontainer(args.feature, repo_root, filter_prefix):
+    if not _run_devcontainer(args.feature, filter_prefix, entries):
         rc = 1
-    if not _run_standalone(args.feature, repo_root, entries, filter_prefix, envs):
+    if not _run_standalone(args.feature, entries, filter_prefix, envs):
         rc = 1
     has_macos = sys.platform == "darwin" or any(e["env_is_macos"] for e in entries)
-    if has_macos and not _run_macos(
-        args.feature,
-        repo_root,
-        entries,
-        filter_prefix,
-        envs,
-    ):
+    if has_macos and not _run_macos(args.feature, entries, filter_prefix, envs):
         rc = 1
     sys.exit(rc)

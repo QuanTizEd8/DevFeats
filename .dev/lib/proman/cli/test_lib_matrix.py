@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import sys
 
-from proman.git import git_repo_root
 from proman.test.lib_matrix import run
 
 
@@ -27,4 +26,4 @@ def main() -> None:
     )
     args = parser.parse_args()
     extra = [a for a in args.run_unit_args if a != "--"]
-    sys.exit(run(args.env, extra, git_repo_root()))
+    sys.exit(run(args.env, extra))

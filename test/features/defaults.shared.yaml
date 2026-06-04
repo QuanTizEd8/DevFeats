@@ -1,0 +1,6 @@
+# Merged into every feature scenarios.yaml (lowest precedence).
+# Per-feature `defaults:` and scenario `options:` override these values.
+options:
+  log_level: debug
+  log_file_level: trace
+  log_file: /tmp/devfeats-feature.log

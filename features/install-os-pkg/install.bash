@@ -66,7 +66,8 @@ __install_run__() {
         [[ -n "${_osh}" ]] && _HOOK_OPTS+=" --fetch-header $(printf '%q' "$_osh")"
       done
     fi
-    [[ "${LOG_LEVEL:-info}" == "trace" ]] && _HOOK_OPTS+=" --log_level trace"
+    [[ -n "${LOG_LEVEL:-}" ]] && _HOOK_OPTS+=" --log_level $(printf '%q' "$LOG_LEVEL")"
+    [[ -n "${LOG_FILE_LEVEL:-}" ]] && _HOOK_OPTS+=" --log_file_level $(printf '%q' "$LOG_FILE_LEVEL")"
     [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive true"
     [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos true"
     [[ -n "$LOG_FILE" ]] && _HOOK_OPTS+=" --log_file $(printf '%q' "$LOG_FILE")"

@@ -1,7 +1,14 @@
 # shellcheck shell=bash
 # File and archive helpers: extract `.tar.xz`, `.tar.gz`, `.tgz`, and `.zip` archives.
 #
+# Session scratch (`_FILE__SESSION_ROOT`, `file__session_*`, `file__tmpdir`) lives in this
+# module. Call `file__session_cleanup` on installer exit (even when logging was never set up).
+#
 # Returns 1 on unrecognized format or missing extraction tool.
+
+_FILE__SESSION_ROOT=
+# True when this process created _FILE__SESSION_ROOT (`file__session_cleanup` may rm -rf).
+_FILE__SESSION_OWNED=false
 
 read -r -d '' _FILE__XZ_MANIFEST << 'EOF' || true
 packages:
@@ -511,46 +518,78 @@ file__nearest_existing() {
   printf '%s\n' "$_p"
 }
 
-# @brief file__tmpdir [<name>] — Return (and create if needed) a named subdirectory of the process-lifetime temp directory `_LOGGING__SYSSET_TMPDIR`. Idempotent.
+# @brief file__session_ensure — Lazy-init the installer session scratch root.
 #
-# Safe to call from library code that does not control the script entry
-# point, even if `logging__setup` has not yet been called. `_LOGGING__SYSSET_TMPDIR`
-# is lazy-initialised on first call. The entire tree is deleted by
-# `logging__cleanup` at script exit.
+# Exports `_FILE__SESSION_ROOT` so command-substitution subshells and child shells
+# share the same path. Does not take ownership when the root was pre-set (e.g. unit
+# tests pinning `_FILE__SESSION_ROOT` to `BATS_TEST_TMPDIR`).
+file__session_ensure() {
+  if [[ -n "${_FILE__SESSION_ROOT:-}" ]]; then
+    export _FILE__SESSION_ROOT
+    return 0
+  fi
+  _FILE__SESSION_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
+  _FILE__SESSION_OWNED=true
+  export _FILE__SESSION_ROOT
+  return 0
+}
+
+# @brief file__session_root — Print the session scratch root (initialises if needed).
+file__session_root() {
+  file__session_ensure
+  printf '%s\n' "${_FILE__SESSION_ROOT}"
+  return 0
+}
+
+# @brief file__session_cleanup — Remove owned session scratch and reset globals.
+#
+# No-op when the root was injected (not created by `file__session_ensure`).
+file__session_cleanup() {
+  if [[ "${_FILE__SESSION_OWNED:-}" == true && -n "${_FILE__SESSION_ROOT:-}" ]]; then
+    rm -rf "${_FILE__SESSION_ROOT}"
+  fi
+  _FILE__SESSION_ROOT=
+  _FILE__SESSION_OWNED=false
+  unset _FILE__SESSION_ROOT
+  return 0
+}
+
+# @brief file__tmpdir [<name>] — Return (and create if needed) a named subdirectory of `_FILE__SESSION_ROOT`. Idempotent.
+#
+# Safe before `logging__setup`. The tree is removed by `file__session_cleanup` on exit.
 #
 # Args:
-#   [<name>]  Path of the subdirectory to create under `_LOGGING__SYSSET_TMPDIR` (may
-#             contain `/` for nested paths, e.g. `install/jq`). When omitted,
-#             returns `_LOGGING__SYSSET_TMPDIR` itself (ensuring it is initialised).
+#   [<name>]  Subdirectory under `_FILE__SESSION_ROOT` (may contain `/`). When omitted,
+#             returns the session root itself.
 #
-# Stdout: absolute path to the named subdirectory (or `_LOGGING__SYSSET_TMPDIR` when called with no args).
+# Stdout: absolute path to the named subdirectory (or the session root when called with no args).
 # shellcheck disable=SC2120  # callers in other sourced files are invisible to shellcheck
 file__tmpdir() {
-  [[ -z "${_LOGGING__SYSSET_TMPDIR:-}" ]] && _LOGGING__SYSSET_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/devfeats_XXXXXX")"
+  file__session_ensure
   if [[ -n "${1:-}" ]]; then
-    mkdir -p "${_LOGGING__SYSSET_TMPDIR}/${1}"
-    printf '%s\n' "${_LOGGING__SYSSET_TMPDIR}/${1}"
+    mkdir -p "${_FILE__SESSION_ROOT}/${1}"
+    printf '%s\n' "${_FILE__SESSION_ROOT}/${1}"
   else
-    printf '%s\n' "${_LOGGING__SYSSET_TMPDIR}"
+    printf '%s\n' "${_FILE__SESSION_ROOT}"
   fi
   return 0
 }
 
-# @brief file__mktmpdir <label> — Create and return a new unique directory under `_LOGGING__SYSSET_TMPDIR`.
+# @brief file__mktmpdir <label> — Create and return a new unique directory under `_FILE__SESSION_ROOT`.
 #
 # Unlike `file__tmpdir`, each call creates a distinct directory via `mktemp`.
 # Use when per-call isolation is required (e.g. GPG homedirs, OCI pull dirs
-# that may be called multiple times with different artifacts). The directory
-# is cleaned up automatically when `logging__cleanup` removes `_LOGGING__SYSSET_TMPDIR`.
+# that may be called multiple times with different artifacts). Removed by
+# `file__session_cleanup` at script exit.
 #
 # Args:
 #   <label>  Short label used as a prefix in the directory name.
 #
 # Stdout: absolute path to the new unique directory.
 file__mktmpdir() {
-  local _base
-  # shellcheck disable=SC2119  # intentionally called without args to get the base dir
-  _base="$(file__tmpdir)/${1:-tmp}"
+  local _base _label="${1:-tmp}"
+  file__session_ensure
+  _base="${_FILE__SESSION_ROOT}/${_label}"
   mkdir -p "${_base%/*}"
   mktemp -d "${_base}.XXXXXX"
 }
