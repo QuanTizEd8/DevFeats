@@ -176,16 +176,16 @@ users__run_as() {
     fi
     return $?
   fi
-  if ! command -v bash > /dev/null 2>&1; then
+  if ! shell__bash --version > /dev/null 2>&1; then
     logging__error "users__run_as: bash is required to run a command as another user"
     return 1
   fi
-  # shellcheck disable=SC2016  # $a is intentionally single-quoted — it is bash's variable, not the current shell's
-  _or_c="$(bash -c 'for a; do printf " %q" "$a"; done; echo' sh "$@")"
+  # shellcheck disable=SC2016  # $a and $1 are intentionally single-quoted — evaluated by the subprocess bash
+  _or_c="$(shell__bash -c 'for a; do printf " %q" "$a"; done; echo' sh "$@")"
   _or_c="${_or_c# }" # strip the single leading space; $(...) already strips the trailing newline
   if [ -n "$_or_cd" ]; then
-    _or_cd_q="$(bash -c 'printf "%q" "$1"' bash "$_or_cd")"
     # shellcheck disable=SC2016  # $1 is intentionally single-quoted — evaluated by the subprocess bash
+    _or_cd_q="$(shell__bash -c 'printf "%q" "$1"' bash "$_or_cd")"
     users__run_privileged su -l "$_or_u" -c "cd ${_or_cd_q} && ${_or_c}"
   else
     users__run_privileged su -l "$_or_u" -c "$_or_c"
@@ -987,7 +987,7 @@ users__expand_path() {
   # $HOME, $XDG_*, and all user-configured env vars available.
   # Tilde is pre-converted to $HOME because eval does not expand tilde in double-quoted strings.
   # shellcheck disable=SC2016
-  users__run_as "$_user" -- bash -c '
+  users__run_as "$_user" -- "${_BASH_BIN:-bash}" -c '
     _e="$1"
     [[ "$_e" == "~"* ]] && _e="${HOME}${_e#\~}"
     eval "printf \"%s\n\" \"${_e}\""

@@ -68,7 +68,7 @@ bootstrap__yq() {
   for _f in checksums checksums_hashes_order extract-checksum.sh; do
     net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}" || return 1
   done
-  _expected_hash="$(cd "${_hdir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
+  _expected_hash="$(cd "${_hdir}" && shell__bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
   if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
     logging__error "bootstrap__yq: invalid SHA-256 for yq_${_os}_${_arch}."
     return 1

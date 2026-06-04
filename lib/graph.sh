@@ -121,7 +121,7 @@ graph__round_order() {
       break
     fi
     if [[ -n "$_cmp" ]]; then
-      mapfile -t _pick < <(printf '%s\n' "${_cand[@]}" | bash -c "$_cmp")
+      mapfile -t _pick < <(printf '%s\n' "${_cand[@]}" | shell__bash -c "$_cmp")
     else
       mapfile -t _pick < <(
         for _a in "${_cand[@]}"; do

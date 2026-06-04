@@ -578,6 +578,13 @@ ospkg__detect() {
   return 0
 }
 
+# @brief ospkg__pm — Print the detected package manager command name (e.g. `apt-get`, `apk`, `dnf`, `brew`).
+# Returns 1 if no supported package manager was found.
+ospkg__pm() {
+  ospkg__detect || return 1
+  printf '%s\n' "$_OSPKG__PKG_MNGR"
+}
+
 # @brief ospkg__is_managed <bin_path> — Return 0 if <bin_path> is owned by the OS package manager, 1 otherwise.
 #
 # Calls `ospkg__detect` (idempotent) and dispatches on `_OSPKG__FAMILY`, so
@@ -1545,6 +1552,40 @@ ospkg__install_user() {
   return 0
 }
 
+# @brief ospkg__has_rdeps <pkg> — Return 0 if any installed package depends on <pkg>, 1 otherwise.
+#
+# Uses PM-native reverse-dependency queries for all PMs supported by ospkg__detect.
+#
+# Returns: 0 if reverse deps exist, 1 if none or if the PM is unsupported.
+ospkg__has_rdeps() {
+  local _pkg="${1:?ospkg__has_rdeps: pkg required}"
+  ospkg__detect || return 1
+  local _out=""
+  case "$_OSPKG__PKG_MNGR" in
+    apt-get)
+      _out="$(apt-cache rdepends --installed "$_pkg" 2> /dev/null |
+        grep -v "^${_pkg}$\|^Reverse Depends:\|^[[:space:]]*|\|^[[:space:]]*$")" || true
+      ;;
+    apk)
+      _out="$(apk info --rdepends "$_pkg" 2> /dev/null |
+        grep -v "has no dependants\|is required by\|^[[:space:]]*$")" || true
+      ;;
+    dnf | yum | microdnf)
+      _out="$(rpm -q --whatrequires "$_pkg" 2> /dev/null | grep -v "^no package requires")" || true
+      ;;
+    zypper)
+      _out="$(zypper search --requires "$_pkg" --installed-only 2> /dev/null | grep -E '^i ')" || true
+      ;;
+    pacman)
+      _out="$(pacman -Qi "$_pkg" 2> /dev/null | grep "^Required By" | grep -v ": None")" || true
+      ;;
+    brew)
+      _out="$(brew uses --installed "$_pkg" 2> /dev/null)" || true
+      ;;
+  esac
+  [[ -n "${_out:-}" ]]
+}
+
 # @brief ospkg__remove_user [--ignore-deps] <pkg>... — Remove one or more user-installed packages via the OS package manager.
 #
 # Uses the platform-native removal command for each supported package manager.
@@ -2061,7 +2102,7 @@ ospkg__run() {
         logging__inspect "[dry-run] ${_label} — would execute:"
         sed 's/^/    /' "$_stmp" >&2
       else
-        bash "$_stmp"
+        shell__bash "$_stmp"
       fi
       rm -f "$_stmp"
       return 0

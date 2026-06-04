@@ -34,6 +34,10 @@ _shell__ensure_strings() {
   return 1
 }
 
+# @brief shell__bash — Run the active bash binary.
+# Uses _BASH_BIN set by install.sh bootstrap when available; otherwise falls back to bash on PATH.
+shell__bash() { "${_BASH_BIN:-bash}" "$@"; }
+
 # @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro. Uses binary probing, never file-existence checks.
 #
 # Detection order: (1) strings-probe the bash binary (most accurate — bash
@@ -46,7 +50,7 @@ shell__detect_bashrc() {
   # Ask bash which RC file it was compiled with — most accurate.
   local _compiled
   _shell__ensure_strings || true
-  _compiled="$(strings "$(command -v bash 2> /dev/null)" 2> /dev/null |
+  _compiled="$(strings "${_BASH_BIN:-$(command -v bash 2> /dev/null)}" 2> /dev/null |
     grep -m1 -E '^/etc/(bash\.bashrc|bashrc|bash/bashrc)$' || true)"
   if [ -n "$_compiled" ]; then
     echo "$_compiled"
@@ -424,10 +428,10 @@ shell__detect_xdg_config_home() {
 
   # Tier 1: run bash as the target user to get the live XDG_CONFIG_HOME.
   if [[ -n "$_user" && "$_user" != "$(users__get_current --no-sudo 2> /dev/null)" ]] &&
-    command -v bash > /dev/null 2>&1; then
+    command -v "${_BASH_BIN:-bash}" > /dev/null 2>&1; then
     local _live_xdg=""
     # shellcheck disable=SC2016  # XDG_CONFIG_HOME is a variable for the target user's shell
-    _live_xdg="$(users__run_as "$_user" -- bash -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
+    _live_xdg="$(users__run_as "$_user" -- "${_BASH_BIN:-bash}" -c 'printf "%s" "${XDG_CONFIG_HOME:-}"' \
       2> /dev/null || true)"
     if [[ -n "$_live_xdg" ]]; then
       echo "$_live_xdg"

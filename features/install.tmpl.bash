@@ -85,6 +85,12 @@ __init__() {
 
   __init_env__
   __init_lib__
+  if [[ -n "${_BASH_INSTALLED_INTERNALLY:-}" ]] && [[ -n "${_BASH_BIN:-}" ]]; then
+    install__track_internal_path "bash-bootstrap" "${_BASH_BIN}"
+  fi
+  unset _BASH_INSTALLED_INTERNALLY
+  export -n _BASH_INSTALLED_BY_PM   # keep value in this process, don't leak to children
+  export -n _BASH_BIN               # same: _BASH_BIN stays accessible for shell__bash()
   __init_script__
   __init_args__ "$@"
 
@@ -1613,6 +1619,31 @@ __exit__() {
   fi
 
   [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && ospkg__cleanup_all_build_groups
+  [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && ospkg__cleanup_resources
+  # Remove a PM-installed bootstrap bash when it is no longer needed.
+  if [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && \
+     [[ -n "${_BASH_INSTALLED_BY_PM:-}" ]]; then
+    case "${_BASH_INSTALLED_BY_PM}" in
+      port)
+        # port dependents: remove only when nothing else requires bash.
+        if ! port dependents bash 2>/dev/null | grep -qv "has no dependents\|^[[:space:]]*$"; then
+          logging__remove "Removing PM-installed bootstrap bash via port."
+          port uninstall bash 2>/dev/null || logging__warn "port uninstall bash failed."
+        fi
+        ;;
+      nix-env)
+        # Nix profiles are isolated — no cascade risk; remove unconditionally.
+        logging__remove "Removing PM-installed bootstrap bash via nix-env."
+        nix-env --uninstall bash 2>/dev/null || logging__warn "nix-env --uninstall bash failed."
+        ;;
+      *)
+        if [[ "$(ospkg__pm 2>/dev/null)" == "${_BASH_INSTALLED_BY_PM}" ]] && \
+           ! ospkg__has_rdeps bash; then
+          ospkg__remove_user bash
+        fi
+        ;;
+    esac
+  fi
 
   logging__cleanup
   logging__feature_exit "$_FEAT_NAME v$_FEAT_VERSION"
