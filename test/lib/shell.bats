@@ -30,11 +30,10 @@ setup() {
 # shell__detect_bashrc  (strings-probe path, then os__platform fallback)
 # ---------------------------------------------------------------------------
 
-@test "shell__detect_bashrc returns /etc/bash.bashrc for arch via default" {
+@test "shell__detect_bashrc returns /etc/bash.bashrc for unrecognised platform" {
   reload_lib shell.sh
-  _OS__ID="arch"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  os__platform() { echo "debian"; }
+  export -f os__platform
   run shell__detect_bashrc
   assert_output "/etc/bash.bashrc"
 }

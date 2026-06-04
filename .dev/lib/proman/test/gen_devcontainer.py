@@ -17,43 +17,56 @@ from .environments import load as load_envs
 from .scenarios import expand_envs, merge_defaults
 from .scenarios import load as load_scenarios
 
+_TESTLIB_PATH = "/tmp/_devfeats_testlib/dev-container-features-test-lib"  # noqa: S108
 
-def _posix_testlib_injection() -> str:
-    """Return a POSIX sh block that writes our assert.sh to a high-priority PATH dir.
+
+def _posix_testlib_block() -> str:
+    """Return a POSIX sh heredoc that writes our assert.sh to a known absolute path.
 
     The official devcontainer CLI injects its own bash-specific test lib (uses
-    bash arrays: FAILED=()) into the test container.  By writing our POSIX-
-    compatible assert.sh to /tmp/_devfeats_testlib/ and prepending that dir to
-    PATH before the test script sources 'dev-container-features-test-lib', our
-    version is found first — allowing tests with #!/bin/sh to run on ash.
+    bash arrays: FAILED=()) into the test container.  Writing our POSIX-
+    compatible assert.sh to a fixed path and sourcing it by that absolute path
+    overrides the CLI version without modifying PATH (which would break tests
+    that inspect PATH ordering).
     """
     assert_sh = (load_config().root_path / "test" / "support" / "assert.sh").read_text(
         encoding="utf-8"
     )
     sentinel = "DEVFEATS_TEST_LIB_END"
+    lib_dir = _TESTLIB_PATH.rsplit("/", 1)[0]
+    # Ensure the sentinel lands on its own line even if assert.sh loses its
+    # trailing newline (heredoc terminator must be the only thing on the line).
+    if not assert_sh.endswith("\n"):
+        assert_sh += "\n"
     return (
-        "mkdir -p /tmp/_devfeats_testlib\n"
-        f"cat > /tmp/_devfeats_testlib/dev-container-features-test-lib << '{sentinel}'\n"
+        f"mkdir -p {lib_dir}\n"
+        f"cat > {_TESTLIB_PATH} << '{sentinel}'\n"
         f"{assert_sh}"
         f"{sentinel}\n"
-        "chmod +x /tmp/_devfeats_testlib/dev-container-features-test-lib\n"
-        "PATH=/tmp/_devfeats_testlib:$PATH\n"
-        "export PATH\n"
+        f"chmod +x {_TESTLIB_PATH}\n"
     )
 
 
 def _copy_test_script(
-    src: Path, dst: Path, feature: str, inject_testlib: bool = False
+    src: Path, dst: Path, feature: str, *, inject_testlib: bool = False
 ) -> None:
     """Copy a test script, prepending metadata-derived env var definitions."""
     content = src.read_text(encoding="utf-8")
+    if inject_testlib:
+        # Source our POSIX-compatible lib by absolute path so PATH is not
+        # modified (modifying PATH breaks tests that inspect PATH ordering).
+        content = content.replace(
+            ". dev-container-features-test-lib\n",
+            f". {_TESTLIB_PATH}\n",
+            1,
+        )
     lines = content.splitlines(keepends=True)
     insert_at = 1 if lines and lines[0].startswith("#!") else 0
     vars_block = "".join(
         f"export {k}={shlex.quote(v)}\n" for k, v in resolved_env_vars(feature).items()
     )
     if inject_testlib:
-        vars_block = _posix_testlib_injection() + vars_block
+        vars_block = _posix_testlib_block() + vars_block
     lines.insert(insert_at, vars_block)
     dst.write_text("".join(lines), encoding="utf-8")
     shutil.copymode(src, dst)

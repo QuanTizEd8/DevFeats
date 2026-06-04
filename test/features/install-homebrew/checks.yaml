@@ -46,7 +46,7 @@ apt_default:
     - title: zshenv has shellenv eval
       cmd: bash -c 'grep -qF "shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "shellenv" /etc/zshenv'
     - title: login PATH includes linuxbrew/bin
-      cmd: bash -lc 'echo "$PATH"' | grep -q '/home/linuxbrew/.linuxbrew/bin'
+      cmd: bash -lc 'echo "$PATH" | grep -q /home/linuxbrew/.linuxbrew/bin'
       debug: |
         echo "=== login PATH ==="
         bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
@@ -106,7 +106,7 @@ arch:
     - title: zsh/zshenv has shellenv eval
       cmd: grep -qF 'shellenv' /etc/zsh/zshenv
     - title: login PATH includes linuxbrew/bin
-      cmd: bash -lc 'echo "$PATH"' | grep -q '/home/linuxbrew/.linuxbrew/bin'
+      cmd: bash -lc 'echo "$PATH" | grep -q /home/linuxbrew/.linuxbrew/bin'
       debug: |
         echo "=== login PATH ==="
         bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
@@ -263,7 +263,7 @@ fedora:
     - title: zshenv has shellenv eval
       cmd: grep -qF 'shellenv' /etc/zshenv
     - title: login PATH includes linuxbrew/bin
-      cmd: bash -lc 'echo "$PATH"' | grep -q '/home/linuxbrew/.linuxbrew/bin'
+      cmd: bash -lc 'echo "$PATH" | grep -q /home/linuxbrew/.linuxbrew/bin'
       debug: |
         echo "=== login PATH ==="
         bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
@@ -538,15 +538,15 @@ macos_fresh_install:
     - title: brew --version succeeds
       cmd: '"$_BREW" --version'
     - title: brew --version reports Homebrew
-      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+      cmd: sh -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: a login bash file has shellenv marker
-      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null'
+      cmd: sh -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null'
     - title: ~/.bashrc has shellenv marker
       cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.bashrc"
     - title: ~/.zshenv has shellenv marker
       cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.zshenv"
     - title: shellenv block references correct brew prefix
-      cmd: bash -c 'grep -qF "$1/bin/brew" ~/.zshenv 2>/dev/null || grep -qF "$1/bin/brew" ~/.bash_profile 2>/dev/null' -- "$_BREW_PREFIX"
+      cmd: sh -c 'grep -qF "$1/bin/brew" ~/.zshenv 2>/dev/null || grep -qF "$1/bin/brew" ~/.bash_profile 2>/dev/null' -- "$_BREW_PREFIX"
     - title: brew --prefix returns expected prefix
       cmd: test "$_ACTUAL_PREFIX" = "$_BREW_PREFIX"
 
@@ -766,7 +766,7 @@ opensuse:
     - title: a zshenv has shellenv eval
       cmd: bash -c 'grep -qF "shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "shellenv" /etc/zshenv 2>/dev/null'
     - title: login PATH includes linuxbrew/bin
-      cmd: bash -lc 'echo "$PATH"' | grep -q '/home/linuxbrew/.linuxbrew/bin'
+      cmd: bash -lc 'echo "$PATH" | grep -q /home/linuxbrew/.linuxbrew/bin'
       debug: |
         echo "=== login PATH ==="
         bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"

@@ -27,7 +27,7 @@ default:
         grep -q "direnv.*hook fish"
         /etc/fish/conf.d/99-quantized8-devfeats--install-direnv--prefix-activation.fish
     - title: direnv tcsh hook written to system cshrc
-      cmd: bash -c 'grep -qF "direnv hook tcsh" /etc/csh.cshrc 2>/dev/null'
+      cmd: bash -c 'grep -q "direnv.*hook tcsh" /etc/csh.cshrc 2>/dev/null'
     - title: direnv elvish hook written to rc.elv
       cmd: bash -c 'grep -qF "direnv" /root/.config/elvish/rc.elv'
 
