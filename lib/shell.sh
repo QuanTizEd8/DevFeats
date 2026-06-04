@@ -38,25 +38,13 @@ _shell__ensure_strings() {
 # Uses _BASH_BIN set by install.sh bootstrap when available; otherwise falls back to bash on PATH.
 shell__bash() { "${_BASH_BIN:-bash}" "$@"; }
 
-# @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro. Uses binary probing, never file-existence checks.
+# @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro.
 #
-# Detection order: (1) strings-probe the bash binary (most accurate — bash
-# itself reports the compiled-in path); (2) os-release platform IDs.
-# Never uses file-existence checks — a file at the wrong path for this
-# distro won't be sourced by any shell.
+# Uses os-release platform IDs. Never uses file-existence checks — a file at
+# the wrong path for this distro won't be sourced by any shell.
 #
 # Stdout: one of `/etc/bash.bashrc`, `/etc/bashrc`, or `/etc/bash/bashrc`.
 shell__detect_bashrc() {
-  # Ask bash which RC file it was compiled with — most accurate.
-  local _compiled
-  _shell__ensure_strings || true
-  _compiled="$(strings "${_BASH_BIN:-$(command -v bash 2> /dev/null)}" 2> /dev/null |
-    grep -m1 -E '^/etc/(bash\.bashrc|bashrc|bash/bashrc)$' || true)"
-  if [ -n "$_compiled" ]; then
-    echo "$_compiled"
-    return 0
-  fi
-  # os__platform fallback.
   case "$(os__platform)" in
     alpine)
       echo "/etc/bash/bashrc"
