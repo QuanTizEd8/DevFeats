@@ -20,6 +20,12 @@ _ensure_bash4() {
   # (e.g. ./bash install.sh) are resolved via cd+pwd; bare names should not
   # occur in practice (bash resolves its own argv[0] through PATH), but the
   # -x guard handles the degenerate case safely.
+  #
+  # Guard: skip this case when bash was invoked as 'sh' (e.g. on openSUSE,
+  # /bin/sh is a bash symlink and $BASH is /usr/bin/sh).  Exec'ing that path
+  # would run install.bash in POSIX mode, disabling process substitution
+  # (< <(...)) and causing a syntax error.  Fall through to Case 2 instead,
+  # which resolves the proper 'bash'-named binary.
   _BASH_BIN=""
   if [ -n "${BASH_VERSION:-}" ]; then
     _v="${BASH_VERSION%%.*}"
@@ -33,6 +39,9 @@ _ensure_bash4() {
           [ -x "$_BASH_BIN" ] || _BASH_BIN=""
           ;;
       esac
+      # Reject if the resolved binary's basename isn't 'bash' — a 'sh'-named
+      # binary runs in POSIX mode regardless of the version.
+      [ "${_BASH_BIN##*/}" = "bash" ] || _BASH_BIN=""
     fi
   fi
 
