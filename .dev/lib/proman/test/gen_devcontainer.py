@@ -9,6 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from proman.config import load as load_config
 from proman.feature_env import resolved_env_vars
 
 from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
@@ -17,7 +18,7 @@ from .scenarios import expand_envs, merge_defaults
 from .scenarios import load as load_scenarios
 
 
-def _posix_testlib_injection(repo_root: Path) -> str:
+def _posix_testlib_injection() -> str:
     """Return a POSIX sh block that writes our assert.sh to a high-priority PATH dir.
 
     The official devcontainer CLI injects its own bash-specific test lib (uses
@@ -26,7 +27,9 @@ def _posix_testlib_injection(repo_root: Path) -> str:
     PATH before the test script sources 'dev-container-features-test-lib', our
     version is found first — allowing tests with #!/bin/sh to run on ash.
     """
-    assert_sh = (repo_root / "test" / "support" / "assert.sh").read_text(encoding="utf-8")
+    assert_sh = (load_config().root_path / "test" / "support" / "assert.sh").read_text(
+        encoding="utf-8"
+    )
     sentinel = "DEVFEATS_TEST_LIB_END"
     return (
         "mkdir -p /tmp/_devfeats_testlib\n"
@@ -39,7 +42,9 @@ def _posix_testlib_injection(repo_root: Path) -> str:
     )
 
 
-def _copy_test_script(src: Path, dst: Path, feature: str, repo_root: Path | None = None) -> None:
+def _copy_test_script(
+    src: Path, dst: Path, feature: str, inject_testlib: bool = False
+) -> None:
     """Copy a test script, prepending metadata-derived env var definitions."""
     content = src.read_text(encoding="utf-8")
     lines = content.splitlines(keepends=True)
@@ -47,8 +52,8 @@ def _copy_test_script(src: Path, dst: Path, feature: str, repo_root: Path | None
     vars_block = "".join(
         f"export {k}={shlex.quote(v)}\n" for k, v in resolved_env_vars(feature).items()
     )
-    if repo_root is not None:
-        vars_block = _posix_testlib_injection(repo_root) + vars_block
+    if inject_testlib:
+        vars_block = _posix_testlib_injection() + vars_block
     lines.insert(insert_at, vars_block)
     dst.write_text("".join(lines), encoding="utf-8")
     shutil.copymode(src, dst)
@@ -171,7 +176,7 @@ def generate(
                     tests_src_dir / ts0_name,
                     scenarios_dir / f"{key}.sh",
                     feature,
-                    repo_root=scenarios_path.parent.parent.parent,
+                    inject_testlib=True,
                 )
 
     _inject_github_token(output)
