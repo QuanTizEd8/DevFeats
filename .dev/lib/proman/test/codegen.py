@@ -96,22 +96,25 @@ def _render_item(item: dict[str, Any], idx: int) -> str:
 def _render_group(test_id: str, group: dict[str, Any]) -> str:  # noqa: ARG001
     """Render one test_group dict to complete .sh file content."""
     description = (group.get("description") or "").rstrip("\n")
+    shell = (group.get("shell") or "bash").strip()
     pre = (group.get("pre") or "").rstrip("\n")
     post = (group.get("post") or "").rstrip("\n")
     on_failure = (group.get("on_failure") or "").rstrip("\n")
     checks: list[dict[str, Any]] = group["checks"]
+
+    shebang = f"#!/bin/{shell}"
 
     sections: list[str] = []
 
     # ── Header ───────────────────────────────────────────────────────────────
     desc_block = _desc_block(description)
     sections.append(
-        f"#!/bin/bash\n"
+        f"{shebang}\n"
         f"{desc_block}"
         f"# AUTO-GENERATED from checks.yaml — DO NOT EDIT\n"
         f"set -e\n"
         f"\n"
-        f"source dev-container-features-test-lib\n",
+        f". dev-container-features-test-lib\n",
     )
 
     # ── _cleanup() from `post` ────────────────────────────────────────────────

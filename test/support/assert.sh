@@ -1,5 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # assert.sh — Shared assertion helpers for all test/ scenarios.
+#
+# POSIX sh compatible; usable from both #!/bin/bash and #!/bin/sh test scripts.
 #
 # API-compatible with dev-container-features-test-lib:
 #   check "label" <cmd> [args...]                   — passes if <cmd> exits 0
@@ -27,49 +29,47 @@
 
 _TEST_PASS=0
 _TEST_FAIL=0
-_TEST_FAILURES=()
+_TEST_FAILURES="" # Newline-separated failure labels
 
-# Print argv in a shell-safe quoted form (for failure logs).
+# Print argv as a space-separated string (best-effort display for failure logs).
 _check_quote_argv() {
-  local _a _q=()
-  for _a in "$@"; do
-    _q+=("$(printf '%q' "$_a")")
-  done
-  printf '%s' "${_q[*]}"
+  printf '%s' "$*"
 }
 
 check() {
-  local label="$1"
+  local _label="$1"
   shift
-  local out rc=0
-  out="$("$@" 2>&1)" || rc=$?
-  if [[ $rc -eq 0 ]]; then
-    printf '  ✅  PASS — %s\n' "$label"
-    ((_TEST_PASS++)) || true
+  local _out _rc
+  _out="$("$@" 2>&1)" && _rc=0 || _rc=$?
+  if [ "$_rc" -eq 0 ]; then
+    printf '  \xe2\x9c\x85  PASS \xe2\x80\x94 %s\n' "$_label"
+    _TEST_PASS=$((_TEST_PASS + 1))
   else
-    printf '  ❌  FAIL — %s (exit %d)\n' "$label" "$rc"
+    printf '  \xe2\x9d\x8c  FAIL \xe2\x80\x94 %s (exit %d)\n' "$_label" "$_rc"
     printf '         command: %s\n' "$(_check_quote_argv "$@")"
-    [[ -n "$out" ]] && printf '         output:\n%s\n' "$out"
-    _TEST_FAILURES+=("$label")
-    ((_TEST_FAIL++)) || true
+    [ -n "$_out" ] && printf '         output:\n%s\n' "$_out"
+    _TEST_FAILURES="${_TEST_FAILURES:+${_TEST_FAILURES}
+}${_label}"
+    _TEST_FAIL=$((_TEST_FAIL + 1))
   fi
 }
 
 # Inverse of check: passes when <cmd> exits non-zero.
 fail_check() {
-  local label="$1"
+  local _label="$1"
   shift
-  local out rc=0
-  out="$("$@" 2>&1)" || rc=$?
-  if [[ $rc -ne 0 ]]; then
-    printf '  ✅  PASS (expected non-zero, exit %d) — %s\n' "$rc" "$label"
-    ((_TEST_PASS++)) || true
+  local _out _rc
+  _out="$("$@" 2>&1)" && _rc=0 || _rc=$?
+  if [ "$_rc" -ne 0 ]; then
+    printf '  \xe2\x9c\x85  PASS (expected non-zero, exit %d) \xe2\x80\x94 %s\n' "$_rc" "$_label"
+    _TEST_PASS=$((_TEST_PASS + 1))
   else
-    printf '  ❌  FAIL (expected non-zero, got 0) — %s\n' "$label"
+    printf '  \xe2\x9d\x8c  FAIL (expected non-zero, got 0) \xe2\x80\x94 %s\n' "$_label"
     printf '         command: %s\n' "$(_check_quote_argv "$@")"
-    [[ -n "$out" ]] && printf '         output:\n%s\n' "$out"
-    _TEST_FAILURES+=("$label")
-    ((_TEST_FAIL++)) || true
+    [ -n "$_out" ] && printf '         output:\n%s\n' "$_out"
+    _TEST_FAILURES="${_TEST_FAILURES:+${_TEST_FAILURES}
+}${_label}"
+    _TEST_FAIL=$((_TEST_FAIL + 1))
   fi
 }
 
@@ -77,39 +77,39 @@ fail_check() {
 # Passes if at least <min_passed> of them exit 0.
 # Usage: checkMultiple "label" <min_passed> "cmd1" ["cmd2" ...]
 checkMultiple() {
-  local label="$1" min_passed="$2"
+  local _label="$1" _min="$2"
   shift 2
-  local passed=0 expr out rc
-  printf '\n🔄 Testing (multiple) "%s"\n' "$label"
-  while [[ $# -gt 0 ]]; do
-    expr="$1"
-    shift
-    [[ -z "$expr" ]] && continue
-    rc=0
-    out="$(eval "$expr" 2>&1)" || rc=$?
-    if [[ $rc -eq 0 ]]; then ((passed++)) || true; fi
+  local _passed=0 _expr _rc
+  printf '\n\xf0\x9f\x94\x84 Testing (multiple) "%s"\n' "$_label"
+  for _expr in "$@"; do
+    [ -z "$_expr" ] && continue
+    _rc=0
+    eval "$_expr" > /dev/null 2>&1 || _rc=$?
+    [ "$_rc" -eq 0 ] && _passed=$((_passed + 1))
   done
-  if ((passed >= min_passed)); then
-    printf '  ✅  PASS — %s (%d/%d)\n' "$label" "$passed" "$min_passed"
-    ((_TEST_PASS++)) || true
+  if [ "$_passed" -ge "$_min" ]; then
+    printf '  \xe2\x9c\x85  PASS \xe2\x80\x94 %s (%d/%d)\n' "$_label" "$_passed" "$_min"
+    _TEST_PASS=$((_TEST_PASS + 1))
   else
-    printf '  ❌  FAIL — %s (%d/%d required)\n' "$label" "$passed" "$min_passed"
-    _TEST_FAILURES+=("$label")
-    ((_TEST_FAIL++)) || true
+    printf '  \xe2\x9d\x8c  FAIL \xe2\x80\x94 %s (%d/%d required)\n' "$_label" "$_passed" "$_min"
+    _TEST_FAILURES="${_TEST_FAILURES:+${_TEST_FAILURES}
+}${_label}"
+    _TEST_FAIL=$((_TEST_FAIL + 1))
   fi
 }
 
 reportResults() {
-  echo ""
-  echo "Results: ${_TEST_PASS} passed, ${_TEST_FAIL} failed."
-  if [[ ${_TEST_FAIL} -gt 0 ]]; then
-    echo "Failed checks:"
-    for _f in "${_TEST_FAILURES[@]}"; do
-      printf '  — %s\n' "$_f"
+  printf '\n'
+  printf 'Results: %d passed, %d failed.\n' "$_TEST_PASS" "$_TEST_FAIL"
+  if [ "$_TEST_FAIL" -gt 0 ]; then
+    printf 'Failed checks:\n'
+    printf '%s\n' "$_TEST_FAILURES" | while IFS= read -r _f; do
+      [ -z "$_f" ] && continue
+      printf '  \xe2\x80\x94 %s\n' "$_f"
     done
-    if declare -F _test_failure_diagnostics > /dev/null 2>&1; then
-      echo ""
-      echo "━━ Failure diagnostics ━━"
+    if command -v _test_failure_diagnostics > /dev/null 2>&1; then
+      printf '\n'
+      printf '\xe2\x94\x80\xe2\x94\x80 Failure diagnostics \xe2\x94\x80\xe2\x94\x80\n'
       _test_failure_diagnostics || true
     fi
     exit 1
@@ -121,39 +121,39 @@ reportResults() {
 log_install_homebrew_shell_init_diagnostics() {
   local _home="${1:-$HOME}"
   local _login="${2:-}"
-  [[ -z "$_login" ]] && _login="$(detect_bash_login_file)"
+  [ -z "$_login" ] && _login="$(detect_bash_login_file)"
   {
-    printf 'HOME=%q USER=%q\n' "${_home}" "${USER-}"
-    printf 'detect_bash_login_file -> %q\n' "${_login}"
+    printf 'HOME=%s USER=%s\n' "${_home}" "${USER-}"
+    printf 'detect_bash_login_file -> %s\n' "${_login}"
     local _cand
     for _cand in "${_home}/.bash_profile" "${_home}/.bash_login" "${_home}/.profile"; do
-      echo ""
-      if [[ ! -e "$_cand" ]]; then
+      printf '\n'
+      if [ ! -e "$_cand" ]; then
         printf '%s (missing)\n' "$_cand"
         continue
       fi
-      printf '%s — ' "$_cand"
-      if [[ -f "$_cand" ]]; then
+      printf '%s \xe2\x80\x94 ' "$_cand"
+      if [ -f "$_cand" ]; then
         printf 'regular file'
-      elif [[ -L "$_cand" ]]; then
-        printf 'symlink -> %s' "$(readlink "$_cand" 2> /dev/null || echo '?')"
+      elif [ -L "$_cand" ]; then
+        printf 'symlink -> %s' "$(readlink "$_cand" 2> /dev/null || printf '?')"
       else
         printf 'exists (not a regular file)'
       fi
-      echo ""
+      printf '\n'
       command -v ls > /dev/null && ls -l "$_cand" 2> /dev/null || true
       command -v file > /dev/null && file "$_cand" 2> /dev/null || true
-      echo "--- cat -v (visible non-printing chars) ---"
-      cat -v "$_cand" 2> /dev/null || echo "(unreadable)"
-      echo "--- od -An -tx1 (first 192 bytes) ---"
+      printf '--- cat -v (visible non-printing chars) ---\n'
+      cat -v "$_cand" 2> /dev/null || printf '(unreadable)\n'
+      printf '--- od -An -tx1 (first 192 bytes) ---\n'
       head -c 192 "$_cand" 2> /dev/null | od -An -tx1 || true
     done
-    echo ""
-    echo "--- prefix activation block lines inside resolved login file (awk) ---"
-    if [[ -f "$_login" ]]; then
+    printf '\n'
+    printf '--- prefix activation block lines inside resolved login file (awk) ---\n'
+    if [ -f "$_login" ]; then
       awk '/# >>> prefix activation \(install-homebrew\) >>>/{in=1;next} /# <<< prefix activation \(install-homebrew\) <<</{in=0} in{print}' "$_login" 2> /dev/null || true
     else
-      echo "(resolved login file missing)"
+      printf '(resolved login file missing)\n'
     fi
   } >&2
 }
@@ -164,29 +164,28 @@ log_install_homebrew_shell_init_diagnostics() {
 # No-op when the file does not exist or contains no block.
 # Usage: block_cleanup "<marker>" "<file>"
 block_cleanup() {
-  local marker="$1" f="$2"
-  [[ -f "$f" ]] || return 0
-  local bm="# >>> ${marker} >>>" em="# <<< ${marker} <<<"
-  local tmp
-  tmp="$(mktemp)"
-  awk -v bm="$bm" -v em="$em" '
+  local _marker="$1" _f="$2"
+  [ -f "$_f" ] || return 0
+  local _bm="# >>> ${_marker} >>>" _em="# <<< ${_marker} <<<"
+  local _tmp
+  _tmp="$(mktemp)"
+  awk -v bm="$_bm" -v em="$_em" '
     $0 == bm { skip=1; next }
     $0 == em { skip=0; next }
     !skip    { print }
-  ' "$f" > "$tmp" && mv "$tmp" "$f"
-  local rc=$?
-  [[ $rc -ne 0 ]] && rm -f "$tmp"
-  return $rc
+  ' "$_f" > "$_tmp" && mv "$_tmp" "$_f"
+  local _rc=$?
+  [ "$_rc" -ne 0 ] && rm -f "$_tmp"
+  return "$_rc"
 }
 
 # Remove a named block from every standard user init file in $HOME.
 # Usage: block_cleanup_all "<marker>"
 block_cleanup_all() {
-  local marker="$1"
-  local f
-  for f in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.profile" \
+  local _marker="$1" _f
+  for _f in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.profile" \
     "${HOME}/.bashrc" "${HOME}/.zprofile" "${HOME}/.zshenv" "${HOME}/.zshrc"; do
-    block_cleanup "$marker" "$f"
+    block_cleanup "$_marker" "$_f"
   done
 }
 
@@ -194,15 +193,14 @@ block_cleanup_all() {
 # Probes in order: ~/.bash_profile, ~/.bash_login, ~/.profile.
 # Falls back to ~/.bash_profile if none exist.
 detect_bash_login_file() {
-  local f
-  for f in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.profile"; do
-    [[ -f "$f" ]] && {
-      printf '%s\n' "$f"
+  local _f
+  for _f in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.profile"; do
+    [ -f "$_f" ] && {
+      printf '%s\n' "$_f"
       return 0
     }
   done
   printf '%s\n' "${HOME}/.bash_profile"
-  return 0
 }
 
 # Remove the install-homebrew prefix activation block from a file, in-place.
@@ -219,8 +217,7 @@ _FILE_SERVER_PID=""
 # Starts 'python3 -m http.server <port>' in <dir> in the background.
 # Stores the PID in _FILE_SERVER_PID. Call stop_file_server in a trap.
 start_file_server() {
-  local _dir="$1"
-  local _port="$2"
+  local _dir="$1" _port="$2"
   python3 -m http.server "$_port" --directory "$_dir" \
     > /tmp/file-server-"$_port".log 2>&1 &
   _FILE_SERVER_PID=$!
@@ -230,7 +227,7 @@ start_file_server() {
 # stop_file_server
 # Kills the background file server started by start_file_server.
 stop_file_server() {
-  if [[ -n "$_FILE_SERVER_PID" ]]; then
+  if [ -n "$_FILE_SERVER_PID" ]; then
     kill "$_FILE_SERVER_PID" 2> /dev/null || true
     _FILE_SERVER_PID=""
   fi
@@ -239,16 +236,14 @@ stop_file_server() {
 # wait_for_port <port> [<timeout_s>]
 # Blocks until 127.0.0.1:<port> accepts TCP connections.
 wait_for_port() {
-  local _port="$1"
-  local _timeout="${2:-10}"
-  # Use integer counter in tenths-of-a-second (avoids bc dependency).
-  local _limit=$((_timeout * 5))
-  local _i=0
-  while ! bash -c "echo > /dev/tcp/127.0.0.1/${_port}" 2> /dev/null; do
+  local _port="$1" _timeout="${2:-10}" _limit _i
+  _limit=$((_timeout * 5))
+  _i=0
+  while ! nc -z 127.0.0.1 "$_port" 2> /dev/null; do
     sleep 0.2
-    ((_i++)) || true
-    if ((_i >= _limit)); then
-      echo "⛔ Timed out waiting for port ${_port}" >&2
+    _i=$((_i + 1))
+    if [ "$_i" -ge "$_limit" ]; then
+      printf '\xe2\x9b\x94 Timed out waiting for port %s\n' "$_port" >&2
       return 1
     fi
   done
@@ -297,13 +292,15 @@ push_oci_feature() {
     _l="$(curl -sf -X POST -D - "${_b}/blobs/uploads/" 2> /dev/null |
       grep -i '^location:' | tr -d '\r\n' |
       sed 's/^[Ll][Oo][Cc][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*//')"
-    [[ -n "$_l" ]] || return 1
-    [[ "$_l" == http* ]] || _l="http://${_host}${_l}"
-    if [[ "$_l" == *'?'* ]]; then
-      printf '%s&digest=%s\n' "$_l" "$_d"
-    else
-      printf '%s?digest=%s\n' "$_l" "$_d"
-    fi
+    [ -n "$_l" ] || return 1
+    case "$_l" in
+      http*) : ;;
+      *) _l="http://${_host}${_l}" ;;
+    esac
+    case "$_l" in
+      *'?'*) printf '%s&digest=%s\n' "$_l" "$_d" ;;
+      *) printf '%s?digest=%s\n' "$_l" "$_d" ;;
+    esac
   }
 
   # Upload config blob (temp file already written above).
@@ -316,7 +313,7 @@ push_oci_feature() {
     -H "Content-Type: application/octet-stream" \
     --data-binary "@${_tmp}")"
   rm -f "$_tmp"
-  [[ "$_http" == "201" ]] || {
+  [ "$_http" = "201" ] || {
     printf 'push_oci_feature: config blob upload failed (HTTP %s) for %s:%s\n' \
       "$_http" "$_repo" "$_tag" >&2
     return 1
@@ -330,7 +327,7 @@ push_oci_feature() {
   _http="$(curl -s -o /dev/null -w '%{http_code}' -X PUT "$_url" \
     -H "Content-Type: application/octet-stream" \
     --data-binary "@${_tgz}")"
-  [[ "$_http" == "201" ]] || {
+  [ "$_http" = "201" ] || {
     printf 'push_oci_feature: layer blob upload failed (HTTP %s) for %s:%s\n' \
       "$_http" "$_repo" "$_tag" >&2
     return 1
@@ -363,7 +360,7 @@ push_oci_feature() {
     -H "Content-Type: application/vnd.oci.image.manifest.v1+json" \
     --data-binary "@${_tmp}")"
   rm -f "$_tmp"
-  [[ "$_http" == "201" ]] || {
+  [ "$_http" = "201" ] || {
     printf 'push_oci_feature: manifest push failed (HTTP %s) for %s:%s\n' \
       "$_http" "$_repo" "$_tag" >&2
     return 1

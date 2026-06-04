@@ -1,26 +1,25 @@
 alpine:
   description: |
-    Alpine base image: verifies base dependencies (bash, shadow) are installed
-    by the bootstrap and that the full user-creation flow works on Alpine/musl.
+    Alpine base image: verifies the full user-creation flow works on Alpine/musl.
+    Uses shell: sh so the test runs without bash (which the bootstrap removes).
+  shell: sh
   checks:
-    - title: bash is available
-      cmd: bash -c 'command -v bash'
     - title: vscode user exists
-      cmd: bash -c 'id vscode > /dev/null 2>&1'
+      cmd: id vscode
     - title: vscode has UID 1000
-      cmd: bash -c '[ "$(id -u vscode)" = "1000" ]'
+      cmd: sh -c '[ "$(id -u vscode)" = "1000" ]'
     - title: vscode has GID 1000
-      cmd: bash -c '[ "$(id -g vscode)" = "1000" ]'
+      cmd: sh -c '[ "$(id -g vscode)" = "1000" ]'
     - title: vscode primary group is vscode
-      cmd: bash -c '[ "$(id -gn vscode)" = "vscode" ]'
+      cmd: sh -c '[ "$(id -gn vscode)" = "vscode" ]'
     - title: home directory /home/vscode exists
       cmd: test -d /home/vscode
     - title: home directory owned by uid 1000
-      cmd: bash -c '[ "$(stat -c "%u" /home/vscode)" = "1000" ]'
+      cmd: sh -c '[ "$(stat -c "%u" /home/vscode)" = "1000" ]'
     - title: home directory group-owned by gid 1000
-      cmd: bash -c '[ "$(stat -c "%g" /home/vscode)" = "1000" ]'
+      cmd: sh -c '[ "$(stat -c "%g" /home/vscode)" = "1000" ]'
     - title: sudo binary is installed
-      cmd: bash -c 'command -v sudo'
+      cmd: command -v sudo
     - title: sudoers file exists
       cmd: test -f /etc/sudoers.d/vscode
     - title: sudoers grants NOPASSWD:ALL

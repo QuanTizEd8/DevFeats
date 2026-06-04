@@ -332,13 +332,13 @@ def _run_standalone(
                     f"{_feat_env_str}"
                     f" PATH=/tmp/_testlib:$PATH"
                     f" REPO_ROOT=/repo FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC"
-                    f" bash {ts_path}'",
+                    f" {ts_path}'",
                 )
             else:
                 test_cmd_lines.append(
                     f"{_feat_env_str}"
                     f" PATH=/tmp/_testlib:$PATH REPO_ROOT=/repo"
-                    f" FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC bash {ts_path}",
+                    f" FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC {ts_path}",
                 )
 
         parts = [
@@ -515,7 +515,7 @@ def _run_macos(
                     path_q = shlex.quote(test_env["PATH"])
                     root_q = shlex.quote(str(repo_root))
                     ts_q = shlex.quote(ts_path)
-                    cmd = f"PATH={path_q} REPO_ROOT={root_q} bash {ts_q}"
+                    cmd = f"PATH={path_q} REPO_ROOT={root_q} {ts_q}"
                     result = subprocess.run(
                         ["su", user, "-c", cmd],
                         check=False,
@@ -523,7 +523,7 @@ def _run_macos(
                     )
                 else:
                     result = subprocess.run(
-                        ["bash", ts_path],
+                        [ts_path],
                         env=test_env,
                         check=False,
                     )
