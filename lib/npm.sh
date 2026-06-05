@@ -231,7 +231,9 @@ npm__versions() {
 # Applies all resolution logic without any path construction.
 #
 # Version specs:
-#   "stable" / ""  Latest stable version (the `latest` dist-tag).
+#   "stable" / ""  Stable version: the `stable` dist-tag if the package defines
+#                  one, otherwise falls back to the `latest` dist-tag (npm
+#                  convention for the stable release).
 #   "latest"       Most recently published version, including pre-releases.
 #   starts with a digit (e.g. "1", "1.2", "1.2.3", "1.2.3-rc1")
 #                  Newest stable published version whose version matches the
@@ -269,10 +271,17 @@ npm__resolve_version_uri() {
 
   case "$_spec" in
     stable | "")
-      # Fast path: the `latest` dist-tag is the authoritative stable pointer.
+      # Prefer an explicit 'stable' dist-tag when the package defines one (e.g.
+      # @anthropic-ai/claude-code); fall back to 'latest' (npm convention for the
+      # stable release on packages that don't maintain a separate 'stable' tag).
       if _json__ensure_jq 2> /dev/null; then
-        _version="$(printf '%s\n' "$_json" | json__query -r '.["dist-tags"].latest // empty' 2> /dev/null)" || _version=""
+        _version="$(printf '%s\n' "$_json" | json__query -r '.["dist-tags"].stable // .["dist-tags"].latest // empty' 2> /dev/null)" || _version=""
         [ "$_version" = "null" ] && _version=""
+      fi
+      if [ -z "$_version" ]; then
+        _version="$(printf '%s\n' "$_json" |
+          grep -oE '"stable"[[:space:]]*:[[:space:]]*"[^"]+"' |
+          head -1 | sed 's/^"stable"[^"]*"//; s/"$//')" || _version=""
       fi
       if [ -z "$_version" ]; then
         _version="$(printf '%s\n' "$_json" |
@@ -280,7 +289,7 @@ npm__resolve_version_uri() {
           head -1 | sed 's/^"latest"[^"]*"//; s/"$//')" || _version=""
       fi
       [ -n "$_version" ] || {
-        logging__error "npm__resolve_version_uri: no 'latest' dist-tag found at '${_uri}'."
+        logging__error "npm__resolve_version_uri: no 'stable' or 'latest' dist-tag found at '${_uri}'."
         return 1
       }
       ;;
