@@ -147,7 +147,7 @@ def _lifecycle_command(entry_id: str, entry: dict, lc_key: str, metadata: dict) 
     env_var = _LIFECYCLE_EVENT_ENV_VAR[lc_key]
     prefix: str = metadata["_env_vars"][env_var]
     lc_key_prefix: str = metadata["_lifecycle_key_prefix"]
-    task = entry_id[len(lc_key_prefix):] if entry_id.startswith(lc_key_prefix) else entry_id
+    task = entry_id.removeprefix(lc_key_prefix)
     command = f"{prefix}{task}.sh"
     args: str = entry.get("args", "").strip()
     if args:
@@ -224,7 +224,8 @@ def _generate_metadata_json(metadata: dict) -> dict[Path, str]:
     if verify_opts.get("args"):
         lc_prefix: str = metadata["_lifecycle_key_prefix"]
         verify_key = f"{lc_prefix}verify"
-        verify_path = metadata["_env_vars"]["_FEAT_LIFECYCLE_POST_CREATE"] + "verification.sh"
+        post_create = metadata["_env_vars"]["_FEAT_LIFECYCLE_POST_CREATE"]
+        verify_path = post_create + "verification.sh"
         metadata_json_dict.setdefault("postCreateCommand", {})[verify_key] = verify_path
 
     metadata_json = json.dumps(

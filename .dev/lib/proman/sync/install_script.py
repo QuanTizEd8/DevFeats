@@ -180,7 +180,7 @@ class InstallScriptGenerator:
                 # Derive the short task name from the canonical key.
                 # Canonical form: "<lifecycle_key_prefix><task>"  (after normalization).
                 lc_key_prefix: str = metadata["_lifecycle_key_prefix"]
-                task = entry_id[len(lc_key_prefix):] if entry_id.startswith(lc_key_prefix) else entry_id
+                task = entry_id.removeprefix(lc_key_prefix)
                 basename = f"{prefix}{task}.sh"
                 if (files_dir / basename).exists():
                     entries[basename] = " ".join(conf_vars)
@@ -194,10 +194,9 @@ class InstallScriptGenerator:
 
         # Build the bash associative array literal.
         if entries:
-            items = " ".join(
+            return " ".join(
                 f'["{k}"]={shlex.quote(v)}' for k, v in sorted(entries.items())
             )
-            return items
         return ""
 
     @staticmethod
