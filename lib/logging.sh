@@ -15,7 +15,7 @@
 # Reserved fds after logging__setup: 3=stdout, 4=stderr, 5=mux writer (internal).
 # Requires lib/file.sh (session scratch). Loaded by __init__.bash before this module.
 
-if ! declare -f file__session_ensure >/dev/null 2>&1; then
+if ! declare -f file__session_ensure > /dev/null 2>&1; then
   # shellcheck source=lib/file.sh
   . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/file.sh"
 fi
@@ -411,7 +411,7 @@ _logging__configure_process_redirect() {
   if _logging__want_process_output; then
     exec 1>&"${_LOGGING__MUX_IN}" 2>&1
   else
-    exec 1>/dev/null 2>&1
+    exec 1> /dev/null 2>&1
   fi
   return 0
 }
@@ -429,12 +429,12 @@ _logging__configure_xtrace() {
 
 _logging__mux_stop() {
   if [[ -n "${_LOGGING__MUX_READER_PID:-}" ]]; then
-    exec {_LOGGING__MUX_IN}>&- 2>/dev/null || true
-    wait "${_LOGGING__MUX_READER_PID}" 2>/dev/null || true
+    exec {_LOGGING__MUX_IN}>&- 2> /dev/null || true
+    wait "${_LOGGING__MUX_READER_PID}" 2> /dev/null || true
     _LOGGING__MUX_READER_PID=
   fi
   if [[ -n "${_LOGGING__MUX_FIFO:-}" ]]; then
-    rm -f "${_LOGGING__MUX_FIFO}" 2>/dev/null || true
+    rm -f "${_LOGGING__MUX_FIFO}" 2> /dev/null || true
     _LOGGING__MUX_FIFO=
   fi
   return 0
@@ -491,10 +491,10 @@ logging__setup() {
 
   (
     _logging__mux_reader_loop
-  ) <"${_LOGGING__MUX_FIFO}" &
+  ) < "${_LOGGING__MUX_FIFO}" &
   _LOGGING__MUX_READER_PID=$!
 
-  exec {_LOGGING__MUX_IN}>"${_LOGGING__MUX_FIFO}"
+  exec {_LOGGING__MUX_IN}> "${_LOGGING__MUX_FIFO}"
 
   _logging__flush_parse_buffer
   _logging__configure_process_redirect
@@ -527,7 +527,7 @@ logging__cleanup() {
 
   local _LOG_FILE_DEST="${LOG_FILE-}"
   if [[ -n "${_LOG_FILE_DEST}" && -f "${_LOGGING__LOG_FILE_TMP:-}" ]]; then
-    mkdir -p "$(dirname "$_LOG_FILE_DEST")" 2>/dev/null || true
+    mkdir -p "$(dirname "$_LOG_FILE_DEST")" 2> /dev/null || true
     if [[ ${#_LOGGING__SYSSET_MASKED_VALUES[@]} -gt 0 ]]; then
       local _log _v
       _log="$(cat "$_LOGGING__LOG_FILE_TMP")"

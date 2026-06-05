@@ -213,7 +213,7 @@ LOGDIR=
 PASSING_LOG=
 FAILING_LOG=
 
-declare -A _processed # job_id → 1 (tracks already-handled jobs)
+declare -A _processed           # job_id → 1 (tracks already-handled jobs)
 declare -A _run_artifacts_cache # run_id → JSON from .../runs/{id}/artifacts
 _stat_pass=0
 _stat_fail=0
@@ -350,8 +350,8 @@ _run_artifacts_json() {
   local run_id="$1"
   if [[ -z "${_run_artifacts_cache[${run_id}]+_}" ]]; then
     _run_artifacts_cache["${run_id}"]=$(_gh_api_json \
-      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/artifacts?per_page=100" \
-      || echo '{"artifacts":[]}')
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/artifacts?per_page=100" ||
+      echo '{"artifacts":[]}')
   fi
   printf '%s' "${_run_artifacts_cache[${run_id}]}"
 }

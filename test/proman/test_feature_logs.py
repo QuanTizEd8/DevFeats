@@ -123,7 +123,7 @@ def test_append_bind_mount_copy_to_test_script(tmp_path: Path) -> None:
         log_path="/tmp/conda-env.log",
     )
     text = script.read_text(encoding="utf-8")
-    assert '/tmp/conda-env.log' in text
+    assert "/tmp/conda-env.log" in text
     assert "/log-out/log_file.log" in text
     assert text.index("/log-out/") < text.rindex("reportResults")
 
@@ -135,9 +135,7 @@ def test_append_bind_mount_copy_skips_heredoc_report_results_comment(
     lib_line = "#   reportResults                                   — summary\n"
     script = tmp_path / "log_file.sh"
     script.write_text(
-        "#!/bin/bash\n"
-        f"cat > /tmp/lib <<'END'\n{lib_line}END\n"
-        "reportResults\n",
+        f"#!/bin/bash\ncat > /tmp/lib <<'END'\n{lib_line}END\nreportResults\n",
         encoding="utf-8",
     )
     append_bind_mount_copy_to_test_script(

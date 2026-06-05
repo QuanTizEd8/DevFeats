@@ -345,7 +345,9 @@ def compute_unit_env_matrix() -> list[dict[str, str]]:
     """
     data: dict = (
         yaml.safe_load(
-            load_config().absolute_path("path.test_lib_scenarios").read_text(
+            load_config()
+            .absolute_path("path.test_lib_scenarios")
+            .read_text(
                 encoding="utf-8",
             ),
         )
