@@ -97,7 +97,6 @@ def copy_log_to_bind_mount_fragment(
 def patch_devcontainer_scenario_logging(
     scenarios_json_path: Path,
     *,
-    feature: str,
     scenario_key: str,
     options: dict,
 ) -> str:

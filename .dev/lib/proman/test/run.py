@@ -306,7 +306,6 @@ def _run_devcontainer(
 
             patch_devcontainer_scenario_logging(
                 scenarios_json_path,
-                feature=feature,
                 scenario_key=key,
                 options=options,
             )

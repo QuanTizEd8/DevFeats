@@ -66,7 +66,6 @@ def test_patch_devcontainer_scenario_logging_default_log_file(
     )
     effective = patch_devcontainer_scenario_logging(
         path,
-        feature="install-git",
         scenario_key="default_install",
         options={},
     )
@@ -96,7 +95,6 @@ def test_patch_devcontainer_scenario_logging_custom_log_file(
     )
     effective = patch_devcontainer_scenario_logging(
         path,
-        feature="install-git",
         scenario_key="log_file",
         options={"log_file": "/tmp/git.log"},
     )

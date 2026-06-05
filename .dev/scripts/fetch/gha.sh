@@ -383,6 +383,8 @@ _feat_log_artifact_name() {
   local job_name="$1"
   local run_id="$2"
   local feature scenario mode_lc expected
+  local _gha_matrix_prefix
+  _gha_matrix_prefix="$(printf '%s%s' '$' '{{')"
 
   if [[ "${job_name}" =~ ^Test\ Feature\ ([^/]+)\ /\ (.+)\ \((devcontainer|linux|macOS)\)$ ]]; then
     feature="${BASH_REMATCH[1]}"
@@ -402,7 +404,7 @@ _feat_log_artifact_name() {
     return 0
   fi
 
-  if [[ "${scenario}" == *'${{'* ]]; then
+  if [[ "${scenario}" == *"${_gha_matrix_prefix}"* ]]; then
     return 0
   fi
 
