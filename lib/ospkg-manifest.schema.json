@@ -444,6 +444,13 @@
       "description": "apk-specific setup. Only evaluated when apk is the detected package manager (Alpine Linux).",
       "additionalProperties": false,
       "properties": {
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/keyEntry"
+          },
+          "description": "Signing keys to install to /etc/apk/keys/ before adding repositories."
+        },
         "repos": {
           "type": "array",
           "items": {
