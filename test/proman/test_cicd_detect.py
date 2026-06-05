@@ -3,7 +3,59 @@
 from pathlib import Path
 
 import proman.cicd.detect as cd
+import proman.config as cfg
 import pytest
+
+_CICD_MAIN = """\
+name: TestProject
+name_slug: testproject
+owner: testowner
+owner_slug: testowner
+namespace: testowner/testproject
+repo_url: https://github.com/testowner/testproject
+oci_base: ghcr.io/testowner/testproject
+path:
+  features: features
+  library: lib
+  feature_library: ${{ path.library }}$
+  src: src
+  test: test
+  test_features: ${{ path.test }}$/features
+  test_features_shared_defaults: ${{ path.test_features }}$/defaults.shared.yaml
+  test_environments: ${{ path.test }}$/environments.yaml
+  test_lib: test/lib
+  test_lib_scenarios: ${{ path.test_lib }}$/scenarios.yaml
+  dev_scripts_test: .dev/scripts/test
+  devcontainer: .devcontainer
+  shared_metadata: features/metadata.shared.yaml
+  metadata_schema: features/metadata.schema.json
+  install_script_template: features/install.tmpl.bash
+filename:
+  feature_metadata: metadata.yaml
+  feature_scenarios: scenarios.yaml
+features:
+  lifecycle_hook_keys:
+    - onCreateCommand
+"""
+
+_MINIMAL_CI = """\
+image:
+  suffix: "-devcontainer"
+artifacts:
+  retention_days: 7
+  src:
+    name: testproject-src
+    path: src/
+  dist:
+    name: testproject-dist
+    path: dist/
+  pages:
+    name: github-pages
+    path: .local/build/docs/website.tar
+publish:
+  registry: ghcr.io
+triggers: {}
+"""
 
 # ── any_match ─────────────────────────────────────────────────────────────────
 
@@ -78,6 +130,24 @@ def test_parse_feature_list_comma_sep_filters_empty() -> None:
     assert cd._parse_feature_list("a,,b") == ["a", "b"]
 
 
+@pytest.fixture(autouse=True)
+def _reset_config_singleton() -> None:
+    """Ensure isolated tests do not leave a cached Config pointing at another repo."""
+    yield
+    cfg.clear_cache()
+
+
+def _use_tmp_repo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Redirect proman config and detect git root to a temporary repository layout."""
+    proman_dir = tmp_path / ".config" / "proman"
+    proman_dir.mkdir(parents=True)
+    (proman_dir / "_main.yaml").write_text(_CICD_MAIN, encoding="utf-8")
+    (proman_dir / "ci.yaml").write_text(_MINIMAL_CI, encoding="utf-8")
+    monkeypatch.setattr(cfg, "git_repo_root", lambda: tmp_path)
+    cfg.clear_cache()
+    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -94,7 +164,7 @@ def test_compute_macos_matrix_from_scenarios_yaml(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify macOS matrix is built from scenarios that reference macOS envs."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         """\
@@ -138,7 +208,7 @@ def test_compute_macos_matrix_empty_when_no_macos(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify macOS matrix is empty when no scenario references a macOS env."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "ubuntu-latest:\n  image: ubuntu-latest\n",
@@ -156,7 +226,7 @@ def test_compute_macos_matrix_one_entry_per_scenario(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify each macOS scenario gets its own matrix entry for runner isolation."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "macos-latest:\n  image: macos-latest\n",
@@ -187,7 +257,7 @@ def test_compute_feature_matrix_default_modes_in_both_linux_lists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify default-modes scenario is in both devcontainer and linux lists."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "ubuntu-latest:\n  image: ubuntu-latest\n",
@@ -212,7 +282,7 @@ def test_compute_feature_matrix_standalone_only_excluded_from_devcontainer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify modes: [standalone] excludes scenario from devcontainer but not linux."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "ubuntu-latest:\n  image: ubuntu-latest\n",
@@ -242,7 +312,7 @@ def test_compute_feature_matrix_macos_env_only_in_macos_scenarios(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify a macOS-env scenario appears only in macos_scenarios."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "macos-latest:\n  image: macos-latest\n",
@@ -267,7 +337,7 @@ def test_compute_feature_matrix_feature_in_both_linux_and_macos(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify a feature in both linux_ids and macos_ids gets all three lists."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "ubuntu-latest:\n  image: ubuntu-latest\n"
@@ -300,7 +370,7 @@ def test_compute_feature_matrix_macos_only_id_excludes_linux_scenarios(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify a feature in only macos_ids (not linux_ids) has empty linux lists."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "ubuntu-latest:\n  image: ubuntu-latest\n"
@@ -333,7 +403,7 @@ def test_compute_feature_matrix_missing_scenarios_file_excluded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify a feature with no scenarios.yaml file is excluded from the result."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "ubuntu-latest:\n  image: ubuntu-latest\n",
@@ -347,7 +417,7 @@ def test_compute_feature_matrix_empty_inputs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify empty linux_ids and macos_ids returns an empty list."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "ubuntu-latest:\n  image: ubuntu-latest\n",
@@ -409,7 +479,7 @@ def test_compute_unit_env_matrix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify unit env matrix is built from scenarios.yaml entries."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/lib/scenarios.yaml",
         """\
@@ -437,7 +507,7 @@ def test_compute_unit_macos_matrix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify unit macOS matrix contains only macOS runners with clean_path flag."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         """\
@@ -459,7 +529,7 @@ def test_compute_unit_macos_matrix_empty_when_no_macos(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify unit macOS matrix is empty when no macOS environments exist."""
-    monkeypatch.setattr(cd, "git_repo_root", lambda: tmp_path)
+    _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         "ubuntu-latest:\n  image: ubuntu-latest\n",

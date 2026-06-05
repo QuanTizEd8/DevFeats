@@ -96,7 +96,8 @@ _logging__sanitize_line() {
 
 # One FIFO line per record: tabs/newlines in payload would break DFLOG parsing.
 _logging__encode_fifo_payload() {
-  local _s="$(_logging__sanitize_line "${1-}")"
+  local _s
+  _s="$(_logging__sanitize_line "${1-}")"
   _s="${_s//$'\t'/ }"
   _s="${_s//$'\n'/ }"
   _s="${_s//$'\r'/ }"
@@ -151,7 +152,8 @@ _logging__dispatch_payload() {
 
 # Parse DFLOG\\tkind\\tmin\\tpayload or infer kind from line shape.
 _logging__dispatch_fifo_line() {
-  local _line="$(_logging__sanitize_line "${1-}")"
+  local _line
+  _line="$(_logging__sanitize_line "${1-}")"
   [[ -z "$_line" ]] && return 0
 
   local _kind _min _payload

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import TYPE_CHECKING
 
 from proman.config import load as load_config
@@ -70,9 +71,21 @@ def ensure_host_log_dir() -> Path:
     return d
 
 
-def copy_log_to_bind_mount_fragment(scenario_key: str) -> str:
-    """Shell fragment: copy LOG_FILE into /log-out/<key>.log when present."""
+def copy_log_to_bind_mount_fragment(
+    scenario_key: str,
+    *,
+    log_path: str | None = None,
+) -> str:
+    """Shell fragment: copy install log into /log-out/<key>.log when present."""
     qkey = scenario_key.replace("'", "'\\''")
+    if log_path:
+        qpath = log_path.replace("'", "'\\''")
+        return (
+            f'if [ -f "{qpath}" ]; then '
+            "mkdir -p /log-out && "
+            f'cp "{qpath}" "/log-out/{qkey}.log" 2>/dev/null || true; '
+            "fi"
+        )
     return (
         'if [ -n "${LOG_FILE:-}" ] && [ -f "${LOG_FILE}" ]; then '
         "mkdir -p /log-out && "
@@ -116,15 +129,25 @@ def patch_devcontainer_scenario_logging(
     return effective
 
 
-def append_bind_mount_copy_to_test_script(test_script: Path, scenario_key: str) -> None:
-    """Append LOG_FILE → /log-out copy for dedicated ``log_file`` scenario tests."""
-    fragment = copy_log_to_bind_mount_fragment(scenario_key)
+def append_bind_mount_copy_to_test_script(
+    test_script: Path,
+    scenario_key: str,
+    *,
+    log_path: str | None = None,
+) -> None:
+    """Insert install-log copy before ``reportResults`` for dedicated log_file tests."""
+    fragment = copy_log_to_bind_mount_fragment(scenario_key, log_path=log_path)
     content = test_script.read_text(encoding="utf-8")
     if fragment in content:
         return
-    marker = "reportResults"
-    if marker in content:
-        content = content.replace(marker, f"{fragment}\n{marker}", 1)
+    if re.search(r"^reportResults\s*$", content, re.MULTILINE):
+        content = re.sub(
+            r"^reportResults\s*$",
+            f"{fragment}\nreportResults",
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
     else:
         content = content.rstrip() + "\n" + fragment + "\n"
     test_script.write_text(content, encoding="utf-8")

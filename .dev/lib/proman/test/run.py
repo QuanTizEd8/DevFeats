@@ -313,7 +313,11 @@ def _run_devcontainer(
             )
             test_script = test_out_dir / f"{key}.sh"
             if test_script.is_file() and not uses_bind_mount_log(options):
-                append_bind_mount_copy_to_test_script(test_script, key)
+                append_bind_mount_copy_to_test_script(
+                    test_script,
+                    key,
+                    log_path=container_log_path(options),
+                )
 
             print(f"\n══ devcontainer: {key} ══", flush=True)
             run_env = os.environ.copy()
