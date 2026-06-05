@@ -1,5 +1,16 @@
-# Bootstrap Script
+# `install.sh` (Bootstrap)
 
-According to the [Dev Container specification](https://containers.dev/implementors/features/#invoking-installsh), each feature must have an `install.sh` at its root that serves as the entry point for installation. Supporting tools set the execute bit on this script and invoke it directly. Therefore, the `install.sh` must be written in a language guaranteed to be present in the execution environment. Therefore, for maximum compatibility, `install.sh` is written in POSIX `sh`. Since the library and installer scripts require bash ≥4, the `install.sh` serves only as a bootstrap that ensures `bash` is present (if not, installs it via the system package manager) and then hands off execution to `install.bash` – the real installer script written in bash with full access to library features.
+The [Dev Container specification](https://containers.dev/implementors/features/#invoking-installsh) requires every feature to have an `install.sh` at its root. Supporting tools set the execute bit on this file and invoke it directly as the feature entry point.
 
-The logic in `install.sh` is identical for every feature. Following the DRY principle, there is a single source of truth for it at `features/install.sh`. During builds, this file is copied to every feature root as `src/*/install.sh` by project's development workflows. **Always edit the source at `features/install.sh`; never edit the generated `install.sh` files directly, as they will be overwritten.**
+## Purpose
+
+`install.sh` is a minimal POSIX `sh` script — not bash — to ensure it works in any environment, including those where bash is not yet installed. Its only job is to:
+
+1. Ensure `bash` ≥4 is present (installs it via the OS package manager if needed).
+2. Hand off execution to `install.bash` (the real installer written in bash ≥4).
+
+## Source of Truth
+
+There is a **single source of truth** at `features/install.sh`. During `just sync-src`, this file is copied verbatim to every `src/*/install.sh`. **Never edit `src/*/install.sh` directly** — it is overwritten on every sync.
+
+To change the bootstrap logic, edit `features/install.sh` and run `just sync-src`.

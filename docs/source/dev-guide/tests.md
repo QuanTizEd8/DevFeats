@@ -1,19 +1,22 @@
 # Tests
 
-This guide covers everything needed
-to write and run tests for features in this repository
-— the framework used, how tests are structured, writing assertions,
-running tests locally and in CI, and other tips and notes.
+The test suite has three layers, each targeting a different scope:
+
+| Layer | Directory | Framework | Docker needed |
+|-------|-----------|-----------|---------------|
+| Library unit tests | `test/lib/` | BATS (Bash Automated Testing System) | No |
+| Feature scenario tests | `test/features/<id>/` | devcontainer CLI + plain Docker | Yes (Linux) |
+| Build system tests | `test/proman/` | pytest | No |
 
 ::::{grid} 1
 :gutter: 3
 
-:::{grid-item-card} Quickstart Guide
+:::{grid-item-card} Quickstart
 :class-title: sd-text-center
 :link: tests/quickstart
 :link-type: doc
 
-A quickstart guide for getting started with testing in the project.
+Test directory layout, which test to add for which change, and the most common run commands.
 :::
 
 :::{grid-item-card} Feature Tests
@@ -21,23 +24,31 @@ A quickstart guide for getting started with testing in the project.
 :link: tests/features
 :link-type: doc
 
-Guidelines and instructions for writing tests for features in the project.
+`scenarios.yaml` and `checks.yaml` formats, how test scripts are generated, running modes (devcontainer / standalone / macOS), and writing effective assertions.
 :::
 
-:::{grid-item-card} Library Tests
+:::{grid-item-card} Library Unit Tests
 :class-title: sd-text-center
 :link: tests/lib
 :link-type: doc
 
-Guidelines and instructions for writing tests for shared library modules in the project.
+BATS test anatomy, `reload_lib`, stubs, subprocess isolation, and common pitfalls.
 :::
 
-:::{grid-item-card} Development Infrastructure Tests
+:::{grid-item-card} Live Testing
+:class-title: sd-text-center
+:link: tests/live
+:link-type: doc
+
+Running features interactively in a dev container for manual verification.
+:::
+
+:::{grid-item-card} Build System Tests
 :class-title: sd-text-center
 :link: tests/dev
 :link-type: doc
 
-Guidelines and instructions for writing tests for the project's development infrastructure itself.
+pytest tests for `proman` — the Python build system.
 :::
 
 ::::

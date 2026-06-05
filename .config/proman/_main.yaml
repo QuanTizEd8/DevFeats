@@ -38,7 +38,7 @@ filename:
   feature_scenarios: scenarios.yaml
   feature_checks: checks.yaml
   feature_tests: tests
-  feature_notes: NOTES.md
+  feature_notes: notes.md
   docs_build_context: docs_build_context.json
 
 features:

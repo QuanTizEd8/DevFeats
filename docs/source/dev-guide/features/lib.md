@@ -1,6 +1,6 @@
 # Shared Library
 
-The `lib/` directory contains reusable modules (mostly bash) that are sourced by `install.bash` installer scripts. Each module is a file containing related functions that abstract common operations for a specific domain, e.g. OS package installation, GitHub API calls, checksum verification, user management, and shell configuration. During builds, `lib/` is copied into every feature's `src/*/_lib/`, so that `install.bash` can source each module as `$_BASE_DIR/_lib/<module-name>.sh`.
+The `lib/` directory contains reusable bash modules covering OS detection, package installation, GitHub API calls, checksum verification, user management, shell configuration, and more. During `just sync-src`, `lib/` is copied into each feature's `src/*/lib/`, making every feature tarball self-contained. All library functions are available in `install.bash` without any explicit `source` call — the installer framework automatically sources `lib/__init__.bash`, which loads all modules.
 
 > **Always check here before implementing something from scratch.** If a function does what you need, use it. If you are writing logic that could benefit other features, add it to `lib/` instead of keeping it inline.
 
@@ -13,7 +13,7 @@ To prevent double-sourcing and circular imports, all shell modules must start wi
 _MODULE_NAME__LIB_LOADED=1
 ```
 
-Every public function is covered by the bats unit suite under `test/lib/`. Run `just test-lib` to verify changes locally before pushing.
+Every public function is covered by the BATS unit suite under `test/lib/`. Run `just test-lib` to verify changes locally before pushing. See {doc}`/dev-guide/tests/lib` for how to write new tests.
 
 **Multi-value conventions:** many helpers return multiple logical items as one stdout line per item (empty list → no output). This composes naturally with pipes, `while read -r`, and `mapfile`.
 
@@ -37,7 +37,7 @@ Both the summary and the long description are optional. A module without a summa
 
 ### Function annotations
 
-All functions — public and private — should use the `# @brief` format. The generator filters out private functions (names starting with `_`) by default; pass `--include-private` to the `gen-docs-data` CLI to include them.
+All functions — public and private — should use the `# @brief` format. The generator filters out private functions (names starting with `_`) by default; pass `--include-private` to `proman-gen-docs-data` to include them.
 
 **`@brief` line format:**
 

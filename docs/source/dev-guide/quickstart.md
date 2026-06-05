@@ -1,229 +1,151 @@
-# Quickstart Guide
+# Quickstart
 
-## Development Environment
+This page gets you from zero to a working contribution in one read. Follow the steps in order; all commands assume you are inside the dev container.
 
-The project ships a ready-to-use Dev Container at `.devcontainer/.dev/`, which encapsulates the full development environment for the project. It installs all necessary tools for development, testing, and documentation, ensuring a consistent setup across different machines and operating systems. You can use this Dev Container in [VS Code](https://code.visualstudio.com/docs/devcontainers/containers), [GitHub Codespaces](https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration/introduction-to-dev-containers), or any other [supporting tool](https://containers.dev/supporting) that adheres to the [Development Container Specification](https://containers.dev/implementors/spec/); simply open your local clone of the repository in the Dev Container to get started.
+## 1. Open the Dev Container
 
+The project ships a ready-to-use dev container at `.devcontainer/.dev/`. Open the repository in [VS Code](https://code.visualstudio.com/docs/devcontainers/containers), [GitHub Codespaces](https://docs.github.com/en/codespaces), or any [spec-compliant client](https://containers.dev/supporting). The container installs every tool you need automatically.
 
+Three commands run automatically on every container start (`postStartCommand`):
+
+```bash
+git submodule update --init --recursive   # BATS test framework submodules
+pixi install --all                        # all pixi environments
+just sync-src                             # generate src/ from features/ + lib/
+```
+
+All are idempotent — safe to re-run manually at any time.
 
 ### Git Hooks
 
-The project uses [Lefthook](https://github.com/evilmartians/lefthook) to manage Git hooks.
-The dev container runs `lefthook install` on create, so hook definitions in [`lefthook.yml`](../lefthook.yml) are registered.
+The project uses [Lefthook](https://github.com/evilmartians/lefthook) to manage Git hooks. The configuration is at [`.config/lefthook.yml`](../../.config/lefthook.yml). Lefthook is installed in the dev container but hooks are **not** automatically registered — run `lefthook install` once to activate them:
 
+```bash
+lefthook install
+```
 
-### Task Runner
+The pre-commit hook runs `just format-sh` on staged shell files and `just lint-py` plus `just format-py` on staged Python files (re-staging any fixes). Hooks are optional; CI enforces the same checks unconditionally.
 
-The project uses [just](https://github.com/casey/just) as its task runner; all routine project tasks (e.g. format, lint, test, build) are implemented as `just` recipes.
+## 2. Understand the Repository
 
-
-Run `just --list` to see all available commands and their descriptions in the `justfile`. Recipes are grouped by category (e.g. testing, CI, publishing) and include comments with additional details.
-
-
-### CI
-
-The automation stack lives under `.github/workflows/`.
-
-Lint (shfmt + shellcheck) runs as part of the reusable **`ci.yaml`** workflow when the change set triggers the `lint` job (see [CI](ci.md)). Locally, use `just format-check` and `just lint`.
-
-`shfmt --apply-ignore` respects `.editorconfig` / ignore rules so generated paths under `src/` are not formatted as hand-written sources.
-
-
-## Workspace
-
-The workspace is a git repository with the following key files and directories:
+Key directories:
 
 :`.config/`:
-    Project configuration files under `.config/proman/` (`_main.yaml`, `ci.yaml`, `docs.yaml`, read by proman), plus `ruff.toml` and `pytest.ini` for Python tooling.
+    Project-wide configuration: `.config/proman/` (proman settings), `.config/lefthook.yml` (git hooks), `.config/ruff.toml` (Python linting), `.config/pytest.ini`.
 
 :`.dev/`:
-    [Development workflows](/dev-guide/devops/dev) — local libraries and scripts for build, sync, validation, and other development routines.
+    Development tooling: `.dev/lib/proman/` (Python build system) and `.dev/scripts/` (bash helpers for Docker, BATS, GHA log streaming).
 
 :`.devcontainer/`:
-    Dev Container configuration files for the project's [development environment](/dev-guide/environment), as well as auto-generated Dev Container configuration files for [live testing](/dev-guide/tests/live) local and released features.
-
-:`.github/`:
-    GitHub configuration files, including GitHub Actions [CI/CD pipelines](/dev-guide/devops/ops), and GitHub [Copilot customizations](/dev-guide/devops/ai).
-
-:`.local/`:
-    Git-ignored directory for temporary files like logs, build and test artifacts, scratch files, etc. Used for short-term storage during local development.
-
-:`docs/`:
-    Project [documentation](/dev-guide/docs) source files and website configuration.
+    Dev container definitions. `.devcontainer/.dev/` is the main dev environment (edit here). `test-*/` and `try-*/` are auto-generated.
 
 :`features/`:
-    [Feature](/dev-guide/features) source files, including metadata, installation scripts, and feature-specific user and developer documentation.
+    Feature source definitions — `metadata.yaml`, `install.bash`, `notes.md`. Source of truth for everything published.
 
 :`lib/`:
-    [Shared library](/dev-guide/features/lib) source files, containing helper functions used by feature scripts.
+    Shared bash library sourced by every installer.
 
 :`test/`:
-    [Tests](/dev-guide/tests) for features, the shared library, and local development workflows.
-
-:`justfile`:
-    Developer recipes — run `just --list` to see available tasks for common development routines.
-
-:`.editorconfig`:
-    shfmt style config (2-space, case-indent, etc.).
-
-:`.shellcheckrc`:
-    shellcheck defaults (shell=bash, external-sources=true).
-
-:`lefthook.yml`:
-    Lefthook configuration.
-
-
-:::{admonition} Read-only directories
-:class: danger
-
-The following files and directories should **never be edited**; they are either fully auto-generated, git-ignored, symbolic links, or external dependencies:
-
-:`.devcontainer/**/!(.dev)/**`:
-    Other than the `.devcontainer/.dev/` directory, all files in `.devcontainer/` are either fully auto-generated (`.devcontainer/try-*/**` and `.devcontainer/test-*/**`) or symlinks (`.devcontainer/.src/`) for [live testing](/dev-guide/tests/live) of features in dev containers.
-
-:`docs/source/features/`:
-    Auto-generated directory for [feature documentation](/dev-guide/docs/features) generated from `features/` metadata and notes. The source of truth for feature documentation is the `metadata.yaml` and `NOTES.md` files in each `features/<id>/` directory.
-
-:`docs/source/library/`:
-    Auto-generated directory for [library documentation](/dev-guide/docs/library) generated from `lib/` source files. The source of truth for library documentation is the docstrings in the source code.
+    Tests: `test/features/<id>/` for feature scenario tests, `test/lib/` for library unit tests, `test/proman/` for the build system.
 
 :`src/`:
-    [Feature Output](/dev-guide/features/src) — publication-ready feature scripts generated from `features/` and `lib/`.
+    **Auto-generated** — never edit. Regenerated by `just sync-src`.
 
-:`test/lib/bats/`:
-    [Bats Testing Framework](/dev-guide/tests/unit) — Git submodule containing the Bats testing framework for unit tests.
+:`justfile`:
+    All developer tasks — run `just --list` for the full list.
 
-:::
+See {doc}`workspace` for the complete annotated directory tree.
 
+## 3. Make a Change
 
-
-
-
-
-
-## Common commands
-
-Run **`just --list`** for the full recipe list. Typical workflow:
-
-```sh
-just sync-src                    # regenerate src/ (or: python3 scripts/sync-src.py)
-just format && just lint     # format + shellcheck
-just test-feats install-pixi
-just test-lib
-just fetch-gha --commit HEAD # after push — stream CI logs
-```
-
-
-Run `just --list` for the full recipe list with descriptions. Key workflows:
-
-```sh
-# Regenerate src/ from features/ + lib/ + install.sh
-just sync-src
-
-# Format shell files in-place, then run shellcheck
-just format && just lint
-
-# Format-check only (CI-style, no writes) + lint
-just format-check && just lint
-
-# Validate metadata files and check src/ is up-to-date
-just sync-src-check
-
-# Run feature scenario tests for one feature (requires Docker + devcontainer CLI)
-just test-feats install-pixi
-
-# Run shared library unit tests (no Docker needed)
-just test-lib
-
-# Build the docs website locally (HTML under .local/build/docs/; requires pixi docs env)
-just build-docs
-
-# Serve docs with live reload (same output directory)
-just build-docs-live
-
-# Watch GitHub Actions logs after a push
-just fetch-gha --commit HEAD
-```
-
-Preview what the next CD run will do without pushing:
-
-```sh
-just release-detect           # print features_to_release JSON
-just compute-bundle-tag          # print the next bundle version decision
-just compute-bundle-tag notes    # print the release notes markdown
-just compute-bundle-tag manifest # print the bundle manifest YAML
-```
-
-
-
-
-# Shell code style
-
-All shell scripts are formatted with **shfmt** and linted with **shellcheck**.
-
-- Style is defined in `.editorconfig`: 2-space indent, `switch_case_indent = true`, `function_next_line = false` (brace on same line), `space_redirects = true`.
-- `.shellcheckrc` sets `shell=bash` and `external-sources=true` globally.
-- Run `just format` to auto-format; `just format-check` for a CI-style check (no writes); `just lint` for shellcheck.
-- `*.bats` files use `shell_variant = bats` in `.editorconfig` and are formatted by shfmt.
-- `shfmt --apply-ignore` (used by `just format` / `just format-check` on the full tree) excludes generated paths via `.editorconfig` ignore rules.
-- `features/*/install.bash` are **body-only** (no autogenerated header). Linting targets the assembled `src/*/install.bash` files. Run `python3 scripts/sync-src.py` (or `just sync-src`) before `just lint` when `src/` is missing or stale.
-- **Shared library**: Prefer `lib/` helpers over duplicating logic. See `docs/dev-guide/writing-features.md` for the full API.
-- **Logging**: Use `logging__error`, `logging__warn`, `logging__info`, `logging__success`, `logging__debug`, and phase helpers (`logging__install`, `logging__download`, …) from `lib/logging.sh` instead of ad hoc `echo "…" >&2`. Shared option `log_level` controls verbosity (`silent|error|warn|info|debug|trace`); generated installers call `logging__set_level` after parsing, and `trace` enables `set -x`.
-
-CI runs the reusable **`ci.yaml`** workflow (invoked from **`cicd.yaml`**), which includes shfmt and shellcheck when the change set warrants it. See `docs/dev-guide/ci.md`.
-
-
-
-## Code style — `shfmt` and `shellcheck`
-
-All shell scripts in this repository are formatted with
-[shfmt](https://github.com/mvdan/sh) and linted with
-[shellcheck](https://www.shellcheck.net/).
-
-### Style configuration
-
-`.editorconfig` is the single source of truth for shfmt style. The key
-settings for `*.sh` and `*.bats` files:
-
-| Setting | Value | Effect |
-|---|---|---|
-| `indent_size` | `2` | Two-space indentation |
-| `switch_case_indent` | `true` | Case branches indented inside `case` blocks |
-| `function_next_line` | `false` | Opening brace on the same line as `fn() {` |
-| `space_redirects` | `true` | Space between redirect operator and target |
-| `binary_next_line` | `false` | `&&` / `\|\|` at end of line (not start) |
-
-`*.bats` uses `shell_variant = bats` so shfmt applies bats-aware parsing.
-
-### Shellcheck configuration
-
-`.shellcheckrc` sets global defaults:
-
-```ini
-shell=bash          # default dialect for files without a shebang
-external-sources=true   # follow source/. directives
-```
-
-Per-file or per-line overrides use inline directives:
+**Editing a feature:** modify `features/<id>/metadata.yaml` or `features/<id>/install.bash`, then regenerate:
 
 ```bash
-# shellcheck disable=SC2034
+just sync-src          # rebuilds src/ — always run this after editing features/ or lib/
+just lint-sh-check     # verify no shellcheck issues in the assembled install.bash
 ```
 
-### Developer workflow
-
-The [justfile](../../justfile) provides convenience recipes:
+**Editing the library:** modify `lib/<module>.sh`, then:
 
 ```bash
-just format          # auto-format all shell files in place (shfmt -w)
-just format-check    # check formatting without writing (used in CI)
-just lint            # run shellcheck on all tracked .sh/.bash files
-just sync-src            # regenerate _lib/ copies and install.sh stubs
+just sync-src          # lib/ is copied into each feature's src/*/lib/
+just test-lib-mod <module>   # run unit tests for that module (fast, no Docker)
 ```
 
-VS Code users get formatting automatically via the
-`foxundermoon.shell-format` extension (format on save) and inline lint
-diagnostics via `timonwong.shellcheck`. Recommended extensions are listed in
-`.vscode/extensions.json` and will be suggested when you open the repo.
+**Editing test assertions:** modify `test/features/<id>/checks.yaml`, then:
 
+```bash
+just sync-tests <id>   # regenerate test/features/<id>/tests/*.sh from checks.yaml
+```
 
+Never edit `test/features/<id>/tests/*.sh` directly — they are overwritten on every sync.
+
+## 4. Run Tests
+
+```bash
+just test-lib                  # library unit tests — always fast, no Docker needed
+just test-lib-mod <module>     # single module, e.g. just test-lib-mod ospkg
+just test-feats <feature>      # feature scenario tests — requires Docker
+just test-py                   # proman Python unit tests
+```
+
+The `just test-feats` command runs the devcontainer CLI, so it needs Docker (provided by Docker-in-Docker in the dev container).
+
+## 5. Format and Lint
+
+CI enforces formatting and lint. Run the same checks locally before pushing:
+
+```bash
+just format            # auto-format all shell + Python files (writes in place)
+just lint              # check-only lint (what CI runs); no writes
+```
+
+For targeted checks:
+
+```bash
+just format-sh features/install-git/install.bash   # format one source file
+just lint-sh-check src/install-git/install.bash     # lint the assembled file
+```
+
+## 6. Build the Docs
+
+```bash
+just build-docs-live   # live-reload server at http://localhost:8000
+just build-docs        # one-shot build to .local/build/docs/
+```
+
+## 7. Before Pushing
+
+```bash
+just sync-src-check    # verify src/ is current (CI runs this)
+just sync-tests-check  # verify generated test scripts are current
+just format-check      # check formatting without writing
+just lint              # shellcheck + ruff
+just test-lib          # fast lib tests
+just release-detect    # preview which features need a new release (queries GitHub API)
+```
+
+**Version bump:** if you changed `features/<id>/install.bash`, `features/<id>/metadata.yaml`, or any `lib/*.sh` that affects behavior, bump `version` in the feature's `metadata.yaml` (semver). CI rejects PRs that skip this step. See {doc}`devops/ci` for the version-bump rule.
+
+## Key Files Reference
+
+| File | What to know |
+|------|-------------|
+| `justfile` | All developer tasks — run `just --list` to see them all |
+| `pixi.toml` | Python environments (`default`, `lint`, `test`, `docs`) |
+| `features/metadata.schema.json` | Schema for `metadata.yaml` (VS Code validates automatically) |
+| `features/metadata.shared.yaml` | Options auto-injected into every feature at sync time |
+| `features/install.tmpl.bash` | Install script template — provides `__main__`, argument parsing, dispatch |
+| `features/install.sh` | POSIX bootstrap shim (source of truth, copied to `src/*/install.sh`) |
+| `.editorconfig` | Shell code style consumed by shfmt (2-space indent, case-indent, etc.) |
+| `.shellcheckrc` | Shellcheck defaults (`shell=bash`, `external-sources=true`) |
+| `.config/lefthook.yml` | Git hook definitions (pre-commit: format-sh on shell; lint-py + format-py on Python) |
+| `.config/proman/` | Project-wide config: metadata paths, CI settings, docs settings |
+
+## Where to Go Next
+
+- {doc}`workflow` — shell/Python code style, logging conventions, and daily commands
+- {doc}`features/quickstart` — writing a new feature end-to-end
+- {doc}`tests/quickstart` — writing scenarios and checks
+- {doc}`devops/ci` — how CI works and what the version-bump rule enforces
+- {doc}`features/lib` — the shared library API (check here before writing any logic)

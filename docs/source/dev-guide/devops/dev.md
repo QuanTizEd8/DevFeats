@@ -71,6 +71,7 @@ All task names follow `<type>-<domain>[-<modifier>]`.
 | `py` | Python source (`proman/`) |
 | `src` | Assembled `src/` tree |
 | `feats` | Individual features (`features/`, `dist/`) |
+| `tests` | Generated test scripts (`test/features/*/tests/`) |
 | `lib` | `lib/` shell library |
 | `docs` | Documentation (`docs/`, Sphinx, injected markers) |
 | `gha` | GitHub Actions CI tooling |
@@ -95,54 +96,48 @@ All task names follow `<type>-<domain>[-<modifier>]`.
 
 ---
 
-## Current Task Reference
+## Task Reference
 
-### justfile → pixi task → implementation
+Run `just --list` for the current authoritative task list with descriptions. The table below maps each recipe to its implementation:
 
 | justfile recipe | pixi task | Implementation |
 |-----------------|-----------|----------------|
 | `sync-src` | `sync-src` | `proman-sync` |
 | `sync-src-check` | `sync-src-check` | `proman-sync --check` |
+| `sync-tests` | `sync-tests` | `proman-test-sync-tests` |
+| `sync-tests-check` | `sync-tests-check` | `proman-test-sync-tests --check` |
 | `build-feats` | `build-feats` | `proman-build-feats` |
-| `build-docs` | `build-docs` | Sphinx (depends on `_sync-docs-data`) |
+| `build-docs` | `build-docs` | Sphinx + `proman-gen-docs-data` |
 | `build-docs-live` | `build-docs-live` | `sphinx-autobuild` |
 | `build-docs-pkg` | `build-docs-pkg` | `proman-build-docs-pkg` |
 | `release-detect` | `release-detect` | `proman-release-detect` |
 | `show-feats` | `show-feats` | `proman-show-feats` |
 | `show-feat-opts` | `show-feat-opts` | `proman-show-feat-opts` |
 | `show-config` | — | `bash .dev/scripts/show/config.sh` |
-| `lint-sh-check` | — | `shellcheck` (system tool) |
+| `lint-sh-check` | — | `bash .dev/scripts/lint/sh-check.sh` |
 | `lint-py-check` | `lint-py-check` | `ruff check` |
 | `lint-py` | `lint-py` | `ruff check --fix` |
-| `format-sh` | — | `shfmt --write` (system tool) |
-| `format-sh-check` | — | `shfmt --diff` |
+| `format-sh` | — | `bash .dev/scripts/format/shfmt.sh` |
+| `format-sh-check` | — | `bash .dev/scripts/format/shfmt.sh --check` |
 | `format-py` | `format-py` | `ruff format` |
 | `format-py-check` | `format-py-check` | `ruff format --check` |
 | `test-lib` | — | `bash .dev/scripts/test/run-unit.sh` |
-| `test-lib-mod` | — | `run-unit.sh --module` |
-| `test-lib-env` | — | `run-unit-matrix.sh --env` |
-| `test-lib-envs` | — | `run-unit-matrix.sh` |
+| `test-lib-mod` | — | `bash .dev/scripts/test/run-unit.sh --module` |
+| `test-lib-env` | — | `bash .dev/scripts/test/run-in-container.sh` (single env) |
+| `test-lib-envs` | — | `bash .dev/scripts/test/run-in-container.sh` (all envs) |
 | `test-py` | `test-py` | `pytest test/proman` |
 | `test-feats` | `test-feats` | `proman-test-run` |
 | `test-feats-macos` | `test-feats` | `proman-test-run --mode macos` |
 | `fetch-gha` | — | `bash .dev/scripts/fetch/gha.sh` |
-| `run-gha-dind` (private) | — | `bash .dev/scripts/ci/gha-dind.sh` |
 
 ### Sphinx docs build context
 
-Sphinx loads `.local/data_transfer/docs_build_context.json` (repo owner/name, feature metadata, `lib/` summaries). That file is written by `proman-gen-docs-data` (`pixi run _sync-docs-data` in the default environment). The `build-docs` pixi task depends on `_sync-docs-data`; `build-docs-live` also runs it before each autobuild cycle. The path lives under `/.local/`, which is gitignored.
+Sphinx loads `.local/data_transfer/docs_build_context.json` (repo owner/name, feature metadata, `lib/` summaries). That file is written by `proman-gen-docs-data` (`pixi run _sync-docs-data` in the default environment). The `build-docs` pixi task depends on `_sync-docs-data`; `build-docs-live` also runs it before each autobuild cycle. The path lives under `.local/`, which is gitignored.
 
-HTML output and the packaged Pages tarball are written under **`.local/build/docs/`** (`website.tar` next to the site). That directory is gitignored with the rest of `/.local/`.
+HTML output and the packaged Pages tarball are written under **`.local/build/docs/`** (`website.tar` next to the site). That directory is gitignored with the rest of `.local/`.
 
 JSON Schemas listed in **`.config/proman/docs.yaml`** under `json_schemas_publish` are rewritten with stable `$id` / `$ref` URLs and copied to **`.local/build/docs/schema/`** (for example **`/schema/ospkg-manifest.json`** on the published site). Add paths there when introducing new public schemas. In schemas under **`features/`**, use **`$ref` paths relative to that directory** (e.g. **`../lib/ospkg-manifest.schema.json`**) so editor YAML language servers can load referenced files; proman still registers the same targets by **`file://`** URI when validating.
 
-### pixi tasks called directly by CI
-
-The following pixi tasks are invoked by GHA workflows via `pixi run <task>` and **must not be renamed without updating the corresponding workflow files**:
-
-*(Currently CI calls `just <recipe>` which routes through pixi — but if CI ever bypasses justfile, these are the tasks it would call.)*
-
-The remaining pixi tasks are only ever called by justfile recipes and may be renamed freely alongside their justfile counterparts.
 
 ---
 
@@ -150,12 +145,16 @@ The remaining pixi tasks are only ever called by justfile recipes and may be ren
 
 | Script | Purpose | Called from |
 |--------|---------|-------------|
-| `git_helpers.sh` | Reusable git functions (sourced library) | Other scripts |
+| `capture/single.sh` | Run a command with live output + timestamped log under `.local/reports/` | `just capture` (used by almost every recipe) |
+| `capture/composite.sh` | Run multiple commands, each captured separately | `just lint`, `just test` |
+| `format/shfmt.sh` | Shell formatter wrapper (shfmt) | `just format-sh`, `just format-sh-check` |
+| `lint/sh-check.sh` | ShellCheck wrapper | `just lint-sh-check` |
 | `show/config.sh` | Print a field from `.config/proman/*.yaml` via yq | `just show-config` |
 | `ci/gha-dind.sh` | Docker-in-Docker setup for GHA | `just run-gha-dind` |
-| `fetch/gha.sh` | Poll GHA workflow runs, stream logs | `just fetch-gha` |
-| `test/run-unit.sh` | Execute bats unit tests for `lib/` | `just test-lib`, `just test-lib-mod` |
-| `test/run-unit-matrix.sh` | Run `run-unit.sh` in container environments | `just test-lib-env`, `just test-lib-envs` |
-| `test/run-in-container.sh` | Docker exec wrapper (mounts repo) | `run-unit-matrix.sh` |
+| `fetch/gha.sh` | Poll GHA workflow runs; save job logs under `.local/logs/gha/`; for failed feature-test matrix jobs, also download `feat-log-*` artifacts as `<job-id>.trace.log` | `just fetch-gha` |
+| `work/work.sh` | Format + lint + sync + test in one pass | `just work` |
+| `test/run-unit.sh` | Execute bats unit tests for `lib/`; handles macOS bash ≥4 re-exec | `just test-lib`, `just test-lib-mod` |
+| `test/run-in-container.sh` | Docker exec wrapper (mounts repo, used by container matrix runs) | `proman-test-lib-matrix` |
+| `git_helpers.sh` | Reusable git functions (sourced library) | Other scripts |
 
-**Adding a new script:** Only add to `.dev/scripts/` if the operation is inherently bash — Docker/process control, bats orchestration, or shell streaming. If it reads YAML config or makes decisions about project structure, it belongs in proman instead.
+**Adding a new script:** Only add to `.dev/scripts/` if the operation is inherently bash — Docker/process management, bats orchestration, shell streaming. If it reads YAML config or makes decisions about project structure, it belongs in proman instead.

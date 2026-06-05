@@ -107,8 +107,8 @@ Boolean options are flags that can be either `true` or `false`.
 ```jsonc
 {
   "features": {
-    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell": {
-      "install_direnv": true
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-direnv": {
+      "method": "binary"
     }
   }
 }
@@ -118,15 +118,15 @@ Boolean options are flags that can be either `true` or `false`.
 :::{tab-item} CLI
 
 ```sh
-sh install-shell/install.sh \
-  --install_direnv true
+sh install-direnv/install.sh \
+  --method binary
 ```
 :::
 
 :::{tab-item} Env Var
 
 ```sh
-INSTALL_DIRENV=true sh install-shell/install.sh
+METHOD=binary sh install-direnv/install.sh
 ```
 :::
 
@@ -189,17 +189,30 @@ Some options are shared across features, such as logging-related options, cache 
 
 ### Logging
 
-All features support emitting logs to the console (stderr) and/or to a file, with configurable verbosity (and known secrets redacted). Log lines are prefixed with emojis to indicate their level (grep for `❌` / `⛔` in a log file to jump straight to failures.). The logging is controlled by three options that are supported across all features:
+All features support emitting logs to the console (diagnostic stream on stderr) and/or to a file, with independent verbosity thresholds and known secrets redacted on write. Log lines are prefixed with emojis to indicate their level (grep for `❌` / `⛔` in a log file to jump straight to failures). Three options control logging:
 
-- **`log_level`** *(string, default `"info"`)* — controls logging verbosity for the console (stderr). Levels are, in increasing order of verbosity:
+- **`log_level`** *(string, default `"info"`)* — minimum level for the **console**. Levels (in increasing verbosity):
   - `silent`: only fatal errors (❌)
   - `error`: above plus non-fatal errors (⛔)
   - `warn`: above plus warnings (⚠️)
   - `info`: above plus general info (ℹ️)
-  - `debug`: above plus debug messages (🐞)
-  - `trace`: above plus `bash -x` tracing inside the installer
-- **`log_file`** *(string, default `""`)* — when set to a file path, all logs are also captured to that file in addition to the console. The file receives the same log lines as the console, but filtered by `log_file_level` instead of `log_level`, so you can have verbose logs in the file and a quieter console output. Append-safe; works across features in the same run.
-- **`log_file_level`** *(string, default `"debug"`)* — controls the minimum log level captured in the log file specified by `log_file`. Same levels as `log_level`.
+  - `debug`: above plus debug messages (🐞) and installer subprocess stdout/stderr
+  - `trace`: above plus `bash -x` / xtrace lines routed through the same ordered capture path
+- **`log_file`** *(string, default `""`)* — when set to a file path, the session journal is **appended** here on exit (mkdir -p on the parent directory). Empty means no file capture; `log_file_level` is ignored. Fatal lines are always written when a log file is configured, even if `log_file_level` is `silent`. Append-safe across features in the same run.
+- **`log_file_level`** *(string, default `"debug"`)* — minimum level for the **file** when `log_file` is set. Same level names as `log_level`. Use a quieter `log_level` and a more verbose `log_file_level` to keep the terminal readable while retaining a detailed log.
+
+**Dual thresholds:** Console and file each apply their own filter. A line may appear on one sink only (e.g. `log_level=warn`, `log_file_level=debug` → debug structured lines only in the file).
+
+**Ordering:** Events appear in the same **execution order** on both sinks for lines that are emitted. Lines present on both console and file are not reordered relative to each other (interleaved structured messages, subprocess output, and xtrace share one ordered journal).
+
+**Output classes:**
+
+| Class | Level tier | Gating |
+|-------|------------|--------|
+| `logging__fatal` | 0 | Always on console; always in file when `log_file` is set |
+| Structured helpers (`logging__error` … `logging__debug`, phase helpers) | 1–4 | Per sink threshold |
+| Installer subprocess stdout/stderr (and children inheriting redirected fds) | 4 (`debug`) | Per sink; requires `debug` or `trace` on that sink |
+| `set -x` / xtrace | 5 (`trace`) | Per sink; `trace` on console and/or file enables xtrace independently |
 
 ### Caching
 
@@ -207,7 +220,7 @@ All features provide a `keep_cache` boolean option that controls whether package
 
 ### Build Tools
 
-Most features depend on tools to download files (e.g. `curl`, `wget`, `git`), extract archives (e.g. `tar`, `unzip`), parse JSON API responses (e.g. `jq`), build from source (e.g. `make`, `cmake`), and more. These are not runtime dependencies of the installed features, but they are required to perform the installation. By default, the installer attempts to detect which tools are available in the environment and use them accordingly. If any required tool is missing, the installer will install it automatically and mark it for removal at the end of the installation to avoid leaving unnecessary packages on the system. However, you can also choose to keep them by setting `keep_build_tools` to `true`. This is useful to speed up subsequent installs of other features that use the same tools, at the cost of leaving them on the system.
+Most features depend on tools to download files (e.g. `curl`, `wget`, `git`), extract archives (e.g. `tar`, `unzip`), parse JSON API responses (e.g. `jq`), build from source (e.g. `make`, `cmake`), and more. These are not runtime dependencies of the installed features, but they are required to perform the installation. By default, the installer attempts to detect which tools are available in the environment and use them accordingly. If any required tool is missing, the installer will install it automatically and mark it for removal at the end of the installation to avoid leaving unnecessary packages on the system. However, you can also choose to keep them by setting `keep_build_deps` to `true`. This is useful to speed up subsequent installs of other features that use the same tools, at the cost of leaving them on the system.
 
 
 ## Secrets

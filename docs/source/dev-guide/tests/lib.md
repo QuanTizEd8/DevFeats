@@ -1,12 +1,10 @@
-# Library Tests
+# Library Unit Tests
 
-Unit tests for `lib/` live under `test/lib/`. Each `.bats` file covers one module.
-
-Tests run without Docker by sourcing lib files directly into the bats test process. The full suite runs on both Linux and macOS in CI.
+Unit tests for `lib/` live under `test/lib/`. Each `.bats` file covers one module. Tests run without Docker by sourcing lib files directly into the bats test process. The full suite runs on both Linux and macOS in CI.
 
 ## Vendor Libraries
 
-bats-core and its companion libraries are git submodules at `test/lib/bats/`. Initialise once after cloning:
+BATS and its companion libraries are git submodules at `test/lib/bats/`. Initialise once after cloning:
 
 ```bash
 git submodule update --init --recursive
@@ -15,25 +13,32 @@ git submodule update --init --recursive
 Never edit files under `test/lib/bats/` — they are vendored.
 
 | Submodule | Purpose |
-|---|---|
+|-----------|---------|
 | `bats-core` | Test runner |
 | `bats-support` | Failure output formatting |
 | `bats-assert` | `assert_success`, `assert_output`, etc. |
 | `bats-file` | `assert_file_exists`, `assert_dir_exists`, etc. |
 
+## Test Tiers
+
+The suite has two tiers:
+
+- **Lean tier (default):** `test/lib/*.bats` only. Suitable for distro containers that install just `bash`. Run by `just test-lib` and all CI library jobs.
+- **Integration tier:** `test/lib/integration/*.bats`. Requires real `git`, `jq`, and other tools to be present. Enable with `bash .dev/scripts/test/run-unit.sh --integration`.
+
 ## File Anatomy
 
 ```bash
-# Load bats companion libraries BEFORE any `load` calls.
+# Load BATS companion libraries first.
 bats_load_library bats-support
 bats_load_library bats-assert
 bats_load_library bats-file
 
 # Load project helpers.
 load helpers/common   # provides reload_lib()
-load helpers/stubs    # provides create_fake_bin(), prepend_fake_bin_path()
+load helpers/stubs    # provides create_fake_bin(), begin/end_path_isolation()
 
-# Reload the library under test before each test for a clean state.
+# Reload the module under test before each test for a clean state.
 setup() {
   reload_lib os.sh
 }
@@ -47,13 +52,13 @@ setup() {
 }
 ```
 
-## reload_lib
+## `reload_lib`
 
 **`reload_lib <module.sh>`** — defined in `helpers/common.bash`. Call it in `setup()` to give every test a clean module state. It:
 
 1. Clears all `_LIB_*_LOADED` guard variables so the module re-sources.
 2. Unsets all cached globals (`_OS__KERNEL`, `_NET_FETCH_TOOL`, `_OSPKG_DETECTED`, etc.).
-3. For `ospkg.sh` specifically: pre-declares `_OSPKG_OS_RELEASE` as a **global** associative array with `declare -gA` **before** sourcing — see [ospkg.sh scoping workaround](#ospkgsh-scoping-workaround).
+3. For `ospkg.sh`: pre-declares `_OSPKG_OS_RELEASE` as a **global** associative array (`declare -gA`) before sourcing — see [ospkg.sh scoping workaround](#ospkgsh-scoping-workaround).
 4. Sources `${LIB_ROOT}/<module.sh>`.
 
 ```bash
@@ -62,64 +67,48 @@ setup() {
 }
 ```
 
-To test the load-guard (idempotency), call `reload_lib` in `setup()` then source the file directly inside the test without calling `reload_lib` again — the guard variable will prevent re-sourcing.
+To test load-guard idempotency, call `reload_lib` in `setup()` then source the file directly inside the test — the guard prevents re-sourcing.
 
 ### ospkg.sh Scoping Workaround
 
-`ospkg.sh` contains `declare -A _OSPKG_OS_RELEASE=()`. When a file is sourced from **within a bash function**, `declare` without `-g` creates a **local** variable that disappears when the function returns. Without the workaround, every test that relies on `_OSPKG_OS_RELEASE` after `reload_lib` returns would see an undeclared variable — bash silently treats it as an indexed array, all non-integer keys map to `[0]`, and the last write wins (typically the arch value from `uname -m`).
+`ospkg.sh` contains `declare -A _OSPKG_OS_RELEASE=()`. When a file is sourced from **within a bash function**, `declare` without `-g` creates a **local** variable that disappears when the function returns. Without the workaround, tests that rely on `_OSPKG_OS_RELEASE` after `reload_lib` returns would see an undeclared variable.
 
-`reload_lib` pre-empts this by running `declare -gA _OSPKG_OS_RELEASE=()` before the `source` call. The global declaration ensures the array exists at the correct scope. Always use `reload_lib` rather than sourcing `ospkg.sh` directly in test setup.
+`reload_lib` pre-empts this by running `declare -gA _OSPKG_OS_RELEASE=()` before the `source` call. Always use `reload_lib` rather than sourcing `ospkg.sh` directly in test setup.
 
 ## Stubbing Commands
 
-`helpers/stubs.bash` provides two helpers:
+`helpers/stubs.bash` provides three helpers:
+
+**`create_fake_bin <name> [stdout]`** + **`prepend_fake_bin_path`** — create a stub under `$BATS_TEST_TMPDIR/bin/` and prepend it to PATH:
 
 ```bash
-# Create ${BATS_TEST_TMPDIR}/bin/<name> — prints <stdout> and exits 0.
 create_fake_bin "curl" "fake-response"
-create_fake_bin "apt-get" ""          # prints nothing
-
-# Prepend fake bin dir to PATH so fakes shadow real commands.
+create_fake_bin "apt-get" ""
 prepend_fake_bin_path
 ```
 
-Stubs are scoped to `$BATS_TEST_TMPDIR`, which bats cleans up after each test.
+Stubs are scoped to `$BATS_TEST_TMPDIR` (cleaned up by bats after each test).
 
-### Replacing PATH Entirely
-
-When the real command must be completely hidden — for example, testing wget detection while `curl` is installed on the host:
+**`begin_path_isolation [cmd...]`** / **`end_path_isolation`** — swap PATH to `$BATS_TEST_TMPDIR/bin` and optionally allow through explicit commands. Use when you need to prove a tool is absent even when the host/runner has it installed:
 
 ```bash
-@test "detects wget when curl is absent" {
-  reload_lib net.sh
-  create_fake_bin "wget" ""
-  local _saved="$PATH"
-  export PATH="${BATS_TEST_TMPDIR}/bin"   # only fake bin — real curl invisible
-  net__ensure_fetch_tool
-  local _result="$_NET_FETCH_TOOL"
-  export PATH="$_saved"                   # restore before bats teardown uses rm, etc.
-  [[ "$_result" == "wget" ]]
-}
+begin_path_isolation "mkdir" "cat" "bash"
+run _json__ensure_jq
+end_path_isolation
 ```
 
-**Always restore PATH before the test function returns.** Bats teardown uses `rm` and other tools that require a real PATH. If PATH is left restricted, bats prints `rm: command not found` warnings during cleanup (tests still pass, but the output is noisy).
+Prefer this over ad-hoc PATH save/restore to keep tests deterministic across machines.
 
 ## Overriding Commands with Shell Functions
 
-bash built-ins and external commands can be overridden by defining a function with the same name:
-
 ```bash
 uname() { printf 'Darwin\n'; }
-export -f uname   # make visible in sourced files
+export -f uname   # required: makes the override visible inside sourced lib files
 ```
 
-`export -f` is required whenever the function must be visible inside a sourced library file. Without it, the library's call to the command resolves to the real binary.
-
-For commands where a function override is awkward (requires parsing arguments), prefer `create_fake_bin` + `prepend_fake_bin_path` instead.
+`export -f` is essential — without it, the library's call to `uname` resolves to the real binary.
 
 ## Mocking Library Functions
-
-To mock a lib function called by the function under test, define it in the test body before invoking the real function:
 
 ```bash
 @test "github__latest_tag parses tag_name from JSON" {
@@ -138,279 +127,96 @@ To mock a lib function called by the function under test, define it in the test 
 
 ## Subprocess Isolation for `logging.sh`
 
-`logging__setup` executes `exec 3>&1 4>&2`, which redirects file descriptor 3. Bats uses fd 3 for TAP output — the redirect corrupts bats' reporting and causes most tests in the file to silently vanish.
+`logging__setup` runs `exec 3>&1 4>&2` and redirects installer stdout into a FIFO mux. Bats uses fd 3 for TAP output — running setup in the test process corrupts reporting.
 
-**Rule:** Every test that calls `logging__setup` or `logging__cleanup` must run in a `bash -c` subprocess isolated from bats' fd 3:
+**Rule:** Every test calling `logging__setup` or `logging__cleanup` must run in a `bash -c` subprocess.
+
+After setup, plain `echo` goes to the mux (not bats stdout). Use `echo … >&3` for assertions **before** `logging__cleanup`, or plain `echo` **after** cleanup when fds 1/2 are restored. Set `LOG_FILE` (and `LOG_FILE_LEVEL` if needed) **before** `logging__setup` so the journal captures live output. To assert console lines while setup is active, `exec 2>'${_stderr}'` at the start of the subprocess so saved fd 4 points at your capture file. Do not use bats `4>file` on `run` — setup's `exec 4>&2` overwrites that redirect.
 
 ```bash
 @test "logging__setup creates a temp log file" {
   run bash -c "
     source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
     logging__setup
-    [[ -f \"\${_LOGGING_TMPFILE}\" ]] && echo OK
+    [[ -f \"\${_LOGGING__LOG_FILE_TMP}\" ]] && echo OK >&3
+    logging__cleanup
   "
   assert_success
   assert_output "OK"
 }
 ```
 
-This isolation is specific to `logging.sh`. Other modules do not need it.
+Dual-threshold tests should set `LOG_FILE` before setup and compare console capture vs appended `LOG_FILE` content. This isolation is specific to `logging.sh`.
 
-## Using `run` vs Direct Calls
+**Session scratch:** Installer temp files use `_FILE__SESSION_ROOT` from `lib/file.sh` (initialised in `__init__` via `file__session_ensure`). In unit tests, pin paths with `export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"` — do **not** set `_FILE__SESSION_OWNED`; `file__session_cleanup` will not `rm -rf` an injected root. After `logging__cleanup`, call `file__session_cleanup` when the test created owned scratch (mirrors installer `__exit__`).
+
+## `run` vs Direct Calls
 
 | Situation | Approach |
-|---|---|
+|-----------|---------|
 | Checking exit code or stdout | `run <function> [args]`; then `assert_success` / `assert_output` |
 | Checking global state after the call | Call directly (no `run`); inspect globals afterward |
-| Function modifies PATH or env | Call directly; inspect with `[[ ... ]]`; use `run` only for the return-value check |
+| Function modifies PATH or env | Call directly; `run` only for the return-value check |
 
-`run` captures stdout/stderr and the exit code but executes in a subshell — changes to exported variables or global state are invisible to the test body after `run` returns.
+`run` captures stdout/stderr and exit code but executes in a subshell — global state changes are invisible to the test body after `run` returns.
 
 ## Writing New Tests
 
-1. Open `test/lib/<module>.bats` for the module you changed.
-2. Add `reload_lib <module>.sh` in `setup()` unless the test explicitly checks idempotency.
+1. Open (or create) `test/lib/<module>.bats`.
+2. Add `reload_lib <module>.sh` in `setup()` unless testing idempotency.
 3. Stub any external commands the function invokes.
-4. Use `run` for exit-code / stdout assertions; call directly for global-state assertions.
+4. Use `run` for exit-code/stdout assertions; call directly for global-state assertions.
 5. One observable behaviour per `@test`.
 6. Run `bash .dev/scripts/test/run-unit.sh --module <name> --jobs 1` before committing.
 
 ## Running Tests Locally
 
 ```bash
-# All modules (also runs scripts/sync-src.py first)
-just test-lib
+just test-lib                                        # all modules
+bash .dev/scripts/test/run-unit.sh --module os       # single module
+bash .dev/scripts/test/run-unit.sh --filter "platform"  # filter by test-name regex
+bash .dev/scripts/test/run-unit.sh --jobs 1          # serial (for debugging)
+test/lib/bats/bats-core/bin/bats test/lib/os.bats    # direct bats (no sync step)
 
-# Single module
-bash .dev/scripts/test/run-unit.sh --module os
-
-# Filter by test name (regex)
-bash .dev/scripts/test/run-unit.sh --filter "platform"
-
-# Serial output — useful for debugging
-bash .dev/scripts/test/run-unit.sh --jobs 1
-
-# Direct bats invocation — skips scripts/sync-src.py, useful for iteration
-test/lib/bats/bats-core/bin/bats test/lib/os.bats
+# Integration tier (requires real git, jq, etc.)
+bash .dev/scripts/test/run-unit.sh --integration
 ```
 
 ## macOS Considerations
 
-macOS ships bash 3.2 due to the GPL licence change in bash 4+. All lib/ modules require bash ≥4.
+macOS ships bash 3.2 (GPL licence change). All `lib/` modules require bash ≥4.
 
-`.dev/scripts/test/run-unit.sh` handles this automatically:
+`.dev/scripts/test/run-unit.sh` handles this automatically: it detects `BASH_VERSINFO[0] < 4`, finds `/opt/homebrew/bin/bash` (Apple Silicon) or `/usr/local/bin/bash` (Intel), and re-execs itself. Install bash ≥4 locally: `brew install bash`.
 
-1. Detects `BASH_VERSINFO[0] < 4`.
-2. Tries `/opt/homebrew/bin/bash` (Apple Silicon) then `/usr/local/bin/bash` (Intel).
-3. Re-execs itself under the first bash ≥4 found.
-4. Prepends that executable's directory to `PATH` so `#!/usr/bin/env bash` sub-scripts (bats-exec-test, bats-exec-suite) also resolve to bash ≥4.
-
-Install bash ≥4 locally: `brew install bash`. The CI `macos-latest` runner has Homebrew bash pre-installed.
-
-macOS-specific return values to test for explicitly:
+macOS-specific values to assert explicitly:
 
 | Function | macOS value |
-|---|---|
+|----------|-------------|
 | `os__kernel` | `Darwin` |
 | `os__platform` | `macos` |
-| `os__font_dir` (as root) | `/Library/Fonts` |
-| `os__font_dir` (non-root, no `$XDG_DATA_HOME`) | `${HOME}/Library/Fonts` |
+| `os__font_dir` (root) | `/Library/Fonts` |
+| `os__font_dir` (non-root) | `${HOME}/Library/Fonts` |
 
-macOS has no `/etc/os-release`, so `os__id`, `os__id_like`, and `os__platform` fall through to the `uname -s` path.
+macOS has no `/etc/os-release`; `os__id`, `os__id_like`, and `os__platform` fall through to the `uname -s` path.
 
 ## Common Pitfalls
 
 | Pitfall | Symptom | Fix |
-|---|---|---|
-| `declare -A` in sourced file creates local var | All ospkg platform lookups return the same value | `reload_lib` pre-declares `declare -gA _OSPKG_OS_RELEASE=()` before sourcing |
+|---------|---------|-----|
+| `declare -A` in sourced file creates local var | All ospkg platform lookups return same value | `reload_lib` pre-declares `declare -gA _OSPKG_OS_RELEASE=()` |
 | `logging__setup` hijacks fd 3 | Only 1 of N logging tests runs; bats prints "Bad file descriptor" | Wrap every logging test in `run bash -c "..."` |
-| Real `curl` found despite fake bin prepend | `net__ensure_fetch_tool` always returns `curl` even in the wget test | Replace PATH entirely (`export PATH="${BATS_TEST_TMPDIR}/bin"`); restore afterward |
-| PATH left restricted | Bats teardown `rm: command not found` | Always `export PATH="$_saved"` before the test function returns |
-| `export -f` missing | Overridden function invisible inside sourced library | Add `export -f <funcname>` after defining the override |
-| Global state leaking between tests | Tests pass individually but fail in suite | Call `reload_lib` in `setup()` for every test that needs a clean module state |
+| Real tool found despite fake bin prepend | Function ignores stub | Use `begin_path_isolation` to hide the real binary entirely |
+| PATH left restricted after test | Bats teardown `rm: command not found` | Always `end_path_isolation` or restore PATH before function returns |
+| `export -f` missing | Override invisible inside sourced library | Add `export -f <funcname>` after defining the function |
+| Global state leaking between tests | Tests pass alone but fail in suite | Call `reload_lib` in `setup()` for every test needing clean state |
 
+## CI
 
-## Unit tests for lib/
+Library unit tests run via two jobs triggered by changes to `lib/**` or `test/lib/**`:
 
-### Overview
+| Job | How it runs |
+|-----|-------------|
+| Linux matrix | ubuntu-latest runner; each environment from `test/lib/scenarios.yaml` (Ubuntu, Debian, Fedora, Rocky, Alpine, openSUSE, Arch) runs in its own Docker container |
+| macOS | Native macOS runners; bash ≥4 installed via `brew install bash` automatically by CI |
 
-In addition to the container-based feature scenarios, the shared bash library
-under `lib/` has a dedicated [bats](https://bats-core.readthedocs.io/) unit
-test suite. The suite tests every public function in every module without
-requiring Docker, making it fast and runnable on both Linux and macOS.
-
-The vendor libraries (bats-core, bats-support, bats-assert, bats-file) live
-as git submodules under `test/lib/bats/` and are checked out with
-`git clone --recurse-submodules` or `git submodule update --init --recursive`.
-
-### Directory layout
-
-```
-test/lib/
-  setup_suite.bash        bash ≥4 guard — auto-discovered by bats
-  <module>.bats           one test file per lib/ module
-  helpers/
-    common.bash           bats library loader + reload_lib() helper
-    stubs.bash            create_fake_bin() / prepend_fake_bin_path()
-  bats/                   ← git submodules, never edit
-    bats-core/
-    bats-support/
-    bats-assert/
-    bats-file/
-```
-
-Module coverage:
-
-| Test file | lib/ module | Tests |
-|---|---|---|
-| `os.bats` | `os.sh` | 28 |
-| `shell.bats` | `shell.sh` | 61 |
-| `str.bats` | `str.sh` | 3 |
-| `ospkg.bats` | `ospkg.sh` | 28 |
-| `logging.bats` | `logging.sh` | 6 |
-| `net.bats` | `net.sh` | 11 |
-| `json.bats` | `json.sh` | 8 |
-| `git.bats` | `git.sh` | 6 |
-| `checksum.bats` | `checksum.sh` | 6 |
-| `github.bats` | `github.sh` | 47 |
-| `users.bats` | `users.sh` | 13 |
-
-### Running unit tests
-
-```bash
-# Run all modules
-just test-lib
-
-# Run a single module
-bash .dev/scripts/test/run-unit.sh --module os
-
-# Filter by test-name regex
-bash .dev/scripts/test/run-unit.sh --filter "platform"
-
-# Serial execution (useful for debugging output)
-bash .dev/scripts/test/run-unit.sh --jobs 1
-
-# Run integration-only bats files (requires real jq/git toolchain)
-SYSSET_RUN_INTEGRATION_DEPS=1 bash .dev/scripts/test/run-unit.sh --integration
-
-# Run an explicit path or directory of bats files
-bash .dev/scripts/test/run-unit.sh --paths test/lib/integration
-```
-
-`.dev/scripts/test/run-unit.sh` automatically re-execs itself under bash ≥4 on macOS
-(where `/bin/bash` is 3.2 due to the GPL licence change), so it works
-correctly without any pre-flight setup on a stock Mac with Homebrew bash.
-
-The suite uses a two-tier model:
-
-- **Lean tier (default):** runs top-level `test/lib/*.bats` only, suitable for
-  distro containers that install just `bash`.
-- **Integration tier:** runs `test/lib/integration/*.bats` and is intended for
-  environments where real `git`/`jq` are available. Enable with
-  `SYSSET_RUN_INTEGRATION_DEPS=1` and `--integration`.
-
-### Test anatomy
-
-Each test file starts by sourcing the helpers:
-
-```bash
-bats_load_library bats-support
-bats_load_library bats-assert
-bats_load_library bats-file
-load helpers/common
-load helpers/stubs
-```
-
-**`reload_lib <module.sh>`** — defined in `helpers/common.bash`. It clears all
-lib load-guards and relevant cached globals, then `source`s the module. Call
-it in `setup()` or at the top of individual tests that need a clean module
-state:
-
-```bash
-setup() {
-  reload_lib os.sh
-}
-```
-
-**`create_fake_bin <name> [stdout]`** and **`prepend_fake_bin_path`** — defined
-in `helpers/stubs.bash`. They create a small stub executable under
-`$BATS_TEST_TMPDIR/bin/` and prepend that directory to `PATH`, so tests can
-control what commands like `curl`, `wget`, `git`, or `apt-get` return without
-touching the real system:
-
-```bash
-setup() {
-  reload_lib net.sh
-  create_fake_bin curl ""
-  prepend_fake_bin_path
-}
-```
-
-**`begin_path_isolation [allowed_cmd...]`** and **`end_path_isolation`** —
-also defined in `helpers/stubs.bash`. Use this pair for lean-tier tests that
-must prove a tool is absent even when the host/runner has it installed. The
-helper swaps `PATH` to `$BATS_TEST_TMPDIR/bin` and optionally injects explicit
-pass-through commands (for example `mkdir`, `cat`, `bash`) so only the tools
-you allow remain visible to the test.
-
-```bash
-begin_path_isolation "mkdir" "cat" "bash"
-run _json__ensure_jq
-end_path_isolation
-```
-
-Prefer this helper over ad-hoc `PATH` save/restore snippets. It keeps lean
-unit tests deterministic across local machines and CI runners.
-
-**`bash -c` subprocess isolation** — modules that manipulate file descriptors
-(e.g. `logging__setup` redirects fd 3 and 4) must be tested in isolated
-subprocesses to avoid interfering with bats' own TAP output on fd 3:
-
-```bash
-@test "logging__setup creates a temp log file" {
-  run bash -c "
-    source '${_LOGGING_LIB}'
-    logging__setup
-    [[ -f \"\${_LOGGING_TMPFILE}\" ]] && echo OK
-  "
-  assert_success
-  assert_output "OK"
-}
-```
-
-### Writing new unit tests
-
-When adding or changing a function in `lib/`:
-
-1. Open (or create) `test/lib/<module>.bats`.
-2. Add a `@test` block. Prefer calling `reload_lib` in `setup()` to isolate
-   each test; only skip it for tests that explicitly check idempotency or
-   cached-state behaviour.
-3. Use `assert_success`, `assert_failure`, `assert_output`, `assert_line`, etc.
-   from bats-assert. Use `assert_file_exists` etc. from bats-file.
-4. Keep each test focused on one behaviour. One test per distinct outcome
-   (success path, failure path, edge case) is the right granularity.
-5. Run `just test-lib` (or `bash .dev/scripts/test/run-unit.sh --module <name>`) to verify
-   before committing.
-
-### Unit test CI
-
-The `unit-native` and `unit-linux` jobs in `ci.yaml` run on every push or PR that touches `lib/**` or `test/lib/**`. Two job groups run in parallel — no per-module discovery:
-
-| Job | Environment | Notes |
-|---|---|---|
-| `unit-native` | ubuntu-latest + macos-latest | Installs bash ≥4 on macOS via `brew install bash` |
-| `unit-linux` | debian:bookworm, fedora:latest, rockylinux:9, alpine:3.20 containers | Validates glibc and musl compatibility |
-
-The GHA `macos-latest` runner does **not** have bash ≥4 pre-installed; `ci.yaml` adds an explicit `brew install bash` step before running the suite. `.dev/scripts/test/run-unit.sh` handles the re-exec automatically for local runs.
-
-```bash
-# Trigger all unit tests manually (runs all CI including unit tests)
-gh workflow run "CI"
-
-# Watch the run
-gh run watch
-```
-
-Run `just test-lib` before pushing changes to `lib/` or `test/lib/`; CI runs the same suite when those paths change.
-
+Local macOS runs handle the bash ≥4 requirement via the re-exec in `run-unit.sh`.

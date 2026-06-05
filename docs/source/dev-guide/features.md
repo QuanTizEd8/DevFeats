@@ -1,41 +1,56 @@
 # Features
 
-This guide covers how to create and maintain a devcontainer feature in this repository: required files, conventions, the shared bash library, and the full API reference.
-
+Features are self-contained installers for developer tools and environment configurations. Each feature publishes as a [Dev Container Feature](https://containers.dev/implementors/features/) and can also be installed standalone on any POSIX system.
 
 ::::{grid} 1
 :gutter: 3
 
-:::{grid-item-card} Quickstart Guide
+:::{grid-item-card} Quickstart
 :class-title: sd-text-center
 :link: features/quickstart
 :link-type: doc
 
-A quickstart guide for getting started with feature development and maintenance.
+Feature anatomy, directory layout, the checklist for creating a new feature, and how the sync pipeline assembles `src/`.
 :::
 
-:::{grid-item-card} Feature Options
+:::{grid-item-card} `metadata.yaml`
 :class-title: sd-text-center
-:link: user-guide/options
+:link: features/metadata.yaml
 :link-type: doc
 
-Learn how to customize features with options in different installation contexts.
+Full reference for feature metadata: options, dependencies, shared metadata, versioning, and code-generation keys.
 :::
 
-:::{grid-item-card} Versioning
+:::{grid-item-card} `install.bash`
 :class-title: sd-text-center
-:link: user-guide/versioning
+:link: features/install.bash
 :link-type: doc
 
-Learn about feature versioning and how to pin versions for stability, reproducibility, and security.
+How the generated installer works: the template, hook functions, dispatch order, and how to add custom logic.
 :::
 
-:::{grid-item-card} Technical Details
+:::{grid-item-card} `install.sh` (Bootstrap)
 :class-title: sd-text-center
-:link: user-guide/technical
+:link: features/install.sh
 :link-type: doc
 
-Learn about the technical details of how features are built, released, and installed.
+The POSIX shim that bootstraps bash ≥4 and hands off to `install.bash`.
+:::
+
+:::{grid-item-card} Shared Library
+:class-title: sd-text-center
+:link: features/lib
+:link-type: doc
+
+The shared bash library available to every feature installer. Read this before writing any logic from scratch.
+:::
+
+:::{grid-item-card} Generated `src/`
+:class-title: sd-text-center
+:link: features/src
+:link-type: doc
+
+What `just sync-src` produces, how the sync pipeline works, and what each generated file contains.
 :::
 
 ::::
