@@ -12,6 +12,9 @@ _long_description: >-
   environment variables declared in `.envrc` files when entering or leaving a directory.
 _tool_name: direnv
 _options:
+  verify:
+    args: "--version"
+    description: Verify direnv is installed and working.
   gh_repo: direnv/direnv
   version:
     resolution: github_release

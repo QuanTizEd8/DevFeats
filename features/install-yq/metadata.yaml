@@ -19,6 +19,9 @@ _long_description: |-
   is intentionally unsupported because distro `yq` is the Python jq-wrapper implementation.
 _tool_name: yq
 _options:
+  verify:
+    args: "--version"
+    description: Verify yq is installed and working.
   gh_repo: mikefarah/yq
   version:
     resolution: github_release

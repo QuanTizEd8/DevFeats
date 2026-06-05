@@ -15,6 +15,9 @@ _tool_name: pnpm
 #   - ghcr.io/quantized8/devfeats/install-node
 #   - ghcr.io/quantized8/devfeats/install-nvm
 _options:
+  verify:
+    args: "--version"
+    description: Verify pnpm is installed and working.
   version:
     resolution: npm
     default: latest

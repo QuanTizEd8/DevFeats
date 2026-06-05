@@ -11,6 +11,9 @@ _long_description: |-
   Widely used for filtering, transforming, and validating JSON in shell pipelines,
   CI/CD scripts, and configuration tooling.
 _options:
+  verify:
+    args: "--version"
+    description: Verify jq is installed and working.
   gh_repo: jqlang/jq
   version:
     resolution: github_release

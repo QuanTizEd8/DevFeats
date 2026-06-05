@@ -104,6 +104,9 @@ options:
       The hostname to configure as the git credential helper target.
       Defaults to 'github.com'. Set to your GitHub Enterprise Server hostname (e.g. 'git.corp.example.com') when using GHES.
 _options:
+  verify:
+    args: "--version"
+    description: Verify the GitHub CLI is installed and working.
   gh_repo: cli/cli
   version:
     resolution: github_release

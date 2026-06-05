@@ -193,25 +193,12 @@ __configure_user() {
   fi
 }
 
-_write_lifecycle_hook() {
-  os__is_devcontainer_build || return 0
-  mkdir -p "${_FEAT_LIFECYCLE_DIR}"
-  printf '#!/bin/sh\n"%s" info\n' "${_DF_EXPECTED_CMD}" \
-    > "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
-  chmod +x "${_FEAT_LIFECYCLE_ON_CREATE}verification.sh"
-}
-
-__skip_post() {
-  _write_lifecycle_hook
-}
-
 __install_finish_post() {
   __feat_do_configure_users__
   if [[ "${UPDATE_BASE:-}" == true ]]; then
     logging__warn "Updating base conda environment."
     "${PREFIX}/bin/mamba" update -n base --all -y
   fi
-  _write_lifecycle_hook
 }
 
 __exit_pre() {

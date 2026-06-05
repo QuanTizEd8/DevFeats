@@ -1,9 +1,5 @@
 #!/bin/sh
 
-warn() {
-  printf 'install-podman entrypoint: WARN: %s\n' "$*" >&2
-}
-
 ensure_rshared_root() {
   # Unconditionally attempt mount --make-rshared (idempotent when / is already
   # rshared).  The pre-check (reading /proc/self/mountinfo) was removed because

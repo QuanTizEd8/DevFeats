@@ -44,6 +44,7 @@ __main__() {
     case "${IF_EXISTS}" in
       skip)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; skipping (if_exists=skip)."
+        __deploy_lifecycle_scripts__ --skip
         if declare -f __skip_post > /dev/null; then __skip_post; fi
         exit 0
         ;;
@@ -118,11 +119,15 @@ __init_env__() {
   # Contract variables (derived from _options.version and _options.method in metadata.yaml):
   ${{ _script.install_contract_vars.assignments }}$
 
+  # Lifecycle conf-vars map (generated from metadata _conf_vars declarations):
+  declare -gA _FEAT_LIFECYCLE_CONF_VARS=(${{ _script.lifecycle_conf_vars }}$)
+
   # Unexport variables — values remain accessible in this script,
   # but are not inherited by child processes.
   declare -g +x _FEAT_DIR _FEAT_FILES_DIR _FEAT_DEPS_DIR \
     ${{ _script.env_vars.unexports }}$ \
-    ${{ _script.install_contract_vars.unexports }}$
+    ${{ _script.install_contract_vars.unexports }}$ \
+    _FEAT_LIFECYCLE_CONF_VARS
 
   _SYSSET_BUILD_CONTEXT="${_SYSSET_BUILD_CONTEXT:-feature::$_FEAT_ID}"
   export _SYSSET_BUILD_CONTEXT
@@ -1327,6 +1332,7 @@ __install_finish__() {
 
   __install_register_dummy__
   ${{ _script.shell_completions_call }}$
+  __deploy_lifecycle_scripts__
   logging__success "Installation complete."
 
   if declare -f __install_finish_post > /dev/null; then
@@ -1961,6 +1967,121 @@ __dep_install_base__() {
     __dep_install__ run base "$@"
   fi
   return 0
+}
+
+# Lifecycle Script Deployment
+# ============================
+
+__deploy_lifecycle_scripts__() {
+  local _is_skip=""
+  [[ "${1:-}" == "--skip" ]] && _is_skip=1
+  os__is_devcontainer_build || return 0
+
+  local _lc_dir_ready=""
+
+  if [[ -d "${_FEAT_FILES_DIR}" ]]; then
+    local -A _lc_prefix_map=(
+      ["on-create--"]="${_FEAT_LIFECYCLE_ON_CREATE}"
+      ["update-content--"]="${_FEAT_LIFECYCLE_UPDATE_CONTENT}"
+      ["post-create--"]="${_FEAT_LIFECYCLE_POST_CREATE}"
+      ["post-start--"]="${_FEAT_LIFECYCLE_POST_START}"
+      ["post-attach--"]="${_FEAT_LIFECYCLE_POST_ATTACH}"
+    )
+
+    local _boilerplate
+    _boilerplate=$(
+      cat << 'BOILERPLATE'
+warn() { printf '[%s] WARN: %s\n' "$(basename "$0")" "$*" >&2; }
+_CONF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0").conf"
+if [ -f "$_CONF" ]; then
+  . "$_CONF"
+fi
+if [ -n "${_SKIP:-}" ]; then
+  printf '[%s] Installation skipped; this hook is a no-op.\n' "$(basename "$0")" >&2
+  exit 0
+fi
+BOILERPLATE
+    )
+
+    local _f _base _prefix _dest
+    for _f in "${_FEAT_FILES_DIR}"/*.sh; do
+      [[ -f "${_f}" ]] || continue
+      _base="${_f##*/}"
+      _dest=""
+
+      if [[ "${_base}" == "entrypoint.sh" ]]; then
+        [[ -n "${_lc_dir_ready}" ]] || { file__mkdir "${_FEAT_LIFECYCLE_DIR}"; _lc_dir_ready=1; }
+        __deploy_lifecycle_script__ "${_f}" "${_FEAT_ENTRYPOINT_PATH}" "${_boilerplate}"
+        _dest="${_FEAT_ENTRYPOINT_PATH}"
+      else
+        for _prefix in "${!_lc_prefix_map[@]}"; do
+          if [[ "${_base}" == "${_prefix}"*.sh ]]; then
+            local _task="${_base#"${_prefix}"}"
+            _task="${_task%.sh}"
+            _dest="${_lc_prefix_map[${_prefix}]}${_task}.sh"
+            [[ -n "${_lc_dir_ready}" ]] || { file__mkdir "${_FEAT_LIFECYCLE_DIR}"; _lc_dir_ready=1; }
+            __deploy_lifecycle_script__ "${_f}" "${_dest}" "${_boilerplate}"
+            break
+          fi
+        done
+      fi
+
+      [[ -n "${_dest}" ]] || continue
+
+      if [[ -n "${_is_skip}" ]] || [[ -v "_FEAT_LIFECYCLE_CONF_VARS[${_base}]" ]]; then
+        local _varnames _vname
+        _varnames="${_FEAT_LIFECYCLE_CONF_VARS["${_base}"]:-}"
+        {
+          [[ -n "${_is_skip}" ]] && printf '_SKIP=1\n'
+          for _vname in ${_varnames}; do
+            [[ -v "${_vname}" ]] && printf '%s="%s"\n' "${_vname}" "${!_vname//\"/\\\"}"
+          done
+        } > "${_dest}.conf"
+      fi
+    done
+  fi
+
+  if [[ -v INSTALL_VERIFICATION_ARGS ]]; then
+    [[ -n "${_lc_dir_ready}" ]] || { file__mkdir "${_FEAT_LIFECYCLE_DIR}"; _lc_dir_ready=1; }
+    if [[ -n "${_is_skip}" ]] || [[ -z "${INSTALL_VERIFICATION_ARGS}" ]]; then
+      {
+        cat << 'VERIFY_NOOP'
+#!/bin/sh
+printf '[verification] Verification skipped; this hook is a no-op.\n' >&2
+VERIFY_NOOP
+      } > "${_FEAT_LIFECYCLE_POST_CREATE}verification.sh"
+    else
+      local _vcmd="${_FEAT_VERIFY_CMD:-${_DF_EXPECTED_CMD}}"
+      if [[ -z "${_vcmd}" ]]; then
+        logging__error "__deploy_lifecycle_scripts__: cannot write verification script — _DF_EXPECTED_CMD is empty and _options.verify.cmd is not set. Declare _options.verify.cmd or add _options.prefix.bins."
+        return 1
+      fi
+      printf '#!/bin/sh\n"%s" %s\n' "${_vcmd}" "${INSTALL_VERIFICATION_ARGS}" \
+        > "${_FEAT_LIFECYCLE_POST_CREATE}verification.sh"
+    fi
+    file__chmod +x "${_FEAT_LIFECYCLE_POST_CREATE}verification.sh"
+  fi
+}
+
+__deploy_lifecycle_script__() {
+  # Write _src to _dest with conf-loading + skip-check boilerplate injected
+  # immediately after the shebang (or prepended when no shebang is present).
+  local _src="$1" _dest="$2" _boilerplate="$3"
+  local _shebang=""
+  read -r _shebang < "${_src}" || true
+  if [[ "${_shebang}" == '#!'* ]]; then
+    {
+      printf '%s\n' "${_shebang}"
+      printf '%s' "${_boilerplate}"
+      tail -n +2 "${_src}"
+    } > "${_dest}"
+  else
+    {
+      printf '%s' "${_boilerplate}"
+      cat "${_src}"
+    } > "${_dest}"
+  fi
+  file__chmod +x "${_dest}"
 }
 
 # Feature Functions

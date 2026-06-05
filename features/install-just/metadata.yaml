@@ -16,6 +16,9 @@ options:
     default: false
     description: Add `--force` when running the official installer script.
 _options:
+  verify:
+    args: "--version"
+    description: Verify just is installed and working.
   gh_repo: casey/just
   version:
     resolution: github_release

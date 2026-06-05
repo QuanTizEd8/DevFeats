@@ -16,6 +16,11 @@ _long_description: >-
 _tool_name: Pixi
 
 _options:
+  verify:
+    args: "info --extended"
+    description: |-
+      Verify pixi is installed and working by running
+      [`pixi info --extended`](https://pixi.prefix.dev/latest/reference/cli/pixi/info/).
   completions:
     subcmd: "completion --shell"
     shells: [bash, zsh, fish, nushell, elvish]
@@ -60,11 +65,10 @@ mounts:
 - source: ${localWorkspaceFolderBasename}-pixi
   target: ${containerWorkspaceFolder}/.pixi
   type: volume
-entrypoint: "${{ _env_vars._FEAT_ENTRYPOINT_PATH }}$ ${containerWorkspaceFolder}/.pixi"
-onCreateCommand:
-  verification:
-    description: Verify pixi is installed and working by running [`pixi info`](https://pixi.prefix.dev/latest/reference/cli/pixi/info/).
-    command: '${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$verification.sh'
+entrypoint:
+  args: "${containerWorkspaceFolder}/.pixi"
+  description: Fix ownership of the .pixi named volume mount so the remote user can write to it.
+  _conf_vars: [_REMOTE_USER]
 # installsAfter: []
 customizations:
   vscode:

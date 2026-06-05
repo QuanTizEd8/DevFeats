@@ -68,11 +68,6 @@ __install_run__() {
   # On standalone/host, systemd handles mount propagation and cgroup
   # delegation; the entrypoint is not installed (nothing would call it).
   # ---------------------------------------------------------------------------
-  if os__is_devcontainer_build; then
-    file__mkdir "${_FEAT_LIFECYCLE_DIR}"
-    file__cp "${_FEAT_FILES_DIR}/entrypoint.sh" "${_FEAT_ENTRYPOINT_PATH}"
-    file__chmod +x "${_FEAT_ENTRYPOINT_PATH}"
-  fi
 }
 
 __configure_user() {

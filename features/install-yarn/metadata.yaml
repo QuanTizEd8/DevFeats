@@ -30,6 +30,9 @@ options:
 #   - ghcr.io/quantized8/devfeats/install-node
 #   - ghcr.io/quantized8/devfeats/install-nvm
 _options:
+  verify:
+    args: "--version"
+    description: Verify Yarn is installed and working.
   method:
     npm:
       package: yarn

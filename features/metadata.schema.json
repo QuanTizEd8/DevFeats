@@ -476,6 +476,25 @@
               "description": "Condition under which the prefix machinery is active at install time. When the condition does not match, `resolve_prefix()` and `_prefix_post_install__generated()` become no-ops."
             }
           }
+        },
+        "verify": {
+          "description": "Declares a post-create verification command that confirms the tool was installed correctly. The framework writes `post-create--verification.sh` at install time and emits a `postCreateCommand` entry in `devcontainer-feature.json`.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cmd": {
+              "description": "Binary name to invoke for verification when the feature has no `_options.prefix.bins` (e.g. package-managed tools). Falls back to `_DF_EXPECTED_CMD` when absent.",
+              "type": "string"
+            },
+            "args": {
+              "description": "Arguments passed to the primary binary (resolved via `_DF_EXPECTED_CMD` or `cmd`) to verify the installation — e.g. `--version` or `info --extended`. Exposed as the user-overridable `install_verification_args` option.",
+              "type": "string"
+            },
+            "description": {
+              "description": "Human-readable description of what the verification command checks.",
+              "type": "string"
+            }
+          }
         }
       }
     },
@@ -601,8 +620,28 @@
       "type": "object"
     },
     "entrypoint": {
-      "description": "Entrypoint script that should fire at container start up.",
-      "type": "string"
+      "description": "Entrypoint script that should fire at container start up. When `files/entrypoint.sh` exists the framework copies it to the lifecycle directory automatically.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "description": "The entrypoint command forwarded verbatim as the `entrypoint` string in `devcontainer-feature.json`. When omitted the generator constructs the command automatically as `<entrypoint-path> [args]`.",
+          "type": "string"
+        },
+        "args": {
+          "description": "Extra arguments appended to the auto-generated entrypoint invocation (e.g. `${containerWorkspaceFolder}/.pixi`). Only used when `command` is omitted.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Human-readable description of what the entrypoint does.",
+          "type": "string"
+        },
+        "_conf_vars": {
+          "description": "Names of install-time variables (feature options or framework env vars such as `_REMOTE_USER`) to persist in `entrypoint.sh.conf`. The framework writes `KEY=\"$VALUE\"` for each name; the entrypoint sources the file on startup.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
     },
     "init": {
       "description": "Adds the tiny init process to the container (--init) when the Feature is used.",
@@ -951,12 +990,11 @@
         "description": "A command entry with an executable command and a human-readable description of its purpose.",
         "type": "object",
         "required": [
-          "command",
           "description"
         ],
         "properties": {
           "command": {
-            "description": "If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell.",
+            "description": "If this is a single string, it will be run in a shell. If this is an array of strings, it will be run as a single command without shell. When omitted the generator constructs the command automatically as `<lifecycle-path-prefix><task>.sh [args]`.",
             "type": [
               "string",
               "array"
@@ -965,9 +1003,18 @@
               "type": "string"
             }
           },
+          "args": {
+            "description": "Extra arguments appended to the auto-generated script invocation (e.g. `${containerWorkspaceFolder}`). Only used when `command` is omitted.",
+            "type": "string"
+          },
           "description": {
             "description": "A short description of what this command does.",
             "type": "string"
+          },
+          "_conf_vars": {
+            "description": "Names of install-time variables (feature options or framework env vars) to persist in the lifecycle script's `.conf` file. The framework writes `KEY=\"$VALUE\"` for each name; the script sources the file at container-creation time.",
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
           }
         }
       }

@@ -16,6 +16,9 @@ _long_description: |-
   the package manager automatically.
 _tool_name: ShellCheck
 _options:
+  verify:
+    args: "--version"
+    description: Verify shellcheck is installed and working.
   gh_repo: koalaman/shellcheck
   version:
     resolution: github_release

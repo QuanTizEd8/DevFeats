@@ -54,11 +54,10 @@ options:
     default: false
     description: Run the Miniforge installer in interactive mode, allowing it to prompt the user.
     type: boolean
-onCreateCommand:
-  verification:
-    description: Verify conda is installed and working by running `conda info`.
-    command: '${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$verification.sh'
 _options:
+  verify:
+    args: "info"
+    description: Verify conda is installed and working by running `conda info`.
   gh_repo: conda-forge/miniforge
   version:
     resolution: github_release

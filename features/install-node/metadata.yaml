@@ -40,6 +40,9 @@ _dependencies:
         - when: {pm: pacman}
           packages: [python]
 _options:
+  verify:
+    args: "--version"
+    description: Verify Node.js is installed and working.
   version:
     resolution: none
     default: lts/*

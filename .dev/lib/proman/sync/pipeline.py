@@ -125,6 +125,36 @@ def sanitize_markdown(metadata: dict) -> None:
 # ── Output generation ─────────────────────────────────────────────────────────
 
 
+_LIFECYCLE_EVENT_ENV_VAR: dict[str, str] = {
+    "onCreateCommand": "_FEAT_LIFECYCLE_ON_CREATE",
+    "updateContentCommand": "_FEAT_LIFECYCLE_UPDATE_CONTENT",
+    "postCreateCommand": "_FEAT_LIFECYCLE_POST_CREATE",
+    "postStartCommand": "_FEAT_LIFECYCLE_POST_START",
+    "postAttachCommand": "_FEAT_LIFECYCLE_POST_ATTACH",
+}
+
+
+def _lifecycle_command(entry_id: str, entry: dict, lc_key: str, metadata: dict) -> str:
+    """Return the devcontainer command string for one lifecycle entry.
+
+    When the entry has an explicit ``command`` key that value is returned as-is.
+    Otherwise the command is auto-generated as ``<path-prefix><task>.sh [args]``,
+    where the path prefix comes from the feature's ``_env_vars`` and the task name
+    is the entry key with the ``_lifecycle_key_prefix`` stripped.
+    """
+    if "command" in entry:
+        return entry["command"]
+    env_var = _LIFECYCLE_EVENT_ENV_VAR[lc_key]
+    prefix: str = metadata["_env_vars"][env_var]
+    lc_key_prefix: str = metadata["_lifecycle_key_prefix"]
+    task = entry_id[len(lc_key_prefix):] if entry_id.startswith(lc_key_prefix) else entry_id
+    command = f"{prefix}{task}.sh"
+    args: str = entry.get("args", "").strip()
+    if args:
+        command = f"{command} {args}"
+    return command
+
+
 def _generate_dependency_manifests(metadata: dict) -> dict[Path, str]:
     """Sync the dependencies/ directory for the given feature based on its metadata."""
     deps = metadata.get("_dependencies")
@@ -172,12 +202,30 @@ def _generate_metadata_json(metadata: dict) -> dict[Path, str]:
         # Lifecycle commands
         elif key in LIFECYCLE_COMMAND_KEYS:
             metadata_json_dict[key] = {
-                entry_id: entry["command"] for entry_id, entry in value.items()
+                entry_id: _lifecycle_command(entry_id, entry, key, metadata)
+                for entry_id, entry in value.items()
             }
+
+        # Entrypoint: stored as an object in metadata, emitted as a string.
+        elif key == "entrypoint":
+            if "command" in value:
+                metadata_json_dict[key] = value["command"]
+            else:
+                ep_path: str = metadata["_env_vars"]["_FEAT_ENTRYPOINT_PATH"]
+                args: str = value.get("args", "").strip()
+                metadata_json_dict[key] = f"{ep_path} {args}" if args else ep_path
 
         # All other public keys
         elif not key.startswith("_"):
             metadata_json_dict[key] = value
+
+    # Auto-emit postCreateCommand for _options.verify when args are declared.
+    verify_opts: dict = metadata.get("_options", {}).get("verify", {})
+    if verify_opts.get("args"):
+        lc_prefix: str = metadata["_lifecycle_key_prefix"]
+        verify_key = f"{lc_prefix}verify"
+        verify_path = metadata["_env_vars"]["_FEAT_LIFECYCLE_POST_CREATE"] + "verification.sh"
+        metadata_json_dict.setdefault("postCreateCommand", {})[verify_key] = verify_path
 
     metadata_json = json.dumps(
         metadata_json_dict, sort_keys=True, indent=3, ensure_ascii=False

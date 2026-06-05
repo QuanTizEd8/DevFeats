@@ -36,10 +36,15 @@ mounts:
 # sets up cgroup v2 controller delegation (DinD nesting), and ensures the
 # per-user graphRoot parent directory (/var/lib/containers/storage/users/)
 # has correct sticky-world-writable permissions.
-entrypoint: "${{ _env_vars._FEAT_ENTRYPOINT_PATH }}$"
+entrypoint:
+  description: Configure mount propagation and cgroup v2 delegation required for rootless Podman.
 
 _options:
   installer_dir: false
+  verify:
+    cmd: podman
+    args: "run --rm docker.io/library/hello-world"
+    description: Verify Podman is installed and working by running a test container.
 options:
   add_current_user:
     type: boolean
@@ -58,10 +63,6 @@ options:
     default: ''
     description: |-
       Additional usernames to register subuid/subgid ranges and write Podman storage config for.
-onCreateCommand:
-  verification:
-    command: podman run --rm docker.io/library/hello-world
-    description: Verify Podman is installed and working by running a test container.
 _dependencies:
   run:
     base:

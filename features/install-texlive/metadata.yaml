@@ -32,6 +32,10 @@ _long_description: |-
     option influences the package set selected where the distro offers multiple granularity levels.
     Version is controlled by the distribution's package policy.
 _options:
+  verify:
+    cmd: tlmgr
+    args: "version"
+    description: Verify the TeX Live installation via tlmgr.
   user_file_fetch: true
 options:
   method:

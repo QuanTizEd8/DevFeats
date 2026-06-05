@@ -112,6 +112,9 @@ options:
     default: ''
     description: Freeform content to append to the per-user gitconfig (`~/.gitconfig`) for all resolved users. Accepts standard gitconfig format. Written after `user_name` and `user_email` settings. Set to `''` to skip.
 _options:
+  verify:
+    args: "--version"
+    description: Verify git is installed and working.
   gh_repo: git/git
   version:
     resolution: github_tag

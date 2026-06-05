@@ -11,6 +11,7 @@ from pathlib import Path
 import pyserials
 
 from proman.config import load as load_config
+from proman.const import LIFECYCLE_COMMAND_KEYS
 
 # printf '%s' with an accidental real newline before the closing quote (db42a06b bug).
 _SPLIT_PRINTF_PERCENT_S_RE = re.compile(r"printf '%s\r?\n\s+'", re.MULTILINE)
@@ -92,12 +93,13 @@ class InstallScriptGenerator:
         script_parts: dict[str, object] = {
             "usage_options": self._generate_usage_options(options),
             "argparse": argparse,
-            "env_vars": self._generate_env_vars(metadata.get("_env_vars", {})),
+            "env_vars": self._generate_env_vars(metadata["_env_vars"]),
             "install_contract_vars": self._generate_install_contract_vars(metadata),
             "system_requirements_guard": self._generate_system_requirements_guard(
                 metadata.get("_system_requirements", {})
             ),
             "shell_completions_call": self._generate_shell_completions_call(metadata),
+            "lifecycle_conf_vars": self._generate_lifecycle_conf_vars(metadata),
             "feature_functions": body,
         }
         template_data = metadata | {"_script": script_parts}
@@ -142,6 +144,61 @@ class InstallScriptGenerator:
             "assignments": "\n".join(lines),
             "unexports": " ".join(var_names),
         }
+
+    def _generate_lifecycle_conf_vars(self, metadata: dict) -> str:
+        """Emit the _FEAT_LIFECYCLE_CONF_VARS associative array.
+
+        Scans all lifecycle command entries (onCreateCommand, etc.) and the
+        entrypoint for ``_conf_vars`` declarations.  Only emits an entry when
+        the matching ``files/<prefix>--<task>.sh`` (or ``files/entrypoint.sh``)
+        actually exists in the feature source tree, because the static deploy
+        function iterates ``files/`` at runtime and would never reach a missing
+        file.
+        """
+        feature_id: str = metadata["id"]
+        files_dir = self._features_dirpath / feature_id / "files"
+
+        # Map from devcontainer lifecycle key to the filename prefix used in files/.
+        event_prefix_map: dict[str, str] = {
+            "onCreateCommand": "on-create--",
+            "updateContentCommand": "update-content--",
+            "postCreateCommand": "post-create--",
+            "postStartCommand": "post-start--",
+            "postAttachCommand": "post-attach--",
+        }
+
+        entries: dict[str, str] = {}
+
+        # Lifecycle command entries.
+        for lc_key in LIFECYCLE_COMMAND_KEYS:
+            lc_block = metadata.get(lc_key, {})
+            prefix = event_prefix_map.get(lc_key, "")
+            for entry_id, entry in lc_block.items():
+                conf_vars: list[str] = entry.get("_conf_vars", [])
+                if not conf_vars:
+                    continue
+                # Derive the short task name from the canonical key.
+                # Canonical form: "<lifecycle_key_prefix><task>"  (after normalization).
+                lc_key_prefix: str = metadata["_lifecycle_key_prefix"]
+                task = entry_id[len(lc_key_prefix):] if entry_id.startswith(lc_key_prefix) else entry_id
+                basename = f"{prefix}{task}.sh"
+                if (files_dir / basename).exists():
+                    entries[basename] = " ".join(conf_vars)
+
+        # Entrypoint.
+        ep = metadata.get("entrypoint", {})
+        if isinstance(ep, dict):
+            ep_conf_vars: list[str] = ep.get("_conf_vars", [])
+            if ep_conf_vars and (files_dir / "entrypoint.sh").exists():
+                entries["entrypoint.sh"] = " ".join(ep_conf_vars)
+
+        # Build the bash associative array literal.
+        if entries:
+            items = " ".join(
+                f'["{k}"]={shlex.quote(v)}' for k, v in sorted(entries.items())
+            )
+            return items
+        return ""
 
     @staticmethod
     def _generate_shell_completions_call(metadata: dict) -> str:

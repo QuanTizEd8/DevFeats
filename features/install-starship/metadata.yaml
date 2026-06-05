@@ -15,6 +15,9 @@ _long_description: >-
   those features to be disabled.
 _tool_name: starship
 _options:
+  verify:
+    args: "--version"
+    description: Verify Starship is installed and working.
   gh_repo: starship/starship
   version:
     resolution: github_release

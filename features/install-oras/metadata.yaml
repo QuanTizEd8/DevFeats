@@ -18,6 +18,9 @@ _long_description: |-
   and package-manager installation, with `auto` preferring the release path first.
 _tool_name: ORAS
 _options:
+  verify:
+    args: "version"
+    description: Verify ORAS is installed and working.
   gh_repo: oras-project/oras
   version:
     resolution: github_release

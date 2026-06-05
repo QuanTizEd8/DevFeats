@@ -27,10 +27,9 @@ _options:
     root: /opt/devcontainers
     nonroot: "${HOME}/.devcontainers"
     bins: [devcontainer]
-onCreateCommand:
-  verification:
+  verify:
+    args: "--help"
     description: Verify `devcontainer` is installed and working.
-    command: devcontainer --help
 customizations:
   vscode:
     extensions:

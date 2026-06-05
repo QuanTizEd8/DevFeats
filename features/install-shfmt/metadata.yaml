@@ -12,6 +12,9 @@ _long_description: |-
   Supports formatting sh, bash, and mksh scripts.
 _tool_name: shfmt
 _options:
+  verify:
+    args: "--version"
+    description: Verify shfmt is installed and working.
   gh_repo: mvdan/sh
   version:
     resolution: github_release

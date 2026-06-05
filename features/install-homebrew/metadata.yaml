@@ -40,6 +40,9 @@ options:
       Forces `homebrew-core` to be cloned as a full git repository rather than relying on the JSON API.
       Slower but useful in environments where the API endpoint is blocked.
 _options:
+  verify:
+    args: "--version"
+    description: Verify Homebrew is installed and working.
   gh_repo: Homebrew/install
   method:
     script:

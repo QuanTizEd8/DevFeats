@@ -14,6 +14,9 @@ _long_description: >-
   Ctrl-T for files, Alt-C for directories) and fuzzy completion triggered by `**<TAB>`.
 _tool_name: fzf
 _options:
+  verify:
+    args: "--version"
+    description: Verify fzf is installed and working.
   gh_repo: junegunn/fzf
   version:
     resolution: github_release

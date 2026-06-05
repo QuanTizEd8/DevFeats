@@ -26,6 +26,8 @@ _env_vars:
   _FEAT_ENTRYPOINT_PATH:           ${{ _env_vars._FEAT_LIFECYCLE_DIR }}$/entrypoint.sh
   _FEAT_PROFILE_D_FILE:            98-${{ _project.owner_slug }}$--${{ _project.name_slug }}$--${{ id }}$.sh
   _FEAT_ACTIVATION_PROFILE_D_FILE: 99-${{ _project.owner_slug }}$-${{ _project.name_slug }}$--${{ id }}$--prefix-activation.sh
+  _FEAT_VERIFY_CMD: |-
+    #{{ return get("_options.verify.cmd", "") }}#
 
 options:
 
@@ -582,6 +584,18 @@ options:
     description: >-
       Path to a `.netrc` file for HTTP authentication on installer script downloads.
       Ignored when empty.
+
+  install_verification_args:
+    _apply_when: |
+      #{{ return bool(get("_options.verify")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.verify.args", "") }}#
+    description: >-
+      Arguments passed to the primary binary to verify the installation
+      (e.g. `--version` or `info --extended`).
+      The binary path is resolved from the feature's configured prefix at install time.
+      Set to an empty string to skip writing the verification script.
 
   package_manifest:
     _apply_when: |
