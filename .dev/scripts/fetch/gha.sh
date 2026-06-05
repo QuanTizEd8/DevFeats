@@ -220,6 +220,9 @@ _stat_pass=0
 _stat_fail=0
 _any_failure=0
 _poll_interval=10
+# Large matrix runs (400+ jobs) exceed GitHub's response-size limit at per_page=100
+# and return persistent HTTP 502. 50 is safe for runs with heavy per-job payloads.
+_GHA_JOBS_PER_PAGE=50
 
 # ---------------------------------------------------------------------------
 # _ts — print a [HH:MM:SS] prefixed message to stdout
@@ -540,7 +543,7 @@ _process_run_jobs() {
   # first page. Page explicitly instead (same REST shape each time).
   while true; do
     if ! jobs_page=$(_gh_api_json \
-      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=100&page=${page}"); then
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/jobs?per_page=${_GHA_JOBS_PER_PAGE}&page=${page}"); then
       return 1
     fi
 
@@ -568,7 +571,8 @@ _process_run_jobs() {
       fi
     done < <(jq -c '.jobs[]' <<< "${jobs_page}")
 
-    if [[ "${n_jobs}" -lt 100 ]] || [[ $((page * 100)) -ge "${total_count}" ]]; then
+    if [[ "${n_jobs}" -lt "${_GHA_JOBS_PER_PAGE}" ]] \
+      || [[ $((page * _GHA_JOBS_PER_PAGE)) -ge "${total_count}" ]]; then
       break
     fi
     page=$((page + 1))
