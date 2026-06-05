@@ -1,21 +1,13 @@
 #!/bin/sh
 
-warn() { printf 'install-copilot postCreateCommand: WARN: %s\n' "$*" >&2; }
-die() {
-  printf 'install-copilot postCreateCommand: ERROR: %s\n' "$*" >&2
-  exit 1
-}
-
-# Source runtime configuration written by the installer at image-build time.
-_CONF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0").conf"
-[ -f "$_CONF" ] || die "runtime config not found: ${_CONF}"
-# shellcheck source=/dev/null
-. "$_CONF"
-
 symlink_vscode_user_dir() {
   # $1 is the containerWorkspaceFolder variable,
   # passed directly by the devcontainer CLI — see metadata.yaml.
   _container_workspace_folder="${1}"
+
+  # Skip when vscode_user_dir option was left empty.
+  [ -n "${VSCODE_USER_DIR}" ] || return 0
+
   _vscode_user_dir_fullpath="${_container_workspace_folder}/${VSCODE_USER_DIR}"
 
   rm -rf ~/.vscode-server/data/User

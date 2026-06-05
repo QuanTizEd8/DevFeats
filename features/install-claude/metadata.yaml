@@ -1,26 +1,119 @@
 version: 0.1.0
 name: Claude Code Installation
-description: Placeholder
+description: Install [Claude Code](https://code.claude.com) — Anthropic's terminal-first AI coding assistant.
 keywords:
-- claude
-- ai
-- llm
+  - claude
+  - anthropic
+  - ai
+  - llm
+  - coding-assistant
 _long_description: >-
-  Placeholder
+  Installs Claude Code (the claude CLI), Anthropic's AI coding assistant that combines
+  conversational AI with direct file editing, shell command execution, git workflows,
+  and MCP server integrations.
+
+  Supports four installation methods: the official Anthropic bootstrap script (simple,
+  works everywhere with curl), the Anthropic OS package repository (apt/dnf/apk/brew —
+  recommended for devcontainers), npm-bundled (self-contained, no system Node.js
+  required), and npm (requires Node.js 18+).
+  The default auto method selects the best option for the current environment.
+
+  In devcontainers, the Claude config directory (~/.claude) is symlinked to a
+  persistent workspace subdirectory so credentials and settings survive container
+  rebuilds.
+
 _options:
-  installer_dir: false
+  verify:
+    args: "--version"
+    description: Verify the Claude Code CLI is installed and working.
+  version:
+    resolution: npm
+    default: stable
+    inputs: [stable, latest, semver]
+  method:
+    script:
+      asset_uri: "https://claude.ai/install.sh"
+    upstream-package: {}
+    npm-bundled:
+      package: "@anthropic-ai/claude-code"
+      cmd: claude
+    npm:
+      package: "@anthropic-ai/claude-code"
+  prefix:
+    bins: [claude]
+    root: /usr/local
+    nonroot: "${HOME}/.local"
+    applies_when:
+      - method: [script, npm-bundled, npm]
+
 options:
   config_dir:
     type: string
     default: .claude
     description: |-
-      Placeholder
+      Relative path within the workspace to the directory used as the Claude
+      config directory and symlinked to ~/.claude on container creation.
+      Claude stores credentials, settings, and conversation history under
+      ~/.claude; symlinking it to a workspace path makes them persist across
+      container rebuilds.
+      Set to an empty string to skip the symlink.
+
 onCreateCommand:
   symlink-config-dir:
-    description: Symlink the specified workspace `claude` directory to `~/.claude`.
-    command: >-
-      ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$symlink-config-dir.sh ${containerWorkspaceFolder}
+    description: Symlink the configured workspace directory to ~/.claude on container create.
+    args: "${containerWorkspaceFolder}"
+    _conf_vars: [CONFIG_DIR]
+
 customizations:
   vscode:
     extensions:
       - anthropic.claude-code
+
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+        - curl
+    upstream-package:
+      packages:
+        - name: claude-code
+          version: "${VERSION}"
+          when:
+            pm: [apt, apk, dnf, yum]
+      apt:
+        keys:
+          - url: https://downloads.claude.ai/keys/claude-code.asc
+            dest: /etc/apt/keyrings/claude-code.asc
+            dearmor: false
+        repos:
+          - deb [signed-by=/etc/apt/keyrings/claude-code.asc]
+            https://downloads.claude.ai/claude-code/apt/${CHANNEL} ${CHANNEL} main
+      dnf:
+        repos:
+          - |
+            [claude-code]
+            name=Claude Code
+            baseurl=https://downloads.claude.ai/claude-code/rpm/${CHANNEL}
+            enabled=1
+            gpgcheck=1
+            gpgkey=https://downloads.claude.ai/keys/claude-code.asc
+      yum:
+        repos:
+          - |
+            [claude-code]
+            name=Claude Code
+            baseurl=https://downloads.claude.ai/claude-code/rpm/${CHANNEL}
+            enabled=1
+            gpgcheck=1
+            gpgkey=https://downloads.claude.ai/keys/claude-code.asc
+      apk:
+        keys:
+          - url: https://downloads.claude.ai/keys/claude-code.rsa.pub
+            dest: /etc/apk/keys/claude-code.rsa.pub
+            dearmor: false
+        repos:
+          - https://downloads.claude.ai/claude-code/apk/${CHANNEL}
+      brew:
+        casks:
+          - "${BREW_CASK}"

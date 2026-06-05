@@ -1,26 +1,119 @@
 version: 0.1.0
-name: Codex Installation
-description: Install [Codex](https://openai.com/codex/) – OpenAI's coding agent.
+name: Codex CLI Installation
+description: Install [Codex](https://github.com/openai/codex) – OpenAI's AI coding agent for the terminal.
 keywords:
-- codex
-- ai
-- llm
-_long_description: >-
-  Placeholder
+  - codex
+  - openai
+  - ai
+  - llm
+  - coding-agent
+_long_description: |-
+  Installs the Codex CLI (`codex`), OpenAI's local AI coding agent for the terminal.
+  Supports npm global install (requires Node.js on PATH), the official standalone
+  installer script (no Node.js required, Linux/macOS), and Homebrew cask on macOS.
+
+  In devcontainer environments, optionally symlinks a workspace `.codex` directory
+  to `~/.codex` at container creation time so that Codex configuration and auth state
+  are persisted with the project rather than lost on container rebuild.
+
+  Optional configuration keys (`model`, `approval_policy`, `sandbox_mode`) are written
+  to `.codex/config.toml` the first time the lifecycle hook runs (skipped when the file
+  already exists so user edits are not overwritten).
+
+_tool_name: codex
 _options:
+  verify:
+    args: "--version"
+    description: Verify the Codex CLI is installed and working.
   installer_dir: false
+  gh_repo: openai/codex
+  version:
+    resolution: npm
+    default: latest
+    inputs: [latest, semver]
+    proposals:
+      - value: 0.130.0
+        description: Codex CLI v0.130.0.
+  method:
+    script:
+      asset_uri: "https://github.com/openai/codex/releases/download/{TAG}/install.sh"
+    npm:
+      package: "@openai/codex"
+    package: {}
+  prefix:
+    bins: [codex]
+    applies_when:
+      - method: [npm]
+
 options:
-  codex_home:
+  config_dir:
     type: string
     default: .codex
     description: |-
-      Placeholder
+      Path within `${containerWorkspaceFolder}` to the `.codex` configuration directory.
+      At container creation (via `onCreateCommand`), `~/.codex` is symlinked to this
+      workspace path so that Codex configuration and state are persisted with the project.
+      Set to an empty string to skip symlink creation.
+
+  model:
+    type: string
+    default: ''
+    description: |-
+      Default model written to `.codex/config.toml` when the file does not yet exist.
+      Leave empty to use the Codex CLI built-in default.
+    proposals:
+      - value: ''
+        description: Use Codex CLI built-in default.
+      - value: o4-mini
+        description: OpenAI o4-mini.
+      - value: o3
+        description: OpenAI o3.
+      - value: codex-mini-latest
+        description: Latest Codex mini model.
+
+  approval_policy:
+    type: string
+    default: ''
+    description: |-
+      Default `approval_policy` written to `.codex/config.toml` when the file does not yet exist.
+      Leave empty to use the Codex CLI default.
+    enum:
+      - value: ''
+        description: Use Codex CLI default.
+      - value: suggest
+        description: Ask for approval before each action (safest).
+      - value: auto-edit
+        description: Auto-approve file edits; prompt for shell commands.
+      - value: full-auto
+        description: Auto-approve all actions (least restrictive).
+
+  sandbox_mode:
+    type: string
+    default: ''
+    description: |-
+      Default `sandbox_mode` written to `.codex/config.toml` when the file does not yet exist.
+      Leave empty to use the Codex CLI default.
+    enum:
+      - value: ''
+        description: Use Codex CLI default.
+      - value: workspace-write
+        description: Writes restricted to workspace files.
+      - value: danger-full-access
+        description: Disable sandbox — use only in isolated container environments.
+
 onCreateCommand:
   symlink-codex-dir:
-    description: Symlink the specified workspace `codex` directory to `~/.codex`.
-    command: >-
-      ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$symlink-codex-dir.sh ${containerWorkspaceFolder}
+    description: Symlink the specified workspace `.codex` directory to `~/.codex`.
+    args: "${containerWorkspaceFolder}"
+    _conf_vars: [CONFIG_DIR, MODEL, APPROVAL_POLICY, SANDBOX_MODE]
+
 customizations:
   vscode:
     extensions:
       - openai.chatgpt
+
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates

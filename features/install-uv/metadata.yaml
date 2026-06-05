@@ -1,0 +1,58 @@
+version: 0.1.0
+name: uv Installation
+description: Install [uv](https://astral.sh/uv) — an extremely fast Python package and project manager, written in Rust.
+keywords:
+  - uv
+  - uvx
+  - python
+  - package manager
+  - pip
+  - astral
+_long_description: >-
+  Installs [uv](https://astral.sh/uv), an extremely fast Python package and project manager
+  written in Rust by Astral. uv covers package management, lockfiles, tool execution via
+  `uvx`, Python runtime installation, and pip-compatible workflows in a single CLI.
+  The binary method downloads pre-built GitHub release artifacts with SHA-256 verification
+  and installs both `uv` and `uvx`. The script method uses the official upstream installer
+  with a versioned URL, redirecting output to the configured prefix. Both methods make `uv`
+  and `uvx` available on PATH.
+_tool_name: uv
+
+_options:
+  verify:
+    args: "--version"
+    description: Verify uv is installed and working.
+  gh_repo: astral-sh/uv
+  version:
+    resolution: github_release
+    default: stable
+    flag: --version
+    proposals:
+      - value: 0.11.8
+        description: uv v0.11.8.
+      - value: 0.6.0
+        description: uv v0.6.0.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/uv-{RUST_TRIPLE}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/uv-{RUST_TRIPLE}.tar.gz.sha256"
+      binary_src: uv
+    script:
+      asset_uri: "https://astral.sh/uv/{VERSION}/install.sh"
+    package: {}
+  prefix:
+    bins: [uv, uvx]
+    applies_when:
+      - method: [binary, script]
+  completions:
+    subcmd: "generate-shell-completion"
+    shells: [bash, zsh, fish]
+
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    os-pkg:
+      packages:
+        - uv

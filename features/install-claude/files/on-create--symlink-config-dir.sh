@@ -1,17 +1,5 @@
 #!/bin/sh
 
-warn() { printf 'install-claude onCreateCommand: WARN: %s\n' "$*" >&2; }
-die() {
-  printf 'install-claude onCreateCommand: ERROR: %s\n' "$*" >&2
-  exit 1
-}
-
-# Source runtime configuration written by the installer at image-build time.
-_CONF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0").conf"
-[ -f "$_CONF" ] || die "runtime config not found: ${_CONF}"
-# shellcheck source=/dev/null
-. "$_CONF"
-
 symlink_config_dir() {
   # $1 is the containerWorkspaceFolder variable,
   # passed directly by the devcontainer CLI — see metadata.yaml.

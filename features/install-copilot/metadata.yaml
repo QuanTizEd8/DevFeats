@@ -1,27 +1,81 @@
 version: 0.1.0
-name: GitHub Copilot Installation
-description: Placeholder
+name: GitHub Copilot CLI Installation
+description: Install [GitHub Copilot CLI](https://github.com/features/copilot) — an AI-powered agentic command-line interface for working with code and GitHub from the terminal.
 keywords:
-- copilot
-- ai
-- llm
+  - copilot
+  - github
+  - ai
+  - llm
+  - cli
 _long_description: >-
-  Placeholder
+  GitHub Copilot CLI is an agentic command-line interface that integrates AI
+  assistance directly into your terminal. It supports interactive and programmatic
+  invocation, can perform code edits, repository operations, and pull request
+  workflows, and is extensible via plugins and MCP servers.
+
+  Three installation methods are supported:
+
+  - **binary** (auto-selected on x64/arm64): Downloads and verifies a pre-built
+    tarball from GitHub Releases with SHA-256 validation. No Node.js dependency.
+  - **npm**: Installs globally via `npm install -g @github/copilot`. Requires
+    Node.js 22 or later pre-installed (e.g. via `install-node` or `install-nvm`).
+  - **script**: Runs the official `https://gh.io/copilot-install` shell installer,
+    which handles its own download, checksum verification, and PATH setup.
+
+  In devcontainer builds, a lifecycle hook is registered that symlinks the
+  workspace `.copilot` directory (configurable via `vscode_user_dir`) to
+  `~/.vscode-server/data/User`, preserving VS Code Copilot settings across
+  container rebuilds.
+_tool_name: copilot
 _options:
-  installer_dir: false
+  verify:
+    args: "--version"
+    description: Verify GitHub Copilot CLI is installed and working.
+  gh_repo: github/copilot-cli
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    flag: version
+    proposals:
+      - value: 1.0.48
+        description: Copilot CLI v1.0.48 (latest as of 2026-05-17).
+  method:
+    binary:
+      asset_uri: "https://github.com/github/copilot-cli/releases/download/{TAG}/copilot-{OS}-{ARCH:node}.tar.gz"
+      sidecar_uri: "https://github.com/github/copilot-cli/releases/download/{TAG}/SHA256SUMS.txt"
+      binary_src: copilot
+    npm:
+      package: "@github/copilot"
+    script:
+      asset_uri: "https://raw.githubusercontent.com/github/copilot-cli/main/install.sh"
+  prefix:
+    bins: [copilot]
+    applies_when:
+      - method: [binary, script]
+  completions:
+    subcmd: "completion"
+    shells: [bash, zsh, fish]
 options:
   vscode_user_dir:
     type: string
     default: .copilot
     description: |-
-      Placeholder
+      Relative path within the workspace directory to symlink as
+      `~/.vscode-server/data/User` (VS Code user settings directory) on container creation.
+      Leave empty to skip the symlink.
 onCreateCommand:
   symlink-vscode-user-dir:
-    description: Symlink the specified workspace `copilot` directory to `~/.vscode-server/data/User`.
-    command: >-
-      ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$symlink-vscode-user-dir.sh ${containerWorkspaceFolder}
+    description: Symlink the specified workspace `.copilot` directory to `~/.vscode-server/data/User`.
+    args: "${containerWorkspaceFolder}"
+    _conf_vars: [VSCODE_USER_DIR]
 customizations:
   vscode:
     extensions:
       - github.copilot
       - ms-vscode.vscode-chat-customizations-evaluations
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates

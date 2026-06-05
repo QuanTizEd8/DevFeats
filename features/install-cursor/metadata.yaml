@@ -1,22 +1,49 @@
 version: 0.1.0
-name: Cursor Installation
-description: Placeholder
+name: Cursor CLI Installation
+description: Install [Cursor CLI](https://cursor.com/cli) — the terminal-native Cursor AI coding agent.
 keywords:
-- cursor
-- ai
-- llm
+  - cursor
+  - ai
+  - llm
+  - agent
+  - cli
 _long_description: >-
-  Placeholder
+  Installs the Cursor CLI (`agent` and `cursor-agent` commands) via the official installer script.
+  The CLI is user-locally installed to `~/.local/share/cursor-agent` with command symlinks in
+  `~/.local/bin`. When the feature runs as root (the typical devcontainer image-build scenario),
+  it also creates `/usr/local/bin` wrappers so the commands are discoverable system-wide.
+
+  In devcontainer environments, a workspace `.cursor` directory can optionally be symlinked to
+  `~/.cursor-server/data/User` so editor settings (extensions, keybindings, snippets) persist
+  across container rebuilds.
+_tool_name: cursor
 _options:
+  verify:
+    cmd: agent
+    args: "--version"
+    description: Verify the Cursor CLI agent is installed and working.
   installer_dir: false
+  method:
+    script:
+      asset_uri: "https://cursor.com/install"
 options:
   cursor_user_dir:
     type: string
     default: .cursor
     description: |-
-      Placeholder
+      Relative path within the workspace directory to symlink as
+      `~/.cursor-server/data/User` (Cursor editor user-settings directory) on container creation.
+      Leave empty to skip the symlink.
+containerEnv:
+  PATH: ${HOME}/.local/bin:${PATH}
 onCreateCommand:
   symlink-cursor-user-dir:
-    description: Symlink the specified workspace `cursor` directory to `~/.cursor-server/data/User`.
-    command: >-
-      ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$symlink-cursor-user-dir.sh ${containerWorkspaceFolder}
+    description: Symlink the specified workspace `.cursor` directory to `~/.cursor-server/data/User`.
+    args: "${containerWorkspaceFolder}"
+    _conf_vars: [CURSOR_USER_DIR]
+_dependencies:
+  run:
+    base:
+      packages:
+        - curl
+        - tar
