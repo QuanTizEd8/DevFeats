@@ -50,7 +50,7 @@ def test_devcontainer_log_bind_mount_spec_uses_env_var() -> None:
 def test_patch_devcontainer_scenario_logging_default_log_file(
     tmp_path: Path,
 ) -> None:
-    """Default scenarios get mount and log_file under /log-out."""
+    """Default scenarios get mount only; install log_file stays on /tmp."""
     path = tmp_path / "scenarios.json"
     path.write_text(
         json.dumps(
@@ -70,11 +70,11 @@ def test_patch_devcontainer_scenario_logging_default_log_file(
         scenario_key="default_install",
         options={},
     )
-    assert effective == "/log-out/default_install.log"
+    assert effective == "/tmp/devfeats-feature.log"
     data = json.loads(path.read_text(encoding="utf-8"))
     sc = data["default_install"]
     assert devcontainer_log_bind_mount_spec() in sc["mounts"]
-    assert sc["features"]["install-git"]["log_file"] == "/log-out/default_install.log"
+    assert "log_file" not in sc["features"]["install-git"]
 
 
 def test_patch_devcontainer_scenario_logging_custom_log_file(

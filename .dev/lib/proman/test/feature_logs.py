@@ -101,7 +101,12 @@ def patch_devcontainer_scenario_logging(
     scenario_key: str,
     options: dict,
 ) -> str:
-    """Patch scenario JSON for host log bind mount; return in-container log path."""
+    """Add host log bind mount to generated devcontainer scenario JSON.
+
+    Feature install runs during image build, before the runtime ``/log-out`` mount
+    exists. Do not point ``log_file`` at ``/log-out``; the test script copies the
+    install log onto the mount after the container starts.
+    """
     with scenarios_json_path.open(encoding="utf-8") as f:
         data = json.load(f)
     scenario = data[scenario_key]
@@ -111,22 +116,10 @@ def patch_devcontainer_scenario_logging(
         mounts.append(spec)
     scenario["mounts"] = mounts
 
-    features = scenario.setdefault("features", {})
-    feat_opts = features.get(feature)
-    if not isinstance(feat_opts, dict):
-        feat_opts = {}
-    features[feature] = feat_opts
-
-    if uses_bind_mount_log(options):
-        effective = bind_mount_container_log_path(scenario_key)
-        feat_opts["log_file"] = effective
-    else:
-        effective = container_log_path(options)
-
     with scenarios_json_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
         f.write("\n")
-    return effective
+    return container_log_path(options)
 
 
 def append_bind_mount_copy_to_test_script(
@@ -135,7 +128,7 @@ def append_bind_mount_copy_to_test_script(
     *,
     log_path: str | None = None,
 ) -> None:
-    """Insert install-log copy before ``reportResults`` for dedicated log_file tests."""
+    """Copy install log onto ``/log-out`` before ``reportResults`` (devcontainer)."""
     fragment = copy_log_to_bind_mount_fragment(scenario_key, log_path=log_path)
     content = test_script.read_text(encoding="utf-8")
     if fragment in content:

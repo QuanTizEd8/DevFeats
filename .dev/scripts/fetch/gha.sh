@@ -23,10 +23,11 @@
 #       timestamps stripped), and one line per failing step appended to
 #       failing.log in the format:
 #           <job-name> --- <step-name> --- <log-filename>
-#       When the job name matches a feature-test matrix job
-#       ("<scenario> (devcontainer|linux|macOS)"), also downloads the
-#       matching feat-log-* workflow artifact (trace-level install log) to
-#       <job-id>.trace.log beside the GHA log.
+#       When the job name matches a feature-test matrix job (reusable workflow:
+#       "Test Feature <feature-id> / <scenario> (devcontainer|linux|macOS)",
+#       or legacy "<scenario> (mode)"), downloads the matching feat-log-*
+#       workflow artifact (trace-level install log) to <job-id>.trace.log
+#       beside the GHA log.
 #
 # All log files are written to:
 #   <log-base defaults to repo>/.local/logs/gha/<full-sha>/<run-id>/
@@ -345,15 +346,81 @@ _download_log() {
 
 # ---------------------------------------------------------------------------
 # _run_artifacts_json <run_id> — cached GET .../actions/runs/{id}/artifacts
+# (paginated; merged into one {"artifacts":[...]} object)
 # ---------------------------------------------------------------------------
 _run_artifacts_json() {
   local run_id="$1"
-  if [[ -z "${_run_artifacts_cache[${run_id}]+_}" ]]; then
-    _run_artifacts_cache["${run_id}"]=$(_gh_api_json \
-      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/artifacts?per_page=100" ||
-      echo '{"artifacts":[]}')
+  if [[ -n "${_run_artifacts_cache[${run_id}]+_}" ]]; then
+    printf '%s' "${_run_artifacts_cache[${run_id}]}"
+    return 0
   fi
-  printf '%s' "${_run_artifacts_cache[${run_id}]}"
+
+  local page=1 artifacts_json='{"artifacts":[]}' page_json n total
+  while true; do
+    page_json=$(_gh_api_json \
+      "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/artifacts?per_page=100&page=${page}") ||
+      page_json='{"artifacts":[],"total_count":0}'
+    n=$(jq '.artifacts | length' <<< "${page_json}")
+    total=$(jq '.total_count' <<< "${page_json}")
+    artifacts_json=$(jq --argjson page "${page_json}" '
+      {artifacts: (.artifacts + $page.artifacts)}
+    ' <<< "${artifacts_json}")
+    if [[ "${n}" -lt 100 ]] || [[ $((page * 100)) -ge "${total}" ]]; then
+      break
+    fi
+    page=$((page + 1))
+  done
+  _run_artifacts_cache["${run_id}"]="${artifacts_json}"
+  printf '%s' "${artifacts_json}"
+}
+
+# ---------------------------------------------------------------------------
+# _feat_log_artifact_name <job_name> <run_id>
+# Resolve feat-log-<feature>-<scenario>-<mode> from a feature-test job name.
+# Prints artifact name or empty string.
+# ---------------------------------------------------------------------------
+_feat_log_artifact_name() {
+  local job_name="$1"
+  local run_id="$2"
+  local feature scenario mode_lc expected
+
+  if [[ "${job_name}" =~ ^Test\ Feature\ ([^/]+)\ /\ (.+)\ \((devcontainer|linux|macOS)\)$ ]]; then
+    feature="${BASH_REMATCH[1]}"
+    scenario="${BASH_REMATCH[2]}"
+    case "${BASH_REMATCH[3]}" in
+      macOS) mode_lc=macos ;;
+      *) mode_lc="${BASH_REMATCH[3]}" ;;
+    esac
+  elif [[ "${job_name}" =~ ^(.+)\ \((devcontainer|linux|macOS)\)$ ]]; then
+    feature=""
+    scenario="${BASH_REMATCH[1]}"
+    case "${BASH_REMATCH[2]}" in
+      macOS) mode_lc=macos ;;
+      *) mode_lc="${BASH_REMATCH[2]}" ;;
+    esac
+  else
+    return 0
+  fi
+
+  if [[ "${scenario}" == *'${{'* ]]; then
+    return 0
+  fi
+
+  if [[ -n "${feature}" ]]; then
+    expected="feat-log-${feature}-${scenario}-${mode_lc}"
+    jq -r --arg n "${expected}" '
+      [.artifacts[] | select(.name == $n) | .name][0] // empty
+    ' <<< "$(_run_artifacts_json "${run_id}")"
+    return 0
+  fi
+
+  local suffix="${scenario}-${mode_lc}"
+  jq -r --arg suf "${suffix}" '
+    [.artifacts[]
+     | select(.name | startswith("feat-log-"))
+     | select(.name | endswith("-" + $suf))
+     | .name][0] // empty
+  ' <<< "$(_run_artifacts_json "${run_id}")"
 }
 
 # ---------------------------------------------------------------------------
@@ -366,26 +433,11 @@ _download_trace_log() {
   local job_name="$2"
   local run_id="$3"
   local dest="${LOGDIR}/${job_id}.trace.log"
-  local scenario mode_lc suffix artifact_name tmpdir src
+  local artifact_name tmpdir src
 
-  if [[ ! "${job_name}" =~ ^(.+)\ \((devcontainer|linux|macOS)\)$ ]]; then
-    return 0
-  fi
-  scenario="${BASH_REMATCH[1]}"
-  case "${BASH_REMATCH[2]}" in
-    macOS) mode_lc=macos ;;
-    *) mode_lc="${BASH_REMATCH[2]}" ;;
-  esac
-  suffix="${scenario}-${mode_lc}"
-
-  artifact_name=$(jq -r --arg suf "${suffix}" '
-    [.artifacts[]
-     | select(.name | startswith("feat-log-"))
-     | select(.name | endswith("-" + $suf))
-     | .name][0] // empty
-  ' <<< "$(_run_artifacts_json "${run_id}")")
+  artifact_name=$(_feat_log_artifact_name "${job_name}" "${run_id}")
   if [[ -z "${artifact_name}" ]]; then
-    _ts "  (no feat-log artifact for ${suffix})"
+    _ts "  (no feat-log artifact for feature-test job: ${job_name})"
     return 0
   fi
 

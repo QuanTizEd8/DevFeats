@@ -33,8 +33,14 @@ opensuse-leap+bash:
   image: opensuse/leap:15.6
   build:
     # zypper exits 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when some repos are
-    # unreachable but the operation succeeds. Treat it as success.
-    dockerfile: zypper install -y bash; _rc=$?; [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
+    # unreachable but the operation succeeds. set +e is required because
+    # environments.py wraps inline dockerfiles with set -eux.
+    dockerfile: |
+      set +e
+      zypper install -y bash
+      _rc=$?
+      set -e
+      [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
 
 arch+bash:
   image: archlinux:base

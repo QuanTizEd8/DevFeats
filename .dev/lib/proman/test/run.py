@@ -33,7 +33,6 @@ from .feature_logs import (
     ensure_host_log_dir,
     host_log_path,
     patch_devcontainer_scenario_logging,
-    uses_bind_mount_log,
 )
 from .gen_devcontainer import generate
 from .scenarios import expand_envs, merge_all_defaults, shared_defaults
@@ -312,7 +311,7 @@ def _run_devcontainer(
                 options=options,
             )
             test_script = test_out_dir / f"{key}.sh"
-            if test_script.is_file() and not uses_bind_mount_log(options):
+            if test_script.is_file():
                 append_bind_mount_copy_to_test_script(
                     test_script,
                     key,
