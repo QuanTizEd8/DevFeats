@@ -2056,7 +2056,7 @@ VERIFY_NOOP
         logging__error "__deploy_lifecycle_scripts__: cannot write verification script — _DF_EXPECTED_CMD is empty and _options.verify.cmd is not set. Declare _options.verify.cmd or add _options.prefix.bins."
         return 1
       fi
-      printf '#!/bin/sh\n"%s" %s\n' "${_vcmd}" "${INSTALL_VERIFICATION_ARGS}" \
+      printf '#!/bin/sh\nset -x\n"%s" %s\n' "${_vcmd}" "${INSTALL_VERIFICATION_ARGS}" \
         > "${_FEAT_LIFECYCLE_POST_CREATE}verification.sh"
     fi
     file__chmod +x "${_FEAT_LIFECYCLE_POST_CREATE}verification.sh"
