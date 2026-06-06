@@ -796,21 +796,11 @@ options:
     type: array
     default: ""
     description: |
-      #{{
-        prefix = get("_options.prefix", {})
-        bin_dir = prefix.get("bin_dir", "bin")
-        desc = (
-            "Shell startup files to write `export PATH=\"${PREFIX}/" + bin_dir + ":$PATH\"` to.\n"
-            "Leave empty (default) to write to standard profiles\n"
-            "(system-wide as root, user-scoped otherwise),\n"
-            "or provide explicit file path(s) one per line.\n"
-            "Use `prefix_discovery=none` to skip PATH export entirely."
-        )
-        extra = get("_options.prefix.exports.description", "")
-        if extra:
-            desc += "\n" + extra
-        return desc
-      }}#
+      Shell startup files to write PATH exports to for the installation prefix.
+      #{{ return get("_options.prefix.exports.description", "").strip() }}# Leave empty (default)
+      to write to standard profiles (system-wide as root, user-scoped otherwise).
+      Only applies when `prefix_discovery` is `shell` or `all`,
+      or when the `auto` mode decides that PATH export is needed.
 
   prefix_activations:
     _apply_when: |
