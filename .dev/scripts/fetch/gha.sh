@@ -571,8 +571,8 @@ _process_run_jobs() {
       fi
     done < <(jq -c '.jobs[]' <<< "${jobs_page}")
 
-    if [[ "${n_jobs}" -lt "${_GHA_JOBS_PER_PAGE}" ]] \
-      || [[ $((page * _GHA_JOBS_PER_PAGE)) -ge "${total_count}" ]]; then
+    if [[ "${n_jobs}" -lt "${_GHA_JOBS_PER_PAGE}" ]] ||
+      [[ $((page * _GHA_JOBS_PER_PAGE)) -ge "${total_count}" ]]; then
       break
     fi
     page=$((page + 1))
