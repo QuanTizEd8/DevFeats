@@ -229,8 +229,12 @@ def test_load_substitutes_template_variables(
     """${{ _project }} and ${{ _env_vars }} templates are expanded."""
     metadata = _minimal_feature_metadata(
         description="Test ${{ _project.name_slug }}$.",
-        entrypoint="${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/entrypoint.sh "
-        "${containerWorkspaceFolder}",
+        entrypoint={
+            "command": (
+                "${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/entrypoint.sh "
+                "${containerWorkspaceFolder}"
+            ),
+        },
         onCreateCommand={
             "run": {
                 "command": (
@@ -243,9 +247,9 @@ def test_load_substitutes_template_variables(
     root = _write_test_repo(tmp_path, feature_metadata=metadata)
     result = _loader_for(root, monkeypatch).load("test-feature")["test-feature"]
     expected_share = "/usr/local/share/myowner/test/test-feature"
-    assert result["entrypoint"] == (
-        f"{expected_share}/entrypoint.sh ${{containerWorkspaceFolder}}"
-    )
+    assert result["entrypoint"] == {
+        "command": f"{expected_share}/entrypoint.sh ${{containerWorkspaceFolder}}",
+    }
     expected_lc_key = "myowner-test--run"
     assert list(result["onCreateCommand"].keys()) == [expected_lc_key]
     assert result["onCreateCommand"][expected_lc_key]["command"] == (
