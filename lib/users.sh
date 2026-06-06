@@ -971,13 +971,13 @@ users__expand_path() {
   # or leading '~') are still validated.
   if [[ "$_expr" == *'('* || "$_expr" == *')'* || "$_expr" == *'`'* ||
     "$_expr" == *';'* || "$_expr" == *'&'* || "$_expr" == *'|'* ||
-    "$_expr" == *'"'* || "$_expr" == *"'"* || "$_expr" == *$'\n'* ]]; then
+    "$_expr" == *$'\n'* ]]; then
     logging__error "users__expand_path: expression contains unsafe characters: '${_expr}'"
     return 1
   fi
 
-  # Fast path: no '$' and no leading '~' — already an absolute path or plain string.
-  if [[ "$_expr" != *'$'* && "$_expr" != '~'* ]]; then
+  # Fast path: no '$' and no '~' anywhere — already an absolute path or plain string.
+  if [[ "$_expr" != *'$'* && "$_expr" != *'~'* ]]; then
     printf '%s\n' "$_expr"
     return 0
   fi
@@ -990,6 +990,9 @@ users__expand_path() {
   users__run_as "$_user" -- "${_BASH_BIN:-bash}" -c '
     _e="$1"
     [[ "$_e" == "~"* ]] && _e="${HOME}${_e#\~}"
+    _e="${_e// ~/ ${HOME}}"
+    _e="${_e//\\/\\\\}"
+    _e="${_e//\"/\\\"}"
     eval "printf \"%s\n\" \"${_e}\""
   ' -- "$_expr"
 }

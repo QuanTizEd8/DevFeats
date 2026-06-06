@@ -12,8 +12,8 @@ _nvm_run() {
 
 __exit_pre() {
   logging__fn_entry "__exit_pre"
-  if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${PREFIX-}" ] && [ -f "${PREFIX}/nvm.sh" ] && [ -n "${INSTALL_USER-}" ]; then
-    _nvm_run ". '${PREFIX}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
+  if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${PREFIX-}" ] && [ -f "${_RESOLVED_PREFIX}/nvm.sh" ] && [ -n "${INSTALL_USER-}" ]; then
+    _nvm_run ". '${_RESOLVED_PREFIX}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
   fi
   logging__fn_exit "__exit_pre"
 }
@@ -23,7 +23,7 @@ __init_args_post() {
 }
 
 __detect_existing_path_post() {
-  if [ -f "${PREFIX}/nvm.sh" ]; then _FEAT_EXISTING_PATH="${PREFIX}/nvm.sh"; fi
+  if [ -f "${_RESOLVED_PREFIX}/nvm.sh" ]; then _FEAT_EXISTING_PATH="${_RESOLVED_PREFIX}/nvm.sh"; fi
 }
 
 __install_run_script_pre() {
@@ -46,16 +46,16 @@ __install_run_script_pre() {
   logging__info "Installing nvm build dependencies..."
   __dep_install__ build nvm
 
-  file__mkdir "$PREFIX"
+  file__mkdir "$_RESOLVED_PREFIX"
 
-  if [ -n "${WRITE_GROUP:-}" ] && ! users__is_user_path "${PREFIX}"; then
+  if [ -n "${WRITE_GROUP:-}" ] && ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     local -a _nvm_wargs=()
     if [ "${#WRITE_USERS[@]}" -gt 0 ]; then
       _nvm_wargs=(--current false --remote false --container false)
       for _u in "${WRITE_USERS[@]}"; do _nvm_wargs+=(--user "$_u"); done
     fi
     mapfile -t _write_users < <(users__resolve_list "${_nvm_wargs[@]}")
-    users__set_write_permissions "$PREFIX" "$INSTALL_USER" "$WRITE_GROUP" "${_write_users[@]}"
+    users__set_write_permissions "$_RESOLVED_PREFIX" "$INSTALL_USER" "$WRITE_GROUP" "${_write_users[@]}"
   fi
 
   _NVM_CLEANUP_ENABLED="true"
@@ -67,12 +67,12 @@ __install_run_script_run() {
   local _installer="$1"
   logging__info "Running nvm ${VERSION} installer as user '${INSTALL_USER}'..."
   _nvm_run \
-    "umask 0002 && PROFILE=/dev/null NVM_SYMLINK_CURRENT=true NVM_DIR='${PREFIX}' bash -s" \
+    "umask 0002 && PROFILE=/dev/null NVM_SYMLINK_CURRENT=true NVM_DIR='${_RESOLVED_PREFIX}' bash -s" \
     < "${_installer}"
 
   # Verify nvm loaded (in root shell)
   # shellcheck disable=SC1091
-  . "${PREFIX}/nvm.sh"
+  . "${_RESOLVED_PREFIX}/nvm.sh"
   command -v nvm > /dev/null 2>&1 || {
     logging__error "nvm command not found after installation."
     return 1
@@ -83,7 +83,7 @@ __install_run_script_run() {
 __install_run_script_post() {
   _nvm_install_node_versions
   if [ "${#NODE_VERSIONS[@]}" -gt 0 ]; then
-    _nvm_run "export NVM_SYMLINK_CURRENT=true && . '${PREFIX}/nvm.sh' && node --version && npm --version"
+    _nvm_run "export NVM_SYMLINK_CURRENT=true && . '${_RESOLVED_PREFIX}/nvm.sh' && node --version && npm --version"
     logging__success "Node.js is ready."
   fi
 }
@@ -106,25 +106,25 @@ _nvm_install_node_versions() {
   logging__info "Installing primary Node.js '${_primary}' via nvm..."
   if [ "$(os__platform)" = "alpine" ]; then
     logging__info "Alpine detected — compiling Node.js from source (nvm install -s)."
-    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${PREFIX}/nvm.sh' && nvm install -s '${_primary}'"
+    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${_RESOLVED_PREFIX}/nvm.sh' && nvm install -s '${_primary}'"
   else
-    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${PREFIX}/nvm.sh' && nvm install '${_primary}'"
+    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${_RESOLVED_PREFIX}/nvm.sh' && nvm install '${_primary}'"
   fi
-  _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${PREFIX}/nvm.sh' && nvm alias default '${_primary}'"
-  _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${PREFIX}/nvm.sh' && nvm use default"
+  _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${_RESOLVED_PREFIX}/nvm.sh' && nvm alias default '${_primary}'"
+  _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${_RESOLVED_PREFIX}/nvm.sh' && nvm use default"
 
   local _node_version
-  _node_version="$(_nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${PREFIX}/nvm.sh' && nvm version '${_primary}'")"
+  _node_version="$(_nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${_RESOLVED_PREFIX}/nvm.sh' && nvm version '${_primary}'")"
   logging__info "Primary Node.js version installed: ${_node_version}"
 
-  if [ -d "${PREFIX}/versions" ]; then
-    file__chmod -R g+rw "${PREFIX}/versions"
+  if [ -d "${_RESOLVED_PREFIX}/versions" ]; then
+    file__chmod -R g+rw "${_RESOLVED_PREFIX}/versions"
   fi
 
   _nvm_install_additional_versions 1
 
   if [ "${#NODE_VERSIONS[@]}" -gt 1 ]; then
-    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${PREFIX}/nvm.sh' && nvm use default"
+    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${_RESOLVED_PREFIX}/nvm.sh' && nvm use default"
   fi
 
   logging__success "Node.js ${_node_version} installed via nvm."
@@ -149,23 +149,23 @@ _nvm_install_additional_versions() {
       continue
     fi
     logging__info "Installing additional Node.js version: ${_ver}"
-    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${PREFIX}/nvm.sh' && nvm install '${_ver}'"
+    _nvm_run "umask 0002 && export NVM_SYMLINK_CURRENT=true && . '${_RESOLVED_PREFIX}/nvm.sh' && nvm install '${_ver}'"
     ((_i++)) || true
   done
 }
 
 create_nvm_symlinks() {
   logging__fn_entry "create_nvm_symlinks"
-  if users__is_user_path "${PREFIX}"; then
+  if users__is_user_path "${_RESOLVED_PREFIX}"; then
     logging__info "User-local prefix: NVM bridge symlinks not applicable."
     logging__fn_exit "create_nvm_symlinks"
     return 0
   fi
-  users__run_privileged ln -sf "${PREFIX}" "/usr/local/share/nvm"
+  users__run_privileged ln -sf "${_RESOLVED_PREFIX}" "/usr/local/share/nvm"
   # Create stable executable entrypoints for non-interactive contexts
   # that may not source shell init files.
   for _bin in node npm npx corepack; do
-    local _src="${PREFIX}/current/bin/${_bin}"
+    local _src="${_RESOLVED_PREFIX}/current/bin/${_bin}"
     [ -f "$_src" ] || continue
     logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
     users__run_privileged ln -sf "$_src" "/usr/local/bin/${_bin}"
@@ -181,7 +181,7 @@ __install_finish_post() {
 # Mirror of create_nvm_symlinks: removes exactly what it created.
 # shellcheck disable=SC2329,SC2317
 __uninstall_finish_post() {
-  users__is_user_path "${PREFIX}" && return 0
+  users__is_user_path "${_RESOLVED_PREFIX}" && return 0
   [ -L "/usr/local/share/nvm" ] && users__run_privileged rm -f "/usr/local/share/nvm" || true
   for _bin in node npm npx corepack; do
     [ -L "/usr/local/bin/${_bin}" ] && users__run_privileged rm -f "/usr/local/bin/${_bin}" || true
@@ -192,7 +192,7 @@ __uninstall_finish_post() {
 __prefix_activation_snippet() {
   cat << SNIPPET
 export NVM_SYMLINK_CURRENT=true
-export NVM_DIR="${PREFIX}"
+export NVM_DIR="${_RESOLVED_PREFIX}"
 # shellcheck disable=SC1090
 [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"
 [ -s "\$NVM_DIR/bash_completion" ] && . "\$NVM_DIR/bash_completion"

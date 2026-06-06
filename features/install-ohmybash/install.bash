@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # _clone_custom_dir — Print the physical directory used for theme/plugin clones.
 # User-relative CUSTOM_DIR (~/... or $HOME/...) is not used directly for clones;
-# those always land under ${PREFIX}/custom so they are shared across users.
+# those always land under ${_RESOLVED_PREFIX}/custom so they are shared across users.
 # ---------------------------------------------------------------------------
 _clone_custom_dir() {
   # shellcheck disable=SC2016
@@ -12,7 +12,7 @@ _clone_custom_dir() {
     [[ "${CUSTOM_DIR}" != '$HOME'* ]]; then
     printf '%s' "${CUSTOM_DIR}"
   else
-    printf '%s' "${PREFIX}/custom"
+    printf '%s' "${_RESOLVED_PREFIX}/custom"
   fi
 }
 
@@ -160,7 +160,7 @@ __configure_user() {
   fi
 
   local _content
-  _content="export OSH=\"${PREFIX}\""$'\n'
+  _content="export OSH=\"${_RESOLVED_PREFIX}\""$'\n'
   _content+="OSH_CACHE_DIR=\"${OSH_CACHE_DIR}\""$'\n'
   # shellcheck disable=SC2016
   _content+='[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"'$'\n'

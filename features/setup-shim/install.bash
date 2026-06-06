@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 __install_run__() {
-  local _bin="${PREFIX}/bin"
+  local _bin="${_RESOLVED_PREFIX}/bin"
   file__mkdir "${_bin}"
 
   _install_shim() {

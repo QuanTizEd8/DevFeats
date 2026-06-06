@@ -105,16 +105,16 @@ __install_run_script_pre() {
 
 # script: when running as root, the bootstrap script installs to
 # ${HOME}/.local/bin/claude (i.e. /root/.local/bin/claude).  Copy it to
-# ${PREFIX}/bin/claude so it is accessible system-wide, and open the runtime
+# ${_RESOLVED_PREFIX}/bin/claude so it is accessible system-wide, and open the runtime
 # directory so non-root users can execute the installed binary.
 # shellcheck disable=SC2329,SC2317
 __install_run_script_post() {
   if users__is_privileged; then
     local _src="${HOME}/.local/bin/claude"
-    local _dest="${PREFIX}/bin/claude"
+    local _dest="${_RESOLVED_PREFIX}/bin/claude"
     if [[ -x "${_src}" && "${_src}" != "${_dest}" ]]; then
       logging__info "Copying claude from '${_src}' to '${_dest}'..."
-      file__mkdir "${PREFIX}/bin"
+      file__mkdir "${_RESOLVED_PREFIX}/bin"
       install -m 755 "${_src}" "${_dest}"
       local _runtime="${HOME}/.local/share/claude"
       if [[ -d "${_runtime}" ]]; then

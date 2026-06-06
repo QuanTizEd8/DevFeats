@@ -24,9 +24,9 @@ __main__() {
     exit 0
   fi
 
+  __resolve_input_prefixes__
   logging__info "Checking for existing installation"
   __detect_existing__
-  declare -g _DF_EXPECTED_CMD="${_FEAT_EXISTING_PATH:-${_FEAT_CONTRACT_PRIMARY_BIN}}"
 
   if [[ -z "${_FEAT_EXISTING_PATH}" ]]; then
     case "${IF_EXISTS}" in
@@ -278,15 +278,15 @@ __detect_existing_path__() {
   # git-clone: check PREFIX first — for git-clone features, PREFIX IS the installation root.
   # Probing this before the binary search prevents a git-clone feature that also exposes a
   # primary binary from being misclassified as a plain "prefix" (binary) installation.
-  if [[ -n "${GIT_CLONE_URI:-}" && -v PREFIX && -n "${PREFIX}" && -d "${PREFIX}/.git" ]]; then
-    _FEAT_EXISTING_PATH="${PREFIX}"
+  if [[ -n "${GIT_CLONE_URI:-}" && -v PREFIX && -v _RESOLVED_PREFIX && -d "${_RESOLVED_PREFIX}/.git" ]]; then
+    _FEAT_EXISTING_PATH="${_RESOLVED_PREFIX}"
   fi
 
   # Binary detection only when not already found by the git-clone check.
   if [[ -z "${_FEAT_EXISTING_PATH}" && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]]; then
     local _prefix_bin=""
     if [[ -v PREFIX ]]; then
-      _prefix_bin="${PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
+      _prefix_bin="${_RESOLVED_PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
     fi
     if [[ -n "${_prefix_bin}" && -x "${_prefix_bin}" ]]; then
       _FEAT_EXISTING_PATH="${_prefix_bin}"
@@ -356,7 +356,7 @@ __detect_existing_method__() {
     && npm__is_managed "${_FEAT_EXISTING_PATH}" 2>/dev/null; then
     _FEAT_EXISTING_METHOD="npm"
   elif [[ -v PREFIX ]]; then
-    local _prefix_val="${PREFIX:-}"
+    local _prefix_val="${_RESOLVED_PREFIX:-}"
     if [[ -n "${_prefix_val}" && "${_FEAT_EXISTING_PATH}" == "${_prefix_val}/"* ]]; then
       _FEAT_EXISTING_METHOD="prefix"
     fi
@@ -544,7 +544,7 @@ __uninstall_shell_completions__() {
   [[ -n "${_name}" ]] || return 0
   local _is_system=false _home
   if [[ "${PREFIX_SCOPE:-}" = "user" ]]; then
-    _home="$(users__home_of_path_owner "${PREFIX}")"
+    _home="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
   else
     _is_system=true
     _home="$(users__resolve_home)"
@@ -597,7 +597,7 @@ __cleanup_install_artifacts__() {
     if [[ -v PREFIX_ACTIVATIONS ]]; then
       local _act_home_arg=""
       [ "${PREFIX_SCOPE:-}" = "user" ] && \
-        _act_home_arg="$(users__home_of_path_owner "${PREFIX}")"
+        _act_home_arg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
       shell__remove_activation_snippets \
         --scope "${PREFIX_SCOPE:-system}" \
         ${_act_home_arg:+--home "${_act_home_arg}"} \
@@ -761,10 +761,10 @@ __install_run_binary__() {
     _asset_name="${_asset_uri%%\?*}"
     _asset_name="${_asset_name##*/}"
     if [[ -n "${BINARY_SRC:-}" ]]; then
-      _bin_dest="${PREFIX}/bin/${BINARY_SRC##*/}"
+      _bin_dest="${_RESOLVED_PREFIX}/bin/${BINARY_SRC##*/}"
       _binary_src_args=(--binary-src "${BINARY_SRC}")
     else
-      _bin_dest="${PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
+      _bin_dest="${_RESOLVED_PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
     fi
     if [[ -v BINARY_SIDECAR_URI && -n "${BINARY_SIDECAR_URI}" ]]; then
       local _sc_uri
@@ -915,8 +915,8 @@ __install_run_cargo__() {
   else
     _cargo_cmd=(cargo install)
   fi
-  if [[ -v PREFIX && -n "${PREFIX}" ]]; then
-    _cargo_args+=(--root "${PREFIX}")
+  if [[ -v _RESOLVED_PREFIX ]]; then
+    _cargo_args+=(--root "${_RESOLVED_PREFIX}")
   fi
   [[ -v VERSION && -n "${VERSION}" ]] && _cargo_args+=(--version "${VERSION}")
   if [[ -v _FEAT_CARGO_INSTALL_ARGS ]]; then
@@ -945,8 +945,8 @@ __install_run_npm__() {
 
   local -a _install_args=(install -g)
   # Install into feature prefix when configured.
-  if [[ -v PREFIX && -n "${PREFIX}" ]]; then
-    _install_args+=(--prefix "${PREFIX}")
+  if [[ -v _RESOLVED_PREFIX ]]; then
+    _install_args+=(--prefix "${_RESOLVED_PREFIX}")
   fi
   [[ -n "${NPM_REGISTRY:-}" ]] && _install_args+=(--registry "${NPM_REGISTRY}")
   if [[ -v NPM_INSTALL_ARGS ]]; then
@@ -992,7 +992,7 @@ __install_run_npm_bundled__() {
   npm__install_bundled \
     --package "${NPM_PACKAGE}" \
     "${_cmd_arg[@]+"${_cmd_arg[@]}"}" \
-    --prefix "${PREFIX}" \
+    --prefix "${_RESOLVED_PREFIX}" \
     --version "${VERSION:-latest}" \
     --node-version "${NODE_VERSION:-lts}" \
     "${_registry_arg[@]+"${_registry_arg[@]}"}" \
@@ -1090,8 +1090,8 @@ __install_run_source_auto_build__() {
       if [[ -v SOURCE_CONFIGURE_ARGS ]]; then
         _configure_args+=("${SOURCE_CONFIGURE_ARGS[@]+"${SOURCE_CONFIGURE_ARGS[@]}"}")
       fi
-      if [[ -v PREFIX && -n "${PREFIX}" ]]; then
-        _configure_args+=(--prefix="${PREFIX}")
+      if [[ -v _RESOLVED_PREFIX ]]; then
+        _configure_args+=(--prefix="${_RESOLVED_PREFIX}")
       fi
       (
         cd "${_src_dir}" || exit 1
@@ -1151,7 +1151,7 @@ __install_run_git_clone__() {
     logging__error "METHOD=git-clone: GIT_CLONE_URI not set (missing _options.method.git-clone.uri in metadata?)."
     return 1
   fi
-  if [[ -z "${PREFIX:-}" ]]; then
+  if [[ -z "${_RESOLVED_PREFIX:-}" ]]; then
     logging__error "METHOD=git-clone: PREFIX is not set. Declare _options.prefix.root/nonroot in the feature's metadata.yaml."
     return 1
   fi
@@ -1161,8 +1161,8 @@ __install_run_git_clone__() {
   [[ -v VERSION && -n "${VERSION}" ]] && _ref_arg=(--ref "${VERSION}")
   local _sha_arg=()
   [[ -n "${_FEAT_RESOLVED_GIT_SHA:-}" ]] && _sha_arg=(--resolved-sha "${_FEAT_RESOLVED_GIT_SHA}")
-  git__clone --url "${_uri}" --dir "${PREFIX}" "${_ref_arg[@]+"${_ref_arg[@]}"}" "${_sha_arg[@]+"${_sha_arg[@]}"}"
-  _git_clone_apply_config "${PREFIX}" "${VERSION:-}"
+  git__clone --url "${_uri}" --dir "${_RESOLVED_PREFIX}" "${_ref_arg[@]+"${_ref_arg[@]}"}" "${_sha_arg[@]+"${_sha_arg[@]}"}"
+  _git_clone_apply_config "${_RESOLVED_PREFIX}" "${VERSION:-}"
   if declare -f __install_run_git_clone_post > /dev/null; then
     __install_run_git_clone_post
   fi
@@ -1194,11 +1194,11 @@ __install_shell_completions__() {
   fi
 
   local _scope_flag="" _home
-  if ! users__is_user_path "${PREFIX:-/usr/local}"; then
+  if ! users__is_user_path "${_RESOLVED_PREFIX:-/usr/local}"; then
     _scope_flag="--system"
     _home="$(users__resolve_home)"
   else
-    _home="$(users__home_of_path_owner "${PREFIX}")"
+    _home="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
   fi
 
   declare -A _completion_files_map
@@ -1220,13 +1220,13 @@ __install_shell_completions__() {
         continue
       }
     elif [[ -n "${_completion_files_map[${_shell}]+x}" ]]; then
-      local _src="${PREFIX}/${_completion_files_map[${_shell}]}"
+      local _src="${_RESOLVED_PREFIX}/${_completion_files_map[${_shell}]}"
       _content="$(cat "${_src}" 2> /dev/null)" || {
         logging__warn "__install_shell_completions__: source file '${_src}' not found; skipping ${_shell}."
         continue
       }
     elif [[ -n "${SHELL_COMPLETIONS_CMD:-}" ]]; then
-      local _bin="${PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
+      local _bin="${_RESOLVED_PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
       command -v "${_bin}" > /dev/null 2>&1 \
         || _bin="$(command -v "${_FEAT_CONTRACT_PRIMARY_BIN}" 2> /dev/null)" || {
         logging__warn "__install_shell_completions__: '${_FEAT_CONTRACT_PRIMARY_BIN}' not found; skipping."
@@ -1263,7 +1263,7 @@ __feat_prefix_applies__() {
 __feat_build_prefix_disc_args__() {
   declare -n _fpda_out="$1"
   _fpda_out=(
-    --prefix "${PREFIX}"
+    --prefix "${_RESOLVED_PREFIX}"
     --bin-dir "${PREFIX_BIN_DIR}"
     --discovery "${PREFIX_DISCOVERY}"
     --runtime-path "${RUNTIME_PATH}"
@@ -1302,13 +1302,12 @@ __install_finish__() {
       shell__run_prefix_discovery "${_disc_args[@]}"
       logging__fn_exit "prefix_discovery"
     }
-    : "${_DF_EXPECTED_CMD:=${_FEAT_CONTRACT_PRIMARY_BIN}}"
 
     # -- activation --
     [[ -v PREFIX_ACTIVATIONS ]] && {
       local _act_home_arg=""
       [ "${PREFIX_SCOPE}" = "user" ] && \
-        _act_home_arg="$(users__home_of_path_owner "${PREFIX}")"
+        _act_home_arg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
       shell__write_activation_snippets \
         --scope "${PREFIX_SCOPE}" \
         ${_act_home_arg:+--home "${_act_home_arg}"} \
@@ -1325,7 +1324,7 @@ __install_finish__() {
         for _u in "${WRITE_USERS[@]}"; do _wargs+=(--user "$_u"); done
       fi
       mapfile -t _write_users < <(users__resolve_list "${_wargs[@]}")
-      users__set_write_permissions "${PREFIX}" \
+      users__set_write_permissions "${_RESOLVED_PREFIX}" \
         "${INSTALL_USER:-$(id -nu)}" "${WRITE_GROUP}" "${_write_users[@]}"
     }
   fi
@@ -1440,8 +1439,8 @@ __update_predispatch__() {
   # 2. Prefix check: if a prefix binary is expected but absent, install fresh at the
   #    configured prefix. __install_run__ only writes to ${PREFIX}; any unmanaged binary
   #    at another path (e.g. /usr/bin) is left untouched.
-  if [[ -v PREFIX && -n "${PREFIX}" && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]] && __feat_prefix_applies__; then
-    local _pfx_bin="${PREFIX}/${PREFIX_BIN_DIR:-bin}/${_FEAT_CONTRACT_PRIMARY_BIN}"
+  if [[ -v _RESOLVED_PREFIX && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]] && __feat_prefix_applies__; then
+    local _pfx_bin="${_RESOLVED_PREFIX}/${PREFIX_BIN_DIR:-bin}/${_FEAT_CONTRACT_PRIMARY_BIN}"
     if [[ ! -f "${_pfx_bin}" ]]; then
       __install_run__
       return 0
@@ -1582,8 +1581,8 @@ __update_run_git_clone__() {
   [[ -v VERSION && -n "${VERSION}" ]] && _ref_args=(--ref "${VERSION}")
   local _sha_args=()
   [[ -n "${_FEAT_RESOLVED_GIT_SHA:-}" ]] && _sha_args=(--resolved-sha "${_FEAT_RESOLVED_GIT_SHA}")
-  git__update "${PREFIX}" "${_ref_args[@]+"${_ref_args[@]}"}" "${_sha_args[@]+"${_sha_args[@]}"}"
-  _git_clone_apply_config "${PREFIX}" "${VERSION:-}"
+  git__update "${_RESOLVED_PREFIX}" "${_ref_args[@]+"${_ref_args[@]}"}" "${_sha_args[@]+"${_sha_args[@]}"}"
+  _git_clone_apply_config "${_RESOLVED_PREFIX}" "${VERSION:-}"
   if declare -f __update_run_git_clone_post > /dev/null; then
     __update_run_git_clone_post
   fi
@@ -1742,7 +1741,7 @@ __resolve_input_method__() {
     # Auto-register installed-version probe for git-clone when not overridden by the feature.
     if [[ "${METHOD:-}" == "git-clone" ]] && ! declare -f __installed_version > /dev/null; then
       __installed_version() {
-        local _p="${1:-${PREFIX}}"
+        local _p="${1:-${_RESOLVED_PREFIX}}"
         [[ -d "${_p}/.git" ]] && git__head_sha "${_p}" 2>/dev/null || printf ''
       }
     fi
@@ -1758,7 +1757,7 @@ __resolve_input_method__() {
   # Auto-register installed-version probe for git-clone when resolved to git-clone.
   if [[ "${METHOD:-}" == "git-clone" ]] && ! declare -f __installed_version > /dev/null; then
     __installed_version() {
-      local _p="${1:-${PREFIX}}"
+      local _p="${1:-${_RESOLVED_PREFIX}}"
       [[ -d "${_p}/.git" ]] && git__head_sha "${_p}" 2>/dev/null || printf ''
     }
   fi
@@ -1908,13 +1907,49 @@ __resolve_input_prefixes__() {
 __resolve_prefix__() {
   logging__fn_entry "__resolve_prefix__"
   [[ -v PREFIX ]] || { logging__fn_exit "__resolve_prefix__"; return 0; }
-  PREFIX="$(users__expand_path "$PREFIX")"
-  users__can_write "${PREFIX}" || {
-    logging__error "Option 'prefix': '${PREFIX}' is not writable."
+  local _eff_user="${INSTALL_USER:-$(users__get_current)}"
+  local _symlink_user
+  _symlink_user="$(users__get_current)"
+
+  if [[ -v _RESOLVED_PREFIX ]]; then
+    logging__fn_exit "__resolve_prefix__"
+    return 0
+  fi
+  local -a _fwp_args=()
+  local _elem _expanded
+  for _elem in "${PREFIX[@]}"; do
+    _expanded="$(users__expand_path --user "$_eff_user" "$_elem")"
+    eval "_fwp_args+=(-- $_expanded)"
+  done
+  declare -g _RESOLVED_PREFIX
+  _RESOLVED_PREFIX="$(users__first_writeable_path "${_fwp_args[@]}")"
+
+  users__can_write "${_RESOLVED_PREFIX}" || {
+    logging__error "Option 'prefix': '${_RESOLVED_PREFIX}' is not writable."
     exit 1
   }
-  PREFIX_SCOPE="$(users__is_user_path "${PREFIX}" && printf user || printf system)"
-  logging__info "Option 'prefix' resolved to '${PREFIX}'."
+  PREFIX_SCOPE="$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)"
+  logging__info "Option 'prefix' resolved to '${_RESOLVED_PREFIX}'."
+
+  if [[ -v PREFIX_SYMLINK_NONROOT ]]; then
+    PREFIX_SYMLINK_NONROOT="$(users__expand_path --user "$_symlink_user" "$PREFIX_SYMLINK_NONROOT")"
+    logging__info "Option 'prefix_symlink_nonroot' resolved to '${PREFIX_SYMLINK_NONROOT}'."
+  fi
+  if declare -p PREFIX_SYMLINKS &>/dev/null; then
+    local -a _sl=()
+    for _elem in "${PREFIX_SYMLINKS[@]}"; do
+      _sl+=("$(users__expand_path --user "$_symlink_user" "$_elem")")
+    done
+    PREFIX_SYMLINKS=("${_sl[@]}")
+  fi
+  if declare -p PREFIX_EXPORTS &>/dev/null; then
+    local -a _ex=()
+    for _elem in "${PREFIX_EXPORTS[@]}"; do
+      _ex+=("$(users__expand_path --user "$_symlink_user" "$_elem")")
+    done
+    PREFIX_EXPORTS=("${_ex[@]}")
+  fi
+
   logging__fn_exit "__resolve_prefix__"
   return
 }
@@ -2051,7 +2086,7 @@ printf '[verification] Verification skipped; this hook is a no-op.\n' >&2
 VERIFY_NOOP
       } > "${_FEAT_LIFECYCLE_POST_CREATE}verification.sh"
     else
-      local _vcmd="${_FEAT_VERIFY_CMD:-${_DF_EXPECTED_CMD}}"
+      local _vcmd="${_FEAT_VERIFY_CMD:-${_DF_EXPECTED_CMD:-${_FEAT_CONTRACT_PRIMARY_BIN}}}"
       if [[ -z "${_vcmd}" ]]; then
         logging__error "__deploy_lifecycle_scripts__: cannot write verification script — _DF_EXPECTED_CMD is empty and _options.verify.cmd is not set. Declare _options.verify.cmd or add _options.prefix.bins."
         return 1

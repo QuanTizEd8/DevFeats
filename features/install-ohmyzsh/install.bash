@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # _clone_custom_dir — Print the physical directory used for theme/plugin clones.
 # User-relative CUSTOM_DIR (~/... or $HOME/...) is not used directly for clones;
-# those always land under ${PREFIX}/custom so they are shared across users.
+# those always land under ${_RESOLVED_PREFIX}/custom so they are shared across users.
 # ---------------------------------------------------------------------------
 _clone_custom_dir() {
   # shellcheck disable=SC2016
@@ -12,7 +12,7 @@ _clone_custom_dir() {
     [[ "${CUSTOM_DIR}" != '$HOME'* ]]; then
     printf '%s' "${CUSTOM_DIR}"
   else
-    printf '%s' "${PREFIX}/custom"
+    printf '%s' "${_RESOLVED_PREFIX}/custom"
   fi
 }
 
@@ -176,7 +176,7 @@ __configure_user() {
   fi
 
   local _content
-  _content="export ZSH=\"${PREFIX}\""$'\n'
+  _content="export ZSH=\"${_RESOLVED_PREFIX}\""$'\n'
   _content+="ZSH_CACHE_DIR=\"${ZSH_CACHE_DIR}\""$'\n'
   # shellcheck disable=SC2016
   _content+='[ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"'$'\n'
@@ -220,7 +220,7 @@ __configure_user() {
       *) _link_mode="overwrite" ;;
     esac
     _link_custom_items \
-      "${PREFIX}/custom" \
+      "${_RESOLVED_PREFIX}/custom" \
       "$_effective_custom_dir" \
       "$THEME" \
       "${_link_mode}" \

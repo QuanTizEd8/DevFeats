@@ -16,8 +16,8 @@ __resolve_input_prefixes_post() {
   # Resolve SYSCONFDIR after PREFIX is known.  __install_run_source_build passes
   # it to make as sysconfdir=; _git__write_system_gitconfig uses it to locate gitconfig.
   if [[ "${SYSCONFDIR}" == "auto" ]]; then
-    if users__is_user_path "${PREFIX}"; then
-      SYSCONFDIR="$(users__home_of_path_owner "${PREFIX}")/.config"
+    if users__is_user_path "${_RESOLVED_PREFIX}"; then
+      SYSCONFDIR="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")/.config"
     else
       SYSCONFDIR="/etc"
     fi
@@ -51,12 +51,12 @@ __update_run_package__() {
 
 __install_run_source_pre() {
   # Validates the build environment and installs build deps before download.
-  file__mkdir "${PREFIX}" || {
-    logging__error "PREFIX '${PREFIX}' could not be created (check privilege)."
+  file__mkdir "${_RESOLVED_PREFIX}" || {
+    logging__error "PREFIX '${_RESOLVED_PREFIX}' could not be created (check privilege)."
     return 1
   }
-  if users__is_user_path "${PREFIX}" && [[ ! -w "${PREFIX}" ]]; then
-    logging__error "PREFIX '${PREFIX}' is not writable."
+  if users__is_user_path "${_RESOLVED_PREFIX}" && [[ ! -w "${_RESOLVED_PREFIX}" ]]; then
+    logging__error "PREFIX '${_RESOLVED_PREFIX}' is not writable."
     return 1
   fi
 
@@ -70,7 +70,7 @@ __install_run_source_pre() {
 
   # User-local installs cannot invoke the OS package manager; assume build
   # deps were preinstalled by the caller.
-  if ! users__is_user_path "${PREFIX}"; then
+  if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     __dep_install__ build source-build
   else
     logging__info "User-local mode: skipping build dependency installation; expecting required packages to be preinstalled."
@@ -82,7 +82,7 @@ __install_run_source_pre() {
 # $1 = path to the top-level extracted source directory.
 __install_run_source_build() {
   local _src_dir="$1"
-  local _git_make_flags="prefix=${PREFIX} sysconfdir=${SYSCONFDIR} USE_LIBPCRE2=YesPlease"
+  local _git_make_flags="prefix=${_RESOLVED_PREFIX} sysconfdir=${SYSCONFDIR} USE_LIBPCRE2=YesPlease"
 
   # Alpine requires these extra flags.
   if [[ "$(os__platform)" == "alpine" ]]; then
@@ -129,15 +129,15 @@ __install_run_source_build() {
   # `make install` does not install contrib/completion scripts.  Copy them
   # from the source tree to the prefix now, before the build dir is cleaned.
   local _comp_src_dir="${_src_dir}/contrib/completion"
-  local _comp_dst_dir="${PREFIX}/share/git-core/contrib/completion"
+  local _comp_dst_dir="${_RESOLVED_PREFIX}/share/git-core/contrib/completion"
   if [[ -d "${_comp_src_dir}" ]]; then
     file__mkdir "${_comp_dst_dir}"
     file__cp "${_comp_src_dir}/"*.bash "${_comp_dst_dir}/" 2> /dev/null || true
     file__cp "${_comp_src_dir}/"*.zsh "${_comp_dst_dir}/" 2> /dev/null || true
   fi
 
-  "${PREFIX}/bin/git" --version
-  logging__success "git ${VERSION} installed to ${PREFIX}/bin/git."
+  "${_RESOLVED_PREFIX}/bin/git" --version
+  logging__success "git ${VERSION} installed to ${_RESOLVED_PREFIX}/bin/git."
 }
 
 # ── Uninstall ──────────────────────────────────────────────────────────────
@@ -163,10 +163,10 @@ __uninstall_run_prefix_post() {
 
 _git__write_system_gitconfig() {
   local _cfg
-  if ! users__is_user_path "${PREFIX}"; then
+  if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     _cfg="${SYSCONFDIR}/gitconfig"
   else
-    _cfg="$(users__home_of_path_owner "${PREFIX}")/.config/git/config"
+    _cfg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")/.config/git/config"
   fi
 
   local _content=""
@@ -206,17 +206,17 @@ _export_git_manpath() {
   else
     _manpath_export_opt="$(printf '%s\n' "${PREFIX_EXPORTS[@]}")"
   fi
-  if [[ "${PREFIX}" == "/usr/local" || "${PREFIX}" == "$(users__resolve_home)/.local" ]]; then
+  if [[ "${_RESOLVED_PREFIX}" == "/usr/local" || "${_RESOLVED_PREFIX}" == "$(users__resolve_home)/.local" ]]; then
     logging__fn_exit "_export_git_manpath"
     return 0
   fi
   shell__write_env_block \
-    --scope "$(users__is_user_path "${PREFIX}" && printf user || printf system)" \
-    --home "$(users__home_of_path_owner "${PREFIX}")" \
+    --scope "$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)" \
+    --home "$(users__home_of_path_owner "${_RESOLVED_PREFIX}")" \
     --opt "${_manpath_export_opt}" \
     --profile-d "${_FEAT_PROFILE_D_FILE}" \
     --marker "git MANPATH (install-git)" \
-    --content "export MANPATH=\"${PREFIX}/share/man:\${MANPATH}\""
+    --content "export MANPATH=\"${_RESOLVED_PREFIX}/share/man:\${MANPATH}\""
   logging__fn_exit "_export_git_manpath"
 }
 
@@ -227,7 +227,7 @@ __configure_user() {
   local _current_user
   _current_user="$(users__get_current --no-sudo)"
 
-  if users__is_user_path "${PREFIX}" && [[ "${_user}" != "${_current_user}" ]]; then
+  if users__is_user_path "${_RESOLVED_PREFIX}" && [[ "${_user}" != "${_current_user}" ]]; then
     logging__warn "User-local mode: skipping gitconfig for '${_user}' (can only write for current user)."
     return 0
   fi
@@ -269,22 +269,22 @@ __install_finish_post() {
 __uninstall_finish_post() {
   # 1. Remove MANPATH export block written by _export_git_manpath.
   local _scope _export_files
-  _scope="$(users__is_user_path "${PREFIX}" && printf user || printf system)"
+  _scope="$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)"
   if [[ "${#PREFIX_EXPORTS[@]}" -gt 0 ]]; then
     _export_files="$(printf '%s\n' "${PREFIX_EXPORTS[@]}")"
   elif [[ "$_scope" = "system" ]]; then
     _export_files="$(shell__system_path_files --profile_d "${_FEAT_PROFILE_D_FILE}")"
   else
-    _export_files="$(shell__user_path_files --home "$(users__home_of_path_owner "${PREFIX}")")"
+    _export_files="$(shell__user_path_files --home "$(users__home_of_path_owner "${_RESOLVED_PREFIX}")")"
   fi
   shell__sync_block --files "${_export_files}" --marker "git MANPATH (install-git)"
 
   # 2. Remove system gitconfig block written by _git__write_system_gitconfig.
   local _cfg
-  if ! users__is_user_path "${PREFIX}"; then
+  if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     _cfg="${SYSCONFDIR}/gitconfig"
   else
-    _cfg="$(users__home_of_path_owner "${PREFIX}")/.config/git/config"
+    _cfg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")/.config/git/config"
   fi
   shell__sync_block --files "${_cfg}" --marker "system gitconfig (install-git)"
 

@@ -675,29 +675,29 @@ options:
   prefix:
     _apply_when: |
       #{{ return get("_options.prefix") is not None }}#
-    type: string
-    default: ""
-    _default: |
+    type: array
+    default: |
       #{{
         prefix = get("_options.prefix", {})
         root = prefix.get("root", "/usr/local")
         nonroot = prefix.get("nonroot", "${HOME}/.local")
         overrides = prefix.get("platform_overrides", [])
-        groups = []
+        lines = []
         for override in overrides:
             when = override.get("when", {})
-            when_args = " ".join(k + "=" + v for k, v in when.items())
             default_path = override.get("default", root)
             root_val = override.get("root", default_path)
             nonroot_val = override.get("nonroot", default_path)
-            if root_val == nonroot_val:
-                paths = '"' + root_val + '"'
-            else:
-                paths = '"' + root_val + '" "' + nonroot_val + '"'
-            groups.append(("-- " + when_args + " " + paths) if when_args else ("-- " + paths))
-        fallback = ('"' + root + '"') if root == nonroot else ('"' + root + '" "' + nonroot + '"')
-        groups.append("-- " + fallback)
-        return "$(users__first_writeable_path \\\n  " + " \\\n  ".join(groups) + ")"
+            conds = " ".join(k + "=" + v for k, v in when.items())
+            entry = (conds + " " + root_val).strip()
+            if root_val != nonroot_val:
+                entry += " " + nonroot_val
+            lines.append(entry)
+        if root == nonroot:
+            lines.append(root)
+        else:
+            lines.append(root + " " + nonroot)
+        return "\n".join(lines)
       }}#
     description: |
       #{{
@@ -886,9 +886,8 @@ options:
         return not prefix.get("symlink", {}).get("skip", False)
       }}#
     type: string
-    default: ""
-    _default: |
-      #{{ return get("_options.prefix", {}).get("symlink", {}).get("nonroot", "${HOME}/.local/bin") }}#
+    default: |
+      #{{ return get("_options.prefix", {}).get("symlink", {}).get("nonroot", "~/.local/bin") }}#
     description: >-
       Directory where symlinks are created when running as non-root.
       Override to place symlinks at a custom user-local location.

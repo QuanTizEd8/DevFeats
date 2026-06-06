@@ -15,8 +15,8 @@ __resolve_method() {
 __install_run_script_run() {
   local _script_path="$1"
   local _script_version="v${VERSION#v}"
-  if [[ -v PREFIX && -n "${PREFIX}" ]]; then
-    VERSION="${_script_version}" PREFIX="${PREFIX}" bash "${_script_path}"
+  if [[ -v _RESOLVED_PREFIX ]]; then
+    VERSION="${_script_version}" PREFIX="${_RESOLVED_PREFIX}" bash "${_script_path}"
   else
     VERSION="${_script_version}" bash "${_script_path}"
   fi

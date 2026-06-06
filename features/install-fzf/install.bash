@@ -25,7 +25,7 @@ __resolve_method() {
 # shellcheck disable=SC2329,SC2317
 __prefix_activation_snippet() {
   local _shell="$1"
-  local _bin="${PREFIX}/bin/fzf"
+  local _bin="${_RESOLVED_PREFIX}/bin/fzf"
   case "$_shell" in
     bash)
       printf "eval \"\$(\"%s\" --bash)\"\n" "$_bin"

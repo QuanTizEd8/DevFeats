@@ -23,8 +23,8 @@ __install_run_binary_post() {
   local _uvx_src
   _uvx_src="$(find "${INSTALLER_DIR}/asset" -name "uvx" -type f 2> /dev/null | head -1)"
   if [[ -n "${_uvx_src}" ]]; then
-    install -m 0755 "${_uvx_src}" "${PREFIX}/bin/uvx"
-    logging__install "Installed uvx → ${PREFIX}/bin/uvx"
+    install -m 0755 "${_uvx_src}" "${_RESOLVED_PREFIX}/bin/uvx"
+    logging__install "Installed uvx → ${_RESOLVED_PREFIX}/bin/uvx"
   else
     logging__warn "uvx binary not found in archive; skipping uvx installation."
   fi
@@ -37,6 +37,6 @@ __install_run_binary_post() {
 # shellcheck disable=SC2329,SC2317
 __install_run_script_run() {
   local _script_path="$1"
-  mkdir -p "${PREFIX}/bin"
-  UV_UNMANAGED_INSTALL="${PREFIX}/bin" "${_script_path}"
+  mkdir -p "${_RESOLVED_PREFIX}/bin"
+  UV_UNMANAGED_INSTALL="${_RESOLVED_PREFIX}/bin" "${_script_path}"
 }

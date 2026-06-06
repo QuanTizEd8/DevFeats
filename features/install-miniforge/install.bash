@@ -6,7 +6,7 @@ __prefix_activation_snippet() {
   local _shell="$1"
   local _tmpdir _f _snippet
   _tmpdir="$(mktemp -d)"
-  HOME="$_tmpdir" "${PREFIX}/bin/conda" init "$_shell" > /dev/null 2>&1 || true
+  HOME="$_tmpdir" "${_RESOLVED_PREFIX}/bin/conda" init "$_shell" > /dev/null 2>&1 || true
   for _f in "$_tmpdir"/.bashrc "$_tmpdir"/.bash_profile \
     "$_tmpdir"/.zshrc "$_tmpdir"/.zprofile; do
     if [[ -f "$_f" && -s "$_f" ]]; then
@@ -32,20 +32,20 @@ __resolve_method() { printf 'script\n'; }
 # Run the downloaded Miniforge installer, then display post-install info.
 __install_run_script_run() {
   local _installer="$1"
-  logging__install "Installing Miniforge to ${PREFIX}"
+  logging__install "Installing Miniforge to ${_RESOLVED_PREFIX}"
   if [[ "${INTERACTIVE:-}" == true ]]; then
-    /bin/bash "${_installer}" -p "${PREFIX}"
+    /bin/bash "${_installer}" -p "${_RESOLVED_PREFIX}"
   else
-    /bin/bash "${_installer}" -b -p "${PREFIX}"
+    /bin/bash "${_installer}" -b -p "${_RESOLVED_PREFIX}"
   fi
   logging__info "Conda info:"
-  "${PREFIX}/bin/conda" info
+  "${_RESOLVED_PREFIX}/bin/conda" info
   logging__info "Conda config:"
-  "${PREFIX}/bin/conda" config --show
+  "${_RESOLVED_PREFIX}/bin/conda" config --show
   logging__info "Conda env list:"
-  "${PREFIX}/bin/conda" env list
+  "${_RESOLVED_PREFIX}/bin/conda" env list
   logging__info "Conda package list (base):"
-  "${PREFIX}/bin/conda" list --name base
+  "${_RESOLVED_PREFIX}/bin/conda" list --name base
 }
 
 export_envs() {
@@ -53,10 +53,10 @@ export_envs() {
   local tmpdir="$1"
   mkdir -p "$tmpdir"
   local env_paths
-  env_paths="$("${PREFIX}/bin/conda" env list --json 2> /dev/null |
+  env_paths="$("${_RESOLVED_PREFIX}/bin/conda" env list --json 2> /dev/null |
     json__object_key_string_lines_stdin envs |
     grep '^/' |
-    grep -v "^${PREFIX}/*$")" || true
+    grep -v "^${_RESOLVED_PREFIX}/*$")" || true
   if [[ -z "$env_paths" ]]; then
     logging__info "No non-base environments found to preserve."
     logging__fn_exit "export_envs"
@@ -68,7 +68,7 @@ export_envs() {
     env_name="$(basename "$env_path")"
     local yaml_path="${tmpdir}/${env_name}.yml"
     logging__info "Exporting environment '${env_name}' to '${yaml_path}'."
-    if "${PREFIX}/bin/conda" env export --from-history --name "$env_name" > "$yaml_path" 2> /dev/null; then
+    if "${_RESOLVED_PREFIX}/bin/conda" env export --from-history --name "$env_name" > "$yaml_path" 2> /dev/null; then
       logging__success "Exported environment '${env_name}'."
     else
       logging__warn "Failed to export environment '${env_name}'. Skipping."
@@ -93,7 +93,7 @@ recreate_envs() {
     local env_name
     env_name="$(basename "$yaml_path" .yml)"
     logging__download "Recreating environment '${env_name}' from '${yaml_path}'."
-    if "${PREFIX}/bin/conda" env create --file "$yaml_path"; then
+    if "${_RESOLVED_PREFIX}/bin/conda" env create --file "$yaml_path"; then
       logging__success "Recreated environment '${env_name}'."
       rm -f "$yaml_path"
     else
@@ -168,11 +168,11 @@ __configure_user() {
   [[ -z "$_user_home" ]] && return 0
   if [[ "$ACTIVATE_ENV" == "base" ]]; then
     [[ "${PRESERVE_CONFIG:-}" == "false" ]] && return 0
-    if "${PREFIX}/bin/conda" config --describe auto_activate &> /dev/null; then
-      "${PREFIX}/bin/conda" config --remove-key auto_activate_base --file "$_user_home/.condarc" 2> /dev/null || true
-      "${PREFIX}/bin/conda" config --set auto_activate true --file "$_user_home/.condarc"
+    if "${_RESOLVED_PREFIX}/bin/conda" config --describe auto_activate &> /dev/null; then
+      "${_RESOLVED_PREFIX}/bin/conda" config --remove-key auto_activate_base --file "$_user_home/.condarc" 2> /dev/null || true
+      "${_RESOLVED_PREFIX}/bin/conda" config --set auto_activate true --file "$_user_home/.condarc"
     else
-      "${PREFIX}/bin/conda" config --set auto_activate_base true --file "$_user_home/.condarc"
+      "${_RESOLVED_PREFIX}/bin/conda" config --set auto_activate_base true --file "$_user_home/.condarc"
     fi
   else
     local _bashrc _zshrc
@@ -197,14 +197,14 @@ __install_finish_post() {
   __feat_do_configure_users__
   if [[ "${UPDATE_BASE:-}" == true ]]; then
     logging__warn "Updating base conda environment."
-    "${PREFIX}/bin/mamba" update -n base --all -y
+    "${_RESOLVED_PREFIX}/bin/mamba" update -n base --all -y
   fi
 }
 
 __exit_pre() {
-  if [ -n "${PREFIX-}" ] && [ -d "$PREFIX" ]; then
-    find "$PREFIX" -follow -type f -name '*.a' -delete 2> /dev/null || true
-    find "$PREFIX" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
-    "${PREFIX}/bin/conda" clean --all --yes 2> /dev/null || true
+  if [ -n "${_RESOLVED_PREFIX-}" ] && [ -d "$_RESOLVED_PREFIX" ]; then
+    find "$_RESOLVED_PREFIX" -follow -type f -name '*.a' -delete 2> /dev/null || true
+    find "$_RESOLVED_PREFIX" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
+    "${_RESOLVED_PREFIX}/bin/conda" clean --all --yes 2> /dev/null || true
   fi
 }

@@ -29,24 +29,24 @@ __install_run_script_run() {
   _work_dir="$(dirname "$(dirname "$_installer")")" # .../install-homebrew.XXXXX/
   file__chmod -R a+rX "$_work_dir"
   file__chmod a+x "$(dirname "$_work_dir")" # .../devfeats_XXXXX/
-  local -a _env_vars=("NONINTERACTIVE=1" "HOMEBREW_PREFIX=${PREFIX}")
+  local -a _env_vars=("NONINTERACTIVE=1" "HOMEBREW_PREFIX=${_RESOLVED_PREFIX}")
   [ -n "${BREW_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_BREW_GIT_REMOTE=${BREW_GIT_REMOTE}")
   [ -n "${CORE_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_CORE_GIT_REMOTE=${CORE_GIT_REMOTE}")
   [[ "${NO_INSTALL_FROM_API}" == true ]] && _env_vars+=("HOMEBREW_NO_INSTALL_FROM_API=1")
   logging__install "Running Homebrew installer as user '${INSTALL_USER}'."
   _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_installer"
-  if [ ! -f "${PREFIX}/bin/brew" ]; then
-    logging__error "Homebrew executable not found at '${PREFIX}/bin/brew' after installation."
+  if [ ! -f "${_RESOLVED_PREFIX}/bin/brew" ]; then
+    logging__error "Homebrew executable not found at '${_RESOLVED_PREFIX}/bin/brew' after installation."
     return 1
   fi
-  logging__success "Homebrew $("${PREFIX}/bin/brew" --version | head -1) is available at '${PREFIX}/bin/brew'."
+  logging__success "Homebrew $("${_RESOLVED_PREFIX}/bin/brew" --version | head -1) is available at '${_RESOLVED_PREFIX}/bin/brew'."
   logging__fn_exit "__install_run_script_run"
   return 0
 }
 
 uninstall_brew() {
   logging__fn_entry "uninstall_brew"
-  logging__remove "Uninstalling Homebrew at '${PREFIX}'."
+  logging__remove "Uninstalling Homebrew at '${_RESOLVED_PREFIX}'."
   local _url="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
   local _tmpfile
   _tmpfile="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
@@ -56,7 +56,7 @@ uninstall_brew() {
   chmod a+r "$_tmpfile"
   # Run as the current process (root when called from root) so it can remove
   # files in a root-provisioned prefix regardless of who owns them.
-  env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$PREFIX"
+  env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$_RESOLVED_PREFIX"
   logging__success "Homebrew uninstalled."
   logging__fn_exit "uninstall_brew"
   return 0
@@ -64,7 +64,7 @@ uninstall_brew() {
 
 # shellcheck disable=SC2329,SC2317
 __prefix_activation_snippet() {
-  echo "eval \"\$(\"${PREFIX}/bin/brew\" shellenv)\""
+  echo "eval \"\$(\"${_RESOLVED_PREFIX}/bin/brew\" shellenv)\""
   return 0
 }
 
@@ -75,9 +75,9 @@ __prefix_activation_snippet() {
 detect_brew_repository() {
   logging__fn_entry "detect_brew_repository"
   if [ "$(os__kernel)" = "Darwin" ] && [ "$(os__arch)" = "arm64" ]; then
-    echo "${PREFIX}"
+    echo "${_RESOLVED_PREFIX}"
   else
-    echo "${PREFIX}/Homebrew"
+    echo "${_RESOLVED_PREFIX}/Homebrew"
   fi
   logging__fn_exit "detect_brew_repository"
   return 0
@@ -142,7 +142,7 @@ _sync_init_files() {
   local _has_content=false
   [ $# -ge 2 ] && _has_content=true
   local _files _slug _is_root=false
-  ! users__is_user_path "${PREFIX}" && _is_root=true
+  ! users__is_user_path "${_RESOLVED_PREFIX}" && _is_root=true
 
   if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
@@ -301,8 +301,8 @@ __verify_system_requirements_post() {
 }
 
 __resolve_input_prefixes_post() {
-  if [ "$(os__kernel)" != "Darwin" ] && ! users__is_user_path "${PREFIX}"; then
-    prepare_prefix_if_needed "$PREFIX" "$INSTALL_USER"
+  if [ "$(os__kernel)" != "Darwin" ] && ! users__is_user_path "${_RESOLVED_PREFIX}"; then
+    prepare_prefix_if_needed "$_RESOLVED_PREFIX" "$INSTALL_USER"
   fi
   # On macOS the prefix (/opt/homebrew) is not under $HOME but is user-owned;
   # force user scope so activation writes to INSTALL_USER's home, not /etc/*.
@@ -321,11 +321,11 @@ __install_finish_post() {
   enforce_options
   if [[ "$UPDATE" == true ]]; then
     logging__info "Running 'brew update'."
-    _brew_run_as_install_user "${PREFIX}/bin/brew" update
+    _brew_run_as_install_user "${_RESOLVED_PREFIX}/bin/brew" update
     logging__success "brew update completed."
   fi
   logging__info "Running 'brew doctor' (warnings only)."
-  _brew_run_as_install_user "${PREFIX}/bin/brew" doctor 2>&1 || true
+  _brew_run_as_install_user "${_RESOLVED_PREFIX}/bin/brew" doctor 2>&1 || true
 }
 
 # Remove env-var export blocks written by enforce_options.

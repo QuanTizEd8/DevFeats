@@ -20,7 +20,7 @@ __resolve_method() {
 # shellcheck disable=SC2329,SC2317
 __install_run_script_pre() {
   declare -g -a _FEAT_INSTALL_SCRIPT_ARGS
-  _FEAT_INSTALL_SCRIPT_ARGS=(--yes --bin-dir "${PREFIX}/bin")
+  _FEAT_INSTALL_SCRIPT_ARGS=(--yes --bin-dir "${_RESOLVED_PREFIX}/bin")
   local _tag="${_FEAT_RESOLVED_TAG:-}"
   if [[ -z "${_tag}" && -v VERSION && -n "${VERSION}" ]]; then
     case "${VERSION}" in
@@ -107,7 +107,7 @@ __configure_user() {
         mkdir -p "$_nu_init_dir"
         # Generate the nushell init cache by running the installed binary directly.
         # The cache must be refreshed whenever starship is upgraded (re-run configure).
-        "${PREFIX}/bin/starship" init nu --print-full-init \
+        "${_RESOLVED_PREFIX}/bin/starship" init nu --print-full-init \
           > "${_nu_init_dir}/init.nu" 2> /dev/null || true
         shell__write_block \
           --file "$_nu_env" \

@@ -25,7 +25,7 @@ __install_run_source_build() {
   _jobs="$(nproc 2> /dev/null || sysctl -n hw.ncpu 2> /dev/null || printf "1")"
   (
     cd "${_src_dir}" || exit 1
-    make -j"${_jobs}" install PREFIX="${PREFIX}"
+    make -j"${_jobs}" install PREFIX="${_RESOLVED_PREFIX}"
   )
 }
 
@@ -36,7 +36,7 @@ __install_run_source_build() {
 # shellcheck disable=SC2329,SC2317
 __prefix_activation_snippet() {
   local _shell="$1"
-  local _bin="${PREFIX}/bin/direnv"
+  local _bin="${_RESOLVED_PREFIX}/bin/direnv"
   case "$_shell" in
     bash | zsh)
       printf "eval \"\$(%s hook %s)\"\n" "$_bin" "$_shell"

@@ -26,11 +26,11 @@ __install_run_binary_pre() {
   local _platform
   _platform="$(npm__node_platform)" || return 1
   declare -g _NODE_DIST_DIR="node-${VERSION}-${_platform}"
-  logging__info "Installing Node.js ${VERSION} (${_NODE_DIST_DIR}) to ${PREFIX}..."
+  logging__info "Installing Node.js ${VERSION} (${_NODE_DIST_DIR}) to ${_RESOLVED_PREFIX}..."
 }
 
 __install_run_binary_post() {
-  file__mkdir "$PREFIX"
-  file__cp -a "${INSTALLER_DIR}/asset/${_NODE_DIST_DIR}/." "${PREFIX}/"
-  logging__success "Node.js ${VERSION} (${_NODE_DIST_DIR}) extracted to ${PREFIX}."
+  file__mkdir "$_RESOLVED_PREFIX"
+  file__cp -a "${INSTALLER_DIR}/asset/${_NODE_DIST_DIR}/." "${_RESOLVED_PREFIX}/"
+  logging__success "Node.js ${VERSION} (${_NODE_DIST_DIR}) extracted to ${_RESOLVED_PREFIX}."
 }
