@@ -23,7 +23,7 @@ from proman.feature_env import resolved_env_vars
 
 from .checks import install_failure_patterns, load_checks
 from .codegen import generate_tests
-from .environments import is_macos, resolve
+from .environments import docker_buildkit_env, is_macos, resolve
 from .environments import load as load_envs
 from .feature_logs import (
     DEVFEATS_LOG_BIND_DIR_ENV,
@@ -318,7 +318,7 @@ def _run_devcontainer(
                 )
 
             print(f"\n══ devcontainer: {key} ══", flush=True)
-            run_env = os.environ.copy()
+            run_env = docker_buildkit_env()
             run_env[DEVFEATS_LOG_BIND_DIR_ENV] = str(log_bind_dir)
             result = subprocess.run(
                 [

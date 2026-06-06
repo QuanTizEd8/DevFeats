@@ -16,6 +16,15 @@ import yaml
 from proman.config import load as load_config
 
 _DOCKER_GITHUB_ARG_LINES = "ARG GITHUB_TOKEN\nENV GITHUB_TOKEN=${GITHUB_TOKEN}\n"
+_BUILDKIT_PROGRESS_PLAIN = "plain"
+
+
+def docker_buildkit_env(base: dict[str, str] | None = None) -> dict[str, str]:
+    """Return env for test Docker builds: BuildKit enabled, plain progress output."""
+    env = dict(base if base is not None else os.environ)
+    env["DOCKER_BUILDKIT"] = "1"
+    env["BUILDKIT_PROGRESS"] = _BUILDKIT_PROGRESS_PLAIN
+    return env
 
 
 def load(path: Path | str) -> dict:
@@ -144,11 +153,20 @@ def resolve(
         df_tmp = tf.name
 
     try:
-        cmd = ["docker", "build", "-t", tag, "-f", df_tmp, str(envs_dir)]
+        cmd = [
+            "docker",
+            "build",
+            "--progress",
+            _BUILDKIT_PROGRESS_PLAIN,
+            "-t",
+            tag,
+            "-f",
+            df_tmp,
+            str(envs_dir),
+        ]
         for k, v in build_args.items():
             cmd.extend(["--build-arg", f"{k}={v}"])
-        env_build = {**os.environ, "DOCKER_BUILDKIT": "1"}
-        subprocess.run(cmd, check=True, env=env_build)
+        subprocess.run(cmd, check=True, env=docker_buildkit_env())
     finally:
         Path(df_tmp).unlink(missing_ok=True)
 

@@ -116,7 +116,12 @@ def _build_scenario(
     (out_dir / df_name).write_text(
         f"FROM {base_image}\n{_DOCKER_GITHUB_ARG_LINES}{body}",
     )
-    result: dict = {"build": {"dockerfile": df_name}}
+    result: dict = {
+        "build": {
+            "dockerfile": df_name,
+            "options": ["--progress=plain"],
+        },
+    }
     if build_args:
         result["build"]["args"] = dict(build_args)
 
