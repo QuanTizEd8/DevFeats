@@ -26,15 +26,15 @@ def test_shell_val_plain_string() -> None:
 
 
 def test_shell_val_empty() -> None:
-    """Empty string and None both produce double empty quotes."""
-    assert _shell_val("", "string") == '""'
-    assert _shell_val(None, "string") == '""'
+    """Empty string and None both produce single empty quotes."""
+    assert _shell_val("", "string") == "''"
+    assert _shell_val(None, "string") == "''"
 
 
 def test_shell_val_boolean() -> None:
-    """Boolean type produces bare true/false without quotes."""
-    assert _shell_val(True, "boolean") == "true"  # noqa: FBT003
-    assert _shell_val(False, "boolean") == "false"  # noqa: FBT003
+    """Boolean type produces single-quoted true/false."""
+    assert _shell_val(True, "boolean") == "'true'"  # noqa: FBT003
+    assert _shell_val(False, "boolean") == "'false'"  # noqa: FBT003
 
 
 def test_shell_val_shell_expression_single_quoted() -> None:

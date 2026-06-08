@@ -331,8 +331,7 @@ class InstallScriptGenerator:
                     cli_inits.append(f'    {vname}=""')
                 else:
                     rhs = _shell_val(opt["default"], typ)
-                    if rhs.startswith("'") and "$" in rhs:
-                        cli_inits.append("    # shellcheck disable=SC2016")
+                    cli_inits.append("    # shellcheck disable=SC2016,SC2088")
                     cli_inits.append(f"    {vname}={rhs}")
             if typ == "array":
                 case_arms.append(
@@ -443,8 +442,7 @@ class InstallScriptGenerator:
                     blocks.append(f"argparse__default_array_value {vname} $'{escaped}'")
             else:
                 rhs = _shell_val(opt["default"], typ)
-                if rhs.startswith("'"):
-                    blocks.append("# shellcheck disable=SC2016,SC2088")
+                blocks.append("# shellcheck disable=SC2016,SC2088")
                 blocks.append(f"argparse__default {vname} {rhs}")
                 dynamic_default = opt.get("_default")
                 if dynamic_default is not None:
@@ -662,10 +660,11 @@ def _shell_val(default: object, typ: str) -> str:
     must use '_default:' (dynamic defaults) instead of 'default:'.
     """
     if typ == "boolean":
-        return "true" if default else "false"
+        return "'true'" if default else "'false'"
     if default == "" or default is None:
-        return '""'
-    return "'" + str(default).replace("'", "'\\''") + "'"
+        return "''"
+    val_escaped = str(default).replace("'", "'\\''")
+    return f"'{val_escaped}'"
 
 
 def _usage_type_hint(opt: dict) -> str:
