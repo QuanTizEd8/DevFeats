@@ -116,28 +116,31 @@ RESERVED = frozenset(
 
 
 def is_module_global(var: str) -> bool:
+    """Return whether ``var`` is an intentional module-level global name."""
     if re.match(r"^[A-Z][A-Z0-9_]*$", var):
         return True
     return any(p.match(var) for p in GLOBAL_VAR_PATTERNS)
 
 
 def parse_local_names(line: str) -> set[str]:
+    """Extract variable names declared ``local`` or non-global ``declare`` on a line."""
     found: set[str] = set()
     for m in LOCAL_DECL.finditer(line):
         for part in re.split(r"[\s=]+", m.group(1)):
-            part = part.strip("()[]{}")
-            if part and not part.startswith("-") and part not in {"true", "false"}:
-                found.add(part)
+            name = part.strip("()[]{}")
+            if name and not name.startswith("-") and name not in {"true", "false"}:
+                found.add(name)
     m = DECLARE_DECL.search(line)
     if m and "g" not in (m.group(1) or ""):
         for part in re.split(r"[\s=]+", m.group(2) or ""):
-            part = part.strip("()[]{}")
-            if part:
-                found.add(part)
+            name = part.strip("()[]{}")
+            if name:
+                found.add(name)
     return found
 
 
 def load_allowlist() -> set[tuple[str, str, str]]:
+    """Load ``file:function:var`` suppressions from the allowlist config file."""
     allowed: set[tuple[str, str, str]] = set()
     if not ALLOWLIST.is_file():
         return allowed
@@ -153,8 +156,11 @@ def load_allowlist() -> set[tuple[str, str, str]]:
     return allowed
 
 
-def walk_quotes(line: str, in_single: bool) -> bool:
-    """Advance single-quote state across one line (bash double-quoted strings ignored for carry)."""
+def walk_quotes(line: str, *, in_single: bool) -> bool:
+    """Advance single-quote state across one line.
+
+    Bash double-quoted strings are ignored for carry across lines.
+    """
     in_double = False
     for ch in line:
         if ch == "#" and not in_single and not in_double:
@@ -166,8 +172,11 @@ def walk_quotes(line: str, in_single: bool) -> bool:
     return in_single
 
 
-def brace_delta_outside_quotes(line: str, in_single_start: bool) -> int:
-    """Count { and } only outside bash quotes (ignore awk/program text in single quotes)."""
+def brace_delta_outside_quotes(line: str, *, in_single_start: bool) -> int:
+    """Count ``{`` and ``}`` only outside bash quotes.
+
+    Text inside single quotes (e.g. awk programs) is ignored.
+    """
     delta = 0
     in_single = in_single_start
     in_double = False
@@ -186,8 +195,11 @@ def brace_delta_outside_quotes(line: str, in_single_start: bool) -> int:
     return delta
 
 
-def quote_state_at(line: str, pos: int, in_single_start: bool) -> tuple[bool, bool]:
-    """Return (in_single, in_double) at pos, starting in_single_start from prior lines."""
+def quote_state_at(line: str, pos: int, *, in_single_start: bool) -> tuple[bool, bool]:
+    """Return ``(in_single, in_double)`` at ``pos`` in ``line``.
+
+    ``in_single_start`` reflects quote state carried from prior lines.
+    """
     in_single = in_single_start
     in_double = False
     for ch in line[:pos]:
@@ -200,8 +212,9 @@ def quote_state_at(line: str, pos: int, in_single_start: bool) -> tuple[bool, bo
     return in_single, in_double
 
 
-def assignment_in_quotes(line: str, start: int, in_single_start: bool) -> bool:
-    in_single, in_double = quote_state_at(line, start, in_single_start)
+def assignment_in_quotes(line: str, start: int, *, in_single_start: bool) -> bool:
+    """Return whether an assignment at ``start`` sits inside bash quotes."""
+    in_single, in_double = quote_state_at(line, start, in_single_start=in_single_start)
     return in_single or in_double
 
 
@@ -214,18 +227,18 @@ def is_flag_or_url_param(line: str, var_start: int) -> bool:
 
 
 def should_skip_line(stripped: str) -> bool:
+    """Return whether a stripped shell line should not be checked for assignments."""
     if stripped.startswith(SKIP_LINE_PREFIXES):
         return True
     if "awk " in stripped or " awk" in stripped:
         return True
     if stripped.startswith("git ") or " git " in stripped:
         return True
-    if CASE_PATTERN.match(stripped):
-        return True
-    return False
+    return bool(CASE_PATTERN.match(stripped))
 
 
 def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
+    """Scan one ``lib/*.sh`` file and return human-readable issue strings."""
     rel = path.name
     lines = path.read_text().splitlines()
     issues: list[str] = []
@@ -248,7 +261,7 @@ def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
         stripped = line.strip()
 
         if in_single_quote:
-            in_single_quote = walk_quotes(line, in_single_quote)
+            in_single_quote = walk_quotes(line, in_single=in_single_quote)
             continue
 
         if in_heredoc:
@@ -259,7 +272,7 @@ def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
 
         if "<<" in line:
             qpos = line.index("<<")
-            if not quote_state_at(line, qpos, in_single_quote)[0]:
+            if not quote_state_at(line, qpos, in_single_start=in_single_quote)[0]:
                 hm = re.search(r"<<\s*'?([A-Za-z_][A-Za-z0-9_]*)'?", line)
                 if hm:
                     in_heredoc = True
@@ -271,8 +284,8 @@ def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
             fname = m.group(1) or "<anon>"
             func_stack.append(fname)
             local_stack.append(set())
-            depth += brace_delta_outside_quotes(line, in_single_quote)
-            in_single_quote = walk_quotes(line, in_single_quote)
+            depth += brace_delta_outside_quotes(line, in_single_start=in_single_quote)
+            in_single_quote = walk_quotes(line, in_single=in_single_quote)
             # One-line functions: `name() { ...; }` open and close on the same line.
             if depth <= 0:
                 func_stack.pop()
@@ -281,19 +294,19 @@ def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
             continue
 
         if func_stack:
-            depth += brace_delta_outside_quotes(line, in_single_quote)
+            depth += brace_delta_outside_quotes(line, in_single_start=in_single_quote)
             if stripped == "}" and depth <= 0:
                 func_stack.pop()
                 local_stack.pop()
                 depth = 0
-                in_single_quote = walk_quotes(line, in_single_quote)
+                in_single_quote = walk_quotes(line, in_single=in_single_quote)
                 continue
 
             if local_stack:
                 local_stack[-1] |= parse_local_names(line)
 
             if stripped.startswith("#") or should_skip_line(stripped):
-                in_single_quote = walk_quotes(line, in_single_quote)
+                in_single_quote = walk_quotes(line, in_single=in_single_quote)
                 continue
 
             func = func_stack[-1]
@@ -306,21 +319,23 @@ def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
                     continue
                 if (rel, func, var) in allowlist:
                     continue
-                if assignment_in_quotes(line, start, in_single_quote):
+                if assignment_in_quotes(line, start, in_single_start=in_single_quote):
                     continue
                 if is_flag_or_url_param(line, start):
                     continue
                 issues.append(
                     f"{path}:{lineno}: {func}(): assignment to '{var}' without local "
-                    f"(declare 'local {var}' or add to .config/lib-local-vars.allowlist)"
+                    f"(declare 'local {var}' or add to "
+                    f".config/lib-local-vars.allowlist)"
                 )
 
-            in_single_quote = walk_quotes(line, in_single_quote)
+            in_single_quote = walk_quotes(line, in_single=in_single_quote)
 
     return issues
 
 
 def main(argv: list[str]) -> int:
+    """Run the checker on ``argv[1:]`` or all default ``lib/*.sh`` paths."""
     paths = [Path(p) for p in argv[1:]] if len(argv) > 1 else DEFAULT_PATHS
     allowlist = load_allowlist()
     all_issues: list[str] = []
@@ -334,7 +349,8 @@ def main(argv: list[str]) -> int:
         print("\n".join(all_issues), file=sys.stderr)
         print(
             f"\nlib-local-vars: {len(all_issues)} issue(s). "
-            "Use 'local' for function-scoped variables; see .config/lib-local-vars.allowlist.",
+            "Use 'local' for function-scoped variables; see "
+            ".config/lib-local-vars.allowlist.",
             file=sys.stderr,
         )
         return 1
