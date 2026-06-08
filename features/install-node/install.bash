@@ -1,6 +1,7 @@
 __resolve_version() {
   logging__info "Resolving Node.js version from nodejs.org..."
   mkdir -p "$INSTALLER_DIR"
+  logging__download "Fetching Node.js version index from 'https://nodejs.org/dist/index.json'."
   uri__fetch_asset \
     "https://nodejs.org/dist/index.json" \
     --file-dest "${INSTALLER_DIR}/index.json" > /dev/null
@@ -30,6 +31,7 @@ __install_run_binary_pre() {
 }
 
 __install_run_binary_post() {
+  logging__install "Extracting Node.js '${_NODE_DIST_DIR}' into '${_RESOLVED_PREFIX}'."
   file__mkdir "$_RESOLVED_PREFIX"
   file__cp -a "${INSTALLER_DIR}/asset/${_NODE_DIST_DIR}/." "${_RESOLVED_PREFIX}/"
   logging__success "Node.js ${VERSION} (${_NODE_DIST_DIR}) extracted to ${_RESOLVED_PREFIX}."

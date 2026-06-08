@@ -6,11 +6,14 @@
 # Binary releases cover linux and darwin for amd64 and arm64; fall back to package elsewhere.
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  logging__inspect "Resolving METHOD=auto for direnv."
   case "$(os__release_kernel):$(os__release_arch)" in
     linux:amd64 | linux:arm64 | darwin:amd64 | darwin:arm64)
+      logging__info "Resolved METHOD=auto → 'binary'."
       printf 'binary\n'
       ;;
     *)
+      logging__info "Resolved METHOD=auto → 'package'."
       printf 'package\n'
       ;;
   esac
@@ -20,6 +23,7 @@ __resolve_method() {
 # autotools which gets --prefix= injected).  Override so make receives it explicitly.
 # shellcheck disable=SC2329,SC2317
 __install_run_source_build() {
+  logging__build "Building direnv from source in '$1'."
   local _src_dir="$1"
   local _jobs
   _jobs="$(nproc 2> /dev/null || sysctl -n hw.ncpu 2> /dev/null || printf "1")"

@@ -46,7 +46,7 @@ npm__fetch_package_json() {
         shift
         ;;
       *)
-        logging__error "npm__fetch_package_json: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -89,15 +89,22 @@ npm__dist_tags() {
         shift
         ;;
       *)
-        logging__error "npm__dist_tags: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
   done
   local _base="${_registry:-https://registry.npmjs.org}"
   local _json
-  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "-/package" "$_package" "dist-tags")")" || return 1
-  [ -n "$_json" ] || return 1
+  logging__download "Fetching dist-tags for npm package '${_package}' from '${_base}'."
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "-/package" "$_package" "dist-tags")")" || {
+    logging__error "failed to fetch dist-tags for '${_package}'."
+    return 1
+  }
+  [ -n "$_json" ] || {
+    logging__error "empty dist-tags response for '${_package}'."
+    return 1
+  }
 
   local _out=""
   if _json__ensure_jq 2> /dev/null; then
@@ -110,7 +117,10 @@ npm__dist_tags() {
       grep -oE '"[^"]+"[[:space:]]*:[[:space:]]*"[^"]+"' |
       sed 's/^"//; s/"[[:space:]]*:[[:space:]]*"/=/; s/"$//')" || _out=""
   fi
-  [ -n "$_out" ] || return 1
+  [ -n "$_out" ] || {
+    logging__error "could not parse dist-tags for '${_package}'."
+    return 1
+  }
   printf '%s\n' "$_out"
 }
 
@@ -137,7 +147,7 @@ npm__latest_version() {
         shift
         ;;
       *)
-        logging__error "npm__latest_version: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -146,12 +156,12 @@ npm__latest_version() {
   [ -n "$_registry" ] && _args+=(--registry "$_registry")
   local _tags _ver
   _tags="$(npm__dist_tags "${_args[@]}")" || {
-    logging__error "npm__latest_version: could not fetch dist-tags for '${_package}'."
+    logging__error "could not fetch dist-tags for '${_package}'."
     return 1
   }
   _ver="$(printf '%s\n' "$_tags" | grep '^latest=' | sed 's/^latest=//')"
   [ -n "$_ver" ] || {
-    logging__error "npm__latest_version: no 'latest' dist-tag found for '${_package}'."
+    logging__error "no 'latest' dist-tag found for '${_package}'."
     return 1
   }
   printf '%s\n' "$_ver"
@@ -188,7 +198,7 @@ npm__versions() {
         shift
         ;;
       *)
-        logging__error "npm__versions: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -196,21 +206,27 @@ npm__versions() {
 
   local _base="${_registry:-https://registry.npmjs.org}"
   local _json
-  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "$_package")")" || return 1
-  [ -n "$_json" ] || return 1
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "$_package")")" || {
+    logging__error "failed to fetch package metadata for '${_package}'."
+    return 1
+  }
+  [ -n "$_json" ] || {
+    logging__error "empty package metadata for '${_package}'."
+    return 1
+  }
 
   _json__ensure_jq || {
-    logging__error "npm__versions: jq is required to list versions."
+    logging__error "jq is required to list versions."
     return 1
   }
 
   local _versions
   _versions="$(printf '%s\n' "$_json" | json__object_keys_stdin versions)" || {
-    logging__error "npm__versions: could not extract versions for '${_package}'."
+    logging__error "could not extract versions for '${_package}'."
     return 1
   }
   [ -n "$_versions" ] || {
-    logging__error "npm__versions: no versions found for '${_package}'."
+    logging__error "no versions found for '${_package}'."
     return 1
   }
 
@@ -254,17 +270,17 @@ npm__resolve_version_uri() {
   local _spec="${2:-stable}"
 
   [ -n "$_uri" ] || {
-    logging__error "npm__resolve_version_uri: uri is required."
+    logging__error "uri is required."
     return 1
   }
 
   local _json
   _json="$(_npm__registry_get "$_uri")" || {
-    logging__error "npm__resolve_version_uri: failed to fetch package document from '${_uri}'."
+    logging__error "failed to fetch package document from '${_uri}'."
     return 1
   }
   [ -n "$_json" ] || {
-    logging__error "npm__resolve_version_uri: empty response from '${_uri}'."
+    logging__error "empty response from '${_uri}'."
     return 1
   }
 
@@ -290,20 +306,20 @@ npm__resolve_version_uri() {
           head -1 | sed 's/^"latest"[^"]*"//; s/"$//')" || _version=""
       fi
       [ -n "$_version" ] || {
-        logging__error "npm__resolve_version_uri: no 'stable' or 'latest' dist-tag found at '${_uri}'."
+        logging__error "no 'stable' or 'latest' dist-tag found at '${_uri}'."
         return 1
       }
       ;;
     latest)
       # Most recently published, including pre-releases.
       _json__ensure_jq || {
-        logging__error "npm__resolve_version_uri: jq is required to resolve 'latest' spec."
+        logging__error "jq is required to resolve 'latest' spec."
         return 1
       }
       local _all_vers
       _all_vers="$(printf '%s\n' "$_json" | json__object_keys_stdin versions)" || _all_vers=""
       [ -n "$_all_vers" ] || {
-        logging__error "npm__resolve_version_uri: no 'versions' field in package document at '${_uri}'."
+        logging__error "no 'versions' field in package document at '${_uri}'."
         return 1
       }
       _version="$(printf '%s\n' "$_all_vers" | sort -rV | head -1)"
@@ -311,13 +327,13 @@ npm__resolve_version_uri() {
     [0-9]*)
       # Numeric prefix: find newest stable published version matching the prefix.
       _json__ensure_jq || {
-        logging__error "npm__resolve_version_uri: jq is required to resolve numeric spec '${_spec}'."
+        logging__error "jq is required to resolve numeric spec '${_spec}'."
         return 1
       }
       local _norm
       _norm="$(ver__extract_version --keep-suffix "$_spec")"
       [ -n "$_norm" ] || {
-        logging__error "npm__resolve_version_uri: spec '${_spec}' contains no numeric version content."
+        logging__error "spec '${_spec}' contains no numeric version content."
         return 1
       }
       local _stable_vers="" _v
@@ -325,12 +341,12 @@ npm__resolve_version_uri() {
         ver__semver_is_final "$_v" && _stable_vers+="${_stable_vers:+$'\n'}${_v}"
       done < <(printf '%s\n' "$_json" | json__object_keys_stdin versions | sort -rV)
       [ -n "$_stable_vers" ] || {
-        logging__error "npm__resolve_version_uri: no stable versions found at '${_uri}'."
+        logging__error "no stable versions found at '${_uri}'."
         return 1
       }
       _version="$(printf '%s\n' "$_stable_vers" | ver__first_matching_prefix "$_norm")" || _version=""
       [ -n "$_version" ] || {
-        logging__error "npm__resolve_version_uri: no stable version matching '${_spec}' at '${_uri}'."
+        logging__error "no stable version matching '${_spec}' at '${_uri}'."
         return 1
       }
       ;;
@@ -347,7 +363,7 @@ npm__resolve_version_uri() {
           head -1 | sed 's/^"[^"]*"[^"]*"//; s/"$//')" || _version=""
       fi
       [ -n "$_version" ] || {
-        logging__error "npm__resolve_version_uri: dist-tag '${_spec}' not found at '${_uri}'."
+        logging__error "dist-tag '${_spec}' not found at '${_uri}'."
         return 1
       }
       ;;
@@ -384,7 +400,7 @@ npm__resolve_version() {
         shift
         ;;
       --*)
-        logging__error "npm__resolve_version: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
       *)
@@ -393,7 +409,7 @@ npm__resolve_version() {
           _spec_set=true
           shift
         else
-          logging__error "npm__resolve_version: unexpected positional argument: '$1'"
+          logging__error "unexpected positional argument: '$1'"
           return 1
         fi
         ;;
@@ -436,14 +452,14 @@ npm__install_package() {
         shift
         ;;
       *)
-        logging__error "npm__install_package: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
   done
 
   [ -n "$_package" ] || {
-    logging__error "npm__install_package: --package is required."
+    logging__error "--package is required."
     return 1
   }
 
@@ -484,14 +500,14 @@ npm__uninstall_package() {
         shift
         ;;
       *)
-        logging__error "npm__uninstall_package: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
   done
 
   [ -n "$_package" ] || {
-    logging__error "npm__uninstall_package: --package is required."
+    logging__error "--package is required."
     return 1
   }
 
@@ -527,9 +543,18 @@ npm__is_managed() {
   command -v npm > /dev/null 2>&1 || return 1
 
   local _npm_prefix _npm_root
-  _npm_prefix="$(npm prefix -g 2> /dev/null)" || return 1
-  _npm_root="$(npm root -g 2> /dev/null)" || return 1
-  [[ -n "$_npm_prefix" && -n "$_npm_root" ]] || return 1
+  _npm_prefix="$(npm prefix -g 2> /dev/null)" || {
+    logging__error "failed to determine global npm prefix."
+    return 1
+  }
+  _npm_root="$(npm root -g 2> /dev/null)" || {
+    logging__error "failed to determine global npm root."
+    return 1
+  }
+  [[ -n "$_npm_prefix" && -n "$_npm_root" ]] || {
+    logging__error "global npm prefix or root is empty."
+    return 1
+  }
 
   # Canonicalize prefix/root so macOS /tmp → /private/tmp expansion is consistent
   # with the file__canonical_path-resolved _real path used in the comparison below.
@@ -573,7 +598,10 @@ npm__is_bundled() {
 
   # The wrapper lives at <prefix>/bin/<cmd>; walk up two levels to get the prefix.
   local _prefix
-  _prefix="$(cd "$(dirname "$_real")/.." 2> /dev/null && pwd)" || return 1
+  _prefix="$(cd "$(dirname "$_real")/.." 2> /dev/null && pwd)" || {
+    logging__error "failed to resolve bundled npm install prefix for '${_bin}'."
+    return 1
+  }
 
   [[ -x "${_prefix}/node/current/bin/node" ]] &&
     [[ -d "${_prefix}/pkg/current" ]] &&
@@ -595,11 +623,11 @@ npm__node_platform() {
   local _arch="${1:-$(os__arch)}"
   local _os _arch_token
   _os="$(os__release_kernel)" || {
-    logging__error "npm__node_platform: unsupported kernel."
+    logging__error "unsupported kernel."
     return 1
   }
   _arch_token="$(os__release_arch "$_arch" --flavor node)" || {
-    logging__error "npm__node_platform: unsupported architecture '${_arch}' for Node.js."
+    logging__error "unsupported architecture '${_arch}' for Node.js."
     return 1
   }
   printf '%s\n' "${_os}-${_arch_token}"
@@ -634,32 +662,32 @@ npm__resolve_node_version() {
         shift
         ;;
       *)
-        logging__error "npm__resolve_node_version: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
   done
 
   [ -n "$_spec" ] || {
-    logging__error "npm__resolve_node_version: version spec is required."
+    logging__error "version spec is required."
     return 1
   }
 
   local _index_json
   if [ -n "$_index_file" ]; then
     _index_json="$(cat "$_index_file")" || {
-      logging__error "npm__resolve_node_version: could not read index file '${_index_file}'."
+      logging__error "could not read index file '${_index_file}'."
       return 1
     }
   else
     _index_json="$(net__fetch_url_stdout "https://nodejs.org/dist/index.json")" || {
-      logging__error "npm__resolve_node_version: failed to fetch nodejs.org/dist/index.json."
+      logging__error "failed to fetch nodejs.org/dist/index.json."
       return 1
     }
   fi
 
   [ -n "$_index_json" ] || {
-    logging__error "npm__resolve_node_version: nodejs.org/dist/index.json was empty."
+    logging__error "nodejs.org/dist/index.json was empty."
     return 1
   }
 
@@ -679,7 +707,7 @@ npm__resolve_node_version() {
       if printf '%s\n' "$_index_json" | json__nodejs_index_version_stdin exact "$_spec" > /dev/null 2>&1; then
         _resolved="$_spec"
       else
-        logging__error "npm__resolve_node_version: version '${_spec}' not found in nodejs.org/dist/index.json."
+        logging__error "version '${_spec}' not found in nodejs.org/dist/index.json."
         return 1
       fi
       ;;
@@ -688,7 +716,7 @@ npm__resolve_node_version() {
       if printf '%s\n' "$_index_json" | json__nodejs_index_version_stdin exact "v${_spec}" > /dev/null 2>&1; then
         _resolved="v${_spec}"
       else
-        logging__error "npm__resolve_node_version: version '${_spec}' not found in nodejs.org/dist/index.json."
+        logging__error "version '${_spec}' not found in nodejs.org/dist/index.json."
         return 1
       fi
       ;;
@@ -696,14 +724,14 @@ npm__resolve_node_version() {
       _resolved="$(printf '%s\n' "$_index_json" | json__nodejs_index_version_stdin major "$_spec")" || _resolved=""
       ;;
     *)
-      logging__error "npm__resolve_node_version: unsupported version spec '${_spec}'."
+      logging__error "unsupported version spec '${_spec}'."
       logging__info "Supported: lts, lts/*, latest, node, a major number (e.g. 22), or an exact semver."
       return 1
       ;;
   esac
 
   [ -n "$_resolved" ] || {
-    logging__error "npm__resolve_node_version: could not resolve '${_spec}' from index.json."
+    logging__error "could not resolve '${_spec}' from index.json."
     return 1
   }
 
@@ -761,6 +789,13 @@ _npm__registry_get() {
   return "$_ec"
 }
 
+# @brief npm__ensure_npm — Ensure the `npm` CLI is on PATH, installing nodejs if needed.
+#
+# Returns: 0 if npm is available (or was just installed), 1 otherwise.
+npm__ensure_npm() {
+  _npm__ensure_npm
+}
+
 # _npm__ensure_npm  (internal)
 #
 # Verifies that the `npm` CLI is available on PATH. If absent, attempts to
@@ -788,10 +823,22 @@ _npm__bundled__pkg_tarball_url() {
   local _version="$2"
   local _registry="${3:-https://registry.npmjs.org}"
   local _json _url
-  _json="$(_npm__registry_get "$(_npm__registry_url "$_registry" "$_package" "$_version")")" || return 1
-  [ -n "$_json" ] || return 1
-  _url="$(printf '%s\n' "$_json" | json__query -r '.dist.tarball // empty' 2> /dev/null)" || return 1
-  [ -n "$_url" ] && [ "$_url" != "null" ] || return 1
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_registry" "$_package" "$_version")")" || {
+    logging__error "failed to fetch registry document for '${_package}@${_version}'."
+    return 1
+  }
+  [ -n "$_json" ] || {
+    logging__error "empty registry document for '${_package}@${_version}'."
+    return 1
+  }
+  _url="$(printf '%s\n' "$_json" | json__query -r '.dist.tarball // empty' 2> /dev/null)" || {
+    logging__error "could not parse dist.tarball for '${_package}@${_version}'."
+    return 1
+  }
+  [ -n "$_url" ] && [ "$_url" != "null" ] || {
+    logging__error "dist.tarball missing for '${_package}@${_version}'."
+    return 1
+  }
   printf '%s\n' "$_url"
 }
 
@@ -806,7 +853,10 @@ _npm__bundled__entry_point() {
   local _pkg_version_dir="$1"
   local _cmd="$2"
   local _pkg_json="${_pkg_version_dir}/package/package.json"
-  [ -f "$_pkg_json" ] || return 1
+  [ -f "$_pkg_json" ] || {
+    logging__error "package.json not found at '${_pkg_json}'."
+    return 1
+  }
 
   local _entry=""
   # shellcheck disable=SC2016  # $c is a jq variable (passed via --arg), not a shell variable
@@ -818,7 +868,10 @@ _npm__bundled__entry_point() {
     _entry="$(json__query -r '.main // empty' "$_pkg_json" 2> /dev/null)" || _entry=""
     [ "$_entry" = "null" ] && _entry=""
   fi
-  [ -n "$_entry" ] || return 1
+  [ -n "$_entry" ] || {
+    logging__error "no entry point found for command '${_cmd}' in '${_pkg_json}'."
+    return 1
+  }
   # Strip leading ./
   _entry="${_entry#./}"
   printf '%s\n' "$_entry"
@@ -898,14 +951,14 @@ npm__install_bundled() {
         shift
         ;;
       *)
-        logging__error "npm__install_bundled: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
   done
 
   [ -n "$_package" ] || {
-    logging__error "npm__install_bundled: --package is required."
+    logging__error "--package is required."
     return 1
   }
 
@@ -921,7 +974,7 @@ npm__install_bundled() {
   # Guard: --update requires an existing installation
   if [ "$_update" = "true" ]; then
     [ -f "${_prefix}/.metadata/installed-version" ] || {
-      logging__error "npm__install_bundled: --update requires an existing installation at '${_prefix}'. Run without --update for a fresh install."
+      logging__error "--update requires an existing installation at '${_prefix}'. Run without --update for a fresh install."
       return 1
     }
   fi
@@ -971,7 +1024,7 @@ npm__install_bundled() {
 
   # Node.js binaries from nodejs.org are glibc-linked; they will not run on Alpine (musl)
   if [ "$(os__platform)" = "alpine" ]; then
-    logging__error "npm__install_bundled: pre-built Node.js binaries are not supported on Alpine Linux (glibc-only)."
+    logging__error "pre-built Node.js binaries are not supported on Alpine Linux (glibc-only)."
     logging__info "On Alpine, install Node.js via the OS package manager and use npm__install_package instead."
     return 1
   fi
@@ -991,13 +1044,13 @@ npm__install_bundled() {
     local _node_tmp
     _node_tmp="$(file__mktmpdir "npm-bundled-node")"
     net__fetch_url_file "$_node_url" "${_node_tmp}/${_node_tarball}" || {
-      logging__error "npm__install_bundled: failed to download Node.js from '${_node_url}'."
+      logging__error "failed to download Node.js from '${_node_url}'."
       return 1
     }
     logging__info "Extracting Node.js ${_node_version}..."
     file__mkdir "${_node_version_dir}"
     file__extract_archive "${_node_tmp}/${_node_tarball}" "${_node_version_dir}" --strip 1 || {
-      logging__error "npm__install_bundled: failed to extract Node.js tarball."
+      logging__error "failed to extract Node.js tarball."
       return 1
     }
   else
@@ -1012,19 +1065,19 @@ npm__install_bundled() {
     logging__info "Downloading ${_package}@${_version}..."
     local _pkg_tarball_url
     _pkg_tarball_url="$(_npm__bundled__pkg_tarball_url "$_package" "$_version" "${_registry:-}")" || {
-      logging__error "npm__install_bundled: could not get tarball URL for '${_package}@${_version}'."
+      logging__error "could not get tarball URL for '${_package}@${_version}'."
       return 1
     }
     local _pkg_tmp
     _pkg_tmp="$(file__mktmpdir "npm-bundled-pkg")"
     net__fetch_url_file "$_pkg_tarball_url" "${_pkg_tmp}/pkg.tgz" || {
-      logging__error "npm__install_bundled: failed to download package tarball from '${_pkg_tarball_url}'."
+      logging__error "failed to download package tarball from '${_pkg_tarball_url}'."
       return 1
     }
     logging__info "Extracting ${_package}@${_version}..."
     file__mkdir "${_pkg_version_dir}"
     file__extract_archive "${_pkg_tmp}/pkg.tgz" "${_pkg_version_dir}" || {
-      logging__error "npm__install_bundled: failed to extract package tarball."
+      logging__error "failed to extract package tarball."
       return 1
     }
   else
@@ -1036,7 +1089,7 @@ npm__install_bundled() {
 
   # Validate entry point exists (wrapper resolves it at runtime; this is a fail-fast check)
   _npm__bundled__entry_point "${_pkg_version_dir}" "$_cmd" > /dev/null || {
-    logging__error "npm__install_bundled: could not determine entry point for '${_cmd}' in '${_package}@${_version}'."
+    logging__error "could not determine entry point for '${_cmd}' in '${_package}@${_version}'."
     return 1
   }
 
@@ -1068,7 +1121,7 @@ WRAPPER_EOF
   # Verify the bundled Node.js binary executes correctly
   local _node_bin="${_node_dir}/current/bin/node"
   "${_node_bin}" --version > /dev/null 2>&1 || {
-    logging__error "npm__install_bundled: installed Node.js binary '${_node_bin}' does not execute. The tarball may be corrupt or incompatible with this system."
+    logging__error "installed Node.js binary '${_node_bin}' does not execute. The tarball may be corrupt or incompatible with this system."
     return 1
   }
 
@@ -1139,7 +1192,7 @@ npm__uninstall_bundled() {
         shift
         ;;
       *)
-        logging__error "npm__uninstall_bundled: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -1148,7 +1201,7 @@ npm__uninstall_bundled() {
   # Derive prefix from --bin (also validates the layout via npm__is_bundled)
   if [ -n "$_bin" ]; then
     npm__is_bundled "$_bin" || {
-      logging__error "npm__uninstall_bundled: '${_bin}' is not a bundled npm installation."
+      logging__error "'${_bin}' is not a bundled npm installation."
       return 1
     }
     local _real
@@ -1158,7 +1211,7 @@ npm__uninstall_bundled() {
       *) _real="$(dirname "$_bin")/${_real}" ;;
     esac
     _prefix="$(cd "$(dirname "$_real")/.." && pwd)" || {
-      logging__error "npm__uninstall_bundled: could not resolve prefix from '${_bin}'."
+      logging__error "could not resolve prefix from '${_bin}'."
       return 1
     }
   fi
@@ -1170,7 +1223,7 @@ npm__uninstall_bundled() {
   fi
   if [ -z "$_prefix" ]; then
     [ -n "$_cmd" ] || {
-      logging__error "npm__uninstall_bundled: --prefix, --bin, --package, or --cmd is required."
+      logging__error "--prefix, --bin, --package, or --cmd is required."
       return 1
     }
     _prefix="${HOME}/.local/share/${_cmd}"
@@ -1181,12 +1234,12 @@ npm__uninstall_bundled() {
     if [ ! -x "${_prefix}/node/current/bin/node" ] ||
       [ ! -d "${_prefix}/pkg/current" ] ||
       [ ! -f "${_prefix}/.metadata/installed-version" ]; then
-      logging__error "npm__uninstall_bundled: '${_prefix}' does not look like a bundled npm installation; refusing to remove."
+      logging__error "'${_prefix}' does not look like a bundled npm installation; refusing to remove."
       return 1
     fi
     file__rm -rf "$_prefix"
-    logging__success "npm__uninstall_bundled: removed '${_prefix}'."
+    logging__success "removed '${_prefix}'."
   else
-    logging__info "npm__uninstall_bundled: nothing to uninstall at '${_prefix}'."
+    logging__info "nothing to uninstall at '${_prefix}'."
   fi
 }

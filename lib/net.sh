@@ -112,7 +112,7 @@ _net__fetch() {
         shift 2
         ;;
       *)
-        logging__error "_net__fetch: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -137,12 +137,12 @@ _NET_HDR_EOF_
     local _rc=$?
     [ "${_rc}" -eq 0 ] && return 0
     if [ -n "$_dest" ]; then
-      logging__error "net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with curl (exit ${_rc})."
+      logging__error "failed to fetch '${_url}' to '${_dest}' with curl (exit ${_rc})."
     else
-      logging__error "net__fetch_url_stdout: failed to fetch '${_url}' with curl (exit ${_rc})."
+      logging__error "failed to fetch '${_url}' with curl (exit ${_rc})."
     fi
     return "${_rc}"
-  else
+  elif [ "$_NET__FETCH_TOOL" = "wget" ] && command -v wget > /dev/null 2>&1; then
     if [ -n "$_dest" ]; then
       set -- -O "$_dest"
     else
@@ -159,12 +159,14 @@ _NET_HDR_EOF_
     local _rc=$?
     [ "${_rc}" -eq 0 ] && return 0
     if [ -n "$_dest" ]; then
-      logging__error "net__fetch_url_file: failed to fetch '${_url}' to '${_dest}' with wget (exit ${_rc})."
+      logging__error "failed to fetch '${_url}' to '${_dest}' with wget (exit ${_rc})."
     else
-      logging__error "net__fetch_url_stdout: failed to fetch '${_url}' with wget (exit ${_rc})."
+      logging__error "failed to fetch '${_url}' with wget (exit ${_rc})."
     fi
     return "${_rc}"
   fi
+  logging__error "no HTTP fetch tool available (curl/wget missing after bootstrap)."
+  return 1
 }
 
 # @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
@@ -186,6 +188,7 @@ _NET_HDR_EOF_
 net__fetch_url_stdout() {
   local _url="$1"
   shift
+  logging__download "Fetching '${_url}' to stdout."
   _net__fetch "$_url" "" "$@"
 }
 
@@ -207,6 +210,7 @@ net__fetch_url_stdout() {
 net__fetch_url_file() {
   local _url="$1" _dest="$2"
   shift 2
+  logging__download "Fetching '${_url}' to '${_dest}'."
   _net__fetch "$_url" "$_dest" "$@"
 }
 

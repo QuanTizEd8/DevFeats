@@ -28,7 +28,7 @@ _file__ensure_tool() {
   command -v "$1" > /dev/null 2>&1 && return 0
   ospkg__install_tracked "lib-file" "$2" || true
   command -v "$1" > /dev/null 2>&1 && return 0
-  logging__error "file.sh: $1 is required${3:+ $3} but could not be installed."
+  logging__error "$1 is required${3:+ $3} but could not be installed."
   return 1
 }
 
@@ -43,7 +43,7 @@ _file__ensure_extract_tool() {
       command -v xz > /dev/null 2>&1 && return 0
       ospkg__run --manifest "$_FILE__XZ_MANIFEST" --build-group "lib-file" || true
       command -v xz > /dev/null 2>&1 && return 0
-      logging__error "file.sh: xz is required to extract .tar.xz archives but could not be installed."
+      logging__error "xz is required to extract .tar.xz archives but could not be installed."
       return 1
       ;;
     bz2) _file__ensure_tool bzip2 bzip2 "to extract .tar.bz2 archives" ;;
@@ -59,10 +59,10 @@ _file__ensure_extract_tool() {
 # images. Falls back to ospkg when missing.
 _file__ensure_install_cmd() {
   command -v install > /dev/null 2>&1 && return 0
-  logging__info "file.sh: 'install' command not found; installing coreutils."
+  logging__info "'install' command not found; installing coreutils."
   ospkg__run --manifest "$_FILE__COREUTILS_MANIFEST" --build-group "lib-file" || true
   if ! command -v install > /dev/null 2>&1; then
-    logging__error "file.sh: 'install' is required but could not be installed."
+    logging__error "'install' is required but could not be installed."
     return 1
   fi
   return 0
@@ -126,10 +126,13 @@ file__install_dir() {
     esac
   done
   if [[ ${#_dirs[@]} -eq 0 ]]; then
-    logging__error "file__install_dir: no directories specified"
+    logging__error "no directories specified"
     return 1
   fi
-  _file__ensure_install_cmd || return 1
+  _file__ensure_install_cmd || {
+    logging__error "install command is required to create directories."
+    return 1
+  }
   local -a _cmd=(install -d -m "$_mode")
   [[ -n "$_owner" ]] && _cmd+=(-o "$_owner")
   [[ -n "$_group" ]] && _cmd+=(-g "$_group")
@@ -148,6 +151,7 @@ file__install_dir() {
       }
     done
   fi
+  logging__debug "Creating install directories: ${_dirs[*]} (mode=${_mode})."
   if $_needs_priv; then
     users__run_privileged "${_cmd[@]}" "${_dirs[@]}"
   else
@@ -166,6 +170,7 @@ file__install_dir() {
 #
 # Returns: 0 on success, non-zero on failure.
 file__mkdir() {
+  logging__debug "Creating directories: $*."
   local _needs_priv=false _d
   for _d in "$@"; do
     [[ ! -w "$(file__nearest_existing "$_d")" ]] && {
@@ -191,6 +196,7 @@ file__mkdir() {
 #
 # Returns: 0 on success, non-zero on failure.
 file__cp() {
+  logging__debug "Copying files (dest='${!#}')."
   local _dest="${!#}"
   local _needs_priv=false
   if [[ -e "$_dest" && ! -w "$_dest" ]]; then
@@ -229,6 +235,7 @@ file__rm() {
       shift
     fi
   done
+  ((${#_paths[@]} > 0)) && logging__remove "Removing paths: ${_paths[*]}."
   local _needs_priv=false _p
   for _p in "${_paths[@]}"; do
     if [[ -e "$_p" || -L "$_p" ]]; then
@@ -266,6 +273,7 @@ file__ln() {
   elif [[ ! -w "$(file__nearest_existing "$_parent")" ]]; then
     _needs_priv=true
   fi
+  logging__debug "Creating symlink '${_link_name}'."
   if $_needs_priv; then
     users__run_privileged ln "$@"
   else
@@ -395,7 +403,7 @@ file__tee() {
     esac
   done
   if [[ -z "$_file" ]]; then
-    logging__error "file__tee: no file specified"
+    logging__error "no file specified"
     return 1
   fi
   local _needs_priv=false
@@ -470,32 +478,55 @@ file__extract_archive() {
   fi
   local -a _strip_arg=()
   [ -n "$_strip" ] && _strip_arg=(--strip-components="$_strip")
+  logging__install "Extracting archive '${_arc}' to '${_dest}'."
   mkdir -p "$_dest"
   case "$_name" in
     *.tar.xz)
-      _file__ensure_extract_tool tar || return 1
-      _file__ensure_extract_tool xz || return 1
+      _file__ensure_extract_tool tar || {
+        logging__error "tar is required to extract '${_name}'."
+        return 1
+      }
+      _file__ensure_extract_tool xz || {
+        logging__error "xz is required to extract '${_name}'."
+        return 1
+      }
       tar -xJf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.tar.gz | *.tgz)
-      _file__ensure_extract_tool tar || return 1
-      _file__ensure_extract_tool gz || return 1
+      _file__ensure_extract_tool tar || {
+        logging__error "tar is required to extract '${_name}'."
+        return 1
+      }
+      _file__ensure_extract_tool gz || {
+        logging__error "gzip is required to extract '${_name}'."
+        return 1
+      }
       tar -xzf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.tar.bz2)
-      _file__ensure_extract_tool tar || return 1
-      _file__ensure_extract_tool bz2 || return 1
+      _file__ensure_extract_tool tar || {
+        logging__error "tar is required to extract '${_name}'."
+        return 1
+      }
+      _file__ensure_extract_tool bz2 || {
+        logging__error "bzip2 is required to extract '${_name}'."
+        return 1
+      }
       tar -xjf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.zip)
-      _file__ensure_extract_tool zip || return 1
+      _file__ensure_extract_tool zip || {
+        logging__error "unzip is required to extract '${_name}'."
+        return 1
+      }
       unzip -q -o "$_arc" -d "$_dest"
       ;;
     *)
-      logging__warn "Unrecognized archive format: '$(basename "$_name")'. Skipping."
+      logging__warn "Unrecognized archive format: '$(basename "$_name")'; skipping extraction."
       return 1
       ;;
   esac
+  logging__success "Extracted archive '${_arc}' to '${_dest}'."
 }
 
 # @brief file__nearest_existing <path> — Walk up dirname until an existing path component is found.
@@ -511,7 +542,7 @@ file__extract_archive() {
 file__nearest_existing() {
   local _p="$1"
   [[ "$_p" = /* ]] || {
-    logging__error "file__nearest_existing: path must be absolute: '${_p}'"
+    logging__error "path must be absolute: '${_p}'"
     return 1
   }
   while [[ "$_p" != "/" && ! -e "$_p" ]]; do _p="$(dirname "$_p")"; done
@@ -546,7 +577,10 @@ file__session_root() {
 # No-op when the root was injected (not created by `file__session_ensure`).
 file__session_cleanup() {
   if [[ "${_FILE__SESSION_OWNED:-}" == true && -n "${_FILE__SESSION_ROOT:-}" ]]; then
+    logging__clean "Removing session scratch tree '${_FILE__SESSION_ROOT}'."
     rm -rf "${_FILE__SESSION_ROOT}"
+  else
+    logging__skip "Session scratch tree not owned by this process; skipping cleanup."
   fi
   _FILE__SESSION_ROOT=
   _FILE__SESSION_OWNED=false

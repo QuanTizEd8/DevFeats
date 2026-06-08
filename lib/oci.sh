@@ -111,8 +111,14 @@ _oci__oras_capture() {
       _suffix+=("$_arg")
     fi
   done
-  [[ -n "$_target" ]] || return 1
-  [[ "${#_prefix[@]}" -gt 0 ]] || return 1
+  [[ -n "$_target" ]] || {
+    logging__error "oras target reference is empty."
+    return 1
+  }
+  [[ "${#_prefix[@]}" -gt 0 ]] || {
+    logging__error "oras command prefix is empty."
+    return 1
+  }
   if [[ "$_plain" == "1" ]]; then
     # Some oras subcommands honor plain-http only via env or global flag.
     ORAS_PLAIN_HTTP=1 "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null && return 0
@@ -190,7 +196,7 @@ _oci__ensure_auth_for() {
     _OCI__AUTH_DONE["$_reg"]=1
   else
     rm -f "$_tmp"
-    logging__error "oci.sh: failed to authenticate to '${_reg}'."
+    logging__error "failed to authenticate to '${_reg}'."
     return 1
   fi
   rm -f "$_tmp"
@@ -226,18 +232,18 @@ oci__ensure_oras() {
     _bin="$(command -v oras 2> /dev/null || true)"
   fi
   [[ -n "$_bin" ]] || {
-    logging__error "oci.sh: oras could not be installed."
+    logging__error "oras could not be installed."
     return 1
   }
 
   local _ver
   _ver="$(ver__extract_version "$("$_bin" version 2> /dev/null | head -n1)")"
   [[ -n "$_ver" ]] || {
-    logging__warn "oci.sh: could not determine oras version; continuing."
+    logging__warn "could not determine oras version; continuing."
     return 0
   }
   ver__semver_ge "$_ver" "$_OCI__ORAS_MIN_VERSION" || {
-    logging__error "oci.sh: oras version ${_ver} is below required ${_OCI__ORAS_MIN_VERSION}."
+    logging__error "oras version ${_ver} is below required ${_OCI__ORAS_MIN_VERSION}."
     return 1
   }
   return 0
@@ -307,14 +313,20 @@ _oci__tag_from_ref() {
 oci__list_tags() {
   local _repo="${1-}"
   local _target _plain
-  [[ -n "$_repo" ]] || return 1
+  [[ -n "$_repo" ]] || {
+    logging__error "OCI repository reference is empty."
+    return 1
+  }
   oci__ensure_oras || return 1
-  _oci__ensure_auth_for "$_repo" || return 1
+  _oci__ensure_auth_for "$_repo" || {
+    logging__error "OCI registry authentication failed for '${_repo}'."
+    return 1
+  }
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_repo")"
   local _raw
   _raw="$(_oci__oras_capture "$_target" "$_plain" oras repo tags || true)"
   if [[ -z "${_raw:-}" ]]; then
-    logging__error "oci.sh: failed to list tags for ${_repo}."
+    logging__error "failed to list tags for ${_repo}."
     return 1
   fi
   printf '%s\n' "$_raw" | tr -d '\r' | sed '/^[[:space:]]*$/d'
@@ -343,7 +355,10 @@ _oci__highest_semver() {
     fi
     _list="${_list}${_sv}"$'\n'
   done <<< "$_tags"
-  [[ -n "$_list" ]] || return 1
+  [[ -n "$_list" ]] || {
+    logging__error "no semver tags found in tag list."
+    return 1
+  }
   printf '%s' "$_list" | sed '/^$/d' | sort -V | tail -n1
 }
 
@@ -361,7 +376,10 @@ _oci__highest_semver() {
 # Returns: 0 on success, 1 if no matching tag is found.
 oci__resolve_version() {
   local _repo="${1-}" _spec="${2-}"
-  [[ -n "$_repo" ]] || return 1
+  [[ -n "$_repo" ]] || {
+    logging__error "OCI repository reference is empty."
+    return 1
+  }
   local _tags _hi
   _tags="$(oci__list_tags "$_repo")" || return 1
 
@@ -373,7 +391,7 @@ oci__resolve_version() {
       fi
       _hi="$(_oci__highest_semver "$_tags" false 2> /dev/null || true)"
       [[ -n "$_hi" ]] || {
-        logging__error "oci.sh: no matching tags for '${_repo}'."
+        logging__error "no matching tags for '${_repo}'."
         return 1
       }
       printf '%s\n' "$_hi"
@@ -388,7 +406,7 @@ oci__resolve_version() {
       printf '%s\n' "$_norm"
       return 0
     fi
-    logging__error "oci.sh: no tag found for spec '${_spec}' in '${_repo}'."
+    logging__error "no tag found for spec '${_spec}' in '${_repo}'."
     return 1
   fi
 
@@ -420,7 +438,7 @@ oci__resolve_version() {
     _cands="${_cands}${_sv}"$'\n'
   done <<< "$_tags"
   [[ -n "$_cands" ]] || {
-    logging__error "oci.sh: no tag found for spec '${_spec}' in '${_repo}'."
+    logging__error "no tag found for spec '${_spec}' in '${_repo}'."
     return 1
   }
   printf '%s' "$_cands" | sed '/^$/d' | sort -V | tail -n1
@@ -439,10 +457,22 @@ oci__resolve_version() {
 # Returns: 0 if both required files are present, 1 otherwise.
 _oci__validate_feature_tgz() {
   local _tgz="${1-}" _list
-  [[ -f "$_tgz" ]] || return 1
-  _list="$(tar -tzf "$_tgz" 2> /dev/null)" || return 1
-  printf '%s\n' "$_list" | grep -Eq '(^|/)\.?/?install\.sh$' || return 1
-  printf '%s\n' "$_list" | grep -Eq '(^|/)\.?/?devcontainer-feature\.json$' || return 1
+  [[ -f "$_tgz" ]] || {
+    logging__error "feature tarball not found: '${_tgz}'."
+    return 1
+  }
+  _list="$(tar -tzf "$_tgz" 2> /dev/null)" || {
+    logging__error "failed to list contents of feature tarball '${_tgz}'."
+    return 1
+  }
+  printf '%s\n' "$_list" | grep -Eq '(^|/)\.?/?install\.sh$' || {
+    logging__error "feature tarball '${_tgz}' is missing install.sh."
+    return 1
+  }
+  printf '%s\n' "$_list" | grep -Eq '(^|/)\.?/?devcontainer-feature\.json$' || {
+    logging__error "feature tarball '${_tgz}' is missing devcontainer-feature.json."
+    return 1
+  }
 }
 
 # @brief _oci__expected_layer_digest_for_ref <ref> — Fetch the OCI manifest for `<ref>` and return the digest of the first devcontainer layer.
@@ -461,7 +491,10 @@ _oci__expected_layer_digest_for_ref() {
   local _ref="${1-}" _manifest _dig _target _plain
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_ref")"
   _manifest="$(_oci__oras_capture "$_target" "$_plain" oras manifest fetch || true)"
-  [[ -n "$_manifest" ]] || return 1
+  [[ -n "$_manifest" ]] || {
+    logging__error "failed to fetch OCI manifest for '${_ref}'."
+    return 1
+  }
   _dig="$(printf '%s' "$_manifest" |
     json__query -r '
       [
@@ -476,7 +509,10 @@ _oci__expected_layer_digest_for_ref() {
   if [[ -z "$_dig" || "$_dig" == "null" ]]; then
     _dig="$(printf '%s\n' "$_manifest" | sed -n 's/.*"digest"[[:space:]]*:[[:space:]]*"\(sha256:[0-9a-fA-F]\{64\}\)".*/\1/p' | head -n1)"
   fi
-  [[ -n "$_dig" && "$_dig" != "null" ]] || return 1
+  [[ -n "$_dig" && "$_dig" != "null" ]] || {
+    logging__error "no devcontainer layer digest found in manifest for '${_ref}'."
+    return 1
+  }
   printf '%s\n' "$_dig"
 }
 
@@ -493,18 +529,22 @@ _oci__expected_layer_digest_for_ref() {
 oci__pull_feature_tgz() {
   local _ref="${1-}" _dest="${2-}" _target _plain
   [[ -n "$_ref" && -n "$_dest" ]] || {
-    logging__error "oci__pull_feature_tgz: requires <oci-ref> and <dest-tgz>."
+    logging__error "requires <oci-ref> and <dest-tgz>."
     return 1
   }
   oci__ensure_oras || return 1
-  _oci__ensure_auth_for "$_ref" || return 1
+  logging__download "Pulling OCI feature artifact '${_ref}'."
+  _oci__ensure_auth_for "$_ref" || {
+    logging__error "OCI registry authentication failed for '${_ref}'."
+    return 1
+  }
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_ref")"
   local _tmp
   _tmp="$(file__mktmpdir "oci-pull")"
   local _expect_digest=""
   _expect_digest="$(_oci__expected_layer_digest_for_ref "$_ref" 2> /dev/null || true)"
   if ! _oci__oras_capture "$_target" "$_plain" oras pull -o "$_tmp" > /dev/null; then
-    logging__error "oci.sh: failed to pull '${_ref}'."
+    logging__error "failed to pull '${_ref}'."
     return 1
   fi
   local _tgz
@@ -513,7 +553,7 @@ oci__pull_feature_tgz() {
   done
   [[ "${_tgz:-}" == "$_tmp/*.tgz" ]] && _tgz=""
   [[ -n "$_tgz" ]] || {
-    logging__error "oci.sh: no .tgz layer materialized for '${_ref}'."
+    logging__error "no .tgz layer materialized for '${_ref}'."
     return 1
   }
   if ! _oci__validate_feature_tgz "$_tgz"; then
@@ -524,12 +564,12 @@ oci__pull_feature_tgz() {
     local _got
     _got="sha256:$(verify__hash_file "$_tgz" 2> /dev/null || true)"
     if [[ "$_got" != "$_expect_digest" ]]; then
-      logging__error "oci.sh: pulled layer digest mismatch for '${_ref}'."
+      logging__error "pulled layer digest mismatch for '${_ref}'."
       return 1
     fi
   fi
   cp "$_tgz" "$_dest" || {
-    logging__error "oci.sh: failed to copy tgz artifact to '${_dest}'."
+    logging__error "failed to copy tgz artifact to '${_dest}'."
     return 1
   }
   return 0

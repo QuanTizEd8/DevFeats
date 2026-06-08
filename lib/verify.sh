@@ -41,12 +41,15 @@ _verify__sha_dispatch() {
 verify__hash_file() {
   local _file="$1"
   local _algo="${2:-256}"
-  [ -f "$_file" ] || return 1
+  [ -f "$_file" ] || {
+    logging__error "file not found: '${_file}'."
+    return 1
+  }
   _verify__sha_dispatch "$_file" "$_algo" && return
   logging__info "sha${_algo}sum/shasum not found — installing coreutils."
   ospkg__install_tracked "lib-verify" coreutils
   _verify__sha_dispatch "$_file" "$_algo" || {
-    logging__error "verify__hash_file: no sha${_algo}sum or shasum available after coreutils install."
+    logging__error "no sha${_algo}sum or shasum available after coreutils install."
     return 1
   }
 }
@@ -67,7 +70,10 @@ verify__sha() {
   local _algo="${3:-256}"
   local _actual
 
-  _actual="$(verify__hash_file "$_file" "$_algo")" || return 1
+  _actual="$(verify__hash_file "$_file" "$_algo")" || {
+    logging__error "could not hash file '${_file}'."
+    return 1
+  }
 
   if [ "$_expected" = "$_actual" ]; then
     logging__success "Checksum verification passed."
@@ -97,7 +103,7 @@ verify__sha_sidecar() {
   local _expected
   _expected="$(awk '{print $1}' "$_hash_file")"
   [ -z "$_expected" ] && {
-    logging__error "verify__sha_sidecar: could not read hash from '${_hash_file}'."
+    logging__error "could not read hash from '${_hash_file}'."
     return 1
   }
   verify__sha "$_file" "$_expected" "$_algo"
@@ -120,7 +126,7 @@ verify__gpg_ensure() {
   logging__info "gpg not found — installing gnupg."
   ospkg__run --manifest "$_VERIFY__GPG_MANIFEST" --build-group "$_group" || return 1
   command -v gpg > /dev/null 2>&1 || {
-    logging__error "verify__gpg_ensure: gpg still not found after installing gnupg."
+    logging__error "gpg still not found after installing gnupg."
     return 1
   }
 }
@@ -141,31 +147,34 @@ verify__gpg_ensure() {
 verify__gpg_detached() {
   local _file="$1" _sig="${2-}" _key="${3-}" _group="${4:-lib-verify}"
   [[ -f "$_file" ]] || {
-    logging__error "verify__gpg_detached: artifact not found: '${_file}'."
+    logging__error "artifact not found: '${_file}'."
     return 1
   }
   [[ -f "$_sig" ]] || {
-    logging__error "verify__gpg_detached: signature file not found: '${_sig}'."
+    logging__error "signature file not found: '${_sig}'."
     return 1
   }
   [[ -f "$_key" ]] || {
-    logging__error "verify__gpg_detached: key file not found: '${_key}'."
+    logging__error "key file not found: '${_key}'."
     return 1
   }
 
-  verify__gpg_ensure "$_group" || return 1
+  verify__gpg_ensure "$_group" || {
+    logging__error "gpg is required for detached signature verification."
+    return 1
+  }
 
   local _ghome
   _ghome="$(file__mktmpdir "verify-gpg")"
   chmod 0700 "$_ghome"
 
   if ! gpg --homedir "$_ghome" --import "$_key" > /dev/null 2>&1; then
-    logging__error "verify__gpg_detached: failed to import key from '${_key}'."
+    logging__error "failed to import key from '${_key}'."
     return 1
   fi
 
   if ! gpg --homedir "$_ghome" --verify "$_sig" "$_file" > /dev/null 2>&1; then
-    logging__error "verify__gpg_detached: signature verification failed for '$(basename "$_file")'."
+    logging__error "signature verification failed for '$(basename "$_file")'."
     return 1
   fi
 
@@ -180,7 +189,10 @@ verify__gpg_detached() {
 #   [group_id]   Tracking group for auto-installing gpg (default: lib-verify).
 verify__gpg_dearmor_stream() {
   local _dest="$1" _group="${2:-lib-verify}"
-  verify__gpg_ensure "$_group" || return 1
+  verify__gpg_ensure "$_group" || {
+    logging__error "gpg is required to dearmor a key stream."
+    return 1
+  }
   gpg --dearmor -o "$_dest"
 }
 
@@ -195,7 +207,10 @@ verify__gpg_dearmor_stream() {
 #   [group_id]     Tracking group for auto-installing gpg (default: lib-verify).
 verify__gpg_fetch_key_by_fingerprint() {
   local _fingerprint="$1" _dest="$2" _group="${3:-lib-verify}"
-  verify__gpg_ensure "$_group" || return 1
+  verify__gpg_ensure "$_group" || {
+    logging__error "gpg is required to fetch a key by fingerprint."
+    return 1
+  }
   mkdir -p "$(dirname "$_dest")"
 
   # Primary: HTTPS download from Ubuntu keyserver.
@@ -224,6 +239,6 @@ verify__gpg_fetch_key_by_fingerprint() {
       fi
     fi
   done
-  logging__error "verify__gpg_fetch_key_by_fingerprint: failed to fetch key ${_fingerprint} from all keyservers."
+  logging__error "failed to fetch key ${_fingerprint} from all keyservers."
   return 1
 }

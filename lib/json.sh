@@ -14,7 +14,7 @@ _json__ensure_jq() {
   logging__info "jq not found — installing."
   ospkg__install_tracked "lib-json" jq >&2 || true
   command -v jq > /dev/null 2>&1 || {
-    logging__error "json.sh: jq could not be installed."
+    logging__error "jq could not be installed."
     return 1
   }
 }
@@ -27,7 +27,10 @@ _json__ensure_jq() {
 #
 # Returns: jq exit code.
 json__query() {
-  _json__ensure_jq || return 1
+  _json__ensure_jq || {
+    logging__error "jq is required for JSON query."
+    return 1
+  }
   jq "$@"
 }
 
@@ -63,15 +66,25 @@ json__root_scalar_stdin() {
 # Returns: 0 on success, 1 if no values found or jq is unavailable.
 json__array_field_lines_stdin() {
   local _field="$1" _json _out
-  _json="$(cat)" || return 1
-  [ -z "$_json" ] && return 1
-  _json__ensure_jq || return 1
+  _json="$(cat)" || {
+    logging__error "failed to read JSON from stdin."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "empty JSON input."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to read array field '${_field}'."
+    return 1
+  }
   _out="$(printf '%s\n' "$_json" | jq -r --arg f "$_field" \
     'if type == "array" then .[] | .[$f] // empty | if type == "string" or type == "number" then tostring else empty end else empty end' 2> /dev/null)" || _out=""
   if [ -n "$_out" ]; then
     printf '%s\n' "$_out"
     return 0
   fi
+  logging__error "no values found for array field '${_field}'."
   return 1
 }
 
@@ -88,15 +101,25 @@ json__array_field_lines_stdin() {
 # Returns: 0 on success, 1 if no values found or jq is unavailable.
 json__object_array_field_lines_stdin() {
   local _ak="$1" _field="$2" _json _out
-  _json="$(cat)" || return 1
-  [ -z "$_json" ] && return 1
-  _json__ensure_jq || return 1
+  _json="$(cat)" || {
+    logging__error "failed to read JSON from stdin."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "empty JSON input."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to read '${_ak}[].${_field}'."
+    return 1
+  }
   _out="$(printf '%s\n' "$_json" | jq -r --arg ak "$_ak" --arg f "$_field" \
     '(.[$ak] | if type == "array" then .[] else empty end) | .[$f] // empty | if type == "string" or type == "number" then tostring else empty end' 2> /dev/null)" || _out=""
   if [ -n "$_out" ]; then
     printf '%s\n' "$_out"
     return 0
   fi
+  logging__error "no values found for '${_ak}[].${_field}'."
   return 1
 }
 
@@ -112,9 +135,18 @@ json__object_array_field_lines_stdin() {
 # Returns: 0 on success, 1 if no values found or jq is unavailable.
 json__object_map_string_values_stdin() {
   local _sub="${1-}" _json _out
-  _json="$(cat)" || return 1
-  [ -z "$_json" ] && return 1
-  _json__ensure_jq || return 1
+  _json="$(cat)" || {
+    logging__error "failed to read JSON from stdin."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "empty JSON input."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to read object string values."
+    return 1
+  }
   _out="$(printf '%s\n' "$_json" | jq -r --arg sk "$_sub" \
     'if ($sk | length) == 0 then
       (if type == "object" then to_entries[].value | select(type == "string") else empty end)
@@ -125,6 +157,7 @@ json__object_map_string_values_stdin() {
     printf '%s\n' "$_out"
     return 0
   fi
+  logging__error "no string values found in JSON object."
   return 1
 }
 
@@ -136,10 +169,22 @@ json__object_map_string_values_stdin() {
 # Stdout: one string per line.
 json__object_key_string_lines_stdin() {
   local _key="${1-}" _json _out
-  [ -z "$_key" ] && return 1
-  _json="$(cat)" || return 1
-  [ -z "$_json" ] && return 1
-  _json__ensure_jq || return 1
+  [ -z "$_key" ] && {
+    logging__error "object key is required."
+    return 1
+  }
+  _json="$(cat)" || {
+    logging__error "failed to read JSON from stdin."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "empty JSON input."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to read object key '${_key}'."
+    return 1
+  }
   _out="$(printf '%s\n' "$_json" | jq -r --arg k "$_key" '
     .[$k]
     | if type == "array" then .[] | strings
@@ -149,6 +194,7 @@ json__object_key_string_lines_stdin() {
     printf '%s\n' "$_out"
     return 0
   fi
+  logging__error "no string values found for object key '${_key}'."
   return 1
 }
 
@@ -163,10 +209,22 @@ json__object_key_string_lines_stdin() {
 # Returns: 0 on success, 1 if no matching entry found or jq is unavailable.
 json__nodejs_index_version_stdin() {
   local _op="$1" _arg="${2-}" _json _out
-  _json="$(cat)" || return 1
-  [ -z "$_json" ] && return 1
-  [ -z "$_op" ] && return 1
-  _json__ensure_jq || return 1
+  _json="$(cat)" || {
+    logging__error "failed to read JSON from stdin."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "empty JSON input."
+    return 1
+  }
+  [ -z "$_op" ] && {
+    logging__error "nodejs index operation is required."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to read nodejs index JSON."
+    return 1
+  }
   case "$_op" in
     lts-first)
       _out="$(printf '%s\n' "$_json" | jq -r '[.[] | select(.lts != false)][0].version // empty | strings' 2> /dev/null)" || _out=""
@@ -175,20 +233,31 @@ json__nodejs_index_version_stdin() {
       _out="$(printf '%s\n' "$_json" | jq -r '.[0].version // empty | strings' 2> /dev/null)" || _out=""
       ;;
     major)
-      [ -z "$_arg" ] && return 1
+      [ -z "$_arg" ] && {
+        logging__error "major version argument is required for nodejs index lookup."
+        return 1
+      }
       _out="$(printf '%s\n' "$_json" | jq -r --arg p "v${_arg}." \
         '.[] | select(.version | type == "string" and startswith($p)) | .version' 2> /dev/null | head -n 1)" || _out=""
       ;;
     exact)
-      [ -z "$_arg" ] && return 1
+      [ -z "$_arg" ] && {
+        logging__error "exact version argument is required for nodejs index lookup."
+        return 1
+      }
       _out="$(printf '%s\n' "$_json" | jq -r --arg v "$_arg" \
         '.[] | select(.version == $v) | .version // empty' 2> /dev/null | head -n 1)" || _out=""
       ;;
     *)
+      logging__error "unsupported nodejs index operation '${_op}'."
       return 1
       ;;
   esac
-  case "$_out" in '' | 'null') return 1 ;; esac
+  case "$_out" in '' | 'null')
+    logging__error "no matching nodejs version found for operation '${_op}'."
+    return 1
+    ;;
+  esac
   printf '%s\n' "$_out"
   return 0
 }
@@ -203,13 +272,28 @@ json__nodejs_index_version_stdin() {
 # Returns: 0 on success, 1 if jq is unavailable or input is not an object.
 json__object_keys_stdin() {
   local _sub="${1-}" _json _out
-  _json="$(cat)" || return 1
-  [ -z "$_json" ] && return 1
-  _json__ensure_jq || return 1
+  _json="$(cat)" || {
+    logging__error "failed to read JSON from stdin."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "empty JSON input."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to read object keys."
+    return 1
+  }
   if [ -z "$_sub" ]; then
-    _out="$(printf '%s\n' "$_json" | jq -r 'keys[]' 2> /dev/null)" || return 1
+    _out="$(printf '%s\n' "$_json" | jq -r 'keys[]' 2> /dev/null)" || {
+      logging__error "failed to read root object keys."
+      return 1
+    }
   else
-    _out="$(printf '%s\n' "$_json" | jq -r --arg sk "$_sub" '.[$sk] | if type == "object" then keys[] else empty end' 2> /dev/null)" || return 1
+    _out="$(printf '%s\n' "$_json" | jq -r --arg sk "$_sub" '.[$sk] | if type == "object" then keys[] else empty end' 2> /dev/null)" || {
+      logging__error "failed to read keys for object '${_sub}'."
+      return 1
+    }
   fi
   [ -n "$_out" ] && printf '%s\n' "$_out"
   return 0
@@ -225,10 +309,22 @@ json__object_keys_stdin() {
 # Returns: 0 on success, 1 if jq is unavailable or expression is empty.
 json__value_stdin() {
   local _expr="${1-}" _json
-  [ -z "$_expr" ] && return 1
-  _json="$(cat)" || return 1
-  [ -z "$_json" ] && return 1
-  _json__ensure_jq || return 1
+  [ -z "$_expr" ] && {
+    logging__error "jq expression is required."
+    return 1
+  }
+  _json="$(cat)" || {
+    logging__error "failed to read JSON from stdin."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "empty JSON input."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to evaluate expression '${_expr}'."
+    return 1
+  }
   printf '%s\n' "$_json" | jq -c "$_expr" 2> /dev/null
 }
 
@@ -241,10 +337,22 @@ json__value_stdin() {
 # Returns: 0 on success, 1 for objects, arrays, or jq errors.
 json__coerce_scalar_stdin() {
   local _json _t
-  _json="$(cat)" || return 1
-  [ -z "$_json" ] && return 1
-  _json__ensure_jq || return 1
-  _t="$(printf '%s\n' "$_json" | jq -r 'type' 2> /dev/null)" || return 1
+  _json="$(cat)" || {
+    logging__error "failed to read JSON from stdin."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "empty JSON input."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to coerce JSON scalar."
+    return 1
+  }
+  _t="$(printf '%s\n' "$_json" | jq -r 'type' 2> /dev/null)" || {
+    logging__error "failed to determine JSON value type."
+    return 1
+  }
   case "$_t" in
     string)
       printf '%s\n' "$_json" | jq -r '.'
@@ -258,7 +366,13 @@ json__coerce_scalar_stdin() {
       printf '\n'
       return 0
       ;;
-    object | array) return 1 ;;
-    *) return 1 ;;
+    object | array)
+      logging__error "JSON value is not a scalar (type=${_t})."
+      return 1
+      ;;
+    *)
+      logging__error "unsupported JSON value type '${_t}'."
+      return 1
+      ;;
   esac
 }

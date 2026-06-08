@@ -7,11 +7,14 @@
 # and loong64; fall back to the package manager for other architectures.
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  logging__inspect "Resolving METHOD=auto for fzf."
   case "$(os__release_arch)" in
     amd64 | arm64 | armv7 | armv6 | armv5 | ppc64le | riscv64 | s390x | loong64)
+      logging__info "Resolved METHOD=auto → 'binary'."
       printf 'binary\n'
       ;;
     *)
+      logging__info "Resolved METHOD=auto → 'package'."
       printf 'package\n'
       ;;
   esac

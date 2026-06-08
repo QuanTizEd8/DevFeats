@@ -30,7 +30,7 @@ _shell__ensure_strings() {
   command -v strings > /dev/null 2>&1 && return 0
   ospkg__run --manifest "$_SHELL__BINUTILS_MANIFEST" --build-group "lib-shell" || true
   command -v strings > /dev/null 2>&1 && return 0
-  logging__warn "shell.sh: 'strings' not available; falling back to os-release detection."
+  logging__warn "'strings' not available; falling back to os-release detection."
   return 1
 }
 
@@ -919,7 +919,7 @@ shell__install_completion() {
       return 0
       ;;
     *)
-      logging__error "shell__install_completion: unsupported shell '${_shell}' (expected: bash, zsh, fish, nushell, elvish)."
+      logging__error "unsupported shell '${_shell}' (expected: bash, zsh, fish, nushell, elvish)."
       return 1
       ;;
   esac
@@ -1070,7 +1070,7 @@ shell__write_activation_snippets() {
     _is_system=true
   fi
   if ! declare -f "$_snippet_func" > /dev/null; then
-    logging__error "shell__write_activation_snippets: snippet function '${_snippet_func}' is not defined."
+    logging__error "snippet function '${_snippet_func}' is not defined."
     return 1
   fi
   for _shell in "$@"; do

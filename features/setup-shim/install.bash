@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 
 __install_run__() {
+  logging__install "Deploying setup-shim wrappers to '${_RESOLVED_PREFIX}/bin'."
   local _bin="${_RESOLVED_PREFIX}/bin"
   file__mkdir "${_bin}"
 
@@ -18,5 +19,6 @@ __install_run__() {
   [[ "${CODE}" == "true" ]] && _install_shim "code"
   [[ "${DEVCONTAINER_INFO}" == "true" ]] && _install_shim "devcontainer-info"
   [[ "${SYSTEMCTL}" == "true" ]] && _install_shim "systemctl"
+  logging__success "setup-shim deployment finished."
   return 0
 }

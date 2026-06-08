@@ -31,16 +31,17 @@ proc__run_parallel() {
         break
         ;;
       *)
-        logging__error "proc__run_parallel: use --outdir and --"
+        logging__error "use --outdir and --"
         return 1
         ;;
     esac
   done
   [[ -n "$_od" ]] || _od="$(mktemp -d)"
   mkdir -p "$_od" || {
-    logging__error "proc__run_parallel: failed to create output directory '${_od}'."
+    logging__error "failed to create output directory '${_od}'."
     return 1
   }
+  logging__launch "Running parallel subprocesses (outdir='${_od}'${_cwd:+, cwd='${_cwd}'})."
   local -a _rest=("$@") _argv=() _pids=() _labs=()
   local _lab _i _r _ec=0
   while ((${#_rest[@]} > 0)); do
@@ -103,15 +104,24 @@ proc__run_command_form() {
     esac
   done
   _json="$(cat)"
-  [[ -n "$_json" ]] || return 1
-  _json__ensure_jq || return 1
+  [[ -n "$_json" ]] || {
+    logging__error "empty command JSON on stdin."
+    return 1
+  }
+  _json__ensure_jq || {
+    logging__error "jq is required to parse command JSON."
+    return 1
+  }
   local _t _s _k _v _ty _od
-  _t="$(printf '%s' "$_json" | json__query -r 'type' 2> /dev/null)" || return 1
+  _t="$(printf '%s' "$_json" | json__query -r 'type' 2> /dev/null)" || {
+    logging__error "could not determine JSON type."
+    return 1
+  }
 
   _rc() {
     if [[ -n "$_user" ]]; then
       if ! command -v users__run_as > /dev/null 2>&1; then
-        logging__error "proc__run_command_form: --user requires os.sh (users__run_as)"
+        logging__error "--user requires os.sh (users__run_as)"
         return 1
       fi
       if [[ -n "$_cwd" ]]; then
@@ -133,8 +143,14 @@ proc__run_command_form() {
       ;;
     array)
       local -a _av=()
-      mapfile -t _av < <(printf '%s' "$_json" | json__query -r '.[]' 2> /dev/null) || return 1
-      ((${#_av[@]} > 0)) || return 1
+      mapfile -t _av < <(printf '%s' "$_json" | json__query -r '.[]' 2> /dev/null) || {
+        logging__error "could not parse JSON array command."
+        return 1
+      }
+      ((${#_av[@]} > 0)) || {
+        logging__error "JSON array command is empty."
+        return 1
+      }
       _rc "${_av[@]}"
       ;;
     object)
@@ -154,7 +170,7 @@ proc__run_command_form() {
           mapfile -t _av2 < <(printf '%s' "$_v" | json__query -r '.[]' 2> /dev/null) || continue
           _pl+=("$_k" "${_av2[@]}")
         else
-          logging__error "proc__run_command_form: object values must be string or array"
+          logging__error "object values must be string or array"
           rm -rf "$_od"
           return 1
         fi
@@ -171,7 +187,7 @@ proc__run_command_form() {
       return "$_e"
       ;;
     *)
-      logging__error "proc__run_command_form: not string/array/object"
+      logging__error "not string/array/object"
       return 1
       ;;
   esac

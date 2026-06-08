@@ -3,24 +3,19 @@
 # ── High-level steps ──────────────────────────────────────────────────────────
 
 install_linux_deps() {
-  logging__fn_entry "install_linux_deps"
   logging__install "Installing Homebrew build dependencies."
   __dep_install__ build linux-build
-  logging__fn_exit "install_linux_deps"
   return 0
 }
 
 __install_run_script_pre() {
-  logging__fn_entry "__install_run_script_pre"
   if [ "$(os__kernel)" != "Darwin" ]; then
     install_linux_deps
   fi
-  logging__fn_exit "__install_run_script_pre"
   return 0
 }
 
 __install_run_script_run() {
-  logging__fn_entry "__install_run_script_run"
   local _installer="$1"
   # Make the installer readable and all parent directories up to the tmpdir
   # root traversable; runuser switches to the install user, which must be
@@ -40,12 +35,10 @@ __install_run_script_run() {
     return 1
   fi
   logging__success "Homebrew $("${_RESOLVED_PREFIX}/bin/brew" --version | head -1) is available at '${_RESOLVED_PREFIX}/bin/brew'."
-  logging__fn_exit "__install_run_script_run"
   return 0
 }
 
 uninstall_brew() {
-  logging__fn_entry "uninstall_brew"
   logging__remove "Uninstalling Homebrew at '${_RESOLVED_PREFIX}'."
   local _url="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
   local _tmpfile
@@ -58,7 +51,6 @@ uninstall_brew() {
   # files in a root-provisioned prefix regardless of who owns them.
   env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$_RESOLVED_PREFIX"
   logging__success "Homebrew uninstalled."
-  logging__fn_exit "uninstall_brew"
   return 0
 }
 
@@ -73,13 +65,11 @@ __prefix_activation_snippet() {
 # Returns the path to the Homebrew/brew git repository — distinct from the
 # prefix on Intel macOS and Linux, where brew lives in ${prefix}/Homebrew.
 detect_brew_repository() {
-  logging__fn_entry "detect_brew_repository"
   if [ "$(os__kernel)" = "Darwin" ] && [ "$(os__arch)" = "arm64" ]; then
     echo "${_RESOLVED_PREFIX}"
   else
     echo "${_RESOLVED_PREFIX}/Homebrew"
   fi
-  logging__fn_exit "detect_brew_repository"
   return 0
 }
 
@@ -90,7 +80,6 @@ detect_brew_repository() {
 #   • NO_INSTALL_FROM_API: writes / removes HOMEBREW_NO_INSTALL_FROM_API=1
 #     export block in shell init files.
 enforce_options() {
-  logging__fn_entry "enforce_options"
   local _brew_repo _core_repo _marker_brew _marker_core _marker_api
   _brew_repo="$(detect_brew_repository)"
   _core_repo="${_brew_repo}/Library/Taps/homebrew/homebrew-core"
@@ -128,7 +117,6 @@ enforce_options() {
     _sync_init_files "$_marker_api"
   fi
 
-  logging__fn_exit "enforce_options"
   return 0
 }
 
@@ -210,7 +198,6 @@ __init_args_post() {
 }
 
 validate_install_user() {
-  logging__fn_entry "validate_install_user"
   local _user="$1"
   # Non-root caller cannot impersonate another user.
   local _cur
@@ -237,7 +224,6 @@ validate_install_user() {
     logging__error "install_user='${_user}' does not exist on this system."
     return 1
   fi
-  logging__fn_exit "validate_install_user"
   return 0
 }
 
@@ -247,7 +233,6 @@ validate_install_user() {
 # No-op on macOS (the Homebrew installer manages /opt/homebrew and /usr/local).
 # No-op when not running as root (target user is responsible for their own home).
 prepare_prefix_if_needed() {
-  logging__fn_entry "prepare_prefix_if_needed"
   local _install_prefix="$1" _user="$2"
   # Create the linuxbrew system user if it does not yet exist.
   if [ "$_user" = "linuxbrew" ] && ! id linuxbrew &> /dev/null; then
@@ -263,7 +248,6 @@ prepare_prefix_if_needed() {
     file__mkdir "$_install_prefix"
     file__chmod 755 "$(dirname "$_install_prefix")" 2> /dev/null || true
     file__chown "$_user" "$_install_prefix"
-    logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
   # Prefix already exists — inspect ownership.
@@ -271,21 +255,18 @@ prepare_prefix_if_needed() {
   _owner="$(stat -c '%U' "$_install_prefix" 2> /dev/null || echo '')"
   if [ "$_owner" = "$_user" ]; then
     logging__info "Prefix '${_install_prefix}' already owned by '${_user}'."
-    logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
   # A brew binary is present: ownership mismatch is handled by if_exists.
   if [ -f "${_install_prefix}/bin/brew" ]; then
     logging__warn "Prefix '${_install_prefix}' is owned by '${_owner}' (not '${_user}')."
     logging__info "Existing installation will be handled by if_exists='${IF_EXISTS}'."
-    logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
   # Empty directory: safe to re-own.
   if [ -z "$(ls -A "$_install_prefix" 2> /dev/null)" ]; then
     logging__info "Re-owning empty prefix '${_install_prefix}' to '${_user}'."
     file__chown "$_user" "$_install_prefix"
-    logging__fn_exit "prepare_prefix_if_needed"
     return 0
   fi
   # Non-empty directory owned by someone else with no brew binary — conflict.

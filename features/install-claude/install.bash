@@ -5,12 +5,15 @@
 # Node.js required).
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  logging__inspect "Resolving METHOD=auto for Claude Code."
   ospkg__detect 2> /dev/null || true
   case "${_OSPKG__FAMILY:-}" in
     apt | dnf | apk | brew)
+      logging__info "Resolved METHOD=auto → 'upstream-package' (${_OSPKG__FAMILY})."
       printf 'upstream-package\n'
       ;;
     *)
+      logging__info "Resolved METHOD=auto → 'npm-bundled' (no supported OS package repo)."
       printf 'npm-bundled\n'
       ;;
   esac
@@ -31,6 +34,7 @@ __resolve_method() {
 # __install_run_upstream_package__.
 # shellcheck disable=SC2329,SC2317
 __resolve_version() {
+  logging__inspect "Resolving Claude Code version/channel."
   case "${VERSION:-stable}" in
     latest) declare -g _CLAUDE_CHANNEL="latest" ;;
     *) declare -g _CLAUDE_CHANNEL="stable" ;;
@@ -58,6 +62,7 @@ __resolve_version() {
 # latest version from the selected channel.
 # shellcheck disable=SC2329,SC2317
 __install_run_upstream_package__() {
+  logging__install "Installing Claude Code via upstream package."
   local _channel="${_CLAUDE_CHANNEL:-stable}"
   local _pkg_version=""
 
@@ -99,6 +104,7 @@ __install_run_upstream_package__() {
 # The official install.sh accepts 'stable', 'latest', or a semver string.
 # shellcheck disable=SC2329,SC2317
 __install_run_script_pre() {
+  logging__install "Preparing Claude bootstrap script args (version='${VERSION:-stable}')."
   declare -g -a _FEAT_INSTALL_SCRIPT_ARGS
   _FEAT_INSTALL_SCRIPT_ARGS=("${VERSION:-stable}")
 }

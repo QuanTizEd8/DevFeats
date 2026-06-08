@@ -211,7 +211,7 @@ _ospkg__install_key_entry() {
       _ospkg__install_key_by_fingerprint "${_fingerprint}" "${_target}"
       return $?
     fi
-    logging__error "_ospkg__install_key_entry: neither url nor fingerprint provided."
+    logging__error "neither url nor fingerprint provided."
     return 1
   fi
 
@@ -234,7 +234,7 @@ _ospkg__install_key_entry() {
       fi
       ;;
     *)
-      logging__error "_ospkg__install_key_entry: invalid dearmor (use true, false, or auto): '${_dearmor}'"
+      logging__error "invalid dearmor (use true, false, or auto): '${_dearmor}'"
       return 1
       ;;
   esac
@@ -579,7 +579,10 @@ ospkg__detect() {
 # @brief ospkg__pm — Print the detected package manager command name (e.g. `apt-get`, `apk`, `dnf`, `brew`).
 # Returns 1 if no supported package manager was found.
 ospkg__pm() {
-  ospkg__detect || return 1
+  ospkg__detect || {
+    logging__error "no supported package manager found."
+    return 1
+  }
   printf '%s\n' "$_OSPKG__PKG_MNGR"
 }
 
@@ -597,7 +600,10 @@ ospkg__pm() {
 ospkg__is_managed() {
   local _bin="${1-}"
   [[ -n "$_bin" && -e "$_bin" ]] || return 1
-  ospkg__detect || return 1
+  ospkg__detect || {
+    logging__error "no supported package manager found."
+    return 1
+  }
   case "$_OSPKG__FAMILY" in
     apt) dpkg -S "$_bin" > /dev/null 2>&1 ;;
     apk) apk info --who-owns "$_bin" > /dev/null 2>&1 ;;
@@ -606,7 +612,10 @@ ospkg__is_managed() {
     pacman) pacman -Qo "$_bin" > /dev/null 2>&1 ;;
     brew)
       local _prefix _real
-      _prefix="$(brew --prefix 2> /dev/null)" || return 1
+      _prefix="$(brew --prefix 2> /dev/null)" || {
+        logging__error "could not determine Homebrew prefix."
+        return 1
+      }
       # Canonicalize prefix so macOS /var → /private/var expansion is consistent
       # with the file__canonical_path-resolved _real path used in the comparison below.
       _prefix="$(file__canonical_path "$_prefix")"
@@ -673,7 +682,7 @@ ospkg__update() {
         _repo_added=true
         ;;
       *)
-        logging__error "ospkg__update: unknown option: $1"
+        logging__error "unknown option: $1"
         return 1
         ;;
     esac
@@ -709,7 +718,10 @@ ospkg__update() {
   fi
 
   if [[ "$_skip" == false ]]; then
-    _ospkg__assert_privilege || return 1
+    _ospkg__assert_privilege || {
+      logging__error "insufficient privilege to update package lists."
+      return 1
+    }
     logging__info "Updating package lists."
     net__fetch_with_retry --bail-on 2 --retries 10 _ospkg__update_cmd
     _OSPKG__UPDATED=true
@@ -733,7 +745,10 @@ ospkg__update() {
 #
 # Returns: 0 on success.
 ospkg__install() {
-  ospkg__detect || return 1
+  ospkg__detect || {
+    logging__error "no supported package manager found."
+    return 1
+  }
   if [[ -z "$_OSPKG__PKG_MNGR" ]]; then
     logging__error "No supported package manager found."
     if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -1067,7 +1082,10 @@ _ospkg__apk_virts_file() {
 #
 # Returns: 0 if all packages are installed, 1 if any is missing or PM unknown.
 ospkg__is_installed() {
-  ospkg__detect || return 1
+  ospkg__detect || {
+    logging__error "no supported package manager found."
+    return 1
+  }
   local _pkg
   for _pkg in "$@"; do
     case "$_OSPKG__PKG_MNGR" in
@@ -1268,7 +1286,10 @@ ospkg__install_tracked() {
       [[ -f "$_virts_file" ]] && mapfile -t _existing_virts < "$_virts_file"
       _count="${#_existing_virts[@]}"
       _virt_name="$(_ospkg__apk_virtual_name "$_group_id")-${_count}"
-      users__run_privileged apk add --no-cache --virtual "$_virt_name" "${_apk_to_install[@]}" >&2 || return 1
+      users__run_privileged apk add --no-cache --virtual "$_virt_name" "${_apk_to_install[@]}" >&2 || {
+        logging__error "failed to install tracked APK packages: ${_apk_to_install[*]}."
+        return 1
+      }
       printf '%s\n' "$_virt_name" >> "$_virts_file"
       # Keep a human-readable sidecar for logging and session tracking.
       printf '%s\n' "${_apk_to_install[@]}" >> "$_sidecar"
@@ -1466,7 +1487,7 @@ ospkg__untrack_resource() {
   if [[ -f "$_sidecar" ]]; then
     _tmp="${_sidecar}.tmp.$$"
     cp "$_sidecar" "$_tmp" || {
-      logging__error "ospkg__untrack_resource: failed to copy sidecar '${_sidecar}'."
+      logging__error "failed to copy sidecar '${_sidecar}'."
       return 1
     }
     for _path in "$@"; do
@@ -1480,7 +1501,7 @@ ospkg__untrack_resource() {
     if [[ -f "$_sess_sidecar" ]]; then
       _tmp="${_sess_sidecar}.tmp.$$"
       cp "$_sess_sidecar" "$_tmp" || {
-        logging__error "ospkg__untrack_resource: failed to copy session sidecar '${_sess_sidecar}'."
+        logging__error "failed to copy session sidecar '${_sess_sidecar}'."
         return 1
       }
       for _path in "$@"; do
@@ -1506,7 +1527,7 @@ ospkg__cleanup_resources() {
     while IFS= read -r _path; do
       [[ -z "$_path" ]] && continue
       if [[ -e "$_path" ]]; then
-        rm -f "$_path" 2> /dev/null || logging__warn "ospkg__cleanup_resources: could not remove '${_path}'"
+        rm -f "$_path" 2> /dev/null || logging__warn "could not remove '${_path}'"
       fi
     done < "$_sidecar"
     rm -f "$_sidecar"
@@ -1566,7 +1587,10 @@ ospkg__install_user() {
 # Returns: 0 if reverse deps exist, 1 if none or if the PM is unsupported.
 ospkg__has_rdeps() {
   local _pkg="${1:?ospkg__has_rdeps: pkg required}"
-  ospkg__detect || return 1
+  ospkg__detect || {
+    logging__error "no supported package manager found."
+    return 1
+  }
   local _out=""
   case "$_OSPKG__PKG_MNGR" in
     apt-get)
@@ -1624,8 +1648,11 @@ ospkg__remove_user() {
     esac
   done
   [[ $# -gt 0 ]] || return 0
-  ospkg__detect || return 1
-  logging__info "ospkg__remove_user: removing package(s): $*"
+  ospkg__detect || {
+    logging__error "no supported package manager found."
+    return 1
+  }
+  logging__info "removing package(s): $*"
   local -a _cmd
   if [[ "$_ignore_deps" == true ]]; then
     _cmd=("${_OSPKG__REMOVE_FORCE[@]}")
@@ -1640,7 +1667,7 @@ ospkg__remove_user() {
   else
     "${_cmd[@]}" "$@" < /dev/null >&2 || _rc=$?
   fi
-  [[ $_rc -ne 0 ]] && logging__warn "ospkg__remove_user: package removal failed for: $*"
+  [[ $_rc -ne 0 ]] && logging__warn "package removal failed for: $*"
   return 0
 }
 
@@ -1671,7 +1698,7 @@ ospkg__register_dummy() {
   [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
 
   if [[ $# -lt 2 ]]; then
-    logging__warn "ospkg__register_dummy: usage: ospkg__register_dummy <pkg> <version> [--provides <name>...] [--description <text>]"
+    logging__warn "usage: ospkg__register_dummy <pkg> <version> [--provides <name>...] [--description <text>]"
     return 0
   fi
 
@@ -1679,7 +1706,7 @@ ospkg__register_dummy() {
   shift 2
 
   if [[ -z "${_pkg:-}" || -z "${_version:-}" ]]; then
-    logging__warn "ospkg__register_dummy: <pkg> and <version> must be non-empty."
+    logging__warn "<pkg> and <version> must be non-empty."
     return 0
   fi
 
@@ -1702,22 +1729,22 @@ ospkg__register_dummy() {
         }
         ;;
       *)
-        logging__warn "ospkg__register_dummy: ignoring unknown argument: '$1'"
+        logging__warn "ignoring unknown argument: '$1'"
         shift
         ;;
     esac
   done
 
   if ! users__is_privileged; then
-    logging__warn "ospkg__register_dummy: skipping dummy registration for '${_pkg}' (no privilege)."
+    logging__warn "skipping dummy registration for '${_pkg}' (no privilege)."
     return 0
   fi
 
   # Ensure equivs is available.
   if ! command -v equivs-build > /dev/null 2>&1; then
-    logging__info "ospkg__register_dummy: equivs not found — installing."
+    logging__info "equivs not found — installing."
     ospkg__install_tracked "devfeats-ospkg-internals" equivs 2> /dev/null || {
-      logging__warn "ospkg__register_dummy: could not install equivs; skipping dummy registration for '${_pkg}'."
+      logging__warn "could not install equivs; skipping dummy registration for '${_pkg}'."
       return 0
     }
   fi
@@ -1745,7 +1772,7 @@ ospkg__register_dummy() {
   ) > /dev/null 2>&1 || _rc=$?
 
   if [[ $_rc -ne 0 ]]; then
-    logging__warn "ospkg__register_dummy: equivs-build failed for '${_pkg}' — skipping."
+    logging__warn "equivs-build failed for '${_pkg}' — skipping."
     rm -rf "$_work_dir"
     return 0
   fi
@@ -1753,7 +1780,7 @@ ospkg__register_dummy() {
   local _deb
   _deb="$(find "$_work_dir" -maxdepth 1 -name '*.deb' | head -1)"
   if [[ -z "${_deb:-}" ]]; then
-    logging__warn "ospkg__register_dummy: no .deb produced by equivs-build for '${_pkg}' — skipping."
+    logging__warn "no .deb produced by equivs-build for '${_pkg}' — skipping."
     rm -rf "$_work_dir"
     return 0
   fi
@@ -1765,7 +1792,7 @@ ospkg__register_dummy() {
   rm -rf "$_work_dir"
 
   if [[ $_dpkg_rc -ne 0 ]]; then
-    logging__warn "ospkg__register_dummy: dpkg install failed for '${_pkg}' dummy — skipping."
+    logging__warn "dpkg install failed for '${_pkg}' dummy — skipping."
     return 0
   fi
 
@@ -1793,7 +1820,7 @@ ospkg__unregister_dummy() {
 
   local _pkg="${1:-}"
   if [[ -z "${_pkg:-}" ]]; then
-    logging__warn "ospkg__unregister_dummy: <pkg> must be non-empty."
+    logging__warn "<pkg> must be non-empty."
     return 0
   fi
 
@@ -1802,12 +1829,12 @@ ospkg__unregister_dummy() {
   _dummy_field="$(dpkg-query -f '${XB-Devfeats-Dummy}' -W "$_pkg" 2> /dev/null)" || true
 
   if [[ "${_dummy_field:-}" != "true" ]]; then
-    logging__info "ospkg__unregister_dummy: '${_pkg}' is not a devfeats dummy — skipping."
+    logging__info "'${_pkg}' is not a devfeats dummy — skipping."
     return 0
   fi
 
   if ! users__is_privileged; then
-    logging__warn "ospkg__unregister_dummy: skipping removal of dummy '${_pkg}' (no privilege)."
+    logging__warn "skipping removal of dummy '${_pkg}' (no privilege)."
     return 0
   fi
 
@@ -1820,7 +1847,7 @@ ospkg__unregister_dummy() {
   fi
 
   if [[ $_rc -ne 0 ]]; then
-    logging__warn "ospkg__unregister_dummy: removal of dummy '${_pkg}' failed."
+    logging__warn "removal of dummy '${_pkg}' failed."
     return 0
   fi
 
@@ -1932,19 +1959,19 @@ ospkg__run() {
         ;;
 
       *)
-        logging__error "ospkg__run: unknown option: $1"
+        logging__error "unknown option: $1"
         return 1
         ;;
     esac
   done
 
   if ! [[ "$_lists_max_age" =~ ^[0-9]+$ ]]; then
-    logging__error "ospkg__run: invalid lists_max_age value: '$_lists_max_age'."
+    logging__error "invalid lists_max_age value: '$_lists_max_age'."
     return 1
   fi
 
   if [[ -n "$_build_group" && -z "$_manifest" ]]; then
-    logging__error "ospkg__run: --build-group requires --manifest."
+    logging__error "--build-group requires --manifest."
     return 1
   fi
 
@@ -1953,7 +1980,10 @@ ospkg__run() {
   # Set prefer_linuxbrew early so detect() picks it up.
   _OSPKG__PREFER_LINUXBREW="$_prefer_linuxbrew"
 
-  ospkg__detect || return 1
+  ospkg__detect || {
+    logging__error "no supported package manager found."
+    return 1
+  }
 
   if [[ "$_OSPKG__PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
     logging__info "Setting APT to non-interactive mode."
@@ -2397,7 +2427,10 @@ ospkg__run() {
 
       # For PMs that support per-package flags, build the install command.
       if [[ -n "${_pkgflags:-}" ]]; then
-        _ensure_pkg_update || return 1
+        _ensure_pkg_update || {
+          logging__error "package list update failed."
+          return 1
+        }
         if [[ "$_dry_run" == true ]]; then
           logging__inspect "[dry-run] package: ${_OSPKG__INSTALL[*]} ${_pkgflags} ${_pkginstall}"
         else
@@ -2413,7 +2446,10 @@ ospkg__run() {
     done
 
     if [[ ${#_pkgs_to_install[@]} -gt 0 ]]; then
-      _ensure_pkg_update || return 1
+      _ensure_pkg_update || {
+        logging__error "package list update failed."
+        return 1
+      }
       logging__install "Installing ${#_pkgs_to_install[@]} package(s)."
       if [[ "$_dry_run" == true ]]; then
         logging__inspect "[dry-run] packages: ${_pkgs_to_install[*]}"
@@ -2432,7 +2468,10 @@ ospkg__run() {
     # If a repo was added but no packages needed installing, still refresh so
     # the newly configured repo is usable by subsequent code.
     if [[ "$_yaml_repo_added" == true && "$_pkg_update_done" == false ]]; then
-      _ensure_pkg_update || return 1
+      _ensure_pkg_update || {
+        logging__error "package list update failed after adding a repository."
+        return 1
+      }
     fi
 
     # Phase: CASKS (brew/macOS only).

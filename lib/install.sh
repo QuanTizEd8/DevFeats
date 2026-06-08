@@ -56,7 +56,10 @@ install__state_owner_group() {
 install__state_record() {
   local _tool="${1-}" _context="${2-}" _method="${3-}" _install_path="${4-}" _owner_group="${5-}"
   local _f
-  [[ -n "$_tool" && -n "$_context" ]] || return 1
+  [[ -n "$_tool" && -n "$_context" ]] || {
+    logging__error "tool and context are required."
+    return 1
+  }
   _f="$(install__state_file "$_tool")"
   cat > "$_f" << EOF
 tool=${_tool}
@@ -66,6 +69,11 @@ install_path=${_install_path}
 owner_group=${_owner_group}
 created_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2> /dev/null || true)
 EOF
+  [[ -f "$_f" ]] || {
+    logging__error "failed to write state file '${_f}' for tool '${_tool}'."
+    return 1
+  }
+  logging__debug "Recorded install state for '${_tool}' (context='${_context}', path='${_install_path}')."
   return 0
 }
 
@@ -83,9 +91,10 @@ EOF
 install__copy_bin() {
   local _src="$1" _dest="$2"
   mkdir -p "$(dirname "$_dest")" || {
-    logging__error "install__copy_bin: failed to create directory '$(dirname "$_dest")'."
+    logging__error "failed to create directory '$(dirname "$_dest")'."
     return 1
   }
+  logging__install "Installing binary '${_src}' to '${_dest}'."
   if command -v install > /dev/null 2>&1; then
     install -m 0755 "$_src" "$_dest"
   else
@@ -185,7 +194,7 @@ install__parse_common_opts() {
         if [[ -n "$_pextra" ]]; then
           eval "${_pextra}+=($(printf '%q' "$1"))"
         else
-          logging__error "${_caller}: unknown option '$1'"
+          logging__error "unknown option '$1'"
           return 1
         fi
         ;;
@@ -342,25 +351,25 @@ install__release_asset() {
         shift 2
         ;;
       *)
-        logging__error "install__release_asset: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
   done
 
   [[ -n "$_asset_uri" ]] || {
-    logging__error "install__release_asset: --asset-uri is required."
+    logging__error "--asset-uri is required."
     return 1
   }
 
   if "$_caller_sha256_set" && [[ "$_caller_sha256" != "none" ]]; then
     [[ "$_caller_sha256" =~ ^[0-9a-fA-F]{64}$ ]] || {
-      logging__error "install__release_asset: --sha256 accepts a 64-char hex or 'none', got '${_caller_sha256}'."
+      logging__error "--sha256 accepts a 64-char hex or 'none', got '${_caller_sha256}'."
       return 1
     }
   fi
   [[ "$_nbsrc" -gt 0 && "$_nbdest" -gt 1 && "$_nbsrc" -ne "$_nbdest" ]] && {
-    logging__error "install__release_asset: ${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
+    logging__error "${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
     return 1
   }
 
@@ -410,18 +419,19 @@ install__release_asset() {
       if net__fetch_url_file "$_sc_candidate" "$_sc_file" "${_probe_auth[@]}" 2> /dev/null; then
         _sc_hash="$(_uri__sidecar_hash "$_asset_name" "$_sc_file")"
         if [[ -n "$_sc_hash" ]]; then
-          logging__info "install__release_asset: auto-detected sidecar at '${_sc_candidate}'"
+          logging__info "auto-detected sidecar at '${_sc_candidate}'"
           _sidecar_arg=(--sidecar "file://${_sc_file}")
           break
         fi
       fi
     done
     if [[ "${#_sidecar_arg[@]}" -eq 0 ]]; then
-      logging__info "install__release_asset: no sidecar found for '${_asset_name}' — skipping sidecar SHA-256."
+      logging__info "no sidecar found for '${_asset_name}' — skipping sidecar SHA-256."
     fi
   fi
 
   # ── Delegate to uri__fetch_asset ────────────────────────────────────────────
+  logging__install "Installing release asset '${_asset_name}' from '${_asset_uri}'."
   uri__fetch_asset "$_asset_uri" \
     "${_sidecar_arg[@]}" \
     "${_passthrough[@]}"

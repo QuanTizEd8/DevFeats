@@ -157,6 +157,9 @@ ver__first_matching_prefix() {
       c = substr(bare, length(s) + 1, 1)
       if (bare == s || (index(bare, s) == 1 && (c == "." || c == "-"))) { print; exit }
     }')" || true
-  [ -n "$_result" ] || return 1
+  [ -n "$_result" ] || {
+    logging__error "no version matched prefix '${_spec}'."
+    return 1
+  }
   printf '%s\n' "$_result"
 }

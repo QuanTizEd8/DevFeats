@@ -6,8 +6,15 @@
 # jq releases binaries for amd64, arm64, i386; fall back to package elsewhere.
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  logging__inspect "Resolving METHOD=auto."
   case "$(os__release_arch)" in
-    amd64 | arm64 | i386) printf 'binary\n' ;;
-    *) printf 'package\n' ;;
+    amd64 | arm64 | i386)
+      logging__info "Resolved METHOD=auto → 'binary'."
+      printf 'binary\n'
+      ;;
+    *)
+      logging__info "Resolved METHOD=auto → 'package'."
+      printf 'package\n'
+      ;;
   esac
 }

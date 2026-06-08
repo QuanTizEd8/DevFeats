@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 
 __install_run__() {
+  logging__install "Running install-os-pkg (install_self='${INSTALL_SELF}', lifecycle_hook='${LIFECYCLE_HOOK:-}')."
   if [[ -z "$MANIFEST" && "$INSTALL_SELF" != true ]]; then
     logging__error "'MANIFEST' is required when 'install_self' is false."
     return 1
@@ -10,7 +11,7 @@ __install_run__() {
   # so inline-manifest detection works correctly.
   if [[ -n "$MANIFEST" && "$MANIFEST" != *$'\n'* && "$MANIFEST" == *'\n'* ]]; then
     MANIFEST="$(printf '%b' "$MANIFEST")"
-    printf 'ℹ️  Expanded literal \\n escapes in MANIFEST value.\n' >&2
+    logging__info "Expanded literal \\n escapes in MANIFEST value."
   fi
 
   if [[ -n "$LIFECYCLE_HOOK" ]]; then
@@ -30,10 +31,13 @@ __install_run__() {
   # and only written when install_self=true.
   local _LIB_DIR="/usr/local/lib/install-os-pkg"
   if [ ! -d "$_LIB_DIR" ]; then
+    logging__install "Installing backing library to '${_LIB_DIR}'."
     file__mkdir "$_LIB_DIR"
     file__cp "$0" "$_LIB_DIR/install.sh"
     file__chmod +x "$_LIB_DIR/install.sh"
     file__cp -r "$_FEAT_DIR/lib" "$_LIB_DIR/"
+  else
+    logging__skip "Backing library already present at '${_LIB_DIR}'; skipping bootstrap."
   fi
 
   if [[ "$INSTALL_SELF" == true ]]; then
@@ -44,7 +48,7 @@ __install_run__() {
       logging__success "Installed system command: $_BIN"
     fi
   else
-    logging__info "Skipping system command installation (install_self=false)."
+    logging__skip "install_self=false; skipping system command installation."
   fi
 
   # When lifecycle_hook is set, write a hook script and exit without installing.
@@ -105,5 +109,6 @@ __install_run__() {
   [[ "$DRY_RUN" == true ]] && _OSPKG_ARGS+=(--dry_run)
   [[ "$PREFER_LINUXBREW" == true ]] && _OSPKG_ARGS+=(--prefer_linuxbrew)
   [[ "$INTERACTIVE" == true ]] && _OSPKG_ARGS+=(--interactive)
+  logging__install "Running package installation via ospkg__run."
   ospkg__run "${_OSPKG_ARGS[@]}"
 }

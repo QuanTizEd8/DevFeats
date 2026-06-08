@@ -362,6 +362,14 @@ logging__fn_exit() {
   return 0
 }
 
+# @brief logging__skip <detail>... — LOG_LEVEL ≥ debug.
+logging__skip() {
+  _logging__want_structured_at_level 4 || return 0
+  [[ $# -eq 0 ]] && return 0
+  _logging__emit_at_level 4 '⏭️' "$@"
+  return 0
+}
+
 # ---------------------------------------------------------------------------
 # Mux reader / setup helpers (internal)
 # ---------------------------------------------------------------------------

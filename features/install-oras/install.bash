@@ -6,8 +6,15 @@
 # Binary releases cover all common arches; fall back to package on unknown arches.
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  logging__inspect "Resolving METHOD=auto."
   case "$(os__release_arch)" in
-    amd64 | arm64 | armv7 | ppc64le | s390x | riscv64 | loong64) printf 'binary\n' ;;
-    *) printf 'package\n' ;;
+    amd64 | arm64 | armv7 | ppc64le | s390x | riscv64 | loong64)
+      logging__info "Resolved METHOD=auto → 'binary'."
+      printf 'binary\n'
+      ;;
+    *)
+      logging__info "Resolved METHOD=auto → 'package'."
+      printf 'package\n'
+      ;;
   esac
 }

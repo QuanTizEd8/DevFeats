@@ -88,6 +88,6 @@ _dependencies:
           - name: oras
       pacman:
         scripts: |-
-          logging__error "install-oras: method=package is unsupported on pacman because ORAS is not available in official Arch repositories."
+          logging__error "method=package is unsupported on pacman because ORAS is not available in official Arch repositories."
           return 1
 # installsAfter: []

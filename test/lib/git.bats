@@ -197,7 +197,7 @@ _install_git_stub() {
   mkdir -p "${_dir}/.git"
   run git__clone --url "https://example.com/repo.git" --dir "$_dir"
   assert_success
-  assert_output --partial "already exists"
+  assert_output --partial "already cloned"
 }
 
 # ===========================================================================

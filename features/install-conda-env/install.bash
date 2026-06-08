@@ -1,5 +1,4 @@
 resolve_solver() {
-  logging__fn_entry "resolve_solver"
   local _solver="${SOLVER:-}"
   SOLVER_EXEC=""
 
@@ -54,14 +53,11 @@ resolve_solver() {
     exit 1
   fi
   logging__info "Conda base: '${CONDA_DIR}'."
-  logging__fn_exit "resolve_solver"
 }
 
 apply_channels() {
-  logging__fn_entry "apply_channels"
   if [[ ${#CHANNELS[@]} -eq 0 ]] && [[ "$STRICT_CHANNEL_PRIORITY" == false ]]; then
-    logging__info "No channels or channel priority changes requested."
-    logging__fn_exit "apply_channels"
+    logging__skip "No channels or channel priority changes requested."
     return
   fi
   local _cfg_exec="${SOLVER_EXEC%/*}/conda"
@@ -74,11 +70,9 @@ apply_channels() {
     logging__info "Setting channel_priority to strict."
     "${_cfg_exec}" config --set channel_priority strict
   fi
-  logging__fn_exit "apply_channels"
 }
 
 create_or_update_env() {
-  logging__fn_entry "create_or_update_env"
   local env_file=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -117,11 +111,9 @@ create_or_update_env() {
     logging__install "Creating conda environment from '$env_file'."
     "$SOLVER_EXEC" env create --file "$env_file" --yes
   fi
-  logging__fn_exit "create_or_update_env"
 }
 
 install_pip_requirements() {
-  logging__fn_entry "install_pip_requirements"
   local env_name=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -147,7 +139,6 @@ install_pip_requirements() {
   }
   if [[ ${#PIP_REQUIREMENTS_FILES[@]} -eq 0 ]]; then
     logging__info "No pip requirements files specified."
-    logging__fn_exit "install_pip_requirements"
     return
   fi
   local pip_exec
@@ -158,18 +149,15 @@ install_pip_requirements() {
   fi
   if [[ ! -f "$pip_exec" ]]; then
     logging__warn "pip not found at '$pip_exec'. Skipping pip requirements for env '$env_name'."
-    logging__fn_exit "install_pip_requirements"
     return
   fi
   for req_file in "${PIP_REQUIREMENTS_FILES[@]}"; do
     logging__install "Installing pip requirements from '$req_file' into env '$env_name'."
     "$pip_exec" install -r "$req_file"
   done
-  logging__fn_exit "install_pip_requirements"
 }
 
 run_post_env_script() {
-  logging__fn_entry "run_post_env_script"
   local env_name=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -194,7 +182,7 @@ run_post_env_script() {
     exit 1
   }
   if [[ -z "$POST_ENV_SCRIPT" ]]; then
-    logging__fn_exit "run_post_env_script"
+    logging__skip "post_env_script unset; skipping post-env hook."
     return
   fi
   if [[ ! -f "$POST_ENV_SCRIPT" ]]; then
@@ -207,11 +195,9 @@ run_post_env_script() {
   fi
   logging__launch "Running post-env script '$POST_ENV_SCRIPT' for env '$env_name'."
   "$POST_ENV_SCRIPT" "$env_name"
-  logging__fn_exit "run_post_env_script"
 }
 
 setup_inline_env() {
-  logging__fn_entry "setup_inline_env"
   local tmp_env_file
   tmp_env_file="$(mktemp --suffix=.yml)"
   printf 'name: %s\n' "$ENV_NAME" > "$tmp_env_file"
@@ -229,11 +215,9 @@ setup_inline_env() {
   local _pip_target="${PIP_ENV:-$ENV_NAME}"
   install_pip_requirements --env_name "$_pip_target"
   run_post_env_script --env_name "$ENV_NAME"
-  logging__fn_exit "setup_inline_env"
 }
 
 setup_environment() {
-  logging__fn_entry "setup_environment"
   umask 0002
   for env_file in "${ENV_FILES[@]}"; do
     local env_name
@@ -253,7 +237,6 @@ setup_environment() {
       run_post_env_script --env_name "$env_name"
     done < <(find "$env_dir" -type f \( -name "*.yml" -o -name "*.yaml" \) | sort)
   done
-  logging__fn_exit "setup_environment"
 }
 
 __init_args_post() {
@@ -275,7 +258,10 @@ __install_run__() {
 }
 
 __install_finish_post() {
-  [[ "${KEEP_CACHE}" != true ]] || return 0
+  [[ "${KEEP_CACHE}" != true ]] || {
+    logging__skip "keep_cache=true; skipping conda cache cleanup."
+    return 0
+  }
   logging__clean "Cleaning up conda cache."
   "${SOLVER_EXEC}" clean --all --yes
 }

@@ -166,7 +166,10 @@ __install_init_post() {
   declare -g _INSTALL_DIR=""
   # Populate _SEEN_NAMES from all .ttf/.otf already present in FONT_DIR.
   # WOFF/WOFF2 are excluded — fc-query does not handle them.
-  [[ -d "${FONT_DIR}" ]] || return 0
+  [[ -d "${FONT_DIR}" ]] || {
+    logging__skip "Font directory '${FONT_DIR}' does not exist; skipping existing-font scan."
+    return 0
+  }
   local _psname
   while IFS= read -r _psname; do
     [[ -n "${_psname}" ]] && _SEEN_NAMES["${_psname}"]=1
@@ -367,7 +370,10 @@ __install_finish_post() {
   else
     logging__info "No new fonts to install — all requested fonts already registered."
   fi
-  command -v fc-cache > /dev/null 2>&1 || return 0
+  command -v fc-cache > /dev/null 2>&1 || {
+    logging__skip "fc-cache not available; skipping font cache refresh."
+    return 0
+  }
   logging__info "Refreshing font cache..."
   fc-cache -f "${FONT_DIR}" 2> /dev/null || true
 }

@@ -21,7 +21,7 @@ _uri__ensure_sha256sum() {
   ospkg__run --manifest "$_URI__COREUTILS_MANIFEST" --build-group "lib-uri" || true
   command -v sha256sum > /dev/null 2>&1 && return 0
   command -v shasum > /dev/null 2>&1 && return 0
-  logging__warn "uri.sh: neither 'sha256sum' nor 'shasum' available; falling back to cksum for URI hashing."
+  logging__warn "neither 'sha256sum' nor 'shasum' available; falling back to cksum for URI hashing."
   return 1
 }
 
@@ -67,7 +67,10 @@ _uri__file_url_path() {
 _uri__gh_to_https() {
   local _in="$1" _rest _or _at _ref _path
   _rest="${_in#gh://}"
-  [[ -n "$_rest" ]] || return 1
+  [[ -n "$_rest" ]] || {
+    logging__error "invalid gh:// URI: missing owner/repo."
+    return 1
+  }
   if [[ "$_rest" == *"@"* ]]; then
     _or="${_rest%%@*}"
     _at="${_rest#*@}"
@@ -78,7 +81,10 @@ _uri__gh_to_https() {
     _path="${_rest#*:}"
     _ref="main"
   fi
-  [[ -n "$_or" && -n "$_path" ]] || return 1
+  [[ -n "$_or" && -n "$_path" ]] || {
+    logging__error "invalid gh:// URI: owner/repo and path are required."
+    return 1
+  }
   printf 'https://raw.githubusercontent.com/%s/%s/%s\n' "$_or" "$_ref" "$_path"
 }
 
@@ -130,14 +136,17 @@ uri__classify() {
   _base="$(_uri__split_frag "$_in")"
   _base="$(printf '%s\n' "$_base" | head -n1)"
   case "$_base" in
-    "") return 1 ;;
+    "")
+      logging__error "URI is empty."
+      return 1
+      ;;
     http://* | https://*) printf 'http\n' ;;
     ftp://* | ftps://* | sftp://*) printf 'ftp\n' ;;
     file://*) printf 'file\n' ;;
     oci://*) printf 'oci\n' ;;
     gh://*) printf 'gh\n' ;;
     *://*)
-      logging__error "uri__classify: unsupported scheme in '${_base}'."
+      logging__error "unsupported scheme in '${_base}'."
       return 1
       ;;
     *) printf 'local\n' ;;
@@ -176,11 +185,17 @@ _uri__resolve_oci_to() {
       esac
     done
   fi
-  oci__ensure_oras || return 1
-  _oci__ensure_auth_for "$_ref_part" || return 1
+  oci__ensure_oras || {
+    logging__error "oras is required to resolve OCI URI."
+    return 1
+  }
+  _oci__ensure_auth_for "$_ref_part" || {
+    logging__error "OCI registry authentication failed for '${_ref_part}'."
+    return 1
+  }
   _pull_dir="$(file__mktmpdir "uri-oci-pull")"
   if ! oras pull "$_ref_part" -o "$_pull_dir" > /dev/null 2>&1; then
-    logging__error "uri__resolve: oras pull failed for '${_ref_part}'."
+    logging__error "oras pull failed for '${_ref_part}'."
     return 1
   fi
   local _picked=""
@@ -196,17 +211,20 @@ _uri__resolve_oci_to() {
     fi
   fi
   [[ -n "$_picked" && -f "$_picked" ]] || {
-    logging__error "uri__resolve: could not pick a single file from OCI artefact '${_ref_part}'."
+    logging__error "could not pick a single file from OCI artefact '${_ref_part}'."
     return 1
   }
   cp -f "$_picked" "$_dest" || {
-    logging__error "uri__resolve: failed to copy OCI artifact '${_picked}' to '${_dest}'."
+    logging__error "failed to copy OCI artifact '${_picked}' to '${_dest}'."
     return 1
   }
   local _expect
   _expect="$(_uri__frag_sha256 "$_frag")"
   if [[ -n "$_expect" ]]; then
-    verify__sha "$_dest" "$_expect" || return 1
+    verify__sha "$_dest" "$_expect" || {
+      logging__error "OCI artifact checksum verification failed for '${_dest}'."
+      return 1
+    }
   fi
   return 0
 }
@@ -255,7 +273,7 @@ _uri__download_to() {
   local _args=("$@")
   local _cls _base
   _cls="$(uri__classify "$_url")" || {
-    logging__error "_uri__download_to: unsupported URI scheme in '${_url}'."
+    logging__error "unsupported URI scheme in '${_url}'."
     return 1
   }
   _base="$(_uri__split_frag "$_url")"
@@ -263,11 +281,11 @@ _uri__download_to() {
   case "$_cls" in
     local)
       [[ -e "$_base" ]] || {
-        logging__error "_uri__download_to: local path not found: '${_base}'."
+        logging__error "local path not found: '${_base}'."
         return 1
       }
       [[ "$_base" -ef "$_dest" ]] || cp -f "$_base" "$_dest" || {
-        logging__error "_uri__download_to: failed to copy '${_base}' to '${_dest}'."
+        logging__error "failed to copy '${_base}' to '${_dest}'."
         return 1
       }
       ;;
@@ -275,31 +293,40 @@ _uri__download_to() {
       local _fp
       _fp="$(_uri__file_url_path "$_base")"
       [[ -f "$_fp" ]] || {
-        logging__error "_uri__download_to: file:// target not found: '${_fp}'."
+        logging__error "file:// target not found: '${_fp}'."
         return 1
       }
       cp -f "$_fp" "$_dest" || {
-        logging__error "_uri__download_to: failed to copy '${_fp}' to '${_dest}'."
+        logging__error "failed to copy '${_fp}' to '${_dest}'."
         return 1
       }
       ;;
     http | ftp)
-      _uri__net_fetch "$_base" "$_dest" "${_args[@]}" || return 1
+      _uri__net_fetch "$_base" "$_dest" "${_args[@]}" || {
+        logging__error "failed to download '${_base}'."
+        return 1
+      }
       ;;
     gh)
       local _https
       _https="$(_uri__gh_to_https "$_base")" || {
-        logging__error "_uri__download_to: invalid gh:// URI '${_base}'."
+        logging__error "invalid gh:// URI '${_base}'."
         return 1
       }
-      _uri__net_fetch "$_https" "$_dest" "${_args[@]}" || return 1
+      _uri__net_fetch "$_https" "$_dest" "${_args[@]}" || {
+        logging__error "failed to download '${_https}'."
+        return 1
+      }
       ;;
     oci)
       # _uri__resolve_oci_to handles its own sha256 fragment verification internally.
-      _uri__resolve_oci_to "$_url" "$_dest" || return 1
+      _uri__resolve_oci_to "$_url" "$_dest" || {
+        logging__error "failed to resolve OCI URI '${_url}'."
+        return 1
+      }
       ;;
     *)
-      logging__error "_uri__download_to: internal error (class=${_cls})."
+      logging__error "internal error (class=${_cls})."
       return 1
       ;;
   esac
@@ -483,7 +510,7 @@ uri__fetch_asset() {
         shift 2
         ;;
       *)
-        logging__error "uri__fetch_asset: unknown option '$1'."
+        logging__error "unknown option '$1'."
         return 1
         ;;
     esac
@@ -491,7 +518,7 @@ uri__fetch_asset() {
 
   # ── Validate ──────────────────────────────────────────────────────────────
   [[ -n "$_uri" ]] || {
-    logging__error "uri__fetch_asset: URI is required."
+    logging__error "URI is required."
     return 1
   }
 
@@ -503,32 +530,32 @@ uri__fetch_asset() {
       if [[ "$_sha256_spec" =~ ^[0-9a-fA-F]{64}$ ]]; then
         _sha256_hex="${_sha256_spec,,}"
       else
-        logging__error "uri__fetch_asset: --sha256 accepts a 64-char hex or 'none', got '${_sha256_spec}'."
+        logging__error "--sha256 accepts a 64-char hex or 'none', got '${_sha256_spec}'."
         return 1
       fi
       ;;
   esac
   "$_sha256_none" && [[ -n "$_sidecar_uri" ]] && {
-    logging__error "uri__fetch_asset: --sha256 none cannot be combined with --sidecar."
+    logging__error "--sha256 none cannot be combined with --sidecar."
     return 1
   }
 
   local _nbsrc="${#_binary_src[@]}" _nbdest="${#_binary_dest[@]}"
   local _nfsrc="${#_file_src[@]}" _nfdest="${#_file_dest[@]}"
   [[ "$_nbsrc" -gt 0 && "$_nbdest" -gt 1 && "$_nbsrc" -ne "$_nbdest" ]] && {
-    logging__error "uri__fetch_asset: ${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
+    logging__error "${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
     return 1
   }
   [[ "$_nfsrc" -gt 0 && "$_nfdest" -gt 1 && "$_nfsrc" -ne "$_nfdest" ]] && {
-    logging__error "uri__fetch_asset: ${_nfsrc} --file-src but ${_nfdest} --file-dest (must be equal or use 1 --file-dest for all)."
+    logging__error "${_nfsrc} --file-src but ${_nfdest} --file-dest (must be equal or use 1 --file-dest for all)."
     return 1
   }
   [[ "$_nbsrc" -gt 0 && "$_nbdest" -eq 0 ]] && {
-    logging__error "uri__fetch_asset: --binary-src requires --binary-dest."
+    logging__error "--binary-src requires --binary-dest."
     return 1
   }
   [[ "$_nfsrc" -gt 0 && "$_nfdest" -eq 0 ]] && {
-    logging__error "uri__fetch_asset: --file-src requires --file-dest."
+    logging__error "--file-src requires --file-dest."
     return 1
   }
 
@@ -573,12 +600,12 @@ uri__fetch_asset() {
     _sidecar_file="${_sidecar_dir}/${_sc_name}"
     logging__download "Fetching checksum sidecar from '${_sc_base}'"
     _uri__download_to "$_sidecar_uri" "$_sidecar_file" "${_auth_args[@]}" || {
-      logging__error "uri__fetch_asset: failed to download sidecar from '${_sc_base}'."
+      logging__error "failed to download sidecar from '${_sc_base}'."
       return 1
     }
     _sidecar_hash="$(_uri__sidecar_hash "$_asset_name" "$_sidecar_file")"
     [[ -n "$_sidecar_hash" ]] || {
-      logging__error "uri__fetch_asset: could not extract hash for '${_asset_name}' from sidecar '${_sc_base}'."
+      logging__error "could not extract hash for '${_asset_name}' from sidecar '${_sc_base}'."
       return 1
     }
   fi
@@ -590,16 +617,19 @@ uri__fetch_asset() {
 
   # ── Retry loop: re-download on sha256 mismatch ────────────────────────────
   if "$_sha256_none"; then
-    logging__warn "uri__fetch_asset: sha256 verification skipped for '${_asset_name}'."
+    logging__warn "sha256 verification skipped for '${_asset_name}'."
   elif [[ -z "$_frag_sha" && -z "$_sha256_hex" && -z "$_sidecar_hash" && -z "$_gpg_key_uri" ]]; then
-    logging__debug "uri__fetch_asset: no integrity verification configured for '${_asset_name}'."
+    logging__debug "no integrity verification configured for '${_asset_name}'."
   fi
 
   local _attempt=0
   while true; do
     _attempt=$((_attempt + 1))
     logging__download "Fetching '${_asset_name}' from '${_base_uri}'"
-    _uri__download_to "$_uri" "$_dl_path" "${_auth_args[@]}" || return 1
+    _uri__download_to "$_uri" "$_dl_path" "${_auth_args[@]}" || {
+      logging__error "failed to download '${_asset_name}' from '${_base_uri}'."
+      return 1
+    }
 
     if "$_sha256_none"; then break; fi
 
@@ -620,10 +650,10 @@ uri__fetch_asset() {
       [[ -n "$_frag_sha" && "$_cls" != "oci" ]] && verify__sha "$_dl_path" "$_frag_sha" 2>&1 || true
       [[ -n "$_sha256_hex" ]] && verify__sha "$_dl_path" "$_sha256_hex" 2>&1 || true
       [[ -n "$_sidecar_hash" ]] && verify__sha "$_dl_path" "$_sidecar_hash" 2>&1 || true
-      logging__error "uri__fetch_asset: sha256 mismatch for '${_asset_name}' after ${_retry} attempt(s)."
+      logging__error "sha256 mismatch for '${_asset_name}' after ${_retry} attempt(s)."
       return 1
     fi
-    logging__warn "uri__fetch_asset: sha256 mismatch on attempt ${_attempt}/${_retry} — re-downloading '${_asset_name}'..."
+    logging__warn "sha256 mismatch on attempt ${_attempt}/${_retry} — re-downloading '${_asset_name}'..."
     rm -f "$_dl_path"
   done
 
@@ -640,10 +670,19 @@ uri__fetch_asset() {
     _key_base="$(printf '%s\n' "$(_uri__split_frag "$_gpg_key_uri")" | head -n1)"
     _key_file="${_gpg_key_dir}/$(_uri__safe_basename "$_key_base")"
     logging__download "Fetching GPG signature from '${_sig_base}'"
-    _uri__download_to "$_sig_uri" "$_sig_file" "${_auth_args[@]}" || return 1
+    _uri__download_to "$_sig_uri" "$_sig_file" "${_auth_args[@]}" || {
+      logging__error "failed to download GPG signature from '${_sig_base}'."
+      return 1
+    }
     logging__download "Fetching GPG key from '${_key_base}'"
-    _uri__download_to "$_gpg_key_uri" "$_key_file" "${_auth_args[@]}" || return 1
-    verify__gpg_detached "$_dl_path" "$_sig_file" "$_key_file" || return 1
+    _uri__download_to "$_gpg_key_uri" "$_key_file" "${_auth_args[@]}" || {
+      logging__error "failed to download GPG key from '${_key_base}'."
+      return 1
+    }
+    verify__gpg_detached "$_dl_path" "$_sig_file" "$_key_file" || {
+      logging__error "GPG signature verification failed for '${_asset_name}'."
+      return 1
+    }
   fi
 
   # ── Archive detection and extraction ──────────────────────────────────────
@@ -664,11 +703,14 @@ uri__fetch_asset() {
       *) _extract_name="$_asset_name" ;;
     esac
     file__extract_archive "$_dl_path" "$_asset_dir" "$_extract_name" || {
-      logging__error "uri__fetch_asset: extraction of '${_asset_name}' failed."
+      logging__error "extraction of '${_asset_name}' failed."
       return 1
     }
   else
-    mv -f "$_dl_path" "${_asset_dir}/${_asset_name}" || return 1
+    mv -f "$_dl_path" "${_asset_dir}/${_asset_name}" || {
+      logging__error "failed to move downloaded asset '${_asset_name}' into work directory."
+      return 1
+    }
   fi
 
   # ── chmod-exec specs ──────────────────────────────────────────────────────
@@ -677,7 +719,7 @@ uri__fetch_asset() {
     for _cspec in "${_chmod_exec_specs[@]}"; do
       _cmatches="$(_uri__match_binary_src "$_cspec" "$_asset_dir")"
       [[ -n "$_cmatches" ]] || {
-        logging__error "uri__fetch_asset: --chmod-exec '${_cspec}': no match in asset directory."
+        logging__error "--chmod-exec '${_cspec}': no match in asset directory."
         return 1
       }
       while IFS= read -r _cm; do
@@ -696,11 +738,11 @@ uri__fetch_asset() {
         _found_src="$(_uri__match_binary_src "$_spec" "$_asset_dir")"
         _mc="$(printf '%s\n' "$_found_src" | grep -c . || true)"
         [[ "$_mc" -gt 1 ]] && {
-          logging__error "uri__fetch_asset: ambiguous --binary-src '${_spec}': ${_mc} matches in '${_asset_name}'."
+          logging__error "ambiguous --binary-src '${_spec}': ${_mc} matches in '${_asset_name}'."
           return 1
         }
         [[ -z "$_found_src" ]] && {
-          logging__error "uri__fetch_asset: --binary-src '${_spec}' not found in '${_asset_name}'."
+          logging__error "--binary-src '${_spec}' not found in '${_asset_name}'."
           return 1
         }
         _found_srcs+=("$_found_src")
@@ -718,7 +760,7 @@ uri__fetch_asset() {
         local _disc_count
         _disc_count="$(printf '%s\n' "$_discovered" | grep -c . || true)"
         [[ "$_disc_count" -ne 1 ]] && {
-          logging__error "uri__fetch_asset: auto-discovery found ${_disc_count} executables but --binary-dest is an exact path (not a directory)."
+          logging__error "auto-discovery found ${_disc_count} executables but --binary-dest is an exact path (not a directory)."
           return 1
         }
       fi
@@ -728,7 +770,7 @@ uri__fetch_asset() {
         _install_names+=("$(basename "$_f")")
       done <<< "$_discovered"
       [[ "${#_found_srcs[@]}" -eq 0 ]] && {
-        logging__error "uri__fetch_asset: no executables found in extracted '${_asset_name}'."
+        logging__error "no executables found in extracted '${_asset_name}'."
         return 1
       }
     else
@@ -752,7 +794,10 @@ uri__fetch_asset() {
       mkdir -p "$(dirname "$_dest_path")"
       chmod +x "$_src" 2> /dev/null || true
       logging__install "Installing '${_name}' to '${_dest_path}'"
-      install__copy_bin "$_src" "$_dest_path" || return 1
+      install__copy_bin "$_src" "$_dest_path" || {
+        logging__error "failed to install binary '${_name}' to '${_dest_path}'."
+        return 1
+      }
       [[ -n "$_owner_group" ]] && install__track_internal_path "$_owner_group" "$_dest_path"
       logging__success "Installed '${_name}' → '${_dest_path}'"
       printf '%s\n' "$_dest_path"
@@ -769,18 +814,18 @@ uri__fetch_asset() {
         _found_src="$(_uri__match_binary_src "$_spec" "$_asset_dir")"
         _mc="$(printf '%s\n' "$_found_src" | grep -c . || true)"
         [[ "$_mc" -gt 1 ]] && {
-          logging__error "uri__fetch_asset: ambiguous --file-src '${_spec}': ${_mc} matches in '${_asset_name}'."
+          logging__error "ambiguous --file-src '${_spec}': ${_mc} matches in '${_asset_name}'."
           return 1
         }
         [[ -z "$_found_src" ]] && {
-          logging__error "uri__fetch_asset: --file-src '${_spec}' not found in '${_asset_name}'."
+          logging__error "--file-src '${_spec}' not found in '${_asset_name}'."
           return 1
         }
         _fnd_srcs+=("$_found_src")
         _fnd_names+=("$(basename "$_spec")")
       done
     elif "$_is_archive"; then
-      logging__error "uri__fetch_asset: --file-dest requires --file-src for archive assets."
+      logging__error "--file-dest requires --file-src for archive assets."
       return 1
     else
       _fnd_srcs+=("${_asset_dir}/${_asset_name}")
@@ -802,7 +847,10 @@ uri__fetch_asset() {
       fi
       mkdir -p "$(dirname "$_dest_path")"
       logging__install "Installing '${_name}' to '${_dest_path}'"
-      cp -f "$_src" "$_dest_path" || return 1
+      cp -f "$_src" "$_dest_path" || {
+        logging__error "failed to install file '${_name}' to '${_dest_path}'."
+        return 1
+      }
       [[ -n "$_owner_group" ]] && install__track_internal_path "$_owner_group" "$_dest_path"
       logging__success "Installed '${_name}' → '${_dest_path}'"
       printf '%s\n' "$_dest_path"
@@ -854,7 +902,7 @@ uri__resolve() {
         shift
         ;;
       *)
-        logging__error "uri__resolve: unknown option '$1'"
+        logging__error "unknown option '$1'"
         return 1
         ;;
     esac
@@ -919,17 +967,20 @@ uri__resolve_line() {
         shift
         ;;
       *)
-        logging__error "uri__resolve_line: unknown option '$1'"
+        logging__error "unknown option '$1'"
         return 1
         ;;
     esac
   done
   local _cls
-  _cls="$(uri__classify "$_input")" || return 1
+  _cls="$(uri__classify "$_input")" || {
+    logging__error "unsupported or empty URI '${_input}'."
+    return 1
+  }
   case "$_cls" in
     local)
       [[ -e "$(_uri__split_frag "$_input" | head -n1)" ]] || {
-        logging__error "uri__resolve_line: local path not found: '${_input%%#*}'."
+        logging__error "local path not found: '${_input%%#*}'."
         return 1
       }
       printf '%s\n' "${_input%%#*}"
@@ -947,13 +998,14 @@ uri__resolve_line() {
       uri__fetch_asset "$_input" --file-dest "$_dest" "${_fetch_args[@]}" > /dev/null || return 1
       if [[ -n "$_chmod_mode" && -e "$_dest" ]]; then
         file__chmod "$_chmod_mode" "$_dest" || {
-          logging__error "uri__resolve_line: file__chmod '${_chmod_mode}' failed on '${_dest}'."
+          logging__error "file__chmod '${_chmod_mode}' failed on '${_dest}'."
           return 1
         }
       fi
       printf '%s\n' "$_dest"
       ;;
     *)
+      logging__error "unsupported URI class '${_cls}' for '${_input}'."
       return 1
       ;;
   esac
@@ -977,7 +1029,11 @@ uri__resolve_list() {
   local _line _out
   while IFS= read -r _line || [[ -n "${_line}" ]]; do
     [[ -z "${_line//[[:space:]]/}" ]] && continue
-    _out="$(uri__resolve_line "$_line" "$_mdir" "$@")" || return 1
+    logging__install "Resolving URI line '${_line}'."
+    _out="$(uri__resolve_line "$_line" "$_mdir" "$@")" || {
+      logging__error "failed to resolve URI line '${_line}'."
+      return 1
+    }
     printf '%s\n' "$_out"
   done <<< "$(printf '%s\n' "$_list")"
   return 0

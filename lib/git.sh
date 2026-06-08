@@ -51,9 +51,15 @@ _git__fetch_sha() {
   git -C "${_dir}" "${_GIT_CONF[@]}" -c protocol.version=2 \
     fetch --depth=1 origin "${_sha}" 2>&1 && _fetch_ok=true
   if [[ "${_fetch_ok}" == false ]]; then
-    git -C "${_dir}" "${_GIT_CONF[@]}" fetch origin "${_sha}" 2>&1 || return 1
+    git -C "${_dir}" "${_GIT_CONF[@]}" fetch origin "${_sha}" 2>&1 || {
+      logging__error "full fetch of SHA '${_sha}' failed in '${_dir}'."
+      return 1
+    }
   fi
-  git -C "${_dir}" checkout FETCH_HEAD 2>&1 || return 1
+  git -C "${_dir}" checkout FETCH_HEAD 2>&1 || {
+    logging__error "checkout of FETCH_HEAD failed in '${_dir}'."
+    return 1
+  }
 }
 
 # @brief git__clone --url <url> --dir <dir> [--ref <ref>] [--resolved-sha <sha>] — Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists.
@@ -105,28 +111,30 @@ git__clone() {
         shift
         ;;
       --*)
-        logging__error "git__clone: unknown option '${1}'"
+        logging__error "unknown option '${1}'"
         return 1
         ;;
       *)
-        logging__error "git__clone: unexpected argument '${1}'"
+        logging__error "unexpected argument '${1}'"
         return 1
         ;;
     esac
   done
   [ -z "${dir}" ] && {
-    logging__error "git__clone: missing --dir"
+    logging__error "missing --dir"
     return 1
   }
   [ -z "${url}" ] && {
-    logging__error "git__clone: missing --url"
+    logging__error "missing --url"
     return 1
   }
 
   if [ -d "${dir}/.git" ]; then
-    logging__info "'${dir}' already exists — skipping clone."
+    logging__skip "Repository already cloned at '${dir}' — skipping clone."
     return 0
   fi
+
+  logging__download "Cloning '${url}' into '${dir}'${ref:+ (ref='${ref}')}."
 
   # Auto-provision git if not yet available (idempotent if already installed).
   bootstrap__git || return 1
@@ -204,7 +212,7 @@ git__config() {
   local _dir="$1"
   shift
   [ -z "${_dir}" ] && {
-    logging__error "git__config: missing directory argument"
+    logging__error "missing directory argument"
     return 1
   }
   [ "$#" -eq 0 ] && return 0
@@ -216,7 +224,7 @@ git__config() {
     _key="${_pair%%=*}"
     _val="${_pair#*=}"
     if ! git -C "${_dir}" config "${_key}" "${_val}" 2>&1; then
-      logging__error "git__config: failed to set '${_key}' in '${_dir}'."
+      logging__error "failed to set '${_key}' in '${_dir}'."
       return 1
     fi
   done
@@ -246,7 +254,7 @@ git__update() {
   local _dir="$1"
   shift
   [ -z "${_dir}" ] && {
-    logging__error "git__update: missing directory argument"
+    logging__error "missing directory argument"
     return 1
   }
 
@@ -266,12 +274,13 @@ git__update() {
         shift
         ;;
       *)
-        logging__error "git__update: unknown argument '${1}'"
+        logging__error "unknown argument '${1}'"
         return 1
         ;;
     esac
   done
 
+  logging__download "Updating git repository at '${_dir}'${_ref:+ to ref '${_ref}'}."
   if [[ -n "${_ref}" ]]; then
     # Determine whether _ref is a named ref (branch/tag) or a commit SHA.
     local _probed_sha
@@ -286,35 +295,35 @@ git__update() {
     if [[ "${_probed_sha}" != "${_ref}" ]]; then
       # Named ref — fetch via the repo's configured refspecs, checkout, merge.
       if ! git -C "${_dir}" "${_GIT_CONF[@]}" fetch --depth=1 origin 2>&1; then
-        logging__error "git__update: fetch failed in '${_dir}'."
+        logging__error "fetch failed in '${_dir}'."
         return 1
       fi
       if ! git -C "${_dir}" checkout "${_ref}" 2>&1; then
-        logging__error "git__update: checkout of '${_ref}' failed in '${_dir}'."
+        logging__error "checkout of '${_ref}' failed in '${_dir}'."
         return 1
       fi
       if git__symbolic_ref "${_dir}" > /dev/null 2>&1; then
         if ! git -C "${_dir}" merge --ff-only 2>&1; then
-          logging__error "git__update: fast-forward merge failed in '${_dir}'."
+          logging__error "fast-forward merge failed in '${_dir}'."
           return 1
         fi
       fi
     else
       # Commit SHA — use the same protocol-v2 fetch helper as git__clone.
       if ! _git__fetch_sha "${_dir}" "${_ref}"; then
-        logging__error "git__update: failed to fetch SHA '${_ref}' in '${_dir}'."
+        logging__error "failed to fetch SHA '${_ref}' in '${_dir}'."
         return 1
       fi
     fi
   else
     # No ref — refresh the current branch using the configured refspecs.
     if ! git -C "${_dir}" "${_GIT_CONF[@]}" fetch --depth=1 origin 2>&1; then
-      logging__error "git__update: fetch failed in '${_dir}'."
+      logging__error "fetch failed in '${_dir}'."
       return 1
     fi
     if git__symbolic_ref "${_dir}" > /dev/null 2>&1; then
       if ! git -C "${_dir}" merge --ff-only 2>&1; then
-        logging__error "git__update: fast-forward merge failed in '${_dir}'."
+        logging__error "fast-forward merge failed in '${_dir}'."
         return 1
       fi
     fi
@@ -332,7 +341,7 @@ git__update() {
 git__symbolic_ref() {
   local _dir="$1"
   [ -z "${_dir}" ] && {
-    logging__error "git__symbolic_ref: missing directory argument"
+    logging__error "missing directory argument"
     return 1
   }
   git -C "${_dir}" symbolic-ref --quiet HEAD > /dev/null
@@ -347,7 +356,7 @@ git__symbolic_ref() {
 git__head_sha() {
   local _dir="$1"
   [ -z "${_dir}" ] && {
-    logging__error "git__head_sha: missing directory argument"
+    logging__error "missing directory argument"
     return 1
   }
   git -C "${_dir}" rev-parse HEAD 2> /dev/null

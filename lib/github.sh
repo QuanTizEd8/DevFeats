@@ -37,7 +37,7 @@ github__fetch_release_json() {
         shift
         ;;
       *)
-        logging__error "github__fetch_release_json: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -69,12 +69,21 @@ github__fetch_release_json() {
 github__release_json_tag_name() {
   local _f="$1"
   local _line
-  [ -r "$_f" ] || return 1
-  if json__root_scalar_stdin tag_name < "$_f"; then
+  [ -r "$_f" ] || {
+    logging__error "release JSON file is not readable: '${_f}'."
+    return 1
+  }
+  if _json__root_scalar_stdin tag_name < "$_f"; then
     return 0
   fi
-  _line="$(grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' "$_f" | head -n 1)" || return 1
-  [ -n "$_line" ] || return 1
+  _line="$(grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' "$_f" | head -n 1)" || {
+    logging__error "tag_name not found in release JSON '${_f}'."
+    return 1
+  }
+  [ -n "$_line" ] || {
+    logging__error "tag_name not found in release JSON '${_f}'."
+    return 1
+  }
   printf '%s\n' "$_line" | sed 's/^"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)"$/\1/'
 }
 
@@ -91,7 +100,10 @@ github__release_json_tag_name() {
 # Returns: 0 on success, 1 if unreadable or id not found.
 github__release_json_id() {
   local _f="$1"
-  [ -r "$_f" ] || return 1
+  [ -r "$_f" ] || {
+    logging__error "release JSON file is not readable: '${_f}'."
+    return 1
+  }
   json__root_scalar_stdin id < "$_f"
 }
 
@@ -145,13 +157,19 @@ github__release_json_digest_for_asset() {
 github__release_json_digest_from_uri() {
   local _uri="$1" _name="$2"
   local _reljson _digest=""
-  [ -n "$_uri" ] && [ -n "$_name" ] || return 1
+  [ -n "$_uri" ] && [ -n "$_name" ] || {
+    logging__error "release JSON URI and asset name are required."
+    return 1
+  }
   _reljson="$(mktemp)"
   if _github__api_get "$_uri" "$_reljson" 2> /dev/null; then
     _digest="$(github__release_json_digest_for_asset "$_reljson" "$_name")" || _digest=""
   fi
   rm -f "$_reljson"
-  [ -n "$_digest" ] || return 1
+  [ -n "$_digest" ] || {
+    logging__error "digest not found for asset '${_name}' at '${_uri}'."
+    return 1
+  }
   printf '%s\n' "$_digest"
   return 0
 }
@@ -175,7 +193,7 @@ github__fetch_release_asset_tarball() {
   local _rel _digest _url
 
   if [ -z "$_repo" ] || [ -z "$_tag" ] || [ -z "$_asset" ] || [ -z "$_dest" ]; then
-    logging__error "github__fetch_release_asset_tarball: need owner/repo, tag, asset, dest"
+    logging__error "need owner/repo, tag, asset, dest"
     return 1
   fi
 
@@ -302,30 +320,30 @@ github__install_release() {
         shift 2
         ;;
       *)
-        logging__error "github__install_release: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
   done
 
   [[ -n "$_repo" && -n "$_tag" ]] || {
-    logging__error "github__install_release: --repo and --tag are required."
+    logging__error "--repo and --tag are required."
     return 1
   }
   [[ -z "$_asset" || -z "$_asset_regex" ]] || {
-    logging__error "github__install_release: --asset and --asset-regex are mutually exclusive."
+    logging__error "--asset and --asset-regex are mutually exclusive."
     return 1
   }
 
   # Early-exit validations before any network I/O.
   if "$_caller_sha256_set" && [[ "$_caller_sha256" != "none" ]]; then
     [[ "$_caller_sha256" =~ ^[0-9a-fA-F]{64}$ ]] || {
-      logging__error "github__install_release: --sha256 accepts a 64-char hex or 'none', got '${_caller_sha256}'."
+      logging__error "--sha256 accepts a 64-char hex or 'none', got '${_caller_sha256}'."
       return 1
     }
   fi
   [[ "$_nbsrc" -gt 0 && "$_nbdest" -gt 1 && "$_nbsrc" -ne "$_nbdest" ]] && {
-    logging__error "github__install_release: ${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
+    logging__error "${_nbsrc} --binary-src but ${_nbdest} --binary-dest (must be equal or use 1 --binary-dest for all)."
     return 1
   }
 
@@ -335,9 +353,15 @@ github__install_release() {
   if [[ -z "$_asset" ]]; then
     local _picked_url
     if [[ -n "$_asset_regex" ]]; then
-      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag" --asset-regex "$_asset_regex")" || return 1
+      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag" --asset-regex "$_asset_regex")" || {
+        logging__error "failed to pick release asset for '${_repo}' (tag='${_tag}')."
+        return 1
+      }
     else
-      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag")" || return 1
+      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag")" || {
+        logging__error "failed to pick release asset for '${_repo}' (tag='${_tag}')."
+        return 1
+      }
     fi
     _asset="${_picked_url##*/}"
   fi
@@ -355,7 +379,7 @@ github__install_release() {
     if [[ -n "$_json_digest" ]]; then
       _sha256_args=(--sha256 "$_json_digest")
     else
-      logging__warn "github__install_release: no JSON digest for '${_asset}' — skipping JSON SHA-256."
+      logging__warn "no JSON digest for '${_asset}' — skipping JSON SHA-256."
     fi
   fi
 
@@ -389,7 +413,7 @@ github__latest_tag() {
   fi
 
   if [ -n "$_json" ]; then
-    logging__error "github__latest_tag: could not parse tag_name from API response for '${_repo}'."
+    logging__error "could not parse tag_name from API response for '${_repo}'."
   fi
 
   # Fallback: resolve tag via the /releases/latest redirect on github.com.
@@ -413,7 +437,7 @@ github__latest_tag() {
     return 0
   fi
 
-  logging__error "github__latest_tag: failed to resolve latest tag for '${_repo}' (GitHub API unreachable and redirect fallback failed)."
+  logging__error "failed to resolve latest tag for '${_repo}' (GitHub API unreachable and redirect fallback failed)."
   return 1
 }
 
@@ -463,20 +487,20 @@ github__release_tags() {
         shift
         ;;
       *)
-        logging__error "github__release_tags: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
   done
 
   case "$_retries" in '' | *[!0-9]*)
-    logging__error "github__release_tags: --retries must be a non-negative integer."
+    logging__error "--retries must be a non-negative integer."
     return 1
     ;;
   esac
   [ "$_retries" -lt 1 ] && _retries=1
   case "$_retry_delay" in '' | *[!0-9]*)
-    logging__error "github__release_tags: --retry-delay must be a non-negative integer."
+    logging__error "--retry-delay must be a non-negative integer."
     return 1
     ;;
   esac
@@ -499,10 +523,10 @@ github__release_tags() {
     fi
 
     if [ "$_attempt" -ge "$_retries" ]; then
-      logging__error "github__release_tags: failed to reach GitHub API for '${_repo}' after ${_retries} attempt(s)."
+      logging__error "failed to reach GitHub API for '${_repo}' after ${_retries} attempt(s)."
       return 1
     fi
-    logging__warn "github__release_tags: GitHub API list failed for '${_repo}' (attempt ${_attempt}/${_retries}); retrying in ${_retry_delay}s."
+    logging__warn "GitHub API list failed for '${_repo}' (attempt ${_attempt}/${_retries}); retrying in ${_retry_delay}s."
     sleep "$_retry_delay"
     _attempt=$((_attempt + 1))
   done
@@ -564,14 +588,14 @@ github__resolve_version() {
         case "$1" in
           release | tag | auto) _endpoint="$1" ;;
           *)
-            logging__error "github__resolve_version: --endpoint must be 'release', 'tag', or 'auto'"
+            logging__error "--endpoint must be 'release', 'tag', or 'auto'"
             return 1
             ;;
         esac
         shift
         ;;
       --*)
-        logging__error "github__resolve_version: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
       *)
@@ -580,7 +604,7 @@ github__resolve_version() {
           _spec_set=true
           shift
         else
-          logging__error "github__resolve_version: unexpected positional argument: '$1'"
+          logging__error "unexpected positional argument: '$1'"
           return 1
         fi
         ;;
@@ -594,7 +618,7 @@ github__resolve_version() {
     *)
       _norm="$(ver__extract_version --keep-suffix "$_spec")"
       [ -n "$_norm" ] || {
-        logging__error "github__resolve_version: spec '${_spec}' contains no numeric version content."
+        logging__error "spec '${_spec}' contains no numeric version content."
         return 1
       }
       ;;
@@ -663,9 +687,9 @@ github__resolve_version() {
 
   [ -n "$_tag" ] || {
     case "$_endpoint" in
-      release) logging__error "github__resolve_version: no release matching '${_spec}' found for '${_repo}'." ;;
-      tag) logging__error "github__resolve_version: no tag matching '${_spec}' found for '${_repo}'." ;;
-      *) logging__error "github__resolve_version: no release or tag matching '${_spec}' found for '${_repo}'." ;;
+      release) logging__error "no release matching '${_spec}' found for '${_repo}'." ;;
+      tag) logging__error "no tag matching '${_spec}' found for '${_repo}'." ;;
+      *) logging__error "no release or tag matching '${_spec}' found for '${_repo}'." ;;
     esac
     return 1
   }
@@ -708,7 +732,7 @@ github__tags() {
         shift
         ;;
       *)
-        logging__error "github__tags: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -720,7 +744,7 @@ github__tags() {
   if [ "$_all" = "false" ]; then
     local _url="${_base}/tags?per_page=${_per_page}"
     _github__api_list_field "$_url" "name" || {
-      logging__error "github__tags: failed to reach GitHub API for '${_repo}'."
+      logging__error "failed to reach GitHub API for '${_repo}'."
       return 1
     }
     return 0
@@ -729,7 +753,7 @@ github__tags() {
   _github__paginate_list_field \
     "${_base}/tags" \
     "name" "$_per_page" || {
-    logging__error "github__tags: failed to reach GitHub API for '${_repo}'."
+    logging__error "failed to reach GitHub API for '${_repo}'."
     return 1
   }
   return 0
@@ -763,7 +787,7 @@ github__release_asset_urls() {
         shift
         ;;
       *)
-        logging__error "github__release_asset_urls: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -833,7 +857,7 @@ github__pick_release_asset() {
         shift
         ;;
       *)
-        logging__error "github__pick_release_asset: unknown option: '$1'"
+        logging__error "unknown option: '$1'"
         return 1
         ;;
     esac
@@ -842,9 +866,12 @@ github__pick_release_asset() {
   # ── Fetch all asset URLs ──────────────────────────────────────────────────
   [ -n "$_tag" ] && _tag_arg="--tag $_tag"
   # shellcheck disable=SC2086
-  _urls="$(github__release_asset_urls "$_repo" ${_tag_arg})" || return 1
+  _urls="$(github__release_asset_urls "$_repo" ${_tag_arg})" || {
+    logging__error "failed to list release assets for '${_repo}'."
+    return 1
+  }
   if [ -z "$_urls" ]; then
-    logging__error "github__pick_release_asset: no assets found for '${_repo}'."
+    logging__error "no assets found for '${_repo}'."
     return 1
   fi
 
@@ -852,7 +879,7 @@ github__pick_release_asset() {
   if [ -n "$_asset_regex" ]; then
     _tmp="$(printf '%s\n' "$_urls" | grep -E "$_asset_regex")" || true
     if [ -z "$_tmp" ]; then
-      logging__error "github__pick_release_asset: --asset-regex '${_asset_regex}' matched no assets for '${_repo}'."
+      logging__error "--asset-regex '${_asset_regex}' matched no assets for '${_repo}'."
       return 1
     fi
     _urls="$_tmp"
@@ -941,11 +968,11 @@ github__pick_release_asset() {
       return 0
       ;;
     0)
-      logging__error "github__pick_release_asset: no matching asset for '${_repo}' (arch=${_raw_arch}, kernel=${_kernel})."
+      logging__error "no matching asset for '${_repo}' (arch=${_raw_arch}, kernel=${_kernel})."
       return 1
       ;;
     *)
-      logging__error "github__pick_release_asset: ${_count} ambiguous assets remain for '${_repo}'; pass --asset-regex to disambiguate:"
+      logging__error "${_count} ambiguous assets remain for '${_repo}'; pass --asset-regex to disambiguate:"
       local _n
       while IFS= read -r _n; do
         logging__error "   ${_n}"
@@ -968,12 +995,18 @@ _github__api_list_field() {
   local _url="$1"
   local _field="$2"
   local _json _lines _msg
-  _json="$(_github__api_get "$_url")" || return 1
-  [ -z "$_json" ] && return 1
+  _json="$(_github__api_get "$_url")" || {
+    logging__error "GitHub API request failed for '${_url}'."
+    return 1
+  }
+  [ -z "$_json" ] && {
+    logging__error "GitHub API returned empty response for '${_url}'."
+    return 1
+  }
 
   if printf '%s\n' "$_json" | json__query -e 'type == "object" and (.message | type == "string")' > /dev/null 2>&1; then
     _msg="$(printf '%s\n' "$_json" | json__query -r '.message // empty' 2> /dev/null)" || _msg=""
-    logging__error "_github__api_list_field: GitHub API error for '${_url}': ${_msg}"
+    logging__error "GitHub API error for '${_url}': ${_msg}"
     return 1
   fi
 
@@ -984,11 +1017,11 @@ _github__api_list_field() {
   fi
 
   if printf '%s\n' "$_json" | json__query -e 'type == "array" and length == 0' > /dev/null 2>&1; then
-    logging__error "_github__api_list_field: GitHub API returned an empty JSON array for '${_url}'."
+    logging__error "GitHub API returned an empty JSON array for '${_url}'."
     return 1
   fi
 
-  logging__error "_github__api_list_field: no '${_field}' values extracted from GitHub API response for '${_url}' (expected a non-empty JSON array of objects)."
+  logging__error "no '${_field}' values extracted from GitHub API response for '${_url}' (expected a non-empty JSON array of objects)."
   return 1
 }
 
@@ -1133,12 +1166,18 @@ _github__api_get() {
 # Returns: 0 on match, 1 if no match found or on API error.
 _github__first_stable_tag_matching() {
   local _api_base="$1" _norm="$2"
-  _json__ensure_jq || return 1
+  _json__ensure_jq || {
+    logging__error "jq is required to match GitHub release tags."
+    return 1
+  }
   local _per_page=100 _page=1 _json _tags _count _tag
 
   while :; do
     local _url="${_api_base}/releases?per_page=${_per_page}&page=${_page}"
-    _json="$(_github__api_get "$_url")" || return 1
+    _json="$(_github__api_get "$_url")" || {
+      logging__error "GitHub API request failed for '${_url}'."
+      return 1
+    }
 
     _tags="$(printf '%s\n' "$_json" |
       json__query -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \

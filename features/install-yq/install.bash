@@ -6,9 +6,16 @@
 # Binary releases cover amd64 and arm64; other arches fall back to package manager.
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  logging__inspect "Resolving METHOD=auto for yq."
   case "$(os__release_arch)" in
-    amd64 | arm64) printf 'binary\n' ;;
-    *) printf 'package\n' ;;
+    amd64 | arm64)
+      logging__info "Resolved METHOD=auto → 'binary'."
+      printf 'binary\n'
+      ;;
+    *)
+      logging__info "Resolved METHOD=auto → 'package'."
+      printf 'package\n'
+      ;;
   esac
 }
 
@@ -17,19 +24,34 @@ __resolve_method() {
 # then sets BINARY_SHA256 so __install_run_binary__ uses it instead of auto-probing.
 # shellcheck disable=SC2329,SC2317
 __install_run_binary_pre() {
+  logging__inspect "Probing GitHub release digest for yq binary."
   local _os _arch _base _hdir _f
-  _os="$(os__release_kernel)" || return 1
-  _arch="$(os__release_arch)" || return 1
-  _base="$(os__expand_release_pattern "${BINARY_ASSET_URI%/*}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")" || return 1
+  _os="$(os__release_kernel)" || {
+    logging__error "yq: failed to detect OS kernel."
+    return 1
+  }
+  _arch="$(os__release_arch)" || {
+    logging__error "yq: failed to detect CPU architecture."
+    return 1
+  }
+  _base="$(os__expand_release_pattern "${BINARY_ASSET_URI%/*}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")" || {
+    logging__error "yq: failed to expand checksum base URI from '${BINARY_ASSET_URI}'."
+    return 1
+  }
   _hdir="$(file__mktmpdir "install/yq-checksums")"
+  logging__download "Fetching yq checksum bundle from '${_base}'."
   for _f in checksums checksums_hashes_order extract-checksum.sh; do
-    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}" || return 1
+    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}" || {
+      logging__error "yq: failed to fetch checksum file '${_f}' from '${_base}'."
+      return 1
+    }
   done
   BINARY_SHA256="$(cd "${_hdir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
   if [[ ! "${BINARY_SHA256:-}" =~ ^[0-9a-f]{64}$ ]]; then
     logging__error "yq: invalid SHA-256 for yq_${_os}_${_arch}."
     return 1
   fi
+  logging__info "yq: resolved SHA-256 for yq_${_os}_${_arch}."
 }
 
 # After package install, verify the distro package is mikefarah/yq (supports -o=json),
@@ -42,4 +64,5 @@ __install_run_package_post() {
     logging__error "yq: method=package did not yield a mikefarah/yq-compatible binary (missing -o=json support). Use method=binary or specify a different package repository."
     return 1
   fi
+  logging__success "yq package install verified (mikefarah/yq-compatible)."
 }

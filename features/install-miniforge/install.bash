@@ -27,15 +27,20 @@ __resolve_input_version_post() {
 }
 
 # Only the script method is supported.
-__resolve_method() { printf 'script\n'; }
+__resolve_method() {
+  logging__info "Resolved METHOD=auto → 'script' (Miniforge installer)."
+  printf 'script\n'
+}
 
 # Run the downloaded Miniforge installer, then display post-install info.
 __install_run_script_run() {
   local _installer="$1"
   logging__install "Installing Miniforge to ${_RESOLVED_PREFIX}"
   if [[ "${INTERACTIVE:-}" == true ]]; then
+    logging__launch "Running Miniforge installer interactively."
     /bin/bash "${_installer}" -p "${_RESOLVED_PREFIX}"
   else
+    logging__launch "Running Miniforge installer in batch mode."
     /bin/bash "${_installer}" -b -p "${_RESOLVED_PREFIX}"
   fi
   logging__info "Conda info:"
@@ -49,7 +54,6 @@ __install_run_script_run() {
 }
 
 export_envs() {
-  logging__fn_entry "export_envs"
   local tmpdir="$1"
   mkdir -p "$tmpdir"
   local env_paths
@@ -59,7 +63,6 @@ export_envs() {
     grep -v "^${_RESOLVED_PREFIX}/*$")" || true
   if [[ -z "$env_paths" ]]; then
     logging__info "No non-base environments found to preserve."
-    logging__fn_exit "export_envs"
     return
   fi
   while IFS= read -r env_path; do
@@ -75,15 +78,12 @@ export_envs() {
       rm -f "$yaml_path"
     fi
   done <<< "$env_paths"
-  logging__fn_exit "export_envs"
 }
 
 recreate_envs() {
-  logging__fn_entry "recreate_envs"
   local tmpdir="$1"
   if [[ ! -d "$tmpdir" ]]; then
     logging__info "No preserved environments directory found at '${tmpdir}'. Skipping."
-    logging__fn_exit "recreate_envs"
     return
   fi
   local found=false
@@ -104,7 +104,6 @@ recreate_envs() {
     logging__info "No preserved environment YAMLs found in '${tmpdir}'."
   fi
   [ -d "$tmpdir" ] && [ -z "$(ls -A "$tmpdir")" ] && rm -rf "$tmpdir"
-  logging__fn_exit "recreate_envs"
 }
 
 # Override: conda teardown requires conda init --reverse and per-user config cleanup.
@@ -112,9 +111,15 @@ recreate_envs() {
 __uninstall_run__() {
   logging__remove "Uninstalling conda (Miniforge)."
   if [[ "${PRESERVE_CONFIG:-}" != "true" ]]; then
+    logging__remove "Reversing conda shell integration (conda init --reverse)."
     "${_FEAT_EXISTING_PATH}" init --reverse
+  else
+    logging__skip "preserve_config=true; skipping conda init --reverse."
   fi
-  rm -rf "$("${_FEAT_EXISTING_PATH}" info --base)"
+  local _conda_base
+  _conda_base="$("${_FEAT_EXISTING_PATH}" info --base)"
+  logging__remove "Removing conda base directory '${_conda_base}'."
+  rm -rf "${_conda_base}"
   if [[ "${PRESERVE_CONFIG:-}" != "true" ]]; then
     local -a _wargs=()
     if [[ "${#WRITE_USERS[@]}" -gt 0 ]]; then
@@ -128,21 +133,30 @@ __uninstall_run__() {
       local _user_home
       _user_home="$(users__resolve_home "$_u")" || continue
       [[ -z "$_user_home" ]] && continue
+      logging__remove "Removing conda user config for '${_u}' (${_user_home}/.condarc, .conda)."
       rm -f "$_user_home/.condarc"
       rm -rf "$_user_home/.conda"
     done
+  else
+    logging__skip "preserve_config=true; skipping per-user conda config removal."
   fi
 }
 
 # Export all non-base conda environments before the uninstall step.
 __reinstall_run_pre() {
-  [[ "${PRESERVE_ENVS:-}" == "true" ]] || return 0
+  [[ "${PRESERVE_ENVS:-}" == "true" ]] || {
+    logging__skip "preserve_envs=false; skipping conda environment export before reinstall."
+    return 0
+  }
   export_envs "/tmp/conda-env-preserve"
 }
 
 # Recreate preserved environments after the fresh install step.
 __reinstall_run_post() {
-  [[ "${PRESERVE_ENVS:-}" == "true" ]] || return 0
+  [[ "${PRESERVE_ENVS:-}" == "true" ]] || {
+    logging__skip "preserve_envs=false; skipping conda environment recreation after reinstall."
+    return 0
+  }
   recreate_envs "/tmp/conda-env-preserve"
 }
 
@@ -162,12 +176,25 @@ __feat_do_configure_users_pre() {
 
 __configure_user() {
   local _u="$1"
-  [ -z "${ACTIVATE_ENV:-}" ] && return 0
+  [ -z "${ACTIVATE_ENV:-}" ] && {
+    logging__skip "activate_env unset; skipping conda activation for user '${_u}'."
+    return 0
+  }
   local _user_home
-  _user_home="$(users__resolve_home "$_u")" || return 0
-  [[ -z "$_user_home" ]] && return 0
+  _user_home="$(users__resolve_home "$_u")" || {
+    logging__warn "Could not resolve home for '${_u}'; skipping conda activation."
+    return 0
+  }
+  [[ -z "$_user_home" ]] && {
+    logging__warn "Empty home directory for '${_u}'; skipping conda activation."
+    return 0
+  }
   if [[ "$ACTIVATE_ENV" == "base" ]]; then
-    [[ "${PRESERVE_CONFIG:-}" == "false" ]] && return 0
+    [[ "${PRESERVE_CONFIG:-}" == "false" ]] && {
+      logging__skip "preserve_config=false; skipping base auto-activation for '${_u}'."
+      return 0
+    }
+    logging__install "Enabling base conda auto-activation for user '${_u}'."
     if "${_RESOLVED_PREFIX}/bin/conda" config --describe auto_activate &> /dev/null; then
       "${_RESOLVED_PREFIX}/bin/conda" config --remove-key auto_activate_base --file "$_user_home/.condarc" 2> /dev/null || true
       "${_RESOLVED_PREFIX}/bin/conda" config --set auto_activate true --file "$_user_home/.condarc"
@@ -175,6 +202,7 @@ __configure_user() {
       "${_RESOLVED_PREFIX}/bin/conda" config --set auto_activate_base true --file "$_user_home/.condarc"
     fi
   else
+    logging__install "Writing conda activate '${ACTIVATE_ENV}' for user '${_u}'."
     local _bashrc _zshrc
     if [[ "$_u" == "root" ]]; then
       _bashrc="$(shell__detect_bashrc)"

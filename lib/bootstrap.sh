@@ -9,7 +9,10 @@
 # @brief _bootstrap__yq_compatible <bin> — Return 0 when <bin> is mikefarah/yq (supports -o=json).
 _bootstrap__yq_compatible() {
   local _bin="${1-}"
-  [[ -n "$_bin" ]] || return 1
+  [[ -n "$_bin" ]] || {
+    logging__error "yq binary path is empty."
+    return 1
+  }
   "$_bin" -o=json '.' /dev/null > /dev/null 2>&1
 }
 
@@ -33,6 +36,7 @@ bootstrap__yq() {
   local _existing
   _existing="$(command -v yq 2> /dev/null || true)"
   if [[ -n "${_existing}" ]] && _bootstrap__yq_compatible "${_existing}"; then
+    logging__skip "Compatible yq already on PATH at '${_existing}'."
     printf '%s\n' "${_existing}"
     return 0
   fi
@@ -41,21 +45,31 @@ bootstrap__yq() {
   local _state_ctx _state_path _state_group
   install__read_state "yq" _state_ctx _state_path _state_group
   if [[ -x "${_state_path:-}" ]] && _bootstrap__yq_compatible "${_state_path}"; then
+    logging__skip "Reusing bootstrapped yq at '${_state_path}'."
     printf '%s\n' "${_state_path}"
     return 0
   fi
 
+  logging__install "Bootstrapping yq (spec='${_spec}')."
+
   # Resolve version.
   local _resolved_ver
+  logging__info "Resolving yq version for spec '${_spec}'."
   _resolved_ver="$(github__resolve_version "mikefarah/yq" "${_spec}" --version)" || return 1
 
   local _os _arch
-  _os="$(os__release_kernel)" || return 1
-  _arch="$(os__release_arch)" || return 1
+  _os="$(os__release_kernel)" || {
+    logging__error "failed to detect OS kernel."
+    return 1
+  }
+  _arch="$(os__release_arch)" || {
+    logging__error "failed to detect CPU architecture."
+    return 1
+  }
   case "${_arch}" in
     amd64 | arm64) ;;
     *)
-      logging__error "bootstrap__yq: unsupported architecture '${_arch}'."
+      logging__error "unsupported architecture '${_arch}'."
       return 1
       ;;
   esac
@@ -65,23 +79,30 @@ bootstrap__yq() {
   # Compute SHA-256 via yq's custom checksum extraction script.
   local _hdir _f _expected_hash
   _hdir="$(file__mktmpdir "bootstrap/yq-checksums")"
+  logging__download "Fetching yq checksum bundle from '${_base}'."
   for _f in checksums checksums_hashes_order extract-checksum.sh; do
-    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}" || return 1
+    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}" || {
+      logging__error "failed to fetch checksum file '${_f}' from '${_base}'."
+      return 1
+    }
   done
   _expected_hash="$(cd "${_hdir}" && shell__bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
   if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
-    logging__error "bootstrap__yq: invalid SHA-256 for yq_${_os}_${_arch}."
+    logging__error "invalid SHA-256 for yq_${_os}_${_arch}."
     return 1
   fi
 
   local _install_dir
   _install_dir="$(file__tmpdir "bootstrap/yq")"
+  logging__install "Installing yq binary 'yq_${_os}_${_arch}' from '${_base}'."
   install__release_asset \
     --asset-uri "${_base}/yq_${_os}_${_arch}" \
     --sha256 "${_expected_hash}" \
     --binary-dest "${_install_dir}/yq" || return 1
 
   install__state_record "yq" "internal" "binary" "${_install_dir}/yq" "devfeats-bootstrap-yq" || true
+  # Path is emitted by install__release_asset → uri__fetch_asset (do not printf again:
+  # duplicate stdout lines break `_bin="$(bootstrap__yq)"` capture in _ospkg__ensure_yq).
 }
 
 # @brief bootstrap__oras [<version-spec>] — Ensure oras is available and print its path.
@@ -103,6 +124,7 @@ bootstrap__oras() {
   local _existing
   _existing="$(command -v oras 2> /dev/null || true)"
   if [[ -n "${_existing}" ]]; then
+    logging__skip "oras already on PATH at '${_existing}'."
     printf '%s\n' "${_existing}"
     return 0
   fi
@@ -111,21 +133,31 @@ bootstrap__oras() {
   local _state_ctx _state_path _state_group
   install__read_state "oras" _state_ctx _state_path _state_group
   if [[ -x "${_state_path:-}" ]]; then
+    logging__skip "Reusing bootstrapped oras at '${_state_path}'."
     printf '%s\n' "${_state_path}"
     return 0
   fi
 
+  logging__install "Bootstrapping oras (spec='${_spec}')."
+
   # Resolve version.
   local _resolved_ver
+  logging__info "Resolving oras version for spec '${_spec}'."
   _resolved_ver="$(github__resolve_version "oras-project/oras" "${_spec}" --version)" || return 1
 
   local _os _arch
-  _os="$(os__release_kernel)" || return 1
-  _arch="$(os__release_arch)" || return 1
+  _os="$(os__release_kernel)" || {
+    logging__error "failed to detect OS kernel."
+    return 1
+  }
+  _arch="$(os__release_arch)" || {
+    logging__error "failed to detect CPU architecture."
+    return 1
+  }
   case "${_arch}" in
     amd64 | arm64 | armv7 | ppc64le | s390x | riscv64 | loong64) ;;
     *)
-      logging__error "bootstrap__oras: unsupported architecture '${_arch}'."
+      logging__error "unsupported architecture '${_arch}'."
       return 1
       ;;
   esac
@@ -134,6 +166,7 @@ bootstrap__oras() {
   local _asset="oras_${_resolved_ver}_${_os}_${_arch}.tar.gz"
   local _install_dir
   _install_dir="$(file__tmpdir "bootstrap/oras")"
+  logging__install "Installing oras asset '${_asset}' from GitHub release '${_tag}'."
   install__release_asset \
     --asset-uri "https://github.com/oras-project/oras/releases/download/${_tag}/${_asset}" \
     --binary-src oras \
@@ -141,6 +174,7 @@ bootstrap__oras() {
     --gpg-key "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" || return 1
 
   install__state_record "oras" "internal" "binary" "${_install_dir}/oras" "devfeats-bootstrap-oras" || true
+  # Path is emitted by install__release_asset → uri__fetch_asset (see bootstrap__yq).
 }
 
 # @brief bootstrap__git — Ensure git is available via the OS package manager.

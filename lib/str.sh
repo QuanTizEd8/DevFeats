@@ -43,7 +43,10 @@ str__safe_id() {
 #   <prefix>... One or more prefix strings to check.
 str__has_any_prefix() {
   local s="${1-}"
-  shift || return 1
+  shift || {
+    logging__error "at least one prefix is required."
+    return 1
+  }
   local _p
   for _p in "$@"; do
     if [[ -n "$_p" && "$s" == "$_p"* ]]; then

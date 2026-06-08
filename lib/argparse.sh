@@ -115,7 +115,7 @@ _argparse__validate_path_value() {
       ! test "${_op#! }" "$_val" && _ok=true
       ;;
     *)
-      logging__error "argparse__validate_path: unsupported path test '${_op}'."
+      logging__error "unsupported path test '${_op}'."
       exit 1
       ;;
   esac
@@ -252,7 +252,7 @@ argparse__resolve_uri_options() {
     [[ -z "${_line//[[:space:]]/}" ]] && continue
     IFS=$'\t' read -r _key _var _typ _chmod <<< "${_line}"
     [[ -n "${_key:-}" && -n "${_var:-}" && -n "${_typ:-}" ]] || {
-      logging__error "argparse__resolve_uri_options: invalid spec line: '${_line}'"
+      logging__error "invalid spec line: '${_line}'"
       return 1
     }
     _mdir="${_matdir}/uri/${_key}"
@@ -262,22 +262,34 @@ argparse__resolve_uri_options() {
         [[ ${#_uri_arr_ref[@]} -gt 0 ]] || continue
         _list="$(printf '%s\n' "${_uri_arr_ref[@]}")"
         mapfile -t _uri_arr_ref < <(uri__resolve_list "$_list" "$_mdir" "${_fetch_args[@]}" ${_chmod:+--chmod "$_chmod"}) ||
-          return 1
+          {
+            logging__error "failed to resolve URI array '${_key}'."
+            return 1
+          }
         ;;
       string)
         local _val="${!_var:-}"
         [[ -n "${_val}" ]] || continue
         mkdir -p "$_mdir"
         if [[ -n "${_chmod:-}" ]]; then
-          _dest="$(uri__dest_for_uri "$_mdir" "$_val")" || return 1
-          uri__resolve "$_val" "$_dest" "${_fetch_args[@]}" --chmod "$_chmod" > /dev/null || return 1
+          _dest="$(uri__dest_for_uri "$_mdir" "$_val")" || {
+            logging__error "failed to derive dest for URI '${_key}'."
+            return 1
+          }
+          uri__resolve "$_val" "$_dest" "${_fetch_args[@]}" --chmod "$_chmod" > /dev/null || {
+            logging__error "failed to resolve URI '${_key}' to '${_dest}'."
+            return 1
+          }
           printf -v "$_var" '%s' "$_dest"
         else
-          printf -v "$_var" '%s' "$(uri__resolve_line "$_val" "$_mdir" "${_fetch_args[@]}")" || return 1
+          printf -v "$_var" '%s' "$(uri__resolve_line "$_val" "$_mdir" "${_fetch_args[@]}")" || {
+            logging__error "failed to resolve URI line '${_key}'."
+            return 1
+          }
         fi
         ;;
       *)
-        logging__error "argparse__resolve_uri_options: unknown type '${_typ}' in spec for '${_key}'."
+        logging__error "unknown type '${_typ}' in spec for '${_key}'."
         return 1
         ;;
     esac

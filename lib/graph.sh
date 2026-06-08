@@ -48,7 +48,7 @@ graph__round_order() {
   done
 
   if [[ ${#_nodes[@]} -eq 0 ]]; then
-    logging__error "graph__round_order: need node ids after --"
+    logging__error "need node ids after --"
     return 1
   fi
 
@@ -64,7 +64,10 @@ graph__round_order() {
       [[ -z "$_l" ]] && continue
       IFS=$'\t' read -r p q <<< "$_l" || true
       [[ -n "$p" ]] && _pr["$p"]="${q:-0}"
-    done < "$_pf" || return 1
+    done < "$_pf" || {
+      logging__error "failed to read priority file '${_pf}'."
+      return 1
+    }
   fi
 
   if [[ -n "$_hf" && -f "$_hf" ]]; then
@@ -75,11 +78,14 @@ graph__round_order() {
         continue
       fi
       if [[ -z "${_have[$p]+x}" || -z "${_have[$q]+x}" ]]; then
-        logging__error "graph__round_order: hard edge unknown node (${p} -> ${q})"
+        logging__error "hard edge unknown node (${p} -> ${q})"
         return 1
       fi
       _hdep["$q"]+="${p} "
-    done < "$_hf" || return 1
+    done < "$_hf" || {
+      logging__error "failed to read hard-edges file '${_hf}'."
+      return 1
+    }
   fi
 
   if [[ -n "$_sf" && -f "$_sf" ]]; then
@@ -89,7 +95,10 @@ graph__round_order() {
       [[ -z "$p" || -z "$q" || -z "${_have[$q]+x}" ]] && continue
       [[ -z "${_have[$p]+x}" ]] && continue
       _sdep["$q"]+="${p} "
-    done < "$_sf" || return 1
+    done < "$_sf" || {
+      logging__error "failed to read soft-edges file '${_sf}'."
+      return 1
+    }
   fi
 
   _all_pred_done() {
@@ -114,7 +123,7 @@ graph__round_order() {
     if ((${#_cand[@]} == 0)); then
       for _a in "${!_have[@]}"; do
         [[ -z "${_done[$_a]+x}" ]] && {
-          logging__error "graph__round_order: cycle in dependencies"
+          logging__error "cycle in dependencies"
           return 1
         }
       done

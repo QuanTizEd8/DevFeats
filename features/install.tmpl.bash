@@ -19,8 +19,9 @@ __main__() {
   __init__ "$@"
 
   if [[ ! -v IF_EXISTS ]]; then
-    # No `if_exists` option; no existence checks or conditional logic needed. Just install.
+    logging__info "if_exists unset; installing directly without existence checks."
     __install__
+    logging__info "Install finished (if_exists unset); exiting."
     exit 0
   fi
 
@@ -32,11 +33,13 @@ __main__() {
     case "${IF_EXISTS}" in
       uninstall)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' not found; nothing to uninstall (if_exists=uninstall)."
+        logging__info "Exiting with status 0."
         exit 0
         ;;
       *)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' not found; installing (if_exists=${IF_EXISTS})."
         __install__
+        logging__info "Install lifecycle finished; exiting with status 0."
         exit 0
         ;;
     esac
@@ -46,29 +49,35 @@ __main__() {
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; skipping (if_exists=skip)."
         __deploy_lifecycle_scripts__ --skip
         if declare -f __skip_post > /dev/null; then __skip_post; fi
+        logging__info "Skip lifecycle finished; exiting with status 0."
         exit 0
         ;;
       fail)
         logging__error "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; failing (if_exists=fail)."
+        logging__fatal "Exiting with status 1 (if_exists=fail)."
         exit 1
         ;;
       uninstall)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; uninstalling (if_exists=uninstall)."
         __uninstall__
+        logging__info "Uninstall lifecycle finished; exiting with status 0."
         exit 0
         ;;
       reinstall)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; reinstalling (if_exists=reinstall)."
         __reinstall__
+        logging__info "Reinstall lifecycle finished; exiting with status 0."
         exit 0
         ;;
       update)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; updating (if_exists=update)."
         __update__
+        logging__info "Update lifecycle finished; exiting with status 0."
         exit 0
         ;;
       *)
         logging__error "Unknown if_exists value: '${IF_EXISTS}'"
+        logging__fatal "Exiting with status 1 (unknown if_exists)."
         exit 1
         ;;
     esac
@@ -86,13 +95,16 @@ __init__() {
 
   __init_env__
   __init_lib__
+  logging__feature_entry "$_FEAT_NAME v$_FEAT_VERSION"
   file__session_ensure
+
   if [[ -n "${_BASH_INSTALLED_INTERNALLY:-}" ]] && [[ -n "${_BASH_BIN:-}" ]]; then
     install__track_internal_path "bash-bootstrap" "${_BASH_BIN}"
   fi
   unset _BASH_INSTALLED_INTERNALLY
   export -n _BASH_INSTALLED_BY_PM   # keep value in this process, don't leak to children
   export -n _BASH_BIN               # same: _BASH_BIN stays accessible for shell__bash()
+
   __init_args__ "$@"
   __init_script__
 
@@ -184,15 +196,18 @@ __init_args__() {
       case $1 in
         ${{ _script.argparse.case_arms }}$
         -h | --help)
+          logging__info "Showing help (--help); exiting."
           __print_docs__
           exit 0
           ;;
         --*)
           logging__error "Unknown option: '${1}'"
+          logging__fatal "Exiting with status 1 (unknown option)."
           exit 1
           ;;
         *)
           logging__error "Unexpected argument: '${1}'"
+          logging__fatal "Exiting with status 1 (unexpected argument)."
           exit 1
           ;;
       esac
@@ -239,6 +254,8 @@ __detect_existing__() {
   # Existing installation method detection (no-op when nothing found)
   __detect_existing_method__
 
+  logging__detect "Detection complete: path='${_FEAT_EXISTING_PATH:-}', method='${_FEAT_EXISTING_METHOD:-}'."
+
   if declare -f __detect_existing_post > /dev/null; then
     __detect_existing_post
   fi
@@ -280,6 +297,7 @@ __detect_existing_path__() {
   # primary binary from being misclassified as a plain "prefix" (binary) installation.
   if [[ -n "${GIT_CLONE_URI:-}" && -v PREFIX && -v _RESOLVED_PREFIX && -d "${_RESOLVED_PREFIX}/.git" ]]; then
     _FEAT_EXISTING_PATH="${_RESOLVED_PREFIX}"
+    logging__detect "Found git-clone repository at '${_FEAT_EXISTING_PATH}'."
   fi
 
   # Binary detection only when not already found by the git-clone check.
@@ -290,14 +308,25 @@ __detect_existing_path__() {
     fi
     if [[ -n "${_prefix_bin}" && -x "${_prefix_bin}" ]]; then
       _FEAT_EXISTING_PATH="${_prefix_bin}"
+      logging__detect "Found '${_FEAT_CONTRACT_PRIMARY_BIN}' in prefix at '${_FEAT_EXISTING_PATH}'."
     else
       if [[ -v RUNTIME_PATH ]]; then
         _FEAT_EXISTING_PATH="$(PATH="${RUNTIME_PATH}" command -v "${_FEAT_CONTRACT_PRIMARY_BIN}" 2>/dev/null || true)"
+        [[ -n "${_FEAT_EXISTING_PATH}" ]] && \
+          logging__detect "Found '${_FEAT_CONTRACT_PRIMARY_BIN}' on RUNTIME_PATH at '${_FEAT_EXISTING_PATH}'."
       fi
       if [[ -z "${_FEAT_EXISTING_PATH}" ]]; then
         _FEAT_EXISTING_PATH="$(command -v "${_FEAT_CONTRACT_PRIMARY_BIN}" 2>/dev/null || true)"
+        [[ -n "${_FEAT_EXISTING_PATH}" ]] && \
+          logging__detect "Found '${_FEAT_CONTRACT_PRIMARY_BIN}' on install-time PATH at '${_FEAT_EXISTING_PATH}'."
       fi
     fi
+  elif [[ -z "${_FEAT_EXISTING_PATH}" && -z "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]]; then
+    logging__skip "No primary binary configured; skipping binary existence probe."
+  fi
+
+  if [[ -z "${_FEAT_EXISTING_PATH}" && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]]; then
+    logging__detect "No existing '${_FEAT_CONTRACT_PRIMARY_BIN}' installation found."
   fi
 
   if declare -f __detect_existing_path_post > /dev/null; then
@@ -362,6 +391,12 @@ __detect_existing_method__() {
     fi
   fi
 
+  if [[ -n "${_FEAT_EXISTING_METHOD}" ]]; then
+    logging__detect "Detected installation method '${_FEAT_EXISTING_METHOD}' for '${_FEAT_EXISTING_PATH}'."
+  else
+    logging__warn "Could not determine installation method for '${_FEAT_EXISTING_PATH}'."
+  fi
+
   if declare -f __detect_existing_method_post > /dev/null; then
     __detect_existing_method_post
   fi
@@ -370,6 +405,8 @@ __detect_existing_method__() {
 # Uninstallation
 # ===============
 __uninstall__() {
+
+  logging__info "Starting uninstall (path='${_FEAT_EXISTING_PATH:-}', method='${_FEAT_EXISTING_METHOD:-}')."
 
   if declare -f __uninstall_pre > /dev/null; then
     __uninstall_pre
@@ -429,6 +466,8 @@ __uninstall_run__() {
     __uninstall_run_pre
   fi
 
+  logging__remove "Uninstalling via method='${_FEAT_EXISTING_METHOD:-unknown}' from '${_FEAT_EXISTING_PATH}'."
+
   case "${_FEAT_EXISTING_METHOD:-}" in
     prefix)
       __uninstall_run_prefix__
@@ -458,6 +497,8 @@ __uninstall_run__() {
       ;;
   esac
 
+  logging__info "Uninstall run finished for method='${_FEAT_EXISTING_METHOD:-}'."
+
   if declare -f __uninstall_run_post > /dev/null; then
     __uninstall_run_post
   fi
@@ -467,13 +508,17 @@ __uninstall_run_prefix__() {
   if declare -f __uninstall_run_prefix_pre > /dev/null; then
     __uninstall_run_prefix_pre
   fi
+  logging__remove "Removing prefix binary '${_FEAT_EXISTING_PATH}'."
   file__rm -f "${_FEAT_EXISTING_PATH}"
   if [[ -v BINARY_SIDECAR_URI && -n "${BINARY_SIDECAR_URI}" ]]; then
     local _prefix_bin="${_FEAT_EXISTING_PATH%/*}"
     local _sc
     _sc="$(os__expand_release_pattern "${BINARY_SIDECAR_URI}" "${_FEAT_INSTALLED_VER:-${VERSION:-}}" "${_FEAT_RESOLVED_TAG:-}")"
     _sc="${_sc##*/}"
-    [[ "${_sc}" != *'{'*'}'* ]] && file__rm -f "${_prefix_bin}/${_sc}"
+    if [[ "${_sc}" != *'{'*'}'* ]]; then
+      logging__remove "Removing binary sidecar '${_prefix_bin}/${_sc}'."
+      file__rm -f "${_prefix_bin}/${_sc}"
+    fi
   fi
   if declare -f __uninstall_run_prefix_post > /dev/null; then
     __uninstall_run_prefix_post
@@ -488,6 +533,7 @@ __uninstall_run_npm__() {
     logging__error "Cannot auto-uninstall npm-managed install: _options.method.npm not declared in metadata."
     return 1
   fi
+  logging__remove "Uninstalling npm package '${NPM_PACKAGE}'."
   npm__uninstall_package --package "${NPM_PACKAGE}"
   if declare -f __uninstall_run_npm_post > /dev/null; then
     __uninstall_run_npm_post
@@ -498,6 +544,7 @@ __uninstall_run_npm_bundled__() {
   if declare -f __uninstall_run_npm_bundled_pre > /dev/null; then
     __uninstall_run_npm_bundled_pre
   fi
+  logging__remove "Uninstalling npm-bundled install at '${_FEAT_EXISTING_PATH}'."
   npm__uninstall_bundled --bin "${_FEAT_EXISTING_PATH}"
   if declare -f __uninstall_run_npm_bundled_post > /dev/null; then
     __uninstall_run_npm_bundled_post
@@ -508,6 +555,7 @@ __uninstall_run_package__() {
   if declare -f __uninstall_run_package_pre > /dev/null; then
     __uninstall_run_package_pre
   fi
+  logging__remove "Uninstalling package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
   __dep_uninstall__ run "${PACKAGE_MANIFEST:-os-pkg}"
   if declare -f __uninstall_run_package_post > /dev/null; then
     __uninstall_run_package_post
@@ -518,6 +566,7 @@ __uninstall_run_upstream_package__() {
   if declare -f __uninstall_run_upstream_package_pre > /dev/null; then
     __uninstall_run_upstream_package_pre
   fi
+  logging__remove "Uninstalling upstream-package dependencies."
   __dep_uninstall__ run upstream-package
   if declare -f __uninstall_run_upstream_package_post > /dev/null; then
     __uninstall_run_upstream_package_post
@@ -529,9 +578,10 @@ __uninstall_run_git_clone__() {
     __uninstall_run_git_clone_pre
   fi
   if [[ -z "${_FEAT_EXISTING_PATH:-}" ]]; then
-    logging__warn "__uninstall_run_git_clone__: _FEAT_EXISTING_PATH empty; nothing to remove."
+    logging__skip "_FEAT_EXISTING_PATH empty; nothing to remove for git-clone uninstall."
     return 0
   fi
+  logging__remove "Removing git-clone directory '${_FEAT_EXISTING_PATH}'."
   file__rm -rf "${_FEAT_EXISTING_PATH}"
   if declare -f __uninstall_run_git_clone_post > /dev/null; then
     __uninstall_run_git_clone_post
@@ -539,9 +589,16 @@ __uninstall_run_git_clone__() {
 }
 
 __uninstall_shell_completions__() {
-  [[ -v SHELL_COMPLETIONS ]] || return 0
+  [[ -v SHELL_COMPLETIONS ]] || {
+    logging__skip "SHELL_COMPLETIONS unset; skipping completion removal."
+    return 0
+  }
   local _name="${_FEAT_CONTRACT_PRIMARY_BIN:-}"
-  [[ -n "${_name}" ]] || return 0
+  [[ -n "${_name}" ]] || {
+    logging__skip "No primary binary name; skipping completion removal."
+    return 0
+  }
+  logging__remove "Removing shell completions for '${_name}'."
   local _is_system=false _home
   if [[ "${PREFIX_SCOPE:-}" = "user" ]]; then
     _home="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
@@ -552,6 +609,7 @@ __uninstall_shell_completions__() {
   local _shell
   for _shell in "${SHELL_COMPLETIONS[@]}"; do
     [ -z "$_shell" ] && continue
+    logging__remove "Removing '${_shell}' completion for '${_name}'."
     case "$_shell" in
       bash)
         if "${_is_system}"; then
@@ -586,15 +644,18 @@ __uninstall_shell_completions__() {
 }
 
 __cleanup_install_artifacts__() {
+  logging__clean "Cleaning up install artifacts."
   if [[ -v PREFIX ]]; then
     # 1. Remove downstream symlinks and PATH export blocks.
     if [[ -v PREFIX_DISCOVERY ]]; then
+      logging__remove "Removing prefix PATH discovery for '${_FEAT_ID}'."
       local -a _disc_args=()
       __feat_build_prefix_disc_args__ _disc_args
       shell__run_prefix_undiscovery "${_disc_args[@]}"
     fi
     # 2. Remove activation blocks from all applicable shell init files.
     if [[ -v PREFIX_ACTIVATIONS ]]; then
+      logging__remove "Removing prefix activation snippets for '${_FEAT_ID}'."
       local _act_home_arg=""
       [ "${PREFIX_SCOPE:-}" = "user" ] && \
         _act_home_arg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
@@ -604,21 +665,29 @@ __cleanup_install_artifacts__() {
         "prefix activation (${_FEAT_ID})" "${_FEAT_ACTIVATION_PROFILE_D_FILE}" \
         "${PREFIX_ACTIVATIONS[@]}"
     fi
+  else
+    logging__skip "PREFIX unset; skipping prefix artifact cleanup."
   fi
   # 3. Remove shell completions.
   __uninstall_shell_completions__
   # 4. Unregister dummy PM package (no-op when not registered).
   if [[ -v REGISTER_PACKAGE_NAME && -n "${REGISTER_PACKAGE_NAME}" ]]; then
+    logging__remove "Unregistering dummy package '${REGISTER_PACKAGE_NAME}'."
     ospkg__unregister_dummy "${REGISTER_PACKAGE_NAME}" 2>/dev/null || true
+  else
+    logging__skip "REGISTER_PACKAGE_NAME unset; skipping dummy package unregistration."
   fi
   # 5. Remove template-owned lifecycle and share directories.
   if [[ -d "${_FEAT_LIFECYCLE_DIR:-}" ]]; then
+    logging__remove "Removing lifecycle directory '${_FEAT_LIFECYCLE_DIR}'."
     file__rm -rf "${_FEAT_LIFECYCLE_DIR}"
   fi
   if [[ -d "${_FEAT_SHARE_DIR_ROOT:-}" ]]; then
+    logging__remove "Removing share directory '${_FEAT_SHARE_DIR_ROOT}'."
     file__rm -d "${_FEAT_SHARE_DIR_ROOT}" 2>/dev/null || true
   fi
   if [[ -d "${_FEAT_SHARE_DIR_NONROOT:-}" ]]; then
+    logging__remove "Removing share directory '${_FEAT_SHARE_DIR_NONROOT}'."
     file__rm -d "${_FEAT_SHARE_DIR_NONROOT}" 2>/dev/null || true
   fi
   # 6. Feature-specific post-cleanup hook.
@@ -641,6 +710,8 @@ __uninstall_finish__() {
 # Installation
 # ============
 __install__() {
+
+  logging__info "Starting install (METHOD='${METHOD:-unset}', VERSION='${VERSION:-unset}')."
 
   if declare -f __install_pre > /dev/null; then
     __install_pre
@@ -681,6 +752,7 @@ __install_run__() {
   fi
 
   if [[ -v METHOD ]]; then
+    logging__install "Running install for METHOD='${METHOD}'."
     case "${METHOD}" in
       binary)
         __install_run_binary__
@@ -714,6 +786,7 @@ __install_run__() {
         return 1
         ;;
     esac
+    logging__info "Install run finished for METHOD='${METHOD}'."
   else
     logging__error "No METHOD option defined."
     return 1
@@ -732,7 +805,10 @@ __github_release_sha256_args__() {
   _out_arr=()
   case "${VERSION_RESOLUTION:-}" in
     github_release | github_tag)
-      [[ -n "${VERSION_URI:-}" && -n "${_FEAT_RESOLVED_TAG:-}" ]] || return 0
+      [[ -n "${VERSION_URI:-}" && -n "${_FEAT_RESOLVED_TAG:-}" ]] || {
+        logging__skip "VERSION_URI or _FEAT_RESOLVED_TAG unset; skipping GitHub SHA-256 probe for '${_asset_name}'."
+        return 0
+      }
       local _digest
       _digest="$(github__release_json_digest_from_uri \
         "${VERSION_URI}/releases/tags/${_FEAT_RESOLVED_TAG}" "$_asset_name")" || _digest=""
@@ -790,6 +866,7 @@ __install_run_binary__() {
     fi
     [[ -n "${INSTALLER_DIR:-}" ]] && _installer_dir_arg=(--installer-dir "${INSTALLER_DIR}")
     [[ -n "${BINARY_NETRC:-}" ]] && _netrc_arg=(--netrc-file "${BINARY_NETRC}")
+    logging__install "Installing binary '${_asset_name}' from '${_asset_uri}' to '${_bin_dest}'."
     install__release_asset \
       --asset-uri "${_asset_uri}" \
       "${_sha256_args[@]+"${_sha256_args[@]}"}" \
@@ -813,6 +890,7 @@ __install_run_package__() {
   if declare -f __install_run_package_pre > /dev/null; then
     __install_run_package_pre
   fi
+  logging__install "Installing package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
   __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}"
   if declare -f __install_run_package_post > /dev/null; then
     __install_run_package_post
@@ -823,6 +901,7 @@ __install_run_upstream_package__() {
   if declare -f __install_run_upstream_package_pre > /dev/null; then
     __install_run_upstream_package_pre
   fi
+  logging__install "Installing upstream-package dependencies."
   __dep_install__ run upstream-package
   if declare -f __install_run_upstream_package_post > /dev/null; then
     __install_run_upstream_package_post
@@ -851,6 +930,7 @@ __install_run_script__() {
     [[ -n "${INSTALLER_DIR:-}" ]] && _installer_dir_arg=(--installer-dir "${INSTALLER_DIR}")
     [[ -n "${SCRIPT_NETRC:-}" ]] && _netrc_arg=(--netrc-file "${SCRIPT_NETRC}")
     local _asset_dir
+    logging__download "Downloading script asset '${_asset_uri}'."
     _asset_dir="$(install__release_asset \
       --asset-uri "${_asset_uri}" \
       --chmod-exec "${_asset_name}" \
@@ -864,6 +944,7 @@ __install_run_script__() {
     return 1
   fi
 
+  logging__launch "Running install script '${_script_path}'."
   if declare -f __install_run_script_run > /dev/null; then
     __install_run_script_run "${_script_path}"
   else
@@ -912,8 +993,13 @@ __install_run_cargo__() {
   elif command -v cargo-binstall > /dev/null 2>&1; then
     _cargo_cmd=(cargo binstall)
     _cargo_args+=(--no-confirm)
+    logging__info "Using cargo-binstall for crate '${CARGO_CRATE}'."
   else
     _cargo_cmd=(cargo install)
+    logging__info "Using cargo install for crate '${CARGO_CRATE}'."
+  fi
+  if [[ -v _FEAT_CARGO_COMMAND ]]; then
+    logging__info "Using custom cargo command for crate '${CARGO_CRATE}': '${_cargo_cmd[*]}'."
   fi
   if [[ -v _RESOLVED_PREFIX ]]; then
     _cargo_args+=(--root "${_RESOLVED_PREFIX}")
@@ -923,6 +1009,7 @@ __install_run_cargo__() {
     _cargo_args+=("${_FEAT_CARGO_INSTALL_ARGS[@]+"${_FEAT_CARGO_INSTALL_ARGS[@]}"}")
   fi
 
+  logging__install "Installing cargo crate '${CARGO_CRATE}' via '${_cargo_cmd[*]}'."
   "${_cargo_cmd[@]}" "${CARGO_CRATE}" "${_cargo_args[@]+"${_cargo_args[@]}"}"
 
   if declare -f __install_run_cargo_post > /dev/null; then
@@ -954,6 +1041,7 @@ __install_run_npm__() {
   fi
   _install_args+=("${_pkg}")
 
+  logging__install "Installing npm package '${_pkg}'."
   npm "${_install_args[@]}"
 
   if declare -f __install_run_npm_post > /dev/null; then
@@ -989,6 +1077,7 @@ __install_run_npm_bundled__() {
   [[ -v NPM_CMD ]] && _cmd_arg=(--cmd "${NPM_CMD}")
   [[ -n "${NPM_REGISTRY:-}" ]] && _registry_arg=(--registry "${NPM_REGISTRY}")
 
+  logging__install "Installing npm-bundled package '${NPM_PACKAGE}' into '${_RESOLVED_PREFIX}'."
   npm__install_bundled \
     --package "${NPM_PACKAGE}" \
     "${_cmd_arg[@]+"${_cmd_arg[@]}"}" \
@@ -1053,6 +1142,7 @@ __install_run_source__() {
     return 1
   fi
 
+  logging__build "Building source from '${_src_dir}' (SOURCE_BUILD_SYSTEM='${SOURCE_BUILD_SYSTEM:-unset}')."
   if declare -f __install_run_source_build > /dev/null; then
     __install_run_source_build "${_src_dir}"
   else
@@ -1094,22 +1184,43 @@ __install_run_source_auto_build__() {
         _configure_args+=(--prefix="${_RESOLVED_PREFIX}")
       fi
       (
-        cd "${_src_dir}" || exit 1
-        ./configure "${_configure_args[@]+"${_configure_args[@]}"}" || exit 1
+        cd "${_src_dir}" || {
+          logging__error "Autotools build: failed to cd to '${_src_dir}'."
+          exit 1
+        }
+        ./configure "${_configure_args[@]+"${_configure_args[@]}"}" || {
+          logging__error "Autotools build: configure failed in '${_src_dir}'."
+          exit 1
+        }
         local _t
         for _t in "${_make_targets[@]}"; do
-          make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || exit 1
+          make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || {
+            logging__error "Autotools build: make target '${_t}' failed in '${_src_dir}'."
+            exit 1
+          }
         done
-      ) || return 1
+      ) || {
+        logging__error "Autotools build failed in '${_src_dir}' (SOURCE_BUILD_SYSTEM=autotools)."
+        return 1
+      }
       ;;
     make)
       (
-        cd "${_src_dir}" || exit 1
+        cd "${_src_dir}" || {
+          logging__error "Make build: failed to cd to '${_src_dir}'."
+          exit 1
+        }
         local _t
         for _t in "${_make_targets[@]}"; do
-          make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || exit 1
+          make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || {
+            logging__error "Make build: make target '${_t}' failed in '${_src_dir}'."
+            exit 1
+          }
         done
-      ) || return 1
+      ) || {
+        logging__error "Make build failed in '${_src_dir}' (SOURCE_BUILD_SYSTEM=make)."
+        return 1
+      }
       ;;
     "")
       logging__error "METHOD=source: SOURCE_BUILD_SYSTEM is not set. Define __install_run_source_build or set source_build_system in metadata."
@@ -1126,8 +1237,14 @@ __install_run_source_auto_build__() {
 # Each element of GIT_CLONE_CONFIG is a `key=value` pair; values support {VERSION} substitution.
 _git_clone_apply_config() {
   local _dir="$1" _ver="$2"
-  [[ -v GIT_CLONE_CONFIG ]] || return 0
-  ((${#GIT_CLONE_CONFIG[@]} == 0)) && return 0
+  [[ -v GIT_CLONE_CONFIG ]] || {
+    logging__skip "GIT_CLONE_CONFIG unset; skipping git config application in '${_dir}'."
+    return 0
+  }
+  ((${#GIT_CLONE_CONFIG[@]} == 0)) && {
+    logging__skip "GIT_CLONE_CONFIG empty; skipping git config application in '${_dir}'."
+    return 0
+  }
   local -a _expanded=()
   local _pair _val
   for _pair in "${GIT_CLONE_CONFIG[@]}"; do
@@ -1139,7 +1256,11 @@ _git_clone_apply_config() {
     }
     _expanded+=("${_pair%%=*}=${_val}")
   done
-  ((${#_expanded[@]} == 0)) && return 0
+  ((${#_expanded[@]} == 0)) && {
+    logging__skip "No git config entries to apply in '${_dir}' after VERSION substitution."
+    return 0
+  }
+  logging__install "Applying ${#_expanded[@]} git config entries in '${_dir}'."
   git__config "${_dir}" "${_expanded[@]}"
 }
 
@@ -1161,6 +1282,7 @@ __install_run_git_clone__() {
   [[ -v VERSION && -n "${VERSION}" ]] && _ref_arg=(--ref "${VERSION}")
   local _sha_arg=()
   [[ -n "${_FEAT_RESOLVED_GIT_SHA:-}" ]] && _sha_arg=(--resolved-sha "${_FEAT_RESOLVED_GIT_SHA}")
+  logging__install "Cloning '${_uri}' into '${_RESOLVED_PREFIX}' (ref='${VERSION:-HEAD}')."
   git__clone --url "${_uri}" --dir "${_RESOLVED_PREFIX}" "${_ref_arg[@]+"${_ref_arg[@]}"}" "${_sha_arg[@]+"${_sha_arg[@]}"}"
   _git_clone_apply_config "${_RESOLVED_PREFIX}" "${VERSION:-}"
   if declare -f __install_run_git_clone_post > /dev/null; then
@@ -1172,12 +1294,18 @@ __install_register_dummy__() {
   # Register a dummy OS package so downstream Depends: constraints are satisfied.
   # Only runs when REGISTER_PACKAGE_NAME is set and METHOD is a non-PM method.
   # Debian/Ubuntu only; no-op elsewhere (ospkg__register_dummy handles the guard).
-  [[ -v REGISTER_PACKAGE_NAME && -n "${REGISTER_PACKAGE_NAME}" ]] || return 0
+  [[ -v REGISTER_PACKAGE_NAME && -n "${REGISTER_PACKAGE_NAME}" ]] || {
+    logging__skip "REGISTER_PACKAGE_NAME unset; skipping dummy package registration."
+    return 0
+  }
   case "${METHOD:-}" in
-    package | upstream-package) return 0 ;;
+    package | upstream-package)
+      logging__skip "METHOD='${METHOD}'; skipping dummy registration for '${REGISTER_PACKAGE_NAME}'."
+      return 0
+      ;;
   esac
   [[ -v VERSION && -n "${VERSION}" ]] || {
-    logging__warn "__install_register_dummy__: VERSION not set; skipping dummy registration for '${REGISTER_PACKAGE_NAME}'."
+    logging__warn "VERSION not set; skipping dummy registration for '${REGISTER_PACKAGE_NAME}'."
     return 0
   }
   ospkg__register_dummy "${REGISTER_PACKAGE_NAME}" "${VERSION}"
@@ -1185,11 +1313,14 @@ __install_register_dummy__() {
 
 __install_shell_completions__() {
   # shellcheck disable=SC2329,SC2317
-  [[ -v SHELL_COMPLETIONS && "${#SHELL_COMPLETIONS[@]}" -gt 0 ]] || return 0
+  [[ -v SHELL_COMPLETIONS && "${#SHELL_COMPLETIONS[@]}" -gt 0 ]] || {
+    logging__skip "SHELL_COMPLETIONS unset or empty; skipping shell completions."
+    return 0
+  }
 
   local _name="${_FEAT_CONTRACT_PRIMARY_BIN:-}"
   if [[ -z "${_name}" ]]; then
-    logging__warn "__install_shell_completions__: no completion name resolved — skipping."
+    logging__warn "No completion name resolved; skipping shell completions."
     return 0
   fi
 
@@ -1216,31 +1347,32 @@ __install_shell_completions__() {
     local _content=""
     if declare -f __get_completion_content__ > /dev/null; then
       _content="$(__get_completion_content__ "${_shell}")" || {
-        logging__warn "__install_shell_completions__: __get_completion_content__ ${_shell} failed; skipping."
+        logging__warn "__get_completion_content__ for '${_shell}' failed; skipping."
         continue
       }
     elif [[ -n "${_completion_files_map[${_shell}]+x}" ]]; then
       local _src="${_RESOLVED_PREFIX}/${_completion_files_map[${_shell}]}"
       _content="$(cat "${_src}" 2> /dev/null)" || {
-        logging__warn "__install_shell_completions__: source file '${_src}' not found; skipping ${_shell}."
+        logging__warn "Completion source file '${_src}' not found; skipping '${_shell}'."
         continue
       }
     elif [[ -n "${SHELL_COMPLETIONS_CMD:-}" ]]; then
       local _bin="${_RESOLVED_PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
       command -v "${_bin}" > /dev/null 2>&1 \
         || _bin="$(command -v "${_FEAT_CONTRACT_PRIMARY_BIN}" 2> /dev/null)" || {
-        logging__warn "__install_shell_completions__: '${_FEAT_CONTRACT_PRIMARY_BIN}' not found; skipping."
+        logging__warn "Binary '${_FEAT_CONTRACT_PRIMARY_BIN}' not found; skipping shell completions."
         return 0
       }
       # shellcheck disable=SC2086
       _content="$("${_bin}" ${SHELL_COMPLETIONS_CMD} "${_shell}" 2> /dev/null)" || {
-        logging__warn "__install_shell_completions__: ${_FEAT_CONTRACT_PRIMARY_BIN} ${SHELL_COMPLETIONS_CMD} ${_shell} failed; skipping."
+        logging__warn "Completion command '${_FEAT_CONTRACT_PRIMARY_BIN} ${SHELL_COMPLETIONS_CMD} ${_shell}' failed; skipping."
         continue
       }
     else
-      logging__warn "__install_shell_completions__: no completion source for '${_shell}' — skipping."
+      logging__warn "No completion source for '${_shell}'; skipping."
       continue
     fi
+    logging__install "Installing '${_shell}' completion for '${_name}'."
     shell__install_completion ${_scope_flag:+"${_scope_flag}"} --home "${_home}" \
       "${_shell}" "${_name}" "${_content}"
   done
@@ -1296,15 +1428,15 @@ __install_finish__() {
   if [[ -v PREFIX ]] && __feat_prefix_applies__; then
     # -- discovery --
     [[ -v PREFIX_DISCOVERY ]] && {
+      logging__install "Running prefix PATH discovery for '${_FEAT_ID}' into '${_RESOLVED_PREFIX}'."
       local -a _disc_args=()
       __feat_build_prefix_disc_args__ _disc_args
-      logging__fn_entry "prefix_discovery"
       shell__run_prefix_discovery "${_disc_args[@]}"
-      logging__fn_exit "prefix_discovery"
     }
 
     # -- activation --
     [[ -v PREFIX_ACTIVATIONS ]] && {
+      logging__install "Writing prefix activation snippets for shells: ${PREFIX_ACTIVATIONS[*]}."
       local _act_home_arg=""
       [ "${PREFIX_SCOPE}" = "user" ] && \
         _act_home_arg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
@@ -1324,24 +1456,31 @@ __install_finish__() {
         for _u in "${WRITE_USERS[@]}"; do _wargs+=(--user "$_u"); done
       fi
       mapfile -t _write_users < <(users__resolve_list "${_wargs[@]}")
+      logging__install "Configuring write group '${WRITE_GROUP}' on prefix '${_RESOLVED_PREFIX}'."
       users__set_write_permissions "${_RESOLVED_PREFIX}" \
         "${INSTALL_USER:-$(id -nu)}" "${WRITE_GROUP}" "${_write_users[@]}"
     }
+  elif [[ -v PREFIX ]]; then
+    logging__skip "PREFIX configured but prefix guard '${_FEAT_PREFIX_GUARD_VAR:-}'='${!_FEAT_PREFIX_GUARD_VAR:-}' does not apply for METHOD='${METHOD:-unset}'."
+  else
+    logging__skip "PREFIX unset; skipping prefix finish steps."
   fi
 
   __install_register_dummy__
   ${{ _script.shell_completions_call }}$
   __deploy_lifecycle_scripts__
-  logging__success "Installation complete."
 
   if declare -f __install_finish_post > /dev/null; then
     __install_finish_post
   fi
+  logging__success "Installation complete."
 }
 
 # Reinstallation
 # ===============
 __reinstall__() {
+
+  logging__info "Starting reinstall (path='${_FEAT_EXISTING_PATH:-}', method='${_FEAT_EXISTING_METHOD:-}')."
 
   if declare -f __reinstall_pre > /dev/null; then
     __reinstall_pre
@@ -1380,6 +1519,7 @@ __reinstall_run__() {
     __reinstall_run_pre
   fi
 
+  logging__info "Reinstall: uninstalling existing installation before fresh install."
   __uninstall_run__
   __uninstall_finish__
   __dep_install_base__
@@ -1432,6 +1572,7 @@ __method_changed__() {
 __update_predispatch__() {
   # 1. Method mismatch → migrate: uninstall old, install new.
   if __method_changed__; then
+    logging__info "Update predispatch: method changed ('${_FEAT_EXISTING_METHOD:-}' → '${METHOD}'); migrating."
     __update_run_migrate__
     return 0
   fi
@@ -1442,22 +1583,28 @@ __update_predispatch__() {
   if [[ -v _RESOLVED_PREFIX && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]] && __feat_prefix_applies__; then
     local _pfx_bin="${_RESOLVED_PREFIX}/${PREFIX_BIN_DIR:-bin}/${_FEAT_CONTRACT_PRIMARY_BIN}"
     if [[ ! -f "${_pfx_bin}" ]]; then
+      logging__info "Update predispatch: prefix binary '${_pfx_bin}' missing; installing fresh at prefix."
       __install_run__
       return 0
     fi
+    logging__debug "Update predispatch: prefix binary '${_pfx_bin}' present."
   fi
 
   # 3. Version check: if version already matches, skip __update_run__ entirely.
   #    __install_finish__ still runs to idempotently refresh all shell artifacts.
   if __feat_check_version_match__; then
+    logging__info "Update predispatch: version already matches; refreshing shell artifacts only."
     return 0
   fi
 
   # 4. Prefix ok, version mismatch → proceed to feature-specific __update_run__.
+  logging__info "Update predispatch: proceeding to in-place update (METHOD='${METHOD}', VERSION='${VERSION:-}')."
   return 1
 }
 
 __update__() {
+
+  logging__info "Starting update (path='${_FEAT_EXISTING_PATH:-}', method='${_FEAT_EXISTING_METHOD:-}', target METHOD='${METHOD:-unset}', VERSION='${VERSION:-unset}')."
 
   if declare -f __update_pre > /dev/null; then
     __update_pre
@@ -1518,6 +1665,8 @@ __update_run__() {
     exit 1
   fi
 
+  logging__install "Applying in-place update via METHOD='${METHOD}'."
+
   case "${METHOD}" in
     package)
       __update_run_package__
@@ -1557,6 +1706,7 @@ __update_run_package__() {
   if declare -f __update_run_package_pre > /dev/null; then
     __update_run_package_pre
   fi
+  logging__install "Updating package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
   __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}" --update
   if declare -f __update_run_package_post > /dev/null; then
     __update_run_package_post
@@ -1567,6 +1717,7 @@ __update_run_upstream_package__() {
   if declare -f __update_run_upstream_package_pre > /dev/null; then
     __update_run_upstream_package_pre
   fi
+  logging__install "Updating upstream-package dependencies."
   __dep_install__ run upstream-package --update
   if declare -f __update_run_upstream_package_post > /dev/null; then
     __update_run_upstream_package_post
@@ -1581,6 +1732,7 @@ __update_run_git_clone__() {
   [[ -v VERSION && -n "${VERSION}" ]] && _ref_args=(--ref "${VERSION}")
   local _sha_args=()
   [[ -n "${_FEAT_RESOLVED_GIT_SHA:-}" ]] && _sha_args=(--resolved-sha "${_FEAT_RESOLVED_GIT_SHA}")
+  logging__install "Updating git-clone at '${_RESOLVED_PREFIX}' (ref='${VERSION:-HEAD}')."
   git__update "${_RESOLVED_PREFIX}" "${_ref_args[@]+"${_ref_args[@]}"}" "${_sha_args[@]+"${_sha_args[@]}"}"
   _git_clone_apply_config "${_RESOLVED_PREFIX}" "${VERSION:-}"
   if declare -f __update_run_git_clone_post > /dev/null; then
@@ -1635,6 +1787,8 @@ __exit__() {
         if ! port dependents bash 2>/dev/null | grep -qv "has no dependents\|^[[:space:]]*$"; then
           logging__remove "Removing PM-installed bootstrap bash via port."
           port uninstall bash 2>/dev/null || logging__warn "port uninstall bash failed."
+        else
+          logging__skip "Skipping port uninstall of bootstrap bash (other dependents present)."
         fi
         ;;
       nix-env)
@@ -1675,8 +1829,14 @@ __feat_check_version_match__() {
   # Available via __update_run_pre to short-circuit when the installed version
   # already matches the resolved VERSION.
   declare -g _FEAT_INSTALLED_VER=""
-  [[ -n "${_FEAT_EXISTING_PATH}" ]] || return 1
-  [[ -v VERSION && -n "${VERSION}" ]] || return 1
+  [[ -n "${_FEAT_EXISTING_PATH}" ]] || {
+    logging__debug "No existing path; version match check cannot proceed."
+    return 1
+  }
+  [[ -v VERSION && -n "${VERSION}" ]] || {
+    logging__debug "VERSION unset; version match check cannot proceed."
+    return 1
+  }
   if declare -f __installed_version > /dev/null; then
     _FEAT_INSTALLED_VER="$(__installed_version "${_FEAT_EXISTING_PATH}")"
   elif [[ -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" && -n "${VERSION_FLAG:-}" ]]; then
@@ -1686,8 +1846,12 @@ __feat_check_version_match__() {
   # For git_ref resolution, compare installed HEAD SHA against the remotely resolved SHA.
   # For all other resolution types, _FEAT_RESOLVED_GIT_SHA is empty → falls back to VERSION.
   local _target_ver="${_FEAT_RESOLVED_GIT_SHA:-${VERSION}}"
-  [[ -n "${_FEAT_INSTALLED_VER}" && "${_FEAT_INSTALLED_VER}" == "${_target_ver}" ]] || return 1
-  logging__info "Already at version '${VERSION}'; skipping."
+  if [[ -n "${_FEAT_INSTALLED_VER}" && "${_FEAT_INSTALLED_VER}" == "${_target_ver}" ]]; then
+    logging__info "Already at version '${VERSION}' (installed='${_FEAT_INSTALLED_VER}'); skipping."
+    return 0
+  fi
+  logging__info "Version mismatch: installed='${_FEAT_INSTALLED_VER:-unknown}', target='${_target_ver}'; update needed."
+  return 1
 }
 
 __feat_do_configure_users__() {
@@ -1695,6 +1859,7 @@ __feat_do_configure_users__() {
     __feat_do_configure_users_pre
   fi
   if ! declare -f __configure_user > /dev/null; then
+    logging__skip "__configure_user not defined; skipping user configuration."
     if declare -f __feat_do_configure_users_post > /dev/null; then
       __feat_do_configure_users_post
     fi
@@ -1714,6 +1879,12 @@ __feat_do_configure_users__() {
   fi
 
   mapfile -t _FEAT_CONFIGURE_USERS < <(users__resolve_list "${_ul_args[@]}")
+
+  if ((${#_FEAT_CONFIGURE_USERS[@]} == 0)); then
+    logging__skip "No users resolved for configuration."
+  else
+    logging__info "Configuring ${#_FEAT_CONFIGURE_USERS[@]} user(s): ${_FEAT_CONFIGURE_USERS[*]}."
+  fi
 
   local _user
   for _user in "${_FEAT_CONFIGURE_USERS[@]+"${_FEAT_CONFIGURE_USERS[@]}"}"; do
@@ -1738,6 +1909,7 @@ __resolve_input_method__() {
   # No-op when METHOD is not set or already concrete. Error if METHOD=auto
   # but no hook is defined.
   [[ -v METHOD && "${METHOD}" == "auto" ]] || {
+    logging__debug "METHOD already concrete ('${METHOD:-unset}'); skipping auto-resolution."
     # Auto-register installed-version probe for git-clone when not overridden by the feature.
     if [[ "${METHOD:-}" == "git-clone" ]] && ! declare -f __installed_version > /dev/null; then
       __installed_version() {
@@ -1822,6 +1994,11 @@ __resolve_input_version__() {
   declare -g _FEAT_RESOLVED_TAG=""
   declare -g _FEAT_RESOLVED_GIT_SHA=""
   if ! { [[ -v VERSION && -n "${VERSION}" ]] && [[ ! -v METHOD || "${METHOD}" != "package" ]]; }; then
+    if [[ ! -v VERSION || -z "${VERSION}" ]]; then
+      logging__skip "VERSION unset; skipping version resolution."
+    else
+      logging__skip "METHOD=package; skipping version resolution (package manager controls version)."
+    fi
     if declare -f __resolve_input_version_post > /dev/null; then
       __resolve_input_version_post
     fi
@@ -1839,6 +2016,7 @@ __resolve_input_version__() {
         fi
         local _endpoint="${VERSION_RESOLUTION#github_}"
         local _both
+        logging__info "Resolving GitHub version (URI='${VERSION_URI}', spec='${VERSION}', endpoint='${_endpoint}')."
         _both="$(github__resolve_version "${VERSION_URI}" "${VERSION}" --endpoint "${_endpoint}")" || return 1
         _FEAT_RESOLVED_TAG="$(printf '%s\n' "${_both}" | head -1)"
         VERSION="$(printf '%s\n' "${_both}" | tail -1)"
@@ -1848,6 +2026,7 @@ __resolve_input_version__() {
           logging__error "_options.version.resolution=npm requires VERSION_URI to be set in metadata."
           return 1
         fi
+        logging__info "Resolving npm version (URI='${VERSION_URI}', spec='${VERSION}')."
         VERSION="$(npm__resolve_version_uri "${VERSION_URI}" "${VERSION}")" || return 1
         ;;
       git_ref)
@@ -1872,6 +2051,7 @@ __resolve_input_version__() {
         ;;
       none | "")
         # Explicit 'none' or no resolution declared: VERSION is used as-is.
+        logging__skip "VERSION_RESOLUTION unset or 'none'; using VERSION='${VERSION}' as-is."
         ;;
       *)
         logging__error "_options.version.resolution='${VERSION_RESOLUTION}' has no auto-implementation; define __resolve_version to handle it."
@@ -1905,14 +2085,16 @@ __resolve_input_prefixes__() {
 
 # shellcheck disable=SC2329,SC2317
 __resolve_prefix__() {
-  logging__fn_entry "__resolve_prefix__"
-  [[ -v PREFIX ]] || { logging__fn_exit "__resolve_prefix__"; return 0; }
+  [[ -v PREFIX ]] || {
+    logging__skip "PREFIX option unset; skipping prefix resolution."
+    return 0
+  }
   local _eff_user="${INSTALL_USER:-$(users__get_current)}"
   local _symlink_user
   _symlink_user="$(users__get_current)"
 
   if [[ -v _RESOLVED_PREFIX ]]; then
-    logging__fn_exit "__resolve_prefix__"
+    logging__skip "PREFIX already resolved to '${_RESOLVED_PREFIX}'; skipping."
     return 0
   fi
   local -a _fwp_args=()
@@ -1926,6 +2108,7 @@ __resolve_prefix__() {
 
   users__can_write "${_RESOLVED_PREFIX}" || {
     logging__error "Option 'prefix': '${_RESOLVED_PREFIX}' is not writable."
+    logging__fatal "Exiting with status 1 (prefix not writable)."
     exit 1
   }
   PREFIX_SCOPE="$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)"
@@ -1950,7 +2133,6 @@ __resolve_prefix__() {
     PREFIX_EXPORTS=("${_ex[@]}")
   fi
 
-  logging__fn_exit "__resolve_prefix__"
   return
 }
 
@@ -1967,20 +2149,23 @@ __dep_install__() {
   local _dep_group="$2"
   shift 2
 
+  logging__install "Installing '${_dep_group}' (${_dep_type}) dependencies."
+
   if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
     local -a _args=(--manifest "$(__dep_manifest_path__ "${_dep_type}" "${_dep_group}")")
     [[ "$_dep_type" == "build" ]] && _args+=(--build-group "${_SYSSET_BUILD_CONTEXT}::${_dep_group}")
     ospkg__run "${_args[@]}" "$@"
-  else
-    logging__warn "Skipping '$_dep_group' group $_dep_type dependency installation (no privilege available); ensure dependencies are pre-installed."
+    return
   fi
-  return
+  logging__warn "Skipping '$_dep_group' group $_dep_type dependency installation (no privilege available); ensure dependencies are pre-installed."
+  return 0
 }
 
 __dep_uninstall__() {
   local _dep_type="$1"
   local _dep_group="$2"
   shift 2
+  logging__remove "Uninstalling '${_dep_group}' (${_dep_type}) dependencies."
   local _manifest
   _manifest="$(__dep_manifest_path__ "${_dep_type}" "${_dep_group}")"
   if [[ ! -f "${_manifest}" ]]; then
@@ -1996,10 +2181,14 @@ __dep_install_base__() {
   _manifest="$(__dep_manifest_path__ build base)"
   if [[ -f "${_manifest}" ]]; then
     __dep_install__ build base "$@"
+  else
+    logging__skip "No build/base dependency manifest at '${_manifest}'; skipping."
   fi
   _manifest="$(__dep_manifest_path__ run base)"
   if [[ -f "${_manifest}" ]]; then
     __dep_install__ run base "$@"
+  else
+    logging__skip "No run/base dependency manifest at '${_manifest}'; skipping."
   fi
   return 0
 }
@@ -2010,8 +2199,12 @@ __dep_install_base__() {
 __deploy_lifecycle_scripts__() {
   local _is_skip=""
   [[ "${1:-}" == "--skip" ]] && _is_skip=1
-  os__is_devcontainer_build || return 0
+  os__is_devcontainer_build || {
+    logging__skip "Not a devcontainer build; skipping lifecycle script deployment."
+    return 0
+  }
 
+  logging__info "Deploying lifecycle scripts to '${_FEAT_LIFECYCLE_DIR}'."
   local _lc_dir_ready=""
 
   if [[ -d "${_FEAT_FILES_DIR}" ]]; then
@@ -2079,6 +2272,7 @@ BOILERPLATE
   if [[ -v INSTALL_VERIFICATION_ARGS ]]; then
     [[ -n "${_lc_dir_ready}" ]] || { file__mkdir "${_FEAT_LIFECYCLE_DIR}"; _lc_dir_ready=1; }
     if [[ -n "${_is_skip}" ]] || [[ -z "${INSTALL_VERIFICATION_ARGS}" ]]; then
+      logging__skip "Writing verification no-op script to '${_FEAT_LIFECYCLE_POST_CREATE}verification.sh'."
       {
         cat << 'VERIFY_NOOP'
 #!/bin/sh
@@ -2088,9 +2282,10 @@ VERIFY_NOOP
     else
       local _vcmd="${_FEAT_VERIFY_CMD:-${_DF_EXPECTED_CMD:-${_FEAT_CONTRACT_PRIMARY_BIN}}}"
       if [[ -z "${_vcmd}" ]]; then
-        logging__error "__deploy_lifecycle_scripts__: cannot write verification script — _DF_EXPECTED_CMD is empty and _options.verify.cmd is not set. Declare _options.verify.cmd or add _options.prefix.bins."
+        logging__error "Cannot write verification script — _DF_EXPECTED_CMD is empty and _options.verify.cmd is not set. Declare _options.verify.cmd or add _options.prefix.bins."
         return 1
       fi
+      logging__install "Writing verification script to '${_FEAT_LIFECYCLE_POST_CREATE}verification.sh' (cmd='${_vcmd}')."
       printf '#!/bin/sh\nset -x\n"%s" %s\n' "${_vcmd}" "${INSTALL_VERIFICATION_ARGS}" \
         > "${_FEAT_LIFECYCLE_POST_CREATE}verification.sh"
     fi
@@ -2102,6 +2297,7 @@ __deploy_lifecycle_script__() {
   # Write _src to _dest with conf-loading + skip-check boilerplate injected
   # immediately after the shebang (or prepended when no shebang is present).
   local _src="$1" _dest="$2" _boilerplate="$3"
+  logging__install "Deploying lifecycle script '${_src}' → '${_dest}'."
   local _shebang=""
   read -r _shebang < "${_src}" || true
   if [[ "${_shebang}" == '#!'* ]]; then

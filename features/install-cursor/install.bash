@@ -4,7 +4,10 @@
 # The official installer writes to ${HOME}/.local — must run as the target user.
 # shellcheck disable=SC2329,SC2317
 __init_args_post() {
-  [ -n "${INSTALL_USER:-}" ] || INSTALL_USER="$(users__get_current)"
+  [ -n "${INSTALL_USER:-}" ] || {
+    INSTALL_USER="$(users__get_current)"
+    logging__info "install_user unset; defaulting to '${INSTALL_USER}'."
+  }
 }
 
 # Probe for an existing Cursor CLI installation in the install user's home or
@@ -17,10 +20,13 @@ __detect_existing_path_post() {
   local _agent="${_home}/.local/bin/agent"
   if [ -L "${_agent}" ] || [ -f "${_agent}" ]; then
     _FEAT_EXISTING_PATH="${_agent}"
+    logging__detect "Found Cursor CLI agent at '${_agent}'."
     return 0
   fi
   # Fall back to PATH (picks up /usr/local/bin/agent from root builds).
   _FEAT_EXISTING_PATH="$(command -v agent 2> /dev/null || true)"
+  [[ -n "${_FEAT_EXISTING_PATH}" ]] && \
+    logging__detect "Found Cursor CLI agent on PATH at '${_FEAT_EXISTING_PATH}'."
 }
 
 # Override the script runner to execute the Cursor installer as the install
@@ -75,7 +81,10 @@ __uninstall_run__() {
 # Create /usr/local/bin wrappers so 'agent' and 'cursor-agent' are
 # discoverable system-wide when the feature runs as root.
 _cursor_create_global_symlinks() {
-  users__is_root || return 0
+  users__is_root || {
+    logging__skip "Not running as root; skipping global /usr/local/bin symlinks."
+    return 0
+  }
   local _home
   _home="$(users__resolve_home "${INSTALL_USER}")"
   local _cmd
@@ -91,7 +100,10 @@ _cursor_create_global_symlinks() {
 # Remove the /usr/local/bin wrappers created by _cursor_create_global_symlinks.
 # shellcheck disable=SC2329,SC2317
 _cursor_remove_global_symlinks() {
-  users__is_root || return 0
+  users__is_root || {
+    logging__skip "Not running as root; skipping global symlink removal."
+    return 0
+  }
   local _cmd
   for _cmd in agent cursor-agent; do
     local _glnk="/usr/local/bin/${_cmd}"
@@ -101,10 +113,12 @@ _cursor_remove_global_symlinks() {
 
 # shellcheck disable=SC2329,SC2317
 __install_finish_post() {
+  logging__install "Creating global Cursor CLI symlinks (if applicable)."
   _cursor_create_global_symlinks
 }
 
 # shellcheck disable=SC2329,SC2317
 __skip_post() {
+  logging__install "Refreshing global Cursor CLI symlinks (if_exists=skip)."
   _cursor_create_global_symlinks
 }

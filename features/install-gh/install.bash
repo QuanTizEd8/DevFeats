@@ -4,6 +4,7 @@
 #   - Version pinning on apt (gh=VERSION); no pinning on other PMs (warns).
 #   - Sets up the apt keyring/repo, dnf/yum/zypper repo via upstream-package.yaml.
 __install_run_upstream_package__() {
+  logging__install "Installing gh via upstream package repository."
   local _pkg_version=""
   case "${VERSION:-stable}" in
     stable | latest) ;;
@@ -27,7 +28,6 @@ __install_run_upstream_package__() {
 
 # _gh__configure_user — apply per-user gh/git configuration.
 _gh__configure_user() {
-  logging__fn_entry "_gh__configure_user"
   local _users
   local -a _gh_uargs=()
   [ "${ADD_CURRENT_USER:-true}" != "true" ] && _gh_uargs+=(--current false)
@@ -36,12 +36,10 @@ _gh__configure_user() {
   for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gh_uargs+=(--user "$_u"); done
   _users="$(users__resolve_list "${_gh_uargs[@]}")" || {
     logging__warn "users__resolve_list failed; skipping per-user configuration."
-    logging__fn_exit "_gh__configure_user"
     return 0
   }
   if [ -z "${_users}" ]; then
     logging__info "No users resolved; skipping per-user configuration."
-    logging__fn_exit "_gh__configure_user"
     return 0
   fi
 
@@ -109,13 +107,11 @@ _gh__configure_user() {
   done << EOF
 ${_users}
 EOF
-  logging__fn_exit "_gh__configure_user"
   return 0
 }
 
 # _gh__install_extensions — install gh CLI extensions for all resolved users.
 _gh__install_extensions() {
-  logging__fn_entry "_gh__install_extensions"
   local _users
   local -a _gh_uargs=()
   [ "${ADD_CURRENT_USER:-true}" != "true" ] && _gh_uargs+=(--current false)
@@ -124,12 +120,10 @@ _gh__install_extensions() {
   for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gh_uargs+=(--user "$_u"); done
   _users="$(users__resolve_list "${_gh_uargs[@]}")" || {
     logging__warn "users__resolve_list failed; skipping extension install."
-    logging__fn_exit "_gh__install_extensions"
     return 0
   }
   if [ -z "${_users}" ]; then
     logging__info "No users resolved; skipping extension install."
-    logging__fn_exit "_gh__install_extensions"
     return 0
   fi
 
@@ -156,7 +150,6 @@ _gh__install_extensions() {
   done << EOF
 ${_users}
 EOF
-  logging__fn_exit "_gh__install_extensions"
   return 0
 }
 

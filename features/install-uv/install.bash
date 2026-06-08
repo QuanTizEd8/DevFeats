@@ -8,9 +8,12 @@
 # installer script for platforms without a pre-built RUST_TRIPLE.
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  logging__inspect "Resolving METHOD=auto for uv."
   if [[ -n "$(os__rust_triple)" ]]; then
+    logging__info "Resolved METHOD=auto → 'binary'."
     printf 'binary\n'
   else
+    logging__info "Resolved METHOD=auto → 'script' (official installer)."
     printf 'script\n'
   fi
 }
@@ -36,6 +39,7 @@ __install_run_binary_post() {
 # which is correct for devcontainer and CI environments.
 # shellcheck disable=SC2329,SC2317
 __install_run_script_run() {
+  logging__launch "Running uv installer script '$1' (UV_UNMANAGED_INSTALL='${UV_UNMANAGED_INSTALL:-}')."
   local _script_path="$1"
   mkdir -p "${_RESOLVED_PREFIX}/bin"
   UV_UNMANAGED_INSTALL="${_RESOLVED_PREFIX}/bin" "${_script_path}"

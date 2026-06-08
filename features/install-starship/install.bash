@@ -8,9 +8,12 @@
 # for other architectures (ARM 32-bit, i686, etc.) which it handles natively.
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  logging__inspect "Resolving METHOD=auto for starship."
   if [[ -n "$(os__rust_triple)" ]]; then
+    logging__info "Resolved METHOD=auto → 'binary'."
     printf 'binary\n'
   else
+    logging__info "Resolved METHOD=auto → 'script' (official installer)."
     printf 'script\n'
   fi
 }
@@ -19,6 +22,7 @@ __resolve_method() {
 # script, and optionally pin a version via the resolved tag.
 # shellcheck disable=SC2329,SC2317
 __install_run_script_pre() {
+  logging__install "Preparing Starship installer args (prefix='${_RESOLVED_PREFIX}/bin')."
   declare -g -a _FEAT_INSTALL_SCRIPT_ARGS
   _FEAT_INSTALL_SCRIPT_ARGS=(--yes --bin-dir "${_RESOLVED_PREFIX}/bin")
   local _tag="${_FEAT_RESOLVED_TAG:-}"
@@ -43,6 +47,7 @@ __install_run_script_pre() {
 
 # shellcheck disable=SC2329,SC2317
 __configure_user() {
+  logging__info "Writing starship init block for user '$1'."
   local _username="$1"
   local _home _group
   _home="$(users__resolve_home "$_username")"

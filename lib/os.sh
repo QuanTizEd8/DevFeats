@@ -105,13 +105,13 @@ os__release_kernel() {
         macos) printf 'macos\n' ;;
         osx) printf 'osx\n' ;;
         *)
-          logging__error "os__release_kernel: unknown flavor '${_flavor}'."
+          logging__error "unknown flavor '${_flavor}'."
           return 1
           ;;
       esac
       ;;
     *)
-      logging__error "os__release_kernel: unsupported kernel '$(os__kernel)'."
+      logging__error "unsupported kernel '$(os__kernel)'."
       return 1
       ;;
   esac
@@ -150,7 +150,7 @@ os__release_arch() {
         node) printf 'x64\n' ;;
         bitness) printf '64\n' ;;
         *)
-          logging__error "os__release_arch: unknown flavor '${_flavor}'."
+          logging__error "unknown flavor '${_flavor}'."
           return 1
           ;;
       esac
@@ -168,7 +168,7 @@ os__release_arch() {
         gh) printf 'armv6\n' ;;
         bitness) printf '32\n' ;;
         *)
-          logging__error "os__release_arch: unknown flavor '${_flavor}'."
+          logging__error "unknown flavor '${_flavor}'."
           return 1
           ;;
       esac
@@ -178,7 +178,7 @@ os__release_arch() {
         gh) printf 'armv6\n' ;;
         bitness) printf '32\n' ;;
         *)
-          logging__error "os__release_arch: architecture 'armv6l' is not supported for flavor '${_flavor}'."
+          logging__error "architecture 'armv6l' is not supported for flavor '${_flavor}'."
           return 1
           ;;
       esac
@@ -189,7 +189,7 @@ os__release_arch() {
         gh) printf '386\n' ;;
         bitness) printf '32\n' ;;
         *)
-          logging__error "os__release_arch: architecture '${_raw}' is not supported for flavor '${_flavor}'."
+          logging__error "architecture '${_raw}' is not supported for flavor '${_flavor}'."
           return 1
           ;;
       esac
@@ -199,7 +199,7 @@ os__release_arch() {
         github | node) printf 'ppc64le\n' ;;
         bitness) printf '64\n' ;;
         *)
-          logging__error "os__release_arch: architecture 'ppc64le' is not supported for flavor '${_flavor}'."
+          logging__error "architecture 'ppc64le' is not supported for flavor '${_flavor}'."
           return 1
           ;;
       esac
@@ -209,7 +209,7 @@ os__release_arch() {
         github | node) printf 's390x\n' ;;
         bitness) printf '64\n' ;;
         *)
-          logging__error "os__release_arch: architecture 's390x' is not supported for flavor '${_flavor}'."
+          logging__error "architecture 's390x' is not supported for flavor '${_flavor}'."
           return 1
           ;;
       esac
@@ -219,7 +219,7 @@ os__release_arch() {
         github) printf 'riscv64\n' ;;
         bitness) printf '64\n' ;;
         *)
-          logging__error "os__release_arch: architecture 'riscv64' is not supported for flavor '${_flavor}'."
+          logging__error "architecture 'riscv64' is not supported for flavor '${_flavor}'."
           return 1
           ;;
       esac
@@ -229,13 +229,13 @@ os__release_arch() {
         github) printf 'loong64\n' ;;
         bitness) printf '64\n' ;;
         *)
-          logging__error "os__release_arch: architecture 'loong64' is not supported for flavor '${_flavor}'."
+          logging__error "architecture 'loong64' is not supported for flavor '${_flavor}'."
           return 1
           ;;
       esac
       ;;
     *)
-      logging__error "os__release_arch: unsupported architecture '${_raw}'."
+      logging__error "unsupported architecture '${_raw}'."
       return 1
       ;;
   esac
@@ -258,7 +258,7 @@ os__rust_triple() {
     Darwin:x86_64 | Darwin:amd64) printf 'x86_64-apple-darwin\n' ;;
     Darwin:aarch64 | Darwin:arm64) printf 'aarch64-apple-darwin\n' ;;
     *)
-      logging__error "os__rust_triple: unsupported kernel/arch '$(os__kernel)/${_raw}'."
+      logging__error "unsupported kernel/arch '$(os__kernel)/${_raw}'."
       return 1
       ;;
   esac
@@ -377,7 +377,10 @@ os__match_spec() {
   for _pair in "$@"; do
     _k="${_pair%%=*}"
     _v="${_pair#*=}"
-    ospkg__os_release_match "$_k" "$_v" || return 1
+    ospkg__os_release_match "$_k" "$_v" || {
+      logging__error "platform condition '${_pair}' did not match."
+      return 1
+    }
   done
   return 0
 }
@@ -396,7 +399,10 @@ os__match_spec() {
 #
 # <version> and <tag> may be empty strings.
 os__expand_release_pattern() {
-  _os__expand_pattern_recursive "${1}" "${2:-}" "${3:-}" || return 1
+  _os__expand_pattern_recursive "${1}" "${2:-}" "${3:-}" || {
+    logging__error "failed to expand release pattern '${1}'."
+    return 1
+  }
   printf '\n'
 }
 
@@ -473,18 +479,24 @@ _os__eval_condition() {
     [[ "${_ver}" == "${BASH_REMATCH[1]}" ]]
   elif [[ "${_cond}" =~ ^OS:([^=]+)==(.+)$ ]]; then
     local _actual
-    _actual="$(os__release_kernel "${BASH_REMATCH[1]}")" || return 1
+    _actual="$(os__release_kernel "${BASH_REMATCH[1]}")" || {
+      logging__error "failed to detect OS kernel flavor '${BASH_REMATCH[1]}'."
+      return 1
+    }
     [[ "${_actual}" == "${BASH_REMATCH[2]}" ]]
   elif [[ "${_cond}" =~ ^ARCH:([^=]+)==(.+)$ ]]; then
     local _actual
-    _actual="$(os__release_arch --flavor "${BASH_REMATCH[1]}")" || return 1
+    _actual="$(os__release_arch --flavor "${BASH_REMATCH[1]}")" || {
+      logging__error "failed to detect CPU architecture flavor '${BASH_REMATCH[1]}'."
+      return 1
+    }
     [[ "${_actual}" == "${BASH_REMATCH[2]}" ]]
   elif [[ "${_cond}" =~ ^OS==(.+)$ ]]; then
     [[ "$(os__release_kernel)" == "${BASH_REMATCH[1]}" ]]
   elif [[ "${_cond}" =~ ^ARCH==(.+)$ ]]; then
     [[ "$(os__release_arch)" == "${BASH_REMATCH[1]}" ]]
   else
-    logging__error "os__expand_release_pattern: unsupported condition '${_cond}'."
+    logging__error "unsupported condition '${_cond}'."
     return 1
   fi
 }
@@ -502,11 +514,17 @@ _os__eval_token() {
     return
   fi
   if [[ "${_tok}" =~ ^OS:(.+)$ ]]; then
-    os__release_kernel "${BASH_REMATCH[1]}" || return 1
+    os__release_kernel "${BASH_REMATCH[1]}" || {
+      logging__error "failed to expand OS kernel flavor '${BASH_REMATCH[1]}'."
+      return 1
+    }
     return
   fi
   if [[ "${_tok}" =~ ^ARCH:(.+)$ ]]; then
-    os__release_arch --flavor "${BASH_REMATCH[1]}" || return 1
+    os__release_arch --flavor "${BASH_REMATCH[1]}" || {
+      logging__error "failed to expand CPU architecture flavor '${BASH_REMATCH[1]}'."
+      return 1
+    }
     return
   fi
   case "${_tok}" in
@@ -520,7 +538,7 @@ _os__eval_token() {
     PLATFORM) os__platform ;;
     RUST_TRIPLE) os__rust_triple ;;
     *)
-      logging__error "os__expand_release_pattern: unknown token '{${_tok}}'."
+      logging__error "unknown token '{${_tok}}'."
       return 1
       ;;
   esac
@@ -536,12 +554,15 @@ _os__expand_pattern_recursive() {
       local _after="${_s:$((_i + 1))}"
       local _cpos
       _cpos="$(_os__find_close_brace "${_after}")" || {
-        logging__error "os__expand_release_pattern: unmatched '{' in pattern."
+        logging__error "unmatched '{' in pattern."
         return 1
       }
       local _tok="${_after:0:${_cpos}}"
       local _expanded
-      _expanded="$(_os__eval_token "${_tok}" "${_ver}" "${_tag}")" || return 1
+      _expanded="$(_os__eval_token "${_tok}" "${_ver}" "${_tag}")" || {
+        logging__error "failed to expand token '{${_tok}}'."
+        return 1
+      }
       _result+="${_expanded}"
       _i=$((_i + _cpos + 2))
     else

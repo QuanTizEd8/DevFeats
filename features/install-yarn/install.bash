@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 
 __install_run_npm__() {
+  logging__install "Installing Yarn globally via npm."
   if [ "${VERSION}" = "latest" ] && command -v corepack > /dev/null 2>&1; then
     logging__info "Enabling Yarn via corepack..."
     corepack enable

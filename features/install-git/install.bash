@@ -5,9 +5,12 @@
 __resolve_method() {
   # On Ubuntu, prefer the git-core PPA (upstream-package) for a newer git.
   # Everywhere else, fall back to the OS package manager.
+  logging__inspect "Resolving METHOD=auto for git."
   if [[ "$(os__id)" == "ubuntu" ]]; then
+    logging__info "Resolved METHOD=auto → 'upstream-package' (Ubuntu git-core PPA)."
     printf 'upstream-package\n'
   else
+    logging__info "Resolved METHOD=auto → 'package'."
     printf 'package\n'
   fi
 }
@@ -27,6 +30,7 @@ __resolve_input_prefixes_post() {
 # ── Package method overrides ───────────────────────────────────────────────
 
 __install_run_package__() {
+  logging__install "Installing git via OS package manager."
   # Override the template default to support version-pinned installs.
   # VERSION=latest or stable → no version constraint (empty extra-var).
   # VERSION=x.y.z → pass to ospkg as a version constraint.
@@ -39,6 +43,7 @@ __install_run_package__() {
 }
 
 __update_run_package__() {
+  logging__install "Updating git via OS package manager."
   local _pkg_version=""
   case "${VERSION:-latest}" in
     stable | latest) ;;
@@ -119,18 +124,25 @@ __install_run_source_build() {
 
   logging__build "Building git ${VERSION}..."
   (
-    cd "${_src_dir}" || exit 1
+    cd "${_src_dir}" || {
+      logging__error "git source build: cannot cd to '${_src_dir}'."
+      exit 1
+    }
     # shellcheck disable=SC2086
     make -s -j"${_ncpus}" ${_git_make_flags} "${_extra_make_flags[@]+"${_extra_make_flags[@]}"}" all
     # shellcheck disable=SC2086
     make -s ${_git_make_flags} "${_extra_make_flags[@]+"${_extra_make_flags[@]}"}" install
-  ) || return 1
+  ) || {
+    logging__error "git source build failed in '${_src_dir}'."
+    return 1
+  }
 
   # `make install` does not install contrib/completion scripts.  Copy them
   # from the source tree to the prefix now, before the build dir is cleaned.
   local _comp_src_dir="${_src_dir}/contrib/completion"
   local _comp_dst_dir="${_RESOLVED_PREFIX}/share/git-core/contrib/completion"
   if [[ -d "${_comp_src_dir}" ]]; then
+    logging__install "Installing git completion scripts to '${_comp_dst_dir}'."
     file__mkdir "${_comp_dst_dir}"
     file__cp "${_comp_src_dir}/"*.bash "${_comp_dst_dir}/" 2> /dev/null || true
     file__cp "${_comp_src_dir}/"*.zsh "${_comp_dst_dir}/" 2> /dev/null || true
@@ -149,7 +161,11 @@ __uninstall_run_prefix_post() {
   # which runs after __uninstall_run__ completes.
   local _prefix
   _prefix="${_FEAT_EXISTING_PATH%/bin/git}"
-  [[ -n "${_prefix}" && "${_prefix}" != "/" ]] || return 0
+  [[ -n "${_prefix}" && "${_prefix}" != "/" ]] || {
+    logging__skip "Cannot derive git prefix from '${_FEAT_EXISTING_PATH}'; skipping extra source cleanup."
+    return 0
+  }
+  logging__remove "Removing git source-build artifacts under '${_prefix}'."
   file__rm -rf "${_prefix}/lib/git-core/"
   file__rm -rf "${_prefix}/share/git-core/"
   file__rm -f "${_prefix}/bin/git-"*
@@ -184,19 +200,21 @@ _git__write_system_gitconfig() {
     _content+="${SYSTEM_GITCONFIG}"$'\n'
   fi
   if [[ -n "${_content}" ]]; then
+    logging__install "Writing system gitconfig to '${_cfg}'."
     shell__sync_block --files "${_cfg}" --marker "system gitconfig (install-git)" --content "${_content}"
+  else
+    logging__skip "No system gitconfig content configured; skipping."
   fi
 }
 
 _export_git_manpath() {
-  logging__fn_entry "_export_git_manpath"
   if [[ "${METHOD}" != "source" ]]; then
-    logging__fn_exit "_export_git_manpath"
+    logging__skip "METHOD='${METHOD}'; skipping git MANPATH export."
     return 0
   fi
   case "${PREFIX_DISCOVERY:-auto}" in
     none | symlink)
-      logging__fn_exit "_export_git_manpath"
+      logging__skip "PREFIX_DISCOVERY='${PREFIX_DISCOVERY}'; skipping git MANPATH export."
       return 0
       ;;
   esac
@@ -207,9 +225,10 @@ _export_git_manpath() {
     _manpath_export_opt="$(printf '%s\n' "${PREFIX_EXPORTS[@]}")"
   fi
   if [[ "${_RESOLVED_PREFIX}" == "/usr/local" || "${_RESOLVED_PREFIX}" == "$(users__resolve_home)/.local" ]]; then
-    logging__fn_exit "_export_git_manpath"
+    logging__skip "Standard prefix '${_RESOLVED_PREFIX}'; skipping git MANPATH export."
     return 0
   fi
+  logging__install "Writing git MANPATH export for '${_RESOLVED_PREFIX}/share/man'."
   shell__write_env_block \
     --scope "$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)" \
     --home "$(users__home_of_path_owner "${_RESOLVED_PREFIX}")" \
@@ -217,7 +236,6 @@ _export_git_manpath() {
     --profile-d "${_FEAT_PROFILE_D_FILE}" \
     --marker "git MANPATH (install-git)" \
     --content "export MANPATH=\"${_RESOLVED_PREFIX}/share/man:\${MANPATH}\""
-  logging__fn_exit "_export_git_manpath"
 }
 
 # ── Per-user configuration ─────────────────────────────────────────────────

@@ -19,7 +19,7 @@ _lock__ensure_flock() {
     ospkg__run --manifest "$_LOCK__FLOCK_MANIFEST" --build-group "lib-lock" || true
     command -v flock > /dev/null 2>&1 && return 0
   fi
-  logging__info "lock.sh: 'flock' not available; using spin-lock fallback."
+  logging__info "'flock' not available; using spin-lock fallback."
   return 1
 }
 
@@ -32,12 +32,19 @@ _lock__ensure_flock() {
 #   <command-string>  Shell command string to eval under the lock.
 lock__run_with_lockfile() {
   local _lock="${1-}" _cmd="${2-}"
-  [[ -n "$_lock" ]] || return 1
+  [[ -n "$_lock" ]] || {
+    logging__error "lockfile path is required."
+    return 1
+  }
+  [[ -n "$_cmd" ]] || {
+    logging__error "command string is required."
+    return 1
+  }
   mkdir -p "$(dirname "$_lock")" 2> /dev/null || true
   if _lock__ensure_flock; then
     (
       flock 9 || {
-        logging__error "lock__run_with_lockfile: could not lock ${_lock}"
+        logging__error "could not lock ${_lock}"
         exit 1
       }
       eval "$_cmd"
@@ -49,7 +56,7 @@ lock__run_with_lockfile() {
     sleep 0.05
     _n=$((_n + 1))
     if ((_n > 600)); then
-      logging__error "lock__run_with_lockfile: lock wait timeout ${_d}"
+      logging__error "lock wait timeout ${_d}"
       return 1
     fi
   done

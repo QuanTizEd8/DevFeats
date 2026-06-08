@@ -11,11 +11,9 @@ _nvm_run() {
 }
 
 __exit_pre() {
-  logging__fn_entry "__exit_pre"
   if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${PREFIX-}" ] && [ -f "${_RESOLVED_PREFIX}/nvm.sh" ] && [ -n "${INSTALL_USER-}" ]; then
     _nvm_run ". '${_RESOLVED_PREFIX}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
   fi
-  logging__fn_exit "__exit_pre"
 }
 
 __init_args_post() {
@@ -23,7 +21,10 @@ __init_args_post() {
 }
 
 __detect_existing_path_post() {
-  if [ -f "${_RESOLVED_PREFIX}/nvm.sh" ]; then _FEAT_EXISTING_PATH="${_RESOLVED_PREFIX}/nvm.sh"; fi
+  if [ -f "${_RESOLVED_PREFIX}/nvm.sh" ]; then
+    _FEAT_EXISTING_PATH="${_RESOLVED_PREFIX}/nvm.sh"
+    logging__detect "Found nvm installation at '${_FEAT_EXISTING_PATH}'."
+  fi
 }
 
 __install_run_script_pre() {
@@ -46,9 +47,11 @@ __install_run_script_pre() {
   logging__info "Installing nvm build dependencies..."
   __dep_install__ build nvm
 
+  logging__install "Preparing nvm install directory '${_RESOLVED_PREFIX}'."
   file__mkdir "$_RESOLVED_PREFIX"
 
   if [ -n "${WRITE_GROUP:-}" ] && ! users__is_user_path "${_RESOLVED_PREFIX}"; then
+    logging__install "Setting write permissions on '${_RESOLVED_PREFIX}' (group='${WRITE_GROUP}')."
     local -a _nvm_wargs=()
     if [ "${#WRITE_USERS[@]}" -gt 0 ]; then
       _nvm_wargs=(--current false --remote false --container false)
@@ -92,11 +95,9 @@ __install_run_script_post() {
 # Installs the primary Node.js version (first entry of NODE_VERSIONS) as the nvm
 # default alias, then installs any additional entries without changing the default.
 _nvm_install_node_versions() {
-  logging__fn_entry "_nvm_install_node_versions"
 
   if [ "${#NODE_VERSIONS[@]}" -eq 0 ]; then
     logging__info "node_versions is empty — skipping Node.js installation."
-    logging__fn_exit "_nvm_install_node_versions (empty)"
     return 0
   fi
 
@@ -128,7 +129,6 @@ _nvm_install_node_versions() {
   fi
 
   logging__success "Node.js ${_node_version} installed via nvm."
-  logging__fn_exit "_nvm_install_node_versions"
 }
 
 # _nvm_install_additional_versions <start_index>
@@ -155,10 +155,8 @@ _nvm_install_additional_versions() {
 }
 
 create_nvm_symlinks() {
-  logging__fn_entry "create_nvm_symlinks"
   if users__is_user_path "${_RESOLVED_PREFIX}"; then
     logging__info "User-local prefix: NVM bridge symlinks not applicable."
-    logging__fn_exit "create_nvm_symlinks"
     return 0
   fi
   users__run_privileged ln -sf "${_RESOLVED_PREFIX}" "/usr/local/share/nvm"
@@ -170,7 +168,7 @@ create_nvm_symlinks() {
     logging__info "Symlinking ${_src} → /usr/local/bin/${_bin}"
     users__run_privileged ln -sf "$_src" "/usr/local/bin/${_bin}"
   done
-  logging__fn_exit "create_nvm_symlinks"
+  logging__success "NVM bridge symlinks created under /usr/local."
   return
 }
 
@@ -181,7 +179,11 @@ __install_finish_post() {
 # Mirror of create_nvm_symlinks: removes exactly what it created.
 # shellcheck disable=SC2329,SC2317
 __uninstall_finish_post() {
-  users__is_user_path "${_RESOLVED_PREFIX}" && return 0
+  users__is_user_path "${_RESOLVED_PREFIX}" && {
+    logging__skip "User-local nvm prefix; skipping system NVM bridge symlink removal."
+    return 0
+  }
+  logging__remove "Removing NVM bridge symlinks under /usr/local."
   [ -L "/usr/local/share/nvm" ] && users__run_privileged rm -f "/usr/local/share/nvm" || true
   for _bin in node npm npx corepack; do
     [ -L "/usr/local/bin/${_bin}" ] && users__run_privileged rm -f "/usr/local/bin/${_bin}" || true
