@@ -1,0 +1,7 @@
+# lib-local-vars.allowlist — suppressions for .dev/scripts/lint/lib-local-vars.py
+#
+# Format (one per line):  file:function:variable   # reason
+# Paths are basenames under lib/ (e.g. argparse.sh, not lib/argparse.sh).
+
+# Installer option surface shared with feature install.bash (intentional global).
+argparse.sh:argparse__resolve_uri_options:FETCH_HEADERS

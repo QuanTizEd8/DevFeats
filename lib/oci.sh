@@ -362,7 +362,7 @@ _oci__highest_semver() {
 oci__resolve_version() {
   local _repo="${1-}" _spec="${2-}"
   [[ -n "$_repo" ]] || return 1
-  local _tags
+  local _tags _hi
   _tags="$(oci__list_tags "$_repo")" || return 1
 
   case "${_spec}" in

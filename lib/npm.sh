@@ -217,9 +217,10 @@ npm__versions() {
   if [ "$_all" = "true" ]; then
     printf '%s\n' "$_versions" | sort -rV
   else
-    printf '%s\n' "$_versions" | sort -rV | while IFS= read -r _v; do
+    local _v
+    while IFS= read -r _v; do
       ver__semver_is_final "$_v" && printf '%s\n' "$_v"
-    done
+    done < <(printf '%s\n' "$_versions" | sort -rV)
   fi
 }
 
@@ -319,11 +320,10 @@ npm__resolve_version_uri() {
         logging__error "npm__resolve_version_uri: spec '${_spec}' contains no numeric version content."
         return 1
       }
-      local _stable_vers
-      _stable_vers="$(printf '%s\n' "$_json" | json__object_keys_stdin versions |
-        sort -rV | while IFS= read -r _v; do
-        ver__semver_is_final "$_v" && printf '%s\n' "$_v"
-      done)" || _stable_vers=""
+      local _stable_vers="" _v
+      while IFS= read -r _v; do
+        ver__semver_is_final "$_v" && _stable_vers+="${_stable_vers:+$'\n'}${_v}"
+      done < <(printf '%s\n' "$_json" | json__object_keys_stdin versions | sort -rV)
       [ -n "$_stable_vers" ] || {
         logging__error "npm__resolve_version_uri: no stable versions found at '${_uri}'."
         return 1

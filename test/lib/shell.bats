@@ -301,10 +301,6 @@ ${_home}/.zshrc"
   reload_lib shell.sh
   local _home="${BATS_TEST_TMPDIR}/sync_home"
   mkdir -p "$_home"
-  # Use a distinct variable name: shell__sync_block internally reads lines with
-  # 'while IFS= read -r _f', which (without a local declaration) overwrites any
-  # caller-scoped '_f' after the loop ends with an empty value.  Avoid the clash
-  # by using a different name here.
   local _syncfile="${_home}/rc"
   shell__sync_block --files "$_syncfile" --marker "myblock" --content "export X=1"
   assert_file_exists "$_syncfile"

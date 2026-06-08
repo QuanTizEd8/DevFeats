@@ -146,6 +146,7 @@ users__can_write() {
 #   --cwd <dir>  Working directory for the command (optional).
 #   -- <cmd>...  Command and arguments to execute.
 users__run_as() {
+  local _or_u _or_cd _or_c _or_cd_q
   if [ -z "$1" ]; then
     return 1
   fi
@@ -529,6 +530,7 @@ users__set_write_permissions() {
   fi
   users__run_privileged chown -R "${_owner}:${_group}" "$_path"
   users__run_privileged chmod -R g+rwX "$_path"
+  local _dir
   while IFS= read -r -d '' _dir; do
     users__run_privileged chmod g+s "$_dir"
   done < <(find "$_path" -type d -print0)
@@ -641,6 +643,7 @@ users__set_login_shell() {
     fi
   fi
 
+  local _username _current_shell
   for _username in "$@"; do
     [ -z "$_username" ] && continue
     _current_shell="$(getent passwd "$_username" 2> /dev/null | cut -d: -f7 || true)"

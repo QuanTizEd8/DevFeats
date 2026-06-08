@@ -119,6 +119,7 @@ _net__fetch() {
   done
   _hdrs="$(_net__hdrs_with_default_ua "$_hdrs")"
   _net__ensure_fetch_tool
+  local _h
   if [ "$_NET__FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
     [ -n "$_netrc" ] && set -- "$@" --netrc-file "$_netrc"

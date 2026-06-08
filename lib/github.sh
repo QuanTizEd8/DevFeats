@@ -600,7 +600,7 @@ github__resolve_version() {
       ;;
   esac
 
-  local _api_base _tag=""
+  local _api_base _tag="" _t _bare
   _api_base="$(_github__api_base_url "$_repo")"
 
   # ── Releases API ────────────────────────────────────────────────────────────
@@ -946,9 +946,10 @@ github__pick_release_asset() {
       ;;
     *)
       logging__error "github__pick_release_asset: ${_count} ambiguous assets remain for '${_repo}'; pass --asset-regex to disambiguate:"
-      printf '%s\n' "$_urls" | sed 's|.*/||' | while IFS= read -r _n; do
+      local _n
+      while IFS= read -r _n; do
         logging__error "   ${_n}"
-      done
+      done < <(printf '%s\n' "$_urls" | sed 's|.*/||')
       return 1
       ;;
   esac
@@ -1133,7 +1134,7 @@ _github__api_get() {
 _github__first_stable_tag_matching() {
   local _api_base="$1" _norm="$2"
   _json__ensure_jq || return 1
-  local _per_page=100 _page=1 _json _tags _count
+  local _per_page=100 _page=1 _json _tags _count _tag
 
   while :; do
     local _url="${_api_base}/releases?per_page=${_per_page}&page=${_page}"

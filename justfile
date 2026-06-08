@@ -82,6 +82,14 @@ lint-sh-check *files:
 
 [
   group('lint'),
+  doc('Require local declarations for function-scoped variables in lib/*.sh.')
+]
+lint-sh-local-vars *files:
+    just capture lint-sh-local-vars -- bash .dev/scripts/lint/sh-local-vars.sh "$@"
+
+
+[
+  group('lint'),
   doc('Check Python files with ruff (no fixes).')
 ]
 lint-py-check:
@@ -105,6 +113,7 @@ lint:
     set -euo pipefail
     exec bash .dev/scripts/capture/composite.sh lint -- \
       lint-sh-check -- bash .dev/scripts/lint/sh-check.sh \
+      lint-sh-local-vars -- bash .dev/scripts/lint/sh-local-vars.sh \
       lint-py-check -- pixi run --environment lint lint-py-check
 
 

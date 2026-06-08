@@ -1337,7 +1337,7 @@ ospkg__cleanup_session_build_groups() {
   [[ -d "$_SYSSET_SESSION_TRACK_DIR" ]] || return 0
 
   # Build pkg -> should_keep map (keep wins: any true overrides all false).
-  declare -A _session_pkg_keep=()
+  local -A _session_pkg_keep=()
   local _sidecar _basename _context _feature_id _keep _pkg
   for _sidecar in "$_SYSSET_SESSION_TRACK_DIR"/*; do
     [[ -f "$_sidecar" ]] || continue

@@ -13,6 +13,7 @@ cd "$root"
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 composite_sh="${script_dir}/../capture/composite.sh"
 lint_sh="${script_dir}/../lint/sh-check.sh"
+lint_local_vars="${script_dir}/../lint/sh-local-vars.sh"
 format_sh="${script_dir}/../format/shfmt.sh"
 run_unit="${script_dir}/../test/run-unit.sh"
 
@@ -62,6 +63,7 @@ fi
 
 if [[ ${#_sh_lib[@]} -gt 0 ]]; then
   add_step lint-sh-check-lib bash "$lint_sh" "${_sh_lib[@]}"
+  add_step lint-sh-local-vars-lib bash "$lint_local_vars" "${_sh_lib[@]}"
 fi
 
 if [[ ${#_py[@]} -gt 0 ]]; then

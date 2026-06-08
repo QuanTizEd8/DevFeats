@@ -52,7 +52,7 @@ graph__round_order() {
     return 1
   fi
 
-  declare -A _have=() _hdep=() _sdep=() _pr=() _done=()
+  local -A _have=() _hdep=() _sdep=() _pr=() _done=()
   local _a _l p q
 
   for _a in "${_nodes[@]}"; do

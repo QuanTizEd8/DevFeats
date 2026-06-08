@@ -100,7 +100,7 @@ shell__detect_zshdir() {
 #   --marker <id>  Block identifier used in the begin/end comment markers.
 #   --content <c>  Content to write inside the block.
 shell__write_block() {
-  local _file="" _marker="" _content=""
+  local _file="" _marker="" _content="" _lb=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --file)
@@ -212,6 +212,7 @@ shell__sync_block() {
   done
   local _begin="# >>> ${_marker} >>>"
   local _end="# <<< ${_marker} <<<"
+  local _f
   while IFS= read -r _f; do
     [ -z "$_f" ] && continue
     if [ "$_has_content" = true ]; then
@@ -358,7 +359,7 @@ shell__detect_zdotdir() {
 }${_home}/.zshenv"
 
   if [[ -n "$_zshenv_files" ]]; then
-    local _val=""
+    local _val="" _f
     while IFS= read -r _f; do
       [[ -z "$_f" ]] && continue
       # Match last ZDOTDIR= assignment (last wins, like shell evaluation).
@@ -1340,7 +1341,7 @@ shell__run_prefix_undiscovery() {
   # Resolve symlink targets.
   local -a _sl_targets=()
   if [[ -n "$_symlinks_ref" ]]; then
-    declare -n _rpud_sl="${_symlinks_ref}"
+    local -n _rpud_sl="${_symlinks_ref}"
     [[ "${#_rpud_sl[@]}" -gt 0 ]] && _sl_targets=("${_rpud_sl[@]}")
   fi
   if [[ "${#_sl_targets[@]}" -eq 0 ]]; then
@@ -1352,6 +1353,7 @@ shell__run_prefix_undiscovery() {
   fi
 
   # Remove downstream symlinks from all resolved targets.
+  local _sl_dir
   local -a _sl_args=()
   for _sl_dir in "${_sl_targets[@]}"; do _sl_args+=(--target "${_sl_dir}"); done
   shell__prefix_unlink_bins --bin-dir "${_pfx_bin_dir}" --bins "${_bins}" "${_sl_args[@]}"
@@ -1360,7 +1362,7 @@ shell__run_prefix_undiscovery() {
   [[ -n "${_marker}" ]] || return 0
   local _export_files
   if [[ -n "$_exports_ref" ]]; then
-    declare -n _rpud_ex="${_exports_ref}"
+    local -n _rpud_ex="${_exports_ref}"
     if [[ "${#_rpud_ex[@]}" -gt 0 ]]; then
       _export_files="$(printf '%s\n' "${_rpud_ex[@]}")"
       shell__sync_block --files "${_export_files}" --marker "${_marker}"
@@ -1529,7 +1531,7 @@ shell__prefix_export_path() {
   done
   local _export_opt
   if [[ -n "$_exports_ref" ]]; then
-    declare -n _pep_ex="${_exports_ref}"
+    local -n _pep_ex="${_exports_ref}"
     if [[ "${#_pep_ex[@]}" -eq 0 ]]; then
       _export_opt="auto"
     else
@@ -1682,7 +1684,7 @@ shell__run_prefix_discovery() {
   local -a _sl_targets=()
   if [[ "$_no_symlinks" != true ]]; then
     if [[ -n "$_symlinks_ref" ]]; then
-      declare -n _rpd_sl="${_symlinks_ref}"
+      local -n _rpd_sl="${_symlinks_ref}"
       [[ "${#_rpd_sl[@]}" -gt 0 ]] && _sl_targets=("${_rpd_sl[@]}")
     fi
     if [[ "${#_sl_targets[@]}" -eq 0 ]]; then

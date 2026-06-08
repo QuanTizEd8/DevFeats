@@ -166,7 +166,7 @@ _uri__resolve_oci_to() {
   [[ "$_rest" == *"?"* ]] && _query="${_rest#*\?}"
   _path_pat=""
   if [[ -n "$_query" ]]; then
-    local _q
+    local _q _p
     IFS='&' read -ra _q <<< "$_query" || true
     for _p in "${_q[@]}"; do
       case "$_p" in
@@ -707,7 +707,7 @@ uri__fetch_asset() {
         _install_names+=("$(basename "$_spec")")
       done
     elif "$_is_archive"; then
-      local _discovered
+      local _discovered _f
       _discovered="$(find "$_asset_dir" -type f -perm -u+x 2> /dev/null || true)"
       if [[ -z "$_discovered" ]]; then
         while IFS= read -r _f; do chmod +x "$_f" 2> /dev/null || true; done \

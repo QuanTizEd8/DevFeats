@@ -84,7 +84,7 @@ str__strip_any_prefix() {
 #
 # Stdout: two lines — the head and the tail.
 str__rsplit_once() {
-  local s="${1-}" sep="${2-}" _head _rest
+  local s="${1-}" sep="${2-}" _head _rest _sfx
   if [[ -z "$sep" ]]; then
     printf '%s\n' "$s"
     echo ""

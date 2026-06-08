@@ -132,13 +132,14 @@ proc__run_command_form() {
       _rc /bin/sh -c "$_s"
       ;;
     array)
+      local -a _av=()
       mapfile -t _av < <(printf '%s' "$_json" | json__query -r '.[]' 2> /dev/null) || return 1
       ((${#_av[@]} > 0)) || return 1
       _rc "${_av[@]}"
       ;;
     object)
       _od="$(mktemp -d)"
-      local -a _pl=() _e=0 _first=1
+      local -a _pl=() _e=0 _first=1 _av2=()
       while IFS= read -r _k; do
         [[ -z "$_k" ]] && continue
         # shellcheck disable=SC2016

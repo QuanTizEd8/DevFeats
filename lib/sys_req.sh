@@ -12,7 +12,7 @@
 #   key=val ... One or more key=value pairs for os__match_spec.
 sys_req__require_platform() {
   # Build human-readable description from all groups (for the error message).
-  local _desc="" _group_desc
+  local _desc="" _group_desc _a
   local -a _grp_args=()
   for _a in "$@"; do
     if [[ "$_a" == "--" ]]; then
