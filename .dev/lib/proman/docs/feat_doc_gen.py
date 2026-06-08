@@ -6,6 +6,7 @@ from typing import Any
 import mdit
 
 from proman.const import LIFECYCLE_COMMAND_KEYS
+from proman.sync.pipeline import resolve_lifecycle_command
 
 
 def generate(metadata: dict[str, Any], notes: str = "") -> str:
@@ -228,9 +229,10 @@ def _generate_lifecycle_notes(metadata: dict) -> str:
         if key not in metadata:
             continue
         unordered_list = mdit.element.unordered_list()
-        for command in metadata[key].values():
-            command_code = mdit.element.code_block(command["command"], language="sh")
-            command_desc = command["description"]
+        for entry_id, entry in metadata[key].items():
+            command_str = resolve_lifecycle_command(entry_id, entry, key, metadata)
+            command_code = mdit.element.code_block(command_str, language="sh")
+            command_desc = entry["description"]
             container = mdit.block_container([command_desc, command_code])
             unordered_list.append(container)
         tab_set.append(unordered_list, title=key)

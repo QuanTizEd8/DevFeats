@@ -134,7 +134,9 @@ _LIFECYCLE_EVENT_ENV_VAR: dict[str, str] = {
 }
 
 
-def _lifecycle_command(entry_id: str, entry: dict, lc_key: str, metadata: dict) -> str:
+def resolve_lifecycle_command(
+    entry_id: str, entry: dict, lc_key: str, metadata: dict
+) -> str:
     """Return the devcontainer command string for one lifecycle entry.
 
     When the entry has an explicit ``command`` key that value is returned as-is.
@@ -202,7 +204,7 @@ def _generate_metadata_json(metadata: dict) -> dict[Path, str]:
         # Lifecycle commands
         elif key in LIFECYCLE_COMMAND_KEYS:
             metadata_json_dict[key] = {
-                entry_id: _lifecycle_command(entry_id, entry, key, metadata)
+                entry_id: resolve_lifecycle_command(entry_id, entry, key, metadata)
                 for entry_id, entry in value.items()
             }
 
