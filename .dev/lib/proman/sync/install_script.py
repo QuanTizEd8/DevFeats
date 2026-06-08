@@ -443,8 +443,8 @@ class InstallScriptGenerator:
                     blocks.append(f"argparse__default_array_value {vname} $'{escaped}'")
             else:
                 rhs = _shell_val(opt["default"], typ)
-                if rhs.startswith("'") and "$" in rhs:
-                    blocks.append("# shellcheck disable=SC2016")
+                if rhs.startswith("'"):
+                    blocks.append("# shellcheck disable=SC2016,SC2088")
                 blocks.append(f"argparse__default {vname} {rhs}")
                 dynamic_default = opt.get("_default")
                 if dynamic_default is not None:
