@@ -8,31 +8,73 @@
 #
 # Levels: silent=0, error=1, warn=2, info=3, debug=4, trace=5
 #
-# Call logging__set_level after parsing options (levels-only OK before setup).
-# Call logging__setup once logging options are final; on EXIT call logging__cleanup then
-# file__session_cleanup (installer template __exit__).
+# Call logging__feature_entry before argument parsing; call logging__setup once options
+# are final (re-reads levels, starts mux, replays pending journal). logging__set_level
+# remains available for mid-run level changes after setup. On EXIT call logging__cleanup
+# then file__session_cleanup (installer template __exit__ calls logging__on_early_exit first).
 #
-# Reserved fds after logging__setup: 3=stdout, 4=stderr, 5=mux writer (internal).
-# Requires lib/file.sh (session scratch). Loaded by __init__.bash before this module.
+# Reserved fds after logging__setup: 3=stdout, 4=stderr, 5=process mux, 6=xtrace pipe (when trace on).
+# Requires lib/file.sh and lib/logging-api.sh (loaded by __init__.bash; order vs api does not matter).
+# Registers the bash logging backend for logging-api.sh dispatch hooks.
 
-if ! declare -f file__session_ensure > /dev/null 2>&1; then
-  # shellcheck source=lib/file.sh
-  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/file.sh"
-fi
-
+_LOGGING__BASH_BACKEND=1
+_LOGGING__FN_PREFIX=${_LOGGING__FN_PREFIX:-1}
 _LOGGING__LIB_SETUP=false
 _LOGGING__SYSSET_MASKED_VALUES=()
-_LOGGING__PARSE_BUFFER=()
 
 _LOGGING__LOG_FILE_TMP=
 _LOGGING__CAPTURE_FILE=false
 _LOGGING__MUX_FIFO=
 _LOGGING__MUX_READER_PID=
 _LOGGING__MUX_IN=5
+_LOGGING__PROC_MUX=0
+_LOGGING__XTRACE_PIPE=
+_LOGGING__ERR_IN_TRAP=0
 
 # LOG_LEVEL / LOG_FILE_LEVEL numeric thresholds
 _LOGGING__LEVEL=3
 _LOGGING__FILE_LEVEL=4
+
+# ---------------------------------------------------------------------------
+# Function-name message prefix (bash caller stack)
+# ---------------------------------------------------------------------------
+
+_logging__caller_fn() {
+  local _i _fn
+  for ((_i = 1; _i < ${#FUNCNAME[@]}; _i++)); do
+    _fn="${FUNCNAME[_i]}"
+    case "$_fn" in
+      logging__* | _logging__* | '')
+        continue
+        ;;
+      *)
+        printf '%s' "$_fn"
+        return 0
+        ;;
+    esac
+  done
+  return 1
+}
+
+_logging__decorate_fn_prefix() {
+  local _msg="${1-}" _fn
+  [[ "${_LOGGING__FN_PREFIX:-0}" == 1 ]] || {
+    printf '%s' "$_msg"
+    return 0
+  }
+  _fn="$(_logging__caller_fn)" || {
+    printf '%s' "$_msg"
+    return 0
+  }
+  case "$_msg" in
+    "${_fn}: "* | "${_fn}:"*)
+      printf '%s' "$_msg"
+      return 0
+      ;;
+  esac
+  printf '%s: %s' "$_fn" "$_msg"
+  return 0
+}
 
 # ---------------------------------------------------------------------------
 # Level parsing
@@ -87,21 +129,36 @@ _logging__bootstrap_warn() {
 # Ordered dispatch (single journal writer logic)
 # ---------------------------------------------------------------------------
 
-# Strip NUL bytes so journal lines stay text-safe.
-_logging__sanitize_line() {
-  local _s="${1-}"
-  _s="${_s//$'\0'/}"
-  printf '%s' "$_s"
+_logging__encode_fifo_payload() {
+  _logging__encode_payload "${1-}"
 }
 
-# One FIFO line per record: tabs/newlines in payload would break DFLOG parsing.
-_logging__encode_fifo_payload() {
-  local _s
-  _s="$(_logging__sanitize_line "${1-}")"
-  _s="${_s//$'\t'/ }"
-  _s="${_s//$'\n'/ }"
-  _s="${_s//$'\r'/ }"
-  printf '%s' "$_s"
+# Forward one DFLOG record directly to the mux fifo.
+# Writing to fd 1 (process-ingress) instead would race with large subprocess writes
+# (apt-get, curl) that exceed PIPE_BUF, interleaving DFLOG bytes mid-line — exactly
+# the same reason the xtrace coprocess was changed to write to _LOGGING__MUX_IN directly.
+# Payload is capped at 4081 bytes: "DFLOG\tS\t4\t" (12 bytes) + 4081 + "\n" (1) = 4094 ≤ PIPE_BUF.
+_logging__mux_forward_dflog() {
+  local _kind="$1" _min="$2" _payload="$3"
+  printf 'DFLOG\t%s\t%s\t%.4081s\n' "$_kind" "$_min" "$_payload" >&"${_LOGGING__MUX_IN}"
+  return 0
+}
+
+# Process-ingress coprocess: wrap plain lines as DFLOG O; pass DFLOG records through.
+# The encoded payload is capped at 4081 bytes so the total printf write fits in one
+# PIPE_BUF (4096 bytes on Linux), keeping the write atomic. Non-atomic writes on the
+# mux FIFO race with concurrent S-record writes from the main shell and corrupt lines.
+_logging__process_mux_ingress() {
+  local _line="${1-}"
+  if [[ "$_line" == DFLOG$'\t'* ]]; then
+    # Cap at 4092 bytes total (DFLOG record including its own PIPE_BUF header).
+    printf '%.4092s\n' "$_line" >&"${_LOGGING__MUX_IN}"
+  else
+    local _enc
+    _enc="$(_logging__encode_fifo_payload "$_line")"
+    printf 'DFLOG\tO\t4\t%.4081s\n' "$_enc" >&"${_LOGGING__MUX_IN}"
+  fi
+  return 0
 }
 
 # True when console or file sink wants structured output at min_level.
@@ -115,18 +172,10 @@ _logging__want_structured_at_level() {
   return 1
 }
 
-_logging__want_console_at_level() {
-  local _min="${1-}"
-  [[ "${_min}" -eq 0 ]] && return 0
-  [[ "${_LOGGING__LEVEL}" -ge "${_min}" ]] && return 0
-  return 1
-}
-
 # @brief _logging__dispatch_payload <min_level> <payload_line>
 # Write one line to console and/or session journal per sink thresholds.
 _logging__dispatch_payload() {
   local _min="${1-}" _payload="${2-}"
-  _payload="$(_logging__sanitize_line "$_payload")"
   [[ -z "$_payload" ]] && return 0
 
   local _to_console=false _to_file=false
@@ -142,7 +191,11 @@ _logging__dispatch_payload() {
   fi
 
   if [[ "${_to_console}" == true ]]; then
-    printf '%s\n' "$_payload" >&4
+    if [[ "${_LOGGING__LIB_SETUP-}" == true ]]; then
+      printf '%s\n' "$_payload" >&4
+    else
+      printf '%s\n' "$_payload" >&2
+    fi
   fi
   if [[ "${_to_file}" == true && -n "${_LOGGING__LOG_FILE_TMP:-}" ]]; then
     printf '%s\n' "$_payload" >> "$_LOGGING__LOG_FILE_TMP"
@@ -150,10 +203,11 @@ _logging__dispatch_payload() {
   return 0
 }
 
-# Parse DFLOG\\tkind\\tmin\\tpayload or infer kind from line shape.
-_logging__dispatch_fifo_line() {
-  local _line
-  _line="$(_logging__sanitize_line "${1-}")"
+# Parse DFLOG\\tkind\\tmin\\tpayload on the process mux.
+# Kinds: S=structured, X=xtrace, O=subprocess stdout/stderr (line-buffered).
+# Legacy unprefixed lines are still accepted as process output (min=debug).
+_logging__dispatch_mux_line() {
+  local _line="${1-}"
   [[ -z "$_line" ]] && return 0
 
   local _kind _min _payload
@@ -164,12 +218,7 @@ _logging__dispatch_fifo_line() {
     _line="${_line#"${_kind}"$'\t'}"
     _min="${_line%%$'\t'*}"
     _payload="${_line#"${_min}"$'\t'}"
-  elif [[ "$_line" == +* ]]; then
-    _kind=X
-    _min=5
-    _payload="$_line"
   else
-    _kind=P
     _min=4
     _payload="$_line"
   fi
@@ -178,195 +227,43 @@ _logging__dispatch_fifo_line() {
   return 0
 }
 
+# Bash-specific override: replace tab/newline/CR with spaces using parameter
+# expansion instead of tr pipelines. Avoids spawning subprocesses under set -x,
+# which would generate extra xtrace records when trace level is active.
+_logging__encode_payload() {
+  local _log_enc_in="${1-}"
+  _log_enc_in="${_log_enc_in//$'\t'/ }"
+  _log_enc_in="${_log_enc_in//$'\n'/ }"
+  _log_enc_in="${_log_enc_in//$'\r'/ }"
+  printf '%s' "$_log_enc_in"
+}
+
 # ---------------------------------------------------------------------------
-# Emit path
+# Bash emit backend (hooks consumed by logging-api.sh; do not redefine api hooks)
 # ---------------------------------------------------------------------------
 
-_logging__emit_at_level() {
-  local _min="${1-}" _emoji="${2-}" _msg
+_logging__bash_structured() {
+  local _min="${1-}" _emoji="${2-}"
   shift 2
   [[ $# -eq 0 ]] && return 0
+  _logging__want_structured_at_level "${_min}" || return 0
+  _logging__bash_emit "${_min}" "${_emoji}" "$@"
+  return 0
+}
 
-  if [[ "${_LOGGING__LIB_SETUP-}" != true ]]; then
-    for _msg in "$@"; do
-      local _formatted="${_emoji} ${_msg}"
-      _formatted="$(_logging__encode_fifo_payload "$_formatted")"
-      if [[ "${_min}" -le 1 ]]; then
-        if _logging__want_console_at_level "${_min}"; then
-          printf '%s\n' "$_formatted" >&2
-          [[ -n "${LOG_FILE:-}" ]] && _LOGGING__PARSE_BUFFER+=("${_min}"$'\t'"c"$'\t'"${_formatted}")
-        elif [[ -n "${LOG_FILE:-}" ]]; then
-          _LOGGING__PARSE_BUFFER+=("${_min}"$'\t'"${_formatted}")
-        fi
-      elif [[ -n "${LOG_FILE:-}" ]]; then
-        _LOGGING__PARSE_BUFFER+=("${_min}"$'\t'"${_formatted}")
-      elif _logging__want_console_at_level "${_min}"; then
-        printf '%s\n' "$_formatted" >&2
-      fi
-    done
-    return 0
+_logging__bash_emit() {
+  local _min="${1-}" _emoji="${2-}" _msg _formatted
+  shift 2
+  [[ $# -eq 0 ]] && return 0
+  if [[ "${_min}" -ne 0 ]]; then
+    _logging__want_structured_at_level "${_min}" || return 0
   fi
-
   for _msg in "$@"; do
-    local _formatted="${_emoji} ${_msg}"
+    _msg="$(_logging__format_msg "$_msg")"
+    _formatted="${_emoji} ${_msg}"
     _formatted="$(_logging__encode_fifo_payload "$_formatted")"
-    printf 'DFLOG\tS\t%s\t%s\n' "$_min" "$_formatted" >&"${_LOGGING__MUX_IN}"
+    _logging__mux_forward_dflog S "$_min" "$_formatted"
   done
-  return 0
-}
-
-# @brief logging__fatal <line>... — Always emitted. Prefix: ❌
-logging__fatal() {
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 0 '❌' "$@"
-  return 0
-}
-
-# @brief logging__error <line>... — LOG_LEVEL ≥ error. Prefix: ⛔
-logging__error() {
-  _logging__want_structured_at_level 1 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 1 '⛔' "$@"
-  return 0
-}
-
-# @brief logging__warn <line>... — LOG_LEVEL ≥ warn. Prefix: ⚠️
-logging__warn() {
-  _logging__want_structured_at_level 2 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 2 '⚠️' "$@"
-  return 0
-}
-
-# @brief logging__success <line>... — LOG_LEVEL ≥ info. Prefix: ✅
-logging__success() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '✅' "$@"
-  return 0
-}
-
-# @brief logging__info <line>... — LOG_LEVEL ≥ info. Prefix: ℹ️
-logging__info() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 'ℹ️' "$@"
-  return 0
-}
-
-# @brief logging__debug <line>... — LOG_LEVEL ≥ debug. Prefix: 🐞
-logging__debug() {
-  _logging__want_structured_at_level 4 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 4 '🐞' "$@"
-  return 0
-}
-
-# @brief logging__feature_entry <feature_name>... — LOG_LEVEL ≥ info.
-logging__feature_entry() {
-  _logging__want_structured_at_level 3 || return 0
-  _logging__emit_at_level 3 '↪️' "Script entry: $*"
-  return 0
-}
-
-# @brief logging__feature_exit <feature_name>... — LOG_LEVEL ≥ info.
-logging__feature_exit() {
-  _logging__want_structured_at_level 3 || return 0
-  _logging__emit_at_level 3 '↩️' "Script exit: $*"
-  return 0
-}
-
-# @brief logging__detect <line>... — LOG_LEVEL ≥ info. Prefix: 🛠️
-logging__detect() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '🛠️' "$@"
-  return 0
-}
-
-# @brief logging__inspect <line>... — LOG_LEVEL ≥ info. Prefix: 🔍
-logging__inspect() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '🔍' "$@"
-  return 0
-}
-
-# @brief logging__install <line>... — LOG_LEVEL ≥ info. Prefix: 📦
-logging__install() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '📦' "$@"
-  return 0
-}
-
-# @brief logging__download <line>... — LOG_LEVEL ≥ info. Prefix: 📥
-logging__download() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '📥' "$@"
-  return 0
-}
-
-# @brief logging__build <line>... — LOG_LEVEL ≥ info. Prefix: 🔨
-logging__build() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '🔨' "$@"
-  return 0
-}
-
-# @brief logging__remove <line>... — LOG_LEVEL ≥ info. Prefix: 🗑️
-logging__remove() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '🗑️' "$@"
-  return 0
-}
-
-# @brief logging__clean <line>... — LOG_LEVEL ≥ info. Prefix: 🧹
-logging__clean() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '🧹' "$@"
-  return 0
-}
-
-# @brief logging__launch <line>... — LOG_LEVEL ≥ info. Prefix: 🚀
-logging__launch() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '🚀' "$@"
-  return 0
-}
-
-# @brief logging__read <line>... — LOG_LEVEL ≥ info. Prefix: 📩
-logging__read() {
-  _logging__want_structured_at_level 3 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 3 '📩' "$@"
-  return 0
-}
-
-# @brief logging__fn_entry <detail>... — LOG_LEVEL ≥ info.
-logging__fn_entry() {
-  _logging__want_structured_at_level 3 || return 0
-  _logging__emit_at_level 3 '↪️' "Function entry: $*"
-  return 0
-}
-
-# @brief logging__fn_exit <detail>... — LOG_LEVEL ≥ info.
-logging__fn_exit() {
-  _logging__want_structured_at_level 3 || return 0
-  _logging__emit_at_level 3 '↩️' "Function exit: $*"
-  return 0
-}
-
-# @brief logging__skip <detail>... — LOG_LEVEL ≥ debug.
-logging__skip() {
-  _logging__want_structured_at_level 4 || return 0
-  [[ $# -eq 0 ]] && return 0
-  _logging__emit_at_level 4 '⏭️' "$@"
   return 0
 }
 
@@ -377,29 +274,95 @@ logging__skip() {
 _logging__mux_reader_loop() {
   local _line
   while IFS= read -r _line || [[ -n "${_line}" ]]; do
-    _logging__dispatch_fifo_line "$_line" || true
+    _logging__dispatch_mux_line "$_line" || true
   done
   return 0
 }
 
-_logging__flush_parse_buffer() {
-  local _rec _min _payload _rest
-  for _rec in "${_LOGGING__PARSE_BUFFER[@]}"; do
-    _min="${_rec%%$'\t'*}"
-    _rest="${_rec#*$'\t'}"
+_logging__replay_pending_line() {
+  local _min="${1-}" _payload="${2-}"
+  _payload="$(_logging__prefix_payload "$_payload")"
+  if [[ "${_LOGGING__LIB_SETUP-}" == true ]]; then
+    _logging__mux_forward_dflog S "$_min" "$(_logging__encode_fifo_payload "$_payload")"
+  else
+    _logging__dispatch_payload "$_min" "$_payload"
+  fi
+  return 0
+}
+
+_logging__foreach_pending_record() {
+  local _line _min _rest _payload
+  [[ -n "${_LOGGING__PENDING_FILE:-}" && -f "${_LOGGING__PENDING_FILE}" ]] || return 0
+  while IFS= read -r _line || [[ -n "${_line}" ]]; do
+    [[ -z "$_line" ]] && continue
+    _min="${_line%%$'\t'*}"
+    _rest="${_line#*$'\t'}"
     if [[ "$_rest" == c$'\t'* ]]; then
       _payload="${_rest#c$'\t'}"
+      _payload="$(_logging__prefix_payload "$_payload")"
       if [[ "${_LOGGING__CAPTURE_FILE}" == true && -n "${_LOGGING__LOG_FILE_TMP:-}" ]]; then
         if [[ "${_min}" -eq 0 ]] || [[ "${_LOGGING__FILE_LEVEL}" -ge "${_min}" ]]; then
-          printf '%s\n' "$(_logging__sanitize_line "$_payload")" >> "$_LOGGING__LOG_FILE_TMP"
+          printf '%s\n' "$_payload" >> "$_LOGGING__LOG_FILE_TMP"
         fi
       fi
     else
       _payload="${_rest}"
-      _logging__dispatch_payload "$_min" "$_payload"
+      _logging__replay_pending_line "$_min" "$_payload"
     fi
-  done
-  _LOGGING__PARSE_BUFFER=()
+  done < "${_LOGGING__PENDING_FILE}"
+  return 0
+}
+
+_logging__clear_pending_file() {
+  if [[ -n "${_LOGGING__PENDING_FILE:-}" && -f "${_LOGGING__PENDING_FILE}" ]]; then
+    rm -f "${_LOGGING__PENDING_FILE}"
+  fi
+  unset _LOGGING__PENDING_FILE
+  _LOGGING__PENDING_FLUSHED=true
+  return 0
+}
+
+_logging__flush_pending_buffer() {
+  [[ "${_LOGGING__PENDING_FLUSHED:-}" == true ]] && return 0
+  [[ -n "${_LOGGING__PENDING_FILE:-}" && -f "${_LOGGING__PENDING_FILE}" ]] || {
+    _LOGGING__PENDING_FLUSHED=true
+    return 0
+  }
+  _logging__foreach_pending_record
+  _logging__clear_pending_file
+  return 0
+}
+
+_logging__finalize_pending_buffer() {
+  [[ "${_LOGGING__PENDING_FLUSHED:-}" == true ]] && return 0
+  [[ -n "${_LOGGING__PENDING_FILE:-}" && -f "${_LOGGING__PENDING_FILE}" ]] || return 0
+
+  logging__set_level
+  file__session_ensure
+
+  local _dest="${LOG_FILE-}"
+  if [[ -n "${_dest}" ]]; then
+    _LOGGING__LOG_FILE_TMP="$(mktemp "${_FILE__SESSION_ROOT}/log_XXXXXX")"
+  fi
+
+  _logging__foreach_pending_record
+  _logging__clear_pending_file
+
+  if [[ -n "${_dest}" && -f "${_LOGGING__LOG_FILE_TMP:-}" ]]; then
+    mkdir -p "$(dirname "$_dest")" 2> /dev/null || true
+    if [[ ${#_LOGGING__SYSSET_MASKED_VALUES[@]} -gt 0 ]]; then
+      local _log _v
+      _log="$(cat "$_LOGGING__LOG_FILE_TMP")"
+      local _mask='***'
+      for _v in "${_LOGGING__SYSSET_MASKED_VALUES[@]}"; do
+        [[ -n "$_v" ]] && _log="${_log//${_v}/${_mask}}"
+      done
+      printf '%s' "$_log" >> "$_dest"
+    else
+      cat "$_LOGGING__LOG_FILE_TMP" >> "$_dest"
+    fi
+    _LOGGING__LOG_FILE_TMP=
+  fi
   return 0
 }
 
@@ -417,25 +380,54 @@ _logging__want_xtrace() {
 
 _logging__configure_process_redirect() {
   if _logging__want_process_output; then
-    exec 1>&"${_LOGGING__MUX_IN}" 2>&1
+    # Line-buffer subprocess output and frame as DFLOG O records. Structured logs
+    # write directly to _LOGGING__MUX_IN to avoid racing with large subprocess writes.
+    _LOGGING__PROC_MUX=1
+    exec 1> >(
+      while IFS= read -r _line || [[ -n "${_line}" ]]; do
+        _logging__process_mux_ingress "$_line"
+      done
+    ) 2>&1
   else
+    _LOGGING__PROC_MUX=0
     exec 1> /dev/null 2>&1
   fi
   return 0
 }
 
+_logging__close_xtrace_pipe() {
+  set +x
+  unset BASH_XTRACEFD
+  if [[ -n "${_LOGGING__XTRACE_PIPE:-}" ]]; then
+    exec {_LOGGING__XTRACE_PIPE}>&- 2> /dev/null || true
+    _LOGGING__XTRACE_PIPE=
+  fi
+  return 0
+}
+
 _logging__configure_xtrace() {
+  _logging__close_xtrace_pipe
   if _logging__want_xtrace; then
-    export BASH_XTRACEFD="${_LOGGING__MUX_IN}"
+    PS4='+ '
+    export PS4
+    exec {_LOGGING__XTRACE_PIPE}> >(
+      while IFS= read -r _line || [[ -n "${_line}" ]]; do
+        # Write to the mux fifo directly — not process-ingress fd 1, which apt/PM
+        # stderr shares; concurrent writers there interleave raw DFLOG into output.
+        # Cap at 4081 bytes (PIPE_BUF=4096 minus 10-byte prefix minus \n) for atomicity.
+        local _xenc
+        _xenc="$(_logging__encode_fifo_payload "$_line")"
+        printf 'DFLOG\tX\t5\t%.4081s\n' "$_xenc" >&"${_LOGGING__MUX_IN}"
+      done
+    )
+    export BASH_XTRACEFD="${_LOGGING__XTRACE_PIPE}"
     set -x
-  else
-    set +x
-    unset BASH_XTRACEFD
   fi
   return 0
 }
 
 _logging__mux_stop() {
+  _logging__close_xtrace_pipe
   if [[ -n "${_LOGGING__MUX_READER_PID:-}" ]]; then
     exec {_LOGGING__MUX_IN}>&- 2> /dev/null || true
     wait "${_LOGGING__MUX_READER_PID}" 2> /dev/null || true
@@ -450,14 +442,12 @@ _logging__mux_stop() {
 
 # @brief logging__set_level — Re-read LOG_LEVEL / LOG_FILE_LEVEL.
 logging__set_level() {
-  local _bad=false
   if ! _logging__recompute_level; then
     if [[ "${_LOGGING__LIB_SETUP-}" == true ]]; then
       logging__warn "Unknown LOG_LEVEL '${LOG_LEVEL:-}'; defaulting to info."
     else
       _logging__bootstrap_warn "Unknown LOG_LEVEL '${LOG_LEVEL:-}'; defaulting to info."
     fi
-    _bad=true
   fi
   if ! _logging__recompute_file_level; then
     if [[ "${_LOGGING__LIB_SETUP-}" == true ]]; then
@@ -465,7 +455,6 @@ logging__set_level() {
     else
       _logging__bootstrap_warn "Unknown LOG_FILE_LEVEL '${LOG_FILE_LEVEL:-}'; defaulting to debug."
     fi
-    _bad=true
   fi
   _logging__update_capture_file
 
@@ -476,18 +465,68 @@ logging__set_level() {
   return 0
 }
 
-if ! _logging__recompute_level; then
-  _logging__bootstrap_warn "Unknown LOG_LEVEL '${LOG_LEVEL:-}'; defaulting to info."
-fi
-if ! _logging__recompute_file_level; then
-  _logging__bootstrap_warn "Unknown LOG_FILE_LEVEL '${LOG_FILE_LEVEL:-}'; defaulting to debug."
-fi
-_logging__update_capture_file
+# @brief logging__finalize_parse_buffer — Replay pending journal on early exit (no mux).
+logging__finalize_parse_buffer() {
+  _logging__finalize_pending_buffer
+  return 0
+}
 
-# @brief logging__setup — Ordered journal + FIFO mux activation.
+# @brief logging__err_unhandled <rc> — ERR trap helper (called from install __err__).
+#
+# Log a generic line for unhandled non-__ command failures after logging__setup.
+# Return 0: trap handler should return (intentional [[ predicate).
+# Return 1: trap handler should exit with <rc>.
+logging__err_unhandled() {
+  local _rc="$1"
+  if ((_LOGGING__ERR_IN_TRAP)); then
+    return 1
+  fi
+  case "${BASH_COMMAND}" in
+    *\[\[*)
+      return 0
+      ;;
+    return\ * | *'__'*)
+      return 1
+      ;;
+  esac
+  _LOGGING__ERR_IN_TRAP=1
+  logging__error "command failed (exit ${_rc}): ${BASH_COMMAND}"
+  return 1
+}
+
+# @brief logging__on_early_exit — Finalize pending journal; return 0 if logging__setup ran.
+logging__on_early_exit() {
+  _logging__finalize_pending_buffer
+  [[ "${_LOGGING__LIB_SETUP-}" == true ]]
+}
+
+# @brief logging__setup [--prefix <id>] [--fn-prefix] [--no-fn-prefix] — Start mux; replay pending journal.
 logging__setup() {
   [[ "${_LOGGING__LIB_SETUP-}" == true ]] && return 0
 
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --prefix)
+        shift
+        logging__set_prefix "${1-}"
+        shift
+        ;;
+      --fn-prefix)
+        logging__set_fn_prefix 1
+        shift
+        ;;
+      --no-fn-prefix)
+        logging__set_fn_prefix 0
+        shift
+        ;;
+      *)
+        logging__warn "ignoring unknown option '${1}'"
+        shift
+        ;;
+    esac
+  done
+
+  logging__set_level
   file__session_ensure
   _LOGGING__LOG_FILE_TMP="$(mktemp "${_FILE__SESSION_ROOT}/log_XXXXXX")"
 
@@ -504,13 +543,11 @@ logging__setup() {
 
   exec {_LOGGING__MUX_IN}> "${_LOGGING__MUX_FIFO}"
 
-  _logging__flush_parse_buffer
-  _logging__configure_process_redirect
-  _logging__configure_xtrace
-
   _LOGGING__LIB_SETUP=true
-
+  _logging__configure_process_redirect
+  _logging__flush_pending_buffer
   [[ -n "${GITHUB_TOKEN:-}" ]] && logging__mask_secret "$GITHUB_TOKEN"
+  _logging__configure_xtrace
   return 0
 }
 
@@ -524,8 +561,7 @@ logging__mask_secret() {
 logging__cleanup() {
   [[ "${_LOGGING__LIB_SETUP-}" == true ]] || return 0
 
-  set +x
-  unset BASH_XTRACEFD
+  _LOGGING__ERR_IN_TRAP=0
 
   exec 1>&3 2>&4
 
@@ -551,8 +587,11 @@ logging__cleanup() {
 
   _LOGGING__LOG_FILE_TMP=
   _LOGGING__SYSSET_MASKED_VALUES=()
-  _LOGGING__PARSE_BUFFER=()
+  _LOGGING__PENDING_FLUSHED=false
   _LOGGING__CAPTURE_FILE=false
   _LOGGING__LIB_SETUP=false
+  _LOGGING__PROC_MUX=0
+  _LOGGING__PREFIX=
+  _LOGGING__FN_PREFIX=0
   return 0
 }

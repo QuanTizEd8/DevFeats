@@ -3,6 +3,8 @@
 # Feature entry point.
 #
 # Ensure bash >=4 is available, then hand off to the main install script.
+# POSIX-phase messages buffer via lib/logging-api.sh; install.bash replays them at
+# logging__setup once options (including log_level / log_file) are final.
 #
 # Notes
 # -----
@@ -12,6 +14,10 @@
 # edit this one, and then run `scripts/sync-src.sh` to propagate changes to all features.
 
 set -e
+
+# shellcheck source=lib/logging-api.sh
+. "$(dirname "$0")/lib/logging-api.sh"
+logging__pending_init
 
 _ensure_bash4() {
   # Case 1: already running in a compatible bash (invoked as 'bash install.sh').
@@ -60,11 +66,11 @@ _ensure_bash4() {
   if [ -z "$_BASH_BIN" ]; then
     _pm="$(_detect_pm 2> /dev/null)" || _pm=""
     if [ -z "$_pm" ]; then
-      echo "⛔ bash >=4 unavailable: no compatible bash, build tools, or package manager found." >&2
+      logging__error "bash >=4 unavailable: no compatible bash, build tools, or package manager found."
       exit 1
     fi
     if _pm_needs_root "$_pm" && ! _can_sudo; then
-      echo "⛔ bash >=4 unavailable: '${_pm}' requires root or passwordless sudo, neither available." >&2
+      logging__error "bash >=4 unavailable: '${_pm}' requires root or passwordless sudo, neither available."
       exit 1
     fi
     _BASH_BIN="$(_install_bash_pkg "$_pm")" || _BASH_BIN=""
@@ -72,7 +78,7 @@ _ensure_bash4() {
   fi
 
   if [ -z "$_BASH_BIN" ]; then
-    echo "⛔ bash >=4 could not be obtained." >&2
+    logging__error "bash >=4 could not be obtained."
     exit 1
   fi
 
@@ -117,7 +123,7 @@ _find_bash4() {
 _compile_bash() {
   # Compile bash from GNU source and install to $HOME/.local/bin/bash.
   #
-  # Prints the installed binary path to stdout; all status messages go to stderr.
+  # Prints the installed binary path to stdout. Status messages buffer via logging-api.
   # The caller exports _BASH_BIN and _BASH_INSTALLED_INTERNALLY so install.bash
   # can register it for cleanup via install__track_internal_path / ospkg__cleanup_resources,
   # respecting KEEP_BUILD_DEPS.
@@ -125,14 +131,14 @@ _compile_bash() {
   _BASH_VER="5.3"
   _BASH_URL="https://ftp.gnu.org/gnu/bash/bash-${_BASH_VER}.tar.gz"
 
-  echo "🔍 bash >=4 not found — compiling bash ${_BASH_VER} from source." >&2
+  logging__inspect "bash >=4 not found — compiling bash ${_BASH_VER} from source."
 
   # macOS: Xcode CLT provides make and cc; install it headlessly if absent.
   [ "$(uname -s)" = "Darwin" ] && _ensure_xcode_clt
 
   _tmpdir="$(mktemp -d /tmp/bash-src.XXXXXX)"
 
-  echo "📦 Downloading bash ${_BASH_VER} source..." >&2
+  logging__download "Downloading bash ${_BASH_VER} source..."
   if _have curl; then
     curl -fsSL --compressed \
       --retry 5 --retry-delay 5 --retry-connrefused \
@@ -142,25 +148,25 @@ _compile_bash() {
     wget -qO- "$_BASH_URL" | tar xz -C "$_tmpdir"
   fi || {
     rm -rf "$_tmpdir"
-    echo "⛔ Failed to download or extract bash ${_BASH_VER} source." >&2
+    logging__error "Failed to download or extract bash ${_BASH_VER} source."
     return 1
   }
 
-  echo "🔨 Compiling bash ${_BASH_VER} (this may take a minute)..." >&2
+  logging__build "Compiling bash ${_BASH_VER} (this may take a minute)..."
   (
     cd "$_tmpdir/bash-${_BASH_VER}" &&
       ./configure --without-bash-malloc --without-readline > /dev/null 2>&1 &&
       make > /dev/null 2>&1
   ) || {
     rm -rf "$_tmpdir"
-    echo "⛔ Bash compilation failed." >&2
+    logging__error "Bash compilation failed."
     return 1
   }
 
   _bash_bin="$_tmpdir/bash-${_BASH_VER}/bash"
   if [ ! -x "$_bash_bin" ]; then
     rm -rf "$_tmpdir"
-    echo "⛔ Compiled bash binary not found after make." >&2
+    logging__error "Compiled bash binary not found after make."
     return 1
   fi
 
@@ -172,36 +178,69 @@ _compile_bash() {
   chmod a+x "$_dest_dir/bash"
   rm -rf "$_tmpdir"
 
-  echo "✅ bash ${_BASH_VER} compiled and installed to '${_dest_dir}/bash'." >&2
+  logging__success "bash ${_BASH_VER} compiled and installed to '${_dest_dir}/bash'."
   printf '%s\n' "${_dest_dir}/bash"
 }
 
 _install_bash_pkg() {
   _ipm="$1"
-  echo "📦 Installing bash via ${_ipm}..." >&2
+  logging__install "Installing bash via ${_ipm}..."
   case "$_ipm" in
-    apk) _run_privileged apk add --no-cache bash >&2 || return 1 ;;
+    apk) _run_privileged apk add --no-cache bash >&2 || {
+      logging__error "Failed to install bash via apk."
+      return 1
+    } ;;
     apt-get)
       export DEBIAN_FRONTEND=noninteractive
-      _run_privileged apt-get update >&2 || return 1
-      _run_privileged apt-get install -y --no-install-recommends bash >&2 || return 1
+      _run_privileged apt-get update >&2 || {
+        logging__error "Failed to update package index via apt-get."
+        return 1
+      }
+      _run_privileged apt-get install -y --no-install-recommends bash >&2 || {
+        logging__error "Failed to install bash via apt-get."
+        return 1
+      }
       ;;
-    dnf) _run_privileged dnf install -y bash >&2 || return 1 ;;
-    microdnf) _run_privileged microdnf install -y bash >&2 || return 1 ;;
-    yum) _run_privileged yum install -y bash >&2 || return 1 ;;
-    zypper) _run_privileged zypper --non-interactive install bash >&2 || return 1 ;;
-    pacman) _run_privileged pacman -S --noconfirm --needed bash >&2 || return 1 ;;
-    brew) brew install bash >&2 || return 1 ;;
-    nix-env) nix-env -iA nixpkgs.bash >&2 || return 1 ;;
-    port) _run_privileged port install bash >&2 || return 1 ;;
+    dnf) _run_privileged dnf install -y bash >&2 || {
+      logging__error "Failed to install bash via dnf."
+      return 1
+    } ;;
+    microdnf) _run_privileged microdnf install -y bash >&2 || {
+      logging__error "Failed to install bash via microdnf."
+      return 1
+    } ;;
+    yum) _run_privileged yum install -y bash >&2 || {
+      logging__error "Failed to install bash via yum."
+      return 1
+    } ;;
+    zypper) _run_privileged zypper --non-interactive install bash >&2 || {
+      logging__error "Failed to install bash via zypper."
+      return 1
+    } ;;
+    pacman) _run_privileged pacman -S --noconfirm --needed bash >&2 || {
+      logging__error "Failed to install bash via pacman."
+      return 1
+    } ;;
+    brew) brew install bash >&2 || {
+      logging__error "Failed to install bash via brew."
+      return 1
+    } ;;
+    nix-env) nix-env -iA nixpkgs.bash >&2 || {
+      logging__error "Failed to install bash via nix-env."
+      return 1
+    } ;;
+    port) _run_privileged port install bash >&2 || {
+      logging__error "Failed to install bash via port."
+      return 1
+    } ;;
     *)
-      echo "⛔ Unknown package manager '${_ipm}'." >&2
+      logging__error "Unknown package manager '${_ipm}'."
       return 1
       ;;
   esac
   # Locate the newly installed bash — all destinations are already in _find_bash4's probe list.
   _b="$(_find_bash4 2> /dev/null)" || {
-    echo "⛔ bash >=4 not found after installing via ${_ipm}." >&2
+    logging__error "bash >=4 not found after installing via ${_ipm}."
     return 1
   }
   echo "$_b"
@@ -230,10 +269,10 @@ _ensure_xcode_clt() {
   # Required before compiling bash from source (provides make and cc).
 
   if xcode-select -p > /dev/null 2>&1; then
-    echo "✅ Xcode Command Line Tools already installed at '$(xcode-select -p)'." >&2
+    logging__success "Xcode Command Line Tools already installed at '$(xcode-select -p)'."
     return 0
   fi
-  echo "🔍 Xcode Command Line Tools not found — installing headlessly." >&2
+  logging__inspect "Xcode Command Line Tools not found — installing headlessly."
   # Headless CLT install pattern: create sentinel, find the softwareupdate
   # package name, install, remove sentinel.
   touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
@@ -243,14 +282,14 @@ _ensure_xcode_clt() {
     sed 's/.*\* //')" || true
   if [ -z "$_pkg" ]; then
     rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    echo "⛔ No 'Command Line Tools' package found in softwareupdate -l." >&2
-    echo "ℹ️ Install manually with: xcode-select --install" >&2
+    logging__error "No 'Command Line Tools' package found in softwareupdate -l."
+    logging__info "Install manually with: xcode-select --install"
     exit 1
   fi
-  echo "📦 Installing via softwareupdate: '${_pkg}'" >&2
+  logging__install "Installing via softwareupdate: '${_pkg}'"
   softwareupdate -i "$_pkg" --verbose
   rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-  echo "✅ Xcode Command Line Tools installed." >&2
+  logging__success "Xcode Command Line Tools installed."
   return 0
 }
 
@@ -295,5 +334,7 @@ _pm_needs_root() {
   esac
 }
 
+logging__launch "Starting install.sh script '$(basename "$0")'"
 _ensure_bash4
+logging__pending_handoff
 exec "$_BASH_BIN" "$(dirname "$0")/install.bash" "$@"

@@ -36,10 +36,12 @@ prepend_fake_bin_path() {
 # tools (e.g. uname) to be accessible.  No-op if the binary is not found.
 create_pass_through_bin() {
   local _name="$1"
-  local _real
-  _real="$(command -v "$_name")" || return 0
+  local _real _dest="${BATS_TEST_TMPDIR}/bin/${_name}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
-  ln -sf "$_real" "${BATS_TEST_TMPDIR}/bin/${_name}"
+  # Keep test-injected fakes; only symlink when the slot is empty.
+  [[ -e "$_dest" ]] && return 0
+  _real="$(command -v "$_name")" || return 0
+  ln -sf "$_real" "$_dest"
 }
 
 # begin_path_isolation [<allowed_cmd>...]
@@ -53,8 +55,9 @@ begin_path_isolation() {
   fi
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
 
+  # logging-api.sh needs these even when a test proves another tool is absent.
   local _cmd
-  for _cmd in "$@"; do
+  for _cmd in tr mktemp cut printf cat dirname basename rm uname "$@"; do
     create_pass_through_bin "$_cmd"
   done
 

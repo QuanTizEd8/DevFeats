@@ -16,6 +16,7 @@ EOF
 __main__() {
   # Main entry point for the install script.
 
+  trap '__exit__' EXIT
   __init__ "$@"
 
   if [[ ! -v IF_EXISTS ]]; then
@@ -171,9 +172,7 @@ __init_script__() {
     __init_script_pre
   fi
 
-  logging__setup
-  logging__feature_entry "$_FEAT_NAME v$_FEAT_VERSION"
-  trap '__exit__' EXIT
+  logging__setup --prefix "${_FEAT_ID}" --fn-prefix
 
   if declare -f __init_script_post > /dev/null; then
     __init_script_post
@@ -188,9 +187,9 @@ __init_args__() {
   fi
 
   if [ "$#" -gt 0 ]; then
-    logging__info "Script called with arguments: $*"
-
     ${{ _script.argparse.cli_inits }}$
+
+    logging__info "Script called with arguments: $*"
 
     while [ "$#" -gt 0 ]; do
       case $1 in
@@ -213,12 +212,10 @@ __init_args__() {
       esac
     done
   else
-    logging__info "Script called with no arguments. Read environment variables."
-
     ${{ _script.argparse.env_reads }}$
-  fi
 
-  logging__set_level
+    logging__info "Script called with no arguments. Read environment variables."
+  fi
 
   # Apply defaults.
   ${{ _script.argparse.defaults }}$
@@ -363,7 +360,10 @@ __detect_existing_method__() {
   fi
 
   declare -g _FEAT_EXISTING_METHOD=""
-  [[ -n "${_FEAT_EXISTING_PATH}" ]] || return 0
+  if [[ -z "${_FEAT_EXISTING_PATH}" ]]; then
+    logging__skip "No existing path; skipping method detection."
+    return 0
+  fi
 
   # git-clone: probe first so that a git-clone feature is never misclassified as "prefix".
   # _FEAT_EXISTING_PATH for git-clone features is always PREFIX (set by __detect_existing_path__),
@@ -1133,7 +1133,8 @@ __install_run_source__() {
     _fetch_args+=(--sidecar "${_sc_uri}")
   fi
 
-  uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}" || return 1
+  logging__download "Fetching source asset '${_asset_uri}'."
+  uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}"
 
   local _src_dir
   _src_dir="$(find "${INSTALLER_DIR}/asset" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1)"
@@ -1756,7 +1757,17 @@ __update_finish__() {
 # Finalization
 # ============
 __exit__() {
+  # Capture status before trap - EXIT: `trap -` resets $? to 0.
   local _rc=$?
+  trap - EXIT ERR
+  set +e
+
+  if ! declare -f logging__on_early_exit > /dev/null 2>&1 || ! logging__on_early_exit; then
+    if declare -f file__session_cleanup > /dev/null 2>&1; then
+      file__session_cleanup
+    fi
+    return "$_rc"
+  fi
 
   if [[ $_rc -eq 0 ]]; then
     logging__success "$_FEAT_NAME script finished successfully."
@@ -1808,7 +1819,7 @@ __exit__() {
   logging__feature_exit "$_FEAT_NAME v$_FEAT_VERSION"
   logging__cleanup
   file__session_cleanup
-  return
+  return "$_rc"
 }
 
 # Helpers
@@ -2006,6 +2017,7 @@ __resolve_input_version__() {
   fi
 
   if declare -f __resolve_version > /dev/null; then
+    logging__info "Resolving version via __resolve_version hook (spec='${VERSION:-}')."
     VERSION="$(__resolve_version)"
   else
     case "${VERSION_RESOLUTION:-}" in
@@ -2038,7 +2050,8 @@ __resolve_input_version__() {
           logging__error "VERSION_RESOLUTION=git_ref requires GIT_CLONE_URI to be set."
           return 1
         fi
-        bootstrap__git || return 1
+        logging__install "Bootstrapping git for VERSION_RESOLUTION=git_ref."
+        bootstrap__git
         # Expand the URI first so the ls-remote target matches what git__clone will use.
         local _git_ref_uri
         _git_ref_uri="$(os__expand_release_pattern "${GIT_CLONE_URI}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")"
