@@ -151,7 +151,6 @@ _sync_init_files() {
 # the install user is not root. Uses runuser(1) on Linux (no sudo config
 # needed for root) and sudo on macOS (runuser is absent there).
 _brew_run_as_install_user() {
-  logging__fn_entry "_brew_run_as_install_user"
   if ! users__is_root || [ "${INSTALL_USER}" = "root" ]; then
     "$@"
   elif [ "$(os__kernel)" = "Darwin" ]; then
@@ -159,7 +158,6 @@ _brew_run_as_install_user() {
   else
     runuser -u "${INSTALL_USER}" -- "$@"
   fi
-  logging__fn_exit "_brew_run_as_install_user"
   return 0
 }
 
