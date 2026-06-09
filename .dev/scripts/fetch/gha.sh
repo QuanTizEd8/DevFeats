@@ -20,8 +20,10 @@
 # For each completed job:
 #   Passing/skipped → job name appended to passing.log
 #   Any other conclusion → full job log saved to <job-id>.log (GHA
-#       timestamps stripped), and one line per failing step appended to
-#       failing.log in the format:
+#       timestamps stripped). For each failing step, a slice of that log
+#       (from the workflow-step ##[group]Run header through ##[error]) is
+#       saved to <job-id>-step<N>.log when extraction succeeds; failing.log
+#       references the slice file, otherwise the full job log:
 #           <job-name> --- <step-name> --- <log-filename>
 #       When the job name matches a feature-test matrix job (reusable workflow:
 #       "Test Feature <feature-id> / <scenario> (devcontainer|linux|macOS)",
@@ -64,8 +66,9 @@ Usage:
 
   Log layout (both modes):
     <log-base>/<full-40-char-sha>/<workflow-run-id>/
-      passing.log, failing.log, per-job <job-id>.log (GHA log), and for
-      failed feature-test jobs <job-id>.trace.log (feat-log artifact)
+      passing.log, failing.log, per-job <job-id>.log (full GHA job log),
+      per failing step <job-id>-step<N>.log when slice extraction succeeds,
+      and for failed feature-test jobs <job-id>.trace.log (feat-log artifact)
 
   On success, prints one line per run directory (sorted).
 
@@ -429,6 +432,116 @@ _feat_log_artifact_name() {
 }
 
 # ---------------------------------------------------------------------------
+# _step_log_basename <job_id> <step_number>
+# Prints <job-id>-step<N>.log (basename only).
+# ---------------------------------------------------------------------------
+_step_log_basename() {
+  printf '%s-step%s.log' "$1" "$2"
+}
+
+# ---------------------------------------------------------------------------
+# _extract_failing_step_log <job_id> <step_number> <full_log> <start> <end>
+# Copy lines [start,end] from full_log into <job-id>-step<N>.log.
+# Prints the step log basename on success, empty string on failure.
+# ---------------------------------------------------------------------------
+_extract_failing_step_log() {
+  local job_id="$1" step_num="$2" full_log="$3" start="$4" end="$5"
+  local dest="${LOGDIR}/$(_step_log_basename "${job_id}" "${step_num}")"
+
+  if [[ ! -s "${full_log}" || "${start}" -le 0 || "${end}" -lt "${start}" ]]; then
+    printf ''
+    return 0
+  fi
+
+  if ! sed -n "${start},${end}p" "${full_log}" > "${dest}"; then
+    rm -f "${dest}"
+    printf ''
+    return 0
+  fi
+
+  if [[ ! -s "${dest}" ]]; then
+    rm -f "${dest}"
+    printf ''
+    return 0
+  fi
+
+  basename "${dest}"
+}
+
+# ---------------------------------------------------------------------------
+# _slice_ranges_from_job_log <full_log>
+# Print one "start:end" line per ##[error]Process completed slice in log order.
+# Each slice starts at the nearest preceding workflow-level ##[group]Run line
+# (composite-action internals like "##[group]Run #..." are skipped).
+# ---------------------------------------------------------------------------
+_slice_ranges_from_job_log() {
+  local full_log="$1"
+  [[ -s "${full_log}" ]] || return 0
+
+  awk '
+    /^##\[group\]Run / {
+      title = substr($0, 15)
+      sub(/^[[:space:]]+/, "", title)
+      if (title !~ /^#/) {
+        run_count++
+        run_line[run_count] = NR
+      }
+    }
+    /^##\[error\]Process completed with exit code/ {
+      err_count++
+      err_line[err_count] = NR
+    }
+    END {
+      for (i = 1; i <= err_count; i++) {
+        start = 1
+        for (j = run_count; j >= 1; j--) {
+          if (run_line[j] < err_line[i]) {
+            start = run_line[j]
+            break
+          }
+        }
+        printf "%d:%d\n", start, err_line[i]
+      }
+    }
+  ' "${full_log}"
+}
+
+# ---------------------------------------------------------------------------
+# _failing_step_log_for <job_id> <full_log_basename> <step_number> <slice_index>
+# Pair one failing step with the Nth ##[error] slice in the full job log
+# (1-based among failing steps). Prints the per-step log basename, or the full
+# job log basename when extraction fails.
+# ---------------------------------------------------------------------------
+_failing_step_log_for() {
+  local job_id="$1" full_log_base="$2" step_num="$3" slice_index="$4"
+  local full_log="${LOGDIR}/${full_log_base}"
+  local ranges range start end step_base _n=0
+
+  ranges=$(_slice_ranges_from_job_log "${full_log}")
+  if [[ -z "${ranges}" ]]; then
+    printf '%s' "${full_log_base}"
+    return 0
+  fi
+
+  while IFS= read -r range; do
+    [[ -z "${range}" ]] && continue
+    _n=$((_n + 1))
+    [[ "${_n}" -eq "${slice_index}" ]] || continue
+    start="${range%%:*}"
+    end="${range#*:}"
+    step_base=$(_extract_failing_step_log "${job_id}" "${step_num}" "${full_log}" \
+      "${start}" "${end}")
+    if [[ -n "${step_base}" ]]; then
+      printf '%s' "${step_base}"
+      return 0
+    fi
+    break
+  done <<< "${ranges}"
+
+  printf '%s' "${full_log_base}"
+}
+
+# ---------------------------------------------------------------------------
 # _download_trace_log <job_id> <job_name> <run_id>
 # For feature-test matrix jobs, download feat-log-* artifact to
 # ${LOGDIR}/<job_id>.trace.log (best-effort; warns on stderr when missing).
@@ -498,28 +611,38 @@ _handle_job() {
 
   _any_failure=1
 
-  # Identify failing steps
-  local failing_steps
-  failing_steps=$(jq -r '
-    .steps[]
-    | select(.conclusion == "failure" or .conclusion == "cancelled")
-    | .name
-  ' <<< "${job}")
-
   local log_file
   log_file=$(_download_log "${job_id}")
   _download_trace_log "${job_id}" "${job_name}" "${run_id}"
 
-  if [[ -z "${failing_steps}" ]]; then
+  local failing_steps_json
+  failing_steps_json=$(jq -c '
+    [.steps[]
+     | select(.conclusion == "failure" or .conclusion == "cancelled")
+     | {number, name}]
+    | sort_by(.number)
+  ' <<< "${job}")
+
+  local failing_count
+  failing_count=$(jq 'length' <<< "${failing_steps_json}")
+
+  if [[ "${failing_count}" -eq 0 ]]; then
     echo "${job_name} --- (no failing step identified) --- ${log_file}" >> "${FAILING_LOG}"
     _stat_fail=$((_stat_fail + 1))
     return 0
   fi
 
-  while IFS= read -r step_name; do
-    echo "${job_name} --- ${step_name} --- ${log_file}" >> "${FAILING_LOG}"
+  local slice_index=0 step_num step_name step_log
+  while IFS= read -r step_row; do
+    [[ -z "${step_row}" ]] && continue
+    slice_index=$((slice_index + 1))
+    step_num=$(jq -r '.number' <<< "${step_row}")
+    step_name=$(jq -r '.name' <<< "${step_row}")
+    step_log=$(_failing_step_log_for "${job_id}" "${log_file}" \
+      "${step_num}" "${slice_index}")
+    echo "${job_name} --- ${step_name} --- ${step_log}" >> "${FAILING_LOG}"
     _stat_fail=$((_stat_fail + 1))
-  done <<< "${failing_steps}"
+  done < <(jq -c '.[]' <<< "${failing_steps_json}")
 }
 
 # ---------------------------------------------------------------------------
