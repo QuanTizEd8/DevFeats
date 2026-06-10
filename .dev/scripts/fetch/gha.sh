@@ -302,6 +302,28 @@ _gh_api_json() {
 }
 
 # ---------------------------------------------------------------------------
+# _run_logdir_path <path_sha> <run_id>
+# Prints ${GHA_LOG_BASE}/<sha>/<run_id> (no trailing slash).
+# ---------------------------------------------------------------------------
+_run_logdir_path() {
+  printf '%s/%s/%s' "${GHA_LOG_BASE}" "$1" "$2"
+}
+
+declare -A _announced_logdirs
+
+# ---------------------------------------------------------------------------
+# _announce_logdir <path_sha> <run_id>
+# Print the full log directory path once (stderr).
+# ---------------------------------------------------------------------------
+_announce_logdir() {
+  local dir
+  dir="$(_run_logdir_path "$1" "$2")"
+  [[ -n "${_announced_logdirs[${dir}]+_}" ]] && return 0
+  _announced_logdirs["${dir}"]=1
+  _ts "log-dir=${dir}/"
+}
+
+# ---------------------------------------------------------------------------
 # _activate_run_logdir <path_sha> <run_id>
 # Sets LOGDIR, PASSING_LOG, FAILING_LOG. Creates
 #   <GHA_LOG_BASE>/<path_sha>/<run_id>/ once and records it for final stdout.
@@ -309,7 +331,8 @@ _gh_api_json() {
 _activate_run_logdir() {
   local path_sha="$1"
   local run_id="$2"
-  LOGDIR="${GHA_LOG_BASE}/${path_sha}/${run_id}"
+  LOGDIR="$(_run_logdir_path "${path_sha}" "${run_id}")"
+  _announce_logdir "${path_sha}" "${run_id}"
   mkdir -p "${LOGDIR}"
   if [[ -z "${_logdir_inited[${LOGDIR}]+_}" ]]; then
     : > "${LOGDIR}/passing.log"
@@ -709,7 +732,6 @@ _process_run_jobs() {
 # ---------------------------------------------------------------------------
 if [[ "${_GHA_MODE}" == "commit" ]]; then
   _ts "repo=${REPO_SLUG}  commit=${LOG_COMMIT_SHA}  (mode=commit)"
-  _ts "log-base=${GHA_LOG_BASE}/<sha>/<run-id>/  (per workflow run)"
 
   while true; do
     runs_resp=$(_gh_api_json \
@@ -751,7 +773,6 @@ if [[ "${_GHA_MODE}" == "commit" ]]; then
   done
 else
   _ts "repo=${REPO_SLUG}  run_id=${RUN_ID}  (mode=run)"
-  _ts "log-base=${GHA_LOG_BASE}/<sha>/${RUN_ID}/  (commit from run metadata)"
 
   while true; do
     run_json=$(_gh_api_json \
@@ -768,6 +789,7 @@ else
         continue
       fi
       LOG_COMMIT_SHA="$(_normalize_commit_sha "${_gh_head}")"
+      _announce_logdir "${LOG_COMMIT_SHA}" "${RUN_ID}"
     fi
 
     run_status=$(jq -r '.status' <<< "${run_json}")
