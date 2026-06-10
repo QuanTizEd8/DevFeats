@@ -28,9 +28,16 @@ __install_run_source_build() {
   local _jobs
   _jobs="$(nproc 2> /dev/null || sysctl -n hw.ncpu 2> /dev/null || printf "1")"
   (
-    cd "${_src_dir}" || exit 1
+    cd "${_src_dir}" || {
+      logging__error "direnv source build: cannot cd to '${_src_dir}'."
+      exit 1
+    }
     make -j"${_jobs}" install PREFIX="${_RESOLVED_PREFIX}"
-  )
+  ) || {
+    logging__error "direnv source build failed in '${_src_dir}'."
+    return 1
+  }
+  logging__success "direnv built and installed to '${_RESOLVED_PREFIX}'."
 }
 
 # Interactive-only activation hook: eval "$(direnv hook <shell>)" (or shell-equivalent).

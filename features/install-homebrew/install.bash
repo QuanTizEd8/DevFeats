@@ -28,8 +28,13 @@ __install_run_script_run() {
   [ -n "${BREW_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_BREW_GIT_REMOTE=${BREW_GIT_REMOTE}")
   [ -n "${CORE_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_CORE_GIT_REMOTE=${CORE_GIT_REMOTE}")
   [[ "${NO_INSTALL_FROM_API}" == true ]] && _env_vars+=("HOMEBREW_NO_INSTALL_FROM_API=1")
-  logging__install "Running Homebrew installer as user '${INSTALL_USER}'."
+  logging__launch "Running Homebrew installer '${_installer}' as user '${INSTALL_USER}' (prefix='${_RESOLVED_PREFIX}')."
   _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_installer"
+  local _installer_rc=$?
+  [[ $_installer_rc == 0 ]] || {
+    logging__error "Homebrew installer script exited with status ${_installer_rc}."
+    return "$_installer_rc"
+  }
   if [ ! -f "${_RESOLVED_PREFIX}/bin/brew" ]; then
     logging__error "Homebrew executable not found at '${_RESOLVED_PREFIX}/bin/brew' after installation."
     return 1
@@ -158,7 +163,6 @@ _brew_run_as_install_user() {
   else
     runuser -u "${INSTALL_USER}" -- "$@"
   fi
-  return 0
 }
 
 __init_args_post() {
@@ -236,6 +240,11 @@ prepare_prefix_if_needed() {
   if [ "$_user" = "linuxbrew" ] && ! id linuxbrew &> /dev/null; then
     logging__info "Creating 'linuxbrew' system user."
     users__create_system_user linuxbrew --home /home/linuxbrew --shell /bin/bash
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
+      logging__error "Failed to create 'linuxbrew' system user."
+      return "$_rc"
+    }
     # Ubuntu 22.04+ creates home directories with mode 750; make the home
     # world-traversable so other users can reach the brew binary.
     file__chmod 755 /home/linuxbrew
@@ -301,6 +310,11 @@ __install_finish_post() {
   if [[ "$UPDATE" == true ]]; then
     logging__info "Running 'brew update'."
     _brew_run_as_install_user "${_RESOLVED_PREFIX}/bin/brew" update
+    local _update_rc=$?
+    [[ $_update_rc == 0 ]] || {
+      logging__error "brew update failed after installation."
+      return "$_update_rc"
+    }
     logging__success "brew update completed."
   fi
   logging__info "Running 'brew doctor' (warnings only)."

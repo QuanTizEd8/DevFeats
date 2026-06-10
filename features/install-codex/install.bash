@@ -7,7 +7,7 @@
 __resolve_version() {
   logging__inspect "Resolving Codex version from npm registry."
   local _ver
-  _ver="$(npm__resolve_version_uri "${VERSION_URI}" "${VERSION}")" || return 1
+  _ver="$(npm__resolve_version_uri "${VERSION_URI}" "${VERSION}")"
   declare -g _FEAT_RESOLVED_TAG="rust-v${_ver}"
   logging__info "Resolved Codex version to '${_ver}' (tag='${_FEAT_RESOLVED_TAG}')."
   printf '%s\n' "${_ver}"
@@ -32,12 +32,12 @@ __resolve_method() {
 
 # Ensure npm is on PATH before the template auto-impl runs.
 __install_run_npm_pre() {
-  command -v npm > /dev/null 2>&1 && return 0
-  ospkg__install_user nodejs npm || ospkg__install_user nodejs || {
-    logging__error "install-codex: npm is required for method=npm but could not be installed."
-    return 1
-  }
-  command -v npm > /dev/null 2>&1
+  if command -v npm > /dev/null 2>&1; then
+    logging__skip "npm already on PATH; skipping bootstrap install."
+    return 0
+  fi
+  logging__install "Ensuring npm is available for Codex npm method."
+  npm__ensure_npm
 }
 
 # Configure the standalone installer before it runs:

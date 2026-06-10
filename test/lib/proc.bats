@@ -10,13 +10,13 @@ setup() {
 }
 
 @test "proc__run_command_form runs JSON string via sh -c" {
-  run bash -c 'source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "\"echo hello\"" | proc__run_command_form' _ "${LIB_ROOT}"
+  run bash -c 'source "$1/file.sh" && source "$1/logging-api.sh" && source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "\"echo hello\"" | proc__run_command_form' _ "${LIB_ROOT}"
   assert_output "hello"
   assert_success
 }
 
 @test "proc__run_command_form runs JSON array argv" {
-  run bash -c 'source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "[\"/bin/sh\",\"-c\",\"echo arr\"]" | proc__run_command_form' _ "${LIB_ROOT}"
+  run bash -c 'source "$1/file.sh" && source "$1/logging-api.sh" && source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "[\"/bin/sh\",\"-c\",\"echo arr\"]" | proc__run_command_form' _ "${LIB_ROOT}"
   assert_output "arr"
   assert_success
 }
@@ -55,7 +55,7 @@ setup() {
 }
 
 @test "proc__run_command_form object form runs keyed commands" {
-  run bash -c 'source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "{\"one\":\"echo A\",\"two\":\"echo B\"}" | proc__run_command_form' _ "${LIB_ROOT}"
+  run bash -c 'source "$1/file.sh" && source "$1/logging-api.sh" && source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "{\"one\":\"echo A\",\"two\":\"echo B\"}" | proc__run_command_form' _ "${LIB_ROOT}"
   assert_success
   assert_output --partial "A"
   assert_output --partial "B"
@@ -63,7 +63,7 @@ setup() {
 
 @test "proc__run_command_form --cwd changes working directory for string form" {
   _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/pcw.XXXXXX")"
-  run bash -c 'source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "\"pwd\"" | proc__run_command_form --cwd "$2"' _ "${LIB_ROOT}" "$_tmp"
+  run bash -c 'source "$1/file.sh" && source "$1/logging-api.sh" && source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "\"pwd\"" | proc__run_command_form --cwd "$2"' _ "${LIB_ROOT}" "$_tmp"
   assert_success
   # macOS symlinks /tmp → /private/tmp; compare realpaths.
   _got="$(cd "$output" && pwd -P)"
@@ -74,7 +74,7 @@ setup() {
 
 @test "proc__run_command_form --cwd changes working directory for object form" {
   _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/pcwo.XXXXXX")"
-  run bash -c 'source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "{\"probe\":\"pwd\"}" | proc__run_command_form --cwd "$2"' _ "${LIB_ROOT}" "$_tmp"
+  run bash -c 'source "$1/file.sh" && source "$1/logging-api.sh" && source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "{\"probe\":\"pwd\"}" | proc__run_command_form --cwd "$2"' _ "${LIB_ROOT}" "$_tmp"
   assert_success
   # macOS symlinks /tmp → /private/tmp; compare realpaths.
   _got="$(cd "$output" && pwd -P)"
@@ -84,6 +84,6 @@ setup() {
 }
 
 @test "proc__run_command_form fails on unsupported JSON types" {
-  run bash -c 'source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "42" | proc__run_command_form' _ "${LIB_ROOT}"
+  run bash -c 'source "$1/file.sh" && source "$1/logging-api.sh" && source "$1/logging.sh" && source "$1/json.sh" && source "$1/proc.sh" && printf %s "42" | proc__run_command_form' _ "${LIB_ROOT}"
   assert_failure
 }

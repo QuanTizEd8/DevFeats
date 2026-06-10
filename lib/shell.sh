@@ -121,6 +121,11 @@ shell__write_block() {
       *) shift ;;
     esac
   done
+  [[ -n "$_file" && -n "$_marker" ]] || {
+    logging__error "--file and --marker are required."
+    return 1
+  }
+  logging__install "Writing shell block '${_marker}' to '${_file}'."
   local _begin="# >>> ${_marker} >>>"
   local _end="# <<< ${_marker} <<<"
   file__mkdir "$(dirname "$_file")"
@@ -1007,7 +1012,7 @@ shell__create_symlink() {
   # Remove stale symlink before recreating.
   [[ -L "$_target" ]] && rm -f "$_target"
   mkdir -p "$(dirname "$_target")"
-  ln -s "$_src" "$_target"
+  ln -s "${_src}" "$_target"
   logging__success "Created symlink '${_target}' -> '${_src}'."
   return 0
 }

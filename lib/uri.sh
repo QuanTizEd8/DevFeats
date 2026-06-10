@@ -185,13 +185,17 @@ _uri__resolve_oci_to() {
       esac
     done
   fi
-  oci__ensure_oras || {
+  oci__ensure_oras
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "oras is required to resolve OCI URI."
-    return 1
+    return "$_rc"
   }
-  _oci__ensure_auth_for "$_ref_part" || {
+  _oci__ensure_auth_for "$_ref_part"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "OCI registry authentication failed for '${_ref_part}'."
-    return 1
+    return "$_rc"
   }
   _pull_dir="$(file__mktmpdir "uri-oci-pull")"
   if ! oras pull "$_ref_part" -o "$_pull_dir" > /dev/null 2>&1; then
@@ -221,9 +225,11 @@ _uri__resolve_oci_to() {
   local _expect
   _expect="$(_uri__frag_sha256 "$_frag")"
   if [[ -n "$_expect" ]]; then
-    verify__sha "$_dest" "$_expect" || {
+    verify__sha "$_dest" "$_expect"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "OCI artifact checksum verification failed for '${_dest}'."
-      return 1
+      return "$_rc"
     }
   fi
   return 0
@@ -272,9 +278,11 @@ _uri__download_to() {
   shift 2
   local _args=("$@")
   local _cls _base
-  _cls="$(uri__classify "$_url")" || {
+  _cls="$(uri__classify "$_url")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "unsupported URI scheme in '${_url}'."
-    return 1
+    return "$_rc"
   }
   _base="$(_uri__split_frag "$_url")"
   _base="$(printf '%s\n' "$_base" | head -n1)"
@@ -302,27 +310,35 @@ _uri__download_to() {
       }
       ;;
     http | ftp)
-      _uri__net_fetch "$_base" "$_dest" "${_args[@]}" || {
+      _uri__net_fetch "$_base" "$_dest" "${_args[@]}"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "failed to download '${_base}'."
-        return 1
+        return "$_rc"
       }
       ;;
     gh)
       local _https
-      _https="$(_uri__gh_to_https "$_base")" || {
+      _https="$(_uri__gh_to_https "$_base")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "invalid gh:// URI '${_base}'."
-        return 1
+        return "$_rc"
       }
-      _uri__net_fetch "$_https" "$_dest" "${_args[@]}" || {
+      _uri__net_fetch "$_https" "$_dest" "${_args[@]}"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "failed to download '${_https}'."
-        return 1
+        return "$_rc"
       }
       ;;
     oci)
       # _uri__resolve_oci_to handles its own sha256 fragment verification internally.
-      _uri__resolve_oci_to "$_url" "$_dest" || {
+      _uri__resolve_oci_to "$_url" "$_dest"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "failed to resolve OCI URI '${_url}'."
-        return 1
+        return "$_rc"
       }
       ;;
     *)
@@ -599,9 +615,11 @@ uri__fetch_asset() {
     _sc_name="$(_uri__safe_basename "$_sc_base")"
     _sidecar_file="${_sidecar_dir}/${_sc_name}"
     logging__download "Fetching checksum sidecar from '${_sc_base}'"
-    _uri__download_to "$_sidecar_uri" "$_sidecar_file" "${_auth_args[@]}" || {
+    _uri__download_to "$_sidecar_uri" "$_sidecar_file" "${_auth_args[@]}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to download sidecar from '${_sc_base}'."
-      return 1
+      return "$_rc"
     }
     _sidecar_hash="$(_uri__sidecar_hash "$_asset_name" "$_sidecar_file")"
     [[ -n "$_sidecar_hash" ]] || {
@@ -626,9 +644,11 @@ uri__fetch_asset() {
   while true; do
     _attempt=$((_attempt + 1))
     logging__download "Fetching '${_asset_name}' from '${_base_uri}'"
-    _uri__download_to "$_uri" "$_dl_path" "${_auth_args[@]}" || {
+    _uri__download_to "$_uri" "$_dl_path" "${_auth_args[@]}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to download '${_asset_name}' from '${_base_uri}'."
-      return 1
+      return "$_rc"
     }
 
     if "$_sha256_none"; then break; fi
@@ -670,18 +690,24 @@ uri__fetch_asset() {
     _key_base="$(printf '%s\n' "$(_uri__split_frag "$_gpg_key_uri")" | head -n1)"
     _key_file="${_gpg_key_dir}/$(_uri__safe_basename "$_key_base")"
     logging__download "Fetching GPG signature from '${_sig_base}'"
-    _uri__download_to "$_sig_uri" "$_sig_file" "${_auth_args[@]}" || {
+    _uri__download_to "$_sig_uri" "$_sig_file" "${_auth_args[@]}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to download GPG signature from '${_sig_base}'."
-      return 1
+      return "$_rc"
     }
     logging__download "Fetching GPG key from '${_key_base}'"
-    _uri__download_to "$_gpg_key_uri" "$_key_file" "${_auth_args[@]}" || {
+    _uri__download_to "$_gpg_key_uri" "$_key_file" "${_auth_args[@]}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to download GPG key from '${_key_base}'."
-      return 1
+      return "$_rc"
     }
-    verify__gpg_detached "$_dl_path" "$_sig_file" "$_key_file" || {
+    verify__gpg_detached "$_dl_path" "$_sig_file" "$_key_file"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "GPG signature verification failed for '${_asset_name}'."
-      return 1
+      return "$_rc"
     }
   fi
 
@@ -702,9 +728,11 @@ uri__fetch_asset() {
       zip) _extract_name="asset.zip" ;;
       *) _extract_name="$_asset_name" ;;
     esac
-    file__extract_archive "$_dl_path" "$_asset_dir" "$_extract_name" || {
+    file__extract_archive "$_dl_path" "$_asset_dir" "$_extract_name"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "extraction of '${_asset_name}' failed."
-      return 1
+      return "$_rc"
     }
   else
     mv -f "$_dl_path" "${_asset_dir}/${_asset_name}" || {
@@ -794,9 +822,11 @@ uri__fetch_asset() {
       mkdir -p "$(dirname "$_dest_path")"
       chmod +x "$_src" 2> /dev/null || true
       logging__install "Installing '${_name}' to '${_dest_path}'"
-      install__copy_bin "$_src" "$_dest_path" || {
+      install__copy_bin "$_src" "$_dest_path"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "failed to install binary '${_name}' to '${_dest_path}'."
-        return 1
+        return "$_rc"
       }
       [[ -n "$_owner_group" ]] && install__track_internal_path "$_owner_group" "$_dest_path"
       logging__success "Installed '${_name}' → '${_dest_path}'"
@@ -923,14 +953,20 @@ uri__resolve() {
   fi
 
   if [[ "$_exec_mode" == true ]]; then
-    uri__fetch_asset "$_input" --binary-dest "$_dest" "${_fa_args[@]}" > /dev/null || return 1
+    logging__install "Resolving executable asset '${_input}' to '${_dest}'."
+    uri__fetch_asset "$_input" --binary-dest "$_dest" "${_fa_args[@]}" > /dev/null
   else
-    uri__fetch_asset "$_input" --file-dest "$_dest" "${_fa_args[@]}" > /dev/null || return 1
+    logging__install "Resolving file asset '${_input}' to '${_dest}'."
+    uri__fetch_asset "$_input" --file-dest "$_dest" "${_fa_args[@]}" > /dev/null
   fi
+  local _fa_rc=$?
+  [[ $_fa_rc == 0 ]] || return "$_fa_rc"
   if [[ -n "$_chmod_mode" && -e "$_dest" ]]; then
-    file__chmod "$_chmod_mode" "$_dest" || {
-      logging__error "uri__resolve: file__chmod '${_chmod_mode}' failed on '${_dest}'."
-      return 1
+    file__chmod "$_chmod_mode" "$_dest"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
+      logging__error "file__chmod '${_chmod_mode}' failed on '${_dest}'."
+      return "$_rc"
     }
   fi
   return 0
@@ -973,9 +1009,11 @@ uri__resolve_line() {
     esac
   done
   local _cls
-  _cls="$(uri__classify "$_input")" || {
+  _cls="$(uri__classify "$_input")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "unsupported or empty URI '${_input}'."
-    return 1
+    return "$_rc"
   }
   case "$_cls" in
     local)
@@ -995,11 +1033,16 @@ uri__resolve_line() {
       mkdir -p "$_mdir"
       local _dest
       _dest="$(_uri__dest_for_uri "$_mdir" "$_input")"
-      uri__fetch_asset "$_input" --file-dest "$_dest" "${_fetch_args[@]}" > /dev/null || return 1
+      logging__download "Fetching remote URI '${_input}' into '${_dest}'."
+      uri__fetch_asset "$_input" --file-dest "$_dest" "${_fetch_args[@]}" > /dev/null
+      local _fa_rc=$?
+      [[ $_fa_rc == 0 ]] || return "$_fa_rc"
       if [[ -n "$_chmod_mode" && -e "$_dest" ]]; then
-        file__chmod "$_chmod_mode" "$_dest" || {
+        file__chmod "$_chmod_mode" "$_dest"
+        local _rc=$?
+        [[ $_rc == 0 ]] || {
           logging__error "file__chmod '${_chmod_mode}' failed on '${_dest}'."
-          return 1
+          return "$_rc"
         }
       fi
       printf '%s\n' "$_dest"
@@ -1030,9 +1073,11 @@ uri__resolve_list() {
   while IFS= read -r _line || [[ -n "${_line}" ]]; do
     [[ -z "${_line//[[:space:]]/}" ]] && continue
     logging__install "Resolving URI line '${_line}'."
-    _out="$(uri__resolve_line "$_line" "$_mdir" "$@")" || {
+    _out="$(uri__resolve_line "$_line" "$_mdir" "$@")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to resolve URI line '${_line}'."
-      return 1
+      return "$_rc"
     }
     printf '%s\n' "$_out"
   done <<< "$(printf '%s\n' "$_list")"

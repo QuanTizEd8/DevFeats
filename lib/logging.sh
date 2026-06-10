@@ -29,7 +29,6 @@ _LOGGING__MUX_READER_PID=
 _LOGGING__MUX_IN=5
 _LOGGING__PROC_MUX=0
 _LOGGING__XTRACE_PIPE=
-_LOGGING__ERR_IN_TRAP=0
 
 # LOG_LEVEL / LOG_FILE_LEVEL numeric thresholds
 _LOGGING__LEVEL=3
@@ -471,32 +470,8 @@ logging__finalize_parse_buffer() {
   return 0
 }
 
-# @brief logging__err_unhandled <rc> — ERR trap helper (called from install __err__).
-#
-# Log a generic line for unhandled non-__ command failures after logging__setup.
-# Return 0: trap handler should return (intentional [[ predicate).
-# Return 1: trap handler should exit with <rc>.
-logging__err_unhandled() {
-  local _rc="$1"
-  if ((_LOGGING__ERR_IN_TRAP)); then
-    return 1
-  fi
-  case "${BASH_COMMAND}" in
-    *\[\[*)
-      return 0
-      ;;
-    return\ * | *'__'*)
-      return 1
-      ;;
-  esac
-  _LOGGING__ERR_IN_TRAP=1
-  logging__error "command failed (exit ${_rc}): ${BASH_COMMAND}"
-  return 1
-}
-
-# @brief logging__on_early_exit — Finalize pending journal; return 0 if logging__setup ran.
-logging__on_early_exit() {
-  _logging__finalize_pending_buffer
+# @brief logging__is_setup — Return 0 if logging__setup has been called (mux is running).
+logging__is_setup() {
   [[ "${_LOGGING__LIB_SETUP-}" == true ]]
 }
 
@@ -560,8 +535,6 @@ logging__mask_secret() {
 # @brief logging__cleanup — Drain mux, append journal to LOG_FILE, restore fds.
 logging__cleanup() {
   [[ "${_LOGGING__LIB_SETUP-}" == true ]] || return 0
-
-  _LOGGING__ERR_IN_TRAP=0
 
   exec 1>&3 2>&4
 

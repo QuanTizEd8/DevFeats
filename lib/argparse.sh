@@ -272,20 +272,28 @@ argparse__resolve_uri_options() {
         [[ -n "${_val}" ]] || continue
         mkdir -p "$_mdir"
         if [[ -n "${_chmod:-}" ]]; then
-          _dest="$(uri__dest_for_uri "$_mdir" "$_val")" || {
+          _dest="$(uri__dest_for_uri "$_mdir" "$_val")"
+          local _rc=$?
+          [[ $_rc == 0 ]] || {
             logging__error "failed to derive dest for URI '${_key}'."
-            return 1
+            return "$_rc"
           }
-          uri__resolve "$_val" "$_dest" "${_fetch_args[@]}" --chmod "$_chmod" > /dev/null || {
+          uri__resolve "$_val" "$_dest" "${_fetch_args[@]}" --chmod "$_chmod" > /dev/null
+          local _rc=$?
+          [[ $_rc == 0 ]] || {
             logging__error "failed to resolve URI '${_key}' to '${_dest}'."
-            return 1
+            return "$_rc"
           }
           printf -v "$_var" '%s' "$_dest"
         else
-          printf -v "$_var" '%s' "$(uri__resolve_line "$_val" "$_mdir" "${_fetch_args[@]}")" || {
+          local _resolved_line
+          _resolved_line="$(uri__resolve_line "$_val" "$_mdir" "${_fetch_args[@]}")"
+          local _rc=$?
+          [[ $_rc == 0 ]] || {
             logging__error "failed to resolve URI line '${_key}'."
-            return 1
+            return "$_rc"
           }
+          printf -v "$_var" '%s' "$_resolved_line"
         fi
         ;;
       *)

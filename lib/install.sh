@@ -95,11 +95,17 @@ install__copy_bin() {
     return 1
   }
   logging__install "Installing binary '${_src}' to '${_dest}'."
+  local _rc=0
   if command -v install > /dev/null 2>&1; then
-    install -m 0755 "$_src" "$_dest"
+    install -m 0755 "$_src" "$_dest" || _rc=$?
   else
-    cp "$_src" "$_dest" && chmod 0755 "$_dest"
+    cp "$_src" "$_dest" && chmod 0755 "$_dest" || _rc=$?
   fi
+  if ((_rc != 0)); then
+    logging__error "failed to install '${_src}' to '${_dest}'."
+    return 1
+  fi
+  return 0
 }
 
 # @brief install__read_state <tool> <ctx_var> <path_var> <group_var> — Read all three installation-state fields into caller-named variables in a single call.

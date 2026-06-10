@@ -9,7 +9,7 @@
 # fsck/fetch.fsck zeroPaddedFilemode: tolerate historical repos (e.g. ohmyzsh) with
 # zero-padded filemode entries. receive.fsck is a server-side setting and is
 # intentionally omitted — it has no effect on a git client doing clone or fetch.
-_GIT_CONF=(
+_GIT__CONF=(
   -c core.eol=lf
   -c core.autocrlf=false
   -c fsck.zeroPaddedFilemode=ignore
@@ -48,10 +48,10 @@ git__resolve_ref() {
 # Returns: 0 on success, 1 on failure.
 _git__fetch_sha() {
   local _dir="$1" _sha="$2" _fetch_ok=false
-  git -C "${_dir}" "${_GIT_CONF[@]}" -c protocol.version=2 \
+  git -C "${_dir}" "${_GIT__CONF[@]}" -c protocol.version=2 \
     fetch --depth=1 origin "${_sha}" 2>&1 && _fetch_ok=true
   if [[ "${_fetch_ok}" == false ]]; then
-    git -C "${_dir}" "${_GIT_CONF[@]}" fetch origin "${_sha}" 2>&1 || {
+    git -C "${_dir}" "${_GIT__CONF[@]}" fetch origin "${_sha}" 2>&1 || {
       logging__error "full fetch of SHA '${_sha}' failed in '${_dir}'."
       return 1
     }
@@ -137,7 +137,8 @@ git__clone() {
   logging__download "Cloning '${url}' into '${dir}'${ref:+ (ref='${ref}')}."
 
   # Auto-provision git if not yet available (idempotent if already installed).
-  bootstrap__git || return 1
+  logging__install "Ensuring git is available before clone."
+  bootstrap__git
 
   # Restrict permissions of all files created during the clone.
   local _prev_umask
@@ -157,7 +158,7 @@ git__clone() {
 
     if [[ "${_probed_sha}" != "${ref}" ]]; then
       # Named ref (branch or tag) — _probed_sha is its remote SHA.
-      if ! git clone --depth=1 "${_GIT_CONF[@]}" --branch "${ref}" "${url}" "${dir}" 2>&1; then
+      if ! git clone --depth=1 "${_GIT__CONF[@]}" --branch "${ref}" "${url}" "${dir}" 2>&1; then
         umask "${_prev_umask}"
         rm -rf "${dir}" 2> /dev/null || true
         logging__error "git clone of '${url}' (ref '${ref}') failed."
@@ -168,7 +169,7 @@ git__clone() {
       # Use git init + protocol-v2 fetch, which allows fetching specific commits
       # on GitHub (uploadpack.allowReachableSHA1InWant) and most modern servers.
       mkdir -p "${dir}"
-      if ! git "${_GIT_CONF[@]}" init "${dir}" 2>&1; then
+      if ! git "${_GIT__CONF[@]}" init "${dir}" 2>&1; then
         umask "${_prev_umask}"
         rm -rf "${dir}" 2> /dev/null || true
         logging__error "git init of '${dir}' failed."
@@ -189,7 +190,7 @@ git__clone() {
     fi
   else
     # No ref → clone the remote's default branch.
-    if ! git clone --depth=1 "${_GIT_CONF[@]}" "${url}" "${dir}" 2>&1; then
+    if ! git clone --depth=1 "${_GIT__CONF[@]}" "${url}" "${dir}" 2>&1; then
       umask "${_prev_umask}"
       rm -rf "${dir}" 2> /dev/null || true
       logging__error "git clone of '${url}' failed."
@@ -217,7 +218,8 @@ git__config() {
   }
   [ "$#" -eq 0 ] && return 0
 
-  bootstrap__git || return 1
+  logging__install "Ensuring git is available before config."
+  bootstrap__git
 
   local _pair _key _val
   for _pair in "$@"; do
@@ -258,7 +260,8 @@ git__update() {
     return 1
   }
 
-  bootstrap__git || return 1
+  logging__install "Ensuring git is available before update."
+  bootstrap__git
 
   local _ref="" resolved_sha=""
   while [[ $# -gt 0 ]]; do
@@ -294,7 +297,7 @@ git__update() {
 
     if [[ "${_probed_sha}" != "${_ref}" ]]; then
       # Named ref — fetch via the repo's configured refspecs, checkout, merge.
-      if ! git -C "${_dir}" "${_GIT_CONF[@]}" fetch --depth=1 origin 2>&1; then
+      if ! git -C "${_dir}" "${_GIT__CONF[@]}" fetch --depth=1 origin 2>&1; then
         logging__error "fetch failed in '${_dir}'."
         return 1
       fi
@@ -317,7 +320,7 @@ git__update() {
     fi
   else
     # No ref — refresh the current branch using the configured refspecs.
-    if ! git -C "${_dir}" "${_GIT_CONF[@]}" fetch --depth=1 origin 2>&1; then
+    if ! git -C "${_dir}" "${_GIT__CONF[@]}" fetch --depth=1 origin 2>&1; then
       logging__error "fetch failed in '${_dir}'."
       return 1
     fi

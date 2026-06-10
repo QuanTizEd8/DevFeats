@@ -119,13 +119,11 @@ github__release_json_id() {
 # Stdout: 64-character lowercase hex digest.
 #
 # Returns: 0 on success, 1 if unreadable, unparsable, not found, or digest absent.
-github__release_json_digest_for_asset() {
+_github__release_json_digest_for_asset() {
   local _f="$1" _name="$2" _out=""
   [ -r "$_f" ] || return 1
   [ -n "$_name" ] || return 1
-
-  _out=""
-  _json__ensure_jq || return 1
+  if ! _json__ensure_jq; then return 1; fi
   # shellcheck disable=SC2016
   _out="$(json__query -r --arg n "$_name" '
       (.assets // [])[]
@@ -133,10 +131,33 @@ github__release_json_digest_for_asset() {
       | .digest // empty
       | if length > 0 then (sub("^sha256:"; "") | ascii_downcase) else empty end
     ' "$_f" 2> /dev/null)" || _out=""
-
   [ -n "$_out" ] && [ "$_out" != "null" ] || return 1
   printf '%s\n' "$_out"
   return 0
+}
+
+github__release_json_digest_for_asset() {
+  local _f="$1" _name="$2"
+  [ -r "$_f" ] || {
+    logging__error "release JSON file is not readable: '${_f}'."
+    return 1
+  }
+  [ -n "$_name" ] || {
+    logging__error "asset name is required."
+    return 1
+  }
+  _json__ensure_jq
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "jq is required to read release asset digest."
+    return "$_rc"
+  }
+  _github__release_json_digest_for_asset "$_f" "$_name"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "digest not found for asset '${_name}'."
+    return "$_rc"
+  }
 }
 
 # @brief github__release_json_digest_from_uri <release-json-uri> <asset_name> — Fetch GitHub release JSON and print the asset SHA-256 digest.
@@ -163,7 +184,7 @@ github__release_json_digest_from_uri() {
   }
   _reljson="$(mktemp)"
   if _github__api_get "$_uri" "$_reljson" 2> /dev/null; then
-    _digest="$(github__release_json_digest_for_asset "$_reljson" "$_name")" || _digest=""
+    _digest="$(_github__release_json_digest_for_asset "$_reljson" "$_name")" || _digest=""
   fi
   rm -f "$_reljson"
   [ -n "$_digest" ] || {
@@ -199,7 +220,7 @@ github__fetch_release_asset_tarball() {
 
   _rel="$(mktemp)"
   if github__fetch_release_json "$_repo" --tag "$_tag" --dest "$_rel" 2> /dev/null; then
-    _digest="$(github__release_json_digest_for_asset "$_rel" "$_asset")" || _digest=""
+    _digest="$(_github__release_json_digest_for_asset "$_rel" "$_asset")" || _digest=""
   else
     _digest=""
   fi
@@ -353,14 +374,18 @@ github__install_release() {
   if [[ -z "$_asset" ]]; then
     local _picked_url
     if [[ -n "$_asset_regex" ]]; then
-      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag" --asset-regex "$_asset_regex")" || {
+      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag" --asset-regex "$_asset_regex")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "failed to pick release asset for '${_repo}' (tag='${_tag}')."
-        return 1
+        return "$_rc"
       }
     else
-      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag")" || {
+      _picked_url="$(github__pick_release_asset "$_repo" --tag "$_tag")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "failed to pick release asset for '${_repo}' (tag='${_tag}')."
-        return 1
+        return "$_rc"
       }
     fi
     _asset="${_picked_url##*/}"
@@ -401,11 +426,13 @@ github__latest_tag() {
   local _repo="$1"
   local _json _tag
   _json="$(github__fetch_release_json "$_repo")" || true
-  _tag="$(printf '%s\n' "$_json" | json__root_scalar_stdin tag_name)" || _tag=""
-  if [ -z "$_tag" ]; then
-    _tag="$(printf '%s\n' "$_json" |
-      grep '"tag_name"' | head -1 |
-      sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || _tag=""
+  if [ -n "$_json" ]; then
+    _tag="$(printf '%s\n' "$_json" | _json__root_scalar_stdin tag_name)" || _tag=""
+    if [ -z "$_tag" ]; then
+      _tag="$(printf '%s\n' "$_json" |
+        grep '"tag_name"' | head -1 |
+        sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || _tag=""
+    fi
   fi
   if [ -n "$_tag" ]; then
     echo "$_tag"
@@ -743,18 +770,22 @@ github__tags() {
 
   if [ "$_all" = "false" ]; then
     local _url="${_base}/tags?per_page=${_per_page}"
-    _github__api_list_field "$_url" "name" || {
+    _github__api_list_field "$_url" "name"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to reach GitHub API for '${_repo}'."
-      return 1
+      return "$_rc"
     }
     return 0
   fi
 
   _github__paginate_list_field \
     "${_base}/tags" \
-    "name" "$_per_page" || {
+    "name" "$_per_page"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to reach GitHub API for '${_repo}'."
-    return 1
+    return "$_rc"
   }
   return 0
 }
@@ -800,9 +831,11 @@ github__release_asset_urls() {
   [ -n "$_tag" ] && _fetch_args="--tag ${_tag}"
 
   # shellcheck disable=SC2086
-  github__fetch_release_json "$_repo" ${_fetch_args} --dest "$_tmpfile" || {
+  github__fetch_release_json "$_repo" ${_fetch_args} --dest "$_tmpfile"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     rm -f "$_tmpfile"
-    return 1
+    return "$_rc"
   }
 
   local _urls
@@ -866,9 +899,11 @@ github__pick_release_asset() {
   # ── Fetch all asset URLs ──────────────────────────────────────────────────
   [ -n "$_tag" ] && _tag_arg="--tag $_tag"
   # shellcheck disable=SC2086
-  _urls="$(github__release_asset_urls "$_repo" ${_tag_arg})" || {
+  _urls="$(github__release_asset_urls "$_repo" ${_tag_arg})"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to list release assets for '${_repo}'."
-    return 1
+    return "$_rc"
   }
   if [ -z "$_urls" ]; then
     logging__error "no assets found for '${_repo}'."
@@ -995,9 +1030,11 @@ _github__api_list_field() {
   local _url="$1"
   local _field="$2"
   local _json _lines _msg
-  _json="$(_github__api_get "$_url")" || {
+  _json="$(_github__api_get "$_url")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "GitHub API request failed for '${_url}'."
-    return 1
+    return "$_rc"
   }
   [ -z "$_json" ] && {
     logging__error "GitHub API returned empty response for '${_url}'."
@@ -1048,10 +1085,12 @@ _github__paginate_list_field() {
     local _sep='?'
     case "$_base" in *\?*) _sep='&' ;; esac
     local _url="${_base}${_sep}per_page=${_per_page}&page=${_page}"
-    _json="$(_github__api_get "$_url")" || {
-      [ "$_got_any" = "true" ] && return 0
-      return 1
-    }
+    _json="$(_github__api_get "$_url")"
+    local _rc=$?
+    if [[ $_rc != 0 ]]; then
+      [[ "$_got_any" == "true" ]] && return 0
+      return "$_rc"
+    fi
     if [ -z "$_json" ]; then
       [ "$_got_any" = "true" ] && return 0
       return 1
@@ -1166,17 +1205,21 @@ _github__api_get() {
 # Returns: 0 on match, 1 if no match found or on API error.
 _github__first_stable_tag_matching() {
   local _api_base="$1" _norm="$2"
-  _json__ensure_jq || {
+  _json__ensure_jq
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "jq is required to match GitHub release tags."
-    return 1
+    return "$_rc"
   }
   local _per_page=100 _page=1 _json _tags _count _tag
 
   while :; do
     local _url="${_api_base}/releases?per_page=${_per_page}&page=${_page}"
-    _json="$(_github__api_get "$_url")" || {
+    _json="$(_github__api_get "$_url")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "GitHub API request failed for '${_url}'."
-      return 1
+      return "$_rc"
     }
 
     _tags="$(printf '%s\n' "$_json" |

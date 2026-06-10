@@ -250,9 +250,11 @@ users__default_prefix() {
 #
 # Stdout: group name string.
 users__primary_group_of() {
-  _users__ensure_coreutils || {
+  _users__ensure_coreutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to resolve primary group."
-    return 1
+    return "$_rc"
   }
   id -gn "$1"
 }
@@ -314,9 +316,11 @@ users__group_of_gid() {
 #
 # Stdout: UID as a decimal string.
 users__uid_of_user() {
-  _users__ensure_coreutils || {
+  _users__ensure_coreutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to resolve user UID."
-    return 1
+    return "$_rc"
   }
   id -u "$1"
 }
@@ -328,9 +332,11 @@ users__uid_of_user() {
 #
 # Stdout: username string.
 users__username_of_uid() {
-  _users__ensure_coreutils || {
+  _users__ensure_coreutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to resolve username from UID."
-    return 1
+    return "$_rc"
   }
   local _uname
   _uname="$(id -un "$1" 2> /dev/null)" && {
@@ -390,9 +396,11 @@ users__group_exists() {
 #
 # Stdout: owner UID as a decimal string.
 users__uid_of_path_owner() {
-  _users__ensure_coreutils || {
+  _users__ensure_coreutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "coreutils (stat) is required to resolve path owner."
-    return 1
+    return "$_rc"
   }
   if [[ "$(os__kernel)" == "Darwin" ]]; then
     stat -f '%u' "$1"
@@ -472,7 +480,7 @@ users__resolve_list() {
 
   if [ "${_include_current}" = "true" ]; then
     local _cur
-    _cur="$(users__get_current)"
+    _cur="$(users__get_current)" || true
     if [ "$_cur" != "root" ]; then
       __users__add "$_cur"
     else
@@ -521,9 +529,11 @@ users__resolve_list() {
 #   <group>      OS group name to create (if absent) and use.
 #   [<user>...]  Additional users to add to the group.
 users__set_write_permissions() {
-  _users__ensure_coreutils || {
+  _users__ensure_coreutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "coreutils is required to set write permissions."
-    return 1
+    return "$_rc"
   }
   local _path="$1" _owner="$2" _group="$3"
   shift 3
@@ -712,9 +722,11 @@ users__create_group() {
       *) shift ;;
     esac
   done
-  _users__ensure_shadowutils || {
+  _users__ensure_shadowutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to create a group."
-    return 1
+    return "$_rc"
   }
   local -a _cmd=("groupadd")
   [ -n "$_gid" ] && _cmd+=("--gid" "$_gid")
@@ -733,9 +745,11 @@ users__create_group() {
 #
 # Returns: 0 on success, 1 on failure (warning logged).
 users__delete_group() {
-  _users__ensure_shadowutils || {
+  _users__ensure_shadowutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to delete a group."
-    return 1
+    return "$_rc"
   }
   users__run_privileged groupdel "$1" 2> /dev/null || {
     logging__error "Failed to delete group '${1}'."
@@ -750,9 +764,11 @@ users__delete_group() {
 #
 # Returns: 0 on success, 1 on failure (warning logged).
 users__delete_user() {
-  _users__ensure_shadowutils || {
+  _users__ensure_shadowutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to delete a user."
-    return 1
+    return "$_rc"
   }
   users__run_privileged userdel "$1" 2> /dev/null || {
     logging__error "Failed to delete user '${1}'."
@@ -803,9 +819,11 @@ users__create_user() {
       *) shift ;;
     esac
   done
-  _users__ensure_shadowutils || {
+  _users__ensure_shadowutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to create a user."
-    return 1
+    return "$_rc"
   }
   local -a _cmd=("useradd")
   [[ "$_no_create_home" == "true" ]] && _cmd+=("--no-create-home")
@@ -814,7 +832,11 @@ users__create_user() {
   [ -n "$_shell" ] && _cmd+=("--shell" "$_shell")
   [ -n "$_uid" ] && _cmd+=("--uid" "$_uid")
   _cmd+=("$_name")
-  users__run_privileged "${_cmd[@]}"
+  logging__install "Creating user '${_name}'${_uid:+ (uid=${_uid})}${_home:+ (home='${_home}')}."
+  users__run_privileged "${_cmd[@]}" || {
+    logging__error "failed to create user '${_name}'."
+    return 1
+  }
 }
 
 # @brief users__add_to_group <user> <group> — Add <user> to supplementary group <group>.
@@ -826,9 +848,11 @@ users__create_user() {
 # Returns: 0 on success, 1 if usermod cannot be installed.
 users__add_to_group() {
   local _user="$1" _group="$2"
-  _users__ensure_shadowutils || {
+  _users__ensure_shadowutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to add a user to a group."
-    return 1
+    return "$_rc"
   }
   users__run_privileged usermod -aG "$_group" "$_user" || {
     logging__warn "Failed to add '${_user}' to group '${_group}'."
@@ -848,9 +872,11 @@ users__add_to_group() {
 #
 # Returns: 0 on success or if user already exists, 1 if useradd cannot be installed.
 users__create_system_user() {
-  _users__ensure_coreutils || {
+  _users__ensure_coreutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to create a system user."
-    return 1
+    return "$_rc"
   }
   local _username="$1"
   shift
@@ -872,15 +898,21 @@ users__create_system_user() {
     logging__info "User '${_username}' already exists — skipping."
     return 0
   fi
-  _users__ensure_shadowutils || {
+  _users__ensure_shadowutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to create a system user."
-    return 1
+    return "$_rc"
   }
   local -a _cmd=("useradd" "--system" "--create-home")
   [ -n "$_home" ] && _cmd+=("--home-dir" "$_home")
   [ -n "$_shell" ] && _cmd+=("--shell" "$_shell")
   _cmd+=("$_username")
-  users__run_privileged "${_cmd[@]}"
+  logging__install "Creating system user '${_username}'."
+  users__run_privileged "${_cmd[@]}" || {
+    logging__error "Failed to create system user '${_username}'."
+    return 1
+  }
   logging__success "Created system user '${_username}'."
   return 0
 }
@@ -913,9 +945,11 @@ users__get_current() {
       }
     fi
   fi
-  _users__ensure_coreutils || {
+  _users__ensure_coreutils
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to determine the current user."
-    return 1
+    return "$_rc"
   }
   id -un
 }
@@ -950,9 +984,11 @@ users__resolve_home() {
   fi
   local _user="${1:-}" _entry="" _home
   if [[ -z "$_user" ]]; then
-    _user="$(users__get_current)" || {
+    _user="$(users__get_current)"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "could not determine current user for home resolution."
-      return 1
+      return "$_rc"
     }
   fi
   # getent handles both username and UID, and queries NSS (LDAP, NIS).
@@ -1110,9 +1146,11 @@ users__is_user_path() {
     _root_home="$(users__resolve_home)"
     [[ -n "$_root_home" && "$_p" == "${_root_home}/"* ]] && return 0
     local _uid _min_uid
-    _uid="$(users__uid_of_path_owner "$_existing")" || {
+    _uid="$(users__uid_of_path_owner "$_existing")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "could not determine owner UID of '${_existing}'."
-      return 1
+      return "$_rc"
     }
     [[ "$(os__kernel)" == "Darwin" ]] && _min_uid=500 || _min_uid=1000
     ((_uid >= _min_uid && _uid < 65534)) && return 0
@@ -1132,9 +1170,11 @@ users__is_user_path() {
   # Nearest existing ancestor owned by the user.
   if [[ -n "$_target_uid" ]]; then
     local _owner_uid
-    _owner_uid="$(users__uid_of_path_owner "$_existing")" || {
+    _owner_uid="$(users__uid_of_path_owner "$_existing")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "could not determine owner UID of '${_existing}'."
-      return 1
+      return "$_rc"
     }
     [[ "$_owner_uid" == "$_target_uid" ]] && return 0
   fi
@@ -1169,9 +1209,11 @@ users__add_sudoer() {
         ;;
     esac
   done
-  _users__ensure_sudo || {
+  _users__ensure_sudo
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "sudo is required to grant passwordless sudo."
-    return 1
+    return "$_rc"
   }
   local _target="${_sudoers_dir}/${_username}" _tmp _visudo_out
   _tmp="$(mktemp)" || {
@@ -1180,11 +1222,13 @@ users__add_sudoer() {
   }
   printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$_username" > "$_tmp"
   chmod 0440 "$_tmp"
-  _visudo_out="$(users__run_privileged visudo -c -f "$_tmp" 2>&1)" || {
+  _visudo_out="$(users__run_privileged visudo -c -f "$_tmp" 2>&1)"
+  local _rc=$?
+  if [[ $_rc != 0 ]]; then
     rm -f "$_tmp"
     logging__error "sudoers validation failed${_visudo_out:+: ${_visudo_out}}"
-    return 1
-  }
+    return "$_rc"
+  fi
   users__run_privileged mkdir -p "$_sudoers_dir"
   users__run_privileged mv "$_tmp" "$_target"
   logging__success "Granted passwordless sudo to '${_username}'."

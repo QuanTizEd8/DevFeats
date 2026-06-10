@@ -66,8 +66,11 @@ _require_ospkg_jq() {
 
 @test "ospkg__detect fails when no package manager is found" {
   reload_lib ospkg.sh
-  # Override PATH to empty so no package manager binary is found.
-  PATH="${BATS_TEST_TMPDIR}/bin" run ospkg__detect
+  begin_path_isolation mkdir chmod
+  rm -f "${BATS_TEST_TMPDIR}/bin/uname"
+  create_fake_bin "uname" "Linux"
+  run ospkg__detect
+  end_path_isolation
   assert_failure
   assert_output --partial "No supported package manager"
 }
@@ -115,6 +118,12 @@ _seed_apt_context() {
   export -f users__run_privileged
 }
 
+# Stub privilege gate for tests that exercise install/update paths with fake PMs.
+_stub_ospkg_privilege_ok() {
+  _ospkg__assert_privilege() { return 0; }
+  export -f _ospkg__assert_privilege
+}
+
 # ---------------------------------------------------------------------------
 # ospkg__update
 # ---------------------------------------------------------------------------
@@ -139,6 +148,7 @@ _seed_apt_context() {
 
 @test "ospkg__update runs update command with --force" {
   _seed_apt_context
+  _stub_ospkg_privilege_ok
   # The fake apt-get stub exits 0 for any subcommand.
   run ospkg__update --force
   assert_success
@@ -218,6 +228,7 @@ _seed_apt_context() {
 
 @test "ospkg__install invokes the install command" {
   _seed_apt_context
+  _stub_ospkg_privilege_ok
   run ospkg__install curl
   assert_success
 }
@@ -508,6 +519,7 @@ _seed_apt_context_with_yq() {
 
   # First call — sets _OSPKG__YQ_BIN via mock.
   ospkg__run --manifest $'packages:\n  - regrpkg\n' --dry_run > "$_log" 2>&1
+  _lib_test__append_pending_journal_to "$_log"
   grep -q "\[dry-run\] packages: regrpkg" "$_log" ||
     {
       echo "First call: expected dry-run output absent"
@@ -519,6 +531,7 @@ _seed_apt_context_with_yq() {
   # must still be accessible.  Old code would have deleted it above.
   : > "$_log"
   ospkg__run --manifest $'packages:\n  - regrpkg\n' --dry_run > "$_log" 2>&1
+  _lib_test__append_pending_journal_to "$_log"
   grep -q "\[dry-run\] packages: regrpkg" "$_log" ||
     {
       echo "Second call (regression): dry-run output absent — yq path was stale or deleted"
@@ -535,7 +548,7 @@ _seed_apt_context_with_yq() {
   _require_ospkg_jq
 
   run bash -c "
-    for _m in logging.sh os.sh str.sh ver.sh json.sh net.sh file.sh verify.sh \
+    for _m in file.sh logging-api.sh logging.sh os.sh str.sh ver.sh json.sh net.sh verify.sh \
                lock.sh git.sh users.sh proc.sh graph.sh shell.sh install.sh \
                ospkg.sh github.sh oci.sh uri.sh; do
       source \"${LIB_ROOT}/\$_m\"
@@ -569,7 +582,7 @@ _seed_apt_context_with_yq() {
   _require_ospkg_jq
 
   run bash -c "
-    for _m in logging.sh os.sh str.sh ver.sh json.sh net.sh file.sh verify.sh \
+    for _m in file.sh logging-api.sh logging.sh os.sh str.sh ver.sh json.sh net.sh verify.sh \
                lock.sh git.sh users.sh proc.sh graph.sh shell.sh install.sh \
                ospkg.sh github.sh oci.sh uri.sh; do
       source \"${LIB_ROOT}/\$_m\"
@@ -717,6 +730,7 @@ YQ
 # After this, call _mock_snapshots to control the before/after package lists.
 _seed_apt_build_context() {
   _seed_apt_context
+  _stub_ospkg_privilege_ok
   export _SYSSET_BUILD_CONTEXT="ctx"
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
@@ -1775,6 +1789,7 @@ _seed_pacman_context() {
   _OSPKG__OS_RELEASE[id]="arch"
   users__run_privileged() { "$@"; }
   export -f users__run_privileged
+  _stub_ospkg_privilege_ok
 }
 
 # _seed_apk_context — Alpine APK build context with fully-detected state.
@@ -2534,6 +2549,18 @@ _create_smart_rpm() {
   chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
 
   run ospkg__install_tracked "lib-build" cmake
+  assert_failure
+}
+
+@test "ospkg__install_tracked: apt — returns 1 when ospkg__install fails" {
+  _seed_apt_build_context
+  _mock_snapshots "curl" "curl newpkg"
+  printf '#!/bin/bash\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  # Propagate apt-get exit status (default _seed stub uses || true).
+  net__fetch_with_retry() { "$@" > /dev/null 2>&1; }
+
+  run ospkg__install_tracked "test-group" newpkg
   assert_failure
 }
 

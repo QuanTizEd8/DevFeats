@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+shopt -s inherit_errexit
 
 __print_docs__() {
   cat << 'EOF'
@@ -13,10 +14,39 @@ EOF
   return
 }
 
+__run_feature_hook__() {
+  # Execute a feature hook if defined, with debug logging.
+  # On failure, exits the script (to avoid double-logging via the ERR trap).
+  # Pass --warn to log a warning instead and return 0 (non-fatal callers).
+  local _rh_warn=""
+  if [[ "${1:-}" == --warn ]]; then
+    _rh_warn=1
+    shift
+  fi
+  local _hook="$1"
+  shift
+  if declare -f "${_hook}" > /dev/null; then
+    logging__debug "Executing feature hook '${_hook}'."
+    "${_hook}" "$@"
+    local _rc=$?
+    if [[ $_rc == 0 ]]; then
+      logging__debug "Feature hook '${_hook}' executed successfully."
+    elif [[ -n "${_rh_warn}" ]]; then
+      logging__warn "Feature hook '${_hook}' failed (non-fatal)."
+    else
+      logging__error "Feature hook '${_hook}' failed."
+      exit "$_rc"
+    fi
+  else
+    logging__debug "No feature hook '${_hook}' found. Skipping."
+  fi
+}
+
 __main__() {
   # Main entry point for the install script.
 
   trap '__exit__' EXIT
+  trap '__err__' ERR
   __init__ "$@"
 
   if [[ ! -v IF_EXISTS ]]; then
@@ -49,7 +79,7 @@ __main__() {
       skip)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; skipping (if_exists=skip)."
         __deploy_lifecycle_scripts__ --skip
-        if declare -f __skip_post > /dev/null; then __skip_post; fi
+        __run_feature_hook__ __skip_post
         logging__info "Skip lifecycle finished; exiting with status 0."
         exit 0
         ;;
@@ -109,9 +139,7 @@ __init__() {
   __init_args__ "$@"
   __init_script__
 
-  if declare -f __init_post > /dev/null; then
-    __init_post
-  fi
+  __run_feature_hook__ __init_post
 }
 
 __init_env__() {
@@ -168,23 +196,17 @@ __init_lib__() {
 __init_script__() {
   # Set up logging and exit trap.
 
-  if declare -f __init_script_pre > /dev/null; then
-    __init_script_pre
-  fi
+  __run_feature_hook__ __init_script_pre
 
   logging__setup --prefix "${_FEAT_ID}" --fn-prefix
 
-  if declare -f __init_script_post > /dev/null; then
-    __init_script_post
-  fi
+  __run_feature_hook__ __init_script_post
 }
 
 __init_args__() {
   # Parse and validate input arguments and apply defaults.
 
-  if declare -f __init_args_pre > /dev/null; then
-    __init_args_pre "$@"
-  fi
+  __run_feature_hook__ __init_args_pre "$@"
 
   if [ "$#" -gt 0 ]; then
     ${{ _script.argparse.cli_inits }}$
@@ -233,18 +255,14 @@ __init_args__() {
   # but are not inherited by child processes.
   declare -g +x ${{ _script.argparse.unexports }}$
 
-  if declare -f __init_args_post > /dev/null; then
-    __init_args_post
-  fi
+  __run_feature_hook__ __init_args_post
 }
 
 # Existing installation detection
 # ===============================
 __detect_existing__() {
 
-  if declare -f __detect_existing_pre > /dev/null; then
-    __detect_existing_pre
-  fi
+  __run_feature_hook__ __detect_existing_pre
 
   # Existence detection (cheap; side-effect-free)
   __detect_existing_path__
@@ -253,9 +271,7 @@ __detect_existing__() {
 
   logging__detect "Detection complete: path='${_FEAT_EXISTING_PATH:-}', method='${_FEAT_EXISTING_METHOD:-}'."
 
-  if declare -f __detect_existing_post > /dev/null; then
-    __detect_existing_post
-  fi
+  __run_feature_hook__ __detect_existing_post
 }
 
 __detect_existing_path__() {
@@ -283,9 +299,7 @@ __detect_existing_path__() {
   # early-exit logic then treats the tool as absent and proceeds with a fresh
   # install regardless of if_exists.
 
-  if declare -f __detect_existing_path_pre > /dev/null; then
-    __detect_existing_path_pre
-  fi
+  __run_feature_hook__ __detect_existing_path_pre
 
   declare -g _FEAT_EXISTING_PATH=""
 
@@ -326,9 +340,7 @@ __detect_existing_path__() {
     logging__detect "No existing '${_FEAT_CONTRACT_PRIMARY_BIN}' installation found."
   fi
 
-  if declare -f __detect_existing_path_post > /dev/null; then
-    __detect_existing_path_post
-  fi
+  __run_feature_hook__ __detect_existing_path_post
 }
 
 __detect_existing_method__() {
@@ -355,9 +367,7 @@ __detect_existing_method__() {
   # Use __detect_existing_method_pre to set _FEAT_EXISTING_METHOD before the
   # auto-impl runs, or override __detect_existing_method__ for fully custom logic.
 
-  if declare -f __detect_existing_method_pre > /dev/null; then
-    __detect_existing_method_pre
-  fi
+  __run_feature_hook__ __detect_existing_method_pre
 
   declare -g _FEAT_EXISTING_METHOD=""
   if [[ -z "${_FEAT_EXISTING_PATH}" ]]; then
@@ -397,9 +407,7 @@ __detect_existing_method__() {
     logging__warn "Could not determine installation method for '${_FEAT_EXISTING_PATH}'."
   fi
 
-  if declare -f __detect_existing_method_post > /dev/null; then
-    __detect_existing_method_post
-  fi
+  __run_feature_hook__ __detect_existing_method_post
 }
 
 # Uninstallation
@@ -408,32 +416,25 @@ __uninstall__() {
 
   logging__info "Starting uninstall (path='${_FEAT_EXISTING_PATH:-}', method='${_FEAT_EXISTING_METHOD:-}')."
 
-  if declare -f __uninstall_pre > /dev/null; then
-    __uninstall_pre
-  fi
+  __run_feature_hook__ __uninstall_pre
 
   __uninstall_init__
   __uninstall_run__
   __uninstall_finish__
 
-  if declare -f __uninstall_post > /dev/null; then
-    __uninstall_post
-  fi
+  __run_feature_hook__ __uninstall_post
 }
 
 __uninstall_init__() {
+  logging__debug "Starting uninstall initialization."
 
-  if declare -f __uninstall_init_pre > /dev/null; then
-    __uninstall_init_pre
-  fi
+  __run_feature_hook__ __uninstall_init_pre
 
   __verify_system_requirements__
   __resolve_input_method__
   __resolve_input_prefixes__
 
-  if declare -f __uninstall_init_post > /dev/null; then
-    __uninstall_init_post
-  fi
+  __run_feature_hook__ __uninstall_init_post
 }
 
 __uninstall_run__() {
@@ -462,9 +463,7 @@ __uninstall_run__() {
   # __uninstall_run_pre to act before the auto-impl, or override __uninstall_run__
   # entirely when you need to replace it.
 
-  if declare -f __uninstall_run_pre > /dev/null; then
-    __uninstall_run_pre
-  fi
+  __run_feature_hook__ __uninstall_run_pre
 
   logging__remove "Uninstalling via method='${_FEAT_EXISTING_METHOD:-unknown}' from '${_FEAT_EXISTING_PATH}'."
 
@@ -499,15 +498,11 @@ __uninstall_run__() {
 
   logging__info "Uninstall run finished for method='${_FEAT_EXISTING_METHOD:-}'."
 
-  if declare -f __uninstall_run_post > /dev/null; then
-    __uninstall_run_post
-  fi
+  __run_feature_hook__ __uninstall_run_post
 }
 
 __uninstall_run_prefix__() {
-  if declare -f __uninstall_run_prefix_pre > /dev/null; then
-    __uninstall_run_prefix_pre
-  fi
+  __run_feature_hook__ __uninstall_run_prefix_pre
   logging__remove "Removing prefix binary '${_FEAT_EXISTING_PATH}'."
   file__rm -f "${_FEAT_EXISTING_PATH}"
   if [[ -v BINARY_SIDECAR_URI && -n "${BINARY_SIDECAR_URI}" ]]; then
@@ -520,72 +515,50 @@ __uninstall_run_prefix__() {
       file__rm -f "${_prefix_bin}/${_sc}"
     fi
   fi
-  if declare -f __uninstall_run_prefix_post > /dev/null; then
-    __uninstall_run_prefix_post
-  fi
+  __run_feature_hook__ __uninstall_run_prefix_post
 }
 
 __uninstall_run_npm__() {
-  if declare -f __uninstall_run_npm_pre > /dev/null; then
-    __uninstall_run_npm_pre
-  fi
+  __run_feature_hook__ __uninstall_run_npm_pre
   if [[ -z "${NPM_PACKAGE:-}" ]]; then
     logging__error "Cannot auto-uninstall npm-managed install: _options.method.npm not declared in metadata."
     return 1
   fi
   logging__remove "Uninstalling npm package '${NPM_PACKAGE}'."
   npm__uninstall_package --package "${NPM_PACKAGE}"
-  if declare -f __uninstall_run_npm_post > /dev/null; then
-    __uninstall_run_npm_post
-  fi
+  __run_feature_hook__ __uninstall_run_npm_post
 }
 
 __uninstall_run_npm_bundled__() {
-  if declare -f __uninstall_run_npm_bundled_pre > /dev/null; then
-    __uninstall_run_npm_bundled_pre
-  fi
+  __run_feature_hook__ __uninstall_run_npm_bundled_pre
   logging__remove "Uninstalling npm-bundled install at '${_FEAT_EXISTING_PATH}'."
   npm__uninstall_bundled --bin "${_FEAT_EXISTING_PATH}"
-  if declare -f __uninstall_run_npm_bundled_post > /dev/null; then
-    __uninstall_run_npm_bundled_post
-  fi
+  __run_feature_hook__ __uninstall_run_npm_bundled_post
 }
 
 __uninstall_run_package__() {
-  if declare -f __uninstall_run_package_pre > /dev/null; then
-    __uninstall_run_package_pre
-  fi
+  __run_feature_hook__ __uninstall_run_package_pre
   logging__remove "Uninstalling package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
   __dep_uninstall__ run "${PACKAGE_MANIFEST:-os-pkg}"
-  if declare -f __uninstall_run_package_post > /dev/null; then
-    __uninstall_run_package_post
-  fi
+  __run_feature_hook__ __uninstall_run_package_post
 }
 
 __uninstall_run_upstream_package__() {
-  if declare -f __uninstall_run_upstream_package_pre > /dev/null; then
-    __uninstall_run_upstream_package_pre
-  fi
+  __run_feature_hook__ __uninstall_run_upstream_package_pre
   logging__remove "Uninstalling upstream-package dependencies."
   __dep_uninstall__ run upstream-package
-  if declare -f __uninstall_run_upstream_package_post > /dev/null; then
-    __uninstall_run_upstream_package_post
-  fi
+  __run_feature_hook__ __uninstall_run_upstream_package_post
 }
 
 __uninstall_run_git_clone__() {
-  if declare -f __uninstall_run_git_clone_pre > /dev/null; then
-    __uninstall_run_git_clone_pre
-  fi
+  __run_feature_hook__ __uninstall_run_git_clone_pre
   if [[ -z "${_FEAT_EXISTING_PATH:-}" ]]; then
     logging__skip "_FEAT_EXISTING_PATH empty; nothing to remove for git-clone uninstall."
     return 0
   fi
   logging__remove "Removing git-clone directory '${_FEAT_EXISTING_PATH}'."
   file__rm -rf "${_FEAT_EXISTING_PATH}"
-  if declare -f __uninstall_run_git_clone_post > /dev/null; then
-    __uninstall_run_git_clone_post
-  fi
+  __run_feature_hook__ __uninstall_run_git_clone_post
 }
 
 __uninstall_shell_completions__() {
@@ -691,14 +664,12 @@ __cleanup_install_artifacts__() {
     file__rm -d "${_FEAT_SHARE_DIR_NONROOT}" 2>/dev/null || true
   fi
   # 6. Feature-specific post-cleanup hook.
-  if declare -f __uninstall_finish_post > /dev/null; then __uninstall_finish_post; fi
+  __run_feature_hook__ __uninstall_finish_post
 }
 
 __uninstall_finish__() {
 
-  if declare -f __uninstall_finish_pre > /dev/null; then
-    __uninstall_finish_pre
-  fi
+  __run_feature_hook__ __uninstall_finish_pre
 
   __cleanup_install_artifacts__
   _FEAT_EXISTING_PATH=""
@@ -709,28 +680,27 @@ __uninstall_finish__() {
 
 # Installation
 # ============
+# Lifecycle orchestration: logging__info/install at each phase; plain calls between steps
+# (set -eE + ERR/EXIT traps in __main__, inherit_errexit propagates into subshells).
+# Each call site uses: cmd; local _rc=$?; [[ $_rc == 0 ]] || { logging__error "ctx"; return "$_rc"; }
+# Never wrap lib calls in cmd || { … } — that disables errexit inside cmd.
 __install__() {
 
   logging__info "Starting install (METHOD='${METHOD:-unset}', VERSION='${VERSION:-unset}')."
 
-  if declare -f __install_pre > /dev/null; then
-    __install_pre
-  fi
+  __run_feature_hook__ __install_pre
 
   __install_init__
   __install_run__
   __install_finish__
 
-  if declare -f __install_post > /dev/null; then
-    __install_post
-  fi
+  __run_feature_hook__ __install_post
 }
 
 __install_init__() {
+  logging__debug "Starting install initialization."
 
-  if declare -f __install_init_pre > /dev/null; then
-    __install_init_pre
-  fi
+  __run_feature_hook__ __install_init_pre
 
   __verify_system_requirements__
   __resolve_input_method__
@@ -738,18 +708,14 @@ __install_init__() {
   __resolve_input_prefixes__
   __dep_install_base__
 
-  if declare -f __install_init_post > /dev/null; then
-    __install_init_post
-  fi
+  __run_feature_hook__ __install_init_post
 }
 
 __install_run__() {
   # Dispatches to the auto-implementation for each METHOD. Override
   # __install_run_<method>__ or use __install_run_<method>_pre/_post for custom logic.
 
-  if declare -f __install_run_pre > /dev/null; then
-    __install_run_pre
-  fi
+  __run_feature_hook__ __install_run_pre
 
   if [[ -v METHOD ]]; then
     logging__install "Running install for METHOD='${METHOD}'."
@@ -792,9 +758,7 @@ __install_run__() {
     return 1
   fi
 
-  if declare -f __install_run_post > /dev/null; then
-    __install_run_post
-  fi
+  __run_feature_hook__ __install_run_post
 }
 
 # Populate <out_arr> with (--sha256 <hex>) when VERSION_RESOLUTION is GitHub-based
@@ -822,9 +786,7 @@ __github_release_sha256_args__() {
 }
 
 __install_run_binary__() {
-  if declare -f __install_run_binary_pre > /dev/null; then
-    __install_run_binary_pre
-  fi
+  __run_feature_hook__ __install_run_binary_pre
   if [[ -v BINARY_ASSET_URI && -n "${BINARY_ASSET_URI}" ]]; then
     if [[ ! -v VERSION ]]; then
       logging__error "METHOD=binary asset URI requires a version option; VERSION is unset (missing options.version in metadata?)."
@@ -881,37 +843,25 @@ __install_run_binary__() {
     logging__error "METHOD=binary: no BINARY_ASSET_URI set (missing _options.method.binary in metadata?). Override __install_run_binary__ for a fully custom binary install."
     return 1
   fi
-  if declare -f __install_run_binary_post > /dev/null; then
-    __install_run_binary_post
-  fi
+  __run_feature_hook__ __install_run_binary_post
 }
 
 __install_run_package__() {
-  if declare -f __install_run_package_pre > /dev/null; then
-    __install_run_package_pre
-  fi
+  __run_feature_hook__ __install_run_package_pre
   logging__install "Installing package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
   __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}"
-  if declare -f __install_run_package_post > /dev/null; then
-    __install_run_package_post
-  fi
+  __run_feature_hook__ __install_run_package_post
 }
 
 __install_run_upstream_package__() {
-  if declare -f __install_run_upstream_package_pre > /dev/null; then
-    __install_run_upstream_package_pre
-  fi
+  __run_feature_hook__ __install_run_upstream_package_pre
   logging__install "Installing upstream-package dependencies."
   __dep_install__ run upstream-package
-  if declare -f __install_run_upstream_package_post > /dev/null; then
-    __install_run_upstream_package_post
-  fi
+  __run_feature_hook__ __install_run_upstream_package_post
 }
 
 __install_run_script__() {
-  if declare -f __install_run_script_pre > /dev/null; then
-    __install_run_script_pre
-  fi
+  __run_feature_hook__ __install_run_script_pre
 
   local _script_path
   if [[ -v SCRIPT_ASSET_URI && -n "${SCRIPT_ASSET_URI}" ]]; then
@@ -937,7 +887,9 @@ __install_run_script__() {
       "${_sha256_args[@]+"${_sha256_args[@]}"}" \
       "${_sidecar_args[@]+"${_sidecar_args[@]}"}" \
       "${_installer_dir_arg[@]+"${_installer_dir_arg[@]}"}" \
-      "${_netrc_arg[@]+"${_netrc_arg[@]}"}")" || return 1
+      "${_netrc_arg[@]+"${_netrc_arg[@]}"}")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || { logging__error "failed to download release asset '${_asset_uri}'."; return "$_rc"; }
     _script_path="${_asset_dir}/${_asset_name}"
   else
     logging__error "METHOD=script: no SCRIPT_ASSET_URI set (missing _options.method.script in metadata?). Override __install_run_script__ for a fully custom script install."
@@ -946,8 +898,9 @@ __install_run_script__() {
 
   logging__launch "Running install script '${_script_path}'."
   if declare -f __install_run_script_run > /dev/null; then
-    __install_run_script_run "${_script_path}"
+    __run_feature_hook__ __install_run_script_run "${_script_path}"
   else
+    logging__debug "No feature hook '__install_run_script_run' found; running script directly."
     local -a _all_script_args=("${SCRIPT_ARGS[@]+"${SCRIPT_ARGS[@]}"}")
     if [[ -v _FEAT_INSTALL_SCRIPT_ARGS ]]; then
       _all_script_args+=("${_FEAT_INSTALL_SCRIPT_ARGS[@]+"${_FEAT_INSTALL_SCRIPT_ARGS[@]}"}")
@@ -955,9 +908,7 @@ __install_run_script__() {
     "${_script_path}" "${_all_script_args[@]+"${_all_script_args[@]}"}"
   fi
 
-  if declare -f __install_run_script_post > /dev/null; then
-    __install_run_script_post
-  fi
+  __run_feature_hook__ __install_run_script_post
 }
 
 __install_run_cargo__() {
@@ -977,9 +928,7 @@ __install_run_cargo__() {
   #   any additional args (e.g. --force, --locked, --no-confirm).
   #   Appended after the standard args above.
 
-  if declare -f __install_run_cargo_pre > /dev/null; then
-    __install_run_cargo_pre
-  fi
+  __run_feature_hook__ __install_run_cargo_pre
 
   if [[ -z "${CARGO_CRATE:-}" ]]; then
     logging__error "METHOD=cargo: no CARGO_CRATE set (missing _options.method.cargo in metadata?). Override __install_run_cargo__ for a fully custom cargo install."
@@ -1012,15 +961,11 @@ __install_run_cargo__() {
   logging__install "Installing cargo crate '${CARGO_CRATE}' via '${_cargo_cmd[*]}'."
   "${_cargo_cmd[@]}" "${CARGO_CRATE}" "${_cargo_args[@]+"${_cargo_args[@]}"}"
 
-  if declare -f __install_run_cargo_post > /dev/null; then
-    __install_run_cargo_post
-  fi
+  __run_feature_hook__ __install_run_cargo_post
 }
 
 __install_run_npm__() {
-  if declare -f __install_run_npm_pre > /dev/null; then
-    __install_run_npm_pre
-  fi
+  __run_feature_hook__ __install_run_npm_pre
   if [[ -z "${NPM_PACKAGE:-}" ]]; then
     logging__error "METHOD=npm: no NPM_PACKAGE set (missing _options.method.npm in metadata?). Override __install_run_npm__ for a fully custom npm install."
     return 1
@@ -1044,9 +989,7 @@ __install_run_npm__() {
   logging__install "Installing npm package '${_pkg}'."
   npm "${_install_args[@]}"
 
-  if declare -f __install_run_npm_post > /dev/null; then
-    __install_run_npm_post
-  fi
+  __run_feature_hook__ __install_run_npm_post
 }
 
 __install_run_npm_bundled__() {
@@ -1063,9 +1006,7 @@ __install_run_npm_bundled__() {
   # Use __install_run_npm_bundled_pre for pre-install setup (e.g. dep installs).
   # Override __install_run_npm_bundled__ entirely for full control.
 
-  if declare -f __install_run_npm_bundled_pre > /dev/null; then
-    __install_run_npm_bundled_pre
-  fi
+  __run_feature_hook__ __install_run_npm_bundled_pre
 
   if [[ -z "${NPM_PACKAGE:-}" ]]; then
     logging__error "METHOD=npm-bundled: no NPM_PACKAGE set (missing _options.method.npm-bundled in metadata?). Override __install_run_npm_bundled__ for a fully custom npm-bundled install."
@@ -1087,9 +1028,7 @@ __install_run_npm_bundled__() {
     "${_registry_arg[@]+"${_registry_arg[@]}"}" \
     "${_flags[@]+"${_flags[@]}"}"
 
-  if declare -f __install_run_npm_bundled_post > /dev/null; then
-    __install_run_npm_bundled_post
-  fi
+  __run_feature_hook__ __install_run_npm_bundled_post
 }
 
 __install_run_source__() {
@@ -1113,9 +1052,7 @@ __install_run_source__() {
   # that cannot be expressed in _dependencies.build).  Override
   # __install_run_source__ entirely only when you need a fully custom fetch+build.
 
-  if declare -f __install_run_source_pre > /dev/null; then
-    __install_run_source_pre
-  fi
+  __run_feature_hook__ __install_run_source_pre
 
   if [[ ! -v SOURCE_ASSET_URI || -z "${SOURCE_ASSET_URI}" ]]; then
     logging__error "METHOD=source: no SOURCE_ASSET_URI set (missing _options.method.source.asset_uri in metadata?). Override __install_run_source__ for a fully custom source install."
@@ -1145,14 +1082,13 @@ __install_run_source__() {
 
   logging__build "Building source from '${_src_dir}' (SOURCE_BUILD_SYSTEM='${SOURCE_BUILD_SYSTEM:-unset}')."
   if declare -f __install_run_source_build > /dev/null; then
-    __install_run_source_build "${_src_dir}"
+    __run_feature_hook__ __install_run_source_build "${_src_dir}"
   else
+    logging__debug "No feature hook '__install_run_source_build' found; using auto-build."
     __install_run_source_auto_build__ "${_src_dir}"
   fi
 
-  if declare -f __install_run_source_post > /dev/null; then
-    __install_run_source_post
-  fi
+  __run_feature_hook__ __install_run_source_post
 }
 
 __install_run_source_auto_build__() {
@@ -1252,7 +1188,7 @@ _git_clone_apply_config() {
     _val="${_pair#*=}"
     _val="${_val//\{VERSION\}/${_ver}}"
     [[ -n "${_val}" ]] || {
-      logging__warn "_git_clone_apply_config: skipping config key '${_pair%%=*}' — value is empty after VERSION substitution."
+      logging__warn "skipping config key '${_pair%%=*}' — value is empty after VERSION substitution."
       continue
     }
     _expanded+=("${_pair%%=*}=${_val}")
@@ -1266,9 +1202,7 @@ _git_clone_apply_config() {
 }
 
 __install_run_git_clone__() {
-  if declare -f __install_run_git_clone_pre > /dev/null; then
-    __install_run_git_clone_pre
-  fi
+  __run_feature_hook__ __install_run_git_clone_pre
   if [[ -z "${GIT_CLONE_URI:-}" ]]; then
     logging__error "METHOD=git-clone: GIT_CLONE_URI not set (missing _options.method.git-clone.uri in metadata?)."
     return 1
@@ -1286,9 +1220,7 @@ __install_run_git_clone__() {
   logging__install "Cloning '${_uri}' into '${_RESOLVED_PREFIX}' (ref='${VERSION:-HEAD}')."
   git__clone --url "${_uri}" --dir "${_RESOLVED_PREFIX}" "${_ref_arg[@]+"${_ref_arg[@]}"}" "${_sha_arg[@]+"${_sha_arg[@]}"}"
   _git_clone_apply_config "${_RESOLVED_PREFIX}" "${VERSION:-}"
-  if declare -f __install_run_git_clone_post > /dev/null; then
-    __install_run_git_clone_post
-  fi
+  __run_feature_hook__ __install_run_git_clone_post
 }
 
 __install_register_dummy__() {
@@ -1422,9 +1354,7 @@ __feat_build_prefix_disc_args__() {
 
 __install_finish__() {
 
-  if declare -f __install_finish_pre > /dev/null; then
-    __install_finish_pre
-  fi
+  __run_feature_hook__ __install_finish_pre
 
   if [[ -v PREFIX ]] && __feat_prefix_applies__; then
     # -- discovery --
@@ -1471,9 +1401,7 @@ __install_finish__() {
   ${{ _script.shell_completions_call }}$
   __deploy_lifecycle_scripts__
 
-  if declare -f __install_finish_post > /dev/null; then
-    __install_finish_post
-  fi
+  __run_feature_hook__ __install_finish_post
   logging__success "Installation complete."
 }
 
@@ -1483,42 +1411,33 @@ __reinstall__() {
 
   logging__info "Starting reinstall (path='${_FEAT_EXISTING_PATH:-}', method='${_FEAT_EXISTING_METHOD:-}')."
 
-  if declare -f __reinstall_pre > /dev/null; then
-    __reinstall_pre
-  fi
+  __run_feature_hook__ __reinstall_pre
 
   __reinstall_init__
   __reinstall_run__
   __reinstall_finish__
 
-  if declare -f __reinstall_post > /dev/null; then
-    __reinstall_post
-  fi
+  __run_feature_hook__ __reinstall_post
 }
 
 __reinstall_init__() {
+  logging__debug "Starting reinstall initialization."
 
-  if declare -f __reinstall_init_pre > /dev/null; then
-    __reinstall_init_pre
-  fi
+  __run_feature_hook__ __reinstall_init_pre
 
   __verify_system_requirements__
   __resolve_input_method__
   __resolve_input_version__
   __resolve_input_prefixes__
 
-  if declare -f __reinstall_init_post > /dev/null; then
-    __reinstall_init_post
-  fi
+  __run_feature_hook__ __reinstall_init_post
 }
 
 __reinstall_run__() {
   # Uninstall the existing installation (if any) then perform a fresh install.
   # Called when if_exists=reinstall. _FEAT_EXISTING_PATH is guaranteed non-empty.
 
-  if declare -f __reinstall_run_pre > /dev/null; then
-    __reinstall_run_pre
-  fi
+  __run_feature_hook__ __reinstall_run_pre
 
   logging__info "Reinstall: uninstalling existing installation before fresh install."
   __uninstall_run__
@@ -1527,22 +1446,16 @@ __reinstall_run__() {
   __install_run__
   __install_finish__
 
-  if declare -f __reinstall_run_post > /dev/null; then
-    __reinstall_run_post
-  fi
+  __run_feature_hook__ __reinstall_run_post
 }
 
 __reinstall_finish__() {
 
-  if declare -f __reinstall_finish_pre > /dev/null; then
-    __reinstall_finish_pre
-  fi
+  __run_feature_hook__ __reinstall_finish_pre
 
   logging__success "Reinstallation complete."
 
-  if declare -f __reinstall_finish_post > /dev/null; then
-    __reinstall_finish_post
-  fi
+  __run_feature_hook__ __reinstall_finish_post
 }
 
 # Update
@@ -1607,25 +1520,20 @@ __update__() {
 
   logging__info "Starting update (path='${_FEAT_EXISTING_PATH:-}', method='${_FEAT_EXISTING_METHOD:-}', target METHOD='${METHOD:-unset}', VERSION='${VERSION:-unset}')."
 
-  if declare -f __update_pre > /dev/null; then
-    __update_pre
-  fi
+  __run_feature_hook__ __update_pre
 
   __update_init__
   __update_predispatch__ || __update_run__
   __install_finish__
   __update_finish__
 
-  if declare -f __update_post > /dev/null; then
-    __update_post
-  fi
+  __run_feature_hook__ __update_post
 }
 
 __update_init__() {
+  logging__debug "Starting update initialization."
 
-  if declare -f __update_init_pre > /dev/null; then
-    __update_init_pre
-  fi
+  __run_feature_hook__ __update_init_pre
 
   __verify_system_requirements__
   __resolve_input_method__
@@ -1633,9 +1541,7 @@ __update_init__() {
   __resolve_input_prefixes__
   __dep_install_base__ --update
 
-  if declare -f __update_init_post > /dev/null; then
-    __update_init_post
-  fi
+  __run_feature_hook__ __update_init_post
 }
 
 __update_run__() {
@@ -1657,9 +1563,7 @@ __update_run__() {
   # For tools with their own update mechanism (e.g. pixi self-update, rustup
   # update), use __update_run_pre or override __update_run__ entirely.
 
-  if declare -f __update_run_pre > /dev/null; then
-    __update_run_pre
-  fi
+  __run_feature_hook__ __update_run_pre
 
   if [[ ! -v METHOD ]]; then
     logging__fatal "Update without METHOD; overwrite __update_run__."
@@ -1685,50 +1589,34 @@ __update_run__() {
       ;;
   esac
 
-  if declare -f __update_run_post > /dev/null; then
-    __update_run_post
-  fi
+  __run_feature_hook__ __update_run_post
 }
 
 __update_run_migrate__() {
-  if declare -f __update_run_migrate_pre > /dev/null; then
-    __update_run_migrate_pre
-  fi
+  __run_feature_hook__ __update_run_migrate_pre
   logging__info "Installation method changing from '${_FEAT_EXISTING_METHOD}' to '${METHOD}'; uninstalling before reinstalling."
   __uninstall_run__
   __uninstall_finish__
   __install_run__
-  if declare -f __update_run_migrate_post > /dev/null; then
-    __update_run_migrate_post
-  fi
+  __run_feature_hook__ __update_run_migrate_post
 }
 
 __update_run_package__() {
-  if declare -f __update_run_package_pre > /dev/null; then
-    __update_run_package_pre
-  fi
+  __run_feature_hook__ __update_run_package_pre
   logging__install "Updating package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
   __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}" --update
-  if declare -f __update_run_package_post > /dev/null; then
-    __update_run_package_post
-  fi
+  __run_feature_hook__ __update_run_package_post
 }
 
 __update_run_upstream_package__() {
-  if declare -f __update_run_upstream_package_pre > /dev/null; then
-    __update_run_upstream_package_pre
-  fi
+  __run_feature_hook__ __update_run_upstream_package_pre
   logging__install "Updating upstream-package dependencies."
   __dep_install__ run upstream-package --update
-  if declare -f __update_run_upstream_package_post > /dev/null; then
-    __update_run_upstream_package_post
-  fi
+  __run_feature_hook__ __update_run_upstream_package_post
 }
 
 __update_run_git_clone__() {
-  if declare -f __update_run_git_clone_pre > /dev/null; then
-    __update_run_git_clone_pre
-  fi
+  __run_feature_hook__ __update_run_git_clone_pre
   local _ref_args=()
   [[ -v VERSION && -n "${VERSION}" ]] && _ref_args=(--ref "${VERSION}")
   local _sha_args=()
@@ -1736,36 +1624,65 @@ __update_run_git_clone__() {
   logging__install "Updating git-clone at '${_RESOLVED_PREFIX}' (ref='${VERSION:-HEAD}')."
   git__update "${_RESOLVED_PREFIX}" "${_ref_args[@]+"${_ref_args[@]}"}" "${_sha_args[@]+"${_sha_args[@]}"}"
   _git_clone_apply_config "${_RESOLVED_PREFIX}" "${VERSION:-}"
-  if declare -f __update_run_git_clone_post > /dev/null; then
-    __update_run_git_clone_post
-  fi
+  __run_feature_hook__ __update_run_git_clone_post
 }
 
 __update_finish__() {
 
-  if declare -f __update_finish_pre > /dev/null; then
-    __update_finish_pre
-  fi
+  __run_feature_hook__ __update_finish_pre
 
   logging__success "Update complete."
 
-  if declare -f __update_finish_post > /dev/null; then
-    __update_finish_post
-  fi
+  __run_feature_hook__ __update_finish_post
 }
 
 # Finalization
 # ============
+
+# Re-entrancy guard for __err__: prevents an infinite ERR trap loop if
+# logging__error itself triggers a failure.
+__ERR_TRAP_RUNNING=0
+
+__err__() {
+  local _rc=$?
+  # logging__error (from logging-api.sh) works before and after logging__setup —
+  # it buffers to the pending file until the mux is running. The only window
+  # where it is unavailable is before __init_lib__ sources the library.
+  if ! declare -f logging__error > /dev/null 2>&1; then
+    exit "$_rc"
+  fi
+  (( __ERR_TRAP_RUNNING )) && exit "$_rc"
+  __ERR_TRAP_RUNNING=1
+  # In bash 4.4+, inside an ERR trap:
+  #   BASH_LINENO[0]  — line of the failing command in BASH_SOURCE[1]
+  #   FUNCNAME[i]     — call stack (index 0 = __err__ itself; skip it)
+  #   BASH_SOURCE[i]  — parallel source-file array
+  #   BASH_LINENO[i]  — line in BASH_SOURCE[i+1] where FUNCNAME[i] was called
+  # ($LINENO is the current line within __err__, not the failing command — do not use it.)
+  local _src _fn _line _trace="" _i
+  _src="$(basename "${BASH_SOURCE[1]:-"?"}")"
+  _fn="${FUNCNAME[1]:-main}"
+  _line="${BASH_LINENO[0]:-?}"
+  for (( _i = 1; _i < ${#FUNCNAME[@]}; _i++ )); do
+    [[ -n "$_trace" ]] && _trace+=" ← "
+    _trace+="${FUNCNAME[$_i]:-main}($(basename "${BASH_SOURCE[$_i]:-?}"):${BASH_LINENO[$((_i - 1))]})"
+  done
+  logging__error "command failed (exit ${_rc}) at ${_src}:${_line} in ${_fn}: ${BASH_COMMAND}"
+  logging__debug "  stack: ${_trace}"
+  exit "$_rc"
+}
+
 __exit__() {
   # Capture status before trap - EXIT: `trap -` resets $? to 0.
   local _rc=$?
   trap - EXIT ERR
   set +e
 
-  if ! declare -f logging__on_early_exit > /dev/null 2>&1 || ! logging__on_early_exit; then
-    if declare -f file__session_cleanup > /dev/null 2>&1; then
-      file__session_cleanup
-    fi
+  # Flush pending POSIX-phase messages (logged before logging__setup) to stderr
+  # on early exit; no-op once the mux has taken over or already flushed.
+  declare -f logging__finalize_parse_buffer > /dev/null 2>&1 && logging__finalize_parse_buffer
+  if ! declare -f logging__is_setup > /dev/null 2>&1 || ! logging__is_setup; then
+    declare -f file__session_cleanup > /dev/null 2>&1 && file__session_cleanup
     return "$_rc"
   fi
 
@@ -1777,18 +1694,22 @@ __exit__() {
 
   # Define __exit_pre in the hand-written section
   # for feature-specific cleanup (e.g. removing temp files).
-  if declare -f __exit_pre > /dev/null; then __exit_pre; fi
+  __run_feature_hook__ --warn __exit_pre
 
   if [[ "${KEEP_CACHE:-true}" != true ]]; then
     if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
-      ospkg__clean
+      ospkg__clean || logging__warn "Package-manager cache cleanup failed."
     else
       logging__info "Skipping package-manager cache cleanup (no privilege available)."
     fi
   fi
 
-  [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && ospkg__cleanup_all_build_groups
-  [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && ospkg__cleanup_resources
+  if [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]]; then
+    ospkg__cleanup_all_build_groups || logging__warn "Build-dependency group cleanup failed."
+  fi
+  if [[ "${KEEP_BUILD_DEPS:-false}" != true ]]; then
+    ospkg__cleanup_resources || logging__warn "Tracked resource cleanup failed."
+  fi
   # Remove a PM-installed bootstrap bash when it is no longer needed.
   if [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && \
      [[ -n "${_BASH_INSTALLED_BY_PM:-}" ]]; then
@@ -1825,13 +1746,9 @@ __exit__() {
 # Helpers
 # =======
 __verify_system_requirements__() {
-  if declare -f __verify_system_requirements_pre > /dev/null; then
-    __verify_system_requirements_pre
-  fi
+  __run_feature_hook__ __verify_system_requirements_pre
   ${{ _script.system_requirements_guard }}$
-  if declare -f __verify_system_requirements_post > /dev/null; then
-    __verify_system_requirements_post
-  fi
+  __run_feature_hook__ __verify_system_requirements_post
 }
 
 __feat_check_version_match__() {
@@ -1866,14 +1783,10 @@ __feat_check_version_match__() {
 }
 
 __feat_do_configure_users__() {
-  if declare -f __feat_do_configure_users_pre > /dev/null; then
-    __feat_do_configure_users_pre
-  fi
+  __run_feature_hook__ __feat_do_configure_users_pre
   if ! declare -f __configure_user > /dev/null; then
     logging__skip "__configure_user not defined; skipping user configuration."
-    if declare -f __feat_do_configure_users_post > /dev/null; then
-      __feat_do_configure_users_post
-    fi
+    __run_feature_hook__ __feat_do_configure_users_post
     return 0
   fi
 
@@ -1903,13 +1816,9 @@ __feat_do_configure_users__() {
       logging__warn "User '${_user}' not found; skipping configuration."
       continue
     fi
-    if ! __configure_user "${_user}"; then
-      logging__warn "__configure_user '${_user}' failed; continuing."
-    fi
+    __run_feature_hook__ --warn __configure_user "${_user}"
   done
-  if declare -f __feat_do_configure_users_post > /dev/null; then
-    __feat_do_configure_users_post
-  fi
+  __run_feature_hook__ __feat_do_configure_users_post
   return
 }
 
@@ -1931,10 +1840,18 @@ __resolve_input_method__() {
     return 0
   }
   if declare -f __resolve_method > /dev/null; then
+    logging__debug "Executing feature hook '__resolve_method'."
     METHOD="$(__resolve_method)"
+    local _rc=$?
+    if [[ $_rc == 0 ]]; then
+      logging__debug "Feature hook '__resolve_method' executed successfully."
+    else
+      logging__error "Feature hook '__resolve_method' failed."
+      return "$_rc"
+    fi
     logging__info "Resolved METHOD=auto → '${METHOD}'."
   else
-    logging__error "METHOD=auto requires __resolve_method to be defined; none found."
+    logging__error "METHOD=auto requires '__resolve_method' to be defined; none found."
     return 1
   fi
   # Auto-register installed-version probe for git-clone when resolved to git-clone.
@@ -1998,9 +1915,7 @@ __resolve_input_version__() {
   #   VERSION             Concrete resolved version string (e.g. "1.7.1").
   #   _FEAT_RESOLVED_TAG  Full release or git tag when resolved via GitHub
   #                       (e.g. "v1.7.1", "jq-1.7.1"); empty string otherwise.
-  if declare -f __resolve_input_version_pre > /dev/null; then
-    __resolve_input_version_pre
-  fi
+  __run_feature_hook__ __resolve_input_version_pre
 
   declare -g _FEAT_RESOLVED_TAG=""
   declare -g _FEAT_RESOLVED_GIT_SHA=""
@@ -2010,15 +1925,21 @@ __resolve_input_version__() {
     else
       logging__skip "METHOD=package; skipping version resolution (package manager controls version)."
     fi
-    if declare -f __resolve_input_version_post > /dev/null; then
-      __resolve_input_version_post
-    fi
+    __run_feature_hook__ __resolve_input_version_post
     return 0
   fi
 
   if declare -f __resolve_version > /dev/null; then
-    logging__info "Resolving version via __resolve_version hook (spec='${VERSION:-}')."
+    logging__debug "Executing feature hook '__resolve_version'."
+    logging__info "Resolving version via '__resolve_version' hook (spec='${VERSION:-}')."
     VERSION="$(__resolve_version)"
+    local _rc=$?
+    if [[ $_rc == 0 ]]; then
+      logging__debug "Feature hook '__resolve_version' executed successfully."
+    else
+      logging__error "Feature hook '__resolve_version' failed."
+      return "$_rc"
+    fi
   else
     case "${VERSION_RESOLUTION:-}" in
       github_release | github_tag)
@@ -2029,7 +1950,9 @@ __resolve_input_version__() {
         local _endpoint="${VERSION_RESOLUTION#github_}"
         local _both
         logging__info "Resolving GitHub version (URI='${VERSION_URI}', spec='${VERSION}', endpoint='${_endpoint}')."
-        _both="$(github__resolve_version "${VERSION_URI}" "${VERSION}" --endpoint "${_endpoint}")" || return 1
+        _both="$(github__resolve_version "${VERSION_URI}" "${VERSION}" --endpoint "${_endpoint}")"
+        local _rc=$?
+        [[ $_rc == 0 ]] || { logging__error "failed to resolve GitHub version (URI='${VERSION_URI}', spec='${VERSION}')."; return "$_rc"; }
         _FEAT_RESOLVED_TAG="$(printf '%s\n' "${_both}" | head -1)"
         VERSION="$(printf '%s\n' "${_both}" | tail -1)"
         ;;
@@ -2039,7 +1962,9 @@ __resolve_input_version__() {
           return 1
         fi
         logging__info "Resolving npm version (URI='${VERSION_URI}', spec='${VERSION}')."
-        VERSION="$(npm__resolve_version_uri "${VERSION_URI}" "${VERSION}")" || return 1
+        VERSION="$(npm__resolve_version_uri "${VERSION_URI}" "${VERSION}")"
+        local _rc=$?
+        [[ $_rc == 0 ]] || { logging__error "failed to resolve npm version (URI='${VERSION_URI}', spec='${VERSION}')."; return "$_rc"; }
         ;;
       git_ref)
         # Resolve the named ref (branch/tag) to its current remote SHA via ls-remote.
@@ -2057,6 +1982,8 @@ __resolve_input_version__() {
         _git_ref_uri="$(os__expand_release_pattern "${GIT_CLONE_URI}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")"
         local _resolved
         _resolved="$(git__resolve_ref "${_git_ref_uri}" "${VERSION}")"
+        local _rc=$?
+        [[ $_rc == 0 ]] || { logging__error "failed to resolve git ref '${VERSION}' on '${_git_ref_uri}'."; return "$_rc"; }
         _FEAT_RESOLVED_GIT_SHA="${_resolved}"
         if [[ "${_resolved}" == "${VERSION}" ]]; then
           logging__info "Ref '${VERSION}' not found as a named ref on remote; treating as SHA."
@@ -2080,19 +2007,13 @@ __resolve_input_version__() {
     logging__info "Resolved version: '${VERSION}'."
   fi
 
-  if declare -f __resolve_input_version_post > /dev/null; then
-    __resolve_input_version_post
-  fi
+  __run_feature_hook__ __resolve_input_version_post
 }
 
 __resolve_input_prefixes__() {
-  if declare -f __resolve_input_prefixes_pre > /dev/null; then
-    __resolve_input_prefixes_pre
-  fi
+  __run_feature_hook__ __resolve_input_prefixes_pre
   __resolve_prefix__
-  if declare -f __resolve_input_prefixes_post > /dev/null; then
-    __resolve_input_prefixes_post
-  fi
+  __run_feature_hook__ __resolve_input_prefixes_post
   return
 }
 

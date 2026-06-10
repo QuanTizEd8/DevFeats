@@ -56,9 +56,11 @@ __update_run_package__() {
 
 __install_run_source_pre() {
   # Validates the build environment and installs build deps before download.
-  file__mkdir "${_RESOLVED_PREFIX}" || {
+  file__mkdir "${_RESOLVED_PREFIX}"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "PREFIX '${_RESOLVED_PREFIX}' could not be created (check privilege)."
-    return 1
+    return "$_rc"
   }
   if users__is_user_path "${_RESOLVED_PREFIX}" && [[ ! -w "${_RESOLVED_PREFIX}" ]]; then
     logging__error "PREFIX '${_RESOLVED_PREFIX}' is not writable."

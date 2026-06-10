@@ -71,7 +71,10 @@ proc__run_parallel() {
   for _i in "${!_labs[@]}"; do
     _lab="${_labs[$_i]}"
     read -r _r < "${_od}/${_lab}.ec" 2> /dev/null || _r=0
-    ((_r != 0 && _ec == 0)) && _ec=$_r
+    if ((_r != 0)); then
+      logging__error "subprocess '${_lab}' failed (exit ${_r})."
+      ((_ec == 0)) && _ec=$_r
+    fi
   done
   for _lab in "${_labs[@]}"; do
     [[ -f "${_od}/${_lab}.out" ]] && cat "${_od}/${_lab}.out"
@@ -108,14 +111,18 @@ proc__run_command_form() {
     logging__error "empty command JSON on stdin."
     return 1
   }
-  _json__ensure_jq || {
+  _json__ensure_jq
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "jq is required to parse command JSON."
-    return 1
+    return "$_rc"
   }
   local _t _s _k _v _ty _od
-  _t="$(printf '%s' "$_json" | json__query -r 'type' 2> /dev/null)" || {
+  _t="$(printf '%s' "$_json" | json__query -r 'type' 2> /dev/null)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "could not determine JSON type."
-    return 1
+    return "$_rc"
   }
 
   _rc() {

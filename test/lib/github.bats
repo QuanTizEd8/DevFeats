@@ -1318,6 +1318,8 @@ _stub_install_release_common() {
 
   github__release_json_digest_for_asset() { return 1; }
   export -f github__release_json_digest_for_asset
+  github__release_json_digest_from_uri() { return 1; }
+  export -f github__release_json_digest_from_uri
 
   file__detect_type() { printf 'elf'; }
   export -f file__detect_type
@@ -1350,6 +1352,24 @@ _stub_install_release_common() {
     return 0
   }
   export -f verify__gpg_detached
+}
+
+# install_release resolves JSON digest via github__release_json_digest_from_uri.
+_stub_github_json_digest_from_uri() {
+  github__release_json_digest_from_uri() {
+    printf '%s\n' "${_DIGEST:-${_JSON_HASH:-}}"
+    return 0
+  }
+  export -f github__release_json_digest_from_uri
+}
+
+# fetch_release_asset_tarball reads digest via _github__release_json_digest_for_asset.
+_stub_github_release_json_digest_for_asset() {
+  _github__release_json_digest_for_asset() {
+    printf '%s\n' "${_DIGEST}"
+    return 0
+  }
+  export -f _github__release_json_digest_for_asset
 }
 
 # --- Argument validation ---
@@ -1395,11 +1415,7 @@ _stub_install_release_common() {
   _stub_install_release_common
   _DIGEST="$_digest"
   export _DIGEST _VERIFY_SHA_CALLS
-  github__release_json_digest_for_asset() {
-    printf '%s\n' "$_DIGEST"
-    return 0
-  }
-  export -f github__release_json_digest_for_asset
+  _stub_github_json_digest_from_uri
 
   local _idir="${BATS_TEST_TMPDIR}/idir"
   mkdir -p "$_idir"
@@ -1488,11 +1504,7 @@ _stub_install_release_common() {
   _stub_install_release_common
   _DIGEST="$_digest"
   export _DIGEST
-  github__release_json_digest_for_asset() {
-    printf '%s\n' "$_DIGEST"
-    return 0
-  }
-  export -f github__release_json_digest_for_asset
+  _stub_github_json_digest_from_uri
 
   run github__install_release \
     --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}/" \
@@ -1522,11 +1534,7 @@ _stub_install_release_common() {
   _SHA_FAIL_UNTIL="${BATS_TEST_TMPDIR}/_fail_until"
   printf '2\n' > "$_SHA_FAIL_UNTIL"
   export _DIGEST _SHA_FAIL_UNTIL _VERIFY_SHA_CALLS
-  github__release_json_digest_for_asset() {
-    printf '%s\n' "$_DIGEST"
-    return 0
-  }
-  export -f github__release_json_digest_for_asset
+  _stub_github_json_digest_from_uri
   verify__sha() {
     printf '%s %s\n' "$1" "$2" >> "$_VERIFY_SHA_CALLS"
     local _c
@@ -1555,11 +1563,7 @@ _stub_install_release_common() {
   _DIGEST="$_digest"
   _ASSET_DL_COUNT="${BATS_TEST_TMPDIR}/_dl_count"
   export _DIGEST _ASSET_DL_COUNT
-  github__release_json_digest_for_asset() {
-    printf '%s\n' "$_DIGEST"
-    return 0
-  }
-  export -f github__release_json_digest_for_asset
+  _stub_github_json_digest_from_uri
   net__fetch_url_file() {
     case "$1" in
       *.sha256 | */SHA256SUMS | */sha256sum.txt) return 1 ;;
@@ -1624,11 +1628,7 @@ _stub_install_release_common() {
   _SIDECAR_URL="$_sidecar_url"
   _SIDECAR_HASH="$_sidecar_hash"
   export _JSON_HASH _SIDECAR_URL _SIDECAR_HASH
-  github__release_json_digest_for_asset() {
-    printf '%s\n' "$_JSON_HASH"
-    return 0
-  }
-  export -f github__release_json_digest_for_asset
+  _stub_github_json_digest_from_uri
   net__fetch_url_file() {
     if [ "$1" = "$_SIDECAR_URL" ]; then
       printf '%s  mybin\n' "$_SIDECAR_HASH" > "$2"
@@ -2321,11 +2321,7 @@ _stub_install_release_common() {
   _DIGEST="$_digest"
   _ASSET_DL_COUNT="${BATS_TEST_TMPDIR}/_asset_dl_count"
   export _DIGEST _ASSET_DL_COUNT _VERIFY_SHA_CALLS
-  github__release_json_digest_for_asset() {
-    printf '%s\n' "$_DIGEST"
-    return 0
-  }
-  export -f github__release_json_digest_for_asset
+  _stub_github_json_digest_from_uri
   net__fetch_url_file() {
     # Count downloads of the asset URL (not sidecar candidates or API calls)
     case "$1" in
@@ -2668,11 +2664,7 @@ _stub_install_release_common() {
   }
   export -f github__fetch_release_json
 
-  github__release_json_digest_for_asset() {
-    printf '%s\n' "$_DIGEST"
-    return 0
-  }
-  export -f github__release_json_digest_for_asset
+  _stub_github_release_json_digest_for_asset
 
   net__fetch_url_file() {
     printf 'data' > "$2"

@@ -60,8 +60,14 @@ npm__fetch_package_json() {
     _url="$(_npm__registry_url "$_base" "$_package")"
   fi
 
+  logging__download "Fetching npm package JSON for '${_package}'${_version:+@${_version}} from '${_base}'."
   _npm__registry_get "$_url" "$_dest"
-  return $?
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to fetch '${_package}'${_version:+@${_version}} from '${_url}'."
+    return "$_rc"
+  }
+  return 0
 }
 
 # @brief npm__dist_tags <package> [--registry <base>] — Print dist-tags for an npm package, one per line.
@@ -97,9 +103,11 @@ npm__dist_tags() {
   local _base="${_registry:-https://registry.npmjs.org}"
   local _json
   logging__download "Fetching dist-tags for npm package '${_package}' from '${_base}'."
-  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "-/package" "$_package" "dist-tags")")" || {
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "-/package" "$_package" "dist-tags")")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to fetch dist-tags for '${_package}'."
-    return 1
+    return "$_rc"
   }
   [ -n "$_json" ] || {
     logging__error "empty dist-tags response for '${_package}'."
@@ -155,9 +163,11 @@ npm__latest_version() {
   local -a _args=("$_package")
   [ -n "$_registry" ] && _args+=(--registry "$_registry")
   local _tags _ver
-  _tags="$(npm__dist_tags "${_args[@]}")" || {
+  _tags="$(npm__dist_tags "${_args[@]}")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "could not fetch dist-tags for '${_package}'."
-    return 1
+    return "$_rc"
   }
   _ver="$(printf '%s\n' "$_tags" | grep '^latest=' | sed 's/^latest=//')"
   [ -n "$_ver" ] || {
@@ -206,18 +216,22 @@ npm__versions() {
 
   local _base="${_registry:-https://registry.npmjs.org}"
   local _json
-  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "$_package")")" || {
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_base" "$_package")")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to fetch package metadata for '${_package}'."
-    return 1
+    return "$_rc"
   }
   [ -n "$_json" ] || {
     logging__error "empty package metadata for '${_package}'."
     return 1
   }
 
-  _json__ensure_jq || {
+  _json__ensure_jq
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "jq is required to list versions."
-    return 1
+    return "$_rc"
   }
 
   local _versions
@@ -275,9 +289,11 @@ npm__resolve_version_uri() {
   }
 
   local _json
-  _json="$(_npm__registry_get "$_uri")" || {
+  _json="$(_npm__registry_get "$_uri")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to fetch package document from '${_uri}'."
-    return 1
+    return "$_rc"
   }
   [ -n "$_json" ] || {
     logging__error "empty response from '${_uri}'."
@@ -312,9 +328,11 @@ npm__resolve_version_uri() {
       ;;
     latest)
       # Most recently published, including pre-releases.
-      _json__ensure_jq || {
+      _json__ensure_jq
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "jq is required to resolve 'latest' spec."
-        return 1
+        return "$_rc"
       }
       local _all_vers
       _all_vers="$(printf '%s\n' "$_json" | json__object_keys_stdin versions)" || _all_vers=""
@@ -326,9 +344,11 @@ npm__resolve_version_uri() {
       ;;
     [0-9]*)
       # Numeric prefix: find newest stable published version matching the prefix.
-      _json__ensure_jq || {
+      _json__ensure_jq
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "jq is required to resolve numeric spec '${_spec}'."
-        return 1
+        return "$_rc"
       }
       local _norm
       _norm="$(ver__extract_version --keep-suffix "$_spec")"
@@ -463,9 +483,12 @@ npm__install_package() {
     return 1
   }
 
-  _npm__ensure_npm || {
-    logging__error "npm__install_package: npm is required but could not be found or installed."
-    return 1
+  logging__install "Ensuring npm is available for package install."
+  _npm__ensure_npm
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "npm is required but could not be found or installed."
+    return "$_rc"
   }
 
   local -a _args=(-g)
@@ -511,9 +534,12 @@ npm__uninstall_package() {
     return 1
   }
 
-  _npm__ensure_npm || {
-    logging__error "npm__uninstall_package: npm is required but could not be found or installed."
-    return 1
+  logging__install "Ensuring npm is available for package uninstall."
+  _npm__ensure_npm
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "npm is required but could not be found or installed."
+    return "$_rc"
   }
 
   local -a _args=(-g)
@@ -622,13 +648,17 @@ npm__is_bundled() {
 npm__node_platform() {
   local _arch="${1:-$(os__arch)}"
   local _os _arch_token
-  _os="$(os__release_kernel)" || {
+  _os="$(os__release_kernel)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "unsupported kernel."
-    return 1
+    return "$_rc"
   }
-  _arch_token="$(os__release_arch "$_arch" --flavor node)" || {
+  _arch_token="$(os__release_arch "$_arch" --flavor node)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "unsupported architecture '${_arch}' for Node.js."
-    return 1
+    return "$_rc"
   }
   printf '%s\n' "${_os}-${_arch_token}"
 }
@@ -680,9 +710,11 @@ npm__resolve_node_version() {
       return 1
     }
   else
-    _index_json="$(net__fetch_url_stdout "https://nodejs.org/dist/index.json")" || {
+    _index_json="$(net__fetch_url_stdout "https://nodejs.org/dist/index.json")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to fetch nodejs.org/dist/index.json."
-      return 1
+      return "$_rc"
     }
   fi
 
@@ -804,8 +836,25 @@ npm__ensure_npm() {
 # Returns: 0 if npm is available (or was just installed), 1 otherwise.
 _npm__ensure_npm() {
   command -v npm > /dev/null 2>&1 && return 0
-  ospkg__install_user nodejs npm || ospkg__install_user nodejs || return 1
-  command -v npm > /dev/null 2>&1
+  logging__install "npm not found on PATH — installing nodejs/npm via OS package manager."
+  local _rc=0
+  set +e
+  ospkg__install_user nodejs npm
+  _rc=$?
+  if ((_rc != 0)); then
+    logging__install "Retrying nodejs-only install after nodejs+npm attempt failed."
+    ospkg__install_user nodejs
+    _rc=$?
+  fi
+  set -e
+  if ((_rc != 0)); then
+    logging__error "failed to install nodejs/npm."
+    return 1
+  fi
+  command -v npm > /dev/null 2>&1 || {
+    logging__error "npm still not available after install attempt."
+    return 1
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -823,9 +872,11 @@ _npm__bundled__pkg_tarball_url() {
   local _version="$2"
   local _registry="${3:-https://registry.npmjs.org}"
   local _json _url
-  _json="$(_npm__registry_get "$(_npm__registry_url "$_registry" "$_package" "$_version")")" || {
+  _json="$(_npm__registry_get "$(_npm__registry_url "$_registry" "$_package" "$_version")")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to fetch registry document for '${_package}@${_version}'."
-    return 1
+    return "$_rc"
   }
   [ -n "$_json" ] || {
     logging__error "empty registry document for '${_package}@${_version}'."
@@ -982,20 +1033,14 @@ npm__install_bundled() {
   # Resolve package version
   if [ -z "$_version" ] || [ "$_version" = "stable" ] || [ "$_version" = "latest" ]; then
     logging__info "Resolving ${_package} version..."
-    _version="$(npm__resolve_version "$_package" "${_version:-stable}" ${_registry:+--registry "$_registry"})" || {
-      logging__error "npm__install_bundled: could not resolve version for '${_package}'."
-      return 1
-    }
+    _version="$(npm__resolve_version "$_package" "${_version:-stable}" ${_registry:+--registry "$_registry"})"
   fi
   logging__info "${_package} package version: ${_version}"
 
   # Resolve Node.js version
   logging__info "Resolving Node.js (${_node_spec}) version..."
   local _node_version
-  _node_version="$(npm__resolve_node_version "$_node_spec")" || {
-    logging__error "npm__install_bundled: could not resolve Node.js version '${_node_spec}'."
-    return 1
-  }
+  _node_version="$(npm__resolve_node_version "$_node_spec")"
   logging__info "Node.js version: ${_node_version}"
 
   # In update mode, report what is changing relative to the current installation
@@ -1017,10 +1062,8 @@ npm__install_bundled() {
 
   # Resolve platform
   local _platform
-  _platform="$(npm__node_platform)" || {
-    logging__error "npm__install_bundled: unsupported platform."
-    return 1
-  }
+  logging__info "Resolving Node.js binary platform triple."
+  _platform="$(npm__node_platform)"
 
   # Node.js binaries from nodejs.org are glibc-linked; they will not run on Alpine (musl)
   if [ "$(os__platform)" = "alpine" ]; then
@@ -1043,15 +1086,19 @@ npm__install_bundled() {
     local _node_url="https://nodejs.org/dist/${_node_version}/${_node_tarball}"
     local _node_tmp
     _node_tmp="$(file__mktmpdir "npm-bundled-node")"
-    net__fetch_url_file "$_node_url" "${_node_tmp}/${_node_tarball}" || {
+    net__fetch_url_file "$_node_url" "${_node_tmp}/${_node_tarball}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to download Node.js from '${_node_url}'."
-      return 1
+      return "$_rc"
     }
     logging__info "Extracting Node.js ${_node_version}..."
     file__mkdir "${_node_version_dir}"
-    file__extract_archive "${_node_tmp}/${_node_tarball}" "${_node_version_dir}" --strip 1 || {
+    file__extract_archive "${_node_tmp}/${_node_tarball}" "${_node_version_dir}" --strip 1
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to extract Node.js tarball."
-      return 1
+      return "$_rc"
     }
   else
     logging__info "Node.js ${_node_version} already present; skipping download."
@@ -1064,21 +1111,27 @@ npm__install_bundled() {
   if [ ! -d "${_pkg_version_dir}/package" ]; then
     logging__info "Downloading ${_package}@${_version}..."
     local _pkg_tarball_url
-    _pkg_tarball_url="$(_npm__bundled__pkg_tarball_url "$_package" "$_version" "${_registry:-}")" || {
+    _pkg_tarball_url="$(_npm__bundled__pkg_tarball_url "$_package" "$_version" "${_registry:-}")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "could not get tarball URL for '${_package}@${_version}'."
-      return 1
+      return "$_rc"
     }
     local _pkg_tmp
     _pkg_tmp="$(file__mktmpdir "npm-bundled-pkg")"
-    net__fetch_url_file "$_pkg_tarball_url" "${_pkg_tmp}/pkg.tgz" || {
+    net__fetch_url_file "$_pkg_tarball_url" "${_pkg_tmp}/pkg.tgz"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to download package tarball from '${_pkg_tarball_url}'."
-      return 1
+      return "$_rc"
     }
     logging__info "Extracting ${_package}@${_version}..."
     file__mkdir "${_pkg_version_dir}"
-    file__extract_archive "${_pkg_tmp}/pkg.tgz" "${_pkg_version_dir}" || {
+    file__extract_archive "${_pkg_tmp}/pkg.tgz" "${_pkg_version_dir}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to extract package tarball."
-      return 1
+      return "$_rc"
     }
   else
     logging__info "${_package}@${_version} already present; skipping download."
@@ -1088,9 +1141,11 @@ npm__install_bundled() {
   file__ln -sfn "${_version}" "${_pkg_dir}/current"
 
   # Validate entry point exists (wrapper resolves it at runtime; this is a fail-fast check)
-  _npm__bundled__entry_point "${_pkg_version_dir}" "$_cmd" > /dev/null || {
+  _npm__bundled__entry_point "${_pkg_version_dir}" "$_cmd" > /dev/null
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "could not determine entry point for '${_cmd}' in '${_package}@${_version}'."
-    return 1
+    return "$_rc"
   }
 
   # Write shell wrapper
@@ -1200,9 +1255,11 @@ npm__uninstall_bundled() {
 
   # Derive prefix from --bin (also validates the layout via npm__is_bundled)
   if [ -n "$_bin" ]; then
-    npm__is_bundled "$_bin" || {
+    npm__is_bundled "$_bin"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "'${_bin}' is not a bundled npm installation."
-      return 1
+      return "$_rc"
     }
     local _real
     _real="$(file__canonical_path "$_bin")"

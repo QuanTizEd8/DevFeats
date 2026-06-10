@@ -48,9 +48,11 @@ verify__hash_file() {
   _verify__sha_dispatch "$_file" "$_algo" && return
   logging__info "sha${_algo}sum/shasum not found — installing coreutils."
   ospkg__install_tracked "lib-verify" coreutils
-  _verify__sha_dispatch "$_file" "$_algo" || {
+  _verify__sha_dispatch "$_file" "$_algo"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "no sha${_algo}sum or shasum available after coreutils install."
-    return 1
+    return "$_rc"
   }
 }
 
@@ -70,9 +72,11 @@ verify__sha() {
   local _algo="${3:-256}"
   local _actual
 
-  _actual="$(verify__hash_file "$_file" "$_algo")" || {
+  _actual="$(verify__hash_file "$_file" "$_algo")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "could not hash file '${_file}'."
-    return 1
+    return "$_rc"
   }
 
   if [ "$_expected" = "$_actual" ]; then
@@ -123,8 +127,8 @@ verify__sha_sidecar() {
 verify__gpg_ensure() {
   local _group="${1:-lib-verify}"
   command -v gpg > /dev/null 2>&1 && return 0
-  logging__info "gpg not found — installing gnupg."
-  ospkg__run --manifest "$_VERIFY__GPG_MANIFEST" --build-group "$_group" || return 1
+  logging__install "gpg not found — installing gnupg (manifest group '${_group}')."
+  ospkg__run --manifest "$_VERIFY__GPG_MANIFEST" --build-group "$_group"
   command -v gpg > /dev/null 2>&1 || {
     logging__error "gpg still not found after installing gnupg."
     return 1
@@ -159,9 +163,11 @@ verify__gpg_detached() {
     return 1
   }
 
-  verify__gpg_ensure "$_group" || {
+  verify__gpg_ensure "$_group"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "gpg is required for detached signature verification."
-    return 1
+    return "$_rc"
   }
 
   local _ghome
@@ -189,9 +195,11 @@ verify__gpg_detached() {
 #   [group_id]   Tracking group for auto-installing gpg (default: lib-verify).
 verify__gpg_dearmor_stream() {
   local _dest="$1" _group="${2:-lib-verify}"
-  verify__gpg_ensure "$_group" || {
+  verify__gpg_ensure "$_group"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "gpg is required to dearmor a key stream."
-    return 1
+    return "$_rc"
   }
   gpg --dearmor -o "$_dest"
 }
@@ -207,9 +215,11 @@ verify__gpg_dearmor_stream() {
 #   [group_id]     Tracking group for auto-installing gpg (default: lib-verify).
 verify__gpg_fetch_key_by_fingerprint() {
   local _fingerprint="$1" _dest="$2" _group="${3:-lib-verify}"
-  verify__gpg_ensure "$_group" || {
+  verify__gpg_ensure "$_group"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "gpg is required to fetch a key by fingerprint."
-    return 1
+    return "$_rc"
   }
   mkdir -p "$(dirname "$_dest")"
 

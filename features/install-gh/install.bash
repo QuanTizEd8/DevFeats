@@ -34,10 +34,7 @@ _gh__configure_user() {
   [ "${ADD_REMOTE_USER:-true}" != "true" ] && _gh_uargs+=(--remote false)
   [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _gh_uargs+=(--container false)
   for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gh_uargs+=(--user "$_u"); done
-  _users="$(users__resolve_list "${_gh_uargs[@]}")" || {
-    logging__warn "users__resolve_list failed; skipping per-user configuration."
-    return 0
-  }
+  _users="$(users__resolve_list "${_gh_uargs[@]}")"
   if [ -z "${_users}" ]; then
     logging__info "No users resolved; skipping per-user configuration."
     return 0
@@ -118,10 +115,7 @@ _gh__install_extensions() {
   [ "${ADD_REMOTE_USER:-true}" != "true" ] && _gh_uargs+=(--remote false)
   [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _gh_uargs+=(--container false)
   for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gh_uargs+=(--user "$_u"); done
-  _users="$(users__resolve_list "${_gh_uargs[@]}")" || {
-    logging__warn "users__resolve_list failed; skipping extension install."
-    return 0
-  }
+  _users="$(users__resolve_list "${_gh_uargs[@]}")"
   if [ -z "${_users}" ]; then
     logging__info "No users resolved; skipping extension install."
     return 0

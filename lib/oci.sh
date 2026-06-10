@@ -179,7 +179,9 @@ _oci__load_auth_map() {
 # Returns: 0 on success or when no credentials are configured, 1 on login failure.
 _oci__ensure_auth_for() {
   local _target="${1-}" _reg _usr _tok _tmp
-  oci__ensure_oras || return 1
+  oci__ensure_oras
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "'oras' is required but could not be set up."; return "$_rc"; }
   _reg="$(_oci__registry_from_ref_or_repo "$_target" 2> /dev/null || true)"
   [[ -n "$_reg" ]] || return 0
   [[ -n "${_OCI__AUTH_DONE[$_reg]+x}" ]] && return 0
@@ -228,7 +230,7 @@ oci__ensure_oras() {
     [[ -n "$_bin" ]] || _bin="$(command -v oras 2> /dev/null || true)"
   fi
   if [[ -z "$_bin" ]]; then
-    ospkg__install_tracked "lib-oci" oras >&2 || true
+    ospkg__install_tracked "lib-oci" oras >&2
     _bin="$(command -v oras 2> /dev/null || true)"
   fi
   [[ -n "$_bin" ]] || {
@@ -242,9 +244,11 @@ oci__ensure_oras() {
     logging__warn "could not determine oras version; continuing."
     return 0
   }
-  ver__semver_ge "$_ver" "$_OCI__ORAS_MIN_VERSION" || {
+  ver__semver_ge "$_ver" "$_OCI__ORAS_MIN_VERSION"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "oras version ${_ver} is below required ${_OCI__ORAS_MIN_VERSION}."
-    return 1
+    return "$_rc"
   }
   return 0
 }
@@ -259,7 +263,7 @@ oci__is_feature_ref_key() {
   _host="${_k%%/*}"
   _rest="${_k#*/}"
   [[ -n "$_host" && -n "$_rest" ]] || return 1
-  _oci__is_registry_host_like "$_host" || return 1
+  if ! _oci__is_registry_host_like "$_host"; then return 1; fi
   [[ "$_k" == *@sha256:* || "$_k" == *:* ]] || return 1
   return 0
 }
@@ -317,10 +321,14 @@ oci__list_tags() {
     logging__error "OCI repository reference is empty."
     return 1
   }
-  oci__ensure_oras || return 1
-  _oci__ensure_auth_for "$_repo" || {
+  oci__ensure_oras
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "'oras' is required but could not be set up."; return "$_rc"; }
+  _oci__ensure_auth_for "$_repo"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "OCI registry authentication failed for '${_repo}'."
-    return 1
+    return "$_rc"
   }
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_repo")"
   local _raw
@@ -381,7 +389,9 @@ oci__resolve_version() {
     return 1
   }
   local _tags _hi
-  _tags="$(oci__list_tags "$_repo")" || return 1
+  _tags="$(oci__list_tags "$_repo")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "failed to list tags for '${_repo}'."; return "$_rc"; }
 
   case "${_spec}" in
     "" | latest)
@@ -532,11 +542,15 @@ oci__pull_feature_tgz() {
     logging__error "requires <oci-ref> and <dest-tgz>."
     return 1
   }
-  oci__ensure_oras || return 1
+  oci__ensure_oras
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "'oras' is required but could not be set up."; return "$_rc"; }
   logging__download "Pulling OCI feature artifact '${_ref}'."
-  _oci__ensure_auth_for "$_ref" || {
+  _oci__ensure_auth_for "$_ref"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "OCI registry authentication failed for '${_ref}'."
-    return 1
+    return "$_rc"
   }
   IFS=$'\t' read -r _target _plain <<< "$(_oci__normalize_target "$_ref")"
   local _tmp
@@ -556,10 +570,9 @@ oci__pull_feature_tgz() {
     logging__error "no .tgz layer materialized for '${_ref}'."
     return 1
   }
-  if ! _oci__validate_feature_tgz "$_tgz"; then
-    logging__error "oci.sh: invalid feature artifact shape for '${_ref}'."
-    return 1
-  fi
+  _oci__validate_feature_tgz "$_tgz"
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "feature artifact validation failed for '${_ref}'."; return "$_rc"; }
   if [[ -n "$_expect_digest" && "$_expect_digest" == sha256:* ]]; then
     local _got
     _got="sha256:$(verify__hash_file "$_tgz" 2> /dev/null || true)"

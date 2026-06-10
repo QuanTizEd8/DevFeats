@@ -2,7 +2,7 @@
 
 # Feature entry point.
 #
-# Ensure bash >=4 is available, then hand off to the main install script.
+# Ensure bash >=4.4 is available, then hand off to the main install script.
 # POSIX-phase messages buffer via lib/logging-api.sh; install.bash replays them at
 # logging__setup once options (including log_level / log_file) are final.
 #
@@ -19,6 +19,22 @@ set -e
 . "$(dirname "$0")/lib/logging-api.sh"
 logging__pending_init
 
+_bash_is_44() {
+  # Return 0 if bash >=4.4. Without argument: test the current shell by parsing
+  # $BASH_VERSION (only call when BASH_VERSION is set). With argument: spawn the
+  # given binary as a subshell and evaluate BASH_VERSINFO directly — no string
+  # join/split needed.
+  if [ -z "${1:-}" ]; then
+    _vmaj="${BASH_VERSION%%.*}"
+    _vmin="${BASH_VERSION#*.}"
+    _vmin="${_vmin%%.*}"
+    [ "${_vmaj:-0}" -gt 4 ] || { [ "${_vmaj:-0}" -eq 4 ] && [ "${_vmin:-0}" -ge 4 ]; }
+  else
+    # shellcheck disable=SC2016
+    "$1" -c '[ "${BASH_VERSINFO[0]}" -gt 4 ] || { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -ge 4 ]; }' 2>/dev/null
+  fi
+}
+
 _ensure_bash4() {
   # Case 1: already running in a compatible bash (invoked as 'bash install.sh').
   # $BASH is the path bash used to start itself; resolve it to absolute before
@@ -33,22 +49,19 @@ _ensure_bash4() {
   # (< <(...)) and causing a syntax error.  Fall through to Case 2 instead,
   # which resolves the proper 'bash'-named binary.
   _BASH_BIN=""
-  if [ -n "${BASH_VERSION:-}" ]; then
-    _v="${BASH_VERSION%%.*}"
-    if [ "${_v:-0}" -ge 4 ]; then
-      case "${BASH:-}" in
-        /*)
-          _BASH_BIN="$BASH"
-          ;;
-        ?*/*)
-          _BASH_BIN="$(cd "$(dirname "$BASH")" 2> /dev/null && pwd)/$(basename "$BASH")"
-          [ -x "$_BASH_BIN" ] || _BASH_BIN=""
-          ;;
-      esac
-      # Reject if the resolved binary's basename isn't 'bash' — a 'sh'-named
-      # binary runs in POSIX mode regardless of the version.
-      [ "${_BASH_BIN##*/}" = "bash" ] || _BASH_BIN=""
-    fi
+  if [ -n "${BASH_VERSION:-}" ] && _bash_is_44; then
+    case "${BASH:-}" in
+      /*)
+        _BASH_BIN="$BASH"
+        ;;
+      ?*/*)
+        _BASH_BIN="$(cd "$(dirname "$BASH")" 2> /dev/null && pwd)/$(basename "$BASH")"
+        [ -x "$_BASH_BIN" ] || _BASH_BIN=""
+        ;;
+    esac
+    # Reject if the resolved binary's basename isn't 'bash' — a 'sh'-named
+    # binary runs in POSIX mode regardless of the version.
+    [ "${_BASH_BIN##*/}" = "bash" ] || _BASH_BIN=""
   fi
 
   # Case 2: compatible bash already on the system.
@@ -66,11 +79,11 @@ _ensure_bash4() {
   if [ -z "$_BASH_BIN" ]; then
     _pm="$(_detect_pm 2> /dev/null)" || _pm=""
     if [ -z "$_pm" ]; then
-      logging__error "bash >=4 unavailable: no compatible bash, build tools, or package manager found."
+      logging__error "bash >=4.4 unavailable: no compatible bash, build tools, or package manager found."
       exit 1
     fi
     if _pm_needs_root "$_pm" && ! _can_sudo; then
-      logging__error "bash >=4 unavailable: '${_pm}' requires root or passwordless sudo, neither available."
+      logging__error "bash >=4.4 unavailable: '${_pm}' requires root or passwordless sudo, neither available."
       exit 1
     fi
     _BASH_BIN="$(_install_bash_pkg "$_pm")" || _BASH_BIN=""
@@ -78,7 +91,7 @@ _ensure_bash4() {
   fi
 
   if [ -z "$_BASH_BIN" ]; then
-    logging__error "bash >=4 could not be obtained."
+    logging__error "bash >=4.4 could not be obtained."
     exit 1
   fi
 
@@ -88,14 +101,14 @@ _ensure_bash4() {
   # environment before exec so install.bash inherits a clean namespace.
   # _BASH_BIN, _BASH_INSTALLED_INTERNALLY, and _BASH_INSTALLED_BY_PM are
   # intentionally kept — install.bash reads them in __init__ / __exit__.
-  unset -f _have _can_sudo _run_privileged _find_bash4 _ensure_xcode_clt \
+  unset -f _bash_is_44 _have _can_sudo _run_privileged _find_bash4 _ensure_xcode_clt \
     _can_compile _compile_bash _detect_pm _pm_needs_root \
     _install_bash_pkg _ensure_bash4
-  unset _v _pm _c _b _ipm _pkg _BASH_VER _BASH_URL _tmpdir _bash_bin _dest_dir
+  unset _vmaj _vmin _pm _c _b _v _ipm _pkg _BASH_VER _BASH_URL _tmpdir _bash_bin _dest_dir
 }
 
 _find_bash4() {
-  # Print the path to the first bash >=4 found; return 1 if none.
+  # Print the path to the first bash >=4.4 found; return 1 if none.
   #
   # Probes $PATH first, then well-known install prefixes so that a just-installed
   # bash (e.g. Homebrew's /opt/homebrew/bin/bash) is discovered even in a shell
@@ -110,12 +123,9 @@ _find_bash4() {
     "${HOME:-/root}/.nix-profile/bin/bash" \
     /nix/var/nix/profiles/default/bin/bash; do
     command -v "$_c" > /dev/null 2>&1 || continue
-    # shellcheck disable=SC2016
-    _v=$("$_c" -c 'echo ${BASH_VERSINFO[0]}' 2> /dev/null) || continue
-    [ "${_v:-0}" -ge 4 ] && {
-      command -v "$_c"
-      return 0
-    }
+    _bash_is_44 "$_c" || continue
+    command -v "$_c"
+    return 0
   done
   return 1
 }
@@ -131,7 +141,7 @@ _compile_bash() {
   _BASH_VER="5.3"
   _BASH_URL="https://ftp.gnu.org/gnu/bash/bash-${_BASH_VER}.tar.gz"
 
-  logging__inspect "bash >=4 not found — compiling bash ${_BASH_VER} from source."
+  logging__inspect "bash >=4.4 not found — compiling bash ${_BASH_VER} from source."
 
   # macOS: Xcode CLT provides make and cc; install it headlessly if absent.
   [ "$(uname -s)" = "Darwin" ] && _ensure_xcode_clt
@@ -240,7 +250,7 @@ _install_bash_pkg() {
   esac
   # Locate the newly installed bash — all destinations are already in _find_bash4's probe list.
   _b="$(_find_bash4 2> /dev/null)" || {
-    logging__error "bash >=4 not found after installing via ${_ipm}."
+    logging__error "bash >=4.4 not found after installing via ${_ipm}."
     return 1
   }
   echo "$_b"

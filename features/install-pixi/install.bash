@@ -16,8 +16,11 @@ __resolve_method() {
 # only runs when a version update is actually needed.
 # shellcheck disable=SC2329,SC2317
 __update_run__() {
-  logging__info "Updating pixi to version '${VERSION}' via self-update."
-  "${_FEAT_EXISTING_PATH}" self-update --version "${VERSION}"
+  logging__install "Updating pixi to version '${VERSION}' via self-update."
+  "${_FEAT_EXISTING_PATH}" self-update --version "${VERSION}" || {
+    logging__error "pixi self-update to version '${VERSION}' failed."
+    return 1
+  }
 }
 
 # Invoked by the generated prefix activation system for each configured shell.

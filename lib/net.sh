@@ -46,7 +46,9 @@ _net__hdrs_with_default_ua() {
 #
 # Returns: 0 on success, 1 after all retries exhausted.
 net__fetch_with_retry() {
-  local _max=60 _delay=5 _bail_on=""
+  local _max=60 _delay=5 _bail_on="" _xt=false
+  case "$-" in *x*) _xt=true ;; esac
+  { set +x; } 2> /dev/null
   while [ $# -gt 0 ]; do
     case "$1" in
       --retries)
@@ -72,8 +74,14 @@ net__fetch_with_retry() {
   while [ "$_i" -le "$_max" ]; do
     _rc=0
     "$@" || _rc=$?
-    [ "$_rc" -eq 0 ] && return 0
-    [ -n "$_bail_on" ] && [ "$_rc" -eq "$_bail_on" ] && return "$_rc"
+    [ "$_rc" -eq 0 ] && {
+      [[ "$_xt" == true ]] && set -x
+      return 0
+    }
+    [ -n "$_bail_on" ] && [ "$_rc" -eq "$_bail_on" ] && {
+      [[ "$_xt" == true ]] && set -x
+      return "$_rc"
+    }
     if [ "$_i" -lt "$_max" ]; then
       logging__warn "Attempt $_i/$_max failed — retrying in ${_delay}s..."
       sleep "$_delay"
@@ -81,6 +89,7 @@ net__fetch_with_retry() {
     _i=$((_i + 1))
   done
   logging__error "Failed after $_max attempt(s)."
+  [[ "$_xt" == true ]] && set -x
   return 1
 }
 
@@ -119,6 +128,8 @@ _net__fetch() {
   done
   _hdrs="$(_net__hdrs_with_default_ua "$_hdrs")"
   _net__ensure_fetch_tool
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "failed to set up HTTP fetch tool."; return "$_rc"; }
   local _h
   if [ "$_NET__FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
@@ -221,7 +232,7 @@ net__fetch_url_file() {
 # `_NET__FETCH_TOOL` is already set.
 #
 # Side effects: sets `_NET__FETCH_TOOL` to `curl` or `wget`.
-# Returns: 0 always (aborts the script via ospkg on install failure).
+# Returns: 0 on success, 1 if a required tool or CA bundle cannot be ensured.
 _net__ensure_fetch_tool() {
   if [ -z "${_NET__FETCH_TOOL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
@@ -231,10 +242,21 @@ _net__ensure_fetch_tool() {
     else
       logging__info "Neither curl nor wget found — installing curl."
       ospkg__install_tracked "lib-net" curl
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
+        logging__error "failed to install curl."
+        return "$_rc"
+      }
+      command -v curl > /dev/null 2>&1 || {
+        logging__error "curl could not be installed."
+        return 1
+      }
       _NET__FETCH_TOOL=curl
     fi
   fi
   _net__ensure_ca_certs
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "failed to ensure CA certificates."; return "$_rc"; }
   return 0
 }
 
@@ -247,7 +269,7 @@ _net__ensure_fetch_tool() {
 # on subsequent calls.
 #
 # Side effects: may install `ca-certificates` via the system package manager.
-# Returns: 0 always.
+# Returns: 0 on success, 1 if the Linux CA bundle is still missing after install.
 _net__ensure_ca_certs() {
   [ -n "${_NET__CA_CERTS_OK:-}" ] && return 0
   # macOS uses its own keychain; curl/wget use it natively without a .crt file.
@@ -258,6 +280,15 @@ _net__ensure_ca_certs() {
   if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
     logging__info "CA certificate bundle missing — installing ca-certificates."
     ospkg__install_tracked "lib-net" ca-certificates
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
+      logging__error "failed to install ca-certificates."
+      return "$_rc"
+    }
+    if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
+      logging__error "ca-certificates could not be installed."
+      return 1
+    fi
   fi
   _NET__CA_CERTS_OK=true
   return 0

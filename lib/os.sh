@@ -377,9 +377,11 @@ os__match_spec() {
   for _pair in "$@"; do
     _k="${_pair%%=*}"
     _v="${_pair#*=}"
-    ospkg__os_release_match "$_k" "$_v" || {
+    ospkg__os_release_match "$_k" "$_v"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "platform condition '${_pair}' did not match."
-      return 1
+      return "$_rc"
     }
   done
   return 0
@@ -399,9 +401,11 @@ os__match_spec() {
 #
 # <version> and <tag> may be empty strings.
 os__expand_release_pattern() {
-  _os__expand_pattern_recursive "${1}" "${2:-}" "${3:-}" || {
+  _os__expand_pattern_recursive "${1}" "${2:-}" "${3:-}"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to expand release pattern '${1}'."
-    return 1
+    return "$_rc"
   }
   printf '\n'
 }
@@ -413,16 +417,16 @@ _os__find_close_brace() {
   local _s="$1" _depth=1 _i=0
   while [[ ${_i} -lt ${#_s} ]]; do
     case "${_s:${_i}:1}" in
-      '{') ((_depth++)) ;;
+      '{') _depth=$((_depth + 1)) ;;
       '}')
-        ((_depth--))
+        _depth=$((_depth - 1))
         [[ ${_depth} -eq 0 ]] && {
           printf '%d' "${_i}"
           return 0
         }
         ;;
     esac
-    ((_i++))
+    _i=$((_i + 1))
   done
   return 1
 }
@@ -436,14 +440,14 @@ _os__split_conditional() {
   local _i=0 _depth=0 _qpos=-1 _cpos=-1
   while [[ ${_i} -lt ${#_tok} ]]; do
     case "${_tok:${_i}:1}" in
-      '{') ((_depth++)) ;;
-      '}') ((_depth--)) ;;
+      '{') _depth=$((_depth + 1)) ;;
+      '}') _depth=$((_depth - 1)) ;;
       '?') [[ ${_depth} -eq 0 ]] && {
         _qpos=${_i}
         break
       } ;;
     esac
-    ((_i++))
+    _i=$((_i + 1))
   done
   [[ ${_qpos} -eq -1 ]] && return 1
   _sc_cond="${_tok:0:${_qpos}}"
@@ -452,14 +456,14 @@ _os__split_conditional() {
   _depth=0
   while [[ ${_i} -lt ${#_rest} ]]; do
     case "${_rest:${_i}:1}" in
-      '{') ((_depth++)) ;;
-      '}') ((_depth--)) ;;
+      '{') _depth=$((_depth + 1)) ;;
+      '}') _depth=$((_depth - 1)) ;;
       ':') [[ ${_depth} -eq 0 ]] && {
         _cpos=${_i}
         break
       } ;;
     esac
-    ((_i++))
+    _i=$((_i + 1))
   done
   [[ ${_cpos} -eq -1 ]] && return 1
   _sc_true="${_rest:0:${_cpos}}"
@@ -479,16 +483,20 @@ _os__eval_condition() {
     [[ "${_ver}" == "${BASH_REMATCH[1]}" ]]
   elif [[ "${_cond}" =~ ^OS:([^=]+)==(.+)$ ]]; then
     local _actual
-    _actual="$(os__release_kernel "${BASH_REMATCH[1]}")" || {
+    _actual="$(os__release_kernel "${BASH_REMATCH[1]}")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to detect OS kernel flavor '${BASH_REMATCH[1]}'."
-      return 1
+      return "$_rc"
     }
     [[ "${_actual}" == "${BASH_REMATCH[2]}" ]]
   elif [[ "${_cond}" =~ ^ARCH:([^=]+)==(.+)$ ]]; then
     local _actual
-    _actual="$(os__release_arch --flavor "${BASH_REMATCH[1]}")" || {
+    _actual="$(os__release_arch --flavor "${BASH_REMATCH[1]}")"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to detect CPU architecture flavor '${BASH_REMATCH[1]}'."
-      return 1
+      return "$_rc"
     }
     [[ "${_actual}" == "${BASH_REMATCH[2]}" ]]
   elif [[ "${_cond}" =~ ^OS==(.+)$ ]]; then
@@ -514,16 +522,20 @@ _os__eval_token() {
     return
   fi
   if [[ "${_tok}" =~ ^OS:(.+)$ ]]; then
-    os__release_kernel "${BASH_REMATCH[1]}" || {
+    os__release_kernel "${BASH_REMATCH[1]}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to expand OS kernel flavor '${BASH_REMATCH[1]}'."
-      return 1
+      return "$_rc"
     }
     return
   fi
   if [[ "${_tok}" =~ ^ARCH:(.+)$ ]]; then
-    os__release_arch --flavor "${BASH_REMATCH[1]}" || {
+    os__release_arch --flavor "${BASH_REMATCH[1]}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to expand CPU architecture flavor '${BASH_REMATCH[1]}'."
-      return 1
+      return "$_rc"
     }
     return
   fi
@@ -553,21 +565,25 @@ _os__expand_pattern_recursive() {
     if [[ "${_c}" == '{' ]]; then
       local _after="${_s:$((_i + 1))}"
       local _cpos
-      _cpos="$(_os__find_close_brace "${_after}")" || {
+      _cpos="$(_os__find_close_brace "${_after}")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "unmatched '{' in pattern."
-        return 1
+        return "$_rc"
       }
       local _tok="${_after:0:${_cpos}}"
       local _expanded
-      _expanded="$(_os__eval_token "${_tok}" "${_ver}" "${_tag}")" || {
+      _expanded="$(_os__eval_token "${_tok}" "${_ver}" "${_tag}")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "failed to expand token '{${_tok}}'."
-        return 1
+        return "$_rc"
       }
       _result+="${_expanded}"
       _i=$((_i + _cpos + 2))
     else
       _result+="${_c}"
-      ((_i++))
+      _i=$((_i + 1))
     fi
   done
   printf '%s' "${_result}"

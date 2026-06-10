@@ -66,6 +66,15 @@ EOF
   assert_output --partial "Failed after 2"
 }
 
+@test "_net__fetch returns 1 when ensure fails under errexit-off caller (github API path)" {
+  reload_lib net.sh
+  _net__ensure_fetch_tool() { return 1; }
+  export -f _net__ensure_fetch_tool
+  local _rc=0
+  _net__fetch "https://example.com" "" || _rc=$?
+  [[ "$_rc" -eq 1 ]]
+}
+
 # ---------------------------------------------------------------------------
 # _net__ensure_fetch_tool  (tool detection and caching)
 # ---------------------------------------------------------------------------

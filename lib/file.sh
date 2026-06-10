@@ -26,7 +26,7 @@ EOF
 # [context] is an optional phrase inserted as "is required <context> but could not be installed".
 _file__ensure_tool() {
   command -v "$1" > /dev/null 2>&1 && return 0
-  ospkg__install_tracked "lib-file" "$2" || true
+  ospkg__install_tracked "lib-file" "$2"
   command -v "$1" > /dev/null 2>&1 && return 0
   logging__error "$1 is required${3:+ $3} but could not be installed."
   return 1
@@ -129,9 +129,11 @@ file__install_dir() {
     logging__error "no directories specified"
     return 1
   fi
-  _file__ensure_install_cmd || {
+  _file__ensure_install_cmd
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "install command is required to create directories."
-    return 1
+    return "$_rc"
   }
   local -a _cmd=(install -d -m "$_mode")
   [[ -n "$_owner" ]] && _cmd+=(-o "$_owner")
@@ -152,11 +154,17 @@ file__install_dir() {
     done
   fi
   logging__debug "Creating install directories: ${_dirs[*]} (mode=${_mode})."
+  local _rc=0
   if $_needs_priv; then
-    users__run_privileged "${_cmd[@]}" "${_dirs[@]}"
+    users__run_privileged "${_cmd[@]}" "${_dirs[@]}" || _rc=$?
   else
-    "${_cmd[@]}" "${_dirs[@]}"
+    "${_cmd[@]}" "${_dirs[@]}" || _rc=$?
   fi
+  if ((_rc != 0)); then
+    logging__error "failed to create directories: ${_dirs[*]}."
+    return 1
+  fi
+  return 0
 }
 
 # @brief file__mkdir <dir>... — Create directories (mkdir -p), escalating privilege only if needed.
@@ -274,11 +282,17 @@ file__ln() {
     _needs_priv=true
   fi
   logging__debug "Creating symlink '${_link_name}'."
+  local _rc=0
   if $_needs_priv; then
-    users__run_privileged ln "$@"
+    users__run_privileged ln "$@" || _rc=$?
   else
-    ln "$@"
+    ln "$@" || _rc=$?
   fi
+  if ((_rc != 0)); then
+    logging__error "failed to create symlink '${_link_name}'."
+    return 1
+  fi
+  return 0
 }
 
 # @brief file__chmod [flags] <mode> <path>... — chmod, escalating privilege only if needed.
@@ -318,11 +332,17 @@ file__chmod() {
       break
     fi
   done
+  local _rc=0
   if $_needs_priv; then
-    users__run_privileged chmod "${_flags[@]+"${_flags[@]}"}" "$_mode" "${_paths[@]}"
+    users__run_privileged chmod "${_flags[@]+"${_flags[@]}"}" "$_mode" "${_paths[@]}" || _rc=$?
   else
-    chmod "${_flags[@]+"${_flags[@]}"}" "$_mode" "${_paths[@]}"
+    chmod "${_flags[@]+"${_flags[@]}"}" "$_mode" "${_paths[@]}" || _rc=$?
   fi
+  if ((_rc != 0)); then
+    logging__error "failed to chmod '${_mode}' on: ${_paths[*]}."
+    return 1
+  fi
+  return 0
 }
 
 # @brief file__chown [flags] <spec> <path>... — chown, escalating privilege only if needed.
@@ -370,11 +390,17 @@ file__chown() {
       fi
     done
   fi
+  local _rc=0
   if $_needs_priv; then
-    users__run_privileged chown "${_flags[@]+"${_flags[@]}"}" "$_spec" "${_paths[@]}"
+    users__run_privileged chown "${_flags[@]+"${_flags[@]}"}" "$_spec" "${_paths[@]}" || _rc=$?
   else
-    chown "${_flags[@]+"${_flags[@]}"}" "$_spec" "${_paths[@]}"
+    chown "${_flags[@]+"${_flags[@]}"}" "$_spec" "${_paths[@]}" || _rc=$?
   fi
+  if ((_rc != 0)); then
+    logging__error "failed to chown '${_spec}' on: ${_paths[*]}."
+    return 1
+  fi
+  return 0
 }
 
 # @brief file__tee [--append] <file> — Write stdin to <file>, escalating privilege only if needed.
@@ -412,21 +438,27 @@ file__tee() {
   elif [[ ! -f "$_file" && ! -w "$(file__nearest_existing "$(dirname "$_file")")" ]]; then
     _needs_priv=true
   fi
+  local _rc=0
   if $_needs_priv; then
     if $_append; then
       # shellcheck disable=SC2016
-      users__run_privileged sh -c 'cat >> "$1"' _ "$_file"
+      users__run_privileged sh -c 'cat >> "$1"' _ "$_file" || _rc=$?
     else
       # shellcheck disable=SC2016
-      users__run_privileged sh -c 'cat > "$1"' _ "$_file"
+      users__run_privileged sh -c 'cat > "$1"' _ "$_file" || _rc=$?
     fi
   else
     if $_append; then
-      cat >> "$_file"
+      cat >> "$_file" || _rc=$?
     else
-      cat > "$_file"
+      cat > "$_file" || _rc=$?
     fi
   fi
+  if ((_rc != 0)); then
+    logging__error "failed to write '${_file}'."
+    return 1
+  fi
+  return 0
 }
 
 # @brief file__detect_type <file> — Detect file type from magic bytes.
@@ -482,42 +514,56 @@ file__extract_archive() {
   mkdir -p "$_dest"
   case "$_name" in
     *.tar.xz)
-      _file__ensure_extract_tool tar || {
+      _file__ensure_extract_tool tar
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "tar is required to extract '${_name}'."
-        return 1
+        return "$_rc"
       }
-      _file__ensure_extract_tool xz || {
+      _file__ensure_extract_tool xz
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "xz is required to extract '${_name}'."
-        return 1
+        return "$_rc"
       }
       tar -xJf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.tar.gz | *.tgz)
-      _file__ensure_extract_tool tar || {
+      _file__ensure_extract_tool tar
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "tar is required to extract '${_name}'."
-        return 1
+        return "$_rc"
       }
-      _file__ensure_extract_tool gz || {
+      _file__ensure_extract_tool gz
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "gzip is required to extract '${_name}'."
-        return 1
+        return "$_rc"
       }
       tar -xzf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.tar.bz2)
-      _file__ensure_extract_tool tar || {
+      _file__ensure_extract_tool tar
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "tar is required to extract '${_name}'."
-        return 1
+        return "$_rc"
       }
-      _file__ensure_extract_tool bz2 || {
+      _file__ensure_extract_tool bz2
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "bzip2 is required to extract '${_name}'."
-        return 1
+        return "$_rc"
       }
       tar -xjf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.zip)
-      _file__ensure_extract_tool zip || {
+      _file__ensure_extract_tool zip
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
         logging__error "unzip is required to extract '${_name}'."
-        return 1
+        return "$_rc"
       }
       unzip -q -o "$_arc" -d "$_dest"
       ;;

@@ -25,7 +25,8 @@ __install_run_binary_pre() {
   fi
 
   local _platform
-  _platform="$(npm__node_platform)" || return 1
+  logging__info "Resolving Node.js binary platform triple."
+  _platform="$(npm__node_platform)"
   declare -g _NODE_DIST_DIR="node-${VERSION}-${_platform}"
   logging__info "Installing Node.js ${VERSION} (${_NODE_DIST_DIR}) to ${_RESOLVED_PREFIX}..."
 }

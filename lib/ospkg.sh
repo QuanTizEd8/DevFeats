@@ -383,8 +383,11 @@ _ospkg__ensure_yq() {
   fi
   _OSPKG__YQ_BIN=""
   local _bin
-  _bin="$(bootstrap__yq)" || {
-    logging__error "yq could not be installed."
+  logging__install "Bootstrapping yq for manifest parsing."
+  _bin="$(bootstrap__yq)"
+  # bootstrap__yq must print exactly one line (the binary path).
+  [[ "${_bin}" != *$'\n'* ]] || {
+    logging__error "bootstrap__yq returned multiline output; expected a single yq path."
     return 1
   }
   [[ -n "${_bin}" && -x "${_bin}" ]] || {
@@ -579,10 +582,9 @@ ospkg__detect() {
 # @brief ospkg__pm — Print the detected package manager command name (e.g. `apt-get`, `apk`, `dnf`, `brew`).
 # Returns 1 if no supported package manager was found.
 ospkg__pm() {
-  ospkg__detect || {
-    logging__error "no supported package manager found."
-    return 1
-  }
+  ospkg__detect
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "no package manager detected."; return "$_rc"; }
   printf '%s\n' "$_OSPKG__PKG_MNGR"
 }
 
@@ -600,10 +602,9 @@ ospkg__pm() {
 ospkg__is_managed() {
   local _bin="${1-}"
   [[ -n "$_bin" && -e "$_bin" ]] || return 1
-  ospkg__detect || {
-    logging__error "no supported package manager found."
-    return 1
-  }
+  ospkg__detect
+  local _rc=$?
+  [[ $_rc == 0 ]] || return "$_rc"
   case "$_OSPKG__FAMILY" in
     apt) dpkg -S "$_bin" > /dev/null 2>&1 ;;
     apk) apk info --who-owns "$_bin" > /dev/null 2>&1 ;;
@@ -718,12 +719,19 @@ ospkg__update() {
   fi
 
   if [[ "$_skip" == false ]]; then
-    _ospkg__assert_privilege || {
+    _ospkg__assert_privilege
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "insufficient privilege to update package lists."
-      return 1
+      return "$_rc"
     }
     logging__info "Updating package lists."
     net__fetch_with_retry --bail-on 2 --retries 10 _ospkg__update_cmd
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
+      logging__error "package list update failed."
+      return "$_rc"
+    }
     _OSPKG__UPDATED=true
     logging__success "Package lists updated."
   fi
@@ -745,10 +753,9 @@ ospkg__update() {
 #
 # Returns: 0 on success.
 ospkg__install() {
-  ospkg__detect || {
-    logging__error "no supported package manager found."
-    return 1
-  }
+  ospkg__detect
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "no package manager detected."; return "$_rc"; }
   if [[ -z "$_OSPKG__PKG_MNGR" ]]; then
     logging__error "No supported package manager found."
     if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -796,7 +803,12 @@ ospkg__install() {
         _new+=("$_pkg")
       fi
     done
-    ospkg__update || true
+    ospkg__update
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
+      logging__error "package list update failed."
+      return "$_rc"
+    }
     if [[ ${#_new[@]} -gt 0 ]]; then
       logging__info "Installing packages:"
       printf '  - %s\n' "${_new[@]}" >&2
@@ -810,8 +822,18 @@ ospkg__install() {
     return 0
   fi
 
-  _ospkg__assert_privilege || return 1
-  ospkg__update || true
+  _ospkg__assert_privilege
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "insufficient privilege to install packages."
+    return "$_rc"
+  }
+  ospkg__update
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "package list update failed."
+    return "$_rc"
+  }
   logging__info "Installing packages:"
   printf '  - %s\n' "$@" >&2
   # Keep interactive mode possible on TTY, but prevent PMs from draining
@@ -834,7 +856,11 @@ ospkg__install() {
   else
     net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2 || _rc=$?
   fi
-  return "$_rc"
+  if ((_rc != 0)); then
+    logging__error "failed to install packages: $*."
+    return 1
+  fi
+  return 0
 }
 
 # @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
@@ -1082,10 +1108,9 @@ _ospkg__apk_virts_file() {
 #
 # Returns: 0 if all packages are installed, 1 if any is missing or PM unknown.
 ospkg__is_installed() {
-  ospkg__detect || {
-    logging__error "no supported package manager found."
-    return 1
-  }
+  ospkg__detect
+  local _rc=$?
+  [[ $_rc == 0 ]] || return "$_rc"
   local _pkg
   for _pkg in "$@"; do
     case "$_OSPKG__PKG_MNGR" in
@@ -1266,7 +1291,8 @@ ospkg__install_tracked() {
   local _bd_dir _before_snapshot
   _bd_dir="$(_ospkg__build_deps_dir)"
   _before_snapshot="${_bd_dir}/${_group_id//\//\_}.before"
-  ospkg__detect || return 1
+  logging__detect "Detecting package manager for tracked install (group '${_group_id}')."
+  ospkg__detect
   _ospkg__ensure_global_auto_snapshot
 
   if [[ "$_OSPKG__PKG_MNGR" == "apk" ]]; then
@@ -1299,7 +1325,11 @@ ospkg__install_tracked() {
     fi
   else
     _ospkg__snapshot_packages "$_before_snapshot"
-    ospkg__install "$@" || return 1
+    logging__install "Installing tracked packages: $* (group '${_group_id}')."
+    if ! ospkg__install "$@"; then
+      rm -f "$_before_snapshot"
+      return 1
+    fi
     _ospkg__mark_build_group "$_group_id" "$_before_snapshot"
     rm -f "$_before_snapshot"
   fi
@@ -1587,10 +1617,9 @@ ospkg__install_user() {
 # Returns: 0 if reverse deps exist, 1 if none or if the PM is unsupported.
 ospkg__has_rdeps() {
   local _pkg="${1:?ospkg__has_rdeps: pkg required}"
-  ospkg__detect || {
-    logging__error "no supported package manager found."
-    return 1
-  }
+  ospkg__detect
+  local _rc=$?
+  [[ $_rc == 0 ]] || return "$_rc"
   local _out=""
   case "$_OSPKG__PKG_MNGR" in
     apt-get)
@@ -1648,10 +1677,9 @@ ospkg__remove_user() {
     esac
   done
   [[ $# -gt 0 ]] || return 0
-  ospkg__detect || {
-    logging__error "no supported package manager found."
-    return 1
-  }
+  ospkg__detect
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "no package manager detected."; return "$_rc"; }
   logging__info "removing package(s): $*"
   local -a _cmd
   if [[ "$_ignore_deps" == true ]]; then
@@ -1694,7 +1722,7 @@ ospkg__remove_user() {
 #
 # Returns: 0 always (non-fatal).
 ospkg__register_dummy() {
-  ospkg__detect || return 0
+  if ! ospkg__detect; then return 0; fi
   [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
 
   if [[ $# -lt 2 ]]; then
@@ -1815,7 +1843,7 @@ ospkg__register_dummy() {
 #
 # Returns: 0 always (non-fatal).
 ospkg__unregister_dummy() {
-  ospkg__detect || return 0
+  if ! ospkg__detect; then return 0; fi
   [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
 
   local _pkg="${1:-}"
@@ -1980,10 +2008,9 @@ ospkg__run() {
   # Set prefer_linuxbrew early so detect() picks it up.
   _OSPKG__PREFER_LINUXBREW="$_prefer_linuxbrew"
 
-  ospkg__detect || {
-    logging__error "no supported package manager found."
-    return 1
-  }
+  ospkg__detect
+  local _rc=$?
+  [[ $_rc == 0 ]] || { logging__error "no package manager detected."; return "$_rc"; }
 
   if [[ "$_OSPKG__PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
     logging__info "Setting APT to non-interactive mode."

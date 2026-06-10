@@ -55,16 +55,25 @@ bootstrap__yq() {
   # Resolve version.
   local _resolved_ver
   logging__info "Resolving yq version for spec '${_spec}'."
-  _resolved_ver="$(github__resolve_version "mikefarah/yq" "${_spec}" --version)" || return 1
+  _resolved_ver="$(github__resolve_version "mikefarah/yq" "${_spec}" --version)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to resolve yq version for spec '${_spec}'."
+    return "$_rc"
+  }
 
   local _os _arch
-  _os="$(os__release_kernel)" || {
+  _os="$(os__release_kernel)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to detect OS kernel."
-    return 1
+    return "$_rc"
   }
-  _arch="$(os__release_arch)" || {
+  _arch="$(os__release_arch)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to detect CPU architecture."
-    return 1
+    return "$_rc"
   }
   case "${_arch}" in
     amd64 | arm64) ;;
@@ -81,9 +90,11 @@ bootstrap__yq() {
   _hdir="$(file__mktmpdir "bootstrap/yq-checksums")"
   logging__download "Fetching yq checksum bundle from '${_base}'."
   for _f in checksums checksums_hashes_order extract-checksum.sh; do
-    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}" || {
+    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "failed to fetch checksum file '${_f}' from '${_base}'."
-      return 1
+      return "$_rc"
     }
   done
   _expected_hash="$(cd "${_hdir}" && shell__bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
@@ -98,7 +109,7 @@ bootstrap__yq() {
   install__release_asset \
     --asset-uri "${_base}/yq_${_os}_${_arch}" \
     --sha256 "${_expected_hash}" \
-    --binary-dest "${_install_dir}/yq" || return 1
+    --binary-dest "${_install_dir}/yq"
 
   install__state_record "yq" "internal" "binary" "${_install_dir}/yq" "devfeats-bootstrap-yq" || true
   # Path is emitted by install__release_asset → uri__fetch_asset (do not printf again:
@@ -143,16 +154,25 @@ bootstrap__oras() {
   # Resolve version.
   local _resolved_ver
   logging__info "Resolving oras version for spec '${_spec}'."
-  _resolved_ver="$(github__resolve_version "oras-project/oras" "${_spec}" --version)" || return 1
+  _resolved_ver="$(github__resolve_version "oras-project/oras" "${_spec}" --version)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to resolve oras version for spec '${_spec}'."
+    return "$_rc"
+  }
 
   local _os _arch
-  _os="$(os__release_kernel)" || {
+  _os="$(os__release_kernel)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to detect OS kernel."
-    return 1
+    return "$_rc"
   }
-  _arch="$(os__release_arch)" || {
+  _arch="$(os__release_arch)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "failed to detect CPU architecture."
-    return 1
+    return "$_rc"
   }
   case "${_arch}" in
     amd64 | arm64 | armv7 | ppc64le | s390x | riscv64 | loong64) ;;
@@ -171,7 +191,7 @@ bootstrap__oras() {
     --asset-uri "https://github.com/oras-project/oras/releases/download/${_tag}/${_asset}" \
     --binary-src oras \
     --binary-dest "${_install_dir}/" \
-    --gpg-key "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS" || return 1
+    --gpg-key "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS"
 
   install__state_record "oras" "internal" "binary" "${_install_dir}/oras" "devfeats-bootstrap-oras" || true
   # Path is emitted by install__release_asset → uri__fetch_asset (see bootstrap__yq).
@@ -180,8 +200,6 @@ bootstrap__oras() {
 # @brief bootstrap__git — Ensure git is available via the OS package manager.
 # Returns: 0 on success, 1 on failure.
 bootstrap__git() {
-  ospkg__install_tracked "lib-git" git || {
-    logging__error "bootstrap__git: git could not be installed."
-    return 1
-  }
+  logging__install "Ensuring git is available (ospkg tracked: lib-git)."
+  ospkg__install_tracked "lib-git" git
 }

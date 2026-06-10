@@ -24,6 +24,29 @@ _HELLO_SHA256="2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
 # Known SHA-512 of the string "hello" (no newline).
 _HELLO_SHA512="9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043"
 
+# verify__sha / verify__sha_sidecar log via logging__* (stderr or pending journal).
+# Plain `run verify__sha` does not initialize logging, so messages are buffered and
+# invisible to bats. Use these helpers when asserting on log output.
+_run_with_pending() {
+  local _code="$1"
+  # shellcheck disable=SC2016
+  run bash -c "
+    source \"${LIB_ROOT}/__init__.bash\"
+    logging__pending_init
+    ${_code}
+  "
+}
+
+_run_with_setup() {
+  local _code="$1"
+  # shellcheck disable=SC2016
+  run bash -c "
+    source \"${LIB_ROOT}/__init__.bash\"
+    logging__setup --prefix test --no-fn-prefix
+    ${_code}
+  "
+}
+
 # ---------------------------------------------------------------------------
 # verify__hash_file
 # ---------------------------------------------------------------------------
@@ -64,39 +87,40 @@ _HELLO_SHA512="9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72
 @test "verify__sha succeeds for correct SHA-256 hash (default)" {
   local _f
   _f="$(_make_hello_file)"
-  run verify__sha "$_f" "$_HELLO_SHA256"
+  _run_with_setup "verify__sha \"${_f}\" \"${_HELLO_SHA256}\""
   assert_success
-  assert_output --partial "passed"
+  assert_output --partial "Checksum verification passed"
 }
 
 @test "verify__sha succeeds for correct SHA-256 hash (explicit algo)" {
   local _f
   _f="$(_make_hello_file)"
-  run verify__sha "$_f" "$_HELLO_SHA256" 256
+  _run_with_setup "verify__sha \"${_f}\" \"${_HELLO_SHA256}\" 256"
   assert_success
-  assert_output --partial "passed"
+  assert_output --partial "Checksum verification passed"
 }
 
 @test "verify__sha succeeds for correct SHA-512 hash" {
   local _f
   _f="$(_make_hello_file)"
-  run verify__sha "$_f" "$_HELLO_SHA512" 512
+  _run_with_setup "verify__sha \"${_f}\" \"${_HELLO_SHA512}\" 512"
   assert_success
-  assert_output --partial "passed"
+  assert_output --partial "Checksum verification passed"
 }
 
 @test "verify__sha fails for wrong hash" {
   local _f
   _f="$(_make_hello_file)"
-  run verify__sha "$_f" "000000000000000000000000000000000000000000000000000000000000dead"
+  _run_with_pending "verify__sha \"${_f}\" \"000000000000000000000000000000000000000000000000000000000000dead\""
   assert_failure
-  assert_output --partial "failed"
+  assert_output --partial "Checksum verification failed"
 }
 
 @test "verify__sha prints expected and actual on mismatch" {
   local _f
   _f="$(_make_hello_file)"
-  run verify__sha "$_f" "deadbeef"
+  _run_with_pending "verify__sha \"${_f}\" \"deadbeef\""
+  assert_failure
   assert_output --partial "Expected: deadbeef"
   assert_output --partial "Actual:"
 }
@@ -147,7 +171,7 @@ _HELLO_SHA512="9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72
   _f="$(_make_hello_file)"
   local _sidecar="${BATS_TEST_TMPDIR}/empty.sha256"
   touch "$_sidecar"
-  run verify__sha_sidecar "$_f" "$_sidecar"
+  _run_with_pending "verify__sha_sidecar \"${_f}\" \"${_sidecar}\""
   assert_failure
   assert_output --partial "could not read hash"
 }

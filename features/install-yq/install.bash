@@ -26,24 +26,32 @@ __resolve_method() {
 __install_run_binary_pre() {
   logging__inspect "Probing GitHub release digest for yq binary."
   local _os _arch _base _hdir _f
-  _os="$(os__release_kernel)" || {
+  _os="$(os__release_kernel)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "yq: failed to detect OS kernel."
-    return 1
+    return "$_rc"
   }
-  _arch="$(os__release_arch)" || {
+  _arch="$(os__release_arch)"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "yq: failed to detect CPU architecture."
-    return 1
+    return "$_rc"
   }
-  _base="$(os__expand_release_pattern "${BINARY_ASSET_URI%/*}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")" || {
+  _base="$(os__expand_release_pattern "${BINARY_ASSET_URI%/*}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
     logging__error "yq: failed to expand checksum base URI from '${BINARY_ASSET_URI}'."
-    return 1
+    return "$_rc"
   }
   _hdir="$(file__mktmpdir "install/yq-checksums")"
   logging__download "Fetching yq checksum bundle from '${_base}'."
   for _f in checksums checksums_hashes_order extract-checksum.sh; do
-    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}" || {
+    net__fetch_url_file "${_base}/${_f}" "${_hdir}/${_f}"
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
       logging__error "yq: failed to fetch checksum file '${_f}' from '${_base}'."
-      return 1
+      return "$_rc"
     }
   done
   BINARY_SHA256="$(cd "${_hdir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"

@@ -24,8 +24,24 @@ __install_run_script_run() {
   local _script_path="$1"
   local _script_version="v${VERSION#v}"
   if [[ -v _RESOLVED_PREFIX ]]; then
-    VERSION="${_script_version}" PREFIX="${_RESOLVED_PREFIX}" bash "${_script_path}"
+    VERSION="${_script_version}" PREFIX="${_RESOLVED_PREFIX}" bash "${_script_path}" || {
+      logging__error "Copilot installer script failed (prefix='${_RESOLVED_PREFIX}')."
+      return 1
+    }
   else
-    VERSION="${_script_version}" bash "${_script_path}"
+    VERSION="${_script_version}" bash "${_script_path}" || {
+      logging__error "Copilot installer script failed."
+      return 1
+    }
   fi
+}
+
+# Ensure npm is on PATH before the template auto-impl runs (method=npm).
+__install_run_npm_pre() {
+  if command -v npm > /dev/null 2>&1; then
+    logging__skip "npm already on PATH; skipping bootstrap install."
+    return 0
+  fi
+  logging__install "Ensuring npm is available for Copilot npm method."
+  npm__ensure_npm
 }
