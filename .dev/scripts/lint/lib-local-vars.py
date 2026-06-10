@@ -5,8 +5,10 @@ ShellCheck has no rule for this (see koalaman/shellcheck#1395). This checker
 flags assignments inside functions when the target variable is not local to the
 current function or an enclosing function (bash dynamic scope for nested helpers).
 
-Intentional module globals (_OSPKG__*, ALL_CAPS, etc.) are excluded. Additional
-suppressions live in .config/lib-local-vars.allowlist.
+Intentional module globals are excluded: ALL_CAPS names (shell convention) and
+names prefixed with ``_<MODULE>__`` where the prefix is derived from the checked
+filename (e.g. bootstrap.sh → _BOOTSTRAP__). Additional suppressions live in
+.config/lib-local-vars.allowlist.
 
 Usage:
   lib-local-vars.py [path ...]     # default: lib/*.sh under repo root
@@ -23,19 +25,12 @@ ALLOWLIST = REPO_ROOT / ".config" / "lib-local-vars.allowlist"
 DEFAULT_PATHS = sorted((REPO_ROOT / "lib").glob("*.sh"))
 
 FUNC_START = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*)?\s*\(\)\s*\{")
+_MODULE_GLOBAL_RE = re.compile(r"^(_[A-Z][A-Z0-9_]*__)[\w]")
 LOCAL_DECL = re.compile(r"\blocal(?:\s+-[a-zA-Z]+)*\s+([^;|&]+)")
 DECLARE_DECL = re.compile(r"\bdeclare\s+(-[a-zA-Z]+)?\s+([^;|&]+)")
 ASSIGN = re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)(\+?=)")
 CASE_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*=\*\)\s*$")
 
-GLOBAL_VAR_PATTERNS = (
-    re.compile(r"^_FILE__"),
-    re.compile(r"^_LOGGING__"),
-    re.compile(r"^_NET__"),
-    re.compile(r"^_OS__"),
-    re.compile(r"^_OCI__"),
-    re.compile(r"^_OSPKG__"),
-)
 
 SKIP_LINE_PREFIXES = (
     "export ",
@@ -115,11 +110,32 @@ RESERVED = frozenset(
 )
 
 
-def is_module_global(var: str) -> bool:
-    """Return whether ``var`` is an intentional module-level global name."""
+def derive_module_prefix(path: Path) -> str:
+    """Return the ``_MODULE__`` prefix for *path*.
+
+    Scans the file for the first assignment to a variable whose name starts
+    with ``_[A-Z][A-Z0-9_]*__``.  Module-level globals are always defined at
+    the top of the file before any function definitions, so the first hit is
+    authoritative (e.g. ``logging-api.sh`` correctly yields ``_LOGGING__``
+    rather than ``_LOGGING_API__``).  Falls back to uppercasing the file stem
+    when the file defines no such globals.
+    """
+    for line in path.read_text().splitlines():
+        m = _MODULE_GLOBAL_RE.match(line.strip())
+        if m:
+            return m.group(1)
+    return "_" + path.stem.upper().replace("-", "_") + "__"
+
+
+def is_module_global(var: str, module_prefix: str) -> bool:
+    """Return whether ``var`` is an intentional module-level global name.
+
+    Globals are either ALL_CAPS or prefixed with ``_<MODULE>__`` (e.g.
+    ``_BOOTSTRAP__YQ_BIN`` in ``bootstrap.sh``).
+    """
     if re.match(r"^[A-Z][A-Z0-9_]*$", var):
         return True
-    return any(p.match(var) for p in GLOBAL_VAR_PATTERNS)
+    return var.startswith(module_prefix)
 
 
 def parse_local_names(line: str) -> set[str]:
@@ -240,6 +256,7 @@ def should_skip_line(stripped: str) -> bool:
 def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
     """Scan one ``lib/*.sh`` file and return human-readable issue strings."""
     rel = path.name
+    module_prefix = derive_module_prefix(path)
     lines = path.read_text().splitlines()
     issues: list[str] = []
 
@@ -315,7 +332,7 @@ def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
             for am in ASSIGN.finditer(line):
                 var = am.group(1)
                 start = am.start(1)
-                if var in RESERVED or is_module_global(var) or var in known:
+                if var in RESERVED or is_module_global(var, module_prefix) or var in known:
                     continue
                 if (rel, func, var) in allowlist:
                     continue
