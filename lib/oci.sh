@@ -181,7 +181,10 @@ _oci__ensure_auth_for() {
   local _target="${1-}" _reg _usr _tok _tmp
   oci__ensure_oras
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "'oras' is required but could not be set up."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "'oras' is required but could not be set up."
+    return "$_rc"
+  }
   _reg="$(_oci__registry_from_ref_or_repo "$_target" 2> /dev/null || true)"
   [[ -n "$_reg" ]] || return 0
   [[ -n "${_OCI__AUTH_DONE[$_reg]+x}" ]] && return 0
@@ -323,7 +326,10 @@ oci__list_tags() {
   }
   oci__ensure_oras
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "'oras' is required but could not be set up."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "'oras' is required but could not be set up."
+    return "$_rc"
+  }
   _oci__ensure_auth_for "$_repo"
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -391,7 +397,10 @@ oci__resolve_version() {
   local _tags _hi
   _tags="$(oci__list_tags "$_repo")"
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "failed to list tags for '${_repo}'."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to list tags for '${_repo}'."
+    return "$_rc"
+  }
 
   case "${_spec}" in
     "" | latest)
@@ -544,7 +553,10 @@ oci__pull_feature_tgz() {
   }
   oci__ensure_oras
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "'oras' is required but could not be set up."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "'oras' is required but could not be set up."
+    return "$_rc"
+  }
   logging__download "Pulling OCI feature artifact '${_ref}'."
   _oci__ensure_auth_for "$_ref"
   local _rc=$?
@@ -572,7 +584,10 @@ oci__pull_feature_tgz() {
   }
   _oci__validate_feature_tgz "$_tgz"
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "feature artifact validation failed for '${_ref}'."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "feature artifact validation failed for '${_ref}'."
+    return "$_rc"
+  }
   if [[ -n "$_expect_digest" && "$_expect_digest" == sha256:* ]]; then
     local _got
     _got="sha256:$(verify__hash_file "$_tgz" 2> /dev/null || true)"

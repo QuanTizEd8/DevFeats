@@ -31,7 +31,7 @@ _bash_is_44() {
     [ "${_vmaj:-0}" -gt 4 ] || { [ "${_vmaj:-0}" -eq 4 ] && [ "${_vmin:-0}" -ge 4 ]; }
   else
     # shellcheck disable=SC2016
-    "$1" -c '[ "${BASH_VERSINFO[0]}" -gt 4 ] || { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -ge 4 ]; }' 2>/dev/null
+    "$1" -c '[ "${BASH_VERSINFO[0]}" -gt 4 ] || { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -ge 4 ]; }' 2> /dev/null
   fi
 }
 

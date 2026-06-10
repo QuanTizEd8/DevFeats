@@ -584,7 +584,10 @@ ospkg__detect() {
 ospkg__pm() {
   ospkg__detect
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "no package manager detected."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "no package manager detected."
+    return "$_rc"
+  }
   printf '%s\n' "$_OSPKG__PKG_MNGR"
 }
 
@@ -755,7 +758,10 @@ ospkg__update() {
 ospkg__install() {
   ospkg__detect
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "no package manager detected."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "no package manager detected."
+    return "$_rc"
+  }
   if [[ -z "$_OSPKG__PKG_MNGR" ]]; then
     logging__error "No supported package manager found."
     if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -1679,7 +1685,10 @@ ospkg__remove_user() {
   [[ $# -gt 0 ]] || return 0
   ospkg__detect
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "no package manager detected."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "no package manager detected."
+    return "$_rc"
+  }
   logging__info "removing package(s): $*"
   local -a _cmd
   if [[ "$_ignore_deps" == true ]]; then
@@ -2010,7 +2019,10 @@ ospkg__run() {
 
   ospkg__detect
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "no package manager detected."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "no package manager detected."
+    return "$_rc"
+  }
 
   if [[ "$_OSPKG__PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
     logging__info "Setting APT to non-interactive mode."

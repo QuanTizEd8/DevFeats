@@ -60,6 +60,8 @@ DEFAULT_PATHS = sorted((REPO_ROOT / "lib").glob("*.sh"))
 FUNC_DEF_RE = re.compile(
     r"^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\(\)\s*\{(.*)$",
 )
+
+
 @dataclass
 class FunctionSite:
     """A function definition and optional preceding doc block."""
@@ -302,111 +304,111 @@ def process_path(path: Path, *, check: bool) -> bool:
 def _self_test() -> None:
     """Run built-in regression checks."""
     cases: list[tuple[str, str]] = [
-      (
-          "\n".join(
-              [
-                  "# @brief shell__bash — Run bash.",
-                  "# Extra detail.",
-                  'shell__bash() { "${_BASH_BIN:-bash}" "$@"; }',
-                  "",
-              ],
-          )
-          + "\n",
-          "\n".join(
-              [
-                  "shell__bash() {",
-                  "  # @brief shell__bash — Run bash.",
-                  "  # Extra detail.",
-                  '  "${_BASH_BIN:-bash}" "$@";',
-                  "}",
-                  "",
-              ],
-          )
-          + "\n",
-      ),
-      (
-          "\n".join(
-              [
-                  "# @brief shell__detect_zshdir — Detect zsh dir.",
-                  "#",
-                  "# Stdout: path.",
-                  "shell__detect_zshdir() {",
-                  "  # Ask zsh which path it uses.",
-                  "  echo /etc/zsh",
-                  "}",
-                  "",
-              ],
-          )
-          + "\n",
-          "\n".join(
-              [
-                  "shell__detect_zshdir() {",
-                  "  # @brief shell__detect_zshdir — Detect zsh dir.",
-                  "  #",
-                  "  # Stdout: path.",
-                  "",
-                  "  # Ask zsh which path it uses.",
-                  "  echo /etc/zsh",
-                  "}",
-                  "",
-              ],
-          )
-          + "\n",
-      ),
-      (
-          "\n".join(
-              [
-                  "# Section header stays.",
-                  "",
-                  "# _helper (internal) — Do work.",
-                  "#",
-                  "# Returns: 0.",
-                  "_helper() {",
-                  "  return 0",
-                  "}",
-                  "",
-              ],
-          )
-          + "\n",
-          "\n".join(
-              [
-                  "# Section header stays.",
-                  "",
-                  "_helper() {",
-                  "  # _helper (internal) — Do work.",
-                  "  #",
-                  "  # Returns: 0.",
-                  "  return 0",
-                  "}",
-                  "",
-              ],
-          )
-          + "\n",
-      ),
-      (
-          "\n".join(
-              [
-                  "# @brief already — Done.",
-                  "already() {",
-                  "  # @brief already — Done.",
-                  "  return 0",
-                  "}",
-                  "",
-              ],
-          )
-          + "\n",
-          "\n".join(
-              [
-                  "# @brief already — Done.",
-                  "already() {",
-                  "  # @brief already — Done.",
-                  "  return 0",
-                  "}",
-                  "",
-              ],
-          )
-          + "\n",
-      ),
+        (
+            "\n".join(
+                [
+                    "# @brief shell__bash — Run bash.",
+                    "# Extra detail.",
+                    'shell__bash() { "${_BASH_BIN:-bash}" "$@"; }',
+                    "",
+                ],
+            )
+            + "\n",
+            "\n".join(
+                [
+                    "shell__bash() {",
+                    "  # @brief shell__bash — Run bash.",
+                    "  # Extra detail.",
+                    '  "${_BASH_BIN:-bash}" "$@";',
+                    "}",
+                    "",
+                ],
+            )
+            + "\n",
+        ),
+        (
+            "\n".join(
+                [
+                    "# @brief shell__detect_zshdir — Detect zsh dir.",
+                    "#",
+                    "# Stdout: path.",
+                    "shell__detect_zshdir() {",
+                    "  # Ask zsh which path it uses.",
+                    "  echo /etc/zsh",
+                    "}",
+                    "",
+                ],
+            )
+            + "\n",
+            "\n".join(
+                [
+                    "shell__detect_zshdir() {",
+                    "  # @brief shell__detect_zshdir — Detect zsh dir.",
+                    "  #",
+                    "  # Stdout: path.",
+                    "",
+                    "  # Ask zsh which path it uses.",
+                    "  echo /etc/zsh",
+                    "}",
+                    "",
+                ],
+            )
+            + "\n",
+        ),
+        (
+            "\n".join(
+                [
+                    "# Section header stays.",
+                    "",
+                    "# _helper (internal) — Do work.",
+                    "#",
+                    "# Returns: 0.",
+                    "_helper() {",
+                    "  return 0",
+                    "}",
+                    "",
+                ],
+            )
+            + "\n",
+            "\n".join(
+                [
+                    "# Section header stays.",
+                    "",
+                    "_helper() {",
+                    "  # _helper (internal) — Do work.",
+                    "  #",
+                    "  # Returns: 0.",
+                    "  return 0",
+                    "}",
+                    "",
+                ],
+            )
+            + "\n",
+        ),
+        (
+            "\n".join(
+                [
+                    "# @brief already — Done.",
+                    "already() {",
+                    "  # @brief already — Done.",
+                    "  return 0",
+                    "}",
+                    "",
+                ],
+            )
+            + "\n",
+            "\n".join(
+                [
+                    "# @brief already — Done.",
+                    "already() {",
+                    "  # @brief already — Done.",
+                    "  return 0",
+                    "}",
+                    "",
+                ],
+            )
+            + "\n",
+        ),
     ]
 
     for idx, (source, want) in enumerate(cases, start=1):

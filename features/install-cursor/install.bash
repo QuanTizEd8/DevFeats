@@ -25,7 +25,7 @@ __detect_existing_path_post() {
   fi
   # Fall back to PATH (picks up /usr/local/bin/agent from root builds).
   _FEAT_EXISTING_PATH="$(command -v agent 2> /dev/null || true)"
-  [[ -n "${_FEAT_EXISTING_PATH}" ]] && \
+  [[ -n "${_FEAT_EXISTING_PATH}" ]] &&
     logging__detect "Found Cursor CLI agent on PATH at '${_FEAT_EXISTING_PATH}'."
 }
 

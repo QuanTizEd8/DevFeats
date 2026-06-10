@@ -129,7 +129,10 @@ _net__fetch() {
   _hdrs="$(_net__hdrs_with_default_ua "$_hdrs")"
   _net__ensure_fetch_tool
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "failed to set up HTTP fetch tool."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to set up HTTP fetch tool."
+    return "$_rc"
+  }
   local _h
   if [ "$_NET__FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
@@ -256,7 +259,10 @@ _net__ensure_fetch_tool() {
   fi
   _net__ensure_ca_certs
   local _rc=$?
-  [[ $_rc == 0 ]] || { logging__error "failed to ensure CA certificates."; return "$_rc"; }
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to ensure CA certificates."
+    return "$_rc"
+  }
   return 0
 }
 
