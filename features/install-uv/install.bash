@@ -41,6 +41,6 @@ __install_run_binary_post() {
 __install_run_script_run() {
   logging__launch "Running uv installer script '$1' (UV_UNMANAGED_INSTALL='${UV_UNMANAGED_INSTALL:-}')."
   local _script_path="$1"
-  mkdir -p "${_RESOLVED_PREFIX}/bin"
+  file__mkdir "${_RESOLVED_PREFIX}/bin"
   UV_UNMANAGED_INSTALL="${_RESOLVED_PREFIX}/bin" "${_script_path}"
 }

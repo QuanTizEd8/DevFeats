@@ -25,7 +25,7 @@ _clone_custom_dir() {
 __install_run_git_clone_post() {
   local _custom_dir
   _custom_dir="$(_clone_custom_dir)"
-  mkdir -p "${_custom_dir}/themes" "${_custom_dir}/plugins"
+  file__mkdir "${_custom_dir}/themes" "${_custom_dir}/plugins"
 
   if [ -n "${THEME:-}" ]; then
     if [[ "${THEME}" != */* && "${THEME}" != *://* ]]; then
@@ -86,7 +86,7 @@ __uninstall_finish_post() {
 _link_custom_items() {
   local _src="$1" _dest="$2" _theme_slug="$3" _mode="$4"
   shift 4
-  mkdir -p "${_dest}/themes" "${_dest}/plugins"
+  file__mkdir "${_dest}/themes" "${_dest}/plugins"
 
   local -a _items=()
   if [ -n "$_theme_slug" ]; then
@@ -108,9 +108,9 @@ _link_custom_items() {
     [ -d "$_src_path" ] || continue # not cloned, skip
     if [[ "$_mode" == "overwrite" ]]; then
       [ -L "$_dest_path" ] && rm "$_dest_path"
-      [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
+      [ ! -e "$_dest_path" ] && file__ln -sf "$_src_path" "$_dest_path"
     else
-      [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
+      [ ! -e "$_dest_path" ] && file__ln -sf "$_src_path" "$_dest_path"
     fi
   done
 }
@@ -188,7 +188,7 @@ __configure_user() {
   # shellcheck disable=SC2016
   _content+='[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"'$'\n'
 
-  mkdir -p "$_rcdir"
+  file__mkdir "$_rcdir"
   shell__write_block --file "$_rcfile" --marker "install-ohmybash" --content "$_content"
 
   if [[ "$_is_per_user" == true ]]; then

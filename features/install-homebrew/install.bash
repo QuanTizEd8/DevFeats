@@ -51,7 +51,7 @@ uninstall_brew() {
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
   uri__fetch_asset "$_url" --file-dest "$_tmpfile" --installer-dir "${INSTALLER_DIR}" > /dev/null
-  chmod a+r "$_tmpfile"
+  file__chmod a+r "$_tmpfile"
   # Run as the current process (root when called from root) so it can remove
   # files in a root-provisioned prefix regardless of who owns them.
   env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$_RESOLVED_PREFIX"
@@ -156,13 +156,7 @@ _sync_init_files() {
 # the install user is not root. Uses runuser(1) on Linux (no sudo config
 # needed for root) and sudo on macOS (runuser is absent there).
 _brew_run_as_install_user() {
-  if ! users__is_root || [ "${INSTALL_USER}" = "root" ]; then
-    "$@"
-  elif [ "$(os__kernel)" = "Darwin" ]; then
-    sudo -n -u "${INSTALL_USER}" "$@"
-  else
-    runuser -u "${INSTALL_USER}" -- "$@"
-  fi
+  users__run_as "${INSTALL_USER}" -- "$@"
 }
 
 __init_args_post() {

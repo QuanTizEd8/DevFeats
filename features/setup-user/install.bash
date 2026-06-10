@@ -99,12 +99,12 @@ __install_run__() {
 
   # Ensure home directory exists with correct ownership and skel contents
   if [ ! -d "$HOME_DIR" ]; then
-    mkdir -p "$HOME_DIR"
-    cp -rn /etc/skel/. "$HOME_DIR/" 2> /dev/null || true
-    chown -R "${USERNAME}:${GROUP_NAME}" "$HOME_DIR"
+    file__mkdir "$HOME_DIR"
+    file__cp -rn /etc/skel/. "$HOME_DIR/" 2> /dev/null || true
+    file__chown -R "${USERNAME}:${GROUP_NAME}" "$HOME_DIR"
     logging__info "Created home directory '${HOME_DIR}'."
   else
-    chown "${USERNAME}:${GROUP_NAME}" "$HOME_DIR"
+    file__chown "${USERNAME}:${GROUP_NAME}" "$HOME_DIR"
     logging__info "Home directory '${HOME_DIR}' already exists — ownership set."
   fi
 

@@ -1,6 +1,6 @@
 __resolve_version() {
   logging__info "Resolving Node.js version from nodejs.org..."
-  mkdir -p "$INSTALLER_DIR"
+  file__mkdir "$INSTALLER_DIR"
   logging__download "Fetching Node.js version index from 'https://nodejs.org/dist/index.json'."
   uri__fetch_asset \
     "https://nodejs.org/dist/index.json" \

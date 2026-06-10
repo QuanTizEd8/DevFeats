@@ -25,7 +25,7 @@ _clone_custom_dir() {
 __install_run_git_clone_post() {
   local _custom_dir
   _custom_dir="$(_clone_custom_dir)"
-  mkdir -p "${_custom_dir}/themes" "${_custom_dir}/plugins"
+  file__mkdir "${_custom_dir}/themes" "${_custom_dir}/plugins"
 
   if [ -n "${THEME:-}" ]; then
     if [[ "${THEME}" != */* && "${THEME}" != *://* ]]; then
@@ -89,7 +89,7 @@ __uninstall_finish_post() {
 _link_custom_items() {
   local _src="$1" _dest="$2" _theme_slug="$3" _mode="$4"
   shift 4
-  mkdir -p "${_dest}/themes" "${_dest}/plugins"
+  file__mkdir "${_dest}/themes" "${_dest}/plugins"
 
   local -a _items=()
   if [ -n "$_theme_slug" ]; then
@@ -111,9 +111,9 @@ _link_custom_items() {
     [ -d "$_src_path" ] || continue # not cloned, skip
     if [[ "$_mode" == "overwrite" ]]; then
       [ -L "$_dest_path" ] && rm "$_dest_path"
-      [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
+      [ ! -e "$_dest_path" ] && file__ln -sf "$_src_path" "$_dest_path"
     else
-      [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
+      [ ! -e "$_dest_path" ] && file__ln -sf "$_src_path" "$_dest_path"
     fi
   done
 }
@@ -209,7 +209,7 @@ __configure_user() {
     _content+='[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"'$'\n'
   fi
 
-  mkdir -p "$_rcdir"
+  file__mkdir "$_rcdir"
   shell__write_block --file "$_rcfile" --marker "install-ohmyzsh" --content "$_content"
 
   # Derive symlink/copy mode from if_exists: update → augment; all others → overwrite.
@@ -230,8 +230,8 @@ __configure_user() {
   local _p10k_skel="${_FEAT_FILES_DIR}/skel/p10k.zsh"
   if [[ "$_is_p10k" == true ]] && [ -f "$_p10k_skel" ]; then
     case "${IF_EXISTS:-}" in
-      update) [ ! -f "${_home}/.p10k.zsh" ] && cp "$_p10k_skel" "${_home}/.p10k.zsh" ;;
-      *) cp -f "$_p10k_skel" "${_home}/.p10k.zsh" ;;
+      update) [ ! -f "${_home}/.p10k.zsh" ] && file__cp "$_p10k_skel" "${_home}/.p10k.zsh" ;;
+      *) file__cp -f "$_p10k_skel" "${_home}/.p10k.zsh" ;;
     esac
   fi
 

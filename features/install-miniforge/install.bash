@@ -55,7 +55,7 @@ __install_run_script_run() {
 
 export_envs() {
   local tmpdir="$1"
-  mkdir -p "$tmpdir"
+  file__mkdir "$tmpdir"
   local env_paths
   env_paths="$("${_RESOLVED_PREFIX}/bin/conda" env list --json 2> /dev/null |
     json__object_key_string_lines_stdin envs |

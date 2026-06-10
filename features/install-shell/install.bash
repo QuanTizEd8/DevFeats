@@ -54,13 +54,13 @@ __configure_user() {
       esac
       case "$USER_CONFIG_MODE" in
         overwrite)
-          mkdir -p "$(dirname "$_cu_dest")"
-          cp -f "$_cu_skel_file" "$_cu_dest"
+          file__mkdir "$(dirname "$_cu_dest")"
+          file__cp -f "$_cu_skel_file" "$_cu_dest"
           ;;
         augment)
           if [ ! -f "$_cu_dest" ]; then
-            mkdir -p "$(dirname "$_cu_dest")"
-            cp "$_cu_skel_file" "$_cu_dest"
+            file__mkdir "$(dirname "$_cu_dest")"
+            file__cp "$_cu_skel_file" "$_cu_dest"
           fi
           ;;
       esac
@@ -69,7 +69,7 @@ __configure_user() {
 
   # Inject ZDOTDIR into ~/.zshenv.
   local _cu_zshenv="${_cu_home}/.zshenv"
-  mkdir -p "$_cu_zdotdir"
+  file__mkdir "$_cu_zdotdir"
   shell__write_block --file "$_cu_zshenv" --marker "install-shell-zdotdir" --content "ZDOTDIR=\"${_cu_zdotdir}\""
 
   # Create empty per-user theme files if not already present.
@@ -80,7 +80,7 @@ __configure_user() {
   [ -f "${_cu_zshtheme}" ] || touch "${_cu_zshtheme}"
 
   local _cu_bashdir="${_cu_xdg_config_home}/bash"
-  mkdir -p "${_cu_bashdir}"
+  file__mkdir "${_cu_bashdir}"
   local _cu_bashtheme="${_cu_bashdir}/bashtheme"
   [ -f "${_cu_bashtheme}" ] || touch "${_cu_bashtheme}"
 

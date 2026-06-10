@@ -3,7 +3,7 @@
 _ensure_install_dir() {
   if [[ -z "$_INSTALL_DIR" ]]; then
     _INSTALL_DIR="${FONT_DIR}/devfeats-install-fonts-$(date +%s)"
-    mkdir -p "$_INSTALL_DIR"
+    file__mkdir "$_INSTALL_DIR"
   fi
 }
 
@@ -38,9 +38,9 @@ _do_install_font() {
       # No PostScript dedup for WOFF — copy unconditionally.
       _ensure_install_dir
       local _dest="${_INSTALL_DIR}/${_rel}"
-      mkdir -p "$(dirname "$_dest")"
-      cp "$_src" "$_dest"
-      chmod 644 "$_dest"
+      file__mkdir "$(dirname "$_dest")"
+      file__cp "$_src" "$_dest"
+      file__chmod 644 "$_dest"
       return 0
       ;;
   esac
@@ -74,9 +74,9 @@ _do_install_font() {
 
   _ensure_install_dir
   local _dest="${_INSTALL_DIR}/${_rel}"
-  mkdir -p "$(dirname "$_dest")"
-  cp "$_src" "$_dest"
-  chmod 644 "$_dest"
+  file__mkdir "$(dirname "$_dest")"
+  file__cp "$_src" "$_dest"
+  file__chmod 644 "$_dest"
 
   # Register all faces of this file in _SEEN_NAMES.
   for _n in "${_psnames[@]}"; do
@@ -365,7 +365,9 @@ __install_run__() {
 
 __install_finish_post() {
   if [[ -n "${_INSTALL_DIR}" ]]; then
-    find "${_INSTALL_DIR}" -type d -exec chmod 755 {} +
+    while IFS= read -r -d '' _d; do
+      file__chmod 755 "$_d"
+    done < <(find "${_INSTALL_DIR}" -type d -print0)
     logging__success "Font installation complete. Fonts installed to '${_INSTALL_DIR}'."
   else
     logging__info "No new fonts to install — all requested fonts already registered."

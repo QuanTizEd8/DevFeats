@@ -109,7 +109,7 @@ __configure_user() {
       nushell)
         local _nu_init_dir="${_home}/.cache/starship"
         local _nu_env="${_home}/.config/nushell/env.nu"
-        mkdir -p "$_nu_init_dir"
+        file__mkdir "$_nu_init_dir"
         # Generate the nushell init cache by running the installed binary directly.
         # The cache must be refreshed whenever starship is upgraded (re-run configure).
         "${_RESOLVED_PREFIX}/bin/starship" init nu --print-full-init \

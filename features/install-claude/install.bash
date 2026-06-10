@@ -124,7 +124,7 @@ __install_run_script_post() {
       install -m 755 "${_src}" "${_dest}"
       local _runtime="${HOME}/.local/share/claude"
       if [[ -d "${_runtime}" ]]; then
-        chmod -R a+rX "${_runtime}"
+        file__chmod -R a+rX "${_runtime}"
         logging__info "Made claude runtime at '${_runtime}' world-readable."
       fi
     fi
