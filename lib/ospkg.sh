@@ -1775,7 +1775,7 @@ ospkg__register_dummy() {
   (
     cd "$_work_dir"
     equivs-build "${_work_dir}/${_pkg}.ctrl"
-  ) > /dev/null 2>&1 || _rc=$?
+  ) > /dev/null || _rc=$?
 
   if [[ $_rc -ne 0 ]]; then
     logging__warn "equivs-build failed for '${_pkg}' — skipping."
@@ -1794,7 +1794,7 @@ ospkg__register_dummy() {
   # --force-depends prevents failure when equivs generates a trivial
   # ${misc:Depends} that isn't present in all images.
   local _dpkg_rc=0
-  users__run_privileged dpkg --force-depends -i "$_deb" > /dev/null 2>&1 || _dpkg_rc=$?
+  users__run_privileged dpkg --force-depends -i "$_deb" > /dev/null || _dpkg_rc=$?
   rm -rf "$_work_dir"
 
   if [[ $_dpkg_rc -ne 0 ]]; then
@@ -1847,9 +1847,9 @@ ospkg__unregister_dummy() {
   logging__remove "Removing devfeats dummy package '${_pkg}'."
   local _rc=0
   if [[ -t 0 ]]; then
-    users__run_privileged apt-get -y remove "$_pkg" > /dev/null 2>&1 || _rc=$?
+    users__run_privileged apt-get -y remove "$_pkg" > /dev/null || _rc=$?
   else
-    DEBIAN_FRONTEND=noninteractive users__run_privileged apt-get -y remove "$_pkg" < /dev/null > /dev/null 2>&1 || _rc=$?
+    DEBIAN_FRONTEND=noninteractive users__run_privileged apt-get -y remove "$_pkg" < /dev/null > /dev/null || _rc=$?
   fi
 
   if [[ $_rc -ne 0 ]]; then

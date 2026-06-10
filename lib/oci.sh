@@ -197,7 +197,7 @@ _oci__ensure_auth_for() {
   fi
   _tmp="$(mktemp)"
   printf '%s' "$_tok" > "$_tmp"
-  if oras login "$_reg" -u "$_usr" --password-stdin < "$_tmp" > /dev/null 2>&1; then
+  if oras login "$_reg" -u "$_usr" --password-stdin < "$_tmp" > /dev/null; then
     _OCI__AUTH_DONE["$_reg"]=1
   else
     rm -f "$_tmp"

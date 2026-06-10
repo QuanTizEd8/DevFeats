@@ -150,12 +150,12 @@ verify__gpg_detached() {
   _ghome="$(file__mktmpdir "verify-gpg")"
   chmod 0700 "$_ghome"
 
-  if ! gpg --homedir "$_ghome" --import "$_key" > /dev/null 2>&1; then
+  if ! gpg --homedir "$_ghome" --import "$_key" > /dev/null; then
     logging__error "failed to import key from '${_key}'."
     return 1
   fi
 
-  if ! gpg --homedir "$_ghome" --verify "$_sig" "$_file" > /dev/null 2>&1; then
+  if ! gpg --homedir "$_ghome" --verify "$_sig" "$_file" > /dev/null; then
     logging__error "signature verification failed for '$(basename "$_file")'."
     return 1
   fi

@@ -181,7 +181,7 @@ _uri__resolve_oci_to() {
     return "$_rc"
   }
   _pull_dir="$(file__mktmpdir "uri-oci-pull")"
-  if ! oras pull "$_ref_part" -o "$_pull_dir" > /dev/null 2>&1; then
+  if ! oras pull "$_ref_part" -o "$_pull_dir" > /dev/null; then
     logging__error "oras pull failed for '${_ref_part}'."
     return 1
   fi
