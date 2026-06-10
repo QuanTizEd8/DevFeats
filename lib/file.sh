@@ -10,10 +10,10 @@ _FILE__SESSION_ROOT=
 # True when this process created _FILE__SESSION_ROOT (`file__session_cleanup` may rm -rf).
 _FILE__SESSION_OWNED=false
 
-# _file__ensure_extract_tool <ext> (internal) — Ensure the extraction tool for <ext> is available.
-# Dispatches to the corresponding bootstrap__ function.
-# <ext>: "zip", "xz", "bz2", "gz", "tar".
 _file__ensure_extract_tool() {
+  # _file__ensure_extract_tool <ext> (internal) — Ensure the extraction tool for <ext> is available.
+  # Dispatches to the corresponding bootstrap__ function.
+  # <ext>: "zip", "xz", "bz2", "gz", "tar".
   local _ext="$1"
   case "$_ext" in
     zip) bootstrap__unzip ;;
@@ -25,18 +25,18 @@ _file__ensure_extract_tool() {
   esac
 }
 
-# @brief file__append_privileged <file> — Append stdin to <file>, escalating privilege only if needed.
-#
-# If <file> is writable by the current process (or does not yet exist but its
-# parent directory is writable), appends directly. Otherwise delegates to
-# `users__run_privileged` so the append runs as root. Writability is checked
-# before reading stdin so the stream is never consumed before the path is chosen.
-#
-# Args:
-#   <file>  Absolute path to the file to append to.
-#
-# Returns: 0 on success, non-zero on failure.
 file__append_privileged() {
+  # @brief file__append_privileged <file> — Append stdin to <file>, escalating privilege only if needed.
+  #
+  # If <file> is writable by the current process (or does not yet exist but its
+  # parent directory is writable), appends directly. Otherwise delegates to
+  # `users__run_privileged` so the append runs as root. Writability is checked
+  # before reading stdin so the stream is never consumed before the path is chosen.
+  #
+  # Args:
+  #   <file>  Absolute path to the file to append to.
+  #
+  # Returns: 0 on success, non-zero on failure.
   local _file="$1"
   if [ -w "$_file" ] || { [ ! -e "$_file" ] && [ -w "$(dirname "$_file")" ]; }; then
     cat >> "$_file"
@@ -46,20 +46,20 @@ file__append_privileged() {
   fi
 }
 
-# @brief file__install_dir [--owner <user>] [--group <group>] [--mode <mode>] <dir>... — Create one or more directories with specified ownership and permissions.
-#
-# Uses `install -d` (GNU coreutils on Linux, BSD utils on macOS — identical
-# flags on both). Sets ownership and mode both on creation and on pre-existing
-# directories. Installs coreutils via ospkg if `install` is not available.
-#
-# Args:
-#   --owner <user>  Owner username. Optional.
-#   --group <group> Group name. Optional.
-#   --mode <mode>   Permissions in octal (default: 0755).
-#   <dir>...        One or more directory paths to create.
-#
-# Returns: 0 on success, 1 if `install` is unavailable or the operation fails.
 file__install_dir() {
+  # @brief file__install_dir [--owner <user>] [--group <group>] [--mode <mode>] <dir>... — Create one or more directories with specified ownership and permissions.
+  #
+  # Uses `install -d` (GNU coreutils on Linux, BSD utils on macOS — identical
+  # flags on both). Sets ownership and mode both on creation and on pre-existing
+  # directories. Installs coreutils via ospkg if `install` is not available.
+  #
+  # Args:
+  #   --owner <user>  Owner username. Optional.
+  #   --group <group> Group name. Optional.
+  #   --mode <mode>   Permissions in octal (default: 0755).
+  #   <dir>...        One or more directory paths to create.
+  #
+  # Returns: 0 on success, 1 if `install` is unavailable or the operation fails.
   local _owner="" _group="" _mode="0755"
   local -a _dirs=()
   while [[ $# -gt 0 ]]; do
@@ -124,17 +124,17 @@ file__install_dir() {
   return 0
 }
 
-# @brief file__mkdir <dir>... — Create directories (mkdir -p), escalating privilege only if needed.
-#
-# Uses `mkdir -p` for each path. Escalates to `users__run_privileged` if the
-# nearest existing ancestor of any target directory is not writable by the
-# current process.
-#
-# Args:
-#   <dir>...  One or more directory paths to create.
-#
-# Returns: 0 on success, non-zero on failure.
 file__mkdir() {
+  # @brief file__mkdir <dir>... — Create directories (mkdir -p), escalating privilege only if needed.
+  #
+  # Uses `mkdir -p` for each path. Escalates to `users__run_privileged` if the
+  # nearest existing ancestor of any target directory is not writable by the
+  # current process.
+  #
+  # Args:
+  #   <dir>...  One or more directory paths to create.
+  #
+  # Returns: 0 on success, non-zero on failure.
   logging__debug "Creating directories: $*."
   local _needs_priv=false _d
   for _d in "$@"; do
@@ -150,17 +150,17 @@ file__mkdir() {
   fi
 }
 
-# @brief file__cp <arg>... — Copy files or directories (cp), escalating privilege only if needed.
-#
-# Forwards all arguments to `cp`. The destination is the last argument.
-# Escalates to `users__run_privileged` if the destination (or its nearest
-# existing ancestor) is not writable by the current process.
-#
-# Args:
-#   <arg>...  Any combination of `cp` flags, source paths, and destination (last arg).
-#
-# Returns: 0 on success, non-zero on failure.
 file__cp() {
+  # @brief file__cp <arg>... — Copy files or directories (cp), escalating privilege only if needed.
+  #
+  # Forwards all arguments to `cp`. The destination is the last argument.
+  # Escalates to `users__run_privileged` if the destination (or its nearest
+  # existing ancestor) is not writable by the current process.
+  #
+  # Args:
+  #   <arg>...  Any combination of `cp` flags, source paths, and destination (last arg).
+  #
+  # Returns: 0 on success, non-zero on failure.
   logging__debug "Copying files (dest='${!#}')."
   local _dest="${!#}"
   local _needs_priv=false
@@ -176,18 +176,18 @@ file__cp() {
   fi
 }
 
-# @brief file__rm [flags] <path>... — Remove files or directories (rm), escalating privilege only if needed.
-#
-# Forwards all arguments to `rm`. Escalates to `users__run_privileged` if the
-# parent directory of any existing target path is not writable by the current
-# process.
-#
-# Args:
-#   [flags]   Optional rm flags (e.g. -rf, -r, -f). Must appear before paths.
-#   <path>... One or more target paths to remove.
-#
-# Returns: 0 on success, non-zero on failure.
 file__rm() {
+  # @brief file__rm [flags] <path>... — Remove files or directories (rm), escalating privilege only if needed.
+  #
+  # Forwards all arguments to `rm`. Escalates to `users__run_privileged` if the
+  # parent directory of any existing target path is not writable by the current
+  # process.
+  #
+  # Args:
+  #   [flags]   Optional rm flags (e.g. -rf, -r, -f). Must appear before paths.
+  #   <path>... One or more target paths to remove.
+  #
+  # Returns: 0 on success, non-zero on failure.
   local -a _flags=() _paths=()
   local _done_flags=false
   while [[ $# -gt 0 ]]; do
@@ -217,18 +217,18 @@ file__rm() {
   fi
 }
 
-# @brief file__ln [flags] <target> <link_name> — Create a symlink (ln), escalating privilege only if needed.
-#
-# Forwards all arguments to `ln`. Escalates to `users__run_privileged` if the
-# directory containing <link_name> is not writable by the current process.
-#
-# Args:
-#   [flags]      Optional ln flags (e.g. -s, -f, -n, -sfn).
-#   <target>     The target the symlink points to.
-#   <link_name>  Path where the symlink is created (last argument).
-#
-# Returns: 0 on success, non-zero on failure.
 file__ln() {
+  # @brief file__ln [flags] <target> <link_name> — Create a symlink (ln), escalating privilege only if needed.
+  #
+  # Forwards all arguments to `ln`. Escalates to `users__run_privileged` if the
+  # directory containing <link_name> is not writable by the current process.
+  #
+  # Args:
+  #   [flags]      Optional ln flags (e.g. -s, -f, -n, -sfn).
+  #   <target>     The target the symlink points to.
+  #   <link_name>  Path where the symlink is created (last argument).
+  #
+  # Returns: 0 on success, non-zero on failure.
   local _link_name="${!#}"
   local _needs_priv=false
   local _parent
@@ -252,19 +252,19 @@ file__ln() {
   return 0
 }
 
-# @brief file__chmod [flags] <mode> <path>... — chmod, escalating privilege only if needed.
-#
-# Parses leading flags (e.g. `-R`), then the mode, then one or more paths.
-# Escalates to `users__run_privileged` if any path (or its nearest existing
-# ancestor) is not writable by the current process.
-#
-# Args:
-#   [flags]   Optional chmod flags (e.g. -R). Must appear before <mode>.
-#   <mode>    Permission mode (e.g. 644, +x, g+rw).
-#   <path>... One or more target paths.
-#
-# Returns: 0 on success, non-zero on failure.
 file__chmod() {
+  # @brief file__chmod [flags] <mode> <path>... — chmod, escalating privilege only if needed.
+  #
+  # Parses leading flags (e.g. `-R`), then the mode, then one or more paths.
+  # Escalates to `users__run_privileged` if any path (or its nearest existing
+  # ancestor) is not writable by the current process.
+  #
+  # Args:
+  #   [flags]   Optional chmod flags (e.g. -R). Must appear before <mode>.
+  #   <mode>    Permission mode (e.g. 644, +x, g+rw).
+  #   <path>... One or more target paths.
+  #
+  # Returns: 0 on success, non-zero on failure.
   local -a _flags=() _paths=()
   local _mode=""
   while [[ $# -gt 0 ]]; do
@@ -302,20 +302,20 @@ file__chmod() {
   return 0
 }
 
-# @brief file__chown [flags] <spec> <path>... — chown, escalating privilege only if needed.
-#
-# Parses leading flags (e.g. `-R`), then the owner spec, then one or more
-# paths. Escalates to `users__run_privileged` if the spec references a
-# different user than the current one, or if any path (or its nearest existing
-# ancestor) is not writable by the current process.
-#
-# Args:
-#   [flags]   Optional chown flags (e.g. -R). Must appear before <spec>.
-#   <spec>    Owner spec (e.g. user, user:group).
-#   <path>... One or more target paths.
-#
-# Returns: 0 on success, non-zero on failure.
 file__chown() {
+  # @brief file__chown [flags] <spec> <path>... — chown, escalating privilege only if needed.
+  #
+  # Parses leading flags (e.g. `-R`), then the owner spec, then one or more
+  # paths. Escalates to `users__run_privileged` if the spec references a
+  # different user than the current one, or if any path (or its nearest existing
+  # ancestor) is not writable by the current process.
+  #
+  # Args:
+  #   [flags]   Optional chown flags (e.g. -R). Must appear before <spec>.
+  #   <spec>    Owner spec (e.g. user, user:group).
+  #   <path>... One or more target paths.
+  #
+  # Returns: 0 on success, non-zero on failure.
   local -a _flags=() _paths=()
   local _spec=""
   while [[ $# -gt 0 ]]; do
@@ -360,18 +360,18 @@ file__chown() {
   return 0
 }
 
-# @brief file__tee [--append] <file> — Write stdin to <file>, escalating privilege only if needed.
-#
-# If <file> is writable by the current process (or does not yet exist but its
-# parent directory is writable), writes directly via `cat`. Otherwise delegates
-# to `users__run_privileged`. stdout is always suppressed.
-#
-# Args:
-#   --append  Append to <file> rather than overwrite. Alias: -a.
-#   <file>    Destination path.
-#
-# Returns: 0 on success, non-zero on failure.
 file__tee() {
+  # @brief file__tee [--append] <file> — Write stdin to <file>, escalating privilege only if needed.
+  #
+  # If <file> is writable by the current process (or does not yet exist but its
+  # parent directory is writable), writes directly via `cat`. Otherwise delegates
+  # to `users__run_privileged`. stdout is always suppressed.
+  #
+  # Args:
+  #   --append  Append to <file> rather than overwrite. Alias: -a.
+  #   <file>    Destination path.
+  #
+  # Returns: 0 on success, non-zero on failure.
   local _append=false _file=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -418,14 +418,14 @@ file__tee() {
   return 0
 }
 
-# @brief file__detect_type <file> — Detect file type from magic bytes.
-#
-# Reads the first 6 bytes of <file> to identify its format, independent of
-# filename or extension.
-#
-# Stdout: one of: gzip | xz | bzip2 | zip | elf | macho | script | unknown
-# Returns: 0 always (unknown is a valid result, not an error).
 file__detect_type() {
+  # @brief file__detect_type <file> — Detect file type from magic bytes.
+  #
+  # Reads the first 6 bytes of <file> to identify its format, independent of
+  # filename or extension.
+  #
+  # Stdout: one of: gzip | xz | bzip2 | zip | elf | macho | script | unknown
+  # Returns: 0 always (unknown is a valid result, not an error).
   local _file="$1" _hex
   _hex="$(od -An -tx1 -N 6 "$_file" 2> /dev/null | tr -d ' \n')"
   case "${_hex}" in
@@ -440,20 +440,20 @@ file__detect_type() {
   esac
 }
 
-# @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] [--strip N] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, `.tar.bz2`, or `.zip` archive to `<dest_dir>`.
-#
-# `<original_name>` is used for format detection when `<archive_file>` is a temp
-# path with no meaningful extension (e.g. a mktemp output). When omitted,
-# the basename of `<archive_file>` is used.
-#
-# Args:
-#   <archive_file>   Path to the archive to extract.
-#   <dest_dir>       Destination directory (created if absent).
-#   <original_name>  Optional filename used for extension-based format detection.
-#   --strip N        Strip N leading path components (tar --strip-components=N). Ignored for zip.
-#
-# Returns: 0 on success, 1 on unrecognized format or missing extraction tool.
 file__extract_archive() {
+  # @brief file__extract_archive <archive_file> <dest_dir> [<original_name>] [--strip N] — Extract a `.tar.xz`, `.tar.gz`, `.tgz`, `.tar.bz2`, or `.zip` archive to `<dest_dir>`.
+  #
+  # `<original_name>` is used for format detection when `<archive_file>` is a temp
+  # path with no meaningful extension (e.g. a mktemp output). When omitted,
+  # the basename of `<archive_file>` is used.
+  #
+  # Args:
+  #   <archive_file>   Path to the archive to extract.
+  #   <dest_dir>       Destination directory (created if absent).
+  #   <original_name>  Optional filename used for extension-based format detection.
+  #   --strip N        Strip N leading path components (tar --strip-components=N). Ignored for zip.
+  #
+  # Returns: 0 on success, 1 on unrecognized format or missing extraction tool.
   local _arc="$1" _dest="$2"
   local _name _strip=""
   if [ "${3:-}" = "--strip" ]; then
@@ -532,17 +532,17 @@ file__extract_archive() {
   logging__success "Extracted archive '${_arc}' to '${_dest}'."
 }
 
-# @brief file__nearest_existing <path> — Walk up dirname until an existing path component is found.
-#
-# Useful for resolving ownership or write permission of a path that may not yet
-# exist by examining the nearest ancestor that does.
-#
-# Args:
-#   <path>  Absolute path to examine (need not exist). Must be absolute; relative
-#           paths cause dirname to loop on "." indefinitely.
-#
-# Stdout: nearest existing ancestor path (or `/` when nothing above root exists).
 file__nearest_existing() {
+  # @brief file__nearest_existing <path> — Walk up dirname until an existing path component is found.
+  #
+  # Useful for resolving ownership or write permission of a path that may not yet
+  # exist by examining the nearest ancestor that does.
+  #
+  # Args:
+  #   <path>  Absolute path to examine (need not exist). Must be absolute; relative
+  #           paths cause dirname to loop on "." indefinitely.
+  #
+  # Stdout: nearest existing ancestor path (or `/` when nothing above root exists).
   local _p="$1"
   [[ "$_p" = /* ]] || {
     logging__error "path must be absolute: '${_p}'"
@@ -552,12 +552,12 @@ file__nearest_existing() {
   printf '%s\n' "$_p"
 }
 
-# @brief file__session_ensure — Lazy-init the installer session scratch root.
-#
-# Exports `_FILE__SESSION_ROOT` so command-substitution subshells and child shells
-# share the same path. Does not take ownership when the root was pre-set (e.g. unit
-# tests pinning `_FILE__SESSION_ROOT` to `BATS_TEST_TMPDIR`).
 file__session_ensure() {
+  # @brief file__session_ensure — Lazy-init the installer session scratch root.
+  #
+  # Exports `_FILE__SESSION_ROOT` so command-substitution subshells and child shells
+  # share the same path. Does not take ownership when the root was pre-set (e.g. unit
+  # tests pinning `_FILE__SESSION_ROOT` to `BATS_TEST_TMPDIR`).
   if [[ -n "${_FILE__SESSION_ROOT:-}" ]]; then
     export _FILE__SESSION_ROOT
     return 0
@@ -568,17 +568,17 @@ file__session_ensure() {
   return 0
 }
 
-# @brief file__session_root — Print the session scratch root (initialises if needed).
 file__session_root() {
+  # @brief file__session_root — Print the session scratch root (initialises if needed).
   file__session_ensure
   printf '%s\n' "${_FILE__SESSION_ROOT}"
   return 0
 }
 
-# @brief file__session_cleanup — Remove owned session scratch and reset globals.
-#
-# No-op when the root was injected (not created by `file__session_ensure`).
 file__session_cleanup() {
+  # @brief file__session_cleanup — Remove owned session scratch and reset globals.
+  #
+  # No-op when the root was injected (not created by `file__session_ensure`).
   if [[ "${_FILE__SESSION_OWNED:-}" == true && -n "${_FILE__SESSION_ROOT:-}" ]]; then
     logging__clean "Removing session scratch tree '${_FILE__SESSION_ROOT}'."
     rm -rf "${_FILE__SESSION_ROOT}"
@@ -591,17 +591,17 @@ file__session_cleanup() {
   return 0
 }
 
-# @brief file__tmpdir [<name>] — Return (and create if needed) a named subdirectory of `_FILE__SESSION_ROOT`. Idempotent.
-#
-# Safe before `logging__setup`. The tree is removed by `file__session_cleanup` on exit.
-#
-# Args:
-#   [<name>]  Subdirectory under `_FILE__SESSION_ROOT` (may contain `/`). When omitted,
-#             returns the session root itself.
-#
-# Stdout: absolute path to the named subdirectory (or the session root when called with no args).
-# shellcheck disable=SC2120  # callers in other sourced files are invisible to shellcheck
 file__tmpdir() {
+  # @brief file__tmpdir [<name>] — Return (and create if needed) a named subdirectory of `_FILE__SESSION_ROOT`. Idempotent.
+  #
+  # Safe before `logging__setup`. The tree is removed by `file__session_cleanup` on exit.
+  #
+  # Args:
+  #   [<name>]  Subdirectory under `_FILE__SESSION_ROOT` (may contain `/`). When omitted,
+  #             returns the session root itself.
+  #
+  # Stdout: absolute path to the named subdirectory (or the session root when called with no args).
+  # shellcheck disable=SC2120  # callers in other sourced files are invisible to shellcheck
   file__session_ensure
   if [[ -n "${1:-}" ]]; then
     mkdir -p "${_FILE__SESSION_ROOT}/${1}"
@@ -612,18 +612,18 @@ file__tmpdir() {
   return 0
 }
 
-# @brief file__mktmpdir <label> — Create and return a new unique directory under `_FILE__SESSION_ROOT`.
-#
-# Unlike `file__tmpdir`, each call creates a distinct directory via `mktemp`.
-# Use when per-call isolation is required (e.g. GPG homedirs, OCI pull dirs
-# that may be called multiple times with different artifacts). Removed by
-# `file__session_cleanup` at script exit.
-#
-# Args:
-#   <label>  Short label used as a prefix in the directory name.
-#
-# Stdout: absolute path to the new unique directory.
 file__mktmpdir() {
+  # @brief file__mktmpdir <label> — Create and return a new unique directory under `_FILE__SESSION_ROOT`.
+  #
+  # Unlike `file__tmpdir`, each call creates a distinct directory via `mktemp`.
+  # Use when per-call isolation is required (e.g. GPG homedirs, OCI pull dirs
+  # that may be called multiple times with different artifacts). Removed by
+  # `file__session_cleanup` at script exit.
+  #
+  # Args:
+  #   <label>  Short label used as a prefix in the directory name.
+  #
+  # Stdout: absolute path to the new unique directory.
   local _base _label="${1:-tmp}"
   file__session_ensure
   _base="${_FILE__SESSION_ROOT}/${_label}"
@@ -631,24 +631,24 @@ file__mktmpdir() {
   mktemp -d "${_base}.XXXXXX"
 }
 
-# @brief file__canonical_path <path> — Resolve symlinks and return the canonical absolute path.
-#
-# Tries each resolver in order, stopping at the first that succeeds:
-#   1. `realpath`   (GNU coreutils; not available on stock macOS)
-#   2. `readlink -f` (GNU readlink; not available on stock macOS BSD readlink)
-#   3. `readlink`   (BSD/GNU; returns the immediate symlink target without canonicalising
-#                   ancestor directories — sufficient when the target is absolute)
-#   4. The original path unchanged (final fallback).
-#
-# On macOS, steps 1–2 fail unless coreutils is installed, so step 3 handles the
-# common case.  If `readlink` returns a relative path, the caller should prepend
-# `$(dirname <path>)` to make it absolute.
-#
-# Args:
-#   <path>  Path to canonicalise (need not exist when using steps 3–4).
-#
-# Stdout: canonical path string.
 file__canonical_path() {
+  # @brief file__canonical_path <path> — Resolve symlinks and return the canonical absolute path.
+  #
+  # Tries each resolver in order, stopping at the first that succeeds:
+  #   1. `realpath`   (GNU coreutils; not available on stock macOS)
+  #   2. `readlink -f` (GNU readlink; not available on stock macOS BSD readlink)
+  #   3. `readlink`   (BSD/GNU; returns the immediate symlink target without canonicalising
+  #                   ancestor directories — sufficient when the target is absolute)
+  #   4. The original path unchanged (final fallback).
+  #
+  # On macOS, steps 1–2 fail unless coreutils is installed, so step 3 handles the
+  # common case.  If `readlink` returns a relative path, the caller should prepend
+  # `$(dirname <path>)` to make it absolute.
+  #
+  # Args:
+  #   <path>  Path to canonicalise (need not exist when using steps 3–4).
+  #
+  # Stdout: canonical path string.
   local _p="$1"
   realpath "$_p" 2> /dev/null ||
     readlink -f "$_p" 2> /dev/null ||

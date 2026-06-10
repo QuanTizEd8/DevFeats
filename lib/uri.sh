@@ -7,9 +7,8 @@
 # archive extraction, and binary installation. uri__resolve and related functions are thin
 # backward-compatible wrappers around uri__fetch_asset.
 
-
-# _uri__split_frag <full-uri> — prints base-uri on first line, fragment part on second (may be empty).
 _uri__split_frag() {
+  # _uri__split_frag <full-uri> — prints base-uri on first line, fragment part on second (may be empty).
   local _in="$1"
   local _base="${_in%%#*}"
   local _frag=""
@@ -17,8 +16,8 @@ _uri__split_frag() {
   printf '%s\n%s\n' "$_base" "$_frag"
 }
 
-# _uri__frag_sha256 <frag> — prints expected sha256 hex if present in fragment (else empty).
 _uri__frag_sha256() {
+  # _uri__frag_sha256 <frag> — prints expected sha256 hex if present in fragment (else empty).
   local _frag="$1" _p _v
   [[ -z "$_frag" ]] && return 0
   local _IFS="$IFS"
@@ -38,16 +37,16 @@ _uri__frag_sha256() {
   return 0
 }
 
-# _uri__file_url_path <file-uri> — strip file:// and print absolute path.
 _uri__file_url_path() {
+  # _uri__file_url_path <file-uri> — strip file:// and print absolute path.
   local _u="$1"
   _u="${_u#file://}"
   [[ "$_u" == /* ]] || _u="/${_u}"
   printf '%s\n' "$_u"
 }
 
-# _uri__gh_to_https <gh-uri> — translate gh://owner/repo@ref:path to raw.githubusercontent URL.
 _uri__gh_to_https() {
+  # _uri__gh_to_https <gh-uri> — translate gh://owner/repo@ref:path to raw.githubusercontent URL.
   local _in="$1" _rest _or _at _ref _path
   _rest="${_in#gh://}"
   [[ -n "$_rest" ]] || {
@@ -71,8 +70,8 @@ _uri__gh_to_https() {
   printf 'https://raw.githubusercontent.com/%s/%s/%s\n' "$_or" "$_ref" "$_path"
 }
 
-# _uri__safe_basename <uri-without-frag> — derive a filename for materialized downloads.
 _uri__safe_basename() {
+  # _uri__safe_basename <uri-without-frag> — derive a filename for materialized downloads.
   local _u="$1"
   local _b="${_u%%\?*}"
   _b="${_b##*/}"
@@ -80,8 +79,8 @@ _uri__safe_basename() {
   printf '%s\n' "$_b"
 }
 
-# _uri__dest_for_uri <dest_dir> <full-uri> — unique materialized path under dest_dir.
-_uri__dest_for_uri() {
+uri__dest_for_uri() {
+  # @brief uri__dest_for_uri <dest_dir> <full-uri> — Stable materialization path under dest_dir.
   local _dir="$1" _uri="$2"
   local _id _base
   bootstrap__sha256sum || true
@@ -99,21 +98,13 @@ _uri__dest_for_uri() {
   printf '%s/%s-%s\n' "$_dir" "$_id" "$_base"
 }
 
-# @brief uri__dest_for_uri <dest_dir> <full-uri> — public wrapper for stable materialization paths.
-#
-# This is a supported API for callers outside uri.sh (e.g. lib/argparse.sh) that need
-# deterministic destination paths for materialized remote content.
-uri__dest_for_uri() {
-  _uri__dest_for_uri "$@"
-}
-
-# @brief uri__classify <input> — Print the URI class: `local` | `file` | `http` | `ftp` | `oci` | `gh`. Returns non-zero for unsupported schemes.
-#
-# Args:
-#   <input>  URI or local path to classify.
-#
-# Stdout: one of `local`, `file`, `http`, `ftp`, `oci`, `gh`.
 uri__classify() {
+  # @brief uri__classify <input> — Print the URI class: `local` | `file` | `http` | `ftp` | `oci` | `gh`. Returns non-zero for unsupported schemes.
+  #
+  # Args:
+  #   <input>  URI or local path to classify.
+  #
+  # Stdout: one of `local`, `file`, `http`, `ftp`, `oci`, `gh`.
   local _in="$1"
   local _base
   _base="$(_uri__split_frag "$_in")"
@@ -137,15 +128,15 @@ uri__classify() {
   return 0
 }
 
-# _uri__net_fetch — Run net__fetch_url_file with optional headers and netrc.
 _uri__net_fetch() {
+  # _uri__net_fetch — Run net__fetch_url_file with optional headers and netrc.
   local _url="$1" _dest="$2"
   shift 2
   net__fetch_url_file "$_url" "$_dest" "$@"
 }
 
-# _uri__resolve_oci_to <oci-uri> <dest-file>
 _uri__resolve_oci_to() {
+  # _uri__resolve_oci_to <oci-uri> <dest-file>
   local _uri="$1" _dest="$2"
   local _base _frag _rest _ref_part _query _path_pat _pull_dir
   _base="$(_uri__split_frag "$_uri")"
@@ -218,23 +209,21 @@ _uri__resolve_oci_to() {
   return 0
 }
 
-# ── Private helpers shared with github__install_release ──────────────────────
-
-# _uri__sidecar_hash <asset_name> <sidecar_file> — extract the sha256 hex for <asset_name>
-# from a sidecar checksum file. Supports sha256sum multi-entry format (<hash>  <filename>
-# or <hash> *<filename>) and raw single-hash files (one line, one field).
-# Prints the hex string (or empty on no match). Returns 0.
 _uri__sidecar_hash() {
+  # _uri__sidecar_hash <asset_name> <sidecar_file> — extract the sha256 hex for <asset_name>
+  # from a sidecar checksum file. Supports sha256sum multi-entry format (<hash>  <filename>
+  # or <hash> *<filename>) and raw single-hash files (one line, one field).
+  # Prints the hex string (or empty on no match). Returns 0.
   local _name="$1" _file="$2"
   awk -v a="$_name" \
     '{fn=$NF; sub(/^\*/, "", fn); sub(/.*\//, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1 && NF==1)print $1}' \
     "$_file"
 }
 
-# _uri__match_binary_src <spec> <extract_dir> — find file(s) matching suffix-path <spec>
-# inside <extract_dir>. Whole-component boundary match (e.g. "bin/gh" matches path ending
-# in .../bin/gh but not .../bin/ghx). Prints one path per match line.
 _uri__match_binary_src() {
+  # _uri__match_binary_src <spec> <extract_dir> — find file(s) matching suffix-path <spec>
+  # inside <extract_dir>. Whole-component boundary match (e.g. "bin/gh" matches path ending
+  # in .../bin/gh but not .../bin/ghx). Prints one path per match line.
   local _spec="$1" _dir="$2"
   local _ncomp
   _ncomp="$(printf '%s\n' "$_spec" | tr '/' '\n' | wc -l)"
@@ -252,11 +241,11 @@ _uri__match_binary_src() {
   '
 }
 
-# _uri__download_to <url> <dest> [--header H]... [--netrc-file path]
-# Route a URI to a local file using the appropriate transport. Strips the #fragment
-# from the URL before the actual request. Does NOT verify the sha256 fragment —
-# that is the caller's responsibility. Returns 0 on success, 1 on failure.
 _uri__download_to() {
+  # _uri__download_to <url> <dest> [--header H]... [--netrc-file path]
+  # Route a URI to a local file using the appropriate transport. Strips the #fragment
+  # from the URL before the actual request. Does NOT verify the sha256 fragment —
+  # that is the caller's responsibility. Returns 0 on success, 1 on failure.
   local _url="$1" _dest="$2"
   shift 2
   local _args=("$@")
@@ -332,109 +321,109 @@ _uri__download_to() {
   return 0
 }
 
-# @brief uri__fetch_asset <uri> [OPTIONS] — Download, verify, extract, and optionally install one or more files from a single asset.
-#
-# Downloads a file from any supported URI, verifies integrity, extracts archives,
-# and installs files. Regardless of which flags are provided, the same layout is
-# always built inside a work directory:
-#
-# ```
-# work_dir/
-#   archive/<basename>      Raw downloaded file (archives only); <basename> is
-#                           the basename of <uri>, or --filename if set.
-#   asset/                  Archive extracted verbatim (no path stripping): the
-#                           archive's internal tree is reproduced exactly under
-#                           asset/. For non-archives: the downloaded file as
-#                           <basename>.
-#   sidecar/<basename>      Basename of --sidecar URI (only when --sidecar given).
-#   gpg-sig/<basename>      Basename of --gpg-sig URI (only when --gpg-key given).
-#   gpg-key/<basename>      Basename of --gpg-key URI (only when --gpg-key given).
-# ```
-#
-# `work_dir` is `--installer-dir` when provided, otherwise an auto-cleaned tmpdir
-# (removed on script exit). When `--installer-dir` is provided, the five managed
-# subdirectories are removed and recreated on each invocation (idempotency).
-#
-# Pairing rules apply independently to the binary pair (`--binary-src` /
-# `--binary-dest`) and the file pair (`--file-src` / `--file-dest`). Within each
-# pair, a trailing `/` on the dest treats it as a directory (installed file keeps
-# its basename); without a trailing `/` the dest is the exact output path,
-# enabling renaming. For N src and M dest values within one pair:
-#
-# - N=M → 1-to-1 paired in order.
-# - N>1, M=1-dir → all matched files fan out into the directory.
-# - Otherwise → error.
-#
-# When N=0 (no `--binary-src` or `--file-src` given):
-#
-# - Binary, archive: auto-discover all executables in `asset/`. With M=1-file
-#   dest, error if not exactly one executable found.
-# - Binary, non-archive: install `asset/<basename>` directly.
-# - File, archive: error — no auto-discovery for non-binary files.
-# - File, non-archive: install `asset/<basename>` directly.
-#
-# Args:
-#   <uri>                   Asset URI. Supported schemes: `https://`, `http://`,
-#                           `ftp://`, `ftps://`, `sftp://`, `file://<abs-path>`,
-#                           `gh://owner/repo@ref:path`, `oci://ref[?path=glob]`,
-#                           and bare local paths. A `#sha256=<hex>` fragment is
-#                           verified automatically after download (unless
-#                           `--sha256 none`).
-#   --installer-dir <dir>   Use `<dir>` as `work_dir` (persistent; caller owns
-#                           cleanup). Orthogonal to all output flags.
-#   --binary-src <spec>     Suffix-path match inside `asset/` (whole-component
-#                           boundary; ambiguous match → error). Repeatable. For
-#                           non-archives, `asset/` contains one file (`<basename>`);
-#                           omit to install it directly, or give a matching spec.
-#                           Requires `--binary-dest`.
-#   --binary-dest <path>    Install matched or auto-discovered binary/binaries via
-#                           `install__copy_bin` (sets executable bit). Repeatable.
-#   --file-src <spec>       Suffix-path match inside `asset/` (whole-component
-#                           boundary; ambiguous match → error). Repeatable. Required
-#                           for archives (no auto-discovery). For non-archives,
-#                           omit to install `asset/<basename>` directly.
-#                           Requires `--file-dest`.
-#   --file-dest <path>      Install matched file(s) via plain copy. Repeatable.
-#   --chmod-exec <spec>     Suffix-path match inside `asset/`; sets exec bit in
-#                           place without copying. Repeatable. Useful for running
-#                           a tool from `work_dir` during installation (tmpdir
-#                           persists until script exit).
-#   --header <H>            HTTP/FTP request header; repeatable.
-#   --netrc-file <path>     netrc file for HTTP Basic / FTP / SFTP auth.
-#   --sha256 <hex|none>     64-char hex: verify the downloaded asset against this
-#                           hash. `none`: suppress all sha256 checks (URI fragment,
-#                           sidecar, and explicit hex). GPG is unaffected.
-#   --sidecar <uri>         URI of a checksum file containing the asset's sha256.
-#                           Same `--header` and `--netrc` args apply. Formats:
-#                           `sha256sum` multi-entry (`<hex>  <filename>` or
-#                           `<hex> *<filename>`) matched by asset name, or raw
-#                           single-hash (one line, one field). Hard-fails on
-#                           mismatch or missing entry. Cannot be combined with
-#                           `--sha256 none`.
-#   --gpg-key <uri>         URI of the GPG public key; enables GPG verification.
-#   --gpg-sig <uri>         URI of the detached GPG signature.
-#                           Default: the asset `<uri>` with `.asc` appended.
-#   --filename <name>       Override the URI basename for `archive/` placement
-#                           and sidecar hash lookup. Does not affect the extracted
-#                           tree layout under `asset/`.
-#   --owner-group <id>      Call `install__track_internal_path` for each installed
-#                           path (binary and file installs only).
-#   --retry <n>             Re-download and re-verify up to `<n>` times on any
-#                           sha256 mismatch (URI fragment, `--sha256`, or
-#                           `--sidecar`). Does not retry GPG failures. Default: `3`.
-#
-# `--binary-src` requires `--binary-dest`; `--file-src` requires `--file-dest`.
-#
-# Stdout:
-#   - `--binary-dest` given: one absolute installed binary path per line, in
-#     `--binary-src` order (or auto-discovery order when N=0).
-#   - `--file-dest` given: one absolute installed file path per line, in
-#     `--file-src` order.
-#   - Both given: binary paths first, then file paths.
-#   - Neither given: the `work_dir/asset` directory path (one line).
-#
-# Returns: 0 on success, 1 on any failure (bad args, download, hash mismatch, GPG, extract, install).
 uri__fetch_asset() {
+  # @brief uri__fetch_asset <uri> [OPTIONS] — Download, verify, extract, and optionally install one or more files from a single asset.
+  #
+  # Downloads a file from any supported URI, verifies integrity, extracts archives,
+  # and installs files. Regardless of which flags are provided, the same layout is
+  # always built inside a work directory:
+  #
+  # ```
+  # work_dir/
+  #   archive/<basename>      Raw downloaded file (archives only); <basename> is
+  #                           the basename of <uri>, or --filename if set.
+  #   asset/                  Archive extracted verbatim (no path stripping): the
+  #                           archive's internal tree is reproduced exactly under
+  #                           asset/. For non-archives: the downloaded file as
+  #                           <basename>.
+  #   sidecar/<basename>      Basename of --sidecar URI (only when --sidecar given).
+  #   gpg-sig/<basename>      Basename of --gpg-sig URI (only when --gpg-key given).
+  #   gpg-key/<basename>      Basename of --gpg-key URI (only when --gpg-key given).
+  # ```
+  #
+  # `work_dir` is `--installer-dir` when provided, otherwise an auto-cleaned tmpdir
+  # (removed on script exit). When `--installer-dir` is provided, the five managed
+  # subdirectories are removed and recreated on each invocation (idempotency).
+  #
+  # Pairing rules apply independently to the binary pair (`--binary-src` /
+  # `--binary-dest`) and the file pair (`--file-src` / `--file-dest`). Within each
+  # pair, a trailing `/` on the dest treats it as a directory (installed file keeps
+  # its basename); without a trailing `/` the dest is the exact output path,
+  # enabling renaming. For N src and M dest values within one pair:
+  #
+  # - N=M → 1-to-1 paired in order.
+  # - N>1, M=1-dir → all matched files fan out into the directory.
+  # - Otherwise → error.
+  #
+  # When N=0 (no `--binary-src` or `--file-src` given):
+  #
+  # - Binary, archive: auto-discover all executables in `asset/`. With M=1-file
+  #   dest, error if not exactly one executable found.
+  # - Binary, non-archive: install `asset/<basename>` directly.
+  # - File, archive: error — no auto-discovery for non-binary files.
+  # - File, non-archive: install `asset/<basename>` directly.
+  #
+  # Args:
+  #   <uri>                   Asset URI. Supported schemes: `https://`, `http://`,
+  #                           `ftp://`, `ftps://`, `sftp://`, `file://<abs-path>`,
+  #                           `gh://owner/repo@ref:path`, `oci://ref[?path=glob]`,
+  #                           and bare local paths. A `#sha256=<hex>` fragment is
+  #                           verified automatically after download (unless
+  #                           `--sha256 none`).
+  #   --installer-dir <dir>   Use `<dir>` as `work_dir` (persistent; caller owns
+  #                           cleanup). Orthogonal to all output flags.
+  #   --binary-src <spec>     Suffix-path match inside `asset/` (whole-component
+  #                           boundary; ambiguous match → error). Repeatable. For
+  #                           non-archives, `asset/` contains one file (`<basename>`);
+  #                           omit to install it directly, or give a matching spec.
+  #                           Requires `--binary-dest`.
+  #   --binary-dest <path>    Install matched or auto-discovered binary/binaries via
+  #                           `install__copy_bin` (sets executable bit). Repeatable.
+  #   --file-src <spec>       Suffix-path match inside `asset/` (whole-component
+  #                           boundary; ambiguous match → error). Repeatable. Required
+  #                           for archives (no auto-discovery). For non-archives,
+  #                           omit to install `asset/<basename>` directly.
+  #                           Requires `--file-dest`.
+  #   --file-dest <path>      Install matched file(s) via plain copy. Repeatable.
+  #   --chmod-exec <spec>     Suffix-path match inside `asset/`; sets exec bit in
+  #                           place without copying. Repeatable. Useful for running
+  #                           a tool from `work_dir` during installation (tmpdir
+  #                           persists until script exit).
+  #   --header <H>            HTTP/FTP request header; repeatable.
+  #   --netrc-file <path>     netrc file for HTTP Basic / FTP / SFTP auth.
+  #   --sha256 <hex|none>     64-char hex: verify the downloaded asset against this
+  #                           hash. `none`: suppress all sha256 checks (URI fragment,
+  #                           sidecar, and explicit hex). GPG is unaffected.
+  #   --sidecar <uri>         URI of a checksum file containing the asset's sha256.
+  #                           Same `--header` and `--netrc` args apply. Formats:
+  #                           `sha256sum` multi-entry (`<hex>  <filename>` or
+  #                           `<hex> *<filename>`) matched by asset name, or raw
+  #                           single-hash (one line, one field). Hard-fails on
+  #                           mismatch or missing entry. Cannot be combined with
+  #                           `--sha256 none`.
+  #   --gpg-key <uri>         URI of the GPG public key; enables GPG verification.
+  #   --gpg-sig <uri>         URI of the detached GPG signature.
+  #                           Default: the asset `<uri>` with `.asc` appended.
+  #   --filename <name>       Override the URI basename for `archive/` placement
+  #                           and sidecar hash lookup. Does not affect the extracted
+  #                           tree layout under `asset/`.
+  #   --owner-group <id>      Call `install__track_internal_path` for each installed
+  #                           path (binary and file installs only).
+  #   --retry <n>             Re-download and re-verify up to `<n>` times on any
+  #                           sha256 mismatch (URI fragment, `--sha256`, or
+  #                           `--sidecar`). Does not retry GPG failures. Default: `3`.
+  #
+  # `--binary-src` requires `--binary-dest`; `--file-src` requires `--file-dest`.
+  #
+  # Stdout:
+  #   - `--binary-dest` given: one absolute installed binary path per line, in
+  #     `--binary-src` order (or auto-discovery order when N=0).
+  #   - `--file-dest` given: one absolute installed file path per line, in
+  #     `--file-src` order.
+  #   - Both given: binary paths first, then file paths.
+  #   - Neither given: the `work_dir/asset` directory path (one line).
+  #
+  # Returns: 0 on success, 1 on any failure (bad args, download, hash mismatch, GPG, extract, install).
   local _uri=""
   local _installer_dir="" _filename="" _owner_group="" _netrc_file=""
   local _sha256_spec="" _sidecar_uri="" _gpg_key_uri="" _gpg_sig_uri=""
@@ -877,25 +866,25 @@ uri__fetch_asset() {
   return 0
 }
 
-# @brief uri__resolve <input> <dest-file> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — Materialize `<input>` to `<dest-file>`. Thin wrapper around uri__fetch_asset.
-#
-# Supports `http(s)://`, `ftp://`, `ftps://`, `sftp://`, `file://`, `gh://`, `oci://`, and
-# local paths. An optional `#sha256=<hex>` fragment in `<input>` is verified after fetch.
-# `--chmod <mode>` runs `file__chmod <mode> <dest-file>` after a successful resolve (octal e.g.
-# `600`, or symbolic e.g. `+x`). `--chmod-exec` is equivalent to `--chmod +x`.
-#
-# Args:
-#   <input>              URI, local path, or `gh://owner/repo@ref:path` shorthand.
-#   <dest-file>          Destination file path.
-#   --header <H>         HTTP request header; repeatable.
-#   --netrc-file <path>  Optional netrc file for authentication.
-#   --chmod <mode>       chmod mode applied to dest after successful resolve.
-#   --chmod-exec         Deprecated alias for `--chmod +x`.
-#
-# Stdout: install paths printed by uri__fetch_asset (typically `<dest-file>`).
-#
-# Returns: 0 on success, 1 on fetch or verification failure.
 uri__resolve() {
+  # @brief uri__resolve <input> <dest-file> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — Materialize `<input>` to `<dest-file>`. Thin wrapper around uri__fetch_asset.
+  #
+  # Supports `http(s)://`, `ftp://`, `ftps://`, `sftp://`, `file://`, `gh://`, `oci://`, and
+  # local paths. An optional `#sha256=<hex>` fragment in `<input>` is verified after fetch.
+  # `--chmod <mode>` runs `file__chmod <mode> <dest-file>` after a successful resolve (octal e.g.
+  # `600`, or symbolic e.g. `+x`). `--chmod-exec` is equivalent to `--chmod +x`.
+  #
+  # Args:
+  #   <input>              URI, local path, or `gh://owner/repo@ref:path` shorthand.
+  #   <dest-file>          Destination file path.
+  #   --header <H>         HTTP request header; repeatable.
+  #   --netrc-file <path>  Optional netrc file for authentication.
+  #   --chmod <mode>       chmod mode applied to dest after successful resolve.
+  #   --chmod-exec         Deprecated alias for `--chmod +x`.
+  #
+  # Stdout: install paths printed by uri__fetch_asset (typically `<dest-file>`).
+  #
+  # Returns: 0 on success, 1 on fetch or verification failure.
   local _input="$1" _dest="$2"
   shift 2
   local _chmod_mode=""
@@ -955,18 +944,18 @@ uri__resolve() {
   return 0
 }
 
-# @brief uri__resolve_line <input> <materialize-dir> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — For local inputs, print the original path. For remote inputs, materialize under `<materialize-dir>` and print the resulting path.
-#
-# Args:
-#   <input>              URI or local path.
-#   <materialize-dir>    Directory used to store downloaded files for remote URIs.
-#   --header <H>         HTTP request header; repeatable.
-#   --netrc-file <path>  Optional netrc file for authentication.
-#   --chmod <mode>       chmod mode applied after a remote fetch (not local/file:// passthrough).
-#   --chmod-exec         Deprecated alias for `--chmod +x`.
-#
-# Stdout: resolved local file path.
 uri__resolve_line() {
+  # @brief uri__resolve_line <input> <materialize-dir> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — For local inputs, print the original path. For remote inputs, materialize under `<materialize-dir>` and print the resulting path.
+  #
+  # Args:
+  #   <input>              URI or local path.
+  #   <materialize-dir>    Directory used to store downloaded files for remote URIs.
+  #   --header <H>         HTTP request header; repeatable.
+  #   --netrc-file <path>  Optional netrc file for authentication.
+  #   --chmod <mode>       chmod mode applied after a remote fetch (not local/file:// passthrough).
+  #   --chmod-exec         Deprecated alias for `--chmod +x`.
+  #
+  # Stdout: resolved local file path.
   local _input="$1" _mdir="$2"
   shift 2
   local _chmod_mode=""
@@ -1015,7 +1004,7 @@ uri__resolve_line() {
     http | ftp | gh | oci)
       mkdir -p "$_mdir"
       local _dest
-      _dest="$(_uri__dest_for_uri "$_mdir" "$_input")"
+      _dest="$(uri__dest_for_uri "$_mdir" "$_input")"
       logging__download "Fetching remote URI '${_input}' into '${_dest}'."
       uri__fetch_asset "$_input" --file-dest "$_dest" "${_fetch_args[@]}" > /dev/null
       local _fa_rc=$?
@@ -1038,18 +1027,18 @@ uri__resolve_line() {
   return 0
 }
 
-# @brief uri__resolve_list <newline-separated-list> <materialize-dir> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — Resolve each non-empty line of `<newline-separated-list>` and print one output path per line.
-#
-# Args:
-#   <newline-separated-list>  Newline-separated list of URIs or local paths.
-#   <materialize-dir>         Directory used to store downloaded files for remote URIs.
-#   --header <H>              HTTP request header; repeatable.
-#   --netrc-file <path>       Optional netrc file for authentication.
-#   --chmod <mode>            chmod mode applied after each remote fetch (see uri__resolve_line).
-#   --chmod-exec              Deprecated alias for `--chmod +x`.
-#
-# Stdout: one resolved local file path per non-empty input line.
 uri__resolve_list() {
+  # @brief uri__resolve_list <newline-separated-list> <materialize-dir> [--header <H>]... [--netrc-file <path>] [--chmod <mode>] [--chmod-exec] — Resolve each non-empty line of `<newline-separated-list>` and print one output path per line.
+  #
+  # Args:
+  #   <newline-separated-list>  Newline-separated list of URIs or local paths.
+  #   <materialize-dir>         Directory used to store downloaded files for remote URIs.
+  #   --header <H>              HTTP request header; repeatable.
+  #   --netrc-file <path>       Optional netrc file for authentication.
+  #   --chmod <mode>            chmod mode applied after each remote fetch (see uri__resolve_line).
+  #   --chmod-exec              Deprecated alias for `--chmod +x`.
+  #
+  # Stdout: one resolved local file path per non-empty input line.
   local _list="$1" _mdir="$2"
   shift 2
   local _line _out

@@ -6,21 +6,21 @@
 # verifies them, extracts archives, and installs binaries.
 # Respects `GITHUB_TOKEN` for all API calls.
 
-# @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
-#
-# Without `--tag`: fetches `/releases/latest`. With `--tag`: fetches
-# `/releases/tags/<tag>`. Respects `GITHUB_TOKEN` (sets
-# `Authorization: Bearer` automatically).
-#
-# Args:
-#   <owner/repo>   GitHub repository in `owner/repo` format.
-#   --tag <tag>    Release tag to fetch (optional; defaults to latest).
-#   --dest <file>  Write JSON to this file instead of stdout (optional).
-#
-# Stdout: release JSON (suppressed when `--dest` is given).
-#
-# Returns: 0 on success, 1 on HTTP error or missing tool.
 github__fetch_release_json() {
+  # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
+  #
+  # Without `--tag`: fetches `/releases/latest`. With `--tag`: fetches
+  # `/releases/tags/<tag>`. Respects `GITHUB_TOKEN` (sets
+  # `Authorization: Bearer` automatically).
+  #
+  # Args:
+  #   <owner/repo>   GitHub repository in `owner/repo` format.
+  #   --tag <tag>    Release tag to fetch (optional; defaults to latest).
+  #   --dest <file>  Write JSON to this file instead of stdout (optional).
+  #
+  # Stdout: release JSON (suppressed when `--dest` is given).
+  #
+  # Returns: 0 on success, 1 on HTTP error or missing tool.
   local _repo="$1"
   shift
   local _tag="" _dest=""
@@ -55,18 +55,18 @@ github__fetch_release_json() {
   return $?
 }
 
-# @brief github__release_json_tag_name <file> — Print `tag_name` from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk).
-#
-# Prefers jq (via `json__query`) for correct parsing on minified or pretty JSON.
-# Falls back to `grep -o` for `tag_name` only (first root `tag_name` key).
-#
-# Args:
-#   <file>  Path to a GitHub release JSON file.
-#
-# Stdout: tag name string (e.g. `v1.2.3`).
-#
-# Returns: 0 on success, 1 if unreadable or tag_name not found.
 github__release_json_tag_name() {
+  # @brief github__release_json_tag_name <file> — Print `tag_name` from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk).
+  #
+  # Prefers jq (via `json__query`) for correct parsing on minified or pretty JSON.
+  # Falls back to `grep -o` for `tag_name` only (first root `tag_name` key).
+  #
+  # Args:
+  #   <file>  Path to a GitHub release JSON file.
+  #
+  # Stdout: tag name string (e.g. `v1.2.3`).
+  #
+  # Returns: 0 on success, 1 if unreadable or tag_name not found.
   local _f="$1"
   local _line
   [ -r "$_f" ] || {
@@ -87,18 +87,18 @@ github__release_json_tag_name() {
   printf '%s\n' "$_line" | sed 's/^"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)"$/\1/'
 }
 
-# @brief github__release_json_id <file> — Print the root release numeric `id` from a single-release JSON file.
-#
-# Uses jq (via `json__query`). Plain-text grep for the first `"id"` is unsafe on minified
-# responses where asset objects include `"id"` before the root release `id`.
-#
-# Args:
-#   <file>  Path to a GitHub release JSON file.
-#
-# Stdout: numeric release id.
-#
-# Returns: 0 on success, 1 if unreadable or id not found.
 github__release_json_id() {
+  # @brief github__release_json_id <file> — Print the root release numeric `id` from a single-release JSON file.
+  #
+  # Uses jq (via `json__query`). Plain-text grep for the first `"id"` is unsafe on minified
+  # responses where asset objects include `"id"` before the root release `id`.
+  #
+  # Args:
+  #   <file>  Path to a GitHub release JSON file.
+  #
+  # Stdout: numeric release id.
+  #
+  # Returns: 0 on success, 1 if unreadable or id not found.
   local _f="$1"
   [ -r "$_f" ] || {
     logging__error "release JSON file is not readable: '${_f}'."
@@ -107,19 +107,19 @@ github__release_json_id() {
   json__root_scalar_stdin id < "$_f"
 }
 
-# @brief github__release_json_digest_for_asset <release.json> <asset_name> — Print lowercase hex SHA-256 from the GitHub Releases API asset `digest` field for the asset whose `name` equals `<asset_name>` exactly.
-#
-# Newer releases publish `digest` on each asset; older releases omit it — callers
-# should fall back to a downloaded `.sha256` sidecar when this returns 1.
-#
-# Args:
-#   <release.json>  Path to a `/releases/latest` or `/releases/tags/…` JSON file.
-#   <asset_name>    Exact `name` value of the release asset (e.g. `fzf-0.71.0-linux_amd64.tar.gz`).
-#
-# Stdout: 64-character lowercase hex digest.
-#
-# Returns: 0 on success, 1 if unreadable, unparsable, not found, or digest absent.
 _github__release_json_digest_for_asset() {
+  # @brief github__release_json_digest_for_asset <release.json> <asset_name> — Print lowercase hex SHA-256 from the GitHub Releases API asset `digest` field for the asset whose `name` equals `<asset_name>` exactly.
+  #
+  # Newer releases publish `digest` on each asset; older releases omit it — callers
+  # should fall back to a downloaded `.sha256` sidecar when this returns 1.
+  #
+  # Args:
+  #   <release.json>  Path to a `/releases/latest` or `/releases/tags/…` JSON file.
+  #   <asset_name>    Exact `name` value of the release asset (e.g. `fzf-0.71.0-linux_amd64.tar.gz`).
+  #
+  # Stdout: 64-character lowercase hex digest.
+  #
+  # Returns: 0 on success, 1 if unreadable, unparsable, not found, or digest absent.
   local _f="$1" _name="$2" _out=""
   [ -r "$_f" ] || return 1
   [ -n "$_name" ] || return 1
@@ -160,22 +160,22 @@ github__release_json_digest_for_asset() {
   }
 }
 
-# @brief github__release_json_digest_from_uri <release-json-uri> <asset_name> — Fetch GitHub release JSON and print the asset SHA-256 digest.
-#
-# Fetches the release document at <release-json-uri> (typically
-# `https://api.github.com/repos/<owner>/<repo>/releases/tags/<tag>`) via the
-# GitHub API (respects `GITHUB_TOKEN`), then extracts the `digest` field for the
-# asset whose `name` equals <asset_name>.  Callers pass the result to
-# `install__release_asset` as `--sha256 <hex>`.
-#
-# Args:
-#   <release-json-uri>  Full GitHub Releases API URL for a single release.
-#   <asset_name>        Exact release asset filename.
-#
-# Stdout: 64-character lowercase hex digest.
-#
-# Returns: 0 on success, 1 if the fetch fails, the asset is not found, or digest is absent.
 github__release_json_digest_from_uri() {
+  # @brief github__release_json_digest_from_uri <release-json-uri> <asset_name> — Fetch GitHub release JSON and print the asset SHA-256 digest.
+  #
+  # Fetches the release document at <release-json-uri> (typically
+  # `https://api.github.com/repos/<owner>/<repo>/releases/tags/<tag>`) via the
+  # GitHub API (respects `GITHUB_TOKEN`), then extracts the `digest` field for the
+  # asset whose `name` equals <asset_name>.  Callers pass the result to
+  # `install__release_asset` as `--sha256 <hex>`.
+  #
+  # Args:
+  #   <release-json-uri>  Full GitHub Releases API URL for a single release.
+  #   <asset_name>        Exact release asset filename.
+  #
+  # Stdout: 64-character lowercase hex digest.
+  #
+  # Returns: 0 on success, 1 if the fetch fails, the asset is not found, or digest is absent.
   local _uri="$1" _name="$2"
   local _reljson _digest=""
   [ -n "$_uri" ] && [ -n "$_name" ] || {
@@ -195,21 +195,21 @@ github__release_json_digest_from_uri() {
   return 0
 }
 
-# @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset and verify its SHA-256 if a digest is available in the API.
-#
-# The download URL is `https://github.com/<repo>/releases/download/<tag>/<asset-name>`.
-# Respects the same GitHub API auth as `github__fetch_release_json`.
-# Note: for new code prefer `github__install_release` which also handles
-# archive extraction and binary installation in addition to download+verify.
-#
-# Args:
-#   <owner/repo>   GitHub repository in "owner/repo" format.
-#   <tag>          Release tag (e.g. `v1.2.3`).
-#   <asset-name>   Exact asset filename (e.g. `fzf-0.71.0-linux_amd64.tar.gz`).
-#   <dest-file>    Destination path to write the downloaded file.
-#
-# Returns: 0 on success, 1 on download failure or SHA-256 mismatch.
 github__fetch_release_asset_tarball() {
+  # @brief github__fetch_release_asset_tarball <owner/repo> <tag> <asset-name> <dest-file> — Download a release asset and verify its SHA-256 if a digest is available in the API.
+  #
+  # The download URL is `https://github.com/<repo>/releases/download/<tag>/<asset-name>`.
+  # Respects the same GitHub API auth as `github__fetch_release_json`.
+  # Note: for new code prefer `github__install_release` which also handles
+  # archive extraction and binary installation in addition to download+verify.
+  #
+  # Args:
+  #   <owner/repo>   GitHub repository in "owner/repo" format.
+  #   <tag>          Release tag (e.g. `v1.2.3`).
+  #   <asset-name>   Exact asset filename (e.g. `fzf-0.71.0-linux_amd64.tar.gz`).
+  #   <dest-file>    Destination path to write the downloaded file.
+  #
+  # Returns: 0 on success, 1 on download failure or SHA-256 mismatch.
   local _repo="$1" _tag="$2" _asset="$3" _dest="$4"
   local _rel _digest _url
 
@@ -242,53 +242,53 @@ github__fetch_release_asset_tarball() {
   return 0
 }
 
-# @brief github__install_release OPTIONS — Resolve a GitHub release asset and install via uri__fetch_asset.
-#
-# Resolves a release asset from the GitHub API, then delegates download,
-# verification, extraction, and installation to `install__release_asset`. When neither
-# `--asset` nor `--asset-regex` is given, `github__pick_release_asset` heuristics
-# select the best-matching asset for the current OS and architecture.
-#
-# Two automatic behaviors are applied before delegation:
-#
-# - **JSON digest**: the SHA-256 from the GitHub release API is passed as
-#   `--sha256` unless the caller already passes `--sha256` (any value). When
-#   `--sha256 none` is given, JSON lookup and digest verification are both
-#   skipped. When `--sha256 <hex>` is given, only that hash is used (no JSON
-#   fetch).
-# - **Sidecar auto-probe**: when `--sidecar` is not given, the following
-#   candidate URLs are probed in order: `<asset-url>.sha256`,
-#   `<release-base>/SHA256SUMS`, `<release-base>/sha256sum.txt`. A found
-#   sidecar is forwarded to `uri__fetch_asset`; none found → warn and continue.
-#
-# Args:
-#   --repo <owner/repo>     GitHub repository slug (e.g. `oras-project/oras`).
-#                           Required.
-#   --tag <tag>             Full release tag (e.g. `v1.2.3`). Required.
-#   --asset <name>          Exact asset filename; skips API enumeration and
-#                           heuristic selection. Mutually exclusive with
-#                           `--asset-regex`.
-#   --asset-regex <ere>     ERE pre-filter applied before
-#                           `github__pick_release_asset` heuristics. Mutually
-#                           exclusive with `--asset`.
-#
-# All options accepted by `uri__fetch_asset` (`--binary-src`, `--binary-dest`,
-# `--file-src`, `--file-dest`, `--chmod-exec`, `--installer-dir`, `--sha256`,
-# `--sidecar`, `--gpg-key`, `--gpg-sig`, `--header`, `--netrc-file`, `--filename`,
-# `--owner-group`, `--retry`) are accepted and forwarded unchanged.
-#
-# `--repo` and `--tag` are required.
-#
-# Stdout:
-#   - `--binary-dest` given: one absolute installed binary path per line, in
-#     `--binary-src` order (or auto-discovery order when N=0).
-#   - `--file-dest` given: one absolute installed file path per line, in
-#     `--file-src` order.
-#   - Both given: binary paths first, then file paths.
-#   - Neither given: the `work_dir/asset` directory path (one line).
-#
-# Returns: 0 on success, 1 on any failure.
 github__install_release() {
+  # @brief github__install_release OPTIONS — Resolve a GitHub release asset and install via uri__fetch_asset.
+  #
+  # Resolves a release asset from the GitHub API, then delegates download,
+  # verification, extraction, and installation to `install__release_asset`. When neither
+  # `--asset` nor `--asset-regex` is given, `github__pick_release_asset` heuristics
+  # select the best-matching asset for the current OS and architecture.
+  #
+  # Two automatic behaviors are applied before delegation:
+  #
+  # - **JSON digest**: the SHA-256 from the GitHub release API is passed as
+  #   `--sha256` unless the caller already passes `--sha256` (any value). When
+  #   `--sha256 none` is given, JSON lookup and digest verification are both
+  #   skipped. When `--sha256 <hex>` is given, only that hash is used (no JSON
+  #   fetch).
+  # - **Sidecar auto-probe**: when `--sidecar` is not given, the following
+  #   candidate URLs are probed in order: `<asset-url>.sha256`,
+  #   `<release-base>/SHA256SUMS`, `<release-base>/sha256sum.txt`. A found
+  #   sidecar is forwarded to `uri__fetch_asset`; none found → warn and continue.
+  #
+  # Args:
+  #   --repo <owner/repo>     GitHub repository slug (e.g. `oras-project/oras`).
+  #                           Required.
+  #   --tag <tag>             Full release tag (e.g. `v1.2.3`). Required.
+  #   --asset <name>          Exact asset filename; skips API enumeration and
+  #                           heuristic selection. Mutually exclusive with
+  #                           `--asset-regex`.
+  #   --asset-regex <ere>     ERE pre-filter applied before
+  #                           `github__pick_release_asset` heuristics. Mutually
+  #                           exclusive with `--asset`.
+  #
+  # All options accepted by `uri__fetch_asset` (`--binary-src`, `--binary-dest`,
+  # `--file-src`, `--file-dest`, `--chmod-exec`, `--installer-dir`, `--sha256`,
+  # `--sidecar`, `--gpg-key`, `--gpg-sig`, `--header`, `--netrc-file`, `--filename`,
+  # `--owner-group`, `--retry`) are accepted and forwarded unchanged.
+  #
+  # `--repo` and `--tag` are required.
+  #
+  # Stdout:
+  #   - `--binary-dest` given: one absolute installed binary path per line, in
+  #     `--binary-src` order (or auto-discovery order when N=0).
+  #   - `--file-dest` given: one absolute installed file path per line, in
+  #     `--file-src` order.
+  #   - Both given: binary paths first, then file paths.
+  #   - Neither given: the `work_dir/asset` directory path (one line).
+  #
+  # Returns: 0 on success, 1 on any failure.
   local _repo="" _tag="" _asset="" _asset_regex=""
   local _caller_sha256="" _caller_sha256_set=false
   local _caller_sidecar="" _caller_sidecar_set=false
@@ -414,15 +414,15 @@ github__install_release() {
     "${_passthrough[@]}"
 }
 
-# @brief github__latest_tag <owner/repo> — Print the latest release tag name.
-#
-# Args:
-#   <owner/repo>  GitHub repository in "owner/repo" format.
-#
-# Stdout: the tag name (e.g. `v1.2.3`).
-#
-# Returns: 0 on success, 1 if the API call fails or the tag cannot be parsed.
 github__latest_tag() {
+  # @brief github__latest_tag <owner/repo> — Print the latest release tag name.
+  #
+  # Args:
+  #   <owner/repo>  GitHub repository in "owner/repo" format.
+  #
+  # Stdout: the tag name (e.g. `v1.2.3`).
+  #
+  # Returns: 0 on success, 1 if the API call fails or the tag cannot be parsed.
   local _repo="$1"
   local _json="" _tag=""
   _json="$(github__fetch_release_json "$_repo")" || true
@@ -468,27 +468,27 @@ github__latest_tag() {
   return 1
 }
 
-# @brief github__release_tags <owner/repo> [--per_page N] [--all] [--retries N] [--retry-delay SEC>] — Print one release tag per line (newest first) from `/releases?per_page=N` (default 100).
-#
-# Useful for version-matching against a list (grep/sort/tail in the caller).
-# Without --all: fetches only the first page (up to --per_page tags). With
-# --all: walks `page=1,2,...` until a page returns fewer than --per_page
-# items (short-page termination — simpler than Link-header parsing and
-# correct for idempotent helpers).
-#
-# HTTP fetches already use curl retries (5xx, 429, etc.) via net__fetch_url_stdout;
-# --retries/--retry-delay add full end-to-end attempts when parsing fails or the
-# API returns an error payload after a successful HTTP status.
-#
-# Args:
-#   <owner/repo>       GitHub repository in "owner/repo" format.
-#   --per_page N       Releases per page to request (default: 100).
-#   --all              Paginate through every release (default: first page only).
-#   --retries N        Maximum attempts for the whole list operation (default: 1).
-#   --retry-delay SEC  Seconds to sleep between attempts (default: 4; ignored when N=1).
-#
-# Stdout: one tag name per line, newest first.
 github__release_tags() {
+  # @brief github__release_tags <owner/repo> [--per_page N] [--all] [--retries N] [--retry-delay SEC>] — Print one release tag per line (newest first) from `/releases?per_page=N` (default 100).
+  #
+  # Useful for version-matching against a list (grep/sort/tail in the caller).
+  # Without --all: fetches only the first page (up to --per_page tags). With
+  # --all: walks `page=1,2,...` until a page returns fewer than --per_page
+  # items (short-page termination — simpler than Link-header parsing and
+  # correct for idempotent helpers).
+  #
+  # HTTP fetches already use curl retries (5xx, 429, etc.) via net__fetch_url_stdout;
+  # --retries/--retry-delay add full end-to-end attempts when parsing fails or the
+  # API returns an error payload after a successful HTTP status.
+  #
+  # Args:
+  #   <owner/repo>       GitHub repository in "owner/repo" format.
+  #   --per_page N       Releases per page to request (default: 100).
+  #   --all              Paginate through every release (default: first page only).
+  #   --retries N        Maximum attempts for the whole list operation (default: 1).
+  #   --retry-delay SEC  Seconds to sleep between attempts (default: 4; ignored when N=1).
+  #
+  # Stdout: one tag name per line, newest first.
   local _repo="$1"
   shift
   local _per_page=100 _all=false _retries=1 _retry_delay=4
@@ -559,44 +559,44 @@ github__release_tags() {
   done
 }
 
-# @brief github__resolve_version <owner/repo> [<version-spec>] — Resolve a version spec to a release or tag, printing the full tag and bare version.
-#
-# Version specs:
-#   "stable" / ""  Latest non-prerelease release (releases API) or the newest tag
-#                  without a pre-release suffix (tags API fallback / --endpoint tag).
-#   "latest"       Most recently published release or tag, including pre-releases.
-#   "X"            Latest stable release/tag whose version starts with X.
-#   "X.Y"          Latest stable release/tag whose version starts with X.Y.
-#   "X.Y.Z"        Latest stable release/tag whose version starts with X.Y.Z
-#                  (resolves to X.Y.Z itself when no build suffix exists, or
-#                  the newest build e.g. X.Y.Z-1 when the repo uses them).
-#   "X.Y.Z-BUILD"  Prefix-matched: resolves to the newest X.Y.Z-BUILD* release/tag.
-#
-# Leading non-numeric characters are stripped from both the spec and each tag
-# before comparison, so "v1.2", "1.2", and "jq-1.2" are all equivalent specs.
-# Stable filtering for releases uses GitHub's authoritative prerelease/draft fields.
-# Stable filtering for tags uses a heuristic: tags whose bare version contains a
-# hyphen (e.g. "1.2.3-rc1") are treated as pre-releases.
-#
-# For partial specs, items are fetched page by page (newest first) and the
-# first matching result is returned; pagination stops as soon as a match
-# is found, so only as many API calls as necessary are made.
-#
-# Args:
-#   <owner/repo>     GitHub repository in "owner/repo" format.
-#   [<version-spec>] Version spec string (default: "stable").
-#   --tag            Print only the full tag (line 1).
-#   --version        Print only the bare version (line 2).
-#   --endpoint E     API to query: "release" (releases only), "tag" (tags only),
-#                    or "auto" (try releases first, fall back to tags; default).
-#
-# Stdout:
-#   By default (neither or both flags given): two lines — full tag then bare version.
-#   --tag only:     one line — full tag (e.g. "v1.2.3", "jq-1.7.1").
-#   --version only: one line — bare version with tag prefix stripped (e.g. "1.2.3").
-#
-# Returns: 0 on success, 1 if no matching release or tag is found, or on API error.
 github__resolve_version() {
+  # @brief github__resolve_version <owner/repo> [<version-spec>] — Resolve a version spec to a release or tag, printing the full tag and bare version.
+  #
+  # Version specs:
+  #   "stable" / ""  Latest non-prerelease release (releases API) or the newest tag
+  #                  without a pre-release suffix (tags API fallback / --endpoint tag).
+  #   "latest"       Most recently published release or tag, including pre-releases.
+  #   "X"            Latest stable release/tag whose version starts with X.
+  #   "X.Y"          Latest stable release/tag whose version starts with X.Y.
+  #   "X.Y.Z"        Latest stable release/tag whose version starts with X.Y.Z
+  #                  (resolves to X.Y.Z itself when no build suffix exists, or
+  #                  the newest build e.g. X.Y.Z-1 when the repo uses them).
+  #   "X.Y.Z-BUILD"  Prefix-matched: resolves to the newest X.Y.Z-BUILD* release/tag.
+  #
+  # Leading non-numeric characters are stripped from both the spec and each tag
+  # before comparison, so "v1.2", "1.2", and "jq-1.2" are all equivalent specs.
+  # Stable filtering for releases uses GitHub's authoritative prerelease/draft fields.
+  # Stable filtering for tags uses a heuristic: tags whose bare version contains a
+  # hyphen (e.g. "1.2.3-rc1") are treated as pre-releases.
+  #
+  # For partial specs, items are fetched page by page (newest first) and the
+  # first matching result is returned; pagination stops as soon as a match
+  # is found, so only as many API calls as necessary are made.
+  #
+  # Args:
+  #   <owner/repo>     GitHub repository in "owner/repo" format.
+  #   [<version-spec>] Version spec string (default: "stable").
+  #   --tag            Print only the full tag (line 1).
+  #   --version        Print only the bare version (line 2).
+  #   --endpoint E     API to query: "release" (releases only), "tag" (tags only),
+  #                    or "auto" (try releases first, fall back to tags; default).
+  #
+  # Stdout:
+  #   By default (neither or both flags given): two lines — full tag then bare version.
+  #   --tag only:     one line — full tag (e.g. "v1.2.3", "jq-1.7.1").
+  #   --version only: one line — bare version with tag prefix stripped (e.g. "1.2.3").
+  #
+  # Returns: 0 on success, 1 if no matching release or tag is found, or on API error.
   local _repo="$1"
   shift
   local _spec="stable" _spec_set=false _want_tag=false _want_version=false _endpoint="auto"
@@ -731,19 +731,19 @@ github__resolve_version() {
   return 0
 }
 
-# @brief github__tags <owner/repo> [--per_page N] [--all] — Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release.
-#
-# Unlike github__release_tags (which uses /releases), this endpoint includes
-# all git tags, including lightweight ones not associated with a release.
-# See github__release_tags for the --all semantics (page-until-short).
-#
-# Args:
-#   <owner/repo>   GitHub repository in "owner/repo" format.
-#   --per_page N   Tags per page to request (default: 100).
-#   --all          Paginate through every tag (default: first page only).
-#
-# Stdout: one tag name per line.
 github__tags() {
+  # @brief github__tags <owner/repo> [--per_page N] [--all] — Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release.
+  #
+  # Unlike github__release_tags (which uses /releases), this endpoint includes
+  # all git tags, including lightweight ones not associated with a release.
+  # See github__release_tags for the --all semantics (page-until-short).
+  #
+  # Args:
+  #   <owner/repo>   GitHub repository in "owner/repo" format.
+  #   --per_page N   Tags per page to request (default: 100).
+  #   --all          Paginate through every tag (default: first page only).
+  #
+  # Stdout: one tag name per line.
   local _repo="$1"
   shift
   local _per_page=100 _all=false
@@ -790,18 +790,18 @@ github__tags() {
   return 0
 }
 
-# @brief github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>] — Print `browser_download_url` values from a release. `--filter` applies an ERE grep to the URL list.
-#
-# Without --tag: uses /releases/latest. With --tag: uses
-# /releases/tags/<tag>. Exits 1 if the API call fails.
-#
-# Args:
-#   <owner/repo>    GitHub repository in "owner/repo" format.
-#   --tag <tag>     Release tag to query (optional; defaults to latest).
-#   --filter <ere>  ERE grep pattern applied to the URL list (optional).
-#
-# Stdout: one `browser_download_url` per line.
 github__release_asset_urls() {
+  # @brief github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>] — Print `browser_download_url` values from a release. `--filter` applies an ERE grep to the URL list.
+  #
+  # Without --tag: uses /releases/latest. With --tag: uses
+  # /releases/tags/<tag>. Exits 1 if the API call fails.
+  #
+  # Args:
+  #   <owner/repo>    GitHub repository in "owner/repo" format.
+  #   --tag <tag>     Release tag to query (optional; defaults to latest).
+  #   --filter <ere>  ERE grep pattern applied to the URL list (optional).
+  #
+  # Stdout: one `browser_download_url` per line.
   local _repo="$1"
   shift
   local _tag="" _filter=""
@@ -850,27 +850,27 @@ github__release_asset_urls() {
   return 0
 }
 
-# @brief github__pick_release_asset <owner/repo> [--tag <tag>] [--asset-regex <ERE>] — Select a single release asset URL using heuristic arch/platform filters.
-#
-# Designed for tools that do not publish checksums or have irregular naming
-# conventions. Prefer explicit URL construction with checksum verification
-# when the release naming is known and stable.
-#
-# Filter cascade (each stage is skipped if it would reduce candidates to zero):
-#   1. Negative: eliminate assets for other CPU architectures.
-#   2. Negative: eliminate assets for other platforms (Windows, macOS, Android).
-#   3. Negative: eliminate non-binary files (checksums, packages, certs, metadata).
-#   4. Positive tiebreaker: prefer assets that explicitly name the current arch.
-#   5. Positive tiebreaker: prefer statically linked / musl builds.
-#
-# Args:
-#   <owner/repo>         GitHub repository in "owner/repo" format.
-#   --tag <tag>          Release tag to use (optional; defaults to /releases/latest).
-#   --asset-regex <ERE>  Pre-filter applied before the cascade. Exactly one
-#                        match skips the cascade; zero matches returns 1.
-#
-# Stdout: exactly one URL. Returns 1 if no match or >1 candidates remain.
 github__pick_release_asset() {
+  # @brief github__pick_release_asset <owner/repo> [--tag <tag>] [--asset-regex <ERE>] — Select a single release asset URL using heuristic arch/platform filters.
+  #
+  # Designed for tools that do not publish checksums or have irregular naming
+  # conventions. Prefer explicit URL construction with checksum verification
+  # when the release naming is known and stable.
+  #
+  # Filter cascade (each stage is skipped if it would reduce candidates to zero):
+  #   1. Negative: eliminate assets for other CPU architectures.
+  #   2. Negative: eliminate assets for other platforms (Windows, macOS, Android).
+  #   3. Negative: eliminate non-binary files (checksums, packages, certs, metadata).
+  #   4. Positive tiebreaker: prefer assets that explicitly name the current arch.
+  #   5. Positive tiebreaker: prefer statically linked / musl builds.
+  #
+  # Args:
+  #   <owner/repo>         GitHub repository in "owner/repo" format.
+  #   --tag <tag>          Release tag to use (optional; defaults to /releases/latest).
+  #   --asset-regex <ERE>  Pre-filter applied before the cascade. Exactly one
+  #                        match skips the cascade; zero matches returns 1.
+  #
+  # Stdout: exactly one URL. Returns 1 if no match or >1 candidates remain.
   local _repo="$1"
   shift
   local _tag="" _asset_regex=""
@@ -1017,16 +1017,16 @@ github__pick_release_asset() {
   esac
 }
 
-# _github__api_list_field <url> <field>  (internal)
-#
-# Fetches a GitHub API list endpoint and extracts all values of the named JSON
-# field from each top-level array element, printing one value per line.
-# Returns 1 if the API call fails or the response is empty.
-#
-# Prefers jq then python3 (correct on minified one-line arrays and avoids nested
-# "name"/"tag_name" keys inside objects). Falls back to grep -o when neither is
-# available.
 _github__api_list_field() {
+  # _github__api_list_field <url> <field>  (internal)
+  #
+  # Fetches a GitHub API list endpoint and extracts all values of the named JSON
+  # field from each top-level array element, printing one value per line.
+  # Returns 1 if the API call fails or the response is empty.
+  #
+  # Prefers jq then python3 (correct on minified one-line arrays and avoids nested
+  # "name"/"tag_name" keys inside objects). Falls back to grep -o when neither is
+  # available.
   local _url="$1"
   local _field="$2"
   local _json _lines _msg
@@ -1062,20 +1062,20 @@ _github__api_list_field() {
   return 1
 }
 
-# _github__paginate_list_field <base_url> <field> <per_page>  (internal)
-#
-# Walks pages 1..N of a GitHub list endpoint (one that accepts `page=` and
-# `per_page=`), extracting <field> from every array element, until a page
-# returns fewer than <per_page> items (short-page termination). Prints every
-# extracted value on stdout. Returns 0 when at least one value was printed,
-# 1 when the first page fails to fetch (same contract as
-# _github__api_list_field for the single-page case).
-#
-# Args:
-#   <base_url>  API URL without the page/per_page query string.
-#   <field>     JSON field to extract from each array element.
-#   <per_page>  Page size; also the short-page threshold.
 _github__paginate_list_field() {
+  # _github__paginate_list_field <base_url> <field> <per_page>  (internal)
+  #
+  # Walks pages 1..N of a GitHub list endpoint (one that accepts `page=` and
+  # `per_page=`), extracting <field> from every array element, until a page
+  # returns fewer than <per_page> items (short-page termination). Prints every
+  # extracted value on stdout. Returns 0 when at least one value was printed,
+  # 1 when the first page fails to fetch (same contract as
+  # _github__api_list_field for the single-page case).
+  #
+  # Args:
+  #   <base_url>  API URL without the page/per_page query string.
+  #   <field>     JSON field to extract from each array element.
+  #   <per_page>  Page size; also the short-page threshold.
   local _base="$1"
   local _field="$2"
   local _per_page="$3"
@@ -1115,12 +1115,12 @@ _github__paginate_list_field() {
   done
 }
 
-# _github__count_top_level_array  (internal)
-#
-# Reads a JSON array on stdin and prints its top-level element count.
-# Uses jq (via json__query); falls back to a best-effort `grep -c '^{'`-style
-# heuristic if jq cannot be installed.
 _github__count_top_level_array() {
+  # _github__count_top_level_array  (internal)
+  #
+  # Reads a JSON array on stdin and prints its top-level element count.
+  # Uses jq (via json__query); falls back to a best-effort `grep -c '^{'`-style
+  # heuristic if jq cannot be installed.
   local _json
   _json="$(cat)"
   if printf '%s' "$_json" | json__query 'length' 2> /dev/null; then
@@ -1132,25 +1132,26 @@ _github__count_top_level_array() {
   printf '%s\n' "$_json" | grep -c '^[[:space:]]*{' || true
 }
 
-# _github__escape_ere <str>  (internal)
-#
-# Prints <str> with regex meta-characters escaped so it can be safely used
-# as a literal prefix/substring inside `grep` / `grep -E` patterns. Covers
-# both BRE and ERE metacharacters.
 _github__escape_ere() {
+  # _github__escape_ere <str>  (internal)
+  #
+  # Prints <str> with regex meta-characters escaped so it can be safely used
+  # as a literal prefix/substring inside `grep` / `grep -E` patterns. Covers
+  # both BRE and ERE metacharacters.
+
   # Chars escaped: \ . ^ $ * + ? ( ) { } | [ ]
   # ']' must come first inside the bracket expression; '\\' is escaped as
   # '\\\\' in the sed replacement to produce a single backslash.
   printf '%s' "$1" | sed 's/[][\\.^$*+?(){}|]/\\&/g'
 }
 
-# _github__api_base_url <repo-or-url>  (internal)
-#
-# Normalises the first argument to a full GitHub API base URL.
-# If the argument already starts with http:// or https://, it is returned as-is.
-# Otherwise it is treated as an `owner/repo` slug and expanded to
-# `https://api.github.com/repos/<owner/repo>`.
 _github__api_base_url() {
+  # _github__api_base_url <repo-or-url>  (internal)
+  #
+  # Normalises the first argument to a full GitHub API base URL.
+  # If the argument already starts with http:// or https://, it is returned as-is.
+  # Otherwise it is treated as an `owner/repo` slug and expanded to
+  # `https://api.github.com/repos/<owner/repo>`.
   local _in="$1"
   if [[ "$_in" == https://* || "$_in" == http://* ]]; then
     printf '%s' "$_in"
@@ -1159,13 +1160,13 @@ _github__api_base_url() {
   fi
 }
 
-# _github__api_get <url> [<dest_file>]  (internal)
-#
-# Performs a GitHub API GET with standard Accept/version headers and an
-# optional Authorization header from GITHUB_TOKEN.
-# Suppresses xtrace around the authenticated call to prevent token leaking in
-# CI logs.  Passes output to stdout or to <dest_file> when provided.
 _github__api_get() {
+  # _github__api_get <url> [<dest_file>]  (internal)
+  #
+  # Performs a GitHub API GET with standard Accept/version headers and an
+  # optional Authorization header from GITHUB_TOKEN.
+  # Suppresses xtrace around the authenticated call to prevent token leaking in
+  # CI logs.  Passes output to stdout or to <dest_file> when provided.
   local _url="$1"
   local _dest="${2:-}"
   local _xt=false
@@ -1189,21 +1190,21 @@ _github__api_get() {
   return "$_ec"
 }
 
-# _github__first_stable_tag_matching <api_base> <norm_spec>  (internal)
-#
-# Fetches releases page by page (newest first), returning the full tag of the
-# first stable (non-prerelease, non-draft) release whose bare version matches
-# <norm_spec> as a prefix followed by ".", "-", or end-of-string.  Pagination
-# stops as soon as a match is found, so only as many API requests as necessary
-# are made.
-#
-# Args:
-#   <api_base>   Full GitHub API base URL (e.g. https://api.github.com/repos/owner/repo).
-#   <norm_spec>  Normalised (prefix-stripped) version spec to match against.
-#
-# Stdout: the matched full release tag.
-# Returns: 0 on match, 1 if no match found or on API error.
 _github__first_stable_tag_matching() {
+  # _github__first_stable_tag_matching <api_base> <norm_spec>  (internal)
+  #
+  # Fetches releases page by page (newest first), returning the full tag of the
+  # first stable (non-prerelease, non-draft) release whose bare version matches
+  # <norm_spec> as a prefix followed by ".", "-", or end-of-string.  Pagination
+  # stops as soon as a match is found, so only as many API requests as necessary
+  # are made.
+  #
+  # Args:
+  #   <api_base>   Full GitHub API base URL (e.g. https://api.github.com/repos/owner/repo).
+  #   <norm_spec>  Normalised (prefix-stripped) version spec to match against.
+  #
+  # Stdout: the matched full release tag.
+  # Returns: 0 on match, 1 if no match found or on API error.
   local _api_base="$1" _norm="$2"
   bootstrap__jq
   local _rc=$?

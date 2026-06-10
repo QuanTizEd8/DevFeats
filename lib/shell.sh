@@ -18,18 +18,19 @@ _SHELL__AWK_NORM='
   function is_blank_line(l) { return norm(l) == "" }
 '
 
+shell__bash() {
+  # @brief shell__bash — Run the active bash binary.
+  # Uses _BASH_BIN set by install.sh bootstrap when available; otherwise falls back to bash on PATH.
+  "${_BASH_BIN:-bash}" "$@"
+}
 
-# @brief shell__bash — Run the active bash binary.
-# Uses _BASH_BIN set by install.sh bootstrap when available; otherwise falls back to bash on PATH.
-shell__bash() { "${_BASH_BIN:-bash}" "$@"; }
-
-# @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro.
-#
-# Uses os-release platform IDs. Never uses file-existence checks — a file at
-# the wrong path for this distro won't be sourced by any shell.
-#
-# Stdout: one of `/etc/bash.bashrc`, `/etc/bashrc`, or `/etc/bash/bashrc`.
 shell__detect_bashrc() {
+  # @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro.
+  #
+  # Uses os-release platform IDs. Never uses file-existence checks — a file at
+  # the wrong path for this distro won't be sourced by any shell.
+  #
+  # Stdout: one of `/etc/bash.bashrc`, `/etc/bashrc`, or `/etc/bash/bashrc`.
   case "$(os__platform)" in
     alpine)
       echo "/etc/bash/bashrc"
@@ -44,15 +45,16 @@ shell__detect_bashrc() {
   return 0
 }
 
-# @brief shell__detect_zshdir — Print the system-wide zsh config directory (`/etc/zsh` or `/etc`). Uses binary probing, never directory-existence checks.
-#
-# Detection order: (1) strings-probe the zsh binary (zsh compiles in the
-# path of its global zshenv); (2) os-release platform IDs. Never uses
-# directory-existence checks — a directory at the wrong path won't be used
-# by the shell anyway.
-#
-# Stdout: `/etc/zsh` (most distros) or `/etc` (Fedora/RHEL, openSUSE, macOS).
 shell__detect_zshdir() {
+  # @brief shell__detect_zshdir — Print the system-wide zsh config directory (`/etc/zsh` or `/etc`). Uses binary probing, never directory-existence checks.
+  #
+  # Detection order: (1) strings-probe the zsh binary (zsh compiles in the
+  # path of its global zshenv); (2) os-release platform IDs. Never uses
+  # directory-existence checks — a directory at the wrong path won't be used
+  # by the shell anyway.
+  #
+  # Stdout: `/etc/zsh` (most distros) or `/etc` (Fedora/RHEL, openSUSE, macOS).
+
   # Ask zsh which global zshenv path it was compiled with.
   local _compiled
   bootstrap__strings || true
@@ -73,18 +75,18 @@ shell__detect_zshdir() {
   return 0
 }
 
-# @brief shell__write_block --file <f> --marker <id> --content <c> — Idempotently write a named `# >>> <id> >>>` … `# <<< <id> <<<` block to a file. Creates the file if needed.
-#
-# Updates the block in-place if the marker already exists; appends otherwise.
-# Creates parent directories and the file if they do not exist.
-# Blank lines: one empty line below every block; one empty line above unless the
-# begin marker would be the first line of the file (append or in-place update).
-#
-# Args:
-#   --file <f>     Path to the target file.
-#   --marker <id>  Block identifier used in the begin/end comment markers.
-#   --content <c>  Content to write inside the block.
 shell__write_block() {
+  # @brief shell__write_block --file <f> --marker <id> --content <c> — Idempotently write a named `# >>> <id> >>>` … `# <<< <id> <<<` block to a file. Creates the file if needed.
+  #
+  # Updates the block in-place if the marker already exists; appends otherwise.
+  # Creates parent directories and the file if they do not exist.
+  # Blank lines: one empty line below every block; one empty line above unless the
+  # begin marker would be the first line of the file (append or in-place update).
+  #
+  # Args:
+  #   --file <f>     Path to the target file.
+  #   --marker <id>  Block identifier used in the begin/end comment markers.
+  #   --content <c>  Content to write inside the block.
   local _file="" _marker="" _content="" _lb=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -166,18 +168,18 @@ shell__write_block() {
   return 0
 }
 
-# @brief shell__sync_block --files <list> --marker <id> [--content <c>] — Write (if `--content` given) or remove the named block in each file in the newline-separated list.
-#
-# For each file in the newline-separated <files> list:
-#   - If --content is given: write or update the named idempotency block.
-#   - If --content is absent: remove the named idempotency block if present.
-# Skips blank lines in the file list.
-#
-# Args:
-#   --files <list>  Newline-separated list of file paths.
-#   --marker <id>   Block identifier (same format as shell__write_block).
-#   --content <c>   Block content (optional; omit to remove the block).
 shell__sync_block() {
+  # @brief shell__sync_block --files <list> --marker <id> [--content <c>] — Write (if `--content` given) or remove the named block in each file in the newline-separated list.
+  #
+  # For each file in the newline-separated <files> list:
+  #   - If --content is given: write or update the named idempotency block.
+  #   - If --content is absent: remove the named idempotency block if present.
+  # Skips blank lines in the file list.
+  #
+  # Args:
+  #   --files <list>  Newline-separated list of file paths.
+  #   --marker <id>   Block identifier (same format as shell__write_block).
+  #   --content <c>   Block content (optional; omit to remove the block).
   local _files="" _marker="" _content="" _has_content=false
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -222,16 +224,16 @@ shell__sync_block() {
   return 0
 }
 
-# @brief shell__user_login_file [--home <dir>] — Print the bash login startup file path (`~/.bash_profile`, `~/.bash_login`, or `~/.profile`). Falls back to `~/.bash_profile`.
-#
-# Probes in order: .bash_profile, .bash_login, .profile. Falls back to
-# <home>/.bash_profile if none exist yet.
-#
-# Args:
-#   --home <dir>  User home directory (default: $HOME).
-#
-# Stdout: absolute path to the login file.
 shell__user_login_file() {
+  # @brief shell__user_login_file [--home <dir>] — Print the bash login startup file path (`~/.bash_profile`, `~/.bash_login`, or `~/.profile`). Falls back to `~/.bash_profile`.
+  #
+  # Probes in order: .bash_profile, .bash_login, .profile. Falls back to
+  # <home>/.bash_profile if none exist yet.
+  #
+  # Args:
+  #   --home <dir>  User home directory (default: $HOME).
+  #
+  # Stdout: absolute path to the login file.
   local _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -254,17 +256,17 @@ shell__user_login_file() {
   return 0
 }
 
-# @brief shell__system_path_files [--profile_d <filename>] — Print system-wide shell startup file paths for PATH/env injection.
-#
-# Intended for use when configuring PATH or environment variables as root
-# on Linux. Prints one path per line:
-# BASH_ENV file (via shell__ensure_bashenv); /etc/profile.d/<f> (if --profile_d given); global bashrc; <zshdir>/zshenv.
-#
-# Args:
-#   --profile_d <filename>  Base filename for an /etc/profile.d/ drop-in (optional).
-#
-# Stdout: one path per line for each applicable shell startup file.
 shell__system_path_files() {
+  # @brief shell__system_path_files [--profile_d <filename>] — Print system-wide shell startup file paths for PATH/env injection.
+  #
+  # Intended for use when configuring PATH or environment variables as root
+  # on Linux. Prints one path per line:
+  # BASH_ENV file (via shell__ensure_bashenv); /etc/profile.d/<f> (if --profile_d given); global bashrc; <zshdir>/zshenv.
+  #
+  # Args:
+  #   --profile_d <filename>  Base filename for an /etc/profile.d/ drop-in (optional).
+  #
+  # Stdout: one path per line for each applicable shell startup file.
   local _profiled=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -283,25 +285,25 @@ shell__system_path_files() {
   return 0
 }
 
-# @brief shell__detect_zdotdir [--home <dir>] [--user <username>] — Print the effective ZDOTDIR for a user. Probes the live environment, parses system and user zshenv, then falls back to `<home>`.
-#
-# Detection order:
-#   1. If --user is given and is a different user and zsh is available:
-#      run `zsh` as that user to read ZDOTDIR from the live environment.
-#   2. If <home> matches $HOME and $ZDOTDIR is set → use $ZDOTDIR directly
-#      (we are the target user; the value is live in the current environment).
-#   3. Parse ZDOTDIR= assignments from the system zshenv and <home>/.zshenv.
-#      Substitutes $HOME, ${HOME}, ~, $XDG_CONFIG_HOME, ${XDG_CONFIG_HOME}.
-#      Falls back to the next tier if the result still contains unresolvable variables.
-#   4. Falls back to <home>.
-#
-# Args:
-#   --home <dir>      User home directory (default: $HOME).
-#   --user <username> Target username. When given and differs from the current
-#                     user, spawns zsh as that user to read the live ZDOTDIR.
-#
-# Stdout: absolute path to the effective ZDOTDIR.
 shell__detect_zdotdir() {
+  # @brief shell__detect_zdotdir [--home <dir>] [--user <username>] — Print the effective ZDOTDIR for a user. Probes the live environment, parses system and user zshenv, then falls back to `<home>`.
+  #
+  # Detection order:
+  #   1. If --user is given and is a different user and zsh is available:
+  #      run `zsh` as that user to read ZDOTDIR from the live environment.
+  #   2. If <home> matches $HOME and $ZDOTDIR is set → use $ZDOTDIR directly
+  #      (we are the target user; the value is live in the current environment).
+  #   3. Parse ZDOTDIR= assignments from the system zshenv and <home>/.zshenv.
+  #      Substitutes $HOME, ${HOME}, ~, $XDG_CONFIG_HOME, ${XDG_CONFIG_HOME}.
+  #      Falls back to the next tier if the result still contains unresolvable variables.
+  #   4. Falls back to <home>.
+  #
+  # Args:
+  #   --home <dir>      User home directory (default: $HOME).
+  #   --user <username> Target username. When given and differs from the current
+  #                     user, spawns zsh as that user to read the live ZDOTDIR.
+  #
+  # Stdout: absolute path to the effective ZDOTDIR.
   local _home="${HOME:-}" _user=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -382,22 +384,22 @@ shell__detect_zdotdir() {
   return 0
 }
 
-# @brief shell__detect_xdg_config_home [<username>] — Print the effective XDG_CONFIG_HOME for a user.
-#
-# Detection order:
-#   1. If a username is given and differs from the current user and bash is
-#      available: run `bash` as that user to read XDG_CONFIG_HOME from the
-#      live environment.
-#   2. If no username (or same as current user) and $XDG_CONFIG_HOME is set
-#      in the current environment → use it directly.
-#   3. Falls back to `<home>/.config`.
-#
-# Args:
-#   <username>  (optional positional) Target username. Home is resolved via
-#               users__resolve_home. Defaults to the current user.
-#
-# Stdout: absolute path to the effective XDG_CONFIG_HOME.
 shell__detect_xdg_config_home() {
+  # @brief shell__detect_xdg_config_home [<username>] — Print the effective XDG_CONFIG_HOME for a user.
+  #
+  # Detection order:
+  #   1. If a username is given and differs from the current user and bash is
+  #      available: run `bash` as that user to read XDG_CONFIG_HOME from the
+  #      live environment.
+  #   2. If no username (or same as current user) and $XDG_CONFIG_HOME is set
+  #      in the current environment → use it directly.
+  #   3. Falls back to `<home>/.config`.
+  #
+  # Args:
+  #   <username>  (optional positional) Target username. Home is resolved via
+  #               users__resolve_home. Defaults to the current user.
+  #
+  # Stdout: absolute path to the effective XDG_CONFIG_HOME.
   local _user="${1:-}" _home
   if [[ -n "$_user" ]]; then
     _home="$(users__resolve_home "$_user")"
@@ -429,27 +431,27 @@ shell__detect_xdg_config_home() {
   return 0
 }
 
-# @brief shell__resolve_zsh_theme_file [<username>] [--zdotdir <dir>] --source-marker <marker>
-#
-# Resolves the path of the per-user Zsh theme file (`zshtheme`) and ensures it
-# is wired into the user's `.zshrc` via a sourced block.
-#
-# Detects ZDOTDIR (via --zdotdir override or shell__detect_zdotdir) and returns
-# `$ZDOTDIR/zshtheme`. When the theme file does not already exist, a guarded
-# source block is injected into `$ZDOTDIR/.zshrc` (created if absent) using
-# --source-marker so that `.zshrc` sources the theme file on startup.
-#
-# Call this only when no user-provided path override is in effect; handle that
-# check at the call site before invoking this function.
-#
-# Args:
-#   <username>          (optional positional) Target username. Home resolved via
-#                       users__resolve_home. Defaults to current user.
-#   --zdotdir <dir>     ZDOTDIR override (skips live detection when given).
-#   --source-marker <m> Marker for the shell__write_block source-injection block.
-#
-# Stdout: absolute path to the theme file to write the feature block into.
 shell__resolve_zsh_theme_file() {
+  # @brief shell__resolve_zsh_theme_file [<username>] [--zdotdir <dir>] --source-marker <marker>
+  #
+  # Resolves the path of the per-user Zsh theme file (`zshtheme`) and ensures it
+  # is wired into the user's `.zshrc` via a sourced block.
+  #
+  # Detects ZDOTDIR (via --zdotdir override or shell__detect_zdotdir) and returns
+  # `$ZDOTDIR/zshtheme`. When the theme file does not already exist, a guarded
+  # source block is injected into `$ZDOTDIR/.zshrc` (created if absent) using
+  # --source-marker so that `.zshrc` sources the theme file on startup.
+  #
+  # Call this only when no user-provided path override is in effect; handle that
+  # check at the call site before invoking this function.
+  #
+  # Args:
+  #   <username>          (optional positional) Target username. Home resolved via
+  #                       users__resolve_home. Defaults to current user.
+  #   --zdotdir <dir>     ZDOTDIR override (skips live detection when given).
+  #   --source-marker <m> Marker for the shell__write_block source-injection block.
+  #
+  # Stdout: absolute path to the theme file to write the feature block into.
   local _user="" _zdotdir_override="" _source_marker=""
   # Consume the optional leading positional username only when the first arg is
   # not a flag (does not start with '--').
@@ -500,26 +502,26 @@ shell__resolve_zsh_theme_file() {
   return 0
 }
 
-# @brief shell__resolve_bash_theme_file [<username>] --source-marker <marker>
-#
-# Resolves the path of the per-user Bash theme file (`bashtheme`) and ensures it
-# is wired into the user's `.bashrc` via a sourced block.
-#
-# Detects XDG_CONFIG_HOME (via shell__detect_xdg_config_home) and returns
-# `$XDG_CONFIG_HOME/bash/bashtheme`. When the theme file does not already exist,
-# a guarded source block is injected into `$HOME/.bashrc` (created if absent)
-# using --source-marker.
-#
-# Call this only when no user-provided path override is in effect; handle that
-# check at the call site before invoking this function.
-#
-# Args:
-#   <username>          (optional positional) Target username. Home resolved via
-#                       users__resolve_home. Defaults to current user.
-#   --source-marker <m> Marker for the shell__write_block source-injection block.
-#
-# Stdout: absolute path to the theme file to write the feature block into.
 shell__resolve_bash_theme_file() {
+  # @brief shell__resolve_bash_theme_file [<username>] --source-marker <marker>
+  #
+  # Resolves the path of the per-user Bash theme file (`bashtheme`) and ensures it
+  # is wired into the user's `.bashrc` via a sourced block.
+  #
+  # Detects XDG_CONFIG_HOME (via shell__detect_xdg_config_home) and returns
+  # `$XDG_CONFIG_HOME/bash/bashtheme`. When the theme file does not already exist,
+  # a guarded source block is injected into `$HOME/.bashrc` (created if absent)
+  # using --source-marker.
+  #
+  # Call this only when no user-provided path override is in effect; handle that
+  # check at the call site before invoking this function.
+  #
+  # Args:
+  #   <username>          (optional positional) Target username. Home resolved via
+  #                       users__resolve_home. Defaults to current user.
+  #   --source-marker <m> Marker for the shell__write_block source-injection block.
+  #
+  # Stdout: absolute path to the theme file to write the feature block into.
   local _user="" _source_marker=""
   # Consume the optional leading positional username only when the first arg is
   # not a flag (does not start with '--').
@@ -561,15 +563,15 @@ shell__resolve_bash_theme_file() {
   return 0
 }
 
-# @brief shell__user_path_files [--home <dir>] [--zdotdir <dir>] — Print user startup file paths for a PATH export: bash login file, `.bashrc`, and `<zdotdir>/.zshenv`.
-#
-# Args:
-#   --home <dir>    User home directory (default: `$HOME`).
-#   --zdotdir <dir> ZDOTDIR override (default: auto-detected via `shell__detect_zdotdir`).
-#
-# Stdout: one path per line — login file, `<home>/.bashrc`, `<zdotdir>/.zshenv`.
-# shellcheck disable=SC2120  # called with no args at call site (SC2119 suppressed there)
 shell__user_path_files() {
+  # @brief shell__user_path_files [--home <dir>] [--zdotdir <dir>] — Print user startup file paths for a PATH export: bash login file, `.bashrc`, and `<zdotdir>/.zshenv`.
+  #
+  # Args:
+  #   --home <dir>    User home directory (default: `$HOME`).
+  #   --zdotdir <dir> ZDOTDIR override (default: auto-detected via `shell__detect_zdotdir`).
+  #
+  # Stdout: one path per line — login file, `<home>/.bashrc`, `<zdotdir>/.zshenv`.
+  # shellcheck disable=SC2120  # called with no args at call site (SC2119 suppressed there)
   local _home="${HOME:-}" _zdotdir=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -593,30 +595,30 @@ shell__user_path_files() {
   return 0
 }
 
-# @brief shell__write_env_block --opt <value> --profile-d <name> --marker <id> --content <c> [--scope system|user] [--home <dir>] — Resolve shell startup file targets and write an idempotent env-export block.
-#
-# Centralises the "auto vs. explicit file list" routing that every export-path
-# handler needs: pick system-wide files when in system scope, user-scoped files
-# when in user scope, or write directly to the caller-supplied list.
-#
-# Args:
-#   --opt <value>          "auto" to target the standard system/user startup files, or
-#                          a newline-separated list of absolute paths to target directly
-#                          (pass via `$(printf '%s\n' "${ARRAY[@]}")`).
-#   --profile-d <n>        Base filename for an /etc/profile.d/ drop-in; only used when
-#                          --opt is "auto" and scope is system (optional).
-#   --marker <id>          Block identifier passed to shell__sync_block.
-#   --content <c>          Shell code to write inside the idempotency block.
-#   --scope system|user    Explicit scope override. When omitted, falls back to
-#                          users__is_root (system if root, user otherwise).
-#   --home <dir>           Home directory for user-scoped writes; passed to
-#                          shell__user_path_files (default: $HOME).
-#
-# When --opt is "auto":
-#   system scope (--scope system, or root when --scope omitted) → shell__system_path_files
-#   user scope   (--scope user,   or non-root when --scope omitted) → shell__user_path_files
-# When --opt is an explicit newline-separated list: writes to those paths only.
 shell__write_env_block() {
+  # @brief shell__write_env_block --opt <value> --profile-d <name> --marker <id> --content <c> [--scope system|user] [--home <dir>] — Resolve shell startup file targets and write an idempotent env-export block.
+  #
+  # Centralises the "auto vs. explicit file list" routing that every export-path
+  # handler needs: pick system-wide files when in system scope, user-scoped files
+  # when in user scope, or write directly to the caller-supplied list.
+  #
+  # Args:
+  #   --opt <value>          "auto" to target the standard system/user startup files, or
+  #                          a newline-separated list of absolute paths to target directly
+  #                          (pass via `$(printf '%s\n' "${ARRAY[@]}")`).
+  #   --profile-d <n>        Base filename for an /etc/profile.d/ drop-in; only used when
+  #                          --opt is "auto" and scope is system (optional).
+  #   --marker <id>          Block identifier passed to shell__sync_block.
+  #   --content <c>          Shell code to write inside the idempotency block.
+  #   --scope system|user    Explicit scope override. When omitted, falls back to
+  #                          users__is_root (system if root, user otherwise).
+  #   --home <dir>           Home directory for user-scoped writes; passed to
+  #                          shell__user_path_files (default: $HOME).
+  #
+  # When --opt is "auto":
+  #   system scope (--scope system, or root when --scope omitted) → shell__system_path_files
+  #   user scope   (--scope user,   or non-root when --scope omitted) → shell__user_path_files
+  # When --opt is an explicit newline-separated list: writes to those paths only.
   local _opt="" _profile_d="" _marker="" _content="" _scope="" _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -669,17 +671,17 @@ shell__write_env_block() {
   return 0
 }
 
-# @brief shell__user_init_files [--home <dir>] [--zdotdir <dir>] — Print user startup file paths for a full initializer: bash login, `.bashrc`, `<zdotdir>/.zprofile`, `<zdotdir>/.zshrc`.
-#
-# Suitable for initializers that need to run in all contexts (e.g.
-# `eval "$(brew shellenv)"`).
-#
-# Args:
-#   --home <dir>    User home directory (default: `$HOME`).
-#   --zdotdir <dir> ZDOTDIR override (default: auto-detected via `shell__detect_zdotdir`).
-#
-# Stdout: one path per line — login file, `<home>/.bashrc`, `<zdotdir>/.zprofile`, `<zdotdir>/.zshrc`.
 shell__user_init_files() {
+  # @brief shell__user_init_files [--home <dir>] [--zdotdir <dir>] — Print user startup file paths for a full initializer: bash login, `.bashrc`, `<zdotdir>/.zprofile`, `<zdotdir>/.zshrc`.
+  #
+  # Suitable for initializers that need to run in all contexts (e.g.
+  # `eval "$(brew shellenv)"`).
+  #
+  # Args:
+  #   --home <dir>    User home directory (default: `$HOME`).
+  #   --zdotdir <dir> ZDOTDIR override (default: auto-detected via `shell__detect_zdotdir`).
+  #
+  # Stdout: one path per line — login file, `<home>/.bashrc`, `<zdotdir>/.zprofile`, `<zdotdir>/.zshrc`.
   local _home="${HOME:-}" _zdotdir=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -704,18 +706,18 @@ shell__user_init_files() {
   return 0
 }
 
-# @brief shell__user_rc_files [--home <dir>] [--zdotdir <dir>] — Print user-scoped interactive RC file paths (`.bashrc`, `<zdotdir>/.zshrc`). Excludes login files.
-#
-# Intended for initializers that must only run in interactive shells
-# (e.g. conda init, shell prompt setup). Does NOT include login files —
-# use `shell__user_init_files` when those are needed too.
-#
-# Args:
-#   --home <dir>    User home directory (default: `$HOME`).
-#   --zdotdir <dir> ZDOTDIR override (default: auto-detected via `shell__detect_zdotdir`).
-#
-# Stdout: one path per line — `<home>/.bashrc`, `<zdotdir>/.zshrc`.
 shell__user_rc_files() {
+  # @brief shell__user_rc_files [--home <dir>] [--zdotdir <dir>] — Print user-scoped interactive RC file paths (`.bashrc`, `<zdotdir>/.zshrc`). Excludes login files.
+  #
+  # Intended for initializers that must only run in interactive shells
+  # (e.g. conda init, shell prompt setup). Does NOT include login files —
+  # use `shell__user_init_files` when those are needed too.
+  #
+  # Args:
+  #   --home <dir>    User home directory (default: `$HOME`).
+  #   --zdotdir <dir> ZDOTDIR override (default: auto-detected via `shell__detect_zdotdir`).
+  #
+  # Stdout: one path per line — `<home>/.bashrc`, `<zdotdir>/.zshrc`.
   local _home="${HOME:-}" _zdotdir=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -738,28 +740,28 @@ shell__user_rc_files() {
   return 0
 }
 
-# @brief shell__system_rc_files — Print system-wide interactive RC file paths (global bashrc, `<zshdir>/zshrc`). Does not include login or PATH-export files.
-#
-# Intended for system-wide interactive-only setup when no per-user targets
-# are resolved (e.g. running as root with no resolved users).
-#
-# Stdout: global bashrc path, then `<zshdir>/zshrc`.
 shell__system_rc_files() {
+  # @brief shell__system_rc_files — Print system-wide interactive RC file paths (global bashrc, `<zshdir>/zshrc`). Does not include login or PATH-export files.
+  #
+  # Intended for system-wide interactive-only setup when no per-user targets
+  # are resolved (e.g. running as root with no resolved users).
+  #
+  # Stdout: global bashrc path, then `<zshdir>/zshrc`.
   shell__detect_bashrc
   echo "$(shell__detect_zshdir)/zshrc"
   return 0
 }
 
-# @brief shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir> — Given an `owner/repo` slug and `ZSH_CUSTOM` dir, print the `ZSH_THEME` value expected by oh-my-zsh.
-#
-# Falls back to the repo name alone if the `.zsh-theme` file cannot be found.
-#
-# Args:
-#   --theme_slug <slug>  GitHub slug in "owner/repo" format.
-#   --custom_dir <dir>   Path to $ZSH_CUSTOM (oh-my-zsh custom directory).
-#
-# Stdout: ZSH_THEME value (e.g. `repo-name/theme-stem` or just `repo-name`).
 shell__resolve_omz_theme() {
+  # @brief shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir> — Given an `owner/repo` slug and `ZSH_CUSTOM` dir, print the `ZSH_THEME` value expected by oh-my-zsh.
+  #
+  # Falls back to the repo name alone if the `.zsh-theme` file cannot be found.
+  #
+  # Args:
+  #   --theme_slug <slug>  GitHub slug in "owner/repo" format.
+  #   --custom_dir <dir>   Path to $ZSH_CUSTOM (oh-my-zsh custom directory).
+  #
+  # Stdout: ZSH_THEME value (e.g. `repo-name/theme-stem` or just `repo-name`).
   local slug="" custom_dir=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -794,14 +796,15 @@ shell__resolve_omz_theme() {
   return 0
 }
 
-# @brief shell__ensure_bashenv — Detect or create the system-wide BASH_ENV file and register it in `/etc/environment`. Print the absolute path to the file.
-#
-# Callers are responsible for writing content to the returned path.
-#
-# Detection priority: `$BASH_ENV` (live env var) → `BASH_ENV=` in `/etc/environment` → create `<bashrc_dir>/bashenv`.
-#
-# Stdout: absolute path to the BASH_ENV file.
 shell__ensure_bashenv() {
+  # @brief shell__ensure_bashenv — Detect or create the system-wide BASH_ENV file and register it in `/etc/environment`. Print the absolute path to the file.
+  #
+  # Callers are responsible for writing content to the returned path.
+  #
+  # Detection priority: `$BASH_ENV` (live env var) → `BASH_ENV=` in `/etc/environment` → create `<bashrc_dir>/bashenv`.
+  #
+  # Stdout: absolute path to the BASH_ENV file.
+
   # 1. Live environment variable
   if [ -n "${BASH_ENV:-}" ]; then
     logging__info "BASH_ENV already set to '${BASH_ENV}'; reusing."
@@ -837,28 +840,28 @@ shell__ensure_bashenv() {
   return 0
 }
 
-# @brief shell__install_completion [--system] [--home <dir>] <shell> <name> <content> — Write a shell completion script to the appropriate completion directory.
-#
-# Selects the install path based on scope (system vs user) and shell:
-#   bash    system: /etc/bash_completion.d/<name>
-#           user:   <home>/.local/share/bash-completion/completions/<name>
-#   zsh     system: <shell__detect_zshdir>/completions/_<name>
-#           user:   <home>/.zfunc/_<name>
-#   fish    system: /usr/share/fish/vendor_completions.d/<name>.fish
-#           user:   <home>/.config/fish/completions/<name>.fish
-#   nushell (no system path): <home>/.config/nushell/autoload/<name>.nu
-#   elvish  (no system path): named block in <home>/.config/elvish/rc.elv
-#
-# Args:
-#   --system      Use system-wide paths (root behaviour). When omitted, user paths are used.
-#                 Ignored for nushell and elvish (no standard system paths exist).
-#   --home <dir>  Home directory for user-scoped paths. Defaults to $HOME.
-#   <shell>       Target shell: bash, zsh, fish, nushell, or elvish.
-#   <name>        Completion file base name (tool name, e.g. "yq").
-#   <content>     Completion script text to write.
-#
-# Returns: 0 on success, 1 for unsupported shells or write errors.
 shell__install_completion() {
+  # @brief shell__install_completion [--system] [--home <dir>] <shell> <name> <content> — Write a shell completion script to the appropriate completion directory.
+  #
+  # Selects the install path based on scope (system vs user) and shell:
+  #   bash    system: /etc/bash_completion.d/<name>
+  #           user:   <home>/.local/share/bash-completion/completions/<name>
+  #   zsh     system: <shell__detect_zshdir>/completions/_<name>
+  #           user:   <home>/.zfunc/_<name>
+  #   fish    system: /usr/share/fish/vendor_completions.d/<name>.fish
+  #           user:   <home>/.config/fish/completions/<name>.fish
+  #   nushell (no system path): <home>/.config/nushell/autoload/<name>.nu
+  #   elvish  (no system path): named block in <home>/.config/elvish/rc.elv
+  #
+  # Args:
+  #   --system      Use system-wide paths (root behaviour). When omitted, user paths are used.
+  #                 Ignored for nushell and elvish (no standard system paths exist).
+  #   --home <dir>  Home directory for user-scoped paths. Defaults to $HOME.
+  #   <shell>       Target shell: bash, zsh, fish, nushell, or elvish.
+  #   <name>        Completion file base name (tool name, e.g. "yq").
+  #   <content>     Completion script text to write.
+  #
+  # Returns: 0 on success, 1 for unsupported shells or write errors.
   local _system=false _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -918,23 +921,23 @@ shell__install_completion() {
   logging__success "Shell completion for '${_shell}' written to '${_dest}'."
 }
 
-# @brief shell__create_symlink --src <s> --system-target <t> --user-target <t> — Create a symlink, choosing system-wide or user-scoped location based on write access.
-#
-# Places the symlink at <system-target> if the system target's parent directory
-# exists and is writable by the caller; otherwise at <user-target>. If the
-# chosen target equals src, no symlink is needed and the function returns
-# without error.
-#
-# Errors if the chosen target path is a real file or directory (not a symlink).
-# Creates parent directories of the target as needed.
-#
-# Args:
-#   --src <s>            The path the symlink will point to.
-#   --system-target <t>  Symlink path for system-wide installations.
-#   --user-target <t>    Symlink path for user-scoped installations.
-#
-# Returns: 0 on success, 1 if the target is a real file or directory.
 shell__create_symlink() {
+  # @brief shell__create_symlink --src <s> --system-target <t> --user-target <t> — Create a symlink, choosing system-wide or user-scoped location based on write access.
+  #
+  # Places the symlink at <system-target> if the system target's parent directory
+  # exists and is writable by the caller; otherwise at <user-target>. If the
+  # chosen target equals src, no symlink is needed and the function returns
+  # without error.
+  #
+  # Errors if the chosen target path is a real file or directory (not a symlink).
+  # Creates parent directories of the target as needed.
+  #
+  # Args:
+  #   --src <s>            The path the symlink will point to.
+  #   --system-target <t>  Symlink path for system-wide installations.
+  #   --user-target <t>    Symlink path for user-scoped installations.
+  #
+  # Returns: 0 on success, 1 if the target is a real file or directory.
   local _src="" _system_target="" _user_target=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -1002,32 +1005,32 @@ shell__create_symlink() {
   return 0
 }
 
-# @brief shell__write_activation_snippets [--scope system|user] [--home <dir>] <marker> <profile_d_name> <snippet_func> [<shell>...] — Write activation snippets for each shell to the appropriate init files.
-#
-# Routes snippets based on scope (system vs user), shell, and the snippet
-# function's exit code (0 = all contexts; 1 = interactive-only).
-#
-# Supported shells: bash, zsh, fish, tcsh, elvish.
-#
-# Shell notes:
-#   fish   — no login/interactive distinction; system writes to /etc/fish/conf.d/,
-#             user writes to ~/.config/fish/config.fish; _everywhere ignored.
-#   tcsh   — system: /etc/csh.cshrc (+ /etc/csh.login when _everywhere=0);
-#             user: ~/.tcshrc if it exists, else ~/.cshrc (+ ~/.login when _everywhere=0).
-#   elvish — no system-wide config path; system scope iterates all resolved users and
-#             writes to each user's ~/.config/elvish/rc.elv; _everywhere ignored.
-#
-# Args:
-#   --scope system|user  Explicit scope override. When omitted, falls back to
-#                        users__is_root (system if root, user otherwise).
-#   --home <dir>         Home directory for user-scoped writes (default: $HOME).
-#   <marker>             Idempotency marker passed to shell__sync_block.
-#   <profile_d_name>     Basename for the /etc/profile.d/ file (system+bash+everywhere only).
-#                        Also used (with .sh stripped and .fish appended) for /etc/fish/conf.d/.
-#   <snippet_func>       Name of the function to call as `"$snippet_func" "$shell"`.
-#                        stdout: snippet content; exit 0 = all contexts; exit 1 = interactive-only.
-#   [<shell>...]         Shell names to iterate over (bash, zsh, fish, tcsh, elvish, ...).
 shell__write_activation_snippets() {
+  # @brief shell__write_activation_snippets [--scope system|user] [--home <dir>] <marker> <profile_d_name> <snippet_func> [<shell>...] — Write activation snippets for each shell to the appropriate init files.
+  #
+  # Routes snippets based on scope (system vs user), shell, and the snippet
+  # function's exit code (0 = all contexts; 1 = interactive-only).
+  #
+  # Supported shells: bash, zsh, fish, tcsh, elvish.
+  #
+  # Shell notes:
+  #   fish   — no login/interactive distinction; system writes to /etc/fish/conf.d/,
+  #             user writes to ~/.config/fish/config.fish; _everywhere ignored.
+  #   tcsh   — system: /etc/csh.cshrc (+ /etc/csh.login when _everywhere=0);
+  #             user: ~/.tcshrc if it exists, else ~/.cshrc (+ ~/.login when _everywhere=0).
+  #   elvish — no system-wide config path; system scope iterates all resolved users and
+  #             writes to each user's ~/.config/elvish/rc.elv; _everywhere ignored.
+  #
+  # Args:
+  #   --scope system|user  Explicit scope override. When omitted, falls back to
+  #                        users__is_root (system if root, user otherwise).
+  #   --home <dir>         Home directory for user-scoped writes (default: $HOME).
+  #   <marker>             Idempotency marker passed to shell__sync_block.
+  #   <profile_d_name>     Basename for the /etc/profile.d/ file (system+bash+everywhere only).
+  #                        Also used (with .sh stripped and .fish appended) for /etc/fish/conf.d/.
+  #   <snippet_func>       Name of the function to call as `"$snippet_func" "$shell"`.
+  #                        stdout: snippet content; exit 0 = all contexts; exit 1 = interactive-only.
+  #   [<shell>...]         Shell names to iterate over (bash, zsh, fish, tcsh, elvish, ...).
   local _scope="" _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -1170,13 +1173,13 @@ shell__write_activation_snippets() {
   done
 }
 
-# @brief shell__prefix_link_bins — Create symlinks for a set of prefix bins into target directories.
-#
-# Args:
-#   --bin-dir <dir>   Source directory containing the binaries.
-#   --bins <names>    Space-separated binary names.
-#   --target <dir>    Target directory (may be repeated).
 shell__prefix_link_bins() {
+  # @brief shell__prefix_link_bins — Create symlinks for a set of prefix bins into target directories.
+  #
+  # Args:
+  #   --bin-dir <dir>   Source directory containing the binaries.
+  #   --bins <names>    Space-separated binary names.
+  #   --target <dir>    Target directory (may be repeated).
   local _bin_dir="" _bins=""
   local -a _targets=()
   while [[ $# -gt 0 ]]; do
@@ -1211,13 +1214,13 @@ shell__prefix_link_bins() {
   done
 }
 
-# @brief shell__prefix_unlink_bins — Remove symlinks for a set of prefix bins from target directories.
-#
-# Args:
-#   --bin-dir <dir>   Source directory (only used as context; not accessed).
-#   --bins <names>    Space-separated binary names.
-#   --target <dir>    Target directory to remove symlinks from (may be repeated).
 shell__prefix_unlink_bins() {
+  # @brief shell__prefix_unlink_bins — Remove symlinks for a set of prefix bins from target directories.
+  #
+  # Args:
+  #   --bin-dir <dir>   Source directory (only used as context; not accessed).
+  #   --bins <names>    Space-separated binary names.
+  #   --target <dir>    Target directory to remove symlinks from (may be repeated).
   local _bins=""
   local -a _targets=()
   while [[ $# -gt 0 ]]; do
@@ -1250,16 +1253,16 @@ shell__prefix_unlink_bins() {
   done
 }
 
-# @brief shell__run_prefix_undiscovery — Remove prefix-discovery artifacts: downstream symlinks and PATH export blocks.
-#
-# Accepts the same arguments as shell__run_prefix_discovery. Always attempts removal of
-# both symlinks (from resolved target dirs) and PATH export block (from appropriate shell
-# files), regardless of the discovery mode. Each removal operation is a no-op when the
-# artifact does not exist (shell__sync_block skips missing markers; shell__prefix_unlink_bins
-# uses a [ -L ] guard).
-#
-# Args: same as shell__run_prefix_discovery (--cmd-var and --discovery are accepted but ignored).
 shell__run_prefix_undiscovery() {
+  # @brief shell__run_prefix_undiscovery — Remove prefix-discovery artifacts: downstream symlinks and PATH export blocks.
+  #
+  # Accepts the same arguments as shell__run_prefix_discovery. Always attempts removal of
+  # both symlinks (from resolved target dirs) and PATH export block (from appropriate shell
+  # files), regardless of the discovery mode. Each removal operation is a no-op when the
+  # artifact does not exist (shell__sync_block skips missing markers; shell__prefix_unlink_bins
+  # uses a [ -L ] guard).
+  #
+  # Args: same as shell__run_prefix_discovery (--cmd-var and --discovery are accepted but ignored).
   local _disc_prefix="" _bin_dir="bin"
   local _bins="" _symlinks_ref="" _exports_ref="" _marker="" _profile_d=""
   local _symlink_root="/usr/local/bin" _symlink_nonroot="${HOME}/.local/bin"
@@ -1367,25 +1370,25 @@ shell__run_prefix_undiscovery() {
   shell__sync_block --files "${_export_files}" --marker "${_marker}"
 }
 
-# @brief shell__remove_activation_snippets — Remove activation blocks from all applicable shell init files.
-#
-# Mirror of shell__write_activation_snippets. Because the original snippet function is not
-# available at removal time, this function attempts removal from ALL possible file locations
-# for each shell (both "everywhere" paths and "rc-only" paths). shell__sync_block skips files
-# that don't contain the marker, so over-broad removal is safe.
-#
-# Supported shells: bash, zsh, fish, tcsh, elvish.
-# See shell__write_activation_snippets for per-shell path details.
-# tcsh removal tries both ~/.tcshrc and ~/.cshrc since write-time selection is not known.
-# elvish system scope iterates all resolved users (no system-wide config path exists).
-#
-# Args:
-#   --scope system|user   Scope (default: system when root, user otherwise).
-#   --home <dir>          Home directory for user-scoped removal.
-#   <marker>              Idempotency marker (positional, after options).
-#   <profile_d_name>      /etc/profile.d basename (positional).
-#   [<shell>...]          Shells to process (positional, remaining).
 shell__remove_activation_snippets() {
+  # @brief shell__remove_activation_snippets — Remove activation blocks from all applicable shell init files.
+  #
+  # Mirror of shell__write_activation_snippets. Because the original snippet function is not
+  # available at removal time, this function attempts removal from ALL possible file locations
+  # for each shell (both "everywhere" paths and "rc-only" paths). shell__sync_block skips files
+  # that don't contain the marker, so over-broad removal is safe.
+  #
+  # Supported shells: bash, zsh, fish, tcsh, elvish.
+  # See shell__write_activation_snippets for per-shell path details.
+  # tcsh removal tries both ~/.tcshrc and ~/.cshrc since write-time selection is not known.
+  # elvish system scope iterates all resolved users (no system-wide config path exists).
+  #
+  # Args:
+  #   --scope system|user   Scope (default: system when root, user otherwise).
+  #   --home <dir>          Home directory for user-scoped removal.
+  #   <marker>              Idempotency marker (positional, after options).
+  #   <profile_d_name>      /etc/profile.d basename (positional).
+  #   [<shell>...]          Shells to process (positional, remaining).
   local _scope="" _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -1473,16 +1476,16 @@ shell__remove_activation_snippets() {
   done
 }
 
-# @brief shell__prefix_export_path — Write a PATH-prepend export block for a prefix bin directory.
-#
-# Args:
-#   --bin-dir <dir>      Directory to prepend to PATH.
-#   --exports-ref <var>  Name of array variable with explicit export file paths (optional).
-#   --marker <id>        Idempotency marker.
-#   --profile-d <name>   /etc/profile.d basename for the system-wide drop-in.
-#   --scope system|user  Passed through to shell__write_env_block (optional).
-#   --home <dir>         Home directory for user-scoped writes (default: $HOME).
 shell__prefix_export_path() {
+  # @brief shell__prefix_export_path — Write a PATH-prepend export block for a prefix bin directory.
+  #
+  # Args:
+  #   --bin-dir <dir>      Directory to prepend to PATH.
+  #   --exports-ref <var>  Name of array variable with explicit export file paths (optional).
+  #   --marker <id>        Idempotency marker.
+  #   --profile-d <name>   /etc/profile.d basename for the system-wide drop-in.
+  #   --scope system|user  Passed through to shell__write_env_block (optional).
+  #   --home <dir>         Home directory for user-scoped writes (default: $HOME).
   local _bin_dir="" _exports_ref="" _marker="" _profile_d="" _scope="" _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -1553,29 +1556,29 @@ unset -f _shell__df_prepend_path"
     --home "${_home}"
 }
 
-# @brief shell__run_prefix_discovery — Decide how to make prefix bins discoverable and record the expected verification command.
-#
-# Resolves symlink targets, applies the discovery decision (none|symlink|shell|all|auto),
-# delegates execution to shell__prefix_link_bins / shell__prefix_export_path, then stores
-# the expected verification command in the variable named by --cmd-var via printf -v.
-#
-# Args:
-#   --prefix <path>       Installation prefix.
-#   --bin-dir <subdir>    Subdirectory for binaries (default: bin).
-#   --discovery <value>   none|symlink|shell|all|auto (default: auto).
-#   --runtime-path <val>  Colon-separated PATH for the "already on PATH" and cmd checks.
-#   --bins <names>        Space-separated binary names to symlink.
-#   --symlinks-ref <var>  Name of array variable with explicit symlink target dirs.
-#   --exports-ref <var>   Name of array variable with explicit export file paths.
-#   --marker <id>         Idempotency marker for the PATH export block.
-#   --profile-d <name>    /etc/profile.d basename for the PATH export drop-in (root only).
-#   --bin <name>          Primary binary name for --cmd-var output.
-#   --cmd-var <varname>   Name of variable to set with the expected command string.
-#   --symlink-root <dir>  Fallback symlink target for root installs (default: /usr/local/bin).
-#   --symlink-nonroot <dir> Fallback symlink target for non-root installs (default: ${HOME}/.local/bin).
-#   --no-symlinks         Disable symlink creation.
-#   --no-exports          Disable PATH export writing.
 shell__run_prefix_discovery() {
+  # @brief shell__run_prefix_discovery — Decide how to make prefix bins discoverable and record the expected verification command.
+  #
+  # Resolves symlink targets, applies the discovery decision (none|symlink|shell|all|auto),
+  # delegates execution to shell__prefix_link_bins / shell__prefix_export_path, then stores
+  # the expected verification command in the variable named by --cmd-var via printf -v.
+  #
+  # Args:
+  #   --prefix <path>       Installation prefix.
+  #   --bin-dir <subdir>    Subdirectory for binaries (default: bin).
+  #   --discovery <value>   none|symlink|shell|all|auto (default: auto).
+  #   --runtime-path <val>  Colon-separated PATH for the "already on PATH" and cmd checks.
+  #   --bins <names>        Space-separated binary names to symlink.
+  #   --symlinks-ref <var>  Name of array variable with explicit symlink target dirs.
+  #   --exports-ref <var>   Name of array variable with explicit export file paths.
+  #   --marker <id>         Idempotency marker for the PATH export block.
+  #   --profile-d <name>    /etc/profile.d basename for the PATH export drop-in (root only).
+  #   --bin <name>          Primary binary name for --cmd-var output.
+  #   --cmd-var <varname>   Name of variable to set with the expected command string.
+  #   --symlink-root <dir>  Fallback symlink target for root installs (default: /usr/local/bin).
+  #   --symlink-nonroot <dir> Fallback symlink target for non-root installs (default: ${HOME}/.local/bin).
+  #   --no-symlinks         Disable symlink creation.
+  #   --no-exports          Disable PATH export writing.
   local _disc_prefix="" _bin_dir="bin" _discovery="auto" _runtime_path="${PATH:-}"
   local _bins="" _symlinks_ref="" _exports_ref="" _marker="" _profile_d=""
   local _bin="" _cmd_var="" _no_symlinks=false _no_exports=false

@@ -5,16 +5,16 @@
 # array of strings (direct exec). Requires `json.sh` for array command parsing
 # and `os.sh` when using the `--user` option.
 
-# @brief proc__run_parallel [--outdir <dir>] [--cwd <dir>] -- <label> <argv...> [-- <label> <argv>...] — Run labelled commands in parallel; stream output in label order when all finish.
-#
-# Args:
-#   --outdir <dir>  Directory to store per-label output files (default: mktemp -d).
-#   --cwd <dir>     Working directory for all subprocesses (optional).
-#   -- <label>      Label for the following command; repeat with -- to add more.
-#   <argv...>       Command and arguments for the labelled subprocess.
-#
-# Returns: exit code of the first failed subprocess, or 0 if all succeeded.
 proc__run_parallel() {
+  # @brief proc__run_parallel [--outdir <dir>] [--cwd <dir>] -- <label> <argv...> [-- <label> <argv>...] — Run labelled commands in parallel; stream output in label order when all finish.
+  #
+  # Args:
+  #   --outdir <dir>  Directory to store per-label output files (default: mktemp -d).
+  #   --cwd <dir>     Working directory for all subprocesses (optional).
+  #   -- <label>      Label for the following command; repeat with -- to add more.
+  #   <argv...>       Command and arguments for the labelled subprocess.
+  #
+  # Returns: exit code of the first failed subprocess, or 0 if all succeeded.
   local _od="" _cwd=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -83,12 +83,12 @@ proc__run_parallel() {
   return "$_ec"
 }
 
-# @brief proc__run_command_form [--cwd <dir>] [--user <user>] — Execute a devcontainer command-value from stdin: string → sh -c; array → direct exec; object → proc__run_parallel (keys = labels).
-#
-# Args:
-#   --cwd <dir>    Working directory for the command (optional).
-#   --user <user>  Username to run as via users__run_as (requires os.sh; optional).
 proc__run_command_form() {
+  # @brief proc__run_command_form [--cwd <dir>] [--user <user>] — Execute a devcontainer command-value from stdin: string → sh -c; array → direct exec; object → proc__run_parallel (keys = labels).
+  #
+  # Args:
+  #   --cwd <dir>    Working directory for the command (optional).
+  #   --user <user>  Username to run as via users__run_as (requires os.sh; optional).
   local _cwd="" _user="" _json
   while [[ $# -gt 0 ]]; do
     case "$1" in

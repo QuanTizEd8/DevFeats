@@ -5,15 +5,14 @@
 # devcontainer env vars, managing file permissions, and setting the login shell
 # for one or more users. Works on Alpine (patching PAM), Debian-based, and macOS.
 
-
-# @brief users__is_root — Return 0 when the current process runs as root (uid 0), 1 otherwise.
-#
-# Checks via `id -u` when available; falls back to bash's $EUID when id is
-# not yet installed (e.g. during the coreutils bootstrap). Returns 1 when
-# neither source is available.
-#
-# Returns: 0 if uid is 0, 1 otherwise.
 users__is_root() {
+  # @brief users__is_root — Return 0 when the current process runs as root (uid 0), 1 otherwise.
+  #
+  # Checks via `id -u` when available; falls back to bash's $EUID when id is
+  # not yet installed (e.g. during the coreutils bootstrap). Returns 1 when
+  # neither source is available.
+  #
+  # Returns: 0 if uid is 0, 1 otherwise.
   if command -v id > /dev/null 2>&1; then
     [ "$(id -u)" -eq 0 ]
   elif [[ -n "${EUID+x}" ]]; then
@@ -23,45 +22,45 @@ users__is_root() {
   fi
 }
 
-# @brief users__is_privileged — Return 0 when the current process can run privileged commands.
-#
-# A process is considered privileged when it is root (uid 0), or when `sudo`
-# is installed and configured for passwordless operation.
-#
-# No output is produced; intended as a boolean predicate.
-#
-# Returns: 0 if privileged, 1 otherwise.
 users__is_privileged() {
+  # @brief users__is_privileged — Return 0 when the current process can run privileged commands.
+  #
+  # A process is considered privileged when it is root (uid 0), or when `sudo`
+  # is installed and configured for passwordless operation.
+  #
+  # No output is produced; intended as a boolean predicate.
+  #
+  # Returns: 0 if privileged, 1 otherwise.
   users__is_root && return 0
   command -v sudo > /dev/null 2>&1 && sudo -n true 2> /dev/null
 }
 
-# @brief users__can_write <path> — Return 0 if the calling process can write to <path> (or create it if nonexistent).
-#
-# A path is considered writable when:
-#   1. The path itself (or its nearest existing ancestor) is writable by the current process, OR
-#   2. Passwordless sudo is available (users__is_privileged returns 0).
-#
-# Args:
-#   <path>  Absolute path to check (need not exist).
-#
-# Returns: 0 if writable or privileged, 1 otherwise.
 users__can_write() {
+  # @brief users__can_write <path> — Return 0 if the calling process can write to <path> (or create it if nonexistent).
+  #
+  # A path is considered writable when:
+  #   1. The path itself (or its nearest existing ancestor) is writable by the current process, OR
+  #   2. Passwordless sudo is available (users__is_privileged returns 0).
+  #
+  # Args:
+  #   <path>  Absolute path to check (need not exist).
+  #
+  # Returns: 0 if writable or privileged, 1 otherwise.
   local _path="$1" _existing
   _existing="$(file__nearest_existing "$_path")"
   [ -w "$_existing" ] && return 0
   users__is_privileged
 }
 
-# @brief users__run_as <user> [--cwd <dir>] -- <command> [args] — Run a command as `<user>`: in-process if already that user, otherwise via `su -l` with bash-quoted argv.
-#
-# Requires `bash` on PATH for the non-self path.
-#
-# Args:
-#   <user>       Username to run as.
-#   --cwd <dir>  Working directory for the command (optional).
-#   -- <cmd>...  Command and arguments to execute.
 users__run_as() {
+  # @brief users__run_as <user> [--cwd <dir>] -- <command> [args] — Run a command as `<user>`: in-process if already that user, otherwise via `su -l` with bash-quoted argv.
+  #
+  # Requires `bash` on PATH for the non-self path.
+  #
+  # Args:
+  #   <user>       Username to run as.
+  #   --cwd <dir>  Working directory for the command (optional).
+  #   -- <cmd>...  Command and arguments to execute.
   local _or_u _or_cd _or_c _or_cd_q
   if [ -z "$1" ]; then
     logging__error "username is required."
@@ -113,16 +112,16 @@ users__run_as() {
   return $?
 }
 
-# @brief users__run_privileged <cmd> [<args>...] — Run a command as root.
-#
-# If already root (uid 0), runs directly. Otherwise requires sudo to be
-# pre-installed and configured for passwordless operation.
-#
-# Args:
-#   <cmd> [<args>...]  Command and arguments to execute.
-#
-# Returns: the exit code of <cmd>.
 users__run_privileged() {
+  # @brief users__run_privileged <cmd> [<args>...] — Run a command as root.
+  #
+  # If already root (uid 0), runs directly. Otherwise requires sudo to be
+  # pre-installed and configured for passwordless operation.
+  #
+  # Args:
+  #   <cmd> [<args>...]  Command and arguments to execute.
+  #
+  # Returns: the exit code of <cmd>.
   if users__is_root; then
     "$@"
   else
@@ -138,14 +137,14 @@ users__run_privileged() {
   fi
 }
 
-# @brief users__default_prefix — Print the default binary installation prefix.
-#
-# Returns `/usr/local` when the calling process can write there (directly or
-# via passwordless sudo). Otherwise resolves the current user's home via
-# `users__resolve_home` and returns `<home>/.local`.
-#
-# Stdout: absolute prefix path.
 users__default_prefix() {
+  # @brief users__default_prefix — Print the default binary installation prefix.
+  #
+  # Returns `/usr/local` when the calling process can write there (directly or
+  # via passwordless sudo). Otherwise resolves the current user's home via
+  # `users__resolve_home` and returns `<home>/.local`.
+  #
+  # Stdout: absolute prefix path.
   if users__can_write "/usr/local"; then
     printf '%s\n' "/usr/local"
     return 0
@@ -159,13 +158,13 @@ users__default_prefix() {
   printf '%s\n' "${_home}/.local"
 }
 
-# @brief users__primary_group_of <username> — Print the primary group name of the given user.
-#
-# Args:
-#   <username>  Username to query.
-#
-# Stdout: group name string.
 users__primary_group_of() {
+  # @brief users__primary_group_of <username> — Print the primary group name of the given user.
+  #
+  # Args:
+  #   <username>  Username to query.
+  #
+  # Stdout: group name string.
   bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -175,14 +174,14 @@ users__primary_group_of() {
   id -gn "$1"
 }
 
-# @brief users__gid_of_group <groupname> — Print the numeric GID for the given group name.
-#
-# Args:
-#   <groupname>  Group name to query.
-#
-# Stdout: GID as a decimal string.
-# Returns: 0 on success, 1 when the group is not found.
 users__gid_of_group() {
+  # @brief users__gid_of_group <groupname> — Print the numeric GID for the given group name.
+  #
+  # Args:
+  #   <groupname>  Group name to query.
+  #
+  # Stdout: GID as a decimal string.
+  # Returns: 0 on success, 1 when the group is not found.
   local _gid
   if bootstrap__getent; then
     _gid="$(getent group "$1" 2> /dev/null | cut -d: -f3)"
@@ -200,14 +199,14 @@ users__gid_of_group() {
   return 1
 }
 
-# @brief users__group_of_gid <gid> — Print the group name for the given numeric GID.
-#
-# Args:
-#   <gid>  Numeric GID to query.
-#
-# Stdout: group name string.
-# Returns: 0 on success, 1 when no group with that GID is found.
 users__group_of_gid() {
+  # @brief users__group_of_gid <gid> — Print the group name for the given numeric GID.
+  #
+  # Args:
+  #   <gid>  Numeric GID to query.
+  #
+  # Stdout: group name string.
+  # Returns: 0 on success, 1 when no group with that GID is found.
   local _gname
   if bootstrap__getent; then
     _gname="$(getent group "$1" 2> /dev/null | cut -d: -f1)"
@@ -225,13 +224,13 @@ users__group_of_gid() {
   return 1
 }
 
-# @brief users__uid_of_user <username> — Print the numeric UID of the given user.
-#
-# Args:
-#   <username>  Username to query.
-#
-# Stdout: UID as a decimal string.
 users__uid_of_user() {
+  # @brief users__uid_of_user <username> — Print the numeric UID of the given user.
+  #
+  # Args:
+  #   <username>  Username to query.
+  #
+  # Stdout: UID as a decimal string.
   bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -241,13 +240,13 @@ users__uid_of_user() {
   id -u "$1"
 }
 
-# @brief users__username_of_uid <uid> — Print the username for the given numeric UID.
-#
-# Args:
-#   <uid>  Numeric UID to query.
-#
-# Stdout: username string.
 users__username_of_uid() {
+  # @brief users__username_of_uid <uid> — Print the username for the given numeric UID.
+  #
+  # Args:
+  #   <uid>  Numeric UID to query.
+  #
+  # Stdout: username string.
   bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -270,13 +269,13 @@ users__username_of_uid() {
   return 1
 }
 
-# @brief users__users_by_primary_gid <gid> — Print all usernames whose primary GID matches <gid>, one per line.
-#
-# Args:
-#   <gid>  Numeric GID to query.
-#
-# Stdout: one username per line; empty when no matches are found.
 users__users_by_primary_gid() {
+  # @brief users__users_by_primary_gid <gid> — Print all usernames whose primary GID matches <gid>, one per line.
+  #
+  # Args:
+  #   <gid>  Numeric GID to query.
+  #
+  # Stdout: one username per line; empty when no matches are found.
   local _gid="$1"
   if bootstrap__getent; then
     getent passwd | awk -F: -v gid="$_gid" '$4==gid{print $1}'
@@ -289,13 +288,13 @@ users__users_by_primary_gid() {
   awk -F: -v gid="$_gid" '$4==gid{print $1}' /etc/passwd
 }
 
-# @brief users__group_exists <name-or-gid> — Return 0 if a group with the given name or numeric GID exists.
-#
-# Args:
-#   <name-or-gid>  Group name or numeric GID to check.
-#
-# Returns: 0 if found, 1 otherwise.
 users__group_exists() {
+  # @brief users__group_exists <name-or-gid> — Return 0 if a group with the given name or numeric GID exists.
+  #
+  # Args:
+  #   <name-or-gid>  Group name or numeric GID to check.
+  #
+  # Returns: 0 if found, 1 otherwise.
   if bootstrap__getent; then
     getent group "$1" > /dev/null 2>&1
     return
@@ -303,15 +302,15 @@ users__group_exists() {
   awk -F: -v g="$1" '$1==g || $3==g {found=1; exit} END{exit (found ? 0 : 1)}' /etc/group 2> /dev/null
 }
 
-# @brief users__uid_of_path_owner <path> — Print the numeric owner UID of the given path.
-#
-# Branches on os__kernel: stat -f '%u' on Darwin, stat -c '%u' on Linux.
-#
-# Args:
-#   <path>  Absolute path to query (must exist).
-#
-# Stdout: owner UID as a decimal string.
 users__uid_of_path_owner() {
+  # @brief users__uid_of_path_owner <path> — Print the numeric owner UID of the given path.
+  #
+  # Branches on os__kernel: stat -f '%u' on Darwin, stat -c '%u' on Linux.
+  #
+  # Args:
+  #   <path>  Absolute path to query (must exist).
+  #
+  # Stdout: owner UID as a decimal string.
   bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -325,13 +324,13 @@ users__uid_of_path_owner() {
   fi
 }
 
-# @brief users__home_of_path_owner <path> — Print the home directory of the user who owns the nearest existing ancestor of <path>.
-#
-# Args:
-#   <path>  Absolute path (need not exist).
-#
-# Stdout: absolute home directory path; empty when the owner has no resolvable home.
 users__home_of_path_owner() {
+  # @brief users__home_of_path_owner <path> — Print the home directory of the user who owns the nearest existing ancestor of <path>.
+  #
+  # Args:
+  #   <path>  Absolute path (need not exist).
+  #
+  # Stdout: absolute home directory path; empty when the owner has no resolvable home.
   local _p="$1"
   local _existing _uid
   _existing="$(file__nearest_existing "$_p")"
@@ -339,21 +338,21 @@ users__home_of_path_owner() {
   users__resolve_home --uid "$_uid"
 }
 
-# @brief users__resolve_list — Print one deduplicated username per line.
-#
-# Root is excluded from auto-detected paths (_REMOTE_USER, _CONTAINER_USER,
-# SUDO_USER) when other non-root users are found; it is only added as a
-# fallback when no other user is resolved (e.g. plain container image or
-# standalone macOS install). Root is always accepted via --user.
-#
-# Args:
-#   [--current <bool>]    Include SUDO_USER / current user (default: true).
-#   [--remote <bool>]     Include _REMOTE_USER (default: true).
-#   [--container <bool>]  Include _CONTAINER_USER (default: true).
-#   [--user <name>]...    Extra explicit usernames; root allowed; repeatable.
-#
-# Stdout: one username per line.
 users__resolve_list() {
+  # @brief users__resolve_list — Print one deduplicated username per line.
+  #
+  # Root is excluded from auto-detected paths (_REMOTE_USER, _CONTAINER_USER,
+  # SUDO_USER) when other non-root users are found; it is only added as a
+  # fallback when no other user is resolved (e.g. plain container image or
+  # standalone macOS install). Root is always accepted via --user.
+  #
+  # Args:
+  #   [--current <bool>]    Include SUDO_USER / current user (default: true).
+  #   [--remote <bool>]     Include _REMOTE_USER (default: true).
+  #   [--container <bool>]  Include _CONTAINER_USER (default: true).
+  #   [--user <name>]...    Extra explicit usernames; root allowed; repeatable.
+  #
+  # Stdout: one username per line.
   local _include_current="true"
   local _include_remote="true"
   local _include_container="true"
@@ -434,17 +433,17 @@ users__resolve_list() {
   return 0
 }
 
-# @brief users__set_write_permissions <prefix> <owner> <group> [<user>...] — Create OS group, add listed users, then apply group-write bits on a shared installation prefix.
-#
-# Sets the setgid bit on all subdirectories so new files inherit the group.
-# Uses dseditgroup on macOS and groupadd/usermod on Linux.
-#
-# Args:
-#   <prefix>     Absolute path to the installation directory.
-#   <owner>      Username of the primary file owner (chown target).
-#   <group>      OS group name to create (if absent) and use.
-#   [<user>...]  Additional users to add to the group.
 users__set_write_permissions() {
+  # @brief users__set_write_permissions <prefix> <owner> <group> [<user>...] — Create OS group, add listed users, then apply group-write bits on a shared installation prefix.
+  #
+  # Sets the setgid bit on all subdirectories so new files inherit the group.
+  # Uses dseditgroup on macOS and groupadd/usermod on Linux.
+  #
+  # Args:
+  #   <prefix>     Absolute path to the installation directory.
+  #   <owner>      Username of the primary file owner (chown target).
+  #   <group>      OS group name to create (if absent) and use.
+  #   [<user>...]  Additional users to add to the group.
   bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -495,18 +494,18 @@ users__set_write_permissions() {
   return 0
 }
 
-# @brief users__ensure_setuid <binary>... — Locate each binary with `command -v` and set the setuid bit.
-#
-# Uses `command -v` for portable binary discovery across distros where binaries
-# may live in `/usr/bin`, `/usr/sbin`, or `/sbin` (e.g. `newuidmap`/`newgidmap`
-# on Fedora/RHEL/Alpine). Logs a warning when a binary is not found or `chmod`
-# fails, but does not abort.
-#
-# Args:
-#   <binary>...  One or more binary names (not full paths) to locate and set setuid on.
-#
-# Returns: 0 always (best-effort; individual failures are logged as warnings).
 users__ensure_setuid() {
+  # @brief users__ensure_setuid <binary>... — Locate each binary with `command -v` and set the setuid bit.
+  #
+  # Uses `command -v` for portable binary discovery across distros where binaries
+  # may live in `/usr/bin`, `/usr/sbin`, or `/sbin` (e.g. `newuidmap`/`newgidmap`
+  # on Fedora/RHEL/Alpine). Logs a warning when a binary is not found or `chmod`
+  # fails, but does not abort.
+  #
+  # Args:
+  #   <binary>...  One or more binary names (not full paths) to locate and set setuid on.
+  #
+  # Returns: 0 always (best-effort; individual failures are logged as warnings).
   local _bin _path
   for _bin in "$@"; do
     _path="$(command -v "$_bin" 2> /dev/null)" || true
@@ -523,20 +522,20 @@ users__ensure_setuid() {
   return 0
 }
 
-# @brief users__next_subid_offset <file> — Print the next available subuid/subgid offset beyond all existing ranges in <file>.
-#
-# Scans every entry in <file> (format: `user:start:count`) and returns
-# `max(start + count)` across all entries, floored at 100000 (the
-# conventional minimum subordinate-ID starting point). This ensures a new
-# range appended immediately after the returned offset will never overlap
-# any pre-existing range — including ranges written by the base image or
-# other features.
-#
-# Args:
-#   <file>  Path to `/etc/subuid` or `/etc/subgid`.
-#
-# Stdout: next available offset (integer ≥ 100000).
 users__next_subid_offset() {
+  # @brief users__next_subid_offset <file> — Print the next available subuid/subgid offset beyond all existing ranges in <file>.
+  #
+  # Scans every entry in <file> (format: `user:start:count`) and returns
+  # `max(start + count)` across all entries, floored at 100000 (the
+  # conventional minimum subordinate-ID starting point). This ensures a new
+  # range appended immediately after the returned offset will never overlap
+  # any pre-existing range — including ranges written by the base image or
+  # other features.
+  #
+  # Args:
+  #   <file>  Path to `/etc/subuid` or `/etc/subgid`.
+  #
+  # Stdout: next available offset (integer ≥ 100000).
   local _file="$1"
   local _max=100000
   local _user _start _count _end
@@ -556,21 +555,21 @@ users__next_subid_offset() {
   return 0
 }
 
-# @brief users__set_login_shell <shell_path> <username>... — Register `<shell_path>` in `/etc/shells`, patch Alpine PAM if needed, then call `chsh -s` for each user.
-#
-# Exits early with a warning (not an error) if chsh is not installed.
-# Skips users whose login shell is already set to <shell_path>. Logs a
-# warning when chsh fails for a user but does not abort.
-#
-# On Alpine: patches /etc/pam.d/chsh to allow root to run chsh without a
-# password (inserts "auth sufficient pam_rootok.so" if not already present).
-#
-# Args:
-#   <shell_path>   Absolute path to the shell binary (e.g. `/bin/zsh`).
-#   <username>...  One or more usernames to update.
-#
-# Returns: 0 on success (warnings logged for individual failures, not propagated).
 users__set_login_shell() {
+  # @brief users__set_login_shell <shell_path> <username>... — Register `<shell_path>` in `/etc/shells`, patch Alpine PAM if needed, then call `chsh -s` for each user.
+  #
+  # Exits early with a warning (not an error) if chsh is not installed.
+  # Skips users whose login shell is already set to <shell_path>. Logs a
+  # warning when chsh fails for a user but does not abort.
+  #
+  # On Alpine: patches /etc/pam.d/chsh to allow root to run chsh without a
+  # password (inserts "auth sufficient pam_rootok.so" if not already present).
+  #
+  # Args:
+  #   <shell_path>   Absolute path to the shell binary (e.g. `/bin/zsh`).
+  #   <username>...  One or more usernames to update.
+  #
+  # Returns: 0 on success (warnings logged for individual failures, not propagated).
   local _shell="$1"
   shift
 
@@ -618,14 +617,14 @@ users__set_login_shell() {
   return 0
 }
 
-# @brief users__create_group <name> [--gid <gid>] — Create a group, optionally with a specific GID.
-#
-# Args:
-#   <name>     Group name.
-#   --gid <n>  Numeric GID to assign (optional).
-#
-# Returns: 0 on success, 1 if groupadd cannot be installed.
 users__create_group() {
+  # @brief users__create_group <name> [--gid <gid>] — Create a group, optionally with a specific GID.
+  #
+  # Args:
+  #   <name>     Group name.
+  #   --gid <n>  Numeric GID to assign (optional).
+  #
+  # Returns: 0 on success, 1 if groupadd cannot be installed.
   local _name="$1"
   shift
   local _gid=""
@@ -654,13 +653,13 @@ users__create_group() {
   }
 }
 
-# @brief users__delete_group <name> — Delete a group by name.
-#
-# Args:
-#   <name>  Group name to delete.
-#
-# Returns: 0 on success, 1 on failure (warning logged).
 users__delete_group() {
+  # @brief users__delete_group <name> — Delete a group by name.
+  #
+  # Args:
+  #   <name>  Group name to delete.
+  #
+  # Returns: 0 on success, 1 on failure (warning logged).
   bootstrap__shadow_utils
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -673,13 +672,13 @@ users__delete_group() {
   }
 }
 
-# @brief users__delete_user <name> — Delete a user account.
-#
-# Args:
-#   <name>  Username to delete.
-#
-# Returns: 0 on success, 1 on failure (warning logged).
 users__delete_user() {
+  # @brief users__delete_user <name> — Delete a user account.
+  #
+  # Args:
+  #   <name>  Username to delete.
+  #
+  # Returns: 0 on success, 1 on failure (warning logged).
   bootstrap__shadow_utils
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -692,21 +691,21 @@ users__delete_user() {
   }
 }
 
-# @brief users__create_user <name> [--uid <uid>] [--gid <gid>] [--home <path>] [--shell <shell>] [--no-create-home] — Create a regular user account.
-#
-# Unlike users__create_system_user, this creates a non-system user and does not
-# skip existing users — conflict resolution is left to the caller.
-#
-# Args:
-#   <name>            Login name.
-#   --uid <n>         Numeric UID (optional).
-#   --gid <n>         Numeric primary GID (optional).
-#   --home <path>     Home directory path (optional).
-#   --shell <shell>   Login shell (optional).
-#   --no-create-home  Do not create the home directory.
-#
-# Returns: 0 on success, 1 if useradd cannot be installed.
 users__create_user() {
+  # @brief users__create_user <name> [--uid <uid>] [--gid <gid>] [--home <path>] [--shell <shell>] [--no-create-home] — Create a regular user account.
+  #
+  # Unlike users__create_system_user, this creates a non-system user and does not
+  # skip existing users — conflict resolution is left to the caller.
+  #
+  # Args:
+  #   <name>            Login name.
+  #   --uid <n>         Numeric UID (optional).
+  #   --gid <n>         Numeric primary GID (optional).
+  #   --home <path>     Home directory path (optional).
+  #   --shell <shell>   Login shell (optional).
+  #   --no-create-home  Do not create the home directory.
+  #
+  # Returns: 0 on success, 1 if useradd cannot be installed.
   local _name="$1"
   shift
   local _uid="" _gid="" _home="" _shell="" _no_create_home=false
@@ -756,14 +755,14 @@ users__create_user() {
   }
 }
 
-# @brief users__add_to_group <user> <group> — Add <user> to supplementary group <group>.
-#
-# Args:
-#   <user>   Username to modify.
-#   <group>  Group name to add the user to.
-#
-# Returns: 0 on success, 1 if usermod cannot be installed.
 users__add_to_group() {
+  # @brief users__add_to_group <user> <group> — Add <user> to supplementary group <group>.
+  #
+  # Args:
+  #   <user>   Username to modify.
+  #   <group>  Group name to add the user to.
+  #
+  # Returns: 0 on success, 1 if usermod cannot be installed.
   local _user="$1" _group="$2"
   bootstrap__shadow_utils
   local _rc=$?
@@ -777,18 +776,18 @@ users__add_to_group() {
   }
 }
 
-# @brief users__create_system_user <username> [--home <path>] [--shell <shell>] — Create a system user if it does not already exist.
-#
-# Ensures useradd is available, installing the appropriate shadow package if needed.
-# No-op if the user already exists.
-#
-# Args:
-#   <username>       Login name for the new user.
-#   --home <path>    Home directory. Optional.
-#   --shell <shell>  Login shell. Optional.
-#
-# Returns: 0 on success or if user already exists, 1 if useradd cannot be installed.
 users__create_system_user() {
+  # @brief users__create_system_user <username> [--home <path>] [--shell <shell>] — Create a system user if it does not already exist.
+  #
+  # Ensures useradd is available, installing the appropriate shadow package if needed.
+  # No-op if the user already exists.
+  #
+  # Args:
+  #   <username>       Login name for the new user.
+  #   --home <path>    Home directory. Optional.
+  #   --shell <shell>  Login shell. Optional.
+  #
+  # Returns: 0 on success or if user already exists, 1 if useradd cannot be installed.
   bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -834,18 +833,18 @@ users__create_system_user() {
   return 0
 }
 
-# @brief users__get_current [--no-sudo] — Print the current username.
-#
-# Resolution order (default): SUDO_USER → devcontainer _REMOTE_USER (non-root) /
-# _CONTAINER_USER → id -un. coreutils is bootstrapped via ospkg when id is absent.
-#
-# Args:
-#   [--no-sudo]  Skip SUDO_USER / devcontainer vars and return the effective process owner.
-#
-# Stdout: username string.
-#
-# Returns: 0 on success, 1 if id cannot be made available.
 users__get_current() {
+  # @brief users__get_current [--no-sudo] — Print the current username.
+  #
+  # Resolution order (default): SUDO_USER → devcontainer _REMOTE_USER (non-root) /
+  # _CONTAINER_USER → id -un. coreutils is bootstrapped via ospkg when id is absent.
+  #
+  # Args:
+  #   [--no-sudo]  Skip SUDO_USER / devcontainer vars and return the effective process owner.
+  #
+  # Stdout: username string.
+  #
+  # Returns: 0 on success, 1 if id cannot be made available.
   if [ "${1:-}" != "--no-sudo" ] && users__is_root; then
     if [ -n "${SUDO_USER:-}" ]; then
       printf '%s\n' "${SUDO_USER}"
@@ -871,29 +870,29 @@ users__get_current() {
   id -un
 }
 
-# @brief users__resolve_home [--uid] [<username-or-uid>] — Print the home directory for the given user.
-#
-# Resolution order:
-#   1. `getent passwd` (bootstrapped if absent) — works for both usernames and
-#      UIDs; also queries NSS (LDAP, NIS).
-#   2. `dscl` on macOS (always available) — for Directory Services users absent from getent.
-#      For a UID: resolves the username via `dscl . -search` first.
-#   3. Direct `/etc/passwd` scan — last resort when the getent bootstrap failed
-#      Returns empty string when the user has no entry.
-#   4. Devcontainer env vars (`_REMOTE_USER_HOME` / `_CONTAINER_USER_HOME`) —
-#      used when all other methods return empty; in UID mode the UID is first
-#      resolved to a username via `users__username_of_uid`.
-#
-# When called with no positional argument, resolves the home of the current
-# user via `users__get_current`.
-#
-# Args:
-#   [--uid]   Treat the argument as a numeric UID rather than a username.
-#   [<value>] Username or numeric UID. Defaults to the current user (username).
-#
-# Stdout: absolute path to the home directory, or empty when no entry is found.
-# Returns: 0 on success, 1 if the no-arg form cannot determine the current user.
 users__resolve_home() {
+  # @brief users__resolve_home [--uid] [<username-or-uid>] — Print the home directory for the given user.
+  #
+  # Resolution order:
+  #   1. `getent passwd` (bootstrapped if absent) — works for both usernames and
+  #      UIDs; also queries NSS (LDAP, NIS).
+  #   2. `dscl` on macOS (always available) — for Directory Services users absent from getent.
+  #      For a UID: resolves the username via `dscl . -search` first.
+  #   3. Direct `/etc/passwd` scan — last resort when the getent bootstrap failed
+  #      Returns empty string when the user has no entry.
+  #   4. Devcontainer env vars (`_REMOTE_USER_HOME` / `_CONTAINER_USER_HOME`) —
+  #      used when all other methods return empty; in UID mode the UID is first
+  #      resolved to a username via `users__username_of_uid`.
+  #
+  # When called with no positional argument, resolves the home of the current
+  # user via `users__get_current`.
+  #
+  # Args:
+  #   [--uid]   Treat the argument as a numeric UID rather than a username.
+  #   [<value>] Username or numeric UID. Defaults to the current user (username).
+  #
+  # Stdout: absolute path to the home directory, or empty when no entry is found.
+  # Returns: 0 on success, 1 if the no-arg form cannot determine the current user.
   local _by_uid=false
   if [[ "${1:-}" == "--uid" ]]; then
     _by_uid=true
@@ -944,25 +943,25 @@ users__resolve_home() {
   [[ "$_by_uid" == true ]] && printf '%s\n' "${_home:-}" || printf '%s\n' "${_home:-~${_user}}"
 }
 
-# @brief users__expand_path [--user <username>] <expr> — Expand tilde, $HOME, and env-var references in a path expression using the target user's login environment.
-#
-# Runs bash as the target user via users__run_as (su -l), giving access to the
-# user's full login environment: $HOME, $XDG_*, and any vars set in their profile.
-# All bash parameter expansion forms are supported: ${VAR}, ${VAR:-default}, etc.
-#
-# Fast path: expressions with no '$' and no leading '~' are returned as-is
-# without spawning a subprocess.
-#
-# Security: rejects expressions containing (, ), `, ;, &, |, newline, ", '
-# (prevents command substitution, process substitution, and command chaining).
-#
-# Args:
-#   --user <username>  User whose login environment to use. Defaults to the current user.
-#   <expr>             Path expression to expand (e.g. ~/foo, $HOME/bar, ${XDG_CONFIG_HOME:-${HOME}/.config}/baz).
-#
-# Stdout: expanded absolute path followed by a newline.
-# Returns: 0 on success, 1 on validation failure or expansion error.
 users__expand_path() {
+  # @brief users__expand_path [--user <username>] <expr> — Expand tilde, $HOME, and env-var references in a path expression using the target user's login environment.
+  #
+  # Runs bash as the target user via users__run_as (su -l), giving access to the
+  # user's full login environment: $HOME, $XDG_*, and any vars set in their profile.
+  # All bash parameter expansion forms are supported: ${VAR}, ${VAR:-default}, etc.
+  #
+  # Fast path: expressions with no '$' and no leading '~' are returned as-is
+  # without spawning a subprocess.
+  #
+  # Security: rejects expressions containing (, ), `, ;, &, |, newline, ", '
+  # (prevents command substitution, process substitution, and command chaining).
+  #
+  # Args:
+  #   --user <username>  User whose login environment to use. Defaults to the current user.
+  #   <expr>             Path expression to expand (e.g. ~/foo, $HOME/bar, ${XDG_CONFIG_HOME:-${HOME}/.config}/baz).
+  #
+  # Stdout: expanded absolute path followed by a newline.
+  # Returns: 0 on success, 1 on validation failure or expansion error.
   local _user=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -1016,29 +1015,29 @@ users__expand_path() {
   ' -- "$_expr"
 }
 
-# @brief users__is_user_path [--uid] [<username-or-uid>] <path> — Return 0 if <path> is user-local, 1 if it is system (requires privilege).
-#
-# "User-local" means writable by a regular user without elevated privileges.
-# Regular-user UID range is OS-specific: ≥1000 on Linux, ≥500 on macOS
-# (Apple reserves 0–499 for system accounts).
-# Uses the nearest existing ancestor of <path>, so the path itself need not exist yet.
-#
-# Without a user argument:
-#   - Non-root: user-local iff the current user can write without sudo.
-#   - Root: user-local iff under root's home or owned by a regular user.
-#
-# With a user argument, the check is against that specific user regardless of
-# who is running the script:
-#   - User-local iff the path is under that user's home directory, or the
-#     nearest existing ancestor is owned by that user.
-#
-# Args:
-#   [--uid]              Treat <username-or-uid> as a numeric UID rather than a username.
-#   [<username-or-uid>]  User to check against. Defaults to the current user.
-#   <path>               Absolute path to classify (need not exist).
-#
-# Returns: 0 (user-local/unprivileged), 1 (system/privileged).
 users__is_user_path() {
+  # @brief users__is_user_path [--uid] [<username-or-uid>] <path> — Return 0 if <path> is user-local, 1 if it is system (requires privilege).
+  #
+  # "User-local" means writable by a regular user without elevated privileges.
+  # Regular-user UID range is OS-specific: ≥1000 on Linux, ≥500 on macOS
+  # (Apple reserves 0–499 for system accounts).
+  # Uses the nearest existing ancestor of <path>, so the path itself need not exist yet.
+  #
+  # Without a user argument:
+  #   - Non-root: user-local iff the current user can write without sudo.
+  #   - Root: user-local iff under root's home or owned by a regular user.
+  #
+  # With a user argument, the check is against that specific user regardless of
+  # who is running the script:
+  #   - User-local iff the path is under that user's home directory, or the
+  #     nearest existing ancestor is owned by that user.
+  #
+  # Args:
+  #   [--uid]              Treat <username-or-uid> as a numeric UID rather than a username.
+  #   [<username-or-uid>]  User to check against. Defaults to the current user.
+  #   <path>               Absolute path to classify (need not exist).
+  #
+  # Returns: 0 (user-local/unprivileged), 1 (system/privileged).
   local _by_uid=false
   if [[ "${1:-}" == "--uid" ]]; then
     _by_uid=true
@@ -1098,19 +1097,19 @@ users__is_user_path() {
   return 1
 }
 
-# @brief users__add_sudoer <username> [--sudoers-dir <dir>] — Grant passwordless sudo to <username>.
-#
-# Writes "<username> ALL=(ALL) NOPASSWD:ALL" as a drop-in sudoers file.
-# Validates the file with visudo before moving it into place; on validation
-# failure the temporary file is removed and the function returns 1 without
-# touching the sudoers directory. Installs sudo via ospkg if absent.
-#
-# Args:
-#   <username>           User to grant passwordless sudo access.
-#   --sudoers-dir <dir>  Drop-in directory (default: /etc/sudoers.d).
-#
-# Returns: 0 on success, 1 on failure.
 users__add_sudoer() {
+  # @brief users__add_sudoer <username> [--sudoers-dir <dir>] — Grant passwordless sudo to <username>.
+  #
+  # Writes "<username> ALL=(ALL) NOPASSWD:ALL" as a drop-in sudoers file.
+  # Validates the file with visudo before moving it into place; on validation
+  # failure the temporary file is removed and the function returns 1 without
+  # touching the sudoers directory. Installs sudo via ospkg if absent.
+  #
+  # Args:
+  #   <username>           User to grant passwordless sudo access.
+  #   --sudoers-dir <dir>  Drop-in directory (default: /etc/sudoers.d).
+  #
+  # Returns: 0 on success, 1 on failure.
   local _username="${1:?users__add_sudoer: username is required}"
   local _sudoers_dir="/etc/sudoers.d"
   shift
@@ -1151,21 +1150,21 @@ users__add_sudoer() {
   logging__success "Granted passwordless sudo to '${_username}'."
 }
 
-# @brief users__first_writeable_path [-- [key=val ...] path ...] ... — Find first writable path from platform-conditional groups.
-#
-# Accepts one or more "--"-separated groups. Within each group, key=val args are
-# passed to os__match_spec (the platform condition); remaining args are candidate
-# paths tried in order. A group without key=val args is unconditional.
-# Groups are tried in order; the first whose platform condition matches is used.
-# Within a matching group, paths are tried with users__can_write in order; the
-# first writable path is printed to stdout. Exits 1 if a matching group has no
-# writable candidate, or if no group matches.
-#
-# Args:
-#   --      Separator before each candidate group (required before first group).
-#   key=val Zero or more os__match_spec conditions for the following group.
-#   path    One or more candidate paths within the group (tried in order).
 users__first_writeable_path() {
+  # @brief users__first_writeable_path [-- [key=val ...] path ...] ... — Find first writable path from platform-conditional groups.
+  #
+  # Accepts one or more "--"-separated groups. Within each group, key=val args are
+  # passed to os__match_spec (the platform condition); remaining args are candidate
+  # paths tried in order. A group without key=val args is unconditional.
+  # Groups are tried in order; the first whose platform condition matches is used.
+  # Within a matching group, paths are tried with users__can_write in order; the
+  # first writable path is printed to stdout. Exits 1 if a matching group has no
+  # writable candidate, or if no group matches.
+  #
+  # Args:
+  #   --      Separator before each candidate group (required before first group).
+  #   key=val Zero or more os__match_spec conditions for the following group.
+  #   path    One or more candidate paths within the group (tried in order).
   local -a _when _paths
   while [[ $# -gt 0 ]]; do
     [[ "$1" != "--" ]] && {

@@ -6,25 +6,25 @@
 # packages via the npm CLI.
 # Respects `NPM_TOKEN` (falls back to `NODE_AUTH_TOKEN`) for all registry calls.
 
-# @brief npm__fetch_package_json <package> [--version <ver>] [--registry <base>] [--dest <file>] — Fetch npm registry JSON for a package.
-#
-# Without `--version`: fetches the full package document from
-# `<registry>/<package>` (includes all versions and dist-tags).
-# With `--version`: fetches the version-specific document from
-# `<registry>/<package>/<version>`.
-# Respects `NPM_TOKEN` or `NODE_AUTH_TOKEN` (sets `Authorization: Bearer`
-# automatically).
-#
-# Args:
-#   <package>            npm package name (e.g. `typescript`, `@devcontainers/cli`).
-#   --version <ver>      Specific version to fetch (optional; fetches full doc by default).
-#   --registry <base>    Registry base URL (default: https://registry.npmjs.org).
-#   --dest <file>        Write JSON to this file instead of stdout (optional).
-#
-# Stdout: package JSON (suppressed when `--dest` is given).
-#
-# Returns: 0 on success, 1 on HTTP error or missing tool.
 npm__fetch_package_json() {
+  # @brief npm__fetch_package_json <package> [--version <ver>] [--registry <base>] [--dest <file>] — Fetch npm registry JSON for a package.
+  #
+  # Without `--version`: fetches the full package document from
+  # `<registry>/<package>` (includes all versions and dist-tags).
+  # With `--version`: fetches the version-specific document from
+  # `<registry>/<package>/<version>`.
+  # Respects `NPM_TOKEN` or `NODE_AUTH_TOKEN` (sets `Authorization: Bearer`
+  # automatically).
+  #
+  # Args:
+  #   <package>            npm package name (e.g. `typescript`, `@devcontainers/cli`).
+  #   --version <ver>      Specific version to fetch (optional; fetches full doc by default).
+  #   --registry <base>    Registry base URL (default: https://registry.npmjs.org).
+  #   --dest <file>        Write JSON to this file instead of stdout (optional).
+  #
+  # Stdout: package JSON (suppressed when `--dest` is given).
+  #
+  # Returns: 0 on success, 1 on HTTP error or missing tool.
   local _package="$1"
   shift
   local _version="" _dest="" _registry=""
@@ -70,20 +70,20 @@ npm__fetch_package_json() {
   return 0
 }
 
-# @brief npm__dist_tags <package> [--registry <base>] — Print dist-tags for an npm package, one per line.
-#
-# Fetches `<registry>/-/package/<package>/dist-tags` and prints each tag as
-# `name=version` (e.g. `latest=1.2.3`, `next=2.0.0-beta.1`).
-# Prefers jq; falls back to grep for environments without jq.
-#
-# Args:
-#   <package>          npm package name.
-#   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
-#
-# Stdout: one `name=version` pair per line.
-#
-# Returns: 0 on success, 1 on network or parse error.
 npm__dist_tags() {
+  # @brief npm__dist_tags <package> [--registry <base>] — Print dist-tags for an npm package, one per line.
+  #
+  # Fetches `<registry>/-/package/<package>/dist-tags` and prints each tag as
+  # `name=version` (e.g. `latest=1.2.3`, `next=2.0.0-beta.1`).
+  # Prefers jq; falls back to grep for environments without jq.
+  #
+  # Args:
+  #   <package>          npm package name.
+  #   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
+  #
+  # Stdout: one `name=version` pair per line.
+  #
+  # Returns: 0 on success, 1 on network or parse error.
   local _package="$1"
   shift
   local _registry=""
@@ -132,18 +132,18 @@ npm__dist_tags() {
   printf '%s\n' "$_out"
 }
 
-# @brief npm__latest_version <package> [--registry <base>] — Print the version pointed to by the `latest` dist-tag.
-#
-# Uses the lightweight dist-tags endpoint; does not fetch the full package document.
-#
-# Args:
-#   <package>          npm package name.
-#   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
-#
-# Stdout: bare version string (e.g. `1.2.3`).
-#
-# Returns: 0 on success, 1 on network or parse error.
 npm__latest_version() {
+  # @brief npm__latest_version <package> [--registry <base>] — Print the version pointed to by the `latest` dist-tag.
+  #
+  # Uses the lightweight dist-tags endpoint; does not fetch the full package document.
+  #
+  # Args:
+  #   <package>          npm package name.
+  #   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
+  #
+  # Stdout: bare version string (e.g. `1.2.3`).
+  #
+  # Returns: 0 on success, 1 on network or parse error.
   local _package="$1"
   shift
   local _registry=""
@@ -177,22 +177,22 @@ npm__latest_version() {
   printf '%s\n' "$_ver"
 }
 
-# @brief npm__versions <package> [--all] [--registry <base>] — Print published versions newest-first.
-#
-# Fetches the full package document and extracts version strings from the
-# `versions` object. Requires jq.
-# Without `--all`: only stable (non-prerelease) versions are printed.
-# With `--all`: all published versions are included.
-#
-# Args:
-#   <package>          npm package name.
-#   --all              Include prerelease versions (default: stable only).
-#   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
-#
-# Stdout: one version string per line, sorted newest-first.
-#
-# Returns: 0 on success, 1 on network, parse, or jq error.
 npm__versions() {
+  # @brief npm__versions <package> [--all] [--registry <base>] — Print published versions newest-first.
+  #
+  # Fetches the full package document and extracts version strings from the
+  # `versions` object. Requires jq.
+  # Without `--all`: only stable (non-prerelease) versions are printed.
+  # With `--all`: all published versions are included.
+  #
+  # Args:
+  #   <package>          npm package name.
+  #   --all              Include prerelease versions (default: stable only).
+  #   --registry <base>  Registry base URL (default: https://registry.npmjs.org).
+  #
+  # Stdout: one version string per line, sorted newest-first.
+  #
+  # Returns: 0 on success, 1 on network, parse, or jq error.
   local _package="$1"
   shift
   local _all=false _registry=""
@@ -254,32 +254,32 @@ npm__versions() {
   fi
 }
 
-# @brief npm__resolve_version_uri <uri> [<spec>] — Resolve a version spec using the full package document at <uri>.
-#
-# Fetches the full npm package document JSON from <uri> (any URI scheme
-# supported by net__fetch_url_stdout; typically the package root endpoint
-# https://registry.npmjs.org/<package> or an equivalent for a custom registry).
-# Applies all resolution logic without any path construction.
-#
-# Version specs:
-#   "stable" / ""  Stable version: the `stable` dist-tag if the package defines
-#                  one, otherwise falls back to the `latest` dist-tag (npm
-#                  convention for the stable release).
-#   "latest"       Most recently published version, including pre-releases.
-#   starts with a digit (e.g. "1", "1.2", "1.2.3", "1.2.3-rc1")
-#                  Newest stable published version whose version matches the
-#                  prefix followed by ".", "-", or end-of-string.
-#   anything else (e.g. "next", "beta", "canary")
-#                  Interpreted as a dist-tag name; resolved to its version.
-#
-# Args:
-#   <uri>    Full URI of the npm package document (required).
-#   [<spec>] Version spec string (default: "stable").
-#
-# Stdout: exact bare version string (e.g. `1.2.3`).
-#
-# Returns: 0 on success, 1 if no matching version found or on API error.
 npm__resolve_version_uri() {
+  # @brief npm__resolve_version_uri <uri> [<spec>] — Resolve a version spec using the full package document at <uri>.
+  #
+  # Fetches the full npm package document JSON from <uri> (any URI scheme
+  # supported by net__fetch_url_stdout; typically the package root endpoint
+  # https://registry.npmjs.org/<package> or an equivalent for a custom registry).
+  # Applies all resolution logic without any path construction.
+  #
+  # Version specs:
+  #   "stable" / ""  Stable version: the `stable` dist-tag if the package defines
+  #                  one, otherwise falls back to the `latest` dist-tag (npm
+  #                  convention for the stable release).
+  #   "latest"       Most recently published version, including pre-releases.
+  #   starts with a digit (e.g. "1", "1.2", "1.2.3", "1.2.3-rc1")
+  #                  Newest stable published version whose version matches the
+  #                  prefix followed by ".", "-", or end-of-string.
+  #   anything else (e.g. "next", "beta", "canary")
+  #                  Interpreted as a dist-tag name; resolved to its version.
+  #
+  # Args:
+  #   <uri>    Full URI of the npm package document (required).
+  #   [<spec>] Version spec string (default: "stable").
+  #
+  # Stdout: exact bare version string (e.g. `1.2.3`).
+  #
+  # Returns: 0 on success, 1 if no matching version found or on API error.
   local _uri="$1"
   local _spec="${2:-stable}"
 
@@ -393,22 +393,22 @@ npm__resolve_version_uri() {
   return 0
 }
 
-# @brief npm__resolve_version <package> [<version-spec>] [--registry <base>] — Resolve a version spec to an exact published version.
-#
-# Thin wrapper around npm__resolve_version_uri. Constructs the full package
-# document URI from <package> and optional registry base, then delegates.
-#
-# Version specs: same as npm__resolve_version_uri.
-#
-# Args:
-#   <package>            npm package name.
-#   [<version-spec>]     Version spec string (default: "stable").
-#   --registry <base>    Registry base URL (default: https://registry.npmjs.org).
-#
-# Stdout: exact bare version string (e.g. `1.2.3`).
-#
-# Returns: 0 on success, 1 if no matching version found or on API error.
 npm__resolve_version() {
+  # @brief npm__resolve_version <package> [<version-spec>] [--registry <base>] — Resolve a version spec to an exact published version.
+  #
+  # Thin wrapper around npm__resolve_version_uri. Constructs the full package
+  # document URI from <package> and optional registry base, then delegates.
+  #
+  # Version specs: same as npm__resolve_version_uri.
+  #
+  # Args:
+  #   <package>            npm package name.
+  #   [<version-spec>]     Version spec string (default: "stable").
+  #   --registry <base>    Registry base URL (default: https://registry.npmjs.org).
+  #
+  # Stdout: exact bare version string (e.g. `1.2.3`).
+  #
+  # Returns: 0 on success, 1 if no matching version found or on API error.
   local _package="$1"
   shift
   local _spec="stable" _spec_set=false _registry=""
@@ -440,19 +440,19 @@ npm__resolve_version() {
   npm__resolve_version_uri "$(_npm__registry_url "$_base" "$_package")" "$_spec"
 }
 
-# @brief npm__install_package OPTIONS — Ensure npm is available, then install a package globally.
-#
-# Installs an npm package globally (or under a given prefix). Ensures the npm
-# CLI is available before proceeding, installing Node.js + npm via the OS
-# package manager if necessary.
-#
-# Args:
-#   --package <name>   Package name to install (required).
-#   --version <ver>    Exact version to install (optional; omit for npm's default).
-#   --prefix <dir>     Pass `--prefix <dir>` to npm (optional).
-#
-# Returns: 0 on success, 1 on failure.
 npm__install_package() {
+  # @brief npm__install_package OPTIONS — Ensure npm is available, then install a package globally.
+  #
+  # Installs an npm package globally (or under a given prefix). Ensures the npm
+  # CLI is available before proceeding, installing Node.js + npm via the OS
+  # package manager if necessary.
+  #
+  # Args:
+  #   --package <name>   Package name to install (required).
+  #   --version <ver>    Exact version to install (optional; omit for npm's default).
+  #   --prefix <dir>     Pass `--prefix <dir>` to npm (optional).
+  #
+  # Returns: 0 on success, 1 on failure.
   local _package="" _version="" _prefix=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -498,17 +498,17 @@ npm__install_package() {
   npm "${_args[@]}" install "$_pkg_spec"
 }
 
-# @brief npm__uninstall_package OPTIONS — Uninstall a globally installed npm package.
-#
-# Ensures npm is available, then removes the named package from the global
-# (or prefixed) npm install tree.
-#
-# Args:
-#   --package <name>   Package name to uninstall (required).
-#   --prefix <dir>     Pass `--prefix <dir>` to npm (optional).
-#
-# Returns: 0 on success, 1 on failure.
 npm__uninstall_package() {
+  # @brief npm__uninstall_package OPTIONS — Uninstall a globally installed npm package.
+  #
+  # Ensures npm is available, then removes the named package from the global
+  # (or prefixed) npm install tree.
+  #
+  # Args:
+  #   --package <name>   Package name to uninstall (required).
+  #   --prefix <dir>     Pass `--prefix <dir>` to npm (optional).
+  #
+  # Returns: 0 on success, 1 on failure.
   local _package="" _prefix=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -547,23 +547,23 @@ npm__uninstall_package() {
   npm "${_args[@]}" uninstall "$_package"
 }
 
-# @brief npm__is_managed <bin_path> — Return 0 if <bin_path> is owned by npm's global package manager.
-#
-# Gets the global npm prefix (`npm prefix -g`) and the global modules root
-# (`npm root -g`), then checks whether <bin_path> or its resolved symlink target
-# resides under either npm's global `bin/` directory or its global
-# `node_modules/` tree.
-#
-# Note: this detects packages installed by `npm install -g` (or
-# `npm__install_package`). Packages installed by `npm__install_bundled` use a
-# separate prefix and are NOT reported as npm-managed by this function.
-#
-# Args:
-#   <bin_path>  Absolute path to the binary to check (may be empty).
-#
-# Returns: 0 if managed by npm global install, 1 otherwise (including empty or
-#          nonexistent paths, or when npm is not available).
 npm__is_managed() {
+  # @brief npm__is_managed <bin_path> — Return 0 if <bin_path> is owned by npm's global package manager.
+  #
+  # Gets the global npm prefix (`npm prefix -g`) and the global modules root
+  # (`npm root -g`), then checks whether <bin_path> or its resolved symlink target
+  # resides under either npm's global `bin/` directory or its global
+  # `node_modules/` tree.
+  #
+  # Note: this detects packages installed by `npm install -g` (or
+  # `npm__install_package`). Packages installed by `npm__install_bundled` use a
+  # separate prefix and are NOT reported as npm-managed by this function.
+  #
+  # Args:
+  #   <bin_path>  Absolute path to the binary to check (may be empty).
+  #
+  # Returns: 0 if managed by npm global install, 1 otherwise (including empty or
+  #          nonexistent paths, or when npm is not available).
   local _bin="${1-}"
   [[ -n "$_bin" && -e "$_bin" ]] || return 1
   command -v npm > /dev/null 2>&1 || return 1
@@ -597,24 +597,24 @@ npm__is_managed() {
     [[ "$_real" == "${_npm_root}/"* ]]
 }
 
-# @brief npm__is_bundled <bin_path> — Return 0 if <bin_path> is a wrapper installed by npm__install_bundled.
-#
-# Resolves <bin_path> (following symlinks), then walks up one level to the
-# parent of the `bin/` directory. Checks for the three layout markers written
-# by `npm__install_bundled`:
-#   node/current/bin/node   — bundled Node.js runtime
-#   pkg/current/            — bundled package tree
-#   .metadata/installed-version — version record
-#
-# This does NOT detect packages installed by `npm install -g` or
-# `npm__install_package`; use `npm__is_managed` for those.
-#
-# Args:
-#   <bin_path>  Absolute path to the binary to check (may be empty).
-#
-# Returns: 0 if installed by npm__install_bundled, 1 otherwise (including empty
-#          or nonexistent paths).
 npm__is_bundled() {
+  # @brief npm__is_bundled <bin_path> — Return 0 if <bin_path> is a wrapper installed by npm__install_bundled.
+  #
+  # Resolves <bin_path> (following symlinks), then walks up one level to the
+  # parent of the `bin/` directory. Checks for the three layout markers written
+  # by `npm__install_bundled`:
+  #   node/current/bin/node   — bundled Node.js runtime
+  #   pkg/current/            — bundled package tree
+  #   .metadata/installed-version — version record
+  #
+  # This does NOT detect packages installed by `npm install -g` or
+  # `npm__install_package`; use `npm__is_managed` for those.
+  #
+  # Args:
+  #   <bin_path>  Absolute path to the binary to check (may be empty).
+  #
+  # Returns: 0 if installed by npm__install_bundled, 1 otherwise (including empty
+  #          or nonexistent paths).
   local _bin="${1-}"
   [[ -n "$_bin" && -e "$_bin" ]] || return 1
 
@@ -634,18 +634,18 @@ npm__is_bundled() {
     [[ -f "${_prefix}/.metadata/installed-version" ]]
 }
 
-# @brief npm__node_platform [<arch>] — Print the nodejs.org platform string for the current (or given) architecture.
-#
-# Maps the kernel + architecture to the platform token used in nodejs.org
-# binary tarball filenames (e.g. `linux-x64`, `darwin-arm64`, `linux-armv7l`).
-#
-# Args:
-#   [<arch>]  Raw arch string (e.g. `x86_64`, `aarch64`). Defaults to `os__arch`.
-#
-# Stdout: platform string (e.g. `linux-x64`).
-#
-# Returns: 0 on success, 1 if the kernel or arch is unsupported.
 npm__node_platform() {
+  # @brief npm__node_platform [<arch>] — Print the nodejs.org platform string for the current (or given) architecture.
+  #
+  # Maps the kernel + architecture to the platform token used in nodejs.org
+  # binary tarball filenames (e.g. `linux-x64`, `darwin-arm64`, `linux-armv7l`).
+  #
+  # Args:
+  #   [<arch>]  Raw arch string (e.g. `x86_64`, `aarch64`). Defaults to `os__arch`.
+  #
+  # Stdout: platform string (e.g. `linux-x64`).
+  #
+  # Returns: 0 on success, 1 if the kernel or arch is unsupported.
   local _arch="${1:-$(os__arch)}"
   local _os _arch_token
   _os="$(os__release_kernel)"
@@ -663,24 +663,24 @@ npm__node_platform() {
   printf '%s\n' "${_os}-${_arch_token}"
 }
 
-# @brief npm__resolve_node_version <spec> [--index-file <path>] — Resolve a Node.js version spec to an exact `vX.Y.Z`.
-#
-# Reads the nodejs.org dist index.json (fetched from the network or from a
-# pre-downloaded file given with `--index-file`) and resolves the spec using
-# `json__nodejs_index_version_stdin`. Supported specs:
-#   `lts` / `lts/*`      Latest stable LTS release.
-#   `latest` / `node`    Most recent release (may be non-LTS).
-#   `<major>`            Latest release for that major (e.g. `20`, `22`).
-#   `vX.Y.Z` / `X.Y.Z`  Exact version; validated against the index.
-#
-# Args:
-#   <spec>              Version spec string (required).
-#   --index-file <path> Use a pre-downloaded index.json file instead of fetching.
-#
-# Stdout: exact version string with leading `v` (e.g. `v20.19.2`).
-#
-# Returns: 0 on success, 1 on resolution failure or network error.
 npm__resolve_node_version() {
+  # @brief npm__resolve_node_version <spec> [--index-file <path>] — Resolve a Node.js version spec to an exact `vX.Y.Z`.
+  #
+  # Reads the nodejs.org dist index.json (fetched from the network or from a
+  # pre-downloaded file given with `--index-file`) and resolves the spec using
+  # `json__nodejs_index_version_stdin`. Supported specs:
+  #   `lts` / `lts/*`      Latest stable LTS release.
+  #   `latest` / `node`    Most recent release (may be non-LTS).
+  #   `<major>`            Latest release for that major (e.g. `20`, `22`).
+  #   `vX.Y.Z` / `X.Y.Z`  Exact version; validated against the index.
+  #
+  # Args:
+  #   <spec>              Version spec string (required).
+  #   --index-file <path> Use a pre-downloaded index.json file instead of fetching.
+  #
+  # Stdout: exact version string with leading `v` (e.g. `v20.19.2`).
+  #
+  # Returns: 0 on success, 1 on resolution failure or network error.
   local _spec="$1"
   shift
   local _index_file=""
@@ -770,16 +770,12 @@ npm__resolve_node_version() {
   printf '%s\n' "$_resolved"
 }
 
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
-
-# _npm__registry_url <base> <segment> [<segment> ...]  (internal)
-#
-# Joins a registry base URL with path segments. Strips trailing slashes from
-# <base> and leading slashes from each segment so callers may pass
-# `https://example.com/` without producing `//` in the result.
 _npm__registry_url() {
+  # _npm__registry_url <base> <segment> [<segment> ...]  (internal)
+  #
+  # Joins a registry base URL with path segments. Strips trailing slashes from
+  # <base> and leading slashes from each segment so callers may pass
+  # `https://example.com/` without producing `//` in the result.
   local _base="$1"
   shift
   while [[ "$_base" == */ ]]; do
@@ -793,13 +789,13 @@ _npm__registry_url() {
   printf '%s\n' "$_url"
 }
 
-# _npm__registry_get <url> [<dest_file>]  (internal)
-#
-# Performs an npm registry GET with optional Authorization header from
-# NPM_TOKEN (falling back to NODE_AUTH_TOKEN). Suppresses xtrace around
-# the authenticated call to prevent token leaking in CI logs.
-# Passes output to stdout or to <dest_file> when provided.
 _npm__registry_get() {
+  # _npm__registry_get <url> [<dest_file>]  (internal)
+  #
+  # Performs an npm registry GET with optional Authorization header from
+  # NPM_TOKEN (falling back to NODE_AUTH_TOKEN). Suppresses xtrace around
+  # the authenticated call to prevent token leaking in CI logs.
+  # Passes output to stdout or to <dest_file> when provided.
   local _url="$1"
   local _dest="${2:-}"
   local _xt=false
@@ -821,18 +817,13 @@ _npm__registry_get() {
   return "$_ec"
 }
 
-
-# ---------------------------------------------------------------------------
-# Bundled-Node.js npm package installer — private helpers
-# ---------------------------------------------------------------------------
-
-# _npm__bundled__pkg_tarball_url <package> <version> [<registry>]  (internal)
-#
-# Fetches the version-specific registry document and extracts `dist.tarball`.
-# <registry> defaults to https://registry.npmjs.org.
-#
-# Returns: 0 and prints URL on success, 1 on failure.
 _npm__bundled__pkg_tarball_url() {
+  # _npm__bundled__pkg_tarball_url <package> <version> [<registry>]  (internal)
+  #
+  # Fetches the version-specific registry document and extracts `dist.tarball`.
+  # <registry> defaults to https://registry.npmjs.org.
+  #
+  # Returns: 0 and prints URL on success, 1 on failure.
   local _package="$1"
   local _version="$2"
   local _registry="${3:-https://registry.npmjs.org}"
@@ -858,14 +849,14 @@ _npm__bundled__pkg_tarball_url() {
   printf '%s\n' "$_url"
 }
 
-# _npm__bundled__entry_point <pkg_version_dir> <cmd>  (internal)
-#
-# Reads `package/package.json` inside <pkg_version_dir> and resolves the
-# entry-point script for <cmd>. Checks `bin["<cmd>"]` (object form), `bin`
-# (string scalar), then falls back to `main`. Strips a leading `./`.
-#
-# Returns: 0 and prints relative path on success, 1 if not found.
 _npm__bundled__entry_point() {
+  # _npm__bundled__entry_point <pkg_version_dir> <cmd>  (internal)
+  #
+  # Reads `package/package.json` inside <pkg_version_dir> and resolves the
+  # entry-point script for <cmd>. Checks `bin["<cmd>"]` (object form), `bin`
+  # (string scalar), then falls back to `main`. Strips a leading `./`.
+  #
+  # Returns: 0 and prints relative path on success, 1 if not found.
   local _pkg_version_dir="$1"
   local _cmd="$2"
   local _pkg_json="${_pkg_version_dir}/package/package.json"
@@ -893,42 +884,38 @@ _npm__bundled__entry_point() {
   printf '%s\n' "$_entry"
 }
 
-# ---------------------------------------------------------------------------
-# npm__install_bundled
-# ---------------------------------------------------------------------------
-
-# @brief npm__install_bundled OPTIONS — Install an npm package with a bundled Node.js runtime.
-#
-# Downloads a self-contained Node.js binary and the npm package tarball
-# directly from their upstream sources, without requiring npm to be installed
-# on the host. Creates a portable `bin/<cmd>` wrapper that invokes the bundled
-# Node.js to run the package entry point.
-#
-# Layout under <prefix>:
-#   node/<node-version>/   Node.js binary tree (extracted tarball)
-#   node/current           Symlink → <node-version>
-#   pkg/<pkg-version>/     Extracted package tarball (contains package/)
-#   pkg/current            Symlink → <pkg-version>
-#   bin/<cmd>              Shell wrapper: exec \$NODE_BIN \$ENTRY "\$@"
-#   .metadata/installed-version
-#   .metadata/node-version
-#
-# Args:
-#   --package <name>         npm package name (required; scoped names like @scope/pkg are OK).
-#   --version <spec>         Package version spec (default: stable).
-#   --cmd <name>             Wrapper command name (default: basename of package after last /).
-#   --prefix <dir>           Installation prefix (default: \$HOME/.local/share/<cmd>).
-#   --node-version <spec>    Node.js version spec (default: lts); passed to npm__resolve_node_version.
-#   --update                 Update an existing installation. Requires an existing prefix; errors if
-#                            absent (run without --update for a fresh install). Resolves versions
-#                            fresh according to --version and --node-version specs (any spec accepted;
-#                            no restriction to 'latest'); skips component downloads when the resolved
-#                            version is already installed; always regenerates the wrapper. Prunes
-#                            the previous version directory (node/<old> and pkg/<old>) when the
-#                            version changes.
-#
-# Returns: 0 on success, 1 on failure.
 npm__install_bundled() {
+  # @brief npm__install_bundled OPTIONS — Install an npm package with a bundled Node.js runtime.
+  #
+  # Downloads a self-contained Node.js binary and the npm package tarball
+  # directly from their upstream sources, without requiring npm to be installed
+  # on the host. Creates a portable `bin/<cmd>` wrapper that invokes the bundled
+  # Node.js to run the package entry point.
+  #
+  # Layout under <prefix>:
+  #   node/<node-version>/   Node.js binary tree (extracted tarball)
+  #   node/current           Symlink → <node-version>
+  #   pkg/<pkg-version>/     Extracted package tarball (contains package/)
+  #   pkg/current            Symlink → <pkg-version>
+  #   bin/<cmd>              Shell wrapper: exec \$NODE_BIN \$ENTRY "\$@"
+  #   .metadata/installed-version
+  #   .metadata/node-version
+  #
+  # Args:
+  #   --package <name>         npm package name (required; scoped names like @scope/pkg are OK).
+  #   --version <spec>         Package version spec (default: stable).
+  #   --cmd <name>             Wrapper command name (default: basename of package after last /).
+  #   --prefix <dir>           Installation prefix (default: \$HOME/.local/share/<cmd>).
+  #   --node-version <spec>    Node.js version spec (default: lts); passed to npm__resolve_node_version.
+  #   --update                 Update an existing installation. Requires an existing prefix; errors if
+  #                            absent (run without --update for a fresh install). Resolves versions
+  #                            fresh according to --version and --node-version specs (any spec accepted;
+  #                            no restriction to 'latest'); skips component downloads when the resolved
+  #                            version is already installed; always regenerates the wrapper. Prunes
+  #                            the previous version directory (node/<old> and pkg/<old>) when the
+  #                            version changes.
+  #
+  # Returns: 0 on success, 1 on failure.
   local _package="" _version="" _cmd="" _prefix="" _node_spec="lts" _update=false _registry=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -1167,27 +1154,27 @@ WRAPPER_EOF
   logging__info "Add '${_bin_dir}' to PATH to use '${_cmd}'."
 }
 
-# @brief npm__uninstall_bundled OPTIONS — Remove a bundled npm package installation.
-#
-# Removes the entire prefix directory created by `npm__install_bundled`.
-# Succeeds silently (no-op) when the prefix does not exist. Errors if the
-# resolved prefix does not carry the expected bundled layout markers
-# (node/current/bin/node, pkg/current/, .metadata/installed-version) to
-# prevent accidental removal of unrelated directories.
-#
-# Args:
-#   --bin <path>       Path to the installed wrapper binary. The prefix is
-#                      derived automatically via `npm__is_bundled` (use instead
-#                      of --prefix when you have the binary path).
-#   --package <name>   npm package name; used to derive the default prefix when
-#                      neither --bin nor --prefix is given (optional).
-#   --cmd <name>       Wrapper command name; overrides the default derived from
-#                      `--package` when computing the prefix (optional).
-#   --prefix <dir>     Installation prefix to remove. If omitted, derived from
-#                      `--cmd` or `--package` as `${HOME}/.local/share/<cmd>`.
-#
-# Returns: 0 on success, 1 on error.
 npm__uninstall_bundled() {
+  # @brief npm__uninstall_bundled OPTIONS — Remove a bundled npm package installation.
+  #
+  # Removes the entire prefix directory created by `npm__install_bundled`.
+  # Succeeds silently (no-op) when the prefix does not exist. Errors if the
+  # resolved prefix does not carry the expected bundled layout markers
+  # (node/current/bin/node, pkg/current/, .metadata/installed-version) to
+  # prevent accidental removal of unrelated directories.
+  #
+  # Args:
+  #   --bin <path>       Path to the installed wrapper binary. The prefix is
+  #                      derived automatically via `npm__is_bundled` (use instead
+  #                      of --prefix when you have the binary path).
+  #   --package <name>   npm package name; used to derive the default prefix when
+  #                      neither --bin nor --prefix is given (optional).
+  #   --cmd <name>       Wrapper command name; overrides the default derived from
+  #                      `--package` when computing the prefix (optional).
+  #   --prefix <dir>     Installation prefix to remove. If omitted, derived from
+  #                      `--cmd` or `--package` as `${HOME}/.local/share/<cmd>`.
+  #
+  # Returns: 0 on success, 1 on error.
   local _package="" _cmd="" _prefix="" _bin=""
   while [ "$#" -gt 0 ]; do
     case "$1" in

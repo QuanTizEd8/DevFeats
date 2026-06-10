@@ -4,17 +4,17 @@
 # Accepts hard and soft dependency edges and emits features in installation
 # rounds, where all features within a round can be installed in parallel.
 
-# @brief graph__round_order [--hard-edges-file F] [--soft-edges-file F] [--priority-file F] [--compare CMD] -- <id>... — Emit node ids in dependency-ordered rounds; all nodes in a round have no unresolved predecessors.
-#
-# Args:
-#   --hard-edges-file F  TSV file with pred<TAB>succ lines; both nodes must be in the node list.
-#   --soft-edges-file F  TSV file with pred<TAB>succ lines; pred is ignored when not in the node list.
-#   --priority-file F    TSV file with id<TAB>int lines; higher integer = earlier position in a round.
-#   --compare CMD        Optional shell command: reads candidate ids from stdin, writes ordered ids to stdout.
-#   -- <id>...           Node ids to order (remaining arguments after --).
-#
-# Stdout: one node id per line in installation order.
 graph__round_order() {
+  # @brief graph__round_order [--hard-edges-file F] [--soft-edges-file F] [--priority-file F] [--compare CMD] -- <id>... — Emit node ids in dependency-ordered rounds; all nodes in a round have no unresolved predecessors.
+  #
+  # Args:
+  #   --hard-edges-file F  TSV file with pred<TAB>succ lines; both nodes must be in the node list.
+  #   --soft-edges-file F  TSV file with pred<TAB>succ lines; pred is ignored when not in the node list.
+  #   --priority-file F    TSV file with id<TAB>int lines; higher integer = earlier position in a round.
+  #   --compare CMD        Optional shell command: reads candidate ids from stdin, writes ordered ids to stdout.
+  #   -- <id>...           Node ids to order (remaining arguments after --).
+  #
+  # Stdout: one node id per line in installation order.
   local -a _nodes=() _cand=() _pick=()
   local _hf="" _sf="" _pf="" _cmp=""
   while [[ $# -gt 0 ]]; do

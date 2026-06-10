@@ -6,13 +6,13 @@
 # references (${!VAR} / nameref) so callers pass the variable *name*, not its
 # value.
 
-# User-facing option label: bash vars are UPPER_SNAKE; metadata/CLI use lower_snake.
 _argparse__label() {
+  # User-facing option label: bash vars are UPPER_SNAKE; metadata/CLI use lower_snake.
   printf '%s' "${1,,}"
 }
 
-# @brief argparse__validate_bool VAR — Exits 1 if $VAR is not "true" or "false".
 argparse__validate_bool() {
+  # @brief argparse__validate_bool VAR — Exits 1 if $VAR is not "true" or "false".
   local _label
   _label="$(_argparse__label "$1")"
   case "${!1}" in
@@ -24,8 +24,8 @@ argparse__validate_bool() {
   esac
 }
 
-# @brief argparse__validate_enum VAR [valid...] — Exits 1 if $VAR is not among the valid values.
 argparse__validate_enum() {
+  # @brief argparse__validate_enum VAR [valid...] — Exits 1 if $VAR is not among the valid values.
   local _var="$1" _label
   _label="$(_argparse__label "$_var")"
   shift
@@ -41,8 +41,8 @@ argparse__validate_enum() {
   exit 1
 }
 
-# @brief argparse__validate_enum_array VAR [valid...] — Exits 1 if any element of array $VAR is not among the valid values.
 argparse__validate_enum_array() {
+  # @brief argparse__validate_enum_array VAR [valid...] — Exits 1 if any element of array $VAR is not among the valid values.
   local _var="$1" _label
   _label="$(_argparse__label "$_var")"
   shift
@@ -67,8 +67,8 @@ argparse__validate_enum_array() {
   done
 }
 
-# @brief argparse__validate_integer VAR — Exits 1 if $VAR is not a valid integer.
 argparse__validate_integer() {
+  # @brief argparse__validate_integer VAR — Exits 1 if $VAR is not a valid integer.
   local _label
   _label="$(_argparse__label "$1")"
   if [[ ! "${!1}" =~ ^-?[0-9]+$ ]]; then
@@ -77,8 +77,8 @@ argparse__validate_integer() {
   fi
 }
 
-# @brief argparse__validate_integer_min VAR MIN — Exits 1 if $VAR < MIN.
 argparse__validate_integer_min() {
+  # @brief argparse__validate_integer_min VAR MIN — Exits 1 if $VAR < MIN.
   local _label
   _label="$(_argparse__label "$1")"
   if ((${!1} < ${2})); then
@@ -87,8 +87,8 @@ argparse__validate_integer_min() {
   fi
 }
 
-# @brief argparse__validate_integer_max VAR MAX — Exits 1 if $VAR > MAX.
 argparse__validate_integer_max() {
+  # @brief argparse__validate_integer_max VAR MAX — Exits 1 if $VAR > MAX.
   local _label
   _label="$(_argparse__label "$1")"
   if ((${!1} > ${2})); then
@@ -97,8 +97,8 @@ argparse__validate_integer_max() {
   fi
 }
 
-# @brief _argparse__validate_path_value VAR VALUE OP — Test one path string; VAR is for error labels only.
 _argparse__validate_path_value() {
+  # @brief _argparse__validate_path_value VAR VALUE OP — Test one path string; VAR is for error labels only.
   local _var="$1" _val="$2" _op="$3" _label
   _label="$(_argparse__label "$_var")"
   [[ -z "$_val" ]] && return 0
@@ -125,19 +125,19 @@ _argparse__validate_path_value() {
   fi
 }
 
-# @brief argparse__validate_path VAR OP — Exits 1 if the path in $VAR fails test OP.
-#
-# OP is a bash unary test operator (e.g. -d, -f, -e).
-# Validation fails when the test does NOT hold.  An empty value is skipped.
 argparse__validate_path() {
+  # @brief argparse__validate_path VAR OP — Exits 1 if the path in $VAR fails test OP.
+  #
+  # OP is a bash unary test operator (e.g. -d, -f, -e).
+  # Validation fails when the test does NOT hold.  An empty value is skipped.
   local _val="${!1}"
   _argparse__validate_path_value "$1" "$_val" "$2"
 }
 
-# @brief argparse__validate_path_array VAR OP [OP...] — Exits 1 if any array element fails test OP.
-#
-# Empty elements are skipped.
 argparse__validate_path_array() {
+  # @brief argparse__validate_path_array VAR OP [OP...] — Exits 1 if any array element fails test OP.
+  #
+  # Empty elements are skipped.
   local _var="$1"
   shift
   local -n _arr="$_var"
@@ -150,31 +150,31 @@ argparse__validate_path_array() {
   done
 }
 
-# @brief argparse__default VAR DEFAULT — Sets $VAR to DEFAULT if not already set.
 argparse__default() {
+  # @brief argparse__default VAR DEFAULT — Sets $VAR to DEFAULT if not already set.
   [ "${!1+defined}" ] && return 0
   local -n _d_ref="$1"
   _d_ref="$2"
   logging__info "Argument '${1}' set to default value \"${2}\"."
 }
 
-# @brief argparse__default_array VAR — Sets array $VAR to () if not already declared.
 argparse__default_array() {
+  # @brief argparse__default_array VAR — Sets array $VAR to () if not already declared.
   declare -p "$1" &> /dev/null && return 0
   local -n _da_ref="$1"
   _da_ref=()
   logging__info "Argument '${1}' set to default value '(empty)'."
 }
 
-# @brief argparse__split_lines VAR TEXT — Split newline-delimited TEXT into array VAR; trim; drop blanks.
 argparse__split_lines() {
+  # @brief argparse__split_lines VAR TEXT — Split newline-delimited TEXT into array VAR; trim; drop blanks.
   mapfile -t "$1" < <(
     printf '%s\n' "$2" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -v '^$'
   )
 }
 
-# @brief argparse__normalize_array VAR — Trim elements; drop empty/whitespace-only entries (in place).
 argparse__normalize_array() {
+  # @brief argparse__normalize_array VAR — Trim elements; drop empty/whitespace-only entries (in place).
   local _var="$1" _elem _stripped
   local -n _arr="$_var"
   local _out=()
@@ -186,11 +186,11 @@ argparse__normalize_array() {
   _arr=("${_out[@]}")
 }
 
-# @brief argparse__default_array_value VAR VALUE — Sets array $VAR from multi-line VALUE if not already declared.
-#
-# VALUE is the (already shell-expanded) multi-line string; use $'...' at the call site
-# to let bash interpret escape sequences before passing to this function.
 argparse__default_array_value() {
+  # @brief argparse__default_array_value VAR VALUE — Sets array $VAR from multi-line VALUE if not already declared.
+  #
+  # VALUE is the (already shell-expanded) multi-line string; use $'...' at the call site
+  # to let bash interpret escape sequences before passing to this function.
   declare -p "$1" &> /dev/null && return 0
   local -n _dav_ref="$1"
   argparse__split_lines _dav_ref "$2"
@@ -198,33 +198,29 @@ argparse__default_array_value() {
   logging__info "Argument '${1}' set to default value \"${_disp}\"."
 }
 
-# ---------------------------------------------------------------------------
-# URI resolution for options marked with metadata `_uri`
-# ---------------------------------------------------------------------------
-
-# @brief argparse__resolve_uri_options <spec>
-#
-# Resolve a newline-delimited URI spec list, rewriting option variables in place.
-#
-# Each non-empty spec line is TAB-delimited:
-#   <key> <TAB> <VAR> <TAB> <type:string|array> <TAB> <chmod_mode_or_empty>
-#
-# Resolution order:
-#   - Build fetch args from shared `FETCH_HEADERS` and `FETCH_NETRC`.
-#   - Choose a materialization root:
-#       - `INSTALLER_DIR` when defined and non-empty,
-#       - else `file__mktmpdir "${_FEAT_ID}-uri"`.
-#   - For each spec:
-#       - `array`: resolve elements via `uri__resolve_list` into `${matdir}/uri/<key>/`.
-#       - `string` with chmod: resolve via `uri__resolve` into a stable dest under `${matdir}/uri/<key>/`.
-#       - `string` without chmod: resolve via `uri__resolve_line` into `${matdir}/uri/<key>/` (remote only).
-#
-# Notes:
-#   - This function requires `lib/uri.sh` to be loaded.
-#   - It is safe under `set -u`: does not reference INSTALLER_DIR unless defined.
-#
-# Returns: 0 on success, non-zero on any failure.
 argparse__resolve_uri_options() {
+  # @brief argparse__resolve_uri_options <spec>
+  #
+  # Resolve a newline-delimited URI spec list, rewriting option variables in place.
+  #
+  # Each non-empty spec line is TAB-delimited:
+  #   <key> <TAB> <VAR> <TAB> <type:string|array> <TAB> <chmod_mode_or_empty>
+  #
+  # Resolution order:
+  #   - Build fetch args from shared `FETCH_HEADERS` and `FETCH_NETRC`.
+  #   - Choose a materialization root:
+  #       - `INSTALLER_DIR` when defined and non-empty,
+  #       - else `file__mktmpdir "${_FEAT_ID}-uri"`.
+  #   - For each spec:
+  #       - `array`: resolve elements via `uri__resolve_list` into `${matdir}/uri/<key>/`.
+  #       - `string` with chmod: resolve via `uri__resolve` into a stable dest under `${matdir}/uri/<key>/`.
+  #       - `string` without chmod: resolve via `uri__resolve_line` into `${matdir}/uri/<key>/` (remote only).
+  #
+  # Notes:
+  #   - This function requires `lib/uri.sh` to be loaded.
+  #   - It is safe under `set -u`: does not reference INSTALLER_DIR unless defined.
+  #
+  # Returns: 0 on success, non-zero on any failure.
   local _spec="${1:-}"
   [[ -n "${_spec//[[:space:]]/}" ]] || return 0
 

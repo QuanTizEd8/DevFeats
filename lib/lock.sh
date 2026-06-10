@@ -4,15 +4,14 @@
 # Wraps `flock` to ensure only one writer holds the lockfile at a time. Use
 # when multiple parallel feature installers may write to the same resource.
 
-
-# @brief lock__run_with_lockfile <lockfile> <command-string> — Run eval on command-string while holding an exclusive lock.
-#
-# Uses flock(1) when available; otherwise a mkdir spin-lock in the same directory with a ~30s timeout.
-#
-# Args:
-#   <lockfile>        Path to the lockfile (created if absent).
-#   <command-string>  Shell command string to eval under the lock.
 lock__run_with_lockfile() {
+  # @brief lock__run_with_lockfile <lockfile> <command-string> — Run eval on command-string while holding an exclusive lock.
+  #
+  # Uses flock(1) when available; otherwise a mkdir spin-lock in the same directory with a ~30s timeout.
+  #
+  # Args:
+  #   <lockfile>        Path to the lockfile (created if absent).
+  #   <command-string>  Shell command string to eval under the lock.
   local _lock="${1-}" _cmd="${2-}"
   [[ -n "$_lock" ]] || {
     logging__error "lockfile path is required."

@@ -19,22 +19,22 @@ _LOGGING__BASH_BACKEND=${_LOGGING__BASH_BACKEND:-0}
 _LOGGING__PREFIX=${_LOGGING__PREFIX:-}
 _LOGGING__FN_PREFIX=${_LOGGING__FN_PREFIX:-0}
 
-# @brief logging__pending_init — Open pending journal and install EXIT trap.
 logging__pending_init() {
+  # @brief logging__pending_init — Open pending journal and install EXIT trap.
   _logging__pending_ensure
   trap '_logging__pending_on_exit $?' EXIT
   return 0
 }
 
-# @brief logging__set_prefix <id> — Prefix structured log messages (e.g. feature id).
 logging__set_prefix() {
+  # @brief logging__set_prefix <id> — Prefix structured log messages (e.g. feature id).
   _LOGGING__PREFIX=$(_logging__sanitize_line "${1-}")
   export _LOGGING__PREFIX
   return 0
 }
 
-# @brief logging__set_fn_prefix [0|1] — Prepend bash caller function to structured messages.
 logging__set_fn_prefix() {
+  # @brief logging__set_fn_prefix [0|1] — Prepend bash caller function to structured messages.
   case "${1:-1}" in
     0 | [Ff][Aa][Ll][Ss][Ee] | [Nn][Oo] | [Oo][Ff][Ff])
       _LOGGING__FN_PREFIX=0
@@ -47,8 +47,8 @@ logging__set_fn_prefix() {
   return 0
 }
 
-# @brief logging__pending_handoff — Export journal for install.bash; disable fail dump.
 logging__pending_handoff() {
+  # @brief logging__pending_handoff — Export journal for install.bash; disable fail dump.
   _LOGGING__PENDING_HANDED_OFF=1
   export _LOGGING__PENDING_HANDED_OFF
   _logging__pending_ensure
@@ -56,125 +56,125 @@ logging__pending_handoff() {
   return 0
 }
 
-# @brief logging__fatal <line>... — Always emitted. Prefix: ❌
 logging__fatal() {
+  # @brief logging__fatal <line>... — Always emitted. Prefix: ❌
   [ $# -eq 0 ] && return 0
   _logging__emit_impl 0 '❌' "$@"
   return 0
 }
 
-# @brief logging__error <line>... — LOG_LEVEL ≥ error. Prefix: ⛔
 logging__error() {
+  # @brief logging__error <line>... — LOG_LEVEL ≥ error. Prefix: ⛔
   [ $# -eq 0 ] && return 0
   _logging__structured 1 '⛔' "$@"
   return 0
 }
 
-# @brief logging__warn <line>... — LOG_LEVEL ≥ warn. Prefix: ⚠️
 logging__warn() {
+  # @brief logging__warn <line>... — LOG_LEVEL ≥ warn. Prefix: ⚠️
   [ $# -eq 0 ] && return 0
   _logging__structured 2 '⚠️' "$@"
   return 0
 }
 
-# @brief logging__success <line>... — LOG_LEVEL ≥ info. Prefix: ✅
 logging__success() {
+  # @brief logging__success <line>... — LOG_LEVEL ≥ info. Prefix: ✅
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '✅' "$@"
   return 0
 }
 
-# @brief logging__info <line>... — LOG_LEVEL ≥ info. Prefix: ℹ️
 logging__info() {
+  # @brief logging__info <line>... — LOG_LEVEL ≥ info. Prefix: ℹ️
   [ $# -eq 0 ] && return 0
   _logging__structured 3 'ℹ️' "$@"
   return 0
 }
 
-# @brief logging__debug <line>... — LOG_LEVEL ≥ debug. Prefix: 🐞
 logging__debug() {
+  # @brief logging__debug <line>... — LOG_LEVEL ≥ debug. Prefix: 🐞
   [ $# -eq 0 ] && return 0
   _logging__structured 4 '🐞' "$@"
   return 0
 }
 
-# @brief logging__feature_entry <feature_name>... — LOG_LEVEL ≥ info.
 logging__feature_entry() {
+  # @brief logging__feature_entry <feature_name>... — LOG_LEVEL ≥ info.
   _logging__structured 3 '↪️' "Script entry: $*"
   return 0
 }
 
-# @brief logging__feature_exit <feature_name>... — LOG_LEVEL ≥ info.
 logging__feature_exit() {
+  # @brief logging__feature_exit <feature_name>... — LOG_LEVEL ≥ info.
   _logging__structured 3 '↩️' "Script exit: $*"
   return 0
 }
 
-# @brief logging__detect <line>... — LOG_LEVEL ≥ info. Prefix: 🛠️
 logging__detect() {
+  # @brief logging__detect <line>... — LOG_LEVEL ≥ info. Prefix: 🛠️
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '🛠️' "$@"
   return 0
 }
 
-# @brief logging__inspect <line>... — LOG_LEVEL ≥ info. Prefix: 🔍
 logging__inspect() {
+  # @brief logging__inspect <line>... — LOG_LEVEL ≥ info. Prefix: 🔍
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '🔍' "$@"
   return 0
 }
 
-# @brief logging__install <line>... — LOG_LEVEL ≥ info. Prefix: 📦
 logging__install() {
+  # @brief logging__install <line>... — LOG_LEVEL ≥ info. Prefix: 📦
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '📦' "$@"
   return 0
 }
 
-# @brief logging__download <line>... — LOG_LEVEL ≥ info. Prefix: 📥
 logging__download() {
+  # @brief logging__download <line>... — LOG_LEVEL ≥ info. Prefix: 📥
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '📥' "$@"
   return 0
 }
 
-# @brief logging__build <line>... — LOG_LEVEL ≥ info. Prefix: 🔨
 logging__build() {
+  # @brief logging__build <line>... — LOG_LEVEL ≥ info. Prefix: 🔨
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '🔨' "$@"
   return 0
 }
 
-# @brief logging__remove <line>... — LOG_LEVEL ≥ info. Prefix: 🗑️
 logging__remove() {
+  # @brief logging__remove <line>... — LOG_LEVEL ≥ info. Prefix: 🗑️
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '🗑️' "$@"
   return 0
 }
 
-# @brief logging__clean <line>... — LOG_LEVEL ≥ info. Prefix: 🧹
 logging__clean() {
+  # @brief logging__clean <line>... — LOG_LEVEL ≥ info. Prefix: 🧹
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '🧹' "$@"
   return 0
 }
 
-# @brief logging__launch <line>... — LOG_LEVEL ≥ info. Prefix: 🚀
 logging__launch() {
+  # @brief logging__launch <line>... — LOG_LEVEL ≥ info. Prefix: 🚀
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '🚀' "$@"
   return 0
 }
 
-# @brief logging__read <line>... — LOG_LEVEL ≥ info. Prefix: 📩
 logging__read() {
+  # @brief logging__read <line>... — LOG_LEVEL ≥ info. Prefix: 📩
   [ $# -eq 0 ] && return 0
   _logging__structured 3 '📩' "$@"
   return 0
 }
 
-# @brief logging__skip <line>... — LOG_LEVEL ≥ debug. Prefix: ⏭️ (intentional no-op / early return).
 logging__skip() {
+  # @brief logging__skip <line>... — LOG_LEVEL ≥ debug. Prefix: ⏭️ (intentional no-op / early return).
   [ $# -eq 0 ] && return 0
   _logging__structured 4 '⏭️' "$@"
   return 0

@@ -7,19 +7,19 @@
 
 _NET__FETCH_TOOL=
 
-# @brief _net__hdrs_with_default_ua <hdr_block> — Return `<hdr_block>` unchanged when it already contains a `User-Agent` header; otherwise prepend `User-Agent: devfeats`.
-#
-# GitHub's raw-content CDN and some other hosts return HTTP 403 for requests
-# carrying curl's default `curl/<version>` User-Agent. This helper ensures a
-# recognisable User-Agent is always present without overriding a caller-supplied
-# one.
-#
-# Args:
-#   <hdr_block>  Newline-separated list of HTTP headers (may be empty).
-#
-# Stdout: the original block if a User-Agent header is present, or the block
-#         with `User-Agent: devfeats` prepended as the first line.
 _net__hdrs_with_default_ua() {
+  # @brief _net__hdrs_with_default_ua <hdr_block> — Return `<hdr_block>` unchanged when it already contains a `User-Agent` header; otherwise prepend `User-Agent: devfeats`.
+  #
+  # GitHub's raw-content CDN and some other hosts return HTTP 403 for requests
+  # carrying curl's default `curl/<version>` User-Agent. This helper ensures a
+  # recognisable User-Agent is always present without overriding a caller-supplied
+  # one.
+  #
+  # Args:
+  #   <hdr_block>  Newline-separated list of HTTP headers (may be empty).
+  #
+  # Stdout: the original block if a User-Agent header is present, or the block
+  #         with `User-Agent: devfeats` prepended as the first line.
   local _net__ua_in="$1"
   if printf '%s\n' "$_net__ua_in" | grep -qi '^user-agent:'; then
     printf '%s' "$_net__ua_in"
@@ -29,22 +29,22 @@ _net__hdrs_with_default_ua() {
   fi
 }
 
-# @brief net__fetch_with_retry [--retries N] [--delay N] [--bail-on CODE] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
-#
-# Does NOT require ospkg.sh. Prefer net__fetch_url_stdout / net__fetch_url_file
-# for curl/wget downloads; those handle tool detection, --compressed, and
-# transient-only retries automatically. Use this function only for commands
-# that are not curl/wget.
-#
-# Args:
-#   --retries N      Maximum number of attempts (default: 60).
-#   --delay N        Seconds to wait between failures (default: 5).
-#   --bail-on CODE   If the command exits with CODE, stop immediately without
-#                    retrying (use for non-transient configuration errors).
-#   <cmd...>         Command and arguments to run.
-#
-# Returns: 0 on success, 1 after all retries exhausted.
 net__fetch_with_retry() {
+  # @brief net__fetch_with_retry [--retries N] [--delay N] [--bail-on CODE] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
+  #
+  # Does NOT require ospkg.sh. Prefer net__fetch_url_stdout / net__fetch_url_file
+  # for curl/wget downloads; those handle tool detection, --compressed, and
+  # transient-only retries automatically. Use this function only for commands
+  # that are not curl/wget.
+  #
+  # Args:
+  #   --retries N      Maximum number of attempts (default: 60).
+  #   --delay N        Seconds to wait between failures (default: 5).
+  #   --bail-on CODE   If the command exits with CODE, stop immediately without
+  #                    retrying (use for non-transient configuration errors).
+  #   <cmd...>         Command and arguments to run.
+  #
+  # Returns: 0 on success, 1 after all retries exhausted.
   local _max=60 _delay=5 _bail_on="" _xt=false
   case "$-" in *x*) _xt=true ;; esac
   { set +x; } 2> /dev/null
@@ -92,11 +92,11 @@ net__fetch_with_retry() {
   return 1
 }
 
-# @brief _net__fetch <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Internal: download URL via curl or wget.
-#
-# <dest> is the output file path, or empty string for stdout output.
-# curl uses --retry (transient errors only); wget falls back to net__fetch_with_retry.
 _net__fetch() {
+  # @brief _net__fetch <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Internal: download URL via curl or wget.
+  #
+  # <dest> is the output file path, or empty string for stdout output.
+  # curl uses --retry (transient errors only); wget falls back to net__fetch_with_retry.
   local _url="$1" _dest="$2"
   shift 2
   local _max=60 _delay=5 _hdrs='' _netrc=''
@@ -182,60 +182,60 @@ _NET_HDR_EOF_
   return 1
 }
 
-# @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
-#
-# curl uses --retry (transient errors only: 5xx, 408, 429, connection
-# failures); wget falls back to net__fetch_with_retry. Calls
-# _net__ensure_fetch_tool automatically if not already initialised.
-#
-# Args:
-#   <url>                URL to download.
-#   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
-#   --delay N            Seconds between failures (default: 5).
-#   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
-#   --netrc-file <path>  Optional netrc file for HTTP authentication.
-#
-# Stdout: downloaded content.
-#
-# Returns: 0 on success, non-zero on HTTP error or timeout.
 net__fetch_url_stdout() {
+  # @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
+  #
+  # curl uses --retry (transient errors only: 5xx, 408, 429, connection
+  # failures); wget falls back to net__fetch_with_retry. Calls
+  # _net__ensure_fetch_tool automatically if not already initialised.
+  #
+  # Args:
+  #   <url>                URL to download.
+  #   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
+  #   --delay N            Seconds between failures (default: 5).
+  #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
+  #   --netrc-file <path>  Optional netrc file for HTTP authentication.
+  #
+  # Stdout: downloaded content.
+  #
+  # Returns: 0 on success, non-zero on HTTP error or timeout.
   local _url="$1"
   shift
   logging__download "Fetching '${_url}' to stdout."
   _net__fetch "$_url" "" "$@"
 }
 
-# @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
-#
-# curl uses --retry (transient errors only: 5xx, 408, 429, connection
-# failures); wget falls back to net__fetch_with_retry. Calls
-# _net__ensure_fetch_tool automatically if not already initialised.
-#
-# Args:
-#   <url>                URL to download.
-#   <dest>               Destination file path.
-#   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
-#   --delay N            Seconds between failures (default: 5).
-#   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
-#   --netrc-file <path>  Optional netrc file for HTTP authentication.
-#
-# Returns: 0 on success, non-zero on HTTP error or timeout.
 net__fetch_url_file() {
+  # @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
+  #
+  # curl uses --retry (transient errors only: 5xx, 408, 429, connection
+  # failures); wget falls back to net__fetch_with_retry. Calls
+  # _net__ensure_fetch_tool automatically if not already initialised.
+  #
+  # Args:
+  #   <url>                URL to download.
+  #   <dest>               Destination file path.
+  #   --retries N          Maximum number of attempts (default: 60, ≈5 min at 5s).
+  #   --delay N            Seconds between failures (default: 5).
+  #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
+  #   --netrc-file <path>  Optional netrc file for HTTP authentication.
+  #
+  # Returns: 0 on success, non-zero on HTTP error or timeout.
   local _url="$1" _dest="$2"
   shift 2
   logging__download "Fetching '${_url}' to '${_dest}'."
   _net__fetch "$_url" "$_dest" "$@"
 }
 
-# @brief _net__ensure_fetch_tool — Detect `curl` or `wget` and set `_NET__FETCH_TOOL`; install `curl` via bootstrap if neither is found.
-#
-# Calls `bootstrap__ca_certs` after detection so every fetch that goes through
-# this helper also has a valid CA bundle. Idempotent: does nothing when
-# `_NET__FETCH_TOOL` is already set.
-#
-# Side effects: sets `_NET__FETCH_TOOL` to `curl` or `wget`.
-# Returns: 0 on success, 1 if a required tool or CA bundle cannot be ensured.
 _net__ensure_fetch_tool() {
+  # @brief _net__ensure_fetch_tool — Detect `curl` or `wget` and set `_NET__FETCH_TOOL`; install `curl` via bootstrap if neither is found.
+  #
+  # Calls `bootstrap__ca_certs` after detection so every fetch that goes through
+  # this helper also has a valid CA bundle. Idempotent: does nothing when
+  # `_NET__FETCH_TOOL` is already set.
+  #
+  # Side effects: sets `_NET__FETCH_TOOL` to `curl` or `wget`.
+  # Returns: 0 on success, 1 if a required tool or CA bundle cannot be ensured.
   if [ -z "${_NET__FETCH_TOOL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
       _NET__FETCH_TOOL=curl

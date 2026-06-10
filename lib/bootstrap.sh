@@ -11,31 +11,58 @@ _BOOTSTRAP__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # In-process cache for the yq binary path; set by bootstrap__yq on first call.
 _BOOTSTRAP__YQ_BIN=
 
-# _bootstrap__tool [options] — Check → install → recheck loop for a single CLI tool.
-#
-# Options:
-#   --cmd <cmd>       Command to check (repeatable; any found → success).
-#   --pkg <pkg>       Package name for ospkg__install_tracked <group> <pkg>.
-#   --manifest <path> Manifest file path for ospkg__run --manifest <path> --build-group <group>.
-#   --group <id>      Build group for package tracking.
-#   --skip-darwin     Skip the install step on Darwin; go straight to the failure path.
-#   --warn            Use logging__warn on failure instead of logging__error.
-#   --info            Use logging__info on failure instead of logging__error.
-#   --msg <str>       Full failure message (overrides the default construction).
 _bootstrap__tool() {
+  # _bootstrap__tool [options] — Check → install → recheck loop for a single CLI tool.
+  #
+  # Options:
+  #   --cmd <cmd>       Command to check (repeatable; any found → success).
+  #   --pkg <pkg>       Package name for ospkg__install_tracked <group> <pkg>.
+  #   --manifest <path> Manifest file path for ospkg__run --manifest <path> --build-group <group>.
+  #   --group <id>      Build group for package tracking.
+  #   --skip-darwin     Skip the install step on Darwin; go straight to the failure path.
+  #   --warn            Use logging__warn on failure instead of logging__error.
+  #   --info            Use logging__info on failure instead of logging__error.
+  #   --msg <str>       Full failure message (overrides the default construction).
   local -a _cmds=()
   local _pkg="" _manifest="" _group="" _skip_darwin=false _level="error" _msg=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --cmd)         _cmds+=("$2");  shift 2 ;;
-      --pkg)         _pkg="$2";      shift 2 ;;
-      --manifest)    _manifest="$2"; shift 2 ;;
-      --group)       _group="$2";    shift 2 ;;
-      --skip-darwin) _skip_darwin=true; shift ;;
-      --warn)        _level="warn";  shift ;;
-      --info)        _level="info";  shift ;;
-      --msg)         _msg="$2";      shift 2 ;;
-      *) logging__error "_bootstrap__tool: unknown option '$1'"; return 1 ;;
+      --cmd)
+        _cmds+=("$2")
+        shift 2
+        ;;
+      --pkg)
+        _pkg="$2"
+        shift 2
+        ;;
+      --manifest)
+        _manifest="$2"
+        shift 2
+        ;;
+      --group)
+        _group="$2"
+        shift 2
+        ;;
+      --skip-darwin)
+        _skip_darwin=true
+        shift
+        ;;
+      --warn)
+        _level="warn"
+        shift
+        ;;
+      --info)
+        _level="info"
+        shift
+        ;;
+      --msg)
+        _msg="$2"
+        shift 2
+        ;;
+      *)
+        logging__error "_bootstrap__tool: unknown option '$1'"
+        return 1
+        ;;
     esac
   done
   local _c
@@ -57,35 +84,36 @@ _bootstrap__tool() {
   return 1
 }
 
-# @brief bootstrap__jq — Ensure jq is on PATH, installing via ospkg if absent.
-# Returns: 0 on success, 1 if jq cannot be installed.
 bootstrap__jq() {
+  # @brief bootstrap__jq — Ensure jq is on PATH, installing via ospkg if absent.
+  # Returns: 0 on success, 1 if jq cannot be installed.
   _bootstrap__tool --cmd jq --pkg jq --group "lib-json"
 }
 
-# @brief bootstrap__flock — Ensure flock is available; install util-linux via ospkg if absent.
-# Returns: 0 when flock is on PATH; 1 otherwise. Non-fatal: callers fall back to spin-lock.
 bootstrap__flock() {
+  # @brief bootstrap__flock — Ensure flock is available; install util-linux via ospkg if absent.
+  # Returns: 0 when flock is on PATH; 1 otherwise. Non-fatal: callers fall back to spin-lock.
   _bootstrap__tool --cmd flock \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/flock.yaml" --group "lib-lock" \
     --skip-darwin --info --msg "'flock' not available; using spin-lock fallback."
 }
 
-# @brief bootstrap__curl — Ensure curl is on PATH, installing via ospkg if absent.
-# Returns: 0 on success, 1 if curl cannot be installed.
 bootstrap__curl() {
+  # @brief bootstrap__curl — Ensure curl is on PATH, installing via ospkg if absent.
+  # Returns: 0 on success, 1 if curl cannot be installed.
   _bootstrap__tool --cmd curl --pkg curl --group "lib-net"
 }
 
-# @brief bootstrap__ca_certs — Ensure a CA certificate bundle is present; install ca-certificates via ospkg if missing.
-#
-# macOS uses the system keychain natively (curl and wget pick it up without a
-# .crt bundle), so the check is skipped there. On Linux, an absent or empty
-# bundle causes TLS errors for all HTTPS fetches. Checks known bundle locations
-# across distributions (Debian/Ubuntu/Alpine, openSUSE, Fedora/RHEL/CentOS).
-#
-# Returns: 0 on success, 1 if no CA bundle is present after install.
 bootstrap__ca_certs() {
+  # @brief bootstrap__ca_certs — Ensure a CA certificate bundle is present; install ca-certificates via ospkg if missing.
+  #
+  # macOS uses the system keychain natively (curl and wget pick it up without a
+  # .crt bundle), so the check is skipped there. On Linux, an absent or empty
+  # bundle causes TLS errors for all HTTPS fetches. Checks known bundle locations
+  # across distributions (Debian/Ubuntu/Alpine, openSUSE, Fedora/RHEL/CentOS).
+  #
+  # Returns: 0 on success, 1 if no CA bundle is present after install.
+
   # macOS uses its own keychain; curl/wget use it natively without a .crt file.
   [ "$(uname -s)" = "Darwin" ] && return 0
   # Known CA bundle locations across distributions:
@@ -116,61 +144,61 @@ bootstrap__ca_certs() {
   return 1
 }
 
-# @brief bootstrap__strings — Ensure strings (binutils) is available, installing via ospkg if absent.
-# Returns: 0 when strings is on PATH (before or after install), 1 otherwise (non-fatal).
 bootstrap__strings() {
+  # @brief bootstrap__strings — Ensure strings (binutils) is available, installing via ospkg if absent.
+  # Returns: 0 when strings is on PATH (before or after install), 1 otherwise (non-fatal).
   _bootstrap__tool --cmd strings \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/binutils.yaml" --group "lib-shell" \
     --warn --msg "'strings' not available; falling back to os-release detection."
 }
 
-# @brief bootstrap__sha256sum — Ensure sha256sum or shasum is available; installs coreutils on Linux if absent.
-# Returns: 0 when a sha256 tool is available; 1 otherwise (non-fatal: caller falls back to cksum).
 bootstrap__sha256sum() {
+  # @brief bootstrap__sha256sum — Ensure sha256sum or shasum is available; installs coreutils on Linux if absent.
+  # Returns: 0 when a sha256 tool is available; 1 otherwise (non-fatal: caller falls back to cksum).
   _bootstrap__tool --cmd sha256sum --cmd shasum \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/coreutils-linux.yaml" --group "lib-uri" \
     --warn --msg "neither 'sha256sum' nor 'shasum' available; falling back to cksum for URI hashing."
 }
 
-# @brief bootstrap__coreutils — Ensure coreutils (id, stat, whoami) are available; install via ospkg if absent.
-# Returns: 0 on success, 1 if coreutils cannot be installed.
 bootstrap__coreutils() {
+  # @brief bootstrap__coreutils — Ensure coreutils (id, stat, whoami) are available; install via ospkg if absent.
+  # Returns: 0 on success, 1 if coreutils cannot be installed.
   _bootstrap__tool --cmd id \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/coreutils-linux.yaml" --group "lib-users" \
     --msg "'id' is required but could not be installed."
 }
 
-# @brief bootstrap__getent — Ensure getent is available; install the platform libc package via ospkg if absent.
-# Returns: 0 when getent is on PATH; 1 otherwise. Non-fatal: macOS does not have getent; callers fall back to dscl.
 bootstrap__getent() {
+  # @brief bootstrap__getent — Ensure getent is available; install the platform libc package via ospkg if absent.
+  # Returns: 0 when getent is on PATH; 1 otherwise. Non-fatal: macOS does not have getent; callers fall back to dscl.
   _bootstrap__tool --cmd getent \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/getent.yaml" --group "lib-users" \
     --skip-darwin --info --msg "'getent' not available; falling back to dscl or /etc/passwd for home resolution."
 }
 
-# @brief bootstrap__sudo — Ensure sudo (visudo) is available; install via ospkg if absent.
-# Returns: 0 on success, 1 if sudo cannot be installed.
 bootstrap__sudo() {
+  # @brief bootstrap__sudo — Ensure sudo (visudo) is available; install via ospkg if absent.
+  # Returns: 0 on success, 1 if sudo cannot be installed.
   _bootstrap__tool --cmd visudo \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/sudo.yaml" --group "lib-users" \
     --msg "'sudo' (visudo) is required but could not be installed."
 }
 
-# @brief bootstrap__shadow_utils — Ensure useradd, groupadd, and usermod are available; install shadow-utils via ospkg if absent.
-# Returns: 0 on success, 1 if shadow-utils cannot be installed (non-fatal: logged as warning).
 bootstrap__shadow_utils() {
+  # @brief bootstrap__shadow_utils — Ensure useradd, groupadd, and usermod are available; install shadow-utils via ospkg if absent.
+  # Returns: 0 on success, 1 if shadow-utils cannot be installed (non-fatal: logged as warning).
   _bootstrap__tool --cmd groupadd \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/shadow-utils.yaml" --group "lib-users" \
     --warn --msg "shadow-utils (useradd, groupadd, usermod) is required but could not be installed."
 }
 
-# @brief bootstrap__gpg [<group_id>] — Ensure gpg is available, auto-installing gnupg if needed.
-#
-# Args:
-#   [group_id]  Tracking group for the auto-installed package (default: lib-verify).
-#
-# Returns: 0 if gpg is available, 1 if installation fails.
 bootstrap__gpg() {
+  # @brief bootstrap__gpg [<group_id>] — Ensure gpg is available, auto-installing gnupg if needed.
+  #
+  # Args:
+  #   [group_id]  Tracking group for the auto-installed package (default: lib-verify).
+  #
+  # Returns: 0 if gpg is available, 1 if installation fails.
   local _group="${1:-lib-verify}"
   _bootstrap__tool --cmd gpg \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/gnupg.yaml" \
@@ -178,18 +206,18 @@ bootstrap__gpg() {
     --msg "gpg still not found after installing gnupg."
 }
 
-# @brief bootstrap__install_cmd — Ensure the install command (coreutils) is available.
-# install is provided by GNU coreutils on Linux and BSD utils on macOS. Falls back to ospkg when missing.
-# Returns: 0 on success, 1 if install is unavailable.
 bootstrap__install_cmd() {
+  # @brief bootstrap__install_cmd — Ensure the install command (coreutils) is available.
+  # install is provided by GNU coreutils on Linux and BSD utils on macOS. Falls back to ospkg when missing.
+  # Returns: 0 on success, 1 if install is unavailable.
   _bootstrap__tool --cmd install \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/coreutils-linux.yaml" --group "lib-file" \
     --msg "'install' is required but could not be installed."
 }
 
-# @brief bootstrap__npm — Ensure the npm CLI is on PATH, installing nodejs if needed.
-# Returns: 0 if npm is available (or was just installed), 1 otherwise.
 bootstrap__npm() {
+  # @brief bootstrap__npm — Ensure the npm CLI is on PATH, installing nodejs if needed.
+  # Returns: 0 if npm is available (or was just installed), 1 otherwise.
   command -v npm > /dev/null 2>&1 && return 0
   logging__install "npm not found on PATH — installing nodejs/npm via OS package manager."
   local _rc=0
@@ -212,43 +240,43 @@ bootstrap__npm() {
   }
 }
 
-# @brief bootstrap__unzip — Ensure unzip is on PATH, installing via ospkg if absent.
-# Returns: 0 on success, 1 if unzip cannot be installed.
 bootstrap__unzip() {
+  # @brief bootstrap__unzip — Ensure unzip is on PATH, installing via ospkg if absent.
+  # Returns: 0 on success, 1 if unzip cannot be installed.
   _bootstrap__tool --cmd unzip --pkg unzip --group "lib-bootstrap" \
     --msg "unzip is required to extract .zip archives but could not be installed."
 }
 
-# @brief bootstrap__xz — Ensure xz is on PATH, installing xz-utils via ospkg if absent.
-# Returns: 0 on success, 1 if xz cannot be installed.
 bootstrap__xz() {
+  # @brief bootstrap__xz — Ensure xz is on PATH, installing xz-utils via ospkg if absent.
+  # Returns: 0 on success, 1 if xz cannot be installed.
   _bootstrap__tool --cmd xz \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/xz.yaml" --group "lib-bootstrap" \
     --msg "xz is required to extract .tar.xz archives but could not be installed."
 }
 
-# @brief bootstrap__bzip2 — Ensure bzip2 is on PATH, installing via ospkg if absent.
-# Returns: 0 on success, 1 if bzip2 cannot be installed.
 bootstrap__bzip2() {
+  # @brief bootstrap__bzip2 — Ensure bzip2 is on PATH, installing via ospkg if absent.
+  # Returns: 0 on success, 1 if bzip2 cannot be installed.
   _bootstrap__tool --cmd bzip2 --pkg bzip2 --group "lib-bootstrap" \
     --msg "bzip2 is required to extract .tar.bz2 archives but could not be installed."
 }
 
-# @brief bootstrap__gzip — Ensure gzip is on PATH, installing via ospkg if absent.
-# Returns: 0 on success, 1 if gzip cannot be installed.
 bootstrap__gzip() {
+  # @brief bootstrap__gzip — Ensure gzip is on PATH, installing via ospkg if absent.
+  # Returns: 0 on success, 1 if gzip cannot be installed.
   _bootstrap__tool --cmd gzip --pkg gzip --group "lib-bootstrap" \
     --msg "gzip is required to extract .tar.gz archives but could not be installed."
 }
 
-# @brief bootstrap__tar — Ensure tar is on PATH, installing via ospkg if absent.
-# Returns: 0 on success, 1 if tar cannot be installed.
 bootstrap__tar() {
+  # @brief bootstrap__tar — Ensure tar is on PATH, installing via ospkg if absent.
+  # Returns: 0 on success, 1 if tar cannot be installed.
   _bootstrap__tool --cmd tar --pkg tar --group "lib-bootstrap"
 }
 
-# @brief _bootstrap__yq_compatible <bin> — Return 0 when <bin> is mikefarah/yq (supports -o=json).
 _bootstrap__yq_compatible() {
+  # @brief _bootstrap__yq_compatible <bin> — Return 0 when <bin> is mikefarah/yq (supports -o=json).
   local _bin="${1-}"
   [[ -n "$_bin" ]] || {
     logging__error "yq binary path is empty."
@@ -257,20 +285,20 @@ _bootstrap__yq_compatible() {
   "$_bin" -o=json '.' /dev/null > /dev/null 2>&1
 }
 
-# @brief bootstrap__yq [<version-spec>] — Ensure mikefarah/yq is available and print its path.
-#
-# Returns the path of an already-installed compatible yq when one exists (fast
-# path).  Otherwise downloads the release binary, verifies via yq's custom
-# checksum script, and caches the result. Sets _BOOTSTRAP__YQ_BIN for callers
-# that need the path without a subshell.
-#
-# Args:
-#   [version-spec]  Version spec accepted by github__resolve_version (e.g.
-#                   "stable", "latest", "4.44.3"). Defaults to "stable".
-#
-# Stdout: absolute path to a mikefarah/yq-compatible binary.
-# Returns: 0 on success, 1 on any failure.
 bootstrap__yq() {
+  # @brief bootstrap__yq [<version-spec>] — Ensure mikefarah/yq is available and print its path.
+  #
+  # Returns the path of an already-installed compatible yq when one exists (fast
+  # path).  Otherwise downloads the release binary, verifies via yq's custom
+  # checksum script, and caches the result. Sets _BOOTSTRAP__YQ_BIN for callers
+  # that need the path without a subshell.
+  #
+  # Args:
+  #   [version-spec]  Version spec accepted by github__resolve_version (e.g.
+  #                   "stable", "latest", "4.44.3"). Defaults to "stable".
+  #
+  # Stdout: absolute path to a mikefarah/yq-compatible binary.
+  # Returns: 0 on success, 1 on any failure.
   local _spec="${1:-stable}"
 
   # Fast path 1: in-process cache.
@@ -367,19 +395,19 @@ bootstrap__yq() {
   # duplicate stdout lines break `_bin="$(bootstrap__yq)"` capture).
 }
 
-# @brief bootstrap__oras [<version-spec>] — Ensure oras is available and print its path.
-#
-# Returns an already-installed oras path when one exists on PATH.  Otherwise
-# downloads the release archive, verifies GPG signature, installs the binary to
-# a process-lifetime temp directory, and caches the result.
-#
-# Args:
-#   [version-spec]  Version spec accepted by github__resolve_version (e.g.
-#                   "stable", "latest", "1.2.3"). Defaults to "stable".
-#
-# Stdout: absolute path to the oras binary.
-# Returns: 0 on success, 1 on any failure.
 bootstrap__oras() {
+  # @brief bootstrap__oras [<version-spec>] — Ensure oras is available and print its path.
+  #
+  # Returns an already-installed oras path when one exists on PATH.  Otherwise
+  # downloads the release archive, verifies GPG signature, installs the binary to
+  # a process-lifetime temp directory, and caches the result.
+  #
+  # Args:
+  #   [version-spec]  Version spec accepted by github__resolve_version (e.g.
+  #                   "stable", "latest", "1.2.3"). Defaults to "stable".
+  #
+  # Stdout: absolute path to the oras binary.
+  # Returns: 0 on success, 1 on any failure.
   local _spec="${1:-stable}"
 
   # Fast path 1: oras already on PATH.
@@ -448,9 +476,9 @@ bootstrap__oras() {
   # Path is emitted by install__release_asset → uri__fetch_asset (see bootstrap__yq).
 }
 
-# @brief bootstrap__git — Ensure git is available via the OS package manager.
-# Returns: 0 on success, 1 on failure.
 bootstrap__git() {
+  # @brief bootstrap__git — Ensure git is available via the OS package manager.
+  # Returns: 0 on success, 1 on failure.
   logging__install "Ensuring git is available (ospkg tracked: lib-git)."
   ospkg__install_tracked "lib-git" git
 }

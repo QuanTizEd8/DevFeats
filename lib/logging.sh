@@ -34,9 +34,6 @@ _LOGGING__XTRACE_PIPE=
 _LOGGING__LEVEL=3
 _LOGGING__FILE_LEVEL=4
 
-# ---------------------------------------------------------------------------
-# Function-name message prefix (bash caller stack)
-# ---------------------------------------------------------------------------
 
 _logging__caller_fn() {
   local _i _fn
@@ -74,10 +71,6 @@ _logging__decorate_fn_prefix() {
   printf '%s: %s' "$_fn" "$_msg"
   return 0
 }
-
-# ---------------------------------------------------------------------------
-# Level parsing
-# ---------------------------------------------------------------------------
 
 _logging__recompute_level() {
   case "${LOG_LEVEL:-info}" in
@@ -119,35 +112,31 @@ _logging__update_capture_file() {
   fi
 }
 
-# Bootstrap warn (library load / before setup) — must not use buffered emit.
 _logging__bootstrap_warn() {
+  # Bootstrap warn (library load / before setup) — must not use buffered emit.
   printf '⚠️ %s\n' "$*" >&2
 }
-
-# ---------------------------------------------------------------------------
-# Ordered dispatch (single journal writer logic)
-# ---------------------------------------------------------------------------
 
 _logging__encode_fifo_payload() {
   _logging__encode_payload "${1-}"
 }
 
-# Forward one DFLOG record directly to the mux fifo.
-# Writing to fd 1 (process-ingress) instead would race with large subprocess writes
-# (apt-get, curl) that exceed PIPE_BUF, interleaving DFLOG bytes mid-line — exactly
-# the same reason the xtrace coprocess was changed to write to _LOGGING__MUX_IN directly.
-# Payload is capped at 4081 bytes: "DFLOG\tS\t4\t" (12 bytes) + 4081 + "\n" (1) = 4094 ≤ PIPE_BUF.
 _logging__mux_forward_dflog() {
+  # Forward one DFLOG record directly to the mux fifo.
+  # Writing to fd 1 (process-ingress) instead would race with large subprocess writes
+  # (apt-get, curl) that exceed PIPE_BUF, interleaving DFLOG bytes mid-line — exactly
+  # the same reason the xtrace coprocess was changed to write to _LOGGING__MUX_IN directly.
+  # Payload is capped at 4081 bytes: "DFLOG\tS\t4\t" (12 bytes) + 4081 + "\n" (1) = 4094 ≤ PIPE_BUF.
   local _kind="$1" _min="$2" _payload="$3"
   printf 'DFLOG\t%s\t%s\t%.4081s\n' "$_kind" "$_min" "$_payload" >&"${_LOGGING__MUX_IN}"
   return 0
 }
 
-# Process-ingress coprocess: wrap plain lines as DFLOG O; pass DFLOG records through.
-# The encoded payload is capped at 4081 bytes so the total printf write fits in one
-# PIPE_BUF (4096 bytes on Linux), keeping the write atomic. Non-atomic writes on the
-# mux FIFO race with concurrent S-record writes from the main shell and corrupt lines.
 _logging__process_mux_ingress() {
+  # Process-ingress coprocess: wrap plain lines as DFLOG O; pass DFLOG records through.
+  # The encoded payload is capped at 4081 bytes so the total printf write fits in one
+  # PIPE_BUF (4096 bytes on Linux), keeping the write atomic. Non-atomic writes on the
+  # mux FIFO race with concurrent S-record writes from the main shell and corrupt lines.
   local _line="${1-}"
   if [[ "$_line" == DFLOG$'\t'* ]]; then
     # Cap at 4092 bytes total (DFLOG record including its own PIPE_BUF header).
@@ -160,8 +149,8 @@ _logging__process_mux_ingress() {
   return 0
 }
 
-# True when console or file sink wants structured output at min_level.
 _logging__want_structured_at_level() {
+  # True when console or file sink wants structured output at min_level.
   local _min="${1-}"
   if [[ "${_min}" -eq 0 ]]; then
     return 0
@@ -171,9 +160,9 @@ _logging__want_structured_at_level() {
   return 1
 }
 
-# @brief _logging__dispatch_payload <min_level> <payload_line>
-# Write one line to console and/or session journal per sink thresholds.
 _logging__dispatch_payload() {
+  # @brief _logging__dispatch_payload <min_level> <payload_line>
+  # Write one line to console and/or session journal per sink thresholds.
   local _min="${1-}" _payload="${2-}"
   [[ -z "$_payload" ]] && return 0
 
@@ -202,10 +191,10 @@ _logging__dispatch_payload() {
   return 0
 }
 
-# Parse DFLOG\\tkind\\tmin\\tpayload on the process mux.
-# Kinds: S=structured, X=xtrace, O=subprocess stdout/stderr (line-buffered).
-# Legacy unprefixed lines are still accepted as process output (min=debug).
 _logging__dispatch_mux_line() {
+  # Parse DFLOG\\tkind\\tmin\\tpayload on the process mux.
+  # Kinds: S=structured, X=xtrace, O=subprocess stdout/stderr (line-buffered).
+  # Legacy unprefixed lines are still accepted as process output (min=debug).
   local _line="${1-}"
   [[ -z "$_line" ]] && return 0
 
@@ -226,20 +215,16 @@ _logging__dispatch_mux_line() {
   return 0
 }
 
-# Bash-specific override: replace tab/newline/CR with spaces using parameter
-# expansion instead of tr pipelines. Avoids spawning subprocesses under set -x,
-# which would generate extra xtrace records when trace level is active.
 _logging__encode_payload() {
+  # Bash-specific override: replace tab/newline/CR with spaces using parameter
+  # expansion instead of tr pipelines. Avoids spawning subprocesses under set -x,
+  # which would generate extra xtrace records when trace level is active.
   local _log_enc_in="${1-}"
   _log_enc_in="${_log_enc_in//$'\t'/ }"
   _log_enc_in="${_log_enc_in//$'\n'/ }"
   _log_enc_in="${_log_enc_in//$'\r'/ }"
   printf '%s' "$_log_enc_in"
 }
-
-# ---------------------------------------------------------------------------
-# Bash emit backend (hooks consumed by logging-api.sh; do not redefine api hooks)
-# ---------------------------------------------------------------------------
 
 _logging__bash_structured() {
   local _min="${1-}" _emoji="${2-}"
@@ -265,10 +250,6 @@ _logging__bash_emit() {
   done
   return 0
 }
-
-# ---------------------------------------------------------------------------
-# Mux reader / setup helpers (internal)
-# ---------------------------------------------------------------------------
 
 _logging__mux_reader_loop() {
   local _line
@@ -439,8 +420,8 @@ _logging__mux_stop() {
   return 0
 }
 
-# @brief logging__set_level — Re-read LOG_LEVEL / LOG_FILE_LEVEL.
 logging__set_level() {
+  # @brief logging__set_level — Re-read LOG_LEVEL / LOG_FILE_LEVEL.
   if ! _logging__recompute_level; then
     if [[ "${_LOGGING__LIB_SETUP-}" == true ]]; then
       logging__warn "Unknown LOG_LEVEL '${LOG_LEVEL:-}'; defaulting to info."
@@ -464,19 +445,19 @@ logging__set_level() {
   return 0
 }
 
-# @brief logging__finalize_parse_buffer — Replay pending journal on early exit (no mux).
 logging__finalize_parse_buffer() {
+  # @brief logging__finalize_parse_buffer — Replay pending journal on early exit (no mux).
   _logging__finalize_pending_buffer
   return 0
 }
 
-# @brief logging__is_setup — Return 0 if logging__setup has been called (mux is running).
 logging__is_setup() {
+  # @brief logging__is_setup — Return 0 if logging__setup has been called (mux is running).
   [[ "${_LOGGING__LIB_SETUP-}" == true ]]
 }
 
-# @brief logging__setup [--prefix <id>] [--fn-prefix] [--no-fn-prefix] — Start mux; replay pending journal.
 logging__setup() {
+  # @brief logging__setup [--prefix <id>] [--fn-prefix] [--no-fn-prefix] — Start mux; replay pending journal.
   [[ "${_LOGGING__LIB_SETUP-}" == true ]] && return 0
 
   while [[ $# -gt 0 ]]; do
@@ -526,14 +507,14 @@ logging__setup() {
   return 0
 }
 
-# @brief logging__mask_secret <value> — Redact on cleanup when writing LOG_FILE.
 logging__mask_secret() {
+  # @brief logging__mask_secret <value> — Redact on cleanup when writing LOG_FILE.
   [[ -n "${1:-}" ]] && _LOGGING__SYSSET_MASKED_VALUES+=("$1")
   return 0
 }
 
-# @brief logging__cleanup — Drain mux, append journal to LOG_FILE, restore fds.
 logging__cleanup() {
+  # @brief logging__cleanup — Drain mux, append journal to LOG_FILE, restore fds.
   [[ "${_LOGGING__LIB_SETUP-}" == true ]] || return 0
 
   exec 1>&3 2>&4

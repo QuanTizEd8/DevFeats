@@ -26,21 +26,20 @@ _OSPKG__DNF_MARK_DEP="remove"
 declare -gA _OSPKG__OS_RELEASE=()
 declare -gA _OSPKG__EXTRA_VARS=()
 
-# ── Private: clean functions ──────────────────────────────────────────────────
 
-# @brief _ospkg__clean_apk — Remove the Alpine APK package cache (`/var/cache/apk/*`).
 _ospkg__clean_apk() {
+  # @brief _ospkg__clean_apk — Remove the Alpine APK package cache (`/var/cache/apk/*`).
   users__run_privileged rm -rf /var/cache/apk/*
   return 0
 }
 
-# @brief _ospkg__clean_apt — Clean the APT package cache and remove downloaded index files.
-#
-# Runs `apt-get clean` (removes cached `.deb` files) then `apt-get dist-clean`
-# (APT 3.x; removes `/var/lib/apt/lists/*` while preserving Release files).
-# Falls back to a direct `rm -rf /var/lib/apt/lists/*` on APT 2.x and below
-# where `dist-clean` does not exist.
 _ospkg__clean_apt() {
+  # @brief _ospkg__clean_apt — Clean the APT package cache and remove downloaded index files.
+  #
+  # Runs `apt-get clean` (removes cached `.deb` files) then `apt-get dist-clean`
+  # (APT 3.x; removes `/var/lib/apt/lists/*` while preserving Release files).
+  # Falls back to a direct `rm -rf /var/lib/apt/lists/*` on APT 2.x and below
+  # where `dist-clean` does not exist.
   users__run_privileged apt-get clean >&2
   # apt-get dist-clean is an APT 3.x command that removes /var/lib/apt/lists/*
   # while preserving the Release/InRelease files for security.
@@ -50,45 +49,45 @@ _ospkg__clean_apt() {
   return 0
 }
 
-# @brief _ospkg__clean_dnf — Clean the dnf/yum package cache and remove cached metadata.
 _ospkg__clean_dnf() {
+  # @brief _ospkg__clean_dnf — Clean the dnf/yum package cache and remove cached metadata.
   users__run_privileged "$_OSPKG__PKG_MNGR" clean all >&2 2> /dev/null || true
   users__run_privileged rm -rf /var/cache/dnf/* /var/cache/yum/*
   return 0
 }
 
-# @brief _ospkg__clean_pacman — Remove all cached pacman packages and unused sync databases.
 _ospkg__clean_pacman() {
+  # @brief _ospkg__clean_pacman — Remove all cached pacman packages and unused sync databases.
   users__run_privileged pacman -Scc --noconfirm >&2
   return 0
 }
 
-# @brief _ospkg__clean_zypper — Clean all zypper repository caches.
 _ospkg__clean_zypper() {
+  # @brief _ospkg__clean_zypper — Clean all zypper repository caches.
   users__run_privileged zypper clean --all >&2
   return 0
 }
 
-# @brief _ospkg__clean_brew — Run `brew cleanup --prune=all` to remove stale Homebrew downloads.
 _ospkg__clean_brew() {
+  # @brief _ospkg__clean_brew — Run `brew cleanup --prune=all` to remove stale Homebrew downloads.
   _ospkg__brew_run cleanup --prune=all >&2 2> /dev/null || true
   return 0
 }
 
-# @brief _ospkg__update_cmd — Run the package-manager index update command (`_OSPKG__UPDATE`), normalising non-fatal exit codes to 0.
-#
-# Wraps `_OSPKG__UPDATE` for use with `net__fetch_with_retry`. Non-fatal PM
-# codes normalised to 0:
-#   - dnf/yum exit 100  — "updates available" (informational, not a failure).
-#   - zypper exit 6     — `ZYPPER_EXIT_INF_REPOS_SKIPPED`: at least one repo
-#                         was unreachable but all reachable repos refreshed OK.
-# APT index-corruption error strings (Hash Sum mismatch, Failed to fetch, etc.)
-# are detected and force-retried even when APT itself exits 0.
-#
-# Returns: 0 on success; 2 for non-transient configuration errors (malformed
-# source lists, parse errors) so `net__fetch_with_retry --bail-on 2` skips
-# pointless retries; other non-zero codes pass through unchanged for retry.
 _ospkg__update_cmd() {
+  # @brief _ospkg__update_cmd — Run the package-manager index update command (`_OSPKG__UPDATE`), normalising non-fatal exit codes to 0.
+  #
+  # Wraps `_OSPKG__UPDATE` for use with `net__fetch_with_retry`. Non-fatal PM
+  # codes normalised to 0:
+  #   - dnf/yum exit 100  — "updates available" (informational, not a failure).
+  #   - zypper exit 6     — `ZYPPER_EXIT_INF_REPOS_SKIPPED`: at least one repo
+  #                         was unreachable but all reachable repos refreshed OK.
+  # APT index-corruption error strings (Hash Sum mismatch, Failed to fetch, etc.)
+  # are detected and force-retried even when APT itself exits 0.
+  #
+  # Returns: 0 on success; 2 for non-transient configuration errors (malformed
+  # source lists, parse errors) so `net__fetch_with_retry --bail-on 2` skips
+  # pointless retries; other non-zero codes pass through unchanged for retry.
   [[ ${#_OSPKG__UPDATE[@]} -eq 0 ]] && return 0
   local _rc=0 _err_tmp
   _err_tmp="$(mktemp)"
@@ -130,20 +129,20 @@ _ospkg__update_cmd() {
   return "$_rc"
 }
 
-# @brief _ospkg__dnf_bin — Print the name of a full-featured `dnf`-compatible binary (`dnf` or `yum`), or return 1.
-#
-# `microdnf` does not implement the `copr` or `module` subcommands. This
-# helper resolves a usable binary for those operations using the following
-# priority:
-#   1. Full `dnf` in PATH — always preferred, even when microdnf is the
-#      detected package manager.
-#   2. `yum` as the detected PM — supports copr/module via plugins on older
-#      RHEL/CentOS.
-#   3. Neither available — logs an error and returns 1.
-#
-# Stdout: `dnf` or `yum`.
-# Returns: 0 on success, 1 if no suitable binary is found.
 _ospkg__dnf_bin() {
+  # @brief _ospkg__dnf_bin — Print the name of a full-featured `dnf`-compatible binary (`dnf` or `yum`), or return 1.
+  #
+  # `microdnf` does not implement the `copr` or `module` subcommands. This
+  # helper resolves a usable binary for those operations using the following
+  # priority:
+  #   1. Full `dnf` in PATH — always preferred, even when microdnf is the
+  #      detected package manager.
+  #   2. `yum` as the detected PM — supports copr/module via plugins on older
+  #      RHEL/CentOS.
+  #   3. Neither available — logs an error and returns 1.
+  #
+  # Stdout: `dnf` or `yum`.
+  # Returns: 0 on success, 1 if no suitable binary is found.
   if command -v dnf > /dev/null 2>&1; then
     echo "dnf"
     return 0
@@ -156,20 +155,18 @@ _ospkg__dnf_bin() {
   return 1
 }
 
-# ── Private: key / repo helpers ──────────────────────────────────────────────
-
-# @brief _ospkg__key_effective_path <dest> <dearmor> — Print the filesystem path the key will actually be written to, accounting for dearmor mode.
-#
-# When `dearmor` is `false` and `<dest>` ends in `.gpg`, the key is stored as
-# a raw `.key` file (the `.gpg` extension is reserved for dearmored binaries
-# in APT conventions). All other combinations return `<dest>` unchanged.
-#
-# Args:
-#   <dest>     Intended destination path for the key file.
-#   <dearmor>  `true`, `false`, or `auto` (empty/`null` treated as `auto`).
-#
-# Stdout: effective file path.
 _ospkg__key_effective_path() {
+  # @brief _ospkg__key_effective_path <dest> <dearmor> — Print the filesystem path the key will actually be written to, accounting for dearmor mode.
+  #
+  # When `dearmor` is `false` and `<dest>` ends in `.gpg`, the key is stored as
+  # a raw `.key` file (the `.gpg` extension is reserved for dearmored binaries
+  # in APT conventions). All other combinations return `<dest>` unchanged.
+  #
+  # Args:
+  #   <dest>     Intended destination path for the key file.
+  #   <dearmor>  `true`, `false`, or `auto` (empty/`null` treated as `auto`).
+  #
+  # Stdout: effective file path.
   local _dest="$1" _dearmor="${2:-auto}"
   [[ -z "${_dearmor}" || "${_dearmor}" == "null" ]] && _dearmor=auto
   if [[ "${_dearmor}" == "false" && "${_dest}" == *.gpg ]]; then
@@ -179,23 +176,23 @@ _ospkg__key_effective_path() {
   fi
 }
 
-# @brief _ospkg__install_key_entry <url> <dest> [<dearmor>] [<fingerprint>] — Download and install a GPG signing key for a package repository.
-#
-# Supports three dearmoring modes:
-#   `true`  — always pipe through `gpg --dearmor` regardless of `<dest>` extension.
-#   `false` — store the raw file (using `.key` instead of `.gpg` extension when needed).
-#   `auto`  — dearmor when `<dest>` ends in `.gpg`; raw otherwise (default).
-# When `<url>` is empty/null and `<fingerprint>` is provided, the key is
-# fetched from HKP keyservers via `verify__gpg_fetch_key_by_fingerprint`.
-#
-# Args:
-#   <url>          URL to download the key from (may be empty when fingerprint is given).
-#   <dest>         Destination path for the installed key file.
-#   [dearmor]      Dearmoring mode: `true`, `false`, or `auto` (default).
-#   [fingerprint]  40-char hex GPG fingerprint (used when URL is absent).
-#
-# Returns: 0 on success, 1 on error.
 _ospkg__install_key_entry() {
+  # @brief _ospkg__install_key_entry <url> <dest> [<dearmor>] [<fingerprint>] — Download and install a GPG signing key for a package repository.
+  #
+  # Supports three dearmoring modes:
+  #   `true`  — always pipe through `gpg --dearmor` regardless of `<dest>` extension.
+  #   `false` — store the raw file (using `.key` instead of `.gpg` extension when needed).
+  #   `auto`  — dearmor when `<dest>` ends in `.gpg`; raw otherwise (default).
+  # When `<url>` is empty/null and `<fingerprint>` is provided, the key is
+  # fetched from HKP keyservers via `verify__gpg_fetch_key_by_fingerprint`.
+  #
+  # Args:
+  #   <url>          URL to download the key from (may be empty when fingerprint is given).
+  #   <dest>         Destination path for the installed key file.
+  #   [dearmor]      Dearmoring mode: `true`, `false`, or `auto` (default).
+  #   [fingerprint]  40-char hex GPG fingerprint (used when URL is absent).
+  #
+  # Returns: 0 on success, 1 on error.
   local _url="$1" _dest="$2" _dearmor="${3:-auto}" _fingerprint="${4:-}"
   [[ -z "${_dearmor}" || "${_dearmor}" == "null" ]] && _dearmor=auto
   [[ -z "${_fingerprint}" || "${_fingerprint}" == "null" ]] && _fingerprint=""
@@ -241,33 +238,33 @@ _ospkg__install_key_entry() {
   return 0
 }
 
-# @brief _ospkg__install_key_by_fingerprint <fingerprint> <dest> — Fetch a GPG signing key by fingerprint and install it to `<dest>`.
-#
-# Delegates to `verify__gpg_fetch_key_by_fingerprint` with the
-# `devfeats-ospkg-internals` tracking group.
-#
-# Args:
-#   <fingerprint>  40-char hex GPG key fingerprint.
-#   <dest>         Destination path for the dearmored binary keyring.
-#
-# Returns: 0 on success, 1 if the key cannot be fetched from any keyserver.
 _ospkg__install_key_by_fingerprint() {
+  # @brief _ospkg__install_key_by_fingerprint <fingerprint> <dest> — Fetch a GPG signing key by fingerprint and install it to `<dest>`.
+  #
+  # Delegates to `verify__gpg_fetch_key_by_fingerprint` with the
+  # `devfeats-ospkg-internals` tracking group.
+  #
+  # Args:
+  #   <fingerprint>  40-char hex GPG key fingerprint.
+  #   <dest>         Destination path for the dearmored binary keyring.
+  #
+  # Returns: 0 on success, 1 if the key cannot be fetched from any keyserver.
   local _fingerprint="$1" _dest="$2"
   verify__gpg_fetch_key_by_fingerprint "$_fingerprint" "$_dest" "devfeats-ospkg-internals"
 }
 
-# @brief _ospkg__expand_content_vars <content> — Substitute `${KEY}` tokens in `<content>` using values from `_OSPKG__OS_RELEASE`.
-#
-# Iterates over all keys in the `_OSPKG__OS_RELEASE` associative array and
-# replaces `${KEY}` occurrences in `<content>`. Unknown tokens (keys not
-# present in the array) are left unchanged. Prints the result without a
-# trailing newline.
-#
-# Args:
-#   <content>  String containing zero or more `${KEY}` placeholder tokens.
-#
-# Stdout: expanded string without trailing newline.
 _ospkg__expand_content_vars() {
+  # @brief _ospkg__expand_content_vars <content> — Substitute `${KEY}` tokens in `<content>` using values from `_OSPKG__OS_RELEASE`.
+  #
+  # Iterates over all keys in the `_OSPKG__OS_RELEASE` associative array and
+  # replaces `${KEY}` occurrences in `<content>`. Unknown tokens (keys not
+  # present in the array) are left unchanged. Prints the result without a
+  # trailing newline.
+  #
+  # Args:
+  #   <content>  String containing zero or more `${KEY}` placeholder tokens.
+  #
+  # Stdout: expanded string without trailing newline.
   local _content="$1" _k
   for _k in "${!_OSPKG__OS_RELEASE[@]}"; do
     _content="${_content//\$\{${_k}\}/${_OSPKG__OS_RELEASE[$_k]}}"
@@ -279,23 +276,23 @@ _ospkg__expand_content_vars() {
   return 0
 }
 
-# @brief _ospkg__install_repo_content <content> — Append expanded repository configuration `<content>` to the appropriate PM config file for the current OS.
-#
-# Calls `_ospkg__expand_content_vars` to substitute `${KEY}` tokens before
-# writing. Routes to the correct file based on `_OSPKG__FAMILY`:
-#   apt     → `/etc/apt/sources.list.d/syspkg-installer.list`
-#   apk     → `/etc/apk/repositories` (one repo URL per non-blank line)
-#   dnf/yum → `/etc/yum.repos.d/syspkg-installer.repo`
-#   zypper  → `/etc/zypp/repos.d/syspkg-installer.repo`
-#   pacman  → `/etc/pacman.d/syspkg-installer.conf` (with `Include =` wired into `pacman.conf`)
-# Uses `file__append_privileged` so writes succeed whether or not the current
-# process is root.
-#
-# Args:
-#   <content>  Repository config content, possibly containing `${KEY}` tokens.
-#
-# Returns: 0 always.
 _ospkg__install_repo_content() {
+  # @brief _ospkg__install_repo_content <content> — Append expanded repository configuration `<content>` to the appropriate PM config file for the current OS.
+  #
+  # Calls `_ospkg__expand_content_vars` to substitute `${KEY}` tokens before
+  # writing. Routes to the correct file based on `_OSPKG__FAMILY`:
+  #   apt     → `/etc/apt/sources.list.d/syspkg-installer.list`
+  #   apk     → `/etc/apk/repositories` (one repo URL per non-blank line)
+  #   dnf/yum → `/etc/yum.repos.d/syspkg-installer.repo`
+  #   zypper  → `/etc/zypp/repos.d/syspkg-installer.repo`
+  #   pacman  → `/etc/pacman.d/syspkg-installer.conf` (with `Include =` wired into `pacman.conf`)
+  # Uses `file__append_privileged` so writes succeed whether or not the current
+  # process is root.
+  #
+  # Args:
+  #   <content>  Repository config content, possibly containing `${KEY}` tokens.
+  #
+  # Returns: 0 always.
   local _content
   _content="$(_ospkg__expand_content_vars "$1")"
   if [[ "$_OSPKG__FAMILY" = "apt" ]]; then
@@ -325,22 +322,20 @@ _ospkg__install_repo_content() {
   return 0
 }
 
-# ── Private: brew user/root handling ─────────────────────────────────────────
-
-# @brief _ospkg__brew_run <args...> — Run `brew` with the correct user context, working around Homebrew's root restriction.
-#
-# Homebrew refuses to run as root on bare-metal macOS. Three cases are handled:
-#   Non-root           → run `brew` directly.
-#   Root in container  → run `brew` directly (Homebrew explicitly allows root
-#                        in containers via `HOMEBREW_ALLOW_INSTALL_FROM_API`).
-#   Root on bare metal → `su` to the owner of the Homebrew prefix and run
-#                        `brew` as that user via `users__run_as`.
-#
-# Args:
-#   <args...>  Arguments forwarded verbatim to `brew`.
-#
-# Returns: exit code of `brew`.
 _ospkg__brew_run() {
+  # @brief _ospkg__brew_run <args...> — Run `brew` with the correct user context, working around Homebrew's root restriction.
+  #
+  # Homebrew refuses to run as root on bare-metal macOS. Three cases are handled:
+  #   Non-root           → run `brew` directly.
+  #   Root in container  → run `brew` directly (Homebrew explicitly allows root
+  #                        in containers via `HOMEBREW_ALLOW_INSTALL_FROM_API`).
+  #   Root on bare metal → `su` to the owner of the Homebrew prefix and run
+  #                        `brew` as that user via `users__run_as`.
+  #
+  # Args:
+  #   <args...>  Arguments forwarded verbatim to `brew`.
+  #
+  # Returns: exit code of `brew`.
   if ! users__is_root; then
     brew "$@"
     return
@@ -365,15 +360,9 @@ _ospkg__brew_run() {
   return 0
 }
 
-# ── Private: yq auto-installer ────────────────────────────────────────────────
-
-# ── Private: PM configuration helpers ────────────────────────────────────────
-# Each _ospkg__set_* function configures the internal state for one PM family.
-# Called only from ospkg__detect().
-
-# _ospkg__configure_pm <label> <family> <pm> <pm_key> <clean_fn> <lists_path> <lists_pattern>
-# Sets all scalar PM globals; callers assign _OSPKG__UPDATE and _OSPKG__INSTALL arrays themselves.
 _ospkg__configure_pm() {
+  # _ospkg__configure_pm <label> <family> <pm> <pm_key> <clean_fn> <lists_path> <lists_pattern>
+  # Sets all scalar PM globals; callers assign _OSPKG__UPDATE and _OSPKG__INSTALL arrays themselves.
   logging__detect "Detected ecosystem: $1"
   _OSPKG__FAMILY="$2"
   _OSPKG__PKG_MNGR="$3"
@@ -463,9 +452,9 @@ _ospkg__set_brew() {
   _OSPKG__REMOVE_FORCE=(_ospkg__brew_run uninstall --ignore-dependencies)
 }
 
-# _ospkg__load_linux_release
-# Parses /etc/os-release into _OSPKG__OS_RELEASE (merges; does not overwrite pm).
 _ospkg__load_linux_release() {
+  # _ospkg__load_linux_release
+  # Parses /etc/os-release into _OSPKG__OS_RELEASE (merges; does not overwrite pm).
   if [[ -f /etc/os-release ]]; then
     local _key _val
     while IFS='=' read -r _key _val; do
@@ -484,13 +473,13 @@ _ospkg__load_linux_release() {
   return 0
 }
 
-# @brief ospkg__detect — Detect the package manager and populate internal state. Idempotent; called automatically by all other `ospkg__*` functions.
-#
-# Respects `_OSPKG__PREFER_LINUXBREW`: when true, brew is checked before the
-# native Linux PM chain (no effect on macOS where brew is always used).
-#
-# Returns: 0 on success, 1 if no supported package manager is found.
 ospkg__detect() {
+  # @brief ospkg__detect — Detect the package manager and populate internal state. Idempotent; called automatically by all other `ospkg__*` functions.
+  #
+  # Respects `_OSPKG__PREFER_LINUXBREW`: when true, brew is checked before the
+  # native Linux PM chain (no effect on macOS where brew is always used).
+  #
+  # Returns: 0 on success, 1 if no supported package manager is found.
   [[ "$_OSPKG__DETECTED" == true ]] && return 0
 
   local _kernel
@@ -548,9 +537,9 @@ ospkg__detect() {
   return 0
 }
 
-# @brief ospkg__pm — Print the detected package manager command name (e.g. `apt-get`, `apk`, `dnf`, `brew`).
-# Returns 1 if no supported package manager was found.
 ospkg__pm() {
+  # @brief ospkg__pm — Print the detected package manager command name (e.g. `apt-get`, `apk`, `dnf`, `brew`).
+  # Returns 1 if no supported package manager was found.
   ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -560,18 +549,18 @@ ospkg__pm() {
   printf '%s\n' "$_OSPKG__PKG_MNGR"
 }
 
-# @brief ospkg__is_managed <bin_path> — Return 0 if <bin_path> is owned by the OS package manager, 1 otherwise.
-#
-# Calls `ospkg__detect` (idempotent) and dispatches on `_OSPKG__FAMILY`, so
-# the correct tool is used even when Linuxbrew is active or on Arch Linux
-# (where `os__platform` has no mapping).
-#
-# Args:
-#   <bin_path>  Absolute path to the binary to check (may be empty).
-#
-# Returns: 0 if owned by the package manager, 1 otherwise (including empty or
-#          nonexistent paths, or when no supported package manager is found).
 ospkg__is_managed() {
+  # @brief ospkg__is_managed <bin_path> — Return 0 if <bin_path> is owned by the OS package manager, 1 otherwise.
+  #
+  # Calls `ospkg__detect` (idempotent) and dispatches on `_OSPKG__FAMILY`, so
+  # the correct tool is used even when Linuxbrew is active or on Arch Linux
+  # (where `os__platform` has no mapping).
+  #
+  # Args:
+  #   <bin_path>  Absolute path to the binary to check (may be empty).
+  #
+  # Returns: 0 if owned by the package manager, 1 otherwise (including empty or
+  #          nonexistent paths, or when no supported package manager is found).
   local _bin="${1-}"
   [[ -n "$_bin" && -e "$_bin" ]] || return 1
   ospkg__detect
@@ -600,26 +589,26 @@ ospkg__is_managed() {
   esac
 }
 
-# @brief ospkg__os_release_match <key> <value> — Return 0 if the detected OS context has the given key=value. Case-insensitive.
-#
-# Calls `ospkg__detect` (idempotent). Does not spawn a subshell; suitable for
-# use directly in conditionals and loops.
-# Supported keys: kernel, arch, id, id_like, pm, version_id, version_codename,
-# and any /etc/os-release field.
-#
-# Returns: 0 if the key matches the value, 1 otherwise.
 ospkg__os_release_match() {
+  # @brief ospkg__os_release_match <key> <value> — Return 0 if the detected OS context has the given key=value. Case-insensitive.
+  #
+  # Calls `ospkg__detect` (idempotent). Does not spawn a subshell; suitable for
+  # use directly in conditionals and loops.
+  # Supported keys: kernel, arch, id, id_like, pm, version_id, version_codename,
+  # and any /etc/os-release field.
+  #
+  # Returns: 0 if the key matches the value, 1 otherwise.
   ospkg__detect
   [[ "${_OSPKG__OS_RELEASE[$1],,}" == "${2,,}" ]]
 }
 
-# @brief _ospkg__assert_privilege — Fail fast when the current PM requires root or sudo but neither is available.
-#
-# brew never needs privilege; all other PMs do.
-# Must be called after ospkg__detect so _OSPKG__PKG_MNGR is set.
-#
-# Returns: 0 if privilege is available or not needed; 1 with an error message otherwise.
 _ospkg__assert_privilege() {
+  # @brief _ospkg__assert_privilege — Fail fast when the current PM requires root or sudo but neither is available.
+  #
+  # brew never needs privilege; all other PMs do.
+  # Must be called after ospkg__detect so _OSPKG__PKG_MNGR is set.
+  #
+  # Returns: 0 if privilege is available or not needed; 1 with an error message otherwise.
   [[ "$_OSPKG__PKG_MNGR" == "brew" ]] && return 0
   if users__is_privileged; then
     return 0
@@ -628,15 +617,15 @@ _ospkg__assert_privilege() {
   return 1
 }
 
-# @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
-#
-# Args:
-#   --force             Unconditionally refresh (overrides the age check).
-#   --lists_max_age N   Skip if package lists were updated within N seconds (default: 300).
-#   --repo_added        A new repo was just added; forces an unconditional refresh.
-#
-# Returns: 0 on success.
 ospkg__update() {
+  # @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
+  #
+  # Args:
+  #   --force             Unconditionally refresh (overrides the age check).
+  #   --lists_max_age N   Skip if package lists were updated within N seconds (default: 300).
+  #   --repo_added        A new repo was just added; forces an unconditional refresh.
+  #
+  # Returns: 0 on success.
   ospkg__detect
   local _force=false _max_age=3600 _repo_added=false
   while [[ $# -gt 0 ]]; do
@@ -710,21 +699,21 @@ ospkg__update() {
   return 0
 }
 
-# @brief ospkg__install [--update] <pkg>... — Install one or more packages, skipping already-installed ones.
-#
-# Without --update each package is checked via PM-native query; only missing
-# packages are passed to the package manager. With --update already-installed
-# packages are also upgraded (brew uses `brew upgrade`; all other PMs upgrade
-# in place via their install command).
-#
-# Args:
-#   --update  Also upgrade already-installed packages.
-#   <pkg>...  One or more package names. PM-native version suffixes accepted
-#             (e.g. gh=2.40.0 for apt); the suffix is stripped for the
-#             existence check before calling ospkg__is_installed.
-#
-# Returns: 0 on success.
 ospkg__install() {
+  # @brief ospkg__install [--update] <pkg>... — Install one or more packages, skipping already-installed ones.
+  #
+  # Without --update each package is checked via PM-native query; only missing
+  # packages are passed to the package manager. With --update already-installed
+  # packages are also upgraded (brew uses `brew upgrade`; all other PMs upgrade
+  # in place via their install command).
+  #
+  # Args:
+  #   --update  Also upgrade already-installed packages.
+  #   <pkg>...  One or more package names. PM-native version suffixes accepted
+  #             (e.g. gh=2.40.0 for apt); the suffix is stripped for the
+  #             existence check before calling ospkg__is_installed.
+  #
+  # Returns: 0 on success.
   ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || {
@@ -838,10 +827,10 @@ ospkg__install() {
   return 0
 }
 
-# @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
-#
-# Returns: 0 on success.
 ospkg__clean() {
+  # @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
+  #
+  # Returns: 0 on success.
   ospkg__detect
   [[ -z "${_OSPKG__CLEAN:-}" ]] && return 0
   logging__clean "Cleaning package manager cache."
@@ -849,31 +838,31 @@ ospkg__clean() {
   return 0
 }
 
-# @brief ospkg__parse_manifest_yaml <json-file> — Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout.
-#
-# Requires jq in PATH and _OSPKG__OS_RELEASE populated by ospkg__detect.
-# Each record is a compact JSON object with a "kind" field.
-#
-# Output record kinds:
-#   prescript   {kind,content}
-#   key         {kind,url,dest,dearmor}
-#   repo        {kind,content}
-#   ppa         {kind,ppa}           — APT only
-#   tap         {kind,tap}           — brew (string or {name,url})
-#   copr        {kind,copr}          — dnf only
-#   module      {kind,module}        — dnf only
-#   group       {kind,group}
-#   package     {kind,name,flags,version}
-#   cask        {kind,cask}          — brew (macOS) only
-#   script      {kind,content}
-#
-# Args:
-#   <json-file>  Path to the manifest JSON file (use `yq -o=json` to convert YAML first).
-#
-# Stdout: one compact JSON record per line.
-#
-# Returns: 0 on success.
 ospkg__parse_manifest_yaml() {
+  # @brief ospkg__parse_manifest_yaml <json-file> — Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout.
+  #
+  # Requires jq in PATH and _OSPKG__OS_RELEASE populated by ospkg__detect.
+  # Each record is a compact JSON object with a "kind" field.
+  #
+  # Output record kinds:
+  #   prescript   {kind,content}
+  #   key         {kind,url,dest,dearmor}
+  #   repo        {kind,content}
+  #   ppa         {kind,ppa}           — APT only
+  #   tap         {kind,tap}           — brew (string or {name,url})
+  #   copr        {kind,copr}          — dnf only
+  #   module      {kind,module}        — dnf only
+  #   group       {kind,group}
+  #   package     {kind,name,flags,version}
+  #   cask        {kind,cask}          — brew (macOS) only
+  #   script      {kind,content}
+  #
+  # Args:
+  #   <json-file>  Path to the manifest JSON file (use `yq -o=json` to convert YAML first).
+  #
+  # Stdout: one compact JSON record per line.
+  #
+  # Returns: 0 on success.
   local _json_file="$1"
 
   # Build a full JSON context object from _OSPKG__OS_RELEASE so that every
@@ -897,18 +886,18 @@ ospkg__parse_manifest_yaml() {
   return 0
 }
 
-# _ospkg__build_deps_dir — returns the directory used for build-dep sidecar files.
 _ospkg__build_deps_dir() {
+  # _ospkg__build_deps_dir — returns the directory used for build-dep sidecar files.
   printf '%s' "$(file__tmpdir "ospkg/build-deps")"
   return
 }
 
-# _ospkg__protect_user_pkgs <pkg-name>... — mark packages as user-requested so
-# build-group cleanup cannot remove them. Accepts bare package names only (no
-# version suffixes). Applies PM-native marking for marking-capable PMs and
-# evicts each package from every build-group sidecar (covers explicit-list PMs:
-# apk, zypper, microdnf, brew). All operations are non-fatal.
 _ospkg__protect_user_pkgs() {
+  # _ospkg__protect_user_pkgs <pkg-name>... — mark packages as user-requested so
+  # build-group cleanup cannot remove them. Accepts bare package names only (no
+  # version suffixes). Applies PM-native marking for marking-capable PMs and
+  # evicts each package from every build-group sidecar (covers explicit-list PMs:
+  # apk, zypper, microdnf, brew). All operations are non-fatal.
   [[ $# -eq 0 ]] && return 0
   ospkg__detect
   # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
@@ -944,17 +933,17 @@ _ospkg__protect_user_pkgs() {
   return 0
 }
 
-# @brief ospkg__take_initial_snapshot <file> — Snapshot the current installed-package list to `<file>` as a session baseline.
-#
-# Called once by install.bash before any installs in manifest mode. Used by
-# `ospkg__install_tracked` to exclude pre-existing packages from session
-# co-ownership tracking.
-#
-# Args:
-#   <file>  Destination path for the snapshot (one package name per line).
-#
-# Returns: 0 on success.
 ospkg__take_initial_snapshot() {
+  # @brief ospkg__take_initial_snapshot <file> — Snapshot the current installed-package list to `<file>` as a session baseline.
+  #
+  # Called once by install.bash before any installs in manifest mode. Used by
+  # `ospkg__install_tracked` to exclude pre-existing packages from session
+  # co-ownership tracking.
+  #
+  # Args:
+  #   <file>  Destination path for the snapshot (one package name per line).
+  #
+  # Returns: 0 on success.
   local _dest="$1"
   ospkg__detect
   _ospkg__snapshot_packages "$_dest"
@@ -962,19 +951,17 @@ ospkg__take_initial_snapshot() {
   return 0
 }
 
-# ── Private: global auto-state snapshot/restore ──────────────────────────────
-
-# _ospkg__global_auto_snapshot_file — print the path for the global pre-install
-# auto-state snapshot stored alongside build-dep sidecars.
 _ospkg__global_auto_snapshot_file() {
+  # _ospkg__global_auto_snapshot_file — print the path for the global pre-install
+  # auto-state snapshot stored alongside build-dep sidecars.
   printf '%s/.global_auto_before' "$(_ospkg__build_deps_dir)"
 }
 
-# _ospkg__ensure_global_auto_snapshot — idempotent; called before the first
-# ospkg__install_tracked install. Snapshots the current auto/dep-marked packages
-# and temporarily pins them as manual so PM-native autoremove during cleanup
-# cannot touch packages that pre-existed our build.
 _ospkg__ensure_global_auto_snapshot() {
+  # _ospkg__ensure_global_auto_snapshot — idempotent; called before the first
+  # ospkg__install_tracked install. Snapshots the current auto/dep-marked packages
+  # and temporarily pins them as manual so PM-native autoremove during cleanup
+  # cannot touch packages that pre-existed our build.
   local _snap
   _snap="$(_ospkg__global_auto_snapshot_file)"
   [[ -f "$_snap" ]] && return 0
@@ -1015,10 +1002,10 @@ _ospkg__ensure_global_auto_snapshot() {
   return 0
 }
 
-# _ospkg__restore_global_auto_state — called after all build groups are cleaned.
-# Restores pre-existing auto-marked packages back to their original state and
-# removes the snapshot file. Idempotent (no-op if no snapshot was taken).
 _ospkg__restore_global_auto_state() {
+  # _ospkg__restore_global_auto_state — called after all build groups are cleaned.
+  # Restores pre-existing auto-marked packages back to their original state and
+  # removes the snapshot file. Idempotent (no-op if no snapshot was taken).
   local _snap
   _snap="$(_ospkg__global_auto_snapshot_file)"
   [[ -f "$_snap" ]] || return 0
@@ -1056,33 +1043,31 @@ _ospkg__restore_global_auto_state() {
   return 0
 }
 
-# ── Private: apk virtual-group helpers ───────────────────────────────────────
-
-# _ospkg__apk_virtual_name <group_id> — emit a valid APK virtual package name
-# derived from <group_id>. Format: .df-<sanitized> (dot prefix, lowercase alnum
-# and hyphens). Dot prefix prevents conflicts with real package names.
 _ospkg__apk_virtual_name() {
+  # _ospkg__apk_virtual_name <group_id> — emit a valid APK virtual package name
+  # derived from <group_id>. Format: .df-<sanitized> (dot prefix, lowercase alnum
+  # and hyphens). Dot prefix prevents conflicts with real package names.
   local _name="${1//[^a-zA-Z0-9_-]/-}"
   _name="${_name,,}"
   printf '.df-%s' "$_name"
 }
 
-# _ospkg__apk_virts_file <sidecar_path> — print the path for the auxiliary file
-# that stores the list of APK virtual package names created for a build group.
 _ospkg__apk_virts_file() {
+  # _ospkg__apk_virts_file <sidecar_path> — print the path for the auxiliary file
+  # that stores the list of APK virtual package names created for a build group.
   printf '%s.apkvirts' "$1"
 }
 
-# @brief ospkg__is_installed <pkg>... — Return 0 if all listed packages are installed.
-#
-# Uses PM-native point queries; no subshell, no file I/O. Calls `ospkg__detect`
-# automatically. Accepts bare package names only (no version suffixes).
-#
-# Args:
-#   <pkg>...  One or more bare package names.
-#
-# Returns: 0 if all packages are installed, 1 if any is missing or PM unknown.
 ospkg__is_installed() {
+  # @brief ospkg__is_installed <pkg>... — Return 0 if all listed packages are installed.
+  #
+  # Uses PM-native point queries; no subshell, no file I/O. Calls `ospkg__detect`
+  # automatically. Accepts bare package names only (no version suffixes).
+  #
+  # Args:
+  #   <pkg>...  One or more bare package names.
+  #
+  # Returns: 0 if all packages are installed, 1 if any is missing or PM unknown.
   ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || return "$_rc"
@@ -1100,9 +1085,9 @@ ospkg__is_installed() {
   done
 }
 
-# _ospkg__snapshot_packages <dest-file> — writes a sorted list of installed
-# package names (one per line) to <dest-file>.
 _ospkg__snapshot_packages() {
+  # _ospkg__snapshot_packages <dest-file> — writes a sorted list of installed
+  # package names (one per line) to <dest-file>.
   local _dest="$1"
   case "$_OSPKG__PKG_MNGR" in
     apt-get) dpkg-query -W -f='${Package}\n' 2> /dev/null | sort > "$_dest" ;;
@@ -1116,10 +1101,10 @@ _ospkg__snapshot_packages() {
   return 0
 }
 
-# _ospkg__mark_build_group <group-id> <before-file> — diff current state against
-# <before-file>, apply PM-native removable marking to newly-installed packages,
-# and write the sidecar tracking file.
 _ospkg__mark_build_group() {
+  # _ospkg__mark_build_group <group-id> <before-file> — diff current state against
+  # <before-file>, apply PM-native removable marking to newly-installed packages,
+  # and write the sidecar tracking file.
   local _group_id="$1" _before_file="$2"
   local _deps_dir _after_file _sidecar
   _deps_dir="$(_ospkg__build_deps_dir)"
@@ -1161,9 +1146,9 @@ _ospkg__mark_build_group() {
   return 0
 }
 
-# _ospkg__remove_build_group <group-id> — remove previously-installed build-only
-# packages using PM-native mechanisms based on the sidecar tracking file.
 _ospkg__remove_build_group() {
+  # _ospkg__remove_build_group <group-id> — remove previously-installed build-only
+  # packages using PM-native mechanisms based on the sidecar tracking file.
   local _group_id="$1"
   local _deps_dir _sidecar
   _deps_dir="$(_ospkg__build_deps_dir)"
@@ -1249,18 +1234,18 @@ _ospkg__remove_build_group() {
   return 0
 }
 
-# @brief ospkg__install_tracked <sub-id> <pkg>... — Install packages and register them as build-only under `<sub-id>` for later cleanup. Idempotent.
-#
-# The full group-id is `"${_SYSSET_BUILD_CONTEXT:-uncontexted}::<sub-id>"`. When
-# `_SYSSET_SESSION_TRACK_DIR` is set, also mirrors tracking to the session dir
-# for cross-feature co-ownership.
-#
-# Args:
-#   <sub-id>  Build-group sub-identifier (e.g. `lib-net`); context prefix added automatically.
-#   <pkg>...  One or more package names to install.
-#
-# Returns: 0 on success.
 ospkg__install_tracked() {
+  # @brief ospkg__install_tracked <sub-id> <pkg>... — Install packages and register them as build-only under `<sub-id>` for later cleanup. Idempotent.
+  #
+  # The full group-id is `"${_SYSSET_BUILD_CONTEXT:-uncontexted}::<sub-id>"`. When
+  # `_SYSSET_SESSION_TRACK_DIR` is set, also mirrors tracking to the session dir
+  # for cross-feature co-ownership.
+  #
+  # Args:
+  #   <sub-id>  Build-group sub-identifier (e.g. `lib-net`); context prefix added automatically.
+  #   <pkg>...  One or more package names to install.
+  #
+  # Returns: 0 on success.
   local _group_id="${_SYSSET_BUILD_CONTEXT:-uncontexted}::$1"
   shift
   local _bd_dir _before_snapshot
@@ -1327,10 +1312,10 @@ ospkg__install_tracked() {
   return 0
 }
 
-# @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep group. Scans the sidecar directory and calls `_ospkg__remove_build_group` for each entry.
-#
-# Returns: 0 on success.
 ospkg__cleanup_all_build_groups() {
+  # @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep group. Scans the sidecar directory and calls `_ospkg__remove_build_group` for each entry.
+  #
+  # Returns: 0 on success.
   local _deps_dir
   _deps_dir="$(_ospkg__build_deps_dir)"
   [[ -d "$_deps_dir" ]] || return 0
@@ -1346,18 +1331,18 @@ ospkg__cleanup_all_build_groups() {
   return 0
 }
 
-# @brief ospkg__cleanup_session_build_groups <install-bash-keep> — Manifest-mode coordinator: apply keep-wins policy across co-owners and remove unneeded build packages.
-#
-# Reads co-ownership entries from `_SYSSET_SESSION_TRACK_DIR`, applies keep-wins
-# (any `true` overrides all `false`), then removes packages not kept by any
-# co-owner. Deletes `_SYSSET_SESSION_TRACK_DIR` on completion. No-op when
-# `_SYSSET_SESSION_TRACK_DIR` is unset or does not exist.
-#
-# Args:
-#   <install-bash-keep>  `"true"` or `"false"` — keep_build_deps for the install-bash context. Feature keep_build_deps is read from `_OPT_OF`.
-#
-# Returns: 0 on success.
 ospkg__cleanup_session_build_groups() {
+  # @brief ospkg__cleanup_session_build_groups <install-bash-keep> — Manifest-mode coordinator: apply keep-wins policy across co-owners and remove unneeded build packages.
+  #
+  # Reads co-ownership entries from `_SYSSET_SESSION_TRACK_DIR`, applies keep-wins
+  # (any `true` overrides all `false`), then removes packages not kept by any
+  # co-owner. Deletes `_SYSSET_SESSION_TRACK_DIR` on completion. No-op when
+  # `_SYSSET_SESSION_TRACK_DIR` is unset or does not exist.
+  #
+  # Args:
+  #   <install-bash-keep>  `"true"` or `"false"` — keep_build_deps for the install-bash context. Feature keep_build_deps is read from `_OPT_OF`.
+  #
+  # Returns: 0 on success.
   local _getbash_keep="${1:-false}"
   [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" ]] || return 0
   [[ -d "$_SYSSET_SESSION_TRACK_DIR" ]] || return 0
@@ -1448,15 +1433,14 @@ ospkg__cleanup_session_build_groups() {
   return 0
 }
 
-# ── Public: resource tracking ─────────────────────────────────────────────────
-# @brief ospkg__track_resource <group-id> <path>... — Register filesystem paths for cleanup via `ospkg__cleanup_resources`. Also mirrors to the session dir when `_SYSSET_SESSION_TRACK_DIR` is set.
-#
-# Args:
-#   <group-id>  Cleanup group identifier.
-#   <path>...   One or more absolute paths to register.
-#
-# Returns: 0 on success.
 ospkg__track_resource() {
+  # @brief ospkg__track_resource <group-id> <path>... — Register filesystem paths for cleanup via `ospkg__cleanup_resources`. Also mirrors to the session dir when `_SYSSET_SESSION_TRACK_DIR` is set.
+  #
+  # Args:
+  #   <group-id>  Cleanup group identifier.
+  #   <path>...   One or more absolute paths to register.
+  #
+  # Returns: 0 on success.
   local _group_id="$1"
   shift
   local _res_dir _sidecar _path
@@ -1476,14 +1460,14 @@ ospkg__track_resource() {
   return 0
 }
 
-# @brief ospkg__untrack_resource <group-id> <path>... — Remove resource paths from local and session sidecars registered by `ospkg__track_resource`.
-#
-# Args:
-#   <group-id>  Cleanup group identifier.
-#   <path>...   One or more paths to deregister.
-#
-# Returns: 0 on success, 1 if copying the sidecar fails.
 ospkg__untrack_resource() {
+  # @brief ospkg__untrack_resource <group-id> <path>... — Remove resource paths from local and session sidecars registered by `ospkg__track_resource`.
+  #
+  # Args:
+  #   <group-id>  Cleanup group identifier.
+  #   <path>...   One or more paths to deregister.
+  #
+  # Returns: 0 on success, 1 if copying the sidecar fails.
   local _group_id="$1"
   shift
   local _res_dir _sidecar _path _tmp
@@ -1519,10 +1503,10 @@ ospkg__untrack_resource() {
   return 0
 }
 
-# @brief ospkg__cleanup_resources — Remove all files registered via `ospkg__track_resource`. Reads sidecars from `_FILE__SESSION_ROOT/ospkg/resources/` and `rm -f`s each listed path.
-#
-# Returns: 0 (always; removal failures emit a warning and continue).
 ospkg__cleanup_resources() {
+  # @brief ospkg__cleanup_resources — Remove all files registered via `ospkg__track_resource`. Reads sidecars from `_FILE__SESSION_ROOT/ospkg/resources/` and `rm -f`s each listed path.
+  #
+  # Returns: 0 (always; removal failures emit a warning and continue).
   local _res_dir
   _res_dir="$(file__tmpdir "ospkg/resources")"
   [[ -d "$_res_dir" ]] || return 0
@@ -1540,25 +1524,24 @@ ospkg__cleanup_resources() {
   return 0
 }
 
-# ── Public: ospkg__install_user ──────────────────────────────────────────────
-# @brief ospkg__install_user [--update] <pkg>... — Install packages and protect them from build-group cleanup. Prefer over `ospkg__install` for all user-facing installs.
-#
-# Without --update each package is checked via PM-native query; only missing
-# packages are passed to the package manager. With --update already-installed
-# packages are also upgraded (brew uses `brew upgrade`; all other PMs upgrade
-# in place via their install command).
-#
-# Version suffixes are stripped per PM convention before calling
-# `_ospkg__protect_user_pkgs`, so packages will not be removed by
-# `ospkg__cleanup_all_build_groups` even if a prior build-group install had
-# marked them.
-#
-# Args:
-#   --update  Also upgrade already-installed packages.
-#   <pkg>...  One or more package specs (versioned forms like `gh=2.40.0` accepted).
-#
-# Returns: 0 on success.
 ospkg__install_user() {
+  # @brief ospkg__install_user [--update] <pkg>... — Install packages and protect them from build-group cleanup. Prefer over `ospkg__install` for all user-facing installs.
+  #
+  # Without --update each package is checked via PM-native query; only missing
+  # packages are passed to the package manager. With --update already-installed
+  # packages are also upgraded (brew uses `brew upgrade`; all other PMs upgrade
+  # in place via their install command).
+  #
+  # Version suffixes are stripped per PM convention before calling
+  # `_ospkg__protect_user_pkgs`, so packages will not be removed by
+  # `ospkg__cleanup_all_build_groups` even if a prior build-group install had
+  # marked them.
+  #
+  # Args:
+  #   --update  Also upgrade already-installed packages.
+  #   <pkg>...  One or more package specs (versioned forms like `gh=2.40.0` accepted).
+  #
+  # Returns: 0 on success.
   local _do_update=false
   if [[ "${1:-}" == "--update" ]]; then
     _do_update=true
@@ -1585,12 +1568,12 @@ ospkg__install_user() {
   return 0
 }
 
-# @brief ospkg__has_rdeps <pkg> — Return 0 if any installed package depends on <pkg>, 1 otherwise.
-#
-# Uses PM-native reverse-dependency queries for all PMs supported by ospkg__detect.
-#
-# Returns: 0 if reverse deps exist, 1 if none or if the PM is unsupported.
 ospkg__has_rdeps() {
+  # @brief ospkg__has_rdeps <pkg> — Return 0 if any installed package depends on <pkg>, 1 otherwise.
+  #
+  # Uses PM-native reverse-dependency queries for all PMs supported by ospkg__detect.
+  #
+  # Returns: 0 if reverse deps exist, 1 if none or if the PM is unsupported.
   local _pkg="${1:?ospkg__has_rdeps: pkg required}"
   ospkg__detect
   local _rc=$?
@@ -1621,26 +1604,26 @@ ospkg__has_rdeps() {
   [[ -n "${_out:-}" ]]
 }
 
-# @brief ospkg__remove_user [--ignore-deps] <pkg>... — Remove one or more user-installed packages via the OS package manager.
-#
-# Uses the platform-native removal command for each supported package manager.
-# Continues on best-effort basis: non-zero exit from the package manager is
-# logged as a warning but does not fail the function.
-#
-# When --ignore-deps is given, uses low-level force-remove commands that bypass
-# dependency checks and drop the package files without cascade-removing or
-# refusing due to reverse-dependents (dpkg --force-depends, rpm --nodeps,
-# pacman -Rdd, apk --force-broken-world, brew --ignore-dependencies). Use this
-# when replacing a PM-installed package with a non-PM-managed binary: the
-# reverse-dependent packages remain installed with a temporarily unsatisfied
-# declared dependency that resolves once the replacement is in place.
-#
-# Args:
-#   --ignore-deps  Bypass dependency checks; do not cascade-remove reverse-dependents.
-#   <pkg>...       One or more bare package names (no version suffixes).
-#
-# Returns: 0 on success (including best-effort partial removal).
 ospkg__remove_user() {
+  # @brief ospkg__remove_user [--ignore-deps] <pkg>... — Remove one or more user-installed packages via the OS package manager.
+  #
+  # Uses the platform-native removal command for each supported package manager.
+  # Continues on best-effort basis: non-zero exit from the package manager is
+  # logged as a warning but does not fail the function.
+  #
+  # When --ignore-deps is given, uses low-level force-remove commands that bypass
+  # dependency checks and drop the package files without cascade-removing or
+  # refusing due to reverse-dependents (dpkg --force-depends, rpm --nodeps,
+  # pacman -Rdd, apk --force-broken-world, brew --ignore-dependencies). Use this
+  # when replacing a PM-installed package with a non-PM-managed binary: the
+  # reverse-dependent packages remain installed with a temporarily unsatisfied
+  # declared dependency that resolves once the replacement is in place.
+  #
+  # Args:
+  #   --ignore-deps  Bypass dependency checks; do not cascade-remove reverse-dependents.
+  #   <pkg>...       One or more bare package names (no version suffixes).
+  #
+  # Returns: 0 on success (including best-effort partial removal).
   local _ignore_deps=false
   while [[ $# -gt 0 && "$1" == --* ]]; do
     case "$1" in
@@ -1677,29 +1660,27 @@ ospkg__remove_user() {
   return 0
 }
 
-# ── Public: dummy package registration ───────────────────────────────────────
-
-# @brief ospkg__register_dummy <pkg> <version> [--provides <name>...] [--description <text>] — Install a dummy Debian package to register a non-PM tool with the package manager.
-#
-# Creates and installs a minimal equivs-generated .deb that satisfies
-# `Depends:` constraints for a tool installed by non-PM means (binary, source,
-# script, cargo, npm, etc.). The package is tagged with `XB-Devfeats-Dummy: true`
-# so `ospkg__unregister_dummy` can identify and remove it without risk of
-# removing a real package with the same name.
-#
-# Debian/Ubuntu (apt family) only. No-op on all other platforms.
-# Non-fatal: emits a warning on failure and returns 0.
-# Requires privilege (root or sudo); emits a warning and skips when absent.
-#
-# Args:
-#   <pkg>              Package name to register (e.g., `git`).
-#   <version>          Exact version string — bare, no PM suffix (e.g., `2.47.2`).
-#   --provides <name>  Additional package names this dummy Provides. Repeatable.
-#                      The primary <pkg> is always included.
-#   --description <t>  Package description. Defaults to a devfeats sentinel string.
-#
-# Returns: 0 always (non-fatal).
 ospkg__register_dummy() {
+  # @brief ospkg__register_dummy <pkg> <version> [--provides <name>...] [--description <text>] — Install a dummy Debian package to register a non-PM tool with the package manager.
+  #
+  # Creates and installs a minimal equivs-generated .deb that satisfies
+  # `Depends:` constraints for a tool installed by non-PM means (binary, source,
+  # script, cargo, npm, etc.). The package is tagged with `XB-Devfeats-Dummy: true`
+  # so `ospkg__unregister_dummy` can identify and remove it without risk of
+  # removing a real package with the same name.
+  #
+  # Debian/Ubuntu (apt family) only. No-op on all other platforms.
+  # Non-fatal: emits a warning on failure and returns 0.
+  # Requires privilege (root or sudo); emits a warning and skips when absent.
+  #
+  # Args:
+  #   <pkg>              Package name to register (e.g., `git`).
+  #   <version>          Exact version string — bare, no PM suffix (e.g., `2.47.2`).
+  #   --provides <name>  Additional package names this dummy Provides. Repeatable.
+  #                      The primary <pkg> is always included.
+  #   --description <t>  Package description. Defaults to a devfeats sentinel string.
+  #
+  # Returns: 0 always (non-fatal).
   if ! ospkg__detect; then return 0; fi
   [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
 
@@ -1806,21 +1787,21 @@ ospkg__register_dummy() {
   return 0
 }
 
-# @brief ospkg__unregister_dummy <pkg> — Remove a devfeats dummy package if installed.
-#
-# Queries the dpkg database for the `XB-Devfeats-Dummy` custom field and only
-# removes the package when the field equals `true`. This prevents accidental
-# removal of a real package with the same name installed by other means.
-#
-# Debian/Ubuntu (apt family) only. No-op on all other platforms.
-# Non-fatal: emits a warning on failure and returns 0.
-# Requires privilege (root or sudo); emits a warning and skips when absent.
-#
-# Args:
-#   <pkg>  Package name to unregister.
-#
-# Returns: 0 always (non-fatal).
 ospkg__unregister_dummy() {
+  # @brief ospkg__unregister_dummy <pkg> — Remove a devfeats dummy package if installed.
+  #
+  # Queries the dpkg database for the `XB-Devfeats-Dummy` custom field and only
+  # removes the package when the field equals `true`. This prevents accidental
+  # removal of a real package with the same name installed by other means.
+  #
+  # Debian/Ubuntu (apt family) only. No-op on all other platforms.
+  # Non-fatal: emits a warning on failure and returns 0.
+  # Requires privilege (root or sudo); emits a warning and skips when absent.
+  #
+  # Args:
+  #   <pkg>  Package name to unregister.
+  #
+  # Returns: 0 always (non-fatal).
   if ! ospkg__detect; then return 0; fi
   [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
 
@@ -1861,37 +1842,36 @@ ospkg__unregister_dummy() {
   return 0
 }
 
-# ── Public: ospkg__run ───────────────────────────────────────────────────────
-# @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update] [--update-index <bool>] [--keep_repos] [--dry_run] [--interactive] [--build-group <id>] — Run the full installation pipeline from a manifest.
-#
-# Full pipeline: detect → root check → parse manifest → prescript → keys →
-# repos → PM setup → update → install → casks → script.
-#
-# Cache cleanup is NOT performed by this function. Call ospkg__clean explicitly
-# (e.g. via an exit trap) when you want to purge the package manager cache.
-#
-# Args:
-#   --manifest <f>          Path to the YAML manifest file, inline YAML/JSON (with
-#                           embedded newlines), or a URI (http(s)://, file://, oci://, gh://).
-#   --fetch-netrc-file <path>  Optional .netrc file passed to URI fetches when
-#                           resolving a URI manifest.
-#   --fetch-header <H>      Additional HTTP header passed to URI fetches when
-#                           resolving a URI manifest. Repeatable.
-#   --update                Also upgrade already-installed packages (brew uses `brew upgrade`;
-#                           all other PMs upgrade in place via their install command).
-#   --update-index <bool>   Refresh the package index before installing (default: true).
-#   --keep_repos            Do not remove added third-party repo files after installation.
-#   --dry_run               Print what would be installed without doing it.
-#   --interactive           Preserve TTY for interactive package prompts.
-#   --build-group <id>      Mark all newly-installed packages as build-only and record
-#                           them in a sidecar file for later cleanup. Requires --manifest.
-#   --remove                Remove mode: parse the manifest and uninstall the listed
-#                           packages/casks via ospkg__remove_user. Keys, repos,
-#                           prescripts, scripts, modules, and groups are skipped.
-#                           Mutually exclusive with --build-group and --update.
-#
-# Returns: 0 on success, 1 on invalid arguments or manifest parse failure.
 ospkg__run() {
+  # @brief ospkg__run [--manifest <f>] [--fetch-netrc-file <path>] [--fetch-header <H>]... [--update] [--update-index <bool>] [--keep_repos] [--dry_run] [--interactive] [--build-group <id>] — Run the full installation pipeline from a manifest.
+  #
+  # Full pipeline: detect → root check → parse manifest → prescript → keys →
+  # repos → PM setup → update → install → casks → script.
+  #
+  # Cache cleanup is NOT performed by this function. Call ospkg__clean explicitly
+  # (e.g. via an exit trap) when you want to purge the package manager cache.
+  #
+  # Args:
+  #   --manifest <f>          Path to the YAML manifest file, inline YAML/JSON (with
+  #                           embedded newlines), or a URI (http(s)://, file://, oci://, gh://).
+  #   --fetch-netrc-file <path>  Optional .netrc file passed to URI fetches when
+  #                           resolving a URI manifest.
+  #   --fetch-header <H>      Additional HTTP header passed to URI fetches when
+  #                           resolving a URI manifest. Repeatable.
+  #   --update                Also upgrade already-installed packages (brew uses `brew upgrade`;
+  #                           all other PMs upgrade in place via their install command).
+  #   --update-index <bool>   Refresh the package index before installing (default: true).
+  #   --keep_repos            Do not remove added third-party repo files after installation.
+  #   --dry_run               Print what would be installed without doing it.
+  #   --interactive           Preserve TTY for interactive package prompts.
+  #   --build-group <id>      Mark all newly-installed packages as build-only and record
+  #                           them in a sidecar file for later cleanup. Requires --manifest.
+  #   --remove                Remove mode: parse the manifest and uninstall the listed
+  #                           packages/casks via ospkg__remove_user. Keys, repos,
+  #                           prescripts, scripts, modules, and groups are skipped.
+  #                           Mutually exclusive with --build-group and --update.
+  #
+  # Returns: 0 on success, 1 on invalid arguments or manifest parse failure.
   local _manifest='' _update_index=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _interactive=false
   local _prefer_linuxbrew=false _build_group=''

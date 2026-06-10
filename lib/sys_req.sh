@@ -1,16 +1,17 @@
 # shellcheck shell=bash
 # System requirements guards for feature install scripts.
 
-# @brief sys_req__require_platform -- [key=val ...] [-- key=val ...] — Exits 1 if none of the spec groups match the current OS.
-#
-# Spec groups are separated by "--" and ORed: at least one group must match.
-# Within a group, key=val pairs are passed to os__match_spec (AND logic).
-# The error message is built automatically from the spec groups.
-#
-# Args:
-#   --          Separator before the first spec group (required).
-#   key=val ... One or more key=value pairs for os__match_spec.
 sys_req__require_platform() {
+  # @brief sys_req__require_platform -- [key=val ...] [-- key=val ...] — Exits 1 if none of the spec groups match the current OS.
+  #
+  # Spec groups are separated by "--" and ORed: at least one group must match.
+  # Within a group, key=val pairs are passed to os__match_spec (AND logic).
+  # The error message is built automatically from the spec groups.
+  #
+  # Args:
+  #   --          Separator before the first spec group (required).
+  #   key=val ... One or more key=value pairs for os__match_spec.
+
   # Build human-readable description from all groups (for the error message).
   local _desc="" _group_desc _a
   local -a _grp_args=()
@@ -54,12 +55,12 @@ sys_req__require_platform() {
   fi
 }
 
-# @brief sys_req__require_root [-- [key=val ...] [-- key=val ...]] — Exits 1 if not running as root or with passwordless sudo.
-#
-# With no arguments: unconditional root check.
-# With "--"-separated spec groups: exits 1 only if the current platform matches
-# one of the groups (same spec format as sys_req__require_platform).
 sys_req__require_root() {
+  # @brief sys_req__require_root [-- [key=val ...] [-- key=val ...]] — Exits 1 if not running as root or with passwordless sudo.
+  #
+  # With no arguments: unconditional root check.
+  # With "--"-separated spec groups: exits 1 only if the current platform matches
+  # one of the groups (same spec format as sys_req__require_platform).
   if [[ $# -eq 0 ]]; then
     if ! users__is_privileged; then
       logging__fatal "This feature must be run as root (or with passwordless sudo)."

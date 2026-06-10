@@ -5,16 +5,16 @@
 # stripping, and version suffix parsing. All functions write results to stdout,
 # one item per line.
 
-# @brief str__basename_each [<path-token>...] — For each argument, strip spaces and print basename on its own line.
-#
-# Intended for path-like tokens (e.g. `owner/repo` slugs). Built-in names
-# without `/` still pass through basename (e.g. `git` → `git`).
-#
-# Args:
-#   <path-token>...  One token per argument; pass a bash array as `"${arr[@]}"`.
-#
-# Stdout: one basename per line.
 str__basename_each() {
+  # @brief str__basename_each [<path-token>...] — For each argument, strip spaces and print basename on its own line.
+  #
+  # Intended for path-like tokens (e.g. `owner/repo` slugs). Built-in names
+  # without `/` still pass through basename (e.g. `git` → `git`).
+  #
+  # Args:
+  #   <path-token>...  One token per argument; pass a bash array as `"${arr[@]}"`.
+  #
+  # Stdout: one basename per line.
   local _tok
   for _tok in "$@"; do
     _tok="${_tok// /}"
@@ -23,25 +23,25 @@ str__basename_each() {
   return 0
 }
 
-# @brief str__safe_id <s> — Convert a feature option key to an env var name: uppercase, `_` preserved, `-` → `_`.
-#
-# Args:
-#   <s>  Input string (e.g. `my-option`).
-#
-# Stdout: uppercased env var name (e.g. `MY_OPTION`).
 str__safe_id() {
+  # @brief str__safe_id <s> — Convert a feature option key to an env var name: uppercase, `_` preserved, `-` → `_`.
+  #
+  # Args:
+  #   <s>  Input string (e.g. `my-option`).
+  #
+  # Stdout: uppercased env var name (e.g. `MY_OPTION`).
   local s="${1-}"
   s="${s//-/_}"
   echo "${s^^}"
   return 0
 }
 
-# @brief str__has_any_prefix <s> <prefix>... — Return 0 if `<s>` starts with any of the given prefixes.
-#
-# Args:
-#   <s>         String to test.
-#   <prefix>... One or more prefix strings to check.
 str__has_any_prefix() {
+  # @brief str__has_any_prefix <s> <prefix>... — Return 0 if `<s>` starts with any of the given prefixes.
+  #
+  # Args:
+  #   <s>         String to test.
+  #   <prefix>... One or more prefix strings to check.
   local s="${1-}"
   shift || {
     logging__error "at least one prefix is required."
@@ -56,14 +56,14 @@ str__has_any_prefix() {
   return 1
 }
 
-# @brief str__strip_any_prefix <s> <prefix>... — Print `<s>` with the first-matching leading prefix removed; if none match, print `<s>` unchanged.
-#
-# Args:
-#   <s>         Input string.
-#   <prefix>... One or more prefix strings to try removing.
-#
-# Stdout: the modified or original string.
 str__strip_any_prefix() {
+  # @brief str__strip_any_prefix <s> <prefix>... — Print `<s>` with the first-matching leading prefix removed; if none match, print `<s>` unchanged.
+  #
+  # Args:
+  #   <s>         Input string.
+  #   <prefix>... One or more prefix strings to try removing.
+  #
+  # Stdout: the modified or original string.
   local s="${1-}"
   shift
   local _p
@@ -77,16 +77,16 @@ str__strip_any_prefix() {
   return 0
 }
 
-# @brief str__rsplit_once <s> <sep> — Print two lines: text before the last occurrence of `<sep>`, then text after it.
-#
-# If `<sep>` is absent from `<s>`, prints `<s>` on the first line and an empty line.
-#
-# Args:
-#   <s>    Input string.
-#   <sep>  Separator string.
-#
-# Stdout: two lines — the head and the tail.
 str__rsplit_once() {
+  # @brief str__rsplit_once <s> <sep> — Print two lines: text before the last occurrence of `<sep>`, then text after it.
+  #
+  # If `<sep>` is absent from `<s>`, prints `<s>` on the first line and an empty line.
+  #
+  # Args:
+  #   <s>    Input string.
+  #   <sep>  Separator string.
+  #
+  # Stdout: two lines — the head and the tail.
   local s="${1-}" sep="${2-}" _head _rest _sfx
   if [[ -z "$sep" ]]; then
     printf '%s\n' "$s"
