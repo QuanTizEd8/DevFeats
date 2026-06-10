@@ -1645,6 +1645,8 @@ __ERR_TRAP_RUNNING=0
 
 __err__() {
   local _rc=$?
+  # Capture BASH_COMMAND immediately — some bash versions update it as trap body executes.
+  local _cmd="${BASH_COMMAND}"
   # logging__error (from logging-api.sh) works before and after logging__setup —
   # it buffers to the pending file until the mux is running. The only window
   # where it is unavailable is before __init_lib__ sources the library.
@@ -1667,7 +1669,7 @@ __err__() {
     [[ -n "$_trace" ]] && _trace+=" ← "
     _trace+="${FUNCNAME[$_i]:-main}($(basename "${BASH_SOURCE[$_i]:-?}"):${BASH_LINENO[$((_i - 1))]})"
   done
-  logging__error "command failed (exit ${_rc}) at ${_src}:${_line} in ${_fn}: ${BASH_COMMAND}"
+  logging__error "command failed (exit ${_rc}) at ${_src}:${_line} in ${_fn}: ${_cmd}"
   logging__debug "  stack: ${_trace}"
   exit "$_rc"
 }

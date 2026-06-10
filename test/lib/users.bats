@@ -125,10 +125,9 @@ carol"
 
 @test "users__set_login_shell warns when chsh is not installed" {
   reload_lib users.sh
-  # Isolate PATH so chsh is not found.
-  begin_path_isolation
+  # Stub ospkg__run to simulate chsh being unavailable/uninstallable.
+  ospkg__run() { return 1; }
   run users__set_login_shell "/usr/bin/zsh" "alice"
-  end_path_isolation
   assert_success
   assert_output --partial "chsh not found"
 }

@@ -1285,8 +1285,9 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_API}' && source '${
     set -E
     __err__() {
       local _rc=\$?
+      local _cmd=\"\${BASH_COMMAND}\"
       logging__is_setup || exit \"\$_rc\"
-      logging__error \"command failed (exit \${_rc}): \${BASH_COMMAND}\"
+      logging__error \"command failed (exit \${_rc}): \${_cmd}\"
       exit \"\$_rc\"
     }
     trap '__err__' ERR
@@ -1309,8 +1310,9 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_API}' && source '${
     set -E
     __err__() {
       local _rc=\$?
+      local _cmd=\"\${BASH_COMMAND}\"
       logging__is_setup || exit \"\$_rc\"
-      logging__error \"command failed (exit \${_rc}): \${BASH_COMMAND}\"
+      logging__error \"command failed (exit \${_rc}): \${_cmd}\"
       exit \"\$_rc\"
     }
     trap '__err__' ERR
