@@ -88,6 +88,7 @@ if ! declare -f _lib_test_run_orig > /dev/null 2>&1; then
   run() {
     _lib_test_run_orig "$@"
     local _replay_pending=false
+    # shellcheck disable=SC2154
     if ((status != 0)); then
       _replay_pending=true
     elif [[ -z "$output" ]]; then

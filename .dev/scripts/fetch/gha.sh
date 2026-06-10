@@ -446,7 +446,8 @@ _step_log_basename() {
 # ---------------------------------------------------------------------------
 _extract_failing_step_log() {
   local job_id="$1" step_num="$2" full_log="$3" start="$4" end="$5"
-  local dest="${LOGDIR}/$(_step_log_basename "${job_id}" "${step_num}")"
+  local dest
+  dest="${LOGDIR}/$(_step_log_basename "${job_id}" "${step_num}")"
 
   if [[ ! -s "${full_log}" || "${start}" -le 0 || "${end}" -lt "${start}" ]]; then
     printf ''

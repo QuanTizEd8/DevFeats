@@ -134,6 +134,7 @@ git__clone() {
     return 0
   fi
 
+  # shellcheck disable=SC2016
   logging__download "Cloning '${url}' into '${dir}'${ref:+ (ref='${ref}')}."
 
   # Auto-provision git if not yet available (idempotent if already installed).
@@ -283,6 +284,7 @@ git__update() {
     esac
   done
 
+  # shellcheck disable=SC2016
   logging__download "Updating git repository at '${_dir}'${_ref:+ to ref '${_ref}'}."
   if [[ -n "${_ref}" ]]; then
     # Determine whether _ref is a named ref (branch/tag) or a commit SHA.

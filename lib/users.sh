@@ -832,6 +832,7 @@ users__create_user() {
   [ -n "$_shell" ] && _cmd+=("--shell" "$_shell")
   [ -n "$_uid" ] && _cmd+=("--uid" "$_uid")
   _cmd+=("$_name")
+  # shellcheck disable=SC2016
   logging__install "Creating user '${_name}'${_uid:+ (uid=${_uid})}${_home:+ (home='${_home}')}."
   users__run_privileged "${_cmd[@]}" || {
     logging__error "failed to create user '${_name}'."

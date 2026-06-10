@@ -41,6 +41,7 @@ proc__run_parallel() {
     logging__error "failed to create output directory '${_od}'."
     return 1
   }
+  # shellcheck disable=SC2016
   logging__launch "Running parallel subprocesses (outdir='${_od}'${_cwd:+, cwd='${_cwd}'})."
   local -a _rest=("$@") _argv=() _pids=() _labs=()
   local _lab _i _r _ec=0

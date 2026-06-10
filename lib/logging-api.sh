@@ -1,4 +1,5 @@
 # shellcheck shell=sh
+# shellcheck disable=SC3043
 # POSIX logging API — shared by install.sh and logging.sh (bash).
 #
 # Pre-setup records append to _LOGGING__PENDING_FILE (buffer-only, no live stderr).
@@ -333,7 +334,7 @@ _logging__pending_dump_stderr() {
 }
 
 _logging__pending_on_exit() {
-  local _log_exit_code=$1
+  local _log_exit_code="$1"
   if [ "$_LOGGING__PENDING_HANDED_OFF" = 1 ]; then
     return 0
   fi
