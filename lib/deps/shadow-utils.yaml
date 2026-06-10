@@ -1,0 +1,6 @@
+packages:
+  - name: shadow-utils
+    apt: passwd
+    apk: shadow
+    zypper: shadow
+    pacman: shadow

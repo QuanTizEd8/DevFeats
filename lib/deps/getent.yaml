@@ -1,0 +1,6 @@
+packages:
+  - name: glibc
+    apt: libc-bin
+    apk: musl-utils
+    dnf: glibc-common
+    yum: glibc-common

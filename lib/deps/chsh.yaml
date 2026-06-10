@@ -1,0 +1,6 @@
+packages:
+  - name: util-linux
+    apt: passwd
+    apk: shadow
+    dnf: util-linux-user
+    yum: util-linux-user

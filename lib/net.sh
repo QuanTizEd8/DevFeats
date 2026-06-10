@@ -6,7 +6,6 @@
 # HTTP headers.
 
 _NET__FETCH_TOOL=
-_NET__CA_CERTS_OK=
 
 # @brief _net__hdrs_with_default_ua <hdr_block> — Return `<hdr_block>` unchanged when it already contains a `User-Agent` header; otherwise prepend `User-Agent: devfeats`.
 #
@@ -228,9 +227,9 @@ net__fetch_url_file() {
   _net__fetch "$_url" "$_dest" "$@"
 }
 
-# @brief _net__ensure_fetch_tool — Detect `curl` or `wget` and set `_NET__FETCH_TOOL`; install `curl` via ospkg if neither is found.
+# @brief _net__ensure_fetch_tool — Detect `curl` or `wget` and set `_NET__FETCH_TOOL`; install `curl` via bootstrap if neither is found.
 #
-# Runs `_net__ensure_ca_certs` after detection so every fetch that goes through
+# Calls `bootstrap__ca_certs` after detection so every fetch that goes through
 # this helper also has a valid CA bundle. Idempotent: does nothing when
 # `_NET__FETCH_TOOL` is already set.
 #
@@ -243,76 +242,15 @@ _net__ensure_fetch_tool() {
     elif command -v wget > /dev/null 2>&1; then
       _NET__FETCH_TOOL=wget
     else
-      logging__info "Neither curl nor wget found — installing curl."
-      ospkg__install_tracked "lib-net" curl
-      local _rc=$?
-      [[ $_rc == 0 ]] || {
-        logging__error "failed to install curl."
-        return "$_rc"
-      }
-      command -v curl > /dev/null 2>&1 || {
-        logging__error "curl could not be installed."
-        return 1
-      }
+      bootstrap__curl || return 1
       _NET__FETCH_TOOL=curl
     fi
   fi
-  _net__ensure_ca_certs
+  bootstrap__ca_certs
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "failed to ensure CA certificates."
     return "$_rc"
   }
   return 0
-}
-
-# @brief _net__ensure_ca_certs — Ensure `/etc/ssl/certs/ca-certificates.crt` is present; install `ca-certificates` via ospkg if missing.
-#
-# macOS uses the system keychain natively (curl and wget pick it up without a
-# `.crt` bundle), so the check is skipped there. On Linux, an absent or empty
-# bundle causes TLS errors for all HTTPS fetches. Idempotent: sets
-# `_NET__CA_CERTS_OK` after the first successful check and returns immediately
-# on subsequent calls.
-#
-# Side effects: may install `ca-certificates` via the system package manager.
-# Returns: 0 on success, 1 if the Linux CA bundle is still missing after install.
-_net__ensure_ca_certs() {
-  [ -n "${_NET__CA_CERTS_OK:-}" ] && return 0
-  # macOS uses its own keychain; curl/wget use it natively without a .crt file.
-  [ "$(uname -s)" = "Darwin" ] && {
-    _NET__CA_CERTS_OK=true
-    return 0
-  }
-  # Known CA bundle locations across distributions:
-  #   Debian/Ubuntu/Alpine: /etc/ssl/certs/ca-certificates.crt
-  #   openSUSE:             /etc/ssl/ca-bundle.pem
-  #   Fedora/RHEL/CentOS:   /etc/pki/tls/certs/ca-bundle.crt
-  local _b
-  for _b in \
-    /etc/ssl/certs/ca-certificates.crt \
-    /etc/ssl/ca-bundle.pem \
-    /etc/pki/tls/certs/ca-bundle.crt; do
-    if [ -s "$_b" ]; then
-      _NET__CA_CERTS_OK=true
-      return 0
-    fi
-  done
-  logging__info "CA certificate bundle missing — installing ca-certificates."
-  ospkg__install_tracked "lib-net" ca-certificates
-  local _rc=$?
-  [[ $_rc == 0 ]] || {
-    logging__error "failed to install ca-certificates."
-    return "$_rc"
-  }
-  for _b in \
-    /etc/ssl/certs/ca-certificates.crt \
-    /etc/ssl/ca-bundle.pem \
-    /etc/pki/tls/certs/ca-bundle.crt; do
-    if [ -s "$_b" ]; then
-      _NET__CA_CERTS_OK=true
-      return 0
-    fi
-  done
-  logging__error "ca-certificates could not be installed."
-  return 1
 }

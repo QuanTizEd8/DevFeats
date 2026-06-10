@@ -43,5 +43,5 @@ __install_run_npm_pre() {
     return 0
   fi
   logging__install "Ensuring npm is available for Copilot npm method."
-  npm__ensure_npm
+  bootstrap__npm
 }

@@ -8,17 +8,6 @@ _json__ensure_json_lib_dir() {
   return 0
 }
 
-# _json__ensure_jq (internal) — ensure jq is on PATH; install via ospkg if absent.
-_json__ensure_jq() {
-  command -v jq > /dev/null 2>&1 && return 0
-  logging__info "jq not found — installing."
-  ospkg__install_tracked "lib-json" jq >&2
-  command -v jq > /dev/null 2>&1 || {
-    logging__error "jq could not be installed."
-    return 1
-  }
-}
-
 # @brief json__query — jq passthrough; ensures jq is available (installs via ospkg if needed).
 #
 # All arguments are forwarded to `jq` unchanged.
@@ -27,7 +16,7 @@ _json__ensure_jq() {
 #
 # Returns: jq exit code.
 json__query() {
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required for JSON query."
@@ -41,7 +30,7 @@ _json__root_scalar_stdin() {
   local _key="$1" _json _out
   _json="$(cat)" || return 1
   [ -n "$_json" ] || return 1
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || return "$_rc"
   _out="$(printf '%s\n' "$_json" | jq -r --arg k "$_key" \
@@ -89,7 +78,7 @@ json__array_field_lines_stdin() {
     logging__error "empty JSON input."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to read array field '${_field}'."
@@ -126,7 +115,7 @@ json__object_array_field_lines_stdin() {
     logging__error "empty JSON input."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to read '${_ak}[].${_field}'."
@@ -162,7 +151,7 @@ json__object_map_string_values_stdin() {
     logging__error "empty JSON input."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to read object string values."
@@ -202,7 +191,7 @@ json__object_key_string_lines_stdin() {
     logging__error "empty JSON input."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to read object key '${_key}'."
@@ -244,7 +233,7 @@ json__nodejs_index_version_stdin() {
     logging__error "nodejs index operation is required."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to read nodejs index JSON."
@@ -305,7 +294,7 @@ json__object_keys_stdin() {
     logging__error "empty JSON input."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to read object keys."
@@ -348,7 +337,7 @@ json__value_stdin() {
     logging__error "empty JSON input."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to evaluate expression '${_expr}'."
@@ -374,7 +363,7 @@ json__coerce_scalar_stdin() {
     logging__error "empty JSON input."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to coerce JSON scalar."

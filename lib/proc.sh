@@ -112,7 +112,7 @@ proc__run_command_form() {
     logging__error "empty command JSON on stdin."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to parse command JSON."

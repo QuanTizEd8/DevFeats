@@ -4,12 +4,6 @@
 # Returns non-zero on mismatch, logging expected and actual values. Designed
 # for use with downloaded release artifacts.
 
-read -r -d '' _VERIFY__GPG_MANIFEST << 'EOF' || true
-packages:
-  - name: gnupg
-    dnf: gnupg2
-    yum: gnupg2
-EOF
 
 # ── SHA hash verification ─────────────────────────────────────────────────────
 
@@ -116,24 +110,6 @@ verify__sha_sidecar() {
 
 # ── GPG signature verification ────────────────────────────────────────────────
 
-# @brief verify__gpg_ensure [group_id] — Ensure `gpg` is available, auto-installing gnupg if needed.
-#
-# Installs `gnupg` (or `gnupg2` on dnf/yum) via ospkg tracked under `group_id`.
-#
-# Args:
-#   [group_id]  Tracking group for the auto-installed package (default: `lib-verify`).
-#
-# Returns: 0 if gpg is available, 1 if installation fails.
-verify__gpg_ensure() {
-  local _group="${1:-lib-verify}"
-  command -v gpg > /dev/null 2>&1 && return 0
-  logging__install "gpg not found — installing gnupg (manifest group '${_group}')."
-  ospkg__run --manifest "$_VERIFY__GPG_MANIFEST" --build-group "$_group"
-  command -v gpg > /dev/null 2>&1 || {
-    logging__error "gpg still not found after installing gnupg."
-    return 1
-  }
-}
 
 # @brief verify__gpg_detached <file> <sig_file> <key_file> [group_id] — Verify a file against a detached ASCII-armored GPG signature.
 #
@@ -163,7 +139,7 @@ verify__gpg_detached() {
     return 1
   }
 
-  verify__gpg_ensure "$_group"
+  bootstrap__gpg "$_group"
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "gpg is required for detached signature verification."
@@ -195,7 +171,7 @@ verify__gpg_detached() {
 #   [group_id]   Tracking group for auto-installing gpg (default: lib-verify).
 verify__gpg_dearmor_stream() {
   local _dest="$1" _group="${2:-lib-verify}"
-  verify__gpg_ensure "$_group"
+  bootstrap__gpg "$_group"
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "gpg is required to dearmor a key stream."
@@ -215,7 +191,7 @@ verify__gpg_dearmor_stream() {
 #   [group_id]     Tracking group for auto-installing gpg (default: lib-verify).
 verify__gpg_fetch_key_by_fingerprint() {
   local _fingerprint="$1" _dest="$2" _group="${3:-lib-verify}"
-  verify__gpg_ensure "$_group"
+  bootstrap__gpg "$_group"
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "gpg is required to fetch a key by fingerprint."

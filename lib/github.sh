@@ -123,7 +123,7 @@ _github__release_json_digest_for_asset() {
   local _f="$1" _name="$2" _out=""
   [ -r "$_f" ] || return 1
   [ -n "$_name" ] || return 1
-  if ! _json__ensure_jq; then return 1; fi
+  if ! bootstrap__jq; then return 1; fi
   # shellcheck disable=SC2016
   _out="$(json__query -r --arg n "$_name" '
       (.assets // [])[]
@@ -146,7 +146,7 @@ github__release_json_digest_for_asset() {
     logging__error "asset name is required."
     return 1
   }
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to read release asset digest."
@@ -1205,7 +1205,7 @@ _github__api_get() {
 # Returns: 0 on match, 1 if no match found or on API error.
 _github__first_stable_tag_matching() {
   local _api_base="$1" _norm="$2"
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to match GitHub release tags."

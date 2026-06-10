@@ -1,0 +1,3 @@
+packages:
+  - name: coreutils
+    when: {kernel: linux}

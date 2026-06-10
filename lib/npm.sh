@@ -115,7 +115,7 @@ npm__dist_tags() {
   }
 
   local _out=""
-  if _json__ensure_jq 2> /dev/null; then
+  if bootstrap__jq 2> /dev/null; then
     _out="$(printf '%s\n' "$_json" |
       json__query -r 'to_entries[] | "\(.key)=\(.value)"' 2> /dev/null)" || _out=""
   fi
@@ -227,7 +227,7 @@ npm__versions() {
     return 1
   }
 
-  _json__ensure_jq
+  bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to list versions."
@@ -307,7 +307,7 @@ npm__resolve_version_uri() {
       # Prefer an explicit 'stable' dist-tag when the package defines one (e.g.
       # @anthropic-ai/claude-code); fall back to 'latest' (npm convention for the
       # stable release on packages that don't maintain a separate 'stable' tag).
-      if _json__ensure_jq 2> /dev/null; then
+      if bootstrap__jq 2> /dev/null; then
         _version="$(printf '%s\n' "$_json" | json__query -r '.["dist-tags"].stable // .["dist-tags"].latest // empty' 2> /dev/null)" || _version=""
         [ "$_version" = "null" ] && _version=""
       fi
@@ -328,7 +328,7 @@ npm__resolve_version_uri() {
       ;;
     latest)
       # Most recently published, including pre-releases.
-      _json__ensure_jq
+      bootstrap__jq
       local _rc=$?
       [[ $_rc == 0 ]] || {
         logging__error "jq is required to resolve 'latest' spec."
@@ -344,7 +344,7 @@ npm__resolve_version_uri() {
       ;;
     [0-9]*)
       # Numeric prefix: find newest stable published version matching the prefix.
-      _json__ensure_jq
+      bootstrap__jq
       local _rc=$?
       [[ $_rc == 0 ]] || {
         logging__error "jq is required to resolve numeric spec '${_spec}'."
@@ -372,7 +372,7 @@ npm__resolve_version_uri() {
       ;;
     *)
       # Symbolic dist-tag name (e.g. "next", "beta", "canary").
-      if _json__ensure_jq 2> /dev/null; then
+      if bootstrap__jq 2> /dev/null; then
         # shellcheck disable=SC2016  # $t is a jq variable, not a shell variable
         _version="$(printf '%s\n' "$_json" | json__query -r --arg t "$_spec" '.["dist-tags"][$t] // empty' 2> /dev/null)" || _version=""
         [ "$_version" = "null" ] && _version=""
@@ -484,7 +484,7 @@ npm__install_package() {
   }
 
   logging__install "Ensuring npm is available for package install."
-  _npm__ensure_npm
+  bootstrap__npm
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "npm is required but could not be found or installed."
@@ -535,7 +535,7 @@ npm__uninstall_package() {
   }
 
   logging__install "Ensuring npm is available for package uninstall."
-  _npm__ensure_npm
+  bootstrap__npm
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "npm is required but could not be found or installed."
@@ -821,41 +821,6 @@ _npm__registry_get() {
   return "$_ec"
 }
 
-# @brief npm__ensure_npm — Ensure the `npm` CLI is on PATH, installing nodejs if needed.
-#
-# Returns: 0 if npm is available (or was just installed), 1 otherwise.
-npm__ensure_npm() {
-  _npm__ensure_npm
-}
-
-# _npm__ensure_npm  (internal)
-#
-# Verifies that the `npm` CLI is available on PATH. If absent, attempts to
-# install Node.js and npm via the OS package manager using ospkg__install_user.
-#
-# Returns: 0 if npm is available (or was just installed), 1 otherwise.
-_npm__ensure_npm() {
-  command -v npm > /dev/null 2>&1 && return 0
-  logging__install "npm not found on PATH — installing nodejs/npm via OS package manager."
-  local _rc=0
-  set +e
-  ospkg__install_user nodejs npm
-  _rc=$?
-  if ((_rc != 0)); then
-    logging__install "Retrying nodejs-only install after nodejs+npm attempt failed."
-    ospkg__install_user nodejs
-    _rc=$?
-  fi
-  set -e
-  if ((_rc != 0)); then
-    logging__error "failed to install nodejs/npm."
-    return 1
-  fi
-  command -v npm > /dev/null 2>&1 || {
-    logging__error "npm still not available after install attempt."
-    return 1
-  }
-}
 
 # ---------------------------------------------------------------------------
 # Bundled-Node.js npm package installer — private helpers

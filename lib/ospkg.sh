@@ -20,7 +20,6 @@ _OSPKG__CLEAN=
 _OSPKG__LISTS_PATH=
 _OSPKG__LISTS_PATTERN=
 _OSPKG__PREFER_LINUXBREW=false
-_OSPKG__YQ_BIN=
 # DNF mark subcommand names; overridden to "user"/"dependency" for DNF5.
 _OSPKG__DNF_MARK_USER="install"
 _OSPKG__DNF_MARK_DEP="remove"
@@ -367,36 +366,6 @@ _ospkg__brew_run() {
 }
 
 # ── Private: yq auto-installer ────────────────────────────────────────────────
-
-# @brief _ospkg__ensure_yq — Ensure `yq` (mikefarah/yq) is available, installing it if needed. Caches the binary path in `_OSPKG__YQ_BIN`.
-#
-# Fast path: `_OSPKG__YQ_BIN` is already set and the binary passes the
-# mikefarah compatibility check (`_install_yq__compatible`). Slow path:
-# delegates to `install__yq --context internal` and caches the result.
-#
-# Side effects: sets `_OSPKG__YQ_BIN` to the absolute path of the installed binary.
-# Returns: 0 on success, 1 if yq cannot be installed.
-_ospkg__ensure_yq() {
-  # Fast path: already cached.
-  if [[ -n "${_OSPKG__YQ_BIN:-}" ]] && [[ -x "${_OSPKG__YQ_BIN}" ]]; then
-    return 0
-  fi
-  _OSPKG__YQ_BIN=""
-  local _bin
-  logging__install "Bootstrapping yq for manifest parsing."
-  _bin="$(bootstrap__yq)"
-  # bootstrap__yq must print exactly one line (the binary path).
-  [[ "${_bin}" != *$'\n'* ]] || {
-    logging__error "bootstrap__yq returned multiline output; expected a single yq path."
-    return 1
-  }
-  [[ -n "${_bin}" && -x "${_bin}" ]] || {
-    logging__error "bootstrap__yq did not return a usable yq path."
-    return 1
-  }
-  _OSPKG__YQ_BIN="${_bin}"
-  return 0
-}
 
 # ── Private: PM configuration helpers ────────────────────────────────────────
 # Each _ospkg__set_* function configures the internal state for one PM family.
@@ -2081,7 +2050,7 @@ ospkg__run() {
   if [[ -n "$_manifest_content" ]]; then
 
     # yq is required to convert YAML to JSON.
-    if ! _ospkg__ensure_yq; then
+    if ! bootstrap__yq > /dev/null; then
       logging__error "yq is required for YAML manifests but could not be obtained."
       return 1
     fi
@@ -2098,10 +2067,10 @@ ospkg__run() {
 
     logging__info "Converting manifest to JSON via yq."
     if [[ "$_manifest_content" == *$'\n'* ]]; then
-      printf '%s' "$_manifest_content" | "$_OSPKG__YQ_BIN" -o=json '.' - > "$_json_tmp"
+      printf '%s' "$_manifest_content" | "$_BOOTSTRAP__YQ_BIN" -o=json '.' - > "$_json_tmp"
     else
-      "$_OSPKG__YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
-        echo "$_manifest_content" | "$_OSPKG__YQ_BIN" -o=json '.' - > "$_json_tmp"
+      "$_BOOTSTRAP__YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
+        echo "$_manifest_content" | "$_BOOTSTRAP__YQ_BIN" -o=json '.' - > "$_json_tmp"
     fi
 
     local _item _kind

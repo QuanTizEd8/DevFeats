@@ -4,24 +4,6 @@
 # Wraps `flock` to ensure only one writer holds the lockfile at a time. Use
 # when multiple parallel feature installers may write to the same resource.
 
-read -r -d '' _LOCK__FLOCK_MANIFEST << 'EOF' || true
-packages:
-  - when: {kernel: linux}
-    packages: [util-linux]
-EOF
-
-# _lock__ensure_flock (internal) — Attempt to install util-linux so flock is available.
-# Returns 0 when flock is on PATH; 1 otherwise. Non-fatal: caller falls back to spin-lock.
-_lock__ensure_flock() {
-  command -v flock > /dev/null 2>&1 && return 0
-  # flock is a Linux kernel utility; no macOS equivalent exists — skip install attempt entirely.
-  if [[ "$(os__kernel)" != "Darwin" ]]; then
-    ospkg__run --manifest "$_LOCK__FLOCK_MANIFEST" --build-group "lib-lock" || true
-    command -v flock > /dev/null 2>&1 && return 0
-  fi
-  logging__info "'flock' not available; using spin-lock fallback."
-  return 1
-}
 
 # @brief lock__run_with_lockfile <lockfile> <command-string> — Run eval on command-string while holding an exclusive lock.
 #
@@ -41,7 +23,7 @@ lock__run_with_lockfile() {
     return 1
   }
   mkdir -p "$(dirname "$_lock")" 2> /dev/null || true
-  if _lock__ensure_flock; then
+  if bootstrap__flock; then
     (
       flock 9 || {
         logging__error "could not lock ${_lock}"

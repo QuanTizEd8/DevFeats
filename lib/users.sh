@@ -5,90 +5,6 @@
 # devcontainer env vars, managing file permissions, and setting the login shell
 # for one or more users. Works on Alpine (patching PAM), Debian-based, and macOS.
 
-read -r -d '' _USERS__SHADOW_UTILS_MANIFEST << 'EOF' || true
-packages:
-  - when: {pm: apt}
-    packages: [passwd]
-  - when: {pm: [apk, zypper, pacman]}
-    packages: [shadow]
-  - when: {pm: [dnf, yum]}
-    packages: [shadow-utils]
-EOF
-
-read -r -d '' _USERS__CHSH_MANIFEST << 'EOF' || true
-packages:
-  - when: {pm: apt}
-    packages: [passwd]
-  - when: {pm: apk}
-    packages: [shadow]
-  - when: {pm: [dnf, yum]}
-    packages: [util-linux-user]
-  - when: {pm: [zypper, pacman]}
-    packages: [util-linux]
-EOF
-
-read -r -d '' _USERS__COREUTILS_MANIFEST << 'EOF' || true
-packages:
-  - when: {kernel: linux}
-    packages: [coreutils]
-EOF
-
-read -r -d '' _USERS__GETENT_MANIFEST << 'EOF' || true
-packages:
-  - when: {pm: apt}
-    packages: [libc-bin]
-  - when: {pm: apk}
-    packages: [musl-utils]
-  - when: {pm: [dnf, yum]}
-    packages: [glibc-common]
-  - when: {pm: [zypper, pacman]}
-    packages: [glibc]
-EOF
-
-read -r -d '' _USERS__SUDO_MANIFEST << 'EOF' || true
-packages:
-  - sudo
-EOF
-
-# _users__ensure_coreutils (internal) — Ensure id, stat, and whoami are available; install coreutils via ospkg if absent.
-_users__ensure_coreutils() {
-  command -v id > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_USERS__COREUTILS_MANIFEST" --build-group "lib-users" || true
-  command -v id > /dev/null 2>&1 && return 0
-  logging__error "'id' is required but could not be installed."
-  return 1
-}
-
-# _users__ensure_getent (internal) — Ensure getent is available; install the platform libc package via ospkg if absent.
-# Returns 0 when getent is on PATH; 1 otherwise. Non-fatal: macOS does not have getent; callers fall back to dscl.
-_users__ensure_getent() {
-  command -v getent > /dev/null 2>&1 && return 0
-  # getent is a Linux glibc utility; no macOS equivalent exists — skip install attempt entirely.
-  if [[ "$(os__kernel)" != "Darwin" ]]; then
-    ospkg__run --manifest "$_USERS__GETENT_MANIFEST" --build-group "lib-users" || true
-    command -v getent > /dev/null 2>&1 && return 0
-  fi
-  logging__info "'getent' not available; falling back to dscl or /etc/passwd for home resolution."
-  return 1
-}
-
-# _users__ensure_sudo (internal) — Ensure sudo (visudo) is available; install via ospkg if absent.
-_users__ensure_sudo() {
-  command -v visudo > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_USERS__SUDO_MANIFEST" --build-group "lib-users" || true
-  command -v visudo > /dev/null 2>&1 && return 0
-  logging__error "'sudo' (visudo) is required but could not be installed."
-  return 1
-}
-
-# _users__ensure_shadowutils (internal) — Ensure useradd, groupadd, and usermod are available; install shadow-utils via ospkg if absent.
-_users__ensure_shadowutils() {
-  command -v groupadd > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_USERS__SHADOW_UTILS_MANIFEST" --build-group "lib-users" || true
-  command -v groupadd > /dev/null 2>&1 && return 0
-  logging__warn "shadow-utils (useradd, groupadd, usermod) is required but could not be installed."
-  return 1
-}
 
 # @brief users__is_root — Return 0 when the current process runs as root (uid 0), 1 otherwise.
 #
@@ -250,7 +166,7 @@ users__default_prefix() {
 #
 # Stdout: group name string.
 users__primary_group_of() {
-  _users__ensure_coreutils
+  bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to resolve primary group."
@@ -268,7 +184,7 @@ users__primary_group_of() {
 # Returns: 0 on success, 1 when the group is not found.
 users__gid_of_group() {
   local _gid
-  if _users__ensure_getent; then
+  if bootstrap__getent; then
     _gid="$(getent group "$1" 2> /dev/null | cut -d: -f3)"
     [[ -n "$_gid" ]] && {
       printf '%s\n' "$_gid"
@@ -293,7 +209,7 @@ users__gid_of_group() {
 # Returns: 0 on success, 1 when no group with that GID is found.
 users__group_of_gid() {
   local _gname
-  if _users__ensure_getent; then
+  if bootstrap__getent; then
     _gname="$(getent group "$1" 2> /dev/null | cut -d: -f1)"
     [[ -n "$_gname" ]] && {
       printf '%s\n' "$_gname"
@@ -316,7 +232,7 @@ users__group_of_gid() {
 #
 # Stdout: UID as a decimal string.
 users__uid_of_user() {
-  _users__ensure_coreutils
+  bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to resolve user UID."
@@ -332,7 +248,7 @@ users__uid_of_user() {
 #
 # Stdout: username string.
 users__username_of_uid() {
-  _users__ensure_coreutils
+  bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to resolve username from UID."
@@ -362,7 +278,7 @@ users__username_of_uid() {
 # Stdout: one username per line; empty when no matches are found.
 users__users_by_primary_gid() {
   local _gid="$1"
-  if _users__ensure_getent; then
+  if bootstrap__getent; then
     getent passwd | awk -F: -v gid="$_gid" '$4==gid{print $1}'
     return
   fi
@@ -380,7 +296,7 @@ users__users_by_primary_gid() {
 #
 # Returns: 0 if found, 1 otherwise.
 users__group_exists() {
-  if _users__ensure_getent; then
+  if bootstrap__getent; then
     getent group "$1" > /dev/null 2>&1
     return
   fi
@@ -396,7 +312,7 @@ users__group_exists() {
 #
 # Stdout: owner UID as a decimal string.
 users__uid_of_path_owner() {
-  _users__ensure_coreutils
+  bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "coreutils (stat) is required to resolve path owner."
@@ -529,7 +445,7 @@ users__resolve_list() {
 #   <group>      OS group name to create (if absent) and use.
 #   [<user>...]  Additional users to add to the group.
 users__set_write_permissions() {
-  _users__ensure_coreutils
+  bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "coreutils is required to set write permissions."
@@ -547,7 +463,7 @@ users__set_write_permissions() {
         users__run_privileged dseditgroup -o edit -a "$_u" -t user "$_group"
     done
   else
-    if ospkg__run --manifest "$_USERS__SHADOW_UTILS_MANIFEST" --build-group "lib-users"; then
+    if bootstrap__shadow_utils; then
       getent group "$_group" > /dev/null 2>&1 || users__run_privileged groupadd -r "$_group"
       local _u
       for _u in "$@"; do
@@ -658,7 +574,7 @@ users__set_login_shell() {
   local _shell="$1"
   shift
 
-  if ! ospkg__run --manifest "$_USERS__CHSH_MANIFEST" --build-group "lib-users"; then
+  if ! ospkg__run --manifest "${_BOOTSTRAP__LIB_DIR}/deps/chsh.yaml" --build-group "lib-users"; then
     logging__warn "chsh not found — skipping shell change."
     return 0
   fi
@@ -722,7 +638,7 @@ users__create_group() {
       *) shift ;;
     esac
   done
-  _users__ensure_shadowutils
+  bootstrap__shadow_utils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to create a group."
@@ -745,7 +661,7 @@ users__create_group() {
 #
 # Returns: 0 on success, 1 on failure (warning logged).
 users__delete_group() {
-  _users__ensure_shadowutils
+  bootstrap__shadow_utils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to delete a group."
@@ -764,7 +680,7 @@ users__delete_group() {
 #
 # Returns: 0 on success, 1 on failure (warning logged).
 users__delete_user() {
-  _users__ensure_shadowutils
+  bootstrap__shadow_utils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to delete a user."
@@ -819,7 +735,7 @@ users__create_user() {
       *) shift ;;
     esac
   done
-  _users__ensure_shadowutils
+  bootstrap__shadow_utils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to create a user."
@@ -849,7 +765,7 @@ users__create_user() {
 # Returns: 0 on success, 1 if usermod cannot be installed.
 users__add_to_group() {
   local _user="$1" _group="$2"
-  _users__ensure_shadowutils
+  bootstrap__shadow_utils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to add a user to a group."
@@ -873,7 +789,7 @@ users__add_to_group() {
 #
 # Returns: 0 on success or if user already exists, 1 if useradd cannot be installed.
 users__create_system_user() {
-  _users__ensure_coreutils
+  bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to create a system user."
@@ -899,7 +815,7 @@ users__create_system_user() {
     logging__info "User '${_username}' already exists — skipping."
     return 0
   fi
-  _users__ensure_shadowutils
+  bootstrap__shadow_utils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "shadow-utils is required to create a system user."
@@ -946,7 +862,7 @@ users__get_current() {
       }
     fi
   fi
-  _users__ensure_coreutils
+  bootstrap__coreutils
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "coreutils (id) is required to determine the current user."
@@ -993,7 +909,7 @@ users__resolve_home() {
     }
   fi
   # getent handles both username and UID, and queries NSS (LDAP, NIS).
-  if _users__ensure_getent; then
+  if bootstrap__getent; then
     _entry="$(getent passwd "$_user" 2> /dev/null)"
     if [ -n "$_entry" ]; then
       IFS=: read -r _ _ _ _ _ _home _ <<< "$_entry"
@@ -1210,7 +1126,7 @@ users__add_sudoer() {
         ;;
     esac
   done
-  _users__ensure_sudo
+  bootstrap__sudo
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "sudo is required to grant passwordless sudo."

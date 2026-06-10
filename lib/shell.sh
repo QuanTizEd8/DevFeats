@@ -18,21 +18,6 @@ _SHELL__AWK_NORM='
   function is_blank_line(l) { return norm(l) == "" }
 '
 
-read -r -d '' _SHELL__BINUTILS_MANIFEST << 'EOF' || true
-packages:
-  - when: {kernel: linux}
-    packages: [binutils]
-EOF
-
-# _shell__ensure_strings (internal) — Attempt to install binutils so strings is available.
-# Returns 0 when strings is on PATH (before or after install), 1 otherwise (non-fatal).
-_shell__ensure_strings() {
-  command -v strings > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_SHELL__BINUTILS_MANIFEST" --build-group "lib-shell" || true
-  command -v strings > /dev/null 2>&1 && return 0
-  logging__warn "'strings' not available; falling back to os-release detection."
-  return 1
-}
 
 # @brief shell__bash — Run the active bash binary.
 # Uses _BASH_BIN set by install.sh bootstrap when available; otherwise falls back to bash on PATH.
@@ -70,7 +55,7 @@ shell__detect_bashrc() {
 shell__detect_zshdir() {
   # Ask zsh which global zshenv path it was compiled with.
   local _compiled
-  _shell__ensure_strings || true
+  bootstrap__strings || true
   _compiled="$(strings "$(command -v zsh 2> /dev/null)" 2> /dev/null |
     grep -m1 -E '^/etc/(zsh/)?zshenv$' || true)"
   if [ -n "$_compiled" ]; then

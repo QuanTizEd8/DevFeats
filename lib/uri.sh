@@ -7,23 +7,6 @@
 # archive extraction, and binary installation. uri__resolve and related functions are thin
 # backward-compatible wrappers around uri__fetch_asset.
 
-read -r -d '' _URI__COREUTILS_MANIFEST << 'EOF' || true
-packages:
-  - when: {kernel: linux}
-    packages: [coreutils]
-EOF
-
-# _uri__ensure_sha256sum (internal) — Ensure sha256sum or shasum is available; installs coreutils on Linux if absent.
-# Returns 0 when a sha256 tool is available; 1 otherwise (non-fatal: caller falls back to cksum).
-_uri__ensure_sha256sum() {
-  command -v sha256sum > /dev/null 2>&1 && return 0
-  command -v shasum > /dev/null 2>&1 && return 0
-  ospkg__run --manifest "$_URI__COREUTILS_MANIFEST" --build-group "lib-uri" || true
-  command -v sha256sum > /dev/null 2>&1 && return 0
-  command -v shasum > /dev/null 2>&1 && return 0
-  logging__warn "neither 'sha256sum' nor 'shasum' available; falling back to cksum for URI hashing."
-  return 1
-}
 
 # _uri__split_frag <full-uri> — prints base-uri on first line, fragment part on second (may be empty).
 _uri__split_frag() {
@@ -101,7 +84,7 @@ _uri__safe_basename() {
 _uri__dest_for_uri() {
   local _dir="$1" _uri="$2"
   local _id _base
-  _uri__ensure_sha256sum || true
+  bootstrap__sha256sum || true
   if command -v sha256sum > /dev/null 2>&1; then
     _id="$(printf '%s' "$_uri" | sha256sum | awk '{print $1}' | cut -c1-16)"
   elif command -v shasum > /dev/null 2>&1; then

@@ -10,62 +10,19 @@ _FILE__SESSION_ROOT=
 # True when this process created _FILE__SESSION_ROOT (`file__session_cleanup` may rm -rf).
 _FILE__SESSION_OWNED=false
 
-read -r -d '' _FILE__XZ_MANIFEST << 'EOF' || true
-packages:
-  - name: xz
-    apt: xz-utils
-EOF
-
-read -r -d '' _FILE__COREUTILS_MANIFEST << 'EOF' || true
-packages:
-  - when: {kernel: linux}
-    packages: [coreutils]
-EOF
-
-# _file__ensure_tool <cmd> <pkg> [context] (internal) — Ensure <cmd> is on PATH; install <pkg> via ospkg if absent.
-# [context] is an optional phrase inserted as "is required <context> but could not be installed".
-_file__ensure_tool() {
-  command -v "$1" > /dev/null 2>&1 && return 0
-  ospkg__install_tracked "lib-file" "$2"
-  command -v "$1" > /dev/null 2>&1 && return 0
-  logging__error "$1 is required${3:+ $3} but could not be installed."
-  return 1
-}
-
-# _file__ensure_extract_tool <ext> (internal)
-# Ensures the extraction tool for <ext> is available; installs it via ospkg when possible.
-# <ext>: "zip" (installs unzip), "xz" (installs xz-utils/xz), "bz2" (installs bzip2), "gz" (installs gzip), "tar" (installs tar).
+# _file__ensure_extract_tool <ext> (internal) — Ensure the extraction tool for <ext> is available.
+# Dispatches to the corresponding bootstrap__ function.
+# <ext>: "zip", "xz", "bz2", "gz", "tar".
 _file__ensure_extract_tool() {
   local _ext="$1"
   case "$_ext" in
-    zip) _file__ensure_tool unzip unzip "to extract .zip archives" ;;
-    xz)
-      command -v xz > /dev/null 2>&1 && return 0
-      ospkg__run --manifest "$_FILE__XZ_MANIFEST" --build-group "lib-file" || true
-      command -v xz > /dev/null 2>&1 && return 0
-      logging__error "xz is required to extract .tar.xz archives but could not be installed."
-      return 1
-      ;;
-    bz2) _file__ensure_tool bzip2 bzip2 "to extract .tar.bz2 archives" ;;
-    gz) _file__ensure_tool gzip gzip "to extract .tar.gz archives" ;;
-    tar) _file__ensure_tool tar tar "" ;;
+    zip) bootstrap__unzip ;;
+    xz) bootstrap__xz ;;
+    bz2) bootstrap__bzip2 ;;
+    gz) bootstrap__gzip ;;
+    tar) bootstrap__tar ;;
     *) return 0 ;;
   esac
-}
-
-# _file__ensure_install_cmd (internal) — Ensure `install` (coreutils) is available.
-# `install` is provided by GNU coreutils on Linux (including BusyBox on Alpine)
-# and by BSD utils on macOS. It is absent only in severely stripped container
-# images. Falls back to ospkg when missing.
-_file__ensure_install_cmd() {
-  command -v install > /dev/null 2>&1 && return 0
-  logging__info "'install' command not found; installing coreutils."
-  ospkg__run --manifest "$_FILE__COREUTILS_MANIFEST" --build-group "lib-file" || true
-  if ! command -v install > /dev/null 2>&1; then
-    logging__error "'install' is required but could not be installed."
-    return 1
-  fi
-  return 0
 }
 
 # @brief file__append_privileged <file> — Append stdin to <file>, escalating privilege only if needed.
@@ -129,7 +86,7 @@ file__install_dir() {
     logging__error "no directories specified"
     return 1
   fi
-  _file__ensure_install_cmd
+  bootstrap__install_cmd
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "install command is required to create directories."

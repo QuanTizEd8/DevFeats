@@ -1,0 +1,4 @@
+packages:
+  - name: gnupg
+    dnf: gnupg2
+    yum: gnupg2
