@@ -337,15 +337,15 @@ _os__load_release() {
   [ -n "${_OS__RELEASE_LOADED-}" ] && return 0
   if [ -f /etc/os-release ]; then
     _OS__ID="$(grep -m1 '^ID=' /etc/os-release 2> /dev/null |
-      sed 's/^ID=//;s/^"//;s/"$//')"
+      sed 's/^ID=//;s/^"//;s/"$//' || true)"
     _OS__ID_LIKE="$(grep -m1 '^ID_LIKE=' /etc/os-release 2> /dev/null |
-      sed 's/^ID_LIKE=//;s/^"//;s/"$//')"
+      sed 's/^ID_LIKE=//;s/^"//;s/"$//' || true)"
     _OS__CODENAME="$(grep -m1 '^VERSION_CODENAME=' /etc/os-release 2> /dev/null |
-      sed 's/^VERSION_CODENAME=//;s/^"//;s/"$//')"
+      sed 's/^VERSION_CODENAME=//;s/^"//;s/"$//' || true)"
     # Fallback: UBUNTU_CODENAME (present on some Ubuntu releases that lack VERSION_CODENAME).
     if [ -z "${_OS__CODENAME-}" ]; then
       _OS__CODENAME="$(grep -m1 '^UBUNTU_CODENAME=' /etc/os-release 2> /dev/null |
-        sed 's/^UBUNTU_CODENAME=//;s/^"//;s/"$//')"
+        sed 's/^UBUNTU_CODENAME=//;s/^"//;s/"$//' || true)"
     fi
   fi
   _OS__RELEASE_LOADED=1

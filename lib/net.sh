@@ -153,7 +153,7 @@ _NET_HDR_EOF_
       logging__error "failed to fetch '${_url}' with curl (exit ${_rc})."
     fi
     return "${_rc}"
-  elif [ "$_NET__FETCH_TOOL" = "wget" ] && command -v wget > /dev/null 2>&1; then
+  elif [ "$_NET__FETCH_TOOL" = "wget" ]; then
     if [ -n "$_dest" ]; then
       set -- -O "$_dest"
     else
@@ -277,19 +277,36 @@ _net__ensure_ca_certs() {
     _NET__CA_CERTS_OK=true
     return 0
   }
-  if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
-    logging__info "CA certificate bundle missing — installing ca-certificates."
-    ospkg__install_tracked "lib-net" ca-certificates
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
-      logging__error "failed to install ca-certificates."
-      return "$_rc"
-    }
-    if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
-      logging__error "ca-certificates could not be installed."
-      return 1
+  # Known CA bundle locations across distributions:
+  #   Debian/Ubuntu/Alpine: /etc/ssl/certs/ca-certificates.crt
+  #   openSUSE:             /etc/ssl/ca-bundle.pem
+  #   Fedora/RHEL/CentOS:   /etc/pki/tls/certs/ca-bundle.crt
+  local _b
+  for _b in \
+    /etc/ssl/certs/ca-certificates.crt \
+    /etc/ssl/ca-bundle.pem \
+    /etc/pki/tls/certs/ca-bundle.crt; do
+    if [ -s "$_b" ]; then
+      _NET__CA_CERTS_OK=true
+      return 0
     fi
-  fi
-  _NET__CA_CERTS_OK=true
-  return 0
+  done
+  logging__info "CA certificate bundle missing — installing ca-certificates."
+  ospkg__install_tracked "lib-net" ca-certificates
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to install ca-certificates."
+    return "$_rc"
+  }
+  for _b in \
+    /etc/ssl/certs/ca-certificates.crt \
+    /etc/ssl/ca-bundle.pem \
+    /etc/pki/tls/certs/ca-bundle.crt; do
+    if [ -s "$_b" ]; then
+      _NET__CA_CERTS_OK=true
+      return 0
+    fi
+  done
+  logging__error "ca-certificates could not be installed."
+  return 1
 }

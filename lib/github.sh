@@ -424,7 +424,7 @@ github__install_release() {
 # Returns: 0 on success, 1 if the API call fails or the tag cannot be parsed.
 github__latest_tag() {
   local _repo="$1"
-  local _json _tag
+  local _json="" _tag=""
   _json="$(github__fetch_release_json "$_repo")" || true
   if [ -n "$_json" ]; then
     _tag="$(printf '%s\n' "$_json" | _json__root_scalar_stdin tag_name)" || _tag=""

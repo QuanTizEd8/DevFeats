@@ -282,8 +282,8 @@ install__promote_path_to_user() {
 # responsibility (see `github__release_json_digest_from_uri`).
 #
 # Automatic behaviour (when applicable):
-#   - **Sidecar auto-probe**: when `--sidecar` is not given and `--sha256 none`
-#     is not set, three candidate URLs are probed in order:
+#   - **Sidecar auto-probe**: when neither `--sidecar` nor `--sha256` is given,
+#     three candidate URLs are probed in order:
 #     `<asset-uri>.sha256`, `<release-base>/SHA256SUMS`,
 #     `<release-base>/sha256sum.txt` (where release-base is the asset URI with
 #     the basename stripped).
@@ -414,7 +414,7 @@ install__release_asset() {
     esac
   done
 
-  if ! "$_caller_sidecar_set" && [[ "$_caller_sha256" != "none" ]]; then
+  if ! "$_caller_sidecar_set" && ! "$_caller_sha256_set"; then
     local _sc_tmp _sc_file _sc_hash _sc_candidate
     _sc_tmp="$(file__mktmpdir "release-sidecar-probe")"
     for _sc_candidate in \

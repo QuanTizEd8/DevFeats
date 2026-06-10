@@ -151,7 +151,7 @@ setup() {
   # Second call must succeed without re-cloning.
   run git__clone --url "${_REPO_URL}" --dir "${_dst}"
   assert_success
-  assert_output --partial "already exists"
+  assert_output --partial "already cloned"
 }
 
 @test "git__clone: --resolved-sha for named branch skips second ls-remote probe" {

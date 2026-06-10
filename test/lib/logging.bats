@@ -668,13 +668,13 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_API}' && source '${
   assert_success
 }
 
-@test "logging__on_early_exit returns false before setup and true after setup" {
+@test "logging__is_setup returns false before setup and true after setup" {
   run bash -c "
     ${_SOURCE_LOGGING}
     logging__error 'pre-setup'
-    if ! logging__on_early_exit; then echo NOT_SETUP; fi
+    if ! logging__is_setup; then echo NOT_SETUP; fi
     logging__setup
-    if logging__on_early_exit; then echo SETUP_ACTIVE >&3; fi
+    if logging__is_setup; then echo SETUP_ACTIVE >&3; fi
     logging__cleanup
     file__session_cleanup
   "
@@ -1285,9 +1285,8 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_API}' && source '${
     set -E
     __err__() {
       local _rc=\$?
-      if logging__on_early_exit; then
-        logging__err_unhandled \"\$_rc\" && return
-      fi
+      logging__is_setup || exit \"\$_rc\"
+      logging__error \"command failed (exit \${_rc}): \${BASH_COMMAND}\"
       exit \"\$_rc\"
     }
     trap '__err__' ERR
@@ -1304,15 +1303,14 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_API}' && source '${
   refute_output --partial 'phase-two'
 }
 
-@test "ERR trap does not duplicate log when a __ helper returns 1" {
+@test "ERR trap logs command failure location even when helper logs its own error" {
   run bash -c "
     ${_SOURCE_LOGGING}
     set -E
     __err__() {
       local _rc=\$?
-      if logging__on_early_exit; then
-        logging__err_unhandled \"\$_rc\" && return
-      fi
+      logging__is_setup || exit \"\$_rc\"
+      logging__error \"command failed (exit \${_rc}): \${BASH_COMMAND}\"
       exit \"\$_rc\"
     }
     trap '__err__' ERR
@@ -1326,8 +1324,8 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_API}' && source '${
   assert_failure
   assert_output --partial 'before'
   assert_output --partial 'specific failure'
+  assert_output --partial 'command failed'
   refute_output --partial 'after'
-  refute_output --partial 'command failed'
 }
 
 @test "newline in structured message is encoded for FIFO" {

@@ -345,7 +345,7 @@ source_build_network_isolated:
   checks:
     - kind: install_failure
       title: network-isolated source build fails during version resolution
-      pattern: failed to reach GitHub API
+      pattern: "no tag matching 'latest'"
 
 source_build_nonexistent_version:
   description: |
