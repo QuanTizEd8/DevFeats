@@ -81,15 +81,12 @@ EOF
 
 @test "_net__ensure_fetch_tool detects curl and sets _NET__FETCH_TOOL" {
   reload_lib net.sh
-  # Provide a fake curl; _net__ensure_ca_certs needs to be stubbed as well.
+  # Provide a fake curl; bootstrap__ca_certs needs to be stubbed as well.
   create_fake_bin "curl" ""
   prepend_fake_bin_path
-  # Stub _net__ensure_ca_certs to avoid ospkg dependency.
-  _net__ensure_ca_certs() {
-    _NET__CA_CERTS_OK=true
-    return 0
-  }
-  export -f _net__ensure_ca_certs
+  # Stub bootstrap__ca_certs to avoid ospkg dependency.
+  bootstrap__ca_certs() { return 0; }
+  export -f bootstrap__ca_certs
   _net__ensure_fetch_tool
   [[ "$_NET__FETCH_TOOL" == "curl" ]]
 }
@@ -100,11 +97,8 @@ EOF
   # Temporarily isolate PATH so the real curl (e.g. /usr/local/bin/curl)
   # is not found.
   begin_path_isolation
-  _net__ensure_ca_certs() {
-    _NET__CA_CERTS_OK=true
-    return 0
-  }
-  export -f _net__ensure_ca_certs
+  bootstrap__ca_certs() { return 0; }
+  export -f bootstrap__ca_certs
   _net__ensure_fetch_tool
   local _result="$_NET__FETCH_TOOL"
   end_path_isolation
@@ -114,9 +108,8 @@ EOF
 @test "_net__ensure_fetch_tool is idempotent when _NET__FETCH_TOOL is set" {
   reload_lib net.sh
   _NET__FETCH_TOOL="curl"
-  _NET__CA_CERTS_OK=true
-  _net__ensure_ca_certs() { return 0; }
-  export -f _net__ensure_ca_certs
+  bootstrap__ca_certs() { return 0; }
+  export -f bootstrap__ca_certs
   _net__ensure_fetch_tool
   [[ "$_NET__FETCH_TOOL" == "curl" ]]
 }
@@ -125,31 +118,22 @@ EOF
 # _net__ensure_ca_certs  (caching and Darwin short-circuit)
 # ---------------------------------------------------------------------------
 
-@test "_net__ensure_ca_certs is a no-op when already cached" {
+@test "bootstrap__ca_certs returns 0 when CA bundle is already present" {
   reload_lib net.sh
-  _NET__CA_CERTS_OK=true
-  # If idempotency guard works, the function must return 0 immediately
-  # without touching any file paths or calling ospkg.
-  run _net__ensure_ca_certs
+  # ospkg__install_tracked is stubbed to fail; if bootstrap__ca_certs tries to
+  # install ca-certificates it will fail, proving the bundle was found directly.
+  ospkg__install_tracked() { return 1; }
+  export -f ospkg__install_tracked
+  run bootstrap__ca_certs
   assert_success
 }
 
-@test "_net__ensure_ca_certs is a no-op on Darwin" {
+@test "bootstrap__ca_certs returns 0 on Darwin" {
   reload_lib net.sh
   uname() { echo "Darwin"; }
   export -f uname
-  run _net__ensure_ca_certs
+  run bootstrap__ca_certs
   assert_success
-  # Verify that _NET__CA_CERTS_OK was set inside the call by re-running in a
-  # subshell that checks the flag after the call returns.
-  run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/net.sh'
-    uname() { echo 'Darwin'; }
-    export -f uname
-    _net__ensure_ca_certs
-    [[ \"\${_NET__CA_CERTS_OK}\" == 'true' ]] && echo 'CACHED'
-  "
-  assert_output --partial "CACHED"
 }
 
 # ---------------------------------------------------------------------------

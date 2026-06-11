@@ -91,34 +91,6 @@ setup() {
   assert_output "${BATS_TEST_TMPDIR}/cached-yq"
 }
 
-@test "_ospkg__ensure_yq rejects multiline stdout from bootstrap__yq" {
-  reload_lib ospkg.sh
-  mkdir -p "${BATS_TEST_TMPDIR}/yq-bin"
-  printf '#!/bin/sh\nif [ "$1" = "-o=json" ]; then exit 0; fi\nexit 1\n' \
-    > "${BATS_TEST_TMPDIR}/yq-bin/yq"
-  chmod +x "${BATS_TEST_TMPDIR}/yq-bin/yq"
-  bootstrap__yq() {
-    printf '%s\n' "${BATS_TEST_TMPDIR}/yq-bin/yq"
-    printf '%s\n' "${BATS_TEST_TMPDIR}/yq-bin/yq"
-  }
-  export -f bootstrap__yq
-  run _ospkg__ensure_yq
-  assert_failure
-}
-
-@test "_ospkg__ensure_yq accepts single-line path from bootstrap__yq" {
-  reload_lib ospkg.sh
-  mkdir -p "${BATS_TEST_TMPDIR}/yq-bin"
-  printf '#!/bin/sh\nif [ "$1" = "-o=json" ]; then exit 0; fi\nexit 1\n' \
-    > "${BATS_TEST_TMPDIR}/yq-bin/yq"
-  chmod +x "${BATS_TEST_TMPDIR}/yq-bin/yq"
-  bootstrap__yq() {
-    printf '%s\n' "${BATS_TEST_TMPDIR}/yq-bin/yq"
-  }
-  export -f bootstrap__yq
-  _ospkg__ensure_yq
-  assert_equal "${_OSPKG__YQ_BIN}" "${BATS_TEST_TMPDIR}/yq-bin/yq"
-}
 
 # ===========================================================================
 # bootstrap__oras — fast paths (no network)

@@ -9,19 +9,19 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# _shell__ensure_strings bootstrap
+# bootstrap__strings
 # ---------------------------------------------------------------------------
 
-@test "_shell__ensure_strings: returns 0 when strings is present" {
-  run _shell__ensure_strings
+@test "bootstrap__strings: returns 0 when strings is present" {
+  run bootstrap__strings
   assert_success
 }
 
-@test "_shell__ensure_strings: returns 1 when strings is absent and install fails" {
+@test "bootstrap__strings: returns 1 when strings is absent and install fails" {
   ospkg__run() { return 1; }
   export -f ospkg__run
   begin_path_isolation
-  run _shell__ensure_strings
+  run bootstrap__strings
   end_path_isolation
   assert_failure
 }

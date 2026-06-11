@@ -62,28 +62,28 @@ setup() {
   assert_failure
 }
 
-# ── _uri__ensure_sha256sum bootstrap ─────────────────────────────────────────
+# ── bootstrap__sha256sum ──────────────────────────────────────────────────────
 
-@test "_uri__ensure_sha256sum: returns 0 when sha256sum is present" {
-  run _uri__ensure_sha256sum
+@test "bootstrap__sha256sum: returns 0 when sha256sum is present" {
+  run bootstrap__sha256sum
   assert_success
 }
 
-@test "_uri__ensure_sha256sum: returns 0 when only shasum is available" {
+@test "bootstrap__sha256sum: returns 0 when only shasum is available" {
   ospkg__run() { return 1; }
   export -f ospkg__run
   create_fake_bin "shasum" "abc123"
   begin_path_isolation
-  run _uri__ensure_sha256sum
+  run bootstrap__sha256sum
   end_path_isolation
   assert_success
 }
 
-@test "_uri__ensure_sha256sum: returns 1 when no sha256 tool available and install fails" {
+@test "bootstrap__sha256sum: returns 1 when no sha256 tool available and install fails" {
   ospkg__run() { return 1; }
   export -f ospkg__run
   begin_path_isolation
-  run _uri__ensure_sha256sum
+  run bootstrap__sha256sum
   end_path_isolation
   assert_failure
 }

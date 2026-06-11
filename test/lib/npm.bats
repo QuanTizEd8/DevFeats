@@ -379,8 +379,8 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "npm__install_package installs versioned package globally" {
-  _npm__ensure_npm() { return 0; }
-  export -f _npm__ensure_npm
+  bootstrap__npm() { return 0; }
+  export -f bootstrap__npm
   npm() {
     printf '%s\n' "$*"
     return 0
@@ -393,8 +393,8 @@ setup() {
 }
 
 @test "npm__install_package installs without version when omitted" {
-  _npm__ensure_npm() { return 0; }
-  export -f _npm__ensure_npm
+  bootstrap__npm() { return 0; }
+  export -f bootstrap__npm
   npm() {
     printf '%s\n' "$*"
     return 0
@@ -407,8 +407,8 @@ setup() {
 }
 
 @test "npm__install_package passes --prefix to npm" {
-  _npm__ensure_npm() { return 0; }
-  export -f _npm__ensure_npm
+  bootstrap__npm() { return 0; }
+  export -f bootstrap__npm
   npm() {
     printf '%s\n' "$*"
     return 0
@@ -426,8 +426,8 @@ setup() {
 }
 
 @test "npm__install_package fails when npm unavailable" {
-  _npm__ensure_npm() { return 1; }
-  export -f _npm__ensure_npm
+  bootstrap__npm() { return 1; }
+  export -f bootstrap__npm
   run npm__install_package --package "typescript" --version "5.4.5"
   assert_failure
   assert_output --partial "npm is required"
@@ -444,8 +444,8 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "npm__uninstall_package calls npm uninstall globally" {
-  _npm__ensure_npm() { return 0; }
-  export -f _npm__ensure_npm
+  bootstrap__npm() { return 0; }
+  export -f bootstrap__npm
   npm() {
     printf 'npm %s\n' "$*"
   }
@@ -456,8 +456,8 @@ setup() {
 }
 
 @test "npm__uninstall_package passes --prefix to npm" {
-  _npm__ensure_npm() { return 0; }
-  export -f _npm__ensure_npm
+  bootstrap__npm() { return 0; }
+  export -f bootstrap__npm
   npm() {
     printf 'npm %s\n' "$*"
   }

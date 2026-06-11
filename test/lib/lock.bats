@@ -21,12 +21,12 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# _lock__ensure_flock bootstrap
+# bootstrap__flock bootstrap
 # ---------------------------------------------------------------------------
 
-@test "_lock__ensure_flock: returns 0 when flock is present" {
+@test "bootstrap__flock: returns 0 when flock is present" {
   [[ "$(uname)" != "Darwin" ]] || skip "flock is unavailable on macOS"
-  run _lock__ensure_flock
+  run bootstrap__flock
   assert_success
 }
 

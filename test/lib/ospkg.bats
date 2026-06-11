@@ -11,7 +11,7 @@ setup() {
 setup_file() {
   load 'helpers/common'
   OSPKG_JQ_READY=0
-  if bash -c '. "$1" && _json__ensure_jq' _ "${LIB_ROOT}/json.sh" > /dev/null 2>&1; then
+  if bash -c '. "$1/__init__.bash" && bootstrap__jq' _ "${LIB_ROOT}" > /dev/null 2>&1; then
     OSPKG_JQ_READY=1
   fi
   export OSPKG_JQ_READY
@@ -458,35 +458,35 @@ _stub_ospkg_privilege_ok() {
 # ospkg__run — regression: stale yq binary path and silent parse failure
 #
 # Root cause: ospkg__run previously deleted the yq tmpdir inline at the end of
-# every call (rm -rf $_OSPKG__YQ_TMPDIR; _OSPKG__YQ_TMPDIR=; _OSPKG__YQ_BIN=).
-# A second call that reused _OSPKG__YQ_BIN via the early-return guard in
-# _ospkg__ensure_yq would try to execute a non-existent binary.  The failure
+# every call (rm -rf $_OSPKG__YQ_TMPDIR; _OSPKG__YQ_TMPDIR=; _BOOTSTRAP__YQ_BIN=).
+# A second call that reused _BOOTSTRAP__YQ_BIN via the early-return guard in
+# bootstrap__yq would try to execute a non-existent binary.  The failure
 # was silent because the yq+parse block was wrapped in `if ! {}`, which
 # disables set -e.
 # ---------------------------------------------------------------------------
 
 # _seed_apt_context_with_yq — sets up apt context and creates a fake yq binary.
-# Exports a mock _ospkg__ensure_yq that mirrors the real early-return guard.
+# Exports a mock bootstrap__yq that mirrors the real early-return guard.
 _seed_apt_context_with_yq() {
   _seed_apt_context
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
   printf '#!/bin/bash\necho '"'"'{"packages":["regrpkg"]}'"'"'\n' \
     > "${BATS_TEST_TMPDIR}/bin/yq"
   chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
-  # Mock mirrors _ospkg__ensure_yq's real early-return guard so the second call
-  # exercises the early-return code path with the already-set _OSPKG__YQ_BIN.
-  # Note: _OSPKG__YQ_BIN is assigned to a stable path (not inside _FILE__SESSION_ROOT)
+  # Mock mirrors bootstrap__yq's real early-return guard so the second call
+  # exercises the early-return code path with the already-set _BOOTSTRAP__YQ_BIN.
+  # Note: _BOOTSTRAP__YQ_BIN is assigned to a stable path (not inside _FILE__SESSION_ROOT)
   # to avoid command-substitution subshell scoping issues with _FILE__SESSION_ROOT.
-  _ospkg__ensure_yq() {
-    [[ -n "${_OSPKG__YQ_BIN:-}" ]] && return 0
-    _OSPKG__YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
+  bootstrap__yq() {
+    [[ -n "${_BOOTSTRAP__YQ_BIN:-}" ]] && return 0
+    _BOOTSTRAP__YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
     return 0
   }
-  export -f _ospkg__ensure_yq
+  export -f bootstrap__yq
 }
 
 @test "ospkg__run regression: yq binary not deleted after call returns" {
-  # Old code: rm -rf "$_OSPKG__YQ_TMPDIR"; _OSPKG__YQ_BIN= inside ospkg__run.
+  # Old code: rm -rf "$_OSPKG__YQ_TMPDIR"; _BOOTSTRAP__YQ_BIN= inside ospkg__run.
   # Fix: yq dir lives in _FILE__SESSION_ROOT for the process lifetime; ospkg__run
   # never deletes it.
   _require_ospkg_jq
@@ -494,30 +494,30 @@ _seed_apt_context_with_yq() {
 
   ospkg__run --manifest $'packages:\n  - regrpkg\n' --dry_run > /dev/null 2>&1
 
-  # After the call, _OSPKG__YQ_BIN must still be set and the file must exist.
-  [[ -n "${_OSPKG__YQ_BIN:-}" ]] ||
+  # After the call, _BOOTSTRAP__YQ_BIN must still be set and the file must exist.
+  [[ -n "${_BOOTSTRAP__YQ_BIN:-}" ]] ||
     {
-      echo "_OSPKG__YQ_BIN was cleared after ospkg__run"
+      echo "_BOOTSTRAP__YQ_BIN was cleared after ospkg__run"
       return 1
     }
-  [[ -f "$_OSPKG__YQ_BIN" ]] ||
+  [[ -f "$_BOOTSTRAP__YQ_BIN" ]] ||
     {
-      echo "_OSPKG__YQ_BIN no longer points to a file: ${_OSPKG__YQ_BIN}"
+      echo "_BOOTSTRAP__YQ_BIN no longer points to a file: ${_BOOTSTRAP__YQ_BIN}"
       return 1
     }
 }
 
-@test "ospkg__run regression: second call succeeds via _OSPKG__YQ_BIN early-return path" {
-  # Old code: after first call _OSPKG__YQ_BIN was cleared (or set to a deleted
+@test "ospkg__run regression: second call succeeds via _BOOTSTRAP__YQ_BIN early-return path" {
+  # Old code: after first call _BOOTSTRAP__YQ_BIN was cleared (or set to a deleted
   # path) so a second call silently processed no packages.
-  # Fix: _OSPKG__YQ_BIN persists; _ospkg__ensure_yq early-returns and the binary
+  # Fix: _BOOTSTRAP__YQ_BIN persists; bootstrap__yq early-returns and the binary
   # at that path is still valid.
   _require_ospkg_jq
   _seed_apt_context_with_yq
 
   local _log="${BATS_TEST_TMPDIR}/run.log"
 
-  # First call — sets _OSPKG__YQ_BIN via mock.
+  # First call — sets _BOOTSTRAP__YQ_BIN via mock.
   ospkg__run --manifest $'packages:\n  - regrpkg\n' --dry_run > "$_log" 2>&1
   _lib_test__append_pending_journal_to "$_log"
   grep -q "\[dry-run\] packages: regrpkg" "$_log" ||
@@ -527,7 +527,7 @@ _seed_apt_context_with_yq() {
       return 1
     }
 
-  # Second call — _ospkg__ensure_yq early-returns; the binary at _OSPKG__YQ_BIN
+  # Second call — bootstrap__yq early-returns; the binary at _BOOTSTRAP__YQ_BIN
   # must still be accessible.  Old code would have deleted it above.
   : > "$_log"
   ospkg__run --manifest $'packages:\n  - regrpkg\n' --dry_run > "$_log" 2>&1
@@ -548,11 +548,7 @@ _seed_apt_context_with_yq() {
   _require_ospkg_jq
 
   run bash -c "
-    for _m in file.sh logging-api.sh logging.sh os.sh str.sh ver.sh json.sh net.sh verify.sh \
-               lock.sh git.sh users.sh proc.sh graph.sh shell.sh install.sh \
-               ospkg.sh github.sh oci.sh uri.sh; do
-      source \"${LIB_ROOT}/\$_m\"
-    done
+    source \"${LIB_ROOT}/__init__.bash\"
     set -euo pipefail
 
     # Seed a minimal apt context without calling the real package manager.
@@ -567,11 +563,11 @@ _seed_apt_context_with_yq() {
     _OSPKG__OS_RELEASE[version_codename]='jammy'
 
     # A yq stub that always exits non-zero (simulates corrupt binary / bad manifest).
-    _OSPKG__YQ_BIN='${BATS_TEST_TMPDIR}/bin/yq'
+    _BOOTSTRAP__YQ_BIN='${BATS_TEST_TMPDIR}/bin/yq'
     mkdir -p '${BATS_TEST_TMPDIR}/bin'
-    printf '#!/bin/bash\nexit 1\n' > \"\$_OSPKG__YQ_BIN\"
-    chmod +x \"\$_OSPKG__YQ_BIN\"
-    _ospkg__ensure_yq() { return 0; }
+    printf '#!/bin/bash\nexit 1\n' > \"\$_BOOTSTRAP__YQ_BIN\"
+    chmod +x \"\$_BOOTSTRAP__YQ_BIN\"
+    bootstrap__yq() { return 0; }
 
     ospkg__run --manifest \$'packages:\n  - curl\n' --dry_run
   "
@@ -582,11 +578,7 @@ _seed_apt_context_with_yq() {
   _require_ospkg_jq
 
   run bash -c "
-    for _m in file.sh logging-api.sh logging.sh os.sh str.sh ver.sh json.sh net.sh verify.sh \
-               lock.sh git.sh users.sh proc.sh graph.sh shell.sh install.sh \
-               ospkg.sh github.sh oci.sh uri.sh; do
-      source \"${LIB_ROOT}/\$_m\"
-    done
+    source \"${LIB_ROOT}/__init__.bash\"
     set -euo pipefail
 
     _OSPKG__DETECTED=true
@@ -600,16 +592,16 @@ _seed_apt_context_with_yq() {
     _OSPKG__OS_RELEASE[version_codename]='jammy'
 
     # yq returns valid JSON; parser failure is injected directly.
-    _OSPKG__YQ_BIN='${BATS_TEST_TMPDIR}/bin/yq'
+    _BOOTSTRAP__YQ_BIN='${BATS_TEST_TMPDIR}/bin/yq'
     mkdir -p '${BATS_TEST_TMPDIR}/bin'
-    cat > \"\$_OSPKG__YQ_BIN\" <<'YQ'
+    cat > \"\$_BOOTSTRAP__YQ_BIN\" <<'YQ'
 #!/bin/bash
 cat <<'JSON'
 {\"packages\":[\"curl\"]}
 JSON
 YQ
-    chmod +x \"\$_OSPKG__YQ_BIN\"
-    _ospkg__ensure_yq() { return 0; }
+    chmod +x \"\$_BOOTSTRAP__YQ_BIN\"
+    bootstrap__yq() { return 0; }
     ospkg__parse_manifest_yaml() { return 42; }
 
     ospkg__run --manifest \$'packages:\n  - curl\n' --dry_run
@@ -1370,8 +1362,8 @@ _seed_managed_context() {
     _OSPKG__OS_RELEASE[arch]="arm64"
     return 0
   }
-  _ospkg__ensure_yq() {
-    _OSPKG__YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
+  bootstrap__yq() {
+    _BOOTSTRAP__YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
     return 0
   }
 

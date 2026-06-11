@@ -160,6 +160,9 @@ printf 'alice:x:1000:1000::/home/alice:/bin/bash\n'
 EOF
   chmod +x "${BATS_TEST_TMPDIR}/bin/getent"
   prepend_fake_bin_path
+  # Stub file__append_privileged: prevents permission-denied when registering
+  # the shell in /etc/shells (test runs as non-root without write access).
+  file__append_privileged() { return 0; }
   run users__set_login_shell "/usr/bin/zsh" "alice"
   assert_success
   assert_output --partial "set to '/usr/bin/zsh'"
@@ -479,20 +482,20 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# _users__ensure_getent
+# bootstrap__getent
 # ---------------------------------------------------------------------------
 
-@test "_users__ensure_getent: returns 0 when getent is present" {
+@test "bootstrap__getent: returns 0 when getent is present" {
   [[ "$(uname)" != "Darwin" ]] || skip "getent is unavailable on macOS"
-  run _users__ensure_getent
+  run bootstrap__getent
   assert_success
 }
 
-@test "_users__ensure_getent: returns 1 when getent is absent and install fails" {
+@test "bootstrap__getent: returns 1 when getent is absent and install fails" {
   ospkg__run() { return 1; }
   export -f ospkg__run
   begin_path_isolation mktemp
-  run --separate-stderr _users__ensure_getent
+  run --separate-stderr bootstrap__getent
   end_path_isolation
   assert_failure
 }
@@ -583,8 +586,8 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "users__resolve_home: returns _REMOTE_USER_HOME from devcontainer vars" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   _REMOTE_USER=alice _CONTAINER_USER=bob \
     _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
     run --separate-stderr users__resolve_home "alice"
@@ -593,8 +596,8 @@ EOF
 }
 
 @test "users__resolve_home: returns _CONTAINER_USER_HOME from devcontainer vars" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   _REMOTE_USER=alice _CONTAINER_USER=bob \
     _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
     run --separate-stderr users__resolve_home "bob"
@@ -603,9 +606,9 @@ EOF
 }
 
 @test "users__resolve_home: devcontainer UID fallback resolves via users__username_of_uid" {
-  _users__ensure_getent() { return 1; }
+  bootstrap__getent() { return 1; }
   users__username_of_uid() { printf 'alice\n'; }
-  export -f _users__ensure_getent users__username_of_uid
+  export -f bootstrap__getent users__username_of_uid
   _REMOTE_USER=alice _CONTAINER_USER=bob \
     _REMOTE_USER_HOME=/home/alice _CONTAINER_USER_HOME=/home/bob \
     run --separate-stderr users__resolve_home --uid 1001
@@ -786,35 +789,35 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# _users__ensure_shadowutils
+# bootstrap__shadow_utils
 # ---------------------------------------------------------------------------
 
-@test "_users__ensure_shadowutils: returns 0 immediately when groupadd is already on PATH" {
+@test "bootstrap__shadow_utils: returns 0 immediately when groupadd is already on PATH" {
   ospkg__run() { return 1; }
   export -f ospkg__run
   create_fake_bin "groupadd"
   prepend_fake_bin_path
-  run --separate-stderr _users__ensure_shadowutils
+  run --separate-stderr bootstrap__shadow_utils
   assert_success
 }
 
-@test "_users__ensure_shadowutils: installs shadow-utils and returns 0 when groupadd is absent then installed" {
+@test "bootstrap__shadow_utils: installs shadow-utils and returns 0 when groupadd is absent then installed" {
   ospkg__run() {
     printf '#!/bin/sh\n' > "${BATS_TEST_TMPDIR}/bin/groupadd"
     chmod +x "${BATS_TEST_TMPDIR}/bin/groupadd"
   }
   export -f ospkg__run
   begin_path_isolation mktemp chmod
-  run --separate-stderr _users__ensure_shadowutils
+  run --separate-stderr bootstrap__shadow_utils
   end_path_isolation
   assert_success
 }
 
-@test "_users__ensure_shadowutils: logs warning and returns 1 when groupadd remains absent after install attempt" {
+@test "bootstrap__shadow_utils: logs warning and returns 1 when groupadd remains absent after install attempt" {
   ospkg__run() { return 1; }
   export -f ospkg__run
   begin_path_isolation mktemp
-  run _users__ensure_shadowutils
+  run bootstrap__shadow_utils
   end_path_isolation
   assert_failure
   assert_output --partial "shadow-utils"
@@ -838,8 +841,8 @@ EOF
 }
 
 @test "users__gid_of_group: falls back to /etc/group awk scan when getent is absent" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   _real_group="$(id -gn)"
   _real_gid="$(id -g)"
   run users__gid_of_group "$_real_group"
@@ -848,8 +851,8 @@ EOF
 }
 
 @test "users__gid_of_group: returns 1 for non-existent group" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   run users__gid_of_group "___no_such_group_xyz___"
   assert_failure
 }
@@ -872,8 +875,8 @@ EOF
 }
 
 @test "users__group_of_gid: falls back to /etc/group awk scan when getent is absent" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   _real_gid="$(id -g)"
   _real_group="$(id -gn)"
   run users__group_of_gid "$_real_gid"
@@ -882,8 +885,8 @@ EOF
 }
 
 @test "users__group_of_gid: returns 1 for non-existent GID" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   run users__group_of_gid "99999999"
   assert_failure
 }
@@ -935,24 +938,24 @@ EOF
 }
 
 @test "users__group_exists: awk fallback — returns 0 for real group name on this host" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   _real_group="$(id -gn)"
   run users__group_exists "$_real_group"
   assert_success
 }
 
 @test "users__group_exists: awk fallback — returns 0 for real GID on this host" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   _real_gid="$(id -g)"
   run users__group_exists "$_real_gid"
   assert_success
 }
 
 @test "users__group_exists: awk fallback — returns 1 for non-existent group" {
-  _users__ensure_getent() { return 1; }
-  export -f _users__ensure_getent
+  bootstrap__getent() { return 1; }
+  export -f bootstrap__getent
   run users__group_exists "___no_such_group_xyz___"
   assert_failure
 }
@@ -962,9 +965,9 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "users__create_group: invokes groupadd with --gid when specified" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__create_group "devs" --gid "1234"
   assert_success
   assert_output "groupadd
@@ -974,9 +977,9 @@ devs"
 }
 
 @test "users__create_group: invokes groupadd without --gid when omitted" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__create_group "devs"
   assert_success
   assert_output "groupadd
@@ -984,8 +987,8 @@ devs"
 }
 
 @test "users__create_group: returns 1 when shadow-utils cannot be installed" {
-  _users__ensure_shadowutils() { return 1; }
-  export -f _users__ensure_shadowutils
+  bootstrap__shadow_utils() { return 1; }
+  export -f bootstrap__shadow_utils
   run users__create_group "devs" --gid "1234"
   assert_failure
 }
@@ -995,9 +998,9 @@ devs"
 # ---------------------------------------------------------------------------
 
 @test "users__delete_group: invokes groupdel with the given group name" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__delete_group "oldgroup"
   assert_success
   assert_output "groupdel
@@ -1005,17 +1008,17 @@ oldgroup"
 }
 
 @test "users__delete_group: logs error and returns 1 when groupdel fails" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { return 1; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__delete_group "badgroup"
   assert_failure
   assert_output --partial "Failed to delete group 'badgroup'"
 }
 
 @test "users__delete_group: returns 1 when shadow-utils cannot be installed" {
-  _users__ensure_shadowutils() { return 1; }
-  export -f _users__ensure_shadowutils
+  bootstrap__shadow_utils() { return 1; }
+  export -f bootstrap__shadow_utils
   run users__delete_group "oldgroup"
   assert_failure
 }
@@ -1025,9 +1028,9 @@ oldgroup"
 # ---------------------------------------------------------------------------
 
 @test "users__delete_user: invokes userdel with the given username" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__delete_user "alice"
   assert_success
   assert_output "userdel
@@ -1035,17 +1038,17 @@ alice"
 }
 
 @test "users__delete_user: logs error and returns 1 when userdel fails" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { return 1; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__delete_user "alice"
   assert_failure
   assert_output --partial "Failed to delete user 'alice'"
 }
 
 @test "users__delete_user: returns 1 when shadow-utils cannot be installed" {
-  _users__ensure_shadowutils() { return 1; }
-  export -f _users__ensure_shadowutils
+  bootstrap__shadow_utils() { return 1; }
+  export -f bootstrap__shadow_utils
   run users__delete_user "alice"
   assert_failure
 }
@@ -1055,9 +1058,9 @@ alice"
 # ---------------------------------------------------------------------------
 
 @test "users__create_user: invokes useradd with all flags in correct order" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__create_user "alice" --no-create-home --home "/home/alice" --gid "1000" --shell "/bin/bash" --uid "1001"
   assert_success
   assert_output "useradd
@@ -1074,9 +1077,9 @@ alice"
 }
 
 @test "users__create_user: maps --home flag to --home-dir in the useradd command" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__create_user "bob" --home "/home/bob"
   assert_success
   assert_output "useradd
@@ -1086,9 +1089,9 @@ bob"
 }
 
 @test "users__create_user: invokes useradd with name only when no flags are given" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__create_user "charlie"
   assert_success
   assert_output "useradd
@@ -1096,9 +1099,9 @@ charlie"
 }
 
 @test "users__create_user: omits --no-create-home from useradd when flag is not given" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__create_user "charlie" --uid "500"
   assert_success
   assert_output "useradd
@@ -1108,8 +1111,8 @@ charlie"
 }
 
 @test "users__create_user: returns 1 when shadow-utils cannot be installed" {
-  _users__ensure_shadowutils() { return 1; }
-  export -f _users__ensure_shadowutils
+  bootstrap__shadow_utils() { return 1; }
+  export -f bootstrap__shadow_utils
   run users__create_user "alice" --uid "1001"
   assert_failure
 }
@@ -1119,9 +1122,9 @@ charlie"
 # ---------------------------------------------------------------------------
 
 @test "users__add_to_group: invokes usermod -aG with group before user" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { printf '%s\n' "$@"; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__add_to_group "alice" "devs"
   assert_success
   assert_output "usermod
@@ -1131,17 +1134,17 @@ alice"
 }
 
 @test "users__add_to_group: logs warning and returns 1 when usermod fails" {
-  _users__ensure_shadowutils() { return 0; }
+  bootstrap__shadow_utils() { return 0; }
   users__run_privileged() { return 1; }
-  export -f _users__ensure_shadowutils users__run_privileged
+  export -f bootstrap__shadow_utils users__run_privileged
   run users__add_to_group "alice" "devs"
   assert_failure
   assert_output --partial "Failed to add 'alice' to group 'devs'"
 }
 
 @test "users__add_to_group: returns 1 when shadow-utils cannot be installed" {
-  _users__ensure_shadowutils() { return 1; }
-  export -f _users__ensure_shadowutils
+  bootstrap__shadow_utils() { return 1; }
+  export -f bootstrap__shadow_utils
   run users__add_to_group "alice" "devs"
   assert_failure
 }

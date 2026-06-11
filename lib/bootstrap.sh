@@ -272,7 +272,8 @@ bootstrap__gzip() {
 bootstrap__tar() {
   # @brief bootstrap__tar — Ensure tar is on PATH, installing via ospkg if absent.
   # Returns: 0 on success, 1 if tar cannot be installed.
-  _bootstrap__tool --cmd tar --pkg tar --group "lib-bootstrap"
+  _bootstrap__tool --cmd tar --pkg tar --group "lib-bootstrap" \
+    --msg "tar is required to extract .tar archives but could not be installed."
 }
 
 _bootstrap__yq_compatible() {
