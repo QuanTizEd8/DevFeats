@@ -50,6 +50,7 @@ Man other general tools available as well (e.g. `curl`, `git`, `gh`, `jq`, `yq`,
 - Never assume you know how something works without verifying it by experiments; every answer must be backed by empirical reproducible evidence and trusted sources. Always test and verify your assumptions with experiments, and consult trusted documentation and sources to confirm your understanding.
 - When unsure about something in the project, always first refer to the documentation (see References below), then refer to the source code with the understanding gained from the documentation. In case of any confusion or uncertainty, always ask for clarification rather than making assumptions.
 - Never provide an answer or solution without fully understanding the problem and the context; if you are unsure about anything even a little bit, always gather more information, research online, perform experiments, and ask for clarification until you have a complete and thorough understanding.
+- If in the middle of implementation you hit a problem that cannot be resolved without changing the agreed-upon plan, always stop, explain the issue in full detail, explain the available options for resolving it (with pros and cons), and ask for guidance on how to proceed; never just make a decision on your own without consulting first.
 
 ## Guidelines
 
