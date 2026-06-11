@@ -248,11 +248,15 @@ _gh_err_summary() {
 }
 
 # True when a retry may help (empty body, server/rate errors, HTML blob).
+# Do not treat '<' inside JSON values (e.g. Co-Authored-By: <email> in head_commit)
+# as an HTML error page.
 # ---------------------------------------------------------------------------
 _gh_should_retry() {
   local _ec="$1" _body="$2"
   [[ "${_ec}" -ne 0 && -z "${_body}" ]] && return 0
-  [[ "${_body}" == *'<'* ]] && return 0
+  if [[ "${_body}" != '{'* && "${_body}" != '['* ]]; then
+    [[ "${_body}" == *'<'* ]] && return 0
+  fi
   jq -e '
     (.message? // "")
     | test("Server Error|API rate limit exceeded|Bad Gateway|timed out|timeout"; "i")
