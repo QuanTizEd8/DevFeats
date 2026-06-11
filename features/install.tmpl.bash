@@ -632,10 +632,11 @@ __cleanup_install_artifacts__() {
       local _act_home_arg=""
       [ "${PREFIX_SCOPE:-}" = "user" ] && \
         _act_home_arg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
-      shell__remove_activation_snippets \
+      shell__sync_config \
         --scope "${PREFIX_SCOPE:-system}" \
         ${_act_home_arg:+--home "${_act_home_arg}"} \
-        "prefix activation (${_FEAT_ID})" "${_FEAT_ACTIVATION_PROFILE_D_FILE}" \
+        --marker "prefix activation (${_FEAT_ID})" \
+        --profile-d "${_FEAT_ACTIVATION_PROFILE_D_FILE}" \
         "${PREFIX_ACTIVATIONS[@]}"
     fi
   else
@@ -1186,7 +1187,7 @@ _git_clone_apply_config() {
   local _pair _val
   for _pair in "${GIT_CLONE_CONFIG[@]}"; do
     _val="${_pair#*=}"
-    _val="${_val//\{VERSION\}/${_ver}}"
+    _val="$(str__substitute_tokens "${_val}" "VERSION=${_ver}")"
     [[ -n "${_val}" ]] || {
       logging__warn "skipping config key '${_pair%%=*}' — value is empty after VERSION substitution."
       continue
@@ -1338,18 +1339,44 @@ __feat_build_prefix_disc_args__() {
   )
   [[ -v PREFIX_BINS ]] && _fpda_out+=(--bins "${PREFIX_BINS[*]}")
   # declare -p correctly detects declared-but-empty arrays; [[ -v arr ]] does not
-  # (it checks arr[0], returning false for empty arrays).
-  { declare -p PREFIX_SYMLINKS &>/dev/null; } && _fpda_out+=(
+  # (it checks arr[0], returning false for empty arrays). Bare declare-p (without
+  # brace group) must be used in && / || chains: ERR trap fires for commands
+  # inside { ... } even when the group is in a conditional position.
+  declare -p PREFIX_SYMLINKS &>/dev/null && _fpda_out+=(
     --symlinks-ref "PREFIX_SYMLINKS"
     --symlink-root "${PREFIX_SYMLINK_ROOT}"
     --symlink-nonroot "${PREFIX_SYMLINK_NONROOT}"
   )
-  { declare -p PREFIX_EXPORTS &>/dev/null; } && _fpda_out+=(
+  declare -p PREFIX_EXPORTS &>/dev/null && _fpda_out+=(
     --exports-ref "PREFIX_EXPORTS"
     --profile-d "${_FEAT_PROFILE_D_FILE}"
   )
-  { declare -p PREFIX_SYMLINKS &>/dev/null; } || _fpda_out+=(--no-symlinks)
-  { declare -p PREFIX_EXPORTS &>/dev/null; } || _fpda_out+=(--no-exports)
+  declare -p PREFIX_SYMLINKS &>/dev/null || _fpda_out+=(--no-symlinks)
+  declare -p PREFIX_EXPORTS &>/dev/null || _fpda_out+=(--no-exports)
+  # Per-shell discovery snippets: user-provided option takes priority, then
+  # feature hook __prefix_discovery_snippet__ (if defined), then generic PATH.
+  # Use 'if' for the outer guard so the function always exits 0 even when
+  # PREFIX_EXPORTS is not declared (a &&-chain guard would propagate exit 1).
+  if declare -p PREFIX_EXPORTS &>/dev/null; then
+    local _fpda_shells=(bash zsh fish tcsh elvish)
+    local _fpda_shell
+    for _fpda_shell in "${_fpda_shells[@]}"; do
+      local _fpda_snippet=""
+      local _fpda_var="PREFIX_DISCOVERY_SNIPPET_${_fpda_shell^^}"
+      if declare -p "$_fpda_var" &>/dev/null && [[ -n "${!_fpda_var}" ]]; then
+        _fpda_snippet="$(str__substitute_tokens "${!_fpda_var}" \
+          "PREFIX=${_RESOLVED_PREFIX}" \
+          "OS=$(os__kernel)" \
+          "ARCH=$(os__arch)")"
+      fi
+      if [[ -z "$_fpda_snippet" ]] && declare -f __prefix_discovery_snippet__ > /dev/null; then
+        _fpda_snippet="$(__prefix_discovery_snippet__ "$_fpda_shell")" || true
+      fi
+      if [[ -n "$_fpda_snippet" ]]; then
+        _fpda_out+=("--${_fpda_shell}-snippet" "$_fpda_snippet")
+      fi
+    done
+  fi
 }
 
 __install_finish__() {
@@ -1371,12 +1398,25 @@ __install_finish__() {
       local _act_home_arg=""
       [ "${PREFIX_SCOPE}" = "user" ] && \
         _act_home_arg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
-      shell__write_activation_snippets \
+      local -a _act_args=()
+      local _asnip_shell
+      for _asnip_shell in "${PREFIX_ACTIVATIONS[@]}"; do
+        [ -z "$_asnip_shell" ] && continue
+        if declare -f __prefix_activation_snippet > /dev/null; then
+          local _asnip_content _asnip_rc
+          _asnip_content="$(__prefix_activation_snippet "$_asnip_shell")" && _asnip_rc=0 || _asnip_rc=$?
+          [ -z "$_asnip_content" ] && continue
+          _act_args+=("--${_asnip_shell}-content" "$_asnip_content")
+          if [ "$_asnip_rc" -eq 0 ]; then _act_args+=("--${_asnip_shell}-everywhere"); fi
+        fi
+      done
+      [ "${#_act_args[@]}" -gt 0 ] && shell__sync_config \
         --scope "${PREFIX_SCOPE}" \
         ${_act_home_arg:+--home "${_act_home_arg}"} \
-        "prefix activation (${_FEAT_ID})" "${_FEAT_ACTIVATION_PROFILE_D_FILE}" "__prefix_activation_snippet" \
-        "${PREFIX_ACTIVATIONS[@]}"
-      unset _act_home_arg
+        --marker "prefix activation (${_FEAT_ID})" \
+        --profile-d "${_FEAT_ACTIVATION_PROFILE_D_FILE}" \
+        "${_act_args[@]}"
+      unset _act_home_arg _act_args _asnip_shell
     }
 
     # -- write_group --

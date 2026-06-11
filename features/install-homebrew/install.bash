@@ -59,12 +59,6 @@ uninstall_brew() {
   return 0
 }
 
-# shellcheck disable=SC2329,SC2317
-__prefix_activation_snippet() {
-  echo "eval \"\$(\"${_RESOLVED_PREFIX}/bin/brew\" shellenv)\""
-  return 0
-}
-
 # ── Helper functions ──────────────────────────────────────────────────────────
 
 # Returns the path to the Homebrew/brew git repository — distinct from the

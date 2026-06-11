@@ -220,24 +220,36 @@ _export_git_manpath() {
       return 0
       ;;
   esac
-  local _manpath_export_opt
-  if [[ "${#PREFIX_EXPORTS[@]}" -eq 0 ]]; then
-    _manpath_export_opt="auto"
-  else
-    _manpath_export_opt="$(printf '%s\n' "${PREFIX_EXPORTS[@]}")"
-  fi
   if [[ "${_RESOLVED_PREFIX}" == "/usr/local" || "${_RESOLVED_PREFIX}" == "$(users__resolve_home)/.local" ]]; then
     logging__skip "Standard prefix '${_RESOLVED_PREFIX}'; skipping git MANPATH export."
     return 0
   fi
   logging__install "Writing git MANPATH export for '${_RESOLVED_PREFIX}/share/man'."
-  shell__write_env_block \
-    --scope "$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)" \
-    --home "$(users__home_of_path_owner "${_RESOLVED_PREFIX}")" \
-    --opt "${_manpath_export_opt}" \
-    --profile-d "${_FEAT_PROFILE_D_FILE}" \
+  local _scope _home _manpath_dir
+  _scope="$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)"
+  _home="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
+  _manpath_dir="${_RESOLVED_PREFIX}/share/man"
+  local -a _shells=()
+  if [[ "${#PREFIX_EXPORTS[@]}" -gt 0 ]]; then
+    _shells=("${PREFIX_EXPORTS[@]}")
+  else
+    mapfile -t _shells < <(shell__detect_installed_shells)
+  fi
+  local -a _sc_args=()
+  local _sh
+  for _sh in "${_shells[@]}"; do
+    case "$_sh" in
+      bash | zsh) _sc_args+=("--${_sh}-content" "export MANPATH=\"${_manpath_dir}:\${MANPATH}\"" "--${_sh}-everywhere") ;;
+      fish) _sc_args+=("--fish-content" "set -gx MANPATH \"${_manpath_dir}\" \$MANPATH" "--fish-everywhere") ;;
+      tcsh) _sc_args+=("--tcsh-content" "setenv MANPATH \"${_manpath_dir}:\${MANPATH}\"" "--tcsh-everywhere") ;;
+    esac
+  done
+  [[ "${#_sc_args[@]}" -gt 0 ]] && shell__sync_config \
     --marker "git MANPATH (install-git)" \
-    --content "export MANPATH=\"${_RESOLVED_PREFIX}/share/man:\${MANPATH}\""
+    --scope "${_scope}" \
+    --home "${_home}" \
+    --profile-d "${_FEAT_PROFILE_D_FILE}" \
+    "${_sc_args[@]}"
 }
 
 # ── Per-user configuration ─────────────────────────────────────────────────
@@ -288,16 +300,14 @@ __install_finish_post() {
 # shellcheck disable=SC2329,SC2317
 __uninstall_finish_post() {
   # 1. Remove MANPATH export block written by _export_git_manpath.
-  local _scope _export_files
+  local _scope
   _scope="$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)"
-  if [[ "${#PREFIX_EXPORTS[@]}" -gt 0 ]]; then
-    _export_files="$(printf '%s\n' "${PREFIX_EXPORTS[@]}")"
-  elif [[ "$_scope" = "system" ]]; then
-    _export_files="$(shell__system_path_files --profile_d "${_FEAT_PROFILE_D_FILE}")"
-  else
-    _export_files="$(shell__user_path_files --home "$(users__home_of_path_owner "${_RESOLVED_PREFIX}")")"
-  fi
-  shell__sync_block --files "${_export_files}" --marker "git MANPATH (install-git)"
+  shell__sync_config \
+    --scope "${_scope}" \
+    --home "$(users__home_of_path_owner "${_RESOLVED_PREFIX}")" \
+    --marker "git MANPATH (install-git)" \
+    --profile-d "${_FEAT_PROFILE_D_FILE}" \
+    bash zsh fish tcsh elvish
 
   # 2. Remove system gitconfig block written by _git__write_system_gitconfig.
   local _cfg

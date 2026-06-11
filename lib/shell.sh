@@ -75,6 +75,29 @@ shell__detect_zshdir() {
   return 0
 }
 
+shell__detect_installed_shells() {
+  # @brief shell__detect_installed_shells — Print the names of shells that appear to be installed on this system.
+  #
+  # A shell is considered present if its binary is on PATH or any well-known
+  # system config file for it exists. Always emits at least `bash` (the
+  # running interpreter).
+  #
+  # Stdout: one shell name per line (bash, zsh, fish, tcsh, elvish).
+  local -a _dsh_shells=(bash)
+  local _zshdir
+  _zshdir="$(shell__detect_zshdir)"
+  if command -v zsh > /dev/null 2>&1 || [ -f "${_zshdir}/zshenv" ] || [ -f "${_zshdir}/zshrc" ]; then
+    _dsh_shells+=(zsh)
+  fi
+  if command -v fish > /dev/null 2>&1 || [ -d "/etc/fish" ]; then
+    _dsh_shells+=(fish)
+  fi
+  command -v tcsh > /dev/null 2>&1 && _dsh_shells+=(tcsh) || true
+  command -v elvish > /dev/null 2>&1 && _dsh_shells+=(elvish) || true
+  printf '%s\n' "${_dsh_shells[@]}"
+  return 0
+}
+
 shell__write_block() {
   # @brief shell__write_block --file <f> --marker <id> --content <c> — Idempotently write a named `# >>> <id> >>>` … `# <<< <id> <<<` block to a file. Creates the file if needed.
   #
@@ -1005,43 +1028,99 @@ shell__create_symlink() {
   return 0
 }
 
-shell__write_activation_snippets() {
-  # @brief shell__write_activation_snippets [--scope system|user] [--home <dir>] <marker> <profile_d_name> <snippet_func> [<shell>...] — Write activation snippets for each shell to the appropriate init files.
+shell__sync_config() {
+  # @brief shell__sync_config [--scope system|user] [--home <dir>] --marker <id> --profile-d <name> [--<shell>-content <text> [--<shell>-everywhere]]... [<shell>...] — Write or remove idempotent marker blocks across shell startup files.
   #
-  # Routes snippets based on scope (system vs user), shell, and the snippet
-  # function's exit code (0 = all contexts; 1 = interactive-only).
+  # Write mode: pass --<shell>-content for each shell to write. --<shell>-everywhere
+  # additionally writes to non-interactive startup files (profile.d + BASH_ENV for bash,
+  # zshenv for zsh, /etc/csh.login for tcsh). Without it, only the RC file is written.
   #
-  # Supported shells: bash, zsh, fish, tcsh, elvish.
+  # Remove mode: list shells as positional args (without --<shell>-content). The marker
+  # block is removed from ALL possible file locations for each shell — safe because
+  # shell__sync_block is a no-op when the marker is absent.
   #
-  # Shell notes:
-  #   fish   — no login/interactive distinction; system writes to /etc/fish/conf.d/,
-  #             user writes to ~/.config/fish/config.fish; _everywhere ignored.
-  #   tcsh   — system: /etc/csh.cshrc (+ /etc/csh.login when _everywhere=0);
-  #             user: ~/.tcshrc if it exists, else ~/.cshrc (+ ~/.login when _everywhere=0).
-  #   elvish — no system-wide config path; system scope iterates all resolved users and
-  #             writes to each user's ~/.config/elvish/rc.elv; _everywhere ignored.
+  # Supported shells: bash, zsh, fish, tcsh, elvish. fish and elvish have no
+  # everywhere/interactive distinction; --fish-everywhere and --elvish-everywhere are ignored.
   #
   # Args:
-  #   --scope system|user  Explicit scope override. When omitted, falls back to
-  #                        users__is_root (system if root, user otherwise).
-  #   --home <dir>         Home directory for user-scoped writes (default: $HOME).
-  #   <marker>             Idempotency marker passed to shell__sync_block.
-  #   <profile_d_name>     Basename for the /etc/profile.d/ file (system+bash+everywhere only).
-  #                        Also used (with .sh stripped and .fish appended) for /etc/fish/conf.d/.
-  #   <snippet_func>       Name of the function to call as `"$snippet_func" "$shell"`.
-  #                        stdout: snippet content; exit 0 = all contexts; exit 1 = interactive-only.
-  #   [<shell>...]         Shell names to iterate over (bash, zsh, fish, tcsh, elvish, ...).
-  local _scope="" _home="${HOME:-}"
+  #   --marker <id>           Idempotency marker passed to shell__sync_block.
+  #   --profile-d <name>      Basename for /etc/profile.d/ (bash system everywhere) and
+  #                           /etc/fish/conf.d/ (fish system, .sh suffix replaced with .fish).
+  #   --scope system|user     Scope override (default: system when root, user otherwise).
+  #   --home <dir>            Home directory for user-scoped writes (default: $HOME).
+  #   --bash-content <text>   Content to write to bash startup files.
+  #   --bash-everywhere       Write to non-interactive bash files (profile.d, BASH_ENV).
+  #   --zsh-content <text>    Content to write to zsh startup files.
+  #   --zsh-everywhere        Write to non-interactive zsh files (zshenv).
+  #   --fish-content <text>   Content to write to fish startup files.
+  #   --tcsh-content <text>   Content to write to tcsh startup files.
+  #   --tcsh-everywhere       Write to /etc/csh.login in addition to /etc/csh.cshrc.
+  #   --elvish-content <text> Content to write to elvish startup files.
+  #   [<shell>...]            Positional: shells to remove (all locations).
+  local _sc_marker="" _sc_profile_d="" _sc_scope="" _sc_home="${HOME:-}"
+  local _sc_bash_content="" _sc_bash_everywhere=false
+  local _sc_zsh_content="" _sc_zsh_everywhere=false
+  local _sc_fish_content=""
+  local _sc_tcsh_content="" _sc_tcsh_everywhere=false
+  local _sc_elvish_content=""
+  local -a _sc_remove=()
   while [[ $# -gt 0 ]]; do
     case $1 in
+      --marker)
+        shift
+        _sc_marker="$1"
+        shift
+        ;;
+      --profile-d)
+        shift
+        _sc_profile_d="$1"
+        shift
+        ;;
       --scope)
         shift
-        _scope="$1"
+        _sc_scope="$1"
         shift
         ;;
       --home)
         shift
-        _home="$1"
+        _sc_home="$1"
+        shift
+        ;;
+      --bash-content)
+        shift
+        _sc_bash_content="$1"
+        shift
+        ;;
+      --bash-everywhere)
+        _sc_bash_everywhere=true
+        shift
+        ;;
+      --zsh-content)
+        shift
+        _sc_zsh_content="$1"
+        shift
+        ;;
+      --zsh-everywhere)
+        _sc_zsh_everywhere=true
+        shift
+        ;;
+      --fish-content)
+        shift
+        _sc_fish_content="$1"
+        shift
+        ;;
+      --tcsh-content)
+        shift
+        _sc_tcsh_content="$1"
+        shift
+        ;;
+      --tcsh-everywhere)
+        _sc_tcsh_everywhere=true
+        shift
+        ;;
+      --elvish-content)
+        shift
+        _sc_elvish_content="$1"
         shift
         ;;
       --)
@@ -1050,127 +1129,189 @@ shell__write_activation_snippets() {
         ;;
       --*)
         shift
+        [ $# -gt 0 ] && shift || true
+        ;;
+      *)
+        _sc_remove+=("$1")
         shift
         ;;
-      *) break ;;
     esac
   done
-  local _marker="$1" _profile_d_name="$2" _snippet_func="$3"
-  shift 3
-  local _shell _snippet _everywhere _files
-  local _is_system=false
-  if [[ "$_scope" = "system" ]] || { [[ -z "$_scope" ]] && users__is_root; }; then
-    _is_system=true
+  _sc_remove+=("$@")
+  local _sc_is_system=false
+  if [[ "$_sc_scope" = "system" ]] || { [[ -z "$_sc_scope" ]] && users__is_root; }; then
+    _sc_is_system=true
   fi
-  if ! declare -f "$_snippet_func" > /dev/null; then
-    logging__error "snippet function '${_snippet_func}' is not defined."
-    return 1
-  fi
-  for _shell in "$@"; do
-    [ -z "$_shell" ] && continue
-    if _snippet="$("$_snippet_func" "$_shell")"; then
-      _everywhere=0
-    else
-      _everywhere=$?
-    fi
-    [ -z "$_snippet" ] && continue
-    if "$_is_system"; then
-      if [ "$_everywhere" -eq 0 ]; then
-        case "$_shell" in
+
+  # ── Write mode ────────────────────────────────────────────────────────────────
+  local _sc_shell _sc_content _sc_everywhere _sc_files
+  for _sc_shell in bash zsh fish tcsh elvish; do
+    case "$_sc_shell" in
+      bash)
+        _sc_content="$_sc_bash_content"
+        _sc_everywhere="$_sc_bash_everywhere"
+        ;;
+      zsh)
+        _sc_content="$_sc_zsh_content"
+        _sc_everywhere="$_sc_zsh_everywhere"
+        ;;
+      fish)
+        _sc_content="$_sc_fish_content"
+        _sc_everywhere=false
+        ;;
+      tcsh)
+        _sc_content="$_sc_tcsh_content"
+        _sc_everywhere="$_sc_tcsh_everywhere"
+        ;;
+      elvish)
+        _sc_content="$_sc_elvish_content"
+        _sc_everywhere=false
+        ;;
+      *) continue ;;
+    esac
+    [[ -z "$_sc_content" ]] && continue
+    _sc_files=""
+    if "$_sc_is_system"; then
+      if "$_sc_everywhere"; then
+        case "$_sc_shell" in
           bash)
-            local _benv
-            _benv="$(shell__ensure_bashenv)"
-            shell__sync_block --files "/etc/profile.d/$_profile_d_name"$'\n'"$_benv" \
-              --marker "$_marker" --content "$_snippet"
-            _files="$(shell__detect_bashrc)"
+            local _sc_benv
+            _sc_benv="$(shell__ensure_bashenv)"
+            shell__sync_block \
+              --files "/etc/profile.d/${_sc_profile_d}"$'\n'"${_sc_benv}" \
+              --marker "$_sc_marker" --content "$_sc_content"
+            _sc_files="$(shell__detect_bashrc)"
             ;;
-          zsh) _files="$(shell__detect_zshdir)/zshenv" ;;
-          fish) _files="/etc/fish/conf.d/${_profile_d_name%.sh}.fish" ;;
+          zsh) _sc_files="$(shell__detect_zshdir)/zshenv" ;;
+          fish) _sc_files="/etc/fish/conf.d/${_sc_profile_d%.sh}.fish" ;;
           tcsh)
-            shell__sync_block --files "/etc/csh.login" --marker "$_marker" --content "$_snippet"
-            _files="/etc/csh.cshrc"
+            shell__sync_block --files "/etc/csh.login" \
+              --marker "$_sc_marker" --content "$_sc_content"
+            _sc_files="/etc/csh.cshrc"
             ;;
-          elvish)
-            local -a _elv_users=()
-            mapfile -t _elv_users < <(users__resolve_list)
-            local _eu
-            for _eu in "${_elv_users[@]+"${_elv_users[@]}"}"; do
-              local _euhome
-              _euhome="$(users__resolve_home "$_eu" 2> /dev/null)" || continue
-              [[ -z "$_euhome" ]] && continue
-              local _eurc="${_euhome}/.config/elvish/rc.elv"
-              file__mkdir "$(dirname "$_eurc")"
-              [[ ! -f "$_eurc" ]] && printf '' | file__tee "$_eurc"
-              shell__sync_block --files "$_eurc" --marker "$_marker" --content "$_snippet"
-            done
-            continue
-            ;;
-          *) continue ;;
         esac
       else
-        case "$_shell" in
-          bash) _files="$(shell__detect_bashrc)" ;;
-          zsh) _files="$(shell__detect_zshdir)/zshrc" ;;
-          fish) _files="/etc/fish/conf.d/${_profile_d_name%.sh}.fish" ;;
-          tcsh) _files="/etc/csh.cshrc" ;;
-          elvish)
-            local -a _elv_users=()
-            mapfile -t _elv_users < <(users__resolve_list)
-            local _eu
-            for _eu in "${_elv_users[@]+"${_elv_users[@]}"}"; do
-              local _euhome
-              _euhome="$(users__resolve_home "$_eu" 2> /dev/null)" || continue
-              [[ -z "$_euhome" ]] && continue
-              local _eurc="${_euhome}/.config/elvish/rc.elv"
-              file__mkdir "$(dirname "$_eurc")"
-              [[ ! -f "$_eurc" ]] && printf '' | file__tee "$_eurc"
-              shell__sync_block --files "$_eurc" --marker "$_marker" --content "$_snippet"
-            done
-            continue
-            ;;
-          *) continue ;;
+        case "$_sc_shell" in
+          bash) _sc_files="$(shell__detect_bashrc)" ;;
+          zsh) _sc_files="$(shell__detect_zshdir)/zshrc" ;;
+          fish) _sc_files="/etc/fish/conf.d/${_sc_profile_d%.sh}.fish" ;;
+          tcsh) _sc_files="/etc/csh.cshrc" ;;
         esac
+      fi
+      if [[ "$_sc_shell" = "elvish" ]]; then
+        local -a _sc_elv_users=()
+        mapfile -t _sc_elv_users < <(users__resolve_list)
+        local _sc_eu
+        for _sc_eu in "${_sc_elv_users[@]+"${_sc_elv_users[@]}"}"; do
+          local _sc_euhome
+          _sc_euhome="$(users__resolve_home "$_sc_eu" 2> /dev/null)" || continue
+          [[ -z "$_sc_euhome" ]] && continue
+          local _sc_eurc="${_sc_euhome}/.config/elvish/rc.elv"
+          file__mkdir "$(dirname "$_sc_eurc")"
+          [[ ! -f "$_sc_eurc" ]] && printf '' | file__tee "$_sc_eurc"
+          shell__sync_block --files "$_sc_eurc" --marker "$_sc_marker" --content "$_sc_content"
+        done
+        continue
       fi
     else
-      if [ "$_everywhere" -eq 0 ]; then
-        case "$_shell" in
+      if "$_sc_everywhere"; then
+        case "$_sc_shell" in
           bash)
-            shell__sync_block --files "$(shell__user_login_file --home "$_home")" \
-              --marker "$_marker" --content "$_snippet"
-            _files="${_home}/.bashrc"
+            shell__sync_block \
+              --files "$(shell__user_login_file --home "$_sc_home")" \
+              --marker "$_sc_marker" --content "$_sc_content"
+            _sc_files="${_sc_home}/.bashrc"
             ;;
-          zsh) _files="$(shell__detect_zdotdir --home "$_home")/.zshenv" ;;
-          fish) _files="${_home}/.config/fish/config.fish" ;;
+          zsh) _sc_files="$(shell__detect_zdotdir --home "$_sc_home")/.zshenv" ;;
+          fish) _sc_files="${_sc_home}/.config/fish/config.fish" ;;
           tcsh)
-            local _tcsh_rc="${_home}/.cshrc"
-            [[ -f "${_home}/.tcshrc" ]] && _tcsh_rc="${_home}/.tcshrc"
-            shell__sync_block --files "${_home}/.login" --marker "$_marker" --content "$_snippet"
-            _files="$_tcsh_rc"
+            local _sc_tcsh_rc="${_sc_home}/.cshrc"
+            [[ -f "${_sc_home}/.tcshrc" ]] && _sc_tcsh_rc="${_sc_home}/.tcshrc"
+            shell__sync_block --files "${_sc_home}/.login" \
+              --marker "$_sc_marker" --content "$_sc_content"
+            _sc_files="$_sc_tcsh_rc"
             ;;
-          elvish) _files="${_home}/.config/elvish/rc.elv" ;;
-          *) continue ;;
+          elvish) _sc_files="${_sc_home}/.config/elvish/rc.elv" ;;
         esac
       else
-        case "$_shell" in
-          bash) _files="${_home}/.bashrc" ;;
-          zsh) _files="$(shell__detect_zdotdir --home "$_home")/.zshrc" ;;
-          fish) _files="${_home}/.config/fish/config.fish" ;;
+        case "$_sc_shell" in
+          bash) _sc_files="${_sc_home}/.bashrc" ;;
+          zsh) _sc_files="$(shell__detect_zdotdir --home "$_sc_home")/.zshrc" ;;
+          fish) _sc_files="${_sc_home}/.config/fish/config.fish" ;;
           tcsh)
-            local _tcsh_rc="${_home}/.cshrc"
-            [[ -f "${_home}/.tcshrc" ]] && _tcsh_rc="${_home}/.tcshrc"
-            _files="$_tcsh_rc"
+            local _sc_tcsh_rc2="${_sc_home}/.cshrc"
+            [[ -f "${_sc_home}/.tcshrc" ]] && _sc_tcsh_rc2="${_sc_home}/.tcshrc"
+            _sc_files="$_sc_tcsh_rc2"
             ;;
-          elvish) _files="${_home}/.config/elvish/rc.elv" ;;
-          *) continue ;;
+          elvish) _sc_files="${_sc_home}/.config/elvish/rc.elv" ;;
         esac
       fi
     fi
-    file__mkdir "$(dirname "$_files")"
-    if [[ ! -f "$_files" ]]; then
-      printf '' | file__tee "$_files"
-    fi
-    shell__sync_block --files "$_files" --marker "$_marker" --content "$_snippet"
+    [[ -n "$_sc_files" ]] || continue
+    file__mkdir "$(dirname "$_sc_files")"
+    [[ ! -f "$_sc_files" ]] && printf '' | file__tee "$_sc_files"
+    shell__sync_block --files "$_sc_files" --marker "$_sc_marker" --content "$_sc_content"
   done
+
+  # ── Remove mode ───────────────────────────────────────────────────────────────
+  local -a _sc_rm_files=()
+  local _sc_rf
+  for _sc_shell in "${_sc_remove[@]}"; do
+    [[ -z "$_sc_shell" ]] && continue
+    _sc_rm_files=()
+    if "$_sc_is_system"; then
+      case "$_sc_shell" in
+        bash)
+          _sc_rm_files+=("/etc/profile.d/${_sc_profile_d}")
+          local _sc_benv2
+          _sc_benv2="$(shell__ensure_bashenv 2> /dev/null || true)"
+          [ -n "$_sc_benv2" ] && _sc_rm_files+=("$_sc_benv2")
+          _sc_rm_files+=("$(shell__detect_bashrc)")
+          ;;
+        zsh)
+          _sc_rm_files+=("$(shell__detect_zshdir)/zshenv" "$(shell__detect_zshdir)/zshrc")
+          ;;
+        fish) _sc_rm_files+=("/etc/fish/conf.d/${_sc_profile_d%.sh}.fish") ;;
+        tcsh) _sc_rm_files+=("/etc/csh.login" "/etc/csh.cshrc") ;;
+        elvish)
+          local -a _sc_elv_users2=()
+          mapfile -t _sc_elv_users2 < <(users__resolve_list)
+          local _sc_eu2
+          for _sc_eu2 in "${_sc_elv_users2[@]+"${_sc_elv_users2[@]}"}"; do
+            local _sc_euhome2
+            _sc_euhome2="$(users__resolve_home "$_sc_eu2" 2> /dev/null)" || continue
+            [[ -z "$_sc_euhome2" ]] && continue
+            shell__sync_block \
+              --files "${_sc_euhome2}/.config/elvish/rc.elv" --marker "$_sc_marker"
+          done
+          continue
+          ;;
+        *) continue ;;
+      esac
+    else
+      case "$_sc_shell" in
+        bash)
+          _sc_rm_files+=("$(shell__user_login_file --home "$_sc_home")")
+          _sc_rm_files+=("${_sc_home}/.bashrc")
+          ;;
+        zsh)
+          local _sc_zdotdir2
+          _sc_zdotdir2="$(shell__detect_zdotdir --home "$_sc_home")"
+          _sc_rm_files+=("${_sc_zdotdir2}/.zshenv" "${_sc_zdotdir2}/.zshrc")
+          ;;
+        fish) _sc_rm_files+=("${_sc_home}/.config/fish/config.fish") ;;
+        tcsh)
+          _sc_rm_files+=("${_sc_home}/.login" "${_sc_home}/.cshrc" "${_sc_home}/.tcshrc")
+          ;;
+        elvish) _sc_rm_files+=("${_sc_home}/.config/elvish/rc.elv") ;;
+        *) continue ;;
+      esac
+    fi
+    for _sc_rf in "${_sc_rm_files[@]}"; do
+      [ -n "$_sc_rf" ] && shell__sync_block --files "$_sc_rf" --marker "$_sc_marker"
+    done
+  done
+  return 0
 }
 
 shell__prefix_link_bins() {
@@ -1353,140 +1494,42 @@ shell__run_prefix_undiscovery() {
 
   # Remove PATH export block from all appropriate shell files.
   [[ -n "${_marker}" ]] || return 0
-  local _export_files
+  local -a _disc_shells=()
   if [[ -n "$_exports_ref" ]]; then
     local -n _rpud_ex="${_exports_ref}"
-    if [[ "${#_rpud_ex[@]}" -gt 0 ]]; then
-      _export_files="$(printf '%s\n' "${_rpud_ex[@]}")"
-      shell__sync_block --files "${_export_files}" --marker "${_marker}"
-      return 0
-    fi
+    [[ "${#_rpud_ex[@]}" -gt 0 ]] && _disc_shells=("${_rpud_ex[@]}")
   fi
-  if [[ "$_disc_scope" = "system" ]]; then
-    _export_files="$(shell__system_path_files ${_profile_d:+--profile_d "${_profile_d}"})"
-  else
-    _export_files="$(shell__user_path_files ${_disc_home:+--home "${_disc_home}"})"
-  fi
-  shell__sync_block --files "${_export_files}" --marker "${_marker}"
-}
-
-shell__remove_activation_snippets() {
-  # @brief shell__remove_activation_snippets — Remove activation blocks from all applicable shell init files.
-  #
-  # Mirror of shell__write_activation_snippets. Because the original snippet function is not
-  # available at removal time, this function attempts removal from ALL possible file locations
-  # for each shell (both "everywhere" paths and "rc-only" paths). shell__sync_block skips files
-  # that don't contain the marker, so over-broad removal is safe.
-  #
-  # Supported shells: bash, zsh, fish, tcsh, elvish.
-  # See shell__write_activation_snippets for per-shell path details.
-  # tcsh removal tries both ~/.tcshrc and ~/.cshrc since write-time selection is not known.
-  # elvish system scope iterates all resolved users (no system-wide config path exists).
-  #
-  # Args:
-  #   --scope system|user   Scope (default: system when root, user otherwise).
-  #   --home <dir>          Home directory for user-scoped removal.
-  #   <marker>              Idempotency marker (positional, after options).
-  #   <profile_d_name>      /etc/profile.d basename (positional).
-  #   [<shell>...]          Shells to process (positional, remaining).
-  local _scope="" _home="${HOME:-}"
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --scope)
-        shift
-        _scope="$1"
-        shift
-        ;;
-      --home)
-        shift
-        _home="$1"
-        shift
-        ;;
-      --)
-        shift
-        break
-        ;;
-      --*)
-        shift
-        [ $# -gt 0 ] && shift || true
-        ;;
-      *) break ;;
-    esac
-  done
-  local _marker="$1" _profile_d_name="$2"
-  shift 2
-  local _shell _is_system=false
-  if [[ "$_scope" = "system" ]] || { [[ -z "$_scope" ]] && users__is_root; }; then
-    _is_system=true
-  fi
-  for _shell in "$@"; do
-    [ -z "$_shell" ] && continue
-    local -a _files_list=()
-    if "${_is_system}"; then
-      case "$_shell" in
-        bash)
-          _files_list+=("/etc/profile.d/$_profile_d_name")
-          local _benv
-          _benv="$(shell__ensure_bashenv 2> /dev/null || true)"
-          [ -n "$_benv" ] && _files_list+=("$_benv")
-          _files_list+=("$(shell__detect_bashrc)")
-          ;;
-        zsh)
-          _files_list+=("$(shell__detect_zshdir)/zshenv")
-          _files_list+=("$(shell__detect_zshdir)/zshrc")
-          ;;
-        fish) _files_list+=("/etc/fish/conf.d/${_profile_d_name%.sh}.fish") ;;
-        tcsh) _files_list+=("/etc/csh.login" "/etc/csh.cshrc") ;;
-        elvish)
-          local -a _elv_users=()
-          mapfile -t _elv_users < <(users__resolve_list)
-          local _eu
-          for _eu in "${_elv_users[@]+"${_elv_users[@]}"}"; do
-            local _euhome
-            _euhome="$(users__resolve_home "$_eu" 2> /dev/null)" || continue
-            [[ -z "$_euhome" ]] && continue
-            shell__sync_block --files "${_euhome}/.config/elvish/rc.elv" --marker "$_marker"
-          done
-          continue
-          ;;
-        *) continue ;;
-      esac
-    else
-      case "$_shell" in
-        bash)
-          _files_list+=("$(shell__user_login_file --home "$_home")")
-          _files_list+=("${_home}/.bashrc")
-          ;;
-        zsh)
-          local _zdotdir
-          _zdotdir="$(shell__detect_zdotdir --home "$_home")"
-          _files_list+=("${_zdotdir}/.zshenv")
-          _files_list+=("${_zdotdir}/.zshrc")
-          ;;
-        fish) _files_list+=("${_home}/.config/fish/config.fish") ;;
-        tcsh) _files_list+=("${_home}/.login" "${_home}/.cshrc" "${_home}/.tcshrc") ;;
-        elvish) _files_list+=("${_home}/.config/elvish/rc.elv") ;;
-        *) continue ;;
-      esac
-    fi
-    local _f
-    for _f in "${_files_list[@]}"; do
-      [ -n "$_f" ] && shell__sync_block --files "$_f" --marker "$_marker"
-    done
-  done
+  [[ "${#_disc_shells[@]}" -eq 0 ]] && mapfile -t _disc_shells < <(shell__detect_installed_shells)
+  shell__sync_config \
+    --marker "${_marker}" \
+    --profile-d "${_profile_d}" \
+    --scope "${_disc_scope}" \
+    ${_disc_home:+--home "${_disc_home}"} \
+    "${_disc_shells[@]}"
 }
 
 shell__prefix_export_path() {
   # @brief shell__prefix_export_path — Write a PATH-prepend export block for a prefix bin directory.
   #
+  # For each configured shell, writes a PATH-prepend snippet to the appropriate
+  # "everywhere" startup files via shell__sync_config. Custom per-shell snippets
+  # (e.g. `eval "$(brew shellenv)"`) override the generic PATH export for that shell.
+  #
   # Args:
-  #   --bin-dir <dir>      Directory to prepend to PATH.
-  #   --exports-ref <var>  Name of array variable with explicit export file paths (optional).
-  #   --marker <id>        Idempotency marker.
-  #   --profile-d <name>   /etc/profile.d basename for the system-wide drop-in.
-  #   --scope system|user  Passed through to shell__write_env_block (optional).
-  #   --home <dir>         Home directory for user-scoped writes (default: $HOME).
+  #   --bin-dir <dir>         Directory to prepend to PATH.
+  #   --exports-ref <var>     Name of array variable with shell names to target (optional).
+  #                           Empty array = auto-detect via shell__detect_installed_shells.
+  #   --marker <id>           Idempotency marker.
+  #   --profile-d <name>      /etc/profile.d basename for the system-wide drop-in.
+  #   --scope system|user     Scope override (optional).
+  #   --home <dir>            Home directory for user-scoped writes (default: $HOME).
+  #   --bash-snippet <text>   Custom bash snippet (overrides generic PATH export).
+  #   --zsh-snippet <text>    Custom zsh snippet.
+  #   --fish-snippet <text>   Custom fish snippet.
+  #   --tcsh-snippet <text>   Custom tcsh snippet.
+  #   --elvish-snippet <text> Custom elvish snippet.
   local _bin_dir="" _exports_ref="" _marker="" _profile_d="" _scope="" _home="${HOME:-}"
+  local _bash_snippet="" _zsh_snippet="" _fish_snippet="" _tcsh_snippet="" _elvish_snippet=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --bin-dir)
@@ -1519,23 +1562,47 @@ shell__prefix_export_path() {
         _home="$1"
         shift
         ;;
+      --bash-snippet)
+        shift
+        _bash_snippet="$1"
+        shift
+        ;;
+      --zsh-snippet)
+        shift
+        _zsh_snippet="$1"
+        shift
+        ;;
+      --fish-snippet)
+        shift
+        _fish_snippet="$1"
+        shift
+        ;;
+      --tcsh-snippet)
+        shift
+        _tcsh_snippet="$1"
+        shift
+        ;;
+      --elvish-snippet)
+        shift
+        _elvish_snippet="$1"
+        shift
+        ;;
       *) shift ;;
     esac
   done
-  local _export_opt
+
+  # Resolve target shells.
+  local -a _pep_shells=()
   if [[ -n "$_exports_ref" ]]; then
     local -n _pep_ex="${_exports_ref}"
-    if [[ "${#_pep_ex[@]}" -eq 0 ]]; then
-      _export_opt="auto"
-    else
-      _export_opt="$(printf '%s\n' "${_pep_ex[@]}")"
-    fi
-  else
-    _export_opt="auto"
+    [[ "${#_pep_ex[@]}" -gt 0 ]] && _pep_shells=("${_pep_ex[@]}")
   fi
-  local _content
+  [[ "${#_pep_shells[@]}" -eq 0 ]] && mapfile -t _pep_shells < <(shell__detect_installed_shells)
+
+  # Generic bash/zsh PATH prepend content.
+  local _pep_posix_content
   # shellcheck disable=SC2162
-  IFS= read -r -d '' _content << 'EOBLOCK' || true
+  IFS= read -r -d '' _pep_posix_content << 'EOBLOCK' || true
 _shell__df_prepend_path() {
   local _d="$1" _p="${PATH:-}" _r="" _e
   while [ -n "$_p" ]; do
@@ -1545,15 +1612,33 @@ _shell__df_prepend_path() {
   export PATH="${_d}${_r:+:${_r}}"
 }
 EOBLOCK
-  _content="${_content}_shell__df_prepend_path \"${_bin_dir}\"
+  _pep_posix_content="${_pep_posix_content}_shell__df_prepend_path \"${_bin_dir}\"
 unset -f _shell__df_prepend_path"
-  shell__write_env_block \
-    --opt "${_export_opt}" \
-    --profile-d "${_profile_d}" \
-    --marker "${_marker}" \
-    --content "${_content}" \
-    ${_scope:+--scope "${_scope}"} \
-    --home "${_home}"
+
+  # Build shell__sync_config args.
+  local -a _sc_args=()
+  local _pep_sh
+  for _pep_sh in "${_pep_shells[@]}"; do
+    local _pep_content=""
+    case "$_pep_sh" in
+      bash) [[ -n "$_bash_snippet" ]] && _pep_content="$_bash_snippet" || _pep_content="$_pep_posix_content" ;;
+      zsh) [[ -n "$_zsh_snippet" ]] && _pep_content="$_zsh_snippet" || _pep_content="$_pep_posix_content" ;;
+      fish) [[ -n "$_fish_snippet" ]] && _pep_content="$_fish_snippet" || _pep_content="fish_add_path \"${_bin_dir}\"" ;;
+      tcsh) [[ -n "$_tcsh_snippet" ]] && _pep_content="$_tcsh_snippet" || _pep_content="setenv PATH \"${_bin_dir}:\${PATH}\"" ;;
+      elvish) [[ -n "$_elvish_snippet" ]] && _pep_content="$_elvish_snippet" || _pep_content="set paths = [${_bin_dir} \$@paths]" ;;
+      *) continue ;;
+    esac
+    [[ -n "$_pep_content" ]] && _sc_args+=("--${_pep_sh}-content" "$_pep_content" "--${_pep_sh}-everywhere")
+  done
+
+  if [[ "${#_sc_args[@]}" -gt 0 ]]; then
+    shell__sync_config \
+      --marker "${_marker}" \
+      --profile-d "${_profile_d}" \
+      ${_scope:+--scope "${_scope}"} \
+      --home "${_home}" \
+      "${_sc_args[@]}"
+  fi
 }
 
 shell__run_prefix_discovery() {
@@ -1579,10 +1664,16 @@ shell__run_prefix_discovery() {
   #   --symlink-nonroot <dir> Fallback symlink target for non-root installs (default: ${HOME}/.local/bin).
   #   --no-symlinks         Disable symlink creation.
   #   --no-exports          Disable PATH export writing.
+  #   --bash-snippet <text>   Custom bash PATH discovery snippet (passed to shell__prefix_export_path).
+  #   --zsh-snippet <text>    Custom zsh PATH discovery snippet.
+  #   --fish-snippet <text>   Custom fish PATH discovery snippet.
+  #   --tcsh-snippet <text>   Custom tcsh PATH discovery snippet.
+  #   --elvish-snippet <text> Custom elvish PATH discovery snippet.
   local _disc_prefix="" _bin_dir="bin" _discovery="auto" _runtime_path="${PATH:-}"
   local _bins="" _symlinks_ref="" _exports_ref="" _marker="" _profile_d=""
   local _bin="" _cmd_var="" _no_symlinks=false _no_exports=false
   local _symlink_root="/usr/local/bin" _symlink_nonroot="${HOME}/.local/bin"
+  local _bash_snippet="" _zsh_snippet="" _fish_snippet="" _tcsh_snippet="" _elvish_snippet=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --prefix)
@@ -1656,6 +1747,31 @@ shell__run_prefix_discovery() {
         ;;
       --no-exports)
         _no_exports=true
+        shift
+        ;;
+      --bash-snippet)
+        shift
+        _bash_snippet="$1"
+        shift
+        ;;
+      --zsh-snippet)
+        shift
+        _zsh_snippet="$1"
+        shift
+        ;;
+      --fish-snippet)
+        shift
+        _fish_snippet="$1"
+        shift
+        ;;
+      --tcsh-snippet)
+        shift
+        _tcsh_snippet="$1"
+        shift
+        ;;
+      --elvish-snippet)
+        shift
+        _elvish_snippet="$1"
         shift
         ;;
       *) shift ;;
@@ -1739,7 +1855,12 @@ shell__run_prefix_discovery() {
       --marker "${_marker}" \
       --profile-d "${_profile_d}" \
       --scope "${_disc_scope}" \
-      ${_disc_home:+--home "${_disc_home}"}
+      ${_disc_home:+--home "${_disc_home}"} \
+      ${_bash_snippet:+--bash-snippet "${_bash_snippet}"} \
+      ${_zsh_snippet:+--zsh-snippet "${_zsh_snippet}"} \
+      ${_fish_snippet:+--fish-snippet "${_fish_snippet}"} \
+      ${_tcsh_snippet:+--tcsh-snippet "${_tcsh_snippet}"} \
+      ${_elvish_snippet:+--elvish-snippet "${_elvish_snippet}"}
   fi
 
   # Set expected verification command.

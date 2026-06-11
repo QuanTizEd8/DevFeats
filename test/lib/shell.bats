@@ -817,3 +817,194 @@ ${_home}/.config/zsh/.zshrc"
   run grep -r "export NONROOT_VAR=2" "$_home"
   assert_success
 }
+
+# ---------------------------------------------------------------------------
+# shell__detect_installed_shells
+# ---------------------------------------------------------------------------
+
+@test "shell__detect_installed_shells always returns bash" {
+  reload_lib shell.sh
+  run shell__detect_installed_shells
+  assert_line "bash"
+  assert_success
+}
+
+@test "shell__detect_installed_shells returns zsh when binary is on PATH" {
+  reload_lib shell.sh
+  create_fake_bin "zsh" ""
+  prepend_fake_bin_path
+  run shell__detect_installed_shells
+  assert_line "bash"
+  assert_line "zsh"
+  assert_success
+}
+
+@test "shell__detect_installed_shells returns fish when /etc/fish directory exists" {
+  reload_lib shell.sh
+  mkdir -p "${BATS_TEST_TMPDIR}/etc/fish"
+  # Stub so detect_installed_shells sees the tmp /etc/fish
+  shell__detect_installed_shells() {
+    local -a _sh=(bash)
+    command -v zsh > /dev/null 2>&1 && _sh+=(zsh)
+    [ -d "${BATS_TEST_TMPDIR}/etc/fish" ] && _sh+=(fish) || command -v fish > /dev/null 2>&1 && _sh+=(fish)
+    printf '%s\n' "${_sh[@]}"
+  }
+  run shell__detect_installed_shells
+  assert_line "bash"
+  assert_line "fish"
+  assert_success
+}
+
+@test "shell__detect_installed_shells does not include tcsh when binary absent" {
+  reload_lib shell.sh
+  run shell__detect_installed_shells
+  refute_line "tcsh"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# shell__sync_config
+# ---------------------------------------------------------------------------
+
+@test "shell__sync_config write mode user fish: writes content to config.fish" {
+  reload_lib shell.sh
+  create_fake_bin "id" "1001"
+  prepend_fake_bin_path
+  local _home="${BATS_TEST_TMPDIR}/home_fish"
+  mkdir -p "${_home}/.config/fish"
+  touch "${_home}/.config/fish/config.fish"
+  shell__sync_config \
+    --scope user \
+    --home "$_home" \
+    --marker "test fish sync" \
+    --profile-d "ignored.sh" \
+    --fish-content "fish_add_path /opt/mytool/bin"
+  run grep "fish_add_path /opt/mytool/bin" "${_home}/.config/fish/config.fish"
+  assert_success
+}
+
+@test "shell__sync_config write mode system bash rc-only: writes only to bashrc" {
+  reload_lib shell.sh
+  create_fake_bin "id" "0"
+  prepend_fake_bin_path
+  local _brc="${BATS_TEST_TMPDIR}/bash_rc_only.bashrc"
+  touch "$_brc"
+  shell__detect_bashrc() { echo "$_brc"; }
+  export -f shell__detect_bashrc
+  shell__sync_config \
+    --scope system \
+    --marker "test sync rc" \
+    --profile-d "myfeature.sh" \
+    --bash-content "export RC_ONLY=yes"
+  run grep "export RC_ONLY=yes" "$_brc"
+  assert_success
+}
+
+@test "shell__sync_config write mode user bash everywhere: writes to login file and .bashrc" {
+  reload_lib shell.sh
+  create_fake_bin "id" "1001"
+  prepend_fake_bin_path
+  local _home="${BATS_TEST_TMPDIR}/home_scuser"
+  mkdir -p "$_home"
+  touch "${_home}/.bash_profile" "${_home}/.bashrc"
+  shell__user_login_file() { echo "${_home}/.bash_profile"; }
+  export -f shell__user_login_file
+  shell__sync_config \
+    --scope user \
+    --home "$_home" \
+    --marker "test user sync" \
+    --profile-d "ignored.sh" \
+    --bash-content "export USER_SYNC=1" \
+    --bash-everywhere
+  run grep -r "export USER_SYNC=1" "$_home"
+  assert_success
+}
+
+@test "shell__sync_config write mode user bash rc-only: writes only to .bashrc" {
+  reload_lib shell.sh
+  create_fake_bin "id" "1001"
+  prepend_fake_bin_path
+  local _home="${BATS_TEST_TMPDIR}/home_rc_user"
+  mkdir -p "$_home"
+  touch "${_home}/.bashrc"
+  local _login="${_home}/.bash_profile"
+  touch "$_login"
+  shell__user_login_file() { echo "$_login"; }
+  export -f shell__user_login_file
+  shell__sync_config \
+    --scope user \
+    --home "$_home" \
+    --marker "test user rc" \
+    --profile-d "ignored.sh" \
+    --bash-content "export USER_RC=1"
+  run grep "export USER_RC=1" "${_home}/.bashrc"
+  assert_success
+  run grep "export USER_RC=1" "$_login"
+  assert_failure
+}
+
+@test "shell__sync_config remove mode: removes marker from all bash locations" {
+  reload_lib shell.sh
+  create_fake_bin "id" "0"
+  prepend_fake_bin_path
+  local _brc="${BATS_TEST_TMPDIR}/remove_bashrc"
+  local _benv="${BATS_TEST_TMPDIR}/remove_benv"
+  local _pd="${BATS_TEST_TMPDIR}/profile_d_remove.sh"
+  printf '# >>> remove me >>>\nexport TO_REMOVE=1\n# <<< remove me <<<\n' > "$_brc"
+  printf '# >>> remove me >>>\nexport TO_REMOVE=1\n# <<< remove me <<<\n' > "$_benv"
+  printf '# >>> remove me >>>\nexport TO_REMOVE=1\n# <<< remove me <<<\n' > "$_pd"
+  shell__ensure_bashenv() { echo "$_benv"; }
+  export -f shell__ensure_bashenv
+  shell__detect_bashrc() { echo "$_brc"; }
+  export -f shell__detect_bashrc
+  shell__sync_config \
+    --scope system \
+    --marker "remove me" \
+    --profile-d "profile_d_remove.sh" \
+    bash
+  run grep "TO_REMOVE" "$_brc"
+  assert_failure
+}
+
+@test "shell__sync_config write mode system zsh everywhere: writes to zshenv" {
+  reload_lib shell.sh
+  create_fake_bin "id" "0"
+  prepend_fake_bin_path
+  local _zshdir="${BATS_TEST_TMPDIR}/zsh_dir"
+  mkdir -p "$_zshdir"
+  touch "${_zshdir}/zshenv"
+  shell__detect_zshdir() { echo "$_zshdir"; }
+  export -f shell__detect_zshdir
+  shell__sync_config \
+    --scope system \
+    --marker "test zsh sync" \
+    --profile-d "ignored.sh" \
+    --zsh-content "export ZSH_VAR=1" \
+    --zsh-everywhere
+  run grep "export ZSH_VAR=1" "${_zshdir}/zshenv"
+  assert_success
+}
+
+@test "shell__sync_config write mode handles multiple shells in one call" {
+  reload_lib shell.sh
+  create_fake_bin "id" "1001"
+  prepend_fake_bin_path
+  local _home="${BATS_TEST_TMPDIR}/home_multi"
+  mkdir -p "$_home"
+  touch "${_home}/.bashrc"
+  local _zdir="${_home}"
+  touch "${_zdir}/.zshrc"
+  shell__detect_zdotdir() { echo "$_zdir"; }
+  export -f shell__detect_zdotdir
+  shell__sync_config \
+    --scope user \
+    --home "$_home" \
+    --marker "multi shell" \
+    --profile-d "ignored.sh" \
+    --bash-content "export MULTI_BASH=1" \
+    --zsh-content "export MULTI_ZSH=1"
+  run grep "export MULTI_BASH=1" "${_home}/.bashrc"
+  assert_success
+  run grep "export MULTI_ZSH=1" "${_zdir}/.zshrc"
+  assert_success
+}

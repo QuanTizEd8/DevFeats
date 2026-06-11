@@ -459,6 +459,21 @@
                 }
               }
             },
+            "discovery_snippet": {
+              "description": "Per-shell snippets written to startup files for PATH discovery (via `prefix_discovery: shell`). Use `{PREFIX}` for the resolved installation prefix, `{OS}` for the kernel name, `{ARCH}` for the CPU architecture. When a shell is listed here, its snippet overrides the generic PATH-prepend export. Generates `prefix_discovery_snippet_<shell>` user-overridable options.",
+              "type": "object",
+              "additionalProperties": false,
+              "propertyNames": {
+                "enum": ["bash", "zsh", "fish", "tcsh", "elvish"]
+              },
+              "properties": {
+                "bash":   {"type": "string", "description": "Bash discovery snippet."},
+                "zsh":    {"type": "string", "description": "Zsh discovery snippet."},
+                "fish":   {"type": "string", "description": "Fish discovery snippet."},
+                "tcsh":   {"type": "string", "description": "Tcsh discovery snippet."},
+                "elvish": {"type": "string", "description": "Elvish discovery snippet."}
+              }
+            },
             "write_group": {
               "description": "Write-permission group configuration. When present, the `write_group`, `write_users`, and `install_user` options are generated and `users__set_write_permissions` is called during post-install.",
               "type": "object",

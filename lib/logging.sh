@@ -34,7 +34,6 @@ _LOGGING__XTRACE_PIPE=
 _LOGGING__LEVEL=3
 _LOGGING__FILE_LEVEL=4
 
-
 _logging__caller_fn() {
   local _i _fn
   for ((_i = 1; _i < ${#FUNCNAME[@]}; _i++)); do

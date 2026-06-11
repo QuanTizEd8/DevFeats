@@ -22,27 +22,27 @@ apt_default:
         "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file written
+      cmd: test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
-        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/zsh/zshenv ==="
         cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
-    - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
-    - title: activation profile.d file has shellenv eval
-      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file has begin marker
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
+    - title: discovery profile.d file has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
     - title: bash.bashrc has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/bash.bashrc
     - title: bash.bashrc has shellenv eval
       cmd: grep -qF 'shellenv' /etc/bash.bashrc
     - title: zshenv written
       cmd: bash -c 'test -f /etc/zsh/zshenv || test -f /etc/zshenv'
     - title: zshenv has begin marker
-      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zshenv'
+      cmd: bash -c 'grep -qF "# >>> brew PATH (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" /etc/zshenv'
     - title: zshenv has shellenv eval
       cmd: bash -c 'grep -qF "shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "shellenv" /etc/zshenv'
     - title: login PATH includes linuxbrew/bin
@@ -80,29 +80,29 @@ arch:
         "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file written
+      cmd: test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
-        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/zsh/zshenv ==="
         cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
-    - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
-    - title: activation profile.d file has shellenv eval
-      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file has begin marker
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
+    - title: discovery profile.d file has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
     - title: bash.bashrc written
       cmd: test -f /etc/bash.bashrc
     - title: bash.bashrc has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/bash.bashrc
     - title: bash.bashrc has shellenv eval
       cmd: grep -qF 'shellenv' /etc/bash.bashrc
     - title: zsh/zshenv written
       cmd: test -f /etc/zsh/zshenv
     - title: zsh/zshenv has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/zsh/zshenv
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/zsh/zshenv
     - title: zsh/zshenv has shellenv eval
       cmd: grep -qF 'shellenv' /etc/zsh/zshenv
     - title: login PATH includes linuxbrew/bin
@@ -132,31 +132,31 @@ debian:
         "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
-    - title: activation profile.d file has marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file written
+      cmd: test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}
+    - title: discovery profile.d file has marker
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
 
-export_path_disabled:
+discovery_disabled:
   description: |
-    export_path_disabled: prefix_activations="" skips all activation snippet writes.
-    Verifies that brew installs successfully but no activation blocks are
+    discovery_disabled: prefix_discovery=none skips all PATH discovery writes.
+    Verifies that brew installs successfully but no discovery blocks are
     written to any shell startup file.
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
-    _MARKER='prefix activation (install-homebrew)'
-    _PROFILE_D="${_FEAT_ACTIVATION_PROFILE_D_FILE}"
+    _MARKER='brew PATH (install-homebrew)'
+    _PROFILE_D="${_FEAT_PROFILE_D_FILE}"
   checks:
     - title: brew binary installed
       cmd: test -f "$_BREW"
     - title: brew binary is executable
       cmd: test -x "$_BREW"
-    - title: brew --version succeeds
+    - title: brew --version via full path succeeds
       cmd: '"$_BREW" --version'
       debug: |
         echo "=== brew --version ==="
         "$_BREW" --version 2>&1 || echo "(failed)"
-    - title: profile.d activation file NOT written
+    - title: profile.d discovery file NOT written
       cmd: bash -c '! test -f "/etc/profile.d/${_PROFILE_D}"'
       debug: |
         echo "=== /etc/profile.d/${_PROFILE_D} ==="
@@ -165,21 +165,21 @@ export_path_disabled:
         tail -5 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/zsh/zshenv ==="
         cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
-    - title: bash.bashrc has NO activation marker
-      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" /etc/bash.bashrc 2>/dev/null'
-    - title: zshenv has NO activation marker
-      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" /etc/zsh/zshenv 2>/dev/null && ! grep -qF "prefix activation (install-homebrew)" /etc/zshenv 2>/dev/null'
+    - title: bash.bashrc has NO discovery marker
+      cmd: bash -c '! grep -qF "brew PATH (install-homebrew)" /etc/bash.bashrc 2>/dev/null'
+    - title: zshenv has NO discovery marker
+      cmd: bash -c '! grep -qF "brew PATH (install-homebrew)" /etc/zsh/zshenv 2>/dev/null && ! grep -qF "brew PATH (install-homebrew)" /etc/zshenv 2>/dev/null'
 
 export_path_idempotent:
   description: |
-    export_path_idempotent: activation blocks are pre-written in the image
+    export_path_idempotent: discovery blocks are pre-written in the image
     (see scenario setup). The feature re-runs with if_exists=update
     and must UPDATE each block in-place — the begin marker must appear exactly
     once per file (no duplicate appends).
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
-    _MARKER='prefix activation (install-homebrew)'
-    _PROFILE_D="${_FEAT_ACTIVATION_PROFILE_D_FILE}"
+    _MARKER='brew PATH (install-homebrew)'
+    _PROFILE_D="${_FEAT_PROFILE_D_FILE}"
   checks:
     - title: brew binary installed
       cmd: test -f "$_BREW"
@@ -192,7 +192,7 @@ export_path_idempotent:
     - title: zshenv has begin marker
       cmd: grep -qF "# >>> ${_MARKER} >>>" /etc/zsh/zshenv
     - title: profile.d file has exactly one begin marker
-      cmd: bash -c '[ "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" "/etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}")" -eq 1 ]'
+      cmd: bash -c '[ "$(grep -cF "# >>> brew PATH (install-homebrew) >>>" "/etc/profile.d/${_FEAT_PROFILE_D_FILE}")" -eq 1 ]'
       debug: |
         echo "=== /etc/profile.d/${_PROFILE_D} ==="
         cat "/etc/profile.d/${_PROFILE_D}" 2>/dev/null || echo "(missing)"
@@ -201,9 +201,9 @@ export_path_idempotent:
         echo "=== /etc/zsh/zshenv ==="
         cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
     - title: bash.bashrc has exactly one begin marker
-      cmd: bash -c '[ "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" /etc/bash.bashrc)" -eq 1 ]'
+      cmd: bash -c '[ "$(grep -cF "# >>> brew PATH (install-homebrew) >>>" /etc/bash.bashrc)" -eq 1 ]'
     - title: zshenv has exactly one begin marker
-      cmd: bash -c '[ "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv)" -eq 1 ]'
+      cmd: bash -c '[ "$(grep -cF "# >>> brew PATH (install-homebrew) >>>" /etc/zsh/zshenv)" -eq 1 ]'
     - title: profile.d block references correct brew prefix
       cmd: grep -qF '/home/linuxbrew/.linuxbrew/bin/brew' "/etc/profile.d/${_PROFILE_D}"
     - title: bash.bashrc block references correct brew prefix
@@ -239,27 +239,27 @@ fedora:
         "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file written
+      cmd: test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
-        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bashrc (tail) ==="
         tail -10 /etc/bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/zshenv ==="
         cat /etc/zshenv 2>/dev/null || echo "(missing)"
-    - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
-    - title: activation profile.d file has shellenv eval
-      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file has begin marker
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
+    - title: discovery profile.d file has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
     - title: bashrc has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bashrc
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/bashrc
     - title: bashrc has shellenv eval
       cmd: grep -qF 'shellenv' /etc/bashrc
     - title: zshenv written
       cmd: test -f /etc/zshenv
     - title: zshenv has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/zshenv
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/zshenv
     - title: zshenv has shellenv eval
       cmd: grep -qF 'shellenv' /etc/zshenv
     - title: login PATH includes linuxbrew/bin
@@ -289,17 +289,17 @@ if_exists_reinstall:
         "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file written
+      cmd: test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
-        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
-    - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file has begin marker
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
     - title: bash.bashrc has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/bash.bashrc
 
 if_exists_skip:
   description: |
@@ -373,7 +373,7 @@ macos_brew_git_remote:
     _REMOTE_URL="$(git -C "$_BREW_REPO" remote get-url origin 2>/dev/null || echo "https://github.com/Homebrew/brew")"
     echo "ℹ️  Using brew_git_remote: ${_REMOTE_URL}"
   post: |
-    block_cleanup_all "prefix activation (install-homebrew)"
+    block_cleanup_all "brew PATH (install-homebrew)"
     block_cleanup_all "HOMEBREW_BREW_GIT_REMOTE (install-homebrew)"
   on_failure: |
     log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
@@ -420,13 +420,13 @@ macos_default:
       cmd: test -x "$_BREW"
     - title: brew --version succeeds
       cmd: '"$_BREW" --version'
-    - title: system activation profile.d NOT written
-      cmd: bash -c '! test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}'
+    - title: system discovery profile.d NOT written
+      cmd: bash -c '! test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}'
 
-macos_export_path_disabled:
+macos_discovery_disabled:
   description: |
-    export_path_disabled: prefix_activations="" skips all activation writes.
-    Verifies that brew is intact (if_exists=skip) and that no activation blocks
+    macos_discovery_disabled: prefix_discovery=none skips all PATH discovery writes.
+    Verifies that brew is intact (if_exists=skip) and that no discovery blocks
     are written to any user dotfiles.
   pre: |
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
@@ -437,25 +437,25 @@ macos_export_path_disabled:
   checks:
     - title: brew binary present
       cmd: test -f "$_BREW"
-    - title: brew --version succeeds
+    - title: brew --version via full path succeeds
       cmd: '"$_BREW" --version'
-    - title: ~/.bash_profile has NO activation marker
-      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.bash_profile 2>/dev/null'
-    - title: ~/.bashrc has NO activation marker
-      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.bashrc 2>/dev/null'
-    - title: ~/.zshenv has NO activation marker
-      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.zshenv 2>/dev/null'
+    - title: ~/.bash_profile has NO discovery marker
+      cmd: bash -c '! grep -qF "brew PATH (install-homebrew)" ~/.bash_profile 2>/dev/null'
+    - title: ~/.bashrc has NO discovery marker
+      cmd: bash -c '! grep -qF "brew PATH (install-homebrew)" ~/.bashrc 2>/dev/null'
+    - title: ~/.zshenv has NO discovery marker
+      cmd: bash -c '! grep -qF "brew PATH (install-homebrew)" ~/.zshenv 2>/dev/null'
 
 macos_export_path_idempotent:
   description: |
-    export_path_idempotent: setup pre-seeds one stale activation block per dotfile;
+    export_path_idempotent: setup pre-seeds one stale discovery block per dotfile;
     a single feature run with if_exists=update must update that block in place
     (exactly one begin marker per file; inner line matches resolved brew prefix).
   pre: |
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
     _BREW="${_BREW_PREFIX}/bin/brew"
     _HOME="$HOME"
-    _MARKER='prefix activation (install-homebrew)'
+    _MARKER='brew PATH (install-homebrew)'
     _BASH_LOGIN_FILE="$(detect_bash_login_file)"
   post: |
     for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
@@ -481,11 +481,11 @@ macos_export_path_idempotent:
     - title: brew --version succeeds
       cmd: '"$_BREW" --version'
     - title: resolved bash login file has exactly one begin marker
-      cmd: bash -c '[[ "$({ grep -cF "# >>> prefix activation (install-homebrew) >>>" "$1" 2>/dev/null || echo 0; })" -eq 1 ]]' -- "$_BASH_LOGIN_FILE"
+      cmd: bash -c '[[ "$({ grep -cF "# >>> brew PATH (install-homebrew) >>>" "$1" 2>/dev/null || echo 0; })" -eq 1 ]]' -- "$_BASH_LOGIN_FILE"
     - title: ~/.bashrc has exactly one begin marker
-      cmd: bash -c '[[ "$({ grep -cF "# >>> prefix activation (install-homebrew) >>>" ~/.bashrc 2>/dev/null || echo 0; })" -eq 1 ]]'
+      cmd: bash -c '[[ "$({ grep -cF "# >>> brew PATH (install-homebrew) >>>" ~/.bashrc 2>/dev/null || echo 0; })" -eq 1 ]]'
     - title: ~/.zshenv has exactly one begin marker
-      cmd: bash -c '[[ "$({ grep -cF "# >>> prefix activation (install-homebrew) >>>" ~/.zshenv 2>/dev/null || echo 0; })" -eq 1 ]]'
+      cmd: bash -c '[[ "$({ grep -cF "# >>> brew PATH (install-homebrew) >>>" ~/.zshenv 2>/dev/null || echo 0; })" -eq 1 ]]'
     - title: resolved bash login file block references resolved brew binary
       cmd: bash -c 'grep -qF "$2" "$1"' -- "$_BASH_LOGIN_FILE" "${_BREW_PREFIX}/bin/brew"
     - title: ~/.bashrc block references resolved brew binary
@@ -493,11 +493,11 @@ macos_export_path_idempotent:
     - title: ~/.zshenv block references resolved brew binary
       cmd: bash -c 'grep -qF "$1/bin/brew" ~/.zshenv' -- "$_BREW_PREFIX"
     - title: resolved bash login file has no stale placeholder
-      cmd: bash -c 'awk '"'"'/# >>> prefix activation \(install-homebrew\) >>>/{in_block=1;next} /# <<< prefix activation \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' "$1" | grep -qv "__stale_prefix__"' -- "$_BASH_LOGIN_FILE"
+      cmd: bash -c 'awk '"'"'/# >>> brew PATH \(install-homebrew\) >>>/{in_block=1;next} /# <<< brew PATH \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' "$1" | grep -qv "__stale_prefix__"' -- "$_BASH_LOGIN_FILE"
     - title: ~/.bashrc has no stale placeholder
-      cmd: bash -c 'awk '"'"'/# >>> prefix activation \(install-homebrew\) >>>/{in_block=1;next} /# <<< prefix activation \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.bashrc | grep -qv "__stale_prefix__"'
+      cmd: bash -c 'awk '"'"'/# >>> brew PATH \(install-homebrew\) >>>/{in_block=1;next} /# <<< brew PATH \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.bashrc | grep -qv "__stale_prefix__"'
     - title: ~/.zshenv has no stale placeholder
-      cmd: bash -c 'awk '"'"'/# >>> prefix activation \(install-homebrew\) >>>/{in_block=1;next} /# <<< prefix activation \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.zshenv | grep -qv "__stale_prefix__"'
+      cmd: bash -c 'awk '"'"'/# >>> brew PATH \(install-homebrew\) >>>/{in_block=1;next} /# <<< brew PATH \(install-homebrew\) <<</{in_block=0} in_block{print}'"'"' ~/.zshenv | grep -qv "__stale_prefix__"'
       debug: |
         echo "=== ~/.zshenv ==="
         cat "${_HOME}/.zshenv" 2>/dev/null || echo "(missing)"
@@ -527,7 +527,7 @@ macos_fresh_install:
 
     _ACTUAL_PREFIX="$("${_BREW}" --prefix 2>/dev/null || true)"
     echo "=== brew --prefix: ${_ACTUAL_PREFIX} ==="
-  post: "block_cleanup_all \"prefix activation (install-homebrew)\""
+  post: "block_cleanup_all \"brew PATH (install-homebrew)\""
   checks:
     - title: brew prefix directory exists
       cmd: test -d "$_BREW_PREFIX"
@@ -540,11 +540,11 @@ macos_fresh_install:
     - title: brew --version reports Homebrew
       cmd: sh -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: a login bash file has shellenv marker
-      cmd: sh -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null'
+      cmd: sh -c 'grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.profile 2>/dev/null'
     - title: ~/.bashrc has shellenv marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.bashrc"
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' "${_HOME}/.bashrc"
     - title: ~/.zshenv has shellenv marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.zshenv"
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' "${_HOME}/.zshenv"
     - title: shellenv block references correct brew prefix
       cmd: sh -c 'grep -qF "$1/bin/brew" ~/.zshenv 2>/dev/null || grep -qF "$1/bin/brew" ~/.bash_profile 2>/dev/null' -- "$_BREW_PREFIX"
     - title: brew --prefix returns expected prefix
@@ -568,7 +568,7 @@ macos_if_exists_fail:
       title: if_exists=fail exits with already-installed error
       pattern: failing (if_exists=fail)
     - title: ~/.zshenv has NO brew marker
-      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" ~/.zshenv 2>/dev/null'
+      cmd: bash -c '! grep -qF "brew PATH (install-homebrew)" ~/.zshenv 2>/dev/null'
 
 macos_if_exists_reinstall:
   description: |
@@ -585,7 +585,7 @@ macos_if_exists_reinstall:
     "$_BREW" --version 2>&1 || echo "(failed)"
     echo "=== ~/.zshenv ==="
     cat "${_HOME}/.zshenv" 2>/dev/null || echo "(missing)"
-  post: "block_cleanup_all \"prefix activation (install-homebrew)\""
+  post: "block_cleanup_all \"brew PATH (install-homebrew)\""
   checks:
     - title: brew present before reinstall (pre-condition)
       cmd: test -f "$_BREW"
@@ -600,11 +600,11 @@ macos_if_exists_reinstall:
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: a login bash file has shellenv marker
-      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" ~/.profile 2>/dev/null'
+      cmd: bash -c 'grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.profile 2>/dev/null'
     - title: ~/.bashrc has shellenv marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.bashrc"
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' "${_HOME}/.bashrc"
     - title: ~/.zshenv has shellenv marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' "${_HOME}/.zshenv"
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' "${_HOME}/.zshenv"
 
 macos_logfile:
   description: |
@@ -656,7 +656,7 @@ macos_no_install_from_api:
     _BREW="${_BREW_PREFIX}/bin/brew"
     _BASH_LOGIN_FILE="$(detect_bash_login_file)"
   post: |
-    block_cleanup_all "prefix activation (install-homebrew)"
+    block_cleanup_all "brew PATH (install-homebrew)"
     block_cleanup_all "HOMEBREW_NO_INSTALL_FROM_API (install-homebrew)"
   on_failure: |
     log_install_homebrew_shell_init_diagnostics "${_HOME}" "${_BASH_LOGIN_FILE}"
@@ -691,7 +691,7 @@ macos_update_false:
     "$_BREW" --version 2>&1 || echo "(failed)"
   post: |
     rm -f "$_LOG_FILE"
-    block_cleanup_all "prefix activation (install-homebrew)"
+    block_cleanup_all "brew PATH (install-homebrew)"
   checks:
     - title: brew binary present
       cmd: test -f "$_BREW"
@@ -740,11 +740,11 @@ opensuse:
         "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file written
+      cmd: test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}
       debug: |
-        echo "=== /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} ==="
-        cat /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
+        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
+        cat /etc/profile.d/${_FEAT_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
         echo "=== /etc/bash.bashrc (tail) ==="
         tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
         echo "=== /etc/bashrc (tail) ==="
@@ -753,16 +753,16 @@ opensuse:
         cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
         echo "=== /etc/zshenv ==="
         cat /etc/zshenv 2>/dev/null || echo "(missing)"
-    - title: activation profile.d file has begin marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
-    - title: activation profile.d file has shellenv eval
-      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file has begin marker
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
+    - title: discovery profile.d file has shellenv eval
+      cmd: grep -qF 'shellenv' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
     - title: a global bashrc has begin marker
-      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bash.bashrc 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/bashrc 2>/dev/null'
+      cmd: bash -c 'grep -qF "# >>> brew PATH (install-homebrew) >>>" /etc/bash.bashrc 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" /etc/bashrc 2>/dev/null'
     - title: a global bashrc has shellenv eval
       cmd: bash -c 'grep -qF "shellenv" /etc/bash.bashrc 2>/dev/null || grep -qF "shellenv" /etc/bashrc 2>/dev/null'
     - title: a zshenv has begin marker
-      cmd: bash -c 'grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> prefix activation (install-homebrew) >>>" /etc/zshenv 2>/dev/null'
+      cmd: bash -c 'grep -qF "# >>> brew PATH (install-homebrew) >>>" /etc/zsh/zshenv 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" /etc/zshenv 2>/dev/null'
     - title: a zshenv has shellenv eval
       cmd: bash -c 'grep -qF "shellenv" /etc/zsh/zshenv 2>/dev/null || grep -qF "shellenv" /etc/zshenv 2>/dev/null'
     - title: login PATH includes linuxbrew/bin
@@ -778,8 +778,8 @@ shellenv_remote_user:
     (profile.d + bash.bashrc + zshenv). No per-user files are written.
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
-    _MARKER='prefix activation (install-homebrew)'
-    _PROFILE_D="${_FEAT_ACTIVATION_PROFILE_D_FILE}"
+    _MARKER='brew PATH (install-homebrew)'
+    _PROFILE_D="${_FEAT_PROFILE_D_FILE}"
   checks:
     - title: brew binary installed
       cmd: test -f "$_BREW"
@@ -816,7 +816,7 @@ update_false:
         "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: activation profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
-    - title: activation profile.d file has marker
-      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/profile.d/${_FEAT_ACTIVATION_PROFILE_D_FILE}
+    - title: discovery profile.d file written
+      cmd: test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}
+    - title: discovery profile.d file has marker
+      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/profile.d/${_FEAT_PROFILE_D_FILE}

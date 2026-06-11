@@ -332,7 +332,11 @@ def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
             for am in ASSIGN.finditer(line):
                 var = am.group(1)
                 start = am.start(1)
-                if var in RESERVED or is_module_global(var, module_prefix) or var in known:
+                if (
+                    var in RESERVED
+                    or is_module_global(var, module_prefix)
+                    or var in known
+                ):
                     continue
                 if (rel, func, var) in allowlist:
                     continue

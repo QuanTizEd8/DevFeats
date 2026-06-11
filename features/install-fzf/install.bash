@@ -22,9 +22,8 @@ __resolve_method() {
 
 # fzf shell integration uses interactive-only constructs (eval, process
 # substitution) and must not be sourced in non-interactive or login-only
-# contexts.  Return 1 to request rc-only mode from
-# shell__write_activation_snippets (writes to .bashrc / .zshrc only, not
-# to /etc/profile.d or .zshenv).
+# contexts. Return 1 to request rc-only mode (writes to .bashrc / .zshrc
+# only, not to /etc/profile.d or .zshenv).
 # shellcheck disable=SC2329,SC2317
 __prefix_activation_snippet() {
   local _shell="$1"

@@ -1,6 +1,8 @@
 apt_default:
   envs: [ubuntu-latest]
   modes: [devcontainer]
+  setup: |
+    apt-get update -qq && apt-get install -y --no-install-recommends zsh
   tests: [apt_default]
 
 debian:
@@ -8,12 +10,12 @@ debian:
   modes: [devcontainer]
   tests: [debian]
 
-export_path_disabled:
+discovery_disabled:
   envs: [ubuntu-latest]
   modes: [devcontainer]
   options:
-    prefix_activations: ""
-  tests: [export_path_disabled]
+    prefix_discovery: none
+  tests: [discovery_disabled]
 
 export_path_idempotent:
   envs: [ubuntu-latest+homebrew-preinstalled]
@@ -23,12 +25,12 @@ export_path_idempotent:
     update: false
   setup: |
     mkdir -p /etc/profile.d
-    printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' \
-        >> /etc/profile.d/QuanTizEd8-DevFeats-install-homebrew-prefix-activation.sh
-    printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' \
+    printf '# >>> brew PATH (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew PATH (install-homebrew) <<<\n' \
+        >> /etc/profile.d/98-quantized8--devfeats--install-homebrew.sh
+    printf '# >>> brew PATH (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew PATH (install-homebrew) <<<\n' \
         >> /etc/bash.bashrc
     mkdir -p /etc/zsh
-    printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' \
+    printf '# >>> brew PATH (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew PATH (install-homebrew) <<<\n' \
         >> /etc/zsh/zshenv
   tests: [export_path_idempotent]
 
@@ -40,16 +42,26 @@ if_exists_skip:
 arch:
   envs: [archlinux-latest]
   modes: [devcontainer]
+  setup: |
+    pacman -Sy --noconfirm zsh
   tests: [arch]
 
 fedora:
   envs: [fedora-latest+bash]
   modes: [devcontainer]
+  setup: |
+    dnf install -y zsh
   tests: [fedora]
 
 opensuse:
   envs: [opensuse-leap+bash]
   modes: [devcontainer]
+  setup: |
+    set +e
+    zypper install -y zsh
+    _rc=$?
+    set -e
+    [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
   tests: [opensuse]
 
 if_exists_reinstall:
@@ -102,11 +114,11 @@ macos_if_exists_reinstall:
     if_exists: reinstall
   tests: [macos_if_exists_reinstall]
 
-macos_export_path_disabled:
+macos_discovery_disabled:
   envs: [macos-latest]
   options:
-    prefix_activations: ""
-  tests: [macos_export_path_disabled]
+    prefix_discovery: none
+  tests: [macos_discovery_disabled]
 
 macos_export_path_idempotent:
   envs: [macos-latest]
@@ -114,7 +126,7 @@ macos_export_path_idempotent:
     if_exists: update
     update: false
   setup: |
-    # One stale activation block per file (not two). `shell__write_block` updates
+    # One stale discovery block per file (not two). `shell__sync_block` updates
     # each marker span in place but does not collapse multiple duplicate blocks;
     # the old test used two installs (first write, second update). A single stale
     # block per file reproduces the "update in place" half of that story under
@@ -127,7 +139,7 @@ macos_export_path_idempotent:
     for f in "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zshenv"; do
       mkdir -p "$(dirname "$f")"
       if [[ -f "$f" && -s "$f" ]] && [[ "$(tail -c1 "$f")" != $'\n' ]]; then printf '\n' >> "$f"; fi
-      printf '# >>> prefix activation (install-homebrew) >>>\neval "$(/__stale_prefix__/bin/brew shellenv)"\n# <<< prefix activation (install-homebrew) <<<\n' >> "$f"
+      printf '# >>> brew PATH (install-homebrew) >>>\neval "$(/__stale_prefix__/bin/brew shellenv)"\n# <<< brew PATH (install-homebrew) <<<\n' >> "$f"
     done
   tests: [macos_export_path_idempotent]
 

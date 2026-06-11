@@ -51,18 +51,17 @@ _options:
     root: /home/linuxbrew/.linuxbrew
     nonroot: "${HOME}/.linuxbrew"
     bins: [brew]
+    symlink:
+      skip: true
     platform_overrides:
       - when: {kernel: Darwin, arch: arm64}
         default: /opt/homebrew
       - when: {kernel: Darwin}
         default: /usr/local
-    activation:
-      shells: [bash, zsh]
-      description: |-
-        The activation snippet runs `eval "$(brew shellenv)"`, which sets up PATH,
-        MANPATH, INFOPATH, and other Homebrew environment variables. Written to
-        all-context files so Homebrew tools are available in both interactive and
-        non-interactive shells.
+    discovery_snippet:
+      bash: "eval \\$('{PREFIX}/bin/brew' shellenv)"
+      zsh: "eval \\$('{PREFIX}/bin/brew' shellenv)"
+      fish: "eval ('{PREFIX}/bin/brew' shellenv)"
     write_group:
       default: brew
 _dependencies:

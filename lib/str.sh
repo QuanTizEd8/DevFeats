@@ -109,3 +109,24 @@ str__rsplit_once() {
   printf '%s\n' "$_rest"
   return 0
 }
+
+str__substitute_tokens() {
+  # @brief str__substitute_tokens <pattern> <KEY=VALUE>... — Replace `{KEY}` placeholders in `<pattern>` with their values.
+  #
+  # Token syntax is `{KEY}` (curly braces, no dollar sign). Tokens not present
+  # in the substitution list are left unchanged.
+  #
+  # Args:
+  #   <pattern>      Input string containing zero or more `{KEY}` tokens.
+  #   <KEY=VALUE>... One or more substitution pairs in `KEY=VALUE` form.
+  #
+  # Stdout: the pattern with all matching tokens replaced.
+  local _result="$1"
+  shift
+  local _pair
+  for _pair in "$@"; do
+    _result="${_result//\{${_pair%%=*}\}/${_pair#*=}}"
+  done
+  printf '%s\n' "$_result"
+  return 0
+}

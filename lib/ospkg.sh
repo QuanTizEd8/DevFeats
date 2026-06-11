@@ -26,7 +26,6 @@ _OSPKG__DNF_MARK_DEP="remove"
 declare -gA _OSPKG__OS_RELEASE=()
 declare -gA _OSPKG__EXTRA_VARS=()
 
-
 _ospkg__clean_apk() {
   # @brief _ospkg__clean_apk — Remove the Alpine APK package cache (`/var/cache/apk/*`).
   users__run_privileged rm -rf /var/cache/apk/*

@@ -796,11 +796,71 @@ options:
     type: array
     default: ""
     description: |
-      Shell startup files to write PATH exports to for the installation prefix.
-      #{{ return get("_options.prefix.exports.description", "").strip() }}# Leave empty (default)
-      to write to standard profiles (system-wide as root, user-scoped otherwise).
+      Shell names to write PATH discovery exports to for the installation prefix
+      (e.g. `bash`, `zsh`, `fish`). #{{ return get("_options.prefix.exports.description", "").strip() }}#
+      Leave empty (default) to auto-detect installed shells.
       Only applies when `prefix_discovery` is `shell` or `all`,
       or when the `auto` mode decides that PATH export is needed.
+
+  prefix_discovery_snippet_bash:
+    _apply_when: |
+      #{{ return bool(get("_options.prefix.discovery_snippet", {}).get("bash")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix.discovery_snippet", {}).get("bash", "") }}#
+    description: >-
+      Shell snippet written to bash startup files for PATH discovery.
+      Use `{PREFIX}` for the resolved installation prefix,
+      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Leave empty to use the standard PATH export.
+
+  prefix_discovery_snippet_zsh:
+    _apply_when: |
+      #{{ return bool(get("_options.prefix.discovery_snippet", {}).get("zsh")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix.discovery_snippet", {}).get("zsh", "") }}#
+    description: >-
+      Shell snippet written to zsh startup files for PATH discovery.
+      Use `{PREFIX}` for the resolved installation prefix,
+      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Leave empty to use the standard PATH export.
+
+  prefix_discovery_snippet_fish:
+    _apply_when: |
+      #{{ return bool(get("_options.prefix.discovery_snippet", {}).get("fish")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix.discovery_snippet", {}).get("fish", "") }}#
+    description: >-
+      Shell snippet written to fish startup files for PATH discovery.
+      Use `{PREFIX}` for the resolved installation prefix,
+      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Leave empty to use the standard PATH export.
+
+  prefix_discovery_snippet_tcsh:
+    _apply_when: |
+      #{{ return bool(get("_options.prefix.discovery_snippet", {}).get("tcsh")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix.discovery_snippet", {}).get("tcsh", "") }}#
+    description: >-
+      Shell snippet written to tcsh startup files for PATH discovery.
+      Use `{PREFIX}` for the resolved installation prefix,
+      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Leave empty to use the standard PATH export.
+
+  prefix_discovery_snippet_elvish:
+    _apply_when: |
+      #{{ return bool(get("_options.prefix.discovery_snippet", {}).get("elvish")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.prefix.discovery_snippet", {}).get("elvish", "") }}#
+    description: >-
+      Shell snippet written to elvish startup files for PATH discovery.
+      Use `{PREFIX}` for the resolved installation prefix,
+      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Leave empty to use the standard PATH export.
 
   prefix_activations:
     _apply_when: |

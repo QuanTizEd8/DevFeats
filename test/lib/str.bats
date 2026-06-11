@@ -117,3 +117,37 @@ zsh-syntax-highlighting"
   assert_line -n 1 "baz"
   assert_success
 }
+
+# ---------------------------------------------------------------------------
+# str__substitute_tokens
+# ---------------------------------------------------------------------------
+
+@test "str__substitute_tokens substitutes a single token" {
+  run str__substitute_tokens "install to {PREFIX}/bin" "PREFIX=/opt/mytool"
+  assert_output "install to /opt/mytool/bin"
+  assert_success
+}
+
+@test "str__substitute_tokens substitutes multiple tokens in one pass" {
+  run str__substitute_tokens "os={OS} arch={ARCH}" "OS=linux" "ARCH=amd64"
+  assert_output "os=linux arch=amd64"
+  assert_success
+}
+
+@test "str__substitute_tokens leaves pattern unchanged when no tokens present" {
+  run str__substitute_tokens "no tokens here" "PREFIX=/opt"
+  assert_output "no tokens here"
+  assert_success
+}
+
+@test "str__substitute_tokens leaves unknown token as-is" {
+  run str__substitute_tokens "prefix={PREFIX} unknown={UNKNOWN}" "PREFIX=/opt"
+  assert_output "prefix=/opt unknown={UNKNOWN}"
+  assert_success
+}
+
+@test "str__substitute_tokens substitutes token with empty value" {
+  run str__substitute_tokens "x={PREFIX}y" "PREFIX="
+  assert_output "x=y"
+  assert_success
+}
