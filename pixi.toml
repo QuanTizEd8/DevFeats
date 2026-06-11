@@ -21,6 +21,11 @@ test = { features = ["proman", "test"] }
 
 # ── ProMan Feature ────────────────────────────────────────────────────────────
 
+# pyserials (proman dependency) compiles mypyc extensions from sdist when no wheel matches.
+[feature.proman.dependencies]
+gcc = { version = "*", channel = "conda-forge" }
+gxx = { version = "*", channel = "conda-forge" }
+
 [feature.proman.pypi-dependencies]
 proman = { path = ".dev/lib", editable = true }
 
