@@ -184,7 +184,7 @@ The `zdotdir` option lets you override the directory. Accepted forms:
 | `/absolute/path` | `/absolute/path` (shared across all users) |
 
 The resolved `ZDOTDIR` is injected into `~/.zshenv` between
-`# BEGIN install-shell-zdotdir` / `# END install-shell-zdotdir` markers, so
+`# BEGIN setup-shell-zdotdir` / `# END setup-shell-zdotdir` markers, so
 it is refreshed on each re-run and correctly updated when changing hosts or
 rebuilding the container.
 

@@ -9,7 +9,7 @@ esac
 # --- Framework / prompt configuration ---------------------------------- #
 # Shell theme, framework (Oh My Zsh), and prompt settings live in a        #
 # dedicated file so they can be managed independently of this file.        #
-# The install-shell feature writes ~/.config/zsh/zshtheme at build time.   #
+# The setup-shell feature writes ~/.config/zsh/zshtheme at build time.   #
 [ -f "${ZDOTDIR}/zshtheme" ] && source "${ZDOTDIR}/zshtheme"
 
 

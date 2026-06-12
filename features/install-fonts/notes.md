@@ -359,7 +359,7 @@ from the [romkatv/powerlevel10k-media](https://github.com/romkatv/powerlevel10k-
 repository, regardless of whether the standard Meslo Nerd Font is also
 installed.
 
-> **Note:** If you are using the `install-shell` feature with
+> **Note:** If you are using the `setup-shell` feature with
 > `ohmyzsh_theme: "romkatv/powerlevel10k"`, set `p10k_fonts: true` here to
 > ensure terminal icons render correctly.
 

@@ -274,7 +274,7 @@ is exposed. The rationale:
 - **Exposing a `brew_user` option would be error-prone.** Users would need to
   know the brew prefix owner — information the installer can determine
   automatically.
-- **Existing feature patterns vary unnecessarily.** `install-shell` uses
+- **Existing feature patterns vary unnecessarily.** `setup-shell` uses
   per-user config booleans (4 options); `install-miniforge` uses group
   permissions. Brew's single-user ownership model is simpler than both and
   doesn't warrant a user-facing option.

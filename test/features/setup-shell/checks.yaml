@@ -39,7 +39,7 @@ apt_augment_mode:
     - title: bashtheme written in augment mode
       cmd: test -f "${_HOME}/.config/bash/bashtheme"
     - title: ZDOTDIR block injected into .zshenv
-      cmd: grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
+      cmd: grep -qF '# >>> setup-shell-zdotdir >>>' "${_HOME}/.zshenv"
 
 apt_container_user:
   description: |
@@ -68,8 +68,76 @@ apt_container_user:
 
 apt_default:
   description: |
-    Verifies the default installation: zsh, system config files, BASH_ENV, and
-    per-user dotfile scaffolding for root.
+    Verifies the default installation (setup_bash=auto, setup_zsh=auto): shared system
+    config and bash system config when bash is on PATH.
+
+  checks:
+    - title: /etc/profile exists
+      cmd: test -f /etc/profile
+    - title: /etc/bash.bashrc or equivalent exists
+      cmd: bash -c 'test -f /etc/bash.bashrc || test -f /etc/bashrc || test -f /etc/bash/bashrc'
+    - title: /etc/shellenv exists
+      cmd: test -f /etc/shellenv
+    - title: /etc/shellrc exists
+      cmd: test -f /etc/shellrc
+    - title: BASH_ENV set in /etc/environment
+      cmd: grep -q '^BASH_ENV=' /etc/environment
+
+apt_setup_zsh_true:
+  description: |
+    setup_zsh=true deploys system and user zsh config even when zsh is not installed yet.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: zsh system zshenv exists
+      cmd: bash -c 'test -f /etc/zsh/zshenv || test -f /etc/zshenv'
+    - title: zsh system zshrc exists
+      cmd: bash -c 'test -f /etc/zsh/zshrc || test -f /etc/zshrc'
+    - title: root .zshenv exists in HOME
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: root .zshrc exists in ZDOTDIR
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+
+apt_setup_zsh_auto:
+  description: |
+    setup_zsh=auto skips zsh configuration when zsh is not on PATH.
+
+  checks:
+    - title: zsh system zshenv absent
+      cmd: bash -c '! test -f /etc/zsh/zshenv && ! test -f /etc/zshenv'
+    - title: zsh system zshrc absent
+      cmd: bash -c '! test -f /etc/zsh/zshrc && ! test -f /etc/zshrc'
+
+apt_setup_zsh_false:
+  description: |
+    setup_zsh=false skips setup-shell zsh configuration even when zsh is installed.
+    The OS package may still ship /etc/zsh files; this checks setup-shell markers are absent.
+
+  checks:
+    - title: zsh is installed
+      cmd: command -v zsh
+    - title: setup-shell system zsh markers absent
+      cmd: bash -c '! grep -rqF "setup-shell-pre-compinit" /etc/zsh /etc 2>/dev/null'
+    - title: root .zshenv absent
+      cmd: bash -c '! test -f /root/.zshenv'
+
+apt_setup_bash_false:
+  description: |
+    setup_bash=false skips bash-specific system configuration.
+
+  checks:
+    - title: BASH_ENV not set in /etc/environment
+      cmd: bash -c '! grep -q "^BASH_ENV=" /etc/environment 2>/dev/null'
+    - title: shared /etc/shellenv still deployed
+      cmd: test -f /etc/shellenv
+
+apt_default_with_zsh:
+  description: |
+    Verifies end-to-end behavior when install-zsh runs before setup-shell:
+    zsh is installed, system zsh config is deployed, and user scaffolding works.
 
   checks:
     - title: zsh is installed
@@ -200,7 +268,7 @@ apt_user_config:
     - title: root .shellrc exists
       cmd: test -f "${_HOME}/.shellrc"
     - title: .zshenv has ZDOTDIR block
-      cmd: grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
+      cmd: grep -qF '# >>> setup-shell-zdotdir >>>' "${_HOME}/.zshenv"
     - title: .zshenv sets ZDOTDIR
       cmd: grep -q 'ZDOTDIR=' "${_HOME}/.zshenv"
     - title: .zshenv ZDOTDIR points to .config/zsh
@@ -227,15 +295,13 @@ apt_user_config:
 apt_user_config_skip:
   description: |
     Verifies that user_config_mode=skip does not write any per-user dotfiles
-    while the system-wide install (zsh, system config files) still succeeds.
+    while the system-wide install still succeeds.
 
   pre: |
     _HOME=/root
     _ZDOTDIR="${_HOME}/.config/zsh"
 
   checks:
-    - title: zsh is installed
-      cmd: command -v zsh
     - title: root zshtheme not written
       cmd: bash -c '! test -f "${_ZDOTDIR}/zshtheme"'
     - title: root bashtheme not written
@@ -291,7 +357,7 @@ apt_zdotdir_default:
     - title: .zlogin NOT in HOME
       cmd: bash -c '! test -f "${_HOME}/.zlogin"'
     - title: .zshenv has ZDOTDIR block
-      cmd: grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
+      cmd: grep -qF '# >>> setup-shell-zdotdir >>>' "${_HOME}/.zshenv"
     - title: .zshenv ZDOTDIR value is .config/zsh
       cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
     - title: ZDOTDIR exists

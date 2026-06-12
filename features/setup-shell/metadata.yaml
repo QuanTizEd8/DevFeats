@@ -1,24 +1,48 @@
 version: 0.1.0
-name: Shell Installation
-description: Install Bash and [Zsh](https://www.zsh.org/) and configure shell environment files.
+name: Shell Setup
+description: Configure system-wide and per-user shell environment files for Bash and Zsh.
 keywords:
 - shell
 - zsh
 - bash
+- config
 _long_description: >-
   Deploys a layered set of system-wide and per-user configuration files to ensure
   correct shell behavior across all invocation modes — login, interactive,
   non-interactive, scripts, cron, devcontainer exec, CI runners, and VS Code tasks.
-  Installs Bash and Zsh, deploys shared shell files (`/etc/shellenv`, `/etc/shellrc`,
-  `/etc/shellaliases`, `/etc/profile`) and shell-specific system configs (bashrc,
-  bashenv, zshenv, zprofile, zshrc), copies per-user dotfiles from a skeleton
-  directory, and injects `ZDOTDIR` into each user's `~/.zshenv`. Optionally sets
-  the default login shell for all resolved users via `chsh`.
+  Deploys shared shell files (`/etc/shellenv`, `/etc/shellrc`, `/etc/shellaliases`,
+  `/etc/profile`) and shell-specific system configs (bashrc, bashenv, zshenv,
+  zprofile, zshrc), copies per-user dotfiles from a skeleton directory, and injects
+  `ZDOTDIR` into each user's `~/.zshenv`. Optionally sets the default login shell
+  for all resolved users via `chsh`. Install shells separately with `install-zsh`.
+  Use `setup_bash` and `setup_zsh` to control which shell-specific files are deployed.
 options:
-  install_zsh:
-    type: boolean
-    default: true
-    description: Install Zsh. Bash is always available.
+  setup_bash:
+    type: string
+    default: auto
+    description: |-
+      Whether to deploy Bash-specific system and per-user configuration files
+      (`/etc/bashrc`, `bashenv`, `BASH_ENV`, user `.bashrc`, etc.).
+    enum:
+    - value: auto
+      description: Deploy when `bash` is on PATH.
+    - value: 'true'
+      description: Always deploy Bash configuration, even when `bash` is not installed yet.
+    - value: 'false'
+      description: Skip Bash-specific configuration.
+  setup_zsh:
+    type: string
+    default: auto
+    description: |-
+      Whether to deploy Zsh-specific system and per-user configuration files
+      (`/etc/zsh/*`, user `.zshenv`, `ZDOTDIR`, `.zshrc`, etc.).
+    enum:
+    - value: auto
+      description: Deploy when `zsh` is on PATH.
+    - value: 'true'
+      description: Always deploy Zsh configuration, even when `zsh` is not installed yet.
+    - value: 'false'
+      description: Skip Zsh-specific configuration.
   add_current_user:
     default: true
     description: Whether to add configuration for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root.
@@ -43,7 +67,7 @@ options:
     description: |-
       Whether to set users' default login shell via `chsh`.
       Applies to all users resolved by `add_current_user`, `add_remote_user`, `add_container_user`, and `add_users`.
-      Raises an error if `zsh` is selected but Zsh is not available or being installed.
+      Raises an error if `zsh` is selected but Zsh is not available.
     enum:
     - value: zsh
       description: Set all resolved users' default login shell to Zsh.
@@ -58,6 +82,7 @@ options:
       Corresponds to the `ZDOTDIR` environment variable set in `~/.zshenv`.
       Leave empty to use the default: `${XDG_CONFIG_HOME}/zsh` (i.e. `~/.config/zsh`).
       Accepts paths prefixed with `~` or `$HOME`.
+      Only applies when `setup_zsh` is not `false`.
     type: string
   user_config_mode:
     default: overwrite
@@ -70,7 +95,10 @@ options:
     - value: skip
       description: Skip all user configuration if dotfiles already exist.
     type: string
+_options:
+  installer_dir: false
 # installsAfter:
+#   - ghcr.io/quantized8/devfeats/install-zsh
 #   - ghcr.io/quantized8/devfeats/setup-user
 _dependencies:
   run:

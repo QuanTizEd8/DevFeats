@@ -1,14 +1,63 @@
+defaults:
+  options:
+    setup_zsh: true
+    setup_bash: auto
+    set_user_shells: none
+
 apt_default:
   envs: [debian-latest]
   modes: [devcontainer]
+  options:
+    setup_zsh: auto
   tests: [apt_default]
+
+apt_setup_zsh_true:
+  envs: [debian-latest]
+  modes: [devcontainer, standalone]
+  options:
+    setup_zsh: true
+    setup_bash: auto
+  tests: [apt_setup_zsh_true]
+
+apt_setup_zsh_auto:
+  envs: [debian-latest]
+  modes: [devcontainer, standalone]
+  options:
+    setup_zsh: auto
+  tests: [apt_setup_zsh_auto]
+
+apt_setup_zsh_false:
+  envs: [debian-latest]
+  modes: [devcontainer, standalone]
+  setup: sh /repo/src/install-zsh/install.sh
+  options:
+    setup_zsh: false
+  tests: [apt_setup_zsh_false]
+
+apt_setup_bash_false:
+  envs: [debian-latest]
+  modes: [devcontainer, standalone]
+  options:
+    setup_bash: false
+    setup_zsh: false
+  tests: [apt_setup_bash_false]
+
+apt_with_install_zsh:
+  envs: [debian-latest]
+  modes: [devcontainer, standalone]
+  setup: sh /repo/src/install-zsh/install.sh
+  options:
+    setup_zsh: auto
+  tests: [apt_default_with_zsh]
 
 apt_set_shell_zsh:
   envs: [debian-latest]
   modes: [devcontainer]
+  setup: sh /repo/src/install-zsh/install.sh
   options:
     set_user_shells: zsh
     add_users: root
+    setup_zsh: auto
   tests: [apt_set_shell_zsh]
 
 apt_user_config:
@@ -21,6 +70,7 @@ apt_user_config_skip:
   modes: [devcontainer]
   options:
     user_config_mode: skip
+    setup_zsh: true
   tests: [apt_user_config_skip]
 
 apt_zdotdir_default:

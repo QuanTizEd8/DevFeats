@@ -1,8 +1,0 @@
-{
-   "features": {
-      "ghcr.io/quantized8/devfeats/install-shell:0.1.0": {}
-   },
-   "image": "ubuntu:latest",
-   "name": "Try install-shell",
-   "remoteUser": "ubuntu"
-}

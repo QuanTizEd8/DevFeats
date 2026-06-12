@@ -1,0 +1,72 @@
+version: 0.1.0
+name: Zsh Installation
+description: Install [Zsh](https://www.zsh.org/) via the OS package manager or build from an official source tarball.
+keywords:
+- zsh
+- shell
+_long_description: >-
+  Installs the Zsh shell from the OS native package manager or compiles a release
+  tarball from [zsh.org](https://www.zsh.org/pub/). Supports version pinning,
+  system-wide installs under `/usr/local`, and user-scoped installs under
+  `${HOME}/.local` when building from source.
+_options:
+  verify:
+    args: "--version"
+    description: Verify zsh is installed and working.
+  version:
+    resolution: none
+    default: stable
+    flag: --version
+    proposals:
+      - value: "5.9.1"
+        description: Zsh 5.9.1 (May 2026).
+      - value: "5.9"
+        description: Zsh 5.9 (May 2022).
+  method:
+    package:
+      registers_as: zsh
+    source:
+      asset_uri: "https://www.zsh.org/pub/zsh-{VERSION}.tar.xz"
+      sidecar_uri: "https://www.zsh.org/pub/SHA256SUM"
+      build_system: autotools
+  prefix:
+    bins: [zsh]
+    applies_when:
+      - method: [source]
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    os-pkg:
+      packages:
+        - name: zsh
+          version: "${VERSION}"
+  build:
+    source-build:
+      apt:
+        packages:
+          - build-essential
+          - libncurses-dev
+      brew:
+        packages:
+          - make
+          - ncurses
+      dnf:
+        packages:
+          - gcc
+          - make
+          - ncurses-devel
+      apk:
+        packages:
+          - build-base
+          - ncurses-dev
+      zypper:
+        packages:
+          - gcc
+          - make
+          - ncurses-devel
+      pacman:
+        packages:
+          - base-devel
+          - ncurses

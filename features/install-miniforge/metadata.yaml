@@ -86,7 +86,7 @@ _options:
       default: conda
 # installsAfter: []
 # installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-shell
+#   - ghcr.io/quantized8/devfeats/setup-shell
 #   - ghcr.io/quantized8/devfeats/setup-user
 _dependencies:
   run:

@@ -1,7 +1,7 @@
 # Shell Configuration Files
 
 This directory contains the system-wide and per-user skeleton shell configuration
-files installed by the `install-shell` package.
+files installed by the `setup-shell` package.
 
 ---
 

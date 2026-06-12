@@ -11,9 +11,9 @@ package as public:
    ```
    https://github.com/users/|{{github_user}}|/packages/container/devfeats%2F<feature-id>/settings
    ```
-   For example, for `install-shell`:
+   For example, for `setup-shell`:
    ```
-   https://github.com/users/|{{github_user}}|/packages/container/devfeats%2Finstall-shell/settings
+   https://github.com/users/|{{github_user}}|/packages/container/devfeats%2Fsetup-shell/settings
    ```
 2. Under **Danger Zone**, set the visibility to **Public**.
 
@@ -54,7 +54,7 @@ Add a `customizations.codespaces.repositories` block to the consuming
 {
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:0": {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:0": {}
   },
   "customizations": {
     "codespaces": {

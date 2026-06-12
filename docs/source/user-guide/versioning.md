@@ -40,7 +40,7 @@ Pin to a full patch version to ensure that the exact same version of the feature
 {
   // devcontainer.json
   "features": {
-    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2.3": {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1.2.3": {}
   }
 }
 ```
@@ -48,19 +48,19 @@ Pin to a full patch version to ensure that the exact same version of the feature
 
 ::::{tab-item} SysSet
 ```sh
-sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2.3
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1.2.3
 ```
 ::::
 
 ::::{tab-item} GHCR
 ```sh
-oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2.3
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1.2.3
 ```
 ::::
 
 ::::{tab-item} GitHub Release
 ```sh
-ID=install-shell; VERSION=1.2.3; curl -fsSL \
+ID=setup-shell; VERSION=1.2.3; curl -fsSL \
   https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz
 ```
 ::::
@@ -79,7 +79,7 @@ Pin to a minor version (e.g. `1.2`) to receive all patch updates within that min
 {
   // devcontainer.json
   "features": {
-    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2": {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1.2": {}
   }
 }
 ```
@@ -87,13 +87,13 @@ Pin to a minor version (e.g. `1.2`) to receive all patch updates within that min
 
 ::::{tab-item} SysSet
 ```sh
-sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1.2
 ```
 ::::
 
 ::::{tab-item} GHCR
 ```sh
-oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1.2
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1.2
 ```
 ::::
 
@@ -111,7 +111,7 @@ Pin to a major version (e.g. `1`) to receive all minor and patch updates within 
 {
   // devcontainer.json
   "features": {
-    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1": {}
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1": {}
   }
 }
 ```
@@ -119,13 +119,13 @@ Pin to a major version (e.g. `1`) to receive all minor and patch updates within 
 
 ::::{tab-item} SysSet
 ```sh
-sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1
 ```
 ::::
 
 ::::{tab-item} GHCR
 ```sh
-oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:1
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1
 ```
 ::::
 
@@ -143,7 +143,7 @@ No version specifier (or `latest`) means the feature will always resolve to the 
   // devcontainer.json
   "features": {
     // with `:latest` tag
-    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:latest": {},
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:latest": {},
 
     // or no tag (same as `:latest`)
     "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git": {}
@@ -154,7 +154,7 @@ No version specifier (or `latest`) means the feature will always resolve to the 
 ::::{tab-item} SysSet
 ```sh
 # with `:latest` tag
-sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:latest
+sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:latest
 
 # or no tag (same as `:latest`)
 sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git
@@ -163,7 +163,7 @@ sysset feat install ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git
 
 ::::{tab-item} GHCR
 ```sh
-oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell:latest
+oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:latest
 ```
 ::::
 

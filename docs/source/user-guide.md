@@ -11,7 +11,7 @@ Create a `devcontainer.json` file and add the features you want to use in the `f
   "features": {
     "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-os-pkg": {},
     "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-user": {},
-    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-shell": {},
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell": {},
     "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git": {},
     "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh": {},
     "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi": {},

@@ -9,7 +9,7 @@ esac
 # --- Framework / prompt configuration ---------------------------------- #
 # Shell theme, framework (Oh My Bash), and prompt settings live in a       #
 # dedicated file so they can be managed independently of this file.        #
-# The install-shell feature writes ~/.config/bash/bashtheme at build time. #
+# The setup-shell feature writes ~/.config/bash/bashtheme at build time. #
 _BASH_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme"
 [ -f "$_BASH_THEME" ] && . "$_BASH_THEME"
 unset _BASH_THEME

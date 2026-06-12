@@ -1,0 +1,92 @@
+default:
+  description: Verifies default install puts a functional zsh on PATH.
+  checks:
+    - title: zsh command is available
+      cmd: command -v zsh
+    - title: zsh reports a version
+      cmd: bash -c 'zsh --version | grep -Eq "^zsh "'
+
+package_install:
+  description: Verifies method=package installs zsh from the OS package manager.
+  checks:
+    - title: zsh command is available
+      cmd: command -v zsh
+    - title: zsh is executable
+      cmd: test -x "$(command -v zsh)"
+    - title: zsh reports a version
+      cmd: zsh --version
+
+source_build:
+  description: Verifies method=source builds zsh from an official tarball.
+  checks:
+    - title: zsh binary present at /usr/local/bin/zsh
+      cmd: test -f /usr/local/bin/zsh
+    - title: zsh binary is executable
+      cmd: test -x /usr/local/bin/zsh
+    - title: zsh --version succeeds
+      cmd: /usr/local/bin/zsh --version
+    - title: zsh version is 5.9.1
+      cmd: bash -c '[ "$(/usr/local/bin/zsh --version 2>/dev/null | awk "{print \$2}")" = "5.9.1" ]'
+    - title: zsh listed in /etc/shells
+      cmd: grep -qx /usr/local/bin/zsh /etc/shells
+
+specific_version:
+  description: Verifies a pinned source build installs the requested version.
+  checks:
+    - title: zsh binary present at /usr/local/bin/zsh
+      cmd: test -f /usr/local/bin/zsh
+    - title: zsh version is 5.9
+      cmd: bash -c '[ "$(/usr/local/bin/zsh --version 2>/dev/null | awk "{print \$2}")" = "5.9" ]'
+
+source_custom_prefix:
+  description: |
+    method=source with prefix=/opt/zsh verifies the binary lands under the custom prefix
+    and a symlink is created at /usr/local/bin/zsh.
+  checks:
+    - title: zsh binary installed at /opt/zsh/bin/zsh
+      cmd: test -f /opt/zsh/bin/zsh
+    - title: zsh binary at custom prefix is executable
+      cmd: test -x /opt/zsh/bin/zsh
+    - title: /opt/zsh/bin/zsh --version succeeds
+      cmd: /opt/zsh/bin/zsh --version
+    - title: symlink exists at /usr/local/bin/zsh
+      cmd: test -L /usr/local/bin/zsh
+    - title: symlink resolves to /opt/zsh/bin/zsh
+      cmd: bash -c '[ "$(readlink -f /usr/local/bin/zsh)" = "/opt/zsh/bin/zsh" ]'
+
+source_custom_prefix_nonroot:
+  description: |
+    Non-root user with custom prefix installs zsh under the prefix and symlinks into ~/.local/bin.
+  pre: |
+    _ZSH="${HOME}/.local/bin/zsh"
+  checks:
+    - title: zsh binary installed under user prefix
+      cmd: test -f /opt/zsh/bin/zsh
+    - title: user-local symlink exists
+      cmd: test -L "${_ZSH}"
+    - title: user-local symlink resolves to prefix binary
+      cmd: bash -c '[ "$(readlink -f "${_ZSH}")" = "/opt/zsh/bin/zsh" ]'
+
+if_exists_fail:
+  description: Ensures if_exists=fail exits non-zero when zsh already exists.
+  checks:
+    - title: preinstalled zsh remains available
+      cmd: command -v zsh
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
+
+if_exists_skip:
+  description: Ensures if_exists=skip succeeds when zsh already exists and leaves it untouched.
+  checks:
+    - title: zsh remains available after skip
+      cmd: command -v zsh
+    - title: existing zsh version unchanged (skip did not reinstall)
+      cmd: bash -c 'zsh --version 2>&1 | grep -q "9.9.9"'
+
+invalid_method:
+  description: Ensures an unsupported method value fails fast.
+  checks:
+    - kind: install_failure
+      title: invalid method rejected
+      pattern: Unknown METHOD

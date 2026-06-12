@@ -1,0 +1,82 @@
+default_install:
+  envs: [debian-latest]
+  modes: [devcontainer, standalone]
+  tests: [default]
+
+package_install:
+  envs: [debian-bookworm+bash, alpine-3.21+bash, fedora-latest+bash]
+  modes: [devcontainer, standalone]
+  options:
+    method: package
+  tests: [package_install]
+
+source_build:
+  envs: [debian-bookworm+zsh-source-build-deps]
+  modes: [standalone]
+  options:
+    method: source
+    version: "5.9.1"
+  tests: [source_build]
+
+specific_version:
+  envs: [debian-bookworm+zsh-source-build-deps]
+  modes: [standalone]
+  options:
+    method: source
+    version: "5.9"
+  tests: [specific_version]
+
+source_custom_prefix:
+  envs: [debian-bookworm+zsh-source-build-deps]
+  modes: [devcontainer, standalone]
+  options:
+    method: source
+    version: "5.9.1"
+    prefix: /opt/zsh
+    prefix_discovery: symlink
+    if_exists: reinstall
+  tests: [source_custom_prefix]
+
+source_custom_prefix_nonroot:
+  envs: [debian-bookworm+zsh-source-build-deps]
+  modes: [standalone]
+  setup: useradd -m -s /bin/bash vscode
+  options:
+    method: source
+    version: "5.9.1"
+    prefix: /opt/zsh
+    prefix_discovery: symlink
+  standalone:
+    user: vscode
+  tests: [source_custom_prefix_nonroot]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then echo "zsh 9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/zsh
+    chmod +x /usr/local/bin/zsh
+  options:
+    method: auto
+    if_exists: fail
+  tests: [if_exists_fail]
+
+if_exists_skip:
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then echo "zsh 9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/zsh
+    chmod +x /usr/local/bin/zsh
+  options:
+    method: auto
+    if_exists: skip
+  tests: [if_exists_skip]
+
+invalid_method:
+  expect_install_failure: true
+  envs: [debian-latest]
+  modes: [standalone]
+  options:
+    method: binary
+  tests: [invalid_method]

@@ -148,7 +148,7 @@ _options:
 #   - ghcr.io/quantized8/devfeats/setup-user
 #   - ghcr.io/quantized8/devfeats/install-jq
 #   - ghcr.io/quantized8/devfeats/install-yq
-#   - ghcr.io/quantized8/devfeats/install-shell
+#   - ghcr.io/quantized8/devfeats/setup-shell
 _dependencies:
   run:
     base:
