@@ -856,6 +856,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__detect_installed_shells does not include tcsh when binary absent" {
+  [[ "$(uname -s)" == Darwin ]] && skip "macOS ships with tcsh pre-installed"
   reload_lib shell.sh
   run shell__detect_installed_shells
   refute_line "tcsh"

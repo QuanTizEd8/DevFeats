@@ -996,11 +996,10 @@ options:
         )
       }}#
     type: string
-    default: ""
-    _default: $PATH
+    default: '\${PATH}'
     description: |
       Colon-separated directories guaranteed to be on PATH at runtime
       (e.g. `/usr/local/bin:/usr/bin:/bin`).
       When set, the discovery step uses this value to decide whether
       the installation directory is already reachable.
-      Leave empty (default) to check `$PATH` at install time instead.
+      Defaults to `$PATH` evaluated in the install user's login environment.

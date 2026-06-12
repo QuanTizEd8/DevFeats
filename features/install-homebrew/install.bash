@@ -154,13 +154,24 @@ _brew_run_as_install_user() {
 }
 
 __init_args_post() {
-  # Common trunk: explicit option → SUDO_USER → _REMOTE_USER → _CONTAINER_USER → id -un.
-  [ -n "${INSTALL_USER:-}" ] || INSTALL_USER="$(users__get_current)"
-  # Homebrew cannot run as root. Apply platform-specific fallbacks when the
-  # common resolution still yields root (no sudo/remote-user context).
+  if [ -z "${INSTALL_USER:-}" ]; then
+    if users__is_root && [ "$(os__kernel)" != "Darwin" ]; then
+      # Linux root without an explicit install_user: always use the linuxbrew
+      # system account regardless of _REMOTE_USER / _CONTAINER_USER context.
+      # The official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
+      # on Linux; that path must be owned by a system (non-login) account so
+      # shell__run_prefix_discovery treats it as system-scope and writes to
+      # /etc/profile.d rather than the remote user's dotfiles.
+      logging__info "Linux root: using 'linuxbrew' as install_user."
+      INSTALL_USER="linuxbrew"
+    else
+      # Non-root, or macOS root: resolve via SUDO_USER → _REMOTE_USER → id -un.
+      INSTALL_USER="$(users__get_current)"
+    fi
+  fi
+  # Homebrew cannot run as root. macOS root still needs a non-system user.
   if [ "$INSTALL_USER" = "root" ]; then
     if [ "$(os__kernel)" = "Darwin" ]; then
-      # macOS: find the first non-system user via dscl.
       local _u
       _u="$(dscl . list /Users 2> /dev/null |
         grep -v -E '^(_|daemon|nobody|root|Guest)' |
@@ -174,13 +185,7 @@ __init_args_post() {
         return 1
       fi
     else
-      # Linux: fall back to the conventional linuxbrew system account.
-      # The official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
-      # and ignores HOMEBREW_PREFIX on Linux. When there is no real user
-      # context (no SUDO_USER, _REMOTE_USER, or _CONTAINER_USER), the
-      # linuxbrew system account is the conventional sole owner of that path.
-      # prepare_prefix_if_needed creates the user and its home if absent.
-      logging__info "Linux root: falling back to 'linuxbrew' as install_user."
+      logging__info "Linux: falling back to 'linuxbrew' as install_user."
       INSTALL_USER="linuxbrew"
     fi
   fi

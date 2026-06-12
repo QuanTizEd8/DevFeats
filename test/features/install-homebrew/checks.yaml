@@ -448,13 +448,18 @@ macos_discovery_disabled:
 
 macos_export_path_idempotent:
   description: |
-    export_path_idempotent: setup pre-seeds one stale discovery block per dotfile;
-    a single feature run with if_exists=update must update that block in place
-    (exactly one begin marker per file; inner line matches resolved brew prefix).
+    export_path_idempotent: env macos-latest-fresh-install removes brew; setup
+    pre-seeds one stale discovery block per dotfile; the feature fresh-installs
+    brew and must update each stale block in place (exactly one begin marker per
+    file; inner line references the resolved brew prefix, not __stale_prefix__).
   pre: |
-    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
     _HOME="$HOME"
+    if [[ "$(uname -m)" == "arm64" ]]; then
+      _BREW_PREFIX="/opt/homebrew"
+    else
+      _BREW_PREFIX="/usr/local"
+    fi
+    _BREW="${_BREW_PREFIX}/bin/brew"
     _MARKER='brew PATH (install-homebrew)'
     _BASH_LOGIN_FILE="$(detect_bash_login_file)"
   post: |

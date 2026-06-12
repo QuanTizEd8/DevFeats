@@ -112,6 +112,7 @@ macos_if_exists_reinstall:
   envs: [macos-latest]
   options:
     if_exists: reinstall
+    prefix_discovery: shell
   tests: [macos_if_exists_reinstall]
 
 macos_discovery_disabled:
@@ -121,9 +122,8 @@ macos_discovery_disabled:
   tests: [macos_discovery_disabled]
 
 macos_export_path_idempotent:
-  envs: [macos-latest]
+  envs: [macos-latest-fresh-install]
   options:
-    if_exists: update
     update: false
   setup: |
     # One stale discovery block per file (not two). `shell__sync_block` updates

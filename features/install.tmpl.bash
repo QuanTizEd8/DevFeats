@@ -321,8 +321,8 @@ __detect_existing_path__() {
       _FEAT_EXISTING_PATH="${_prefix_bin}"
       logging__detect "Found '${_FEAT_CONTRACT_PRIMARY_BIN}' in prefix at '${_FEAT_EXISTING_PATH}'."
     else
-      if [[ -v RUNTIME_PATH ]]; then
-        _FEAT_EXISTING_PATH="$(PATH="${RUNTIME_PATH}" command -v "${_FEAT_CONTRACT_PRIMARY_BIN}" 2>/dev/null || true)"
+      if [[ -v _RESOLVED_RUNTIME_PATH ]]; then
+        _FEAT_EXISTING_PATH="$(PATH="${_RESOLVED_RUNTIME_PATH}" command -v "${_FEAT_CONTRACT_PRIMARY_BIN}" 2>/dev/null || true)"
         [[ -n "${_FEAT_EXISTING_PATH}" ]] && \
           logging__detect "Found '${_FEAT_CONTRACT_PRIMARY_BIN}' on RUNTIME_PATH at '${_FEAT_EXISTING_PATH}'."
       fi
@@ -1332,7 +1332,7 @@ __feat_build_prefix_disc_args__() {
     --prefix "${_RESOLVED_PREFIX}"
     --bin-dir "${PREFIX_BIN_DIR}"
     --discovery "${PREFIX_DISCOVERY}"
-    --runtime-path "${RUNTIME_PATH}"
+    --runtime-path "${_RESOLVED_RUNTIME_PATH:-}"
     --bin "${_FEAT_CONTRACT_PRIMARY_BIN}"
     --cmd-var "_DF_EXPECTED_CMD"
     --marker "${_FEAT_CONTRACT_PRIMARY_BIN:+${_FEAT_CONTRACT_PRIMARY_BIN} }PATH (${_FEAT_ID})"
@@ -1387,6 +1387,15 @@ __install_finish__() {
     # -- discovery --
     [[ -v PREFIX_DISCOVERY ]] && {
       logging__install "Running prefix PATH discovery for '${_FEAT_ID}' into '${_RESOLVED_PREFIX}'."
+      # Re-resolve RUNTIME_PATH for the case where __resolve_prefix__ had to skip
+      # because the install user didn't exist yet (e.g. linuxbrew on a fresh host).
+      # __install_run__ guarantees the user now exists, so expand here before use.
+      if [[ -v RUNTIME_PATH && ! -v _RESOLVED_RUNTIME_PATH ]]; then
+        declare -g _RESOLVED_RUNTIME_PATH
+        local _disc_rp_expr="${RUNTIME_PATH//\\\$/\$}"
+        _RESOLVED_RUNTIME_PATH="$(users__expand_path --user "${INSTALL_USER:-$(users__get_current)}" "$_disc_rp_expr")"
+        logging__info "Option 'runtime_path' re-resolved for discovery to '${_RESOLVED_RUNTIME_PATH}'."
+      fi
       local -a _disc_args=()
       __feat_build_prefix_disc_args__ _disc_args
       shell__run_prefix_discovery "${_disc_args[@]}"
@@ -2089,6 +2098,22 @@ __resolve_prefix__() {
   }
   PREFIX_SCOPE="$(users__is_user_path "${_RESOLVED_PREFIX}" && printf user || printf system)"
   logging__info "Option 'prefix' resolved to '${_RESOLVED_PREFIX}'."
+
+  if [[ -v RUNTIME_PATH ]]; then
+    # The default '\${PATH}' is written by the devcontainer CLI as "\${PATH}"
+    # (double-quoted), so bash's double-quote processing consumes the backslash,
+    # leaving the literal 7-char string "${PATH}". In direct execution (no CLI)
+    # argparse__default assigns the raw '\${PATH}' with the backslash intact.
+    # Strip escape-backslashes before '$' to normalise both cases.
+    local _rp_expr="${RUNTIME_PATH//\\\$/\$}"
+    if [[ "$_rp_expr" != *'$'* && "$_rp_expr" != *'~'* ]] || id "$_eff_user" &>/dev/null; then
+      declare -g _RESOLVED_RUNTIME_PATH
+      _RESOLVED_RUNTIME_PATH="$(users__expand_path --user "$_eff_user" "$_rp_expr")"
+      logging__info "Option 'runtime_path' resolved to '${_RESOLVED_RUNTIME_PATH}'."
+    else
+      logging__info "Option 'runtime_path' not resolved: install user '${_eff_user}' does not exist yet."
+    fi
+  fi
 
   if [[ -v PREFIX_SYMLINK_NONROOT ]]; then
     PREFIX_SYMLINK_NONROOT="$(users__expand_path --user "$_symlink_user" "$PREFIX_SYMLINK_NONROOT")"
