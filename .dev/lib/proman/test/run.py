@@ -594,6 +594,13 @@ def _run_macos(
                     success = False
                     continue
 
+                # "login" (default): test runs in a login shell so startup
+                # files written by the feature (e.g. ~/.bash_profile) are
+                # sourced, giving the install user their fully configured PATH.
+                # "nonlogin-noninteractive": plain subprocess — use when the
+                # scenario specifically tests BASH_ENV or non-login access.
+                test_shell = scenario.get("test_shell", "login")
+
                 for ts in test_scripts:
                     ts_name = ts if ts.endswith(".sh") else f"{ts}.sh"
                     ts_path = str(
@@ -611,13 +618,17 @@ def _run_macos(
                         ts_q = shlex.quote(ts_path)
                         cmd = f"PATH={path_q} REPO_ROOT={root_q} {ts_q}"
                         result = subprocess.run(
-                            ["su", user, "-c", cmd],
+                            ["su", "-l", user, "-c", cmd]
+                            if test_shell == "login"
+                            else ["su", user, "-c", cmd],
                             check=False,
                             env=test_env,
                         )
                     else:
                         result = subprocess.run(
-                            [ts_path],
+                            ["bash", "--login", ts_path]
+                            if test_shell == "login"
+                            else [ts_path],
                             env=test_env,
                             check=False,
                         )

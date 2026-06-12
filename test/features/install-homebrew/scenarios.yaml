@@ -123,14 +123,10 @@ macos_discovery_disabled:
 
 macos_export_path_idempotent:
   envs: [macos-latest-fresh-install]
-  options:
-    update: false
   setup: |
-    # One stale discovery block per file (not two). `shell__sync_block` updates
-    # each marker span in place but does not collapse multiple duplicate blocks;
-    # the old test used two installs (first write, second update). A single stale
-    # block per file reproduces the "update in place" half of that story under
-    # one runner-controlled install.
+    # Pre-seed one stale discovery block per dotfile before the feature runs.
+    # The fresh install discovers the new prefix and updates the stale block in
+    # place (idempotent write via shell__sync_block).
     #
     # Hosted macOS images ship ~/.bash_profile lines that often omit a final
     # newline; appending with >> would fuse the first marker onto the last line

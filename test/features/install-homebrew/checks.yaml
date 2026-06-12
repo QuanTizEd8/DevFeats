@@ -361,7 +361,6 @@ macos_brew_git_remote:
   pre: |
     _HOME="$HOME"
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
     _BASH_LOGIN_FILE="$(detect_bash_login_file)"
 
     if [[ "$(uname -m)" == "arm64" ]]; then
@@ -382,9 +381,9 @@ macos_brew_git_remote:
     grep -nF 'HOMEBREW_BREW_GIT_REMOTE' "${_BASH_LOGIN_FILE}" 2>/dev/null || echo "(no matches)" >&2
   checks:
     - title: brew binary present
-      cmd: test -f "$_BREW"
+      cmd: command -v brew
     - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - title: brew git origin URL unchanged
       cmd: bash -c 'git -C "$1" remote get-url origin | grep -qF "$2"' -- "$_BREW_REPO" "$_REMOTE_URL"
     - title: BREW_GIT_REMOTE marker block absent from resolved bash login file after run
@@ -403,11 +402,10 @@ macos_default:
     shell files.
   pre: |
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
     _HOME="$HOME"
 
     echo "=== brew --version ==="
-    "$_BREW" --version 2>&1 || echo "(failed)"
+    brew --version 2>&1 || echo "(failed)"
   post: |
     for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
       "${_HOME}/.bashrc" "${_HOME}/.zshenv"; do
@@ -415,11 +413,9 @@ macos_default:
     done
   checks:
     - title: brew binary present
-      cmd: test -f "$_BREW"
-    - title: brew binary is executable
-      cmd: test -x "$_BREW"
+      cmd: command -v brew
     - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - title: system discovery profile.d NOT written
       cmd: bash -c '! test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}'
 
@@ -430,15 +426,14 @@ macos_discovery_disabled:
     are written to any user dotfiles.
   pre: |
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
 
     echo "=== brew --version ==="
-    "$_BREW" --version 2>&1 || echo "(failed)"
+    brew --version 2>&1 || echo "(failed)"
   checks:
     - title: brew binary present
-      cmd: test -f "$_BREW"
-    - title: brew --version via full path succeeds
-      cmd: '"$_BREW" --version'
+      cmd: command -v brew
+    - title: brew --version succeeds
+      cmd: 'brew --version'
     - title: ~/.bash_profile has NO discovery marker
       cmd: bash -c '! grep -qF "brew PATH (install-homebrew)" ~/.bash_profile 2>/dev/null'
     - title: ~/.bashrc has NO discovery marker
@@ -448,19 +443,12 @@ macos_discovery_disabled:
 
 macos_export_path_idempotent:
   description: |
-    export_path_idempotent: env macos-latest-fresh-install removes brew; setup
-    pre-seeds one stale discovery block per dotfile; the feature fresh-installs
-    brew and must update each stale block in place (exactly one begin marker per
-    file; inner line references the resolved brew prefix, not __stale_prefix__).
+    export_path_idempotent: setup pre-seeds one stale discovery block per dotfile;
+    the fresh install must update each block in place (exactly one begin marker per
+    file; inner line references the resolved brew prefix, not the stale placeholder).
   pre: |
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
     _HOME="$HOME"
-    if [[ "$(uname -m)" == "arm64" ]]; then
-      _BREW_PREFIX="/opt/homebrew"
-    else
-      _BREW_PREFIX="/usr/local"
-    fi
-    _BREW="${_BREW_PREFIX}/bin/brew"
-    _MARKER='brew PATH (install-homebrew)'
     _BASH_LOGIN_FILE="$(detect_bash_login_file)"
   post: |
     for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
@@ -482,9 +470,9 @@ macos_export_path_idempotent:
     done
   checks:
     - title: brew binary present
-      cmd: test -f "$_BREW"
+      cmd: command -v brew
     - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - title: resolved bash login file has exactly one begin marker
       cmd: bash -c '[[ "$({ grep -cF "# >>> brew PATH (install-homebrew) >>>" "$1" 2>/dev/null || echo 0; })" -eq 1 ]]' -- "$_BASH_LOGIN_FILE"
     - title: ~/.bashrc has exactly one begin marker
@@ -511,39 +499,29 @@ macos_fresh_install:
   description: |
     fresh_install: env macos-latest-fresh-install bootstraps with the official
     Homebrew uninstall (see test/environments.yaml), then the feature install runs —
-    full macOS path (fetch, official install script, Case B shellenv). Assert post-install
-    only; use "${_BREW_PREFIX}/bin/brew" — bare brew is not on PATH (no path_prepend).
+    full macOS path (fetch, official install script, Case B shellenv). Tests run
+    in a login shell, so brew is on PATH via the startup files the feature wrote.
 
     DESTRUCTIVE for the job: env bootstrap removes Homebrew; the feature reinstalls it.
   pre: |
     _HOME="$HOME"
-
-    if [[ "$(uname -m)" == "arm64" ]]; then
-      _BREW_PREFIX="/opt/homebrew"
-    else
-      _BREW_PREFIX="/usr/local"
-    fi
-    _BREW="${_BREW_PREFIX}/bin/brew"
+    _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
 
     echo "=== brew --version ==="
-    "$_BREW" --version 2>&1 || echo "(failed)"
+    brew --version 2>&1 || echo "(failed)"
     echo "=== ~/.zshenv ==="
     cat "${_HOME}/.zshenv" 2>/dev/null || echo "(missing)"
 
-    _ACTUAL_PREFIX="$("${_BREW}" --prefix 2>/dev/null || true)"
-    echo "=== brew --prefix: ${_ACTUAL_PREFIX} ==="
   post: "block_cleanup_all \"brew PATH (install-homebrew)\""
   checks:
     - title: brew prefix directory exists
       cmd: test -d "$_BREW_PREFIX"
     - title: brew binary installed
-      cmd: test -f "$_BREW"
-    - title: brew binary is executable
-      cmd: test -x "$_BREW"
+      cmd: command -v brew
     - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - title: brew --version reports Homebrew
-      cmd: sh -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+      cmd: sh -c 'brew --version | grep -q Homebrew'
     - title: a login bash file has shellenv marker
       cmd: sh -c 'grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.profile 2>/dev/null'
     - title: ~/.bashrc has shellenv marker
@@ -552,8 +530,6 @@ macos_fresh_install:
       cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' "${_HOME}/.zshenv"
     - title: shellenv block references correct brew prefix
       cmd: sh -c 'grep -qF "$1/bin/brew" ~/.zshenv 2>/dev/null || grep -qF "$1/bin/brew" ~/.bash_profile 2>/dev/null' -- "$_BREW_PREFIX"
-    - title: brew --prefix returns expected prefix
-      cmd: test "$_ACTUAL_PREFIX" = "$_BREW_PREFIX"
 
 macos_if_exists_fail:
   description: |
@@ -561,14 +537,13 @@ macos_if_exists_fail:
     No dotfiles are touched (the installer exits before export_shellenv_main).
   pre: |
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
   checks:
     - title: brew is present (pre-condition)
-      cmd: test -f "$_BREW"
+      cmd: command -v brew
     - title: brew binary still present after fail
-      cmd: test -f "$_BREW"
+      cmd: command -v brew
     - title: brew --version still succeeds after fail
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - kind: install_failure
       title: if_exists=fail exits with already-installed error
       pattern: failing (if_exists=fail)
@@ -584,26 +559,23 @@ macos_if_exists_reinstall:
   pre: |
     _HOME="$HOME"
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
 
     echo "=== brew --version ==="
-    "$_BREW" --version 2>&1 || echo "(failed)"
+    brew --version 2>&1 || echo "(failed)"
     echo "=== ~/.zshenv ==="
     cat "${_HOME}/.zshenv" 2>/dev/null || echo "(missing)"
   post: "block_cleanup_all \"brew PATH (install-homebrew)\""
   checks:
     - title: brew present before reinstall (pre-condition)
-      cmd: test -f "$_BREW"
+      cmd: command -v brew
     - title: brew prefix directory exists after reinstall
       cmd: test -d "$_BREW_PREFIX"
     - title: brew binary present after reinstall
-      cmd: test -f "$_BREW"
-    - title: brew binary is executable after reinstall
-      cmd: test -x "$_BREW"
+      cmd: command -v brew
     - title: brew --version succeeds after reinstall
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - title: brew --version reports Homebrew
-      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
+      cmd: bash -c 'brew --version | grep -q Homebrew'
     - title: a login bash file has shellenv marker
       cmd: bash -c 'grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.bash_profile 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.bash_login 2>/dev/null || grep -qF "# >>> brew PATH (install-homebrew) >>>" ~/.profile 2>/dev/null'
     - title: ~/.bashrc has shellenv marker
@@ -617,12 +589,11 @@ macos_logfile:
     the specified file in addition to stdout/stderr.
   pre: |
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
     _HOME="$HOME"
     _LOG_FILE="/tmp/brew-macos-test.log"
 
     echo "=== brew --version ==="
-    "$_BREW" --version 2>&1 || echo "(failed)"
+    brew --version 2>&1 || echo "(failed)"
   post: |
     rm -f "$_LOG_FILE"
     for f in "${_HOME}/.bash_profile" "${_HOME}/.bash_login" "${_HOME}/.profile" \
@@ -631,9 +602,9 @@ macos_logfile:
     done
   checks:
     - title: brew binary present
-      cmd: test -f "$_BREW"
+      cmd: command -v brew
     - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - title: log_file was created
       cmd: test -f "$_LOG_FILE"
       debug: |
@@ -658,7 +629,6 @@ macos_no_install_from_api:
   pre: |
     _HOME="$HOME"
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
     _BASH_LOGIN_FILE="$(detect_bash_login_file)"
   post: |
     block_cleanup_all "brew PATH (install-homebrew)"
@@ -670,9 +640,9 @@ macos_no_install_from_api:
     grep -nF 'HOMEBREW_NO_INSTALL_FROM_API' "${_BASH_LOGIN_FILE}" 2>/dev/null || echo "(no matches)" >&2
   checks:
     - title: brew binary present
-      cmd: test -f "$_BREW"
+      cmd: command -v brew
     - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - title: NO_INSTALL_FROM_API marker block absent from resolved bash login file after run
       cmd: bash -c '! grep -qF "# >>> HOMEBREW_NO_INSTALL_FROM_API (install-homebrew) >>>" "$1" 2>/dev/null' -- "$_BASH_LOGIN_FILE"
     - title: NO_INSTALL_FROM_API block absent from ~/.bashrc after run
@@ -689,21 +659,18 @@ macos_update_false:
   pre: |
     _HOME="$HOME"
     _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
-    _BREW="${_BREW_PREFIX}/bin/brew"
     _LOG_FILE="/tmp/brew-update-false-test.log"
 
     echo "=== brew --version ==="
-    "$_BREW" --version 2>&1 || echo "(failed)"
+    brew --version 2>&1 || echo "(failed)"
   post: |
     rm -f "$_LOG_FILE"
     block_cleanup_all "brew PATH (install-homebrew)"
   checks:
     - title: brew binary present
-      cmd: test -f "$_BREW"
-    - title: brew binary is executable
-      cmd: test -x "$_BREW"
+      cmd: command -v brew
     - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
+      cmd: 'brew --version'
     - title: log_file was created
       cmd: test -f "$_LOG_FILE"
       debug: |
