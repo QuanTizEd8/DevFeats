@@ -37,29 +37,32 @@ _options:
     args: "version"
     description: Verify the TeX Live installation via tlmgr.
   user_file_fetch: true
-options:
   method:
-    type: string
-    default: script
-    description: Installation method to use.
-    enum:
-      - value: script
-        description: |-
-          Download and run the [official TeX Live Unix installer](https://www.tug.org/texlive/quickinstall.html).
-          Supports Linux (glibc and musl/Alpine) and macOS.
-          The installer is driven by a generated `texlive.profile`;
-          all profile-key options (`texdir`, `texmf*`, `instopt_*`, and `tlpdbopt_*` options listed below)
-          are written into the profile automatically.
-          Use `profile` to bypass generation with a fully custom profile.
-          After installation, `tlmgr` manages individual CTAN packages without a full reinstall.
-      - value: package
-        description: |-
-          Install TeX Live from the system package manager (`apt`, `dnf`, `apk`, `brew`, etc.).
-          The `scheme` option influences the package set where multiple granularity levels are
-          available (e.g. apt distinguishes `texlive-latex-base` vs `texlive-latex-recommended`
-          vs `texlive-full`). Version is controlled by the distribution's package repository;
-          `tlmgr` is typically not used for updates in this mode.
-
+    default: auto
+    script:
+      asset_uri: ''
+    package: {}
+  version:
+    resolution: none
+    default: latest
+    proposals:
+      - value: latest
+        description: Live CTAN mirror pool — always the current TeX Live release.
+      - value: '2026'
+        description: TeX Live 2026 frozen snapshot.
+      - value: '2025'
+        description: TeX Live 2025 frozen snapshot.
+      - value: '2024'
+        description: TeX Live 2024 frozen snapshot.
+  prefix:
+    root: /usr/local/texlive
+    nonroot: ${HOME}/texlive
+    bins: [tlmgr]
+    symlink:
+      skip: true
+    exports:
+      skip: true
+options:
   scheme:
     type: string
     default: small
@@ -68,30 +71,39 @@ options:
       sets the `selected_scheme scheme-<value>` key in the installer profile. Also influences
       package selection for `method=package` where distro packaging allows multiple granularity
       levels.
-      Has no effect when `profile` is provided (the profile's `selected_scheme` takes precedence).
+      Has no effect when `profile` is provided (the profile's `selected_scheme` takes precedence)
+      or when `collections` is non-empty — the TeX Live installer resets the scheme's collection
+      list when any `collection-*` line is present; only the explicitly listed collections are
+      installed. See `collections` for details.
     enum:
       - value: full
         description: >-
-          Complete TeX Live distribution: all packages, engines, and fonts (~7 GB). Choose when
-          any LaTeX document must build without missing-package errors.
+          [Full scheme](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/scheme-full.tlpsrc?view=markup) –
+          Complete TeX Live distribution: all packages, engines, and fonts (~7 GB).
+          Choose when any LaTeX document must build without missing-package errors.
       - value: medium
         description: >-
+          [Medium scheme](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/scheme-medium.tlpsrc?view=markup) –
           LaTeX plus a large set of commonly used extra packages and fonts (~2 GB). A practical
           default for general document production workflows.
       - value: small
         description: >-
+          [Small scheme](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/scheme-small.tlpsrc?view=markup) –
           LaTeX plus a curated set of recommended packages (~400 MB). Good balance between
           functionality and image size for most document workflows; extend with `packages`.
       - value: basic
         description: >-
+          [Basic scheme](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/scheme-basic.tlpsrc?view=markup) –
           LaTeX plus fundamental packages only (~200 MB). Suitable when you want a working base
           and will add exactly the CTAN packages needed via `packages`.
       - value: minimal
         description: >-
+          [Minimal scheme](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/scheme-minimal.tlpsrc?view=markup) –
           TeX engine and bare-minimum formats only (~100 MB). Pair with `packages` to build a
           purpose-specific installation. `latex` and most macro packages are absent until added.
       - value: infraonly
         description: >-
+          [Infrastructure-only scheme](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/scheme-infraonly.tlpsrc?view=markup) –
           Only `tlmgr` infrastructure, no TeX packages (~30 MB). Use when you want full control
           over exactly which packages are present by listing them in `packages`. The `latex` binary
           will not be present until you add `latex-bin` (and friends) to `packages`.
@@ -119,21 +131,205 @@ options:
       - value: ''
         description: Install no additional packages beyond the chosen scheme.
 
+  collections:
+    type: array
+    default: ''
+    _applies_when:
+      - method: [script]
+    description: |-
+      TeX Live collections to install (without the `collection-` prefix). When any collections
+      are listed, `scheme-infraonly` is written as the profile scheme and ONLY the specified
+      collections are installed. This reflects documented TeX Live installer behaviour: the
+      presence of any `collection-*` line in the profile causes the installer to reset the
+      scheme's default collection list before applying the profile — meaning the scheme's
+      collections are never added. `scheme-infraonly` is used explicitly to make the intent
+      unambiguous. The `scheme` option is therefore ignored when `collections` is non-empty.
+      Leave empty (default) to install the collections bundled with the chosen `scheme`.
+      To add individual CTAN packages on top of a scheme (without replacing its collections),
+      use `packages`.
+      The full list of TeX Live collections is defined in the
+      [TUG SVN package database](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/scheme-full.tlpsrc?view=markup).
+    enum:
+      - value: basic
+        description: >-
+          [collection-basic](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-basic.tlpsrc?view=markup) –
+          Essential programs and files.
+      - value: bibtexextra
+        description: >-
+          [collection-bibtexextra](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-bibtexextra.tlpsrc?view=markup) –
+          BibTeX additional styles
+      - value: binextra
+        description: >-
+          [collection-binextra](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-binextra.tlpsrc?view=markup) –
+          TeX auxiliary programs
+      - value: context
+        description: >-
+          [collection-context](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-context.tlpsrc?view=markup) –
+          ConTeXt and packages
+      - value: fontsextra
+        description: >-
+          [collection-fontsextra](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-fontsextra.tlpsrc?view=markup) –
+          Additional fonts
+      - value: fontsrecommended
+        description: >-
+          [collection-fontsrecommended](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-fontsrecommended.tlpsrc?view=markup) –
+          Recommended fonts
+      - value: fontutils
+        description: >-
+          [collection-fontutils](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-fontutils.tlpsrc?view=markup) –
+          Graphics and font utilities
+      - value: formatsextra
+        description: >-
+          [collection-formatsextra](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-formatsextra.tlpsrc?view=markup) –
+          Additional formats
+      - value: games
+        description: >-
+          [collection-games](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-games.tlpsrc?view=markup) –
+          Games typesetting
+      - value: humanities
+        description: >-
+          [collection-humanities](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-humanities.tlpsrc?view=markup) –
+          Humanities packages
+      - value: langarabic
+        description: >-
+          [collection-langarabic](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langarabic.tlpsrc?view=markup) –
+          Arabic
+      - value: langchinese
+        description: >-
+          [collection-langchinese](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langchinese.tlpsrc?view=markup) –
+          Chinese
+      - value: langcjk
+        description: >-
+          [collection-langcjk](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langcjk.tlpsrc?view=markup) –
+          Chinese/Japanese/Korean (base)
+      - value: langcyrillic
+        description: >-
+          [collection-langcyrillic](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langcyrillic.tlpsrc?view=markup) –
+          Cyrillic
+      - value: langczechslovak
+        description: >-
+          [collection-langczechslovak](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langczechslovak.tlpsrc?view=markup) –
+          Czech/Slovak
+      - value: langenglish
+        description: >-
+          [collection-langenglish](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langenglish.tlpsrc?view=markup) –
+          US and UK English
+      - value: langeuropean
+        description: >-
+          [collection-langeuropean](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langeuropean.tlpsrc?view=markup) –
+          Other European languages
+      - value: langfrench
+        description: >-
+          [collection-langfrench](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langfrench.tlpsrc?view=markup) –
+          French
+      - value: langgerman
+        description: >-
+          [collection-langgerman](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langgerman.tlpsrc?view=markup) –
+          German
+      - value: langgreek
+        description: >-
+          [collection-langgreek](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langgreek.tlpsrc?view=markup) –
+          Greek
+      - value: langitalian
+        description: >-
+          [collection-langitalian](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langitalian.tlpsrc?view=markup) –
+          Italian
+      - value: langjapanese
+        description: >-
+          [collection-langjapanese](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langjapanese.tlpsrc?view=markup) –
+          Japanese
+      - value: langkorean
+        description: >-
+          [collection-langkorean](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langkorean.tlpsrc?view=markup) –
+          Korean
+      - value: langother
+        description: >-
+          [collection-langother](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langother.tlpsrc?view=markup) –
+          Other languages
+      - value: langpolish
+        description: >-
+          [collection-langpolish](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langpolish.tlpsrc?view=markup) –
+          Polish
+      - value: langportuguese
+        description: >-
+          [collection-langportuguese](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langportuguese.tlpsrc?view=markup) –
+          Portuguese
+      - value: langspanish
+        description: >-
+          [collection-langspanish](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-langspanish.tlpsrc?view=markup) –
+          Spanish
+      - value: latex
+        description: >-
+          [collection-latex](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-latex.tlpsrc?view=markup) –
+          LaTeX fundamental packages
+      - value: latexextra
+        description: >-
+          [collection-latexextra](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-latexextra.tlpsrc?view=markup) –
+          LaTeX additional packages
+      - value: latexrecommended
+        description: >-
+          [collection-latexrecommended](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-latexrecommended.tlpsrc?view=markup) –
+          LaTeX recommended packages
+      - value: luatex
+        description: >-
+          [collection-luatex](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-luatex.tlpsrc?view=markup) –
+          LuaTeX packages
+      - value: mathscience
+        description: >-
+          [collection-mathscience](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-mathscience.tlpsrc?view=markup) –
+          Mathematics, natural sciences, computer science packages
+      - value: metapost
+        description: >-
+          [collection-metapost](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-metapost.tlpsrc?view=markup) –
+          MetaPost and Metafont packages
+      - value: music
+        description: >-
+          [collection-music](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-music.tlpsrc?view=markup) –
+          Music packages
+      - value: pictures
+        description: >-
+          [collection-pictures](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-pictures.tlpsrc?view=markup) –
+          Graphics, pictures, diagrams
+      - value: plaingeneric
+        description: >-
+          [collection-plaingeneric](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-plaingeneric.tlpsrc?view=markup) –
+          Plain (La)TeX packages
+      - value: pstricks
+        description: >-
+          [collection-pstricks](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-pstricks.tlpsrc?view=markup) –
+          PSTricks
+      - value: publishers
+        description: >-
+          [collection-publishers](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-publishers.tlpsrc?view=markup) –
+          Publisher styles, theses, etc.
+      - value: texworks
+        description: >-
+          [collection-texworks](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-texworks.tlpsrc?view=markup) –
+          TeXworks editor
+      - value: wintools
+        description: >-
+          [collection-wintools](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-wintools.tlpsrc?view=markup) –
+          Windows-only support programs (no-op on Linux/macOS)
+      - value: xetex
+        description: >-
+          [collection-xetex](https://svn.tug.org:8369/texlive/trunk/Master/tlpkg/tlpsrc/collection-xetex.tlpsrc?view=markup) –
+          XeTeX and packages
+
   profile:
     type: string
     default: ''
     description: |
       Inline `texlive.profile` content or path/URI to a profile file for `method=script`.
       When non-empty, the profile is used directly as the installer profile and all individual
-      profile-key options (`texdir`, `texmflocal`, `texmfsysvar`, `texmfsysconfig`, `texmfhome`,
-      `texmfvar`, `texmfconfig`, `instopt_adjustpath`, `instopt_adjustrepo`, `instopt_letter`,
-      `instopt_portable`, `instopt_write18_restricted`, `tlpdbopt_install_docfiles`,
-      `tlpdbopt_install_srcfiles`, `tlpdbopt_sys_bin`, `tlpdbopt_sys_man`, `tlpdbopt_sys_info`,
-      `tlpdbopt_create_formats`, `tlpdbopt_post_code`, `tlpdbopt_generate_updmap`,
-      `tlpdbopt_autobackup`, `tlpdbopt_backupdir`) are ignored — the profile controls these
-      settings completely. Non-profile options (`scheme`, `repository`, `verify_downloads`,
-      `packages`, `tlmgr_update`, `tlmgr_verify_repo`, `year`, `if_exists`,
-      `installer_dir`) remain active.
+      profile-key options (`prefix`, `scheme`, `collections`, `texmflocal`, `texmfsysvar`,
+      `texmfsysconfig`, `texmfhome`, `texmfvar`, `texmfconfig`, `instopt_adjustpath`,
+      `instopt_adjustrepo`, `instopt_letter`, `instopt_portable`, `instopt_write18_restricted`,
+      `tlpdbopt_install_docfiles`, `tlpdbopt_install_srcfiles`, `tlpdbopt_sys_bin`,
+      `tlpdbopt_sys_man`, `tlpdbopt_sys_info`, `tlpdbopt_create_formats`, `tlpdbopt_post_code`,
+      `tlpdbopt_generate_updmap`, `tlpdbopt_autobackup`, `tlpdbopt_backupdir`) are ignored — the
+      profile controls these settings completely. Non-profile options (`repository`,
+      `verify_downloads`, `packages`, `generate_caches`, `tlmgr_update`, `tlmgr_verify_repo`,
+      `version`, `if_exists`, `installer_dir`) remain active.
 
       A profile is a plain-text file with `key value` pairs, one per line. Unknown keys cause the
       installer to abort. If any `collection-*` key is present, the installer installs only the
@@ -201,10 +397,10 @@ options:
     default: true
     description: |-
       Verify the integrity of downloaded TeX Live packages using GPG signatures. When true
-      (default), `gpg` is installed as a build dependency before the installer runs and the
-      installer's built-in signature verification is active. Set to false to pass
-      `--no-verify-downloads` to the installer, disabling signature checks — useful in
-      air-gapped environments where the TeX Live GPG infrastructure is unreachable.
+      (default), the installer's built-in signature verification is active — it auto-detects
+      `gpg` in PATH and skips verification gracefully if not found. Set to false to pass
+      `--no-verify-downloads` to the installer, disabling signature checks unconditionally.
+      Useful in air-gapped environments where the TeX Live GPG infrastructure is unreachable.
 
   tlmgr_update:
     type: boolean
@@ -216,6 +412,19 @@ options:
       package updates from the configured repository. Disabled by default to keep the
       installation reproducible and deterministic. Enable in development images where the latest
       CTAN state is always desired.
+
+  generate_caches:
+    type: boolean
+    _applies_when:
+      - method: [script]
+    default: false
+    description: |-
+      Generate ConTeXt file-database / LuaTeX cache and font caches after installation.
+      Disabled by default because cache generation adds significant build time and is only
+      needed when ConTeXt documents will be compiled inside the container. When enabled,
+      runs `mtxrun --generate`, `context --make`, and `fc-cache -fsv`. Only meaningful
+      when ConTeXt is included in the installation (e.g. `scheme=full`, `scheme=context`,
+      or `context` listed in `collections`).
 
   tlmgr_verify_repo:
     type: string
@@ -240,38 +449,15 @@ options:
 
   # -- directory keys --
 
-  texdir:
-    type: string
-    _applies_when:
-      - method: [script]
-    default: ''
-    description: |-
-      TeX Live system installation directory.
-      Specifying this option also causes the `texmflocal`, `texmfsysconfig`, and `texmfsysvar` directories
-      to be set as subdirectories of `texdir`, so they don't have to be set individually.
-      Leave empty (default) to use the installer's default:
-      `/usr/local/texlive/YYYY` (root) or `~/texlive/YYYY` (non-root),
-      where `YYYY` is the current TeX Live year.
-      When set, the path is used verbatim —
-      the installer does NOT append the year automatically (unlike `TEXLIVE_INSTALL_PREFIX`),
-      so include the year explicitly if you want year-based organization (e.g. `/opt/texlive/2026`).
-      Ignored when `profile` is provided (profile key `TEXDIR`).
-    proposals:
-      - value: ''
-        description: Installer default — `/usr/local/texlive/YYYY` as root.
-      - value: /opt/texlive/2026
-        description: Custom system-wide path with explicit year.
-
   texmflocal:
     type: string
     _applies_when:
       - method: [script]
     default: ''
     description: |-
-      System-wide tree for local additions (packages, fonts,
-      styles) shared across all users and across TeX Live years. Leave empty (default) to use
-      the installer default (`/usr/local/texlive/texmf-local`), which sits one level above
-      `TEXDIR` and is not wiped when upgrading to a new TeX Live year.
+      System-wide tree for local additions (packages, fonts, styles) shared across all users.
+      Leave empty (default) to use `<prefix>/texmf-local` (e.g. `/usr/local/texlive/texmf-local`),
+      kept inside the TeX Live prefix and not removed when the TeX Live tree is rebuilt.
       Ignored when `profile` is provided (profile key `TEXMFLOCAL`).
     proposals:
       - value: ''
@@ -287,11 +473,11 @@ options:
     description: |-
       Profile key `TEXMFSYSCONFIG` — the system-wide directory for configuration files
       (e.g. `updmap.cfg`, `fmtutil.cnf`) that apply to all users.
-      Leave empty (default) to use the installer default (`TEXDIR/texmf-config`).
+      Leave empty (default) to use `<prefix>/texmf-config` (inside the TeX Live prefix).
       Ignored when `profile` is provided.
     proposals:
       - value: ''
-        description: Installer default (`TEXDIR/texmf-config`).
+        description: Default (`<prefix>/texmf-config`).
 
   texmfsysvar:
     type: string
@@ -301,11 +487,11 @@ options:
     description: |-
       Profile key `TEXMFSYSVAR` — the system-wide directory where the installer writes generated
       files (format dumps, font maps, updmap output) that apply to all users.
-      Leave empty (default) to use the installer default (`TEXDIR/texmf-var`).
+      Leave empty (default) to use `<prefix>/texmf-var` (inside the TeX Live prefix).
       Ignored when `profile` is provided.
     proposals:
       - value: ''
-        description: Installer default (`TEXDIR/texmf-var`).
+        description: Default (`<prefix>/texmf-var`).
 
   texmfhome:
     type: string
@@ -594,10 +780,13 @@ _dependencies:
           when: {kernel: linux}
   build:
     installer:
-      # xz is used by the TeX Live installer to decompress .xz package archives
-      # from the CTAN repository during installation.
+      # xz is required by the TeX Live installer to decompress .xz package archives
+      # downloaded from CTAN during installation.
       # Users who need to run 'tlmgr install' or 'tlmgr update' after image build
-      # should set keep_build_deps=true so xz remains available.
+      # should set keep_build_deps=true so xz remains available at runtime.
+      # GPG is NOT listed here: the installer auto-detects gpg in PATH and skips
+      # signature verification gracefully when not found; the verify_downloads option
+      # passes --no-verify-downloads to disable it unconditionally.
       packages:
         - name: xz
           apt: xz-utils
