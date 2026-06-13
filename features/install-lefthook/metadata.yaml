@@ -1,0 +1,50 @@
+version: 0.1.0
+name: Lefthook Installation
+description: Install [Lefthook](https://lefthook.dev/) — a fast, polyglot Git hooks manager.
+keywords:
+  - lefthook
+  - git
+  - hooks
+  - git-hooks
+  - cli
+_long_description: |-
+  Installs Lefthook, a fast Git hooks manager implemented as a single Go binary.
+  Lefthook installs small hook entrypoint scripts into `.git/hooks/` and executes
+  jobs defined in `lefthook.yml`, providing a polyglot alternative to
+  language-specific hook managers such as Husky.
+_tool_name: Lefthook
+_options:
+  verify:
+    args: "version"
+    description: Verify lefthook is installed and working.
+  gh_repo: evilmartians/lefthook
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    flag: "version"
+    proposals:
+      - value: "2.1.6"
+        description: Install lefthook v2.1.6.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/lefthook_{VERSION}_{OS==linux?Linux:MacOS}_{ARCH==amd64?x86_64:{ARCH}}"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/lefthook_checksums.txt"
+    npm:
+      package: "lefthook"
+      args:
+        - "--ignore-scripts"
+    package: {}
+  prefix:
+    bins: [lefthook]
+    applies_when:
+      - method: [binary, npm]
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    os-pkg:
+      packages:
+        - lefthook
+# installsAfter: []
