@@ -6,6 +6,8 @@ _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_LIB_DIR/file.sh"
 # shellcheck source=lib/logging-api.sh
 . "$_LIB_DIR/logging-api.sh"
+# shellcheck source=lib/_posix.sh
+. "$_LIB_DIR/_posix.sh"
 # shellcheck source=lib/git.sh
 . "$_LIB_DIR/git.sh"
 # shellcheck source=lib/logging.sh

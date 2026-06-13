@@ -103,7 +103,7 @@
             "resolution": {
               "description": "Version resolution strategy used by the auto-impl of `_feat_resolve_version`.",
               "type": "string",
-              "enum": ["github_release", "github_tag", "npm", "cargo", "none", "git_ref"]
+              "enum": ["github_release", "github_tag", "npm", "cargo", "none", "git_ref", "sidecar"]
             },
             "default": {
               "description": "Default value for the generated `options.version` option.",
@@ -132,6 +132,14 @@
             },
             "flag": {
               "description": "CLI flag for installed-version query, used by the auto-impl of `_feat_installed_version`. Defaults to `--version`.",
+              "type": "string"
+            },
+            "uri": {
+              "description": "URI of the sidecar file used for version resolution when `resolution=sidecar`. The file is downloaded and scanned for filenames matching `pattern`.",
+              "type": "string"
+            },
+            "pattern": {
+              "description": "Filename pattern with `{VERSION}` placeholder for extracting version strings from the sidecar file when `resolution=sidecar` (e.g. `zsh-{VERSION}.tar.xz`).",
               "type": "string"
             }
           }
@@ -300,6 +308,10 @@
                   "description": "Make targets invoked in sequence. When empty the build-system default is used (`autotools` and `make` both default to `[\"all\", \"install\"]`). Sets the default for the auto-generated `source_make_targets` option.",
                   "type": "array",
                   "items": {"type": "string"}
+                },
+                "fallback_asset_uri": {
+                  "description": "Fallback URI for the source tarball when the primary `asset_uri` fetch fails. Supports the same `{VERSION}`, `{OS}`, `{ARCH}`, etc. substitutions. Sidecar verification is skipped for the fallback. Sets the default for the auto-generated `source_fallback_asset_uri` option.",
+                  "type": "string"
                 }
               }
             },

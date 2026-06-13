@@ -2774,3 +2774,346 @@ _create_smart_rpm() {
   # cmake must not be in the autoremove call — keep wins.
   [[ ! -f "$_APT_LOG" ]] || ! grep -q "cmake" "$_APT_LOG"
 }
+
+# ---------------------------------------------------------------------------
+# ospkg__has_available_version
+# ---------------------------------------------------------------------------
+#
+# Unit tests use fake binaries (via create_fake_bin / prepend_fake_bin_path)
+# that simulate PM output. Integration tests (prefixed "integration:") run
+# the real PM inside the current container.
+
+# ospkg__resolve_version
+# =======================
+
+_setup_resolve_version() {
+  reload_lib ospkg.sh
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+}
+
+@test "ospkg__resolve_version: returns 1 for empty package name" {
+  _setup_resolve_version
+  run ospkg__resolve_version "" "5.9"
+  assert_failure
+}
+
+@test "ospkg__resolve_version: returns 1 for empty version spec" {
+  _setup_resolve_version
+  run ospkg__resolve_version "zsh" ""
+  assert_failure
+}
+
+@test "ospkg__resolve_version: apt — returns exact PM version for matching spec" {
+  _setup_resolve_version
+  printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: 5.9-6ubuntu2\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apt"
+  _OSPKG__PKG_MNGR="apt-get"
+  run ospkg__resolve_version "zsh" "5.9"
+  assert_success
+  assert_output "5.9-6ubuntu2"
+}
+
+@test "ospkg__resolve_version: apt — exact spec matches PM version with distro suffix" {
+  _setup_resolve_version
+  printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: 5.9.1-2\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apt"
+  _OSPKG__PKG_MNGR="apt-get"
+  run ospkg__resolve_version "zsh" "5.9.1"
+  assert_success
+  assert_output "5.9.1-2"
+}
+
+@test "ospkg__resolve_version: apt — returns 1 when spec does not match candidate" {
+  _setup_resolve_version
+  printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: 5.9-6ubuntu2\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apt"
+  _OSPKG__PKG_MNGR="apt-get"
+  run ospkg__resolve_version "zsh" "5.9.1"
+  assert_failure
+}
+
+@test "ospkg__resolve_version: apt — returns 1 for (none) candidate" {
+  _setup_resolve_version
+  printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: (none)\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apt"
+  _OSPKG__PKG_MNGR="apt-get"
+  run ospkg__resolve_version "zsh" "5.9"
+  assert_failure
+}
+
+@test "ospkg__resolve_version: apk — returns exact PM version for matching spec" {
+  _setup_resolve_version
+  create_fake_bin "apk" "zsh-5.9-r4"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apk"
+  _OSPKG__PKG_MNGR="apk"
+  run ospkg__resolve_version "zsh" "5.9"
+  assert_success
+  assert_output "5.9-r4"
+}
+
+@test "ospkg__resolve_version: apk — returns latest when multiple versions match" {
+  _setup_resolve_version
+  # apk search returns multiple lines (e.g. edge + stable repos)
+  printf '#!/bin/sh\nprintf "zsh-5.9.1-r0\nzsh-5.9-r4\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apk"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apk"
+  _OSPKG__PKG_MNGR="apk"
+  run ospkg__resolve_version "zsh" "5.9"
+  assert_success
+  assert_output "5.9.1-r0"
+}
+
+@test "ospkg__resolve_version: dnf — returns latest matching version from multiple candidates" {
+  _setup_resolve_version
+  printf '#!/bin/sh\nprintf "5.8\n5.9\n5.9.1\n"\n' > "${BATS_TEST_TMPDIR}/bin/dnf"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dnf"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="dnf"
+  _OSPKG__PKG_MNGR="dnf"
+  run ospkg__resolve_version "zsh" "5.9"
+  assert_success
+  assert_output "5.9.1"
+}
+
+@test "ospkg__resolve_version: dnf — returns 1 for non-matching spec" {
+  _setup_resolve_version
+  printf '#!/bin/sh\nprintf "5.9\n"\n' > "${BATS_TEST_TMPDIR}/bin/dnf"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dnf"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="dnf"
+  _OSPKG__PKG_MNGR="dnf"
+  run ospkg__resolve_version "zsh" "5.9.1"
+  assert_failure
+}
+
+@test "ospkg__resolve_version: unknown family returns 1" {
+  _setup_resolve_version
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="unknown_pm"
+  _OSPKG__PKG_MNGR="unknown_pm"
+  run ospkg__resolve_version "zsh" "5.9"
+  assert_failure
+}
+
+@test "integration: ospkg__resolve_version returns PM version string for known package" {
+  _setup_resolve_version
+  type apt-cache > /dev/null 2>&1 || skip "not an apt-based system"
+  local _bash_ver
+  _bash_ver="$(apt-cache policy bash 2> /dev/null | awk '/Candidate:/{print $2; exit}')"
+  [[ -n "${_bash_ver}" && "${_bash_ver}" != "(none)" ]] || skip "bash candidate not found in apt"
+  local _prefix="${_bash_ver%%[.-]*}"
+  run ospkg__resolve_version "bash" "${_prefix}"
+  assert_success
+  assert_output "${_bash_ver}"
+}
+
+@test "integration: ospkg__resolve_version fails for non-existent package" {
+  _setup_resolve_version
+  type apt-cache > /dev/null 2>&1 || skip "not an apt-based system"
+  run ospkg__resolve_version "this-package-does-not-exist-12345" "1.0"
+  assert_failure
+}
+
+# ospkg__run version resolution
+# ==============================
+
+@test "ospkg__run: resolves version spec to PM-native version string before install" {
+  _seed_apt_context
+  _stub_ospkg_privilege_ok
+  # apt-cache returns candidate "5.9-6ubuntu2" for spec "5.9"
+  printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: 5.9-6ubuntu2\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  local _manifest
+  _manifest="$(mktemp --suffix=.yaml)"
+  printf 'packages:\n- name: zsh\n  version: "${VERSION}"\n' > "${_manifest}"
+  # --update bypasses ospkg__is_installed; --dry_run skips the actual apt-get install.
+  run ospkg__run --manifest "${_manifest}" --extra-var "VERSION=5.9" --update --dry_run
+  assert_success
+  assert_output --partial "zsh=5.9-6ubuntu2"
+}
+
+# ospkg__has_available_version
+# ============================
+
+_setup_has_available_version() {
+  reload_lib ospkg.sh
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+}
+
+@test "ospkg__has_available_version: returns 1 for empty package name" {
+  _setup_has_available_version
+  run ospkg__has_available_version "" "5.9"
+  assert_failure
+}
+
+@test "ospkg__has_available_version: returns 1 for empty version spec" {
+  _setup_has_available_version
+  run ospkg__has_available_version "zsh" ""
+  assert_failure
+}
+
+@test "ospkg__has_available_version: apt — available version satisfies spec" {
+  _setup_has_available_version
+  # apt-cache policy outputs "Candidate: 5.9-6ubuntu2"
+  printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: 5.9-6ubuntu2\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apt"
+  _OSPKG__PKG_MNGR="apt-get"
+  run ospkg__has_available_version "zsh" "5.9"
+  assert_success
+}
+
+@test "ospkg__has_available_version: apt — version mismatch returns 1" {
+  _setup_has_available_version
+  printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: 5.9-6ubuntu2\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apt"
+  _OSPKG__PKG_MNGR="apt-get"
+  run ospkg__has_available_version "zsh" "5.9.1"
+  assert_failure
+}
+
+@test "ospkg__has_available_version: apt — (none) candidate returns 1" {
+  _setup_has_available_version
+  printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: (none)\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apt"
+  _OSPKG__PKG_MNGR="apt-get"
+  run ospkg__has_available_version "zsh" "5.9"
+  assert_failure
+}
+
+@test "ospkg__has_available_version: apk — available version satisfies spec" {
+  _setup_has_available_version
+  create_fake_bin "apk" "zsh-5.9-r4"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apk"
+  _OSPKG__PKG_MNGR="apk"
+  run ospkg__has_available_version "zsh" "5.9"
+  assert_success
+}
+
+@test "ospkg__has_available_version: apk — version mismatch returns 1" {
+  _setup_has_available_version
+  create_fake_bin "apk" "zsh-5.9-r4"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apk"
+  _OSPKG__PKG_MNGR="apk"
+  run ospkg__has_available_version "zsh" "5.9.1"
+  assert_failure
+}
+
+@test "ospkg__has_available_version: apk — empty result returns 1" {
+  _setup_has_available_version
+  create_fake_bin "apk" ""
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="apk"
+  _OSPKG__PKG_MNGR="apk"
+  run ospkg__has_available_version "zsh" "5.9"
+  assert_failure
+}
+
+@test "ospkg__has_available_version: dnf — available version satisfies spec" {
+  _setup_has_available_version
+  printf '#!/bin/sh\nprintf "5.9\n"\n' > "${BATS_TEST_TMPDIR}/bin/dnf"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dnf"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="dnf"
+  _OSPKG__PKG_MNGR="dnf"
+  run ospkg__has_available_version "zsh" "5.9"
+  assert_success
+}
+
+@test "ospkg__has_available_version: dnf — version mismatch returns 1" {
+  _setup_has_available_version
+  printf '#!/bin/sh\nprintf "5.9\n"\n' > "${BATS_TEST_TMPDIR}/bin/dnf"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dnf"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="dnf"
+  _OSPKG__PKG_MNGR="dnf"
+  run ospkg__has_available_version "zsh" "5.9.1"
+  assert_failure
+}
+
+@test "ospkg__has_available_version: unknown family returns 1" {
+  _setup_has_available_version
+  _OSPKG__DETECTED=true
+  _OSPKG__FAMILY="unknown_pm"
+  _OSPKG__PKG_MNGR="unknown_pm"
+  run ospkg__has_available_version "zsh" "5.9"
+  assert_failure
+}
+
+@test "integration: ospkg__has_available_version succeeds for known-installed package" {
+  _setup_has_available_version
+  # bash is always present in our dev container (apt-based)
+  type apt-cache > /dev/null 2>&1 || skip "not an apt-based system"
+  # Use 'bash' as the test package — it's always available in the apt index.
+  local _bash_ver
+  _bash_ver="$(apt-cache policy bash 2> /dev/null | awk '/Candidate:/{print $2; exit}')"
+  [[ -n "${_bash_ver}" && "${_bash_ver}" != "(none)" ]] || skip "bash candidate not found in apt"
+  local _prefix="${_bash_ver%%[.-]*}"
+  run ospkg__has_available_version "bash" "${_prefix}"
+  assert_success
+}
+
+@test "integration: ospkg__has_available_version fails for non-existent package" {
+  _setup_has_available_version
+  type apt-cache > /dev/null 2>&1 || skip "not an apt-based system"
+  run ospkg__has_available_version "this-package-does-not-exist-12345" "1.0"
+  assert_failure
+}

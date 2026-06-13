@@ -336,3 +336,190 @@ setup() {
   assert_output "1.9.0"
   assert_success
 }
+
+# ---------------------------------------------------------------------------
+# ver__resolve_from_list
+# ---------------------------------------------------------------------------
+
+@test "ver__resolve_from_list fails on empty list" {
+  run ver__resolve_from_list "stable" <<< ""
+  assert_failure
+}
+
+@test "ver__resolve_from_list stable returns first final version" {
+  run ver__resolve_from_list "stable" <<< "$(printf '%s\n' "5.9.1" "5.9" "5.8.1")"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_list stable skips prerelease versions" {
+  run ver__resolve_from_list "stable" <<< "$(printf '%s\n' "5.9.1-rc1" "5.9.0-beta.1" "5.9" "5.8.1")"
+  assert_output "5.9"
+  assert_success
+}
+
+@test "ver__resolve_from_list stable fails when only prereleases in list" {
+  run ver__resolve_from_list "stable" <<< "$(printf '%s\n' "5.9.1-rc1" "5.9.0-beta.1")"
+  assert_failure
+}
+
+@test "ver__resolve_from_list empty spec behaves like stable" {
+  run ver__resolve_from_list "" <<< "$(printf '%s\n' "5.9.1-rc1" "5.9" "5.8.1")"
+  assert_output "5.9"
+  assert_success
+}
+
+@test "ver__resolve_from_list latest returns first version regardless of prerelease" {
+  run ver__resolve_from_list "latest" <<< "$(printf '%s\n' "5.9.1-rc1" "5.9" "5.8.1")"
+  assert_output "5.9.1-rc1"
+  assert_success
+}
+
+@test "ver__resolve_from_list exact version wins over prefix when both in list" {
+  run ver__resolve_from_list "5.9" <<< "$(printf '%s\n' "6.0" "5.9.2" "5.9.1" "5.9" "5.8.1")"
+  assert_output "5.9"
+  assert_success
+}
+
+@test "ver__resolve_from_list prefix returns latest when exact absent" {
+  run ver__resolve_from_list "5.9" <<< "$(printf '%s\n' "6.0" "5.9.2" "5.9.1" "5.8.1")"
+  assert_output "5.9.2"
+  assert_success
+}
+
+@test "ver__resolve_from_list exact version skips prerelease prefix but returns exact stable" {
+  run ver__resolve_from_list "5.9" <<< "$(printf '%s\n' "5.9.2-rc1" "5.9.1" "5.9")"
+  assert_output "5.9"
+  assert_success
+}
+
+@test "ver__resolve_from_list prefix skips prerelease matches when exact absent" {
+  run ver__resolve_from_list "5.9" <<< "$(printf '%s\n' "5.9.2-rc1" "5.9.1")"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_list exact version matches precisely" {
+  run ver__resolve_from_list "5.9.1" <<< "$(printf '%s\n' "5.9.2" "5.9.1" "5.9")"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_list exact version fails when not in list" {
+  run ver__resolve_from_list "5.9.3" <<< "$(printf '%s\n' "5.9.2" "5.9.1" "5.9")"
+  assert_failure
+}
+
+@test "ver__resolve_from_list numeric prefix fails with no match" {
+  run ver__resolve_from_list "6" <<< "$(printf '%s\n' "5.9.2" "5.9.1")"
+  assert_failure
+}
+
+@test "ver__resolve_from_list non-numeric spec fails" {
+  run ver__resolve_from_list "nope" <<< "$(printf '%s\n' "5.9.1" "5.9")"
+  assert_failure
+}
+
+@test "ver__resolve_from_list handles v-prefixed versions (strips v for is_final check)" {
+  run ver__resolve_from_list "stable" <<< "$(printf '%s\n' "v5.9.1-rc1" "v5.9" "v5.8.1")"
+  assert_output "v5.9"
+  assert_success
+}
+
+@test "ver__resolve_from_list major-only prefix matches first stable X.Y.Z" {
+  run ver__resolve_from_list "5" <<< "$(printf '%s\n' "5.9.1" "5.9" "5.8" "4.9")"
+  assert_output "5.9.1"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# ver__resolve_from_sidecar
+# ---------------------------------------------------------------------------
+
+_stub_uri_fetch_asset_with_content() {
+  # Override uri__fetch_asset to write _SIDECAR_CONTENT to the --file-dest path.
+  uri__fetch_asset() {
+    local _fd=""
+    while [[ $# -gt 0 ]]; do
+      [[ "$1" == "--file-dest" ]] && {
+        _fd="$2"
+        shift 2
+        continue
+      }
+      shift
+    done
+    [[ -n "${_fd}" ]] && printf '%s\n' "${_SIDECAR_CONTENT}" > "${_fd}"
+    return 0
+  }
+  export -f uri__fetch_asset
+}
+
+_stub_uri_fetch_asset_fail() {
+  uri__fetch_asset() { return 1; }
+  export -f uri__fetch_asset
+}
+
+@test "ver__resolve_from_sidecar resolves stable from zsh-style SHA256SUM" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.1.tar.xz
+def456  zsh-5.9.1.tar.gz
+abc123  zsh-5.9.tar.xz
+abc123  zsh-5.9-doc.tar.xz
+abc123  zsh-5.8.1.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "stable"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar resolves latest including prereleases" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.2-rc1.tar.xz
+abc123  zsh-5.9.1.tar.xz
+abc123  zsh-5.9.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "latest"
+  assert_output "5.9.2-rc1"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar returns numeric spec as-is without fetching sidecar" {
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "5.9"
+  assert_output "5.9"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar returns full numeric spec as-is" {
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "5.9.1"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar fails when pattern has no {VERSION}" {
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-5.9.1.tar.xz" "stable"
+  assert_failure
+}
+
+@test "ver__resolve_from_sidecar fails when fetch fails" {
+  _stub_uri_fetch_asset_fail
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "stable"
+  assert_failure
+}
+
+@test "ver__resolve_from_sidecar fails when no versions found in file" {
+  export _SIDECAR_CONTENT="abc123  someotherfile.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "stable"
+  assert_failure
+}
+
+@test "ver__resolve_from_sidecar fails when URI is empty" {
+  run ver__resolve_from_sidecar "" "zsh-{VERSION}.tar.xz" "stable"
+  assert_failure
+}
+
+@test "ver__resolve_from_sidecar fails when sidecar has only prereleases and stable requested" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.2-rc1.tar.xz
+abc123  zsh-5.9.1-beta.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "stable"
+  assert_failure
+}

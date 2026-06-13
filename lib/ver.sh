@@ -163,3 +163,182 @@ ver__first_matching_prefix() {
   }
   printf '%s\n' "$_result"
 }
+
+ver__resolve_from_list() {
+  # @brief ver__resolve_from_list <spec> — Resolve a version spec against a sorted (newest-first) list from stdin.
+  #
+  # Reads newline-separated version strings from stdin (newest first) and
+  # resolves `<spec>` using the same logic as other version resolvers:
+  #
+  #   `stable` / `""`: First final (non-prerelease) version in the list.
+  #   `latest`:        First version in the list (no prerelease filtering).
+  #   Numeric prefix:  First final version whose bare numeric part starts with
+  #                    `<spec>` (uses `ver__first_matching_prefix`). Covers both
+  #                    prefix specs (e.g. `1.2` → `1.2.5`) and exact specs
+  #                    (e.g. `1.2.3` → `1.2.3`).
+  #
+  # Pre-release status is determined by `ver__semver_is_final` on the bare
+  # numeric part after stripping a leading `v`.
+  #
+  # Args:
+  #   <spec>  Version spec: `stable`, `latest`, `""`, a numeric prefix
+  #           (e.g. `5.9`), or an exact version (e.g. `5.9.1`).
+  #
+  # Stdin:  Newline-separated version strings, newest first.
+  # Stdout: Resolved version string (exactly as it appeared on stdin).
+  #
+  # Returns: 0 on success, 1 if no matching version found or list is empty.
+  local _spec="${1:-stable}"
+  local -a _versions
+  mapfile -t _versions
+  ((${#_versions[@]} > 0)) || {
+    logging__error "ver__resolve_from_list: version list is empty."
+    return 1
+  }
+  case "${_spec}" in
+    stable | "")
+      local _v
+      for _v in "${_versions[@]}"; do
+        ver__semver_is_final "${_v#v}" && {
+          printf '%s\n' "${_v}"
+          return 0
+        }
+      done
+      logging__error "ver__resolve_from_list: no stable release found in list."
+      return 1
+      ;;
+    latest)
+      printf '%s\n' "${_versions[0]}"
+      return 0
+      ;;
+    *)
+      local _norm
+      _norm="$(ver__extract_version --keep-suffix "${_spec}" 2> /dev/null || true)"
+      [[ -n "${_norm}" ]] || {
+        logging__error "ver__resolve_from_list: spec '${_spec}' contains no numeric version content."
+        return 1
+      }
+      local _v _stable_list=""
+      for _v in "${_versions[@]}"; do
+        ver__semver_is_final "${_v#v}" && _stable_list+="${_stable_list:+$'\n'}${_v}"
+      done
+      [[ -n "${_stable_list}" ]] || {
+        logging__error "ver__resolve_from_list: no stable releases in list for spec '${_spec}'."
+        return 1
+      }
+      # Exact match takes priority so that "5.9" returns "5.9" even when "5.9.1" is also in the list.
+      local _exact
+      _exact="$(printf '%s\n' "${_stable_list}" | awk -v s="${_norm}" '{ bare = $0; sub(/^[^0-9]*/, "", bare); if (bare == s) { print; exit } }')" || true
+      if [[ -n "${_exact}" ]]; then
+        printf '%s\n' "${_exact}"
+        return 0
+      fi
+      local _matched
+      _matched="$(printf '%s\n' "${_stable_list}" | ver__first_matching_prefix "${_norm}")" || {
+        logging__error "ver__resolve_from_list: no version matching spec '${_spec}' found."
+        return 1
+      }
+      printf '%s\n' "${_matched}"
+      ;;
+  esac
+}
+
+ver__resolve_from_sidecar() {
+  # @brief ver__resolve_from_sidecar <uri> <filename_pattern> <spec> — Download a sidecar file and resolve a version spec from its embedded filenames.
+  #
+  # Downloads the file at `<uri>`, extracts version strings that appear in
+  # filenames matching `<filename_pattern>` (which must contain `{VERSION}`),
+  # sorts them newest-first, and resolves `<spec>` via `ver__resolve_from_list`.
+  #
+  # For `stable`, `latest`, and `""` specs the sidecar is fetched to find the
+  # current release. For any numeric spec (e.g. `5.9`, `5.9.1`) the sidecar is
+  # skipped and the spec is returned as-is: the caller is expected to use the
+  # exact version directly (possibly with a fallback URI for archived releases).
+  # This preserves the intuitive meaning of "give me exactly version 5.9".
+  #
+  # Example: URI=https://www.zsh.org/pub/SHA256SUM, pattern=zsh-{VERSION}.tar.xz
+  # will extract versions like `5.9.1` from lines such as:
+  #   "abc123  zsh-5.9.1.tar.xz"
+  #
+  # Args:
+  #   <uri>              URL of the sidecar file.
+  #   <filename_pattern> Filename pattern with `{VERSION}` placeholder.
+  #   <spec>             Version spec: `stable`, `latest`, `""`, or an explicit
+  #                      numeric version (e.g. `5.9`, `5.9.1`). Explicit numeric
+  #                      specs are returned as-is without fetching the sidecar.
+  #
+  # Stdout: Resolved version string.
+  # Returns: 0 on success, 1 on failure (download error, no versions found, no match).
+  local _uri="$1" _pattern="$2" _spec="${3:-stable}"
+  [[ -n "${_uri}" ]] || {
+    logging__error "ver__resolve_from_sidecar: URI is required."
+    return 1
+  }
+  [[ -n "${_pattern}" ]] || {
+    logging__error "ver__resolve_from_sidecar: filename_pattern is required."
+    return 1
+  }
+  [[ "${_pattern}" == *'{VERSION}'* ]] || {
+    logging__error "ver__resolve_from_sidecar: pattern '${_pattern}' must contain '{VERSION}'."
+    return 1
+  }
+  # For explicit numeric specs (not stable/latest/""), skip sidecar and return as-is.
+  # This preserves the intent of e.g. "5.9" → exactly 5.9, not "latest 5.9.x".
+  case "${_spec}" in
+    stable | latest | "")
+      ;;
+    *)
+      local _norm
+      _norm="$(ver__extract_version --keep-suffix "${_spec}" 2> /dev/null || true)"
+      [[ -n "${_norm}" ]] || {
+        logging__error "ver__resolve_from_sidecar: spec '${_spec}' contains no numeric version content."
+        return 1
+      }
+      printf '%s\n' "${_norm}"
+      return 0
+      ;;
+  esac
+  local _tmpfile
+  _tmpfile="$(mktemp)" || {
+    logging__error "ver__resolve_from_sidecar: failed to create temp file."
+    return 1
+  }
+  local _fetch_rc=0
+  uri__fetch_asset "${_uri}" --file-dest "${_tmpfile}" --sha256 none > /dev/null 2>&1 || _fetch_rc=$?
+  if [[ ${_fetch_rc} -ne 0 ]]; then
+    rm -f "${_tmpfile}"
+    logging__error "ver__resolve_from_sidecar: failed to fetch '${_uri}' (rc=${_fetch_rc})."
+    return 1
+  fi
+  local _prefix="${_pattern%%\{VERSION\}*}"
+  local _suffix="${_pattern##*\{VERSION\}}"
+  local -a _versions
+  mapfile -t _versions < <(
+    awk -v p="${_prefix}" -v s="${_suffix}" '
+      {
+        for (i = 1; i <= NF; i++) {
+          w = $i
+          if (p != "" && index(w, p) != 1) continue
+          v = substr(w, length(p) + 1)
+          if (s != "") {
+            if (length(v) <= length(s)) continue
+            if (substr(v, length(v) - length(s) + 1) != s) continue
+            v = substr(v, 1, length(v) - length(s))
+          }
+          if (v ~ /^[0-9]/) print v
+        }
+      }
+    ' "${_tmpfile}" | sort -V -r
+  )
+  rm -f "${_tmpfile}"
+  ((${#_versions[@]} > 0)) || {
+    logging__error "ver__resolve_from_sidecar: no versions found in '${_uri}' matching pattern '${_pattern}'."
+    return 1
+  }
+  local _resolved
+  _resolved="$(printf '%s\n' "${_versions[@]}" | ver__resolve_from_list "${_spec}")" || {
+    logging__error "ver__resolve_from_sidecar: failed to resolve spec '${_spec}' from '${_uri}'."
+    return 1
+  }
+  printf '%s\n' "${_resolved}"
+}

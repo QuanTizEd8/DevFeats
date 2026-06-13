@@ -1603,6 +1603,83 @@ ospkg__has_rdeps() {
   [[ -n "${_out:-}" ]]
 }
 
+ospkg__resolve_version() {
+  # @brief ospkg__resolve_version <package> <spec> — Resolve a version spec to the exact PM version string available in the repository.
+  #
+  # Queries repository metadata without installing anything and returns the
+  # PM-native version string (e.g. `5.9-6ubuntu2` on Debian/Ubuntu, `5.9-r4`
+  # on Alpine) that satisfies `<spec>`. When the repository exposes multiple
+  # matching versions (possible with DNF), the newest one is returned.
+  #
+  # `<spec>` is matched using prefix semantics: `5.9` matches `5.9-6ubuntu2`
+  # and `5.9.1` but not `5.90`. An exact spec (e.g. `5.9.1`) is also accepted
+  # and must appear verbatim (modulo distro suffix) in the repository.
+  #
+  # Args:
+  #   <package>  Package name.
+  #   <spec>     Version prefix or exact version (e.g. `5.9`, `5.9.1`).
+  #
+  # Stdout: Exact PM version string (e.g. `5.9-6ubuntu2`).
+  # Returns: 0 on success, 1 if unavailable, unsupported PM, or query error.
+  local _pkg="${1:-}" _spec="${2:-}"
+  [[ -n "${_pkg}" && -n "${_spec}" ]] || return 1
+  ospkg__detect || return 1
+  local _candidates=""
+  case "${_OSPKG__FAMILY}" in
+    apt)
+      _candidates="$(apt-cache policy "${_pkg}" 2> /dev/null | awk '/Candidate:/{print $2; exit}')"
+      [[ -n "${_candidates}" && "${_candidates}" != "(none)" ]] || return 1
+      ;;
+    apk)
+      _candidates="$(apk search --exact "${_pkg}" 2> /dev/null | sed "s/^${_pkg}-//" | sort -V -r)"
+      [[ -n "${_candidates}" ]] || return 1
+      ;;
+    dnf)
+      case "${_OSPKG__PKG_MNGR}" in
+        dnf)
+          _candidates="$(dnf repoquery --available "${_pkg}" --qf '%{version}\n' 2> /dev/null | sort -V -r)"
+          ;;
+        yum)
+          _candidates="$(yum info "${_pkg}" 2> /dev/null | awk -F' *: *' '/^Version/{print $2; exit}')"
+          ;;
+        *) return 1 ;;
+      esac
+      [[ -n "${_candidates}" ]] || return 1
+      ;;
+    zypper)
+      _candidates="$(zypper info "${_pkg}" 2> /dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p' | head -1)"
+      [[ -n "${_candidates}" ]] || return 1
+      ;;
+    pacman)
+      _candidates="$(pacman -Si "${_pkg}" 2> /dev/null | awk -F' : ' '/^Version/{print $2; exit}')"
+      [[ -n "${_candidates}" ]] || return 1
+      ;;
+    brew)
+      _candidates="$(brew info --formula "${_pkg}" 2> /dev/null | grep -oE 'stable [0-9][0-9._-]*' | awk '{print $2}' | head -1)"
+      [[ -n "${_candidates}" ]] || return 1
+      ;;
+    *) return 1 ;;
+  esac
+  printf '%s\n' "${_candidates}" | ver__first_matching_prefix "${_spec}"
+}
+
+ospkg__has_available_version() {
+  # @brief ospkg__has_available_version <package> <version> — Return 0 if the OS PM's repository can satisfy the version spec for <package>.
+  #
+  # Thin wrapper around `ospkg__resolve_version` that discards the resolved
+  # version string and returns only the exit code. See `ospkg__resolve_version`
+  # for matching semantics.
+  #
+  # Args:
+  #   <package>  Package name.
+  #   <version>  Version prefix or exact version to check.
+  #
+  # Returns: 0 if the PM can provide the requested version, 1 otherwise.
+  local _pkg="${1:-}" _spec="${2:-}"
+  [[ -n "${_pkg}" && -n "${_spec}" ]] || return 1
+  ospkg__resolve_version "${_pkg}" "${_spec}" > /dev/null 2>&1
+}
+
 ospkg__remove_user() {
   # @brief ospkg__remove_user [--ignore-deps] <pkg>... — Remove one or more user-installed packages via the OS package manager.
   #
@@ -2387,7 +2464,7 @@ ospkg__run() {
       fi
     }
     local -a _pkgs_to_install=() _pkg_base_names=()
-    local _pkgitem _pkgname _pkgflags _pkgversion _pkginstall
+    local _pkgitem _pkgname _pkgflags _pkgversion _pkginstall _resolved_ver
     for _pkgitem in "${_Y_PACKAGES[@]}"; do
       _pkgname="$(printf '%s' "$_pkgitem" | json__query -r '.name')"
       _pkgflags="$(printf '%s' "$_pkgitem" | json__query -r '.flags // empty')"
@@ -2397,10 +2474,15 @@ ospkg__run() {
 
       # Apply version constraint (PM-native syntax).
       if [[ -n "${_pkgversion:-}" ]]; then
+        # Resolve the user spec (e.g. "5.9") to the PM's exact version string
+        # (e.g. "5.9-6ubuntu2") so the install command uses an exact match.
+        # Falls back to the raw spec when resolution fails or the PM is unknown.
+        _resolved_ver="$(ospkg__resolve_version "${_pkgname}" "${_pkgversion}" 2> /dev/null)" ||
+          _resolved_ver="${_pkgversion}"
         case "$_OSPKG__FAMILY" in
-          apt | apk | pacman | zypper) _pkginstall="${_pkgname}=${_pkgversion}" ;;
-          dnf | yum) _pkginstall="${_pkgname}-${_pkgversion}" ;;
-          brew) _pkginstall="${_pkgname}@${_pkgversion}" ;;
+          apt | apk | pacman | zypper) _pkginstall="${_pkgname}=${_resolved_ver}" ;;
+          dnf | yum) _pkginstall="${_pkgname}-${_resolved_ver}" ;;
+          brew) _pkginstall="${_pkgname}@${_resolved_ver}" ;;
           *) _pkginstall="${_pkgname}" ;;
         esac
       else

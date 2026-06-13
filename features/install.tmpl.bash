@@ -850,7 +850,9 @@ __install_run_binary__() {
 __install_run_package__() {
   __run_feature_hook__ __install_run_package_pre
   logging__install "Installing package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
-  __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}"
+  local _pkg_ver=""
+  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
+  __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}" --extra-var "VERSION=${_pkg_ver}"
   __run_feature_hook__ __install_run_package_post
 }
 
@@ -1053,6 +1055,23 @@ __install_run_source__() {
   # that cannot be expressed in _dependencies.build).  Override
   # __install_run_source__ entirely only when you need a fully custom fetch+build.
 
+  # Template-owned source pre-flight (runs before the optional feature hook):
+  # 1. Create the install prefix directory.
+  [[ -v _RESOLVED_PREFIX ]] && file__mkdir "${_RESOLVED_PREFIX}"
+  # 2. On macOS, ensure Xcode CLI tools are available (installs headlessly if absent).
+  [[ "$(os__kernel)" == "Darwin" ]] && bootstrap__xcode
+  # 3. Install source-build dependencies (privileged installs only; non-privileged
+  #    users are expected to have build tools pre-installed).
+  local _sbm
+  _sbm="$(__dep_manifest_path__ build source-build)"
+  if [[ -f "${_sbm}" ]]; then
+    if users__is_privileged; then
+      __dep_install__ build source-build
+    else
+      logging__info "Non-privileged install: skipping source-build deps; expecting pre-installed."
+    fi
+  fi
+
   __run_feature_hook__ __install_run_source_pre
 
   if [[ ! -v SOURCE_ASSET_URI || -z "${SOURCE_ASSET_URI}" ]]; then
@@ -1072,7 +1091,18 @@ __install_run_source__() {
   fi
 
   logging__download "Fetching source asset '${_asset_uri}'."
-  uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}"
+  local _fetch_rc=0
+  uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}" || _fetch_rc=$?
+  if [[ ${_fetch_rc} -ne 0 ]]; then
+    if [[ -v SOURCE_FALLBACK_ASSET_URI && -n "${SOURCE_FALLBACK_ASSET_URI}" ]]; then
+      local _fallback_uri
+      _fallback_uri="$(os__expand_release_pattern "${SOURCE_FALLBACK_ASSET_URI}" "${VERSION:-}" "${_tag:-}")"
+      logging__warn "Primary source fetch failed (rc=${_fetch_rc}); trying fallback '${_fallback_uri}'."
+      uri__fetch_asset "${_fallback_uri}" --installer-dir "${INSTALLER_DIR}" --sha256 none
+    else
+      return "${_fetch_rc}"
+    fi
+  fi
 
   local _src_dir
   _src_dir="$(find "${INSTALLER_DIR}/asset" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1)"
@@ -1653,7 +1683,9 @@ __update_run_migrate__() {
 __update_run_package__() {
   __run_feature_hook__ __update_run_package_pre
   logging__install "Updating package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
-  __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}" --update
+  local _pkg_ver=""
+  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
+  __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}" --extra-var "VERSION=${_pkg_ver}" --update
   __run_feature_hook__ __update_run_package_post
 }
 
@@ -2039,6 +2071,16 @@ __resolve_input_version__() {
         if [[ "${_resolved}" == "${VERSION}" ]]; then
           logging__info "Ref '${VERSION}' not found as a named ref on remote; treating as SHA."
         fi
+        ;;
+      sidecar)
+        if [[ -z "${VERSION_URI:-}" || -z "${VERSION_PATTERN:-}" ]]; then
+          logging__error "VERSION_RESOLUTION=sidecar requires VERSION_URI and VERSION_PATTERN to be set in metadata."
+          return 1
+        fi
+        logging__info "Resolving version from sidecar (URI='${VERSION_URI}', spec='${VERSION:-stable}')."
+        VERSION="$(ver__resolve_from_sidecar "${VERSION_URI}" "${VERSION_PATTERN}" "${VERSION:-stable}")"
+        local _rc=$?
+        [[ $_rc == 0 ]] || { logging__error "failed to resolve sidecar version (URI='${VERSION_URI}', spec='${VERSION:-stable}')."; return "$_rc"; }
         ;;
       none | "")
         # Explicit 'none' or no resolution declared: VERSION is used as-is.

@@ -14,7 +14,9 @@ _options:
     args: "--version"
     description: Verify zsh is installed and working.
   version:
-    resolution: none
+    resolution: sidecar
+    uri: "https://www.zsh.org/pub/SHA256SUM"
+    pattern: "zsh-{VERSION}.tar.xz"
     default: stable
     flag: --version
     proposals:
@@ -28,7 +30,17 @@ _options:
     source:
       asset_uri: "https://www.zsh.org/pub/zsh-{VERSION}.tar.xz"
       sidecar_uri: "https://www.zsh.org/pub/SHA256SUM"
+      fallback_asset_uri: "https://www.zsh.org/pub/old/zsh-{VERSION}.tar.xz"
       build_system: autotools
+      configure_args:
+        - "--with-term-lib=ncursesw ncurses curses termcap"
+        - "--enable-multibyte"
+        - "--enable-function-subdirs"
+        - "--with-tcsetpgrp"
+      make_targets:
+        - "install.bin"
+        - "install.modules"
+        - "install.fns"
   prefix:
     bins: [zsh]
     applies_when:

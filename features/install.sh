@@ -17,6 +17,8 @@ set -e
 
 # shellcheck source=lib/logging-api.sh
 . "$(dirname "$0")/lib/logging-api.sh"
+# shellcheck source=lib/_posix.sh
+. "$(dirname "$0")/lib/_posix.sh"
 logging__pending_init
 
 _bash_is_44() {
@@ -101,10 +103,10 @@ _ensure_bash4() {
   # environment before exec so install.bash inherits a clean namespace.
   # _BASH_BIN, _BASH_INSTALLED_INTERNALLY, and _BASH_INSTALLED_BY_PM are
   # intentionally kept — install.bash reads them in __init__ / __exit__.
-  unset -f _bash_is_44 _have _can_sudo _run_privileged _find_bash4 _ensure_xcode_clt \
+  unset -f _bash_is_44 _have _can_sudo _run_privileged _find_bash4 \
     _can_compile _compile_bash _detect_pm _pm_needs_root \
-    _install_bash_pkg _ensure_bash4
-  unset _vmaj _vmin _pm _c _b _v _ipm _pkg _BASH_VER _BASH_URL _tmpdir _bash_bin _dest_dir
+    _install_bash_pkg _ensure_bash4 posix__bootstrap_xcode
+  unset _vmaj _vmin _pm _c _b _v _ipm _xcode_pkg _BASH_VER _BASH_URL _tmpdir _bash_bin _dest_dir
 }
 
 _find_bash4() {
@@ -144,7 +146,7 @@ _compile_bash() {
   logging__inspect "bash >=4.4 not found — compiling bash ${_BASH_VER} from source."
 
   # macOS: Xcode CLT provides make and cc; install it headlessly if absent.
-  [ "$(uname -s)" = "Darwin" ] && _ensure_xcode_clt
+  [ "$(uname -s)" = "Darwin" ] && posix__bootstrap_xcode
 
   _tmpdir="$(mktemp -d /tmp/bash-src.XXXXXX)"
 
@@ -271,36 +273,6 @@ _run_privileged() {
   else
     sudo -n "$@"
   fi
-}
-
-_ensure_xcode_clt() {
-  # Headlessly install Xcode Command Line Tools on macOS.
-  #
-  # Required before compiling bash from source (provides make and cc).
-
-  if xcode-select -p > /dev/null 2>&1; then
-    logging__success "Xcode Command Line Tools already installed at '$(xcode-select -p)'."
-    return 0
-  fi
-  logging__inspect "Xcode Command Line Tools not found — installing headlessly."
-  # Headless CLT install pattern: create sentinel, find the softwareupdate
-  # package name, install, remove sentinel.
-  touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-  _pkg="$(softwareupdate -l 2>&1 |
-    grep -E '\*.*Command Line Tools' |
-    tail -1 |
-    sed 's/.*\* //')" || true
-  if [ -z "$_pkg" ]; then
-    rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    logging__error "No 'Command Line Tools' package found in softwareupdate -l."
-    logging__info "Install manually with: xcode-select --install"
-    exit 1
-  fi
-  logging__install "Installing via softwareupdate: '${_pkg}'"
-  softwareupdate -i "$_pkg" --verbose
-  rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-  logging__success "Xcode Command Line Tools installed."
-  return 0
 }
 
 _can_compile() {

@@ -89,4 +89,4 @@ invalid_method:
   checks:
     - kind: install_failure
       title: invalid method rejected
-      pattern: Unknown METHOD
+      pattern: "Invalid value for 'method'"

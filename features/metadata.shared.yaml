@@ -249,7 +249,7 @@ options:
     _apply_when: |
       #{{
         res = get("_options.version.resolution", "")
-        return res in ("github_release", "github_tag", "npm", "cargo")
+        return res in ("github_release", "github_tag", "npm", "cargo", "sidecar")
       }}#
     type: string
     default: |
@@ -265,11 +265,24 @@ options:
             return "https://registry.npmjs.org/" + pkg
         elif res == "cargo":
             return "https://crates.io/api/v1/crates/" + get("_options.method.cargo.crate", "")
+        elif res == "sidecar":
+            return get("_options.version.uri", "")
         return ""
       }}#
     description: >-
       Metadata endpoint URI used for version resolution.
       Override to use a mirror, proxy, or private registry.
+
+  version_pattern:
+    _apply_when: |
+      #{{ return get("_options.version.resolution") == "sidecar" }}#
+    type: string
+    default: |
+      #{{ return get("_options.version.pattern", "") }}#
+    description: >-
+      Filename pattern used to extract version strings from the sidecar file when
+      `version_resolution=sidecar`. Use `{VERSION}` as the placeholder for the
+      version number (e.g. `zsh-{VERSION}.tar.xz`).
 
   version_resolution:
     _apply_when: |
@@ -419,6 +432,17 @@ options:
       URI of the checksum or signature sidecar file for the source tarball.
       Supports the same runtime substitutions as `binary_asset_uri`.
       When omitted, sidecar verification is skipped.
+
+  source_fallback_asset_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.source.fallback_asset_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.source.fallback_asset_uri", "") }}#
+    description: >-
+      Fallback URI for the source tarball, tried when the primary `source_asset_uri`
+      fetch fails. Sidecar verification is skipped for the fallback download.
+      Supports the same runtime substitutions as `binary_asset_uri`.
 
   source_build_system:
     _apply_when: |

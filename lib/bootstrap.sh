@@ -483,3 +483,11 @@ bootstrap__git() {
   logging__install "Ensuring git is available (ospkg tracked: lib-git)."
   ospkg__install_tracked "lib-git" git
 }
+
+bootstrap__xcode() {
+  # @brief bootstrap__xcode — Ensure Xcode Command Line Tools are installed (macOS only).
+  # Thin bash wrapper around `posix__bootstrap_xcode`.
+  # Returns: 0 when CLTs are present (or successfully installed), 1 on failure.
+  [ "$(uname -s)" = "Darwin" ] || return 0
+  posix__bootstrap_xcode
+}
