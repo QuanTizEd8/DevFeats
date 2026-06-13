@@ -5,13 +5,13 @@ __detect_existing_path__() {
   declare -g _FEAT_EXISTING_PATH=""
   declare -g _FEAT_EXISTING=false
   # Primary: tlmgr symlink created by instopt_adjustpath (the default)
-  _FEAT_EXISTING_PATH="$(command -v tlmgr 2>/dev/null || true)"
+  _FEAT_EXISTING_PATH="$(command -v tlmgr 2> /dev/null || true)"
   if [[ -n "${_FEAT_EXISTING_PATH}" ]]; then
     logging__detect "Found 'tlmgr' at '${_FEAT_EXISTING_PATH}'."
   fi
   # Fallback: search inside the configured prefix (instopt_adjustpath=false installs)
   if [[ -z "${_FEAT_EXISTING_PATH}" && -n "${_RESOLVED_PREFIX:-}" && -d "${_RESOLVED_PREFIX}" ]]; then
-    _FEAT_EXISTING_PATH="$(find "${_RESOLVED_PREFIX}" -maxdepth 5 -name "tlmgr" -type f 2>/dev/null | head -1 || true)"
+    _FEAT_EXISTING_PATH="$(find "${_RESOLVED_PREFIX}" -maxdepth 5 -name "tlmgr" -type f 2> /dev/null | head -1 || true)"
     if [[ -n "${_FEAT_EXISTING_PATH}" ]]; then
       logging__detect "Found 'tlmgr' inside prefix '${_RESOLVED_PREFIX}' at '${_FEAT_EXISTING_PATH}'."
     fi
@@ -28,7 +28,8 @@ __resolve_method() {
   # Script everywhere else: delivers a current upstream release and works for both
   # privileged (system prefix) and unprivileged (user prefix) installs.
   if [[ "$(id -u)" == "0" ]]; then
-    local _pm; _pm="$(ospkg__pm)"
+    local _pm
+    _pm="$(ospkg__pm)"
     if [[ "${_pm}" == "apk" ]]; then
       printf 'package\n'
       return 0
@@ -38,12 +39,13 @@ __resolve_method() {
 }
 
 __installed_version() {
-  tlmgr --version 2>/dev/null \
-    | grep -oE 'version [0-9]{4}' | grep -oE '[0-9]{4}' | tail -n1
+  tlmgr --version 2> /dev/null |
+    grep -oE 'version [0-9]{4}' | grep -oE '[0-9]{4}' | tail -n1
 }
 
 __update_run__() {
-  local _installed_year; _installed_year="$(__installed_version)"
+  local _installed_year
+  _installed_year="$(__installed_version)"
   local _target="${VERSION:-latest}"
   if [[ "$_target" == "latest" || "$_target" == "$_installed_year" ]]; then
     logging__update "Updating TeX Live ${_installed_year} packages via tlmgr."
@@ -62,13 +64,124 @@ __install_register_dummy__() {
       return 0
       ;;
   esac
-  local _year; _year="$(__installed_version)"
+  local _year
+  _year="$(__installed_version)"
+  # Provides list mirrors https://tug.org/texlive/files/debian-equivs-2023-ex.txt
+  # so that apt dependencies on any Debian/Ubuntu texlive-* or latex-* package are
+  # satisfied without pulling in distro packages.
   ospkg__register_dummy "texlive" "${_year:-9999}" \
+    --provides asymptote \
+    --provides biblatex \
+    --provides biblatex-dw \
+    --provides chktex \
+    --provides cm-super \
+    --provides cm-super-minimal \
+    --provides context \
+    --provides dvidvi \
+    --provides dvipng \
+    --provides feynmf \
+    --provides fragmaster \
+    --provides jadetex \
+    --provides lacheck \
+    --provides latex-beamer \
+    --provides latex-cjk-all \
+    --provides latex-cjk-chinese \
+    --provides latex-cjk-chinese-arphic-bkai00mp \
+    --provides latex-cjk-chinese-arphic-bsmi00lp \
+    --provides latex-cjk-chinese-arphic-gbsn00lp \
+    --provides latex-cjk-chinese-arphic-gkai00mp \
+    --provides latex-cjk-common \
+    --provides latex-cjk-japanese \
+    --provides latex-cjk-japanese-wadalab \
+    --provides latex-cjk-korean \
+    --provides latex-cjk-thai \
+    --provides latexdiff \
+    --provides latexmk \
+    --provides latex-sanskrit \
+    --provides latex-xcolor \
+    --provides lcdf-typetools \
+    --provides lmodern \
+    --provides luatex \
+    --provides musixtex \
+    --provides passivetex \
+    --provides pgf \
+    --provides preview-latex-style \
+    --provides prosper \
+    --provides ps2eps \
+    --provides psutils \
+    --provides purifyeps \
+    --provides t1utils \
+    --provides tex4ht \
+    --provides tex4ht-common \
+    --provides tex-gyre \
+    --provides texinfo \
     --provides texlive \
+    --provides texlive-base \
+    --provides texlive-bibtex-extra \
+    --provides texlive-binaries \
+    --provides texlive-common \
+    --provides texlive-extra-utils \
+    --provides texlive-fonts-extra \
+    --provides texlive-fonts-extra-doc \
+    --provides texlive-fonts-recommended \
+    --provides texlive-fonts-recommended-doc \
+    --provides texlive-font-utils \
+    --provides texlive-formats-extra \
     --provides texlive-full \
+    --provides texlive-games \
+    --provides texlive-generic-extra \
+    --provides texlive-generic-recommended \
+    --provides texlive-humanities \
+    --provides texlive-humanities-doc \
+    --provides texlive-lang-african \
+    --provides texlive-lang-all \
+    --provides texlive-lang-arabic \
+    --provides texlive-lang-chinese \
+    --provides texlive-lang-cjk \
+    --provides texlive-lang-cyrillic \
+    --provides texlive-lang-czechslovak \
+    --provides texlive-lang-english \
+    --provides texlive-lang-european \
+    --provides texlive-lang-french \
+    --provides texlive-lang-german \
+    --provides texlive-lang-greek \
+    --provides texlive-lang-indic \
+    --provides texlive-lang-italian \
+    --provides texlive-lang-japanese \
+    --provides texlive-lang-korean \
+    --provides texlive-lang-other \
+    --provides texlive-lang-polish \
+    --provides texlive-lang-portuguese \
+    --provides texlive-lang-spanish \
     --provides texlive-latex-base \
+    --provides texlive-latex-base-doc \
     --provides texlive-latex-extra \
+    --provides texlive-latex-extra-doc \
     --provides texlive-latex-recommended \
+    --provides texlive-latex-recommended-doc \
+    --provides texlive-luatex \
+    --provides texlive-math-extra \
+    --provides texlive-metapost \
+    --provides texlive-metapost-doc \
+    --provides texlive-music \
+    --provides texlive-omega \
+    --provides texlive-pictures \
+    --provides texlive-pictures-doc \
+    --provides texlive-plain-extra \
+    --provides texlive-plain-generic \
+    --provides texlive-pstricks \
+    --provides texlive-pstricks-doc \
+    --provides texlive-publishers \
+    --provides texlive-publishers-doc \
+    --provides texlive-science \
+    --provides texlive-science-doc \
+    --provides texlive-xetex \
+    --provides thailatex \
+    --provides tipa \
+    --provides tipa-doc \
+    --provides xindy \
+    --provides xindy-rules \
+    --provides xmltex \
     --description "devfeats: TeX Live ${_year:-latest} (non-PM install)"
 }
 
@@ -115,13 +228,13 @@ _tl_resolve_mirror() {
     for _url in "${_candidates[@]}"; do
       if command -v curl > /dev/null 2>&1; then
         if curl -fsSL --connect-timeout 10 --max-time 15 -I \
-            "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
+          "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
           printf '%s\n' "${_url}"
           return 0
         fi
       elif command -v wget > /dev/null 2>&1; then
         if wget -q --spider --timeout=15 \
-            "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
+          "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
           printf '%s\n' "${_url}"
           return 0
         fi
@@ -156,7 +269,7 @@ _tl_download_extract_installer() {
   if [[ "${VERIFY_DOWNLOADS:-true}" == "true" ]]; then
     local _checksum_file="${_archive}.sha512"
     logging__download "Downloading SHA512 checksum."
-    if net__fetch_url_file "${_installer_url}.sha512" "${_checksum_file}" 2>/dev/null; then
+    if net__fetch_url_file "${_installer_url}.sha512" "${_checksum_file}" 2> /dev/null; then
       logging__install "Verifying installer archive integrity."
       local -a _sha512_cmd=()
       if command -v sha512sum > /dev/null 2>&1; then
@@ -232,12 +345,12 @@ _tl_write_profile() {
     # installer computes these defaults relative to $tex_prefix/$year (the year-
     # stamped path), not relative to the profile-provided TEXDIR. Pinning them
     # here ensures the entire installation is self-contained under the prefix.
-    printf 'TEXMFLOCAL %s\n'     "${TEXMFLOCAL:-${_RESOLVED_PREFIX}/texmf-local}"
+    printf 'TEXMFLOCAL %s\n' "${TEXMFLOCAL:-${_RESOLVED_PREFIX}/texmf-local}"
     printf 'TEXMFSYSCONFIG %s\n' "${TEXMFSYSCONFIG:-${_RESOLVED_PREFIX}/texmf-config}"
-    printf 'TEXMFSYSVAR %s\n'    "${TEXMFSYSVAR:-${_RESOLVED_PREFIX}/texmf-var}"
-    [[ -n "${TEXMFHOME:-}" ]]      && printf 'TEXMFHOME %s\n'      "${TEXMFHOME}"
-    [[ -n "${TEXMFCONFIG:-}" ]]    && printf 'TEXMFCONFIG %s\n'    "${TEXMFCONFIG}"
-    [[ -n "${TEXMFVAR:-}" ]]       && printf 'TEXMFVAR %s\n'       "${TEXMFVAR}"
+    printf 'TEXMFSYSVAR %s\n' "${TEXMFSYSVAR:-${_RESOLVED_PREFIX}/texmf-var}"
+    [[ -n "${TEXMFHOME:-}" ]] && printf 'TEXMFHOME %s\n' "${TEXMFHOME}"
+    [[ -n "${TEXMFCONFIG:-}" ]] && printf 'TEXMFCONFIG %s\n' "${TEXMFCONFIG}"
+    [[ -n "${TEXMFVAR:-}" ]] && printf 'TEXMFVAR %s\n' "${TEXMFVAR}"
 
     # Scheme: infraonly + explicit collections, or named scheme
     if [[ "${#_nonempty_cols[@]}" -gt 0 ]]; then
@@ -250,22 +363,22 @@ _tl_write_profile() {
     fi
 
     # instopt_* keys
-    printf 'instopt_adjustpath %s\n'         "$( [[ "${INSTOPT_ADJUSTPATH:-true}" == "true" ]]         && printf '1' || printf '0' )"
-    printf 'instopt_adjustrepo %s\n'         "$( [[ "${INSTOPT_ADJUSTREPO:-true}" == "true" ]]         && printf '1' || printf '0' )"
-    printf 'instopt_letter %s\n'             "$( [[ "${INSTOPT_LETTER:-a4}" == "letter" ]]             && printf '1' || printf '0' )"
-    printf 'instopt_portable %s\n'           "$( [[ "${INSTOPT_PORTABLE:-false}" == "true" ]]          && printf '1' || printf '0' )"
-    printf 'instopt_write18_restricted %s\n' "$( [[ "${INSTOPT_WRITE18_RESTRICTED:-true}" == "true" ]] && printf '1' || printf '0' )"
+    printf 'instopt_adjustpath %s\n' "$([[ "${INSTOPT_ADJUSTPATH:-true}" == "true" ]] && printf '1' || printf '0')"
+    printf 'instopt_adjustrepo %s\n' "$([[ "${INSTOPT_ADJUSTREPO:-true}" == "true" ]] && printf '1' || printf '0')"
+    printf 'instopt_letter %s\n' "$([[ "${INSTOPT_LETTER:-a4}" == "letter" ]] && printf '1' || printf '0')"
+    printf 'instopt_portable %s\n' "$([[ "${INSTOPT_PORTABLE:-false}" == "true" ]] && printf '1' || printf '0')"
+    printf 'instopt_write18_restricted %s\n' "$([[ "${INSTOPT_WRITE18_RESTRICTED:-true}" == "true" ]] && printf '1' || printf '0')"
 
     # tlpdbopt_* keys
-    printf 'tlpdbopt_install_docfiles %s\n'  "$( [[ "${TLPDBOPT_INSTALL_DOCFILES:-false}" == "true" ]] && printf '1' || printf '0' )"
-    printf 'tlpdbopt_install_srcfiles %s\n'  "$( [[ "${TLPDBOPT_INSTALL_SRCFILES:-false}" == "true" ]] && printf '1' || printf '0' )"
+    printf 'tlpdbopt_install_docfiles %s\n' "$([[ "${TLPDBOPT_INSTALL_DOCFILES:-false}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_install_srcfiles %s\n' "$([[ "${TLPDBOPT_INSTALL_SRCFILES:-false}" == "true" ]] && printf '1' || printf '0')"
     [[ "${TLPDBOPT_SYS_BIN:-auto}" != "auto" ]] && printf 'tlpdbopt_sys_bin %s\n' "${TLPDBOPT_SYS_BIN}"
-    [[ -n "${TLPDBOPT_SYS_MAN:-}" ]]  && printf 'tlpdbopt_sys_man %s\n'  "${TLPDBOPT_SYS_MAN}"
+    [[ -n "${TLPDBOPT_SYS_MAN:-}" ]] && printf 'tlpdbopt_sys_man %s\n' "${TLPDBOPT_SYS_MAN}"
     [[ -n "${TLPDBOPT_SYS_INFO:-}" ]] && printf 'tlpdbopt_sys_info %s\n' "${TLPDBOPT_SYS_INFO}"
-    printf 'tlpdbopt_create_formats %s\n'    "$( [[ "${TLPDBOPT_CREATE_FORMATS:-true}" == "true" ]]    && printf '1' || printf '0' )"
-    printf 'tlpdbopt_post_code %s\n'         "$( [[ "${TLPDBOPT_POST_CODE:-true}" == "true" ]]         && printf '1' || printf '0' )"
-    printf 'tlpdbopt_generate_updmap %s\n'   "$( [[ "${TLPDBOPT_GENERATE_UPDMAP:-false}" == "true" ]]  && printf '1' || printf '0' )"
-    printf 'tlpdbopt_autobackup %s\n'        "${TLPDBOPT_AUTOBACKUP:-1}"
+    printf 'tlpdbopt_create_formats %s\n' "$([[ "${TLPDBOPT_CREATE_FORMATS:-true}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_post_code %s\n' "$([[ "${TLPDBOPT_POST_CODE:-true}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_generate_updmap %s\n' "$([[ "${TLPDBOPT_GENERATE_UPDMAP:-false}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_autobackup %s\n' "${TLPDBOPT_AUTOBACKUP:-1}"
     if [[ -n "${TLPDBOPT_BACKUPDIR:-}" ]]; then printf 'tlpdbopt_backupdir %s\n' "${TLPDBOPT_BACKUPDIR}"; fi
   } > "${_profile_dest}"
 }
@@ -286,7 +399,7 @@ _tl_detect_texdir_sysbin() {
   fi
 
   if [[ -z "${_TL_TEXDIR}" ]]; then
-    _TL_TEXDIR="$(kpsewhich -var-value=TEXMFROOT 2>/dev/null || true)"
+    _TL_TEXDIR="$(kpsewhich -var-value=TEXMFROOT 2> /dev/null || true)"
   fi
   if [[ -z "${_TL_TEXDIR}" ]]; then
     _TL_TEXDIR="${_RESOLVED_PREFIX}"
@@ -296,7 +409,7 @@ _tl_detect_texdir_sysbin() {
     _TL_SYSBIN="${TLPDBOPT_SYS_BIN}"
   fi
   if [[ -z "${_TL_SYSBIN}" ]]; then
-    _TL_SYSBIN="$( [[ "$(id -u)" == "0" ]] && printf '/usr/local/bin' || printf '%s/.local/bin' "${HOME}" )"
+    _TL_SYSBIN="$([[ "$(id -u)" == "0" ]] && printf '/usr/local/bin' || printf '%s/.local/bin' "${HOME}")"
   fi
 
   if [[ -z "${_TL_TEXDIR}" ]]; then
@@ -314,7 +427,7 @@ _tl_ensure_path() {
   # post-install calls (tlmgr install, tlmgr option, command -v context, …) work.
   [[ "${INSTOPT_ADJUSTPATH:-true}" == "true" ]] && return 0
   local _tl_arch_bin
-  _tl_arch_bin="$(find "${_TL_TEXDIR}/bin" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1 || true)"
+  _tl_arch_bin="$(find "${_TL_TEXDIR}/bin" -maxdepth 1 -mindepth 1 -type d 2> /dev/null | head -1 || true)"
   if [[ -n "${_tl_arch_bin}" ]]; then
     export PATH="${_tl_arch_bin}:${PATH}"
     logging__info "Added '${_tl_arch_bin}' to PATH for post-install steps."
@@ -347,10 +460,12 @@ _tl_has_packages() {
   # package-level options registered (paper size, verify-repo).
   [[ "${SCHEME:-small}" != "infraonly" ]] && return 0
   if [[ -v COLLECTIONS ]]; then
-    local _c; for _c in "${COLLECTIONS[@]}"; do [[ -n "${_c}" ]] && return 0; done
+    local _c
+    for _c in "${COLLECTIONS[@]}"; do [[ -n "${_c}" ]] && return 0; done
   fi
   if [[ -v PACKAGES ]]; then
-    local _p; for _p in "${PACKAGES[@]}"; do [[ -n "${_p}" ]] && return 0; done
+    local _p
+    for _p in "${PACKAGES[@]}"; do [[ -n "${_p}" ]] && return 0; done
   fi
   return 1
 }
@@ -360,7 +475,7 @@ _tl_generate_caches() {
   luaotfload-tool -u || true
   local _fontconf=""
   if [[ -n "${_TL_TEXDIR:-}" ]]; then
-    _fontconf="$(find "${_TL_TEXDIR}" -name texlive-fontconfig.conf 2>/dev/null | head -n1 || true)"
+    _fontconf="$(find "${_TL_TEXDIR}" -name texlive-fontconfig.conf 2> /dev/null | head -n1 || true)"
   fi
   if [[ -n "${_fontconf}" ]]; then
     mkdir -p /etc/fonts/conf.d
@@ -384,8 +499,8 @@ _tl_post_install() {
     local _pkg
     for _pkg in "${PACKAGES[@]}"; do
       [[ -z "${_pkg}" ]] && continue
-      tlmgr install "${_pkg}" \
-        || logging__warn "tlmgr install '${_pkg}' failed; continuing."
+      tlmgr install "${_pkg}" ||
+        logging__warn "tlmgr install '${_pkg}' failed; continuing."
     done
   fi
 
@@ -394,7 +509,7 @@ _tl_post_install() {
   # tlmgr would report "Option not supported". Only apply when packages are present.
   if [[ "${_guaranteed_packages}" == "true" ]] || _tl_has_packages; then
     local _paper
-    _paper="$( [[ "${INSTOPT_LETTER:-a4}" == "letter" ]] && printf 'letter' || printf 'a4' )"
+    _paper="$([[ "${INSTOPT_LETTER:-a4}" == "letter" ]] && printf 'letter' || printf 'a4')"
     tlmgr option paper "${_paper}" || true
 
     if [[ -n "${TLMGR_VERIFY_REPO:-}" ]]; then
@@ -436,10 +551,10 @@ __install_run_script__() {
 
   logging__install "Running TeX Live installer."
   TEXLIVE_INSTALL_NO_CONTEXT_CACHE=1 \
-  TEXLIVE_INSTALL_NO_DISKCHECK=1 \
-  TEXLIVE_INSTALL_ENV_NOCHECK=1 \
-  TEXLIVE_INSTALL_NO_WELCOME=1 \
-  NOPERLDOC=1 \
+    TEXLIVE_INSTALL_NO_DISKCHECK=1 \
+    TEXLIVE_INSTALL_ENV_NOCHECK=1 \
+    TEXLIVE_INSTALL_NO_WELCOME=1 \
+    NOPERLDOC=1 \
     perl "${INSTALLER_DIR}/install-tl" "${_install_args[@]}"
 
   _tl_detect_texdir_sysbin
@@ -456,30 +571,36 @@ __install_run_package__() {
   __run_feature_hook__ __install_run_package_pre
 
   local _scheme="${SCHEME:-small}"
-  local _pm; _pm="$(ospkg__pm)"
+  local _pm
+  _pm="$(ospkg__pm)"
   local -a _pkgs=()
 
   case "${_pm}" in
     apt-get)
       case "${_scheme}" in
-        full)              _pkgs=(texlive-full) ;;
-        medium)            _pkgs=(texlive texlive-latex-extra texlive-fonts-extra texlive-science) ;;
-        small)             _pkgs=(texlive texlive-latex-extra) ;;
-        basic)             _pkgs=(texlive-latex-base texlive-latex-recommended) ;;
-        minimal|infraonly) _pkgs=(texlive-latex-base) ;;
-        *)                 _pkgs=(texlive) ;;
-      esac ;;
+        full) _pkgs=(texlive-full) ;;
+        medium) _pkgs=(texlive texlive-latex-extra texlive-fonts-extra texlive-science) ;;
+        small) _pkgs=(texlive texlive-latex-extra) ;;
+        basic) _pkgs=(texlive-latex-base texlive-latex-recommended) ;;
+        minimal | infraonly) _pkgs=(texlive-latex-base) ;;
+        *) _pkgs=(texlive) ;;
+      esac
+      ;;
     apk)
       case "${_scheme}" in
         full) _pkgs=(texlive-full) ;;
-        *)    _pkgs=(texlive) ;;
-      esac ;;
-    dnf|microdnf|yum)
-      _pkgs=("texlive-scheme-${_scheme}") ;;
+        *) _pkgs=(texlive) ;;
+      esac
+      ;;
+    dnf | microdnf | yum)
+      _pkgs=("texlive-scheme-${_scheme}")
+      ;;
     brew)
-      _pkgs=(texlive) ;;
+      _pkgs=(texlive)
+      ;;
     *)
-      _pkgs=(texlive) ;;
+      _pkgs=(texlive)
+      ;;
   esac
 
   ospkg__install "${_pkgs[@]}"
@@ -504,8 +625,10 @@ __install_run_package__() {
 # ── uninstall overrides ───────────────────────────────────────────────────────
 
 _tl_uninstall_script() {
-  local _texdir; _texdir="$(kpsewhich -var-value=TEXMFROOT 2>/dev/null || true)"
-  local _texmfvar; _texmfvar="$(kpsewhich -var-value=TEXMFVAR 2>/dev/null || true)"
+  local _texdir
+  _texdir="$(kpsewhich -var-value=TEXMFROOT 2> /dev/null || true)"
+  local _texmfvar
+  _texmfvar="$(kpsewhich -var-value=TEXMFVAR 2> /dev/null || true)"
 
   if [[ -n "${_texdir}" && -d "${_texdir}" ]]; then
     logging__remove "Removing TeX Live tree '${_texdir}'."
@@ -518,21 +641,23 @@ _tl_uninstall_script() {
   fi
 
   [[ -n "${_texmfvar}" && -d "${_texmfvar}" ]] && file__rm -rf "${_texmfvar}" || true
-  ospkg__unregister_dummy "texlive" 2>/dev/null || true
+  ospkg__unregister_dummy "texlive" 2> /dev/null || true
 }
 
 __uninstall_run_package__() {
   __run_feature_hook__ __uninstall_run_package_pre
   logging__remove "Uninstalling TeX Live (package method)."
-  local _pm; _pm="$(ospkg__pm)"
+  local _pm
+  _pm="$(ospkg__pm)"
   local -a _pkgs=()
   case "${_pm}" in
     apt-get) _pkgs=(texlive-full texlive texlive-latex-extra texlive-latex-base
-                    texlive-fonts-extra texlive-science texlive-latex-recommended) ;;
-    apk)     _pkgs=(texlive-full texlive) ;;
-    dnf|microdnf|yum)
+      texlive-fonts-extra texlive-science texlive-latex-recommended) ;;
+    apk) _pkgs=(texlive-full texlive) ;;
+    dnf | microdnf | yum)
       _pkgs=("texlive-scheme-full" "texlive-scheme-medium" "texlive-scheme-small"
-             "texlive-scheme-basic" "texlive-scheme-minimal" "texlive-scheme-infraonly") ;;
+        "texlive-scheme-basic" "texlive-scheme-minimal" "texlive-scheme-infraonly")
+      ;;
     *) logging__warn "No package uninstall mapping for PM '${_pm}'; skipping." ;;
   esac
   if [[ "${#_pkgs[@]}" -gt 0 ]]; then
