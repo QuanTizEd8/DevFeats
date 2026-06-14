@@ -899,11 +899,11 @@ _dependencies:
           when: {pm: apk}
 
       # apt-specific packages — handled here rather than in the cross-PM list above
-      # because Debian trixie / Ubuntu 24.04+ renamed several packages via the
-      # time_t64 (64-bit time_t ABI) transition:
-      #   libcurl4   → libcurl4t64    (bookworm/jammy → trixie/noble)
-      #   freeglut3  → libglut3.12    (bookworm → trixie)
-      #   libtirpc3  → libtirpc3t64   (bookworm/jammy → trixie/noble)
+      # because Debian bookworm+ / Ubuntu 22.04+ renamed several packages via the
+      # time_t64 (64-bit time_t ABI) transition and OpenGL library reorganisation:
+      #   libcurl4   → libcurl4t64    (jammy/bookworm → noble/trixie)
+      #   freeglut3  → libglut3.12    (jammy/bullseye → bookworm/noble)
+      #   libtirpc3  → libtirpc3t64   (jammy/bookworm → noble/trixie)
       apt:
         packages:
           # libcurl
@@ -911,11 +911,11 @@ _dependencies:
             when: {version_codename: [noble, trixie, oracular, plucky, questing]}
           - name: libcurl4
             when: {version_codename: [bookworm, jammy, focal, bullseye]}
-          # freeglut
+          # freeglut: renamed to libglut3.12 starting with bookworm/noble
           - name: libglut3.12
-            when: {version_codename: trixie}
+            when: {version_codename: [bookworm, noble, trixie, oracular, plucky, questing]}
           - name: freeglut3
-            when: {version_codename: [noble, bookworm, jammy, focal, bullseye]}
+            when: {version_codename: [jammy, focal, bullseye]}
           # libtirpc
           - name: libtirpc3t64
             when: {version_codename: [noble, trixie, oracular, plucky, questing]}
