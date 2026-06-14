@@ -470,9 +470,25 @@ _tl_has_packages() {
   return 1
 }
 
-_tl_generate_caches() {
-  logging__install "Generating TeX Live font and ConTeXt caches."
-  luaotfload-tool -u || true
+_tl_maybe_install_jre() {
+  command -v java > /dev/null 2>&1 && return 0
+  local _texmf_dist=""
+  if [[ -n "${_TL_TEXDIR:-}" ]]; then
+    _texmf_dist="${_TL_TEXDIR}/texmf-dist"
+  else
+    _texmf_dist="$(kpsewhich -var-value=TEXMFDIST 2> /dev/null || true)"
+  fi
+  [[ -n "${_texmf_dist}" && -d "${_texmf_dist}" ]] || return 0
+  find "${_texmf_dist}/scripts" -name "*.jar" 2> /dev/null | grep -q . || return 0
+  logging__install "Java tools detected in TeX Live tree; installing JRE."
+  __dep_install__ run jre
+}
+
+_tl_setup_fontconfig() {
+  logging__install "Configuring system font paths for TL-shipped fonts."
+  if command -v luaotfload-tool > /dev/null 2>&1; then
+    luaotfload-tool -u || true
+  fi
   local _fontconf=""
   if [[ -n "${_TL_TEXDIR:-}" ]]; then
     _fontconf="$(find "${_TL_TEXDIR}" -name texlive-fontconfig.conf 2> /dev/null | head -n1 || true)"
@@ -482,8 +498,19 @@ _tl_generate_caches() {
     cp "${_fontconf}" /etc/fonts/conf.d/09-texlive-fonts.conf || true
   fi
   fc-cache -fsv || true
+}
+
+_tl_generate_caches() {
+  logging__install "Generating ConTeXt file-database and format caches."
   if command -v context > /dev/null 2>&1; then
+    # Generate file database for LuaMetaTeX (LMTX/MKXL, the default ConTeXt engine).
     mtxrun --generate || true
+    # Generate file database for the classic LuaTeX engine (used by 'context --luatex').
+    # Use the full path via _TL_SYSBIN rather than PATH, which may not be set yet when
+    # instopt_adjustpath=false.
+    if [[ -f "${_TL_SYSBIN}/mtxrun.lua" ]]; then
+      "${_TL_SYSBIN}/texlua" "${_TL_SYSBIN}/mtxrun.lua" --luatex --generate || true
+    fi
     context --make || true
     context --luatex --make || true
   fi
@@ -515,17 +542,39 @@ _tl_post_install() {
     if [[ -n "${TLMGR_VERIFY_REPO:-}" ]]; then
       tlmgr option verify-repo "${TLMGR_VERIFY_REPO}" || true
     fi
+
+    _tl_setup_fontconfig
+    _tl_maybe_install_jre
   fi
 
   # Post-install update
   if [[ "${TLMGR_UPDATE:-false}" == "true" ]]; then
     logging__update "Running tlmgr update --self --all."
-    tlmgr update --self --all
+    tlmgr update --self --all --reinstall-forcibly-removed
   fi
 
-  # Cache generation (guarded by option; ConTeXt guard is inside _tl_generate_caches)
+  # ConTeXt cache generation (guarded by option; only meaningful when ConTeXt is installed)
   if [[ "${GENERATE_CACHES:-false}" == "true" ]]; then
     _tl_generate_caches
+  fi
+}
+
+_tl_alpine_linuxmusl_workaround() {
+  # On Alpine (musl libc), install-tl places binaries in bin/<arch>-linuxmusl/ but the
+  # installer's instopt_adjustpath path-setup mechanism looks for bin/<arch>-linux/.
+  # Pre-create the symlink so the installer finds the correct arch dir and tlmgr path add
+  # works correctly during installation.
+  # Ref: https://github.com/reitzig/texlive-docker (Alpine Dockerfile workaround)
+  local _pm
+  _pm="$(ospkg__pm 2> /dev/null || true)"
+  [[ "${_pm}" != "apk" ]] && return 0
+  local _arch
+  _arch="$(uname -m)"
+  local _tl_bin="${_RESOLVED_PREFIX}/bin"
+  mkdir -p "${_tl_bin}"
+  if [[ ! -e "${_tl_bin}/${_arch}-linux" ]]; then
+    logging__install "Alpine musl: pre-creating ${_arch}-linux → ${_arch}-linuxmusl symlink."
+    ln -s "${_arch}-linuxmusl" "${_tl_bin}/${_arch}-linux"
   fi
 }
 
@@ -541,6 +590,7 @@ __install_run_script__() {
 
   _tl_download_extract_installer "${_mirror}"
   _tl_write_profile
+  _tl_alpine_linuxmusl_workaround
 
   local -a _install_args=(
     -no-interaction

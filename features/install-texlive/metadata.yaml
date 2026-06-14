@@ -722,18 +722,18 @@ options:
     type: string
     _applies_when:
       - method: [script]
-    default: '1'
+    default: '0'
     description: |-
       Profile key `tlpdbopt_autobackup` — the number of `tlmgr` package backup copies to retain
-      so that `tlmgr restore` can roll back an update. `0` — no backups; `1` (default) — keep
-      one backup per package; `-1` — unlimited backups. Set to `0` in CI images where
-      `tlmgr update` is never run to avoid accumulating backup files.
+      so that `tlmgr restore` can roll back an update. `0` (default) — no backups; `1` — keep
+      one backup per package; `-1` — unlimited backups. Defaults to `0` because container images
+      rarely run `tlmgr update`, so backup files only waste space.
       Ignored when `profile` is provided.
     proposals:
       - value: '0'
-        description: No backups (smallest footprint; cannot roll back).
+        description: No backups (default; smallest footprint; cannot roll back).
       - value: '1'
-        description: One backup per package (default).
+        description: One backup per package.
       - value: '3'
         description: Keep the last three backups per package.
       - value: '-1'
@@ -774,10 +774,176 @@ _dependencies:
       packages:
         - ca-certificates
         - fontconfig
-        # macOS ships with system Perl (/usr/bin/perl); skip brew install.
-        # tlmgr is a Perl script so Perl is required at runtime on Linux.
+
+        # Perl: tlmgr and many TL tools are Perl scripts.
+        # macOS ships with system Perl; skip brew install.
         - name: perl
           when: {kernel: linux}
+
+        # GnuPG: required at runtime for 'tlmgr key add/remove/list'.
+        # gnupg (apt/apk/brew) pulls in gpg, gpg-agent, and dirmngr; dnf uses gnupg2.
+        - name: gnupg
+          dnf: gnupg2
+
+        # PostScript/PDF interpreter: epstopdf, ps2pdf, pdfcrop, dvips → pdf, etc.
+        - ghostscript
+
+        # ncurses: texconfig TUI and xindy require the shared library.
+        - name: libncurses6
+          apk: ncurses-libs
+          dnf: ncurses-libs
+          brew: ncurses
+
+        # Python Pygments: required by the minted LaTeX package for syntax highlighting.
+        # python3 is a transitive dependency pulled in automatically.
+        - name: python3-pygments
+          apk: py3-pygments
+          brew: pygments
+
+        # Gnuplot (headless): pgfplots gnuplot terminal backend.
+        # apt: gnuplot-nox excludes Qt/X11 deps; dnf: gnuplot-minimal is the headless build.
+        - name: gnuplot
+          apt: gnuplot-nox
+          dnf: gnuplot-minimal
+
+        # GNU FreeFont: broad Unicode coverage for documents using non-Latin characters.
+        # dnf ships these as split packages (gnu-free-{mono,sans,serif}-fonts) and TL
+        # itself includes texlive-gnu-freefont, so we only need to declare it for apt/apk.
+        - name: fonts-freefont-otf
+          when: {pm: [apt, apk]}
+          apk: font-freefont
+
+        # zip + tidy: required by tex4ebook (HTML/epub output from LaTeX).
+        - zip
+        - name: tidy
+          apk: tidyhtml
+          brew: tidy-html5
+
+        # ── latexindent Perl module dependencies ──────────────────────────────────
+        # ref: https://latexindent.pl/documentation/
+        # These modules are not part of the core Perl distribution on Linux.
+        # On macOS they are provided by the system Perl or cpan; no brew formulae exist.
+        - name: perl-unicode-linebreak
+          when: {kernel: linux}
+          apt: libunicode-linebreak-perl
+          apk: perl-unicode-linebreak
+          dnf: perl-Unicode-LineBreak
+        - name: perl-file-homedir
+          when: {kernel: linux}
+          apt: libfile-homedir-perl
+          apk: perl-file-homedir
+          dnf: perl-File-HomeDir
+        - name: perl-yaml-tiny
+          when: {kernel: linux}
+          apt: libyaml-tiny-perl
+          apk: perl-yaml-tiny
+          dnf: perl-YAML-Tiny
+        # Not in Alpine stable (edge/testing only); skip apk.
+        - name: perl-getopt-long-descriptive
+          when: {pm: [apt, dnf]}
+          apt: libgetopt-long-descriptive-perl
+          dnf: perl-Getopt-Long-Descriptive
+        # Digest::MD5 ships with perl itself on Fedora; explicit package needed on apt/apk.
+        - name: perl-digest-md5
+          when: [{pm: apt}, {pm: apk}]
+          apt: libdigest-perl-md5-perl
+          apk: perl-digest-md5
+        # PDF::API2: required by the LaTeX memoize package.
+        - name: perl-pdf-api2
+          when: {kernel: linux}
+          apt: libpdf-api2-perl
+          apk: perl-pdf-api2
+          dnf: perl-PDF-API2
+
+        # ── Linux-only X11 / OpenGL / RPC runtime libraries ───────────────────────
+        # libsm6: X Session Management; required by MetaFont.
+        - name: libsm
+          when: {kernel: linux}
+          apt: libsm6
+          apk: libsm
+          dnf: libSM
+
+        # freeglut / libtirpc / libcurl: required by asymptote.
+        # apt names are version-dependent (time_t64 ABI transition in Debian trixie /
+        # Ubuntu 24.04+) — handled in the apt: block below.
+        # apk and dnf use stable names across versions.
+        - name: freeglut
+          when: {pm: [apk, dnf]}
+        - name: libtirpc
+          when: {pm: [apk, dnf]}
+        - name: libcurl
+          when: {pm: [apk, dnf]}
+
+        # ── Alpine-only runtime libraries ────────────────────────────────────────
+        # On musl/Alpine, shared libraries that TL binaries link against are not
+        # pulled in transitively by higher-level packages (unlike on glibc systems
+        # where e.g. ghostscript or luatex drag them in automatically). Declare
+        # them explicitly. Sourced from production Alpine TL Docker images.
+        - name: cairo
+          when: {pm: apk}
+        - name: icu-libs
+          when: {pm: apk}
+        - name: libgcc
+          when: {pm: apk}
+        - name: libpaper
+          when: {pm: apk}
+        - name: libpng
+          when: {pm: apk}
+        - name: libstdc++
+          when: {pm: apk}
+        - name: libx11
+          when: {pm: apk}
+        - name: pixman
+          when: {pm: apk}
+        - name: zlib
+          when: {pm: apk}
+
+      # apt-specific packages — handled here rather than in the cross-PM list above
+      # because Debian trixie / Ubuntu 24.04+ renamed several packages via the
+      # time_t64 (64-bit time_t ABI) transition:
+      #   libcurl4   → libcurl4t64    (bookworm/jammy → trixie/noble)
+      #   freeglut3  → libglut3.12    (bookworm → trixie)
+      #   libtirpc3  → libtirpc3t64   (bookworm/jammy → trixie/noble)
+      apt:
+        packages:
+          # libcurl
+          - name: libcurl4t64
+            when: {version_codename: [noble, trixie, oracular, plucky, questing]}
+          - name: libcurl4
+            when: {version_codename: [bookworm, jammy, focal, bullseye]}
+          # freeglut
+          - name: libglut3.12
+            when: {version_codename: trixie}
+          - name: freeglut3
+            when: {version_codename: [noble, bookworm, jammy, focal, bullseye]}
+          # libtirpc
+          - name: libtirpc3t64
+            when: {version_codename: [noble, trixie, oracular, plucky, questing]}
+          - name: libtirpc3
+            when: {version_codename: [bookworm, jammy, focal, bullseye]}
+          # python-is-python3: creates /usr/bin/python → python3 symlink so that tools
+          # invoking 'python' (older minted, some helper scripts) work out of the box.
+          - python-is-python3
+        # Asymptote links against libglut.so.3 but Debian/Ubuntu ships libglut.so.3.12.
+        # Create the missing symlink so asymptote can load the library.
+        scripts: |
+          _libdir="$(find /usr/lib -type d -name '*-linux-*' 2>/dev/null | head -1)"
+          if [[ -n "${_libdir}" && -f "${_libdir}/libglut.so.3.12" && ! -e "${_libdir}/libglut.so.3" ]]; then
+            ln -sf "${_libdir}/libglut.so.3.12" "${_libdir}/libglut.so.3"
+          fi
+
+    jre:
+      # Installed on-demand by _tl_maybe_install_jre when Java tool scripts (arara,
+      # bib2gls, texplate, albatross, latex2nemeth, …) are found in the TL tree.
+      packages:
+        - name: default-jre-headless
+          apk: openjdk21-jre-headless
+          dnf: java-21-openjdk-headless
+          yum: java-21-openjdk-headless
+          zypper: java-21-openjdk-headless
+          pacman: jre-openjdk-headless
+          brew: openjdk
+
   build:
     installer:
       # xz is required by the TeX Live installer to decompress .xz package archives
