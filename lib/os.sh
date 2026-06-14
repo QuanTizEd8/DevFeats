@@ -242,6 +242,22 @@ os__release_arch() {
   esac
 }
 
+os__libc() {
+  # @brief os__libc — Print the C library type on Linux: `musl` or `gnu`.
+  #
+  # Detects musl by checking for well-known musl shared-library paths or by scanning
+  # `ldd /bin/ls` output. Returns 1 (with no output) on non-Linux systems.
+  #
+  # Stdout: `musl` or `gnu`.
+  # Returns: 0 on Linux, 1 on other kernels.
+  [ "$(os__kernel)" = "Linux" ] || return 1
+  if [ -f /lib/libc.musl-x86_64.so.1 ] || [ -f /lib/libc.musl-aarch64.so.1 ] || ldd /bin/ls 2>&1 | grep -q musl; then
+    printf 'musl\n'
+  else
+    printf 'gnu\n'
+  fi
+}
+
 os__rust_triple() {
   # @brief os__rust_triple [<raw-arch>] — Print the Rust target triple for the current kernel and architecture.
   #
@@ -401,13 +417,14 @@ _os__init_release_vars() {
     "OS_ID=$(os__id)"
     "PLATFORM=$(os__platform)"
   )
-  _v="$(os__release_kernel gh 2>/dev/null)"             && _OS__RELEASE_VARS+=("OS:gh=${_v}")         || true
-  _v="$(os__release_kernel macos 2>/dev/null)"          && _OS__RELEASE_VARS+=("OS:macos=${_v}")       || true
-  _v="$(os__release_kernel osx 2>/dev/null)"            && _OS__RELEASE_VARS+=("OS:osx=${_v}")         || true
-  _v="$(os__release_arch --flavor gh 2>/dev/null)"      && _OS__RELEASE_VARS+=("ARCH:gh=${_v}")        || true
-  _v="$(os__release_arch --flavor node 2>/dev/null)"    && _OS__RELEASE_VARS+=("ARCH:node=${_v}")      || true
-  _v="$(os__release_arch --flavor bitness 2>/dev/null)" && _OS__RELEASE_VARS+=("ARCH:bitness=${_v}")   || true
-  _v="$(os__rust_triple 2>/dev/null)"                   && _OS__RELEASE_VARS+=("RUST_TRIPLE=${_v}")    || true
+  _v="$(os__release_kernel gh 2> /dev/null)" && _OS__RELEASE_VARS+=("OS:gh=${_v}") || true
+  _v="$(os__release_kernel macos 2> /dev/null)" && _OS__RELEASE_VARS+=("OS:macos=${_v}") || true
+  _v="$(os__release_kernel osx 2> /dev/null)" && _OS__RELEASE_VARS+=("OS:osx=${_v}") || true
+  _v="$(os__release_arch --flavor gh 2> /dev/null)" && _OS__RELEASE_VARS+=("ARCH:gh=${_v}") || true
+  _v="$(os__release_arch --flavor node 2> /dev/null)" && _OS__RELEASE_VARS+=("ARCH:node=${_v}") || true
+  _v="$(os__release_arch --flavor bitness 2> /dev/null)" && _OS__RELEASE_VARS+=("ARCH:bitness=${_v}") || true
+  _v="$(os__rust_triple 2> /dev/null)" && _OS__RELEASE_VARS+=("RUST_TRIPLE=${_v}") || true
+  _v="$(os__libc 2> /dev/null)" && _OS__RELEASE_VARS+=("LIBC=${_v}") || true
 }
 
 os__expand_release_pattern() {
@@ -415,7 +432,7 @@ os__expand_release_pattern() {
   # asset filename pattern.
   #
   # Plain tokens: {VERSION}, {TAG}, {OS}, {KERNEL}, {ARCH}, {OS_ARCH}, {OS_ID},
-  #   {PLATFORM}, {RUST_TRIPLE}.
+  #   {PLATFORM}, {RUST_TRIPLE}, {LIBC} (Linux only: `musl` or `gnu`).
   # Flavor tokens: {OS:<flavor>} → os__release_kernel <flavor>,
   #   {ARCH:<flavor>} → os__release_arch --flavor <flavor>.
   # Conditionals (nestable): {TOKEN==VALUE?TRUE:FALSE},

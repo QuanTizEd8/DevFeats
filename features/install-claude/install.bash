@@ -1,8 +1,7 @@
 # shellcheck shell=bash
 
 # Prefer the Anthropic OS package repo (system-wide) when a supported package
-# manager is available; fall back to npm-bundled (self-contained, no system
-# Node.js required).
+# manager is available; fall back to binary (direct CDN download, no Node.js required).
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
   logging__inspect "Resolving METHOD=auto for Claude Code."
@@ -13,30 +12,32 @@ __resolve_method() {
       printf 'upstream-package\n'
       ;;
     *)
-      logging__info "Resolved METHOD=auto → 'npm-bundled' (no supported OS package repo)."
-      printf 'npm-bundled\n'
+      logging__info "Resolved METHOD=auto → 'binary' (no supported OS package repo)."
+      printf 'binary\n'
       ;;
   esac
 }
 
-# script: when running as root, the bootstrap script installs to
-# ${HOME}/.local/bin/claude (i.e. /root/.local/bin/claude).  Copy it to
-# ${_RESOLVED_PREFIX}/bin/claude so it is accessible system-wide, and open the runtime
-# directory so non-root users can execute the installed binary.
+# binary: fetch the per-version manifest to obtain the platform checksum, then
+# set BINARY_SHA256 so the template's __install_run_binary__ can verify the download.
 # shellcheck disable=SC2329,SC2317
-__install_run_script_post() {
-  if users__is_privileged; then
-    local _src="${HOME}/.local/bin/claude"
-    local _dest="${_RESOLVED_PREFIX}/bin/claude"
-    if [[ -x "${_src}" && "${_src}" != "${_dest}" ]]; then
-      logging__info "Copying claude from '${_src}' to '${_dest}'..."
-      file__mkdir "${_RESOLVED_PREFIX}/bin"
-      install -m 755 "${_src}" "${_dest}"
-      local _runtime="${HOME}/.local/share/claude"
-      if [[ -d "${_runtime}" ]]; then
-        file__chmod -R a+rX "${_runtime}"
-        logging__info "Made claude runtime at '${_runtime}' world-readable."
-      fi
-    fi
-  fi
+__install_run_binary_pre() {
+  local _platform
+  _platform="$(os__expand_release_pattern \
+    "{OS}-{ARCH:node}{OS==linux?{LIBC==musl?-musl:}:}" "${VERSION}" "")"
+  local _manifest_url="https://downloads.claude.ai/claude-code-releases/${VERSION}/manifest.json"
+  local _tmpfile
+  _tmpfile="$(mktemp)"
+  uri__fetch_asset "${_manifest_url}" --file-dest "${_tmpfile}" --sha256 none > /dev/null 2>&1 || {
+    rm -f "${_tmpfile}"
+    logging__error "Failed to fetch Claude Code manifest from '${_manifest_url}'."
+    return 1
+  }
+  declare -g BINARY_SHA256
+  BINARY_SHA256="$(json__query -r ".platforms[\"${_platform}\"].checksum // empty" < "${_tmpfile}")"
+  rm -f "${_tmpfile}"
+  [[ -n "${BINARY_SHA256}" ]] || {
+    logging__error "Platform '${_platform}' not found in Claude Code manifest."
+    return 1
+  }
 }

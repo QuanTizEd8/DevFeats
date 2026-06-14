@@ -12,10 +12,10 @@ _long_description: >-
   conversational AI with direct file editing, shell command execution, git workflows,
   and MCP server integrations.
 
-  Supports four installation methods: the official Anthropic bootstrap script (simple,
-  works everywhere with curl), the Anthropic OS package repository (apt/dnf/apk/brew —
-  recommended for devcontainers), npm-bundled (self-contained, no system Node.js
-  required), and npm (requires Node.js 18+).
+  Supports four installation methods: a direct binary download from Anthropic's CDN
+  (self-contained, no system Node.js or package manager required), the Anthropic OS
+  package repository (apt/dnf/apk/brew — recommended for devcontainers), npm-bundled
+  (self-contained, no system Node.js required), and npm (requires Node.js 18+).
   The default auto method selects the best option for the current environment.
 
   In devcontainers, the Claude config directory (~/.claude) is symlinked to a
@@ -31,9 +31,8 @@ _options:
     default: stable
     inputs: [stable, latest, semver]
   method:
-    script:
-      asset_uri: "https://claude.ai/install.sh"
-      args: ["{VERSION}"]
+    binary:
+      asset_uri: "https://downloads.claude.ai/claude-code-releases/{VERSION}/{OS}-{ARCH:node}{OS==linux?{LIBC==musl?-musl:}:}/claude"
     upstream-package: {}
     npm-bundled:
       package: "@anthropic-ai/claude-code"
@@ -45,7 +44,7 @@ _options:
     root: /usr/local
     nonroot: "${HOME}/.local"
     applies_when:
-      - method: [script, npm-bundled, npm]
+      - method: [binary, npm-bundled, npm]
 
 options:
   config_dir:
