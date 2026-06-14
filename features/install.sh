@@ -105,7 +105,7 @@ _ensure_bash4() {
   # intentionally kept — install.bash reads them in __init__ / __exit__.
   unset -f _bash_is_44 _have _can_sudo _run_privileged _find_bash4 \
     _can_compile _compile_bash _detect_pm _pm_needs_root \
-    _install_bash_pkg _ensure_bash4 posix__bootstrap_xcode
+    _install_bash_pkg _ensure_bash4 posix__bootstrap_xcode posix__install_bash_from_source
   unset _vmaj _vmin _pm _c _b _v _ipm _xcode_pkg _BASH_VER _BASH_URL _tmpdir _bash_bin _dest_dir
 }
 
@@ -133,65 +133,15 @@ _find_bash4() {
 }
 
 _compile_bash() {
-  # Compile bash from GNU source and install to $HOME/.local/bin/bash.
+  # Compile bash 5.3 from GNU source and install to $HOME/.local/bin/bash.
   #
   # Prints the installed binary path to stdout. Status messages buffer via logging-api.
   # The caller exports _BASH_BIN and _BASH_INSTALLED_INTERNALLY so install.bash
   # can register it for cleanup via install__track_internal_path / ospkg__cleanup_resources,
   # respecting KEEP_BUILD_DEPS.
-
   _BASH_VER="5.3"
-  _BASH_URL="https://ftp.gnu.org/gnu/bash/bash-${_BASH_VER}.tar.gz"
-
   logging__inspect "bash >=4.4 not found — compiling bash ${_BASH_VER} from source."
-
-  # macOS: Xcode CLT provides make and cc; install it headlessly if absent.
-  [ "$(uname -s)" = "Darwin" ] && posix__bootstrap_xcode
-
-  _tmpdir="$(mktemp -d /tmp/bash-src.XXXXXX)"
-
-  logging__download "Downloading bash ${_BASH_VER} source..."
-  if _have curl; then
-    curl -fsSL --compressed \
-      --retry 5 --retry-delay 5 --retry-connrefused \
-      -H "User-Agent: devfeats" \
-      "$_BASH_URL" | tar xz -C "$_tmpdir"
-  else
-    wget -qO- "$_BASH_URL" | tar xz -C "$_tmpdir"
-  fi || {
-    rm -rf "$_tmpdir"
-    logging__error "Failed to download or extract bash ${_BASH_VER} source."
-    return 1
-  }
-
-  logging__build "Compiling bash ${_BASH_VER} (this may take a minute)..."
-  (
-    cd "$_tmpdir/bash-${_BASH_VER}" &&
-      ./configure --without-bash-malloc --without-readline > /dev/null 2>&1 &&
-      make > /dev/null 2>&1
-  ) || {
-    rm -rf "$_tmpdir"
-    logging__error "Bash compilation failed."
-    return 1
-  }
-
-  _bash_bin="$_tmpdir/bash-${_BASH_VER}/bash"
-  if [ ! -x "$_bash_bin" ]; then
-    rm -rf "$_tmpdir"
-    logging__error "Compiled bash binary not found after make."
-    return 1
-  fi
-
-  # Install to a persistent, user-writable location.  Source tree is no longer
-  # needed once the binary is copied.
-  _dest_dir="${HOME:-/root}/.local/bin"
-  mkdir -p "$_dest_dir"
-  cp "$_bash_bin" "$_dest_dir/bash"
-  chmod a+x "$_dest_dir/bash"
-  rm -rf "$_tmpdir"
-
-  logging__success "bash ${_BASH_VER} compiled and installed to '${_dest_dir}/bash'."
-  printf '%s\n' "${_dest_dir}/bash"
+  posix__install_bash_from_source "${HOME:-/root}/.local" "${_BASH_VER}"
 }
 
 _install_bash_pkg() {

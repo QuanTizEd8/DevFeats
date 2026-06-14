@@ -44,3 +44,68 @@ posix__bootstrap_xcode() {
   logging__success "Xcode Command Line Tools installed."
   return 0
 }
+
+posix__install_bash_from_source() {
+  # @brief posix__install_bash_from_source <prefix> <version> — Download, compile, and install bash from GNU FTP.
+  #
+  # Compiles bash from the official GNU FTP source tarball and installs the
+  # binary to `<prefix>/bin/bash`. Only the binary is installed (no `make install`);
+  # this is intentional for lightweight bootstrap use. The feature install pipeline
+  # runs `make install` via the autotools template for a complete installation.
+  #
+  # Calls posix__bootstrap_xcode on macOS to ensure build tools are available.
+  # Prints the installed binary path on stdout. Returns 1 on any failure.
+  local _pbifs_prefix _pbifs_version _pbifs_url _pbifs_tmpdir _pbifs_bin
+  _pbifs_prefix="${1:?posix__install_bash_from_source: prefix required}"
+  _pbifs_version="${2:?posix__install_bash_from_source: version required}"
+  _pbifs_url="https://ftp.gnu.org/gnu/bash/bash-${_pbifs_version}.tar.gz"
+
+  [ "$(uname -s)" = "Darwin" ] && posix__bootstrap_xcode
+
+  _pbifs_tmpdir="$(mktemp -d /tmp/bash-src.XXXXXX)"
+
+  logging__download "Downloading bash ${_pbifs_version} source..."
+  if command -v curl > /dev/null 2>&1; then
+    curl -fsSL --compressed \
+      --retry 5 --retry-delay 5 --retry-connrefused \
+      -H "User-Agent: devfeats" \
+      "${_pbifs_url}" | tar xz -C "${_pbifs_tmpdir}"
+  elif command -v wget > /dev/null 2>&1; then
+    wget -qO- "${_pbifs_url}" | tar xz -C "${_pbifs_tmpdir}"
+  else
+    rm -rf "${_pbifs_tmpdir}"
+    logging__error "Neither curl nor wget found; cannot download bash source."
+    return 1
+  fi || {
+    rm -rf "${_pbifs_tmpdir}"
+    logging__error "Failed to download or extract bash ${_pbifs_version} source."
+    return 1
+  }
+
+  logging__build "Compiling bash ${_pbifs_version} (this may take a minute)..."
+  (
+    cd "${_pbifs_tmpdir}/bash-${_pbifs_version}" &&
+      ./configure --prefix="${_pbifs_prefix}" --without-bash-malloc --without-readline \
+        > /dev/null 2>&1 &&
+      make > /dev/null 2>&1
+  ) || {
+    rm -rf "${_pbifs_tmpdir}"
+    logging__error "bash ${_pbifs_version} build failed."
+    return 1
+  }
+
+  _pbifs_bin="${_pbifs_tmpdir}/bash-${_pbifs_version}/bash"
+  if [ ! -x "${_pbifs_bin}" ]; then
+    rm -rf "${_pbifs_tmpdir}"
+    logging__error "Compiled bash binary not found after make."
+    return 1
+  fi
+
+  mkdir -p "${_pbifs_prefix}/bin"
+  cp "${_pbifs_bin}" "${_pbifs_prefix}/bin/bash"
+  chmod a+x "${_pbifs_prefix}/bin/bash"
+  rm -rf "${_pbifs_tmpdir}"
+
+  logging__success "bash ${_pbifs_version} compiled and installed to '${_pbifs_prefix}/bin/bash'."
+  printf '%s\n' "${_pbifs_prefix}/bin/bash"
+}
