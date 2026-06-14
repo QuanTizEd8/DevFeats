@@ -245,6 +245,16 @@ macos-latest-fresh-install:
         "${HOME}/.pypirc" \
         "${HOME}/.condarc"
 
+# ── bash environments ────────────────────────────────────────────────────────
+debian-bookworm+bash-source-build-deps:
+  image: debian:bookworm
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends \
+        build-essential libncurses-dev curl ca-certificates
+      rm -rf /var/lib/apt/lists/*
+
 # ── zsh environments ─────────────────────────────────────────────────────────
 debian-bookworm+zsh-source-build-deps:
   image: debian:bookworm
