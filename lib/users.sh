@@ -958,15 +958,23 @@ users__expand_path() {
   #
   # Args:
   #   --user <username>  User whose login environment to use. Defaults to the current user.
+  #   --env KEY=VALUE    Extra variable to export into the expansion environment (repeatable).
+  #                      Use for variables unavailable in the user's login shell, e.g. ZDOTDIR
+  #                      (only set by zsh's .zshenv, not bash login shells).
   #   <expr>             Path expression to expand (e.g. ~/foo, $HOME/bar, ${XDG_CONFIG_HOME:-${HOME}/.config}/baz).
   #
   # Stdout: expanded absolute path followed by a newline.
   # Returns: 0 on success, 1 on validation failure or expansion error.
   local _user=""
+  local -a _extra_envs=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --user)
         _user="$2"
+        shift 2
+        ;;
+      --env)
+        _extra_envs+=("$2")
         shift 2
         ;;
       --)
@@ -1006,13 +1014,14 @@ users__expand_path() {
   # Tilde is pre-converted to $HOME because eval does not expand tilde in double-quoted strings.
   # shellcheck disable=SC2016
   users__run_as "$_user" -- "${_BASH_BIN:-bash}" -c '
-    _e="$1"
+    _e="$1"; shift
+    while [[ $# -gt 0 ]]; do export "$1"; shift; done
     [[ "$_e" == "~"* ]] && _e="${HOME}${_e#\~}"
     _e="${_e// ~/ ${HOME}}"
     _e="${_e//\\/\\\\}"
     _e="${_e//\"/\\\"}"
     eval "printf \"%s\n\" \"${_e}\""
-  ' -- "$_expr"
+  ' -- "$_expr" "${_extra_envs[@]}"
 }
 
 users__is_user_path() {
