@@ -33,7 +33,9 @@ _options:
   method:
     binary:
       asset_uri: "https://downloads.claude.ai/claude-code-releases/{VERSION}/{OS}-{ARCH:node}{OS==linux?{LIBC==musl?-musl:}:}/claude"
-    upstream-package: {}
+      when: {arch: [amd64, arm64]}
+    upstream-package:
+      when: {pm: [apt, dnf, apk, brew]}
     npm-bundled:
       package: "@anthropic-ai/claude-code"
       cmd: claude

@@ -32,7 +32,8 @@ _options:
       binary_src: starship
     script:
       asset_uri: "https://starship.rs/install.sh"
-    package: {}
+    package:
+      when: {pm: [brew, apk, zypper, pacman]}
     cargo:
       crate: starship
   prefix:

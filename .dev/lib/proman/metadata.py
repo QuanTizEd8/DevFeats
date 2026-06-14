@@ -9,6 +9,7 @@ from jsonschema.exceptions import ValidationError
 
 from proman.config import load as load_config
 from proman.schema_bundle import get_validator
+from proman.when_util import serialize_when
 
 
 class MetadataLoader:
@@ -98,7 +99,9 @@ class MetadataLoader:
         metadata["options"] = self._filter_options(metadata)
 
         try:
-            metadata = pyserials.update.TemplateFiller().fill(metadata)
+            metadata = pyserials.update.TemplateFiller(
+                code_context={"serialize_when": serialize_when},
+            ).fill(metadata)
         except Exception as e:
             msg = (
                 f"Error substituting variables in metadata for feature"

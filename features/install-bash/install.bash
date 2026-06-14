@@ -15,27 +15,6 @@ __init_args_post() {
 }
 
 # shellcheck disable=SC2329,SC2317
-__resolve_method() {
-  # Non-privileged → source (can't install system packages).
-  # Privileged + stable/latest → prefer package.
-  # Privileged + specific version → use package if PM has it, else source.
-  if ! users__is_privileged; then
-    printf 'source\n'
-    return 0
-  fi
-  case "${VERSION:-stable}" in
-    stable | latest) printf 'package\n' ;;
-    *)
-      if ospkg__has_available_version "bash" "${VERSION}"; then
-        printf 'package\n'
-      else
-        printf 'source\n'
-      fi
-      ;;
-  esac
-}
-
-# shellcheck disable=SC2329,SC2317
 __skip_post() {
   # Safety net: if somehow the feature reaches skip with bootstrap vars still set
   # (e.g. a future if_exists mode we don't anticipate), keep the bootstrap bash.

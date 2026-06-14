@@ -12,6 +12,7 @@ import pyserials
 
 from proman.config import load as load_config
 from proman.const import LIFECYCLE_COMMAND_KEYS
+from proman.when_util import serialize_when
 
 # printf '%s' with an accidental real newline before the closing quote (db42a06b bug).
 _SPLIT_PRINTF_PERCENT_S_RE = re.compile(r"printf '%s\r?\n\s+'", re.MULTILINE)
@@ -258,6 +259,40 @@ class InstallScriptGenerator:
         ) or ""
         scalar_lines.append(f'REGISTER_PACKAGE_NAME="{registers_as}"')
         scalar_var_names.append("REGISTER_PACKAGE_NAME")
+
+        # _FEAT_CONTRACT_METHODS: space-separated method keys, excluding "default".
+        method_keys = [k for k in method_meta if k != "default"]
+        scalar_lines.append(f'_FEAT_CONTRACT_METHODS="{" ".join(method_keys)}"')
+        scalar_var_names.append("_FEAT_CONTRACT_METHODS")
+
+        # _FEAT_CONTRACT_BINARY_WHEN / _FEAT_CONTRACT_PACKAGE_WHEN /
+        # _FEAT_CONTRACT_UPSTREAM_PKG_WHEN: serialized 'when' conditions for
+        # each method.  Format: space-separated "key=val[|val2]" atoms (AND
+        # within a line); newline-separated lines (OR across lines).
+        # serialize_when() is the shared serializer from proman.when_util.
+
+        def _bash_when_literal(s: str) -> str:
+            """Emit a bash literal for the when string (double-quoted or $'...')."""
+            if not s:
+                return '""'
+            if "\n" in s:
+                escaped = (
+                    s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+                )
+                return f"$'{escaped}'"
+            return f'"{s}"'
+
+        for _var, _key in (
+            ("_FEAT_CONTRACT_BINARY_WHEN", ("binary",)),
+            ("_FEAT_CONTRACT_PACKAGE_WHEN", ("package",)),
+            ("_FEAT_CONTRACT_UPSTREAM_PKG_WHEN", ("upstream-package",)),
+        ):
+            _meta = method_meta
+            for _k in _key:
+                _meta = _meta.get(_k) or {}
+            _when_str = serialize_when(_meta.get("when"))
+            scalar_lines.append(f"{_var}={_bash_when_literal(_when_str)}")
+            scalar_var_names.append(_var)
 
         # When exactly one method is declared, options.method is not generated
         # (no user choice to make). Inject METHOD as a constant so the

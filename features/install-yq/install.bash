@@ -3,22 +3,6 @@
 # function bodies until they are called, so lib functions referenced here are
 # resolved at call-time, not at definition-time.
 
-# Binary releases cover amd64 and arm64; other arches fall back to package manager.
-# shellcheck disable=SC2329,SC2317
-__resolve_method() {
-  logging__inspect "Resolving METHOD=auto for yq."
-  case "$(os__release_arch)" in
-    amd64 | arm64)
-      logging__info "Resolved METHOD=auto → 'binary'."
-      printf 'binary\n'
-      ;;
-    *)
-      logging__info "Resolved METHOD=auto → 'package'."
-      printf 'package\n'
-      ;;
-  esac
-}
-
 # yq uses a custom checksum extraction script rather than a standard sidecar.
 # Downloads the checksums bundle and runs extract-checksum.sh to get the SHA-256,
 # then sets BINARY_SHA256 so __install_run_binary__ uses it instead of auto-probing.

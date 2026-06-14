@@ -32,7 +32,8 @@ _options:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/just-{VERSION}-{RUST_TRIPLE}.tar.gz"
       binary_src: just
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/SHA256SUMS"
-    package: {}
+    package:
+      when: {pm: [apt, dnf, apk, brew]}
     script:
       asset_uri: "https://just.systems/install.sh"
     cargo:

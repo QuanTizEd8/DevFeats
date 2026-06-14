@@ -39,7 +39,8 @@ _options:
       binary_src: uv
     script:
       asset_uri: "https://astral.sh/uv/{VERSION}/install.sh"
-    package: {}
+    package:
+      when: {pm: [brew, dnf, apk, pacman, zypper]}
   prefix:
     bins: [uv, uvx]
     applies_when:

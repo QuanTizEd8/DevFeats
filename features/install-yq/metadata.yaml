@@ -40,7 +40,9 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/yq_{OS}_{ARCH}"
-    package: {}
+      when: {arch: [amd64, arm64]}
+    package:
+      when: {pm: [dnf, apk, zypper, brew, pacman]}
   prefix:
     bins: [yq]
     applies_when:

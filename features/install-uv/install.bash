@@ -3,21 +3,6 @@
 # function bodies until they are called, so lib functions referenced here are
 # resolved at call-time, not at definition-time.
 
-# Prefer the binary method when a known Rust triple is available (all Tier-1/Tier-2
-# uv platforms on x86_64/aarch64 Linux and macOS); fall back to the official upstream
-# installer script for platforms without a pre-built RUST_TRIPLE.
-# shellcheck disable=SC2329,SC2317
-__resolve_method() {
-  logging__inspect "Resolving METHOD=auto for uv."
-  if [[ -n "$(os__rust_triple)" ]]; then
-    logging__info "Resolved METHOD=auto → 'binary'."
-    printf 'binary\n'
-  else
-    logging__info "Resolved METHOD=auto → 'script' (official installer)."
-    printf 'script\n'
-  fi
-}
-
 # After install__release_asset installs 'uv' from the archive, also copy 'uvx'
 # from the same extracted tree.  Both binaries live in the top-level directory
 # of the tarball (e.g. uv-x86_64-unknown-linux-musl/uvx).

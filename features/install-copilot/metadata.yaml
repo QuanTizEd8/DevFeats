@@ -45,6 +45,7 @@ _options:
       asset_uri: "https://github.com/github/copilot-cli/releases/download/{TAG}/copilot-{OS}-{ARCH:node}.tar.gz"
       sidecar_uri: "https://github.com/github/copilot-cli/releases/download/{TAG}/SHA256SUMS.txt"
       binary_src: copilot
+      when: {arch: [amd64, arm64]}
     npm:
       package: "@github/copilot"
     script:

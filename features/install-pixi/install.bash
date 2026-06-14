@@ -3,14 +3,6 @@
 # function bodies until they are called, so lib functions referenced here are
 # resolved at call-time, not at definition-time.
 
-# pixi supports only the binary install method.
-# shellcheck disable=SC2329,SC2317
-__resolve_method() {
-  logging__inspect "Resolving METHOD=auto for pixi."
-  logging__info "Resolved METHOD=auto → 'binary' (pixi release asset)."
-  printf 'binary\n'
-}
-
 # Override: use pixi's native self-update command for updates.
 # Version and prefix checks are handled by __update_predispatch__; this hook
 # only runs when a version update is actually needed.

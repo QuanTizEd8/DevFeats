@@ -39,7 +39,8 @@ _options:
       asset_uri: "https://github.com/openai/codex/releases/download/{TAG}/install.sh"
     npm:
       package: "@openai/codex"
-    package: {}
+    package:
+      when: {pm: brew}
   prefix:
     bins: [codex]
     applies_when:

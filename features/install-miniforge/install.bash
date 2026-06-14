@@ -26,12 +26,6 @@ __resolve_input_version_post() {
   VERSION="${VERSION%-*}"
 }
 
-# Only the script method is supported.
-__resolve_method() {
-  logging__info "Resolved METHOD=auto → 'script' (Miniforge installer)."
-  printf 'script\n'
-}
-
 # Run the downloaded Miniforge installer, then display post-install info.
 __install_run_script_run() {
   local _installer="$1"

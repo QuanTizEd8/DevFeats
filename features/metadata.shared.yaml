@@ -712,7 +712,7 @@ options:
             default_path = override.get("default", root)
             root_val = override.get("root", default_path)
             nonroot_val = override.get("nonroot", default_path)
-            conds = " ".join(k + "=" + v for k, v in when.items())
+            conds = serialize_when(when)
             entry = (conds + " " + root_val).strip()
             if root_val != nonroot_val:
                 entry += " " + nonroot_val

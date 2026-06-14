@@ -124,7 +124,6 @@ _options:
     subcmd: "completion -s"
     shells: [bash, zsh]
   method:
-    default: upstream-package
     binary:
       asset_uri: "https://github.com/cli/cli/releases/download/{TAG}/gh_{VERSION}_{OS:gh}_{ARCH:gh}.{OS:gh==macOS?zip:tar.gz}"
       sidecar_uri: "https://github.com/cli/cli/releases/download/{TAG}/gh_{VERSION}_checksums.txt"

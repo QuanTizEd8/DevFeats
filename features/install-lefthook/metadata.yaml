@@ -30,11 +30,17 @@ _options:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/lefthook_{VERSION}_{OS==linux?Linux:MacOS}_{ARCH==amd64?x86_64:{ARCH}}"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/lefthook_checksums.txt"
+      when:
+        - {kernel: linux, arch: amd64}
+        - {kernel: linux, arch: arm64}
+        - {kernel: darwin, arch: amd64}
+        - {kernel: darwin, arch: arm64}
     npm:
       package: "lefthook"
       args:
         - "--ignore-scripts"
-    upstream-package: {}
+    upstream-package:
+      when: {pm: [apt, apk, dnf, zypper, brew]}
   prefix:
     bins: [lefthook]
     applies_when:

@@ -23,21 +23,6 @@ __detect_existing_path__() {
   if [[ -n "${_FEAT_EXISTING_PATH}" ]]; then _FEAT_EXISTING=true; fi
 }
 
-__resolve_method() {
-  # Prefer package on Alpine as root: fast, well-maintained, no Perl installer overhead.
-  # Script everywhere else: delivers a current upstream release and works for both
-  # privileged (system prefix) and unprivileged (user prefix) installs.
-  if [[ "$(id -u)" == "0" ]]; then
-    local _pm
-    _pm="$(ospkg__pm)"
-    if [[ "${_pm}" == "apk" ]]; then
-      printf 'package\n'
-      return 0
-    fi
-  fi
-  printf 'script\n'
-}
-
 __installed_version() {
   tlmgr --version 2> /dev/null |
     grep -oE 'version [0-9]{4}' | grep -oE '[0-9]{4}' | tail -n1

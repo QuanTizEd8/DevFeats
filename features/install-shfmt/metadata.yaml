@@ -26,6 +26,11 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/shfmt_v{VERSION}_{OS}_{ARCH}"
+      when:
+        - {kernel: linux, arch: amd64}
+        - {kernel: linux, arch: arm64}
+        - {kernel: darwin, arch: amd64}
+        - {kernel: darwin, arch: arm64}
     package: {}
   prefix:
     bins: [shfmt]

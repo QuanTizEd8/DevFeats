@@ -41,7 +41,8 @@ _options:
     default: auto
     script:
       asset_uri: ''
-    package: {}
+    package:
+      when: {pm: apk}
   version:
     resolution: none
     default: latest

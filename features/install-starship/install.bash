@@ -3,21 +3,6 @@
 # function bodies until they are called, so lib functions referenced here are
 # resolved at call-time, not at definition-time.
 
-# Use the binary method when a known Rust triple is available (covers x86_64,
-# aarch64, riscv64 on Linux/macOS); fall back to the official installer script
-# for other architectures (ARM 32-bit, i686, etc.) which it handles natively.
-# shellcheck disable=SC2329,SC2317
-__resolve_method() {
-  logging__inspect "Resolving METHOD=auto for starship."
-  if [[ -n "$(os__rust_triple)" ]]; then
-    logging__info "Resolved METHOD=auto → 'binary'."
-    printf 'binary\n'
-  else
-    logging__info "Resolved METHOD=auto → 'script' (official installer)."
-    printf 'script\n'
-  fi
-}
-
 # Pass --yes (non-interactive) and --bin-dir to the official Starship installer
 # script, and optionally pin a version via the resolved tag.
 # shellcheck disable=SC2329,SC2317

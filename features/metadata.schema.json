@@ -177,6 +177,26 @@
                 "gpg_sig_uri": {
                   "description": "URI of the detached GPG signature for the binary release asset. Supports the same runtime substitutions as `asset_uri`. Generates the `binary_gpg_sig_uri` user option.",
                   "type": "string"
+                },
+                "when": {
+                  "description": "Runtime OS context conditions required for the `binary` method to be considered feasible by `__resolve_auto_method__`. Object form = AND over all keys; array-of-objects form = OR over the objects (each object is AND). Key names match `/etc/os-release` fields plus synthetic keys `pm`, `arch`, `kernel`, `id`, `id_like`, `version_codename`. Values may be a string (exact match) or an array of strings (any-of / OR). Same semantics as `when` in `_dependencies` manifests, evaluated by `ospkg__os_release_match`. If omitted, `BINARY_ASSET_URI` is checked for `{RUST_TRIPLE}` at runtime as a fallback arch constraint.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": {
+                        "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
+                      }
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -192,6 +212,26 @@
                 "registers_as": {
                   "description": "OS package name that other non-PM install methods should register as via `ospkg__register_dummy`. When set, any installation via a method other than `package` or `upstream-package` (binary, source, cargo, npm, etc.) automatically registers a dummy Debian package under this name so that downstream `Depends:` constraints are satisfied. Debian/Ubuntu (apt) only; no-op on other platforms. The registered version equals the resolved `VERSION` at install time.",
                   "type": "string"
+                },
+                "when": {
+                  "description": "Runtime OS context conditions required for the `package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `pm` key to restrict to specific package manager families (e.g. `{pm: [apt, dnf]}`); omit to allow all PM families.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": {
+                        "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
+                      }
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -203,6 +243,26 @@
                 "registers_as": {
                   "description": "OS package name that other non-PM install methods should register as via `ospkg__register_dummy`. When set, any installation via a method other than `package` or `upstream-package` (binary, source, cargo, npm, etc.) automatically registers a dummy Debian package under this name so that downstream `Depends:` constraints are satisfied. Debian/Ubuntu (apt) only; no-op on other platforms. The registered version equals the resolved `VERSION` at install time.",
                   "type": "string"
+                },
+                "when": {
+                  "description": "Runtime OS context conditions required for the `upstream-package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `pm` key to restrict to specific package manager families; use `id` to restrict to specific distros (e.g. `{id: ubuntu}` for Ubuntu-only vendor repos).",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": {
+                        "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
+                      }
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },

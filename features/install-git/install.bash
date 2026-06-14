@@ -1,20 +1,5 @@
 # shellcheck shell=bash
 
-# ── Method / prefix resolution ─────────────────────────────────────────────
-
-__resolve_method() {
-  # On Ubuntu, prefer the git-core PPA (upstream-package) for a newer git.
-  # Everywhere else, fall back to the OS package manager.
-  logging__inspect "Resolving METHOD=auto for git."
-  if [[ "$(os__id)" == "ubuntu" ]]; then
-    logging__info "Resolved METHOD=auto → 'upstream-package' (Ubuntu git-core PPA)."
-    printf 'upstream-package\n'
-  else
-    logging__info "Resolved METHOD=auto → 'package'."
-    printf 'package\n'
-  fi
-}
-
 __resolve_input_prefixes_post() {
   # Resolve SYSCONFDIR after PREFIX is known.  __install_run_source_build passes
   # it to make as sysconfdir=; _git__write_system_gitconfig uses it to locate gitconfig.

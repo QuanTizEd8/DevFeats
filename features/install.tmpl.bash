@@ -1929,10 +1929,77 @@ __feat_do_configure_users__() {
 
 # Input Resolution
 # ================
+
+__resolve_auto_method__() {
+  # Centralized METHOD=auto resolver driven by _FEAT_CONTRACT_* variables.
+  # Iterates methods in priority order, evaluating feasibility for each.
+  # Prints the first feasible method name and returns 0, or returns 1 if none found.
+  local _arch _kernel _privileged _triple
+  _arch="$(os__release_arch 2>/dev/null)" || _arch=""
+  _kernel="$(os__release_kernel 2>/dev/null)" || _kernel=""
+  ospkg__detect 2>/dev/null || true
+  _triple="$(os__rust_triple 2>/dev/null)" || _triple=""
+  _privileged=false
+  users__is_privileged 2>/dev/null && _privileged=true
+
+  local _method
+  for _method in binary upstream-package package script npm-bundled npm cargo source git-clone; do
+    [[ " ${_FEAT_CONTRACT_METHODS:-} " == *" ${_method} "* ]] || continue
+
+    case "${_method}" in
+      binary)
+        if [[ "${BINARY_ASSET_URI:-}" == *'{RUST_TRIPLE}'* ]]; then
+          [[ -n "${_triple}" ]] || continue
+        fi
+        os__match_when "${_FEAT_CONTRACT_BINARY_WHEN:-}" || continue
+        ;;
+      upstream-package)
+        [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
+        # Only for stable when version is semver-resolved: upstream repos aren't
+        # queryable before setup and won't track pre-releases or specific versions.
+        # VERSION_RESOLUTION=none means VERSION is a custom opaque string; treat as stable.
+        if [[ "${VERSION_RESOLUTION:-}" != "none" ]]; then
+          case "${VERSION:-stable}" in stable) : ;; *) continue ;; esac
+        fi
+        os__match_when "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN:-}" || continue
+        ;;
+      package)
+        [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
+        # stable → PM always viable; latest → skip (PM won't have very latest);
+        # specific version → check PM with raw spec (ospkg uses prefix matching).
+        # VERSION_RESOLUTION=none means VERSION is a custom opaque string; always viable.
+        if [[ "${VERSION_RESOLUTION:-}" != "none" ]]; then
+          case "${VERSION:-stable}" in
+            stable) : ;;
+            latest) continue ;;
+            *) ospkg__has_available_version "${_FEAT_CONTRACT_PRIMARY_BIN:-}" "${VERSION}" 2>/dev/null || continue ;;
+          esac
+        fi
+        os__match_when "${_FEAT_CONTRACT_PACKAGE_WHEN:-}" || continue
+        ;;
+      script | source) : ;;
+      npm-bundled)
+        [[ " linux darwin " == *" ${_kernel} "* ]] || continue
+        [[ " amd64 arm64 " == *" ${_arch} "* ]] || continue
+        [[ "$(os__platform 2>/dev/null)" != "alpine" ]] || continue
+        ;;
+      npm) command -v npm > /dev/null 2>&1 || continue ;;
+      cargo) command -v cargo > /dev/null 2>&1 || continue ;;
+      git-clone) command -v git > /dev/null 2>&1 || continue ;;
+    esac
+
+    printf '%s\n' "${_method}"
+    return 0
+  done
+
+  logging__error "No feasible method found for METHOD=auto (available: ${_FEAT_CONTRACT_METHODS:-none})."
+  return 1
+}
+
 __resolve_input_method__() {
-  # Resolves METHOD=auto to a concrete value via __resolve_method hook.
-  # No-op when METHOD is not set or already concrete. Error if METHOD=auto
-  # but no hook is defined.
+  # Resolves METHOD=auto to a concrete value.
+  # Priority: __resolve_method hook (feature escape hatch) → __resolve_auto_method__
+  # (driven by _FEAT_CONTRACT_* metadata). No-op when METHOD is already concrete.
   [[ -v METHOD && "${METHOD}" == "auto" ]] || {
     logging__debug "METHOD already concrete ('${METHOD:-unset}'); skipping auto-resolution."
     # Auto-register installed-version probe for git-clone when not overridden by the feature.
@@ -1954,11 +2021,18 @@ __resolve_input_method__() {
       logging__error "Feature hook '__resolve_method' failed."
       return "$_rc"
     fi
-    logging__info "Resolved METHOD=auto → '${METHOD}'."
+  elif [[ -n "${_FEAT_CONTRACT_METHODS:-}" ]]; then
+    logging__debug "Executing centralized '__resolve_auto_method__'."
+    METHOD="$(__resolve_auto_method__)"
+    local _rc=$?
+    if [[ $_rc != 0 ]]; then
+      return "$_rc"
+    fi
   else
-    logging__error "METHOD=auto requires '__resolve_method' to be defined; none found."
+    logging__error "METHOD=auto but no methods declared (_FEAT_CONTRACT_METHODS is empty)."
     return 1
   fi
+  logging__info "Resolved METHOD=auto → '${METHOD}'."
   # Auto-register installed-version probe for git-clone when resolved to git-clone.
   if [[ "${METHOD:-}" == "git-clone" ]] && ! declare -f __installed_version > /dev/null; then
     __installed_version() {

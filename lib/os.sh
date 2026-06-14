@@ -385,23 +385,57 @@ os__match_spec() {
   #
   # Delegates to `ospkg__os_release_match` (which calls `ospkg__detect` idempotently).
   # AND logic: all key=value pairs must match. Case-insensitive.
+  # OR within values: a `|`-separated value (e.g. `arch=amd64|arm64`) matches if any alternative matches.
   # Supported keys: kernel, arch, id, id_like, pm, version_id, version_codename, and any
   # /etc/os-release field.
   #
   # Returns: 0 if all conditions match, 1 otherwise.
   [ $# -eq 0 ] && return 0
-  local _pair _k _v
+  local _pair _k _v _alt _matched
+  local -a _alts
   for _pair in "$@"; do
     _k="${_pair%%=*}"
     _v="${_pair#*=}"
-    ospkg__os_release_match "$_k" "$_v"
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
+    IFS='|' read -ra _alts <<< "${_v}"
+    _matched=false
+    for _alt in "${_alts[@]}"; do
+      ospkg__os_release_match "${_k}" "${_alt}" 2> /dev/null && {
+        _matched=true
+        break
+      }
+    done
+    [[ "${_matched}" == true ]] || {
       logging__error "platform condition '${_pair}' did not match."
-      return "$_rc"
+      return 1
     }
   done
   return 0
+}
+
+os__match_when() {
+  # @brief os__match_when <when-string> — Return 0 if the current OS context matches the given when block.
+  #
+  # Evaluates a serialized `when` block using the same semantics as the ospkg manifest schema:
+  # - AND across space-separated `key=value` atoms within a group.
+  # - OR (`|`) across values within a single atom (e.g. `arch=amd64|arm64`).
+  # - OR across newline-separated groups (array form: matches if any group matches).
+  # An empty string always matches (no constraint).
+  # Delegates per-key matching to `os__match_spec`.
+  #
+  # Serialization format (produced by the build pipeline from metadata.yaml `when` blocks):
+  #   Object form  : `{arch: [amd64, arm64]}`   → `"arch=amd64|arm64"`
+  #   Array form   : `[{kernel:linux,arch:amd64},{kernel:darwin}]` → `"kernel=linux arch=amd64\nkernel=darwin"`
+  #
+  # Returns: 0 if the when block matches (or is empty), 1 otherwise.
+  local _when="${1:-}"
+  [ -z "${_when}" ] && return 0
+  local _group
+  while IFS= read -r _group; do
+    [ -z "${_group}" ] && continue
+    # shellcheck disable=SC2086
+    os__match_spec ${_group} 2> /dev/null && return 0
+  done <<< "${_when}"
+  return 1
 }
 
 _os__init_release_vars() {

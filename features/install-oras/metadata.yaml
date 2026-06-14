@@ -34,7 +34,9 @@ _options:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/oras_{VERSION}_{OS}_{ARCH}.tar.gz"
       binary_src: oras
       gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/refs/heads/main/KEYS"
-    package: {}
+      when: {arch: [amd64, arm64, armv7, ppc64le, s390x, riscv64, loong64]}
+    package:
+      when: {pm: [apt, apk, dnf, zypper]}
   prefix:
     bins: [oras]
     applies_when:

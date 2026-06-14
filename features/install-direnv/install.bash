@@ -3,22 +3,6 @@
 # function bodies until they are called, so lib functions referenced here are
 # resolved at call-time, not at definition-time.
 
-# Binary releases cover linux and darwin for amd64 and arm64; fall back to package elsewhere.
-# shellcheck disable=SC2329,SC2317
-__resolve_method() {
-  logging__inspect "Resolving METHOD=auto for direnv."
-  case "$(os__release_kernel):$(os__release_arch)" in
-    linux:amd64 | linux:arm64 | darwin:amd64 | darwin:arm64)
-      logging__info "Resolved METHOD=auto → 'binary'."
-      printf 'binary\n'
-      ;;
-    *)
-      logging__info "Resolved METHOD=auto → 'package'."
-      printf 'package\n'
-      ;;
-  esac
-}
-
 # The framework's make build system does not append PREFIX automatically (unlike
 # autotools which gets --prefix= injected).  Override so make receives it explicitly.
 # shellcheck disable=SC2329,SC2317

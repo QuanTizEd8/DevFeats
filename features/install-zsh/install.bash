@@ -1,28 +1,6 @@
 # shellcheck shell=bash
 
 # shellcheck disable=SC2329,SC2317
-__resolve_method() {
-  # Resolve METHOD=auto: use source for non-privileged users; for privileged,
-  # prefer package unless a specific version is requested that the PM can't provide.
-  if ! users__is_privileged; then
-    printf 'source\n'
-    return 0
-  fi
-  case "${VERSION:-stable}" in
-    stable | latest)
-      printf 'package\n'
-      ;;
-    *)
-      if ospkg__has_available_version "zsh" "${VERSION}"; then
-        printf 'package\n'
-      else
-        printf 'source\n'
-      fi
-      ;;
-  esac
-}
-
-# shellcheck disable=SC2329,SC2317
 __install_finish_post() {
   # Post-install: register the source-installed zsh binary in /etc/shells.
   # Package installs handle /etc/shells registration themselves.

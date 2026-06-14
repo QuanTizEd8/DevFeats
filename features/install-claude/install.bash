@@ -1,23 +1,5 @@
 # shellcheck shell=bash
 
-# Prefer the Anthropic OS package repo (system-wide) when a supported package
-# manager is available; fall back to binary (direct CDN download, no Node.js required).
-# shellcheck disable=SC2329,SC2317
-__resolve_method() {
-  logging__inspect "Resolving METHOD=auto for Claude Code."
-  ospkg__detect 2> /dev/null || true
-  case "${_OSPKG__FAMILY:-}" in
-    apt | dnf | apk | brew)
-      logging__info "Resolved METHOD=auto → 'upstream-package' (${_OSPKG__FAMILY})."
-      printf 'upstream-package\n'
-      ;;
-    *)
-      logging__info "Resolved METHOD=auto → 'binary' (no supported OS package repo)."
-      printf 'binary\n'
-      ;;
-  esac
-}
-
 # binary: fetch the per-version manifest to obtain the platform checksum, then
 # set BINARY_SHA256 so the template's __install_run_binary__ can verify the download.
 # shellcheck disable=SC2329,SC2317

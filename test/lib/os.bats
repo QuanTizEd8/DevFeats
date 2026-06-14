@@ -511,3 +511,149 @@ setup() {
   assert_success
   assert_output "{UNKNOWN_TOKEN}"
 }
+
+# ---------------------------------------------------------------------------
+# os__match_spec
+# ---------------------------------------------------------------------------
+
+_os_set_release() {
+  # Populate _OSPKG__OS_RELEASE for os__match_spec / os__match_when tests.
+  reload_lib os.sh
+  declare -gA _OSPKG__OS_RELEASE=(
+    [kernel]="${1:-linux}"
+    [arch]="${2:-amd64}"
+    [pm]="${3:-apt}"
+    [id]="${4:-debian}"
+  )
+  _OSPKG__DETECTED=true
+}
+
+@test "os__match_spec: no args always matches" {
+  _os_set_release
+  run os__match_spec
+  assert_success
+}
+
+@test "os__match_spec: single key matches" {
+  _os_set_release linux amd64 apt ubuntu
+  run os__match_spec "id=ubuntu"
+  assert_success
+}
+
+@test "os__match_spec: single key fails when value differs" {
+  _os_set_release linux amd64 apt debian
+  run os__match_spec "id=ubuntu"
+  assert_failure
+}
+
+@test "os__match_spec: OR values — first alternative matches" {
+  _os_set_release linux amd64 apt debian
+  run os__match_spec "pm=apt|dnf"
+  assert_success
+}
+
+@test "os__match_spec: OR values — second alternative matches" {
+  _os_set_release linux amd64 dnf debian
+  run os__match_spec "pm=apt|dnf"
+  assert_success
+}
+
+@test "os__match_spec: OR values — no alternative matches" {
+  _os_set_release linux amd64 apk alpine
+  run os__match_spec "pm=apt|dnf"
+  assert_failure
+}
+
+@test "os__match_spec: AND across multiple pairs — all match" {
+  _os_set_release linux amd64 apt ubuntu
+  run os__match_spec "id=ubuntu" "pm=apt"
+  assert_success
+}
+
+@test "os__match_spec: AND across multiple pairs — second fails" {
+  _os_set_release linux amd64 dnf ubuntu
+  run os__match_spec "id=ubuntu" "pm=apt"
+  assert_failure
+}
+
+@test "os__match_spec: case-insensitive matching" {
+  _os_set_release linux amd64 apt ubuntu
+  run os__match_spec "id=Ubuntu"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# os__match_when
+# ---------------------------------------------------------------------------
+
+@test "os__match_when: empty string always matches" {
+  _os_set_release
+  run os__match_when ""
+  assert_success
+}
+
+@test "os__match_when: single key matches" {
+  _os_set_release linux amd64 apt ubuntu
+  run os__match_when "id=ubuntu"
+  assert_success
+}
+
+@test "os__match_when: single key fails when value differs" {
+  _os_set_release linux amd64 apt debian
+  run os__match_when "id=ubuntu"
+  assert_failure
+}
+
+@test "os__match_when: OR values in a key — first alternative matches" {
+  _os_set_release linux amd64 apt debian
+  run os__match_when "pm=apt|dnf"
+  assert_success
+}
+
+@test "os__match_when: OR values in a key — second alternative matches" {
+  _os_set_release linux amd64 dnf debian
+  run os__match_when "pm=apt|dnf"
+  assert_success
+}
+
+@test "os__match_when: OR values in a key — no alternative matches" {
+  _os_set_release linux amd64 apk alpine
+  run os__match_when "pm=apt|dnf"
+  assert_failure
+}
+
+@test "os__match_when: AND across multiple atoms — all match" {
+  _os_set_release linux amd64 apt ubuntu
+  run os__match_when "id=ubuntu pm=apt"
+  assert_success
+}
+
+@test "os__match_when: AND across multiple atoms — second fails" {
+  _os_set_release linux amd64 dnf ubuntu
+  run os__match_when "id=ubuntu pm=apt"
+  assert_failure
+}
+
+@test "os__match_when: multi-group OR — first group matches" {
+  _os_set_release linux amd64 apt ubuntu
+  run os__match_when $'id=ubuntu\nkernel=darwin'
+  assert_success
+}
+
+@test "os__match_when: multi-group OR — second group matches" {
+  _os_set_release darwin arm64 brew macos
+  run os__match_when $'id=ubuntu\nkernel=darwin'
+  assert_success
+}
+
+@test "os__match_when: multi-group OR — neither group matches" {
+  _os_set_release linux amd64 apk alpine
+  run os__match_when $'id=ubuntu\nkernel=darwin'
+  assert_failure
+}
+
+@test "os__match_when: case-insensitive matching" {
+  _os_set_release linux amd64 apt ubuntu
+  run os__match_when "id=Ubuntu"
+  assert_success
+}
