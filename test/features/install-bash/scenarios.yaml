@@ -1,0 +1,88 @@
+default_install:
+  envs: [debian-latest]
+  modes: [devcontainer, standalone]
+  tests: [default]
+
+package_install:
+  envs: [alpine-3.21+bash, debian-bookworm+bash, fedora-latest+bash]
+  modes: [devcontainer, standalone]
+  options:
+    method: package
+    if_exists: reinstall
+  tests: [package_install]
+
+source_build:
+  envs: [debian-bookworm+bash-source-build-deps]
+  modes: [standalone]
+  options:
+    method: source
+    version: "5.3"
+  tests: [source_build]
+
+specific_version:
+  envs: [debian-bookworm+bash-source-build-deps]
+  modes: [standalone]
+  options:
+    method: source
+    version: "5.2"
+  tests: [specific_version]
+
+source_custom_prefix:
+  envs: [debian-bookworm+bash-source-build-deps]
+  modes: [devcontainer, standalone]
+  options:
+    method: source
+    version: "5.3"
+    prefix: /opt/bash
+    prefix_discovery: symlink
+    if_exists: reinstall
+  tests: [source_custom_prefix]
+
+source_nonroot:
+  envs: [debian-bookworm+bash-source-build-deps]
+  modes: [standalone]
+  setup: useradd -m -s /bin/sh vscode
+  options:
+    method: source
+    version: "5.3"
+  standalone:
+    user: vscode
+  tests: [source_nonroot]
+
+bootstrap_pm_collision:
+  envs: [alpine-3.21]
+  modes: [standalone]
+  options:
+    method: package
+  tests: [bootstrap_pm_collision]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then printf "GNU bash, version 9.9.9 (fake)\\n"; exit 0; fi\nexit 0' > /usr/local/bin/bash
+    chmod +x /usr/local/bin/bash
+  options:
+    method: auto
+    if_exists: fail
+  tests: [if_exists_fail]
+
+if_exists_skip:
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then printf "GNU bash, version 9.9.9 (fake)\\n"; exit 0; fi\nexit 0' > /usr/local/bin/bash
+    chmod +x /usr/local/bin/bash
+  options:
+    method: auto
+    if_exists: skip
+  tests: [if_exists_skip]
+
+invalid_method:
+  expect_install_failure: true
+  envs: [debian-latest]
+  modes: [standalone]
+  options:
+    method: binary
+  tests: [invalid_method]

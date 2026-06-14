@@ -1,0 +1,78 @@
+version: 0.1.0
+name: Bash Installation
+description: Install [Bash](https://www.gnu.org/software/bash/) via the OS package manager or build from an official GNU source tarball.
+keywords:
+  - bash
+  - shell
+_long_description: >-
+  Installs the Bash shell from the OS native package manager or compiles a release
+  tarball from [ftp.gnu.org](https://ftp.gnu.org/gnu/bash/). Supports version
+  pinning, system-wide installs under `/usr/local`, and user-scoped installs under
+  `${HOME}/.local` when building from source.
+_options:
+  verify:
+    args: "--version"
+    description: Verify bash is installed and working.
+  version:
+    resolution: sidecar
+    uri: "https://ftp.gnu.org/gnu/bash/"
+    pattern: "bash-{VERSION}.tar.gz"
+    default: stable
+    flag: --version
+    proposals:
+      - value: "5.3"
+        description: Bash 5.3 (February 2025).
+      - value: "5.2"
+        description: Bash 5.2 (September 2022).
+  method:
+    package:
+      registers_as: bash
+    source:
+      asset_uri: "https://ftp.gnu.org/gnu/bash/bash-{VERSION}.tar.gz"
+      build_system: autotools
+      configure_args:
+        - "--without-bash-malloc"
+      make_targets:
+        - "install"
+  prefix:
+    bins:
+      - bash
+    applies_when:
+      - method: [source]
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+    os-pkg:
+      packages:
+        - name: bash
+          version: "${VERSION}"
+  build:
+    source-build:
+      apt:
+        packages:
+          - build-essential
+          - libncurses-dev
+      brew:
+        packages:
+          - make
+          - ncurses
+      dnf:
+        packages:
+          - gcc
+          - make
+          - ncurses-devel
+      apk:
+        packages:
+          - build-base
+          - ncurses-dev
+      zypper:
+        packages:
+          - gcc
+          - make
+          - ncurses-devel
+      pacman:
+        packages:
+          - base-devel
+          - ncurses
