@@ -20,26 +20,99 @@ apt_add_users:
     - title: root ZDOTDIR/.zshrc NOT configured
       cmd: bash -c '! test -f /root/.config/zsh/.zshrc'
 
-apt_augment_mode:
+apt_if_exists_skip:
   description: |
-    Verifies that user_config_mode=augment does not overwrite files that already
-    exist, but still injects framework blocks and creates missing resources.
-    The scenario Dockerfile pre-creates a custom .zshrc / .bashrc so we can
-    confirm their content is preserved.
+    Verifies that if_exists=skip (the default) leaves the outer block of pre-existing
+    dotfiles untouched (no full-file replacement) while still deploying files that are
+    absent, injecting inner configuration blocks, and deploying system-wide config.
 
   pre: |
     _HOME=/root
     _ZDOTDIR="${_HOME}/.config/zsh"
 
   checks:
-    - title: pre-existing ZDOTDIR/.zshrc preserved
-      cmd: grep -qF 'MY_CUSTOM_LINE' "${_ZDOTDIR}/.zshrc"
-    - title: zshtheme written in augment mode
-      cmd: test -f "${_ZDOTDIR}/zshtheme"
-    - title: bashtheme written in augment mode
-      cmd: test -f "${_HOME}/.config/bash/bashtheme"
+    - title: existing .zshrc left untouched (outer block absent — file not replaced)
+      cmd: grep -qF 'MY_CUSTOM_ZSHRC' "${_ZDOTDIR}/.zshrc"
+    - title: existing .bashrc left untouched (outer block absent — file not replaced)
+      cmd: grep -qF 'MY_CUSTOM_BASHRC' "${_HOME}/.bashrc"
+    - title: absent .zshenv was created
+      cmd: test -f "${_HOME}/.zshenv"
+    - title: ZDOTDIR block injected into newly-created .zshenv
+      cmd: grep -qF '# >>> setup-shell-zdotdir >>>' "${_HOME}/.zshenv"
+    - title: /etc/shellenv deployed
+      cmd: test -f /etc/shellenv
+
+apt_if_exists_update:
+  description: |
+    Verifies that if_exists=update preserves existing file content and appends the
+    managed block, while still injecting ZDOTDIR.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: existing .zshrc content preserved
+      cmd: grep -qF 'MY_CUSTOM_ZSHRC' "${_ZDOTDIR}/.zshrc"
+    - title: setup-shell block appended to existing .zshrc
+      cmd: grep -qF '# >>> setup-shell-zshrc >>>' "${_ZDOTDIR}/.zshrc"
     - title: ZDOTDIR block injected into .zshenv
       cmd: grep -qF '# >>> setup-shell-zdotdir >>>' "${_HOME}/.zshenv"
+    - title: zshtheme scaffold created
+      cmd: test -f "${_ZDOTDIR}/zshtheme"
+    - title: /etc/shellenv deployed
+      cmd: test -f /etc/shellenv
+
+apt_if_exists_reinstall:
+  description: |
+    Verifies that if_exists=reinstall overwrites existing dotfiles with the managed
+    block, replacing previous content.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: custom .zshrc content overwritten
+      cmd: bash -c '! grep -qF "MY_CUSTOM_ZSHRC" "${_ZDOTDIR}/.zshrc"'
+    - title: .zshrc now has setup-shell managed block
+      cmd: grep -qF '# >>> setup-shell-zshrc >>>' "${_ZDOTDIR}/.zshrc"
+    - title: ZDOTDIR block present in .zshenv
+      cmd: grep -qF '# >>> setup-shell-zdotdir >>>' "${_HOME}/.zshenv"
+
+apt_setup_system_false:
+  description: |
+    Verifies that setup_system=false skips all system-wide /etc/ file deployment
+    while per-user dotfiles are still configured.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: /etc/shellenv NOT deployed
+      cmd: bash -c '! test -f /etc/shellenv'
+    - title: /etc/shellrc NOT deployed
+      cmd: bash -c '! test -f /etc/shellrc'
+    - title: BASH_ENV not set in /etc/environment
+      cmd: bash -c '! grep -q "^BASH_ENV=" /etc/environment 2>/dev/null'
+    - title: per-user .zshrc still deployed
+      cmd: test -f "${_ZDOTDIR}/.zshrc"
+    - title: ZDOTDIR block injected into .zshenv
+      cmd: grep -qF '# >>> setup-shell-zdotdir >>>' "${_HOME}/.zshenv"
+
+apt_setup_skel:
+  description: |
+    Verifies that setup_skel=true copies skel files to /etc/skel so new users
+    automatically inherit the shell configuration.
+
+  checks:
+    - title: /etc/skel/.config/zsh/.zshrc present
+      cmd: test -f /etc/skel/.config/zsh/.zshrc
+    - title: /etc/skel/.bashrc present
+      cmd: test -f /etc/skel/.bashrc
+    - title: /etc/skel/.zshenv present
+      cmd: test -f /etc/skel/.zshenv
 
 apt_container_user:
   description: |
@@ -275,10 +348,16 @@ apt_user_config:
       cmd: grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
     - title: zshtheme scaffold written
       cmd: test -f "$_ZSHTHEME"
+    - title: .zshrc sources zshtheme via ZDOTDIR shell expression (not an expanded absolute path)
+      cmd: grep -qF 'source "${ZDOTDIR}/zshtheme"' "${_ZDOTDIR}/.zshrc"
     - title: .zshrc sources .shellrc
       cmd: grep -q '\.shellrc' "${_ZDOTDIR}/.zshrc"
     - title: bashtheme scaffold written
       cmd: test -f "$_BASHTHEME"
+    - title: .bashrc uses XDG runtime expression for bash theme path (not a hardcoded absolute path)
+      cmd: grep -qF '${XDG_CONFIG_HOME:-${HOME}/.config}/bash/bashtheme' "${_HOME}/.bashrc"
+    - title: .bashrc does not hardcode /root/.config/bash/bashtheme
+      cmd: bash -c '! grep -qF "${_HOME}/.config/bash/bashtheme" "${_HOME}/.bashrc"'
     - title: ZDOTDIR dir exists
       cmd: test -d "$_ZDOTDIR"
     - title: HOME owned by root
@@ -287,25 +366,6 @@ apt_user_config:
       cmd: bash -c "[ \"\$(stat -c %U '${_ZDOTDIR}/.zshrc')\" = 'root' ]"
     - title: ZDOTDIR owned by root
       cmd: bash -c "[ \"\$(stat -c %U '${_ZDOTDIR}')\" = 'root' ]"
-    - title: /etc/profile exists
-      cmd: test -f /etc/profile
-    - title: system bashrc exists
-      cmd: bash -c 'test -f /etc/bash.bashrc || test -f /etc/bashrc || test -f /etc/bash/bashrc'
-
-apt_user_config_skip:
-  description: |
-    Verifies that user_config_mode=skip does not write any per-user dotfiles
-    while the system-wide install still succeeds.
-
-  pre: |
-    _HOME=/root
-    _ZDOTDIR="${_HOME}/.config/zsh"
-
-  checks:
-    - title: root zshtheme not written
-      cmd: bash -c '! test -f "${_ZDOTDIR}/zshtheme"'
-    - title: root bashtheme not written
-      cmd: bash -c '! test -f "/root/.config/bash/bashtheme"'
     - title: /etc/profile exists
       cmd: test -f /etc/profile
     - title: system bashrc exists
@@ -370,7 +430,144 @@ apt_zdotdir_default:
       cmd: test -f "${_ZDOTDIR}/.zlogin"
     - title: zshtheme scaffold written to ZDOTDIR
       cmd: test -f "$_ZSHTHEME"
+    - title: .zshrc sources zshtheme via ZDOTDIR shell expression (not an expanded absolute path)
+      cmd: grep -qF 'source "${ZDOTDIR}/zshtheme"' "${_ZDOTDIR}/.zshrc"
+    - title: /zshtheme does not exist at filesystem root (wrong expand path)
+      cmd: bash -c '! test -f /zshtheme'
     - title: HOME owned by user
       cmd: bash -c '[ "$(stat -c %U '"$_HOME"')" = "root" ]'
     - title: ZDOTDIR owned by user
       cmd: bash -c '[ "$(stat -c %U '"$_ZDOTDIR"')" = "root" ]'
+
+apt_no_bash_env:
+  description: Verifies that setup_bash_env=false skips setting BASH_ENV in /etc/environment.
+  checks:
+    - title: BASH_ENV not in /etc/environment
+      cmd: bash -c '! grep -q "^BASH_ENV=" /etc/environment 2>/dev/null'
+    - title: /etc/shellenv still deployed
+      cmd: test -f /etc/shellenv
+
+apt_locale_custom:
+  description: Verifies that a custom locale is set in /etc/shellenv.
+  checks:
+    - title: LANG set to C.UTF-8 in /etc/shellenv
+      cmd: grep -qF 'export LANG="C.UTF-8"' /etc/shellenv
+    - title: LC_ALL set to C.UTF-8 in /etc/shellenv
+      cmd: grep -qF 'export LC_ALL="C.UTF-8"' /etc/shellenv
+
+apt_no_locale:
+  description: Verifies that locale='' skips locale setup in /etc/shellenv.
+  checks:
+    - title: LANG not set in /etc/shellenv
+      cmd: bash -c '! grep -q "^export LANG=" /etc/shellenv'
+    - title: LC_ALL not set in /etc/shellenv
+      cmd: bash -c '! grep -q "^export LC_ALL=" /etc/shellenv'
+
+apt_editor_vim:
+  description: Verifies that default_editor=vim sets VISUAL/EDITOR to vim in /etc/shellenv.
+  checks:
+    - title: VISUAL=vim in /etc/shellenv
+      cmd: grep -qF 'export VISUAL=vim EDITOR=vim' /etc/shellenv
+
+apt_custom_shellrc:
+  description: Verifies that user_shellrc changes the sourced shellrc path in dotfiles.
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+  checks:
+    - title: .bashrc sources custom shellrc path
+      cmd: grep -qF '"$HOME/.config/shell/rc"' "${_HOME}/.bashrc"
+    - title: .zshrc sources custom shellrc path
+      cmd: grep -qF '"$HOME/.config/shell/rc"' "${_ZDOTDIR}/.zshrc"
+    - title: default .shellrc not referenced in .bashrc
+      cmd: bash -c '! grep -qF '"'"'"$HOME/.shellrc"'"'"' "${_HOME}/.bashrc"'
+
+apt_custom_zsh_theme:
+  description: Verifies that zsh_theme sets a custom theme scaffold path.
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+  checks:
+    - title: .zshrc sources /tmp/mytheme
+      cmd: grep -qF '/tmp/mytheme' "${_ZDOTDIR}/.zshrc"
+    - title: /tmp/mytheme scaffold created
+      cmd: test -f /tmp/mytheme
+    - title: default zshtheme not referenced in .zshrc
+      cmd: bash -c '! grep -qF '"'"'"${ZDOTDIR}/zshtheme"'"'"' "${_ZDOTDIR}/.zshrc"'
+
+apt_custom_bash_theme:
+  description: Verifies that bash_theme sets a custom theme scaffold path.
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+  checks:
+    - title: .bashrc sources /tmp/mybashtheme
+      cmd: grep -qF '/tmp/mybashtheme' "${_HOME}/.bashrc"
+    - title: /tmp/mybashtheme scaffold created
+      cmd: test -f /tmp/mybashtheme
+    - title: default XDG bash theme path not hardcoded in .bashrc
+      cmd: bash -c '! grep -qF "${_HOME}/.config/bash/bashtheme" "${_HOME}/.bashrc"'
+
+apt_no_umask:
+  description: Verifies that umask='' removes the umask block from /etc/shellenv.
+  checks:
+    - title: umask not set in /etc/shellenv
+      cmd: bash -c '! grep -q "^umask " /etc/shellenv'
+    - title: /etc/shellenv still deployed
+      cmd: test -f /etc/shellenv
+
+apt_no_editor:
+  description: Verifies that default_editor=skip removes the editor block from /etc/shellenv.
+  checks:
+    - title: VISUAL not set in /etc/shellenv
+      cmd: bash -c '! grep -q "VISUAL" /etc/shellenv'
+    - title: EDITOR not set in /etc/shellenv
+      cmd: bash -c '! grep -q "EDITOR" /etc/shellenv'
+    - title: /etc/shellenv still deployed
+      cmd: test -f /etc/shellenv
+
+apt_tilde_themes:
+  description: |
+    Verifies that tilde-prefixed theme paths are handled correctly:
+    - In user dotfiles: expanded to the user's absolute path (via users__expand_path).
+    - In skel: converted to ${HOME}/... runtime expression so new users inherit correctly.
+
+  pre: |
+    _HOME=/root
+    _ZDOTDIR="${_HOME}/.config/zsh"
+
+  checks:
+    - title: user .zshrc sources absolute path for zsh theme (tilde expanded per user)
+      cmd: grep -qF 'source "/root/myzshtheme"' "${_ZDOTDIR}/.zshrc"
+    - title: user .zshrc does not contain literal ~ for zsh theme
+      cmd: bash -c '! grep -qF "~/myzshtheme" /root/.config/zsh/.zshrc'
+    - title: skel .zshrc uses ${HOME} expression for zsh theme (not literal ~)
+      cmd: grep -qF 'source "${HOME}/myzshtheme"' /etc/skel/.config/zsh/.zshrc
+    - title: skel .zshrc does not contain literal ~ for zsh theme
+      cmd: bash -c '! grep -q "~/myzshtheme" /etc/skel/.config/zsh/.zshrc'
+    - title: user .bashrc has absolute path for bash theme (tilde expanded per user)
+      cmd: grep -qF '"/root/mybashtheme"' "${_HOME}/.bashrc"
+    - title: user .bashrc does not contain literal ~ for bash theme
+      cmd: bash -c '! grep -qF "~/mybashtheme" /root/.bashrc'
+    - title: skel .bashrc uses ${HOME} expression for bash theme (not literal ~)
+      cmd: grep -qF '"${HOME}/mybashtheme"' /etc/skel/.bashrc
+    - title: skel .bashrc does not contain literal ~ for bash theme
+      cmd: bash -c '! grep -q "~/mybashtheme" /etc/skel/.bashrc'
+    - title: zshtheme scaffold created at expanded tilde path
+      cmd: test -f "/root/myzshtheme"
+    - title: bashtheme scaffold created at expanded tilde path
+      cmd: test -f "/root/mybashtheme"
+
+apt_custom_bash_env_path:
+  description: |
+    Verifies that bash_env_path overrides the computed BASH_ENV file path.
+    The bashenv file must be deployed at the custom path and BASH_ENV in
+    /etc/environment must point to it.
+
+  checks:
+    - title: bashenv file deployed at custom path
+      cmd: test -f /tmp/mybashenv
+    - title: BASH_ENV in /etc/environment points to custom path
+      cmd: grep -qxF 'BASH_ENV=/tmp/mybashenv' /etc/environment
+    - title: default /etc/bashenv not created
+      cmd: bash -c '! test -f /etc/bashenv'

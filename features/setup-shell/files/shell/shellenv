@@ -85,14 +85,19 @@ extend_path() {
     export PATH
 }
 
-# --- Umask ---
-# Owners can read/write; group and others can read.
+# --- Shell settings ---
+
+# >>> setup-shell-shellenv-umask >>>
 umask 022
+# <<< setup-shell-shellenv-umask <<<
+
 
 # --- User/Home guards ---
+
 # Some minimal environments (e.g. su without -l) may not set USER or HOME.
 if [ -z "$USER" ]; then USER=$(whoami); export USER; fi
 if [ -z "$HOME" ]; then eval HOME="~$USER"; export HOME; fi
+
 
 # --- PATH ---
 # On macOS, path_helper reads /etc/paths and /etc/paths.d/ to build a baseline
@@ -117,7 +122,9 @@ if [ "$(id -u)" -ne 0 ]; then
     extend_path --append "/usr/games"
 fi
 
+
 # --- XDG Base Directory Specification ---
+
 # System directories
 export XDG_DATA_DIRS="/usr/local/share:/usr/share"
 export XDG_CONFIG_DIRS="/etc/xdg"
@@ -127,14 +134,20 @@ export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${HOME}/.local/state}"
 
+
 # --- Locale ---
-export LANG="${LANG:-en_US.UTF-8}"
-export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+
+# >>> setup-shell-shellenv-locale >>>
+export LANG="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"
+# <<< setup-shell-shellenv-locale <<<
+
 
 # --- Default editor ---
 # VISUAL is for full-screen editors; EDITOR is for line-oriented fallback.
-# Many programs (sudoedit, crontab, git) honour these. Prefer nano as a safe
-# default; fall back to vi which is available on every POSIX system.
+# Many programs (sudoedit, crontab, git) honour these.
+
+# >>> setup-shell-shellenv-editor >>>
 if [ -z "${VISUAL}" ] && [ -z "${EDITOR}" ]; then
     if command -v nano >/dev/null 2>&1; then
         export VISUAL=nano EDITOR=nano
@@ -142,3 +155,4 @@ if [ -z "${VISUAL}" ] && [ -z "${EDITOR}" ]; then
         export VISUAL=vi EDITOR=vi
     fi
 fi
+# <<< setup-shell-shellenv-editor <<<

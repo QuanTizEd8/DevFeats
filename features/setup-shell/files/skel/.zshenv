@@ -7,4 +7,6 @@
 #
 # Do NOT put interactive-only config here (aliases, prompt, key bindings).
 # Those belong in ~/.zshrc.  Output here WILL break scripts and scp/rsync.
+# >>> setup-shell-zshenv-shellenv >>>
 [ -f "$HOME/.shellenv" ] && emulate sh -c '. "$HOME/.shellenv"'
+# <<< setup-shell-zshenv-shellenv <<<

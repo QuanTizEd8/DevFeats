@@ -1,111 +1,3 @@
-## Usage
-
-With defaults, Zsh config files end up at `~/.config/zsh/` and the Oh My Zsh
-custom directory at `~/.config/zsh/custom/` (symlinked to the system install).
-
----
-
-## Execution order
-
-The installer runs as root at image build time in a single pass with eight
-sequential steps.
-
-### Bootstrap (`install.sh`)
-
-The top-level `install.sh` is a POSIX sh script that ensures `bash` is
-available (installing it via the detected package manager if necessary),
-then hands off to the main orchestrator at `install.bash`.
-
-### Step 1 — Install packages
-
-Installs `zsh`, `git`, `curl`, and `ca-certificates` via the `install-os-pkg` dependency (cross-distro package
-installer). `install-os-pkg` is a declared hard dependency and is always
-available. Skipped if `install_zsh` is `false` and all dependencies are
-already present.
-
-### Step 2 — Install Oh My Zsh
-
-Clones [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to the install
-directory (`/usr/local/share/oh-my-zsh` by default). Sets git metadata
-(`oh-my-zsh.remote`, `oh-my-zsh.branch`) so that `omz update` works.
-Scaffolds the `ZSH_CUSTOM` directory structure (`themes/`, `plugins/`).
-Clones any custom theme and plugins.
-
-Skipped when `install_ohmyzsh` is `false` or Zsh is not available.
-
-### Step 3 — Install Oh My Bash
-
-Mirrors Step 2 for [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash).
-Clones the repo, sets git metadata, scaffolds `OSH_CUSTOM`, and clones custom
-theme/plugins.
-
-Skipped when `install_ohmybash` is `false`.
-
-### Step 4 — Install Starship
-
-Downloads and installs the [Starship](https://starship.rs/) prompt binary
-using the official installer script (`https://starship.rs/install.sh`).
-Idempotent — skips if the binary already exists.
-
-Skipped when `install_starship` is `false`.
-
-### Step 5 — Deploy system-wide configuration files
-
-Copies the configuration files from `files/` to their OS-detected system
-locations. The installer detects the correct paths automatically:
-
-- **Bash system bashrc**: probes `/etc/bash.bashrc` → `/etc/bashrc` →
-  `/etc/bash/bashrc` (see [System path detection](#system-path-detection))
-- **Zsh system directory**: probes `/etc/zsh/` → `/etc/`
-- **`BASH_ENV`**: appends `BASH_ENV=<bashenv_path>` to `/etc/environment`
-
-See [Configuration files](#configuration-files) for the full list of files
-and their purposes.
-
-### Step 6 — Resolve user list
-
-Builds a deduplicated list of users to configure from the
-`add_current_user`,
-`add_container_user`, `add_remote_user`, and `add_users`
-options. Users that do not exist on the system are skipped with a warning.
-
-### Step 7 — Configure users
-
-For each resolved user:
-
-1. Resolves `ZDOTDIR` (default `~/.config/zsh`) and defaults for
-   `ohmyzsh_custom_dir` / `ohmybash_custom_dir` specific to that user's home.
-2. Copies skel dotfiles — routing `.zshrc`, `.zprofile`, and `.zlogin` to
-   `$ZDOTDIR/` and `.zshenv` to `$HOME/`.
-3. Injects `ZDOTDIR="<resolved>"` into `~/.zshenv` between guarded markers.
-4. Injects Oh My Zsh and Oh My Bash configuration blocks into `$ZDOTDIR/.zshrc`
-   and `~/.bashrc` respectively.
-5. Sets up the per-user custom directory (symlinks or real dir — see
-   [Custom directory modes](#custom-directory-modes)).
-6. Fixes ownership of the entire home directory with `chown -R`.
-
-Behavior is controlled by `user_config_mode`:
-
-| Mode | Skel files | Framework blocks |
-|---|---|---|
-| `overwrite` | Replaced unconditionally | Refreshed (old block removed, new block injected) |
-| `augment` | Copied only if they don't already exist | Refreshed |
-| `skip` | Not touched | Not touched |
-
-See [Per-user dotfile injection](#per-user-dotfile-injection) for details on
-how the framework blocks are generated.
-
-### Step 8 — Set default shells
-
-When `set_user_shells` is `zsh` or `bash`, runs `chsh` for each configured
-user. Automatically:
-
-- Adds the target shell to `/etc/shells` if missing
-- Fixes the PAM configuration for `chsh` on distributions where root's
-  `chsh` requires a password (e.g. Alpine)
-
----
-
 ## Configuration files
 
 The feature deploys a two-tier configuration architecture: **system-wide**
@@ -124,12 +16,12 @@ files in `/etc/` that establish sane defaults for all users, and
    (`_SHELLENV_LOADED`), so they are never recomputed regardless of how many
    config files source it.
 
-3. **Framework configuration via dedicated theme files.** Oh My Zsh and Oh My
-   Bash configuration is written into separate per-user theme files
-   (`$ZDOTDIR/zshtheme` and `~/.config/bash/bashtheme`) that are sourced by a
-   static line in the skel `.zshrc` / `.bashrc`. The installer never modifies
-   those rc files after the initial skel copy, so user edits to `.zshrc` /
-   `.bashrc` are never overwritten.
+3. **Theme scaffold files.** Empty `$ZDOTDIR/zshtheme` and
+   `~/.config/bash/bashtheme` files are created as scaffolds for downstream
+   features (e.g. `install-ohmyzsh`, `install-starship`). These features
+   append their own guarded blocks via `shell__write_block`. The skel
+   `.zshrc` / `.bashrc` source them unconditionally, so they must exist
+   before the first interactive session.
 
 4. **Non-interactive non-login coverage.** `BASH_ENV` is set in
    `/etc/environment` so that VS Code tasks, `devcontainer exec`, CI runners,
@@ -160,11 +52,34 @@ These are copied from `files/skel/` to each configured user's home directory.
 | `.shellenv` | `~/` | User environment variables and `PATH` additions. Sourced by `.zshenv` and `.bash_profile`. Has a sentinel guard to prevent double-sourcing. Sets `XDG_*` directories. |
 | `.shellrc` | `~/` | User interactive config shared across bash and zsh (aliases, functions, cross-shell tool initialisers). |
 | `.bash_profile` | `~/` | Login shell setup for bash (and zsh via `.zprofile`). Sources `.shellenv`, then `.bashrc` (guarded by `$BASH`). |
-| `.bashrc` | `~/` | Bash interactive config. Sources `~/.config/bash/bashtheme` (written by the installer) then `.shellrc`. |
+| `.bashrc` | `~/` | Bash interactive config. Sources `~/.config/bash/bashtheme` (theme scaffold) then `.shellrc`. |
 | `.zshenv` | `~/` | Delegates to `.shellenv` via `emulate sh`. Has `ZDOTDIR` injected dynamically (see [ZDOTDIR](#zdotdir)). Must live in `$HOME` so Zsh can find it before `ZDOTDIR` is set. |
 | `.zprofile` | `$ZDOTDIR/` | Delegates to `.bash_profile` via `emulate sh` for unified login setup. |
-| `.zshrc` | `$ZDOTDIR/` | Zsh interactive config. Sources `$ZDOTDIR/zshtheme` (written by the installer) then `.shellrc`. |
+| `.zshrc` | `$ZDOTDIR/` | Zsh interactive config. Sources `$ZDOTDIR/zshtheme` (theme scaffold) then `.shellrc`. |
 | `.zlogin` | `$ZDOTDIR/` | Runs after `.zshrc` for login shells. Empty by default — suitable for login announcements. |
+
+### Theme scaffold files
+
+`$ZDOTDIR/zshtheme` and `~/.config/bash/bashtheme` are created as empty
+files during user configuration. Downstream features append their managed
+configuration blocks to these files using `shell__write_block`. The skel
+`.zshrc` and `.bashrc` source them unconditionally — they must exist before
+the first interactive session.
+
+If the scaffold files already exist (e.g. from a downstream feature), they
+are left untouched by setup-shell.
+
+### `if_exists` behavior
+
+The `if_exists` option controls how existing per-user dotfiles are handled
+during re-runs. It has no effect on the initial install.
+
+| Value | Per-user dotfile behavior |
+|---|---|
+| `skip` (default) | Create each file if absent; leave it untouched if it already exists |
+| `update` | Sync managed blocks in place; append block if not yet present |
+| `reinstall` | Delete existing file and recreate with managed-block content |
+| `uninstall` | Remove managed blocks; delete file if it becomes empty |
 
 ### ZDOTDIR
 
@@ -184,53 +99,11 @@ The `zdotdir` option lets you override the directory. Accepted forms:
 | `/absolute/path` | `/absolute/path` (shared across all users) |
 
 The resolved `ZDOTDIR` is injected into `~/.zshenv` between
-`# BEGIN setup-shell-zdotdir` / `# END setup-shell-zdotdir` markers, so
-it is refreshed on each re-run and correctly updated when changing hosts or
-rebuilding the container.
+`# >>> setup-shell-zdotdir >>>` / `# <<< setup-shell-zdotdir <<<` markers.
 
-### Custom directory modes
+---
 
-The `ohmyzsh_custom_dir` and `ohmybash_custom_dir` options control where
-`ZSH_CUSTOM` / `OSH_CUSTOM` point and whether custom themes/plugins are
-symlinked into the user's home directory.
-
-| Value | `ZSH_CUSTOM` / `OSH_CUSTOM` | Themes/plugins in home? |
-|---|---|---|
-| `""` (default) | `${ZDOTDIR}/custom` (OMZ) or `${XDG_CONFIG_HOME}/bash/custom` (OMB) | Yes — symlinked from system install |
-| `~/.something` or `$HOME/.something` | `<user_home>/.something` | Yes — symlinked from system install |
-| `/opt/path` (explicit system path) | `/opt/path` | No — single shared dir for all users |
-
-For per-user directories (first two rows), the installer:
-
-1. Creates `{custom_dir}/themes/` and `{custom_dir}/plugins/`.
-2. Symlinks only the **named** themes and plugins from the system install
-   (`<ohmyzsh_install_dir>/custom`) into the user's custom dir.
-3. In `overwrite` mode, an existing symlink for a named item is removed and
-   recreated. Real directories inside the custom dir are never removed.
-4. In `augment` mode, a symlink for a named item is created only if that name
-   is not already present (as a symlink or a real directory).
-
-For an explicit system path, themes/plugins are cloned directly there during
-`install.sh` and all users share that directory.
-
-### `extend_path` helper
-
-The `/etc/shellenv` file defines an `extend_path` function available in all
-shells. It adds directories to `$PATH` without creating duplicates, silently
-skips non-existent directories, and correctly handles paths with spaces.
-
-```sh
-# Prepend (inserted at front, preserving argument order):
-extend_path --prepend "$HOME/.cargo/bin" "$HOME/.local/bin"
-
-# Append (added at tail):
-extend_path --append "/opt/myapp/bin"
-
-# Both in one call:
-extend_path --prepend "$HOME/bin" --append "/usr/games"
-```
-
-### Source chain
+## Source chain
 
 The following diagrams show the source chain for each shell invocation type.
 
@@ -246,7 +119,7 @@ The following diagrams show the source chain for each shell invocation type.
 ~/.bash_profile
  └── ~/.shellenv (user PATH, XDG)
  └── ~/.bashrc
-      ├── sources ~/.config/bash/bashtheme (OMB + Starship)
+      ├── sources ~/.config/bash/bashtheme (downstream feature blocks)
       └── ~/.shellrc (user aliases/functions)
 ```
 
@@ -257,7 +130,7 @@ The following diagrams show the source chain for each shell invocation type.
  └── /etc/shellrc → /etc/shellaliases
  └── /etc/shellenv (via sentinel re-entry)
 ~/.bashrc
- ├── sources ~/.config/bash/bashtheme (OMB + Starship)
+ ├── sources ~/.config/bash/bashtheme (downstream feature blocks)
  └── ~/.shellrc
 ```
 
@@ -278,7 +151,7 @@ $BASH_ENV → /etc/bash/bashenv
 $ZDOTDIR/.zprofile → ~/.bash_profile → ~/.shellenv (sentinel skip)
 /etc/zsh/zshrc → /etc/shellrc → /etc/shellaliases
 $ZDOTDIR/.zshrc
- ├── sources $ZDOTDIR/zshtheme (OMZ + Starship)
+ ├── sources $ZDOTDIR/zshtheme (downstream feature blocks)
  └── ~/.shellrc
 $ZDOTDIR/.zlogin
 ```
@@ -292,116 +165,6 @@ $ZDOTDIR/.zlogin
 
 ---
 
-## Per-user theme files
-
-When Oh My Zsh or Oh My Bash is installed and a user is being configured, the
-installer writes dedicated **theme files** — `$ZDOTDIR/zshtheme` and
-`~/.config/bash/bashtheme` — that are sourced by a static line in the skel
-`.zshrc` / `.bashrc`. The main rc files are never modified after the initial
-skel copy.
-
-### Zsh theme file (`$ZDOTDIR/zshtheme`)
-
-```bash
-export ZSH="/usr/local/share/oh-my-zsh"
-ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"
-[ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"
-ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"
-ZSH_CUSTOM="$HOME/.config/zsh/custom"
-ZSH_THEME="powerlevel10k/powerlevel10k"      # or "" if no theme / starship active
-plugins=(zsh-syntax-highlighting)              # from ohmyzsh_plugins
-zstyle ':omz:update' mode disabled
-POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true # only when p10k theme
-[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
-[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"  # only when p10k
-command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)" # if starship_shells includes zsh
-```
-
-Key design decisions:
-
-- **`ZSH_CACHE_DIR`** is set to a per-user path under `$HOME/.cache/` to
-  avoid permission conflicts when multiple users share a single Oh My Zsh
-  installation.
-- **`ZSH_COMPDUMP`** includes `$SHORT_HOST` and `$ZSH_VERSION` to prevent
-  cache corruption when the same home directory is shared across hosts or
-  Zsh versions (e.g. devcontainer rebuilds).
-- **`ZSH_CUSTOM`** is set to the resolved per-user custom directory (default:
-  `~/.config/zsh/custom`) so users can add their own themes and plugins
-  without root access. Named themes and plugins from the system install are
-  symlinked in automatically. See [Custom directory modes](#custom-directory-modes).
-- **`omz update` is disabled** because the shared installation is owned by
-  root; non-root users would get `git pull` permission errors.
-- **`POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true`** is written only when
-  the Powerlevel10k theme is selected and Starship is not active.
-- **Starship** integration line is appended when `starship_shells` includes
-  `zsh`. If Starship and an `ohmyzsh_theme` are both set, `ZSH_THEME` is
-  forced to `""` with a build-time warning and Starship owns the prompt.
-
-### Bash theme file (`~/.config/bash/bashtheme`)
-
-```bash
-export OSH="/usr/local/share/oh-my-bash"
-OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"
-[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"
-OSH_CUSTOM="$HOME/.config/bash/custom"
-OSH_THEME=""                                   # or theme name; "" when starship active
-plugins=(git)                                   # from ohmybash_plugins
-[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"
-command -v starship >/dev/null 2>&1 && eval "$(starship init bash)" # if starship_shells includes bash
-```
-
-### Theme file write behavior
-
-The `user_config_mode` option controls whether and how theme files are written:
-
-- **`overwrite`**: All skel files are replaced and theme files are (re)written.
-  Use this for a clean reset.
-- **`augment`**: Skel files are copied only if they don't already exist.
-  Theme files are written only if they don't already exist. Use this to
-  deploy configuration to new users without overwriting existing customizations.
-- **`skip`**: Nothing is touched if dotfiles already exist.
-
-Unlike the old guarded-block approach, re-running the installer in `augment`
-mode **does not** automatically refresh the theme file. To force a refresh,
-use `overwrite` mode.
-
----
-## Plugins and themes
-
-### Built-in vs. custom
-
-Plugin and theme values are classified by whether they contain a `/`:
-
-| Value | Type | Behavior |
-|---|---|---|
-| `zsh-users/zsh-syntax-highlighting` | Custom (GitHub slug) | Cloned from `https://github.com/zsh-users/zsh-syntax-highlighting` |
-| `git` | Built-in | Skipped — assumed to ship with the framework, no clone |
-
-This means the default `ohmybash_plugins: "git"` works correctly: the `git`
-plugin ships with Oh My Bash and does not need to be cloned.
-
-### Custom theme resolution
-
-When `ohmyzsh_theme` is set to a GitHub slug (e.g. `romkatv/powerlevel10k`),
-the installer:
-
-1. Clones the repository to `<ohmyzsh_custom_dir>/themes/<repo_name>/`
-2. Finds the `.zsh-theme` file inside the cloned directory
-3. Resolves the `ZSH_THEME` value to the `repo/stem` format that Oh My Zsh
-   expects (e.g. `powerlevel10k/powerlevel10k`)
-
-### Powerlevel10k
-
-When the theme is `romkatv/powerlevel10k`, the installer additionally:
-
-- Sets `POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true` in the user block
-- Copies `skel/p10k.zsh` to `~/.p10k.zsh` if present in the skel directory
-
-> **Note:** Powerlevel10k requires [MesloLGS NF](https://github.com/romkatv/powerlevel10k-media)
-> fonts to render correctly. Use the `install-fonts` feature to install them.
-
----
-
 ## System path detection
 
 The installer auto-detects the correct system configuration file paths for
@@ -410,17 +173,14 @@ place bash and zsh config files in different locations.
 
 ### Bash system bashrc
 
-The `detect_sys_bashrc` function probes these paths in order and returns the
-first one that exists:
+The `shell__detect_bashrc` function probes these paths in order and returns
+the first one that exists:
 
 | Path | Distributions |
 |---|---|
 | `/etc/bash.bashrc` | Debian, Ubuntu, Arch, openSUSE |
 | `/etc/bashrc` | Fedora, RHEL, CentOS |
 | `/etc/bash/bashrc` | Gentoo, Alpine, Void |
-
-If none exists, falls back to parsing the `strings` output of the `bash`
-binary to find the compiled-in default.
 
 ### Bash bashenv
 
@@ -434,7 +194,7 @@ Placed next to the detected bashrc:
 
 ### Zsh system directory
 
-The `detect_zsh_etcdir` function returns:
+The `shell__detect_zshdir` function returns:
 
 | Path | Distributions |
 |---|---|
@@ -461,6 +221,25 @@ provide `PATH`, `XDG_*`, locale, and other environment variables.
 
 ---
 
+## `extend_path` helper
+
+The `/etc/shellenv` file defines an `extend_path` function available in all
+shells. It adds directories to `$PATH` without creating duplicates, silently
+skips non-existent directories, and correctly handles paths with spaces.
+
+```sh
+# Prepend (inserted at front, preserving argument order):
+extend_path --prepend "$HOME/.cargo/bin" "$HOME/.local/bin"
+
+# Append (added at tail):
+extend_path --append "/opt/myapp/bin"
+
+# Both in one call:
+extend_path --prepend "$HOME/bin" --append "/usr/games"
+```
+
+---
+
 ## System paths summary
 
 | Path | Purpose |
@@ -475,15 +254,13 @@ provide `PATH`, `XDG_*`, locale, and other environment variables.
 | `/etc/zsh/zshenv`\* | System-wide Zsh environment (all invocations) |
 | `/etc/zsh/zprofile`\* | System-wide Zsh login profile |
 | `/etc/zsh/zshrc`\* | System-wide Zsh interactive config |
-| `/usr/local/share/oh-my-zsh/` | Oh My Zsh shared installation |
-| `/usr/local/share/oh-my-bash/` | Oh My Bash shared installation |
-| `/usr/local/bin/starship` | Starship binary |
 | `~/.config/zsh/` | `ZDOTDIR` — per-user Zsh config dir (`.zshrc`, `.zprofile`, `.zlogin`) |
-| `~/.config/zsh/custom/` | Per-user OMZ custom directory (default; symlinks to system install) |
-| `~/.config/bash/custom/` | Per-user OMB custom directory (default; symlinks to system install) |
+| `~/.config/zsh/zshtheme` | Theme scaffold for downstream features (e.g. `install-ohmyzsh`) |
+| `~/.config/bash/bashtheme` | Theme scaffold for downstream features (e.g. `install-ohmybash`) |
 
 \* Exact path varies by distribution.
 
+---
 
 ## File tree
 
@@ -510,11 +287,8 @@ files/
     ├── .shellrc               # → ~/
     ├── .bash_profile          # → ~/
     ├── .bashrc                # → ~/
-    ├── .zshenv                # → ~/.zshenv  (always HOME; injects ZDOTDIR)
+    ├── .zshenv                # → ~/.zshenv  (always HOME; receives ZDOTDIR block)
     ├── .zprofile              # → $ZDOTDIR/
     ├── .zshrc                 # → $ZDOTDIR/
-    ├── .zlogin                # → $ZDOTDIR/
-    └── p10k.zsh               # → ~/.p10k.zsh (when p10k theme)
+    └── .zlogin                # → $ZDOTDIR/
 ```
-
----
