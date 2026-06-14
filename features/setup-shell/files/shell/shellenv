@@ -143,11 +143,10 @@ export LC_ALL="en_US.UTF-8"
 # <<< setup-shell-shellenv-locale <<<
 
 
+# >>> setup-shell-shellenv-editor >>>
 # --- Default editor ---
 # VISUAL is for full-screen editors; EDITOR is for line-oriented fallback.
 # Many programs (sudoedit, crontab, git) honour these.
-
-# >>> setup-shell-shellenv-editor >>>
 if [ -z "${VISUAL}" ] && [ -z "${EDITOR}" ]; then
     if command -v nano >/dev/null 2>&1; then
         export VISUAL=nano EDITOR=nano
