@@ -1021,6 +1021,7 @@ options:
       }}#
     type: string
     default: '\${PATH}'
+    _normalize_escapes: true
     description: |
       Colon-separated directories guaranteed to be on PATH at runtime
       (e.g. `/usr/local/bin:/usr/bin:/bin`).

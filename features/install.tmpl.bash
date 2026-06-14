@@ -60,7 +60,7 @@ __main__() {
   logging__info "Checking for existing installation"
   __detect_existing__
 
-  if [[ -z "${_FEAT_EXISTING_PATH}" ]]; then
+  if [[ "${_FEAT_EXISTING}" != true ]]; then
     case "${IF_EXISTS}" in
       uninstall)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' not found; nothing to uninstall (if_exists=uninstall)."
@@ -245,6 +245,9 @@ __init_args__() {
   # Normalize array options (trim elements; drop blank/whitespace-only lines).
   ${{ _script.argparse.normalize_arrays }}$
 
+  # Unescape backslash-escaped dollar signs (\\$ → $) in options that hold shell-variable expressions.
+  ${{ _script.argparse.normalize_escapes }}$
+
   # Resolve URI-capable option values to local filesystem paths (INSTALLER_DIR or a private temp dir).
   ${{ _script.argparse.uri_resolution }}$
 
@@ -302,6 +305,7 @@ __detect_existing_path__() {
   __run_feature_hook__ __detect_existing_path_pre
 
   declare -g _FEAT_EXISTING_PATH=""
+  declare -g _FEAT_EXISTING=false
 
   # git-clone: check PREFIX first — for git-clone features, PREFIX IS the installation root.
   # Probing this before the binary search prevents a git-clone feature that also exposes a
@@ -341,6 +345,8 @@ __detect_existing_path__() {
   fi
 
   __run_feature_hook__ __detect_existing_path_post
+  # Derive _FEAT_EXISTING from path if a hook hasn't already set it to true.
+  if [[ -n "${_FEAT_EXISTING_PATH}" ]]; then _FEAT_EXISTING=true; fi
 }
 
 __detect_existing_method__() {
@@ -370,8 +376,12 @@ __detect_existing_method__() {
   __run_feature_hook__ __detect_existing_method_pre
 
   declare -g _FEAT_EXISTING_METHOD=""
+  if [[ "${_FEAT_EXISTING}" != true ]]; then
+    logging__skip "No existing installation; skipping method detection."
+    return 0
+  fi
   if [[ -z "${_FEAT_EXISTING_PATH}" ]]; then
-    logging__skip "No existing path; skipping method detection."
+    logging__skip "Existing flag set but no path available; skipping method detection."
     return 0
   fi
 
@@ -675,6 +685,7 @@ __uninstall_finish__() {
   __cleanup_install_artifacts__
   _FEAT_EXISTING_PATH=""
   _FEAT_EXISTING_METHOD=""
+  _FEAT_EXISTING=false
   logging__success "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' uninstalled."
   # NOTE: __uninstall_finish_post is called inside __cleanup_install_artifacts__ (step 6).
 }
@@ -1422,8 +1433,7 @@ __install_finish__() {
       # __install_run__ guarantees the user now exists, so expand here before use.
       if [[ -v RUNTIME_PATH && ! -v _RESOLVED_RUNTIME_PATH ]]; then
         declare -g _RESOLVED_RUNTIME_PATH
-        local _disc_rp_expr="${RUNTIME_PATH//\\\$/\$}"
-        _RESOLVED_RUNTIME_PATH="$(users__expand_path --user "${INSTALL_USER:-$(users__get_current)}" "$_disc_rp_expr")"
+        _RESOLVED_RUNTIME_PATH="$(users__expand_path --user "${INSTALL_USER:-$(users__get_current)}" "$RUNTIME_PATH")"
         logging__info "Option 'runtime_path' re-resolved for discovery to '${_RESOLVED_RUNTIME_PATH}'."
       fi
       local -a _disc_args=()
@@ -2142,15 +2152,9 @@ __resolve_prefix__() {
   logging__info "Option 'prefix' resolved to '${_RESOLVED_PREFIX}'."
 
   if [[ -v RUNTIME_PATH ]]; then
-    # The default '\${PATH}' is written by the devcontainer CLI as "\${PATH}"
-    # (double-quoted), so bash's double-quote processing consumes the backslash,
-    # leaving the literal 7-char string "${PATH}". In direct execution (no CLI)
-    # argparse__default assigns the raw '\${PATH}' with the backslash intact.
-    # Strip escape-backslashes before '$' to normalise both cases.
-    local _rp_expr="${RUNTIME_PATH//\\\$/\$}"
-    if [[ "$_rp_expr" != *'$'* && "$_rp_expr" != *'~'* ]] || id "$_eff_user" &>/dev/null; then
+    if [[ "$RUNTIME_PATH" != *'$'* && "$RUNTIME_PATH" != *'~'* ]] || id "$_eff_user" &>/dev/null; then
       declare -g _RESOLVED_RUNTIME_PATH
-      _RESOLVED_RUNTIME_PATH="$(users__expand_path --user "$_eff_user" "$_rp_expr")"
+      _RESOLVED_RUNTIME_PATH="$(users__expand_path --user "$_eff_user" "$RUNTIME_PATH")"
       logging__info "Option 'runtime_path' resolved to '${_RESOLVED_RUNTIME_PATH}'."
     else
       logging__info "Option 'runtime_path' not resolved: install user '${_eff_user}' does not exist yet."
