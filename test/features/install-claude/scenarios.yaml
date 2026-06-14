@@ -1,0 +1,105 @@
+defaults:
+  modes: [devcontainer]
+
+# ── binary method ──────────────────────────────────────────────────────────────
+
+binary_stable:
+  envs: [ubuntu-24.04]
+  options:
+    method: binary
+  tests: [binary_stable]
+
+binary_specific_version:
+  envs: [ubuntu-24.04]
+  options:
+    method: binary
+    version: "2.1.153"
+  tests: [binary_specific_version]
+
+binary_musl:
+  envs: [alpine-3.21+bash]
+  options:
+    method: binary
+  tests: [binary_musl]
+
+# ── upstream-package method ────────────────────────────────────────────────────
+
+upstream_package_apt:
+  envs: [ubuntu-24.04]
+  options:
+    method: upstream-package
+  tests: [upstream_package_apt]
+
+upstream_package_apt_latest:
+  envs: [ubuntu-24.04]
+  options:
+    method: upstream-package
+    version: latest
+  tests: [upstream_package_apt_latest]
+
+upstream_package_apk:
+  envs: [alpine-3.21+bash]
+  options:
+    method: upstream-package
+  tests: [upstream_package_apk]
+
+upstream_package_dnf:
+  envs: [fedora-latest+bash]
+  options:
+    method: upstream-package
+  tests: [upstream_package_dnf]
+
+# ── npm-bundled method ─────────────────────────────────────────────────────────
+
+npm_bundled:
+  envs: [ubuntu-24.04]
+  options:
+    method: npm-bundled
+  tests: [npm_bundled]
+
+# ── auto method ────────────────────────────────────────────────────────────────
+
+# method=auto on a system with apt → resolves to upstream-package.
+# Tests that __resolve_method correctly selects upstream-package on Ubuntu.
+auto_apt:
+  envs: [ubuntu-24.04]
+  options:
+    method: auto
+  tests: [auto_apt]
+
+# ── if_exists behaviour ────────────────────────────────────────────────────────
+
+if_exists_skip:
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "9.9.9 (Claude Code)"\n' > /usr/local/bin/claude
+    chmod +x /usr/local/bin/claude
+  options:
+    method: binary
+    if_exists: skip
+  tests: [if_exists_skip]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "9.9.9 (Claude Code)"\n' > /usr/local/bin/claude
+    chmod +x /usr/local/bin/claude
+  options:
+    method: binary
+    if_exists: fail
+  tests: [if_exists_fail]
+
+# ── validation ─────────────────────────────────────────────────────────────────
+
+invalid_method:
+  expect_install_failure: true
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  options:
+    method: invalid
+  tests: [invalid_method]

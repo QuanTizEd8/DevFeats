@@ -74,7 +74,6 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-        - curl
     upstream-package:
       packages:
         - name: claude-code
