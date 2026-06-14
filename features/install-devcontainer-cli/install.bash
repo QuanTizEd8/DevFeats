@@ -7,9 +7,3 @@ __install_run_npm_pre() {
   logging__install "Ensuring npm is available for devcontainer-cli npm method."
   bootstrap__npm
 }
-
-# Install xz (Node.js tarball extraction) before npm-bundled install.
-__install_run_npm_bundled_pre() {
-  logging__install "Installing xz build dependency for npm-bundled."
-  __dep_install__ build download
-}

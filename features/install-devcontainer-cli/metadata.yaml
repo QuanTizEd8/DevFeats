@@ -39,8 +39,3 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-  build:
-    download:
-      packages:
-        - name: xz
-          apt: xz-utils
