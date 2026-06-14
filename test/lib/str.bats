@@ -151,3 +151,144 @@ zsh-syntax-highlighting"
   assert_output "x=y"
   assert_success
 }
+
+# ---------------------------------------------------------------------------
+# str__find_close_brace
+# ---------------------------------------------------------------------------
+
+@test "str__find_close_brace returns index of matching close brace" {
+  run str__find_close_brace "TOKEN}rest"
+  assert_output "5"
+  assert_success
+}
+
+@test "str__find_close_brace handles nested braces" {
+  run str__find_close_brace "{nested}}"
+  assert_output "8"
+  assert_success
+}
+
+@test "str__find_close_brace returns 1 when no matching brace" {
+  run str__find_close_brace "TOKEN"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# str__split_conditional
+# ---------------------------------------------------------------------------
+
+@test "str__split_conditional splits condition true and false branches" {
+  local tc tc_t tc_f
+  str__split_conditional "OS==linux?TRUE:FALSE" tc tc_t tc_f
+  [ "$tc" = "OS==linux" ]
+  [ "$tc_t" = "TRUE" ]
+  [ "$tc_f" = "FALSE" ]
+}
+
+@test "str__split_conditional returns 1 when no question mark" {
+  local tc tc_t tc_f
+  run str__split_conditional "OS==linux" tc tc_t tc_f
+  assert_failure
+}
+
+@test "str__split_conditional handles nested tokens in true branch" {
+  local tc tc_t tc_f
+  str__split_conditional "A==b?{X}:Y" tc tc_t tc_f
+  [ "$tc" = "A==b" ]
+  [ "$tc_t" = "{X}" ]
+  [ "$tc_f" = "Y" ]
+}
+
+# ---------------------------------------------------------------------------
+# str__expand_pattern
+# ---------------------------------------------------------------------------
+
+@test "str__expand_pattern substitutes a plain token" {
+  run str__expand_pattern "os={OS}" "OS=linux"
+  assert_output "os=linux"
+  assert_success
+}
+
+@test "str__expand_pattern substitutes multiple tokens" {
+  run str__expand_pattern "{OS}-{ARCH}" "OS=linux" "ARCH=amd64"
+  assert_output "linux-amd64"
+  assert_success
+}
+
+@test "str__expand_pattern first match wins for duplicate keys" {
+  run str__expand_pattern "{KEY}" "KEY=first" "KEY=second"
+  assert_output "first"
+  assert_success
+}
+
+@test "str__expand_pattern emits unknown token unchanged" {
+  run str__expand_pattern "{UNKNOWN}" "OS=linux"
+  assert_output "{UNKNOWN}"
+  assert_success
+}
+
+@test "str__expand_pattern passes through unmatched open brace literally" {
+  run str__expand_pattern "x { y" "OS=linux"
+  assert_output "x { y"
+  assert_success
+}
+
+@test "str__expand_pattern evaluates == conditional true branch" {
+  run str__expand_pattern "{OS==linux?yes:no}" "OS=linux"
+  assert_output "yes"
+  assert_success
+}
+
+@test "str__expand_pattern evaluates == conditional false branch" {
+  run str__expand_pattern "{OS==darwin?yes:no}" "OS=linux"
+  assert_output "no"
+  assert_success
+}
+
+@test "str__expand_pattern evaluates != conditional" {
+  run str__expand_pattern "{OS!=darwin?linux-result:mac-result}" "OS=linux"
+  assert_output "linux-result"
+  assert_success
+}
+
+@test "str__expand_pattern evaluates >= version conditional true" {
+  run str__expand_pattern "{VER>=2.0?new:old}" "VER=2.5"
+  assert_output "new"
+  assert_success
+}
+
+@test "str__expand_pattern evaluates >= version conditional false" {
+  run str__expand_pattern "{VER>=2.0?new:old}" "VER=1.9"
+  assert_output "old"
+  assert_success
+}
+
+@test "str__expand_pattern evaluates < version conditional" {
+  run str__expand_pattern "{VER<2.0?old:new}" "VER=1.9"
+  assert_output "old"
+  assert_success
+}
+
+@test "str__expand_pattern handles nested conditional in true branch" {
+  run str__expand_pattern "{OS==linux?{ARCH==amd64?x86_64:arm}:mac}" "OS=linux" "ARCH=amd64"
+  assert_output "x86_64"
+  assert_success
+}
+
+@test "str__expand_pattern handles nested conditional in false branch" {
+  run str__expand_pattern "{OS==linux?{ARCH==amd64?x86_64:arm}:mac}" "OS=darwin" "ARCH=amd64"
+  assert_output "mac"
+  assert_success
+}
+
+@test "str__expand_pattern unknown key in conditional treats as false" {
+  run str__expand_pattern "{MISSING==value?yes:no}" "OS=linux"
+  assert_output "no"
+  assert_success
+}
+
+@test "str__expand_pattern expands tokens adjacent to literals" {
+  run str__expand_pattern "prefix-{OS}-suffix" "OS=linux"
+  assert_output "prefix-linux-suffix"
+  assert_success
+}

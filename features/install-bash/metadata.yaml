@@ -47,7 +47,7 @@ _dependencies:
     os-pkg:
       packages:
         - name: bash
-          version: "${VERSION}"
+          version: "{VERSION}"
   build:
     source-build:
       apt:

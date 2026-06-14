@@ -102,7 +102,11 @@ _require_ospkg_jq() {
 _seed_apt_context() {
   reload_lib ospkg.sh
   create_fake_bin "apt-get"
-  create_fake_bin "uname" "Linux"
+  # Argument-aware fake: -s (kernel name) → Linux, -m (machine arch) → x86_64.
+  # create_fake_bin ignores arguments; write the script directly instead.
+  printf '#!/bin/sh\ncase "${1-}" in -m) printf "x86_64\\n";; *) printf "Linux\\n";; esac\n' \
+    > "${BATS_TEST_TMPDIR}/bin/uname"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/uname"
   prepend_fake_bin_path
   ospkg__detect
   _OSPKG__OS_RELEASE[pm]="apt"
@@ -629,7 +633,7 @@ YQ
   _OSPKG__EXTRA_VARS[CODENAME]="stable"
 
   local _result
-  _result="$(_ospkg__expand_content_vars 'gh-${VERSION}-${CODENAME}')"
+  _result="$(_ospkg__expand_content_vars 'gh-{VERSION}-{CODENAME}')"
   [[ "${_result}" == "gh-2.89.0-stable" ]]
 }
 
@@ -638,7 +642,7 @@ YQ
   _OSPKG__EXTRA_VARS[VERSION]=""
 
   local _result
-  _result="$(_ospkg__expand_content_vars 'gh=${VERSION}')"
+  _result="$(_ospkg__expand_content_vars 'gh={VERSION}')"
   [[ "${_result}" == "gh=" ]]
 }
 
@@ -648,7 +652,7 @@ YQ
   _OSPKG__EXTRA_VARS[VERSION]="2.89.0"
 
   local _result
-  _result="$(_ospkg__expand_content_vars '${id}-${VERSION}')"
+  _result="$(_ospkg__expand_content_vars '{id}-{VERSION}')"
   [[ "${_result}" == "ubuntu-2.89.0" ]]
 }
 
@@ -656,8 +660,8 @@ YQ
   reload_lib ospkg.sh
 
   local _result
-  _result="$(_ospkg__expand_content_vars '${UNKNOWN_VAR}')"
-  [[ "${_result}" == '${UNKNOWN_VAR}' ]]
+  _result="$(_ospkg__expand_content_vars '{UNKNOWN_VAR}')"
+  [[ "${_result}" == '{UNKNOWN_VAR}' ]]
 }
 
 @test "ospkg__run --extra-var: _OSPKG__EXTRA_VARS reset between calls" {
@@ -2956,8 +2960,8 @@ _setup_resolve_version() {
     > "${BATS_TEST_TMPDIR}/bin/apt-cache"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
   local _manifest
-  _manifest="$(mktemp --suffix=.yaml)"
-  printf 'packages:\n- name: zsh\n  version: "${VERSION}"\n' > "${_manifest}"
+  _manifest="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX.yaml")"
+  printf 'packages:\n- name: zsh\n  version: "{VERSION}"\n' > "${_manifest}"
   # --update bypasses ospkg__is_installed; --dry_run skips the actual apt-get install.
   run ospkg__run --manifest "${_manifest}" --extra-var "VERSION=5.9" --update --dry_run
   assert_success

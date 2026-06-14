@@ -53,7 +53,7 @@ _dependencies:
     os-pkg:
       packages:
         - name: zsh
-          version: "${VERSION}"
+          version: "{VERSION}"
   build:
     source-build:
       apt:

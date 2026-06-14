@@ -253,32 +253,34 @@ _ospkg__install_key_by_fingerprint() {
 }
 
 _ospkg__expand_content_vars() {
-  # @brief _ospkg__expand_content_vars <content> — Substitute `${KEY}` tokens in `<content>` using values from `_OSPKG__OS_RELEASE`.
+  # @brief _ospkg__expand_content_vars <content> — Expand `{KEY}` tokens and conditionals in `<content>`.
   #
-  # Iterates over all keys in the `_OSPKG__OS_RELEASE` associative array and
-  # replaces `${KEY}` occurrences in `<content>`. Unknown tokens (keys not
-  # present in the array) are left unchanged. Prints the result without a
-  # trailing newline.
+  # Delegates to `str__expand_pattern` with key-value pairs from `_OSPKG__EXTRA_VARS`
+  # (higher priority) and `_OSPKG__OS_RELEASE`. Supports `{KEY}` substitution and
+  # nestable `{KEY==VALUE?TRUE:FALSE}` conditionals. Unknown tokens pass through
+  # unchanged. Prints the result without a trailing newline.
   #
   # Args:
-  #   <content>  String containing zero or more `${KEY}` placeholder tokens.
+  #   <content>  String containing zero or more `{KEY}` or conditional tokens.
   #
   # Stdout: expanded string without trailing newline.
-  local _content="$1" _k
-  for _k in "${!_OSPKG__OS_RELEASE[@]}"; do
-    _content="${_content//\$\{${_k}\}/${_OSPKG__OS_RELEASE[$_k]}}"
-  done
+  local _content="$1"
+  local -a _kvs=()
+  local _k
   for _k in "${!_OSPKG__EXTRA_VARS[@]}"; do
-    _content="${_content//\$\{${_k}\}/${_OSPKG__EXTRA_VARS[$_k]}}"
+    _kvs+=("${_k}=${_OSPKG__EXTRA_VARS[$_k]}")
   done
-  printf '%s' "$_content"
+  for _k in "${!_OSPKG__OS_RELEASE[@]}"; do
+    _kvs+=("${_k}=${_OSPKG__OS_RELEASE[$_k]}")
+  done
+  str__expand_pattern "${_content}" "${_kvs[@]}"
   return 0
 }
 
 _ospkg__install_repo_content() {
   # @brief _ospkg__install_repo_content <content> — Append expanded repository configuration `<content>` to the appropriate PM config file for the current OS.
   #
-  # Calls `_ospkg__expand_content_vars` to substitute `${KEY}` tokens before
+  # Calls `_ospkg__expand_content_vars` to substitute `{KEY}` tokens before
   # writing. Routes to the correct file based on `_OSPKG__FAMILY`:
   #   apt     → `/etc/apt/sources.list.d/syspkg-installer.list`
   #   apk     → `/etc/apk/repositories` (one repo URL per non-blank line)
@@ -289,7 +291,7 @@ _ospkg__install_repo_content() {
   # process is root.
   #
   # Args:
-  #   <content>  Repository config content, possibly containing `${KEY}` tokens.
+  #   <content>  Repository config content, possibly containing `{KEY}` tokens.
   #
   # Returns: 0 always.
   local _content
@@ -468,6 +470,14 @@ _ospkg__load_linux_release() {
   fi
   _OSPKG__OS_RELEASE[kernel]="linux"
   _OSPKG__OS_RELEASE[arch]="$(uname -m)"
+  if [[ -n "${_OSPKG__OS_RELEASE[version_id]-}" ]]; then
+    _OSPKG__OS_RELEASE[version_id_major]="${_OSPKG__OS_RELEASE[version_id]%%.*}"
+    if [[ "${_OSPKG__OS_RELEASE[version_id]}" == *.*.* ]]; then
+      _OSPKG__OS_RELEASE[version_id_mm]="${_OSPKG__OS_RELEASE[version_id]%.*}"
+    else
+      _OSPKG__OS_RELEASE[version_id_mm]="${_OSPKG__OS_RELEASE[version_id]}"
+    fi
+  fi
   logging__inspect "OS context: pm=${_OSPKG__OS_RELEASE[pm]-} arch=${_OSPKG__OS_RELEASE[arch]-} id=${_OSPKG__OS_RELEASE[id]-} id_like=${_OSPKG__OS_RELEASE[id_like]-} version_id=${_OSPKG__OS_RELEASE[version_id]-} version_codename=${_OSPKG__OS_RELEASE[version_codename]-}"
   return 0
 }

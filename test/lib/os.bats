@@ -498,14 +498,16 @@ setup() {
   assert_output "x86_64-unknown-linux-musl"
 }
 
-@test "os__expand_release_pattern errors on unmatched brace" {
+@test "os__expand_release_pattern passes through unmatched brace literally" {
   reload_lib os.sh
   run os__expand_release_pattern "foo-{VERSION" "1.0" ""
-  assert_failure
+  assert_success
+  assert_output "foo-{VERSION"
 }
 
-@test "os__expand_release_pattern errors on unknown token" {
+@test "os__expand_release_pattern passes through unknown token unchanged" {
   reload_lib os.sh
   run os__expand_release_pattern "{UNKNOWN_TOKEN}" "1.0" ""
-  assert_failure
+  assert_success
+  assert_output "{UNKNOWN_TOKEN}"
 }

@@ -78,7 +78,7 @@ _dependencies:
     upstream-package:
       packages:
         - name: claude-code
-          version: "${VERSION}"
+          version: "{VERSION}"
           when:
             pm: [apt, apk, dnf, yum]
       apt:
@@ -88,13 +88,13 @@ _dependencies:
             dearmor: false
         repos:
           - deb [signed-by=/etc/apt/keyrings/claude-code.asc]
-            https://downloads.claude.ai/claude-code/apt/${CHANNEL} ${CHANNEL} main
+            https://downloads.claude.ai/claude-code/apt/{CHANNEL} {CHANNEL} main
       dnf:
         repos:
           - |
             [claude-code]
             name=Claude Code
-            baseurl=https://downloads.claude.ai/claude-code/rpm/${CHANNEL}
+            baseurl=https://downloads.claude.ai/claude-code/rpm/{CHANNEL}
             enabled=1
             gpgcheck=1
             gpgkey=https://downloads.claude.ai/keys/claude-code.asc
@@ -103,7 +103,7 @@ _dependencies:
           - |
             [claude-code]
             name=Claude Code
-            baseurl=https://downloads.claude.ai/claude-code/rpm/${CHANNEL}
+            baseurl=https://downloads.claude.ai/claude-code/rpm/{CHANNEL}
             enabled=1
             gpgcheck=1
             gpgkey=https://downloads.claude.ai/keys/claude-code.asc
@@ -113,7 +113,7 @@ _dependencies:
             dest: /etc/apk/keys/claude-code.rsa.pub
             dearmor: false
         repos:
-          - https://downloads.claude.ai/claude-code/apk/${CHANNEL}
+          - https://downloads.claude.ai/claude-code/apk/{CHANNEL}
       brew:
         casks:
-          - "${BREW_CASK}"
+          - "{BREW_CASK}"

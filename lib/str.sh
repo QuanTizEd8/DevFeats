@@ -130,3 +130,175 @@ str__substitute_tokens() {
   printf '%s\n' "$_result"
   return 0
 }
+
+str__find_close_brace() {
+  # @brief str__find_close_brace <str> — Print the 0-based index of the `}` that closes
+  # the `{` preceding `<str>` (i.e. `<str>` begins just after an opening `{`).
+  # Returns 1 if no matching brace is found.
+  #
+  # Args:
+  #   <str>  The substring beginning immediately after the opening `{`.
+  #
+  # Stdout: decimal index of the matching `}` within `<str>`.
+  # Returns: 0 on success, 1 if the brace is unmatched.
+  local _s="$1" _depth=1 _i=0
+  while [[ ${_i} -lt ${#_s} ]]; do
+    case "${_s:${_i}:1}" in
+      '{') _depth=$((_depth + 1)) ;;
+      '}')
+        _depth=$((_depth - 1))
+        [[ ${_depth} -eq 0 ]] && {
+          printf '%d' "${_i}"
+          return 0
+        }
+        ;;
+    esac
+    _i=$((_i + 1))
+  done
+  return 1
+}
+
+str__split_conditional() {
+  # @brief str__split_conditional <token> <cond_var> <true_var> <false_var>
+  # Split a `COND?TRUE:FALSE` string at the first depth-0 `?` and subsequent depth-0 `:`.
+  # Populates the three caller-supplied name-ref variables.
+  # Returns 1 if no depth-0 `?` exists (token is not a conditional).
+  #
+  # Args:
+  #   <token>     Token content (without surrounding `{}`).
+  #   <cond_var>  Name of caller variable to receive the condition string.
+  #   <true_var>  Name of caller variable to receive the true branch.
+  #   <false_var> Name of caller variable to receive the false branch.
+  #
+  # Returns: 0 if a conditional was found and parsed; 1 otherwise.
+  local _tok="$1"
+  local -n _sc_cond="$2" _sc_true="$3" _sc_false="$4"
+  local _i=0 _depth=0 _qpos=-1 _cpos=-1
+  while [[ ${_i} -lt ${#_tok} ]]; do
+    case "${_tok:${_i}:1}" in
+      '{') _depth=$((_depth + 1)) ;;
+      '}') _depth=$((_depth - 1)) ;;
+      '?') [[ ${_depth} -eq 0 ]] && {
+        _qpos=${_i}
+        break
+      } ;;
+    esac
+    _i=$((_i + 1))
+  done
+  [[ ${_qpos} -eq -1 ]] && return 1
+  _sc_cond="${_tok:0:${_qpos}}"
+  local _rest="${_tok:$((_qpos + 1))}"
+  _i=0
+  _depth=0
+  while [[ ${_i} -lt ${#_rest} ]]; do
+    case "${_rest:${_i}:1}" in
+      '{') _depth=$((_depth + 1)) ;;
+      '}') _depth=$((_depth - 1)) ;;
+      ':') [[ ${_depth} -eq 0 ]] && {
+        _cpos=${_i}
+        break
+      } ;;
+    esac
+    _i=$((_i + 1))
+  done
+  [[ ${_cpos} -eq -1 ]] && return 1
+  _sc_true="${_rest:0:${_cpos}}"
+  _sc_false="${_rest:$((_cpos + 1))}"
+  return 0
+}
+
+_str__eval_condition() {
+  # _str__eval_condition <COND> <KEY=VALUE>... — Evaluate one condition against the key-value list.
+  # Supported: KEY==VALUE, KEY!=VALUE, KEY>=VALUE, KEY<VALUE.
+  # Returns 0 if the condition is true, 1 if false or if the key is unknown.
+  # For >= and <, values are compared with ver__semver_ge.
+  local _cond="$1"
+  shift
+  [[ "${_cond}" =~ ^([^=!<>]+)(==|!=|>=|<)(.+)$ ]] || return 1
+  local _key="${BASH_REMATCH[1]}" _op="${BASH_REMATCH[2]}" _val="${BASH_REMATCH[3]}"
+  local _pair _actual="" _found=false
+  for _pair in "$@"; do
+    if [[ "${_pair%%=*}" == "${_key}" ]]; then
+      _actual="${_pair#*=}"
+      _found=true
+      break
+    fi
+  done
+  [[ "${_found}" == true ]] || return 1
+  case "${_op}" in
+    '==') [[ "${_actual}" == "${_val}" ]] ;;
+    '!=') [[ "${_actual}" != "${_val}" ]] ;;
+    '>=') ver__semver_ge "${_actual}" "${_val}" ;;
+    '<')  ! ver__semver_ge "${_actual}" "${_val}" ;;
+  esac
+}
+
+_str__eval_token() {
+  # _str__eval_token <TOKEN> <KEY=VALUE>... — Expand one {…} block against the key-value list.
+  # Handles COND?TRUE:FALSE conditionals (with recursive branch expansion) and plain lookups.
+  # Unknown tokens are emitted as '{TOKEN}' (unchanged).
+  local _tok="$1"
+  shift
+  local _cond _tbranch _fbranch
+  if str__split_conditional "${_tok}" _cond _tbranch _fbranch; then
+    if _str__eval_condition "${_cond}" "$@"; then
+      str__expand_pattern "${_tbranch}" "$@"
+    else
+      str__expand_pattern "${_fbranch}" "$@"
+    fi
+    return
+  fi
+  local _pair
+  for _pair in "$@"; do
+    if [[ "${_pair%%=*}" == "${_tok}" ]]; then
+      printf '%s' "${_pair#*=}"
+      return 0
+    fi
+  done
+  printf '{%s}' "${_tok}"
+  return 0
+}
+
+str__expand_pattern() {
+  # @brief str__expand_pattern <pattern> [<KEY=VALUE>...] — Expand `{KEY}` tokens and nestable conditionals in `<pattern>`.
+  #
+  # Token syntax: `{KEY}` for plain substitution; `{KEY OP VALUE?TRUE:FALSE}` for
+  # conditionals where OP ∈ `==`, `!=`, `>=`, `<`. Branches may themselves contain any
+  # token form (fully nestable). For `>=` and `<`, values are compared with `ver__semver_ge`.
+  # Unknown keys in plain tokens are emitted unchanged as `{KEY}`. Unknown keys in conditions
+  # are treated as false. Unmatched `{` characters pass through literally.
+  #
+  # Args:
+  #   <pattern>      Input string containing zero or more `{KEY}` tokens.
+  #   <KEY=VALUE>... Substitution pairs; first match wins for a given KEY.
+  #
+  # Stdout: the fully expanded string without trailing newline.
+  local _s="$1"
+  shift
+  local -a _kvs=("$@")
+  local _result="" _i=0 _len="${#_s}"
+  while [[ ${_i} -lt ${_len} ]]; do
+    local _c="${_s:${_i}:1}"
+    if [[ "${_c}" == '{' ]]; then
+      local _after="${_s:$((_i + 1))}"
+      local _cpos _brace_rc
+      _cpos="$(str__find_close_brace "${_after}")"
+      _brace_rc=$?
+      if [[ ${_brace_rc} -ne 0 ]]; then
+        _result+='{'
+        _i=$((_i + 1))
+        continue
+      fi
+      local _tok="${_after:0:${_cpos}}"
+      local _expanded
+      _expanded="$(_str__eval_token "${_tok}" "${_kvs[@]}")"
+      _result+="${_expanded}"
+      _i=$((_i + _cpos + 2))
+    else
+      _result+="${_c}"
+      _i=$((_i + 1))
+    fi
+  done
+  printf '%s' "${_result}"
+  return 0
+}
