@@ -870,7 +870,11 @@ __install_run_package__() {
 __install_run_upstream_package__() {
   __run_feature_hook__ __install_run_upstream_package_pre
   logging__install "Installing upstream-package dependencies."
-  __dep_install__ run upstream-package
+  local _pkg_ver=""
+  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
+  __dep_install__ run upstream-package \
+    --extra-var "VERSION=${_pkg_ver}" \
+    --extra-var "VERSION_INPUT=${VERSION:-}"
   __run_feature_hook__ __install_run_upstream_package_post
 }
 
@@ -915,7 +919,11 @@ __install_run_script__() {
     __run_feature_hook__ __install_run_script_run "${_script_path}"
   else
     logging__debug "No feature hook '__install_run_script_run' found; running script directly."
-    local -a _all_script_args=("${SCRIPT_ARGS[@]+"${SCRIPT_ARGS[@]}"}")
+    local -a _all_script_args=()
+    local _sarg
+    for _sarg in "${SCRIPT_ARGS[@]+"${SCRIPT_ARGS[@]}"}"; do
+      _all_script_args+=("$(str__expand_pattern "${_sarg}" "VERSION=${VERSION:-}" "METHOD=${METHOD:-}")")
+    done
     if [[ -v _FEAT_INSTALL_SCRIPT_ARGS ]]; then
       _all_script_args+=("${_FEAT_INSTALL_SCRIPT_ARGS[@]+"${_FEAT_INSTALL_SCRIPT_ARGS[@]}"}")
     fi
@@ -1702,7 +1710,11 @@ __update_run_package__() {
 __update_run_upstream_package__() {
   __run_feature_hook__ __update_run_upstream_package_pre
   logging__install "Updating upstream-package dependencies."
-  __dep_install__ run upstream-package --update
+  local _pkg_ver=""
+  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
+  __dep_install__ run upstream-package --update \
+    --extra-var "VERSION=${_pkg_ver}" \
+    --extra-var "VERSION_INPUT=${VERSION:-}"
   __run_feature_hook__ __update_run_upstream_package_post
 }
 
@@ -1969,6 +1981,9 @@ __resolve_input_version__() {
   #  - METHOD=package — the OS package manager controls which version is
   #    installed; a version spec would be silently ignored by the package
   #    manager anyway, so resolution is skipped entirely.
+  #  - METHOD=upstream-package — the upstream OS repository controls which
+  #    version is installed; VERSION is passed as-is to the manifest (e.g.
+  #    "stable" and "latest" are channel selectors, not concrete versions).
   #
   # Hook: __resolve_version
   #   Provide this when none of the standard resolution types fits — e.g. a
@@ -2012,9 +2027,11 @@ __resolve_input_version__() {
 
   declare -g _FEAT_RESOLVED_TAG=""
   declare -g _FEAT_RESOLVED_GIT_SHA=""
-  if ! { [[ -v VERSION && -n "${VERSION}" ]] && [[ ! -v METHOD || "${METHOD}" != "package" ]]; }; then
+  if ! { [[ -v VERSION && -n "${VERSION}" ]] && [[ ! -v METHOD || "${METHOD}" != "package" && "${METHOD}" != "upstream-package" ]]; }; then
     if [[ ! -v VERSION || -z "${VERSION}" ]]; then
       logging__skip "VERSION unset; skipping version resolution."
+    elif [[ "${METHOD:-}" == "upstream-package" ]]; then
+      logging__skip "METHOD=upstream-package; skipping version resolution (package manager controls version)."
     else
       logging__skip "METHOD=package; skipping version resolution (package manager controls version)."
     fi

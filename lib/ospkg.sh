@@ -2560,6 +2560,7 @@ ospkg__run() {
         local _caskitem _cask
         for _caskitem in "${_Y_CASKS[@]}"; do
           _cask="$(printf '%s' "$_caskitem" | json__query -r '.cask')"
+          _cask="$(_ospkg__expand_content_vars "${_cask}")"
           if [[ "$_dry_run" == true ]]; then
             logging__inspect "[dry-run] cask: would run: brew install --cask '${_cask}'"
           else

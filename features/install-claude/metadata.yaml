@@ -33,6 +33,7 @@ _options:
   method:
     script:
       asset_uri: "https://claude.ai/install.sh"
+      args: ["{VERSION}"]
     upstream-package: {}
     npm-bundled:
       package: "@anthropic-ai/claude-code"
@@ -88,13 +89,13 @@ _dependencies:
             dearmor: false
         repos:
           - deb [signed-by=/etc/apt/keyrings/claude-code.asc]
-            https://downloads.claude.ai/claude-code/apt/{CHANNEL} {CHANNEL} main
+            https://downloads.claude.ai/claude-code/apt/{VERSION_INPUT==latest?latest:stable} {VERSION_INPUT==latest?latest:stable} main
       dnf:
         repos:
           - |
             [claude-code]
             name=Claude Code
-            baseurl=https://downloads.claude.ai/claude-code/rpm/{CHANNEL}
+            baseurl=https://downloads.claude.ai/claude-code/rpm/{VERSION_INPUT==latest?latest:stable}
             enabled=1
             gpgcheck=1
             gpgkey=https://downloads.claude.ai/keys/claude-code.asc
@@ -103,7 +104,7 @@ _dependencies:
           - |
             [claude-code]
             name=Claude Code
-            baseurl=https://downloads.claude.ai/claude-code/rpm/{CHANNEL}
+            baseurl=https://downloads.claude.ai/claude-code/rpm/{VERSION_INPUT==latest?latest:stable}
             enabled=1
             gpgcheck=1
             gpgkey=https://downloads.claude.ai/keys/claude-code.asc
@@ -113,7 +114,7 @@ _dependencies:
             dest: /etc/apk/keys/claude-code.rsa.pub
             dearmor: false
         repos:
-          - https://downloads.claude.ai/claude-code/apk/{CHANNEL}
+          - https://downloads.claude.ai/claude-code/apk/{VERSION_INPUT==latest?latest:stable}
       brew:
         casks:
-          - "{BREW_CASK}"
+          - "{VERSION_INPUT==latest?claude-code@latest:claude-code}"
