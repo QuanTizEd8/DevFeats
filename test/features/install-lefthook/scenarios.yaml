@@ -1,0 +1,74 @@
+default_install:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  tests:
+  - default_install
+
+binary_custom_prefix:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: binary
+    prefix: /opt/lefthook-bin
+    if_exists: reinstall
+  tests:
+  - binary_custom_prefix
+
+if_exists_fail:
+  expect_install_failure: true
+  envs:
+  - ubuntu-latest
+  modes:
+  - standalone
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "version" ]; then printf "9.9.9\n"; exit 0; fi\nexit 0' > /usr/local/bin/lefthook
+    chmod +x /usr/local/bin/lefthook
+  options:
+    method: auto
+    if_exists: fail
+  tests:
+  - if_exists_fail
+  standalone:
+    skip_install: false
+
+installer_dir:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: binary
+    installer_dir: /tmp/lefthook-trace
+  tests:
+  - installer_dir
+
+specific_version:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    version: "2.1.6"
+    method: binary
+  tests:
+  - specific_version
+
+npm_install:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: npm
+    if_exists: reinstall
+  tests:
+  - npm_install

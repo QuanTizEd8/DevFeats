@@ -1,0 +1,106 @@
+defaults:
+  options:
+    verify_downloads: false  # skip GPG for speed in tests
+
+# ── method=script scenarios ───────────────────────────────────────────────────
+
+script_infraonly:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    scheme: infraonly
+    packages: ''
+  tests: [tlmgr_on_path]
+
+script_custom_prefix:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    scheme: infraonly
+    packages: ''
+    prefix: /opt/texlive-test
+  tests: [script_custom_prefix]
+
+script_no_adjustpath:
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  options:
+    scheme: infraonly
+    packages: ''
+    instopt_adjustpath: false
+  tests: [script_no_adjustpath]
+
+script_collections:
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  options:
+    scheme: full       # ignored when collections is set
+    collections: "latex\nfontsrecommended"
+    packages: ''
+  tests: [script_collections]
+
+script_inline_profile:
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  options:
+    profile: |
+      selected_scheme scheme-infraonly
+      TEXDIR /usr/local/texlive
+      instopt_adjustpath 1
+      tlpdbopt_install_docfiles 0
+      tlpdbopt_install_srcfiles 0
+    packages: ''
+  tests: [tlmgr_on_path]
+
+if_exists_skip:
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  setup: |
+    # Pre-install a minimal TeX Live via package manager as the "existing" install
+    apt-get install -y --no-install-recommends texlive-latex-base 2>/dev/null || true
+  options:
+    method: package
+    scheme: basic
+    if_exists: skip
+  tests: [package_basic]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  setup: |
+    apt-get install -y --no-install-recommends texlive-latex-base 2>/dev/null || true
+  options:
+    method: package
+    scheme: basic
+    if_exists: fail
+  tests: [if_exists_fail]
+
+# ── method=package scenarios ──────────────────────────────────────────────────
+
+package_ubuntu:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    method: package
+    scheme: basic
+    packages: ''
+  tests: [package_basic]
+
+package_debian:
+  envs: [debian-bookworm+bash]
+  modes: [devcontainer, standalone]
+  options:
+    method: package
+    scheme: basic
+    packages: ''
+  tests: [package_basic]
+
+package_alpine:
+  envs: [alpine-3.21+bash]
+  modes: [devcontainer, standalone]
+  options:
+    method: package
+    scheme: basic
+    packages: ''
+  tests: [package_alpine]

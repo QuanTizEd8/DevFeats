@@ -1,0 +1,127 @@
+tlmgr_on_path:
+  description: |
+    tlmgr is reachable on PATH (via instopt_adjustpath symlinks) and reports
+    a valid TeX Live version year, and the verify command (tlmgr version) exits 0.
+  checks:
+    - title: tlmgr binary on PATH
+      cmd: command -v tlmgr
+      debug: |
+        echo "=== PATH ==="
+        echo "$PATH"
+        echo "=== which tlmgr ==="
+        which tlmgr 2>&1 || echo "(not found)"
+        echo "=== ls /usr/local/bin/tl* ==="
+        ls -la /usr/local/bin/tl* 2>/dev/null || echo "(none)"
+    - title: tlmgr --version exits 0
+      cmd: tlmgr --version
+    - title: tlmgr version reports a year
+      cmd: bash -c 'tlmgr --version 2>/dev/null | grep -qE "version [0-9]{4}"'
+    - title: tlmgr conf reports texmfroot
+      cmd: bash -c 'tlmgr conf texmf TEXMFROOT 2>/dev/null | grep -q TEXMFROOT'
+
+script_custom_prefix:
+  description: |
+    prefix=/opt/texlive-test: TeX Live installed at a custom TEXDIR.
+    tlmgr path add creates symlinks in /usr/local/bin so tlmgr is on PATH.
+  checks:
+    - title: custom prefix directory exists
+      cmd: test -d /opt/texlive-test
+      debug: |
+        echo "=== ls /opt/texlive-test ==="
+        ls -la /opt/texlive-test/ 2>/dev/null || echo "(missing)"
+    - title: tlmgr binary inside custom prefix
+      cmd: bash -c 'test -f /opt/texlive-test/bin/$(uname -m)-linux/tlmgr || find /opt/texlive-test -name tlmgr -type f | grep -q .'
+    - title: tlmgr on PATH (via instopt_adjustpath symlinks)
+      cmd: command -v tlmgr
+    - title: tlmgr --version exits 0
+      cmd: tlmgr --version
+    - title: TEXMFROOT resolves under custom prefix
+      cmd: bash -c 'kpsewhich -var-value=TEXMFROOT 2>/dev/null | grep -q /opt/texlive-test'
+    - title: default prefix NOT created
+      cmd: bash -c '! test -d /usr/local/texlive'
+
+script_no_adjustpath:
+  description: |
+    instopt_adjustpath=false: TeX Live binaries are NOT symlinked to /usr/local/bin.
+    The prefix directory must exist but tlmgr is only reachable via the arch-specific
+    path inside TEXDIR.
+  checks:
+    - title: TEXDIR exists under default prefix
+      cmd: test -d /usr/local/texlive
+      debug: |
+        echo "=== ls /usr/local/texlive ==="
+        ls -la /usr/local/texlive/ 2>/dev/null || echo "(missing)"
+    - title: tlmgr binary inside TEXDIR bin dir
+      cmd: bash -c 'find /usr/local/texlive/bin -maxdepth 2 -name tlmgr 2>/dev/null | grep -q .'
+    - title: tlmgr NOT on PATH (no adjustpath symlinks)
+      cmd: bash -c '! command -v tlmgr 2>/dev/null'
+    - title: tlmgr reachable via TEXDIR arch-specific bin dir
+      cmd: bash -c 'find /usr/local/texlive/bin -maxdepth 2 -name tlmgr -type f | head -1 | xargs -I{} {} --version'
+
+script_collections:
+  description: |
+    collections=["latex","fontsrecommended"]: installs scheme-infraonly plus the
+    two specified collections. Verifies latex and font packages are present while
+    confirming the profile used scheme-infraonly (not the scheme=full option).
+  checks:
+    - title: tlmgr on PATH
+      cmd: command -v tlmgr
+      debug: |
+        echo "=== tlmgr --version ==="
+        tlmgr --version 2>&1 || echo "(failed)"
+        echo "=== tlmgr conf texmf ==="
+        tlmgr conf texmf 2>&1 | head -20 || echo "(failed)"
+    - title: tlmgr --version exits 0
+      cmd: tlmgr --version
+    - title: collection-latex installed
+      cmd: bash -c 'tlmgr list --only-installed 2>/dev/null | grep -q "collection-latex"'
+    - title: collection-fontsrecommended installed
+      cmd: bash -c 'tlmgr list --only-installed 2>/dev/null | grep -q "collection-fontsrecommended"'
+    - title: latex binary present (from collection-latex)
+      cmd: command -v latex
+    - title: collection-context NOT installed (only requested collections)
+      cmd: bash -c '! tlmgr list --only-installed 2>/dev/null | grep -q "^i collection-context$"'
+
+if_exists_fail:
+  description: |
+    if_exists=fail with a pre-existing TeX Live installation must exit non-zero.
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
+
+package_basic:
+  description: |
+    method=package scheme=basic on Debian/Ubuntu: installs texlive-latex-base
+    and texlive-latex-recommended via apt. Verifies latex is on PATH.
+  checks:
+    - title: latex command available
+      cmd: command -v latex
+      debug: |
+        echo "=== dpkg -l 'texlive*' ==="
+        dpkg -l 'texlive*' 2>/dev/null | head -20 || echo "(dpkg not available)"
+        echo "=== which latex ==="
+        which latex 2>&1 || echo "(not found)"
+    - title: latex --version exits 0
+      cmd: latex --version
+    - title: latex version reports a year
+      cmd: bash -c 'latex --version 2>/dev/null | grep -qE "[0-9]{4}"'
+    - title: pdflatex command available
+      cmd: command -v pdflatex
+    - title: pdflatex --version exits 0
+      cmd: pdflatex --version
+
+package_alpine:
+  description: |
+    method=package on Alpine: installs TeX Live from apk. Verifies basic TeX
+    functionality (Alpine's texlive package provides a subset of TeX Live).
+  checks:
+    - title: latex or tex command available
+      cmd: bash -c 'command -v latex || command -v tex'
+      debug: |
+        echo "=== apk info texlive ==="
+        apk info texlive 2>/dev/null || echo "(apk not available)"
+        echo "=== which latex/tex ==="
+        which latex 2>&1 || which tex 2>&1 || echo "(not found)"
+    - title: tex or latex reports a version
+      cmd: bash -c '(latex --version || tex --version) 2>/dev/null | grep -qE "[0-9]{4}"'
