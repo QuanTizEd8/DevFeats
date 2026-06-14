@@ -273,3 +273,47 @@ invalid_version_suffix:
   - invalid_version_suffix.sh
   options:
     version: 1.2beta
+global_manifest_inline:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  options:
+    global_manifest: |
+      version = 1
+
+      [envs.jq]
+      channels = ["conda-forge"]
+      dependencies = { jq = "*" }
+      exposed = { jq = "jq" }
+  tests:
+  - global_manifest_inline.sh
+global_manifest_file:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  setup: |
+    mkdir -p /tmp
+    printf '%s\n' \
+      'version = 1' \
+      '' \
+      '[envs.jq]' \
+      'channels = ["conda-forge"]' \
+      'dependencies = { jq = "*" }' \
+      'exposed = { jq = "jq" }' \
+      > /tmp/pixi-global.toml
+  options:
+    global_manifest: /tmp/pixi-global.toml
+  tests:
+  - global_manifest_file.sh
+global_installs:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  options:
+    global_installs:
+    - --channel conda-forge jq
+  tests:
+  - global_installs.sh

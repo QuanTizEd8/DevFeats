@@ -52,6 +52,34 @@ _options:
         when set, otherwise `$HOME/.pixi`) to all-context files so the variable is
         available in both interactive and non-interactive shells.
 options:
+  global_manifest:
+    type: string
+    default: ''
+    description: |-
+      [Global manifest](https://pixi.prefix.dev/latest/global_tools/manifest/) file
+      to place in `$PIXI_HOME/manifests/pixi-global.toml`.
+      Can be either inline content or a file/URI reference.
+      Inline content is detected when the value contains a newline;
+      otherwise the value is treated as a file path, `file://`,
+      `http(s)://`, `oci://`, or `gh://owner/repo@ref:path` URI.
+      Append `#sha256=<hex>` for integrity verification.
+      Use `fetch_headers` and `fetch_netrc` for authentication.
+  global_sync:
+    type: string
+    default: ''
+    description: |-
+      Additional arguments to [`pixi global sync`](https://pixi.prefix.dev/latest/reference/cli/pixi/global/sync/)
+      to run after writing the global manifest (if provided).
+      When `global_manifest` is set, the installer runs `pixi global sync` with this value as extra arguments.
+  global_installs:
+    type: array
+    default: ''
+    description: |-
+      Additional `pixi global install` commands to run.
+      Each item is a space-separated string of arguments to `pixi global install`
+      (e.g. `--channel conda-forge --channel bioconda snakemake`).
+      These are run after writing the global manifest (if provided).
+      They can be used in place of or in addition to the `global_manifest` option.
   home_dir:
     type: string
     default: ''

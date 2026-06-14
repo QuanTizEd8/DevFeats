@@ -450,3 +450,65 @@ version_match_path_only_symlink:
       cmd: bash -c '[ "$(readlink /usr/local/bin/pixi)" = "/opt/pixi/bin/pixi" ]'
     - title: symlinked pixi is callable
       cmd: /usr/local/bin/pixi --version
+
+global_manifest_inline:
+  description: |
+    global_manifest (inline TOML): inline content is written to
+    $PIXI_HOME/manifests/pixi-global.toml and pixi global sync installs
+    the declared environments. Running as root → PIXI_HOME=/root/.pixi.
+
+  checks:
+    - title: manifest file exists
+      cmd: test -f /root/.pixi/manifests/pixi-global.toml
+      debug: |
+        echo "=== /root/.pixi/manifests/pixi-global.toml ==="
+        cat /root/.pixi/manifests/pixi-global.toml 2>/dev/null || echo "(missing)"
+    - title: manifest file is non-empty
+      cmd: test -s /root/.pixi/manifests/pixi-global.toml
+    - title: manifest declares jq env
+      cmd: grep -Fq '[envs.jq]' /root/.pixi/manifests/pixi-global.toml
+    - title: jq binary installed by pixi global sync
+      cmd: test -x /root/.pixi/bin/jq
+      debug: |
+        echo "=== /root/.pixi/bin/ ==="
+        ls /root/.pixi/bin/ 2>/dev/null || echo "(empty or missing)"
+    - title: jq is callable
+      cmd: /root/.pixi/bin/jq --version
+
+global_manifest_file:
+  description: |
+    global_manifest (file path): the manifest file is resolved from the given
+    path and written to $PIXI_HOME/manifests/pixi-global.toml, then pixi global
+    sync installs the declared environments. Running as root → PIXI_HOME=/root/.pixi.
+
+  checks:
+    - title: manifest file exists
+      cmd: test -f /root/.pixi/manifests/pixi-global.toml
+      debug: |
+        echo "=== /root/.pixi/manifests/pixi-global.toml ==="
+        cat /root/.pixi/manifests/pixi-global.toml 2>/dev/null || echo "(missing)"
+    - title: manifest file is non-empty
+      cmd: test -s /root/.pixi/manifests/pixi-global.toml
+    - title: manifest declares jq env
+      cmd: grep -Fq '[envs.jq]' /root/.pixi/manifests/pixi-global.toml
+    - title: jq binary installed by pixi global sync
+      cmd: test -x /root/.pixi/bin/jq
+      debug: |
+        echo "=== /root/.pixi/bin/ ==="
+        ls /root/.pixi/bin/ 2>/dev/null || echo "(empty or missing)"
+    - title: jq is callable
+      cmd: /root/.pixi/bin/jq --version
+
+global_installs:
+  description: |
+    global_installs: each array entry is passed as arguments to 'pixi global install';
+    the installed binary is available in $PIXI_HOME/bin. Running as root → PIXI_HOME=/root/.pixi.
+
+  checks:
+    - title: jq binary installed by pixi global install
+      cmd: test -x /root/.pixi/bin/jq
+      debug: |
+        echo "=== /root/.pixi/bin/ ==="
+        ls /root/.pixi/bin/ 2>/dev/null || echo "(empty or missing)"
+    - title: jq is callable
+      cmd: /root/.pixi/bin/jq --version
