@@ -72,3 +72,25 @@ npm_install:
     if_exists: reinstall
   tests:
   - npm_install
+
+package_ubuntu:
+  envs:
+  - ubuntu-latest
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: upstream-package
+  tests:
+  - package_ubuntu
+
+package_alpine:
+  envs:
+  - alpine-3.21
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: upstream-package
+  tests:
+  - package_alpine

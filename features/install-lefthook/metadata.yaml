@@ -34,7 +34,7 @@ _options:
       package: "lefthook"
       args:
         - "--ignore-scripts"
-    package: {}
+    upstream-package: {}
   prefix:
     bins: [lefthook]
     applies_when:
@@ -44,7 +44,70 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-    os-pkg:
+    upstream-package:
       packages:
-        - lefthook
+        - name: lefthook
+          when:
+            pm: [apt, apk, dnf, yum, zypper]
+      apt:
+        keys:
+          - url: "https://dl.cloudsmith.io/public/evilmartians/lefthook/gpg.A05F5DDE3A0BB1D2.key"
+            dest: "/usr/share/keyrings/evilmartians-lefthook-archive-keyring.gpg"
+        repos:
+          - "deb [signed-by=/usr/share/keyrings/evilmartians-lefthook-archive-keyring.gpg] https://dl.cloudsmith.io/public/evilmartians/lefthook/deb/{id} {version_codename} main"
+      apk:
+        keys:
+          - url: "https://dl.cloudsmith.io/public/evilmartians/lefthook/rsa.CCA91DF99AD351FF.key"
+            dest: "/etc/apk/keys/lefthook@evilmartians-CCA91DF99AD351FF.rsa.pub"
+            dearmor: false
+        repos:
+          - "https://dl.cloudsmith.io/public/evilmartians/lefthook/alpine/v{version_id_mm}/main"
+      dnf:
+        repos:
+          - |
+            [evilmartians-lefthook]
+            name=evilmartians-lefthook
+            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/{id==fedora?fedora:el}/{id==fedora?{version_id}:{version_id_major}}/$basearch
+            repo_gpgcheck=1
+            enabled=1
+            skip_if_unavailable=1
+            gpgkey=https://dl.cloudsmith.io/public/evilmartians/lefthook/gpg.A05F5DDE3A0BB1D2.key
+            gpgcheck=1
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+      yum:
+        repos:
+          - |
+            [evilmartians-lefthook]
+            name=evilmartians-lefthook
+            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/el/{version_id_major}/$basearch
+            repo_gpgcheck=1
+            enabled=1
+            skip_if_unavailable=1
+            gpgkey=https://dl.cloudsmith.io/public/evilmartians/lefthook/gpg.A05F5DDE3A0BB1D2.key
+            gpgcheck=1
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+      zypper:
+        repos:
+          - |
+            [evilmartians-lefthook]
+            name=evilmartians-lefthook
+            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/opensuse/{version_id}/$basearch
+            repo_gpgcheck=1
+            enabled=1
+            skip_if_unavailable=1
+            gpgkey=https://dl.cloudsmith.io/public/evilmartians/lefthook/gpg.A05F5DDE3A0BB1D2.key
+            gpgcheck=1
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+      brew:
+        packages:
+          - lefthook
 # installsAfter: []

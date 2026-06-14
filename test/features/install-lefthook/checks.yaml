@@ -71,3 +71,25 @@ npm_install:
       cmd: command -v lefthook
     - title: lefthook reports a version
       cmd: bash -c 'lefthook version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
+
+package_ubuntu:
+  description: |
+    method=package on Ubuntu: install lefthook from the Cloudsmith APT repository.
+    Verifies lefthook is on PATH and reports a version.
+  checks:
+    - title: lefthook command is available
+      cmd: command -v lefthook
+    - title: lefthook reports a version
+      cmd: bash -c 'lefthook version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
+
+package_alpine:
+  description: |
+    method=package on Alpine: install lefthook from the Cloudsmith Alpine APK repository.
+    Verifies lefthook is on PATH and reports a version.
+    Uses shell: sh because the bootstrap bash is removed after installation on Alpine.
+  shell: sh
+  checks:
+    - title: lefthook command is available
+      cmd: command -v lefthook
+    - title: lefthook reports a version
+      cmd: sh -c 'lefthook version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
