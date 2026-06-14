@@ -246,14 +246,11 @@ macos-latest-fresh-install:
         "${HOME}/.condarc"
 
 # ── bash environments ────────────────────────────────────────────────────────
-debian-bookworm+bash-source-build-deps:
-  image: debian:bookworm
+# Alpine has no bash by default — ideal base for testing bash installation from scratch.
+alpine-3.21+bash-source-build-deps:
+  image: alpine:3.21
   build:
-    dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends \
-        build-essential libncurses-dev curl ca-certificates
-      rm -rf /var/lib/apt/lists/*
+    dockerfile: apk add --no-cache build-base ncurses-dev curl ca-certificates
 
 # ── zsh environments ─────────────────────────────────────────────────────────
 debian-bookworm+zsh-source-build-deps:

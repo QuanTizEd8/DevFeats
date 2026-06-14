@@ -4,15 +4,14 @@ default_install:
   tests: [default]
 
 package_install:
-  envs: [alpine-3.21+bash, debian-bookworm+bash, fedora-latest+bash]
+  envs: [alpine-3.21]
   modes: [devcontainer, standalone]
   options:
     method: package
-    if_exists: reinstall
   tests: [package_install]
 
 source_build:
-  envs: [debian-bookworm+bash-source-build-deps]
+  envs: [alpine-3.21+bash-source-build-deps]
   modes: [standalone]
   options:
     method: source
@@ -20,7 +19,7 @@ source_build:
   tests: [source_build]
 
 specific_version:
-  envs: [debian-bookworm+bash-source-build-deps]
+  envs: [alpine-3.21+bash-source-build-deps]
   modes: [standalone]
   options:
     method: source
@@ -28,20 +27,19 @@ specific_version:
   tests: [specific_version]
 
 source_custom_prefix:
-  envs: [debian-bookworm+bash-source-build-deps]
+  envs: [alpine-3.21+bash-source-build-deps]
   modes: [devcontainer, standalone]
   options:
     method: source
     version: "5.3"
     prefix: /opt/bash
     prefix_discovery: symlink
-    if_exists: reinstall
   tests: [source_custom_prefix]
 
 source_nonroot:
-  envs: [debian-bookworm+bash-source-build-deps]
+  envs: [alpine-3.21+bash-source-build-deps]
   modes: [standalone]
-  setup: useradd -m -s /bin/sh vscode
+  setup: adduser -D -s /bin/sh vscode
   options:
     method: source
     version: "5.3"
