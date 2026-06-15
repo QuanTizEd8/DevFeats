@@ -29,9 +29,7 @@ npm_bundled:
 # npm is not available by default on ubuntu-24.04; the setup block pre-installs it
 # so the feature can use system npm rather than bootstrapping its own.
 npm_system:
-  envs: [ubuntu-24.04]
-  setup: |
-    apt-get update -y && apt-get install -y nodejs npm
+  envs: [ubuntu-latest+nodejs]
   options:
     method: npm
   tests: [npm_system]
@@ -47,9 +45,7 @@ auto_npm_bundled:
 
 # method=auto with npm pre-installed → resolves to npm.
 auto_npm:
-  envs: [ubuntu-24.04]
-  setup: |
-    apt-get update -y && apt-get install -y nodejs npm
+  envs: [ubuntu-latest+nodejs]
   options:
     method: auto
   tests: [auto_npm]

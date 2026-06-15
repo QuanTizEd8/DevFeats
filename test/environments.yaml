@@ -356,6 +356,15 @@ ubuntu-latest+miniforge-base:
   env_vars:
     PATH: /opt/conda/bin:${PATH}
 
+# ── node/npm environments ────────────────────────────────────────────────────
+ubuntu-latest+nodejs:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update
+      apt-get install -y --no-install-recommends nodejs npm
+      rm -rf /var/lib/apt/lists/*
+
 # ── pixi environments ────────────────────────────────────────────────────────
 ubuntu-latest+pixi-base:
   from: ubuntu-latest+curl

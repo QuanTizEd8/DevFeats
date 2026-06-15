@@ -10,7 +10,7 @@ npm_bundled:
   tests: [npm_bundled]
 
 npm:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-latest+nodejs]
   modes: [devcontainer, standalone]
   options:
     method: npm

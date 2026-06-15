@@ -63,7 +63,7 @@ specific_version:
 
 npm_install:
   envs:
-  - ubuntu-latest
+  - ubuntu-latest+nodejs
   modes:
   - devcontainer
   - standalone
