@@ -269,7 +269,9 @@ os__rust_triple() {
   # override). Defaults to os__arch.
   #
   # Linux suffix selection (musl vs gnu):
-  #   - x86_64, aarch64, armv6l, armv7l, loongarch64, i686: always musl (portable static builds).
+  #   - x86_64, aarch64, armv6l, loongarch64, i686: always musl (portable static builds).
+  #   - armv7l: musl with NEON (armv7-unknown-linux-musleabihf) when /proc/cpuinfo reports
+  #     a neon or simd feature; falls back to arm-unknown-linux-musleabihf on pre-NEON hardware.
   #   - ppc64le, s390x: always gnu — no widely-published musl builds exist for either
   #     (`s390x-unknown-linux-musl` was removed as a Rust target in Rust 1.81).
   #   - riscv64: detected at runtime via os__libc() — musl on Alpine, gnu on glibc distros.
@@ -278,6 +280,10 @@ os__rust_triple() {
   # 32-bit machine), `uname -m` reports `x86_64`. This function detects the 32-bit
   # case via `getconf LONG_BIT` and corrects the arch to i686 so the correct
   # i686-unknown-linux-musl triple is selected instead of the 64-bit one.
+  #
+  # Rosetta 2 detection: on Darwin x86_64, `sysctl hw.optional.arm64` returning 1 means
+  # the process is running under Rosetta 2 on Apple Silicon; the native aarch64-apple-darwin
+  # triple is selected instead.
   #
   # Stdout: Rust target triple (e.g. x86_64-unknown-linux-musl, aarch64-apple-darwin).
   # Returns: 0 on success, 1 if the kernel/arch combination is unsupported.
@@ -295,7 +301,13 @@ os__rust_triple() {
     Linux:i386 | Linux:i686) printf 'i686-unknown-linux-musl\n' ;;
     Linux:aarch64 | Linux:arm64) printf 'aarch64-unknown-linux-musl\n' ;;
     Linux:armv6l) printf 'arm-unknown-linux-musleabihf\n' ;;
-    Linux:armv7l) printf 'armv7-unknown-linux-musleabihf\n' ;;
+    Linux:armv7l)
+      if grep -q -E 'neon|simd' /proc/cpuinfo 2> /dev/null; then
+        printf 'armv7-unknown-linux-musleabihf\n'
+      else
+        printf 'arm-unknown-linux-musleabihf\n'
+      fi
+      ;;
     Linux:loongarch64) printf 'loongarch64-unknown-linux-musl\n' ;;
     Linux:ppc64le) printf 'powerpc64le-unknown-linux-gnu\n' ;;
     Linux:s390x) printf 's390x-unknown-linux-gnu\n' ;;
@@ -306,7 +318,13 @@ os__rust_triple() {
         printf 'riscv64gc-unknown-linux-gnu\n'
       fi
       ;;
-    Darwin:x86_64 | Darwin:amd64) printf 'x86_64-apple-darwin\n' ;;
+    Darwin:x86_64 | Darwin:amd64)
+      if [ "$(sysctl -n hw.optional.arm64 2> /dev/null)" = "1" ]; then
+        printf 'aarch64-apple-darwin\n'
+      else
+        printf 'x86_64-apple-darwin\n'
+      fi
+      ;;
     Darwin:aarch64 | Darwin:arm64) printf 'aarch64-apple-darwin\n' ;;
     FreeBSD:x86_64 | FreeBSD:amd64) printf 'x86_64-unknown-freebsd\n' ;;
     *)

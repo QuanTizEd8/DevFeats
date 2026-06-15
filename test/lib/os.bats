@@ -639,12 +639,24 @@ setup() {
   assert_output "arm-unknown-linux-musleabihf"
 }
 
-@test "os__rust_triple returns armv7-unknown-linux-musleabihf for Linux armv7l" {
+@test "os__rust_triple returns armv7-unknown-linux-musleabihf for Linux armv7l with NEON" {
   reload_lib os.sh
   _OS__KERNEL="Linux"
+  grep() { return 0; }
+  export -f grep
   run os__rust_triple armv7l
   assert_success
   assert_output "armv7-unknown-linux-musleabihf"
+}
+
+@test "os__rust_triple returns arm-unknown-linux-musleabihf for Linux armv7l without NEON" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  grep() { return 1; }
+  export -f grep
+  run os__rust_triple armv7l
+  assert_success
+  assert_output "arm-unknown-linux-musleabihf"
 }
 
 @test "os__rust_triple returns loongarch64-unknown-linux-musl for Linux loongarch64" {
@@ -694,9 +706,21 @@ setup() {
 @test "os__rust_triple returns x86_64-apple-darwin for Darwin x86_64" {
   reload_lib os.sh
   _OS__KERNEL="Darwin"
+  sysctl() { return 1; }
+  export -f sysctl
   run os__rust_triple x86_64
   assert_success
   assert_output "x86_64-apple-darwin"
+}
+
+@test "os__rust_triple returns aarch64-apple-darwin for Darwin x86_64 under Rosetta 2" {
+  reload_lib os.sh
+  _OS__KERNEL="Darwin"
+  sysctl() { printf '1\n'; }
+  export -f sysctl
+  run os__rust_triple x86_64
+  assert_success
+  assert_output "aarch64-apple-darwin"
 }
 
 @test "os__rust_triple returns aarch64-apple-darwin for Darwin aarch64" {
