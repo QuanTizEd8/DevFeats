@@ -62,14 +62,6 @@ def run(*, check_only: bool = False) -> int:
             # (allows draft features to be added).
             continue
 
-        feature_script_path = feature_dirpath / str(config["filename.feature_script"])
-        if not feature_script_path.is_file():
-            log(
-                f"Warning: Skipping feature '{feature_id}' due to missing "
-                f"{config['filename.feature_script']} file at {feature_script_path}"
-            )
-            continue
-
         n_features += 1
         output_files: dict[Path, str] = {}
 
