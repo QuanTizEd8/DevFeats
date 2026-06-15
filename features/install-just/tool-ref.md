@@ -265,6 +265,23 @@ rm -f "$HOME/bin/just"
 - **Idempotency**:
   - Not fully idempotent by default: script fails if destination already exists unless `--force` is set.
 
+#### Details
+
+The install script performs these steps in order:
+
+1. **Argument parsing**: processes flags `--force`/`-f`, `--tag`, `--target`, `--to`; defaults destination to `$HOME/bin`.
+2. **Downloader detection**: requires `curl` or `wget` and enforces TLS 1.2 explicitly (`--proto =https --tlsv1.2` for curl; `--https-only --secure-protocol=TLSv1_2` for wget).
+3. **Version resolution**: if `--tag` is omitted, queries `https://api.github.com/repos/casey/just/releases/latest` and extracts `tag_name` via `grep` + `cut`. Passes `Authorization: Bearer $GITHUB_TOKEN` when the variable is set.
+4. **Target triple detection**: if `--target` is omitted, constructs `$(uname -m)-$(uname -s | cut -d- -f1)` (stripping MINGW version suffixes) and maps via `case` to a Rust triple. Auto-detected triples: `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`, `arm-unknown-linux-musleabihf` (armv6l), `armv7-unknown-linux-musleabihf` (armv7l), `loongarch64-unknown-linux-musl`, `x86_64-apple-darwin`, `aarch64-apple-darwin`, `x86_64-pc-windows-msvc` (MINGW/Windows). No 32-bit x86, no FreeBSD, no riscv64 auto-detection.
+5. **Archive format selection**: `.zip` (requires `unzip`) for `x86_64-pc-windows-msvc`; `.tar.gz` (requires `tar`) for all others.
+6. **Download URL construction**: `https://github.com/casey/just/releases/download/$tag/just-$tag-$target.$extension`.
+7. **Download and extraction**: streams archive via pipe directly into `tar -C "$td" -xz` (Unix) or downloads to temp dir then `unzip` (Windows).
+8. **Overwrite guard**: if the destination binary already exists and `--force` is not set, exits with an error. When `--force` is set, unconditionally overwrites.
+9. **Installation**: `mkdir -p "$dest"`, then `cp "$td/just" "$dest/just"` and `chmod 755`.
+10. **Temp directory cleanup**: `rm -rf "$td"` always runs after extraction.
+
+No checksum or signature verification is performed at any point.
+
 #### Notes and Best Practices
 
 - Installer convenience is high, but integrity checks are implicit TLS transport only; checksum verification is not performed by the script itself.
