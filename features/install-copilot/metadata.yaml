@@ -13,14 +13,12 @@ _long_description: >-
   invocation, can perform code edits, repository operations, and pull request
   workflows, and is extensible via plugins and MCP servers.
 
-  Three installation methods are supported:
+  Two installation methods are supported:
 
   - **binary** (auto-selected on x64/arm64): Downloads and verifies a pre-built
     tarball from GitHub Releases with SHA-256 validation. No Node.js dependency.
   - **npm**: Installs globally via `npm install -g @github/copilot`. Requires
     Node.js 22 or later pre-installed (e.g. via `install-node` or `install-nvm`).
-  - **script**: Runs the official `https://gh.io/copilot-install` shell installer,
-    which handles its own download, checksum verification, and PATH setup.
 
   In devcontainer builds, a lifecycle hook is registered that symlinks the
   workspace `.copilot` directory (configurable via `vscode_user_dir`) to
@@ -48,12 +46,10 @@ _options:
       when: {arch: [amd64, arm64]}
     npm:
       package: "@github/copilot"
-    script:
-      asset_uri: "https://raw.githubusercontent.com/github/copilot-cli/main/install.sh"
   prefix:
     bins: [copilot]
     applies_when:
-      - method: [binary, script]
+      - method: [binary]
   completions:
     subcmd: "completion"
     shells: [bash, zsh, fish]

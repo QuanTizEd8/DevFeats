@@ -583,6 +583,27 @@ Behavior from source code:
 
 - Script is rerunnable and replaces existing binary if already present (`Notice: Replacing copilot binary ...`).[^repo-install-script]
 
+#### Details
+
+The install script (`https://raw.githubusercontent.com/github/copilot-cli/main/install.sh`, pinned to the `main` branch HEAD) performs these steps:
+
+1. **Platform detection**: `uname -s` → `darwin` or `linux`. Any other platform attempts `winget install GitHub.Copilot` and exits; the tarball flow below applies only to Darwin/Linux.
+2. **Architecture detection**: `uname -m` → `x64` (for `x86_64`/`amd64`) or `arm64` (for `aarch64`/`arm64`). Any other architecture exits with an unsupported error. No 32-bit, no RISC-V, no armv7 or armv6.
+3. **Authentication setup**: if `GITHUB_TOKEN` is set, adds `Authorization: token $GITHUB_TOKEN` to curl/wget headers and embeds the token in the git remote URL used for prerelease tag resolution.
+4. **Download URL construction**:
+   - `VERSION` unset or `latest` → `https://github.com/github/copilot-cli/releases/latest/download/copilot-${PLATFORM}-${ARCH}.tar.gz`
+   - `VERSION=prerelease` → resolves highest remote tag via `git ls-remote --tags --sort version:refname | tail -1`, then uses the versioned download URL.
+   - Explicit version → auto-prefixed with `v` if missing, then `https://github.com/github/copilot-cli/releases/download/${VERSION}/copilot-${PLATFORM}-${ARCH}.tar.gz`.
+5. **Download**: uses `curl -fsSL` or `wget -qO` to download the tarball to `mktemp -d`.
+6. **Checksum verification**: downloads `SHA256SUMS.txt` from the same release URL. If download succeeds, verifies via `sha256sum -c --ignore-missing` or `shasum -a 256 -c --ignore-missing`. Fails hard on mismatch; skips with a warning if no checksum tool is available (soft-fail).
+7. **Tarball integrity check**: runs `tar -tzf` on the downloaded archive to verify it is a readable tarball before extracting.
+8. **Install location**: root (uid 0) → `${PREFIX:-/usr/local}/bin`; non-root → `${PREFIX:-$HOME/.local}/bin`. Directory is created if absent.
+9. **Installation**: `tar -xz -C "$INSTALL_DIR" -f "$TMP_TARBALL"` extracts `copilot` directly into the install dir. Overwrites existing binary with a notice (no `--force` flag required).
+10. **PATH check and optional profile update**: if `copilot` is not found via `command -v` after install, detects current shell (`$SHELL`) and appropriate profile file (`.zprofile`, `.bash_profile`/`.bash_login`/`.profile`, fish `conf.d/copilot.fish`). If interactive, prompts `[y/N]` to append `export PATH="$INSTALL_DIR:$PATH"` (or fish equivalent). If non-interactive, just prints the command.
+11. **Temp directory cleanup**: removed automatically via `trap 'rm -rf -- "$TMP_DIR"' EXIT`.
+
+Note: the script is fetched from the `main` branch of `github/copilot-cli` without any version pinning. The installer logic can change at any time without notice.
+
 #### Notes and Best Practices
 
 - Prefer explicit `VERSION` pinning in infrastructure automation for deterministic builds.
