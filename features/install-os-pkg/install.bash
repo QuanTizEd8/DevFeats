@@ -111,7 +111,7 @@ __install_run__() {
   [[ "$INTERACTIVE" == true ]] && _OSPKG_ARGS+=(--interactive)
   case "${IF_EXISTS:-skip}" in
     update) _OSPKG_ARGS+=(--update) ;;
-    fail)   _OSPKG_ARGS+=(--fail-if-installed) ;;
+    fail) _OSPKG_ARGS+=(--fail-if-installed) ;;
   esac
   logging__install "Running package installation via ospkg__run."
   ospkg__run "${_OSPKG_ARGS[@]}"
@@ -120,8 +120,11 @@ __install_run__() {
 __if_exists_dispatch__() {
   case "${IF_EXISTS:-skip}" in
     uninstall) __uninstall_run__ ;;
-    reinstall) __uninstall_run__; __install__ ;;
-    *)         __install__ ;;
+    reinstall)
+      __uninstall_run__
+      __install__
+      ;;
+    *) __install__ ;;
   esac
 }
 

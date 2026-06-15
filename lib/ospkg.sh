@@ -469,7 +469,7 @@ _ospkg__load_linux_release() {
     done < /etc/os-release
   fi
   _OSPKG__OS_RELEASE[kernel]="linux"
-  _OSPKG__OS_RELEASE[arch]="$(os__release_arch 2>/dev/null || os__arch)"
+  _OSPKG__OS_RELEASE[arch]="$(os__release_arch 2> /dev/null || os__arch)"
   if [[ -n "${_OSPKG__OS_RELEASE[version_id]-}" ]]; then
     _OSPKG__OS_RELEASE[version_id_major]="${_OSPKG__OS_RELEASE[version_id]%%.*}"
     if [[ "${_OSPKG__OS_RELEASE[version_id]}" == *.*.* ]]; then
@@ -499,7 +499,7 @@ ospkg__detect() {
     _OSPKG__OS_RELEASE[id]="macos"
     _OSPKG__OS_RELEASE[id_like]="macos"
     _OSPKG__OS_RELEASE[version_id]="$(sw_vers -productVersion 2> /dev/null || echo "")"
-    _OSPKG__OS_RELEASE[arch]="$(os__release_arch 2>/dev/null || os__arch)"
+    _OSPKG__OS_RELEASE[arch]="$(os__release_arch 2> /dev/null || os__arch)"
     # macOS: Homebrew is the only supported package manager; configure it when
     # available. Callers that need to install packages will discover brew is
     # absent and fail at that point — not here during OS detection.

@@ -3,29 +3,29 @@
 _bundles__select() {
   local -n _ref="$1"
   _ref=()
-  [[ "${ARCHIVE_TOOLS:-}"    == true ]] && _ref+=("archive-tools")
-  [[ "${BUILD_TOOLS:-}"      == true ]] && _ref+=("build-tools")
-  [[ "${DATA_TOOLS:-}"       == true ]] && _ref+=("data-tools")
-  [[ "${DATABASE_DEV:-}"     == true ]] && _ref+=("database-dev")
-  [[ "${DATABASE_TOOLS:-}"   == true ]] && _ref+=("database-tools")
-  [[ "${DEV_LIBS:-}"         == true ]] && _ref+=("dev-libs")
-  [[ "${DEV_TOOLS:-}"        == true ]] && _ref+=("dev-tools")
-  [[ "${DOCUMENT_TOOLS:-}"   == true ]] && _ref+=("document-tools")
-  [[ "${EDITORS:-}"          == true ]] && _ref+=("editors")
-  [[ "${FILE_UTILS:-}"       == true ]] && _ref+=("file-utils")
+  [[ "${ARCHIVE_TOOLS:-}" == true ]] && _ref+=("archive-tools")
+  [[ "${BUILD_TOOLS:-}" == true ]] && _ref+=("build-tools")
+  [[ "${DATA_TOOLS:-}" == true ]] && _ref+=("data-tools")
+  [[ "${DATABASE_DEV:-}" == true ]] && _ref+=("database-dev")
+  [[ "${DATABASE_TOOLS:-}" == true ]] && _ref+=("database-tools")
+  [[ "${DEV_LIBS:-}" == true ]] && _ref+=("dev-libs")
+  [[ "${DEV_TOOLS:-}" == true ]] && _ref+=("dev-tools")
+  [[ "${DOCUMENT_TOOLS:-}" == true ]] && _ref+=("document-tools")
+  [[ "${EDITORS:-}" == true ]] && _ref+=("editors")
+  [[ "${FILE_UTILS:-}" == true ]] && _ref+=("file-utils")
   [[ "${HEADLESS_BROWSER:-}" == true ]] && _ref+=("headless-browser")
-  [[ "${MAN_PAGES:-}"        == true ]] && _ref+=("man-pages")
-  [[ "${MULTIMEDIA:-}"       == true ]] && _ref+=("multimedia")
-  [[ "${NETWORK_TOOLS:-}"    == true ]] && _ref+=("network-tools")
-  [[ "${OS_ESSENTIALS:-}"    == true ]] && _ref+=("os-essentials")
-  [[ "${PYTHON_DEV:-}"       == true ]] && _ref+=("python-dev")
-  [[ "${SCI_COMPUTE:-}"      == true ]] && _ref+=("sci-compute")
-  [[ "${SCRIPT_UTILS:-}"     == true ]] && _ref+=("script-utils")
-  [[ "${SHELLS:-}"           == true ]] && _ref+=("shells")
-  [[ "${SYS_MONITOR:-}"      == true ]] && _ref+=("sys-monitor")
-  [[ "${TERMINAL_UX:-}"      == true ]] && _ref+=("terminal-ux")
-  [[ "${TEXT_PROCESSING:-}"  == true ]] && _ref+=("text-processing")
-  [[ "${VCS_TOOLS:-}"        == true ]] && _ref+=("vcs-tools")
+  [[ "${MAN_PAGES:-}" == true ]] && _ref+=("man-pages")
+  [[ "${MULTIMEDIA:-}" == true ]] && _ref+=("multimedia")
+  [[ "${NETWORK_TOOLS:-}" == true ]] && _ref+=("network-tools")
+  [[ "${OS_ESSENTIALS:-}" == true ]] && _ref+=("os-essentials")
+  [[ "${PYTHON_DEV:-}" == true ]] && _ref+=("python-dev")
+  [[ "${SCI_COMPUTE:-}" == true ]] && _ref+=("sci-compute")
+  [[ "${SCRIPT_UTILS:-}" == true ]] && _ref+=("script-utils")
+  [[ "${SHELLS:-}" == true ]] && _ref+=("shells")
+  [[ "${SYS_MONITOR:-}" == true ]] && _ref+=("sys-monitor")
+  [[ "${TERMINAL_UX:-}" == true ]] && _ref+=("terminal-ux")
+  [[ "${TEXT_PROCESSING:-}" == true ]] && _ref+=("text-processing")
+  [[ "${VCS_TOOLS:-}" == true ]] && _ref+=("vcs-tools")
 }
 
 __install_run__() {
@@ -40,7 +40,7 @@ __install_run__() {
   local -a _dep_args=()
   case "${IF_EXISTS:-skip}" in
     update) _dep_args+=(--update) ;;
-    fail)   _dep_args+=(--fail-if-installed) ;;
+    fail) _dep_args+=(--fail-if-installed) ;;
   esac
 
   local _bundle
@@ -52,8 +52,11 @@ __install_run__() {
 __if_exists_dispatch__() {
   case "${IF_EXISTS:-skip}" in
     uninstall) __uninstall_run__ ;;
-    reinstall) __uninstall_run__; __install__ ;;
-    *)         __install__ ;;
+    reinstall)
+      __uninstall_run__
+      __install__
+      ;;
+    *) __install__ ;;
   esac
 }
 
