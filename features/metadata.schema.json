@@ -1147,13 +1147,13 @@
       }
     },
     "MatchSpec": {
-        "description": "A platform specification for matching against the target system at runtime. A spec is a match when ALL variables match the target system (AND logic). Supports all variables from `/etc/os-release` (e.g., `NAME`, `VERSION_ID`, `VERSION`, `VERSION_CODENAME`, `ID`, `ID_LIKE`, etc.) plus `ARCH` (`uname -m`), `KERNEL` ('darwin', 'linux'), and `PM` ('apt', 'apk, 'dnf', 'pacman', 'zypper', 'brew', 'yum').",
+        "description": "A platform specification for matching against the target system at runtime. A spec is a match when ALL variables match the target system (AND logic). Supports all variables from `/etc/os-release` (e.g., `NAME`, `VERSION_ID`, `VERSION`, `VERSION_CODENAME`, `ID`, `ID_LIKE`, etc.) plus `ARCH` (normalized: amd64, arm64, armv7, i386, ...), `KERNEL` ('darwin', 'linux'), and `PM` ('apt', 'apk, 'dnf', 'pacman', 'zypper', 'brew', 'yum').",
         "type": "object",
         "minProperties": 1,
         "properties": {
           "arch": {
             "type": "string",
-            "description": "CPU architecture from `uname -m`: x86_64, aarch64, armv7l, i686, etc."
+            "description": "Normalized CPU architecture: amd64, arm64, armv7, i386, ppc64le, s390x, riscv64, loong64. Raw uname -m values (x86_64, aarch64, armv7l) are normalized automatically."
           },
           "kernel": {
             "type": "string",

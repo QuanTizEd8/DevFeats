@@ -68,7 +68,7 @@ setup() {
   _OSPKG__PKG_MNGR="apt-get"
   _OSPKG__FAMILY="apt"
   _OSPKG__OS_RELEASE[pm]="apt"
-  _OSPKG__OS_RELEASE[arch]="x86_64"
+  _OSPKG__OS_RELEASE[arch]="amd64"
   _OSPKG__OS_RELEASE[id]="ubuntu"
   _OSPKG__OS_RELEASE[id_like]="debian"
   _OSPKG__OS_RELEASE[version_id]="22.04"

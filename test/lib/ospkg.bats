@@ -110,7 +110,7 @@ _seed_apt_context() {
   prepend_fake_bin_path
   ospkg__detect
   _OSPKG__OS_RELEASE[pm]="apt"
-  _OSPKG__OS_RELEASE[arch]="x86_64"
+  _OSPKG__OS_RELEASE[arch]="amd64"
   _OSPKG__OS_RELEASE[id]="ubuntu"
   _OSPKG__OS_RELEASE[id_like]="debian"
   _OSPKG__OS_RELEASE[version_id]="22.04"
@@ -560,7 +560,7 @@ _seed_apt_context_with_yq() {
     _OSPKG__PKG_MNGR='apt-get'
     _OSPKG__FAMILY='apt'
     _OSPKG__OS_RELEASE[pm]='apt'
-    _OSPKG__OS_RELEASE[arch]='x86_64'
+    _OSPKG__OS_RELEASE[arch]='amd64'
     _OSPKG__OS_RELEASE[id]='ubuntu'
     _OSPKG__OS_RELEASE[id_like]='debian'
     _OSPKG__OS_RELEASE[version_id]='22.04'
@@ -589,7 +589,7 @@ _seed_apt_context_with_yq() {
     _OSPKG__PKG_MNGR='apt-get'
     _OSPKG__FAMILY='apt'
     _OSPKG__OS_RELEASE[pm]='apt'
-    _OSPKG__OS_RELEASE[arch]='x86_64'
+    _OSPKG__OS_RELEASE[arch]='amd64'
     _OSPKG__OS_RELEASE[id]='ubuntu'
     _OSPKG__OS_RELEASE[id_like]='debian'
     _OSPKG__OS_RELEASE[version_id]='22.04'
@@ -1781,7 +1781,7 @@ _seed_pacman_context() {
   _OSPKG__UPDATE=(pacman -Sy)
   _OSPKG__CLEAN="_ospkg__clean_pacman"
   _OSPKG__OS_RELEASE[pm]="pacman"
-  _OSPKG__OS_RELEASE[arch]="x86_64"
+  _OSPKG__OS_RELEASE[arch]="amd64"
   _OSPKG__OS_RELEASE[id]="arch"
   users__run_privileged() { "$@"; }
   export -f users__run_privileged
@@ -1799,7 +1799,7 @@ _seed_apk_context() {
   _OSPKG__UPDATE=()
   _OSPKG__CLEAN="_ospkg__clean_apk"
   _OSPKG__OS_RELEASE[pm]="apk"
-  _OSPKG__OS_RELEASE[arch]="x86_64"
+  _OSPKG__OS_RELEASE[arch]="amd64"
   _OSPKG__OS_RELEASE[id]="alpine"
   users__run_privileged() { "$@"; }
   export -f users__run_privileged
@@ -1816,7 +1816,7 @@ _seed_yum_context() {
   _OSPKG__UPDATE=(yum check-update)
   _OSPKG__CLEAN="_ospkg__clean_dnf"
   _OSPKG__OS_RELEASE[pm]="dnf"
-  _OSPKG__OS_RELEASE[arch]="x86_64"
+  _OSPKG__OS_RELEASE[arch]="amd64"
   _OSPKG__OS_RELEASE[id]="rhel"
   users__run_privileged() { "$@"; }
   export -f users__run_privileged

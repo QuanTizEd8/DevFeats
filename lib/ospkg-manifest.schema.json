@@ -163,7 +163,7 @@
         },
         "arch": {
           "$ref": "#/$defs/conditionValue",
-          "description": "CPU architecture from uname -m: x86_64, aarch64, armv7l, i686, etc."
+          "description": "Normalized CPU architecture: amd64, arm64, armv7, i386, ppc64le, s390x, riscv64, loong64. Raw uname -m values (x86_64, aarch64, armv7l) are normalized automatically."
         },
         "kernel": {
           "$ref": "#/$defs/conditionValue",
@@ -191,7 +191,7 @@
       }
     },
     "whenClause": {
-      "description": "Condition filter. Supports two forms:\n1. Condition object (AND of its keys). Example: { pm: apt, arch: x86_64 }\n2. Array of condition objects (OR of compounds). Example: [{ pm: apt, id: ubuntu }, { pm: dnf, id: fedora }]\n\nAvailable fields: pm, arch, kernel, id, id_like, version_id, version_codename, and any other key from /etc/os-release.",
+      "description": "Condition filter. Supports two forms:\n1. Condition object (AND of its keys). Example: { pm: apt, arch: amd64 }\n2. Array of condition objects (OR of compounds). Example: [{ pm: apt, id: ubuntu }, { pm: dnf, id: fedora }]\n\nAvailable fields: pm, arch, kernel, id, id_like, version_id, version_codename, and any other key from /etc/os-release.",
       "oneOf": [
         {
           "$ref": "#/$defs/conditionObject"
