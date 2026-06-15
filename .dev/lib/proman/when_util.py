@@ -1,4 +1,4 @@
-"""Utilities for serializing `when` condition blocks.
+r"""Utilities for serializing `when` condition blocks.
 
 Shared by the install-script generator (install_script.py) and the
 metadata template filler (metadata.py / metadata.shared.yaml).
