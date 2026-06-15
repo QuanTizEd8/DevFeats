@@ -3,23 +3,6 @@
 # function bodies until they are called, so lib functions referenced here are
 # resolved at call-time, not at definition-time.
 
-# Pass --yes (non-interactive) and --bin-dir to the official Starship installer
-# script, and optionally pin a version via the resolved tag.
-# shellcheck disable=SC2329,SC2317
-__install_run_script_pre() {
-  logging__install "Preparing Starship installer args (prefix='${_RESOLVED_PREFIX}/bin')."
-  declare -g -a _FEAT_INSTALL_SCRIPT_ARGS
-  _FEAT_INSTALL_SCRIPT_ARGS=(--yes --bin-dir "${_RESOLVED_PREFIX}/bin")
-  local _tag="${_FEAT_RESOLVED_TAG:-}"
-  if [[ -z "${_tag}" && -v VERSION && -n "${VERSION}" ]]; then
-    case "${VERSION}" in
-      stable | latest) ;;
-      *) _tag="v${VERSION}" ;;
-    esac
-  fi
-  [[ -n "${_tag}" ]] && _FEAT_INSTALL_SCRIPT_ARGS+=(--version "${_tag}")
-}
-
 # ---------------------------------------------------------------------------
 # Per-user shell activation
 #

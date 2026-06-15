@@ -30,8 +30,6 @@ _options:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/starship-{OS_ARCH==armv7l?arm-unknown-linux-musleabihf:{RUST_TRIPLE}}.tar.gz"
       binary_src: starship
-    script:
-      asset_uri: "https://starship.rs/install.sh"
     package:
       when: {pm: [brew, apk, zypper, pacman]}
     cargo:
@@ -39,7 +37,7 @@ _options:
   prefix:
     bins: [starship]
     applies_when:
-      - method: [binary, script, cargo]
+      - method: [binary, cargo]
   completions:
     subcmd: "completions"
     shells: [bash, zsh, fish]
