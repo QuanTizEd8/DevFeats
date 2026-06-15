@@ -20,8 +20,8 @@ _options:
     description: Verify pnpm is installed and working.
   version:
     resolution: npm
-    default: latest
-    inputs: [latest, semver]
+    default: stable
+    inputs: [stable, latest, semver]
     proposals:
       - value: 9.15.0
         description: pnpm v9.15.0.

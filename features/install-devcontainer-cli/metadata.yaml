@@ -15,7 +15,8 @@ _options:
   gh_repo: devcontainers/cli
   version:
     resolution: npm
-    default: latest
+    default: stable
+    inputs: [stable, latest, semver]
   method:
     npm-bundled:
       package: "@devcontainers/cli"
