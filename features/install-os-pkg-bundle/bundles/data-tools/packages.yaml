@@ -1,9 +1,0 @@
-packages:
-  # ── CSV / TSV / JSON swiss-army knife ────────────────────────────────────
-  - miller
-
-  # ── XML / XPath / XSLT ───────────────────────────────────────────────────
-  - xmlstarlet
-
-  # ── Interactive terminal spreadsheet ──────────────────────────────────────
-  - visidata

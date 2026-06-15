@@ -1,0 +1,1038 @@
+version: 0.1.0
+name: OS Package Bundle Installation
+description: Install curated, categorized bundles of OS packages.
+keywords:
+  - apt
+  - apk
+  - brew
+  - dnf
+  - yum
+  - zypper
+  - pacman
+  - packages
+  - bundle
+
+_long_description: >-
+  Install curated, pre-categorized bundles of OS packages with a single boolean
+  option per bundle. Each bundle is a hand-selected collection of packages
+  commonly installed together for a given purpose, with cross-platform name
+  mappings for apt (Debian/Ubuntu), apk (Alpine), brew (macOS/Linuxbrew),
+  dnf/yum (Fedora/RHEL/CentOS), zypper (openSUSE), pacman (Arch Linux), and
+  other supported package managers. Multiple bundles can be enabled in a single
+  feature invocation; each bundle is installed independently in sequence.
+
+_options:
+  installer_dir: false
+
+options:
+
+  archive_tools:
+    type: boolean
+    default: false
+    description: |-
+      Archive and compression utilities: tar (Linux only — macOS ships BSD tar),
+      zip, unzip, 7-zip (p7zip-full/p7zip), gzip, bzip2, xz-utils, zstd, and lz4.
+
+  build_tools:
+    type: boolean
+    default: false
+    description: |-
+      C/C++ build toolchain and helpers: compiler meta-package (build-essential /
+      build-base / development-tools group), cmake, autoconf, automake, libtool,
+      meson, ccache, cppcheck, swig, gdb, lldb, clang, llvm, patch, valgrind
+      (Linux only), ninja, and pkg-config.
+
+  data_tools:
+    type: boolean
+    default: false
+    description: |-
+      CLI tools for structured data wrangling: miller (CSV/TSV/JSON swiss-army
+      knife), xmlstarlet (XML/XPath/XSLT), and visidata (interactive TUI
+      spreadsheet).
+
+  database_dev:
+    type: boolean
+    default: false
+    description: |-
+      Client-side database development headers for linking: libpq-dev
+      (PostgreSQL), default-libmysqlclient-dev / mariadb-dev (MySQL/MariaDB),
+      sqlite3 CLI, and unixodbc-dev (ODBC).
+
+  database_tools:
+    type: boolean
+    default: false
+    description: |-
+      Database CLI clients: psql/pg_dump/pg_restore (PostgreSQL), mysql/mariadb
+      (MySQL/MariaDB), and redis-cli (Redis, apt only).
+
+  dev_libs:
+    type: boolean
+    default: false
+    description: |-
+      Common C/C++ development headers: compression (zlib, bzip2, xz), crypto/TLS
+      (openssl, krb5, libsodium), network (libcurl, libevent), FFI (libffi),
+      terminal (readline, ncurses), SQLite, UUID (Linux only), GLib, XML/YAML
+      (libxml2, libxslt, libyaml, expat), regex (pcre2, re2), arithmetic (gmp),
+      image formats (libpng, libjpeg-turbo, libwebp), Tcl/Tk, ImageMagick headers
+      (apt only), Python dev headers, ZeroMQ, libuv, and Boost.
+
+  dev_tools:
+    type: boolean
+    default: false
+    description: |-
+      Developer productivity tools: hyperfine (benchmarking), universal-ctags
+      (code navigation), cloc (code line counting), and tokei (fast code
+      statistics).
+
+  document_tools:
+    type: boolean
+    default: false
+    description: |-
+      Document processing and rendering: ghostscript, pandoc, poppler-utils
+      (pdftotext, pdfimages, …), graphviz, gnuplot, imagemagick, fontconfig,
+      python3-pygments (syntax highlighting), librsvg (rsvg-convert, SVG
+      rendering), and tesseract-ocr.
+
+  editors:
+    type: boolean
+    default: false
+    description: |-
+      Terminal text editors: nano, vim, and neovim.
+
+  file_utils:
+    type: boolean
+    default: false
+    description: |-
+      Modern file navigation and inspection tools: file (Linux only), tree, ncdu
+      (disk usage analyzer), fd-find (fast find replacement), bat (cat with syntax
+      highlighting), fzf (fuzzy finder), ranger, mc (Midnight Commander), eza
+      (modern ls replacement), and hexyl (hex viewer).
+
+  headless_browser:
+    type: boolean
+    default: false
+    description: |-
+      Shared libraries required for headless browser automation (apt / Linux only).
+      Installs the native shared libraries needed by Playwright, Puppeteer, and
+      Selenium when running Chromium, Firefox, or WebKit headlessly in a container.
+      Includes version-codename-aware t64 ABI variants for Ubuntu Noble and Debian
+      Trixie, and the older non-t64 variants for Focal, Jammy, Bullseye, and
+      Bookworm. No-op on non-apt systems.
+
+  man_pages:
+    type: boolean
+    default: false
+    description: |-
+      Manual pages (Linux only): man-db (the man command and page database),
+      manpages (Linux user-command pages, sections 1/5/7), and manpages-dev
+      (POSIX/C library and syscall pages, sections 2/3/4/7).
+
+  multimedia:
+    type: boolean
+    default: false
+    description: |-
+      Multimedia framework and audio codec libraries: ffmpeg (Swiss-army
+      framework), and development headers for libsndfile, opus, portaudio,
+      flac, and libvorbis.
+
+  network_tools:
+    type: boolean
+    default: false
+    description: |-
+      Network transfer and diagnostics: curl, wget, aria2 (parallel downloader),
+      rsync, gnupg, openssl, openssh-client, dnsutils (dig/nslookup/host),
+      netcat-openbsd, nmap, iputils-ping (Linux), mtr (traceroute + ping), socat,
+      iperf3, tcpdump, whois, httpie, mitmproxy, and iproute2 (Linux).
+
+  os_essentials:
+    type: boolean
+    default: false
+    description: |-
+      Core OS utilities for minimal container images (Linux only): ca-certificates,
+      sudo, tar, and tzdata; plus apt-only: locales (with en_US.UTF-8 generation),
+      netbase, init-system-helpers, lsb-release, and apt-utils.
+
+  python_dev:
+    type: boolean
+    default: false
+    description: |-
+      Python 3 package management: python3-pip (Linux only — macOS bundles pip
+      with python@3 via brew) and python3-venv (apt only — bundled with python3
+      on other distros and macOS).
+
+  sci_compute:
+    type: boolean
+    default: false
+    description: |-
+      Scientific computing libraries: libhdf5-dev, libopenblas-dev, liblapack-dev,
+      protobuf (compiler + headers), libfftw3-dev, libgsl-dev, libeigen3-dev, and
+      libboost-dev.
+
+  script_utils:
+    type: boolean
+    default: false
+    description: |-
+      Shell scripting utilities: dialog (interactive TUI dialogs), moreutils
+      (Unix pipeline utilities), bc (arithmetic), gettext/envsubst (string
+      interpolation and i18n), entr (run commands on file change), and pv
+      (pipeline throughput monitor).
+
+  shells:
+    type: boolean
+    default: false
+    description: |-
+      Additional shells not covered by dedicated install-* features: fish, ksh
+      (Korn Shell), mksh (MirBSD Korn Shell), tcsh (C Shell), dash (apt only —
+      Debian Almquist Shell), and nushell (apt, apk, brew, pacman).
+
+  sys_monitor:
+    type: boolean
+    default: false
+    description: |-
+      System monitoring tools: htop, btop, lsof, duf (modern df), glances; and
+      Linux-only: procps (ps/top/free/vmstat), psmisc (killall/pstree/fuser),
+      strace, inotify-tools, xtail, sysstat (sar/iostat/mpstat), iotop, and
+      nethogs (per-process network bandwidth).
+
+  terminal_ux:
+    type: boolean
+    default: false
+    description: |-
+      Terminal workflow enhancers: less (pager), tmux (multiplexer), zoxide
+      (smart directory jumper), and atuin (shell history database with
+      context-aware search).
+
+  text_processing:
+    type: boolean
+    default: false
+    description: |-
+      Text processing utilities: grep, sed, diffutils, ripgrep, the Silver
+      Searcher (ag/silversearcher-ag), gawk, perl, ripgrep-all (rga — searches
+      inside archives and PDFs), and pdfgrep.
+
+  vcs_tools:
+    type: boolean
+    default: false
+    description: |-
+      Version control tools beyond git: mercurial, subversion, tig (TUI git
+      interface), diffutils, git-lfs (large file storage), and git-delta
+      (syntax-highlighted diff pager).
+
+_dependencies:
+  run:
+
+    archive-tools:
+      packages:
+        # tar: fundamental archiver — Linux only; macOS ships BSD tar at /usr/bin/tar
+        - name: tar
+          when: {kernel: linux}
+        # zip archives
+        - unzip
+        - zip
+        # 7-zip
+        - name: p7zip
+          apt: p7zip-full
+        # compression formats
+        - gzip
+        - bzip2
+        - name: xz
+          apt: xz-utils
+        - zstd
+        - lz4
+
+    build-tools:
+      # compiler toolchain meta-packages — each PM uses a different name
+      apt:
+        packages:
+          - build-essential
+      apk:
+        packages:
+          - build-base
+      dnf:
+        groups:
+          - development-tools
+      yum:
+        groups:
+          - development-tools
+      # zypper uses a pattern; pacman uses a group
+      groups:
+        - name: devel_basis
+          when: {pm: zypper}
+        - name: base-devel
+          when: {pm: pacman}
+      packages:
+        # build systems
+        - cmake
+        - autoconf
+        - automake
+        - libtool
+        - meson
+        - ccache
+        # static analysis / binding generators
+        - cppcheck
+        - swig
+        # debuggers
+        - gdb
+        - name: lldb
+          brew: llvm
+        # compiler + LLVM toolchain
+        # brew 'llvm' installs clang, lldb, and IR tools in one formula
+        - name: clang
+          brew: llvm
+        - name: llvm
+          when: {kernel: linux}
+        # patching
+        - name: patch
+          brew: gpatch
+        # memory analysis — Valgrind does not run on macOS
+        - name: valgrind
+          when: {kernel: linux}
+        # build system helpers
+        - name: ninja
+          apt: ninja-build
+          dnf: ninja-build
+          yum: ninja-build
+        - name: pkgconf
+          apt: pkg-config
+          brew: pkg-config
+          dnf: pkgconf-pkg-config
+          yum: pkgconfig
+
+    data-tools:
+      packages:
+        # CSV / TSV / JSON swiss-army knife
+        - miller
+        # XML / XPath / XSLT
+        - xmlstarlet
+        # interactive terminal spreadsheet
+        - visidata
+
+    database-dev:
+      packages:
+        # PostgreSQL client library
+        - name: libpq-dev
+          brew: libpq
+          # apk name is also 'libpq-dev' — no override needed
+          dnf: libpq-devel
+          yum: postgresql-devel
+          zypper: postgresql-devel
+          pacman: postgresql-libs
+        # MySQL / MariaDB client library
+        - name: default-libmysqlclient-dev
+          brew: mysql-client
+          apk: mariadb-dev
+          dnf: mariadb-connector-c-devel
+          yum: mariadb-devel
+          zypper: mariadb-devel
+          pacman: mariadb-libs
+        # SQLite CLI — dev headers (libsqlite3-dev) live in the dev-libs bundle
+        - name: sqlite
+          apt: sqlite3
+          zypper: sqlite3
+        # ODBC
+        - name: unixodbc-dev
+          brew: unixodbc
+          dnf: unixODBC-devel
+          yum: unixODBC-devel
+          zypper: unixodbc-devel
+          pacman: unixodbc
+
+    database-tools:
+      packages:
+        # PostgreSQL client (psql, pg_dump, pg_restore …)
+        - name: postgresql
+          apt: postgresql-client
+          apk: postgresql-client
+          brew: libpq
+        # MySQL / MariaDB client
+        - name: default-mysql-client
+          brew: mysql-client
+          apk: mariadb-client
+          dnf: mariadb
+          yum: mariadb
+          zypper: mariadb-client
+          pacman: mariadb-clients
+        # Redis CLI — apt only (other PMs ship the full redis server as 'redis')
+        - name: redis
+          apt: redis-tools
+
+    dev-libs:
+      packages:
+        # ── Compression ────────────────────────────────────────────────────────
+        - name: zlib-devel
+          apt: zlib1g-dev
+          brew: zlib
+          apk: zlib-dev
+          pacman: zlib
+        - name: bzip2-devel
+          apt: libbz2-dev
+          brew: bzip2
+          apk: bzip2-dev
+          zypper: libbz2-devel
+          pacman: bzip2
+        - name: xz-devel
+          apt: liblzma-dev
+          brew: xz
+          apk: xz-dev
+          pacman: xz
+        # ── Crypto / TLS ───────────────────────────────────────────────────────
+        - name: openssl-devel
+          apt: libssl-dev
+          brew: openssl@3
+          apk: openssl-dev
+          zypper: libopenssl-devel
+          pacman: openssl
+        - name: krb5-devel
+          apt: libkrb5-dev
+          brew: krb5
+          apk: krb5-dev
+          pacman: krb5
+        # ── Secret storage ─────────────────────────────────────────────────────
+        - name: libsecret-devel
+          apt: libsecret-1-dev
+          brew: libsecret
+          apk: libsecret-dev
+          pacman: libsecret
+        # ── Network / HTTP ─────────────────────────────────────────────────────
+        - name: libcurl-devel
+          apt: libcurl4-openssl-dev
+          brew: curl
+          apk: curl-dev
+          pacman: curl
+        - name: libevent-devel
+          apt: libevent-dev
+          apk: libevent-dev
+          brew: libevent
+          pacman: libevent
+        # ── FFI / Dynamic loading ──────────────────────────────────────────────
+        - name: libffi-devel
+          apt: libffi-dev
+          apk: libffi-dev
+          brew: libffi
+          pacman: libffi
+        # ── Terminal / readline ────────────────────────────────────────────────
+        - name: readline-devel
+          apt: libreadline-dev
+          brew: readline
+          apk: readline-dev
+          pacman: readline
+        - name: ncurses-devel
+          apt: libncurses-dev
+          brew: ncurses
+          apk: ncurses-dev
+          pacman: ncurses
+        # ── SQLite dev headers ─────────────────────────────────────────────────
+        - name: sqlite-devel
+          apt: libsqlite3-dev
+          brew: sqlite
+          apk: sqlite-dev
+          zypper: sqlite3-devel
+          pacman: sqlite
+        # ── UUID ───────────────────────────────────────────────────────────────
+        # macOS provides UUID in the system SDK; install only on Linux
+        - name: libuuid-devel
+          when: {kernel: linux}
+          apt: uuid-dev
+          apk: util-linux-dev
+          pacman: util-linux
+        # ── GLib ───────────────────────────────────────────────────────────────
+        - name: glib2-devel
+          apt: libglib2.0-dev
+          brew: glib
+          apk: glib-dev
+          pacman: glib2
+        # ── XML / Parsing ──────────────────────────────────────────────────────
+        - name: libxml2-devel
+          apt: libxml2-dev
+          brew: libxml2
+          apk: libxml2-dev
+          pacman: libxml2
+        - name: libxslt-devel
+          apt: libxslt1-dev
+          brew: libxslt
+          apk: libxslt-dev
+          pacman: libxslt
+        - name: libyaml-devel
+          apt: libyaml-dev
+          brew: libyaml
+          apk: yaml-dev
+          pacman: libyaml
+        - name: expat-devel
+          apt: libexpat1-dev
+          brew: expat
+          apk: expat-dev
+          zypper: libexpat-devel
+          pacman: expat
+        # ── Regular expressions ────────────────────────────────────────────────
+        - name: pcre2-devel
+          apt: libpcre2-dev
+          brew: pcre2
+          apk: pcre2-dev
+          pacman: pcre2
+        # ── Arbitrary-precision arithmetic ─────────────────────────────────────
+        - name: gmp-devel
+          apt: libgmp-dev
+          brew: gmp
+          apk: gmp-dev
+          pacman: gmp
+        # ── Image formats ──────────────────────────────────────────────────────
+        - name: libpng-devel
+          apt: libpng-dev
+          brew: libpng
+          apk: libpng-dev
+          zypper: libpng16-compat-devel
+          pacman: libpng
+        - name: libjpeg-turbo-devel
+          apt: libjpeg-dev
+          brew: libjpeg-turbo
+          apk: libjpeg-turbo-dev
+          zypper: libjpeg8-devel
+          pacman: libjpeg-turbo
+        - name: libwebp-devel
+          apt: libwebp-dev
+          brew: webp
+          apk: libwebp-dev
+          pacman: libwebp
+        # ── Tcl/Tk GUI toolkit ─────────────────────────────────────────────────
+        - name: tk-devel
+          apt: tk-dev
+          brew: tcl-tk@8
+          apk: tk-dev
+          pacman: tk
+        # ── Modern cryptography ────────────────────────────────────────────────
+        - name: libsodium-devel
+          apt: libsodium-dev
+          apk: libsodium-dev
+          brew: libsodium
+          pacman: libsodium
+        # ── ImageMagick dev headers (apt only; other PMs bundle headers) ────────
+        - name: libmagickcore-dev
+          when: {pm: apt}
+        - name: libmagickwand-dev
+          when: {pm: apt}
+        # ── Python development headers ─────────────────────────────────────────
+        # Required for building Python C extensions
+        - name: python3-devel
+          apt: python3-dev
+          apk: python3-dev
+          brew: python@3
+          pacman: python
+        # ── Messaging / async I/O ──────────────────────────────────────────────
+        - name: zeromq-devel
+          apt: libzmq3-dev
+          brew: zeromq
+          apk: zeromq-dev
+          pacman: zeromq
+        - name: libuv-devel
+          apt: libuv1-dev
+          brew: libuv
+          apk: libuv-dev
+          pacman: libuv
+        # ── Regular expressions (RE2) ──────────────────────────────────────────
+        - name: re2-devel
+          apt: libre2-dev
+          brew: re2
+          apk: re2-dev
+          pacman: re2
+
+    dev-tools:
+      packages:
+        # benchmarking
+        - hyperfine
+        # code navigation
+        - name: ctags
+          apt: universal-ctags
+          brew: universal-ctags
+        # code metrics
+        - cloc
+        # fast code statistics
+        - tokei
+
+    document-tools:
+      packages:
+        # PostScript / PDF
+        - ghostscript
+        # document conversion
+        - pandoc
+        # PDF utilities (pdfimages, pdftotext, pdftoppm, pdfinfo, …)
+        - name: poppler-utils
+          brew: poppler
+          zypper: poppler-tools
+          pacman: poppler
+        # graph / diagram rendering
+        - graphviz
+        # plotting — gnuplot-nox is the headless (no-X11) variant on apt
+        - name: gnuplot
+          apt: gnuplot-nox
+        # image manipulation — capitalised on dnf, yum, zypper
+        - name: imagemagick
+          dnf: ImageMagick
+          yum: ImageMagick
+          zypper: ImageMagick
+        # font infrastructure
+        - fontconfig
+        # syntax highlighting
+        - name: python3-pygments
+          brew: pygments
+          apk: py3-pygments
+          zypper: python3-Pygments
+          pacman: python-pygments
+        # SVG rendering (rsvg-convert)
+        - name: librsvg
+          apt: librsvg2-bin
+          dnf: librsvg2-tools
+          yum: librsvg2-tools
+          zypper: rsvg-convert
+        # OCR
+        - name: tesseract
+          apt: tesseract-ocr
+          apk: tesseract-ocr
+          zypper: tesseract-ocr
+
+    editors:
+      packages:
+        - nano
+        - vim
+        - neovim
+
+    file-utils:
+      packages:
+        # file type identification — Linux only; macOS provides /usr/bin/file
+        - name: file
+          when: {kernel: linux}
+        # directory listing
+        - tree
+        # disk usage analysis
+        - ncdu
+        # fast find replacement
+        # apt installs binary as 'fdfind'; all other PMs install as 'fd'
+        - name: fd-find
+          brew: fd
+          apk: fd
+          dnf: fd-find
+          zypper: fd
+          pacman: fd
+        # modern cat with syntax highlighting
+        # apt installs binary as 'batcat'; all other PMs install as 'bat'
+        - bat
+        # fuzzy finder
+        - fzf
+        # terminal file managers
+        - ranger
+        - name: mc
+          brew: midnight-commander
+        # modern ls replacement
+        - eza
+        # hex viewer
+        - hexyl
+
+    headless-browser:
+      # All packages in this bundle are Linux/apt-only.
+      # Browser automation frameworks (Playwright, Puppeteer, Selenium) require
+      # these native shared libraries when running Chromium, Firefox, or WebKit
+      # in headless mode inside a container.
+      when: {pm: apt}
+      packages:
+        # packages with the same name on all supported Ubuntu/Debian versions
+        - libcairo2
+        - libcairo-gobject2
+        - libdbus-1-3
+        - libdbus-glib-1-2
+        - libdrm2
+        - libgbm1
+        - libgdk-pixbuf-2.0-0
+        - libnspr4
+        - libnss3
+        - libpango-1.0-0
+        - libpangocairo-1.0-0
+        - libwayland-client0
+        - libx11-6
+        - libx11-xcb1
+        - libxcb1
+        - libxcb-shm0
+        - libxcomposite1
+        - libxcursor1
+        - libxdamage1
+        - libxext6
+        - libxfixes3
+        - libxi6
+        - libxkbcommon0
+        - libxrandr2
+        - libxrender1
+        - libxtst6
+        # Ubuntu Noble (24.04) and Debian Trixie (13) — t64 ABI variants
+        # these distros transitioned to 64-bit time_t
+        - name: libasound2t64
+          when: {version_codename: [noble, trixie]}
+        - name: libatk-bridge2.0-0t64
+          when: {version_codename: [noble, trixie]}
+        - name: libatk1.0-0t64
+          when: {version_codename: [noble, trixie]}
+        - name: libatspi2.0-0t64
+          when: {version_codename: [noble, trixie]}
+        - name: libcups2t64
+          when: {version_codename: [noble, trixie]}
+        - name: libglib2.0-0t64
+          when: {version_codename: [noble, trixie]}
+        - name: libgtk-3-0t64
+          when: {version_codename: [noble, trixie]}
+        # Ubuntu Focal (20.04), Jammy (22.04), Debian Bullseye (11), Bookworm (12)
+        - name: libasound2
+          when: {version_codename: [focal, jammy, bullseye, bookworm]}
+        - name: libatk-bridge2.0-0
+          when: {version_codename: [focal, jammy, bullseye, bookworm]}
+        - name: libatk1.0-0
+          when: {version_codename: [focal, jammy, bullseye, bookworm]}
+        - name: libatspi2.0-0
+          when: {version_codename: [focal, jammy, bullseye, bookworm]}
+        - name: libcups2
+          when: {version_codename: [focal, jammy, bullseye, bookworm]}
+        - name: libglib2.0-0
+          when: {version_codename: [focal, jammy, bullseye, bookworm]}
+        - name: libgtk-3-0
+          when: {version_codename: [focal, jammy, bullseye, bookworm]}
+
+    man-pages:
+      packages:
+        # man-db: man command and manual page database — Linux only
+        - name: man-db
+          when: {kernel: linux}
+          zypper: man
+        # manpages: Linux manual pages for user commands (sections 1, 5, 7)
+        - name: manpages
+          when: {kernel: linux}
+          dnf: man-pages
+          yum: man-pages
+          zypper: man-pages
+          pacman: man-pages
+        # manpages-dev: POSIX/C library/syscall man pages (sections 2, 3, 4, 7)
+        - name: manpages-dev
+          when: {kernel: linux}
+          dnf: man-pages
+          yum: man-pages
+          zypper: man-pages
+          pacman: man-pages
+
+    multimedia:
+      packages:
+        # Swiss-army multimedia framework
+        - ffmpeg
+        # audio file I/O
+        - name: libsndfile-devel
+          apt: libsndfile1-dev
+          brew: libsndfile
+          apk: libsndfile-dev
+          pacman: libsndfile
+        # Opus audio codec
+        - name: opus-devel
+          apt: libopus-dev
+          brew: opus
+          apk: opus-dev
+          zypper: libopus-devel
+          pacman: opus
+        # PortAudio (cross-platform audio I/O)
+        - name: portaudio-devel
+          apt: portaudio19-dev
+          brew: portaudio
+          apk: portaudio-dev
+          pacman: portaudio
+        # FLAC audio codec
+        - name: flac-devel
+          apt: libflac-dev
+          brew: flac
+          apk: flac-dev
+          pacman: flac
+        # Ogg Vorbis audio codec
+        - name: libvorbis-devel
+          apt: libvorbis-dev
+          brew: libvorbis
+          apk: libvorbis-dev
+          pacman: libvorbis
+
+    network-tools:
+      packages:
+        # HTTP / file transfer
+        - curl
+        - wget
+        # parallel multi-protocol downloader
+        - aria2
+        # remote sync
+        - rsync
+        # cryptography / key management
+        - name: gnupg
+          dnf: gnupg2
+          yum: gnupg2
+          zypper: gpg2
+        # TLS / certificate tooling
+        - openssl
+        # secure shell client
+        - name: openssh-client
+          brew: openssh
+          dnf: openssh-clients
+          yum: openssh-clients
+          zypper: openssh
+          pacman: openssh
+        # DNS utilities (dig, nslookup, host)
+        - name: dnsutils
+          brew: bind
+          apk: bind-tools
+          dnf: bind-utils
+          yum: bind-utils
+          zypper: bind-utils
+          pacman: bind
+        # TCP/UDP connection testing
+        - name: netcat-openbsd
+          brew: netcat
+          dnf: nmap-ncat
+          yum: nmap-ncat
+          zypper: ncat
+          pacman: openbsd-netcat
+        # port scanner / host discovery
+        - nmap
+        # ICMP ping — Linux only; macOS ships ping as a system tool
+        - name: iputils
+          when: {kernel: linux}
+          apt: iputils-ping
+        # network diagnostics — mtr-tiny is the headless (no GTK) variant on apt
+        - name: mtr
+          apt: mtr-tiny
+        # multipurpose relay
+        - socat
+        # bandwidth measurement
+        - iperf3
+        # packet capture
+        - tcpdump
+        # WHOIS domain lookups
+        - whois
+        # human-friendly HTTP client
+        - name: httpie
+          pacman: python-httpie
+        # interactive TLS intercepting proxy
+        - mitmproxy
+        # network interface and routing — Linux only
+        - name: iproute2
+          when: {kernel: linux}
+          dnf: iproute
+          yum: iproute
+
+    os-essentials:
+      packages:
+        # ── Cross-platform (Linux only) ────────────────────────────────────────
+        # ca-certificates: trusted CA certs for HTTPS/TLS; macOS ships its own
+        - name: ca-certificates
+          when: {kernel: linux}
+        # sudo: run commands as root; macOS ships its own
+        - name: sudo
+          when: {kernel: linux}
+        # tar: archiving utility; macOS ships BSD tar
+        - name: tar
+          when: {kernel: linux}
+        # tzdata: time zone data; macOS ships its own
+        - name: tzdata
+          when: {kernel: linux}
+          zypper: timezone
+        # ── Apt-only ───────────────────────────────────────────────────────────
+        # locales: locale data and locale-gen utility
+        - name: locales
+          when: {pm: apt}
+          script: |
+            if ! grep -o -E '^\s*en_US.UTF-8\s+UTF-8' /etc/locale.gen > /dev/null; then
+                echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen;
+                locale-gen;
+            fi
+        # netbase: /etc/services, /etc/protocols, /etc/rpc
+        - name: netbase
+          when: {pm: apt}
+        # init-system-helpers: service/invoke-rc.d shims for init system compat
+        - name: init-system-helpers
+          when: {pm: apt}
+        # lsb-release: lsb_release command for distro identification
+        - name: lsb-release
+          when: {pm: [apt, zypper, pacman]}
+        # apt-utils: APT internal utilities (progress reporting, etc.)
+        - name: apt-utils
+          when: {pm: apt}
+
+    python-dev:
+      packages:
+        # python3-pip: pip package manager
+        # macOS bundles pip with python@3 via brew; no separate package needed
+        - name: python3-pip
+          when: {kernel: linux}
+          apk: py3-pip
+          dnf: python3-pip
+          yum: python3-pip
+          zypper: python3-pip
+          pacman: python-pip
+        # python3-venv: venv module for creating virtual environments
+        # on Ubuntu Noble, venv is NOT bundled with python3 — must be installed separately
+        # on other Linux distros and macOS, venv is included with the python3 package
+        - name: python3-venv
+          when: {pm: apt}
+
+    sci-compute:
+      packages:
+        # HDF5 (array/dataset storage)
+        - name: hdf5-devel
+          apt: libhdf5-dev
+          brew: hdf5
+          apk: hdf5-dev
+          pacman: hdf5
+        # linear algebra (BLAS / LAPACK)
+        - name: openblas-devel
+          apt: libopenblas-dev
+          brew: openblas
+          apk: openblas-dev
+          pacman: openblas
+        - name: lapack-devel
+          apt: liblapack-dev
+          brew: lapack
+          apk: lapack-dev
+          pacman: lapack
+        # Protocol Buffers — both entries map to 'protobuf' formula on Homebrew
+        - name: protobuf-devel
+          apt: libprotobuf-dev
+          brew: protobuf
+          apk: protobuf-dev
+          pacman: protobuf
+        - name: protobuf
+          apt: protobuf-compiler
+          dnf: protobuf-compiler
+          yum: protobuf-compiler
+        # Fourier analysis
+        - name: fftw-devel
+          apt: libfftw3-dev
+          brew: fftw
+          apk: fftw-dev
+          zypper: fftw3-devel
+          pacman: fftw
+        # GNU Scientific Library
+        - name: gsl-devel
+          apt: libgsl-dev
+          brew: gsl
+          apk: gsl-dev
+          pacman: gsl
+        # Eigen (C++ linear algebra, header-only)
+        - name: eigen3-devel
+          apt: libeigen3-dev
+          brew: eigen
+          apk: eigen-dev
+          pacman: eigen
+        # Boost C++ libraries
+        - name: boost-devel
+          apt: libboost-dev
+          brew: boost
+          apk: boost-dev
+          pacman: boost
+
+    script-utils:
+      packages:
+        # interactive TUI dialogs
+        - dialog
+        # Unix pipeline utilities
+        - moreutils
+        # arithmetic
+        - bc
+        # envsubst: substitute environment variables in text templates
+        - gettext
+        # run commands on file change
+        - entr
+        # monitor data throughput in pipelines
+        - pv
+
+    shells:
+      packages:
+        - fish
+        - ksh
+        - mksh
+        - tcsh
+        # dash: Debian Almquist Shell — Linux/apt only; macOS has /bin/sh
+        - name: dash
+          when: {pm: apt}
+        # nushell: modern shell — not available on dnf/zypper
+        - name: nushell
+          when: {pm: [apt, apk, brew, pacman]}
+
+    sys-monitor:
+      packages:
+        # cross-platform
+        - htop
+        - btop
+        - lsof
+        # Linux-only
+        # procps: ps, top, free, vmstat, uptime, pgrep, pkill
+        - name: procps
+          when: {kernel: linux}
+          dnf: procps-ng
+          yum: procps-ng
+          pacman: procps-ng
+        # psmisc: killall, fuser, pstree, pmap
+        - name: psmisc
+          when: {kernel: linux}
+        # strace: system call tracer
+        - name: strace
+          when: {kernel: linux}
+        # inotify-tools: inotifywait / inotifywatch
+        - name: inotify-tools
+          when: {kernel: linux}
+        # xtail: tail multiple files simultaneously, survives log rotation
+        - name: xtail
+          when: {kernel: linux}
+        # sysstat: sar, iostat, mpstat, pidstat
+        - name: sysstat
+          when: {kernel: linux}
+        # iotop: per-process I/O monitoring
+        - name: iotop
+          when: {kernel: linux}
+        # nethogs: per-process network bandwidth monitoring
+        - name: nethogs
+          when: {kernel: linux}
+        # duf: modern df — disk usage/free with clean table output
+        - duf
+        # glances: cross-platform curses system monitor
+        - glances
+
+    terminal-ux:
+      packages:
+        # pager
+        - less
+        # terminal multiplexer
+        - tmux
+        # smart directory jumping
+        - zoxide
+        # shell history database with context-aware search
+        - atuin
+
+    text-processing:
+      packages:
+        # POSIX text utilities (ensure present in minimal images)
+        - grep
+        - sed
+        # file comparison
+        - diffutils
+        # fast grep replacements
+        - ripgrep
+        - name: the_silver_searcher
+          apt: silversearcher-ag
+        # enhanced awk
+        - gawk
+        # scripting language for text processing one-liners
+        - perl
+        # ripgrep extended to search inside PDFs, archives, and Office docs
+        - ripgrep-all
+        # PDF text search
+        - pdfgrep
+
+    vcs-tools:
+      packages:
+        # Mercurial and Subversion have the same package name on all PMs
+        - mercurial
+        - subversion
+        # TUI git interface
+        - tig
+        # file comparison
+        - diffutils
+        # Git large file storage
+        - git-lfs
+        # syntax-highlighted git diff pager
+        - git-delta
