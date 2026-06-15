@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-# shellcheck disable=SC2329,SC2317
+# shellcheck disable=SC2034,SC2329,SC2317
 __init_args_post() {
   # install.sh may have bootstrapped bash (via PM or source compile) as an
   # implementation detail to run this feature script.  That bootstrap is invisible to
@@ -9,7 +9,7 @@ __init_args_post() {
   # whether if_exists is skip/fail/reinstall.  The override only fires when bootstrap
   # vars are present; if the user genuinely had bash before, neither variable is set
   # and if_exists behaves normally.
-  if [[ -n "${_BASH_INSTALLED_BY_PM:-}" ]] || [[ -n "${_BASH_BIN:-}" ]]; then
+  if [[ -n "${_BASH_INSTALLED_BY_PM:-}" ]] || [[ -n "${_BASH_INSTALLED_INTERNALLY:-}" ]]; then
     IF_EXISTS="reinstall"
   fi
 }
