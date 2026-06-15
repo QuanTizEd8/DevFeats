@@ -34,7 +34,7 @@ class TestHeader:
         """Shebang and set -e appear in generated output."""
         _, g = _load_group("my_test:\n  checks:\n    - title: t\n      cmd: true\n")
         out = _render_group("my_test", g)
-        assert out.startswith("#!/bin/bash\n")
+        assert out.startswith("#!/usr/bin/env bash\n")
         assert "set -e\n" in out
 
     def test_source_line(self) -> None:
@@ -55,7 +55,7 @@ class TestHeader:
         out = _render_group("t", g)
         # No extra comment lines before the AUTO-GENERATED marker.
         lines = out.splitlines()
-        assert lines[0] == "#!/bin/bash"
+        assert lines[0] == "#!/usr/bin/env bash"
         assert lines[1] == "# AUTO-GENERATED from checks.yaml \u2014 DO NOT EDIT"
 
     def test_description_appears_before_marker(self) -> None:
@@ -354,7 +354,7 @@ class TestGenerateTests:
         out_dir = tmp_path / "tests"
         generate_tests("feat", checks_yaml, out_dir)
         content = (out_dir / "my_test.sh").read_text(encoding="utf-8")
-        assert content.startswith("#!/bin/bash\n")
+        assert content.startswith("#!/usr/bin/env bash\n")
         assert 'check "pass" true\n' in content
         assert content.endswith("\nreportResults\n")
 

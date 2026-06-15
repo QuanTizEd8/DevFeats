@@ -102,7 +102,7 @@ def _render_group(test_id: str, group: dict[str, Any]) -> str:  # noqa: ARG001
     on_failure = (group.get("on_failure") or "").rstrip("\n")
     checks: list[dict[str, Any]] = group["checks"]
 
-    shebang = f"#!/bin/{shell}"
+    shebang = f"#!/usr/bin/env {shell}"
 
     sections: list[str] = []
 
