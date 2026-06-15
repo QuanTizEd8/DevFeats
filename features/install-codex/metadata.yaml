@@ -8,9 +8,10 @@ keywords:
   - llm
   - coding-agent
 _long_description: |-
-  Installs the Codex CLI (`codex`), OpenAI's local AI coding agent for the terminal.
-  Supports npm global install (requires Node.js on PATH), the official standalone
-  installer script (no Node.js required, Linux/macOS), and Homebrew cask on macOS.
+  Installs the Codex CLI (`codex`), OpenAI's AI coding agent for the terminal.
+  Supports npm global install (requires Node.js), npm-bundled (self-contained, no
+  system Node.js required), a minimal direct binary download from GitHub releases,
+  and Homebrew cask on macOS.
 
   In devcontainer environments, optionally symlinks a workspace `.codex` directory
   to `~/.codex` at container creation time so that Codex configuration and auth state
@@ -28,15 +29,19 @@ _options:
   installer_dir: false
   gh_repo: openai/codex
   version:
-    resolution: npm
-    default: latest
-    inputs: [latest, semver]
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
     proposals:
       - value: 0.130.0
         description: Codex CLI v0.130.0.
   method:
-    script:
-      asset_uri: "https://github.com/openai/codex/releases/download/{TAG}/install.sh"
+    binary:
+      asset_uri: "https://github.com/openai/codex/releases/download/{TAG}/codex-{RUST_TRIPLE}.tar.gz"
+      when: {arch: [amd64, arm64]}
+    npm-bundled:
+      package: "@openai/codex"
+      cmd: codex
     npm:
       package: "@openai/codex"
     package:
@@ -44,7 +49,7 @@ _options:
   prefix:
     bins: [codex]
     applies_when:
-      - method: [npm]
+      - method: [binary, npm-bundled, npm]
 
 options:
   config_dir:
@@ -118,3 +123,11 @@ _dependencies:
     base:
       packages:
         - ca-certificates
+        - ripgrep
+        - name: bubblewrap
+          when:
+            kernel: linux
+    os-pkg:
+      brew:
+        casks:
+          - codex

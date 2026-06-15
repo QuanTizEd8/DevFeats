@@ -1,0 +1,92 @@
+defaults:
+  modes: [devcontainer]
+
+# ── binary method ──────────────────────────────────────────────────────────────
+
+binary_latest:
+  envs: [ubuntu-24.04]
+  options:
+    method: binary
+  tests: [binary_latest]
+
+binary_specific_version:
+  envs: [ubuntu-24.04]
+  options:
+    method: binary
+    version: "0.130.0"
+  tests: [binary_specific_version]
+
+# ── npm-bundled method ─────────────────────────────────────────────────────────
+
+npm_bundled:
+  envs: [ubuntu-24.04]
+  options:
+    method: npm-bundled
+  tests: [npm_bundled]
+
+# ── npm method ─────────────────────────────────────────────────────────────────
+
+# npm is not available by default on ubuntu-24.04; the setup block pre-installs it
+# so the feature can use system npm rather than bootstrapping its own.
+npm_system:
+  envs: [ubuntu-24.04]
+  setup: |
+    apt-get update -y && apt-get install -y nodejs npm
+  options:
+    method: npm
+  tests: [npm_system]
+
+# ── auto method ────────────────────────────────────────────────────────────────
+
+# method=auto on a minimal Ubuntu image (no npm or brew) → resolves to npm-bundled.
+auto_npm_bundled:
+  envs: [ubuntu-24.04]
+  options:
+    method: auto
+  tests: [auto_npm_bundled]
+
+# method=auto with npm pre-installed → resolves to npm.
+auto_npm:
+  envs: [ubuntu-24.04]
+  setup: |
+    apt-get update -y && apt-get install -y nodejs npm
+  options:
+    method: auto
+  tests: [auto_npm]
+
+# ── if_exists behaviour ────────────────────────────────────────────────────────
+
+if_exists_skip:
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "9.9.9"\n' > /usr/local/bin/codex
+    chmod +x /usr/local/bin/codex
+  options:
+    method: binary
+    if_exists: skip
+  tests: [if_exists_skip]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "9.9.9"\n' > /usr/local/bin/codex
+    chmod +x /usr/local/bin/codex
+  options:
+    method: binary
+    if_exists: fail
+  tests: [if_exists_fail]
+
+# ── validation ─────────────────────────────────────────────────────────────────
+
+invalid_method:
+  expect_install_failure: true
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  options:
+    method: invalid
+  tests: [invalid_method]
