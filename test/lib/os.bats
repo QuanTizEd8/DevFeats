@@ -513,6 +513,234 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# os__release_kernel
+# ---------------------------------------------------------------------------
+
+@test "os__release_kernel returns freebsd for FreeBSD kernel" {
+  reload_lib os.sh
+  _OS__KERNEL="FreeBSD"
+  run os__release_kernel
+  assert_success
+  assert_output "freebsd"
+}
+
+@test "os__release_kernel returns linux for Linux kernel" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__release_kernel
+  assert_success
+  assert_output "linux"
+}
+
+@test "os__release_kernel returns darwin for Darwin with github flavor" {
+  reload_lib os.sh
+  _OS__KERNEL="Darwin"
+  run os__release_kernel github
+  assert_success
+  assert_output "darwin"
+}
+
+@test "os__release_kernel returns 1 for unsupported kernel" {
+  reload_lib os.sh
+  _OS__KERNEL="SunOS"
+  run os__release_kernel
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# os__libc
+# ---------------------------------------------------------------------------
+
+@test "os__libc returns 1 on non-Linux (Darwin)" {
+  reload_lib os.sh
+  _OS__KERNEL="Darwin"
+  run os__libc
+  assert_failure
+}
+
+@test "os__libc returns musl when ldd output contains musl" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  # Stub ldd to return musl-style output (ls glob will fail on glibc host)
+  ldd() { printf '/lib/ld-musl-x86_64.so.1 (0x7f000000)\n'; }
+  export -f ldd
+  run os__libc
+  assert_success
+  assert_output "musl"
+}
+
+@test "os__libc returns gnu when no musl markers are present" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  ldd() { printf '/lib/x86_64-linux-gnu/libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6\n/lib64/ld-linux-x86-64.so.2\n'; }
+  export -f ldd
+  run os__libc
+  assert_success
+  assert_output "gnu"
+}
+
+# ---------------------------------------------------------------------------
+# os__rust_triple
+# ---------------------------------------------------------------------------
+
+@test "os__rust_triple returns x86_64-unknown-linux-musl for Linux x86_64" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple x86_64
+  assert_success
+  assert_output "x86_64-unknown-linux-musl"
+}
+
+@test "os__rust_triple accepts amd64 alias for Linux" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple amd64
+  assert_success
+  assert_output "x86_64-unknown-linux-musl"
+}
+
+@test "os__rust_triple returns i686-unknown-linux-musl for Linux i686" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple i686
+  assert_success
+  assert_output "i686-unknown-linux-musl"
+}
+
+@test "os__rust_triple returns i686-unknown-linux-musl for Linux i386" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple i386
+  assert_success
+  assert_output "i686-unknown-linux-musl"
+}
+
+@test "os__rust_triple returns aarch64-unknown-linux-musl for Linux aarch64" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple aarch64
+  assert_success
+  assert_output "aarch64-unknown-linux-musl"
+}
+
+@test "os__rust_triple accepts arm64 alias for Linux" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple arm64
+  assert_success
+  assert_output "aarch64-unknown-linux-musl"
+}
+
+@test "os__rust_triple returns arm-unknown-linux-musleabihf for Linux armv6l" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple armv6l
+  assert_success
+  assert_output "arm-unknown-linux-musleabihf"
+}
+
+@test "os__rust_triple returns armv7-unknown-linux-musleabihf for Linux armv7l" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple armv7l
+  assert_success
+  assert_output "armv7-unknown-linux-musleabihf"
+}
+
+@test "os__rust_triple returns loongarch64-unknown-linux-musl for Linux loongarch64" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple loongarch64
+  assert_success
+  assert_output "loongarch64-unknown-linux-musl"
+}
+
+@test "os__rust_triple returns powerpc64le-unknown-linux-gnu for Linux ppc64le" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple ppc64le
+  assert_success
+  assert_output "powerpc64le-unknown-linux-gnu"
+}
+
+@test "os__rust_triple returns s390x-unknown-linux-gnu for Linux s390x" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple s390x
+  assert_success
+  assert_output "s390x-unknown-linux-gnu"
+}
+
+@test "os__rust_triple returns riscv64gc-unknown-linux-musl for Linux riscv64 on musl" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  os__libc() { printf 'musl\n'; }
+  export -f os__libc
+  run os__rust_triple riscv64
+  assert_success
+  assert_output "riscv64gc-unknown-linux-musl"
+}
+
+@test "os__rust_triple returns riscv64gc-unknown-linux-gnu for Linux riscv64 on glibc" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  os__libc() { printf 'gnu\n'; }
+  export -f os__libc
+  run os__rust_triple riscv64
+  assert_success
+  assert_output "riscv64gc-unknown-linux-gnu"
+}
+
+@test "os__rust_triple returns x86_64-apple-darwin for Darwin x86_64" {
+  reload_lib os.sh
+  _OS__KERNEL="Darwin"
+  run os__rust_triple x86_64
+  assert_success
+  assert_output "x86_64-apple-darwin"
+}
+
+@test "os__rust_triple returns aarch64-apple-darwin for Darwin aarch64" {
+  reload_lib os.sh
+  _OS__KERNEL="Darwin"
+  run os__rust_triple aarch64
+  assert_success
+  assert_output "aarch64-apple-darwin"
+}
+
+@test "os__rust_triple accepts arm64 alias for Darwin" {
+  reload_lib os.sh
+  _OS__KERNEL="Darwin"
+  run os__rust_triple arm64
+  assert_success
+  assert_output "aarch64-apple-darwin"
+}
+
+@test "os__rust_triple returns x86_64-unknown-freebsd for FreeBSD x86_64" {
+  reload_lib os.sh
+  _OS__KERNEL="FreeBSD"
+  run os__rust_triple x86_64
+  assert_success
+  assert_output "x86_64-unknown-freebsd"
+}
+
+@test "os__rust_triple detects 32-bit x86 userland on a 64-bit kernel via getconf" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  getconf() { printf '32\n'; }
+  export -f getconf
+  run os__rust_triple x86_64
+  assert_success
+  assert_output "i686-unknown-linux-musl"
+}
+
+@test "os__rust_triple returns 1 for unsupported kernel/arch combination" {
+  reload_lib os.sh
+  _OS__KERNEL="Linux"
+  run os__rust_triple mips
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
 # os__match_spec
 # ---------------------------------------------------------------------------
 

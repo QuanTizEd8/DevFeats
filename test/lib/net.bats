@@ -114,6 +114,45 @@ EOF
   [[ "$_NET__FETCH_TOOL" == "curl" ]]
 }
 
+@test "_net__ensure_fetch_tool skips snap-packaged curl and falls back to wget" {
+  reload_lib net.sh
+  # Override 'command' so that curl appears to live under /snap/ (sandboxed).
+  # The snap check is: case "$(command -v curl)" in /snap/*).
+  command() {
+    if [[ "$1" == "-v" && "${2:-}" == "curl" ]]; then
+      echo "/snap/bin/curl"
+      return 0
+    fi
+    builtin command "$@"
+  }
+  export -f command
+  create_fake_bin "wget" ""
+  prepend_fake_bin_path
+  bootstrap__ca_certs() { return 0; }
+  export -f bootstrap__ca_certs
+  _net__ensure_fetch_tool
+  [[ "$_NET__FETCH_TOOL" == "wget" ]]
+}
+
+@test "_net__ensure_fetch_tool emits a warning when snap curl is detected" {
+  reload_lib net.sh
+  command() {
+    if [[ "$1" == "-v" && "${2:-}" == "curl" ]]; then
+      echo "/snap/bin/curl"
+      return 0
+    fi
+    builtin command "$@"
+  }
+  export -f command
+  create_fake_bin "wget" ""
+  prepend_fake_bin_path
+  bootstrap__ca_certs() { return 0; }
+  export -f bootstrap__ca_certs
+  run _net__ensure_fetch_tool
+  assert_success
+  assert_output --partial "snap"
+}
+
 # ---------------------------------------------------------------------------
 # _net__ensure_ca_certs  (caching and Darwin short-circuit)
 # ---------------------------------------------------------------------------

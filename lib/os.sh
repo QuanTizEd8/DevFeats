@@ -89,7 +89,7 @@ os__release_kernel() {
   # Maps the result of `os__kernel` to the token used by release asset naming
   # conventions. Returns 1 with a logged error for unsupported kernels or flavors.
   #
-  # Flavor `github` (default): `linux` or `darwin` — standard GitHub releases.
+  # Flavor `github` (default): `linux`, `darwin`, or `freebsd` — standard GitHub releases.
   # Flavor `gh`:               `linux` or `macOS`  — GitHub CLI asset naming.
   # Flavor `macos`:            `linux` or `macos`  — tools that use "macos" for Darwin (e.g. jq ≥1.7).
   # Flavor `osx`:              `linux` or `osx`    — tools that use "osx" for Darwin (e.g. jq <1.7).
@@ -111,6 +111,7 @@ os__release_kernel() {
           ;;
       esac
       ;;
+    FreeBSD) printf 'freebsd\n' ;;
     *)
       logging__error "unsupported kernel '$(os__kernel)'."
       return 1
@@ -245,13 +246,16 @@ os__release_arch() {
 os__libc() {
   # @brief os__libc — Print the C library type on Linux: `musl` or `gnu`.
   #
-  # Detects musl by checking for well-known musl shared-library paths or by scanning
-  # `ldd /bin/ls` output. Returns 1 (with no output) on non-Linux systems.
+  # Detects musl by checking for the musl dynamic linker, which is present at
+  # `/lib/ld-musl-<arch>.so*` on every musl-based Linux system regardless of
+  # architecture (verified on x86_64, aarch64, armhf, riscv64, ppc64le, s390x,
+  # i386). Falls back to scanning `ldd /bin/ls` output as a secondary check.
+  # Returns 1 (with no output) on non-Linux systems.
   #
   # Stdout: `musl` or `gnu`.
   # Returns: 0 on Linux, 1 on other kernels.
   [ "$(os__kernel)" = "Linux" ] || return 1
-  if [ -f /lib/libc.musl-x86_64.so.1 ] || [ -f /lib/libc.musl-aarch64.so.1 ] || ldd /bin/ls 2>&1 | grep -q musl; then
+  if ls /lib/ld-musl-*.so* > /dev/null 2>&1 || ldd /bin/ls 2>&1 | grep -q musl; then
     printf 'musl\n'
   else
     printf 'gnu\n'
@@ -262,21 +266,49 @@ os__rust_triple() {
   # @brief os__rust_triple [<raw-arch>] — Print the Rust target triple for the current kernel and architecture.
   #
   # Accepts an optional raw architecture string (uname -m output or a user-supplied
-  # override). Defaults to os__arch. The Linux env suffix (musl/gnu) is
-  # arch-determined: riscv64 must use gnu (no musl target exists); all others use musl.
+  # override). Defaults to os__arch.
+  #
+  # Linux suffix selection (musl vs gnu):
+  #   - x86_64, aarch64, armv6l, armv7l, loongarch64, i686: always musl (portable static builds).
+  #   - ppc64le, s390x: always gnu — no widely-published musl builds exist for either
+  #     (`s390x-unknown-linux-musl` was removed as a Rust target in Rust 1.81).
+  #   - riscv64: detected at runtime via os__libc() — musl on Alpine, gnu on glibc distros.
+  #
+  # 32-bit x86 detection: on a 64-bit kernel with a 32-bit userland (or a native
+  # 32-bit machine), `uname -m` reports `x86_64`. This function detects the 32-bit
+  # case via `getconf LONG_BIT` and corrects the arch to i686 so the correct
+  # i686-unknown-linux-musl triple is selected instead of the 64-bit one.
   #
   # Stdout: Rust target triple (e.g. x86_64-unknown-linux-musl, aarch64-apple-darwin).
   # Returns: 0 on success, 1 if the kernel/arch combination is unsupported.
   local _raw="${1:-$(os__arch)}"
+  # Detect 32-bit x86 userland on a 64-bit kernel: uname -m reports x86_64 but
+  # the running process (and its binaries) are 32-bit. getconf LONG_BIT is POSIX
+  # and available on both glibc and musl; it reflects the process word size.
+  if [ "$_raw" = "x86_64" ] || [ "$_raw" = "amd64" ]; then
+    local _bits
+    _bits="$(getconf LONG_BIT 2> /dev/null || true)"
+    [ "${_bits}" = "32" ] && _raw="i686"
+  fi
   case "$(os__kernel):${_raw}" in
     Linux:x86_64 | Linux:amd64) printf 'x86_64-unknown-linux-musl\n' ;;
+    Linux:i386 | Linux:i686) printf 'i686-unknown-linux-musl\n' ;;
     Linux:aarch64 | Linux:arm64) printf 'aarch64-unknown-linux-musl\n' ;;
     Linux:armv6l) printf 'arm-unknown-linux-musleabihf\n' ;;
     Linux:armv7l) printf 'armv7-unknown-linux-musleabihf\n' ;;
     Linux:loongarch64) printf 'loongarch64-unknown-linux-musl\n' ;;
-    Linux:riscv64) printf 'riscv64gc-unknown-linux-gnu\n' ;;
+    Linux:ppc64le) printf 'powerpc64le-unknown-linux-gnu\n' ;;
+    Linux:s390x) printf 's390x-unknown-linux-gnu\n' ;;
+    Linux:riscv64)
+      if [ "$(os__libc)" = "musl" ]; then
+        printf 'riscv64gc-unknown-linux-musl\n'
+      else
+        printf 'riscv64gc-unknown-linux-gnu\n'
+      fi
+      ;;
     Darwin:x86_64 | Darwin:amd64) printf 'x86_64-apple-darwin\n' ;;
     Darwin:aarch64 | Darwin:arm64) printf 'aarch64-apple-darwin\n' ;;
+    FreeBSD:x86_64 | FreeBSD:amd64) printf 'x86_64-unknown-freebsd\n' ;;
     *)
       logging__error "unsupported kernel/arch '$(os__kernel)/${_raw}'."
       return 1

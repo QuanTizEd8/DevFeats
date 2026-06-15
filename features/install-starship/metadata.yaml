@@ -28,7 +28,7 @@ _options:
         description: Starship v1.25.1.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/starship-{RUST_TRIPLE}.tar.gz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/starship-{OS_ARCH==armv7l?arm-unknown-linux-musleabihf:{RUST_TRIPLE}}.tar.gz"
       binary_src: starship
     script:
       asset_uri: "https://starship.rs/install.sh"

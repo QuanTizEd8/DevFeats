@@ -234,14 +234,27 @@ _net__ensure_fetch_tool() {
   # this helper also has a valid CA bundle. Idempotent: does nothing when
   # `_NET__FETCH_TOOL` is already set.
   #
+  # snap-packaged curl (path under /snap/) runs in a sandbox that blocks most
+  # outbound network connections; it is skipped in favour of wget or a bootstrapped
+  # non-snap curl. See https://github.com/starship/starship/issues/5403.
+  #
   # Side effects: sets `_NET__FETCH_TOOL` to `curl` or `wget`.
   # Returns: 0 on success, 1 if a required tool or CA bundle cannot be ensured.
   if [ -z "${_NET__FETCH_TOOL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
-      _NET__FETCH_TOOL=curl
-    elif command -v wget > /dev/null 2>&1; then
+      case "$(command -v curl)" in
+        /snap/*)
+          logging__warn "snap-packaged curl detected at '$(command -v curl)'; skipping (sandboxed). Trying wget."
+          ;;
+        *)
+          _NET__FETCH_TOOL=curl
+          ;;
+      esac
+    fi
+    if [ -z "${_NET__FETCH_TOOL:-}" ] && command -v wget > /dev/null 2>&1; then
       _NET__FETCH_TOOL=wget
-    else
+    fi
+    if [ -z "${_NET__FETCH_TOOL:-}" ]; then
       bootstrap__curl || return 1
       _NET__FETCH_TOOL=curl
     fi
