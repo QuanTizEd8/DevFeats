@@ -1,6 +1,6 @@
 version: 0.1.0
 name: just Installation
-description: Install [just](https://just.systems/) via release assets, package repositories, the official script, or Cargo.
+description: Install [just](https://just.systems/) via release assets, package repositories, or Cargo.
 keywords:
   - just
   - task-runner
@@ -8,13 +8,8 @@ keywords:
   - cli
 _long_description: |-
   Installs the `just` command runner with configurable installation methods:
-  GitHub release assets, distro package repositories, the official installer script,
-  and Cargo-based installation.
-options:
-  script_force:
-    type: boolean
-    default: false
-    description: Add `--force` when running the official installer script.
+  GitHub release assets, distro package repositories, and Cargo-based installation.
+options: {}
 _options:
   verify:
     args: "--version"
@@ -34,14 +29,12 @@ _options:
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/SHA256SUMS"
     package:
       when: {pm: [apt, dnf, apk, brew]}
-    script:
-      asset_uri: "https://just.systems/install.sh"
     cargo:
       crate: just
   prefix:
     bins: [just]
     applies_when:
-      - method: [binary, script, cargo]
+      - method: [binary, cargo]
 customizations:
   vscode:
     extensions:

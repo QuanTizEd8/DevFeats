@@ -271,6 +271,9 @@ os__rust_triple() {
   case "$(os__kernel):${_raw}" in
     Linux:x86_64 | Linux:amd64) printf 'x86_64-unknown-linux-musl\n' ;;
     Linux:aarch64 | Linux:arm64) printf 'aarch64-unknown-linux-musl\n' ;;
+    Linux:armv6l) printf 'arm-unknown-linux-musleabihf\n' ;;
+    Linux:armv7l) printf 'armv7-unknown-linux-musleabihf\n' ;;
+    Linux:loongarch64) printf 'loongarch64-unknown-linux-musl\n' ;;
     Linux:riscv64) printf 'riscv64gc-unknown-linux-gnu\n' ;;
     Darwin:x86_64 | Darwin:amd64) printf 'x86_64-apple-darwin\n' ;;
     Darwin:aarch64 | Darwin:arm64) printf 'aarch64-apple-darwin\n' ;;
