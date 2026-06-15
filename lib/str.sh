@@ -229,7 +229,7 @@ _str__eval_condition() {
     '==') [[ "${_actual}" == "${_val}" ]] ;;
     '!=') [[ "${_actual}" != "${_val}" ]] ;;
     '>=') ver__semver_ge "${_actual}" "${_val}" ;;
-    '<')  ! ver__semver_ge "${_actual}" "${_val}" ;;
+    '<') ! ver__semver_ge "${_actual}" "${_val}" ;;
   esac
 }
 
