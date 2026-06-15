@@ -1011,6 +1011,7 @@ npm__install_bundled() {
       --no-fund
       --no-package-lock
       --loglevel=warn
+      --scripts-prepend-node-path=true
     )
     [ -n "${_registry:-}" ] && _npm_args+=(--registry "$_registry")
     "${_node_bin}" "$_npm_cli" install \

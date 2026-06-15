@@ -6,9 +6,15 @@
 # package downloads (via the bundled npm shipped with Node.js) to verify
 # correct end-to-end behavior of npm__install_bundled and related functions.
 #
-# Test package: 'semver' — tiny (~120 KB with deps), pure JS, stable, has a
-# 'semver' CLI binary, and no optional platform-specific dependencies.
-# Version is pinned for reproducibility.
+# Two fixture packages are used:
+#
+#   semver@7.6.3  — pure JS, no lifecycle scripts, no optional deps.
+#                   Tests the core install/idempotency/update/uninstall flow.
+#
+#   esbuild       — has a postinstall script that calls bare 'node install.js'
+#                   to fetch a platform-specific native binary.  Exercises the
+#                   lifecycle-script code path; requires --scripts-prepend-node-path
+#                   so that 'node' is findable when using an off-PATH bundled Node.
 #
 # Note: optional platform-dep resolution (the primary motivation for the
 # bundled-npm approach) is exercised by the install-codex feature tests.
@@ -233,4 +239,25 @@ setup() {
   run npm__uninstall_bundled --bin "${_uninst_prefix}/bin/${_NPM_INT_CMD}"
   assert_success
   [ ! -d "$_uninst_prefix" ]
+}
+
+# ---------------------------------------------------------------------------
+# Lifecycle scripts
+# ---------------------------------------------------------------------------
+
+@test "npm__install_bundled (real): installs a package whose postinstall calls bare 'node'" {
+  # esbuild has a postinstall script ('node install.js') that downloads the
+  # platform-specific native binary.  Without --scripts-prepend-node-path=true
+  # this fails with 'node: not found' (exit 127) when node is not on PATH.
+  local _esbuild_prefix="${BATS_TEST_TMPDIR}/esbuild-bundled"
+  run npm__install_bundled \
+    --package "esbuild" \
+    --version "0.21.5" \
+    --cmd "esbuild" \
+    --prefix "$_esbuild_prefix"
+  assert_success
+  # Verify the native binary was fetched and the wrapper runs it correctly.
+  run "${_esbuild_prefix}/bin/esbuild" --version
+  assert_success
+  assert_output "0.21.5"
 }
