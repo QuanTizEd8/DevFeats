@@ -13,12 +13,15 @@ _long_description: >-
   invocation, can perform code edits, repository operations, and pull request
   workflows, and is extensible via plugins and MCP servers.
 
-  Two installation methods are supported:
+  Three installation methods are supported:
 
   - **binary** (auto-selected on x64/arm64): Downloads and verifies a pre-built
     tarball from GitHub Releases with SHA-256 validation. No Node.js dependency.
   - **npm**: Installs globally via `npm install -g @github/copilot`. Requires
     Node.js 22 or later pre-installed (e.g. via `install-node` or `install-nvm`).
+  - **package** (auto-selected on Homebrew): Installs via `brew install --cask copilot-cli`
+    (stable) or `brew install --cask copilot-cli@prerelease` when `version: latest`.
+    Homebrew manages versioning and PATH; semver pinning has no effect on the cask.
 
   In devcontainer builds, a lifecycle hook is registered that symlinks the
   workspace `.copilot` directory (configurable via `vscode_user_dir`) to
@@ -46,6 +49,8 @@ _options:
       when: {arch: [amd64, arm64]}
     npm:
       package: "@github/copilot"
+    upstream-package:
+      when: {pm: brew}
   prefix:
     bins: [copilot]
     applies_when:
@@ -76,3 +81,7 @@ _dependencies:
     base:
       packages:
         - ca-certificates
+    upstream-package:
+      brew:
+        casks:
+          - "{VERSION_INPUT==latest?copilot-cli@prerelease:copilot-cli}"
