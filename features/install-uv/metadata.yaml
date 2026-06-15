@@ -12,10 +12,9 @@ _long_description: >-
   Installs [uv](https://astral.sh/uv), an extremely fast Python package and project manager
   written in Rust by Astral. uv covers package management, lockfiles, tool execution via
   `uvx`, Python runtime installation, and pip-compatible workflows in a single CLI.
-  The binary method downloads pre-built GitHub release artifacts with SHA-256 verification
-  and installs both `uv` and `uvx`. The script method uses the official upstream installer
-  with a versioned URL, redirecting output to the configured prefix. Both methods make `uv`
-  and `uvx` available on PATH.
+  Downloads pre-built GitHub release artifacts with SHA-256 verification and installs both
+  `uv` and `uvx`. Writes a cargo-dist self-update receipt so that `uv self update` works
+  out of the box.
 _tool_name: uv
 
 _options:
@@ -37,14 +36,12 @@ _options:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/uv-{RUST_TRIPLE}.tar.gz"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/uv-{RUST_TRIPLE}.tar.gz.sha256"
       binary_src: uv
-    script:
-      asset_uri: "https://astral.sh/uv/{VERSION}/install.sh"
     package:
       when: {pm: [brew, dnf, apk, pacman, zypper]}
   prefix:
     bins: [uv, uvx]
     applies_when:
-      - method: [binary, script]
+      - method: [binary]
   completions:
     subcmd: "generate-shell-completion"
     shells: [bash, zsh, fish]
