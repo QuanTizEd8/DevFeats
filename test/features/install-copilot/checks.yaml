@@ -1,0 +1,120 @@
+default_install:
+  description: |
+    method=binary (default): tarball download from GitHub Releases.
+    Verifies copilot is installed at /usr/local/bin/copilot and reports a version.
+
+  pre: |
+    echo "=== which copilot ==="
+    which copilot 2>&1 || echo "(not on PATH)"
+    echo "=== copilot --version ==="
+    copilot --version 2>&1 || echo "(failed)"
+
+  checks:
+    - title: copilot binary installed at /usr/local/bin/copilot
+      cmd: test -f /usr/local/bin/copilot
+    - title: copilot binary is executable
+      cmd: test -x /usr/local/bin/copilot
+    - title: copilot on PATH
+      cmd: command -v copilot
+    - title: copilot --version succeeds
+      cmd: copilot --version
+
+copilot_home:
+  description: |
+    copilot_home=~/copilot-test: COPILOT_HOME is exported to the user's shell
+    startup files. The tilde is expanded to an absolute path at install time.
+    Verifies the export appears in ~/.bashrc and the bash login file.
+
+  pre: |
+    echo "=== /root/.bashrc (install-copilot-env block) ==="
+    grep -A 10 "install-copilot-env" /root/.bashrc 2>/dev/null || echo "(block absent)"
+    echo "=== login file COPILOT_HOME lines ==="
+    grep "COPILOT_HOME" /root/.bash_profile /root/.profile 2>/dev/null || echo "(not found in login files)"
+
+  checks:
+    - title: copilot on PATH
+      cmd: command -v copilot
+    - title: install-copilot-env marker block written to ~/.bashrc
+      cmd: bash -c 'grep -q "install-copilot-env" /root/.bashrc 2>/dev/null'
+      debug: |
+        echo "=== /root/.bashrc ==="
+        cat /root/.bashrc 2>/dev/null || echo "(missing)"
+    - title: COPILOT_HOME export with expanded path written to ~/.bashrc
+      cmd: bash -c 'grep -qE "export COPILOT_HOME=.*/copilot-test" /root/.bashrc 2>/dev/null'
+      on_fail: |
+        echo "=== COPILOT_HOME lines in /root/.bashrc ==="
+        grep "COPILOT_HOME" /root/.bashrc 2>/dev/null || echo "(not found)"
+    - title: COPILOT_HOME export written to bash login file
+      cmd: bash -c 'grep -qE "export COPILOT_HOME=.*/copilot-test" /root/.bash_profile 2>/dev/null || grep -qE "export COPILOT_HOME=.*/copilot-test" /root/.profile 2>/dev/null'
+      on_fail: |
+        echo "=== COPILOT_HOME in login files ==="
+        grep "COPILOT_HOME" /root/.bash_profile /root/.profile 2>/dev/null || echo "(not found)"
+    - title: COPILOT_HOME sourced from ~/.bashrc resolves to absolute path ending copilot-test
+      cmd: bash -c 'source /root/.bashrc 2>/dev/null; [[ "${COPILOT_HOME:-}" == */copilot-test ]]'
+      on_fail: |
+        echo "=== sourced COPILOT_HOME ==="
+        bash -c 'source /root/.bashrc 2>/dev/null; echo "COPILOT_HOME=${COPILOT_HOME:-<unset>}"'
+
+copilot_model:
+  description: |
+    copilot_model=claude-sonnet-4-6: COPILOT_MODEL is exported to the user's
+    shell startup files with the exact string value specified.
+    Verifies the export appears in ~/.bashrc.
+
+  pre: |
+    echo "=== /root/.bashrc (install-copilot-env block) ==="
+    grep -A 10 "install-copilot-env" /root/.bashrc 2>/dev/null || echo "(block absent)"
+
+  checks:
+    - title: copilot on PATH
+      cmd: command -v copilot
+    - title: install-copilot-env marker block written to ~/.bashrc
+      cmd: bash -c 'grep -q "install-copilot-env" /root/.bashrc 2>/dev/null'
+      debug: |
+        echo "=== /root/.bashrc ==="
+        cat /root/.bashrc 2>/dev/null || echo "(missing)"
+    - title: COPILOT_MODEL export written to ~/.bashrc
+      cmd: bash -c 'grep -q "export COPILOT_MODEL=claude-sonnet-4-6" /root/.bashrc 2>/dev/null'
+      on_fail: |
+        echo "=== COPILOT_MODEL lines in /root/.bashrc ==="
+        grep "COPILOT_MODEL" /root/.bashrc 2>/dev/null || echo "(not found)"
+    - title: COPILOT_MODEL sourced from ~/.bashrc has correct value
+      cmd: bash -c 'source /root/.bashrc 2>/dev/null; [ "${COPILOT_MODEL:-}" = "claude-sonnet-4-6" ]'
+      on_fail: |
+        echo "=== sourced COPILOT_MODEL ==="
+        bash -c 'source /root/.bashrc 2>/dev/null; echo "COPILOT_MODEL=${COPILOT_MODEL:-<unset>}"'
+
+plugins:
+  description: |
+    plugins=workiq@copilot-plugins: at devcontainer build time the feature writes
+    the install-plugins lifecycle script and a sidecar .plugins file listing the
+    configured plugin specs (one per line). Actual plugin installation is deferred
+    to postCreateCommand; this test validates the plumbing, not the network call.
+
+  pre: |
+    _lc_dir=/usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks
+    echo "=== lifecycle-hooks directory ==="
+    ls -la "${_lc_dir}" 2>/dev/null || echo "(directory missing)"
+    echo "=== post-create--install-plugins.sh.plugins ==="
+    cat "${_lc_dir}/post-create--install-plugins.sh.plugins" 2>/dev/null || echo "(sidecar missing)"
+
+  checks:
+    - title: copilot on PATH
+      cmd: command -v copilot
+    - title: install-plugins lifecycle script exists
+      cmd: test -f /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh
+      debug: |
+        echo "=== lifecycle-hooks directory ==="
+        ls -la /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/ 2>/dev/null || echo "(missing)"
+    - title: install-plugins lifecycle script is executable
+      cmd: test -x /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh
+    - title: install-plugins sidecar .plugins file written
+      cmd: test -f /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh.plugins
+      on_fail: |
+        echo "=== lifecycle-hooks directory ==="
+        ls -la /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/ 2>/dev/null || echo "(missing)"
+    - title: sidecar file contains the configured plugin spec
+      cmd: bash -c 'grep -qF "workiq@copilot-plugins" /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh.plugins 2>/dev/null'
+      on_fail: |
+        echo "=== sidecar file contents ==="
+        cat /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh.plugins 2>/dev/null || echo "(file missing)"

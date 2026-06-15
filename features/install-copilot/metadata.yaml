@@ -25,8 +25,15 @@ _long_description: >-
 
   In devcontainer builds, a lifecycle hook is registered that symlinks the
   workspace `.copilot` directory (configurable via `vscode_user_dir`) to
-  `~/.vscode-server/data/User`, preserving VS Code Copilot settings across
-  container rebuilds.
+  `~/.vscode-server/data/User`, preserving VS Code Copilot Chat transcript history
+  and VS Code settings across container rebuilds.
+
+  The `copilot_home` option exports `COPILOT_HOME` to all user shells, redirecting
+  the Copilot CLI configuration directory (settings, plugins, auth state) from its
+  default `~/.copilot`. For devcontainers, point it at a workspace-relative path
+  (e.g. `${containerWorkspaceFolder}/.copilot/cli`) to persist CLI configuration
+  across rebuilds alongside the VS Code data. The `copilot_model` option exports
+  `COPILOT_MODEL` to override the CLI's built-in model selection.
 _tool_name: copilot
 _options:
   verify:
@@ -65,7 +72,39 @@ options:
     description: |-
       Relative path within the workspace directory to symlink as
       `~/.vscode-server/data/User` (VS Code user settings directory) on container creation.
-      Leave empty to skip the symlink.
+      This preserves VS Code Copilot Chat transcript history and extension data across
+      container rebuilds. Leave empty to skip the symlink.
+  copilot_home:
+    type: string
+    default: ''
+    description: |-
+      Path exported as `COPILOT_HOME` — redirects the Copilot CLI configuration
+      directory (settings, installed plugins, auth state) from its default `~/.copilot`.
+      Leave empty to use the CLI default. Supports tilde and environment variable
+      expansion (e.g. `~/my-copilot`, `${XDG_CONFIG_HOME}/copilot`).
+      For devcontainers, set to `${containerWorkspaceFolder}/.copilot/cli` to persist
+      CLI configuration in the workspace across container rebuilds.
+  copilot_model:
+    type: string
+    default: ''
+    description: |-
+      Model name exported as `COPILOT_MODEL` — overrides the Copilot CLI's built-in
+      model selection for all invocations. Leave empty to use the CLI default.
+      Example values: `claude-sonnet-4-6`, `gpt-4o`.
+  plugins:
+    type: array
+    default: ''
+    description: |-
+      Copilot CLI plugins to install for each configured user after the CLI is installed.
+      Each entry is passed verbatim to `copilot plugin install`, so any spec that command
+      accepts is valid:
+      - `PLUGIN-NAME@marketplace` (e.g. `workiq@copilot-plugins`, `database-data-management@awesome-copilot`)
+      - `owner/repo` (GitHub repository)
+      - A full `https://` Git URL or a local directory path
+      Plugin install failures are non-fatal and logged as warnings.
+postCreateCommand:
+  install-plugins:
+    description: Install configured Copilot CLI plugins.
 onCreateCommand:
   symlink-vscode-user-dir:
     description: Symlink the specified workspace `.copilot` directory to `~/.vscode-server/data/User`.
