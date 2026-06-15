@@ -950,6 +950,10 @@ __install_run_cargo__() {
   #   any additional args (e.g. --force, --locked, --no-confirm).
   #   Appended after the standard args above.
 
+  command -v cargo > /dev/null 2>&1 || {
+    logging__error "METHOD=cargo requires 'cargo' on PATH. Install Rust and Cargo first."
+    return 1
+  }
   __run_feature_hook__ __install_run_cargo_pre
 
   if [[ -z "${CARGO_CRATE:-}" ]]; then
@@ -987,6 +991,10 @@ __install_run_cargo__() {
 }
 
 __install_run_npm__() {
+  command -v npm > /dev/null 2>&1 || {
+    logging__error "METHOD=npm requires 'npm' on PATH. Install Node.js/npm first (e.g. via the 'install-node' or 'install-nvm' feature)."
+    return 1
+  }
   __run_feature_hook__ __install_run_npm_pre
   if [[ -z "${NPM_PACKAGE:-}" ]]; then
     logging__error "METHOD=npm: no NPM_PACKAGE set (missing _options.method.npm in metadata?). Override __install_run_npm__ for a fully custom npm install."
