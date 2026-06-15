@@ -1956,12 +1956,14 @@ ospkg__run() {
   #                           packages/casks via ospkg__remove_user. Keys, repos,
   #                           prescripts, scripts, modules, and groups are skipped.
   #                           Mutually exclusive with --build-group and --update.
+  #   --fail-if-installed     Fail with an error if any package from the manifest is
+  #                           already installed. Mutually exclusive with --update and --remove.
   #
   # Returns: 0 on success, 1 on invalid arguments or manifest parse failure.
   local _manifest='' _update_index=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _interactive=false
   local _prefer_linuxbrew=false _build_group=''
-  local _do_pkg_update=false _do_remove=false
+  local _do_pkg_update=false _do_remove=false _fail_if_installed=false
   local _fetch_netrc_file=''
   local -a _fetch_headers=()
   _OSPKG__EXTRA_VARS=()
@@ -2022,6 +2024,10 @@ ospkg__run() {
       --remove)
         shift
         _do_remove=true
+        ;;
+      --fail-if-installed)
+        shift
+        _fail_if_installed=true
         ;;
       --extra-var)
         shift
@@ -2500,6 +2506,10 @@ ospkg__run() {
       fi
 
       if [[ "$_do_pkg_update" == false ]] && ospkg__is_installed "$_pkgname"; then
+        if [[ "$_fail_if_installed" == true ]]; then
+          logging__error "Package '${_pkgname}' is already installed (if_exists=fail)."
+          return 1
+        fi
         [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         continue
       fi

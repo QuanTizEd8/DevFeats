@@ -60,6 +60,10 @@ __main__() {
   logging__info "Checking for existing installation"
   __detect_existing__
 
+  __if_exists_dispatch__
+}
+
+__if_exists_dispatch__() {
   if [[ "${_FEAT_EXISTING}" != true ]]; then
     case "${IF_EXISTS}" in
       uninstall)

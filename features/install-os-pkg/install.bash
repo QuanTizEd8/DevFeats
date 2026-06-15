@@ -109,6 +109,35 @@ __install_run__() {
   [[ "$DRY_RUN" == true ]] && _OSPKG_ARGS+=(--dry_run)
   [[ "$PREFER_LINUXBREW" == true ]] && _OSPKG_ARGS+=(--prefer_linuxbrew)
   [[ "$INTERACTIVE" == true ]] && _OSPKG_ARGS+=(--interactive)
+  case "${IF_EXISTS:-skip}" in
+    update) _OSPKG_ARGS+=(--update) ;;
+    fail)   _OSPKG_ARGS+=(--fail-if-installed) ;;
+  esac
   logging__install "Running package installation via ospkg__run."
   ospkg__run "${_OSPKG_ARGS[@]}"
+}
+
+__if_exists_dispatch__() {
+  case "${IF_EXISTS:-skip}" in
+    uninstall) __uninstall_run__ ;;
+    reinstall) __uninstall_run__; __install__ ;;
+    *)         __install__ ;;
+  esac
+}
+
+__uninstall_run__() {
+  if [[ -z "$MANIFEST" ]]; then
+    logging__error "'manifest' is required for if_exists=uninstall/reinstall."
+    return 1
+  fi
+  local -a _args=(--remove --manifest "$MANIFEST")
+  [[ -n "${FETCH_NETRC:-}" ]] && _args+=(--fetch-netrc-file "$FETCH_NETRC")
+  if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+    local _osh
+    for _osh in "${FETCH_HEADERS[@]}"; do
+      [[ -n "${_osh}" ]] && _args+=(--fetch-header "$_osh")
+    done
+  fi
+  logging__remove "Uninstalling packages from manifest."
+  ospkg__run "${_args[@]}"
 }
