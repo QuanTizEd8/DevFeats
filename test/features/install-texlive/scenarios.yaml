@@ -70,6 +70,8 @@ if_exists_fail:
   modes: [standalone]
   setup: |
     apt-get install -y --no-install-recommends texlive-latex-base 2>/dev/null || true
+    printf '#!/bin/sh\necho "TeX Live Manager faked"\n' > /usr/local/bin/tlmgr
+    chmod +x /usr/local/bin/tlmgr
   options:
     method: package
     scheme: basic
