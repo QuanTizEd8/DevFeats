@@ -117,18 +117,18 @@ auto_npm_bundled:
     - title: codex --version reports a semver
       cmd: bash -c 'codex --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
 
-auto_npm:
+auto_binary_npm_present:
   description: |
-    method=auto with npm pre-installed: __resolve_method selects npm over
-    npm-bundled.  Verifies codex is installed and @openai/codex appears in npm's
-    global list.
+    method=auto on amd64 with npm pre-installed: __resolve_method selects binary
+    because binary's when: condition (arch: [amd64, arm64]) is satisfied.  npm
+    is present but not chosen — verifies binary takes priority over npm.
   pre: |
     echo "=== which codex ==="
     which codex 2>&1 || echo "(not on PATH)"
     echo "=== codex --version ==="
     codex --version 2>&1 || echo "(failed)"
-    echo "=== npm list -g @openai/codex ==="
-    npm list -g @openai/codex 2>&1 || echo "(not listed)"
+    echo "=== file $(command -v codex 2>/dev/null || echo /dev/null) ==="
+    file "$(command -v codex)" 2>/dev/null || echo "(not found)"
   checks:
     - title: codex on PATH
       cmd: command -v codex
@@ -136,10 +136,13 @@ auto_npm:
       cmd: codex --version
     - title: codex --version reports a semver
       cmd: bash -c 'codex --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
-    - title: "@openai/codex registered with npm globally (auto resolved to npm)"
-      cmd: bash -c 'npm list -g @openai/codex 2>/dev/null | grep -q "@openai/codex"'
+    - title: codex installed as a binary (not via npm global — binary method was selected)
+      cmd: test -f /usr/local/bin/codex
       on_fail: |
-        npm list -g 2>/dev/null | grep -i codex || echo "(codex not in npm global list)"
+        echo "=== which codex ==="
+        which codex 2>&1 || echo "(not on PATH)"
+        echo "=== npm list -g ==="
+        npm list -g 2>/dev/null | head -5 || echo "(npm not available)"
 
 # ── if_exists behaviour ────────────────────────────────────────────────────────
 

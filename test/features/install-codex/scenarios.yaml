@@ -43,12 +43,14 @@ auto_npm_bundled:
     method: auto
   tests: [auto_npm_bundled]
 
-# method=auto with npm pre-installed → resolves to npm.
-auto_npm:
+# method=auto on amd64 with npm pre-installed → binary is preferred because the
+# binary method's when: condition now matches the normalized arch.  Verifies that
+# auto does not fall back to npm on a supported arch just because npm is present.
+auto_binary_npm_present:
   envs: [ubuntu-latest+nodejs]
   options:
     method: auto
-  tests: [auto_npm]
+  tests: [auto_binary_npm_present]
 
 # ── if_exists behaviour ────────────────────────────────────────────────────────
 
