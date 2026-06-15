@@ -603,9 +603,9 @@ npm__is_bundled() {
   # Resolves <bin_path> (following symlinks), then walks up one level to the
   # parent of the `bin/` directory. Checks for the three layout markers written
   # by `npm__install_bundled`:
-  #   node/current/bin/node   — bundled Node.js runtime
-  #   pkg/current/            — bundled package tree
-  #   .metadata/installed-version — version record
+  #   node/current/bin/node         — bundled Node.js runtime
+  #   pkg/current/node_modules/     — npm-managed package tree
+  #   .metadata/installed-version   — version record
   #
   # This does NOT detect packages installed by `npm install -g` or
   # `npm__install_package`; use `npm__is_managed` for those.
@@ -630,7 +630,7 @@ npm__is_bundled() {
   }
 
   [[ -x "${_prefix}/node/current/bin/node" ]] &&
-    [[ -d "${_prefix}/pkg/current" ]] &&
+    [[ -d "${_prefix}/pkg/current/node_modules" ]] &&
     [[ -f "${_prefix}/.metadata/installed-version" ]]
 }
 
@@ -817,87 +817,20 @@ _npm__registry_get() {
   return "$_ec"
 }
 
-_npm__bundled__pkg_tarball_url() {
-  # _npm__bundled__pkg_tarball_url <package> <version> [<registry>]  (internal)
-  #
-  # Fetches the version-specific registry document and extracts `dist.tarball`.
-  # <registry> defaults to https://registry.npmjs.org.
-  #
-  # Returns: 0 and prints URL on success, 1 on failure.
-  local _package="$1"
-  local _version="$2"
-  local _registry="${3:-https://registry.npmjs.org}"
-  local _json _url
-  _json="$(_npm__registry_get "$(_npm__registry_url "$_registry" "$_package" "$_version")")"
-  local _rc=$?
-  [[ $_rc == 0 ]] || {
-    logging__error "failed to fetch registry document for '${_package}@${_version}'."
-    return "$_rc"
-  }
-  [ -n "$_json" ] || {
-    logging__error "empty registry document for '${_package}@${_version}'."
-    return 1
-  }
-  _url="$(printf '%s\n' "$_json" | json__query -r '.dist.tarball // empty' 2> /dev/null)" || {
-    logging__error "could not parse dist.tarball for '${_package}@${_version}'."
-    return 1
-  }
-  [ -n "$_url" ] && [ "$_url" != "null" ] || {
-    logging__error "dist.tarball missing for '${_package}@${_version}'."
-    return 1
-  }
-  printf '%s\n' "$_url"
-}
-
-_npm__bundled__entry_point() {
-  # _npm__bundled__entry_point <pkg_version_dir> <cmd>  (internal)
-  #
-  # Reads `package/package.json` inside <pkg_version_dir> and resolves the
-  # entry-point script for <cmd>. Checks `bin["<cmd>"]` (object form), `bin`
-  # (string scalar), then falls back to `main`. Strips a leading `./`.
-  #
-  # Returns: 0 and prints relative path on success, 1 if not found.
-  local _pkg_version_dir="$1"
-  local _cmd="$2"
-  local _pkg_json="${_pkg_version_dir}/package/package.json"
-  [ -f "$_pkg_json" ] || {
-    logging__error "package.json not found at '${_pkg_json}'."
-    return 1
-  }
-
-  local _entry=""
-  # shellcheck disable=SC2016  # $c is a jq variable (passed via --arg), not a shell variable
-  _entry="$(json__query -r --arg c "$_cmd" \
-    '.bin | if type == "object" then (.[($c)] // empty) elif type == "string" then . else empty end' \
-    "$_pkg_json" 2> /dev/null)" || _entry=""
-  [ "$_entry" = "null" ] && _entry=""
-  if [ -z "$_entry" ]; then
-    _entry="$(json__query -r '.main // empty' "$_pkg_json" 2> /dev/null)" || _entry=""
-    [ "$_entry" = "null" ] && _entry=""
-  fi
-  [ -n "$_entry" ] || {
-    logging__error "no entry point found for command '${_cmd}' in '${_pkg_json}'."
-    return 1
-  }
-  # Strip leading ./
-  _entry="${_entry#./}"
-  printf '%s\n' "$_entry"
-}
-
 npm__install_bundled() {
   # @brief npm__install_bundled OPTIONS — Install an npm package with a bundled Node.js runtime.
   #
-  # Downloads a self-contained Node.js binary and the npm package tarball
-  # directly from their upstream sources, without requiring npm to be installed
-  # on the host. Creates a portable `bin/<cmd>` wrapper that invokes the bundled
-  # Node.js to run the package entry point.
+  # Downloads a self-contained Node.js binary and then uses the bundled npm to
+  # install the package (including optional platform-specific dependencies).
+  # Creates a portable `bin/<cmd>` wrapper that invokes the bundled Node.js via
+  # the `.bin/<cmd>` symlink written by npm.
   #
   # Layout under <prefix>:
   #   node/<node-version>/   Node.js binary tree (extracted tarball)
   #   node/current           Symlink → <node-version>
-  #   pkg/<pkg-version>/     Extracted package tarball (contains package/)
+  #   pkg/<pkg-version>/     npm-managed package tree (node_modules/ + .bin/)
   #   pkg/current            Symlink → <pkg-version>
-  #   bin/<cmd>              Shell wrapper: exec \$NODE_BIN \$ENTRY "\$@"
+  #   bin/<cmd>              Shell wrapper: exec \$NODE_BIN pkg/current/node_modules/.bin/\$cmd "\$@"
   #   .metadata/installed-version
   #   .metadata/node-version
   #
@@ -1059,45 +992,48 @@ npm__install_bundled() {
   # Update current symlink for Node.js
   file__ln -sfn "${_node_version}" "${_node_dir}/current"
 
-  # Download + extract package tarball if not already present
-  if [ ! -d "${_pkg_version_dir}/package" ]; then
-    logging__info "Downloading ${_package}@${_version}..."
-    local _pkg_tarball_url
-    _pkg_tarball_url="$(_npm__bundled__pkg_tarball_url "$_package" "$_version" "${_registry:-}")"
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
-      logging__error "could not get tarball URL for '${_package}@${_version}'."
-      return "$_rc"
-    }
-    local _pkg_tmp
-    _pkg_tmp="$(file__mktmpdir "npm-bundled-pkg")"
-    net__fetch_url_file "$_pkg_tarball_url" "${_pkg_tmp}/pkg.tgz"
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
-      logging__error "failed to download package tarball from '${_pkg_tarball_url}'."
-      return "$_rc"
-    }
-    logging__info "Extracting ${_package}@${_version}..."
+  # Verify the bundled Node.js binary executes correctly before using it
+  local _node_bin="${_node_dir}/current/bin/node"
+  "${_node_bin}" --version > /dev/null 2>&1 || {
+    logging__error "installed Node.js binary '${_node_bin}' does not execute. The tarball may be corrupt or incompatible with this system."
+    return 1
+  }
+
+  # Install package via bundled npm (automatically resolves optional platform deps)
+  local _npm_cli="${_node_dir}/current/lib/node_modules/npm/bin/npm-cli.js"
+  if [ ! -d "${_pkg_version_dir}/node_modules" ]; then
+    logging__info "Installing ${_package}@${_version} via bundled npm..."
     file__mkdir "${_pkg_version_dir}"
-    file__extract_archive "${_pkg_tmp}/pkg.tgz" "${_pkg_version_dir}"
+    local -a _npm_args=(
+      --prefix "${_pkg_version_dir}"
+      --no-save
+      --no-audit
+      --no-fund
+      --no-package-lock
+      --loglevel=warn
+    )
+    [ -n "${_registry:-}" ] && _npm_args+=(--registry "$_registry")
+    "${_node_bin}" "$_npm_cli" install \
+      "${_npm_args[@]}" \
+      "${_package}@${_version}"
     local _rc=$?
     [[ $_rc == 0 ]] || {
-      logging__error "failed to extract package tarball."
+      logging__error "npm install failed for '${_package}@${_version}'."
+      file__rm -rf "${_pkg_version_dir}"
       return "$_rc"
     }
   else
-    logging__info "${_package}@${_version} already present; skipping download."
+    logging__info "${_package}@${_version} already installed; skipping."
   fi
 
   # Update current symlink for package
   file__ln -sfn "${_version}" "${_pkg_dir}/current"
 
-  # Validate entry point exists (wrapper resolves it at runtime; this is a fail-fast check)
-  _npm__bundled__entry_point "${_pkg_version_dir}" "$_cmd" > /dev/null
-  local _rc=$?
-  [[ $_rc == 0 ]] || {
-    logging__error "could not determine entry point for '${_cmd}' in '${_package}@${_version}'."
-    return "$_rc"
+  # Validate .bin/<cmd> symlink written by npm install
+  local _bin_entry="${_pkg_version_dir}/node_modules/.bin/${_cmd}"
+  [ -e "${_bin_entry}" ] || {
+    logging__error "npm installed '${_package}@${_version}' but '.bin/${_cmd}' not found; check the package's 'bin' field."
+    return 1
   }
 
   # Write shell wrapper
@@ -1111,12 +1047,10 @@ SCRIPT_PATH="$0"
 INSTALL_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 CMD="$(basename "$SCRIPT_PATH")"
 NODE_BIN="$INSTALL_DIR/node/current/bin/node"
-PKG_JSON="$INSTALL_DIR/pkg/current/package/package.json"
+BIN_ENTRY="$INSTALL_DIR/pkg/current/node_modules/.bin/$CMD"
 [ -x "$NODE_BIN" ] || { printf 'error: Node.js not found at %s\n' "$NODE_BIN" >&2; exit 1; }
-[ -f "$PKG_JSON" ] || { printf 'error: package.json not found at %s\n' "$PKG_JSON" >&2; exit 1; }
-CLI_ENTRY="$("$NODE_BIN" -p 'var p=require(process.argv[1]),c=process.argv[2];var e=(p.bin&&(typeof p.bin==="object"?p.bin[c]:p.bin))||p.main||"";String(e).replace(/^\.\//,"")' "$PKG_JSON" "$CMD" 2>/dev/null)"
-[ -n "$CLI_ENTRY" ] || { printf 'error: could not resolve entry point for %s\n' "$CMD" >&2; exit 1; }
-exec "$NODE_BIN" "$(dirname "$PKG_JSON")/$CLI_ENTRY" "$@"
+[ -e "$BIN_ENTRY" ] || { printf 'error: package entry not found at %s\n' "$BIN_ENTRY" >&2; exit 1; }
+exec "$NODE_BIN" "$BIN_ENTRY" "$@"
 WRAPPER_EOF
   file__chmod +x "$_wrapper"
 
@@ -1124,13 +1058,6 @@ WRAPPER_EOF
   file__mkdir "$_meta_dir"
   printf '%s\n' "$_version" | file__tee "${_meta_dir}/installed-version"
   printf '%s\n' "$_node_version" | file__tee "${_meta_dir}/node-version"
-
-  # Verify the bundled Node.js binary executes correctly
-  local _node_bin="${_node_dir}/current/bin/node"
-  "${_node_bin}" --version > /dev/null 2>&1 || {
-    logging__error "installed Node.js binary '${_node_bin}' does not execute. The tarball may be corrupt or incompatible with this system."
-    return 1
-  }
 
   # Prune stale version directories superseded by this update
   if [ "$_update" = "true" ]; then
@@ -1160,8 +1087,8 @@ npm__uninstall_bundled() {
   # Removes the entire prefix directory created by `npm__install_bundled`.
   # Succeeds silently (no-op) when the prefix does not exist. Errors if the
   # resolved prefix does not carry the expected bundled layout markers
-  # (node/current/bin/node, pkg/current/, .metadata/installed-version) to
-  # prevent accidental removal of unrelated directories.
+  # (node/current/bin/node, pkg/current/node_modules/, .metadata/installed-version)
+  # to prevent accidental removal of unrelated directories.
   #
   # Args:
   #   --bin <path>       Path to the installed wrapper binary. The prefix is
@@ -1241,7 +1168,7 @@ npm__uninstall_bundled() {
   if [ -d "$_prefix" ]; then
     # Guard against removing an unrelated directory
     if [ ! -x "${_prefix}/node/current/bin/node" ] ||
-      [ ! -d "${_prefix}/pkg/current" ] ||
+      [ ! -d "${_prefix}/pkg/current/node_modules" ] ||
       [ ! -f "${_prefix}/.metadata/installed-version" ]; then
       logging__error "'${_prefix}' does not look like a bundled npm installation; refusing to remove."
       return 1

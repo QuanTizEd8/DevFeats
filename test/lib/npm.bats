@@ -572,7 +572,7 @@ setup() {
 
 @test "npm__is_bundled returns true for wrapper with all layout markers present" {
   local _prefix="${BATS_TEST_TMPDIR}/bundled-prefix"
-  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current" "${_prefix}/.metadata"
+  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current/node_modules" "${_prefix}/.metadata"
   local _bin="${_prefix}/bin/mycli"
   printf '#!/bin/sh\nexec node "$@"\n' > "$_bin"
   chmod +x "$_bin"
@@ -586,7 +586,7 @@ setup() {
 
 @test "npm__is_bundled returns false when node marker is missing" {
   local _prefix="${BATS_TEST_TMPDIR}/bundled-no-node"
-  mkdir -p "${_prefix}/bin" "${_prefix}/pkg/current" "${_prefix}/.metadata"
+  mkdir -p "${_prefix}/bin" "${_prefix}/pkg/current/node_modules" "${_prefix}/.metadata"
   local _bin="${_prefix}/bin/mycli"
   touch "$_bin"
   printf '5.4.5\n' > "${_prefix}/.metadata/installed-version"
@@ -595,7 +595,7 @@ setup() {
   assert_failure
 }
 
-@test "npm__is_bundled returns false when pkg/current is missing" {
+@test "npm__is_bundled returns false when pkg/current/node_modules is missing" {
   local _prefix="${BATS_TEST_TMPDIR}/bundled-no-pkg"
   mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/.metadata"
   local _bin="${_prefix}/bin/mycli"
@@ -610,7 +610,7 @@ setup() {
 
 @test "npm__is_bundled returns false when .metadata/installed-version is missing" {
   local _prefix="${BATS_TEST_TMPDIR}/bundled-no-meta"
-  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current"
+  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current/node_modules"
   local _bin="${_prefix}/bin/mycli"
   touch "$_bin"
   printf '#!/bin/sh\nprintf "v20.0.0\\n"\n' > "${_prefix}/node/current/bin/node"
@@ -622,7 +622,7 @@ setup() {
 
 @test "npm__is_bundled returns true for a symlink pointing to a wrapper" {
   local _prefix="${BATS_TEST_TMPDIR}/bundled-symlink"
-  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current" "${_prefix}/.metadata"
+  mkdir -p "${_prefix}/bin" "${_prefix}/node/current/bin" "${_prefix}/pkg/current/node_modules" "${_prefix}/.metadata"
   local _wrapper="${_prefix}/bin/mycli"
   printf '#!/bin/sh\nexec node "$@"\n' > "$_wrapper"
   chmod +x "$_wrapper"
@@ -784,9 +784,6 @@ setup() {
 
 @test "npm__install_bundled installs package with bundled node" {
   [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
-  # Set up fake pkg tarball dir in a tmpdir
-  local _index_file="${BATS_TEST_TMPDIR}/index.json"
-  printf '[{"version":"v20.19.2","lts":"Iron"}]\n' > "$_index_file"
 
   # Stub version resolution
   npm__resolve_version() { printf '1.0.0\n'; }
@@ -794,21 +791,14 @@ setup() {
   npm__node_platform() { printf 'linux-x64\n'; }
   export -f npm__resolve_version npm__resolve_node_version npm__node_platform
 
-  # Stub _npm__bundled__pkg_tarball_url
-  _npm__bundled__pkg_tarball_url() { printf 'http://example.com/pkg.tgz\n'; }
-  export -f _npm__bundled__pkg_tarball_url
-
-  # Stub _npm__bundled__entry_point
-  _npm__bundled__entry_point() { printf 'index.js\n'; }
-  export -f _npm__bundled__entry_point
-
   local _prefix="${BATS_TEST_TMPDIR}/install-test"
 
-  # Pre-create node binary + pkg/package dir so network downloads are skipped
+  # Pre-create node binary + pkg/node_modules/.bin dir so downloads are skipped
   mkdir -p "${_prefix}/node/v20.19.2/bin"
   printf '#!/bin/sh\nprintf "v20.19.2\\n"\n' > "${_prefix}/node/v20.19.2/bin/node"
   chmod +x "${_prefix}/node/v20.19.2/bin/node"
-  mkdir -p "${_prefix}/pkg/1.0.0/package"
+  mkdir -p "${_prefix}/pkg/1.0.0/node_modules/.bin"
+  touch "${_prefix}/pkg/1.0.0/node_modules/.bin/myapp"
 
   run npm__install_bundled \
     --package "myapp" \
@@ -820,10 +810,9 @@ setup() {
 
   # Wrapper should exist and be executable
   [ -x "${_prefix}/bin/myapp" ]
-  # Wrapper should resolve entry point at runtime (not baked at install time)
-  grep -q 'PKG_JSON=' "${_prefix}/bin/myapp"
-  grep -q 'process.argv' "${_prefix}/bin/myapp"
-  ! grep -q "index.js" "${_prefix}/bin/myapp"
+  # Wrapper should use BIN_ENTRY, not resolve entry point dynamically at runtime
+  grep -q 'BIN_ENTRY=' "${_prefix}/bin/myapp"
+  ! grep -q 'PKG_JSON=' "${_prefix}/bin/myapp"
   # Metadata should be written
   [ -f "${_prefix}/.metadata/installed-version" ]
   assert_equal "$(cat "${_prefix}/.metadata/installed-version")" "1.0.0"
@@ -844,10 +833,7 @@ setup() {
   npm__resolve_version() { printf '2.0.0\n'; }
   npm__resolve_node_version() { printf 'v22.0.0\n'; }
   npm__node_platform() { printf 'linux-x64\n'; }
-  _npm__bundled__pkg_tarball_url() { printf 'http://example.com/pkg.tgz\n'; }
-  _npm__bundled__entry_point() { printf 'index.js\n'; }
   export -f npm__resolve_version npm__resolve_node_version npm__node_platform
-  export -f _npm__bundled__pkg_tarball_url _npm__bundled__entry_point
 
   local _prefix="${BATS_TEST_TMPDIR}/update-test"
 
@@ -858,7 +844,8 @@ setup() {
   mkdir -p "${_prefix}/node/v22.0.0/bin"
   printf '#!/bin/sh\nprintf "v22.0.0\\n"\n' > "${_prefix}/node/v22.0.0/bin/node"
   chmod +x "${_prefix}/node/v22.0.0/bin/node"
-  mkdir -p "${_prefix}/pkg/2.0.0/package"
+  mkdir -p "${_prefix}/pkg/2.0.0/node_modules/.bin"
+  touch "${_prefix}/pkg/2.0.0/node_modules/.bin/myapp"
 
   run npm__install_bundled \
     --package "myapp" \
@@ -878,10 +865,7 @@ setup() {
   npm__resolve_version() { printf '1.0.0\n'; }
   npm__resolve_node_version() { printf 'v20.19.2\n'; }
   npm__node_platform() { printf 'linux-x64\n'; }
-  _npm__bundled__pkg_tarball_url() { printf 'http://example.com/pkg.tgz\n'; }
-  _npm__bundled__entry_point() { printf 'index.js\n'; }
   export -f npm__resolve_version npm__resolve_node_version npm__node_platform
-  export -f _npm__bundled__pkg_tarball_url _npm__bundled__entry_point
 
   local _prefix="${BATS_TEST_TMPDIR}/update-noop-test"
 
@@ -891,7 +875,8 @@ setup() {
   mkdir -p "${_prefix}/node/v20.19.2/bin"
   printf '#!/bin/sh\nprintf "v20.19.2\\n"\n' > "${_prefix}/node/v20.19.2/bin/node"
   chmod +x "${_prefix}/node/v20.19.2/bin/node"
-  mkdir -p "${_prefix}/pkg/1.0.0/package"
+  mkdir -p "${_prefix}/pkg/1.0.0/node_modules/.bin"
+  touch "${_prefix}/pkg/1.0.0/node_modules/.bin/myapp"
 
   run npm__install_bundled \
     --package "myapp" \
@@ -910,10 +895,7 @@ setup() {
   npm__resolve_version() { printf '2.0.0\n'; }
   npm__resolve_node_version() { printf 'v22.0.0\n'; }
   npm__node_platform() { printf 'linux-x64\n'; }
-  _npm__bundled__pkg_tarball_url() { printf 'http://example.com/pkg.tgz\n'; }
-  _npm__bundled__entry_point() { printf 'index.js\n'; }
   export -f npm__resolve_version npm__resolve_node_version npm__node_platform
-  export -f _npm__bundled__pkg_tarball_url _npm__bundled__entry_point
 
   local _prefix="${BATS_TEST_TMPDIR}/update-change-test"
 
@@ -923,7 +905,8 @@ setup() {
   mkdir -p "${_prefix}/node/v22.0.0/bin"
   printf '#!/bin/sh\nprintf "v22.0.0\\n"\n' > "${_prefix}/node/v22.0.0/bin/node"
   chmod +x "${_prefix}/node/v22.0.0/bin/node"
-  mkdir -p "${_prefix}/pkg/2.0.0/package"
+  mkdir -p "${_prefix}/pkg/2.0.0/node_modules/.bin"
+  touch "${_prefix}/pkg/2.0.0/node_modules/.bin/myapp"
 
   run npm__install_bundled \
     --package "myapp" \
@@ -944,10 +927,7 @@ setup() {
   npm__resolve_version() { printf '2.0.0\n'; }
   npm__resolve_node_version() { printf 'v22.0.0\n'; }
   npm__node_platform() { printf 'linux-x64\n'; }
-  _npm__bundled__pkg_tarball_url() { printf 'http://example.com/pkg.tgz\n'; }
-  _npm__bundled__entry_point() { printf 'index.js\n'; }
   export -f npm__resolve_version npm__resolve_node_version npm__node_platform
-  export -f _npm__bundled__pkg_tarball_url _npm__bundled__entry_point
 
   local _prefix="${BATS_TEST_TMPDIR}/prune-test"
 
@@ -957,12 +937,13 @@ setup() {
   printf 'v20.19.2\n' > "${_prefix}/.metadata/node-version"
   # Old version dirs (to be pruned)
   mkdir -p "${_prefix}/node/v20.19.2/bin"
-  mkdir -p "${_prefix}/pkg/1.0.0/package"
+  mkdir -p "${_prefix}/pkg/1.0.0/node_modules"
   # New version dirs (pre-created to skip download)
   mkdir -p "${_prefix}/node/v22.0.0/bin"
   printf '#!/bin/sh\nprintf "v22.0.0\\n"\n' > "${_prefix}/node/v22.0.0/bin/node"
   chmod +x "${_prefix}/node/v22.0.0/bin/node"
-  mkdir -p "${_prefix}/pkg/2.0.0/package"
+  mkdir -p "${_prefix}/pkg/2.0.0/node_modules/.bin"
+  touch "${_prefix}/pkg/2.0.0/node_modules/.bin/myapp"
 
   run npm__install_bundled \
     --package "myapp" \
@@ -982,13 +963,239 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# npm__install_bundled — edge cases and integration
+# ---------------------------------------------------------------------------
+
+@test "npm__install_bundled fails early when node binary does not execute" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
+  npm__resolve_version() { printf '1.0.0\n'; }
+  npm__resolve_node_version() { printf 'v20.19.2\n'; }
+  npm__node_platform() { printf 'linux-x64\n'; }
+  export -f npm__resolve_version npm__resolve_node_version npm__node_platform
+
+  local _prefix="${BATS_TEST_TMPDIR}/bad-node"
+  mkdir -p "${_prefix}/node/v20.19.2/bin"
+  # Node binary always exits non-zero — simulates a corrupt tarball
+  printf '#!/bin/sh\nexit 1\n' > "${_prefix}/node/v20.19.2/bin/node"
+  chmod +x "${_prefix}/node/v20.19.2/bin/node"
+
+  run npm__install_bundled \
+    --package "myapp" \
+    --version "1.0.0" \
+    --cmd "myapp" \
+    --prefix "$_prefix"
+  assert_failure
+  assert_output --partial "does not execute"
+}
+
+@test "npm__install_bundled cleans up version dir on npm install failure" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
+  npm__resolve_version() { printf '1.0.0\n'; }
+  npm__resolve_node_version() { printf 'v20.19.2\n'; }
+  npm__node_platform() { printf 'linux-x64\n'; }
+  export -f npm__resolve_version npm__resolve_node_version npm__node_platform
+
+  local _prefix="${BATS_TEST_TMPDIR}/fail-cleanup"
+  mkdir -p "${_prefix}/node/v20.19.2/bin"
+  # Succeeds for --version (passes the early node check), fails for npm invocation
+  cat > "${_prefix}/node/v20.19.2/bin/node" << 'EOF_NODE'
+#!/bin/sh
+[ "$1" = "--version" ] && { printf "v20.19.2\n"; exit 0; }
+exit 1
+EOF_NODE
+  chmod +x "${_prefix}/node/v20.19.2/bin/node"
+
+  run npm__install_bundled \
+    --package "myapp" \
+    --version "1.0.0" \
+    --cmd "myapp" \
+    --prefix "$_prefix"
+  assert_failure
+  assert_output --partial "npm install failed"
+  # Partial pkg dir must be removed so the next run retries from scratch
+  [ ! -d "${_prefix}/pkg/1.0.0" ]
+}
+
+@test "npm__install_bundled fails with clear error when .bin/<cmd> is absent" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
+  npm__resolve_version() { printf '1.0.0\n'; }
+  npm__resolve_node_version() { printf 'v20.19.2\n'; }
+  npm__node_platform() { printf 'linux-x64\n'; }
+  export -f npm__resolve_version npm__resolve_node_version npm__node_platform
+
+  local _prefix="${BATS_TEST_TMPDIR}/missing-bin"
+  mkdir -p "${_prefix}/node/v20.19.2/bin"
+  printf '#!/bin/sh\nprintf "v20.19.2\\n"\n' > "${_prefix}/node/v20.19.2/bin/node"
+  chmod +x "${_prefix}/node/v20.19.2/bin/node"
+  # node_modules exists (triggers idempotency skip) but .bin/myapp is absent —
+  # simulates a package that installs successfully but exposes no 'myapp' binary.
+  mkdir -p "${_prefix}/pkg/1.0.0/node_modules"
+
+  run npm__install_bundled \
+    --package "myapp" \
+    --version "1.0.0" \
+    --cmd "myapp" \
+    --prefix "$_prefix"
+  assert_failure
+  assert_output --partial "'.bin/myapp' not found"
+}
+
+@test "npm__install_bundled logs 'already installed' when node_modules already present" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
+  npm__resolve_version() { printf '1.0.0\n'; }
+  npm__resolve_node_version() { printf 'v20.19.2\n'; }
+  npm__node_platform() { printf 'linux-x64\n'; }
+  export -f npm__resolve_version npm__resolve_node_version npm__node_platform
+
+  local _prefix="${BATS_TEST_TMPDIR}/already-installed"
+  mkdir -p "${_prefix}/node/v20.19.2/bin"
+  printf '#!/bin/sh\nprintf "v20.19.2\\n"\n' > "${_prefix}/node/v20.19.2/bin/node"
+  chmod +x "${_prefix}/node/v20.19.2/bin/node"
+  mkdir -p "${_prefix}/pkg/1.0.0/node_modules/.bin"
+  touch "${_prefix}/pkg/1.0.0/node_modules/.bin/myapp"
+
+  run npm__install_bundled \
+    --package "myapp" \
+    --version "1.0.0" \
+    --cmd "myapp" \
+    --prefix "$_prefix"
+  assert_success
+  assert_output --partial "already installed; skipping"
+}
+
+@test "npm__install_bundled derives cmd from last path segment of scoped package" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
+  npm__resolve_version() { printf '1.0.0\n'; }
+  npm__resolve_node_version() { printf 'v20.19.2\n'; }
+  npm__node_platform() { printf 'linux-x64\n'; }
+  export -f npm__resolve_version npm__resolve_node_version npm__node_platform
+
+  local _prefix="${BATS_TEST_TMPDIR}/scoped-pkg"
+  mkdir -p "${_prefix}/node/v20.19.2/bin"
+  printf '#!/bin/sh\nprintf "v20.19.2\\n"\n' > "${_prefix}/node/v20.19.2/bin/node"
+  chmod +x "${_prefix}/node/v20.19.2/bin/node"
+  # @openai/codex → cmd should default to 'codex' (last segment, @ stripped)
+  mkdir -p "${_prefix}/pkg/1.0.0/node_modules/.bin"
+  touch "${_prefix}/pkg/1.0.0/node_modules/.bin/codex"
+
+  run npm__install_bundled \
+    --package "@openai/codex" \
+    --version "1.0.0" \
+    --prefix "$_prefix"
+  assert_success
+  [ -x "${_prefix}/bin/codex" ]
+  ! [ -e "${_prefix}/bin/@openai" ]
+}
+
+@test "npm__install_bundled passes --registry flag to bundled npm" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
+  npm__resolve_version() { printf '1.0.0\n'; }
+  npm__resolve_node_version() { printf 'v20.19.2\n'; }
+  npm__node_platform() { printf 'linux-x64\n'; }
+  export -f npm__resolve_version npm__resolve_node_version npm__node_platform
+
+  local _prefix="${BATS_TEST_TMPDIR}/registry-test"
+  local _args_log="${BATS_TEST_TMPDIR}/npm-args.log"
+  mkdir -p "${_prefix}/node/v20.19.2/bin"
+  # Fake node: passes --version check, records all npm-cli args, then creates the expected layout
+  cat > "${_prefix}/node/v20.19.2/bin/node" << EOF
+#!/bin/sh
+if [ "\$1" = "--version" ]; then printf "v20.19.2\\n"; exit 0; fi
+printf "%s\n" "\$@" >> "${_args_log}"
+mkdir -p "${_prefix}/pkg/1.0.0/node_modules/.bin"
+touch "${_prefix}/pkg/1.0.0/node_modules/.bin/myapp"
+exit 0
+EOF
+  chmod +x "${_prefix}/node/v20.19.2/bin/node"
+
+  run npm__install_bundled \
+    --package "myapp" \
+    --version "1.0.0" \
+    --cmd "myapp" \
+    --prefix "$_prefix" \
+    --registry "https://my.registry.example.com"
+  assert_success
+  grep -q -- "--registry" "$_args_log"
+  grep -q "https://my.registry.example.com" "$_args_log"
+}
+
+@test "npm__install_bundled creates correct node/current and pkg/current symlinks" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
+  npm__resolve_version() { printf '3.1.4\n'; }
+  npm__resolve_node_version() { printf 'v22.0.0\n'; }
+  npm__node_platform() { printf 'linux-x64\n'; }
+  export -f npm__resolve_version npm__resolve_node_version npm__node_platform
+
+  local _prefix="${BATS_TEST_TMPDIR}/symlink-check"
+  mkdir -p "${_prefix}/node/v22.0.0/bin"
+  printf '#!/bin/sh\nprintf "v22.0.0\\n"\n' > "${_prefix}/node/v22.0.0/bin/node"
+  chmod +x "${_prefix}/node/v22.0.0/bin/node"
+  mkdir -p "${_prefix}/pkg/3.1.4/node_modules/.bin"
+  touch "${_prefix}/pkg/3.1.4/node_modules/.bin/mytool"
+
+  run npm__install_bundled \
+    --package "mytool" \
+    --version "3.1.4" \
+    --cmd "mytool" \
+    --prefix "$_prefix"
+  assert_success
+
+  # node/current must be a symlink pointing to the resolved Node.js version
+  [ -L "${_prefix}/node/current" ]
+  assert_equal "$(readlink "${_prefix}/node/current")" "v22.0.0"
+  # pkg/current must be a symlink pointing to the resolved package version
+  [ -L "${_prefix}/pkg/current" ]
+  assert_equal "$(readlink "${_prefix}/pkg/current")" "3.1.4"
+}
+
+@test "npm__install_bundled wrapper invokes node with the .bin entry and user args" {
+  [[ "$(os__platform)" == "alpine" ]] && skip "pre-built Node.js not supported on Alpine (musl)"
+  npm__resolve_version() { printf '1.0.0\n'; }
+  npm__resolve_node_version() { printf 'v20.19.2\n'; }
+  npm__node_platform() { printf 'linux-x64\n'; }
+  export -f npm__resolve_version npm__resolve_node_version npm__node_platform
+
+  local _prefix="${BATS_TEST_TMPDIR}/wrapper-runtime"
+  mkdir -p "${_prefix}/node/v20.19.2/bin"
+  # Phase 1 node: passes version check and simulates a successful npm install
+  cat > "${_prefix}/node/v20.19.2/bin/node" << EOF
+#!/bin/sh
+if [ "\$1" = "--version" ]; then printf "v20.19.2\\n"; exit 0; fi
+mkdir -p "${_prefix}/pkg/1.0.0/node_modules/.bin"
+touch "${_prefix}/pkg/1.0.0/node_modules/.bin/myapp"
+exit 0
+EOF
+  chmod +x "${_prefix}/node/v20.19.2/bin/node"
+
+  run npm__install_bundled \
+    --package "myapp" \
+    --version "1.0.0" \
+    --cmd "myapp" \
+    --prefix "$_prefix"
+  assert_success
+  [ -x "${_prefix}/bin/myapp" ]
+
+  # Phase 2: replace node with a spy that records the arguments it receives
+  printf '#!/bin/sh\nprintf "node-arg: %%s\\n" "$@"\n' \
+    > "${_prefix}/node/v20.19.2/bin/node"
+  chmod +x "${_prefix}/node/v20.19.2/bin/node"
+
+  # Run the wrapper directly; it must exec node with the .bin entry and user args
+  run "${_prefix}/bin/myapp" --my-flag extra-arg
+  assert_success
+  assert_output --partial "node_modules/.bin/myapp"
+  assert_output --partial "--my-flag"
+  assert_output --partial "extra-arg"
+}
+
+# ---------------------------------------------------------------------------
 # npm__uninstall_bundled
 # ---------------------------------------------------------------------------
 
 # Create a minimal bundled npm layout under <prefix>.
 _npm_test__make_bundled_prefix() {
   local _prefix="$1"
-  mkdir -p "${_prefix}/node/current/bin" "${_prefix}/pkg/current" "${_prefix}/.metadata"
+  mkdir -p "${_prefix}/node/current/bin" "${_prefix}/pkg/current/node_modules" "${_prefix}/.metadata"
   printf '#!/bin/sh\n' > "${_prefix}/node/current/bin/node"
   chmod +x "${_prefix}/node/current/bin/node"
   printf '1.0.0\n' > "${_prefix}/.metadata/installed-version"
