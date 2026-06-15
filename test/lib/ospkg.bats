@@ -2960,7 +2960,7 @@ _setup_resolve_version() {
     > "${BATS_TEST_TMPDIR}/bin/apt-cache"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
   local _manifest
-  _manifest="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX.yaml")"
+  _manifest="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf 'packages:\n- name: zsh\n  version: "{VERSION}"\n' > "${_manifest}"
   # --update bypasses ospkg__is_installed; --dry_run skips the actual apt-get install.
   run ospkg__run --manifest "${_manifest}" --extra-var "VERSION=5.9" --update --dry_run
