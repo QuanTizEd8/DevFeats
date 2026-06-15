@@ -2959,6 +2959,16 @@ _setup_resolve_version() {
   printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: 5.9-6ubuntu2\n"\n' \
     > "${BATS_TEST_TMPDIR}/bin/apt-cache"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  # Fake yq so bootstrap__yq finds it via PATH without downloading (on systems
+  # like Alpine where yq is not pre-installed, the real bootstrap downloads yq
+  # and its progress output pollutes the captured output).
+  # Output is the JSON equivalent of the test manifest; {VERSION} is a literal
+  # string that ospkg__run expands via --extra-var before version resolution.
+  cat > "${BATS_TEST_TMPDIR}/bin/yq" << 'YQ_EOF'
+#!/bin/sh
+printf '{"packages":[{"name":"zsh","version":"{VERSION}"}]}\n'
+YQ_EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
   local _manifest
   _manifest="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf 'packages:\n- name: zsh\n  version: "{VERSION}"\n' > "${_manifest}"

@@ -570,6 +570,9 @@ setup() {
 }
 
 @test "os__libc returns gnu when no musl markers are present" {
+  # Skip on Alpine: /lib/ld-musl-*.so* files are physically present on the host
+  # and the ls-glob check in os__libc runs before the ldd stub is consulted.
+  [[ -f /etc/alpine-release ]] && skip "musl linker files always present on Alpine"
   reload_lib os.sh
   _OS__KERNEL="Linux"
   ldd() { printf '/lib/x86_64-linux-gnu/libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6\n/lib64/ld-linux-x86-64.so.2\n'; }
