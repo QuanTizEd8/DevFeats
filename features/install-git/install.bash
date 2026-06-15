@@ -40,6 +40,16 @@ __update_run_package__() {
 # ── Source build ───────────────────────────────────────────────────────────
 
 __install_run_source_pre() {
+  # GitHub RC tags use '-rcN' (e.g. v2.55.0-rc0) but kernel.org tarballs use
+  # '.rcN' (e.g. git-2.55.0.rc0.tar.gz) and live in a separate testing/
+  # directory.  Redirect SOURCE_ASSET_URI and SOURCE_SIDECAR_URI here so the
+  # template fetches the right file with the right checksum source.
+  if [[ "${VERSION:-}" == *-rc* ]]; then
+    local _korg_ver="${VERSION//-rc/.rc}"
+    SOURCE_ASSET_URI="https://www.kernel.org/pub/software/scm/git/testing/git-${_korg_ver}.tar.gz"
+    SOURCE_SIDECAR_URI="https://www.kernel.org/pub/software/scm/git/testing/sha256sums.asc"
+  fi
+
   # Validates the build environment and installs build deps before download.
   file__mkdir "${_RESOLVED_PREFIX}"
   local _rc=$?
