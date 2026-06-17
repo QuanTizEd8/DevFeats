@@ -58,9 +58,6 @@ if_exists_fail:
   expect_install_failure: true
   envs: [debian-latest]
   modes: [standalone]
-  setup: |
-    printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then printf "GNU bash, version 9.9.9 (fake)\\n"; exit 0; fi\nexit 0' > /usr/local/bin/bash
-    chmod +x /usr/local/bin/bash
   options:
     method: auto
     if_exists: fail
