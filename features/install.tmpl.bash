@@ -2369,6 +2369,8 @@ __deploy_lifecycle_scripts__() {
     local _boilerplate
     _boilerplate=$(
       cat << 'BOILERPLATE'
+#!/bin/sh
+set -e
 warn() { printf '[%s] WARN: %s\n' "$(basename "$0")" "$*" >&2; }
 _CONF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0").conf"
 if [ -f "$_CONF" ]; then
@@ -2444,25 +2446,26 @@ VERIFY_NOOP
 }
 
 __deploy_lifecycle_script__() {
-  # Write _src to _dest with conf-loading + skip-check boilerplate injected
-  # immediately after the shebang (or prepended when no shebang is present).
+  # Write _src to _dest with the boilerplate prepended.
+  # The boilerplate owns the shebang (#!/bin/sh) and set -e; any shebang
+  # in the source file is stripped, as it exists only for local tooling.
   local _src="$1" _dest="$2" _boilerplate="$3"
   logging__install "Deploying lifecycle script '${_src}' → '${_dest}'."
-  local _shebang=""
-  read -r _shebang < "${_src}" || true
-  if [[ "${_shebang}" == '#!'* ]]; then
-    {
-      printf '%s\n' "${_shebang}"
-      printf '%s' "${_boilerplate}"
+  local _first_line=""
+  read -r _first_line < "${_src}" || true
+  {
+    printf '%s\n' "${_boilerplate}"
+    if [[ "${_first_line}" == '#!'* ]]; then
       tail -n +2 "${_src}"
-    } > "${_dest}"
-  else
-    {
-      printf '%s' "${_boilerplate}"
+    else
       cat "${_src}"
-    } > "${_dest}"
-  fi
+    fi
+  } > "${_dest}"
   file__chmod +x "${_dest}"
+  if ! sh -n "${_dest}" 2>&1; then
+    logging__error "Lifecycle script '${_dest}' failed syntax check (sh -n)."
+    return 1
+  fi
 }
 
 # Feature Functions
