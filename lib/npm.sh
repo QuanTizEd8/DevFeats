@@ -1011,10 +1011,10 @@ npm__install_bundled() {
       --no-fund
       --no-package-lock
       --loglevel=warn
-      --scripts-prepend-node-path=true
     )
     [ -n "${_registry:-}" ] && _npm_args+=(--registry "$_registry")
-    "${_node_bin}" "$_npm_cli" install \
+    # Prepend node's bin/ to PATH for lifecycle scripts; --scripts-prepend-node-path was removed in npm v10.
+    PATH="${_node_dir}/current/bin:${PATH}" "${_node_bin}" "$_npm_cli" install \
       "${_npm_args[@]}" \
       "${_package}@${_version}"
     local _rc=$?
