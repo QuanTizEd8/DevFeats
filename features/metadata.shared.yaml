@@ -368,6 +368,22 @@ options:
       Source binary path within the extracted archive (suffix-match).
       Override to select a different binary from the archive.
 
+  binary_companion_bins:
+    _apply_when: |
+      #{{ return bool(get("_options.method.binary.companion_bins")) }}#
+    type: array
+    default: |
+      #{{
+        bins = get("_options.method.binary.companion_bins") or []
+        return "\n".join(bins) if bins else ""
+      }}#
+    description: >-
+      Additional entry-point names to create as symlinks to the primary installed
+      binary in `${PREFIX}/bin/` after a binary-method install. For multicall
+      binaries that expose multiple commands via symlink
+      (e.g. `pandoc-server → pandoc`, `pandoc-lua → pandoc`).
+      One name per line.
+
   binary_netrc:
     _apply_when: |
       #{{ return bool(get("_options.method.binary")) }}#

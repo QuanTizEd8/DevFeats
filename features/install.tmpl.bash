@@ -519,6 +519,15 @@ __uninstall_run_prefix__() {
   __run_feature_hook__ __uninstall_run_prefix_pre
   logging__remove "Removing prefix binary '${_FEAT_EXISTING_PATH}'."
   file__rm -f "${_FEAT_EXISTING_PATH}"
+  if [[ -v BINARY_COMPANION_BINS && "${#BINARY_COMPANION_BINS[@]}" -gt 0 ]]; then
+    local _comp_bin_dir="${_FEAT_EXISTING_PATH%/*}"
+    local _comp_name
+    for _comp_name in "${BINARY_COMPANION_BINS[@]+"${BINARY_COMPANION_BINS[@]}"}"; do
+      [[ -n "${_comp_name}" ]] || continue
+      logging__remove "Removing companion symlink '${_comp_bin_dir}/${_comp_name}'."
+      file__rm -f "${_comp_bin_dir}/${_comp_name}" 2>/dev/null || true
+    done
+  fi
   __run_feature_hook__ __uninstall_run_prefix_post
 }
 
@@ -845,6 +854,15 @@ __install_run_binary__() {
       "${_netrc_arg[@]+"${_netrc_arg[@]}"}" \
       "${_gpg_key_arg[@]+"${_gpg_key_arg[@]}"}" \
       "${_gpg_sig_arg[@]+"${_gpg_sig_arg[@]}"}"
+    if [[ -v BINARY_COMPANION_BINS && "${#BINARY_COMPANION_BINS[@]}" -gt 0 && -v _RESOLVED_PREFIX ]]; then
+      local _primary_name="${_bin_dest##*/}"
+      local _comp_name
+      for _comp_name in "${BINARY_COMPANION_BINS[@]+"${BINARY_COMPANION_BINS[@]}"}"; do
+        [[ -n "${_comp_name}" ]] || continue
+        logging__install "Creating companion symlink '${_RESOLVED_PREFIX}/bin/${_comp_name}' → '${_primary_name}'."
+        file__ln "${_primary_name}" "${_RESOLVED_PREFIX}/bin/${_comp_name}"
+      done
+    fi
   else
     logging__error "METHOD=binary: no BINARY_ASSET_URI set (missing _options.method.binary in metadata?). Override __install_run_binary__ for a fully custom binary install."
     return 1

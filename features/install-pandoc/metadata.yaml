@@ -1,0 +1,53 @@
+version: 0.1.0
+name: Pandoc Installation
+description: Install [Pandoc](https://pandoc.org/) — the universal document converter.
+keywords:
+  - pandoc
+  - document
+  - converter
+  - markdown
+  - pdf
+  - latex
+  - cli
+_long_description: |-
+  Installs [Pandoc](https://pandoc.org/), the universal document converter that
+  translates between hundreds of markup and document formats — Markdown, HTML,
+  LaTeX, DOCX, EPUB, reStructuredText, and many more. The binary method downloads
+  a statically linked release from GitHub Releases (`.tar.gz` on Linux, `.zip` on
+  macOS) and installs `pandoc`, `pandoc-server`, and `pandoc-lua` into a
+  configurable prefix. The package method delegates to the OS package manager.
+_tool_name: pandoc
+_options:
+  verify:
+    args: "--version"
+    description: Verify pandoc is installed and working.
+  gh_repo: jgm/pandoc
+  version:
+    resolution: github_release
+    default: stable
+    flag: --version
+    proposals:
+      - value: '3.10'
+        description: Pandoc v3.10.
+      - value: 3.9.0.2
+        description: Pandoc v3.9.0.2.
+      - value: 3.8.3
+        description: Pandoc v3.8.3.
+  method:
+    binary:
+      asset_uri: "https://github.com/jgm/pandoc/releases/download/{TAG}/pandoc-{VERSION}-{OS==linux?linux-{ARCH}:{OS_ARCH==aarch64?arm64:{OS_ARCH}}-macOS}.{OS==linux?tar.gz:zip}"
+      binary_src: pandoc
+      companion_bins:
+        - pandoc-server
+        - pandoc-lua
+      when: {arch: [amd64, arm64]}
+    package: {}
+  prefix:
+    bins: [pandoc, pandoc-server, pandoc-lua]
+    applies_when:
+      - method: [binary]
+_dependencies:
+  run:
+    os-pkg:
+      packages:
+        - pandoc

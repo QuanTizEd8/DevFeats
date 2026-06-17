@@ -170,6 +170,11 @@
                   "description": "Source binary path within the extracted archive (suffix-match passed to `--binary-src`).",
                   "type": "string"
                 },
+                "companion_bins": {
+                  "description": "Additional entry-point names to create as symlinks to the primary installed binary in `${PREFIX}/bin/` after install. For multicall binaries that expose multiple commands via symlink (e.g. `pandoc-server → pandoc`).",
+                  "type": "array",
+                  "items": {"type": "string"}
+                },
                 "gpg_key_uri": {
                   "description": "URI of the GPG public key used to verify the binary release asset signature. Generates the `binary_gpg_key_uri` user option.",
                   "type": "string"
