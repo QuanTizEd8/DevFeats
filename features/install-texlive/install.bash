@@ -585,12 +585,10 @@ __install_run_script__() {
   [[ "${VERIFY_DOWNLOADS:-true}" != "true" ]] && _install_args+=(--no-verify-downloads)
 
   logging__install "Running TeX Live installer."
-  TEXLIVE_INSTALL_NO_CONTEXT_CACHE=1 \
-    TEXLIVE_INSTALL_NO_DISKCHECK=1 \
-    TEXLIVE_INSTALL_ENV_NOCHECK=1 \
-    TEXLIVE_INSTALL_NO_WELCOME=1 \
-    NOPERLDOC=1 \
-    perl "${INSTALLER_DIR}/install-tl" "${_install_args[@]}"
+  net__fetch_with_retry --retries 5 --delay 30 -- \
+    env TEXLIVE_INSTALL_NO_CONTEXT_CACHE=1 TEXLIVE_INSTALL_NO_DISKCHECK=1 \
+        TEXLIVE_INSTALL_ENV_NOCHECK=1 TEXLIVE_INSTALL_NO_WELCOME=1 NOPERLDOC=1 \
+        perl "${INSTALLER_DIR}/install-tl" "${_install_args[@]}"
 
   _tl_detect_texdir_sysbin
   _tl_ensure_path
