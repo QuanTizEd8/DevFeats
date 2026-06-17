@@ -146,7 +146,7 @@ options:
 
   os_essentials:
     type: boolean
-    default: false
+    default: true
     description: |-
       Core OS utilities for minimal container images (Linux only): ca-certificates,
       sudo, tar, and tzdata; plus apt-only: locales (with en_US.UTF-8 generation),
@@ -545,8 +545,9 @@ _dependencies:
           brew: universal-ctags
         # code metrics
         - cloc
-        # fast code statistics
-        - tokei
+        # fast code statistics — not in apt repos on Ubuntu ≤24.04 / Debian ≤12
+        - name: tokei
+          when: {pm: [apk, brew, dnf, yum, zypper, pacman]}
 
     document-tools:
       packages:
@@ -1018,8 +1019,9 @@ _dependencies:
         - gawk
         # scripting language for text processing one-liners
         - perl
-        # ripgrep extended to search inside PDFs, archives, and Office docs
-        - ripgrep-all
+        # ripgrep extended to search inside PDFs, archives, and Office docs — not in apt stable repos
+        - name: ripgrep-all
+          when: {pm: [apk, brew, dnf, yum, zypper, pacman]}
         # PDF text search
         - pdfgrep
 
