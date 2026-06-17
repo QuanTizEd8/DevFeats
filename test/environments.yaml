@@ -88,6 +88,9 @@ ubuntu-latest+fish:
       apt-get install -y --no-install-recommends fish
       rm -rf /var/lib/apt/lists/*
 
+debian-bookworm:
+  image: debian:bookworm
+
 debian-latest:
   image: debian:latest
 

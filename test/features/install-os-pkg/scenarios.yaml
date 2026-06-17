@@ -325,7 +325,7 @@ apt_repo_cleanup:
   tests: [apt_repo_cleanup]
 
 apt_key_raw:
-  envs: [debian-latest]
+  envs: [debian-bookworm]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -342,7 +342,7 @@ apt_key_raw:
   tests: [apt_key_raw]
 
 apt_key_dearmor:
-  envs: [debian-latest]
+  envs: [debian-bookworm]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
