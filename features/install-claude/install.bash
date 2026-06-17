@@ -6,7 +6,7 @@
 __install_run_binary_pre() {
   local _platform
   _platform="$(os__expand_release_pattern \
-    "{OS}-{ARCH:node}{OS==linux?{LIBC==musl?-musl:}:}" "${VERSION}" "")"
+    "{OS}-{ARCH:node}{OS==linux?{LIBC==musl?-musl:}:}" "VERSION=${VERSION}" "TAG=")"
   local _manifest_url="https://downloads.claude.ai/claude-code-releases/${VERSION}/manifest.json"
   local _tmpfile
   _tmpfile="$(mktemp)"

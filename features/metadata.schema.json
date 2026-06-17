@@ -301,6 +301,11 @@
                 "crate": {
                   "description": "Cargo crate name to install.",
                   "type": "string"
+                },
+                "args": {
+                  "description": "Default arguments passed to `cargo install` when `method=cargo`. One entry per element; becomes the default for the auto-generated `cargo_install_args` option.",
+                  "type": "array",
+                  "items": {"type": "string"}
                 }
               }
             },

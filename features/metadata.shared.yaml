@@ -327,10 +327,11 @@ options:
       computed automatically by the feature's `__install_run_binary_pre` hook.
       Override to select a specific mirror or prebuilt variant.
 
-      Runtime substitutions (expanded by `os__expand_release_pattern` at install time):
+      Runtime substitutions (expanded by `__expand_pattern__` at install time):
 
       - `{VERSION}` — resolved bare version string (e.g. `1.7.1`).
       - `{TAG}` — full upstream release tag (e.g. `v1.7.1`, `jq-1.7.1`).
+      - `{METHOD}` — resolved installation method (e.g. `binary`, `cargo`).
       - `{OS}` — kernel identifier for GitHub-style release names (`os__release_kernel`).
         Values: `linux`, `darwin`.
       - `{KERNEL}` — raw `uname -s` output (`os__kernel`).
@@ -496,6 +497,7 @@ options:
       Arguments passed to `./configure` when `source_build_system=autotools`.
       `--prefix=<PREFIX>` is always appended automatically.
       Provide one argument per line to override or extend the defaults.
+      Each argument supports the same substitution tokens as `binary_asset_uri`.
 
   source_make_flags:
     _apply_when: |
@@ -510,6 +512,7 @@ options:
       Make variable assignments appended to every `make` invocation for source builds
       (e.g. `USE_LIBPCRE2=YesPlease`).
       Provide one assignment per line.
+      Each entry supports the same substitution tokens as `binary_asset_uri`.
 
   source_make_targets:
     _apply_when: |
@@ -524,6 +527,7 @@ options:
       Make targets invoked in sequence for source builds.
       When empty, the build system default is used: `all` then `install`.
       Provide one target per line to override.
+      Each entry supports the same substitution tokens as `binary_asset_uri`.
 
   git_clone_uri:
     _apply_when: |
@@ -626,6 +630,7 @@ options:
     description: >-
       Arguments to pass to the installer script.
       Provide one argument per line to override or extend the default arguments.
+      Each argument supports the same substitution tokens as `binary_asset_uri`.
 
   script_netrc:
     _apply_when: |
@@ -722,6 +727,18 @@ options:
     description: >-
       Additional arguments to pass to `npm install` when `method=npm`.
       Provide one argument per line to extend or override the default arguments.
+      Each argument supports the same substitution tokens as `binary_asset_uri`.
+
+  cargo_install_args:
+    _apply_when: |
+      #{{ return bool(get("_options.method.cargo")) }}#
+    type: array
+    default: |
+      #{{ args = get("_options.method.cargo.args") or []; return "\n".join(args) if args else "" }}#
+    description: >-
+      Additional arguments to pass to `cargo install` when `method=cargo`.
+      Provide one argument per line to extend or override the default arguments.
+      Each argument supports the same substitution tokens as `binary_asset_uri`.
 
   prefix:
     _apply_when: |

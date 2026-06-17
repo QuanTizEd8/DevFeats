@@ -807,10 +807,9 @@ __install_run_binary__() {
       logging__error "METHOD=binary asset URI requires a version option; VERSION is unset (missing options.version in metadata?)."
       return 1
     fi
-    local _tag _asset_uri _asset_name _bin_dest
+    local _asset_uri _asset_name _bin_dest
     local -a _sha256_args=() _sidecar_args=() _installer_dir_arg=() _binary_src_args=() _netrc_arg=() _gpg_key_arg=() _gpg_sig_arg=()
-    _tag="${_FEAT_RESOLVED_TAG:-v${VERSION}}"
-    _asset_uri="$(os__expand_release_pattern "${BINARY_ASSET_URI}" "${VERSION}" "${_tag}")"
+    _asset_uri="$(__expand_pattern__ "${BINARY_ASSET_URI}")"
     _asset_name="${_asset_uri%%\?*}"
     _asset_name="${_asset_name##*/}"
     if [[ -n "${BINARY_SRC:-}" ]]; then
@@ -821,7 +820,7 @@ __install_run_binary__() {
     fi
     if [[ -v BINARY_SIDECAR_URI && -n "${BINARY_SIDECAR_URI}" ]]; then
       local _sc_uri
-      _sc_uri="$(os__expand_release_pattern "${BINARY_SIDECAR_URI}" "${VERSION}" "${_tag}")"
+      _sc_uri="$(__expand_pattern__ "${BINARY_SIDECAR_URI}")"
       _sidecar_args=(--sidecar "${_sc_uri}")
     fi
     # Use pre-computed SHA-256 (set by __install_run_binary_pre) when available;
@@ -833,12 +832,12 @@ __install_run_binary__() {
     fi
     if [[ -v BINARY_GPG_KEY_URI && -n "${BINARY_GPG_KEY_URI}" ]]; then
       local _gpg_key_uri
-      _gpg_key_uri="$(os__expand_release_pattern "${BINARY_GPG_KEY_URI}" "${VERSION}" "${_tag}")"
+      _gpg_key_uri="$(__expand_pattern__ "${BINARY_GPG_KEY_URI}")"
       _gpg_key_arg=(--gpg-key "${_gpg_key_uri}")
     fi
     if [[ -v BINARY_GPG_SIG_URI && -n "${BINARY_GPG_SIG_URI}" ]]; then
       local _gpg_sig_uri
-      _gpg_sig_uri="$(os__expand_release_pattern "${BINARY_GPG_SIG_URI}" "${VERSION}" "${_tag}")"
+      _gpg_sig_uri="$(__expand_pattern__ "${BINARY_GPG_SIG_URI}")"
       _gpg_sig_arg=(--gpg-sig "${_gpg_sig_uri}")
     fi
     [[ -n "${INSTALLER_DIR:-}" ]] && _installer_dir_arg=(--installer-dir "${INSTALLER_DIR}")
@@ -898,15 +897,14 @@ __install_run_script__() {
 
   local _script_path
   if [[ -v SCRIPT_ASSET_URI && -n "${SCRIPT_ASSET_URI}" ]]; then
-    local _tag _asset_uri _asset_name
+    local _asset_uri _asset_name
     local -a _sha256_args=() _sidecar_args=() _installer_dir_arg=() _netrc_arg=()
-    _tag="${_FEAT_RESOLVED_TAG:-${VERSION:+v${VERSION}}}"
-    _asset_uri="$(os__expand_release_pattern "${SCRIPT_ASSET_URI}" "${VERSION:-}" "${_tag:-}")"
+    _asset_uri="$(__expand_pattern__ "${SCRIPT_ASSET_URI}")"
     _asset_name="${_asset_uri%%\?*}"
     _asset_name="${_asset_name##*/}"
     if [[ -v SCRIPT_SIDECAR_URI && -n "${SCRIPT_SIDECAR_URI}" ]]; then
       local _sc_uri
-      _sc_uri="$(os__expand_release_pattern "${SCRIPT_SIDECAR_URI}" "${VERSION:-}" "${_tag:-}")"
+      _sc_uri="$(__expand_pattern__ "${SCRIPT_SIDECAR_URI}")"
       _sidecar_args=(--sidecar "${_sc_uri}")
     fi
     __github_release_sha256_args__ "$_asset_name" _sha256_args
@@ -935,10 +933,7 @@ __install_run_script__() {
   else
     logging__debug "No feature hook '__install_run_script_run' found; running script directly."
     local -a _all_script_args=()
-    local _sarg
-    for _sarg in "${SCRIPT_ARGS[@]+"${SCRIPT_ARGS[@]}"}"; do
-      _all_script_args+=("$(str__expand_pattern "${_sarg}" "VERSION=${VERSION:-}" "METHOD=${METHOD:-}")")
-    done
+    if [[ -v SCRIPT_ARGS ]]; then __expand_args__ SCRIPT_ARGS _all_script_args; fi
     if [[ -v _FEAT_INSTALL_SCRIPT_ARGS ]]; then
       _all_script_args+=("${_FEAT_INSTALL_SCRIPT_ARGS[@]+"${_FEAT_INSTALL_SCRIPT_ARGS[@]}"}")
     fi
@@ -995,6 +990,7 @@ __install_run_cargo__() {
     _cargo_args+=(--root "${_RESOLVED_PREFIX}")
   fi
   [[ -v VERSION && -n "${VERSION}" ]] && _cargo_args+=(--version "${VERSION}")
+  if [[ -v CARGO_INSTALL_ARGS ]]; then __expand_args__ CARGO_INSTALL_ARGS _cargo_args; fi
   if [[ -v _FEAT_CARGO_INSTALL_ARGS ]]; then
     _cargo_args+=("${_FEAT_CARGO_INSTALL_ARGS[@]+"${_FEAT_CARGO_INSTALL_ARGS[@]}"}")
   fi
@@ -1026,9 +1022,7 @@ __install_run_npm__() {
     _install_args+=(--prefix "${_RESOLVED_PREFIX}")
   fi
   [[ -n "${NPM_REGISTRY:-}" ]] && _install_args+=(--registry "${NPM_REGISTRY}")
-  if [[ -v NPM_INSTALL_ARGS ]]; then
-    _install_args+=("${NPM_INSTALL_ARGS[@]+"${NPM_INSTALL_ARGS[@]}"}")
-  fi
+  if [[ -v NPM_INSTALL_ARGS ]]; then __expand_args__ NPM_INSTALL_ARGS _install_args; fi
   _install_args+=("${_pkg}")
 
   logging__install "Installing npm package '${_pkg}'."
@@ -1121,14 +1115,13 @@ __install_run_source__() {
     return 1
   fi
 
-  local _tag _asset_uri
-  _tag="${_FEAT_RESOLVED_TAG:-${VERSION:+v${VERSION}}}"
-  _asset_uri="$(os__expand_release_pattern "${SOURCE_ASSET_URI}" "${VERSION:-}" "${_tag:-}")"
+  local _asset_uri
+  _asset_uri="$(__expand_pattern__ "${SOURCE_ASSET_URI}")"
 
   local -a _fetch_args=(--installer-dir "${INSTALLER_DIR}")
   if [[ -v SOURCE_SIDECAR_URI && -n "${SOURCE_SIDECAR_URI}" ]]; then
     local _sc_uri
-    _sc_uri="$(os__expand_release_pattern "${SOURCE_SIDECAR_URI}" "${VERSION:-}" "${_tag:-}")"
+    _sc_uri="$(__expand_pattern__ "${SOURCE_SIDECAR_URI}")"
     _fetch_args+=(--sidecar "${_sc_uri}")
   fi
 
@@ -1138,7 +1131,7 @@ __install_run_source__() {
   if [[ ${_fetch_rc} -ne 0 ]]; then
     if [[ -v SOURCE_FALLBACK_ASSET_URI && -n "${SOURCE_FALLBACK_ASSET_URI}" ]]; then
       local _fallback_uri
-      _fallback_uri="$(os__expand_release_pattern "${SOURCE_FALLBACK_ASSET_URI}" "${VERSION:-}" "${_tag:-}")"
+      _fallback_uri="$(__expand_pattern__ "${SOURCE_FALLBACK_ASSET_URI}")"
       logging__warn "Primary source fetch failed (rc=${_fetch_rc}); trying fallback '${_fallback_uri}'."
       uri__fetch_asset "${_fallback_uri}" --installer-dir "${INSTALLER_DIR}" --sha256 none
     else
@@ -1173,23 +1166,16 @@ __install_run_source_auto_build__() {
   _jobs="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || printf '1')"
 
   local -a _make_flags=()
-  if [[ -v SOURCE_MAKE_FLAGS ]]; then
-    _make_flags+=("${SOURCE_MAKE_FLAGS[@]+"${SOURCE_MAKE_FLAGS[@]}"}")
-  fi
+  if [[ -v SOURCE_MAKE_FLAGS ]]; then __expand_args__ SOURCE_MAKE_FLAGS _make_flags; fi
 
   local -a _make_targets=()
-  if [[ -v SOURCE_MAKE_TARGETS && "${#SOURCE_MAKE_TARGETS[@]}" -gt 0 ]]; then
-    _make_targets=("${SOURCE_MAKE_TARGETS[@]}")
-  else
-    _make_targets=(all install)
-  fi
+  if [[ -v SOURCE_MAKE_TARGETS ]]; then __expand_args__ SOURCE_MAKE_TARGETS _make_targets; fi
+  if [[ "${#_make_targets[@]}" -eq 0 ]]; then _make_targets=(all install); fi
 
   case "${SOURCE_BUILD_SYSTEM:-}" in
     autotools)
       local -a _configure_args=()
-      if [[ -v SOURCE_CONFIGURE_ARGS ]]; then
-        _configure_args+=("${SOURCE_CONFIGURE_ARGS[@]+"${SOURCE_CONFIGURE_ARGS[@]}"}")
-      fi
+      if [[ -v SOURCE_CONFIGURE_ARGS ]]; then __expand_args__ SOURCE_CONFIGURE_ARGS _configure_args; fi
       if [[ -v _RESOLVED_PREFIX ]]; then
         _configure_args+=(--prefix="${_RESOLVED_PREFIX}")
       fi
@@ -1285,7 +1271,7 @@ __install_run_git_clone__() {
     return 1
   fi
   local _uri
-  _uri="$(os__expand_release_pattern "${GIT_CLONE_URI}" "${VERSION:-}" "${_FEAT_RESOLVED_TAG:-}")"
+  _uri="$(__expand_pattern__ "${GIT_CLONE_URI}")"
   local _ref_arg=()
   [[ -v VERSION && -n "${VERSION}" ]] && _ref_arg=(--ref "${VERSION}")
   local _sha_arg=()
@@ -1877,6 +1863,29 @@ __exit__() {
 
 # Helpers
 # =======
+__expand_pattern__() {
+  # Expand a pattern with the full feature context plus optional extra KEY=VALUE pairs.
+  # Priority: caller extras > VERSION/TAG/METHOD > OS/arch tokens.
+  # Usage: __expand_pattern__ <pattern> [KEY=VALUE ...]
+  os__expand_release_pattern "${1}" \
+    "${@:2}" \
+    "VERSION=${VERSION:-}" \
+    "TAG=${_FEAT_RESOLVED_TAG:-${VERSION:+v${VERSION:-}}}" \
+    "METHOD=${METHOD:-}"
+}
+
+__expand_args__() {
+  # Expand each element of a source array through __expand_pattern__ and append results
+  # to a destination array. Optional KEY=VALUE pairs are forwarded to __expand_pattern__.
+  # Usage: __expand_args__ <src_var> <dst_var> [KEY=VALUE ...]
+  local -n _ea_src="$1" _ea_dst="$2"
+  shift 2
+  local _ea_e
+  for _ea_e in "${_ea_src[@]+"${_ea_src[@]}"}"; do
+    _ea_dst+=("$(__expand_pattern__ "${_ea_e}" "$@")")
+  done
+}
+
 __verify_system_requirements__() {
   __run_feature_hook__ __verify_system_requirements_pre
   ${{ _script.system_requirements_guard }}$
@@ -2190,7 +2199,7 @@ __resolve_input_version__() {
         bootstrap__git
         # Expand the URI first so the ls-remote target matches what git__clone will use.
         local _git_ref_uri
-        _git_ref_uri="$(os__expand_release_pattern "${GIT_CLONE_URI}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")"
+        _git_ref_uri="$(__expand_pattern__ "${GIT_CLONE_URI}")"
         local _resolved
         _resolved="$(git__resolve_ref "${_git_ref_uri}" "${VERSION}")"
         local _rc=$?
@@ -2545,8 +2554,9 @@ __main__ "$@"
 #      (cargo binstall). Defaults to (cargo install) or (cargo binstall) when
 #      cargo-binstall is on PATH. Set in __install_run_cargo_pre.
 #    _FEAT_CARGO_INSTALL_ARGS   (array) — extra args appended after the
-#      standard --root / --version / --no-confirm args in
+#      standard --root / --version / CARGO_INSTALL_ARGS args in
 #      __install_run_cargo__. Set in __install_run_cargo_pre.
+#      (For static args, set _options.method.cargo.args in metadata instead.)
 #
 # 3. Function override — redefine any template function in install.bash.
 #    Feature functions are injected after all template definitions, so a

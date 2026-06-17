@@ -515,10 +515,13 @@ _os__init_release_vars() {
 }
 
 os__expand_release_pattern() {
-  # @brief os__expand_release_pattern <pattern> <version> <tag> — Expand a GitHub release
-  # asset filename pattern.
+  # @brief os__expand_release_pattern <pattern> [<KEY=VALUE>...] — Expand a release asset
+  # pattern using caller-supplied tokens and the built-in OS/arch context.
   #
-  # Plain tokens: {VERSION}, {TAG}, {OS}, {KERNEL}, {ARCH}, {OS_ARCH}, {OS_ID},
+  # Caller-supplied KEY=VALUE pairs take precedence over the built-in OS/arch tokens
+  # (first-match wins in str__expand_pattern). Common caller keys: VERSION=, TAG=.
+  #
+  # Built-in OS/arch tokens: {OS}, {KERNEL}, {ARCH}, {OS_ARCH}, {OS_ID},
   #   {PLATFORM}, {RUST_TRIPLE}, {LIBC} (Linux only: `musl` or `gnu`).
   # Flavor tokens: {OS:<flavor>} → os__release_kernel <flavor>,
   #   {ARCH:<flavor>} → os__release_arch --flavor <flavor>.
@@ -526,13 +529,13 @@ os__expand_release_pattern() {
   #   {TOKEN:FLAVOR==VALUE?TRUE:FALSE}, {VERSION>=X.Y?TRUE:FALSE},
   #   {VERSION<X.Y?TRUE:FALSE}.
   # TRUE and FALSE branches may themselves contain any token form.
-  #
-  # <version> and <tag> may be empty strings.
+  local _pattern="${1}"
+  shift
   _os__init_release_vars
-  str__expand_pattern "${1}" "VERSION=${2:-}" "TAG=${3:-}" "${_OS__RELEASE_VARS[@]}"
+  str__expand_pattern "${_pattern}" "$@" "${_OS__RELEASE_VARS[@]}"
   local _rc=$?
   [[ $_rc == 0 ]] || {
-    logging__error "failed to expand release pattern '${1}'."
+    logging__error "failed to expand release pattern '${_pattern}'."
     return "$_rc"
   }
   printf '\n'

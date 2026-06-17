@@ -22,7 +22,7 @@ __install_run_binary_pre() {
     logging__error "yq: failed to detect CPU architecture."
     return "$_rc"
   }
-  _base="$(os__expand_release_pattern "${BINARY_ASSET_URI%/*}" "${VERSION}" "${_FEAT_RESOLVED_TAG:-}")"
+  _base="$(os__expand_release_pattern "${BINARY_ASSET_URI%/*}" "VERSION=${VERSION}" "TAG=${_FEAT_RESOLVED_TAG:-}")"
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "yq: failed to expand checksum base URI from '${BINARY_ASSET_URI}'."

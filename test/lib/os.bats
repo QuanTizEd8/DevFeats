@@ -391,7 +391,7 @@ setup() {
 
 @test "os__expand_release_pattern substitutes {VERSION} and {TAG}" {
   reload_lib os.sh
-  run os__expand_release_pattern "tool-{VERSION}-{TAG}" "1.2.3" "v1.2.3"
+  run os__expand_release_pattern "tool-{VERSION}-{TAG}" "VERSION=1.2.3" "TAG=v1.2.3"
   assert_success
   assert_output "tool-1.2.3-v1.2.3"
 }
@@ -400,7 +400,7 @@ setup() {
   reload_lib os.sh
   _OS__KERNEL="Linux"
   _OS__ARCH="x86_64"
-  run os__expand_release_pattern "tool-{OS}-{ARCH}" "1.0" "v1.0"
+  run os__expand_release_pattern "tool-{OS}-{ARCH}"
   assert_success
   assert_output "tool-linux-amd64"
 }
@@ -408,7 +408,7 @@ setup() {
 @test "os__expand_release_pattern {OS:gh} returns gh-flavor OS" {
   reload_lib os.sh
   _OS__KERNEL="Linux"
-  run os__expand_release_pattern "{OS:gh}" "1.0" "v1.0"
+  run os__expand_release_pattern "{OS:gh}"
   assert_success
   assert_output "linux"
 }
@@ -416,28 +416,28 @@ setup() {
 @test "os__expand_release_pattern {ARCH:gh} returns gh-flavor arch" {
   reload_lib os.sh
   _OS__ARCH="x86_64"
-  run os__expand_release_pattern "{ARCH:gh}" "1.0" "v1.0"
+  run os__expand_release_pattern "{ARCH:gh}"
   assert_success
   assert_output "amd64"
 }
 
 @test "os__expand_release_pattern {VERSION>=X?a:b} returns 'a' when version matches" {
   reload_lib os.sh
-  run os__expand_release_pattern "{VERSION>=1.7?new:old}" "2.0.0" "v2.0.0"
+  run os__expand_release_pattern "{VERSION>=1.7?new:old}" "VERSION=2.0.0"
   assert_success
   assert_output "new"
 }
 
 @test "os__expand_release_pattern {VERSION>=X?a:b} returns 'b' when version is lower" {
   reload_lib os.sh
-  run os__expand_release_pattern "{VERSION>=1.7?new:old}" "1.6.0" "v1.6.0"
+  run os__expand_release_pattern "{VERSION>=1.7?new:old}" "VERSION=1.6.0"
   assert_success
   assert_output "old"
 }
 
 @test "os__expand_release_pattern {VERSION<X?a:b} returns 'a' when version is lower" {
   reload_lib os.sh
-  run os__expand_release_pattern "{VERSION<1.7?legacy:modern}" "1.6.0" ""
+  run os__expand_release_pattern "{VERSION<1.7?legacy:modern}" "VERSION=1.6.0"
   assert_success
   assert_output "legacy"
 }
@@ -445,7 +445,7 @@ setup() {
 @test "os__expand_release_pattern {OS==VALUE?a:b} conditional on linux" {
   reload_lib os.sh
   _OS__KERNEL="Linux"
-  run os__expand_release_pattern "{OS==linux?islinux:notlinux}" "1.0" ""
+  run os__expand_release_pattern "{OS==linux?islinux:notlinux}"
   assert_success
   assert_output "islinux"
 }
@@ -454,7 +454,7 @@ setup() {
   reload_lib os.sh
   _OS__KERNEL="Linux"
   # On Linux os__release_kernel gh → linux; condition linux==macOS → false
-  run os__expand_release_pattern "{OS:gh==macOS?zip:tar.gz}" "1.0" ""
+  run os__expand_release_pattern "{OS:gh==macOS?zip:tar.gz}"
   assert_success
   assert_output "tar.gz"
 }
@@ -465,7 +465,7 @@ setup() {
   _OS__ARCH="x86_64"
   # jq 1.7+ naming: jq-linux-amd64
   run os__expand_release_pattern "jq-{VERSION>=1.7?{OS==darwin?macos:{OS}}-{ARCH}:LEGACY}" \
-    "1.8.0" "jq-1.8.0"
+    "VERSION=1.8.0"
   assert_success
   assert_output "jq-linux-amd64"
 }
@@ -473,7 +473,7 @@ setup() {
 @test "os__expand_release_pattern nested conditional: false branch selected" {
   reload_lib os.sh
   run os__expand_release_pattern "jq-{VERSION>=1.7?{OS==darwin?macos:{OS}}-{ARCH}:LEGACY}" \
-    "1.6.0" "jq-1.6.0"
+    "VERSION=1.6.0"
   assert_success
   assert_output "jq-LEGACY"
 }
@@ -484,7 +484,7 @@ setup() {
   _OS__ARCH="x86_64"
   run os__expand_release_pattern \
     "https://github.com/cli/cli/releases/download/{TAG}/gh_{VERSION}_{OS:gh}_{ARCH:gh}.{OS:gh==macOS?zip:tar.gz}" \
-    "2.89.0" "v2.89.0"
+    "VERSION=2.89.0" "TAG=v2.89.0"
   assert_success
   assert_output "https://github.com/cli/cli/releases/download/v2.89.0/gh_2.89.0_linux_amd64.tar.gz"
 }
@@ -493,21 +493,21 @@ setup() {
   reload_lib os.sh
   _OS__KERNEL="Linux"
   _OS__ARCH="x86_64"
-  run os__expand_release_pattern "{RUST_TRIPLE}" "1.0" ""
+  run os__expand_release_pattern "{RUST_TRIPLE}"
   assert_success
   assert_output "x86_64-unknown-linux-musl"
 }
 
 @test "os__expand_release_pattern passes through unmatched brace literally" {
   reload_lib os.sh
-  run os__expand_release_pattern "foo-{VERSION" "1.0" ""
+  run os__expand_release_pattern "foo-{VERSION"
   assert_success
   assert_output "foo-{VERSION"
 }
 
 @test "os__expand_release_pattern passes through unknown token unchanged" {
   reload_lib os.sh
-  run os__expand_release_pattern "{UNKNOWN_TOKEN}" "1.0" ""
+  run os__expand_release_pattern "{UNKNOWN_TOKEN}"
   assert_success
   assert_output "{UNKNOWN_TOKEN}"
 }
