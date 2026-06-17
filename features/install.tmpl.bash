@@ -519,16 +519,6 @@ __uninstall_run_prefix__() {
   __run_feature_hook__ __uninstall_run_prefix_pre
   logging__remove "Removing prefix binary '${_FEAT_EXISTING_PATH}'."
   file__rm -f "${_FEAT_EXISTING_PATH}"
-  if [[ -v BINARY_SIDECAR_URI && -n "${BINARY_SIDECAR_URI}" ]]; then
-    local _prefix_bin="${_FEAT_EXISTING_PATH%/*}"
-    local _sc
-    _sc="$(os__expand_release_pattern "${BINARY_SIDECAR_URI}" "${_FEAT_INSTALLED_VER:-${VERSION:-}}" "${_FEAT_RESOLVED_TAG:-}")"
-    _sc="${_sc##*/}"
-    if [[ "${_sc}" != *'{'*'}'* ]]; then
-      logging__remove "Removing binary sidecar '${_prefix_bin}/${_sc}'."
-      file__rm -f "${_prefix_bin}/${_sc}"
-    fi
-  fi
   __run_feature_hook__ __uninstall_run_prefix_post
 }
 
