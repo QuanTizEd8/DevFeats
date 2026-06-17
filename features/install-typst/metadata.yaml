@@ -1,0 +1,51 @@
+version: 0.1.0
+name: Typst Installation
+description: Install [typst](https://typst.app/) — a markup-based typesetting compiler.
+keywords:
+  - typst
+  - typesetting
+  - pdf
+  - document
+  - cli
+_long_description: |-
+  Installs the `typst` compiler with configurable installation methods:
+  GitHub release assets, Homebrew, and Cargo-based installation.
+_options:
+  verify:
+    args: "--version"
+    description: Verify typst is installed and working.
+  gh_repo: typst/typst
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: "0.14.2"
+        description: Install Typst v0.14.2.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/typst-{ARCH==armv7?armv7-unknown-linux-musleabi:{RUST_TRIPLE}}.tar.xz"
+      binary_src: typst
+      when: {arch: [amd64, arm64, armv7]}
+    package:
+      when: {pm: brew}
+    cargo:
+      crate: typst-cli
+      args: ["--locked"]
+  prefix:
+    bins: [typst]
+    applies_when:
+      - method: [binary, cargo]
+  completions:
+    shells: [bash, zsh, fish]
+    subcmd: "completions"
+customizations:
+  vscode:
+    extensions:
+      - myriad-dreamin.tinymist
+_dependencies:
+  run:
+    os-pkg:
+      packages:
+        - typst
+# installsAfter: []

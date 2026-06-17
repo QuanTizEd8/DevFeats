@@ -1,0 +1,75 @@
+default_binary:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  tests: [default_binary]
+
+specific_version:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    version: "0.14.2"
+    method: binary
+  tests: [specific_version]
+
+binary_custom_prefix:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+  options:
+    method: binary
+    prefix: /opt/typst-bin
+    prefix_discovery: symlink
+    if_exists: reinstall
+  tests: [binary_custom_prefix]
+
+fish_completions:
+  envs: [ubuntu-latest+fish]
+  modes: [devcontainer, standalone]
+  tests: [fish_completions]
+
+no_completions:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    method: binary
+    shell_completions: ''
+  tests: [no_completions]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 9.9.9"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/typst
+    chmod +x /usr/local/bin/typst
+  options:
+    method: auto
+    if_exists: fail
+  tests: [if_exists_fail]
+  standalone:
+    skip_install: false
+
+if_exists_skip:
+  envs: [debian-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 9.9.9"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/typst
+    chmod +x /usr/local/bin/typst
+  options:
+    method: auto
+    if_exists: skip
+  tests: [if_exists_skip]
+
+reinstall:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 0.1.0 (stub)"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/typst
+    chmod +x /usr/local/bin/typst
+  options:
+    version: "0.14.2"
+    method: binary
+    if_exists: reinstall
+  tests: [reinstall]
