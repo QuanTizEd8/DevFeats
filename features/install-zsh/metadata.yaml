@@ -47,9 +47,6 @@ _options:
       - method: [source]
 _dependencies:
   run:
-    base:
-      packages:
-        - ca-certificates
     os-pkg:
       packages:
         - name: zsh

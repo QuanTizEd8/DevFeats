@@ -108,4 +108,3 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-        - sudo

@@ -217,7 +217,6 @@ _dependencies:
   run:
     base:
       packages:
-        - ca-certificates
         - when: {pm: apt}
           packages: [locales]
         - when: {pm: apk}

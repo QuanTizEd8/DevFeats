@@ -104,9 +104,6 @@ options:
 #   - ghcr.io/quantized8/devfeats/install-ohmybash
 _dependencies:
   run:
-    base:
-      packages:
-        - ca-certificates
     os-pkg:
       packages:
         - starship

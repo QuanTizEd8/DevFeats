@@ -41,9 +41,6 @@ customizations:
       - nefrob.vscode-just-syntax
 _dependencies:
   run:
-    base:
-      packages:
-        - ca-certificates
     os-pkg:
       packages:
         - just

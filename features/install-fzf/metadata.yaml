@@ -48,9 +48,6 @@ _options:
 # installsAfter: []
 _dependencies:
   run:
-    base:
-      packages:
-        - ca-certificates
     os-pkg:
       packages:
         - fzf

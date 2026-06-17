@@ -47,9 +47,6 @@ _options:
       - method: [binary, npm]
 _dependencies:
   run:
-    base:
-      packages:
-        - ca-certificates
     upstream-package:
       packages:
         - name: lefthook

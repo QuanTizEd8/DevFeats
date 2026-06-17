@@ -34,4 +34,3 @@ _dependencies:
     base:
       packages:
         - git
-        - ca-certificates

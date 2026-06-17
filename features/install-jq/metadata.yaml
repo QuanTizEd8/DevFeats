@@ -48,9 +48,6 @@ _options:
       - method: [binary, source]
 _dependencies:
   run:
-    base:
-      packages:
-        - ca-certificates
     os-pkg:
       packages:
         - jq
