@@ -279,13 +279,17 @@ global_manifest_inline:
   modes:
   - devcontainer
   options:
+    # devcontainer CLI writes option values as VAR="value" in an env file that is
+    # then shell-sourced; any " inside the value is consumed as a shell quoting
+    # delimiter and stripped. Use TOML literal strings ('...') instead of basic
+    # strings ("...") to avoid this limitation.
     global_manifest: |
       version = 1
 
       [envs.jq]
-      channels = ["conda-forge"]
-      dependencies = { jq = "*" }
-      exposed = { jq = "jq" }
+      channels = ['conda-forge']
+      dependencies = { jq = '*' }
+      exposed = { jq = 'jq' }
   tests:
   - global_manifest_inline.sh
 global_manifest_file:
