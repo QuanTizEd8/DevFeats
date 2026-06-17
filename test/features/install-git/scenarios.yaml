@@ -218,6 +218,7 @@ source_build_network_isolated:
   - source_build_network_isolated.sh
   options:
     method: source
+    version: latest
 source_custom_prefix_nonroot:
   envs:
   - ubuntu-24.04+git-source-build-deps
