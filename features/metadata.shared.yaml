@@ -161,6 +161,17 @@ options:
       By default, the package manager cache is removed after installation to reduce image layer size.
       Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers.
 
+  keep_repos:
+    _apply_when: |
+      #{{ return "upstream-package" in (get("_options.method") or {}) }}#
+    type: boolean
+    default: false
+    description: >-
+      Keep the upstream package repository and signing key after installation.
+      By default, any repository files and signing keys added during installation are
+      removed afterwards. Set to true to retain them so the system package manager
+      can install future updates for this tool (e.g. via `apt upgrade`).
+
   fetch_headers:
     _apply_when: |
       #{{ return get("_options.user_file_fetch") }}#

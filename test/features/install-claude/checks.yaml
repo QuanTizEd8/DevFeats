@@ -76,15 +76,13 @@ binary_musl:
 upstream_package_apt:
   description: |
     method=upstream-package, version=stable (default) on Ubuntu 24.04: installs
-    claude from the Anthropic stable apt repo.  Verifies the stable repo is
-    configured, the package is registered with dpkg, and claude is functional.
+    claude from the Anthropic stable apt repo.  Verifies the package is registered
+    with dpkg and claude is functional.
   pre: |
     echo "=== which claude ==="
     which claude 2>&1 || echo "(not on PATH)"
     echo "=== claude --version ==="
     claude --version 2>&1 || echo "(failed)"
-    echo "=== apt sources for claude ==="
-    grep -r "downloads.claude.ai" /etc/apt/sources.list.d/ 2>/dev/null || echo "(none)"
   checks:
     - title: claude on PATH
       cmd: command -v claude
@@ -92,7 +90,79 @@ upstream_package_apt:
       cmd: claude --version
     - title: claude --version reports a semver
       cmd: bash -c 'claude --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)$"'
-    - title: stable apt repo is configured
+    - title: claude-code package registered with dpkg
+      cmd: bash -c 'dpkg -l claude-code 2>/dev/null | grep -q "^ii"'
+      on_fail: |
+        dpkg -l claude-code 2>/dev/null || echo "(package not found in dpkg)"
+
+upstream_package_apt_latest:
+  description: |
+    method=upstream-package, version=latest on Ubuntu 24.04: installs claude from
+    the Anthropic latest apt repo.  Verifies the package is installed and functional.
+  pre: |
+    echo "=== claude --version ==="
+    claude --version 2>&1 || echo "(failed)"
+  checks:
+    - title: claude on PATH
+      cmd: command -v claude
+    - title: claude --version succeeds
+      cmd: claude --version
+    - title: claude --version reports a semver
+      cmd: bash -c 'claude --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)$"'
+    - title: claude-code package registered with dpkg
+      cmd: bash -c 'dpkg -l claude-code 2>/dev/null | grep -q "^ii"'
+
+upstream_package_apk:
+  description: |
+    method=upstream-package on Alpine 3.21: installs claude from the Anthropic
+    apk repo.  Verifies claude is installed and functional.
+  pre: |
+    echo "=== which claude ==="
+    which claude 2>&1 || echo "(not on PATH)"
+    echo "=== claude --version ==="
+    claude --version 2>&1 || echo "(failed)"
+  checks:
+    - title: claude on PATH
+      cmd: command -v claude
+    - title: claude --version succeeds
+      cmd: claude --version
+    - title: claude --version reports a semver
+      cmd: bash -c 'claude --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)$"'
+
+upstream_package_dnf:
+  description: |
+    method=upstream-package on Fedora (dnf): installs claude from the Anthropic
+    rpm repo.  Verifies the package is registered with rpm and claude is functional.
+  pre: |
+    echo "=== which claude ==="
+    which claude 2>&1 || echo "(not on PATH)"
+    echo "=== claude --version ==="
+    claude --version 2>&1 || echo "(failed)"
+  checks:
+    - title: claude on PATH
+      cmd: command -v claude
+    - title: claude --version succeeds
+      cmd: claude --version
+    - title: claude --version reports a semver
+      cmd: bash -c 'claude --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)$"'
+    - title: claude-code package registered with rpm
+      cmd: rpm -q claude-code
+      on_fail: |
+        rpm -qa | grep -i claude || echo "(no claude rpm found)"
+
+upstream_package_apt_keep_repos:
+  description: |
+    method=upstream-package + keep_repos=true on Ubuntu 24.04: verifies that the
+    stable apt repo and signing key are retained after installation.
+  pre: |
+    echo "=== apt sources for claude ==="
+    grep -r "downloads.claude.ai" /etc/apt/sources.list.d/ 2>/dev/null || echo "(none)"
+  checks:
+    - title: claude on PATH
+      cmd: command -v claude
+    - title: claude --version succeeds
+      cmd: claude --version
+    - title: stable apt repo retained after installation
       cmd: bash -c 'grep -rq "downloads.claude.ai/claude-code/apt/stable" /etc/apt/sources.list.d/'
       on_fail: |
         echo "=== /etc/apt/sources.list.d/ ==="
@@ -102,40 +172,11 @@ upstream_package_apt:
       on_fail: |
         dpkg -l claude-code 2>/dev/null || echo "(package not found in dpkg)"
 
-upstream_package_apt_latest:
+upstream_package_apk_keep_repos:
   description: |
-    method=upstream-package, version=latest on Ubuntu 24.04: installs claude from
-    the Anthropic latest apt repo.  Verifies the latest (not stable) repo channel
-    is configured.
+    method=upstream-package + keep_repos=true on Alpine 3.21: verifies that the
+    Anthropic apk repo entry is retained after installation.
   pre: |
-    echo "=== claude --version ==="
-    claude --version 2>&1 || echo "(failed)"
-    echo "=== apt sources for claude ==="
-    grep -r "downloads.claude.ai" /etc/apt/sources.list.d/ 2>/dev/null || echo "(none)"
-  checks:
-    - title: claude on PATH
-      cmd: command -v claude
-    - title: claude --version succeeds
-      cmd: claude --version
-    - title: claude --version reports a semver
-      cmd: bash -c 'claude --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)$"'
-    - title: latest apt repo is configured (not stable)
-      cmd: bash -c 'grep -rq "downloads.claude.ai/claude-code/apt/latest" /etc/apt/sources.list.d/'
-      on_fail: |
-        echo "=== /etc/apt/sources.list.d/ ==="
-        grep -r "claude" /etc/apt/sources.list.d/ 2>/dev/null || echo "(no claude entry)"
-    - title: claude-code package registered with dpkg
-      cmd: bash -c 'dpkg -l claude-code 2>/dev/null | grep -q "^ii"'
-
-upstream_package_apk:
-  description: |
-    method=upstream-package on Alpine 3.21: installs claude from the Anthropic
-    apk repo.  Verifies the apk repo is configured and claude is functional.
-  pre: |
-    echo "=== which claude ==="
-    which claude 2>&1 || echo "(not on PATH)"
-    echo "=== claude --version ==="
-    claude --version 2>&1 || echo "(failed)"
     echo "=== apk repos for claude ==="
     grep -r "downloads.claude.ai" /etc/apk/ 2>/dev/null || echo "(none)"
   checks:
@@ -143,23 +184,17 @@ upstream_package_apk:
       cmd: command -v claude
     - title: claude --version succeeds
       cmd: claude --version
-    - title: claude --version reports a semver
-      cmd: bash -c 'claude --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)$"'
-    - title: Anthropic apk repo is configured
+    - title: Anthropic apk repo retained after installation
       cmd: bash -c 'grep -rq "downloads.claude.ai/claude-code/apk" /etc/apk/'
       on_fail: |
         echo "=== /etc/apk/repositories ==="
         cat /etc/apk/repositories 2>/dev/null || echo "(missing)"
 
-upstream_package_dnf:
+upstream_package_dnf_keep_repos:
   description: |
-    method=upstream-package on Fedora (dnf): installs claude from the Anthropic
-    rpm repo.  Verifies the repo is configured and claude is functional.
+    method=upstream-package + keep_repos=true on Fedora (dnf): verifies that the
+    Anthropic rpm repo file is retained after installation.
   pre: |
-    echo "=== which claude ==="
-    which claude 2>&1 || echo "(not on PATH)"
-    echo "=== claude --version ==="
-    claude --version 2>&1 || echo "(failed)"
     echo "=== yum repo files for claude ==="
     grep -r "downloads.claude.ai" /etc/yum.repos.d/ 2>/dev/null || echo "(none)"
   checks:
@@ -167,9 +202,7 @@ upstream_package_dnf:
       cmd: command -v claude
     - title: claude --version succeeds
       cmd: claude --version
-    - title: claude --version reports a semver
-      cmd: bash -c 'claude --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)$"'
-    - title: Anthropic rpm repo is configured
+    - title: Anthropic rpm repo retained after installation
       cmd: bash -c 'grep -rq "downloads.claude.ai/claude-code/rpm" /etc/yum.repos.d/'
       on_fail: |
         echo "=== /etc/yum.repos.d/ ==="
@@ -208,15 +241,13 @@ npm_bundled:
 auto_apt:
   description: |
     method=auto on Ubuntu 24.04: __resolve_method selects upstream-package (apt)
-    because apt is available.  Verifies claude is installed via the stable apt
-    repo, confirming both the auto-resolution logic and the apt install path.
+    because apt is available.  Verifies claude is installed and functional,
+    confirming the auto-resolution logic and the apt install path.
   pre: |
     echo "=== which claude ==="
     which claude 2>&1 || echo "(not on PATH)"
     echo "=== claude --version ==="
     claude --version 2>&1 || echo "(failed)"
-    echo "=== apt sources for claude ==="
-    grep -r "downloads.claude.ai" /etc/apt/sources.list.d/ 2>/dev/null || echo "(none)"
   checks:
     - title: claude on PATH
       cmd: command -v claude
@@ -224,11 +255,6 @@ auto_apt:
       cmd: claude --version
     - title: claude --version reports a semver
       cmd: bash -c 'claude --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+ \(Claude Code\)$"'
-    - title: stable apt repo configured (auto resolved to upstream-package)
-      cmd: bash -c 'grep -rq "downloads.claude.ai/claude-code/apt/stable" /etc/apt/sources.list.d/'
-      on_fail: |
-        echo "=== /etc/apt/sources.list.d/ ==="
-        grep -r "claude" /etc/apt/sources.list.d/ 2>/dev/null || echo "(no claude entry)"
 
 # ── if_exists behaviour ────────────────────────────────────────────────────────
 

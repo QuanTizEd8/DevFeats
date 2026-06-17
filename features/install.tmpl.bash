@@ -876,9 +876,12 @@ __install_run_upstream_package__() {
   logging__install "Installing upstream-package dependencies."
   local _pkg_ver=""
   case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
-  __dep_install__ run upstream-package \
-    --extra-var "VERSION=${_pkg_ver}" \
+  local -a _dep_args=(
+    --extra-var "VERSION=${_pkg_ver}"
     --extra-var "VERSION_INPUT=${VERSION:-}"
+  )
+  [[ "${KEEP_REPOS:-false}" == true ]] && _dep_args+=(--keep_repos)
+  __dep_install__ run upstream-package "${_dep_args[@]}"
   __run_feature_hook__ __install_run_upstream_package_post
 }
 
@@ -1724,9 +1727,13 @@ __update_run_upstream_package__() {
   logging__install "Updating upstream-package dependencies."
   local _pkg_ver=""
   case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
-  __dep_install__ run upstream-package --update \
-    --extra-var "VERSION=${_pkg_ver}" \
+  local -a _dep_args=(
+    --update
+    --extra-var "VERSION=${_pkg_ver}"
     --extra-var "VERSION_INPUT=${VERSION:-}"
+  )
+  [[ "${KEEP_REPOS:-false}" == true ]] && _dep_args+=(--keep_repos)
+  __dep_install__ run upstream-package "${_dep_args[@]}"
   __run_feature_hook__ __update_run_upstream_package_post
 }
 

@@ -49,6 +49,27 @@ upstream_package_dnf:
     method: upstream-package
   tests: [upstream_package_dnf]
 
+upstream_package_apt_keep_repos:
+  envs: [ubuntu-24.04]
+  options:
+    method: upstream-package
+    keep_repos: true
+  tests: [upstream_package_apt_keep_repos]
+
+upstream_package_apk_keep_repos:
+  envs: [alpine-3.21+bash]
+  options:
+    method: upstream-package
+    keep_repos: true
+  tests: [upstream_package_apk_keep_repos]
+
+upstream_package_dnf_keep_repos:
+  envs: [fedora-latest+bash]
+  options:
+    method: upstream-package
+    keep_repos: true
+  tests: [upstream_package_dnf_keep_repos]
+
 # ── npm-bundled method ─────────────────────────────────────────────────────────
 
 npm_bundled:
