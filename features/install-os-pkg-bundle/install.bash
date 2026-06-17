@@ -26,6 +26,7 @@ _bundles__select() {
   [[ "${TERMINAL_UX:-}" == true ]] && _ref+=("terminal-ux")
   [[ "${TEXT_PROCESSING:-}" == true ]] && _ref+=("text-processing")
   [[ "${VCS_TOOLS:-}" == true ]] && _ref+=("vcs-tools")
+  return 0
 }
 
 __install_run__() {
