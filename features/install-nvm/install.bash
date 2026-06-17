@@ -38,8 +38,7 @@ __install_run_script_pre() {
       logging__info "Installing node-gyp build dependencies..."
       __dep_install__ run node-gyp
       if [ "$(os__platform)" = "macos" ]; then
-        logging__info "node-gyp build dependencies on macOS require Xcode Command Line Tools."
-        logging__info "Install them with: xcode-select --install"
+        bootstrap__xcode
       fi
     fi
   fi

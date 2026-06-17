@@ -62,14 +62,6 @@ __install_run_source_pre() {
     return 1
   fi
 
-  if [[ "$(os__kernel)" == "Darwin" ]]; then
-    xcode-select --print-path > /dev/null 2>&1 || {
-      logging__error "Xcode Command Line Tools are required for source builds on macOS."
-      logging__info "Install with: xcode-select --install"
-      return 1
-    }
-  fi
-
   # User-local installs cannot invoke the OS package manager; assume build
   # deps were preinstalled by the caller.
   if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
