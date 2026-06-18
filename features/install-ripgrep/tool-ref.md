@@ -37,7 +37,7 @@ ripgrep offers five principal installation routes relevant to a DevFeats feature
 
 #### Supported Platforms
 
-All current release assets (v15.1.0):[^release-1510]
+All current release assets (15.1.0):[^release-1510]
 
 | OS | Architecture | Rust target triple | Asset filename |
 |----|-------------|-------------------|---------------|
@@ -58,7 +58,7 @@ All current release assets (v15.1.0):[^release-1510]
 **Notable absences in v15.1.0:**
 
 - There is **no** `x86_64-unknown-linux-gnu` binary. For Linux x86_64 (including Debian/Ubuntu and Alpine x86_64), use the `x86_64-unknown-linux-musl` static binary.[^release-1510][^release-workflow]
-- There is **no** `aarch64-unknown-linux-musl` binary in v15.1.0 (despite being in the CI matrix). For Linux arm64 on **musl-based** distros (e.g., Alpine Linux arm64), use the OS package manager (`apk add ripgrep`) or build from source; the `aarch64-unknown-linux-gnu` binary requires glibc and will not run on pure musl systems.[^release-1510][^release-workflow]
+- There is **no** `aarch64-unknown-linux-musl` binary in any published release (the CI matrix includes this target, but no release has ever published this asset). For Linux arm64 on **musl-based** distros (e.g., Alpine Linux arm64), use the OS package manager (`apk add ripgrep`) or build from source; the `aarch64-unknown-linux-gnu` binary requires glibc and will not run on pure musl systems.[^release-1510][^release-workflow][^repology-alpine]
 
 **Platform selection guidance:**
 
@@ -153,9 +153,11 @@ $Asset = "ripgrep-$Version-$Target.zip"
 $BaseUrl = "https://github.com/BurntSushi/ripgrep/releases/download/$Version"
 Invoke-WebRequest -Uri "$BaseUrl/$Asset" -OutFile $Asset
 Invoke-WebRequest -Uri "$BaseUrl/$Asset.sha256" -OutFile "$Asset.sha256"
-# Verify SHA256 manually or with certutil:
-# certutil -hashfile $Asset SHA256
+$ExpectedHash = (Get-Content "$Asset.sha256").Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)[0]
+$ActualHash = (Get-FileHash -Algorithm SHA256 $Asset).Hash.ToLower()
+if ($ActualHash -ne $ExpectedHash) { throw "Checksum mismatch for $Asset" }
 Expand-Archive -Path $Asset -DestinationPath .
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.local\bin" | Out-Null
 Copy-Item "ripgrep-$Version-$Target\rg.exe" "$env:USERPROFILE\.local\bin\rg.exe"
 ```
 
@@ -197,7 +199,7 @@ VERSION=$(curl -fsSL "https://api.github.com/repos/BurntSushi/ripgrep/releases/l
   | grep '"tag_name"' | sed 's/.*"\([^"]*\)".*/\1/')
 ```
 
-Release tags may optionally include a `v` prefix in some historical releases, but current releases (including 15.1.0) use plain semver tags without `v`. When resolving a specific version, query the releases API and match the tag that equals either `{version}` or `v{version}`.[^community-install]
+Release tags use plain semver without a `v` prefix (e.g., `15.1.0`). When resolving a specific version, query the releases API and match the tag that equals `{version}`. Some third-party install scripts defensively accept an optional `v` prefix in tag-matching regexes, but ripgrep release tags themselves have never used a `v` prefix.[^release-workflow][^community-install]
 
 ##### Installation Path
 
@@ -247,13 +249,13 @@ Optional build-time configurations (relevant only for source/cargo builds, not p
 
 ##### Configuration Files
 
-ripgrep does **not** auto-load a configuration file. To use one, set `RIPGREP_CONFIG_PATH` persistently:
+ripgrep does **not** auto-load a configuration file and has no default config path. To use one, set `RIPGREP_CONFIG_PATH` persistently to any file path (the GUIDE uses `$HOME/.ripgreprc` as an example; other paths such as `$HOME/.config/ripgrep/rc` are equally valid):[^guide-config]
 
 ```bash
 export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/rc"
 ```
 
-Example config file format (one flag per line, `#` for comments):[^guide-config]
+Example config file format (one flag per line, `#` for comments):
 
 ```
 # ~/.config/ripgrep/rc
@@ -340,7 +342,7 @@ The release CI workflow (`.github/workflows/release.yml`) builds all release bin
 2. Verifies the tag version matches `version` in `Cargo.toml`.
 3. Builds with `cargo build --profile release-lto --features pcre2` (or `cross` for cross-compilation targets).
 4. Sets `PCRE2_SYS_STATIC=1` for static PCRE2 linking.
-5. Strips release binaries (except Windows MSVC, which uses `/WX` linker flags instead).
+5. Strips release binaries on macOS and cross-compiled Linux targets. Windows builds are not stripped in CI. On Windows MSVC, `build.rs` sets `/WX` (linker warnings as errors) and embeds a Windows manifest for long-path support; these are unrelated to stripping.[^release-workflow][^build-rs]
 6. Assembles each archive directory:
 
    ```
@@ -374,7 +376,7 @@ The `x86_64-unknown-linux-musl` binary is a static PIE executable verified to ru
 - For Linux arm64 on musl systems (Alpine arm64), no official pre-built binary is available in v15.1.0; use the OS package manager or build from source.
 - All official release binaries include PCRE2 support (`features:+pcre2` in `rg --version` output).
 - Use `tar --no-same-owner` when extracting in containers to avoid ownership errors.
-- The devcontainer-community ripgrep feature downloads only the `*-unknown-linux-musl` tarball and maps `arm64` to `aarch64`, producing a URL for `aarch64-unknown-linux-musl` which **does not exist** in v15.1.0; arm64 installs via that feature will fail unless corrected to use `aarch64-unknown-linux-gnu`.[^community-install]
+- The devcontainer-community ripgrep feature downloads only the `*-unknown-linux-musl` tarball and maps Debian architectures via `debian_get_target_arch()`. This produces broken URLs for **arm64** (`aarch64-unknown-linux-musl`, which does not exist) and **armhf** (`arm-unknown-linux-musl`, which also does not exist; actual arm assets use `armv7-*` triples). Only **amd64** (`x86_64-unknown-linux-musl`) works correctly.[^community-install]
 
 ---
 
@@ -384,6 +386,7 @@ The `x86_64-unknown-linux-musl` binary is a static PIE executable verified to ru
 
 - Debian and Debian derivatives (Ubuntu, etc.) on **amd64** only.
 - Official release asset: `ripgrep_{version}-1_amd64.deb` (note: underscore between name and version, `-1` Debian revision suffix).[^release-1510]
+- **Filename format history**: releases ≤ 13.0.0 used `ripgrep_{version}_amd64.deb` (no `-1` revision suffix); releases ≥ 14.0.0 use `ripgrep_{version}-1_amd64.deb`. Version-selection logic must account for this when pinning older versions.[^release-1300][^release-1400]
 
 #### Dependencies
 
@@ -510,7 +513,7 @@ The `build-release-deb` CI job:[^release-workflow]
 
 #### Supported Platforms
 
-Per the official README:[^readme]
+Documented in the official README:[^readme]
 
 - macOS and Linux via **Homebrew** / **Linuxbrew**: `brew install ripgrep`
 - **MacPorts** (macOS): `sudo port install ripgrep`
@@ -518,8 +521,7 @@ Per the official README:[^readme]
 - **Debian/Ubuntu**: `sudo apt-get install ripgrep`
 - **Fedora**: `sudo dnf install ripgrep`
 - **openSUSE Tumbleweed/Leap ≥ 15.1**: `sudo zypper install ripgrep`
-- **CentOS Stream 10 / RHEL 10 / Rocky Linux 10**: via EPEL (`sudo dnf install ripgrep`)
-- **Alpine Linux**: `sudo apk add ripgrep`
+- **CentOS Stream 10 / RHEL 10 / Rocky Linux 10**: via EPEL (see EPEL setup below, then `sudo dnf install ripgrep`)[^readme]
 - **Gentoo**: `sudo emerge sys-apps/ripgrep`
 - **FreeBSD**: `sudo pkg install ripgrep`
 - **OpenBSD**: `doas pkg_add ripgrep`
@@ -527,9 +529,14 @@ Per the official README:[^readme]
 - **Void Linux**: `sudo xbps-install -Syv ripgrep`
 - **Nix**: `nix-env --install ripgrep`
 - **Guix**: `guix install ripgrep`
+- **Flox**: `flox install ripgrep`[^readme]
+- **ALT Linux**: `sudo apt-get install ripgrep`[^readme]
+- **Haiku x86_64**: `sudo pkgman install ripgrep`; **Haiku x86_gcc2**: `sudo pkgman install ripgrep_x86`[^readme]
 - **Windows Chocolatey**: `choco install ripgrep`
 - **Windows Scoop**: `scoop install ripgrep`
 - **Windows Winget**: `winget install BurntSushi.ripgrep.MSVC`
+
+Also available via OS package managers not listed in the README but widely packaged (e.g., **Alpine Linux** via `apk add ripgrep`).[^repology-alpine]
 
 #### Dependencies
 
@@ -561,6 +568,24 @@ sudo pacman -S --noconfirm ripgrep
 
 # Homebrew (macOS/Linux)
 brew install ripgrep
+```
+
+EPEL setup (required before installing on RHEL-family systems that use EPEL):[^readme]
+
+```bash
+# CentOS Stream 10
+sudo dnf config-manager --set-enabled crb
+sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+sudo dnf install ripgrep
+
+# RHEL 10
+sudo subscription-manager repos --enable codeready-builder-for-rhel-10-$(arch)-rpms
+sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+sudo dnf install ripgrep
+
+# Rocky Linux 10
+sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+sudo dnf install ripgrep
 ```
 
 #### Installation Verification
@@ -609,7 +634,7 @@ Root/sudo required for Linux/Alpine/BSD package managers. Homebrew does not requ
 
 ##### Tool-Specific Configurations
 
-Distro packages may or may not include PCRE2 support depending on how they were built. Verify with `rg --version` (look for `features:+pcre2`).
+Distro packages may or may not include PCRE2 support depending on how they were built. Verify with `rg --version` (look for `features:+pcre2`). Official GitHub release binaries and Homebrew bottles include PCRE2.[^brew-formula][^release-workflow] Debian/Ubuntu packages built from the `rust-ripgrep` source package typically include PCRE2, but the exact feature set depends on the distro's build flags — always verify at install time rather than assuming.
 
 #### Post-Installation Steps and Cleanup
 
@@ -706,7 +731,7 @@ cargo install ripgrep --features pcre2
 cargo install ripgrep --version 15.1.0 --features pcre2
 ```
 
-The binary is placed in `$(cargo env | grep CARGO_HOME | cut -d= -f2 | tr -d '"')/bin/rg`, typically `~/.cargo/bin/rg`.
+The binary is placed in `$CARGO_HOME/bin/rg` (default `~/.cargo/bin/rg`).
 
 Alternatively, use `cargo binstall` to download a pre-built binary from GitHub without compiling locally:[^readme]
 
@@ -995,8 +1020,8 @@ ripgrep works correctly in standard devcontainer environments without special co
 
 | Feature | Method | Version pinning | Notes |
 |---------|--------|----------------|-------|
-| `devcontainer-community/ripgrep` | GitHub release binary (musl tarball) | Yes (`version` option) | Debian-only; arm64 URL is broken (uses nonexistent `aarch64-unknown-linux-musl`)[^community-install] |
-| `devcontainers-contrib/ripgrep` | GitHub release via `gh-release` helper | Yes (`version` option) | Delegates to nanolayer gh-release installer[^contrib-install] |
+| `devcontainer-community/ripgrep` | GitHub release binary (musl tarball) | Yes (`version` option) | Debian-only; only amd64 works — arm64 and armhf URLs are broken[^community-install] |
+| `devcontainers-contrib/ripgrep` | GitHub release via `ghcr.io/devcontainers-extra/features/gh-release:1.0.25` | Yes (`version` option) | Delegates to the devcontainers-extra gh-release feature, which uses nanolayer's `gh-release` module for platform-aware asset selection[^contrib-install][^gh-release-feature] |
 | `jungaretti/ripgrep` | `apt-get install ripgrep` | No | Simple but no version control[^jungaretti-install] |
 
 ## Plugins and Extensions
@@ -1009,7 +1034,7 @@ Microsoft publishes `@vscode/ripgrep`, an npm module that bundles pre-built ripg
 - **Source Code**: https://github.com/microsoft/vscode-ripgrep
 - **npm package**: `@vscode/ripgrep`
 
-**Architecture**: Pure JavaScript wrapper around platform-specific binary packages (`@vscode/ripgrep-{platform}-{arch}`). Binaries are downloaded at publish time from GitHub releases, verified against `binaries.lock.json` (SHA256), and shipped inside the npm tarball. No runtime network access or postinstall download.[^vscode-ripgrep]
+**Architecture**: Pure JavaScript wrapper around platform-specific binary packages (`@vscode/ripgrep-{platform}-{arch}`). Binaries are built in [`microsoft/ripgrep-prebuilt`](https://github.com/microsoft/ripgrep-prebuilt), downloaded at npm publish time by `build/prepare-binaries.js` from that project's release assets, verified against `binaries.lock.json` (SHA256), and shipped inside the npm tarball. No runtime network access or postinstall download.[^vscode-ripgrep][^ripgrep-prebuilt]
 
 **Usage** (Node.js):
 
@@ -1049,13 +1074,23 @@ ripgrep-all extends ripgrep to search inside PDFs, Office documents, archives, a
 
 [^build-rs]: [ripgrep `build.rs`](https://raw.githubusercontent.com/BurntSushi/ripgrep/master/build.rs) — Build script; embeds git revision hash and Windows manifest options.
 
-[^deb-contents]: Verified by inspecting `ripgrep_15.1.0-1_amd64.deb` contents via `dpkg-deb -c` — Installs `/usr/bin/rg`, man page, and bash/fish/zsh completions.
+[^verify-musl]: Empirical verification (2026-06-18, Linux x86_64 devcontainer) — downloaded `ripgrep-15.1.0-x86_64-unknown-linux-musl.tar.gz` and its `.sha256` from GitHub releases; `sha256sum -c` passed; `ldd` on extracted `rg` reports `statically linked`; `rg --version` outputs `ripgrep 15.1.0 (rev af60c2de9d)` with `features:+pcre2`.
 
-[^verify-musl]: Empirical verification — `ripgrep-15.1.0-x86_64-unknown-linux-musl` binary reports `statically linked` via `ldd` and `rg --version` outputs `ripgrep 15.1.0 (rev af60c2de9d)` with `features:+pcre2`.
+[^deb-contents]: Verified by downloading `ripgrep_15.1.0-1_amd64.deb` from GitHub releases (2026-06-18) and inspecting contents via `dpkg-deb -c` — installs `/usr/bin/rg`, man page at `/usr/share/man/man1/rg.1.gz`, and bash/fish/zsh completions at documented paths.
 
 [^brew-formula]: [Homebrew ripgrep formula](https://formulae.brew.sh/formula/ripgrep) — Homebrew install command, current stable version 15.1.0, supported bottle platforms (macOS arm64/x86_64, Linux x86_64/arm64).
 
-[^community-install]: [devcontainer-community ripgrep `install.sh`](https://raw.githubusercontent.com/devcontainer-community/devcontainer-features/main/src/ripgrep/install.sh) — Community devcontainer feature; documents Debian-only binary download using musl tarballs and architecture mapping; reveals broken arm64 URL (`aarch64-unknown-linux-musl`).
+[^repology-alpine]: [Repology — ripgrep packages](https://repology.org/project/ripgrep/packages) — Cross-distro package index confirming ripgrep availability in Alpine Linux (`ripgrep` package in community repository) and other distros not individually listed in the README.
+
+[^release-1300]: [GitHub — ripgrep 13.0.0 release page](https://github.com/BurntSushi/ripgrep/releases/tag/13.0.0) — Documents older `.deb` naming format: `ripgrep_13.0.0_amd64.deb` (no `-1` revision suffix).
+
+[^release-1400]: [GitHub — ripgrep 14.0.0 release page](https://github.com/BurntSushi/ripgrep/releases/tag/14.0.0) — Documents current `.deb` naming format: `ripgrep_14.0.0-1_amd64.deb`.
+
+[^gh-release-feature]: [devcontainers-extra gh-release `devcontainer-feature.json`](https://raw.githubusercontent.com/devcontainers-extra/features/main/src/gh-release/devcontainer-feature.json) — gh-release feature metadata: version 1.0.26, options for repo, binaryNames, version, assetRegex, binLocation.
+
+[^ripgrep-prebuilt]: [microsoft/ripgrep-prebuilt](https://github.com/microsoft/ripgrep-prebuilt) — Source of pre-built ripgrep binaries used by `@vscode/ripgrep`; binaries are published as release assets of this repository, not BurntSushi/ripgrep releases.
+
+[^community-install]: [devcontainer-community ripgrep `install.sh`](https://raw.githubusercontent.com/devcontainer-community/devcontainer-features/main/src/ripgrep/install.sh) — Community devcontainer feature; documents Debian-only binary download using musl tarballs; architecture mapping produces broken URLs for arm64 (`aarch64-unknown-linux-musl`) and armhf (`arm-unknown-linux-musl`); only amd64 works.
 
 [^community-feature-json]: [devcontainer-community ripgrep `devcontainer-feature.json`](https://raw.githubusercontent.com/devcontainer-community/devcontainer-features/main/src/ripgrep/devcontainer-feature.json) — Community feature metadata: version 1.0.3, `version` option (latest or X.Y.Z), `installsAfter` dependency on ca-certificates.
 
