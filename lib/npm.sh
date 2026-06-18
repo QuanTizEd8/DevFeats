@@ -1047,12 +1047,16 @@ SCRIPT_PATH="$0"
 [ -L "$SCRIPT_PATH" ] && SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH" 2>/dev/null || readlink "$SCRIPT_PATH" 2>/dev/null || echo "$SCRIPT_PATH")"
 INSTALL_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 CMD="$(basename "$SCRIPT_PATH")"
-NODE_BIN_DIR="$INSTALL_DIR/node/current/bin"
+NODE_BIN="$INSTALL_DIR/node/current/bin/node"
 BIN_ENTRY="$INSTALL_DIR/pkg/current/node_modules/.bin/$CMD"
-[ -d "$NODE_BIN_DIR" ] || { printf 'error: Node.js not found at %s\n' "$NODE_BIN_DIR" >&2; exit 1; }
+[ -x "$NODE_BIN" ] || { printf 'error: Node.js not found at %s\n' "$NODE_BIN" >&2; exit 1; }
 [ -e "$BIN_ENTRY" ] || { printf 'error: package entry not found at %s\n' "$BIN_ENTRY" >&2; exit 1; }
-export PATH="$NODE_BIN_DIR:$PATH"
-exec "$BIN_ENTRY" "$@"
+if [ -x "$BIN_ENTRY" ]; then
+  export PATH="$(dirname "$NODE_BIN"):$PATH"
+  exec "$BIN_ENTRY" "$@"
+else
+  exec "$NODE_BIN" "$BIN_ENTRY" "$@"
+fi
 WRAPPER_EOF
   file__chmod +x "$_wrapper"
 
