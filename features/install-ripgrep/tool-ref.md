@@ -58,7 +58,7 @@ All current release assets (15.1.0):[^release-1510]
 **Notable absences in v15.1.0:**
 
 - There is **no** `x86_64-unknown-linux-gnu` binary. For Linux x86_64 (including Debian/Ubuntu and Alpine x86_64), use the `x86_64-unknown-linux-musl` static binary.[^release-1510][^release-workflow]
-- There is **no** `aarch64-unknown-linux-musl` binary in any published release (the CI matrix includes this target, but no release has ever published this asset). For Linux arm64 on **musl-based** distros (e.g., Alpine Linux arm64), use the OS package manager (`apk add ripgrep`) or build from source; the `aarch64-unknown-linux-gnu` binary requires glibc and will not run on pure musl systems.[^release-1510][^release-workflow][^repology-alpine]
+- There is **no** `aarch64-unknown-linux-musl` binary in any published release (the CI matrix includes this target, but no release has ever published this asset across all 74 GitHub releases as of 2026-06-18). For Linux arm64 on **musl-based** distros (e.g., Alpine Linux arm64), use the OS package manager (`apk add ripgrep`) or build from source; the `aarch64-unknown-linux-gnu` binary requires glibc and will not run on pure musl systems.[^release-1510][^release-workflow][^repology-alpine]
 
 **Platform selection guidance:**
 
@@ -153,7 +153,8 @@ $Asset = "ripgrep-$Version-$Target.zip"
 $BaseUrl = "https://github.com/BurntSushi/ripgrep/releases/download/$Version"
 Invoke-WebRequest -Uri "$BaseUrl/$Asset" -OutFile $Asset
 Invoke-WebRequest -Uri "$BaseUrl/$Asset.sha256" -OutFile "$Asset.sha256"
-$ExpectedHash = (Get-Content "$Asset.sha256").Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)[0]
+# Windows .sha256 files use certutil multi-line format; hash is on line 2:
+$ExpectedHash = (Get-Content "$Asset.sha256")[1].Trim()
 $ActualHash = (Get-FileHash -Algorithm SHA256 $Asset).Hash.ToLower()
 if ($ActualHash -ne $ExpectedHash) { throw "Checksum mismatch for $Asset" }
 Expand-Archive -Path $Asset -DestinationPath .
@@ -179,12 +180,24 @@ rg --version
 
 The revision hash (`rev ...`) and SIMD/PCRE2 details vary by platform and build; the version number and `features:+pcre2` line confirm a standard release binary.[^release-workflow]
 
-Checksum verification uses per-asset `.sha256` files published alongside each release asset. Each file contains a single line in `shasum -a 256` format: `{hash}  {filename}` (hash, two spaces, filename).[^release-1510]
+Checksum verification uses per-asset `.sha256` files published alongside each release asset. The format is **platform-dependent**:[^release-1510][^release-workflow]
 
-```bash
-sha256sum -c "${ASSET}.sha256"
-# Expected output: {ASSET}: OK
-```
+- **Unix/macOS/Linux `.tar.gz` and `.deb` assets**: single-line `shasum -a 256` format: `{hash}  {filename}` (hash, two spaces, filename). Verify with:
+
+  ```bash
+  sha256sum -c "${ASSET}.sha256"
+  # Expected output: {ASSET}: OK
+  ```
+
+- **Windows `.zip` assets**: multi-line `certutil` output format (three lines: header, hash, footer). Example:
+
+  ```
+  SHA256 hash of ripgrep-15.1.0-x86_64-pc-windows-msvc.zip:
+  124510b94b6baa3380d051fdf4650eaa80a302c876d611e9dba0b2e18d87493a
+  CertUtil: -hashfile command completed successfully.
+  ```
+
+  Extract the hash from line 2 and compare against `Get-FileHash -Algorithm SHA256`, or use `certutil -hashfile $Asset SHA256` and compare manually.
 
 **No GPG/PGP signatures** are provided for ripgrep releases. Checksum verification is the available integrity check.[^release-1510]
 
@@ -282,9 +295,9 @@ Official release archives include pre-generated completion scripts in the `compl
 
 | Shell | File in archive | Recommended install location |
 |-------|----------------|-------------------------------|
-| bash | `complete/rg.bash` | `$XDG_CONFIG_HOME/bash_completion/rg.bash` or `/usr/share/bash-completion/completions/rg`[^faq-complete] |
-| fish | `complete/rg.fish` | `$XDG_CONFIG_HOME/fish/completions/rg.fish` or `/usr/share/fish/vendor_completions.d/rg.fish`[^faq-complete] |
-| zsh | `complete/_rg` | Add containing directory to `fpath` in `~/.zshrc`[^faq-complete] |
+| bash | `complete/rg.bash` | `$XDG_CONFIG_HOME/bash_completion/rg.bash` (user-local)[^faq-complete] or `/usr/share/bash-completion/completions/rg` (system-wide, as in `.deb`)[^deb-contents] |
+| fish | `complete/rg.fish` | `$XDG_CONFIG_HOME/fish/completions/rg.fish` (user-local)[^faq-complete] or `/usr/share/fish/vendor_completions.d/rg.fish` (system-wide)[^deb-contents] |
+| zsh | `complete/_rg` | Add containing directory to `fpath` in `~/.zshrc` (user-local)[^faq-complete] or `/usr/share/zsh/vendor-completions/` (system-wide)[^deb-contents] |
 | PowerShell | `complete/_rg.ps1` | Source from PowerShell profile[^faq-complete] |
 
 Completions can also be generated at install time from the installed binary:
@@ -342,7 +355,7 @@ The release CI workflow (`.github/workflows/release.yml`) builds all release bin
 2. Verifies the tag version matches `version` in `Cargo.toml`.
 3. Builds with `cargo build --profile release-lto --features pcre2` (or `cross` for cross-compilation targets).
 4. Sets `PCRE2_SYS_STATIC=1` for static PCRE2 linking.
-5. Strips release binaries on macOS and cross-compiled Linux targets. Windows builds are not stripped in CI. On Windows MSVC, `build.rs` sets `/WX` (linker warnings as errors) and embeds a Windows manifest for long-path support; these are unrelated to stripping.[^release-workflow][^build-rs]
+5. Strips release binaries on macOS and cross-compiled Linux targets via explicit `strip` commands. Windows builds have no explicit `strip` workflow step, but the `release-lto` Cargo profile sets `strip = "symbols"`, so Cargo strips debug symbols during the Windows build as well. On Windows MSVC, `build.rs` additionally sets `/WX` (linker warnings as errors) and embeds a Windows manifest for long-path support.[^release-workflow][^build-rs][^cargo-toml]
 6. Assembles each archive directory:
 
    ```
@@ -354,7 +367,7 @@ The release CI workflow (`.github/workflows/release.yml`) builds all release bin
    ```
 
 7. Creates `.tar.gz` (Unix) or `.zip` (Windows) archives.
-8. Generates per-asset SHA256 checksum files via `shasum -a 256`.
+8. Generates per-asset SHA256 checksum files: `shasum -a 256` on Unix/macOS/Linux, `certutil -hashfile ... SHA256` on Windows.
 9. Uploads assets to the GitHub release.
 
 Asset URL format:
@@ -537,6 +550,8 @@ Documented in the official README:[^readme]
 - **Windows Winget**: `winget install BurntSushi.ripgrep.MSVC`
 
 Also available via OS package managers not listed in the README but widely packaged (e.g., **Alpine Linux** via `apk add ripgrep`).[^repology-alpine]
+
+**Not recommended**: Ubuntu Snap packages for ripgrep exist but are explicitly **not recommended** by the maintainer due to unresolved bugs; the README advises against using them.[^readme]
 
 #### Dependencies
 
@@ -1021,7 +1036,7 @@ ripgrep works correctly in standard devcontainer environments without special co
 | Feature | Method | Version pinning | Notes |
 |---------|--------|----------------|-------|
 | `devcontainer-community/ripgrep` | GitHub release binary (musl tarball) | Yes (`version` option) | Debian-only; only amd64 works — arm64 and armhf URLs are broken[^community-install] |
-| `devcontainers-contrib/ripgrep` | GitHub release via `ghcr.io/devcontainers-extra/features/gh-release:1.0.25` | Yes (`version` option) | Delegates to the devcontainers-extra gh-release feature, which uses nanolayer's `gh-release` module for platform-aware asset selection[^contrib-install][^gh-release-feature] |
+| `devcontainers-contrib/ripgrep` | GitHub release via `ghcr.io/devcontainers-extra/features/gh-release:1.0.25` | Yes (`version` option) | Delegates to the devcontainers-extra gh-release feature (currently at version 1.0.26 in upstream; contrib pins 1.0.25)[^contrib-install][^gh-release-feature] |
 | `jungaretti/ripgrep` | `apt-get install ripgrep` | No | Simple but no version control[^jungaretti-install] |
 
 ## Plugins and Extensions
