@@ -25,6 +25,7 @@ _long_description: >-
 _options:
   installer_dir: false
   user_file_fetch: true
+  keep_repos: true
 options:
   manifest:
     default: ''
@@ -92,12 +93,6 @@ options:
       step is skipped automatically (unless a new repository was added by the manifest).
       Set to `0` to always update.
     type: string
-  keep_repos:
-    default: false
-    description: |-
-      Keep added repository drop-in files after installation.
-      By default, any repository files written during installation are removed after the script finishes.
-    type: boolean
   prefer_linuxbrew:
     default: false
     description: |-

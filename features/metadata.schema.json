@@ -592,6 +592,11 @@
               "type": "string"
             }
           }
+        },
+        "keep_repos": {
+          "description": "Additional signal (next to `_options.method.upstream-package`) for incuding the `keep_repos` shared option in the feature. Used by features like `install-os-pkg` that don't have a `_options.method.upstream-package` but still need to support the `keep_repos` behavior.",
+          "type": "boolean",
+          "default": false
         }
       }
     },

@@ -163,14 +163,15 @@ options:
 
   keep_repos:
     _apply_when: |
-      #{{ return "upstream-package" in (get("_options.method") or {}) }}#
+      #{{ return bool(get("_options.method.upstream-package")) or bool(get("_options.keep_repos")) }}#
     type: boolean
     default: false
     description: >-
-      Keep the upstream package repository and signing key after installation.
-      By default, any repository files and signing keys added during installation are
-      removed afterwards. Set to true to retain them so the system package manager
-      can install future updates for this tool (e.g. via `apt upgrade`).
+      Keep the added system package manager repositories and signing keys after installation.
+      By default, any repository files and signing keys added during installation
+      are removed afterwards.
+      Set to true to retain them so the system package manager can install
+      future updates for this tool (e.g. via `apt upgrade`).
 
   fetch_headers:
     _apply_when: |
