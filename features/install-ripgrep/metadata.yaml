@@ -1,0 +1,93 @@
+version: 0.1.0
+name: ripgrep Installation
+description: Install [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) — a fast, line-oriented search tool that respects `.gitignore`.
+keywords:
+  - ripgrep
+  - rg
+  - grep
+  - search
+  - regex
+  - cli
+_long_description: |-
+  Installs [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`), a fast line-oriented
+  search tool written in Rust. ripgrep recursively searches directories for regex patterns,
+  respects `.gitignore` and hidden-file rules by default, and is widely used for interactive
+  code search in large repositories.
+
+  By default, `method=auto` downloads the official GitHub release binary with per-asset
+  SHA-256 verification. On platforms without a matching release asset (notably Alpine Linux
+  on arm64), installation falls back to the OS package manager. Cargo-based installation is
+  also available when a Rust toolchain is present.
+_tool_name: ripgrep
+_options:
+  verify:
+    args: "--version"
+    description: Verify ripgrep is installed and working.
+  gh_repo: BurntSushi/ripgrep
+  version:
+    resolution: github_release
+    default: stable
+    flag: --version
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: "15.1.0"
+        description: ripgrep v15.1.0.
+      - value: "14.1.1"
+        description: ripgrep v14.1.1.
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/ripgrep-{VERSION}-{KERNEL==Linux?{ARCH==arm64?aarch64-unknown-linux-gnu:{ARCH==i386?i686-unknown-linux-gnu:{RUST_TRIPLE}}}:{RUST_TRIPLE}}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/ripgrep-{VERSION}-{KERNEL==Linux?{ARCH==arm64?aarch64-unknown-linux-gnu:{ARCH==i386?i686-unknown-linux-gnu:{RUST_TRIPLE}}}:{RUST_TRIPLE}}.tar.gz.sha256"
+      binary_src: rg
+      when:
+        - {kernel: darwin, arch: [amd64, arm64]}
+        - {kernel: linux, arch: [amd64, armv7, i386, s390x]}
+        - {kernel: linux, arch: arm64, pm: [apt, dnf, yum, zypper, pacman]}
+    package:
+      when:
+        - pm: [apt, apk, brew, pacman, zypper]
+        - {pm: [dnf, yum], id: fedora}
+        - {pm: [dnf, yum], id: [rhel, rocky, almalinux, centos, ol, amzn], version_id_major: ["8", "9", "10", "2023"]}
+      registers_as: ripgrep
+    cargo:
+      crate: ripgrep
+  prefix:
+    bins: [rg]
+    applies_when:
+      - method: [binary, cargo]
+_dependencies:
+  run:
+    method-package:
+      packages:
+        - name: ripgrep
+          when:
+            - pm: [apt, apk, brew, pacman, zypper]
+            - {pm: [dnf, yum], id: fedora}
+
+        - label: RHEL-family via EPEL
+          when:
+            pm: [dnf, yum]
+            id: [rhel, rocky, almalinux, centos, ol]
+            version_id_major: ["8", "9", "10"]
+          keys:
+            - url: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{version_id_major}
+              dest: /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-{version_id_major}
+          repos:
+            - |
+              [epel]
+              name=Extra Packages for Enterprise Linux $releasever - $basearch
+              metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-$releasever&arch=$basearch
+              enabled=1
+              gpgcheck=1
+              gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-$releasever
+          packages:
+            - ripgrep
+
+        - label: Amazon Linux 2023 via SPAL
+          when:
+            pm: [dnf, yum]
+            id: amzn
+            version_id_major: "2023"
+          packages:
+            - spal-release
+            - ripgrep

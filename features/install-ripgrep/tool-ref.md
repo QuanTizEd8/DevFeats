@@ -531,11 +531,13 @@ Documented in the official README:[^readme]
 - macOS and Linux via **Homebrew** / **Linuxbrew**: `brew install ripgrep`
 - **MacPorts** (macOS): `sudo port install ripgrep`
 - **Arch Linux**: `sudo pacman -S ripgrep`
-- **Debian/Ubuntu**: `sudo apt-get install ripgrep`
-- **Fedora**: `sudo dnf install ripgrep`
-- **openSUSE Tumbleweed/Leap ≥ 15.1**: `sudo zypper install ripgrep`
-- **CentOS Stream 10 / RHEL 10 / Rocky Linux 10**: via EPEL (see EPEL setup below, then `sudo dnf install ripgrep`)[^readme]
-- **Gentoo**: `sudo emerge sys-apps/ripgrep`
+- **Debian / Debian derivatives**: `sudo apt-get install ripgrep` (available in Debian stable; version may lag upstream)[^readme]
+- **Ubuntu Cosmic (18.10) and newer**: `sudo apt-get install ripgrep` (same `rust-ripgrep` packaging as Debian)[^readme]
+- **Fedora**: `sudo dnf install ripgrep` (official Fedora repositories)[^readme][^fedora-pkg]
+- **openSUSE Tumbleweed / Leap ≥ 15.1**: `sudo zypper install ripgrep`
+- **RHEL-compatible enterprise Linux (RHEL, Rocky, Alma, CentOS Stream, Amazon Linux 2023, etc.)**: **not** in base OS repositories; requires **EPEL** (and usually **CRB / PowerTools / codeready-builder**) before `dnf install ripgrep` works[^readme][^fedora-pkg][^epel-docs]
+- **CentOS Stream 10 / RHEL 10 / Rocky Linux 10**: EPEL setup examples in the README (see below)[^readme]
+- **Gentoo**: `sudo emerge sys-apps/ripgrep` (portage category `sys-apps/ripgrep`, not plain `ripgrep`)[^readme]
 - **FreeBSD**: `sudo pkg install ripgrep`
 - **OpenBSD**: `doas pkg_add ripgrep`
 - **NetBSD**: `sudo pkgin install ripgrep`
@@ -549,9 +551,29 @@ Documented in the official README:[^readme]
 - **Windows Scoop**: `scoop install ripgrep`
 - **Windows Winget**: `winget install BurntSushi.ripgrep.MSVC`
 
-Also available via OS package managers not listed in the README but widely packaged (e.g., **Alpine Linux** via `apk add ripgrep`).[^repology-alpine]
+Also available via OS package managers not listed in the README but widely packaged (e.g., **Alpine Linux** via `apk add ripgrep` in the `community` repository, including **arm64**).[^repology-alpine][^alpine-pkg]
 
 **Not recommended**: Ubuntu Snap packages for ripgrep exist but are explicitly **not recommended** by the maintainer due to unresolved bugs; the README advises against using them.[^readme]
+
+**README nuance — Debian vs Ubuntu**: For **Debian** users, the README presents the official GitHub `.deb` download **before** the `apt-get install ripgrep` option, noting that Debian stable's apt version may be older than the release `.deb`.[^readme] Ubuntu 18.10+ is documented as having `ripgrep` in the standard archive without mentioning the `.deb` shortcut.
+
+#### DevFeats-supported package managers — availability matrix
+
+DevFeats `ospkg` supports **`apt`**, **`apk`**, **`brew`**, **`dnf`/`yum`**, **`pacman`**, and **`zypper`**. The table below states whether `ripgrep` (package name **`ripgrep`**, binary **`rg`**) is installable with a **plain** `method-package` manifest (`packages: [ripgrep]`) — i.e., without adding extra repositories, keys, or vendor-specific `upstream-package` manifests.
+
+| PM | Typical distros / images | Package name | In default repos? | Extra repo / key setup required? | Notes |
+|----|--------------------------|--------------|-------------------|----------------------------------|-------|
+| **apt** | Debian, Ubuntu | `ripgrep` | **Yes** (Ubuntu ≥ 18.10; Debian stable)[^readme] | **No** | Version may lag upstream; pin via `ripgrep=VERSION-*` when available. |
+| **apk** | Alpine | `ripgrep` | **Yes** (`community`; enabled on standard Alpine images)[^repology-alpine][^alpine-pkg] | **No** | Practical fallback on **Alpine arm64** (no official musl arm64 GitHub binary). |
+| **brew** | macOS, Linuxbrew | `ripgrep` | **Yes** (`homebrew-core`)[^brew-formula] | **No** (but Homebrew itself must be installed) | Bottles include PCRE2; current stable 15.1.0. |
+| **dnf / yum** | Fedora | `ripgrep` | **Yes** (Fedora `rust-ripgrep`)[^fedora-pkg] | **No** | In official Fedora repos only — not the same as RHEL-family. |
+| **dnf / yum** | RHEL, Rocky, Alma, CentOS Stream, Amazon Linux 2023 | `ripgrep` | **No** (base OS repos) | **Yes — EPEL + CRB**[^epel-docs][^fedora-pkg] | README documents EL **10** examples only; EPEL **8** and **9** also ship `ripgrep` (14.1.1 as of 2026-06-18).[^fedora-pkg] A vanilla `packages: [ripgrep]` install **fails** until EPEL (and usually CRB/PowerTools) is configured. |
+| **pacman** | Arch | `ripgrep` | **Yes** | **No** | Official Arch repos. |
+| **zypper** | openSUSE Leap ≥ 15.1, Tumbleweed | `ripgrep` | **Yes**[^readme] | **No** | README documents Leap ≥ 15.1 explicitly. |
+
+**Not covered by DevFeats `ospkg` today** (documented upstream only): MacPorts, Gentoo (`sys-apps/ripgrep`), FreeBSD/OpenBSD/NetBSD pkg, Void, Nix, Guix, Flox, ALT, Haiku (`ripgrep` / `ripgrep_x86`), Windows package managers.
+
+**Implementation implication**: A DevFeats feature using only `method.package: {}` and `_dependencies.run.method-package: [ripgrep]` works on **apt, apk, brew, Fedora dnf, pacman, and zypper** out of the box. It does **not** work on **RHEL-family dnf/yum** unless the dependency manifest also enables **EPEL** (and CRB where required) — this is standard third-party repo setup, not a vendor-hosted repo like Lefthook's Cloudsmith `upstream-package`. There is no ripgrep-specific vendor repository; EPEL is the official path.
 
 #### Dependencies
 
@@ -563,44 +585,59 @@ A working, configured system package manager.
 
 - Linux package managers generally require root/sudo.
 - Homebrew requires a working Homebrew installation.
-- EPEL-based installs require enabling the appropriate repository first.[^readme]
+- **RHEL-family (dnf/yum)**: EPEL release package + GPG key (installed by `epel-release` RPM) and **CRB / codeready-builder / PowerTools** repository enabled per EPEL documentation.[^epel-docs][^readme] EPEL packages may have runtime dependencies on CRB-provided libraries.
 
 #### Installation Steps
 
 ```bash
-# Debian/Ubuntu
+# Debian / Ubuntu (standard archive — no extra repos)
 sudo apt-get update
 sudo apt-get install -y ripgrep
 
-# Fedora
+# Fedora (base repos — no EPEL)
 sudo dnf install -y ripgrep
 
-# Alpine
+# Alpine (community repo)
 sudo apk add --no-cache ripgrep
 
 # Arch
 sudo pacman -S --noconfirm ripgrep
 
+# openSUSE
+sudo zypper install -y ripgrep
+
 # Homebrew (macOS/Linux)
 brew install ripgrep
 ```
 
-EPEL setup (required before installing on RHEL-family systems that use EPEL):[^readme]
+EPEL setup (required on **RHEL-compatible** systems before `dnf install ripgrep`; **not** required on Fedora):[^readme][^epel-docs][^fedora-pkg]
+
+The upstream README documents **EL 10** only. EPEL also publishes `ripgrep` for **EL 8** and **EL 9** (`14.1.1-1.el8`, `14.1.1-1.el9`).[^fedora-pkg] Replace `{N}` with `8`, `9`, or `10` and adjust CRB repo names for the target major version.
 
 ```bash
-# CentOS Stream 10
+# Pattern for RHEL-compatible clones (Rocky/Alma/CentOS Stream) — EL 10 example from README:
 sudo dnf config-manager --set-enabled crb
-sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
-sudo dnf install ripgrep
+sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+sudo dnf install -y ripgrep
 
-# RHEL 10
+# RHEL 10 (subscription-managed) — from README:
 sudo subscription-manager repos --enable codeready-builder-for-rhel-10-$(arch)-rpms
-sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
-sudo dnf install ripgrep
+sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+sudo dnf install -y ripgrep
 
-# Rocky Linux 10
-sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
-sudo dnf install ripgrep
+# Rocky Linux 10 — from README (no CRB step listed; EPEL docs still recommend CRB on RHEL-compatible systems):
+sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+sudo dnf install -y ripgrep
+
+# EL 9 example (not in README; same package name, different epel-release URL):
+sudo dnf config-manager --set-enabled crb   # or: subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms
+sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+sudo dnf install -y ripgrep
+
+# EL 8 example (not in README):
+sudo subscription-manager repos --enable codeready-builder-for-rhel-8-$(arch)-rpms   # RHEL; on CentOS Stream 8 use: dnf config-manager --set-enabled powertools
+sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+sudo dnf install -y ripgrep
 ```
 
 #### Installation Verification
@@ -706,8 +743,12 @@ Package manager installs are idempotent; re-running install on an already-instal
 
 #### Notes and Best Practices
 
-- Repository versions may lag upstream; Debian stable in particular often ships older versions.[^readme]
-- Alpine's `ripgrep` package is the practical install method for Alpine arm64 where no official musl arm64 binary exists.
+- Repository versions may lag upstream; Debian stable in particular often ships older versions.[^readme] For Debian **amd64** with strict version requirements, the official GitHub `.deb` (separate install method) may be preferable to apt.
+- Alpine's `ripgrep` package is the practical install method for **Alpine arm64** where no official musl arm64 GitHub binary exists.[^repology-alpine][^alpine-pkg]
+- **Do not conflate Fedora and RHEL-family**: `dnf install ripgrep` succeeds on Fedora without EPEL but **fails** on stock RHEL/Rocky/Alma/CentOS Stream/Amazon Linux 2023 images until EPEL (and typically CRB) is configured.[^fedora-pkg][^epel-docs]
+- The upstream README EPEL section covers **EL 10** only; EPEL **8** and **9** also ship `ripgrep` with the same package name but different `epel-release-latest-{N}.rpm` URLs.[^fedora-pkg]
+- EPEL is the official third-party repository path — there is **no** ripgrep vendor-hosted apt/dnf repo (unlike tools that use Cloudsmith/PPA `upstream-package` patterns). DevFeats should model RHEL-family support as **EPEL (+ CRB) entries in the `method-package` dependency manifest**, not as a separate vendor `upstream-package` method, unless the project adds a generic EPEL bootstrap feature.
+- **`registers_as: ripgrep`** should be set when the primary binary is `rg` so `method=auto` PM version checks query `ripgrep`, not `rg`.
 - The jungaretti devcontainer ripgrep feature uses `apt-get install ripgrep` (Debian-only, no version pinning).[^jungaretti-install]
 
 ---
@@ -1020,10 +1061,11 @@ ripgrep works correctly in standard devcontainer environments without special co
 
 - **Recommended install method**: Prebuilt Binary Download to `/usr/local/bin/rg` (system-wide, accessible by all users). For Debian/Ubuntu amd64-only images, the official `.deb` from GitHub releases is an alternative that also installs completions and man page.
 - **Platform mapping in containers**:
-  - Debian/Ubuntu devcontainers (x86_64): use `x86_64-unknown-linux-musl` tarball.
-  - Debian/Ubuntu devcontainers (arm64): use `aarch64-unknown-linux-gnu` tarball.
-  - Alpine devcontainers (x86_64): use `x86_64-unknown-linux-musl` tarball.
-  - Alpine devcontainers (arm64): use `apk add ripgrep` (no official musl arm64 binary).
+  - Debian/Ubuntu devcontainers (x86_64): prefer **binary** (`x86_64-unknown-linux-musl` tarball) or apt `ripgrep`; `.deb` from GitHub is an alternative on amd64.
+  - Debian/Ubuntu devcontainers (arm64): prefer **binary** (`aarch64-unknown-linux-gnu` tarball) or apt `ripgrep`.
+  - Alpine devcontainers (x86_64): prefer **binary** (`x86_64-unknown-linux-musl`) or `apk add ripgrep`.
+  - Alpine devcontainers (arm64): use **`method=package`** (`apk add ripgrep`) — no official musl arm64 GitHub binary.
+  - **RHEL-family devcontainers** (Rocky, Alma, UBI, Amazon Linux 2023): **`method=package` requires EPEL (+ CRB) in the dependency manifest** before `ripgrep` resolves; otherwise use **binary** where a matching GitHub asset exists.
 - **Dependencies during build**: ensure `curl`, `ca-certificates`, and `tar` are available before downloading. The devcontainer-community feature depends on a `ca-certificates` feature via `installsAfter`.[^community-feature-json]
 - **No entrypoint or lifecycle commands** are needed; ripgrep is a user-space CLI tool with no daemons.
 - **No volume mounts or special privileges** are required beyond root access during feature install (standard for devcontainer features).[^devcontainer-spec]
@@ -1094,6 +1136,12 @@ ripgrep-all extends ripgrep to search inside PDFs, Office documents, archives, a
 [^deb-contents]: Verified by downloading `ripgrep_15.1.0-1_amd64.deb` from GitHub releases (2026-06-18) and inspecting contents via `dpkg-deb -c` — installs `/usr/bin/rg`, man page at `/usr/share/man/man1/rg.1.gz`, and bash/fish/zsh completions at documented paths.
 
 [^brew-formula]: [Homebrew ripgrep formula](https://formulae.brew.sh/formula/ripgrep) — Homebrew install command, current stable version 15.1.0, supported bottle platforms (macOS arm64/x86_64, Linux x86_64/arm64).
+
+[^fedora-pkg]: [Fedora Packages — rust-ripgrep / ripgrep](https://packages.fedoraproject.org/pkgs/rust-ripgrep/ripgrep/) — Confirms `ripgrep` in Fedora base repos and EPEL 8, 9, and 10 (version 14.1.1 as of 2026-06-18).
+
+[^epel-docs]: [Fedora EPEL documentation — Getting started](https://docs.fedoraproject.org/en-US/epel/getting-started/) — Documents EPEL installation and the requirement to enable CRB (RHEL 8/9/10), PowerTools (CentOS Stream 8), or equivalent before using many EPEL packages.
+
+[^alpine-pkg]: [Alpine Linux packages — ripgrep (aarch64, v3.23)](https://pkgs.alpinelinux.org/package/v3.23/community/aarch64/ripgrep) — Confirms `ripgrep` package in Alpine `community` repository on arm64 (15.1.0-r0 as of 2025-10-24).
 
 [^repology-alpine]: [Repology — ripgrep packages](https://repology.org/project/ripgrep/packages) — Cross-distro package index confirming ripgrep availability in Alpine Linux (`ripgrep` package in community repository) and other distros not individually listed in the README.
 
