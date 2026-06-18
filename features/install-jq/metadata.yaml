@@ -48,11 +48,11 @@ _options:
       - method: [binary, source]
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       packages:
         - jq
   build:
-    source:
+    method-source:
       packages:
         - make
         - automake

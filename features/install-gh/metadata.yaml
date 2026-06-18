@@ -152,7 +152,7 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-    upstream-package:
+    method-upstream-package:
       apt:
         keys:
           - url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
@@ -175,6 +175,7 @@ _dependencies:
             gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
         packages:
           - name: gh
+            version: "{VERSION}"
       yum:
         repos:
           - |
@@ -186,6 +187,7 @@ _dependencies:
             gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
         packages:
           - name: gh
+            version: "{VERSION}"
       zypper:
         repos:
           - |
@@ -197,6 +199,7 @@ _dependencies:
             gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
         packages:
           - name: gh
+            version: "{VERSION}"
       apk:
         packages:
           - name: github-cli

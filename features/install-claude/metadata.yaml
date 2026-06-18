@@ -76,7 +76,7 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-    upstream-package:
+    method-upstream-package:
       packages:
         - name: claude-code
           version: "{VERSION}"

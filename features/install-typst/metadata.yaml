@@ -45,7 +45,7 @@ customizations:
       - myriad-dreamin.tinymist
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       packages:
         - typst
 # installsAfter: []

@@ -84,7 +84,7 @@ _dependencies:
         - gzip
         - tar
   build:
-    linux-build:
+    method-script:
       # Build tools — names differ by ecosystem. Build-time only on Linux;
       # macOS provides these via Xcode CLT which is handled separately.
       #

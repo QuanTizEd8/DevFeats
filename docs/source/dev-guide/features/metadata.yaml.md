@@ -4,8 +4,7 @@
 
 1. `src/*/devcontainer-feature.json` — the OCI-compliant feature spec consumed by the devcontainer CLI
 2. `src/*/install.bash` header — argument parsing, env var injection, library sourcing, option validation
-3. `src/*/dependencies/*.yaml` — OS package manifests installed before `install.bash` runs
-4. Documentation — options table and examples on the feature's reference page
+3. Documentation — options table and examples on the feature's reference page
 
 Validated against `features/metadata.schema.json` at every `just sync-src`.
 
@@ -209,11 +208,10 @@ The auto-implementation handles: URI expansion, fetch, SHA256 verification (from
 
 ```yaml
 package:
-  manifest: os-pkg        # optional; defaults to "os-pkg"
   registers_as: my-tool   # OS package name for PM version checks (method=auto) and dummy apt registration on non-PM installs
 ```
 
-Reads `dependencies/run/{manifest}.yaml` (generated from the matching `_dependencies.run` entry). The auto-implementation calls `ospkg__install` with the manifest.
+Installs packages from `_dependencies.run.method-package` via the generated `ospkg_manifest_method_package_run` option (override with inline YAML or a path/URI).
 
 **`upstream-package` — install from the vendor's own OS package repository:**
 
@@ -222,7 +220,7 @@ upstream-package:
   registers_as: my-tool   # same dual use as package.registers_as (PM checks + dummy apt registration)
 ```
 
-Reads `dependencies/run/upstream-package.yaml`. Use when the vendor publishes their own apt/dnf/brew repo.
+Installs packages from `_dependencies.run.method-upstream-package` via `ospkg_manifest_method_upstream_package_run`.
 
 **`script` — run the tool's own installer script:**
 
@@ -384,9 +382,15 @@ When `true`, auto-injects `fetch_headers` (custom HTTP headers) and `fetch_netrc
 
 ## `_dependencies`
 
-Declare OS packages that must be installed **before** `install.bash` runs. The devcontainer CLI installs these via `ospkg` at image build time.
+Declare OS package dependencies installed by the template dependency dispatcher during `install.bash`. During metadata load, each group is emitted as a generated **`ospkg_manifest_*` option** (multiline YAML default in `devcontainer-feature.json`) via pyserials in `metadata.shared.yaml`; users can override the value in `devcontainer.json`.
 
-Manifests are grouped by **lifecycle** (`run`, `build`, …) and **name** (`base`, `os-pkg`, `upstream-package`, …). Sync writes each group to `src/*/dependencies/<lifecycle>/<name>.yaml`.
+Manifest groups use three prefixes:
+
+| Key prefix | Example | Generated option(s) | Lifecycles |
+|------------|---------|---------------------|------------|
+| `base` | `base` | `ospkg_manifest_base_{run\|build}` | `run`, `build` |
+| `method-*` | `method-package` | `ospkg_manifest_method_{method}_{run\|build}` | `run`, `build` |
+| `option-*` | `option-archive_tools` | `ospkg_manifest_option_{name}` | `run` only |
 
 ```yaml
 _dependencies:
@@ -395,19 +399,16 @@ _dependencies:
       packages:
         - curl
         - ca-certificates
-      apt:
-        packages:
-          - build-essential
-      brew:
-        packages:
-          - openssl
-    os-pkg:
+    method-package:
       packages:
         - jq
-  build:
-    node-gyp:
+    option-node_gyp_deps:
       packages:
-        - python3
+        - make
+  build:
+    method-source:
+      packages:
+        - build-essential
 ```
 
 Full manifest syntax (same format as `lib/ospkg-manifest.schema.json`):
@@ -449,6 +450,22 @@ scripts: |
 Available `when` keys: `pm` (`apt`, `brew`, `dnf`, `apk`, `yum`, `zypper`, `pacman`), `kernel` (`linux`/`darwin`), `arch`, `deb_arch`, `id`, `id_like`, `version_id`, `version_codename`, and any other `/etc/os-release` field.
 
 The schema is published at `/schema/ospkg-manifest.json` on the docs site. See `.config/proman/docs.yaml` → `json_schemas_publish`.
+
+Option-bound groups (`option-*`) with a matching boolean user option are installed automatically at the start of `__install_run__` (after options are parsed). Use manifest `when` clauses — not feature hooks — to skip installs on specific platforms (e.g. exclude Alpine for node-gyp deps).
+
+### Dependency manifest codegen
+
+| Rule | Rationale |
+|------|-----------|
+| Generated `ospkg_manifest_*` user options live in [`metadata.shared.yaml`](../../../features/metadata.shared.yaml) via pyserials mapping-unpack | Single visible definition; no hidden post-fill injection |
+| Python post-fill in `MetadataLoader` is forbidden for option emission | Keeps codegen in one auditable place |
+| Pyserials mapping-unpack placeholder keys in `options` must survive `_filter_options` until `TemplateFiller.fill` | Shared metadata uses a dict-key unpack marker, not a normal option dict |
+| `option-*` manifest groups belong under `_dependencies.run` only | Option-bound installs run once at the start of `__install_run__` |
+| `method-*` keys must match a declared `_options.method` contract key | Enforced by schema (`patternProperties` + root `allOf` if/then rules) |
+| Shared library code must not contain feature/option name literals for behavior | Generic algorithms over metadata shape only |
+| Spike/integration tests in `test/proman/test_metadata.py` required for codegen changes | Catches regressions at load time |
+
+During `install.bash`, boolean option-bound manifests install once at the start of `__install_run__` (both methodful and method-less features). Features that fully override `__install_run__` must call `__dep_install_option_bound__` once at the top themselves.
 
 ---
 

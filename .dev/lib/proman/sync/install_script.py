@@ -12,6 +12,7 @@ import pyserials
 
 from proman.config import load as load_config
 from proman.const import LIFECYCLE_COMMAND_KEYS
+from proman.manifest_util import generate_dep_trigger_specs
 from proman.when_util import serialize_when
 
 # printf '%s' with an accidental real newline before the closing quote (db42a06b bug).
@@ -94,6 +95,7 @@ class InstallScriptGenerator:
         script_parts: dict[str, object] = {
             "usage_options": self._generate_usage_options(options),
             "argparse": argparse,
+            "dep_trigger_specs": self._generate_dep_trigger_specs(metadata),
             "env_vars": self._generate_env_vars(metadata["_env_vars"]),
             "install_contract_vars": self._generate_install_contract_vars(metadata),
             "system_requirements_guard": self._generate_system_requirements_guard(
@@ -261,8 +263,8 @@ class InstallScriptGenerator:
         scalar_lines.append(f'REGISTER_PACKAGE_NAME="{registers_as}"')
         scalar_var_names.append("REGISTER_PACKAGE_NAME")
 
-        # _FEAT_CONTRACT_METHODS: space-separated method keys, excluding "default".
-        method_keys = [k for k in method_meta if k != "default"]
+        # _FEAT_CONTRACT_METHODS: space-separated method keys.
+        method_keys = list(method_meta)
         scalar_lines.append(f'_FEAT_CONTRACT_METHODS="{" ".join(method_keys)}"')
         scalar_var_names.append("_FEAT_CONTRACT_METHODS")
 
@@ -452,6 +454,18 @@ class InstallScriptGenerator:
             "unset _DF_URI_SPECS",
         ]
         return "\n".join(blocks).strip()
+
+    def _generate_dep_trigger_specs(self, metadata: dict) -> str:
+        """Emit option-bound dependency trigger spec for template consumption."""
+        lines = generate_dep_trigger_specs(metadata)
+        if not lines:
+            return ""
+
+        def _escape_ansi_c(s: str) -> str:
+            return s.replace("\\", "\\\\").replace("'", "\\'")
+
+        spec_literal = "\\n".join(_escape_ansi_c(line) for line in lines)
+        return f"_FEAT_DEP_TRIGGER_SPECS=$'{spec_literal}'"
 
     def _generate_argparse_defaults(self, options: dict) -> str:
         """Emit the '# Apply defaults.' block."""
@@ -708,6 +722,17 @@ def _opt_to_flag(key: str) -> str:
     return f"--{key}"
 
 
+def _ansi_c_shell_string(val: str) -> str:
+    """Format a string as a bash ANSI-C quoted literal ($'…')."""
+    escaped = (
+        val.replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
+    return f"$'{escaped}'"
+
+
 def _shell_val(default: object, typ: str) -> str:
     """Format a YAML default value as a shell assignment RHS (non-array types only).
 
@@ -716,12 +741,17 @@ def _shell_val(default: object, typ: str) -> str:
     survive as a literal to be written into user config files and evaluated later
     in the user's own shell).  Defaults that need bash expansion at install time
     must use '_default:' (dynamic defaults) instead of 'default:'.
+
+    Multiline strings use ANSI-C quoting so embedded newlines are preserved.
     """
     if typ == "boolean":
         return "'true'" if default else "'false'"
     if default == "" or default is None:
         return "''"
-    val_escaped = str(default).replace("'", "'\\''")
+    val = str(default)
+    if "\n" in val:
+        return _ansi_c_shell_string(val)
+    val_escaped = val.replace("'", "'\\''")
     return f"'{val_escaped}'"
 
 

@@ -8,6 +8,7 @@ import pyserials
 from jsonschema.exceptions import ValidationError
 
 from proman.config import load as load_config
+from proman.manifest_util import serialize_manifest
 from proman.schema_bundle import get_validator
 from proman.when_util import serialize_when
 
@@ -56,16 +57,19 @@ class MetadataLoader:
         return all_metadata
 
     def _load_one(self, feature_id: str) -> dict:
-        """Read and fully augment metadata for a single feature; return None on failure.
+        """Read and fully augment metadata for a single feature.
 
-        Augmentation steps performed (in order):
+        Raises on missing files, parse errors, template fill failures, or schema
+        validation errors.
+
+        Augmentation steps (in order):
         1. Read ``metadata.yaml`` from disk.
-        2. Substitute ``${{ … }}$`` template variables (project paths, env vars, …)
-        in all string dict keys and values via :class:`pyserials.update.TemplateFiller`.
-        3. Normalize lifecycle command map keys to
-        ``<owner_slug>-<name_slug>--<feature_id>--<task>``.
-        4. Merge shared metadata.
-        5. Set ``metadata["id"]`` and ``metadata["_oci_ref"]``.
+        2. Set ``metadata["id"]`` and merge shared metadata.
+        3. Normalize lifecycle command map keys.
+        4. Filter shared ``options`` entries tagged with ``_apply_when``.
+        5. Run :class:`pyserials.update.TemplateFiller` (including ``ospkg_manifest_*``
+           option emission from ``metadata.shared.yaml``).
+        6. Validate against ``features/metadata.schema.json``.
         """
         metadata_filepath = (
             self._feat_dirpath / feature_id / self._feat_metadata_filename
@@ -100,7 +104,10 @@ class MetadataLoader:
 
         try:
             metadata = pyserials.update.TemplateFiller(
-                code_context={"serialize_when": serialize_when},
+                code_context={
+                    "serialize_when": serialize_when,
+                    "serialize_manifest": serialize_manifest,
+                },
             ).fill(metadata)
         except Exception as e:
             msg = (
@@ -115,19 +122,22 @@ class MetadataLoader:
         return metadata
 
     def _filter_options(self, metadata: dict) -> dict:
-        """Merge shared metadata into *metadata*.
+        """Return ``options`` with conditional shared entries applied.
 
         Options tagged with ``_apply_when`` are only merged when the condition
         evaluates to ``True`` against the feature's full metadata dict.
 
-        Returns
-        -------
-        bool
-            ``True`` on success, ``False`` if a conflict with a derived option is
-            detected (error is logged).
+        Pyserials mapping-unpack placeholders (dict keys containing ``*{{ … }}*``)
+        are preserved with their null values so :meth:`TemplateFiller.fill` can
+        expand them later; they are not real option definitions yet.
         """
         final_options: dict = {}
         for option_id, option_def in metadata.get("options", {}).items():
+            if not isinstance(option_def, dict):
+                # Let fully templated options pass through
+                final_options[option_id] = option_def
+                continue
+
             condition = option_def.get("_apply_when")
 
             if not condition:

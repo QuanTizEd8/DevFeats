@@ -51,6 +51,6 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-    os-pkg:
+    method-package:
       packages:
         - uv

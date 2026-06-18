@@ -41,12 +41,12 @@ _options:
       - method: [source]
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       packages:
         - name: bash
           version: "{VERSION}"
   build:
-    source-build:
+    method-source:
       apt:
         packages:
           - build-essential

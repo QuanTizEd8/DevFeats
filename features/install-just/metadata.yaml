@@ -41,7 +41,7 @@ customizations:
       - nefrob.vscode-just-syntax
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       packages:
         - just
 # installsAfter: []

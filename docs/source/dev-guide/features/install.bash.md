@@ -48,7 +48,7 @@ The template drives execution via `__main__()`, which calls hooks in a fixed ord
 __main__
   ├── __init__                      # env setup, library sourcing, arg parsing
   │     ├── [__init_pre]            # user hook (optional)
-  │     ├── __init_env__            # sets _FEAT_DIR, _FEAT_FILES_DIR, _FEAT_DEPS_DIR, metadata env vars
+  │     ├── __init_env__            # sets _FEAT_DIR, _FEAT_FILES_DIR, metadata env vars
   │     ├── __init_lib__            # sources lib/__init__.bash (all library modules)
   │     ├── __init_script__         # sets up logging, exit trap, session scratch
   │     ├── __init_args__           # parses CLI flags → env vars; validates _path / _uri options
@@ -62,10 +62,12 @@ __main__
               │     ├── __resolve_input_method__      # calls __resolve_method when METHOD=auto
               │     ├── __resolve_input_version__     # calls __resolve_version or auto-impl
               │     ├── __resolve_input_prefixes__    # resolves PREFIX from options + platform
-              │     ├── __dep_install_base__          # installs _dependencies.run.base packages
+              │     ├── __dep_install_base__          # OSPKG_MANIFEST_BASE_{RUN,BUILD}
               │     └── [__install_init_post]         # user hook
               ├── __install_run__                     # dispatches to method-specific runner
               │     ├── [__install_run_pre]           # user hook: before method dispatch
+              │     ├── __dep_install_option_bound__  # boolean option-* manifests (all features)
+              │     ├── __dep_install_for_method__    # active METHOD manifest env vars
               │     ├── [__install_run_<method>_pre]  # user hook: before specific method
               │     ├── __install_run_<method>__      # auto-implementation (or user override)
               │     ├── [__install_run_<method>_post] # user hook: after specific method
@@ -90,7 +92,6 @@ _FEAT_VERSION               # Feature version from metadata.yaml
 _FEAT_NAME                  # Feature display name
 _FEAT_DIR                   # Absolute path to src/<feature-id>/ at runtime
 _FEAT_FILES_DIR             # ${_FEAT_DIR}/files
-_FEAT_DEPS_DIR              # ${_FEAT_DIR}/dependencies
 _FEAT_SHARE_DIR_ROOT        # /usr/local/share/<namespace>/<id>
 _FEAT_SHARE_DIR_NONROOT     # ${HOME}/.local/share/<namespace>/<id>
 _FEAT_LIFECYCLE_DIR         # Lifecycle hook directory
@@ -219,6 +220,8 @@ __install_init_post() {
 ### `__install_run_pre` / `__install_run_post`
 
 Run before/after the method dispatcher, wrapping all method-specific logic.
+
+When a feature fully overrides `__install_run__` (e.g. `setup-user`), call `__dep_install_option_bound__` once at the top so boolean option-bound manifests still install. Do not call `__dep_install_option__` for options already covered by trigger specs.
 
 ### `__install_run_<method>_pre` / `__install_run_<method>_post`
 
@@ -382,7 +385,7 @@ See {doc}`lib` for the full API reference.
 |------------------------|----------------------------------|
 | GitHub binary release, standard URL pattern | Nothing — declare `_options.method.binary.asset_uri` in metadata |
 | GitHub binary release, OS-specific URL | `__install_run_binary_pre` to set `_FEAT_BINARY_ASSET_PATTERN` |
-| OS package manager | Nothing — declare `_options.method.package` and `_dependencies.run/os-pkg.yaml` |
+| OS package manager | Nothing — declare `_options.method.package` and `_dependencies.run.method-package` (generates `ospkg_manifest_method_package_run`) |
 | Multiple methods, auto-select by platform | `__resolve_method` |
 | Custom version lookup (not GitHub/npm/cargo) | `__resolve_version` |
 | Pre-install OS packages not in `_dependencies` | `__install_pre` with `ospkg__install` |

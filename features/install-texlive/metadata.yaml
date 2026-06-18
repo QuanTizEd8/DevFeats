@@ -38,7 +38,6 @@ _options:
     description: Verify the TeX Live installation via tlmgr.
   user_file_fetch: true
   method:
-    default: auto
     script:
       asset_uri: ''
     package:
@@ -933,7 +932,7 @@ _dependencies:
             ln -sf "${_libdir}/libglut.so.3.12" "${_libdir}/libglut.so.3"
           fi
 
-    jre:
+    option-jre:
       # Installed on-demand by _tl_maybe_install_jre when Java tool scripts (arara,
       # bib2gls, texplate, albatross, latex2nemeth, …) are found in the TL tree.
       packages:
@@ -946,7 +945,7 @@ _dependencies:
           brew: openjdk
 
   build:
-    installer:
+    method-script:
       # xz is required by the TeX Live installer to decompress .xz package archives
       # downloaded from CTAN during installation.
       # Users who need to run 'tlmgr install' or 'tlmgr update' after image build

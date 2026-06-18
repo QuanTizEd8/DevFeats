@@ -1,6 +1,8 @@
 # shellcheck shell=bash
 
 __install_run__() {
+  __dep_install_option_bound__
+
   # ---------------------------------------------------------------------------
   # Resolve conflicts for the primary group
   # ---------------------------------------------------------------------------
@@ -112,7 +114,6 @@ __install_run__() {
   # Sudo access
   # ---------------------------------------------------------------------------
   if [ "$SUDO_ACCESS" = "true" ]; then
-    __dep_install__ run sudo
     users__add_sudoer "$USERNAME" --sudoers-dir "$SUDOERS_DIR"
   fi
 

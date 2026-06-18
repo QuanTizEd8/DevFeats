@@ -1,0 +1,8 @@
+bundle_archive_tools:
+  description: |
+    install-os-pkg-bundle with archive_tools=true installs zip/unzip utilities.
+  checks:
+    - title: zip command is available
+      cmd: command -v zip
+    - title: unzip command is available
+      cmd: command -v unzip

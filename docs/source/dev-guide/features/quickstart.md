@@ -47,7 +47,6 @@ Files shared across all features (do not duplicate in per-feature directories):
 
 ```
 metadata.yaml        →  src/*/devcontainer-feature.json   (OCI-compliant feature spec)
-metadata.yaml        →  src/*/dependencies/*.yaml          (OS package manifests)
 install.tmpl.bash
   + install.bash     →  src/*/install.bash                 (header + body)
 features/install.sh  →  src/*/install.sh                   (POSIX bootstrap)

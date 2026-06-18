@@ -129,7 +129,6 @@ _options:
       bash: "share/git-core/contrib/completion/git-completion.bash"
       zsh: "share/git-core/contrib/completion/git-completion.zsh"
   method:
-    default: auto
     package:
       registers_as: git
     upstream-package:
@@ -155,11 +154,11 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-    os-pkg:
+    method-package:
       packages:
         - name: git
           version: "{VERSION}"
-    upstream-package:
+    method-upstream-package:
       when:
         id: ubuntu
         pm: apt
@@ -171,7 +170,7 @@ _dependencies:
       packages:
         - git
   build:
-    source-build:
+    method-source:
       apt:
         packages:
           - build-essential

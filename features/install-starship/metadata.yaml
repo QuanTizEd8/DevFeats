@@ -104,6 +104,6 @@ options:
 #   - ghcr.io/quantized8/devfeats/install-ohmybash
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       packages:
         - starship

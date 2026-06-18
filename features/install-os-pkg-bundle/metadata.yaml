@@ -221,7 +221,7 @@ options:
 _dependencies:
   run:
 
-    archive-tools:
+    option-archive_tools:
       packages:
         # tar: fundamental archiver — Linux only; macOS ships BSD tar at /usr/bin/tar
         - name: tar
@@ -240,7 +240,7 @@ _dependencies:
         - zstd
         - lz4
 
-    build-tools:
+    option-build_tools:
       # compiler toolchain meta-packages — each PM uses a different name
       apt:
         packages:
@@ -298,7 +298,7 @@ _dependencies:
           dnf: pkgconf-pkg-config
           yum: pkgconfig
 
-    data-tools:
+    option-data_tools:
       packages:
         # CSV / TSV / JSON swiss-army knife
         - miller
@@ -307,7 +307,7 @@ _dependencies:
         # interactive terminal spreadsheet
         - visidata
 
-    database-dev:
+    option-database_dev:
       packages:
         # PostgreSQL client library
         - name: libpq-dev
@@ -337,7 +337,7 @@ _dependencies:
           zypper: unixodbc-devel
           pacman: unixodbc
 
-    database-tools:
+    option-database_tools:
       packages:
         # PostgreSQL client (psql, pg_dump, pg_restore …)
         - name: postgresql
@@ -356,7 +356,7 @@ _dependencies:
         - name: redis
           apt: redis-tools
 
-    dev-libs:
+    option-dev_libs:
       packages:
         # ── Compression ────────────────────────────────────────────────────────
         - name: zlib-devel
@@ -535,7 +535,7 @@ _dependencies:
           apk: re2-dev
           pacman: re2
 
-    dev-tools:
+    option-dev_tools:
       packages:
         # benchmarking
         - hyperfine
@@ -549,7 +549,7 @@ _dependencies:
         - name: tokei
           when: {pm: [apk, brew, dnf, yum, zypper, pacman]}
 
-    document-tools:
+    option-document_tools:
       packages:
         # PostScript / PDF
         - ghostscript
@@ -588,13 +588,13 @@ _dependencies:
           apk: tesseract-ocr
           zypper: tesseract-ocr
 
-    editors:
+    option-editors:
       packages:
         - nano
         - vim
         - neovim
 
-    file-utils:
+    option-file_utils:
       packages:
         # file type identification — Linux only; macOS provides /usr/bin/file
         - name: file
@@ -623,7 +623,7 @@ _dependencies:
         # hex viewer
         - hexyl
 
-    headless-browser:
+    option-headless_browser:
       # All packages in this bundle are Linux/apt-only.
       # Browser automation frameworks (Playwright, Puppeteer, Selenium) require
       # these native shared libraries when running Chromium, Firefox, or WebKit
@@ -689,7 +689,7 @@ _dependencies:
         - name: libgtk-3-0
           when: {version_codename: [focal, jammy, bullseye, bookworm]}
 
-    man-pages:
+    option-man_pages:
       packages:
         # man-db: man command and manual page database — Linux only
         - name: man-db
@@ -710,7 +710,7 @@ _dependencies:
           zypper: man-pages
           pacman: man-pages
 
-    multimedia:
+    option-multimedia:
       packages:
         # Swiss-army multimedia framework
         - ffmpeg
@@ -746,7 +746,7 @@ _dependencies:
           apk: libvorbis-dev
           pacman: libvorbis
 
-    network-tools:
+    option-network_tools:
       packages:
         # HTTP / file transfer
         - curl
@@ -812,7 +812,7 @@ _dependencies:
           dnf: iproute
           yum: iproute
 
-    os-essentials:
+    option-os_essentials:
       packages:
         # ── Cross-platform (Linux only) ────────────────────────────────────────
         # ca-certificates: trusted CA certs for HTTPS/TLS; macOS ships its own
@@ -850,7 +850,7 @@ _dependencies:
         - name: apt-utils
           when: {pm: apt}
 
-    python-dev:
+    option-python_dev:
       packages:
         # python3-pip: pip package manager
         # macOS bundles pip with python@3 via brew; no separate package needed
@@ -867,7 +867,7 @@ _dependencies:
         - name: python3-venv
           when: {pm: apt}
 
-    sci-compute:
+    option-sci_compute:
       packages:
         # HDF5 (array/dataset storage)
         - name: hdf5-devel
@@ -922,7 +922,7 @@ _dependencies:
           apk: boost-dev
           pacman: boost
 
-    script-utils:
+    option-script_utils:
       packages:
         # interactive TUI dialogs
         - dialog
@@ -937,7 +937,7 @@ _dependencies:
         # monitor data throughput in pipelines
         - pv
 
-    shells:
+    option-shells:
       packages:
         - fish
         - ksh
@@ -950,7 +950,7 @@ _dependencies:
         - name: nushell
           when: {pm: [apt, apk, brew, pacman]}
 
-    sys-monitor:
+    option-sys_monitor:
       packages:
         # cross-platform
         - htop
@@ -989,7 +989,7 @@ _dependencies:
         # glances: cross-platform curses system monitor
         - glances
 
-    terminal-ux:
+    option-terminal_ux:
       packages:
         # pager
         - less
@@ -1000,7 +1000,7 @@ _dependencies:
         # shell history database with context-aware search
         - atuin
 
-    text-processing:
+    option-text_processing:
       packages:
         # POSIX text utilities (ensure present in minimal images)
         - grep
@@ -1020,7 +1020,7 @@ _dependencies:
         # PDF text search
         - pdfgrep
 
-    vcs-tools:
+    option-vcs_tools:
       packages:
         # Mercurial and Subversion have the same package name on all PMs
         - mercurial

@@ -1,31 +1,3 @@
-# __install_run_upstream_package__ — install gh via the vendor package repository.
-#
-# Overrides the framework auto-impl to handle:
-#   - Version pinning on apt (gh=VERSION); no pinning on other PMs (warns).
-#   - Sets up the apt keyring/repo, dnf/yum/zypper repo via upstream-package.yaml.
-__install_run_upstream_package__() {
-  logging__install "Installing gh via upstream package repository."
-  local _pkg_version=""
-  case "${VERSION:-stable}" in
-    stable | latest) ;;
-    *)
-      ospkg__detect 2> /dev/null || true
-      if [[ "${_OSPKG__FAMILY:-}" != "apt" ]]; then
-        logging__warn "Version pinning is not supported for method=upstream-package on ${_OSPKG__PKG_MNGR:-this platform}. Installing latest available gh."
-      else
-        _pkg_version="${VERSION}"
-      fi
-      ;;
-  esac
-  if declare -f __install_run_upstream_package_pre > /dev/null; then
-    __install_run_upstream_package_pre
-  fi
-  __dep_install__ run upstream-package --extra-var "VERSION=${_pkg_version}"
-  if declare -f __install_run_upstream_package_post > /dev/null; then
-    __install_run_upstream_package_post
-  fi
-}
-
 # _gh__configure_user — apply per-user gh/git configuration.
 _gh__configure_user() {
   local _users

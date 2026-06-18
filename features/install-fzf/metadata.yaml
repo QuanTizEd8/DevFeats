@@ -48,6 +48,6 @@ _options:
 # installsAfter: []
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       packages:
         - fzf

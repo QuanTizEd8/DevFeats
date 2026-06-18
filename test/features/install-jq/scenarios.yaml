@@ -95,3 +95,13 @@ source_build:
     method: source
     version: "1.8.1"
   tests: [source_build]
+
+package_manifest_override:
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  options:
+    method: package
+    ospkg_manifest_method_package_run: |
+      packages:
+        - jq
+  tests: [package_manifest_override]

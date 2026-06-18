@@ -22,13 +22,15 @@ options:
     description: |-
       Install OS build dependencies required to compile native Node.js modules via node-gyp:
       `make`, `gcc`/`g++`, and `python3`.
+      On Alpine Linux, these tools are excluded via manifest conditions.
       Set to `false` to skip if you do not need to compile native modules.
 _dependencies:
   run:
     base:
       packages:
         - ca-certificates
-    node-gyp:
+    option-node_gyp_deps:
+      when: {pm: [apt, dnf, yum, zypper, pacman, brew]}
       packages:
         - make
         - when: {pm: [apt, dnf, yum, zypper, pacman]}

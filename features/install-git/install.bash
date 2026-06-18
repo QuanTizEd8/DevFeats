@@ -12,31 +12,6 @@ __resolve_input_prefixes_post() {
   fi
 }
 
-# ── Package method overrides ───────────────────────────────────────────────
-
-__install_run_package__() {
-  logging__install "Installing git via OS package manager."
-  # Override the template default to support version-pinned installs.
-  # VERSION=latest or stable → no version constraint (empty extra-var).
-  # VERSION=x.y.z → pass to ospkg as a version constraint.
-  local _pkg_version=""
-  case "${VERSION:-latest}" in
-    stable | latest) ;;
-    *) _pkg_version="${VERSION}" ;;
-  esac
-  __dep_install__ run os-pkg --extra-var "VERSION=${_pkg_version}"
-}
-
-__update_run_package__() {
-  logging__install "Updating git via OS package manager."
-  local _pkg_version=""
-  case "${VERSION:-latest}" in
-    stable | latest) ;;
-    *) _pkg_version="${VERSION}" ;;
-  esac
-  __dep_install__ run os-pkg --extra-var "VERSION=${_pkg_version}" --update
-}
-
 # ── Source build ───────────────────────────────────────────────────────────
 
 __install_run_source_pre() {
@@ -60,14 +35,6 @@ __install_run_source_pre() {
   if users__is_user_path "${_RESOLVED_PREFIX}" && [[ ! -w "${_RESOLVED_PREFIX}" ]]; then
     logging__error "PREFIX '${_RESOLVED_PREFIX}' is not writable."
     return 1
-  fi
-
-  # User-local installs cannot invoke the OS package manager; assume build
-  # deps were preinstalled by the caller.
-  if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
-    __dep_install__ build source-build
-  else
-    logging__info "User-local mode: skipping build dependency installation; expecting required packages to be preinstalled."
   fi
 }
 

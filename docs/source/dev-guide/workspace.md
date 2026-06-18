@@ -68,7 +68,6 @@ devfeats/
 │       ├── install.sh
 │       ├── install.bash
 │       ├── lib/
-│       ├── dependencies/
 │       └── files/
 │
 ├── .dev/                    ← Development tooling

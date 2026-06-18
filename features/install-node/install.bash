@@ -15,12 +15,8 @@ __install_run_binary_pre() {
     return 1
   fi
 
-  if [ "${NODE_GYP_DEPS}" = "true" ]; then
-    logging__info "Installing node-gyp build dependencies..."
-    __dep_install__ run node-gyp
-    if [ "$(os__platform)" = "macos" ]; then
-      bootstrap__xcode
-    fi
+  if [ "${NODE_GYP_DEPS}" = "true" ] && [ "$(os__platform)" = "macos" ]; then
+    bootstrap__xcode
   fi
 
   local _platform

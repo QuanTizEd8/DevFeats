@@ -1,0 +1,6 @@
+bundle_archive_tools:
+  envs: [ubuntu-24.04]
+  modes: [standalone]
+  options:
+    archive_tools: true
+  tests: [bundle_archive_tools]

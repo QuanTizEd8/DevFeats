@@ -162,3 +162,12 @@ version_match_idempotency:
       cmd: bash -c '[ "$(jq --version 2>/dev/null | sed "s/^jq-//")" = "1.8.1" ]'
     - title: jq processes JSON
       cmd: bash -c 'echo "{}" | jq . > /dev/null 2>&1'
+
+package_manifest_override:
+  description: |
+    method=package with inline ospkg_manifest_method_package_run override still installs jq.
+  checks:
+    - title: jq command is available
+      cmd: command -v jq
+    - title: jq processes JSON
+      cmd: bash -c 'echo "{}" | jq . > /dev/null 2>&1'

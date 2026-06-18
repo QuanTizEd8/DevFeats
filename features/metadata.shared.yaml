@@ -654,16 +654,6 @@ options:
       The binary path is resolved from the feature's configured prefix at install time.
       Set to an empty string to skip writing the verification script.
 
-  package_manifest:
-    _apply_when: |
-      #{{ return bool(get("_options.method.package")) }}#
-    type: string
-    default: |
-      #{{ return get("_options.method.package.manifest", "os-pkg") }}#
-    description: >-
-      Dependency manifest key to install from (file at `dependencies/run/<manifest>.yaml`).
-      Override to use an alternative package manifest.
-
   cargo_crate:
     _apply_when: |
       #{{ return bool(get("_options.method.cargo")) }}#
@@ -1073,3 +1063,63 @@ options:
       When set, the discovery step uses this value to decide whether
       the installation directory is already reachable.
       Defaults to `$PATH` evaluated in the install user's login environment.
+
+  ? |
+    *{{ #{{
+      deps = get("_dependencies")
+      if not deps:
+        return {}
+
+      override_suffix = (
+          "Inline YAML when the value contains a newline; otherwise a file path or URI."
+      )
+      opts = {}
+
+      # Base dependencies
+      for lc in ("run", "build"):
+        base = deps.get(lc, {}).get("base")
+        lc_label = "runtime" if lc == "run" else "install-time"
+        opts[f"ospkg_manifest_base_{lc}"] = {
+            "type": "string",
+            "default": serialize_manifest(base) if base else "",
+            "description": (
+                f"OS packages always installed during initialization ({lc_label}). "
+                + override_suffix
+            ),
+        }
+
+      # Method-bound dependencies
+      methods = get("_options.method", {})
+      for method in methods:
+        group = f"method-{method}"
+        m_key = method.replace("-", "_")
+        for lc in ("run", "build"):
+          content = deps.get(lc, {}).get(group)
+          if not content:
+            continue
+          lc_label = "runtime" if lc == "run" else "install-time"
+          opts[f"ospkg_manifest_method_{m_key}_{lc}"] = {
+              "type": "string",
+              "default": serialize_manifest(content) if content else "",
+              "description": (
+                f"OS packages installed when METHOD={method} ({lc_label}). "
+                + override_suffix
+            ),
+          }
+
+      # Option-bound dependencies
+      for group, content in deps.get("run", {}).items():
+        if not str(group).startswith("option-"):
+          continue
+        name = group.removeprefix("option-")
+        opts[f"ospkg_manifest_option_{name}"] = {
+            "type": "string",
+            "default": serialize_manifest(content),
+            "description": (
+              f"OS package manifest installed when '{name}' is true. "
+              + override_suffix
+          ),
+        }
+      return opts
+    }}# }}*
+  :

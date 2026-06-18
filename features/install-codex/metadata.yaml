@@ -127,7 +127,7 @@ _dependencies:
         - name: bubblewrap
           when:
             kernel: linux
-    os-pkg:
+    method-package:
       brew:
         casks:
           - codex

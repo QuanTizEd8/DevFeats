@@ -52,11 +52,11 @@ customizations:
       - mkhl.direnv
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       packages:
         - direnv
   build:
-    source:
+    method-source:
       packages:
         - make
         - name: go

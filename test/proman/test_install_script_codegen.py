@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from proman.manifest_util import serialize_manifest
 from proman.sync import install_script as install_script_mod
 from proman.sync.install_script import (
     _SPLIT_PRINTF_PERCENT_S_RE,
@@ -88,6 +89,51 @@ def test_uri_chmod_mode_rejects_invalid() -> None:
     """Invalid chmod metadata should raise ValueError."""
     with pytest.raises(ValueError, match="chmod"):
         _uri_chmod_mode({"chmod": "rm -rf /"})
+
+
+def test_shell_val_multiline_uses_ansi_c() -> None:
+    """Multiline string defaults use ANSI-C quoting."""
+    assert _shell_val("packages:\n- jq", "string") == "$'packages:\\n- jq'"
+
+
+def test_generate_argparse_multiline_default_in_cli_inits() -> None:
+    """CLI init path embeds multiline defaults with ANSI-C quoting."""
+    gen = InstallScriptGenerator()
+    block = gen._generate_argparse(
+        {"manifest": {"type": "string", "default": "packages:\n- jq"}},
+    )
+    assert "$'packages:\\n- jq'" in block["cli_inits"]
+    assert "argparse__default MANIFEST $'packages:\\n- jq'" in block["defaults"]
+
+
+def test_dep_trigger_specs_emitted() -> None:
+    """Generated install.bash includes option-bound dependency trigger specs."""
+    gen = InstallScriptGenerator()
+    metadata = {
+        "_dependencies": {"run": {"option-archive_tools": {"packages": ["zip"]}}},
+        "options": {"archive_tools": {"type": "boolean"}},
+    }
+    block = gen._generate_dep_trigger_specs(metadata)
+    assert "_FEAT_DEP_TRIGGER_SPECS=$'" in block
+    assert "archive_tools\tOSPKG_MANIFEST_OPTION_ARCHIVE_TOOLS\tARCHIVE_TOOLS" in block
+    assert "install_run" not in block
+
+
+def test_ospkg_manifest_default_with_single_quote_uses_ansi_c_quoting() -> None:
+    """Single quotes in manifest YAML defaults survive install.bash codegen."""
+    gen = InstallScriptGenerator()
+    manifest_default = serialize_manifest({"packages": [{"name": "it's-fine"}]})
+    block = gen._generate_argparse(
+        {
+            "ospkg_manifest_option_demo": {
+                "type": "string",
+                "default": manifest_default,
+            },
+        },
+    )
+    assert manifest_default.endswith("\n")
+    assert "$'packages:\\n" in block["defaults"]
+    assert "it\\'s-fine" in block["defaults"]
 
 
 def test_uri_resolution_without_installer_dir_uses_matdir_fallback() -> None:

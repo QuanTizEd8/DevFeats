@@ -5,6 +5,15 @@ package_default:
   - devcontainer
   tests:
   - package_default.sh
+package_install_state:
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  options:
+    method: package
+  tests:
+  - package_install_state.sh
 package_debian:
   envs:
   - debian-12

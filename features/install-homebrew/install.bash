@@ -2,17 +2,9 @@
 
 # ── High-level steps ──────────────────────────────────────────────────────────
 
-install_linux_deps() {
-  logging__install "Installing Homebrew build dependencies."
-  __dep_install__ build linux-build
-  return 0
-}
-
 __install_run_script_pre() {
   if [ "$(os__kernel)" = "Darwin" ]; then
     bootstrap__xcode
-  else
-    install_linux_deps
   fi
   return 0
 }

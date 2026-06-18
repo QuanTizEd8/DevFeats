@@ -51,8 +51,8 @@ Report ANY discrepancy, no matter how minor (typo in description, different defa
 
 ### Check 5 — Manifest Consistency
 
-If `src/<feature>/dependencies/base.yaml` exists (generated from `features/<feature>/metadata.yaml`):
-- Verify it is referenced by the script (`ospkg__run --manifest`).
+If the feature declares `_dependencies` in `metadata.yaml`, verify generated `ospkg_manifest_*` options in `src/<feature>/devcontainer-feature.json` and that install applies them correctly.
+- Verify the template dependency helpers (`__dep_install_base__`, `__dep_install_for_method__`, `__dep_install_option_bound__`) read the matching `OSPKG_MANIFEST_*` env vars and call `ospkg__run`.
 - Verify the packages listed are actually needed by the script.
 
 ### Check 6 — Test Coverage Spot Check

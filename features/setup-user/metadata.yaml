@@ -76,7 +76,7 @@ _dependencies:
           packages: [shadow]
         - when: {pm: [dnf, yum]}
           packages: [shadow-utils]
-    sudo:
+    option-sudo_access:
       # Installed only when sudo_access=true.
       packages:
         - sudo

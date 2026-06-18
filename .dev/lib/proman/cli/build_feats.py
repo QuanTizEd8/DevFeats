@@ -67,10 +67,6 @@ def _build(tag: str) -> int:
         if json_src.exists():
             shutil.copy2(json_src, staging / "devcontainer-feature.json")
 
-        deps_src = feat_dir / "dependencies"
-        if deps_src.is_dir():
-            shutil.copytree(deps_src, staging / "dependencies")
-
         files_src = feat_dir / "files"
         if files_src.is_dir():
             shutil.copytree(files_src, staging / "files")

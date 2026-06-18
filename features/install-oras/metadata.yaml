@@ -46,8 +46,8 @@ _dependencies:
     base:
       packages:
         - ca-certificates
-    os-pkg:
-      # This manifest is consumed by the generated `_os_pkg_deps__install` helper.
+    method-package:
+      # Installed via `ospkg_manifest_method_package_run` / `__dep_install_for_method__`.
       # Keep this aligned with upstream package availability.
       apt:
         packages:

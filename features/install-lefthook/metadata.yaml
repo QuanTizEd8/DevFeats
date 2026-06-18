@@ -47,7 +47,7 @@ _options:
       - method: [binary, npm]
 _dependencies:
   run:
-    upstream-package:
+    method-upstream-package:
       packages:
         - name: lefthook
           when:

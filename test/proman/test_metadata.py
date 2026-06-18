@@ -8,6 +8,7 @@ import proman.config as cfg
 import pytest
 import yaml
 from proman.metadata import MetadataLoader
+from proman.schema_bundle import get_validator
 
 _MINIMAL_SHARED = """\
 _lifecycle_key_prefix: myowner-test--
@@ -222,6 +223,29 @@ def test_load_applies_shared_option_conditions() -> None:
     assert "fetch_headers" not in without_fetch["options"]
 
 
+def test_load_emits_ospkg_manifest_options_via_pyserials() -> None:
+    """``ospkg_manifest_*`` options come from shared-metadata pyserials, not Python."""
+    jq = MetadataLoader().load("install-jq")["install-jq"]
+    assert "ospkg_manifest_method_package_run" in jq["options"]
+    pkg_desc = jq["options"]["ospkg_manifest_method_package_run"]["description"]
+    assert "METHOD=package" in pkg_desc
+    assert "runtime" in pkg_desc
+    assert "\n" in jq["options"]["ospkg_manifest_method_package_run"]["default"]
+    assert "jq" in jq["options"]["ospkg_manifest_method_package_run"]["default"]
+
+    bundle = MetadataLoader().load("install-os-pkg-bundle")["install-os-pkg-bundle"]
+    archive_desc = bundle["options"]["ospkg_manifest_option_archive_tools"][
+        "description"
+    ]
+    build_desc = bundle["options"]["ospkg_manifest_option_build_tools"]["description"]
+    assert archive_desc != build_desc
+    assert "archive_tools" in archive_desc
+    assert "build_tools" in build_desc
+
+    pnpm = MetadataLoader().load("install-pnpm")["install-pnpm"]
+    assert not any(k.startswith("ospkg_manifest_") for k in pnpm["options"])
+
+
 def test_load_substitutes_template_variables(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -256,3 +280,37 @@ def test_load_substitutes_template_variables(
         f"sh {expected_share}/on-create.sh || true"
     )
     assert result["description"] == "Test test."
+
+
+def test_schema_rejects_undeclared_method_dependency() -> None:
+    """Schema if/then requires `_options.method.<id>` when `method-<id>` is declared."""
+    metadata = _minimal_feature_metadata(
+        _dependencies={
+            "run": {"method-cargo": {"packages": ["rustc"]}},
+        },
+    )
+    errors = list(get_validator().iter_errors(metadata))
+    assert errors
+
+
+def test_schema_rejects_option_manifest_under_build() -> None:
+    """Schema rejects `option-*` manifest groups under `_dependencies.build`."""
+    metadata = _minimal_feature_metadata(
+        _dependencies={
+            "build": {"option-tools": {"packages": ["make"]}},
+        },
+    )
+    errors = list(get_validator().iter_errors(metadata))
+    assert errors
+
+
+def test_schema_rejects_unknown_method_dependency_key() -> None:
+    """Schema rejects unknown `method-*` suffixes via `patternProperties`."""
+    metadata = _minimal_feature_metadata(
+        _options={"method": {"package": {}}},
+        _dependencies={
+            "run": {"method-not-a-method": {"packages": ["jq"]}},
+        },
+    )
+    errors = list(get_validator().iter_errors(metadata))
+    assert errors

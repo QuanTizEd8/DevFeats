@@ -49,7 +49,7 @@ _options:
       - method: [binary]
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       brew:
         packages:
           - name: yq

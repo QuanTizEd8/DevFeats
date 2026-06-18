@@ -7,8 +7,6 @@ import json
 import subprocess
 from pathlib import Path
 
-import yaml
-
 from proman.config import load as load_config
 from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.helpers import log
@@ -64,8 +62,6 @@ def run(*, check_only: bool = False) -> int:
 
         n_features += 1
         output_files: dict[Path, str] = {}
-
-        output_files.update(_generate_dependency_manifests(metadata))
 
         sanitize_markdown(metadata)
 
@@ -147,28 +143,6 @@ def resolve_lifecycle_command(
     if args:
         command = f"{command} {args}"
     return command
-
-
-def _generate_dependency_manifests(metadata: dict) -> dict[Path, str]:
-    """Sync the dependencies/ directory for the given feature based on its metadata."""
-    deps = metadata.get("_dependencies")
-    if not deps:
-        return {}
-
-    dirpath = Path("dependencies")
-    manifests = {}
-
-    for lifecycle, groups in deps.items():
-        for dep_name, dep_content in groups.items():
-            dep_path = dirpath / lifecycle / f"{dep_name}.yaml"
-            manifest = yaml.dump(
-                dep_content,
-                default_flow_style=False,
-                sort_keys=False,
-                allow_unicode=True,
-            )
-            manifests[dep_path] = manifest
-    return manifests
 
 
 def _generate_metadata_json(metadata: dict) -> dict[Path, str]:

@@ -156,7 +156,6 @@ __init_env__() {
   # Runtime-computed variables (not in metadata; depend on script location):
   _FEAT_DIR="$(cd "$(dirname "$0")" && pwd)"
   _FEAT_FILES_DIR="${_FEAT_DIR}/files"
-  _FEAT_DEPS_DIR="${_FEAT_DIR}/dependencies"
 
   # Metadata-derived variables (canonical source: metadata.shared.yaml _env_vars):
   ${{ _script.env_vars.assignments }}$
@@ -169,7 +168,7 @@ __init_env__() {
 
   # Unexport variables — values remain accessible in this script,
   # but are not inherited by child processes.
-  declare -g +x _FEAT_DIR _FEAT_FILES_DIR _FEAT_DEPS_DIR \
+  declare -g +x _FEAT_DIR _FEAT_FILES_DIR \
     ${{ _script.env_vars.unexports }}$ \
     ${{ _script.install_contract_vars.unexports }}$ \
     _FEAT_LIFECYCLE_CONF_VARS
@@ -254,6 +253,9 @@ __init_args__() {
 
   # Resolve URI-capable option values to local filesystem paths (INSTALLER_DIR or a private temp dir).
   ${{ _script.argparse.uri_resolution }}$
+
+  # Option-bound dependency trigger specs (consumed by __dep_install_option_bound__).
+  ${{ _script.dep_trigger_specs }}$
 
   # Validate input options.
   ${{ _script.argparse.validations }}$
@@ -398,8 +400,9 @@ __detect_existing_method__() {
   if [[ -n "${GIT_CLONE_URI:-}" && -d "${_FEAT_EXISTING_PATH}/.git" ]]; then
     _FEAT_EXISTING_METHOD="git-clone"
   elif ospkg__is_managed "${_FEAT_EXISTING_PATH}" 2>/dev/null; then
-    if [[ -f "$(__dep_manifest_path__ run upstream-package)" ]]; then
-      _FEAT_EXISTING_METHOD="upstream-package"
+    local _method_state="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+    if [[ -f "${_method_state}" ]]; then
+      _FEAT_EXISTING_METHOD="$(< "${_method_state}")"
     else
       _FEAT_EXISTING_METHOD="package"
     fi
@@ -469,8 +472,8 @@ __uninstall_run__() {
   #                     and simple source/script installs.
   #   npm               npm__uninstall_package for NPM_PACKAGE.
   #   npm-bundled       npm__uninstall_bundled --bin _FEAT_EXISTING_PATH.
-  #   package           ospkg__run --manifest <run/os-pkg.yaml> --remove.
-  #   upstream-package  ospkg__run --manifest <run/upstream-package.yaml> --remove.
+  #   package           ospkg__run --manifest from OSPKG_MANIFEST_METHOD_PACKAGE_RUN --remove.
+  #   upstream-package  ospkg__run --manifest from OSPKG_MANIFEST_METHOD_UPSTREAM_PACKAGE_RUN --remove.
   #   ""                No auto-impl — method unknown.
   #
   # For custom teardown (config files, extra binaries, etc.), use
@@ -551,15 +554,15 @@ __uninstall_run_npm_bundled__() {
 
 __uninstall_run_package__() {
   __run_feature_hook__ __uninstall_run_package_pre
-  logging__remove "Uninstalling package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
-  __dep_uninstall__ run "${PACKAGE_MANIFEST:-os-pkg}"
+  logging__remove "Uninstalling package dependencies."
+  __dep_uninstall_for_method__ package
   __run_feature_hook__ __uninstall_run_package_post
 }
 
 __uninstall_run_upstream_package__() {
   __run_feature_hook__ __uninstall_run_upstream_package_pre
   logging__remove "Uninstalling upstream-package dependencies."
-  __dep_uninstall__ run upstream-package
+  __dep_uninstall_for_method__ upstream-package
   __run_feature_hook__ __uninstall_run_upstream_package_post
 }
 
@@ -732,7 +735,17 @@ __install_run__() {
 
   __run_feature_hook__ __install_run_pre
 
+  local -a _dep_extra=()
+  if [[ -v IF_EXISTS ]]; then
+    case "${IF_EXISTS}" in
+      update) _dep_extra+=(--update) ;;
+      fail)   _dep_extra+=(--fail-if-installed) ;;
+    esac
+  fi
+  __dep_install_option_bound__ "${_dep_extra[@]+"${_dep_extra[@]}"}"
+
   if [[ -v METHOD ]]; then
+    __dep_install_for_method__
     logging__install "Running install for METHOD='${METHOD}'."
     case "${METHOD}" in
       binary)
@@ -769,8 +782,7 @@ __install_run__() {
     esac
     logging__info "Install run finished for METHOD='${METHOD}'."
   else
-    logging__error "No METHOD option defined."
-    return 1
+    logging__info "Install run finished (method-less feature)."
   fi
 
   __run_feature_hook__ __install_run_post
@@ -871,28 +883,17 @@ __install_run_binary__() {
 
 __install_run_package__() {
   __run_feature_hook__ __install_run_package_pre
-  logging__install "Installing package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
-  local _pkg_ver=""
-  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
-  __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}" --extra-var "VERSION=${_pkg_ver}"
   __run_feature_hook__ __install_run_package_post
 }
 
 __install_run_upstream_package__() {
   __run_feature_hook__ __install_run_upstream_package_pre
-  logging__install "Installing upstream-package dependencies."
-  local _pkg_ver=""
-  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
-  local -a _dep_args=(
-    --extra-var "VERSION=${_pkg_ver}"
-    --extra-var "VERSION_INPUT=${VERSION:-}"
-  )
-  [[ "${KEEP_REPOS:-false}" == true ]] && _dep_args+=(--keep_repos)
-  __dep_install__ run upstream-package "${_dep_args[@]}"
   __run_feature_hook__ __install_run_upstream_package_post
 }
 
 __install_run_script__() {
+  # Template-owned script pre-flight handled by __dep_install_for_method__ in __install_run__.
+
   __run_feature_hook__ __install_run_script_pre
 
   local _script_path
@@ -1096,17 +1097,7 @@ __install_run_source__() {
   [[ -v _RESOLVED_PREFIX ]] && file__mkdir "${_RESOLVED_PREFIX}"
   # 2. On macOS, ensure Xcode CLI tools are available (installs headlessly if absent).
   [[ "$(os__kernel)" == "Darwin" ]] && bootstrap__xcode
-  # 3. Install source-build dependencies (privileged installs only; non-privileged
-  #    users are expected to have build tools pre-installed).
-  local _sbm
-  _sbm="$(__dep_manifest_path__ build source-build)"
-  if [[ -f "${_sbm}" ]]; then
-    if users__is_privileged; then
-      __dep_install__ build source-build
-    else
-      logging__info "Non-privileged install: skipping source-build deps; expecting pre-installed."
-    fi
-  fi
+  # 3. method-source build deps installed by __dep_install_for_method__ in __install_run__.
 
   __run_feature_hook__ __install_run_source_pre
 
@@ -1504,6 +1495,12 @@ __install_finish__() {
   fi
 
   __install_register_dummy__
+  if [[ -v METHOD && -n "${METHOD:-}" ]]; then
+    local _method_state_dir="${_FEAT_SHARE_DIR_ROOT}/state"
+    file__mkdir "${_method_state_dir}"
+    printf '%s\n' "${METHOD}" > "${_method_state_dir}/installed-method"
+    logging__info "Recorded installed method '${METHOD}'."
+  fi
   ${{ _script.shell_completions_call }}$
   __deploy_lifecycle_scripts__
 
@@ -1657,7 +1654,7 @@ __update_run__() {
   #
   # Same/compatible method — dispatches on METHOD:
   #   package           ospkg__run --update (PM upgrade).
-  #   upstream-package  ospkg__run --update against upstream-package.yaml.
+  #   upstream-package  ospkg__run --update against OSPKG_MANIFEST_METHOD_UPSTREAM_PACKAGE_RUN.
   #   binary       __install_run__ (download + overwrite).
   #   cargo        __install_run__ (cargo install upgrades in place).
   #   npm          __install_run__ (npm install -g upgrades).
@@ -1709,25 +1706,15 @@ __update_run_migrate__() {
 
 __update_run_package__() {
   __run_feature_hook__ __update_run_package_pre
-  logging__install "Updating package dependencies ('${PACKAGE_MANIFEST:-os-pkg}')."
-  local _pkg_ver=""
-  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
-  __dep_install__ run "${PACKAGE_MANIFEST:-os-pkg}" --extra-var "VERSION=${_pkg_ver}" --update
+  logging__install "Updating package dependencies."
+  __dep_install_for_method__ --update
   __run_feature_hook__ __update_run_package_post
 }
 
 __update_run_upstream_package__() {
   __run_feature_hook__ __update_run_upstream_package_pre
   logging__install "Updating upstream-package dependencies."
-  local _pkg_ver=""
-  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
-  local -a _dep_args=(
-    --update
-    --extra-var "VERSION=${_pkg_ver}"
-    --extra-var "VERSION_INPUT=${VERSION:-}"
-  )
-  [[ "${KEEP_REPOS:-false}" == true ]] && _dep_args+=(--keep_repos)
-  __dep_install__ run upstream-package "${_dep_args[@]}"
+  __dep_install_for_method__ --update
   __run_feature_hook__ __update_run_upstream_package_post
 }
 
@@ -2315,59 +2302,192 @@ __resolve_prefix__() {
 
 # Dependency Installation
 # =======================
-__dep_manifest_path__() {
-  local _dep_type="$1"
-  local _dep_group="$2"
-  printf '%s\n' "${_FEAT_DEPS_DIR}/${_dep_type}/${_dep_group}.yaml"
+
+__dep_normalize_manifest_value__() {
+  # Expand literal \n escapes (some devcontainer build args serialize multiline strings this way).
+  local _var="$1"
+  local _val="${!_var}"
+  if [[ -n "$_val" && "$_val" != *$'\n'* && "$_val" == *'\n'* ]]; then
+    printf -v "$_var" '%b' "$_val"
+    logging__info "Expanded literal \\n escapes in ${_var} value."
+  fi
 }
 
-__dep_install__() {
-  local _dep_type="$1"
-  local _dep_group="$2"
-  shift 2
-
-  logging__install "Installing '${_dep_group}' (${_dep_type}) dependencies."
-
-  if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
-    local -a _args=(--manifest "$(__dep_manifest_path__ "${_dep_type}" "${_dep_group}")")
-    [[ "$_dep_type" == "build" ]] && _args+=(--build-group "${_SYSSET_BUILD_CONTEXT}::${_dep_group}")
-    ospkg__run "${_args[@]}" "$@"
-    return
+__dep_fetch_extra_args__() {
+  # shellcheck disable=SC2178
+  local -n _out="$1"
+  _out=()
+  [[ -n "${FETCH_NETRC:-}" ]] && _out+=(--fetch-netrc-file "$FETCH_NETRC")
+  if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+    local _osh
+    for _osh in "${FETCH_HEADERS[@]}"; do
+      _out+=(--fetch-header "$_osh")
+    done
   fi
-  logging__warn "Skipping '$_dep_group' group $_dep_type dependency installation (no privilege available); ensure dependencies are pre-installed."
-  return 0
 }
 
-__dep_uninstall__() {
-  local _dep_type="$1"
-  local _dep_group="$2"
-  shift 2
-  logging__remove "Uninstalling '${_dep_group}' (${_dep_type}) dependencies."
-  local _manifest
-  _manifest="$(__dep_manifest_path__ "${_dep_type}" "${_dep_group}")"
-  if [[ ! -f "${_manifest}" ]]; then
-    logging__error "Cannot uninstall '${_dep_group}' (${_dep_type}): manifest not found at '${_manifest}'."
-    return 1
+__dep_pm_extra_args__() {
+  local _lifecycle="$1"
+  # shellcheck disable=SC2178
+  local -n _out="$2"
+  _out=()
+  [[ "$_lifecycle" != run ]] && return 0
+  [[ "${METHOD:-}" != package && "${METHOD:-}" != upstream-package ]] && return 0
+  local _pkg_ver=""
+  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
+  _out+=(--extra-var "VERSION=${_pkg_ver}")
+  if [[ "${METHOD:-}" == upstream-package ]]; then
+    _out+=(--extra-var "VERSION_INPUT=${VERSION:-}")
+    [[ "${KEEP_REPOS:-false}" == true ]] && _out+=(--keep_repos)
   fi
-  ospkg__run --manifest "${_manifest}" --remove "$@"
-  return
+}
+
+__dep_method_env_var__() {
+  local _lifecycle="$1"
+  local _method="${2:-${METHOD:-}}"
+  local _m_key="${_method//-/_}"
+  printf 'OSPKG_MANIFEST_METHOD_%s_%s\n' "${_m_key^^}" "${_lifecycle}"
+}
+
+__dep_option_env_var__() {
+  local _name="$1"
+  printf 'OSPKG_MANIFEST_OPTION_%s\n' "${_name^^}"
+}
+
+__dep_install_from_env__() {
+  local _var="$1"
+  local _lifecycle="$2"
+  local _label="${3:-${_var}}"
+  shift 3
+
+  __dep_normalize_manifest_value__ "$_var"
+  local _manifest="${!_var}"
+  [[ -n "$_manifest" ]] || {
+    logging__skip "No manifest in '${_var}'; skipping."
+    return 0
+  }
+
+  if ! users__is_privileged && [[ "$(os__kernel)" == "Linux" ]]; then
+    logging__warn "Skipping '${_label}' (${_lifecycle}) dependency installation (no privilege available); ensure dependencies are pre-installed."
+    return 0
+  fi
+
+  logging__install "Installing '${_label}' (${_lifecycle}) dependencies from '${_var}'."
+
+  local -a _args=(--manifest "$_manifest")
+  [[ "$_lifecycle" == build ]] && _args+=(--build-group "${_SYSSET_BUILD_CONTEXT}::method-${METHOD:-unknown}")
+  local -a _fetch_args=()
+  __dep_fetch_extra_args__ _fetch_args
+  _args+=("${_fetch_args[@]+"${_fetch_args[@]}"}")
+  ospkg__run "${_args[@]}" "$@"
+}
+
+__dep_uninstall_from_env__() {
+  local _var="$1"
+  local _lifecycle="$2"
+  local _label="${3:-${_var}}"
+  shift 3
+
+  __dep_normalize_manifest_value__ "$_var"
+  local _manifest="${!_var}"
+  [[ -n "$_manifest" ]] || {
+    logging__skip "No manifest in '${_var}'; skipping uninstall."
+    return 0
+  }
+
+  logging__remove "Uninstalling '${_label}' (${_lifecycle}) dependencies from '${_var}'."
+  local -a _args=(--manifest "$_manifest" --remove)
+  local -a _fetch_args=()
+  __dep_fetch_extra_args__ _fetch_args
+  _args+=("${_fetch_args[@]+"${_fetch_args[@]}"}")
+  ospkg__run "${_args[@]}" "$@"
 }
 
 __dep_install_base__() {
-  local _manifest
-  _manifest="$(__dep_manifest_path__ build base)"
-  if [[ -f "${_manifest}" ]]; then
-    __dep_install__ build base "$@"
-  else
-    logging__skip "No build/base dependency manifest at '${_manifest}'; skipping."
-  fi
-  _manifest="$(__dep_manifest_path__ run base)"
-  if [[ -f "${_manifest}" ]]; then
-    __dep_install__ run base "$@"
-  else
-    logging__skip "No run/base dependency manifest at '${_manifest}'; skipping."
+  local _lc _var
+  for _lc in build run; do
+    _var="OSPKG_MANIFEST_BASE_${_lc^^}"
+    if declare -p "$_var" &>/dev/null; then
+      __dep_install_from_env__ "$_var" "$_lc" "base" "$@"
+    fi
+  done
+  return 0
+}
+
+__dep_install_for_method__() {
+  [[ -v METHOD ]] || return 0
+  local _lc _var _pm_args=()
+  for _lc in build run; do
+    _var="$(__dep_method_env_var__ "$_lc")"
+    if ! declare -p "$_var" &>/dev/null; then
+      continue
+    fi
+    if [[ "$_lc" == build ]] && ! users__is_privileged && [[ "$(os__kernel)" == "Linux" ]]; then
+      logging__info "Non-privileged install: skipping method-${METHOD} build deps; expecting pre-installed."
+      continue
+    fi
+    _pm_args=()
+    __dep_pm_extra_args__ "$_lc" _pm_args
+    __dep_install_from_env__ "$_var" "$_lc" "method-${METHOD}" "${_pm_args[@]+"${_pm_args[@]}"}" "$@"
+  done
+}
+
+__dep_uninstall_for_method__() {
+  local _method="$1"
+  local _lc _var _m_saved="${METHOD:-}"
+  METHOD="$_method"
+  for _lc in build run; do
+    _var="$(__dep_method_env_var__ "$_lc" "$_method")"
+    if declare -p "$_var" &>/dev/null; then
+      __dep_uninstall_from_env__ "$_var" "$_lc" "method-${_method}"
+    fi
+  done
+  METHOD="$_m_saved"
+}
+
+__dep_install_option_bound__() {
+  [[ -n "${_FEAT_DEP_TRIGGER_SPECS:-}" ]] || return 0
+
+  local _opt _mvar _bvar _installed=0 _trigger_rows=0
+  while IFS=$'\t' read -r _opt _mvar _bvar; do
+    [[ -n "$_opt" ]] || continue
+    ((_trigger_rows++)) || true
+    [[ "${!_bvar:-false}" == true ]] || continue
+    __dep_install_from_env__ "$_mvar" run "$_opt" "$@" && _installed=1
+  done <<< "${_FEAT_DEP_TRIGGER_SPECS}"
+
+  if [[ "$_installed" -eq 0 && "$_trigger_rows" -gt 1 ]]; then
+    logging__skip "No bundles selected; nothing to install."
   fi
   return 0
+}
+
+__dep_uninstall_option_bound__() {
+  [[ -n "${_FEAT_DEP_TRIGGER_SPECS:-}" ]] || return 0
+
+  local _opt _mvar _bvar _removed=0
+  while IFS=$'\t' read -r _opt _mvar _bvar; do
+    [[ -n "$_opt" ]] || continue
+    [[ "${!_bvar:-false}" == true ]] || continue
+    __dep_uninstall_from_env__ "$_mvar" run "$_opt" && _removed=1
+  done <<< "${_FEAT_DEP_TRIGGER_SPECS}"
+
+  if [[ "$_removed" -eq 0 ]]; then
+    logging__skip "No bundles selected; nothing to uninstall."
+  fi
+  return 0
+}
+
+__dep_install_option__() {
+  local _name="$1"
+  shift
+  local _mvar
+  _mvar="$(__dep_option_env_var__ "$_name")"
+  if ! declare -p "$_mvar" &>/dev/null; then
+    logging__skip "No manifest option 'ospkg_manifest_option_${_name}'; skipping."
+    return 0
+  fi
+  __dep_install_from_env__ "$_mvar" run "option-${_name}" "$@"
 }
 
 # Lifecycle Script Deployment

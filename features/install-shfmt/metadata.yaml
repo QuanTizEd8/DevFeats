@@ -42,7 +42,7 @@ customizations:
       - foxundermoon.shell-format
 _dependencies:
   run:
-    os-pkg:
+    method-package:
       packages:
         - shfmt
 # installsAfter: []

@@ -28,23 +28,9 @@ __detect_existing_path_post() {
 }
 
 __install_run_script_pre() {
-  logging__info "Installing nvm runtime dependencies..."
-  __dep_install__ run nvm-runtime
-
-  if [ "${NODE_GYP_DEPS}" = "true" ]; then
-    if [ "$(os__platform)" = "alpine" ]; then
-      logging__info "Alpine detected — node-gyp build tools already provided by nvm build toolchain; skipping."
-    else
-      logging__info "Installing node-gyp build dependencies..."
-      __dep_install__ run node-gyp
-      if [ "$(os__platform)" = "macos" ]; then
-        bootstrap__xcode
-      fi
-    fi
+  if [ "${NODE_GYP_DEPS}" = "true" ] && [ "$(os__platform)" = "macos" ]; then
+    bootstrap__xcode
   fi
-
-  logging__info "Installing nvm build dependencies..."
-  __dep_install__ build nvm
 
   logging__install "Preparing nvm install directory '${_RESOLVED_PREFIX}'."
   file__mkdir "$_RESOLVED_PREFIX"

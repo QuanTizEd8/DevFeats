@@ -466,7 +466,7 @@ _tl_maybe_install_jre() {
   [[ -n "${_texmf_dist}" && -d "${_texmf_dist}" ]] || return 0
   find "${_texmf_dist}/scripts" -name "*.jar" 2> /dev/null | grep -q . || return 0
   logging__install "Java tools detected in TeX Live tree; installing JRE."
-  __dep_install__ run jre
+  __dep_install_from_env__ OSPKG_MANIFEST_OPTION_JRE run option-jre
 }
 
 _tl_setup_fontconfig() {
@@ -567,8 +567,6 @@ _tl_alpine_linuxmusl_workaround() {
 
 __install_run_script__() {
   __run_feature_hook__ __install_run_script_pre
-
-  __dep_install__ build installer
 
   local _mirror
   _mirror="$(_tl_resolve_mirror)"

@@ -10,9 +10,6 @@ src/<feature-id>/
 ├── install.sh                  ← Copied from features/install.sh (POSIX bootstrap)
 ├── install.bash                ← Generated: template header + features/*/install.bash body
 ├── lib/                       ← Copy of lib/ (all modules + __init__.bash)
-├── dependencies/
-│   └── run/
-│       └── base.yaml           ← Generated from metadata.yaml _dependencies.run.base
 └── files/                      ← Copied from features/<feature-id>/files/ (if present)
 ```
 
@@ -26,8 +23,6 @@ src/<feature-id>/
 
 **`lib/`** — a full copy of `lib/`. Sourced at runtime via `lib/__init__.bash`. Each feature gets its own copy so that feature tarballs are self-contained.
 
-**`dependencies/<lifecycle>/<name>.yaml`** — ospkg manifests generated from `_dependencies.<lifecycle>.<name>` in `metadata.yaml`. The devcontainer CLI installs `dependencies/run/*.yaml` manifests before invoking `install.sh`.
-
 ## Sync Command
 
 ```bash
@@ -37,7 +32,7 @@ just sync-src-check     # verify src/ is current (exits non-zero if stale; used 
 
 `just sync-src` runs `proman-sync` (Python), which:
 1. Validates every `features/*/metadata.yaml` against `features/metadata.schema.json`.
-2. Generates `devcontainer-feature.json`, `dependencies/<lifecycle>/*.yaml`, and `install.bash` for each feature.
+2. Generates `devcontainer-feature.json` and `install.bash` for each feature.
 3. Copies `features/install.sh` and `lib/` into each feature's output directory.
 4. Copies any `features/<id>/files/` content.
 
