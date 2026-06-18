@@ -15,52 +15,71 @@
     ]
   },
   "features": {
-    "../.src/setup-user": {
-      "username": "devfeats-dev"
-    },
+    "../.src/install-bash": {},
+    "../.src/install-claude": {},
+    "../.src/install-codex": {},
+    "../.src/install-copilot": {},
+    // "../.src/install-cursor": {},
+    "../.src/install-devcontainer-cli": {},
     "../.src/install-gh": {},
-    "../.src/install-git": {"version": "stable"},
+    "../.src/install-git": {},
     "../.src/install-jq": {},
     "../.src/install-just": {
       "version": "1.50.0"
     },
-    "../.src/install-shfmt": {
-      "version": "3.13.1"
+    "../.src/install-lefthook": {},
+    "../.src/install-miniforge": {},
+    "../.src/install-nvm": {},
+    "../.src/install-oras": {},
+    "../.src/install-os-pkg-bundle": {
+      "archive_tools": true,
+      "build_tools": true,
+      "data_tools": true,
+      "dev_tools": true,
+      "network_tools": true,
+      "sys_monitor": true,
+      "text_processing": true,
+      "log_level": "debug"
     },
+    "../.src/install-pixi": {},
     "../.src/install-shellcheck": {
       "version": "0.11.0"
     },
-    "../.src/install-miniforge": {},
-    "../.src/install-pixi": {},
+    "../.src/install-shfmt": {
+      "version": "3.13.1"
+    },
+    "../.src/install-yq": {},
     "../.src/install-zsh": {},
     "../.src/setup-shell": {},
-    "../.src/install-yq": {},
-    "../.src/install-devcontainer-cli": {},
-    "../.src/install-oras": {},
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "../.src/install-claude": {},
-    "../.src/install-codex": {},
-    "../.src/install-copilot": {},
-    "../.src/install-cursor": {}
+    "../.src/setup-user": {
+      "username": "devfeats-dev"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   "overrideFeatureInstallOrder": [
-    "../.src/install-git",
+    "../.src/install-os-pkg-bundle",
+    "../.src/setup-user",
+    "../.src/install-bash",
+    "../.src/install-zsh",
+    "../.src/setup-shell",
     "../.src/install-git",
     "../.src/install-jq",
     "../.src/install-yq",
-    "../.src/setup-user",
-    "../.src/install-zsh",
-    "../.src/setup-shell",
     "../.src/install-gh",
     "../.src/install-just",
     "../.src/install-shfmt",
     "../.src/install-shellcheck",
     "../.src/install-miniforge",
     "../.src/install-pixi",
-    "../.src/install-node",
+    "../.src/install-nvm",
     "../.src/install-devcontainer-cli",
-    "ghcr.io/devcontainers/features/docker-in-docker:2",
-    "../.src/install-oras"
+    "../.src/install-oras",
+    "../.src/install-lefthook",
+    "../.src/install-copilot",
+    "../.src/install-codex",
+    "../.src/install-claude",
+    // "../.src/install-cursor": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2"
   ],
 
   // Stop the container when VS Code window closes (prevents orphaned containers on clean disconnect)
