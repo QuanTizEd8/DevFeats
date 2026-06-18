@@ -34,6 +34,7 @@ setup() {
   _FEAT_CONTRACT_PACKAGE_WHEN=""
   _FEAT_CONTRACT_UPSTREAM_PKG_WHEN=""
   _FEAT_CONTRACT_PRIMARY_BIN=""
+  REGISTER_PACKAGE_NAME=""
   BINARY_ASSET_URI=""
   VERSION="stable"
   VERSION_RESOLUTION=""
@@ -299,6 +300,48 @@ _stub() {
   run __resolve_auto_method__
   assert_success
   assert_output "script"
+}
+
+@test "package: uses REGISTER_PACKAGE_NAME for version check when set" {
+  _FEAT_CONTRACT_METHODS="package script"
+  _FEAT_CONTRACT_PACKAGE_WHEN="pm=apt"
+  _FEAT_CONTRACT_PRIMARY_BIN="rg"
+  REGISTER_PACKAGE_NAME="ripgrep"
+  VERSION="15.1.0"
+  ospkg__has_available_version() {
+    [[ "$1" == "ripgrep" && "$2" == "15.1.0" ]]
+  }
+  run __resolve_auto_method__
+  assert_success
+  assert_output "package"
+}
+
+@test "package: REGISTER_PACKAGE_NAME beats PRIMARY_BIN when PM lacks version" {
+  _FEAT_CONTRACT_METHODS="package script"
+  _FEAT_CONTRACT_PACKAGE_WHEN="pm=apt"
+  _FEAT_CONTRACT_PRIMARY_BIN="rg"
+  REGISTER_PACKAGE_NAME="ripgrep"
+  VERSION="15.1.0"
+  ospkg__has_available_version() {
+    [[ "$1" == "ripgrep" ]] || return 0
+    return 1
+  }
+  run __resolve_auto_method__
+  assert_success
+  assert_output "script"
+}
+
+@test "package: falls back to PRIMARY_BIN when REGISTER_PACKAGE_NAME unset" {
+  _FEAT_CONTRACT_METHODS="package script"
+  _FEAT_CONTRACT_PACKAGE_WHEN="pm=apt"
+  _FEAT_CONTRACT_PRIMARY_BIN="jq"
+  VERSION="1.8.1"
+  ospkg__has_available_version() {
+    [[ "$1" == "jq" && "$2" == "1.8.1" ]]
+  }
+  run __resolve_auto_method__
+  assert_success
+  assert_output "package"
 }
 
 @test "package: skipped on linux when not privileged" {

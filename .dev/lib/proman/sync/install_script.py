@@ -249,7 +249,8 @@ class InstallScriptGenerator:
         scalar_lines.append(f'_FEAT_PREFIX_GUARD_VALS="{guard_vals}"')
         scalar_var_names.append("_FEAT_PREFIX_GUARD_VALS")
 
-        # REGISTER_PACKAGE_NAME: OS package name for dummy registration on
+        # REGISTER_PACKAGE_NAME: OS package name for PM feasibility/version
+        # checks in __resolve_auto_method__ and for dummy registration on
         # non-PM installs. Sourced from _options.method.package.registers_as
         # or _options.method.upstream-package.registers_as (package wins).
         method_meta: dict = metadata.get("_options", {}).get("method", {})

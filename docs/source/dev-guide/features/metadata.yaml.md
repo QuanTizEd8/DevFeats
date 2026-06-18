@@ -210,7 +210,7 @@ The auto-implementation handles: URI expansion, fetch, SHA256 verification (from
 ```yaml
 package:
   manifest: os-pkg        # optional; defaults to "os-pkg"
-  registers_as: my-tool   # Debian/Ubuntu: register dummy package so `Depends: my-tool` resolves
+  registers_as: my-tool   # OS package name for PM version checks (method=auto) and dummy apt registration on non-PM installs
 ```
 
 Reads `dependencies/run/{manifest}.yaml` (generated from the matching `_dependencies.run` entry). The auto-implementation calls `ospkg__install` with the manifest.
@@ -219,7 +219,7 @@ Reads `dependencies/run/{manifest}.yaml` (generated from the matching `_dependen
 
 ```yaml
 upstream-package:
-  registers_as: my-tool
+  registers_as: my-tool   # same dual use as package.registers_as (PM checks + dummy apt registration)
 ```
 
 Reads `dependencies/run/upstream-package.yaml`. Use when the vendor publishes their own apt/dnf/brew repo.

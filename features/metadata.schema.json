@@ -215,7 +215,7 @@
                   "type": "string"
                 },
                 "registers_as": {
-                  "description": "OS package name that other non-PM install methods should register as via `ospkg__register_dummy`. When set, any installation via a method other than `package` or `upstream-package` (binary, source, cargo, npm, etc.) automatically registers a dummy Debian package under this name so that downstream `Depends:` constraints are satisfied. Debian/Ubuntu (apt) only; no-op on other platforms. The registered version equals the resolved `VERSION` at install time.",
+                  "description": "OS package name used by `__resolve_auto_method__` when checking whether the PM can satisfy a pinned `version` spec (`ospkg__has_available_version`). Also used by non-PM install methods to register a dummy Debian package via `ospkg__register_dummy` so downstream `Depends:` constraints are satisfied. When omitted, the primary binary name from `_options.prefix.bins` is used for PM checks (works when package and binary names match). Dummy registration is Debian/Ubuntu (apt) only; no-op on other platforms. The registered version equals the resolved `VERSION` at install time.",
                   "type": "string"
                 },
                 "when": {
@@ -246,7 +246,7 @@
               "additionalProperties": false,
               "properties": {
                 "registers_as": {
-                  "description": "OS package name that other non-PM install methods should register as via `ospkg__register_dummy`. When set, any installation via a method other than `package` or `upstream-package` (binary, source, cargo, npm, etc.) automatically registers a dummy Debian package under this name so that downstream `Depends:` constraints are satisfied. Debian/Ubuntu (apt) only; no-op on other platforms. The registered version equals the resolved `VERSION` at install time.",
+                  "description": "OS package name used by `__resolve_auto_method__` when checking whether the PM can satisfy a pinned `version` spec, and by non-PM install methods to register a dummy Debian package via `ospkg__register_dummy`. When omitted, the primary binary name from `_options.prefix.bins` is used for PM checks. Dummy registration is Debian/Ubuntu (apt) only; no-op on other platforms. The registered version equals the resolved `VERSION` at install time.",
                   "type": "string"
                 },
                 "when": {

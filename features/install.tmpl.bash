@@ -1970,13 +1970,16 @@ __resolve_auto_method__() {
   # Centralized METHOD=auto resolver driven by _FEAT_CONTRACT_* variables.
   # Iterates methods in priority order, evaluating feasibility for each.
   # Prints the first feasible method name and returns 0, or returns 1 if none found.
-  local _arch _kernel _privileged _triple
+  local _arch _kernel _privileged _triple _pkg_query
   _arch="$(os__release_arch 2>/dev/null)" || _arch=""
   _kernel="$(os__release_kernel 2>/dev/null)" || _kernel=""
   ospkg__detect 2>/dev/null || true
   _triple="$(os__rust_triple 2>/dev/null)" || _triple=""
   _privileged=false
   users__is_privileged 2>/dev/null && _privileged=true
+  # OS package name for PM feasibility/version checks: registers_as when set,
+  # otherwise the primary binary name (same as the binary when names match).
+  _pkg_query="${REGISTER_PACKAGE_NAME:-${_FEAT_CONTRACT_PRIMARY_BIN:-}}"
 
   local _method
   for _method in binary upstream-package package script npm-bundled npm cargo source git-clone; do
@@ -2008,7 +2011,7 @@ __resolve_auto_method__() {
           case "${VERSION:-stable}" in
             stable) : ;;
             latest) continue ;;
-            *) ospkg__has_available_version "${_FEAT_CONTRACT_PRIMARY_BIN:-}" "${VERSION}" 2>/dev/null || continue ;;
+            *) ospkg__has_available_version "${_pkg_query}" "${VERSION}" 2>/dev/null || continue ;;
           esac
         fi
         os__match_when "${_FEAT_CONTRACT_PACKAGE_WHEN:-}" || continue
