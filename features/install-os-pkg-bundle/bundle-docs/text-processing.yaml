@@ -32,17 +32,6 @@ diffutils:
     docs: https://www.gnu.org/software/diffutils/manual/
     source: https://savannah.gnu.org/projects/diffutils/
 
-ripgrep:
-  summary: Recursively search directories using a regex — faster than grep.
-  description: |
-    ripgrep (rg) combines the usability of ag with the raw speed of GNU grep.
-    It respects .gitignore rules by default, searches binary files safely,
-    and handles Unicode correctly. The de-facto standard for interactive code
-    search in large repositories.
-  url:
-    docs: https://github.com/BurntSushi/ripgrep#readme
-    source: https://github.com/BurntSushi/ripgrep
-
 silversearcher-ag:
   summary: Fast code search tool, similar to ack.
   description: |

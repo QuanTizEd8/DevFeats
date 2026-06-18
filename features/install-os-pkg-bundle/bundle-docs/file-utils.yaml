@@ -52,16 +52,6 @@ bat:
     On apt the binary is installed as 'batcat' (naming conflict); create an
     alias or symlink `bat -> batcat` if needed.
 
-fzf:
-  summary: General-purpose command-line fuzzy finder.
-  description: |
-    fzf is an interactive Unix filter for any list — files, command history,
-    git commits, processes, etc. Integrates with shell history (Ctrl-R) and
-    file completion, and is used as a picker backend by many CLI tools.
-  url:
-    docs: https://github.com/junegunn/fzf#readme
-    source: https://github.com/junegunn/fzf
-
 ranger:
   summary: Console-based file manager with vim-style key bindings.
   description: |

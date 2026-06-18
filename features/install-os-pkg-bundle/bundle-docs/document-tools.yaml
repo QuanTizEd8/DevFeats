@@ -8,19 +8,6 @@ ghostscript:
     docs: https://www.ghostscript.com/doc/current/
     source: https://github.com/ArtifexSoftware/ghostpdl
 
-pandoc:
-  summary: Universal document converter.
-  description: |
-    Pandoc converts documents between dozens of formats: Markdown, HTML,
-    LaTeX, DOCX, RST, EPUB, and more. The de-facto standard for
-    Markdown→PDF pipelines and static site generators.
-  url:
-    docs: https://pandoc.org/MANUAL.html
-    source: https://github.com/jgm/pandoc
-  notes: |
-    The apt-packaged version is often behind the upstream release. For the
-    latest version, install via GitHub Releases or the Haskell toolchain.
-
 poppler-utils:
   summary: PDF rendering library utilities (pdftotext, pdfimages, pdftoppm …).
   description: |
