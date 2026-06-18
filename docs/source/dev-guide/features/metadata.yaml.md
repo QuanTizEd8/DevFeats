@@ -421,9 +421,9 @@ keys:
   - url: https://example.com/key.gpg
     dest: /usr/share/keyrings/example.gpg
 
-# Repository lines (PM-native format; ${deb_arch} etc. substituted at runtime)
+# Repository lines (PM-native format; {deb_arch} etc. substituted at runtime)
 repos:
-  - content: "deb [arch=${deb_arch} signed-by=...] https://repo.example.com stable main"
+  - content: "deb [arch={deb_arch} signed-by=...] https://repo.example.com stable main"
 
 # Packages for all PMs (or with per-item conditions)
 packages:

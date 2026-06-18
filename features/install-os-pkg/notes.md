@@ -421,8 +421,8 @@ keys](#variable-substitution-in-repos-and-keys):
 ```yaml
 apt:
   repos:
-    - "deb [arch=${deb_arch} signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main"
-    - "deb [signed-by=/usr/share/keyrings/myppa.gpg] https://ppa.launchpadcontent.net/foo/ppa/ubuntu ${version_codename} main"
+    - "deb [arch={deb_arch} signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main"
+    - "deb [signed-by=/usr/share/keyrings/myppa.gpg] https://ppa.launchpadcontent.net/foo/ppa/ubuntu {version_codename} main"
 
 dnf:
   repos:
@@ -689,7 +689,7 @@ each phase, collected items are processed in manifest declaration order. See
 ## Variable substitution in repos and keys
 
 Repo strings (`repos[]` entries) and key `url` and `dest` values support
-`${key}` substitution at runtime. The available substitution keys are the
+`{key}` substitution at runtime. The available substitution keys are the
 same as the [condition keys](#condition-keys) — i.e. all `/etc/os-release`
 fields plus the synthetic keys (`pm`, `arch`, `kernel`, `deb_arch`):
 
@@ -700,7 +700,7 @@ apt:
       dest: /etc/apt/keyrings/githubcli-archive-keyring.gpg
       dearmor: false
   repos:
-    - "deb [arch=${deb_arch} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+    - "deb [arch={deb_arch} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
 
 packages:
   - name: git
@@ -709,17 +709,17 @@ packages:
       - fingerprint: "F911AB184317630C59970973E363C90F8F1B6217"
         dest: /usr/share/keyrings/git-core-ppa.gpg
     repos:
-      - "deb [signed-by=/usr/share/keyrings/git-core-ppa.gpg] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu ${version_codename} main"
+      - "deb [signed-by=/usr/share/keyrings/git-core-ppa.gpg] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu {version_codename} main"
 ```
 
 Substitution behaviour:
 
-- `${key}` tokens are replaced with the runtime value of the corresponding
+- `{key}` tokens are replaced with the runtime value of the corresponding
   OS-release / synthetic context key.
 - Unknown tokens (no matching key in the context) are **left unchanged**.
 - Substitution happens at the point of key fetch / repo write, _after_ the
   manifest is parsed — it is a runtime expansion, not a YAML preprocessor.
-- `${deb_arch}` is particularly useful for APT `[arch=…]` options to avoid
+- `{deb_arch}` is particularly useful for APT `[arch=…]` options to avoid
   hardcoding `amd64` or `arm64` in manifests that must run on multiple
   architectures.
 
@@ -889,7 +889,7 @@ packages:
 ### Docker CE with inline setup
 
 All signing key, repository, and post-install configuration co-located with
-the package entry. `${deb_arch}` and `${version_codename}` are substituted
+the package entry. `{deb_arch}` and `{version_codename}` are substituted
 at runtime — no hardcoded `amd64` or `jammy`:
 
 ```yaml
@@ -901,7 +901,7 @@ packages:
       - url: https://download.docker.com/linux/ubuntu/gpg
         dest: /etc/apt/keyrings/docker.gpg
     repos:
-      - "deb [arch=${deb_arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${version_codename} stable"
+      - "deb [arch={deb_arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {version_codename} stable"
     script: systemctl enable docker
 ```
 
@@ -1065,10 +1065,10 @@ keys:
     dest: /usr/share/keyrings/example.gpg
 
 # Repository lines to add (PM-native format).
-# ${key} tokens are substituted at runtime from the OS-release / synthetic context
-# (e.g. ${deb_arch} → amd64/arm64, ${version_codename} → jammy/bookworm).
+# {key} tokens are substituted at runtime from the OS-release / synthetic context
+# (e.g. {deb_arch} → amd64/arm64, {version_codename} → jammy/bookworm).
 repos:
-  - content: "deb [arch=${deb_arch} signed-by=...] https://repo.example.com stable main"
+  - content: "deb [arch={deb_arch} signed-by=...] https://repo.example.com stable main"
 
 # APT PPAs (apt-add-repository).
 ppas:
