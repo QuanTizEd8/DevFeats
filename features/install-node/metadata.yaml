@@ -66,7 +66,8 @@ _options:
     binary:
       asset_uri: "https://nodejs.org/dist/{VERSION}/node-{VERSION}-{OS}-{ARCH:node}.tar.xz"
       sidecar_uri: "https://nodejs.org/dist/{VERSION}/SHASUMS256.txt"
-      binary_src: bin/node
+      binary_src:
+        - bin/node
   prefix:
     bins: [node, npm, npx, corepack]
     symlink: {}

@@ -363,12 +363,13 @@ options:
   binary_src:
     _apply_when: |
       #{{ return bool(get("_options.method.binary.binary_src")) }}#
-    type: string
+    type: array
     default: |
-      #{{ return get("_options.method.binary.binary_src", "") }}#
+      #{{ return "\n".join(get("_options.method.binary.binary_src") or []) }}#
     description: >-
-      Source binary path within the extracted archive (suffix-match).
-      Override to select a different binary from the archive.
+      Source binary path(s) within the extracted archive (suffix-match).
+      One entry per line. Multiple entries install real copies into
+      ${PREFIX}/bin/; use companion_bins for symlinks to the primary binary.
 
   binary_companion_bins:
     _apply_when: |

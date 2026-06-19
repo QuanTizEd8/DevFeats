@@ -41,7 +41,8 @@ _options:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/pixi-{RUST_TRIPLE}.tar.gz"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/pixi-{RUST_TRIPLE}.tar.gz.sha256"
-      binary_src: pixi
+      binary_src:
+        - pixi
 
   prefix:
     bins: [pixi]

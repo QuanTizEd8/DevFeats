@@ -38,7 +38,8 @@ _options:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/ripgrep-{VERSION}-{KERNEL==Linux?{ARCH==arm64?aarch64-unknown-linux-gnu:{ARCH==i386?i686-unknown-linux-gnu:{RUST_TRIPLE}}}:{RUST_TRIPLE}}.tar.gz"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/ripgrep-{VERSION}-{KERNEL==Linux?{ARCH==arm64?aarch64-unknown-linux-gnu:{ARCH==i386?i686-unknown-linux-gnu:{RUST_TRIPLE}}}:{RUST_TRIPLE}}.tar.gz.sha256"
-      binary_src: rg
+      binary_src:
+        - rg
       when:
         - {kernel: darwin, arch: [amd64, arm64]}
         - {kernel: linux, arch: [amd64, armv7, i386, s390x]}

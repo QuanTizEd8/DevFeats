@@ -25,7 +25,8 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/typst-{ARCH==armv7?armv7-unknown-linux-musleabi:{RUST_TRIPLE}}.tar.xz"
-      binary_src: typst
+      binary_src:
+        - typst
       when: {arch: [amd64, arm64, armv7]}
     package:
       when: {pm: brew}

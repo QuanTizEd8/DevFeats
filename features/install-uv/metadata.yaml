@@ -35,7 +35,9 @@ _options:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/uv-{RUST_TRIPLE}.tar.gz"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/uv-{RUST_TRIPLE}.tar.gz.sha256"
-      binary_src: uv
+      binary_src:
+        - uv
+        - uvx
     package:
       when: {pm: [brew, dnf, apk, pacman, zypper]}
   prefix:

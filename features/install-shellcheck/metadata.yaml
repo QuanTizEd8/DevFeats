@@ -30,7 +30,8 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/shellcheck-v{VERSION}.{OS}.{OS_ARCH}.tar.xz"
-      binary_src: shellcheck
+      binary_src:
+        - shellcheck
       when:
         - {kernel: linux, arch: amd64}
         - {kernel: linux, arch: arm64}

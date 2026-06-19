@@ -163,8 +163,10 @@
                   "type": "string"
                 },
                 "binary_src": {
-                  "description": "Source binary path within the extracted archive (suffix-match passed to `--binary-src`).",
-                  "type": "string"
+                  "description": "Source binary path(s) within the extracted release archive (suffix-match passed to `--binary-src`). One entry installs a single binary; multiple entries install real copies into `${PREFIX}/bin/` via fan-out. Distinct from `companion_bins`, which creates symlinks to the primary binary only.",
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "minItems": 1
                 },
                 "companion_bins": {
                   "description": "Additional entry-point names to create as symlinks to the primary installed binary in `${PREFIX}/bin/` after install. For multicall binaries that expose multiple commands via symlink (e.g. `pandoc-server → pandoc`).",

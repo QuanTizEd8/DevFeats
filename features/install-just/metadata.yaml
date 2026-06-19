@@ -25,7 +25,8 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/just-{VERSION}-{RUST_TRIPLE}.tar.gz"
-      binary_src: just
+      binary_src:
+        - just
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/SHA256SUMS"
     package:
       when: {pm: [apt, dnf, apk, brew]}

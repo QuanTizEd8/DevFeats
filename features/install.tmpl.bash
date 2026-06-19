@@ -517,15 +517,24 @@ __uninstall_run__() {
 
 __uninstall_run_prefix__() {
   __run_feature_hook__ __uninstall_run_prefix_pre
-  logging__remove "Removing prefix binary '${_FEAT_EXISTING_PATH}'."
-  file__rm -f "${_FEAT_EXISTING_PATH}"
+  local _bin_dir="${_FEAT_EXISTING_PATH%/*}"
+  if declare -p BINARY_SRC &>/dev/null && [[ ${#BINARY_SRC[@]} -gt 0 ]]; then
+    local _src
+    for _src in "${BINARY_SRC[@]+"${BINARY_SRC[@]}"}"; do
+      [[ -n "${_src}" ]] || continue
+      logging__remove "Removing binary '${_bin_dir}/${_src##*/}'."
+      file__rm -f "${_bin_dir}/${_src##*/}" 2>/dev/null || true
+    done
+  else
+    logging__remove "Removing prefix binary '${_FEAT_EXISTING_PATH}'."
+    file__rm -f "${_FEAT_EXISTING_PATH}"
+  fi
   if [[ -v BINARY_COMPANION_BINS && "${#BINARY_COMPANION_BINS[@]}" -gt 0 ]]; then
-    local _comp_bin_dir="${_FEAT_EXISTING_PATH%/*}"
     local _comp_name
     for _comp_name in "${BINARY_COMPANION_BINS[@]+"${BINARY_COMPANION_BINS[@]}"}"; do
       [[ -n "${_comp_name}" ]] || continue
-      logging__remove "Removing companion symlink '${_comp_bin_dir}/${_comp_name}'."
-      file__rm -f "${_comp_bin_dir}/${_comp_name}" 2>/dev/null || true
+      logging__remove "Removing companion symlink '${_bin_dir}/${_comp_name}'."
+      file__rm -f "${_bin_dir}/${_comp_name}" 2>/dev/null || true
     done
   fi
   __run_feature_hook__ __uninstall_run_prefix_post
@@ -816,16 +825,21 @@ __install_run_binary__() {
       logging__error "METHOD=binary asset URI requires a version option; VERSION is unset (missing options.version in metadata?)."
       return 1
     fi
-    local _asset_uri _asset_name _bin_dest
+    local _asset_uri _asset_name _bin_dest _primary_name _src
     local -a _sha256_args=() _sidecar_args=() _installer_dir_arg=() _binary_src_args=() _netrc_arg=() _gpg_key_arg=() _gpg_sig_arg=()
     _asset_uri="$(__expand_pattern__ "${BINARY_ASSET_URI}")"
     _asset_name="${_asset_uri%%\?*}"
     _asset_name="${_asset_name##*/}"
-    if [[ -n "${BINARY_SRC:-}" ]]; then
-      _bin_dest="${_RESOLVED_PREFIX}/bin/${BINARY_SRC##*/}"
-      _binary_src_args=(--binary-src "${BINARY_SRC}")
+    if declare -p BINARY_SRC &>/dev/null && [[ ${#BINARY_SRC[@]} -gt 0 ]]; then
+      for _src in "${BINARY_SRC[@]+"${BINARY_SRC[@]}"}"; do
+        [[ -n "${_src}" ]] || continue
+        _binary_src_args+=(--binary-src "${_src}")
+      done
+      _bin_dest="${_RESOLVED_PREFIX}/bin/"
+      _primary_name="${BINARY_SRC[0]##*/}"
     else
       _bin_dest="${_RESOLVED_PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
+      _primary_name="${_FEAT_CONTRACT_PRIMARY_BIN}"
     fi
     if [[ -v BINARY_SIDECAR_URI && -n "${BINARY_SIDECAR_URI}" ]]; then
       local _sc_uri
@@ -863,7 +877,6 @@ __install_run_binary__() {
       "${_gpg_key_arg[@]+"${_gpg_key_arg[@]}"}" \
       "${_gpg_sig_arg[@]+"${_gpg_sig_arg[@]}"}"
     if [[ -v BINARY_COMPANION_BINS && "${#BINARY_COMPANION_BINS[@]}" -gt 0 && -v _RESOLVED_PREFIX ]]; then
-      local _primary_name="${_bin_dest##*/}"
       local _comp_name
       for _comp_name in "${BINARY_COMPANION_BINS[@]+"${BINARY_COMPANION_BINS[@]}"}"; do
         [[ -n "${_comp_name}" ]] || continue
@@ -2765,7 +2778,8 @@ __main__ "$@"
 #     method:
 #       binary:
 #         asset_pattern: "shellcheck-v{VERSION}.{OS}.{OS_ARCH}.tar.xz"
-#         binary_src: shellcheck
+#         binary_src:
+#           - shellcheck
 #       package: {}
 #
 #   # install.bash (only hook needed):

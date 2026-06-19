@@ -36,7 +36,8 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/jgm/pandoc/releases/download/{TAG}/pandoc-{VERSION}-{OS==linux?linux-{ARCH}:{OS_ARCH==aarch64?arm64:{OS_ARCH}}-macOS}.{OS==linux?tar.gz:zip}"
-      binary_src: pandoc
+      binary_src:
+        - pandoc
       companion_bins:
         - pandoc-server
         - pandoc-lua

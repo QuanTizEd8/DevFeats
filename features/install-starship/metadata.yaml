@@ -29,7 +29,8 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/starship-{OS_ARCH==armv7l?arm-unknown-linux-musleabihf:{RUST_TRIPLE}}.tar.gz"
-      binary_src: starship
+      binary_src:
+        - starship
     package:
       when: {pm: [brew, apk, zypper, pacman]}
     cargo:

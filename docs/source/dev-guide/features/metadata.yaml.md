@@ -106,7 +106,8 @@ _options:
   method:
     binary:
       asset_uri: "https://github.com/{GH_REPO}/releases/download/{TAG}/tool-{VERSION}-{OS}-{ARCH}.tar.gz"
-      binary_src: tool
+      binary_src:
+        - tool
     package: {}
   prefix:
     bins: [tool]
@@ -197,12 +198,13 @@ The `method` shared option is only injected when at least two methods are declar
 binary:
   asset_uri: "https://github.com/{GH_REPO}/releases/download/{TAG}/tool-{VERSION}-{OS}-{ARCH}.tar.gz"
   sidecar_uri: "https://github.com/{GH_REPO}/releases/download/{TAG}/tool-{VERSION}-{OS}-{ARCH}.tar.gz.sha256"
-  binary_src: tool        # filename (suffix-match) inside the archive
+  binary_src:             # source path(s) inside the archive (suffix-match)
+    - tool                # one entry: single binary; multiple entries: fan-out copies
 ```
 
 URI substitutions: `{VERSION}`, `{TAG}`, `{OS}` (`linux`/`darwin`), `{KERNEL}` (`Linux`/`Darwin`), `{ARCH}` (`amd64`/`arm64`), `{OS_ARCH}` (`linux_amd64`), `{PLATFORM}` (`linux/amd64`), `{RUST_TRIPLE}` (`x86_64-unknown-linux-musl`), `{GH_REPO}` (from `_options.gh_repo`).
 
-The auto-implementation handles: URI expansion, fetch, SHA256 verification (from GitHub JSON or sidecar), extraction, binary placement at `${PREFIX}/${bin_dir}/${binary_src##*/}`. Override with `__install_run_binary_pre` / `_FEAT_BINARY_ASSET_PATTERN` for dynamic logic.
+The auto-implementation handles: URI expansion, fetch, SHA256 verification (from GitHub JSON or sidecar), extraction, and binary placement. A single `binary_src` entry installs to `${PREFIX}/bin/<basename>`; multiple entries install real copies into `${PREFIX}/bin/` via fan-out (use `companion_bins` for symlinks to the primary binary only). Override with `__install_run_binary_pre` / `_FEAT_BINARY_ASSET_PATTERN` for dynamic logic.
 
 **`package` — install via OS package manager:**
 
