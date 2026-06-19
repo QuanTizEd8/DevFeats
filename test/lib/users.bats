@@ -864,6 +864,7 @@ EOF
 }
 
 @test "bootstrap__su: installs su and returns 0 when absent then installed" {
+  [[ "$(uname)" != "Darwin" ]] || skip "bootstrap__su does not install via ospkg on macOS (--skip-darwin)"
   ospkg__run() {
     printf '#!/bin/sh\n' > "${BATS_TEST_TMPDIR}/bin/su"
     chmod +x "${BATS_TEST_TMPDIR}/bin/su"
