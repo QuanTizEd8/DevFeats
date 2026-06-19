@@ -27,7 +27,7 @@ default:
     - title: fzf fish hook written to system conf.d
       cmd: >-
         grep -q "fzf.*--fish"
-        /etc/fish/conf.d/99-quantized8-devfeats--install-fzf--prefix-activation.fish
+        /etc/fish/conf.d/${_FEAT_ACTIVATION_PROFILE_D_FILE%.sh}.fish
 
 specific_version:
   description: |
@@ -126,9 +126,9 @@ fish_hook:
     - title: fzf fish hook written to system conf.d
       cmd: >-
         grep -q "fzf.*--fish"
-        /etc/fish/conf.d/99-quantized8-devfeats--install-fzf--prefix-activation.fish
+        /etc/fish/conf.d/${_FEAT_ACTIVATION_PROFILE_D_FILE%.sh}.fish
     - title: fish conf.d file is valid fish syntax
-      cmd: fish -c 'source /etc/fish/conf.d/99-quantized8-devfeats--install-fzf--prefix-activation.fish'
+      cmd: fish -c "source /etc/fish/conf.d/${_FEAT_ACTIVATION_PROFILE_D_FILE%.sh}.fish"
     - title: fzf --fish produces output
       cmd: bash -c '/usr/local/bin/fzf --fish | grep -q .'
 

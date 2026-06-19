@@ -92,29 +92,31 @@ plugins:
     to postCreateCommand; this test validates the plumbing, not the network call.
 
   pre: |
-    _lc_dir=/usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks
+    _lc_dir="${_FEAT_LIFECYCLE_DIR}"
+    _lc_script="${_FEAT_LIFECYCLE_POST_CREATE}install-plugins.sh"
+    _lc_plugins="${_lc_script}.plugins"
     echo "=== lifecycle-hooks directory ==="
     ls -la "${_lc_dir}" 2>/dev/null || echo "(directory missing)"
     echo "=== post-create--install-plugins.sh.plugins ==="
-    cat "${_lc_dir}/post-create--install-plugins.sh.plugins" 2>/dev/null || echo "(sidecar missing)"
+    cat "${_lc_plugins}" 2>/dev/null || echo "(sidecar missing)"
 
   checks:
     - title: copilot on PATH
       cmd: command -v copilot
     - title: install-plugins lifecycle script exists
-      cmd: test -f /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh
+      cmd: test -f "${_lc_script}"
       debug: |
         echo "=== lifecycle-hooks directory ==="
-        ls -la /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/ 2>/dev/null || echo "(missing)"
+        ls -la "${_lc_dir}/" 2>/dev/null || echo "(missing)"
     - title: install-plugins lifecycle script is executable
-      cmd: test -x /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh
+      cmd: test -x "${_lc_script}"
     - title: install-plugins sidecar .plugins file written
-      cmd: test -f /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh.plugins
+      cmd: test -f "${_lc_plugins}"
       on_fail: |
         echo "=== lifecycle-hooks directory ==="
-        ls -la /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/ 2>/dev/null || echo "(missing)"
+        ls -la "${_lc_dir}/" 2>/dev/null || echo "(missing)"
     - title: sidecar file contains the configured plugin spec
-      cmd: bash -c 'grep -qF "workiq@copilot-plugins" /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh.plugins 2>/dev/null'
+      cmd: grep -qF "workiq@copilot-plugins" "${_lc_plugins}"
       on_fail: |
         echo "=== sidecar file contents ==="
-        cat /usr/local/share/quantized8/devfeats/install-copilot/lifecycle-hooks/post-create--install-plugins.sh.plugins 2>/dev/null || echo "(file missing)"
+        cat "${_lc_plugins}" 2>/dev/null || echo "(file missing)"

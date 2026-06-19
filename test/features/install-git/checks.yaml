@@ -547,10 +547,12 @@ source_stable:
 package_install_state:
   description: |
     method=package on Ubuntu: verifies installed-method state is recorded after install.
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
   checks:
     - title: git on PATH
       cmd: command -v git
     - title: installed-method state file exists
-      cmd: test -f /usr/local/share/devfeats/install-git/state/installed-method
+      cmd: test -f "${_installed_method}"
     - title: installed-method state is package
-      cmd: bash -c '[ "$(cat /usr/local/share/devfeats/install-git/state/installed-method)" = "package" ]'
+      cmd: '[ "$(cat "${_installed_method}")" = "package" ]'
