@@ -323,6 +323,33 @@ EOF
   assert_output --partial "bash is required"
 }
 
+@test "users__run_as different user: bootstraps su when absent" {
+  reload_lib os.sh
+  begin_path_isolation mktemp chmod bash mkdir
+  create_fake_bin "id" "notme"
+  bootstrap__su() {
+    cat > "${BATS_TEST_TMPDIR}/bin/su" << 'EOF'
+#!/bin/sh
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -c) shift; eval "$1"; exit $? ;;
+  esac
+  shift
+done
+exit 1
+EOF
+    chmod +x "${BATS_TEST_TMPDIR}/bin/su"
+    return 0
+  }
+  export -f bootstrap__su
+  users__run_privileged() { "$@"; }
+  export -f users__run_privileged
+  run users__run_as "otheruser" -- echo "bootstrapped-su"
+  end_path_isolation
+  assert_success
+  assert_output "bootstrapped-su"
+}
+
 # ---------------------------------------------------------------------------
 # users__uid_of_path_owner
 # ---------------------------------------------------------------------------
@@ -821,6 +848,41 @@ EOF
   end_path_isolation
   assert_failure
   assert_output --partial "shadow-utils"
+}
+
+# ---------------------------------------------------------------------------
+# bootstrap__su
+# ---------------------------------------------------------------------------
+
+@test "bootstrap__su: returns 0 immediately when su is already on PATH" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  create_fake_bin "su"
+  prepend_fake_bin_path
+  run --separate-stderr bootstrap__su
+  assert_success
+}
+
+@test "bootstrap__su: installs su and returns 0 when absent then installed" {
+  ospkg__run() {
+    printf '#!/bin/sh\n' > "${BATS_TEST_TMPDIR}/bin/su"
+    chmod +x "${BATS_TEST_TMPDIR}/bin/su"
+  }
+  export -f ospkg__run
+  begin_path_isolation mktemp chmod
+  run --separate-stderr bootstrap__su
+  end_path_isolation
+  assert_success
+}
+
+@test "bootstrap__su: returns 1 when su remains absent after install attempt" {
+  ospkg__run() { return 1; }
+  export -f ospkg__run
+  begin_path_isolation mktemp
+  run bootstrap__su
+  end_path_isolation
+  assert_failure
+  assert_output --partial "'su' is required"
 }
 
 # ---------------------------------------------------------------------------

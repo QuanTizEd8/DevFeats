@@ -55,7 +55,7 @@ users__can_write() {
 users__run_as() {
   # @brief users__run_as <user> [--cwd <dir>] -- <command> [args] — Run a command as `<user>`: in-process if already that user, otherwise via `su -l` with bash-quoted argv.
   #
-  # Requires `bash` on PATH for the non-self path.
+  # Requires `bash` on PATH for the non-self path. Bootstraps `su` via ospkg when absent.
   #
   # Args:
   #   <user>       Username to run as.
@@ -102,6 +102,12 @@ users__run_as() {
   # shellcheck disable=SC2016  # $a and $1 are intentionally single-quoted — evaluated by the subprocess bash
   _or_c="$(shell__bash -c 'for a; do printf " %q" "$a"; done; echo' sh "$@")"
   _or_c="${_or_c# }" # strip the single leading space; $(...) already strips the trailing newline
+  if ! command -v su > /dev/null 2>&1; then
+    bootstrap__su || {
+      logging__error "su is required to run as user '${_or_u}'."
+      return 1
+    }
+  fi
   if [ -n "$_or_cd" ]; then
     # shellcheck disable=SC2016  # $1 is intentionally single-quoted — evaluated by the subprocess bash
     _or_cd_q="$(shell__bash -c 'printf "%q" "$1"' bash "$_or_cd")"

@@ -192,6 +192,15 @@ bootstrap__shadow_utils() {
     --warn --msg "shadow-utils (useradd, groupadd, usermod) is required but could not be installed."
 }
 
+bootstrap__su() {
+  # @brief bootstrap__su — Ensure su is on PATH, installing via ospkg if absent.
+  # Returns: 0 on success, 1 if su cannot be installed.
+  _bootstrap__tool --cmd su \
+    --manifest "${_BOOTSTRAP__LIB_DIR}/deps/chsh.yaml" --group "lib-users" \
+    --skip-darwin \
+    --msg "'su' is required but could not be installed."
+}
+
 bootstrap__gpg() {
   # @brief bootstrap__gpg [<group_id>] — Ensure gpg is available, auto-installing gnupg if needed.
   #
