@@ -80,6 +80,16 @@ setup() {
   [[ " ${_args[*]} " == *" VERSION=1.2.3 "* ]]
 }
 
+@test "__dep_pm_extra_args__ tolerates KEEP_REPOS=false for upstream-package" {
+  METHOD="upstream-package"
+  KEEP_REPOS="false"
+  VERSION="stable"
+  local -a _args=()
+  __dep_pm_extra_args__ run _args
+  [[ " ${_args[*]} " == *" VERSION_INPUT=stable "* ]]
+  [[ " ${_args[*]} " != *" keep_repos "* ]]
+}
+
 @test "__dep_install_from_env__ skips on Linux when not privileged" {
   OSPKG_MANIFEST_METHOD_PACKAGE_RUN=$'packages:\n- jq'
   users__is_privileged() { return 1; }
