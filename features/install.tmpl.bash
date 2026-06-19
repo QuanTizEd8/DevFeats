@@ -2341,7 +2341,9 @@ __dep_pm_extra_args__() {
   _out+=(--extra-var "VERSION=${_pkg_ver}")
   if [[ "${METHOD:-}" == upstream-package ]]; then
     _out+=(--extra-var "VERSION_INPUT=${VERSION:-}")
-    [[ "${KEEP_REPOS:-false}" == true ]] && _out+=(--keep_repos)
+    if [[ "${KEEP_REPOS:-false}" == true ]]; then
+      _out+=(--keep_repos)
+    fi
   fi
 }
 
