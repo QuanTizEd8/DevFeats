@@ -85,6 +85,7 @@ _dependencies:
         - tar
   build:
     method-script:
+      when: {kernel: linux}
       # Build tools — names differ by ecosystem. Build-time only on Linux;
       # macOS provides these via Xcode CLT which is handled separately.
       #
