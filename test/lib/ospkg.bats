@@ -623,6 +623,54 @@ YQ
   assert_success
 }
 
+@test "ospkg__run build-group skips snapshot when manifest when yields no install actions" {
+  # Regression: Linux-only build manifests on macOS must not snapshot via brew list
+  # before `when` is evaluated (brew may be absent during reinstall).
+  _require_ospkg_jq
+  reload_lib ospkg.sh
+
+  local _snap_log="${BATS_TEST_TMPDIR}/snapshot-calls"
+  : > "$_snap_log"
+  _ospkg__snapshot_packages() {
+    echo 1 >> "$_snap_log"
+    return 127
+  }
+  export -f _ospkg__snapshot_packages
+
+  logging__cleanup() { return 0; }
+  ospkg__detect() {
+    _OSPKG__FAMILY="brew"
+    _OSPKG__PKG_MNGR="brew"
+    _OSPKG__DETECTED=true
+    _OSPKG__OS_RELEASE[pm]="brew"
+    _OSPKG__OS_RELEASE[kernel]="darwin"
+    _OSPKG__OS_RELEASE[id]="macos"
+    _OSPKG__OS_RELEASE[id_like]="macos"
+    _OSPKG__OS_RELEASE[arch]="arm64"
+    return 0
+  }
+  export -f ospkg__detect logging__cleanup
+
+  local _fake_yq="${BATS_TEST_TMPDIR}/bin/yq"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\necho '"'"'{"when":{"kernel":"linux"},"packages":["build-essential"]}'"'"'\n' \
+    > "$_fake_yq"
+  chmod +x "$_fake_yq"
+  bootstrap__yq() {
+    _BOOTSTRAP__YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
+    return 0
+  }
+  export -f bootstrap__yq
+
+  run ospkg__run \
+    --manifest $'when:\n  kernel: linux\npackages:\n  - build-essential\n' \
+    --build-group 'test::method-script'
+
+  assert_success
+  assert_output --partial "manifest has no install actions on this platform"
+  [[ ! -s "$_snap_log" ]]
+}
+
 # ---------------------------------------------------------------------------
 # _ospkg__expand_content_vars — extra vars
 # ---------------------------------------------------------------------------

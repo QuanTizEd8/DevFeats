@@ -2107,16 +2107,7 @@ ospkg__run() {
     fi
   fi
 
-  # Take a package snapshot before installation when build-group tracking is enabled.
   local _before_snapshot_file=''
-  if [[ -n "$_build_group" && "$_dry_run" == false ]]; then
-    local _bd_dir
-    _bd_dir="$(_ospkg__build_deps_dir)"
-    _before_snapshot_file="${_bd_dir}/${_build_group//\//_}.before"
-    logging__info "Build group '${_build_group}': recording pre-install package snapshot."
-    _ospkg__ensure_global_auto_snapshot
-    _ospkg__snapshot_packages "$_before_snapshot_file"
-  fi
 
   # ── YAML / JSON manifest path ──────────────────────────────────────────────
   if [[ -n "$_manifest_content" ]]; then
@@ -2205,6 +2196,25 @@ ospkg__run() {
         done
       fi
       return 0
+    fi
+
+    # Build-group snapshots diff the PM package list. Defer until after manifest
+    # parse so top-level/nested `when` clauses can yield zero install actions (e.g.
+    # Linux-only build deps on macOS) without calling the PM list command.
+    if [[ -n "$_build_group" ]] \
+      && [[ ${#_Y_PACKAGES[@]} -eq 0 && ${#_Y_GROUPS[@]} -eq 0 \
+      && ${#_Y_CASKS[@]} -eq 0 && ${#_Y_MODULES[@]} -eq 0 ]]; then
+      logging__skip "Build group '${_build_group}': manifest has no install actions on this platform; skipping build-dep tracking."
+      return 0
+    fi
+
+    if [[ -n "$_build_group" && "$_dry_run" == false ]]; then
+      local _bd_dir
+      _bd_dir="$(_ospkg__build_deps_dir)"
+      _before_snapshot_file="${_bd_dir}/${_build_group//\//_}.before"
+      logging__info "Build group '${_build_group}': recording pre-install package snapshot."
+      _ospkg__ensure_global_auto_snapshot
+      _ospkg__snapshot_packages "$_before_snapshot_file"
     fi
 
     # Helper: run a shell script with dry-run support.
