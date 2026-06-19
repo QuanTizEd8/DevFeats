@@ -7,7 +7,7 @@ setup_file() {
   load 'helpers/common'
 
   _DEP_FUNCS="$(
-    sed -n '2306,2499p' "${REPO_ROOT}/features/install.tmpl.bash"
+    sed -n '2303,2496p' "${REPO_ROOT}/features/install.tmpl.bash"
   )"
   [[ -n "${_DEP_FUNCS}" ]] || {
     echo "FATAL: could not extract dependency helpers from install.tmpl.bash" >&2
