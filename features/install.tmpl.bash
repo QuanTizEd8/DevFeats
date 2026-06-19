@@ -1495,7 +1495,7 @@ __install_finish__() {
   if [[ -v METHOD && -n "${METHOD:-}" ]]; then
     local _method_state_dir="${_FEAT_SHARE_DIR_ROOT}/state"
     file__mkdir "${_method_state_dir}"
-    printf '%s\n' "${METHOD}" > "${_method_state_dir}/installed-method"
+    printf '%s\n' "${METHOD}" | file__tee "${_method_state_dir}/installed-method"
     logging__info "Recorded installed method '${METHOD}'."
   fi
   ${{ _script.shell_completions_call }}$
