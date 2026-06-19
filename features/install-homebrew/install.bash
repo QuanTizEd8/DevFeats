@@ -184,6 +184,28 @@ __init_args_post() {
     fi
   fi
   logging__info "Install user: '${INSTALL_USER}'."
+  if [ "$INSTALL_USER" = "linuxbrew" ] && [ "$(os__kernel)" != "Darwin" ] && users__is_root; then
+    # Create the linuxbrew system account before prefix resolution expands ${HOME} for that user.
+    _ensure_linuxbrew_user
+  fi
+}
+
+
+_ensure_linuxbrew_user() {
+  # Create the linuxbrew system user if it does not yet exist.
+  if id linuxbrew &> /dev/null; then
+    return 0
+  fi
+  logging__info "Creating 'linuxbrew' system user."
+  users__create_system_user linuxbrew --home /home/linuxbrew --shell /bin/bash
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "Failed to create 'linuxbrew' system user."
+    return "$_rc"
+  }
+  # Ubuntu 22.04+ creates home directories with mode 750; make the home
+  # world-traversable so other users can reach the brew binary.
+  file__chmod 755 /home/linuxbrew
 }
 
 validate_install_user() {
@@ -223,18 +245,8 @@ validate_install_user() {
 # No-op when not running as root (target user is responsible for their own home).
 prepare_prefix_if_needed() {
   local _install_prefix="$1" _user="$2"
-  # Create the linuxbrew system user if it does not yet exist.
-  if [ "$_user" = "linuxbrew" ] && ! id linuxbrew &> /dev/null; then
-    logging__info "Creating 'linuxbrew' system user."
-    users__create_system_user linuxbrew --home /home/linuxbrew --shell /bin/bash
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
-      logging__error "Failed to create 'linuxbrew' system user."
-      return "$_rc"
-    }
-    # Ubuntu 22.04+ creates home directories with mode 750; make the home
-    # world-traversable so other users can reach the brew binary.
-    file__chmod 755 /home/linuxbrew
+  if [ "$_user" = "linuxbrew" ]; then
+    _ensure_linuxbrew_user
   fi
   # Create the prefix directory if it does not exist yet.
   if [ ! -e "$_install_prefix" ]; then
