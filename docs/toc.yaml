@@ -53,6 +53,7 @@ entries:
         entries:
           - file: dev-guide/tests/quickstart
           - file: dev-guide/tests/lib
+          - file: dev-guide/tests/install
           - file: dev-guide/tests/features
           - file: dev-guide/tests/live
           - file: dev-guide/tests/dev

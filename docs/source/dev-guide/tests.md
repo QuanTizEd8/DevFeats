@@ -1,10 +1,11 @@
 # Tests
 
-The test suite has three layers, each targeting a different scope:
+The test suite has four layers, each targeting a different scope:
 
 | Layer | Directory | Framework | Docker needed |
 |-------|-----------|-----------|---------------|
 | Library unit tests | `test/lib/` | BATS (Bash Automated Testing System) | No |
+| Install framework tests | `test/install/` | BATS + synced `install.bash` | No (CI: yes) |
 | Feature scenario tests | `test/features/<id>/` | devcontainer CLI + plain Docker | Yes (Linux) |
 | Build system tests | `test/proman/` | pytest | No |
 
@@ -33,6 +34,14 @@ Test directory layout, which test to add for which change, and the most common r
 :link-type: doc
 
 BATS test anatomy, `reload_lib`, stubs, subprocess isolation, and common pitfalls.
+:::
+
+:::{grid-item-card} Install Framework Tests
+:class-title: sd-text-center
+:link: tests/install
+:link-type: doc
+
+Unit tests for `install.tmpl.bash` orchestration via sourced synced `install.bash`.
 :::
 
 :::{grid-item-card} Live Testing

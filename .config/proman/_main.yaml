@@ -18,6 +18,8 @@ path:
   test_support: ${{ path.test }}$/support
   test_lib: ${{ path.test }}$/lib
   test_lib_scenarios: ${{ path.test_lib }}$/scenarios.yaml
+  test_install: ${{ path.test }}$/install
+  test_install_scenarios: ${{ path.test_install }}$/scenarios.yaml
   dev_scripts_test: .dev/scripts/test
   test_run_in_container: ${{ path.dev_scripts_test }}$/run-in-container.sh
   test_assert: ${{ path.test_support }}$/assert.sh

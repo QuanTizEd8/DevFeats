@@ -24,7 +24,7 @@ just sync-tests-check <feature-id>    # verify scripts are current (CI-style)
 | Library unit tests | `test/lib/*.bats` | Functions in `lib/` in isolation (stubs, PATH fakes, `reload_lib`) |
 | Feature scenario tests | `test/features/<id>/` | End-to-end `install.sh` / assembled `install.bash` behaviour in real containers |
 
-**Do not put library-only logic in `test/features/`.** If a scenario never runs `install.sh` (or only sources `lib/*.sh` and calls helpers), it belongs in `test/lib/` — for example, HTTP URI resolution via a stubbed helper belongs in `test/lib/uri.bats`.
+**Do not put library-only logic in `test/features/`.** If a scenario never runs `install.sh` (or only sources `lib/*.sh` and calls helpers), it belongs in `test/lib/` — for example, HTTP URI resolution via a stubbed helper belongs in `test/lib/uri.bats`. Install-framework orchestration helpers belong in `test/install/` — see {doc}`/dev-guide/tests/install`.
 
 Feature scenarios should either:
 1. Let the runner call `install.sh` once with `options` from `scenarios.yaml` (default), then assert post-install state in the test script, or

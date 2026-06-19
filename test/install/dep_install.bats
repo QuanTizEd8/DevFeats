@@ -1,26 +1,12 @@
 #!/usr/bin/env bats
-# Unit tests for dependency manifest helpers in features/install.tmpl.bash.
+# Unit tests for dependency manifest helpers in the install framework (install.tmpl.bash).
 
 bats_require_minimum_version 1.5.0
 
-setup_file() {
-  load 'helpers/common'
-
-  _DEP_FUNCS="$(
-    sed -n '2303,2496p' "${REPO_ROOT}/features/install.tmpl.bash"
-  )"
-  [[ -n "${_DEP_FUNCS}" ]] || {
-    echo "FATAL: could not extract dependency helpers from install.tmpl.bash" >&2
-    return 1
-  }
-  export _DEP_FUNCS
-}
-
 setup() {
-  load 'helpers/common'
+  load 'helpers/ensure_framework'
+  install_test__ensure_framework
   load 'helpers/stubs'
-
-  eval "${_DEP_FUNCS}"
 
   OSPKG_MANIFEST_BASE_RUN=""
   METHOD="package"

@@ -37,6 +37,14 @@ on:
         description: Library unit tests — native macOS runners from test/environments.yaml.
         type: boolean
         default: true
+      run_install:
+        description: Run install framework unit tests (test-install).
+        type: boolean
+        default: true
+      run_install_linux:
+        description: Install framework tests — Linux matrix from test/install/scenarios.yaml.
+        type: boolean
+        default: true
       run_features:
         description: >-
           Feature integration tests: selects which features get Linux/devcontainer-side
@@ -183,9 +191,22 @@ jobs:
       config: ${{ toJSON(fromJSON(needs.init.outputs.config).test_lib) }}
     secrets: inherit
 
+  test-install:
+    name: Test Install Framework
+    needs: [init, build-devcontainer, build-features]
+    if: |
+      !cancelled() &&
+      needs.init.result == 'success' &&
+      (needs.build-devcontainer.result == 'success' || needs.build-devcontainer.result == 'skipped') &&
+      (needs.build-features.result == 'success' || needs.build-features.result == 'skipped')
+    uses: ./.github/workflows/test-install.yaml
+    with:
+      config: ${{ toJSON(fromJSON(needs.init.outputs.config).test_install) }}
+    secrets: inherit
+
   deploy:
     name: Deploy
-    needs: [init, build-docs, build-features, lint, test-dev, test-features, test-lib]
+    needs: [init, build-docs, build-features, lint, test-dev, test-features, test-lib, test-install]
     if: |
       !cancelled() &&
       fromJSON(needs.init.outputs.config).deploy.enabled == true &&

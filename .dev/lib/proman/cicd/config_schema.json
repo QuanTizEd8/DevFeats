@@ -11,6 +11,7 @@
     "test_dev",
     "test_features",
     "test_lib",
+    "test_install",
     "deploy"
   ],
   "properties": {
@@ -502,6 +503,64 @@
               "clean_path": {
                 "description": "Whether to strip GHA pre-installed tools from PATH before running tests.",
                 "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "test_install": {
+      "description": "Config slice for the test-install reusable workflow (install framework unit tests).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "linux_enabled",
+        "ci_image",
+        "artifact_src_name",
+        "artifact_src_path",
+        "linux_matrix"
+      ],
+      "properties": {
+        "enabled": {
+          "description": "Whether to run install framework test jobs.",
+          "type": "boolean"
+        },
+        "linux_enabled": {
+          "description": "Whether the Linux container matrix (test-install-linux) should run.",
+          "type": "boolean"
+        },
+        "ci_image": {
+          "description": "Full devcontainer image URI used as the job container.",
+          "type": "string"
+        },
+        "artifact_src_name": {
+          "description": "Name of the source artifact downloaded by install test jobs.",
+          "type": "string"
+        },
+        "artifact_src_path": {
+          "description": "Local path where the source artifact is extracted.",
+          "type": "string"
+        },
+        "linux_matrix": {
+          "description": "Linux distro environments for install framework tests, from test/install/scenarios.yaml.",
+          "type": "array",
+          "items": {
+            "description": "A single Linux install test environment.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "env"
+            ],
+            "properties": {
+              "name": {
+                "description": "Human-readable environment name used in the job display name.",
+                "type": "string"
+              },
+              "env": {
+                "description": "Docker image reference for the test container.",
+                "type": "string"
               }
             }
           }

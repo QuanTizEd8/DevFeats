@@ -27,6 +27,7 @@ def _make_valid_config() -> dict:
         run_lint=True,
         run_validate=True,
         run_unit=True,
+        run_install=True,
         feature_matrix_raw=[
             {
                 "feature": "install-git",
@@ -41,6 +42,7 @@ def _make_valid_config() -> dict:
         features_to_release=[],
         unit_env_matrix=[{"name": "ubuntu-24.04", "env": "ubuntu-latest"}],
         unit_macos_matrix=[{"runner": "macos-latest", "clean_path": True}],
+        install_env_matrix=[{"name": "ubuntu-24.04", "env": "ubuntu-24.04+bash"}],
     )
 
 
@@ -95,5 +97,13 @@ def test_test_lib_linux_matrix_typed() -> None:
     """Verify linux_matrix items must include both name and env fields."""
     cfg = _make_valid_config()
     cfg["test_lib"]["linux_matrix"] = [{"name": "x"}]  # missing "env"
+    with pytest.raises(jsonschema.ValidationError):
+        _validate(cfg)
+
+
+def test_test_install_linux_matrix_typed() -> None:
+    """Verify install linux_matrix items must include both name and env fields."""
+    cfg = _make_valid_config()
+    cfg["test_install"]["linux_matrix"] = [{"name": "x"}]  # missing "env"
     with pytest.raises(jsonschema.ValidationError):
         _validate(cfg)

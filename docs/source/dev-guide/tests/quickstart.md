@@ -13,6 +13,7 @@ test/
 │           └── *.sh             ← AUTO-GENERATED from checks.yaml — never edit
 ├── lib/
 │   ├── *.bats                   ← BATS unit tests (one file per lib module)
+│   ├── integration/             ← real-tool integration tier
 │   ├── scenarios.yaml           ← BATS test environment matrix
 │   ├── helpers/
 │   │   ├── common.bash          ← reload_lib() helper
@@ -20,6 +21,10 @@ test/
 │   │   └── json_assert.bash     ← JSON-specific assertions
 │   ├── setup_suite.bash         ← bash ≥4 guard (auto-discovered by bats)
 │   └── bats/                    ← Git submodules — NEVER EDIT
+├── install/
+│   ├── *.bats                   ← install framework unit tests (see {doc}`install`)
+│   ├── scenarios.yaml           ← container matrix for install framework CI
+│   └── helpers/                 ← source_framework + lib helper re-exports
 │       ├── bats-core/
 │       ├── bats-support/
 │       ├── bats-assert/
@@ -35,6 +40,7 @@ test/
 | Change | What to write |
 |--------|--------------|
 | New or changed `lib/` function | `@test` block in `test/lib/<module>.bats` |
+| New or changed install framework helper in `install.tmpl.bash` | `@test` in `test/install/<concern>.bats` — see {doc}`install` |
 | New feature behavior (devcontainer) | New scenario in `scenarios.yaml` + checks in `checks.yaml` |
 | Feature install should fail (non-zero exit) | `kind: install_failure` check in `checks.yaml` |
 | Feature behavior requiring real macOS | Scenario with `envs: [macos-latest]` and `modes: [macos]` |
@@ -50,6 +56,11 @@ just test-lib                         # all modules
 just test-lib-mod <module>            # e.g. just test-lib-mod ospkg
 just test-lib-env <env>               # in one container env, e.g. just test-lib-env alpine-3.21
 just test-lib-envs                    # all container environments (requires Docker)
+
+# Install framework tests (requires synced src/)
+just test-install
+just test-install-mod <module>        # e.g. just test-install-mod dep_install
+just test-install-env <env>           # e.g. just test-install-env ubuntu-24.04
 
 # Feature scenario tests (requires Docker)
 just test-feats <feature>             # all modes for one feature

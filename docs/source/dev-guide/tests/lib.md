@@ -26,6 +26,8 @@ The suite has two tiers:
 - **Lean tier (default):** `test/lib/*.bats` only. Suitable for distro containers that install just `bash`. Run by `just test-lib` and all CI library jobs.
 - **Integration tier:** `test/lib/integration/*.bats`. Requires real `git`, `jq`, and other tools to be present. Enable with `bash .dev/scripts/test/run-unit.sh --integration`.
 
+Install framework tests live separately under `test/install/` — see {doc}`install`.
+
 ## File Anatomy
 
 ```bash

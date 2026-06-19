@@ -64,6 +64,7 @@ class Env:
     input_run_lint: str
     input_run_validate: str
     input_run_unit: str
+    input_run_install: str
     input_run_features: str
     input_features: str
     input_run_macos: str
@@ -74,6 +75,7 @@ class Env:
     input_run_features_linux: str
     input_run_lib_linux: str
     input_run_lib_macos: str
+    input_run_install_linux: str
     repo_owner: str
     repository: str
     repository_owner_type: str
@@ -332,6 +334,21 @@ def compute_unit_macos_matrix() -> list[dict]:
             if image.startswith("macos") and image not in seen:
                 seen[image] = bool(val.get("clean_path", False))
     return [{"runner": r, "clean_path": seen[r]} for r in sorted(seen)]
+
+
+def compute_install_env_matrix() -> list[dict[str, str]]:
+    """Compute Linux environment entries for install framework tests."""
+    data: dict = (
+        yaml.safe_load(
+            load_config()
+            .absolute_path("path.test_install_scenarios")
+            .read_text(
+                encoding="utf-8",
+            ),
+        )
+        or {}
+    )
+    return [{"name": k, "env": v["env"]} for k, v in data.items() if k != "defaults"]
 
 
 def compute_unit_env_matrix() -> list[dict[str, str]]:
@@ -694,6 +711,7 @@ def parse_env_from_context() -> Env:
             event_inputs.get("run_validate")
         ),
         input_run_unit=_workflow_dispatch_input_str(event_inputs.get("run_unit")),
+        input_run_install=_workflow_dispatch_input_str(event_inputs.get("run_install")),
         input_run_features=_workflow_dispatch_input_str(
             event_inputs.get("run_features")
         ),
@@ -716,6 +734,9 @@ def parse_env_from_context() -> Env:
         input_run_lib_macos=_workflow_dispatch_input_str(
             event_inputs.get("run_lib_macos")
         ),
+        input_run_install_linux=_workflow_dispatch_input_str(
+            event_inputs.get("run_install_linux"),
+        ),
         repo_owner=str(github_ctx["repository_owner"]),
         repository=str(github_ctx["repository"]),
         repository_owner_type=str(repository_owner_payload["type"]),
@@ -732,6 +753,7 @@ def build_config(  # noqa: PLR0913
     run_lint: bool,
     run_validate: bool,
     run_unit: bool,
+    run_install: bool,
     feature_matrix_raw: list[dict],
     run_python: bool,
     run_docs: bool,
@@ -739,6 +761,7 @@ def build_config(  # noqa: PLR0913
     features_to_release: list[dict[str, str]],
     unit_env_matrix: list[dict[str, str]],
     unit_macos_matrix: list[dict[str, str]],
+    install_env_matrix: list[dict[str, str]],
 ) -> dict:
     """Assemble the single ``config`` dict written to GITHUB_OUTPUT."""
     ci = load_config()["ci"]
@@ -747,7 +770,9 @@ def build_config(  # noqa: PLR0913
     pub = ci["publish"]
     scr = ci["scripts"]
     fds = ci["runner"]["free_disk_space"]
-    source_enabled = any([run_lint, run_validate, run_unit, bool(feature_matrix_raw)])
+    source_enabled = any(
+        [run_lint, run_validate, run_unit, run_install, bool(feature_matrix_raw)],
+    )
     return {
         "build_devcontainer": {
             "enabled": build_image,
@@ -839,6 +864,14 @@ def build_config(  # noqa: PLR0913
             "linux_matrix": unit_env_matrix,
             "macos_matrix": unit_macos_matrix,
         },
+        "test_install": {
+            "enabled": run_install and bool(install_env_matrix),
+            "linux_enabled": bool(install_env_matrix),
+            "ci_image": ci_image,
+            "artifact_src_name": art["src"]["name"],
+            "artifact_src_path": art["src"]["path"],
+            "linux_matrix": install_env_matrix,
+        },
         "deploy": {
             "enabled": is_release,
             "features": features_to_release,
@@ -909,6 +942,7 @@ def main() -> None:
         run_lint = _bool_inp(env.input_run_lint)
         run_validate = _bool_inp(env.input_run_validate)
         run_unit = _bool_inp(env.input_run_unit)
+        run_install = _bool_inp(env.input_run_install)
         run_features_flag = _bool_inp(env.input_run_features)
         run_macos_flag = _bool_inp(env.input_run_macos)
         run_python = _bool_inp(env.input_run_python)
@@ -928,25 +962,26 @@ def main() -> None:
             )
         )
         LOG.info(
-            "dispatch: run_lint=%s run_validate=%s run_unit=%s"
+            "dispatch: run_lint=%s run_validate=%s run_unit=%s run_install=%s"
             " run_features=%s run_macos=%s run_python=%s run_docs=%s",
             run_lint,
             run_validate,
             run_unit,
+            run_install,
             run_features_flag,
             run_macos_flag,
             run_python,
             run_docs,
         )
     elif is_force:
-        run_lint = run_validate = run_unit = run_python = run_docs = True
+        run_lint = run_validate = run_unit = run_install = run_python = run_docs = True
         features = all_feature_ids
         macos_capable_ids = [
             d["feature"] for d in compute_macos_matrix(all_feature_ids)
         ]
         LOG.info("force-gate: all jobs enabled; all features selected")
     elif is_release:
-        run_lint = run_validate = run_unit = run_python = run_docs = True
+        run_lint = run_validate = run_unit = run_install = run_python = run_docs = True
         released_set = {d["feature"] for d in features_to_release}
         features = [f for f in all_feature_ids if f in released_set]
         macos_all = [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
@@ -959,6 +994,7 @@ def main() -> None:
         run_lint = any_match(changed, groups["lint"])
         run_validate = any_match(changed, groups["validate"])
         run_unit = any_match(changed, groups["unit_test"])
+        run_install = any_match(changed, groups["install_test"])
         run_docs = any_match(changed, groups["docs"])
         run_python = any_match(changed, groups["python_test"])
 
@@ -986,11 +1022,12 @@ def main() -> None:
             ]
 
     LOG.info(
-        "decision: run_lint='%s' run_validate='%s' run_unit='%s'"
+        "decision: run_lint='%s' run_validate='%s' run_unit='%s' run_install='%s'"
         " run_python='%s' run_docs='%s'",
         str(run_lint).lower(),
         str(run_validate).lower(),
         str(run_unit).lower(),
+        str(run_install).lower(),
         str(run_python).lower(),
         str(run_docs).lower(),
     )
@@ -1000,19 +1037,22 @@ def main() -> None:
 
     unit_env_matrix = compute_unit_env_matrix()
     unit_macos_matrix = compute_unit_macos_matrix()
+    install_env_matrix = compute_install_env_matrix()
 
     if env.event_name == "workflow_dispatch":
         run_dc = _bool_inp(env.input_run_features_devcontainer)
         run_lx = _bool_inp(env.input_run_features_linux)
         run_lib_lx = _bool_inp(env.input_run_lib_linux)
         run_lib_mc = _bool_inp(env.input_run_lib_macos)
+        run_install_lx = _bool_inp(env.input_run_install_linux)
         LOG.info(
             "dispatch: modality_filters features_devcontainer='%s' features_linux='%s'"
-            " lib_linux='%s' lib_macos='%s'",
+            " lib_linux='%s' lib_macos='%s' install_linux='%s'",
             str(run_dc).lower(),
             str(run_lx).lower(),
             str(run_lib_lx).lower(),
             str(run_lib_mc).lower(),
+            str(run_install_lx).lower(),
         )
         feature_matrix_raw = apply_dispatch_feature_matrix_filters(
             feature_matrix_raw,
@@ -1023,13 +1063,17 @@ def main() -> None:
             unit_env_matrix = []
         if not run_lib_mc:
             unit_macos_matrix = []
+        if not run_install_lx:
+            install_env_matrix = []
 
     LOG.info(
-        "matrices: features=%d feature_matrix=%d unit_env=%d unit_macos=%d",
+        "matrices: features=%d feature_matrix=%d unit_env=%d "
+        "unit_macos=%d install_env=%d",
         len(features),
         len(feature_matrix_raw),
         len(unit_env_matrix),
         len(unit_macos_matrix),
+        len(install_env_matrix),
     )
 
     enforce_version_bump(env.event_name, env.base_ref, changed, all_feature_ids)
@@ -1098,6 +1142,7 @@ def main() -> None:
         run_lint=run_lint,
         run_validate=run_validate,
         run_unit=run_unit,
+        run_install=run_install,
         feature_matrix_raw=feature_matrix_raw,
         run_python=run_python,
         run_docs=run_docs,
@@ -1105,6 +1150,7 @@ def main() -> None:
         features_to_release=features_to_release,
         unit_env_matrix=unit_env_matrix,
         unit_macos_matrix=unit_macos_matrix,
+        install_env_matrix=install_env_matrix,
     )
 
     write_outputs(

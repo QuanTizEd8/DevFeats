@@ -16,6 +16,7 @@ lint_sh="${script_dir}/../lint/sh-check.sh"
 lint_local_vars="${script_dir}/../lint/sh-local-vars.sh"
 format_sh="${script_dir}/../format/shfmt.sh"
 run_unit="${script_dir}/../test/run-unit.sh"
+run_install="${script_dir}/../test/run-install.sh"
 
 steps=()
 
@@ -39,7 +40,9 @@ _sh_all=()
 _sh_lib=()
 _py=()
 _lib_any=false
+_install_any=false
 declare -A _feats=()
+declare -A _install_mods=()
 
 for _path in "${_changed[@]}"; do
   case "$_path" in
@@ -52,8 +55,14 @@ for _path in "${_changed[@]}"; do
       ;;
   esac
   [[ "$_path" == lib/* ]] && _lib_any=true
+  if [[ "$_path" == features/install.tmpl.bash || "$_path" == test/install/* ]]; then
+    _install_any=true
+  fi
   if [[ "$_path" =~ ^features/([^/]+)/ ]]; then
     _feats["${BASH_REMATCH[1]}"]=1
+  fi
+  if [[ "$_path" =~ ^test/install/(.+)\.bats$ ]]; then
+    _install_mods["${BASH_REMATCH[1]}"]=1
   fi
 done
 
@@ -107,5 +116,13 @@ done
 for _mod in $(printf '%s\n' "${!_modules[@]}" | sort); do
   add_step "test-lib-mod-${_mod}" bash "$run_unit" --module "$_mod"
 done
+
+if [[ "$_install_any" == true && ${#_install_mods[@]} -eq 0 ]]; then
+  add_step test-install bash "$run_install"
+elif [[ ${#_install_mods[@]} -gt 0 ]]; then
+  for _mod in $(printf '%s\n' "${!_install_mods[@]}" | sort); do
+    add_step "test-install-mod-${_mod}" bash "$run_install" --module "$_mod"
+  done
+fi
 
 exec bash "$composite_sh" work -- "${steps[@]}"

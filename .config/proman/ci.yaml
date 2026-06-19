@@ -57,6 +57,13 @@ triggers:
     - "lib/*.json"
     - "test/lib/**"
     - "test/support/**"
+  install_test:
+    - "features/install.tmpl.bash"
+    - "features/install.sh"
+    - "features/*/install.bash"
+    - ".dev/lib/proman/sync/install_script.py"
+    - "test/install/**"
+    - "test/support/**"
   scenario_test:
     - "features/install.sh"
     - "lib/**"

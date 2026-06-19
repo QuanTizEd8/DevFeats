@@ -1,32 +1,16 @@
 #!/usr/bin/env bats
-# Unit tests for __resolve_auto_method__() in features/install.tmpl.bash.
+# Unit tests for __resolve_auto_method__() in the install framework (install.tmpl.bash).
 #
-# __resolve_auto_method__ is extracted directly from the template at test time
-# via awk. The OS lib functions it depends on (os__match_when, os__match_spec,
-# ospkg__os_release_match, etc.) are loaded at suite startup; ospkg__os_release_match
-# is overridden per-test via _stub() so no real OS detection is needed.
+# The synced install.bash fixture is sourced without __main__ in setup_file.
+# OS lib functions are loaded via helpers/common; ospkg__os_release_match is
+# overridden per-test via _stub() so no real OS detection is needed.
 
 bats_require_minimum_version 1.5.0
 
-setup_file() {
-  load 'helpers/common'
-
-  # Extract __resolve_auto_method__ from features/install.tmpl.bash.
-  _RAM_FUNC="$(awk '/^__resolve_auto_method__\(\) \{/,/^\}$/' \
-    "${REPO_ROOT}/features/install.tmpl.bash")"
-  [[ -n "${_RAM_FUNC}" ]] || {
-    echo "FATAL: could not extract __resolve_auto_method__ from install.tmpl.bash" >&2
-    return 1
-  }
-  export _RAM_FUNC
-}
-
 setup() {
-  load 'helpers/common'
+  load 'helpers/ensure_framework'
+  install_test__ensure_framework
   load 'helpers/stubs'
-
-  # Define the function under test in the current shell.
-  eval "${_RAM_FUNC}"
 
   # Default contract: empty (no methods).
   _FEAT_CONTRACT_METHODS=""
@@ -64,20 +48,23 @@ _stub() {
   _STUB_PLATFORM="${5:-debian}"
 
   os__release_kernel() { printf '%s\n' "${_STUB_KERNEL}"; }
-  os__release_arch()   { printf '%s\n' "${_STUB_ARCH}"; }
-  os__platform()       { printf '%s\n' "${_STUB_PLATFORM}"; }
-  os__rust_triple()    { return 1; }  # no triple by default
-  ospkg__detect()      { _OSPKG__FAMILY="${_STUB_PM}"; _OSPKG__DETECTED=true; }
+  os__release_arch() { printf '%s\n' "${_STUB_ARCH}"; }
+  os__platform() { printf '%s\n' "${_STUB_PLATFORM}"; }
+  os__rust_triple() { return 1; } # no triple by default
+  ospkg__detect() {
+    _OSPKG__FAMILY="${_STUB_PM}"
+    _OSPKG__DETECTED=true
+  }
   # Override ospkg__os_release_match so os__match_spec / os__match_when use
   # _STUB_* globals instead of _OSPKG__OS_RELEASE (which is never populated).
   ospkg__os_release_match() {
     local _key="$1" _val="${2,,}"
     case "${_key}" in
       kernel) [[ "${_STUB_KERNEL,,}" == "${_val}" ]] ;;
-      arch)   [[ "${_STUB_ARCH,,}" == "${_val}" ]] ;;
-      pm)     [[ "${_STUB_PM,,}" == "${_val}" ]] ;;
-      id)     [[ "${_STUB_PLATFORM,,}" == "${_val}" ]] ;;
-      *)      return 1 ;;
+      arch) [[ "${_STUB_ARCH,,}" == "${_val}" ]] ;;
+      pm) [[ "${_STUB_PM,,}" == "${_val}" ]] ;;
+      id) [[ "${_STUB_PLATFORM,,}" == "${_val}" ]] ;;
+      *) return 1 ;;
     esac
   }
   ospkg__has_available_version() { return 0; }
@@ -523,7 +510,7 @@ _stub() {
 
 @test "error: returns 1 when no feasible method found" {
   _FEAT_CONTRACT_METHODS="binary"
-  _FEAT_CONTRACT_BINARY_WHEN="arch=arm64"  # current arch is amd64
+  _FEAT_CONTRACT_BINARY_WHEN="arch=arm64" # current arch is amd64
   run __resolve_auto_method__
   assert_failure
 }
@@ -555,7 +542,7 @@ _stub() {
   _stub linux amd64 apk privileged alpine
   VERSION="2024"
   VERSION_RESOLUTION="none"
-  ospkg__has_available_version() { return 1; }  # would reject if called
+  ospkg__has_available_version() { return 1; } # would reject if called
   run __resolve_auto_method__
   assert_success
   assert_output "package"

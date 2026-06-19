@@ -1,0 +1,86 @@
+"""Orchestrate install framework tests across container environments."""
+
+from __future__ import annotations
+
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+from proman.config import load as load_config
+
+from .environments import load as load_envs
+from .environments import resolve
+from .scenarios import expand_test_files
+from .scenarios import load as load_scenarios
+
+
+def _run_env(
+    name: str,
+    scenario: dict,
+    envs: dict,
+    extra_args: list[str],
+) -> bool:
+    """Run install framework tests for one environment; return True on success."""
+    env_name = scenario["env"]
+    env_vars = scenario.get("env_vars", {})
+    cfg = load_config()
+    root = cfg.root_path
+    install_dir = cfg.absolute_path("path.test_install")
+    test_files = expand_test_files(scenario.get("tests"), install_dir)
+    run_in_container = cfg.absolute_path("path.test_run_in_container")
+
+    image = resolve(env_name, envs)
+
+    print(f"\n══ {name} [{env_name}] ══", flush=True)
+
+    cmd = [
+        "bash",
+        str(run_in_container),
+        "--image",
+        image,
+        "--name",
+        f"test-install-{name}",
+    ]
+    for k, v in env_vars.items():
+        cmd += ["--env", f"{k}={v}"]
+
+    run_install_parts: list[str] = ["bash", "/repo/.dev/scripts/test/run-install.sh"]
+    for tf in test_files:
+        rel = Path(tf).relative_to(root)
+        run_install_parts += ["--paths", f"/repo/{rel}"]
+    run_install_parts += extra_args
+
+    cmd += ["--run", " ".join(shlex.quote(p) for p in run_install_parts)]
+
+    result = subprocess.run(cmd, check=False)
+    return result.returncode == 0
+
+
+def run(target_env: str | None, extra_args: list[str]) -> int:
+    """Run install framework tests for one or all environments; return exit code."""
+    cfg = load_config()
+    _, scenarios = load_scenarios(cfg.absolute_path("path.test_install_scenarios"))
+    envs = load_envs(cfg.absolute_path("path.test_environments"))
+
+    if target_env is not None:
+        if target_env not in scenarios:
+            print(f"⛔ Unknown environment: {target_env!r}", file=sys.stderr)
+            return 1
+        ok = _run_env(
+            target_env,
+            scenarios[target_env],
+            envs,
+            extra_args,
+        )
+        return 0 if ok else 1
+
+    passed = failed = 0
+    for name, scenario in scenarios.items():
+        if _run_env(name, scenario, envs, extra_args):
+            passed += 1
+        else:
+            failed += 1
+
+    print(f"\nMatrix: {passed} passed, {failed} failed")
+    return 0 if failed == 0 else 1

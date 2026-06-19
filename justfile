@@ -230,6 +230,38 @@ test-lib-envs *args:
 
 [
   group('test'),
+  doc('Run install framework bats tests (requires synced src/ from just sync-src).')
+]
+test-install:
+    just capture test-install -- bash .dev/scripts/test/run-install.sh
+
+
+[
+  group('test'),
+  doc('Run install framework tests for one module e.g. just test-install-mod dep_install.')
+]
+test-install-mod module:
+    just capture test-install-mod -- bash .dev/scripts/test/run-install.sh --module {{module}}
+
+
+[
+  group('test'),
+  doc('Run install framework tests in one container e.g. just test-install-env ubuntu-24.04.')
+]
+test-install-env env *args:
+    just capture test-install-env -- pixi run --environment test test-install-env {{env}} {{args}}
+
+
+[
+  group('test'),
+  doc('Run install framework tests in all container environments (requires docker).')
+]
+test-install-envs *args:
+    just capture test-install-envs -- pixi run --environment test test-install-envs {{args}}
+
+
+[
+  group('test'),
   doc('Run Python unit tests for proman/ (pytest).')
 ]
 test-py:
