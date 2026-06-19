@@ -232,6 +232,9 @@ def test_load_emits_ospkg_manifest_options_via_pyserials() -> None:
     assert "runtime" in pkg_desc
     assert "\n" in jq["options"]["ospkg_manifest_method_package_run"]["default"]
     assert "jq" in jq["options"]["ospkg_manifest_method_package_run"]["default"]
+    assert (
+        "_normalize_escapes" not in jq["options"]["ospkg_manifest_method_package_run"]
+    )
 
     bundle = MetadataLoader().load("install-os-pkg-bundle")["install-os-pkg-bundle"]
     archive_desc = bundle["options"]["ospkg_manifest_option_archive_tools"][

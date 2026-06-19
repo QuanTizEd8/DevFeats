@@ -129,8 +129,7 @@ options:
       Sourced by `~/.bashrc` and `~/.zshrc`.
   bash_theme:
     type: string
-    default: '\${XDG_CONFIG_HOME:-\${HOME}/.config}/bash/bashtheme'
-    _normalize_escapes: true
+    default: '${XDG_CONFIG_HOME:-${HOME}/.config}/bash/bashtheme'
     description: |-
       Path to the Bash theme scaffold file.
       Default: `${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme` (per-user).
@@ -140,8 +139,7 @@ options:
       to this file via `shell__write_block`.
   zsh_theme:
     type: string
-    default: '\${ZDOTDIR}/zshtheme'
-    _normalize_escapes: true
+    default: '${ZDOTDIR}/zshtheme'
     description: |-
       Path to the Zsh theme scaffold file. Does not need to be within `ZDOTDIR`.
       Default: `${ZDOTDIR}/zshtheme` (adjacent to other Zsh config files).

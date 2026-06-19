@@ -136,6 +136,25 @@ def test_ospkg_manifest_default_with_single_quote_uses_ansi_c_quoting() -> None:
     assert "it\\'s-fine" in block["defaults"]
 
 
+def test_ospkg_manifest_defaults_are_canonical_in_install_bash_codegen() -> None:
+    """Manifest defaults stay canonical in install.bash (no legacy escapes)."""
+    gen = InstallScriptGenerator()
+    manifest_default = serialize_manifest(
+        {"apt": {"scripts": 'test "${_libdir}"\n'}},
+    )
+    block = gen._generate_argparse(
+        {
+            "ospkg_manifest_base_run": {
+                "type": "string",
+                "default": manifest_default,
+            },
+        },
+    )
+    assert "normalize_escapes" not in block
+    assert "${_libdir}" in manifest_default
+    assert r"\${_libdir}" not in block["defaults"]
+
+
 def test_uri_resolution_without_installer_dir_uses_matdir_fallback() -> None:
     """Features with installer_dir: false must not reference unset INSTALLER_DIR."""
     gen = InstallScriptGenerator()

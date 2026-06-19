@@ -2,8 +2,9 @@ apt_default:
   description: |
     Verifies the default Oh My Zsh installation: cloned to the default path,
     git metadata set, ZSH_CUSTOM structure scaffolded, default plugins cloned,
-    per-user config injected into /root/zshtheme, and a source line injected
-    into /root/.zshrc that loads the theme file.
+    per-user config injected into /root/zshtheme (including verbatim cache/compdump
+    shell expressions), and a source line injected into /root/.zshrc that loads the
+    theme file.
 
   pre: |
     _OMZ=/usr/local/share/oh-my-zsh
@@ -32,6 +33,10 @@ apt_default:
       cmd: grep -qF "oh-my-zsh.sh" "$_ZSHTHEME"
     - title: zshtheme exports ZSH
       cmd: grep -qF "export ZSH=" "$_ZSHTHEME"
+    - title: zshtheme sets ZSH_CACHE_DIR verbatim shell expression
+      cmd: grep -qF 'ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"' "$_ZSHTHEME"
+    - title: zshtheme sets ZSH_COMPDUMP verbatim shell expression
+      cmd: grep -qF 'ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"' "$_ZSHTHEME"
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 

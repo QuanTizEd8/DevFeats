@@ -10,6 +10,7 @@ from pathlib import Path
 from proman.config import load as load_config
 from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.helpers import log
+from proman.manifest_util import escape_devcontainer_default
 from proman.metadata import MetadataLoader
 from proman.sync.file_sync import SyncStatus, remove_file, sync_file
 from proman.sync.install_script import InstallScriptGenerator
@@ -162,6 +163,8 @@ def _generate_metadata_json(metadata: dict) -> dict[Path, str]:
                         option[k] = "string"
                     elif k in ("enum", "proposals"):
                         option[k] = [item["value"] for item in v]
+                    elif k == "default" and isinstance(v, str):
+                        option[k] = escape_devcontainer_default(v)
                     else:
                         option[k] = v
                 options[option_id] = option

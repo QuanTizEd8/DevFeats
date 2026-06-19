@@ -248,9 +248,6 @@ __init_args__() {
   # Normalize array options (trim elements; drop blank/whitespace-only lines).
   ${{ _script.argparse.normalize_arrays }}$
 
-  # Unescape backslash-escaped dollar signs (\\$ → $) in options that hold shell-variable expressions.
-  ${{ _script.argparse.normalize_escapes }}$
-
   # Resolve URI-capable option values to local filesystem paths (INSTALLER_DIR or a private temp dir).
   ${{ _script.argparse.uri_resolution }}$
 
@@ -2313,12 +2310,18 @@ __dep_normalize_manifest_value__() {
   fi
 }
 
+__dep_manifest_var_set__() {
+  # True when a manifest option variable is set (env, CLI, or default). Prefer [[ -v ]]
+  # over declare -p: the latter can miss variables inherited from the environment.
+  [[ -v "$1" ]]
+}
+
 __dep_fetch_extra_args__() {
   # shellcheck disable=SC2178
   local -n _out="$1"
   _out=()
   [[ -n "${FETCH_NETRC:-}" ]] && _out+=(--fetch-netrc-file "$FETCH_NETRC")
-  if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+  if declare -p FETCH_HEADERS &>/dev/null && ((${#FETCH_HEADERS[@]} > 0)); then
     local _osh
     for _osh in "${FETCH_HEADERS[@]}"; do
       _out+=(--fetch-header "$_osh")
@@ -2346,7 +2349,7 @@ __dep_method_env_var__() {
   local _lifecycle="$1"
   local _method="${2:-${METHOD:-}}"
   local _m_key="${_method//-/_}"
-  printf 'OSPKG_MANIFEST_METHOD_%s_%s\n' "${_m_key^^}" "${_lifecycle}"
+  printf 'OSPKG_MANIFEST_METHOD_%s_%s\n' "${_m_key^^}" "${_lifecycle^^}"
 }
 
 __dep_option_env_var__() {
@@ -2407,7 +2410,7 @@ __dep_install_base__() {
   local _lc _var
   for _lc in build run; do
     _var="OSPKG_MANIFEST_BASE_${_lc^^}"
-    if declare -p "$_var" &>/dev/null; then
+    if __dep_manifest_var_set__ "$_var"; then
       __dep_install_from_env__ "$_var" "$_lc" "base" "$@"
     fi
   done
@@ -2419,7 +2422,7 @@ __dep_install_for_method__() {
   local _lc _var _pm_args=()
   for _lc in build run; do
     _var="$(__dep_method_env_var__ "$_lc")"
-    if ! declare -p "$_var" &>/dev/null; then
+    if ! __dep_manifest_var_set__ "$_var"; then
       continue
     fi
     if [[ "$_lc" == build ]] && ! users__is_privileged && [[ "$(os__kernel)" == "Linux" ]]; then
@@ -2438,7 +2441,7 @@ __dep_uninstall_for_method__() {
   METHOD="$_method"
   for _lc in build run; do
     _var="$(__dep_method_env_var__ "$_lc" "$_method")"
-    if declare -p "$_var" &>/dev/null; then
+    if __dep_manifest_var_set__ "$_var"; then
       __dep_uninstall_from_env__ "$_var" "$_lc" "method-${_method}"
     fi
   done
@@ -2483,7 +2486,7 @@ __dep_install_option__() {
   shift
   local _mvar
   _mvar="$(__dep_option_env_var__ "$_name")"
-  if ! declare -p "$_mvar" &>/dev/null; then
+  if ! __dep_manifest_var_set__ "$_mvar"; then
     logging__skip "No manifest option 'ospkg_manifest_option_${_name}'; skipping."
     return 0
   fi

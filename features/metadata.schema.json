@@ -1444,10 +1444,6 @@
             {"type": "array", "items": {"type": "string"}, "minItems": 1}
           ]
         },
-        "_normalize_escapes": {
-          "type": "boolean",
-          "description": "If true, strip backslash-escapes before '$' (\\\\$ → $) after the option value is read. Use when the default contains shell-variable expressions like \\\\${VAR} to prevent premature expansion by the devcontainer CLI."
-        },
         "_uri": {
           "description": "If true (or an object), the option value may be a URI (http(s)://, gh://, oci://, file://, or local path with optional #sha256 fragment). The generated install-script header will resolve it to a local filesystem path before running validations (including _path): under ${INSTALLER_DIR}/uri/<option>/ when installer_dir is enabled, otherwise under a private file__mktmpdir directory. For array options, each element is resolved. When object form is used, additional controls may be specified.",
           "oneOf": [

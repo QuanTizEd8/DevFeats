@@ -186,15 +186,6 @@ argparse__normalize_array() {
   _arr=("${_out[@]}")
 }
 
-argparse__normalize_escapes() {
-  # @brief argparse__normalize_escapes VAR — Strip backslash-escapes before '$' (\\$ → $) in place.
-  # The devcontainer CLI writes \\${VAR} defaults into Dockerfile ENV as "\\${VAR}"; Docker preserves
-  # the literal \\$ so the variable is not expanded. This normalises to ${VAR} so downstream code
-  # can treat the value as a plain shell expression.
-  local -n _ane_ref="$1"
-  _ane_ref="${_ane_ref//\\\$/\$}"
-}
-
 argparse__default_array_value() {
   # @brief argparse__default_array_value VAR VALUE — Sets array $VAR from multi-line VALUE if not already declared.
   #

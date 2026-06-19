@@ -414,7 +414,6 @@ class InstallScriptGenerator:
             "env_reads": "\n".join(env_reads),
             "defaults": self._generate_argparse_defaults(options),
             "normalize_arrays": self._generate_argparse_normalize_arrays(options),
-            "normalize_escapes": self._generate_argparse_normalize_escapes(options),
             "uri_resolution": self._generate_argparse_uri_resolution(options),
             "validations": self._generate_argparse_validations(options),
             "unexports": self._generate_argparse_unexports(options),
@@ -517,27 +516,6 @@ class InstallScriptGenerator:
                 continue
             vname = _opt_to_var(key)
             blocks.append(f"argparse__normalize_array {vname}")
-        return "\n".join(blocks)
-
-    def _generate_argparse_normalize_escapes(self, options: dict) -> str:
-        r"""Emit argparse__normalize_escapes for `_normalize_escapes: true` options.
-
-        These options use \${VAR} in their defaults to prevent the devcontainer CLI
-        from expanding shell expressions at build time; normalization strips the
-        leading backslash so downstream code receives a plain ${VAR} expression.
-        """
-        blocks: list[str] = []
-        for key, opt in options.items():
-            if not opt.get("_normalize_escapes"):
-                continue
-            if opt.get("type") == "array":
-                msg = (
-                    f"Option '{key}': _normalize_escapes is not"
-                    " supported for array options."
-                )
-                raise ValueError(msg)
-            vname = _opt_to_var(key)
-            blocks.append(f"argparse__normalize_escapes {vname}")
         return "\n".join(blocks)
 
     def _generate_argparse_validations(self, options: dict) -> str:

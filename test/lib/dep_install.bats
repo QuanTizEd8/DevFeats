@@ -7,7 +7,7 @@ setup_file() {
   load 'helpers/common'
 
   _DEP_FUNCS="$(
-    sed -n '2306,2492p' "${REPO_ROOT}/features/install.tmpl.bash"
+    sed -n '2306,2499p' "${REPO_ROOT}/features/install.tmpl.bash"
   )"
   [[ -n "${_DEP_FUNCS}" ]] || {
     echo "FATAL: could not extract dependency helpers from install.tmpl.bash" >&2
@@ -106,4 +106,26 @@ setup() {
   run __dep_install_for_method__
   assert_success
   [[ ! -f "${BATS_TEST_TMPDIR}/ospkg.log" ]]
+}
+
+@test "__dep_method_env_var__ uppercases method and lifecycle" {
+  METHOD="upstream-package"
+  [[ "$(__dep_method_env_var__ run)" == "OSPKG_MANIFEST_METHOD_UPSTREAM_PACKAGE_RUN" ]]
+  [[ "$(__dep_method_env_var__ build)" == "OSPKG_MANIFEST_METHOD_UPSTREAM_PACKAGE_BUILD" ]]
+}
+
+@test "__dep_install_for_method__ installs run deps for package method" {
+  METHOD="package"
+  OSPKG_MANIFEST_METHOD_PACKAGE_RUN=$'packages:\n- shfmt'
+  run __dep_install_for_method__
+  assert_success
+  grep -Fq 'shfmt' "${BATS_TEST_TMPDIR}/ospkg.log"
+}
+
+@test "__dep_fetch_extra_args__ tolerates unset FETCH_HEADERS under set -u" {
+  unset FETCH_HEADERS
+  local -a _args=()
+  run __dep_fetch_extra_args__ _args
+  assert_success
+  [[ ${#_args[@]} -eq 0 ]]
 }
