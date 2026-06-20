@@ -26,6 +26,20 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 [
   group('format'),
+  doc('Format all files: shell + Python.')
+]
+format: format-sh format-py
+
+
+[
+  group('format'),
+  doc('Check formatting of all files without writing.')
+]
+format-check: format-sh-check format-py-check
+
+
+[
+  group('format'),
   doc('Format shell files with shfmt; pass paths to limit scope.')
 ]
 format-sh *files:
@@ -56,21 +70,28 @@ format-py-check:
     pixi run --environment lint format-py-check
 
 
-[
-  group('format'),
-  doc('Format all files: shell + Python.')
-]
-format: format-sh format-py
-
-
-[
-  group('format'),
-  doc('Check formatting of all files without writing.')
-]
-format-check: format-sh-check format-py-check
-
-
 # ── Lint ──────────────────────────────────────────────────────────────────────
+
+[
+  group('lint'),
+  doc('Run all linters: shell + Python (check only, no writes).')
+]
+lint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    exec bash .dev/scripts/capture/composite.sh lint -- \
+      lint-sh-check -- bash .dev/scripts/lint/sh-check.sh \
+      lint-sh-local-vars -- bash .dev/scripts/lint/sh-local-vars.sh \
+      lint-py-check -- pixi run --environment lint lint-py-check
+
+
+[
+  group('lint'),
+  doc('Lint and fix Python files with ruff.')
+]
+lint-py *files:
+    just capture lint-py -- pixi run --environment lint lint-py {{ if files != "" { "-- " + files } else { "" } }}
+
 
 [
   group('lint'),
@@ -96,27 +117,6 @@ lint-py-check:
     just capture lint-py-check -- pixi run --environment lint lint-py-check
 
 
-[
-  group('lint'),
-  doc('Lint and fix Python files with ruff.')
-]
-lint-py *files:
-    just capture lint-py -- pixi run --environment lint lint-py {{ if files != "" { "-- " + files } else { "" } }}
-
-
-[
-  group('lint'),
-  doc('Run all linters: shell + Python (check only, no writes).')
-]
-lint:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    exec bash .dev/scripts/capture/composite.sh lint -- \
-      lint-sh-check -- bash .dev/scripts/lint/sh-check.sh \
-      lint-sh-local-vars -- bash .dev/scripts/lint/sh-local-vars.sh \
-      lint-py-check -- pixi run --environment lint lint-py-check
-
-
 # ── Work ──────────────────────────────────────────────────────────────────────
 
 [
@@ -127,6 +127,13 @@ work:
 
 
 # ── Sync ──────────────────────────────────────────────────────────────────────
+
+[
+  group('sync'),
+  doc('Run all sync tasks: sync-src, sync-tests.')
+]
+sync: sync-src sync-tests
+
 
 [
   group('sync'),
