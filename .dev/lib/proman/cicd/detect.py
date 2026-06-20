@@ -270,6 +270,60 @@ def compute_feature_matrix(
     return result
 
 
+def select_feature_test_ids(
+    changed: list[str],
+    all_feature_ids: list[str],
+    groups: dict[str, list[str]],
+) -> tuple[list[str], list[str]]:
+    """Select feature IDs for Linux and macOS scenario tests from changed paths.
+
+    When ``scenario_test`` patterns match, all discovered features (and all
+    macOS-capable features) are returned. Otherwise only features whose
+    ``features/<id>/`` or ``test/features/<id>/`` paths changed are included.
+    """
+    macos_all = [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
+    if any_match(changed, groups["scenario_test"]):
+        return sorted(all_feature_ids), sorted(macos_all)
+    linux = sorted(
+        f
+        for f in all_feature_ids
+        if any(
+            p.startswith((f"features/{f}/", f"test/features/{f}/"))
+            for p in changed
+        )
+    )
+    macos = sorted(
+        f
+        for f in macos_all
+        if any(
+            p.startswith((f"features/{f}/", f"test/features/{f}/"))
+            for p in changed
+        )
+    )
+    return linux, macos
+
+
+def merge_release_feature_test_ids(
+    features_to_release: list[dict[str, str]],
+    changed: list[str],
+    all_feature_ids: list[str],
+    groups: dict[str, list[str]],
+) -> tuple[list[str], list[str]]:
+    """Union releasable features with those touched by non-release path rules."""
+    changed_linux, changed_macos = select_feature_test_ids(
+        changed,
+        all_feature_ids,
+        groups,
+    )
+    released_set = {entry["feature"] for entry in features_to_release}
+    macos_all_set = {
+        d["feature"] for d in compute_macos_matrix(all_feature_ids)
+    }
+    linux = sorted(released_set | set(changed_linux))
+    macos = sorted(set(changed_macos) | (released_set & macos_all_set))
+    return linux, macos
+
+
 def apply_dispatch_feature_matrix_filters(
     matrix: list[dict],
     *,
@@ -982,12 +1036,14 @@ def main() -> None:
         LOG.info("force-gate: all jobs enabled; all features selected")
     elif is_release:
         run_lint = run_validate = run_unit = run_install = run_python = run_docs = True
-        released_set = {d["feature"] for d in features_to_release}
-        features = [f for f in all_feature_ids if f in released_set]
-        macos_all = [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
-        macos_capable_ids = [f for f in macos_all if f in released_set]
+        features, macos_capable_ids = merge_release_feature_test_ids(
+            features_to_release,
+            changed,
+            all_feature_ids,
+            groups,
+        )
         LOG.info(
-            "release-gate: all jobs enabled; testing releasable features only: %s",
+            "release-gate: all jobs enabled; testing releasable + changed features: %s",
             features,
         )
     else:
@@ -998,28 +1054,11 @@ def main() -> None:
         run_docs = any_match(changed, groups["docs"])
         run_python = any_match(changed, groups["python_test"])
 
-        if any_match(changed, groups["scenario_test"]):
-            features = all_feature_ids
-            macos_capable_ids = [
-                d["feature"] for d in compute_macos_matrix(all_feature_ids)
-            ]
-        else:
-            features = [
-                f
-                for f in all_feature_ids
-                if any(
-                    p.startswith((f"features/{f}/", f"test/features/{f}/"))
-                    for p in changed
-                )
-            ]
-            macos_capable_ids = [
-                f
-                for f in [d["feature"] for d in compute_macos_matrix(all_feature_ids)]
-                if any(
-                    p.startswith((f"features/{f}/", f"test/features/{f}/"))
-                    for p in changed
-                )
-            ]
+        features, macos_capable_ids = select_feature_test_ids(
+            changed,
+            all_feature_ids,
+            groups,
+        )
 
     LOG.info(
         "decision: run_lint='%s' run_validate='%s' run_unit='%s' run_install='%s'"

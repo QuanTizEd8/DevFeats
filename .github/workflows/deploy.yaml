@@ -35,11 +35,31 @@ jobs:
           name: ${{ fromJSON(inputs.config).artifact_src_name }}
           path: ${{ fromJSON(inputs.config).artifact_src_path }}
 
+      - name: Stage release features for GHCR
+        env:
+          FEATURES_JSON: ${{ toJSON(fromJSON(inputs.config).features) }}
+          SRC_PATH: ${{ fromJSON(inputs.config).artifact_src_path }}
+        run: |
+          set -euo pipefail
+          _stage=".local/deploy/features"
+          rm -rf "${_stage}"
+          mkdir -p "${_stage}"
+          _src="${SRC_PATH%/}"
+          while IFS= read -r _feat; do
+            [[ -n "${_feat}" ]] || continue
+            if [[ ! -d "${_src}/${_feat}" ]]; then
+              echo "⛔ Release feature source missing: ${_src}/${_feat}" >&2
+              exit 1
+            fi
+            cp -a "${_src}/${_feat}" "${_stage}/${_feat}"
+          done < <(echo "${FEATURES_JSON}" | jq -r '.[].feature')
+          echo "Staged $(find "${_stage}" -mindepth 1 -maxdepth 1 -type d | wc -l) feature(s) for GHCR publish." >&2
+
       - name: Publish Features to GHCR
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
         with:
           publish-features: "true"
-          base-path-to-features: ${{ fromJSON(inputs.config).features_src_path }}
+          base-path-to-features: .local/deploy/features
           disable-repo-tagging: "true"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

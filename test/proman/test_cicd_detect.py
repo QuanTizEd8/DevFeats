@@ -471,6 +471,96 @@ def test_apply_dispatch_feature_matrix_filters_keeps_macos_when_linux_off() -> N
     ]
 
 
+def test_select_feature_test_ids_shared_metadata_triggers_all(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify shared metadata changes match scenario_test and select all features."""
+    _use_tmp_repo(monkeypatch, tmp_path)
+    _write(tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n")
+    (tmp_path / "features" / "install-foo").mkdir(parents=True)
+    (tmp_path / "features" / "install-bar").mkdir(parents=True)
+    groups = {
+        "scenario_test": [
+            "features/install.sh",
+            "lib/**",
+            "features/metadata.shared.yaml",
+        ],
+    }
+    changed = ["features/metadata.shared.yaml"]
+    linux, macos = cd.select_feature_test_ids(
+        changed,
+        ["install-bar", "install-foo"],
+        groups,
+    )
+    assert linux == ["install-bar", "install-foo"]
+    assert macos == []
+
+
+def test_select_feature_test_ids_per_feature_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify a single feature metadata.yaml change selects only that feature."""
+    _use_tmp_repo(monkeypatch, tmp_path)
+    _write(tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n")
+    groups = {
+        "scenario_test": [
+            "features/install.sh",
+            "lib/**",
+            "features/metadata.shared.yaml",
+        ],
+    }
+    changed = ["features/install-foo/metadata.yaml"]
+    linux, macos = cd.select_feature_test_ids(
+        changed,
+        ["install-bar", "install-foo"],
+        groups,
+    )
+    assert linux == ["install-foo"]
+    assert macos == []
+
+
+def test_select_feature_test_ids_per_feature_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify unrelated feature paths select only the touched feature."""
+    _use_tmp_repo(monkeypatch, tmp_path)
+    _write(tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n")
+    groups = {"scenario_test": ["features/install.sh", "lib/**"]}
+    changed = ["features/install-foo/install.bash"]
+    linux, macos = cd.select_feature_test_ids(
+        changed,
+        ["install-bar", "install-foo"],
+        groups,
+    )
+    assert linux == ["install-foo"]
+    assert macos == []
+
+
+def test_merge_release_feature_test_ids_unions_changed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify release mode keeps path-selected features in addition to releasable ones."""
+    _use_tmp_repo(monkeypatch, tmp_path)
+    _write(tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n")
+    groups = {"scenario_test": ["features/install.sh", "lib/**"]}
+    releasable = [
+        {"feature": "install-foo", "version": "1.0.0", "tag": "install-foo/1.0.0"},
+    ]
+    changed = ["features/install-bar/metadata.yaml"]
+    linux, macos = cd.merge_release_feature_test_ids(
+        releasable,
+        changed,
+        ["install-bar", "install-foo"],
+        groups,
+    )
+    assert linux == ["install-bar", "install-foo"]
+    assert macos == []
+
+
 # ── compute_unit_env_matrix ───────────────────────────────────────────────────
 
 
