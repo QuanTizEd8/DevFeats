@@ -15,7 +15,6 @@ def _build(tag: str) -> int:
     config = load_config()
     dist_dir = config.absolute_path("ci.artifacts.dist.path")
     src_dir = config.absolute_path("path.src")
-    features_dir = config.absolute_path("path.features")
     feature_script = str(config["filename.feature_script"])
     feature_lib_dir = Path(str(config["path.feature_library"]))
     name_slug = str(config["name_slug"])
@@ -36,15 +35,17 @@ def _build(tag: str) -> int:
         shutil.rmtree(dist_dir)
     dist_dir.mkdir(parents=True)
 
-    feature_dirs = []
-    for install_bash in sorted(features_dir.glob(f"*/{feature_script}")):
-        name = install_bash.parent.name
-        src_feat = src_dir / name
-        if (src_feat / feature_script).exists():
-            feature_dirs.append(src_feat)
+    feature_dirs = sorted(
+        script.parent
+        for script in src_dir.glob(f"*/{feature_script}")
+        if (script.parent / "install.sh").is_file()
+    )
 
     if not feature_dirs:
-        print(f"No features with a {feature_script} found.", file=sys.stderr)
+        print(
+            f"No assembled features with install.sh and {feature_script} found in {src_rel}/.",
+            file=sys.stderr,
+        )
         return 1
 
     print(f"Found {len(feature_dirs)} features.", file=sys.stderr)
