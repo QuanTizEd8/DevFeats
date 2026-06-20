@@ -42,7 +42,7 @@ def _make_valid_config() -> dict:
         features_to_release=[],
         unit_env_matrix=[{"name": "ubuntu-24.04", "env": "ubuntu-latest"}],
         unit_macos_matrix=[{"runner": "macos-latest", "clean_path": True}],
-        install_env_matrix=[{"name": "ubuntu-24.04", "env": "ubuntu-24.04+bash"}],
+        install_env_matrix=[{"name": "ubuntu-24.04", "env": "ubuntu-24.04"}],
     )
 
 

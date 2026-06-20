@@ -1,2 +1,2 @@
 ubuntu-24.04:
-  env: ubuntu-24.04+bash
+  env: ubuntu-24.04
