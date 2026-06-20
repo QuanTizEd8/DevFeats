@@ -2201,9 +2201,9 @@ ospkg__run() {
     # Build-group snapshots diff the PM package list. Defer until after manifest
     # parse so top-level/nested `when` clauses can yield zero install actions (e.g.
     # Linux-only build deps on macOS) without calling the PM list command.
-    if [[ -n "$_build_group" ]] \
-      && [[ ${#_Y_PACKAGES[@]} -eq 0 && ${#_Y_GROUPS[@]} -eq 0 \
-      && ${#_Y_CASKS[@]} -eq 0 && ${#_Y_MODULES[@]} -eq 0 ]]; then
+    if [[ -n "$_build_group" ]] &&
+      [[ ${#_Y_PACKAGES[@]} -eq 0 && ${#_Y_GROUPS[@]} -eq 0 &&
+        ${#_Y_CASKS[@]} -eq 0 && ${#_Y_MODULES[@]} -eq 0 ]]; then
       logging__skip "Build group '${_build_group}': manifest has no install actions on this platform; skipping build-dep tracking."
       return 0
     fi

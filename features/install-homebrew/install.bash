@@ -190,7 +190,6 @@ __init_args_post() {
   fi
 }
 
-
 _ensure_linuxbrew_user() {
   # Create the linuxbrew system user if it does not yet exist.
   if id linuxbrew &> /dev/null; then
