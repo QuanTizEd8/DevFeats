@@ -39,6 +39,45 @@ The dev container configures VS Code automatically:
 - **YAML schema:** `features/metadata.schema.json` is registered for `features/*/metadata.yaml` files, enabling validation and autocompletion in the editor
 - **JSON schema:** `devcontainer-feature.json` schema is registered for generated feature output files
 - **Search/watcher excludes:** `.git/`, `__pycache__/`, `.pixi/` are excluded to keep VS Code responsive
+- **Docker credential helper disabled:** `dev.containers.dockerCredentialHelper` is set to `false` (see below)
+
+### Docker-in-Docker
+
+The dev container includes [Docker-in-Docker](https://github.com/devcontainers/features/tree/main/src/docker-in-docker): a Moby/Docker daemon runs **inside** the container, separate from the host. Feature tests and local workflows use this daemon via `docker run` / `docker build` (for example, `just test-feats` in standalone mode).
+
+By default, VS Code and Cursor Dev Containers inject a host credential bridge into `~/.docker/config.json`:
+
+```json
+{ "credsStore": "dev-containers-<uuid>" }
+```
+
+That helper talks to the IDE over IPC (`REMOTE_CONTAINERS_IPC`) and a temporary script under `/tmp`. It works in the IDE-attached terminal, but breaks in agent shells, background jobs, SSH, and after `/tmp` cleanup — producing errors like `error getting credentials` or `Cannot find module '/tmp/vscode-remote-containers-....js'` when pulling images.
+
+Host credential forwarding is also a poor fit for Docker-in-Docker: the inner daemon should authenticate on its own, not proxy the host's Docker login. The dev container therefore disables the bridge explicitly:
+
+```json
+"dev.containers.dockerCredentialHelper": false
+```
+
+This is the [official VS Code setting](https://github.com/microsoft/vscode-remote-release/issues/7982) for projects that manage registry auth inside the container.
+
+**Pulling public images** (Debian, Ubuntu, etc.) works without any extra setup.
+
+**Private registries** (for example GHCR) require a login inside the container against the inner daemon, for example:
+
+```bash
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
+```
+
+After changing `.devcontainer/.dev/devcontainer.json`, rebuild the container so the setting takes effect and any stale `credsStore` entry is not re-injected.
+
+**Already in a running container?** You do not need a full rebuild. Run:
+
+```bash
+bash .dev/scripts/devcontainer/strip-docker-credential-helper.sh
+```
+
+That removes a stale `dev-containers-*` `credsStore` immediately. A **Reload Window** or reconnect is enough for `postAttachCommand` (which runs the same script) to keep it clean on future attaches — no image rebuild required.
 
 ## Rebuilding the Container
 

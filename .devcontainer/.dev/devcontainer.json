@@ -94,9 +94,17 @@
     "pixi_install": "pixi install --all",
     "sync_src": "just sync-src"
   },
+  // Strip IDE-injected credsStore after attach (until dockerCredentialHelper:false
+  // is picked up). No image rebuild required — runs on reload/reconnect.
+  "postAttachCommand": "bash ${containerWorkspaceFolder}/.dev/scripts/devcontainer/strip-docker-credential-helper.sh",
   "customizations": {
     "vscode": {
       "settings": {
+        // Docker-in-Docker runs an independent daemon inside the container; host
+        // credential forwarding via dev-containers-* credsStore breaks in agent
+        // terminals, background jobs, and after /tmp cleanup (missing IPC script).
+        // See: https://github.com/microsoft/vscode-remote-release/issues/7982
+        "dev.containers.dockerCredentialHelper": false,
         // ── File Watcher / Search Excludes ──────────────────────────────────────
         // Prevents virtiofs cross-VM inotify storms on large/generated directories
         "files.watcherExclude": {
