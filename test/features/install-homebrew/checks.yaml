@@ -51,9 +51,9 @@ apt_default:
         echo "=== login PATH ==="
         bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
 
-plat.machine_release:
+arch:
   description: |
-    plat.machine_release: all defaults on Arch Linux (Pacman).
+    arch: all defaults on Arch Linux (Pacman).
     Verifies that Homebrew installs under /home/linuxbrew/.linuxbrew, brew is
     functional, and shellenv blocks are written to the appropriate system-wide
     startup files (Case A: root + Linux).
