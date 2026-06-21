@@ -38,6 +38,7 @@ setup() {
 
 @test "ctx: compare eq case-insensitive" {
   ctx__set plat.kernel=linux
+  _CTX__REGISTRY_INITIALIZED=true
   ctx__compare plat.kernel eq Linux
 }
 
