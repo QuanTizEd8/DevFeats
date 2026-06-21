@@ -2944,6 +2944,29 @@ _setup_resolve_version() {
 # ospkg__run version resolution
 # ==============================
 
+@test "ospkg__run: channel selector in feat.version installs unpinned package" {
+  _seed_apt_context
+  _stub_ospkg_privilege_ok
+  printf '#!/bin/sh\nprintf "bash:\n  Installed: (none)\n  Candidate: 5.2.21-2ubuntu1\n"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
+  cat > "${BATS_TEST_TMPDIR}/bin/yq" << 'YQ_EOF'
+#!/bin/sh
+printf '{"packages":[{"name":"bash","version":"stable"}]}\n'
+YQ_EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
+  local _manifest
+  _manifest="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
+  printf 'packages:\n- name: bash\n  version: "{feat.version}"\n' > "${_manifest}"
+  ctx__set feat.version=stable
+  _CTX__REGISTRY_INITIALIZED=true
+  run ospkg__run --manifest "${_manifest}" --update --dry_run
+  assert_success
+  assert_output --partial "bash"
+  assert_output --partial "Installing 1 package"
+  refute_output --partial "bash=stable"
+}
+
 @test "ospkg__run: resolves version spec to PM-native version string before install" {
   _seed_apt_context
   _stub_ospkg_privilege_ok

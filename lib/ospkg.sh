@@ -1515,6 +1515,15 @@ ospkg__has_rdeps() {
   [[ -n "${_out:-}" ]]
 }
 
+_ospkg__normalize_pkg_version_spec() {
+  # Channel selectors in feat.version mean "install whatever the PM provides" for
+  # package/upstream-package methods (see __dep_pm_extra_args__ before ctx refactor).
+  case "${1:-}" in
+    '' | stable | latest) printf '' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
 ospkg__resolve_version() {
   # @brief ospkg__resolve_version <package> <spec> — Resolve a version spec to the exact PM version string available in the repository.
   #
@@ -2391,6 +2400,7 @@ ospkg__run() {
       _pkgflags="$(printf '%s' "$_pkgitem" | json__query -r '.flags // empty')"
       _pkgversion="$(printf '%s' "$_pkgitem" | json__query -r '.version // empty')"
       _pkgversion="$(ctx__expand_pattern "${_pkgversion}")"
+      _pkgversion="$(_ospkg__normalize_pkg_version_spec "${_pkgversion}")"
       [[ -z "${_pkgname:-}" ]] && continue
 
       # Apply version constraint (PM-native syntax).
