@@ -6,6 +6,9 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
+  load 'helpers/ctx'
+  reload_lib sys_req.sh
+  ctx_test__reset
 }
 
 # ---------------------------------------------------------------------------
@@ -13,55 +16,50 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "sys_req__require_platform: succeeds when first spec group matches" {
-  os__match_spec() { [[ "$1" == "id=debian" ]]; }
-  export -f os__match_spec
-  run sys_req__require_platform -- id=debian
+  ctx_test__seed_os id=debian
+  run sys_req__require_platform $'os.id: debian'
   assert_success
 }
 
 @test "sys_req__require_platform: succeeds when second spec group matches" {
-  os__match_spec() { [[ "$1" == "id=ubuntu" ]]; }
-  export -f os__match_spec
-  run sys_req__require_platform -- id=debian -- id=ubuntu
+  ctx_test__seed_os id=ubuntu
+  run sys_req__require_platform $'os.id: debian' $'os.id: ubuntu'
   assert_success
 }
 
 @test "sys_req__require_platform: fails when no spec group matches" {
-  os__match_spec() { return 1; }
-  export -f os__match_spec
-  run --separate-stderr sys_req__require_platform -- id=debian
+  ctx_test__reset
+  ctx_test__seed_os id=alpine
+  run --separate-stderr sys_req__require_platform $'os.id: debian'
   assert_failure
-  [[ "${stderr}" =~ "id=debian" ]]
+  [[ "${stderr}" =~ "os.id: debian" ]]
 }
 
 @test "sys_req__require_platform: error message lists all groups" {
-  os__match_spec() { return 1; }
-  export -f os__match_spec
-  run --separate-stderr sys_req__require_platform -- id=debian -- id=ubuntu
+  ctx_test__reset
+  ctx_test__seed_os id=alpine
+  run --separate-stderr sys_req__require_platform $'os.id: debian' $'os.id: ubuntu'
   assert_failure
-  [[ "${stderr}" =~ "id=debian" ]]
-  [[ "${stderr}" =~ "id=ubuntu" ]]
+  [[ "${stderr}" =~ "os.id: debian" ]]
+  [[ "${stderr}" =~ "os.id: ubuntu" ]]
 }
 
 @test "sys_req__require_platform: AND logic within a group" {
-  # Both keys must match for the group to match.
-  os__match_spec() {
-    [[ "$1" == "id=debian" && "$2" == "arch=amd64" ]]
-  }
-  export -f os__match_spec
-  run sys_req__require_platform -- id=debian arch=amd64
+  ctx_test__seed_os id=debian
+  ctx_test__seed_plat machine_release=amd64
+  run sys_req__require_platform $'os.id: debian\nplat.machine_release: amd64'
   assert_success
 }
 
 @test "sys_req__require_platform: stops at first matching group" {
   local _calls=0
-  os__match_spec() {
+  ctx__match_spec() {
     (( _calls++ )) || true
-    [[ "$1" == "id=debian" ]]
+    [[ "$1" == $'os.id: debian' ]]
   }
-  export -f os__match_spec
-  run sys_req__require_platform -- id=debian -- id=ubuntu
-  assert_success
+  export -f ctx__match_spec
+  sys_req__require_platform $'os.id: debian' $'os.id: ubuntu'
+  [ "${_calls}" -eq 1 ]
 }
 
 # ---------------------------------------------------------------------------
@@ -88,42 +86,41 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "sys_req__require_root: succeeds when platform matches and privileged" {
-  os__match_spec() { [[ "$1" == "id=debian" ]]; }
+  ctx_test__seed_os id=debian
   users__is_privileged() { return 0; }
-  export -f os__match_spec users__is_privileged
-  run sys_req__require_root -- id=debian
+  export -f users__is_privileged
+  run sys_req__require_root $'os.id: debian'
   assert_success
 }
 
 @test "sys_req__require_root: fails when platform matches and not privileged" {
-  os__match_spec() { [[ "$1" == "id=debian" ]]; }
+  ctx_test__seed_os id=debian
   users__is_privileged() { return 1; }
-  export -f os__match_spec users__is_privileged
-  run --separate-stderr sys_req__require_root -- id=debian
+  export -f users__is_privileged
+  run --separate-stderr sys_req__require_root $'os.id: debian'
   assert_failure
   [[ "${stderr}" =~ "root" ]]
 }
 
 @test "sys_req__require_root: succeeds when platform does not match even if not privileged" {
-  os__match_spec() { return 1; }
   users__is_privileged() { return 1; }
-  export -f os__match_spec users__is_privileged
-  run sys_req__require_root -- id=debian
+  export -f users__is_privileged
+  run sys_req__require_root $'os.id: debian'
   assert_success
 }
 
 @test "sys_req__require_root: succeeds when second spec group matches and privileged" {
-  os__match_spec() { [[ "$1" == "id=ubuntu" ]]; }
+  ctx_test__seed_os id=ubuntu
   users__is_privileged() { return 0; }
-  export -f os__match_spec users__is_privileged
-  run sys_req__require_root -- id=debian -- id=ubuntu
+  export -f users__is_privileged
+  run sys_req__require_root $'os.id: debian' $'os.id: ubuntu'
   assert_success
 }
 
 @test "sys_req__require_root: fails when second spec group matches and not privileged" {
-  os__match_spec() { [[ "$1" == "id=ubuntu" ]]; }
+  ctx_test__seed_os id=ubuntu
   users__is_privileged() { return 1; }
-  export -f os__match_spec users__is_privileged
-  run sys_req__require_root -- id=debian -- id=ubuntu
+  export -f users__is_privileged
+  run sys_req__require_root $'os.id: debian' $'os.id: ubuntu'
   assert_failure
 }

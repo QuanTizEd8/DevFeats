@@ -1,0 +1,153 @@
+- name: empty_when_matches
+  ctx: {}
+  when: ""
+  expect: true
+
+- name: layer1_or_second_group
+  ctx:
+    plat.kernel: darwin
+    plat.machine_release: arm64
+  when: |
+    - plat.machine_release: amd64
+    - plat.kernel: darwin
+  expect: true
+
+- name: layer2_and_both_keys
+  ctx:
+    plat.kernel: linux
+    plat.machine_release: amd64
+    os.id: ubuntu
+  when: |
+    plat.kernel: linux
+    plat.machine_release: amd64
+  expect: true
+
+- name: eq_scalar_case_insensitive
+  ctx:
+    plat.kernel: linux
+  when: |
+    plat.kernel: Linux
+  expect: true
+
+- name: eq_array_or_pm
+  ctx:
+    plat.pm: apt
+  when: |
+    plat.pm: [apt, apk]
+  expect: true
+
+- name: ne_scalar_pm
+  ctx:
+    plat.pm: apt
+  when: |
+    plat.pm:
+      ne: dnf
+  expect: true
+
+- name: ne_array_exclude
+  ctx:
+    plat.pm: apt
+  when: |
+    plat.pm:
+      ne: [dnf, yum]
+  expect: true
+
+- name: multi_op_and_version_range
+  ctx:
+    feat.version: 1.5.0
+  when: |
+    feat.version:
+      gte: "1.0"
+      lt: "2.0"
+  expect: true
+
+- name: eq_ne_mix
+  ctx:
+    plat.pm: apt
+  when: |
+    plat.pm:
+      eq: [apt, apk]
+      ne: dnf
+  expect: true
+
+- name: ordering_prerelease_lt_release
+  ctx:
+    feat.version: 1.0.0-rc1
+  when: |
+    feat.version:
+      lt: "1.0.0"
+  expect: true
+
+- name: ordering_fail_closed_unparseable
+  ctx:
+    feat.version: stable
+  when: |
+    feat.version:
+      gte: "1.0"
+  expect: false
+
+- name: os_version_id_major_gte
+  ctx:
+    os.version_id_major: "22"
+  when: |
+    os.version_id_major:
+      gte: "22"
+  expect: true
+
+- name: id_like_token_eq
+  ctx:
+    os.id_like: rhel centos fedora
+  when: |
+    os.id_like: rhel
+  expect: true
+
+- name: id_like_token_ne
+  ctx:
+    os.id_like: rhel centos fedora
+  when: |
+    os.id_like:
+      ne: debian
+  expect: true
+
+- name: feat_tag_eq
+  ctx:
+    feat.tag: v2.0.0
+  when: |
+    feat.tag: v2.0.0
+  expect: true
+
+- name: feat_version_input_eq
+  ctx:
+    feat.version_input: stable
+  when: |
+    feat.version_input: stable
+  expect: true
+
+- name: feat_method_eq
+  ctx:
+    feat.method: binary
+  when: |
+    feat.method: binary
+  expect: true
+
+- name: feat_prefix_eq
+  ctx:
+    feat.prefix: /usr/local
+  when: |
+    feat.prefix: /usr/local
+  expect: true
+
+- name: feat_version_eq
+  ctx:
+    feat.version: 1.7.1
+  when: |
+    feat.version: 1.7.1
+  expect: true
+
+- name: impossible_and
+  ctx:
+    plat.kernel: linux
+  when: |
+    plat.kernel: linux
+    plat.pm: apk
+  expect: false

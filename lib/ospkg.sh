@@ -23,8 +23,8 @@ _OSPKG__PREFER_LINUXBREW=false
 # DNF mark subcommand names; overridden to "user"/"dependency" for DNF5.
 _OSPKG__DNF_MARK_USER="install"
 _OSPKG__DNF_MARK_DEP="remove"
-declare -gA _OSPKG__OS_RELEASE=()
-declare -gA _OSPKG__EXTRA_VARS=()
+_OSPKG__PM_KEY=""
+_OSPKG__DEB_ARCH=""
 
 _ospkg__clean_apk() {
   # @brief _ospkg__clean_apk — Remove the Alpine APK package cache (`/var/cache/apk/*`).
@@ -252,36 +252,11 @@ _ospkg__install_key_by_fingerprint() {
   verify__gpg_fetch_key_by_fingerprint "$_fingerprint" "$_dest" "devfeats-ospkg-internals"
 }
 
-_ospkg__expand_content_vars() {
-  # @brief _ospkg__expand_content_vars <content> — Expand `{KEY}` tokens and conditionals in `<content>`.
-  #
-  # Delegates to `str__expand_pattern` with key-value pairs from `_OSPKG__EXTRA_VARS`
-  # (higher priority) and `_OSPKG__OS_RELEASE`. Supports `{KEY}` substitution and
-  # nestable `{KEY==VALUE?TRUE:FALSE}` conditionals. Unknown tokens pass through
-  # unchanged. Prints the result without a trailing newline.
-  #
-  # Args:
-  #   <content>  String containing zero or more `{KEY}` or conditional tokens.
-  #
-  # Stdout: expanded string without trailing newline.
-  local _content="$1"
-  local -a _kvs=()
-  local _k
-  for _k in "${!_OSPKG__EXTRA_VARS[@]}"; do
-    _kvs+=("${_k}=${_OSPKG__EXTRA_VARS[$_k]}")
-  done
-  for _k in "${!_OSPKG__OS_RELEASE[@]}"; do
-    _kvs+=("${_k}=${_OSPKG__OS_RELEASE[$_k]}")
-  done
-  str__expand_pattern "${_content}" "${_kvs[@]}"
-  return 0
-}
-
 _ospkg__install_repo_content() {
   # @brief _ospkg__install_repo_content <content> — Append expanded repository configuration `<content>` to the appropriate PM config file for the current OS.
   #
-  # Calls `_ospkg__expand_content_vars` to substitute `{KEY}` tokens before
-  # writing. Routes to the correct file based on `_OSPKG__FAMILY`:
+  # Substitutes `{qualified.key}` tokens via `ctx__expand_pattern` before writing.
+  # Routes to the correct file based on `_OSPKG__FAMILY`:
   #   apt     → `/etc/apt/sources.list.d/syspkg-installer.list`
   #   apk     → `/etc/apk/repositories` (one repo URL per non-blank line)
   #   dnf/yum → `/etc/yum.repos.d/syspkg-installer.repo`
@@ -295,7 +270,7 @@ _ospkg__install_repo_content() {
   #
   # Returns: 0 always.
   local _content
-  _content="$(_ospkg__expand_content_vars "$1")"
+  _content="$(ctx__expand_pattern "$1")"
   if [[ "$_OSPKG__FAMILY" = "apt" ]]; then
     printf '%s' "$_content" | file__append_privileged /etc/apt/sources.list.d/syspkg-installer.list
     logging__info "Appended to /etc/apt/sources.list.d/syspkg-installer.list"
@@ -363,11 +338,10 @@ _ospkg__brew_run() {
 
 _ospkg__configure_pm() {
   # _ospkg__configure_pm <label> <family> <pm> <pm_key> <clean_fn> <lists_path> <lists_pattern>
-  # Sets all scalar PM globals; callers assign _OSPKG__UPDATE and _OSPKG__INSTALL arrays themselves.
   logging__detect "Detected ecosystem: $1"
   _OSPKG__FAMILY="$2"
   _OSPKG__PKG_MNGR="$3"
-  _OSPKG__OS_RELEASE[pm]="$4"
+  _OSPKG__PM_KEY="$4"
   _OSPKG__CLEAN="$5"
   _OSPKG__LISTS_PATH="$6"
   _OSPKG__LISTS_PATTERN="$7"
@@ -381,7 +355,7 @@ _ospkg__set_apt() {
   # dpkg --force-depends removes the package without cascade-removing reverse-dependents.
   # Use for binary-replacement: dependents stay installed with a temporarily broken dep.
   _OSPKG__REMOVE_FORCE=(users__run_privileged dpkg --purge --force-depends)
-  _OSPKG__OS_RELEASE[deb_arch]="$(dpkg --print-architecture 2> /dev/null || uname -m)"
+  _OSPKG__DEB_ARCH="$(dpkg --print-architecture 2> /dev/null || uname -m)"
 }
 
 _ospkg__set_apk() {
@@ -453,73 +427,24 @@ _ospkg__set_brew() {
   _OSPKG__REMOVE_FORCE=(_ospkg__brew_run uninstall --ignore-dependencies)
 }
 
-_ospkg__load_linux_release() {
-  # _ospkg__load_linux_release
-  # Parses /etc/os-release into _OSPKG__OS_RELEASE (merges; does not overwrite pm).
-  if [[ -f /etc/os-release ]]; then
-    local _key _val
-    while IFS='=' read -r _key _val; do
-      [[ -z "${_key-}" || "$_key" =~ ^# ]] && continue
-      _val="${_val#\"}"
-      _val="${_val%\"}"
-      _val="${_val#\'}"
-      _val="${_val%\'}"
-      [[ "$_key" == "pm" ]] && continue # never overwrite pm
-      _OSPKG__OS_RELEASE["${_key,,}"]="$_val"
-    done < /etc/os-release
-  fi
-  _OSPKG__OS_RELEASE[kernel]="linux"
-  _OSPKG__OS_RELEASE[arch]="$(os__release_arch 2> /dev/null || os__arch)"
-  if [[ -n "${_OSPKG__OS_RELEASE[version_id]-}" ]]; then
-    _OSPKG__OS_RELEASE[version_id_major]="${_OSPKG__OS_RELEASE[version_id]%%.*}"
-    if [[ "${_OSPKG__OS_RELEASE[version_id]}" == *.*.* ]]; then
-      _OSPKG__OS_RELEASE[version_id_mm]="${_OSPKG__OS_RELEASE[version_id]%.*}"
-    else
-      _OSPKG__OS_RELEASE[version_id_mm]="${_OSPKG__OS_RELEASE[version_id]}"
-    fi
-  fi
-  logging__inspect "OS context: pm=${_OSPKG__OS_RELEASE[pm]-} arch=${_OSPKG__OS_RELEASE[arch]-} id=${_OSPKG__OS_RELEASE[id]-} id_like=${_OSPKG__OS_RELEASE[id_like]-} version_id=${_OSPKG__OS_RELEASE[version_id]-} version_codename=${_OSPKG__OS_RELEASE[version_codename]-}"
-  return 0
-}
-
 ospkg__detect() {
-  # @brief ospkg__detect — Detect the package manager and populate internal state. Idempotent; called automatically by all other `ospkg__*` functions.
-  #
-  # Respects `_OSPKG__PREFER_LINUXBREW`: when true, brew is checked before the
-  # native Linux PM chain (no effect on macOS where brew is always used).
-  #
-  # Returns: 0 on success, 1 if no supported package manager is found.
+  # @brief ospkg__detect — Detect the package manager. Idempotent; PM-only (no os-release parsing).
   [[ "$_OSPKG__DETECTED" == true ]] && return 0
 
-  local _kernel
-  _kernel="$(uname -s)"
-
-  if [[ "$_kernel" == "Darwin" ]]; then
-    _OSPKG__OS_RELEASE[kernel]="darwin"
-    _OSPKG__OS_RELEASE[id]="macos"
-    _OSPKG__OS_RELEASE[id_like]="macos"
-    _OSPKG__OS_RELEASE[version_id]="$(sw_vers -productVersion 2> /dev/null || echo "")"
-    _OSPKG__OS_RELEASE[arch]="$(os__release_arch 2> /dev/null || os__arch)"
-    # macOS: Homebrew is the only supported package manager; configure it when
-    # available. Callers that need to install packages will discover brew is
-    # absent and fail at that point — not here during OS detection.
+  if [[ "$(uname -s)" == "Darwin" ]]; then
     if type brew > /dev/null 2>&1; then
       _ospkg__set_brew "macOS"
     fi
-    logging__inspect "OS context: pm=${_OSPKG__PKG_MNGR:-none} arch=${_OSPKG__OS_RELEASE[arch]-} id=macos version_id=${_OSPKG__OS_RELEASE[version_id]-}"
     _OSPKG__DETECTED=true
     return 0
   fi
 
-  # Linux: optionally prefer Linuxbrew before the native PM chain.
   if [[ "${_OSPKG__PREFER_LINUXBREW:-false}" == "true" ]] && type brew > /dev/null 2>&1; then
     _ospkg__set_brew "Linux/Linuxbrew"
-    _ospkg__load_linux_release
     _OSPKG__DETECTED=true
     return 0
   fi
 
-  # Linux: standard native PM detection chain.
   if type apt-get > /dev/null 2>&1; then
     _ospkg__set_apt
   elif type apk > /dev/null 2>&1; then
@@ -541,7 +466,6 @@ ospkg__detect() {
     return 1
   fi
 
-  _ospkg__load_linux_release
   _OSPKG__DETECTED=true
   return 0
 }
@@ -596,19 +520,6 @@ ospkg__is_managed() {
       ;;
     *) return 1 ;;
   esac
-}
-
-ospkg__os_release_match() {
-  # @brief ospkg__os_release_match <key> <value> — Return 0 if the detected OS context has the given key=value. Case-insensitive.
-  #
-  # Calls `ospkg__detect` (idempotent). Does not spawn a subshell; suitable for
-  # use directly in conditionals and loops.
-  # Supported keys: kernel, arch, id, id_like, pm, version_id, version_codename,
-  # and any /etc/os-release field.
-  #
-  # Returns: 0 if the key matches the value, 1 otherwise.
-  ospkg__detect
-  [[ "${_OSPKG__OS_RELEASE[$1],,}" == "${2,,}" ]]
 }
 
 _ospkg__assert_privilege() {
@@ -850,7 +761,7 @@ ospkg__clean() {
 ospkg__parse_manifest_yaml() {
   # @brief ospkg__parse_manifest_yaml <json-file> — Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout.
   #
-  # Requires jq in PATH and _OSPKG__OS_RELEASE populated by ospkg__detect.
+  # Requires jq in PATH and context populated via `_ctx__ensure_registry` / `ctx__set`.
   # Each record is a compact JSON object with a "kind" field.
   #
   # Output record kinds:
@@ -873,21 +784,12 @@ ospkg__parse_manifest_yaml() {
   #
   # Returns: 0 on success.
   local _json_file="$1"
+  local _ctx_json _pm
+  _ctx_json="$(ctx__json)"
+  _pm="$(ctx__get plat.pm)"
+  [[ -n "${_pm}" ]] || _pm="${_OSPKG__PM_KEY:-${_OSPKG__FAMILY:-}}"
 
-  # Build a full JSON context object from _OSPKG__OS_RELEASE so that every
-  # /etc/os-release key (including version_codename, pretty_name, etc.) plus
-  # the synthetic keys (pm, arch, kernel) is available in `when` clauses.
-  local _ctx_json _k
-  # shellcheck disable=SC2016
-  _ctx_json="$(
-    for _k in "${!_OSPKG__OS_RELEASE[@]}"; do
-      printf '%s\n' "$_k" "${_OSPKG__OS_RELEASE[$_k]}"
-    done | json__query -Rn '[inputs] | [range(0; length; 2) as $i | {key: .[$i], value: .[$i + 1]}] | from_entries'
-  )"
-
-  local _pm="${_OSPKG__OS_RELEASE[pm]:-${_OSPKG__FAMILY}}"
-
-  json__query -c \
+  json__query -c -L "${_OSPKG__LIB_DIR}" \
     --argjson ctx "$_ctx_json" \
     --arg pm "$_pm" \
     -f "${_OSPKG__LIB_DIR}/ospkg-manifest.jq" \
@@ -1966,7 +1868,6 @@ ospkg__run() {
   local _do_pkg_update=false _do_remove=false _fail_if_installed=false
   local _fetch_netrc_file=''
   local -a _fetch_headers=()
-  _OSPKG__EXTRA_VARS=()
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -2028,12 +1929,6 @@ ospkg__run() {
       --fail-if-installed)
         shift
         _fail_if_installed=true
-        ;;
-      --extra-var)
-        shift
-        local _ev_key="${1%%=*}" _ev_val="${1#*=}"
-        _OSPKG__EXTRA_VARS["${_ev_key}"]="${_ev_val}"
-        shift
         ;;
 
       *)
@@ -2267,8 +2162,8 @@ ospkg__run() {
         _kdearmor="$(printf '%s' "$_kitem" | json__query -r 'if .dearmor == true then "true" elif .dearmor == false then "false" else "auto" end')"
         _kfp="$(printf '%s' "$_kitem" | json__query -r '.fingerprint // empty')"
         # Expand ${token} substitutions in url and dest.
-        _kurl="$(_ospkg__expand_content_vars "${_kurl}")"
-        _kdest="$(_ospkg__expand_content_vars "${_kdest}")"
+        _kurl="$(ctx__expand_pattern "${_kurl}")"
+        _kdest="$(ctx__expand_pattern "${_kdest}")"
         _keff="$(_ospkg__key_effective_path "$_kdest" "$_kdearmor")"
         if [[ "$_dry_run" == true ]]; then
           if [[ -n "${_kfp:-}" && -z "${_kurl:-}" ]]; then
@@ -2495,7 +2390,7 @@ ospkg__run() {
       _pkgname="$(printf '%s' "$_pkgitem" | json__query -r '.name')"
       _pkgflags="$(printf '%s' "$_pkgitem" | json__query -r '.flags // empty')"
       _pkgversion="$(printf '%s' "$_pkgitem" | json__query -r '.version // empty')"
-      _pkgversion="$(_ospkg__expand_content_vars "${_pkgversion}")"
+      _pkgversion="$(ctx__expand_pattern "${_pkgversion}")"
       [[ -z "${_pkgname:-}" ]] && continue
 
       # Apply version constraint (PM-native syntax).
@@ -2580,7 +2475,7 @@ ospkg__run() {
         local _caskitem _cask
         for _caskitem in "${_Y_CASKS[@]}"; do
           _cask="$(printf '%s' "$_caskitem" | json__query -r '.cask')"
-          _cask="$(_ospkg__expand_content_vars "${_cask}")"
+          _cask="$(ctx__expand_pattern "${_cask}")"
           if [[ "$_dry_run" == true ]]; then
             logging__inspect "[dry-run] cask: would run: brew install --cask '${_cask}'"
           else

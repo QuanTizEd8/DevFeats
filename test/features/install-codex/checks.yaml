@@ -3,7 +3,7 @@
 binary_latest:
   description: |
     method=binary, version=latest: direct binary download from GitHub releases
-    (codex-{RUST_TRIPLE}.tar.gz).  Verifies codex is installed at
+    (codex-{plat.rust_triple}.tar.gz).  Verifies codex is installed at
     /usr/local/bin/codex and reports a semver.
   pre: |
     echo "=== which codex ==="
@@ -120,7 +120,7 @@ auto_npm_bundled:
 auto_binary_npm_present:
   description: |
     method=auto on amd64 with npm pre-installed: __resolve_method selects binary
-    because binary's when: condition (arch: [amd64, arm64]) is satisfied.  npm
+    because binary's when: condition (plat.machine_release: [amd64, arm64]) is satisfied.  npm
     is present but not chosen — verifies binary takes priority over npm.
   pre: |
     echo "=== which codex ==="

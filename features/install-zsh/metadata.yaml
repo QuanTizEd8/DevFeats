@@ -16,7 +16,7 @@ _options:
   version:
     resolution: sidecar
     uri: "https://www.zsh.org/pub/SHA256SUM"
-    pattern: "zsh-{VERSION}.tar.xz"
+    pattern: "zsh-[version].tar.xz"
     default: stable
     flag: --version
     proposals:
@@ -28,9 +28,9 @@ _options:
     package:
       registers_as: zsh
     source:
-      asset_uri: "https://www.zsh.org/pub/zsh-{VERSION}.tar.xz"
+      asset_uri: "https://www.zsh.org/pub/zsh-{feat.version}.tar.xz"
       sidecar_uri: "https://www.zsh.org/pub/SHA256SUM"
-      fallback_asset_uri: "https://www.zsh.org/pub/old/zsh-{VERSION}.tar.xz"
+      fallback_asset_uri: "https://www.zsh.org/pub/old/zsh-{feat.version}.tar.xz"
       build_system: autotools
       configure_args:
         - "--with-term-lib=ncursesw ncurses curses termcap"
@@ -50,7 +50,7 @@ _dependencies:
     method-package:
       packages:
         - name: zsh
-          version: "{VERSION}"
+          version: "{feat.version}"
   build:
     method-source:
       apt:

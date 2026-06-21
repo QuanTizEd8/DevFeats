@@ -215,15 +215,15 @@ _dependencies:
   run:
     base:
       packages:
-        - when: {pm: apt}
+        - when: {plat.pm: apt}
           packages: [locales]
-        - when: {pm: apk}
+        - when: {plat.pm: apk}
           packages: [musl-locales, musl-locales-lang]
-        - when: {pm: [dnf, yum]}
+        - when: {plat.pm: [dnf, yum]}
           packages: [glibc-langpack-en]
-        - when: {pm: zypper}
+        - when: {plat.pm: zypper}
           packages: [glibc-i18ndata]
-        - when: {pm: pacman}
+        - when: {plat.pm: pacman}
           packages: [glibc]
 
       scripts: |

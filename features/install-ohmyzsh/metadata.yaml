@@ -110,7 +110,7 @@ _options:
       uri: "https://github.com/ohmyzsh/ohmyzsh"
       config:
         oh-my-zsh.remote: origin
-        oh-my-zsh.branch: "{VERSION}"
+        oh-my-zsh.branch: "{feat.version}"
   prefix:
     root: /usr/local/share/oh-my-zsh
     nonroot: "${HOME}/.oh-my-zsh"

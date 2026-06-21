@@ -33,13 +33,13 @@ _options:
         description: uv v0.6.0.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/uv-{RUST_TRIPLE}.tar.gz"
-      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/uv-{RUST_TRIPLE}.tar.gz.sha256"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/uv-{plat.rust_triple}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/uv-{plat.rust_triple}.tar.gz.sha256"
       binary_src:
         - uv
         - uvx
     package:
-      when: {pm: [brew, dnf, apk, pacman, zypper]}
+      when: {plat.pm: [brew, dnf, apk, pacman, zypper]}
   prefix:
     bins: [uv, uvx]
     applies_when:

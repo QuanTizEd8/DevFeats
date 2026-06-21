@@ -73,13 +73,13 @@ _require_manifest_prereqs() {
 #
 # Reloads ospkg.sh, fakes the PM binary using a restricted PATH so
 # ospkg__detect picks exactly the right PM, then restores the real PATH with
-# the fake dir prepended.  Manually overrides _OSPKG__OS_RELEASE fields for
-# cross-platform testing from any distro container.  Overrides
-# bootstrap__yq to use the pre-installed yq binary cached in setup_file().
+# the fake dir prepended.  Seeds the unified ctx registry for cross-platform
+# manifest tests.  Overrides bootstrap__yq to use the pre-installed yq binary
+# cached in setup_file().
 _seed_context() {
   local _pm="$1" _id="$2" _id_like="${3:-}" _version_id="${4:-}"
 
-  reload_lib ospkg.sh
+  reload_lib ospkg.sh ctx.sh
 
   # Create only the target PM binary and a uname stub in the fake bin dir.
   create_fake_bin "uname" "Linux"
@@ -99,10 +99,14 @@ _seed_context() {
   # Restore PATH with fake bins prepended for subsequent commands (ospkg__run).
   prepend_fake_bin_path
 
-  # Override OS release fields to simulate the target platform.
-  _OSPKG__OS_RELEASE[id]="${_id}"
-  _OSPKG__OS_RELEASE[id_like]="${_id_like}"
-  _OSPKG__OS_RELEASE[version_id]="${_version_id}"
+  ctx__reset
+  ctx__set "plat.pm=${_pm}"
+  ctx__set "plat.kernel=linux"
+  ctx__set "plat.machine_release=amd64"
+  ctx__set "os.id=${_id}"
+  ctx__set "os.id_like=${_id_like}"
+  ctx__set "os.version_id=${_version_id}"
+  _CTX__REGISTRY_INITIALIZED=true
 
   # Point bootstrap__yq at the pre-installed binary to avoid re-downloading
   # yq on every test.  Mirrors the early-return guard in the real function.
@@ -505,7 +509,7 @@ _assert_manifest_pkgs() {
 
 # ---------------------------------------------------------------------------
 # Case: pm_selectors
-# when: {pm: X} installs only on package manager family X.
+# when: {plat.pm: X} installs only on package manager family X.
 # Packages without a when clause are always installed.
 # ---------------------------------------------------------------------------
 
@@ -628,4 +632,146 @@ _assert_manifest_pkgs() {
   _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "version_selectors" "arch"
+}
+
+# ---------------------------------------------------------------------------
+# Semver and feat-context when clauses (jq cond_matches parity)
+# ---------------------------------------------------------------------------
+
+@test "manifest feat.version lte: package included when ctx matches" {
+  _require_manifest_prereqs
+  _seed_context "apt" "ubuntu" "debian" "22.04"
+  ctx__set feat.version=12.1.2
+  local _manifest=$'packages:\n  - name: old-tool\n    when:\n      feat.version:\n        lte: "12.1.2"'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/semver_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" == *"old-tool"* ]]
+}
+
+@test "manifest feat.version lte: package excluded when ctx too high" {
+  _require_manifest_prereqs
+  _seed_context "apt" "ubuntu" "debian" "22.04"
+  ctx__set feat.version=14.0.0
+  local _manifest=$'packages:\n  - name: old-tool\n    when:\n      feat.version:\n        lte: "12.1.2"'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/semver_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" != *"old-tool"* ]]
+}
+
+@test "manifest feat.version lte: ospkg__run uses feat.version from ctx registry" {
+  _require_manifest_prereqs
+  _seed_context "apt" "ubuntu" "debian" "22.04"
+  ctx__set feat.version=12.1.2
+  local _manifest=$'packages:\n  - name: old-tool\n    when:\n      feat.version:\n        lte: "12.1.2"'
+  run ospkg__run --manifest "${_manifest}" --dry_run
+  assert_success
+  assert_output --partial "old-tool"
+}
+
+# ---------------------------------------------------------------------------
+# Qualified YAML when keys in manifests (ctx refactor regression suite)
+# ---------------------------------------------------------------------------
+
+@test "manifest when os.id: package included on matching distro" {
+  _require_manifest_prereqs
+  _seed_context "apt" "ubuntu" "debian" "22.04"
+  local _manifest=$'packages:\n  - name: ubuntu-pkg\n    when:\n      os.id: ubuntu\n  - name: always'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/osid_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" == *"ubuntu-pkg"* ]]
+  [[ "${_parsed}" == *"always"* ]]
+}
+
+@test "manifest when os.id: package excluded on non-matching distro" {
+  _require_manifest_prereqs
+  _seed_context "apt" "debian" "" "12"
+  local _manifest=$'packages:\n  - name: ubuntu-pkg\n    when:\n      os.id: ubuntu\n  - name: always'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/osid_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" != *"ubuntu-pkg"* ]]
+  [[ "${_parsed}" == *"always"* ]]
+}
+
+@test "manifest when os.version_codename: package included on matching codename" {
+  _require_manifest_prereqs
+  _seed_context "apt" "ubuntu" "debian" "22.04"
+  ctx__set os.version_codename=jammy
+  local _manifest=$'packages:\n  - name: jammy-pkg\n    when:\n      os.version_codename: [jammy, noble]\n  - name: always'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/codename_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" == *"jammy-pkg"* ]]
+}
+
+@test "manifest when os.version_codename: package excluded on non-matching codename" {
+  _require_manifest_prereqs
+  _seed_context "apt" "ubuntu" "debian" "22.04"
+  ctx__set os.version_codename=focal
+  local _manifest=$'packages:\n  - name: jammy-pkg\n    when:\n      os.version_codename: [jammy, noble]'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/codename_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" != *"jammy-pkg"* ]]
+}
+
+@test "manifest when plat.pm: package included on matching PM" {
+  _require_manifest_prereqs
+  _seed_context "apt" "ubuntu" "debian" "22.04"
+  local _manifest=$'packages:\n  - name: apt-pkg\n    when:\n      plat.pm: apt'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/pm_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" == *"apt-pkg"* ]]
+}
+
+@test "manifest when plat.pm: package excluded on non-matching PM" {
+  _require_manifest_prereqs
+  _seed_context "apk" "alpine" "" "3.20"
+  local _manifest=$'packages:\n  - name: apt-pkg\n    when:\n      plat.pm: apt'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/pm_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" != *"apt-pkg"* ]]
+}
+
+@test "manifest when feat.version operator dict: package included when version matches" {
+  _require_manifest_prereqs
+  _seed_context "apt" "ubuntu" "debian" "22.04"
+  ctx__set feat.version=12.1.2
+  local _manifest=$'packages:\n  - name: old-pkg\n    when:\n      feat.version:\n        gte: "10.0.0"\n        lte: "12.1.2"'
+  local _json_tmp _parsed
+  bootstrap__yq > /dev/null
+  _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/fver_XXXXXX")"
+  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
+  rm -f "${_json_tmp}"
+  [[ "${_parsed}" == *"old-pkg"* ]]
 }

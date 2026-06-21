@@ -28,13 +28,13 @@ _options:
         description: jq v1.6 (uses legacy release asset naming).
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/{VERSION>=1.7?jq-{OS:macos}-{ARCH}:{OS:osx==linux?jq-linux{ARCH:bitness}:jq-osx-amd64}}"
-      gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/master/sig/jq-release-{VERSION>=1.7?new:old}.key"
-      gpg_sig_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/master/sig/v{VERSION}/{VERSION>=1.7?jq-{OS:macos}-{ARCH}:{OS:osx==linux?jq-linux{ARCH:bitness}:jq-osx-amd64}}.asc"
-      when: {arch: [amd64, arm64, i386]}
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/{feat.version>=1.7?jq-{plat.kernel_macos}-{plat.machine_release}:{plat.kernel_osx==linux?jq-linux{plat.machine_bitness}:jq-osx-amd64}}"
+      gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/master/sig/jq-release-{feat.version>=1.7?new:old}.key"
+      gpg_sig_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/master/sig/v{feat.version}/{feat.version>=1.7?jq-{plat.kernel_macos}-{plat.machine_release}:{plat.kernel_osx==linux?jq-linux{plat.machine_bitness}:jq-osx-amd64}}.asc"
+      when: {plat.machine_release: [amd64, arm64, i386]}
     package: {}
     source:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/jq-{VERSION}.tar.gz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/jq-{feat.version}.tar.gz"
       build_system: autotools
       configure_args:
         - "--with-oniguruma=builtin"

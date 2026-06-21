@@ -30,16 +30,16 @@ _dependencies:
       packages:
         - ca-certificates
     option-node_gyp_deps:
-      when: {pm: [apt, dnf, yum, zypper, pacman, brew]}
+      when: {plat.pm: [apt, dnf, yum, zypper, pacman, brew]}
       packages:
         - make
-        - when: {pm: [apt, dnf, yum, zypper, pacman]}
+        - when: {plat.pm: [apt, dnf, yum, zypper, pacman]}
           packages: [gcc]
-        - when: {pm: apt}
+        - when: {plat.pm: apt}
           packages: [g++, python3-minimal]
-        - when: {pm: [dnf, yum, zypper]}
+        - when: {plat.pm: [dnf, yum, zypper]}
           packages: [gcc-c++, python3]
-        - when: {pm: pacman}
+        - when: {plat.pm: pacman}
           packages: [python]
 _options:
   verify:
@@ -64,8 +64,8 @@ _options:
         description: An exact semver string — installs that specific version.
   method:
     binary:
-      asset_uri: "https://nodejs.org/dist/{VERSION}/node-{VERSION}-{OS}-{ARCH:node}.tar.xz"
-      sidecar_uri: "https://nodejs.org/dist/{VERSION}/SHASUMS256.txt"
+      asset_uri: "https://nodejs.org/dist/{feat.version}/node-{feat.version}-{plat.kernel:lower}-{plat.machine_node}.tar.xz"
+      sidecar_uri: "https://nodejs.org/dist/{feat.version}/SHASUMS256.txt"
       binary_src:
         - bin/node
   prefix:

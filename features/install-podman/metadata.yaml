@@ -76,11 +76,11 @@ _dependencies:
         - nftables
 
       # UID/GID mapping tools — package name varies by distro
-        - when: {pm: apt}
+        - when: {plat.pm: apt}
           packages: [uidmap]
-        - when: {pm: [dnf, yum]}
+        - when: {plat.pm: [dnf, yum]}
           packages: [shadow-utils]
-        - when: {pm: apk}
+        - when: {plat.pm: apk}
           packages: [shadow-uidmap]
-        - when: {pm: [zypper, pacman]}
+        - when: {plat.pm: [zypper, pacman]}
           packages: [shadow]

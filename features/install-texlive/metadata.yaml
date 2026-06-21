@@ -41,7 +41,7 @@ _options:
     script:
       asset_uri: ''
     package:
-      when: {pm: apk}
+      when: {plat.pm: apk}
   version:
     resolution: none
     default: latest
@@ -778,7 +778,7 @@ _dependencies:
         # Perl: tlmgr and many TL tools are Perl scripts.
         # macOS ships with system Perl; skip brew install.
         - name: perl
-          when: {kernel: linux}
+          when: {plat.kernel: linux}
 
         # GnuPG: required at runtime for 'tlmgr key add/remove/list'.
         # gnupg (apt/apk/brew) pulls in gpg, gpg-agent, and dirmngr; dnf uses gnupg2.
@@ -810,7 +810,7 @@ _dependencies:
         # dnf ships these as split packages (gnu-free-{mono,sans,serif}-fonts) and TL
         # itself includes texlive-gnu-freefont, so we only need to declare it for apt/apk.
         - name: fonts-freefont-otf
-          when: {pm: [apt, apk]}
+          when: {plat.pm: [apt, apk]}
           apk: font-freefont
 
         # zip + tidy: required by tex4ebook (HTML/epub output from LaTeX).
@@ -824,33 +824,33 @@ _dependencies:
         # These modules are not part of the core Perl distribution on Linux.
         # On macOS they are provided by the system Perl or cpan; no brew formulae exist.
         - name: perl-unicode-linebreak
-          when: {kernel: linux}
+          when: {plat.kernel: linux}
           apt: libunicode-linebreak-perl
           apk: perl-unicode-linebreak
           dnf: perl-Unicode-LineBreak
         - name: perl-file-homedir
-          when: {kernel: linux}
+          when: {plat.kernel: linux}
           apt: libfile-homedir-perl
           apk: perl-file-homedir
           dnf: perl-File-HomeDir
         - name: perl-yaml-tiny
-          when: {kernel: linux}
+          when: {plat.kernel: linux}
           apt: libyaml-tiny-perl
           apk: perl-yaml-tiny
           dnf: perl-YAML-Tiny
         # Not in Alpine stable (edge/testing only); skip apk.
         - name: perl-getopt-long-descriptive
-          when: {pm: [apt, dnf]}
+          when: {plat.pm: [apt, dnf]}
           apt: libgetopt-long-descriptive-perl
           dnf: perl-Getopt-Long-Descriptive
         # Digest::MD5 ships with perl itself on Fedora; explicit package needed on apt/apk.
         - name: perl-digest-md5
-          when: [{pm: apt}, {pm: apk}]
+          when: [{plat.pm: apt}, {plat.pm: apk}]
           apt: libdigest-perl-md5-perl
           apk: perl-digest-md5
         # PDF::API2: required by the LaTeX memoize package.
         - name: perl-pdf-api2
-          when: {kernel: linux}
+          when: {plat.kernel: linux}
           apt: libpdf-api2-perl
           apk: perl-pdf-api2
           dnf: perl-PDF-API2
@@ -858,7 +858,7 @@ _dependencies:
         # ── Linux-only X11 / OpenGL / RPC runtime libraries ───────────────────────
         # libsm6: X Session Management; required by MetaFont.
         - name: libsm
-          when: {kernel: linux}
+          when: {plat.kernel: linux}
           apt: libsm6
           apk: libsm
           dnf: libSM
@@ -868,11 +868,11 @@ _dependencies:
         # Ubuntu 24.04+) — handled in the apt: block below.
         # apk and dnf use stable names across versions.
         - name: freeglut
-          when: {pm: [apk, dnf]}
+          when: {plat.pm: [apk, dnf]}
         - name: libtirpc
-          when: {pm: [apk, dnf]}
+          when: {plat.pm: [apk, dnf]}
         - name: libcurl
-          when: {pm: [apk, dnf]}
+          when: {plat.pm: [apk, dnf]}
 
         # ── Alpine-only runtime libraries ────────────────────────────────────────
         # On musl/Alpine, shared libraries that TL binaries link against are not
@@ -880,23 +880,23 @@ _dependencies:
         # where e.g. ghostscript or luatex drag them in automatically). Declare
         # them explicitly. Sourced from production Alpine TL Docker images.
         - name: cairo
-          when: {pm: apk}
+          when: {plat.pm: apk}
         - name: icu-libs
-          when: {pm: apk}
+          when: {plat.pm: apk}
         - name: libgcc
-          when: {pm: apk}
+          when: {plat.pm: apk}
         - name: libpaper
-          when: {pm: apk}
+          when: {plat.pm: apk}
         - name: libpng
-          when: {pm: apk}
+          when: {plat.pm: apk}
         - name: libstdc++
-          when: {pm: apk}
+          when: {plat.pm: apk}
         - name: libx11
-          when: {pm: apk}
+          when: {plat.pm: apk}
         - name: pixman
-          when: {pm: apk}
+          when: {plat.pm: apk}
         - name: zlib
-          when: {pm: apk}
+          when: {plat.pm: apk}
 
       # apt-specific packages — handled here rather than in the cross-PM list above
       # because Debian bookworm+ / Ubuntu 22.04+ renamed several packages via the
@@ -908,19 +908,19 @@ _dependencies:
         packages:
           # libcurl
           - name: libcurl4t64
-            when: {version_codename: [noble, trixie, oracular, plucky, questing]}
+            when: {os.version_codename: [noble, trixie, oracular, plucky, questing]}
           - name: libcurl4
-            when: {version_codename: [bookworm, jammy, focal, bullseye]}
+            when: {os.version_codename: [bookworm, jammy, focal, bullseye]}
           # freeglut: renamed to libglut3.12 starting with bookworm/noble
           - name: libglut3.12
-            when: {version_codename: [bookworm, noble, trixie, oracular, plucky, questing]}
+            when: {os.version_codename: [bookworm, noble, trixie, oracular, plucky, questing]}
           - name: freeglut3
-            when: {version_codename: [jammy, focal, bullseye]}
+            when: {os.version_codename: [jammy, focal, bullseye]}
           # libtirpc
           - name: libtirpc3t64
-            when: {version_codename: [noble, trixie, oracular, plucky, questing]}
+            when: {os.version_codename: [noble, trixie, oracular, plucky, questing]}
           - name: libtirpc3
-            when: {version_codename: [bookworm, jammy, focal, bullseye]}
+            when: {os.version_codename: [bookworm, jammy, focal, bullseye]}
           # python-is-python3: creates /usr/bin/python → python3 symlink so that tools
           # invoking 'python' (older minted, some helper scripts) work out of the box.
           - python-is-python3

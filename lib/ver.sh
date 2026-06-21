@@ -5,6 +5,76 @@
 # semantic versions, and validating version tags. All functions write results
 # to stdout, one item per line.
 
+ver__cmp() {
+  # @brief ver__cmp <a> <b> — Compare semantic versions per semver.org core+prerelease rules.
+  #
+  # Leading `v`/`V` stripped. Returns -1 if a<b, 0 if equal, 1 if a>b via exit code mapping:
+  # prints -1/0/1 to stdout and returns 0 on success; returns 1 if either operand is unparseable.
+  local _a="${1#v}" _b="${2#v}"
+  _a="${_a#V}"
+  _b="${_b#V}"
+  [[ "${_a}" =~ ^[0-9]+(\.[0-9]+)*(-[^+]*)?(\+.*)?$ ]] || return 1
+  [[ "${_b}" =~ ^[0-9]+(\.[0-9]+)*(-[^+]*)?(\+.*)?$ ]] || return 1
+  local _core_a _core_b _pre_a _pre_b
+  _core_a="${_a%%-*}"
+  _core_a="${_core_a%%+*}"
+  _core_b="${_b%%-*}"
+  _core_b="${_core_b%%+*}"
+  if [[ "${_a}" == *-* ]]; then
+    _pre_a="${_a#*-}"
+    _pre_a="${_pre_a%%+*}"
+  else
+    _pre_a=""
+  fi
+  if [[ "${_b}" == *-* ]]; then
+    _pre_b="${_b#*-}"
+    _pre_b="${_pre_b%%+*}"
+  else
+    _pre_b=""
+  fi
+  local -a _pa _pb
+  IFS='.' read -ra _pa <<< "${_core_a}"
+  IFS='.' read -ra _pb <<< "${_core_b}"
+  local _i _max _va _vb _c=0
+  _max=$((${#_pa[@]} > ${#_pb[@]} ? ${#_pa[@]} : ${#_pb[@]}))
+  for ((_i = 0; _i < _max; _i++)); do
+    _va="${_pa[_i]:-0}"
+    _vb="${_pb[_i]:-0}"
+    if ((_va > _vb)); then
+      _c=1
+      break
+    elif ((_va < _vb)); then
+      _c=-1
+      break
+    fi
+  done
+  if [[ ${_c} -ne 0 ]]; then
+    printf '%s\n' "${_c}"
+    return 0
+  fi
+  if [[ -z "${_pre_a}" && -z "${_pre_b}" ]]; then
+    printf '0\n'
+    return 0
+  fi
+  if [[ -z "${_pre_a}" ]]; then
+    printf '1\n'
+    return 0
+  fi
+  if [[ -z "${_pre_b}" ]]; then
+    printf '%s\n' '-1'
+    return 0
+  fi
+  if [[ "${_pre_a,,}" == "${_pre_b,,}" ]]; then
+    printf '0\n'
+    return 0
+  fi
+  if [[ "${_pre_a,,}" < "${_pre_b,,}" ]]; then
+    printf '%s\n' '-1'
+  else
+    printf '%s\n' '1'
+  fi
+}
+
 ver__semver_ge() {
   # @brief ver__semver_ge <a> <b> — Return 0 if semantic version `a` is greater than or equal to `b`.
   #
@@ -17,9 +87,9 @@ ver__semver_ge() {
   #   <b>  Second version string to compare against.
   #
   # Returns: 0 if a >= b, 1 if a < b.
-  local _a="${1#v}" _b="${2#v}"
-  [[ "$_a" == "$_b" ]] && return 0
-  [[ "$(printf '%s\n' "$_a" "$_b" | sort -V | tail -n1)" == "$_a" ]]
+  local _cmp
+  _cmp="$(ver__cmp "$1" "$2")" || return 1
+  [[ "${_cmp}" -ge 0 ]]
 }
 
 ver__semver_is_final() {
@@ -247,7 +317,7 @@ ver__resolve_from_sidecar() {
   # @brief ver__resolve_from_sidecar <uri> <filename_pattern> <spec> — Download a sidecar file and resolve a version spec from its embedded filenames.
   #
   # Downloads the file at `<uri>`, extracts version strings that appear in
-  # filenames matching `<filename_pattern>` (which must contain `{VERSION}`),
+  # filenames matching `<filename_pattern>` (which must contain `[version]`),
   # sorts them newest-first, and resolves `<spec>` via `ver__resolve_from_list`.
   #
   # For `stable`, `latest`, and `""` specs the sidecar is fetched to find the
@@ -256,13 +326,13 @@ ver__resolve_from_sidecar() {
   # exact version directly (possibly with a fallback URI for archived releases).
   # This preserves the intuitive meaning of "give me exactly version 5.9".
   #
-  # Example: URI=https://www.zsh.org/pub/SHA256SUM, pattern=zsh-{VERSION}.tar.xz
+  # Example: URI=https://www.zsh.org/pub/SHA256SUM, pattern=zsh-[version].tar.xz
   # will extract versions like `5.9.1` from lines such as:
   #   "abc123  zsh-5.9.1.tar.xz"
   #
   # Args:
   #   <uri>              URL of the sidecar file.
-  #   <filename_pattern> Filename pattern with `{VERSION}` placeholder.
+  #   <filename_pattern> Filename pattern with `[version]` placeholder.
   #   <spec>             Version spec: `stable`, `latest`, `""`, or an explicit
   #                      numeric version (e.g. `5.9`, `5.9.1`). Explicit numeric
   #                      specs are returned as-is without fetching the sidecar.
@@ -278,8 +348,8 @@ ver__resolve_from_sidecar() {
     logging__error "ver__resolve_from_sidecar: filename_pattern is required."
     return 1
   }
-  [[ "${_pattern}" == *'{VERSION}'* ]] || {
-    logging__error "ver__resolve_from_sidecar: pattern '${_pattern}' must contain '{VERSION}'."
+  [[ "${_pattern}" == *'[version]'* ]] || {
+    logging__error "ver__resolve_from_sidecar: pattern '${_pattern}' must contain '[version]'."
     return 1
   }
   # For explicit numeric specs (not stable/latest/""), skip sidecar and return as-is.
@@ -310,8 +380,8 @@ ver__resolve_from_sidecar() {
     logging__error "ver__resolve_from_sidecar: failed to fetch '${_uri}' (rc=${_fetch_rc})."
     return 1
   fi
-  local _prefix="${_pattern%%\{VERSION\}*}"
-  local _suffix="${_pattern##*\{VERSION\}}"
+  local _prefix="${_pattern%%\[version\]*}"
+  local _suffix="${_pattern##*\[version\]}"
   local -a _versions
   mapfile -t _versions < <(
     awk -v p="${_prefix}" -v s="${_suffix}" '

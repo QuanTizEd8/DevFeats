@@ -24,12 +24,12 @@ _options:
         description: Install Typst v0.14.2.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/typst-{ARCH==armv7?armv7-unknown-linux-musleabi:{RUST_TRIPLE}}.tar.xz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/typst-{plat.machine_release==armv7?armv7-unknown-linux-musleabi:{plat.rust_triple}}.tar.xz"
       binary_src:
         - typst
-      when: {arch: [amd64, arm64, armv7]}
+      when: {plat.machine_release: [amd64, arm64, armv7]}
     package:
-      when: {pm: brew}
+      when: {plat.pm: brew}
     cargo:
       crate: typst-cli
       args: ["--locked"]

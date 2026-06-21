@@ -50,15 +50,15 @@ _options:
         description: Copilot CLI v1.0.48 (latest as of 2026-05-17).
   method:
     binary:
-      asset_uri: "https://github.com/github/copilot-cli/releases/download/{TAG}/copilot-{OS}-{ARCH:node}.tar.gz"
-      sidecar_uri: "https://github.com/github/copilot-cli/releases/download/{TAG}/SHA256SUMS.txt"
+      asset_uri: "https://github.com/github/copilot-cli/releases/download/{feat.tag}/copilot-{plat.kernel:lower}-{plat.machine_node}.tar.gz"
+      sidecar_uri: "https://github.com/github/copilot-cli/releases/download/{feat.tag}/SHA256SUMS.txt"
       binary_src:
         - copilot
-      when: {arch: [amd64, arm64]}
+      when: {plat.machine_release: [amd64, arm64]}
     npm:
       package: "@github/copilot"
     upstream-package:
-      when: {pm: brew}
+      when: {plat.pm: brew}
   prefix:
     bins: [copilot]
     applies_when:
@@ -124,4 +124,4 @@ _dependencies:
     method-upstream-package:
       brew:
         casks:
-          - "{VERSION_INPUT==latest?copilot-cli@prerelease:copilot-cli}"
+          - "{feat.version_input==latest?copilot-cli@prerelease:copilot-cli}"

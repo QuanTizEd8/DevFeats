@@ -85,7 +85,7 @@ _options:
       uri: "https://github.com/ohmybash/oh-my-bash"
       config:
         oh-my-bash.remote: origin
-        oh-my-bash.branch: "{VERSION}"
+        oh-my-bash.branch: "{feat.version}"
   prefix:
     root: /usr/local/share/oh-my-bash
     nonroot: "${HOME}/.oh-my-bash"

@@ -13,7 +13,7 @@ import pyserials
 from proman.config import load as load_config
 from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.manifest_util import generate_dep_trigger_specs
-from proman.when_util import serialize_when
+from proman.when_util import serialize_sysreq_args, serialize_when
 
 # printf '%s' with an accidental real newline before the closing quote (db42a06b bug).
 _SPLIT_PRINTF_PERCENT_S_RE = re.compile(r"printf '%s\r?\n\s+'", re.MULTILINE)
@@ -293,7 +293,8 @@ class InstallScriptGenerator:
             _meta = method_meta
             for _k in _key:
                 _meta = _meta.get(_k) or {}
-            _when_str = serialize_when(_meta.get("when"))
+            _when = _meta.get("when")
+            _when_str = serialize_when(_when)
             scalar_lines.append(f"{_var}={_bash_when_literal(_when_str)}")
             scalar_var_names.append(_var)
 
@@ -647,11 +648,7 @@ class InstallScriptGenerator:
 
 def _match_specs_to_args(specs: list[dict]) -> str:
     """Build the sys_req__require_* shell arg list (leading -- per group)."""
-    parts: list[str] = []
-    for spec in specs:
-        parts.append("--")
-        parts.extend(f"{k}={v}" for k, v in spec.items())
-    return " ".join(parts)
+    return serialize_sysreq_args(specs)
 
 
 def _first_sentence(text: str) -> str:

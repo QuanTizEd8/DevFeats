@@ -3,16 +3,16 @@
 packages:
   - label: apt-or-apk-group
     when:
-      - pm: apt
-      - pm: apk
+      - plat.pm: apt
+      - plat.pm: apk
     packages:
       - name: group-main
       - label: nested
         packages:
           - name: apt-only-in-nested
             when:
-              pm: apt
+              plat.pm: apt
           - name: apk-only-in-nested
             when:
-              pm: apk
+              plat.pm: apk
   - name: all-pm

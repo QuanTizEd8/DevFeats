@@ -110,27 +110,6 @@ str__rsplit_once() {
   return 0
 }
 
-str__substitute_tokens() {
-  # @brief str__substitute_tokens <pattern> <KEY=VALUE>... — Replace `{KEY}` placeholders in `<pattern>` with their values.
-  #
-  # Token syntax is `{KEY}` (curly braces, no dollar sign). Tokens not present
-  # in the substitution list are left unchanged.
-  #
-  # Args:
-  #   <pattern>      Input string containing zero or more `{KEY}` tokens.
-  #   <KEY=VALUE>... One or more substitution pairs in `KEY=VALUE` form.
-  #
-  # Stdout: the pattern with all matching tokens replaced.
-  local _result="$1"
-  shift
-  local _pair
-  for _pair in "$@"; do
-    _result="${_result//\{${_pair%%=*}\}/${_pair#*=}}"
-  done
-  printf '%s\n' "$_result"
-  return 0
-}
-
 str__find_close_brace() {
   # @brief str__find_close_brace <str> — Print the 0-based index of the `}` that closes
   # the `{` preceding `<str>` (i.e. `<str>` begins just after an opening `{`).
@@ -204,101 +183,5 @@ str__split_conditional() {
   [[ ${_cpos} -eq -1 ]] && return 1
   _sc_true="${_rest:0:${_cpos}}"
   _sc_false="${_rest:$((_cpos + 1))}"
-  return 0
-}
-
-_str__eval_condition() {
-  # _str__eval_condition <COND> <KEY=VALUE>... — Evaluate one condition against the key-value list.
-  # Supported: KEY==VALUE, KEY!=VALUE, KEY>=VALUE, KEY<VALUE.
-  # Returns 0 if the condition is true, 1 if false or if the key is unknown.
-  # For >= and <, values are compared with ver__semver_ge.
-  local _cond="$1"
-  shift
-  [[ "${_cond}" =~ ^([^=!<>]+)(==|!=|>=|<)(.+)$ ]] || return 1
-  local _key="${BASH_REMATCH[1]}" _op="${BASH_REMATCH[2]}" _val="${BASH_REMATCH[3]}"
-  local _pair _actual="" _found=false
-  for _pair in "$@"; do
-    if [[ "${_pair%%=*}" == "${_key}" ]]; then
-      _actual="${_pair#*=}"
-      _found=true
-      break
-    fi
-  done
-  [[ "${_found}" == true ]] || return 1
-  case "${_op}" in
-    '==') [[ "${_actual}" == "${_val}" ]] ;;
-    '!=') [[ "${_actual}" != "${_val}" ]] ;;
-    '>=') ver__semver_ge "${_actual}" "${_val}" ;;
-    '<') ! ver__semver_ge "${_actual}" "${_val}" ;;
-  esac
-}
-
-_str__eval_token() {
-  # _str__eval_token <TOKEN> <KEY=VALUE>... — Expand one {…} block against the key-value list.
-  # Handles COND?TRUE:FALSE conditionals (with recursive branch expansion) and plain lookups.
-  # Unknown tokens are emitted as '{TOKEN}' (unchanged).
-  local _tok="$1"
-  shift
-  local _cond _tbranch _fbranch
-  if str__split_conditional "${_tok}" _cond _tbranch _fbranch; then
-    if _str__eval_condition "${_cond}" "$@"; then
-      str__expand_pattern "${_tbranch}" "$@"
-    else
-      str__expand_pattern "${_fbranch}" "$@"
-    fi
-    return
-  fi
-  local _pair
-  for _pair in "$@"; do
-    if [[ "${_pair%%=*}" == "${_tok}" ]]; then
-      printf '%s' "${_pair#*=}"
-      return 0
-    fi
-  done
-  printf '{%s}' "${_tok}"
-  return 0
-}
-
-str__expand_pattern() {
-  # @brief str__expand_pattern <pattern> [<KEY=VALUE>...] — Expand `{KEY}` tokens and nestable conditionals in `<pattern>`.
-  #
-  # Token syntax: `{KEY}` for plain substitution; `{KEY OP VALUE?TRUE:FALSE}` for
-  # conditionals where OP ∈ `==`, `!=`, `>=`, `<`. Branches may themselves contain any
-  # token form (fully nestable). For `>=` and `<`, values are compared with `ver__semver_ge`.
-  # Unknown keys in plain tokens are emitted unchanged as `{KEY}`. Unknown keys in conditions
-  # are treated as false. Unmatched `{` characters pass through literally.
-  #
-  # Args:
-  #   <pattern>      Input string containing zero or more `{KEY}` tokens.
-  #   <KEY=VALUE>... Substitution pairs; first match wins for a given KEY.
-  #
-  # Stdout: the fully expanded string without trailing newline.
-  local _s="$1"
-  shift
-  local -a _kvs=("$@")
-  local _result="" _i=0 _len="${#_s}"
-  while [[ ${_i} -lt ${_len} ]]; do
-    local _c="${_s:${_i}:1}"
-    if [[ "${_c}" == '{' ]]; then
-      local _after="${_s:$((_i + 1))}"
-      local _cpos _brace_rc
-      _cpos="$(str__find_close_brace "${_after}")"
-      _brace_rc=$?
-      if [[ ${_brace_rc} -ne 0 ]]; then
-        _result+='{'
-        _i=$((_i + 1))
-        continue
-      fi
-      local _tok="${_after:0:${_cpos}}"
-      local _expanded
-      _expanded="$(_str__eval_token "${_tok}" "${_kvs[@]}")"
-      _result+="${_expanded}"
-      _i=$((_i + _cpos + 2))
-    else
-      _result+="${_c}"
-      _i=$((_i + 1))
-    fi
-  done
-  printf '%s' "${_result}"
   return 0
 }

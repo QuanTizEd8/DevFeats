@@ -287,18 +287,12 @@ def select_feature_test_ids(
     linux = sorted(
         f
         for f in all_feature_ids
-        if any(
-            p.startswith((f"features/{f}/", f"test/features/{f}/"))
-            for p in changed
-        )
+        if any(p.startswith((f"features/{f}/", f"test/features/{f}/")) for p in changed)
     )
     macos = sorted(
         f
         for f in macos_all
-        if any(
-            p.startswith((f"features/{f}/", f"test/features/{f}/"))
-            for p in changed
-        )
+        if any(p.startswith((f"features/{f}/", f"test/features/{f}/")) for p in changed)
     )
     return linux, macos
 
@@ -316,9 +310,7 @@ def merge_release_feature_test_ids(
         groups,
     )
     released_set = {entry["feature"] for entry in features_to_release}
-    macos_all_set = {
-        d["feature"] for d in compute_macos_matrix(all_feature_ids)
-    }
+    macos_all_set = {d["feature"] for d in compute_macos_matrix(all_feature_ids)}
     linux = sorted(released_set | set(changed_linux))
     macos = sorted(set(changed_macos) | (released_set & macos_all_set))
     return linux, macos

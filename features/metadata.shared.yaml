@@ -293,8 +293,8 @@ options:
       #{{ return get("_options.version.pattern", "") }}#
     description: >-
       Filename pattern used to extract version strings from the sidecar file when
-      `version_resolution=sidecar`. Use `{VERSION}` as the placeholder for the
-      version number (e.g. `zsh-{VERSION}.tar.xz`).
+      `version_resolution=sidecar`. Use `[version]` as the placeholder for the
+      version number (e.g. `zsh-[version].tar.xz`).
 
   version_resolution:
     _apply_when: |
@@ -328,26 +328,30 @@ options:
       computed automatically by the feature's `__install_run_binary_pre` hook.
       Override to select a specific mirror or prebuilt variant.
 
-      Runtime substitutions (expanded by `__expand_pattern__` at install time):
+      Runtime substitutions (expanded by `ctx__expand_pattern` from the unified context registry):
 
-      - `{VERSION}` — resolved bare version string (e.g. `1.7.1`).
-      - `{TAG}` — full upstream release tag (e.g. `v1.7.1`, `jq-1.7.1`).
-      - `{METHOD}` — resolved installation method (e.g. `binary`, `cargo`).
-      - `{OS}` — kernel identifier for GitHub-style release names (`os__release_kernel`).
-        Values: `linux`, `darwin`.
-      - `{KERNEL}` — raw `uname -s` output (`os__kernel`).
-        Values: `Linux`, `Darwin`.
-      - `{ARCH}` — normalized architecture for GitHub-style release names (`os__release_arch`).
-        Values: `amd64`, `arm64`, `armv7`, `i386`, `ppc64le`, `s390x`, `riscv64`, `loong64`.
-      - `{OS_ARCH}` — raw `uname -m` output (`os__arch`).
-        Values: `x86_64`, `aarch64`, `armv7l`, `i686`, `ppc64le`, `s390x`, `riscv64`, `loongarch64`.
-      - `{OS_ID}` — Linux distro `ID` from `/etc/os-release` (`os__id`).
-        Examples: `ubuntu`, `debian`, `alpine`, `fedora`, `arch`. Empty on macOS.
-      - `{PLATFORM}` — canonical distro family (`os__platform`).
-        Values: `debian`, `alpine`, `rhel`, `suse`, `macos`.
-      - `{RUST_TRIPLE}` — Rust target triple (`os__rust_triple`).
-        Values: `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`,
-        `riscv64gc-unknown-linux-gnu`, `x86_64-apple-darwin`, `aarch64-apple-darwin`.
+      **feat.*** — install options (mirrored by `__ctx_sync_version__`, `__ctx_sync_method__`, `__ctx_sync_prefix__`):
+      - `{feat.version}` — resolved bare version string (e.g. `1.7.1`)
+      - `{feat.version_input}` — user version spec (e.g. `stable`, `latest`)
+      - `{feat.tag}` — GitHub release tag when resolved (e.g. `v1.7.1`, `jq-1.7.1`)
+      - `{feat.method}` — resolved installation method (e.g. `binary`, `package`)
+      - `{feat.prefix}` — resolved installation prefix path
+
+      **plat.*** — platform keys (populated by `_ctx__ensure_registry`):
+      - `{plat.kernel}` — `uname -s` (`Linux`, `Darwin`)
+      - `{plat.kernel:lower}` — lowercase kernel for URL paths (`linux`, `darwin`)
+      - `{plat.kernel_gh}`, `{plat.kernel_macos}`, `{plat.kernel_osx}` — release naming variants
+      - `{plat.machine_release}` — normalized arch for release assets (`amd64`, `arm64`, …)
+      - `{plat.machine}` — raw `uname -m` (`x86_64`, `aarch64`, …)
+      - `{plat.machine_gh}`, `{plat.machine_node}`, `{plat.machine_bitness}`
+      - `{plat.platform}` — distro family (`debian`, `alpine`, `macos`, …)
+      - `{plat.rust_triple}`, `{plat.libc}`, `{plat.deb_arch:lower}`, `{plat.pm}`
+
+      **os.*** — `/etc/os-release` fields (Linux) or macOS mapping:
+      - `{os.id}`, `{os.version_id}`, `{os.version_id_major}`, `{os.version_codename}`, …
+
+      Conditionals use base keys only: `{plat.kernel==linux?…}`, `{feat.version>=1.7?…}`.
+      Case flavors (`:lower`, `:upper`, `:title`) apply only in non-conditional tokens.
 
   binary_sidecar_uri:
     _apply_when: |
@@ -365,11 +369,13 @@ options:
       #{{ return bool(get("_options.method.binary.binary_src")) }}#
     type: array
     default: |
-      #{{ return "\n".join(get("_options.method.binary.binary_src") or []) }}#
+      #{{ return serialize_binary_src(get("_options.method.binary.binary_src")) }}#
     description: >-
       Source binary path(s) within the extracted archive (suffix-match).
-      One entry per line. Multiple entries install real copies into
-      ${PREFIX}/bin/; use companion_bins for symlinks to the primary binary.
+      One entry per line: plain `path`, or `path<TAB>when-atoms` when a
+      `when` condition applies (same wire format as method `when` blocks).
+      Multiple entries install real copies into ${PREFIX}/bin/; use
+      companion_bins for symlinks to the primary binary.
 
   binary_companion_bins:
     _apply_when: |
@@ -449,8 +455,8 @@ options:
       URI pattern for the source tarball when `method=source`.
       When empty (default for features that compute the URI dynamically), the URI must
       be constructed in `__install_run_source__`.
-      Supports the same runtime substitutions as `binary_asset_uri`:
-      `{VERSION}`, `{TAG}`, `{OS}`, `{ARCH}`, `{OS_ARCH}`, `{OS_ID}`, `{PLATFORM}`, `{RUST_TRIPLE}`.
+      Supports the same qualified context tokens as `binary_asset_uri`:
+      `{feat.version}`, `{feat.tag}`, `{plat.kernel:lower}`, `{plat.machine_release}`, `{os.id}`, `{plat.rust_triple}`, etc.
 
   source_sidecar_uri:
     _apply_when: |
@@ -553,7 +559,7 @@ options:
       }}#
     description: >-
       Array of `key=value` git config pairs to set after clone/update.
-      Values support `{VERSION}` substitution. Not normally overridden by users.
+      Values support `{feat.version}` substitution. Not normally overridden by users.
 
   shell_completions:
     _apply_when: |
@@ -748,7 +754,7 @@ options:
             default_path = override.get("default", root)
             root_val = override.get("root", default_path)
             nonroot_val = override.get("nonroot", default_path)
-            conds = serialize_when(when)
+            conds = serialize_when_flow(when) if when else ""
             entry = (conds + " " + root_val).strip()
             if root_val != nonroot_val:
                 entry += " " + nonroot_val
@@ -870,8 +876,8 @@ options:
       #{{ return get("_options.prefix.discovery_snippet", {}).get("bash", "") }}#
     description: >-
       Shell snippet written to bash startup files for PATH discovery.
-      Use `{PREFIX}` for the resolved installation prefix,
-      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Use `{feat.prefix}` for the resolved installation prefix,
+      `{plat.kernel}` for the kernel name, `{plat.machine_release}` for the CPU architecture.
       Leave empty to use the standard PATH export.
 
   prefix_discovery_snippet_zsh:
@@ -882,8 +888,8 @@ options:
       #{{ return get("_options.prefix.discovery_snippet", {}).get("zsh", "") }}#
     description: >-
       Shell snippet written to zsh startup files for PATH discovery.
-      Use `{PREFIX}` for the resolved installation prefix,
-      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Use `{feat.prefix}` for the resolved installation prefix,
+      `{plat.kernel}` for the kernel name, `{plat.machine_release}` for the CPU architecture.
       Leave empty to use the standard PATH export.
 
   prefix_discovery_snippet_fish:
@@ -894,8 +900,8 @@ options:
       #{{ return get("_options.prefix.discovery_snippet", {}).get("fish", "") }}#
     description: >-
       Shell snippet written to fish startup files for PATH discovery.
-      Use `{PREFIX}` for the resolved installation prefix,
-      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Use `{feat.prefix}` for the resolved installation prefix,
+      `{plat.kernel}` for the kernel name, `{plat.machine_release}` for the CPU architecture.
       Leave empty to use the standard PATH export.
 
   prefix_discovery_snippet_tcsh:
@@ -906,8 +912,8 @@ options:
       #{{ return get("_options.prefix.discovery_snippet", {}).get("tcsh", "") }}#
     description: >-
       Shell snippet written to tcsh startup files for PATH discovery.
-      Use `{PREFIX}` for the resolved installation prefix,
-      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Use `{feat.prefix}` for the resolved installation prefix,
+      `{plat.kernel}` for the kernel name, `{plat.machine_release}` for the CPU architecture.
       Leave empty to use the standard PATH export.
 
   prefix_discovery_snippet_elvish:
@@ -918,8 +924,8 @@ options:
       #{{ return get("_options.prefix.discovery_snippet", {}).get("elvish", "") }}#
     description: >-
       Shell snippet written to elvish startup files for PATH discovery.
-      Use `{PREFIX}` for the resolved installation prefix,
-      `{OS}` for the kernel name, `{ARCH}` for the CPU architecture.
+      Use `{feat.prefix}` for the resolved installation prefix,
+      `{plat.kernel}` for the kernel name, `{plat.machine_release}` for the CPU architecture.
       Leave empty to use the standard PATH export.
 
   prefix_activations:

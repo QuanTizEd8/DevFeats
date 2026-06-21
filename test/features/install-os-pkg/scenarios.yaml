@@ -117,11 +117,11 @@ apt_pkg_selectors:
     printf '%s\n' \
           'packages:' \
           '  - name: tree' \
-          '    when: {pm: apt}' \
+          '    when: {plat.pm: apt}' \
           '  - name: curl' \
-          '    when: {pm: apt, id: debian}' \
+          '    when: {plat.pm: apt, os.id: debian}' \
           '  - name: not-a-real-package' \
-          '    when: {pm: apk}' \
+          '    when: {plat.pm: apk}' \
           > /tmp/manifest.yaml
   options:
     manifest: /tmp/manifest.yaml
@@ -333,7 +333,7 @@ apt_key_raw:
           '  - url: https://nginx.org/keys/nginx_signing.key' \
           '    dest: /usr/share/keyrings/nginx-signing.key' \
           'repos:' \
-          '  - content: "deb [arch={deb_arch} signed-by=/usr/share/keyrings/nginx-signing.key] http://nginx.org/packages/debian {version_codename} nginx"' \
+          '  - content: "deb [arch={plat.deb_arch:lower} signed-by=/usr/share/keyrings/nginx-signing.key] http://nginx.org/packages/debian {os.version_codename} nginx"' \
           'packages:' \
           '  - nginx' \
           > /tmp/manifest.yaml
@@ -350,7 +350,7 @@ apt_key_dearmor:
           '  - url: https://nginx.org/keys/nginx_signing.key' \
           '    dest: /usr/share/keyrings/nginx-archive-keyring.gpg' \
           'repos:' \
-          '  - content: "deb [arch={deb_arch} signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian {version_codename} nginx"' \
+          '  - content: "deb [arch={plat.deb_arch:lower} signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian {os.version_codename} nginx"' \
           'packages:' \
           '  - nginx' \
           > /tmp/manifest.yaml
@@ -366,11 +366,11 @@ apt_version_selector:
           'packages:' \
           '  - tree' \
           '  - name: bc' \
-          '    when: {version_id: "12"}' \
+          '    when: {os.version_id: "12"}' \
           '  - name: less' \
-          '    when: {id: debian, version_id: "12"}' \
+          '    when: {os.id: debian, os.version_id: "12"}' \
           '  - name: mlocate' \
-          '    when: {version_id: "22.04"}' \
+          '    when: {os.version_id: "22.04"}' \
           > /tmp/manifest.yaml
   options:
     manifest: /tmp/manifest.yaml

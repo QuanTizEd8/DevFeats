@@ -30,11 +30,11 @@ _options:
         description: fzf v0.72.0.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/fzf-{VERSION}-{OS}_{ARCH}.tar.gz"
-      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/fzf_{VERSION}_checksums.txt"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/fzf-{feat.version}-{plat.kernel:lower}_{plat.machine_release}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/fzf_{feat.version}_checksums.txt"
       binary_src:
         - fzf
-      when: {arch: [amd64, arm64, armv7, armv6, armv5, ppc64le, riscv64, s390x, loong64]}
+      when: {plat.machine_release: [amd64, arm64, armv7, armv6, armv5, ppc64le, riscv64, s390x, loong64]}
     package: {}
   prefix:
     bins: [fzf]

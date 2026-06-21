@@ -16,7 +16,7 @@ _options:
   version:
     resolution: sidecar
     uri: "https://ftp.gnu.org/gnu/bash/"
-    pattern: "bash-{VERSION}.tar.gz"
+    pattern: "bash-[version].tar.gz"
     default: stable
     flag: --version
     proposals:
@@ -28,7 +28,7 @@ _options:
     package:
       registers_as: bash
     source:
-      asset_uri: "https://ftp.gnu.org/gnu/bash/bash-{VERSION}.tar.gz"
+      asset_uri: "https://ftp.gnu.org/gnu/bash/bash-{feat.version}.tar.gz"
       build_system: autotools
       configure_args:
         - "--without-bash-malloc"
@@ -44,7 +44,7 @@ _dependencies:
     method-package:
       packages:
         - name: bash
-          version: "{VERSION}"
+          version: "{feat.version}"
   build:
     method-source:
       apt:

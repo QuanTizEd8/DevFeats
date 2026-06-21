@@ -477,7 +477,9 @@ def test_select_feature_test_ids_shared_metadata_triggers_all(
 ) -> None:
     """Verify shared metadata changes match scenario_test and select all features."""
     _use_tmp_repo(monkeypatch, tmp_path)
-    _write(tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n")
+    _write(
+        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n"
+    )
     (tmp_path / "features" / "install-foo").mkdir(parents=True)
     (tmp_path / "features" / "install-bar").mkdir(parents=True)
     groups = {
@@ -503,7 +505,9 @@ def test_select_feature_test_ids_per_feature_metadata(
 ) -> None:
     """Verify a single feature metadata.yaml change selects only that feature."""
     _use_tmp_repo(monkeypatch, tmp_path)
-    _write(tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n")
+    _write(
+        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n"
+    )
     groups = {
         "scenario_test": [
             "features/install.sh",
@@ -527,7 +531,9 @@ def test_select_feature_test_ids_per_feature_paths(
 ) -> None:
     """Verify unrelated feature paths select only the touched feature."""
     _use_tmp_repo(monkeypatch, tmp_path)
-    _write(tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n")
+    _write(
+        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n"
+    )
     groups = {"scenario_test": ["features/install.sh", "lib/**"]}
     changed = ["features/install-foo/install.bash"]
     linux, macos = cd.select_feature_test_ids(
@@ -545,7 +551,9 @@ def test_merge_release_feature_test_ids_unions_changed(
 ) -> None:
     """Verify release mode keeps path-selected features in addition to releasable ones."""
     _use_tmp_repo(monkeypatch, tmp_path)
-    _write(tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n")
+    _write(
+        tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n"
+    )
     groups = {"scenario_test": ["features/install.sh", "lib/**"]}
     releasable = [
         {"feature": "install-foo", "version": "1.0.0", "tag": "install-foo/1.0.0"},

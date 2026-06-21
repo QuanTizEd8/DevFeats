@@ -466,7 +466,7 @@ abc123  zsh-5.9.tar.xz
 abc123  zsh-5.9-doc.tar.xz
 abc123  zsh-5.8.1.tar.xz"
   _stub_uri_fetch_asset_with_content
-  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "stable"
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "stable"
   assert_output "5.9.1"
   assert_success
 }
@@ -476,43 +476,43 @@ abc123  zsh-5.8.1.tar.xz"
 abc123  zsh-5.9.1.tar.xz
 abc123  zsh-5.9.tar.xz"
   _stub_uri_fetch_asset_with_content
-  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "latest"
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "latest"
   assert_output "5.9.2-rc1"
   assert_success
 }
 
 @test "ver__resolve_from_sidecar returns numeric spec as-is without fetching sidecar" {
-  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "5.9"
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "5.9"
   assert_output "5.9"
   assert_success
 }
 
 @test "ver__resolve_from_sidecar returns full numeric spec as-is" {
-  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "5.9.1"
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "5.9.1"
   assert_output "5.9.1"
   assert_success
 }
 
-@test "ver__resolve_from_sidecar fails when pattern has no {VERSION}" {
+@test "ver__resolve_from_sidecar fails when pattern has no [version]" {
   run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-5.9.1.tar.xz" "stable"
   assert_failure
 }
 
 @test "ver__resolve_from_sidecar fails when fetch fails" {
   _stub_uri_fetch_asset_fail
-  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "stable"
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "stable"
   assert_failure
 }
 
 @test "ver__resolve_from_sidecar fails when no versions found in file" {
   export _SIDECAR_CONTENT="abc123  someotherfile.tar.xz"
   _stub_uri_fetch_asset_with_content
-  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "stable"
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "stable"
   assert_failure
 }
 
 @test "ver__resolve_from_sidecar fails when URI is empty" {
-  run ver__resolve_from_sidecar "" "zsh-{VERSION}.tar.xz" "stable"
+  run ver__resolve_from_sidecar "" "zsh-[version].tar.xz" "stable"
   assert_failure
 }
 
@@ -520,6 +520,104 @@ abc123  zsh-5.9.tar.xz"
   export _SIDECAR_CONTENT="abc123  zsh-5.9.2-rc1.tar.xz
 abc123  zsh-5.9.1-beta.tar.xz"
   _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "stable"
+  assert_failure
+}
+
+@test "ver__resolve_from_sidecar fails when pattern is empty" {
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "" "stable"
+  assert_failure
+}
+
+@test "ver__resolve_from_sidecar fails when pattern has old {VERSION} marker" {
   run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{VERSION}.tar.xz" "stable"
+  assert_failure
+}
+
+@test "ver__resolve_from_sidecar fails when pattern has new {feat.version} marker" {
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-{feat.version}.tar.xz" "stable"
+  assert_failure
+}
+
+@test "ver__resolve_from_sidecar resolves when [version] at start of pattern (no prefix)" {
+  export _SIDECAR_CONTENT="abc123  5.9.1.tar.xz
+abc123  5.9.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "[version].tar.xz" "stable"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar resolves when [version] at end of pattern (no suffix)" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.1
+abc123  zsh-5.9"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version]" "stable"
+  assert_output "5.9.1"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# ver__cmp — fixture-driven semver.org parity (bash + jq)
+# ---------------------------------------------------------------------------
+
+_ver_cmp__bash_runner() {
+  local _file="$1" _index="$2" _name="$3" _expect="$4"
+  local _yq _a _b _result _rc=0
+  _yq="$(bootstrap__yq 2>/dev/null)" || return 1
+  _a="$("${_yq}" -r ".[${_index}].a" "${_file}")"
+  _b="$("${_yq}" -r ".[${_index}].b" "${_file}")"
+  if [[ "${_expect}" == fail ]]; then
+    run ver__cmp "${_a}" "${_b}"
+    assert_failure
+    return 0
+  fi
+  _result="$(ver__cmp "${_a}" "${_b}")" || _rc=$?
+  [[ ${_rc} -eq 0 ]] || {
+    echo "ver_cmp ${_name}: bash compare failed" >&2
+    return 1
+  }
+  [[ "${_result}" == "${_expect}" ]] || {
+    echo "ver_cmp ${_name}: expected ${_expect} got ${_result}" >&2
+    return 1
+  }
+}
+
+_ver_cmp__jq_runner() {
+  local _file="$1" _index="$2" _name="$3" _expect="$4"
+  local _yq _a _b _result
+  _yq="$(bootstrap__yq 2>/dev/null)" || return 1
+  _a="$("${_yq}" -r ".[${_index}].a" "${_file}")"
+  _b="$("${_yq}" -r ".[${_index}].b" "${_file}")"
+  if [[ "${_expect}" == fail ]]; then
+    _result="$(json__query -r -L "${LIB_ROOT}" --arg a "${_a}" --arg b "${_b}" \
+      -n 'include "ctx-match"; ver_cmp_jq($a; $b) // "fail"')"
+    [[ "${_result}" == fail ]] || {
+      echo "ver_cmp ${_name}: expected jq fail got ${_result}" >&2
+      return 1
+    }
+    return 0
+  fi
+  _result="$(json__query -r -L "${LIB_ROOT}" --arg a "${_a}" --arg b "${_b}" \
+    -n 'include "ctx-match"; ver_cmp_jq($a; $b) | tostring')"
+  [[ "${_result}" == "$(printf '%s' "${_expect}")" ]] || {
+    echo "ver_cmp ${_name}: expected jq ${_expect} got ${_result}" >&2
+    return 1
+  }
+}
+
+@test "ver__cmp vectors: bash and jq parity from fixture" {
+  bootstrap__yq > /dev/null || skip "yq unavailable"
+  bootstrap__jq > /dev/null || skip "jq unavailable"
+  load 'helpers/ctx'
+  local _file="${REPO_ROOT}/test/lib/fixtures/ctx/ver_cmp_vectors.yaml"
+  ctx_test__run_vector_file "${_file}" _ver_cmp__bash_runner
+  ctx_test__run_vector_file "${_file}" _ver_cmp__jq_runner
+}
+
+@test "ver__semver_ge delegates to ver__cmp" {
+  run ver__semver_ge "1.10.0" "1.9.0"
+  assert_success
+  run ver__semver_ge "1.2.0" "1.10.0"
   assert_failure
 }

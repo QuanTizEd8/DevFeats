@@ -25,15 +25,15 @@ _options:
         description: Install direnv v2.37.1.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/direnv.{OS}-{ARCH}"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/direnv.{plat.kernel:lower}-{plat.machine_release}"
       when:
-        - {kernel: linux, arch: amd64}
-        - {kernel: linux, arch: arm64}
-        - {kernel: darwin, arch: amd64}
-        - {kernel: darwin, arch: arm64}
+        - {plat.kernel: linux, plat.machine_release: amd64}
+        - {plat.kernel: linux, plat.machine_release: arm64}
+        - {plat.kernel: darwin, plat.machine_release: amd64}
+        - {plat.kernel: darwin, plat.machine_release: arm64}
     package: {}
     source:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/archive/refs/tags/{TAG}.tar.gz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/archive/refs/tags/{feat.tag}.tar.gz"
       build_system: make
   prefix:
     bins: [direnv]

@@ -1238,27 +1238,45 @@ alice"
 }
 
 @test "users__first_writeable_path: uses platform-matching group over fallback" {
-  os__match_spec() { [[ "$1" == "kernel=Darwin" ]]; }
+  load 'helpers/ctx'
+  ctx_test__reset
+  ctx_test__seed_plat kernel=Darwin
   users__can_write() { return 0; }
-  result="$(users__first_writeable_path -- kernel=Darwin "/opt/homebrew" -- "/usr/local" "${HOME}/.local")"
+  export -f users__can_write
+  result="$(users__first_writeable_path -- '{plat.kernel: Darwin}' "/opt/homebrew" -- "/usr/local" "${HOME}/.local")"
   assert [ "${result}" = "/opt/homebrew" ]
 }
 
 @test "users__first_writeable_path: skips non-matching group and uses fallback" {
-  os__match_spec() { return 1; }
+  load 'helpers/ctx'
+  ctx_test__reset
+  ctx_test__seed_plat kernel=linux
   users__can_write() { return 0; }
-  result="$(users__first_writeable_path -- kernel=Darwin "/opt/homebrew" -- "/usr/local" "${HOME}/.local")"
+  export -f users__can_write
+  result="$(users__first_writeable_path -- '{plat.kernel: Darwin}' "/opt/homebrew" -- "/usr/local" "${HOME}/.local")"
   assert [ "${result}" = "/usr/local" ]
 }
 
 @test "users__first_writeable_path: fails when no group's platform condition matches" {
-  os__match_spec() { return 1; }
+  load 'helpers/ctx'
+  ctx_test__reset
+  ctx_test__seed_plat kernel=linux
   users__can_write() { return 0; }
-  export -f os__match_spec users__can_write
-  run --separate-stderr users__first_writeable_path -- kernel=Darwin "/opt/homebrew"
+  export -f users__can_write
+  run --separate-stderr users__first_writeable_path -- '{plat.kernel: Darwin}' "/opt/homebrew"
   assert_failure
   output="${stderr}"
   assert_output --partial "no platform group matched"
+}
+
+@test "users__first_writeable_path: feat.version lte constraint selects matching group" {
+  load 'helpers/ctx'
+  ctx_test__reset
+  ctx__set feat.version=12.1.2
+  users__can_write() { return 0; }
+  export -f users__can_write
+  result="$(users__first_writeable_path -- $'feat.version:\n  lte: "12.1.2"' "/opt/old" -- "/usr/local")"
+  assert [ "${result}" = "/opt/old" ]
 }
 
 @test "users__first_writeable_path: resolves single path from unconditional group" {

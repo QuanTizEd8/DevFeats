@@ -14,10 +14,12 @@ _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_LIB_DIR/logging.sh"
 # shellcheck source=lib/os.sh
 . "$_LIB_DIR/os.sh"
-# shellcheck source=lib/str.sh
-. "$_LIB_DIR/str.sh"
 # shellcheck source=lib/ver.sh
 . "$_LIB_DIR/ver.sh"
+# shellcheck source=lib/str.sh
+. "$_LIB_DIR/str.sh"
+# shellcheck source=lib/ctx.sh
+. "$_LIB_DIR/ctx.sh"
 # shellcheck source=lib/json.sh
 . "$_LIB_DIR/json.sh"
 # shellcheck source=lib/net.sh

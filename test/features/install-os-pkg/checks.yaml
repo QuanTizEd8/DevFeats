@@ -298,13 +298,13 @@ apt_manifest_uri_file:
 apt_pkg_selectors:
   description: |
     Verifies that PM and OS when clauses work on Debian (apt):
-    - tree (when: {pm: apt}) and curl (when: {pm: apt, id: debian}) are installed
-    - not-a-real-package (when: {pm: apk}) is filtered out (build would fail if attempted)
+    - tree (when: {plat.pm: apt}) and curl (when: {plat.pm: apt, os.id: debian}) are installed
+    - not-a-real-package (when: {plat.pm: apk}) is filtered out (build would fail if attempted)
 
   checks:
-    - title: 'tree is installed (when: {pm: apt})'
+    - title: 'tree is installed (when: {plat.pm: apt})'
       cmd: command -v tree
-    - title: 'curl is installed (when: {pm: apt, id: debian})'
+    - title: 'curl is installed (when: {plat.pm: apt, os.id: debian})'
       cmd: command -v curl
     - title: apk-only package was not installed
       cmd: bash -c "! command -v not-a-real-package"

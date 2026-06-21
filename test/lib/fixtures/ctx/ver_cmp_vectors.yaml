@@ -1,0 +1,49 @@
+- name: equal_core
+  a: 1.0.0
+  b: 1.0.0
+  expect: 0
+
+- name: lesser_core
+  a: 1.0.0
+  b: 2.0.0
+  expect: -1
+
+- name: greater_core
+  a: 2.0.0
+  b: 1.0.0
+  expect: 1
+
+- name: release_gt_prerelease
+  a: 1.0.0
+  b: 1.0.0-rc1
+  expect: 1
+
+- name: prerelease_lt_release
+  a: 1.0.0-rc1
+  b: 1.0.0
+  expect: -1
+
+- name: prerelease_order
+  a: 1.0.0-alpha
+  b: 1.0.0-alpha.beta
+  expect: -1
+
+- name: strip_leading_v
+  a: v1.0.0
+  b: 1.0.0
+  expect: 0
+
+- name: numeric_major_only
+  a: "22"
+  b: "21"
+  expect: 1
+
+- name: unparseable_a
+  a: stable
+  b: 1.0.0
+  expect: fail
+
+- name: unparseable_b
+  a: 1.0.0
+  b: latest
+  expect: fail

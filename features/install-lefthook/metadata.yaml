@@ -28,19 +28,19 @@ _options:
         description: Install lefthook v2.1.6.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/lefthook_{VERSION}_{OS==linux?Linux:MacOS}_{ARCH==amd64?x86_64:{ARCH}}"
-      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/lefthook_checksums.txt"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/lefthook_{feat.version}_{plat.kernel==linux?Linux:MacOS}_{plat.machine_release==amd64?x86_64:{plat.machine_release}}"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/lefthook_checksums.txt"
       when:
-        - {kernel: linux, arch: amd64}
-        - {kernel: linux, arch: arm64}
-        - {kernel: darwin, arch: amd64}
-        - {kernel: darwin, arch: arm64}
+        - {plat.kernel: linux, plat.machine_release: amd64}
+        - {plat.kernel: linux, plat.machine_release: arm64}
+        - {plat.kernel: darwin, plat.machine_release: amd64}
+        - {plat.kernel: darwin, plat.machine_release: arm64}
     npm:
       package: "lefthook"
       args:
         - "--ignore-scripts"
     upstream-package:
-      when: {pm: [apt, apk, dnf, zypper, brew]}
+      when: {plat.pm: [apt, apk, dnf, zypper, brew]}
   prefix:
     bins: [lefthook]
     applies_when:
@@ -51,26 +51,26 @@ _dependencies:
       packages:
         - name: lefthook
           when:
-            pm: [apt, apk, dnf, yum, zypper]
+            plat.pm: [apt, apk, dnf, yum, zypper]
       apt:
         keys:
           - url: "https://dl.cloudsmith.io/public/evilmartians/lefthook/gpg.A05F5DDE3A0BB1D2.key"
             dest: "/usr/share/keyrings/evilmartians-lefthook-archive-keyring.gpg"
         repos:
-          - "deb [signed-by=/usr/share/keyrings/evilmartians-lefthook-archive-keyring.gpg] https://dl.cloudsmith.io/public/evilmartians/lefthook/deb/{id} {version_codename} main"
+          - "deb [signed-by=/usr/share/keyrings/evilmartians-lefthook-archive-keyring.gpg] https://dl.cloudsmith.io/public/evilmartians/lefthook/deb/{os.id} {os.version_codename} main"
       apk:
         keys:
           - url: "https://dl.cloudsmith.io/public/evilmartians/lefthook/rsa.CCA91DF99AD351FF.key"
             dest: "/etc/apk/keys/lefthook@evilmartians-CCA91DF99AD351FF.rsa.pub"
             dearmor: false
         repos:
-          - "https://dl.cloudsmith.io/public/evilmartians/lefthook/alpine/v{version_id_mm}/main"
+          - "https://dl.cloudsmith.io/public/evilmartians/lefthook/alpine/v{os.version_id_mm}/main"
       dnf:
         repos:
           - |
             [evilmartians-lefthook]
             name=evilmartians-lefthook
-            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/{id==fedora?fedora:el}/{id==fedora?{version_id}:{version_id_major}}/$basearch
+            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/{id==fedora?fedora:el}/{id==fedora?{os.version_id}:{os.version_id_major}}/$basearch
             repo_gpgcheck=1
             enabled=1
             skip_if_unavailable=1
@@ -85,7 +85,7 @@ _dependencies:
           - |
             [evilmartians-lefthook]
             name=evilmartians-lefthook
-            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/el/{version_id_major}/$basearch
+            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/el/{os.version_id_major}/$basearch
             repo_gpgcheck=1
             enabled=1
             skip_if_unavailable=1
@@ -100,7 +100,7 @@ _dependencies:
           - |
             [evilmartians-lefthook]
             name=evilmartians-lefthook
-            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/opensuse/{version_id}/$basearch
+            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/opensuse/{os.version_id}/$basearch
             repo_gpgcheck=1
             enabled=1
             skip_if_unavailable=1

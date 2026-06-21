@@ -35,13 +35,13 @@ _options:
         description: Pandoc v3.8.3.
   method:
     binary:
-      asset_uri: "https://github.com/jgm/pandoc/releases/download/{TAG}/pandoc-{VERSION}-{OS==linux?linux-{ARCH}:{OS_ARCH==aarch64?arm64:{OS_ARCH}}-macOS}.{OS==linux?tar.gz:zip}"
+      asset_uri: "https://github.com/jgm/pandoc/releases/download/{feat.tag}/pandoc-{feat.version}-{plat.kernel==linux?linux-{plat.machine_release}:{plat.machine==aarch64?arm64:{plat.machine}}-macOS}.{plat.kernel==linux?tar.gz:zip}"
       binary_src:
         - pandoc
       companion_bins:
         - pandoc-server
         - pandoc-lua
-      when: {arch: [amd64, arm64]}
+      when: {plat.machine_release: [amd64, arm64]}
     package: {}
   prefix:
     bins: [pandoc, pandoc-server, pandoc-lua]

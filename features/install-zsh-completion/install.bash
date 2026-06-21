@@ -18,7 +18,7 @@ _ZSH_COMPLETIONS_SRC="${_ZSH_COMPLETIONS_PREFIX}/src"
 # into ${_ZSH_COMPLETIONS_PREFIX} (no apt/deb package exists for this tree).
 # ---------------------------------------------------------------------------
 install_zsh_completions() {
-  if ospkg__os_release_match pm brew; then
+  if [[ "$(ctx__get plat.pm)" == "brew" ]]; then
     ospkg__install_user zsh-completions
     return 0
   fi

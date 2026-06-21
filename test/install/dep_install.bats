@@ -7,6 +7,7 @@ setup() {
   load 'helpers/ensure_framework'
   install_test__ensure_framework
   load 'helpers/stubs'
+  load 'helpers/ctx'
 
   OSPKG_MANIFEST_BASE_RUN=""
   METHOD="package"
@@ -59,21 +60,41 @@ setup() {
   grep -Fq 'zip' "${BATS_TEST_TMPDIR}/ospkg.log"
 }
 
-@test "__dep_pm_extra_args__ passes VERSION for package method" {
-  VERSION="1.2.3"
-  local -a _args=()
-  __dep_pm_extra_args__ run _args
-  [[ " ${_args[*]} " == *" VERSION=1.2.3 "* ]]
+@test "__dep_install_from_env__ uses ctx registry (no --extra-var)" {
+  VERSION="14.0.0"
+  METHOD="binary"
+  __ctx_sync__
+  OSPKG_MANIFEST_BASE_RUN=$'packages:\n- jq'
+  run __dep_install_from_env__ OSPKG_MANIFEST_BASE_RUN run base
+  assert_success
+  grep -Fq -- '--manifest' "${BATS_TEST_TMPDIR}/ospkg.log"
+  [[ "$(ctx__get feat.version)" == "14.0.0" ]]
+  ! grep -Fq -- '--extra-var' "${BATS_TEST_TMPDIR}/ospkg.log"
 }
 
-@test "__dep_pm_extra_args__ tolerates KEEP_REPOS=false for upstream-package" {
-  METHOD="upstream-package"
-  KEEP_REPOS="false"
+@test "ctx sync: feat.version and feat.method available for manifests" {
+  VERSION="1.2.3"
+  METHOD="package"
+  __ctx_sync__
+  [[ "$(ctx__get feat.version)" == "1.2.3" ]]
+  [[ "$(ctx__get feat.method)" == "package" ]]
+}
+
+@test "ctx sync: stable channel keeps feat.version_input" {
   VERSION="stable"
-  local -a _args=()
-  __dep_pm_extra_args__ run _args
-  [[ " ${_args[*]} " == *" VERSION_INPUT=stable "* ]]
-  [[ " ${_args[*]} " != *" keep_repos "* ]]
+  METHOD="package"
+  __ctx_sync_version__
+  [[ "$(ctx__get feat.version_input)" == "stable" ]]
+  [[ "$(ctx__get feat.version)" == "stable" ]]
+}
+
+@test "ctx sync: upstream-package preserves VERSION_INPUT after resolution" {
+  METHOD="upstream-package"
+  VERSION="2.47.0"
+  VERSION_INPUT="stable"
+  __ctx_sync_version__
+  [[ "$(ctx__get feat.version_input)" == "stable" ]]
+  [[ "$(ctx__get feat.version)" == "2.47.0" ]]
 }
 
 @test "__dep_install_from_env__ skips on Linux when not privileged" {

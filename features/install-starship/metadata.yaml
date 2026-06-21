@@ -28,11 +28,11 @@ _options:
         description: Starship v1.25.1.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/starship-{OS_ARCH==armv7l?arm-unknown-linux-musleabihf:{RUST_TRIPLE}}.tar.gz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/starship-{plat.machine==armv7l?arm-unknown-linux-musleabihf:{plat.rust_triple}}.tar.gz"
       binary_src:
         - starship
     package:
-      when: {pm: [brew, apk, zypper, pacman]}
+      when: {plat.pm: [brew, apk, zypper, pacman]}
     cargo:
       crate: starship
   prefix:

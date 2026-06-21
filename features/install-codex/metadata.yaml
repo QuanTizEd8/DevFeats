@@ -37,15 +37,15 @@ _options:
         description: Codex CLI v0.130.0.
   method:
     binary:
-      asset_uri: "https://github.com/openai/codex/releases/download/{TAG}/codex-{RUST_TRIPLE}.tar.gz"
-      when: {arch: [amd64, arm64]}
+      asset_uri: "https://github.com/openai/codex/releases/download/{feat.tag}/codex-{plat.rust_triple}.tar.gz"
+      when: {plat.machine_release: [amd64, arm64]}
     npm-bundled:
       package: "@openai/codex"
       cmd: codex
     npm:
       package: "@openai/codex"
     package:
-      when: {pm: brew}
+      when: {plat.pm: brew}
   prefix:
     bins: [codex]
     applies_when:
@@ -126,7 +126,7 @@ _dependencies:
         - ripgrep
         - name: bubblewrap
           when:
-            kernel: linux
+            plat.kernel: linux
     method-package:
       brew:
         casks:

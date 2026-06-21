@@ -196,13 +196,13 @@ The `method` shared option is only injected when at least two methods are declar
 
 ```yaml
 binary:
-  asset_uri: "https://github.com/{GH_REPO}/releases/download/{TAG}/tool-{VERSION}-{OS}-{ARCH}.tar.gz"
-  sidecar_uri: "https://github.com/{GH_REPO}/releases/download/{TAG}/tool-{VERSION}-{OS}-{ARCH}.tar.gz.sha256"
+  asset_uri: "https://github.com/{GH_REPO}/releases/download/{feat.tag}/tool-{feat.version}-{plat.kernel:lower}-{plat.machine_release}.tar.gz"
+  sidecar_uri: "https://github.com/{GH_REPO}/releases/download/{feat.tag}/tool-{feat.version}-{plat.kernel:lower}-{plat.machine_release}.tar.gz.sha256"
   binary_src:             # source path(s) inside the archive (suffix-match)
     - tool                # one entry: single binary; multiple entries: fan-out copies
 ```
 
-URI substitutions: `{VERSION}`, `{TAG}`, `{OS}` (`linux`/`darwin`), `{KERNEL}` (`Linux`/`Darwin`), `{ARCH}` (`amd64`/`arm64`), `{OS_ARCH}` (`linux_amd64`), `{PLATFORM}` (`linux/amd64`), `{RUST_TRIPLE}` (`x86_64-unknown-linux-musl`), `{GH_REPO}` (from `_options.gh_repo`).
+URI substitutions use qualified context tokens expanded by `ctx__expand_pattern` — see [Unified condition context](context.md). Common tokens: `{feat.version}`, `{feat.tag}`, `{plat.kernel:lower}`, `{plat.machine_release}`, `{plat.rust_triple}`, `{GH_REPO}` (from `_options.gh_repo`).
 
 The auto-implementation handles: URI expansion, fetch, SHA256 verification (from GitHub JSON or sidecar), extraction, and binary placement. A single `binary_src` entry installs to `${PREFIX}/bin/<basename>`; multiple entries install real copies into `${PREFIX}/bin/` via fan-out (use `companion_bins` for symlinks to the primary binary only). Override with `__install_run_binary_pre` / `_FEAT_BINARY_ASSET_PATTERN` for dynamic logic.
 

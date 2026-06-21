@@ -16,7 +16,7 @@ _options:
   installer_dir: false
 _system_requirements:
   platforms:
-    - kernel: linux
+    - plat.kernel: linux
   root: true
 options:
   username:
@@ -72,9 +72,9 @@ _dependencies:
       # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt distros,
       # but requires the shadow package on Alpine/zypper/pacman and shadow-utils on dnf/yum.
       packages:
-        - when: {pm: [apk, zypper, pacman]}
+        - when: {plat.pm: [apk, zypper, pacman]}
           packages: [shadow]
-        - when: {pm: [dnf, yum]}
+        - when: {plat.pm: [dnf, yum]}
           packages: [shadow-utils]
     option-sudo_access:
       # Installed only when sudo_access=true.

@@ -68,8 +68,8 @@ _options:
         description: "Conda 26.3.1. Pass any conda version string; the script finds the matching Miniforge tag (e.g. 26.3.1 → 26.3.1-0)."
   method:
     script:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/Miniforge3-{TAG}-{KERNEL}-{OS_ARCH}.sh"
-      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/Miniforge3-{TAG}-{KERNEL}-{OS_ARCH}.sh.sha256"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/Miniforge3-{feat.tag}-{plat.kernel}-{plat.machine}.sh"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/Miniforge3-{feat.tag}-{plat.kernel}-{plat.machine}.sh.sha256"
   prefix:
     root: /opt/conda
     nonroot: "${HOME}/miniforge3"

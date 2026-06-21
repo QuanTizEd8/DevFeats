@@ -54,20 +54,20 @@ _options:
     symlink:
       skip: true
     platform_overrides:
-      - when: {kernel: Darwin, arch: arm64}
+      - when: {plat.kernel: Darwin, plat.machine_release: arm64}
         default: /opt/homebrew
-      - when: {kernel: Darwin}
+      - when: {plat.kernel: Darwin}
         default: /usr/local
     discovery_snippet:
-      bash: "eval \\$('{PREFIX}/bin/brew' shellenv)"
-      zsh: "eval \\$('{PREFIX}/bin/brew' shellenv)"
-      fish: "eval ('{PREFIX}/bin/brew' shellenv)"
+      bash: "eval \\$('{feat.prefix}/bin/brew' shellenv)"
+      zsh: "eval \\$('{feat.prefix}/bin/brew' shellenv)"
+      fish: "eval ('{feat.prefix}/bin/brew' shellenv)"
     write_group:
       default: brew
 _dependencies:
   run:
     base:
-      when: {kernel: linux}
+      when: {plat.kernel: linux}
       # Runtime tools required by Homebrew on Linux.
       # ref: https://docs.brew.sh/Homebrew-on-Linux#requirements
       #
@@ -85,7 +85,7 @@ _dependencies:
         - tar
   build:
     method-script:
-      when: {kernel: linux}
+      when: {plat.kernel: linux}
       # Build tools — names differ by ecosystem. Build-time only on Linux;
       # macOS provides these via Xcode CLT which is handled separately.
       #
@@ -107,22 +107,22 @@ _dependencies:
       # bottles and formula builds have a typical C/C++ build environment.
 
       packages:
-        - when: {pm: apt}
+        - when: {plat.pm: apt}
           packages: [build-essential]
-        - when: {pm: apk}
+        - when: {plat.pm: apk}
           packages: [build-base]
-        - when: {pm: [apt, apk, zypper]}
+        - when: {plat.pm: [apt, apk, zypper]}
           packages: [procps]
-        - when: {pm: [dnf, yum, pacman]}
+        - when: {plat.pm: [dnf, yum, pacman]}
           packages: [procps-ng]
-        - when: {pm: zypper}
+        - when: {plat.pm: zypper}
           # Explicit RPMs (see linux-build comment above), not pattern(devel_basis).
           packages: [binutils, gcc, gcc-c++, make, patch, glibc-devel, libstdc++-devel, perl, pkgconf]
 
       # Package groups for build toolchains
       groups:
         - name: development-tools
-          when: {pm: [dnf, yum]}
+          when: {plat.pm: [dnf, yum]}
         - name: base-devel
-          when: {pm: pacman}
+          when: {plat.pm: pacman}
 

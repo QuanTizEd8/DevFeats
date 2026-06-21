@@ -1,0 +1,47 @@
+- name: empty_eq_fedora
+  actual: ""
+  op: eq
+  expected: fedora
+  expect: false
+
+- name: empty_ne_fedora
+  actual: ""
+  op: ne
+  expected: fedora
+  expect: true
+
+- name: rocky_eq_rhel_token
+  actual: rhel centos fedora
+  op: eq
+  expected: rhel
+  expect: true
+
+- name: rocky_eq_debian_token
+  actual: rhel centos fedora
+  op: eq
+  expected: debian
+  expect: false
+
+- name: eq_array_or_debian
+  actual: rhel centos fedora
+  op: eq
+  expected: debian|rhel
+  expect: true
+
+- name: ne_array_exclude
+  actual: rhel centos fedora
+  op: ne
+  expected: debian|arch
+  expect: true
+
+- name: scalar_whole_string_false
+  actual: rhel centos fedora
+  op: eq
+  expected: "rhel centos fedora"
+  expect: false
+
+- name: ordering_gte_always_false
+  actual: rhel centos fedora
+  op: gte
+  expected: rhel
+  expect: false

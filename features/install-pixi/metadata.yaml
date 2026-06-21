@@ -39,8 +39,8 @@ _options:
         description: Pixi v0.65.0.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/pixi-{RUST_TRIPLE}.tar.gz"
-      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/pixi-{RUST_TRIPLE}.tar.gz.sha256"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/pixi-{plat.rust_triple}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/pixi-{plat.rust_triple}.tar.gz.sha256"
       binary_src:
         - pixi
 

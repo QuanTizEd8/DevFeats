@@ -39,10 +39,10 @@ _options:
     shells: [bash, zsh, fish]
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/yq_{OS}_{ARCH}"
-      when: {arch: [amd64, arm64]}
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/yq_{plat.kernel:lower}_{plat.machine_release}"
+      when: {plat.machine_release: [amd64, arm64]}
     package:
-      when: {pm: [dnf, apk, zypper, brew, pacman]}
+      when: {plat.pm: [dnf, apk, zypper, brew, pacman]}
   prefix:
     bins: [yq]
     applies_when:
@@ -61,7 +61,7 @@ _dependencies:
           # Alpine 3.20+ renamed package to yq-go.
           - name: yq-go
             when:
-              version_id:
+              os.version_id:
                 - "3.20"
                 - "3.21"
                 - "3.22"
@@ -69,7 +69,7 @@ _dependencies:
           # Alpine <=3.19 used yq for mikefarah/yq.
           - name: yq
             when:
-              version_id:
+              os.version_id:
                 - "3.16"
                 - "3.17"
                 - "3.18"
@@ -78,18 +78,18 @@ _dependencies:
         packages:
           - name: yq
             when:
-              - id: fedora
-              - id_like: rhel
+              - os.id: fedora
+              - os.id_like: rhel
       yum:
         packages:
           - name: yq
             when:
-              id_like: rhel
+              os.id_like: rhel
       zypper:
         packages:
           - name: yq
             when:
-              id:
+              os.id:
                 - opensuse-tumbleweed
                 - opensuse-leap
                 - opensuse-slowroll

@@ -31,13 +31,13 @@ _options:
         description: ORAS v1.3.2.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/oras_{VERSION}_{OS}_{ARCH}.tar.gz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/oras_{feat.version}_{plat.kernel:lower}_{plat.machine_release}.tar.gz"
       binary_src:
         - oras
       gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/refs/heads/main/KEYS"
-      when: {arch: [amd64, arm64, armv7, ppc64le, s390x, riscv64, loong64]}
+      when: {plat.machine_release: [amd64, arm64, armv7, ppc64le, s390x, riscv64, loong64]}
     package:
-      when: {pm: [apt, apk, dnf, zypper]}
+      when: {plat.pm: [apt, apk, dnf, zypper]}
   prefix:
     bins: [oras]
     applies_when:
@@ -55,12 +55,12 @@ _dependencies:
           # Debian repositories provide `oras`.
           - name: oras
             when:
-              id: debian
+              os.id: debian
           # Ubuntu repositories provide `oras` starting from 25.04.
           - name: oras
             when:
-              id: ubuntu
-              version_id:
+              os.id: ubuntu
+              os.version_id:
                 - "25.04"
                 - "25.10"
                 - "26.04"
@@ -73,17 +73,17 @@ _dependencies:
           # Fedora package name differs (`golang-oras` installs /usr/bin/oras).
           - name: golang-oras
             when:
-              id: fedora
+              os.id: fedora
       yum:
         packages:
           - name: golang-oras
             when:
-              id: fedora
+              os.id: fedora
       zypper:
         packages:
           - name: oras
             when:
-              id:
+              os.id:
                 - opensuse-tumbleweed
                 - opensuse-slowroll
       brew:

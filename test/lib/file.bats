@@ -67,12 +67,8 @@ setup() {
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="apt-get"
   _OSPKG__FAMILY="apt"
-  _OSPKG__OS_RELEASE[pm]="apt"
-  _OSPKG__OS_RELEASE[arch]="amd64"
-  _OSPKG__OS_RELEASE[id]="ubuntu"
-  _OSPKG__OS_RELEASE[id_like]="debian"
-  _OSPKG__OS_RELEASE[version_id]="22.04"
-  _OSPKG__OS_RELEASE[version_codename]="jammy"
+  ctx__set plat.pm=apt plat.machine_release=amd64 os.id=ubuntu os.id_like=debian os.version_id=22.04 os.version_codename=jammy plat.kernel=linux
+  _CTX__REGISTRY_INITIALIZED=true
 
   # Stub ospkg__update and ospkg__install_tracked; the latter creates a fake unzip.
   ospkg__update() { return 0; }

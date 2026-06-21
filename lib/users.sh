@@ -1166,20 +1166,10 @@ users__add_sudoer() {
 }
 
 users__first_writeable_path() {
-  # @brief users__first_writeable_path [-- [key=val ...] path ...] ... — Find first writable path from platform-conditional groups.
+  # @brief users__first_writeable_path -- [<yaml-when>] path ... [-- ...] — First writable path from conditional groups.
   #
-  # Accepts one or more "--"-separated groups. Within each group, key=val args are
-  # passed to os__match_spec (the platform condition); remaining args are candidate
-  # paths tried in order. A group without key=val args is unconditional.
-  # Groups are tried in order; the first whose platform condition matches is used.
-  # Within a matching group, paths are tried with users__can_write in order; the
-  # first writable path is printed to stdout. Exits 1 if a matching group has no
-  # writable candidate, or if no group matches.
-  #
-  # Args:
-  #   --      Separator before each candidate group (required before first group).
-  #   key=val Zero or more os__match_spec conditions for the following group.
-  #   path    One or more candidate paths within the group (tried in order).
+  # Groups separated by `--`. Optional first token in a group (if not an absolute path) is a YAML when blob.
+  # Reads feat.* / plat.* / os.* from the global ctx registry (template ctx__set publish points).
   local -a _when _paths
   while [[ $# -gt 0 ]]; do
     [[ "$1" != "--" ]] && {
@@ -1190,10 +1180,16 @@ users__first_writeable_path() {
     _when=()
     _paths=()
     while [[ $# -gt 0 && "$1" != "--" ]]; do
-      [[ "$1" != /* && "$1" == *=* ]] && _when+=("$1") || _paths+=("$1")
+      if [[ ${#_paths[@]} -eq 0 && ${#_when[@]} -eq 0 && "$1" != /* && "$1" == *:* ]]; then
+        _when+=("$1")
+      else
+        _paths+=("$1")
+      fi
       shift
     done
-    [[ "${#_when[@]}" -gt 0 ]] && ! os__match_spec "${_when[@]}" && continue
+    if [[ ${#_when[@]} -gt 0 ]]; then
+      ctx__match_spec "${_when[0]}" || continue
+    fi
     local _p
     for _p in "${_paths[@]}"; do
       if users__can_write "$_p"; then

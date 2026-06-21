@@ -210,6 +210,8 @@ __install_post() {
 
 Run before/after `__install_init__` — at the point when VERSION, METHOD, and PREFIX have just been resolved and `_dependencies.run.base` has just been installed.
 
+The install template mirrors resolved globals into the context registry via `__ctx_sync_version__`, `__ctx_sync_method__`, and `__ctx_sync_prefix__` (or `__ctx_sync__` for all three). Feature hooks that change `VERSION`, `METHOD`, or prefix-related globals must call the matching sync helper so when blocks and URI patterns see up-to-date `feat.*` keys. See [Unified condition context](context.md).
+
 ```bash
 __install_init_post() {
   # VERSION and METHOD are resolved here; PREFIX is set

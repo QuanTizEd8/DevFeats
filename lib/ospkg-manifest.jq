@@ -1,23 +1,6 @@
-# ── Helper definitions ────────────────────────────────────────────────────────
-def ic: ascii_downcase;
+include "ctx-match";
+
 def ctx: $ctx;
-
-def cond_matches(c):
-  to_entries | all(
-    .key as $k | .value as $v |
-    (c[$k] // "") | ic as $actual |
-    if ($v | type) == "array" then [($v[] | ic)] | any(. == $actual)
-    else ($v | ic) == $actual
-    end
-  );
-
-def when_matches:
-  if has("when") | not then true
-  elif .when == null then true
-  elif (.when | type) == "array" then [.when[] | cond_matches(ctx)] | any
-  elif (.when | type) == "object" then .when | cond_matches(ctx)
-  else false
-  end;
 
 def to_lines: if type == "array" then join("\n") else . end;
 
@@ -43,7 +26,7 @@ def visit(k; gf):
     else empty end
   elif has("packages") then
     # group object
-    if when_matches then
+    if item_when_matches then
       . as $g |
       merge_flags(gf; ($g.flags // null)) as $mf |
       if k == "prescript" then
@@ -71,7 +54,7 @@ def visit(k; gf):
     end
   else
     # package object
-    if when_matches then
+    if item_when_matches then
       . as $e |
       if k == "prescript" then
         if $e | has("prescript") then
@@ -105,7 +88,7 @@ def visit(k; gf):
 . as $doc |
 
 # Top-level when: skip entire manifest if it does not match.
-if ($doc | has("when")) and (($doc | when_matches) | not) then
+if ($doc | has("when")) and (($doc | item_when_matches) | not) then
   empty
 else
 
@@ -159,7 +142,7 @@ else empty end),
 (if $doc | has("groups") then
   $doc.groups[] |
   if type == "string" and (length) > 0 then {kind: "group", group: .}
-  elif (type == "object") and when_matches
+  elif (type == "object") and item_when_matches
        and ((.name | type) == "string")
        and ((.name | length) > 0) then
     {kind: "group", group: .name}
@@ -169,7 +152,7 @@ else empty end),
 (if ($doc | has($pm)) and ($doc[$pm] | has("groups")) then
   $doc[$pm].groups[] |
   if type == "string" and (length) > 0 then {kind: "group", group: .}
-  elif (type == "object") and when_matches
+  elif (type == "object") and item_when_matches
        and ((.name | type) == "string")
        and ((.name | length) > 0) then
     {kind: "group", group: .name}

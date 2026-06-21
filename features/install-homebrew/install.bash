@@ -3,7 +3,7 @@
 # ── High-level steps ──────────────────────────────────────────────────────────
 
 __install_run_script_pre() {
-  if [ "$(os__kernel)" = "Darwin" ]; then
+  if [ "$(ctx__get plat.kernel)" = "Darwin" ]; then
     bootstrap__xcode
   fi
   return 0
@@ -58,7 +58,7 @@ uninstall_brew() {
 # Returns the path to the Homebrew/brew git repository — distinct from the
 # prefix on Intel macOS and Linux, where brew lives in ${prefix}/Homebrew.
 detect_brew_repository() {
-  if [ "$(os__kernel)" = "Darwin" ] && [ "$(os__arch)" = "arm64" ]; then
+  if [ "$(ctx__get plat.kernel)" = "Darwin" ] && [ "$(ctx__get plat.machine_release)" = "arm64" ]; then
     echo "${_RESOLVED_PREFIX}"
   else
     echo "${_RESOLVED_PREFIX}/Homebrew"
@@ -125,7 +125,7 @@ _sync_init_files() {
   local _files _slug _is_root=false
   ! users__is_user_path "${_RESOLVED_PREFIX}" && _is_root=true
 
-  if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
+  if [ "$_is_root" = true ] && [ "$(ctx__get plat.kernel)" != "Darwin" ]; then
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
     _files="$(shell__system_path_files --profile_d "${_slug}.sh")"
   else
@@ -149,7 +149,7 @@ _brew_run_as_install_user() {
 
 __init_args_post() {
   if [ -z "${INSTALL_USER:-}" ]; then
-    if users__is_root && [ "$(os__kernel)" != "Darwin" ]; then
+    if users__is_root && [ "$(ctx__get plat.kernel)" != "Darwin" ]; then
       # Linux root without an explicit install_user: always use the linuxbrew
       # system account regardless of _REMOTE_USER / _CONTAINER_USER context.
       # The official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
@@ -165,7 +165,7 @@ __init_args_post() {
   fi
   # Homebrew cannot run as root. macOS root still needs a non-system user.
   if [ "$INSTALL_USER" = "root" ]; then
-    if [ "$(os__kernel)" = "Darwin" ]; then
+    if [ "$(ctx__get plat.kernel)" = "Darwin" ]; then
       local _u
       _u="$(dscl . list /Users 2> /dev/null |
         grep -v -E '^(_|daemon|nobody|root|Guest)' |
@@ -184,7 +184,7 @@ __init_args_post() {
     fi
   fi
   logging__info "Install user: '${INSTALL_USER}'."
-  if [ "$INSTALL_USER" = "linuxbrew" ] && [ "$(os__kernel)" != "Darwin" ] && users__is_root; then
+  if [ "$INSTALL_USER" = "linuxbrew" ] && [ "$(ctx__get plat.kernel)" != "Darwin" ] && users__is_root; then
     # Create the linuxbrew system account before prefix resolution expands ${HOME} for that user.
     _ensure_linuxbrew_user
   fi
@@ -218,13 +218,13 @@ validate_install_user() {
     return 1
   fi
   # macOS: root is never a valid Homebrew owner.
-  if [ "$(os__kernel)" = "Darwin" ] && [ "$_user" = "root" ]; then
+  if [ "$(ctx__get plat.kernel)" = "Darwin" ] && [ "$_user" = "root" ]; then
     logging__error "The Homebrew installer refuses to run as root on macOS."
     logging__info "Set 'install_user' to a non-root user account."
     return 1
   fi
   # Linux: root is allowed only when explicitly requested; warn about reliability.
-  if [ "$(os__kernel)" != "Darwin" ] && [ "$_user" = "root" ]; then
+  if [ "$(ctx__get plat.kernel)" != "Darwin" ] && [ "$_user" = "root" ]; then
     logging__warn "install_user='root' on Linux: the official Homebrew installer may refuse"
     logging__info "root in some container environments (Docker BuildKit + cgroup v2)."
     logging__info "Consider using a non-root install_user."
@@ -287,14 +287,14 @@ __verify_system_requirements_post() {
 }
 
 __resolve_input_prefixes_post() {
-  if [ "$(os__kernel)" != "Darwin" ] && ! users__is_user_path "${_RESOLVED_PREFIX}"; then
+  if [ "$(ctx__get plat.kernel)" != "Darwin" ] && ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     prepare_prefix_if_needed "$_RESOLVED_PREFIX" "$INSTALL_USER"
   fi
   # On macOS the prefix (/opt/homebrew) is not under $HOME but is user-owned;
   # force user scope so activation writes to INSTALL_USER's home, not /etc/*.
   # On Linux a non-$HOME prefix (rare) is a genuine system install, so keep the
   # auto-determined scope (system) there.
-  if [ "$(os__kernel)" = "Darwin" ]; then
+  if [ "$(ctx__get plat.kernel)" = "Darwin" ]; then
     PREFIX_SCOPE=user
   fi
 }

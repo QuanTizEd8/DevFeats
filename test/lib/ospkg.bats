@@ -6,6 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
+  load 'helpers/ctx'
 }
 
 setup_file() {
@@ -109,12 +110,8 @@ _seed_apt_context() {
   chmod +x "${BATS_TEST_TMPDIR}/bin/uname"
   prepend_fake_bin_path
   ospkg__detect
-  _OSPKG__OS_RELEASE[pm]="apt"
-  _OSPKG__OS_RELEASE[arch]="amd64"
-  _OSPKG__OS_RELEASE[id]="ubuntu"
-  _OSPKG__OS_RELEASE[id_like]="debian"
-  _OSPKG__OS_RELEASE[version_id]="22.04"
-  _OSPKG__OS_RELEASE[version_codename]="jammy"
+  ctx_test__seed_plat pm=apt deb_arch=amd64
+  ctx_test__seed_os id=ubuntu id_like=debian version_id=22.04 version_codename=jammy
   # Bypass sudo: sudo resets PATH to its secure_path, ignoring user PATH entirely.
   # Without this stub, users__run_privileged would find the real apt-get via sudo
   # instead of the fake one above, allowing destructive operations on the host.
@@ -331,7 +328,7 @@ _stub_ospkg_privilege_ok() {
   ospkg__detect
   [[ "$_OSPKG__FAMILY" == "brew" ]]
   [[ "$_OSPKG__PKG_MNGR" == "brew" ]]
-  [[ "${_OSPKG__OS_RELEASE[id]}" == "macos" ]]
+  [[ "$_OSPKG__PM_KEY" == "brew" ]]
 }
 
 @test "ospkg__detect selects brew when _OSPKG__PREFER_LINUXBREW=true and brew is on PATH" {
@@ -393,7 +390,7 @@ _stub_ospkg_privilege_ok() {
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   # brew-only package should NOT appear for apt context.
-  printf '{"packages":[{"name":"brew-pkg","when":{"pm":"brew"}},{"name":"apt-pkg","when":{"pm":"apt"}}]}' \
+  printf '{"packages":[{"name":"brew-pkg","when":{"plat.pm":"brew"}},{"name":"apt-pkg","when":{"plat.pm":"apt"}}]}' \
     > "$_json_file"
   local _output
   _output="$(ospkg__parse_manifest_yaml "$_json_file")"
@@ -407,7 +404,7 @@ _stub_ospkg_privilege_ok() {
   _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
-  printf '{"when":{"pm":"brew"},"packages":["should-not-appear"]}' > "$_json_file"
+  printf '{"when":{"plat.pm":"brew"},"packages":["should-not-appear"]}' > "$_json_file"
   local _output
   _output="$(ospkg__parse_manifest_yaml "$_json_file")"
   rm -f "$_json_file"
@@ -433,7 +430,7 @@ _stub_ospkg_privilege_ok() {
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   # jammy-only package should appear; bookworm-only should not.
-  printf '{"packages":[{"name":"jammy-pkg","when":{"version_codename":"jammy"}},{"name":"bookworm-pkg","when":{"version_codename":"bookworm"}}]}' \
+  printf '{"packages":[{"name":"jammy-pkg","when":{"os.version_codename":"jammy"}},{"name":"bookworm-pkg","when":{"os.version_codename":"bookworm"}}]}' \
     > "$_json_file"
   local _output
   _output="$(ospkg__parse_manifest_yaml "$_json_file")"
@@ -559,12 +556,8 @@ _seed_apt_context_with_yq() {
     _OSPKG__DETECTED=true
     _OSPKG__PKG_MNGR='apt-get'
     _OSPKG__FAMILY='apt'
-    _OSPKG__OS_RELEASE[pm]='apt'
-    _OSPKG__OS_RELEASE[arch]='amd64'
-    _OSPKG__OS_RELEASE[id]='ubuntu'
-    _OSPKG__OS_RELEASE[id_like]='debian'
-    _OSPKG__OS_RELEASE[version_id]='22.04'
-    _OSPKG__OS_RELEASE[version_codename]='jammy'
+    ctx__set plat.pm=apt plat.machine_release=amd64 os.id=ubuntu os.id_like=debian os.version_id=22.04 os.version_codename=jammy plat.kernel=linux
+    _CTX__REGISTRY_INITIALIZED=true
 
     # A yq stub that always exits non-zero (simulates corrupt binary / bad manifest).
     _BOOTSTRAP__YQ_BIN='${BATS_TEST_TMPDIR}/bin/yq'
@@ -588,12 +581,8 @@ _seed_apt_context_with_yq() {
     _OSPKG__DETECTED=true
     _OSPKG__PKG_MNGR='apt-get'
     _OSPKG__FAMILY='apt'
-    _OSPKG__OS_RELEASE[pm]='apt'
-    _OSPKG__OS_RELEASE[arch]='amd64'
-    _OSPKG__OS_RELEASE[id]='ubuntu'
-    _OSPKG__OS_RELEASE[id_like]='debian'
-    _OSPKG__OS_RELEASE[version_id]='22.04'
-    _OSPKG__OS_RELEASE[version_codename]='jammy'
+    ctx__set plat.pm=apt plat.machine_release=amd64 os.id=ubuntu os.id_like=debian os.version_id=22.04 os.version_codename=jammy plat.kernel=linux
+    _CTX__REGISTRY_INITIALIZED=true
 
     # yq returns valid JSON; parser failure is injected directly.
     _BOOTSTRAP__YQ_BIN='${BATS_TEST_TMPDIR}/bin/yq'
@@ -642,11 +631,8 @@ YQ
     _OSPKG__FAMILY="brew"
     _OSPKG__PKG_MNGR="brew"
     _OSPKG__DETECTED=true
-    _OSPKG__OS_RELEASE[pm]="brew"
-    _OSPKG__OS_RELEASE[kernel]="darwin"
-    _OSPKG__OS_RELEASE[id]="macos"
-    _OSPKG__OS_RELEASE[id_like]="macos"
-    _OSPKG__OS_RELEASE[arch]="arm64"
+    ctx__set plat.pm=brew plat.kernel=darwin os.id=macos os.id_like=macos plat.machine_release=arm64
+    _CTX__REGISTRY_INITIALIZED=true
     return 0
   }
   export -f ospkg__detect logging__cleanup
@@ -672,84 +658,48 @@ YQ
 }
 
 # ---------------------------------------------------------------------------
-# _ospkg__expand_content_vars — extra vars
+# ctx__expand_pattern — ctx pattern expansion
 # ---------------------------------------------------------------------------
 
-@test "_ospkg__expand_content_vars expands extra vars" {
+@test "ctx__expand_pattern expands qualified ctx tokens" {
   reload_lib ospkg.sh
-  _OSPKG__EXTRA_VARS[VERSION]="2.89.0"
-  _OSPKG__EXTRA_VARS[CODENAME]="stable"
+  ctx__set feat.version=2.89.0
+  ctx__set os.version_codename=stable
+  _CTX__REGISTRY_INITIALIZED=true
 
   local _result
-  _result="$(_ospkg__expand_content_vars 'gh-{VERSION}-{CODENAME}')"
+  _result="$(ctx__expand_pattern 'gh-{feat.version}-{os.version_codename}')"
   [[ "${_result}" == "gh-2.89.0-stable" ]]
 }
 
-@test "_ospkg__expand_content_vars: extra var with empty value collapses placeholder" {
+@test "ctx__expand_pattern: empty ctx value collapses placeholder" {
   reload_lib ospkg.sh
-  _OSPKG__EXTRA_VARS[VERSION]=""
+  ctx__set feat.version=
+  _CTX__REGISTRY_INITIALIZED=true
 
   local _result
-  _result="$(_ospkg__expand_content_vars 'gh={VERSION}')"
+  _result="$(ctx__expand_pattern 'gh={feat.version}')"
   [[ "${_result}" == "gh=" ]]
 }
 
-@test "_ospkg__expand_content_vars: extra vars expand alongside OS-release vars" {
+@test "ctx__expand_pattern: os and feat tokens expand together" {
   reload_lib ospkg.sh
-  _OSPKG__OS_RELEASE[id]="ubuntu"
-  _OSPKG__EXTRA_VARS[VERSION]="2.89.0"
+  ctx__set os.id=ubuntu
+  ctx__set feat.version=2.89.0
+  _CTX__REGISTRY_INITIALIZED=true
 
   local _result
-  _result="$(_ospkg__expand_content_vars '{id}-{VERSION}')"
+  _result="$(ctx__expand_pattern '{os.id}-{feat.version}')"
   [[ "${_result}" == "ubuntu-2.89.0" ]]
 }
 
-@test "_ospkg__expand_content_vars: unknown placeholder left unchanged" {
+@test "ctx__expand_pattern: unknown placeholder left unchanged" {
   reload_lib ospkg.sh
+  _CTX__REGISTRY_INITIALIZED=true
 
   local _result
-  _result="$(_ospkg__expand_content_vars '{UNKNOWN_VAR}')"
+  _result="$(ctx__expand_pattern '{UNKNOWN_VAR}')"
   [[ "${_result}" == '{UNKNOWN_VAR}' ]]
-}
-
-@test "ospkg__run --extra-var: _OSPKG__EXTRA_VARS reset between calls" {
-  _seed_apt_context_with_yq
-
-  ospkg__run \
-    --manifest $'packages:\n  - curl\n' \
-    --extra-var "VERSION=first" \
-    --dry_run
-
-  # Second call without --extra-var: the array must be empty afterward.
-  ospkg__run \
-    --manifest $'packages:\n  - curl\n' \
-    --dry_run
-
-  [[ "${#_OSPKG__EXTRA_VARS[@]}" -eq 0 ]]
-}
-
-@test "ospkg__run --extra-var: multiple vars are all available during execution" {
-  _seed_apt_context_with_yq
-  local _log="${BATS_TEST_TMPDIR}/extra-vars.log"
-  export _EXTRA_VARS_LOG="${_log}"
-
-  _ospkg__expand_content_vars() {
-    printf '%s=%s\n' \
-      "VERSION" "${_OSPKG__EXTRA_VARS[VERSION]:-}" \
-      "CODENAME" "${_OSPKG__EXTRA_VARS[CODENAME]:-}" \
-      >> "${_EXTRA_VARS_LOG}"
-    printf '%s' "$1"
-  }
-  export -f _ospkg__expand_content_vars
-
-  ospkg__run \
-    --manifest $'packages:\n  - curl\n' \
-    --extra-var "VERSION=2.89.0" \
-    --extra-var "CODENAME=stable" \
-    --dry_run
-
-  grep -qx "VERSION=2.89.0" "${_log}"
-  grep -qx "CODENAME=stable" "${_log}"
 }
 
 @test "ospkg__run rejects unknown option" {
@@ -1407,11 +1357,8 @@ _seed_managed_context() {
     _OSPKG__FAMILY="brew"
     _OSPKG__PKG_MNGR="brew"
     _OSPKG__DETECTED=true
-    _OSPKG__OS_RELEASE[pm]="brew"
-    _OSPKG__OS_RELEASE[kernel]="darwin"
-    _OSPKG__OS_RELEASE[id]="macos"
-    _OSPKG__OS_RELEASE[id_like]="macos"
-    _OSPKG__OS_RELEASE[arch]="arm64"
+    ctx__set plat.pm=brew plat.kernel=darwin os.id=macos os.id_like=macos plat.machine_release=arm64
+    _CTX__REGISTRY_INITIALIZED=true
     return 0
   }
   bootstrap__yq() {
@@ -1828,9 +1775,8 @@ _seed_pacman_context() {
   _OSPKG__INSTALL=(pacman -S --noconfirm)
   _OSPKG__UPDATE=(pacman -Sy)
   _OSPKG__CLEAN="_ospkg__clean_pacman"
-  _OSPKG__OS_RELEASE[pm]="pacman"
-  _OSPKG__OS_RELEASE[arch]="amd64"
-  _OSPKG__OS_RELEASE[id]="arch"
+  ctx__set plat.pm=pacman plat.machine_release=amd64 os.id=arch plat.kernel=linux
+  _CTX__REGISTRY_INITIALIZED=true
   users__run_privileged() { "$@"; }
   export -f users__run_privileged
   _stub_ospkg_privilege_ok
@@ -1846,9 +1792,8 @@ _seed_apk_context() {
   _OSPKG__INSTALL=(apk add --no-cache)
   _OSPKG__UPDATE=()
   _OSPKG__CLEAN="_ospkg__clean_apk"
-  _OSPKG__OS_RELEASE[pm]="apk"
-  _OSPKG__OS_RELEASE[arch]="amd64"
-  _OSPKG__OS_RELEASE[id]="alpine"
+  ctx__set plat.pm=apk plat.machine_release=amd64 os.id=alpine plat.kernel=linux
+  _CTX__REGISTRY_INITIALIZED=true
   users__run_privileged() { "$@"; }
   export -f users__run_privileged
 }
@@ -1863,9 +1808,8 @@ _seed_yum_context() {
   _OSPKG__INSTALL=(yum -y install)
   _OSPKG__UPDATE=(yum check-update)
   _OSPKG__CLEAN="_ospkg__clean_dnf"
-  _OSPKG__OS_RELEASE[pm]="dnf"
-  _OSPKG__OS_RELEASE[arch]="amd64"
-  _OSPKG__OS_RELEASE[id]="rhel"
+  ctx__set plat.pm=dnf plat.machine_release=amd64 os.id=rhel plat.kernel=linux
+  _CTX__REGISTRY_INITIALIZED=true
   users__run_privileged() { "$@"; }
   export -f users__run_privileged
 }
@@ -3010,18 +2954,20 @@ _setup_resolve_version() {
   # Fake yq so bootstrap__yq finds it via PATH without downloading (on systems
   # like Alpine where yq is not pre-installed, the real bootstrap downloads yq
   # and its progress output pollutes the captured output).
-  # Output is the JSON equivalent of the test manifest; {VERSION} is a literal
-  # string that ospkg__run expands via --extra-var before version resolution.
+  # Output is the JSON equivalent of the test manifest; {feat.version} is expanded
+  # via ctx before version resolution.
   cat > "${BATS_TEST_TMPDIR}/bin/yq" << 'YQ_EOF'
 #!/bin/sh
-printf '{"packages":[{"name":"zsh","version":"{VERSION}"}]}\n'
+printf '{"packages":[{"name":"zsh","version":"{feat.version}"}]}\n'
 YQ_EOF
   chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
   local _manifest
   _manifest="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
-  printf 'packages:\n- name: zsh\n  version: "{VERSION}"\n' > "${_manifest}"
+  printf 'packages:\n- name: zsh\n  version: "{feat.version}"\n' > "${_manifest}"
+  ctx__set feat.version=5.9
+  _CTX__REGISTRY_INITIALIZED=true
   # --update bypasses ospkg__is_installed; --dry_run skips the actual apt-get install.
-  run ospkg__run --manifest "${_manifest}" --extra-var "VERSION=5.9" --update --dry_run
+  run ospkg__run --manifest "${_manifest}" --update --dry_run
   assert_success
   assert_output --partial "zsh=5.9-6ubuntu2"
 }

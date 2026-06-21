@@ -5,8 +5,8 @@
 # shellcheck disable=SC2329,SC2317
 __install_run_binary_pre() {
   local _platform
-  _platform="$(os__expand_release_pattern \
-    "{OS}-{ARCH:node}{OS==linux?{LIBC==musl?-musl:}:}" "VERSION=${VERSION}" "TAG=")"
+  _platform="$(ctx__expand_pattern \
+    "{plat.kernel:lower}-{plat.machine_node}{plat.kernel==linux?{plat.libc==musl?-musl:}:}")"
   local _manifest_url="https://downloads.claude.ai/claude-code-releases/${VERSION}/manifest.json"
   local _tmpfile
   _tmpfile="$(mktemp)"

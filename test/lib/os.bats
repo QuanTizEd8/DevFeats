@@ -64,132 +64,60 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# os__id / os__id_like  (injecting pre-loaded release state)
-# ---------------------------------------------------------------------------
-
-@test "os__id returns ID injected via cached globals" {
-  reload_lib os.sh
-  _OS__ID="ubuntu"
-  _OS__RELEASE_LOADED=1
-  run os__id
-  assert_output "ubuntu"
-}
-
-@test "os__id returns alpine" {
-  reload_lib os.sh
-  _OS__ID="alpine"
-  _OS__RELEASE_LOADED=1
-  run os__id
-  assert_output "alpine"
-}
-
-@test "os__id_like returns injected ID_LIKE" {
-  reload_lib os.sh
-  _OS__ID_LIKE="debian ubuntu"
-  _OS__RELEASE_LOADED=1
-  run os__id_like
-  assert_output "debian ubuntu"
-}
-
-@test "os__id_like returns empty string when unset" {
-  reload_lib os.sh
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
-  run os__id_like
-  assert_output ""
-}
-
-# ---------------------------------------------------------------------------
-# os__codename
-# ---------------------------------------------------------------------------
-
-@test "os__codename returns injected VERSION_CODENAME" {
-  reload_lib os.sh
-  _OS__CODENAME="jammy"
-  _OS__RELEASE_LOADED=1
-  run os__codename
-  assert_output "jammy"
-  assert_success
-}
-
-@test "os__codename returns bookworm" {
-  reload_lib os.sh
-  _OS__CODENAME="bookworm"
-  _OS__RELEASE_LOADED=1
-  run os__codename
-  assert_output "bookworm"
-}
-
-@test "os__codename returns empty string when unset" {
-  reload_lib os.sh
-  _OS__CODENAME=""
-  _OS__RELEASE_LOADED=1
-  run os__codename
-  assert_output ""
-}
-
-@test "os__codename returns empty string on macOS (no os-release)" {
-  reload_lib os.sh
-  # No _OS__CODENAME set, no /etc/os-release → should return empty.
-  _OS__RELEASE_LOADED=1
-  run os__codename
-  assert_output ""
-}
-
-# ---------------------------------------------------------------------------
 # os__platform
 # ---------------------------------------------------------------------------
 
+_os__platform_stub_release() {
+  export _OS__TEST_RELEASE_ID="$1"
+  export _OS__TEST_RELEASE_ID_LIKE="${2:-}"
+  _os__release_field() {
+    case "$1" in
+      ID) printf '%s' "${_OS__TEST_RELEASE_ID:-}" ;;
+      ID_LIKE) printf '%s' "${_OS__TEST_RELEASE_ID_LIKE:-}" ;;
+      *) return 0 ;;
+    esac
+  }
+  export -f _os__release_field
+}
+
 @test "os__platform returns debian for ID=ubuntu" {
   reload_lib os.sh
-  _OS__ID="ubuntu"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release ubuntu ""
   run os__platform
   assert_output "debian"
 }
 
 @test "os__platform returns debian for ID=debian" {
   reload_lib os.sh
-  _OS__ID="debian"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release debian ""
   run os__platform
   assert_output "debian"
 }
 
 @test "os__platform returns alpine for ID=alpine" {
   reload_lib os.sh
-  _OS__ID="alpine"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release alpine ""
   run os__platform
   assert_output "alpine"
 }
 
 @test "os__platform returns rhel for ID=fedora" {
   reload_lib os.sh
-  _OS__ID="fedora"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release fedora ""
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel for ID=centos" {
   reload_lib os.sh
-  _OS__ID="centos"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release centos ""
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns macos for Darwin uname fallback" {
   reload_lib os.sh
-  _OS__ID=""
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release "" ""
   uname() { echo "Darwin"; }
   export -f uname
   run os__platform
@@ -198,9 +126,7 @@ setup() {
 
 @test "os__platform returns debian as fallback for unknown Linux" {
   reload_lib os.sh
-  _OS__ID=""
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release "" ""
   uname() { echo "Linux"; }
   export -f uname
   run os__platform
@@ -209,9 +135,7 @@ setup() {
 
 @test "os__platform returns debian when ID_LIKE contains debian" {
   reload_lib os.sh
-  _OS__ID="linuxmint"
-  _OS__ID_LIKE="ubuntu debian"
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release linuxmint "ubuntu debian"
   run os__platform
   assert_output "debian"
 }
@@ -225,72 +149,56 @@ setup() {
 
 @test "os__platform returns rhel for ID=rhel" {
   reload_lib os.sh
-  _OS__ID="rhel"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release rhel ""
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel for ID=rocky" {
   reload_lib os.sh
-  _OS__ID="rocky"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release rocky ""
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel when ID_LIKE contains fedora" {
   reload_lib os.sh
-  _OS__ID="custom"
-  _OS__ID_LIKE="fedora"
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release custom fedora
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns suse for openSUSE Tumbleweed" {
   reload_lib os.sh
-  _OS__ID="opensuse-tumbleweed"
-  _OS__ID_LIKE="opensuse suse"
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release opensuse-tumbleweed "opensuse suse"
   run os__platform
   assert_output "suse"
 }
 
 @test "os__platform returns suse for opensuse-leap" {
   reload_lib os.sh
-  _OS__ID="opensuse-leap"
-  _OS__ID_LIKE="suse opensuse"
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release opensuse-leap "suse opensuse"
   run os__platform
   assert_output "suse"
 }
 
 @test "os__platform returns suse for sles" {
   reload_lib os.sh
-  _OS__ID="sles"
-  _OS__ID_LIKE="suse"
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release sles suse
   run os__platform
   assert_output "suse"
 }
 
 @test "os__platform returns suse for sle-micro" {
   reload_lib os.sh
-  _OS__ID="sle-micro"
-  _OS__ID_LIKE="suse"
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release sle-micro suse
   run os__platform
   assert_output "suse"
 }
 
 @test "os__platform returns suse when ID_LIKE contains suse" {
   reload_lib os.sh
-  _OS__ID="custom-suse-distro"
-  _OS__ID_LIKE="suse"
-  _OS__RELEASE_LOADED=1
+  _os__platform_stub_release custom-suse-distro suse
   run os__platform
   assert_output "suse"
 }
@@ -383,133 +291,6 @@ setup() {
     os__is_container
   "
   assert_failure
-}
-
-# ---------------------------------------------------------------------------
-# os__expand_release_pattern
-# ---------------------------------------------------------------------------
-
-@test "os__expand_release_pattern substitutes {VERSION} and {TAG}" {
-  reload_lib os.sh
-  run os__expand_release_pattern "tool-{VERSION}-{TAG}" "VERSION=1.2.3" "TAG=v1.2.3"
-  assert_success
-  assert_output "tool-1.2.3-v1.2.3"
-}
-
-@test "os__expand_release_pattern substitutes plain {OS} and {ARCH} tokens" {
-  reload_lib os.sh
-  _OS__KERNEL="Linux"
-  _OS__ARCH="x86_64"
-  run os__expand_release_pattern "tool-{OS}-{ARCH}"
-  assert_success
-  assert_output "tool-linux-amd64"
-}
-
-@test "os__expand_release_pattern {OS:gh} returns gh-flavor OS" {
-  reload_lib os.sh
-  _OS__KERNEL="Linux"
-  run os__expand_release_pattern "{OS:gh}"
-  assert_success
-  assert_output "linux"
-}
-
-@test "os__expand_release_pattern {ARCH:gh} returns gh-flavor arch" {
-  reload_lib os.sh
-  _OS__ARCH="x86_64"
-  run os__expand_release_pattern "{ARCH:gh}"
-  assert_success
-  assert_output "amd64"
-}
-
-@test "os__expand_release_pattern {VERSION>=X?a:b} returns 'a' when version matches" {
-  reload_lib os.sh
-  run os__expand_release_pattern "{VERSION>=1.7?new:old}" "VERSION=2.0.0"
-  assert_success
-  assert_output "new"
-}
-
-@test "os__expand_release_pattern {VERSION>=X?a:b} returns 'b' when version is lower" {
-  reload_lib os.sh
-  run os__expand_release_pattern "{VERSION>=1.7?new:old}" "VERSION=1.6.0"
-  assert_success
-  assert_output "old"
-}
-
-@test "os__expand_release_pattern {VERSION<X?a:b} returns 'a' when version is lower" {
-  reload_lib os.sh
-  run os__expand_release_pattern "{VERSION<1.7?legacy:modern}" "VERSION=1.6.0"
-  assert_success
-  assert_output "legacy"
-}
-
-@test "os__expand_release_pattern {OS==VALUE?a:b} conditional on linux" {
-  reload_lib os.sh
-  _OS__KERNEL="Linux"
-  run os__expand_release_pattern "{OS==linux?islinux:notlinux}"
-  assert_success
-  assert_output "islinux"
-}
-
-@test "os__expand_release_pattern {OS:gh==VALUE?a:b} uses flavor in condition" {
-  reload_lib os.sh
-  _OS__KERNEL="Linux"
-  # On Linux os__release_kernel gh → linux; condition linux==macOS → false
-  run os__expand_release_pattern "{OS:gh==macOS?zip:tar.gz}"
-  assert_success
-  assert_output "tar.gz"
-}
-
-@test "os__expand_release_pattern nested conditional evaluates inner tokens" {
-  reload_lib os.sh
-  _OS__KERNEL="Linux"
-  _OS__ARCH="x86_64"
-  # jq 1.7+ naming: jq-linux-amd64
-  run os__expand_release_pattern "jq-{VERSION>=1.7?{OS==darwin?macos:{OS}}-{ARCH}:LEGACY}" \
-    "VERSION=1.8.0"
-  assert_success
-  assert_output "jq-linux-amd64"
-}
-
-@test "os__expand_release_pattern nested conditional: false branch selected" {
-  reload_lib os.sh
-  run os__expand_release_pattern "jq-{VERSION>=1.7?{OS==darwin?macos:{OS}}-{ARCH}:LEGACY}" \
-    "VERSION=1.6.0"
-  assert_success
-  assert_output "jq-LEGACY"
-}
-
-@test "os__expand_release_pattern full gh-style URI pattern" {
-  reload_lib os.sh
-  _OS__KERNEL="Linux"
-  _OS__ARCH="x86_64"
-  run os__expand_release_pattern \
-    "https://github.com/cli/cli/releases/download/{TAG}/gh_{VERSION}_{OS:gh}_{ARCH:gh}.{OS:gh==macOS?zip:tar.gz}" \
-    "VERSION=2.89.0" "TAG=v2.89.0"
-  assert_success
-  assert_output "https://github.com/cli/cli/releases/download/v2.89.0/gh_2.89.0_linux_amd64.tar.gz"
-}
-
-@test "os__expand_release_pattern {RUST_TRIPLE} still works" {
-  reload_lib os.sh
-  _OS__KERNEL="Linux"
-  _OS__ARCH="x86_64"
-  run os__expand_release_pattern "{RUST_TRIPLE}"
-  assert_success
-  assert_output "x86_64-unknown-linux-musl"
-}
-
-@test "os__expand_release_pattern passes through unmatched brace literally" {
-  reload_lib os.sh
-  run os__expand_release_pattern "foo-{VERSION"
-  assert_success
-  assert_output "foo-{VERSION"
-}
-
-@test "os__expand_release_pattern passes through unknown token unchanged" {
-  reload_lib os.sh
-  run os__expand_release_pattern "{UNKNOWN_TOKEN}"
-  assert_success
-  assert_output "{UNKNOWN_TOKEN}"
 }
 
 # ---------------------------------------------------------------------------
@@ -765,150 +546,4 @@ setup() {
   _OS__KERNEL="Linux"
   run os__rust_triple mips
   assert_failure
-}
-
-# ---------------------------------------------------------------------------
-# os__match_spec
-# ---------------------------------------------------------------------------
-
-_os_set_release() {
-  # Populate _OSPKG__OS_RELEASE for os__match_spec / os__match_when tests.
-  reload_lib os.sh
-  declare -gA _OSPKG__OS_RELEASE=(
-    [kernel]="${1:-linux}"
-    [arch]="${2:-amd64}"
-    [pm]="${3:-apt}"
-    [id]="${4:-debian}"
-  )
-  _OSPKG__DETECTED=true
-}
-
-@test "os__match_spec: no args always matches" {
-  _os_set_release
-  run os__match_spec
-  assert_success
-}
-
-@test "os__match_spec: single key matches" {
-  _os_set_release linux amd64 apt ubuntu
-  run os__match_spec "id=ubuntu"
-  assert_success
-}
-
-@test "os__match_spec: single key fails when value differs" {
-  _os_set_release linux amd64 apt debian
-  run os__match_spec "id=ubuntu"
-  assert_failure
-}
-
-@test "os__match_spec: OR values — first alternative matches" {
-  _os_set_release linux amd64 apt debian
-  run os__match_spec "pm=apt|dnf"
-  assert_success
-}
-
-@test "os__match_spec: OR values — second alternative matches" {
-  _os_set_release linux amd64 dnf debian
-  run os__match_spec "pm=apt|dnf"
-  assert_success
-}
-
-@test "os__match_spec: OR values — no alternative matches" {
-  _os_set_release linux amd64 apk alpine
-  run os__match_spec "pm=apt|dnf"
-  assert_failure
-}
-
-@test "os__match_spec: AND across multiple pairs — all match" {
-  _os_set_release linux amd64 apt ubuntu
-  run os__match_spec "id=ubuntu" "pm=apt"
-  assert_success
-}
-
-@test "os__match_spec: AND across multiple pairs — second fails" {
-  _os_set_release linux amd64 dnf ubuntu
-  run os__match_spec "id=ubuntu" "pm=apt"
-  assert_failure
-}
-
-@test "os__match_spec: case-insensitive matching" {
-  _os_set_release linux amd64 apt ubuntu
-  run os__match_spec "id=Ubuntu"
-  assert_success
-}
-
-# ---------------------------------------------------------------------------
-# os__match_when
-# ---------------------------------------------------------------------------
-
-@test "os__match_when: empty string always matches" {
-  _os_set_release
-  run os__match_when ""
-  assert_success
-}
-
-@test "os__match_when: single key matches" {
-  _os_set_release linux amd64 apt ubuntu
-  run os__match_when "id=ubuntu"
-  assert_success
-}
-
-@test "os__match_when: single key fails when value differs" {
-  _os_set_release linux amd64 apt debian
-  run os__match_when "id=ubuntu"
-  assert_failure
-}
-
-@test "os__match_when: OR values in a key — first alternative matches" {
-  _os_set_release linux amd64 apt debian
-  run os__match_when "pm=apt|dnf"
-  assert_success
-}
-
-@test "os__match_when: OR values in a key — second alternative matches" {
-  _os_set_release linux amd64 dnf debian
-  run os__match_when "pm=apt|dnf"
-  assert_success
-}
-
-@test "os__match_when: OR values in a key — no alternative matches" {
-  _os_set_release linux amd64 apk alpine
-  run os__match_when "pm=apt|dnf"
-  assert_failure
-}
-
-@test "os__match_when: AND across multiple atoms — all match" {
-  _os_set_release linux amd64 apt ubuntu
-  run os__match_when "id=ubuntu pm=apt"
-  assert_success
-}
-
-@test "os__match_when: AND across multiple atoms — second fails" {
-  _os_set_release linux amd64 dnf ubuntu
-  run os__match_when "id=ubuntu pm=apt"
-  assert_failure
-}
-
-@test "os__match_when: multi-group OR — first group matches" {
-  _os_set_release linux amd64 apt ubuntu
-  run os__match_when $'id=ubuntu\nkernel=darwin'
-  assert_success
-}
-
-@test "os__match_when: multi-group OR — second group matches" {
-  _os_set_release darwin arm64 brew macos
-  run os__match_when $'id=ubuntu\nkernel=darwin'
-  assert_success
-}
-
-@test "os__match_when: multi-group OR — neither group matches" {
-  _os_set_release linux amd64 apk alpine
-  run os__match_when $'id=ubuntu\nkernel=darwin'
-  assert_failure
-}
-
-@test "os__match_when: case-insensitive matching" {
-  _os_set_release linux amd64 apt ubuntu
-  run os__match_when "id=Ubuntu"
-  assert_success
 }

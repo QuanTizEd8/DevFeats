@@ -24,12 +24,12 @@ _options:
         description: Install just v1.50.0.
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/just-{VERSION}-{RUST_TRIPLE}.tar.gz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/just-{feat.version}-{plat.rust_triple}.tar.gz"
       binary_src:
         - just
-      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{TAG}/SHA256SUMS"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/SHA256SUMS"
     package:
-      when: {pm: [apt, dnf, apk, brew]}
+      when: {plat.pm: [apt, dnf, apk, brew]}
     cargo:
       crate: just
   prefix:

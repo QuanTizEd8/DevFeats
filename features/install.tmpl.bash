@@ -262,6 +262,7 @@ __init_args__() {
   declare -g +x ${{ _script.argparse.unexports }}$
 
   __run_feature_hook__ __init_args_post
+  __ctx_sync__
 }
 
 # Existing installation detection
@@ -313,7 +314,8 @@ __detect_existing_path__() {
   # git-clone: check PREFIX first — for git-clone features, PREFIX IS the installation root.
   # Probing this before the binary search prevents a git-clone feature that also exposes a
   # primary binary from being misclassified as a plain "prefix" (binary) installation.
-  if [[ -n "${GIT_CLONE_URI:-}" && -v PREFIX && -v _RESOLVED_PREFIX && -d "${_RESOLVED_PREFIX}/.git" ]]; then
+  if declare -p PREFIX &>/dev/null \
+    && [[ -n "${GIT_CLONE_URI:-}" && -v _RESOLVED_PREFIX && -d "${_RESOLVED_PREFIX}/.git" ]]; then
     _FEAT_EXISTING_PATH="${_RESOLVED_PREFIX}"
     logging__detect "Found git-clone repository at '${_FEAT_EXISTING_PATH}'."
   fi
@@ -321,7 +323,7 @@ __detect_existing_path__() {
   # Binary detection only when not already found by the git-clone check.
   if [[ -z "${_FEAT_EXISTING_PATH}" && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]]; then
     local _prefix_bin=""
-    if [[ -v PREFIX ]]; then
+    if declare -p PREFIX &>/dev/null; then
       _prefix_bin="${_RESOLVED_PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
     fi
     if [[ -n "${_prefix_bin}" && -x "${_prefix_bin}" ]]; then
@@ -408,7 +410,7 @@ __detect_existing_method__() {
   elif [[ -n "${NPM_PACKAGE:-}" ]] \
     && npm__is_managed "${_FEAT_EXISTING_PATH}" 2>/dev/null; then
     _FEAT_EXISTING_METHOD="npm"
-  elif [[ -v PREFIX ]]; then
+  elif declare -p PREFIX &>/dev/null; then
     local _prefix_val="${_RESOLVED_PREFIX:-}"
     if [[ -n "${_prefix_val}" && "${_FEAT_EXISTING_PATH}" == "${_prefix_val}/"* ]]; then
       _FEAT_EXISTING_METHOD="prefix"
@@ -520,7 +522,9 @@ __uninstall_run_prefix__() {
   local _bin_dir="${_FEAT_EXISTING_PATH%/*}"
   if declare -p BINARY_SRC &>/dev/null && [[ ${#BINARY_SRC[@]} -gt 0 ]]; then
     local _src
-    for _src in "${BINARY_SRC[@]+"${BINARY_SRC[@]}"}"; do
+    local -a _active_src=()
+    mapfile -t _active_src < <(__feat_filter_binary_src__)
+    for _src in "${_active_src[@]+"${_active_src[@]}"}"; do
       [[ -n "${_src}" ]] || continue
       logging__remove "Removing binary '${_bin_dir}/${_src##*/}'."
       file__rm -f "${_bin_dir}/${_src##*/}" 2>/dev/null || true
@@ -640,7 +644,7 @@ __uninstall_shell_completions__() {
 
 __cleanup_install_artifacts__() {
   logging__clean "Cleaning up install artifacts."
-  if [[ -v PREFIX ]]; then
+  if declare -p PREFIX &>/dev/null; then
     # 1. Remove downstream symlinks and PATH export blocks.
     if [[ -v PREFIX_DISCOVERY ]]; then
       logging__remove "Removing prefix PATH discovery for '${_FEAT_ID}'."
@@ -727,8 +731,8 @@ __install_init__() {
   __run_feature_hook__ __install_init_pre
 
   __verify_system_requirements__
-  __resolve_input_method__
   __resolve_input_version__
+  __resolve_input_method__
   __resolve_input_prefixes__
   __dep_install_base__
 
@@ -827,23 +831,29 @@ __install_run_binary__() {
     fi
     local _asset_uri _asset_name _bin_dest _primary_name _src
     local -a _sha256_args=() _sidecar_args=() _installer_dir_arg=() _binary_src_args=() _netrc_arg=() _gpg_key_arg=() _gpg_sig_arg=()
-    _asset_uri="$(__expand_pattern__ "${BINARY_ASSET_URI}")"
+    _asset_uri="$(ctx__expand_pattern "${BINARY_ASSET_URI}")"
     _asset_name="${_asset_uri%%\?*}"
     _asset_name="${_asset_name##*/}"
     if declare -p BINARY_SRC &>/dev/null && [[ ${#BINARY_SRC[@]} -gt 0 ]]; then
-      for _src in "${BINARY_SRC[@]+"${BINARY_SRC[@]}"}"; do
+      local -a _active_src=()
+      mapfile -t _active_src < <(__feat_filter_binary_src__)
+      if [[ ${#_active_src[@]} -eq 0 ]]; then
+        logging__error "No binary_src entries matched the current install context (version/method/platform)."
+        return 1
+      fi
+      for _src in "${_active_src[@]+"${_active_src[@]}"}"; do
         [[ -n "${_src}" ]] || continue
         _binary_src_args+=(--binary-src "${_src}")
       done
       _bin_dest="${_RESOLVED_PREFIX}/bin/"
-      _primary_name="${BINARY_SRC[0]##*/}"
+      _primary_name="${_active_src[0]##*/}"
     else
       _bin_dest="${_RESOLVED_PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
       _primary_name="${_FEAT_CONTRACT_PRIMARY_BIN}"
     fi
     if [[ -v BINARY_SIDECAR_URI && -n "${BINARY_SIDECAR_URI}" ]]; then
       local _sc_uri
-      _sc_uri="$(__expand_pattern__ "${BINARY_SIDECAR_URI}")"
+      _sc_uri="$(ctx__expand_pattern "${BINARY_SIDECAR_URI}")"
       _sidecar_args=(--sidecar "${_sc_uri}")
     fi
     # Use pre-computed SHA-256 (set by __install_run_binary_pre) when available;
@@ -855,12 +865,12 @@ __install_run_binary__() {
     fi
     if [[ -v BINARY_GPG_KEY_URI && -n "${BINARY_GPG_KEY_URI}" ]]; then
       local _gpg_key_uri
-      _gpg_key_uri="$(__expand_pattern__ "${BINARY_GPG_KEY_URI}")"
+      _gpg_key_uri="$(ctx__expand_pattern "${BINARY_GPG_KEY_URI}")"
       _gpg_key_arg=(--gpg-key "${_gpg_key_uri}")
     fi
     if [[ -v BINARY_GPG_SIG_URI && -n "${BINARY_GPG_SIG_URI}" ]]; then
       local _gpg_sig_uri
-      _gpg_sig_uri="$(__expand_pattern__ "${BINARY_GPG_SIG_URI}")"
+      _gpg_sig_uri="$(ctx__expand_pattern "${BINARY_GPG_SIG_URI}")"
       _gpg_sig_arg=(--gpg-sig "${_gpg_sig_uri}")
     fi
     [[ -n "${INSTALLER_DIR:-}" ]] && _installer_dir_arg=(--installer-dir "${INSTALLER_DIR}")
@@ -910,12 +920,12 @@ __install_run_script__() {
   if [[ -v SCRIPT_ASSET_URI && -n "${SCRIPT_ASSET_URI}" ]]; then
     local _asset_uri _asset_name
     local -a _sha256_args=() _sidecar_args=() _installer_dir_arg=() _netrc_arg=()
-    _asset_uri="$(__expand_pattern__ "${SCRIPT_ASSET_URI}")"
+    _asset_uri="$(ctx__expand_pattern "${SCRIPT_ASSET_URI}")"
     _asset_name="${_asset_uri%%\?*}"
     _asset_name="${_asset_name##*/}"
     if [[ -v SCRIPT_SIDECAR_URI && -n "${SCRIPT_SIDECAR_URI}" ]]; then
       local _sc_uri
-      _sc_uri="$(__expand_pattern__ "${SCRIPT_SIDECAR_URI}")"
+      _sc_uri="$(ctx__expand_pattern "${SCRIPT_SIDECAR_URI}")"
       _sidecar_args=(--sidecar "${_sc_uri}")
     fi
     __github_release_sha256_args__ "$_asset_name" _sha256_args
@@ -1117,12 +1127,12 @@ __install_run_source__() {
   fi
 
   local _asset_uri
-  _asset_uri="$(__expand_pattern__ "${SOURCE_ASSET_URI}")"
+  _asset_uri="$(ctx__expand_pattern "${SOURCE_ASSET_URI}")"
 
   local -a _fetch_args=(--installer-dir "${INSTALLER_DIR}")
   if [[ -v SOURCE_SIDECAR_URI && -n "${SOURCE_SIDECAR_URI}" ]]; then
     local _sc_uri
-    _sc_uri="$(__expand_pattern__ "${SOURCE_SIDECAR_URI}")"
+    _sc_uri="$(ctx__expand_pattern "${SOURCE_SIDECAR_URI}")"
     _fetch_args+=(--sidecar "${_sc_uri}")
   fi
 
@@ -1132,7 +1142,7 @@ __install_run_source__() {
   if [[ ${_fetch_rc} -ne 0 ]]; then
     if [[ -v SOURCE_FALLBACK_ASSET_URI && -n "${SOURCE_FALLBACK_ASSET_URI}" ]]; then
       local _fallback_uri
-      _fallback_uri="$(__expand_pattern__ "${SOURCE_FALLBACK_ASSET_URI}")"
+      _fallback_uri="$(ctx__expand_pattern "${SOURCE_FALLBACK_ASSET_URI}")"
       logging__warn "Primary source fetch failed (rc=${_fetch_rc}); trying fallback '${_fallback_uri}'."
       uri__fetch_asset "${_fallback_uri}" --installer-dir "${INSTALLER_DIR}" --sha256 none
     else
@@ -1231,7 +1241,7 @@ __install_run_source_auto_build__() {
 }
 
 # Apply git config entries from GIT_CLONE_CONFIG after a git-clone install or update.
-# Each element of GIT_CLONE_CONFIG is a `key=value` pair; values support {VERSION} substitution.
+# Each element of GIT_CLONE_CONFIG is a `key=value` pair; values support {feat.version} substitution.
 _git_clone_apply_config() {
   local _dir="$1" _ver="$2"
   [[ -v GIT_CLONE_CONFIG ]] || {
@@ -1246,7 +1256,7 @@ _git_clone_apply_config() {
   local _pair _val
   for _pair in "${GIT_CLONE_CONFIG[@]}"; do
     _val="${_pair#*=}"
-    _val="$(str__substitute_tokens "${_val}" "VERSION=${_ver}")"
+    _val="$(ctx__expand_pattern "${_val}")"
     [[ -n "${_val}" ]] || {
       logging__warn "skipping config key '${_pair%%=*}' — value is empty after VERSION substitution."
       continue
@@ -1272,7 +1282,7 @@ __install_run_git_clone__() {
     return 1
   fi
   local _uri
-  _uri="$(__expand_pattern__ "${GIT_CLONE_URI}")"
+  _uri="$(ctx__expand_pattern "${GIT_CLONE_URI}")"
   local _ref_arg=()
   [[ -v VERSION && -n "${VERSION}" ]] && _ref_arg=(--ref "${VERSION}")
   local _sha_arg=()
@@ -1423,10 +1433,7 @@ __feat_build_prefix_disc_args__() {
       local _fpda_snippet=""
       local _fpda_var="PREFIX_DISCOVERY_SNIPPET_${_fpda_shell^^}"
       if declare -p "$_fpda_var" &>/dev/null && [[ -n "${!_fpda_var}" ]]; then
-        _fpda_snippet="$(str__substitute_tokens "${!_fpda_var}" \
-          "PREFIX=${_RESOLVED_PREFIX}" \
-          "OS=$(os__kernel)" \
-          "ARCH=$(os__arch)")"
+        _fpda_snippet="$(ctx__expand_pattern "${!_fpda_var}")"
       fi
       if [[ -z "$_fpda_snippet" ]] && declare -f __prefix_discovery_snippet__ > /dev/null; then
         _fpda_snippet="$(__prefix_discovery_snippet__ "$_fpda_shell")" || true
@@ -1442,7 +1449,7 @@ __install_finish__() {
 
   __run_feature_hook__ __install_finish_pre
 
-  if [[ -v PREFIX ]] && __feat_prefix_applies__; then
+  if declare -p PREFIX &>/dev/null && __feat_prefix_applies__; then
     # -- discovery --
     [[ -v PREFIX_DISCOVERY ]] && {
       logging__install "Running prefix PATH discovery for '${_FEAT_ID}' into '${_RESOLVED_PREFIX}'."
@@ -1498,7 +1505,7 @@ __install_finish__() {
       users__set_write_permissions "${_RESOLVED_PREFIX}" \
         "${INSTALL_USER:-$(id -nu)}" "${WRITE_GROUP}" "${_write_users[@]}"
     }
-  elif [[ -v PREFIX ]]; then
+  elif declare -p PREFIX &>/dev/null; then
     logging__skip "PREFIX configured but prefix guard '${_FEAT_PREFIX_GUARD_VAR:-}'='${!_FEAT_PREFIX_GUARD_VAR:-}' does not apply for METHOD='${METHOD:-unset}'."
   else
     logging__skip "PREFIX unset; skipping prefix finish steps."
@@ -1539,8 +1546,8 @@ __reinstall_init__() {
   __run_feature_hook__ __reinstall_init_pre
 
   __verify_system_requirements__
-  __resolve_input_method__
   __resolve_input_version__
+  __resolve_input_method__
   __resolve_input_prefixes__
 
   __run_feature_hook__ __reinstall_init_post
@@ -1649,8 +1656,8 @@ __update_init__() {
   __run_feature_hook__ __update_init_pre
 
   __verify_system_requirements__
-  __resolve_input_method__
   __resolve_input_version__
+  __resolve_input_method__
   __resolve_input_prefixes__
   __dep_install_base__ --update
 
@@ -1860,26 +1867,64 @@ __exit__() {
 
 # Helpers
 # =======
-__expand_pattern__() {
-  # Expand a pattern with the full feature context plus optional extra KEY=VALUE pairs.
-  # Priority: caller extras > VERSION/TAG/METHOD > OS/arch tokens.
-  # Usage: __expand_pattern__ <pattern> [KEY=VALUE ...]
-  os__expand_release_pattern "${1}" \
-    "${@:2}" \
-    "VERSION=${VERSION:-}" \
-    "TAG=${_FEAT_RESOLVED_TAG:-${VERSION:+v${VERSION:-}}}" \
-    "METHOD=${METHOD:-}"
+__ctx_sync_version__() {
+  # Mirror version globals → feat.version_input, feat.version, feat.tag.
+  if [[ -v VERSION_INPUT ]]; then
+    ctx__set feat.version_input="${VERSION_INPUT:-}"
+  elif [[ -v VERSION ]]; then
+    ctx__set feat.version_input="${VERSION:-}"
+  fi
+  if [[ -v VERSION ]]; then
+    ctx__set feat.version="${VERSION:-}"
+  fi
+  ctx__set feat.tag="${_FEAT_RESOLVED_TAG:-}"
+}
+
+__ctx_sync_method__() {
+  if [[ -v METHOD ]]; then
+    ctx__set feat.method="${METHOD:-}"
+  fi
+}
+
+__ctx_sync_prefix__() {
+  if [[ -v _RESOLVED_PREFIX ]]; then
+    ctx__set feat.prefix="${_RESOLVED_PREFIX}"
+  else
+    ctx__set feat.prefix=""
+  fi
+}
+
+__ctx_sync__() {
+  __ctx_sync_version__
+  __ctx_sync_method__
+  __ctx_sync_prefix__
+}
+
+__feat_filter_binary_src__() {
+  local _line _path _when
+  if ! declare -p BINARY_SRC &>/dev/null; then
+    return 0
+  fi
+  for _line in "${BINARY_SRC[@]+"${BINARY_SRC[@]}"}"; do
+    [[ -n "${_line}" ]] || continue
+    if [[ "${_line}" != *$'\t'* ]]; then
+      printf '%s\n' "${_line}"
+      continue
+    fi
+    _path="${_line%%$'\t'*}"
+    _when="${_line#*$'\t'}"
+    ctx__match_when --quiet "${_when}" && printf '%s\n' "${_path}"
+  done
+  return 0
 }
 
 __expand_args__() {
-  # Expand each element of a source array through __expand_pattern__ and append results
-  # to a destination array. Optional KEY=VALUE pairs are forwarded to __expand_pattern__.
-  # Usage: __expand_args__ <src_var> <dst_var> [KEY=VALUE ...]
+  # Expand each element of a source array through ctx__expand_pattern and append results
+  # to a destination array. Usage: __expand_args__ <src_var> <dst_var>
   local -n _ea_src="$1" _ea_dst="$2"
-  shift 2
   local _ea_e
   for _ea_e in "${_ea_src[@]+"${_ea_src[@]}"}"; do
-    _ea_dst+=("$(__expand_pattern__ "${_ea_e}" "$@")")
+    _ea_dst+=("$(ctx__expand_pattern "${_ea_e}")")
   done
 }
 
@@ -1987,7 +2032,7 @@ __resolve_auto_method__() {
         if [[ "${BINARY_ASSET_URI:-}" == *'{RUST_TRIPLE}'* ]]; then
           [[ -n "${_triple}" ]] || continue
         fi
-        os__match_when "${_FEAT_CONTRACT_BINARY_WHEN:-}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_BINARY_WHEN:-}" || continue
         ;;
       upstream-package)
         [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
@@ -1995,9 +2040,9 @@ __resolve_auto_method__() {
         # queryable before setup and won't track pre-releases or specific versions.
         # VERSION_RESOLUTION=none means VERSION is a custom opaque string; treat as stable.
         if [[ "${VERSION_RESOLUTION:-}" != "none" ]]; then
-          case "${VERSION:-stable}" in stable) : ;; *) continue ;; esac
+          case "${VERSION_INPUT:-${VERSION:-stable}}" in stable) : ;; *) continue ;; esac
         fi
-        os__match_when "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN:-}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN:-}" || continue
         ;;
       package)
         [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
@@ -2005,13 +2050,13 @@ __resolve_auto_method__() {
         # specific version → check PM with raw spec (ospkg uses prefix matching).
         # VERSION_RESOLUTION=none means VERSION is a custom opaque string; always viable.
         if [[ "${VERSION_RESOLUTION:-}" != "none" ]]; then
-          case "${VERSION:-stable}" in
+          case "${VERSION_INPUT:-${VERSION:-stable}}" in
             stable) : ;;
             latest) continue ;;
-            *) ospkg__has_available_version "${_pkg_query}" "${VERSION}" 2>/dev/null || continue ;;
+            *) ospkg__has_available_version "${_pkg_query}" "${VERSION_INPUT:-${VERSION:-}}" 2>/dev/null || continue ;;
           esac
         fi
-        os__match_when "${_FEAT_CONTRACT_PACKAGE_WHEN:-}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_PACKAGE_WHEN:-}" || continue
         ;;
       script | source) : ;;
       npm-bundled)
@@ -2045,6 +2090,7 @@ __resolve_input_method__() {
         [[ -d "${_p}/.git" ]] && git__head_sha "${_p}" 2>/dev/null || printf ''
       }
     fi
+    __ctx_sync_method__
     return 0
   }
   if declare -f __resolve_method > /dev/null; then
@@ -2069,6 +2115,7 @@ __resolve_input_method__() {
     return 1
   fi
   logging__info "Resolved METHOD=auto → '${METHOD}'."
+  __ctx_sync_method__
   # Auto-register installed-version probe for git-clone when resolved to git-clone.
   if [[ "${METHOD:-}" == "git-clone" ]] && ! declare -f __installed_version > /dev/null; then
     __installed_version() {
@@ -2094,6 +2141,9 @@ __resolve_input_version__() {
   #  - METHOD=upstream-package — the upstream OS repository controls which
   #    version is installed; VERSION is passed as-is to the manifest (e.g.
   #    "stable" and "latest" are channel selectors, not concrete versions).
+  #
+  # Resolution runs before __resolve_input_method__ so METHOD=auto can evaluate
+  # version constraints in method `when` blocks (e.g. binary only for older releases).
   #
   # Hook: __resolve_version
   #   Provide this when none of the standard resolution types fits — e.g. a
@@ -2131,12 +2181,18 @@ __resolve_input_version__() {
   #
   # Globals written:
   #   VERSION             Concrete resolved version string (e.g. "1.7.1").
+  #   VERSION_INPUT       User's raw version spec captured before resolution
+  #                       (e.g. "stable", "latest", "1.2"); unchanged afterward.
   #   _FEAT_RESOLVED_TAG  Full release or git tag when resolved via GitHub
   #                       (e.g. "v1.7.1", "jq-1.7.1"); empty string otherwise.
   __run_feature_hook__ __resolve_input_version_pre
 
   declare -g _FEAT_RESOLVED_TAG=""
   declare -g _FEAT_RESOLVED_GIT_SHA=""
+  # Preserve user spec before resolution may overwrite VERSION (channel selectors,
+  # semver prefixes, etc.). Used by METHOD=auto feasibility checks and manifest patterns.
+  declare -g VERSION_INPUT="${VERSION:-}"
+  __ctx_sync_version__
   if ! { [[ -v VERSION && -n "${VERSION}" ]] && [[ ! -v METHOD || "${METHOD}" != "package" && "${METHOD}" != "upstream-package" ]]; }; then
     if [[ ! -v VERSION || -z "${VERSION}" ]]; then
       logging__skip "VERSION unset; skipping version resolution."
@@ -2146,6 +2202,7 @@ __resolve_input_version__() {
       logging__skip "METHOD=package; skipping version resolution (package manager controls version)."
     fi
     __run_feature_hook__ __resolve_input_version_post
+    __ctx_sync_version__
     return 0
   fi
 
@@ -2188,8 +2245,8 @@ __resolve_input_version__() {
         ;;
       git_ref)
         # Resolve the named ref (branch/tag) to its current remote SHA via ls-remote.
-        # VERSION is intentionally left as the ref name (e.g. "master") so that {VERSION}
-        # substitutions in git config values (e.g. oh-my-zsh.branch: "{VERSION}") remain
+        # VERSION is intentionally left as the ref name (e.g. "master") so that {feat.version}
+        # substitutions in git config values (e.g. oh-my-zsh.branch: "{feat.version}") remain
         # human-readable. The resolved SHA is stored separately for version comparison.
         if [[ -z "${GIT_CLONE_URI:-}" ]]; then
           logging__error "VERSION_RESOLUTION=git_ref requires GIT_CLONE_URI to be set."
@@ -2197,9 +2254,9 @@ __resolve_input_version__() {
         fi
         logging__install "Bootstrapping git for VERSION_RESOLUTION=git_ref."
         bootstrap__git
-        # Expand the URI first so the ls-remote target matches what git__clone will use.
+        __ctx_sync_version__
         local _git_ref_uri
-        _git_ref_uri="$(__expand_pattern__ "${GIT_CLONE_URI}")"
+        _git_ref_uri="$(ctx__expand_pattern "${GIT_CLONE_URI}")"
         local _resolved
         _resolved="$(git__resolve_ref "${_git_ref_uri}" "${VERSION}")"
         local _rc=$?
@@ -2238,6 +2295,7 @@ __resolve_input_version__() {
   fi
 
   __run_feature_hook__ __resolve_input_version_post
+  __ctx_sync_version__
 }
 
 __resolve_input_prefixes__() {
@@ -2249,7 +2307,7 @@ __resolve_input_prefixes__() {
 
 # shellcheck disable=SC2329,SC2317
 __resolve_prefix__() {
-  [[ -v PREFIX ]] || {
+  declare -p PREFIX &>/dev/null || {
     logging__skip "PREFIX option unset; skipping prefix resolution."
     return 0
   }
@@ -2261,11 +2319,29 @@ __resolve_prefix__() {
     logging__skip "PREFIX already resolved to '${_RESOLVED_PREFIX}'; skipping."
     return 0
   fi
+
+  if ((${#PREFIX[@]} == 0)); then
+    logging__error "Option 'prefix' is empty; omit the option or provide at least one prefix candidate group."
+    logging__fatal "Exiting with status 1 (empty prefix)."
+    exit 1
+  fi
+
   local -a _fwp_args=()
-  local _elem _expanded
+  local _elem _when _paths _expanded
   for _elem in "${PREFIX[@]}"; do
-    _expanded="$(users__expand_path --user "$_eff_user" "$_elem")"
-    eval "_fwp_args+=(-- $_expanded)"
+    [[ -n "${_elem}" ]] || continue
+    _when=""
+    _paths="${_elem}"
+    if [[ "${_elem}" == *:* && "${_elem}" =~ ^([^/][^[:space:]]*([[:space:]]+[^/][^[:space:]]*)*)[[:space:]]+(\/.*|~.*|\$\{.*)$ ]]; then
+      _when="${BASH_REMATCH[1]}"
+      _when="${_when%"${_when##*[![:space:]]}"}"
+      _paths="${BASH_REMATCH[3]}"
+    fi
+    _expanded="$(users__expand_path --user "$_eff_user" "${_paths}")"
+    _fwp_args+=(--)
+    [[ -n "${_when}" ]] && _fwp_args+=("${_when}")
+    # shellcheck disable=SC2206
+    _fwp_args+=(${_expanded})
   done
   declare -g _RESOLVED_PREFIX
   _RESOLVED_PREFIX="$(users__first_writeable_path "${_fwp_args[@]}")"
@@ -2307,6 +2383,7 @@ __resolve_prefix__() {
     PREFIX_EXPORTS=("${_ex[@]}")
   fi
 
+  __ctx_sync_prefix__
   return
 }
 
@@ -2339,24 +2416,6 @@ __dep_fetch_extra_args__() {
     for _osh in "${FETCH_HEADERS[@]}"; do
       _out+=(--fetch-header "$_osh")
     done
-  fi
-}
-
-__dep_pm_extra_args__() {
-  local _lifecycle="$1"
-  # shellcheck disable=SC2178
-  local -n _out="$2"
-  _out=()
-  [[ "$_lifecycle" != run ]] && return 0
-  [[ "${METHOD:-}" != package && "${METHOD:-}" != upstream-package ]] && return 0
-  local _pkg_ver=""
-  case "${VERSION:-}" in "" | stable | latest) ;; *) _pkg_ver="${VERSION}" ;; esac
-  _out+=(--extra-var "VERSION=${_pkg_ver}")
-  if [[ "${METHOD:-}" == upstream-package ]]; then
-    _out+=(--extra-var "VERSION_INPUT=${VERSION:-}")
-    if [[ "${KEEP_REPOS:-false}" == true ]]; then
-      _out+=(--keep_repos)
-    fi
   fi
 }
 
@@ -2434,7 +2493,7 @@ __dep_install_base__() {
 
 __dep_install_for_method__() {
   [[ -v METHOD ]] || return 0
-  local _lc _var _pm_args=()
+  local _lc _var
   for _lc in build run; do
     _var="$(__dep_method_env_var__ "$_lc")"
     if ! __dep_manifest_var_set__ "$_var"; then
@@ -2444,9 +2503,11 @@ __dep_install_for_method__() {
       logging__info "Non-privileged install: skipping method-${METHOD} build deps; expecting pre-installed."
       continue
     fi
-    _pm_args=()
-    __dep_pm_extra_args__ "$_lc" _pm_args
-    __dep_install_from_env__ "$_var" "$_lc" "method-${METHOD}" "${_pm_args[@]+"${_pm_args[@]}"}" "$@"
+    if [[ "$_lc" == run && "${METHOD:-}" == upstream-package && "${KEEP_REPOS:-false}" == true ]]; then
+      __dep_install_from_env__ "$_var" "$_lc" "method-${METHOD}" --keep_repos "$@"
+    else
+      __dep_install_from_env__ "$_var" "$_lc" "method-${METHOD}" "$@"
+    fi
   done
 }
 

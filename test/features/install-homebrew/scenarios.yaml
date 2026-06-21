@@ -39,7 +39,7 @@ if_exists_skip:
   modes: [devcontainer]
   tests: [if_exists_skip]
 
-arch:
+plat.machine_release:
   envs: [archlinux-latest]
   modes: [devcontainer]
   setup: |

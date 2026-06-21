@@ -10,19 +10,17 @@
 __install_run_binary_pre() {
   logging__inspect "Probing GitHub release digest for yq binary."
   local _os _arch _base _hdir _f
-  _os="$(os__release_kernel)"
-  local _rc=$?
-  [[ $_rc == 0 ]] || {
+  _os="$(ctx__get plat.kernel_gh)"
+  [[ -n "${_os}" ]] || {
     logging__error "yq: failed to detect OS kernel."
-    return "$_rc"
+    return 1
   }
-  _arch="$(os__release_arch)"
-  local _rc=$?
-  [[ $_rc == 0 ]] || {
+  _arch="$(ctx__get plat.machine_release)"
+  [[ -n "${_arch}" ]] || {
     logging__error "yq: failed to detect CPU architecture."
-    return "$_rc"
+    return 1
   }
-  _base="$(os__expand_release_pattern "${BINARY_ASSET_URI%/*}" "VERSION=${VERSION}" "TAG=${_FEAT_RESOLVED_TAG:-}")"
+  _base="$(ctx__expand_pattern "${BINARY_ASSET_URI%/*}")"
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "yq: failed to expand checksum base URI from '${BINARY_ASSET_URI}'."

@@ -139,7 +139,7 @@
               "type": "string"
             },
             "pattern": {
-              "description": "Filename pattern with `{VERSION}` placeholder for extracting version strings from the sidecar file when `resolution=sidecar` (e.g. `zsh-{VERSION}.tar.xz`).",
+              "description": "Filename pattern with `[version]` placeholder for extracting version strings from the sidecar file when `resolution=sidecar` (e.g. `zsh-[version].tar.xz`). The `[version]` marker is parsed by `ver__resolve_from_sidecar` to split filenames into prefix/suffix — it is not a context substitution token and is never expanded by `ctx__expand_pattern`.",
               "type": "string"
             }
           }
@@ -155,7 +155,7 @@
               "additionalProperties": false,
               "properties": {
                 "asset_uri": {
-                  "description": "Full asset URI supporting `{VERSION}`, `{TAG}`, `{OS}`, `{KERNEL}`, `{ARCH}`, `{OS_ARCH}`, `{OS_ID}`, `{PLATFORM}`, and `{RUST_TRIPLE}` runtime substitutions (expanded by `os__expand_release_pattern` at install time). When omitted, the feature must set `BINARY_ASSET_URI` dynamically (e.g. via `__install_run_binary_pre`).",
+                  "description": "Full asset URI supporting qualified context tokens (`{feat.version}`, `{feat.tag}`, `{plat.kernel:lower}`, `{plat.machine_release}`, `{os.id}`, `{plat.rust_triple}`, etc.) expanded by `ctx__expand_pattern` at install time. When omitted, the feature must set `BINARY_ASSET_URI` dynamically (e.g. via `__install_run_binary_pre`).",
                   "type": "string"
                 },
                 "sidecar_uri": {
@@ -163,9 +163,22 @@
                   "type": "string"
                 },
                 "binary_src": {
-                  "description": "Source binary path(s) within the extracted release archive (suffix-match passed to `--binary-src`). One entry installs a single binary; multiple entries install real copies into `${PREFIX}/bin/` via fan-out. Distinct from `companion_bins`, which creates symlinks to the primary binary only.",
+                  "description": "Source binary path(s) within the extracted release archive (suffix-match passed to `--binary-src`). Plain strings install unconditionally. Object entries with optional `when` serialize to `path<TAB>when-atoms` in the `binary_src` option default. Multiple entries install real copies into `${PREFIX}/bin/` via fan-out. Distinct from `companion_bins`, which creates symlinks to the primary binary only.",
                   "type": "array",
-                  "items": {"type": "string"},
+                  "items": {
+                    "oneOf": [
+                      {"type": "string"},
+                      {
+                        "type": "object",
+                        "required": ["path"],
+                        "additionalProperties": false,
+                        "properties": {
+                          "path": {"type": "string"},
+                          "when": {"$ref": "#/$defs/WhenSpec"}
+                        }
+                      }
+                    ]
+                  },
                   "minItems": 1
                 },
                 "companion_bins": {
@@ -182,24 +195,8 @@
                   "type": "string"
                 },
                 "when": {
-                  "description": "Runtime OS context conditions required for the `binary` method to be considered feasible by `__resolve_auto_method__`. Object form = AND over all keys; array-of-objects form = OR over the objects (each object is AND). Key names match `/etc/os-release` fields plus synthetic keys `pm`, `arch`, `kernel`, `id`, `id_like`, `version_codename`. Values may be a string (exact match) or an array of strings (any-of / OR). Same semantics as `when` in `_dependencies` manifests, evaluated by `ospkg__os_release_match`. If omitted, `BINARY_ASSET_URI` is checked for `{RUST_TRIPLE}` at runtime as a fallback arch constraint.",
-                  "oneOf": [
-                    {
-                      "type": "object",
-                      "additionalProperties": {
-                        "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
-                        }
-                      }
-                    }
-                  ]
+                  "$ref": "#/$defs/WhenSpec",
+                  "description": "Runtime conditions required for the `binary` method to be considered feasible by `__resolve_auto_method__`. Evaluated by `ctx__match_when` with qualified when YAML (including `feat.version` operator constraints). If omitted, `BINARY_ASSET_URI` is checked for `{plat.rust_triple}` at runtime as a fallback arch constraint."
                 }
               }
             },
@@ -217,24 +214,8 @@
                   "type": "string"
                 },
                 "when": {
-                  "description": "Runtime OS context conditions required for the `package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `pm` key to restrict to specific package manager families (e.g. `{pm: [apt, dnf]}`); omit to allow all PM families.",
-                  "oneOf": [
-                    {
-                      "type": "object",
-                      "additionalProperties": {
-                        "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
-                        }
-                      }
-                    }
-                  ]
+                  "$ref": "#/$defs/WhenSpec",
+                  "description": "Runtime OS context conditions required for the `package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `plat.pm` key to restrict to specific package manager families (e.g. `{plat.pm: [apt, dnf]}`); omit to allow all PM families."
                 }
               }
             },
@@ -248,24 +229,8 @@
                   "type": "string"
                 },
                 "when": {
-                  "description": "Runtime OS context conditions required for the `upstream-package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `pm` key to restrict to specific package manager families; use `id` to restrict to specific distros (e.g. `{id: ubuntu}` for Ubuntu-only vendor repos).",
-                  "oneOf": [
-                    {
-                      "type": "object",
-                      "additionalProperties": {
-                        "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
-                      }
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
-                        }
-                      }
-                    }
-                  ]
+                  "$ref": "#/$defs/WhenSpec",
+                  "description": "Runtime OS context conditions required for the `upstream-package` method to be considered feasible by `__resolve_auto_method__`. Same semantics as `binary.when`. Use `plat.pm` key to restrict to specific package manager families; use `os.id` to restrict to specific distros (e.g. `{os.id: ubuntu}` for Ubuntu-only vendor repos)."
                 }
               }
             },
@@ -276,7 +241,7 @@
               "required": ["asset_uri"],
               "properties": {
                 "asset_uri": {
-                  "description": "Full URI of the installer script to fetch. Supports `{VERSION}`, `{TAG}`, `{OS}`, `{KERNEL}`, `{ARCH}`, `{OS_ARCH}`, `{OS_ID}`, `{PLATFORM}`, and `{RUST_TRIPLE}` runtime substitutions.",
+                  "description": "Full URI of the installer script to fetch. Supports the same qualified context tokens as `binary.asset_uri` (expanded by `ctx__expand_pattern`).",
                   "type": "string"
                 },
                 "sidecar_uri": {
@@ -350,7 +315,7 @@
               "additionalProperties": false,
               "properties": {
                 "asset_uri": {
-                  "description": "URI pattern for the source tarball. Supports the same `{VERSION}`, `{OS}`, `{ARCH}`, etc. substitutions as `binary_asset_uri`. Sets the default for the auto-generated `source_asset_uri` option.",
+                  "description": "URI pattern for the source tarball. Supports the same qualified context tokens as `binary.asset_uri`. Sets the default for the auto-generated `source_asset_uri` option.",
                   "type": "string"
                 },
                 "sidecar_uri": {
@@ -378,7 +343,7 @@
                   "items": {"type": "string"}
                 },
                 "fallback_asset_uri": {
-                  "description": "Fallback URI for the source tarball when the primary `asset_uri` fetch fails. Supports the same `{VERSION}`, `{OS}`, `{ARCH}`, etc. substitutions. Sidecar verification is skipped for the fallback. Sets the default for the auto-generated `source_fallback_asset_uri` option.",
+                  "description": "Fallback URI for the source tarball when the primary `asset_uri` fetch fails. Supports the same qualified context tokens as `binary.asset_uri`. Sidecar verification is skipped for the fallback. Sets the default for the auto-generated `source_fallback_asset_uri` option.",
                   "type": "string"
                 }
               }
@@ -390,11 +355,11 @@
               "required": ["uri"],
               "properties": {
                 "uri": {
-                  "description": "Repository URI to clone. Supports `{VERSION}` and other `os__expand_release_pattern` substitutions. Sets the default for the auto-generated `git_clone_uri` option.",
+                  "description": "Repository URI to clone. Supports `{feat.version}` and other qualified context tokens expanded by `ctx__expand_pattern`. Sets the default for the auto-generated `git_clone_uri` option.",
                   "type": "string"
                 },
                 "config": {
-                  "description": "Git config key-value pairs to set after each clone and update. Values support `{VERSION}` substitution. Sets the default for the auto-generated `git_clone_config` array option.",
+                  "description": "Git config key-value pairs to set after each clone and update. Values support `{feat.version}` substitution. Sets the default for the auto-generated `git_clone_config` array option.",
                   "type": "object",
                   "additionalProperties": { "type": "string" }
                 }
@@ -466,9 +431,8 @@
                 "required": ["when"],
                 "properties": {
                   "when": {
-                    "type": "object",
-                    "description": "Condition object. All key=value pairs must match (AND logic). Case-insensitive. Supported keys: kernel, arch, id, id_like, codename.",
-                    "additionalProperties": { "type": "string" }
+                    "$ref": "#/$defs/WhenSpec",
+                    "description": "Condition object. All key=value pairs must match (AND logic). Supports platform and semver keys via feature context at prefix resolution time."
                   },
                   "default": {
                     "type": "string",
@@ -540,7 +504,7 @@
               }
             },
             "discovery_snippet": {
-              "description": "Per-shell snippets written to startup files for PATH discovery (via `prefix_discovery: shell`). Use `{PREFIX}` for the resolved installation prefix, `{OS}` for the kernel name, `{ARCH}` for the CPU architecture. When a shell is listed here, its snippet overrides the generic PATH-prepend export. Generates `prefix_discovery_snippet_<shell>` user-overridable options.",
+              "description": "Per-shell snippets written to startup files for PATH discovery (via `prefix_discovery: shell`). Use `{feat.prefix}` for the resolved installation prefix, `{plat.kernel}` for the kernel name, `{plat.machine_release}` for the CPU architecture. When a shell is listed here, its snippet overrides the generic PATH-prepend export. Generates `prefix_discovery_snippet_<shell>` user-overridable options.",
               "type": "object",
               "additionalProperties": false,
               "propertyNames": {
@@ -1698,32 +1662,83 @@
         }
       }
     },
+    "WhenOperatorObject": {
+      "description": "Per-key operator constraints (ANDed). Arrays only on eq/ne.",
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "eq": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {
+              "type": "array",
+              "items": {"type": "string", "minLength": 1},
+              "minItems": 1
+            }
+          ]
+        },
+        "ne": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {
+              "type": "array",
+              "items": {"type": "string", "minLength": 1},
+              "minItems": 1
+            }
+          ]
+        },
+        "lt": {"type": "string", "minLength": 1},
+        "lte": {"type": "string", "minLength": 1},
+        "gt": {"type": "string", "minLength": 1},
+        "gte": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "WhenConditionValue": {
+      "description": "Scalar/array shorthand for eq, or explicit operator object.",
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
+        },
+        {"$ref": "#/$defs/WhenOperatorObject"}
+      ]
+    },
+    "WhenConditionObject": {
+      "description": "AND group of qualified context keys.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^(os|plat|feat)\\.[a-z0-9_]+$"},
+      "additionalProperties": {"$ref": "#/$defs/WhenConditionValue"}
+    },
+    "WhenSpec": {
+      "description": "Runtime when block evaluated by ctx__match_when (YAML at build time).",
+      "oneOf": [
+        {"$ref": "#/$defs/WhenConditionObject"},
+        {
+          "type": "array",
+          "items": {"$ref": "#/$defs/WhenConditionObject"},
+          "minItems": 1
+        }
+      ]
+    },
     "MatchSpec": {
-        "description": "A platform specification for matching against the target system at runtime. A spec is a match when ALL variables match the target system (AND logic). Supports all variables from `/etc/os-release` (e.g., `NAME`, `VERSION_ID`, `VERSION`, `VERSION_CODENAME`, `ID`, `ID_LIKE`, etc.) plus `ARCH` (normalized: amd64, arm64, armv7, i386, ...), `KERNEL` ('darwin', 'linux'), and `PM` ('apt', 'apk, 'dnf', 'pacman', 'zypper', 'brew', 'yum').",
+      "$ref": "#/$defs/WhenSpec"
+    },
+    "ContextKeyRegistry": {
+      "description": "Registry of keys populated in ctx at runtime (base keys only; case flavors are pattern-expand-only).",
+      "type": "array",
+      "items": {
         "type": "object",
-        "minProperties": 1,
+        "required": ["namespace", "key"],
         "properties": {
-          "arch": {
-            "type": "string",
-            "description": "Normalized CPU architecture: amd64, arm64, armv7, i386, ppc64le, s390x, riscv64, loong64. Raw uname -m values (x86_64, aarch64, armv7l) are normalized automatically."
-          },
-          "kernel": {
-            "type": "string",
-            "description": "OS kernel: linux, darwin."
-          },
-          "id": {
-            "type": "string",
-            "description": "OS ID from `/etc/os-release` (or 'macos' on macOS): ubuntu, debian, alpine, fedora, arch, rhel, opensuse-leap, macos, etc."
-          },
-          "id_like": {
-            "type": "string",
-            "description": "OS ID_LIKE from `/etc/os-release` (or 'macos' on macOS): debian, rhel, arch, suse, etc."
-          },
-          "version_id": {
-            "type": "string",
-            "description": "OS VERSION_ID from `/etc/os-release`: 22.04, 39, 3.19, 15.6, etc."
-          }
+          "namespace": {"enum": ["os", "plat", "feat"]},
+          "key": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "matchMode": {"type": "string", "enum": ["ci_string", "token_list"]}
         }
       }
+    }
   }
 }

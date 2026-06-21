@@ -317,3 +317,86 @@ def test_schema_rejects_unknown_method_dependency_key() -> None:
     )
     errors = list(get_validator().iter_errors(metadata))
     assert errors
+
+
+def _when_spec_errors(when: object) -> list:
+    metadata = _minimal_feature_metadata(
+        _options={
+            "method": {
+                "binary": {
+                    "when": when,
+                },
+            },
+        },
+    )
+    return list(get_validator().iter_errors(metadata))
+
+
+def test_schema_when_rejects_deprecated_version_lte() -> None:
+    """Schema rejects legacy tool-version keys in favor of semver_*."""
+    errors = _when_spec_errors({"version_lte": "1.0.0"})
+    assert errors
+    assert any("version_lte" in e.message for e in errors)
+
+
+def test_schema_when_accepts_semver_and_platform_keys() -> None:
+    """Schema accepts qualified feat/os/plat when keys."""
+    errors = _when_spec_errors(
+        {
+            "feat.version": {"lte": "1.0.0"},
+            "plat.machine_release": "amd64",
+            "os.version_id_major": ["8", "9", "10"],
+            "os.version_codename": ["sid", "trixie"],
+            "os.version_id": "22.04",
+        }
+    )
+    assert not errors
+
+
+def test_schema_when_accepts_or_groups() -> None:
+    """Schema accepts OR-array when specs."""
+    errors = _when_spec_errors(
+        [{"plat.machine_release": "amd64"}, {"plat.kernel": "darwin"}]
+    )
+    assert not errors
+
+
+def test_schema_when_rejects_deprecated_key_in_or_group() -> None:
+    """Schema rejects deprecated keys inside OR groups."""
+    errors = _when_spec_errors([{"arch": "amd64"}, {"version_lte": "1.0.0"}])
+    assert errors
+
+
+def test_schema_when_rejects_unknown_key() -> None:
+    """Schema rejects unqualified or unknown when keys."""
+    errors = _when_spec_errors({"bad-key": "x"})
+    assert errors
+
+
+def test_schema_binary_src_when_rejects_invalid_key() -> None:
+    """Schema validates optional when on binary_src object entries."""
+    metadata = _minimal_feature_metadata(
+        _options={
+            "method": {
+                "binary": {
+                    "binary_src": [
+                        {"path": "tool", "when": {"version_lte": "1.0.0"}},
+                    ],
+                },
+            },
+        },
+    )
+    errors = list(get_validator().iter_errors(metadata))
+    assert errors
+
+
+def test_schema_when_rejects_flavor_suffix_in_key() -> None:
+    """Schema rejects case-flavor suffixes in when keys (pattern-expand only)."""
+    errors = _when_spec_errors({"plat.kernel:lower": "linux"})
+    assert errors
+
+
+def test_schema_when_rejects_ordering_op_array() -> None:
+    """Schema rejects array values for ordering operators (gte/lt/…)."""
+    errors = _when_spec_errors({"feat.version": {"gte": ["1.0.0"]}})
+    assert errors

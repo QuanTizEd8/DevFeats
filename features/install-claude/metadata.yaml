@@ -32,10 +32,10 @@ _options:
     inputs: [stable, latest, semver]
   method:
     binary:
-      asset_uri: "https://downloads.claude.ai/claude-code-releases/{VERSION}/{OS}-{ARCH:node}{OS==linux?{LIBC==musl?-musl:}:}/claude"
-      when: {arch: [amd64, arm64]}
+      asset_uri: "https://downloads.claude.ai/claude-code-releases/{feat.version}/{plat.kernel:lower}-{plat.machine_node}{plat.kernel==linux?{plat.libc==musl?-musl:}:}/claude"
+      when: {plat.machine_release: [amd64, arm64]}
     upstream-package:
-      when: {pm: [apt, dnf, apk, brew]}
+      when: {plat.pm: [apt, dnf, apk, brew]}
     npm-bundled:
       package: "@anthropic-ai/claude-code"
       cmd: claude
@@ -79,9 +79,9 @@ _dependencies:
     method-upstream-package:
       packages:
         - name: claude-code
-          version: "{VERSION}"
+          version: "{feat.version}"
           when:
-            pm: [apt, apk, dnf, yum]
+            plat.pm: [apt, apk, dnf, yum]
       apt:
         keys:
           - url: https://downloads.claude.ai/keys/claude-code.asc
@@ -89,13 +89,13 @@ _dependencies:
             dearmor: false
         repos:
           - deb [signed-by=/etc/apt/keyrings/claude-code.asc]
-            https://downloads.claude.ai/claude-code/apt/{VERSION_INPUT==latest?latest:stable} {VERSION_INPUT==latest?latest:stable} main
+            https://downloads.claude.ai/claude-code/apt/{feat.version_input==latest?latest:stable} {feat.version_input==latest?latest:stable} main
       dnf:
         repos:
           - |
             [claude-code]
             name=Claude Code
-            baseurl=https://downloads.claude.ai/claude-code/rpm/{VERSION_INPUT==latest?latest:stable}
+            baseurl=https://downloads.claude.ai/claude-code/rpm/{feat.version_input==latest?latest:stable}
             enabled=1
             gpgcheck=1
             gpgkey=https://downloads.claude.ai/keys/claude-code.asc
@@ -104,7 +104,7 @@ _dependencies:
           - |
             [claude-code]
             name=Claude Code
-            baseurl=https://downloads.claude.ai/claude-code/rpm/{VERSION_INPUT==latest?latest:stable}
+            baseurl=https://downloads.claude.ai/claude-code/rpm/{feat.version_input==latest?latest:stable}
             enabled=1
             gpgcheck=1
             gpgkey=https://downloads.claude.ai/keys/claude-code.asc
@@ -114,7 +114,7 @@ _dependencies:
             dest: /etc/apk/keys/claude-code.rsa.pub
             dearmor: false
         repos:
-          - https://downloads.claude.ai/claude-code/apk/{VERSION_INPUT==latest?latest:stable}
+          - https://downloads.claude.ai/claude-code/apk/{feat.version_input==latest?latest:stable}
       brew:
         casks:
-          - "{VERSION_INPUT==latest?claude-code@latest:claude-code}"
+          - "{feat.version_input==latest?claude-code@latest:claude-code}"

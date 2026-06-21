@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -92,6 +93,15 @@ def run(*, check_only: bool = False) -> int:
 
         if not (feature_in_sync and devcontainers_in_sync):
             n_failures += 1
+
+    stale_in_sync = _remove_stale_feature_dirs(
+        features_dirpath,
+        src_dirpath,
+        all_metadata,
+        check_only=check_only,
+    )
+    if not stale_in_sync:
+        n_failures += 1
 
     log("\nFinal results:")
     if n_failures:
@@ -328,6 +338,38 @@ def _gitignore_basename_patterns(repo_dirpath: Path) -> list[str]:
 
 
 # ── File sync ─────────────────────────────────────────────────────────────────
+
+
+def _remove_stale_feature_dirs(
+    features_dirpath: Path,
+    src_dirpath: Path,
+    all_metadata: dict[str, dict],
+    *,
+    check_only: bool = False,
+) -> bool:
+    """Drop ``src/<feature_id>/`` trees with no matching ``features/<feature_id>/``."""
+    valid_ids = {
+        child.name
+        for child in features_dirpath.iterdir()
+        if child.is_dir()
+        and child.name[0] not in (".", "_")
+        and child.name in all_metadata
+    }
+    if not src_dirpath.is_dir():
+        return True
+
+    in_sync = True
+    for child in sorted(src_dirpath.iterdir()):
+        if not child.is_dir() or child.name in valid_ids:
+            continue
+        in_sync = False
+        rel = child.relative_to(src_dirpath.parent)
+        if check_only:
+            log(f"❌ {rel}/: stale feature directory (no features/{child.name}/)")
+        else:
+            shutil.rmtree(child)
+            log(f"🗑 removed stale {rel}/")
+    return in_sync
 
 
 def _sync_source_files(

@@ -1,0 +1,118 @@
+# Canonical ctx registry keys populated by _ctx__ensure_registry and template publish.
+# Used by test_context_registry.py for schema parity checks.
+
+- namespace: os
+  key: id
+  matchMode: ci_string
+
+- namespace: os
+  key: id_like
+  matchMode: token_list
+
+- namespace: os
+  key: name
+  matchMode: ci_string
+
+- namespace: os
+  key: version
+  matchMode: ci_string
+
+- namespace: os
+  key: version_id
+  matchMode: ci_string
+
+- namespace: os
+  key: version_id_major
+  matchMode: ci_string
+
+- namespace: os
+  key: version_id_mm
+  matchMode: ci_string
+
+- namespace: os
+  key: version_codename
+  matchMode: ci_string
+
+- namespace: os
+  key: build_id
+  matchMode: ci_string
+
+- namespace: os
+  key: version_extra
+  matchMode: ci_string
+
+- namespace: plat
+  key: kernel
+  matchMode: ci_string
+
+- namespace: plat
+  key: machine
+  matchMode: ci_string
+
+- namespace: plat
+  key: platform
+  matchMode: ci_string
+
+- namespace: plat
+  key: machine_release
+  matchMode: ci_string
+
+- namespace: plat
+  key: kernel_gh
+  matchMode: ci_string
+
+- namespace: plat
+  key: kernel_macos
+  matchMode: ci_string
+
+- namespace: plat
+  key: kernel_osx
+  matchMode: ci_string
+
+- namespace: plat
+  key: machine_gh
+  matchMode: ci_string
+
+- namespace: plat
+  key: machine_node
+  matchMode: ci_string
+
+- namespace: plat
+  key: machine_bitness
+  matchMode: ci_string
+
+- namespace: plat
+  key: rust_triple
+  matchMode: ci_string
+
+- namespace: plat
+  key: libc
+  matchMode: ci_string
+
+- namespace: plat
+  key: pm
+  matchMode: ci_string
+
+- namespace: plat
+  key: deb_arch
+  matchMode: ci_string
+
+- namespace: feat
+  key: version_input
+  matchMode: ci_string
+
+- namespace: feat
+  key: version
+  matchMode: ci_string
+
+- namespace: feat
+  key: tag
+  matchMode: ci_string
+
+- namespace: feat
+  key: method
+  matchMode: ci_string
+
+- namespace: feat
+  key: prefix
+  matchMode: ci_string

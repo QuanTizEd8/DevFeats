@@ -132,15 +132,15 @@ _options:
     package:
       registers_as: git
     upstream-package:
-      when: {id: ubuntu}
+      when: {os.id: ubuntu}
     source:
-      asset_uri: "https://www.kernel.org/pub/software/scm/git/git-{VERSION}.tar.gz"
+      asset_uri: "https://www.kernel.org/pub/software/scm/git/git-{feat.version}.tar.gz"
       sidecar_uri: "https://www.kernel.org/pub/software/scm/git/sha256sums.asc"
   prefix:
     bins: [git]
     exports:
       description: >-
-        Also writes `export MANPATH="${PREFIX}/share/man:${MANPATH}"` to the same startup files.
+        Also writes `export MANPATH="${feat.prefix}/share/man:${MANPATH}"` to the same startup files.
     applies_when:
       - method:
         - source
@@ -157,16 +157,16 @@ _dependencies:
     method-package:
       packages:
         - name: git
-          version: "{VERSION}"
+          version: "{feat.version}"
     method-upstream-package:
       when:
-        id: ubuntu
-        pm: apt
+        os.id: ubuntu
+        plat.pm: apt
       keys:
         - fingerprint: "F911AB184317630C59970973E363C90F8F1B6217"
           dest: /usr/share/keyrings/git-core-ppa.gpg
       repos:
-        - "deb [signed-by=/usr/share/keyrings/git-core-ppa.gpg] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu {version_codename} main"
+        - "deb [signed-by=/usr/share/keyrings/git-core-ppa.gpg] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu {os.version_codename} main"
       packages:
         - git
   build:
@@ -184,13 +184,13 @@ _dependencies:
           # libpcre2-posix package name varies by Debian/Ubuntu release.
           - name: libpcre2-posix3
             when:
-              version_codename: [bookworm, trixie, jammy, noble, plucky, oracular]
+              os.version_codename: [bookworm, trixie, jammy, noble, plucky, oracular]
           - name: libpcre2-posix2
             when:
-              version_codename: [focal, bullseye]
+              os.version_codename: [focal, bullseye]
           - name: libpcre2-posix0
             when:
-              version_codename: [bionic, buster]
+              os.version_codename: [bionic, buster]
 
       brew:
         packages:

@@ -71,17 +71,17 @@ _dependencies:
           - ncurses
           - openssl
     option-node_gyp_deps:
-      when: {pm: [apt, dnf, yum, zypper, pacman, brew]}
+      when: {plat.pm: [apt, dnf, yum, zypper, pacman, brew]}
       # Build tools for compiling native Node.js add-ons via node-gyp.
       packages:
         - make
-        - when: {pm: [apt, dnf, yum, zypper, pacman]}
+        - when: {plat.pm: [apt, dnf, yum, zypper, pacman]}
           packages: [gcc]
-        - when: {pm: apt}
+        - when: {plat.pm: apt}
           packages: [g++, python3-minimal]
-        - when: {pm: [dnf, yum, zypper]}
+        - when: {plat.pm: [dnf, yum, zypper]}
           packages: [gcc-c++, python3]
-        - when: {pm: pacman}
+        - when: {plat.pm: pacman}
           packages: [python]
   build:
     method-script:
@@ -121,7 +121,7 @@ _options:
         description: nvm v0.39.7.
   method:
     script:
-      asset_uri: "https://raw.githubusercontent.com/nvm-sh/nvm/{TAG}/install.sh"
+      asset_uri: "https://raw.githubusercontent.com/nvm-sh/nvm/{feat.tag}/install.sh"
   prefix:
     root: /usr/local/share/nvm
     nonroot: "${HOME}/.nvm"

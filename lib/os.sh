@@ -8,12 +8,7 @@
 # ── Cached globals (populated lazily) ────────────────────────────────────────
 _OS__KERNEL=""
 _OS__ARCH=""
-_OS__ID=""
-_OS__ID_LIKE=""
-_OS__CODENAME=""
 _OS__PLATFORM=""
-_OS__RELEASE_LOADED=""
-_OS__RELEASE_VARS=()
 
 os__kernel() {
   # @brief os__kernel — Print the kernel name (`Linux` or `Darwin`). Cached; use instead of `uname -s`.
@@ -33,42 +28,30 @@ os__arch() {
   return 0
 }
 
-os__id() {
-  # @brief os__id — Print the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`).
-  #
-  # Stdout: distro ID string, or empty on macOS.
-  _os__load_release
-  echo "${_OS__ID:-}"
-  return 0
-}
-
-os__id_like() {
-  # @brief os__id_like — Print the `ID_LIKE` field from `/etc/os-release` (space-separated distro family list).
-  #
-  # Stdout: distro family string, or empty if absent.
-  _os__load_release
-  echo "${_OS__ID_LIKE:-}"
-  return 0
+_os__release_field() {
+  # _os__release_field <FIELD> — Read one KEY from /etc/os-release (test seam).
+  local _field="$1"
+  [[ -f /etc/os-release ]] || return 0
+  grep -m1 "^${_field}=" /etc/os-release 2> /dev/null |
+    sed "s/^${_field}=//;s/^\"//;s/\"$//" || true
 }
 
 os__platform() {
   # @brief os__platform — Print a canonical platform tag: `debian` | `alpine` | `rhel` | `suse` | `macos`.
-  #
-  # Falls back to `debian` for unrecognised Linux distros.
-  #
-  # Stdout: one of `debian`, `alpine`, `rhel`, `suse`, `macos`.
   if [ -n "${_OS__PLATFORM-}" ]; then
     echo "$_OS__PLATFORM"
     return 0
   fi
-  _os__load_release
-  case "${_OS__ID:-}" in
+  local _id="" _id_like=""
+  _id="$(_os__release_field ID)"
+  _id_like="$(_os__release_field ID_LIKE)"
+  case "${_id:-}" in
     debian | ubuntu) _OS__PLATFORM="debian" ;;
     alpine) _OS__PLATFORM="alpine" ;;
     rhel | centos | fedora | rocky | almalinux) _OS__PLATFORM="rhel" ;;
     opensuse-leap | opensuse-tumbleweed | opensuse | sles | sle-micro) _OS__PLATFORM="suse" ;;
     *)
-      case "${_OS__ID_LIKE:-}" in
+      case "${_id_like:-}" in
         *debian* | *ubuntu*) _OS__PLATFORM="debian" ;;
         *alpine*) _OS__PLATFORM="alpine" ;;
         *rhel* | *fedora* | *centos* | *"Red Hat"*) _OS__PLATFORM="rhel" ;;
@@ -391,152 +374,4 @@ os__is_container() {
     return 0
   fi
   return 1
-}
-
-_os__load_release() {
-  # @brief _os__load_release — Parse `/etc/os-release` once and cache `ID`, `ID_LIKE`, and `VERSION_CODENAME` into module-private globals.
-  #
-  # Uses `grep`/`sed` rather than `source /etc/os-release` to avoid polluting
-  # the environment with the full set of os-release variables. Idempotent: sets
-  # `_OS__RELEASE_LOADED` after the first parse and returns immediately on
-  # subsequent calls. Falls back to `UBUNTU_CODENAME` when `VERSION_CODENAME`
-  # is absent (some Ubuntu 22.04 images omit it).
-  #
-  # Side effects: sets `_OS__ID`, `_OS__ID_LIKE`, `_OS__CODENAME`,
-  #               and `_OS__RELEASE_LOADED`.
-  [ -n "${_OS__RELEASE_LOADED-}" ] && return 0
-  if [ -f /etc/os-release ]; then
-    _OS__ID="$(grep -m1 '^ID=' /etc/os-release 2> /dev/null |
-      sed 's/^ID=//;s/^"//;s/"$//' || true)"
-    _OS__ID_LIKE="$(grep -m1 '^ID_LIKE=' /etc/os-release 2> /dev/null |
-      sed 's/^ID_LIKE=//;s/^"//;s/"$//' || true)"
-    _OS__CODENAME="$(grep -m1 '^VERSION_CODENAME=' /etc/os-release 2> /dev/null |
-      sed 's/^VERSION_CODENAME=//;s/^"//;s/"$//' || true)"
-    # Fallback: UBUNTU_CODENAME (present on some Ubuntu releases that lack VERSION_CODENAME).
-    if [ -z "${_OS__CODENAME-}" ]; then
-      _OS__CODENAME="$(grep -m1 '^UBUNTU_CODENAME=' /etc/os-release 2> /dev/null |
-        sed 's/^UBUNTU_CODENAME=//;s/^"//;s/"$//' || true)"
-    fi
-  fi
-  _OS__RELEASE_LOADED=1
-  return 0
-}
-
-os__codename() {
-  # @brief os__codename — Print `VERSION_CODENAME` from `/etc/os-release` (e.g. `jammy`, `bookworm`); empty string if absent or on macOS.
-  #
-  # Falls back to `UBUNTU_CODENAME` when `VERSION_CODENAME` is absent.
-  #
-  # Stdout: distro codename, or empty string.
-  _os__load_release
-  echo "${_OS__CODENAME:-}"
-  return 0
-}
-
-os__match_spec() {
-  # @brief os__match_spec <key=value> [...] — Return 0 if the current OS context matches all given key=value conditions.
-  #
-  # Delegates to `ospkg__os_release_match` (which calls `ospkg__detect` idempotently).
-  # AND logic: all key=value pairs must match. Case-insensitive.
-  # OR within values: a `|`-separated value (e.g. `arch=amd64|arm64`) matches if any alternative matches.
-  # Supported keys: kernel, arch, id, id_like, pm, version_id, version_codename, and any
-  # /etc/os-release field.
-  #
-  # Returns: 0 if all conditions match, 1 otherwise.
-  [ $# -eq 0 ] && return 0
-  local _pair _k _v _alt _matched
-  local -a _alts
-  for _pair in "$@"; do
-    _k="${_pair%%=*}"
-    _v="${_pair#*=}"
-    IFS='|' read -ra _alts <<< "${_v}"
-    _matched=false
-    for _alt in "${_alts[@]}"; do
-      ospkg__os_release_match "${_k}" "${_alt}" 2> /dev/null && {
-        _matched=true
-        break
-      }
-    done
-    [[ "${_matched}" == true ]] || {
-      logging__error "platform condition '${_pair}' did not match."
-      return 1
-    }
-  done
-  return 0
-}
-
-os__match_when() {
-  # @brief os__match_when <when-string> — Return 0 if the current OS context matches the given when block.
-  #
-  # Evaluates a serialized `when` block using the same semantics as the ospkg manifest schema:
-  # - AND across space-separated `key=value` atoms within a group.
-  # - OR (`|`) across values within a single atom (e.g. `arch=amd64|arm64`).
-  # - OR across newline-separated groups (array form: matches if any group matches).
-  # An empty string always matches (no constraint).
-  # Delegates per-key matching to `os__match_spec`.
-  #
-  # Serialization format (produced by the build pipeline from metadata.yaml `when` blocks):
-  #   Object form  : `{arch: [amd64, arm64]}`   → `"arch=amd64|arm64"`
-  #   Array form   : `[{kernel:linux,arch:amd64},{kernel:darwin}]` → `"kernel=linux arch=amd64\nkernel=darwin"`
-  #
-  # Returns: 0 if the when block matches (or is empty), 1 otherwise.
-  local _when="${1:-}"
-  [ -z "${_when}" ] && return 0
-  local _group
-  while IFS= read -r _group; do
-    [ -z "${_group}" ] && continue
-    # shellcheck disable=SC2086
-    os__match_spec ${_group} 2> /dev/null && return 0
-  done <<< "${_when}"
-  return 1
-}
-
-_os__init_release_vars() {
-  # _os__init_release_vars — Populate _OS__RELEASE_VARS with all OS/arch KEY=VALUE pairs on first call.
-  # Flavour variants that fail on the current system are silently skipped.
-  [[ ${#_OS__RELEASE_VARS[@]} -gt 0 ]] && return 0
-  local _v
-  _OS__RELEASE_VARS=(
-    "OS=$(os__release_kernel)"
-    "KERNEL=$(os__kernel)"
-    "ARCH=$(os__release_arch)"
-    "OS_ARCH=$(os__arch)"
-    "OS_ID=$(os__id)"
-    "PLATFORM=$(os__platform)"
-  )
-  _v="$(os__release_kernel gh 2> /dev/null)" && _OS__RELEASE_VARS+=("OS:gh=${_v}") || true
-  _v="$(os__release_kernel macos 2> /dev/null)" && _OS__RELEASE_VARS+=("OS:macos=${_v}") || true
-  _v="$(os__release_kernel osx 2> /dev/null)" && _OS__RELEASE_VARS+=("OS:osx=${_v}") || true
-  _v="$(os__release_arch --flavor gh 2> /dev/null)" && _OS__RELEASE_VARS+=("ARCH:gh=${_v}") || true
-  _v="$(os__release_arch --flavor node 2> /dev/null)" && _OS__RELEASE_VARS+=("ARCH:node=${_v}") || true
-  _v="$(os__release_arch --flavor bitness 2> /dev/null)" && _OS__RELEASE_VARS+=("ARCH:bitness=${_v}") || true
-  _v="$(os__rust_triple 2> /dev/null)" && _OS__RELEASE_VARS+=("RUST_TRIPLE=${_v}") || true
-  _v="$(os__libc 2> /dev/null)" && _OS__RELEASE_VARS+=("LIBC=${_v}") || true
-}
-
-os__expand_release_pattern() {
-  # @brief os__expand_release_pattern <pattern> [<KEY=VALUE>...] — Expand a release asset
-  # pattern using caller-supplied tokens and the built-in OS/arch context.
-  #
-  # Caller-supplied KEY=VALUE pairs take precedence over the built-in OS/arch tokens
-  # (first-match wins in str__expand_pattern). Common caller keys: VERSION=, TAG=.
-  #
-  # Built-in OS/arch tokens: {OS}, {KERNEL}, {ARCH}, {OS_ARCH}, {OS_ID},
-  #   {PLATFORM}, {RUST_TRIPLE}, {LIBC} (Linux only: `musl` or `gnu`).
-  # Flavor tokens: {OS:<flavor>} → os__release_kernel <flavor>,
-  #   {ARCH:<flavor>} → os__release_arch --flavor <flavor>.
-  # Conditionals (nestable): {TOKEN==VALUE?TRUE:FALSE},
-  #   {TOKEN:FLAVOR==VALUE?TRUE:FALSE}, {VERSION>=X.Y?TRUE:FALSE},
-  #   {VERSION<X.Y?TRUE:FALSE}.
-  # TRUE and FALSE branches may themselves contain any token form.
-  local _pattern="${1}"
-  shift
-  _os__init_release_vars
-  str__expand_pattern "${_pattern}" "$@" "${_OS__RELEASE_VARS[@]}"
-  local _rc=$?
-  [[ $_rc == 0 ]] || {
-    logging__error "failed to expand release pattern '${_pattern}'."
-    return "$_rc"
-  }
-  printf '\n'
 }
