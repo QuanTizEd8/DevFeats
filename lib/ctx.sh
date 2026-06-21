@@ -246,15 +246,24 @@ _ctx__populate_plat() {
   ctx__set "plat.kernel=$(os__kernel)"
   ctx__set "plat.machine=$(os__arch)"
   ctx__set "plat.platform=$(os__platform)"
-  _v="$(os__release_arch 2> /dev/null || os__arch)" && ctx__set "plat.machine_release=${_v}"
-  _v="$(os__release_kernel gh 2> /dev/null || true)" && [[ -n "${_v}" ]] && ctx__set "plat.kernel_gh=${_v}"
-  _v="$(os__release_kernel macos 2> /dev/null || true)" && [[ -n "${_v}" ]] && ctx__set "plat.kernel_macos=${_v}"
-  _v="$(os__release_kernel osx 2> /dev/null || true)" && [[ -n "${_v}" ]] && ctx__set "plat.kernel_osx=${_v}"
-  _v="$(os__release_arch --flavor gh 2> /dev/null || true)" && [[ -n "${_v}" ]] && ctx__set "plat.machine_gh=${_v}"
-  _v="$(os__release_arch --flavor node 2> /dev/null || true)" && [[ -n "${_v}" ]] && ctx__set "plat.machine_node=${_v}"
-  _v="$(os__release_arch --flavor bitness 2> /dev/null || true)" && [[ -n "${_v}" ]] && ctx__set "plat.machine_bitness=${_v}"
-  _v="$(os__rust_triple 2> /dev/null || true)" && [[ -n "${_v}" ]] && ctx__set "plat.rust_triple=${_v}"
-  _v="$(os__libc 2> /dev/null || true)" && [[ -n "${_v}" ]] && ctx__set "plat.libc=${_v}"
+  _v="$(os__release_arch 2> /dev/null || os__arch)"
+  ctx__set "plat.machine_release=${_v}"
+  _v="$(os__release_kernel gh 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.kernel_gh=${_v}"; fi
+  _v="$(os__release_kernel macos 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.kernel_macos=${_v}"; fi
+  _v="$(os__release_kernel osx 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.kernel_osx=${_v}"; fi
+  _v="$(os__release_arch --flavor gh 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.machine_gh=${_v}"; fi
+  _v="$(os__release_arch --flavor node 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.machine_node=${_v}"; fi
+  _v="$(os__release_arch --flavor bitness 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.machine_bitness=${_v}"; fi
+  _v="$(os__rust_triple 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.rust_triple=${_v}"; fi
+  _v="$(os__libc 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.libc=${_v}"; fi
 }
 
 _ctx__ensure_registry() {
