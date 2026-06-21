@@ -226,6 +226,7 @@ ctx_test__run_id_like_matrix() {
 }
 
 ctx_test__stub_darwin_platform() {
+  # shellcheck disable=SC2329  # exported for use in subshells via export -f
   uname() {
     case "${1:-}" in
       -s) printf '%s\n' "Darwin" ;;
@@ -233,6 +234,7 @@ ctx_test__stub_darwin_platform() {
       *) printf '%s\n' "Darwin" ;;
     esac
   }
+  # shellcheck disable=SC2329  # exported for use in subshells via export -f
   sw_vers() {
     case "${1:-}" in
       -productName) printf '%s\n' "macOS" ;;
