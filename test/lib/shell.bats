@@ -42,10 +42,9 @@ setup() {
   reload_lib shell.sh
   # No strings output → fall through to os__platform.
   strings() { :; }
-  export -f strings
-  _OS__ID="fedora"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'rhel\n'; }
+  export -f strings os__platform
   run shell__detect_bashrc
   assert_output "/etc/bashrc"
 }
@@ -53,10 +52,9 @@ setup() {
 @test "shell__detect_bashrc returns /etc/bashrc for suse via platform fallback" {
   reload_lib shell.sh
   strings() { :; }
-  export -f strings
-  _OS__ID="opensuse-leap"
-  _OS__ID_LIKE="suse opensuse"
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'suse\n'; }
+  export -f strings os__platform
   run shell__detect_bashrc
   assert_output "/etc/bashrc"
 }
@@ -64,10 +62,9 @@ setup() {
 @test "shell__detect_bashrc returns /etc/bash/bashrc for alpine via platform fallback" {
   reload_lib shell.sh
   strings() { :; }
-  export -f strings
-  _OS__ID="alpine"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'alpine\n'; }
+  export -f strings os__platform
   run shell__detect_bashrc
   assert_output "/etc/bash/bashrc"
 }
@@ -75,10 +72,9 @@ setup() {
 @test "shell__detect_bashrc returns /etc/bash.bashrc as default fallback" {
   reload_lib shell.sh
   strings() { :; }
-  export -f strings
-  _OS__ID="ubuntu"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'debian\n'; }
+  export -f strings os__platform
   run shell__detect_bashrc
   assert_output "/etc/bash.bashrc"
 }
@@ -106,10 +102,9 @@ setup() {
 @test "shell__detect_zshdir returns /etc for rhel via platform fallback" {
   reload_lib shell.sh
   strings() { :; }
-  export -f strings
-  _OS__ID="fedora"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'rhel\n'; }
+  export -f strings os__platform
   run shell__detect_zshdir
   assert_output "/etc"
 }
@@ -117,10 +112,9 @@ setup() {
 @test "shell__detect_zshdir returns /etc for suse via platform fallback" {
   reload_lib shell.sh
   strings() { :; }
-  export -f strings
-  _OS__ID="opensuse-leap"
-  _OS__ID_LIKE="suse opensuse"
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'suse\n'; }
+  export -f strings os__platform
   run shell__detect_zshdir
   assert_output "/etc"
 }
@@ -128,10 +122,9 @@ setup() {
 @test "shell__detect_zshdir returns /etc/zsh as default fallback" {
   reload_lib shell.sh
   strings() { :; }
-  export -f strings
-  _OS__ID="ubuntu"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'debian\n'; }
+  export -f strings os__platform
   run shell__detect_zshdir
   assert_output "/etc/zsh"
 }
@@ -623,10 +616,9 @@ ${_home}/.config/zsh/.zshrc"
 @test "shell__system_rc_files returns system bashrc and zshrc" {
   reload_lib shell.sh
   strings() { echo "/etc/bash.bashrc"; }
-  export -f strings
-  _OS__ID="ubuntu"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'debian\n'; }
+  export -f strings os__platform
   run shell__system_rc_files
   assert_output "/etc/bash.bashrc
 /etc/zsh/zshrc"
@@ -636,10 +628,9 @@ ${_home}/.config/zsh/.zshrc"
 @test "shell__system_rc_files uses distro-correct bashrc for fedora" {
   reload_lib shell.sh
   strings() { :; }
-  export -f strings
-  _OS__ID="fedora"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'rhel\n'; }
+  export -f strings os__platform
   run shell__system_rc_files
   assert_output "/etc/bashrc
 /etc/zshrc"
@@ -649,10 +640,9 @@ ${_home}/.config/zsh/.zshrc"
 @test "shell__system_rc_files uses /etc/zsh/zshrc for debian-family" {
   reload_lib shell.sh
   strings() { echo "/etc/bash.bashrc"; }
-  export -f strings
-  _OS__ID="debian"
-  _OS__ID_LIKE=""
-  _OS__RELEASE_LOADED=1
+  # shellcheck disable=SC2329
+  os__platform() { printf 'debian\n'; }
+  export -f strings os__platform
   run shell__system_rc_files
   assert_output "/etc/bash.bashrc
 /etc/zsh/zshrc"
