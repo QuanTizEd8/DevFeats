@@ -1275,7 +1275,7 @@ ospkg__cleanup_session_build_groups() {
       _feature_id="${_feature_id%%::*}"
       _keep=false
       # Read from _OPT_OF if declared in the caller's scope (install.bash).
-      if declare -p _OPT_OF > /dev/null 2>&1 && [[ -n "${_OPT_OF[$_feature_id]+x}" ]]; then
+      if argparse__var_declared _OPT_OF && [[ -n "${_OPT_OF[$_feature_id]+x}" ]]; then
         if [[ "${_OPT_OF[$_feature_id]}" =~ \"keep_build_deps\":[[:space:]]*true ]]; then
           _keep=true
         fi

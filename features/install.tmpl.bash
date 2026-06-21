@@ -314,7 +314,7 @@ __detect_existing_path__() {
   # git-clone: check PREFIX first — for git-clone features, PREFIX IS the installation root.
   # Probing this before the binary search prevents a git-clone feature that also exposes a
   # primary binary from being misclassified as a plain "prefix" (binary) installation.
-  if declare -p PREFIX &>/dev/null \
+  if argparse__var_declared PREFIX \
     && [[ -n "${GIT_CLONE_URI:-}" && -v _RESOLVED_PREFIX && -d "${_RESOLVED_PREFIX}/.git" ]]; then
     _FEAT_EXISTING_PATH="${_RESOLVED_PREFIX}"
     logging__detect "Found git-clone repository at '${_FEAT_EXISTING_PATH}'."
@@ -323,7 +323,7 @@ __detect_existing_path__() {
   # Binary detection only when not already found by the git-clone check.
   if [[ -z "${_FEAT_EXISTING_PATH}" && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]]; then
     local _prefix_bin=""
-    if declare -p PREFIX &>/dev/null; then
+    if argparse__var_declared PREFIX; then
       _prefix_bin="${_RESOLVED_PREFIX}/bin/${_FEAT_CONTRACT_PRIMARY_BIN}"
     fi
     if [[ -n "${_prefix_bin}" && -x "${_prefix_bin}" ]]; then
@@ -410,7 +410,7 @@ __detect_existing_method__() {
   elif [[ -n "${NPM_PACKAGE:-}" ]] \
     && npm__is_managed "${_FEAT_EXISTING_PATH}" 2>/dev/null; then
     _FEAT_EXISTING_METHOD="npm"
-  elif declare -p PREFIX &>/dev/null; then
+  elif argparse__var_declared PREFIX; then
     local _prefix_val="${_RESOLVED_PREFIX:-}"
     if [[ -n "${_prefix_val}" && "${_FEAT_EXISTING_PATH}" == "${_prefix_val}/"* ]]; then
       _FEAT_EXISTING_METHOD="prefix"
@@ -520,7 +520,7 @@ __uninstall_run__() {
 __uninstall_run_prefix__() {
   __run_feature_hook__ __uninstall_run_prefix_pre
   local _bin_dir="${_FEAT_EXISTING_PATH%/*}"
-  if declare -p BINARY_SRC &>/dev/null && [[ ${#BINARY_SRC[@]} -gt 0 ]]; then
+  if argparse__var_declared BINARY_SRC && [[ ${#BINARY_SRC[@]} -gt 0 ]]; then
     local _src
     local -a _active_src=()
     mapfile -t _active_src < <(__feat_filter_binary_src__)
@@ -644,7 +644,7 @@ __uninstall_shell_completions__() {
 
 __cleanup_install_artifacts__() {
   logging__clean "Cleaning up install artifacts."
-  if declare -p PREFIX &>/dev/null; then
+  if argparse__var_declared PREFIX; then
     # 1. Remove downstream symlinks and PATH export blocks.
     if [[ -v PREFIX_DISCOVERY ]]; then
       logging__remove "Removing prefix PATH discovery for '${_FEAT_ID}'."
@@ -834,7 +834,7 @@ __install_run_binary__() {
     _asset_uri="$(ctx__expand_pattern "${BINARY_ASSET_URI}")"
     _asset_name="${_asset_uri%%\?*}"
     _asset_name="${_asset_name##*/}"
-    if declare -p BINARY_SRC &>/dev/null && [[ ${#BINARY_SRC[@]} -gt 0 ]]; then
+    if argparse__var_declared BINARY_SRC && [[ ${#BINARY_SRC[@]} -gt 0 ]]; then
       local -a _active_src=()
       mapfile -t _active_src < <(__feat_filter_binary_src__)
       if [[ ${#_active_src[@]} -eq 0 ]]; then
@@ -1407,32 +1407,31 @@ __feat_build_prefix_disc_args__() {
     --marker "${_FEAT_CONTRACT_PRIMARY_BIN:+${_FEAT_CONTRACT_PRIMARY_BIN} }PATH (${_FEAT_ID})"
   )
   [[ -v PREFIX_BINS ]] && _fpda_out+=(--bins "${PREFIX_BINS[*]}")
-  # declare -p correctly detects declared-but-empty arrays; [[ -v arr ]] does not
-  # (it checks arr[0], returning false for empty arrays). Bare declare-p (without
-  # brace group) must be used in && / || chains: ERR trap fires for commands
-  # inside { ... } even when the group is in a conditional position.
-  declare -p PREFIX_SYMLINKS &>/dev/null && _fpda_out+=(
+  # argparse__var_declared detects declared-but-empty arrays; [[ -v arr ]] does not
+  # (it checks arr[0], returning false for empty arrays). Use bare function calls in
+  # && / || chains: ERR trap fires for commands inside { ... } even when conditional.
+  argparse__var_declared PREFIX_SYMLINKS && _fpda_out+=(
     --symlinks-ref "PREFIX_SYMLINKS"
     --symlink-root "${PREFIX_SYMLINK_ROOT}"
     --symlink-nonroot "${PREFIX_SYMLINK_NONROOT}"
   )
-  declare -p PREFIX_EXPORTS &>/dev/null && _fpda_out+=(
+  argparse__var_declared PREFIX_EXPORTS && _fpda_out+=(
     --exports-ref "PREFIX_EXPORTS"
     --profile-d "${_FEAT_PROFILE_D_FILE}"
   )
-  declare -p PREFIX_SYMLINKS &>/dev/null || _fpda_out+=(--no-symlinks)
-  declare -p PREFIX_EXPORTS &>/dev/null || _fpda_out+=(--no-exports)
+  argparse__var_declared PREFIX_SYMLINKS || _fpda_out+=(--no-symlinks)
+  argparse__var_declared PREFIX_EXPORTS || _fpda_out+=(--no-exports)
   # Per-shell discovery snippets: user-provided option takes priority, then
   # feature hook __prefix_discovery_snippet__ (if defined), then generic PATH.
   # Use 'if' for the outer guard so the function always exits 0 even when
   # PREFIX_EXPORTS is not declared (a &&-chain guard would propagate exit 1).
-  if declare -p PREFIX_EXPORTS &>/dev/null; then
+  if argparse__var_declared PREFIX_EXPORTS; then
     local _fpda_shells=(bash zsh fish tcsh elvish)
     local _fpda_shell
     for _fpda_shell in "${_fpda_shells[@]}"; do
       local _fpda_snippet=""
       local _fpda_var="PREFIX_DISCOVERY_SNIPPET_${_fpda_shell^^}"
-      if declare -p "$_fpda_var" &>/dev/null && [[ -n "${!_fpda_var}" ]]; then
+      if argparse__var_declared "$_fpda_var" && [[ -n "${!_fpda_var}" ]]; then
         _fpda_snippet="$(ctx__expand_pattern "${!_fpda_var}")"
       fi
       if [[ -z "$_fpda_snippet" ]] && declare -f __prefix_discovery_snippet__ > /dev/null; then
@@ -1449,7 +1448,7 @@ __install_finish__() {
 
   __run_feature_hook__ __install_finish_pre
 
-  if declare -p PREFIX &>/dev/null && __feat_prefix_applies__; then
+  if argparse__var_declared PREFIX && __feat_prefix_applies__; then
     # -- discovery --
     [[ -v PREFIX_DISCOVERY ]] && {
       logging__install "Running prefix PATH discovery for '${_FEAT_ID}' into '${_RESOLVED_PREFIX}'."
@@ -1505,7 +1504,7 @@ __install_finish__() {
       users__set_write_permissions "${_RESOLVED_PREFIX}" \
         "${INSTALL_USER:-$(id -nu)}" "${WRITE_GROUP}" "${_write_users[@]}"
     }
-  elif declare -p PREFIX &>/dev/null; then
+  elif argparse__var_declared PREFIX; then
     logging__skip "PREFIX configured but prefix guard '${_FEAT_PREFIX_GUARD_VAR:-}'='${!_FEAT_PREFIX_GUARD_VAR:-}' does not apply for METHOD='${METHOD:-unset}'."
   else
     logging__skip "PREFIX unset; skipping prefix finish steps."
@@ -1902,7 +1901,7 @@ __ctx_sync__() {
 
 __feat_filter_binary_src__() {
   local _line _path _when
-  if ! declare -p BINARY_SRC &>/dev/null; then
+  if ! argparse__var_declared BINARY_SRC; then
     return 0
   fi
   for _line in "${BINARY_SRC[@]+"${BINARY_SRC[@]}"}"; do
@@ -2307,7 +2306,7 @@ __resolve_input_prefixes__() {
 
 # shellcheck disable=SC2329,SC2317
 __resolve_prefix__() {
-  declare -p PREFIX &>/dev/null || {
+  argparse__var_declared PREFIX || {
     logging__skip "PREFIX option unset; skipping prefix resolution."
     return 0
   }
@@ -2368,14 +2367,14 @@ __resolve_prefix__() {
     PREFIX_SYMLINK_NONROOT="$(users__expand_path --user "$_symlink_user" "$PREFIX_SYMLINK_NONROOT")"
     logging__info "Option 'prefix_symlink_nonroot' resolved to '${PREFIX_SYMLINK_NONROOT}'."
   fi
-  if declare -p PREFIX_SYMLINKS &>/dev/null; then
+  if argparse__var_declared PREFIX_SYMLINKS; then
     local -a _sl=()
     for _elem in "${PREFIX_SYMLINKS[@]}"; do
       _sl+=("$(users__expand_path --user "$_symlink_user" "$_elem")")
     done
     PREFIX_SYMLINKS=("${_sl[@]}")
   fi
-  if declare -p PREFIX_EXPORTS &>/dev/null; then
+  if argparse__var_declared PREFIX_EXPORTS; then
     local -a _ex=()
     for _elem in "${PREFIX_EXPORTS[@]}"; do
       _ex+=("$(users__expand_path --user "$_symlink_user" "$_elem")")
@@ -2402,7 +2401,7 @@ __dep_normalize_manifest_value__() {
 
 __dep_manifest_var_set__() {
   # True when a manifest option variable is set (env, CLI, or default). Prefer [[ -v ]]
-  # over declare -p: the latter can miss variables inherited from the environment.
+  # over argparse__var_declared: the latter can miss variables inherited from the environment.
   [[ -v "$1" ]]
 }
 
@@ -2411,7 +2410,7 @@ __dep_fetch_extra_args__() {
   local -n _out="$1"
   _out=()
   [[ -n "${FETCH_NETRC:-}" ]] && _out+=(--fetch-netrc-file "$FETCH_NETRC")
-  if declare -p FETCH_HEADERS &>/dev/null && ((${#FETCH_HEADERS[@]} > 0)); then
+  if argparse__var_declared FETCH_HEADERS && ((${#FETCH_HEADERS[@]} > 0)); then
     local _osh
     for _osh in "${FETCH_HEADERS[@]}"; do
       _out+=(--fetch-header "$_osh")

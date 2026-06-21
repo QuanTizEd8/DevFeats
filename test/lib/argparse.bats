@@ -317,13 +317,40 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# argparse__var_declared
+# ---------------------------------------------------------------------------
+
+@test "argparse__var_declared: false when variable is unset" {
+  unset MY_ARR
+  run argparse__var_declared MY_ARR
+  assert_failure
+}
+
+@test "argparse__var_declared: true for empty declared array" {
+  declare -a MY_ARR=()
+  run argparse__var_declared MY_ARR
+  assert_success
+}
+
+@test "argparse__var_declared: true for non-empty array" {
+  declare -a MY_ARR=(a)
+  run argparse__var_declared MY_ARR
+  assert_success
+}
+
+@test "argparse__var_declared: false for -v on empty array" {
+  declare -a MY_ARR=()
+  [[ -v MY_ARR ]] && exit 1 || exit 0
+}
+
+# ---------------------------------------------------------------------------
 # argparse__default_array
 # ---------------------------------------------------------------------------
 
 @test "argparse__default_array: sets undeclared array to empty" {
   unset MY_ARR
   argparse__default_array MY_ARR
-  declare -p MY_ARR &>/dev/null
+  argparse__var_declared MY_ARR
   assert [ "${#MY_ARR[@]}" -eq 0 ]
 }
 

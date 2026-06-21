@@ -11,6 +11,16 @@ _argparse__label() {
   printf '%s' "${1,,}"
 }
 
+argparse__var_declared() {
+  # @brief argparse__var_declared VAR — Return 0 if VAR is declared in this shell (including empty arrays).
+  #
+  # Prefer over [[ -v VAR ]] when testing install-option arrays: bash treats empty
+  # arrays (e.g. PREFIX=()) as unset for -v but as declared for declare -p.
+  # Use [[ -v VAR ]] when inherited environment bindings must be detected
+  # (__dep_manifest_var_set__).
+  declare -p "$1" &>/dev/null
+}
+
 argparse__validate_bool() {
   # @brief argparse__validate_bool VAR — Exits 1 if $VAR is not "true" or "false".
   local _label
@@ -160,7 +170,7 @@ argparse__default() {
 
 argparse__default_array() {
   # @brief argparse__default_array VAR — Sets array $VAR to () if not already declared.
-  declare -p "$1" &> /dev/null && return 0
+  argparse__var_declared "$1" && return 0
   local -n _da_ref="$1"
   _da_ref=()
   logging__info "Argument '${1}' set to default value '(empty)'."
@@ -191,7 +201,7 @@ argparse__default_array_value() {
   #
   # VALUE is the (already shell-expanded) multi-line string; use $'...' at the call site
   # to let bash interpret escape sequences before passing to this function.
-  declare -p "$1" &> /dev/null && return 0
+  argparse__var_declared "$1" && return 0
   local -n _dav_ref="$1"
   argparse__split_lines _dav_ref "$2"
   local _disp="${2//$'\n'/, }"
@@ -224,7 +234,7 @@ argparse__resolve_uri_options() {
   local _spec="${1:-}"
   [[ -n "${_spec//[[:space:]]/}" ]] || return 0
 
-  declare -p FETCH_HEADERS &> /dev/null || FETCH_HEADERS=()
+  argparse__var_declared FETCH_HEADERS || FETCH_HEADERS=()
   [ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
 
   local -a _fetch_args=()
