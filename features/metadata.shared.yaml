@@ -347,7 +347,7 @@ options:
       - `{plat.platform}` — distro family (`debian`, `alpine`, `macos`, …)
       - `{plat.rust_triple}`, `{plat.libc}`, `{plat.deb_arch:lower}`, `{plat.pm}`
 
-      **os.*** — `/etc/os-release` fields (Linux) or macOS mapping:
+      **os.*** — [`/etc/os-release`](https://github.com/chef/os_release) fields (Linux) or macOS mapping:
       - `{os.id}`, `{os.version_id}`, `{os.version_id_major}`, `{os.version_codename}`, …
 
       Conditionals use base keys only: `{plat.kernel==linux?…}`, `{feat.version>=1.7?…}`.
