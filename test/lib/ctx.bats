@@ -168,7 +168,8 @@ setup() {
   _CTX__REGISTRY_INITIALIZED=true
   ctx__reset
   [[ "${_CTX__REGISTRY_INITIALIZED}" == false ]]
-  [[ -z "$(ctx__get os.id)" ]]
+  # Read registry directly — ctx__get would re-trigger ensure_registry and re-populate os.id.
+  [[ -z "${_CTX__REGISTRY["os.id"]:-}" ]]
 }
 
 @test "ctx: ensure_registry idempotent on linux" {
