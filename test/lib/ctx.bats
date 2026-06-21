@@ -510,11 +510,11 @@ setup() {
   _CTX__REGISTRY_INITIALIZED=true
   ctx__compare feat.version gte 1.0.0
   ctx__compare feat.version lte 2.0.0
-  ctx__compare feat.version gt  1.0.0
-  ctx__compare feat.version lt  2.0.0
+  ctx__compare feat.version gt 1.0.0
+  ctx__compare feat.version lt 2.0.0
   run ctx__compare feat.version gte 2.0.0
   assert_failure
-  run ctx__compare feat.version lt  1.0.0
+  run ctx__compare feat.version lt 1.0.0
   assert_failure
 }
 
@@ -531,7 +531,7 @@ setup() {
   _CTX__REGISTRY_INITIALIZED=true
   run ctx__compare feat.version gte 1.0.0
   assert_failure
-  run ctx__compare feat.version lt  2.0.0
+  run ctx__compare feat.version lt 2.0.0
   assert_failure
 }
 

@@ -18,7 +18,7 @@ argparse__var_declared() {
   # arrays (e.g. PREFIX=()) as unset for -v but as declared for declare -p.
   # Use [[ -v VAR ]] when inherited environment bindings must be detected
   # (__dep_manifest_var_set__).
-  declare -p "$1" &>/dev/null
+  declare -p "$1" &> /dev/null
 }
 
 argparse__validate_bool() {

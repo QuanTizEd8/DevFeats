@@ -159,7 +159,10 @@ run_auto_method() {
   users__expand_path() { printf '%s\n' "${@: -1}"; }
   users__first_writeable_path() { printf '/usr/local\n'; }
   users__can_write() { return 0; }
-  users__is_user_path() { printf 'system\n'; return 0; }
+  users__is_user_path() {
+    printf 'system\n'
+    return 0
+  }
   logging__skip() { :; }
   logging__info() { :; }
   logging__debug() { :; }
@@ -182,7 +185,7 @@ run_auto_method() {
   logging__fatal() { :; }
 
   set +e
-  ( __resolve_prefix__ )
+  (__resolve_prefix__)
   local _rc=$?
   set -e
   [[ "$_rc" -eq 1 ]]
