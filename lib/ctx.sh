@@ -72,6 +72,7 @@ ctx__json() {
     return 0
   fi
   printf '%s\n' "${_pairs[@]}" |
+    # shellcheck disable=SC2016  # $i and $[] are jq variables, not bash
     json__query -Rn '[inputs] | [range(0; length; 2) as $i | {key: .[$i], value: .[$i + 1]}] | from_entries'
 }
 
