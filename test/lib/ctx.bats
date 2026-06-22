@@ -642,7 +642,7 @@ setup() {
 
 @test "ctx: select_first returns first group when it matches" {
   ctx_test__seed_plat kernel=linux pm=apt
-  run ctx__select_first -- $'plat.pm: apt' -- $'plat.kernel: linux'
+  run --separate-stderr ctx__select_first -- $'plat.pm: apt' -- $'plat.kernel: linux'
   assert_success
   assert_output ""
 }
