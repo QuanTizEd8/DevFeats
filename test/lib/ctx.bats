@@ -1,5 +1,8 @@
 #!/usr/bin/env bats
-# Unified context registry tests.
+# Unified context registry tests (unit layer — stubs/fakes, host-agnostic).
+#
+# Platform-specific registry population against the real OS is covered by
+# test/lib/integration/ctx_real.bats (runs on the lib matrix integration scenarios).
 
 bats_require_minimum_version 1.5.0
 
@@ -192,13 +195,25 @@ setup() {
   [[ -n "${_id}" ]]
 }
 
-@test "ctx: ensure_registry sets plat.pm key on apt systems" {
-  [[ "$(uname -s)" == Linux ]] || skip "linux-only"
+@test "ctx: ensure_registry copies ospkg PM key into plat.pm" {
+  ctx_test__stub_ospkg_pm pm=apt
   ctx__reset
-  local _json _pm
-  _json="$(ctx__json)"
-  _pm="$(json__query -r '.["plat.pm"] // empty' <<< "${_json}")"
-  [[ "${_pm}" == apt || "${_pm}" == "" ]]
+  [[ "$(ctx_test__json_get "$(ctx__json)" "plat.pm")" == apt ]]
+}
+
+@test "ctx: ensure_registry plat.pm stores PM key not tool name" {
+  ctx_test__stub_ospkg_pm pm=apt
+  ctx__reset
+  local _pm
+  _pm="$(ctx_test__json_get "$(ctx__json)" "plat.pm")"
+  [[ "${_pm}" == apt ]]
+  [[ "${_pm}" != apt-get ]]
+}
+
+@test "ctx: ensure_registry copies ospkg deb_arch when set" {
+  ctx_test__stub_ospkg_pm pm=apt deb_arch=amd64
+  ctx__reset
+  [[ "$(ctx_test__json_get "$(ctx__json)" "plat.deb_arch")" == amd64 ]]
 }
 
 @test "ctx: compare id_like empty eq fedora is false" {
@@ -338,27 +353,6 @@ setup() {
   [[ -n "${_kg}" ]]
 }
 
-@test "ctx: ensure_registry plat.pm is key not command on apt" {
-  [[ "$(uname -s)" == Linux ]] || skip "linux-only"
-  ctx__reset
-  local _json _pm
-  _json="$(ctx__json)"
-  _pm="$(ctx_test__json_get "${_json}" "plat.pm")"
-  [[ "${_pm}" == apt || -z "${_pm}" ]]
-  [[ "${_pm}" != "apt-get" ]]
-}
-
-@test "ctx: ensure_registry sets plat.deb_arch on apt systems" {
-  [[ "$(uname -s)" == Linux ]] || skip "linux-only"
-  ctx__reset
-  local _json _pm _deb
-  _json="$(ctx__json)"
-  _pm="$(ctx_test__json_get "${_json}" "plat.pm")"
-  [[ "${_pm}" == apt ]] || skip "not an apt system"
-  _deb="$(ctx_test__json_get "${_json}" "plat.deb_arch")"
-  [[ -n "${_deb}" ]]
-}
-
 @test "ctx: ensure_registry soft-fails PM detect without PM on PATH" {
   ospkg__detect() { return 1; }
   export -f ospkg__detect
@@ -372,13 +366,7 @@ setup() {
 }
 
 @test "ctx: ensure_registry omits deb_arch on non-apt PM" {
-  ospkg__detect() {
-    _OSPKG__PM_KEY=apk
-    _OSPKG__DEB_ARCH=""
-    _OSPKG__DETECTED=true
-    return 0
-  }
-  export -f ospkg__detect
+  ctx_test__stub_ospkg_pm pm=apk deb_arch=
   ctx__reset
   local _json _pm _deb
   _json="$(ctx__json)"
