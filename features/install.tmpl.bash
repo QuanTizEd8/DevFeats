@@ -2028,7 +2028,7 @@ __resolve_auto_method__() {
 
     case "${_method}" in
       binary)
-        if [[ "${BINARY_ASSET_URI:-}" == *'{RUST_TRIPLE}'* ]]; then
+        if [[ "${BINARY_ASSET_URI:-}" == *'{plat.rust_triple}'* ]]; then
           [[ -n "${_triple}" ]] || continue
         fi
         ctx__match_when --quiet "${_FEAT_CONTRACT_BINARY_WHEN:-}" || continue
@@ -2837,7 +2837,7 @@ __main__ "$@"
 #       inputs: [stable, latest, semver]
 #     method:
 #       binary:
-#         asset_pattern: "shellcheck-v{VERSION}.{OS}.{OS_ARCH}.tar.xz"
+#         asset_pattern: "shellcheck-v{feat.version}.{plat.kernel:lower}.{plat.machine}.tar.xz"
 #         binary_src:
 #           - shellcheck
 #       package: {}

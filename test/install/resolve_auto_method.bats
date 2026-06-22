@@ -148,28 +148,28 @@ run_auto_method() {
 
 @test "binary: selected with no when condition (unconstrained)" {
   _FEAT_CONTRACT_METHODS="binary"
-  # No when, no RUST_TRIPLE in URI → always feasible
+  # No when, no plat.rust_triple in URI → always feasible
   run_auto_method
   assert_success
   assert_output "binary"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# binary — RUST_TRIPLE fallback (independent of when)
+# binary — plat.rust_triple fallback (independent of when)
 # ──────────────────────────────────────────────────────────────────────────────
 
-@test "binary: selected via RUST_TRIPLE when no when declared" {
+@test "binary: selected via plat.rust_triple when no when declared" {
   _FEAT_CONTRACT_METHODS="binary script"
-  BINARY_ASSET_URI="https://example.com/tool-{RUST_TRIPLE}.tar.gz"
+  BINARY_ASSET_URI="https://example.com/tool-{plat.rust_triple}.tar.gz"
   os__rust_triple() { printf 'x86_64-unknown-linux-musl\n'; }
   run_auto_method
   assert_success
   assert_output "binary"
 }
 
-@test "binary: skipped via RUST_TRIPLE when triple unavailable" {
+@test "binary: skipped via plat.rust_triple when triple unavailable" {
   _FEAT_CONTRACT_METHODS="binary script"
-  BINARY_ASSET_URI="https://example.com/tool-{RUST_TRIPLE}.tar.gz"
+  BINARY_ASSET_URI="https://example.com/tool-{plat.rust_triple}.tar.gz"
   # os__rust_triple returns failure by default in _stub
   run_auto_method
   assert_success
@@ -663,7 +663,7 @@ run_auto_method() {
 
 @test "scenario: install-uv on dnf privileged → package" {
   _FEAT_CONTRACT_METHODS="binary package script"
-  BINARY_ASSET_URI="https://example.com/uv-{RUST_TRIPLE}.tar.gz"
+  BINARY_ASSET_URI="https://example.com/uv-{plat.rust_triple}.tar.gz"
   _FEAT_CONTRACT_PACKAGE_WHEN=$'plat.pm:\n- brew\n- dnf\n- apk\n- pacman\n- zypper'
   _stub linux amd64 dnf privileged
   # Ensure rust triple is unavailable on this stub (no binary)
