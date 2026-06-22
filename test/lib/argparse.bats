@@ -338,9 +338,15 @@ setup() {
   assert_success
 }
 
-@test "argparse__var_declared: false for -v on empty array" {
+@test "argparse__var_declared: -v on empty declared array depends on bash version" {
   declare -a MY_ARR=()
-  [[ -v MY_ARR ]] && exit 1 || exit 0
+  # Bash 5.2 reworked [[ -v ]] visibility for declared variables; 5.3+ treats
+  # empty indexed arrays as set.  argparse__var_declared uses declare -p instead.
+  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
+    [[ -v MY_ARR ]]
+  else
+    ! [[ -v MY_ARR ]]
+  fi
 }
 
 # ---------------------------------------------------------------------------
