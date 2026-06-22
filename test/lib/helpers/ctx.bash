@@ -241,6 +241,7 @@ ctx_test__stub_ospkg_pm() {
       deb_arch) _CTX_TEST__STUB_DEB_ARCH="${_v}" ;;
     esac
   done
+  # shellcheck disable=SC2329  # exported stub for bats run subshells
   ospkg__detect() {
     _OSPKG__PM_KEY="${_CTX_TEST__STUB_PM}"
     _OSPKG__DEB_ARCH="${_CTX_TEST__STUB_DEB_ARCH}"

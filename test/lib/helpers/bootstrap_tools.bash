@@ -67,6 +67,7 @@ test_bootstrap__prepend_tools_path() {
 }
 
 test_bootstrap__stub_yq() {
+  # shellcheck disable=SC2329  # exported stub for bats run subshells
   bootstrap__yq() {
     if [[ -n "${_BOOTSTRAP__YQ_BIN:-}" ]]; then
       printf '%s\n' "${_BOOTSTRAP__YQ_BIN}"
