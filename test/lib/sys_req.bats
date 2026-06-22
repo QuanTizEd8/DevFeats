@@ -103,6 +103,7 @@ setup() {
 }
 
 @test "sys_req__require_root: succeeds when platform does not match even if not privileged" {
+  ctx_test__seed_os id=ubuntu
   users__is_privileged() { return 1; }
   export -f users__is_privileged
   run sys_req__require_root $'os.id: debian'
