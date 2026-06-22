@@ -1,5 +1,17 @@
 # shellcheck shell=bash
-# Unified condition context: flat registry (os.*, plat.*, feat.*), pattern expand, when eval via jq.
+# Unified condition and substitution context registry.
+#
+# Maintains a flat `qualified=value` registry (`os.*`, `plat.*`, `feat.*`) that
+# install scripts and library code populate and query.  The registry is filled
+# lazily on first access from the host (`/etc/os-release`, `sw_vers`, `os.sh`,
+# `ospkg__detect`) and from feature options (`feat.version`, `feat.method`, …).
+#
+# Two consumers share the same keys:
+# - **Pattern expansion** — `ctx__expand_pattern` replaces `{os.id}`, `{feat.version:lower}`,
+#   and nested `{cond?yes:no}` tokens in URI templates and shell strings.
+# - **When evaluation** — `ctx__match_when`, `ctx__match_spec`, and `ctx__select_first`
+#   evaluate YAML condition blobs via `ctx-when-eval.jq` (same semantics as manifest
+#   `when:` clauses).
 
 declare -gA _CTX__REGISTRY=()
 declare -g _CTX__REGISTRY_INITIALIZED=false
@@ -7,20 +19,47 @@ declare -g _CTX__OS_RELEASE_FILE=""
 declare -g _CTX__LIB_DIR
 _CTX__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-_ctx__quiet=false
+declare -g _ctx__quiet=false
 
 _ctx__fail() {
+  # @brief _ctx__fail <message> — Log an error unless `--quiet` was passed to the caller.
+  #
+  # Used by public matchers and `ctx__select_first` for parse/usage errors.  When
+  # `_ctx__quiet` is true (set by `--quiet` on `ctx__match_*` / `ctx__select_first`),
+  # the message is suppressed and the function still returns 1.
+  #
+  # Args:
+  #   <message>  Error text passed to `logging__error`.
+  #
+  # Returns: 1 always.
   [[ "${_ctx__quiet}" == true ]] || logging__error "$1"
   return 1
 }
 
 ctx__reset() {
+  # @brief ctx__reset — Clear the in-process context registry and lazy-init flag.
+  #
+  # Empties `_CTX__REGISTRY` and sets `_CTX__REGISTRY_INITIALIZED=false` so the
+  # next `ctx__get` / `ctx__json` / matcher call repopulates from the host.
+  # Does not reset `_CTX__OS_RELEASE_FILE` (test seam for Linux os-release path).
+  #
+  # Returns: 0.
   _CTX__REGISTRY=()
   _CTX__REGISTRY_INITIALIZED=false
 }
 
 ctx__set() {
   # @brief ctx__set <qualified>=<value> … — Sole write API for the context registry.
+  #
+  # Stores each pair in `_CTX__REGISTRY`.  Keys must be fully qualified (`os.id`,
+  # `plat.pm`, `feat.version`, …).  Values are plain strings; later writes overwrite.
+  # Does not trigger `_ctx__ensure_registry` — callers may pre-seed before lazy load.
+  #
+  # Args:
+  #   <qualified>=<value>  One or more `key=value` tokens (bash word splitting applies;
+  #                        values must not contain unquoted whitespace).
+  #
+  # Returns: 0.
   local _pair _k _v
   for _pair in "$@"; do
     _k="${_pair%%=*}"
@@ -30,7 +69,19 @@ ctx__set() {
 }
 
 ctx__parse_key() {
-  # @brief ctx__parse_key <qualified> — Print namespace, key_part, case_flavor (pattern expand only).
+  # @brief ctx__parse_key <qualified> — Split a pattern token into namespace, field, and optional case flavor.
+  #
+  # Parses keys used inside `{…}` during pattern expansion.  Only `:upper`, `:lower`,
+  # and `:title` suffixes are recognised as flavors; the base key stored in the registry
+  # never includes a flavor suffix.
+  #
+  # Args:
+  #   <qualified>  Token inner text (e.g. `os.id`, `plat.kernel:lower`).
+  #
+  # Stdout: three lines — namespace (`os`|`plat`|`feat`), field name (`id`, `kernel`, …),
+  #         and flavor (`upper`|`lower`|`title`, or empty when absent).
+  #
+  # Returns: 0 on success; 1 when `<qualified>` contains no `.` (not a valid key).
   local _q="$1" _ns _rest _flavor=""
   [[ "${_q}" == *.* ]] || return 1
   _ns="${_q%%.*}"
@@ -45,7 +96,18 @@ ctx__parse_key() {
 }
 
 ctx__get() {
-  # @brief ctx__get <base-qualified> — Lookup stored value; missing → empty. No flavor suffix.
+  # @brief ctx__get <base-qualified> — Look up a registry value; missing keys yield empty string.
+  #
+  # Triggers `_ctx__ensure_registry` on first access.  Keys with a case-flavor suffix
+  # (`:upper`, `:lower`, `:title`) are rejected and return empty without lookup — flavors
+  # apply only in `ctx__expand_pattern`, not in direct reads.
+  #
+  # Args:
+  #   <base-qualified>  Registry key without flavor suffix (e.g. `feat.version`, `plat.pm`).
+  #
+  # Stdout: stored value, or empty when the key is unset.
+  #
+  # Returns: 0 (including for missing keys and flavor-suffixed keys).
   local _key="$1"
   case "${_key}" in
     *:upper | *:lower | *:title) return 0 ;;
@@ -55,6 +117,14 @@ ctx__get() {
 }
 
 ctx__pairs() {
+  # @brief ctx__pairs — Print all registry entries as `key=value` lines.
+  #
+  # Iterates `_CTX__REGISTRY` in arbitrary hash order.  Does not call
+  # `_ctx__ensure_registry` — only entries already present are emitted.
+  #
+  # Stdout: one `qualified=value` line per registry entry.
+  #
+  # Returns: 0.
   local _k
   for _k in "${!_CTX__REGISTRY[@]}"; do
     printf '%s=%s\n' "${_k}" "${_CTX__REGISTRY[$_k]}"
@@ -62,6 +132,15 @@ ctx__pairs() {
 }
 
 ctx__json() {
+  # @brief ctx__json — Serialize the registry to a flat JSON object.
+  #
+  # Triggers `_ctx__ensure_registry`, then builds a JSON object whose keys are
+  # dotted qualified names and values are strings.  Used as `$ctx` input to
+  # `ctx-when-eval.jq` and manifest jq filters.
+  #
+  # Stdout: JSON object (e.g. `{"os.id":"ubuntu","plat.pm":"apt"}`), or `{}` when empty.
+  #
+  # Returns: 0; non-zero if `json__query` / jq fails on non-empty registry.
   _ctx__ensure_registry
   local _k _pairs=()
   for _k in "${!_CTX__REGISTRY[@]}"; do
@@ -77,6 +156,17 @@ ctx__json() {
 }
 
 _ctx__id_like_tokens() {
+  # @brief _ctx__id_like_tokens <id_like-string> — Split `os.id_like` into lowercase word tokens.
+  #
+  # Normalises whitespace and emits one token per line for membership tests used by
+  # `ctx__compare` and jq `id_like_has` parity.
+  #
+  # Args:
+  #   <id_like-string>  Space-separated ID_LIKE value (may be empty).
+  #
+  # Stdout: one lowercased token per line; nothing when input is empty/whitespace-only.
+  #
+  # Returns: 0.
   local _s="${1:-}" _tok
   _s="${_s#"${_s%%[![:space:]]*}"}"
   _s="${_s%"${_s##*[![:space:]]}"}"
@@ -87,6 +177,16 @@ _ctx__id_like_tokens() {
 }
 
 _ctx__id_like_has() {
+  # @brief _ctx__id_like_has <token> <id_like-string> — Test whether `<token>` appears in ID_LIKE.
+  #
+  # Case-insensitive exact token match against whitespace-separated words in
+  # `<id_like-string>` (same semantics as jq `id_like_has`).
+  #
+  # Args:
+  #   <token>           Single ID token to find (e.g. `rhel`, `fedora`).
+  #   <id_like-string>  Full `os.id_like` registry value.
+  #
+  # Returns: 0 when `<token>` is present; 1 otherwise.
   local _want="${1,,}" _actual="$2" _tok
   while IFS= read -r _tok; do
     [[ -n "${_tok}" && "${_tok}" == "${_want}" ]] && return 0
@@ -95,6 +195,18 @@ _ctx__id_like_has() {
 }
 
 _ctx__compare_eq() {
+  # @brief _ctx__compare_eq <key> <expected> <actual> — Internal `eq` comparison for `ctx__compare`.
+  #
+  # For `os.id_like`, `<expected>` is a single token or `|`‑separated alternates tested
+  # via token membership.  For other keys, `<expected>` may be `|`‑separated alternates
+  # compared case-insensitively to `<actual>`.
+  #
+  # Args:
+  #   <key>       Registry key being compared (drives id_like handling).
+  #   <expected>  Right-hand side from the condition (literal or `a|b` alternates).
+  #   <actual>    Left-hand value from the registry.
+  #
+  # Returns: 0 when equal per key-specific rules; 1 otherwise.
   local _key="$1" _expected="$2" _actual="$3"
   if [[ "${_key}" == "os.id_like" ]]; then
     if [[ "${_expected}" == *"|"* ]]; then
@@ -124,6 +236,16 @@ _ctx__compare_eq() {
 }
 
 _ctx__compare_ne() {
+  # @brief _ctx__compare_ne <key> <expected> <actual> — Internal `ne` comparison for `ctx__compare`.
+  #
+  # Inverse of `_ctx__compare_eq` with the same `os.id_like` and `|` alternate rules.
+  #
+  # Args:
+  #   <key>       Registry key being compared.
+  #   <expected>  Right-hand side from the condition.
+  #   <actual>    Left-hand value from the registry.
+  #
+  # Returns: 0 when not equal per key-specific rules; 1 otherwise.
   local _key="$1" _expected="$2" _actual="$3"
   if [[ "${_key}" == "os.id_like" ]]; then
     if [[ "${_expected}" == *"|"* ]]; then
@@ -149,7 +271,19 @@ _ctx__compare_ne() {
 }
 
 ctx__compare() {
-  # @brief ctx__compare <key> <op> <expected> — Compare registry value (eq|ne|lt|lte|gt|gte).
+  # @brief ctx__compare <key> <op> <expected> — Compare a registry value to an expected literal.
+  #
+  # Reads `<key>` via `ctx__get` and applies `<op>`.  Ordering operators delegate to
+  # `ver__cmp` (semver-aware).  `os.id_like` supports only `eq` and `ne`; ordering ops
+  # always fail.
+  #
+  # Args:
+  #   <key>       Qualified registry key (e.g. `feat.version`, `os.id_like`).
+  #   <op>        One of `eq`, `ne`, `lt`, `lte`, `gt`, `gte`.
+  #   <expected>  Right-hand literal; `|` alternates allowed for `eq`/`ne`.
+  #
+  # Returns: 0 when the comparison is true; 1 when false or unsupported (logs via
+  #           `_ctx__fail` unless caller set `--quiet` on a matcher).
   local _key="$1" _op="$2" _expected="$3"
   local _actual
   _actual="$(ctx__get "${_key}")"
@@ -175,6 +309,15 @@ ctx__compare() {
 }
 
 _ctx__apply_case_flavor() {
+  # @brief _ctx__apply_case_flavor <flavor> <value> — Apply `:upper`, `:lower`, or `:title` to a string.
+  #
+  # Args:
+  #   <flavor>  `upper`, `lower`, `title`, or empty/other (passthrough).
+  #   <value>   Raw registry string.
+  #
+  # Stdout: transformed string (`title` capitalises the first character only).
+  #
+  # Returns: 0.
   local _flavor="$1" _value="$2"
   case "${_flavor}" in
     upper) printf '%s' "${_value^^}" ;;
@@ -189,6 +332,15 @@ _ctx__apply_case_flavor() {
 }
 
 _ctx__load_linux_os() {
+  # @brief _ctx__load_linux_os — Populate `os.*` keys from a Linux os-release file.
+  #
+  # Reads `_CTX__OS_RELEASE_FILE` when set (test seam), otherwise `/etc/os-release`.
+  # Each `KEY=value` line becomes `os.<key>` (lower-case field name).  Quotes are
+  # stripped from values.  When `VERSION_ID` is present, derives `os.version_id_major`
+  # (segment before first `.`) and `os.version_id_mm` (major.minor prefix, or full
+  # `VERSION_ID` when fewer than three dot-separated segments).
+  #
+  # Returns: 0 (no-op when the os-release file is missing).
   local _file="${_CTX__OS_RELEASE_FILE:-/etc/os-release}"
   if [[ ! -f "${_file}" ]]; then
     return 0
@@ -215,6 +367,14 @@ _ctx__load_linux_os() {
 }
 
 _ctx__load_darwin_os() {
+  # @brief _ctx__load_darwin_os — Populate `os.*` keys from `sw_vers` on macOS.
+  #
+  # Sets fixed `os.id=macos` and `os.id_like=macos`, plus product name, version,
+  # build, and optional version extra from `sw_vers`.  Derives `os.version_id_major`
+  # and `os.version_id_mm` from `productVersion` using the same rules as Linux
+  # `VERSION_ID` handling.
+  #
+  # Returns: 0 (fields left empty when `sw_vers` is unavailable).
   local _name _vid _build _extra
   _name="$(sw_vers -productName 2> /dev/null || true)"
   _vid="$(sw_vers -productVersion 2> /dev/null || true)"
@@ -242,6 +402,14 @@ _ctx__load_darwin_os() {
 }
 
 _ctx__populate_plat() {
+  # @brief _ctx__populate_plat — Populate `plat.*` keys from `os.sh` release helpers.
+  #
+  # Always sets `plat.kernel`, `plat.machine`, `plat.platform`, and `plat.machine_release`.
+  # Optional keys are set only when the underlying helper returns non-empty:
+  # `plat.kernel_gh`, `plat.kernel_macos`, `plat.kernel_osx`, `plat.machine_gh`,
+  # `plat.machine_node`, `plat.machine_bitness`, `plat.rust_triple`, `plat.libc`.
+  #
+  # Returns: 0.
   local _v
   ctx__set "plat.kernel=$(os__kernel)"
   ctx__set "plat.machine=$(os__arch)"
@@ -267,6 +435,15 @@ _ctx__populate_plat() {
 }
 
 _ctx__ensure_registry() {
+  # @brief _ctx__ensure_registry — Lazily initialise the context registry from the host.
+  #
+  # No-op when `_CTX__REGISTRY_INITIALIZED` is already true.  Otherwise loads OS
+  # fields (`_ctx__load_darwin_os` or `_ctx__load_linux_os`), platform keys
+  # (`_ctx__populate_plat`), and package-manager metadata via `ospkg__detect`
+  # (`plat.pm`, and `plat.deb_arch` when set).  On PM detection failure, sets
+  # `plat.pm` to empty.  Pre-seeded `ctx__set` values for the same keys are overwritten.
+  #
+  # Returns: 0.
   [[ "${_CTX__REGISTRY_INITIALIZED}" == true ]] && return 0
   case "$(uname -s)" in
     Darwin) _ctx__load_darwin_os ;;
@@ -283,6 +460,15 @@ _ctx__ensure_registry() {
 }
 
 _ctx__eval_pattern_cond() {
+  # @brief _ctx__eval_pattern_cond <condition> — Evaluate one inline `{key op value}` pattern test.
+  #
+  # Parses `<condition>` as `qualified`, comparison symbol (`==`, `!=`, `>=`, `>`, `<=`, `<`),
+  # and right-hand literal, then delegates to `ctx__compare`.
+  #
+  # Args:
+  #   <condition>  Inner text of a conditional token (e.g. `feat.version>=1.0`).
+  #
+  # Returns: 0 when the condition is true; 1 when false or unparsable.
   local _cond="$1"
   [[ "${_cond}" =~ ^([^=!<>]+)(==|!=|>=|>|<=|<)(.+)$ ]] || return 1
   local _key="${BASH_REMATCH[1]}" _sym="${BASH_REMATCH[2]}" _val="${BASH_REMATCH[3]}"
@@ -299,6 +485,21 @@ _ctx__eval_pattern_cond() {
 }
 
 _ctx__eval_pattern_token() {
+  # @brief _ctx__eval_pattern_token <token> — Expand one `{…}` inner token for pattern substitution.
+  #
+  # Handles three forms:
+  # - Conditional — `{cond?true_branch:false_branch}` via `str__split_conditional` (branches
+  #   expanded recursively).
+  # - Substitution — `{namespace.field}` or `{namespace.field:flavor}`; unknown keys are
+  #   left as `{token}` unchanged.
+  # - Unqualified / invalid — returned as `{token}` unchanged.
+  #
+  # Args:
+  #   <token>  Text inside a single pair of `{` `}` (no nested braces at the top level).
+  #
+  # Stdout: expanded substring for this token.
+  #
+  # Returns: 0.
   local _tok="$1"
   local _cond _tbranch _fbranch _parsed _ns _part _flavor _base _val
   if str__split_conditional "${_tok}" _cond _tbranch _fbranch; then
@@ -330,6 +531,18 @@ _ctx__eval_pattern_token() {
 }
 
 _ctx__expand_pattern() {
+  # @brief _ctx__expand_pattern <pattern> — Expand all `{…}` tokens in a string (internal).
+  #
+  # Scans `<pattern>` left-to-right.  Unbalanced `{` is copied literally.  Each closed
+  # `{token}` is passed to `_ctx__eval_pattern_token`.  Assumes `_ctx__ensure_registry`
+  # has already run when called from `ctx__expand_pattern`.
+  #
+  # Args:
+  #   <pattern>  Template string (URI, path, shell fragment).
+  #
+  # Stdout: fully expanded string.
+  #
+  # Returns: 0.
   local _s="$1"
   local _result="" _i=0 _len="${#_s}"
   while [[ ${_i} -lt ${_len} ]]; do
@@ -358,12 +571,34 @@ _ctx__expand_pattern() {
 }
 
 ctx__expand_pattern() {
-  # @brief ctx__expand_pattern <pattern> — Expand qualified {…} tokens and conditionals.
+  # @brief ctx__expand_pattern <pattern> — Expand qualified `{…}` tokens and conditionals.
+  #
+  # Public entry point for URI templates and install-time string interpolation.
+  # Ensures the registry is loaded, then expands `{os.id}`, `{feat.version:lower}`,
+  # `{plat.kernel==linux?-gnu:}`, and nested forms.  Missing registry keys leave the
+  # original `{token}` in place.
+  #
+  # Args:
+  #   <pattern>  Template string containing zero or more `{…}` tokens.
+  #
+  # Stdout: expanded string.
+  #
+  # Returns: 0.
   _ctx__ensure_registry
   _ctx__expand_pattern "$1"
 }
 
 _ctx__yaml_to_json() {
+  # @brief _ctx__yaml_to_json <yaml-blob> — Convert a YAML when fragment to JSON via yq.
+  #
+  # Bootstraps yq, then pipes `<yaml-blob>` on stdin to `yq -o=json '.' -`.
+  #
+  # Args:
+  #   <yaml-blob>  YAML text for one when group (AND map, OR list, or operator dict).
+  #
+  # Stdout: JSON representation of the YAML document.
+  #
+  # Returns: 0 on success; 1 when yq is unavailable or conversion fails.
   local _yaml="$1" _yq
   bootstrap__yq > /dev/null || return 1
   _yq="$(bootstrap__yq)"
@@ -371,6 +606,16 @@ _ctx__yaml_to_json() {
 }
 
 _ctx__eval_when_jq() {
+  # @brief _ctx__eval_when_jq <yaml-when> — Evaluate a YAML when blob against the registry via jq.
+  #
+  # Serialises the current registry with `ctx__json`, converts `<yaml-when>` to JSON,
+  # and runs `ctx-when-eval.jq` with `$ctx` and `$when` inputs.  Semantics match
+  # manifest `when:` clauses (AND maps, OR lists, operator dicts on version fields).
+  #
+  # Args:
+  #   <yaml-when>  YAML condition document (may be empty for unconditional match).
+  #
+  # Returns: 0 when jq yields `true`; 1 when false or on yq/jq/bootstrap failure.
   local _yaml="$1"
   local _ctx_json _when_json _result
   _ctx_json="$(ctx__json)"
@@ -381,7 +626,17 @@ _ctx__eval_when_jq() {
 }
 
 ctx__match_spec() {
-  # @brief ctx__match_spec [--quiet] <yaml-and-group> — Return 0 if the AND group matches.
+  # @brief ctx__match_spec [--quiet] <yaml-and-group> — Return 0 if one AND group matches.
+  #
+  # Evaluates a single YAML mapping whose keys are qualified context fields and whose
+  # values are literals, arrays (OR of values), or operator dicts (`gte`, `lt`, …).
+  # Empty `<yaml-and-group>` is treated as unconditional (returns 0).
+  #
+  # Args:
+  #   [--quiet]         Suppress `logging__error` from parse/compare failures.
+  #   <yaml-and-group>  YAML AND-group (e.g. `plat.kernel: linux\nplat.pm: apt`).
+  #
+  # Returns: 0 when the group matches the current registry; 1 otherwise.
   _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true
@@ -395,6 +650,16 @@ ctx__match_spec() {
 
 ctx__match_when() {
   # @brief ctx__match_when [--quiet] <yaml-when> — Return 0 if any OR group matches.
+  #
+  # Evaluates YAML that is either a single AND mapping, an OR list of AND mappings,
+  # or an operator/value form accepted by `ctx-when-eval.jq`.  Empty `<yaml-when>`
+  # is unconditional (returns 0).
+  #
+  # Args:
+  #   [--quiet]    Suppress `logging__error` from parse/compare failures.
+  #   <yaml-when>  YAML when document (OR list and/or AND groups).
+  #
+  # Returns: 0 when at least one group matches; 1 otherwise.
   _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true
@@ -407,7 +672,20 @@ ctx__match_when() {
 }
 
 ctx__select_first() {
-  # @brief ctx__select_first [--quiet] -- [<yaml-group>] [-- [<yaml-group>] …]
+  # @brief ctx__select_first [--quiet] -- [<yaml-group>] [-- [<yaml-group>] …] — Return 0 on the first matching when group.
+  #
+  # Tests when groups in order and returns 0 on the first match.  Groups are
+  # separated by `--`; each group is a single YAML AND-blob argument passed to
+  # `ctx__match_spec`.  A leading `--` is required.  Trailing group after the
+  # last `--` is also evaluated when no earlier group matched.
+  #
+  # Args:
+  #   [--quiet]       Suppress error logging from `_ctx__fail`.
+  #   --              Required delimiter before the first group.
+  #   <yaml-group>    One AND-group per argv word; repeat `--` between groups.
+  #
+  # Returns: 0 when the first matching group is found; 1 when none match or when
+  #           `--` is missing (logs usage error unless `--quiet`).
   _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true
