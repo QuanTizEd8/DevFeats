@@ -3,9 +3,17 @@
 
 bats_require_minimum_version 1.5.0
 
+setup_file() {
+  load 'helpers/bootstrap_tools'
+  test_bootstrap__setup_file_jq_yq
+}
+
 setup() {
   load 'helpers/ensure_framework'
   install_test__ensure_framework
+  load 'helpers/bootstrap_tools'
+  test_bootstrap__require_jq_yq
+  test_bootstrap__wire_tools_for_run
   load 'helpers/stubs'
   load 'helpers/ctx'
 
@@ -19,8 +27,6 @@ setup() {
   ctx__set feat.tag=v12.1.2
   ctx__set feat.method=binary
   _CTX__REGISTRY_INITIALIZED=true
-  bootstrap__yq() { command -v yq; return 0; }
-  export -f bootstrap__yq
 }
 
 _publish_feat_ctx() {

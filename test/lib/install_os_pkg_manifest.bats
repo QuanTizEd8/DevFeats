@@ -21,40 +21,13 @@ bats_require_minimum_version 1.5.0
 CASES_DIR="${REPO_ROOT}/test/lib/cases/install-os-pkg"
 
 setup_file() {
-  load 'helpers/common'
-
-  # Ensure jq is bootstrappable (required for manifest parsing).
-  MANIFEST_TESTS_JQ_READY=0
-  if bash -c '. "$1/__init__.bash" && bootstrap__jq' _ "${LIB_ROOT}" > /dev/null 2>&1; then
-    MANIFEST_TESTS_JQ_READY=1
-  fi
-
-  # Pre-install yq once via ospkg's auto-installer so individual tests can
-  # reference the cached binary without re-downloading on every test.
-  # On failure (no network, not root) MANIFEST_TESTS_YQ_BIN stays empty and
-  # all manifest tests skip.
-  MANIFEST_TESTS_YQ_BIN=""
-  if [[ "${MANIFEST_TESTS_JQ_READY}" == "1" ]]; then
-    local _yq_path
-    _yq_path="$(
-      bash -c '
-        source "$1/__init__.bash" 2>/dev/null || exit 1
-        ospkg__detect 2>/dev/null || exit 1
-        bootstrap__yq 2>/dev/null || exit 1
-      ' _ "${LIB_ROOT}" 2> /dev/null
-    )" || true
-    if [[ -n "${_yq_path}" && -x "${_yq_path}" ]]; then
-      cp "${_yq_path}" "${BATS_FILE_TMPDIR}/yq"
-      chmod +x "${BATS_FILE_TMPDIR}/yq"
-      MANIFEST_TESTS_YQ_BIN="${BATS_FILE_TMPDIR}/yq"
-    fi
-  fi
-
-  export MANIFEST_TESTS_JQ_READY MANIFEST_TESTS_YQ_BIN
+  load 'helpers/bootstrap_tools'
+  test_bootstrap__setup_file_jq_yq
 }
 
 setup() {
   load 'helpers/common'
+  load 'helpers/bootstrap_tools'
   load 'helpers/stubs'
 }
 
@@ -64,9 +37,8 @@ setup() {
 
 # _require_manifest_prereqs — skip the test if jq or yq is unavailable.
 _require_manifest_prereqs() {
-  [[ "${MANIFEST_TESTS_JQ_READY:-0}" == "1" ]] || skip "jq bootstrap unavailable"
-  [[ -n "${MANIFEST_TESTS_YQ_BIN:-}" && -x "${MANIFEST_TESTS_YQ_BIN}" ]] ||
-    skip "yq unavailable (no network or not root)"
+  test_bootstrap__require_jq
+  test_bootstrap__require_yq
 }
 
 # _seed_context <pm> <id> [<id_like>] [<version_id>]
@@ -109,13 +81,8 @@ _seed_context() {
   _CTX__REGISTRY_INITIALIZED=true
 
   # Point bootstrap__yq at the pre-installed binary to avoid re-downloading
-  # yq on every test.  Mirrors the early-return guard in the real function.
-  # MANIFEST_TESTS_YQ_BIN is exported by setup_file() and accessible here.
-  bootstrap__yq() {
-    [[ -n "${_BOOTSTRAP__YQ_BIN:-}" ]] && return 0
-    _BOOTSTRAP__YQ_BIN="${MANIFEST_TESTS_YQ_BIN}"
-  }
-  export -f bootstrap__yq
+  # yq on every test (TEST_BOOTSTRAP_YQ_BIN is exported by setup_file()).
+  test_bootstrap__stub_yq
 
   # Fake PMs (e.g. apk, pacman) exit 0 for all calls, which makes
   # ospkg__is_installed report every package as already installed and skip it.
@@ -646,7 +613,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/semver_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"old-tool"* ]]
@@ -660,7 +627,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/semver_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" != *"old-tool"* ]]
@@ -687,7 +654,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/osid_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"ubuntu-pkg"* ]]
@@ -701,7 +668,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/osid_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" != *"ubuntu-pkg"* ]]
@@ -716,7 +683,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/codename_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"jammy-pkg"* ]]
@@ -730,7 +697,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/codename_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" != *"jammy-pkg"* ]]
@@ -743,7 +710,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/pm_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"apt-pkg"* ]]
@@ -756,7 +723,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/pm_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" != *"apt-pkg"* ]]
@@ -770,7 +737,7 @@ _assert_manifest_pkgs() {
   local _json_tmp _parsed
   bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/fver_XXXXXX")"
-  printf '%s' "${_manifest}" | "${MANIFEST_TESTS_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"old-pkg"* ]]
