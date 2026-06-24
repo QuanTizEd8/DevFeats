@@ -44,5 +44,6 @@ _dependencies:
   run:
     method-package:
       packages:
-        - just
+        - name: just
+          version: "{feat.pm_version}"
 # installsAfter: []

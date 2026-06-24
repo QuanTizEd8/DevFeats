@@ -107,4 +107,5 @@ _dependencies:
   run:
     method-package:
       packages:
-        - starship
+        - name: starship
+          version: "{feat.pm_version}"

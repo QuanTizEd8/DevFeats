@@ -335,6 +335,21 @@ run_auto_method() {
   assert_output "script"
 }
 
+@test "package: feasibility uses pm spec for opaque dist-tag after resolve" {
+  _FEAT_CONTRACT_METHODS="package script"
+  _FEAT_CONTRACT_PACKAGE_WHEN='plat.pm: apt'
+  _FEAT_CONTRACT_PRIMARY_BIN="claude-code"
+  VERSION="2.0.0-beta.1"
+  VERSION_INPUT="beta"
+  ospkg__has_available_version() {
+    [[ "$1" == "claude-code" && "$2" == "2.0.0-beta.1" ]]
+  }
+  export -f ospkg__has_available_version
+  run_auto_method
+  assert_success
+  assert_output "package"
+}
+
 @test "package: uses REGISTER_PACKAGE_NAME for version check when set" {
   _FEAT_CONTRACT_METHODS="package script"
   _FEAT_CONTRACT_PACKAGE_WHEN='plat.pm: apt'

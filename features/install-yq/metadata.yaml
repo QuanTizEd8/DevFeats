@@ -53,13 +53,16 @@ _dependencies:
       brew:
         packages:
           - name: yq
+            version: "{feat.pm_version}"
       pacman:
         packages:
           - name: go-yq
+            version: "{feat.pm_version}"
       apk:
         packages:
           # Alpine 3.20+ renamed package to yq-go.
           - name: yq-go
+            version: "{feat.pm_version}"
             when:
               os.version_id:
                 - "3.20"
@@ -68,6 +71,7 @@ _dependencies:
                 - "3.23"
           # Alpine <=3.19 used yq for mikefarah/yq.
           - name: yq
+            version: "{feat.pm_version}"
             when:
               os.version_id:
                 - "3.16"
@@ -77,12 +81,14 @@ _dependencies:
       dnf:
         packages:
           - name: yq
+            version: "{feat.pm_version}"
             when:
               - os.id: fedora
               - os.id_like: rhel
       yum:
         packages:
           - name: yq
+            version: "{feat.pm_version}"
             when:
               os.id_like: rhel
       zypper:

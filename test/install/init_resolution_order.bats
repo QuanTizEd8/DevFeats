@@ -111,6 +111,22 @@ run_auto_method() {
   [[ "$(ctx__get feat.version_input)" == "stable" ]]
 }
 
+@test "init order: feat.pm_version empty after stable resolve and package method" {
+  VERSION="stable"
+  VERSION_INPUT="stable"
+  VERSION_RESOLUTION="github_release"
+  VERSION_URI="https://api.github.com/repos/git/git"
+  METHOD="package"
+  github__resolve_version() {
+    printf 'v2.54.0\n2.54.0\n'
+    return 0
+  }
+  __resolve_input_version__
+  __resolve_input_method__
+  __ctx_sync_pm_version__
+  [[ "$(ctx__get feat.pm_version)" == "" ]]
+}
+
 @test "init order: feat.method published after method resolution" {
   METHOD="auto"
   _FEAT_CONTRACT_METHODS="binary package"

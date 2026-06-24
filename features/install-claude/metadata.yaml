@@ -79,7 +79,7 @@ _dependencies:
     method-upstream-package:
       packages:
         - name: claude-code
-          version: "{feat.version}"
+          version: "{feat.pm_version}"
           when:
             plat.pm: [apt, apk, dnf, yum]
       apt:

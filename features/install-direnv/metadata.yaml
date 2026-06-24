@@ -54,7 +54,8 @@ _dependencies:
   run:
     method-package:
       packages:
-        - direnv
+        - name: direnv
+          version: "{feat.pm_version}"
   build:
     method-source:
       packages:

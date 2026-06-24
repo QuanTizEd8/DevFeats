@@ -50,6 +50,7 @@ _dependencies:
     method-upstream-package:
       packages:
         - name: lefthook
+          version: "{feat.pm_version}"
           when:
             plat.pm: [apt, apk, dnf, yum, zypper]
       apt:

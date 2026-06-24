@@ -1544,8 +1544,8 @@ ospkg__has_rdeps() {
 }
 
 _ospkg__normalize_pkg_version_spec() {
-  # Channel selectors in feat.version mean "install whatever the PM provides" for
-  # package/upstream-package methods (see __dep_pm_extra_args__ before ctx refactor).
+  # Channel selectors in feat.pm_version / feat.version_input mean "install whatever
+  # the PM provides" for package/upstream-package methods.
   case "${1:-}" in
     '' | stable | latest) printf '' ;;
     *) printf '%s' "$1" ;;

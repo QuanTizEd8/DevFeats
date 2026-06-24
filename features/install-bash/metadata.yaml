@@ -44,7 +44,7 @@ _dependencies:
     method-package:
       packages:
         - name: bash
-          version: "{feat.version}"
+          version: "{feat.pm_version}"
   build:
     method-source:
       apt:

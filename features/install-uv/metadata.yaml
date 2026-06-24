@@ -55,4 +55,5 @@ _dependencies:
         - ca-certificates
     method-package:
       packages:
-        - uv
+        - name: uv
+          version: "{feat.pm_version}"

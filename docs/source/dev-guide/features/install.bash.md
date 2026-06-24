@@ -210,7 +210,16 @@ __install_post() {
 
 Run before/after `__install_init__` — at the point when VERSION, METHOD, and PREFIX have just been resolved and `_dependencies.run.base` has just been installed.
 
-The install template mirrors resolved globals into the context registry via `__ctx_sync_version__`, `__ctx_sync_method__`, and `__ctx_sync_prefix__` (or `__ctx_sync__` for all three). Feature hooks that change `VERSION`, `METHOD`, or prefix-related globals must call the matching sync helper so when blocks and URI patterns see up-to-date `feat.*` keys. See [Unified condition context](context.md).
+The install template mirrors resolved globals into the context registry via `__ctx_sync_version__`, `__ctx_sync_pm_version__`, `__ctx_sync_method__`, and `__ctx_sync_prefix__` (or `__ctx_sync__` for the first three except PM version). Feature hooks that change `VERSION`, `METHOD`, or prefix-related globals must call the matching sync helper so when blocks and URI patterns see up-to-date `feat.*` keys. See [Unified condition context](context.md).
+
+### PM version vs upstream version
+
+Upstream version resolution (`feat.version`) and PM install pinning (`feat.pm_version`) are separate:
+
+- **Upstream** (`github_release`, `npm`, `sidecar`, …) resolves the user's spec for artifacts and method `when` blocks. Runs before `METHOD=auto` selection.
+- **PM** (`feat.pm_version`) is derived after method resolution for `method-package` / `method-upstream-package` manifests. Channel specs (`stable`/`latest`) produce an empty PM spec (unversioned distro install); numeric semver prefixes are passed to ospkg for distro resolution; registry dist-tags use the resolved semver when available. `git_ref` and unresolvable opaque specs yield an empty PM spec (unversioned).
+
+Use `{feat.pm_version}` in OS package manifest `version:` fields — not `{feat.version}` or `{feat.version_input}` (except channel patterns in vendor repo URLs). See `__feat_pm_version_spec__` in the install template.
 
 ```bash
 __install_init_post() {

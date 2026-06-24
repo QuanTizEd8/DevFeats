@@ -42,6 +42,7 @@ Implementation: [`lib/ctx.sh`](../../../../lib/ctx.sh), [`lib/ctx-match.jq`](../
 |-----|---------------|----------|
 | `feat.version_input` | `VERSION_INPUT` (or `VERSION` before capture) | `__ctx_sync_version__` |
 | `feat.version` | `VERSION` | `__ctx_sync_version__` |
+| `feat.pm_version` | derived by `__feat_pm_version_spec__` | `__ctx_sync_pm_version__` (after method resolution) |
 | `feat.tag` | `_FEAT_RESOLVED_TAG` | `__ctx_sync_version__` |
 | `feat.method` | `METHOD` | `__ctx_sync_method__` |
 | `feat.prefix` | `_RESOLVED_PREFIX` | `__ctx_sync_prefix__` |
@@ -49,11 +50,22 @@ Implementation: [`lib/ctx.sh`](../../../../lib/ctx.sh), [`lib/ctx-match.jq`](../
 Sync helpers (in [`features/install.tmpl.bash`](../../../../features/install.tmpl.bash)):
 
 - `__ctx_sync_version__` — mirror version globals
+- `__ctx_sync_pm_version__` — derive and mirror `feat.pm_version` for PM manifests
 - `__ctx_sync_method__` — mirror `METHOD`
 - `__ctx_sync_prefix__` — mirror `_RESOLVED_PREFIX`
-- `__ctx_sync__` — all three (called at end of `__init_args__`)
+- `__ctx_sync__` — version, method, prefix, and (when `VERSION_INPUT` is set) `feat.pm_version`
 
 Feature hooks that mutate `VERSION`, `METHOD`, etc. must call the appropriate `__ctx_sync_*` (or `ctx__set`) immediately after.
+
+### Which version token to use
+
+| Token | Use for |
+|-------|---------|
+| `{feat.version}` | Binary/source/npm download URIs, method `when` blocks, installed-version comparison |
+| `{feat.version_input}` | Vendor PM **repo channel** patterns (e.g. claude apt `stable`/`latest` URLs) |
+| `{feat.pm_version}` | `method-package` / `method-upstream-package` package `version:` fields (ospkg pin spec; empty = unversioned) |
+
+`feat.pm_version` is derived by `__feat_pm_version_spec__` after method resolution: PM channels (`stable`/`latest`) → empty; numeric semver prefixes → `version_input`; opaque registry dist-tags → resolved semver when upstream or registry resolution succeeds; `git_ref` and failed opaque resolution → empty (unversioned PM install).
 
 ## When blocks (metadata)
 

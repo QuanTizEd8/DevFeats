@@ -48,5 +48,6 @@ _dependencies:
   run:
     method-package:
       packages:
-        - typst
+        - name: typst
+          version: "{feat.pm_version}"
 # installsAfter: []

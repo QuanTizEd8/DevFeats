@@ -44,5 +44,6 @@ _dependencies:
   run:
     method-package:
       packages:
-        - shfmt
+        - name: shfmt
+          version: "{feat.pm_version}"
 # installsAfter: []

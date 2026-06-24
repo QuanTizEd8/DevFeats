@@ -51,4 +51,5 @@ _dependencies:
   run:
     method-package:
       packages:
-        - pandoc
+        - name: pandoc
+          version: "{feat.pm_version}"

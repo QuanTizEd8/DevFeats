@@ -50,5 +50,6 @@ _dependencies:
   run:
     method-package:
       packages:
-        - shellcheck
+        - name: shellcheck
+          version: "{feat.pm_version}"
 # installsAfter: []

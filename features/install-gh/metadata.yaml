@@ -164,7 +164,7 @@ _dependencies:
             https://cli.github.com/packages stable main
         packages:
           - name: gh
-            version: "{feat.version}"
+            version: "{feat.pm_version}"
       dnf:
         repos:
           - |
@@ -176,7 +176,7 @@ _dependencies:
             gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
         packages:
           - name: gh
-            version: "{feat.version}"
+            version: "{feat.pm_version}"
       yum:
         repos:
           - |
@@ -188,7 +188,7 @@ _dependencies:
             gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
         packages:
           - name: gh
-            version: "{feat.version}"
+            version: "{feat.pm_version}"
       zypper:
         repos:
           - |
@@ -200,13 +200,16 @@ _dependencies:
             gpgkey=https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x23F3D4EA75716059
         packages:
           - name: gh
-            version: "{feat.version}"
+            version: "{feat.pm_version}"
       apk:
         packages:
           - name: github-cli
+            version: "{feat.pm_version}"
       pacman:
         packages:
           - name: github-cli
+            version: "{feat.pm_version}"
       brew:
         packages:
           - name: gh
+            version: "{feat.pm_version}"

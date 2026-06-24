@@ -54,10 +54,12 @@ _dependencies:
         packages:
           # Debian repositories provide `oras`.
           - name: oras
+            version: "{feat.pm_version}"
             when:
               os.id: debian
           # Ubuntu repositories provide `oras` starting from 25.04.
           - name: oras
+            version: "{feat.pm_version}"
             when:
               os.id: ubuntu
               os.version_id:
@@ -68,20 +70,24 @@ _dependencies:
         packages:
           # Alpine package name differs (`oras-cli` provides cmd:oras).
           - name: oras-cli
+            version: "{feat.pm_version}"
       dnf:
         packages:
           # Fedora package name differs (`golang-oras` installs /usr/bin/oras).
           - name: golang-oras
+            version: "{feat.pm_version}"
             when:
               os.id: fedora
       yum:
         packages:
           - name: golang-oras
+            version: "{feat.pm_version}"
             when:
               os.id: fedora
       zypper:
         packages:
           - name: oras
+            version: "{feat.pm_version}"
             when:
               os.id:
                 - opensuse-tumbleweed
@@ -89,6 +95,7 @@ _dependencies:
       brew:
         packages:
           - name: oras
+            version: "{feat.pm_version}"
       pacman:
         scripts: |-
           logging__error "method=package is unsupported on pacman because ORAS is not available in official Arch repositories."

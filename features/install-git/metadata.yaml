@@ -157,7 +157,7 @@ _dependencies:
     method-package:
       packages:
         - name: git
-          version: "{feat.version}"
+          version: "{feat.pm_version}"
     method-upstream-package:
       when:
         os.id: ubuntu

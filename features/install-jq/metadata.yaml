@@ -50,7 +50,8 @@ _dependencies:
   run:
     method-package:
       packages:
-        - jq
+        - name: jq
+          version: "{feat.pm_version}"
   build:
     method-source:
       packages:

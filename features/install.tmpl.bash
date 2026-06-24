@@ -733,6 +733,7 @@ __install_init__() {
   __verify_system_requirements__
   __resolve_input_version__
   __resolve_input_method__
+  __ctx_sync_pm_version__
   __resolve_input_prefixes__
   __dep_install_base__
 
@@ -1547,6 +1548,7 @@ __reinstall_init__() {
   __verify_system_requirements__
   __resolve_input_version__
   __resolve_input_method__
+  __ctx_sync_pm_version__
   __resolve_input_prefixes__
 
   __run_feature_hook__ __reinstall_init_post
@@ -1657,6 +1659,7 @@ __update_init__() {
   __verify_system_requirements__
   __resolve_input_version__
   __resolve_input_method__
+  __ctx_sync_pm_version__
   __resolve_input_prefixes__
   __dep_install_base__ --update
 
@@ -1877,6 +1880,7 @@ __ctx_sync_version__() {
     ctx__set feat.version="${VERSION:-}"
   fi
   ctx__set feat.tag="${_FEAT_RESOLVED_TAG:-}"
+  unset _FEAT_PM_VERSION_SPEC_CACHE
 }
 
 __ctx_sync_method__() {
@@ -1897,6 +1901,15 @@ __ctx_sync__() {
   __ctx_sync_version__
   __ctx_sync_method__
   __ctx_sync_prefix__
+  if [[ -v VERSION_INPUT ]]; then
+    __ctx_sync_pm_version__
+  fi
+}
+
+__ctx_sync_pm_version__() {
+  declare -g _FEAT_PM_VERSION_SPEC_CACHE
+  _FEAT_PM_VERSION_SPEC_CACHE="$(__feat_pm_version_spec__)"
+  ctx__set feat.pm_version="${_FEAT_PM_VERSION_SPEC_CACHE}"
 }
 
 __feat_filter_binary_src__() {
@@ -2007,6 +2020,192 @@ __feat_do_configure_users__() {
 # Input Resolution
 # ================
 
+__feat_is_pm_version_spec__() {
+  # Stricter than ver__extract_version --full-match: rejects inline-label strings like "3rd-party".
+  local _bare="${1#v}"
+  [[ -n "${_bare}" ]] || return 1
+  [[ "${_bare}" =~ ^[0-9]+(\.[0-9]+)*(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]
+}
+
+__feat_normalize_pm_version_spec__() {
+  printf '%s' "${1#v}"
+}
+
+__feat_pm_version_resolution_pm_applicable__() {
+  case "${VERSION_RESOLUTION:-}" in
+    github_release | github_tag | npm | sidecar) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+__feat_pm_version_spec__() {
+  # Print the version spec ospkg should use for PM installs (empty = unversioned).
+  #
+  # PM channels (stable/latest) → empty (distro default).
+  # Semver prefix/exact → VERSION_INPUT (ospkg resolves against PM repos).
+  # Opaque/registry specs → resolved VERSION when upstream already resolved;
+  #   else lazy registry resolve when VERSION_RESOLUTION supports PM pinning.
+  # git_ref and other non-registry types → empty (PM cannot pin by VCS ref).
+  if [[ -v _FEAT_PM_VERSION_SPEC_CACHE ]]; then
+    printf '%s' "${_FEAT_PM_VERSION_SPEC_CACHE}"
+    return 0
+  fi
+  local _input="${VERSION_INPUT:-${VERSION:-}}"
+  case "${_input}" in
+    '' | stable | latest)
+      printf ''
+      return 0
+      ;;
+  esac
+  if __feat_is_pm_version_spec__ "${_input}"; then
+    __feat_normalize_pm_version_spec__ "${_input}"
+    return 0
+  fi
+  if [[ -n "${VERSION:-}" && "${VERSION}" != "${_input}" ]]; then
+    if __feat_is_pm_version_spec__ "${VERSION}"; then
+      __feat_normalize_pm_version_spec__ "${VERSION}"
+    else
+      printf '%s' "${VERSION}"
+    fi
+    return 0
+  fi
+  case "${VERSION_RESOLUTION:-}" in
+    none | '')
+      printf '%s' "${_input}"
+      return 0
+      ;;
+  esac
+  if ! __feat_pm_version_resolution_pm_applicable__; then
+    logging__debug "VERSION_RESOLUTION='${VERSION_RESOLUTION}' is not used for PM version pinning; installing unversioned."
+    printf ''
+    return 0
+  fi
+  local _resolved=""
+  if _resolved="$(__feat_resolve_version_spec__ "${_input}")"; then
+    printf '%s' "${_resolved}"
+    return 0
+  fi
+  logging__warn "Could not resolve '${_input}' for PM version pin; installing unversioned."
+  printf ''
+  return 0
+}
+
+__feat_resolve_version_spec__() {
+  # Resolve <spec> to a bare version string on stdout and in _FEAT_RESOLVE_VERSION_RESULT.
+  #
+  # Optional --update-globals sets _FEAT_RESOLVED_TAG / _FEAT_RESOLVED_GIT_SHA when
+  # applicable (install init). PM-only lazy resolution omits this flag.
+  local _spec="${1:-}" _update_globals=false
+  shift || true
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --update-globals)
+        _update_globals=true
+        shift
+        ;;
+      *)
+        logging__error "__feat_resolve_version_spec__: unknown argument '${1}'."
+        return 1
+        ;;
+    esac
+  done
+  declare -g _FEAT_RESOLVE_VERSION_RESULT=""
+  [[ -n "${_spec}" ]] || return 1
+
+  if declare -f __resolve_version > /dev/null; then
+    local _saved_version="${VERSION:-}"
+    VERSION="${_spec}"
+    _FEAT_RESOLVE_VERSION_RESULT="$(__resolve_version)"
+    local _rc=$?
+    VERSION="${_saved_version}"
+    printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
+    return "$_rc"
+  fi
+
+  case "${VERSION_RESOLUTION:-}" in
+    github_release | github_tag)
+      if [[ -z "${VERSION_URI:-}" ]]; then
+        logging__error "_options.version.resolution=${VERSION_RESOLUTION} requires VERSION_URI to be set in metadata."
+        return 1
+      fi
+      local _endpoint="${VERSION_RESOLUTION#github_}" _both
+      logging__info "Resolving GitHub version (URI='${VERSION_URI}', spec='${_spec}', endpoint='${_endpoint}')."
+      _both="$(github__resolve_version "${VERSION_URI}" "${_spec}" --endpoint "${_endpoint}")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
+        logging__error "failed to resolve GitHub version (URI='${VERSION_URI}', spec='${_spec}')."
+        return "$_rc"
+      }
+      if [[ "${_update_globals}" == true ]]; then
+        local _resolved_tag=""
+        _resolved_tag="$(printf '%s\n' "${_both}" | head -1)"
+        declare -g _FEAT_RESOLVED_TAG="${_resolved_tag}"
+      fi
+      _FEAT_RESOLVE_VERSION_RESULT="$(printf '%s\n' "${_both}" | tail -1)"
+      printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
+      ;;
+    npm)
+      if [[ -z "${VERSION_URI:-}" ]]; then
+        logging__error "_options.version.resolution=npm requires VERSION_URI to be set in metadata."
+        return 1
+      fi
+      logging__info "Resolving npm version (URI='${VERSION_URI}', spec='${_spec}')."
+      _FEAT_RESOLVE_VERSION_RESULT="$(npm__resolve_version_uri "${VERSION_URI}" "${_spec}")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
+        logging__error "failed to resolve npm version (URI='${VERSION_URI}', spec='${_spec}')."
+        return "$_rc"
+      }
+      printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
+      ;;
+    git_ref)
+      if [[ -z "${GIT_CLONE_URI:-}" ]]; then
+        logging__error "VERSION_RESOLUTION=git_ref requires GIT_CLONE_URI to be set."
+        return 1
+      fi
+      if [[ "${_update_globals}" == true ]]; then
+        logging__install "Bootstrapping git for VERSION_RESOLUTION=git_ref."
+        bootstrap__git
+        __ctx_sync_version__
+        local _git_ref_uri _resolved
+        _git_ref_uri="$(ctx__expand_pattern "${GIT_CLONE_URI}")"
+        _resolved="$(git__resolve_ref "${_git_ref_uri}" "${_spec}")"
+        local _rc=$?
+        [[ $_rc == 0 ]] || {
+          logging__error "failed to resolve git ref '${_spec}' on '${_git_ref_uri}'."
+          return "$_rc"
+        }
+        declare -g _FEAT_RESOLVED_GIT_SHA="${_resolved}"
+      fi
+      _FEAT_RESOLVE_VERSION_RESULT="${_spec}"
+      printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
+      ;;
+    sidecar)
+      if [[ -z "${VERSION_URI:-}" || -z "${VERSION_PATTERN:-}" ]]; then
+        logging__error "VERSION_RESOLUTION=sidecar requires VERSION_URI and VERSION_PATTERN to be set in metadata."
+        return 1
+      fi
+      logging__info "Resolving version from sidecar (URI='${VERSION_URI}', spec='${_spec:-stable}')."
+      _FEAT_RESOLVE_VERSION_RESULT="$(ver__resolve_from_sidecar "${VERSION_URI}" "${VERSION_PATTERN}" "${_spec:-stable}")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
+        logging__error "failed to resolve sidecar version (URI='${VERSION_URI}', spec='${_spec:-stable}')."
+        return "$_rc"
+      }
+      printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
+      ;;
+    none | '')
+      logging__skip "VERSION_RESOLUTION unset or 'none'; using spec '${_spec}' as-is."
+      _FEAT_RESOLVE_VERSION_RESULT="${_spec}"
+      printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
+      ;;
+    *)
+      logging__error "_options.version.resolution='${VERSION_RESOLUTION}' has no auto-implementation; define __resolve_version to handle it."
+      return 1
+      ;;
+  esac
+}
+
 __resolve_auto_method__() {
   # Centralized METHOD=auto resolver driven by _FEAT_CONTRACT_* variables.
   # Iterates methods in priority order, evaluating feasibility for each.
@@ -2045,13 +2244,18 @@ __resolve_auto_method__() {
       package)
         [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
         # stable → PM always viable; latest → skip (PM won't have very latest);
-        # specific version → check PM with raw spec (ospkg uses prefix matching).
+        # specific version → check PM with derived feat.pm_version spec (ospkg prefix matching).
         # VERSION_RESOLUTION=none means VERSION is a custom opaque string; always viable.
         if [[ "${VERSION_RESOLUTION:-}" != "none" ]]; then
           case "${VERSION_INPUT:-${VERSION:-stable}}" in
             stable) : ;;
             latest) continue ;;
-            *) ospkg__has_available_version "${_pkg_query}" "${VERSION_INPUT:-${VERSION:-}}" 2>/dev/null || continue ;;
+            *)
+              local _pm_spec=""
+              _pm_spec="$(__feat_pm_version_spec__)"
+              [[ -n "${_pm_spec}" ]] || continue
+              ospkg__has_available_version "${_pkg_query}" "${_pm_spec}" 2>/dev/null || continue
+              ;;
           esac
         fi
         ctx__match_when --quiet "${_FEAT_CONTRACT_PACKAGE_WHEN:-}" || continue
@@ -2216,73 +2420,19 @@ __resolve_input_version__() {
       return "$_rc"
     fi
   else
-    case "${VERSION_RESOLUTION:-}" in
-      github_release | github_tag)
-        if [[ -z "${VERSION_URI:-}" ]]; then
-          logging__error "_options.version.resolution=${VERSION_RESOLUTION} requires VERSION_URI to be set in metadata."
-          return 1
-        fi
-        local _endpoint="${VERSION_RESOLUTION#github_}"
-        local _both
-        logging__info "Resolving GitHub version (URI='${VERSION_URI}', spec='${VERSION}', endpoint='${_endpoint}')."
-        _both="$(github__resolve_version "${VERSION_URI}" "${VERSION}" --endpoint "${_endpoint}")"
-        local _rc=$?
-        [[ $_rc == 0 ]] || { logging__error "failed to resolve GitHub version (URI='${VERSION_URI}', spec='${VERSION}')."; return "$_rc"; }
-        _FEAT_RESOLVED_TAG="$(printf '%s\n' "${_both}" | head -1)"
-        VERSION="$(printf '%s\n' "${_both}" | tail -1)"
-        ;;
-      npm)
-        if [[ -z "${VERSION_URI:-}" ]]; then
-          logging__error "_options.version.resolution=npm requires VERSION_URI to be set in metadata."
-          return 1
-        fi
-        logging__info "Resolving npm version (URI='${VERSION_URI}', spec='${VERSION}')."
-        VERSION="$(npm__resolve_version_uri "${VERSION_URI}" "${VERSION}")"
-        local _rc=$?
-        [[ $_rc == 0 ]] || { logging__error "failed to resolve npm version (URI='${VERSION_URI}', spec='${VERSION}')."; return "$_rc"; }
-        ;;
-      git_ref)
-        # Resolve the named ref (branch/tag) to its current remote SHA via ls-remote.
-        # VERSION is intentionally left as the ref name (e.g. "master") so that {feat.version}
-        # substitutions in git config values (e.g. oh-my-zsh.branch: "{feat.version}") remain
-        # human-readable. The resolved SHA is stored separately for version comparison.
-        if [[ -z "${GIT_CLONE_URI:-}" ]]; then
-          logging__error "VERSION_RESOLUTION=git_ref requires GIT_CLONE_URI to be set."
-          return 1
-        fi
-        logging__install "Bootstrapping git for VERSION_RESOLUTION=git_ref."
-        bootstrap__git
-        __ctx_sync_version__
-        local _git_ref_uri
-        _git_ref_uri="$(ctx__expand_pattern "${GIT_CLONE_URI}")"
-        local _resolved
-        _resolved="$(git__resolve_ref "${_git_ref_uri}" "${VERSION}")"
-        local _rc=$?
-        [[ $_rc == 0 ]] || { logging__error "failed to resolve git ref '${VERSION}' on '${_git_ref_uri}'."; return "$_rc"; }
-        _FEAT_RESOLVED_GIT_SHA="${_resolved}"
-        if [[ "${_resolved}" == "${VERSION}" ]]; then
-          logging__info "Ref '${VERSION}' not found as a named ref on remote; treating as SHA."
-        fi
-        ;;
-      sidecar)
-        if [[ -z "${VERSION_URI:-}" || -z "${VERSION_PATTERN:-}" ]]; then
-          logging__error "VERSION_RESOLUTION=sidecar requires VERSION_URI and VERSION_PATTERN to be set in metadata."
-          return 1
-        fi
-        logging__info "Resolving version from sidecar (URI='${VERSION_URI}', spec='${VERSION:-stable}')."
-        VERSION="$(ver__resolve_from_sidecar "${VERSION_URI}" "${VERSION_PATTERN}" "${VERSION:-stable}")"
-        local _rc=$?
-        [[ $_rc == 0 ]] || { logging__error "failed to resolve sidecar version (URI='${VERSION_URI}', spec='${VERSION:-stable}')."; return "$_rc"; }
-        ;;
-      none | "")
-        # Explicit 'none' or no resolution declared: VERSION is used as-is.
-        logging__skip "VERSION_RESOLUTION unset or 'none'; using VERSION='${VERSION}' as-is."
-        ;;
-      *)
-        logging__error "_options.version.resolution='${VERSION_RESOLUTION}' has no auto-implementation; define __resolve_version to handle it."
-        return 1
-        ;;
-    esac
+    local _version_spec="${VERSION:-}"
+    logging__info "Resolving version (resolution='${VERSION_RESOLUTION:-none}', spec='${_version_spec}')."
+    __feat_resolve_version_spec__ "${_version_spec}" --update-globals
+    local _rc=$?
+    [[ $_rc == 0 ]] || {
+      logging__error "failed to resolve version spec '${_version_spec}'."
+      return "$_rc"
+    }
+    VERSION="${_FEAT_RESOLVE_VERSION_RESULT:-}"
+    if [[ "${VERSION_RESOLUTION:-}" == git_ref && -n "${_FEAT_RESOLVED_GIT_SHA:-}" &&
+      "${_FEAT_RESOLVED_GIT_SHA}" == "${_version_spec}" ]]; then
+      logging__info "Ref '${_version_spec}' not found as a named ref on remote; treating as SHA."
+    fi
   fi
   if [[ -n "${_FEAT_RESOLVED_TAG}" ]]; then
     logging__info "Resolved version: '${VERSION}' (tag: '${_FEAT_RESOLVED_TAG}')."

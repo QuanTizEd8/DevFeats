@@ -61,6 +61,7 @@ _dependencies:
     method-package:
       packages:
         - name: ripgrep
+          version: "{feat.pm_version}"
           when:
             - plat.pm: [apt, apk, brew, pacman, zypper]
             - {plat.pm: [dnf, yum], os.id: fedora}
@@ -82,7 +83,8 @@ _dependencies:
               gpgcheck=1
               gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-$releasever
           packages:
-            - ripgrep
+            - name: ripgrep
+              version: "{feat.pm_version}"
 
         - label: Amazon Linux 2023 via SPAL
           when:
@@ -91,4 +93,5 @@ _dependencies:
             os.version_id_major: "2023"
           packages:
             - spal-release
-            - ripgrep
+            - name: ripgrep
+              version: "{feat.pm_version}"
