@@ -338,15 +338,11 @@ setup() {
   assert_success
 }
 
-@test "argparse__var_declared: -v on empty declared array depends on bash version" {
+@test "argparse__var_declared: [[ -v ]] does not see empty declared arrays" {
   declare -a MY_ARR=()
-  # Bash 5.2 reworked [[ -v ]] visibility for declared variables; 5.3+ treats
-  # empty indexed arrays as set.  argparse__var_declared uses declare -p instead.
-  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
-    [[ -v MY_ARR ]]
-  else
-    ! [[ -v MY_ARR ]]
-  fi
+  # Across all bash versions, [[ -v ]] treats empty indexed arrays as unset.
+  # argparse__var_declared uses declare -p to correctly detect them.
+  ! [[ -v MY_ARR ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -442,8 +438,14 @@ setup() {
   MY_ARR=("http://stub.example/a" "http://stub.example/b")
 
   argparse__resolve_uri_options $'arr\tMY_ARR\tarray\t'
-  [[ -f "${MY_ARR[0]}" ]] || { echo "missing file: ${MY_ARR[0]}"; return 1; }
-  [[ -f "${MY_ARR[1]}" ]] || { echo "missing file: ${MY_ARR[1]}"; return 1; }
+  [[ -f "${MY_ARR[0]}" ]] || {
+    echo "missing file: ${MY_ARR[0]}"
+    return 1
+  }
+  [[ -f "${MY_ARR[1]}" ]] || {
+    echo "missing file: ${MY_ARR[1]}"
+    return 1
+  }
 }
 
 @test "argparse__resolve_uri_options: uses INSTALLER_DIR when set" {
@@ -456,7 +458,10 @@ setup() {
   export ONE="http://stub.example/one"
 
   argparse__resolve_uri_options $'one\tONE\tstring\t'
-  [[ "$ONE" == "${INSTALLER_DIR}/uri/one/"* ]] || { echo "ONE=$ONE"; return 1; }
+  [[ "$ONE" == "${INSTALLER_DIR}/uri/one/"* ]] || {
+    echo "ONE=$ONE"
+    return 1
+  }
   [[ -f "$ONE" ]]
 }
 
