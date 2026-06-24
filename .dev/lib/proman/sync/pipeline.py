@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import fnmatch
 import json
 import shutil
@@ -227,7 +228,7 @@ def _generate_feature_devcontainer_json(metadata: dict, *, local: bool) -> str:
         "name": f"{'Test' if local else 'Try'} {metadata['id']}",
     }
 
-    sample = metadata.get("_devcontainer", {})
+    sample = copy.deepcopy(metadata.get("_devcontainer", {}))
 
     devcontainer_json = defaults | sample | overrides
 
