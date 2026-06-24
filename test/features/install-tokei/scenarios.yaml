@@ -1,0 +1,51 @@
+default_install:
+  envs: [fedora-latest+bash, arch+bash]
+  modes: [devcontainer, standalone]
+  tests: [default_install]
+
+binary_pinned:
+  envs: [ubuntu-latest]
+  modes: [devcontainer, standalone]
+  options:
+    version: "12.1.2"
+    method: binary
+  tests: [binary_pinned]
+
+package_install:
+  envs:
+    - alpine-3.21+bash
+    - opensuse-leap+bash
+  modes: [devcontainer, standalone]
+  options:
+    method: package
+  tests: [package_install]
+
+cargo_install:
+  envs: [ubuntu-latest+rust-minimal]
+  modes: [standalone]
+  options:
+    method: cargo
+  tests: [cargo_install]
+
+if_exists_fail:
+  expect_install_failure: true
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "tokei 99.99.99\n"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/tokei
+    chmod +x /usr/local/bin/tokei
+  options:
+    if_exists: fail
+  tests: [if_exists_fail]
+
+if_exists_skip:
+  envs: [ubuntu-latest]
+  modes: [standalone]
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "tokei 99.99.99\n"; exit 0; fi\nexit 0' \
+      > /usr/local/bin/tokei
+    chmod +x /usr/local/bin/tokei
+  options:
+    if_exists: skip
+  tests: [if_exists_skip]

@@ -1,0 +1,96 @@
+version: 0.1.0
+name: tokei Installation
+description: Install [tokei](https://github.com/XAMPPRocky/tokei) — a fast command-line program that displays statistics about your code.
+keywords:
+  - tokei
+  - cloc
+  - statistics
+  - lines-of-code
+  - metrics
+  - cli
+_long_description: |-
+  Installs [tokei](https://github.com/XAMPPRocky/tokei), a fast Rust program that counts
+  files, lines, code, comments, and blanks grouped by language across a codebase.
+
+  GitHub release binaries are only published through v12.1.2 (the last stable release with
+  assets); v13.0.0-alpha.1 and later releases have no GitHub assets. For current versions
+  (including on Ubuntu Noble, where apt does not ship tokei), `method=auto` falls back to
+  cargo when the resolved version exceeds the binary cutoff. The OS package manager is used
+  on distros that package current versions (Arch, Fedora, Alpine edge, Debian sid, and others).
+options: {}
+_tool_name: tokei
+_options:
+  verify:
+    args: "--version"
+    description: Verify tokei is installed and working.
+  gh_repo: XAMPPRocky/tokei
+  version:
+    resolution: github_release
+    default: stable
+    flag: --version
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: "14.0.0"
+        description: tokei v14.0.0.
+      - value: "12.1.2"
+        description: tokei v12.1.2 (last release with GitHub binary assets).
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/tokei-{plat.kernel==Linux?{plat.machine_release==arm64?aarch64-unknown-linux-gnu:{plat.machine_release==i386?i686-unknown-linux-gnu:{plat.rust_triple}}}:{plat.rust_triple}}{plat.kernel==Windows?.exe:.tar.gz}"
+      binary_src:
+        - tokei
+      when:
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, armv7, i386, s390x], feat.version: {lte: "12.1.2"}}
+        - {plat.kernel: darwin, plat.machine_release: amd64, feat.version: {lte: "12.1.2"}}
+        - {plat.kernel: windows, plat.machine_release: [amd64, i386], feat.version: {lte: "12.1.2"}}
+    package:
+      when:
+        - plat.pm: [apk, brew, pacman, zypper]
+        - {plat.pm: [dnf, yum], os.id: fedora}
+        - {plat.pm: [dnf, yum], os.id: [rhel, rocky, almalinux, centos, ol], os.version_id_major: ["8", "9", "10"]}
+        - {plat.pm: apt, os.version_codename: [resolute, questing]}
+        - {plat.pm: apt, os.id: debian, os.version_codename: [sid, trixie, forky]}
+    cargo:
+      crate: tokei
+      args: ["--locked", "--features", "all"]
+  prefix:
+    bins: [tokei]
+    applies_when:
+      - method: [binary, cargo]
+_dependencies:
+  run:
+    method-package:
+      packages:
+        - name: tokei
+          version: "{feat.pm_version}"
+          when:
+            - plat.pm: [apt, apk, brew, pacman, zypper]
+            - {plat.pm: [dnf, yum], os.id: fedora}
+
+        - label: RHEL-family via EPEL
+          when:
+            plat.pm: [dnf, yum]
+            os.id: [rhel, rocky, almalinux, centos, ol]
+            os.version_id_major: ["8", "9", "10"]
+          keys:
+            - url: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{os.version_id_major}
+              dest: /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-{os.version_id_major}
+          repos:
+            - |
+              [epel]
+              name=Extra Packages for Enterprise Linux $releasever - $basearch
+              metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-$releasever&arch=$basearch
+              enabled=1
+              gpgcheck=1
+              gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-$releasever
+          packages:
+            - name: tokei
+              version: "{feat.pm_version}"
+  build:
+    method-cargo:
+      packages:
+        - make
+        - name: gcc
+          apt: build-essential
+          apk: build-base
+# installsAfter: []
