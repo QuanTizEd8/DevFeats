@@ -1,0 +1,107 @@
+version: 0.1.0
+name: ripgrep-all Installation
+description: Install [ripgrep-all](https://github.com/phiresky/ripgrep-all) (`rga`) — ripgrep extended to search PDFs, archives, Office documents, and more.
+keywords:
+  - ripgrep-all
+  - rga
+  - ripgrep
+  - rg
+  - search
+  - grep
+  - pdf
+  - archive
+  - cli
+_long_description: |-
+  Installs [ripgrep-all](https://github.com/phiresky/ripgrep-all) (`rga`), a line-oriented
+  search tool that wraps [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) to search
+  inside non-plaintext formats — PDFs, Office documents, EPUBs, ZIP/tar archives,
+  SQLite databases, and media files.
+
+  By default, `method=auto` downloads the official GitHub release binary (with GitHub API
+  SHA-256 verification) on platforms where release assets exist. On distros with native
+  packages (Arch, Homebrew, Debian sid, Ubuntu ≥ 26.04), installation falls back to the OS
+  package manager. Cargo-based installation is also available when a Rust toolchain is present.
+
+  **ripgrep is required at runtime** but is not installed by this feature. Use the
+  `install-ripgrep` feature, or ensure `rg` is otherwise available on `PATH` before running
+  `rga`. When using `method=package`, `rg` is pulled in automatically as a package dependency.
+
+  Optionally install adapter dependencies (`pandoc`, `poppler-utils`, `ffmpeg`) for full
+  PDF/Office/media format support.
+_tool_name: ripgrep-all
+options:
+  install_adapters:
+    type: boolean
+    default: false
+    description: |-
+      Install adapter dependencies for PDF, Office, and media search: `pandoc`,
+      `poppler-utils` (provides `pdftotext`), and `ffmpeg`.
+      Archive and SQLite adapters work without these packages.
+_options:
+  verify:
+    args: "--version"
+    description: Verify ripgrep-all is installed and working.
+  gh_repo: phiresky/ripgrep-all
+  version:
+    resolution: github_release
+    default: stable
+    flag: --version
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: "0.10.10"
+        description: ripgrep-all v0.10.10.
+      - value: "0.10.9"
+        description: ripgrep-all v0.10.9 (last release with a Windows binary).
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/ripgrep_all-{feat.tag}-{plat.kernel==Linux?{plat.machine_release==arm64?aarch64-unknown-linux-gnu:{plat.machine_release==armv7?arm-unknown-linux-gnueabihf:x86_64-unknown-linux-musl}}:{plat.rust_triple}}.tar.gz"
+      binary_src:
+        - rga
+        - rga-preproc
+      when:
+        - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
+        - {plat.kernel: linux, plat.machine_release: [amd64, armv7]}
+        - {plat.kernel: linux, plat.machine_release: arm64, plat.pm: [apt, dnf, yum, zypper, pacman]}
+    package:
+      registers_as: ripgrep-all
+      when:
+        - plat.pm: [brew, pacman]
+        - {plat.pm: apt, os.version_codename: [resolute]}
+        - {plat.pm: apt, os.id: debian, os.version_codename: [sid, forky]}
+    cargo:
+      crate: ripgrep_all
+      args: ["--locked"]
+  prefix:
+    bins: [rga, rga-preproc]
+    applies_when:
+      - method: [binary, cargo]
+_dependencies:
+  run:
+    method-package:
+      packages:
+        - name: ripgrep-all
+          version: "{feat.pm_version}"
+          when:
+            - plat.pm: [brew, pacman]
+            - {plat.pm: apt, os.version_codename: [resolute]}
+            - {plat.pm: apt, os.id: debian, os.version_codename: [sid, forky]}
+    option-install_adapters:
+      packages:
+        - pandoc
+        - name: poppler-utils
+          brew: poppler
+          zypper: poppler-tools
+          pacman: poppler
+        - ffmpeg
+  build:
+    method-cargo:
+      packages:
+        - make
+        - name: gcc
+          apt: build-essential
+          apk: build-base
+_devcontainer:
+  features:
+    "../.src/install-ripgrep": {}
+# installsAfter:
+#   - ghcr.io/quantized8/devfeats/install-ripgrep

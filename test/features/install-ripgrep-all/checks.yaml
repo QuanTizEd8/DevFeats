@@ -1,0 +1,83 @@
+default_install:
+  description: |
+    Default install on Ubuntu (binary method, x86_64-musl) with ripgrep pre-installed.
+    Verifies both required binaries are present and co-located, version is reported,
+    and rga can perform a plain-text search via the installed rg.
+  checks:
+    - title: rga command is available
+      cmd: command -v rga
+    - title: rga binary is executable
+      cmd: bash -c 'test -x "$(command -v rga)"'
+    - title: rga --version succeeds
+      cmd: rga --version
+      debug: |
+        echo "=== rga --version ==="
+        rga --version 2>&1 || echo "(failed)"
+    - title: rga reports a semver version
+      cmd: bash -c 'rga --version | grep -Eq "^ripgrep-all [0-9]+\.[0-9]+\.[0-9]+"'
+    - title: rga-preproc is co-located with rga
+      cmd: bash -c 'test -x "$(dirname "$(command -v rga)")/rga-preproc"'
+    - title: rga adapter list succeeds
+      cmd: rga --rga-list-adapters
+    - title: rga searches plain text file
+      cmd: bash -c 'echo "hello ripgrep-all" > /tmp/rga-test.txt && rga "hello" /tmp/rga-test.txt'
+
+package_install:
+  description: |
+    method=package on Arch Linux (pacman): the ripgrep-all package hard-depends on ripgrep,
+    so rg is pulled in automatically. Verifies both rga and rga-preproc are installed and
+    functional.
+  checks:
+    - title: rga command is available
+      cmd: command -v rga
+    - title: rga binary is executable
+      cmd: bash -c 'test -x "$(command -v rga)"'
+    - title: rga --version succeeds
+      cmd: rga --version
+    - title: rga reports a semver version
+      cmd: bash -c 'rga --version | grep -Eq "^ripgrep-all [0-9]+"'
+    - title: rga-preproc is co-located with rga
+      cmd: bash -c 'test -x "$(dirname "$(command -v rga)")/rga-preproc"'
+    - title: rg is available (pulled in by ripgrep-all package dependency)
+      cmd: command -v rg
+    - title: rga searches plain text file
+      cmd: bash -c 'echo "hello ripgrep-all" > /tmp/rga-test.txt && rga "hello" /tmp/rga-test.txt'
+
+install_adapters:
+  description: |
+    install_adapters=true: verifies that pandoc, pdftotext (from poppler-utils),
+    and ffmpeg are installed alongside rga.
+  checks:
+    - title: rga command is available
+      cmd: command -v rga
+    - title: pandoc is installed
+      cmd: command -v pandoc
+    - title: pdftotext is installed
+      cmd: command -v pdftotext
+    - title: ffmpeg is installed
+      cmd: command -v ffmpeg
+    - title: rga adapter list shows pdf adapter enabled
+      cmd: bash -c 'rga --rga-list-adapters | grep -qi "poppler\|pdf"'
+
+if_exists_fail:
+  description: |
+    if_exists=fail aborts when rga is already present on PATH, leaving the
+    pre-installed stub untouched.
+  checks:
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)
+    - title: pre-installed rga stub still present
+      cmd: command -v rga
+    - title: stub version is unchanged
+      cmd: bash -c 'rga --version 2>/dev/null | grep -q "99\.99\.99"'
+
+if_exists_skip:
+  description: |
+    if_exists=skip exits 0 when rga is already present on PATH, leaving the
+    pre-installed stub and its version untouched.
+  checks:
+    - title: rga remains available after skip
+      cmd: command -v rga
+    - title: stub version is unchanged (skip did not reinstall)
+      cmd: bash -c 'rga --version 2>/dev/null | grep -q "99\.99\.99"'

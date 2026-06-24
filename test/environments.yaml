@@ -368,6 +368,23 @@ ubuntu-latest+nodejs:
       apt-get install -y --no-install-recommends nodejs npm
       rm -rf /var/lib/apt/lists/*
 
+ubuntu-latest+ripgrep:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends ripgrep
+      rm -rf /var/lib/apt/lists/*
+
+ubuntu-latest+rust-minimal:
+  image: ubuntu:latest
+  build:
+    dockerfile: |
+      apt-get update -qq
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        cargo rustc gcc g++ make pkg-config
+      rm -rf /var/lib/apt/lists/*
+
 # ── pixi environments ────────────────────────────────────────────────────────
 ubuntu-latest+pixi-base:
   from: ubuntu-latest+curl
