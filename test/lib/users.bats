@@ -169,6 +169,69 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# users__set_write_permissions
+# ---------------------------------------------------------------------------
+
+@test "users__set_write_permissions applies setgid recursively to nested directories" {
+  local _path="${BATS_TEST_TMPDIR}/prefix with spaces"
+  local _nested="${_path}/subdir/inner"
+  mkdir -p "$_nested"
+  touch "${_path}/plain-file"
+
+  bootstrap__shadow_utils() { return 1; }
+  users__run_privileged() {
+    if [[ "$1" == "chown" ]]; then
+      return 0
+    fi
+    "$@"
+  }
+
+  run --separate-stderr users__set_write_permissions "$_path" "$(id -un)" "$(id -gn)"
+  assert_success
+  [[ -g "$_path" ]]
+  [[ -g "${_path}/subdir" ]]
+  [[ -g "$_nested" ]]
+  [[ ! -g "${_path}/plain-file" ]]
+}
+
+@test "users__set_write_permissions uses batched find -exec chmod g+s {} +" {
+  bootstrap__shadow_utils() { return 1; }
+  users__run_privileged() { printf '%s\n' "$@"; }
+
+  run --separate-stderr users__set_write_permissions "/tmp/prefix with spaces" "alice" "devs"
+  assert_success
+  assert_output --partial "find
+/tmp/prefix with spaces
+-type
+d
+-exec
+chmod
+g+s
+{}
++"
+}
+
+@test "users__set_write_permissions returns 1 when the batched find step fails" {
+  local _path="${BATS_TEST_TMPDIR}/prefix"
+  mkdir -p "${_path}/subdir"
+
+  create_fake_bin "chown" ""
+  cat > "${BATS_TEST_TMPDIR}/bin/find" << 'EOF'
+#!/bin/sh
+exit 1
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/find"
+  prepend_fake_bin_path
+
+  bootstrap__shadow_utils() { return 1; }
+  users__run_privileged() { "$@"; }
+
+  run --separate-stderr users__set_write_permissions "$_path" "$(id -un)" "$(id -gn)"
+  assert_failure
+  assert_stderr --partial "Failed to set setgid bit on directories in '${_path}'."
+}
+
+# ---------------------------------------------------------------------------
 # users__resolve_home
 # ---------------------------------------------------------------------------
 

@@ -489,13 +489,14 @@ users__set_write_permissions() {
     logging__error "Failed to chmod group-write bits on '${_path}'."
     return 1
   }
-  local _dir
-  while IFS= read -r -d '' _dir; do
-    users__run_privileged chmod g+s "$_dir" || {
-      logging__error "Failed to set setgid bit on '${_dir}'."
-      return 1
-    }
-  done < <(find "$_path" -type d -print0)
+  # Set the setgid bit on all subdirectories in one privileged find invocation.
+  # The previous per-directory loop called sudo once per directory; on large
+  # prefixes like /opt/homebrew this meant thousands of sudo invocations.
+  # find -exec {} + batches paths into the fewest possible chmod calls.
+  users__run_privileged find "$_path" -type d -exec chmod g+s {} + || {
+    logging__error "Failed to set setgid bit on directories in '${_path}'."
+    return 1
+  }
   logging__success "Write permissions configured on '${_path}' (group '${_group}')."
   return 0
 }
