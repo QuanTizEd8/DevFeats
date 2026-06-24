@@ -354,8 +354,8 @@ setup() {
 }
 
 @test "ctx: ensure_registry soft-fails PM detect without PM on PATH" {
-  ospkg__detect() { return 1; }
-  export -f ospkg__detect
+  ospkg__pm_key() { return 1; }
+  export -f ospkg__pm_key
   ctx__reset
   local _json _pm _kernel
   _json="$(ctx__json)"

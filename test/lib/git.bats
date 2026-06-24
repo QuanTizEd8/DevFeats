@@ -215,8 +215,8 @@ _install_git_stub() {
   bootstrap__git() { ospkg__install_tracked "lib-git" git || return 1; }
   export -f bootstrap__git
 
-  ospkg__detect() { return 0; }
-  export -f ospkg__detect
+  _ospkg__detect() { return 0; }
+  export -f _ospkg__detect
   ospkg__install_tracked() {
     echo "install_tracked $*" >> "$_install_log"
     cat > "$_fake_git" << 'EOF'

@@ -23,77 +23,113 @@ _require_ospkg_jq() {
 }
 
 # ---------------------------------------------------------------------------
-# ospkg__detect  (direct calls — checks internal state variables)
+# _ospkg__detect  (direct calls — checks internal state variables)
 # ---------------------------------------------------------------------------
 
-@test "ospkg__detect identifies apt-get ecosystem" {
+@test "_ospkg__detect identifies apt-get ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "apt-get"
   create_fake_bin "uname" "Linux"
   prepend_fake_bin_path
-  ospkg__detect
+  _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "apt" ]]
   [[ "$_OSPKG__PKG_MNGR" == "apt-get" ]]
   [[ "$_OSPKG__DETECTED" == true ]]
 }
 
-@test "ospkg__detect identifies apk ecosystem" {
+@test "_ospkg__detect identifies apk ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "apk"
   create_fake_bin "uname" "Linux"
-  PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "apk" ]]
   [[ "$_OSPKG__PKG_MNGR" == "apk" ]]
   [[ "$_OSPKG__DETECTED" == true ]]
 }
 
-@test "ospkg__detect identifies dnf ecosystem" {
+@test "_ospkg__detect identifies dnf ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "dnf"
   create_fake_bin "uname" "Linux"
-  PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "dnf" ]]
   [[ "$_OSPKG__PKG_MNGR" == "dnf" ]]
   [[ "$_OSPKG__DETECTED" == true ]]
 }
 
-@test "ospkg__detect is idempotent when _OSPKG__DETECTED=true" {
+@test "_ospkg__detect is idempotent when _OSPKG__DETECTED=true" {
   reload_lib ospkg.sh
   _OSPKG__DETECTED=true
   _OSPKG__FAMILY="sentinel"
-  ospkg__detect
+  _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "sentinel" ]]
 }
 
-@test "ospkg__detect fails when no package manager is found" {
+@test "_ospkg__detect fails when no package manager is found" {
   reload_lib ospkg.sh
   begin_path_isolation mkdir chmod
   rm -f "${BATS_TEST_TMPDIR}/bin/uname"
   create_fake_bin "uname" "Linux"
-  run ospkg__detect
+  run _ospkg__detect
   end_path_isolation
   assert_failure
   assert_output --partial "No supported package manager"
 }
 
-@test "ospkg__detect identifies zypper ecosystem" {
+@test "_ospkg__detect identifies zypper ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "zypper"
   create_fake_bin "uname" "Linux"
-  PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "zypper" ]]
   [[ "$_OSPKG__PKG_MNGR" == "zypper" ]]
   [[ "$_OSPKG__DETECTED" == true ]]
 }
 
-@test "ospkg__detect identifies microdnf ecosystem" {
+@test "_ospkg__detect identifies microdnf ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "microdnf"
   create_fake_bin "uname" "Linux"
-  PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "dnf" ]]
   [[ "$_OSPKG__PKG_MNGR" == "microdnf" ]]
   [[ "${#_OSPKG__UPDATE[@]}" -eq 0 ]]
+}
+
+# ---------------------------------------------------------------------------
+# ospkg__pm_key / ospkg__deb_arch
+# ---------------------------------------------------------------------------
+
+@test "ospkg__pm_key prints manifest key not tool name for apt" {
+  reload_lib ospkg.sh
+  create_fake_bin "apt-get"
+  create_fake_bin "uname" "Linux"
+  prepend_fake_bin_path
+  run ospkg__pm_key
+  assert_success
+  assert_output "apt"
+}
+
+@test "ospkg__pm_key maps microdnf to dnf key" {
+  reload_lib ospkg.sh
+  create_fake_bin "microdnf"
+  create_fake_bin "uname" "Linux"
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
+  prepend_fake_bin_path
+  run ospkg__pm_key
+  assert_success
+  assert_output "dnf"
+}
+
+@test "ospkg__deb_arch is empty on non-apt PM" {
+  reload_lib ospkg.sh
+  create_fake_bin "apk"
+  create_fake_bin "uname" "Linux"
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
+  prepend_fake_bin_path
+  local _arch
+  _arch="$(ospkg__deb_arch)"
+  [[ -z "${_arch}" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -109,7 +145,7 @@ _seed_apt_context() {
     > "${BATS_TEST_TMPDIR}/bin/uname"
   chmod +x "${BATS_TEST_TMPDIR}/bin/uname"
   prepend_fake_bin_path
-  ospkg__detect
+  _ospkg__detect
   ctx_test__seed_plat pm=apt deb_arch=amd64
   ctx_test__seed_os id=ubuntu id_like=debian version_id=22.04 version_codename=jammy
   # Bypass sudo: sudo resets PATH to its secure_path, ignoring user PATH entirely.
@@ -141,7 +177,7 @@ _stub_ospkg_privilege_ok() {
   # Seed a microdnf-like context: detected, but no update command.
   create_fake_bin "microdnf"
   create_fake_bin "uname" "Linux"
-  PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
   run ospkg__update
   assert_success
   assert_output --partial "skipping explicit update"
@@ -314,10 +350,10 @@ _stub_ospkg_privilege_ok() {
 }
 
 # ---------------------------------------------------------------------------
-# ospkg__detect — brew paths
+# _ospkg__detect — brew paths
 # ---------------------------------------------------------------------------
 
-@test "ospkg__detect identifies brew on macOS (Darwin)" {
+@test "_ospkg__detect identifies brew on macOS (Darwin)" {
   reload_lib ospkg.sh
   # Fake 'uname' returning Darwin and a fake 'brew' binary.
   create_fake_bin "uname" "Darwin"
@@ -325,31 +361,31 @@ _stub_ospkg_privilege_ok() {
   prepend_fake_bin_path
   # 'sw_vers' must exist (macOS only command path).
   create_fake_bin "sw_vers" "14.0"
-  ospkg__detect
+  _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "brew" ]]
   [[ "$_OSPKG__PKG_MNGR" == "brew" ]]
   [[ "$_OSPKG__PM_KEY" == "brew" ]]
 }
 
-@test "ospkg__detect selects brew when _OSPKG__PREFER_LINUXBREW=true and brew is on PATH" {
+@test "_ospkg__detect selects brew when _OSPKG__PREFER_LINUXBREW=true and brew is on PATH" {
   reload_lib ospkg.sh
   create_fake_bin "uname" "Linux"
   create_fake_bin "apt-get" ""
   create_fake_bin "brew" ""
   prepend_fake_bin_path
   _OSPKG__PREFER_LINUXBREW=true
-  ospkg__detect
+  _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "brew" ]]
   [[ "$_OSPKG__PKG_MNGR" == "brew" ]]
 }
 
-@test "ospkg__detect falls back to native PM when _OSPKG__PREFER_LINUXBREW=true but brew absent" {
+@test "_ospkg__detect falls back to native PM when _OSPKG__PREFER_LINUXBREW=true but brew absent" {
   reload_lib ospkg.sh
   create_fake_bin "uname" "Linux"
   create_fake_bin "apt-get" ""
   # Use restricted PATH so real brew is not found.
   _OSPKG__PREFER_LINUXBREW=true
-  PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
   [[ "$_OSPKG__FAMILY" == "apt" ]]
   [[ "$_OSPKG__PKG_MNGR" == "apt-get" ]]
 }
@@ -627,7 +663,7 @@ YQ
   export -f _ospkg__snapshot_packages
 
   logging__cleanup() { return 0; }
-  ospkg__detect() {
+  _ospkg__detect() {
     _OSPKG__FAMILY="brew"
     _OSPKG__PKG_MNGR="brew"
     _OSPKG__DETECTED=true
@@ -635,7 +671,7 @@ YQ
     _CTX__REGISTRY_INITIALIZED=true
     return 0
   }
-  export -f ospkg__detect logging__cleanup
+  export -f _ospkg__detect logging__cleanup
 
   local _fake_yq="${BATS_TEST_TMPDIR}/bin/yq"
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
@@ -808,14 +844,14 @@ _mock_snapshots() {
   [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]] || ! grep -q "^auto " "${BATS_TEST_TMPDIR}/apt-mark.log"
 }
 
-@test "ospkg__install_tracked: ospkg__detect called before before-snapshot — PM set correctly" {
-  # Regression: without the ospkg__detect call at the top of ospkg__install_tracked,
+@test "ospkg__install_tracked: _ospkg__detect called before before-snapshot — PM set correctly" {
+  # Regression: without the _ospkg__detect call at the top of ospkg__install_tracked,
   # _OSPKG__PKG_MNGR is empty when the before-snapshot runs (hitting the '*' case that
-  # writes an empty file). ospkg__install then calls ospkg__detect internally, setting
+  # writes an empty file). ospkg__install then calls _ospkg__detect internally, setting
   # the PM. The after-snapshot then captures every installed package. The diff
   # (empty before vs full after) = all packages tracked for removal — a destructive bug.
   _seed_apt_build_context
-  # Reset detection state to simulate a fresh call where ospkg__detect has not yet run.
+  # Reset detection state to simulate a fresh call where _ospkg__detect has not yet run.
   _OSPKG__DETECTED=false
   _OSPKG__PKG_MNGR=""
 
@@ -1030,7 +1066,7 @@ _mock_snapshots() {
 # ---------------------------------------------------------------------------
 
 # _seed_managed_context <family> — pre-seeds detection state so ospkg__is_managed
-# skips ospkg__detect and dispatches on the given family directly.
+# skips _ospkg__detect and dispatches on the given family directly.
 _seed_managed_context() {
   reload_lib ospkg.sh
   _OSPKG__DETECTED=true
@@ -1197,7 +1233,7 @@ _seed_managed_context() {
   assert_failure
 }
 
-@test "ospkg__is_managed: ospkg__detect failure → returns 1" {
+@test "ospkg__is_managed: _ospkg__detect failure → returns 1" {
   reload_lib ospkg.sh
   local _bin
   _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
@@ -1332,7 +1368,7 @@ _seed_managed_context() {
   assert_failure
 }
 
-@test "ospkg__is_installed: returns 1 when ospkg__detect fails" {
+@test "ospkg__is_installed: returns 1 when _ospkg__detect fails" {
   reload_lib ospkg.sh
   begin_path_isolation uname
   run ospkg__is_installed curl
@@ -1353,7 +1389,7 @@ _seed_managed_context() {
   chmod +x "$_fake_yq"
 
   logging__cleanup() { return 0; }
-  ospkg__detect() {
+  _ospkg__detect() {
     _OSPKG__FAMILY="brew"
     _OSPKG__PKG_MNGR="brew"
     _OSPKG__DETECTED=true
@@ -1365,6 +1401,7 @@ _seed_managed_context() {
     _BOOTSTRAP__YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
     return 0
   }
+  export -f _ospkg__detect logging__cleanup bootstrap__yq
 
   run ospkg__run --manifest $'packages:\n  - foo\n' --dry_run
   assert_success

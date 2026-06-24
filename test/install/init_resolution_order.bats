@@ -39,10 +39,6 @@ _stub() {
   os__release_arch() { printf '%s\n' "${_STUB_ARCH}"; }
   os__platform() { printf '%s\n' "${_STUB_PLATFORM}"; }
   os__rust_triple() { return 1; }
-  ospkg__detect() {
-    _OSPKG__FAMILY="${_STUB_PM}"
-    _OSPKG__DETECTED=true
-  }
   ctx__reset
   ctx__set "plat.kernel=${_STUB_KERNEL}"
   ctx__set "plat.machine_release=${_STUB_ARCH}"
@@ -59,7 +55,7 @@ _stub() {
     users__is_privileged() { return 1; }
   fi
   export -f os__release_kernel os__release_arch os__platform os__rust_triple
-  export -f ospkg__detect ospkg__has_available_version logging__error logging__debug
+  export -f ospkg__has_available_version logging__error logging__debug
   export -f users__is_privileged
 }
 

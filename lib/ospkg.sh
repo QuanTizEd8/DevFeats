@@ -427,8 +427,8 @@ _ospkg__set_brew() {
   _OSPKG__REMOVE_FORCE=(_ospkg__brew_run uninstall --ignore-dependencies)
 }
 
-ospkg__detect() {
-  # @brief ospkg__detect — Detect the package manager. Idempotent; PM-only (no os-release parsing).
+_ospkg__detect() {
+  # Detect the package manager. Idempotent; PM-only (no os-release parsing).
   [[ "$_OSPKG__DETECTED" == true ]] && return 0
 
   if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -470,10 +470,38 @@ ospkg__detect() {
   return 0
 }
 
+ospkg__pm_key() {
+  # @brief ospkg__pm_key — Print the detected package manager manifest key (e.g. `apt`, `dnf`, `yum`, `brew`).
+  #
+  # This is the key used in manifest YAML top-level sections and `plat.pm` when
+  # clauses, not the command name (`apt-get` vs `apt`). Returns 0 when detection
+  # succeeds (stdout may still be empty on Darwin without Homebrew). Returns 1 when
+  # no supported package manager is found on Linux.
+  #
+  # Stdout: PM key, or empty when none applies.
+  #
+  # Returns: 0 on successful detection; 1 when detection fails.
+  _ospkg__detect || return 1
+  printf '%s' "${_OSPKG__PM_KEY:-}"
+  return 0
+}
+
+ospkg__deb_arch() {
+  # @brief ospkg__deb_arch — Print the Debian package architecture when APT is the detected PM.
+  #
+  # Stdout: architecture string (e.g. `amd64`), or empty on non-APT systems and when
+  # detection fails.
+  #
+  # Returns: 0 always.
+  _ospkg__detect || return 0
+  printf '%s' "${_OSPKG__DEB_ARCH:-}"
+  return 0
+}
+
 ospkg__pm() {
   # @brief ospkg__pm — Print the detected package manager command name (e.g. `apt-get`, `apk`, `dnf`, `brew`).
   # Returns 1 if no supported package manager was found.
-  ospkg__detect
+  _ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "no package manager detected."
@@ -485,7 +513,7 @@ ospkg__pm() {
 ospkg__is_managed() {
   # @brief ospkg__is_managed <bin_path> — Return 0 if <bin_path> is owned by the OS package manager, 1 otherwise.
   #
-  # Calls `ospkg__detect` (idempotent) and dispatches on `_OSPKG__FAMILY`, so
+  # Calls `_ospkg__detect` (idempotent) and dispatches on `_OSPKG__FAMILY`, so
   # the correct tool is used even when Linuxbrew is active or on Arch Linux
   # (where `os__platform` has no mapping).
   #
@@ -496,7 +524,7 @@ ospkg__is_managed() {
   #          nonexistent paths, or when no supported package manager is found).
   local _bin="${1-}"
   [[ -n "$_bin" && -e "$_bin" ]] || return 1
-  ospkg__detect
+  _ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || return "$_rc"
   case "$_OSPKG__FAMILY" in
@@ -526,7 +554,7 @@ _ospkg__assert_privilege() {
   # @brief _ospkg__assert_privilege — Fail fast when the current PM requires root or sudo but neither is available.
   #
   # brew never needs privilege; all other PMs do.
-  # Must be called after ospkg__detect so _OSPKG__PKG_MNGR is set.
+  # Must be called after _ospkg__detect so _OSPKG__PKG_MNGR is set.
   #
   # Returns: 0 if privilege is available or not needed; 1 with an error message otherwise.
   [[ "$_OSPKG__PKG_MNGR" == "brew" ]] && return 0
@@ -546,7 +574,7 @@ ospkg__update() {
   #   --repo_added        A new repo was just added; forces an unconditional refresh.
   #
   # Returns: 0 on success.
-  ospkg__detect
+  _ospkg__detect
   local _force=false _max_age=3600 _repo_added=false
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -634,7 +662,7 @@ ospkg__install() {
   #             existence check before calling ospkg__is_installed.
   #
   # Returns: 0 on success.
-  ospkg__detect
+  _ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "no package manager detected."
@@ -751,7 +779,7 @@ ospkg__clean() {
   # @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
   #
   # Returns: 0 on success.
-  ospkg__detect
+  _ospkg__detect
   [[ -z "${_OSPKG__CLEAN:-}" ]] && return 0
   logging__clean "Cleaning package manager cache."
   "$_OSPKG__CLEAN"
@@ -810,7 +838,7 @@ _ospkg__protect_user_pkgs() {
   # evicts each package from every build-group sidecar (covers explicit-list PMs:
   # apk, zypper, microdnf, brew). All operations are non-fatal.
   [[ $# -eq 0 ]] && return 0
-  ospkg__detect
+  _ospkg__detect
   # PM-native marking: reverse any auto/asdeps/removable mark on these packages.
   case "$_OSPKG__PKG_MNGR" in
     apt-get) users__run_privileged apt-mark manual "$@" > /dev/null 2>&1 || true ;;
@@ -856,7 +884,7 @@ ospkg__take_initial_snapshot() {
   #
   # Returns: 0 on success.
   local _dest="$1"
-  ospkg__detect
+  _ospkg__detect
   _ospkg__snapshot_packages "$_dest"
   logging__info "Initial package snapshot written to ${_dest}."
   return 0
@@ -972,14 +1000,14 @@ _ospkg__apk_virts_file() {
 ospkg__is_installed() {
   # @brief ospkg__is_installed <pkg>... — Return 0 if all listed packages are installed.
   #
-  # Uses PM-native point queries; no subshell, no file I/O. Calls `ospkg__detect`
+  # Uses PM-native point queries; no subshell, no file I/O. Calls `_ospkg__detect`
   # automatically. Accepts bare package names only (no version suffixes).
   #
   # Args:
   #   <pkg>...  One or more bare package names.
   #
   # Returns: 0 if all packages are installed, 1 if any is missing or PM unknown.
-  ospkg__detect
+  _ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || return "$_rc"
   local _pkg
@@ -1163,7 +1191,7 @@ ospkg__install_tracked() {
   _bd_dir="$(_ospkg__build_deps_dir)"
   _before_snapshot="${_bd_dir}/${_group_id//\//\_}.before"
   logging__detect "Detecting package manager for tracked install (group '${_group_id}')."
-  ospkg__detect
+  _ospkg__detect
   _ospkg__ensure_global_auto_snapshot
 
   if [[ "$_OSPKG__PKG_MNGR" == "apk" ]]; then
@@ -1463,7 +1491,7 @@ ospkg__install_user() {
   else
     ospkg__install "$@"
   fi
-  ospkg__detect
+  _ospkg__detect
   # Strip PM-native version suffixes to get bare package names for marking.
   local -a _bare_names=()
   local _p
@@ -1482,11 +1510,11 @@ ospkg__install_user() {
 ospkg__has_rdeps() {
   # @brief ospkg__has_rdeps <pkg> — Return 0 if any installed package depends on <pkg>, 1 otherwise.
   #
-  # Uses PM-native reverse-dependency queries for all PMs supported by ospkg__detect.
+  # Uses PM-native reverse-dependency queries for all PMs supported by _ospkg__detect.
   #
   # Returns: 0 if reverse deps exist, 1 if none or if the PM is unsupported.
   local _pkg="${1:?ospkg__has_rdeps: pkg required}"
-  ospkg__detect
+  _ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || return "$_rc"
   local _out=""
@@ -1544,7 +1572,7 @@ ospkg__resolve_version() {
   # Returns: 0 on success, 1 if unavailable, unsupported PM, or query error.
   local _pkg="${1:-}" _spec="${2:-}"
   [[ -n "${_pkg}" && -n "${_spec}" ]] || return 1
-  ospkg__detect || return 1
+  _ospkg__detect || return 1
   local _candidates=""
   case "${_OSPKG__FAMILY}" in
     apt)
@@ -1632,7 +1660,7 @@ ospkg__remove_user() {
     esac
   done
   [[ $# -gt 0 ]] || return 0
-  ospkg__detect
+  _ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "no package manager detected."
@@ -1678,7 +1706,7 @@ ospkg__register_dummy() {
   #   --description <t>  Package description. Defaults to a devfeats sentinel string.
   #
   # Returns: 0 always (non-fatal).
-  if ! ospkg__detect; then return 0; fi
+  if ! _ospkg__detect; then return 0; fi
   [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
 
   if [[ $# -lt 2 ]]; then
@@ -1799,7 +1827,7 @@ ospkg__unregister_dummy() {
   #   <pkg>  Package name to unregister.
   #
   # Returns: 0 always (non-fatal).
-  if ! ospkg__detect; then return 0; fi
+  if ! _ospkg__detect; then return 0; fi
   [[ "$_OSPKG__FAMILY" == "apt" ]] || return 0
 
   local _pkg="${1:-}"
@@ -1962,7 +1990,7 @@ ospkg__run() {
   # Set prefer_linuxbrew early so detect() picks it up.
   _OSPKG__PREFER_LINUXBREW="$_prefer_linuxbrew"
 
-  ospkg__detect
+  _ospkg__detect
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "no package manager detected."

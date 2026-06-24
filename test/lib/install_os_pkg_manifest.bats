@@ -44,7 +44,7 @@ _require_manifest_prereqs() {
 # _seed_context <pm> <id> [<id_like>] [<version_id>]
 #
 # Reloads ospkg.sh, fakes the PM binary using a restricted PATH so
-# ospkg__detect picks exactly the right PM, then restores the real PATH with
+# _ospkg__detect picks exactly the right PM, then restores the real PATH with
 # the fake dir prepended.  Seeds the unified ctx registry for cross-platform
 # manifest tests.  Overrides bootstrap__yq to use the pre-installed yq binary
 # cached in setup_file().
@@ -63,10 +63,10 @@ _seed_context() {
     pacman) create_fake_bin "pacman" ;;
   esac
 
-  # Use a completely restricted PATH for ospkg__detect so only our fake PM is
+  # Use a completely restricted PATH for _ospkg__detect so only our fake PM is
   # found.  This prevents the real apt-get (present in Ubuntu containers) from
   # being detected when testing non-apt platforms.
-  PATH="${BATS_TEST_TMPDIR}/bin" ospkg__detect
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
 
   # Restore PATH with fake bins prepended for subsequent commands (ospkg__run).
   prepend_fake_bin_path

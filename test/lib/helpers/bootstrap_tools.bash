@@ -21,7 +21,7 @@ test_bootstrap__setup_file_jq_yq() {
     _yq_path="$(
       bash -c '
         source "$1/__init__.bash" 2>/dev/null || exit 1
-        ospkg__detect 2>/dev/null || exit 1
+        ospkg__pm >/dev/null 2>&1 || exit 1
         bootstrap__yq 2>/dev/null || exit 1
       ' _ "${LIB_ROOT}" 2> /dev/null
     )" || true

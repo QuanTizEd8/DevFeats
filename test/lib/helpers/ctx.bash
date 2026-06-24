@@ -227,8 +227,8 @@ ctx_test__run_id_like_matrix() {
 
 # ctx_test__stub_ospkg_pm pm=<key> [deb_arch=<value>]
 #
-# Stub ospkg__detect so _ctx__ensure_registry copies deterministic PM state into
-# plat.pm / plat.deb_arch without relying on the host image.
+# Stub ospkg__pm_key / ospkg__deb_arch so _ctx__ensure_registry copies deterministic
+# PM state into plat.pm / plat.deb_arch without relying on the host image.
 ctx_test__stub_ospkg_pm() {
   _CTX_TEST__STUB_PM=""
   _CTX_TEST__STUB_DEB_ARCH=""
@@ -242,13 +242,16 @@ ctx_test__stub_ospkg_pm() {
     esac
   done
   # shellcheck disable=SC2329  # exported stub for bats run subshells
-  ospkg__detect() {
-    _OSPKG__PM_KEY="${_CTX_TEST__STUB_PM}"
-    _OSPKG__DEB_ARCH="${_CTX_TEST__STUB_DEB_ARCH}"
-    _OSPKG__DETECTED=true
+  ospkg__pm_key() {
+    printf '%s' "${_CTX_TEST__STUB_PM}"
     return 0
   }
-  export -f ospkg__detect
+  # shellcheck disable=SC2329  # exported stub for bats run subshells
+  ospkg__deb_arch() {
+    printf '%s' "${_CTX_TEST__STUB_DEB_ARCH}"
+    return 0
+  }
+  export -f ospkg__pm_key ospkg__deb_arch
 }
 
 ctx_test__stub_darwin_platform() {

@@ -4,7 +4,7 @@
 # Maintains a flat `qualified=value` registry (`os.*`, `plat.*`, `feat.*`) that
 # install scripts and library code populate and query.  The registry is filled
 # lazily on first access from the host (`/etc/os-release`, `sw_vers`, `os.sh`,
-# `ospkg__detect`) and from feature options (`feat.version`, `feat.method`, …).
+# `ospkg__pm_key`) and from feature options (`feat.version`, `feat.method`, …).
 #
 # Two consumers share the same keys:
 # - **Pattern expansion** — `ctx__expand_pattern` replaces `{os.id}`, `{feat.version:lower}`,
@@ -439,9 +439,9 @@ _ctx__ensure_registry() {
   #
   # No-op when `_CTX__REGISTRY_INITIALIZED` is already true.  Otherwise loads OS
   # fields (`_ctx__load_darwin_os` or `_ctx__load_linux_os`), platform keys
-  # (`_ctx__populate_plat`), and package-manager metadata via `ospkg__detect`
-  # (`plat.pm`, and `plat.deb_arch` when set).  On PM detection failure, sets
-  # `plat.pm` to empty.  Pre-seeded `ctx__set` values for the same keys are overwritten.
+  # (`_ctx__populate_plat`), and package-manager metadata via `ospkg__pm_key`
+  # / `ospkg__deb_arch` (`plat.pm`, and `plat.deb_arch` when set).  On PM detection
+  # failure, sets `plat.pm` to empty.  Pre-seeded `ctx__set` values for the same keys are overwritten.
   #
   # Returns: 0.
   [[ "${_CTX__REGISTRY_INITIALIZED}" == true ]] && return 0
@@ -450,11 +450,13 @@ _ctx__ensure_registry() {
     *) _ctx__load_linux_os ;;
   esac
   _ctx__populate_plat
-  if ospkg__detect; then
-    ctx__set "plat.pm=${_OSPKG__PM_KEY:-}"
-    [[ -n "${_OSPKG__DEB_ARCH:-}" ]] && ctx__set "plat.deb_arch=${_OSPKG__DEB_ARCH}"
+  local _pm_key _deb_arch
+  if _pm_key="$(ospkg__pm_key)"; then
+    ctx__set "plat.pm=${_pm_key}"
+    _deb_arch="$(ospkg__deb_arch)"
+    [[ -n "${_deb_arch}" ]] && ctx__set "plat.deb_arch=${_deb_arch}"
   else
-    ctx__set plat.pm=""
+    ctx__set "plat.pm="
   fi
   _CTX__REGISTRY_INITIALIZED=true
 }

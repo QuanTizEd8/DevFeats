@@ -41,7 +41,7 @@ setup() {
   if [[ "${SYSSET_RUN_INTEGRATION_DEPS:-0}" != "1" ]]; then
     skip "set SYSSET_RUN_INTEGRATION_DEPS=1 to run integration tests"
   fi
-  ospkg__detect || skip "no supported package manager detected"
+  _ospkg__detect || skip "no supported package manager detected"
   # Isolate sidecar / snapshot files in the per-test tmpdir so tests do not share state.
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   # Skip when the canary is already installed — we cannot safely use it as a marker.
@@ -59,11 +59,13 @@ teardown() {
 
 # ── PM detection ─────────────────────────────────────────────────────────────
 
-@test "ospkg__detect identifies a known package manager" {
-  [[ -n "$_OSPKG__PKG_MNGR" ]]
-  case "$_OSPKG__PKG_MNGR" in
-    apt-get | apk | dnf | yum | microdnf | zypper | pacman | brew) ;;
-    *) fail "unexpected package manager: '${_OSPKG__PKG_MNGR}'" ;;
+@test "ospkg__pm_key identifies a known package manager key" {
+  local _key
+  _key="$(ospkg__pm_key)"
+  [[ -n "${_key}" ]]
+  case "${_key}" in
+    apt | apk | dnf | yum | zypper | pacman | brew) ;;
+    *) fail "unexpected package manager key: '${_key}'" ;;
   esac
 }
 

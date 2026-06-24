@@ -2014,7 +2014,6 @@ __resolve_auto_method__() {
   local _arch _kernel _privileged _triple _pkg_query
   _arch="$(os__release_arch 2>/dev/null)" || _arch=""
   _kernel="$(os__release_kernel 2>/dev/null)" || _kernel=""
-  ospkg__detect 2>/dev/null || true
   _triple="$(os__rust_triple 2>/dev/null)" || _triple=""
   _privileged=false
   users__is_privileged 2>/dev/null && _privileged=true

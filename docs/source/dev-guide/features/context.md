@@ -5,7 +5,7 @@ DevFeats features evaluate platform and install constraints through a single **c
 | Namespace | Contents | Populated by |
 |-----------|----------|--------------|
 | `os.*` | `/etc/os-release` fields (Linux) or macOS `sw_vers` mapping | `_ctx__ensure_registry` → `_ctx__load_linux_os` / `_ctx__load_darwin_os` |
-| `plat.*` | Kernel, arch tokens, PM key, libc, rust triple, … | `os.sh` helpers + `ospkg__detect` inside `_ctx__populate_plat` |
+| `plat.*` | Kernel, arch tokens, PM key, libc, rust triple, … | `os.sh` helpers + `ospkg__pm_key` / `ospkg__deb_arch` in `_ctx__ensure_registry` |
 | `feat.*` | Install options (`version`, `tag`, `method`, `prefix`, …) | install template `__ctx_sync_*` helpers |
 
 Implementation: [`lib/ctx.sh`](../../../../lib/ctx.sh), [`lib/ctx-match.jq`](../../../../lib/ctx-match.jq).
