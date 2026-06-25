@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # Integration tests for lib/git.sh — require a real git installation.
 #
-# All tests are skipped unless SYSSET_RUN_INTEGRATION_DEPS=1 is set.
 # A shared local bare repo (with two commits + a tag) is created once per
 # file in ${BATS_FILE_TMPDIR} and reused across tests.
 
@@ -18,9 +17,6 @@ bats_require_minimum_version 1.5.0
 # tests can read them (setup_file runs in a different subshell context).
 # ---------------------------------------------------------------------------
 setup_file() {
-  if [[ "${SYSSET_RUN_INTEGRATION_DEPS:-0}" != "1" ]]; then
-    return 0 # skip without error; individual tests will skip themselves
-  fi
   command -v git > /dev/null 2>&1 || return 0
 
   local _src="${BATS_FILE_TMPDIR}/src.git"
@@ -66,9 +62,6 @@ setup_file() {
 setup() {
   load '../helpers/common'
   reload_lib
-  if [[ "${SYSSET_RUN_INTEGRATION_DEPS:-0}" != "1" ]]; then
-    skip "set SYSSET_RUN_INTEGRATION_DEPS=1 to run integration tests"
-  fi
   command -v git > /dev/null 2>&1 || skip "real git is not available"
 
   # Read shared repo state written by setup_file.

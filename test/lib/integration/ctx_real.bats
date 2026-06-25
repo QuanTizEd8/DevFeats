@@ -16,7 +16,6 @@ bats_require_minimum_version 1.5.0
 setup() {
   load '../helpers/common'
   reload_lib
-  ctx__reset
 }
 
 # ── Internal helpers ──────────────────────────────────────────────────────────

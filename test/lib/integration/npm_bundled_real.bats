@@ -33,9 +33,6 @@ setup() {
   load '../helpers/common'
   reload_lib
 
-  if [[ "${SYSSET_RUN_INTEGRATION_DEPS:-0}" != "1" ]]; then
-    skip "set SYSSET_RUN_INTEGRATION_DEPS=1 to run integration tests"
-  fi
   if [[ "$(os__platform 2> /dev/null)" == "alpine" ]]; then
     skip "pre-built Node.js from nodejs.org is not supported on Alpine (musl libc)"
   fi
