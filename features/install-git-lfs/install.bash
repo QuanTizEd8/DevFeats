@@ -20,9 +20,15 @@ _emit_state_var() {
 }
 
 _effective_method() {
-  local _method="${METHOD:-}"
-  if [[ -z "${_method}" || "${_method}" == "auto" ]]; then
+  local _method=""
+  if [[ "${IF_EXISTS:-}" == "skip" && "${_FEAT_EXISTING:-false}" == true ]]; then
     _method="${_FEAT_EXISTING_METHOD:-}"
+  else
+    _method="${METHOD:-}"
+    if [[ -z "${_method}" || "${_method}" == "auto" ]]; then
+      logging__error "Expected a concrete METHOD outside if_exists=skip; got '${_method:-unset}'."
+      return 1
+    fi
   fi
   printf '%s\n' "${_method}"
 }
@@ -355,7 +361,7 @@ _write_state() {
 _finalize_config_state() {
   local _scope _method
   _scope="$(_resolved_scope)" || return 1
-  _method="$(_effective_method)"
+  _method="$(_effective_method)" || return 1
 
   if [[ "${_scope}" == "none" ]]; then
     logging__info "config_scope=none; skipping feature-managed Git LFS configuration."
@@ -384,7 +390,10 @@ __configure_user() {
   }
   [[ "${_scope}" == "global" ]] || return 0
 
-  _method="$(_effective_method)"
+  _method="$(_effective_method)" || {
+    declare -g _GIT_LFS_CONFIGURE_USER_FAILED=1
+    return 1
+  }
   _repo_dir="$(_resolved_repo_dir_now "${_scope}")" || {
     declare -g _GIT_LFS_CONFIGURE_USER_FAILED=1
     return 1
