@@ -11,6 +11,8 @@ from proman.metadata import MetadataLoader
 from proman.schema_bundle import get_validator
 from proman.when_util import serialize_path_entries, serialize_value_entries
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 _MINIMAL_SHARED = """\
 _lifecycle_key_prefix: myowner-test--
 _env_vars:
@@ -56,6 +58,8 @@ owner_slug: myowner
 namespace: myowner/test
 repo_url: https://github.com/myowner/test
 oci_base: ghcr.io/myowner/test
+docs:
+  website_base_url: https://example.com/docs
 path:
   features: features
   library: lib
@@ -143,10 +147,20 @@ def test_load_returns_all_valid_features() -> None:
         assert "_oci_ref" in meta
 
 
-def test_load_injects_shared_options() -> None:
-    """Shared options from metadata.shared.yaml appear in feature options."""
-    meta = MetadataLoader().load("install-git")["install-git"]
-    assert "log_level" in meta["options"]
+def test_load_injects_shared_options(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Shared options from the real metadata.shared.yaml appear in a feature."""
+    root = _write_test_repo(
+        tmp_path,
+        feature_metadata=_minimal_feature_metadata(),
+        shared_yaml=(_REPO_ROOT / "features" / "metadata.shared.yaml").read_text(
+            encoding="utf-8"
+        ),
+    )
+    result = _loader_for(root, monkeypatch).load("test-feature")["test-feature"]
+    assert "log_level" in result["options"]
 
 
 # ── load (isolated tmp_path repo) ─────────────────────────────────────────────
@@ -216,10 +230,29 @@ def test_load_feature_options_override_shared(
     assert result["options"]["locked_opt"]["default"] == "oops"
 
 
-def test_load_applies_shared_option_conditions() -> None:
+def test_load_applies_shared_option_conditions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Shared options with ``_apply_when`` are injected only when condition holds."""
-    with_fetch = MetadataLoader().load("install-pixi")["install-pixi"]
-    without_fetch = MetadataLoader().load("install-bash")["install-bash"]
+    real_shared = (_REPO_ROOT / "features" / "metadata.shared.yaml").read_text(
+        encoding="utf-8"
+    )
+    root = _write_test_repo(
+        tmp_path,
+        # fetch_headers is gated on _options.user_file_fetch: true
+        feature_metadata=_minimal_feature_metadata(_options={"user_file_fetch": True}),
+        shared_yaml=real_shared,
+    )
+    # Add a second feature that lacks user_file_fetch
+    no_fetch_dir = tmp_path / "features" / "test-feature-no-fetch"
+    no_fetch_dir.mkdir()
+    (no_fetch_dir / "metadata.yaml").write_text(
+        yaml.dump(_minimal_feature_metadata()), encoding="utf-8"
+    )
+    loader = _loader_for(root, monkeypatch)
+    with_fetch = loader.load("test-feature")["test-feature"]
+    without_fetch = loader.load("test-feature-no-fetch")["test-feature-no-fetch"]
     assert "fetch_headers" in with_fetch["options"]
     assert "fetch_headers" not in without_fetch["options"]
 
@@ -425,39 +458,68 @@ def test_schema_source_build_env_when_rejects_invalid_key() -> None:
     assert errors
 
 
-def test_load_emits_source_install_bins_option() -> None:
-    """source_install_bins default is the serialized source.install_bins entries."""
-    feat_path = (
-        Path(__file__).resolve().parents[2]
-        / "features"
-        / "install-git-lfs"
-        / "metadata.yaml"
+def test_load_emits_source_install_bins_option(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """source_install_bins option is injected when source.install_bins is declared."""
+    install_bins = [
+        {"path": "bin/tool"},
+        {"path": "bin/helper", "when": {"plat.kernel": "linux"}},
+    ]
+    root = _write_test_repo(
+        tmp_path,
+        feature_metadata=_minimal_feature_metadata(
+            _options={
+                "method": {
+                    "source": {
+                        "asset_uri": "https://example.com/tool.tar.gz",
+                        "build_system": "make",
+                        "install_bins": install_bins,
+                    }
+                }
+            }
+        ),
+        shared_yaml=(_REPO_ROOT / "features" / "metadata.shared.yaml").read_text(
+            encoding="utf-8"
+        ),
     )
-    declared = yaml.safe_load(feat_path.read_text(encoding="utf-8"))["_options"][
-        "method"
-    ]["source"]["install_bins"]
-    result = MetadataLoader().load("install-git-lfs")["install-git-lfs"]
+    result = _loader_for(root, monkeypatch).load("test-feature")["test-feature"]
     assert "source_install_bins" in result["options"]
-    assert result["options"]["source_install_bins"][
-        "default"
-    ] == serialize_path_entries(declared)
+    expected = serialize_path_entries(install_bins)
+    assert result["options"]["source_install_bins"]["default"] == expected
 
 
-def test_load_emits_source_build_env_option() -> None:
-    """MetadataLoader serializes source.build_env into source_build_env default."""
-    feat_path = (
-        Path(__file__).resolve().parents[2]
-        / "features"
-        / "install-git-lfs"
-        / "metadata.yaml"
+def test_load_emits_source_build_env_option(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """source_build_env option is injected when source.build_env is declared."""
+    build_env = [
+        {"value": "MY_VAR=1"},
+        {"value": "OTHER=on", "when": {"plat.kernel": "linux"}},
+    ]
+    root = _write_test_repo(
+        tmp_path,
+        feature_metadata=_minimal_feature_metadata(
+            _options={
+                "method": {
+                    "source": {
+                        "asset_uri": "https://example.com/tool.tar.gz",
+                        "build_system": "make",
+                        "build_env": build_env,
+                    }
+                }
+            }
+        ),
+        shared_yaml=(_REPO_ROOT / "features" / "metadata.shared.yaml").read_text(
+            encoding="utf-8"
+        ),
     )
-    declared = yaml.safe_load(feat_path.read_text(encoding="utf-8"))["_options"][
-        "method"
-    ]["source"]["build_env"]
-    result = MetadataLoader().load("install-git-lfs")["install-git-lfs"]
+    result = _loader_for(root, monkeypatch).load("test-feature")["test-feature"]
     assert "source_build_env" in result["options"]
     assert result["options"]["source_build_env"]["default"] == serialize_value_entries(
-        declared
+        build_env
     )
 
 
