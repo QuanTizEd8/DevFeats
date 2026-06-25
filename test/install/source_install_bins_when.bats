@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for source build env filtering/export and source auto-install in the install framework.
+# Unit tests for source build env filtering/injection and source auto-install in the install framework.
 # shellcheck disable=SC2034  # framework state vars are consumed by sourced functions called via `run`
 
 bats_require_minimum_version 1.5.0
@@ -72,7 +72,8 @@ _publish_feat_ctx() {
   assert_output "GOTOOLCHAIN=auto"
 }
 
-@test "__install_run_source_auto_build__: exports SOURCE_BUILD_ENV into make recipes" {
+@test "__install_run_source_auto_build__: injects SOURCE_BUILD_ENV into make recipes" {
+  command -v make > /dev/null 2>&1 || skip "make not available"
   local _src_dir="${BATS_TEST_TMPDIR}/src-build-env"
   mkdir -p "${_src_dir}"
   cat > "${_src_dir}/Makefile" << 'EOF'
@@ -91,10 +92,15 @@ EOF
   assert_output "expected"
 }
 
-@test "__install_run_source_export_build_env__: rejects invalid assignments" {
+@test "__install_run_source_auto_build__: fails with invalid SOURCE_BUILD_ENV entry" {
+  local _src_dir="${BATS_TEST_TMPDIR}/src-invalid-env"
+  mkdir -p "${_src_dir}"
+  SOURCE_BUILD_SYSTEM="make"
   SOURCE_BUILD_ENV=("not-an-assignment")
+  SOURCE_MAKE_FLAGS=()
+  SOURCE_MAKE_TARGETS=("all")
 
-  run __install_run_source_export_build_env__
+  run __install_run_source_auto_build__ "${_src_dir}"
   assert_failure
   assert_output --partial "not a valid NAME=value assignment"
 }

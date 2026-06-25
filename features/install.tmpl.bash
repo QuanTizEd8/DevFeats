@@ -1117,7 +1117,7 @@ __install_run_source__() {
   #      (e.g. platform-specific flags, post-install steps, multiple make passes).
   #   2. __install_run_source_auto_build__ <src_dir> — framework auto-impl.
   #      Driven by SOURCE_BUILD_SYSTEM / SOURCE_CONFIGURE_ARGS /
-  #      SOURCE_BUILD_ENV / SOURCE_MAKE_FLAGS / SOURCE_MAKE_TARGETS.
+  #      SOURCE_BUILD_ENV (injected via env) / SOURCE_MAKE_FLAGS / SOURCE_MAKE_TARGETS.
   #      Covers autotools and bare make.
   #      Active when SOURCE_BUILD_SYSTEM is non-empty.
   #
@@ -1197,6 +1197,9 @@ __install_run_source_auto_build__() {
   if [[ -v SOURCE_MAKE_TARGETS ]]; then __expand_args__ SOURCE_MAKE_TARGETS _make_targets; fi
   if [[ "${#_make_targets[@]}" -eq 0 ]]; then _make_targets=(all install); fi
 
+  local -a _build_env=()
+  __feat_collect_source_build_env__ _build_env || return 1
+
   case "${SOURCE_BUILD_SYSTEM:-}" in
     autotools)
       local -a _configure_args=()
@@ -1209,14 +1212,15 @@ __install_run_source_auto_build__() {
           logging__error "Autotools build: failed to cd to '${_src_dir}'."
           exit 1
         }
-        __install_run_source_export_build_env__ || exit 1
-        ./configure "${_configure_args[@]+"${_configure_args[@]}"}" || {
+        env "${_build_env[@]+"${_build_env[@]}"}" \
+          ./configure "${_configure_args[@]+"${_configure_args[@]}"}" || {
           logging__error "Autotools build: configure failed in '${_src_dir}'."
           exit 1
         }
         local _t
         for _t in "${_make_targets[@]}"; do
-          make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || {
+          env "${_build_env[@]+"${_build_env[@]}"}" \
+            make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || {
             logging__error "Autotools build: make target '${_t}' failed in '${_src_dir}'."
             exit 1
           }
@@ -1232,10 +1236,10 @@ __install_run_source_auto_build__() {
           logging__error "Make build: failed to cd to '${_src_dir}'."
           exit 1
         }
-        __install_run_source_export_build_env__ || exit 1
         local _t
         for _t in "${_make_targets[@]}"; do
-          make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || {
+          env "${_build_env[@]+"${_build_env[@]}"}" \
+            make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || {
             logging__error "Make build: make target '${_t}' failed in '${_src_dir}'."
             exit 1
           }
@@ -1256,26 +1260,26 @@ __install_run_source_auto_build__() {
   esac
 }
 
-__install_run_source_export_build_env__() {
+__feat_collect_source_build_env__() {
+  # Populate caller-supplied array with validated, expanded SOURCE_BUILD_ENV entries.
+  # Usage: __feat_collect_source_build_env__ <dst_array_name>
+  local -n _fcse_dst="$1"
   if ! argparse__var_declared SOURCE_BUILD_ENV || [[ ${#SOURCE_BUILD_ENV[@]} -eq 0 ]]; then
     return 0
   fi
-
-  local _entry
   local -a _active_env=()
   mapfile -t _active_env < <(__feat_filter_source_build_env__)
   [[ ${#_active_env[@]} -gt 0 ]] || return 0
-
   local -a _expanded_env=()
   __expand_args__ _active_env _expanded_env
-
+  local _entry
   for _entry in "${_expanded_env[@]+"${_expanded_env[@]}"}"; do
     [[ -n "${_entry}" ]] || continue
     if [[ ! "${_entry}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
       logging__error "SOURCE_BUILD_ENV entry '${_entry}' is not a valid NAME=value assignment."
       return 1
     fi
-    export "${_entry}"
+    _fcse_dst+=("${_entry}")
   done
 }
 

@@ -144,7 +144,7 @@ NODE_VERSION                # Node.js version (npm-bundled only)
 SOURCE_ASSET_URI            # Source tarball URL
 SOURCE_BUILD_SYSTEM         # autotools | make
 SOURCE_CONFIGURE_ARGS       # Array of ./configure arguments
-SOURCE_BUILD_ENV            # Array of NAME=value exports for source auto-builds
+SOURCE_BUILD_ENV            # Array of NAME=value env overrides injected into source auto-builds
 SOURCE_MAKE_FLAGS           # Array of make variable assignments
 SOURCE_MAKE_TARGETS         # Array of make targets
 SOURCE_INSTALL_BINS         # Array of built binary paths copied to ${PREFIX}/bin/
