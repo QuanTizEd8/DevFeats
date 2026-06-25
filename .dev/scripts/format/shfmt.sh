@@ -30,7 +30,7 @@ if [[ $# -gt 0 ]]; then
   "${cmd[@]}" "$@"
 else
   {
-    # All tracked .sh/.bash files
-    git ls-files -- '*.sh' '*.bash'
+    # All tracked .sh/.bash/.bats files
+    git ls-files -- '*.sh' '*.bash' '*.bats'
   } | sort -u | xargs "${cmd[@]}"
 fi
