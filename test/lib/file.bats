@@ -124,22 +124,31 @@ setup() {
   [[ -f "${_dest}/world.txt" ]]
 }
 
-@test "file__extract_archive: extracts .zip when unzip is available" {
-  command -v zip > /dev/null 2>&1 || skip "zip not available for test setup"
-  command -v unzip > /dev/null 2>&1 || skip "unzip not available"
-  create_pass_through_bin "unzip"
+@test "file__extract_archive: invokes unzip -q -o <archive> -d <dest> for .zip" {
+  local _arc="${BATS_TEST_TMPDIR}/test.zip"
+  touch "$_arc"
+  local _dest="${BATS_TEST_TMPDIR}/out_zip"
+  local _call_log="${BATS_TEST_TMPDIR}/unzip_calls"
+
+  # Stub unzip: record the argument list to a log file and exit 0.
+  # bootstrap__unzip finds the stub on PATH and skips install; file__extract_archive
+  # then invokes the stub with the actual extraction arguments.
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "%s"\n' \
+    "${_call_log}" > "${BATS_TEST_TMPDIR}/bin/unzip"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/unzip"
   prepend_fake_bin_path
 
-  local _src="${BATS_TEST_TMPDIR}/payload_zip"
-  mkdir -p "$_src"
-  echo "zipped" > "${_src}/zipped.txt"
-  local _arc="${BATS_TEST_TMPDIR}/test.zip"
-  (cd "$_src" && zip -q "$_arc" zipped.txt)
-
-  local _dest="${BATS_TEST_TMPDIR}/out_zip"
   run file__extract_archive "$_arc" "$_dest"
   assert_success
-  [[ -f "${_dest}/zipped.txt" ]]
+  assert [ -f "${_call_log}" ]
+  local _invocation
+  _invocation="$(cat "${_call_log}")"
+  [[ "${_invocation}" == *"-q"* ]]
+  [[ "${_invocation}" == *"-o"* ]]
+  [[ "${_invocation}" == *"-d"* ]]
+  [[ "${_invocation}" == *"${_arc}"* ]]
+  [[ "${_invocation}" == *"${_dest}"* ]]
 }
 
 @test "file__extract_archive: uses original_name for format detection" {
