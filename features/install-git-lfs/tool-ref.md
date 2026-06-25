@@ -999,6 +999,9 @@ VERSION="3.7.1"
 curl -fsSL "https://github.com/git-lfs/git-lfs/releases/download/v${VERSION}/git-lfs-v${VERSION}.tar.gz" \
   | tar -xz
 cd "git-lfs-${VERSION}"
+# Upstream's default target builds the local binary in bin/git-lfs.
+# Do not use `make all` here: that target builds the full cross-platform
+# release matrix, not a single local install artifact.
 make
 sudo install -m 0755 bin/git-lfs /usr/local/bin/git-lfs
 # Optional man pages:

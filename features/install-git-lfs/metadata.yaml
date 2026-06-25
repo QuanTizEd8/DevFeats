@@ -75,11 +75,9 @@ _options:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/git-lfs-v{feat.version}.tar.gz"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/sha256sums.asc"
       build_system: make
-      build_env:
-        - GOTOOLCHAIN=auto
       make_flags:
         - GOTOOLCHAIN=auto
-      make_targets: ["all"]
+      make_targets: ["bin/git-lfs"]
       install_bins:
         - bin/git-lfs
   prefix:
