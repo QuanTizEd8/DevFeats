@@ -73,14 +73,16 @@ _publish_feat_ctx() {
 }
 
 @test "__install_run_source_auto_build__: injects SOURCE_BUILD_ENV into make recipes" {
-  command -v make > /dev/null 2>&1 || skip "make not available"
+  # Stub make: exits 0 only when FEATURE_TEST_ENV is correctly injected by env.
+  # Tests the framework's env injection without requiring a real make installation.
+  # shellcheck disable=SC2016
+  printf '#!/bin/sh\ntest "${FEATURE_TEST_ENV:-}" = "expected"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/make"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/make"
+  prepend_fake_bin_path
+
   local _src_dir="${BATS_TEST_TMPDIR}/src-build-env"
   mkdir -p "${_src_dir}"
-  cat > "${_src_dir}/Makefile" << 'EOF'
-all:
-	test "$$FEATURE_TEST_ENV" = expected
-	printf '%s\n' "$$FEATURE_TEST_ENV" > build-env.out
-EOF
   SOURCE_BUILD_SYSTEM="make"
   SOURCE_BUILD_ENV=("FEATURE_TEST_ENV=expected")
   SOURCE_MAKE_FLAGS=()
@@ -88,8 +90,6 @@ EOF
 
   run __install_run_source_auto_build__ "${_src_dir}"
   assert_success
-  run cat "${_src_dir}/build-env.out"
-  assert_output "expected"
 }
 
 @test "__install_run_source_auto_build__: fails with invalid SOURCE_BUILD_ENV entry" {
