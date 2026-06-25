@@ -6,7 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  reload_lib str.sh
+  reload_lib
 }
 
 # ---------------------------------------------------------------------------

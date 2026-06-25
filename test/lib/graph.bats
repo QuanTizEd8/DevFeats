@@ -6,7 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  reload_lib graph.sh
+  reload_lib
 }
 
 @test "graph__round_order empty edges uses priority file (higher first)" {

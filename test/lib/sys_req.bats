@@ -7,7 +7,7 @@ setup() {
   load 'helpers/common'
   load 'helpers/stubs'
   load 'helpers/ctx'
-  reload_lib sys_req.sh
+  reload_lib
   ctx_test__reset
 }
 
@@ -54,7 +54,7 @@ setup() {
 @test "sys_req__require_platform: stops at first matching group" {
   local _calls=0
   ctx__match_spec() {
-    (( _calls++ )) || true
+    ((_calls++)) || true
     [[ "$1" == $'os.id: debian' ]]
   }
   export -f ctx__match_spec

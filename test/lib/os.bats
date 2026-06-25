@@ -13,7 +13,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "os__kernel returns the uname -s value" {
-  reload_lib os.sh
+  reload_lib
   uname() { echo "Linux"; }
   export -f uname
   run os__kernel
@@ -22,7 +22,7 @@ setup() {
 }
 
 @test "os__kernel returns Darwin" {
-  reload_lib os.sh
+  reload_lib
   uname() { echo "Darwin"; }
   export -f uname
   run os__kernel
@@ -30,7 +30,7 @@ setup() {
 }
 
 @test "os__kernel uses cached _OS__KERNEL value" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="CachedOS"
   run os__kernel
   assert_output "CachedOS"
@@ -41,7 +41,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "os__arch returns the uname -m value" {
-  reload_lib os.sh
+  reload_lib
   uname() { echo "x86_64"; }
   export -f uname
   run os__arch
@@ -49,7 +49,7 @@ setup() {
 }
 
 @test "os__arch returns aarch64" {
-  reload_lib os.sh
+  reload_lib
   uname() { echo "aarch64"; }
   export -f uname
   run os__arch
@@ -57,7 +57,7 @@ setup() {
 }
 
 @test "os__arch uses cached _OS__ARCH value" {
-  reload_lib os.sh
+  reload_lib
   _OS__ARCH="arm64"
   run os__arch
   assert_output "arm64"
@@ -81,42 +81,42 @@ _os__platform_stub_release() {
 }
 
 @test "os__platform returns debian for ID=ubuntu" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release ubuntu ""
   run os__platform
   assert_output "debian"
 }
 
 @test "os__platform returns debian for ID=debian" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release debian ""
   run os__platform
   assert_output "debian"
 }
 
 @test "os__platform returns alpine for ID=alpine" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release alpine ""
   run os__platform
   assert_output "alpine"
 }
 
 @test "os__platform returns rhel for ID=fedora" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release fedora ""
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel for ID=centos" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release centos ""
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns macos for Darwin uname fallback" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release "" ""
   uname() { echo "Darwin"; }
   export -f uname
@@ -125,7 +125,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__platform returns debian as fallback for unknown Linux" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release "" ""
   uname() { echo "Linux"; }
   export -f uname
@@ -134,70 +134,70 @@ _os__platform_stub_release() {
 }
 
 @test "os__platform returns debian when ID_LIKE contains debian" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release linuxmint "ubuntu debian"
   run os__platform
   assert_output "debian"
 }
 
 @test "os__platform uses cached _OS__PLATFORM" {
-  reload_lib os.sh
+  reload_lib
   _OS__PLATFORM="rhel"
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel for ID=rhel" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release rhel ""
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel for ID=rocky" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release rocky ""
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel when ID_LIKE contains fedora" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release custom fedora
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns suse for openSUSE Tumbleweed" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release opensuse-tumbleweed "opensuse suse"
   run os__platform
   assert_output "suse"
 }
 
 @test "os__platform returns suse for opensuse-leap" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release opensuse-leap "suse opensuse"
   run os__platform
   assert_output "suse"
 }
 
 @test "os__platform returns suse for sles" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release sles suse
   run os__platform
   assert_output "suse"
 }
 
 @test "os__platform returns suse for sle-micro" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release sle-micro suse
   run os__platform
   assert_output "suse"
 }
 
 @test "os__platform returns suse when ID_LIKE contains suse" {
-  reload_lib os.sh
+  reload_lib
   _os__platform_stub_release custom-suse-distro suse
   run os__platform
   assert_output "suse"
@@ -208,7 +208,7 @@ _os__platform_stub_release() {
 # ---------------------------------------------------------------------------
 
 @test "os__font_dir returns /usr/share/fonts for system-scope prefix" {
-  reload_lib os.sh
+  reload_lib
   users__is_root() { return 0; }
   export -f users__is_root
   run os__font_dir
@@ -216,7 +216,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__font_dir returns ~/Library/Fonts for macOS non-root" {
-  reload_lib os.sh
+  reload_lib
   users__is_root() { return 1; }
   uname() { echo "Darwin"; }
   export -f users__is_root uname
@@ -225,7 +225,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__font_dir returns XDG_DATA_HOME path for Linux non-root" {
-  reload_lib os.sh
+  reload_lib
   users__is_root() { return 1; }
   uname() { echo "Linux"; }
   export -f users__is_root uname
@@ -234,7 +234,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__font_dir returns default XDG path when XDG_DATA_HOME not set" {
-  reload_lib os.sh
+  reload_lib
   users__is_root() { return 1; }
   uname() { echo "Linux"; }
   export -f users__is_root uname
@@ -243,7 +243,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__font_dir returns user-local XDG path for non-root" {
-  reload_lib os.sh
+  reload_lib
   users__is_root() { return 1; }
   uname() { echo "Linux"; }
   export -f users__is_root uname
@@ -256,7 +256,7 @@ _os__platform_stub_release() {
 # ---------------------------------------------------------------------------
 
 @test "os__is_container returns true when /.dockerenv exists" {
-  reload_lib os.sh
+  reload_lib
   # Use a temp file as the sentinel — override the built-in check via function
   # injection: the simplest approach is writing /.dockerenv to a tmpdir and
   # pointing the function at it.  Since the function hard-codes the path we
@@ -279,7 +279,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__is_container returns false when no container markers are present" {
-  reload_lib os.sh
+  reload_lib
   run bash -c "
     source '${LIB_ROOT}/os.sh'
     # Override the check: point all paths to non-existent files.
@@ -298,7 +298,7 @@ _os__platform_stub_release() {
 # ---------------------------------------------------------------------------
 
 @test "os__release_kernel returns freebsd for FreeBSD kernel" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="FreeBSD"
   run os__release_kernel
   assert_success
@@ -306,7 +306,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__release_kernel returns linux for Linux kernel" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__release_kernel
   assert_success
@@ -314,7 +314,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__release_kernel returns darwin for Darwin with github flavor" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Darwin"
   run os__release_kernel github
   assert_success
@@ -322,7 +322,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__release_kernel returns 1 for unsupported kernel" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="SunOS"
   run os__release_kernel
   assert_failure
@@ -333,14 +333,14 @@ _os__platform_stub_release() {
 # ---------------------------------------------------------------------------
 
 @test "os__libc returns 1 on non-Linux (Darwin)" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Darwin"
   run os__libc
   assert_failure
 }
 
 @test "os__libc returns musl when ldd output contains musl" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   # Stub ldd to return musl-style output (ls glob will fail on glibc host)
   ldd() { printf '/lib/ld-musl-x86_64.so.1 (0x7f000000)\n'; }
@@ -354,7 +354,7 @@ _os__platform_stub_release() {
   # Skip on Alpine: /lib/ld-musl-*.so* files are physically present on the host
   # and the ls-glob check in os__libc runs before the ldd stub is consulted.
   [[ -f /etc/alpine-release ]] && skip "musl linker files always present on Alpine"
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   ldd() { printf '/lib/x86_64-linux-gnu/libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6\n/lib64/ld-linux-x86-64.so.2\n'; }
   export -f ldd
@@ -368,7 +368,7 @@ _os__platform_stub_release() {
 # ---------------------------------------------------------------------------
 
 @test "os__rust_triple returns x86_64-unknown-linux-musl for Linux x86_64" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple x86_64
   assert_success
@@ -376,7 +376,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple accepts amd64 alias for Linux" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple amd64
   assert_success
@@ -384,7 +384,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns i686-unknown-linux-musl for Linux i686" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple i686
   assert_success
@@ -392,7 +392,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns i686-unknown-linux-musl for Linux i386" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple i386
   assert_success
@@ -400,7 +400,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns aarch64-unknown-linux-musl for Linux aarch64" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple aarch64
   assert_success
@@ -408,7 +408,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple accepts arm64 alias for Linux" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple arm64
   assert_success
@@ -416,7 +416,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns arm-unknown-linux-musleabihf for Linux armv6l" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple armv6l
   assert_success
@@ -424,7 +424,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns armv7-unknown-linux-musleabihf for Linux armv7l with NEON" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   grep() { return 0; }
   export -f grep
@@ -434,7 +434,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns arm-unknown-linux-musleabihf for Linux armv7l without NEON" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   grep() { return 1; }
   export -f grep
@@ -444,7 +444,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns loongarch64-unknown-linux-musl for Linux loongarch64" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple loongarch64
   assert_success
@@ -452,7 +452,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns powerpc64le-unknown-linux-gnu for Linux ppc64le" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple ppc64le
   assert_success
@@ -460,7 +460,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns s390x-unknown-linux-gnu for Linux s390x" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple s390x
   assert_success
@@ -468,7 +468,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns riscv64gc-unknown-linux-musl for Linux riscv64 on musl" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   os__libc() { printf 'musl\n'; }
   export -f os__libc
@@ -478,7 +478,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns riscv64gc-unknown-linux-gnu for Linux riscv64 on glibc" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   os__libc() { printf 'gnu\n'; }
   export -f os__libc
@@ -488,7 +488,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns x86_64-apple-darwin for Darwin x86_64" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Darwin"
   sysctl() { return 1; }
   export -f sysctl
@@ -498,7 +498,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns aarch64-apple-darwin for Darwin x86_64 under Rosetta 2" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Darwin"
   sysctl() { printf '1\n'; }
   export -f sysctl
@@ -508,7 +508,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns aarch64-apple-darwin for Darwin aarch64" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Darwin"
   run os__rust_triple aarch64
   assert_success
@@ -516,7 +516,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple accepts arm64 alias for Darwin" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Darwin"
   run os__rust_triple arm64
   assert_success
@@ -524,7 +524,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns x86_64-unknown-freebsd for FreeBSD x86_64" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="FreeBSD"
   run os__rust_triple x86_64
   assert_success
@@ -532,7 +532,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple detects 32-bit x86 userland on a 64-bit kernel via getconf" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   getconf() { printf '32\n'; }
   export -f getconf
@@ -542,7 +542,7 @@ _os__platform_stub_release() {
 }
 
 @test "os__rust_triple returns 1 for unsupported kernel/arch combination" {
-  reload_lib os.sh
+  reload_lib
   _OS__KERNEL="Linux"
   run os__rust_triple mips
   assert_failure

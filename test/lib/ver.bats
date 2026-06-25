@@ -6,7 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  reload_lib ver.sh
+  reload_lib
 }
 
 # ---------------------------------------------------------------------------
@@ -564,7 +564,7 @@ abc123  zsh-5.9"
 _ver_cmp__bash_runner() {
   local _file="$1" _index="$2" _name="$3" _expect="$4"
   local _yq _a _b _result _rc=0
-  _yq="$(bootstrap__yq 2>/dev/null)" || return 1
+  _yq="$(bootstrap__yq 2> /dev/null)" || return 1
   _a="$("${_yq}" -r ".[${_index}].a" "${_file}")"
   _b="$("${_yq}" -r ".[${_index}].b" "${_file}")"
   if [[ "${_expect}" == fail ]]; then
@@ -586,7 +586,7 @@ _ver_cmp__bash_runner() {
 _ver_cmp__jq_runner() {
   local _file="$1" _index="$2" _name="$3" _expect="$4"
   local _yq _a _b _result
-  _yq="$(bootstrap__yq 2>/dev/null)" || return 1
+  _yq="$(bootstrap__yq 2> /dev/null)" || return 1
   _a="$("${_yq}" -r ".[${_index}].a" "${_file}")"
   _b="$("${_yq}" -r ".[${_index}].b" "${_file}")"
   if [[ "${_expect}" == fail ]]; then

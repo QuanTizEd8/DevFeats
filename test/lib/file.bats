@@ -6,7 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  reload_lib file.sh
+  reload_lib
 }
 
 # ---------------------------------------------------------------------------
@@ -59,8 +59,7 @@ setup() {
 
 @test "_file__ensure_extract_tool zip: installs unzip via ospkg when ospkg is loaded" {
   # Simulate ospkg loaded but unzip absent; ospkg stubs install a fake unzip.
-  reload_lib ospkg.sh
-  reload_lib file.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   # Seed a minimal apt context without invoking the real PM.

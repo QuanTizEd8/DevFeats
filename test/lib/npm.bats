@@ -8,10 +8,7 @@ bats_require_minimum_version 1.7.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  reload_lib net.sh
-  reload_lib ver.sh
-  reload_lib json.sh
-  reload_lib npm.sh
+  reload_lib
   # Stub out network-layer helpers so no real connections are made.
   net__ensure_fetch_tool() {
     _NET__FETCH_TOOL=curl

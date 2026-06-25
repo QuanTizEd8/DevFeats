@@ -31,7 +31,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "shell__detect_bashrc returns /etc/bash.bashrc for unrecognised platform" {
-  reload_lib shell.sh
+  reload_lib
   os__platform() { echo "debian"; }
   export -f os__platform
   run shell__detect_bashrc
@@ -39,7 +39,7 @@ setup() {
 }
 
 @test "shell__detect_bashrc returns /etc/bashrc for rhel via platform fallback" {
-  reload_lib shell.sh
+  reload_lib
   # No strings output → fall through to os__platform.
   strings() { :; }
   # shellcheck disable=SC2329
@@ -50,7 +50,7 @@ setup() {
 }
 
 @test "shell__detect_bashrc returns /etc/bashrc for suse via platform fallback" {
-  reload_lib shell.sh
+  reload_lib
   strings() { :; }
   # shellcheck disable=SC2329
   os__platform() { printf 'suse\n'; }
@@ -60,7 +60,7 @@ setup() {
 }
 
 @test "shell__detect_bashrc returns /etc/bash/bashrc for alpine via platform fallback" {
-  reload_lib shell.sh
+  reload_lib
   strings() { :; }
   # shellcheck disable=SC2329
   os__platform() { printf 'alpine\n'; }
@@ -70,7 +70,7 @@ setup() {
 }
 
 @test "shell__detect_bashrc returns /etc/bash.bashrc as default fallback" {
-  reload_lib shell.sh
+  reload_lib
   strings() { :; }
   # shellcheck disable=SC2329
   os__platform() { printf 'debian\n'; }
@@ -84,7 +84,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "shell__detect_zshdir returns /etc/zsh from strings probe" {
-  reload_lib shell.sh
+  reload_lib
   strings() { echo "/etc/zsh/zshenv"; }
   export -f strings
   run shell__detect_zshdir
@@ -92,7 +92,7 @@ setup() {
 }
 
 @test "shell__detect_zshdir returns /etc from strings probe when zshenv is at /etc/zshenv" {
-  reload_lib shell.sh
+  reload_lib
   strings() { echo "/etc/zshenv"; }
   export -f strings
   run shell__detect_zshdir
@@ -100,7 +100,7 @@ setup() {
 }
 
 @test "shell__detect_zshdir returns /etc for rhel via platform fallback" {
-  reload_lib shell.sh
+  reload_lib
   strings() { :; }
   # shellcheck disable=SC2329
   os__platform() { printf 'rhel\n'; }
@@ -110,7 +110,7 @@ setup() {
 }
 
 @test "shell__detect_zshdir returns /etc for suse via platform fallback" {
-  reload_lib shell.sh
+  reload_lib
   strings() { :; }
   # shellcheck disable=SC2329
   os__platform() { printf 'suse\n'; }
@@ -120,7 +120,7 @@ setup() {
 }
 
 @test "shell__detect_zshdir returns /etc/zsh as default fallback" {
-  reload_lib shell.sh
+  reload_lib
   strings() { :; }
   # shellcheck disable=SC2329
   os__platform() { printf 'debian\n'; }
@@ -134,7 +134,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "shell__write_block appends a new block to a file" {
-  reload_lib shell.sh
+  reload_lib
   local _f="${BATS_TEST_TMPDIR}/rc"
   shell__write_block --file "$_f" --marker "mytest" --content "export FOO=bar"
   assert_file_exists "$_f"
@@ -145,7 +145,7 @@ setup() {
 }
 
 @test "shell__write_block updates existing block in place" {
-  reload_lib shell.sh
+  reload_lib
   local _f="${BATS_TEST_TMPDIR}/rc2"
   shell__write_block --file "$_f" --marker "mytest" --content "export FOO=bar"
   shell__write_block --file "$_f" --marker "mytest" --content "export FOO=baz"
@@ -158,7 +158,7 @@ setup() {
 }
 
 @test "shell__write_block creates parent directories" {
-  reload_lib shell.sh
+  reload_lib
   local _f="${BATS_TEST_TMPDIR}/subdir/rc"
   shell__write_block --file "$_f" --marker "test" --content "x=1"
   assert_file_exists "$_f"
@@ -169,7 +169,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "shell__user_login_file returns .bash_profile when it exists" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/home1"
   mkdir -p "$_home"
   touch "${_home}/.bash_profile"
@@ -178,7 +178,7 @@ setup() {
 }
 
 @test "shell__user_login_file returns .bash_login over .profile" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/home2"
   mkdir -p "$_home"
   touch "${_home}/.bash_login"
@@ -188,7 +188,7 @@ setup() {
 }
 
 @test "shell__user_login_file falls back to .bash_profile when none exist" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/home3"
   mkdir -p "$_home"
   run shell__user_login_file --home "$_home"
@@ -200,7 +200,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "shell__user_path_files includes login file, .bashrc and .zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/home4"
   mkdir -p "$_home"
   run shell__user_path_files --home "$_home"
@@ -214,7 +214,7 @@ ${_home}/.zshenv"
 # ---------------------------------------------------------------------------
 
 @test "shell__user_init_files includes login file, .bashrc, .zprofile and .zshrc" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/home5"
   mkdir -p "$_home"
   run shell__user_init_files --home "$_home"
@@ -229,7 +229,7 @@ ${_home}/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__resolve_omz_theme returns repo/theme when theme file found" {
-  reload_lib shell.sh
+  reload_lib
   local _custom="${BATS_TEST_TMPDIR}/zsh_custom"
   mkdir -p "${_custom}/themes/powerlevel10k"
   touch "${_custom}/themes/powerlevel10k/powerlevel10k.zsh-theme"
@@ -240,7 +240,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__resolve_omz_theme returns repo name when no theme file" {
-  reload_lib shell.sh
+  reload_lib
   local _custom="${BATS_TEST_TMPDIR}/zsh_custom_empty"
   mkdir -p "$_custom"
   run shell__resolve_omz_theme \
@@ -250,7 +250,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__resolve_omz_theme returns empty for empty slug" {
-  reload_lib shell.sh
+  reload_lib
   run shell__resolve_omz_theme --theme_slug "" --custom_dir "/tmp"
   assert_output ""
   assert_success
@@ -261,7 +261,7 @@ ${_home}/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "users__resolve_home returns home for current user" {
-  reload_lib shell.sh
+  reload_lib
   local _expected
   _expected="$(eval echo "~$(whoami)")"
   run --separate-stderr users__resolve_home "$(whoami)"
@@ -270,7 +270,7 @@ ${_home}/.zshrc"
 }
 
 @test "users__resolve_home returns the correct home for the root user" {
-  reload_lib shell.sh
+  reload_lib
   # Use eval to get the platform-actual home (e.g. /root on Linux, /var/root on macOS).
   local _root_home
   _root_home="$(eval echo '~root')"
@@ -280,7 +280,7 @@ ${_home}/.zshrc"
 }
 
 @test "users__resolve_home returns unexpanded tilde for unknown user" {
-  reload_lib shell.sh
+  reload_lib
   run --separate-stderr users__resolve_home "___no_such_user_xyz___"
   assert_output "~___no_such_user_xyz___"
   assert_success
@@ -291,7 +291,7 @@ ${_home}/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__sync_block writes a block when --content is provided" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/sync_home"
   mkdir -p "$_home"
   local _syncfile="${_home}/rc"
@@ -302,7 +302,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__sync_block removes an existing block when --content is absent" {
-  reload_lib shell.sh
+  reload_lib
   local _f="${BATS_TEST_TMPDIR}/rcremove"
   shell__write_block --file "$_f" --marker "removetest" --content "export Y=2"
   shell__sync_block --files "$_f" --marker "removetest"
@@ -311,7 +311,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__sync_block skips removal for non-existent file" {
-  reload_lib shell.sh
+  reload_lib
   local _f="${BATS_TEST_TMPDIR}/nope_rc"
   # File doesn't exist; sync_block with no --content should be a no-op (no error).
   run shell__sync_block --files "$_f" --marker "absent"
@@ -323,7 +323,7 @@ ${_home}/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__system_path_files returns bashrc and zshenv paths" {
-  reload_lib shell.sh
+  reload_lib
   shell__detect_bashrc() { echo "/etc/bash.bashrc"; }
   export -f shell__detect_bashrc
   BASH_ENV="/etc/bashenv"
@@ -335,7 +335,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__system_path_files includes profile.d path when --profile_d is given" {
-  reload_lib shell.sh
+  reload_lib
   shell__detect_bashrc() { echo "/etc/bash.bashrc"; }
   export -f shell__detect_bashrc
   BASH_ENV="/etc/bashenv"
@@ -349,14 +349,14 @@ ${_home}/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__ensure_bashenv returns BASH_ENV when already set in environment" {
-  reload_lib shell.sh
+  reload_lib
   BASH_ENV="/usr/local/etc/bashenv" run shell__ensure_bashenv
   assert_output --partial "/usr/local/etc/bashenv"
   assert_success
 }
 
 @test "shell__ensure_bashenv reads BASH_ENV from _SHELL_ENV_FILE when entry exists" {
-  reload_lib shell.sh
+  reload_lib
   local _env="${BATS_TEST_TMPDIR}/environment"
   printf 'BASH_ENV="/etc/bash/bashenv"\n' > "$_env"
   _SHELL_ENV_FILE="$_env" run shell__ensure_bashenv
@@ -365,7 +365,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__ensure_bashenv creates bashenv file and registers it when no entry exists" {
-  reload_lib shell.sh
+  reload_lib
   local _env="${BATS_TEST_TMPDIR}/environment"
   touch "$_env" # exists but empty — no BASH_ENV entry
   # Stub detect_bashrc so the bashenv dir is inside BATS_TEST_TMPDIR.
@@ -385,13 +385,13 @@ ${_home}/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__detect_zdotdir returns ZDOTDIR when home matches HOME" {
-  reload_lib shell.sh
+  reload_lib
   ZDOTDIR="/custom/zsh" run shell__detect_zdotdir --home "$HOME"
   assert_output "/custom/zsh"
 }
 
 @test "shell__detect_zdotdir falls back to home when no ZDOTDIR and no zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeZD1"
   mkdir -p "$_home"
   # Stub shell__detect_zshdir to point to a nonexistent system dir.
@@ -403,7 +403,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__detect_zdotdir parses ZDOTDIR=\$HOME/... from user .zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeZD2"
   mkdir -p "$_home"
   printf 'export ZDOTDIR="$HOME/.config/zsh"\n' > "${_home}/.zshenv"
@@ -414,7 +414,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__detect_zdotdir parses ZDOTDIR=\${HOME}/... from user .zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeZD3"
   mkdir -p "$_home"
   printf 'ZDOTDIR="${HOME}/.config/zsh"\n' > "${_home}/.zshenv"
@@ -425,7 +425,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__detect_zdotdir parses ZDOTDIR=~/... from user .zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeZD4"
   mkdir -p "$_home"
   printf 'ZDOTDIR=~/.config/zsh\n' > "${_home}/.zshenv"
@@ -436,7 +436,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__detect_zdotdir substitutes \$XDG_CONFIG_HOME" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeZD5"
   mkdir -p "$_home"
   printf 'export ZDOTDIR="$XDG_CONFIG_HOME/zsh"\n' > "${_home}/.zshenv"
@@ -447,7 +447,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__detect_zdotdir defaults XDG_CONFIG_HOME to home/.config" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeZD6"
   mkdir -p "$_home"
   printf 'ZDOTDIR="${XDG_CONFIG_HOME}/zsh"\n' > "${_home}/.zshenv"
@@ -459,7 +459,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__detect_zdotdir falls back to home on unresolvable variable" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeZD7"
   mkdir -p "$_home"
   printf 'ZDOTDIR="${CUSTOM_VAR}/zsh"\n' > "${_home}/.zshenv"
@@ -470,7 +470,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__detect_zdotdir user .zshenv overrides system zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeZD8"
   local _sys="${BATS_TEST_TMPDIR}/sysZD8"
   mkdir -p "$_home" "$_sys"
@@ -487,7 +487,7 @@ ${_home}/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__user_path_files picks .bash_login when it is the login file" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homePF"
   mkdir -p "$_home"
   touch "${_home}/.bash_login"
@@ -498,7 +498,7 @@ ${_home}/.zshenv"
 }
 
 @test "shell__user_path_files uses --zdotdir for .zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homePZ"
   local _zd="${BATS_TEST_TMPDIR}/zdotPZ"
   mkdir -p "$_home" "$_zd"
@@ -509,7 +509,7 @@ ${_zd}/.zshenv"
 }
 
 @test "shell__user_path_files auto-detects zdotdir from .zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homePZA"
   mkdir -p "$_home"
   printf 'ZDOTDIR="$HOME/.config/zsh"\n' > "${_home}/.zshenv"
@@ -526,7 +526,7 @@ ${_home}/.config/zsh/.zshenv"
 # ---------------------------------------------------------------------------
 
 @test "shell__user_init_files picks .bash_login when it is the login file" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeIF"
   mkdir -p "$_home"
   touch "${_home}/.bash_login"
@@ -538,7 +538,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__user_init_files uses --zdotdir for zsh files" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeIZ"
   local _zd="${BATS_TEST_TMPDIR}/zdotIZ"
   mkdir -p "$_home" "$_zd"
@@ -550,7 +550,7 @@ ${_zd}/.zshrc"
 }
 
 @test "shell__user_init_files auto-detects zdotdir from .zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeIZA"
   mkdir -p "$_home"
   printf 'ZDOTDIR="$HOME/.config/zsh"\n' > "${_home}/.zshenv"
@@ -568,7 +568,7 @@ ${_home}/.config/zsh/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__user_rc_files returns .bashrc and .zshrc only" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeRC1"
   mkdir -p "$_home"
   run shell__user_rc_files --home "$_home"
@@ -577,7 +577,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__user_rc_files does not include login file" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeRC2"
   mkdir -p "$_home"
   touch "${_home}/.bash_profile"
@@ -588,7 +588,7 @@ ${_home}/.zshrc"
 }
 
 @test "shell__user_rc_files uses explicit --zdotdir for .zshrc" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeRCZ"
   local _zd="${BATS_TEST_TMPDIR}/zdotRCZ"
   mkdir -p "$_home" "$_zd"
@@ -598,7 +598,7 @@ ${_zd}/.zshrc"
 }
 
 @test "shell__user_rc_files auto-detects zdotdir from .zshenv" {
-  reload_lib shell.sh
+  reload_lib
   local _home="${BATS_TEST_TMPDIR}/homeRCZA"
   mkdir -p "$_home"
   printf 'ZDOTDIR="$HOME/.config/zsh"\n' > "${_home}/.zshenv"
@@ -614,7 +614,7 @@ ${_home}/.config/zsh/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__system_rc_files returns system bashrc and zshrc" {
-  reload_lib shell.sh
+  reload_lib
   strings() { echo "/etc/bash.bashrc"; }
   # shellcheck disable=SC2329
   os__platform() { printf 'debian\n'; }
@@ -626,7 +626,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__system_rc_files uses distro-correct bashrc for fedora" {
-  reload_lib shell.sh
+  reload_lib
   strings() { :; }
   # shellcheck disable=SC2329
   os__platform() { printf 'rhel\n'; }
@@ -638,7 +638,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__system_rc_files uses /etc/zsh/zshrc for debian-family" {
-  reload_lib shell.sh
+  reload_lib
   strings() { echo "/etc/bash.bashrc"; }
   # shellcheck disable=SC2329
   os__platform() { printf 'debian\n'; }
@@ -654,7 +654,7 @@ ${_home}/.config/zsh/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__create_symlink creates system-wide symlink when system dir is writable" {
-  reload_lib shell.sh
+  reload_lib
   local _src="${BATS_TEST_TMPDIR}/opt/mytool/bin/mytool"
   local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/mytool"
   local _usr="${BATS_TEST_TMPDIR}/home/user/.local/bin/mytool"
@@ -670,7 +670,7 @@ ${_home}/.config/zsh/.zshrc"
 
 @test "shell__create_symlink creates user-scoped symlink when system dir is not writable" {
   [ "$(id -u)" -eq 0 ] && skip "Cannot simulate non-writable directory as root (chmod 555 bypassed by CAP_DAC_OVERRIDE)"
-  reload_lib shell.sh
+  reload_lib
   local _src="${BATS_TEST_TMPDIR}/opt/git/bin/git"
   local _sys_dir="${BATS_TEST_TMPDIR}/readonly/bin"
   local _sys="${_sys_dir}/git"
@@ -688,7 +688,7 @@ ${_home}/.config/zsh/.zshrc"
 
 @test "shell__create_symlink errors with clear message when neither location is writable" {
   [ "$(id -u)" -eq 0 ] && skip "Cannot simulate non-writable directory as root (chmod 555 bypassed by CAP_DAC_OVERRIDE)"
-  reload_lib shell.sh
+  reload_lib
   local _sys_dir="${BATS_TEST_TMPDIR}/sys/bin"
   local _usr_dir="${BATS_TEST_TMPDIR}/usr/bin"
   mkdir -p "$_sys_dir" "$_usr_dir"
@@ -702,7 +702,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__create_symlink skips when src equals chosen target" {
-  reload_lib shell.sh
+  reload_lib
   local _path="${BATS_TEST_TMPDIR}/usr/local/bin/mytool"
   mkdir -p "$(dirname "$_path")" # writable → system target chosen; src == target → skip
   run shell__create_symlink \
@@ -715,7 +715,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__create_symlink errors when target is a real file" {
-  reload_lib shell.sh
+  reload_lib
   local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/mytool"
   mkdir -p "$(dirname "$_sys")"
   touch "$_sys" # real file → error
@@ -728,7 +728,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__create_symlink replaces stale symlink" {
-  reload_lib shell.sh
+  reload_lib
   local _sys="${BATS_TEST_TMPDIR}/usr/local/bin/mytool"
   local _old_src="${BATS_TEST_TMPDIR}/old/src"
   local _new_src="${BATS_TEST_TMPDIR}/new/src"
@@ -745,7 +745,7 @@ ${_home}/.config/zsh/.zshrc"
 
 @test "shell__create_symlink creates parent directories for user target" {
   [ "$(id -u)" -eq 0 ] && skip "Cannot simulate non-writable directory as root (chmod 555 bypassed by CAP_DAC_OVERRIDE)"
-  reload_lib shell.sh
+  reload_lib
   local _sys_dir="${BATS_TEST_TMPDIR}/readonly/bin"
   local _usr="${BATS_TEST_TMPDIR}/deep/user/bin/mytool"
   mkdir -p "$_sys_dir"
@@ -764,7 +764,7 @@ ${_home}/.config/zsh/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__write_env_block writes block to explicit file list" {
-  reload_lib shell.sh
+  reload_lib
   shell__write_env_block \
     --opt "${BATS_TEST_TMPDIR}/explicit_rc" \
     --marker "test block" \
@@ -774,7 +774,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__write_env_block routes auto to system_path_files when root" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "0"
   prepend_fake_bin_path
   local _sys_file="${BATS_TEST_TMPDIR}/fake_system_rc"
@@ -791,7 +791,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__write_env_block routes auto to user_path_files when non-root" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
   local _home="${BATS_TEST_TMPDIR}/home_nonroot"
@@ -813,14 +813,14 @@ ${_home}/.config/zsh/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__detect_installed_shells always returns bash" {
-  reload_lib shell.sh
+  reload_lib
   run shell__detect_installed_shells
   assert_line "bash"
   assert_success
 }
 
 @test "shell__detect_installed_shells returns zsh when binary is on PATH" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "zsh" ""
   prepend_fake_bin_path
   run shell__detect_installed_shells
@@ -830,7 +830,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__detect_installed_shells returns fish when /etc/fish directory exists" {
-  reload_lib shell.sh
+  reload_lib
   mkdir -p "${BATS_TEST_TMPDIR}/etc/fish"
   # Stub so detect_installed_shells sees the tmp /etc/fish
   shell__detect_installed_shells() {
@@ -847,7 +847,7 @@ ${_home}/.config/zsh/.zshrc"
 
 @test "shell__detect_installed_shells does not include tcsh when binary absent" {
   [[ "$(uname -s)" == Darwin ]] && skip "macOS ships with tcsh pre-installed"
-  reload_lib shell.sh
+  reload_lib
   run shell__detect_installed_shells
   refute_line "tcsh"
   assert_success
@@ -858,7 +858,7 @@ ${_home}/.config/zsh/.zshrc"
 # ---------------------------------------------------------------------------
 
 @test "shell__sync_config write mode user fish: writes content to config.fish" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
   local _home="${BATS_TEST_TMPDIR}/home_fish"
@@ -875,7 +875,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__sync_config write mode system bash rc-only: writes only to bashrc" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "0"
   prepend_fake_bin_path
   local _brc="${BATS_TEST_TMPDIR}/bash_rc_only.bashrc"
@@ -892,7 +892,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__sync_config write mode user bash everywhere: writes to login file and .bashrc" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
   local _home="${BATS_TEST_TMPDIR}/home_scuser"
@@ -912,7 +912,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__sync_config write mode user bash rc-only: writes only to .bashrc" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
   local _home="${BATS_TEST_TMPDIR}/home_rc_user"
@@ -935,7 +935,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__sync_config remove mode: removes marker from all bash locations" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "0"
   prepend_fake_bin_path
   local _brc="${BATS_TEST_TMPDIR}/remove_bashrc"
@@ -958,7 +958,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__sync_config write mode system zsh everywhere: writes to zshenv" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "0"
   prepend_fake_bin_path
   local _zshdir="${BATS_TEST_TMPDIR}/zsh_dir"
@@ -977,7 +977,7 @@ ${_home}/.config/zsh/.zshrc"
 }
 
 @test "shell__sync_config write mode handles multiple shells in one call" {
-  reload_lib shell.sh
+  reload_lib
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
   local _home="${BATS_TEST_TMPDIR}/home_multi"

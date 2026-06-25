@@ -6,7 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  reload_lib proc.sh
+  reload_lib
 }
 
 @test "proc__run_command_form runs JSON string via sh -c" {

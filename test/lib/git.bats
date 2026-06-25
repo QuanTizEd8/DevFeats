@@ -6,7 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  reload_lib git.sh
+  reload_lib
   # Stub bootstrap__git to succeed by default; individual tests override as needed.
   bootstrap__git() { return 0; }
   export -f bootstrap__git

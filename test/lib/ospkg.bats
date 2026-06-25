@@ -27,7 +27,7 @@ _require_ospkg_jq() {
 # ---------------------------------------------------------------------------
 
 @test "_ospkg__detect identifies apt-get ecosystem" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "apt-get"
   create_fake_bin "uname" "Linux"
   prepend_fake_bin_path
@@ -38,7 +38,7 @@ _require_ospkg_jq() {
 }
 
 @test "_ospkg__detect identifies apk ecosystem" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "apk"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
@@ -48,7 +48,7 @@ _require_ospkg_jq() {
 }
 
 @test "_ospkg__detect identifies dnf ecosystem" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "dnf"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
@@ -58,7 +58,7 @@ _require_ospkg_jq() {
 }
 
 @test "_ospkg__detect is idempotent when _OSPKG__DETECTED=true" {
-  reload_lib ospkg.sh
+  reload_lib
   _OSPKG__DETECTED=true
   _OSPKG__FAMILY="sentinel"
   _ospkg__detect
@@ -66,7 +66,7 @@ _require_ospkg_jq() {
 }
 
 @test "_ospkg__detect fails when no package manager is found" {
-  reload_lib ospkg.sh
+  reload_lib
   begin_path_isolation mkdir chmod
   rm -f "${BATS_TEST_TMPDIR}/bin/uname"
   create_fake_bin "uname" "Linux"
@@ -77,7 +77,7 @@ _require_ospkg_jq() {
 }
 
 @test "_ospkg__detect identifies zypper ecosystem" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "zypper"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
@@ -87,7 +87,7 @@ _require_ospkg_jq() {
 }
 
 @test "_ospkg__detect identifies microdnf ecosystem" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "microdnf"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
@@ -101,7 +101,7 @@ _require_ospkg_jq() {
 # ---------------------------------------------------------------------------
 
 @test "ospkg__pm_key prints manifest key not tool name for apt" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "apt-get"
   create_fake_bin "uname" "Linux"
   prepend_fake_bin_path
@@ -111,7 +111,7 @@ _require_ospkg_jq() {
 }
 
 @test "ospkg__pm_key maps microdnf to dnf key" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "microdnf"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
@@ -122,7 +122,7 @@ _require_ospkg_jq() {
 }
 
 @test "ospkg__deb_arch is empty on non-apt PM" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "apk"
   create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
@@ -137,7 +137,7 @@ _require_ospkg_jq() {
 # ---------------------------------------------------------------------------
 
 _seed_apt_context() {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "apt-get"
   # Argument-aware fake: -s (kernel name) → Linux, -m (machine arch) → x86_64.
   # create_fake_bin ignores arguments; write the script directly instead.
@@ -173,7 +173,7 @@ _stub_ospkg_privilege_ok() {
 }
 
 @test "ospkg__update skips when update command array is empty" {
-  reload_lib ospkg.sh
+  reload_lib
   # Seed a microdnf-like context: detected, but no update command.
   create_fake_bin "microdnf"
   create_fake_bin "uname" "Linux"
@@ -196,7 +196,7 @@ _stub_ospkg_privilege_ok() {
 # ---------------------------------------------------------------------------
 
 @test "_ospkg__assert_privilege: returns 0 for brew (no privilege required)" {
-  reload_lib ospkg.sh
+  reload_lib
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="brew"
   run _ospkg__assert_privilege
@@ -354,7 +354,7 @@ _stub_ospkg_privilege_ok() {
 # ---------------------------------------------------------------------------
 
 @test "_ospkg__detect identifies brew on macOS (Darwin)" {
-  reload_lib ospkg.sh
+  reload_lib
   # Fake 'uname' returning Darwin and a fake 'brew' binary.
   create_fake_bin "uname" "Darwin"
   create_fake_bin "brew" ""
@@ -368,7 +368,7 @@ _stub_ospkg_privilege_ok() {
 }
 
 @test "_ospkg__detect selects brew when _OSPKG__PREFER_LINUXBREW=true and brew is on PATH" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "uname" "Linux"
   create_fake_bin "apt-get" ""
   create_fake_bin "brew" ""
@@ -380,7 +380,7 @@ _stub_ospkg_privilege_ok() {
 }
 
 @test "_ospkg__detect falls back to native PM when _OSPKG__PREFER_LINUXBREW=true but brew absent" {
-  reload_lib ospkg.sh
+  reload_lib
   create_fake_bin "uname" "Linux"
   create_fake_bin "apt-get" ""
   # Use restricted PATH so real brew is not found.
@@ -652,7 +652,7 @@ YQ
   # Regression: Linux-only build manifests on macOS must not snapshot via brew list
   # before `when` is evaluated (brew may be absent during reinstall).
   _require_ospkg_jq
-  reload_lib ospkg.sh
+  reload_lib
 
   local _snap_log="${BATS_TEST_TMPDIR}/snapshot-calls"
   : > "$_snap_log"
@@ -698,7 +698,7 @@ YQ
 # ---------------------------------------------------------------------------
 
 @test "ctx__expand_pattern expands qualified ctx tokens" {
-  reload_lib ospkg.sh
+  reload_lib
   ctx__set feat.version=2.89.0
   ctx__set os.version_codename=stable
   _CTX__REGISTRY_INITIALIZED=true
@@ -709,7 +709,7 @@ YQ
 }
 
 @test "ctx__expand_pattern: empty ctx value collapses placeholder" {
-  reload_lib ospkg.sh
+  reload_lib
   ctx__set feat.version=
   _CTX__REGISTRY_INITIALIZED=true
 
@@ -719,7 +719,7 @@ YQ
 }
 
 @test "ctx__expand_pattern: os and feat tokens expand together" {
-  reload_lib ospkg.sh
+  reload_lib
   ctx__set os.id=ubuntu
   ctx__set feat.version=2.89.0
   _CTX__REGISTRY_INITIALIZED=true
@@ -730,7 +730,7 @@ YQ
 }
 
 @test "ctx__expand_pattern: unknown placeholder left unchanged" {
-  reload_lib ospkg.sh
+  reload_lib
   _CTX__REGISTRY_INITIALIZED=true
 
   local _result
@@ -1068,7 +1068,7 @@ _mock_snapshots() {
 # _seed_managed_context <family> — pre-seeds detection state so ospkg__is_managed
 # skips _ospkg__detect and dispatches on the given family directly.
 _seed_managed_context() {
-  reload_lib ospkg.sh
+  reload_lib
   _OSPKG__DETECTED=true
   _OSPKG__FAMILY="${1}"
   _OSPKG__PKG_MNGR="${1}"
@@ -1234,7 +1234,7 @@ _seed_managed_context() {
 }
 
 @test "ospkg__is_managed: _ospkg__detect failure → returns 1" {
-  reload_lib ospkg.sh
+  reload_lib
   local _bin
   _bin="$(mktemp "${BATS_TEST_TMPDIR}/bin-XXXXXX")"
   # Isolate PATH to a dir with no package managers; uname stays available.
@@ -1287,7 +1287,7 @@ _seed_managed_context() {
 }
 
 @test "ospkg__is_installed: dnf — returns 0 when rpm -q succeeds" {
-  reload_lib ospkg.sh
+  reload_lib
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="dnf"
   create_fake_bin "rpm" ""
@@ -1297,7 +1297,7 @@ _seed_managed_context() {
 }
 
 @test "ospkg__is_installed: dnf — returns 1 when rpm -q fails" {
-  reload_lib ospkg.sh
+  reload_lib
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="dnf"
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
@@ -1327,7 +1327,7 @@ _seed_managed_context() {
 }
 
 @test "ospkg__is_installed: brew — returns 0 when brew list --formula succeeds" {
-  reload_lib ospkg.sh
+  reload_lib
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="brew"
   create_fake_bin "brew" ""
@@ -1337,7 +1337,7 @@ _seed_managed_context() {
 }
 
 @test "ospkg__is_installed: brew — returns 1 when brew list --formula fails" {
-  reload_lib ospkg.sh
+  reload_lib
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="brew"
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
@@ -1369,7 +1369,7 @@ _seed_managed_context() {
 }
 
 @test "ospkg__is_installed: returns 1 when _ospkg__detect fails" {
-  reload_lib ospkg.sh
+  reload_lib
   begin_path_isolation uname
   run ospkg__is_installed curl
   end_path_isolation
@@ -1380,7 +1380,7 @@ _seed_managed_context() {
 @test "ospkg__run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
   _require_ospkg_jq
-  reload_lib ospkg.sh
+  reload_lib
 
   # A fake yq that ignores its arguments and emits a fixed JSON manifest.
   local _fake_yq="${BATS_TEST_TMPDIR}/bin/yq"
@@ -1446,7 +1446,7 @@ _seed_managed_context() {
 }
 
 @test "ospkg__take_initial_snapshot creates empty file for unknown PM" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   # Force an unknown PM context directly to test the '*' case.
   _OSPKG__DETECTED=true
@@ -1567,7 +1567,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__cleanup_session_build_groups: no-ops when _SYSSET_SESSION_TRACK_DIR is unset" {
-  reload_lib ospkg.sh
+  reload_lib
   unset _SYSSET_SESSION_TRACK_DIR
 
   run ospkg__cleanup_session_build_groups "false"
@@ -1575,7 +1575,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__cleanup_session_build_groups: no-ops when session dir does not exist" {
-  reload_lib ospkg.sh
+  reload_lib
   export _SYSSET_SESSION_TRACK_DIR="${BATS_TEST_TMPDIR}/no_such_dir_xyz"
 
   run ospkg__cleanup_session_build_groups "false"
@@ -1686,7 +1686,7 @@ _seed_session_cleanup_context() {
 # ---------------------------------------------------------------------------
 
 @test "ospkg__track_resource: writes path to local resource sidecar" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   unset _SYSSET_SESSION_TRACK_DIR
 
@@ -1698,7 +1698,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__track_resource: multiple paths written in order" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   unset _SYSSET_SESSION_TRACK_DIR
 
@@ -1711,7 +1711,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__track_resource: also mirrors to session resources dir when session dir set" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   local _session_dir
   _session_dir="$(mktemp -d "${BATS_TEST_TMPDIR}/session_XXXXXX")"
@@ -1731,7 +1731,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__track_resource: no session mirror when session dir does not exist" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   export _SYSSET_SESSION_TRACK_DIR="${BATS_TEST_TMPDIR}/no_such_session_xyz"
 
@@ -1744,7 +1744,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__cleanup_resources: removes tracked files" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   # Create real files to be removed.
@@ -1760,7 +1760,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__cleanup_resources: sidecar is deleted after processing" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   local _f="${BATS_TEST_TMPDIR}/tracked_file_c"
@@ -1776,7 +1776,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__cleanup_resources: non-existent path does not cause failure" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
 
   # Register a path that does not exist.
@@ -1789,7 +1789,7 @@ _seed_session_cleanup_context() {
 }
 
 @test "ospkg__cleanup_resources: no-ops when resources dir is absent" {
-  reload_lib ospkg.sh
+  reload_lib
   # Point _FILE__SESSION_ROOT to a dir with no ospkg/resources subdir.
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}/empty_root"
   mkdir -p "$_FILE__SESSION_ROOT"
@@ -1804,7 +1804,7 @@ _seed_session_cleanup_context() {
 
 # _seed_pacman_context — pacman build context with fully-detected state.
 _seed_pacman_context() {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="pacman"
@@ -1821,7 +1821,7 @@ _seed_pacman_context() {
 
 # _seed_apk_context — Alpine APK build context with fully-detected state.
 _seed_apk_context() {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="apk"
@@ -1837,7 +1837,7 @@ _seed_apk_context() {
 
 # _seed_yum_context — yum (not dnf) build context; tests the dnf→$PM fix.
 _seed_yum_context() {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   _OSPKG__DETECTED=true
   _OSPKG__PKG_MNGR="yum"
@@ -1927,7 +1927,7 @@ _create_smart_rpm() {
 # ---------------------------------------------------------------------------
 
 @test "_ospkg__apk_virtual_name: sanitizes slashes and colons to hyphens, lowercases, prefixes .df-" {
-  reload_lib ospkg.sh
+  reload_lib
   local _result
   _result="$(_ospkg__apk_virtual_name "Ctx::Group/Sub")"
   # Uppercase → lowercase, :: → --, / → -
@@ -1938,14 +1938,14 @@ _create_smart_rpm() {
 }
 
 @test "_ospkg__apk_virtual_name: preserves valid chars (alphanumeric and hyphen)" {
-  reload_lib ospkg.sh
+  reload_lib
   local _result
   _result="$(_ospkg__apk_virtual_name "my-group-123")"
   [[ "$_result" == ".df-my-group-123" ]]
 }
 
 @test "_ospkg__apk_virtual_name: spaces and special chars become hyphens" {
-  reload_lib ospkg.sh
+  reload_lib
   local _result
   _result="$(_ospkg__apk_virtual_name "my group@pkg")"
   [[ ! "$_result" == *" "* ]]
@@ -1953,7 +1953,7 @@ _create_smart_rpm() {
 }
 
 @test "_ospkg__apk_virts_file: appends .apkvirts suffix to sidecar path" {
-  reload_lib ospkg.sh
+  reload_lib
   local _result
   _result="$(_ospkg__apk_virts_file "/tmp/build-deps/my-group")"
   [[ "$_result" == "/tmp/build-deps/my-group.apkvirts" ]]
@@ -2820,7 +2820,7 @@ _create_smart_rpm() {
 # =======================
 
 _setup_resolve_version() {
-  reload_lib ospkg.sh
+  reload_lib
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
 }
 
@@ -3036,7 +3036,7 @@ YQ_EOF
 # ============================
 
 _setup_has_available_version() {
-  reload_lib ospkg.sh
+  reload_lib
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
 }
 

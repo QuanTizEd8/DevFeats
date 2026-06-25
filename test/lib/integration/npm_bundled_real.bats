@@ -31,7 +31,7 @@ _NPM_INT_CMD="semver"
 
 setup() {
   load '../helpers/common'
-  reload_lib npm.sh
+  reload_lib
 
   if [[ "${SYSSET_RUN_INTEGRATION_DEPS:-0}" != "1" ]]; then
     skip "set SYSSET_RUN_INTEGRATION_DEPS=1 to run integration tests"

@@ -91,7 +91,6 @@ setup() {
   assert_output "${BATS_TEST_TMPDIR}/cached-yq"
 }
 
-
 # ===========================================================================
 # bootstrap__oras — fast paths (no network)
 # ===========================================================================
@@ -139,7 +138,7 @@ setup() {
 # ===========================================================================
 
 @test "ospkg__untrack_resource removes tracked paths from sidecar" {
-  reload_lib ospkg.sh
+  reload_lib
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   ospkg__track_resource "abc" "/tmp/one" "/tmp/two"
 

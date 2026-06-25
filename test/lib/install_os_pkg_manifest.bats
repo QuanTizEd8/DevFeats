@@ -51,7 +51,7 @@ _require_manifest_prereqs() {
 _seed_context() {
   local _pm="$1" _id="$2" _id_like="${3:-}" _version_id="${4:-}"
 
-  reload_lib ospkg.sh ctx.sh
+  reload_lib
 
   # Create only the target PM binary and a uname stub in the fake bin dir.
   create_fake_bin "uname" "Linux"

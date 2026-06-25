@@ -7,7 +7,7 @@ setup() {
   load 'helpers/common'
   load 'helpers/json_assert'
   load 'helpers/stubs'
-  reload_lib json.sh
+  reload_lib
 }
 
 @test "json__root_scalar_stdin prints string and numeric keys from stdin JSON" {
@@ -135,7 +135,7 @@ z"
 }
 
 @test "bootstrap__jq: calls ospkg__install_tracked when jq absent" {
-  reload_lib json.sh
+  reload_lib
 
   local _install_log="${BATS_TEST_TMPDIR}/install.log"
   local _fake_jq="${BATS_TEST_TMPDIR}/bin/jq"

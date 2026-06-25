@@ -6,7 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  reload_lib users.sh
+  reload_lib
 }
 
 # ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ carol"
 # ---------------------------------------------------------------------------
 
 @test "users__set_login_shell warns when chsh is not installed" {
-  reload_lib users.sh
+  reload_lib
   # Stub ospkg__run to simulate chsh being unavailable/uninstallable.
   ospkg__run() { return 1; }
   run users__set_login_shell "/usr/bin/zsh" "alice"
@@ -133,7 +133,7 @@ carol"
 }
 
 @test "users__set_login_shell skips user whose shell is already set" {
-  reload_lib users.sh
+  reload_lib
   ospkg__run() { return 0; } # chsh already on PATH; skip package install
   create_fake_bin "chsh" ""
   # fake getent returns a passwd line where the shell is already /usr/bin/zsh
@@ -149,7 +149,7 @@ EOF
 }
 
 @test "users__set_login_shell changes the shell when it differs" {
-  reload_lib users.sh
+  reload_lib
   ospkg__run() { return 0; }        # chsh already on PATH; skip package install
   users__run_privileged() { "$@"; } # run directly (no sudo) so fake PATH is used
   create_fake_bin "chsh" ""
@@ -278,7 +278,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "users__run_as runs in-process when user matches" {
-  reload_lib os.sh
+  reload_lib
   _me="$(id -un)"
   run users__run_as "$_me" -- echo "ran"
   assert_output "ran"
@@ -286,7 +286,7 @@ EOF
 }
 
 @test "users__run_as same user: --cwd changes directory" {
-  reload_lib os.sh
+  reload_lib
   _me="$(id -un)"
   run users__run_as "$_me" --cwd "$BATS_TEST_TMPDIR" -- pwd
   assert_success
@@ -294,7 +294,7 @@ EOF
 }
 
 @test "users__run_as same user: --cwd with spaces in path" {
-  reload_lib os.sh
+  reload_lib
   _me="$(id -un)"
   _dir="$BATS_TEST_TMPDIR/path with spaces"
   mkdir -p "$_dir"
@@ -304,13 +304,13 @@ EOF
 }
 
 @test "users__run_as returns failure when user argument is empty" {
-  reload_lib os.sh
+  reload_lib
   run users__run_as "" -- echo "nope"
   assert_failure
 }
 
 @test "users__run_as returns failure when no command given" {
-  reload_lib os.sh
+  reload_lib
   _me="$(id -un)"
   run users__run_as "$_me" --
   assert_failure
@@ -325,7 +325,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "users__run_as different user: runs command via su" {
-  reload_lib os.sh
+  reload_lib
   create_fake_bin "id" "notme"
   prepend_fake_bin_path
   su() { eval "$4"; }
@@ -337,7 +337,7 @@ EOF
 }
 
 @test "users__run_as different user: preserves args with spaces" {
-  reload_lib os.sh
+  reload_lib
   create_fake_bin "id" "notme"
   prepend_fake_bin_path
   su() { eval "$4"; }
@@ -349,7 +349,7 @@ EOF
 }
 
 @test "users__run_as different user: --cwd with spaces in path" {
-  reload_lib os.sh
+  reload_lib
   create_fake_bin "id" "notme"
   prepend_fake_bin_path
   _dir="$BATS_TEST_TMPDIR/path with spaces"
@@ -363,7 +363,7 @@ EOF
 }
 
 @test "users__run_as different user: --cwd with single quote in path" {
-  reload_lib os.sh
+  reload_lib
   create_fake_bin "id" "notme"
   prepend_fake_bin_path
   _dir="$BATS_TEST_TMPDIR/user's dir"
@@ -377,7 +377,7 @@ EOF
 }
 
 @test "users__run_as fails with error when bash is not on PATH" {
-  reload_lib os.sh
+  reload_lib
   create_fake_bin "id" "notme"
   begin_path_isolation # only fake bin dir; bash not present
   run users__run_as "otheruser" -- echo "nope"
@@ -387,7 +387,7 @@ EOF
 }
 
 @test "users__run_as different user: bootstraps su when absent" {
-  reload_lib os.sh
+  reload_lib
   begin_path_isolation mktemp chmod bash mkdir
   create_fake_bin "id" "notme"
   bootstrap__su() {
@@ -712,21 +712,21 @@ EOF
 
 @test "users__is_user_path: non-root, writable path is user-local" {
   (($(id -u) != 0)) || skip "requires non-root"
-  reload_lib users.sh
+  reload_lib
   run users__is_user_path "$BATS_TEST_TMPDIR"
   assert_success
 }
 
 @test "users__is_user_path: non-root, non-existent path under writable parent is user-local" {
   (($(id -u) != 0)) || skip "requires non-root"
-  reload_lib users.sh
+  reload_lib
   run users__is_user_path "$BATS_TEST_TMPDIR/does-not-exist/bin"
   assert_success
 }
 
 @test "users__is_user_path: non-root, path under non-writable root ancestor is system" {
   (($(id -u) != 0)) || skip "requires non-root"
-  reload_lib users.sh
+  reload_lib
   run users__is_user_path "/_devfeats_test_nonexistent_xyz/bin"
   assert_failure
 }
@@ -736,7 +736,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "users__is_user_path: root, path under root's resolved home is user-local" {
-  reload_lib users.sh
+  reload_lib
   users__is_root() { return 0; }
   users__resolve_home() { printf '/root\n'; }
   export -f users__is_root users__resolve_home
@@ -745,7 +745,7 @@ EOF
 }
 
 @test "users__is_user_path: root, path owned by regular user (UID 1000) is user-local" {
-  reload_lib users.sh
+  reload_lib
   users__is_root() { return 0; }
   users__resolve_home() { :; }
   users__uid_of_path_owner() { printf '1000\n'; }
@@ -755,7 +755,7 @@ EOF
 }
 
 @test "users__is_user_path: root, path owned by UID 65533 (upper boundary) is user-local" {
-  reload_lib users.sh
+  reload_lib
   users__is_root() { return 0; }
   users__resolve_home() { :; }
   users__uid_of_path_owner() { printf '65533\n'; }
@@ -765,7 +765,7 @@ EOF
 }
 
 @test "users__is_user_path: root, path owned by root (UID 0) is system" {
-  reload_lib users.sh
+  reload_lib
   users__is_root() { return 0; }
   users__resolve_home() { printf '/root\n'; }
   users__uid_of_path_owner() { printf '0\n'; }
@@ -775,7 +775,7 @@ EOF
 }
 
 @test "users__is_user_path: root, path owned by system user (UID 999) is system" {
-  reload_lib users.sh
+  reload_lib
   users__is_root() { return 0; }
   users__resolve_home() { :; }
   users__uid_of_path_owner() { printf '999\n'; }
@@ -786,7 +786,7 @@ EOF
 }
 
 @test "users__is_user_path: root, path owned by nobody (UID 65534) is system" {
-  reload_lib users.sh
+  reload_lib
   users__is_root() { return 0; }
   users__resolve_home() { :; }
   users__uid_of_path_owner() { printf '65534\n'; }
@@ -796,7 +796,7 @@ EOF
 }
 
 @test "users__is_user_path: root, macOS user (UID 501) is user-local" {
-  reload_lib users.sh
+  reload_lib
   users__is_root() { return 0; }
   users__resolve_home() { :; }
   users__uid_of_path_owner() { printf '501\n'; }
@@ -807,7 +807,7 @@ EOF
 }
 
 @test "users__is_user_path: root, macOS system account (UID 499) is system" {
-  reload_lib users.sh
+  reload_lib
   users__is_root() { return 0; }
   users__resolve_home() { :; }
   users__uid_of_path_owner() { printf '499\n'; }
@@ -822,7 +822,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "users__is_user_path: specific user, path under user's home is user-local" {
-  reload_lib users.sh
+  reload_lib
   users__resolve_home() { printf '/home/alice\n'; }
   users__uid_of_user() { printf '1001\n'; }
   export -f users__resolve_home users__uid_of_user
@@ -831,7 +831,7 @@ EOF
 }
 
 @test "users__is_user_path: specific user, path not under home but owned by user is user-local" {
-  reload_lib users.sh
+  reload_lib
   users__resolve_home() { printf '/home/alice\n'; }
   users__uid_of_user() { printf '1001\n'; }
   users__uid_of_path_owner() { printf '1001\n'; }
@@ -841,7 +841,7 @@ EOF
 }
 
 @test "users__is_user_path: specific user, system path not owned by user is system" {
-  reload_lib users.sh
+  reload_lib
   users__resolve_home() { printf '/home/alice\n'; }
   users__uid_of_user() { printf '1001\n'; }
   users__uid_of_path_owner() { printf '0\n'; }
@@ -851,7 +851,7 @@ EOF
 }
 
 @test "users__is_user_path: specific user via --uid, path under user's home is user-local" {
-  reload_lib users.sh
+  reload_lib
   users__resolve_home() { printf '/home/alice\n'; }
   export -f users__resolve_home
   run users__is_user_path --uid 1001 /home/alice/.config/nvim
@@ -859,7 +859,7 @@ EOF
 }
 
 @test "users__is_user_path: specific user via --uid, path owned by uid is user-local" {
-  reload_lib users.sh
+  reload_lib
   users__resolve_home() { printf '/home/alice\n'; }
   users__uid_of_path_owner() { printf '1001\n'; }
   export -f users__resolve_home users__uid_of_path_owner
@@ -868,7 +868,7 @@ EOF
 }
 
 @test "users__is_user_path: specific user, exact home dir itself is system (no trailing-slash match)" {
-  reload_lib users.sh
+  reload_lib
   users__resolve_home() { printf '/home/alice\n'; }
   users__uid_of_user() { printf '1001\n'; }
   users__uid_of_path_owner() { printf '0\n'; }

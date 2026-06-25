@@ -6,13 +6,13 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/ctx'
-  reload_lib ctx.sh ospkg.sh
+  reload_lib
 }
 
 _when_jq_matches() {
   local _yaml="$1"
   local _result
-  _result="$(ctx_test__jq_when "${_yaml}" 2>/dev/null || echo false)"
+  _result="$(ctx_test__jq_when "${_yaml}" 2> /dev/null || echo false)"
   [[ "${_result}" == "true" ]]
 }
 
@@ -61,7 +61,7 @@ _when_jq_matches() {
   ctx_test__seed_plat pm=dnf
   run ctx__match_when "${_yaml}"
   assert_failure
-  [[ "$(ctx_test__jq_when "${_yaml}" 2>/dev/null || echo false)" == false ]]
+  [[ "$(ctx_test__jq_when "${_yaml}" 2> /dev/null || echo false)" == false ]]
 }
 
 @test "when semantics: multi-op AND range (bash + jq)" {
@@ -83,7 +83,7 @@ _when_jq_matches() {
   ctx_test__seed_plat pm=dnf
   run ctx__match_when "${_yaml}"
   assert_failure
-  [[ "$(ctx_test__jq_when "${_yaml}" 2>/dev/null || echo false)" == false ]]
+  [[ "$(ctx_test__jq_when "${_yaml}" 2> /dev/null || echo false)" == false ]]
 }
 
 @test "when semantics: prerelease ordering (bash + jq)" {
@@ -101,7 +101,7 @@ _when_jq_matches() {
   local _yaml=$'feat.version:\n  gte: "1.0"'
   run ctx__match_when "${_yaml}"
   assert_failure
-  [[ "$(ctx_test__jq_when "${_yaml}" 2>/dev/null || echo false)" == false ]]
+  [[ "$(ctx_test__jq_when "${_yaml}" 2> /dev/null || echo false)" == false ]]
 }
 
 @test "when semantics: os.id_like token match (bash + jq)" {
@@ -119,7 +119,7 @@ _when_jq_matches() {
   local _yaml=$'os.id_like:\n  gte: rhel'
   run ctx__match_when "${_yaml}"
   assert_failure
-  [[ "$(ctx_test__jq_when "${_yaml}" 2>/dev/null || echo false)" == false ]]
+  [[ "$(ctx_test__jq_when "${_yaml}" 2> /dev/null || echo false)" == false ]]
 }
 
 @test "when semantics: impossible AND never matches (bash + jq)" {
@@ -129,7 +129,7 @@ _when_jq_matches() {
   local _yaml=$'plat.kernel: linux\nplat.pm: apk'
   run ctx__match_when "${_yaml}"
   assert_failure
-  [[ "$(ctx_test__jq_when "${_yaml}" 2>/dev/null || echo false)" == false ]]
+  [[ "$(ctx_test__jq_when "${_yaml}" 2> /dev/null || echo false)" == false ]]
 }
 
 @test "when semantics: empty string when matches (bash)" {
@@ -146,6 +146,6 @@ _when_jq_matches() {
   _ctx_json="$(ctx__json)"
   _result="$(json__query -L "${LIB_ROOT}" \
     --argjson ctx "${_ctx_json}" --argjson when "${_null_json}" \
-    -n -f "${LIB_ROOT}/ctx-when-eval.jq" 2>/dev/null || echo false)"
+    -n -f "${LIB_ROOT}/ctx-when-eval.jq" 2> /dev/null || echo false)"
   [[ "${_result}" == "true" ]]
 }
