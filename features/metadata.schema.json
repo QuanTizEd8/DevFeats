@@ -559,6 +559,11 @@
           "description": "Additional signal (next to `_options.method.upstream-package`) for incuding the `keep_repos` shared option in the feature. Used by features like `install-os-pkg` that don't have a `_options.method.upstream-package` but still need to support the `keep_repos` behavior.",
           "type": "boolean",
           "default": false
+        },
+        "configure_users": {
+          "description": "When true, auto-injects the four user-resolution options (`add_current_user`, `add_remote_user`, `add_container_user`, `add_users`) and auto-calls `__feat_do_configure_users__` in the install-finish and skip lifecycles. The feature must define `__configure_user <username>` to implement the per-user logic.",
+          "type": "boolean",
+          "default": false
         }
       }
     },

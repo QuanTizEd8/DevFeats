@@ -83,6 +83,7 @@ __if_exists_dispatch__() {
       skip)
         logging__info "'${_FEAT_CONTRACT_PRIMARY_BIN:-tool}' already present at '${_FEAT_EXISTING_PATH}'; skipping (if_exists=skip)."
         __deploy_lifecycle_scripts__ --skip
+        ${{ _script.configure_users_call }}$
         __run_feature_hook__ __skip_post
         logging__info "Skip lifecycle finished; exiting with status 0."
         exit 0
@@ -1520,6 +1521,7 @@ __install_finish__() {
   fi
   ${{ _script.shell_completions_call }}$
   __deploy_lifecycle_scripts__
+  ${{ _script.configure_users_call }}$
 
   __run_feature_hook__ __install_finish_post
   logging__success "Installation complete."

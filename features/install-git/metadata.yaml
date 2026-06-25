@@ -75,30 +75,6 @@ options:
       ```
 
       Written after `default_branch` and `safe_directory` settings. Set to `''` to skip.
-  add_current_user:
-    type: boolean
-    default: true
-    description: |-
-      Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user gitconfig writes.
-      Root is deferred: only included as a fallback when no other non-root user is resolved.
-  add_remote_user:
-    type: boolean
-    default: true
-    description: |-
-      Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user gitconfig writes.
-      Ignored when _REMOTE_USER is unset or empty. Root is excluded from this path.
-  add_container_user:
-    type: boolean
-    default: true
-    description: |-
-      Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user gitconfig writes.
-      Ignored when _CONTAINER_USER is unset or empty. Root is excluded from this path.
-  add_users:
-    type: array
-    default: ''
-    description: |-
-      Additional usernames to include in the resolved user list for per-user gitconfig writes.
-      Root is accepted here (unlike the auto-detected paths above).
   user_name:
     type: string
     default: ''
@@ -112,6 +88,7 @@ options:
     default: ''
     description: Freeform content to append to the per-user gitconfig (`~/.gitconfig`) for all resolved users. Accepts standard gitconfig format. Written after `user_name` and `user_email` settings. Set to `''` to skip.
 _options:
+  configure_users: true
   verify:
     args: "--version"
     description: Verify git is installed and working.

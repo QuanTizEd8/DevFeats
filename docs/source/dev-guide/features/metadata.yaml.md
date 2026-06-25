@@ -380,6 +380,20 @@ _options:
 
 When `true`, auto-injects `fetch_headers` (custom HTTP headers) and `fetch_netrc` (`.netrc` path) options. Use for features that accept user-provided URIs that may require authentication.
 
+### `_options.configure_users`
+
+```yaml
+_options:
+  configure_users: true
+```
+
+When `true`:
+
+1. Auto-injects four user-resolution options: `add_current_user`, `add_remote_user`, `add_container_user`, and `add_users`. These let the user control which accounts the feature configures at install time.
+2. Auto-calls `__feat_do_configure_users__` at the end of `__install_finish__` and in the `if_exists=skip` branch — no manual hook needed.
+
+The feature must define `__configure_user <username>` in `install.bash` to implement the per-user logic. See [`__configure_user`](install.bash.md#__configure_user-username----per-user-configuration) in the install.bash reference.
+
 ---
 
 ## `_dependencies`

@@ -137,8 +137,3 @@ __configure_user() {
 
   logging__success "Podman user configuration complete for '${_username}'."
 }
-
-__install_finish_post() {
-  logging__info "Running per-user Podman configuration."
-  __feat_do_configure_users__
-}

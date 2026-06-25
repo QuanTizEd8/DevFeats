@@ -564,8 +564,6 @@ __install_run__() {
 }
 
 __install_finish_post() {
-  __feat_do_configure_users__
-
   if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_FEAT_CONFIGURE_USERS[@]} -gt 0 ]; then
     local _TARGET_SHELL=""
     case "$SET_USER_SHELLS" in

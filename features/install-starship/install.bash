@@ -97,18 +97,6 @@ __configure_user() {
   logging__success "User '${_username}' Starship configuration complete."
 }
 
-# shellcheck disable=SC2329,SC2317
-__install_finish_post() {
-  __feat_do_configure_users__
-}
-
-# Re-run per-user activation when skipping installation (if_exists=skip),
-# so that adding a new shell to `shells` takes effect without reinstalling.
-# shellcheck disable=SC2329,SC2317
-__skip_post() {
-  __feat_do_configure_users__
-}
-
 # Remove all per-user Starship activation blocks written by __configure_user.
 # shellcheck disable=SC2329,SC2317
 __uninstall_finish_post() {

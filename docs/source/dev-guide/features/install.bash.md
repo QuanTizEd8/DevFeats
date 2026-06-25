@@ -284,7 +284,12 @@ __install_run_script_run() {
 
 ### `__configure_user <username>` — per-user configuration
 
-Called for each resolved user when you invoke `__feat_do_configure_users__`. Implement this + call `__feat_do_configure_users__` in `__install_post`:
+Called for each resolved user by `__feat_do_configure_users__`. Declare `_options.configure_users: true` in `metadata.yaml` to:
+
+1. Auto-inject the four user-resolution options (`add_current_user`, `add_remote_user`, `add_container_user`, `add_users`) so the user controls which accounts are configured.
+2. Auto-call `__feat_do_configure_users__` at the end of `__install_finish__` and in the `if_exists=skip` branch — no manual hook needed.
+
+Just implement `__configure_user`:
 
 ```bash
 __configure_user() {
@@ -296,13 +301,11 @@ __configure_user() {
   # Or add shell init snippet
   shell__add_block "${username}" "tool-init" "eval \"\$(tool init shell)\""
 }
-
-__install_post() {
-  __feat_do_configure_users__
-}
 ```
 
-**Who gets configured** is controlled by user options: `add_current_user`, `add_remote_user`, `add_container_user`, `add_users`. These shared options are auto-injected and understood by `__feat_do_configure_users__`.
+`_FEAT_CONFIGURE_USERS` (array of resolved usernames) is set by `__feat_do_configure_users__` before `__install_finish_post` runs, so any additional per-user logic in that hook can use it directly.
+
+**Who gets configured** is controlled by the four injected options: `add_current_user` (default: true), `add_remote_user` (default: true), `add_container_user` (default: true), and `add_users` (extra explicit usernames).
 
 ### `__detect_existing__` — probe for existing installation
 
@@ -401,7 +404,7 @@ See {doc}`lib` for the full API reference.
 | Custom version lookup (not GitHub/npm/cargo) | `__resolve_version` |
 | Pre-install OS packages not in `_dependencies` | `__install_pre` with `ospkg__install` |
 | Post-install configuration (system-wide) | `__install_run_<method>_post` or `__install_post` |
-| Per-user dotfiles / shell config | `__configure_user` + `__feat_do_configure_users__` in `__install_post` |
+| Per-user dotfiles / shell config | `_options.configure_users: true` in metadata + `__configure_user` in `install.bash` |
 | Build from source, standard `./configure` + `make` | Nothing — declare `_options.method.source.build_system: autotools` |
 | Build from source, custom build logic | `__install_run_source_build <src_dir>` |
 | Handle existing installations (`if_exists`) | `__detect_existing__` (if tool not on PATH) |

@@ -147,30 +147,12 @@ options:
       each user's login environment.
       Downstream features (e.g. `install-ohmyzsh`, `install-starship`) append
       their configuration to this file via `shell__write_block`.
-  add_current_user:
-    default: true
-    description: Whether to add configuration for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root.
-    type: boolean
-  add_container_user:
-    default: true
-    description: Whether to add configuration for the `containerUser` set in the devcontainer.json file, which becomes the `_CONTAINER_USER` environment variable set by the devcontainer tooling. No effect when `_CONTAINER_USER` is not set.
-    type: boolean
-  add_remote_user:
-    default: true
-    description: Whether to add configuration for the `remoteUser` set in the devcontainer.json file, which becomes the `_REMOTE_USER` environment variable set by the devcontainer tooling. No effect when `_REMOTE_USER` is not set.
-    type: boolean
-  add_users:
-    default: ''
-    description: |-
-      Additional usernames to add shell configuration for, in addition to the users resolved by
-      `add_current_user`, `add_remote_user`, and `add_container_user`.
-    type: array
   set_user_shells:
     type: string
     default: zsh
     description: |-
       Whether to set users' default login shell via `chsh`.
-      Applies to all users resolved by `add_current_user`, `add_remote_user`, `add_container_user`, and `add_users`.
+      Applies to all users resolved by the `add_current_user`, `add_remote_user`, `add_container_user`, and `add_users` options.
       Raises an error if `zsh` is selected but Zsh is not available.
     enum:
     - value: zsh
@@ -207,6 +189,7 @@ options:
       description: >-
         Remove all managed blocks from per-user dotfiles; delete files that become empty.
 _options:
+  configure_users: true
   installer_dir: false
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/install-zsh

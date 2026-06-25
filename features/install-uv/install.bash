@@ -21,15 +21,3 @@ __configure_user() {
   file__chown "${_user}:${_user}" "${_receipt_dir}" "${_receipt_path}" 2> /dev/null || true
   logging__install "Wrote uv self-update receipt → ${_receipt_path}"
 }
-
-# shellcheck disable=SC2329,SC2317
-__install_finish_post() {
-  __feat_do_configure_users__
-}
-
-# Re-run receipt creation when skipping installation (if_exists=skip) so that
-# adding a new user or changing the prefix takes effect without reinstalling.
-# shellcheck disable=SC2329,SC2317
-__skip_post() {
-  __feat_do_configure_users__
-}

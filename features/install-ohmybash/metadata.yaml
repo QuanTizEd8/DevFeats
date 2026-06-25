@@ -76,6 +76,7 @@ options:
       - value: auto
         description: Allow automatic update checks.
 _options:
+  configure_users: true
   gh_repo: ohmybash/oh-my-bash
   version:
     resolution: git_ref

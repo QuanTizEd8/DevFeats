@@ -238,7 +238,3 @@ __configure_user() {
   file__chown -R "${_username}:${_group}" "$_home"
   logging__success "User '${_username}' Oh My Zsh configuration complete."
 }
-
-__install_finish_post() {
-  __feat_do_configure_users__
-}

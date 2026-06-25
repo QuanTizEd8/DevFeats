@@ -102,6 +102,7 @@ class InstallScriptGenerator:
                 metadata.get("_system_requirements", {})
             ),
             "shell_completions_call": self._generate_shell_completions_call(metadata),
+            "configure_users_call": self._generate_configure_users_call(metadata),
             "lifecycle_conf_vars": self._generate_lifecycle_conf_vars(metadata),
             "feature_functions": body,
         }
@@ -214,6 +215,13 @@ class InstallScriptGenerator:
             .get("_applies_when")
         )
         return _wrap_applies_when(applies_when, "__install_shell_completions__")
+
+    @staticmethod
+    def _generate_configure_users_call(metadata: dict) -> str:
+        """Return __feat_do_configure_users__ when _options.configure_users is set."""
+        if metadata.get("_options", {}).get("configure_users"):
+            return "__feat_do_configure_users__"
+        return ""
 
     def _generate_install_contract_vars(self, metadata: dict) -> dict[str, str]:
         """Emit internal _FEAT_CONTRACT_* and _FEAT_PREFIX_GUARD_* bash variables.

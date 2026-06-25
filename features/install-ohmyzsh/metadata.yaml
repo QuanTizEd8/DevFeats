@@ -101,6 +101,7 @@ options:
       - value: auto
         description: Update automatically without prompting.
 _options:
+  configure_users: true
   gh_repo: ohmyzsh/ohmyzsh
   version:
     resolution: git_ref

@@ -246,9 +246,6 @@ __install_finish_post() {
     _git__write_system_gitconfig
   fi
   _export_git_manpath
-  if [[ -n "${USER_NAME:-}${USER_EMAIL:-}${USER_GITCONFIG:-}" ]]; then
-    __feat_do_configure_users__
-  fi
 }
 
 # shellcheck disable=SC2329,SC2317

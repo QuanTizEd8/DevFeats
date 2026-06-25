@@ -18,6 +18,7 @@ _long_description: >-
 _tool_name: uv
 
 _options:
+  configure_users: true
   verify:
     args: "--version"
     description: Verify uv is installed and working.
