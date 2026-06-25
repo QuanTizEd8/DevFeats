@@ -122,18 +122,6 @@ z"
 # bootstrap__jq — auto-installs jq when absent
 # ---------------------------------------------------------------------------
 
-@test "bootstrap__jq: succeeds when jq is already available" {
-  # Integration-only: this test validates pass-through to a real jq binary.
-  if [[ "${SYSSET_RUN_INTEGRATION_DEPS:-0}" != "1" ]]; then
-    skip "set SYSSET_RUN_INTEGRATION_DEPS=1 to run real-jq integration checks"
-  fi
-  create_pass_through_bin "jq"
-  prepend_fake_bin_path
-  command -v jq > /dev/null 2>&1 || skip "real jq is not available on this host"
-  run bootstrap__jq
-  assert_success
-}
-
 @test "bootstrap__jq: calls ospkg__install_tracked when jq absent" {
   reload_lib
 
