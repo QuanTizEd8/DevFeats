@@ -146,7 +146,7 @@ The caller is responsible for adding `/opt/git/bin` to PATH.
 
 ### Gitconfig — Container Setup
 
-Trusts all directories (essential when the UID inside the container differs from the file owner), sets the default branch, and writes identity for the devcontainer `remoteUser`. Works with any `method`.
+Trusts all directories (essential when the UID inside the container differs from the file owner), sets the default branch, and writes a git identity. Works with any `method`.
 
 ```jsonc
 {
@@ -154,7 +154,6 @@ Trusts all directories (essential when the UID inside the container differs from
     "ghcr.io/quantized8/devfeats/install-git": {
       "safe_directory": "*",
       "default_branch": "main",
-      "add_remote_user": true,
       "user_name": "Dev User",
       "user_email": "dev@example.com"
     }
@@ -162,7 +161,7 @@ Trusts all directories (essential when the UID inside the container differs from
 }
 ```
 
-Standalone (non-root, writes to `~/.config/git/config` and `~/.gitconfig`):
+Standalone (non-root, writes to `~/.config/git/config`):
 ```bash
 curl -fsSL https://github.com/quantized8/devfeats/releases/latest/download/install-git.sh | \
   bash -s -- --safe_directory '*' --default_branch main --user_name 'Dev User' --user_email dev@example.com
@@ -170,15 +169,27 @@ curl -fsSL https://github.com/quantized8/devfeats/releases/latest/download/insta
 
 ---
 
-### Gitconfig — System-wide Custom Settings
+### Gitconfig — Custom Settings
 
-Appends freeform gitconfig content to `/etc/gitconfig` (system-level). Useful for organisation-wide defaults.
+Appends freeform gitconfig content. Accepts inline content or a URI. Useful for organisation-wide defaults or shared team config files.
 
 ```jsonc
 {
   "features": {
     "ghcr.io/quantized8/devfeats/install-git": {
-      "system_gitconfig": "[core]\n  autocrlf = input\n[push]\n  default = simple"
+      "gitconfig": "[core]\n  autocrlf = input\n[push]\n  default = simple"
+    }
+  }
+}
+```
+
+From a URI (private GitHub repo, with authentication via `fetch_headers`):
+
+```jsonc
+{
+  "features": {
+    "ghcr.io/quantized8/devfeats/install-git": {
+      "gitconfig": "gh://owner/repo@main:.devcontainer/git/config"
     }
   }
 }
@@ -389,51 +400,21 @@ When `$PREFIX` is `/usr/local`, MANPATH is not written (this prefix is included 
 
 The export blocks are idempotent — re-running the installer updates the block in place rather than appending duplicates (`shell__sync_block` marker pattern).
 
-### Gitconfig (`default_branch`, `safe_directory`, `system_gitconfig`, `add_*_user_config`, `user_name`, `user_email`, `user_gitconfig`)
+### Gitconfig (`default_branch`, `safe_directory`, `user_name`, `user_email`, `gitconfig`)
 
 The installer writes gitconfig settings after installation is complete. All gitconfig options are independent of `method` — they work the same whether git was installed from a package or built from source.
 
-#### System-level gitconfig
-
-Written to `/etc/gitconfig` (as root) or `$HOME/.config/git/config` (as non-root). The file is created or updated using `git config --file <target_file>` for each key/value, then the freeform `system_gitconfig` block is appended (if non-empty).
+All five options target the same file: `/etc/gitconfig` as root (or `${SYSCONFDIR}/gitconfig` when `sysconfdir` is set explicitly for source builds), or `~/.config/git/config` as non-root — the XDG global config path read by git in addition to `~/.gitconfig`.
 
 | Option | gitconfig key | Notes |
 |---|---|---|
 | `default_branch` | `init.defaultBranch` | Set to `""` to skip. Default: `"main"`. |
-| `safe_directory` | `safe.directory` | Newline-separated for multiple paths. `"*"` trusts all directories (container-friendly). Set to `""` to skip. |
-| `system_gitconfig` | (raw block) | Appended verbatim after all other system-level settings. Standard gitconfig section/key/value format. |
+| `safe_directory` | `safe.directory` | Array; `"*"` trusts all directories (container-friendly). Set to `""` to skip. |
+| `user_name` | `user.name` | Set to `""` to skip. |
+| `user_email` | `user.email` | Set to `""` to skip. |
+| `gitconfig` | (raw block) | Inline gitconfig or URI. Written before the named options above, so named options take precedence on conflict. Set to `""` to skip. |
 
-**Root note:** As root, these go to `/etc/gitconfig` (or `${SYSCONFDIR}/gitconfig` when `sysconfdir` is set explicitly). As non-root, they go to `$HOME/.config/git/config` — the user-level XDG config path, which git reads in addition to `~/.gitconfig`.
-
-#### Per-user gitconfig
-
-Written to `~/.gitconfig` for each resolved user. The user list is built from the four `add_*_user_config` options: `add_current_user`, `add_remote_user`, `add_container_user` (booleans), and `add_users` (comma-separated explicit usernames). As non-root, only the current user is ever written to; any extra names are ignored with a warning.
-
-Per-user settings are only written when at least one of `user_name`, `user_email`, or `user_gitconfig` is non-empty, **and** at least one of the user-config options resolves to a user.
-
-| Option | gitconfig key | Notes |
-|---|---|---|
-| `user_name` | `user.name` | Written via `git config --file <~/.gitconfig>`. Set to `""` to skip. |
-| `user_email` | `user.email` | As above. Set to `""` to skip. |
-| `user_gitconfig` | (raw block) | Appended verbatim after `user_name`/`user_email`. |
-
-#### Container pattern
-
-For a typical devcontainer with `remoteUser: "vscode"` that needs all repositories trusted and a default branch:
-
-```jsonc
-{
-  "features": {
-    "ghcr.io/quantized8/devfeats/install-git": {
-      "safe_directory": "*",
-      "default_branch": "main",
-      "add_remote_user": true,
-      "user_name": "Dev User",
-      "user_email": "dev@example.com"
-    }
-  }
-}
-```
+The `gitconfig` option accepts inline content (detected by the presence of a newline) or a file path / `http(s)://` / `oci://` / `gh://` URI. Use `fetch_headers` and `fetch_netrc` for authenticated fetches.
 
 ### Platform Summary
 

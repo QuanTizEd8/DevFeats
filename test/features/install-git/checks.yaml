@@ -1,7 +1,7 @@
 gitconfig_system:
   description: |
-    System gitconfig with a custom default branch, multiple safe.directory
-    entries, and a multi-line raw block.
+    Gitconfig with a custom default branch, multiple safe.directory entries,
+    and a multi-line freeform block via the gitconfig option.
 
   checks:
     - title: git on PATH
@@ -23,36 +23,29 @@ gitconfig_system:
       cmd: bash -c 'git config --file /etc/gitconfig --get-all safe.directory 2>/dev/null | grep -Fxq "/workspaces/devfeats"'
     - title: safe.directory keeps /tmp/repo
       cmd: bash -c 'git config --file /etc/gitconfig --get-all safe.directory 2>/dev/null | grep -Fxq "/tmp/repo"'
-    - title: push.default is simple
+    - title: push.default is simple (from gitconfig freeform block)
       cmd: bash -c '[ "$(git config --file /etc/gitconfig push.default 2>/dev/null)" = "simple" ]'
-    - title: fetch.prune is true
+    - title: fetch.prune is true (from gitconfig freeform block)
       cmd: bash -c '[ "$(git config --file /etc/gitconfig fetch.prune 2>/dev/null)" = "true" ]'
 
-gitconfig_user:
+gitconfig_identity:
   description: |
-    Per-user gitconfig: add_remote_user=true with user_name, user_email,
-    and a raw user_gitconfig block. Verifies both parsed keys and verbatim content.
+    user_name and user_email written to /etc/gitconfig (as root).
 
   checks:
     - title: git on PATH
       cmd: command -v git
     - title: git --version succeeds
       cmd: git --version
-    - title: vscode .gitconfig exists
-      cmd: test -f /home/vscode/.gitconfig
+    - title: /etc/gitconfig exists
+      cmd: test -f /etc/gitconfig
       debug: |
-        echo "=== /home/vscode/.gitconfig ==="
-        cat /home/vscode/.gitconfig 2>/dev/null || echo "(missing)"
+        echo "=== /etc/gitconfig ==="
+        cat /etc/gitconfig || echo "(missing)"
     - title: user.name is Dev User
-      cmd: bash -c '[ "$(git config --file /home/vscode/.gitconfig user.name 2>/dev/null)" = "Dev User" ]'
+      cmd: bash -c '[ "$(git config --file /etc/gitconfig user.name 2>/dev/null)" = "Dev User" ]'
     - title: user.email is dev@example.com
-      cmd: bash -c '[ "$(git config --file /home/vscode/.gitconfig user.email 2>/dev/null)" = "dev@example.com" ]'
-    - title: pull.rebase is false
-      cmd: bash -c '[ "$(git config --file /home/vscode/.gitconfig pull.rebase 2>/dev/null)" = "false" ]'
-    - title: raw user_gitconfig block is present
-      cmd: grep -Fq '[pull]' /home/vscode/.gitconfig
-    - title: .gitconfig owned by vscode
-      cmd: bash -c '[ "$(stat -c %U /home/vscode/.gitconfig 2>/dev/null)" = "vscode" ]'
+      cmd: bash -c '[ "$(git config --file /etc/gitconfig user.email 2>/dev/null)" = "dev@example.com" ]'
 
 if_exists_fail:
   description: |

@@ -167,16 +167,6 @@ fi
 
 ---
 
-### 8. `users__resolve_list` — **REUSED from `lib/users.sh`**
-
-**Responsibility:** Expands env-var-driven user lists (via `ADD_USERS`, `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`, `ADD_CURRENT_USER`) into a deduplicated, newline-separated list of concrete usernames on stdout. Used by `_git__write_user_gitconfig` to enumerate per-user gitconfig targets.
-
----
-
-### 9. `users__resolve_home` — **REUSED from `lib/users.sh`**
-
-**Responsibility:** Returns the home directory for a given username via `eval echo "~${_user}"`. Used by `_git__write_user_gitconfig` to locate each user's `~/.gitconfig`.
-
 ---
 
 ## Dependency Manifests
@@ -605,57 +595,20 @@ make -s ${_MAKE_FLAGS} ${MAKE_FLAGS} install
 
 ## Implementation Details
 
-### `_git__write_system_gitconfig`
+### `_git__write_gitconfig`
 
-**Responsibility:** Writes system-level gitconfig settings (`default_branch`, `safe_directory`, `system_gitconfig`).
+**Responsibility:** Writes all gitconfig settings (`default_branch`, `safe_directory`, `user_name`, `user_email`, `gitconfig`) to a single target file.
 
 **Target file:**
 - As root: `${SYSCONFDIR}/gitconfig` (typically `/etc/gitconfig`)
-- As non-root: `${HOME}/.config/git/config` (XDG user config, read by git in addition to `~/.gitconfig`)
+- As non-root: `${HOME}/.config/git/config` (XDG global config, read by git in addition to `~/.gitconfig`)
 
 **Steps:**
-1. Determine target file: `[ "$(id -u)" = "0" ] && _cfg="${SYSCONFDIR}/gitconfig" || _cfg="${HOME}/.config/git/config"`
-2. `mkdir -p "$(dirname "${_cfg}")"` to ensure the parent directory exists.
-3. If `DEFAULT_BRANCH` is non-empty: `git config --file "${_cfg}" init.defaultBranch "${DEFAULT_BRANCH}"`
-4. If `SAFE_DIRECTORY` is non-empty: iterate newline-separated entries and call `git config --file "${_cfg}" --add safe.directory "${_entry}"` for each. Note: `safe.directory` is a multi-valued key — `--add` must be used to avoid replacing earlier entries.
-5. If `SYSTEM_GITCONFIG` is non-empty: append the raw block to `"${_cfg}"` using `printf '%s\n' "${SYSTEM_GITCONFIG}" >> "${_cfg}"`.
-6. If none of the above produced writes, return without touching the file.
+1. Resolve `GITCONFIG`: if non-empty and contains no newline, treat as a URI/path and fetch via `uri__resolve` (with `FETCH_HEADERS`/`FETCH_NETRC` forwarded). Normalize literal `\n` escapes first.
+2. Assemble a single marker block: freeform `GITCONFIG` content first, then `DEFAULT_BRANCH`, `SAFE_DIRECTORY`, `USER_NAME`/`USER_EMAIL` appended after. Named options appear last so they take precedence over any conflicting keys in the freeform block (git's last-value-wins rule).
+3. Write the block via `shell__sync_block` with marker `"gitconfig (install-git)"`.
 
-**Note:** Using `git config --file` rather than `--system` or `--global` lets us target the correct file in both root and non-root cases with a single code path.
-
-**Invocation:** Called from top-level dispatch only when at least one of `DEFAULT_BRANCH`, `SAFE_DIRECTORY`, `SYSTEM_GITCONFIG` is non-empty.
-
----
-
-### `_git__write_user_gitconfig`
-
-**Responsibility:** Writes per-user gitconfig settings (`user_name`, `user_email`, `user_gitconfig`) to `~/.gitconfig` for each user in `USERS`.
-
-**Prerequisites:** Called only when `USERS` is non-empty **and** at least one of `USER_NAME`, `USER_EMAIL`, `USER_GITCONFIG` is non-empty.
-
-**User resolution:**
-- Parses `USERS` to set the `users__resolve_list` env vars:
-  - Split `USERS` by comma; for each token:
-    - `_REMOTE_USER` → `ADD_REMOTE_USER=true`
-    - `_CONTAINER_USER` → `ADD_CONTAINER_USER=true`
-    - `all` → `ADD_CURRENT_USER=true`, `ADD_REMOTE_USER=true`, `ADD_CONTAINER_USER=true`
-    - anything else → append to `ADD_USERS` (comma-separated)
-  - Any env var not explicitly set → `false` (suppress implicit injection)
-- Calls `users__resolve_list` (reads those env vars, returns one username per line).
-- As non-root: filter the resolved list to `"$(id -un)"` only; warn and skip any other names.
-
-**Per-user loop:**
-```bash
-_home="$(users__resolve_home "${_user}")"
-_cfg="${_home}/.gitconfig"
-[ -n "${USER_NAME}" ]  && git config --file "${_cfg}" user.name  "${USER_NAME}"
-[ -n "${USER_EMAIL}" ] && git config --file "${_cfg}" user.email "${USER_EMAIL}"
-[ -n "${USER_GITCONFIG}" ] && printf '%s\n' "${USER_GITCONFIG}" >> "${_cfg}"
-# Fix ownership if run as root writing to a non-root user's file
-[ "$(id -u)" = "0" ] && chown "${_user}:${_user}" "${_cfg}" 2>/dev/null || true
-```
-
-**Error handling:** If `users__resolve_home` fails for a user (no home directory), log a warning and skip that user — do not exit.
+**Invocation:** Called from `__install_finish_post` when any of `GITCONFIG`, `DEFAULT_BRANCH`, `SAFE_DIRECTORY`, `USER_NAME`, `USER_EMAIL` is non-empty.
 
 ---
 
@@ -751,11 +704,8 @@ if [ "${METHOD}" = "source" ] && [ "${EXPORT_PATH}" != "" ]; then
 fi
 
 # Post-install: gitconfig.
-if [ -n "${DEFAULT_BRANCH}${SAFE_DIRECTORY}${SYSTEM_GITCONFIG}" ]; then
-  _git__write_system_gitconfig
-fi
-if [ -n "${USERS}" ] && [ -n "${USER_NAME}${USER_EMAIL}${USER_GITCONFIG}" ]; then
-  _git__write_user_gitconfig
+if [ -n "${GITCONFIG:-}${DEFAULT_BRANCH:-}${USER_NAME:-}${USER_EMAIL:-}" ] || [ "${#SAFE_DIRECTORY[@]}" -gt 0 ]; then
+  _git__write_gitconfig
 fi
 
 # Post-install: symlink from canonical bin dir to ${PREFIX}/bin/git (source + non-default prefix only).

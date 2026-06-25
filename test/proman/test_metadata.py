@@ -218,7 +218,7 @@ def test_load_feature_options_override_shared(
 def test_load_applies_shared_option_conditions() -> None:
     """Shared options with ``_apply_when`` are injected only when condition holds."""
     with_fetch = MetadataLoader().load("install-pixi")["install-pixi"]
-    without_fetch = MetadataLoader().load("install-git")["install-git"]
+    without_fetch = MetadataLoader().load("install-bash")["install-bash"]
     assert "fetch_headers" in with_fetch["options"]
     assert "fetch_headers" not in without_fetch["options"]
 

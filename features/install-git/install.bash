@@ -2,7 +2,7 @@
 
 __resolve_input_prefixes_post() {
   # Resolve SYSCONFDIR after PREFIX is known.  __install_run_source_build passes
-  # it to make as sysconfdir=; _git__write_system_gitconfig uses it to locate gitconfig.
+  # it to make as sysconfdir=; _git__write_gitconfig uses it to locate the gitconfig file.
   if [[ "${SYSCONFDIR}" == "auto" ]]; then
     if users__is_user_path "${_RESOLVED_PREFIX}"; then
       SYSCONFDIR="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")/.config"
@@ -133,7 +133,7 @@ __uninstall_run_prefix_post() {
 
 # ── Post-install ───────────────────────────────────────────────────────────
 
-_git__write_system_gitconfig() {
+_git__write_gitconfig() {
   local _cfg
   if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     _cfg="${SYSCONFDIR}/gitconfig"
@@ -141,7 +141,31 @@ _git__write_system_gitconfig() {
     _cfg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")/.config/git/config"
   fi
 
+  # Resolve freeform gitconfig: inline content (contains newline) or URI/path.
+  local _freeform="${GITCONFIG:-}"
+  # Normalize literal \n escapes serialized by some devcontainer CLI environments.
+  if [[ -n "${_freeform}" && "${_freeform}" != *$'\n'* && "${_freeform}" == *'\n'* ]]; then
+    _freeform="$(printf '%b' "${_freeform}")"
+    logging__info "Expanded literal \\n escapes in gitconfig value."
+  fi
+  if [[ -n "${_freeform}" && "${_freeform}" != *$'\n'* ]]; then
+    local _tmp_dir _tmp_file
+    _tmp_dir="$(file__mktmpdir "git-gitconfig")"
+    _tmp_file="${_tmp_dir}/gitconfig"
+    local -a _fetch_args=()
+    [[ -n "${FETCH_NETRC:-}" ]] && _fetch_args+=(--netrc-file "${FETCH_NETRC}")
+    for _h in "${FETCH_HEADERS[@]+"${FETCH_HEADERS[@]}"}"; do _fetch_args+=(--header "${_h}"); done
+    logging__install "Fetching gitconfig from '${_freeform}'."
+    uri__resolve "${_freeform}" "${_tmp_file}" "${_fetch_args[@]}" || {
+      logging__error "Failed to fetch gitconfig from '${_freeform}'."
+      return 1
+    }
+    _freeform="$(< "${_tmp_file}")"
+  fi
+
+  # Assemble block: freeform first so that named options below take precedence on conflict.
   local _content=""
+  [[ -n "${_freeform}" ]] && _content+="${_freeform}"$'\n'
   if [[ -n "${DEFAULT_BRANCH}" ]]; then
     _content+="[init]"$'\n\t'"defaultBranch = ${DEFAULT_BRANCH}"$'\n'
   fi
@@ -152,14 +176,17 @@ _git__write_system_gitconfig() {
       _content+=$'\t'"directory = ${_entry}"$'\n'
     done
   fi
-  if [[ -n "${SYSTEM_GITCONFIG}" ]]; then
-    _content+="${SYSTEM_GITCONFIG}"$'\n'
+  if [[ -n "${USER_NAME:-}" || -n "${USER_EMAIL:-}" ]]; then
+    _content+="[user]"$'\n'
+    [[ -n "${USER_NAME:-}" ]] && _content+=$'\t'"name = ${USER_NAME}"$'\n'
+    [[ -n "${USER_EMAIL:-}" ]] && _content+=$'\t'"email = ${USER_EMAIL}"$'\n'
   fi
+
   if [[ -n "${_content}" ]]; then
-    logging__install "Writing system gitconfig to '${_cfg}'."
-    shell__sync_block --files "${_cfg}" --marker "system gitconfig (install-git)" --content "${_content}"
+    logging__install "Writing gitconfig to '${_cfg}'."
+    shell__sync_block --files "${_cfg}" --marker "gitconfig (install-git)" --content "${_content}"
   else
-    logging__skip "No system gitconfig content configured; skipping."
+    logging__skip "No gitconfig content configured; skipping."
   fi
 }
 
@@ -206,44 +233,9 @@ _export_git_manpath() {
     "${_sc_args[@]}"
 }
 
-# ── Per-user configuration ─────────────────────────────────────────────────
-
-__configure_user() {
-  local _user="$1"
-  local _current_user
-  _current_user="$(users__get_current --no-sudo)"
-
-  if users__is_user_path "${_RESOLVED_PREFIX}" && [[ "${_user}" != "${_current_user}" ]]; then
-    logging__warn "User-local mode: skipping gitconfig for '${_user}' (can only write for current user)."
-    return 0
-  fi
-
-  local _home _cfg
-  _home="$(users__resolve_home "${_user}")" || {
-    logging__warn "Could not resolve home directory for '${_user}' — skipping."
-    return 0
-  }
-  _cfg="${_home}/.gitconfig"
-
-  local _content=""
-  if [[ -n "${USER_NAME}" || -n "${USER_EMAIL}" ]]; then
-    _content+="[user]"$'\n'
-    [[ -n "${USER_NAME}" ]] && _content+=$'\t'"name = ${USER_NAME}"$'\n'
-    [[ -n "${USER_EMAIL}" ]] && _content+=$'\t'"email = ${USER_EMAIL}"$'\n'
-  fi
-  if [[ -n "${USER_GITCONFIG}" ]]; then
-    _content+="${USER_GITCONFIG}"$'\n'
-  fi
-  if [[ -n "${_content}" ]]; then
-    shell__sync_block --files "${_cfg}" --marker "user gitconfig (install-git)" --content "${_content}"
-    file__chown "${_user}:${_user}" "${_cfg}" 2> /dev/null || true
-    logging__success "Wrote gitconfig for user '${_user}'."
-  fi
-}
-
 __install_finish_post() {
-  if [[ -n "${DEFAULT_BRANCH:-}${SYSTEM_GITCONFIG:-}" ]] || [[ "${#SAFE_DIRECTORY[@]}" -gt 0 ]]; then
-    _git__write_system_gitconfig
+  if [[ -n "${GITCONFIG:-}${DEFAULT_BRANCH:-}${USER_NAME:-}${USER_EMAIL:-}" ]] || [[ "${#SAFE_DIRECTORY[@]}" -gt 0 ]]; then
+    _git__write_gitconfig
   fi
   _export_git_manpath
 }
@@ -260,28 +252,12 @@ __uninstall_finish_post() {
     --profile-d "${_FEAT_PROFILE_D_FILE}" \
     bash zsh fish tcsh elvish
 
-  # 2. Remove system gitconfig block written by _git__write_system_gitconfig.
+  # 2. Remove gitconfig block written by _git__write_gitconfig.
   local _cfg
   if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     _cfg="${SYSCONFDIR}/gitconfig"
   else
     _cfg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")/.config/git/config"
   fi
-  shell__sync_block --files "${_cfg}" --marker "system gitconfig (install-git)"
-
-  # 3. Remove per-user gitconfig blocks written by __configure_user.
-  local -a _ul_args=()
-  [[ -v ADD_CURRENT_USER ]] && _ul_args+=(--current "${ADD_CURRENT_USER}")
-  [[ -v ADD_REMOTE_USER ]] && _ul_args+=(--remote "${ADD_REMOTE_USER}")
-  [[ -v ADD_CONTAINER_USER ]] && _ul_args+=(--container "${ADD_CONTAINER_USER}")
-  if [[ -v ADD_USERS ]]; then
-    for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do _ul_args+=(--user "${_u}"); done
-  fi
-  local -a _users=()
-  mapfile -t _users < <(users__resolve_list "${_ul_args[@]}")
-  local _user _uhome
-  for _user in "${_users[@]+"${_users[@]}"}"; do
-    _uhome="$(users__resolve_home "${_user}")" || continue
-    shell__sync_block --files "${_uhome}/.gitconfig" --marker "user gitconfig (install-git)"
-  done
+  shell__sync_block --files "${_cfg}" --marker "gitconfig (install-git)"
 }

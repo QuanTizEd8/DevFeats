@@ -66,24 +66,19 @@ gitconfig_system:
       /workspaces/devfeats
 
       /tmp/repo'
-    system_gitconfig: "[push]\n  default = simple\n[fetch]\n  prune = true"
+    gitconfig: "[push]\n  default = simple\n[fetch]\n  prune = true"
   tests:
   - gitconfig_system.sh
-gitconfig_user:
+gitconfig_identity:
   envs:
   - ubuntu-24.04
   modes:
   - devcontainer
-  setup: useradd -m -s /bin/bash vscode
   options:
-    add_remote_user: true
     user_name: Dev User
     user_email: dev@example.com
-    user_gitconfig: "[pull]\n  rebase = false"
-  devcontainer:
-    remoteUser: vscode
   tests:
-  - gitconfig_user.sh
+  - gitconfig_identity.sh
 log_file:
   envs:
   - ubuntu-24.04

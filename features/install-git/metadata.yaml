@@ -10,9 +10,9 @@ keywords:
 _long_description: >-
   Git can be installed from the OS native package manager — with the git-core PPA available
   on Ubuntu for the latest upstream stable release — or compiled from a kernel.org tarball,
-  supporting every Linux distribution and macOS. After installation, system-level Git
-  configuration and per-user identity settings are written for all resolved users. Shell
-  completions are installed following source builds.
+  supporting every Linux distribution and macOS. After installation, Git configuration is
+  written to the system-level gitconfig (`/etc/gitconfig` as root, `~/.config/git/config`
+  as non-root). Shell completions are installed following source builds.
 options:
   shell_completions:
     _applies_when:
@@ -50,45 +50,39 @@ options:
     type: string
     default: main
     description: |-
-      Sets `init.defaultBranch` in the system-level gitconfig (`/etc/gitconfig` as root; `$HOME/.config/git/config` as non-root).
+      Sets `init.defaultBranch` in the gitconfig file (`/etc/gitconfig` as root; `~/.config/git/config` as non-root).
       Applies to all newly initialised repositories.
       Set to `''` to skip writing this setting.
   safe_directory:
     type: array
     default: '*'
     description: |-
-      Sets `safe.directory` in the system-level gitconfig.
+      Sets `safe.directory` in the gitconfig file (`/etc/gitconfig` as root; `~/.config/git/config` as non-root).
       Use `*` (default) to trust all directories (useful in containers where the working directory may be owned by a different UID), or a list of specific absolute paths.
       Set to `''` to skip writing this setting.
-  system_gitconfig:
-    type: string
-    default: ''
-    description: |-
-      Freeform content to append to the system-level gitconfig (`/etc/gitconfig` as root; `$HOME/.config/git/config` as non-root).
-      Accepts standard gitconfig format. Example:
-
-      ```ini
-      [core]
-        autocrlf = input
-      [push]
-        default = simple
-      ```
-
-      Written after `default_branch` and `safe_directory` settings. Set to `''` to skip.
   user_name:
     type: string
     default: ''
-    description: Sets `user.name` in the per-user gitconfig (`~/.gitconfig`) for all resolved users. Set to `''` to skip writing this setting.
+    description: Sets `user.name` in the gitconfig file (`/etc/gitconfig` as root; `~/.config/git/config` as non-root). Set to `''` to skip writing this setting.
   user_email:
     type: string
     default: ''
-    description: Sets `user.email` in the per-user gitconfig (`~/.gitconfig`) for all resolved users. Set to `''` to skip writing this setting.
-  user_gitconfig:
+    description: Sets `user.email` in the gitconfig file (`/etc/gitconfig` as root; `~/.config/git/config` as non-root). Set to `''` to skip writing this setting.
+  gitconfig:
     type: string
     default: ''
-    description: Freeform content to append to the per-user gitconfig (`~/.gitconfig`) for all resolved users. Accepts standard gitconfig format. Written after `user_name` and `user_email` settings. Set to `''` to skip.
+    description: |-
+      Freeform content for the gitconfig file (`/etc/gitconfig` as root; `~/.config/git/config` as non-root) — the same file that receives `default_branch`, `safe_directory`, `user_name`, and `user_email`.
+      Accepts standard gitconfig format.
+
+      Inline content is detected when the value contains a newline; otherwise the value is treated as a file path, `file://`, `http(s)://`, `oci://`, or `gh://owner/repo@ref:path` URI.
+      Append `#sha256=<hex>` to the URI for integrity verification.
+      Use `fetch_headers` and `fetch_netrc` for authenticated fetches.
+
+      Written before `default_branch`, `safe_directory`, `user_name`, and `user_email`, so those named options take precedence over any conflicting entries in this block.
+      Set to `''` to skip.
 _options:
-  configure_users: true
+  user_file_fetch: true
   verify:
     args: "--version"
     description: Verify git is installed and working.
