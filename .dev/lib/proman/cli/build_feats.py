@@ -43,7 +43,8 @@ def _build(tag: str) -> int:
 
     if not feature_dirs:
         print(
-            f"No assembled features with install.sh and {feature_script} found in {src_rel}/.",
+            f"No assembled features with install.sh and {feature_script}"
+            f" found in {src_rel}/.",
             file=sys.stderr,
         )
         return 1

@@ -20,11 +20,13 @@ def _registry_fixture() -> list[dict]:
 
 
 def test_context_registry_def_exists() -> None:
+    """Verify ContextKeyRegistry is defined in the schema."""
     schema = _load_schema()
     assert "ContextKeyRegistry" in schema["$defs"]
 
 
 def test_when_spec_uses_qualified_keys() -> None:
+    """Verify WhenConditionObject propertyNames pattern requires qualified keys."""
     schema = _load_schema()
     when_obj = schema["$defs"]["WhenConditionObject"]
     pattern = when_obj["propertyNames"]["pattern"]
@@ -32,6 +34,7 @@ def test_when_spec_uses_qualified_keys() -> None:
 
 
 def test_when_spec_rejects_legacy_flat_keys() -> None:
+    """Verify WhenConditionObject rejects unqualified legacy key names."""
     schema = _load_schema()
     when_obj = schema["$defs"]["WhenConditionObject"]
     pattern = when_obj["propertyNames"]["pattern"]
@@ -40,6 +43,7 @@ def test_when_spec_rejects_legacy_flat_keys() -> None:
 
 
 def test_registry_fixture_entries_match_schema_shape() -> None:
+    """Verify every fixture entry satisfies the ContextKeyRegistry item schema."""
     schema = _load_schema()
     item_schema = schema["$defs"]["ContextKeyRegistry"]["items"]
     required = set(item_schema["required"])
@@ -52,6 +56,7 @@ def test_registry_fixture_entries_match_schema_shape() -> None:
 
 
 def test_os_id_like_uses_token_list_match_mode() -> None:
+    """Verify os.id_like is registered with matchMode token_list."""
     entries = _registry_fixture()
     id_like = next(
         e for e in entries if e["namespace"] == "os" and e["key"] == "id_like"
@@ -60,6 +65,7 @@ def test_os_id_like_uses_token_list_match_mode() -> None:
 
 
 def test_registry_includes_core_plat_and_feat_keys() -> None:
+    """Verify the fixture contains the expected core plat and feat keys."""
     keys = {(e["namespace"], e["key"]) for e in _registry_fixture()}
     for ns, key in (
         ("plat", "pm"),

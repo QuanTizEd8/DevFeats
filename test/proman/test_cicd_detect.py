@@ -549,7 +549,7 @@ def test_merge_release_feature_test_ids_unions_changed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify release mode keeps path-selected features in addition to releasable ones."""
+    """Release mode keeps path-selected features alongside releasable ones."""
     _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml", "ubuntu-latest:\n  image: ubuntu-latest\n"
