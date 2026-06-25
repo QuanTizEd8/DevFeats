@@ -69,7 +69,10 @@ options:
       - value: auto
         description: >-
           Determine the best installation method at runtime.
-          Requires a `__resolve_method` hook in the feature.
+          Uses the framework's shared auto resolver, which evaluates the declared
+          methods and their `when` conditions against the current platform and
+          toolchain availability. Define `__resolve_method` only as an escape hatch
+          when the shared resolver is not sufficient.
       - |
         *{{ #{{
           m = get("_options.method") or {}
@@ -370,7 +373,7 @@ options:
       #{{ return bool(get("_options.method.binary.binary_src")) }}#
     type: array
     default: |
-      #{{ return serialize_binary_src(get("_options.method.binary.binary_src")) }}#
+      #{{ return serialize_path_entries(get("_options.method.binary.binary_src")) }}#
     description: >-
       Source binary path(s) within the extracted archive (suffix-match).
       One entry per line: plain `path`, or `path<TAB>when-atoms` when a
@@ -491,7 +494,7 @@ options:
       Build system used by the framework auto-impl for `method=source`.
       `autotools`: runs `./configure` (with `source_configure_args`) then `make`.
       `make`: runs `make` directly (no `./configure`).
-      Leave empty when providing a `__install_run_source_build` hook.
+      Leave empty only when providing a fully custom `__install_run_source_build` hook.
 
   source_configure_args:
     _apply_when: |
@@ -508,6 +511,21 @@ options:
       Provide one argument per line to override or extend the defaults.
       Each argument supports the same substitution tokens as `binary_asset_uri`.
 
+  source_build_env:
+    _apply_when: |
+      #{{ return bool(get("_options.method.source.build_env")) }}#
+    type: array
+    default: |
+      #{{ return serialize_value_entries(get("_options.method.source.build_env")) }}#
+    description: >-
+      Environment variable assignments exported for the framework auto-build
+      commands used by `method=source` (for example `GOTOOLCHAIN=auto`).
+      One entry per line: plain `NAME=value`, or `NAME=value<TAB>when-atoms`
+      when a `when` condition applies.
+      Use this for build-time environment knobs that must be visible to
+      `./configure` and/or `make`.
+      Each entry supports the same substitution tokens as `binary_asset_uri`.
+
   source_make_flags:
     _apply_when: |
       #{{ return get("_options.method.source") is not None }}#
@@ -521,6 +539,8 @@ options:
       Make variable assignments appended to every `make` invocation for source builds
       (e.g. `USE_LIBPCRE2=YesPlease`).
       Provide one assignment per line.
+      For exported environment variables instead of make arguments, use
+      `source_build_env`.
       Each entry supports the same substitution tokens as `binary_asset_uri`.
 
   source_make_targets:
@@ -537,6 +557,21 @@ options:
       When empty, the build system default is used: `all` then `install`.
       Provide one target per line to override.
       Each entry supports the same substitution tokens as `binary_asset_uri`.
+
+  source_install_bins:
+    _apply_when: |
+      #{{ return bool(get("_options.method.source.install_bins")) }}#
+    type: array
+    default: |
+      #{{ return serialize_path_entries(get("_options.method.source.install_bins")) }}#
+    description: >-
+      Built binary path(s) within the extracted source tree to copy into
+      `${PREFIX}/bin/` after the framework auto-build succeeds.
+      One entry per line: plain `path`, or `path<TAB>when-atoms` when a
+      `when` condition applies (same wire format as method `when` blocks).
+      Each entry supports the same substitution tokens as `binary_asset_uri`.
+      Use this when upstream builds binaries but does not expose a suitable
+      `make install` target.
 
   git_clone_uri:
     _apply_when: |

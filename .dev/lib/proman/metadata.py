@@ -10,7 +10,12 @@ from jsonschema.exceptions import ValidationError
 from proman.config import load as load_config
 from proman.manifest_util import serialize_manifest
 from proman.schema_bundle import get_validator
-from proman.when_util import serialize_binary_src, serialize_when, serialize_when_flow
+from proman.when_util import (
+    serialize_path_entries,
+    serialize_value_entries,
+    serialize_when,
+    serialize_when_flow,
+)
 
 
 class MetadataLoader:
@@ -107,7 +112,8 @@ class MetadataLoader:
                 code_context={
                     "serialize_when": serialize_when,
                     "serialize_when_flow": serialize_when_flow,
-                    "serialize_binary_src": serialize_binary_src,
+                    "serialize_path_entries": serialize_path_entries,
+                    "serialize_value_entries": serialize_value_entries,
                     "serialize_manifest": serialize_manifest,
                 },
             ).fill(metadata)

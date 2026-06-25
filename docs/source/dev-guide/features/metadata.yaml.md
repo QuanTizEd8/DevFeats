@@ -119,7 +119,7 @@ With the above declaration alone, the framework auto-implements:
 - Version resolution against GitHub Releases API
 - Binary download, checksum verification, extraction, and installation at `PREFIX/bin/tool`
 - OS package manager installation
-- `__resolve_method` (selects `binary` on most platforms, `package` where configured)
+- Shared `method=auto` resolution from the declared methods and their `when` blocks
 - Shell completion generation for bash, zsh, fish
 - PATH export or symlinking
 
@@ -204,7 +204,7 @@ binary:
 
 URI substitutions use qualified context tokens expanded by `ctx__expand_pattern` — see [Unified condition context](context.md). Common tokens: `{feat.version}`, `{feat.tag}`, `{plat.kernel:lower}`, `{plat.machine_release}`, `{plat.rust_triple}`, `{GH_REPO}` (from `_options.gh_repo`).
 
-The auto-implementation handles: URI expansion, fetch, SHA256 verification (from GitHub JSON or sidecar), extraction, and binary placement. A single `binary_src` entry installs to `${PREFIX}/bin/<basename>`; multiple entries install real copies into `${PREFIX}/bin/` via fan-out (use `companion_bins` for symlinks to the primary binary only). Override with `__install_run_binary_pre` / `_FEAT_BINARY_ASSET_PATTERN` for dynamic logic.
+The auto-implementation handles: URI expansion, fetch, SHA256 verification (from GitHub JSON or sidecar), extraction, and binary placement. A single `binary_src` entry installs to `${PREFIX}/bin/<basename>`; multiple entries install real copies into `${PREFIX}/bin/` via fan-out (use `companion_bins` for symlinks to the primary binary only). Override with `__install_run_binary_pre` only when the asset URI or verification logic must be computed dynamically.
 
 **`package` — install via OS package manager:**
 
@@ -223,6 +223,27 @@ upstream-package:
 ```
 
 Installs packages from `_dependencies.run.method-upstream-package` via `ospkg_manifest_method_upstream_package_run`.
+
+**`source` — build from a source archive:**
+
+```yaml
+source:
+  asset_uri: "https://github.com/{GH_REPO}/archive/refs/tags/{feat.tag}.tar.gz"
+  sidecar_uri: "https://github.com/{GH_REPO}/releases/download/{feat.tag}/sha256sums.txt"
+  build_system: make              # or: autotools
+  build_env:                      # optional: exported during auto-build
+    - GOTOOLCHAIN=auto
+  make_targets: ["all"]           # optional; defaults to ["all", "install"]
+  install_bins:                   # optional: copy built artifacts after auto-build
+    - bin/tool
+```
+
+The source auto-implementation handles: archive download, optional sidecar verification, extraction, and the declared auto-build flow:
+
+- `build_system: autotools` → `./configure --prefix="${PREFIX}"` then `make`
+- `build_system: make` → `make` only
+
+Use `build_env` for exported build-time environment variables that must be visible to `./configure` and/or `make`. Use `make_targets` / `make_flags` / `configure_args` when upstream already exposes a suitable install target. Use `install_bins` when upstream builds binaries but does not provide an install step; each listed path is copied from the extracted source tree into `${PREFIX}/bin/<basename>` after the auto-build succeeds. Only define `__install_run_source_build` when the build/install process cannot be expressed with those declarative controls.
 
 **`script` — run the tool's own installer script:**
 

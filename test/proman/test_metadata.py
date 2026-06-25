@@ -9,6 +9,7 @@ import pytest
 import yaml
 from proman.metadata import MetadataLoader
 from proman.schema_bundle import get_validator
+from proman.when_util import serialize_path_entries, serialize_value_entries
 
 _MINIMAL_SHARED = """\
 _lifecycle_key_prefix: myowner-test--
@@ -388,6 +389,76 @@ def test_schema_binary_src_when_rejects_invalid_key() -> None:
     )
     errors = list(get_validator().iter_errors(metadata))
     assert errors
+
+
+def test_schema_source_install_bins_when_rejects_invalid_key() -> None:
+    """Schema validates optional when on source.install_bins object entries."""
+    metadata = _minimal_feature_metadata(
+        _options={
+            "method": {
+                "source": {
+                    "install_bins": [
+                        {"path": "bin/tool", "when": {"version_lte": "1.0.0"}},
+                    ],
+                },
+            },
+        },
+    )
+    errors = list(get_validator().iter_errors(metadata))
+    assert errors
+
+
+def test_schema_source_build_env_when_rejects_invalid_key() -> None:
+    """Schema validates optional when on source.build_env object entries."""
+    metadata = _minimal_feature_metadata(
+        _options={
+            "method": {
+                "source": {
+                    "build_env": [
+                        {"value": "GOTOOLCHAIN=auto", "when": {"version_lte": "1.0.0"}},
+                    ],
+                },
+            },
+        },
+    )
+    errors = list(get_validator().iter_errors(metadata))
+    assert errors
+
+
+def test_load_emits_source_install_bins_option() -> None:
+    """source_install_bins default is the serialized source.install_bins entries."""
+    feat_path = (
+        Path(__file__).resolve().parents[2]
+        / "features"
+        / "install-git-lfs"
+        / "metadata.yaml"
+    )
+    declared = yaml.safe_load(feat_path.read_text(encoding="utf-8"))["_options"][
+        "method"
+    ]["source"]["install_bins"]
+    result = MetadataLoader().load("install-git-lfs")["install-git-lfs"]
+    assert "source_install_bins" in result["options"]
+    assert result["options"]["source_install_bins"][
+        "default"
+    ] == serialize_path_entries(declared)
+
+
+def test_load_emits_source_build_env_option() -> None:
+    """MetadataLoader serializes source.build_env into source_build_env default."""
+    feat_path = (
+        Path(__file__).resolve().parents[2]
+        / "features"
+        / "install-git-lfs"
+        / "metadata.yaml"
+    )
+    declared = yaml.safe_load(feat_path.read_text(encoding="utf-8"))["_options"][
+        "method"
+    ]["source"]["build_env"]
+    result = MetadataLoader().load("install-git-lfs")["install-git-lfs"]
+    assert "source_build_env" in result["options"]
+    assert result["options"]["source_build_env"]["default"] == serialize_value_entries(
+        declared
+    )
 
 
 def test_schema_when_rejects_flavor_suffix_in_key() -> None:

@@ -310,7 +310,7 @@
               }
             },
             "source": {
-              "description": "Marker indicating `METHOD=source` is a valid method for this feature. The framework auto-impl handles download and extraction; define `__install_run_source_build` for custom build logic, or declare `build_system` for fully declarative builds.",
+              "description": "Marker indicating `METHOD=source` is a valid method for this feature. The framework auto-impl handles download and extraction; declare `build_system` for declarative builds, optionally `build_env` for exported build-time environment variables, and optionally `install_bins` when the build produces binaries but upstream exposes no suitable install target.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -332,6 +332,25 @@
                   "type": "array",
                   "items": {"type": "string"}
                 },
+                "build_env": {
+                  "description": "Environment variable assignments exported for the framework auto-build commands (e.g. `[\"GOTOOLCHAIN=auto\"]`). Plain strings export unconditionally. Object entries with optional `when` serialize to `value<TAB>when-atoms` in the `source_build_env` option default.",
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {"type": "string"},
+                      {
+                        "type": "object",
+                        "required": ["value"],
+                        "additionalProperties": false,
+                        "properties": {
+                          "value": {"type": "string"},
+                          "when": {"$ref": "#/$defs/WhenSpec"}
+                        }
+                      }
+                    ]
+                  },
+                  "minItems": 1
+                },
                 "make_flags": {
                   "description": "Make variable assignments included in every `make` invocation (e.g. `[\"USE_LIBPCRE2=YesPlease\"]`). Sets the default for the auto-generated `source_make_flags` option.",
                   "type": "array",
@@ -341,6 +360,25 @@
                   "description": "Make targets invoked in sequence. When empty the build-system default is used (`autotools` and `make` both default to `[\"all\", \"install\"]`). Sets the default for the auto-generated `source_make_targets` option.",
                   "type": "array",
                   "items": {"type": "string"}
+                },
+                "install_bins": {
+                  "description": "Built binary path(s) inside the extracted source tree to copy into `${PREFIX}/bin/` after the framework auto-build succeeds. Plain strings install unconditionally. Object entries with optional `when` serialize to `path<TAB>when-atoms` in the `source_install_bins` option default. Use this for projects that build binaries but do not provide a suitable `make install` target.",
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {"type": "string"},
+                      {
+                        "type": "object",
+                        "required": ["path"],
+                        "additionalProperties": false,
+                        "properties": {
+                          "path": {"type": "string"},
+                          "when": {"$ref": "#/$defs/WhenSpec"}
+                        }
+                      }
+                    ]
+                  },
+                  "minItems": 1
                 },
                 "fallback_asset_uri": {
                   "description": "Fallback URI for the source tarball when the primary `asset_uri` fetch fails. Supports the same qualified context tokens as `binary.asset_uri`. Sidecar verification is skipped for the fallback. Sets the default for the auto-generated `source_fallback_asset_uri` option.",

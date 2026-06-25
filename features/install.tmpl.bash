@@ -534,6 +534,16 @@ __uninstall_run_prefix__() {
     logging__remove "Removing prefix binary '${_FEAT_EXISTING_PATH}'."
     file__rm -f "${_FEAT_EXISTING_PATH}"
   fi
+  if argparse__var_declared SOURCE_INSTALL_BINS && [[ ${#SOURCE_INSTALL_BINS[@]} -gt 0 ]]; then
+    local _src_bin
+    local -a _active_source_bins=()
+    mapfile -t _active_source_bins < <(__feat_filter_source_install_bins__)
+    for _src_bin in "${_active_source_bins[@]+"${_active_source_bins[@]}"}"; do
+      [[ -n "${_src_bin}" ]] || continue
+      logging__remove "Removing source-installed binary '${_bin_dir}/${_src_bin##*/}'."
+      file__rm -f "${_bin_dir}/${_src_bin##*/}" 2>/dev/null || true
+    done
+  fi
   if [[ -v BINARY_COMPANION_BINS && "${#BINARY_COMPANION_BINS[@]}" -gt 0 ]]; then
     local _comp_name
     for _comp_name in "${BINARY_COMPANION_BINS[@]+"${BINARY_COMPANION_BINS[@]}"}"; do
@@ -1107,7 +1117,8 @@ __install_run_source__() {
   #      (e.g. platform-specific flags, post-install steps, multiple make passes).
   #   2. __install_run_source_auto_build__ <src_dir> — framework auto-impl.
   #      Driven by SOURCE_BUILD_SYSTEM / SOURCE_CONFIGURE_ARGS /
-  #      SOURCE_MAKE_FLAGS / SOURCE_MAKE_TARGETS.  Covers autotools and bare make.
+  #      SOURCE_BUILD_ENV / SOURCE_MAKE_FLAGS / SOURCE_MAKE_TARGETS.
+  #      Covers autotools and bare make.
   #      Active when SOURCE_BUILD_SYSTEM is non-empty.
   #
   # Use __install_run_source_pre for pre-build setup (e.g. installing build deps
@@ -1165,6 +1176,7 @@ __install_run_source__() {
   else
     logging__debug "No feature hook '__install_run_source_build' found; using auto-build."
     __install_run_source_auto_build__ "${_src_dir}"
+    __install_run_source_auto_install_bins__ "${_src_dir}"
   fi
 
   __run_feature_hook__ __install_run_source_post
@@ -1197,6 +1209,7 @@ __install_run_source_auto_build__() {
           logging__error "Autotools build: failed to cd to '${_src_dir}'."
           exit 1
         }
+        __install_run_source_export_build_env__ || exit 1
         ./configure "${_configure_args[@]+"${_configure_args[@]}"}" || {
           logging__error "Autotools build: configure failed in '${_src_dir}'."
           exit 1
@@ -1219,6 +1232,7 @@ __install_run_source_auto_build__() {
           logging__error "Make build: failed to cd to '${_src_dir}'."
           exit 1
         }
+        __install_run_source_export_build_env__ || exit 1
         local _t
         for _t in "${_make_targets[@]}"; do
           make -j"${_jobs}" "${_make_flags[@]+"${_make_flags[@]}"}" "${_t}" || {
@@ -1240,6 +1254,62 @@ __install_run_source_auto_build__() {
       return 1
       ;;
   esac
+}
+
+__install_run_source_export_build_env__() {
+  if ! argparse__var_declared SOURCE_BUILD_ENV || [[ ${#SOURCE_BUILD_ENV[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  local _entry
+  local -a _active_env=()
+  mapfile -t _active_env < <(__feat_filter_source_build_env__)
+  [[ ${#_active_env[@]} -gt 0 ]] || return 0
+
+  local -a _expanded_env=()
+  __expand_args__ _active_env _expanded_env
+
+  for _entry in "${_expanded_env[@]+"${_expanded_env[@]}"}"; do
+    [[ -n "${_entry}" ]] || continue
+    if [[ ! "${_entry}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      logging__error "SOURCE_BUILD_ENV entry '${_entry}' is not a valid NAME=value assignment."
+      return 1
+    fi
+    export "${_entry}"
+  done
+}
+
+__install_run_source_auto_install_bins__() {
+  local _src_dir="$1"
+  [[ -v _RESOLVED_PREFIX && -n "${_RESOLVED_PREFIX}" ]] || {
+    logging__error "METHOD=source: PREFIX is not resolved; cannot auto-install built binaries."
+    return 1
+  }
+  if ! argparse__var_declared SOURCE_INSTALL_BINS || [[ ${#SOURCE_INSTALL_BINS[@]} -eq 0 ]]; then
+    logging__skip "SOURCE_INSTALL_BINS not declared; skipping post-build binary copy."
+    return 0
+  fi
+
+  local _src _src_path
+  local -a _active_bins=()
+  mapfile -t _active_bins < <(__feat_filter_source_install_bins__)
+  if [[ ${#_active_bins[@]} -eq 0 ]]; then
+    logging__error "No source_install_bins entries matched the current install context (version/method/platform)."
+    return 1
+  fi
+
+  local -a _expanded_bins=()
+  __expand_args__ _active_bins _expanded_bins
+
+  for _src in "${_expanded_bins[@]+"${_expanded_bins[@]}"}"; do
+    [[ -n "${_src}" ]] || continue
+    _src_path="${_src}"
+    [[ "${_src_path}" = /* ]] || _src_path="${_src_dir}/${_src_path}"
+    install__copy_bin "${_src_path}" "${_RESOLVED_PREFIX}/bin/${_src##*/}" || {
+      logging__error "Failed to copy built binary '${_src_path}' → '${_RESOLVED_PREFIX}/bin/${_src##*/}'."
+      return 1
+    }
+  done
 }
 
 # Apply git config entries from GIT_CLONE_CONFIG after a git-clone install or update.
@@ -1928,6 +1998,42 @@ __feat_filter_binary_src__() {
     _path="${_line%%$'\t'*}"
     _when="${_line#*$'\t'}"
     ctx__match_when --quiet "${_when}" && printf '%s\n' "${_path}"
+  done
+  return 0
+}
+
+__feat_filter_source_install_bins__() {
+  local _line _path _when
+  if ! argparse__var_declared SOURCE_INSTALL_BINS; then
+    return 0
+  fi
+  for _line in "${SOURCE_INSTALL_BINS[@]+"${SOURCE_INSTALL_BINS[@]}"}"; do
+    [[ -n "${_line}" ]] || continue
+    if [[ "${_line}" != *$'\t'* ]]; then
+      printf '%s\n' "${_line}"
+      continue
+    fi
+    _path="${_line%%$'\t'*}"
+    _when="${_line#*$'\t'}"
+    ctx__match_when --quiet "${_when}" && printf '%s\n' "${_path}"
+  done
+  return 0
+}
+
+__feat_filter_source_build_env__() {
+  local _line _value _when
+  if ! argparse__var_declared SOURCE_BUILD_ENV; then
+    return 0
+  fi
+  for _line in "${SOURCE_BUILD_ENV[@]+"${SOURCE_BUILD_ENV[@]}"}"; do
+    [[ -n "${_line}" ]] || continue
+    if [[ "${_line}" != *$'\t'* ]]; then
+      printf '%s\n' "${_line}"
+      continue
+    fi
+    _value="${_line%%$'\t'*}"
+    _when="${_line#*$'\t'}"
+    ctx__match_when --quiet "${_when}" && printf '%s\n' "${_value}"
   done
   return 0
 }
@@ -2919,8 +3025,9 @@ __main__ "$@"
 # DISPATCHED HOOKS (called via declare -f at runtime)
 # ----------------------------------------------------
 # __resolve_method()
-#   Required when METHOD=auto. Stdout: one concrete method name.
-#   Called by __resolve_input_method__; error if absent when METHOD=auto.
+#   Optional escape hatch when METHOD=auto. Stdout: one concrete method name.
+#   Called by __resolve_input_method__ before the shared __resolve_auto_method__.
+#   Only define this when the shared auto resolver is insufficient.
 #
 # __resolve_version()
 #   Called by __resolve_input_version__ when VERSION is set and METHOD!=package.
@@ -2943,10 +3050,14 @@ __main__ "$@"
 # __install_run_source_build <src_dir>
 #   Called by __install_run_source__ after download+extraction.
 #   Receives the path to the top-level extracted source directory.
-#   Use for platform-specific flags, multi-pass builds, or post-install steps.
+#   Use for platform-specific flags, multi-pass builds, or custom install steps
+#   that cannot be expressed declaratively with SOURCE_BUILD_SYSTEM /
+#   SOURCE_CONFIGURE_ARGS / SOURCE_BUILD_ENV / SOURCE_MAKE_FLAGS /
+#   SOURCE_MAKE_TARGETS / SOURCE_INSTALL_BINS.
 #   When absent, __install_run_source_auto_build__ is invoked instead
 #   (driven by SOURCE_BUILD_SYSTEM / SOURCE_CONFIGURE_ARGS /
-#   SOURCE_MAKE_FLAGS / SOURCE_MAKE_TARGETS).
+#   SOURCE_BUILD_ENV / SOURCE_MAKE_FLAGS / SOURCE_MAKE_TARGETS,
+#   followed by __install_run_source_auto_install_bins__ when SOURCE_INSTALL_BINS is non-empty after when-filtering).
 #
 # __get_completion_content__ <shell>
 #   Called by __install_shell_completions__ to produce completion text for one

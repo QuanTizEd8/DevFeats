@@ -40,7 +40,7 @@ def _dump_when_yaml(data: object, *, flow: bool) -> str:
 
 
 def serialize_when(when: object) -> str:
-    """Serialize a ``when`` block to multi-line YAML for bash ``ctx__match_*`` evaluators."""
+    """Serialize a ``when`` block to multi-line YAML for bash ``ctx__match_*``."""
     return _dump_when_yaml(when, flow=False)
 
 
@@ -61,8 +61,12 @@ def serialize_sysreq_args(specs: list[dict]) -> str:
     return " ".join(parts)
 
 
-def serialize_binary_src(entries: list | None) -> str:
-    """Serialize ``method.binary.binary_src`` metadata to option default lines."""
+def _serialize_value_when_entries(
+    entries: list | None,
+    *,
+    value_key: str,
+) -> str:
+    """Serialize ``[{value_key, when}]`` metadata entries to option default lines."""
     if not entries:
         return ""
     lines: list[str] = []
@@ -71,13 +75,23 @@ def serialize_binary_src(entries: list | None) -> str:
             lines.append(entry)
             continue
         if isinstance(entry, dict):
-            path = entry.get("path", "")
+            value = entry.get(value_key, "")
             when = entry.get("when")
             if when:
                 yaml_when = serialize_when(when)
-                lines.append(f"{path}\t{yaml_when}" if yaml_when else path)
+                lines.append(f"{value}\t{yaml_when}" if yaml_when else value)
             else:
-                lines.append(str(path))
+                lines.append(str(value))
             continue
         lines.append(str(entry))
     return "\n".join(lines)
+
+
+def serialize_path_entries(entries: list | None) -> str:
+    """Serialize a list of ``{path, when?}`` entries to tab-delimited defaults."""
+    return _serialize_value_when_entries(entries, value_key="path")
+
+
+def serialize_value_entries(entries: list | None) -> str:
+    """Serialize a list of ``{value, when?}`` entries to tab-delimited defaults."""
+    return _serialize_value_when_entries(entries, value_key="value")

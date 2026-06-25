@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import proman.config as _cfg
 import pytest
+import yaml
 from proman.manifest_util import serialize_manifest
+from proman.metadata import MetadataLoader
 from proman.sync import install_script as install_script_mod
 from proman.sync.install_script import (
     _SPLIT_PRINTF_PERCENT_S_RE,
@@ -17,6 +20,63 @@ from proman.sync.install_script import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _INSTALL_CONDA_ENV = _REPO_ROOT / "src" / "install-conda-env" / "install.bash"
+
+_CODEGEN_TEST_MAIN = """\
+name: Test
+name_slug: test
+owner: testowner
+owner_slug: testowner
+namespace: testowner/test
+repo_url: https://github.com/testowner/test
+oci_base: ghcr.io/testowner/test
+docs:
+  website_base_url: https://example.com/docs
+path:
+  features: features
+  library: lib
+  shared_metadata: features/metadata.shared.yaml
+  metadata_schema: features/metadata.schema.json
+  install_script_template: features/install.tmpl.bash
+filename:
+  feature_metadata: metadata.yaml
+features:
+  lifecycle_hook_keys:
+    - onCreateCommand
+"""
+
+
+def _synthetic_loader(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+    *,
+    feature_id: str,
+    feature_metadata: dict,
+) -> MetadataLoader:
+    """Set up a temp repo with the real shared YAML and a synthetic feature."""
+    (tmp_path / ".config" / "proman").mkdir(parents=True)
+    (tmp_path / ".config" / "proman" / "_main.yaml").write_text(
+        _CODEGEN_TEST_MAIN, encoding="utf-8"
+    )
+
+    features = tmp_path / "features"
+    features.mkdir()
+    for fname in ("metadata.shared.yaml", "metadata.schema.json", "install.tmpl.bash"):
+        (features / fname).write_text(
+            (_REPO_ROOT / "features" / fname).read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+
+    feat_dir = features / feature_id
+    feat_dir.mkdir()
+    (feat_dir / "metadata.yaml").write_text(
+        yaml.dump(feature_metadata), encoding="utf-8"
+    )
+
+    monkeypatch.setattr("proman.config.git_repo_root", lambda: tmp_path)
+    request.addfinalizer(_cfg.clear_cache)
+    _cfg.clear_cache()
+    return MetadataLoader()
 
 
 def test_shell_val_plain_string() -> None:
@@ -169,6 +229,45 @@ def test_uri_resolution_without_installer_dir_uses_matdir_fallback() -> None:
     assert "${INSTALLER_DIR}/uri/" not in block
     assert "env_files\tENV_FILES\tarray\t" in block
     assert "post_env_script\tPOST_ENV_SCRIPT\tstring\t+x" in block
+
+
+def test_generate_source_options_wired_correctly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+) -> None:
+    """Argparse defaults for source_build_env / source_install_bins are emitted."""
+    loader = _synthetic_loader(
+        tmp_path,
+        monkeypatch,
+        request,
+        feature_id="test-source-feature",
+        feature_metadata={
+            "version": "0.1.0",
+            "name": "Test Source Feature",
+            "description": "Synthetic feature for source build option codegen tests.",
+            "_long_description": "Long description.",
+            "keywords": ["test"],
+            "_options": {
+                "method": {
+                    "source": {
+                        "asset_uri": "https://example.com/tool-{feat.tag}.tar.gz",
+                        "build_system": "make",
+                        "build_env": ["MY_BUILD_VAR=enabled"],
+                        "install_bins": ["bin/tool"],
+                    }
+                }
+            },
+            "options": {},
+        },
+    )
+    metadata = loader.load("test-source-feature")["test-source-feature"]
+    gen = InstallScriptGenerator()
+    script = gen.generate(metadata)[Path("install.bash")]
+    # Declarations are only emitted when _apply_when holds — i.e. the feature
+    # declared build_env / install_bins in its source method options.
+    assert "argparse__default_array_value SOURCE_BUILD_ENV" in script
+    assert "argparse__default_array_value SOURCE_INSTALL_BINS" in script
 
 
 @pytest.mark.skipif(

@@ -25,15 +25,12 @@ For most features, declaring `_options` in `metadata.yaml` is sufficient — `in
 | `prefix.bins` | Symlinks / PATH export / activation in `__install_finish__` |
 | `completions.subcmd` or `source_files` | Shell completion installation in `__install_finish__` |
 | `verify.cmd` | Post-install binary verification in `__install_finish__` |
-| Two or more methods declared | `__resolve_method` (default selects `auto` logic per platform) |
+| Two or more methods declared | Shared `method=auto` resolution from declared methods and `when` blocks |
 
 **Minimum `install.bash` for a feature with a GitHub binary release:**
 
 ```bash
-# Typically empty, or just a platform resolver:
-__resolve_method() {
-  os__platform == "macos" && printf 'package\n' || printf 'binary\n'
-}
+# Typically empty.
 ```
 
 Everything else — download URL expansion, fetch, SHA256 verification, extraction, binary placement, PATH export, completions — is handled by the framework when `_options.method.binary` declares the `asset_uri`.
@@ -59,7 +56,7 @@ __main__
               ├── [__install_pre]                     # user hook: runs before everything
               ├── __install_init__
               │     ├── [__install_init_pre]          # user hook
-              │     ├── __resolve_input_method__      # calls __resolve_method when METHOD=auto
+              │     ├── __resolve_input_method__      # shared auto-resolver; optional __resolve_method escape hatch
               │     ├── __resolve_input_version__     # calls __resolve_version or auto-impl
               │     ├── __resolve_input_prefixes__    # resolves PREFIX from options + platform
               │     ├── __dep_install_base__          # OSPKG_MANIFEST_BASE_{RUN,BUILD}
@@ -147,8 +144,10 @@ NODE_VERSION                # Node.js version (npm-bundled only)
 SOURCE_ASSET_URI            # Source tarball URL
 SOURCE_BUILD_SYSTEM         # autotools | make
 SOURCE_CONFIGURE_ARGS       # Array of ./configure arguments
+SOURCE_BUILD_ENV            # Array of NAME=value exports for source auto-builds
 SOURCE_MAKE_FLAGS           # Array of make variable assignments
 SOURCE_MAKE_TARGETS         # Array of make targets
+SOURCE_INSTALL_BINS         # Array of built binary paths copied to ${PREFIX}/bin/
 
 # git-clone method
 GIT_CLONE_URI               # Repository URL
@@ -161,9 +160,9 @@ GIT_CLONE_CONFIG            # Array of "key=value" git config pairs
 
 Define only the hooks your feature needs. Every hook is optional — template defaults apply when the hook is absent.
 
-### `__resolve_method` — required when `method: auto`
+### `__resolve_method` — optional `method: auto` escape hatch
 
-Called by `__resolve_input_method__` when `METHOD=auto`. Must print exactly one method name to stdout:
+Called by `__resolve_input_method__` before the shared auto resolver when `METHOD=auto`. Must print exactly one method name to stdout:
 
 ```bash
 __resolve_method() {
@@ -175,7 +174,7 @@ __resolve_method() {
 }
 ```
 
-**When you need this:** Only when your feature declares `method: default: auto` in `_options.method` (or when `method` option default is `auto`). If only one method is supported, set a concrete default and omit this hook.
+**When you need this:** Only when the shared auto resolver cannot express the feature's selection rules from the declared methods and their `when` conditions. Most features should omit this hook entirely.
 
 ### `__resolve_version` — optional override
 
@@ -400,12 +399,14 @@ See {doc}`lib` for the full API reference.
 | GitHub binary release, standard URL pattern | Nothing — declare `_options.method.binary.asset_uri` in metadata |
 | GitHub binary release, OS-specific URL | `__install_run_binary_pre` to set `_FEAT_BINARY_ASSET_PATTERN` |
 | OS package manager | Nothing — declare `_options.method.package` and `_dependencies.run.method-package` (generates `ospkg_manifest_method_package_run`) |
-| Multiple methods, auto-select by platform | `__resolve_method` |
+| Multiple methods, auto-select by platform | Nothing when `when` blocks are sufficient; otherwise `__resolve_method` |
 | Custom version lookup (not GitHub/npm/cargo) | `__resolve_version` |
 | Pre-install OS packages not in `_dependencies` | `__install_pre` with `ospkg__install` |
 | Post-install configuration (system-wide) | `__install_run_<method>_post` or `__install_post` |
 | Per-user dotfiles / shell config | `_options.configure_users: true` in metadata + `__configure_user` in `install.bash` |
 | Build from source, standard `./configure` + `make` | Nothing — declare `_options.method.source.build_system: autotools` |
+| Build from source, bare `make` plus copy built binary | Nothing — declare `_options.method.source.build_system: make` and `_options.method.source.install_bins` |
+| Build from source, framework auto-build plus exported env vars | Nothing — declare `_options.method.source.build_env` |
 | Build from source, custom build logic | `__install_run_source_build <src_dir>` |
 | Handle existing installations (`if_exists`) | `__detect_existing__` (if tool not on PATH) |
 | Shell completions, standard subcommand | Nothing — declare `_options.completions.subcmd` in metadata |
