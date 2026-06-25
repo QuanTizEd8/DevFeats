@@ -1,0 +1,290 @@
+version: 0.1.0
+name: Git LFS Installation
+description: Install [Git LFS](https://git-lfs.com/) and manage its Git filter and repository-hook configuration across system, user, and repository scopes.
+keywords:
+  - git
+  - git-lfs
+  - lfs
+  - vcs
+  - large-files
+  - devtool
+_long_description: >-
+  Installs Git LFS (Large File Storage), the Git extension that stores large
+  file contents outside the Git object database while keeping lightweight
+  pointer files in the repository.
+
+  The feature supports four installation methods:
+
+  - **binary**: download a version-pinned GitHub release archive and install the
+    `git-lfs` binary under the selected prefix.
+  - **upstream-package**: install upstream-maintained packagecloud `.deb` / `.rpm`
+    packages on the supported Debian, Ubuntu, and RHEL-compatible release matrix.
+  - **package**: install the distro-native package (`apt`, `apk`, `dnf`, `yum`,
+    `pacman`, `zypper`) or Homebrew formula.
+  - **source**: build the released source tarball with `make` and copy the built
+    `bin/git-lfs` artifact into the selected prefix.
+
+  Git LFS installation is not complete until `git lfs install` configures Git's
+  filters. This feature exposes that configuration step directly: choose the
+  target scope (`system`, `global`, `local`, `worktree`, or `file`), whether to
+  install repository hooks, whether to skip smudge, and whether devcontainer
+  post-create should automatically pull LFS objects from the workspace repo.
+_tool_name: Git LFS
+_system_requirements:
+  platforms:
+    - {plat.kernel: linux}
+    - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
+_options:
+  configure_users: true
+  verify:
+    args: "version"
+    description: Verify Git LFS is installed and working.
+  gh_repo: git-lfs/git-lfs
+  version:
+    resolution: github_release
+    default: stable
+    inputs: [stable, latest, semver]
+    proposals:
+      - value: "3.7.1"
+        description: Install Git LFS v3.7.1.
+  completions:
+    subcmd: "completion"
+    shells: [bash, zsh, fish]
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/git-lfs-{plat.kernel:lower}-{plat.machine_release==i386?386:{plat.machine_release==armv7?arm:{plat.machine_release}}}-{feat.tag}.{plat.kernel==Darwin?zip:tar.gz}"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/sha256sums.asc"
+      binary_src:
+        - git-lfs
+      when:
+        - {plat.kernel: linux, plat.machine_release: amd64}
+        - {plat.kernel: linux, plat.machine_release: arm64}
+        - {plat.kernel: linux, plat.machine_release: i386}
+        - {plat.kernel: linux, plat.machine_release: armv7}
+        - {plat.kernel: linux, plat.machine_release: loong64}
+        - {plat.kernel: linux, plat.machine_release: ppc64le}
+        - {plat.kernel: linux, plat.machine_release: riscv64}
+        - {plat.kernel: linux, plat.machine_release: s390x}
+        - {plat.kernel: darwin, plat.machine_release: amd64}
+        - {plat.kernel: darwin, plat.machine_release: arm64}
+    upstream-package:
+      registers_as: git-lfs
+      when: &packagecloud_when
+        - {plat.pm: apt, os.id: debian, os.version_codename: bullseye, plat.machine_release: amd64}
+        - {plat.pm: apt, os.id: debian, os.version_codename: bookworm, plat.machine_release: [amd64, arm64]}
+        - {plat.pm: apt, os.id: ubuntu, os.version_codename: [focal, jammy, noble], plat.machine_release: [amd64, arm64]}
+        - {plat.pm: [dnf, yum], os.id: [rhel, rocky], os.version_id_major: "8", plat.machine_release: amd64}
+        - {plat.pm: [dnf, yum], os.id: [rhel, rocky], os.version_id_major: "9", plat.machine_release: [amd64, arm64]}
+        - {plat.pm: [dnf, yum], os.id: [rhel, rocky], os.version_id_major: "10", plat.machine_release: amd64}
+    package:
+      registers_as: git-lfs
+      when:
+        plat.pm: [apt, apk, dnf, yum, pacman, zypper, brew]
+    source:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/git-lfs-v{feat.version}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/sha256sums.asc"
+      build_system: make
+      build_env:
+        - GOTOOLCHAIN=auto
+      make_flags:
+        - GOTOOLCHAIN=auto
+      make_targets: ["all"]
+      install_bins:
+        - bin/git-lfs
+  prefix:
+    bins: [git-lfs]
+    applies_when:
+      - method: [binary, source]
+
+options:
+  auto_pull:
+    type: boolean
+    default: true
+    description: |-
+      Devcontainer runtime only: after container creation, run `git lfs pull` in
+      the resolved workspace repository when the repository actually tracks LFS
+      objects. This never runs during image build or standalone installs, and is
+      a no-op outside devcontainer lifecycle execution.
+
+  config_scope:
+    type: string
+    default: auto
+    description: |-
+      Scope passed to `git lfs install`.
+      `auto` resolves to `system` when the installer has privilege to write
+      system Git config, otherwise `global`.
+      `none` skips all feature-managed `git lfs install` / `git lfs uninstall`
+      work; `auto_pull` remains independent.
+    enum:
+      - value: auto
+        description: Resolve to `system` when privileged, otherwise `global`.
+      - value: system
+        description: Configure `/etc/gitconfig` (or platform equivalent) for all users.
+      - value: global
+        description: Configure each resolved user's global Git config.
+      - value: local
+        description: Configure the target repository's local `.git/config`.
+      - value: worktree
+        description: Configure the target repository's worktree config and enable `extensions.worktreeConfig=true`.
+      - value: file
+        description: Configure the Git config file given by `config_file`.
+      - value: none
+        description: Skip feature-managed Git LFS configuration changes entirely.
+
+  config_file:
+    type: string
+    default: ''
+    _applies_when:
+      - config_scope: [file]
+    description: |-
+      Git config file used when `config_scope=file`.
+      Required in that mode.
+      Absolute paths are used as-is; relative paths are resolved against the
+      resolved repository directory.
+
+  repo_dir:
+    type: string
+    default: ''
+    _applies_when:
+      - config_scope: [local, worktree, file]
+      - skip_repo: ['false']
+    description: |-
+      Repository directory used for repo-scoped configuration and/or hook
+      installation. In devcontainer lifecycle execution, an empty value resolves
+      to `${containerWorkspaceFolder}`. Outside devcontainer lifecycle, an empty
+      value is rejected for `config_scope=local|worktree|file` and for
+      `skip_repo=false`.
+
+  skip_repo:
+    type: boolean
+    default: true
+    description: |-
+      Pass `--skip-repo` to `git lfs install` / `git lfs uninstall`, leaving
+      repository hook files untouched. Set to `false` to install or update the
+      repository's `pre-push` hook in the resolved repository.
+      When `config_scope=system|global` and `repo_dir` is empty, `skip_repo=false`
+      is rejected because repo-hook work cannot be deferred without changing the
+      requested scope semantics.
+
+  skip_smudge:
+    type: boolean
+    default: false
+    description: |-
+      Pass `--skip-smudge` so the installed filters do not automatically download
+      LFS object contents during checkout. Pair this with `auto_pull=true` when
+      you want the initial devcontainer workspace to fetch LFS objects explicitly
+      after create instead of during clone/checkout.
+
+  force_config:
+    type: boolean
+    default: false
+    description: Pass `--force` to `git lfs install`, rewriting existing filter entries.
+
+  manual_hooks:
+    type: boolean
+    default: false
+    description: |-
+      Pass `--manual` to `git lfs install`, printing manual repository-hook
+      integration instructions instead of modifying hooks. Ignored when
+      `skip_repo=true`.
+
+postCreateCommand:
+  configure-and-pull:
+    description: Apply deferred Git LFS repository configuration and optionally pull workspace LFS objects.
+    args: "${containerWorkspaceFolder}"
+    _conf_vars: [_FEAT_SHARE_DIR_ROOT]
+
+_dependencies:
+  run:
+    base:
+      packages:
+        - name: ca-certificates
+          when: {plat.kernel: linux}
+        - name: git
+          when: {plat.kernel: linux}
+    method-package:
+      packages:
+        - name: git-lfs
+          version: "{feat.pm_version}"
+          when:
+            plat.pm: [apt, apk, dnf, yum, pacman, zypper]
+      brew:
+        packages:
+          - name: git-lfs
+            version: "{feat.pm_version}"
+    method-upstream-package:
+      when: *packagecloud_when
+      packages:
+        - name: git-lfs
+          version: "{feat.pm_version}"
+          when:
+            plat.pm: [apt, dnf, yum]
+      apt:
+        keys:
+          - url: https://packagecloud.io/github/git-lfs/gpgkey
+            dest: /etc/apt/keyrings/github_git-lfs-archive-keyring.gpg
+        repos:
+          - "deb [signed-by=/etc/apt/keyrings/github_git-lfs-archive-keyring.gpg] https://packagecloud.io/github/git-lfs/{os.id}/ {os.version_codename} main"
+          - "deb-src [signed-by=/etc/apt/keyrings/github_git-lfs-archive-keyring.gpg] https://packagecloud.io/github/git-lfs/{os.id}/ {os.version_codename} main"
+      dnf:
+        repos:
+          - |
+            [github_git-lfs]
+            name=github_git-lfs
+            baseurl=https://packagecloud.io/github/git-lfs/el/{os.version_id_major}/$basearch
+            repo_gpgcheck=1
+            gpgcheck=0
+            enabled=1
+            gpgkey=https://packagecloud.io/github/git-lfs/gpgkey
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+
+            [github_git-lfs-source]
+            name=github_git-lfs-source
+            baseurl=https://packagecloud.io/github/git-lfs/el/{os.version_id_major}/SRPMS
+            repo_gpgcheck=1
+            gpgcheck=0
+            enabled=1
+            gpgkey=https://packagecloud.io/github/git-lfs/gpgkey
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+      yum:
+        repos:
+          - |
+            [github_git-lfs]
+            name=github_git-lfs
+            baseurl=https://packagecloud.io/github/git-lfs/el/{os.version_id_major}/$basearch
+            repo_gpgcheck=1
+            gpgcheck=0
+            enabled=1
+            gpgkey=https://packagecloud.io/github/git-lfs/gpgkey
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+
+            [github_git-lfs-source]
+            name=github_git-lfs-source
+            baseurl=https://packagecloud.io/github/git-lfs/el/{os.version_id_major}/SRPMS
+            repo_gpgcheck=1
+            gpgcheck=0
+            enabled=1
+            gpgkey=https://packagecloud.io/github/git-lfs/gpgkey
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+  build:
+    method-source:
+      packages:
+        - make
+        - git
+        - asciidoctor
+        - name: go
+          apt: golang-go
+          dnf: golang
+          yum: golang

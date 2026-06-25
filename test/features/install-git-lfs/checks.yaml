@@ -1,0 +1,336 @@
+auto_default_binary:
+  description: |
+    Default install on Ubuntu.
+    Verifies METHOD=auto resolves to the binary path, Git LFS is functional,
+    and the default root install writes system-scope filter configuration.
+
+  pre: |
+    _state_dir="${_FEAT_SHARE_DIR_ROOT}/state"
+    _installed_method="${_state_dir}/installed-method"
+    _state_file="${_state_dir}/config.env"
+
+  checks:
+    - title: git-lfs on PATH
+      cmd: command -v git-lfs
+    - title: git lfs version succeeds
+      cmd: git lfs version
+    - title: installed-method state file exists
+      cmd: test -f "${_installed_method}"
+    - title: METHOD=auto resolved to binary
+      cmd: grep -Fqx "binary" "${_installed_method}"
+    - title: config state file exists
+      cmd: test -f "${_state_file}"
+    - title: state file records system scope
+      cmd: grep -Fqx 'GIT_LFS_STATE_CONFIG_SCOPE="system"' "${_state_file}"
+    - title: /etc/gitconfig contains filter.lfs.process
+      cmd: test "$(git config --file /etc/gitconfig --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+      debug: |
+        echo "=== /etc/gitconfig ==="
+        cat /etc/gitconfig 2>/dev/null || echo "(missing)"
+    - title: /etc/gitconfig contains filter.lfs.required=true
+      cmd: test "$(git config --file /etc/gitconfig --get filter.lfs.required 2>/dev/null)" = "true"
+    - title: no global-users state file for system scope
+      cmd: test ! -f "${_state_dir}/global-users"
+
+upstream_package_apt:
+  description: |
+    Explicit packagecloud APT install on Ubuntu.
+    Verifies the feature records method=upstream-package and the package path
+    leaves Git LFS functional with system-scope filters present.
+
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+
+  checks:
+    - title: git-lfs on PATH
+      cmd: command -v git-lfs
+    - title: git-lfs is dpkg-managed
+      cmd: bash -c 'dpkg -q git-lfs >/dev/null 2>&1 && dpkg -S "$(command -v git-lfs)" >/dev/null 2>&1'
+    - title: git lfs version succeeds
+      cmd: git lfs version
+    - title: installed-method state is upstream-package
+      cmd: grep -Fqx "upstream-package" "${_installed_method}"
+    - title: /etc/gitconfig contains filter.lfs.process
+      cmd: test "$(git config --file /etc/gitconfig --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+
+upstream_package_rpm:
+  description: |
+    Explicit packagecloud RPM install on Rocky Linux.
+    Verifies the feature records method=upstream-package and the package path
+    leaves Git LFS functional with system-scope filters present.
+
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+
+  checks:
+    - title: git-lfs on PATH
+      cmd: command -v git-lfs
+    - title: git-lfs is rpm-managed
+      cmd: bash -c 'rpm -q git-lfs >/dev/null 2>&1 && rpm -qf "$(command -v git-lfs)" >/dev/null 2>&1'
+    - title: git lfs version succeeds
+      cmd: git lfs version
+    - title: installed-method state is upstream-package
+      cmd: grep -Fqx "upstream-package" "${_installed_method}"
+    - title: /etc/gitconfig contains filter.lfs.process
+      cmd: test "$(git config --file /etc/gitconfig --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+
+package_zypper_system:
+  description: |
+    Native zypper package install on openSUSE.
+    Verifies the feature applies explicit system-scope Git LFS configuration on
+    a package path that does not auto-run `git lfs install`.
+
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+    _state_file="${_FEAT_SHARE_DIR_ROOT}/state/config.env"
+
+  checks:
+    - title: git-lfs on PATH
+      cmd: command -v git-lfs
+    - title: git-lfs is rpm-managed
+      cmd: bash -c 'rpm -q git-lfs >/dev/null 2>&1 && rpm -qf "$(command -v git-lfs)" >/dev/null 2>&1'
+    - title: git lfs version succeeds
+      cmd: git lfs version
+    - title: installed-method state is package
+      cmd: grep -Fqx "package" "${_installed_method}"
+    - title: state file records system scope
+      cmd: grep -Fqx 'GIT_LFS_STATE_CONFIG_SCOPE="system"' "${_state_file}"
+    - title: /etc/gitconfig contains filter.lfs.process
+      cmd: test "$(git config --file /etc/gitconfig --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+
+source_prefix:
+  description: |
+    Source build with prefix=/opt/git-lfs.
+    Verifies the new declarative source-install-bins path copies the built
+    artifact into the prefix and the installed binary is reachable via PATH.
+
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+
+  checks:
+    - title: source-built binary exists in prefix
+      cmd: test -x /opt/git-lfs/bin/git-lfs
+      debug: |
+        echo "=== /opt/git-lfs/bin ==="
+        ls -la /opt/git-lfs/bin 2>/dev/null || echo "(missing)"
+    - title: command -v git-lfs resolves to prefixed binary
+      cmd: test "$(readlink -f "$(command -v git-lfs)")" = "/opt/git-lfs/bin/git-lfs"
+    - title: git lfs version succeeds
+      cmd: git lfs version
+    - title: installed-method state is source
+      cmd: grep -Fqx "source" "${_installed_method}"
+    - title: /etc/gitconfig contains filter.lfs.process
+      cmd: test "$(git config --file /etc/gitconfig --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+
+global_remote_user:
+  description: |
+    Global configuration scoped only to the devcontainer remoteUser.
+    Verifies Git LFS writes vscode's ~/.gitconfig, does not touch root's global
+    config, and persists the resolved user list for uninstall.
+
+  pre: |
+    _state_dir="${_FEAT_SHARE_DIR_ROOT}/state"
+    _state_file="${_state_dir}/config.env"
+    _users_file="${_state_dir}/global-users"
+
+  checks:
+    - title: git-lfs on PATH
+      cmd: command -v git-lfs
+    - title: vscode gitconfig exists
+      cmd: test -f /home/vscode/.gitconfig
+      debug: |
+        echo "=== /home/vscode/.gitconfig ==="
+        cat /home/vscode/.gitconfig 2>/dev/null || echo "(missing)"
+    - title: vscode gitconfig contains filter.lfs.process
+      cmd: test "$(git config --file /home/vscode/.gitconfig --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+    - title: vscode gitconfig contains filter.lfs.required=true
+      cmd: test "$(git config --file /home/vscode/.gitconfig --get filter.lfs.required 2>/dev/null)" = "true"
+    - title: state file records global scope
+      cmd: grep -Fqx 'GIT_LFS_STATE_CONFIG_SCOPE="global"' "${_state_file}"
+    - title: global-users file exists
+      cmd: test -f "${_users_file}"
+    - title: global-users file contains only vscode
+      cmd: grep -Fqx "vscode" "${_users_file}"
+    - title: root global gitconfig has no filter.lfs.process
+      cmd: bash -c '! git config --file /root/.gitconfig --get filter.lfs.process >/dev/null 2>&1'
+    - title: /etc/gitconfig has no filter.lfs.process
+      cmd: bash -c '! git config --file /etc/gitconfig --get filter.lfs.process >/dev/null 2>&1'
+
+file_scope_skip_smudge_repo_hook:
+  description: |
+    File-scoped configuration with a repo-relative config file, skip_smudge=true,
+    and repo hooks enabled.
+    Verifies the config file is resolved relative to repo_dir and the pre-push
+    hook is installed in that repo.
+
+  pre: |
+    _repo="/tmp/git-lfs-file-repo"
+    _cfg="${_repo}/.git/git-lfs-test.conf"
+    _state_file="${_FEAT_SHARE_DIR_ROOT}/state/config.env"
+
+  checks:
+    - title: repo-relative config file exists
+      cmd: test -f "${_cfg}"
+      debug: |
+        echo "=== ${_cfg} ==="
+        cat "${_cfg}" 2>/dev/null || echo "(missing)"
+    - title: config file contains filter.lfs.process
+      cmd: test "$(git config --file "${_cfg}" --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+    - title: config file enables skip-smudge
+      cmd: bash -c 'git config --file "$1" --get filter.lfs.smudge 2>/dev/null | grep -Fq -- "--skip"' _ "${_cfg}"
+    - title: repo pre-push hook exists
+      cmd: test -x "${_repo}/.git/hooks/pre-push"
+      debug: |
+        echo "=== ${_repo}/.git/hooks/pre-push ==="
+        cat "${_repo}/.git/hooks/pre-push" 2>/dev/null || echo "(missing)"
+    - title: repo pre-push hook calls git-lfs pre-push
+      cmd: grep -Fq "git lfs pre-push" "${_repo}/.git/hooks/pre-push"
+    - title: state file records file scope
+      cmd: grep -Fqx 'GIT_LFS_STATE_CONFIG_SCOPE="file"' "${_state_file}"
+    - title: system gitconfig not modified for file scope
+      cmd: bash -c '! git config --file /etc/gitconfig --get filter.lfs.process >/dev/null 2>&1'
+
+worktree_manual_hooks:
+  description: |
+    Worktree-scoped configuration with manual_hooks=true and repo hooks enabled.
+    Verifies extensions.worktreeConfig is enabled, config is written to
+    config.worktree, and no pre-push hook is installed automatically.
+
+  pre: |
+    _repo="/tmp/git-lfs-worktree-repo"
+    _state_file="${_FEAT_SHARE_DIR_ROOT}/state/config.env"
+
+  checks:
+    - title: extensions.worktreeConfig enabled in repo config
+      cmd: test "$(git -C "${_repo}" config --get extensions.worktreeConfig 2>/dev/null)" = "true"
+      debug: |
+        echo "=== ${_repo}/.git/config ==="
+        cat "${_repo}/.git/config" 2>/dev/null || echo "(missing)"
+    - title: config.worktree exists
+      cmd: test -f "${_repo}/.git/config.worktree"
+      debug: |
+        echo "=== ${_repo}/.git/config.worktree ==="
+        cat "${_repo}/.git/config.worktree" 2>/dev/null || echo "(missing)"
+    - title: worktree config contains filter.lfs.process
+      cmd: test "$(git -C "${_repo}" config --worktree --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+    - title: pre-push hook was not installed automatically
+      cmd: test ! -e "${_repo}/.git/hooks/pre-push"
+    - title: state file records worktree scope
+      cmd: grep -Fqx 'GIT_LFS_STATE_CONFIG_SCOPE="worktree"' "${_state_file}"
+
+auto_pull_true:
+  description: |
+    post-create configure-and-pull hook with auto_pull=true.
+    Creates a local LFS-backed origin and clone, reruns the generated hook
+    script against the clone, and verifies `git lfs pull` materializes the
+    tracked object content.
+
+  pre: |
+    _hook="${_FEAT_LIFECYCLE_POST_CREATE}configure-and-pull.sh"
+    _origin_work="/tmp/git-lfs-origin-work"
+    _origin_bare="/tmp/git-lfs-origin.git"
+    _clone="/tmp/git-lfs-clone"
+    rm -rf "${_origin_work}" "${_origin_bare}" "${_clone}"
+    git init "${_origin_work}"
+    git -C "${_origin_work}" config user.name "DevFeats"
+    git -C "${_origin_work}" config user.email "devfeats@example.com"
+    git -C "${_origin_work}" lfs install --local
+    printf 'payload-from-lfs\n' > "${_origin_work}/big.bin"
+    git -C "${_origin_work}" lfs track big.bin
+    git -C "${_origin_work}" add .gitattributes big.bin
+    git -C "${_origin_work}" commit -m "Add LFS payload"
+    git init --bare "${_origin_bare}"
+    git -C "${_origin_work}" branch -M main
+    git -C "${_origin_work}" remote add origin "${_origin_bare}"
+    git -C "${_origin_work}" push origin main
+    git -C "${_origin_bare}" symbolic-ref HEAD refs/heads/main
+    GIT_LFS_SKIP_SMUDGE=1 git clone "${_origin_bare}" "${_clone}"
+    grep -Fq 'https://git-lfs.github.com/spec/v1' "${_clone}/big.bin"
+    "${_hook}" "${_clone}"
+
+  checks:
+    - title: post-create hook exists
+      cmd: test -x "${_hook}"
+    - title: clone still tracks an LFS file
+      cmd: bash -c 'git -C "$1" lfs ls-files 2>/dev/null | grep -Fq "big.bin"' _ "${_clone}"
+    - title: auto_pull materialized the LFS object
+      cmd: cmp -s "${_clone}/big.bin" "${_origin_work}/big.bin"
+      on_fail: |
+        echo "=== ${_clone}/big.bin ==="
+        cat "${_clone}/big.bin" 2>/dev/null || echo "(missing)"
+    - title: state file records auto_pull=true
+      cmd: grep -Fqx 'GIT_LFS_STATE_AUTO_PULL="true"' "${_FEAT_SHARE_DIR_ROOT}/state/config.env"
+
+auto_pull_false:
+  description: |
+    post-create configure-and-pull hook with auto_pull=false.
+    Creates the same local LFS-backed origin and clone, reruns the generated
+    hook script against the clone, and verifies the checkout remains a pointer
+    file because `git lfs pull` is skipped.
+
+  pre: |
+    _hook="${_FEAT_LIFECYCLE_POST_CREATE}configure-and-pull.sh"
+    _origin_work="/tmp/git-lfs-origin-work"
+    _origin_bare="/tmp/git-lfs-origin.git"
+    _clone="/tmp/git-lfs-clone"
+    rm -rf "${_origin_work}" "${_origin_bare}" "${_clone}"
+    git init "${_origin_work}"
+    git -C "${_origin_work}" config user.name "DevFeats"
+    git -C "${_origin_work}" config user.email "devfeats@example.com"
+    git -C "${_origin_work}" lfs install --local
+    printf 'payload-from-lfs\n' > "${_origin_work}/big.bin"
+    git -C "${_origin_work}" lfs track big.bin
+    git -C "${_origin_work}" add .gitattributes big.bin
+    git -C "${_origin_work}" commit -m "Add LFS payload"
+    git init --bare "${_origin_bare}"
+    git -C "${_origin_work}" branch -M main
+    git -C "${_origin_work}" remote add origin "${_origin_bare}"
+    git -C "${_origin_work}" push origin main
+    git -C "${_origin_bare}" symbolic-ref HEAD refs/heads/main
+    GIT_LFS_SKIP_SMUDGE=1 git clone "${_origin_bare}" "${_clone}"
+    grep -Fq 'https://git-lfs.github.com/spec/v1' "${_clone}/big.bin"
+    "${_hook}" "${_clone}"
+
+  checks:
+    - title: post-create hook exists
+      cmd: test -x "${_hook}"
+    - title: clone still tracks an LFS file
+      cmd: bash -c 'git -C "$1" lfs ls-files 2>/dev/null | grep -Fq "big.bin"' _ "${_clone}"
+    - title: auto_pull=false left the checkout as a pointer file
+      cmd: grep -Fq 'https://git-lfs.github.com/spec/v1' "${_clone}/big.bin"
+      on_fail: |
+        echo "=== ${_clone}/big.bin ==="
+        cat "${_clone}/big.bin" 2>/dev/null || echo "(missing)"
+    - title: state file records auto_pull=false
+      cmd: grep -Fqx 'GIT_LFS_STATE_AUTO_PULL="false"' "${_FEAT_SHARE_DIR_ROOT}/state/config.env"
+
+macos_package_global:
+  description: |
+    Homebrew package install on macOS with explicit global scope.
+    Verifies Git LFS is installed via brew and writes the current user's global
+    gitconfig rather than relying on package-side post-install hooks.
+
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+    _gitconfig="${HOME}/.gitconfig"
+
+  checks:
+    - title: brew on PATH
+      cmd: command -v brew
+    - title: git-lfs on PATH
+      cmd: command -v git-lfs
+    - title: brew lists git-lfs
+      cmd: brew list git-lfs
+    - title: git lfs version succeeds
+      cmd: git lfs version
+    - title: installed-method state is package
+      cmd: grep -Fqx "package" "${_installed_method}"
+    - title: ~/.gitconfig exists
+      cmd: test -f "${_gitconfig}"
+      debug: |
+        echo "=== ${_gitconfig} ==="
+        cat "${_gitconfig}" 2>/dev/null || echo "(missing)"
+    - title: ~/.gitconfig contains filter.lfs.process
+      cmd: test "$(git config --file "${_gitconfig}" --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+    - title: ~/.gitconfig contains filter.lfs.required=true
+      cmd: test "$(git config --file "${_gitconfig}" --get filter.lfs.required 2>/dev/null)" = "true"

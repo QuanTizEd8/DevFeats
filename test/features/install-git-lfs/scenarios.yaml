@@ -1,0 +1,95 @@
+defaults:
+  modes: [devcontainer]
+
+auto_default_binary:
+  envs: [ubuntu-24.04]
+  tests: [auto_default_binary]
+
+upstream_package_apt:
+  envs: [ubuntu-24.04]
+  options:
+    method: upstream-package
+  tests: [upstream_package_apt]
+
+upstream_package_rpm:
+  envs: [rocky-9+bash]
+  options:
+    method: upstream-package
+  tests: [upstream_package_rpm]
+
+package_zypper_system:
+  envs: [opensuse-leap+bash]
+  options:
+    method: package
+  tests: [package_zypper_system]
+
+source_prefix:
+  envs: [ubuntu-24.04]
+  options:
+    method: source
+    prefix: /opt/git-lfs
+  tests: [source_prefix]
+
+global_remote_user:
+  envs: [ubuntu-24.04]
+  setup: useradd -m -s /bin/bash vscode
+  devcontainer:
+    remoteUser: vscode
+  options:
+    method: binary
+    config_scope: global
+    add_current_user: false
+    add_remote_user: true
+    add_container_user: false
+  tests: [global_remote_user]
+
+file_scope_skip_smudge_repo_hook:
+  envs: [ubuntu-24.04]
+  setup: |
+    git init /tmp/git-lfs-file-repo
+  options:
+    method: binary
+    config_scope: file
+    config_file: .git/git-lfs-test.conf
+    repo_dir: /tmp/git-lfs-file-repo
+    skip_repo: false
+    skip_smudge: true
+  tests: [file_scope_skip_smudge_repo_hook]
+
+worktree_manual_hooks:
+  envs: [ubuntu-24.04]
+  setup: |
+    git init /tmp/git-lfs-worktree-repo
+  options:
+    method: binary
+    config_scope: worktree
+    repo_dir: /tmp/git-lfs-worktree-repo
+    skip_repo: false
+    manual_hooks: true
+  tests: [worktree_manual_hooks]
+
+auto_pull_true:
+  envs: [ubuntu-24.04]
+  options:
+    method: binary
+    config_scope: none
+    auto_pull: true
+  tests: [auto_pull_true]
+
+auto_pull_false:
+  envs: [ubuntu-24.04]
+  options:
+    method: binary
+    config_scope: none
+    auto_pull: false
+  tests: [auto_pull_false]
+
+macos_package_global:
+  envs: [macos-latest]
+  modes: [macos]
+  options:
+    method: package
+    config_scope: global
+    add_remote_user: false
+    add_container_user: false
+  tests: [macos_package_global]
