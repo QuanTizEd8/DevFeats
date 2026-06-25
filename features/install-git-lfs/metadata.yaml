@@ -57,25 +57,16 @@ _options:
       binary_src:
         - git-lfs
       when:
-        - {plat.kernel: linux, plat.machine_release: amd64}
-        - {plat.kernel: linux, plat.machine_release: arm64}
-        - {plat.kernel: linux, plat.machine_release: i386}
-        - {plat.kernel: linux, plat.machine_release: armv7}
-        - {plat.kernel: linux, plat.machine_release: loong64}
-        - {plat.kernel: linux, plat.machine_release: ppc64le}
-        - {plat.kernel: linux, plat.machine_release: riscv64}
-        - {plat.kernel: linux, plat.machine_release: s390x}
-        - {plat.kernel: darwin, plat.machine_release: amd64}
-        - {plat.kernel: darwin, plat.machine_release: arm64}
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, i386, armv7, loong64, ppc64le, riscv64, s390x]}
+        - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
     upstream-package:
       registers_as: git-lfs
       when: &packagecloud_when
         - {plat.pm: apt, os.id: debian, os.version_codename: bullseye, plat.machine_release: amd64}
         - {plat.pm: apt, os.id: debian, os.version_codename: bookworm, plat.machine_release: [amd64, arm64]}
         - {plat.pm: apt, os.id: ubuntu, os.version_codename: [focal, jammy, noble], plat.machine_release: [amd64, arm64]}
-        - {plat.pm: [dnf, yum], os.id: [rhel, rocky], os.version_id_major: "8", plat.machine_release: amd64}
+        - {plat.pm: [dnf, yum], os.id: [rhel, rocky], os.version_id_major: ["8", "10"], plat.machine_release: amd64}
         - {plat.pm: [dnf, yum], os.id: [rhel, rocky], os.version_id_major: "9", plat.machine_release: [amd64, arm64]}
-        - {plat.pm: [dnf, yum], os.id: [rhel, rocky], os.version_id_major: "10", plat.machine_release: amd64}
     package:
       registers_as: git-lfs
       when:
@@ -197,11 +188,10 @@ postCreateCommand:
 _dependencies:
   run:
     base:
+      when: {plat.kernel: linux}
       packages:
-        - name: ca-certificates
-          when: {plat.kernel: linux}
-        - name: git
-          when: {plat.kernel: linux}
+        - ca-certificates
+        - git
     method-package:
       packages:
         - name: git-lfs
@@ -217,8 +207,6 @@ _dependencies:
       packages:
         - name: git-lfs
           version: "{feat.pm_version}"
-          when:
-            plat.pm: [apt, dnf, yum]
       apt:
         keys:
           - url: https://packagecloud.io/github/git-lfs/gpgkey
