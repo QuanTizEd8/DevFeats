@@ -161,6 +161,25 @@ _stub_ospkg_privilege_ok() {
   export -f _ospkg__assert_privilege
 }
 
+@test "_ospkg__install_repo_content preserves physical line breaks across sequential apt entries" {
+  reload_lib
+  _OSPKG__FAMILY="apt"
+  local _repo_file="${BATS_TEST_TMPDIR}/syspkg-installer.list"
+
+  file__append_privileged() {
+    [[ "$1" == "/etc/apt/sources.list.d/syspkg-installer.list" ]] || return 1
+    cat >> "${_repo_file}"
+  }
+
+  _ospkg__install_repo_content $'deb https://example.invalid/git-lfs stable main\n'
+  _ospkg__install_repo_content $'deb-src https://example.invalid/git-lfs stable main\n'
+
+  mapfile -t _repo_lines < "${_repo_file}"
+  [[ "${#_repo_lines[@]}" -eq 2 ]]
+  [[ "${_repo_lines[0]}" == "deb https://example.invalid/git-lfs stable main" ]]
+  [[ "${_repo_lines[1]}" == "deb-src https://example.invalid/git-lfs stable main" ]]
+}
+
 # ---------------------------------------------------------------------------
 # ospkg__update
 # ---------------------------------------------------------------------------
@@ -189,6 +208,29 @@ _stub_ospkg_privilege_ok() {
   # The fake apt-get stub exits 0 for any subcommand.
   run ospkg__update --force
   assert_success
+}
+
+@test "_ospkg__detect configures non-interactive dnf check-update" {
+  reload_lib
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  create_fake_bin "uname" "Linux"
+  printf '#!/bin/bash\nexit 0\n' > "${BATS_TEST_TMPDIR}/bin/dnf"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dnf"
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
+  [[ "${_OSPKG__FAMILY}" == "dnf" ]]
+  [[ "${_OSPKG__UPDATE[*]}" == "users__run_privileged dnf -y check-update" ]]
+}
+
+@test "_ospkg__detect configures non-interactive yum check-update" {
+  reload_lib
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  create_fake_bin "uname" "Linux"
+  printf '#!/bin/bash\nexit 0\n' > "${BATS_TEST_TMPDIR}/bin/yum"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yum"
+  PATH="${BATS_TEST_TMPDIR}/bin" _ospkg__detect
+  [[ "${_OSPKG__FAMILY}" == "dnf" ]]
+  [[ "${_OSPKG__PKG_MNGR}" == "yum" ]]
+  [[ "${_OSPKG__UPDATE[*]}" == "users__run_privileged yum -y check-update" ]]
 }
 
 # ---------------------------------------------------------------------------

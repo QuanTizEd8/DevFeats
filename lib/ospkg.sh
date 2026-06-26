@@ -269,28 +269,26 @@ _ospkg__install_repo_content() {
   #   <content>  Repository config content, possibly containing `{KEY}` tokens.
   #
   # Returns: 0 always.
-  local _content
-  _content="$(ctx__expand_pattern "$1")"
   if [[ "$_OSPKG__FAMILY" = "apt" ]]; then
-    printf '%s' "$_content" | file__append_privileged /etc/apt/sources.list.d/syspkg-installer.list
+    ctx__expand_pattern "$1" | file__append_privileged /etc/apt/sources.list.d/syspkg-installer.list
     logging__info "Appended to /etc/apt/sources.list.d/syspkg-installer.list"
   elif [[ "$_OSPKG__FAMILY" = "apk" ]]; then
     local _rline
-    while IFS= read -r _rline; do
+    while IFS= read -r _rline || [[ -n "${_rline:-}" ]]; do
       [[ -z "${_rline:-}" || "${_rline}" =~ ^[[:space:]]*# ]] && continue
       printf '%s\n' "$_rline" | file__append_privileged /etc/apk/repositories
       _OSPKG__APK_ADDED_REPOS+=("$_rline")
       logging__info "Added APK repo: ${_rline}"
-    done <<< "$_content"
+    done < <(ctx__expand_pattern "$1")
   elif [[ "$_OSPKG__FAMILY" = "dnf" ]]; then
-    printf '%s' "$_content" | file__append_privileged /etc/yum.repos.d/syspkg-installer.repo
+    ctx__expand_pattern "$1" | file__append_privileged /etc/yum.repos.d/syspkg-installer.repo
     logging__info "Appended to /etc/yum.repos.d/syspkg-installer.repo"
   elif [[ "$_OSPKG__FAMILY" = "zypper" ]]; then
-    printf '%s' "$_content" | file__append_privileged /etc/zypp/repos.d/syspkg-installer.repo
+    ctx__expand_pattern "$1" | file__append_privileged /etc/zypp/repos.d/syspkg-installer.repo
     logging__info "Appended to /etc/zypp/repos.d/syspkg-installer.repo"
   elif [[ "$_OSPKG__FAMILY" = "pacman" ]]; then
     users__run_privileged mkdir -p /etc/pacman.d
-    printf '%s' "$_content" | file__append_privileged /etc/pacman.d/syspkg-installer.conf
+    ctx__expand_pattern "$1" | file__append_privileged /etc/pacman.d/syspkg-installer.conf
     grep -qxF 'Include = /etc/pacman.d/syspkg-installer.conf' /etc/pacman.conf ||
       printf 'Include = /etc/pacman.d/syspkg-installer.conf\n' | file__append_privileged /etc/pacman.conf
     logging__info "Written to /etc/pacman.d/syspkg-installer.conf"
@@ -368,7 +366,7 @@ _ospkg__set_apk() {
 
 _ospkg__set_dnf() {
   _ospkg__configure_pm "DNF (tool: dnf)" dnf dnf dnf _ospkg__clean_dnf "/var/cache/dnf" "*"
-  _OSPKG__UPDATE=(users__run_privileged dnf check-update)
+  _OSPKG__UPDATE=(users__run_privileged dnf -y check-update)
   _OSPKG__INSTALL=(users__run_privileged dnf -y install)
   _OSPKG__REMOVE=(users__run_privileged dnf -y remove)
   # rpm -e --nodeps removes the package without cascade-removing reverse-dependents.
@@ -393,7 +391,7 @@ _ospkg__set_microdnf() {
 
 _ospkg__set_yum() {
   _ospkg__configure_pm "YUM (tool: yum)" dnf yum yum _ospkg__clean_dnf "/var/cache/yum" "*"
-  _OSPKG__UPDATE=(users__run_privileged yum check-update)
+  _OSPKG__UPDATE=(users__run_privileged yum -y check-update)
   _OSPKG__INSTALL=(users__run_privileged yum -y install)
   _OSPKG__REMOVE=(users__run_privileged yum -y remove)
   _OSPKG__REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
