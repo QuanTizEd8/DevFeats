@@ -98,6 +98,28 @@ shell__detect_installed_shells() {
   return 0
 }
 
+shell__detect_fish_sysdir() {
+  # @brief shell__detect_fish_sysdir — Print the system-wide fish vendor completions directory.
+  #
+  # On macOS (Darwin), /usr/share is a read-only filesystem even for root (SIP
+  # applies), so the Linux-standard /usr/share/fish/vendor_completions.d cannot
+  # be created there.  Instead, resolve the Homebrew prefix and return
+  # `${brew_prefix}/share/fish/vendor_completions.d`.  If Homebrew is absent,
+  # no system fish path is usable — print nothing and return 0.
+  #
+  # On Linux, return the FHS path /usr/share/fish/vendor_completions.d.
+  #
+  # Stdout: the system fish vendor completions directory, or empty on macOS
+  #         when Homebrew is not installed.
+  if [ "$(os__kernel)" = "Darwin" ]; then
+    local _prefix
+    _prefix="$(brew --prefix 2> /dev/null)" || true
+    [[ -n "${_prefix}" ]] && printf '%s\n' "${_prefix}/share/fish/vendor_completions.d" || true
+  else
+    printf '%s\n' "/usr/share/fish/vendor_completions.d"
+  fi
+}
+
 shell__write_block() {
   # @brief shell__write_block --file <f> --marker <id> --content <c> — Idempotently write a named `# >>> <id> >>>` … `# <<< <id> <<<` block to a file. Creates the file if needed.
   #
@@ -919,7 +941,13 @@ shell__install_completion() {
       ;;
     fish)
       if "${_system}"; then
-        _dest="/usr/share/fish/vendor_completions.d/${_name}.fish"
+        local _fish_sysdir
+        _fish_sysdir="$(shell__detect_fish_sysdir)"
+        if [[ -z "${_fish_sysdir}" ]]; then
+          logging__skip "No system fish completion directory available on this platform; skipping fish completions."
+          return 0
+        fi
+        _dest="${_fish_sysdir}/${_name}.fish"
       else
         _dest="${_home}/.config/fish/completions/${_name}.fish"
       fi

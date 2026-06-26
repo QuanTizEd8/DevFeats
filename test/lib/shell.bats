@@ -130,6 +130,37 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# shell__detect_fish_sysdir
+# ---------------------------------------------------------------------------
+
+@test "shell__detect_fish_sysdir returns /usr/share/fish/vendor_completions.d on Linux" {
+  reload_lib
+  os__kernel() { printf 'Linux\n'; }
+  run shell__detect_fish_sysdir
+  assert_output "/usr/share/fish/vendor_completions.d"
+  assert_success
+}
+
+@test "shell__detect_fish_sysdir returns Homebrew fish path on macOS" {
+  reload_lib
+  os__kernel() { printf 'Darwin\n'; }
+  create_fake_bin "brew" "/opt/homebrew"
+  prepend_fake_bin_path
+  run shell__detect_fish_sysdir
+  assert_output "/opt/homebrew/share/fish/vendor_completions.d"
+  assert_success
+}
+
+@test "shell__detect_fish_sysdir returns empty on macOS when Homebrew is absent" {
+  reload_lib
+  os__kernel() { printf 'Darwin\n'; }
+  begin_path_isolation
+  run shell__detect_fish_sysdir
+  assert_output ""
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
 # shell__write_block
 # ---------------------------------------------------------------------------
 
