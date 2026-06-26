@@ -91,6 +91,8 @@ auto_pull_false:
 macos_package_global:
   envs: [macos-latest]
   modes: [macos]
+  setup: |
+    brew list git-lfs >/dev/null 2>&1 && brew uninstall --formula git-lfs || true
   options:
     method: package
     config_scope: global
