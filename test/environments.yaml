@@ -138,8 +138,8 @@ ubuntu-24.04+ripgrep:
       apt-get install -y --no-install-recommends ripgrep
       rm -rf /var/lib/apt/lists/*
 
-ubuntu-24.04+rust:
-  from: ubuntu-24.04
+ubuntu-26.04+rust:
+  from: ubuntu-26.04
   build:
     dockerfile: |
       apt-get update -qq
@@ -222,8 +222,8 @@ ubuntu-24.04+homebrew:
       runuser -u linuxbrew -- env NONINTERACTIVE=1 /bin/bash -c \
           "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-debian-12+just:
-  from: debian-12
+debian-13+just:
+  from: debian-13
   build:
     dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends just && rm -rf /var/lib/apt/lists/*
 

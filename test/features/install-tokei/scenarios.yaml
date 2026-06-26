@@ -21,7 +21,7 @@ package_default:
   tests: [package_default]
 
 method_cargo:
-  envs: [ubuntu-24.04+rust]
+  envs: [ubuntu-26.04+rust]
   modes: [standalone]
   options:
     method: cargo

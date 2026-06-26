@@ -20,7 +20,7 @@ binary_custom_prefix:
   - binary_custom_prefix
 package_default:
   envs:
-  - debian-12
+  - debian-13
   modes:
   - devcontainer
   - standalone
@@ -32,7 +32,7 @@ package_default:
 if_exists_fail:
   expect_install_failure: true
   envs:
-  - debian-12+just
+  - debian-13+just
   modes:
   - standalone
   tests:

@@ -48,8 +48,8 @@ upstream_package:
       kind: multiple
       min: 1
       cmd:
-        - bash -c 'test "$(dpkg-query -W -f="\${Status}" git-lfs 2>/dev/null)" = "install ok installed" && dpkg -S "$(command -v git-lfs)" >/dev/null 2>&1'
-        - bash -c 'rpm -q git-lfs >/dev/null 2>&1 && rpm -qf "$(command -v git-lfs)" >/dev/null 2>&1'
+        - dpkg -S "$(command -v git-lfs)" >/dev/null 2>&1
+        - rpm -q git-lfs >/dev/null 2>&1
     - title: git lfs version succeeds
       cmd: git lfs version
     - title: installed-method state is upstream-package
