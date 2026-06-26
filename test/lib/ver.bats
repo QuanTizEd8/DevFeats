@@ -481,16 +481,58 @@ abc123  zsh-5.9.tar.xz"
   assert_success
 }
 
-@test "ver__resolve_from_sidecar returns numeric spec as-is without fetching sidecar" {
+@test "ver__resolve_from_sidecar exact spec returns exact match when present in sidecar" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.1.tar.xz
+abc123  zsh-5.9.tar.xz
+abc123  zsh-5.8.1.tar.xz"
+  _stub_uri_fetch_asset_with_content
   run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "5.9"
   assert_output "5.9"
   assert_success
 }
 
-@test "ver__resolve_from_sidecar returns full numeric spec as-is" {
+@test "ver__resolve_from_sidecar full semver resolves via exact match" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.1.tar.xz
+abc123  zsh-5.9.tar.xz"
+  _stub_uri_fetch_asset_with_content
   run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "5.9.1"
   assert_output "5.9.1"
   assert_success
+}
+
+@test "ver__resolve_from_sidecar prefix spec resolves to latest stable when exact absent" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.1.tar.xz
+abc123  zsh-5.8.1.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "5.9"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar major-only spec resolves to latest stable" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.1.tar.xz
+abc123  zsh-5.9.tar.xz
+abc123  zsh-5.8.1.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "5"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar prefix spec skips prereleases" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.2-rc1.tar.xz
+abc123  zsh-5.9.1.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "5.9"
+  assert_output "5.9.1"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar prefix spec fails when no stable match" {
+  export _SIDECAR_CONTENT="abc123  zsh-5.9.2-rc1.tar.xz"
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-[version].tar.xz" "5.9"
+  assert_failure
 }
 
 @test "ver__resolve_from_sidecar fails when pattern has no [version]" {

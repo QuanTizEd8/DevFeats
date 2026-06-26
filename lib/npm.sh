@@ -667,12 +667,13 @@ npm__resolve_node_version() {
   # @brief npm__resolve_node_version <spec> [--index-file <path>] — Resolve a Node.js version spec to an exact `vX.Y.Z`.
   #
   # Reads the nodejs.org dist index.json (fetched from the network or from a
-  # pre-downloaded file given with `--index-file`) and resolves the spec using
-  # `json__nodejs_index_version_stdin`. Supported specs:
-  #   `lts` / `lts/*`      Latest stable LTS release.
-  #   `latest` / `node`    Most recent release (may be non-LTS).
-  #   `<major>`            Latest release for that major (e.g. `20`, `22`).
-  #   `vX.Y.Z` / `X.Y.Z`  Exact version; validated against the index.
+  # pre-downloaded file given with `--index-file`) and resolves the spec. Supported specs:
+  #   `stable`             Latest non-prerelease Node.js release.
+  #   `lts` / `lts/*`     Latest stable LTS release.
+  #   `latest` / `node`   Most recent release (may be non-LTS).
+  #   `<major>`           Latest stable release for that major (e.g. `22`).
+  #   `X.Y`               Latest stable release for that major.minor (e.g. `22.1`).
+  #   `vX.Y.Z` / `X.Y.Z` Exact version; validated against the index.
   #
   # Args:
   #   <spec>              Version spec string (required).
@@ -723,41 +724,33 @@ npm__resolve_node_version() {
     return 1
   }
 
-  # Normalise "lts" alias → "lts/*"
+  # Normalise aliases before dispatch
   [ "$_spec" = "lts" ] && _spec="lts/*"
+  [ "$_spec" = "node" ] && _spec="latest"
+
+  bootstrap__jq
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "jq is required to resolve Node.js version spec '${_spec}'."
+    return "$_rc"
+  }
 
   local _resolved=""
   case "$_spec" in
     "lts/*")
-      _resolved="$(printf '%s\n' "$_index_json" | json__nodejs_index_version_stdin lts-first)" || _resolved=""
+      # LTS resolution requires the .lts field, which is lost once only .version is extracted.
+      _resolved="$(printf '%s\n' "$_index_json" |
+        jq -r '[.[] | select(.lts != false)][0].version // empty | strings' 2> /dev/null)" || _resolved=""
       ;;
-    "latest" | "node")
-      _resolved="$(printf '%s\n' "$_index_json" | json__nodejs_index_version_stdin head)" || _resolved=""
-      ;;
-    v[0-9]*"."*"."[0-9]*)
-      # Exact semver with leading v — validate it exists in the index
-      if printf '%s\n' "$_index_json" | json__nodejs_index_version_stdin exact "$_spec" > /dev/null 2>&1; then
-        _resolved="$_spec"
-      else
-        logging__error "version '${_spec}' not found in nodejs.org/dist/index.json."
-        return 1
-      fi
-      ;;
-    [0-9]*"."*"."[0-9]*)
-      # Exact semver without leading v — must come before [0-9]* (major) to avoid false match
-      if printf '%s\n' "$_index_json" | json__nodejs_index_version_stdin exact "v${_spec}" > /dev/null 2>&1; then
-        _resolved="v${_spec}"
-      else
-        logging__error "version '${_spec}' not found in nodejs.org/dist/index.json."
-        return 1
-      fi
-      ;;
-    [0-9]*)
-      _resolved="$(printf '%s\n' "$_index_json" | json__nodejs_index_version_stdin major "$_spec")" || _resolved=""
+    "stable" | "latest" | v[0-9]* | [0-9]*)
+      # All other specs: extract the version list (newest-first, as index.json is ordered)
+      # and delegate to ver__resolve_from_list, which handles stable, latest, and prefix matching.
+      _resolved="$(printf '%s\n' "$_index_json" | jq -r '.[].version' |
+        ver__resolve_from_list "${_spec}")" || _resolved=""
       ;;
     *)
       logging__error "unsupported version spec '${_spec}'."
-      logging__info "Supported: lts, lts/*, latest, node, a major number (e.g. 22), or an exact semver."
+      logging__info "Supported: lts, lts/*, stable, latest, node, a major number (e.g. 22), X.Y, or a semver (e.g. 24.11.1)."
       return 1
       ;;
   esac

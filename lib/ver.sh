@@ -320,12 +320,6 @@ ver__resolve_from_sidecar() {
   # filenames matching `<filename_pattern>` (which must contain `[version]`),
   # sorts them newest-first, and resolves `<spec>` via `ver__resolve_from_list`.
   #
-  # For `stable`, `latest`, and `""` specs the sidecar is fetched to find the
-  # current release. For any numeric spec (e.g. `5.9`, `5.9.1`) the sidecar is
-  # skipped and the spec is returned as-is: the caller is expected to use the
-  # exact version directly (possibly with a fallback URI for archived releases).
-  # This preserves the intuitive meaning of "give me exactly version 5.9".
-  #
   # Example: URI=https://www.zsh.org/pub/SHA256SUM, pattern=zsh-[version].tar.xz
   # will extract versions like `5.9.1` from lines such as:
   #   "abc123  zsh-5.9.1.tar.xz"
@@ -333,9 +327,10 @@ ver__resolve_from_sidecar() {
   # Args:
   #   <uri>              URL of the sidecar file.
   #   <filename_pattern> Filename pattern with `[version]` placeholder.
-  #   <spec>             Version spec: `stable`, `latest`, `""`, or an explicit
-  #                      numeric version (e.g. `5.9`, `5.9.1`). Explicit numeric
-  #                      specs are returned as-is without fetching the sidecar.
+  #   <spec>             Version spec: `stable`, `latest`, `""`, a numeric prefix
+  #                      (e.g. `5`, `5.9`), or an exact version (e.g. `5.9.1`).
+  #                      Prefix specs resolve to the latest stable matching version;
+  #                      exact specs use exact-match-first then fall back to prefix.
   #
   # Stdout: Resolved version string.
   # Returns: 0 on success, 1 on failure (download error, no versions found, no match).
@@ -352,20 +347,14 @@ ver__resolve_from_sidecar() {
     logging__error "ver__resolve_from_sidecar: pattern '${_pattern}' must contain '[version]'."
     return 1
   }
-  # For explicit numeric specs (not stable/latest/""), skip sidecar and return as-is.
-  # This preserves the intent of e.g. "5.9" → exactly 5.9, not "latest 5.9.x".
+  # For non-symbolic specs, validate numeric content before fetching the sidecar.
   case "${_spec}" in
-    stable | latest | "")
-      ;;
+    stable | latest | "") ;;
     *)
-      local _norm
-      _norm="$(ver__extract_version --keep-suffix "${_spec}" 2> /dev/null || true)"
-      [[ -n "${_norm}" ]] || {
+      ver__extract_version --keep-suffix "${_spec}" > /dev/null 2>&1 || {
         logging__error "ver__resolve_from_sidecar: spec '${_spec}' contains no numeric version content."
         return 1
       }
-      printf '%s\n' "${_norm}"
-      return 0
       ;;
   esac
   local _tmpfile

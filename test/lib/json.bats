@@ -62,22 +62,6 @@ https://b.zip"
   assert_success
 }
 
-@test "json__nodejs_index_version_stdin lts-first head major exact" {
-  _fixture='[{"version":"v1.0.0","lts":false},{"version":"v22.1.0","lts":true},{"version":"v22.0.0","lts":true}]'
-  run bash -c '. "$1/__init__.bash" && printf %s "$2" | json__nodejs_index_version_stdin lts-first' _ "${LIB_ROOT}" "$_fixture"
-  assert_output "v22.1.0"
-  assert_success
-  run bash -c '. "$1/__init__.bash" && printf %s "$2" | json__nodejs_index_version_stdin head' _ "${LIB_ROOT}" "$_fixture"
-  assert_output "v1.0.0"
-  assert_success
-  run bash -c '. "$1/__init__.bash" && printf %s "$2" | json__nodejs_index_version_stdin major 22' _ "${LIB_ROOT}" "$_fixture"
-  assert_output "v22.1.0"
-  assert_success
-  run bash -c '. "$1/__init__.bash" && printf %s "$2" | json__nodejs_index_version_stdin exact v22.0.0' _ "${LIB_ROOT}" "$_fixture"
-  assert_output "v22.0.0"
-  assert_success
-}
-
 @test "json__object_keys_stdin lists top-level keys" {
   run bash -c '. "$1/__init__.bash" && printf %s "{\"z\":1,\"a\":2}" | json__object_keys_stdin' _ "${LIB_ROOT}"
   assert_output "a

@@ -31,12 +31,12 @@ source_default:
       cmd: grep -qx /usr/local/bin/zsh /etc/shells
 
 source_pinned_version:
-  description: Verifies a pinned source build installs the requested version.
+  description: Verifies a prefix-pinned source build installs a version in the requested major.minor line.
   checks:
     - title: zsh binary present at /usr/local/bin/zsh
       cmd: test -f /usr/local/bin/zsh
-    - title: zsh version is 5.9
-      cmd: bash -c '[ "$(/usr/local/bin/zsh --version 2>/dev/null | awk "{print \$2}")" = "5.9" ]'
+    - title: zsh version is in the 5.9 line
+      cmd: bash -c '/usr/local/bin/zsh --version 2>/dev/null | grep -q "^zsh 5\.9"'
 
 source_custom_prefix:
   description: |

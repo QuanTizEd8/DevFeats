@@ -709,6 +709,14 @@ setup() {
   assert_output "v23.0.0"
 }
 
+@test "npm__resolve_node_version resolves node alias as latest using --index-file" {
+  local _index_file="${BATS_TEST_TMPDIR}/index.json"
+  printf '[{"version":"v23.0.0","lts":false},{"version":"v22.1.0","lts":"Jod"}]\n' > "$_index_file"
+  run npm__resolve_node_version node --index-file "$_index_file"
+  assert_success
+  assert_output "v23.0.0"
+}
+
 @test "npm__resolve_node_version resolves major 20 using --index-file" {
   local _index_file="${BATS_TEST_TMPDIR}/index.json"
   printf '[{"version":"v22.1.0","lts":"Jod"},{"version":"v20.19.2","lts":"Iron"},{"version":"v20.18.0","lts":"Iron"}]\n' > "$_index_file"
@@ -731,6 +739,33 @@ setup() {
   run npm__resolve_node_version "20.19.2" --index-file "$_index_file"
   assert_success
   assert_output "v20.19.2"
+}
+
+@test "npm__resolve_node_version resolves stable to latest non-prerelease" {
+  local _index_file="${BATS_TEST_TMPDIR}/index.json"
+  printf '[{"version":"v23.0.0-rc1","lts":false},{"version":"v22.1.0","lts":"Jod"},{"version":"v20.19.2","lts":"Iron"}]\n' \
+    > "$_index_file"
+  run npm__resolve_node_version stable --index-file "$_index_file"
+  assert_success
+  assert_output "v22.1.0"
+}
+
+@test "npm__resolve_node_version stable skips all prereleases" {
+  local _index_file="${BATS_TEST_TMPDIR}/index.json"
+  printf '[{"version":"v24.0.0-rc1","lts":false},{"version":"v23.0.0-rc2","lts":false},{"version":"v22.1.0","lts":"Jod"}]\n' \
+    > "$_index_file"
+  run npm__resolve_node_version stable --index-file "$_index_file"
+  assert_success
+  assert_output "v22.1.0"
+}
+
+@test "npm__resolve_node_version resolves major.minor spec to latest patch" {
+  local _index_file="${BATS_TEST_TMPDIR}/index.json"
+  printf '[{"version":"v22.2.0","lts":"Jod"},{"version":"v22.1.0","lts":"Jod"},{"version":"v20.19.2","lts":"Iron"}]\n' \
+    > "$_index_file"
+  run npm__resolve_node_version "22.1" --index-file "$_index_file"
+  assert_success
+  assert_output "v22.1.0"
 }
 
 @test "npm__resolve_node_version fails on unknown spec" {
