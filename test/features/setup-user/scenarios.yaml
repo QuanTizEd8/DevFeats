@@ -1,17 +1,17 @@
 default:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   tests: [default]
 
 no_sudo:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     sudo_access: false
   tests: [no_sudo]
 
 custom_user:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     username: devuser
@@ -21,21 +21,21 @@ custom_user:
   tests: [custom_user]
 
 custom_home:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     home_dir: /workspaces/myapp
   tests: [custom_home]
 
 custom_shell:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     user_shell: /bin/sh
   tests: [custom_shell]
 
 extra_groups:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   setup: |
     groupadd builders
@@ -45,7 +45,7 @@ extra_groups:
   tests: [extra_groups]
 
 replace_existing:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   setup: |
     userdel ubuntu 2>/dev/null || true
@@ -54,7 +54,7 @@ replace_existing:
   tests: [replace_existing]
 
 already_configured:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   setup: |
     userdel ubuntu 2>/dev/null || true
@@ -71,12 +71,12 @@ already_configured:
   tests: [already_configured]
 
 alpine:
-  envs: [alpine-latest]
+  envs: [alpine-3.21]
   modes: [devcontainer, standalone]
   tests: [alpine]
 
 log_file:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     log_file: /tmp/setup-user.log

@@ -1,10 +1,10 @@
 default:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   tests: [default]
 
 code_only:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     code: true
@@ -13,7 +13,7 @@ code_only:
   tests: [code_only]
 
 none_enabled:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     code: false

@@ -1,4 +1,4 @@
-apt_custom_font_dir:
+custom_font_dir:
   description: |
     Verifies that a custom font_dir places fonts at the specified path instead
     of the default /usr/share/fonts.
@@ -11,7 +11,7 @@ apt_custom_font_dir:
     - title: no fonts at default path
       cmd: bash -c '! find /usr/share/fonts -path "*/devfeats-install-fonts-*" 2>/dev/null | grep -q .'
 
-apt_default:
+default:
   description: |
     Verifies the default installation: Meslo and JetBrainsMono Nerd Fonts
     installed to /usr/share/fonts under the namespaced timestamped directory.
@@ -28,7 +28,7 @@ apt_default:
     - title: font cache refreshed
       cmd: bash -c 'fc-list | grep -qi "meslo\|jetbrains"'
 
-apt_empty_nerd_fonts:
+no_nerd_fonts:
   description: |
     Verifies that nerd_fonts="" skips all Nerd Font downloads without error.
     The script should complete successfully and leave no font files behind.
@@ -38,7 +38,7 @@ apt_empty_nerd_fonts:
     - title: no JetBrainsMono directory
       cmd: bash -c '! test -d /usr/share/fonts/JetBrainsMono'
 
-apt_font_urls:
+font_urls:
   description: |
     Verifies that font_urls installs a font archive from a direct URL under a
     namespaced devfeats-install-fonts-*/url/<host>/<path>/ subdirectory.
@@ -51,7 +51,7 @@ apt_font_urls:
     - title: no default Meslo directory
       cmd: bash -c '! test -d /usr/share/fonts/Meslo'
 
-apt_font_urls_file:
+font_url_file:
   description: |
     Verifies that font_urls with a direct .ttf URL installs the file under a
     namespaced devfeats-install-fonts-*/url/<host>/<path>/ directory,
@@ -63,7 +63,7 @@ apt_font_urls_file:
     - title: no default Meslo directory
       cmd: bash -c '! test -d /usr/share/fonts/Meslo'
 
-apt_gh_release_fonts:
+gh_release_fonts:
   description: |
     Verifies that gh_release_fonts downloads and installs all font/archive assets
     from a GitHub release. Uses JetBrains/JetBrainsMono (latest release).
@@ -75,7 +75,7 @@ apt_gh_release_fonts:
     - title: no default Meslo directory
       cmd: bash -c '! test -d /usr/share/fonts/Meslo'
 
-apt_gh_release_fonts_tag:
+gh_release_fonts_pinned:
   description: |
     Verifies that gh_release_fonts with an explicit @tag slug hits the
     /releases/tags/<tag> API endpoint and installs fonts under
@@ -87,7 +87,7 @@ apt_gh_release_fonts_tag:
     - title: no default Meslo directory
       cmd: bash -c '! test -d /usr/share/fonts/Meslo'
 
-apt_p10k_fonts:
+p10k_fonts:
   description: |
     Verifies that p10k_fonts=true installs the four MesloLGS NF fonts from
     romkatv/powerlevel10k-media in addition to the default Nerd Fonts.

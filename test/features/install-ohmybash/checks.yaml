@@ -1,4 +1,4 @@
-apt_default:
+default:
   description: |
     Verifies the default Oh My Bash installation: cloned to the default path,
     git metadata set, OSH_CUSTOM structure scaffolded, default plugins available,
@@ -33,7 +33,7 @@ apt_default:
     - title: .bashrc sources bashtheme
       cmd: grep -qF "bashtheme" "${_HOME}/.bashrc"
 
-apt_user_config:
+user_config:
   description: |
     Verifies Oh My Bash per-user configuration for root:
     OSH_CUSTOM defaults to ~/.config/bash/custom, per-user custom dirs exist,
@@ -64,7 +64,7 @@ apt_user_config:
     - title: .bashrc sources bashtheme
       cmd: grep -qF "bashtheme" "${_HOME}/.bashrc"
 
-apt_install_dir:
+binary_custom_prefix:
   description: |
     Verifies that a custom prefix is respected: Oh My Bash is cloned
     there and not at the default path.
@@ -86,7 +86,7 @@ apt_install_dir:
     - title: omb not at default path
       cmd: bash -c '! test -d /usr/local/share/oh-my-bash'
 
-apt_if_exists_skip:
+if_exists_skip:
   description: |
     Verifies that if_exists=skip on a fresh container (nothing pre-existing) performs
     a normal install, since there is nothing to skip.
@@ -109,7 +109,7 @@ apt_if_exists_skip:
     - title: .bashrc sources bashtheme
       cmd: grep -qF "bashtheme" "${_HOME}/.bashrc"
 
-apt_if_exists_update:
+if_exists_update:
   description: |
     Verifies that if_exists=update on a fresh container (nothing pre-existing) performs
     a normal install, and that the git repo and user config are correctly set up.

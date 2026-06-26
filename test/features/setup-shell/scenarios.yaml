@@ -4,69 +4,69 @@ defaults:
     setup_bash: auto
     set_user_shells: none
 
-apt_default:
-  envs: [debian-latest]
+default:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     setup_zsh: auto
-  tests: [apt_default]
+  tests: [default]
 
-apt_setup_zsh_true:
-  envs: [debian-latest]
+setup_zsh_true:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   options:
     setup_zsh: true
     setup_bash: auto
-  tests: [apt_setup_zsh_true]
+  tests: [setup_zsh_true]
 
-apt_setup_zsh_auto:
-  envs: [debian-latest]
+setup_zsh_auto:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   options:
     setup_zsh: auto
-  tests: [apt_setup_zsh_auto]
+  tests: [setup_zsh_auto]
 
-apt_setup_zsh_false:
-  envs: [debian-latest]
+setup_zsh_false:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   setup: apt-get update && apt-get install -y --no-install-recommends zsh
   options:
     setup_zsh: false
-  tests: [apt_setup_zsh_false]
+  tests: [setup_zsh_false]
 
-apt_setup_bash_false:
-  envs: [debian-latest]
+setup_bash_false:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   options:
     setup_bash: false
     setup_zsh: false
-  tests: [apt_setup_bash_false]
+  tests: [setup_bash_false]
 
-apt_with_install_zsh:
-  envs: [debian-latest]
+with_install_zsh:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   setup: apt-get update && apt-get install -y --no-install-recommends zsh
   options:
     setup_zsh: auto
-  tests: [apt_default_with_zsh]
+  tests: [default_with_zsh]
 
-apt_set_shell_zsh:
-  envs: [debian-latest]
+set_shell_zsh:
+  envs: [debian-12]
   modes: [devcontainer]
   setup: apt-get update && apt-get install -y --no-install-recommends zsh
   options:
     set_user_shells: zsh
     add_users: root
     setup_zsh: auto
-  tests: [apt_set_shell_zsh]
+  tests: [set_shell_zsh]
 
-apt_user_config:
-  envs: [debian-latest]
+user_config:
+  envs: [debian-12]
   modes: [devcontainer]
-  tests: [apt_user_config]
+  tests: [user_config]
 
-apt_if_exists_skip:
-  envs: [debian-latest]
+if_exists_skip:
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     mkdir -p /root/.config/zsh
@@ -74,10 +74,10 @@ apt_if_exists_skip:
     echo '# MY_CUSTOM_BASHRC' > /root/.bashrc
   options:
     setup_zsh: true
-  tests: [apt_if_exists_skip]
+  tests: [if_exists_skip]
 
-apt_if_exists_update:
-  envs: [debian-latest]
+if_exists_update:
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     mkdir -p /root/.config/zsh
@@ -85,10 +85,10 @@ apt_if_exists_update:
   options:
     if_exists: update
     setup_zsh: true
-  tests: [apt_if_exists_update]
+  tests: [if_exists_update]
 
-apt_if_exists_reinstall:
-  envs: [debian-latest]
+if_exists_reinstall:
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     mkdir -p /root/.config/zsh
@@ -96,142 +96,142 @@ apt_if_exists_reinstall:
   options:
     if_exists: reinstall
     setup_zsh: true
-  tests: [apt_if_exists_reinstall]
+  tests: [if_exists_reinstall]
 
-apt_setup_system_false:
-  envs: [debian-latest]
+setup_system_false:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   options:
     setup_system: false
     setup_zsh: true
-  tests: [apt_setup_system_false]
+  tests: [setup_system_false]
 
-apt_setup_skel:
-  envs: [debian-latest]
+setup_skel:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     setup_skel: true
-  tests: [apt_setup_skel]
+  tests: [setup_skel]
 
-apt_zdotdir_default:
-  envs: [debian-latest]
+zdotdir_default:
+  envs: [debian-12]
   modes: [devcontainer]
-  tests: [apt_zdotdir_default]
+  tests: [zdotdir_default]
 
-apt_zdotdir_custom:
-  envs: [debian-latest]
+zdotdir_custom:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     zdotdir: "~/.zsh"
-  tests: [apt_zdotdir_custom]
+  tests: [zdotdir_custom]
 
-apt_skel_placement:
-  envs: [debian-latest]
+skel_placement:
+  envs: [debian-12]
   modes: [devcontainer]
-  tests: [apt_skel_placement]
+  tests: [skel_placement]
 
-apt_remote_user:
-  envs: [devcontainers-base-debian]
+remote_user:
+  envs: [debian-12+vscode]
   modes: [devcontainer]
   options:
     add_remote_user: true
   devcontainer:
     remoteUser: vscode
-  tests: [apt_remote_user]
+  tests: [remote_user]
 
-apt_container_user:
-  envs: [devcontainers-base-debian]
+container_user:
+  envs: [debian-12+vscode]
   modes: [devcontainer]
   options:
     add_container_user: true
   devcontainer:
     containerUser: vscode
-  tests: [apt_container_user]
+  tests: [container_user]
 
-apt_add_users:
-  envs: [debian-latest]
+add_users:
+  envs: [debian-12]
   modes: [devcontainer]
   setup: useradd -m -s /bin/bash devuser
   options:
     add_users: devuser
     add_container_user: false
     add_remote_user: false
-  tests: [apt_add_users]
+  tests: [add_users]
 
-apt_no_bash_env:
-  envs: [debian-latest]
+no_bash_env:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   options:
     setup_bash_env: false
-  tests: [apt_no_bash_env]
+  tests: [no_bash_env]
 
-apt_locale_custom:
-  envs: [debian-latest]
+locale_custom:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     locale: C.UTF-8
-  tests: [apt_locale_custom]
+  tests: [locale_custom]
 
-apt_no_locale:
-  envs: [debian-latest]
+no_locale:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     locale: ''
-  tests: [apt_no_locale]
+  tests: [no_locale]
 
-apt_editor_vim:
-  envs: [debian-latest]
+editor_vim:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     default_editor: vim
-  tests: [apt_editor_vim]
+  tests: [editor_vim]
 
-apt_custom_shellrc:
-  envs: [debian-latest]
+custom_shellrc:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     user_shellrc: .config/shell/rc
-  tests: [apt_custom_shellrc]
+  tests: [custom_shellrc]
 
-apt_custom_zsh_theme:
-  envs: [debian-latest]
+custom_zsh_theme:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     zsh_theme: /tmp/mytheme
-  tests: [apt_custom_zsh_theme]
+  tests: [custom_zsh_theme]
 
-apt_custom_bash_theme:
-  envs: [debian-latest]
+custom_bash_theme:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     bash_theme: /tmp/mybashtheme
-  tests: [apt_custom_bash_theme]
+  tests: [custom_bash_theme]
 
-apt_no_umask:
-  envs: [debian-latest]
+no_umask:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     umask: ''
-  tests: [apt_no_umask]
+  tests: [no_umask]
 
-apt_no_editor:
-  envs: [debian-latest]
+no_editor:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     default_editor: skip
-  tests: [apt_no_editor]
+  tests: [no_editor]
 
-apt_tilde_themes:
-  envs: [debian-latest]
+tilde_themes:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     zsh_theme: ~/myzshtheme
     bash_theme: ~/mybashtheme
-  tests: [apt_tilde_themes]
+  tests: [tilde_themes]
 
-apt_custom_bash_env_path:
-  envs: [debian-latest]
+custom_bash_env_path:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     bash_env_path: /tmp/mybashenv
-  tests: [apt_custom_bash_env_path]
+  tests: [custom_bash_env_path]

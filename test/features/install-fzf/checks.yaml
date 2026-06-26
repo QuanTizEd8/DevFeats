@@ -3,11 +3,11 @@ default:
     Verifies fzf is installed from GitHub Releases, responds correctly, and
     shell integration hooks are injected into system-wide rc files.
   checks:
-    - title: fzf binary installed at /usr/local/bin/fzf
+    - title: fzf binary is at /usr/local/bin/fzf
       cmd: test -f /usr/local/bin/fzf
     - title: fzf binary is executable
       cmd: test -x /usr/local/bin/fzf
-    - title: fzf on PATH
+    - title: fzf is on PATH
       cmd: command -v fzf
     - title: fzf --version succeeds
       cmd: fzf --version
@@ -34,7 +34,7 @@ specific_version:
     version=0.72.0 + method=binary: installs a specific pinned release and
     verifies the binary reports exactly that version.
   checks:
-    - title: fzf binary installed at /usr/local/bin/fzf
+    - title: fzf binary is at /usr/local/bin/fzf
       cmd: test -f /usr/local/bin/fzf
     - title: fzf binary is executable
       cmd: test -x /usr/local/bin/fzf
@@ -59,7 +59,7 @@ binary_custom_prefix:
     Verifies fzf is installed at the custom prefix and a symlink is created
     at /usr/local/bin/fzf pointing back to the custom-prefix binary.
   checks:
-    - title: fzf binary installed at /opt/fzf-bin/bin/fzf
+    - title: fzf binary is at /opt/fzf-bin/bin/fzf
       cmd: test -f /opt/fzf-bin/bin/fzf
     - title: fzf binary at custom prefix is executable
       cmd: test -x /opt/fzf-bin/bin/fzf
@@ -88,7 +88,7 @@ custom_prefix_no_symlink:
     Verifies fzf is installed at the custom prefix and no symlink is created
     at the default PATH location.
   checks:
-    - title: fzf binary installed at /opt/fzf-bin/bin/fzf
+    - title: fzf binary is at /opt/fzf-bin/bin/fzf
       cmd: test -f /opt/fzf-bin/bin/fzf
     - title: fzf binary at custom prefix is executable
       cmd: test -x /opt/fzf-bin/bin/fzf
@@ -97,13 +97,13 @@ custom_prefix_no_symlink:
     - title: no symlink at /usr/local/bin/fzf
       cmd: bash -c '! test -L /usr/local/bin/fzf && ! test -e /usr/local/bin/fzf'
 
-package_install:
+package_default:
   description: |
     method=package: verifies fzf is installed via the OS package manager
     and is functional. Shell hook injection is guarded to method=binary only,
     so no rc-file checks are performed here.
   checks:
-    - title: fzf on PATH
+    - title: fzf is on PATH
       cmd: command -v fzf
     - title: fzf binary is executable
       cmd: bash -c 'test -x "$(command -v fzf)"'

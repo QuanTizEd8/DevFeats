@@ -92,7 +92,7 @@ custom_bin_dir:
     No PATH export blocks are written (exports always disabled for miniforge).
 
   checks:
-    - title: conda installed at /opt/myforge
+    - title: conda is at /opt/myforge
       cmd: test -d /opt/myforge
     - title: conda binary at custom dir
       cmd: test -f /opt/myforge/bin/conda
@@ -507,7 +507,7 @@ prefix_discovery_symlink:
     No directory symlinks (behavior removed). No PATH export blocks.
 
   checks:
-    - title: conda installed at /opt/myforge
+    - title: conda is at /opt/myforge
       cmd: test -d /opt/myforge
     - title: conda binary at custom dir
       cmd: test -f /opt/myforge/bin/conda
@@ -779,7 +779,7 @@ symlink_user_home_prefix:
     target as for non-root users). No directory symlinks are created.
 
   checks:
-    - title: conda installed at /root/myforge
+    - title: conda is at /root/myforge
       cmd: test -d /root/myforge
     - title: /root/myforge/bin/conda exists
       cmd: test -f /root/myforge/bin/conda

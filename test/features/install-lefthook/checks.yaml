@@ -1,7 +1,7 @@
-default_install:
+default:
   description: Verifies default install puts a functional lefthook on PATH.
   checks:
-    - title: lefthook command is available
+    - title: lefthook is on PATH
       cmd: command -v lefthook
     - title: lefthook reports a version
       cmd: bash -c 'lefthook version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
@@ -9,7 +9,7 @@ default_install:
 binary_custom_prefix:
   description: Verifies method=binary installs lefthook under a custom prefix.
   checks:
-    - title: lefthook binary installed at custom prefix
+    - title: lefthook binary is at custom prefix
       cmd: test -f /opt/lefthook-bin/bin/lefthook
     - title: lefthook binary at custom prefix is executable
       cmd: test -x /opt/lefthook-bin/bin/lefthook
@@ -53,7 +53,7 @@ specific_version:
     version=2.1.6 + method=binary: install a specific pinned version.
     Verifies the binary reports exactly 2.1.6.
   checks:
-    - title: lefthook binary installed at /usr/local/bin/lefthook
+    - title: lefthook binary is at /usr/local/bin/lefthook
       cmd: test -f /usr/local/bin/lefthook
     - title: lefthook binary is executable
       cmd: test -x /usr/local/bin/lefthook
@@ -62,34 +62,25 @@ specific_version:
     - title: lefthook version is 2.1.6
       cmd: bash -c '[ "$(lefthook version 2>/dev/null)" = "2.1.6" ]'
 
-npm_install:
+method_npm:
   description: |
     method=npm: install lefthook via npm global install.
     Verifies lefthook is on PATH and reports a version.
   checks:
-    - title: lefthook command is available
+    - title: lefthook is on PATH
       cmd: command -v lefthook
     - title: lefthook reports a version
       cmd: bash -c 'lefthook version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
 
-package_ubuntu:
-  description: |
-    method=package on Ubuntu: install lefthook from the Cloudsmith APT repository.
-    Verifies lefthook is on PATH and reports a version.
-  checks:
-    - title: lefthook command is available
-      cmd: command -v lefthook
-    - title: lefthook reports a version
-      cmd: bash -c 'lefthook version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
-
-package_alpine:
-  description: |
-    method=package on Alpine: install lefthook from the Cloudsmith Alpine APK repository.
-    Verifies lefthook is on PATH and reports a version.
-    Uses shell: sh because the bootstrap bash is removed after installation on Alpine.
+upstream_package_default:
   shell: sh
+  description: |
+    method=upstream-package on Ubuntu and Alpine.
+    Verifies lefthook is on PATH and reports a version.
+    Uses shell: sh because on Alpine the bootstrap bash is removed after the feature
+    completes, leaving only sh available for the test checks.
   checks:
-    - title: lefthook command is available
+    - title: lefthook is on PATH
       cmd: command -v lefthook
     - title: lefthook reports a version
       cmd: sh -c 'lefthook version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'

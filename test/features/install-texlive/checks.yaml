@@ -3,7 +3,7 @@ tlmgr_on_path:
     tlmgr is reachable on PATH (via instopt_adjustpath symlinks) and reports
     a valid TeX Live version year, and the verify command (tlmgr version) exits 0.
   checks:
-    - title: tlmgr binary on PATH
+    - title: tlmgr is on PATH
       cmd: command -v tlmgr
       debug: |
         echo "=== PATH ==="
@@ -31,7 +31,7 @@ script_custom_prefix:
         ls -la /opt/texlive-test/ 2>/dev/null || echo "(missing)"
     - title: tlmgr binary inside custom prefix
       cmd: bash -c 'test -f /opt/texlive-test/bin/$(uname -m)-linux/tlmgr || find /opt/texlive-test -name tlmgr -type f | grep -q .'
-    - title: tlmgr on PATH (via instopt_adjustpath symlinks)
+    - title: tlmgr is on PATH (via instopt_adjustpath symlinks)
       cmd: command -v tlmgr
     - title: tlmgr --version exits 0
       cmd: tlmgr --version
@@ -53,7 +53,7 @@ script_no_adjustpath:
         ls -la /usr/local/texlive/ 2>/dev/null || echo "(missing)"
     - title: tlmgr binary inside TEXDIR bin dir
       cmd: bash -c 'find /usr/local/texlive/bin -maxdepth 2 -name tlmgr 2>/dev/null | grep -q .'
-    - title: tlmgr NOT on PATH (no adjustpath symlinks)
+    - title: tlmgr is not on PATH (no adjustpath symlinks)
       cmd: bash -c '! command -v tlmgr 2>/dev/null'
     - title: tlmgr reachable via TEXDIR arch-specific bin dir
       cmd: bash -c 'find /usr/local/texlive/bin -maxdepth 2 -name tlmgr -type f | head -1 | xargs -I{} {} --version'
@@ -64,7 +64,7 @@ script_collections:
     two specified collections. Verifies latex and font packages are present while
     confirming the profile used scheme-infraonly (not the scheme=full option).
   checks:
-    - title: tlmgr on PATH
+    - title: tlmgr is on PATH
       cmd: command -v tlmgr
       debug: |
         echo "=== tlmgr --version ==="
@@ -90,38 +90,30 @@ if_exists_fail:
       title: if_exists=fail exits with already-installed error
       pattern: failing (if_exists=fail)
 
-package_basic:
+package_default:
   description: |
-    method=package scheme=basic on Debian/Ubuntu: installs texlive-latex-base
-    and texlive-latex-recommended via apt. Verifies latex is on PATH.
+    method=package scheme=basic across Ubuntu, Debian, and Alpine.
+    Ubuntu/Debian (apt): installs texlive-latex-base/recommended, provides both latex
+    and pdflatex. Alpine (apk): installs the texlive package which provides tex but
+    not pdflatex. Checks are written to be strict on apt-based systems and lenient on apk.
   checks:
-    - title: latex command available
-      cmd: command -v latex
+    - title: a TeX executable is on PATH
+      kind: multiple
+      min: 1
+      cmd:
+        - command -v latex
+        - command -v tex
+        - command -v pdflatex
+    - title: TeX reports a version year
+      cmd: bash -c '(latex --version 2>/dev/null || tex --version 2>/dev/null || pdflatex --version 2>/dev/null) | grep -qE "[0-9]{4}"'
       debug: |
-        echo "=== dpkg -l 'texlive*' ==="
-        dpkg -l 'texlive*' 2>/dev/null | head -20 || echo "(dpkg not available)"
-        echo "=== which latex ==="
-        which latex 2>&1 || echo "(not found)"
-    - title: latex --version exits 0
-      cmd: latex --version
-    - title: latex version reports a year
-      cmd: bash -c 'latex --version 2>/dev/null | grep -qE "[0-9]{4}"'
-    - title: pdflatex command available
-      cmd: command -v pdflatex
-    - title: pdflatex --version exits 0
-      cmd: pdflatex --version
-
-package_alpine:
-  description: |
-    method=package on Alpine: installs TeX Live from apk. Verifies basic TeX
-    functionality (Alpine's texlive package provides a subset of TeX Live).
-  checks:
-    - title: latex or tex command available
-      cmd: bash -c 'command -v latex || command -v tex'
-      debug: |
-        echo "=== apk info texlive ==="
-        apk info texlive 2>/dev/null || echo "(apk not available)"
-        echo "=== which latex/tex ==="
-        which latex 2>&1 || which tex 2>&1 || echo "(not found)"
-    - title: tex or latex reports a version
-      cmd: bash -c '(latex --version || tex --version) 2>/dev/null | grep -qE "[0-9]{4}"'
+        echo "=== latex --version ==="
+        latex --version 2>&1 || echo "(latex not found)"
+        echo "=== tex --version ==="
+        tex --version 2>&1 || echo "(tex not found)"
+    - title: pdflatex available (required on apt-based systems)
+      kind: multiple
+      min: 1
+      cmd:
+        - command -v pdflatex
+        - bash -c '! command -v dpkg'

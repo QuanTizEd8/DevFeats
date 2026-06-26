@@ -1,9 +1,9 @@
-default_install:
+default:
   description: |
     Default install on Fedora and Arch (auto selects package method): verifies tokei is
     installed, reports a version, and counts lines of code on a small test file.
   checks:
-    - title: tokei command is available
+    - title: tokei is on PATH
       cmd: command -v tokei
     - title: tokei binary is executable
       cmd: bash -c 'test -x "$(command -v tokei)"'
@@ -17,12 +17,12 @@ default_install:
     - title: tokei counts lines of a shell file
       cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
 
-binary_pinned:
+binary_pinned_version:
   description: |
     version=12.1.2 + method=binary: installs the last stable release with GitHub binary
     assets, verifies the exact version, and that JSON/CBOR/YAML serialization is compiled in.
   checks:
-    - title: tokei binary installed at /usr/local/bin/tokei
+    - title: tokei binary is at /usr/local/bin/tokei
       cmd: test -f /usr/local/bin/tokei
     - title: tokei binary is executable
       cmd: test -x /usr/local/bin/tokei
@@ -40,10 +40,10 @@ binary_pinned:
     - title: tokei JSON output is valid
       cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei --output json /tmp/test.sh | grep -q "Total"'
 
-package_install:
+package_default:
   description: method=package installs tokei via the OS package manager.
   checks:
-    - title: tokei command is available
+    - title: tokei is on PATH
       cmd: command -v tokei
     - title: tokei binary is executable
       cmd: bash -c 'test -x "$(command -v tokei)"'
@@ -54,12 +54,12 @@ package_install:
     - title: tokei counts lines of a shell file
       cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
 
-cargo_install:
+method_cargo:
   description: |
     method=cargo on Ubuntu with Rust pre-installed: builds tokei from crates.io with
     --features all (json, cbor, yaml serialization) and verifies the installed binary.
   checks:
-    - title: tokei binary installed at /usr/local/bin/tokei
+    - title: tokei binary is at /usr/local/bin/tokei
       cmd: test -f /usr/local/bin/tokei
     - title: tokei binary is executable
       cmd: test -x /usr/local/bin/tokei

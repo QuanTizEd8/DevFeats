@@ -8,10 +8,10 @@ binary_custom_prefix:
     - title: custom-prefix shellcheck lints a valid script
       cmd: bash -c 'printf "#!/bin/sh\necho hi\n" | /opt/shellcheck-bin/bin/shellcheck -'
 
-default_install:
+default:
   description: Verifies default install installs a working shellcheck.
   checks:
-    - title: shellcheck command is available
+    - title: shellcheck is on PATH
       cmd: command -v shellcheck
     - title: shellcheck reports a version
       cmd: bash -c 'shellcheck --version | grep -Eq "version:[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+"'
@@ -44,10 +44,10 @@ installer_dir:
     - title: shellcheck archive preserved in installer_dir
       cmd: bash -c 'ls /tmp/shellcheck-trace/archive/shellcheck-v*.tar.xz 2>/dev/null | grep -q .'
 
-package_install:
+package_default:
   description: Verifies method=package installs a working shellcheck.
   checks:
-    - title: shellcheck command is available
+    - title: shellcheck is on PATH
       cmd: command -v shellcheck
     - title: shellcheck lints a valid script
       cmd: bash -c 'printf "#!/bin/sh\necho hi\n" | shellcheck -'

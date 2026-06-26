@@ -4,7 +4,7 @@ defaults:
 
 # ── method=script scenarios ───────────────────────────────────────────────────
 
-script_infraonly:
+default:
   envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
@@ -62,7 +62,7 @@ if_exists_skip:
     method: package
     scheme: basic
     if_exists: skip
-  tests: [package_basic]
+  tests: [package_default]
 
 if_exists_fail:
   expect_install_failure: true
@@ -80,29 +80,11 @@ if_exists_fail:
 
 # ── method=package scenarios ──────────────────────────────────────────────────
 
-package_ubuntu:
-  envs: [ubuntu-24.04]
+package_default:
+  envs: [ubuntu-24.04, debian-12+bash, alpine-3.21+bash]
   modes: [devcontainer, standalone]
   options:
     method: package
     scheme: basic
     packages: ''
-  tests: [package_basic]
-
-package_debian:
-  envs: [debian-bookworm+bash]
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-    scheme: basic
-    packages: ''
-  tests: [package_basic]
-
-package_alpine:
-  envs: [alpine-3.21+bash]
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-    scheme: basic
-    packages: ''
-  tests: [package_alpine]
+  tests: [package_default]

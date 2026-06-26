@@ -6,7 +6,7 @@ custom_bin_dir:
     is created at /usr/local/bin/pixi.
 
   checks:
-    - title: pixi binary installed at /opt/pixi/bin/pixi
+    - title: pixi binary is at /opt/pixi/bin/pixi
       cmd: test -f /opt/pixi/bin/pixi
     - title: pixi binary is executable
       cmd: test -x /opt/pixi/bin/pixi
@@ -34,7 +34,7 @@ custom_bin_dir_symlink:
     /usr/local/bin/pixi pointing to the custom-dir binary.
 
   checks:
-    - title: pixi binary installed at /opt/pixi/bin/pixi
+    - title: pixi binary is at /opt/pixi/bin/pixi
       cmd: test -f /opt/pixi/bin/pixi
     - title: pixi binary is executable
       cmd: test -x /opt/pixi/bin/pixi
@@ -69,32 +69,14 @@ custom_bin_dir_symlink_nonroot:
     - title: no \$HOME/.pixi/bin/pixi symlink
       cmd: bash -c '! test -e /home/vscode/.pixi/bin/pixi'
 
-debian:
+default:
   description: |
-    Default installation on Debian: same as default_install but on Debian:latest.
-    Verifies pixi is installed and callable on a Debian base image.
-
-  checks:
-    - title: pixi binary installed
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi binary is executable
-      cmd: test -x /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-      debug: |
-        echo "=== pixi --version ==="
-        /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
-    - title: no profile.d export file written
-      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
-
-default_install:
-  description: |
-    Default installation on Ubuntu: all defaults (root → /usr/local/bin, export_path=auto no-op).
+    Default installation on Ubuntu and Debian: all defaults (root → /usr/local/bin, export_path=auto no-op).
     Verifies pixi is installed, callable, and that no unnecessary PATH or PIXI_HOME
     blocks are written (prefix=/usr/local; /usr/local/bin is already on PATH).
 
   checks:
-    - title: pixi binary installed at /usr/local/bin/pixi
+    - title: pixi binary is at /usr/local/bin/pixi
       cmd: test -f /usr/local/bin/pixi
     - title: pixi binary is executable
       cmd: test -x /usr/local/bin/pixi
@@ -116,7 +98,7 @@ export_path_disabled:
     Verifies pixi is installed but no PATH export block is written anywhere.
 
   checks:
-    - title: pixi binary installed at /opt/pixi/bin/pixi
+    - title: pixi binary is at /opt/pixi/bin/pixi
       cmd: test -f /opt/pixi/bin/pixi
     - title: pixi binary is executable
       cmd: test -x /opt/pixi/bin/pixi
@@ -233,7 +215,7 @@ if_exists_update:
     then a self-update yields the latest version.
 
   checks:
-    - title: pixi binary installed at /usr/local/bin/pixi
+    - title: pixi binary is at /usr/local/bin/pixi
       cmd: test -f /usr/local/bin/pixi
     - title: pixi binary is executable
       cmd: test -x /usr/local/bin/pixi
@@ -328,7 +310,7 @@ netrc_uri_file:
     - title: pixi --version succeeds
       cmd: /usr/local/bin/pixi --version
 
-shell_completion_bash:
+completions_bash:
   description: |
     shell_completions=bash (root):
     Verifies pixi shell completion script is written to the system-wide bash
@@ -347,7 +329,7 @@ shell_completion_bash:
     - title: bash completion script is non-empty
       cmd: test -s /etc/bash_completion.d/pixi
 
-shell_completion_zsh:
+completions_zsh:
   description: |
     shell_completions=zsh (root):
     Verifies pixi shell completion script is written to the system-wide zsh
@@ -369,7 +351,7 @@ shell_completion_zsh:
     - title: zsh completion script is non-empty
       cmd: bash -c 'test -s /etc/zsh/completions/_pixi 2>/dev/null || test -s /etc/completions/_pixi 2>/dev/null'
 
-specific_version:
+binary_pinned_version:
   description: |
     version=0.41.0: install a specific pinned version.
     Verifies pixi reports exactly 0.41.0.
@@ -435,7 +417,7 @@ version_match_path_only_symlink:
     artifact or leave /usr/local/bin/pixi pointing at a missing target.
 
   checks:
-    - title: pixi binary installed at /opt/pixi/bin/pixi
+    - title: pixi binary is at /opt/pixi/bin/pixi
       cmd: test -f /opt/pixi/bin/pixi
     - title: pixi binary is executable at /opt/pixi/bin/pixi
       cmd: test -x /opt/pixi/bin/pixi

@@ -1,30 +1,30 @@
-apt_default:
-  envs: [debian-latest]
+default:
+  envs: [debian-12]
   modes: [devcontainer]
-  tests: [apt_default]
+  tests: [default]
 
-apt_user_config:
-  envs: [debian-latest]
+user_config:
+  envs: [debian-12]
   modes: [devcontainer]
-  tests: [apt_user_config]
+  tests: [user_config]
 
-apt_install_dir:
-  envs: [debian-latest]
+binary_custom_prefix:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     prefix: /opt/oh-my-bash
-  tests: [apt_install_dir]
+  tests: [binary_custom_prefix]
 
-apt_if_exists_skip:
-  envs: [debian-latest]
+if_exists_skip:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     if_exists: skip
-  tests: [apt_if_exists_skip]
+  tests: [if_exists_skip]
 
-apt_if_exists_update:
-  envs: [debian-latest]
+if_exists_update:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     if_exists: update
-  tests: [apt_if_exists_update]
+  tests: [if_exists_update]

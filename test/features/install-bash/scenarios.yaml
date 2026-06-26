@@ -1,33 +1,33 @@
-default_install:
-  envs: [debian-latest]
+default:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   tests: [default]
 
-package_install:
+package_default:
   envs: [alpine-3.21]
   modes: [devcontainer, standalone]
   options:
     method: package
-  tests: [package_install]
+  tests: [package_default]
 
-source_build:
-  envs: [alpine-3.21+bash-source-build-deps]
+source_default:
+  envs: [alpine-3.21+build-base+ncurses]
   modes: [standalone]
   options:
     method: source
     version: "5.3"
-  tests: [source_build]
+  tests: [source_default]
 
-specific_version:
-  envs: [alpine-3.21+bash-source-build-deps]
+source_pinned_version:
+  envs: [alpine-3.21+build-base+ncurses]
   modes: [standalone]
   options:
     method: source
     version: "5.2"
-  tests: [specific_version]
+  tests: [source_pinned_version]
 
 source_custom_prefix:
-  envs: [alpine-3.21+bash-source-build-deps]
+  envs: [alpine-3.21+build-base+ncurses]
   modes: [devcontainer, standalone]
   options:
     method: source
@@ -37,9 +37,8 @@ source_custom_prefix:
   tests: [source_custom_prefix]
 
 source_nonroot:
-  envs: [alpine-3.21+bash-source-build-deps]
+  envs: [alpine-3.21+build-base+ncurses+vscode]
   modes: [standalone]
-  setup: adduser -D -s /bin/sh vscode
   options:
     method: source
     version: "5.3"
@@ -56,7 +55,7 @@ bootstrap_pm_collision:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [standalone]
   options:
     method: auto
@@ -64,7 +63,7 @@ if_exists_fail:
   tests: [if_exists_fail]
 
 if_exists_skip:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [standalone]
   setup: |
     printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then printf "GNU bash, version 9.9.9 (fake)\\n"; exit 0; fi\nexit 0' > /usr/local/bin/bash
@@ -76,7 +75,7 @@ if_exists_skip:
 
 invalid_method:
   expect_install_failure: true
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [standalone]
   options:
     method: binary

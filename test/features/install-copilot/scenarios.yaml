@@ -5,26 +5,26 @@ defaults:
 
 # ── baseline ─────────────────────────────────────────────────────────────────
 
-default_install:
-  envs: [ubuntu-latest]
-  tests: [default_install]
+default:
+  envs: [ubuntu-24.04]
+  tests: [default]
 
 # ── new options ───────────────────────────────────────────────────────────────
 
 copilot_home:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   options:
     copilot_home: ~/copilot-test
   tests: [copilot_home]
 
 copilot_model:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   options:
     copilot_model: claude-sonnet-4-6
   tests: [copilot_model]
 
 plugins:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   options:
     plugins: workiq@copilot-plugins
   tests: [plugins]

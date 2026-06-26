@@ -1,20 +1,25 @@
 package_default:
   envs:
   - ubuntu-24.04
-  modes:
-  - devcontainer
-  tests:
-  - package_default.sh
-package_install_state:
-  envs:
-  - ubuntu-24.04
+  - alpine-3.21
+  - fedora-42
   modes:
   - devcontainer
   options:
     method: package
   tests:
-  - package_install_state.sh
-package_debian:
+  - package_default.sh
+
+upstream_package:
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  options:
+    method: upstream-package
+  tests:
+  - upstream_package.sh
+package_no_ppa:
   envs:
   - debian-12
   modes:
@@ -22,7 +27,7 @@ package_debian:
   options:
     version: stable
   tests:
-  - package_debian.sh
+  - package_no_ppa.sh
 package_stable:
   envs:
   - ubuntu-24.04
@@ -36,24 +41,6 @@ package_stable:
     shell_completions: ''
   tests:
   - package_stable.sh
-package_alpine:
-  envs:
-  - alpine-3.21
-  modes:
-  - devcontainer
-  options:
-    version: stable
-  tests:
-  - package_alpine.sh
-package_fedora:
-  envs:
-  - fedora-41
-  modes:
-  - devcontainer
-  options:
-    version: stable
-  tests:
-  - package_fedora.sh
 gitconfig_system:
   envs:
   - ubuntu-24.04
@@ -157,7 +144,7 @@ source_no_flags_perl:
   - source_no_flags_perl.sh
 if_exists_skip:
   envs:
-  - ubuntu-24.04+git-preinstalled
+  - ubuntu-24.04+git
   modes:
   - devcontainer
   options:
@@ -166,7 +153,7 @@ if_exists_skip:
   - if_exists_skip.sh
 if_exists_reinstall_source:
   envs:
-  - ubuntu-24.04+git-preinstalled
+  - ubuntu-24.04+git
   modes:
   - devcontainer
   options:
@@ -179,7 +166,7 @@ if_exists_reinstall_source:
   - if_exists_reinstall_source.sh
 if_exists_update_package:
   envs:
-  - ubuntu-24.04+git-preinstalled
+  - ubuntu-24.04+git
   modes:
   - devcontainer
   options:
@@ -200,7 +187,7 @@ if_exists_fail:
 if_exists_fail_preinstalled:
   expect_install_failure: true
   envs:
-  - ubuntu-24.04+git-preinstalled
+  - ubuntu-24.04+git
   modes:
   - standalone
   options:
@@ -225,16 +212,12 @@ source_build_network_isolated:
     version: latest
 source_custom_prefix_nonroot:
   envs:
-  - ubuntu-24.04+git-source-build-deps
+  - ubuntu-24.04+build-essential+git-dev-libs+vscode
   modes:
   - standalone
-  setup: 'useradd -m -s /bin/bash vscode
-
+  setup: |
     mkdir -p /opt/git
-
     chown vscode:vscode /opt/git
-
-    '
   standalone:
     user: vscode
     # Install must run as vscode (see checks pre); runner install is always root.
@@ -280,7 +263,7 @@ source_build_nonexistent_version:
     version: 0.0.0
 macos_package_default:
   envs:
-  - macos-latest
+  - macos-15+brew
   # Orchestrator runs install.sh with no CLI args; options are delivered as env
   # vars (see docs user-guide/options.md). if_exists must be skip so the install
   # exits before default_branch/safe_directory gitconfig writes.

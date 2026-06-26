@@ -1,7 +1,7 @@
-default_install:
+default:
   description: Default install on Ubuntu puts a functional rg on PATH via binary auto-selection.
   checks:
-    - title: rg command is available
+    - title: rg is on PATH
       cmd: command -v rg
     - title: rg binary is executable
       cmd: bash -c 'test -x "$(command -v rg)"'
@@ -15,12 +15,12 @@ default_install:
     - title: rg searches plain text
       cmd: bash -c 'echo "hello world" | rg "hello"'
 
-specific_version:
+binary_pinned_version:
   description: |
     version=14.1.1 + method=binary: installs a specific pinned release and
     verifies the binary reports exactly that version.
   checks:
-    - title: rg binary installed at /usr/local/bin/rg
+    - title: rg binary is at /usr/local/bin/rg
       cmd: test -f /usr/local/bin/rg
     - title: rg binary is executable
       cmd: test -x /usr/local/bin/rg
@@ -39,7 +39,7 @@ binary_custom_prefix:
     method=binary, prefix=/opt/rg-bin, prefix_discovery=symlink: installs rg at a custom
     prefix and creates a symlink at /usr/local/bin/rg pointing to the custom binary.
   checks:
-    - title: rg binary installed at /opt/rg-bin/bin/rg
+    - title: rg binary is at /opt/rg-bin/bin/rg
       cmd: test -f /opt/rg-bin/bin/rg
     - title: rg binary at custom prefix is executable
       cmd: test -x /opt/rg-bin/bin/rg
@@ -54,10 +54,10 @@ binary_custom_prefix:
     - title: rg searches plain text via PATH
       cmd: bash -c 'echo "hello" | rg "hello"'
 
-package_install:
+package_default:
   description: method=package installs rg via the OS package manager.
   checks:
-    - title: rg command is available
+    - title: rg is on PATH
       cmd: command -v rg
     - title: rg binary is executable
       cmd: bash -c 'test -x "$(command -v rg)"'

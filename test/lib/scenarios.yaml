@@ -1,26 +1,26 @@
 ubuntu-24.04:
   env: ubuntu-24.04
 
-debian-bookworm:
-  env: debian-bookworm+bash
+debian-12:
+  env: debian-12+bash
 
-fedora-latest:
-  env: fedora-latest+bash
+fedora-42:
+  env: fedora-42+bash
 
-rocky-9:
-  env: rocky-9+bash
+rockylinux-9:
+  env: rockylinux-9+bash
 
 alpine-3.21:
   env: alpine-3.21+bash
 
-opensuse-leap:
-  env: opensuse-leap+bash
+opensuse-leap-15.6:
+  env: opensuse-leap-15.6+bash
 
-arch:
-  env: arch+bash
+archlinux:
+  env: archlinux
 
 ubuntu-24.04-integration:
-  env: ubuntu-24.04+bash+git
+  env: ubuntu-24.04+git
   tests:
     includes:
       - integration/*.bats
@@ -35,8 +35,8 @@ alpine-3.21-integration:
   env_vars:
     SYSSET_RUN_INTEGRATION_DEPS: "1"
 
-fedora-latest-integration:
-  env: fedora-latest+bash
+fedora-42-integration:
+  env: fedora-42+bash
   tests:
     includes:
       - integration/*.bats

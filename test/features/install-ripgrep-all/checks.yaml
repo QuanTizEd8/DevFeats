@@ -1,10 +1,10 @@
-default_install:
+default:
   description: |
     Default install on Ubuntu (binary method, x86_64-musl) with ripgrep pre-installed.
     Verifies both required binaries are present and co-located, version is reported,
     and rga can perform a plain-text search via the installed rg.
   checks:
-    - title: rga command is available
+    - title: rga is on PATH
       cmd: command -v rga
     - title: rga binary is executable
       cmd: bash -c 'test -x "$(command -v rga)"'
@@ -22,13 +22,13 @@ default_install:
     - title: rga searches plain text file
       cmd: bash -c 'echo "hello ripgrep-all" > /tmp/rga-test.txt && rga "hello" /tmp/rga-test.txt'
 
-package_install:
+package_default:
   description: |
     method=package on Arch Linux (pacman): the ripgrep-all package hard-depends on ripgrep,
     so rg is pulled in automatically. Verifies both rga and rga-preproc are installed and
     functional.
   checks:
-    - title: rga command is available
+    - title: rga is on PATH
       cmd: command -v rga
     - title: rga binary is executable
       cmd: bash -c 'test -x "$(command -v rga)"'
@@ -48,7 +48,7 @@ install_adapters:
     install_adapters=true: verifies that pandoc, pdftotext (from poppler-utils),
     and ffmpeg are installed alongside rga.
   checks:
-    - title: rga command is available
+    - title: rga is on PATH
       cmd: command -v rga
     - title: pandoc is installed
       cmd: command -v pandoc

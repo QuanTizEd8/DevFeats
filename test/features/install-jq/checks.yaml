@@ -4,7 +4,7 @@ binary_custom_prefix:
     Verifies jq is installed at the custom prefix AND a symlink is created at
     /usr/local/bin/jq pointing to the custom-prefix binary.
   checks:
-    - title: jq binary installed at /opt/jq-bin/bin/jq
+    - title: jq binary is at /opt/jq-bin/bin/jq
       cmd: test -f /opt/jq-bin/bin/jq
     - title: jq binary at custom prefix is executable
       cmd: test -x /opt/jq-bin/bin/jq
@@ -26,7 +26,7 @@ custom_prefix_no_symlink:
     prefix=/opt/jq-bin, symlink=false:
     Verifies jq is installed at the custom prefix and no symlink is created.
   checks:
-    - title: jq binary installed at /opt/jq-bin/bin/jq
+    - title: jq binary is at /opt/jq-bin/bin/jq
       cmd: test -f /opt/jq-bin/bin/jq
     - title: jq binary at custom prefix is executable
       cmd: test -x /opt/jq-bin/bin/jq
@@ -40,7 +40,7 @@ custom_prefix_no_symlink:
 default:
   description: Verifies default install puts a functional jq on PATH.
   checks:
-    - title: jq command is available
+    - title: jq is on PATH
       cmd: command -v jq
     - title: jq processes JSON
       cmd: bash -c 'echo "{}" | jq . > /dev/null 2>&1'
@@ -73,7 +73,7 @@ legacy_version:
     instead of the modern jq-linux-amd64 form. Verifies the binary installs and
     reports exactly 1.6.
   checks:
-    - title: jq binary installed at /usr/local/bin/jq
+    - title: jq binary is at /usr/local/bin/jq
       cmd: test -f /usr/local/bin/jq
     - title: jq binary is executable
       cmd: test -x /usr/local/bin/jq
@@ -107,7 +107,7 @@ reinstall:
     - title: jq processes JSON
       cmd: bash -c 'echo "{}" | jq . > /dev/null 2>&1'
 
-source_build:
+source_default:
   description: "Verifies that method=source builds jq from source and produces a working binary."
   checks:
     - title: jq binary present at /usr/local/bin/jq
@@ -121,12 +121,12 @@ source_build:
     - title: jq processes JSON
       cmd: bash -c 'echo "{}" | /usr/local/bin/jq . > /dev/null 2>&1'
 
-specific_version:
+binary_pinned_version:
   description: |
     version=1.8.1 + method=binary: install a specific pinned version.
     Verifies the binary reports exactly 1.8.1.
   checks:
-    - title: jq binary installed at /usr/local/bin/jq
+    - title: jq binary is at /usr/local/bin/jq
       cmd: test -f /usr/local/bin/jq
     - title: jq binary is executable
       cmd: test -x /usr/local/bin/jq
@@ -167,7 +167,7 @@ package_manifest_override:
   description: |
     method=package with inline ospkg_manifest_method_package_run override still installs jq.
   checks:
-    - title: jq command is available
+    - title: jq is on PATH
       cmd: command -v jq
     - title: jq processes JSON
       cmd: bash -c 'echo "{}" | jq . > /dev/null 2>&1'

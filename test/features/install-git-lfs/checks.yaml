@@ -1,4 +1,4 @@
-auto_default_binary:
+default:
   description: |
     Default install on Ubuntu.
     Verifies METHOD=auto resolves to the binary path, Git LFS is functional,
@@ -10,7 +10,7 @@ auto_default_binary:
     _state_file="${_state_dir}/config.env"
 
   checks:
-    - title: git-lfs on PATH
+    - title: git-lfs is on PATH
       cmd: command -v git-lfs
     - title: git lfs version succeeds
       cmd: git lfs version
@@ -32,9 +32,9 @@ auto_default_binary:
     - title: no global-users state file for system scope
       cmd: test ! -f "${_state_dir}/global-users"
 
-upstream_package_apt:
+upstream_package:
   description: |
-    Explicit packagecloud APT install on Ubuntu.
+    method=upstream-package (packagecloud) on Ubuntu (APT) and Rocky Linux (RPM).
     Verifies the feature records method=upstream-package and the package path
     leaves Git LFS functional with system-scope filters present.
 
@@ -42,10 +42,14 @@ upstream_package_apt:
     _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
 
   checks:
-    - title: git-lfs on PATH
+    - title: git-lfs is on PATH
       cmd: command -v git-lfs
-    - title: git-lfs is dpkg-managed
-      cmd: bash -c 'test "$(dpkg-query -W -f="\${Status}" git-lfs 2>/dev/null)" = "install ok installed" && dpkg -S "$(command -v git-lfs)" >/dev/null 2>&1'
+    - title: binary is package-manager-managed
+      kind: multiple
+      min: 1
+      cmd:
+        - bash -c 'test "$(dpkg-query -W -f="\${Status}" git-lfs 2>/dev/null)" = "install ok installed" && dpkg -S "$(command -v git-lfs)" >/dev/null 2>&1'
+        - bash -c 'rpm -q git-lfs >/dev/null 2>&1 && rpm -qf "$(command -v git-lfs)" >/dev/null 2>&1'
     - title: git lfs version succeeds
       cmd: git lfs version
     - title: installed-method state is upstream-package
@@ -53,28 +57,7 @@ upstream_package_apt:
     - title: /etc/gitconfig contains filter.lfs.process
       cmd: test "$(git config --file /etc/gitconfig --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
 
-upstream_package_rpm:
-  description: |
-    Explicit packagecloud RPM install on Rocky Linux.
-    Verifies the feature records method=upstream-package and the package path
-    leaves Git LFS functional with system-scope filters present.
-
-  pre: |
-    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
-
-  checks:
-    - title: git-lfs on PATH
-      cmd: command -v git-lfs
-    - title: git-lfs is rpm-managed
-      cmd: bash -c 'rpm -q git-lfs >/dev/null 2>&1 && rpm -qf "$(command -v git-lfs)" >/dev/null 2>&1'
-    - title: git lfs version succeeds
-      cmd: git lfs version
-    - title: installed-method state is upstream-package
-      cmd: grep -Fqx "upstream-package" "${_installed_method}"
-    - title: /etc/gitconfig contains filter.lfs.process
-      cmd: test "$(git config --file /etc/gitconfig --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
-
-package_zypper_system:
+linux_zypper:
   description: |
     Native zypper package install on openSUSE.
     Verifies the feature applies explicit system-scope Git LFS configuration on
@@ -85,9 +68,9 @@ package_zypper_system:
     _state_file="${_FEAT_SHARE_DIR_ROOT}/state/config.env"
 
   checks:
-    - title: git-lfs on PATH
+    - title: git-lfs is on PATH
       cmd: command -v git-lfs
-    - title: git-lfs is rpm-managed
+    - title: binary is package-manager-managed
       cmd: bash -c 'rpm -q git-lfs >/dev/null 2>&1 && rpm -qf "$(command -v git-lfs)" >/dev/null 2>&1'
     - title: git lfs version succeeds
       cmd: git lfs version
@@ -134,7 +117,7 @@ global_remote_user:
     _users_file="${_state_dir}/global-users"
 
   checks:
-    - title: git-lfs on PATH
+    - title: git-lfs is on PATH
       cmd: command -v git-lfs
     - title: vscode gitconfig exists
       cmd: test -f /home/vscode/.gitconfig
@@ -304,7 +287,7 @@ auto_pull_false:
     - title: state file records auto_pull=false
       cmd: grep -Fqx 'GIT_LFS_STATE_AUTO_PULL="false"' "${_FEAT_SHARE_DIR_ROOT}/state/config.env"
 
-macos_package_global:
+macos_default:
   description: |
     Homebrew package install on macOS with explicit global scope.
     Verifies Git LFS is installed via brew and writes the current user's global
@@ -315,9 +298,9 @@ macos_package_global:
     _gitconfig="${HOME}/.gitconfig"
 
   checks:
-    - title: brew on PATH
+    - title: brew is on PATH
       cmd: command -v brew
-    - title: git-lfs on PATH
+    - title: git-lfs is on PATH
       cmd: command -v git-lfs
     - title: brew lists git-lfs
       cmd: brew list git-lfs

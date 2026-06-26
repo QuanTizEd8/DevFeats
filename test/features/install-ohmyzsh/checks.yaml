@@ -1,4 +1,4 @@
-apt_default:
+default:
   description: |
     Verifies the default Oh My Zsh installation: cloned to the default path,
     git metadata set, ZSH_CUSTOM structure scaffolded, default plugins cloned,
@@ -40,7 +40,7 @@ apt_default:
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 
-apt_plugins:
+plugins:
   description: |
     Verifies that multiple plugin slugs (newline-delimited) are cloned into the
     system ZSH_CUSTOM/plugins dir and symlinked into the per-user custom dir.
@@ -63,7 +63,7 @@ apt_plugins:
     - title: per-user zsh-syntax-highlighting symlink exists
       cmd: test -L "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting"
 
-apt_theme_p10k:
+theme_p10k:
   description: |
     Verifies that setting theme=romkatv/powerlevel10k installs the p10k theme
     and writes the p10k guarded block into /root/zshtheme.
@@ -88,7 +88,7 @@ apt_theme_p10k:
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 
-apt_install_dir:
+binary_custom_prefix:
   description: |
     Verifies that a custom prefix is respected: Oh My Zsh is cloned
     there and not at the default path.
@@ -110,7 +110,7 @@ apt_install_dir:
     - title: omz not at default path
       cmd: bash -c '! test -d /usr/local/share/oh-my-zsh'
 
-apt_custom_dir_system:
+custom_dir_system:
   description: |
     Verifies that an explicit system-path custom_dir causes themes and plugins
     to be cloned there, ZSH_CUSTOM in /root/zshtheme points to that path,
@@ -138,7 +138,7 @@ apt_custom_dir_system:
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 
-apt_custom_dir_per_user:
+custom_dir_per_user:
   description: |
     Verifies that a ~-prefixed custom_dir is expanded per-user and that
     installer-managed plugins are symlinked (not copied) from the system
@@ -171,7 +171,7 @@ apt_custom_dir_per_user:
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 
-apt_if_exists_skip:
+if_exists_skip:
   description: |
     Verifies that if_exists=skip on a fresh container (nothing pre-existing) performs
     a normal install, since there is nothing to skip.
@@ -194,7 +194,7 @@ apt_if_exists_skip:
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 
-apt_if_exists_update:
+if_exists_update:
   description: |
     Verifies that if_exists=update on a fresh container (nothing pre-existing) performs
     a normal install, and that the git repo and user config are correctly set up.

@@ -1,53 +1,53 @@
-apt_default:
-  envs: [debian-latest]
+default:
+  envs: [debian-12]
   modes: [devcontainer]
-  tests: [apt_default]
+  tests: [default]
 
-apt_plugins:
-  envs: [debian-latest]
+plugins:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     plugins: "zsh-users/zsh-autosuggestions\nzsh-users/zsh-syntax-highlighting"
-  tests: [apt_plugins]
+  tests: [plugins]
 
-apt_theme_p10k:
-  envs: [debian-latest]
+theme_p10k:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     theme: romkatv/powerlevel10k
-  tests: [apt_theme_p10k]
+  tests: [theme_p10k]
 
-apt_install_dir:
-  envs: [debian-latest]
+binary_custom_prefix:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     prefix: /opt/oh-my-zsh
-  tests: [apt_install_dir]
+  tests: [binary_custom_prefix]
 
-apt_custom_dir_system:
-  envs: [debian-latest]
+custom_dir_system:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     custom_dir: /opt/zsh-custom
-  tests: [apt_custom_dir_system]
+  tests: [custom_dir_system]
 
-apt_custom_dir_per_user:
-  envs: [debian-latest]
+custom_dir_per_user:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     custom_dir: "~/.zsh-custom"
-  tests: [apt_custom_dir_per_user]
+  tests: [custom_dir_per_user]
 
-apt_if_exists_skip:
-  envs: [debian-latest]
+if_exists_skip:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     if_exists: skip
-  tests: [apt_if_exists_skip]
+  tests: [if_exists_skip]
 
-apt_if_exists_update:
-  envs: [debian-latest]
+if_exists_update:
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     if_exists: update
-  tests: [apt_if_exists_update]
+  tests: [if_exists_update]

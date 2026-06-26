@@ -1,14 +1,14 @@
-default_install:
+default:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   - standalone
   tests:
-  - default_install
+  - default
 binary_custom_prefix:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   - standalone
@@ -18,20 +18,20 @@ binary_custom_prefix:
     if_exists: reinstall
   tests:
   - binary_custom_prefix
-package_install:
+package_default:
   envs:
-  - debian-latest
+  - debian-12
   modes:
   - devcontainer
   - standalone
   options:
     method: package
   tests:
-  - package_install
+  - package_default
 if_exists_fail:
   expect_install_failure: true
   envs:
-  - debian-latest
+  - debian-12
   modes:
   - standalone
   setup: 'printf ''#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then echo

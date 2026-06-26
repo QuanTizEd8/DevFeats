@@ -1,18 +1,18 @@
-default_install:
-  envs: [ubuntu-latest]
+default:
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
-  tests: [default_install]
+  tests: [default]
 
-specific_version:
-  envs: [ubuntu-latest]
+binary_pinned_version:
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     version: "14.1.1"
     method: binary
-  tests: [specific_version]
+  tests: [binary_pinned_version]
 
 binary_custom_prefix:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     method: binary
@@ -21,21 +21,21 @@ binary_custom_prefix:
     if_exists: reinstall
   tests: [binary_custom_prefix]
 
-package_install:
+package_default:
   envs:
-    - debian-bookworm+bash
+    - debian-12+bash
     - alpine-3.21+bash
-    - fedora-latest+bash
-    - arch+bash
-    - opensuse-leap+bash
+    - fedora-42+bash
+    - archlinux
+    - opensuse-leap-15.6+bash
   modes: [devcontainer, standalone]
   options:
     method: package
-  tests: [package_install]
+  tests: [package_default]
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ripgrep 99.99.99\nfeatures:-simd-accel\n"; exit 0; fi\nexit 0' \
@@ -46,7 +46,7 @@ if_exists_fail:
   tests: [if_exists_fail]
 
 if_exists_skip:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ripgrep 99.99.99\nfeatures:-simd-accel\n"; exit 0; fi\nexit 0' \

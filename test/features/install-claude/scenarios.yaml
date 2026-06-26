@@ -24,11 +24,11 @@ binary_musl:
 
 # ── upstream-package method ────────────────────────────────────────────────────
 
-upstream_package_apt:
-  envs: [ubuntu-24.04]
+upstream_package_default:
+  envs: [ubuntu-24.04, alpine-3.21+bash, fedora-42+bash]
   options:
     method: upstream-package
-  tests: [upstream_package_apt]
+  tests: [upstream_package_default]
 
 upstream_package_apt_latest:
   envs: [ubuntu-24.04]
@@ -37,38 +37,12 @@ upstream_package_apt_latest:
     version: latest
   tests: [upstream_package_apt_latest]
 
-upstream_package_apk:
-  envs: [alpine-3.21+bash]
-  options:
-    method: upstream-package
-  tests: [upstream_package_apk]
-
-upstream_package_dnf:
-  envs: [fedora-latest+bash]
-  options:
-    method: upstream-package
-  tests: [upstream_package_dnf]
-
-upstream_package_apt_keep_repos:
-  envs: [ubuntu-24.04]
+upstream_package_keep_repos:
+  envs: [ubuntu-24.04, alpine-3.21+bash, fedora-42+bash]
   options:
     method: upstream-package
     keep_repos: true
-  tests: [upstream_package_apt_keep_repos]
-
-upstream_package_apk_keep_repos:
-  envs: [alpine-3.21+bash]
-  options:
-    method: upstream-package
-    keep_repos: true
-  tests: [upstream_package_apk_keep_repos]
-
-upstream_package_dnf_keep_repos:
-  envs: [fedora-latest+bash]
-  options:
-    method: upstream-package
-    keep_repos: true
-  tests: [upstream_package_dnf_keep_repos]
+  tests: [upstream_package_keep_repos]
 
 # ── npm-bundled method ─────────────────────────────────────────────────────────
 

@@ -1,14 +1,14 @@
-default_install:
+default:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   - standalone
   tests:
-  - default_install
+  - default
 binary_custom_prefix:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   - standalone
@@ -18,9 +18,9 @@ binary_custom_prefix:
     if_exists: reinstall
   tests:
   - binary_custom_prefix
-package_install:
+package_default:
   envs:
-  - debian-latest
+  - debian-12
   modes:
   - devcontainer
   - standalone
@@ -28,11 +28,11 @@ package_install:
     method: package
     if_exists: reinstall
   tests:
-  - package_install
+  - package_default
 if_exists_fail:
   expect_install_failure: true
   envs:
-  - debian-latest+just-stub
+  - debian-12+just
   modes:
   - standalone
   tests:
@@ -43,7 +43,7 @@ if_exists_fail:
     if_exists: fail
 installer_dir:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   - standalone

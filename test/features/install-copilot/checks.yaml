@@ -1,4 +1,4 @@
-default_install:
+default:
   description: |
     method=binary (default): tarball download from GitHub Releases.
     Verifies copilot is installed at /usr/local/bin/copilot and reports a version.
@@ -10,11 +10,11 @@ default_install:
     copilot --version 2>&1 || echo "(failed)"
 
   checks:
-    - title: copilot binary installed at /usr/local/bin/copilot
+    - title: copilot binary is at /usr/local/bin/copilot
       cmd: test -f /usr/local/bin/copilot
     - title: copilot binary is executable
       cmd: test -x /usr/local/bin/copilot
-    - title: copilot on PATH
+    - title: copilot is on PATH
       cmd: command -v copilot
     - title: copilot --version succeeds
       cmd: copilot --version
@@ -32,7 +32,7 @@ copilot_home:
     grep "COPILOT_HOME" /root/.bash_profile /root/.profile 2>/dev/null || echo "(not found in login files)"
 
   checks:
-    - title: copilot on PATH
+    - title: copilot is on PATH
       cmd: command -v copilot
     - title: install-copilot-env marker block written to ~/.bashrc
       cmd: bash -c 'grep -q "install-copilot-env" /root/.bashrc 2>/dev/null'
@@ -66,7 +66,7 @@ copilot_model:
     grep -A 10 "install-copilot-env" /root/.bashrc 2>/dev/null || echo "(block absent)"
 
   checks:
-    - title: copilot on PATH
+    - title: copilot is on PATH
       cmd: command -v copilot
     - title: install-copilot-env marker block written to ~/.bashrc
       cmd: bash -c 'grep -q "install-copilot-env" /root/.bashrc 2>/dev/null'
@@ -101,7 +101,7 @@ plugins:
     cat "${_lc_plugins}" 2>/dev/null || echo "(sidecar missing)"
 
   checks:
-    - title: copilot on PATH
+    - title: copilot is on PATH
       cmd: command -v copilot
     - title: install-plugins lifecycle script exists
       cmd: test -f "${_lc_script}"

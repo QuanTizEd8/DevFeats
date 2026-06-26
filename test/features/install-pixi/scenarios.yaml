@@ -1,22 +1,23 @@
-default_install:
+default:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
+  - debian-12
   modes:
   - devcontainer
   tests:
-  - default_install.sh
-specific_version:
+  - default.sh
+binary_pinned_version:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
     version: 0.41.0
   tests:
-  - specific_version.sh
+  - binary_pinned_version.sh
 custom_bin_dir:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -26,7 +27,7 @@ custom_bin_dir:
   - custom_bin_dir.sh
 custom_bin_dir_symlink:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -34,16 +35,9 @@ custom_bin_dir_symlink:
     prefix_discovery: all
   tests:
   - custom_bin_dir_symlink.sh
-debian:
-  envs:
-  - debian-latest
-  modes:
-  - devcontainer
-  tests:
-  - debian.sh
 if_exists_skip:
   envs:
-  - ubuntu-latest+pixi-base
+  - ubuntu-24.04+pixi
   modes:
   - standalone
   args:
@@ -57,7 +51,7 @@ if_exists_skip:
   - if_exists_skip.sh
 if_exists_reinstall:
   envs:
-  - ubuntu-latest+pixi-base
+  - ubuntu-24.04+pixi
   modes:
   - devcontainer
   args:
@@ -71,7 +65,7 @@ if_exists_reinstall:
   - if_exists_reinstall.sh
 if_exists_update:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -80,7 +74,7 @@ if_exists_update:
   - if_exists_update.sh
 if_exists_update_existing:
   envs:
-  - ubuntu-latest+pixi-base
+  - ubuntu-24.04+pixi
   modes:
   - devcontainer
   args:
@@ -95,7 +89,7 @@ if_exists_update_existing:
   - if_exists_update_existing.sh
 version_match_idempotency:
   envs:
-  - ubuntu-latest+pixi-base
+  - ubuntu-24.04+pixi
   modes:
   - devcontainer
   args:
@@ -110,7 +104,7 @@ version_match_idempotency:
   - version_match_idempotency.sh
 version_match_path_only_symlink:
   envs:
-  - ubuntu-latest+pixi-base
+  - ubuntu-24.04+pixi
   modes:
   - devcontainer
   args:
@@ -127,7 +121,7 @@ version_match_path_only_symlink:
   - version_match_path_only_symlink.sh
 installer_dir:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -136,7 +130,7 @@ installer_dir:
   - installer_dir.sh
 export_path_disabled:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -145,27 +139,27 @@ export_path_disabled:
     prefix_discovery: none
   tests:
   - export_path_disabled.sh
-shell_completion_bash:
+completions_bash:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
     shell_completions: bash
   tests:
-  - shell_completion_bash.sh
-shell_completion_zsh:
+  - completions_bash.sh
+completions_zsh:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
     shell_completions: zsh
   tests:
-  - shell_completion_zsh.sh
+  - completions_zsh.sh
 home_dir:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -174,7 +168,7 @@ home_dir:
   - home_dir.sh
 log_file:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -183,10 +177,9 @@ log_file:
   - log_file.sh
 custom_bin_dir_symlink_nonroot:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04+vscode
   modes:
   - devcontainer
-  setup: useradd -m -s /bin/bash vscode
   options:
     prefix: /opt/pixi
     prefix_discovery: symlink
@@ -196,7 +189,7 @@ custom_bin_dir_symlink_nonroot:
   - custom_bin_dir_symlink_nonroot.sh
 symlink_user_home_prefix:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -206,7 +199,7 @@ symlink_user_home_prefix:
   - symlink_user_home_prefix.sh
 netrc_uri_file:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   setup: 'printf ''%s\n'' ''machine github.com login token password placehold'' >
@@ -222,7 +215,7 @@ netrc_uri_file:
 github_api_unreachable_network_isolated:
   expect_install_failure: true
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - standalone
   standalone:
@@ -233,7 +226,7 @@ github_api_unreachable_network_isolated:
 if_exists_fail_preinstalled:
   expect_install_failure: true
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - standalone
   setup: 'mkdir -p /usr/local/bin
@@ -252,7 +245,7 @@ if_exists_fail_preinstalled:
 invalid_version_string:
   expect_install_failure: true
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - standalone
   standalone:
@@ -264,7 +257,7 @@ invalid_version_string:
 invalid_version_suffix:
   expect_install_failure: true
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - standalone
   standalone:
@@ -275,7 +268,7 @@ invalid_version_suffix:
     version: 1.2beta
 global_manifest_inline:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:
@@ -294,7 +287,7 @@ global_manifest_inline:
   - global_manifest_inline.sh
 global_manifest_file:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   setup: |
@@ -313,7 +306,7 @@ global_manifest_file:
   - global_manifest_file.sh
 global_installs:
   envs:
-  - ubuntu-latest
+  - ubuntu-24.04
   modes:
   - devcontainer
   options:

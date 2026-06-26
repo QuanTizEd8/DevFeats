@@ -11,11 +11,11 @@ binary_latest:
     echo "=== codex --version ==="
     codex --version 2>&1 || echo "(failed)"
   checks:
-    - title: codex binary installed at /usr/local/bin/codex
+    - title: codex binary is at /usr/local/bin/codex
       cmd: test -f /usr/local/bin/codex
     - title: codex binary is executable
       cmd: test -x /usr/local/bin/codex
-    - title: codex on PATH
+    - title: codex is on PATH
       cmd: command -v codex
     - title: codex --version succeeds
       cmd: codex --version
@@ -33,11 +33,11 @@ binary_specific_version:
     echo "=== codex --version ==="
     codex --version 2>&1 || echo "(failed)"
   checks:
-    - title: codex binary installed at /usr/local/bin/codex
+    - title: codex binary is at /usr/local/bin/codex
       cmd: test -f /usr/local/bin/codex
     - title: codex binary is executable
       cmd: test -x /usr/local/bin/codex
-    - title: codex on PATH
+    - title: codex is on PATH
       cmd: command -v codex
     - title: codex --version succeeds
       cmd: codex --version
@@ -60,7 +60,7 @@ npm_bundled:
     echo "=== codex --version ==="
     codex --version 2>&1 || echo "(failed)"
   checks:
-    - title: codex on PATH
+    - title: codex is on PATH
       cmd: command -v codex
     - title: codex --version succeeds
       cmd: codex --version
@@ -84,7 +84,7 @@ npm_system:
     echo "=== npm list -g @openai/codex ==="
     npm list -g @openai/codex 2>&1 || echo "(not listed)"
   checks:
-    - title: codex on PATH
+    - title: codex is on PATH
       cmd: command -v codex
     - title: codex --version succeeds
       cmd: codex --version
@@ -110,7 +110,7 @@ auto_npm_bundled:
     echo "=== codex --version ==="
     codex --version 2>&1 || echo "(failed)"
   checks:
-    - title: codex on PATH
+    - title: codex is on PATH
       cmd: command -v codex
     - title: codex --version succeeds
       cmd: codex --version
@@ -130,7 +130,7 @@ auto_binary_npm_present:
     echo "=== file $(command -v codex 2>/dev/null || echo /dev/null) ==="
     file "$(command -v codex)" 2>/dev/null || echo "(not found)"
   checks:
-    - title: codex on PATH
+    - title: codex is on PATH
       cmd: command -v codex
     - title: codex --version succeeds
       cmd: codex --version

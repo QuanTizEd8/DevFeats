@@ -4,7 +4,7 @@ gitconfig_system:
     and a multi-line freeform block via the gitconfig option.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git --version succeeds
       cmd: git --version
@@ -33,7 +33,7 @@ gitconfig_identity:
     user_name and user_email written to /etc/gitconfig (as root).
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git --version succeeds
       cmd: git --version
@@ -54,7 +54,7 @@ if_exists_fail:
     setup command.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git --version succeeds
       cmd: git --version
@@ -103,7 +103,7 @@ if_exists_skip:
     written.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git binary is executable
       cmd: test -x "$(command -v git)"
@@ -128,7 +128,7 @@ if_exists_update_package:
     post-install gitconfig writes.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git is still package managed
       cmd: bash -c 'dpkg -S "$(command -v git)" >/dev/null 2>&1'
@@ -163,7 +163,7 @@ log_file:
     Verifies the log contains recognizable installer lifecycle markers.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git --version succeeds
       cmd: git --version
@@ -192,7 +192,7 @@ macos_package_default:
     Validates post-install state only — no installation in this script.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git --version succeeds
       cmd: git --version
@@ -201,34 +201,14 @@ macos_package_default:
     - title: skip did not write user system config
       cmd: bash -c '! test -e "${HOME}/.config/git/config"'
 
-package_alpine:
-  shell: sh
-  description: |
-    method=package, version=stable on Alpine.
-    Verifies the Alpine package path and default gitconfig behavior.
-
-  checks:
-    - title: git on PATH
-      cmd: command -v git
-    - title: git binary is executable
-      cmd: test -x "$(command -v git)"
-    - title: git package is installed
-      cmd: apk info -e git
-    - title: git --version succeeds
-      cmd: git --version
-    - title: /etc/gitconfig created
-      cmd: test -f /etc/gitconfig
-    - title: init.defaultBranch is main
-      cmd: sh -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
-
-package_debian:
+package_no_ppa:
   description: |
     method=package, version=stable on Debian.
     Verifies the Debian package path is used and Ubuntu-only PPA artifacts are
     not written.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git binary is executable
       cmd: test -x "$(command -v git)"
@@ -239,9 +219,9 @@ package_debian:
       debug: |
         echo "=== git --version ==="
         git --version 2>&1 || echo "(failed)"
-    - title: no PPA sources.list entry
+    - title: no upstream repo sources entry
       cmd: bash -c '! test -f /etc/apt/sources.list.d/git-core-ppa.list'
-    - title: no PPA keyring
+    - title: no upstream repo keyring
       cmd: bash -c '! test -f /usr/share/keyrings/git-core-ppa.gpg'
     - title: /etc/gitconfig created
       cmd: test -f /etc/gitconfig
@@ -249,17 +229,63 @@ package_debian:
       cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
 
 package_default:
+  shell: sh
   description: |
-    method=package (default), version=latest on a supported Ubuntu release.
-    Verifies the PPA path is actually taken and the package-managed git binary
-    remains functional with the default system gitconfig applied.
+    method=package (explicit) across multiple distros (Ubuntu, Alpine, Fedora).
+    Forces the standard OS package manager on all three platforms — no PPA on Ubuntu.
+    Uses shell: sh because on Alpine the bootstrap bash is removed after the feature
+    completes, leaving only sh available for the test checks.
+
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git binary is executable
       cmd: test -x "$(command -v git)"
-    - title: git is package managed
+    - title: binary is package-manager-managed
+      kind: multiple
+      min: 1
+      cmd:
+        - dpkg -S "$(command -v git)" >/dev/null 2>&1
+        - rpm -qf "$(command -v git)" >/dev/null 2>&1
+        - apk info -e git >/dev/null 2>&1
+    - title: git --version succeeds
+      cmd: git --version
+      debug: |
+        echo "=== git --version ==="
+        git --version 2>&1 || echo "(failed)"
+    - title: git version is at least 2
+      cmd: sh -c '[ "$(git --version | awk "{print \$3}" | cut -d. -f1)" -ge 2 ]'
+    - title: /etc/gitconfig created
+      cmd: test -f /etc/gitconfig
+      debug: |
+        echo "=== /etc/gitconfig ==="
+        cat /etc/gitconfig 2>/dev/null || echo "(missing)"
+    - title: init.defaultBranch is main
+      cmd: test "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = main
+    - title: installed-method state file exists
+      cmd: test -f "${_installed_method}"
+    - title: installed-method state is package
+      cmd: test "$(cat "${_installed_method}")" = package
+
+upstream_package:
+  description: |
+    method=upstream-package on Ubuntu: installs git from the git-core PPA.
+    Verifies that the resolved method is upstream-package (not the plain package
+    method), git is dpkg-managed, and the PPA infrastructure (keyring, sources)
+    is cleaned up after installation per the default keep_repos=false behavior.
+
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+
+  checks:
+    - title: git is on PATH
+      cmd: command -v git
+    - title: git binary is executable
+      cmd: test -x "$(command -v git)"
+    - title: git is managed by dpkg
       cmd: bash -c 'dpkg -S "$(command -v git)" >/dev/null 2>&1'
     - title: git --version succeeds
       cmd: git --version
@@ -268,34 +294,27 @@ package_default:
         git --version 2>&1 || echo "(failed)"
     - title: git version is at least 2
       cmd: bash -c '[ "$(git --version | awk "{print \$3}" | cut -d. -f1)" -ge 2 ]'
-    - title: PPA keyring cleaned up
-      cmd: bash -c '! test -f /usr/share/keyrings/git-core-ppa.gpg'
-    - title: PPA sources.list.d entry cleaned up
-      cmd: bash -c '! test -f /etc/apt/sources.list.d/syspkg-installer.list'
+    - title: installed-method state file exists
+      cmd: test -f "${_installed_method}"
+    - title: installed-method state is upstream-package
+      cmd: test "$(cat "${_installed_method}")" = upstream-package
+    - title: PPA keyring cleaned up after install
+      kind: fail
+      cmd: test -f /usr/share/keyrings/git-core-ppa.gpg
+      debug: |
+        echo "=== /usr/share/keyrings/ ==="
+        ls /usr/share/keyrings/ 2>/dev/null | grep -i git || echo "(no git keys)"
+    - title: syspkg installer sources list cleaned up
+      kind: fail
+      cmd: test -f /etc/apt/sources.list.d/syspkg-installer.list
+      debug: |
+        echo "=== /etc/apt/sources.list.d/ ==="
+        ls /etc/apt/sources.list.d/ 2>/dev/null || echo "(empty)"
     - title: /etc/gitconfig created
       cmd: test -f /etc/gitconfig
       debug: |
         echo "=== /etc/gitconfig ==="
         cat /etc/gitconfig 2>/dev/null || echo "(missing)"
-    - title: init.defaultBranch is main
-      cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
-
-package_fedora:
-  description: |
-    method=package, version=stable on Fedora.
-    Verifies the rpm-managed install path and default gitconfig behavior.
-
-  checks:
-    - title: git on PATH
-      cmd: command -v git
-    - title: git binary is executable
-      cmd: test -x "$(command -v git)"
-    - title: git is rpm managed
-      cmd: bash -c 'rpm -qf "$(command -v git)" >/dev/null 2>&1'
-    - title: git --version succeeds
-      cmd: git --version
-    - title: /etc/gitconfig created
-      cmd: test -f /etc/gitconfig
     - title: init.defaultBranch is main
       cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
 
@@ -306,7 +325,7 @@ package_stable:
     ignored instead of creating source-build artifacts.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git binary is executable
       cmd: test -x "$(command -v git)"
@@ -317,7 +336,7 @@ package_stable:
       debug: |
         echo "=== git --version ==="
         git --version 2>&1 || echo "(failed)"
-    - title: no PPA sources.list entry
+    - title: no upstream repo sources entry
       cmd: bash -c '! test -f /etc/apt/sources.list.d/git-core-ppa.list'
     - title: custom source prefix was not created
       cmd: bash -c '! test -e /opt/git/bin/git'
@@ -421,7 +440,7 @@ source_export_path_disabled:
     Verifies git installs successfully without being exposed on PATH.
 
   checks:
-    - title: git installed at custom prefix
+    - title: git binary is at custom prefix
       cmd: test -x /opt/git/bin/git
     - title: git version succeeds via explicit path
       cmd: /opt/git/bin/git --version
@@ -464,7 +483,7 @@ source_no_flags_perl:
     Verifies Perl-dependent helpers are omitted from the installed exec-path.
 
   checks:
-    - title: git on PATH
+    - title: git is on PATH
       cmd: command -v git
     - title: git --version succeeds
       cmd: git --version
@@ -517,7 +536,7 @@ source_stable:
         /usr/local/bin/git --version 2>&1 || echo "(failed)"
     - title: git version is at least 2
       cmd: bash -c '[ "$(/usr/local/bin/git --version | awk "{print \$3}" | cut -d. -f1)" -ge 2 ]'
-    - title: no PPA sources.list entry
+    - title: no upstream repo sources entry
       cmd: bash -c '! test -f /etc/apt/sources.list.d/git-core-ppa.list'
     - title: /etc/gitconfig created
       cmd: test -f /etc/gitconfig
@@ -537,15 +556,3 @@ source_stable:
     - title: zsh completion installed in detected zshdir
       cmd: test -f /etc/zsh/completions/_git
 
-package_install_state:
-  description: |
-    method=package on Ubuntu: verifies installed-method state is recorded after install.
-  pre: |
-    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
-  checks:
-    - title: git on PATH
-      cmd: command -v git
-    - title: installed-method state file exists
-      cmd: test -f "${_installed_method}"
-    - title: installed-method state is package
-      cmd: '[ "$(cat "${_installed_method}")" = "package" ]'

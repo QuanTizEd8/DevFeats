@@ -1,36 +1,55 @@
+# ── base images ──────────────────────────────────────────────────────────────
+# Pinned to specific minor versions. No build steps.
+# Update these when a new major/minor release becomes the recommended default.
+
 ubuntu-24.04:
   image: ubuntu:24.04
 
-ubuntu-24.04+bash+git:
-  image: ubuntu:24.04
-  build:
-    dockerfile: apt-get update -qq && apt-get install -y bash git
+ubuntu-26.04:
+  image: ubuntu:26.04
+
+debian-12:
+  image: debian:12
+
+debian-13:
+  image: debian:13
 
 alpine-3.21:
   image: alpine:3.21
 
+fedora-42:
+  image: fedora:42
+
+rockylinux-9:
+  image: rockylinux:9
+
+opensuse-leap-15.6:
+  image: opensuse/leap:15.6
+
+archlinux:
+  image: archlinux:base-20260621.0.546891
+
+condaforge-miniforge3:
+  image: condaforge/miniforge3:26.3.2-3
+
+# ── +bash variants ────────────────────────────────────────────────────────────
+# Bash is not pre-installed on Alpine, Rocky Linux, or openSUSE Leap.
+# These +bash variants are required wherever the test shim or devcontainer runner
+# needs bash. Ubuntu, Debian, Fedora, and Arch Linux ship bash by default; no
+# +bash needed for those. (archlinux:base includes bash via the base package group.)
+
 alpine-3.21+bash:
-  image: alpine:3.21
+  from: alpine-3.21
   build:
     dockerfile: apk add --no-cache bash
 
-debian-bookworm+bash:
-  image: debian:bookworm
-  build:
-    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends bash
-
-fedora-latest+bash:
-  image: fedora:latest
+rockylinux-9+bash:
+  from: rockylinux-9
   build:
     dockerfile: dnf install -y bash
 
-rocky-9+bash:
-  image: rockylinux:9
-  build:
-    dockerfile: dnf install -y bash
-
-opensuse-leap+bash:
-  image: opensuse/leap:15.6
+opensuse-leap-15.6+bash:
+  from: opensuse-leap-15.6
   build:
     # zypper exits 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when some repos are
     # unreachable but the operation succeeds. set +e is required because
@@ -42,13 +61,94 @@ opensuse-leap+bash:
       set -e
       [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
 
-arch+bash:
-  image: archlinux:base
+fedora-42+bash:
+  from: fedora-42
   build:
-    dockerfile: pacman -Sy --noconfirm bash
+    dockerfile: dnf install -y bash
+
+debian-12+bash:
+  from: debian-12
+  build:
+    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
+
+debian-13+bash:
+  from: debian-13
+  build:
+    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
+
+# ── +shell variants ───────────────────────────────────────────────────────────
+# Base images augmented with a single non-bash shell or helper tool.
+
+ubuntu-24.04+fish:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      apt-get update
+      apt-get install -y --no-install-recommends fish
+      rm -rf /var/lib/apt/lists/*
+
+ubuntu-24.04+zsh:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      apt-get update \
+       && apt-get install -y --no-install-recommends zsh \
+       && apt-get clean \
+       && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
+
+ubuntu-24.04+node:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      apt-get update
+      apt-get install -y --no-install-recommends nodejs npm
+      rm -rf /var/lib/apt/lists/*
+
+ubuntu-24.04+curl:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      apt-get update
+      apt-get install -y --no-install-recommends curl ca-certificates bash
+      rm -rf /var/lib/apt/lists/*
+
+# ── +tool[-version] variants ──────────────────────────────────────────────────
+# Base images with a specific tool pre-installed.
+# Versioned variants ({base}+{tool}-{version}) are used for if_exists testing
+# and for providing a known pre-installed state.
+
+ubuntu-24.04+git:
+  from: ubuntu-24.04
+  build:
+    dockerfile: apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+ubuntu-24.04+git+sudo:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      (apt-get update || (sleep 15 && apt-get update))
+      apt-get install -y --no-install-recommends git sudo
+      rm -rf /var/lib/apt/lists/*
+
+ubuntu-24.04+ripgrep:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends ripgrep
+      rm -rf /var/lib/apt/lists/*
+
+ubuntu-24.04+rust:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      apt-get update -qq
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        cargo rustc gcc g++ make pkg-config
+      rm -rf /var/lib/apt/lists/*
 
 ubuntu-24.04+jq-1.8.1:
-  image: ubuntu:24.04
+  from: ubuntu-24.04
   build:
     dockerfile: |
       apt-get update -qq
@@ -67,92 +167,8 @@ ubuntu-24.04+jq-1.8.1:
         -o /usr/local/bin/jq
       chmod +x /usr/local/bin/jq
 
-debian-bookworm+jq-source-build-deps:
-  image: debian:bookworm
-  build:
-    dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends \
-        make automake autoconf libtool build-essential curl ca-certificates
-      rm -rf /var/lib/apt/lists/*
-
-# General-purpose base images
-ubuntu-latest:
-  image: ubuntu:latest
-
-ubuntu-latest+fish:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      apt-get update
-      apt-get install -y --no-install-recommends fish
-      rm -rf /var/lib/apt/lists/*
-
-debian-bookworm:
-  image: debian:bookworm
-
-debian-latest:
-  image: debian:latest
-
-debian-latest+direnv-apt:
-  image: debian:latest
-  build:
-    dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends direnv
-      rm -rf /var/lib/apt/lists/*
-
-debian-bookworm+direnv-source-build-deps:
-  image: debian:bookworm
-  build:
-    dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends make curl ca-certificates
-      rm -rf /var/lib/apt/lists/*
-      ARCH="$(uname -m)"
-      case "${ARCH}" in
-        x86_64)  GO_ARCH="amd64" ;;
-        aarch64) GO_ARCH="arm64" ;;
-        *) echo "Unsupported arch: ${ARCH}" && exit 1 ;;
-      esac
-      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
-        -H 'User-Agent: devfeats' \
-        "https://go.dev/dl/go1.24.0.linux-${GO_ARCH}.tar.gz" \
-        | tar -xz -C /usr/local
-      ln -sf /usr/local/go/bin/go /usr/local/bin/go
-      ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
-
-debian-12:
-  image: debian:12
-
-fedora-41:
-  image: fedora:41
-
-fedora-latest:
-  image: fedora:latest
-
-opensuse-leap-latest:
-  image: opensuse/leap:latest
-
-alpine-latest+bash:
-  image: alpine:latest
-  build:
-    dockerfile: apk add --no-cache bash
-
-archlinux-latest:
-  image: archlinux:latest
-
-condaforge-miniforge3:
-  image: condaforge/miniforge3
-
-# Tool stub environments (pre-installed or fake tools for if_exists failure testing)
-debian-latest+just-stub:
-  image: debian:latest
-  build:
-    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends just
-
-ubuntu-latest+yq-4.44.2:
-  image: ubuntu:latest
+ubuntu-24.04+yq-4.44.2:
+  from: ubuntu-24.04
   build:
     dockerfile: |
       apt-get update
@@ -171,37 +187,214 @@ ubuntu-latest+yq-4.44.2:
         -o /usr/local/bin/yq
       chmod +x /usr/local/bin/yq
 
-devcontainers-base-ubuntu:
-  image: mcr.microsoft.com/devcontainers/base:ubuntu
+ubuntu-24.04+gh-2.67.0:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      (apt-get update || (sleep 15 && apt-get update))
+      apt-get install -y --no-install-recommends curl ca-certificates
+      rm -rf /var/lib/apt/lists/*
+      ARCH="$(uname -m)"
+      case "${ARCH}" in
+        x86_64)  ASSET_ARCH="amd64" ;;
+        aarch64) ASSET_ARCH="arm64" ;;
+        *)       ASSET_ARCH="amd64" ;;
+      esac
+      GH_VERSION="2.67.0"
+      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
+           -H 'User-Agent: devfeats' \
+           -o /tmp/gh.tar.gz \
+           "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ASSET_ARCH}.tar.gz"
+      tar -xz -C /tmp -f /tmp/gh.tar.gz
+      install -m 755 "/tmp/gh_${GH_VERSION}_linux_${ASSET_ARCH}/bin/gh" /usr/local/bin/gh
+      rm /tmp/gh.tar.gz
 
-devcontainers-base-debian:
-  image: mcr.microsoft.com/devcontainers/base:debian
+ubuntu-24.04+homebrew:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      apt-get update \
+       && apt-get install -y --no-install-recommends \
+              git curl file build-essential procps ca-certificates \
+       && apt-get clean \
+       && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
+      useradd --system -m -s /bin/bash linuxbrew
+      runuser -u linuxbrew -- env NONINTERACTIVE=1 /bin/bash -c \
+          "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-alpine-latest:
-  image: alpine:latest
+debian-12+just:
+  from: debian-12
+  build:
+    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends just && rm -rf /var/lib/apt/lists/*
 
-# macOS environments — image matches ^macos; no Docker container is used
-# clean_path: strips the GHA runner's pre-installed PATH down to the macOS
-# system baseline (/usr/bin:/bin:/usr/sbin:/sbin) so test scenarios cannot
-# accidentally rely on tools that happen to be pre-installed on the runner.
-# path_prepend: colon-separated dirs to prepend to the clean base PATH when
-# a scenario legitimately needs them (e.g. /opt/homebrew/bin).
-macos-latest:
-  image: macos-latest
-  clean_path: true
-  # Homebrew lives outside the stripped PATH; scenarios and setup scripts invoke
-  # `brew --prefix` and must resolve the real binary (arm64: /opt/homebrew, Intel: /usr/local).
-  path_prepend: /opt/homebrew/bin:/usr/local/bin
+debian-12+direnv:
+  from: debian-12
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends direnv
+      rm -rf /var/lib/apt/lists/*
 
-# Bare macOS — closest analog to a minimal Linux image on hosted runners: no Homebrew
-# on disk (official uninstall), clean_path, no path_prepend, and no user configuration
-# under $HOME (XDG, shell rc files, VCS/tool dirs). Does not touch ~/Library, user
-# media folders, or macOS locale files (e.g. .CFUserTextEncoding). Tests cannot use
-# bare `brew`/`gh` until something reinstalls them; use explicit "${prefix}/bin/brew"
-# after install-homebrew runs. On native macOS, `build.dockerfile` is shell bootstrap
-# (see run.py), not Docker. Extra scenario prep still belongs in scenario `setup`.
-macos-latest-fresh-install:
-  image: macos-latest
+# ── +toolchain variants ───────────────────────────────────────────────────────
+# Base images with build toolchains installed (compilers, build systems, dev headers).
+# Named by what is installed, not by which feature uses it, to encourage reuse.
+
+debian-12+autotools:
+  from: debian-12
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends \
+        make automake autoconf libtool build-essential curl ca-certificates
+      rm -rf /var/lib/apt/lists/*
+
+alpine-3.21+build-base+ncurses:
+  from: alpine-3.21
+  build:
+    # build-base + ncurses-dev: required for source builds of bash, zsh, and
+    # other tools that use autotools + ncurses.
+    dockerfile: apk add --no-cache build-base ncurses-dev curl ca-certificates
+
+debian-12+build-essential+ncurses:
+  from: debian-12
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends \
+        build-essential libncurses-dev curl ca-certificates xz-utils
+      rm -rf /var/lib/apt/lists/*
+
+ubuntu-24.04+build-essential+git-dev-libs:
+  from: ubuntu-24.04
+  build:
+    # build-essential + git's specific C library requirements (libcurl, libexpat,
+    # libpcre2, libssl, zlib) needed for compiling git from a kernel.org tarball.
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends \
+        build-essential gettext libcurl4-openssl-dev libexpat1-dev \
+        libpcre2-dev libssl-dev zlib1g-dev libpcre2-posix3 \
+        curl ca-certificates tar jq yq
+      rm -rf /var/lib/apt/lists/*
+
+debian-12+go:
+  from: debian-12
+  build:
+    dockerfile: |
+      apt-get update -qq
+      apt-get install -y --no-install-recommends make curl ca-certificates
+      rm -rf /var/lib/apt/lists/*
+      ARCH="$(uname -m)"
+      case "${ARCH}" in
+        x86_64)  GO_ARCH="amd64" ;;
+        aarch64) GO_ARCH="arm64" ;;
+        *) echo "Unsupported arch: ${ARCH}" && exit 1 ;;
+      esac
+      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
+        -H 'User-Agent: devfeats' \
+        "https://go.dev/dl/go1.24.0.linux-${GO_ARCH}.tar.gz" \
+        | tar -xz -C /usr/local
+      ln -sf /usr/local/go/bin/go /usr/local/bin/go
+      ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+
+# ── +user variants ───────────────────────────────────────────────────────────
+# Base images with a non-root user pre-created. Using pre-defined environments
+# for user setup avoids repeating useradd lines across many scenario setup: blocks
+# and eliminates the need for rolling-tag devcontainers-base images.
+#
+# ubuntu:24.04 ships with an 'ubuntu' user at UID 1000. All ubuntu-24.04+*+vscode
+# environments delete that user first so that vscode occupies UID 1000 consistently.
+# This avoids UID collisions when scenarios create additional users (e.g. testuser at
+# UID 1001) in their setup blocks, and prevents `useradd -u 1000 vscode` from failing.
+
+ubuntu-24.04+vscode:
+  from: ubuntu-24.04
+  build:
+    dockerfile: |
+      userdel ubuntu
+      useradd -m -s /bin/bash -u 1000 vscode
+
+ubuntu-24.04+git+sudo+vscode:
+  from: ubuntu-24.04+git+sudo
+  build:
+    dockerfile: |
+      userdel ubuntu
+      useradd -m -s /bin/bash -u 1000 vscode
+      echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode
+      chmod 440 /etc/sudoers.d/vscode
+
+debian-12+vscode:
+  from: debian-12
+  build:
+    dockerfile: useradd -m -s /bin/bash -u 1000 vscode
+
+alpine-3.21+build-base+ncurses+vscode:
+  from: alpine-3.21+build-base+ncurses
+  build:
+    dockerfile: adduser -D -s /bin/sh -u 1000 vscode
+
+debian-12+build-essential+ncurses+vscode:
+  from: debian-12+build-essential+ncurses
+  build:
+    dockerfile: useradd -m -s /bin/bash -u 1000 vscode
+
+ubuntu-24.04+build-essential+git-dev-libs+vscode:
+  from: ubuntu-24.04+build-essential+git-dev-libs
+  build:
+    dockerfile: |
+      userdel ubuntu
+      useradd -m -s /bin/bash -u 1000 vscode
+
+# ── from:-chain variants ──────────────────────────────────────────────────────
+# Environments derived from other environments via the `from:` key.
+
+ubuntu-24.04+miniforge:
+  from: ubuntu-24.04+curl
+  build:
+    dockerfile: |
+      ARCH="$(uname -m)"
+      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
+        -H 'User-Agent: devfeats' \
+        --output /tmp/miniforge.sh \
+        "https://github.com/conda-forge/miniforge/releases/${MINIFORGE_PATH}/${MINIFORGE_FILENAME}-${ARCH}.sh"
+      bash /tmp/miniforge.sh -b -p /opt/conda
+      rm /tmp/miniforge.sh
+  env_vars:
+    PATH: /opt/conda/bin:${PATH}
+
+ubuntu-24.04+pixi:
+  from: ubuntu-24.04+curl
+  build:
+    dockerfile: |
+      ARCH="$(uname -m)"
+      case "${ARCH}" in
+        x86_64)  TRIPLE="x86_64-unknown-linux-musl" ;;
+        aarch64) TRIPLE="aarch64-unknown-linux-musl" ;;
+        *)       TRIPLE="${ARCH}-unknown-linux-musl" ;;
+      esac
+      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
+        -H 'User-Agent: devfeats' \
+        "https://github.com/prefix-dev/pixi/releases/${PIXI_REF}/pixi-${TRIPLE}.tar.gz" \
+        | tar -xz -C "${PIXI_INSTALL_DIR}"
+      chmod +x "${PIXI_INSTALL_DIR}/pixi"
+
+# ── macOS environments ────────────────────────────────────────────────────────
+# image matches ^macos — no Docker container is used, runs on GHA macOS runners.
+#
+# macos-15: Bare macOS Sequoia — closest analog to a minimal Linux base image.
+#   Homebrew is uninstalled via the official uninstaller, and user-level config
+#   files are cleaned, so tests cannot rely on pre-installed state.
+#   clean_path: strips the GHA runner's pre-installed PATH to the macOS system
+#   baseline (/usr/bin:/bin:/usr/sbin:/sbin).
+#   On native macOS, build.dockerfile is a shell bootstrap (see run.py), not Docker.
+#
+# macos-15+brew: macOS Sequoia with Homebrew available — matches the GHA runner's
+#   default state. Homebrew lives outside the stripped PATH; scenarios and setup
+#   scripts invoke `brew --prefix` and resolve the real binary
+#   (arm64: /opt/homebrew, Intel: /usr/local).
+
+macos-15:
+  image: macos-15
   clean_path: true
   build:
     dockerfile: |
@@ -248,156 +441,9 @@ macos-latest-fresh-install:
         "${HOME}/.pypirc" \
         "${HOME}/.condarc"
 
-# ── bash environments ────────────────────────────────────────────────────────
-# Alpine has no bash by default — ideal base for testing bash installation from scratch.
-alpine-3.21+bash-source-build-deps:
-  image: alpine:3.21
-  build:
-    dockerfile: apk add --no-cache build-base ncurses-dev curl ca-certificates
-
-# ── zsh environments ─────────────────────────────────────────────────────────
-debian-bookworm+zsh-source-build-deps:
-  image: debian:bookworm
-  build:
-    dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends \
-        build-essential libncurses-dev curl ca-certificates xz-utils
-      rm -rf /var/lib/apt/lists/*
-
-# ── git environments ─────────────────────────────────────────────────────────
-ubuntu-24.04+git-preinstalled:
-  image: ubuntu:24.04
-  build:
-    dockerfile: apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
-
-ubuntu-24.04+git-source-build-deps:
-  image: ubuntu:24.04
-  build:
-    dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends \
-        build-essential gettext libcurl4-openssl-dev libexpat1-dev \
-        libpcre2-dev libssl-dev zlib1g-dev libpcre2-posix3 \
-        curl ca-certificates tar jq yq
-      rm -rf /var/lib/apt/lists/*
-
-# ── gh environments ──────────────────────────────────────────────────────────
-ubuntu-latest+git+sudo:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      (apt-get update || (sleep 15 && apt-get update))
-      apt-get install -y --no-install-recommends git sudo
-      rm -rf /var/lib/apt/lists/*
-
-ubuntu-latest+gh-2.67.0-preinstalled:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      (apt-get update || (sleep 15 && apt-get update))
-      apt-get install -y --no-install-recommends curl ca-certificates
-      rm -rf /var/lib/apt/lists/*
-      ARCH="$(uname -m)"
-      case "${ARCH}" in
-        x86_64)  ASSET_ARCH="amd64" ;;
-        aarch64) ASSET_ARCH="arm64" ;;
-        *)       ASSET_ARCH="amd64" ;;
-      esac
-      GH_VERSION="2.67.0"
-      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
-           -H 'User-Agent: devfeats' \
-           -o /tmp/gh.tar.gz \
-           "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ASSET_ARCH}.tar.gz"
-      tar -xz -C /tmp -f /tmp/gh.tar.gz
-      install -m 755 "/tmp/gh_${GH_VERSION}_linux_${ASSET_ARCH}/bin/gh" /usr/local/bin/gh
-      rm /tmp/gh.tar.gz
-
-# ── homebrew environments ─────────────────────────────────────────────────────
-ubuntu-latest+homebrew-preinstalled:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      apt-get update \
-       && apt-get install -y --no-install-recommends \
-              git curl file build-essential procps ca-certificates \
-       && apt-get clean \
-       && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
-      useradd --system -m -s /bin/bash linuxbrew
-      runuser -u linuxbrew -- env NONINTERACTIVE=1 /bin/bash -c \
-          "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-ubuntu-latest+curl:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      apt-get update
-      apt-get install -y --no-install-recommends curl ca-certificates bash
-      rm -rf /var/lib/apt/lists/*
-
-# ── miniforge environments ────────────────────────────────────────────────────
-ubuntu-latest+zsh:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      apt-get update \
-       && apt-get install -y --no-install-recommends zsh \
-       && apt-get clean \
-       && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
-
-ubuntu-latest+miniforge-base:
-  from: ubuntu-latest+curl
-  build:
-    dockerfile: |
-      ARCH="$(uname -m)"
-      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
-        -H 'User-Agent: devfeats' \
-        --output /tmp/miniforge.sh \
-        "https://github.com/conda-forge/miniforge/releases/${MINIFORGE_PATH}/${MINIFORGE_FILENAME}-${ARCH}.sh"
-      bash /tmp/miniforge.sh -b -p /opt/conda
-      rm /tmp/miniforge.sh
-  env_vars:
-    PATH: /opt/conda/bin:${PATH}
-
-# ── node/npm environments ────────────────────────────────────────────────────
-ubuntu-latest+nodejs:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      apt-get update
-      apt-get install -y --no-install-recommends nodejs npm
-      rm -rf /var/lib/apt/lists/*
-
-ubuntu-latest+ripgrep:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends ripgrep
-      rm -rf /var/lib/apt/lists/*
-
-ubuntu-latest+rust-minimal:
-  image: ubuntu:latest
-  build:
-    dockerfile: |
-      apt-get update -qq
-      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        cargo rustc gcc g++ make pkg-config
-      rm -rf /var/lib/apt/lists/*
-
-# ── pixi environments ────────────────────────────────────────────────────────
-ubuntu-latest+pixi-base:
-  from: ubuntu-latest+curl
-  build:
-    dockerfile: |
-      ARCH="$(uname -m)"
-      case "${ARCH}" in
-        x86_64)  TRIPLE="x86_64-unknown-linux-musl" ;;
-        aarch64) TRIPLE="aarch64-unknown-linux-musl" ;;
-        *)       TRIPLE="${ARCH}-unknown-linux-musl" ;;
-      esac
-      curl -fsSL --compressed --retry 60 --retry-delay 5 --retry-connrefused \
-        -H 'User-Agent: devfeats' \
-        "https://github.com/prefix-dev/pixi/releases/${PIXI_REF}/pixi-${TRIPLE}.tar.gz" \
-        | tar -xz -C "${PIXI_INSTALL_DIR}"
-      chmod +x "${PIXI_INSTALL_DIR}/pixi"
+macos-15+brew:
+  image: macos-15
+  clean_path: true
+  # Homebrew lives outside the stripped PATH; scenarios and setup scripts invoke
+  # `brew --prefix` and must resolve the real binary (arm64: /opt/homebrew, Intel: /usr/local).
+  path_prepend: /opt/homebrew/bin:/usr/local/bin

@@ -1,45 +1,45 @@
 download_and_install:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   tests: [download_and_install]
 
 custom_bin_dir:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     prefix: /opt/myforge
   tests: [custom_bin_dir]
 
 specific_version:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     version: "24.7.1"
   tests: [specific_version]
 
 set_permission:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     write_group: conda
   tests: [set_permission]
 
 activate_bashrc:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     shell_activations: bash
   tests: [activate_bashrc]
 
 activate_multi:
-  envs: [ubuntu-latest+zsh]
+  envs: [ubuntu-24.04+zsh]
   modes: [devcontainer]
   options:
     shell_activations: "bash\nzsh"
   tests: [activate_multi]
 
 custom_active_env:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     shell_activations: bash
@@ -47,21 +47,21 @@ custom_active_env:
   tests: [custom_active_env]
 
 log_file:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     log_file: /tmp/miniforge.log
   tests: [log_file]
 
 installer_dir:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     installer_dir: /tmp/miniforge-trace
   tests: [installer_dir]
 
 if_exists_reinstall:
-  envs: [ubuntu-latest+miniforge-base]
+  envs: [ubuntu-24.04+miniforge]
   modes: [devcontainer]
   args:
     MINIFORGE_PATH: latest/download
@@ -71,7 +71,7 @@ if_exists_reinstall:
   tests: [if_exists_reinstall]
 
 if_exists_skip:
-  envs: [ubuntu-latest+miniforge-base]
+  envs: [ubuntu-24.04+miniforge]
   modes: [devcontainer]
   args:
     MINIFORGE_PATH: latest/download
@@ -81,26 +81,26 @@ if_exists_skip:
   tests: [if_exists_skip]
 
 if_exists_fail:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     if_exists: fail
   tests: [if_exists_fail]
 
 if_exists_update:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     if_exists: update
   tests: [if_exists_update]
 
 debian:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   tests: [debian]
 
 multi_user_permissions:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   setup: |
     useradd -m testuser1
@@ -111,12 +111,12 @@ multi_user_permissions:
   tests: [multi_user_permissions]
 
 export_path_default:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   tests: [export_path_default]
 
 prefix_discovery_symlink:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     prefix: /opt/myforge
@@ -124,9 +124,8 @@ prefix_discovery_symlink:
   tests: [prefix_discovery_symlink]
 
 prefix_discovery_symlink_nonroot:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
-  setup: useradd -m -s /bin/bash vscode
   options:
     prefix: /opt/myforge
     prefix_discovery: symlink
@@ -135,12 +134,12 @@ prefix_discovery_symlink_nonroot:
   tests: [prefix_discovery_symlink_nonroot]
 
 stable_version:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   tests: [stable_version]
 
 version_match_idempotency:
-  envs: [ubuntu-latest+miniforge-base]
+  envs: [ubuntu-24.04+miniforge]
   modes: [devcontainer]
   args:
     MINIFORGE_PATH: download/24.7.1-2
@@ -151,7 +150,7 @@ version_match_idempotency:
   tests: [version_match_idempotency]
 
 preserve_envs_true:
-  envs: [ubuntu-latest+miniforge-base]
+  envs: [ubuntu-24.04+miniforge]
   modes: [devcontainer]
   args:
     MINIFORGE_PATH: download/24.7.1-2
@@ -163,7 +162,7 @@ preserve_envs_true:
   tests: [preserve_envs_true]
 
 preserve_envs_false:
-  envs: [ubuntu-latest+miniforge-base]
+  envs: [ubuntu-24.04+miniforge]
   modes: [devcontainer]
   args:
     MINIFORGE_PATH: download/24.7.1-2
@@ -175,7 +174,7 @@ preserve_envs_false:
   tests: [preserve_envs_false]
 
 preserve_config_true:
-  envs: [ubuntu-latest+miniforge-base]
+  envs: [ubuntu-24.04+miniforge]
   modes: [devcontainer]
   args:
     MINIFORGE_PATH: download/24.7.1-2
@@ -189,7 +188,7 @@ preserve_config_true:
   tests: [preserve_config_true]
 
 preserve_config_false:
-  envs: [ubuntu-latest+miniforge-base]
+  envs: [ubuntu-24.04+miniforge]
   modes: [devcontainer]
   args:
     MINIFORGE_PATH: download/24.7.1-2
@@ -203,7 +202,7 @@ preserve_config_false:
   tests: [preserve_config_false]
 
 if_exists_update_preinstall:
-  envs: [ubuntu-latest+miniforge-base]
+  envs: [ubuntu-24.04+miniforge]
   modes: [devcontainer]
   args:
     MINIFORGE_PATH: download/24.7.1-2
@@ -214,7 +213,7 @@ if_exists_update_preinstall:
   tests: [if_exists_update_preinstall]
 
 symlink_user_home_prefix:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [devcontainer]
   options:
     prefix: /root/myforge
@@ -223,7 +222,7 @@ symlink_user_home_prefix:
 
 github_api_unreachable_network_isolated:
   expect_install_failure: true
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [standalone]
   standalone:
     network: none
@@ -232,7 +231,7 @@ github_api_unreachable_network_isolated:
 
 invalid_version:
   expect_install_failure: true
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [standalone]
   options:
     version: "0.0.0"

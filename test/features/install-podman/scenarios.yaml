@@ -1,20 +1,16 @@
-apt_default:
-  envs: [ubuntu-latest]
+default:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
-    useradd -m -s /bin/bash vscode
     truncate -s 0 /etc/subuid /etc/subgid
   devcontainer:
     remoteUser: vscode
-  tests: [apt_default]
+  tests: [default]
 
-apt_remote_user:
-  envs: [ubuntu-latest]
+remote_user:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
-    useradd -m -s /bin/bash vscode
     truncate -s 0 /etc/subuid /etc/subgid
   options:
     add_remote_user: true
@@ -22,14 +18,12 @@ apt_remote_user:
     add_current_user: false
   devcontainer:
     remoteUser: vscode
-  tests: [apt_remote_user]
+  tests: [remote_user]
 
-apt_container_user:
-  envs: [ubuntu-latest]
+container_user:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
-    useradd -m -s /bin/bash vscode
     truncate -s 0 /etc/subuid /etc/subgid
   options:
     add_container_user: true
@@ -37,23 +31,21 @@ apt_container_user:
     add_current_user: false
   devcontainer:
     containerUser: vscode
-  tests: [apt_container_user]
+  tests: [container_user]
 
-apt_root_user_config:
-  envs: [ubuntu-latest]
+root_user_config:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
     truncate -s 0 /etc/subuid /etc/subgid
   options:
     add_users: root
-  tests: [apt_root_user_config]
+  tests: [root_user_config]
 
-apt_explicit_user:
-  envs: [ubuntu-latest]
+explicit_user:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
     useradd -m -s /bin/bash devuser
     truncate -s 0 /etc/subuid /etc/subgid
   options:
@@ -61,13 +53,12 @@ apt_explicit_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_explicit_user]
+  tests: [explicit_user]
 
-apt_multi_user:
-  envs: [ubuntu-latest]
+multi_user:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
     useradd -m -s /bin/bash alice
     useradd -m -s /bin/bash bob
     truncate -s 0 /etc/subuid /etc/subgid
@@ -76,32 +67,30 @@ apt_multi_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_multi_user]
+  tests: [multi_user]
 
-apt_no_users:
-  envs: [ubuntu-latest]
+no_users:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
     truncate -s 0 /etc/subuid /etc/subgid
   options:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_no_users]
+  tests: [no_users]
 
-apt_nonexistent_user:
-  envs: [ubuntu-latest]
+nonexistent_user:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
     truncate -s 0 /etc/subuid /etc/subgid
   options:
     add_users: ghost
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_nonexistent_user]
+  tests: [nonexistent_user]
 
 # ---------------------------------------------------------------------------
 # Functional (podman run) scenarios
@@ -111,22 +100,19 @@ apt_nonexistent_user:
 # execute, so rshared mount and cgroup delegation are already in place.
 # ---------------------------------------------------------------------------
 
-apt_podman_run:
-  envs: [ubuntu-latest]
+podman_run:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
-    useradd -m -s /bin/bash vscode
     truncate -s 0 /etc/subuid /etc/subgid
   devcontainer:
     remoteUser: vscode
-  tests: [apt_podman_run]
+  tests: [podman_run]
 
-apt_podman_run_explicit_user:
-  envs: [ubuntu-latest]
+podman_run_explicit_user:
+  envs: [ubuntu-24.04+vscode]
   modes: [devcontainer]
   setup: |
-    userdel ubuntu
     useradd -m -s /bin/bash devuser
     truncate -s 0 /etc/subuid /etc/subgid
   options:
@@ -134,7 +120,7 @@ apt_podman_run_explicit_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_podman_run_explicit_user]
+  tests: [podman_run_explicit_user]
 
 # ---------------------------------------------------------------------------
 # Standalone scenarios
@@ -143,22 +129,20 @@ apt_podman_run_explicit_user:
 # redirect in storage.conf, entrypoint) must NOT be written.
 # ---------------------------------------------------------------------------
 
-apt_standalone_default:
-  envs: [ubuntu-latest]
+standalone_default:
+  envs: [ubuntu-24.04+vscode]
   modes: [standalone]
   setup: |
-    userdel ubuntu
     truncate -s 0 /etc/subuid /etc/subgid
   options:
     add_remote_user: false
     add_container_user: false
-  tests: [apt_standalone_default]
+  tests: [standalone_default]
 
-apt_standalone_user:
-  envs: [ubuntu-latest]
+standalone_user:
+  envs: [ubuntu-24.04+vscode]
   modes: [standalone]
   setup: |
-    userdel ubuntu
     useradd -m -s /bin/bash devuser
     truncate -s 0 /etc/subuid /etc/subgid
   options:
@@ -166,4 +150,4 @@ apt_standalone_user:
     add_remote_user: false
     add_container_user: false
     add_current_user: false
-  tests: [apt_standalone_user]
+  tests: [standalone_user]

@@ -1,17 +1,17 @@
-default_install:
-  envs: [ubuntu-latest+ripgrep]
+default:
+  envs: [ubuntu-24.04+ripgrep]
   modes: [devcontainer, standalone]
-  tests: [default_install]
+  tests: [default]
 
-package_install:
-  envs: [arch+bash]
+package_default:
+  envs: [archlinux]
   modes: [devcontainer, standalone]
   options:
     method: package
-  tests: [package_install]
+  tests: [package_default]
 
 install_adapters:
-  envs: [ubuntu-latest+ripgrep]
+  envs: [ubuntu-24.04+ripgrep]
   modes: [standalone]
   options:
     install_adapters: true
@@ -19,7 +19,7 @@ install_adapters:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ripgrep-all 99.99.99\n"; exit 0; fi\nexit 0' \
@@ -30,7 +30,7 @@ if_exists_fail:
   tests: [if_exists_fail]
 
 if_exists_skip:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ripgrep-all 99.99.99\n"; exit 0; fi\nexit 0' \

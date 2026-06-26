@@ -1,10 +1,10 @@
-default_binary:
+default:
   description: |
     Verifies the default Typst installation (method=auto → binary): binary
     at /usr/local/bin/typst, functional, and bash/zsh completion files written
     to their respective system-level locations.
   checks:
-    - title: typst binary installed at /usr/local/bin/typst
+    - title: typst binary is at /usr/local/bin/typst
       cmd: test -f /usr/local/bin/typst
     - title: typst binary is executable
       cmd: test -x /usr/local/bin/typst
@@ -27,12 +27,12 @@ default_binary:
         echo "=== zsh _typst search ==="
         find /etc/zsh /usr/local/share/zsh /usr/share/zsh -name "_typst" 2>/dev/null || echo "(none found)"
 
-specific_version:
+binary_pinned_version:
   description: |
     version=0.14.2 + method=binary: installs a specific pinned release and
     verifies the binary reports exactly that version.
   checks:
-    - title: typst binary installed at /usr/local/bin/typst
+    - title: typst binary is at /usr/local/bin/typst
       cmd: test -f /usr/local/bin/typst
     - title: typst binary is executable
       cmd: test -x /usr/local/bin/typst
@@ -52,7 +52,7 @@ binary_custom_prefix:
     Verifies typst is installed at the custom prefix and a symlink is created
     at /usr/local/bin/typst pointing to the custom-prefix binary.
   checks:
-    - title: typst binary installed at /opt/typst-bin/bin/typst
+    - title: typst binary is at /opt/typst-bin/bin/typst
       cmd: test -f /opt/typst-bin/bin/typst
     - title: typst binary at custom prefix is executable
       cmd: test -x /opt/typst-bin/bin/typst
@@ -65,7 +65,7 @@ binary_custom_prefix:
     - title: typst resolves from PATH
       cmd: command -v typst
 
-fish_completions:
+completions_fish:
   description: |
     With fish installed, verifies the typst fish completion file is written
     to /usr/share/fish/vendor_completions.d/typst.fish and is valid fish syntax.

@@ -6,7 +6,7 @@ nvm_add_users:
   pre: |
     _NVM_DIR=/usr/local/share/nvm
   checks:
-    - title: node on PATH
+    - title: node is on PATH
       cmd: command -v node
     - title: nvm.sh exists
       cmd: test -f "${_NVM_DIR}/nvm.sh"
@@ -38,7 +38,7 @@ nvm_no_permissions:
   pre: |
     _NVM_DIR=/usr/local/share/nvm
   checks:
-    - title: node on PATH
+    - title: node is on PATH
       cmd: command -v node
     - title: nvm.sh exists
       cmd: test -f "${_NVM_DIR}/nvm.sh"
@@ -56,7 +56,7 @@ nvm_remote_user:
   pre: |
     _NVM_DIR=/usr/local/share/nvm
   checks:
-    - title: node on PATH
+    - title: node is on PATH
       cmd: command -v node
     - title: nvm.sh exists
       cmd: test -f "${_NVM_DIR}/nvm.sh"
@@ -82,7 +82,7 @@ nvm_set_permissions:
   pre: |
     _NVM_DIR=/usr/local/share/nvm
   checks:
-    - title: node on PATH
+    - title: node is on PATH
       cmd: command -v node
     - title: nvm.sh exists
       cmd: test -f "${_NVM_DIR}/nvm.sh"

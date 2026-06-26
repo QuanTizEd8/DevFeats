@@ -3,11 +3,11 @@ default:
     Verifies direnv is installed and all shell hooks are injected into
     system-wide rc files (bash, zsh, fish, tcsh) and the per-user elvish rc.
   checks:
-    - title: direnv binary installed at /usr/local/bin/direnv
+    - title: direnv binary is at /usr/local/bin/direnv
       cmd: test -f /usr/local/bin/direnv
     - title: direnv binary is executable
       cmd: test -x /usr/local/bin/direnv
-    - title: direnv on PATH
+    - title: direnv is on PATH
       cmd: command -v direnv
     - title: direnv --version succeeds
       cmd: direnv --version
@@ -36,7 +36,7 @@ specific_version:
     version=2.35.0 + method=binary: installs a specific pinned release and
     verifies the binary reports exactly that version.
   checks:
-    - title: direnv binary installed at /usr/local/bin/direnv
+    - title: direnv binary is at /usr/local/bin/direnv
       cmd: test -f /usr/local/bin/direnv
     - title: direnv binary is executable
       cmd: test -x /usr/local/bin/direnv
@@ -59,7 +59,7 @@ binary_custom_prefix:
     Verifies direnv is installed at the custom prefix and a symlink is created
     at /usr/local/bin/direnv pointing back to the custom-prefix binary.
   checks:
-    - title: direnv binary installed at /opt/direnv-bin/bin/direnv
+    - title: direnv binary is at /opt/direnv-bin/bin/direnv
       cmd: test -f /opt/direnv-bin/bin/direnv
     - title: direnv binary at custom prefix is executable
       cmd: test -x /opt/direnv-bin/bin/direnv
@@ -88,7 +88,7 @@ custom_prefix_no_symlink:
     Verifies direnv is installed at the custom prefix and no symlink is created
     at the default PATH location.
   checks:
-    - title: direnv binary installed at /opt/direnv-bin/bin/direnv
+    - title: direnv binary is at /opt/direnv-bin/bin/direnv
       cmd: test -f /opt/direnv-bin/bin/direnv
     - title: direnv binary at custom prefix is executable
       cmd: test -x /opt/direnv-bin/bin/direnv
@@ -97,13 +97,13 @@ custom_prefix_no_symlink:
     - title: no symlink at /usr/local/bin/direnv
       cmd: bash -c '! test -L /usr/local/bin/direnv && ! test -e /usr/local/bin/direnv'
 
-source_build:
+source_default:
   description: |
     method=source + version=2.37.1: builds direnv from the GitHub source
     archive using make and verifies the installed binary is functional and
     reports the correct version.
   checks:
-    - title: direnv binary installed at /usr/local/bin/direnv
+    - title: direnv binary is at /usr/local/bin/direnv
       cmd: test -f /usr/local/bin/direnv
     - title: direnv binary is executable
       cmd: test -x /usr/local/bin/direnv
@@ -120,12 +120,12 @@ source_build:
         || grep -qF "direnv hook bash" /etc/bashrc 2>/dev/null
         || grep -qF "direnv hook bash" /etc/bash/bashrc 2>/dev/null'
 
-package_install:
+package_default:
   description: |
     method=package: verifies direnv is installed via the OS package manager,
     is functional, and shell hooks are written to system-wide rc files.
   checks:
-    - title: direnv on PATH
+    - title: direnv is on PATH
       cmd: command -v direnv
     - title: direnv binary is executable
       cmd: bash -c 'test -x "$(command -v direnv)"'

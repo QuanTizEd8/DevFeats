@@ -4,7 +4,7 @@ binary_custom_prefix:
     Verifies yq is installed at the custom prefix AND a symlink is created at
     /usr/local/bin/yq pointing to the custom-prefix binary.
   checks:
-    - title: yq binary installed at /opt/yq-bin/bin/yq
+    - title: yq binary is at /opt/yq-bin/bin/yq
       cmd: test -f /opt/yq-bin/bin/yq
     - title: yq binary at custom prefix is executable
       cmd: test -x /opt/yq-bin/bin/yq
@@ -26,7 +26,7 @@ custom_prefix_no_symlink:
     prefix=/opt/yq-bin, symlink=false:
     Verifies yq is installed at the custom prefix and no symlink is created.
   checks:
-    - title: yq binary installed at /opt/yq-bin/bin/yq
+    - title: yq binary is at /opt/yq-bin/bin/yq
       cmd: test -f /opt/yq-bin/bin/yq
     - title: yq binary at custom prefix is executable
       cmd: test -x /opt/yq-bin/bin/yq
@@ -37,10 +37,10 @@ custom_prefix_no_symlink:
     - title: no symlink at /usr/local/bin/yq
       cmd: bash -c '! test -L /usr/local/bin/yq && ! test -e /usr/local/bin/yq'
 
-default_install:
+default:
   description: Verifies default install path installs a compatible yq.
   checks:
-    - title: yq command is available
+    - title: yq is on PATH
       cmd: command -v yq
     - title: yq supports -o=json mode
       cmd: bash -c 'yq -o=json "." /dev/null > /dev/null 2>&1'
@@ -56,15 +56,15 @@ if_exists_fail:
       title: if_exists=fail exits with already-installed error
       pattern: failing (if_exists=fail)
 
-package_install:
+package_default:
   description: Verifies auto mode yields a compatible yq on Linux.
   checks:
-    - title: yq command is available
+    - title: yq is on PATH
       cmd: command -v yq
     - title: yq supports -o=json mode
       cmd: bash -c 'yq -o=json "." /dev/null > /dev/null 2>&1'
 
-shell_completion_bash:
+completions_bash:
   description: |
     shell_completions=bash (root):
     Verifies yq bash completion file is written to the system-wide bash_completion.d.
@@ -83,7 +83,7 @@ shell_completion_bash:
     - title: bash completion file is valid bash
       cmd: bash -n /etc/bash_completion.d/yq
 
-shell_completion_zsh:
+completions_zsh:
   description: |
     shell_completions=zsh (root):
     Verifies yq zsh completion file is written to the system-wide zsh completions directory.
@@ -102,12 +102,12 @@ shell_completion_zsh:
     - title: zsh completion file is non-empty
       cmd: bash -c 'f=""; for p in /etc/zsh/completions/_yq /usr/share/zsh/completions/_yq /etc/completions/_yq; do [ -f "$p" ] && f="$p" && break; done; test -s "$f"'
 
-specific_version:
+binary_pinned_version:
   description: |
     version=4.44.2 + method=binary: install a specific pinned version.
     Verifies the binary reports exactly 4.44.2.
   checks:
-    - title: yq binary installed at /usr/local/bin/yq
+    - title: yq binary is at /usr/local/bin/yq
       cmd: test -f /usr/local/bin/yq
     - title: yq binary is executable
       cmd: test -x /usr/local/bin/yq

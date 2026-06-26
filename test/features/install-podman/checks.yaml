@@ -1,4 +1,4 @@
-apt_container_user:
+container_user:
   description: |
     Verifies that add_container_user=true configures the user injected via
     _CONTAINER_USER (set by the devcontainer CLI from the containerUser field).
@@ -18,7 +18,7 @@ apt_container_user:
     - title: root storage.conf NOT written
       cmd: bash -c '! test -f /root/.config/containers/storage.conf'
 
-apt_default:
+default:
   description: |
     Default options with remoteUser="vscode".
     Verifies packages, setuid binaries, vscode user configuration,
@@ -86,7 +86,7 @@ apt_default:
     - title: root storage.conf NOT written
       cmd: bash -c '! test -f /root/.config/containers/storage.conf'
 
-apt_explicit_user:
+explicit_user:
   description: |
     Verifies that add_users with an explicit username configures exactly
     that user. All devcontainer-injected user options are off so only the
@@ -118,7 +118,7 @@ apt_explicit_user:
     - title: root storage.conf NOT written
       cmd: bash -c '! test -f /root/.config/containers/storage.conf'
 
-apt_multi_user:
+multi_user:
   description: |
     Verifies that multiple users given via add_users are each configured
     with their own subuid/subgid entry and storage.conf, and that their subuid
@@ -193,7 +193,7 @@ apt_multi_user:
       cmd: |-
         bash -c 'a=$(grep "^alice:" /etc/subgid | cut -d: -f2); b=$(grep "^bob:" /etc/subgid | cut -d: -f2); d=$((a > b ? a - b : b - a)); test "${d}" -ge 65536'
 
-apt_no_users:
+no_users:
   description: |
     Verifies that when all per-user config options are disabled, install.sh
     succeeds and installs the shared infrastructure (packages, containers.conf,
@@ -221,7 +221,7 @@ apt_no_users:
     - title: root storage.conf NOT written
       cmd: bash -c '! test -f /root/.config/containers/storage.conf'
 
-apt_nonexistent_user:
+nonexistent_user:
   description: |
     Verifies that install.sh does not abort when add_users names a user
     that does not exist. The script should skip that user with a warning and
@@ -238,7 +238,7 @@ apt_nonexistent_user:
     - title: ghost config dir NOT written
       cmd: bash -c '! test -d /home/ghost'
 
-apt_podman_run:
+podman_run:
   description: |
     Verifies that rootless Podman is fully functional for the vscode user:
     storage driver, per-user graphRoot on the named volume, and end-to-end
@@ -256,7 +256,7 @@ apt_podman_run:
     - title: podman run hello-world succeeds
       cmd: podman run --rm docker.io/library/hello-world
 
-apt_podman_run_explicit_user:
+podman_run_explicit_user:
   description: |
     Verifies that rootless Podman is fully functional for a user configured
     via the add_users option.
@@ -274,7 +274,7 @@ apt_podman_run_explicit_user:
     - title: podman run hello-world as devuser
       cmd: runuser -l devuser -c "podman run --rm docker.io/library/hello-world"
 
-apt_remote_user:
+remote_user:
   description: |
     Verifies that add_remote_user=true configures the user injected via
     _REMOTE_USER (set by the devcontainer CLI from the remoteUser field).
@@ -294,7 +294,7 @@ apt_remote_user:
     - title: root storage.conf NOT written
       cmd: bash -c '! test -f /root/.config/containers/storage.conf'
 
-apt_root_user_config:
+root_user_config:
   description: |
     Verifies that add_users="root" causes root to receive a subuid/subgid
     entry and a per-user storage.conf.
@@ -325,7 +325,7 @@ apt_root_user_config:
     - title: vscode NOT in /etc/subuid
       cmd: bash -c '! grep -q "^vscode:" /etc/subuid 2>/dev/null'
 
-apt_standalone_default:
+standalone_default:
   description: |
     Standalone install with default options; no devcontainer CLI context.
     The install script is invoked directly (no _REMOTE_USER injection).
@@ -361,7 +361,7 @@ apt_standalone_default:
     - title: entrypoint NOT installed
       cmd: bash -c "! test -f '${_FEAT_ENTRYPOINT_PATH}'"
 
-apt_standalone_user:
+standalone_user:
   description: |
     Standalone install with an explicit add_users target (devuser).
     Invoked directly — no _REMOTE_USER. Verifies per-user Podman config dirs

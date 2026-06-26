@@ -1,33 +1,33 @@
-default_install:
-  envs: [debian-latest]
+default:
+  envs: [debian-12]
   modes: [devcontainer, standalone]
   tests: [default]
 
-package_install:
-  envs: [debian-bookworm+bash, alpine-3.21+bash, fedora-latest+bash]
+package_default:
+  envs: [debian-12+bash, alpine-3.21+bash, fedora-42+bash]
   modes: [devcontainer, standalone]
   options:
     method: package
-  tests: [package_install]
+  tests: [package_default]
 
-source_build:
-  envs: [debian-bookworm+zsh-source-build-deps]
+source_default:
+  envs: [debian-12+build-essential+ncurses]
   modes: [standalone]
   options:
     method: source
     version: "5.9.1"
-  tests: [source_build]
+  tests: [source_default]
 
-specific_version:
-  envs: [debian-bookworm+zsh-source-build-deps]
+source_pinned_version:
+  envs: [debian-12+build-essential+ncurses]
   modes: [standalone]
   options:
     method: source
     version: "5.9"
-  tests: [specific_version]
+  tests: [source_pinned_version]
 
 source_custom_prefix:
-  envs: [debian-bookworm+zsh-source-build-deps]
+  envs: [debian-12+build-essential+ncurses]
   modes: [devcontainer, standalone]
   options:
     method: source
@@ -38,9 +38,8 @@ source_custom_prefix:
   tests: [source_custom_prefix]
 
 source_custom_prefix_nonroot:
-  envs: [debian-bookworm+zsh-source-build-deps]
+  envs: [debian-12+build-essential+ncurses+vscode]
   modes: [standalone]
-  setup: useradd -m -s /bin/bash vscode
   options:
     method: source
     version: "5.9.1"
@@ -52,7 +51,7 @@ source_custom_prefix_nonroot:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [standalone]
   setup: |
     printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then echo "zsh 9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/zsh
@@ -63,7 +62,7 @@ if_exists_fail:
   tests: [if_exists_fail]
 
 if_exists_skip:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [standalone]
   setup: |
     printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then echo "zsh 9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/zsh
@@ -75,7 +74,7 @@ if_exists_skip:
 
 invalid_method:
   expect_install_failure: true
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [standalone]
   options:
     method: binary

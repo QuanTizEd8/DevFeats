@@ -371,3 +371,133 @@ After each job, CI uploads `.local/logs/tests/features/<scenario-key>.log` as ar
 Use these artifacts (or `just fetch-gha` trace sidecars) when GHA step logs are too terse.
 
 See {doc}`/dev-guide/devops/ci` for the full CI setup and log-fetch workflow.
+
+---
+
+## Test Environment Reference
+
+All named test environments are declared in `test/environments.yaml`. The canonical set of pinned base environments — updated whenever a distribution releases a new stable/LTS version — is:
+
+| Key | Docker image | Notes |
+|---|---|---|
+| `ubuntu-24.04` | `ubuntu:24.04` | Ubuntu 24.04 LTS (Noble Numbat) |
+| `ubuntu-26.04` | `ubuntu:26.04` | Ubuntu 26.04 LTS (Plucky Puffin) |
+| `debian-12` | `debian:12` | Debian 12 Bookworm |
+| `debian-13` | `debian:13` | Debian 13 Trixie |
+| `alpine-3.21` | `alpine:3.21` | Alpine 3.21 |
+| `fedora-42` | `fedora:42` | Fedora 42 |
+| `rockylinux-9` | `rockylinux:9` | Rocky Linux 9 (RHEL-compatible) |
+| `opensuse-leap-15.6` | `opensuse/leap:15.6` | openSUSE Leap 15.6 |
+| `archlinux` | `archlinux:base-YYYYMMDD.0.XXXXXX` | Arch Linux — pinned to a dated immutable tag |
+| `macos-15` | `macos-15` | macOS Sequoia, bare (no Homebrew) |
+| `macos-15+brew` | `macos-15` | macOS Sequoia with Homebrew |
+
+**Never use rolling tags** (`ubuntu:latest`, `debian:latest`, etc.) — they silently change their contents and make CI non-reproducible.
+
+### Naming convention
+
+```
+{os_id}-{version}                     # pinned base, no augmentation
+{base}+{tool}                         # base + tool/shell/binary installed
+{base}+{tool}-{version}               # base + specific version of tool
+{base}+{tool1}+{tool2}                # base + multiple tools/toolchains
+```
+
+Where each `{tool}` segment names what is installed: a binary (`bash`, `git`, `go`, `brew`, `curl`), a version-pinned binary (`jq-1.8.1`, `gh-2.67.0`), or a build toolchain (`autotools`, `build-essential`, `ncurses`).
+
+No categorical suffixes (`-preinstalled`, `-build-deps`, `-base`). The name should describe what's in the image, not why it was created.
+
+**Which distros need a `+bash` variant:** Alpine, Rocky Linux, and openSUSE Leap do not ship bash by default. Their `+bash` variants (e.g. `alpine-3.21+bash`) are required for any test that uses the test shim or the devcontainer runner. Ubuntu, Debian, Fedora, and Arch Linux ship bash by default and do not need `+bash` variants. (`archlinux:base` includes bash via the base package group.)
+
+**How to add a new environment:** add the entry to `test/environments.yaml` under the appropriate section header (base images → +bash → +shell → +tool[-version] → +toolchain → from:-chain → macOS). Verify it with `python3 -c "import yaml; yaml.safe_load(open('test/environments.yaml').read())"` before referencing it in a `scenarios.yaml`.
+
+---
+
+## Naming Conventions
+
+These conventions are enforced by the verification scripts in §4 of the test infrastructure plan. Violations will be caught by CI.
+
+### Scenario keys
+
+Scenario keys describe **what** option combination or behavior is being tested — not **where** (which OS, distro, or package manager). The `envs:` field captures "where."
+
+**Forbidden in scenario keys:** OS names (`ubuntu`, `debian`, `alpine`, `fedora`, `rocky`, `opensuse`, `arch`), package manager names (`apt`, `apk`, `dnf`, `rpm`, `zypper`, `pacman`, `brew`).
+
+**Exception:** `install-os-pkg` uses PM-prefixed scenario names intentionally (they describe the manifest section format being tested, which varies by PM).
+
+Standard patterns:
+
+| Pattern | When to use |
+|---|---|
+| `default` | Default options; no explicit method/version override |
+| `package_default` | `method=package` across multiple distros |
+| `source_default` | `method=source`, default prefix |
+| `binary_pinned_version` | Explicit pinned version with binary method |
+| `binary_custom_prefix` | Custom prefix with symlink discovery |
+| `custom_prefix_no_symlink` | Custom prefix, `prefix_discovery=none` |
+| `if_exists_skip` | `if_exists=skip` with pre-installed stub |
+| `if_exists_fail` | `if_exists=fail` with pre-installed stub |
+| `if_exists_reinstall` | `if_exists=reinstall` over pre-installed version |
+| `completions_{shell}` | Shell completions for a specific shell |
+| `method_npm` / `method_cargo` / etc. | Method-specific scenario (non-default method) |
+| `upstream_package` / `upstream_package_default` | `method=upstream-package` |
+| `macos_default` | macOS (always manual; no auto-generation) |
+
+### Check titles
+
+Check titles state the **expected post-install system state** declaratively. They must not contain package manager names (`dpkg`, `rpm`, `apk`, `dnf`, `brew`), OS names, or implementation details like "PPA."
+
+Standard patterns:
+
+| Pattern | Examples |
+|---|---|
+| `{tool} is on PATH` | `git is on PATH`, `rg is on PATH` |
+| `{tool} binary is at {path}` | `git binary is at /usr/local/bin/git` |
+| `{tool} binary is executable` | `git binary is executable` |
+| `{tool} --version succeeds` | `git --version succeeds` |
+| `{tool} version is {X.Y.Z}` | `jq version is 1.8.1` |
+| `{tool} reports a version` | `rg reports a version` (format-only) |
+| `binary is package-manager-managed` | replaces `is dpkg-managed`, `is rpm-managed` |
+| `no upstream repo keyring` | replaces `PPA keyring cleaned up` |
+| `no upstream repo sources entry` | replaces `PPA sources.list.d entry cleaned up` |
+| `symlink exists at {path}` | `symlink exists at /usr/local/bin/rg` |
+| `symlink points to {path}` | `symlink points to /opt/rg-bin/bin/rg` |
+| `no file at {path}` | `no file at /usr/local/bin/rg` |
+
+### Multi-platform scenarios
+
+When the same option combination runs on multiple distros, use **one scenario** with multiple entries in `envs:`. The `expand_envs()` function automatically creates per-env run keys (`scenario_name.env_name`) for logging.
+
+```yaml
+# Good: one scenario, multiple envs
+package_default:
+  envs: [alpine-3.21+bash, debian-12, fedora-42, opensuse-leap-15.6+bash, archlinux]
+  options: {method: package}
+  tests: [package_default]
+
+# Bad: three separate scenarios with identical options
+package_alpine:
+  envs: [alpine-3.21+bash]
+  options: {method: package}
+  tests: [package_alpine]
+
+package_debian:
+  envs: [debian-12]
+  options: {method: package}
+  tests: [package_debian]
+```
+
+When a single multi-distro scenario needs to assert package-manager ownership, use `kind: multiple, min: 1` so the check passes regardless of which PM is in use:
+
+```yaml
+- title: binary is package-manager-managed
+  kind: multiple
+  min: 1
+  cmd:
+    - bash -c 'dpkg -S "$(command -v {tool})" >/dev/null 2>&1'
+    - bash -c 'rpm -qf "$(command -v {tool})" >/dev/null 2>&1'
+    - bash -c 'apk info -e {tool} >/dev/null 2>&1'
+    - bash -c 'pacman -Qo "$(command -v {tool})" >/dev/null 2>&1'
+```
+
+Keep scenarios separate only when their `setup:` scripts must differ per distro (e.g., `install-homebrew` Linux distro scenarios each install zsh via a different PM). In that case, still avoid PM/OS names in the scenario key; use abstract names like `linux_rpm`, `linux_zypper`.

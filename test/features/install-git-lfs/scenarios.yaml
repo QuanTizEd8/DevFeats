@@ -1,27 +1,21 @@
 defaults:
   modes: [devcontainer]
 
-auto_default_binary:
+default:
   envs: [ubuntu-24.04]
-  tests: [auto_default_binary]
+  tests: [default]
 
-upstream_package_apt:
-  envs: [ubuntu-24.04]
+upstream_package:
+  envs: [ubuntu-24.04, rockylinux-9+bash]
   options:
     method: upstream-package
-  tests: [upstream_package_apt]
+  tests: [upstream_package]
 
-upstream_package_rpm:
-  envs: [rocky-9+bash]
-  options:
-    method: upstream-package
-  tests: [upstream_package_rpm]
-
-package_zypper_system:
-  envs: [opensuse-leap+bash]
+linux_zypper:
+  envs: [opensuse-leap-15.6+bash]
   options:
     method: package
-  tests: [package_zypper_system]
+  tests: [linux_zypper]
 
 source_prefix:
   envs: [ubuntu-24.04]
@@ -31,8 +25,7 @@ source_prefix:
   tests: [source_prefix]
 
 global_remote_user:
-  envs: [ubuntu-24.04]
-  setup: useradd -m -s /bin/bash vscode
+  envs: [ubuntu-24.04+vscode]
   devcontainer:
     remoteUser: vscode
   options:
@@ -88,8 +81,8 @@ auto_pull_false:
     auto_pull: false
   tests: [auto_pull_false]
 
-macos_package_global:
-  envs: [macos-latest]
+macos_default:
+  envs: [macos-15+brew]
   modes: [macos]
   setup: |
     brew list git-lfs >/dev/null 2>&1 && brew uninstall --formula git-lfs || true
@@ -98,4 +91,4 @@ macos_package_global:
     config_scope: global
     add_remote_user: false
     add_container_user: false
-  tests: [macos_package_global]
+  tests: [macos_default]

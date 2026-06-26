@@ -8,10 +8,10 @@ binary_custom_prefix:
     - title: custom-prefix shfmt formats shell code
       cmd: bash -c 'printf "if true\nthen\necho hi\nfi\n" | /opt/shfmt-bin/bin/shfmt -'
 
-default_install:
+default:
   description: Verifies default install installs a working shfmt.
   checks:
-    - title: shfmt command is available
+    - title: shfmt is on PATH
       cmd: command -v shfmt
     - title: shfmt reports a version
       cmd: bash -c 'shfmt --version | grep -Eq "^v?[0-9]+\.[0-9]+\.[0-9]+"'
@@ -27,10 +27,10 @@ if_exists_fail:
       title: if_exists=fail exits with already-installed error
       pattern: failing (if_exists=fail)
 
-package_install:
+package_default:
   description: Verifies method=package installs a working shfmt.
   checks:
-    - title: shfmt command is available
+    - title: shfmt is on PATH
       cmd: command -v shfmt
     - title: shfmt formats shell code
       cmd: bash -c 'printf "if true\nthen\necho hi\nfi\n" | shfmt -'

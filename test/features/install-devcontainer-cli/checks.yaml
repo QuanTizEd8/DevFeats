@@ -3,7 +3,7 @@ npm_bundled:
     method=npm-bundled: installs devcontainer with a self-contained Node.js
     runtime; verifies the binary is on PATH and functional.
   checks:
-    - title: devcontainer command is available
+    - title: devcontainer is on PATH
       cmd: bash -lc "command -v devcontainer"
     - title: devcontainer --version succeeds
       cmd: bash -lc "devcontainer --version"
@@ -13,7 +13,7 @@ npm:
     method=npm: installs devcontainer as a global npm package;
     verifies the binary is on PATH and functional.
   checks:
-    - title: devcontainer command is available
+    - title: devcontainer is on PATH
       cmd: bash -lc "command -v devcontainer"
     - title: devcontainer --version succeeds
       cmd: bash -lc "devcontainer --version"

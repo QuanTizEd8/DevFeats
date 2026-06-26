@@ -1,5 +1,5 @@
 apt_installs_packages:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -7,7 +7,7 @@ apt_installs_packages:
   tests: [apt_installs_packages]
 
 apt_update_false:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     apt-get update
@@ -18,7 +18,7 @@ apt_update_false:
   tests: [apt_update_false]
 
 apt_keep_cache:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -27,7 +27,7 @@ apt_keep_cache:
   tests: [apt_keep_cache]
 
 apt_scripts:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -43,7 +43,7 @@ apt_scripts:
   tests: [apt_scripts]
 
 apt_log_file:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -52,7 +52,7 @@ apt_log_file:
   tests: [apt_log_file]
 
 apt_empty_dir:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '' > /tmp/manifest.yaml
   options:
@@ -60,7 +60,7 @@ apt_empty_dir:
   tests: [apt_empty_dir]
 
 no_matching_files:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'apk:' '  packages:' '    - tree' > /tmp/manifest.yaml
   options:
@@ -68,7 +68,7 @@ no_matching_files:
   tests: [no_matching_files]
 
 apk_installs_packages:
-  envs: [alpine-latest+bash]
+  envs: [alpine-3.21+bash]
   modes: [devcontainer]
   setup: printf '%s\n' 'apk:' '  packages:' '    - tree' > /tmp/manifest.yaml
   options:
@@ -76,7 +76,7 @@ apk_installs_packages:
   tests: [apk_installs_packages]
 
 apk_update_false:
-  envs: [alpine-latest+bash]
+  envs: [alpine-3.21+bash]
   modes: [devcontainer]
   setup: |
     apk update
@@ -87,7 +87,7 @@ apk_update_false:
   tests: [apk_update_false]
 
 dnf_installs_packages:
-  envs: [fedora-latest]
+  envs: [fedora-42]
   modes: [devcontainer]
   setup: printf '%s\n' 'dnf:' '  packages:' '    - tree' > /tmp/manifest.yaml
   options:
@@ -95,7 +95,7 @@ dnf_installs_packages:
   tests: [dnf_installs_packages]
 
 zypper_installs_packages:
-  envs: [opensuse-leap-latest]
+  envs: [opensuse-leap-15.6]
   modes: [devcontainer]
   setup: printf '%s\n' 'zypper:' '  packages:' '    - tree' > /tmp/manifest.yaml
   options:
@@ -103,7 +103,7 @@ zypper_installs_packages:
   tests: [zypper_installs_packages]
 
 pacman_installs_packages:
-  envs: [archlinux-latest]
+  envs: [archlinux]
   modes: [devcontainer]
   setup: printf '%s\n' 'pacman:' '  packages:' '    - tree' > /tmp/manifest.yaml
   options:
@@ -111,7 +111,7 @@ pacman_installs_packages:
   tests: [pacman_installs_packages]
 
 apt_pkg_selectors:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -128,14 +128,14 @@ apt_pkg_selectors:
   tests: [apt_pkg_selectors]
 
 apt_manifest_inline:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     manifest: "# inline manifest\npackages:\n  - tree\n  - curl\n"
   tests: [apt_manifest_inline]
 
 apt_manifest_file:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     mkdir -p /tmp
@@ -150,7 +150,7 @@ apt_manifest_file:
   tests: [apt_manifest_file]
 
 apt_manifest_file_trace:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     mkdir -p /tmp
@@ -165,7 +165,7 @@ apt_manifest_file_trace:
   tests: [apt_manifest_file_trace]
 
 apt_manifest_section_selector:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -182,7 +182,7 @@ apt_manifest_section_selector:
   tests: [apt_manifest_section_selector]
 
 apk_manifest_file:
-  envs: [alpine-latest+bash]
+  envs: [alpine-3.21+bash]
   modes: [devcontainer]
   setup: |
     mkdir -p /tmp
@@ -199,7 +199,7 @@ apk_manifest_file:
   tests: [apk_manifest_file]
 
 apt_manifest_all_sections:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -215,7 +215,7 @@ apt_manifest_all_sections:
   tests: [apt_manifest_all_sections]
 
 apt_manifest_scripts:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -231,7 +231,7 @@ apt_manifest_scripts:
   tests: [apt_manifest_scripts]
 
 apt_system_command:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -240,7 +240,7 @@ apt_system_command:
   tests: [apt_system_command]
 
 install_self_false:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -249,14 +249,14 @@ install_self_false:
   tests: [install_self_false]
 
 install_self_only:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   options:
     install_self: true
   tests: [install_self_only]
 
 apt_lifecycle_hook_postcreate:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -265,7 +265,7 @@ apt_lifecycle_hook_postcreate:
   tests: [apt_lifecycle_hook_postcreate]
 
 apt_lifecycle_hook_postcreate_trace:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -274,7 +274,7 @@ apt_lifecycle_hook_postcreate_trace:
   tests: [apt_lifecycle_hook_postcreate_trace]
 
 apt_lifecycle_hook_oncreate:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -283,7 +283,7 @@ apt_lifecycle_hook_oncreate:
   tests: [apt_lifecycle_hook_oncreate]
 
 apt_lifecycle_hook_updatecontent:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -292,7 +292,7 @@ apt_lifecycle_hook_updatecontent:
   tests: [apt_lifecycle_hook_updatecontent]
 
 apt_keep_repos:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     apt-get update
@@ -309,7 +309,7 @@ apt_keep_repos:
   tests: [apt_keep_repos]
 
 apt_repo_cleanup:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     apt-get update
@@ -325,7 +325,7 @@ apt_repo_cleanup:
   tests: [apt_repo_cleanup]
 
 apt_key_raw:
-  envs: [debian-bookworm]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -342,7 +342,7 @@ apt_key_raw:
   tests: [apt_key_raw]
 
 apt_key_dearmor:
-  envs: [debian-bookworm]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -359,7 +359,7 @@ apt_key_dearmor:
   tests: [apt_key_dearmor]
 
 apt_version_selector:
-  envs: [debian-bookworm+bash]
+  envs: [debian-12+bash]
   modes: [devcontainer]
   setup: |
     printf '%s\n' \
@@ -377,7 +377,7 @@ apt_version_selector:
   tests: [apt_version_selector]
 
 apt_dry_run:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     apt-get update
@@ -388,7 +388,7 @@ apt_dry_run:
   tests: [apt_dry_run]
 
 apt_lists_max_age_zero:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
@@ -397,7 +397,7 @@ apt_lists_max_age_zero:
   tests: [apt_lists_max_age_zero]
 
 apt_skip_installed:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: |
     apt-get update
@@ -408,7 +408,7 @@ apt_skip_installed:
   tests: [apt_skip_installed]
 
 apt_manifest_uri_file:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [devcontainer]
   setup: printf '%s\n' 'packages:' '  - tree' '  - curl' > /tmp/manifest.yaml
   options:

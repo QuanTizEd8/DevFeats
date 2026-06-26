@@ -1,15 +1,15 @@
-default_install:
+default:
   envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   tests: [default]
 
-specific_version:
+binary_pinned_version:
   envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     version: "1.8.1"
     method: binary
-  tests: [specific_version]
+  tests: [binary_pinned_version]
 
 legacy_version:
   envs: [ubuntu-24.04]
@@ -38,8 +38,8 @@ custom_prefix_no_symlink:
     prefix_discovery: none
   tests: [custom_prefix_no_symlink]
 
-package_install:
-  envs: [debian-bookworm+bash, alpine-3.21+bash, fedora-latest+bash]
+package_default:
+  envs: [debian-12+bash, alpine-3.21+bash, fedora-42+bash]
   modes: [devcontainer, standalone]
   options:
     method: package
@@ -65,7 +65,7 @@ reinstall:
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "jq-9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/jq
@@ -78,7 +78,7 @@ if_exists_fail:
     skip_install: false
 
 if_exists_skip:
-  envs: [debian-latest]
+  envs: [debian-12]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "jq-9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/jq
@@ -88,13 +88,13 @@ if_exists_skip:
     if_exists: skip
   tests: [if_exists_skip]
 
-source_build:
-  envs: [debian-bookworm+jq-source-build-deps]
+source_default:
+  envs: [debian-12+autotools]
   modes: [standalone]
   options:
     method: source
     version: "1.8.1"
-  tests: [source_build]
+  tests: [source_default]
 
 package_manifest_override:
   envs: [ubuntu-24.04]

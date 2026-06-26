@@ -1,35 +1,35 @@
-default_install:
-  envs: [fedora-latest+bash, arch+bash]
+default:
+  envs: [fedora-42+bash, archlinux]
   modes: [devcontainer, standalone]
-  tests: [default_install]
+  tests: [default]
 
-binary_pinned:
-  envs: [ubuntu-latest]
+binary_pinned_version:
+  envs: [ubuntu-24.04]
   modes: [devcontainer, standalone]
   options:
     version: "12.1.2"
     method: binary
-  tests: [binary_pinned]
+  tests: [binary_pinned_version]
 
-package_install:
+package_default:
   envs:
     - alpine-3.21+bash
-    - opensuse-leap+bash
+    - opensuse-leap-15.6+bash
   modes: [devcontainer, standalone]
   options:
     method: package
-  tests: [package_install]
+  tests: [package_default]
 
-cargo_install:
-  envs: [ubuntu-latest+rust-minimal]
+method_cargo:
+  envs: [ubuntu-24.04+rust]
   modes: [standalone]
   options:
     method: cargo
-  tests: [cargo_install]
+  tests: [method_cargo]
 
 if_exists_fail:
   expect_install_failure: true
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "tokei 99.99.99\n"; exit 0; fi\nexit 0' \
@@ -40,7 +40,7 @@ if_exists_fail:
   tests: [if_exists_fail]
 
 if_exists_skip:
-  envs: [ubuntu-latest]
+  envs: [ubuntu-24.04]
   modes: [standalone]
   setup: |
     printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "tokei 99.99.99\n"; exit 0; fi\nexit 0' \
