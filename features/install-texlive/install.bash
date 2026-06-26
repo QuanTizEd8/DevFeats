@@ -172,6 +172,38 @@ __install_register_dummy__() {
 
 # ── mirror resolution ─────────────────────────────────────────────────────────
 
+_tl_probe_year_mirror() {
+  # Probe the standard historic mirror candidates for TeX Live <year>.
+  # Stdout: the first reachable mirror URL. Returns 0 on success, 1 if none reachable.
+  local _year="$1"
+  local -a _candidates=(
+    "https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/${_year}/tlnet-final"
+    "https://ftp.tu-chemnitz.de/pub/tug/historic/systems/texlive/${_year}/tlnet-final"
+    "https://texlive.info/tlnet-archive/last-of-${_year}/tlnet"
+    "https://mirror.ctan.org/systems/texlive/tlnet-archived/${_year}"
+  )
+  local _url
+  for _url in "${_candidates[@]}"; do
+    if command -v curl > /dev/null 2>&1; then
+      if curl -fsSL --connect-timeout 10 --max-time 15 -I \
+        "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
+        printf '%s\n' "${_url}"
+        return 0
+      fi
+    elif command -v wget > /dev/null 2>&1; then
+      if wget -q --spider --timeout=15 \
+        "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
+        printf '%s\n' "${_url}"
+        return 0
+      fi
+    else
+      printf '%s\n' "${_candidates[0]}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 _tl_resolve_mirror() {
   # Stdout: the TeX Live repository URL to use for installation.
   local _version="${VERSION:-latest}"
@@ -195,6 +227,20 @@ _tl_resolve_mirror() {
     return 0
   fi
 
+  # stable → most recent annual TeX Live release; probe current year, fall back to previous
+  if [[ "${_version}" == "stable" ]]; then
+    local _year _try_year _mirror
+    _year="$(date +%Y)"
+    for _try_year in "${_year}" "$((_year - 1))"; do
+      _mirror="$(_tl_probe_year_mirror "${_try_year}")" || continue
+      logging__info "Resolved 'stable' to TeX Live ${_try_year} (${_mirror})."
+      printf '%s\n' "${_mirror}"
+      return 0
+    done
+    logging__error "Could not resolve 'stable': no reachable mirror for TeX Live ${_year} or $((_year - 1))."
+    return 1
+  fi
+
   # YYYY-MM-DD → daily snapshot archive
   if [[ "${_version}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
     printf 'https://texlive.info/tlnet-archive/%s/tlnet\n' "${_version}"
@@ -203,36 +249,16 @@ _tl_resolve_mirror() {
 
   # YYYY → historic frozen snapshot; probe mirrors via HEAD request and pick first
   if [[ "${_version}" =~ ^[0-9]{4}$ ]]; then
-    local -a _candidates=(
-      "https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/${_version}/tlnet-final"
-      "https://ftp.tu-chemnitz.de/pub/tug/historic/systems/texlive/${_version}/tlnet-final"
-      "https://texlive.info/tlnet-archive/last-of-${_version}/tlnet"
-      "https://mirror.ctan.org/systems/texlive/tlnet-archived/${_version}"
-    )
-    local _url
-    for _url in "${_candidates[@]}"; do
-      if command -v curl > /dev/null 2>&1; then
-        if curl -fsSL --connect-timeout 10 --max-time 15 -I \
-          "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
-          printf '%s\n' "${_url}"
-          return 0
-        fi
-      elif command -v wget > /dev/null 2>&1; then
-        if wget -q --spider --timeout=15 \
-          "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
-          printf '%s\n' "${_url}"
-          return 0
-        fi
-      else
-        printf '%s\n' "${_candidates[0]}"
-        return 0
-      fi
-    done
-    logging__error "No reachable historic mirror found for TeX Live ${_version}."
-    return 1
+    local _mirror
+    _mirror="$(_tl_probe_year_mirror "${_version}")" || {
+      logging__error "No reachable historic mirror found for TeX Live ${_version}."
+      return 1
+    }
+    printf '%s\n' "${_mirror}"
+    return 0
   fi
 
-  logging__error "Unsupported version format '${_version}'. Use 'latest', a 4-digit year (e.g. '2025'), or a date (e.g. '2025-04-15')."
+  logging__error "Unsupported version format '${_version}'. Use 'stable', 'latest', a 4-digit year (e.g. '2025'), or a date (e.g. '2025-04-15')."
   return 1
 }
 

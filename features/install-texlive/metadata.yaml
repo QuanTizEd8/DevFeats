@@ -45,9 +45,16 @@ _options:
   version:
     resolution: none
     default: latest
+    description: >-
+      TeX Live version to install. Accepts: `stable` (most recent annual frozen
+      release, auto-detected by probing historic mirrors), `latest` (live CTAN
+      mirror pool), a 4-digit year (e.g. `2025`), or a date
+      (e.g. `2025-04-15` for a specific daily snapshot).
     proposals:
+      - value: stable
+        description: Most recent annual TeX Live release (frozen snapshot; probes current then previous release year).
       - value: latest
-        description: Live CTAN mirror pool — always the current TeX Live release.
+        description: Live CTAN mirror pool — always the most current TeX Live packages.
       - value: '2026'
         description: TeX Live 2026 frozen snapshot.
       - value: '2025'
