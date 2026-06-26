@@ -667,10 +667,10 @@ __cleanup_install_artifacts__() {
     if [[ -v PREFIX_ACTIVATIONS ]]; then
       logging__remove "Removing prefix activation snippets for '${_FEAT_ID}'."
       local _act_home_arg=""
-      [ "${PREFIX_SCOPE:-}" = "user" ] && \
+      [ "${PREFIX_SCOPE}" = "user" ] && \
         _act_home_arg="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")"
       shell__sync_config \
-        --scope "${PREFIX_SCOPE:-system}" \
+        --scope "${PREFIX_SCOPE}" \
         ${_act_home_arg:+--home "${_act_home_arg}"} \
         --marker "prefix activation (${_FEAT_ID})" \
         --profile-d "${_FEAT_ACTIVATION_PROFILE_D_FILE}" \
@@ -1095,8 +1095,8 @@ __install_run_npm_bundled__() {
     --package "${NPM_PACKAGE}" \
     "${_cmd_arg[@]+"${_cmd_arg[@]}"}" \
     --prefix "${_RESOLVED_PREFIX}" \
-    --version "${VERSION:-latest}" \
-    --node-version "${NODE_VERSION:-lts}" \
+    --version "${VERSION}" \
+    --node-version "${NODE_VERSION}" \
     "${_registry_arg[@]+"${_registry_arg[@]}"}" \
     "${_flags[@]+"${_flags[@]}"}"
 
@@ -1404,7 +1404,7 @@ __install_shell_completions__() {
   fi
 
   local _scope_flag="" _home
-  if ! users__is_user_path "${_RESOLVED_PREFIX:-/usr/local}"; then
+  if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     _scope_flag="--system"
     _home="$(users__resolve_home)"
   else
@@ -1692,7 +1692,7 @@ __update_predispatch__() {
   #    configured prefix. __install_run__ only writes to ${PREFIX}; any unmanaged binary
   #    at another path (e.g. /usr/bin) is left untouched.
   if [[ -v _RESOLVED_PREFIX && -n "${_FEAT_CONTRACT_PRIMARY_BIN:-}" ]] && __feat_prefix_applies__; then
-    local _pfx_bin="${_RESOLVED_PREFIX}/${PREFIX_BIN_DIR:-bin}/${_FEAT_CONTRACT_PRIMARY_BIN}"
+    local _pfx_bin="${_RESOLVED_PREFIX}/${PREFIX_BIN_DIR}/${_FEAT_CONTRACT_PRIMARY_BIN}"
     if [[ ! -f "${_pfx_bin}" ]]; then
       logging__info "Update predispatch: prefix binary '${_pfx_bin}' missing; installing fresh at prefix."
       __install_run__
@@ -1896,7 +1896,7 @@ __exit__() {
   # for feature-specific cleanup (e.g. removing temp files).
   __run_feature_hook__ --warn __exit_pre
 
-  if [[ "${KEEP_CACHE:-true}" != true ]]; then
+  if [[ "${KEEP_CACHE}" != true ]]; then
     if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
       ospkg__clean || logging__warn "Package-manager cache cleanup failed."
     else
@@ -1904,14 +1904,14 @@ __exit__() {
     fi
   fi
 
-  if [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]]; then
+  if [[ "${KEEP_BUILD_DEPS}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]]; then
     ospkg__cleanup_all_build_groups || logging__warn "Build-dependency group cleanup failed."
   fi
-  if [[ "${KEEP_BUILD_DEPS:-false}" != true ]]; then
+  if [[ "${KEEP_BUILD_DEPS}" != true ]]; then
     ospkg__cleanup_resources || logging__warn "Tracked resource cleanup failed."
   fi
   # Remove a PM-installed bootstrap bash when it is no longer needed.
-  if [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && \
+  if [[ "${KEEP_BUILD_DEPS}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && \
      [[ -n "${_BASH_INSTALLED_BY_PM:-}" ]]; then
     case "${_BASH_INSTALLED_BY_PM}" in
       port)
@@ -2297,11 +2297,11 @@ __feat_resolve_version_spec__() {
         logging__error "VERSION_RESOLUTION=sidecar requires VERSION_URI and VERSION_PATTERN to be set in metadata."
         return 1
       fi
-      logging__info "Resolving version from sidecar (URI='${VERSION_URI}', spec='${_spec:-stable}')."
-      _FEAT_RESOLVE_VERSION_RESULT="$(ver__resolve_from_sidecar "${VERSION_URI}" "${VERSION_PATTERN}" "${_spec:-stable}")"
+      logging__info "Resolving version from sidecar (URI='${VERSION_URI}', spec='${_spec}')."
+      _FEAT_RESOLVE_VERSION_RESULT="$(ver__resolve_from_sidecar "${VERSION_URI}" "${VERSION_PATTERN}" "${_spec}")"
       local _rc=$?
       [[ $_rc == 0 ]] || {
-        logging__error "failed to resolve sidecar version (URI='${VERSION_URI}', spec='${_spec:-stable}')."
+        logging__error "failed to resolve sidecar version (URI='${VERSION_URI}', spec='${_spec}')."
         return "$_rc"
       }
       printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
@@ -2330,18 +2330,18 @@ __resolve_auto_method__() {
   users__is_privileged 2>/dev/null && _privileged=true
   # OS package name for PM feasibility/version checks: registers_as when set,
   # otherwise the primary binary name (same as the binary when names match).
-  _pkg_query="${REGISTER_PACKAGE_NAME:-${_FEAT_CONTRACT_PRIMARY_BIN:-}}"
+  _pkg_query="${REGISTER_PACKAGE_NAME:-${_FEAT_CONTRACT_PRIMARY_BIN}}"
 
   local _method
   for _method in binary upstream-package package script npm-bundled npm cargo source git-clone; do
-    [[ " ${_FEAT_CONTRACT_METHODS:-} " == *" ${_method} "* ]] || continue
+    [[ " ${_FEAT_CONTRACT_METHODS} " == *" ${_method} "* ]] || continue
 
     case "${_method}" in
       binary)
         if [[ "${BINARY_ASSET_URI:-}" == *'{plat.rust_triple}'* ]]; then
           [[ -n "${_triple}" ]] || continue
         fi
-        ctx__match_when --quiet "${_FEAT_CONTRACT_BINARY_WHEN:-}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_BINARY_WHEN}" || continue
         ;;
       upstream-package)
         [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
@@ -2351,7 +2351,7 @@ __resolve_auto_method__() {
         if [[ "${VERSION_RESOLUTION:-}" != "none" ]]; then
           case "${VERSION_INPUT:-${VERSION:-stable}}" in stable) : ;; *) continue ;; esac
         fi
-        ctx__match_when --quiet "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN:-}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN}" || continue
         ;;
       package)
         [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
@@ -2370,7 +2370,7 @@ __resolve_auto_method__() {
               ;;
           esac
         fi
-        ctx__match_when --quiet "${_FEAT_CONTRACT_PACKAGE_WHEN:-}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_PACKAGE_WHEN}" || continue
         ;;
       script | source) : ;;
       npm-bundled)
@@ -2417,7 +2417,7 @@ __resolve_input_method__() {
       logging__error "Feature hook '__resolve_method' failed."
       return "$_rc"
     fi
-  elif [[ -n "${_FEAT_CONTRACT_METHODS:-}" ]]; then
+  elif [[ -n "${_FEAT_CONTRACT_METHODS}" ]]; then
     logging__debug "Executing centralized '__resolve_auto_method__'."
     METHOD="$(__resolve_auto_method__)"
     local _rc=$?
@@ -2763,8 +2763,12 @@ __dep_install_for_method__() {
       logging__info "Non-privileged install: skipping method-${METHOD} build deps; expecting pre-installed."
       continue
     fi
-    if [[ "$_lc" == run && "${METHOD:-}" == upstream-package && "${KEEP_REPOS:-false}" == true ]]; then
-      __dep_install_from_env__ "$_var" "$_lc" "method-${METHOD}" --keep_repos "$@"
+    if [[ "$_lc" == run && "${METHOD}" == upstream-package ]]; then
+      if [[ -v KEEP_REPOS && "${KEEP_REPOS}" == true ]]; then
+        __dep_install_from_env__ "$_var" "$_lc" "method-${METHOD}" --keep_repos "$@"
+      else
+        __dep_install_from_env__ "$_var" "$_lc" "method-${METHOD}" "$@"
+      fi
     else
       __dep_install_from_env__ "$_var" "$_lc" "method-${METHOD}" "$@"
     fi

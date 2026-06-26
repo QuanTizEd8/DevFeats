@@ -139,6 +139,15 @@ setup() {
   grep -Fq 'shfmt' "${BATS_TEST_TMPDIR}/ospkg.log"
 }
 
+@test "__dep_install_for_method__ tolerates unset KEEP_REPOS when METHOD is not upstream-package" {
+  unset KEEP_REPOS
+  METHOD="package"
+  OSPKG_MANIFEST_METHOD_PACKAGE_RUN=$'packages:\n- shfmt'
+  run __dep_install_for_method__
+  assert_success
+  grep -Fq 'shfmt' "${BATS_TEST_TMPDIR}/ospkg.log"
+}
+
 @test "__dep_fetch_extra_args__ tolerates unset FETCH_HEADERS under set -u" {
   unset FETCH_HEADERS
   local -a _args=()

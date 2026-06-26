@@ -14,7 +14,7 @@ _should_deploy() {
 }
 
 _setup_bash_env() {
-  case "${SETUP_BASH_ENV:-auto}" in
+  case "${SETUP_BASH_ENV}" in
     false) return 1 ;;
     true) return 0 ;;
     auto) _should_deploy bash ;;
@@ -22,7 +22,7 @@ _setup_bash_env() {
 }
 
 _deploy_system() {
-  case "${SETUP_SYSTEM:-auto}" in
+  case "${SETUP_SYSTEM}" in
     true) return 0 ;;
     false) return 1 ;;
     auto) users__is_privileged ;;
@@ -30,7 +30,7 @@ _deploy_system() {
 }
 
 _deploy_skel() {
-  case "${SETUP_SKEL:-auto}" in
+  case "${SETUP_SKEL}" in
     true) return 0 ;;
     false) return 1 ;;
     # auto: only copy when privileged and /etc/skel already exists (not on macOS).
@@ -53,7 +53,7 @@ export LC_ALL=\"${LOCALE}\""
   else
     shell__sync_block --files "$_f" --marker "setup-shell-shellenv-locale"
   fi
-  local _editor="${DEFAULT_EDITOR:-auto}"
+  local _editor="${DEFAULT_EDITOR}"
   case "$_editor" in
     skip)
       shell__sync_block --files "$_f" --marker "setup-shell-shellenv-editor"
@@ -82,8 +82,8 @@ fi'
 
 _inject_user_config_blocks() {
   local _username="$1" _home="$2" _zdotdir="$3" _bash="$4" _zsh="$5"
-  local _shellenv_file="${USER_SHELLENV:-.shellenv}"
-  local _shellrc_file="${USER_SHELLRC:-.shellrc}"
+  local _shellenv_file="${USER_SHELLENV}"
+  local _shellrc_file="${USER_SHELLRC}"
 
   if ((_bash)); then
     if [ -f "$_home/.bash_profile" ]; then
@@ -283,8 +283,8 @@ _deploy_to_skel() {
 
   # Inject configurable inner blocks. Skel values are written literally (not per-user expanded);
   # shell expressions like ${XDG_CONFIG_HOME:-...} evaluate at runtime for each new user.
-  local _shellenv_file="${USER_SHELLENV:-.shellenv}"
-  local _shellrc_file="${USER_SHELLRC:-.shellrc}"
+  local _shellenv_file="${USER_SHELLENV}"
+  local _shellrc_file="${USER_SHELLRC}"
 
   if ((_deploy_bash)); then
     if [ -f /etc/skel/.bash_profile ]; then
@@ -359,7 +359,7 @@ __configure_user() {
   # _CU_MODE (set by callers like __uninstall_run__) takes precedence over IF_EXISTS.
   # IF_EXISTS is the template routing variable; _mode is the application-level parameter.
   # This is the single point where routing state is translated into explicit behavior.
-  local _mode="${_CU_MODE:-${IF_EXISTS:-skip}}"
+  local _mode="${_CU_MODE:-${IF_EXISTS}}"
   local _SKEL_DIR="${_FEAT_FILES_DIR}/skel"
   local _deploy_bash=0 _deploy_zsh=0
 
@@ -554,7 +554,7 @@ __install_run__() {
       done
     fi
   else
-    logging__info "Skipping system-wide files (setup_system=${SETUP_SYSTEM:-auto}; not privileged or disabled)."
+    logging__info "Skipping system-wide files (setup_system=${SETUP_SYSTEM}; not privileged or disabled)."
   fi
 
   if _deploy_skel; then

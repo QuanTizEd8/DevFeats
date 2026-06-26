@@ -109,7 +109,7 @@ __install_run__() {
   [[ "$DRY_RUN" == true ]] && _OSPKG_ARGS+=(--dry_run)
   [[ "$PREFER_LINUXBREW" == true ]] && _OSPKG_ARGS+=(--prefer_linuxbrew)
   [[ "$INTERACTIVE" == true ]] && _OSPKG_ARGS+=(--interactive)
-  case "${IF_EXISTS:-skip}" in
+  case "${IF_EXISTS}" in
     update) _OSPKG_ARGS+=(--update) ;;
     fail) _OSPKG_ARGS+=(--fail-if-installed) ;;
   esac
@@ -118,7 +118,7 @@ __install_run__() {
 }
 
 __if_exists_dispatch__() {
-  case "${IF_EXISTS:-skip}" in
+  case "${IF_EXISTS}" in
     uninstall) __uninstall_run__ ;;
     reinstall)
       __uninstall_run__

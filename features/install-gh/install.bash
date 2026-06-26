@@ -2,9 +2,9 @@
 _gh__configure_user() {
   local _users
   local -a _gh_uargs=()
-  [ "${ADD_CURRENT_USER:-true}" != "true" ] && _gh_uargs+=(--current false)
-  [ "${ADD_REMOTE_USER:-true}" != "true" ] && _gh_uargs+=(--remote false)
-  [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _gh_uargs+=(--container false)
+  [ "${ADD_CURRENT_USER}" != "true" ] && _gh_uargs+=(--current false)
+  [ "${ADD_REMOTE_USER}" != "true" ] && _gh_uargs+=(--remote false)
+  [ "${ADD_CONTAINER_USER}" != "true" ] && _gh_uargs+=(--container false)
   for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gh_uargs+=(--user "$_u"); done
   _users="$(users__resolve_list "${_gh_uargs[@]}")"
   if [ -z "${_users}" ]; then
@@ -83,9 +83,9 @@ EOF
 _gh__install_extensions() {
   local _users
   local -a _gh_uargs=()
-  [ "${ADD_CURRENT_USER:-true}" != "true" ] && _gh_uargs+=(--current false)
-  [ "${ADD_REMOTE_USER:-true}" != "true" ] && _gh_uargs+=(--remote false)
-  [ "${ADD_CONTAINER_USER:-true}" != "true" ] && _gh_uargs+=(--container false)
+  [ "${ADD_CURRENT_USER}" != "true" ] && _gh_uargs+=(--current false)
+  [ "${ADD_REMOTE_USER}" != "true" ] && _gh_uargs+=(--remote false)
+  [ "${ADD_CONTAINER_USER}" != "true" ] && _gh_uargs+=(--container false)
   for _u in "${ADD_USERS[@]+"${ADD_USERS[@]}"}"; do [ -n "$_u" ] && _gh_uargs+=(--user "$_u"); done
   _users="$(users__resolve_list "${_gh_uargs[@]}")"
   if [ -z "${_users}" ]; then

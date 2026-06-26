@@ -31,7 +31,7 @@ __installed_version() {
 __update_run__() {
   local _installed_year
   _installed_year="$(__installed_version)"
-  local _target="${VERSION:-latest}"
+  local _target="${VERSION}"
   if [[ "$_target" == "latest" || "$_target" == "$_installed_year" ]]; then
     logging__update "Updating TeX Live ${_installed_year} packages via tlmgr."
     tlmgr update --self --all
@@ -43,7 +43,7 @@ __update_run__() {
 
 __install_register_dummy__() {
   # Skip for package/upstream-package: real PM packages are already installed
-  case "${METHOD:-}" in
+  case "${METHOD}" in
     package | upstream-package)
       logging__skip "METHOD='${METHOD}'; skipping dummy registration."
       return 0
@@ -206,7 +206,7 @@ _tl_probe_year_mirror() {
 
 _tl_resolve_mirror() {
   # Stdout: the TeX Live repository URL to use for installation.
-  local _version="${VERSION:-latest}"
+  local _version="${VERSION}"
 
   # Explicit SCRIPT_ASSET_URI: strip /install-tl-unx.tar.gz suffix to get mirror base
   if [[ -v SCRIPT_ASSET_URI && -n "${SCRIPT_ASSET_URI}" ]]; then
@@ -277,7 +277,7 @@ _tl_download_extract_installer() {
   logging__download "Downloading TeX Live installer from '${_installer_url}'."
   net__fetch_url_file "${_installer_url}" "${_archive}"
 
-  if [[ "${VERIFY_DOWNLOADS:-true}" == "true" ]]; then
+  if [[ "${VERIFY_DOWNLOADS}" == "true" ]]; then
     local _checksum_file="${_archive}.sha512"
     logging__download "Downloading SHA512 checksum."
     if net__fetch_url_file "${_installer_url}.sha512" "${_checksum_file}" 2> /dev/null; then
@@ -370,26 +370,26 @@ _tl_write_profile() {
         printf 'collection-%s 1\n' "${_c}"
       done
     else
-      printf 'selected_scheme scheme-%s\n' "${SCHEME:-small}"
+      printf 'selected_scheme scheme-%s\n' "${SCHEME}"
     fi
 
     # instopt_* keys
-    printf 'instopt_adjustpath %s\n' "$([[ "${INSTOPT_ADJUSTPATH:-true}" == "true" ]] && printf '1' || printf '0')"
-    printf 'instopt_adjustrepo %s\n' "$([[ "${INSTOPT_ADJUSTREPO:-true}" == "true" ]] && printf '1' || printf '0')"
-    printf 'instopt_letter %s\n' "$([[ "${INSTOPT_LETTER:-a4}" == "letter" ]] && printf '1' || printf '0')"
-    printf 'instopt_portable %s\n' "$([[ "${INSTOPT_PORTABLE:-false}" == "true" ]] && printf '1' || printf '0')"
-    printf 'instopt_write18_restricted %s\n' "$([[ "${INSTOPT_WRITE18_RESTRICTED:-true}" == "true" ]] && printf '1' || printf '0')"
+    printf 'instopt_adjustpath %s\n' "$([[ "${INSTOPT_ADJUSTPATH}" == "true" ]] && printf '1' || printf '0')"
+    printf 'instopt_adjustrepo %s\n' "$([[ "${INSTOPT_ADJUSTREPO}" == "true" ]] && printf '1' || printf '0')"
+    printf 'instopt_letter %s\n' "$([[ "${INSTOPT_LETTER}" == "letter" ]] && printf '1' || printf '0')"
+    printf 'instopt_portable %s\n' "$([[ "${INSTOPT_PORTABLE}" == "true" ]] && printf '1' || printf '0')"
+    printf 'instopt_write18_restricted %s\n' "$([[ "${INSTOPT_WRITE18_RESTRICTED}" == "true" ]] && printf '1' || printf '0')"
 
     # tlpdbopt_* keys
-    printf 'tlpdbopt_install_docfiles %s\n' "$([[ "${TLPDBOPT_INSTALL_DOCFILES:-false}" == "true" ]] && printf '1' || printf '0')"
-    printf 'tlpdbopt_install_srcfiles %s\n' "$([[ "${TLPDBOPT_INSTALL_SRCFILES:-false}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_install_docfiles %s\n' "$([[ "${TLPDBOPT_INSTALL_DOCFILES}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_install_srcfiles %s\n' "$([[ "${TLPDBOPT_INSTALL_SRCFILES}" == "true" ]] && printf '1' || printf '0')"
     [[ "${TLPDBOPT_SYS_BIN:-auto}" != "auto" ]] && printf 'tlpdbopt_sys_bin %s\n' "${TLPDBOPT_SYS_BIN}"
     [[ -n "${TLPDBOPT_SYS_MAN:-}" ]] && printf 'tlpdbopt_sys_man %s\n' "${TLPDBOPT_SYS_MAN}"
     [[ -n "${TLPDBOPT_SYS_INFO:-}" ]] && printf 'tlpdbopt_sys_info %s\n' "${TLPDBOPT_SYS_INFO}"
-    printf 'tlpdbopt_create_formats %s\n' "$([[ "${TLPDBOPT_CREATE_FORMATS:-true}" == "true" ]] && printf '1' || printf '0')"
-    printf 'tlpdbopt_post_code %s\n' "$([[ "${TLPDBOPT_POST_CODE:-true}" == "true" ]] && printf '1' || printf '0')"
-    printf 'tlpdbopt_generate_updmap %s\n' "$([[ "${TLPDBOPT_GENERATE_UPDMAP:-false}" == "true" ]] && printf '1' || printf '0')"
-    printf 'tlpdbopt_autobackup %s\n' "${TLPDBOPT_AUTOBACKUP:-1}"
+    printf 'tlpdbopt_create_formats %s\n' "$([[ "${TLPDBOPT_CREATE_FORMATS}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_post_code %s\n' "$([[ "${TLPDBOPT_POST_CODE}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_generate_updmap %s\n' "$([[ "${TLPDBOPT_GENERATE_UPDMAP}" == "true" ]] && printf '1' || printf '0')"
+    printf 'tlpdbopt_autobackup %s\n' "${TLPDBOPT_AUTOBACKUP}"
     if [[ -n "${TLPDBOPT_BACKUPDIR:-}" ]]; then printf 'tlpdbopt_backupdir %s\n' "${TLPDBOPT_BACKUPDIR}"; fi
   } > "${_profile_dest}"
 }
@@ -436,7 +436,7 @@ _tl_ensure_path() {
   # When instopt_adjustpath=false, tlmgr and other TeX Live binaries are NOT
   # symlinked to SYS_BIN.  Temporarily add the arch-specific bin dir to PATH so
   # post-install calls (tlmgr install, tlmgr option, command -v context, …) work.
-  [[ "${INSTOPT_ADJUSTPATH:-true}" == "true" ]] && return 0
+  [[ "${INSTOPT_ADJUSTPATH}" == "true" ]] && return 0
   local _tl_arch_bin
   _tl_arch_bin="$(find "${_TL_TEXDIR}/bin" -maxdepth 1 -mindepth 1 -type d 2> /dev/null | head -1 || true)"
   if [[ -n "${_tl_arch_bin}" ]]; then
@@ -469,7 +469,7 @@ _tl_has_packages() {
   # Returns 0 when the installation includes TeX packages beyond bare infraonly
   # infrastructure. Used to guard tlmgr options that require the tlpdb to have
   # package-level options registered (paper size, verify-repo).
-  [[ "${SCHEME:-small}" != "infraonly" ]] && return 0
+  [[ "${SCHEME}" != "infraonly" ]] && return 0
   if [[ -v COLLECTIONS ]]; then
     local _c
     for _c in "${COLLECTIONS[@]}"; do [[ -n "${_c}" ]] && return 0; done
@@ -547,7 +547,7 @@ _tl_post_install() {
   # tlmgr would report "Option not supported". Only apply when packages are present.
   if [[ "${_guaranteed_packages}" == "true" ]] || _tl_has_packages; then
     local _paper
-    _paper="$([[ "${INSTOPT_LETTER:-a4}" == "letter" ]] && printf 'letter' || printf 'a4')"
+    _paper="$([[ "${INSTOPT_LETTER}" == "letter" ]] && printf 'letter' || printf 'a4')"
     tlmgr option paper "${_paper}" || true
 
     if [[ -n "${TLMGR_VERIFY_REPO:-}" ]]; then
@@ -559,13 +559,13 @@ _tl_post_install() {
   fi
 
   # Post-install update
-  if [[ "${TLMGR_UPDATE:-false}" == "true" ]]; then
+  if [[ "${TLMGR_UPDATE}" == "true" ]]; then
     logging__update "Running tlmgr update --self --all."
     tlmgr update --self --all --reinstall-forcibly-removed
   fi
 
   # ConTeXt cache generation (guarded by option; only meaningful when ConTeXt is installed)
-  if [[ "${GENERATE_CACHES:-false}" == "true" ]]; then
+  if [[ "${GENERATE_CACHES}" == "true" ]]; then
     _tl_generate_caches
   fi
 }
@@ -606,7 +606,7 @@ __install_run_script__() {
     -repository "${_mirror}"
     -profile "${INSTALLER_DIR}/texlive.profile"
   )
-  [[ "${VERIFY_DOWNLOADS:-true}" != "true" ]] && _install_args+=(--no-verify-downloads)
+  [[ "${VERIFY_DOWNLOADS}" != "true" ]] && _install_args+=(--no-verify-downloads)
 
   logging__install "Running TeX Live installer."
   net__fetch_with_retry --retries 5 --delay 30 -- \
@@ -627,7 +627,7 @@ __install_run_script__() {
 __install_run_package__() {
   __run_feature_hook__ __install_run_package_pre
 
-  local _scheme="${SCHEME:-small}"
+  local _scheme="${SCHEME}"
   local _pm
   _pm="$(ospkg__pm)"
   local -a _pkgs=()

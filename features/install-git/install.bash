@@ -195,7 +195,7 @@ _export_git_manpath() {
     logging__skip "METHOD='${METHOD}'; skipping git MANPATH export."
     return 0
   fi
-  case "${PREFIX_DISCOVERY:-auto}" in
+  case "${PREFIX_DISCOVERY}" in
     none | symlink)
       logging__skip "PREFIX_DISCOVERY='${PREFIX_DISCOVERY}'; skipping git MANPATH export."
       return 0

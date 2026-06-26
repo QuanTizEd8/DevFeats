@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 __if_exists_dispatch__() {
-  case "${IF_EXISTS:-skip}" in
+  case "${IF_EXISTS}" in
     uninstall) __uninstall_run__ ;;
     reinstall)
       __uninstall_run__

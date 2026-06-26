@@ -16,7 +16,7 @@ __init_args_post() {
 __detect_existing_path_post() {
   [ -n "${_FEAT_EXISTING_PATH}" ] && return 0
   local _home
-  _home="$(users__resolve_home "${INSTALL_USER:-$(users__get_current)}")"
+  _home="$(users__resolve_home "${INSTALL_USER}")"
   local _agent="${_home}/.local/bin/agent"
   if [ -L "${_agent}" ] || [ -f "${_agent}" ]; then
     _FEAT_EXISTING_PATH="${_agent}"

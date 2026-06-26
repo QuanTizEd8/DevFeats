@@ -57,10 +57,10 @@ _effective_method() {
   #   - In install/update/reinstall flows, `METHOD` must already have been resolved by
   #     the template and is treated as the target method.
   local _method=""
-  if [[ "${IF_EXISTS:-}" == "skip" && "${_FEAT_EXISTING:-false}" == true ]]; then
+  if [[ "${IF_EXISTS}" == "skip" && "${_FEAT_EXISTING}" == true ]]; then
     _method="${_FEAT_EXISTING_METHOD:-}"
   else
-    _method="${METHOD:-}"
+    _method="${METHOD}"
     if [[ -z "${_method}" || "${_method}" == "auto" ]]; then
       logging__error "Expected a concrete METHOD outside if_exists=skip; got '${_method:-unset}'."
       return 1
@@ -77,7 +77,7 @@ _resolved_scope() {
   # Returns:
   #   0  Scope resolved successfully.
   #   1  `CONFIG_SCOPE` contains an unsupported value.
-  case "${CONFIG_SCOPE:-auto}" in
+  case "${CONFIG_SCOPE}" in
     auto)
       if users__is_privileged; then
         printf 'system\n'
@@ -121,7 +121,7 @@ _scope_needs_repo() {
   local _scope="$1"
   [[ "${_scope}" == "none" ]] && return 1
   _scope_is_repo "${_scope}" && return 0
-  [[ "${SKIP_REPO:-true}" == "false" ]]
+  [[ "${SKIP_REPO}" == "false" ]]
 }
 
 _manual_hooks_value() {
@@ -133,8 +133,8 @@ _manual_hooks_value() {
   # Notes:
   #   - `git lfs install --manual` has no effect together with `--skip-repo`.
   #   - Emits the explanatory log only once per script process.
-  local _manual="${MANUAL_HOOKS:-false}"
-  if [[ "${SKIP_REPO:-true}" == "true" && "${_manual}" == "true" ]]; then
+  local _manual="${MANUAL_HOOKS}"
+  if [[ "${SKIP_REPO}" == "true" && "${_manual}" == "true" ]]; then
     if [[ -z "${_GIT_LFS_MANUAL_HOOKS_IGNORED:-}" ]]; then
       logging__info "manual_hooks=true has no effect when skip_repo=true; ignoring."
       declare -g _GIT_LFS_MANUAL_HOOKS_IGNORED=1
@@ -172,7 +172,7 @@ _validate_requested_config() {
     return 1
   fi
 
-  if [[ "${SKIP_REPO:-true}" == "false" && -z "${REPO_DIR:-}" ]]; then
+  if [[ "${SKIP_REPO}" == "false" && -z "${REPO_DIR:-}" ]]; then
     logging__error "skip_repo=false requires repo_dir when config_scope='${_scope}'."
     return 1
   fi
@@ -383,9 +383,9 @@ _build_install_argv() {
       return 1
       ;;
   esac
-  [[ "${SKIP_REPO:-true}" == "true" ]] && _out+=(--skip-repo)
-  [[ "${SKIP_SMUDGE:-false}" == "true" ]] && _out+=(--skip-smudge)
-  [[ "${FORCE_CONFIG:-false}" == "true" ]] && _out+=(--force)
+  [[ "${SKIP_REPO}" == "true" ]] && _out+=(--skip-repo)
+  [[ "${SKIP_SMUDGE}" == "true" ]] && _out+=(--skip-smudge)
+  [[ "${FORCE_CONFIG}" == "true" ]] && _out+=(--force)
   [[ "${_manual}" == "true" ]] && _out+=(--manual)
   return 0
 }
@@ -479,9 +479,9 @@ _pkg_default_matches_requested() {
   _manual="$(_manual_hooks_value)"
   _pkg_default_matches_values \
     "${_scope}" \
-    "${SKIP_REPO:-true}" \
-    "${SKIP_SMUDGE:-false}" \
-    "${FORCE_CONFIG:-false}" \
+    "${SKIP_REPO}" \
+    "${SKIP_SMUDGE}" \
+    "${FORCE_CONFIG}" \
     "${_manual}"
 }
 
@@ -573,11 +573,11 @@ _write_state() {
     _emit_state_var GIT_LFS_STATE_CONFIG_SCOPE "${_scope}"
     _emit_state_var GIT_LFS_STATE_CONFIG_FILE "${CONFIG_FILE:-}"
     _emit_state_var GIT_LFS_STATE_REPO_DIR "${REPO_DIR:-}"
-    _emit_state_var GIT_LFS_STATE_SKIP_REPO "${SKIP_REPO:-true}"
-    _emit_state_var GIT_LFS_STATE_SKIP_SMUDGE "${SKIP_SMUDGE:-false}"
-    _emit_state_var GIT_LFS_STATE_FORCE_CONFIG "${FORCE_CONFIG:-false}"
+    _emit_state_var GIT_LFS_STATE_SKIP_REPO "${SKIP_REPO}"
+    _emit_state_var GIT_LFS_STATE_SKIP_SMUDGE "${SKIP_SMUDGE}"
+    _emit_state_var GIT_LFS_STATE_FORCE_CONFIG "${FORCE_CONFIG}"
     _emit_state_var GIT_LFS_STATE_MANUAL_HOOKS "$(_manual_hooks_value)"
-    _emit_state_var GIT_LFS_STATE_AUTO_PULL "${AUTO_PULL:-true}"
+    _emit_state_var GIT_LFS_STATE_AUTO_PULL "${AUTO_PULL}"
   } | file__tee "${_state_file}"
 
   if [[ "${_scope}" == "global" && -v _FEAT_CONFIGURE_USERS ]]; then
