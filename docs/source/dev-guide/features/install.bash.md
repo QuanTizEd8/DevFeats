@@ -209,7 +209,9 @@ __install_post() {
 
 Run before/after `__install_init__` — at the point when VERSION, METHOD, and PREFIX have just been resolved and `_dependencies.run.base` has just been installed.
 
-The install template mirrors resolved globals into the context registry via `__ctx_sync_version__`, `__ctx_sync_pm_version__`, `__ctx_sync_method__`, and `__ctx_sync_prefix__` (or `__ctx_sync__` for the first three except PM version). Feature hooks that change `VERSION`, `METHOD`, or prefix-related globals must call the matching sync helper so when blocks and URI patterns see up-to-date `feat.*` keys. See [Unified condition context](context.md).
+The install template mirrors resolved globals into the context registry via `__ctx_sync_version__`, `__ctx_sync_pm_version__`, `__ctx_sync_method__`, and `__ctx_sync_prefix__` (or `__ctx_sync__` for version, method, and prefix only). Feature hooks that change `VERSION`, `METHOD`, or prefix-related globals must call the matching sync helper so when blocks and URI patterns see up-to-date `feat.*` keys. See [Unified condition context](context.md).
+
+`VERSION_INPUT` is captured once at the end of `__init_args__` (after `__init_args_post`) via `__feat_capture_version_input__` when the feature has a `version` option. It holds the user's channel/spec input and is not rewritten during `__resolve_input_version__`.
 
 ### PM version vs upstream version
 

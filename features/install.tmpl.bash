@@ -263,6 +263,7 @@ __init_args__() {
   declare -g +x ${{ _script.argparse.unexports }}$
 
   __run_feature_hook__ __init_args_post
+  __feat_capture_version_input__
   __ctx_sync__
 }
 
@@ -1945,12 +1946,18 @@ __exit__() {
 
 # Helpers
 # =======
+__feat_capture_version_input__() {
+  # Snapshot user version spec once VERSION is known from argparse.
+  # Internal only — not a feature option; never re-assigned elsewhere.
+  if [[ -v VERSION ]]; then
+    declare -g VERSION_INPUT="${VERSION}"
+  fi
+}
+
 __ctx_sync_version__() {
   # Mirror version globals → feat.version_input, feat.version, feat.tag.
   if [[ -v VERSION_INPUT ]]; then
-    ctx__set feat.version_input="${VERSION_INPUT:-}"
-  elif [[ -v VERSION ]]; then
-    ctx__set feat.version_input="${VERSION:-}"
+    ctx__set feat.version_input="${VERSION_INPUT}"
   fi
   if [[ -v VERSION ]]; then
     ctx__set feat.version="${VERSION:-}"
@@ -1977,9 +1984,6 @@ __ctx_sync__() {
   __ctx_sync_version__
   __ctx_sync_method__
   __ctx_sync_prefix__
-  if [[ -v VERSION_INPUT ]]; then
-    __ctx_sync_pm_version__
-  fi
 }
 
 __ctx_sync_pm_version__() {
@@ -2150,6 +2154,16 @@ __feat_pm_version_resolution_pm_applicable__() {
   esac
 }
 
+__feat_auto_method_version_channel__() {
+  # Channel selector for METHOD=auto PM feasibility checks.
+  # Precondition: VERSION_INPUT is set (capture ran or test helper called).
+  if [[ -z "${VERSION_INPUT}" ]]; then
+    printf 'stable'
+    return
+  fi
+  printf '%s' "${VERSION_INPUT}"
+}
+
 __feat_pm_version_spec__() {
   # Print the version spec ospkg should use for PM installs (empty = unversioned).
   #
@@ -2162,7 +2176,8 @@ __feat_pm_version_spec__() {
     printf '%s' "${_FEAT_PM_VERSION_SPEC_CACHE}"
     return 0
   fi
-  local _input="${VERSION_INPUT:-${VERSION:-}}"
+  local _input=""
+  [[ -v VERSION_INPUT ]] && _input="${VERSION_INPUT}"
   case "${_input}" in
     '' | stable | latest)
       printf ''
@@ -2349,7 +2364,8 @@ __resolve_auto_method__() {
         # queryable before setup and won't track pre-releases or specific versions.
         # VERSION_RESOLUTION=none means VERSION is a custom opaque string; treat as stable.
         if [[ "${VERSION_RESOLUTION:-}" != "none" ]]; then
-          case "${VERSION_INPUT:-${VERSION:-stable}}" in stable) : ;; *) continue ;; esac
+          [[ -v VERSION_INPUT ]] || logging__fatal "VERSION_INPUT unset during auto-method channel check"
+          case "$(__feat_auto_method_version_channel__)" in stable) : ;; *) continue ;; esac
         fi
         ctx__match_when --quiet "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN}" || continue
         ;;
@@ -2359,7 +2375,8 @@ __resolve_auto_method__() {
         # specific version → check PM with derived feat.pm_version spec (ospkg prefix matching).
         # VERSION_RESOLUTION=none means VERSION is a custom opaque string; always viable.
         if [[ "${VERSION_RESOLUTION:-}" != "none" ]]; then
-          case "${VERSION_INPUT:-${VERSION:-stable}}" in
+          [[ -v VERSION_INPUT ]] || logging__fatal "VERSION_INPUT unset during auto-method channel check"
+          case "$(__feat_auto_method_version_channel__)" in
             stable) : ;;
             latest) continue ;;
             *)
@@ -2495,17 +2512,14 @@ __resolve_input_version__() {
   #
   # Globals written:
   #   VERSION             Concrete resolved version string (e.g. "1.7.1").
-  #   VERSION_INPUT       User's raw version spec captured before resolution
-  #                       (e.g. "stable", "latest", "1.2"); unchanged afterward.
+  #   VERSION_INPUT       User's raw version spec (captured at argparse in
+  #                       __feat_capture_version_input__); unchanged here.
   #   _FEAT_RESOLVED_TAG  Full release or git tag when resolved via GitHub
   #                       (e.g. "v1.7.1", "jq-1.7.1"); empty string otherwise.
   __run_feature_hook__ __resolve_input_version_pre
 
   declare -g _FEAT_RESOLVED_TAG=""
   declare -g _FEAT_RESOLVED_GIT_SHA=""
-  # Preserve user spec before resolution may overwrite VERSION (channel selectors,
-  # semver prefixes, etc.). Used by METHOD=auto feasibility checks and manifest patterns.
-  declare -g VERSION_INPUT="${VERSION:-}"
   __ctx_sync_version__
   if ! { [[ -v VERSION && -n "${VERSION}" ]] && [[ ! -v METHOD || "${METHOD}" != "package" && "${METHOD}" != "upstream-package" ]]; }; then
     if [[ ! -v VERSION || -z "${VERSION}" ]]; then

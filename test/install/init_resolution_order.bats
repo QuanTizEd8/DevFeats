@@ -16,6 +16,7 @@ setup() {
   test_bootstrap__wire_tools_for_run
   load 'helpers/stubs'
   load 'helpers/ctx'
+  load 'helpers/capture'
 
   VERSION="stable"
   METHOD="auto"
@@ -60,6 +61,15 @@ _stub() {
 }
 
 run_auto_method() {
+  local _preserve_input=false _saved_input=""
+  if [[ -v VERSION_INPUT ]]; then
+    _preserve_input=true
+    _saved_input="${VERSION_INPUT}"
+  fi
+  install_test__capture_version_input
+  if [[ "${_preserve_input}" == true ]]; then
+    declare -g VERSION_INPUT="${_saved_input}"
+  fi
   __ctx_sync_version__
   __ctx_sync_method__
   run __resolve_auto_method__
@@ -90,6 +100,7 @@ run_auto_method() {
     printf 'v2.47.0\n2.47.0\n'
     return 0
   }
+  install_test__capture_version_input
   __resolve_input_version__
   [[ "${VERSION}" == "2.47.0" ]]
   [[ "${VERSION_INPUT}" == "stable" ]]
@@ -106,6 +117,7 @@ run_auto_method() {
     printf 'v2.47.0\n2.47.0\n'
     return 0
   }
+  install_test__capture_version_input
   __resolve_input_version__
   [[ "$(ctx__get feat.version)" == "2.47.0" ]]
   [[ "$(ctx__get feat.version_input)" == "stable" ]]
@@ -113,7 +125,6 @@ run_auto_method() {
 
 @test "init order: feat.pm_version empty after stable resolve and package method" {
   VERSION="stable"
-  VERSION_INPUT="stable"
   VERSION_RESOLUTION="github_release"
   VERSION_URI="https://api.github.com/repos/git/git"
   METHOD="package"
@@ -121,6 +132,7 @@ run_auto_method() {
     printf 'v2.54.0\n2.54.0\n'
     return 0
   }
+  install_test__capture_version_input
   __resolve_input_version__
   __resolve_input_method__
   __ctx_sync_pm_version__
@@ -187,6 +199,7 @@ run_auto_method() {
   logging__debug() { :; }
   logging__fatal() { exit 1; }
 
+  install_test__capture_version_input
   __resolve_input_version__
   __resolve_input_method__
   __resolve_input_prefixes__

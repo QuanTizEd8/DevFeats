@@ -20,6 +20,7 @@ setup() {
   test_bootstrap__wire_tools_for_run
   load 'helpers/stubs'
   load 'helpers/ctx'
+  load 'helpers/capture'
 
   # Default contract: empty (no methods).
   _FEAT_CONTRACT_METHODS=""
@@ -78,6 +79,15 @@ _stub() {
 }
 
 run_auto_method() {
+  local _preserve_input=false _saved_input=""
+  if [[ -v VERSION_INPUT ]]; then
+    _preserve_input=true
+    _saved_input="${VERSION_INPUT}"
+  fi
+  install_test__capture_version_input
+  if [[ "${_preserve_input}" == true ]]; then
+    declare -g VERSION_INPUT="${_saved_input}"
+  fi
   __ctx_sync_version__
   __ctx_sync_method__
   run __resolve_auto_method__

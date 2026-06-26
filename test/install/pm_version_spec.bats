@@ -8,6 +8,7 @@ setup() {
   install_test__ensure_framework
   load 'helpers/stubs'
   load 'helpers/ctx'
+  load 'helpers/capture'
 
   VERSION="stable"
   VERSION_INPUT="stable"
@@ -137,4 +138,13 @@ setup() {
   run __feat_pm_version_spec__
   assert_success
   assert_output "2024"
+}
+
+@test "__feat_pm_version_spec__: capture from VERSION when VERSION_INPUT unset in test" {
+  unset VERSION_INPUT
+  VERSION="5.4"
+  install_test__capture_version_input
+  run __feat_pm_version_spec__
+  assert_success
+  assert_output "5.4"
 }

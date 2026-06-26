@@ -8,6 +8,7 @@ setup() {
   install_test__ensure_framework
   load 'helpers/stubs'
   load 'helpers/ctx'
+  load 'helpers/capture'
 
   OSPKG_MANIFEST_BASE_RUN=""
   METHOD="package"
@@ -75,6 +76,7 @@ setup() {
 @test "ctx sync: feat.version and feat.method available for manifests" {
   VERSION="1.2.3"
   METHOD="package"
+  install_test__capture_version_input
   __ctx_sync__
   [[ "$(ctx__get feat.version)" == "1.2.3" ]]
   [[ "$(ctx__get feat.method)" == "package" ]]
@@ -83,6 +85,7 @@ setup() {
 @test "ctx sync: stable channel keeps feat.version_input" {
   VERSION="stable"
   METHOD="package"
+  install_test__capture_version_input
   __ctx_sync_version__
   [[ "$(ctx__get feat.version_input)" == "stable" ]]
   [[ "$(ctx__get feat.version)" == "stable" ]]

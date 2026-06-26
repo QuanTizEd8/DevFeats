@@ -40,7 +40,7 @@ Implementation: [`lib/ctx.sh`](../../../../lib/ctx.sh), [`lib/ctx-match.jq`](../
 
 | Key | Global source | When set |
 |-----|---------------|----------|
-| `feat.version_input` | `VERSION_INPUT` (or `VERSION` before capture) | `__ctx_sync_version__` |
+| `feat.version_input` | `VERSION_INPUT` (set at end of `__init_args__` when `VERSION` exists) | `__ctx_sync_version__` |
 | `feat.version` | `VERSION` | `__ctx_sync_version__` |
 | `feat.pm_version` | derived by `__feat_pm_version_spec__` | `__ctx_sync_pm_version__` (after method resolution) |
 | `feat.tag` | `_FEAT_RESOLVED_TAG` | `__ctx_sync_version__` |
@@ -53,7 +53,7 @@ Sync helpers (in [`features/install.tmpl.bash`](../../../../features/install.tmp
 - `__ctx_sync_pm_version__` — derive and mirror `feat.pm_version` for PM manifests
 - `__ctx_sync_method__` — mirror `METHOD`
 - `__ctx_sync_prefix__` — mirror `_RESOLVED_PREFIX`
-- `__ctx_sync__` — version, method, prefix, and (when `VERSION_INPUT` is set) `feat.pm_version`
+- `__ctx_sync__` — version, method, and prefix (not `feat.pm_version`)
 
 Feature hooks that mutate `VERSION`, `METHOD`, etc. must call the appropriate `__ctx_sync_*` (or `ctx__set`) immediately after.
 

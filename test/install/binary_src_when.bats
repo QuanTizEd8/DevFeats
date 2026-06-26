@@ -16,6 +16,7 @@ setup() {
   test_bootstrap__wire_tools_for_run
   load 'helpers/stubs'
   load 'helpers/ctx'
+  load 'helpers/capture'
 
   VERSION="12.1.2"
   METHOD="binary"
@@ -30,8 +31,9 @@ setup() {
 }
 
 _publish_feat_ctx() {
+  install_test__capture_version_input
   ctx__set feat.version="${VERSION}"
-  ctx__set feat.version_input="${VERSION_INPUT:-${VERSION}}"
+  ctx__set feat.version_input="${VERSION_INPUT}"
   ctx__set feat.tag="${_FEAT_RESOLVED_TAG:-}"
   ctx__set feat.method="${METHOD:-binary}"
 }
