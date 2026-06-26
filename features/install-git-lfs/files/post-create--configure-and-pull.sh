@@ -74,5 +74,10 @@ esac
 git -C "${_repo_dir}" rev-parse --is-inside-work-tree > /dev/null 2>&1 || exit 0
 git -C "${_repo_dir}" lfs ls-files 2> /dev/null | grep -q . || exit 0
 
+if ! git -C "${_repo_dir}" config --get filter.lfs.process > /dev/null 2>&1; then
+  printf '[%s] Git LFS filters are not active in %s; bootstrapping local config for auto_pull.\n' "$(basename "$0")" "${_repo_dir}" >&2
+  git -C "${_repo_dir}" lfs install --local --skip-repo || exit $?
+fi
+
 printf '[%s] Running git lfs pull in %s.\n' "$(basename "$0")" "${_repo_dir}" >&2
-git -C "${_repo_dir}" lfs pull
+git -C "${_repo_dir}" lfs pull || exit $?

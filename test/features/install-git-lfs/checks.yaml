@@ -45,7 +45,7 @@ upstream_package_apt:
     - title: git-lfs on PATH
       cmd: command -v git-lfs
     - title: git-lfs is dpkg-managed
-      cmd: bash -c 'dpkg -q git-lfs >/dev/null 2>&1 && dpkg -S "$(command -v git-lfs)" >/dev/null 2>&1'
+      cmd: bash -c 'test "$(dpkg-query -W -f="\${Status}" git-lfs 2>/dev/null)" = "install ok installed" && dpkg -S "$(command -v git-lfs)" >/dev/null 2>&1'
     - title: git lfs version succeeds
       cmd: git lfs version
     - title: installed-method state is upstream-package
@@ -175,7 +175,7 @@ file_scope_skip_smudge_repo_hook:
         echo "=== ${_cfg} ==="
         cat "${_cfg}" 2>/dev/null || echo "(missing)"
     - title: config file contains filter.lfs.process
-      cmd: test "$(git config --file "${_cfg}" --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process"
+      cmd: test "$(git config --file "${_cfg}" --get filter.lfs.process 2>/dev/null)" = "git-lfs filter-process --skip"
     - title: config file enables skip-smudge
       cmd: bash -c 'git config --file "$1" --get filter.lfs.smudge 2>/dev/null | grep -Fq -- "--skip"' _ "${_cfg}"
     - title: repo pre-push hook exists

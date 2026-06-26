@@ -365,6 +365,7 @@ _build_install_argv() {
   # Returns:
   #   0  Arguments were built successfully.
   #   1  Scope is unsupported for install argument construction.
+  # shellcheck disable=SC2178
   local -n _out="$1"
   local _scope="$2" _config_file="$3"
   local _manual
@@ -373,7 +374,7 @@ _build_install_argv() {
   _out=(install)
   case "${_scope}" in
     system) _out+=(--system) ;;
-    global) _out+=(--global) ;;
+    global) ;;
     local) _out+=(--local) ;;
     worktree) _out+=(--worktree) ;;
     file) _out+=("--file=${_config_file}") ;;
@@ -402,13 +403,14 @@ _build_uninstall_argv_from_values() {
   # Returns:
   #   0  Arguments were built successfully.
   #   1  Scope is unsupported for uninstall argument construction.
+  # shellcheck disable=SC2178
   local -n _out="$1"
   local _scope="$2" _config_file="$3" _skip_repo="$4"
 
   _out=(uninstall)
   case "${_scope}" in
     system) _out+=(--system) ;;
-    global) _out+=(--global) ;;
+    global) ;;
     local) _out+=(--local) ;;
     worktree) _out+=(--worktree) ;;
     file) _out+=("--file=${_config_file}") ;;
@@ -713,11 +715,16 @@ _uninstall_state_for_user() {
   # Notes: Enables `extensions.worktreeConfig` first when uninstalling worktree-scoped config.
   local _user="$1" _scope="$2" _config_file="$3" _repo_dir="$4" _skip_repo="$5"
   local -a _argv=()
+  local _log_message
   if [[ "${_scope}" == "worktree" && -n "${_repo_dir}" ]]; then
     _enable_worktree_config "${_repo_dir}" "${_user}" || return 1
   fi
   _build_uninstall_argv_from_values _argv "${_scope}" "${_config_file}" "${_skip_repo}" || return 1
-  logging__remove "Removing Git LFS configuration at scope='${_scope}'${_user:+ for user '${_user}'}."
+  _log_message="Removing Git LFS configuration at scope='${_scope}'."
+  if [[ -n "${_user}" ]]; then
+    _log_message="Removing Git LFS configuration at scope='${_scope}' for user '${_user}'."
+  fi
+  logging__remove "${_log_message}"
   _run_git "${_user}" "${_repo_dir}" lfs "${_argv[@]}"
 }
 
