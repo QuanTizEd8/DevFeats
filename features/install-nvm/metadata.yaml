@@ -108,17 +108,6 @@ _options:
   gh_repo: nvm-sh/nvm
   version:
     resolution: github_release
-    default: stable
-    inputs: [stable, latest, semver]
-    proposals:
-      - value: stable
-        description: Resolve the latest stable nvm release via the GitHub Releases API.
-      - value: latest
-        description: Resolve the most recently published nvm release (may include pre-releases).
-      - value: 0.40.1
-        description: nvm v0.40.1.
-      - value: 0.39.7
-        description: nvm v0.39.7.
   method:
     script:
       asset_uri: "https://raw.githubusercontent.com/nvm-sh/nvm/{feat.tag}/install.sh"

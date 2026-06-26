@@ -61,11 +61,6 @@ _options:
   gh_repo: conda-forge/miniforge
   version:
     resolution: github_release
-    default: stable
-    inputs: [stable, latest]
-    proposals:
-      - value: "26.3.1"
-        description: "Conda 26.3.1. Pass any conda version string; the script finds the matching Miniforge tag (e.g. 26.3.1 → 26.3.1-0)."
   method:
     script:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/Miniforge3-{feat.tag}-{plat.kernel}-{plat.machine}.sh"

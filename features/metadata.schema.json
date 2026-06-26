@@ -109,16 +109,20 @@
               "description": "Default value for the generated `options.version` option.",
               "type": "string"
             },
+            "description": {
+              "description": "Custom description for the generated `options.version` user option. When set, overrides the resolution-based auto-generated description. Use for `none`-resolution features where the accepted version formats are unique to the tool.",
+              "type": "string"
+            },
             "inputs": {
-              "description": "Accepted input types; each entry auto-generates a standard proposal in `options.version.proposals`.",
+              "description": "For `resolution: none` features only. Each entry auto-generates the corresponding standard proposal(s) in the `version` user option. Valid values: `stable` (→ `stable` proposal), `latest` (→ `latest` proposal), `semver` (→ `1`, `1.2`, `1.2.3`, `1.2.3-rc1`, `1.2.3+build.1` examples), `nvm_alias` (→ `lts/*` and `lts`), `npm_tag` (reserved; `next` is auto-generated for all `npm`-resolution features).",
               "type": "array",
               "items": {
                 "type": "string",
-                "enum": ["stable", "latest", "semver", "major", "minor", "npm_tag", "nvm_alias"]
+                "enum": ["stable", "latest", "semver", "npm_tag", "nvm_alias"]
               }
             },
             "proposals": {
-              "description": "Additional `{value, description}` proposals not covered by `inputs` (e.g. specific pinned versions for docs).",
+              "description": "Feature-specific `{value, description}` proposals appended after auto-generated ones. Must not duplicate values already produced by auto-generation for the feature's resolution type. Use for values in formats not covered by auto-generation (e.g. year-based `2026` for TeX Live, tool-specific aliases).",
               "type": "array",
               "items": {
                 "type": "object",
@@ -142,6 +146,15 @@
               "description": "Filename pattern with `[version]` placeholder for extracting version strings from the sidecar file when `resolution=sidecar` (e.g. `zsh-[version].tar.xz`). The `[version]` marker is parsed by `ver__resolve_from_sidecar` to split filenames into prefix/suffix — it is not a context substitution token and is never expanded by `ctx__expand_pattern`.",
               "type": "string"
             }
+          },
+          "if": {
+            "required": ["inputs"]
+          },
+          "then": {
+            "anyOf": [
+              {"not": {"required": ["resolution"]}},
+              {"properties": {"resolution": {"const": "none"}}}
+            ]
           }
         },
         "method": {

@@ -44,14 +44,6 @@ _options:
   gh_repo: phiresky/ripgrep-all
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    inputs: [stable, latest, semver]
-    proposals:
-      - value: "0.10.10"
-        description: ripgrep-all v0.10.10.
-      - value: "0.10.9"
-        description: ripgrep-all v0.10.9 (last release with a Windows binary).
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/ripgrep_all-{feat.tag}-{plat.kernel==Linux?{plat.machine_release==arm64?aarch64-unknown-linux-gnu:{plat.machine_release==armv7?arm-unknown-linux-gnueabihf:x86_64-unknown-linux-musl}}:{plat.rust_triple}}.tar.gz"

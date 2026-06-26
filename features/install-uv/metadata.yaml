@@ -25,13 +25,6 @@ _options:
   gh_repo: astral-sh/uv
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    proposals:
-      - value: 0.11.8
-        description: uv v0.11.8.
-      - value: 0.6.0
-        description: uv v0.6.0.
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/uv-{plat.rust_triple}.tar.gz"

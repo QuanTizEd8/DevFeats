@@ -20,14 +20,6 @@ _options:
   gh_repo: junegunn/fzf
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    inputs: [stable, latest, semver]
-    proposals:
-      - value: 0.73.1
-        description: fzf v0.73.1.
-      - value: 0.72.0
-        description: fzf v0.72.0.
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/fzf-{feat.version}-{plat.kernel:lower}_{plat.machine_release}.tar.gz"

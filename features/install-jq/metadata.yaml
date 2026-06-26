@@ -17,15 +17,6 @@ _options:
   gh_repo: jqlang/jq
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    proposals:
-      - value: 1.8.1
-        description: jq v1.8.1.
-      - value: 1.7.1
-        description: jq v1.7.1.
-      - value: '1.6'
-        description: jq v1.6 (uses legacy release asset naming).
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/{feat.version>=1.7?jq-{plat.kernel_macos}-{plat.machine_release}:{plat.kernel_osx==linux?jq-linux{plat.machine_bitness}:jq-osx-amd64}}"

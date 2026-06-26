@@ -110,16 +110,6 @@ _options:
   gh_repo: cli/cli
   version:
     resolution: github_release
-    default: stable
-    inputs: [stable, latest, semver]
-    flag: --version
-    proposals:
-      - value: '2.89.0'
-        description: >-
-          Install a specific version.
-          When method=upstream-package, version pinning is supported on apt (Debian/Ubuntu)
-          only; other package managers install the latest available and log a warning.
-          When method=binary, downloads exactly that release from GitHub.
   completions:
     subcmd: "completion -s"
     shells: [bash, zsh]

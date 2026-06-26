@@ -26,14 +26,6 @@ _options:
   gh_repo: BurntSushi/ripgrep
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    inputs: [stable, latest, semver]
-    proposals:
-      - value: "15.1.0"
-        description: ripgrep v15.1.0.
-      - value: "14.1.1"
-        description: ripgrep v14.1.1.
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/ripgrep-{feat.version}-{plat.kernel==Linux?{plat.machine_release==arm64?aarch64-unknown-linux-gnu:{plat.machine_release==i386?i686-unknown-linux-gnu:{plat.rust_triple}}}:{plat.rust_triple}}.tar.gz"

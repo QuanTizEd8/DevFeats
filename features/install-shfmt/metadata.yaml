@@ -18,11 +18,6 @@ _options:
   gh_repo: mvdan/sh
   version:
     resolution: github_release
-    default: stable
-    inputs: [stable, latest, semver]
-    proposals:
-      - value: 3.10.0
-        description: Install shfmt v3.10.0.
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/shfmt_v{feat.version}_{plat.kernel:lower}_{plat.machine_release}"

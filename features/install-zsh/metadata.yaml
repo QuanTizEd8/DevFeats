@@ -17,13 +17,6 @@ _options:
     resolution: sidecar
     uri: "https://www.zsh.org/pub/SHA256SUM"
     pattern: "zsh-[version].tar.xz"
-    default: stable
-    flag: --version
-    proposals:
-      - value: "5.9.1"
-        description: Zsh 5.9.1 (May 2026).
-      - value: "5.9"
-        description: Zsh 5.9 (May 2022).
   method:
     package:
       registers_as: zsh

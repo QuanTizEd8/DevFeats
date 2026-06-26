@@ -22,11 +22,6 @@ _options:
   gh_repo: starship/starship
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    proposals:
-      - value: 1.25.1
-        description: Starship v1.25.1.
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/starship-{plat.machine==armv7l?arm-unknown-linux-musleabihf:{plat.rust_triple}}.tar.gz"

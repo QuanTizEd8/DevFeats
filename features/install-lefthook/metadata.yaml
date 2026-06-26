@@ -20,12 +20,7 @@ _options:
   gh_repo: evilmartians/lefthook
   version:
     resolution: github_release
-    default: stable
-    inputs: [stable, latest, semver]
     flag: "version"
-    proposals:
-      - value: "2.1.6"
-        description: Install lefthook v2.1.6.
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/lefthook_{feat.version}_{plat.kernel==linux?Linux:MacOS}_{plat.machine_release==amd64?x86_64:{plat.machine_release}}"

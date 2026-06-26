@@ -28,8 +28,6 @@ _options:
     description: Verify the Claude Code CLI is installed and working.
   version:
     resolution: npm
-    default: stable
-    inputs: [stable, latest, semver]
   method:
     binary:
       asset_uri: "https://downloads.claude.ai/claude-code-releases/{feat.version}/{plat.kernel:lower}-{plat.machine_node}{plat.kernel==linux?{plat.libc==musl?-musl:}:}/claude"

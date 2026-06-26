@@ -24,15 +24,6 @@ _options:
   gh_repo: jgm/pandoc
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    proposals:
-      - value: '3.10'
-        description: Pandoc v3.10.
-      - value: 3.9.0.2
-        description: Pandoc v3.9.0.2.
-      - value: 3.8.3
-        description: Pandoc v3.8.3.
   method:
     binary:
       asset_uri: "https://github.com/jgm/pandoc/releases/download/{feat.tag}/pandoc-{feat.version}-{plat.kernel==linux?linux-{plat.machine_release}:{plat.machine==aarch64?arm64:{plat.machine}}-macOS}.{plat.kernel==linux?tar.gz:zip}"

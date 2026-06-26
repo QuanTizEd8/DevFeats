@@ -48,20 +48,12 @@ _options:
   version:
     resolution: none
     default: lts/*
-    inputs: [major, semver]
-    proposals:
-      - value: lts/*
-        description: Latest Active LTS release (resolved from nodejs.org/dist/index.json).
-      - value: '24'
-        description: Latest stable release in the Node.js 24.x line.
-      - value: '22'
-        description: Latest stable release in the Node.js 22.x line.
-      - value: '20'
-        description: Latest stable release in the Node.js 20.x line.
-      - value: '18'
-        description: Latest stable release in the Node.js 18.x line.
-      - value: 24.11.1
-        description: An exact semver string — installs that specific version.
+    inputs: [nvm_alias, stable, latest, semver]
+    description: >-
+      Node.js version to install. Accepts: `stable` (latest non-prerelease
+      release), `lts` or `lts/*` (latest Active LTS release), `latest` (most
+      recent release including non-LTS), a major version number (e.g. `22`),
+      a major.minor (e.g. `22.1`), or an exact semver (e.g. `22.1.0`).
   method:
     binary:
       asset_uri: "https://nodejs.org/dist/{feat.version}/node-{feat.version}-{plat.kernel:lower}-{plat.machine_node}.tar.xz"

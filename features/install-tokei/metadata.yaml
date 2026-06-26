@@ -26,14 +26,6 @@ _options:
   gh_repo: XAMPPRocky/tokei
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    inputs: [stable, latest, semver]
-    proposals:
-      - value: "14.0.0"
-        description: tokei v14.0.0.
-      - value: "12.1.2"
-        description: tokei v12.1.2 (last release with GitHub binary assets).
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/tokei-{plat.kernel==Linux?{plat.machine_release==arm64?aarch64-unknown-linux-gnu:{plat.machine_release==i386?i686-unknown-linux-gnu:{plat.rust_triple}}}:{plat.rust_triple}}{plat.kernel==Windows?.exe:.tar.gz}"

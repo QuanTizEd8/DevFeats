@@ -42,12 +42,7 @@ _options:
   gh_repo: github/copilot-cli
   version:
     resolution: github_release
-    default: stable
-    inputs: [stable, latest, semver]
     flag: version
-    proposals:
-      - value: 1.0.48
-        description: Copilot CLI v1.0.48 (latest as of 2026-05-17).
   method:
     binary:
       asset_uri: "https://github.com/github/copilot-cli/releases/download/{feat.tag}/copilot-{plat.kernel:lower}-{plat.machine_node}.tar.gz"

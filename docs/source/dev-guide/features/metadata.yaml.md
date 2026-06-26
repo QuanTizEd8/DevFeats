@@ -148,14 +148,15 @@ _options:
 
 Declares how to resolve user-provided version specs to concrete versions.
 
+**Minimal declaration** — for the vast majority of features only `resolution` is required:
+
 ```yaml
 _options:
   version:
-    resolution: github_release   # see resolution types below
-    default: stable              # default when user omits --version
-    inputs: [stable, latest, semver]  # standard proposals to expose
-    flag: --version              # flag to query installed version (default)
+    resolution: github_release
 ```
+
+Everything else has a sensible default: `default` is `stable`, `flag` is `--version`, and proposals are auto-generated from the resolution type. Only declare the other keys when you need to override a default.
 
 **Resolution types:**
 
@@ -166,17 +167,64 @@ _options:
 | `npm` | npm registry | Package version | (empty) |
 | `cargo` | Crates.io API | Crate version | (empty) |
 | `git_ref` | `git ls-remote` | Ref name (e.g. `main`) | Resolved SHA |
+| `sidecar` | Downloaded checksum file | Bare version | (empty) |
 | `none` | (none) | `VERSION` as given | (empty) |
 
-**`inputs` values** generate standard proposals in the `version` option:
+**Optional keys and their defaults:**
+
+| Key | Default | Override when… |
+|-----|---------|---------------|
+| `default` | `stable` | The tool's natural default is not `stable` (e.g. `lts/*` for Node.js, `master` for git-cloned repos) |
+| `flag` | `--version` | The tool reports its version differently (e.g. `version` as a subcommand) |
+| `uri` | auto-derived from `gh_repo` | `resolution: sidecar` — URL of the checksum file |
+| `pattern` | (required for sidecar) | `resolution: sidecar` — filename pattern, e.g. `zsh-[version].tar.xz` |
+| `description` | auto-generated per resolution type | `resolution: none` — the tool has a unique versioning scheme the generic description doesn't capture |
+| `inputs` | (none) | `resolution: none` only — declares which standard proposal types to auto-generate |
+| `proposals` | (none) | `resolution: none` only — adds proposals in tool-unique formats not covered by `inputs` |
+
+**Auto-generated proposals**: for every resolution type except `none`, the `version` user option automatically receives proposals covering all accepted input formats (`stable`, `latest`, semver prefix examples, and type-specific aliases like `next` for npm or `master`/`v1.0.0` for git refs). **Do not declare `inputs` or `proposals` on these features** — `inputs` is schema-invalid on non-`none` features, and `proposals` has no effect.
+
+**`none`-resolution features** receive no auto-generated proposals. Use `inputs` and/or `description` to document what the custom resolver accepts:
+
+```yaml
+_options:
+  version:
+    resolution: none
+    default: lts/*
+    inputs: [nvm_alias, stable, latest, semver]
+    description: >-
+      Node.js version to install. Accepts: `stable`, `lts`/`lts/*`, `latest`,
+      a major number (e.g. `22`), a major.minor (e.g. `22.1`), or an exact semver.
+```
+
+For tools with entirely tool-specific version formats (like TeX Live's year-based snapshots), use `proposals` instead of `inputs`:
+
+```yaml
+_options:
+  version:
+    resolution: none
+    default: latest
+    description: >-
+      TeX Live version to install. Accepts: `stable`, `latest`, a 4-digit year, or a date.
+    proposals:
+      - value: stable
+        description: Most recent annual TeX Live release (frozen snapshot).
+      - value: latest
+        description: Live CTAN mirror pool — always the most current packages.
+      - value: '2026'
+        description: TeX Live 2026 frozen snapshot.
+```
+
+**`inputs` values** (only for `resolution: none`):
 
 | Value | Generates proposals |
 |-------|---------------------|
 | `stable` | `stable` — latest final release |
 | `latest` | `latest` — latest including pre-releases |
-| `semver` | `1`, `1.2`, `1.2.3` examples |
-| `npm_tag` | `next`, `beta`, etc. |
-| `nvm_alias` | `lts`, `lts/*` |
+| `semver` | `1`, `1.2`, `1.2.3`, `1.2.3-rc1`, `1.2.3+build.1` format examples |
+| `nvm_alias` | `lts/*`, `lts` |
+
+**`proposals`** should only contain values whose format is not already covered by `inputs` or the resolution type's auto-generated entries. Do not add semver-format pinned versions (e.g. `1.7.1`) — the auto-generated `1.2.3` example already communicates that format.
 
 ### `_options.method`
 

@@ -24,11 +24,6 @@ _options:
   gh_repo: oras-project/oras
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    proposals:
-      - value: 1.3.2
-        description: ORAS v1.3.2.
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/oras_{feat.version}_{plat.kernel:lower}_{plat.machine_release}.tar.gz"

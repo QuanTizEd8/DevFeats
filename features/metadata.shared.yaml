@@ -38,22 +38,100 @@ options:
     default: |
       #{{ return get("_options.version.default", "stable") }}#
     description: |
-      Version to install.
+      #{{
+        res = get("_options.version.resolution", "")
+        feat_desc = get("_options.version.description", "")
+        if feat_desc:
+            return feat_desc
+        if res in ("github_release", "github_tag"):
+            endpoint = "GitHub Releases API" if res == "github_release" else "GitHub Tags API"
+            return (
+                "Version to install. Resolved against the " + endpoint + ".\n"
+                "Accepts: `stable` (latest non-prerelease), `latest` (any), "
+                "`X`, `X.Y`, `X.Y.Z`, `X.Y.Z-prerelease`, or `X.Y.Z+build`."
+            )
+        elif res == "npm":
+            return (
+                "Version to install. Resolved against the npm registry.\n"
+                "Accepts: `stable` (latest non-prerelease), `latest` (any), "
+                "`X`, `X.Y`, `X.Y.Z`, or any dist-tag name (e.g. `next`)."
+            )
+        elif res == "sidecar":
+            return (
+                "Version to install. Resolved from a sidecar file.\n"
+                "Accepts: `stable` (latest non-prerelease), `latest` (any), "
+                "`X`, `X.Y`, `X.Y.Z`, `X.Y.Z-prerelease`, or `X.Y.Z+build`."
+            )
+        elif res == "git_ref":
+            return (
+                "Git ref to install. Accepts any branch name (e.g. `master`), "
+                "tag (e.g. `v1.0.0`), or commit SHA."
+            )
+        else:
+            return "Version to install."
+      }}#
     proposals:
-      - value: latest
-        description: Latest release (including pre-releases).
-      - value: stable
-        description: Latest final release (excluding pre-releases).
-      - value: '1'
-        description: Latest final release matching major version 1 (e.g. 1.2.3).
-      - value: '1.2'
-        description: Latest final release matching major.minor version 1.2 (e.g. 1.2.3).
-      - value: '1.2.3'
-        description: Specific version 1.2.3.
-      - value: lts
-        description: Latest LTS release (if applicable; e.g. Node.js).
-      - value: next
-        description: Latest pre-release (if applicable; e.g. Node.js).
+      - |
+        *{{ #{{
+          res = get("_options.version.resolution", "")
+          inputs = get("_options.version.inputs", [])
+          if res in ("github_release", "github_tag", "npm", "sidecar") or "stable" in inputs:
+              return [{"value": "stable", "description": "Latest final release (excluding pre-releases)."}]
+          return []
+        }}# }}*
+      - |
+        *{{ #{{
+          res = get("_options.version.resolution", "")
+          inputs = get("_options.version.inputs", [])
+          if res in ("github_release", "github_tag", "npm", "sidecar") or "latest" in inputs:
+              return [{"value": "latest", "description": "Latest release (including pre-releases)."}]
+          return []
+        }}# }}*
+      - |
+        *{{ #{{
+          res = get("_options.version.resolution", "")
+          inputs = get("_options.version.inputs", [])
+          if res in ("github_release", "github_tag", "npm", "sidecar") or "semver" in inputs:
+              return [
+                  {"value": "1", "description": "Latest final release for major version 1 (e.g. 1.2.3)."},
+                  {"value": "1.2", "description": "Latest final release for major.minor 1.2 (e.g. 1.2.3)."},
+                  {"value": "1.2.3", "description": "Specific version 1.2.3."},
+                  {"value": "1.2.3-rc1", "description": "Specific pre-release version (replace suffix as needed)."},
+                  {"value": "1.2.3+build.1", "description": "Specific version with build metadata."},
+              ]
+          return []
+        }}# }}*
+      - |
+        *{{ #{{
+          res = get("_options.version.resolution", "")
+          if res == "npm":
+              return [{"value": "next", "description": "Latest pre-release (if the package publishes a `next` dist-tag; replace with any dist-tag name)."}]
+          return []
+        }}# }}*
+      - |
+        *{{ #{{
+          res = get("_options.version.resolution", "")
+          if res == "git_ref":
+              return [
+                  {"value": "master", "description": "Track the `master` branch (latest commit)."},
+                  {"value": "v1.0.0", "description": "Install a specific tagged release (replace with the desired tag). Commit SHAs are also accepted."},
+              ]
+          return []
+        }}# }}*
+      - |
+        *{{ #{{
+          inputs = get("_options.version.inputs", [])
+          if "nvm_alias" in inputs:
+              return [
+                  {"value": "lts/*", "description": "Latest Active LTS release."},
+                  {"value": "lts", "description": "Alias for `lts/*`."},
+              ]
+          return []
+        }}# }}*
+      - |
+        *{{ #{{
+          return get("_options.version.proposals", [])
+        }}# }}*
 
   method:
     _apply_when: |

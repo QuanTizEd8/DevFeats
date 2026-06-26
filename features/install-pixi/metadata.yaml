@@ -28,15 +28,6 @@ _options:
   user_file_fetch: true
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    proposals:
-      - value: 0.67.0
-        description: Pixi v0.67.0.
-      - value: 0.66.0
-        description: Pixi v0.66.0.
-      - value: 0.65.0
-        description: Pixi v0.65.0.
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/pixi-{plat.rust_triple}.tar.gz"

@@ -25,15 +25,6 @@ _options:
   gh_repo: mikefarah/yq
   version:
     resolution: github_release
-    default: stable
-    flag: --version
-    proposals:
-      - value: 4.44.3
-        description: yq v4.44.3.
-      - value: 4.44.2
-        description: yq v4.44.2.
-      - value: 4.43.1
-        description: yq v4.43.1.
   completions:
     subcmd: "shell-completion"
     shells: [bash, zsh, fish]

@@ -30,11 +30,6 @@ _options:
   gh_repo: openai/codex
   version:
     resolution: github_release
-    default: stable
-    inputs: [stable, latest, semver]
-    proposals:
-      - value: 0.130.0
-        description: Codex CLI v0.130.0.
   method:
     binary:
       asset_uri: "https://github.com/openai/codex/releases/download/{feat.tag}/codex-{plat.rust_triple}.tar.gz"

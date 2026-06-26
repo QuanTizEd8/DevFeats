@@ -1,4 +1,11 @@
 __resolve_version() {
+  # Supported specs:
+  #   `stable`             Latest non-prerelease Node.js release.
+  #   `lts` / `lts/*`     Latest Active LTS release.
+  #   `latest` / `node`   Most recent release (may be non-LTS).
+  #   `<major>`           Latest stable for that major (e.g. `22`).
+  #   `X.Y`               Latest stable for that major.minor (e.g. `22.1`).
+  #   `vX.Y.Z` / `X.Y.Z` Exact version.
   logging__info "Resolving Node.js version from nodejs.org..."
   file__mkdir "$INSTALLER_DIR"
   logging__download "Fetching Node.js version index from 'https://nodejs.org/dist/index.json'."
