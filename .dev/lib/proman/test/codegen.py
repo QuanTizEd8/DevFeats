@@ -31,9 +31,9 @@ def _indent_body(text: str) -> str:
     return textwrap.indent(text.rstrip("\n"), "  ") + "\n"
 
 
-def _quote_title(title: str) -> str:
-    """Wrap a check title in double quotes, escaping interior double quotes."""
-    return '"' + title.replace('"', '\\"') + '"'
+def _dquote(s: str) -> str:
+    """Wrap a string in double quotes, escaping any interior double quotes."""
+    return '"' + s.replace('"', '\\"') + '"'
 
 
 def _render_item(item: dict[str, Any], idx: int) -> str:
@@ -54,7 +54,7 @@ def _render_item(item: dict[str, Any], idx: int) -> str:
     if on_fail:
         parts.append(f'_df{idx}="$_TEST_FAIL"\n')
 
-    qtitle = _quote_title(title)
+    qtitle = _dquote(title)
 
     if kind == "multiple":
         min_val = item["min"]
@@ -62,7 +62,7 @@ def _render_item(item: dict[str, Any], idx: int) -> str:
         lines = [f"checkMultiple {qtitle} {min_val} \\"]
         for i, c in enumerate(cmds):
             suffix = " \\" if i < len(cmds) - 1 else ""
-            lines.append(f'  "{c}"{suffix}')
+            lines.append(f"  {_dquote(c)}{suffix}")
         parts.append("\n".join(lines) + "\n")
     elif kind == "install_failure":
         # Validated by the test runner on the single install attempt; not emitted

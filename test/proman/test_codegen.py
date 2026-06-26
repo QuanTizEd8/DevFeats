@@ -187,6 +187,31 @@ class TestCheckMultiple:
         out = _render_group("t", g)
         assert 'checkMultiple "two of three" 2 \\' in out
 
+    def test_check_multiple_cmd_double_quotes_escaped(self) -> None:
+        r"""Double quotes inside cmd strings are escaped so each cmd is one argument.
+
+        Without escaping, a cmd like bash -c 'grep -q "^ii"' generates the broken
+        shell argument "bash -c 'grep -q "^ii"'", which the shell splits at the inner
+        double-quote.  With escaping it becomes "bash -c 'grep -q \"^ii\"'" — a
+        single, syntactically valid double-quoted string passed to checkMultiple.
+        """
+        yaml_text = (
+            "t:\n"
+            "  checks:\n"
+            "    - title: 'pkg managed'\n"
+            "      kind: multiple\n"
+            "      min: 1\n"
+            "      cmd:\n"
+            "        - bash -c 'dpkg -l foo 2>/dev/null | grep -q \"^ii\"'\n"
+            "        - bash -c 'rpm -q foo >/dev/null 2>&1'\n"
+        )
+        _, g = _load_group(yaml_text)
+        out = _render_group("t", g)
+        # Inner double-quotes must be escaped so the outer wrapping is a valid argument.
+        assert '  "bash -c \'dpkg -l foo 2>/dev/null | grep -q \\"^ii\\"\'"' in out
+        # Command without inner quotes is unchanged.
+        assert "  \"bash -c 'rpm -q foo >/dev/null 2>&1'\"" in out
+
 
 # ---------------------------------------------------------------------------
 # debug / on_fail fields
