@@ -69,16 +69,19 @@ _bootstrap__tool() {
   for _c in "${_cmds[@]}"; do
     command -v "$_c" > /dev/null 2>&1 && return 0
   done
-  if [[ "$_skip_darwin" != true || "$(os__kernel)" != "Darwin" ]]; then
-    if [[ -n "$_manifest" ]]; then
-      ospkg__run --manifest "$_manifest" --build-group "$_group" || true
-    elif [[ -n "$_pkg" ]]; then
-      ospkg__install_tracked "$_group" "$_pkg"
-    fi
-    for _c in "${_cmds[@]}"; do
-      command -v "$_c" > /dev/null 2>&1 && return 0
-    done
+  if [[ "$_skip_darwin" == true && "$(os__kernel)" == "Darwin" ]]; then
+    # Tool is not applicable on macOS; skip gracefully.
+    [[ -n "$_msg" ]] && "logging__${_level}" "$_msg"
+    return 0
   fi
+  if [[ -n "$_manifest" ]]; then
+    ospkg__run --manifest "$_manifest" --build-group "$_group" || true
+  elif [[ -n "$_pkg" ]]; then
+    ospkg__install_tracked "$_group" "$_pkg"
+  fi
+  for _c in "${_cmds[@]}"; do
+    command -v "$_c" > /dev/null 2>&1 && return 0
+  done
   local _default_msg="'${_cmds[0]:-tool}' could not be installed."
   "logging__${_level}" "${_msg:-${_default_msg}}"
   return 1

@@ -46,16 +46,12 @@ teardown() {
   command -v gpg > /dev/null 2>&1
 }
 
-@test "bootstrap__shadow_utils: returns 0 and makes groupadd/useradd available on Linux" {
+@test "bootstrap__shadow_utils: returns 0; groupadd/useradd available on Linux" {
+  # --skip-darwin makes this return 0 on macOS (tool not applicable).
   run bootstrap__shadow_utils
   assert_success
-  # On Linux: tools must be on PATH after bootstrap.
-  # On macOS: --skip-darwin causes bootstrap to return 0 without installing
-  # (macOS uses dscl for user management; shadow-utils has no macOS equivalent).
-  if [[ "$(uname)" == Linux ]]; then
-    command -v groupadd > /dev/null 2>&1
-    command -v useradd > /dev/null 2>&1
-  fi
+  [[ "$(uname)" != Linux ]] || command -v groupadd > /dev/null 2>&1
+  [[ "$(uname)" != Linux ]] || command -v useradd > /dev/null 2>&1
 }
 
 @test "bootstrap__git: installs git and makes it available" {
@@ -64,15 +60,11 @@ teardown() {
   command -v git > /dev/null 2>&1
 }
 
-@test "bootstrap__getent: returns 0; makes getent available on Linux" {
+@test "bootstrap__getent: returns 0; getent available on Linux" {
+  # --skip-darwin makes this return 0 on macOS (tool not applicable).
   run bootstrap__getent
   assert_success
-  # On Linux: getent must be on PATH after bootstrap.
-  # On macOS: --skip-darwin causes bootstrap to return 0 without installing
-  # (macOS callers fall back to dscl / /etc/passwd; getent is a Linux glibc utility).
-  if [[ "$(uname)" == Linux ]]; then
-    command -v getent > /dev/null 2>&1
-  fi
+  [[ "$(uname)" != Linux ]] || command -v getent > /dev/null 2>&1
 }
 
 @test "bootstrap__unzip: installs unzip and makes it available" {
