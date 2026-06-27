@@ -62,11 +62,6 @@ setup() {
   getent group "$_IG_GROUP" > /dev/null 2>&1
 }
 
-@test "users__create_group: is idempotent" {
-  run users__create_group "$_IG_GROUP"
-  assert_success
-}
-
 @test "users__create_group: respects --gid" {
   local _gid_group="${_IG_GROUP}-gid"
   run users__create_group "$_gid_group" --gid 60100

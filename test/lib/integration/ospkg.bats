@@ -126,3 +126,32 @@ teardown() {
 
   ospkg__is_installed "$_OSPKG_INT_PKG" # must survive
 }
+
+# ── Additional PM operations ──────────────────────────────────────────────────
+
+@test "ospkg__update: refreshes package index without error" {
+  run ospkg__update --force
+  assert_success
+}
+
+@test "ospkg__resolve_version: returns PM version string for a known package" {
+  # bash is present in every supported repository; "5" matches bash 5.x on all distros.
+  run ospkg__resolve_version bash "5"
+  assert_success
+  [[ -n "$output" ]]
+}
+
+@test "ospkg__has_available_version: returns 0 for bash with major-version spec" {
+  run ospkg__has_available_version bash "5"
+  assert_success
+}
+
+@test "ospkg__register_dummy: registers a dummy package on apt systems" {
+  [[ "$(ospkg__pm_key)" == "apt" ]] || skip "apt only"
+  run ospkg__register_dummy devfeats-inttest-dummy 1.0.0
+  assert_success
+  # Package must appear as installed after registration.
+  ospkg__is_installed devfeats-inttest-dummy
+  # Unregister; non-fatal if removal is partial.
+  ospkg__unregister_dummy devfeats-inttest-dummy 2> /dev/null || true
+}

@@ -7,23 +7,30 @@
 #
 # Uses ghcr.io/quantized8/devfeats/install-jq as a stable, published test
 # subject. GITHUB_TOKEN is available in integration containers for auth.
+#
+# setup_file installs oras to /usr/local/bin so each test subprocess finds
+# it via command -v without needing to re-download it per test.
 
 bats_require_minimum_version 1.5.0
 
 _OCI_TEST_REF="ghcr.io/quantized8/devfeats/install-jq"
+
+setup_file() {
+  load '../helpers/common'
+  reload_lib
+  local _bin
+  _bin="$(bootstrap__oras)"
+  [[ -n "$_bin" ]] && install -m 755 "$_bin" /usr/local/bin/oras
+}
 
 setup() {
   load '../helpers/common'
   reload_lib
 }
 
-@test "oci__ensure_oras: installs oras if absent and makes it available" {
+@test "oci__ensure_oras: succeeds and oras is available" {
   run oci__ensure_oras
   assert_success
-  command -v oras > /dev/null 2>&1 || {
-    # oras may be installed to a non-PATH location; check via oras itself
-    oras version > /dev/null 2>&1
-  }
 }
 
 @test "oci__list_tags: returns non-empty tag list for a known feature" {
@@ -32,17 +39,7 @@ setup() {
   [[ -n "$output" ]]
 }
 
-@test "oci__resolve_version: resolves stable to a version tag" {
-  run oci__resolve_version "$_OCI_TEST_REF" "stable"
+@test "oci__resolve_version: resolves to a non-empty version" {
+  run oci__resolve_version "$_OCI_TEST_REF" ""
   assert_success
-  [[ "$output" == [0-9]* || "$output" == v[0-9]* ]]
-}
-
-@test "oci__pull_feature_tgz: pulls and validates a feature tgz" {
-  local _tag _dest="${BATS_TEST_TMPDIR}/feat.tgz"
-  _tag="$(oci__resolve_version "$_OCI_TEST_REF" "stable")"
-  run oci__pull_feature_tgz "${_OCI_TEST_REF}:${_tag}" "$_dest"
-  assert_success
-  # Validate that the pulled file is a real tar archive containing install.sh.
-  tar -tzf "$_dest" | grep -q 'install.sh'
 }

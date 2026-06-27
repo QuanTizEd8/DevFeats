@@ -54,9 +54,9 @@ setup() {
 
 @test "verify__gpg_dearmor_stream: converts armored key to binary keyring" {
   local _dest="${BATS_TEST_TMPDIR}/dearmored.gpg"
-  verify__gpg_dearmor_stream \
-    < "${BATS_FILE_TMPDIR}/test.pub.asc" \
-    > "$_dest"
+  # Function reads armored key from stdin and writes binary keyring to <dest_file>.
+  verify__gpg_dearmor_stream "$_dest" \
+    < "${BATS_FILE_TMPDIR}/test.pub.asc"
   [[ -s "$_dest" ]]
 }
 
