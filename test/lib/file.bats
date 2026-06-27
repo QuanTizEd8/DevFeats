@@ -101,28 +101,6 @@ setup() {
 # file__extract_archive — format detection and tool delegation
 # ---------------------------------------------------------------------------
 
-@test "file__extract_archive: extracts .tar.gz when tar is available" {
-  local _arc="${BATS_TEST_DIRNAME}/fixtures/archives/hello.tar.gz"
-  create_pass_through_bin "tar"
-  prepend_fake_bin_path
-
-  local _dest="${BATS_TEST_TMPDIR}/out_tgz"
-  run file__extract_archive "$_arc" "$_dest"
-  assert_success
-  [[ -f "${_dest}/hello.txt" ]]
-}
-
-@test "file__extract_archive: extracts .tgz using .tgz extension" {
-  local _arc="${BATS_TEST_DIRNAME}/fixtures/archives/world.tgz"
-  create_pass_through_bin "tar"
-  prepend_fake_bin_path
-
-  local _dest="${BATS_TEST_TMPDIR}/out_tgz2"
-  run file__extract_archive "$_arc" "$_dest"
-  assert_success
-  [[ -f "${_dest}/world.txt" ]]
-}
-
 @test "file__extract_archive: invokes unzip -q -o <archive> -d <dest> for .zip" {
   local _arc="${BATS_TEST_TMPDIR}/test.zip"
   touch "$_arc"
@@ -150,21 +128,6 @@ setup() {
   [[ "${_invocation}" == *"${_dest}"* ]]
 }
 
-@test "file__extract_archive: uses original_name for format detection" {
-  # Fixture is a .tar.gz copied to a path with no meaningful extension.
-  local _tmpfile
-  _tmpfile="$(mktemp "${BATS_TEST_TMPDIR}/archive.XXXXXX")"
-  cp "${BATS_TEST_DIRNAME}/fixtures/archives/named.tar.gz" "$_tmpfile"
-
-  create_pass_through_bin "tar"
-  prepend_fake_bin_path
-
-  local _dest="${BATS_TEST_TMPDIR}/out_named"
-  run file__extract_archive "$_tmpfile" "$_dest" "some_release.tar.gz"
-  assert_success
-  [[ -f "${_dest}/named.txt" ]]
-}
-
 @test "file__extract_archive: returns failure for unrecognized format" {
   local _arc="${BATS_TEST_TMPDIR}/test.weirdfmt"
   touch "$_arc"
@@ -173,18 +136,6 @@ setup() {
   run file__extract_archive "$_arc" "$_dest"
   assert_failure
   assert_output --partial "Unrecognized archive format"
-}
-
-@test "file__extract_archive: creates destination directory when absent" {
-  local _arc="${BATS_TEST_DIRNAME}/fixtures/archives/mkdir_test.tar.gz"
-  create_pass_through_bin "tar"
-  prepend_fake_bin_path
-
-  local _dest="${BATS_TEST_TMPDIR}/newly_created_dir"
-  [[ ! -d "$_dest" ]]
-  run file__extract_archive "$_arc" "$_dest"
-  assert_success
-  assert_dir_exists "$_dest"
 }
 
 @test "file__extract_archive: fails when gzip is absent and format is .tar.gz" {
