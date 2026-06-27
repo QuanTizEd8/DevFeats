@@ -535,6 +535,37 @@ abc123  zsh-5.9.1.tar.xz"
   assert_failure
 }
 
+@test "ver__resolve_from_sidecar resolves stable from HTML directory listing" {
+  # Simulates an Apache-style HTML directory index (e.g. https://ftp.gnu.org/gnu/bash/).
+  # The key difference from a plain-text SHA256SUM: filenames are embedded in href attributes
+  # and link text surrounded by HTML tags, not bare words.  The awk must strip HTML tags
+  # before field-splitting, otherwise '<a href="bash-5.3.tar.gz">bash-5.3.tar.gz</a>'
+  # appears as one word starting with 'href=' and never matches the prefix.
+  export _SIDECAR_CONTENT='<html><body>
+<a href="bash-5.3.tar.gz">bash-5.3.tar.gz</a>
+<a href="bash-5.3-rc2.tar.gz">bash-5.3-rc2.tar.gz</a>
+<a href="bash-5.2.37.tar.gz">bash-5.2.37.tar.gz</a>
+</body></html>'
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/dir/" "bash-[version].tar.gz" "stable"
+  assert_output "5.3"
+  assert_success
+}
+
+@test "ver__resolve_from_sidecar prefix spec resolves from HTML directory listing" {
+  # bash-5.2.tar.gz does not exist on GNU FTP (only patch-level tarballs like 5.2.37).
+  # "5.2" is therefore a prefix that resolves to the latest 5.2.x stable entry.
+  export _SIDECAR_CONTENT='<html><body>
+<a href="bash-5.3.tar.gz">bash-5.3.tar.gz</a>
+<a href="bash-5.2.37.tar.gz">bash-5.2.37.tar.gz</a>
+<a href="bash-5.2.9.tar.gz">bash-5.2.9.tar.gz</a>
+</body></html>'
+  _stub_uri_fetch_asset_with_content
+  run ver__resolve_from_sidecar "https://example.com/dir/" "bash-[version].tar.gz" "5.2"
+  assert_output "5.2.37"
+  assert_success
+}
+
 @test "ver__resolve_from_sidecar fails when pattern has no [version]" {
   run ver__resolve_from_sidecar "https://example.com/SHA256SUM" "zsh-5.9.1.tar.xz" "stable"
   assert_failure

@@ -375,6 +375,7 @@ ver__resolve_from_sidecar() {
   mapfile -t _versions < <(
     awk -v p="${_prefix}" -v s="${_suffix}" '
       {
+        gsub(/<[^>]*>/, " ")  # strip HTML tags so href-embedded filenames become bare words
         for (i = 1; i <= NF; i++) {
           w = $i
           if (p != "" && index(w, p) != 1) continue
