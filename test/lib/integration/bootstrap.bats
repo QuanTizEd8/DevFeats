@@ -46,12 +46,16 @@ teardown() {
   command -v gpg > /dev/null 2>&1
 }
 
-@test "bootstrap__shadow_utils: installs groupadd/useradd and makes them available" {
-  [[ "$(uname)" == Linux ]] || skip "shadow-utils is Linux only"
+@test "bootstrap__shadow_utils: returns 0 and makes groupadd/useradd available on Linux" {
   run bootstrap__shadow_utils
   assert_success
-  command -v groupadd > /dev/null 2>&1
-  command -v useradd > /dev/null 2>&1
+  # On Linux: tools must be on PATH after bootstrap.
+  # On macOS: --skip-darwin causes bootstrap to return 0 without installing
+  # (macOS uses dscl for user management; shadow-utils has no macOS equivalent).
+  if [[ "$(uname)" == Linux ]]; then
+    command -v groupadd > /dev/null 2>&1
+    command -v useradd > /dev/null 2>&1
+  fi
 }
 
 @test "bootstrap__git: installs git and makes it available" {
@@ -60,11 +64,15 @@ teardown() {
   command -v git > /dev/null 2>&1
 }
 
-@test "bootstrap__getent: ensures getent is available" {
-  [[ "$(uname)" == Linux ]] || skip "getent is Linux only"
+@test "bootstrap__getent: returns 0; makes getent available on Linux" {
   run bootstrap__getent
   assert_success
-  command -v getent > /dev/null 2>&1
+  # On Linux: getent must be on PATH after bootstrap.
+  # On macOS: --skip-darwin causes bootstrap to return 0 without installing
+  # (macOS callers fall back to dscl / /etc/passwd; getent is a Linux glibc utility).
+  if [[ "$(uname)" == Linux ]]; then
+    command -v getent > /dev/null 2>&1
+  fi
 }
 
 @test "bootstrap__unzip: installs unzip and makes it available" {
@@ -120,9 +128,6 @@ teardown() {
 }
 
 @test "bootstrap__oras: downloads oras binary, verifies GPG, and makes it available" {
-  # Skip on macOS: gpg-agent IPC is unavailable in the CI runner environment,
-  # causing the GPG signature verification step to fail.
-  [[ "$(uname)" == Linux ]] || skip "gpg-agent IPC unavailable on macOS CI"
   local _path
   _path="$(bootstrap__oras)"
   [[ -n "$_path" && -x "$_path" ]]

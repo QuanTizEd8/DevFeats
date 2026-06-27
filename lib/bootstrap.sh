@@ -187,9 +187,10 @@ bootstrap__sudo() {
 bootstrap__shadow_utils() {
   # @brief bootstrap__shadow_utils — Ensure useradd, groupadd, and usermod are available; install shadow-utils via ospkg if absent.
   # Returns: 0 on success, 1 if shadow-utils cannot be installed (non-fatal: logged as warning).
+  # On macOS: shadow-utils is Linux only; skipped (macOS uses dscl for user management).
   _bootstrap__tool --cmd groupadd \
     --manifest "${_BOOTSTRAP__LIB_DIR}/deps/shadow-utils.yaml" --group "lib-users" \
-    --warn --msg "shadow-utils (useradd, groupadd, usermod) is required but could not be installed."
+    --skip-darwin --warn --msg "shadow-utils (useradd, groupadd, usermod) is required but could not be installed."
 }
 
 bootstrap__su() {

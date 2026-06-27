@@ -1,5 +1,6 @@
 packages:
   - name: shadow-utils
+    when: {plat.kernel: linux}
     apt: passwd
     apk: shadow
     zypper: shadow

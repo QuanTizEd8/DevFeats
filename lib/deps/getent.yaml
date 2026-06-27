@@ -1,5 +1,6 @@
 packages:
   - name: glibc
+    when: {plat.kernel: linux}
     apt: libc-bin
     apk: musl-utils
     dnf: glibc-common
