@@ -623,14 +623,9 @@ debian-latest:
 """,
     )
     result = cd.compute_unit_macos_matrix()
+    # Only macos-15+brew (path_prepend set) is included; bare macos-15 is excluded
+    # because bootstrap functions need Homebrew to install tools.
     assert result == [
-        {
-            "env": "macos-15",
-            "runner": "macos-15",
-            "clean_path": True,
-            "path_prepend": "",
-            "integration": False,
-        },
         {
             "env": "macos-15+brew",
             "runner": "macos-15",

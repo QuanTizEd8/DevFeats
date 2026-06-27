@@ -387,13 +387,18 @@ def compute_unit_macos_matrix() -> list[dict]:
         if not image.startswith("macos"):
             continue
         path_prepend = val.get("path_prepend", "")
+        # Only include environments where Homebrew is available (path_prepend set).
+        # Bare macOS environments (no path_prepend) are for feature tests only —
+        # bootstrap functions cannot install tools without a package manager in PATH.
+        if not path_prepend:
+            continue
         entries.append(
             {
                 "env": env_key,
                 "runner": image,
                 "clean_path": bool(val.get("clean_path", False)),
                 "path_prepend": path_prepend,
-                "integration": bool(path_prepend),
+                "integration": True,
             }
         )
     return entries
