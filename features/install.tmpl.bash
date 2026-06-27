@@ -1092,6 +1092,7 @@ __install_run_npm_bundled__() {
   [[ -n "${NPM_REGISTRY:-}" ]] && _registry_arg=(--registry "${NPM_REGISTRY}")
 
   logging__install "Installing npm-bundled package '${NPM_PACKAGE}' into '${_RESOLVED_PREFIX}'."
+  # shellcheck disable=SC2153  # NODE_VERSION is set via argparse for npm-bundled features; not a typo of NODE_VERSIONS
   npm__install_bundled \
     --package "${NPM_PACKAGE}" \
     "${_cmd_arg[@]+"${_cmd_arg[@]}"}" \
