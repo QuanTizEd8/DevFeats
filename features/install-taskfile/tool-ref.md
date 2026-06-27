@@ -38,7 +38,13 @@ Task is a **single static Go binary** named `task`.[^repo] It is compiled with `
 
 **Package conflict**: Official DEB/RPM/APK packages declare a conflict with `taskwarrior` (a separate task-management application that also provides a `task` binary).[^goreleaser-nfpms]
 
-**Runtime configuration**: Task requires no installation-time configuration. At runtime, it optionally reads a user config file at `$XDG_CONFIG_HOME/task/config.yml` (default: `~/.config/task/config.yml`, overridable via `--config` / `-c` flag) and discovers `Taskfile.yml` / `Taskfile.yaml` in the working directory tree.[^docs-config] Configuration precedence (highest last): config file → environment variables (`TASK_*`) → CLI flags.[^docs-cli] No environment variables or config files need to be created as part of installation.
+**Runtime configuration**: Task requires no installation-time configuration. At runtime, it discovers optional config files named `taskrc.yml` or `taskrc.yaml` from:[^docs-config][^src-taskrc]
+
+1. `$XDG_CONFIG_HOME/task/taskrc.{yml,yaml}` (default XDG path: `~/.config/task/taskrc.yml`)
+2. `$HOME/.taskrc.{yml,yaml}`
+3. Ancestor directories from the current working directory up to `$HOME` (`.taskrc.yml` / `.taskrc.yaml`)
+
+Config files are merged with child-directory configs overriding parent ones. There is no `--config` CLI flag; config paths are discovered automatically.[^docs-config][^docs-cli] Configuration precedence for task execution (highest last): config file → environment variables (`TASK_*`) → CLI flags.[^docs-cli] Taskfiles (`Taskfile.yml` / `Taskfile.yaml`) are discovered separately in the working directory tree. No environment variables or config files need to be created as part of installation.
 
 ## Installation Methods
 
@@ -51,9 +57,10 @@ Task is distributed through official package repositories (Cloudsmith-hosted apt
 5. **npm** (`@go-task/cli`) — official cross-platform npm wrapper around the prebuilt binary.
 6. **Go toolchain install** (`go install`) — build/install from source when Go is already present.
 7. **Go tool tracking** (`go get -tool` / `go tool task`) — project-local tool dependency without global install.
-8. **Community package managers** (mise/aqua/ubi, MacPorts, pip, Arch pacman, Nix, etc.) — useful where official repos are unavailable; version freshness not guaranteed by Task team.
+8. **GitHub Actions** (`go-task/setup-task`) — CI/workflow installation via official action.
+9. **Community package managers** (mise/aqua/ubi, MacPorts, pip, Arch pacman, Nix, etc.) — useful where official repos are unavailable; version freshness not guaranteed by Task team.
 
-GitHub Actions setup (`go-task/setup-task`) is documented under [Dev Container Setup](#dev-container-setup) for CI and devcontainer build contexts.
+GitHub Actions setup is also documented under [Dev Container Setup](#dev-container-setup) for devcontainer build contexts.
 
 ### Official Cloudsmith Package Repositories (apt / dnf / apk)
 
@@ -182,7 +189,7 @@ None required for system-wide installs; `/usr/bin` is on PATH by default.
 
 ##### Configuration Files
 
-None required for core Task operation. Task optionally reads `.taskrc.yml` and `Taskfile.yml` at runtime (not created by installation).
+None required for core Task operation. Task optionally reads `taskrc.{yml,yaml}` and `Taskfile.{yml,yaml}` at runtime (not created by installation). See [Tool Architecture](#tool-architecture) for config discovery paths.
 
 ##### Environment Variables
 
@@ -983,7 +990,7 @@ None beyond WinGet itself.
 winget install Task.Task
 ```
 
-Package identifier: `Task.Task` (published via GoReleaser to `go-task/winget-pkgs`).[^goreleaser-winget][^docs-install]
+Package identifier: `Task.Task` (published via GoReleaser to the `microsoft/winget-pkgs` community repository).[^goreleaser-winget][^docs-install]
 
 #### Installation Verification
 
@@ -1065,7 +1072,7 @@ winget uninstall Task.Task
 
 #### Notes and Best Practices
 
-- Official team-maintained distribution channel for Windows.
+- Official distribution channel for Windows; upstream docs note it is available via the WinGet community repository (`microsoft/winget-pkgs`).[^docs-install]
 - DevFeats feature scope is macOS/Linux; document WinGet for cross-platform reference only.
 
 ### Community Package Managers
@@ -1212,6 +1219,22 @@ export PATH="$PATH:$(go env GOPATH)/bin"
 
 Not installed by `go install`; generate with `task --completion` after install.
 
+##### Configuration Files
+
+None required.
+
+##### Environment Variables
+
+None required at runtime.
+
+##### Activation Scripts
+
+None required.
+
+##### Cleanup
+
+Go module/build caches can be cleaned per local policy (`go clean -cache`).
+
 #### Changing Versions and Uninstallation
 
 ##### Upgrading/Downgrading
@@ -1240,9 +1263,9 @@ rm -f "$(go env GOPATH)/bin/task"
 
 #### Supported Platforms
 
-Go projects using Go **1.24+** tool dependency tracking (`go get -tool`).[^docs-install]
+Go projects using Go **1.24+** tool dependency tracking (`go get -tool`).[^go-tool][^docs-install]
 
-Note: `go get -tool` / `go tool task` requires Go 1.24+ for the tool-tracking mechanism, but **compiling Task from source** (as `go tool` does on first invocation) requires Go **1.25.10+** per `go.mod`.[^go-mod][^docs-install]
+Note: `go get -tool` / `go tool task` requires Go 1.24+ for the tool-tracking mechanism,[^go-tool] but **compiling Task from source** (as `go tool` does on first invocation) requires Go **1.25.10+** per `go.mod`.[^go-mod][^docs-install]
 
 #### Dependencies
 
@@ -1306,6 +1329,22 @@ None (writes to Go module cache and modifies project `go.mod`).
 
 None required; invoke via `go tool task`.
 
+##### Configuration Files
+
+None required.
+
+##### Environment Variables
+
+None required at runtime.
+
+##### Activation Scripts
+
+None required.
+
+##### Cleanup
+
+None required.
+
 ##### Shell Completions
 
 Not applicable for `go tool task` invocation pattern.
@@ -1331,6 +1370,131 @@ Repeated `go get -tool` with same version is idempotent.
 - Ideal for Go projects wanting pinned Task versions without global installation.
 - Works well in CI: no separate install step needed beyond `go mod download`.
 - Slower first invocation due to on-demand compilation.
+
+### GitHub Actions (`go-task/setup-task`)
+
+Official GitHub Action for installing Task in CI workflows and devcontainer build pipelines.[^docs-install][^setup-task-action]
+
+#### Supported Platforms
+
+- GitHub Actions runners: `ubuntu-*`, `macos-*`, `windows-*` (matches release asset matrix).
+- Any environment that can run GitHub Actions or reuse the action's download logic.
+
+#### Dependencies
+
+##### Common Dependencies
+
+- GitHub Actions runtime (or compatible action runner).
+- Network access to `github.com` for release asset download.
+
+##### Platform-Specific Dependencies
+
+None beyond the action runtime.
+
+#### Installation Steps
+
+Minimal usage (installs default `3.x` range):
+
+```yaml
+- name: Install Task
+  uses: go-task/setup-task@v2
+```
+
+Pin major/minor range or exact version:
+
+```yaml
+- name: Install Task
+  uses: go-task/setup-task@v2
+  with:
+    version: 3.51.1
+    repo-token: ${{ github.token }}
+    max-retries: 3
+```
+
+[^setup-task-action][^setup-task-readme]
+
+Note: Official installation docs reference `go-task/setup-task@v1`; the current maintained version is `@v2`.[^docs-install][^setup-task-readme]
+
+#### Installation Verification
+
+Subsequent workflow steps:
+
+```yaml
+- run: task --version
+```
+
+#### Configuration Options
+
+##### Version Selection
+
+| Input | Default | Description |
+|---|---|---|
+| `version` | `3.x` | Exact version (`3.51.1`), range (`3.x`), or semver-compatible wildcard |
+
+##### Installation Path
+
+Action-managed tool cache; binary placed in `{cache}/bin/task` and added to PATH via `addPath()`.[^setup-task-installer]
+
+##### User Targeting
+
+Workflow-scoped (available to subsequent steps in the same job).
+
+##### Required Privileges
+
+None beyond standard GitHub Actions permissions. `repo-token` defaults to `GITHUB_TOKEN`.
+
+##### Tool-Specific Configurations
+
+| Input | Default | Description |
+|---|---|---|
+| `repo-token` | `${{ github.token }}` | Token for GitHub API release queries |
+| `max-retries` | `3` | HTTP retry attempts for release API/download[^setup-task-action] |
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+
+Automatic via action (`addPath` to tool cache `bin/` directory).[^setup-task-installer]
+
+##### Configuration Files
+
+None required.
+
+##### Environment Variables
+
+None required at runtime.
+
+##### Activation Scripts
+
+None required.
+
+##### Shell Completions
+
+Not installed by the action.
+
+##### Cleanup
+
+Action uses GitHub Actions tool cache; no manual cleanup required.
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+Change the `version` input and re-run the workflow step.
+
+##### Uninstallation
+
+Not applicable within a job scope; each job starts fresh.
+
+##### Idempotency
+
+Action caches extracted binaries per version in the tool cache; repeated runs with same version reuse cache.[^setup-task-installer]
+
+#### Notes and Best Practices
+
+- Preferred method for GitHub Actions CI pipelines.
+- Downloads prebuilt release assets (`task_{os}_{arch}.{tar.gz|zip}`) rather than compiling from source.
+- Also documented under [Dev Container Setup](#dev-container-setup) for feature-design context.
 
 ### Shell Completions (Common to All Binary-Based Methods)
 
@@ -1381,7 +1545,11 @@ Prebuilt completion files are also included in release tarballs under `completio
 
 ### Existing Community Dev Container Features
 
-The primary community devcontainer feature is published by eitsupi, acknowledged by the Task maintainer.[^eitsupi-feature][^task-discussion-918]
+Two community devcontainer features for Task are indexed on containers.dev as of 2026-06-28:[^containers-dev]
+
+#### eitsupi (`ghcr.io/eitsupi/devcontainer-features/go-task`)
+
+The primary community feature, acknowledged by the Task maintainer.[^eitsupi-feature][^task-discussion-918]
 
 ```json
 "features": {
@@ -1408,11 +1576,31 @@ The feature's `install.sh` implementation:[^eitsupi-install-sh]
 5. Sets up shell completions (bash, zsh, fish, pwsh) from tarball or `task --completion`.
 6. Installs VS Code extension `task.vscode-task` via feature customizations.
 
-No official Task feature exists in `devcontainers/features` as of 2026-06-28. A search of the [containers.dev features index](https://containers.dev/features) and major community feature repositories (`devcontainers/features`, `devcontainers-extra/features`, `devcontainer-community/devcontainer-features`) found no other widely used Task/go-task features beyond eitsupi as of 2026-06-28.[^containers-dev]
+#### devcontainers-extra (`ghcr.io/devcontainers-extra/features/go-task`)
 
-### GitHub Actions (`go-task/setup-task`)
+Alternative feature listed on containers.dev; installs Task via GitHub Releases using the shared `gh-release` helper feature.[^devcontainers-extra-feature][^containers-dev]
 
-Official GitHub Action for installing Task in CI workflows.[^docs-install][^setup-task-readme]
+```json
+"features": {
+  "ghcr.io/devcontainers-extra/features/go-task:1": {
+    "version": "latest"
+  }
+}
+```
+
+Feature options:[^devcontainers-extra-feature-json]
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `version` | string | `latest` | Task version to install |
+
+Implementation delegates to `ghcr.io/devcontainers-extra/features/gh-release` with `repo='go-task/task'`, `binaryNames='task'`, and the configured `version`.[^devcontainers-extra-install-sh]
+
+No official Task feature exists in `devcontainers/features` as of 2026-06-28.
+
+### GitHub Actions in Devcontainer Builds
+
+For CI-oriented devcontainer builds that use GitHub Actions, see the full [GitHub Actions (`go-task/setup-task`)](#github-actions-go-tasksetup-task) installation method under Installation Methods. Summary for devcontainer context:
 
 ```yaml
 - name: Install Task
@@ -1425,7 +1613,7 @@ Official GitHub Action for installing Task in CI workflows.[^docs-install][^setu
 
 The action downloads `task_{os}_{arch}.{tar.gz|zip}` from GitHub Releases, extracts to a cached tool directory, and adds it to PATH.[^setup-task-installer]
 
-Note: Official installation docs reference `go-task/setup-task@v1`; the current maintained version is `@v2`.[^docs-install][^setup-task-readme]
+See [GitHub Actions (`go-task/setup-task`)](#github-actions-go-tasksetup-task) for full configuration options including `max-retries` (defined in `action.yml`, default `3`).[^setup-task-action]
 
 ### DevFeats Implementation Considerations
 
@@ -1468,8 +1656,10 @@ No other official Task plugins or runtime extensions exist. Task itself has no p
 [^homepage]: [Task Homepage](https://taskfile.dev/) — Official project landing page.
 [^docs-install]: [Official Docs – Installation](https://taskfile.dev/docs/installation) — Canonical installation methods, package manager matrix, install script usage, GitHub Actions, build-from-source, and Go tool instructions.
 [^docs-install-completions]: [Official Docs – Installation (Setup completions section)](https://taskfile.dev/docs/installation#setup-completions) — Shell completion installation via `--completion` flag and static file placement.
-[^docs-config]: [Official Docs – Configuration](https://taskfile.dev/docs/reference/config) — Runtime config file location, format, and options.
+[^docs-config]: [Official Docs – Configuration](https://taskfile.dev/docs/reference/config) — Runtime config file locations, discovery, and merge behavior.
 [^docs-cli]: [Official Docs – CLI Reference](https://taskfile.dev/docs/reference/cli) — CLI flags, configuration precedence, and `--version` output.
+[^src-taskrc]: [taskrc/taskrc.go (main branch)](https://github.com/go-task/task/blob/main/taskrc/taskrc.go) — Config file discovery paths and merge logic.
+[^go-tool]: [Go 1.24 Release Notes – Tool tracking](https://go.dev/doc/go1.24#tools) — `go get -tool` and `go tool` commands for managing tool dependencies.
 [^repo]: [Official GitHub Repository](https://github.com/go-task/task) — Source code, issue tracker, and release artifacts.
 [^go-mod]: [go.mod (main branch)](https://github.com/go-task/task/blob/main/go.mod) — Go module path and minimum Go version (1.25.10).
 [^goreleaser]: [GoReleaser Configuration (.goreleaser.yml)](https://github.com/go-task/task/blob/main/.goreleaser.yml) — Build matrix, archive naming, checksum file, and packaging configuration.
@@ -1485,11 +1675,15 @@ No other official Task plugins or runtime extensions exist. Task itself has no p
 [^cloudsmith]: [Cloudsmith – task/task repository](https://cloudsmith.io/~task/repos/task/) — Official apt/dnf/apk package hosting.
 [^npm-cli]: [npm – @go-task/cli package](https://www.npmjs.com/package/@go-task/cli) — Official npm wrapper; version 3.51.1 as of 2026-06-28.
 [^pip-bin]: [PyPI – go-task-bin package](https://pypi.org/project/go-task-bin/) — Community pip wrapper for prebuilt Task binaries; version 3.51.1 verified via PyPI JSON on 2026-06-28.
-[^setup-task-readme]: [go-task/setup-task README](https://github.com/go-task/setup-task/blob/main/README.md) — GitHub Action inputs (`version`, `repo-token`, `max-retries`) and usage examples for `@v2`.
+[^setup-task-readme]: [go-task/setup-task README](https://github.com/go-task/setup-task/blob/main/README.md) — GitHub Action usage examples for `@v2`.
+[^setup-task-action]: [go-task/setup-task action.yml](https://github.com/go-task/setup-task/blob/main/action.yml) — Action inputs (`version`, `repo-token`, `max-retries`) and defaults.
 [^setup-task-installer]: [go-task/setup-task installer.ts](https://github.com/go-task/setup-task/blob/main/src/installer.ts) — Action download URL construction (`task_{os}_{arch}.{tar.gz|zip}`), semver resolution, and tool-cache placement.
 [^eitsupi-feature]: [eitsupi/devcontainer-features – go-task README](https://github.com/eitsupi/devcontainer-features/blob/main/src/go-task/README.md) — Community devcontainer feature documentation and usage.
 [^eitsupi-feature-json]: [eitsupi/devcontainer-features – devcontainer-feature.json](https://github.com/eitsupi/devcontainer-features/blob/main/src/go-task/devcontainer-feature.json) — Feature options, VS Code extension customization, and dependency declarations.
 [^eitsupi-install-sh]: [eitsupi/devcontainer-features – install.sh](https://github.com/eitsupi/devcontainer-features/blob/main/src/go-task/install.sh) — Community feature install implementation (GitHub release download to `/usr/local/bin/task`).
+[^devcontainers-extra-feature]: [devcontainers-extra/features – go-task](https://github.com/devcontainers-extra/features/tree/main/src/go-task) — Alternative devcontainer feature installing Task via GitHub Releases.
+[^devcontainers-extra-feature-json]: [devcontainers-extra/features – devcontainer-feature.json](https://github.com/devcontainers-extra/features/blob/main/src/go-task/devcontainer-feature.json) — Feature options and gh-release dependency declaration.
+[^devcontainers-extra-install-sh]: [devcontainers-extra/features – install.sh](https://github.com/devcontainers-extra/features/blob/main/src/go-task/install.sh) — Delegates to gh-release feature with `repo='go-task/task'`.
 [^task-discussion-918]: [go-task/task Discussion #918](https://github.com/go-task/task/discussions/918) — Maintainer acknowledgment of eitsupi devcontainer feature.
-[^containers-dev]: [Available Dev Container Features Index](https://containers.dev/features) — Registry of published devcontainer features; searched for Task/go-task entries on 2026-06-28.
+[^containers-dev]: [Available Dev Container Features Index](https://containers.dev/features) — Registry listing both eitsupi and devcontainers-extra go-task features; verified 2026-06-28.
 [^vscode-task]: [VS Code Marketplace – task.vscode-task](https://marketplace.visualstudio.com/items?itemName=task.vscode-task) — Official VS Code extension for Taskfile integration.
