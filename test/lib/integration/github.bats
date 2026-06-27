@@ -46,15 +46,64 @@ setup() {
   [[ -n "$output" ]]
 }
 
-@test "github__resolve_version: resolves latest to a tag" {
+# ── github__resolve_version ───────────────────────────────────────────────────
+# By default (no flags) the function prints TWO lines: full tag then bare
+# version.  With --tag it prints only the full tag; with --version only the
+# bare version (leading non-numeric prefix stripped).
+
+@test "github__resolve_version: default output is two lines (tag + bare version)" {
   run github__resolve_version "$_GITHUB_TEST_REPO" "latest"
   assert_success
-  [[ -n "$output" ]]
+  local _lines
+  mapfile -t _lines <<< "$output"
+  [[ "${#_lines[@]}" -eq 2 ]]
+  # Line 1 is the full tag (e.g. "jq-1.8.2"), line 2 the bare version ("1.8.2").
+  [[ -n "${_lines[0]}" ]]
+  [[ -n "${_lines[1]}" ]]
+  # The bare version must not contain the jq- prefix.
+  [[ "${_lines[1]}" != jq-* ]]
+  # Both must contain a digit somewhere.
+  [[ "${_lines[0]}" =~ [0-9] ]]
+  [[ "${_lines[1]}" =~ [0-9] ]]
 }
 
-@test "github__release_asset_urls: returns non-empty URL list for default (latest) release" {
-  # Call without --tag to use the latest release endpoint directly.
-  run github__release_asset_urls "$_GITHUB_TEST_REPO"
+@test "github__resolve_version --tag: prints only the full tag (one line)" {
+  run github__resolve_version "$_GITHUB_TEST_REPO" "latest" --tag
+  assert_success
+  local _lines
+  mapfile -t _lines <<< "$output"
+  [[ "${#_lines[@]}" -eq 1 ]]
+  [[ -n "${_lines[0]}" ]]
+}
+
+@test "github__resolve_version --version: prints only the bare version (one line, no prefix)" {
+  run github__resolve_version "$_GITHUB_TEST_REPO" "latest" --version
+  assert_success
+  local _lines
+  mapfile -t _lines <<< "$output"
+  [[ "${#_lines[@]}" -eq 1 ]]
+  [[ -n "${_lines[0]}" ]]
+  # Bare version has no leading non-numeric prefix.
+  [[ "${_lines[0]}" != jq-* ]]
+  [[ "${_lines[0]}" =~ ^[0-9] ]]
+}
+
+@test "github__resolve_version --tag and --version together: both lines printed" {
+  # When both flags are given (or neither), two lines are output.
+  run github__resolve_version "$_GITHUB_TEST_REPO" "latest" --tag --version
+  assert_success
+  local _lines
+  mapfile -t _lines <<< "$output"
+  [[ "${#_lines[@]}" -eq 2 ]]
+}
+
+# ── github__release_asset_urls ────────────────────────────────────────────────
+
+@test "github__release_asset_urls: returns non-empty URL list for a resolved tag" {
+  # Use --tag to get a single-line tag suitable for --tag argument.
+  local _tag
+  _tag="$(github__resolve_version "$_GITHUB_TEST_REPO" "latest" --tag)"
+  run github__release_asset_urls "$_GITHUB_TEST_REPO" --tag "$_tag"
   assert_success
   [[ -n "$output" ]]
   grep -q 'https://' <<< "$output"

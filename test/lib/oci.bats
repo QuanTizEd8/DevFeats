@@ -274,6 +274,39 @@ EOF
   assert_success
 }
 
+@test "oci__list_tags uses GITHUB_TOKEN for ghcr.io when SYSSET_OCI_AUTH is unset" {
+  local _tmp
+  _tmp="$(mktemp -d)"
+  local _log="${_tmp}/log"
+
+  oras() {
+    if [[ "$1" == "version" ]]; then
+      printf '%s\n' "Version: 1.2.0"
+      return 0
+    fi
+    if [[ "$1" == "login" ]]; then
+      printf '%s\n' "$*" >> "$_log"
+      return 0
+    fi
+    if [[ "$1" == "repo" && "$2" == "tags" ]]; then
+      printf '%s\n' "1.0.0"
+      return 0
+    fi
+    return 1
+  }
+  export -f oras
+
+  export SYSSET_OCI_AUTH=""
+  export SYSSET_OCI_AUTH_FILE=""
+  export GITHUB_TOKEN="ghp_test_token"
+  run oci__list_tags "ghcr.io/acme/feature"
+  assert_success
+  assert_output "1.0.0"
+  # Must have logged in to ghcr.io with x-access-token and the GITHUB_TOKEN.
+  run bash -c "grep -q 'login ghcr.io -u x-access-token --password-stdin' '$_log'"
+  assert_success
+}
+
 @test "oci__pull_feature_tgz fails invalid archive shape" {
   local _tmp
   _tmp="$(mktemp -d)"

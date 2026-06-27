@@ -168,11 +168,14 @@ _oci__load_auth_map() {
 _oci__ensure_auth_for() {
   # @brief _oci__ensure_auth_for <target> — Log in to the registry for `<target>` if credentials are available. Idempotent per registry.
   #
-  # Extracts the registry from `<target>`, loads the auth map via
-  # `_oci__load_auth_map`, and calls `oras login` with the stored credentials.
-  # Registries without configured credentials are silently skipped (returns 0).
+  # Credential resolution order:
+  #   1. SYSSET_OCI_AUTH / SYSSET_OCI_AUTH_FILE (explicit multi-registry map).
+  #   2. GITHUB_TOKEN — used automatically for ghcr.io with username
+  #      `x-access-token` (standard GitHub Container Registry token auth).
+  # Registries with no credentials configured are silently skipped (returns 0).
   # Once a registry has been attempted, it is marked done so subsequent calls
   # for the same registry are no-ops.
+  # Xtrace is suppressed around the login call to prevent token leaking in CI logs.
   #
   # Args:
   #   <target>  Scheme-free OCI reference (e.g. `ghcr.io/owner/repo:tag`).
@@ -191,20 +194,30 @@ _oci__ensure_auth_for() {
   _oci__load_auth_map
   _usr="${_OCI__AUTH_USER[$_reg]-}"
   _tok="${_OCI__AUTH_TOKEN[$_reg]-}"
+  # Fall back to GITHUB_TOKEN for ghcr.io when no explicit credentials are set.
+  if [[ -z "$_usr" || -z "$_tok" ]] && [[ "$_reg" == "ghcr.io" ]] && [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    _usr="x-access-token"
+    _tok="${GITHUB_TOKEN}"
+  fi
   if [[ -z "$_usr" || -z "$_tok" ]]; then
     _OCI__AUTH_DONE["$_reg"]=1
     return 0
   fi
   _tmp="$(mktemp)"
+  local _xt=false
+  case "$-" in *x*) _xt=true ;; esac
+  { set +x; } 2> /dev/null
   printf '%s' "$_tok" > "$_tmp"
-  if oras login "$_reg" -u "$_usr" --password-stdin < "$_tmp" > /dev/null; then
+  if oras login "$_reg" -u "$_usr" --password-stdin < "$_tmp" > /dev/null 2>&1; then
     _OCI__AUTH_DONE["$_reg"]=1
   else
     rm -f "$_tmp"
+    [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
     logging__error "failed to authenticate to '${_reg}'."
     return 1
   fi
   rm -f "$_tmp"
+  [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
   return 0
 }
 
