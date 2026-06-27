@@ -67,6 +67,37 @@ _ospkg__clean_zypper() {
   return 0
 }
 
+_ospkg__zypper_install() {
+  # @brief _ospkg__zypper_install <pkg>... — Run `zypper install` and normalise non-fatal exit codes.
+  #
+  # Wraps `zypper --non-interactive --no-refresh install` for use as `_OSPKG__INSTALL` on zypper
+  # systems. When zypper exits with a code other than 0 or 6 (ZYPPER_EXIT_INF_REPOS_SKIPPED) but
+  # every requested package is already present on disk, the error is non-fatal: it results from
+  # CDN/metadata problems on secondary repos (backports, SLE update) that are irrelevant to
+  # packages successfully resolved from the main repository. In that case the function returns 6
+  # so the caller's `net__fetch_with_retry --bail-on 6` stops retrying immediately instead of
+  # looping 60 times (each attempt ≈ 1+ minute of CDN timeouts).
+  #
+  # Exit 0  → success, forwarded as-is.
+  # Exit 6  → repos skipped, forwarded as-is (caller bails immediately via --bail-on 6).
+  # Other   → if all <pkg> args are now installed: return 6 (non-fatal, bail).
+  #           Otherwise: return the original code so the caller retries.
+  local _rc=0
+  users__run_privileged zypper --non-interactive --no-refresh install "$@" || _rc=$?
+  [[ "$_rc" -eq 0 || "$_rc" -eq 6 ]] && return "$_rc"
+  # Non-zero, non-6: check whether the packages landed despite the zypper error.
+  # Skip flag-style args (starting with -) — they are zypper options, not package names.
+  local _pkg _has_pkg=false
+  for _pkg in "$@"; do
+    [[ "$_pkg" == -* ]] && continue
+    _has_pkg=true
+    ospkg__is_installed "${_pkg%%=*}" || return "$_rc"
+  done
+  [[ "$_has_pkg" == false ]] && return "$_rc"
+  logging__warn "zypper install exited $_rc but all packages are present — treating as repos-skipped (6)."
+  return 6
+}
+
 _ospkg__clean_brew() {
   # @brief _ospkg__clean_brew — Run `brew cleanup --prune=all` to remove stale Homebrew downloads.
   _ospkg__brew_run cleanup --prune=all >&2 2> /dev/null || true
@@ -402,7 +433,7 @@ _ospkg__set_yum() {
 _ospkg__set_zypper() {
   _ospkg__configure_pm "Zypper (tool: zypper)" zypper zypper zypper _ospkg__clean_zypper "/var/cache/zypp/raw" "*"
   _OSPKG__UPDATE=(users__run_privileged zypper --gpg-auto-import-keys --non-interactive refresh)
-  _OSPKG__INSTALL=(users__run_privileged zypper --non-interactive --no-refresh install)
+  _OSPKG__INSTALL=(_ospkg__zypper_install)
   _OSPKG__REMOVE=(users__run_privileged zypper --non-interactive remove --clean-deps)
   _OSPKG__REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
 }
@@ -748,13 +779,12 @@ ospkg__install() {
   printf '  - %s\n' "$@" >&2
   # Keep interactive mode possible on TTY, but prevent PMs from draining
   # caller-provided stdin in piped/non-interactive contexts.
-  # zypper: --no-refresh prevents the install subcommand from auto-refreshing
-  # repos; ospkg__update already handles refresh (with --gpg-auto-import-keys),
-  # so a second refresh is redundant and causes multi-minute CDN timeout loops
-  # when repos are temporarily unavailable (e.g. expired GPG keys, CDN issues).
-  # Additionally, zypper exits 6 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when packages
-  # are installed successfully but some repos had stale metadata — bail immediately
-  # (--bail-on 6) and treat as success, consistent with _ospkg__update_cmd.
+  # zypper: _OSPKG__INSTALL is _ospkg__zypper_install, which runs zypper with
+  # --no-refresh and normalises exit codes so that a successful install from
+  # available repos is always treated as exit 6 (repos-skipped) even when zypper
+  # returns a different non-zero code due to CDN failures on secondary repos.
+  # --bail-on 6 stops net__fetch_with_retry immediately (no 60-attempt loop),
+  # and [[ _rc -eq 6 ]] below converts that to a clean 0 return.
   local _rc=0
   if [[ "$_OSPKG__PKG_MNGR" == "zypper" ]]; then
     if [[ -t 0 ]]; then
