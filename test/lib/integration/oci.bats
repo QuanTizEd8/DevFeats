@@ -17,7 +17,6 @@ _OCI_TEST_REF="ghcr.io/quantized8/devfeats/install-jq"
 
 setup_file() {
   load '../helpers/common'
-  reload_lib
   local _bin
   _bin="$(bootstrap__oras)"
   [[ -n "$_bin" ]] && install -m 755 "$_bin" /usr/local/bin/oras

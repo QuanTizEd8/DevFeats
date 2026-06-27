@@ -47,6 +47,7 @@ teardown() {
 }
 
 @test "bootstrap__shadow_utils: installs groupadd/useradd and makes them available" {
+  [[ "$(uname)" == Linux ]] || skip "shadow-utils is Linux only"
   run bootstrap__shadow_utils
   assert_success
   command -v groupadd > /dev/null 2>&1
@@ -60,6 +61,7 @@ teardown() {
 }
 
 @test "bootstrap__getent: ensures getent is available" {
+  [[ "$(uname)" == Linux ]] || skip "getent is Linux only"
   run bootstrap__getent
   assert_success
   command -v getent > /dev/null 2>&1
@@ -118,6 +120,9 @@ teardown() {
 }
 
 @test "bootstrap__oras: downloads oras binary, verifies GPG, and makes it available" {
+  # Skip on macOS: gpg-agent IPC is unavailable in the CI runner environment,
+  # causing the GPG signature verification step to fail.
+  [[ "$(uname)" == Linux ]] || skip "gpg-agent IPC unavailable on macOS CI"
   local _path
   _path="$(bootstrap__oras)"
   [[ -n "$_path" && -x "$_path" ]]

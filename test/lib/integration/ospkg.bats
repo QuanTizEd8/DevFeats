@@ -91,6 +91,9 @@ teardown() {
 # ── Snapshot protection ───────────────────────────────────────────────────────
 
 @test "cleanup does not remove pre-existing packages (snapshot protection)" {
+  # Homebrew on macOS can autonomously update/remove packages during the test,
+  # making the snapshot assertion unreliable outside Linux containers.
+  [[ "$(uname)" == Linux ]] || skip "Homebrew auto-updates make snapshot check unreliable on macOS"
   # Record every package installed before the test touches anything.
   local _snapshot="${BATS_TEST_TMPDIR}/pretest_pkgs.txt"
   _ospkg__snapshot_packages "$_snapshot"

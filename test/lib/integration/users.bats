@@ -15,7 +15,9 @@ _IG_NAMES_FILE=""
 
 setup_file() {
   load '../helpers/common'
-  reload_lib
+  if [[ "$(uname)" != Linux ]]; then
+    return 0 # individual tests will skip on non-Linux
+  fi
 
   bootstrap__shadow_utils
 
@@ -43,6 +45,7 @@ teardown_file() {
 setup() {
   load '../helpers/common'
   reload_lib
+  [[ "$(uname)" == Linux ]] || skip "user management tests require Linux"
   local _g _u _s
   {
     read -r _g
