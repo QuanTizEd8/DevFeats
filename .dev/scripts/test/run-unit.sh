@@ -45,6 +45,7 @@ _jobs=0 # 0 = let bats decide (auto / num CPUs)
 _integration=false
 _exclude_integration=true
 _clean_path=false
+_path_prepend=""
 declare -a _paths=()
 
 while [[ $# -gt 0 ]]; do
@@ -84,16 +85,23 @@ while [[ $# -gt 0 ]]; do
       _clean_path=true
       shift
       ;;
+    --path-prepend)
+      shift
+      _path_prepend="$1"
+      shift
+      ;;
     --help | -h)
       cat << 'HELP'
-Usage: bash .dev/scripts/test/run-unit.sh [--module <name>] [--filter <regex>] [--jobs <n>] [--paths <glob>] [--integration]
+Usage: bash .dev/scripts/test/run-unit.sh [--module <name>] [--filter <regex>] [--jobs <n>] [--paths <glob>] [--integration] [--path-prepend <dirs>]
 
-  --module <name>    Run only test/lib/<name>.bats  (e.g. os, shell, ospkg)
-  --filter <regex>   Pass --filter to bats (matches test names by regex)
-  --jobs <n>         Parallel job count (default: auto)
-  --paths <glob>     Add explicit test file/path glob (repeatable)
-  --integration      Run integration tests under test/lib/integration
+  --module <name>       Run only test/lib/<name>.bats  (e.g. os, shell, ospkg)
+  --filter <regex>      Pass --filter to bats (matches test names by regex)
+  --jobs <n>            Parallel job count (default: auto)
+  --paths <glob>        Add explicit test file/path glob (repeatable)
+  --integration         Run integration tests under test/lib/integration
   --exclude-integration Exclude test/lib/integration (default)
+  --clean-path          Strip PATH to system baseline (macOS)
+  --path-prepend <dirs> Prepend colon-separated dirs to PATH after --clean-path
 HELP
       exit 0
       ;;
@@ -109,6 +117,10 @@ done
 # baseline plus the bash ≥4 binary selected by the re-exec above.
 if [[ "$_clean_path" == true ]]; then
   PATH="$(dirname "$BASH"):/usr/bin:/bin:/usr/sbin:/sbin"
+  export PATH
+fi
+if [[ -n "$_path_prepend" ]]; then
+  PATH="${_path_prepend}:${PATH}"
   export PATH
 fi
 

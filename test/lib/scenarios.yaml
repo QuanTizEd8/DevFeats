@@ -18,21 +18,3 @@ opensuse-leap-15.6:
 
 archlinux:
   env: archlinux
-
-ubuntu-24.04-integration:
-  env: ubuntu-24.04+git
-  tests:
-    includes:
-      - integration/*.bats
-
-alpine-3.21-integration:
-  env: alpine-3.21+bash
-  tests:
-    includes:
-      - integration/*.bats
-
-fedora-42-integration:
-  env: fedora-42+bash
-  tests:
-    includes:
-      - integration/*.bats

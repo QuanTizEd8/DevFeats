@@ -94,8 +94,8 @@ def expand_test_files(
     base = Path(base_dir)
 
     if tests_spec is None:
-        includes = ["*.bats"]
-        excludes = ["integration/**"]
+        includes = ["*.bats", "integration/*.bats"]
+        excludes = []
     elif isinstance(tests_spec, dict):
         includes = tests_spec.get("includes", ["*.bats"])
         excludes = tests_spec.get("excludes", [])

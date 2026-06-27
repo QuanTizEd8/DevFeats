@@ -17,6 +17,10 @@ bats_require_minimum_version 1.5.0
 # tests can read them (setup_file runs in a different subshell context).
 # ---------------------------------------------------------------------------
 setup_file() {
+  load '../helpers/common'
+  reload_lib
+  # Ensure git is available; bootstrap installs it via ospkg if absent.
+  bootstrap__git 2> /dev/null || true
   command -v git > /dev/null 2>&1 || return 0
 
   local _src="${BATS_FILE_TMPDIR}/src.git"

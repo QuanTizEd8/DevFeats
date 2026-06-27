@@ -362,9 +362,15 @@ def compute_unit_macos_matrix() -> list[dict]:
     Returns
     -------
     list of dict
-        Unique ``{"runner": str, "clean_path": bool}`` entries from
-        ``test/environments.yaml`` where the image name starts with ``"macos"``,
-        sorted by runner name.
+        One entry per macOS environment key in ``test/environments.yaml``
+        (image name starts with ``"macos"``), preserving file order.
+        Each entry has:
+          - ``env``: environment key (display name)
+          - ``runner``: GitHub Actions runner (= image name for macOS)
+          - ``clean_path``: bool — strip PATH to system baseline before tests
+          - ``path_prepend``: colon-separated dirs to prepend after clean_path stripping
+          - ``integration``: bool — true when Homebrew is available (path_prepend set),
+            meaning integration tests can run alongside unit tests
     """
     cfg = load_config()
     envs_data: dict = (
@@ -373,13 +379,24 @@ def compute_unit_macos_matrix() -> list[dict]:
         )
         or {}
     )
-    seen: dict[str, bool] = {}
-    for val in envs_data.values():
-        if isinstance(val, dict):
-            image = val.get("image", "")
-            if image.startswith("macos") and image not in seen:
-                seen[image] = bool(val.get("clean_path", False))
-    return [{"runner": r, "clean_path": seen[r]} for r in sorted(seen)]
+    entries = []
+    for env_key, val in envs_data.items():
+        if not isinstance(val, dict):
+            continue
+        image = val.get("image", "")
+        if not image.startswith("macos"):
+            continue
+        path_prepend = val.get("path_prepend", "")
+        entries.append(
+            {
+                "env": env_key,
+                "runner": image,
+                "clean_path": bool(val.get("clean_path", False)),
+                "path_prepend": path_prepend,
+                "integration": bool(path_prepend),
+            }
+        )
+    return entries
 
 
 def compute_install_env_matrix() -> list[dict[str, str]]:

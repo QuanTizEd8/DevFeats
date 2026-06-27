@@ -51,7 +51,7 @@ jobs:
             just test-lib-env "${{ matrix.env.name }}"
 
   test-lib-macos:
-    name: ${{ matrix.os.runner }}
+    name: ${{ matrix.os.env }}
     if: |
       fromJSON(inputs.config).enabled == true &&
       fromJSON(inputs.config).macos_enabled == true
@@ -77,8 +77,13 @@ jobs:
       - name: "Install bash ≥4"
         run: brew install bash
 
-      - name: "Run unit tests"
+      - name: "Run unit and integration tests"
         run: |
           args=()
           [[ "${{ matrix.os.clean_path }}" == "true" ]] && args+=(--clean-path)
+          [[ -n "${{ matrix.os.path_prepend }}" ]] && args+=(--path-prepend "${{ matrix.os.path_prepend }}")
+          if [[ "${{ matrix.os.integration }}" == "true" ]]; then
+            # Run all tests (unit + integration) by pointing at the lib dir.
+            args+=(--paths "${GITHUB_WORKSPACE}/test/lib")
+          fi
           bash .dev/scripts/test/run-unit.sh "${args[@]}"

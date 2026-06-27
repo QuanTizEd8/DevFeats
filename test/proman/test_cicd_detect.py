@@ -604,22 +604,41 @@ def test_compute_unit_macos_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify unit macOS matrix contains only macOS runners with clean_path flag."""
+    """Verify unit macOS matrix enumerates each macOS env with full fields."""
     _use_tmp_repo(monkeypatch, tmp_path)
     _write(
         tmp_path / "test/environments.yaml",
         """\
 ubuntu-latest:
   image: ubuntu-latest
-macos-latest:
-  image: macos-latest
+macos-15:
+  image: macos-15
   clean_path: true
+macos-15+brew:
+  image: macos-15
+  clean_path: true
+  path_prepend: /opt/homebrew/bin:/usr/local/bin
 debian-latest:
   image: debian-latest
 """,
     )
     result = cd.compute_unit_macos_matrix()
-    assert result == [{"runner": "macos-latest", "clean_path": True}]
+    assert result == [
+        {
+            "env": "macos-15",
+            "runner": "macos-15",
+            "clean_path": True,
+            "path_prepend": "",
+            "integration": False,
+        },
+        {
+            "env": "macos-15+brew",
+            "runner": "macos-15",
+            "clean_path": True,
+            "path_prepend": "/opt/homebrew/bin:/usr/local/bin",
+            "integration": True,
+        },
+    ]
 
 
 def test_compute_unit_macos_matrix_empty_when_no_macos(
