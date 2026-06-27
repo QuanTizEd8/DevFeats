@@ -402,7 +402,7 @@ _ospkg__set_yum() {
 _ospkg__set_zypper() {
   _ospkg__configure_pm "Zypper (tool: zypper)" zypper zypper zypper _ospkg__clean_zypper "/var/cache/zypp/raw" "*"
   _OSPKG__UPDATE=(users__run_privileged zypper --gpg-auto-import-keys --non-interactive refresh)
-  _OSPKG__INSTALL=(users__run_privileged zypper --non-interactive install)
+  _OSPKG__INSTALL=(users__run_privileged zypper --non-interactive --no-refresh install)
   _OSPKG__REMOVE=(users__run_privileged zypper --non-interactive remove --clean-deps)
   _OSPKG__REMOVE_FORCE=(users__run_privileged rpm -e --nodeps)
 }
@@ -748,9 +748,13 @@ ospkg__install() {
   printf '  - %s\n' "$@" >&2
   # Keep interactive mode possible on TTY, but prevent PMs from draining
   # caller-provided stdin in piped/non-interactive contexts.
-  # zypper exits 6 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when packages are installed
-  # successfully but some repos had stale metadata — stop retrying immediately
-  # (--bail-on 6) and treat as success. Consistent with _ospkg__update_index.
+  # zypper: --no-refresh prevents the install subcommand from auto-refreshing
+  # repos; ospkg__update already handles refresh (with --gpg-auto-import-keys),
+  # so a second refresh is redundant and causes multi-minute CDN timeout loops
+  # when repos are temporarily unavailable (e.g. expired GPG keys, CDN issues).
+  # Additionally, zypper exits 6 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when packages
+  # are installed successfully but some repos had stale metadata — bail immediately
+  # (--bail-on 6) and treat as success, consistent with _ospkg__update_cmd.
   local _rc=0
   if [[ "$_OSPKG__PKG_MNGR" == "zypper" ]]; then
     if [[ -t 0 ]]; then
