@@ -38,9 +38,11 @@ Task is a **single static Go binary** named `task`.[^repo] It is compiled with `
 
 **Package conflict**: Official DEB/RPM/APK packages declare a conflict with `taskwarrior` (a separate task-management application that also provides a `task` binary).[^goreleaser-nfpms]
 
+**Runtime configuration**: Task requires no installation-time configuration. At runtime, it optionally reads a user config file at `$XDG_CONFIG_HOME/task/config.yml` (default: `~/.config/task/config.yml`, overridable via `--config` / `-c` flag) and discovers `Taskfile.yml` / `Taskfile.yaml` in the working directory tree.[^docs-config] Configuration precedence (highest last): config file → environment variables (`TASK_*`) → CLI flags.[^docs-cli] No environment variables or config files need to be created as part of installation.
+
 ## Installation Methods
 
-Task is distributed through official package repositories (Cloudsmith-hosted apt/dnf/apk, Homebrew, Snap, npm), community package managers, prebuilt GitHub release binaries, an official install script, Go toolchain methods, and a GitHub Actions installer. For DevFeats (macOS and Linux, containers and bare metal), the implementation-relevant methods are:
+Task is distributed through official package repositories (Cloudsmith-hosted apt/dnf/apk, Homebrew, Snap, npm, WinGet), community package managers, prebuilt GitHub release binaries, an official install script, Go toolchain methods, and a GitHub Actions installer. For DevFeats (macOS and Linux, containers and bare metal), the implementation-relevant methods are:
 
 1. **Official Cloudsmith package repositories** (apt, dnf, apk) — team-maintained, always up-to-date, includes shell completions in package post-install paths.
 2. **Homebrew** — primary macOS package-manager path; official tap and core formula both available.
@@ -136,17 +138,19 @@ apk info task
 
 ##### Version Selection
 
-Determined by the Cloudsmith repository state. Install a specific version if available in the repo:
+Determined by the Cloudsmith repository state. To install a specific version, first query available versions, then pin using the exact package version string published by the repository:
 
 ```bash
-# apt (example)
-sudo apt install task=3.51.1
+# apt — list available versions, then install by exact version string
+apt-cache madison task
+sudo apt install task=<exact-version-string>
 
-# dnf (example)
-sudo dnf install task-3.51.1
+# dnf — list available versions, then install by exact NEVRA
+dnf list task --showduplicates
+sudo dnf install task-<exact-version-string>
 ```
 
-Exact version pinning syntax depends on the package manager and published package versions. For strict version pinning independent of repository lag, prefer [Manual Prebuilt Release Archives](#manual-prebuilt-release-archives-github-releases) or the [Official Install Script](#official-install-script-taskfiledevinstallsh).
+Exact version strings are repository-specific (e.g. `3.51.1` or `3.51.1-1` depending on packaging). For strict version pinning independent of repository lag, prefer [Manual Prebuilt Release Archives](#manual-prebuilt-release-archives-github-releases) or the [Official Install Script](#official-install-script-taskfiledevinstallsh).
 
 ##### Installation Path
 
@@ -280,15 +284,13 @@ brew info go-task
 
 ##### Version Selection
 
-Determined by Homebrew formula version. Pin with:
+Determined by Homebrew formula version in the active tap/core channel. Homebrew does not support arbitrary semver pinning via `@` suffixes (those denote major-version formulae like `python@3.12`, not specific patch releases). To freeze a installed version after install:
 
 ```bash
-brew install go-task@3.51.1   # if versioned formula exists
-# or
 brew pin go-task
 ```
 
-For exact version control, prefer release-archive or install-script methods.
+For exact version control (e.g. `3.51.1`), prefer the [Official Install Script](#official-install-script-taskfiledevinstallsh) or [Manual Prebuilt Release Archives](#manual-prebuilt-release-archives-github-releases) methods, or use `brew extract` to create a version-specific formula locally.
 
 ##### Installation Path
 
@@ -382,6 +384,8 @@ Auto-detected platforms in `get_binaries()`:[^src-install-sh]
 
 **Not supported by the install script** despite release assets existing: `linux/riscv64`, all `freebsd/*` targets. Attempting installation on these platforms causes the script to exit with `platform $PLATFORM is not supported`.[^src-install-sh]
 
+**Platform/asset mismatch**: The script's `get_binaries()` accepts `darwin/arm`, but current releases (v3.51.1) publish only `task_darwin_amd64.tar.gz` and `task_darwin_arm64.tar.gz` — no `task_darwin_arm.tar.gz`. On a darwin/arm host the script would attempt to download a non-existent asset; use Homebrew or manual release download on such hosts.[^src-install-sh][^gh-release-v3511]
+
 For DevFeats scope (macOS and Linux amd64/arm64), this method is directly applicable.
 
 #### Dependencies
@@ -404,33 +408,35 @@ For DevFeats scope (macOS and Linux amd64/arm64), this method is directly applic
 Default install to `./bin` relative to the current working directory:
 
 ```bash
-sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d
+sh -c "$(curl --location https://taskfile.dev/install.sh)"
 ```
 
 Install to a user-local or system-wide directory:
 
 ```bash
 # User-local (Linux)
-sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -b ~/.local/bin
 
 # User-local (alternative)
-sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/bin
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -b ~/bin
 
 # System-wide (requires root)
-sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -b /usr/local/bin
 ```
 
 Install a specific version (tag from GitHub releases):
 
 ```bash
-sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d v3.51.1
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- v3.51.1
 ```
 
 Combined directory and version (parameters are order-specific; version tag is positional after flags):[^docs-install]
 
 ```bash
-sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin v3.51.1
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -b ~/.local/bin v3.51.1
 ```
+
+Upstream documentation examples include the `-d` flag, which enables debug logging rather than being required for installation.[^docs-install][^src-install-sh]
 
 #### Installation Verification
 
@@ -448,8 +454,7 @@ The script logs `found version: {VERSION} for {TAG}/{OS}/{ARCH}` to stderr befor
 - Positional `[tag]` argument after option flags (e.g. `v3.51.1`).
 - If omitted, queries `https://github.com/go-task/task/releases/latest` via GitHub API JSON and extracts `tag_name`.[^src-install-sh]
 - Version prefix `v` is stripped internally (`VERSION=${TAG#v}`).
-
-Environment variable `TAG` can also be set before invocation (parsed into positional arg by `parse_args`).
+- There is no environment variable for version selection; only the positional argument is read by `parse_args()`.[^src-install-sh]
 
 ##### Installation Path
 
@@ -800,7 +805,11 @@ Standard npm configuration (`--prefix`, `.npmrc` settings) controls install loca
 
 ##### PATH Setup
 
-Ensure npm global bin directory is on `$PATH` (`npm bin -g`).
+Ensure npm global bin directory is on `$PATH`:
+
+```bash
+export PATH="$(npm prefix -g)/bin:$PATH"
+```
 
 ##### Configuration Files
 
@@ -906,9 +915,25 @@ Root/sudo required.
 
 Ensure `/snap/bin` is on PATH (usually automatic on snap-enabled systems).
 
+##### Configuration Files
+
+None required.
+
+##### Environment Variables
+
+None required at runtime.
+
+##### Activation Scripts
+
+None required.
+
 ##### Shell Completions
 
 Snap package may include completions depending on snap build; verify with `snap info task`.
+
+##### Cleanup
+
+None required.
 
 #### Changing Versions and Uninstallation
 
@@ -934,29 +959,141 @@ sudo snap remove task
 - Less common in container contexts due to snapd dependency and classic confinement requirement.
 - Mentioned for completeness on bare-metal Linux hosts.
 
+### WinGet
+
+Official Windows package manager method documented under Official Package Managers.[^docs-install] Included for completeness; not a primary DevFeats target (macOS/Linux scope).
+
+#### Supported Platforms
+
+- Windows 10/11 with WinGet (`winget`) installed.
+
+#### Dependencies
+
+##### Common Dependencies
+
+- Windows Package Manager (`winget`) available on the system.
+
+##### Platform-Specific Dependencies
+
+None beyond WinGet itself.
+
+#### Installation Steps
+
+```bash
+winget install Task.Task
+```
+
+Package identifier: `Task.Task` (published via GoReleaser to `go-task/winget-pkgs`).[^goreleaser-winget][^docs-install]
+
+#### Installation Verification
+
+```bash
+task --version
+winget list Task.Task
+```
+
+#### Configuration Options
+
+##### Version Selection
+
+WinGet installs the version available in the configured winget source (typically latest stable). Pin with:
+
+```bash
+winget install Task.Task --version 3.51.1
+```
+
+##### Installation Path
+
+WinGet-managed; binary typically available on PATH after install via WinGet shims.
+
+##### User Targeting
+
+Per-user or system-wide depending on WinGet elevation and install scope.
+
+##### Required Privileges
+
+May require elevation for system-wide install.
+
+##### Tool-Specific Configurations
+
+Standard WinGet flags apply (`--accept-source-agreements`, `--accept-package-agreements`, etc.).
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+
+WinGet typically adds shims to PATH automatically; open a new shell session if `task` is not found.
+
+##### Configuration Files
+
+None required.
+
+##### Environment Variables
+
+None required at runtime.
+
+##### Activation Scripts
+
+None required.
+
+##### Shell Completions
+
+Not installed by WinGet package; configure manually via `task --completion powershell`.
+
+##### Cleanup
+
+None required beyond WinGet cache maintenance.
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+```bash
+winget upgrade Task.Task
+winget install Task.Task --version 3.51.1
+```
+
+##### Uninstallation
+
+```bash
+winget uninstall Task.Task
+```
+
+##### Idempotency
+
+`winget install` reports already installed when the package is present at the requested version.
+
+#### Notes and Best Practices
+
+- Official team-maintained distribution channel for Windows.
+- DevFeats feature scope is macOS/Linux; document WinGet for cross-platform reference only.
+
 ### Community Package Managers
 
-These methods are community-maintained; the Task team does not control version freshness.[^docs-install]
+These methods are community-maintained; the Task team does not control version freshness.[^docs-install] The table below is a summary index; each row includes install, verify, and uninstall commands. For full template-level detail on any specific manager, consult the linked official installation docs.
 
 #### Supported Platforms and Commands
 
-| Manager | Platform | Install command | Package name |
-|---|---|---|---|
-| mise (aqua backend) | Cross-platform | `mise use -g aqua:go-task/task@latest && mise install` | aqua:go-task/task |
-| mise (ubi backend) | Cross-platform | `mise use -g ubi:go-task/task && mise install` | ubi:go-task/task |
-| MacPorts | macOS | `sudo port install go-task` | go-task |
-| pip | Cross-platform | `pip install go-task-bin` | go-task-bin |
-| Arch pacman | Arch Linux | `sudo pacman -S go-task` | go-task |
-| Fedora dnf (community) | Fedora | `sudo dnf install go-task` | go-task |
-| Nix | NixOS/Nix | `nix-env -iA nixpkgs.go-task` | go-task |
-| Scoop | Windows | `scoop install task` | task |
-| Chocolatey | Windows | `choco install go-task` | go-task |
+| Manager | Platform | Install | Verify | Uninstall | Package name |
+|---|---|---|---|---|---|
+| mise (aqua) | Cross-platform | `mise use -g aqua:go-task/task@3.51.1 && mise install` | `task --version` | `mise uninstall aqua:go-task/task` | aqua:go-task/task |
+| mise (ubi) | Cross-platform | `mise use -g ubi:go-task/task && mise install` | `task --version` | `mise uninstall ubi:go-task/task` | ubi:go-task/task |
+| MacPorts | macOS | `sudo port install go-task` | `task --version` | `sudo port uninstall go-task` | go-task |
+| pip | Cross-platform | `pip install go-task-bin==3.51.1` | `task --version` | `pip uninstall go-task-bin` | go-task-bin |
+| Arch pacman | Arch Linux | `sudo pacman -S go-task` | `task --version` | `sudo pacman -R go-task` | go-task |
+| Fedora dnf (community) | Fedora | `sudo dnf install go-task` | `task --version` | `sudo dnf remove go-task` | go-task |
+| Nix | NixOS/Nix | `nix-env -iA nixpkgs.go-task` | `task --version` | `nix-env -e go-task` | go-task |
+| FreeBSD Ports | FreeBSD | `pkg install task` | `task --version` | `pkg delete task` | task |
+| pacstall | Debian-based | `pacstall -I go-task-deb` | `task --version` | `pacstall -R go-task-deb` | go-task-deb |
+| pkgx | Cross-platform | `pkgx task` | `task --version` | N/A (ephemeral) | task |
+| Scoop | Windows | `scoop install task` | `task --version` | `scoop uninstall task` | task |
+| Chocolatey | Windows | `choco install go-task` | `task --version` | `choco uninstall go-task` | go-task |
 
 [^docs-install]
 
 #### Dependencies
 
-Varies by manager. mise/aqua and mise/ubi install directly from GitHub releases. pip package `go-task-bin` wraps prebuilt binaries (latest: 3.51.1).[^pip-bin]
+Varies by manager. mise/aqua and mise/ubi install directly from GitHub releases. pip package `go-task-bin` wraps prebuilt binaries (latest: 3.51.1 as of 2026-06-28).[^pip-bin]
 
 #### Installation Verification
 
@@ -994,7 +1131,9 @@ Use the respective manager's upgrade/remove commands.
 
 #### Supported Platforms
 
-Any platform supported by the Go toolchain.
+Any platform supported by the Go toolchain for **compiling** Task from source.
+
+Requires Go **1.25.10+** (minimum per `go.mod`).[^go-mod]
 
 #### Dependencies
 
@@ -1101,7 +1240,9 @@ rm -f "$(go env GOPATH)/bin/task"
 
 #### Supported Platforms
 
-Go projects using Go 1.24+ tool dependency tracking.
+Go projects using Go **1.24+** tool dependency tracking (`go get -tool`).[^docs-install]
+
+Note: `go get -tool` / `go tool task` requires Go 1.24+ for the tool-tracking mechanism, but **compiling Task from source** (as `go tool` does on first invocation) requires Go **1.25.10+** per `go.mod`.[^go-mod][^docs-install]
 
 #### Dependencies
 
@@ -1130,7 +1271,7 @@ go tool task {arguments...}
 
 [^docs-install]
 
-Go compiles Task on demand before executing when using `go tool task`.
+Go compiles Task on demand before executing when using `go tool task`.[^docs-install]
 
 #### Installation Verification
 
@@ -1206,6 +1347,9 @@ eval "$(task --completion zsh)"
 
 # fish (~/.config/fish/config.fish)
 task --completion fish | source
+
+# PowerShell ($PROFILE\Microsoft.PowerShell_profile.ps1)
+Invoke-Expression (&task --completion powershell | Out-String)
 ```
 
 If the executable is not named `task`, set `TASK_EXE` before eval:[^docs-install-completions]
@@ -1221,6 +1365,8 @@ eval "$(task --completion bash)"
 task --completion bash > /etc/bash_completion.d/task
 task --completion zsh  > /usr/local/share/zsh/site-functions/_task
 task --completion fish > ~/.config/fish/completions/task.fish
+# PowerShell: save script and dot-source from profile
+task --completion powershell > ~/.local/share/powershell/Scripts/task.ps1
 ```
 
 **Zsh customization** — hide task descriptions:[^docs-install-completions]
@@ -1235,7 +1381,7 @@ Prebuilt completion files are also included in release tarballs under `completio
 
 ### Existing Community Dev Container Features
 
-The primary community devcontainer feature is published by eitsupi:[^eitsupi-feature]
+The primary community devcontainer feature is published by eitsupi, acknowledged by the Task maintainer.[^eitsupi-feature][^task-discussion-918]
 
 ```json
 "features": {
@@ -1262,7 +1408,7 @@ The feature's `install.sh` implementation:[^eitsupi-install-sh]
 5. Sets up shell completions (bash, zsh, fish, pwsh) from tarball or `task --completion`.
 6. Installs VS Code extension `task.vscode-task` via feature customizations.
 
-No official Task feature exists in `devcontainers/features` as of 2026-06-28.
+No official Task feature exists in `devcontainers/features` as of 2026-06-28. A search of the [containers.dev features index](https://containers.dev/features) and major community feature repositories (`devcontainers/features`, `devcontainers-extra/features`, `devcontainer-community/devcontainer-features`) found no other widely used Task/go-task features beyond eitsupi as of 2026-06-28.[^containers-dev]
 
 ### GitHub Actions (`go-task/setup-task`)
 
@@ -1294,15 +1440,26 @@ Note: Official installation docs reference `go-task/setup-task@v1`; the current 
 
 ### VS Code Extension (`task.vscode-task`)
 
-Official VS Code extension for Taskfile authoring and task execution.[^eitsupi-feature-json]
+Optional IDE integration for Taskfile authoring and task execution; not part of the core Task binary install.[^vscode-task]
 
 - **Extension ID**: `task.vscode-task`
-- **Auto-installed by**: eitsupi devcontainer feature customizations.
-- **Install manually**:
+- **Marketplace**: https://marketplace.visualstudio.com/items?itemName=task.vscode-task
+- **Requirements**: `task` binary available on PATH (or configured in extension settings).
+- **Auto-installed by**: eitsupi devcontainer feature customizations.[^eitsupi-feature-json]
+
+**Installation methods:**
 
 ```bash
+# VS Code CLI
 code --install-extension task.vscode-task
+
+# Cursor / VS Code-compatible editors
+cursor --install-extension task.vscode-task
 ```
+
+**Configuration**: Extension settings control Task binary path, Taskfile detection, and task tree display. See extension marketplace page for current options.
+
+**Limitations**: Extension provides editor integration only; it does not install the Task binary. PowerShell completion integration in devcontainers has known issues (see eitsupi feature TODO referencing go-task/task#1796).[^eitsupi-install-sh]
 
 No other official Task plugins or runtime extensions exist. Task itself has no plugin architecture for extending the task runner.
 
@@ -1311,23 +1468,28 @@ No other official Task plugins or runtime extensions exist. Task itself has no p
 [^homepage]: [Task Homepage](https://taskfile.dev/) — Official project landing page.
 [^docs-install]: [Official Docs – Installation](https://taskfile.dev/docs/installation) — Canonical installation methods, package manager matrix, install script usage, GitHub Actions, build-from-source, and Go tool instructions.
 [^docs-install-completions]: [Official Docs – Installation (Setup completions section)](https://taskfile.dev/docs/installation#setup-completions) — Shell completion installation via `--completion` flag and static file placement.
+[^docs-config]: [Official Docs – Configuration](https://taskfile.dev/docs/reference/config) — Runtime config file location, format, and options.
+[^docs-cli]: [Official Docs – CLI Reference](https://taskfile.dev/docs/reference/cli) — CLI flags, configuration precedence, and `--version` output.
 [^repo]: [Official GitHub Repository](https://github.com/go-task/task) — Source code, issue tracker, and release artifacts.
 [^go-mod]: [go.mod (main branch)](https://github.com/go-task/task/blob/main/go.mod) — Go module path and minimum Go version (1.25.10).
 [^goreleaser]: [GoReleaser Configuration (.goreleaser.yml)](https://github.com/go-task/task/blob/main/.goreleaser.yml) — Build matrix, archive naming, checksum file, and packaging configuration.
 [^goreleaser-nfpms]: [GoReleaser nfpms section (.goreleaser.yml)](https://github.com/go-task/task/blob/main/.goreleaser.yml) — DEB/RPM/APK package naming, completion file placement, and taskwarrior conflict declaration.
 [^goreleaser-brews]: [GoReleaser brews section (.goreleaser.yml)](https://github.com/go-task/task/blob/main/.goreleaser.yml) — Homebrew formula name, tap repository, and completion installation.
+[^goreleaser-winget]: [GoReleaser winget section (.goreleaser.yml)](https://github.com/go-task/task/blob/main/.goreleaser.yml) — WinGet package identifier `Task.Task` and publisher metadata.
 [^src-install-sh]: [install-task.sh (main branch)](https://github.com/go-task/task/blob/main/install-task.sh) — Version-controlled install script source; platform detection, download, checksum verification, and binary placement logic.
-[^install-sh-hosted]: [Hosted install script (taskfile.dev/install.sh)](https://taskfile.dev/install.sh) — Script served for curl-pipe install; verified identical to repository `install-task.sh`.
+[^install-sh-hosted]: [Hosted install script (taskfile.dev/install.sh)](https://taskfile.dev/install.sh) — Script served for curl-pipe install; verified byte-identical to repository `install-task.sh` on 2026-06-28.
 [^gh-api-latest]: [GitHub API – Latest Release](https://api.github.com/repos/go-task/task/releases/latest) — Machine-readable latest stable release metadata (v3.51.1, published 2026-05-16); verified 2026-06-28.
 [^gh-release-v3511]: [GitHub Release v3.51.1 Assets](https://github.com/go-task/task/releases/tag/v3.51.1) — Complete list of published binary archives, packages, and checksums file.
 [^task-checksums]: [task_checksums.txt (v3.51.1)](https://github.com/go-task/task/releases/download/v3.51.1/task_checksums.txt) — SHA-256 checksums for all v3.51.1 release assets.
 [^release-tarball]: Verified by extracting `task_linux_amd64.tar.gz` from v3.51.1 release — contains `task` binary, `completion/`, `LICENSE`, `README.md`; `task --version` outputs `3.51.1`.
 [^cloudsmith]: [Cloudsmith – task/task repository](https://cloudsmith.io/~task/repos/task/) — Official apt/dnf/apk package hosting.
 [^npm-cli]: [npm – @go-task/cli package](https://www.npmjs.com/package/@go-task/cli) — Official npm wrapper; version 3.51.1 as of 2026-06-28.
-[^pip-bin]: [PyPI – go-task-bin package](https://pypi.org/project/go-task-bin/) — Community pip wrapper for prebuilt Task binaries; version 3.51.1 as of 2026-06-28.
+[^pip-bin]: [PyPI – go-task-bin package](https://pypi.org/project/go-task-bin/) — Community pip wrapper for prebuilt Task binaries; version 3.51.1 verified via PyPI JSON on 2026-06-28.
 [^setup-task-readme]: [go-task/setup-task README](https://github.com/go-task/setup-task/blob/main/README.md) — GitHub Action inputs (`version`, `repo-token`, `max-retries`) and usage examples for `@v2`.
 [^setup-task-installer]: [go-task/setup-task installer.ts](https://github.com/go-task/setup-task/blob/main/src/installer.ts) — Action download URL construction (`task_{os}_{arch}.{tar.gz|zip}`), semver resolution, and tool-cache placement.
 [^eitsupi-feature]: [eitsupi/devcontainer-features – go-task README](https://github.com/eitsupi/devcontainer-features/blob/main/src/go-task/README.md) — Community devcontainer feature documentation and usage.
 [^eitsupi-feature-json]: [eitsupi/devcontainer-features – devcontainer-feature.json](https://github.com/eitsupi/devcontainer-features/blob/main/src/go-task/devcontainer-feature.json) — Feature options, VS Code extension customization, and dependency declarations.
 [^eitsupi-install-sh]: [eitsupi/devcontainer-features – install.sh](https://github.com/eitsupi/devcontainer-features/blob/main/src/go-task/install.sh) — Community feature install implementation (GitHub release download to `/usr/local/bin/task`).
 [^task-discussion-918]: [go-task/task Discussion #918](https://github.com/go-task/task/discussions/918) — Maintainer acknowledgment of eitsupi devcontainer feature.
+[^containers-dev]: [Available Dev Container Features Index](https://containers.dev/features) — Registry of published devcontainer features; searched for Task/go-task entries on 2026-06-28.
+[^vscode-task]: [VS Code Marketplace – task.vscode-task](https://marketplace.visualstudio.com/items?itemName=task.vscode-task) — Official VS Code extension for Taskfile integration.
