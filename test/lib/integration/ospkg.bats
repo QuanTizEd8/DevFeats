@@ -135,14 +135,19 @@ teardown() {
 }
 
 @test "ospkg__resolve_version: returns PM version string for a known package" {
-  # bash is present in every supported repository; "5" matches bash 5.x on all distros.
-  run ospkg__resolve_version bash "5"
+  # Use the running bash's own major version as the spec so the test is valid
+  # on all distros (e.g. bash 4.x on openSUSE Leap, 5.x on Ubuntu/Fedora/…).
+  local _major
+  _major="${BASH_VERSINFO[0]}"
+  run ospkg__resolve_version bash "$_major"
   assert_success
   [[ -n "$output" ]]
 }
 
-@test "ospkg__has_available_version: returns 0 for bash with major-version spec" {
-  run ospkg__has_available_version bash "5"
+@test "ospkg__has_available_version: returns 0 for bash with matching major-version spec" {
+  local _major
+  _major="${BASH_VERSINFO[0]}"
+  run ospkg__has_available_version bash "$_major"
   assert_success
 }
 

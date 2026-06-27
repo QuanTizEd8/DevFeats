@@ -170,6 +170,9 @@ EOF
       printf '%s\n' "Version: 1.2.0"
       return 0
     fi
+    if [[ "$1" == "login" ]]; then
+      return 0
+    fi
     if [[ "$1" == "manifest" && "$2" == "fetch" ]]; then
       cat << EOF
 {"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"sha256:${_hash}"}]}

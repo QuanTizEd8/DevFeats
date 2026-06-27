@@ -95,13 +95,13 @@ teardown() {
   command -v sha256sum > /dev/null 2>&1 || command -v shasum > /dev/null 2>&1
 }
 
-@test "bootstrap__gzip: returns 0 (gzip is always present on Linux)" {
+@test "bootstrap__gzip: ensures gzip is available (installing if absent)" {
   run bootstrap__gzip
   assert_success
   command -v gzip > /dev/null 2>&1
 }
 
-@test "bootstrap__tar: returns 0 (tar is always present on Linux)" {
+@test "bootstrap__tar: ensures tar is available (installing if absent)" {
   run bootstrap__tar
   assert_success
   command -v tar > /dev/null 2>&1

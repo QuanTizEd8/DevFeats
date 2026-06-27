@@ -92,7 +92,7 @@ setup() {
 
 @test "users__set_login_shell: changes the login shell" {
   command -v chsh > /dev/null 2>&1 || skip "chsh not available"
-  run users__set_login_shell "$_IG_USER" /bin/sh
+  run users__set_login_shell /bin/sh "$_IG_USER"
   assert_success
   getent passwd "$_IG_USER" | grep -q ':/bin/sh$'
 }

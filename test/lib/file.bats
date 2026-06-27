@@ -142,8 +142,11 @@ setup() {
   local _arc="${BATS_TEST_TMPDIR}/test_no_gzip.tar.gz"
   touch "$_arc"
   local _dest="${BATS_TEST_TMPDIR}/out_no_gzip"
-  # Restrict PATH so gzip is not found but tar is available.
-  create_pass_through_bin "tar"
+  # Use a fake tar stub (not a pass-through) so the test works regardless of
+  # whether real tar is pre-installed (e.g. openSUSE Leap minimal image has no
+  # tar). The test only needs command -v tar to succeed so execution reaches
+  # the gzip availability check; it does not need tar to actually extract.
+  create_fake_bin "tar" ""
   begin_path_isolation "basename" "mkdir" "sort" "tar"
 
   run file__extract_archive "$_arc" "$_dest"

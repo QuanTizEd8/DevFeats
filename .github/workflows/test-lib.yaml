@@ -83,7 +83,9 @@ jobs:
           [[ "${{ matrix.os.clean_path }}" == "true" ]] && args+=(--clean-path)
           [[ -n "${{ matrix.os.path_prepend }}" ]] && args+=(--path-prepend "${{ matrix.os.path_prepend }}")
           if [[ "${{ matrix.os.integration }}" == "true" ]]; then
-            # Run all tests (unit + integration) by pointing at the lib dir.
-            args+=(--paths "${GITHUB_WORKSPACE}/test/lib")
+            # Unit tests (top-level *.bats) and integration tests (integration/*.bats).
+            # Use explicit patterns to avoid recursing into the bats/ submodule.
+            args+=(--paths "${GITHUB_WORKSPACE}/test/lib/*.bats")
+            args+=(--paths "${GITHUB_WORKSPACE}/test/lib/integration")
           fi
           bash .dev/scripts/test/run-unit.sh "${args[@]}"
