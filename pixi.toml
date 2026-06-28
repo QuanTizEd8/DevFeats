@@ -109,7 +109,7 @@ depends-on = [{ task = "_sync-docs-data", environment = "default" }]
 cmd = "python -m sphinx -b $SPHINX_BUILDER $SPHINX_BUILD_OPTIONS -c docs docs/source .local/build/docs && pixi run --environment default publish-docs-schemas"
 
 [feature.docs.tasks.build-docs-live]
-cmd = "python -m sphinx_autobuild docs/source .local/build/docs --conf-dir docs --watch features --watch .config --watch .dev --watch .local/data_transfer --pre-build 'pixi run --environment default _sync-docs-data && pixi run --environment default publish-docs-schemas' --jobs auto --write-all --nitpicky"
+cmd = "python -m sphinx_autobuild docs/source .local/build/docs --builder $SPHINX_BUILDER --conf-dir docs --watch features --watch .config --watch .dev --watch .local/data_transfer --pre-build 'pixi run --environment default _sync-docs-data' --post-build 'pixi run --environment default publish-docs-schemas' --verbose --show-traceback --color --jobs auto --write-all --nitpicky"
 
 [feature.docs.activation.env]
 SPHINX_BUILDER = "dirhtml"

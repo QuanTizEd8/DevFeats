@@ -190,7 +190,7 @@ build-docs:
   doc('Live-rebuild Sphinx with browser preview.')
 ]
 build-docs-live:
-    pixi run build-docs-live
+    just capture build-docs-live -- pixi run build-docs-live
 
 
 [
