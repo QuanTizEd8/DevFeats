@@ -45,17 +45,13 @@ def merge_all_defaults(
     shared: dict | None = None,
 ) -> dict:
     """Merge shared, feature-level, then scenario-level defaults/options."""
-    merged = dict(scenario)
-    layers = [shared or {}, feature_defaults or {}]
-    for key in ("options", "args", "env_vars"):
-        base: dict = {}
-        for layer in layers:
-            if key in layer and isinstance(layer[key], dict):
-                base.update(layer[key])
-        if key in scenario and isinstance(scenario.get(key), dict):
-            base.update(scenario[key])
-        if base:
-            merged[key] = base
+    merged: dict = {}
+    for layer in [shared or {}, feature_defaults or {}, scenario]:
+        for key, value in layer.items():
+            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = {**merged[key], **value}
+            else:
+                merged[key] = value
     return merged
 
 
