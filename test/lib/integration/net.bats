@@ -16,7 +16,7 @@ setup() {
   # Pass GITHUB_TOKEN when available — macOS CI runners hit API rate limits otherwise.
   local -a _args=()
   [[ -z "${GITHUB_TOKEN:-}" ]] || _args+=(--header "Authorization: token $GITHUB_TOKEN")
-  run net__fetch_url_stdout "${_args[@]}" "https://api.github.com/zen"
+  run net__fetch_url_stdout "https://api.github.com/zen" "${_args[@]}"
   assert_success
   [[ -n "$output" ]]
 }
@@ -25,7 +25,7 @@ setup() {
   local -a _args=()
   [[ -z "${GITHUB_TOKEN:-}" ]] || _args+=(--header "Authorization: token $GITHUB_TOKEN")
   local _dest="${BATS_TEST_TMPDIR}/zen.txt"
-  run net__fetch_url_file "${_args[@]}" "https://api.github.com/zen" "$_dest"
+  run net__fetch_url_file "https://api.github.com/zen" "$_dest" "${_args[@]}"
   assert_success
   [[ -f "$_dest" && -s "$_dest" ]]
 }
