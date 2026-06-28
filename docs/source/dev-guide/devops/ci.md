@@ -76,7 +76,7 @@ Logs are saved to `.local/logs/gha/<commit-sha>/<run-id>/`:
 Feature-test job names look like `Test Feature install-git / default_install.ubuntu-24.04 (linux)` (reusable workflow); artifacts are named `feat-log-<feature>-<scenario-key>-<mode>`. `fetch-gha` resolves the exact artifact name from the job name.
 
 Per-scenario install logs are also written during local/CI test runs under
-`.local/logs/tests/features/<scenario-key>.log` (see {doc}`/dev-guide/tests/features`).
+`.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` (see {doc}`/dev-guide/tests/features`).
 
 ### `workflow_dispatch` Inputs
 
@@ -124,7 +124,7 @@ Runs feature tests via `proman-test-run`. Three sub-modes run in parallel:
 - **Standalone Linux** (`test-features-linux`): runs `install.bash` directly in plain Docker containers (standalone mode).
 - **macOS** (`test-features-macos`): runs on native `macos-latest` runners for scenarios with `modes: [macos]`.
 
-Scenarios inherit logging defaults from `test/features/defaults.shared.yaml` (`log_level: debug`, `log_file_level: trace`). Each job uploads `.local/logs/tests/features/<scenario-key>.log` as a `feat-log-*` artifact for post-mortem analysis (see log table under **Monitoring CI** above).
+Scenarios inherit logging defaults from `test/features/defaults.shared.yaml` (`log_level: debug`, `log_file_level: trace`). Each job uploads `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` as a `feat-log-*` artifact for post-mortem analysis (see log table under **Monitoring CI** above).
 
 ### Docs Build
 

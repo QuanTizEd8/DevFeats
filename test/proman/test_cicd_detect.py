@@ -198,7 +198,7 @@ linux_only:
         {
             "feature": "install-foo",
             "runner": "macos-latest",
-            "scenario": "macos_default",
+            "scenario": "macos_default.macos-latest",
         },
     ]
 
@@ -244,8 +244,16 @@ scenario_b:
     )
     result = cd.compute_macos_matrix(["install-foo"])
     assert result == [
-        {"feature": "install-foo", "runner": "macos-latest", "scenario": "scenario_a"},
-        {"feature": "install-foo", "runner": "macos-latest", "scenario": "scenario_b"},
+        {
+            "feature": "install-foo",
+            "runner": "macos-latest",
+            "scenario": "scenario_a.macos-latest",
+        },
+        {
+            "feature": "install-foo",
+            "runner": "macos-latest",
+            "scenario": "scenario_b.macos-latest",
+        },
     ]
 
 
@@ -270,8 +278,8 @@ def test_compute_feature_matrix_default_modes_in_both_linux_lists(
     assert result == [
         {
             "feature": "install-foo",
-            "devcontainer_scenarios": ["default"],
-            "linux_scenarios": ["default"],
+            "devcontainer_scenarios": ["default.ubuntu-latest"],
+            "linux_scenarios": ["default.ubuntu-latest"],
             "macos_scenarios": [],
         },
     ]
@@ -301,7 +309,7 @@ only_standalone:
         {
             "feature": "install-foo",
             "devcontainer_scenarios": [],
-            "linux_scenarios": ["only_standalone"],
+            "linux_scenarios": ["only_standalone.ubuntu-latest"],
             "macos_scenarios": [],
         },
     ]
@@ -327,7 +335,9 @@ def test_compute_feature_matrix_macos_env_only_in_macos_scenarios(
             "feature": "install-foo",
             "devcontainer_scenarios": [],
             "linux_scenarios": [],
-            "macos_scenarios": [{"scenario": "mac_sc", "runner": "macos-latest"}],
+            "macos_scenarios": [
+                {"scenario": "mac_sc.macos-latest", "runner": "macos-latest"}
+            ],
         },
     ]
 
@@ -358,9 +368,11 @@ mac_sc:
     assert result == [
         {
             "feature": "install-foo",
-            "devcontainer_scenarios": ["default"],
-            "linux_scenarios": ["default"],
-            "macos_scenarios": [{"scenario": "mac_sc", "runner": "macos-latest"}],
+            "devcontainer_scenarios": ["default.ubuntu-latest"],
+            "linux_scenarios": ["default.ubuntu-latest"],
+            "macos_scenarios": [
+                {"scenario": "mac_sc.macos-latest", "runner": "macos-latest"}
+            ],
         },
     ]
 
@@ -393,7 +405,9 @@ mac_sc:
             "feature": "install-foo",
             "devcontainer_scenarios": [],
             "linux_scenarios": [],
-            "macos_scenarios": [{"scenario": "mac_sc", "runner": "macos-latest"}],
+            "macos_scenarios": [
+                {"scenario": "mac_sc.macos-latest", "runner": "macos-latest"}
+            ],
         },
     ]
 

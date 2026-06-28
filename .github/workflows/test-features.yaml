@@ -70,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: feat-log-${{ fromJSON(inputs.config).feature }}-${{ matrix.scenario }}-devcontainer
-          path: .local/logs/tests/features/${{ matrix.scenario }}.log
+          path: .local/logs/tests/features/${{ fromJSON(inputs.config).feature }}--${{ matrix.scenario }}--devcontainer.log
           if-no-files-found: ignore
 
   test-features-linux:
@@ -120,7 +120,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: feat-log-${{ fromJSON(inputs.config).feature }}-${{ matrix.scenario }}-linux
-          path: .local/logs/tests/features/${{ matrix.scenario }}.log
+          path: .local/logs/tests/features/${{ fromJSON(inputs.config).feature }}--${{ matrix.scenario }}--linux.log
           if-no-files-found: ignore
 
   test-features-macos:
@@ -144,7 +144,7 @@ jobs:
       - name: Set Up Environment
         run: brew install just pixi
 
-      - name: "Test ${{ fromJSON(inputs.config).feature }} / ${{ matrix.sc.scenario }}"
+      - name: "${{ matrix.sc.scenario }} (macOS)"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: just test-feats-macos "${{ fromJSON(inputs.config).feature }}" --filter "${{ matrix.sc.scenario }}"
@@ -154,5 +154,5 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: feat-log-${{ fromJSON(inputs.config).feature }}-${{ matrix.sc.scenario }}-macos
-          path: .local/logs/tests/features/${{ matrix.sc.scenario }}.log
+          path: .local/logs/tests/features/${{ fromJSON(inputs.config).feature }}--${{ matrix.sc.scenario }}--macos.log
           if-no-files-found: ignore

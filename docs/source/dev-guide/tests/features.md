@@ -58,15 +58,16 @@ container. The test runner always copies the install log to a canonical host fil
 
 ## Install log capture
 
-`proman-test-run` (via `just test-feats`) writes one host log per scenario key under
-`.local/logs/tests/features/<scenario-key>.log` (gitignored). Layout is defined in
-`.config/proman/_main.yaml` (`path.local_logs_features`).
+`proman-test-run` (via `just test-feats`) writes one host log per test run under
+`.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` (gitignored), where
+`scenario-key` always includes the environment name (e.g. `default.ubuntu-24.04`).
+Layout is defined in `.config/proman/_main.yaml` (`path.local_logs_features`).
 
 | Mode | How the log reaches the host |
 |------|------------------------------|
-| **standalone** | Bind-mount `.local/logs/tests/features` at `/log-out`; install copies `${LOG_FILE}` to `/log-out/<key>.log` before the container exits |
-| **devcontainer** | Install runs at image build (before mounts). Runtime bind mount via `DEVFEATS_LOG_BIND_DIR` → `/log-out`; every generated test script copies the install log from its `log_file` path onto `/log-out/<key>.log` before `reportResults` so CI can upload it |
-| **macOS** | Install uses the scenario `log_file` (often under `/tmp/`); after the run, the file is copied to `.local/logs/tests/features/<key>.log` |
+| **standalone** | Bind-mount `.local/logs/tests/features` at `/log-out`; install copies `${LOG_FILE}` to `/log-out/<feature>--<key>--linux.log` before the container exits |
+| **devcontainer** | Install runs at image build (before mounts). Runtime bind mount via `DEVFEATS_LOG_BIND_DIR` → `/log-out`; every generated test script copies the install log from its `log_file` path onto `/log-out/<feature>--<key>--devcontainer.log` before `reportResults` so CI can upload it |
+| **macOS** | Install uses the scenario `log_file` (often under `/tmp/`); after the run, the file is copied to `.local/logs/tests/features/<feature>--<key>--macos.log` |
 
 CI uploads each matrix log as `feat-log-<feature>-<scenario-key>-<mode>` (see
 {doc}`/dev-guide/devops/ci`). When debugging CI locally, `just fetch-gha` saves GHA job
@@ -366,7 +367,7 @@ In devcontainer mode, keys are passed as-is to the features config object.
 
 Feature tests run in the `test-features` reusable workflow (`.github/workflows/test-features.yaml`), triggered by the main pipeline when `features/<id>/` or `lib/` changes. Each matrix job runs a single scenario (`--filter <key>`) in DinD (Linux) or on a native macOS runner.
 
-After each job, CI uploads `.local/logs/tests/features/<scenario-key>.log` as artifact
+After each job, CI uploads `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` as artifact
 `feat-log-<feature>-<scenario-key>-<devcontainer|linux|macos>` (`if-no-files-found: ignore`).
 Use these artifacts (or `just fetch-gha` trace sidecars) when GHA step logs are too terse.
 
@@ -466,7 +467,7 @@ Standard patterns:
 
 ### Multi-platform scenarios
 
-When the same option combination runs on multiple distros, use **one scenario** with multiple entries in `envs:`. The `expand_envs()` function automatically creates per-env run keys (`scenario_name.env_name`) for logging.
+When the same option combination runs on multiple distros, use **one scenario** with multiple entries in `envs:`. The `expand_envs()` function creates one env-qualified run key per env (`scenario_name.env_name`, including when there is only one env).
 
 ```yaml
 # Good: one scenario, multiple envs

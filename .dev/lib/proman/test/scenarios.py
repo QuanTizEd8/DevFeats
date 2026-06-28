@@ -66,16 +66,13 @@ def expand_envs(
     """Expand a scenario into one entry per (environment, test file)."""
     envs: list[str] = scenario.get("envs", [])
     tests: list[str] = scenario.get("tests", [])
-    multi_env = len(envs) > 1
     multi_test = len(tests) > 1
 
     entries = []
     test_iter: list = tests or [None]
     for env_name in envs:
         for test_file in test_iter:
-            parts = [name]
-            if multi_env:
-                parts.append(env_name)
+            parts = [name, env_name]
             if multi_test:
                 parts.append(Path(test_file).stem)
             sc = dict(scenario)

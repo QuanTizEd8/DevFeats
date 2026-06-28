@@ -28,7 +28,8 @@
 #       When the job name matches a feature-test matrix job (reusable workflow:
 #       "Test Feature <feature-id> / <scenario> (devcontainer|linux|macOS)",
 #       or legacy "<scenario> (mode)"), downloads the matching feat-log-*
-#       workflow artifact (trace-level install log) to <job-id>.trace.log
+#       artifact (trace-level install log; mode suffixes match
+#       proman.test.names.mode_artifact_suffix) to <job-id>.trace.log
 #       beside the GHA log.
 #
 # All log files are written to:

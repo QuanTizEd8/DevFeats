@@ -10,13 +10,14 @@ from typing import TYPE_CHECKING
 from proman.test.feature_logs import (
     DEVFEATS_LOG_BIND_DIR_ENV,
     append_bind_mount_copy_to_test_script,
-    bind_mount_container_log_path,
     container_log_path,
+    copy_log_to_bind_mount_fragment,
     default_container_log_path,
     devcontainer_log_bind_mount_spec,
     patch_devcontainer_scenario_logging,
     uses_bind_mount_log,
 )
+from proman.test.names import FeatureTestRun
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -34,11 +35,11 @@ def test_uses_bind_mount_log() -> None:
     assert uses_bind_mount_log({"log_file": "/tmp/git.log"}) is False
 
 
-def test_bind_mount_container_log_path_sanitizes_key() -> None:
-    """Map scenario keys with slashes to safe log file names."""
-    assert bind_mount_container_log_path("log_file/ubuntu-24.04") == (
-        "/log-out/log_file_ubuntu-24.04.log"
-    )
+def test_copy_log_to_bind_mount_fragment_uses_run_basename() -> None:
+    """Copy fragment targets /log-out/<feature>--<key>--<mode>.log."""
+    run = FeatureTestRun("install-direnv", "default.ubuntu-24.04", "standalone")
+    fragment = copy_log_to_bind_mount_fragment(run, log_path="/tmp/x.log")
+    assert "/log-out/install-direnv--default.ubuntu-24.04--linux.log" in fragment
 
 
 def test_devcontainer_log_bind_mount_spec_uses_env_var() -> None:
@@ -55,7 +56,7 @@ def test_patch_devcontainer_scenario_logging_default_log_file(
     path.write_text(
         json.dumps(
             {
-                "default_install": {
+                "default_install.ubuntu-24.04": {
                     "build": {"dockerfile": "default_install.Dockerfile"},
                     "features": {"install-git": {"version": "stable"}},
                 },
@@ -66,12 +67,12 @@ def test_patch_devcontainer_scenario_logging_default_log_file(
     )
     effective = patch_devcontainer_scenario_logging(
         path,
-        scenario_key="default_install",
+        scenario_key="default_install.ubuntu-24.04",
         options={},
     )
     assert effective == "/tmp/devfeats-feature.log"
     data = json.loads(path.read_text(encoding="utf-8"))
-    sc = data["default_install"]
+    sc = data["default_install.ubuntu-24.04"]
     assert devcontainer_log_bind_mount_spec() in sc["mounts"]
     assert "log_file" not in sc["features"]["install-git"]
 
@@ -84,7 +85,7 @@ def test_patch_devcontainer_scenario_logging_custom_log_file(
     path.write_text(
         json.dumps(
             {
-                "log_file": {
+                "log_file.ubuntu-24.04": {
                     "build": {"dockerfile": "log_file.Dockerfile"},
                     "features": {"install-git": {"log_file": "/tmp/git.log"}},
                 },
@@ -95,13 +96,15 @@ def test_patch_devcontainer_scenario_logging_custom_log_file(
     )
     effective = patch_devcontainer_scenario_logging(
         path,
-        scenario_key="log_file",
+        scenario_key="log_file.ubuntu-24.04",
         options={"log_file": "/tmp/git.log"},
     )
     assert effective == "/tmp/git.log"
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["log_file"]["features"]["install-git"]["log_file"] == "/tmp/git.log"
-    assert devcontainer_log_bind_mount_spec() in data["log_file"]["mounts"]
+    assert data["log_file.ubuntu-24.04"]["features"]["install-git"]["log_file"] == (
+        "/tmp/git.log"
+    )
+    assert devcontainer_log_bind_mount_spec() in data["log_file.ubuntu-24.04"]["mounts"]
 
 
 def test_append_bind_mount_copy_to_test_script(tmp_path: Path) -> None:
@@ -115,14 +118,15 @@ def test_append_bind_mount_copy_to_test_script(tmp_path: Path) -> None:
         "reportResults\n",
         encoding="utf-8",
     )
+    run = FeatureTestRun("install-conda-env", "log_file.ubuntu-24.04", "devcontainer")
     append_bind_mount_copy_to_test_script(
         script,
-        "log_file",
+        run,
         log_path="/tmp/conda-env.log",
     )
     text = script.read_text(encoding="utf-8")
     assert "/tmp/conda-env.log" in text
-    assert "/log-out/log_file.log" in text
+    assert "/log-out/install-conda-env--log_file.ubuntu-24.04--devcontainer.log" in text
     assert text.index("/log-out/") < text.rindex("reportResults")
 
 
@@ -136,9 +140,10 @@ def test_append_bind_mount_copy_skips_heredoc_report_results_comment(
         f"#!/bin/bash\ncat > /tmp/lib <<'END'\n{lib_line}END\nreportResults\n",
         encoding="utf-8",
     )
+    run = FeatureTestRun("install-git", "log_file.ubuntu-24.04", "devcontainer")
     append_bind_mount_copy_to_test_script(
         script,
-        "log_file",
+        run,
         log_path="/tmp/conda-env.log",
     )
     text = script.read_text(encoding="utf-8")

@@ -31,10 +31,10 @@ from .feature_logs import (
     container_log_path,
     copy_log_to_bind_mount_fragment,
     ensure_host_log_dir,
-    host_log_path,
     patch_devcontainer_scenario_logging,
 )
 from .gen_devcontainer import generate
+from .names import FeatureTestRun, host_log_path
 from .scenarios import expand_envs, merge_all_defaults, shared_defaults
 from .scenarios import load as load_scenarios
 
@@ -240,16 +240,30 @@ def _load_entries(feature: str, envs: dict) -> list[dict]:
     return entries
 
 
+def _known_entry_keys(entries: list[dict]) -> set[str]:
+    return {entry["key"] for entry in entries}
+
+
+def _key_matches_filter(key: str, filter_prefix: str, known_keys: set[str]) -> bool:
+    """Exact match when filter equals a known key; otherwise prefix match."""
+    if not filter_prefix:
+        return True
+    if filter_prefix in known_keys:
+        return key == filter_prefix
+    return key.startswith(filter_prefix)
+
+
 def _devcontainer_keys(
     entries: list[dict],
     filter_prefix: str,
 ) -> list[str]:
+    known_keys = _known_entry_keys(entries)
     keys: list[str] = []
     for entry in entries:
         if entry["env_is_macos"]:
             continue
         key = entry["key"]
-        if filter_prefix and not key.startswith(filter_prefix):
+        if not _key_matches_filter(key, filter_prefix, known_keys):
             continue
         modes = entry["scenario"].get("modes", ["devcontainer", "standalone"])
         if modes == ["standalone"]:
@@ -276,6 +290,7 @@ def _run_devcontainer(
     for key in keys:
         entry = next(e for e in entries if e["key"] == key)
         options = entry["scenario"].get("options", {})
+        run = FeatureTestRun(feature, key, "devcontainer")
         feat = cfg.absolute_path("path.test_features") / feature
 
         with tempfile.TemporaryDirectory() as tmpdir_str:
@@ -313,7 +328,7 @@ def _run_devcontainer(
             if test_script.is_file():
                 append_bind_mount_copy_to_test_script(
                     test_script,
-                    key,
+                    run,
                     log_path=container_log_path(options),
                 )
 
@@ -334,7 +349,7 @@ def _run_devcontainer(
                 check=False,
                 env=run_env,
             )
-            log_out = host_log_path(key)
+            log_out = host_log_path(run)
             if not log_out.is_file():
                 print(
                     f"⚠ devcontainer scenario {key}: install log not captured at "
@@ -358,6 +373,7 @@ def _run_standalone(
     checks_path = feat / str(cfg["filename.feature_checks"])
     checks_data = load_checks(checks_path) if checks_path.exists() else {}
 
+    known_keys = _known_entry_keys(entries)
     success = True
     for entry in entries:
         key = entry["key"]
@@ -366,7 +382,7 @@ def _run_standalone(
 
         if entry["env_is_macos"]:
             continue
-        if filter_prefix and not key.startswith(filter_prefix):
+        if not _key_matches_filter(key, filter_prefix, known_keys):
             continue
 
         modes = scenario.get("modes", ["devcontainer", "standalone"])
@@ -447,7 +463,8 @@ def _run_standalone(
                     "exit 1",
                 )
         parts.extend(test_cmd_lines)
-        parts.append(copy_log_to_bind_mount_fragment(key))
+        run = FeatureTestRun(feature, key, "standalone")
+        parts.append(copy_log_to_bind_mount_fragment(run))
 
         run_cmd = "\n".join(p for p in parts if p)
 
@@ -494,6 +511,7 @@ def _run_macos(
         shim_path.chmod(0o755)
 
         success = True
+        known_keys = _known_entry_keys(entries)
         for entry in entries:
             if not entry["env_is_macos"]:
                 continue
@@ -502,7 +520,7 @@ def _run_macos(
             env_name = entry["env_name"]
             scenario = entry["scenario"]
 
-            if filter_prefix and not key.startswith(filter_prefix):
+            if not _key_matches_filter(key, filter_prefix, known_keys):
                 continue
 
             standalone_cfg = scenario.get("standalone", {})
@@ -635,19 +653,20 @@ def _run_macos(
                     if result.returncode != 0:
                         success = False
             finally:
-                _save_macos_feature_log(key, options)
+                _save_macos_feature_log(feature, key, options)
 
         return success
     finally:
         shutil.rmtree(shim_dir)
 
 
-def _save_macos_feature_log(key: str, options: dict) -> None:
-    """Copy the scenario install log to `.local/logs/tests/features/<key>.log`."""
+def _save_macos_feature_log(feature: str, key: str, options: dict) -> None:
+    """Copy the scenario install log to the canonical host log for this run."""
+    run = FeatureTestRun(feature, key, "macos")
     src = Path(container_log_path(options))
     if not src.is_file():
         return
-    dest = host_log_path(key)
+    dest = host_log_path(run)
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dest)
 
@@ -668,7 +687,7 @@ def main() -> None:
         "--filter",
         default="",
         metavar="PREFIX",
-        help="Only run scenarios whose key starts with PREFIX",
+        help="Run scenarios whose key equals PREFIX or starts with PREFIX",
     )
     args = parser.parse_args()
 
