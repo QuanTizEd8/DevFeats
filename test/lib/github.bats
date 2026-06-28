@@ -1106,12 +1106,12 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
 }
 
 @test "github__resolve_version auto falls back to tags when releases return empty (numeric spec)" {
-  _github__first_stable_tag_matching() { return 1; }
+  _github__first_release_matching() { return 1; }
   github__tags() {
     printf 'v1.9.0\nv1.8.3\n'
     return 0
   }
-  export -f _github__first_stable_tag_matching github__tags
+  export -f _github__first_release_matching github__tags
   run github__resolve_version "owner/repo" "1.8"
   assert_success
   assert_output "v1.8.3
@@ -1123,6 +1123,323 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
   github__tags() { return 1; }
   export -f github__latest_tag github__tags
   run github__resolve_version "owner/repo" "stable"
+  assert_failure
+  assert_output --partial "no release or tag matching"
+}
+
+# ---------------------------------------------------------------------------
+# _github__first_release_matching (internal)
+# ---------------------------------------------------------------------------
+# These tests exercise the internal helper directly to verify that refactoring
+# for --tag-prefix and --prerelease did not alter the original stable-filter
+# and pagination behaviour.
+
+@test "_github__first_release_matching baseline: pre-releases are excluded" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.2.3-rc1","prerelease":true,"draft":false},{"tag_name":"v1.2.2","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "1.2"
+  assert_success
+  assert_output "v1.2.2"
+}
+
+@test "_github__first_release_matching baseline: draft releases are excluded" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.2.3","prerelease":false,"draft":true},{"tag_name":"v1.2.2","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "1.2"
+  assert_success
+  assert_output "v1.2.2"
+}
+
+@test "_github__first_release_matching baseline: returns failure when no stable match exists" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.2.3-rc1","prerelease":true,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "1.2"
+  assert_failure
+}
+
+@test "_github__first_release_matching norm_spec='' returns first (newest) stable tag" {
+  # New code path used by stable+tag_prefix; head -1 of filtered list.
+  _github__api_get() {
+    printf '[{"tag_name":"v2.0.0","prerelease":false,"draft":false},{"tag_name":"v1.9.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" ""
+  assert_success
+  assert_output "v2.0.0"
+}
+
+@test "_github__first_release_matching norm_spec='' skips pre-releases even when first" {
+  _github__api_get() {
+    printf '[{"tag_name":"v2.0.0-rc1","prerelease":true,"draft":false},{"tag_name":"v1.9.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" ""
+  assert_success
+  assert_output "v1.9.0"
+}
+
+@test "_github__first_release_matching --prerelease: pre-releases are included" {
+  _github__api_get() {
+    printf '[{"tag_name":"v1.2.3-rc1","prerelease":true,"draft":false},{"tag_name":"v1.2.2","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "1.2" --prerelease
+  assert_success
+  assert_output "v1.2.3-rc1"
+}
+
+@test "_github__first_release_matching --prerelease + norm_spec='': returns first release regardless of prerelease status" {
+  # Used by latest+tag_prefix: returns the newest item in the filtered list.
+  _github__api_get() {
+    printf '[{"tag_name":"v2.0.0-rc1","prerelease":true,"draft":false},{"tag_name":"v1.9.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "" --prerelease
+  assert_success
+  assert_output "v2.0.0-rc1"
+}
+
+@test "_github__first_release_matching --tag-prefix + norm_spec='': returns first stable tag matching prefix" {
+  _github__api_get() {
+    printf '[{"tag_name":"install-just/1.0.0","prerelease":false,"draft":false},{"tag_name":"lib/0.2.0","prerelease":false,"draft":false},{"tag_name":"lib/0.1.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "" --tag-prefix "lib/"
+  assert_success
+  assert_output "lib/0.2.0"
+}
+
+@test "_github__first_release_matching --tag-prefix + norm_spec='': skips non-matching prefix even if first" {
+  _github__api_get() {
+    printf '[{"tag_name":"install-just/1.0.0","prerelease":false,"draft":false},{"tag_name":"lib/0.2.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "" --tag-prefix "lib/"
+  assert_success
+  assert_output "lib/0.2.0"
+}
+
+@test "_github__first_release_matching --tag-prefix: paginates when full page has no matching-prefix releases" {
+  _github__api_get() {
+    case "$1" in
+      *\&page=1)
+        # Full page (100 items), none with lib/ prefix.
+        local i out='['
+        for i in $(seq 1 100); do
+          [ "$i" -gt 1 ] && out="${out},"
+          out="${out}{\"tag_name\":\"install-just/${i}.0.0\",\"prerelease\":false,\"draft\":false}"
+        done
+        printf '%s]\n' "$out"
+        ;;
+      *\&page=2)
+        printf '[{"tag_name":"lib/0.1.0","prerelease":false,"draft":false}]\n'
+        ;;
+      *)
+        echo "unexpected page: $1" >&2
+        return 1
+        ;;
+    esac
+    return 0
+  }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "" --tag-prefix "lib/"
+  assert_success
+  assert_output "lib/0.1.0"
+}
+
+@test "_github__first_release_matching rejects unknown option" {
+  _github__api_get() { return 0; }
+  export -f _github__api_get
+  run _github__first_release_matching "https://api.github.com/repos/owner/repo" "1.0" --bad-flag
+  assert_failure
+  assert_output --partial "unknown option"
+}
+
+# --- --tag-prefix flag -------------------------------------------------------
+
+@test "github__resolve_version --tag-prefix stable uses pagination not latest_tag" {
+  # When tag_prefix is set, github__latest_tag must NOT be called (it can't filter).
+  # Instead, paginated listing is used and filtered by prefix.
+  github__latest_tag() {
+    printf 'install-just/1.0.0\n'
+    return 0
+  }
+  export -f github__latest_tag
+  _github__api_get() {
+    printf '[{"tag_name":"lib/0.2.0","prerelease":false,"draft":false},{"tag_name":"install-just/1.0.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "stable" --tag-prefix "lib/" --endpoint release
+  assert_success
+  assert_output "lib/0.2.0
+0.2.0"
+}
+
+@test "github__resolve_version --tag-prefix stable skips releases outside prefix" {
+  _github__api_get() {
+    printf '[{"tag_name":"install-just/1.0.0","prerelease":false,"draft":false},{"tag_name":"install-taskfile/2.0.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "stable" --tag-prefix "lib/" --endpoint release
+  assert_failure
+  assert_output --partial "no release matching"
+}
+
+@test "github__resolve_version --tag-prefix latest uses pagination not per_page=1" {
+  _github__api_get() {
+    printf '[{"tag_name":"install-just/2.0.0-rc1","prerelease":true,"draft":false},{"tag_name":"lib/0.3.0-rc1","prerelease":true,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "latest" --tag-prefix "lib/" --endpoint release
+  assert_success
+  assert_output "lib/0.3.0-rc1
+0.3.0-rc1"
+}
+
+@test "github__resolve_version --tag-prefix numeric spec filters releases to prefix" {
+  _github__api_get() {
+    # Mix of lib/* and other feature releases; spec 1.2 must only match lib/*
+    printf '[{"tag_name":"install-just/1.2.0","prerelease":false,"draft":false},{"tag_name":"lib/1.2.3","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "1.2" --tag-prefix "lib/" --endpoint release
+  assert_success
+  assert_output "lib/1.2.3
+1.2.3"
+}
+
+@test "github__resolve_version --tag-prefix numeric spec does not spuriously match other release lines" {
+  _github__api_get() {
+    printf '[{"tag_name":"install-just/1.2.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "1.2" --tag-prefix "lib/" --endpoint release
+  assert_failure
+  assert_output --partial "no release matching '1.2'"
+}
+
+@test "github__resolve_version --tag-prefix exact version resolves correctly" {
+  _github__api_get() {
+    printf '[{"tag_name":"lib/0.1.0","prerelease":false,"draft":false}]\n'
+    return 0
+  }
+  export -f _github__api_get
+  run github__resolve_version "owner/repo" "0.1.0" --tag-prefix "lib/" --endpoint release
+  assert_success
+  assert_output "lib/0.1.0
+0.1.0"
+}
+
+@test "github__resolve_version without --tag-prefix behavior unchanged (regression)" {
+  github__latest_tag() {
+    printf 'v3.0.0\n'
+    return 0
+  }
+  export -f github__latest_tag
+  run github__resolve_version "owner/repo" "stable" --endpoint release
+  assert_success
+  assert_output "v3.0.0
+3.0.0"
+}
+
+# --- --tag-prefix: tags API fallback -----------------------------------------
+
+@test "github__resolve_version --tag-prefix stable: auto falls back to tags and filters by prefix" {
+  # Releases API returns nothing for the prefix; tags API has mixed tags.
+  _github__first_release_matching() { return 1; }
+  export -f _github__first_release_matching
+  github__tags() {
+    printf 'install-just/1.0.0\nlib/0.2.0\nlib/0.1.0-rc1\nlib/0.1.0\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "stable" --tag-prefix "lib/"
+  assert_success
+  # lib/0.2.0 is first stable (lib/0.1.0-rc1 is pre-release suffix → skipped)
+  assert_output "lib/0.2.0
+0.2.0"
+}
+
+@test "github__resolve_version --tag-prefix stable: tags API skips pre-release-suffix tags" {
+  _github__first_release_matching() { return 1; }
+  export -f _github__first_release_matching
+  github__tags() {
+    printf 'lib/0.2.0-rc1\nlib/0.1.0-beta\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "stable" --tag-prefix "lib/"
+  assert_failure
+  assert_output --partial "no release or tag matching"
+}
+
+@test "github__resolve_version --tag-prefix latest: auto falls back to tags and takes first matching tag" {
+  # latest accepts pre-releases; the first matching-prefix tag wins.
+  _github__first_release_matching() { return 1; }
+  export -f _github__first_release_matching
+  github__tags() {
+    printf 'install-just/1.0.0\nlib/0.3.0-rc1\nlib/0.2.0\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "latest" --tag-prefix "lib/"
+  assert_success
+  assert_output "lib/0.3.0-rc1
+0.3.0-rc1"
+}
+
+@test "github__resolve_version --tag-prefix numeric: auto falls back to tags and version-matches within prefix" {
+  _github__first_release_matching() { return 1; }
+  export -f _github__first_release_matching
+  github__tags() {
+    printf 'install-just/1.2.0\nlib/0.2.5\nlib/0.2.0\nlib/0.1.0\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "0.2" --tag-prefix "lib/"
+  assert_success
+  assert_output "lib/0.2.5
+0.2.5"
+}
+
+@test "github__resolve_version --tag-prefix numeric: tags API does not match tags outside prefix" {
+  _github__first_release_matching() { return 1; }
+  export -f _github__first_release_matching
+  github__tags() {
+    printf 'install-just/1.2.0\ninstall-taskfile/1.2.5\n'
+    return 0
+  }
+  export -f github__tags
+  run github__resolve_version "owner/repo" "1.2" --tag-prefix "lib/"
+  assert_failure
+  assert_output --partial "no release or tag matching"
+}
+
+@test "github__resolve_version --tag-prefix: fails when no prefix match in either API" {
+  _github__first_release_matching() { return 1; }
+  github__tags() { return 1; }
+  export -f _github__first_release_matching github__tags
+  run github__resolve_version "owner/repo" "stable" --tag-prefix "lib/"
   assert_failure
   assert_output --partial "no release or tag matching"
 }

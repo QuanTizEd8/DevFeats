@@ -591,6 +591,11 @@ github__resolve_version() {
   #   --version        Print only the bare version (line 2).
   #   --endpoint E     API to query: "release" (releases only), "tag" (tags only),
   #                    or "auto" (try releases first, fall back to tags; default).
+  #   --tag-prefix P   Only consider releases/tags whose tag starts with P.
+  #                    Required when the repo hosts multiple release lines under
+  #                    different tag namespaces (e.g. "lib/" to match lib/1.2.3).
+  #                    When set, "stable" and "latest" specs use paginated listing
+  #                    instead of the /releases/latest single-call endpoint.
   #
   # Stdout:
   #   By default (neither or both flags given): two lines — full tag then bare version.
@@ -600,7 +605,7 @@ github__resolve_version() {
   # Returns: 0 on success, 1 if no matching release or tag is found, or on API error.
   local _repo="$1"
   shift
-  local _spec="stable" _spec_set=false _want_tag=false _want_version=false _endpoint="auto"
+  local _spec="stable" _spec_set=false _want_tag=false _want_version=false _endpoint="auto" _tag_prefix=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --tag)
@@ -620,6 +625,11 @@ github__resolve_version() {
             return 1
             ;;
         esac
+        shift
+        ;;
+      --tag-prefix)
+        shift
+        _tag_prefix="$1"
         shift
         ;;
       --*)
@@ -659,22 +669,36 @@ github__resolve_version() {
   if [ "$_endpoint" = "auto" ] || [ "$_endpoint" = "release" ]; then
     case "$_spec" in
       stable | "")
-        # /releases/latest always returns the most recent non-prerelease, non-draft release.
-        _tag="$(github__latest_tag "$_api_base")" || _tag=""
+        if [ -n "$_tag_prefix" ]; then
+          # /releases/latest can't be prefix-filtered; paginate instead.
+          _tag="$(_github__first_release_matching "$_api_base" "" --tag-prefix "$_tag_prefix")" || _tag=""
+        else
+          # /releases/latest always returns the most recent non-prerelease, non-draft release.
+          _tag="$(github__latest_tag "$_api_base")" || _tag=""
+        fi
         ;;
       latest)
-        # Most recently published release including pre-releases; per_page=1 avoids
-        # fetching unnecessary data since we only need the first result.
-        local _releases
-        _releases="$(_github__api_list_field \
-          "${_api_base}/releases?per_page=1" \
-          "tag_name")" || _releases=""
-        _tag="$(printf '%s\n' "$_releases" | head -1)"
+        if [ -n "$_tag_prefix" ]; then
+          # ?per_page=1 can't be prefix-filtered; paginate including pre-releases.
+          _tag="$(_github__first_release_matching "$_api_base" "" --tag-prefix "$_tag_prefix" --prerelease)" || _tag=""
+        else
+          # Most recently published release including pre-releases; per_page=1 avoids
+          # fetching unnecessary data since we only need the first result.
+          local _releases
+          _releases="$(_github__api_list_field \
+            "${_api_base}/releases?per_page=1" \
+            "tag_name")" || _releases=""
+          _tag="$(printf '%s\n' "$_releases" | head -1)"
+        fi
         ;;
       *)
         # Numeric spec: stream releases page by page until the first matching
         # stable tag is found. Pagination stops as soon as a match is found.
-        _tag="$(_github__first_stable_tag_matching "$_api_base" "$_norm")" || _tag=""
+        if [ -n "$_tag_prefix" ]; then
+          _tag="$(_github__first_release_matching "$_api_base" "$_norm" --tag-prefix "$_tag_prefix")" || _tag=""
+        else
+          _tag="$(_github__first_release_matching "$_api_base" "$_norm")" || _tag=""
+        fi
         ;;
     esac
   fi
@@ -689,6 +713,7 @@ github__resolve_version() {
         # to github__tags (the child process substitution handles its own exit).
         _tag=""
         while IFS= read -r _t; do
+          [ -n "$_tag_prefix" ] && [[ "$_t" != "${_tag_prefix}"* ]] && continue
           _bare="$(ver__extract_version --keep-suffix "$_t" 2> /dev/null || true)"
           case "$_bare" in
             "" | *-*) continue ;;
@@ -703,12 +728,25 @@ github__resolve_version() {
         # Tags are returned newest-first by GitHub; take the first one.
         # Process substitution: github__tags child handles its own exit without
         # sending SIGPIPE into this shell's pipefail context.
-        IFS= read -r _tag < <(github__tags "$_api_base") || _tag=""
+        if [ -n "$_tag_prefix" ]; then
+          _tag=""
+          while IFS= read -r _t; do
+            [[ "$_t" == "${_tag_prefix}"* ]] || continue
+            _tag="$_t"
+            break
+          done < <(github__tags "$_api_base")
+        else
+          IFS= read -r _tag < <(github__tags "$_api_base") || _tag=""
+        fi
         ;;
       *)
         # Process substitution: ver__first_matching_prefix exits early after a
         # match; github__tags runs as a child and handles its own exit.
-        _tag="$(ver__first_matching_prefix "$_norm" < <(github__tags "$_api_base" --all))" || _tag=""
+        if [ -n "$_tag_prefix" ]; then
+          _tag="$(ver__first_matching_prefix "$_norm" < <(github__tags "$_api_base" --all | grep "^${_tag_prefix}"))" || _tag=""
+        else
+          _tag="$(ver__first_matching_prefix "$_norm" < <(github__tags "$_api_base" --all))" || _tag=""
+        fi
         ;;
     esac
   fi
@@ -1191,29 +1229,53 @@ _github__api_get() {
   return "$_ec"
 }
 
-_github__first_stable_tag_matching() {
-  # _github__first_stable_tag_matching <api_base> <norm_spec>  (internal)
+_github__first_release_matching() {
+  # _github__first_release_matching <api_base> <norm_spec> [--tag-prefix P] [--prerelease]  (internal)
   #
   # Fetches releases page by page (newest first), returning the full tag of the
-  # first stable (non-prerelease, non-draft) release whose bare version matches
-  # <norm_spec> as a prefix followed by ".", "-", or end-of-string.  Pagination
-  # stops as soon as a match is found, so only as many API requests as necessary
-  # are made.
+  # first matching release.  By default only stable (non-prerelease, non-draft)
+  # releases are considered.  Pagination stops as soon as a match is found.
   #
   # Args:
-  #   <api_base>   Full GitHub API base URL (e.g. https://api.github.com/repos/owner/repo).
-  #   <norm_spec>  Normalised (prefix-stripped) version spec to match against.
+  #   <api_base>      Full GitHub API base URL.
+  #   <norm_spec>     Normalised version spec to match against (empty = any version).
+  #   --tag-prefix P  Only consider releases whose tag_name starts with P.
+  #   --prerelease    Include pre-releases (default: stable only).
   #
   # Stdout: the matched full release tag.
   # Returns: 0 on match, 1 if no match found or on API error.
   local _api_base="$1" _norm="$2"
+  shift 2
+  local _tag_prefix="" _prerelease=false
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --tag-prefix)
+        shift
+        _tag_prefix="$1"
+        shift
+        ;;
+      --prerelease)
+        _prerelease=true
+        shift
+        ;;
+      *)
+        logging__error "_github__first_release_matching: unknown option: '$1'"
+        return 1
+        ;;
+    esac
+  done
   bootstrap__jq
   local _rc=$?
   [[ $_rc == 0 ]] || {
     logging__error "jq is required to match GitHub release tags."
     return "$_rc"
   }
-  local _per_page=100 _page=1 _json _tags _count _tag
+  local _jq_filter _per_page=100 _page=1 _json _tags _count _tag
+  if [ "$_prerelease" = "true" ]; then
+    _jq_filter='.[] | .tag_name'
+  else
+    _jq_filter='.[] | select(.prerelease == false and .draft == false) | .tag_name'
+  fi
 
   while :; do
     local _url="${_api_base}/releases?per_page=${_per_page}&page=${_page}"
@@ -1224,12 +1286,18 @@ _github__first_stable_tag_matching() {
       return "$_rc"
     }
 
-    _tags="$(printf '%s\n' "$_json" |
-      json__query -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \
-        2> /dev/null)" || _tags=""
+    _tags="$(printf '%s\n' "$_json" | json__query -r "$_jq_filter" 2> /dev/null)" || _tags=""
+
+    if [ -n "$_tag_prefix" ] && [ -n "$_tags" ]; then
+      _tags="$(printf '%s\n' "$_tags" | grep "^${_tag_prefix}")" || _tags=""
+    fi
 
     if [ -n "$_tags" ]; then
-      if _tag="$(printf '%s\n' "$_tags" | ver__first_matching_prefix "$_norm")"; then
+      if [ -z "$_norm" ]; then
+        # No version spec: return the first (newest) matching tag.
+        printf '%s\n' "$_tags" | head -1
+        return 0
+      elif _tag="$(printf '%s\n' "$_tags" | ver__first_matching_prefix "$_norm")"; then
         printf '%s\n' "$_tag"
         return 0
       fi

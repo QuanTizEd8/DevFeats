@@ -337,6 +337,18 @@ setup() {
   assert_success
 }
 
+@test "ver__first_matching_prefix strips slash-delimited tag prefix (e.g. lib/1.2.3)" {
+  run ver__first_matching_prefix "1.2" <<< "$(printf '%s\n' "lib/2.0.0" "lib/1.2.5" "lib/1.1.0")"
+  assert_output "lib/1.2.5"
+  assert_success
+}
+
+@test "ver__first_matching_prefix slash-delimited tag returns original full tag name" {
+  run ver__first_matching_prefix "0.1.0" <<< "$(printf '%s\n' "lib/0.2.0" "lib/0.1.0")"
+  assert_output "lib/0.1.0"
+  assert_success
+}
+
 # ---------------------------------------------------------------------------
 # ver__resolve_from_list
 # ---------------------------------------------------------------------------

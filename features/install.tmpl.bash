@@ -2258,7 +2258,9 @@ __feat_resolve_version_spec__() {
       fi
       local _endpoint="${VERSION_RESOLUTION#github_}" _both
       logging__info "Resolving GitHub version (URI='${VERSION_URI}', spec='${_spec}', endpoint='${_endpoint}')."
-      _both="$(github__resolve_version "${VERSION_URI}" "${_spec}" --endpoint "${_endpoint}")"
+      local _tag_prefix_args=()
+      [[ -n "${VERSION_TAG_PREFIX:-}" ]] && _tag_prefix_args=(--tag-prefix "${VERSION_TAG_PREFIX}")
+      _both="$(github__resolve_version "${VERSION_URI}" "${_spec}" --endpoint "${_endpoint}" "${_tag_prefix_args[@]+"${_tag_prefix_args[@]}"}")"
       local _rc=$?
       [[ $_rc == 0 ]] || {
         logging__error "failed to resolve GitHub version (URI='${VERSION_URI}', spec='${_spec}')."

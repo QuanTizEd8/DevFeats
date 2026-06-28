@@ -397,6 +397,20 @@ options:
       CLI flag used to query the installed version (e.g. `--version`).
       Used by the installed-version idempotency check.
 
+  version_tag_prefix:
+    _apply_when: |
+      #{{ return bool(get("_options.version")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.version.tag_prefix", "") }}#
+    description: >-
+      Filter GitHub releases/tags to those whose tag_name starts with this prefix.
+      Required when the repo hosts multiple release lines under different tag
+      namespaces (e.g. `lib/` to match `lib/1.2.3` releases from a shared repo).
+      When set, `stable` and `latest` specs use paginated listing instead of the
+      `/releases/latest` single-call endpoint so that prefix filtering can be applied.
+      The full tag (prefix included) is used as `{feat.tag}` in asset URIs.
+
   binary_asset_uri:
     _apply_when: |
       #{{ return get("_options.method.binary") is not None }}#

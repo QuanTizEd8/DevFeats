@@ -134,6 +134,10 @@
                 }
               }
             },
+            "tag_prefix": {
+              "description": "Filter GitHub releases/tags to those whose tag_name starts with this prefix. Required when the repo hosts multiple release lines under different tag namespaces (e.g. \"lib/\" to match lib/1.2.3 releases from a shared repo). Affects all version specs including latest and stable, which fall back to paginated listing when this field is set. The full tag (prefix included) is used as {feat.tag} in asset URIs.",
+              "type": "string"
+            },
             "flag": {
               "description": "CLI flag for installed-version query, used by the auto-impl of `_feat_installed_version`. Defaults to `--version`.",
               "type": "string"
