@@ -639,7 +639,7 @@ ctx__match_spec() {
   #   <yaml-and-group>  YAML AND-group (e.g. `plat.kernel: linux\nplat.pm: apt`).
   #
   # Returns: 0 when the group matches the current registry; 1 otherwise.
-  _ctx__quiet=false
+  local _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true
     shift
@@ -662,7 +662,7 @@ ctx__match_when() {
   #   <yaml-when>  YAML when document (OR list and/or AND groups).
   #
   # Returns: 0 when at least one group matches; 1 otherwise.
-  _ctx__quiet=false
+  local _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true
     shift
@@ -688,7 +688,7 @@ ctx__select_first() {
   #
   # Returns: 0 when the first matching group is found; 1 when none match or when
   #           `--` is missing (logs usage error unless `--quiet`).
-  _ctx__quiet=false
+  local _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true
     shift

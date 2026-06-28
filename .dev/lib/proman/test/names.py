@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import sys
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from proman.config import load as load_config
 
@@ -34,7 +36,7 @@ def sanitize_segment(segment: str) -> str:
 
 
 def mode_artifact_suffix(mode: FeatureTestMode | str) -> str:
-    """Map CLI/Run mode to CI artifact and host log suffix (``linux`` for standalone)."""
+    """Map mode to CI artifact and host log suffix (``linux`` for standalone)."""
     return _MODE_ARTIFACT_SUFFIX[mode]  # type: ignore[index]
 
 
@@ -47,7 +49,8 @@ def host_log_basename(run: FeatureTestRun) -> str:
 
 def host_log_path(run: FeatureTestRun) -> Path:
     """``.local/logs/tests/features/<feature>--<key>--<mode>.log`` on the host."""
-    return load_config().absolute_path("path.local_logs_features") / host_log_basename(run)
+    base = load_config().absolute_path("path.local_logs_features")
+    return base / host_log_basename(run)
 
 
 def artifact_name(run: FeatureTestRun) -> str:
