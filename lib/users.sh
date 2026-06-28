@@ -189,7 +189,7 @@ users__gid_of_group() {
   # Stdout: GID as a decimal string.
   # Returns: 0 on success, 1 when the group is not found.
   local _gid
-  if bootstrap__getent; then
+  if bootstrap__getent && command -v getent > /dev/null 2>&1; then
     _gid="$(getent group "$1" 2> /dev/null | cut -d: -f3)"
     [[ -n "$_gid" ]] && {
       printf '%s\n' "$_gid"
@@ -214,7 +214,7 @@ users__group_of_gid() {
   # Stdout: group name string.
   # Returns: 0 on success, 1 when no group with that GID is found.
   local _gname
-  if bootstrap__getent; then
+  if bootstrap__getent && command -v getent > /dev/null 2>&1; then
     _gname="$(getent group "$1" 2> /dev/null | cut -d: -f1)"
     [[ -n "$_gname" ]] && {
       printf '%s\n' "$_gname"
@@ -283,7 +283,7 @@ users__users_by_primary_gid() {
   #
   # Stdout: one username per line; empty when no matches are found.
   local _gid="$1"
-  if bootstrap__getent; then
+  if bootstrap__getent && command -v getent > /dev/null 2>&1; then
     getent passwd | awk -F: -v gid="$_gid" '$4==gid{print $1}'
     return
   fi
@@ -301,7 +301,7 @@ users__group_exists() {
   #   <name-or-gid>  Group name or numeric GID to check.
   #
   # Returns: 0 if found, 1 otherwise.
-  if bootstrap__getent; then
+  if bootstrap__getent && command -v getent > /dev/null 2>&1; then
     getent group "$1" > /dev/null 2>&1
     return
   fi
@@ -915,7 +915,7 @@ users__resolve_home() {
     }
   fi
   # getent handles both username and UID, and queries NSS (LDAP, NIS).
-  if bootstrap__getent; then
+  if bootstrap__getent && command -v getent > /dev/null 2>&1; then
     _entry="$(getent passwd "$_user" 2> /dev/null)"
     if [ -n "$_entry" ]; then
       IFS=: read -r _ _ _ _ _ _home _ <<< "$_entry"

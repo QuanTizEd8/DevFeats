@@ -582,6 +582,7 @@ EOF
 }
 
 @test "bootstrap__getent: returns 1 when getent is absent and install fails" {
+  [[ "$(uname)" != "Darwin" ]] || skip "bootstrap__getent uses --skip-darwin and returns 0 on macOS"
   ospkg__run() { return 1; }
   export -f ospkg__run
   begin_path_isolation mktemp
@@ -904,6 +905,7 @@ EOF
 }
 
 @test "bootstrap__shadow_utils: logs warning and returns 1 when groupadd remains absent after install attempt" {
+  [[ "$(uname)" != "Darwin" ]] || skip "bootstrap__shadow_utils uses --skip-darwin and returns 0 on macOS"
   ospkg__run() { return 1; }
   export -f ospkg__run
   begin_path_isolation mktemp
@@ -940,6 +942,7 @@ EOF
 }
 
 @test "bootstrap__su: returns 1 when su remains absent after install attempt" {
+  [[ "$(uname)" != "Darwin" ]] || skip "bootstrap__su uses --skip-darwin and returns 0 on macOS"
   ospkg__run() { return 1; }
   export -f ospkg__run
   begin_path_isolation mktemp

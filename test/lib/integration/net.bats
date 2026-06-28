@@ -12,15 +12,20 @@ setup() {
 }
 
 @test "net__fetch_url_stdout: downloads a small public URL to stdout" {
-  # api.github.com/zen returns a short Zen of GitHub string; no auth needed.
-  run net__fetch_url_stdout "https://api.github.com/zen"
+  # api.github.com/zen returns a short Zen of GitHub string.
+  # Pass GITHUB_TOKEN when available — macOS CI runners hit API rate limits otherwise.
+  local -a _args=()
+  [[ -z "${GITHUB_TOKEN:-}" ]] || _args+=(--header "Authorization: token $GITHUB_TOKEN")
+  run net__fetch_url_stdout "${_args[@]}" "https://api.github.com/zen"
   assert_success
   [[ -n "$output" ]]
 }
 
 @test "net__fetch_url_file: downloads a small public URL to a file" {
+  local -a _args=()
+  [[ -z "${GITHUB_TOKEN:-}" ]] || _args+=(--header "Authorization: token $GITHUB_TOKEN")
   local _dest="${BATS_TEST_TMPDIR}/zen.txt"
-  run net__fetch_url_file "https://api.github.com/zen" "$_dest"
+  run net__fetch_url_file "${_args[@]}" "https://api.github.com/zen" "$_dest"
   assert_success
   [[ -f "$_dest" && -s "$_dest" ]]
 }

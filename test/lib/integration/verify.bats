@@ -44,6 +44,19 @@ EOF
   gpg --dearmor \
     < "${BATS_FILE_TMPDIR}/test.pub.asc" \
     > "${BATS_FILE_TMPDIR}/test.pub.gpg"
+
+  # Generate a second keypair (same GNUPGHOME, so the same agent handles it) for
+  # the wrong-key test. Doing this here avoids starting a separate agent for an
+  # isolated home, which fails on macOS CI runners.
+  gpg --batch --gen-key << 'EOF'
+Key-Type: RSA
+Key-Length: 2048
+Name-Real: DevFeats Wrong Test Key
+%no-protection
+%commit
+EOF
+  gpg --armor --export "DevFeats Wrong Test Key" |
+    gpg --dearmor > "${BATS_FILE_TMPDIR}/wrong.pub.gpg"
 }
 
 setup() {
@@ -79,23 +92,10 @@ setup() {
 }
 
 @test "verify__gpg_detached: fails when wrong key is used" {
-  # Generate a second keypair in a separate home.
-  local _wrong_home="${BATS_TEST_TMPDIR}/wrong-gnupg"
-  mkdir -m 700 "$_wrong_home"
-  GNUPGHOME="$_wrong_home" gpg --batch --gen-key << 'EOF'
-Key-Type: RSA
-Key-Length: 2048
-Name-Real: Wrong Key
-%no-protection
-%commit
-EOF
-  local _wrong_key="${BATS_TEST_TMPDIR}/wrong.pub.gpg"
-  GNUPGHOME="$_wrong_home" gpg --armor --export |
-    GNUPGHOME="$_wrong_home" gpg --dearmor > "$_wrong_key"
   run verify__gpg_detached \
     "${BATS_FILE_TMPDIR}/artifact.txt" \
     "${BATS_FILE_TMPDIR}/artifact.txt.asc" \
-    "$_wrong_key"
+    "${BATS_FILE_TMPDIR}/wrong.pub.gpg"
   assert_failure
 }
 
