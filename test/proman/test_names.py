@@ -73,9 +73,7 @@ def test_host_log_paths_unique_across_features_and_modes() -> None:
 def test_artifact_name_pattern() -> None:
     """Artifact names use single-dash segments (not host log double-dash)."""
     run = FeatureTestRun("install-direnv", "default.ubuntu-24.04", "standalone")
-    assert artifact_name(run) == (
-        "feat-log-install-direnv-default.ubuntu-24.04-linux"
-    )
+    assert artifact_name(run) == ("feat-log-install-direnv-default.ubuntu-24.04-linux")
 
 
 def test_bind_mount_container_log_path_matches_host_basename() -> None:
