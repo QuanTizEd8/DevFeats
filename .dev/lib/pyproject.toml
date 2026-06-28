@@ -26,6 +26,7 @@ proman-test-sync-tests = "proman.test.codegen:main"
 proman-show-feats = "proman.cli.show_feats:main"
 proman-show-feat-opts = "proman.cli.show_feat_opts:main"
 proman-build-feats = "proman.cli.build_feats:main"
+proman-build-lib = "proman.cli.build_lib:main"
 proman-build-docs-pkg = "proman.cli.build_docs_pkg:main"
 proman-publish-docs-schemas = "proman.cli.publish_docs_schemas:main"
 

@@ -574,6 +574,7 @@
       "required": [
         "enabled",
         "features",
+        "lib_release",
         "artifact_src_name",
         "artifact_src_path",
         "artifact_dist_name",
@@ -597,11 +598,17 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
+              "kind",
               "feature",
               "version",
               "tag"
             ],
             "properties": {
+              "kind": {
+                "description": "Release kind: always 'feature' for entries in this list.",
+                "type": "string",
+                "const": "feature"
+              },
               "feature": {
                 "description": "Feature ID, e.g. install-git.",
                 "type": "string"
@@ -614,6 +621,26 @@
                 "description": "Annotated git tag to create, e.g. install-git/1.2.3.",
                 "type": "string"
               }
+            }
+          }
+        },
+        "lib_release": {
+          "description": "Library release entry; enabled is false when no library release is needed.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "version", "tag"],
+          "properties": {
+            "enabled": {
+              "description": "Whether a library release should be created on this run.",
+              "type": "boolean"
+            },
+            "version": {
+              "description": "Library version string, e.g. 0.1.0. Empty string when enabled is false.",
+              "type": "string"
+            },
+            "tag": {
+              "description": "Git tag to create, e.g. lib/0.1.0. Empty string when enabled is false.",
+              "type": "string"
             }
           }
         },

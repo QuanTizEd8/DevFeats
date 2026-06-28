@@ -179,6 +179,14 @@ build-feats *args: sync-src
 
 [
   group('build'),
+  doc('Build dist/ library artifact (devfeats-bashlib.tar.gz) from lib/metadata.yaml and lib/.')
+]
+build-lib:
+    pixi run build-lib
+
+
+[
+  group('build'),
   doc('Build Sphinx docs site to .local/build/docs/.')
 ]
 build-docs:

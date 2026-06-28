@@ -89,7 +89,14 @@ def test_returns_features_without_release() -> None:
             repo._rest_query.side_effect = side_effect
             result = detect_releasable("owner/name", features_dir)
 
-    assert result == [{"feature": "feat-a", "version": "1.0.0", "tag": "feat-a/1.0.0"}]
+    assert result == [
+        {
+            "kind": "feature",
+            "feature": "feat-a",
+            "version": "1.0.0",
+            "tag": "feat-a/1.0.0",
+        }
+    ]
 
 
 def test_skips_features_without_version() -> None:

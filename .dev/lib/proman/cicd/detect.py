@@ -496,8 +496,10 @@ def changed_files(env: Env) -> list[str]:
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
-def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
-    """Resolve release mode and feature release entries.
+def detect_release(
+    env: Env,
+) -> tuple[bool, list[dict[str, str]], dict[str, str] | None]:
+    """Resolve release mode, feature release entries, and library release entry.
 
     Parameters
     ----------
@@ -507,12 +509,14 @@ def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
     Returns
     -------
     tuple
-        Pair of:
+        Triple of:
         - ``is_release`` boolean
-        - release entries as list of dicts
+        - feature release entries as list of dicts (kind == "feature")
+        - library release entry dict or None (kind == "lib")
     """
     is_release = False
     features_to_release: list[dict[str, str]] = []
+    lib_release: dict[str, str] | None = None
     LOG.info(
         "release-gate: EVENT_NAME='%s' REF_TYPE='%s' REF_NAME='%s' BEFORE='%s'",
         env.event_name,
@@ -522,24 +526,34 @@ def detect_release(env: Env) -> tuple[bool, list[dict[str, str]]]:
     )
     if env.event_name == "push" and env.ref_type == "branch" and env.ref_name == "main":
         LOG.info("release-gate: push-to-main detected; running detect_releasable().")
-        features_dir = git_repo_root() / "features"
+        root = git_repo_root()
+        features_dir = root / "features"
+        lib_metadata_path = root / "lib" / "metadata.yaml"
         try:
-            features_to_release = detect_releasable(env.repository, features_dir)
+            all_releasable = detect_releasable(
+                env.repository,
+                features_dir,
+                lib_metadata_path=lib_metadata_path,
+            )
         except RuntimeError as exc:
             LOG.exception("release-gate: detect_releasable() failed")
             raise SystemExit(1) from exc
+        features_to_release = [r for r in all_releasable if r.get("kind") != "lib"]
+        lib_candidates = [r for r in all_releasable if r.get("kind") == "lib"]
+        lib_release = lib_candidates[0] if lib_candidates else None
         LOG.info(
             "release-gate: detect_releasable() result: %s",
-            features_to_release,
+            all_releasable,
         )
-        if features_to_release:
+        if all_releasable:
             is_release = True
     LOG.info(
-        "release-gate: is_release='%s' features_to_release_count='%s'.",
+        "release-gate: is_release='%s' features_count='%s' lib_release='%s'.",
         str(is_release).lower(),
         len(features_to_release),
+        lib_release,
     )
-    return is_release, features_to_release
+    return is_release, features_to_release, lib_release
 
 
 def head_feature_version(feature_id: str) -> str:
@@ -828,6 +842,7 @@ def build_config(  # noqa: PLR0913
     is_release: bool,
     features_to_release: list[dict[str, str]],
     unit_env_matrix: list[dict[str, str]],
+    lib_release: dict[str, str] | None = None,
     unit_macos_matrix: list[dict[str, str]],
     install_env_matrix: list[dict[str, str]],
 ) -> dict:
@@ -943,6 +958,11 @@ def build_config(  # noqa: PLR0913
         "deploy": {
             "enabled": is_release,
             "features": features_to_release,
+            "lib_release": {
+                "enabled": lib_release is not None,
+                "version": lib_release["version"] if lib_release else "",
+                "tag": lib_release["tag"] if lib_release else "",
+            },
             "artifact_src_name": art["src"]["name"],
             "artifact_src_path": art["src"]["path"],
             "artifact_dist_name": art["dist"]["name"],
@@ -1003,7 +1023,7 @@ def main() -> None:
     all_feature_ids = discover_feature_ids()
     LOG.info("features: discovered total='%s'", len(all_feature_ids))
 
-    is_release, features_to_release = detect_release(env)
+    is_release, features_to_release, lib_release = detect_release(env)
 
     # ── Resolve run flags ────────────────────────────────────────────────────
     if env.event_name == "workflow_dispatch":
@@ -1201,6 +1221,7 @@ def main() -> None:
         run_docs=run_docs,
         is_release=is_release,
         features_to_release=features_to_release,
+        lib_release=lib_release,
         unit_env_matrix=unit_env_matrix,
         unit_macos_matrix=unit_macos_matrix,
         install_env_matrix=install_env_matrix,

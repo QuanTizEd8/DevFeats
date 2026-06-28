@@ -1,12 +1,20 @@
-r"""Detect which features in features/*/metadata.yaml need a new GitHub Release.
+r"""Detect which features and the bash library need a new GitHub Release.
 
 For every feature in ``features/<id>/metadata.yaml``:
 
 1. Read the ``.version`` field.
 2. Query the GitHub Releases API for an existing release with
    ``tag_name == "<id>/<version>"``.
-3. If absent → emit a record ``{"feature": "<id>", "version": "<X.Y.Z>",
-   "tag": "<id>/<X.Y.Z>"}``.
+3. If absent → emit a record ``{"kind": "feature", "feature": "<id>",
+   "version": "<X.Y.Z>", "tag": "<id>/<X.Y.Z>"}``.
+
+For the bash library at ``lib/metadata.yaml``:
+
+1. Read the ``.version`` field.
+2. Query the GitHub Releases API for an existing release with
+   ``tag_name == "lib/<version>"``.
+3. If absent → emit a record ``{"kind": "lib", "feature": "bashlib",
+   "version": "<X.Y.Z>", "tag": "lib/<X.Y.Z>"}``.
 
 Outputs a JSON array on stdout. Used by
 ``.github/workflows/scripts/cicd_detect.sh`` to populate the
@@ -18,6 +26,7 @@ Usage:
     python scripts/detect-releasable.py \\
         --repo <owner>/<name> \\
         [--features-dir features] \\
+        [--lib-metadata lib/metadata.yaml] \\
         [--token $GITHUB_TOKEN]
 
 ``--token`` defaults to the ``GITHUB_TOKEN`` environment variable. The script
@@ -76,14 +85,19 @@ def detect_releasable(
     repository: str,
     features_dir: pathlib.Path,
     token: str | None = None,
+    lib_metadata_path: pathlib.Path | None = None,
 ) -> list[dict[str, str]]:
-    """Return features that need a new GitHub Release.
+    """Return features and/or library that need a new GitHub Release.
+
+    Each record includes a ``kind`` field: ``"feature"`` for features and
+    ``"lib"`` for the bash library.
 
     Raises RuntimeError on unexpected GitHub API errors.
     """
     owner, _, name = repository.partition("/")
     repo = GitHub(token).user(owner).repo(name)
     releasable: list[dict[str, str]] = []
+
     for fid, meta in _iter_feature_metadata(features_dir):
         version = str(meta.get("version", "")).strip()
         if not version:
@@ -94,12 +108,36 @@ def detect_releasable(
             continue
         tag = f"{fid}/{version}"
         if not _release_exists(repo, tag):
-            releasable.append({"feature": fid, "version": version, "tag": tag})
+            releasable.append(
+                {"kind": "feature", "feature": fid, "version": version, "tag": tag}
+            )
+
+    if lib_metadata_path is not None and lib_metadata_path.is_file():
+        with lib_metadata_path.open(encoding="utf-8") as fp:
+            lib_meta = yaml.safe_load(fp) or {}
+        lib_version = str(lib_meta.get("version", "")).strip()
+        if not lib_version:
+            print(
+                "⚠️  detect-releasable: lib/metadata.yaml missing 'version' — skipping.",
+                file=sys.stderr,
+            )
+        else:
+            lib_tag = f"lib/{lib_version}"
+            if not _release_exists(repo, lib_tag):
+                releasable.append(
+                    {
+                        "kind": "lib",
+                        "feature": "bashlib",
+                        "version": lib_version,
+                        "tag": lib_tag,
+                    }
+                )
+
     return releasable
 
 
 def main() -> int:
-    """Parse CLI arguments and run the releasable-feature detection pipeline."""
+    """Parse CLI arguments and run the releasable detection pipeline."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--repo",
@@ -110,6 +148,14 @@ def main() -> int:
         "--features-dir",
         default="features",
         help="Path to the features directory (default: features).",
+    )
+    parser.add_argument(
+        "--lib-metadata",
+        default="lib/metadata.yaml",
+        help=(
+            "Path to lib/metadata.yaml (default: lib/metadata.yaml)."
+            " Pass an empty string to skip library detection."
+        ),
     )
     parser.add_argument(
         "--token",
@@ -134,8 +180,14 @@ def main() -> int:
         )
         return 1
 
+    lib_metadata_path: pathlib.Path | None = None
+    if args.lib_metadata:
+        lib_metadata_path = pathlib.Path(args.lib_metadata).resolve()
+
     try:
-        releasable = detect_releasable(args.repo, features_dir, args.token)
+        releasable = detect_releasable(
+            args.repo, features_dir, args.token, lib_metadata_path
+        )
     except RuntimeError as exc:
         print(f"⛔ detect-releasable: {exc}", file=sys.stderr)
         return 1
