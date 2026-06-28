@@ -1,0 +1,127 @@
+defaults:
+  envs: [ubuntu-24.04]
+  modes: [devcontainer, standalone]
+
+no_op:
+  description: All options at their defaults; feature exits successfully with nothing to do.
+  tests: [no_op]
+
+prescript_only:
+  description: Inline prescript with shebang creates a marker file.
+  options:
+    prescript: "#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-prescript-ran"
+  tests: [prescript_only]
+
+postscript_only:
+  description: Inline postscript with shebang creates a marker file.
+  options:
+    postscript: "#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-postscript-ran"
+  tests: [postscript_only]
+
+prescript_no_shebang:
+  description: Prescript without a shebang; feature prepends '#!/bin/bash' automatically.
+  options:
+    prescript: "set -eu\ntouch /tmp/devfeats-install-no-shebang-ran"
+  tests: [prescript_no_shebang]
+
+scripts_local_file:
+  description: Single script referenced via a 'file://' URI.
+  setup: |
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-scripts-local-ran\n' \
+      > /tmp/devfeats-install-test-script.sh
+    chmod +x /tmp/devfeats-install-test-script.sh
+  options:
+    scripts: "file:///tmp/devfeats-install-test-script.sh"
+  tests: [scripts_local_file]
+
+scripts_sha256:
+  description: Script fetched from 'file://' with SHA-256 integrity verification.
+  setup: |
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-scripts-sha256-ran\n' \
+      > /tmp/devfeats-install-sha256-script.sh
+    chmod +x /tmp/devfeats-install-sha256-script.sh
+  options:
+    scripts: "file:///tmp/devfeats-install-sha256-script.sh#sha256=03433ad1d7487035ce7d3c77ffd31de1529733cf1e3f0eac3077d223dca3cb0d"
+  tests: [scripts_sha256]
+
+scripts_multiple:
+  description: Three scripts executed in order; all three marker files are created.
+  setup: |
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-multi-1\n' \
+      > /tmp/devfeats-install-script-1.sh
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-multi-2\n' \
+      > /tmp/devfeats-install-script-2.sh
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-multi-3\n' \
+      > /tmp/devfeats-install-script-3.sh
+    chmod +x /tmp/devfeats-install-script-{1,2,3}.sh
+  options:
+    scripts: "/tmp/devfeats-install-script-1.sh\n/tmp/devfeats-install-script-2.sh\n/tmp/devfeats-install-script-3.sh"
+  tests: [scripts_multiple]
+
+full_combination:
+  description: All three stages (prescript, scripts, postscript) run in order.
+  setup: |
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-combo-script\n' \
+      > /tmp/devfeats-install-combo.sh
+    chmod +x /tmp/devfeats-install-combo.sh
+  options:
+    prescript: "#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-combo-pre"
+    scripts: "/tmp/devfeats-install-combo.sh"
+    postscript: "#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-combo-post"
+  tests: [full_combination]
+
+run_as_root:
+  description: Scripts execute via privilege escalation when 'run_as_root' is true.
+  options:
+    prescript: "#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-root-ran"
+    run_as_root: true
+  tests: [run_as_root]
+
+fail_fast_true:
+  description: Second script fails; third script does not run (fail_fast=true default).
+  expect_install_failure: true
+  setup: |
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-ff-before\n' \
+      > /tmp/devfeats-install-ff-before.sh
+    printf '#!/bin/bash\nexit 1\n' \
+      > /tmp/devfeats-install-ff-fail.sh
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-ff-after\n' \
+      > /tmp/devfeats-install-ff-after.sh
+    chmod +x /tmp/devfeats-install-ff-{before,fail,after}.sh
+  options:
+    scripts: "/tmp/devfeats-install-ff-before.sh\n/tmp/devfeats-install-ff-fail.sh\n/tmp/devfeats-install-ff-after.sh"
+    fail_fast: true
+  tests: [fail_fast_true]
+
+fail_fast_false:
+  description: Second script fails; third script still runs (fail_fast=false).
+  expect_install_failure: true
+  setup: |
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-noff-before\n' \
+      > /tmp/devfeats-install-noff-before.sh
+    printf '#!/bin/bash\nexit 1\n' \
+      > /tmp/devfeats-install-noff-fail.sh
+    printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-noff-after\n' \
+      > /tmp/devfeats-install-noff-after.sh
+    chmod +x /tmp/devfeats-install-noff-{before,fail,after}.sh
+  options:
+    scripts: "/tmp/devfeats-install-noff-before.sh\n/tmp/devfeats-install-noff-fail.sh\n/tmp/devfeats-install-noff-after.sh"
+    fail_fast: false
+  tests: [fail_fast_false]
+
+prescript_fails_fast:
+  description: Prescript exits 1; postscript does not run (fail_fast=true).
+  expect_install_failure: true
+  options:
+    prescript: "#!/bin/bash\nexit 1"
+    postscript: "#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-ps-should-not-run"
+    fail_fast: true
+  tests: [prescript_fails_fast]
+
+invalid_uri:
+  description: Unreachable HTTPS URI fails the feature (fail_fast=true).
+  expect_install_failure: true
+  options:
+    scripts: "https://devfeats-nonexistent-test-host.invalid/script.sh"
+    fail_fast: true
+  tests: [invalid_uri]

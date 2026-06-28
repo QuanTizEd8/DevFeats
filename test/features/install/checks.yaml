@@ -1,0 +1,95 @@
+no_op:
+  description: Feature exits successfully when all options are at their defaults.
+  checks:
+    - title: feature exits successfully with no-op
+      cmd: "true"
+
+prescript_only:
+  description: Prescript with explicit shebang creates its marker file.
+  checks:
+    - title: prescript marker file exists
+      cmd: test -f /tmp/devfeats-install-prescript-ran
+
+postscript_only:
+  description: Postscript with explicit shebang creates its marker file.
+  checks:
+    - title: postscript marker file exists
+      cmd: test -f /tmp/devfeats-install-postscript-ran
+
+prescript_no_shebang:
+  description: Prescript without a shebang runs successfully under the default bash interpreter.
+  checks:
+    - title: prescript ran without shebang
+      cmd: test -f /tmp/devfeats-install-no-shebang-ran
+
+scripts_local_file:
+  description: Script fetched via 'file://' URI creates its marker file.
+  checks:
+    - title: script marker file exists
+      cmd: test -f /tmp/devfeats-install-scripts-local-ran
+
+scripts_sha256:
+  description: Script fetched via 'file://' URI with SHA-256 verification creates its marker file.
+  checks:
+    - title: sha256-verified script marker file exists
+      cmd: test -f /tmp/devfeats-install-scripts-sha256-ran
+
+scripts_multiple:
+  description: All three scripts in the array run and each creates its own marker file.
+  checks:
+    - title: first script marker file exists
+      cmd: test -f /tmp/devfeats-install-multi-1
+    - title: second script marker file exists
+      cmd: test -f /tmp/devfeats-install-multi-2
+    - title: third script marker file exists
+      cmd: test -f /tmp/devfeats-install-multi-3
+
+full_combination:
+  description: Prescript, scripts, and postscript all run and each creates its marker file.
+  checks:
+    - title: prescript marker file exists
+      cmd: test -f /tmp/devfeats-install-combo-pre
+    - title: script marker file exists
+      cmd: test -f /tmp/devfeats-install-combo-script
+    - title: postscript marker file exists
+      cmd: test -f /tmp/devfeats-install-combo-post
+
+run_as_root:
+  description: Script runs under privilege escalation and creates its marker file.
+  checks:
+    - title: root-escalated script marker file exists
+      cmd: test -f /tmp/devfeats-install-root-ran
+
+fail_fast_true:
+  description: Feature fails; first script ran, but third script did not (stopped at failure).
+  checks:
+    - kind: install_failure
+      title: feature exits non-zero on script failure
+    - title: first script ran before failure
+      cmd: test -f /tmp/devfeats-install-ff-before
+    - title: third script did not run after failure
+      cmd: bash -c '! test -f /tmp/devfeats-install-ff-after'
+
+fail_fast_false:
+  description: Feature fails but third script still ran despite second script failing.
+  checks:
+    - kind: install_failure
+      title: feature exits non-zero despite continuing
+    - title: first script ran
+      cmd: test -f /tmp/devfeats-install-noff-before
+    - title: third script still ran after failure
+      cmd: test -f /tmp/devfeats-install-noff-after
+
+prescript_fails_fast:
+  description: Prescript exits 1; postscript does not run.
+  checks:
+    - kind: install_failure
+      title: feature exits non-zero when prescript fails
+    - title: postscript did not run
+      cmd: bash -c '! test -f /tmp/devfeats-install-ps-should-not-run'
+
+invalid_uri:
+  description: Unreachable URI causes feature to fail.
+  checks:
+    - kind: install_failure
+      title: feature exits non-zero for unreachable URI

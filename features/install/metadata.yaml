@@ -1,0 +1,77 @@
+version: 0.1.0
+name: User Script Runner
+description: Run user-provided scripts during environment setup.
+keywords:
+- script
+- setup
+- custom
+- install
+- bootstrap
+_long_description: >-
+  An escape hatch for setup steps that no dedicated DevFeats feature covers.
+  Declare an ordered list of scripts to fetch (from URLs, local paths, or `gh://`/`oci://` URIs),
+  plus optional inline pre- and post-scripts, all in a single feature invocation.
+  Scripts are fetched, made executable, and run in order.
+  Integrity verification is available via `#sha256=<hex>` URI fragments.
+  Authenticated fetches use `fetch_headers` and `fetch_netrc`.
+
+_options:
+  user_file_fetch: true
+
+options:
+  prescript:
+    type: string
+    default: ''
+    description: |-
+      Inline script to execute before all `scripts`.
+      Include a shebang (`#!/bin/bash`, `#!/usr/bin/env python3`, etc.) as the first line.
+      If absent, `#!/bin/bash` is prepended automatically.
+      Leave empty to skip.
+    proposals:
+    - value: "#!/bin/bash\nset -eu\necho 'Running prescript...'"
+      description: Inline bash prescript skeleton.
+
+  scripts:
+    type: array
+    default: ''
+    description: |-
+      Scripts to fetch and execute in order, one URI per line.
+      Supported schemes: `http://`, `https://`, `file://`,
+      `gh://owner/repo@ref:path`, `oci://`. Bare local paths are also accepted.
+      Append `#sha256=<hex>` to any URI for integrity verification.
+      Use `fetch_headers` and `fetch_netrc` for authenticated fetches.
+    proposals:
+    - value: https://example.com/setup.sh
+      description: Script fetched from an HTTPS URL.
+    - value: https://example.com/setup.sh#sha256=<hex>
+      description: HTTPS script with SHA-256 integrity verification.
+    - value: gh://owner/repo@main:scripts/setup.sh
+      description: Script from a GitHub repository.
+    - value: file:///path/to/local/script.sh
+      description: Script from a local file path.
+
+  postscript:
+    type: string
+    default: ''
+    description: |-
+      Inline script to execute after all `scripts`.
+      Same format as `prescript`. Leave empty to skip.
+    proposals:
+    - value: "#!/bin/bash\nset -eu\necho 'Running postscript...'"
+      description: Inline bash postscript skeleton.
+
+  run_as_root:
+    type: boolean
+    default: false
+    description: |-
+      Run all scripts with privilege escalation (sudo/doas).
+      When false, scripts run as the invoking user.
+
+  fail_fast:
+    type: boolean
+    default: true
+    description: |-
+      Stop immediately if any script (prescript, a `scripts` entry, or postscript)
+      exits non-zero.
+      When false, all scripts run regardless of individual failures,
+      and the feature exits with code 1 if any failed.
