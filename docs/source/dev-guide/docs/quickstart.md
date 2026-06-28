@@ -48,7 +48,7 @@ The following sections are automatically generated from `metadata.yaml` and must
 
 ## Writing Library API Annotations
 
-Library module functions are documented via structured `# @brief` comments. The generator (`proman-gen-docs-data`) reads `lib/*.sh` and produces the API reference pages under `docs/source/library/`. See {doc}`/dev-guide/features/lib` for the full annotation format reference (module header, `@brief` syntax, block types, and section labels).
+Library module functions are documented via structured `# @brief` comments. The generator (`proman-gen-docs-data`) reads `lib/*.bash` and the small POSIX `lib/*.sh` subset, then produces API reference pages under `docs/source/library/`. See {doc}`/dev-guide/features/lib` for the full annotation format reference (module header, `@brief` syntax, block types, and section labels).
 
 ## JSON Schemas
 

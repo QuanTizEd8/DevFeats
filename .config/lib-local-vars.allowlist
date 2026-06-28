@@ -1,13 +1,13 @@
 # lib-local-vars.allowlist — suppressions for .dev/scripts/lint/lib-local-vars.py
 #
 # Format (one per line):  file:function:variable   # reason
-# Paths are basenames under lib/ (e.g. argparse.sh, not lib/argparse.sh).
+# Paths are basenames under lib/ (e.g. argparse.bash, not lib/argparse.bash).
 
 # Installer option surface shared with feature install.bash (intentional global).
-argparse.sh:argparse__resolve_uri_options:FETCH_HEADERS
+argparse.bash:argparse__resolve_uri_options:FETCH_HEADERS
 
 # ctx__set os.id=macos / os.id_like=macos — the linter regex matches `id` and
 # `id_like` at the word boundary after `.`; these are ctx-registry keys, not
 # shell variable assignments.
-ctx.sh:_ctx__load_darwin_os:id
-ctx.sh:_ctx__load_darwin_os:id_like
+ctx.bash:_ctx__load_darwin_os:id
+ctx.bash:_ctx__load_darwin_os:id_like

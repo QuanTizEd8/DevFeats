@@ -43,7 +43,7 @@ _require_manifest_prereqs() {
 
 # _seed_context <pm> <id> [<id_like>] [<version_id>]
 #
-# Reloads ospkg.sh, fakes the PM binary using a restricted PATH so
+# Reloads ospkg.bash, fakes the PM binary using a restricted PATH so
 # _ospkg__detect picks exactly the right PM, then restores the real PATH with
 # the fake dir prepended.  Seeds the unified ctx registry for cross-platform
 # manifest tests.  Overrides bootstrap__yq to use the pre-installed yq binary

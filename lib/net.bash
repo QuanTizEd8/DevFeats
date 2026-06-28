@@ -32,7 +32,7 @@ _net__hdrs_with_default_ua() {
 net__fetch_with_retry() {
   # @brief net__fetch_with_retry [--retries N] [--delay N] [--bail-on CODE] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
   #
-  # Does NOT require ospkg.sh. Prefer net__fetch_url_stdout / net__fetch_url_file
+  # Does NOT require ospkg.bash. Prefer net__fetch_url_stdout / net__fetch_url_file
   # for curl/wget downloads; those handle tool detection, --compressed, and
   # transient-only retries automatically. Use this function only for commands
   # that are not curl/wget.

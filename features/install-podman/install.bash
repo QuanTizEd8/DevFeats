@@ -6,7 +6,7 @@ __install_run__() {
   # ---------------------------------------------------------------------------
   # 1. Devcontainer-context detection
   #
-  # os__is_devcontainer_build() (lib/os.sh) returns 0 when this script is
+  # os__is_devcontainer_build() (lib/os.bash) returns 0 when this script is
   # invoked by the devcontainer CLI.  When true:
   #   - containers.conf is forced to cgroupfs/file (no systemd inside Docker).
   #   - The per-user graphRoot is redirected to the named volume.

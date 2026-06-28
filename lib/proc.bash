@@ -2,8 +2,8 @@
 # Parallel process execution following devcontainer command-value conventions.
 #
 # Supports devcontainer-style command values: a string (shell command) or an
-# array of strings (direct exec). Requires `json.sh` for array command parsing
-# and `os.sh` when using the `--user` option.
+# array of strings (direct exec). Requires `json.bash` for array command parsing
+# and `os.bash` when using the `--user` option.
 
 proc__run_parallel() {
   # @brief proc__run_parallel [--outdir <dir>] [--cwd <dir>] -- <label> <argv...> [-- <label> <argv>...] — Run labelled commands in parallel; stream output in label order when all finish.
@@ -88,7 +88,7 @@ proc__run_command_form() {
   #
   # Args:
   #   --cwd <dir>    Working directory for the command (optional).
-  #   --user <user>  Username to run as via users__run_as (requires os.sh; optional).
+  #   --user <user>  Username to run as via users__run_as (requires os.bash; optional).
   local _cwd="" _user="" _json
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -129,7 +129,7 @@ proc__run_command_form() {
   _rc() {
     if [[ -n "$_user" ]]; then
       if ! command -v users__run_as > /dev/null 2>&1; then
-        logging__error "--user requires os.sh (users__run_as)"
+        logging__error "--user requires os.bash (users__run_as)"
         return 1
       fi
       if [[ -n "$_cwd" ]]; then

@@ -1,4 +1,4 @@
-"""Generate Markdown API reference for one lib/*.sh module."""
+"""Generate Markdown API reference for one lib shell module."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ _SECTION_HEADINGS = {
 
 
 def generate(module: LibModule, *, include_private: bool = False) -> str:
-    """Generate API reference Markdown for a lib/*.sh module.
+    """Generate API reference Markdown for a lib shell module.
 
     Parameters
     ----------
@@ -41,7 +41,7 @@ def generate(module: LibModule, *, include_private: bool = False) -> str:
     Returns
     -------
     str
-        Full Markdown content for ``docs/source/library/<name>.md``.
+        Full Markdown content for ``docs/source/library/<filename>.md``.
     """
     parts: list[str] = [f"# `{module.name}`"]
     if module.summary:

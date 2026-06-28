@@ -227,7 +227,7 @@ argparse__resolve_uri_options() {
   #       - `string` without chmod: resolve via `uri__resolve_line` into `${matdir}/uri/<key>/` (remote only).
   #
   # Notes:
-  #   - This function requires `lib/uri.sh` to be loaded.
+  #   - This function requires `lib/uri.bash` to be loaded.
   #   - It is safe under `set -u`: does not reference INSTALLER_DIR unless defined.
   #
   # Returns: 0 on success, non-zero on any failure.

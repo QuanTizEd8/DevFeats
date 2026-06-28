@@ -45,13 +45,17 @@ declare -A _feats=()
 declare -A _install_mods=()
 
 for _path in "${_changed[@]}"; do
+  _path_exists=false
+  [[ -f "$_path" ]] && _path_exists=true
   case "$_path" in
     *.sh | *.bash)
-      _sh_all+=("$_path")
-      [[ "$_path" == lib/* ]] && _sh_lib+=("$_path")
+      if [[ "$_path_exists" == true ]]; then
+        _sh_all+=("$_path")
+        [[ "$_path" == lib/* ]] && _sh_lib+=("$_path")
+      fi
       ;;
     *.py)
-      _py+=("$_path")
+      [[ "$_path_exists" == true ]] && _py+=("$_path")
       ;;
   esac
   [[ "$_path" == lib/* ]] && _lib_any=true
@@ -99,11 +103,15 @@ elif [[ ${#_feats[@]} -gt 0 ]]; then
 fi
 
 declare -A _modules=()
-for _path in "${_changed[@]}"; do
-  [[ "$_path" =~ ^lib/(.+)\.sh$ ]] || continue
+for _path in "${_sh_lib[@]}"; do
+  [[ "$_path" =~ ^lib/(.+)\.(sh|bash)$ ]] || continue
   _rel="${BASH_REMATCH[1]}"
+  _ext="${BASH_REMATCH[2]}"
   if [[ "$_rel" != */* ]]; then
-    _mod="$_rel"
+    case "${_rel}.${_ext}" in
+      logging.sh) _mod=logging-api ;;
+      *) _mod="$_rel" ;;
+    esac
   else
     case "$_rel" in
       install/*) _mod=install_tools ;;

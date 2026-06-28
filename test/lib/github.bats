@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/github.sh
+# Unit tests for lib/github.bash
 #
 # Network calls are replaced with function stubs or fake curl binaries that
 # return canned JSON fixtures.
@@ -106,7 +106,7 @@ v2.0.0"
 
 @test "github__release_tags --retries replays after repeated API list failure" {
   # Stub the list helper (not net__fetch_url_stdout): sourcing json/ospkg pulls
-  # net.sh back in and would replace a net stub before github__release_tags runs.
+  # net.bash back in and would replace a net stub before github__release_tags runs.
   _gh_list_n=0
   _github__api_list_field() {
     _gh_list_n=$((_gh_list_n + 1))

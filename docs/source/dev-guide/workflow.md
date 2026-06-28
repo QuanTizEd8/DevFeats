@@ -53,7 +53,7 @@ Python source under `.dev/lib/proman/` and `test/proman/` is formatted and linte
 
 ### Logging in Shell Scripts
 
-Use `lib/logging.sh` functions — never bare `echo ... >&2`:
+Use `lib/logging.bash` functions — never bare `echo ... >&2`:
 
 ```bash
 logging__info "Message"           # ℹ️  tier info (per-sink threshold)
@@ -70,4 +70,4 @@ logging__build "Compiling"        # 🔨
 logging__detect "Detecting"       # 🛠️
 ```
 
-`LOG_LEVEL` gates the console; `LOG_FILE` + `LOG_FILE_LEVEL` gate an append-only session log at exit. A helper runs if **either** sink wants its tier (e.g. quiet console + verbose file). Subprocess stdout/stderr are captured at the **debug** tier; `trace` enables `set -x` per sink. Call `logging__set_level` after parsing options, then `logging__setup` once levels are final. Installer exit runs `logging__cleanup` then `file__session_cleanup` (scratch under `_FILE__SESSION_ROOT`). See `lib/logging.sh`, `lib/file.sh`, and {doc}`/user-guide/options` (Logging).
+`LOG_LEVEL` gates the console; `LOG_FILE` + `LOG_FILE_LEVEL` gate an append-only session log at exit. A helper runs if **either** sink wants its tier (e.g. quiet console + verbose file). Subprocess stdout/stderr are captured at the **debug** tier; `trace` enables `set -x` per sink. Call `logging__set_level` after parsing options, then `logging__setup` once levels are final. Installer exit runs `logging__cleanup` then `file__session_cleanup` (scratch under `_FILE__SESSION_ROOT`). See `lib/logging.bash`, `lib/file.bash`, and {doc}`/user-guide/options` (Logging).

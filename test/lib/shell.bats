@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/shell.sh
+# Unit tests for lib/shell.bash
 
 bats_require_minimum_version 1.5.0
 
@@ -288,7 +288,7 @@ ${_home}/.zshrc"
 }
 
 # ---------------------------------------------------------------------------
-# users__resolve_home (via shell.sh which sources users.sh)
+# users__resolve_home (via shell.bash which sources users.bash)
 # ---------------------------------------------------------------------------
 
 @test "users__resolve_home returns home for current user" {

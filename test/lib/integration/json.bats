@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/json.sh — exercises real jq.
+# Integration tests for lib/json.bash — exercises real jq.
 #
 # json__query calls bootstrap__jq, which installs jq via ospkg if absent.
 # All json function tests require a real jq binary and belong here.

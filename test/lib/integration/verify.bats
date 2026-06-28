@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/verify.sh — exercises real GPG operations.
+# Integration tests for lib/verify.bash — exercises real GPG operations.
 #
 # verify__gpg_detached, verify__gpg_dearmor_stream, and
 # verify__gpg_fetch_key_by_fingerprint have no tests of any kind in the

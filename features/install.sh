@@ -3,7 +3,7 @@
 # Feature entry point.
 #
 # Ensure bash >=4.4 is available, then hand off to the main install script.
-# POSIX-phase messages buffer via lib/logging-api.sh; install.bash replays them at
+# POSIX-phase messages buffer via lib/logging.sh; install.bash replays them at
 # logging__setup once options (including log_level / log_file) are final.
 #
 # Notes
@@ -15,10 +15,10 @@
 
 set -e
 
-# shellcheck source=lib/logging-api.sh
-. "$(dirname "$0")/lib/logging-api.sh"
-# shellcheck source=lib/_posix.sh
-. "$(dirname "$0")/lib/_posix.sh"
+# shellcheck source=lib/logging.sh
+. "$(dirname "$0")/lib/logging.sh"
+# shellcheck source=lib/posix.sh
+. "$(dirname "$0")/lib/posix.sh"
 logging__pending_init
 
 _bash_is_44() {
@@ -135,7 +135,7 @@ _find_bash4() {
 _compile_bash() {
   # Compile bash 5.3 from GNU source and install to $HOME/.local/bin/bash.
   #
-  # Prints the installed binary path to stdout. Status messages buffer via logging-api.
+  # Prints the installed binary path to stdout. Status messages buffer via lib/logging.sh.
   # The caller exports _BASH_BIN and _BASH_INSTALLED_INTERNALLY so install.bash
   # can register it for cleanup via install__track_internal_path / ospkg__cleanup_resources,
   # respecting KEEP_BUILD_DEPS.

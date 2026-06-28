@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/ctx.sh — verifies actual context registry values
+# Integration tests for lib/ctx.bash — verifies actual context registry values
 # against the real system in every supported environment.
 #
 # No root, no network required. Runs wherever the devfeats test suite runs:

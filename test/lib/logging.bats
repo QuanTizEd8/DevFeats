@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/logging.sh
+# Unit tests for lib/logging.bash
 #
 # logging__setup uses 'exec 3>&1 4>&2' to save/redirect file descriptors.
 # Bats itself uses fd 3 internally for TAP output, so tests that call
@@ -13,10 +13,10 @@ setup() {
 }
 
 # Absolute paths to lib files for use inside bash -c subshells.
-_FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.sh"
-_LOGGING_API="${BATS_TEST_DIRNAME}/../../lib/logging-api.sh"
-_LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
-_SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_API}' && source '${_LOGGING_LIB}'"
+_FILE_LIB="${BATS_TEST_DIRNAME}/../../lib/file.bash"
+_LOGGING_POSIX="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
+_LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.bash"
+_SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_POSIX}' && source '${_LOGGING_LIB}'"
 
 # ---------------------------------------------------------------------------
 # logging__setup / logging__cleanup — isolated subprocess tests
@@ -647,12 +647,12 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_API}' && source '${
   assert_output "0"
 }
 
-@test "logging works when logging.sh is sourced before logging-api.sh" {
+@test "logging works when logging.bash is sourced before logging.sh" {
   local _dest="${BATS_TEST_TMPDIR}/reverse-source.log"
   run bash -c "
     source '${_FILE_LIB}'
     source '${_LOGGING_LIB}'
-    source '${_LOGGING_API}'
+    source '${_LOGGING_POSIX}'
     LOG_LEVEL=info
     LOG_FILE='${_dest}'
     logging__info 'reverse-source-order'

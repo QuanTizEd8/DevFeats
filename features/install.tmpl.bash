@@ -1847,7 +1847,7 @@ __err__() {
   local _rc=$?
   # Capture BASH_COMMAND immediately — some bash versions update it as trap body executes.
   local _cmd="${BASH_COMMAND}"
-  # logging__error (from logging-api.sh) works before and after logging__setup —
+  # logging__error (from logging.sh) works before and after logging__setup —
   # it buffers to the pending file until the mux is running. The only window
   # where it is unavailable is before __init_lib__ sources the library.
   if ! declare -f logging__error > /dev/null 2>&1; then

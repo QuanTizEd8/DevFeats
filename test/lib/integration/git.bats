@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/git.sh — require a real git installation.
+# Integration tests for lib/git.bash — require a real git installation.
 #
 # A shared local bare repo (with two commits + a tag) is created once per
 # file in ${BATS_FILE_TMPDIR} and reused across tests.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/uri.sh
+# Unit tests for lib/uri.bash
 
 bats_require_minimum_version 1.5.0
 
@@ -91,13 +91,13 @@ setup() {
 # ── _uri__gh_to_https ─────────────────────────────────────────────────────────
 
 @test "_uri__gh_to_https maps gh:// to raw.githubusercontent.com" {
-  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__gh_to_https 'gh://quantized8/devfeats@v1.2.3:docs/README.md'"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__gh_to_https 'gh://quantized8/devfeats@v1.2.3:docs/README.md'"
   assert_success
   assert_output "https://raw.githubusercontent.com/quantized8/devfeats/v1.2.3/docs/README.md"
 }
 
 @test "_uri__gh_to_https defaults to main when no @ref" {
-  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__gh_to_https 'gh://org/repo:path/file.sh'"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__gh_to_https 'gh://org/repo:path/file.sh'"
   assert_success
   assert_output "https://raw.githubusercontent.com/org/repo/main/path/file.sh"
 }
@@ -108,7 +108,7 @@ setup() {
   local _sc="${BATS_TEST_TMPDIR}/sums.txt"
   printf 'dead0000dead0000dead0000dead0000dead0000dead0000dead0000dead0000  other.bin\n' > "$_sc"
   printf 'beef1111beef1111beef1111beef1111beef1111beef1111beef1111beef1111  tool.tar.gz\n' >> "$_sc"
-  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__sidecar_hash 'tool.tar.gz' '${_sc}'"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__sidecar_hash 'tool.tar.gz' '${_sc}'"
   assert_success
   assert_output "beef1111beef1111beef1111beef1111beef1111beef1111beef1111beef1111"
 }
@@ -116,7 +116,7 @@ setup() {
 @test "_uri__sidecar_hash: BSD-style *<filename> prefix is stripped" {
   local _sc="${BATS_TEST_TMPDIR}/sums.txt"
   printf 'aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000 *tool.tar.gz\n' > "$_sc"
-  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__sidecar_hash 'tool.tar.gz' '${_sc}'"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__sidecar_hash 'tool.tar.gz' '${_sc}'"
   assert_success
   assert_output "aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000"
 }
@@ -124,7 +124,7 @@ setup() {
 @test "_uri__sidecar_hash: path-prefixed entry strips path component (new fix)" {
   local _sc="${BATS_TEST_TMPDIR}/sums.txt"
   printf 'cccc0000cccc0000cccc0000cccc0000cccc0000cccc0000cccc0000cccc0000  ./release/tool.tar.gz\n' > "$_sc"
-  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__sidecar_hash 'tool.tar.gz' '${_sc}'"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__sidecar_hash 'tool.tar.gz' '${_sc}'"
   assert_success
   assert_output "cccc0000cccc0000cccc0000cccc0000cccc0000cccc0000cccc0000cccc0000"
 }
@@ -132,7 +132,7 @@ setup() {
 @test "_uri__sidecar_hash: raw single-hash file (NR==1 NF==1 fallback)" {
   local _sc="${BATS_TEST_TMPDIR}/asset.sha256"
   printf 'dddd0000dddd0000dddd0000dddd0000dddd0000dddd0000dddd0000dddd0000\n' > "$_sc"
-  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__sidecar_hash 'anything' '${_sc}'"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__sidecar_hash 'anything' '${_sc}'"
   assert_success
   assert_output "dddd0000dddd0000dddd0000dddd0000dddd0000dddd0000dddd0000dddd0000"
 }
@@ -140,7 +140,7 @@ setup() {
 @test "_uri__sidecar_hash: returns empty when asset not in multi-entry file" {
   local _sc="${BATS_TEST_TMPDIR}/sums.txt"
   printf 'dead0000dead0000dead0000dead0000dead0000dead0000dead0000dead0000  other.bin\n' > "$_sc"
-  run bash -c "source '${LIB_ROOT}/uri.sh'; _uri__sidecar_hash 'missing.bin' '${_sc}'"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__sidecar_hash 'missing.bin' '${_sc}'"
   assert_success
   assert_output ""
 }

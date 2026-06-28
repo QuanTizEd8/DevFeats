@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/bootstrap.sh — exercises the install path.
+# Integration tests for lib/bootstrap.bash — exercises the install path.
 #
 # install_tools.bats covers only the "tool already on PATH" fast path for
 # bootstrap__yq and bootstrap__oras. These tests exercise the install path

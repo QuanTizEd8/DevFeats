@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/users.sh — exercises real user/group management.
+# Integration tests for lib/users.bash — exercises real user/group management.
 #
 # users__create_group, users__delete_group, users__create_user,
 # users__delete_user, users__add_to_group, users__create_system_user, and

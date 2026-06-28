@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/ospkg.sh — exercises real package-manager operations.
+# Integration tests for lib/ospkg.bash — exercises real package-manager operations.
 #
 # Requires a real package manager and typically runs as root inside a container.
 # Skipped when the canary package is already installed on the system.

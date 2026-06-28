@@ -3,7 +3,7 @@
 #
 # Maintains a flat `qualified=value` registry (`os.*`, `plat.*`, `feat.*`) that
 # install scripts and library code populate and query.  The registry is filled
-# lazily on first access from the host (`/etc/os-release`, `sw_vers`, `os.sh`,
+# lazily on first access from the host (`/etc/os-release`, `sw_vers`, `os.bash`,
 # `ospkg__pm_key`) and from feature options (`feat.version`, `feat.method`, …).
 #
 # Two consumers share the same keys:
@@ -402,7 +402,7 @@ _ctx__load_darwin_os() {
 }
 
 _ctx__populate_plat() {
-  # @brief _ctx__populate_plat — Populate `plat.*` keys from `os.sh` release helpers.
+  # @brief _ctx__populate_plat — Populate `plat.*` keys from `os.bash` release helpers.
   #
   # Always sets `plat.kernel`, `plat.machine`, `plat.platform`, and `plat.machine_release`.
   # Optional keys are set only when the underlying helper returns non-empty:

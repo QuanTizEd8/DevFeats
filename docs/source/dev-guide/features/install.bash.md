@@ -387,7 +387,7 @@ Library modules are sourced via `lib/__init__.bash` before any hook runs — all
 To source a specific module in isolation (e.g. in tests):
 
 ```bash
-source "${_FEAT_DIR}/lib/os.sh"
+source "${_FEAT_DIR}/lib/os.bash"
 ```
 
 See {doc}`lib` for the full API reference.

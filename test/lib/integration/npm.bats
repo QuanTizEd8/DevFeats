@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/npm.sh — npm__install_bundled against real network.
+# Integration tests for lib/npm.bash — npm__install_bundled against real network.
 #
 # All tests require a real internet connection and are skipped unless
 # SYSSET_RUN_INTEGRATION_DEPS=1 is set.  They perform actual Node.js and npm

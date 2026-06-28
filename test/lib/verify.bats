@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/verify.sh
+# Unit tests for lib/verify.bash
 
 bats_require_minimum_version 1.5.0
 

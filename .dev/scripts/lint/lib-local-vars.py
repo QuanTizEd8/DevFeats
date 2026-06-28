@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static check: function-scoped variables in lib/*.sh must be declared local.
+"""Static check: function-scoped variables in lib shell modules must be local.
 
 ShellCheck has no rule for this (see koalaman/shellcheck#1395). This checker
 flags assignments inside functions when the target variable is not local to the
@@ -7,11 +7,11 @@ current function or an enclosing function (bash dynamic scope for nested helpers
 
 Intentional module globals are excluded: ALL_CAPS names (shell convention) and
 names prefixed with ``_<MODULE>__`` where the prefix is derived from the checked
-filename (e.g. bootstrap.sh → _BOOTSTRAP__). Additional suppressions live in
+filename (e.g. bootstrap.bash → _BOOTSTRAP__). Additional suppressions live in
 .config/lib-local-vars.allowlist.
 
 Usage:
-  lib-local-vars.py [path ...]     # default: lib/*.sh under repo root
+  lib-local-vars.py [path ...]     # default: lib/*.{bash,sh} under repo root
 """
 
 from __future__ import annotations
@@ -22,7 +22,15 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ALLOWLIST = REPO_ROOT / ".config" / "lib-local-vars.allowlist"
-DEFAULT_PATHS = sorted((REPO_ROOT / "lib").glob("*.sh"))
+DEFAULT_PATHS = sorted(
+    (
+        path
+        for pattern in ("*.sh", "*.bash")
+        for path in (REPO_ROOT / "lib").glob(pattern)
+        if path.name != "__init__.bash"
+    ),
+    key=lambda path: path.name,
+)
 
 FUNC_START = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*)?\s*\(\)\s*\{")
 _MODULE_GLOBAL_RE = re.compile(r"^(_[A-Z][A-Z0-9_]*__)[\w]")
@@ -114,10 +122,10 @@ def derive_module_prefix(path: Path) -> str:
     """Return the ``_MODULE__`` prefix for *path*.
 
     Scans the file for the first assignment to a variable whose name starts
-    with ``_[A-Z][A-Z0-9_]*__``.  Module-level globals are always defined at
+    with ``_[A-Z][A-Z0-9_]*__``. Module-level globals are always defined at
     the top of the file before any function definitions, so the first hit is
-    authoritative (e.g. ``logging-api.sh`` correctly yields ``_LOGGING__``
-    rather than ``_LOGGING_API__``).  Falls back to uppercasing the file stem
+    authoritative (e.g. ``logging.sh`` correctly yields ``_LOGGING__``).
+    Falls back to uppercasing the file stem
     when the file defines no such globals.
     """
     for line in path.read_text().splitlines():
@@ -131,7 +139,7 @@ def is_module_global(var: str, module_prefix: str) -> bool:
     """Return whether ``var`` is an intentional module-level global name.
 
     Globals are either ALL_CAPS or prefixed with ``_<MODULE>__`` (e.g.
-    ``_BOOTSTRAP__YQ_BIN`` in ``bootstrap.sh``).
+    ``_BOOTSTRAP__YQ_BIN`` in ``bootstrap.bash``).
     """
     if re.match(r"^[A-Z][A-Z0-9_]*$", var):
         return True
@@ -254,7 +262,7 @@ def should_skip_line(stripped: str) -> bool:
 
 
 def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
-    """Scan one ``lib/*.sh`` file and return human-readable issue strings."""
+    """Scan one lib shell module and return human-readable issue strings."""
     rel = path.name
     module_prefix = derive_module_prefix(path)
     lines = path.read_text().splitlines()
@@ -356,7 +364,7 @@ def check_file(path: Path, allowlist: set[tuple[str, str, str]]) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    """Run the checker on ``argv[1:]`` or all default ``lib/*.sh`` paths."""
+    """Run the checker on ``argv[1:]`` or all default lib module paths."""
     paths = [Path(p) for p in argv[1:]] if len(argv) > 1 else DEFAULT_PATHS
     allowlist = load_allowlist()
     all_issues: list[str] = []

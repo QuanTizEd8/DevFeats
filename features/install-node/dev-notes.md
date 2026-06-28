@@ -8,7 +8,7 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
 
 ### `github__latest_tag` — Resolve nvm Release Tag
 
-- **Module:** `lib/github.sh`
+- **Module:** `lib/github.bash`
 - **Reuse:** ✅ Existing function
 - **Responsibility:** When `nvm_version=latest`, call `github__latest_tag nvm-sh/nvm` to retrieve the latest nvm release tag from the GitHub Releases API. The result is a tag like `v0.40.4`.
 
@@ -16,22 +16,22 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
 
 ### `net__fetch_url_file` — Download Files
 
-- **Module:** `lib/net.sh` (auto-sourced by `ospkg.sh`)
+- **Module:** `lib/net.bash` (auto-sourced by `ospkg.bash`)
 - **Reuse:** ✅ Existing function
 - **Responsibility:** Download the nvm install script, Node.js tarball, and `SHASUMS256.txt` to `installer_dir`. Automatically selects curl/wget; retries up to 3 times on failure.
 
 ---
 
-### `checksum__verify` — SHA-256 Verification
+### `verify__sha` — SHA-256 Verification
 
-- **Module:** `lib/checksum.sh`
-- **Reuse:** ✅ Existing function (note: `checksum__verify_sidecar` is NOT used here — `SHASUMS256.txt` has multiple entries; the correct hash must be extracted first with `grep "${TARBALL}" SHASUMS256.txt | awk '{print $1}'`, then passed to `checksum__verify`).
+- **Module:** `lib/verify.bash`
+- **Reuse:** ✅ Existing function (note: `verify__sha_sidecar` is NOT used here — `SHASUMS256.txt` has multiple entries; the correct hash must be extracted first with `grep "${TARBALL}" SHASUMS256.txt | awk '{print $1}'`, then passed to `verify__sha`).
 
 ---
 
 ### `ospkg__run` — Install OS Dependencies
 
-- **Module:** `lib/ospkg.sh`
+- **Module:** `lib/ospkg.bash`
 - **Reuse:** ✅ Existing function
 - **Responsibility:** Install OS package dependencies from manifest files. Called three times:
   1. `dependencies/base.yaml` — always (curl, ca-certificates)
@@ -42,7 +42,7 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
 
 ### `os__platform` — Alpine Detection
 
-- **Module:** `lib/os.sh` (auto-sourced by `ospkg.sh`)
+- **Module:** `lib/os.bash` (auto-sourced by `ospkg.bash`)
 - **Reuse:** ✅ Existing function
 - **Responsibility:** Returns `alpine` when running on Alpine Linux. Used to gate the Alpine check for `method=binary` (exit with error) and to switch to `nvm install -s` on Alpine.
 
@@ -50,7 +50,7 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
 
 ### `os__arch` / `os__kernel` — CPU Architecture / OS Detection
 
-- **Module:** `lib/os.sh`
+- **Module:** `lib/os.bash`
 - **Reuse:** ✅ Existing functions
 - **Responsibility:** Used in the binary method to build the nodejs.org platform string (e.g. `linux-x64`, `darwin-arm64`). Called when `arch` option is empty (auto-detect mode).
 
@@ -149,7 +149,7 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
   7. Download tarball: `net__fetch_url_file "https://nodejs.org/dist/${_NODE_VERSION}/${TARBALL}" "${INSTALLER_DIR}/${TARBALL}"`
   8. Download checksums: `net__fetch_url_file "https://nodejs.org/dist/${_NODE_VERSION}/SHASUMS256.txt" "${INSTALLER_DIR}/SHASUMS256.txt"`
   9. Extract expected hash: `_hash=$(grep "  ${TARBALL}$" "${INSTALLER_DIR}/SHASUMS256.txt" | awk '{print $1}')`; exit 1 with error if empty. Note: the format is `{sha256hex}  {filename}` — two spaces between hash and filename.
-  10. Verify: `checksum__verify "${INSTALLER_DIR}/${TARBALL}" "$_hash"`
+  10. Verify: `verify__sha "${INSTALLER_DIR}/${TARBALL}" "$_hash"`
   11. Create prefix: `mkdir -p "${PREFIX}"`
   12. Extract: `tar -xJf "${INSTALLER_DIR}/${TARBALL}" --strip-components=1 -C "${PREFIX}"`
   13. Return `_NODE_VERSION` and `PREFIX` to caller. (Cleanup of `$INSTALLER_DIR` is handled by the EXIT trap — do not clean up inline here.)
@@ -367,7 +367,7 @@ brew:
 ```
 install.bash
   ├── Header: set -euo pipefail, _BASE_DIR, _BASE_DIR
-  ├── Source: ospkg.sh, logging.sh, github.sh, checksum.sh, shell.sh, users.sh
+  ├── Source: ospkg.bash, logging.bash, github.bash, checksum.sh, shell.bash, users.bash
   ├── logging__setup + EXIT trap (includes: rm -rf "$INSTALLER_DIR"; for nvm also: cleanup nvm cache on error)
   ├── Script entry echo
   ├── os__require_root
@@ -463,8 +463,8 @@ install.bash
 - [nvm README v0.40.4 — Docker](https://github.com/nvm-sh/nvm/blob/v0.40.4/README.md#installing-in-docker) — `PROFILE=/dev/null` and nvm sourcing in Docker `RUN` steps
 - [nodejs.org/dist/index.json](https://nodejs.org/dist/index.json) — Release index format (`version`, `lts`, `npm`)
 - [devcontainers/features node install.sh](https://raw.githubusercontent.com/devcontainers/features/main/src/node/install.sh) — Reference implementation for nvm + Alpine patterns
-- [lib/github.sh](../../../lib/github.sh) — `github__latest_tag`
-- [lib/checksum.sh](../../../lib/checksum.sh) — `checksum__verify`
-- [lib/shell.sh](../../../lib/shell.sh) — `shell__system_path_files`, `shell__user_path_files`, `shell__sync_block` for PATH and shell configuration
-- [lib/users.sh](../../../lib/users.sh) — `users__resolve_list`
-- [lib/os.sh](../../../lib/os.sh) — `os__platform`, `os__arch`, `os__kernel`
+- [lib/github.bash](../../../lib/github.bash) — `github__latest_tag`
+- [lib/verify.bash](../../../lib/verify.bash) — `verify__sha`
+- [lib/shell.bash](../../../lib/shell.bash) — `shell__system_path_files`, `shell__user_path_files`, `shell__sync_block` for PATH and shell configuration
+- [lib/users.bash](../../../lib/users.bash) — `users__resolve_list`
+- [lib/os.bash](../../../lib/os.bash) — `os__platform`, `os__arch`, `os__kernel`

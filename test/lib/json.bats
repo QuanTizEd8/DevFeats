@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/json.sh
+# Unit tests for lib/json.bash
 #
 # All json__* function tests require a real jq binary and live in
 # test/lib/integration/json.bats. Only the bootstrap stub test lives here.

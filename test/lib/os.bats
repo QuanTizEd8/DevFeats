@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/os.sh
+# Unit tests for lib/os.bash
 
 bats_require_minimum_version 1.5.0
 
@@ -264,9 +264,9 @@ _os__platform_stub_release() {
   local _tmp
   _tmp="$(mktemp -d)"
   touch "$_tmp/.dockerenv"
-  # Source os.sh in a subshell that replaces / with our tmpdir for the lookup.
+  # Source os.bash in a subshell that replaces / with our tmpdir for the lookup.
   run bash -c "
-    source '${LIB_ROOT}/os.sh'
+    source '${LIB_ROOT}/os.bash'
     # Override the check: replace /.dockerenv with \$_tmp/.dockerenv
     os__is_container() {
       [[ -f '${_tmp}/.dockerenv' ]] && return 0
@@ -281,7 +281,7 @@ _os__platform_stub_release() {
 @test "os__is_container returns false when no container markers are present" {
   reload_lib
   run bash -c "
-    source '${LIB_ROOT}/os.sh'
+    source '${LIB_ROOT}/os.bash'
     # Override the check: point all paths to non-existent files.
     os__is_container() {
       [[ -f '/no-such-dockerenv-sentinel' ]] && return 0

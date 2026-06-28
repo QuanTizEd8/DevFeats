@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/net.sh — exercises real HTTP downloads.
+# Integration tests for lib/net.bash — exercises real HTTP downloads.
 #
 # Unit tests verify curl/wget dispatch using stubs. These tests confirm
 # that actual network connectivity works end-to-end.

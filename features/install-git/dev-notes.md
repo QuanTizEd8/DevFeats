@@ -8,7 +8,7 @@ The script lives at `src/install-git/install.bash` and must only orchestrate; al
 
 ## Building Blocks
 
-### 1. `github__tags` + `_github__api_list_field` — **NEW in `lib/github.sh`**
+### 1. `github__tags` + `_github__api_list_field` — **NEW in `lib/github.bash`**
 
 **Responsibility:** `github__tags` enumerates git tag names from the GitHub **Tags** API (`/tags?per_page=<n>`). Needed because the `git/git` repository does not publish GitHub Releases; version discovery for source builds must use the Tags endpoint.
 
@@ -90,7 +90,7 @@ github__tags() {
 
 ---
 
-### 2. `ospkg__run` — **REUSED from `lib/ospkg.sh`**
+### 2. `ospkg__run` — **REUSED from `lib/ospkg.bash`**
 
 **Responsibility:** Full pipeline (update → install from manifest → clean) for installing OS packages from a YAML manifest. Used by the `source` method to install build dependencies before compiling.
 
@@ -101,7 +101,7 @@ ospkg__run --manifest "${_BASE_DIR}/dependencies/source-build.yaml"
 
 ---
 
-### 3. `ospkg__install` — **REUSED from `lib/ospkg.sh`**
+### 3. `ospkg__install` — **REUSED from `lib/ospkg.bash`**
 
 **Responsibility:** Install one or more named packages. Used by the `package` method after PPA configuration to install `git` from the freshly added repo.
 
@@ -112,21 +112,21 @@ ospkg__install git
 
 ---
 
-### 4. `checksum__verify` — **REUSED from `lib/checksum.sh`**
+### 4. `verify__sha` — **REUSED from `lib/verify.bash`**
 
 **Responsibility:** Verify a downloaded file's SHA-256 digest. Used after fetching the `kernel.org` tarball for the `source` method.
 
 **Usage:** The script fetches `sha256sums.asc` alongside the tarball, parses the expected hash for the specific filename with `awk`/`grep`, and passes it to this function:
 ```bash
 _expected="$(grep "git-${_VERSION}.tar.gz" "${_INSTALLER_DIR}/sha256sums.asc" | awk '{print $1}')"
-checksum__verify "${_INSTALLER_DIR}/git-${_VERSION}.tar.gz" "$_expected"
+verify__sha "${_INSTALLER_DIR}/git-${_VERSION}.tar.gz" "$_expected"
 ```
 
 Note: `sha256sums.asc` from kernel.org is a GPG-signed file; the plaintext hash lines are still readable without GPG verification. The feature verifies the **hash** of the tarball but does NOT verify the GPG signature of the sidecar file itself (requiring `gpg` and the kernel.org key would add significant complexity). This is the same posture as the devcontainers/features reference implementation.
 
 ---
 
-### 5. `net__fetch_url_file` / `net__fetch_url_stdout` — **REUSED from `lib/net.sh`** (auto-sourced by ospkg.sh)
+### 5. `net__fetch_url_file` / `net__fetch_url_stdout` — **REUSED from `lib/net.bash`** (auto-sourced by ospkg.bash)
 
 **Responsibility:** HTTP fetch with curl/wget auto-selection and 3 retries. Used for:
 - Downloading the source tarball and checksum file (→ `net__fetch_url_file`)
@@ -134,7 +134,7 @@ Note: `sha256sums.asc` from kernel.org is a GPG-signed file; the plaintext hash 
 
 ---
 
-### 6. `os__id`, `os__platform`, `os__kernel` — **REUSED from `lib/os.sh`** (auto-sourced by ospkg.sh)
+### 6. `os__id`, `os__platform`, `os__kernel` — **REUSED from `lib/os.bash`** (auto-sourced by ospkg.bash)
 
 **Responsibility:**
 - `os__id` → returns `ubuntu`, `debian`, `alpine`, `fedora`, `rhel`, `macos`, etc. Used to detect Ubuntu for PPA eligibility and to gate the `ppa` method.
@@ -143,7 +143,7 @@ Note: `sha256sums.asc` from kernel.org is a GPG-signed file; the plaintext hash 
 
 ---
 
-### 7. `os__codename` — **NEW in `lib/os.sh`**
+### 7. `os__codename` — **NEW in `lib/os.bash`**
 
 **Responsibility:** Returns the Ubuntu (or Debian) codename for the running OS. Used by `_git__ppa_check_codename` to decide whether to attempt the PPA. Reads `VERSION_CODENAME` from `/etc/os-release`, falling back to `UBUNTU_CODENAME` (present on some older Ubuntu releases). Returns an empty string on non-Debian systems or when neither field exists.
 
@@ -512,7 +512,7 @@ net__fetch_url_file "$_SUM_URL" "$_SUMFILE"
 
 _expected="$(grep "git-${_RESOLVED_VERSION}.tar.gz" "$_SUMFILE" | awk '{print $1}')"
 [ -z "$_expected" ] → fatal: version not found in sha256sums.asc
-checksum__verify "$_TARFILE" "$_expected"
+verify__sha "$_TARFILE" "$_expected"
 ```
 
 ---
@@ -760,9 +760,9 @@ The existing `dependencies/base.yaml` is replaced by `dependencies/os-pkg.yaml` 
 
 - [Installation Reference](./installation.md) — all method details, build flags, PPA key steps, codename matrix
 - [API Reference](./api.md) — option semantics, auto-selection table, usage examples
-- [lib/github.sh](../../../lib/github.sh) — existing GitHub API helpers; `github__tags` added here
-- [lib/checksum.sh](../../../lib/checksum.sh) — `checksum__verify` and `checksum__verify_sidecar`
-- [lib/os.sh](../../../lib/os.sh) — `os__id`, `os__platform`, `os__kernel`
+- [lib/github.bash](../../../lib/github.bash) — existing GitHub API helpers; `github__tags` added here
+- [lib/verify.bash](../../../lib/verify.bash) — `verify__sha` and `verify__sha_sidecar`
+- [lib/os.bash](../../../lib/os.bash) — `os__id`, `os__platform`, `os__kernel`
 - [alpine/aports APKBUILD](https://gitlab.alpinelinux.org/alpine/aports/-/blob/master/main/git/APKBUILD) — Alpine-specific make flags
 - [kernel.org git directory](https://www.kernel.org/pub/software/scm/git/) — tarball + sha256sums.asc
 - [GitHub Tags API](https://docs.github.com/en/rest/repos/repos#list-repository-tags) — endpoint format, per_page parameter

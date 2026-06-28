@@ -1,6 +1,7 @@
-"""Parse structured @brief + body comments from lib/*.sh files.
+"""Parse structured @brief + body comments from lib shell modules.
 
-Each public function in a lib/*.sh file is documented with a comment block
+Each public function in a ``lib/*.bash`` or ``lib/*.sh`` file is documented
+with a comment block
 immediately before the function definition:
 
     # @brief funcname [<args>...] — One-line description.
@@ -73,7 +74,7 @@ class SectionBlock:
 
 
 class LibFunction:
-    """One public function parsed from a lib/*.sh file."""
+    """One public function parsed from a lib shell module."""
 
     def __init__(
         self,
@@ -93,7 +94,7 @@ class LibFunction:
 
 
 class LibModule:
-    """A parsed lib/*.sh file with module-level docs and public functions."""
+    """A parsed lib shell module with filename, docs, and public functions."""
 
     def __init__(
         self,
@@ -259,23 +260,23 @@ def _parse_module_header(lines: list[str]) -> tuple[str, str]:
 
 
 def parse_lib_module(path: Path) -> LibModule:
-    """Parse a lib/*.sh file; return module-level docs and all @brief functions.
+    """Parse a lib shell module; return module-level docs and @brief functions.
 
     Parameters
     ----------
     path : Path
-        Absolute path to the lib/*.sh file.
+        Absolute path to the ``lib/*.bash`` or ``lib/*.sh`` file.
 
     Returns
     -------
     LibModule
-        Module name (stem), summary, long description, and list of functions.
+        Module filename, summary, long description, and list of functions.
     """
     lines = path.read_text(encoding="utf-8").splitlines()
     summary, description = _parse_module_header(lines)
     functions = parse_lib_file(path)
     return LibModule(
-        name=path.stem,
+        name=path.name,
         summary=summary,
         description=description,
         functions=functions,
@@ -283,7 +284,7 @@ def parse_lib_module(path: Path) -> LibModule:
 
 
 def parse_lib_file(path: Path) -> list[LibFunction]:
-    """Parse @brief annotations and full comment bodies from a lib/*.sh file.
+    """Parse @brief annotations and full comment bodies from a lib shell module.
 
     Scans every line for '# @brief' to find annotated public functions.
     For each function, collects all comment lines between the @brief line and
@@ -292,7 +293,7 @@ def parse_lib_file(path: Path) -> list[LibFunction]:
     Parameters
     ----------
     path : Path
-        Absolute path to the lib/*.sh file.
+        Absolute path to the ``lib/*.bash`` or ``lib/*.sh`` file.
 
     Returns
     -------

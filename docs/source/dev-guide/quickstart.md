@@ -65,7 +65,7 @@ just sync-src          # rebuilds src/ — always run this after editing feature
 just lint-sh-check     # verify no shellcheck issues in the assembled install.bash
 ```
 
-**Editing the library:** modify `lib/<module>.sh`, then:
+**Editing the library:** modify `lib/<module>.bash` (or `lib/<module>.sh` for the POSIX modules), then:
 
 ```bash
 just sync-src          # lib/ is copied into each feature's src/*/lib/
@@ -125,7 +125,7 @@ just test-lib          # fast lib tests
 just release-detect    # preview which features need a new release (queries GitHub API)
 ```
 
-**Version bump:** if you changed `features/<id>/install.bash`, `features/<id>/metadata.yaml`, or any `lib/*.sh` that affects behavior, bump `version` in the feature's `metadata.yaml` (semver). CI rejects PRs that skip this step. See {doc}`devops/ci` for the version-bump rule.
+**Version bump:** if you changed `features/<id>/install.bash`, `features/<id>/metadata.yaml`, or any `lib/*.bash` / `lib/*.sh` file that affects behavior, bump `version` in the feature's `metadata.yaml` (semver). CI rejects PRs that skip this step. See {doc}`devops/ci` for the version-bump rule.
 
 ## Key Files Reference
 

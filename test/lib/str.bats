@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/str.sh
+# Unit tests for lib/str.bash
 
 bats_require_minimum_version 1.5.0
 
@@ -21,7 +21,7 @@ zsh-syntax-highlighting"
 }
 
 @test "str__basename_each prints nothing when given no arguments" {
-  run bash -c 'source "$1" && str__basename_each' _ "${LIB_ROOT}/str.sh"
+  run bash -c 'source "$1" && str__basename_each' _ "${LIB_ROOT}/str.bash"
   assert_output ""
   assert_success
 }

@@ -10,35 +10,35 @@ library functions are required.
 ## Building Blocks
 
 ### `os__platform` · `os__id` · `os__id_like` · `os__arch` · `os__kernel`
-- **Reuse** from `lib/os.sh`.
+- **Reuse** from `lib/os.bash`.
 - `os__platform` → `debian|alpine|rhel|macos`; `os__id` → raw `/etc/os-release` `ID` field.
 - `os__id` is used for Arch Linux detection (ID=`arch`) since `os__platform` maps Arch → `debian` as the
   fallback and would route incorrectly.
 
 ### `ospkg__run` · `ospkg__install` · `ospkg__update`
-- **Reuse** from `lib/ospkg.sh`.
+- **Reuse** from `lib/ospkg.bash`.
 - `ospkg__run --manifest` installs the base dependencies; `ospkg__install` installs individual packages
   (e.g. `gnupg` for the Debian repo method, `tar`/`unzip` in the binary method when not already present).
 
 ### `github__latest_tag`
-- **Reuse** from `lib/github.sh`.
+- **Reuse** from `lib/github.bash`.
 - Used by `_gh__resolve_version` to translate `version=latest` → `v2.89.0` → strips the `v` prefix.
 
 ### `net__fetch_url_file`
-- **Reuse** from `lib/net.sh`.
+- **Reuse** from `lib/net.bash`.
 - Used by `_gh__install_binary` to download the release archive and checksums file.
 
-### `checksum__verify`
-- **Reuse** from `lib/checksum.sh`.
+### `verify__sha`
+- **Reuse** from `lib/verify.bash`.
 - The `gh_<ver>_checksums.txt` file is a multi-asset file; the caller extracts the expected hash with `grep`
-  and passes it to `checksum__verify <archive> <hash>`.
+  and passes it to `verify__sha <archive> <hash>`.
 
 ### `shell__detect_zshdir`
-- **Reuse** from `lib/shell.sh`.
+- **Reuse** from `lib/shell.bash`.
 - Used by `_gh__install_completions` to locate the system-wide zsh directory for zsh completion install.
 
 ### `users__resolve_list`
-- **Reuse** from `lib/users.sh`.
+- **Reuse** from `lib/users.bash`.
 - Used by `_gh__install_extensions` to build a deduplicated list of usernames from the feature's
   `ADD_CURRENT_USER`, `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`, and `ADD_USERS`
   env vars (set to `true`/`false`/`<username>` depending on the option values).
@@ -162,7 +162,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
    ```bash
    _expected="$(grep "${_archive_name}" "${INSTALLER_DIR}/checksums.txt" | awk '{print $1}')"
    ```
-5. Verify: `checksum__verify "${INSTALLER_DIR}/${_archive_name}" "${_expected}"`; exit 1 on mismatch.
+5. Verify: `verify__sha "${INSTALLER_DIR}/${_archive_name}" "${_expected}"`; exit 1 on mismatch.
 6. Extract archive:
    - Linux: `tar -xzf ... -C "${INSTALLER_DIR}"`
    - macOS: `unzip -q ... -d "${INSTALLER_DIR}"`
@@ -240,7 +240,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 ### Step-by-Step Orchestration in `install.sh`
 
 ```
-1.  Source libs: ospkg.sh → logging.sh → github.sh → checksum.sh → shell.sh → users.sh
+1.  Source libs: ospkg.bash → logging.bash → github.bash → checksum.sh → shell.bash → users.bash
 2.  logging__setup + trap EXIT logging__cleanup
 3.  Dual-mode argument parsing (env vars vs --flags)
 4.  Apply defaults: VERSION=latest, METHOD=repos, PREFIX=/usr/local,
@@ -331,7 +331,7 @@ macOS (zip) uses the same structure with `macOS` in the directory name.
 - [Official Linux Install Docs](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)
 - [install-git install.bash — Platform dispatch and GPG key import patterns](../../src/install-git/install.bash)
 - [install-pixi install.bash — Binary download + version resolution pattern](../../src/install-pixi/install.bash)
-- [lib/github.sh — github__latest_tag, github__release_asset_urls](../../lib/github.sh)
-- [lib/checksum.sh — checksum__verify](../../lib/checksum.sh)
-- [lib/shell.sh — shell__detect_zshdir](../../lib/shell.sh)
-- [lib/users.sh — users__resolve_list](../../lib/users.sh)
+- [lib/github.bash — github__latest_tag, github__release_asset_urls](../../lib/github.bash)
+- [lib/verify.bash — verify__sha](../../lib/verify.bash)
+- [lib/shell.bash — shell__detect_zshdir](../../lib/shell.bash)
+- [lib/users.bash — users__resolve_list](../../lib/users.bash)

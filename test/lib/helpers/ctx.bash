@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Test helpers for lib/ctx.sh
+# Test helpers for lib/ctx.bash
 
 ctx_test__reset() {
   ctx__reset

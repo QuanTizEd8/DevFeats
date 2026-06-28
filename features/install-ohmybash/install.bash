@@ -118,7 +118,7 @@ _link_custom_items() {
 # ---------------------------------------------------------------------------
 # __configure_user <username>
 # Injects a guarded OMB setup block into the appropriate Bash theme file.
-# Rcfile resolution is delegated to shell__resolve_bash_theme_file (see lib/shell.sh).
+# Rcfile resolution is delegated to shell__resolve_bash_theme_file (see lib/shell.bash).
 # ---------------------------------------------------------------------------
 __configure_user() {
   local _username="$1"

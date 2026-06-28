@@ -43,7 +43,7 @@ __prefix_activation_snippet() {
       printf "eval \`\"%s\" hook tcsh\`\n" "$_bin"
       ;;
     elvish)
-      # Output the full hook inline; lib/shell.sh writes it directly to rc.elv.
+      # Output the full hook inline; lib/shell.bash writes it directly to rc.elv.
       "${_bin}" hook elvish
       ;;
     nushell)

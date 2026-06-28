@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Integration tests for lib/oci.sh — exercises real ORAS and OCI registry.
+# Integration tests for lib/oci.bash — exercises real ORAS and OCI registry.
 #
-# All oci.sh functions are tested in unit tests only with a stubbed oras
+# All oci.bash functions are tested in unit tests only with a stubbed oras
 # function. These tests confirm the real ORAS binary and OCI registry
 # interaction work end-to-end.
 #

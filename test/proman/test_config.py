@@ -82,9 +82,9 @@ runner:
 scripts:
   features_src: "./src"
 triggers:
-  lint: ["**/*.sh"]
+  lint: ["**/*.sh", "**/*.bash"]
   validate: ["**/metadata.yaml"]
-  unit_test: ["lib/*.sh"]
+  unit_test: ["lib/*.sh", "lib/*.bash"]
   scenario_test: ["features/install.sh"]
   devcontainer: [".devcontainer/.dev/**"]
   docs: ["docs/**"]
@@ -175,6 +175,8 @@ def test_load_ci_triggers_section(
     ci = cfg.load()["ci"]
     assert "lint" in ci["triggers"]
     assert "**/*.sh" in ci["triggers"]["lint"]
+    assert "**/*.bash" in ci["triggers"]["lint"]
+    assert "lib/*.bash" in ci["triggers"]["unit_test"]
     assert "python_test" in ci["triggers"]
 
 

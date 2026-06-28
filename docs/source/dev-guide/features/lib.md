@@ -19,7 +19,7 @@ Every public function is covered by the BATS unit suite under `test/lib/`. Run `
 
 ## Documentation
 
-Each `lib/*.sh` module is automatically parsed and rendered into an API reference page under `docs/source/library/<module-name>.md`. The generator reads structured comments — no external tools required. This section explains what to write so that the output renders correctly.
+Each shell module in `lib/` (`*.bash` plus the small POSIX `*.sh` subset) is automatically parsed and rendered into an API reference page under `docs/source/library/<module-filename>.md`. The generator reads structured comments — no external tools required. This section explains what to write so that the output renders correctly.
 
 ### Module header
 
@@ -126,7 +126,7 @@ Renders as:
 For reference, the full structure the generator produces for a module:
 
 ```markdown
-# `<module-name>`
+# `<module-filename>`
 
 <module summary>
 

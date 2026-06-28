@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/logging-api.sh (POSIX sh).
+# Unit tests for lib/logging.sh (POSIX sh).
 
 bats_require_minimum_version 1.5.0
 
@@ -7,13 +7,13 @@ setup() {
   load 'helpers/common'
 }
 
-_LOGGING_API="${BATS_TEST_DIRNAME}/../../lib/logging-api.sh"
+_LOGGING_SH="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
 
-@test "logging-api buffers without live stderr on success path" {
+@test "logging.sh buffers without live stderr on success path" {
   local _stderr="${BATS_TEST_TMPDIR}/api-silent.stderr"
   run sh -c "
     exec 2>'${_stderr}'
-    . '${_LOGGING_API}'
+    . '${_LOGGING_SH}'
     logging__pending_init
     logging__info 'buffered-only'
     logging__pending_handoff
@@ -27,9 +27,9 @@ _LOGGING_API="${BATS_TEST_DIRNAME}/../../lib/logging-api.sh"
   assert_failure
 }
 
-@test "logging-api pending file uses structured records" {
+@test "logging.sh pending file uses structured records" {
   run sh -c "
-    . '${_LOGGING_API}'
+    . '${_LOGGING_SH}'
     logging__pending_init
     logging__error 'bootstrap-fail-msg'
     logging__pending_handoff
@@ -38,11 +38,11 @@ _LOGGING_API="${BATS_TEST_DIRNAME}/../../lib/logging-api.sh"
   assert_success
 }
 
-@test "logging-api dumps pending journal on failure before handoff" {
+@test "logging.sh dumps pending journal on failure before handoff" {
   local _stderr="${BATS_TEST_TMPDIR}/api-fail.stderr"
   run sh -c "
     exec 2>'${_stderr}'
-    . '${_LOGGING_API}'
+    . '${_LOGGING_SH}'
     logging__pending_init
     logging__error 'visible-on-failure'
     exit 1
@@ -52,11 +52,11 @@ _LOGGING_API="${BATS_TEST_DIRNAME}/../../lib/logging-api.sh"
   assert_success
 }
 
-@test "logging-api set_prefix decorates pending dump on failure" {
+@test "logging.sh set_prefix decorates pending dump on failure" {
   local _stderr="${BATS_TEST_TMPDIR}/api-prefix.stderr"
   run sh -c "
     exec 2>'${_stderr}'
-    . '${_LOGGING_API}'
+    . '${_LOGGING_SH}'
     logging__pending_init
     logging__set_prefix 'feat-a'
     logging__error 'bootstrap-fail'
@@ -67,12 +67,12 @@ _LOGGING_API="${BATS_TEST_DIRNAME}/../../lib/logging-api.sh"
   assert_success
 }
 
-@test "logging-api does not dump pending journal after handoff" {
+@test "logging.sh does not dump pending journal after handoff" {
   local _stderr="${BATS_TEST_TMPDIR}/api-handoff.stderr"
   local _pending="${BATS_TEST_TMPDIR}/handoff.pending"
   run sh -c "
     exec 2>'${_stderr}'
-    . '${_LOGGING_API}'
+    . '${_LOGGING_SH}'
     logging__pending_init
     logging__info 'after-handoff'
     logging__pending_handoff

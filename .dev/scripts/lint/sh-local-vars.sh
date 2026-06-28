@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run lib-local-vars.py on lib/*.sh (or explicit paths).
+# Run lib-local-vars.py on lib/*.{bash,sh} (or explicit paths).
 #
 # Usage:
 #   sh-local-vars.sh [paths...]

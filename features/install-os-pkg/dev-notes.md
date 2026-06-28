@@ -35,7 +35,7 @@ YAML was chosen over other structured formats because:
 
 - **`devfeats.sh` already has a proven YAML pipeline** — `yq` auto-download +
   YAML→JSON→`jq` processing. The same infrastructure is reused in
-  `lib/ospkg.sh` via `_ospkg_ensure_yq()`.
+  `lib/ospkg.bash` via `_ospkg_ensure_yq()`.
 - **JSON Schema provides machine-verifiable contracts** — one schema file
   serves as an authoritative specification, validation source, documentation
   generator, and IDE autocompletion backend. There is no ambiguity about
@@ -168,7 +168,7 @@ Design choices informed by this comparison:
 
 ## `when` evaluation algorithm
 
-The `when` clause is evaluated by `ospkg.sh` as follows:
+The `when` clause is evaluated by `ospkg.bash` as follows:
 
 1. **Absent `when`** → the entry always matches (unconditional).
 2. **Single condition object** (dict) → evaluate as AND:
@@ -265,7 +265,7 @@ factors: effective UID, container status, and brew prefix ownership.
 | Standalone on bare metal | 0 (sudo) | No | `su` to owner of `$(brew --prefix)` |
 | Normal user | ≠ 0 | — | Run brew directly |
 
-This is handled internally by `ospkg.sh` — no user-facing `brew_user` option
+This is handled internally by `ospkg.bash` — no user-facing `brew_user` option
 is exposed. The rationale:
 
 - **There is no ambiguity.** The brew prefix owner is deterministic. In
@@ -279,7 +279,7 @@ is exposed. The rationale:
   permissions. Brew's single-user ownership model is simpler than both and
   doesn't warrant a user-facing option.
 
-Container detection is implemented via `os__is_container()` in `lib/os.sh`,
+Container detection is implemented via `os__is_container()` in `lib/os.bash`,
 reusing the same indicators brew checks: `/.dockerenv` (Docker),
 `/run/.containerenv` (Podman), and cgroup inspection for `docker`,
 `kubepods`, `garden`, `azpl_job`, `actions_job` (Kubernetes, Cloud Foundry,
@@ -307,7 +307,7 @@ The manifest parser uses a `yq` + `jq` pipeline:
 - The binary is placed in a cache or temporary directory — no system
   installation, no `PATH` modification, no package manager dependency.
 
-This is implemented via an `_ospkg_ensure_yq()` helper in `lib/ospkg.sh`
+This is implemented via an `_ospkg_ensure_yq()` helper in `lib/ospkg.bash`
 that is called once at the start of manifest parsing. The helper is idempotent
 — if `yq` is already present (either system-installed or previously
 downloaded), it is reused without re-downloading.

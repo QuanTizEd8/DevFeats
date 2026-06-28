@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/npm.sh
+# Unit tests for lib/npm.bash
 #
 # Network calls are replaced with function stubs that return canned JSON.
 

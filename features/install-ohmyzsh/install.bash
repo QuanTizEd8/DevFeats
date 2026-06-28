@@ -121,7 +121,7 @@ _link_custom_items() {
 # ---------------------------------------------------------------------------
 # __configure_user <username>
 # Injects a guarded OMZ setup block into the user's Zsh theme file.
-# Rcfile resolution is delegated to shell__resolve_zsh_theme_file (see lib/shell.sh):
+# Rcfile resolution is delegated to shell__resolve_zsh_theme_file (see lib/shell.bash):
 # always targets $ZDOTDIR/zshtheme, creating it with a source line in
 # $ZDOTDIR/.zshrc when absent.  The ZDOTDIR option overrides auto-detection.
 # ---------------------------------------------------------------------------

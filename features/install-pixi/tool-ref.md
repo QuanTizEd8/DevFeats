@@ -134,7 +134,7 @@ curl -fsSL -o "$TMP_DIR/pixi.tar.gz.sha256" \
   "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256"
 
 # 2. Verify archive checksum BEFORE extraction
-# (use lib/checksum.sh in the actual installer — example shows Linux variant only)
+# (use lib/verify.bash in the actual installer — example shows Linux variant only)
 sha256sum --check <(echo "$(awk '{print $1}' "$TMP_DIR/pixi.tar.gz.sha256")  $ARCHIVE")
 
 # 3. Extract binary from archive
@@ -229,14 +229,14 @@ content format is `<sha256hex>  <filename>` (standard `sha256sum` output).
 https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256
 ```
 
-**Implementation using `lib/checksum.sh`:**
+**Implementation using `lib/verify.bash`:**
 
 ```bash
-checksum__verify_sidecar "$ARCHIVE" "$SHA256_FILE"
+verify__sha_sidecar "$ARCHIVE" "$SHA256_FILE"
 ```
 
 This function reads the first whitespace-separated field from `$SHA256_FILE`
-and calls `checksum__verify` which uses `sha256sum` (Linux) or
+and calls `verify__sha` which uses `sha256sum` (Linux) or
 `shasum --algorithm 256` (macOS) transparently.
 
 **Skip condition:** When `download_url` is set to a custom URL (mirror or
@@ -422,11 +422,11 @@ environments declared in `pixi.toml`. Omit it if your project doesn't have a
 - [install-miniforge feature](../../src/install-miniforge/) — Sister feature;
   reference for `if_exists`, dual-mode parsing, `shell__export_path`, and
   `ospkg__run` patterns.
-- [lib/checksum.sh](../../lib/checksum.sh) — `checksum__verify_sidecar`
+- [lib/verify.bash](../../lib/verify.bash) — `verify__sha_sidecar`
   for cross-platform archive verification.
-- [lib/shell.sh](../../lib/shell.sh) — `shell__write_block` for completion setup;
+- [lib/shell.bash](../../lib/shell.bash) — `shell__write_block` for completion setup;
   `shell__export_path` for PATH management.
-- [lib/github.sh](../../lib/github.sh) — `github__latest_tag` for latest version
+- [lib/github.bash](../../lib/github.bash) — `github__latest_tag` for latest version
   resolution.
 - [pixi VSCode Devcontainer Docs](https://pixi.prefix.dev/latest/integration/editor/vscode/#devcontainer-extension) —
   Official pixi devcontainer guide; source for the `.pixi` volume mount

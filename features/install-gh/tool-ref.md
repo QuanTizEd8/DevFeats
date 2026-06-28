@@ -192,7 +192,7 @@ gh --version
 ```
 
 **Version resolution:** Use the GitHub Releases API (`/releases/latest`) to resolve `version=latest` → exact
-version tag. The `github__latest_tag cli/cli` function from `lib/github.sh` handles this, returning e.g.
+version tag. The `github__latest_tag cli/cli` function from `lib/github.bash` handles this, returning e.g.
 `v2.89.0`; strip the `v` prefix for the download URL.
 
 **Alpine / musl:**

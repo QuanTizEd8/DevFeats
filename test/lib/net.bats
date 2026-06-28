@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/net.sh
+# Unit tests for lib/net.bash
 #
 # net__fetch_url_stdout / net__fetch_url_file rely on curl/wget network access
 # and are exercised at the feature integration level.  These unit tests focus

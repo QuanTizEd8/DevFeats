@@ -42,7 +42,7 @@ load helpers/stubs    # provides create_fake_bin(), begin/end_path_isolation()
 
 # Reload the module under test before each test for a clean state.
 setup() {
-  reload_lib os.sh
+  reload_lib os.bash
 }
 
 @test "os__kernel returns the uname output" {
@@ -56,26 +56,25 @@ setup() {
 
 ## `reload_lib`
 
-**`reload_lib <module.sh>`** — defined in `helpers/common.bash`. Call it in `setup()` to give every test a clean module state. It:
+**`reload_lib [<module.{bash,sh}>]`** — defined in `helpers/common.bash`. Call it in `setup()` to give every test a clean module state. The optional argument is accepted for readability and backward compatibility; the helper resets globals but does not re-source modules one by one. It:
 
-1. Clears all `_LIB_*_LOADED` guard variables so the module re-sources.
-2. Unsets all cached globals (`_OS__KERNEL`, `_NET_FETCH_TOOL`, `_OSPKG_DETECTED`, etc.).
-3. For `ospkg.sh`: pre-declares `_OSPKG_OS_RELEASE` as a **global** associative array (`declare -gA`) before sourcing — see [ospkg.sh scoping workaround](#ospkgsh-scoping-workaround).
-4. Sources `${LIB_ROOT}/<module.sh>`.
+1. Resets cached globals (`_OS__KERNEL`, `_NET__FETCH_TOOL`, `_OSPKG__DETECTED`, etc.).
+2. Reinitializes shared test state such as `_CTX__REGISTRY`, `_OCI__AUTH_*`, and the pending logging journal.
+3. Leaves module sourcing to `helpers/common.bash`, which loads `lib/__init__.bash` once per bats process at startup.
 
 ```bash
 setup() {
-  reload_lib ospkg.sh   # works for any module
+  reload_lib ospkg.bash   # works for any module
 }
 ```
 
 To test load-guard idempotency, call `reload_lib` in `setup()` then source the file directly inside the test — the guard prevents re-sourcing.
 
-### ospkg.sh Scoping Workaround
+### Why Modules Are Loaded Via `__init__.bash`
 
-`ospkg.sh` contains `declare -A _OSPKG_OS_RELEASE=()`. When a file is sourced from **within a bash function**, `declare` without `-g` creates a **local** variable that disappears when the function returns. Without the workaround, tests that rely on `_OSPKG_OS_RELEASE` after `reload_lib` returns would see an undeclared variable.
+`ospkg.bash` contains `declare -A _OSPKG_OS_RELEASE=()`. When a file is sourced from **within a bash function**, `declare` without `-g` creates a **local** variable that disappears when the function returns. To avoid that trap for `ospkg.bash` and similar modules, `helpers/common.bash` sources `lib/__init__.bash` once at process startup instead of re-sourcing individual modules inside `reload_lib`.
 
-`reload_lib` pre-empts this by running `declare -gA _OSPKG_OS_RELEASE=()` before the `source` call. Always use `reload_lib` rather than sourcing `ospkg.sh` directly in test setup.
+Always use `reload_lib` rather than sourcing `ospkg.bash` directly in test setup unless the test is explicitly about load order or idempotency.
 
 ## Stubbing Commands
 
@@ -114,8 +113,8 @@ export -f uname   # required: makes the override visible inside sourced lib file
 
 ```bash
 @test "github__latest_tag parses tag_name from JSON" {
-  reload_lib net.sh
-  reload_lib github.sh
+  reload_lib net.bash
+  reload_lib github.bash
   github__fetch_release_json() {
     printf '{"tag_name":"v1.2.3"}\n'
     return 0
@@ -138,7 +137,9 @@ After setup, plain `echo` goes to the mux (not bats stdout). Use `echo … >&3` 
 ```bash
 @test "logging__setup creates a temp log file" {
   run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.bash'
     logging__setup
     [[ -f \"\${_LOGGING__LOG_FILE_TMP}\" ]] && echo OK >&3
     logging__cleanup
@@ -148,9 +149,9 @@ After setup, plain `echo` goes to the mux (not bats stdout). Use `echo … >&3` 
 }
 ```
 
-Dual-threshold tests should set `LOG_FILE` before setup and compare console capture vs appended `LOG_FILE` content. This isolation is specific to `logging.sh`.
+Dual-threshold tests should set `LOG_FILE` before setup and compare console capture vs appended `LOG_FILE` content. This isolation is specific to `logging.bash`.
 
-**Session scratch:** Installer temp files use `_FILE__SESSION_ROOT` from `lib/file.sh` (initialised in `__init__` via `file__session_ensure`). In unit tests, pin paths with `export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"` — do **not** set `_FILE__SESSION_OWNED`; `file__session_cleanup` will not `rm -rf` an injected root. After `logging__cleanup`, call `file__session_cleanup` when the test created owned scratch (mirrors installer `__exit__`).
+**Session scratch:** Installer temp files use `_FILE__SESSION_ROOT` from `lib/file.bash` (initialised in `__init__` via `file__session_ensure`). In unit tests, pin paths with `export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"` — do **not** set `_FILE__SESSION_OWNED`; `file__session_cleanup` will not `rm -rf` an injected root. After `logging__cleanup`, call `file__session_cleanup` when the test created owned scratch (mirrors installer `__exit__`).
 
 ## `run` vs Direct Calls
 
@@ -165,7 +166,7 @@ Dual-threshold tests should set `LOG_FILE` before setup and compare console capt
 ## Writing New Tests
 
 1. Open (or create) `test/lib/<module>.bats`.
-2. Add `reload_lib <module>.sh` in `setup()` unless testing idempotency.
+2. Add `reload_lib <module>.bash` (or `logging.sh` / `posix.sh`) in `setup()` unless testing idempotency.
 3. Stub any external commands the function invokes.
 4. Use `run` for exit-code/stdout assertions; call directly for global-state assertions.
 5. One observable behaviour per `@test`.

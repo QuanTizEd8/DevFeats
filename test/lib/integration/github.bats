@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Integration tests for lib/github.sh — exercises real GitHub API calls.
+# Integration tests for lib/github.bash — exercises real GitHub API calls.
 #
-# All github.sh functions are tested in unit tests only with canned JSON
+# All github.bash functions are tested in unit tests only with canned JSON
 # responses from stubbed net__fetch_url_stdout. These tests confirm the
 # real API interaction works end-to-end.
 #

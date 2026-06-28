@@ -41,11 +41,11 @@ Do **not** use `version_*` keys — they collide with `/etc/os-release` `VERSION
 
 ## Runtimes
 
-### Bash — `lib/cond.sh`
+### Bash — `lib/ctx.bash`
 
-- `cond__match_when` — any group matches (OR)
-- `cond__select_first` — first matching group wins
-- `cond__match_spec` — AND over atoms
+- `ctx__match_when` — any group matches (OR)
+- `ctx__select_first` — first matching group wins
+- `ctx__match_spec` — AND over atoms
 
 Template boundary helpers:
 
@@ -53,7 +53,7 @@ Template boundary helpers:
 - `__feat_match_when__()` — method auto-resolution (quiet)
 - `__feat_filter_binary_src__()` — filters `BINARY_SRC` option lines
 
-For platform-only checks (no feat context), call `cond__match_when` / `cond__match_spec`
+For platform-only checks (no feat context), call `ctx__match_when` / `ctx__match_spec`
 directly with no `--` context pairs.
 
 ### jq — `lib/ospkg-manifest.jq`

@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Integration tests for lib/file.sh — exercises real extraction tools.
+# Integration tests for lib/file.bash — exercises real extraction tools.
 #
 # file__extract_archive handles tool bootstrapping internally, so no
 # explicit setup is required beyond loading the lib.

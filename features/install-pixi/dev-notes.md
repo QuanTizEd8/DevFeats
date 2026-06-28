@@ -23,7 +23,7 @@ fetched with `net__fetch_url_file` even when `NETRC` is set, unless a netrc-prot
 mirror delivers both.
 
 Implementation detail: detect preferred tool via `command -v curl` / `command -v wget`
-—same logic used in `net.sh`—so we don't duplicate tool detection.
+—same logic used in `net.bash`—so we don't duplicate tool detection.
 
 ### Version-Match Idempotency
 
@@ -128,10 +128,10 @@ private tmpdir is created via `file__mktmpdir` and auto-cleaned at exit; when
 - [API Reference](./api.md) — feature option design.
 - [install-miniforge/install.bash](../../src/install-miniforge/install.bash) — reference pattern for dual-mode parsing, export_path_main, cleanup, if_exists logic.
 - [install-git/install.bash](../../src/install-git/install.bash) — reference pattern for `prefix="auto"` root/non-root resolution and `create_symlink` (steps 1 and 8).
-- [lib/shell.sh](../../lib/shell.sh) — `shell__sync_block`, `shell__system_path_files`, `shell__user_path_files`, `shell__detect_bashrc`, `shell__detect_zshdir`.
-- [lib/checksum.sh](../../lib/checksum.sh) — `checksum__verify_sidecar`.
-- [lib/github.sh](../../lib/github.sh) — `github__latest_tag`.
-- [lib/net.sh](../../lib/net.sh) — `net__fetch_url_file`.
-- [lib/os.sh](../../lib/os.sh) — `os__kernel`, `os__arch`, `os__require_root`.
+- [lib/shell.bash](../../lib/shell.bash) — `shell__sync_block`, `shell__system_path_files`, `shell__user_path_files`, `shell__detect_bashrc`, `shell__detect_zshdir`.
+- [lib/verify.bash](../../lib/verify.bash) — `verify__sha_sidecar`.
+- [lib/github.bash](../../lib/github.bash) — `github__latest_tag`.
+- [lib/net.bash](../../lib/net.bash) — `net__fetch_url_file`.
+- [lib/os.bash](../../lib/os.bash) — `os__kernel`, `os__arch`, `os__require_root`.
 - [Pixi Installation Reference Docs](https://pixi.prefix.dev/latest/installation/) — official env var list.
 - [Pixi self-update CLI Docs](https://pixi.prefix.dev/latest/reference/cli/self-update/) — `pixi self-update --version X.Y.Z` (no `v` prefix).

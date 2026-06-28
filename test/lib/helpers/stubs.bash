@@ -55,7 +55,7 @@ begin_path_isolation() {
   fi
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
 
-  # logging-api.sh needs these even when a test proves another tool is absent.
+  # logging.sh needs these even when a test proves another tool is absent.
   local _cmd
   for _cmd in tr mktemp cut printf cat dirname basename rm uname "$@"; do
     create_pass_through_bin "$_cmd"

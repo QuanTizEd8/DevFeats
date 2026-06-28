@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/ver.sh
+# Unit tests for lib/ver.bash
 
 bats_require_minimum_version 1.5.0
 

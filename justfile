@@ -103,7 +103,7 @@ lint-sh-check *files:
 
 [
   group('lint'),
-  doc('Require local declarations for function-scoped variables in lib/*.sh.')
+  doc('Require local declarations for function-scoped variables in lib/*.{bash,sh}.')
 ]
 lint-sh-local-vars *files:
     just capture lint-sh-local-vars -- bash .dev/scripts/lint/sh-local-vars.sh "$@"

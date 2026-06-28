@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from typing import TYPE_CHECKING
 
 from proman.config import load as load_config
 from proman.docs import feat_doc_gen, lib_doc_gen
@@ -12,6 +13,23 @@ from proman.docs.parse_lib import parse_lib_module
 from proman.git import git_owner_repo, git_repo_root
 from proman.metadata import MetadataLoader
 from proman.sync import sync_file
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def _iter_lib_module_paths(lib_dir: Path) -> list[Path]:
+    """Return sorted lib module source files, excluding the aggregate loader."""
+    return sorted(
+        (
+            path
+            for path in lib_dir.iterdir()
+            if path.is_file()
+            and path.name != "__init__.bash"
+            and path.suffix in {".bash", ".sh"}
+        ),
+        key=lambda path: path.name,
+    )
 
 
 def main() -> int:
@@ -41,12 +59,14 @@ def main() -> int:
 
     # ── Library module metadata ───────────────────────────────────────────────
 
+    lib_module_paths = _iter_lib_module_paths(lib_dir)
     lib_modules: dict[str, str] = {}
-    for sh_path in sorted(lib_dir.glob("*.sh")):
-        module = parse_lib_module(sh_path)
+    for module_path in lib_module_paths:
+        module = parse_lib_module(module_path)
         if not module.summary:
             print(
-                f"⚠️  gen-docs-data: {sh_path.name} has no module-level docs; skipping",
+                "⚠️  gen-docs-data: "
+                f"{module_path.name} has no module-level docs; skipping",
                 file=sys.stderr,
             )
             continue
@@ -81,11 +101,17 @@ def main() -> int:
 
     lib_doc_dir = config.absolute_path("path.docs_source_library")
     lib_doc_dir.mkdir(parents=True, exist_ok=True)
-    for sh_path in sorted(lib_dir.glob("*.sh")):
-        module = parse_lib_module(sh_path)
+    expected_docs: set[str] = set()
+    for module_path in lib_module_paths:
+        module = parse_lib_module(module_path)
         doc_content = lib_doc_gen.generate(module, include_private=args.include_private)
-        doc_path = lib_doc_dir / f"{module.name}.md"
+        doc_name = f"{module.name}.md"
+        expected_docs.add(doc_name)
+        doc_path = lib_doc_dir / doc_name
         sync_file(doc_path, doc_content)
+    for stale_doc in lib_doc_dir.glob("*.md"):
+        if stale_doc.name not in expected_docs:
+            stale_doc.unlink()
 
     print(
         f"docs build context:"

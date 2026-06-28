@@ -103,19 +103,19 @@ if ! declare -f _lib_test_run_orig > /dev/null 2>&1; then
   }
 fi
 
-# reload_lib [<module.sh>]
+# reload_lib [<module.{bash,sh}>]
 #
 # Resets all cached globals so a test can inject stubs and observe fresh
 # behaviour. The module argument is accepted for backward compatibility but
 # ignored: all modules are already loaded at process startup.
 reload_lib() {
-  # Reset os.sh lazy-cached globals.
+  # Reset os.bash lazy-cached globals.
   unset _OS__KERNEL _OS__ARCH _OS__PLATFORM
 
-  # Reset net.sh cached state.
+  # Reset net.bash cached state.
   unset _NET__FETCH_TOOL _NET__CA_CERTS_OK
 
-  # Reset ospkg.sh detection flag.
+  # Reset ospkg.bash detection flag.
   _OSPKG__DETECTED=false
   _OSPKG__PM_KEY=""
   _OSPKG__DEB_ARCH=""

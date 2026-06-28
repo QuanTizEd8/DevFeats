@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Unit tests for lib/file.sh
+# Unit tests for lib/file.bash
 
 bats_require_minimum_version 1.5.0
 
@@ -266,8 +266,8 @@ setup() {
 
 @test "file__session_ensure creates _FILE__SESSION_ROOT" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     file__session_ensure
     [[ -d \"\${_FILE__SESSION_ROOT}\" ]] && echo OK
     file__session_cleanup
@@ -278,8 +278,8 @@ setup() {
 
 @test "file__session_root matches file__tmpdir with no args" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     file__session_ensure
     _r=\"\${_FILE__SESSION_ROOT}\"
     _t=\"\$(file__tmpdir)\"
@@ -292,8 +292,8 @@ setup() {
 
 @test "file__session_ensure is idempotent" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     file__session_ensure
     _first=\"\${_FILE__SESSION_ROOT}\"
     file__session_ensure
@@ -306,8 +306,8 @@ setup() {
 
 @test "file__session_ensure sets _FILE__SESSION_OWNED" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     file__session_ensure
     [[ \"\${_FILE__SESSION_OWNED}\" == true ]] && echo OWNED
     file__session_cleanup
@@ -320,8 +320,8 @@ setup() {
   local _pin="${BATS_TEST_TMPDIR}/injected-root"
   mkdir -p "$_pin"
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     export _FILE__SESSION_ROOT='${_pin}'
     file__session_ensure
     [[ \"\${_FILE__SESSION_OWNED}\" != true ]] && echo NOT_OWNED
@@ -334,8 +334,8 @@ setup() {
 
 @test "file__session_cleanup is idempotent" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     file__session_ensure
     file__session_cleanup
     file__session_cleanup
@@ -347,8 +347,8 @@ setup() {
 
 @test "file__tmpdir after parent ensure shares root via command substitution" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     file__session_ensure
     _sub=\"\$(file__tmpdir 'nested/sub')\"
     [[ \"\${_sub}\" == \"\${_FILE__SESSION_ROOT}/nested/sub\" ]] && echo UNDER_ROOT
@@ -360,8 +360,8 @@ setup() {
 
 @test "file__tmpdir without parent ensure does not set parent _FILE__SESSION_ROOT" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     _sub=\"\$(file__tmpdir 'orphan-sub')\"
     [[ -d \"\${_sub}\" ]] && [[ -z \"\${_FILE__SESSION_ROOT:-}\" ]] && echo PARENT_EMPTY
   "
@@ -371,8 +371,8 @@ setup() {
 
 @test "exported _FILE__SESSION_ROOT is visible in child shell" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     file__session_ensure
     bash -c '[[ \"\${_FILE__SESSION_ROOT}\" == \"'\"\${_FILE__SESSION_ROOT}\"'\" ]] && echo CHILD_MATCH'
     file__session_cleanup
@@ -383,8 +383,8 @@ setup() {
 
 @test "file__mktmpdir creates distinct directories under same root" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
     file__session_ensure
     _a=\"\$(file__mktmpdir 'label')\"
     _b=\"\$(file__mktmpdir 'label')\"
@@ -397,9 +397,9 @@ setup() {
 
 @test "logging__setup via logging.sh marks session as owned" {
   run bash -c "
-    source '${BATS_TEST_DIRNAME}/../../lib/logging-api.sh'
-    source '${BATS_TEST_DIRNAME}/../../lib/file.sh'
     source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
+    source '${BATS_TEST_DIRNAME}/../../lib/file.bash'
+    source '${BATS_TEST_DIRNAME}/../../lib/logging.bash'
     logging__setup
     [[ \"\${_FILE__SESSION_OWNED}\" == true ]] && echo OWNED >&3
     logging__cleanup
