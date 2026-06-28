@@ -136,7 +136,7 @@ Sphinx loads `.local/data_transfer/docs_build_context.json` (repo owner/name, fe
 
 HTML output and the packaged Pages tarball are written under **`.local/build/docs/`** (`website.tar` next to the site). That directory is gitignored with the rest of `.local/`.
 
-JSON Schemas listed in **`.config/proman/docs.yaml`** under `json_schemas_publish` are rewritten with stable `$id` / `$ref` URLs and copied to **`.local/build/docs/schema/`** (for example **`/schema/ospkg-manifest.json`** on the published site). Add paths there when introducing new public schemas. In schemas under **`features/`**, use **`$ref` paths relative to that directory** (e.g. **`../lib/ospkg-manifest.schema.json`**) so editor YAML language servers can load referenced files; proman still registers the same targets by **`file://`** URI when validating.
+JSON Schemas listed in **`.config/proman/docs.yaml`** under `json_schemas_publish` are rewritten with stable `$id` / `$ref` URLs and copied to **`.local/build/docs/schema/`** (for example **`/schema/manifest.json`** for the ospkg manifest schema). Add paths there when introducing new public schemas. In schemas under **`features/`**, use **`$ref` paths relative to `features/`** (e.g. **`install-os-pkg/manifest.schema.json`**) so editor YAML language servers can load referenced files; proman still registers the same targets by **`file://`** URI when validating.
 
 
 ---

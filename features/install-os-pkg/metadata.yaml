@@ -38,6 +38,16 @@ options:
       `http(s)://`, `oci://`, or `gh://owner/repo@ref:path` URI.
       Append `#sha256=<hex>` for integrity verification.
       Use `fetch_headers` and `fetch_netrc` for authentication.
+      The manifest is validated against the bundled JSON Schema immediately
+      at option-parse time; any schema violation is reported before any
+      installation or lifecycle-hook registration takes place.
+      Validation is skipped for workspace-mounted file paths that do not
+      yet exist at build time (they are validated when the lifecycle hook runs).
+    _content_or_uri:
+      allow_nonexistent: true
+    _jsonschema:
+      schema: manifest.schema.json
+      allow_nonexistent: true
     proposals:
     - value: |
         packages:

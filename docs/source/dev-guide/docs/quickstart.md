@@ -54,7 +54,7 @@ Library module functions are documented via structured `# @brief` comments. The 
 
 JSON schemas listed in `.config/proman/docs.yaml` under `json_schemas_publish` are published to the docs site under `/schema/<stem>.json`. Currently published:
 
-- `/schema/ospkg-manifest.json` — OS package dependency manifest schema
+- `/schema/manifest.json` — OS package dependency manifest schema (`features/install-os-pkg/manifest.schema.json`)
 - `/schema/argparse-manifest.json` — Argparse manifest schema
 
-To publish a new schema, add its repo-relative path to the `json_schemas_publish` list in `.config/proman/docs.yaml`. In schema files under `features/`, use relative `$ref` paths (e.g. `../lib/ospkg-manifest.schema.json`) so editor YAML language servers can resolve them locally.
+To publish a new schema, add its repo-relative path to the `json_schemas_publish` list in `.config/proman/docs.yaml`. In schemas under `features/`, use `$ref` paths relative to the `features/` directory (e.g. `install-os-pkg/manifest.schema.json`) so editor YAML language servers can resolve them locally.

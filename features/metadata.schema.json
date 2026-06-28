@@ -695,17 +695,17 @@
           "properties": {
             "base": {
               "description": "Runtime dependencies always installed during `__install_init__` via `ospkg_manifest_base_run`.",
-              "$ref": "../lib/ospkg-manifest.schema.json"
+              "$ref": "install-os-pkg/manifest.schema.json"
             }
           },
           "patternProperties": {
             "^method-(binary|cargo|git-clone|npm|npm-bundled|package|script|source|upstream-package)$": {
               "description": "Runtime dependencies for a specific install method declared in `_options.method`; mapped to `ospkg_manifest_method_<method>_run`. The method suffix must match a key under `_options.method` (see root `allOf` conditional rules).",
-              "$ref": "../lib/ospkg-manifest.schema.json"
+              "$ref": "install-os-pkg/manifest.schema.json"
             },
             "^option-[A-Za-z][A-Za-z0-9_-]*$": {
               "description": "Option-gated runtime dependencies; mapped to `ospkg_manifest_option_<name>` and installed when the matching boolean option is true.",
-              "$ref": "../lib/ospkg-manifest.schema.json"
+              "$ref": "install-os-pkg/manifest.schema.json"
             }
           },
           "additionalProperties": false
@@ -716,13 +716,13 @@
           "properties": {
             "base": {
               "description": "Install-time dependencies always installed during `__install_init__` via `ospkg_manifest_base_build`.",
-              "$ref": "../lib/ospkg-manifest.schema.json"
+              "$ref": "install-os-pkg/manifest.schema.json"
             }
           },
           "patternProperties": {
             "^method-(binary|cargo|git-clone|npm|npm-bundled|package|script|source|upstream-package)$": {
               "description": "Install-time dependencies for a specific install method declared in `_options.method`; mapped to `ospkg_manifest_method_<method>_build`. The method suffix must match a key under `_options.method` (see root `allOf` conditional rules).",
-              "$ref": "../lib/ospkg-manifest.schema.json"
+              "$ref": "install-os-pkg/manifest.schema.json"
             }
           },
           "additionalProperties": false
@@ -1407,6 +1407,48 @@
         "required": ["_options"]
       }
     },
+    "ContentOrUriOptionField": {
+      "description": "Valid only on string-type options. If true (or an object), the option value may be inline multi-line file content, a URI (http(s)://, gh://, oci://, file://, or local path). The generated install-script header normalises literal \\n escapes, materialises inline content to a session-scoped temp file, fetches remote URIs, and passes existing local paths through — rewriting the variable to the resolved local path in every case. Non-existing local paths can optionally be passed through unchanged (allow_nonexistent: true) for workspace-mounted files available only at lifecycle-hook time. Materialization uses a session temp dir (cleaned by the exit trap); features must copy to a persistent location if needed.",
+      "oneOf": [
+        {"type": "boolean"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allow_nonexistent": {
+              "type": "boolean",
+              "description": "When true, a local path that does not exist at parse time is passed through unchanged instead of raising an error. Default: false."
+            }
+          }
+        }
+      ]
+    },
+    "JsonschemaOptionField": {
+      "description": "Valid only on string-type options. Validate the (already-resolved) option value as a file path against a JSON Schema using sourcemeta/jsonschema (bootstrapped automatically). Validation runs after all option resolution steps. The schema path is relative to the feature directory (${_FEAT_DIR} is automatically prepended by the generator). When allow_nonexistent is true, validation is silently skipped if the file does not exist.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the JSON Schema file, relative to the feature directory."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema"],
+          "properties": {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Path to the JSON Schema file, relative to the feature directory."
+            },
+            "allow_nonexistent": {
+              "type": "boolean",
+              "description": "When true, skip validation if the file does not exist at parse time. Default: false."
+            }
+          }
+        }
+      ]
+    },
     "FeatureOption": {
       "description": "Feature option. Two internal-use-only array types are added in addition to the standard boolean and string types for script generation purposes. Externally, these array types are represented as string options where array values are newline-delimited.",
       "type": "object",
@@ -1558,7 +1600,9 @@
             },
             "default": {
               "type": "string"
-            }
+            },
+            "_content_or_uri": { "$ref": "#/$defs/ContentOrUriOptionField" },
+            "_jsonschema":      { "$ref": "#/$defs/JsonschemaOptionField" }
           },
           "required": [
             "enum"
@@ -1577,7 +1621,9 @@
             },
             "default": {
               "type": "string"
-            }
+            },
+            "_content_or_uri": { "$ref": "#/$defs/ContentOrUriOptionField" },
+            "_jsonschema":      { "$ref": "#/$defs/JsonschemaOptionField" }
           },
           "not": {
             "required": [

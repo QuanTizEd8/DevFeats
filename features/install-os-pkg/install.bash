@@ -6,13 +6,12 @@ __install_run__() {
     logging__error "'MANIFEST' is required when 'install_self' is false."
     return 1
   fi
-  # Normalize: some environments (e.g. devcontainer CLI build args) serialize
-  # multi-line strings with literal \n rather than real newlines.  Expand them
-  # so inline-manifest detection works correctly.
-  if [[ -n "$MANIFEST" && "$MANIFEST" != *$'\n'* && "$MANIFEST" == *'\n'* ]]; then
-    MANIFEST="$(printf '%b' "$MANIFEST")"
-    logging__info "Expanded literal \\n escapes in MANIFEST value."
-  fi
+  # At this point MANIFEST is either:
+  #   - a local file path (resolved by _content_or_uri argparse step from inline
+  #     content, a remote URI, or an existing local file)
+  #   - a non-existing local path (workspace-mounted file, available at hook time)
+  # Schema validation already ran in the argparse _jsonschema step; any violation
+  # would have exited before reaching here.
 
   if [[ -n "$LIFECYCLE_HOOK" ]]; then
     if [[ -z "$MANIFEST" ]]; then
@@ -57,10 +56,13 @@ __install_run__() {
     local _HOOK_DIR="${_FEAT_LIFECYCLE_DIR}"
     file__mkdir "$_HOOK_DIR"
     local _MANIFEST_ARG="$MANIFEST"
-    if [[ "$MANIFEST" == *$'\n'* ]]; then
-      printf '%s' "$MANIFEST" | file__tee "$_HOOK_DIR/manifest.yaml"
+    # MANIFEST may point to a session-scoped temp file (inline content or remote URI
+    # resolved by argparse).  Copy it to a persistent location so the hook script
+    # can read it after this process exits and the session temp dir is cleaned up.
+    if [[ -f "$MANIFEST" ]]; then
+      file__cp "$MANIFEST" "$_HOOK_DIR/manifest.yaml"
       _MANIFEST_ARG="$_HOOK_DIR/manifest.yaml"
-      logging__info "Saved inline manifest to '$_MANIFEST_ARG'."
+      logging__info "Copied resolved manifest to '$_MANIFEST_ARG'."
     fi
     _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"
     [[ -n "${FETCH_NETRC:-}" ]] && _HOOK_OPTS+=" --fetch-netrc-file $(printf '%q' "$FETCH_NETRC")"

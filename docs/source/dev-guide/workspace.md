@@ -37,7 +37,6 @@ devfeats/
 │   ├── ver.bash             ← Version parsing and comparison
 │   ├── install.bash         ← Installation state management, asset extraction
 │   ├── *.bash               ← Additional bash-only modules (oci.bash, json.bash, etc.)
-│   ├── ospkg-manifest.schema.json   ← JSON Schema for ospkg dependency manifests
 │   └── argparse-manifest.schema.json ← JSON Schema for argparse manifests
 │
 ├── test/                    ← Test suite

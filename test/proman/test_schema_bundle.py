@@ -15,31 +15,31 @@ from proman.schema_bundle import (
 
 def test_schema_stem_and_published_name() -> None:
     """Verify schema stem extraction and published filename generation."""
-    p = Path("lib/ospkg-manifest.schema.json")
-    assert schema_stem_from_path(p) == "ospkg-manifest"
-    assert published_schema_basename("ospkg-manifest") == "ospkg-manifest.json"
+    p = Path("features/install-os-pkg/manifest.schema.json")
+    assert schema_stem_from_path(p) == "manifest"
+    assert published_schema_basename("manifest") == "manifest.json"
 
 
 def test_build_materialized_for_website(tmp_path: Path) -> None:
     """Verify $id and $ref rewriting in materialized schemas for the published site."""
-    lib = tmp_path / "lib"
-    lib.mkdir()
+    feat_dir = tmp_path / "features" / "install-os-pkg"
+    feat_dir.mkdir(parents=True)
     minimal = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "properties": {"a": {"type": "string"}},
     }
-    (lib / "ospkg-manifest.schema.json").write_text(
+    (feat_dir / "manifest.schema.json").write_text(
         json.dumps(minimal),
         encoding="utf-8",
     )
     out = build_materialized_schemas_for_website(
         repo_root=tmp_path,
         base_url="https://example.org/myrepo/",
-        publish_relpaths=["lib/ospkg-manifest.schema.json"],
+        publish_relpaths=["features/install-os-pkg/manifest.schema.json"],
     )
-    doc = out["ospkg-manifest"]
-    assert doc["$id"] == "https://example.org/myrepo/schema/ospkg-manifest.json"
+    doc = out["manifest"]
+    assert doc["$id"] == "https://example.org/myrepo/schema/manifest.json"
 
 
 def test_get_validator_smoke() -> None:

@@ -414,3 +414,11 @@ apt_manifest_uri_file:
   options:
     manifest: "file:///tmp/manifest.yaml"
   tests: [apt_manifest_uri_file]
+
+manifest_invalid_schema:
+  expect_install_failure: true
+  envs: [debian-12]
+  modes: [devcontainer]
+  options:
+    manifest: "packages: curl\nunknown_top_level_key: true\n"
+  tests: [manifest_invalid_schema]

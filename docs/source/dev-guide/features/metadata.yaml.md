@@ -496,7 +496,7 @@ _dependencies:
         - build-essential
 ```
 
-Full manifest syntax (same format as `lib/ospkg-manifest.schema.json`):
+Full manifest syntax (same format as `features/install-os-pkg/manifest.schema.json`):
 
 ```yaml
 # Optional global condition — skips entire manifest if false
@@ -534,7 +534,7 @@ scripts: |
 
 Available `when` keys: `pm` (`apt`, `brew`, `dnf`, `apk`, `yum`, `zypper`, `pacman`), `kernel` (`linux`/`darwin`), `arch`, `deb_arch`, `id`, `id_like`, `version_id`, `version_codename`, and any other `/etc/os-release` field.
 
-The schema is published at `/schema/ospkg-manifest.json` on the docs site. See `.config/proman/docs.yaml` → `json_schemas_publish`.
+The schema is published at `/schema/manifest.json` on the docs site. See `.config/proman/docs.yaml` → `json_schemas_publish`.
 
 Option-bound groups (`option-*`) with a matching boolean user option are installed automatically at the start of `__install_run__` (after options are parsed). Use manifest `when` clauses — not feature hooks — to skip installs on specific platforms (e.g. exclude Alpine for node-gyp deps).
 
@@ -605,4 +605,4 @@ CI enforces that any PR touching `features/<id>/` bumps the `version` in that fe
 - [Dev Container Feature authoring spec](https://containers.dev/implementors/features/)
 - [`features/metadata.schema.json`](../../../../features/metadata.schema.json) — in-repo schema (editor-validated)
 - [`features/metadata.shared.yaml`](../../../../features/metadata.shared.yaml) — shared options injected at sync time
-- [`lib/ospkg-manifest.schema.json`](../../../../lib/ospkg-manifest.schema.json) — dependency manifest schema
+- [`features/install-os-pkg/manifest.schema.json`](../../../../features/install-os-pkg/manifest.schema.json) — dependency manifest schema

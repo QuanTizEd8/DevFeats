@@ -83,11 +83,11 @@ install-os-pkg --manifest $'packages:\n  - git\n  - curl\n'
 
 A manifest is a YAML (or JSON; both formats are accepted) document that declaratively describes what to
 install and how. A formal JSON Schema is available at
-[`/lib/ospkg-manifest.schema.json`](/lib/ospkg-manifest.schema.json) (published copy: `https://quantized8.github.io/devfeats/schema/ospkg-manifest.json`)
+[`/features/install-os-pkg/manifest.schema.json`](/features/install-os-pkg/manifest.schema.json) (published copy: `https://quantized8.github.io/devfeats/schema/manifest.json`)
 and can be referenced in editors for autocompletion and validation:
 
 ```yaml
-# yaml-language-server: $schema=https://quantized8.github.io/devfeats/schema/ospkg-manifest.json
+# yaml-language-server: $schema=https://quantized8.github.io/devfeats/schema/manifest.json
 ```
 
 ### Top-level structure

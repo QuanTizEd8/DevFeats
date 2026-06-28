@@ -5,7 +5,7 @@ website_base_url: https://${{ owner_slug }}$.github.io/${{ name_slug }}$
 # Repo-relative paths to JSON Schemas published under ``/schema/<stem>.json``
 # on the docs site (see ``proman-publish-docs-schemas`` / ``build-docs-pkg``).
 json_schemas_publish:
-  - lib/ospkg-manifest.schema.json
+  - features/install-os-pkg/manifest.schema.json
   - lib/argparse-manifest.schema.json
 
 # All values under `sphinx` map directly to Sphinx configuration variable names

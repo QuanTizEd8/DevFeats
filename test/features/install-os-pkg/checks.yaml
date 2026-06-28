@@ -461,3 +461,15 @@ zypper_installs_packages:
   checks:
     - title: tree is installed
       cmd: command -v tree
+
+manifest_invalid_schema:
+  description: |
+    Verifies that a manifest violating the JSON Schema is rejected immediately
+    at option-parse time, before any package installation step runs.
+    The manifest uses `packages` as a string (must be array) and includes an
+    unknown top-level key — both are schema violations.
+
+  checks:
+    - kind: install_failure
+      title: manifest schema violations cause immediate failure
+      pattern: "failed JSON Schema validation"
