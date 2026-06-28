@@ -1,0 +1,98 @@
+default:
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  - standalone
+  tests:
+  - default
+
+binary_custom_prefix:
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: binary
+    prefix: /opt/task-bin
+    if_exists: reinstall
+  tests:
+  - binary_custom_prefix
+
+if_exists_fail:
+  expect_install_failure: true
+  envs:
+  - ubuntu-24.04
+  modes:
+  - standalone
+  setup: |
+    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "9.9.9\n"; exit 0; fi\nexit 0' > /usr/local/bin/task
+    chmod +x /usr/local/bin/task
+  options:
+    method: auto
+    if_exists: fail
+  tests:
+  - if_exists_fail
+  standalone:
+    skip_install: false
+
+installer_dir:
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: binary
+    installer_dir: /tmp/task-trace
+  tests:
+  - installer_dir
+
+specific_version:
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    version: "3.50.0"
+    method: binary
+  tests:
+  - specific_version
+
+method_npm:
+  envs:
+  - ubuntu-24.04+node
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: npm
+    if_exists: reinstall
+  tests:
+  - method_npm
+
+npm_bundled:
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: npm-bundled
+    if_exists: reinstall
+  tests:
+  - npm_bundled
+
+upstream_package_default:
+  envs:
+  - ubuntu-24.04
+  - alpine-3.21
+  modes:
+  - devcontainer
+  - standalone
+  options:
+    method: upstream-package
+  tests:
+  - upstream_package_default

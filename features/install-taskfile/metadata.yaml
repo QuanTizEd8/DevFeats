@@ -1,0 +1,126 @@
+version: 0.1.0
+name: Task Installation
+description: Install [Task](https://taskfile.dev/) — a fast, cross-platform task runner inspired by Make.
+keywords:
+  - task
+  - taskfile
+  - go-task
+  - task-runner
+  - build
+  - cli
+  - makefile
+_long_description: |-
+  Installs Task (go-task), a fast task runner that reads task definitions from
+  Taskfile.yml files. Supports GitHub release binary download with checksum
+  verification, official Cloudsmith package repositories (apt/dnf/apk), Homebrew,
+  npm global install, and a self-contained npm-bundled install (no system Node.js
+  required).
+
+  Note: the Linux package name is `task`, which conflicts with the unrelated
+  taskwarrior application that also provides a `task` binary.
+_tool_name: Task
+_options:
+  verify:
+    args: "--version"
+    description: Verify Task is installed and working.
+  gh_repo: go-task/task
+  version:
+    resolution: github_release
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/task_{plat.kernel:lower}_{plat.machine_release==i386?386:{plat.machine_release==armv7?arm:{plat.machine_release}}}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/task_checksums.txt"
+      binary_src:
+        - task
+      when:
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, i386, armv7, riscv64]}
+        - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
+    npm-bundled:
+      package: "@go-task/cli"
+      cmd: task
+    npm:
+      package: "@go-task/cli"
+    upstream-package:
+      when: {plat.pm: [apt, apk, dnf, yum, zypper, brew]}
+  prefix:
+    bins: [task]
+    applies_when:
+      - method: [binary, npm-bundled, npm]
+  completions:
+    subcmd: "--completion"
+    shells: [bash, zsh, fish]
+customizations:
+  vscode:
+    extensions:
+      - task.vscode-task
+_dependencies:
+  run:
+    method-upstream-package:
+      packages:
+        - name: task
+          version: "{feat.pm_version}"
+          when:
+            plat.pm: [apt, apk, dnf, yum, zypper]
+      apt:
+        keys:
+          - url: "https://dl.cloudsmith.io/public/task/task/gpg.046FD1186CA342F0.key"
+            dest: "/usr/share/keyrings/task-task-archive-keyring.gpg"
+        repos:
+          - "deb [signed-by=/usr/share/keyrings/task-task-archive-keyring.gpg] https://dl.cloudsmith.io/public/task/task/deb/{os.id} {os.version_codename} main"
+      apk:
+        keys:
+          - url: "https://dl.cloudsmith.io/public/task/task/rsa.4CC31F6ECC3EC01F.key"
+            dest: "/etc/apk/keys/task@task-4CC31F6ECC3EC01F.rsa.pub"
+            dearmor: false
+        repos:
+          - "https://dl.cloudsmith.io/public/task/task/alpine/v{os.version_id_mm}/main"
+      dnf:
+        repos:
+          - |
+            [task-task]
+            name=task-task
+            baseurl=https://dl.cloudsmith.io/public/task/task/rpm/{id==fedora?fedora:el}/{id==fedora?{os.version_id}:{os.version_id_major}}/$basearch
+            repo_gpgcheck=1
+            enabled=1
+            skip_if_unavailable=1
+            gpgkey=https://dl.cloudsmith.io/public/task/task/gpg.046FD1186CA342F0.key
+            gpgcheck=1
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+      yum:
+        repos:
+          - |
+            [task-task]
+            name=task-task
+            baseurl=https://dl.cloudsmith.io/public/task/task/rpm/el/{os.version_id_major}/$basearch
+            repo_gpgcheck=1
+            enabled=1
+            skip_if_unavailable=1
+            gpgkey=https://dl.cloudsmith.io/public/task/task/gpg.046FD1186CA342F0.key
+            gpgcheck=1
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+      zypper:
+        repos:
+          - |
+            [task-task]
+            name=task-task
+            baseurl=https://dl.cloudsmith.io/public/task/task/rpm/opensuse/{os.version_id}/$basearch
+            repo_gpgcheck=1
+            enabled=1
+            skip_if_unavailable=1
+            gpgkey=https://dl.cloudsmith.io/public/task/task/gpg.046FD1186CA342F0.key
+            gpgcheck=1
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            metadata_expire=300
+            type=rpm-md
+      brew:
+        packages:
+          - name: go-task
+            version: "{feat.pm_version}"
+# installsAfter: []
