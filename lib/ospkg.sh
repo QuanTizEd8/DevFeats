@@ -71,21 +71,27 @@ _ospkg__zypper_install() {
   # @brief _ospkg__zypper_install <pkg>... — Run `zypper install` and normalise non-fatal exit codes.
   #
   # Wraps `zypper --non-interactive --no-refresh install` for use as `_OSPKG__INSTALL` on zypper
-  # systems. When zypper exits with a code other than 0 or 6 (ZYPPER_EXIT_INF_REPOS_SKIPPED) but
-  # every requested package is already present on disk, the error is non-fatal: it results from
+  # systems. When zypper exits with a code other than 0 or the repos-skipped info code but every
+  # requested package is already present on disk, the error is non-fatal: it results from
   # CDN/metadata problems on secondary repos (backports, SLE update) that are irrelevant to
   # packages successfully resolved from the main repository. In that case the function returns 6
   # so the caller's `net__fetch_with_retry --bail-on 6` stops retrying immediately instead of
   # looping 60 times (each attempt ≈ 1+ minute of CDN timeouts).
   #
-  # Exit 0  → success, forwarded as-is.
-  # Exit 6  → repos skipped, forwarded as-is (caller bails immediately via --bail-on 6).
-  # Other   → if all <pkg> args are now installed: return 6 (non-fatal, bail).
-  #           Otherwise: return the original code so the caller retries.
+  # Note: ZYPPER_EXIT_INF_REPOS_SKIPPED is 106 on openSUSE Leap 15.x (not 6); both are
+  # treated as non-fatal here.
+  #
+  # Exit 0/6/106 → forwarded as-is (success or non-fatal repos-skipped).
+  # Other        → if all <pkg> args are now installed: return 6 (non-fatal, bail).
+  #                Otherwise: return the original code so the caller retries.
   local _rc=0
   users__run_privileged zypper --non-interactive --no-refresh install "$@" || _rc=$?
-  [[ "$_rc" -eq 0 || "$_rc" -eq 6 ]] && return "$_rc"
-  # Non-zero, non-6: check whether the packages landed despite the zypper error.
+  [[ "$_rc" -eq 0 ]] && return 0
+  # 106 = ZYPPER_EXIT_INF_REPOS_SKIPPED on openSUSE Leap 15.x (empirically verified);
+  # older docs cite 6, which may appear on other zypper versions. Both are non-fatal.
+  # Return 6 in both cases so the caller's --bail-on 6 fires immediately.
+  [[ "$_rc" -eq 6 || "$_rc" -eq 106 ]] && return 6
+  # Non-zero, non-repos-skipped: check whether packages landed despite the zypper error.
   # Skip flag-style args (starting with -) — they are zypper options, not package names.
   local _pkg _has_pkg=false
   for _pkg in "$@"; do
@@ -110,8 +116,12 @@ _ospkg__update_cmd() {
   # Wraps `_OSPKG__UPDATE` for use with `net__fetch_with_retry`. Non-fatal PM
   # codes normalised to 0:
   #   - dnf/yum exit 100  — "updates available" (informational, not a failure).
-  #   - zypper exit 6     — `ZYPPER_EXIT_INF_REPOS_SKIPPED`: at least one repo
-  #                         was unreachable but all reachable repos refreshed OK.
+  #   - zypper exit 4     — ZYPPER_EXIT_ERR_ZYPP: empirically returned by
+  #                         `zypper refresh` when CDN repos are unreachable
+  #                         (verified on openSUSE Leap 15.6 via Docker test).
+  #   - zypper exit 6     — ZYPPER_EXIT_INF_REPOS_SKIPPED (older zypper).
+  #   - zypper exit 106   — ZYPPER_EXIT_INF_REPOS_SKIPPED (openSUSE Leap 15.x;
+  #                         empirically verified; also documented in environments.yaml).
   # APT index-corruption error strings (Hash Sum mismatch, Failed to fetch, etc.)
   # are detected and force-retried even when APT itself exits 0.
   #
@@ -145,7 +155,10 @@ _ospkg__update_cmd() {
   fi
   [[ "$_OSPKG__PKG_MNGR" == "dnf" || "$_OSPKG__PKG_MNGR" == "yum" ]] &&
     [[ $_rc -eq 100 ]] && rm -f "$_err_tmp" && return 0
-  [[ "$_OSPKG__PKG_MNGR" == "zypper" ]] && [[ $_rc -eq 6 ]] && rm -f "$_err_tmp" && return 0
+  if [[ "$_OSPKG__PKG_MNGR" == "zypper" ]] && [[ "$_rc" -eq 4 || "$_rc" -eq 6 || "$_rc" -eq 106 ]]; then
+    rm -f "$_err_tmp"
+    return 0
+  fi
   if [[ $_rc -ne 0 ]]; then
     # Detect non-transient configuration errors — retrying will never fix these.
     if grep -qiE 'Malformed line|source list could not be read|parse error|invalid source' \
