@@ -9,7 +9,10 @@
 if [[ -z "${REPO_ROOT:-}" ]]; then
   REPO_ROOT="$(git -C "${BATS_TEST_DIRNAME}" rev-parse --show-toplevel)"
 fi
-LIB_ROOT="${REPO_ROOT}/lib"
+# In CI, LIB_ROOT is set to the extracted library artifact so tests run against
+# the packaged tarball rather than the raw source tree.  Fall back to lib/ for
+# local development.
+LIB_ROOT="${LIB_ROOT:-${REPO_ROOT}/lib}"
 
 # Point bats library loader at the vendored bats/ subdirectory.
 export BATS_LIB_PATH="${REPO_ROOT}/test/lib/bats"

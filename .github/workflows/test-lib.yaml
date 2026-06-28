@@ -24,11 +24,19 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download src/ artifact
+      - name: Download dist/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: ${{ fromJSON(inputs.config).artifact_src_name }}
-          path: ${{ fromJSON(inputs.config).artifact_src_path }}
+          name: ${{ fromJSON(inputs.config).artifact_dist_name }}
+          path: ${{ fromJSON(inputs.config).artifact_dist_path }}
+
+      - name: Extract library tarball
+        env:
+          DIST_PATH: ${{ fromJSON(inputs.config).artifact_dist_path }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/lib-test
+          tar -xzf "${DIST_PATH}devfeats-bashlib.tar.gz" --strip-components=1 -C dist/lib-test
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
@@ -47,6 +55,7 @@ jobs:
             -v "/var/run/docker.sock:/var/run/docker.sock" \
             -e GITHUB_TOKEN \
             -e "HOST_REPO_ROOT=${GITHUB_WORKSPACE}" \
+            -e "LIB_ROOT=/repo/dist/lib-test" \
             "${{ fromJSON(inputs.config).ci_image }}" \
             just test-lib-env "${{ matrix.env.name }}"
 
@@ -68,16 +77,26 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download src/ artifact
+      - name: Download dist/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: ${{ fromJSON(inputs.config).artifact_src_name }}
-          path: ${{ fromJSON(inputs.config).artifact_src_path }}
+          name: ${{ fromJSON(inputs.config).artifact_dist_name }}
+          path: ${{ fromJSON(inputs.config).artifact_dist_path }}
+
+      - name: Extract library tarball
+        env:
+          DIST_PATH: ${{ fromJSON(inputs.config).artifact_dist_path }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/lib-test
+          tar -xzf "${DIST_PATH}devfeats-bashlib.tar.gz" --strip-components=1 -C dist/lib-test
 
       - name: "Install bash ≥4"
         run: brew install bash
 
       - name: "Run unit and integration tests"
+        env:
+          LIB_ROOT: ${{ github.workspace }}/dist/lib-test
         run: |
           args=()
           [[ "${{ matrix.os.clean_path }}" == "true" ]] && args+=(--clean-path)

@@ -431,8 +431,8 @@
         "linux_enabled",
         "macos_enabled",
         "ci_image",
-        "artifact_src_name",
-        "artifact_src_path",
+        "artifact_dist_name",
+        "artifact_dist_path",
         "linux_matrix",
         "macos_matrix"
       ],
@@ -453,12 +453,12 @@
           "description": "Full devcontainer image URI used as the job container.",
           "type": "string"
         },
-        "artifact_src_name": {
-          "description": "Name of the source artifact downloaded by lib test jobs.",
+        "artifact_dist_name": {
+          "description": "Name of the distribution artifact downloaded by lib test jobs.",
           "type": "string"
         },
-        "artifact_src_path": {
-          "description": "Local path where the source artifact is extracted.",
+        "artifact_dist_path": {
+          "description": "Local path where the distribution artifact is extracted.",
           "type": "string"
         },
         "linux_matrix": {
