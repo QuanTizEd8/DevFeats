@@ -40,6 +40,45 @@ test_bootstrap__setup_file_jq_yq() {
   export TEST_BOOTSTRAP_JQ_READY TEST_BOOTSTRAP_JQ_BIN TEST_BOOTSTRAP_YQ_BIN
 }
 
+test_bootstrap__setup_file_jsonschema() {
+  load 'helpers/common'
+
+  TEST_BOOTSTRAP_JSONSCHEMA_BIN=""
+  local _js_path
+  _js_path="$(
+    bash -c '
+      source "$1/__init__.bash" 2>/dev/null || exit 1
+      ospkg__pm >/dev/null 2>&1 || exit 1
+      bootstrap__jsonschema 2>/dev/null || exit 1
+    ' _ "${LIB_ROOT}" 2> /dev/null
+  )" || true
+  if [[ -n "${_js_path}" && -x "${_js_path}" ]]; then
+    cp "${_js_path}" "${BATS_FILE_TMPDIR}/jsonschema"
+    chmod +x "${BATS_FILE_TMPDIR}/jsonschema"
+    TEST_BOOTSTRAP_JSONSCHEMA_BIN="${BATS_FILE_TMPDIR}/jsonschema"
+  fi
+
+  export TEST_BOOTSTRAP_JSONSCHEMA_BIN
+}
+
+test_bootstrap__require_jsonschema() {
+  [[ -n "${TEST_BOOTSTRAP_JSONSCHEMA_BIN:-}" && -x "${TEST_BOOTSTRAP_JSONSCHEMA_BIN}" ]] ||
+    skip "jsonschema unavailable (no network or not root)"
+}
+
+test_bootstrap__stub_jsonschema() {
+  # shellcheck disable=SC2329  # exported stub for bats run subshells
+  bootstrap__jsonschema() {
+    if [[ -n "${_BOOTSTRAP__JSONSCHEMA_BIN:-}" ]]; then
+      printf '%s\n' "${_BOOTSTRAP__JSONSCHEMA_BIN}"
+      return 0
+    fi
+    _BOOTSTRAP__JSONSCHEMA_BIN="${TEST_BOOTSTRAP_JSONSCHEMA_BIN}"
+    printf '%s\n' "${_BOOTSTRAP__JSONSCHEMA_BIN}"
+  }
+  export -f bootstrap__jsonschema
+}
+
 test_bootstrap__require_jq() {
   [[ "${TEST_BOOTSTRAP_JQ_READY:-0}" == "1" ]] || skip "jq bootstrap unavailable"
   [[ -n "${TEST_BOOTSTRAP_JQ_BIN:-}" && -x "${TEST_BOOTSTRAP_JQ_BIN}" ]] ||

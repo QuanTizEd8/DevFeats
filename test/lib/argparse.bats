@@ -487,3 +487,125 @@ setup() {
   [[ -f "${SCRIPT}" ]]
   [[ -x "${SCRIPT}" ]]
 }
+
+# ---------------------------------------------------------------------------
+# argparse__resolve_content_or_uri_options
+# ---------------------------------------------------------------------------
+
+@test "argparse__resolve_content_or_uri_options: inline multi-line content materialised to file" {
+  export _FEAT_ID="tfeat"
+  export MANIFEST=$'packages:\n  - curl\n  - git'
+
+  argparse__resolve_content_or_uri_options $'manifest\tMANIFEST\tstring\tfalse'
+
+  [[ -f "$MANIFEST" ]]
+  grep -q "curl" "$MANIFEST"
+}
+
+@test "argparse__resolve_content_or_uri_options: literal backslash-n normalised and materialised" {
+  export _FEAT_ID="tfeat"
+  # Value uses literal \n as some devcontainer CLI environments serialize it.
+  export MANIFEST='packages:\n  - curl'
+
+  argparse__resolve_content_or_uri_options $'manifest\tMANIFEST\tstring\tfalse'
+
+  [[ -f "$MANIFEST" ]]
+  grep -q "curl" "$MANIFEST"
+}
+
+@test "argparse__resolve_content_or_uri_options: existing local file passed through unchanged" {
+  export _FEAT_ID="tfeat"
+  local _f="${BATS_TEST_TMPDIR}/mypkg.yaml"
+  printf 'packages:\n  - git\n' > "$_f"
+  export MANIFEST="$_f"
+
+  argparse__resolve_content_or_uri_options $'manifest\tMANIFEST\tstring\tfalse'
+
+  [[ "$MANIFEST" == "$_f" ]]
+  [[ -f "$MANIFEST" ]]
+}
+
+@test "argparse__resolve_content_or_uri_options: remote URI fetched and variable rewritten" {
+  _uri__net_fetch() { printf 'packages:\n  - wget\n' > "$2"; }
+  export -f _uri__net_fetch
+
+  export _FEAT_ID="tfeat"
+  export MANIFEST="http://stub.example/packages.yaml"
+
+  argparse__resolve_content_or_uri_options $'manifest\tMANIFEST\tstring\tfalse'
+
+  [[ -f "$MANIFEST" ]]
+  grep -q "wget" "$MANIFEST"
+}
+
+@test "argparse__resolve_content_or_uri_options: non-existing path with allow_nonexistent passed through" {
+  export _FEAT_ID="tfeat"
+  export MANIFEST="/workspace/not/here.yaml"
+
+  argparse__resolve_content_or_uri_options $'manifest\tMANIFEST\tstring\ttrue'
+
+  [[ "$MANIFEST" == "/workspace/not/here.yaml" ]]
+}
+
+@test "argparse__resolve_content_or_uri_options: non-existing path without allow_nonexistent fails" {
+  export _FEAT_ID="tfeat"
+  export MANIFEST="/workspace/not/here.yaml"
+
+  run argparse__resolve_content_or_uri_options $'manifest\tMANIFEST\tstring\tfalse'
+  [[ $status -ne 0 ]]
+}
+
+@test "argparse__resolve_content_or_uri_options: empty value is a no-op" {
+  export _FEAT_ID="tfeat"
+  export MANIFEST=""
+
+  argparse__resolve_content_or_uri_options $'manifest\tMANIFEST\tstring\tfalse'
+  [[ -z "$MANIFEST" ]]
+}
+
+# ---------------------------------------------------------------------------
+# argparse__validate_jsonschema
+# ---------------------------------------------------------------------------
+
+@test "argparse__validate_jsonschema: valid file passes" {
+  local _schema="${BATS_TEST_TMPDIR}/schema.json"
+  local _instance="${BATS_TEST_TMPDIR}/valid.json"
+  printf '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}' > "$_schema"
+  printf '{"name":"hello"}' > "$_instance"
+
+  json__validate() { return 0; }
+  export -f json__validate
+
+  export MY_FILE="$_instance"
+  argparse__validate_jsonschema MY_FILE "$_schema" false
+}
+
+@test "argparse__validate_jsonschema: invalid file exits 1 with error" {
+  local _schema="${BATS_TEST_TMPDIR}/schema.json"
+  local _instance="${BATS_TEST_TMPDIR}/invalid.json"
+  printf '{}' > "$_schema"
+  printf '{}' > "$_instance"
+
+  json__validate() { return 1; }
+  export -f json__validate
+
+  export MY_FILE="$_instance"
+  run argparse__validate_jsonschema MY_FILE "$_schema" false
+  [[ $status -ne 0 ]]
+}
+
+@test "argparse__validate_jsonschema: non-existing file with allow_nonexistent skips" {
+  export MY_FILE="/not/here.yaml"
+  argparse__validate_jsonschema MY_FILE "/any/schema.json" true
+}
+
+@test "argparse__validate_jsonschema: non-existing file without allow_nonexistent exits 1" {
+  export MY_FILE="/not/here.yaml"
+  run argparse__validate_jsonschema MY_FILE "/any/schema.json" false
+  [[ $status -ne 0 ]]
+}
+
+@test "argparse__validate_jsonschema: empty variable is a no-op" {
+  export MY_FILE=""
+  argparse__validate_jsonschema MY_FILE "/any/schema.json" false
+}

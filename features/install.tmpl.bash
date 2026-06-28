@@ -252,11 +252,17 @@ __init_args__() {
   # Resolve URI-capable option values to local filesystem paths (INSTALLER_DIR or a private temp dir).
   ${{ _script.argparse.uri_resolution }}$
 
+  # Resolve file-content-or-URI options (inline content, remote URIs, or local paths) to local paths.
+  ${{ _script.argparse.content_or_uri_resolution }}$
+
   # Option-bound dependency trigger specs (consumed by __dep_install_option_bound__).
   ${{ _script.dep_trigger_specs }}$
 
   # Validate input options.
   ${{ _script.argparse.validations }}$
+
+  # Validate option values against their JSON Schemas.
+  ${{ _script.argparse.jsonschema_validations }}$
 
   # Unexport option variables — values remain accessible in this script,
   # but are not inherited by child processes.

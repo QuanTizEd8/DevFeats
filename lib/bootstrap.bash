@@ -10,6 +10,8 @@ _BOOTSTRAP__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # In-process cache for the yq binary path; set by bootstrap__yq on first call.
 _BOOTSTRAP__YQ_BIN=
+# In-process cache for the jsonschema binary path; set by bootstrap__jsonschema on first call.
+_BOOTSTRAP__JSONSCHEMA_BIN=
 
 _bootstrap__tool() {
   # _bootstrap__tool [options] — Check → install → recheck loop for a single CLI tool.
@@ -503,4 +505,105 @@ bootstrap__xcode() {
   # Returns: 0 when CLTs are present (or successfully installed), 1 on failure.
   [ "$(uname -s)" = "Darwin" ] || return 0
   posix__bootstrap_xcode
+}
+
+_bootstrap__jsonschema_compatible() {
+  # @brief _bootstrap__jsonschema_compatible <bin> — Return 0 when <bin> is sourcemeta/jsonschema (supports `validate`).
+  #
+  # Distinguishes the sourcemeta CLI from the unrelated Python `jsonschema` package
+  # (which emits deprecation warnings and uses a completely different interface).
+  # The sourcemeta binary outputs a bare semver string from `version`; the Python
+  # one prefixes the output with a DeprecationWarning, so the output does not
+  # match the bare `X.Y.Z` pattern.
+  local _bin="${1-}"
+  [[ -n "$_bin" ]] || {
+    logging__error "jsonschema binary path is empty."
+    return 1
+  }
+  local _out
+  _out="$("$_bin" version 2>&1)" || return 1
+  # Must output a bare version like "16.0.0" — no deprecation noise.
+  [[ "$_out" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+bootstrap__jsonschema() {
+  # @brief bootstrap__jsonschema [<version-spec>] — Ensure sourcemeta/jsonschema is available and print its path.
+  #
+  # Returns the path of an already-installed compatible binary when one exists.
+  # Otherwise downloads and installs the GitHub release zip via
+  # `github__install_release` (which fetches the SHA-256 from the release JSON
+  # automatically). Sets _BOOTSTRAP__JSONSCHEMA_BIN for callers that need the
+  # path without a subshell.
+  #
+  # Args:
+  #   [version-spec]  Version spec accepted by github__resolve_version (e.g.
+  #                   "16", "latest", "16.0.0"). Defaults to "16" (latest
+  #                   release in the current major line).
+  #
+  # Stdout: absolute path to a sourcemeta/jsonschema-compatible binary.
+  # Returns: 0 on success, 1 on any failure.
+  local _spec="${1:-16}"
+
+  # Fast path 1: in-process cache.
+  if [[ -n "${_BOOTSTRAP__JSONSCHEMA_BIN:-}" ]] && [[ -x "${_BOOTSTRAP__JSONSCHEMA_BIN}" ]] && _bootstrap__jsonschema_compatible "${_BOOTSTRAP__JSONSCHEMA_BIN}"; then
+    printf '%s\n' "${_BOOTSTRAP__JSONSCHEMA_BIN}"
+    return 0
+  fi
+  _BOOTSTRAP__JSONSCHEMA_BIN=""
+
+  # Fast path 2: compatible jsonschema already on PATH.
+  local _existing
+  _existing="$(command -v jsonschema 2> /dev/null || true)"
+  if [[ -n "${_existing}" ]] && _bootstrap__jsonschema_compatible "${_existing}"; then
+    logging__skip "Compatible jsonschema already on PATH at '${_existing}'."
+    _BOOTSTRAP__JSONSCHEMA_BIN="${_existing}"
+    printf '%s\n' "${_existing}"
+    return 0
+  fi
+
+  # Fast path 3: previously bootstrapped binary still alive.
+  local _state_ctx _state_path _state_group
+  install__read_state "jsonschema" _state_ctx _state_path _state_group
+  if [[ -x "${_state_path:-}" ]] && _bootstrap__jsonschema_compatible "${_state_path}"; then
+    logging__skip "Reusing bootstrapped jsonschema at '${_state_path}'."
+    _BOOTSTRAP__JSONSCHEMA_BIN="${_state_path}"
+    printf '%s\n' "${_state_path}"
+    return 0
+  fi
+
+  logging__install "Bootstrapping jsonschema (spec='${_spec}')."
+
+  # Resolve version and tag in one call (default output: tag on line 1, bare version on line 2).
+  local _resolve_output _resolved_tag _resolved_ver
+  logging__info "Resolving jsonschema version for spec '${_spec}'."
+  _resolve_output="$(github__resolve_version "sourcemeta/jsonschema" "${_spec}")"
+  local _rc=$?
+  [[ $_rc == 0 && -n "${_resolve_output:-}" ]] || {
+    logging__error "failed to resolve jsonschema version for spec '${_spec}'."
+    return 1
+  }
+  _resolved_tag="${_resolve_output%%$'\n'*}"
+  _resolved_ver="${_resolve_output##*$'\n'}"
+
+  # Build asset name using ctx__expand_pattern for OS/arch substitution.
+  # sourcemeta/jsonschema asset naming: jsonschema-{ver}-{os}-{arch}.zip
+  # where {os} is "linux"/"darwin" and {arch} is "x86_64"/"arm64" (not amd64).
+  local _asset_name
+  _asset_name="$(ctx__expand_pattern \
+    "jsonschema-${_resolved_ver}-{plat.kernel:lower}-{plat.machine_release==amd64?x86_64:{plat.machine_release}}.zip")"
+
+  local _install_dir
+  _install_dir="$(file__tmpdir "bootstrap/jsonschema")"
+  logging__install "Installing sourcemeta/jsonschema '${_asset_name}' (tag: ${_resolved_tag})."
+  github__install_release \
+    --repo "sourcemeta/jsonschema" \
+    --tag "${_resolved_tag}" \
+    --asset "${_asset_name}" \
+    --binary-src "bin/jsonschema" \
+    --binary-dest "${_install_dir}/jsonschema"
+
+  _BOOTSTRAP__JSONSCHEMA_BIN="${_install_dir}/jsonschema"
+  install__state_record "jsonschema" "internal" "binary" "${_install_dir}/jsonschema" "devfeats-bootstrap-jsonschema" || true
+  # Path is emitted by github__install_release → install__release_asset → uri__fetch_asset
+  # (do not printf again: duplicate stdout lines break `_bin="$(bootstrap__jsonschema)"` capture).
 }

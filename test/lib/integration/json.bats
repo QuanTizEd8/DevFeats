@@ -1,13 +1,22 @@
 #!/usr/bin/env bats
-# Integration tests for lib/json.bash — exercises real jq.
+# Integration tests for lib/json.bash — exercises real jq and sourcemeta/jsonschema.
 #
 # json__query calls bootstrap__jq, which installs jq via ospkg if absent.
-# All json function tests require a real jq binary and belong here.
+# json__validate calls bootstrap__jsonschema, which downloads sourcemeta/jsonschema.
+# All json function tests require real binaries and belong here.
 
 bats_require_minimum_version 1.5.0
 
+FIXTURES_DIR="${REPO_ROOT}/test/lib/fixtures/json"
+
+setup_file() {
+  load '../helpers/bootstrap_tools'
+  test_bootstrap__setup_file_jsonschema
+}
+
 setup() {
   load '../helpers/common'
+  load '../helpers/bootstrap_tools'
   reload_lib
 }
 
@@ -97,4 +106,97 @@ z"
   run bash -c '. "$1/__init__.bash" && printf %s "[1,2,3]" | json__query -r ".[]"' _ "${LIB_ROOT}"
   assert_output "$(printf '1\n2\n3')"
   assert_success
+}
+
+# ---------------------------------------------------------------------------
+# bootstrap__jsonschema — downloads and caches sourcemeta/jsonschema binary
+# ---------------------------------------------------------------------------
+
+@test "bootstrap__jsonschema: returns path to a working binary" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  run bootstrap__jsonschema
+  assert_success
+  [[ -x "$output" ]]
+  run "$output" version
+  assert_success
+  [[ "$output" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+@test "bootstrap__jsonschema: caches binary in _BOOTSTRAP__JSONSCHEMA_BIN" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  _BOOTSTRAP__JSONSCHEMA_BIN=""
+  bootstrap__jsonschema > /dev/null
+  [[ -n "${_BOOTSTRAP__JSONSCHEMA_BIN}" && -x "${_BOOTSTRAP__JSONSCHEMA_BIN}" ]]
+}
+
+# ---------------------------------------------------------------------------
+# json__validate — JSON Schema validation via sourcemeta/jsonschema
+# ---------------------------------------------------------------------------
+
+@test "json__validate: accepts a valid JSON instance" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  run json__validate \
+    "${FIXTURES_DIR}/valid.json" \
+    "${FIXTURES_DIR}/simple.schema.json"
+  assert_success
+}
+
+@test "json__validate: rejects an instance with additionalProperties violation" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  run json__validate \
+    "${FIXTURES_DIR}/invalid.json" \
+    "${FIXTURES_DIR}/simple.schema.json"
+  assert_failure
+}
+
+@test "json__validate: error output mentions the offending field" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  run json__validate \
+    "${FIXTURES_DIR}/invalid.json" \
+    "${FIXTURES_DIR}/simple.schema.json"
+  assert_failure
+  assert_output --partial "unknown_field"
+}
+
+@test "json__validate: fails when instance file does not exist" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  run json__validate \
+    "${BATS_TEST_TMPDIR}/nonexistent.json" \
+    "${FIXTURES_DIR}/simple.schema.json"
+  assert_failure
+}
+
+@test "json__validate: fails when schema file does not exist" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  run json__validate \
+    "${FIXTURES_DIR}/valid.json" \
+    "${BATS_TEST_TMPDIR}/no-schema.json"
+  assert_failure
+}
+
+@test "json__validate: accepts a valid ospkg manifest against ospkg schema" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  run json__validate \
+    "${FIXTURES_DIR}/valid-manifest.json" \
+    "${REPO_ROOT}/features/install-os-pkg/manifest.schema.json"
+  assert_success
+}
+
+@test "json__validate: rejects an invalid ospkg manifest against ospkg schema" {
+  test_bootstrap__require_jsonschema
+  test_bootstrap__stub_jsonschema
+  run json__validate \
+    "${FIXTURES_DIR}/invalid-manifest.json" \
+    "${REPO_ROOT}/features/install-os-pkg/manifest.schema.json"
+  assert_failure
+  # Error output should mention the violation.
+  assert_output --partial "packages"
 }

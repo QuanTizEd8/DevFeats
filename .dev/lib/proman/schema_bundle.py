@@ -28,11 +28,12 @@ def _build_validator() -> Draft202012Validator:
     config = load_config()
     schema_path = config.absolute_path("path.metadata_schema")
     lib_dirpath = config.absolute_path("path.library")
+    features_dirpath = config.absolute_path("path.features")
     meta_data = json.loads(schema_path.read_text())
     meta_uri = schema_path.as_uri()
     stem_to_uri = lib_schema_stem_to_uri(lib_dirpath)
     # metadata.schema.json uses $ref paths relative to features/ (e.g.
-    # ../lib/ospkg-manifest.schema.json) so IDE yaml.schemas can load them;
+    # install-os-pkg/manifest.schema.json) so IDE yaml.schemas can load them;
     # jsonschema resolves those against meta_uri once $id is set below.
     _set_root_id(meta_data, meta_uri)
     registry = Registry().with_resource(
@@ -44,6 +45,16 @@ def _build_validator() -> Draft202012Validator:
             continue
         doc = deepcopy(json.loads(path.read_text(encoding="utf-8")))
         _walk_replace_bare_stem_refs(doc, stem_to_uri)
+        _set_root_id(doc, uri)
+        registry = registry.with_resource(uri, DRAFT202012.create_resource(doc))
+    # Register feature-level schemas so $ref paths in metadata.schema.json that
+    # resolve to features/**/*.schema.json are available to the validator.
+    # Skip metadata.schema.json itself — it is already registered as meta_uri above.
+    for feat_schema in sorted(features_dirpath.rglob("*.schema.json")):
+        if feat_schema.resolve() == schema_path.resolve():
+            continue
+        uri = feat_schema.as_uri()
+        doc = deepcopy(json.loads(feat_schema.read_text(encoding="utf-8")))
         _set_root_id(doc, uri)
         registry = registry.with_resource(uri, DRAFT202012.create_resource(doc))
     Draft202012Validator.check_schema(meta_data)

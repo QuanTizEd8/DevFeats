@@ -311,3 +311,127 @@ argparse__resolve_uri_options() {
 
   return 0
 }
+
+argparse__resolve_content_or_uri_options() {
+  # @brief argparse__resolve_content_or_uri_options <spec>
+  #
+  # Resolve options that may hold inline file content, a URI, or a local path,
+  # rewriting option variables in place to a local filesystem path.
+  #
+  # Each non-empty spec line is TAB-delimited:
+  #   <key> <TAB> <VAR> <TAB> <type:string> <TAB> <allow_nonexistent:true|false>
+  #
+  # Resolution order for each option value:
+  #   1. Normalize literal \n escape sequences to real newlines (devcontainer CLI
+  #      serialises multi-line build-arg values with literal \n).
+  #   2. If the value contains a real newline: it is inline content — write it to
+  #      `${matdir}/content-uri/<key>/content` and rewrite the variable to that path.
+  #   3. Else if allow_nonexistent=true AND the value contains no URI scheme AND
+  #      the path does not exist: pass through unchanged (e.g. a workspace-mounted
+  #      file available only at lifecycle-hook time).
+  #   4. Else: delegate to `uri__resolve_line` — handles existing local paths,
+  #      file://, http(s)://, gh://, oci://; errors on non-existing paths.
+  #
+  # The materialization root is always a session temp dir (`file__mktmpdir`) that
+  # is cleaned up by the exit trap.  INSTALLER_DIR is intentionally NOT used here
+  # because content resolved to a temp file must not be mistaken for a persistent
+  # install artifact; features that need persistence must copy the file themselves.
+  #
+  # Returns: 0 on success, non-zero on any failure.
+  local _spec="${1:-}"
+  [[ -n "${_spec//[[:space:]]/}" ]] || return 0
+
+  argparse__var_declared FETCH_HEADERS || FETCH_HEADERS=()
+  [ "${FETCH_NETRC+defined}" ] || FETCH_NETRC=""
+
+  local -a _fetch_args=()
+  local _h
+  if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
+    for _h in "${FETCH_HEADERS[@]}"; do
+      [[ -n "${_h}" ]] && _fetch_args+=(--header "${_h}")
+    done
+  fi
+  [[ -n "${FETCH_NETRC:-}" ]] && _fetch_args+=(--netrc-file "${FETCH_NETRC}")
+
+  local _matdir
+  _matdir="$(file__mktmpdir "${_FEAT_ID}-content-uri")"
+
+  local _line _key _var _typ _allow_nonexistent _mdir
+  while IFS= read -r _line || [[ -n "${_line}" ]]; do
+    [[ -z "${_line//[[:space:]]/}" ]] && continue
+    IFS=$'\t' read -r _key _var _typ _allow_nonexistent <<< "${_line}"
+    [[ -n "${_key:-}" && -n "${_var:-}" && -n "${_typ:-}" ]] || {
+      logging__error "invalid spec line: '${_line}'"
+      return 1
+    }
+    local _val="${!_var:-}"
+    [[ -n "${_val}" ]] || continue
+
+    # Step 1: normalize literal \n escape sequences to real newlines.
+    if [[ "${_val}" != *$'\n'* && "${_val}" == *'\n'* ]]; then
+      _val="$(printf '%b' "${_val}")"
+      printf -v "$_var" '%s' "${_val}"
+    fi
+
+    _mdir="${_matdir}/content-uri/${_key}"
+
+    if [[ "${_val}" == *$'\n'* ]]; then
+      # Step 2: inline multi-line content — materialise to a temp file.
+      mkdir -p "${_mdir}"
+      printf '%s' "${_val}" > "${_mdir}/content"
+      logging__info "Argument '${_key}': inline content materialised to '${_mdir}/content'."
+      printf -v "$_var" '%s' "${_mdir}/content"
+    elif [[ "${_allow_nonexistent:-false}" == "true" &&
+      "${_val}" != *"://"* && ! -e "${_val%%#*}" ]]; then
+      # Step 3: non-existing local path with allow_nonexistent — pass through.
+      logging__info "Argument '${_key}': path '${_val}' does not exist yet; passing through."
+    else
+      # Step 4: URI or existing local path — delegate to uri__resolve_line.
+      mkdir -p "${_mdir}"
+      local _resolved_line
+      _resolved_line="$(uri__resolve_line "${_val}" "${_mdir}" "${_fetch_args[@]}")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
+        logging__error "failed to resolve '${_key}' from '${_val}'."
+        return "$_rc"
+      }
+      printf -v "$_var" '%s' "${_resolved_line}"
+    fi
+  done <<< "$(printf '%s\n' "$_spec")"
+
+  return 0
+}
+
+argparse__validate_jsonschema() {
+  # @brief argparse__validate_jsonschema VAR SCHEMA_PATH [allow_nonexistent] — Validate the file at $VAR against a JSON Schema.
+  #
+  # Uses `json__validate` (sourcemeta/jsonschema, bootstrapped automatically).
+  # Called once per option from the generated install-script validation block;
+  # the SCHEMA_PATH argument is double-quoted at the call site so bash variables
+  # (e.g. `${_FEAT_DIR}`) expand correctly at runtime.
+  #
+  # Args:
+  #   VAR               Name of the bash variable holding the file path to validate.
+  #   SCHEMA_PATH       Absolute or runtime-expanded path to the JSON Schema file.
+  #   allow_nonexistent "true" to skip when the file does not exist (default: false).
+  #
+  # Returns: 0 on success, exits 1 on validation failure.
+  local _var="$1" _schema="$2" _allow_nonexistent="${3:-false}"
+  local _label
+  _label="$(_argparse__label "$_var")"
+  local _val="${!_var:-}"
+  [[ -n "${_val}" ]] || return 0
+  if [[ ! -f "${_val}" ]]; then
+    if [[ "${_allow_nonexistent}" == "true" ]]; then
+      logging__info "Skipping JSON Schema validation for '${_label}': '${_val}' is not yet available."
+      return 0
+    fi
+    logging__error "JSON Schema validation for '${_label}': file not found at '${_val}'."
+    exit 1
+  fi
+  if ! json__validate "${_val}" "${_schema}"; then
+    logging__error "'${_label}' failed JSON Schema validation — correct the errors above and retry."
+    exit 1
+  fi
+  return 0
+}

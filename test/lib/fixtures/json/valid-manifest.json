@@ -1,0 +1,13 @@
+{
+  "packages": [
+    "curl",
+    "git",
+    {
+      "name": "wget",
+      "when": {"pm": "apt"}
+    }
+  ],
+  "apt": {
+    "packages": ["build-essential"]
+  }
+}

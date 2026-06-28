@@ -42,6 +42,20 @@ def _uri_chmod_mode(uri_cfg: bool | dict) -> str | None:  # noqa: FBT001
     return None
 
 
+def _content_or_uri_allow_nonexistent(cfg: bool | dict) -> bool:  # noqa: FBT001
+    """Return whether non-existing local paths are allowed for ``_content_or_uri``."""
+    if not isinstance(cfg, dict):
+        return False
+    return bool(cfg.get("allow_nonexistent", False))
+
+
+def _jsonschema_config(js_cfg: str | dict) -> tuple[str, bool]:
+    """Return (schema_path, allow_nonexistent) from a ``_jsonschema`` option value."""
+    if isinstance(js_cfg, str):
+        return js_cfg, False
+    return str(js_cfg["schema"]), bool(js_cfg.get("allow_nonexistent", False))
+
+
 def validate_generated_install_script(script: str) -> None:
     """Reject generated install.bash with broken bash escape sequences."""
     if _SPLIT_PRINTF_PERCENT_S_RE.search(script):
@@ -424,7 +438,13 @@ class InstallScriptGenerator:
             "defaults": self._generate_argparse_defaults(options),
             "normalize_arrays": self._generate_argparse_normalize_arrays(options),
             "uri_resolution": self._generate_argparse_uri_resolution(options),
+            "content_or_uri_resolution": (
+                self._generate_argparse_content_or_uri_resolution(options)
+            ),
             "validations": self._generate_argparse_validations(options),
+            "jsonschema_validations": (
+                self._generate_argparse_jsonschema_validations(options)
+            ),
             "unexports": self._generate_argparse_unexports(options),
         }
 
@@ -462,6 +482,60 @@ class InstallScriptGenerator:
             "unset _DF_URI_SPECS",
         ]
         return "\n".join(blocks).strip()
+
+    def _generate_argparse_content_or_uri_resolution(self, options: dict) -> str:
+        """Emit resolution calls for options marked with ``_content_or_uri``.
+
+        Follows the same spec-string pattern as ``_generate_argparse_uri_resolution``
+        but uses ``argparse__resolve_content_or_uri_options``, which also handles
+        inline multi-line content and optionally allows non-existing local paths.
+        """
+        spec_lines: list[str] = []
+        for key, opt in options.items():
+            vname = _opt_to_var(key)
+            cou_cfg = opt.get("_content_or_uri", False)
+            if not cou_cfg:
+                continue
+            typ = opt.get("type", "string")
+            allow_nonexistent = _content_or_uri_allow_nonexistent(cou_cfg)
+            spec_lines.append(
+                f"{key}\t{vname}\t{typ}\t{str(allow_nonexistent).lower()}"
+            )
+
+        if not spec_lines:
+            return ""
+
+        def _escape_ansi_c(s: str) -> str:
+            return s.replace("\\", "\\\\").replace("'", "\\'")
+
+        spec_literal = "\\n".join(_escape_ansi_c(line) for line in spec_lines)
+        blocks = [
+            f"_DF_COU_SPECS=$'{spec_literal}'",
+            'argparse__resolve_content_or_uri_options "${_DF_COU_SPECS}"',
+            "unset _DF_COU_SPECS",
+        ]
+        return "\n".join(blocks).strip()
+
+    def _generate_argparse_jsonschema_validations(self, options: dict) -> str:
+        """Emit JSON Schema validation calls for options marked with ``_jsonschema``.
+
+        Emits one ``argparse__validate_jsonschema`` call per option.  The schema
+        path in metadata is relative to the feature directory; the generator
+        prefixes it with ``${_FEAT_DIR}/`` so it resolves at bash runtime.
+        """
+        validations: list[str] = []
+        for key, opt in options.items():
+            vname = _opt_to_var(key)
+            js_cfg = opt.get("_jsonschema")
+            if not js_cfg:
+                continue
+            schema_path, allow_nonexistent = _jsonschema_config(js_cfg)
+            allow_str = str(allow_nonexistent).lower()
+            validations.append(
+                f"argparse__validate_jsonschema {vname}"
+                f' "${{_FEAT_DIR}}/{schema_path}" {allow_str}'
+            )
+        return "\n".join(validations)
 
     def _generate_dep_trigger_specs(self, metadata: dict) -> str:
         """Emit option-bound dependency trigger spec for template consumption."""

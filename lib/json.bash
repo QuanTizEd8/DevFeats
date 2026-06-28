@@ -280,6 +280,43 @@ json__value_stdin() {
   printf '%s\n' "$_json" | jq -c "$_expr" 2> /dev/null
 }
 
+json__validate() {
+  # @brief json__validate <instance-file> <schema-file> — Validate a JSON or YAML instance file against a JSON Schema using sourcemeta/jsonschema.
+  #
+  # Bootstraps sourcemeta/jsonschema automatically if not already on PATH.
+  # Validation errors are written to stderr verbatim from the jsonschema CLI.
+  #
+  # The instance file may be JSON (`.json`, `.jsonl`) or YAML (`.yaml`, `.yml`);
+  # the schema file may also be JSON or YAML. All major JSON Schema drafts are
+  # supported (draft-04, draft-06, draft-07, 2019-09, 2020-12); the dialect is
+  # read from the schema's `$schema` keyword.
+  #
+  # Args:
+  #   <instance-file>  Path to the JSON or YAML instance file to validate.
+  #   <schema-file>    Path to the JSON Schema file.
+  #
+  # Returns: 0 if the instance is valid, 1 on schema violation or error.
+  local _instance="${1-}" _schema="${2-}"
+  [[ -f "${_instance}" ]] || {
+    logging__error "json__validate: instance file not found: '${_instance}'"
+    return 1
+  }
+  [[ -f "${_schema}" ]] || {
+    logging__error "json__validate: schema file not found: '${_schema}'"
+    return 1
+  }
+  local _jsonschema_bin
+  _jsonschema_bin="$(bootstrap__jsonschema)"
+  local _rc=$?
+  [[ $_rc == 0 && -n "${_jsonschema_bin}" ]] || {
+    logging__error "json__validate: sourcemeta/jsonschema could not be installed."
+    return 1
+  }
+  local _val_rc=0
+  "${_jsonschema_bin}" validate "${_schema}" "${_instance}" >&2 || _val_rc=$?
+  [[ $_val_rc -eq 0 ]]
+}
+
 json__coerce_scalar_stdin() {
   # @brief json__coerce_scalar_stdin — Read one JSON scalar from stdin; print its string form for use in environment variables.
   #
