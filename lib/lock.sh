@@ -22,7 +22,7 @@ lock__run_with_lockfile() {
     return 1
   }
   mkdir -p "$(dirname "$_lock")" 2> /dev/null || true
-  if bootstrap__flock; then
+  if bootstrap__flock && command -v flock > /dev/null 2>&1; then
     (
       flock 9 || {
         logging__error "could not lock ${_lock}"
