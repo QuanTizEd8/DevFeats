@@ -429,6 +429,7 @@ github__latest_tag() {
   if [ -n "$_json" ]; then
     _tag="$(printf '%s\n' "$_json" | _json__root_scalar_stdin tag_name)" || _tag=""
     if [ -z "$_tag" ]; then
+      logging__debug "github__latest_tag: jq unavailable or parse failed — falling back to grep for tag_name."
       _tag="$(printf '%s\n' "$_json" |
         grep '"tag_name"' | head -1 |
         sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || _tag=""
