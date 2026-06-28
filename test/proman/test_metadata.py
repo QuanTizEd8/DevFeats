@@ -533,3 +533,28 @@ def test_schema_when_rejects_ordering_op_array() -> None:
     """Schema rejects array values for ordering operators (gte/lt/…)."""
     errors = _when_spec_errors({"feat.version": {"gte": ["1.0.0"]}})
     assert errors
+
+
+def test_schema_accepts_internal_and_files() -> None:
+    """Schema accepts optional `_internal` and `_files` metadata fields."""
+    metadata = _minimal_feature_metadata(
+        _internal={"foo": "bar", "nested": {"count": 1}},
+        _files=[{"path": "entrypoint.sh", "content": "#!/bin/sh\n"}],
+    )
+    errors = list(get_validator().iter_errors(metadata))
+    assert not errors
+
+
+@pytest.mark.parametrize(
+    "files_entry",
+    [
+        {"content": "x"},
+        {"path": "foo.sh"},
+        {"path": "foo.sh", "content": "x", "extra": "y"},
+    ],
+)
+def test_schema_rejects_invalid_files_entries(files_entry: dict) -> None:
+    """Schema rejects malformed `_files` entries."""
+    metadata = _minimal_feature_metadata(_files=[files_entry])
+    errors = list(get_validator().iter_errors(metadata))
+    assert errors

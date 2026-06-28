@@ -625,6 +625,31 @@
         "type": "string"
       }
     },
+    "_internal": {
+      "description": "Free-form internal data for reuse in other metadata fields via pyserials templating (e.g. `get(\"_internal.foo\")`). Not emitted to devcontainer-feature.json.",
+      "type": "object"
+    },
+    "_files": {
+      "description": "Files to write under `src/<feature-id>/files/` at sync time. Each entry supplies a path relative to the feature's `files/` directory and the file content. Must not collide with git-tracked files in `features/<feature-id>/files/`.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "content"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "description": "Output path relative to the feature's `files/` directory (e.g. `entrypoint.sh` or `skel/.zshrc`). Must not be absolute or contain `..` segments.",
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*\\.\\./).*"
+          },
+          "content": {
+            "description": "File content to write at sync time.",
+            "type": "string"
+          }
+        }
+      }
+    },
     "_tool_name": {
         "description": "The human-friendly name of the underlying tool or project that this Feature installs, used for display purposes in documentation and supporting tools.",
         "type": "string"

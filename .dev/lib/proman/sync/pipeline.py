@@ -7,7 +7,7 @@ import fnmatch
 import json
 import shutil
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from proman.config import load as load_config
 from proman.const import LIFECYCLE_COMMAND_KEYS
@@ -72,7 +72,20 @@ def run(*, check_only: bool = False) -> int:
         output_files.update(script_generator.generate(metadata))
         output_files.update(lib_files)
         output_files.update(bootstrap_file)
-        output_files.update(_gather_feature_files(feature_id, features_dirpath))
+        try:
+            disk_files = _gather_feature_files(feature_id, features_dirpath)
+            metadata_files = _gather_metadata_files(metadata, feature_id=feature_id)
+            output_files.update(
+                _merge_feature_files(
+                    disk_files,
+                    metadata_files,
+                    feature_id=feature_id,
+                ),
+            )
+        except ValueError as e:
+            log(f"❌ {feature_id}: {e}")
+            n_failures += 1
+            continue
 
         feature_in_sync = _sync_source_files(
             feature_id,
@@ -306,6 +319,57 @@ def _gather_feature_files(feature_id: str, features_dirpath: Path) -> dict[Path,
         for src_path in sorted(files_dir.rglob("*"))
         if src_path.is_file() and src_path in tracked
     }
+
+
+def _validate_metadata_file_path(path: str, *, feature_id: str) -> PurePosixPath:
+    """Return a validated files/-relative path from a ``_files`` entry."""
+    if not path or not path.strip():
+        msg = f"Feature '{feature_id}': _files entry has an empty path."
+        raise ValueError(msg)
+    if path.startswith("/"):
+        msg = (
+            f"Feature '{feature_id}': _files path must be relative, not absolute:"
+            f" {path!r}"
+        )
+        raise ValueError(msg)
+    rel = PurePosixPath(path)
+    if ".." in rel.parts:
+        msg = f"Feature '{feature_id}': _files path must not contain '..': {path!r}"
+        raise ValueError(msg)
+    return rel
+
+
+def _gather_metadata_files(metadata: dict, *, feature_id: str) -> dict[Path, str]:
+    """Return ``_files`` entries keyed like ``_gather_feature_files`` output."""
+    files: dict[Path, str] = {}
+    seen_paths: set[str] = set()
+    for entry in metadata.get("_files") or []:
+        rel = _validate_metadata_file_path(entry["path"], feature_id=feature_id)
+        rel_str = rel.as_posix()
+        if rel_str in seen_paths:
+            msg = f"Feature '{feature_id}': duplicate _files path: {rel_str!r}"
+            raise ValueError(msg)
+        seen_paths.add(rel_str)
+        files[Path("files") / rel] = entry["content"]
+    return files
+
+
+def _merge_feature_files(
+    disk_files: dict[Path, str],
+    metadata_files: dict[Path, str],
+    *,
+    feature_id: str,
+) -> dict[Path, str]:
+    """Merge disk and metadata file maps, raising on path collisions."""
+    collisions = sorted(disk_files.keys() & metadata_files.keys())
+    if collisions:
+        paths = ", ".join(path.as_posix() for path in collisions)
+        msg = (
+            f"Feature '{feature_id}': _files path(s) collide with"
+            f" features/{feature_id}/files/: {paths}"
+        )
+        raise ValueError(msg)
+    return disk_files | metadata_files
 
 
 def _gitignore_basename_patterns(repo_dirpath: Path) -> list[str]:
