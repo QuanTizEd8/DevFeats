@@ -2,7 +2,7 @@
 
 __resolve_input_prefixes_post() {
   # Resolve SYSCONFDIR after PREFIX is known.  __install_run_source_build passes
-  # it to make as sysconfdir=; _git__write_gitconfig uses it to locate the gitconfig file.
+  # it to make as sysconfdir=; _write_gitconfig uses it to locate the gitconfig file.
   if [[ "${SYSCONFDIR}" == "auto" ]]; then
     if users__is_user_path "${_RESOLVED_PREFIX}"; then
       SYSCONFDIR="$(users__home_of_path_owner "${_RESOLVED_PREFIX}")/.config"
@@ -133,7 +133,7 @@ __uninstall_run_prefix_post() {
 
 # ── Post-install ───────────────────────────────────────────────────────────
 
-_git__write_gitconfig() {
+_write_gitconfig() {
   local _cfg
   if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     _cfg="${SYSCONFDIR}/gitconfig"
@@ -235,7 +235,7 @@ _export_git_manpath() {
 
 __install_finish_post() {
   if [[ -n "${GITCONFIG:-}${DEFAULT_BRANCH:-}${USER_NAME:-}${USER_EMAIL:-}" ]] || [[ "${#SAFE_DIRECTORY[@]}" -gt 0 ]]; then
-    _git__write_gitconfig
+    _write_gitconfig
   fi
   _export_git_manpath
 }
@@ -252,7 +252,7 @@ __uninstall_finish_post() {
     --profile-d "${_FEAT_PROFILE_D_FILE}" \
     bash zsh fish tcsh elvish
 
-  # 2. Remove gitconfig block written by _git__write_gitconfig.
+  # 2. Remove gitconfig block written by _write_gitconfig.
   local _cfg
   if ! users__is_user_path "${_RESOLVED_PREFIX}"; then
     _cfg="${SYSCONFDIR}/gitconfig"

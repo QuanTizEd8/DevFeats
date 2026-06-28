@@ -54,7 +54,7 @@ __configure_user() {
 }
 
 # shellcheck disable=SC2329,SC2317
-_copilot__write_plugins_list() {
+_write_plugins_list() {
   os__is_devcontainer_build || return 0
   local _dest="${_FEAT_LIFECYCLE_POST_CREATE}install-plugins.sh.plugins"
   : > "${_dest}"
@@ -68,13 +68,13 @@ _copilot__write_plugins_list() {
 # shellcheck disable=SC2329,SC2317
 __install_finish_post() {
   __feat_do_configure_users__
-  _copilot__write_plugins_list
+  _write_plugins_list
 }
 
 # shellcheck disable=SC2329,SC2317
 __skip_post() {
   __feat_do_configure_users__
-  _copilot__write_plugins_list
+  _write_plugins_list
 }
 
 # shellcheck disable=SC2329,SC2317

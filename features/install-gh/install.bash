@@ -1,5 +1,5 @@
-# _gh__configure_user — apply per-user gh/git configuration.
-_gh__configure_user() {
+# _configure_user — apply per-user gh/git configuration.
+_configure_user() {
   local _users
   local -a _gh_uargs=()
   [ "${ADD_CURRENT_USER}" != "true" ] && _gh_uargs+=(--current false)
@@ -79,8 +79,8 @@ EOF
   return 0
 }
 
-# _gh__install_extensions — install gh CLI extensions for all resolved users.
-_gh__install_extensions() {
+# _install_extensions — install gh CLI extensions for all resolved users.
+_install_extensions() {
   local _users
   local -a _gh_uargs=()
   [ "${ADD_CURRENT_USER}" != "true" ] && _gh_uargs+=(--current false)
@@ -122,9 +122,9 @@ EOF
 # __install_finish_post — run per-user config and extensions after install.
 __install_finish_post() {
   if [ -n "${GIT_PROTOCOL}" ] || [ "${SETUP_GIT}" = "true" ] || [ -n "${SIGN_COMMITS}" ]; then
-    _gh__configure_user
+    _configure_user
   fi
   if [ "${#EXTENSIONS[@]}" -gt 0 ]; then
-    _gh__install_extensions
+    _install_extensions
   fi
 }
