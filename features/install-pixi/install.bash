@@ -54,34 +54,13 @@ __install_finish_post() {
   fi
 
   if [[ -n "${GLOBAL_MANIFEST:-}" ]]; then
-    # Normalize literal \n escapes (some environments serialize multi-line strings this way).
-    if [[ "$GLOBAL_MANIFEST" != *$'\n'* && "$GLOBAL_MANIFEST" == *'\n'* ]]; then
-      GLOBAL_MANIFEST="$(printf '%b' "$GLOBAL_MANIFEST")"
-      logging__info "Expanded literal \\n escapes in GLOBAL_MANIFEST."
-    fi
-
+    # GLOBAL_MANIFEST is already a resolved local file path: the _content_or_uri
+    # argparse step materialised inline content or fetched remote URIs before
+    # __install_finish_post__ was called.
     local _manifest_dest="${_pixi_home}/manifests/pixi-global.toml"
     file__mkdir "${_pixi_home}/manifests"
-
-    if [[ "$GLOBAL_MANIFEST" == *$'\n'* ]]; then
-      logging__install "Writing inline global manifest to '${_manifest_dest}'."
-      printf '%s\n' "$GLOBAL_MANIFEST" | file__tee "$_manifest_dest"
-    else
-      local _matdir _resolved
-      _matdir="$(file__mktmpdir "${_FEAT_ID}-global-manifest")"
-      local -a _fetch_args=()
-      local _h
-      if [[ ${#FETCH_HEADERS[@]} -gt 0 ]]; then
-        for _h in "${FETCH_HEADERS[@]}"; do
-          [[ -n "${_h}" ]] && _fetch_args+=(--header "${_h}")
-        done
-      fi
-      [[ -n "${FETCH_NETRC:-}" ]] && _fetch_args+=(--netrc-file "${FETCH_NETRC}")
-      logging__download "Resolving global manifest from '${GLOBAL_MANIFEST}'."
-      _resolved="$(uri__resolve_line "$GLOBAL_MANIFEST" "$_matdir" "${_fetch_args[@]+"${_fetch_args[@]}"}")"
-      logging__install "Writing fetched global manifest to '${_manifest_dest}'."
-      file__cp "$_resolved" "$_manifest_dest"
-    fi
+    logging__install "Writing global manifest to '${_manifest_dest}'."
+    file__cp "$GLOBAL_MANIFEST" "$_manifest_dest"
 
     # If the install process is running as a different user (e.g. root in a devcontainer
     # build), the files written above are owned by root.  Fix ownership so the target
