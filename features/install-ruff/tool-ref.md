@@ -2,7 +2,7 @@
 
 Ruff is an extremely fast Python linter and code formatter from Astral, written in Rust. It ships as a single `ruff` CLI binary that combines linting (`ruff check`), formatting (`ruff format`), import sorting, auto-fixes, a built-in language server (`ruff server`), and static analysis utilities. Ruff is designed as a drop-in replacement for Flake8 (plus many plugins), Black, isort, pydocstyle, pyupgrade, and autoflake, with configuration via `pyproject.toml`, `ruff.toml`, or `.ruff.toml`.[^readme][^docs-linter][^docs-formatter]
 
-Upstream documents multiple installation paths: ephemeral invocation via `uvx`, global/project installs via `uv`/`pip`/`pipx`, standalone installers (since 0.5.0), OS package managers, Conda, Docker images, and direct GitHub release artifacts. For DevFeats/devcontainer features, the **standalone installer** or **direct GitHub release binary download** are the recommended methods: they install a self-contained prebuilt binary with no Python runtime dependency, support explicit version pinning, and match how comparable community devcontainer features install Ruff.[^docs-install][^extra-feature]
+Upstream documents installation via `uvx`, `uv`/`pip`/`pipx`, standalone installers (since 0.5.0), OS package managers, Conda, Docker images, and related channels.[^docs-install] Additional distribution paths used in practice but not covered in the installation guide include direct GitHub release artifacts (published by cargo-dist) and `cargo install` from crates.io.[^release-01520][^crates-io] For DevFeats/devcontainer features, the **standalone installer** or **direct GitHub release binary download** are the recommended methods: they install a self-contained prebuilt binary with no Python runtime dependency, support explicit version pinning, and match how comparable community devcontainer features install Ruff.[^extra-feature]
 
 - **Homepage**: https://astral.sh/ruff
 - **Source Code**: https://github.com/astral-sh/ruff
@@ -23,81 +23,24 @@ The project is organized as a Cargo workspace. The main CLI binary is built from
 
 **Self-update**: Unlike Astral's `uv`, Ruff's cargo-dist configuration sets `install-updater = false`; release artifacts do not ship an updater binary, and there is no `ruff self update` subcommand. Version changes require reinstalling via the chosen package manager or installer.[^dist-workspace][^installer-sh]
 
-## Tool Configuration
+**Runtime configuration** (relevant when scaffolding project defaults or wiring editor integration): Ruff accepts equivalent configuration in `pyproject.toml` (`[tool.ruff]` sections), `ruff.toml`, or `.ruff.toml`. In the same directory, precedence is `.ruff.toml` > `ruff.toml` > `pyproject.toml`.[^docs-config] Ruff uses hierarchical config discovery (closest config file per analyzed file; no implicit parent merge except via `extend`).[^docs-config-discovery] CLI `--config` overrides file settings; `--isolated` ignores all config files.[^docs-config][^args-rs]
 
-Ruff configuration is separate from installation but is essential for feature implementers who scaffold project defaults or wire editor integration.
+When no project config exists, built-in defaults apply (line length 88, rules `E4`/`E7`/`E9`/`F`, target Python 3.10, etc.).[^docs-config-defaults] As a last resort, Ruff searches the user config directory for, in order: `.ruff.toml`, `ruff.toml`, `pyproject.toml` under `${config_dir}/ruff/` (on macOS/Linux typically `~/.config/ruff/`; on Windows `~\AppData\Roaming\ruff\` per FAQ).[^src-user-config][^docs-faq-user-config]
 
-### Configuration files
-
-Ruff accepts equivalent configuration in three file types:[^docs-config]
-
-| File | Schema |
-|------|--------|
-| `pyproject.toml` | Under `[tool.ruff]` with nested `[tool.ruff.lint]`, `[tool.ruff.format]`, etc. |
-| `ruff.toml` | Same schema without the `[tool.ruff]` / `tool.ruff` prefix |
-| `.ruff.toml` | Same as `ruff.toml` |
-
-If multiple config files exist in the same directory, precedence is: `.ruff.toml` > `ruff.toml` > `pyproject.toml`.[^docs-config]
-
-When no project config is found, Ruff falls back to built-in defaults (line length 88, default rule set `E4`, `E7`, `E9`, `F`, target Python 3.10, etc.).[^docs-config-defaults] As a last resort, a user-level config at `${config_dir}/ruff/pyproject.toml` is used (on macOS/Linux: `~/.config/ruff/ruff.toml` per FAQ; configuration discovery docs reference `${config_dir}/ruff/pyproject.toml`).[^docs-faq-user-config][^docs-config-discovery]
-
-### Config discovery
-
-Ruff uses hierarchical configuration: for each file analyzed, the closest `pyproject.toml` (with a `[tool.ruff]` section), `ruff.toml`, or `.ruff.toml` in the directory tree is used. Parent configs are **not** merged unless explicitly inherited via the `extend` setting.[^docs-config-discovery]
-
-CLI options override file settings. `--config` accepts either a path to a TOML file or inline `KEY = VALUE` pairs (e.g. `--config "lint.line-length = 100"`). `--isolated` ignores all configuration files.[^docs-config][^args-rs]
-
-### Key configuration areas
-
-| Area | Section | Common settings |
-|------|---------|-----------------|
-| Global | `[tool.ruff]` / top-level | `line-length`, `indent-width`, `target-version`, `exclude`, `include`, `extend`, `preview` |
-| Linter | `[tool.ruff.lint]` / `[lint]` | `select`, `extend-select`, `ignore`, `fixable`, `per-file-ignores`, plugin subsections |
-| Formatter | `[tool.ruff.format]` / `[format]` | `quote-style`, `indent-style`, `line-ending`, `docstring-code-format` |
-| Preview | `lint.preview`, `format.preview`, or `--preview` | Enables unstable rules and formatter style changes separately[^docs-preview] |
-
-`target-version` can be inferred from `requires-python` in a sibling `pyproject.toml` when not explicitly set.[^docs-config-discovery]
-
-### CLI usage
-
-Primary commands:[^docs-linter][^docs-formatter][^args-rs]
-
-```bash
-ruff check                  # Lint current directory
-ruff check --fix            # Lint and apply safe fixes
-ruff check --watch          # Re-lint on file changes
-ruff format                 # Format files in place
-ruff format --check         # Check formatting without writing
-ruff clean                  # Clear caches
-ruff server                 # Start language server (for editors)
-ruff --version              # Print version
-```
-
-Common global flags:[^args-rs]
-
-- `--config <path-or-pair>` — override settings
-- `--isolated` — ignore all config files
-- `--preview` — enable preview mode (lint and/or format depending on subcommand)
-- `--select`, `--ignore`, `--extend-select` — rule selection (lint)
-- `--output-format` — e.g. `github`, `gitlab`, `json` for CI integrations
-- `--color auto|always|never`
-
-Lint and format are separate commands; import sorting uses `ruff check --select I --fix` followed by `ruff format`.[^docs-formatter-imports]
-
-### Versioning policy
-
-Ruff uses a custom pre-1.0 versioning scheme: **minor** versions may include breaking changes; **patch** versions are bug fixes and backwards-compatible additions. Preview rules and formatter changes are gated behind preview mode.[^docs-versioning]
+Primary CLI commands: `ruff check` (lint), `ruff format` (format), `ruff server` (language server), `ruff clean` (clear `.ruff_cache`), `ruff version` / `ruff --version`.[^docs-linter][^docs-formatter][^args-rs] Import sorting: `ruff check --select I --fix` then `ruff format`.[^docs-formatter-imports] Ruff uses a custom pre-1.0 versioning scheme where minor versions may break and patch versions fix bugs.[^docs-versioning]
 
 ## Installation Methods
 
-Upstream installation methods include: `uvx` ephemeral invocation, `uv tool install` / `uv add --dev`, `pip` / `pipx`, standalone installer scripts, Homebrew/Linuxbrew, Conda, pkgx, distro packages (Arch, Alpine, openSUSE), Docker images, direct GitHub release artifacts, and building from source with Cargo.[^docs-install]
+Upstream installation methods documented in the official installation guide include: `uvx` ephemeral invocation, `uv tool install` / `uv add --dev`, `pip` / `pipx`, standalone installer scripts, Homebrew/Linuxbrew, Conda, pkgx, distro packages (Arch, Alpine, openSUSE), and Docker images.[^docs-install] This reference additionally covers direct GitHub release artifacts and Cargo installation as implementer-relevant paths not described in that guide.[^release-01520][^crates-io]
 
 ### Standalone Installer Script
 
 #### Supported Platforms
 
 - Shell installer (`install.sh`) targets macOS and Linux; PowerShell installer (`install.ps1`) targets Windows.[^docs-install]
-- Release target triples built by cargo-dist (0.15.20): `aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`, `aarch64-unknown-linux-musl`, `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `arm-unknown-linux-musleabihf`, `armv7-unknown-linux-gnueabihf`, `armv7-unknown-linux-musleabihf`, `i686-unknown-linux-gnu`, `i686-unknown-linux-musl`, `powerpc64-unknown-linux-gnu`, `powerpc64le-unknown-linux-gnu`, `riscv64gc-unknown-linux-gnu`, `s390x-unknown-linux-gnu`, `x86_64-pc-windows-msvc`, `aarch64-pc-windows-msvc`, `i686-pc-windows-msvc`.[^dist-workspace][^release-01520]
+- User-facing installer URLs (`https://astral.sh/ruff/install.sh`) redirect to the versioned script hosted at `releases.astral.sh` (equivalent to the `ruff-installer.sh` asset on GitHub Releases).[^docs-install][^installer-sh]
+- **Published 0.15.20 release assets** (query release API/tags; do not assume all `dist-workspace.toml` build targets are published for every release): `aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`, `aarch64-unknown-linux-musl`, `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `arm-unknown-linux-musleabihf`, `armv7-unknown-linux-gnueabihf`, `armv7-unknown-linux-musleabihf`, `i686-unknown-linux-gnu`, `i686-unknown-linux-musl`, `powerpc64le-unknown-linux-gnu`, `riscv64gc-unknown-linux-gnu`, `s390x-unknown-linux-gnu`, `x86_64-pc-windows-msvc`, `aarch64-pc-windows-msvc`, `i686-pc-windows-msvc`.[^release-01520]
+- `dist-workspace.toml` also lists `powerpc64-unknown-linux-gnu` as a CI build target, but that triple is **not** among 0.15.20 published assets.[^dist-workspace][^release-01520]
 - Linux installer detects glibc vs musl via `ldd` and selects gnu or musl artifacts. For glibc targets, if glibc is below 2.31, the installer falls back to the musl static artifact where available (e.g. `x86_64-unknown-linux-gnu` → `x86_64-unknown-linux-musl`).[^installer-sh]
 - macOS Rosetta 2 is corrected via `sysctl hw.optional.arm64`.[^installer-sh]
 
@@ -110,7 +53,7 @@ Upstream installation methods include: `uvx` ephemeral invocation, `uv tool inst
 
 ##### Platform-Specific Dependencies
 
-- Linux: `ldd` for libc detection; `sha256sum` or `shasum` for checksum verification (verification is skipped with a warning if unavailable).
+- Linux: `ldd` for libc detection; `sha256sum` for embedded checksum verification (verification is skipped with a warning when `sha256sum` is unavailable — there is no `shasum` fallback in the installer).[^installer-sh]
 - Windows PowerShell installer: PowerShell 5+, permissive execution policy, TLS 1.2.
 
 #### Installation Steps
@@ -132,7 +75,7 @@ Upstream installation methods include: `uvx` ephemeral invocation, `uv tool inst
 - Command checks:
   - `ruff --version`
 - Integrity checks:
-  - Unix shell installer embeds expected SHA256 values per artifact and verifies them when `sha256sum`/`shasum` is available; verification is skipped with a warning otherwise.[^installer-sh]
+  - Unix shell installer embeds expected SHA256 values per artifact and verifies them with `sha256sum` when available; verification is skipped with a warning otherwise (no `shasum` fallback).[^installer-sh]
   - GitHub release attestations are published for release artifacts (`github-attestations = true` in dist config).[^dist-workspace]
 
 #### Configuration Options
@@ -168,7 +111,7 @@ Environment variables read by the Unix shell installer:[^installer-sh]
 | `RUFF_INSTALL_DIR` | Force install directory (flat layout) |
 | `RUFF_NO_MODIFY_PATH=1` | Disable PATH mutation (alias: `INSTALLER_NO_MODIFY_PATH`) |
 | `RUFF_UNMANAGED_INSTALL=/path` | Fixed install path; disables PATH mutation and receipt/updater behavior |
-| `RUFF_DISABLE_UPDATE=1` | Skip updater installation (updater is not shipped for Ruff regardless)[^dist-workspace] |
+| `RUFF_DISABLE_UPDATE=1` | Sets `INSTALL_UPDATER=0`, which skips updater download **and** install receipt writing[^installer-sh] |
 | `RUFF_DOWNLOAD_URL` | Override artifact download base URL |
 | `RUFF_INSTALLER_GITHUB_BASE_URL` / `RUFF_INSTALLER_GHE_BASE_URL` | Override GitHub base URLs for downloads |
 | `RUFF_GITHUB_TOKEN` | Token for authenticated GitHub downloads |
@@ -349,6 +292,16 @@ rm -rf "${ASSET}" "${ASSET}.sha256" "${ASSET%.tar.gz}"
 
 - Preferred when avoiding `curl | sh` or when mirroring artifacts in controlled build pipelines.
 - Community devcontainer feature `devcontainers-extra/ruff` uses this approach via `gh-release` helper.[^extra-feature]
+- Always resolve the asset list from the target release tag; `dist-workspace.toml` targets may exceed published artifacts for any given version.
+
+#### Details
+
+1. **Tag format**: plain semver without `v` prefix (`0.15.20`).
+2. **Download**: `curl -fsSLO` asset and `.sha256` sidecar from `https://github.com/astral-sh/ruff/releases/download/{tag}/`.
+3. **Verify**: `sha256sum -c` (Linux) or `shasum -a 256 -c` (macOS) against sidecar.
+4. **Extract**: archive contains `ruff-{version}-{triple}/ruff`; use `tar --no-same-owner` in containers if needed.
+5. **Install**: `install -m 0755` to target bin directory already on `PATH`.
+6. **No receipt**: unlike standalone installer, manual extraction does not write `$XDG_CONFIG_HOME/ruff/ruff-receipt.json`.
 
 ### PyPI Installation (`uv tool`, `pipx`, or `pip`)
 
@@ -419,21 +372,61 @@ pip install ruff==0.15.20
 
 #### Supported Platforms
 
-- Any platform with `uv` installed and network access to resolve the PyPI package.
+- Any platform where `uv` is installed and can reach PyPI to resolve the `ruff` package.
+
+#### Dependencies
+
+##### Common Dependencies
+
+- `uv` on `PATH`.
+- Network access to PyPI (unless `uv` tool cache already contains the requested version).
+
+##### Platform-Specific Dependencies
+
+- None beyond `uv`'s own platform requirements.
 
 #### Installation Steps
 
-No persistent install; invoke directly:[^docs-install]
+No persistent installation; `uvx` creates an ephemeral environment per invocation:[^docs-install]
 
 ```bash
 uvx ruff check
 uvx ruff format
-uvx ruff@0.15.20 check   # pin version per invocation
+uvx ruff@0.15.20 check   # pin version for this invocation
 ```
+
+#### Installation Verification
+
+- Command succeeds and prints expected lint/format output.
+- `uvx ruff --version` prints the resolved version.
+
+#### Configuration Options
+
+- **Version Selection**: `uvx ruff@<version>` per invocation; defaults to latest resolvable from PyPI.
+- **Installation Path**: ephemeral; no persistent binary location.
+- **User Targeting**: runs as invoking user; uses uv cache directories.
+- **Required Privileges**: none for user invocation.
+- **Tool-Specific Configurations**: defers to project `pyproject.toml`/`ruff.toml` like a normal `ruff` invocation.
+
+#### Post-Installation Steps and Cleanup
+
+- **PATH Setup**: only `uv` must be on `PATH`.
+- **Configuration Files**: uses project config files; does not create install-time config.
+- **Environment Variables**: none required beyond uv's own configuration.
+- **Activation Scripts**: none.
+- **Shell Completions**: not applicable (no persistent `ruff` binary).
+- **Cleanup**: ephemeral environments cleaned by `uv` cache policies.
+
+#### Changing Versions and Uninstallation
+
+- **Upgrading/Downgrading**: change the `@version` suffix per invocation.
+- **Uninstallation**: not applicable; clear uv cache if desired.
+- **Idempotency**: each invocation resolves independently.
 
 #### Notes and Best Practices
 
-- Useful for one-off CI steps or scripts but not ideal as the sole devcontainer install method (requires network on each cold `uvx` resolution unless cached).
+- Useful for one-off CI steps but not ideal as the sole devcontainer install method.
+- Requires network on cold resolution unless uv cache is pre-warmed.
 
 ### OS Package Manager
 
@@ -441,28 +434,87 @@ uvx ruff@0.15.20 check   # pin version per invocation
 
 Upstream documents packages for:[^docs-install]
 
-| Manager | Package | Notes |
-|---------|---------|-------|
+| Manager | Package | Install command |
+|---------|---------|-----------------|
 | Homebrew / Linuxbrew | `ruff` | `brew install ruff` |
 | Conda (conda-forge) | `ruff` | `conda install -c conda-forge ruff` |
 | pkgx | `ruff` | `pkgx install ruff` |
 | Arch Linux | `ruff` | `pacman -S ruff` |
-| Alpine | `ruff` | `apk add ruff` (edge/community) |
+| Alpine | `ruff` | `apk add ruff` |
 | openSUSE Tumbleweed | `python3-ruff` | `zypper install python3-ruff` |
-| Repology | varies | See repology badge for distro coverage[^docs-install] |
+
+Broader distro coverage is indexed via Repology (linked from upstream installation docs).[^docs-install] Nix/Nixpkgs packages exist via Repology but are not documented in upstream installation.md; treat as out-of-scope unless explicitly added to the feature's OS package manifest.
 
 `devcontainers/features` Python feature can install `ruff` among alternate Python tools via pip in the devcontainer Python environment.[^devcontainers-python]
+
+#### Dependencies
+
+##### Common Dependencies
+
+- Working OS package manager and configured repositories (Conda channels, Homebrew taps, etc.).
+
+##### Platform-Specific Dependencies
+
+- Root/sudo for system-wide package installation on most distros.
+
+#### Installation Steps
+
+Example (Debian/Ubuntu via apt if packaged, or Homebrew on macOS):
+
+```bash
+brew install ruff
+# or
+sudo apt-get update && sudo apt-get install -y ruff   # when available in configured repos
+```
+
+#### Installation Verification
+
+- `ruff --version`
+
+#### Configuration Options
+
+- **Version Selection**: package-manager version pins only (e.g. `brew install ruff@0.15.20` when supported); often tracks distro/brew latest.
+- **Installation Path**: distro-defined (`/usr/bin`, Homebrew prefix, etc.).
+- **User Targeting**: system-wide by default.
+- **Required Privileges**: root/sudo on most Linux distros.
+- **Tool-Specific Configurations**: none at install time.
+
+#### Post-Installation Steps and Cleanup
+
+- **PATH Setup**: package manager places binary on default system `PATH`.
+- **Configuration Files**: none created by package install.
+- **Environment Variables**: none required.
+- **Activation Scripts**: none.
+- **Shell Completions**: may be packaged by distro/Homebrew; not guaranteed.
+- **Cleanup**: use package manager remove/purge commands.
+
+#### Changing Versions and Uninstallation
+
+- **Upgrading/Downgrading**: `brew upgrade ruff`, `apt-get install --only-upgrade ruff`, `conda update ruff`, etc.
+- **Uninstallation**: `brew uninstall ruff`, `apt-get remove ruff`, `pacman -R ruff`, etc.
+- **Idempotency**: package manager handles reinstall semantics.
 
 #### Notes and Best Practices
 
 - Distro versions often lag upstream; not recommended when exact version pinning is required.
-- Simplest path for Alpine arm64 where direct binary + package manager both work.
+- Simple fallback when release binaries are inconvenient and approximate versions suffice.
 
 ### Cargo Installation
 
 #### Supported Platforms
 
-- Platforms with a Rust toolchain meeting MSRV (1.94 at 0.15.20).[^cargo-toml]
+- Platforms where Rust/Cargo toolchains are supported and meet MSRV **1.94** (0.15.20).[^cargo-toml]
+
+#### Dependencies
+
+##### Common Dependencies
+
+- Rust toolchain with `cargo` (stable recommended).
+- C toolchain and build essentials for compiling Rust crates.
+
+##### Platform-Specific Dependencies
+
+- Network access to crates.io (or vendored sources) during build.
 
 #### Installation Steps
 
@@ -471,25 +523,57 @@ cargo install --locked ruff
 cargo install --locked --version 0.15.20 ruff
 ```
 
+The `ruff` crate is published to crates.io alongside each release.[^crates-io]
+
 #### Installation Verification
 
 - `ruff --version`
+- Binary at `$CARGO_HOME/bin/ruff` (default `~/.cargo/bin/ruff`).
+
+#### Configuration Options
+
+- **Version Selection**: `--version <semver>` or `--git` for non-crates.io sources.
+- **Installation Path**: Cargo home `bin/` directory (`$CARGO_HOME/bin` or `~/.cargo/bin`).
+- **User Targeting**: per-user by default.
+- **Required Privileges**: none for user Cargo home.
+- **Tool-Specific Configurations**: `--locked` recommended to honor crate lockfile.
+
+#### Post-Installation Steps and Cleanup
+
+- **PATH Setup**: ensure `$CARGO_HOME/bin` is on `PATH`.
+- **Configuration Files**: none for Ruff itself.
+- **Environment Variables**: standard `CARGO_HOME`, `RUSTUP_HOME` if customized.
+- **Activation Scripts**: none beyond Cargo env snippets some installers add.
+- **Shell Completions**: generate manually with `ruff generate-shell-completion` after install.
+- **Cleanup**: `cargo uninstall ruff`; optional `cargo cache` cleanup.
 
 #### Changing Versions and Uninstallation
 
-- `cargo install --force --locked --version <ver> ruff`
-- `cargo uninstall ruff`
+- **Upgrading/Downgrading**: `cargo install --force --locked --version <ver> ruff`
+- **Uninstallation**: `cargo uninstall ruff`
+- **Idempotency**: Cargo overwrites same-name binary on reinstall with `--force`.
 
 #### Notes and Best Practices
 
 - Compiles from source; significantly slower than prebuilt binary methods.
-- Fallback for uncommon platforms without published release artifacts.
+- Fallback for uncommon platforms without published release artifacts or PyPI wheels.
 
 ### Docker Image Usage
 
 #### Supported Platforms
 
-- Container runtimes with access to `ghcr.io`.
+- Container runtimes with access to `ghcr.io` (Docker, Podman, etc.).
+
+#### Dependencies
+
+##### Common Dependencies
+
+- Container engine installed and configured.
+- Network access to pull `ghcr.io/astral-sh/ruff` images.
+
+##### Platform-Specific Dependencies
+
+- Podman on SELinux hosts may require `:Z` volume flag (documented upstream).[^docs-install]
 
 #### Installation Steps
 
@@ -498,25 +582,64 @@ Ruff publishes `ghcr.io/astral-sh/ruff` with tags `latest`, `{major}.{minor}.{pa
 ```bash
 docker run -v .:/io --rm ghcr.io/astral-sh/ruff check
 docker run -v .:/io --rm ghcr.io/astral-sh/ruff:0.15.20-alpine check
+# Podman on SELinux:
+docker run -v .:/io:Z --rm ghcr.io/astral-sh/ruff check
 ```
+
+This provides `ruff` inside the container only; it does not install `ruff` on the host/devcontainer `PATH`.
+
+#### Installation Verification
+
+- `docker run --rm ghcr.io/astral-sh/ruff:0.15.20 --version`
+
+#### Configuration Options
+
+- **Version Selection**: image tag (`0.15.20`, `0.15.20-alpine`, `latest`, etc.).
+- **Installation Path**: N/A (container-local `/usr/local/bin` or image-defined path).
+- **User Targeting**: N/A.
+- **Required Privileges**: container engine permissions (often rootful Docker or rootless Podman setup).
+- **Tool-Specific Configurations**: mount workspace at `/io` per upstream examples.
+
+#### Post-Installation Steps and Cleanup
+
+- **PATH Setup**: not applicable on host; invoke via `docker run`.
+- **Configuration Files**: mount project config into container workspace.
+- **Environment Variables**: pass via `docker run -e` if needed.
+- **Activation Scripts**: none.
+- **Cleanup**: `docker image rm ghcr.io/astral-sh/ruff:<tag>` to remove pulled images.
+
+#### Changing Versions and Uninstallation
+
+- **Upgrading/Downgrading**: pull/run a different image tag.
+- **Uninstallation**: remove local image layers.
+- **Idempotency**: pulling same tag is idempotent modulo tag movement for `latest`.
 
 #### Notes and Best Practices
 
 - Complementary to host PATH install; common in GitLab CI per upstream docs.[^docs-integrations]
-- Not a substitute for installing `ruff` on the devcontainer `PATH` when editor integration or local development workflows need it.
+- Not a substitute for installing `ruff` on the devcontainer `PATH` when editor integration needs `ruff server` locally.
 
 ## Dev Container Setup
 
 Ruff works in standard devcontainer environments without special runtime privileges. Key considerations:
 
-- **Recommended install method**: Standalone installer with `RUFF_UNMANAGED_INSTALL=/usr/local/bin` (or direct GitHub release binary to `/usr/local/bin/ruff`) for a Python-independent, version-pinnable install. Alternative: `uv tool install ruff@<version>` when an `install-uv` feature is already present.
+- **Recommended devcontainer recipe** (Python-independent, no profile mutation):
+
+```bash
+curl -LsSf https://astral.sh/ruff/0.15.20/install.sh | env RUFF_UNMANAGED_INSTALL=/usr/local/bin sh
+```
+
+`RUFF_UNMANAGED_INSTALL` forces install to `/usr/local/bin`, disables PATH profile mutation, and skips install receipt/updater side effects. Equivalent: direct GitHub release binary via `install -m 0755` with `RUFF_NO_MODIFY_PATH=1` if using the default installer path logic.
+
+- Alternative when `install-uv` is already present: `uv tool install ruff@0.15.20` (ensure uv tool bin dir is on `PATH`).
 - **Platform mapping in containers**:
   - Debian/Ubuntu devcontainers (x86_64): `x86_64-unknown-linux-gnu` tarball or standalone installer.
   - Debian/Ubuntu devcontainers (arm64): `aarch64-unknown-linux-gnu` tarball.
   - Alpine devcontainers (x86_64): `x86_64-unknown-linux-musl` or `apk add ruff`.
   - Alpine devcontainers (arm64): `aarch64-unknown-linux-musl` or `apk add ruff`.
 - **Dependencies during build**: ensure `curl`, `ca-certificates`, and `tar` are available before downloading.
-- **PATH**: install to `/usr/local/bin` and set `RUFF_NO_MODIFY_PATH=1` to avoid mutating user shell profiles in ephemeral build layers.
+- **PATH**: `/usr/local/bin` is standard in devcontainers and avoids installer profile edits when combined with `RUFF_UNMANAGED_INSTALL`.
+- **Podman/SELinux**: for containerized CI invoking the Ruff Docker image, use `-v .:/io:Z` per upstream docs.[^docs-install]
 - **No entrypoint or lifecycle commands** required for basic CLI usage.
 - **Configuration scaffolding**: optionally write a starter `pyproject.toml` `[tool.ruff]` section or `ruff.toml` in the workspace; not required for the binary to function.
 - **VS Code integration**: install extension `charliermarsh.ruff` (extension ID used by community feature).[^extra-feature-json] The extension uses `ruff server` from PATH; recommend extension version `2024.32.0` or later per upstream editor docs.[^docs-editors-setup]
@@ -535,7 +658,7 @@ Ruff works in standard devcontainer environments without special runtime privile
 
 - **Marketplace**: https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff
 - **Source Code**: https://github.com/astral-sh/ruff-vscode
-- **Architecture**: Editor extension that invokes `ruff server` (built into the `ruff` binary ≥0.3.0) for linting, formatting, and code actions. Upstream recommends disabling the legacy `ruff-lsp` package to avoid conflicts.[^docs-editors-setup]
+- **Architecture**: Editor extension that invokes `ruff server` (native server introduced in Ruff **0.3.5**; VS Code extension auto-selects it when `ruff` ≥ **0.5.3**).[^docs-editors-migration][^docs-editors-setup] Upstream recommends disabling the legacy `ruff-lsp` package to avoid conflicts.[^docs-editors-setup]
 - **Versioning**: Extension uses a separate CalVer scheme (even minor = stable, odd minor = preview) distinct from the `ruff` CLI version.[^docs-versioning-vscode]
 - **Installation**: via VS Code marketplace or `devcontainer.json` `customizations.vscode.extensions`.
 
@@ -592,7 +715,13 @@ Ruff works in standard devcontainer environments without special runtime privile
 
 [^dist-workspace]: [Ruff `dist-workspace.toml`](https://raw.githubusercontent.com/astral-sh/ruff/main/dist-workspace.toml) — cargo-dist targets, `install-updater = false`, install path, hosting URLs.
 
-[^installer-sh]: [Ruff Shell Installer 0.15.20](https://github.com/astral-sh/ruff/releases/download/0.15.20/ruff-installer.sh) — Full cargo-dist installer: env vars, arch detection, glibc fallback, checksums, PATH mutation, receipt.
+[^installer-sh]: [Ruff Shell Installer 0.15.20](https://github.com/astral-sh/ruff/releases/download/0.15.20/ruff-installer.sh) — cargo-dist installer (also served via `https://astral.sh/ruff/install.sh` redirect): env vars, arch detection, glibc fallback, `sha256sum`-only checksum verification, PATH mutation, receipt.
+
+[^src-user-config]: [Ruff `find_user_settings_toml()`](https://raw.githubusercontent.com/astral-sh/ruff/main/crates/ruff_workspace/src/pyproject.rs) — Authoritative user-config search order: `.ruff.toml`, `ruff.toml`, `pyproject.toml` under `${config_dir}/ruff/`.
+
+[^crates-io]: [crates.io — `ruff` crate](https://crates.io/crates/ruff) — Published crate for `cargo install`.
+
+[^docs-editors-migration]: [Ruff Editor Migration Guide](https://raw.githubusercontent.com/astral-sh/ruff/main/docs/editors/migration.md) — Native `ruff server` introduced in 0.3.5; VS Code extension uses it for Ruff ≥0.5.3.
 
 [^args-rs]: [Ruff CLI Args (`args.rs`)](https://raw.githubusercontent.com/astral-sh/ruff/main/crates/ruff/src/args.rs) — Subcommands, global flags, completions subcommand.
 
