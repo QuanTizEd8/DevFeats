@@ -136,9 +136,7 @@ def test_merge_feature_files_raises_on_collision() -> None:
 )
 def test_is_excluded_feature_source(rel: str, *, excluded: bool) -> None:
     """Excluded paths match fnmatch patterns from config."""
-    assert (
-        _is_excluded_feature_source(Path(rel), _DEFAULT_EXCLUDE_PATTERNS) is excluded
-    )
+    assert _is_excluded_feature_source(Path(rel), _DEFAULT_EXCLUDE_PATTERNS) is excluded
 
 
 def test_gather_feature_files_includes_schema_and_files_subdir() -> None:
