@@ -27,7 +27,7 @@ The project is organized as a Cargo workspace. The main CLI binary is built from
 
 When no project config exists, built-in defaults apply (line length 88, rules `E4`/`E7`/`E9`/`F`, target Python 3.10, etc.).[^docs-config-defaults] As a last resort, Ruff searches the user config directory for, in order: `.ruff.toml`, `ruff.toml`, `pyproject.toml` under `${config_dir}/ruff/` (on macOS/Linux typically `~/.config/ruff/`; on Windows `~\AppData\Roaming\ruff\` per FAQ).[^src-user-config][^docs-faq-user-config]
 
-Primary CLI commands: `ruff check` (lint), `ruff format` (format), `ruff server` (language server), `ruff clean` (clear `.ruff_cache`), `ruff version` / `ruff --version`.[^docs-linter][^docs-formatter][^args-rs] Import sorting: `ruff check --select I --fix` then `ruff format`.[^docs-formatter-imports] Ruff uses a custom pre-1.0 versioning scheme where minor versions may break and patch versions fix bugs.[^docs-versioning]
+Primary CLI commands: `ruff check` (lint), `ruff format` (format), `ruff server` (language server), `ruff clean` (clear `.ruff_cache`), `ruff version` / `ruff --version`.[^docs-linter][^docs-formatter][^args-rs] Import sorting: `ruff check --select I --fix` then `ruff format`.[^docs-formatter-imports] Preview mode (`--preview` or `preview = true` in config) gates unstable rules and formatter changes.[^docs-preview] Ruff uses a custom pre-1.0 versioning scheme where minor versions may break and patch versions fix bugs.[^docs-versioning]
 
 ## Installation Methods
 
@@ -356,12 +356,13 @@ pip install ruff==0.15.20
 
 - **PATH Setup**: ensure `~/.local/bin` (pip/pipx) or uv tool bin directory is on `PATH`.
 - **Activation Scripts**: venv activation if installed into a project venv via `pip`.
+- **Shell Completions**: optional; generate with `ruff generate-shell-completion <shell>` after install.[^args-rs]
 
 #### Changing Versions and Uninstallation
 
-- `uv tool upgrade ruff` / `uv tool uninstall ruff`
-- `pipx upgrade ruff` / `pipx uninstall ruff`
-- `pip uninstall ruff`
+- **Upgrading/Downgrading**: `uv tool upgrade ruff` / `pipx upgrade ruff` / `pip install --upgrade ruff` (or explicit version pin).
+- **Uninstallation**: `uv tool uninstall ruff` / `pipx uninstall ruff` / `pip uninstall ruff`
+- **Idempotency**: reinstalling the same version is a no-op or overwrites per package-manager semantics; `uv tool install`/`pipx install` fail if already installed unless upgrade/reinstall flags are used.
 
 #### Notes and Best Practices
 
@@ -629,7 +630,7 @@ Ruff works in standard devcontainer environments without special runtime privile
 curl -LsSf https://astral.sh/ruff/0.15.20/install.sh | env RUFF_UNMANAGED_INSTALL=/usr/local/bin sh
 ```
 
-`RUFF_UNMANAGED_INSTALL` forces install to `/usr/local/bin`, disables PATH profile mutation, and skips install receipt/updater side effects. Equivalent: direct GitHub release binary via `install -m 0755` with `RUFF_NO_MODIFY_PATH=1` if using the default installer path logic.
+`RUFF_UNMANAGED_INSTALL` forces install to `/usr/local/bin`, disables PATH profile mutation, and skips install receipt/updater side effects. Alternatively, download the matching GitHub release tarball and `install -m 0755` the `ruff` binary to `/usr/local/bin` (no installer script, no receipt).
 
 - Alternative when `install-uv` is already present: `uv tool install ruff@0.15.20` (ensure uv tool bin dir is on `PATH`).
 - **Platform mapping in containers**:
@@ -658,7 +659,7 @@ curl -LsSf https://astral.sh/ruff/0.15.20/install.sh | env RUFF_UNMANAGED_INSTAL
 
 - **Marketplace**: https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff
 - **Source Code**: https://github.com/astral-sh/ruff-vscode
-- **Architecture**: Editor extension that invokes `ruff server` (native server introduced in Ruff **0.3.5**; VS Code extension auto-selects it when `ruff` ≥ **0.5.3**).[^docs-editors-migration][^docs-editors-setup] Upstream recommends disabling the legacy `ruff-lsp` package to avoid conflicts.[^docs-editors-setup]
+- **Architecture**: Editor extension that invokes `ruff server` (native server introduced in Ruff **0.3.5**; VS Code extension auto-selects it when `ruff` executable ≥ **0.5.3** and `ruff.nativeServer` is `auto`).[^docs-editors-migration][^ruff-vscode-readme] Upstream recommends disabling the legacy `ruff-lsp` package to avoid conflicts.[^docs-editors-setup]
 - **Versioning**: Extension uses a separate CalVer scheme (even minor = stable, odd minor = preview) distinct from the `ruff` CLI version.[^docs-versioning-vscode]
 - **Installation**: via VS Code marketplace or `devcontainer.json` `customizations.vscode.extensions`.
 
@@ -721,7 +722,9 @@ curl -LsSf https://astral.sh/ruff/0.15.20/install.sh | env RUFF_UNMANAGED_INSTAL
 
 [^crates-io]: [crates.io — `ruff` crate](https://crates.io/crates/ruff) — Published crate for `cargo install`.
 
-[^docs-editors-migration]: [Ruff Editor Migration Guide](https://raw.githubusercontent.com/astral-sh/ruff/main/docs/editors/migration.md) — Native `ruff server` introduced in 0.3.5; VS Code extension uses it for Ruff ≥0.5.3.
+[^docs-editors-migration]: [Ruff Editor Migration Guide](https://raw.githubusercontent.com/astral-sh/ruff/main/docs/editors/migration.md) — Native `ruff server` introduced in 0.3.5; stabilized in 0.5.3.
+
+[^ruff-vscode-readme]: [Ruff VS Code Extension README](https://raw.githubusercontent.com/astral-sh/ruff-vscode/main/README.md) — `ruff.nativeServer=auto` selects native server when executable ≥ 0.5.3.
 
 [^args-rs]: [Ruff CLI Args (`args.rs`)](https://raw.githubusercontent.com/astral-sh/ruff/main/crates/ruff/src/args.rs) — Subcommands, global flags, completions subcommand.
 
