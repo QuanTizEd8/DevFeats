@@ -48,7 +48,11 @@ def merge_all_defaults(
     merged: dict = {}
     for layer in [shared or {}, feature_defaults or {}, scenario]:
         for key, value in layer.items():
-            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            if (
+                key in merged
+                and isinstance(merged[key], dict)
+                and isinstance(value, dict)
+            ):
                 merged[key] = {**merged[key], **value}
             else:
                 merged[key] = value
