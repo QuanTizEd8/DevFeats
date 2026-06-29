@@ -137,7 +137,7 @@ invalid_method:
 | `options` | Feature option key/value pairs; merged with `defaults.options` (scenario wins) |
 | `tests` | Test script names from `tests/`; all run sequentially per scenario |
 | `setup` | Shell commands run inside the container before install. In standalone mode: executed before `install.sh`. In devcontainer mode: baked into the generated Dockerfile as a `RUN` layer |
-| `expect_install_failure` | If `true`, asserts the installer exits non-zero; runner validates exit code and any `kind: install_failure` patterns |
+| `expect_install_failure` | If `true`, asserts the installer exits non-zero; runner validates exit code and every `kind: install_failure` `pattern` in the scenario's checks |
 | `devcontainer` | Mode-specific overrides: `remoteUser`, `containerUser` |
 | `standalone` | Mode-specific overrides: `user` (run tests as this user), `sudo: false` (disable sudo for user), `network: none` (block outbound traffic), `skip_install: true` (test script calls install itself) |
 
@@ -189,7 +189,7 @@ invalid_method:
   checks:
     - kind: install_failure                  # asserts the install itself exits non-zero
       title: invalid method rejected
-      pattern: "Invalid value for 'method'"  # optional: match substring in install output
+      pattern: "Invalid value for 'method'"  # required: substring that must appear in install output
 ```
 
 **Check item fields:**
@@ -199,13 +199,14 @@ invalid_method:
 | `title` | ✅ | Label shown in test output |
 | `cmd` | ✅ | Command to run |
 | `kind` | | Assertion type: `check` (default, exits 0 passes), `fail` (exits non-zero passes), `multiple` (min N must pass), `install_failure` (asserts the install itself exits non-zero) |
+| `pattern` | | When `kind: install_failure` — **required** substring that must appear in install stdout/stderr (proves the failure was for the expected reason) |
 | `debug` | | Shell content printed unconditionally before this check (diagnostic output) |
 | `on_fail` | | Shell content run only when this specific check fails |
 | `min` | | When `kind: multiple` — minimum number of commands that must exit 0 |
 
 ### `kind: install_failure` and `expect_install_failure`
 
-`kind: install_failure` in `checks.yaml` is a check item that asserts the install exits non-zero and (optionally) that the install output matches a `pattern` substring. It is **not** emitted into the generated `.sh` file — the runner handles it directly. Any other `checks:` items in the same group that do not use `kind: install_failure` still run in the generated script (for example, verifying that a stub binary is still present after a failed install).
+`kind: install_failure` in `checks.yaml` is a check item that asserts the install exits non-zero **and** that the install output contains every `pattern` substring declared on such checks in the scenario's test group. Each `install_failure` item must include a `pattern`. It is **not** emitted into the generated `.sh` file — the runner handles it directly. Any other `checks:` items in the same group that do not use `kind: install_failure` still run in the generated script (for example, verifying that a stub binary is still present after a failed install).
 
 ```yaml
 # scenarios.yaml

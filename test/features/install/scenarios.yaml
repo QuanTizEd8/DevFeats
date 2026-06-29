@@ -53,7 +53,8 @@ scripts_multiple:
       > /tmp/devfeats-install-script-2.sh
     printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-multi-3\n' \
       > /tmp/devfeats-install-script-3.sh
-    chmod +x /tmp/devfeats-install-script-{1,2,3}.sh
+    chmod +x /tmp/devfeats-install-script-1.sh \
+      /tmp/devfeats-install-script-2.sh /tmp/devfeats-install-script-3.sh
   options:
     scripts: "/tmp/devfeats-install-script-1.sh\n/tmp/devfeats-install-script-2.sh\n/tmp/devfeats-install-script-3.sh"
   tests: [scripts_multiple]
@@ -80,6 +81,7 @@ run_as_root:
 fail_fast_true:
   description: Second script fails; third script does not run (fail_fast=true default).
   expect_install_failure: true
+  modes: [standalone]
   setup: |
     printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-ff-before\n' \
       > /tmp/devfeats-install-ff-before.sh
@@ -87,7 +89,8 @@ fail_fast_true:
       > /tmp/devfeats-install-ff-fail.sh
     printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-ff-after\n' \
       > /tmp/devfeats-install-ff-after.sh
-    chmod +x /tmp/devfeats-install-ff-{before,fail,after}.sh
+    chmod +x /tmp/devfeats-install-ff-before.sh \
+      /tmp/devfeats-install-ff-fail.sh /tmp/devfeats-install-ff-after.sh
   options:
     scripts: "/tmp/devfeats-install-ff-before.sh\n/tmp/devfeats-install-ff-fail.sh\n/tmp/devfeats-install-ff-after.sh"
     fail_fast: true
@@ -96,6 +99,7 @@ fail_fast_true:
 fail_fast_false:
   description: Second script fails; third script still runs (fail_fast=false).
   expect_install_failure: true
+  modes: [standalone]
   setup: |
     printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-noff-before\n' \
       > /tmp/devfeats-install-noff-before.sh
@@ -103,7 +107,8 @@ fail_fast_false:
       > /tmp/devfeats-install-noff-fail.sh
     printf '#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-noff-after\n' \
       > /tmp/devfeats-install-noff-after.sh
-    chmod +x /tmp/devfeats-install-noff-{before,fail,after}.sh
+    chmod +x /tmp/devfeats-install-noff-before.sh \
+      /tmp/devfeats-install-noff-fail.sh /tmp/devfeats-install-noff-after.sh
   options:
     scripts: "/tmp/devfeats-install-noff-before.sh\n/tmp/devfeats-install-noff-fail.sh\n/tmp/devfeats-install-noff-after.sh"
     fail_fast: false
@@ -112,6 +117,7 @@ fail_fast_false:
 prescript_fails_fast:
   description: Prescript exits 1; postscript does not run (fail_fast=true).
   expect_install_failure: true
+  modes: [standalone]
   options:
     prescript: "#!/bin/bash\nexit 1"
     postscript: "#!/bin/bash\nset -eu\ntouch /tmp/devfeats-install-ps-should-not-run"

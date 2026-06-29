@@ -65,6 +65,7 @@ fail_fast_true:
   checks:
     - kind: install_failure
       title: feature exits non-zero on script failure
+      pattern: "devfeats-install-ff-fail.sh"
     - title: first script ran before failure
       cmd: test -f /tmp/devfeats-install-ff-before
     - title: third script did not run after failure
@@ -75,6 +76,7 @@ fail_fast_false:
   checks:
     - kind: install_failure
       title: feature exits non-zero despite continuing
+      pattern: "failed (exit 1); continuing"
     - title: first script ran
       cmd: test -f /tmp/devfeats-install-noff-before
     - title: third script still ran after failure
@@ -85,6 +87,7 @@ prescript_fails_fast:
   checks:
     - kind: install_failure
       title: feature exits non-zero when prescript fails
+      pattern: "Prescript failed (exit"
     - title: postscript did not run
       cmd: bash -c '! test -f /tmp/devfeats-install-ps-should-not-run'
 
@@ -93,3 +96,4 @@ invalid_uri:
   checks:
     - kind: install_failure
       title: feature exits non-zero for unreachable URI
+      pattern: "devfeats-nonexistent-test-host.invalid"
