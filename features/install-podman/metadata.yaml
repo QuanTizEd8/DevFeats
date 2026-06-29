@@ -46,6 +46,10 @@ _options:
     cmd: podman
     args: "run --rm docker.io/library/hello-world"
     description: Verify Podman is installed and working by running a test container.
+customizations:
+  vscode:
+    extensions:
+      - ms-azuretools.vscode-containers
 _dependencies:
   run:
     base:

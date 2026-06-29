@@ -83,6 +83,10 @@ _options:
 # installsAfter:
 #   - ghcr.io/quantized8/devfeats/setup-shell
 #   - ghcr.io/quantized8/devfeats/setup-user
+customizations:
+  vscode:
+    extensions:
+      - ms-python.python
 _dependencies:
   run:
     base:

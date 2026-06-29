@@ -37,6 +37,10 @@ _options:
     bins: [jq]
     applies_when:
       - method: [binary, source]
+customizations:
+  vscode:
+    extensions:
+      - davidnussio.vscode-jq-playground
 _dependencies:
   run:
     method-package:

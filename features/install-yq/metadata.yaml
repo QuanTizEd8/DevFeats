@@ -38,6 +38,10 @@ _options:
     bins: [yq]
     applies_when:
       - method: [binary]
+customizations:
+  vscode:
+    extensions:
+      - redhat.vscode-yaml
 _dependencies:
   run:
     method-package:

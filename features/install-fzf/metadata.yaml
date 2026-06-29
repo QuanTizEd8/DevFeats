@@ -39,6 +39,10 @@ _options:
         (both guarded with `command -v fzf`), enabling key bindings (Ctrl-R, Ctrl-T, Alt-C)
         and `**<TAB>` fuzzy completion in interactive shells.
 # installsAfter: []
+customizations:
+  vscode:
+    extensions:
+      - TomRijndorp.find-it-faster
 _dependencies:
   run:
     method-package:

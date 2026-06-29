@@ -38,6 +38,10 @@ _options:
     bins: [pandoc, pandoc-server, pandoc-lua]
     applies_when:
       - method: [binary]
+customizations:
+  vscode:
+    extensions:
+      - ChrisChinchilla.vscode-pandoc
 _dependencies:
   run:
     method-package:
