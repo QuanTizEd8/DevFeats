@@ -81,6 +81,22 @@ options:
       When empty (default), the upstream default (`$HOME/.pixi`) is used.
       `PIXI_HOME` is a runtime variable read by pixi on every invocation; the installer always
       writes it to shell startup files (controlled by `prefix_activations`).
+  install:
+    type: string
+    default: '--all'
+    description: |-
+      Arguments passed to [`pixi install`](https://pixi.prefix.dev/latest/reference/cli/pixi/install/)
+      at container creation time via an `onCreateCommand` lifecycle hook.
+      The default (`--all`) installs all environments defined in `pixi.toml`.
+      Set to an empty string to disable automatic installation.
+      If no `pixi.toml` is found in the workspace, the hook exits with a warning and
+      does not fail the container build.
+      Examples: `--environment dev`, `--frozen --all`.
+
+onCreateCommand:
+  install:
+    description: Run `pixi install` in the workspace to set up pixi environments.
+    _conf_vars: [INSTALL]
 
 mounts:
 - source: ${localWorkspaceFolderBasename}-pixi

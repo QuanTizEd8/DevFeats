@@ -494,3 +494,32 @@ global_installs:
         ls /root/.pixi/bin/ 2>/dev/null || echo "(empty or missing)"
     - title: jq is callable
       cmd: /root/.pixi/bin/jq --version
+
+install_all:
+  description: |
+    install='--manifest-path /tmp/pixi-test/pixi.toml --all':
+    Verifies that the onCreateCommand lifecycle hook runs pixi install --all
+    using the manifest at the given path, installing the declared environments.
+
+  checks:
+    - title: pixi binary installed
+      cmd: test -f /usr/local/bin/pixi
+    - title: pixi --version succeeds
+      cmd: /usr/local/bin/pixi --version
+    - title: lifecycle script deployed
+      cmd: test -f "${_FEAT_LIFECYCLE_ON_CREATE}install.sh"
+      debug: |
+        echo "=== ${_FEAT_LIFECYCLE_ON_CREATE}install.sh ==="
+        cat "${_FEAT_LIFECYCLE_ON_CREATE}install.sh" 2>/dev/null || echo "(missing)"
+    - title: lifecycle script conf has INSTALL var
+      cmd: grep -Fq 'INSTALL=' "${_FEAT_LIFECYCLE_ON_CREATE}install.sh.conf"
+      debug: |
+        echo "=== ${_FEAT_LIFECYCLE_ON_CREATE}install.sh.conf ==="
+        cat "${_FEAT_LIFECYCLE_ON_CREATE}install.sh.conf" 2>/dev/null || echo "(missing)"
+    - title: pixi environments installed
+      cmd: test -d /tmp/pixi-test/.pixi/envs
+      debug: |
+        echo "=== /tmp/pixi-test/.pixi/envs ==="
+        ls /tmp/pixi-test/.pixi/envs 2>/dev/null || echo "(missing)"
+    - title: jq binary available from installed env
+      cmd: /tmp/pixi-test/.pixi/envs/default/bin/jq --version

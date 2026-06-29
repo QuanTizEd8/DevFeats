@@ -314,3 +314,25 @@ global_installs:
     - --channel conda-forge jq
   tests:
   - global_installs.sh
+install_all:
+  envs:
+  - ubuntu-24.04
+  modes:
+  - devcontainer
+  setup: |
+    mkdir -p /tmp/pixi-test
+    printf '%s\n' \
+      '[project]' \
+      'name = "test"' \
+      'version = "0.1.0"' \
+      'channels = ["conda-forge"]' \
+      'platforms = ["linux-64"]' \
+      '' \
+      '[dependencies]' \
+      'jq = "*"' \
+      > /tmp/pixi-test/pixi.toml
+  options:
+    shell_completions: ''
+    install: '--manifest-path /tmp/pixi-test/pixi.toml --all'
+  tests:
+  - install_all.sh
