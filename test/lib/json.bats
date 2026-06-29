@@ -39,7 +39,6 @@ setup() {
   chmod +x "$_fake_js"
 
   begin_path_isolation jsonschema
-  ln -sf "$_fake_js" "${BATS_TEST_TMPDIR}/bin/jsonschema"
   run bootstrap__jsonschema
   local _rc=$?
   end_path_isolation

@@ -5,8 +5,10 @@
 # in BATS_FILE_TMPDIR.  Call test_bootstrap__setup_file_jq_yq from setup_file(),
 # then test_bootstrap__require_* and test_bootstrap__wire_tools_for_run from setup().
 
+_BOOTSTRAP_TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 test_bootstrap__setup_file_jq_yq() {
-  load 'helpers/common'
+  load "${_BOOTSTRAP_TOOLS_DIR}/common"
 
   TEST_BOOTSTRAP_JQ_READY=0
   if bash -c '. "$1/__init__.bash" && bootstrap__jq' _ "${LIB_ROOT}" > /dev/null 2>&1; then
@@ -41,7 +43,7 @@ test_bootstrap__setup_file_jq_yq() {
 }
 
 test_bootstrap__setup_file_jsonschema() {
-  load 'helpers/common'
+  load "${_BOOTSTRAP_TOOLS_DIR}/common"
 
   TEST_BOOTSTRAP_JSONSCHEMA_BIN=""
   local _js_path
