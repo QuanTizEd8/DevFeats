@@ -41,6 +41,11 @@ filename:
 features:
   lifecycle_hook_keys:
     - onCreateCommand
+sync:
+  feature_source_exclude_patterns:
+    - ${{ filename.feature_metadata }}$
+    - ${{ filename.feature_script }}$
+    - '*.md'
 """
 
 _MINIMAL_CI = """\
@@ -190,6 +195,17 @@ def test_load_ci_runner_free_disk_space(
     fds = ci["runner"]["free_disk_space"]
     assert fds["tool_cache"] is True
     assert fds["large_packages"] is True
+
+
+def test_load_sync_feature_source_exclude_patterns(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Verify sync exclude patterns resolve filename entries from config."""
+    _patch_loaders(monkeypatch, tmp_path)
+    config = cfg.load()
+    patterns = config["sync.feature_source_exclude_patterns"]
+    assert patterns == ["metadata.yaml", "install.bash", "*.md"]
 
 
 def test_load_is_cached(

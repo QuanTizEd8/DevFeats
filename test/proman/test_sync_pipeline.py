@@ -7,10 +7,14 @@ from pathlib import Path
 
 import pytest
 from proman.sync.pipeline import (
+    _gather_feature_files,
     _gather_metadata_files,
     _generate_feature_devcontainer_json,
+    _is_excluded_feature_source,
     _merge_feature_files,
 )
+
+_DEFAULT_EXCLUDE_PATTERNS = ("metadata.yaml", "install.bash", "*.md")
 
 
 def _minimal_metadata() -> dict:
@@ -115,3 +119,44 @@ def test_merge_feature_files_raises_on_collision() -> None:
     meta = {Path("files/shared.sh"): "from metadata\n"}
     with pytest.raises(ValueError, match="collide with"):
         _merge_feature_files(disk, meta, feature_id="test-feature")
+
+
+@pytest.mark.parametrize(
+    ("rel", "excluded"),
+    [
+        ("metadata.yaml", True),
+        ("install.bash", True),
+        ("notes.md", True),
+        ("dev-notes.md", True),
+        ("files/skel/notes.md", True),
+        ("manifest.schema.json", False),
+        ("files/entrypoint.sh", False),
+        ("_internal.blocks.yaml", False),
+    ],
+)
+def test_is_excluded_feature_source(rel: str, *, excluded: bool) -> None:
+    """Excluded paths match fnmatch patterns from config."""
+    assert (
+        _is_excluded_feature_source(Path(rel), _DEFAULT_EXCLUDE_PATTERNS) is excluded
+    )
+
+
+def test_gather_feature_files_includes_schema_and_files_subdir() -> None:
+    """``_gather_feature_files`` copies tracked assets outside ``files/`` too."""
+    features_dir = Path("features")
+    result = _gather_feature_files(
+        "install-os-pkg",
+        features_dir,
+        _DEFAULT_EXCLUDE_PATTERNS,
+    )
+    assert Path("manifest.schema.json") in result
+    assert Path("metadata.yaml") not in result
+    assert Path("install.bash") not in result
+    assert Path("notes.md") not in result
+
+    ohmyzsh = _gather_feature_files(
+        "install-ohmyzsh",
+        features_dir,
+        _DEFAULT_EXCLUDE_PATTERNS,
+    )
+    assert Path("files/skel/p10k.zsh") in ohmyzsh

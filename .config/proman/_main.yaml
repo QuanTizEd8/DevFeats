@@ -50,3 +50,8 @@ features:
     - postCreateCommand
     - postStartCommand
     - postAttachCommand
+sync:
+  feature_source_exclude_patterns:
+    - ${{ filename.feature_metadata }}$
+    - ${{ filename.feature_script }}$
+    - '*.md'

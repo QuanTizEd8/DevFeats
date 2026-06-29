@@ -8,6 +8,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING
 
 from proman.config import load as load_config
 from proman.const import LIFECYCLE_COMMAND_KEYS
@@ -17,6 +18,9 @@ from proman.metadata import MetadataLoader
 from proman.sync.file_sync import SyncStatus, remove_file, sync_file
 from proman.sync.install_script import InstallScriptGenerator
 from proman.utils import markdown
+
+if TYPE_CHECKING:
+    from proman.config import Config
 
 
 def run(*, check_only: bool = False) -> int:
@@ -45,6 +49,7 @@ def run(*, check_only: bool = False) -> int:
     lib_files = _gather_lib_files(lib_dirpath, feature_lib_dir)
     bootstrap_file = _gather_bootstrap(features_dirpath)
     gitignore_patterns = _gitignore_basename_patterns(config.root_path)
+    feature_source_exclude_patterns = _feature_source_exclude_patterns(config)
 
     n_features: int = 0
     n_failures = 0
@@ -73,7 +78,11 @@ def run(*, check_only: bool = False) -> int:
         output_files.update(lib_files)
         output_files.update(bootstrap_file)
         try:
-            disk_files = _gather_feature_files(feature_id, features_dirpath)
+            disk_files = _gather_feature_files(
+                feature_id,
+                features_dirpath,
+                feature_source_exclude_patterns,
+            )
             metadata_files = _gather_metadata_files(metadata, feature_id=feature_id)
             output_files.update(
                 _merge_feature_files(
@@ -294,31 +303,61 @@ def _gather_bootstrap(features_dirpath: Path) -> dict[Path, str]:
     return {Path("install.sh"): bootstrap}
 
 
-def _gather_feature_files(feature_id: str, features_dirpath: Path) -> dict[Path, str]:
-    """Read features/<id>/files/** keyed by their files/-relative output paths.
+def _gather_feature_files(
+    feature_id: str,
+    features_dirpath: Path,
+    exclude_patterns: tuple[str, ...],
+) -> dict[Path, str]:
+    """Read git-tracked files under features/<id>/ keyed by feature-relative paths.
 
-    Only git-tracked files are included.  This ensures that OS-generated
-    artefacts (e.g. ``.DS_Store``) that happen to exist on disk but were never
-    committed are silently ignored without any hardcoded filename list.
+    Recursively includes ``files/**`` and any other committed assets (e.g.
+    ``manifest.schema.json``).  Paths matching ``sync.feature_source_exclude_patterns``
+    in config are omitted (source-only files or content generated elsewhere).
+
+    Only git-tracked files are included so OS-generated artefacts (e.g.
+    ``.DS_Store``) that exist on disk but were never committed are ignored.
     """
-    files_dir = features_dirpath / feature_id / "files"
-    if not files_dir.is_dir():
+    feature_dir = features_dirpath / feature_id
+    if not feature_dir.is_dir():
         return {}
     ls = subprocess.run(
         ["git", "ls-files", "-z", "--", "."],
         capture_output=True,
         text=True,
         check=True,
-        cwd=files_dir,
+        cwd=feature_dir,
     )
-    tracked = frozenset(files_dir / rel for rel in ls.stdout.split("\0") if rel)
-    return {
-        Path("files") / src_path.relative_to(files_dir): src_path.read_text(
-            encoding="utf-8",
-        )
-        for src_path in sorted(files_dir.rglob("*"))
-        if src_path.is_file() and src_path in tracked
-    }
+    files: dict[Path, str] = {}
+    for rel in sorted(rel for rel in ls.stdout.split("\0") if rel):
+        rel_path = PurePosixPath(rel)
+        if _is_excluded_feature_source(rel_path, exclude_patterns):
+            continue
+        src_path = feature_dir / rel
+        if not src_path.is_file():
+            continue
+        files[rel_path] = src_path.read_text(encoding="utf-8")
+    return files
+
+
+def _feature_source_exclude_patterns(config: Config) -> tuple[str, ...]:
+    """Return fnmatch patterns for git-tracked feature files omitted from src/."""
+    raw = config["sync.feature_source_exclude_patterns"]
+    if not isinstance(raw, list):
+        msg = "sync.feature_source_exclude_patterns must be a list of strings"
+        raise TypeError(msg)
+    return tuple(str(pattern) for pattern in raw)
+
+
+def _is_excluded_feature_source(
+    rel: PurePosixPath,
+    exclude_patterns: tuple[str, ...],
+) -> bool:
+    """Return True when a git-tracked feature path must not be copied to src/."""
+    rel_str = rel.as_posix()
+    return any(
+        fnmatch.fnmatch(rel_str, pattern) or fnmatch.fnmatch(rel.name, pattern)
+        for pattern in exclude_patterns
+    )
 
 
 def _validate_metadata_file_path(path: str, *, feature_id: str) -> PurePosixPath:
