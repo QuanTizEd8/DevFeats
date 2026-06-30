@@ -829,7 +829,7 @@ shell__resolve_omz_theme() {
   _repo_name="$(basename "$slug")"
   local _theme_dir="${custom_dir}/themes/${_repo_name}"
   local _theme_file
-  _theme_file="$(find "$_theme_dir" -maxdepth 1 -name '*.zsh-theme' 2> /dev/null | head -1)"
+  _theme_file="$(file__first_glob_match "$_theme_dir" '*.zsh-theme')"
 
   if [ -n "$_theme_file" ]; then
     local _stem

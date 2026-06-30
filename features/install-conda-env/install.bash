@@ -228,6 +228,7 @@ setup_environment() {
     run_post_env_script --env_name "$env_name"
   done
   for env_dir in "${ENV_DIRS[@]}"; do
+    bootstrap__find || return 1
     while IFS= read -r env_file; do
       local env_name
       env_name=$(grep -E '^name:' "$env_file" | head -1 | awk '{print $2}')

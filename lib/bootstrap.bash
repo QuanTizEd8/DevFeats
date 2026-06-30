@@ -173,6 +173,13 @@ bootstrap__coreutils() {
     --msg "'id' is required but could not be installed."
 }
 
+bootstrap__find() {
+  # @brief bootstrap__find — Ensure find is on PATH, installing findutils via ospkg if absent.
+  # Returns: 0 on success, 1 if find cannot be installed.
+  _bootstrap__tool --cmd find --pkg findutils --group "lib-find" \
+    --msg "'find' is required but could not be installed."
+}
+
 bootstrap__getent() {
   # @brief bootstrap__getent — Ensure getent is available; install the platform libc package via ospkg if absent.
   # Returns: 0 when getent is on PATH; 1 otherwise. Non-fatal: macOS does not have getent; callers fall back to dscl.

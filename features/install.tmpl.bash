@@ -1172,7 +1172,7 @@ __install_run_source__() {
   fi
 
   local _src_dir
-  _src_dir="$(find "${INSTALLER_DIR}/asset" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1)"
+  _src_dir="$(file__first_child_dir "${INSTALLER_DIR}/asset")"
   if [[ -z "${_src_dir}" ]]; then
     logging__error "METHOD=source: no directory found under '${INSTALLER_DIR}/asset' after extraction."
     return 1

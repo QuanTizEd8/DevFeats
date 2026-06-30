@@ -408,3 +408,41 @@ setup() {
   assert_success
   assert_output --partial "OWNED"
 }
+
+@test "file__first_child_dir returns first immediate subdirectory" {
+  local _root="${BATS_TEST_TMPDIR}/parent"
+  mkdir -p "${_root}/alpha" "${_root}/beta"
+  run file__first_child_dir "$_root"
+  assert_success
+  [[ -n "$output" ]]
+  [[ "$output" == "${_root}/alpha" || "$output" == "${_root}/beta" ]]
+}
+
+@test "file__first_child_dir prints nothing when parent has no subdirectories" {
+  run file__first_child_dir "${BATS_TEST_TMPDIR}"
+  assert_success
+  [[ -z "$output" ]]
+}
+
+@test "file__first_child_dir finds hidden immediate subdirectory" {
+  local _root="${BATS_TEST_TMPDIR}/hidden-parent"
+  mkdir -p "${_root}/.src"
+  run file__first_child_dir "$_root"
+  assert_success
+  assert_output "${_root}/.src"
+}
+
+@test "file__first_glob_match returns first file matching glob in directory" {
+  local _dir="${BATS_TEST_TMPDIR}/globdir"
+  mkdir -p "$_dir"
+  touch "${_dir}/a.deb" "${_dir}/b.deb"
+  run file__first_glob_match "$_dir" '*.deb'
+  assert_success
+  [[ "$output" == "${_dir}/a.deb" || "$output" == "${_dir}/b.deb" ]]
+}
+
+@test "file__first_glob_match prints nothing when directory is missing" {
+  run file__first_glob_match "${BATS_TEST_TMPDIR}/no-such-dir" '*.deb'
+  assert_success
+  [[ -z "$output" ]]
+}

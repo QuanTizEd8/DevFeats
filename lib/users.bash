@@ -456,6 +456,7 @@ users__set_write_permissions() {
     logging__error "coreutils is required to set write permissions."
     return "$_rc"
   }
+  bootstrap__find || return 1
   local _path="$1" _owner="$2" _group="$3"
   shift 3
   logging__info "Setting write permissions on '${_path}' (owner: '${_owner}', group: '${_group}')."

@@ -11,9 +11,13 @@ __detect_existing_path__() {
   fi
   # Fallback: search inside the configured prefix (instopt_adjustpath=false installs)
   if [[ -z "${_FEAT_EXISTING_PATH}" && -n "${_RESOLVED_PREFIX:-}" && -d "${_RESOLVED_PREFIX}" ]]; then
-    _FEAT_EXISTING_PATH="$(find "${_RESOLVED_PREFIX}" -maxdepth 5 -name "tlmgr" -type f 2> /dev/null | head -1 || true)"
-    if [[ -n "${_FEAT_EXISTING_PATH}" ]]; then
-      logging__detect "Found 'tlmgr' inside prefix '${_RESOLVED_PREFIX}' at '${_FEAT_EXISTING_PATH}'."
+    if bootstrap__find; then
+      _FEAT_EXISTING_PATH="$(find "${_RESOLVED_PREFIX}" -maxdepth 5 -name "tlmgr" -type f 2> /dev/null | head -1 || true)"
+      if [[ -n "${_FEAT_EXISTING_PATH}" ]]; then
+        logging__detect "Found 'tlmgr' inside prefix '${_RESOLVED_PREFIX}' at '${_FEAT_EXISTING_PATH}'."
+      fi
+    else
+      logging__warn "find unavailable; cannot search prefix '${_RESOLVED_PREFIX}' for existing 'tlmgr'."
     fi
   fi
   if [[ -z "${_FEAT_EXISTING_PATH}" ]]; then
@@ -438,7 +442,7 @@ _tl_ensure_path() {
   # post-install calls (tlmgr install, tlmgr option, command -v context, …) work.
   [[ "${INSTOPT_ADJUSTPATH}" == "true" ]] && return 0
   local _tl_arch_bin
-  _tl_arch_bin="$(find "${_TL_TEXDIR}/bin" -maxdepth 1 -mindepth 1 -type d 2> /dev/null | head -1 || true)"
+  _tl_arch_bin="$(file__first_child_dir "${_TL_TEXDIR}/bin")"
   if [[ -n "${_tl_arch_bin}" ]]; then
     export PATH="${_tl_arch_bin}:${PATH}"
     logging__info "Added '${_tl_arch_bin}' to PATH for post-install steps."
@@ -490,6 +494,10 @@ _tl_maybe_install_jre() {
     _texmf_dist="$(kpsewhich -var-value=TEXMFDIST 2> /dev/null || true)"
   fi
   [[ -n "${_texmf_dist}" && -d "${_texmf_dist}" ]] || return 0
+  if ! bootstrap__find; then
+    logging__warn "find unavailable; skipping Java-tools detection in TeX Live tree."
+    return 0
+  fi
   find "${_texmf_dist}/scripts" -name "*.jar" 2> /dev/null | grep -q . || return 0
   logging__install "Java tools detected in TeX Live tree; installing JRE."
   __dep_install_from_env__ OSPKG_MANIFEST_OPTION_JRE run option-jre
@@ -502,7 +510,11 @@ _tl_setup_fontconfig() {
   fi
   local _fontconf=""
   if [[ -n "${_TL_TEXDIR:-}" ]]; then
-    _fontconf="$(find "${_TL_TEXDIR}" -name texlive-fontconfig.conf 2> /dev/null | head -n1 || true)"
+    if bootstrap__find; then
+      _fontconf="$(find "${_TL_TEXDIR}" -name texlive-fontconfig.conf 2> /dev/null | head -n1 || true)"
+    else
+      logging__warn "find unavailable; skipping TeX Live fontconfig snippet lookup."
+    fi
   fi
   if [[ -n "${_fontconf}" ]]; then
     mkdir -p /etc/fonts/conf.d

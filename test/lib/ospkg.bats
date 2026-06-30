@@ -202,6 +202,27 @@ _stub_ospkg_privilege_ok() {
   assert_output --partial "skipping explicit update"
 }
 
+@test "_ospkg__lists_index_present: true when apt Packages index exists at depth 2" {
+  reload_lib
+  local _lists="${BATS_TEST_TMPDIR}/apt-lists"
+  mkdir -p "${_lists}/partial"
+  touch "${_lists}/archive.ubuntu.com_ubuntu_dists_jammy_main_binary-amd64_Packages"
+  _OSPKG__LISTS_PATH="$_lists"
+  _OSPKG__LISTS_PATTERN='*_Packages*'
+  run _ospkg__lists_index_present
+  assert_success
+}
+
+@test "_ospkg__lists_index_present: false when lists directory is empty" {
+  reload_lib
+  local _lists="${BATS_TEST_TMPDIR}/empty-lists"
+  mkdir -p "$_lists"
+  _OSPKG__LISTS_PATH="$_lists"
+  _OSPKG__LISTS_PATTERN='*_Packages*'
+  run _ospkg__lists_index_present
+  assert_failure
+}
+
 @test "ospkg__update runs update command with --force" {
   _seed_apt_context
   _stub_ospkg_privilege_ok

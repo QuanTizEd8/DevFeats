@@ -137,6 +137,7 @@ _uri__net_fetch() {
 
 _uri__resolve_oci_to() {
   # _uri__resolve_oci_to <oci-uri> <dest-file>
+  bootstrap__find || return 1
   local _uri="$1" _dest="$2"
   local _base _frag _rest _ref_part _query _path_pat _pull_dir
   _base="$(_uri__split_frag "$_uri")"
@@ -224,6 +225,7 @@ _uri__match_binary_src() {
   # _uri__match_binary_src <spec> <extract_dir> — find file(s) matching suffix-path <spec>
   # inside <extract_dir>. Whole-component boundary match (e.g. "bin/gh" matches path ending
   # in .../bin/gh but not .../bin/ghx). Prints one path per match line.
+  bootstrap__find || return 1
   local _spec="$1" _dir="$2"
   local _ncomp
   _ncomp="$(printf '%s\n' "$_spec" | tr '/' '\n' | wc -l)"
@@ -749,6 +751,7 @@ uri__fetch_asset() {
         _install_names+=("$(basename "$_spec")")
       done
     elif "$_is_archive"; then
+      bootstrap__find || return 1
       local _discovered _f
       _discovered="$(find "$_asset_dir" -type f -perm -u+x 2> /dev/null || true)"
       if [[ -z "$_discovered" ]]; then

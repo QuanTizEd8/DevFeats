@@ -607,6 +607,23 @@ _ospkg__assert_privilege() {
   return 1
 }
 
+_ospkg__lists_index_present() {
+  # _ospkg__lists_index_present — True when package-list index files exist under _OSPKG__LISTS_PATH.
+  #
+  # Mirrors `find <path> -mindepth 1 -maxdepth 2 -name <_OSPKG__LISTS_PATTERN>` without requiring find.
+  local _root="${_OSPKG__LISTS_PATH:-}" _pat="${_OSPKG__LISTS_PATTERN:-*}" _entry _base
+  [[ -n "$_root" && -d "$_root" ]] || return 1
+  for _entry in "$_root"/* "$_root"/*/*; do
+    [[ -e "$_entry" ]] || continue
+    _base="${_entry##*/}"
+    # shellcheck disable=SC2254 # _pat is a glob pattern (e.g. *_Packages*, *.db), not a literal string.
+    case "$_base" in
+      $_pat) return 0 ;;
+    esac
+  done
+  return 1
+}
+
 ospkg__update() {
   # @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
   #
@@ -657,7 +674,7 @@ ospkg__update() {
     # brew: no simple lists age check — always update unless forced off.
     _skip=false
   elif [[ -n "${_OSPKG__LISTS_PATH:-}" && -d "$_OSPKG__LISTS_PATH" ]]; then
-    if [[ -n "$(find "$_OSPKG__LISTS_PATH" -mindepth 1 -maxdepth 2 -name "${_OSPKG__LISTS_PATTERN:-*}" 2> /dev/null | head -1)" ]]; then
+    if _ospkg__lists_index_present; then
       local _mtime _age
       # stat -c (Linux) or stat -f (macOS)
       _mtime=$(stat -c %Y "$_OSPKG__LISTS_PATH" 2> /dev/null || stat -f %m "$_OSPKG__LISTS_PATH" 2> /dev/null || echo 0)
@@ -1835,7 +1852,7 @@ ospkg__register_dummy() {
   fi
 
   local _deb
-  _deb="$(find "$_work_dir" -maxdepth 1 -name '*.deb' | head -1)"
+  _deb="$(file__first_glob_match "$_work_dir" '*.deb')"
   if [[ -z "${_deb:-}" ]]; then
     logging__warn "no .deb produced by equivs-build for '${_pkg}' — skipping."
     rm -rf "$_work_dir"

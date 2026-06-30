@@ -631,6 +631,53 @@ file__mktmpdir() {
   mktemp -d "${_base}.XXXXXX"
 }
 
+file__first_child_dir() {
+  # @brief file__first_child_dir <dir> — Print the first immediate subdirectory of <dir>, or nothing.
+  #
+  # Non-recursive; order is undefined (same as `find … -maxdepth 1 -mindepth 1 -type d | head -1`).
+  # Enables `dotglob` briefly so hidden directory names (e.g. `.src/`) are included, matching find.
+  #
+  # Args:
+  #   <dir>  Parent directory to scan.
+  #
+  # Stdout: absolute or relative path to the first child directory found.
+  # Returns: 0 always.
+  local _dir="$1" _child="" _candidate _dotglob_was_on=false
+  [[ -n "$_dir" && -d "$_dir" ]] || return 0
+  shopt -q dotglob && _dotglob_was_on=true
+  shopt -s dotglob
+  for _candidate in "$_dir"/*; do
+    [[ -d "$_candidate" ]] || continue
+    _child="$_candidate"
+    break
+  done
+  [[ "$_dotglob_was_on" == false ]] && shopt -u dotglob
+  [[ -n "$_child" ]] && printf '%s\n' "$_child"
+  return 0
+}
+
+file__first_glob_match() {
+  # @brief file__first_glob_match <dir> <glob> — Print the first regular file in <dir> matching <glob>.
+  #
+  # Non-recursive; <glob> is a filename pattern (e.g. `*.deb`, `*.zsh-theme`).
+  #
+  # Args:
+  #   <dir>   Directory to scan.
+  #   <glob>  Bash glob pattern applied to basenames in <dir>.
+  #
+  # Stdout: path to the first matching regular file.
+  # Returns: 0 always.
+  local _dir="$1" _glob="$2" _match="" _candidate
+  [[ -n "$_dir" && -d "$_dir" && -n "$_glob" ]] || return 0
+  for _candidate in "$_dir"/$_glob; do
+    [[ -f "$_candidate" ]] || continue
+    _match="$_candidate"
+    break
+  done
+  [[ -n "$_match" ]] && printf '%s\n' "$_match"
+  return 0
+}
+
 file__canonical_path() {
   # @brief file__canonical_path <path> — Resolve symlinks and return the canonical absolute path.
   #

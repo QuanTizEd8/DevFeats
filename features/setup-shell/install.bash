@@ -243,8 +243,11 @@ _deploy_to_skel() {
     esac
   fi
 
-  local _skel_file _rel _dest
-  while IFS= read -r -d '' _skel_file; do
+  local _skel_file _rel _dest _dotglob_was_on=false
+  shopt -q dotglob && _dotglob_was_on=true
+  shopt -s dotglob
+  for _skel_file in "${_SKEL_DIR}"/*; do
+    [[ -f "$_skel_file" ]] || continue
     _rel="${_skel_file#"${_SKEL_DIR}"/}"
     case "$_rel" in
       .bash_profile | .bashrc)
@@ -273,7 +276,8 @@ _deploy_to_skel() {
     file__cp -f "$_skel_file" "$_dest"
     file__chmod 644 "$_dest"
     logging__success "  /etc/skel/${_dest#/etc/skel/}"
-  done < <(find "$_SKEL_DIR" -maxdepth 1 -type f -print0)
+  done
+  [[ "$_dotglob_was_on" == false ]] && shopt -u dotglob
 
   if ((_deploy_zsh)) && [ -f /etc/skel/.zshenv ]; then
     shell__write_block --file /etc/skel/.zshenv --marker "setup-shell-zdotdir" \
@@ -388,8 +392,11 @@ __configure_user() {
   fi
 
   if [ -n "$_SKEL_DIR" ] && [ -d "$_SKEL_DIR" ]; then
-    local _cu_skel_file _cu_rel _cu_dest _base _marker
-    while IFS= read -r -d '' _cu_skel_file; do
+    local _cu_skel_file _cu_rel _cu_dest _base _marker _dotglob_was_on=false
+    shopt -q dotglob && _dotglob_was_on=true
+    shopt -s dotglob
+    for _cu_skel_file in "${_SKEL_DIR}"/*; do
+      [[ -f "$_cu_skel_file" ]] || continue
       _cu_rel="${_cu_skel_file#"${_SKEL_DIR}"/}"
       # .zshenv always lives in HOME so zsh finds it before ZDOTDIR is set.
       # All other zsh config files go into ZDOTDIR.
@@ -415,7 +422,8 @@ __configure_user() {
       _base="${_cu_rel#.}"
       _marker="setup-shell-${_base//_/-}"
       _deploy_file "$_cu_skel_file" "$_cu_dest" "$_marker" "$_mode"
-    done < <(find "$_SKEL_DIR" -maxdepth 1 -type f -print0)
+    done
+    [[ "$_dotglob_was_on" == false ]] && shopt -u dotglob
   fi
 
   if ((_deploy_zsh)); then

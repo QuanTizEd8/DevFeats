@@ -225,8 +225,12 @@ __install_finish_post() {
 
 __exit_pre() {
   if [ -n "${_RESOLVED_PREFIX-}" ] && [ -d "$_RESOLVED_PREFIX" ]; then
-    find "$_RESOLVED_PREFIX" -follow -type f -name '*.a' -delete 2> /dev/null || true
-    find "$_RESOLVED_PREFIX" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
+    if bootstrap__find; then
+      find "$_RESOLVED_PREFIX" -follow -type f -name '*.a' -delete 2> /dev/null || true
+      find "$_RESOLVED_PREFIX" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
+    else
+      logging__warn "find unavailable; skipping static library and bytecode cleanup in '${_RESOLVED_PREFIX}'."
+    fi
     "${_RESOLVED_PREFIX}/bin/conda" clean --all --yes 2> /dev/null || true
   fi
 }

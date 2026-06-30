@@ -109,6 +109,12 @@ teardown() {
   command -v tar > /dev/null 2>&1
 }
 
+@test "bootstrap__find: installs find and makes it available" {
+  run bootstrap__find
+  assert_success
+  command -v find > /dev/null 2>&1
+}
+
 # ── binary-download-based bootstraps ─────────────────────────────────────────
 
 @test "bootstrap__yq: downloads yq binary and makes it available" {

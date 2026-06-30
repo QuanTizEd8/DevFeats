@@ -112,6 +112,8 @@ install_font_file() {
 install_archive_contents() {
   local _tmpdir="$1" _ns="$2"
 
+  bootstrap__find || return 1
+
   # Find all font files in the archive.
   local _font_files=()
   while IFS= read -r -d '' _f; do
@@ -168,6 +170,10 @@ __install_init_post() {
   # WOFF/WOFF2 are excluded — fc-query does not handle them.
   [[ -d "${FONT_DIR}" ]] || {
     logging__skip "Font directory '${FONT_DIR}' does not exist; skipping existing-font scan."
+    return 0
+  }
+  bootstrap__find || {
+    logging__warn "find unavailable; skipping existing-font scan in '${FONT_DIR}' (deduplication may be incomplete)."
     return 0
   }
   local _psname
@@ -365,9 +371,13 @@ __install_run__() {
 
 __install_finish_post() {
   if [[ -n "${_INSTALL_DIR}" ]]; then
-    while IFS= read -r -d '' _d; do
-      file__chmod 755 "$_d"
-    done < <(find "${_INSTALL_DIR}" -type d -print0)
+    if bootstrap__find; then
+      while IFS= read -r -d '' _d; do
+        file__chmod 755 "$_d"
+      done < <(find "${_INSTALL_DIR}" -type d -print0)
+    else
+      logging__warn "find unavailable; skipping directory permission fix on '${_INSTALL_DIR}'."
+    fi
     logging__success "Font installation complete. Fonts installed to '${_INSTALL_DIR}'."
   else
     logging__info "No new fonts to install — all requested fonts already registered."
