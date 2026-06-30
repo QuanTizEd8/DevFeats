@@ -5,9 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 import yaml
-
 from proman.test.environments import docker_buildkit_env
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

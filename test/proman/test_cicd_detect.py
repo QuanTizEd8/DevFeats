@@ -637,7 +637,8 @@ debian-latest:
 """,
     )
     result = cd.compute_unit_macos_matrix()
-    # Only macos-current+brew (path_prepend set) is included; bare macos-current is excluded
+    # Only macos-current+brew (path_prepend set) is included;
+    # bare macos-current is excluded
     # because bootstrap functions need Homebrew to install tools.
     assert result == [
         {
