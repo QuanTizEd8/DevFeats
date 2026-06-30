@@ -34,6 +34,10 @@ class FeatureTests:
     checks_path: Path
     scenarios_path: Path
 
+    def expand_entries(self, envs: dict) -> list[dict]:
+        """Expand validated scenarios into runner matrix entries."""
+        return expand_feature_entries(self.defaults, self.scenarios, envs)
+
 
 class FeatureTestLoader:
     """Authoritative loader for feature test YAML under test/features/."""
@@ -97,11 +101,11 @@ class FeatureTestLoader:
 
     def load_all(self) -> list[FeatureTests]:
         """Load and validate every feature test directory that has checks.yaml."""
-        return [self.load(feat_dir.name) for feat_dir in sorted(self._feature_dirs())]
+        return [self.load(feature_id) for feature_id in self.feature_ids()]
 
-    def expand_entries(self, ft: FeatureTests, envs: dict) -> list[dict]:
-        """Expand validated scenarios into runner matrix entries."""
-        return expand_feature_entries(ft.defaults, ft.scenarios, envs)
+    def feature_ids(self) -> list[str]:
+        """Sorted list of feature IDs that have a checks.yaml."""
+        return sorted(p.name for p in self._feature_dirs())
 
     def _feature_dirs(self) -> list[Path]:
         return [
@@ -140,6 +144,12 @@ class FeatureTestLoader:
             raise FeatureTestError(msg) from exc
 
     def _validate_cross_file(self, ft: FeatureTests) -> None:
+        if not ft.scenarios:
+            msg = (
+                f"{ft.scenarios_path}: no scenarios defined"
+                " (file contains only 'defaults')"
+            )
+            raise FeatureTestError(msg)
         shared = shared_defaults()
         for scenario_name, merged in iter_merged_scenarios(
             ft.defaults,

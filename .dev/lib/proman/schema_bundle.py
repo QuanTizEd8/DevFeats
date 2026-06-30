@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 def get_validator() -> Draft202012Validator:
     """Return a Draft 2020-12 validator for ``metadata.yaml`` with local schema URIs."""
-    return _build_validator("path.metadata_schema")
+    return _build_metadata_validator()
 
 
 def get_checks_validator() -> Draft202012Validator:
@@ -35,13 +35,22 @@ def get_scenarios_validator() -> Draft202012Validator:
 
 
 @cache
+def _build_metadata_validator() -> Draft202012Validator:
+    """Build and cache the metadata schema validator with its extended registry."""
+    config = load_config()
+    schema_path = config.absolute_path("path.metadata_schema")
+    schema, registry = _registry_for_schema_file(schema_path)
+    registry = _extend_metadata_registry(registry, config, schema_path)
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema, registry=registry)
+
+
+@cache
 def _build_validator(config_key: str) -> Draft202012Validator:
-    """Build and cache a Draft 2020-12 validator for a config schema path."""
+    """Build and cache a Draft 2020-12 validator for a self-contained schema file."""
     config = load_config()
     schema_path = config.absolute_path(config_key)
     schema, registry = _registry_for_schema_file(schema_path)
-    if config_key == "path.metadata_schema":
-        registry = _extend_metadata_registry(registry, config, schema_path)
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema, registry=registry)
 
@@ -195,4 +204,5 @@ def lib_schema_stem_to_uri(lib_dirpath: Path) -> dict[str, str]:
 
 def clear_validator_cache() -> None:
     """Clear cached JSON Schema validators."""
+    _build_metadata_validator.cache_clear()
     _build_validator.cache_clear()

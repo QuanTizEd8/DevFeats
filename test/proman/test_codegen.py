@@ -364,7 +364,7 @@ class TestGenerateTests:
             "      cmd: 'command -v yq'\n",
         )
         out_dir = tmp_path / "tests"
-        generate_tests("install-yq", checks, out_dir)
+        generate_tests(checks, out_dir)
         assert (out_dir / "default_install.sh").exists()
 
     def test_generated_content_is_valid(self, tmp_path: Path) -> None:
@@ -373,7 +373,7 @@ class TestGenerateTests:
             "my_test:\n  checks:\n    - title: 'pass'\n      cmd: 'true'\n",
         )
         out_dir = tmp_path / "tests"
-        generate_tests("feat", checks, out_dir)
+        generate_tests(checks, out_dir)
         content = (out_dir / "my_test.sh").read_text(encoding="utf-8")
         assert content.startswith("#!/usr/bin/env bash\n")
         assert 'check "pass" true\n' in content
@@ -385,7 +385,7 @@ class TestGenerateTests:
             "t:\n  checks:\n    - title: t\n      cmd: true\n",
         )
         out_dir = tmp_path / "tests"
-        generate_tests("feat", checks, out_dir)
+        generate_tests(checks, out_dir)
         sh = out_dir / "t.sh"
         assert sh.stat().st_mode & 0o111, "generated .sh should be executable"
 
@@ -398,7 +398,7 @@ class TestGenerateTests:
             "  checks:\n    - title: b\n      cmd: true\n",
         )
         out_dir = tmp_path / "tests"
-        generate_tests("feat", checks, out_dir)
+        generate_tests(checks, out_dir)
         assert (out_dir / "default_install.sh").exists()
         assert (out_dir / "shell_completion_zsh.sh").exists()
 

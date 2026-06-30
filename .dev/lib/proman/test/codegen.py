@@ -148,28 +148,14 @@ def _render_group(test_id: str, group: dict[str, Any]) -> str:  # noqa: ARG001
     return "".join(sections)
 
 
-def _write_tests(checks: dict[str, Any], tests_dir: Path) -> None:
-    """Write generated .sh files for all check groups."""
-    tests_dir.mkdir(parents=True, exist_ok=True)
-    for test_id, group in checks.items():
-        content = _render_group(test_id, group)
-        out_path = tests_dir / f"{test_id}.sh"
-        out_path.write_text(content, encoding="utf-8")
-        out_path.chmod(out_path.stat().st_mode | 0o111)
-
-
 # ---------------------------------------------------------------------------
 # Public API (called from run.py before test dispatch)
 # ---------------------------------------------------------------------------
 
 
-def generate_tests(
-    _feature: str,
-    checks: dict[str, Any],
-    out_dir: Path,
-) -> None:
+def generate_tests(checks: dict[str, Any], out_dir: Path) -> None:
     """Generate .sh test files from validated checks data into out_dir."""
-    _write_tests(checks, out_dir)
+    _sync_feature_checks(checks, out_dir, check=False)
 
 
 # ---------------------------------------------------------------------------
@@ -190,13 +176,16 @@ def _repo_root_from_env_or_git() -> Path:
 
 
 def _sync_feature_checks(
-    feature_name: str,
     checks: dict[str, Any],
     tests_dir: Path,
     *,
     check: bool,
+    feature_name: str = "",
 ) -> list[str]:
-    """Write or verify generated scripts for one feature; return stale paths."""
+    """Write or verify generated scripts for one feature; return stale paths.
+
+    Pass ``feature_name`` to print a confirmation line per written file.
+    """
     stale: list[str] = []
     if not check:
         tests_dir.mkdir(parents=True, exist_ok=True)
@@ -218,7 +207,8 @@ def _sync_feature_checks(
         else:
             out_path.write_text(content, encoding="utf-8")
             out_path.chmod(out_path.stat().st_mode | 0o111)
-            print(f"  ✔  {feature_name}/{test_id}.sh")
+            if feature_name:
+                print(f"  ✔  {feature_name}/{test_id}.sh")
     return stale
 
 
@@ -266,10 +256,10 @@ def main() -> None:
             tests_dir = features_test_dir / ft.feature_id / "tests"
             stale.extend(
                 _sync_feature_checks(
-                    ft.feature_id,
                     ft.checks,
                     tests_dir,
                     check=args.check,
+                    feature_name=ft.feature_id,
                 ),
             )
     else:
@@ -295,10 +285,10 @@ def main() -> None:
                 checks: dict[str, Any] = yaml.safe_load(fh) or {}
             stale.extend(
                 _sync_feature_checks(
-                    feat_dir.name,
                     checks,
                     feat_dir / "tests",
                     check=args.check,
+                    feature_name=feat_dir.name,
                 ),
             )
 

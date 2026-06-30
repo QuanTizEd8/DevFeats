@@ -745,7 +745,7 @@ def main() -> None:
         print(f"⛔ {exc}", file=sys.stderr)
         sys.exit(1)
 
-    generate_tests(args.feature, ft.checks, tests_dir)
+    generate_tests(ft.checks, tests_dir)
 
     if not tests_dir.is_dir():
         print(
@@ -755,7 +755,7 @@ def main() -> None:
         sys.exit(1)
 
     envs = load_envs(cfg.absolute_path("path.test_environments"))
-    entries = loader.expand_entries(ft, envs)
+    entries = ft.expand_entries(envs)
 
     filter_prefix: str = args.filter
 
