@@ -52,9 +52,11 @@ def _run_env(
         cmd += ["--env", f"{k}={v}"]
 
     run_unit_parts: list[str] = ["bash", "/repo/.dev/scripts/test/run-unit.sh"]
-    for tf in test_files:
-        rel = Path(tf).relative_to(root)
-        run_unit_parts += ["--paths", f"/repo/{rel}"]
+    extra_selects_files = any(a in ("--module", "--paths") for a in extra_args)
+    if not extra_selects_files:
+        for tf in test_files:
+            rel = Path(tf).relative_to(root)
+            run_unit_parts += ["--paths", f"/repo/{rel}"]
     run_unit_parts += extra_args
 
     cmd += ["--run", " ".join(shlex.quote(p) for p in run_unit_parts)]

@@ -205,9 +205,9 @@ build-docs-pkg: build-docs
 
 [
   group('test'),
-  doc('Run lib/ unit tests in a container env (default: ubuntu-current). Args forwarded to run-unit.sh e.g. just test-lib ubuntu-stable --module ospkg.')
+  doc('Run lib/ unit tests in a container env (default: ubuntu-stable). Args forwarded to run-unit.sh e.g. just test-lib ubuntu-stable --module ospkg.')
 ]
-test-lib env="ubuntu-current" *args:
+test-lib env="ubuntu-stable" *args:
     just capture test-lib -- pixi run --environment test test-lib-env {{env}} {{args}}
 
 
