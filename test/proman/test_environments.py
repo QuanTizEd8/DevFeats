@@ -38,9 +38,7 @@ def test_docker_buildkit_env_enables_plain_progress() -> None:
 def test_environment_base_keys_have_no_version_numbers() -> None:
     """Semantic env keys must not embed distro version numbers."""
     envs = _load_environments()
-    offenders = [
-        key for key in envs if VERSION_IN_BASE_KEY.match(_base_key(key))
-    ]
+    offenders = [key for key in envs if VERSION_IN_BASE_KEY.match(_base_key(key))]
     assert not offenders, f"version-baked base keys: {offenders}"
 
 

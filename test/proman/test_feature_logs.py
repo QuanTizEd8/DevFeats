@@ -104,7 +104,9 @@ def test_patch_devcontainer_scenario_logging_custom_log_file(
     assert data["log_file.ubuntu-stable"]["features"]["install-git"]["log_file"] == (
         "/tmp/git.log"
     )
-    assert devcontainer_log_bind_mount_spec() in data["log_file.ubuntu-stable"]["mounts"]
+    assert (
+        devcontainer_log_bind_mount_spec() in data["log_file.ubuntu-stable"]["mounts"]
+    )
 
 
 def test_append_bind_mount_copy_to_test_script(tmp_path: Path) -> None:
@@ -126,7 +128,9 @@ def test_append_bind_mount_copy_to_test_script(tmp_path: Path) -> None:
     )
     text = script.read_text(encoding="utf-8")
     assert "/tmp/conda-env.log" in text
-    assert "/log-out/install-conda-env--log_file.ubuntu-stable--devcontainer.log" in text
+    assert (
+        "/log-out/install-conda-env--log_file.ubuntu-stable--devcontainer.log" in text
+    )
     assert text.index("/log-out/") < text.rindex("reportResults")
 
 
