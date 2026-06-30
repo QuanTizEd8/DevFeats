@@ -8,14 +8,9 @@ Each feature has a test definition under `test/features/<feature-id>/` consistin
 |------|-------|---------|
 | `scenarios.yaml` | ✅ Yes | Test matrix: which environments, modes, and options to run |
 | `checks.yaml` | ✅ Yes | Test assertions: what commands to run to verify a scenario passed |
-| `tests/*.sh` | ❌ Never | Auto-generated from `checks.yaml` by `just sync-tests` |
+Test scripts are rendered on-the-fly by the test runner from `checks.yaml` — no sync step is needed.
 
-After editing either YAML file, regenerate the test scripts:
-
-```bash
-just sync-tests <feature-id>          # regenerate tests/*.sh
-just sync-tests-check <feature-id>    # verify scripts are current (CI-style)
-```
+After editing either YAML file, run tests directly:
 
 ## Feature Tests vs Library Unit Tests
 
@@ -155,7 +150,7 @@ For `modes` that include `devcontainer`, `proman-test-run` generates a temporary
 |--------------------|--------|-------|
 | `scenarios.json` | `scenarios.yaml` + `test/environments.yaml` | ❌ Never — regenerated on every `just test-feats` run |
 | `<scenario>/Dockerfile` | `setup` commands and environment `build.dockerfile` layers | ❌ Never |
-| `tests/*.sh` | `checks.yaml` | ❌ Never — regenerate with `just sync-tests` |
+| `tests/*.sh` | `checks.yaml` | ❌ Never — rendered on-the-fly by the test runner |
 
 Each `scenarios.json` entry is a complete `devcontainer.json` object (image/build, feature options, `remoteUser`, etc.). Hand-author **`scenarios.yaml` only** — the JSON is an implementation detail of the test runner.
 
@@ -282,7 +277,7 @@ Use `bash -c '...'` whenever a check needs pipes, subshells, string comparison, 
 
 ## Test Script Generation
 
-`just sync-tests <feature>` generates `test/features/<feature>/tests/<scenario>.sh` from `checks.yaml`. The generated scripts use `dev-container-features-test-lib` (`check` / `reportResults` functions):
+The test runner renders `test/features/<feature>/tests/<scenario>.sh` on-the-fly from `checks.yaml` — no disk copy is kept. The generated scripts use `dev-container-features-test-lib` (`check` / `reportResults` functions):
 
 ```bash
 #!/bin/bash

@@ -15,7 +15,6 @@ composite_sh="${script_dir}/../capture/composite.sh"
 lint_sh="${script_dir}/../lint/sh-check.sh"
 lint_local_vars="${script_dir}/../lint/sh-local-vars.sh"
 format_sh="${script_dir}/../format/shfmt.sh"
-run_unit="${script_dir}/../test/run-unit.sh"
 run_install="${script_dir}/../test/run-install.sh"
 
 steps=()
@@ -122,7 +121,7 @@ for _path in "${_sh_lib[@]}"; do
 done
 
 for _mod in $(printf '%s\n' "${!_modules[@]}" | sort); do
-  add_step "test-lib-mod-${_mod}" bash "$run_unit" --module "$_mod"
+  add_step "test-lib-mod-${_mod}" just test-lib ubuntu-stable --module "$_mod"
 done
 
 if [[ "$_install_any" == true && ${#_install_mods[@]} -eq 0 ]]; then

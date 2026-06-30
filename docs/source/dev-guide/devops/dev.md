@@ -104,8 +104,6 @@ Run `just --list` for the current authoritative task list with descriptions. The
 |-----------------|-----------|----------------|
 | `sync-src` | `sync-src` | `proman-sync` |
 | `sync-src-check` | `sync-src-check` | `proman-sync --check` |
-| `sync-tests` | `sync-tests` | `proman-test-sync-tests` |
-| `sync-tests-check` | `sync-tests-check` | `proman-test-sync-tests --check` |
 | `build-feats` | `build-feats` | `proman-build-feats` |
 | `build-docs` | `build-docs` | Sphinx + `proman-gen-docs-data` |
 | `build-docs-live` | `build-docs-live` | `sphinx-autobuild` |
@@ -121,10 +119,8 @@ Run `just --list` for the current authoritative task list with descriptions. The
 | `format-sh-check` | — | `bash .dev/scripts/format/shfmt.sh --check` |
 | `format-py` | `format-py` | `ruff format` |
 | `format-py-check` | `format-py-check` | `ruff format --check` |
-| `test-lib` | — | `bash .dev/scripts/test/run-unit.sh` |
-| `test-lib-mod` | — | `bash .dev/scripts/test/run-unit.sh --module` |
-| `test-lib-env` | — | `bash .dev/scripts/test/run-in-container.sh` (single env) |
-| `test-lib-envs` | — | `bash .dev/scripts/test/run-in-container.sh` (all envs) |
+| `test-lib` | `test-lib-env` | `proman-test-lib-matrix --env` (single env, Docker) |
+| `test-lib-envs` | `test-lib-envs` | `proman-test-lib-matrix` (all envs, Docker) |
 | `test-py` | `test-py` | `pytest test/proman` |
 | `test-feats` | `test-feats` | `proman-test-run` |
 | `test-feats-macos` | `test-feats` | `proman-test-run --mode macos` |
@@ -153,7 +149,7 @@ JSON Schemas listed in **`.config/proman/docs.yaml`** under `json_schemas_publis
 | `ci/gha-dind.sh` | Docker-in-Docker setup for GHA | `just run-gha-dind` |
 | `fetch/gha.sh` | Poll GHA workflow runs; save job logs under `.local/logs/gha/`; for failed feature-test matrix jobs, also download `feat-log-*` artifacts as `<job-id>.trace.log` | `just fetch-gha` |
 | `work/work.sh` | Format + lint + sync + test in one pass | `just work` |
-| `test/run-unit.sh` | Execute bats unit tests for `lib/`; handles macOS bash ≥4 re-exec | `just test-lib`, `just test-lib-mod` |
+| `test/run-unit.sh` | Execute bats unit tests for `lib/`; handles macOS bash ≥4 re-exec | `proman-test-lib-matrix` (via `just test-lib`) |
 | `test/run-in-container.sh` | Docker exec wrapper (mounts repo, used by container matrix runs) | `proman-test-lib-matrix` |
 | `git_helpers.sh` | Reusable git functions (sourced library) | Other scripts |
 

@@ -69,22 +69,16 @@ just lint-sh-check     # verify no shellcheck issues in the assembled install.ba
 
 ```bash
 just sync-src          # lib/ is copied into each feature's src/*/lib/
-just test-lib-mod <module>   # run unit tests for that module (fast, no Docker)
+just test-lib ubuntu-stable --module <module>   # run unit tests for that module (requires Docker)
 ```
 
-**Editing test assertions:** modify `test/features/<id>/checks.yaml`, then:
-
-```bash
-just sync-tests <id>   # regenerate test/features/<id>/tests/*.sh from checks.yaml
-```
-
-Never edit `test/features/<id>/tests/*.sh` directly — they are overwritten on every sync.
+**Editing test assertions:** modify `test/features/<id>/checks.yaml` — test scripts are rendered on-the-fly by the test runner; no sync step is needed.
 
 ## 4. Run Tests
 
 ```bash
-just test-lib                  # library unit tests — always fast, no Docker needed
-just test-lib-mod <module>     # single module, e.g. just test-lib-mod ospkg
+just test-lib                  # library unit tests — requires Docker
+just test-lib ubuntu-stable --module <module>  # single module, e.g. --module ospkg
 just test-feats <feature>      # feature scenario tests — requires Docker
 just test-py                   # proman Python unit tests
 ```
@@ -118,7 +112,6 @@ just build-docs        # one-shot build to .local/build/docs/
 
 ```bash
 just sync-src-check    # verify src/ is current (CI runs this)
-just sync-tests-check  # verify generated test scripts are current
 just format-check      # check formatting without writing
 just lint              # shellcheck + ruff
 just test-lib          # fast lib tests

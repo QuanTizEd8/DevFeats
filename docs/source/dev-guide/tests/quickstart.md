@@ -33,7 +33,6 @@ test/
     └── test_*.py                ← pytest tests for the build system (proman)
 ```
 
-**Critical:** `test/features/*/tests/*.sh` are auto-generated from `checks.yaml` by `just sync-tests`. Never edit them manually.
 
 ## When to Add Which Test
 
@@ -51,11 +50,10 @@ test/
 ## Running Tests
 
 ```bash
-# Library unit tests (no Docker, fast)
-just test-lib                         # all modules
-just test-lib-mod <module>            # e.g. just test-lib-mod ospkg
-just test-lib-env <env>               # in one container env, e.g. just test-lib-env alpine-current
-just test-lib-envs                    # all container environments (requires Docker)
+# Library unit tests (requires Docker)
+just test-lib                         # all modules in ubuntu-stable
+just test-lib ubuntu-stable --module <module>  # e.g. --module ospkg
+just test-lib-envs                    # all container environments
 
 # Install framework tests (requires synced src/)
 just test-install
@@ -81,14 +79,8 @@ just test [<feature>]
 vim test/features/<feature>/scenarios.yaml
 vim test/features/<feature>/checks.yaml
 
-# 2. Generate test scripts
-just sync-tests <feature>
-
-# 3. Verify generated scripts look right
-cat test/features/<feature>/tests/*.sh
-
-# 4. Run
+# 2. Run
 just test-feats <feature>
 ```
 
-After editing `checks.yaml`, always re-run `just sync-tests <feature>` before running tests.
+Test scripts are rendered on-the-fly from `checks.yaml` — no sync step needed.

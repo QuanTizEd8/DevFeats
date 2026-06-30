@@ -34,7 +34,7 @@ The development environment is a devcontainer based on ubuntu, with following to
 - `shfmt` for formatting scripts; available as `just format`.
 - `devcontainer` CLI for testing features in a devcontainer build environment; see `just test-feats`.
 - `docker` CLI for testing in containers (also used by `devcontainer` CLI under the hood).
-- `bats` (as a submodule under `test/lib/bats/`) for testing library functions; see `just test-lib`, `just test-lib-env`, `just test-lib-envs`, `just test-lib-mod`.
+- `bats` (as a submodule under `test/lib/bats/`) for testing library functions; see `just test-lib`, `just test-lib-envs`.
 
 Man other general tools available as well (e.g. `curl`, `git`, `gh`, `jq`, `yq`, etc.). If you need any additional tools, you can install them using `apt-get` (for system packages), `pixi` (for Python/Conda packages), or by directly downloading and installing the binaries in `/user/local/bin` (for other tools).
 

@@ -57,7 +57,7 @@ jobs:
             -e "HOST_REPO_ROOT=${GITHUB_WORKSPACE}" \
             -e "LIB_ROOT=/repo/dist/lib-test" \
             "${{ fromJSON(inputs.config).ci_image }}" \
-            just test-lib-env "${{ matrix.env.name }}"
+            just test-lib "${{ matrix.env.name }}"
 
   test-lib-macos:
     name: ${{ matrix.os.env }}

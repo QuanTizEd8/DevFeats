@@ -184,7 +184,7 @@ If the verdict is **NOT APPROVED**:
 | Check formatting (no writes) | `just format-sh-check` |
 | Lint shell files | `just lint-sh-check` |
 | Run all unit tests | `just test-lib` |
-| Run unit tests for one module | `just test-lib-mod <name>` |
+| Run unit tests for one module | `just test-lib ubuntu-stable --module <name>` |
 | Test one feature (scenarios + fail cases) | `just test-feats <feature-name>` |
 | Build distribution artifacts | `just build-feats [tag]` |
 

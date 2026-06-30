@@ -26,11 +26,8 @@ just sync-src                  # regenerate src/ from sources
 just format                    # format all shell + Python files in place
 just lint                      # check-only lint — what CI runs
 
-# After editing checks.yaml:
-just sync-tests <feature>      # regenerate test scripts from checks.yaml
-
 # Run tests:
-just test-lib                  # library unit tests (fast, no Docker)
+just test-lib                  # library unit tests (requires Docker)
 just test-feats <feature>      # feature scenario tests (requires Docker)
 
 # Build and preview docs:
