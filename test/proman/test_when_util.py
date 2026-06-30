@@ -37,6 +37,12 @@ def test_serialize_when_flow_one_line() -> None:
     assert "\n" not in out or "{" in out
 
 
+def test_serialize_when_flow_or_list() -> None:
+    """OR-list WhenSpec serializes to a single-line flow array."""
+    out = serialize_when_flow([{"plat.kernel": "linux"}, {"plat.pm": "apt"}])
+    assert out == "[{plat.kernel: linux}, {plat.pm: apt}]"
+
+
 def test_serialize_sysreq_args_yaml_blobs() -> None:
     """Each sysreq spec becomes a $'...'-quoted YAML blob."""
     specs = [{"plat.kernel": "linux"}, {"os.id": "ubuntu"}]
@@ -59,6 +65,17 @@ def test_serialize_value_entries_tab_yaml() -> None:
     out = serialize_value_entries(entries)
     assert "GOTOOLCHAIN=auto\t" in out
     assert "plat.kernel" in out
+    assert "\n" not in out.split("\t", 1)[-1]
+
+
+def test_serialize_value_entries_version_when_is_single_line() -> None:
+    """Nested version operators use inline YAML.
+
+    Verifies split_lines stays one entry per line.
+    """
+    entries = [{"value": "CFLAGS=-std=gnu17", "when": {"feat.version": {"lt": "5.3"}}}]
+    out = serialize_value_entries(entries)
+    assert out == "CFLAGS=-std=gnu17\t{feat.version: {lt: '5.3'}}"
 
 
 def test_serialize_when_or_groups_preserve_keys() -> None:

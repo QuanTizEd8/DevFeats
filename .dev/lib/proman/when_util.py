@@ -40,12 +40,12 @@ def _dump_when_yaml(data: object, *, flow: bool) -> str:
 
 
 def serialize_when(when: object) -> str:
-    """Serialize a ``when`` block to multi-line YAML for bash ``ctx__match_*``."""
+    """Serialize a ``when`` block to multi-line YAML."""
     return _dump_when_yaml(when, flow=False)
 
 
-def serialize_when_flow(when: dict) -> str:
-    """Compact one-line YAML for embedding in PREFIX platform override lines."""
+def serialize_when_flow(when: dict | list) -> str:
+    """Serialize a ``when`` block to single-line YAML."""
     return _dump_when_yaml(when, flow=True)
 
 
@@ -78,7 +78,7 @@ def _serialize_value_when_entries(
             value = entry.get(value_key, "")
             when = entry.get("when")
             if when:
-                yaml_when = serialize_when(when)
+                yaml_when = serialize_when_flow(when)
                 lines.append(f"{value}\t{yaml_when}" if yaml_when else value)
             else:
                 lines.append(str(value))
