@@ -9,6 +9,7 @@ import pytest
 import yaml
 from proman.manifest_util import serialize_manifest
 from proman.metadata import MetadataLoader
+from proman.schema_bundle import clear_validator_cache
 from proman.sync import install_script as install_script_mod
 from proman.sync.install_script import (
     _SPLIT_PRINTF_PERCENT_S_RE,
@@ -74,8 +75,10 @@ def _synthetic_loader(
     )
 
     monkeypatch.setattr("proman.config.git_repo_root", lambda: tmp_path)
+    request.addfinalizer(clear_validator_cache)
     request.addfinalizer(_cfg.clear_cache)
     _cfg.clear_cache()
+    clear_validator_cache()
     return MetadataLoader()
 
 

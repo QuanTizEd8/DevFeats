@@ -8,7 +8,7 @@ import proman.config as cfg
 import pytest
 import yaml
 from proman.metadata import MetadataLoader
-from proman.schema_bundle import get_validator
+from proman.schema_bundle import clear_validator_cache, get_validator
 from proman.when_util import serialize_path_entries, serialize_value_entries
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -45,9 +45,10 @@ def _minimal_feature_metadata(**overrides: object) -> dict:
 
 @pytest.fixture(autouse=True)
 def _reset_config_singleton() -> None:
-    """Ensure isolated tests do not leave a patched config pointing at tmp_path."""
+    """Ensure isolated tests do not leave a patched config or validator cached."""
     yield
     cfg.clear_cache()
+    clear_validator_cache()
 
 
 _MINIMAL_MAIN = """\
