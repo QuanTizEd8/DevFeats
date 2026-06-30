@@ -18,16 +18,16 @@ debian-current:
   image: debian:13
 
 alpine-current:
-  image: alpine:3.21
+  image: alpine:3.24
 
 fedora-current:
-  image: fedora:42
+  image: fedora:44
 
-  image: rockylinux:9
 rockylinux-current:
+  image: rockylinux:10
 
 opensuse-leap-current:
-  image: opensuse/leap:15.6
+  image: opensuse/leap:16.0
 
 archlinux-current:
   image: archlinux:base-20260621.0.546891
@@ -384,20 +384,20 @@ ubuntu-stable+pixi:
 # ── macOS environments ────────────────────────────────────────────────────────
 # image matches ^macos — no Docker container is used, runs on GHA macOS runners.
 #
-# macos-current: Bare macOS Sequoia — closest analog to a minimal Linux base image.
+# macos-current: Bare macOS 26 — closest analog to a minimal Linux base image.
 #   Homebrew is uninstalled via the official uninstaller, and user-level config
 #   files are cleaned, so tests cannot rely on pre-installed state.
 #   clean_path: strips the GHA runner's pre-installed PATH to the macOS system
 #   baseline (/usr/bin:/bin:/usr/sbin:/sbin).
 #   On native macOS, build.dockerfile is a shell bootstrap (see run.py), not Docker.
 #
-# macos-current+brew: macOS Sequoia with Homebrew available — matches the GHA runner's
+# macos-current+brew: macOS 26 with Homebrew available — matches the GHA runner's
 #   default state. Homebrew lives outside the stripped PATH; scenarios and setup
 #   scripts invoke `brew --prefix` and resolve the real binary
 #   (arm64: /opt/homebrew, Intel: /usr/local).
 
 macos-current:
-  image: macos-15
+  image: macos-26
   clean_path: true
   build:
     dockerfile: |
@@ -445,7 +445,7 @@ macos-current:
         "${HOME}/.condarc"
 
 macos-current+brew:
-  image: macos-15
+  image: macos-26
   clean_path: true
   # Homebrew lives outside the stripped PATH; scenarios and setup scripts invoke
   # `brew --prefix` and must resolve the real binary (arm64: /opt/homebrew, Intel: /usr/local).

@@ -626,10 +626,10 @@ def test_compute_unit_macos_matrix(
 ubuntu-latest:
   image: ubuntu-latest
 macos-current:
-  image: macos-15
+  image: macos-26
   clean_path: true
 macos-current+brew:
-  image: macos-15
+  image: macos-26
   clean_path: true
   path_prepend: /opt/homebrew/bin:/usr/local/bin
 debian-latest:
@@ -642,7 +642,7 @@ debian-latest:
     assert result == [
         {
             "env": "macos-current+brew",
-            "runner": "macos-15",
+            "runner": "macos-26",
             "clean_path": True,
             "path_prepend": "/opt/homebrew/bin:/usr/local/bin",
             "integration": True,

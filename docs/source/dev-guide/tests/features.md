@@ -322,7 +322,7 @@ ubuntu-stable:
   image: ubuntu:24.04
 
 alpine-current+bash:
-  image: alpine:3.21
+  image: alpine:3.24
   build:
     dockerfile: apk add --no-cache bash
 ```
@@ -386,13 +386,13 @@ All named test environments are declared in `test/environments.yaml`. The canoni
 | `ubuntu-current` | `ubuntu:26.04` | Ubuntu 26.04 LTS — newer generation in matrix |
 | `debian-stable` | `debian:12` | Debian 12 Bookworm — primary baseline |
 | `debian-current` | `debian:13` | Debian 13 Trixie — newer generation in matrix |
-| `alpine-current` | `alpine:3.21` | Alpine — version tracked in CI |
-| `fedora-current` | `fedora:42` | Fedora — version tracked in CI |
+| `alpine-current` | `alpine:3.24` | Alpine — version tracked in CI |
+| `fedora-current` | `fedora:44` | Fedora — version tracked in CI |
 | `rockylinux-current` | `rockylinux:10` | Rocky Linux — version tracked in CI |
-| `opensuse-leap-current` | `opensuse/leap:15.6` | openSUSE Leap — version tracked in CI |
+| `opensuse-leap-current` | `opensuse/leap:16.0` | openSUSE Leap — version tracked in CI |
 | `archlinux-current` | `archlinux:base-YYYYMMDD.0.XXXXXX` | Arch Linux — pinned dated immutable tag |
-| `macos-current` | `macos-15` | macOS Sequoia, bare (no Homebrew); `image` is GHA runner label |
-| `macos-current+brew` | `macos-15` | macOS Sequoia with Homebrew |
+| `macos-current` | `macos-26` | macOS 26, bare (no Homebrew); `image` is GHA runner label |
+| `macos-current+brew` | `macos-26` | macOS 26 with Homebrew |
 
 **Never use rolling tags** (`ubuntu:latest`, `debian:latest`, etc.) — they silently change their contents and make CI non-reproducible.
 
