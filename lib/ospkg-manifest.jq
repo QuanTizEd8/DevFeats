@@ -14,7 +14,6 @@ def merge_flags(gf; pf):
 
 def repo_content:
   if type == "string" then .
-  elif type == "object" then (.content // empty)
   else empty
   end;
 
@@ -85,7 +84,8 @@ def visit(k; gf):
   end;
 
 # ── Emit items in pipeline phase order ────────────────────────────────────────
-. as $doc |
+# Normalize array shorthand to {packages: [...]} so all phase logic is uniform.
+(if (. | type) == "array" then {packages: .} else . end) as $doc |
 
 # Top-level when: skip entire manifest if it does not match.
 if ($doc | has("when")) and (($doc | item_when_matches) | not) then

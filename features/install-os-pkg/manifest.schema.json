@@ -1,140 +1,156 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OS Package Manifest",
-  "description": "Declarative YAML/JSON manifest for cross-platform OS package installation. Replaces the text-based manifest DSL. Consumed by ospkg__run() in lib/ospkg.bash.\n\nExecution order: prescripts \u2192 PM-block setup (keys, repos, taps, ppas, copr, modules) \u2192 package-manager update \u2192 packages \u2192 PM-block scripts \u2192 scripts \u2192 repo cleanup \u2192 cache clean.\n\nInline keys/repos/scripts on package entries and groups are collected and executed in the same batch order \u2014 structural co-location is for authoring convenience, not execution sequencing.",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "id": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Optional manifest ID for documentation, logging, and debugging purposes."
-    },
-    "description": {
-      "type": "string",
-      "description": "Optional manifest description for documentation, logging, and debugging purposes."
-    },
-    "when": {
-      "$ref": "#/$defs/whenClause",
-      "description": "Top-level condition. If it does not match the active OS context, the entire manifest is skipped."
-    },
-    "packages": {
+  "description": "Declarative YAML/JSON manifest for cross-platform OS package installation. Replaces the text-based manifest DSL. Consumed by ospkg__run() in lib/ospkg.bash.\n\nExecution order: prescripts → PM-block setup (keys, repos, taps, ppas, copr, modules) → package-manager update → packages → PM-block scripts → scripts → repo cleanup → cache clean.\n\nInline keys/repos/scripts on package entries and groups are collected and executed in the same batch order — structural co-location is for authoring convenience, not execution sequencing.",
+  "oneOf": [
+    {
+      "description": "Shorthand: a bare array is treated as a top-level packages list.",
       "type": "array",
-      "description": "Packages to install. Entries can be bare strings (package names), package objects (with PM overrides and conditions), or group objects (shared conditions/flags over multiple packages).",
       "items": {
         "$ref": "#/$defs/packageEntry"
       }
     },
-    "keys": {
-      "type": "array",
-      "description": "Signing keys to fetch before adding repos or installing packages.",
-      "items": {
-        "$ref": "#/$defs/keyEntry"
-      }
-    },
-    "repos": {
-      "type": "array",
-      "description": "Repository definitions to add before package installation (removed after unless keep_repos is set).",
-      "items": {
-        "$ref": "#/$defs/repoEntry"
-      }
-    },
-    "ppas": {
-      "type": "array",
-      "description": "APT PPA identifiers (apt-add-repository). Effective only when the active PM is apt.",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "taps": {
-      "type": "array",
-      "description": "Homebrew taps to add before installing packages. Effective only when the active PM is brew.",
-      "items": {
-        "$ref": "#/$defs/tapEntry"
-      }
-    },
-    "copr": {
-      "type": "array",
-      "description": "DNF COPR repository names (e.g. 'user/repo'). The implementation applies these only when the detected package manager is `dnf` (including microdnf, which is treated as the dnf family). On systems where only `yum` is detected, entries here are ignored.",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "modules": {
-      "type": "array",
-      "description": "DNF module streams to enable (e.g. 'nodejs:18'). The implementation applies these only when the detected package manager is `dnf` (including microdnf). On systems where only `yum` is detected, entries here are ignored.",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "groups": {
-      "type": "array",
-      "description": "Package group names (dnf group install / zypper pattern / pacman group).",
-      "items": {
-        "oneOf": [
-          {
+    {
+      "$ref": "#/$defs/manifestObject"
+    }
+  ],
+  "$defs": {
+    "manifestObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional manifest ID for documentation, logging, and debugging purposes."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional manifest description for documentation, logging, and debugging purposes."
+        },
+        "when": {
+          "$ref": "#/$defs/whenClause",
+          "description": "Top-level condition. If it does not match the active OS context, the entire manifest is skipped."
+        },
+        "packages": {
+          "type": "array",
+          "description": "Packages to install. Entries can be bare strings (package names), package objects (with PM overrides and conditions), or group objects (shared conditions/flags over multiple packages).",
+          "items": {
+            "$ref": "#/$defs/packageEntry"
+          }
+        },
+        "keys": {
+          "type": "array",
+          "description": "Signing keys to fetch before adding repos or installing packages.",
+          "items": {
+            "$ref": "#/$defs/keyEntry"
+          }
+        },
+        "repos": {
+          "type": "array",
+          "description": "Repository definitions to add before package installation (removed after unless keep_repos is set).",
+          "items": {
+            "$ref": "#/$defs/repoEntry"
+          }
+        },
+        "ppas": {
+          "type": "array",
+          "description": "APT PPA identifiers (apt-add-repository). Effective only when the active PM is apt.",
+          "items": {
             "type": "string",
             "minLength": 1
-          },
-          {
-            "type": "object",
-            "required": ["name"],
-            "additionalProperties": false,
-            "properties": {
-              "name": {
+          }
+        },
+        "taps": {
+          "type": "array",
+          "description": "Homebrew taps to add before installing packages. Effective only when the active PM is brew.",
+          "items": {
+            "$ref": "#/$defs/tapEntry"
+          }
+        },
+        "copr": {
+          "type": "array",
+          "description": "DNF COPR repository names (e.g. 'user/repo'). The implementation applies these only when the detected package manager is `dnf` (including microdnf, which is treated as the dnf family). On systems where only `yum` is detected, entries here are ignored.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "modules": {
+          "type": "array",
+          "description": "DNF module streams to enable (e.g. 'nodejs:18'). The implementation applies these only when the detected package manager is `dnf` (including microdnf). On systems where only `yum` is detected, entries here are ignored.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "groups": {
+          "type": "array",
+          "description": "Package group names (dnf group install / zypper pattern / pacman group).",
+          "items": {
+            "oneOf": [
+              {
                 "type": "string",
                 "minLength": 1
               },
-              "when": {
-                "$ref": "#/$defs/whenClause"
+              {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "when": {
+                    "$ref": "#/$defs/whenClause"
+                  }
+                }
               }
-            }
+            ]
           }
-        ]
+        },
+        "casks": {
+          "type": "array",
+          "description": "Homebrew cask names to install. Effective only when the active PM is brew on macOS.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prescripts": {
+          "description": "Shell commands run before any package installation (after keys/repos setup).",
+          "$ref": "#/$defs/scriptBlock"
+        },
+        "scripts": {
+          "description": "Shell commands run after all packages are installed (before repo cleanup and cache clean).",
+          "$ref": "#/$defs/scriptBlock"
+        },
+        "apt": {
+          "$ref": "#/$defs/aptBlock"
+        },
+        "apk": {
+          "$ref": "#/$defs/apkBlock"
+        },
+        "brew": {
+          "$ref": "#/$defs/brewBlock"
+        },
+        "dnf": {
+          "$ref": "#/$defs/dnfBlock"
+        },
+        "yum": {
+          "$ref": "#/$defs/yumBlock"
+        },
+        "pacman": {
+          "$ref": "#/$defs/pacmanBlock"
+        },
+        "zypper": {
+          "$ref": "#/$defs/zypperBlock"
+        }
       }
     },
-    "casks": {
-      "type": "array",
-      "description": "Homebrew cask names to install. Effective only when the active PM is brew on macOS.",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "prescripts": {
-      "description": "Shell commands run before any package installation (after keys/repos setup).",
-      "$ref": "#/$defs/scriptBlock"
-    },
-    "scripts": {
-      "description": "Shell commands run after all packages are installed (before repo cleanup and cache clean).",
-      "$ref": "#/$defs/scriptBlock"
-    },
-    "apt": {
-      "$ref": "#/$defs/aptBlock"
-    },
-    "apk": {
-      "$ref": "#/$defs/apkBlock"
-    },
-    "brew": {
-      "$ref": "#/$defs/brewBlock"
-    },
-    "dnf": {
-      "$ref": "#/$defs/dnfBlock"
-    },
-    "yum": {
-      "$ref": "#/$defs/yumBlock"
-    },
-    "pacman": {
-      "$ref": "#/$defs/pacmanBlock"
-    },
-    "zypper": {
-      "$ref": "#/$defs/zypperBlock"
-    }
-  },
-  "$defs": {
     "conditionValue": {
       "description": "A single value or array of values. Arrays are OR'd: the condition matches if any value matches.",
       "oneOf": [
@@ -243,8 +259,16 @@
         "dest"
       ],
       "anyOf": [
-        { "required": ["url"] },
-        { "required": ["fingerprint"] }
+        {
+          "required": [
+            "url"
+          ]
+        },
+        {
+          "required": [
+            "fingerprint"
+          ]
+        }
       ],
       "additionalProperties": false,
       "properties": {
@@ -421,8 +445,7 @@
         "repos": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/repoEntry"
           },
           "description": "Repository lines written to /etc/apt/sources.list.d/. Format: 'deb [signed-by=/path/to/key.gpg] https://repo.example.com suite component'."
         },
@@ -454,8 +477,7 @@
         "repos": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/repoEntry"
           },
           "description": "Repository lines appended to /etc/apk/repositories. Example: '@community https://dl-cdn.alpinelinux.org/alpine/edge/community'."
         },
@@ -550,8 +572,7 @@
         "repos": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/repoEntry"
           },
           "description": "Repository configuration written to /etc/yum.repos.d/."
         },
@@ -599,8 +620,7 @@
         "repos": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/repoEntry"
           },
           "description": "Repository configuration written to /etc/yum.repos.d/."
         },
@@ -640,8 +660,7 @@
         "repos": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/repoEntry"
           },
           "description": "Repository configuration appended to /etc/pacman.conf. INI-style section format."
         },
@@ -662,6 +681,14 @@
             "$ref": "#/$defs/packageEntry"
           },
           "description": "Packages to install when this PM is active."
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Pacman package groups to install. Example: 'base-devel'."
         }
       }
     },
@@ -673,8 +700,7 @@
         "repos": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/repoEntry"
           },
           "description": "Repositories to add via zypper addrepo."
         },
@@ -695,6 +721,14 @@
             "$ref": "#/$defs/packageEntry"
           },
           "description": "Packages to install when this PM is active."
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Zypper patterns to install via 'zypper install -t pattern'. Example: 'devel_basis'."
         }
       }
     }

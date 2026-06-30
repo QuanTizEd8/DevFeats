@@ -35,6 +35,7 @@ __install_run__() {
     file__cp "$0" "$_LIB_DIR/install.sh"
     file__chmod +x "$_LIB_DIR/install.sh"
     file__cp -r "$_FEAT_DIR/lib" "$_LIB_DIR/"
+    file__cp "$_FEAT_DIR/manifest.schema.json" "$_LIB_DIR/manifest.schema.json"
   else
     logging__skip "Backing library already present at '${_LIB_DIR}'; skipping bootstrap."
   fi
