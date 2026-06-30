@@ -1330,7 +1330,7 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_POSIX}' && source '
   refute_output --partial 'after'
 }
 
-@test "newline in structured message is encoded for FIFO" {
+@test "newline in structured message emits two separate log lines" {
   local _dest="${BATS_TEST_TMPDIR}/newline.log"
   run bash -c "
     ${_SOURCE_LOGGING}
@@ -1344,8 +1344,12 @@ _SOURCE_LOGGING="source '${_FILE_LIB}' && source '${_LOGGING_POSIX}' && source '
     file__session_cleanup
   "
   assert_success
-  run grep -c 'line1 line2' "$_dest"
+  run grep -c 'line1' "$_dest"
   assert_output "1"
+  run grep -c 'line2' "$_dest"
+  assert_output "1"
+  run grep 'line1 line2' "$_dest"
+  assert_failure
 }
 
 # ---------------------------------------------------------------------------

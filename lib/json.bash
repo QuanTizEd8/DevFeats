@@ -312,8 +312,9 @@ json__validate() {
     logging__error "json__validate: sourcemeta/jsonschema could not be installed."
     return 1
   }
-  local _val_rc=0
-  "${_jsonschema_bin}" validate "${_schema}" "${_instance}" >&2 || _val_rc=$?
+  local _val_rc=0 _val_output
+  _val_output=$("${_jsonschema_bin}" validate "${_schema}" "${_instance}" 2>&1) || _val_rc=$?
+  [[ $_val_rc -ne 0 && -n "${_val_output}" ]] && logging__error "${_val_output}"
   [[ $_val_rc -eq 0 ]]
 }
 

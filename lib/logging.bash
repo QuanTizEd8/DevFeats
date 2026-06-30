@@ -215,12 +215,13 @@ _logging__dispatch_mux_line() {
 }
 
 _logging__encode_payload() {
-  # Bash-specific override: replace tab/newline/CR with spaces using parameter
-  # expansion instead of tr pipelines. Avoids spawning subprocesses under set -x,
-  # which would generate extra xtrace records when trace level is active.
+  # Bash-specific override: replace tab/CR with spaces using parameter expansion
+  # instead of tr pipelines. Avoids spawning subprocesses under set -x, which
+  # would generate extra xtrace records when trace level is active.
+  # Newlines are NOT stripped here: _logging__bash_emit splits multi-line
+  # messages into separate DFLOG records so callers can pass multi-line strings.
   local _log_enc_in="${1-}"
   _log_enc_in="${_log_enc_in//$'\t'/ }"
-  _log_enc_in="${_log_enc_in//$'\n'/ }"
   _log_enc_in="${_log_enc_in//$'\r'/ }"
   printf '%s' "$_log_enc_in"
 }
@@ -235,17 +236,26 @@ _logging__bash_structured() {
 }
 
 _logging__bash_emit() {
-  local _min="${1-}" _emoji="${2-}" _msg _formatted
+  local _min="${1-}" _emoji="${2-}" _msg _formatted _subline _is_first
   shift 2
   [[ $# -eq 0 ]] && return 0
   if [[ "${_min}" -ne 0 ]]; then
     _logging__want_structured_at_level "${_min}" || return 0
   fi
   for _msg in "$@"; do
-    _msg="$(_logging__format_msg "$_msg")"
-    _formatted="${_emoji} ${_msg}"
-    _formatted="$(_logging__encode_fifo_payload "$_formatted")"
-    _logging__mux_forward_dflog S "$_min" "$_formatted"
+    _is_first=true
+    while IFS= read -r _subline || [[ -n "${_subline}" ]]; do
+      if [[ "${_is_first}" == true ]]; then
+        _subline="$(_logging__format_msg "${_subline}")"
+        _formatted="${_emoji} ${_subline}"
+        _is_first=false
+      else
+        _subline="$(_logging__sanitize_line "${_subline}")"
+        _formatted="   ${_subline}"
+      fi
+      _formatted="$(_logging__encode_fifo_payload "${_formatted}")"
+      _logging__mux_forward_dflog S "$_min" "$_formatted"
+    done <<< "${_msg}"
   done
   return 0
 }
